@@ -8,9 +8,10 @@ import { PRIMITIVES } from './effects.ts'
 import type { Engine, UndefinedSink } from './engine.ts'
 import { textOf } from './engine.ts'
 import { OntologyIndex, isA } from './ontology.ts'
-import { ROLES, RuleLibrary, compareSpec, rolesOf, specOf } from './rules.ts'
+import { ROLES, RuleLibrary, cmp, compareSpec, rolesOf, specOf } from './rules.ts'
 import { checkExpectations, replay } from './sandbox.ts'
 import type {
+  Cmp,
   Cond,
   Effect,
   GameEvent,
@@ -702,9 +703,28 @@ export function patternsOverlap(a: Rule, b: Rule, onto?: Ontology): boolean {
     if (x.id && y.id && x.id !== y.id) return false
     if (x.tags?.some((t) => y.notTags?.includes(t)) || y.tags?.some((t) => x.notTags?.includes(t))) return false
     if (x.status?.some((t) => y.notStatus?.includes(t)) || y.status?.some((t) => x.notStatus?.includes(t))) return false
+    for (const [k, c] of Object.entries(x.props ?? {})) if (y.props && k in y.props && !cmpsMeet(c, y.props[k])) return false
     if (onto && !satisfiable(x, y, onto)) return false
   }
   return true
+}
+
+/** Can some value pass both property comparisons? (`planks: 2` and `planks: 3` cannot; nor `< 4` and `>= 4`.) */
+function cmpsMeet(a: Cmp, b: Cmp): boolean {
+  const eqOf = (c: Cmp) => (typeof c !== 'object' || c === null ? c : c.eq)
+  const ea = eqOf(a)
+  const eb = eqOf(b)
+  if (ea !== undefined) return cmp(ea, b) && cmp(ea, a)
+  if (eb !== undefined) return cmp(eb, a)
+  const lo = (c: Cmp) => (typeof c === 'object' && c ? [c.gt ?? c.gte ?? -Infinity, c.gt !== undefined] as const : ([-Infinity, false] as const))
+  const hi = (c: Cmp) => (typeof c === 'object' && c ? [c.lt ?? c.lte ?? Infinity, c.lt !== undefined] as const : ([Infinity, false] as const))
+  const [la, xa] = lo(a)
+  const [lb, xb] = lo(b)
+  const [ha, ya] = hi(a)
+  const [hb, yb] = hi(b)
+  const [l, lx] = la > lb ? [la, xa] : lb > la ? [lb, xb] : [la, xa || xb]
+  const [h, hx] = ha < hb ? [ha, ya] : hb < ha ? [hb, yb] : [ha, ya || yb]
+  return l < h || (l === h && !lx && !hx)
 }
 
 function satisfiable(x: Selector, y: Selector, onto: Ontology): boolean {
