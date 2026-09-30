@@ -23,8 +23,8 @@ on yourself). 20,313 combinations:
 
 A form or fixture type has a purpose when a rule that answers it singles it out by what it is
 for (a tag or type other than a material: "anything flammable burns in a fire" does not
-count), or, for a form, when it adds power to attacks or a rule singles it out as the thing
-acted on (a log to split).
+count), or, for a form, when it adds power to attacks or a rule singles it out in any other
+role: as the thing acted on (a log to split) or as something to carry (ink to write with).
 
 What that looks like in play:
 
@@ -64,10 +64,10 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 
 | # | Milestone | Depends on | Undefined after | Without a purpose after |
 |---|---|---|---|---|
-| M0 | Coverage report | — | 70.4% | 61 forms, 18 fixture types |
-| M1 | Hands, surfaces and storage | — | 60.6% | 61 forms, 12 fixture types |
-| M2 | Woodcutting | M1 (stacks) | 60.6% | 59 forms, 12 fixture types |
-| M3 | Building | M2 (planks) | | |
+| M0 | Coverage report | — | 14,306 / 20,313 (70.4%) | 61 forms, 18 of 38 fixture types |
+| M1 | Hands, surfaces and storage | — | 12,312 / 20,313 (60.6%) | 61 forms, 12 of 38 fixture types |
+| M2 | Woodcutting | M1 (stacks) | 12,310 / 20,313 (60.6%) | 59 forms, 12 of 38 fixture types |
+| M3 | Building | M2 (planks) | 13,108 / 21,201 (61.8%) | 53 forms, 12 of 42 fixture types |
 | M4 | Farming | M1 (stacks, facing indicator) | | |
 | M5 | Gathering and fishing | M1 | | |
 | M6 | Cooking | M4 (wheat), M5 (fish) | | |
@@ -76,7 +76,9 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 | M9 | Every item has a purpose | all of the above | | |
 
 M1–M4 are the core. M5–M9 can follow in any order. §1 stays the M0 baseline; each milestone
-fills in its row from `npm run coverage` when it lands.
+fills in its row from `npm run coverage` when it lands. New fixture types join the sweep as
+targets, so the space grows with them: M3 adds four kinds of unfinished work, and most
+forms have nothing to do with them, so the share undefined rises while nothing was lost.
 
 ## 4. Milestones
 
@@ -172,7 +174,9 @@ Player flow, for a chest:
 | `build/finish-crate` | interact · `tool:hammer` on a frame, `planks` = 2 | frame becomes a crate |
 | `build/finish-chest` | interact · `tool:hammer` on a frame, `planks` = 4 | frame becomes a chest |
 | `build/unfinished` | interact · `tool:hammer` on a frame, `planks` = 3 | "One more plank." |
-| `build/dismantle` | interact · `tool:axe` on a wooden container | contents spill; spawn planks; fixture removed |
+| `build/dismantle` | interact · `tool:axe` on an unlocked crate (1 plank back) or chest (2) | contents spill; spawn planks; fixture removed |
+| `build/frame-full` | put · plank on a frame of 4 | "It is ready for a hammer." |
+| `build/unframe` | interact · `tool:axe` on a frame | its planks come back; frame removed (nothing put into unfinished work is lost; stakes, sign posts and rings, with a pickaxe, come apart the same way) |
 
 Other buildables use the same pattern:
 
@@ -181,10 +185,10 @@ Other buildables use the same pattern:
 | Fence | stick on stick makes stakes; hammer |
 | Campfire (unlit) | stone on stone makes a ring; add two sticks |
 | Bridge | plank put on shallow water; the tile becomes `bridge` |
-| Sign | plank on a stick; hammer; write on it with quill and ink |
+| Sign | plank on a stick; hammer; write on it with a quill while carrying ink. Until free-text input exists (D9) it writes one fixed line, "Made by hand." |
 
-Content: `fixture/build/frame`, `/stakes`, `/ring` and their art. A hammer is added to the
-Hearthvale kit and to farm and home loot; today it spawns only in smithies.
+Content: `fixture/build/frame`, `/stakes`, `/post`, `/ring` and their art. The smith hammer
+(`tool:hammer`) is added to the Hearthvale kit, beside the axe, and to farm and home loot.
 
 Needs: E5.
 
@@ -381,6 +385,7 @@ rule.
 | E7 | Property comparisons between roles (`actor.coins` ≥ `target.value`) | M8 |
 | E8 | Primitive `advanceTime` | M8 |
 | E9 | `interact` on loose items reaches the topmost one the held item answers, then the ground beneath (the log under a stick, the stump under the logs) | M2 |
+| E10 | `spawn.count` accepts an `Amount`, so a frame returns as many planks as went in | M3 |
 | C1 | Items draw above the surface fixture they lie on; today they draw beneath every fixture | M1 |
 | C2 | The pack and the container panel show stacks | M1 |
 | C3 | An outline on the tile the player faces | M1, M4 |
