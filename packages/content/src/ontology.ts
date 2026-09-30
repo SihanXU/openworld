@@ -97,6 +97,8 @@ export const STATUSES: StatusDef[] = [
   { id: 'oiled', name: { en: 'oiled', zh: '油污' }, duration: 900, overlay: 'oil' },
   { id: 'lit', name: { en: 'lit', zh: '点燃' }, overlay: 'flame' },
   { id: 'open', name: { en: 'open', zh: '打开' } },
+  { id: 'notched', name: { en: 'notched', zh: '砍了一斧' }, duration: 100 },
+  { id: 'regrowing', name: { en: 'regrowing', zh: '正在长回' }, duration: 28800 },
 ]
 
 export const ELEMENTS = ['fire', 'water', 'ice', 'lightning', 'wind', 'earth']

@@ -320,12 +320,6 @@ const USING: Rule[] = [
     do: [{ op: 'destroy', of: 'instrument' }, vfx('fire_burst'), log('{instrument} burns away.', '{instrument}烧成了灰。')],
   }),
   base({
-    id: 'core/chop',
-    on: 'interaction',
-    when: { verb: ['interact'], target: { kind: 'tile', tags: ['tree', 'flammable'] }, instrument: { tags: ['tool:axe'] } },
-    do: [{ op: 'setTerrain', of: 'target', terrain: 'stump' }, { op: 'spawn', type: 'item/material/log', at: 'tileOf:target' }, vfx('leaves'), log('Timber!', '树倒了！')],
-  }),
-  base({
     id: 'core/mine',
     on: 'interaction',
     when: { verb: ['interact'], target: { tags: ['mineable'] }, instrument: { tags: ['tool:pickaxe'] } },
@@ -355,6 +349,91 @@ const USING: Rule[] = [
     on: 'interaction',
     when: { verb: ['interact'], target: { kind: 'tile', tags: ['diggable'] }, instrument: { tags: ['tool:hoe'] } },
     do: [{ op: 'setTerrain', of: 'target', terrain: 'farmland' }, vfx('dust')],
+  }),
+]
+
+// ------------------------------------------------------------------ woodcutting
+
+const AXE: Selector = { tags: ['tool:axe'] }
+const LIVING_TREE: Selector = { kind: 'tile', tags: ['tree', 'flammable'] }
+const STUMP: Selector = { kind: 'tile', type: 'tile/stump' }
+
+const WOOD: Rule[] = [
+  base({
+    id: 'wood/notch',
+    doc: 'The first swing of an axe notches a tree.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { ...LIVING_TREE, notStatus: ['notched'] }, instrument: AXE },
+    do: [{ op: 'addStatus', of: 'target', status: 'notched' }, vfx('leaves'), log('The axe bites into {target}.', '斧头砍进了{target}。')],
+  }),
+  base({
+    id: 'wood/fell',
+    doc: 'The second swing fells it: a stump that grows back, two logs and a stick.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { ...LIVING_TREE, status: ['notched'] }, instrument: AXE },
+    do: [
+      { op: 'removeStatus', of: 'target', status: 'notched' },
+      { op: 'setTerrain', of: 'target', terrain: 'stump' },
+      { op: 'addStatus', of: 'target', status: 'regrowing' },
+      { op: 'spawn', type: 'item/material/log', at: 'tileOf:target', count: 2 },
+      { op: 'spawn', type: 'item/material/stick', at: 'tileOf:target' },
+      vfx('leaves'),
+      log('Timber!', '树倒了！'),
+    ],
+  }),
+  base({
+    id: 'wood/regrow',
+    doc: 'A stump left alone grows back into a tree.',
+    on: 'expire',
+    when: { status: ['regrowing'], target: STUMP },
+    guard: { count: { role: 'target', in: 'tile', match: { kind: 'actor' }, cmp: { eq: 0 } } },
+    do: [{ op: 'setTerrain', of: 'target', terrain: 'tree' }, vfx('leaves')],
+  }),
+  base({
+    id: 'wood/regrow-later',
+    doc: 'Someone is standing on the stump: try again in an hour rather than grow around them.',
+    on: 'expire',
+    priority: 1,
+    when: { status: ['regrowing'], target: STUMP },
+    guard: { count: { role: 'target', in: 'tile', match: { kind: 'actor' }, cmp: { gte: 1 } } },
+    do: [{ op: 'addStatus', of: 'target', status: 'regrowing', duration: 600 }],
+  }),
+  base({
+    id: 'wood/split',
+    doc: 'An axe splits a log into two planks.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { type: 'item/material/log' }, instrument: AXE },
+    do: [
+      log('You split the log into planks.', '你把木头劈成了木板。'),
+      { op: 'transform', of: 'target', into: 'item/material/plank' },
+      { op: 'spawn', type: 'item/material/plank', at: 'tileOf:target' },
+      vfx('dust'),
+    ],
+  }),
+  base({
+    id: 'wood/uproot',
+    doc: 'A shovel digs a stump out for good.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: STUMP, instrument: { tags: ['tool:shovel'] } },
+    do: [
+      { op: 'removeStatus', of: 'target', status: 'regrowing' },
+      { op: 'setTerrain', of: 'target', terrain: 'dirt' },
+      { op: 'spawn', type: 'item/material/stick', at: 'tileOf:target' },
+      vfx('dust'),
+      log('You dig out the stump.', '你把树桩挖了出来。'),
+    ],
+  }),
+  base({
+    id: 'wood/char',
+    doc: 'An axe breaks a charred tree down to coal and ash.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { kind: 'tile', type: 'tile/charred_tree' }, instrument: AXE },
+    do: [
+      { op: 'setTerrain', of: 'target', terrain: 'ash' },
+      { op: 'spawn', type: 'item/material/coal', at: 'tileOf:target' },
+      vfx('dust'),
+      log('The charred wood crumbles to coal.', '焦木碎成了煤炭。'),
+    ],
   }),
 ]
 
@@ -659,4 +738,4 @@ const DEFEAT: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...TAKING, ...HANDS, ...USING, ...HITS, ...STATUS, ...ENTER, ...DEFEAT]
+export const BASE_RULES: Rule[] = [...TAKING, ...HANDS, ...USING, ...WOOD, ...HITS, ...STATUS, ...ENTER, ...DEFEAT]

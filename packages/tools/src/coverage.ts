@@ -9,7 +9,7 @@
 
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { RuleLibrary, SANDBOX_MAP, buildSandbox, textOf, type Ontology, type Ref, type Rule, type Scenario, type Selector, type Verb } from '@lsw/engine'
+import { OntologyIndex, RuleLibrary, SANDBOX_MAP, buildSandbox, matchSelector, textOf, type Ontology, type Ref, type Rule, type Scenario, type Selector, type Verb } from '@lsw/engine'
 import { BASE_RULES, FORMS, MATERIALS, TERRAINS, buildOntology } from '@lsw/content'
 
 // ------------------------------------------------------------------ definitions
@@ -168,7 +168,7 @@ export function sweep(onto: Ontology = buildOntology(), rules: Rule[] = BASE_RUL
       }
     })
   }
-  return summarize(cells, rules)
+  return summarize(cells, onto, rules)
 }
 
 const zero = (): Tally => ({ specific: 0, generic: 0, undefined: 0 })
@@ -179,7 +179,7 @@ function purposeful(sel: Selector | undefined): boolean {
   return !!sel.type || !!sel.id || (sel.tags ?? []).some((t) => !MATERIAL_TAGS.has(t))
 }
 
-function summarize(cells: Cell[], rules: Rule[]): Coverage {
+function summarize(cells: Cell[], onto: Ontology, rules: Rule[]): Coverage {
   const byId = new Map(rules.map((r) => [r.id, r]))
   const totals = zero()
   const byRule: Record<string, number> = {}
@@ -199,6 +199,14 @@ function summarize(cells: Cell[], rules: Rule[]): Coverage {
   }
   // A held item's power is added to every attack (Engine.attack): weapons have a purpose.
   for (const f of FORMS) if (typeof f.props?.power === 'number') usedForms.add(f.id)
+  // So does a form an interaction rule singles out as the thing acted on (a log to split).
+  // The sweep holds forms rather than facing them, so this one is read from the rules.
+  const index = new OntologyIndex(onto)
+  for (const f of FORMS) {
+    const r = index.resolve(f.id)
+    const view = { ref: { e: f.id }, kind: r.kind, type: f.id, tags: new Set(r.tags), statuses: new Set<string>(), props: r.props, isPlayer: false }
+    if (rules.some((rule) => rule.on === 'interaction' && purposeful(rule.when.target) && matchSelector(rule.when.target, view))) usedForms.add(f.id)
+  }
   const fixtures = [...new Set(cells.map((c) => c.target).filter((t) => t.startsWith('fixture/')).map((t) => t.split('#')[0]))]
   return {
     cells,

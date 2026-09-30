@@ -1,12 +1,11 @@
 {
  "totals": {
-  "specific": 728,
+  "specific": 730,
   "generic": 7273,
-  "undefined": 12312
+  "undefined": 12310
  },
  "byRule": {
   "core/burn-in-fire": 186,
-  "core/chop": 2,
   "core/cook": 24,
   "core/drink": 6,
   "core/drink-water": 4,
@@ -44,7 +43,10 @@
   "core/take-nothing": 35,
   "core/talk": 1,
   "core/till": 5,
-  "core/unlock": 1
+  "core/unlock": 1,
+  "wood/char": 1,
+  "wood/notch": 2,
+  "wood/uproot": 1
  },
  "byHand": {
   "(empty hand)": {
@@ -63,9 +65,9 @@
    "undefined": 123
   },
   "item/weapon/blade/axe": {
-   "specific": 2,
+   "specific": 3,
    "generic": 60,
-   "undefined": 121
+   "undefined": 120
   },
   "item/weapon/blade/scimitar": {
    "specific": 0,
@@ -153,9 +155,9 @@
    "undefined": 120
   },
   "item/tool/shovel": {
-   "specific": 0,
+   "specific": 1,
    "generic": 60,
-   "undefined": 123
+   "undefined": 122
   },
   "item/tool/hoe": {
    "specific": 5,
@@ -1010,14 +1012,14 @@
    "undefined": 104
   },
   "tile:charred_tree": {
-   "specific": 0,
+   "specific": 1,
    "generic": 118,
-   "undefined": 104
+   "undefined": 103
   },
   "tile:stump": {
-   "specific": 8,
+   "specific": 9,
    "generic": 114,
-   "undefined": 100
+   "undefined": 99
   },
   "tile:gravel": {
    "specific": 0,
@@ -1073,7 +1075,6 @@
   "item/clothing/hat",
   "item/clothing/boots",
   "item/clothing/gloves",
-  "item/tool/shovel",
   "item/tool/sickle",
   "item/tool/fishing_rod",
   "item/tool/smith_hammer",
@@ -1084,7 +1085,6 @@
   "item/vessel/cup",
   "item/vessel/plate",
   "item/vessel/pot",
-  "item/material/log",
   "item/material/plank",
   "item/material/stick",
   "item/material/stone",
