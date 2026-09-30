@@ -99,6 +99,9 @@ export const STATUSES: StatusDef[] = [
   { id: 'open', name: { en: 'open', zh: '打开' } },
   { id: 'notched', name: { en: 'notched', zh: '砍了一斧' }, duration: 100 },
   { id: 'regrowing', name: { en: 'regrowing', zh: '正在长回' }, duration: 28800 },
+  { id: 'watered', name: { en: 'watered', zh: '浇过水' }, duration: 1200, overlay: 'wet' },
+  { id: 'fertilized', name: { en: 'fertilized', zh: '施过肥' } },
+  { id: 'rooting', name: { en: 'rooting', zh: '正在扎根' }, duration: 28800 },
 ]
 
 export const ELEMENTS = ['fire', 'water', 'ice', 'lightning', 'wind', 'earth']
@@ -188,6 +191,17 @@ const actorTypes: TypeDef[] = [
   P('actor/creature/crab', 'giant crab', '巨蟹', { tags: ['shelled', 'watery'], sprite: 'creature:crab', props: { hp: 20, maxHp: 20, atk: 4, def: 3, speed: 7 } }),
 ]
 
+/** A crop: sprout → young → ripe, siblings under one plant that names its yield and seed. */
+function crop(id: string, en: string, zh: string, yieldType: string, young: [string, string], ripe: [string, string], ripeTags: string[] = [], tags: string[] = []): TypeDef[] {
+  const base = `fixture/crop/${id}`
+  return [
+    F(base, en, zh, tags, { props: { yieldType, seedType: `item/seed/${id}`, ...(tags.includes('perennial') && { regrowType: `${base}/young` }) } }),
+    F(`${base}/sprout`, `${en} sprout`, `${zh}嫩芽`, ['growing'], { sprite: `fixture:${id}_sprout`, props: { nextType: `${base}/young` } }),
+    F(`${base}/young`, young[0], young[1], ['growing'], { sprite: `fixture:${id}_young`, props: { nextType: `${base}/ripe` } }),
+    F(`${base}/ripe`, ripe[0], ripe[1], ['ripe', ...ripeTags], { sprite: `fixture:${id}_ripe` }),
+  ]
+}
+
 const fixtureTypes: TypeDef[] = [
   F('fixture', 'thing', '物件', []),
   F('fixture/container', 'container', '容器', ['container'], { solid: true }),
@@ -235,6 +249,12 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/nature/mushroom_ring', 'mushroom ring', '蘑菇圈', ['plant', 'fungus'], { solid: false }),
   F('fixture/nature/beehive', 'beehive', '蜂巢', ['wooden', 'flammable', 'bees']),
   F('fixture/fence', 'fence', '栅栏', ['wooden', 'flammable'], { solid: true }),
+  F('fixture/crop', 'crop', '作物', ['crop', 'plant'], { solid: false, props: { yield: 2 } }),
+  ...crop('wheat', 'wheat', '麦子', 'item/material/wheat', ['young wheat', '青麦'], ['ripe wheat', '熟麦'], ['dry', 'flammable']),
+  ...crop('herb', 'herb', '草药', 'item/material/herb', ['herb plant', '草药苗'], ['ripe herbs', '成熟的草药']),
+  ...crop('berry', 'berry bush', '浆果丛', 'item/food/berries', ['berry bush', '浆果丛'], ['berry bush in fruit', '结果的浆果丛'], [], ['perennial']),
+  F('fixture/crop/oak', 'oak', '橡树', [], { props: { seedType: 'item/seed/acorn' } }),
+  F('fixture/crop/oak/sapling', 'oak sapling', '橡树苗', ['sapling'], { sprite: 'fixture:oak_sapling' }),
   F('fixture/build', 'unfinished work', '半成品', ['unfinished'], { solid: true }),
   F('fixture/build/frame', 'wooden frame', '木框架', ['wooden', 'flammable']),
   F('fixture/build/stakes', 'stakes', '木桩', ['wooden', 'flammable']),

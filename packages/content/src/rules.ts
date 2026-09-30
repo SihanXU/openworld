@@ -2,7 +2,7 @@
 // elemental reactions, environment physics and combat all live here, in one engine.
 // Anything these rules do not cover is an *undefined interaction* for the Mod port.
 
-import type { Amount, Effect, RoleRef, Rule, Selector } from '@lsw/engine'
+import type { Amount, Cond, Effect, RoleRef, Rule, Selector } from '@lsw/engine'
 
 const base = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
 const say = (who: 'actor' | 'target', en: string, zh: string): Effect => ({ op: 'say', who, text: { en, zh } })
@@ -382,6 +382,15 @@ const WOOD: Rule[] = [
     ],
   }),
   base({
+    id: 'wood/acorn',
+    doc: 'A felled tree sometimes drops an acorn.',
+    on: 'interaction',
+    compose: true,
+    when: { verb: ['interact'], target: { ...LIVING_TREE, status: ['notched'] }, instrument: AXE },
+    guard: { chance: 0.25 },
+    do: [{ op: 'spawn', type: 'item/seed/acorn', at: 'tileOf:target' }],
+  }),
+  base({
     id: 'wood/regrow',
     doc: 'A stump left alone grows back into a tree.',
     on: 'expire',
@@ -610,6 +619,145 @@ const BUILD: Rule[] = [
   }),
 ]
 
+// ------------------------------------------------------------------ farming
+//
+// A crop is a fixture that names its next stage, yield, seed and yield count as props, so
+// one set of rules grows and harvests every plant. Watering starts a timer (`watered`); when
+// it runs out the crop moves on a stage. Ash fertilizes: one more of the crop at harvest.
+
+const CROP: Selector = { kind: 'fixture', tags: ['crop'] }
+const GROWING: Selector = { kind: 'fixture', tags: ['crop', 'growing'] }
+const RIPE_ANNUAL: Selector = { kind: 'fixture', tags: ['crop', 'ripe'], notTags: ['perennial'] }
+const RIPE_PERENNIAL: Selector = { kind: 'fixture', tags: ['crop', 'ripe', 'perennial'] }
+const NOTHING_GROWS: Cond = { count: { role: 'target', in: 'tile', match: { tags: ['crop'] }, cmp: { eq: 0 } } }
+const NOBODY_THERE: Cond = { count: { role: 'target', in: 'tile', match: { kind: 'actor' }, cmp: { eq: 0 } } }
+const SICKLE: Selector = { tags: ['tool:sickle'] }
+
+const harvested = (count: Amount): Effect[] => [
+  { op: 'spawn', type: '@prop:target.yieldType', at: 'tileOf:target', count },
+  { op: 'spawn', type: '@prop:target.seedType', at: 'tileOf:target', count: 2 },
+]
+const picked: Effect[] = [
+  { op: 'spawn', type: '@prop:target.yieldType', at: 'actor', into: 'hand' },
+  { op: 'spawn', type: '@prop:target.seedType', at: 'tileOf:target' },
+]
+/** A perennial goes back to its young stage, its fertilizer spent. */
+const regrow: Effect[] = [
+  { op: 'transform', of: 'target', into: '@prop:regrowType' },
+  { op: 'removeStatus', of: 'target', status: 'fertilized' },
+  { op: 'setProp', of: 'target', key: 'yield', value: 2 },
+]
+
+const FARM: Rule[] = [
+  base({
+    id: 'farm/sow',
+    doc: 'A seed put on bare farmland takes root as its crop.',
+    on: 'interaction',
+    when: { verb: PUT_OR_USE, target: { kind: 'tile', type: 'tile/farmland' }, instrument: { tags: ['plantable'] } },
+    guard: NOTHING_GROWS,
+    do: [
+      log('You sow {instrument}.', '你播下了{instrument}。'),
+      { op: 'moveTo', of: 'instrument', to: 'target' },
+      { op: 'transform', of: 'instrument', into: '@prop:cropType' },
+      vfx('dust'),
+    ],
+  }),
+  base({
+    id: 'farm/plant-acorn',
+    doc: 'An acorn takes root in any diggable ground and becomes a tree in two game days.',
+    on: 'interaction',
+    when: { verb: PUT_OR_USE, target: { kind: 'tile', tags: ['diggable'] }, instrument: { tags: ['acorn'] } },
+    guard: NOTHING_GROWS,
+    do: [
+      log('You plant an acorn.', '你种下了一颗橡子。'),
+      { op: 'moveTo', of: 'instrument', to: 'target' },
+      { op: 'transform', of: 'instrument', into: '@prop:cropType' },
+      { op: 'addStatus', of: 'instrument', status: 'rooting' },
+      vfx('dust'),
+    ],
+  }),
+  base({
+    id: 'farm/water',
+    on: 'interaction',
+    when: { verb: PUT_OR_USE, target: { ...GROWING, notStatus: ['watered'] }, instrument: { tags: ['liquid:water'] } },
+    do: [
+      { op: 'addStatus', of: 'target', status: 'watered' },
+      { op: 'transform', of: 'instrument', into: '@prop:emptyType' },
+      vfx('splash'),
+      log('You water {target}.', '你给{target}浇了水。'),
+    ],
+  }),
+  base({
+    id: 'farm/grow',
+    doc: 'Two game hours after watering, a crop grows one stage.',
+    on: 'expire',
+    when: { status: ['watered'], target: GROWING },
+    do: [{ op: 'transform', of: 'target', into: '@prop:nextType' }, vfx('leaves')],
+  }),
+  base({
+    id: 'farm/fertilize',
+    doc: 'Ash on a growing crop: one more of the crop at harvest.',
+    on: 'interaction',
+    when: { verb: PUT_OR_USE, target: { ...GROWING, notStatus: ['fertilized'] }, instrument: { type: 'item/material/ash' } },
+    do: [
+      { op: 'destroy', of: 'instrument' },
+      { op: 'addStatus', of: 'target', status: 'fertilized' },
+      { op: 'addProp', of: 'target', key: 'yield', delta: 1 },
+      vfx('sparkle'),
+      log('You work ash into the soil.', '你把灰烬翻进了土里。'),
+    ],
+  }),
+  base({
+    id: 'farm/harvest',
+    on: 'interaction',
+    when: { verb: ['interact'], target: RIPE_ANNUAL, instrument: SICKLE },
+    do: [...harvested({ prop: 'yield', of: 'target' }), log('You harvest {target}.', '你收割了{target}。'), { op: 'destroy', of: 'target' }, vfx('leaves', 'tileOf:target')],
+  }),
+  base({
+    id: 'farm/harvest-perennial',
+    on: 'interaction',
+    when: { verb: ['interact'], target: RIPE_PERENNIAL, instrument: SICKLE },
+    do: [...harvested({ prop: 'yield', of: 'target' }), log('You harvest {target}.', '你收割了{target}。'), ...regrow, vfx('leaves')],
+  }),
+  base({
+    id: 'farm/pick',
+    doc: 'Picking by hand: one of the crop and one seed.',
+    on: 'interaction',
+    when: { verb: ['take'], target: RIPE_ANNUAL },
+    do: [...picked, log('You pick {target}.', '你摘下了{target}。'), { op: 'destroy', of: 'target' }, vfx('leaves', 'tileOf:target')],
+  }),
+  base({
+    id: 'farm/pick-perennial',
+    on: 'interaction',
+    when: { verb: ['take'], target: RIPE_PERENNIAL },
+    do: [...picked, log('You pick {target}.', '你摘下了{target}。'), ...regrow, vfx('leaves')],
+  }),
+  base({
+    id: 'farm/dig-up',
+    doc: 'A shovel lifts a plant and gives back its seed.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: CROP, instrument: { tags: ['tool:shovel'] } },
+    do: [log('You dig up {target}.', '你挖出了{target}。'), { op: 'transform', of: 'target', into: '@prop:seedType' }, vfx('dust')],
+  }),
+  base({
+    id: 'farm/root',
+    doc: 'A rooted sapling becomes a tree.',
+    on: 'expire',
+    when: { status: ['rooting'], target: { type: 'fixture/crop/oak/sapling' } },
+    guard: NOBODY_THERE,
+    do: [{ op: 'setTerrain', of: 'tileOf:target', terrain: 'tree' }, { op: 'destroy', of: 'target' }, vfx('leaves', 'tileOf:target')],
+  }),
+  base({
+    id: 'farm/root-later',
+    doc: 'Someone is standing on it: try again in an hour.',
+    on: 'expire',
+    priority: 1,
+    when: { status: ['rooting'], target: { type: 'fixture/crop/oak/sapling' } },
+    guard: { count: { role: 'target', in: 'tile', match: { kind: 'actor' }, cmp: { gte: 1 } } },
+    do: [{ op: 'addStatus', of: 'target', status: 'rooting', duration: 600 }],
+  }),
+]
+
 // ------------------------------------------------------------------ combat & elements
 
 const HITS: Rule[] = [
@@ -828,6 +976,13 @@ const STATUS: Rule[] = [
     do: [{ op: 'spread', from: 'target', status: 'burning', radius: 1, chance: 0.1, filter: { tags: ['flammable'], notStatus: ['wet', 'burning', 'frozen'] } }],
   }),
   base({
+    id: 'fire/spread-dry-things',
+    doc: 'Dry things (hay, ripe wheat) burn as fast as dry grass.',
+    on: 'tick',
+    when: { status: ['burning'], target: { kind: 'fixture', tags: ['flammable', 'dry'] } },
+    do: [{ op: 'spread', from: 'target', status: 'burning', radius: 1, chance: 0.3, filter: { tags: ['flammable'], notStatus: ['wet', 'burning', 'frozen'] } }],
+  }),
+  base({
     id: 'fire/scorch-actor',
     on: 'tick',
     when: { status: ['burning'], target: { kind: 'actor' } },
@@ -911,4 +1066,4 @@ const DEFEAT: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...TAKING, ...HANDS, ...USING, ...WOOD, ...BUILD, ...HITS, ...STATUS, ...ENTER, ...DEFEAT]
+export const BASE_RULES: Rule[] = [...TAKING, ...HANDS, ...USING, ...WOOD, ...BUILD, ...FARM, ...HITS, ...STATUS, ...ENTER, ...DEFEAT]
