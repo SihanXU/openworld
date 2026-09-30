@@ -201,7 +201,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (m.dir) game?.engine.movePlayer(m.dir) // a quick tap still moves one tile
         break
       case 'act':
-        game?.engine.playerVerb(m.verb, m.self)
+        game?.engine.playerVerb(m.verb, m.self, m.item)
         break
       case 'attack':
         game?.engine.playerAttack()

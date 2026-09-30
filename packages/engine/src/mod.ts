@@ -8,9 +8,10 @@ import { PRIMITIVES } from './effects.ts'
 import type { Engine, UndefinedSink } from './engine.ts'
 import { textOf } from './engine.ts'
 import { OntologyIndex, isA } from './ontology.ts'
-import { ROLES, RuleLibrary, compareSpec, rolesOf, specOf } from './rules.ts'
+import { ROLES, RuleLibrary, cmp, compareSpec, rolesOf, specOf } from './rules.ts'
 import { checkExpectations, replay } from './sandbox.ts'
 import type {
+  Cmp,
   Cond,
   Effect,
   GameEvent,
@@ -165,6 +166,7 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
       '{prop:{role, key, cmp}}',
       '{chance:p}',
       '{hour:{from,to}}',
+      "{count:{role, in: contents|tile, match?: Selector, cmp: {eq|gt|gte|lt|lte: number | {prop, of: role}}}} — how many entities are in a role's contents (or on its tile besides itself); e.g. full when {gte:{prop:'capacity', of:'target'}}",
     ],
     events: {
       interaction: 'a verb: take (pick up) / put (place the held item on the target) / interact (use; with the held item as instrument). Roles actor, target, instrument(held item).',
@@ -551,6 +553,20 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       if (c.has.status && !(c.has.status in onto.statuses)) errors.push(`${where}: unknown status "${c.has.status}"`)
       return
     }
+    if ('count' in c) {
+      const k = c.count
+      if (!ROLES.includes(k.role)) errors.push(`${where}.count.role invalid`)
+      if (k.in !== 'contents' && k.in !== 'tile') errors.push(`${where}.count.in must be contents|tile`)
+      checkSel(k.match, `${where}.count.match`)
+      const bounds = Object.entries(k.cmp ?? {})
+      if (!bounds.length) errors.push(`${where}.count.cmp needs a bound`)
+      for (const [op, o] of bounds) {
+        if (!['eq', 'gt', 'gte', 'lt', 'lte'].includes(op)) errors.push(`${where}.count.cmp.${op}: unknown bound`)
+        else if (typeof o !== 'number' && !(o && typeof o === 'object' && typeof o.prop === 'string' && ROLES.includes(o.of)))
+          errors.push(`${where}.count.cmp.${op}: must be a number or {prop, of: role}`)
+      }
+      return
+    }
     if ('prop' in c || 'chance' in c || 'hour' in c) return
     errors.push(`${where}: unknown condition`)
   }
@@ -562,7 +578,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     const any = e as Record<string, unknown>
     for (const k of ['of', 'at', 'to', 'who', 'from', 'away'] as const) if (k in any) roleRef(any[k], `${where}.${k}`)
     if ((e.op === 'spawn' || e.op === 'transform') && !(e.op === 'spawn' ? e.type : e.into)) errors.push(`${where}: type required`)
-    if (e.op === 'spawn' && !(e.type in onto.types)) errors.push(`${where}: unknown type "${e.type}"`)
+    if (e.op === 'spawn' && !/^@prop:(actor|target|instrument)\.\w+$/.test(e.type) && !(e.type in onto.types)) errors.push(`${where}: unknown type "${e.type}"`)
     if (e.op === 'transform' && !e.into.startsWith('@prop:') && !(e.into in onto.types)) errors.push(`${where}: unknown type "${e.into}"`)
     if ((e.op === 'addStatus' || e.op === 'removeStatus' || e.op === 'spread') && e.status && !(e.status in onto.statuses))
       errors.push(`${where}: unknown status "${e.status}"`)
@@ -687,17 +703,28 @@ export function patternsOverlap(a: Rule, b: Rule, onto?: Ontology): boolean {
     if (x.id && y.id && x.id !== y.id) return false
     if (x.tags?.some((t) => y.notTags?.includes(t)) || y.tags?.some((t) => x.notTags?.includes(t))) return false
     if (x.status?.some((t) => y.notStatus?.includes(t)) || y.status?.some((t) => x.notStatus?.includes(t))) return false
-    // the same property required to equal two different values
-    for (const [k, cx] of Object.entries(x.props ?? {})) {
-      const cy = y.props?.[k]
-      if (cy === undefined) continue
-      const vx = typeof cx === 'object' ? cx.eq : cx
-      const vy = typeof cy === 'object' ? cy.eq : cy
-      if (vx !== undefined && vy !== undefined && vx !== vy) return false
-    }
+    for (const [k, c] of Object.entries(x.props ?? {})) if (y.props && k in y.props && !cmpsMeet(c, y.props[k])) return false
     if (onto && !satisfiable(x, y, onto)) return false
   }
   return true
+}
+
+/** Can some value pass both property comparisons? (`planks: 2` and `planks: 3` cannot; nor `< 4` and `>= 4`.) */
+function cmpsMeet(a: Cmp, b: Cmp): boolean {
+  const eqOf = (c: Cmp) => (typeof c !== 'object' || c === null ? c : c.eq)
+  const ea = eqOf(a)
+  const eb = eqOf(b)
+  if (ea !== undefined) return cmp(ea, b) && cmp(ea, a)
+  if (eb !== undefined) return cmp(eb, a)
+  const lo = (c: Cmp) => (typeof c === 'object' && c ? [c.gt ?? c.gte ?? -Infinity, c.gt !== undefined] as const : ([-Infinity, false] as const))
+  const hi = (c: Cmp) => (typeof c === 'object' && c ? [c.lt ?? c.lte ?? Infinity, c.lt !== undefined] as const : ([Infinity, false] as const))
+  const [la, xa] = lo(a)
+  const [lb, xb] = lo(b)
+  const [ha, ya] = hi(a)
+  const [hb, yb] = hi(b)
+  const [l, lx] = la > lb ? [la, xa] : lb > la ? [lb, xb] : [la, xa || xb]
+  const [h, hx] = ha < hb ? [ha, ya] : hb < ha ? [hb, yb] : [ha, ya || yb]
+  return l < h || (l === h && !lx && !hx)
 }
 
 function satisfiable(x: Selector, y: Selector, onto: Ontology): boolean {

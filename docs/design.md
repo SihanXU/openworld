@@ -403,6 +403,8 @@ stays as the scale track (`?world=saenvar`); the default world is hand-crafted.
 
 ## 13. After Phase 1
 
+Near-term gameplay work — interactions and simple loops — is planned in [roadmap.md](roadmap.md).
+
 - Modder service: port BardOS's pipeline (comprehend → query → design → review) to
   author **rules** against this ModSpec; add a rule-library search tool so it reuses and
   generalizes instead of duplicating.

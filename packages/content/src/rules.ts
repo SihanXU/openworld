@@ -2,7 +2,7 @@
 // elemental reactions, environment physics and combat all live here, in one engine.
 // Anything these rules do not cover is an *undefined interaction* for the Mod port.
 
-import type { Effect, RoleRef, Rule, Selector } from '@lsw/engine'
+import type { Amount, Cond, Effect, RoleRef, Rule, Selector } from '@lsw/engine'
 
 const base = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
 const say = (who: 'actor' | 'target', en: string, zh: string): Effect => ({ op: 'say', who, text: { en, zh } })
@@ -69,6 +69,52 @@ const TAKING: Rule[] = [
     priority: 2,
     when: { verb: ['put'], target: { kind: 'fixture', tags: ['container'], notStatus: ['open'] } },
     do: [say('actor', 'It is closed.', '它是关着的。')],
+  }),
+  base({
+    id: 'core/take-fixed',
+    doc: 'Fixtures stay where they are (containers answer for themselves).',
+    on: 'interaction',
+    when: { verb: ['take'], target: { kind: 'fixture' } },
+    do: [say('actor', 'That stays where it is.', '这个拿不走。')],
+  }),
+  base({
+    id: 'core/put-on-surface',
+    doc: 'Set the held item on a table, counter, stall, bench, altar or anvil (it lies on that tile; take it back from there).',
+    on: 'interaction',
+    priority: 1,
+    when: { verb: ['put'], target: { kind: 'fixture', tags: ['surface'] } },
+    do: [{ op: 'moveTo', of: 'instrument', to: 'tileOf:target' }, log('You set {instrument} on {target}.', '你把{instrument}放在了{target}上。')],
+  }),
+  base({
+    id: 'core/put-in-water',
+    doc: 'Water refuses what is put in it, so nothing is lost; filling a vessel claims the case first.',
+    on: 'interaction',
+    when: { verb: ['put'], target: { kind: 'tile', tags: ['water'] } },
+    do: [say('actor', 'It would sink.', '会沉下去的。')],
+  }),
+  base({
+    id: 'core/put-in-lava',
+    doc: 'Lava burns up anything flammable put in it.',
+    on: 'interaction',
+    when: { verb: ['put'], target: { kind: 'tile', tags: ['molten'] }, instrument: { tags: ['flammable'] } },
+    do: [{ op: 'destroy', of: 'instrument' }, vfx('fire_burst'), log('{instrument} burns up in the lava.', '{instrument}在熔岩里烧成了灰。')],
+  }),
+  base({
+    id: 'core/put-blocked',
+    doc: 'Solid ground (walls, trees, rock, deep water, lava) takes nothing: the last word on putting there.',
+    on: 'interaction',
+    priority: -1,
+    when: { verb: ['put'], target: { kind: 'tile', tags: ['solid'] } },
+    do: [say('actor', 'There is no room there.', '那里放不下。')],
+  }),
+  base({
+    id: 'core/store-full',
+    doc: 'A container at its capacity refuses more.',
+    on: 'interaction',
+    priority: 2,
+    when: { verb: ['put'], target: { kind: 'fixture', tags: ['container'], status: ['open'] } },
+    guard: { count: { role: 'target', in: 'contents', cmp: { gte: { prop: 'capacity', of: 'target' } } } },
+    do: [say('actor', 'It is full.', '已经装满了。')],
   }),
   base({
     id: 'core/give',
@@ -274,12 +320,6 @@ const USING: Rule[] = [
     do: [{ op: 'destroy', of: 'instrument' }, vfx('fire_burst'), log('{instrument} burns away.', '{instrument}烧成了灰。')],
   }),
   base({
-    id: 'core/chop',
-    on: 'interaction',
-    when: { verb: ['interact'], target: { kind: 'tile', tags: ['tree', 'flammable'] }, instrument: { tags: ['tool:axe'] } },
-    do: [{ op: 'setTerrain', of: 'target', terrain: 'stump' }, { op: 'spawn', type: 'item/material/log', at: 'tileOf:target' }, vfx('leaves'), log('Timber!', '树倒了！')],
-  }),
-  base({
     id: 'core/mine',
     on: 'interaction',
     when: { verb: ['interact'], target: { tags: ['mineable'] }, instrument: { tags: ['tool:pickaxe'] } },
@@ -298,10 +338,423 @@ const USING: Rule[] = [
     do: [{ op: 'removeTag', of: 'target', tag: 'locked' }, { op: 'open', of: 'target' }, vfx('sparkle'), log('Click. It opens.', '咔哒一声，开了。')],
   }),
   base({
+    id: 'core/lock',
+    doc: 'A key locks a closed container again.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { kind: 'fixture', tags: ['container'], notTags: ['locked'], notStatus: ['open'] }, instrument: { tags: ['key'] } },
+    do: [{ op: 'addTag', of: 'target', tag: 'locked' }, vfx('sparkle'), log('Click. It is locked.', '咔哒一声，锁上了。')],
+  }),
+  base({
     id: 'core/till',
     on: 'interaction',
     when: { verb: ['interact'], target: { kind: 'tile', tags: ['diggable'] }, instrument: { tags: ['tool:hoe'] } },
     do: [{ op: 'setTerrain', of: 'target', terrain: 'farmland' }, vfx('dust')],
+  }),
+]
+
+// ------------------------------------------------------------------ woodcutting
+
+const AXE: Selector = { tags: ['tool:axe'] }
+const LIVING_TREE: Selector = { kind: 'tile', tags: ['tree', 'flammable'] }
+const STUMP: Selector = { kind: 'tile', type: 'tile/stump' }
+
+const WOOD: Rule[] = [
+  base({
+    id: 'wood/notch',
+    doc: 'The first swing of an axe notches a tree.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { ...LIVING_TREE, notStatus: ['notched'] }, instrument: AXE },
+    do: [{ op: 'addStatus', of: 'target', status: 'notched' }, vfx('leaves'), log('The axe bites into {target}.', '斧头砍进了{target}。')],
+  }),
+  base({
+    id: 'wood/fell',
+    doc: 'The second swing fells it: a stump that grows back, two logs and a stick.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { ...LIVING_TREE, status: ['notched'] }, instrument: AXE },
+    do: [
+      { op: 'removeStatus', of: 'target', status: 'notched' },
+      { op: 'setTerrain', of: 'target', terrain: 'stump' },
+      { op: 'addStatus', of: 'target', status: 'regrowing' },
+      { op: 'spawn', type: 'item/material/log', at: 'tileOf:target', count: 2 },
+      { op: 'spawn', type: 'item/material/stick', at: 'tileOf:target' },
+      vfx('leaves'),
+      log('Timber!', '树倒了！'),
+    ],
+  }),
+  base({
+    id: 'wood/acorn',
+    doc: 'A felled tree sometimes drops an acorn.',
+    on: 'interaction',
+    compose: true,
+    when: { verb: ['interact'], target: { ...LIVING_TREE, status: ['notched'] }, instrument: AXE },
+    guard: { chance: 0.25 },
+    do: [{ op: 'spawn', type: 'item/seed/acorn', at: 'tileOf:target' }],
+  }),
+  base({
+    id: 'wood/regrow',
+    doc: 'A stump left alone grows back into a tree.',
+    on: 'expire',
+    when: { status: ['regrowing'], target: STUMP },
+    guard: { count: { role: 'target', in: 'tile', match: { kind: 'actor' }, cmp: { eq: 0 } } },
+    do: [{ op: 'setTerrain', of: 'target', terrain: 'tree' }, vfx('leaves')],
+  }),
+  base({
+    id: 'wood/regrow-later',
+    doc: 'Someone is standing on the stump: try again in an hour rather than grow around them.',
+    on: 'expire',
+    priority: 1,
+    when: { status: ['regrowing'], target: STUMP },
+    guard: { count: { role: 'target', in: 'tile', match: { kind: 'actor' }, cmp: { gte: 1 } } },
+    do: [{ op: 'addStatus', of: 'target', status: 'regrowing', duration: 600 }],
+  }),
+  base({
+    id: 'wood/split',
+    doc: 'An axe splits a log into two planks.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { type: 'item/material/log' }, instrument: AXE },
+    do: [
+      log('You split the log into planks.', '你把木头劈成了木板。'),
+      { op: 'transform', of: 'target', into: 'item/material/plank' },
+      { op: 'spawn', type: 'item/material/plank', at: 'tileOf:target' },
+      vfx('dust'),
+    ],
+  }),
+  base({
+    id: 'wood/uproot',
+    doc: 'A shovel digs a stump out for good.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: STUMP, instrument: { tags: ['tool:shovel'] } },
+    do: [
+      { op: 'removeStatus', of: 'target', status: 'regrowing' },
+      { op: 'setTerrain', of: 'target', terrain: 'dirt' },
+      { op: 'spawn', type: 'item/material/stick', at: 'tileOf:target' },
+      vfx('dust'),
+      log('You dig out the stump.', '你把树桩挖了出来。'),
+    ],
+  }),
+  base({
+    id: 'wood/char',
+    doc: 'An axe breaks a charred tree down to coal and ash.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { kind: 'tile', type: 'tile/charred_tree' }, instrument: AXE },
+    do: [
+      { op: 'setTerrain', of: 'target', terrain: 'ash' },
+      { op: 'spawn', type: 'item/material/coal', at: 'tileOf:target' },
+      vfx('dust'),
+      log('The charred wood crumbles to coal.', '焦木碎成了煤炭。'),
+    ],
+  }),
+]
+
+// ------------------------------------------------------------------ building
+//
+// Things are built where they will stand: one material put on another starts a piece of
+// unfinished work that counts what goes in, and a hammer finishes it. An axe (a pickaxe for
+// stone) takes unfinished work apart again, so nothing put into it is lost.
+
+const HAMMER: Selector = { tags: ['tool:hammer'] }
+const PLANK: Selector = { type: 'item/material/plank' }
+const STICK: Selector = { type: 'item/material/stick' }
+const STONE: Selector = { type: 'item/material/stone' }
+const FRAME = 'fixture/build/frame'
+const RING = 'fixture/build/ring'
+
+/** Put `held` on a loose `on` item: it becomes `into`, and the held one goes into it. */
+const start = (id: string, held: Selector, on: string, into: string, en: string, zh: string, props: Record<string, number> = {}): Rule =>
+  base({
+    id,
+    on: 'interaction',
+    when: { verb: ['put'], target: { kind: 'item', type: on }, instrument: held },
+    do: [
+      { op: 'destroy', of: 'instrument' },
+      { op: 'transform', of: 'target', into },
+      ...Object.entries(props).map(([key, value]): Effect => ({ op: 'setProp', of: 'target', key, value })),
+      vfx('dust'),
+      log(en, zh),
+    ],
+  })
+
+/** A hammer on `from` (with these props) turns it into `into`. */
+const finish = (id: string, from: string, into: string, en: string, zh: string, props?: Record<string, number>, extra: Effect[] = []): Rule =>
+  base({
+    id,
+    on: 'interaction',
+    when: { verb: ['interact'], target: { type: from, ...(props && { props }) }, instrument: HAMMER },
+    do: [{ op: 'transform', of: 'target', into }, ...extra, vfx('dust'), log(en, zh)],
+  })
+
+/** A tool takes unfinished work apart into what went into it. */
+const undo = (id: string, from: string, tool: Selector, back: [string, Amount][]): Rule =>
+  base({
+    id,
+    doc: 'Nothing put into unfinished work is lost: it comes apart into its materials.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { type: from }, instrument: tool },
+    do: [
+      ...back.map(([type, count]): Effect => ({ op: 'spawn', type, at: 'tileOf:target', count })),
+      { op: 'destroy', of: 'target' },
+      vfx('dust'),
+      log('{target} comes apart.', '{target}被拆开了。'),
+    ],
+  })
+
+const BUILD: Rule[] = [
+  // a chest (or a crate) from a frame of planks
+  start('build/start-frame', PLANK, 'item/material/plank', FRAME, 'Two planks make a frame.', '两块木板搭成了框架。', { planks: 2 }),
+  base({
+    id: 'build/add-plank',
+    on: 'interaction',
+    when: { verb: ['put'], target: { type: FRAME, props: { planks: { lt: 4 } } }, instrument: PLANK },
+    do: [{ op: 'destroy', of: 'instrument' }, { op: 'addProp', of: 'target', key: 'planks', delta: 1 }, log('A frame of {target.planks} planks.', '框架上有{target.planks}块木板了。')],
+  }),
+  base({
+    id: 'build/frame-full',
+    on: 'interaction',
+    when: { verb: ['put'], target: { type: FRAME, props: { planks: { gte: 4 } } }, instrument: PLANK },
+    do: [say('actor', 'It is ready for a hammer.', '可以用锤子敲了。')],
+  }),
+  ...(
+    [
+      [2, 'A frame of 2 planks. A hammer makes a crate; two more make a chest.', '两块木板的框架。用锤子能做成板条箱；再加两块能做成箱子。'],
+      [3, 'A frame of 3 planks. One more makes a chest.', '三块木板的框架。再加一块就能做成箱子。'],
+      [4, 'A frame of 4 planks. A hammer makes a chest.', '四块木板的框架。用锤子能做成箱子。'],
+    ] as const
+  ).map(([n, en, zh]) =>
+    base({
+      id: `build/read-frame-${n}`,
+      on: 'interaction',
+      when: { verb: ['interact'], target: { type: FRAME, props: { planks: n } }, instrument: EMPTY_HAND },
+      do: [say('actor', en, zh)],
+    }),
+  ),
+  finish('build/finish-crate', FRAME, 'fixture/container/crate', 'You nail together a crate.', '你钉好了一个板条箱。', { planks: 2 }),
+  finish('build/finish-chest', FRAME, 'fixture/container/chest', 'You nail together a chest.', '你钉好了一个箱子。', { planks: 4 }),
+  base({
+    id: 'build/unfinished',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { type: FRAME, props: { planks: 3 } }, instrument: HAMMER },
+    do: [say('actor', 'One more plank.', '还差一块木板。')],
+  }),
+  ...(
+    [
+      ['fixture/container/crate', 1],
+      ['fixture/container/chest', 2],
+    ] as const
+  ).map(([type, planks]) =>
+    base({
+      id: `build/dismantle-${type.split('/').pop()}`,
+      doc: 'An axe breaks up an unlocked crate or chest: its contents spill and half its planks come back.',
+      on: 'interaction',
+      when: { verb: ['interact'], target: { type, notTags: ['locked'] }, instrument: AXE },
+      do: [
+        { op: 'dropContents', of: 'target' },
+        { op: 'spawn', type: 'item/material/plank', at: 'tileOf:target', count: planks },
+        { op: 'destroy', of: 'target' },
+        vfx('dust'),
+        log('You break up {target}.', '你拆掉了{target}。'),
+      ],
+    }),
+  ),
+  undo('build/unframe', FRAME, AXE, [['item/material/plank', { prop: 'planks', of: 'target' }]]),
+
+  // a fence from stakes
+  start('build/stakes', STICK, 'item/material/stick', 'fixture/build/stakes', 'Two sticks make stakes.', '两根树枝立成了木桩。'),
+  finish('build/fence', 'fixture/build/stakes', 'fixture/fence', 'You nail up a fence.', '你钉好了一段栅栏。'),
+  undo('build/unstake', 'fixture/build/stakes', AXE, [['item/material/stick', 2]]),
+
+  // a campfire from a ring of stones and two sticks
+  start('build/ring', STONE, 'item/material/stone', RING, 'Two stones make a fire ring.', '两块石头围成了火圈。', { sticks: 0 }),
+  base({
+    id: 'build/ring-stick',
+    on: 'interaction',
+    when: { verb: ['put'], target: { type: RING, props: { sticks: 0 } }, instrument: STICK },
+    do: [{ op: 'destroy', of: 'instrument' }, { op: 'setProp', of: 'target', key: 'sticks', value: 1 }, log('One more stick.', '再加一根树枝。')],
+  }),
+  base({
+    id: 'build/campfire',
+    on: 'interaction',
+    when: { verb: ['put'], target: { type: RING, props: { sticks: 1 } }, instrument: STICK },
+    do: [{ op: 'destroy', of: 'instrument' }, { op: 'transform', of: 'target', into: 'fixture/light/campfire' }, vfx('dust'), log('A campfire, ready to light.', '篝火搭好了，可以点了。')],
+  }),
+  undo('build/unring', RING, { tags: ['tool:pickaxe'] }, [
+    ['item/material/stone', 2],
+    ['item/material/stick', { prop: 'sticks', of: 'target' }],
+  ]),
+
+  // a sign from a plank on a stick, written with a quill while carrying ink
+  start('build/post', PLANK, 'item/material/stick', 'fixture/build/post', 'A plank on a stick: a sign post.', '木板架在树枝上，成了牌子立柱。'),
+  finish('build/sign', 'fixture/build/post', 'fixture/sign', 'You nail up a blank sign.', '你钉好了一块空白的告示牌。', undefined, [{ op: 'addTag', of: 'target', tag: 'blank' }]),
+  undo('build/unpost', 'fixture/build/post', AXE, [
+    ['item/material/plank', 1],
+    ['item/material/stick', 1],
+  ]),
+  base({
+    id: 'build/read-blank',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { type: 'fixture/sign', tags: ['blank'] }, instrument: EMPTY_HAND },
+    do: [say('actor', 'It is blank.', '上面什么也没写。')],
+  }),
+  base({
+    id: 'build/write-sign',
+    doc: 'A quill writes on a blank sign while you carry ink. Until free-text input exists, it writes one fixed line.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { type: 'fixture/sign', tags: ['blank'] }, instrument: { tags: ['writing'] } },
+    guard: { count: { role: 'actor', in: 'contents', match: { type: 'item/misc/ink' }, cmp: { gte: 1 } } },
+    do: [{ op: 'removeTag', of: 'target', tag: 'blank' }, { op: 'addTag', of: 'target', tag: 'handmade' }, log('You write on the sign.', '你在告示牌上写了字。')],
+  }),
+  base({
+    id: 'build/read-handmade',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { type: 'fixture/sign', tags: ['handmade'] }, instrument: EMPTY_HAND },
+    do: [say('actor', 'Made by hand.', '亲手所制。')],
+  }),
+
+  // a bridge, one plank at a time
+  base({
+    id: 'build/bridge',
+    doc: 'A plank put on shallow water becomes a stretch of bridge.',
+    on: 'interaction',
+    when: { verb: ['put'], target: { kind: 'tile', type: 'tile/water' }, instrument: PLANK },
+    do: [{ op: 'destroy', of: 'instrument' }, { op: 'setTerrain', of: 'target', terrain: 'bridge' }, vfx('splash'), log('You lay a plank across the water.', '你在水上铺了一块木板。')],
+  }),
+]
+
+// ------------------------------------------------------------------ farming
+//
+// A crop is a fixture that names its next stage, yield, seed and yield count as props, so
+// one set of rules grows and harvests every plant. Watering starts a timer (`watered`); when
+// it runs out the crop moves on a stage. Ash fertilizes: one more of the crop at harvest.
+
+const CROP: Selector = { kind: 'fixture', tags: ['crop'] }
+const GROWING: Selector = { kind: 'fixture', tags: ['crop', 'growing'] }
+const RIPE_ANNUAL: Selector = { kind: 'fixture', tags: ['crop', 'ripe'], notTags: ['perennial'] }
+const RIPE_PERENNIAL: Selector = { kind: 'fixture', tags: ['crop', 'ripe', 'perennial'] }
+const NOTHING_GROWS: Cond = { count: { role: 'target', in: 'tile', match: { tags: ['crop'] }, cmp: { eq: 0 } } }
+const NOBODY_THERE: Cond = { count: { role: 'target', in: 'tile', match: { kind: 'actor' }, cmp: { eq: 0 } } }
+const SICKLE: Selector = { tags: ['tool:sickle'] }
+
+const harvested = (count: Amount): Effect[] => [
+  { op: 'spawn', type: '@prop:target.yieldType', at: 'tileOf:target', count },
+  { op: 'spawn', type: '@prop:target.seedType', at: 'tileOf:target', count: 2 },
+]
+const picked: Effect[] = [
+  { op: 'spawn', type: '@prop:target.yieldType', at: 'actor', into: 'hand' },
+  { op: 'spawn', type: '@prop:target.seedType', at: 'tileOf:target' },
+]
+/** A perennial goes back to its young stage, its fertilizer spent. */
+const regrow: Effect[] = [
+  { op: 'transform', of: 'target', into: '@prop:regrowType' },
+  { op: 'removeStatus', of: 'target', status: 'fertilized' },
+  { op: 'setProp', of: 'target', key: 'yield', value: 2 },
+]
+
+const FARM: Rule[] = [
+  base({
+    id: 'farm/sow',
+    doc: 'A seed put on bare farmland takes root as its crop.',
+    on: 'interaction',
+    when: { verb: PUT_OR_USE, target: { kind: 'tile', type: 'tile/farmland' }, instrument: { tags: ['plantable'] } },
+    guard: NOTHING_GROWS,
+    do: [
+      log('You sow {instrument}.', '你播下了{instrument}。'),
+      { op: 'moveTo', of: 'instrument', to: 'target' },
+      { op: 'transform', of: 'instrument', into: '@prop:cropType' },
+      vfx('dust'),
+    ],
+  }),
+  base({
+    id: 'farm/plant-acorn',
+    doc: 'An acorn takes root in any diggable ground and becomes a tree in two game days.',
+    on: 'interaction',
+    when: { verb: PUT_OR_USE, target: { kind: 'tile', tags: ['diggable'] }, instrument: { tags: ['acorn'] } },
+    guard: NOTHING_GROWS,
+    do: [
+      log('You plant an acorn.', '你种下了一颗橡子。'),
+      { op: 'moveTo', of: 'instrument', to: 'target' },
+      { op: 'transform', of: 'instrument', into: '@prop:cropType' },
+      { op: 'addStatus', of: 'instrument', status: 'rooting' },
+      vfx('dust'),
+    ],
+  }),
+  base({
+    id: 'farm/water',
+    on: 'interaction',
+    when: { verb: PUT_OR_USE, target: { ...GROWING, notStatus: ['watered'] }, instrument: { tags: ['liquid:water'] } },
+    do: [
+      { op: 'addStatus', of: 'target', status: 'watered' },
+      { op: 'transform', of: 'instrument', into: '@prop:emptyType' },
+      vfx('splash'),
+      log('You water {target}.', '你给{target}浇了水。'),
+    ],
+  }),
+  base({
+    id: 'farm/grow',
+    doc: 'Two game hours after watering, a crop grows one stage.',
+    on: 'expire',
+    when: { status: ['watered'], target: GROWING },
+    do: [{ op: 'transform', of: 'target', into: '@prop:nextType' }, vfx('leaves')],
+  }),
+  base({
+    id: 'farm/fertilize',
+    doc: 'Ash on a growing crop: one more of the crop at harvest.',
+    on: 'interaction',
+    when: { verb: PUT_OR_USE, target: { ...GROWING, notStatus: ['fertilized'] }, instrument: { type: 'item/material/ash' } },
+    do: [
+      { op: 'destroy', of: 'instrument' },
+      { op: 'addStatus', of: 'target', status: 'fertilized' },
+      { op: 'addProp', of: 'target', key: 'yield', delta: 1 },
+      vfx('sparkle'),
+      log('You work ash into the soil.', '你把灰烬翻进了土里。'),
+    ],
+  }),
+  base({
+    id: 'farm/harvest',
+    on: 'interaction',
+    when: { verb: ['interact'], target: RIPE_ANNUAL, instrument: SICKLE },
+    do: [...harvested({ prop: 'yield', of: 'target' }), log('You harvest {target}.', '你收割了{target}。'), { op: 'destroy', of: 'target' }, vfx('leaves', 'tileOf:target')],
+  }),
+  base({
+    id: 'farm/harvest-perennial',
+    on: 'interaction',
+    when: { verb: ['interact'], target: RIPE_PERENNIAL, instrument: SICKLE },
+    do: [...harvested({ prop: 'yield', of: 'target' }), log('You harvest {target}.', '你收割了{target}。'), ...regrow, vfx('leaves')],
+  }),
+  base({
+    id: 'farm/pick',
+    doc: 'Picking by hand: one of the crop and one seed.',
+    on: 'interaction',
+    when: { verb: ['take'], target: RIPE_ANNUAL },
+    do: [...picked, log('You pick {target}.', '你摘下了{target}。'), { op: 'destroy', of: 'target' }, vfx('leaves', 'tileOf:target')],
+  }),
+  base({
+    id: 'farm/pick-perennial',
+    on: 'interaction',
+    when: { verb: ['take'], target: RIPE_PERENNIAL },
+    do: [...picked, log('You pick {target}.', '你摘下了{target}。'), ...regrow, vfx('leaves')],
+  }),
+  base({
+    id: 'farm/dig-up',
+    doc: 'A shovel lifts a plant and gives back its seed.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: CROP, instrument: { tags: ['tool:shovel'] } },
+    do: [log('You dig up {target}.', '你挖出了{target}。'), { op: 'transform', of: 'target', into: '@prop:seedType' }, vfx('dust')],
+  }),
+  base({
+    id: 'farm/root',
+    doc: 'A rooted sapling becomes a tree.',
+    on: 'expire',
+    when: { status: ['rooting'], target: { type: 'fixture/crop/oak/sapling' } },
+    guard: NOBODY_THERE,
+    do: [{ op: 'setTerrain', of: 'tileOf:target', terrain: 'tree' }, { op: 'destroy', of: 'target' }, vfx('leaves', 'tileOf:target')],
+  }),
+  base({
+    id: 'farm/root-later',
+    doc: 'Someone is standing on it: try again in an hour.',
+    on: 'expire',
+    priority: 1,
+    when: { status: ['rooting'], target: { type: 'fixture/crop/oak/sapling' } },
+    guard: { count: { role: 'target', in: 'tile', match: { kind: 'actor' }, cmp: { gte: 1 } } },
+    do: [{ op: 'addStatus', of: 'target', status: 'rooting', duration: 600 }],
   }),
 ]
 
@@ -523,6 +976,13 @@ const STATUS: Rule[] = [
     do: [{ op: 'spread', from: 'target', status: 'burning', radius: 1, chance: 0.1, filter: { tags: ['flammable'], notStatus: ['wet', 'burning', 'frozen'] } }],
   }),
   base({
+    id: 'fire/spread-dry-things',
+    doc: 'Dry things (hay, ripe wheat) burn as fast as dry grass.',
+    on: 'tick',
+    when: { status: ['burning'], target: { kind: 'fixture', tags: ['flammable', 'dry'] } },
+    do: [{ op: 'spread', from: 'target', status: 'burning', radius: 1, chance: 0.3, filter: { tags: ['flammable'], notStatus: ['wet', 'burning', 'frozen'] } }],
+  }),
+  base({
     id: 'fire/scorch-actor',
     on: 'tick',
     when: { status: ['burning'], target: { kind: 'actor' } },
@@ -606,4 +1066,4 @@ const DEFEAT: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...TAKING, ...HANDS, ...USING, ...HITS, ...STATUS, ...ENTER, ...DEFEAT]
+export const BASE_RULES: Rule[] = [...TAKING, ...HANDS, ...USING, ...WOOD, ...BUILD, ...FARM, ...HITS, ...STATUS, ...ENTER, ...DEFEAT]

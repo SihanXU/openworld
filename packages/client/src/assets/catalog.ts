@@ -421,12 +421,37 @@ export const CATALOG: Catalog = {
     'fixture:beehive': { base: t(ELEM, 12, 0) },
     'fixture:fence': { base: t(HOUSE, 11, 7) },
     'fixture:dummy': { base: t(ELEM, 15, 0) },
+    // Crops (farming). The pack has no crop sheet: sprouts are ground details, young plants are
+    // small nature tufts/bushes, ripe wheat is the camp tileset's golden sheaf, ripe berries the
+    // fruiting bush, the oak sapling the bare twig tree.
+    'fixture:crop': { base: t(CAMP, 13, 1) },
+    'fixture:wheat': { base: t(CAMP, 13, 0) },
+    'fixture:wheat_sprout': { base: t(DETAIL, 1, 2) },
+    'fixture:wheat_young': { base: t(CAMP, 13, 1) },
+    'fixture:wheat_ripe': { base: t(CAMP, 13, 0) },
+    'fixture:herb': { base: t(NATURE, 5, 11) },
+    'fixture:herb_sprout': { base: t(DETAIL, 2, 2) },
+    'fixture:herb_young': { base: t(NATURE, 8, 10) },
+    'fixture:herb_ripe': { base: t(NATURE, 5, 11) },
+    'fixture:berry': { base: t(NATURE, 4, 14) },
+    'fixture:berry_sprout': { base: t(DETAIL, 0, 2) },
+    'fixture:berry_young': { base: t(NATURE, 1, 10) },
+    'fixture:berry_ripe': { base: t(NATURE, 4, 14) },
+    'fixture:oak': { base: t(NATURE, 5, 9) },
+    'fixture:oak_sapling': { base: t(NATURE, 5, 9) },
+    // Building: a timber rack for the frame, a stake, a sign post and a ring of stones.
+    'fixture:build': { base: px(CAMP, 128, 48, 32, 32, 16, 30) },
+    'fixture:frame': { base: px(CAMP, 128, 48, 32, 32, 16, 30) },
+    'fixture:stakes': { base: t(CAMP, 0, 5, 1, 2) },
+    'fixture:post': { base: t(CAMP, 6, 5, 1, 2) },
+    'fixture:ring': { base: px(CAMP, 160, 48, 32, 32, 16, 28) },
   },
 
   // -------------------------------------------------------------------------------------------
   // Item icons.
   // -------------------------------------------------------------------------------------------
   items: {
+    'item:acorn': icon('Items/Food/Nut.png', 15, 15),
     'item:sword': icon('Items/Weapons/Sword2/Sprite.png', 6, 15),
     'item:dagger': icon('Items/Projectile/Kunai.png', 16, 16),
     'item:axe': icon('Items/Tool/Axe.png', 16, 16),

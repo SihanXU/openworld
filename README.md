@@ -27,7 +27,7 @@ npm run build         # static site in packages/client/dist
 
 Controls: WASD/arrows move · **E** interact (with the held item) · **F** take · **G** put ·
 **U** use on yourself · **Space** attack/cast · **1–9** hold an item · **Q** stow ·
-**`** Mod Console · **L** language · **M** sound · **H** help.
+**↑↓** choose in an open chest · **`** Mod Console · **L** language · **M** sound · **H** help.
 
 ## Art & audio
 
@@ -39,7 +39,8 @@ Pixel-boy & AAA, CC0. The full pack goes in `assets/ninja-adventure/` (not commi
 ## Checks
 
 ```bash
-npm test                                  # engine, base rules, story, Mod port
+npm test                                  # engine, base rules, story, Mod port, coverage
 npm run typecheck
+npm run coverage                          # interaction coverage (roadmap §1, §3)
 npx tsx packages/tools/src/stress.ts 6    # Saenvar: all maps loaded, 6 game-hours simulated
 ```

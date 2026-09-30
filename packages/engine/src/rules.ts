@@ -1,7 +1,7 @@
 // Rule matching, specificity ordering and the versioned rule library.
 
 import { isA, typeDepth } from './ontology.ts'
-import type { Cmp, Cond, GameEvent, PropValue, RoleName, Rule, Selector, StatusDef, TypeDef } from './types.ts'
+import type { Bounds, Cmp, Cond, GameEvent, Operand, PropValue, RoleName, Rule, Selector, StatusDef, TypeDef } from './types.ts'
 import type { View, World } from './world.ts'
 
 export const ROLES: RoleName[] = ['actor', 'target', 'instrument']
@@ -56,7 +56,46 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World): boole
     const h = world.hour()
     return c.hour.from <= c.hour.to ? h >= c.hour.from && h < c.hour.to : h >= c.hour.from || h < c.hour.to
   }
+  if ('count' in c) {
+    const v = roles[c.count.role]
+    return !!v && within(countAt(v, c.count.in, c.count.match, world), c.count.cmp, roles)
+  }
   return false
+}
+
+/** Entities in a role's contents, or on its tile besides the role itself, that match a selector. */
+export function countAt(v: View, where: 'contents' | 'tile', match: Selector | undefined, world: World): number {
+  let ids: Iterable<string>
+  if (where === 'contents') ids = v.entity?.contents ?? []
+  else {
+    const p = world.refPos(v.ref)
+    ids = p ? world.entitiesAt(p.map, p.x, p.y).map((e) => e.id) : []
+  }
+  let n = 0
+  for (const id of ids) if (id !== v.id && matchSelector(match, world.view({ e: id }))) n++
+  return n
+}
+
+function operand(o: Operand, roles: Roles): number | undefined {
+  if (typeof o === 'number') return o
+  const v = roles[o.of]?.props[o.prop]
+  return typeof v === 'number' ? v : undefined
+}
+
+export function within(n: number, b: Bounds, roles: Roles): boolean {
+  const tests: [Operand | undefined, (lim: number) => boolean][] = [
+    [b.eq, (l) => n === l],
+    [b.gt, (l) => n > l],
+    [b.gte, (l) => n >= l],
+    [b.lt, (l) => n < l],
+    [b.lte, (l) => n <= l],
+  ]
+  for (const [o, ok] of tests) {
+    if (o === undefined) continue
+    const lim = operand(o, roles)
+    if (lim === undefined || !ok(lim)) return false
+  }
+  return true
 }
 
 export function rolesOf(ev: GameEvent, world: World): Roles {

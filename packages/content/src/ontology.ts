@@ -97,6 +97,11 @@ export const STATUSES: StatusDef[] = [
   { id: 'oiled', name: { en: 'oiled', zh: '油污' }, duration: 900, overlay: 'oil' },
   { id: 'lit', name: { en: 'lit', zh: '点燃' }, overlay: 'flame' },
   { id: 'open', name: { en: 'open', zh: '打开' } },
+  { id: 'notched', name: { en: 'notched', zh: '砍了一斧' }, duration: 100 },
+  { id: 'regrowing', name: { en: 'regrowing', zh: '正在长回' }, duration: 28800 },
+  { id: 'watered', name: { en: 'watered', zh: '浇过水' }, duration: 1200, overlay: 'wet' },
+  { id: 'fertilized', name: { en: 'fertilized', zh: '施过肥' } },
+  { id: 'rooting', name: { en: 'rooting', zh: '正在扎根' }, duration: 28800 },
 ]
 
 export const ELEMENTS = ['fire', 'water', 'ice', 'lightning', 'wind', 'earth']
@@ -188,24 +193,35 @@ const actorTypes: TypeDef[] = [
   P('actor/creature/crab', 'giant crab', '巨蟹', { tags: ['shelled', 'watery'], sprite: 'creature:crab', props: { hp: 20, maxHp: 20, atk: 4, def: 3, speed: 7 } }),
 ]
 
+/** A crop: sprout → young → ripe, siblings under one plant that names its yield and seed. */
+function crop(id: string, en: string, zh: string, yieldType: string, young: [string, string], ripe: [string, string], ripeTags: string[] = [], tags: string[] = []): TypeDef[] {
+  const base = `fixture/crop/${id}`
+  return [
+    F(base, en, zh, tags, { props: { yieldType, seedType: `item/seed/${id}`, ...(tags.includes('perennial') && { regrowType: `${base}/young` }) } }),
+    F(`${base}/sprout`, `${en} sprout`, `${zh}嫩芽`, ['growing'], { sprite: `fixture:${id}_sprout`, props: { nextType: `${base}/young` } }),
+    F(`${base}/young`, young[0], young[1], ['growing'], { sprite: `fixture:${id}_young`, props: { nextType: `${base}/ripe` } }),
+    F(`${base}/ripe`, ripe[0], ripe[1], ['ripe', ...ripeTags], { sprite: `fixture:${id}_ripe` }),
+  ]
+}
+
 const fixtureTypes: TypeDef[] = [
   F('fixture', 'thing', '物件', []),
   F('fixture/container', 'container', '容器', ['container'], { solid: true }),
-  F('fixture/container/chest', 'chest', '箱子', ['wooden', 'flammable'], { solid: true }),
-  F('fixture/container/barrel', 'barrel', '木桶', ['wooden', 'flammable', 'breakable'], { solid: true }),
-  F('fixture/container/crate', 'crate', '板条箱', ['wooden', 'flammable', 'breakable'], { solid: true }),
-  F('fixture/container/pot', 'clay pot', '陶罐', ['clay', 'fragile', 'breakable'], { solid: true }),
-  F('fixture/container/wardrobe', 'wardrobe', '衣柜', ['wooden', 'flammable'], { solid: true }),
-  F('fixture/container/shelf', 'shelf', '货架', ['wooden', 'flammable'], { solid: true }),
-  F('fixture/container/bookshelf', 'bookshelf', '书架', ['wooden', 'flammable', 'paper'], { solid: true }),
-  F('fixture/container/sack', 'sack', '麻袋', ['cloth', 'flammable'], { solid: false }),
+  F('fixture/container/chest', 'chest', '箱子', ['wooden', 'flammable'], { solid: true, props: { capacity: 12 } }),
+  F('fixture/container/barrel', 'barrel', '木桶', ['wooden', 'flammable', 'breakable'], { solid: true, props: { capacity: 4 } }),
+  F('fixture/container/crate', 'crate', '板条箱', ['wooden', 'flammable', 'breakable'], { solid: true, props: { capacity: 6 } }),
+  F('fixture/container/pot', 'clay pot', '陶罐', ['clay', 'fragile', 'breakable'], { solid: true, props: { capacity: 2 } }),
+  F('fixture/container/wardrobe', 'wardrobe', '衣柜', ['wooden', 'flammable'], { solid: true, props: { capacity: 12 } }),
+  F('fixture/container/shelf', 'shelf', '货架', ['wooden', 'flammable'], { solid: true, props: { capacity: 8 } }),
+  F('fixture/container/bookshelf', 'bookshelf', '书架', ['wooden', 'flammable', 'paper'], { solid: true, props: { capacity: 8 } }),
+  F('fixture/container/sack', 'sack', '麻袋', ['cloth', 'flammable'], { solid: false, props: { capacity: 4 } }),
   F('fixture/furniture', 'furniture', '家具', ['wooden', 'flammable'], { solid: true }),
-  F('fixture/furniture/table', 'table', '桌子', []),
+  F('fixture/furniture/table', 'table', '桌子', ['surface']),
   F('fixture/furniture/chair', 'chair', '椅子', [], { solid: false }),
   F('fixture/furniture/bed', 'bed', '床', ['cloth'], { solid: false }),
-  F('fixture/furniture/bench', 'bench', '长椅', [], { solid: false }),
-  F('fixture/furniture/counter', 'counter', '柜台', []),
-  F('fixture/furniture/stall', 'market stall', '市集摊位', ['cloth']),
+  F('fixture/furniture/bench', 'bench', '长椅', ['surface'], { solid: false }),
+  F('fixture/furniture/counter', 'counter', '柜台', ['surface']),
+  F('fixture/furniture/stall', 'market stall', '市集摊位', ['cloth', 'surface']),
   F('fixture/light', 'light', '灯', []),
   F('fixture/light/campfire', 'campfire', '篝火', ['lightable', 'cookware'], { solid: true }),
   F('fixture/light/brazier', 'brazier', '火盆', ['lightable', 'metal', 'conductive'], { solid: true }),
@@ -219,12 +235,12 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/sign', 'sign', '告示牌', ['wooden', 'flammable', 'readable'], { solid: true }),
   F('fixture/sign/noticeboard', 'notice board', '布告栏', ['paper']),
   F('fixture/craft', 'workstation', '工作台', [], { solid: true }),
-  F('fixture/craft/anvil', 'anvil', '铁砧', ['metal', 'conductive']),
+  F('fixture/craft/anvil', 'anvil', '铁砧', ['metal', 'conductive', 'surface']),
   F('fixture/craft/forge', 'forge', '熔炉', ['stone', 'lightable', 'cookware']),
   F('fixture/craft/cauldron', 'cauldron', '坩埚', ['metal', 'conductive', 'cookware']),
   F('fixture/craft/loom', 'loom', '织布机', ['wooden', 'flammable']),
   F('fixture/sacred', 'sacred place', '圣所', ['stone'], { solid: true }),
-  F('fixture/sacred/altar', 'altar', '祭坛', ['holy']),
+  F('fixture/sacred/altar', 'altar', '祭坛', ['holy', 'surface']),
   F('fixture/sacred/statue', 'statue', '雕像', []),
   F('fixture/sacred/gravestone', 'gravestone', '墓碑', ['readable']),
   F('fixture/sacred/seal_stone', 'seal stone', '封印石', ['ancient', 'runic']),
@@ -235,6 +251,17 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/nature/mushroom_ring', 'mushroom ring', '蘑菇圈', ['plant', 'fungus'], { solid: false }),
   F('fixture/nature/beehive', 'beehive', '蜂巢', ['wooden', 'flammable', 'bees']),
   F('fixture/fence', 'fence', '栅栏', ['wooden', 'flammable'], { solid: true }),
+  F('fixture/crop', 'crop', '作物', ['crop', 'plant'], { solid: false, props: { yield: 2 } }),
+  ...crop('wheat', 'wheat', '麦子', 'item/material/wheat', ['young wheat', '青麦'], ['ripe wheat', '熟麦'], ['dry', 'flammable']),
+  ...crop('herb', 'herb', '草药', 'item/material/herb', ['herb plant', '草药苗'], ['ripe herbs', '成熟的草药']),
+  ...crop('berry', 'berry bush', '浆果丛', 'item/food/berries', ['berry bush', '浆果丛'], ['berry bush in fruit', '结果的浆果丛'], [], ['perennial']),
+  F('fixture/crop/oak', 'oak', '橡树', [], { props: { seedType: 'item/seed/acorn' } }),
+  F('fixture/crop/oak/sapling', 'oak sapling', '橡树苗', ['sapling'], { sprite: 'fixture:oak_sapling' }),
+  F('fixture/build', 'unfinished work', '半成品', ['unfinished'], { solid: true }),
+  F('fixture/build/frame', 'wooden frame', '木框架', ['wooden', 'flammable']),
+  F('fixture/build/stakes', 'stakes', '木桩', ['wooden', 'flammable']),
+  F('fixture/build/post', 'sign post', '牌子立柱', ['wooden', 'flammable']),
+  F('fixture/build/ring', 'stone ring', '石圈', ['stone']),
   F('fixture/dummy', 'training dummy', '训练假人', ['wooden', 'flammable', 'straw'], { solid: true }),
 ]
 

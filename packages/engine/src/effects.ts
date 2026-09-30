@@ -7,7 +7,7 @@ import type { Amount, Effect, Entity, GameEvent, Place, Pos, Ref, RoleRef, Rule,
 import { NO_EXPIRY } from './world.ts'
 
 export const PRIMITIVES: Record<Effect['op'], string> = {
-  spawn: 'spawn {type, at, into?: tile|contents|hand, count?} — create new entities',
+  spawn: 'spawn {type, at, into?: tile|contents|hand, count?: number | {prop, of}} — create new entities; type may be "@prop:<role>.<key>" (a crop\'s yieldType), count may read a prop (the planks in a frame)',
   destroy: 'destroy {of} — remove an entity (and everything it holds)',
   transform: 'transform {of, into} — change an entity\'s type in place',
   moveTo: 'moveTo {of, to, into?: tile|contents|hand} — move an entity to a role\'s tile / contents / hand',
@@ -24,8 +24,8 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   hit: 'hit {of, element?, power, by?} — emit a hit event (elemental reactions resolve it)',
   push: 'push {of, away, tiles} — shove an actor away from another role',
   vfx: 'vfx {at, fx} — play a visual effect',
-  say: 'say {who, text} — speech bubble ("@line" = one of the NPC\'s own lines)',
-  log: 'log {text} — message log line',
+  say: 'say {who, text} — speech bubble ("@line" = one of the NPC\'s own lines; text fills {target}, {target.planks} …)',
+  log: 'log {text} — message log line ({actor}/{target}/{instrument} = names, {target.key} = that role\'s prop)',
   open: 'open {of} — toggle a container open/closed',
   dropContents: 'dropContents {of} — spill everything inside onto the tile',
 }
@@ -73,9 +73,13 @@ export class EffectRunner {
     return t
   }
 
-  /** Substitute {target} / {instrument} / {actor} with display names. */
+  /** Substitute {target} / {instrument} / {actor} with display names, and {target.key} with a prop. */
   private fill(ev: GameEvent, s: string, locale: 'en' | 'zh' = 'en'): string {
-    return s.replace(/\{(actor|target|instrument)\}/g, (_, role) => this.eng.nameOf(ev.roles[role as 'actor'], locale))
+    return s.replace(/\{(actor|target|instrument)(?:\.(\w+))?\}/g, (_, role: 'actor' | 'target' | 'instrument', key?: string) => {
+      if (!key) return this.eng.nameOf(ev.roles[role], locale)
+      const v = this.eng.world.view(ev.roles[role])?.props[key]
+      return v === undefined ? '?' : String(v)
+    })
   }
 
   run(rule: Rule, ev: GameEvent): void {
@@ -93,11 +97,14 @@ export class EffectRunner {
     const w = eng.world
     switch (eff.op) {
       case 'spawn': {
+        const type = this.typeOf(ev, eff.type)
+        if (!type) return
         const at = this.ref(ev, eff.at)
         const into = eff.into ?? 'tile'
-        for (let i = 0; i < (eff.count ?? 1); i++) {
+        const n = eff.count === undefined ? 1 : Math.max(0, Math.floor(this.amount(ev, eff.count)))
+        for (let i = 0; i < n; i++) {
           const place = this.placeFor(at, into)
-          if (place) w.create(eff.type, place)
+          if (place) w.create(type, place)
         }
         return
       }
@@ -255,6 +262,14 @@ export class EffectRunner {
         return
       }
     }
+  }
+
+  /** A type named outright, or read from a role's prop: `@prop:target.yieldType`. */
+  private typeOf(ev: GameEvent, type: string): string | undefined {
+    const m = /^@prop:(actor|target|instrument)\.(\w+)$/.exec(type)
+    if (!m) return type
+    const v = this.eng.world.view(ev.roles[m[1] as 'actor'])?.props[m[2]]
+    return typeof v === 'string' && this.eng.world.onto.hasType(v) ? v : undefined
   }
 
   /** Where `into` lands relative to a role: its tile, its contents, or its hand. */

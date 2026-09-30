@@ -28,7 +28,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   (forms × materials × qualities × elements), the BASE RULE LIBRARY (`rules.ts`), chunk codec.
 - `packages/tools` — `demo/` (the hand-crafted Hearthvale demo: builder DSL, maps, people →
   `public/world/`), `genWorld.ts` (Saenvar at scale → `public/world-saenvar/`), `stress.ts`,
-  `copyAssets.ts` (catalogue subset of the pack → `public/assets/na/`).
+  `copyAssets.ts` (catalogue subset of the pack → `public/assets/na/`), `coverage.ts` (every item
+  form × every target × every verb through the rule library; the numbers in `docs/roadmap.md` §1).
 - `packages/client` — `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
   `render/scene.ts` renders snapshots with the Ninja Adventure pack; `assets/catalog.ts` maps
   content keys to sprites; `assets/ground.ts` autotiles; `hud.ts` HUD, dialogue, objectives
@@ -44,6 +45,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - Only player interactions can be *undefined*; hits/ticks/status events simply have no effect
   when unmatched.
 - Only the player steps onto portals; NPCs transfer from the adjacent tile.
+- After changing rules, run `npm run coverage` and commit the refreshed baseline with them; a
+  finished milestone records its numbers in its row of `docs/roadmap.md` §3. The coverage test
+  fails if any form or target loses an answer or a purpose.
 
 ## Commands
 
@@ -55,6 +59,7 @@ npm run assets           # copy the catalogue's subset of the asset pack into pu
 npm run dev              # client at http://localhost:5173
 npm test                 # vitest (engine + base rules + Mod port)
 npm run typecheck
+npm run coverage         # interaction coverage + refresh its test baseline
 npx tsx packages/tools/src/stress.ts 6   # full-scale stress run (6 game-hours)
 npm run build            # gen:world + static build → packages/client/dist
 ```

@@ -184,6 +184,17 @@ function addFixture(m: GenMap, type: string, x: number, y: number, extra: Partia
   return e
 }
 
+/** One crop per field, at mixed stages, with a few rows left bare. */
+function sowField(m: GenMap, fx: number, fy: number, fw: number, fh: number, skip: [number, number]) {
+  const plant = rng.pick(['wheat', 'wheat', 'wheat', 'herb', 'berry'])
+  for (let y = fy; y < fy + fh; y++)
+    for (let x = fx; x < fx + fw; x++) {
+      if (x === skip[0] && y === skip[1]) continue
+      const stage = rng.pick(['sprout', 'young', 'young', 'ripe', 'ripe', 'bare'])
+      if (stage !== 'bare') addFixture(m, `fixture/crop/${plant}/${stage}`, x, y)
+    }
+}
+
 function fillContainer(m: GenMap, c: Entity, ctx: Context, n: number) {
   for (let i = 0; i < n; i++) {
     const it = makeItem(rng, pickForm(rng, ctx))
@@ -322,8 +333,8 @@ function genTown(id: string, name: Text, region: Region, kind: 'hub' | 'village'
     addFixture(m, 'fixture/dummy', cx + 9, cy + 7)
     addFixture(m, 'fixture/dummy', cx + 11, cy + 7)
   } else {
-    // fields with fences and haystacks
-    for (let f = 0; f < 3; f++) {
+    // up to three fields with fences and haystacks, wherever they fit
+    for (let tries = 0, fields = 0; tries < 60 && fields < 3; tries++) {
       const fw = rng.int(6, 10)
       const fh = rng.int(4, 6)
       const fx = rng.int(4, W - fw - 4)
@@ -331,9 +342,11 @@ function genTown(id: string, name: Text, region: Region, kind: 'hub' | 'village'
       let ok = true
       for (let j = fy - 1; j <= fy + fh && ok; j++) for (let i = fx - 1; i <= fx + fw && ok; i++) if (!isGround(g.get(i, j)) || occupied(m, i, j)) ok = false
       if (!ok) continue
-      g.rect(fx, fy, fw, fh, rng.chance(0.5) ? 'm' : ',')
+      fields++
+      g.rect(fx, fy, fw, fh, 'm')
       for (let i = fx - 1; i <= fx + fw; i++) addFixture(m, 'fixture/fence', i, fy - 1)
       addFixture(m, 'fixture/nature/haystack', fx + fw - 1, fy + fh - 1)
+      sowField(m, fx, fy, fw, fh, [fx + fw - 1, fy + fh - 1])
       m.spots.field = [...(m.spots.field ?? []), [fx + 1, fy + 1], [fx + fw - 2, fy + 1]]
     }
   }
@@ -895,6 +908,8 @@ function genStart(): GenMap {
   for (const b of m.buildings) b.interior = genInterior(m, b, frost)
   // village square: well, campfire, training dummy, notice board
   addFixture(m, 'fixture/water/well', 18, 18)
+  // a small plot beside the well, ready to sow
+  g.rect(19, 18, 3, 2, 'm')
   addFixture(m, 'fixture/light/campfire', 25, 19)
   addFixture(m, 'fixture/nature/logpile', 26, 20)
   addFixture(m, 'fixture/dummy', 12, 18)
@@ -919,11 +934,15 @@ function genStart(): GenMap {
     ['item/weapon/blade/sword', 13, 17, { material: 'iron', quality: 'common', element: null }],
     ['item/weapon/blade/axe', 24, 13, { material: 'iron', quality: 'common', element: null }],
     ['item/tool/pickaxe', 25, 13, { material: 'iron', quality: 'common' }],
+    ['item/tool/smith_hammer', 23, 13, { material: 'iron', quality: 'common' }],
     ['item/tool/rope', 20, 22],
     ['item/food/fish/raw', 26, 18],
     ['item/food/apple', 19, 17],
     ['item/key', 10, 11, { material: 'iron', quality: 'common' }],
     ['item/vessel/flask/empty', 14, 12],
+    ['item/tool/hoe', 18, 20, { material: 'iron', quality: 'common' }],
+    ['item/tool/sickle', 18, 21, { material: 'iron', quality: 'common' }],
+    ...Array.from({ length: 4 }, (): [string, number, number] => ['item/seed/wheat', 17, 21]),
   ]
   for (const [f, x, y, opts] of kit) m.entities.push({ id: eid(m.id), ...makeItem(rng, FORM_BY_ID[f], opts ?? {}), place: { on: 'tile', map: m.id, x, y } })
   m.entities.push({ id: 'start~bread', ...makeItem(rng, FORM_BY_ID['item/food/bread']), place: { on: 'inside', holder: 'player' } })

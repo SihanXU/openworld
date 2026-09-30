@@ -67,6 +67,27 @@ const village = new MapBuilder('hearthvale', L('Hearthvale', '炉谷'), 'village
   for (let x = 3; x <= 16; x++) v.fixture('fixture/fence', x, 21)
   v.fixture('fixture/nature/haystack', 15, 28)
   v.fixture('fixture/dummy', 9, 25, { name: L('Scarecrow', '稻草人') })
+  // Hollis's crops at mixed stages (a few rows bare, ready to sow)
+  for (let y = 22; y < 29; y++)
+    for (let x = 4; x < 16; x++) {
+      if ((x === 15 && y === 28) || (x === 9 && y === 25)) continue
+      const plant = x < 8 ? 'wheat' : x < 12 ? 'herb' : 'berry'
+      const stage = rng.pick(['sprout', 'young', 'young', 'ripe', 'ripe', 'bare'])
+      if (stage !== 'bare') v.fixture(`fixture/crop/${plant}/${stage}`, x, y)
+    }
+  // a small plot south of the square, ready to sow, with a farming and building kit
+  v.rect(19, 20, 3, 2, 'farmland')
+  for (const [s, x, y] of [
+    [{ form: 'item/tool/hoe', material: 'iron' }, 18, 20],
+    [{ form: 'item/tool/sickle', material: 'iron' }, 18, 21],
+    ['item/seed/wheat', 17, 21],
+    ['item/seed/wheat', 17, 21],
+    ['item/seed/herb', 17, 20],
+    [{ form: 'item/weapon/blade/axe', material: 'iron' }, 30, 17],
+    [{ form: 'item/tool/pickaxe', material: 'iron' }, 31, 17],
+    [{ form: 'item/tool/smith_hammer', material: 'iron' }, 30, 18],
+  ] as [ItemSpec, number, number][])
+    v.item(s, x, y)
   anchor('farm.rows', v, 8, 24)
   anchor('farm.edge', v, 12, 20)
   // dry hay field (south-east): the fire lesson

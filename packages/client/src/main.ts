@@ -6,6 +6,7 @@ import { CATALOG } from './assets/catalog.ts'
 import { Hud } from './hud.ts'
 import type { FromWorker, ToWorker } from './protocol.ts'
 import { WorldScene } from './render/scene.ts'
+import { stacks } from './stacks.ts'
 import { kvGet, kvSet } from './storage.ts'
 import './styles.css'
 
@@ -170,10 +171,10 @@ const syncMove = () => {
     send({ t: 'move', dir: d })
   }
 }
-let inventory: ItemInfo[] = []
+let pack: ItemInfo[][] = []
 const origOnFrame = scene.hooks.onFrame
 scene.hooks.onFrame = (f) => {
-  inventory = f.player.inventory
+  pack = stacks(f.player.inventory)
   if (import.meta.env.DEV) (window as unknown as { lsw: { frame?: unknown } }).lsw.frame = f
   origOnFrame(f)
 }
@@ -188,6 +189,11 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault()
     return hud.closeDialog()
   }
+  // Facing an open container, ↑↓ choose in its panel (WASD still walk; walking away closes it).
+  if (hud.boxOpen && (e.code === 'ArrowUp' || e.code === 'ArrowDown')) {
+    e.preventDefault()
+    return hud.boxMove(e.code === 'ArrowUp' ? -1 : 1)
+  }
   const dir = KEY_DIR[e.code]
   if (dir) {
     if (!held.includes(dir)) held.push(dir)
@@ -200,7 +206,7 @@ window.addEventListener('keydown', (e) => {
     case 'KeyE':
       return send({ t: 'act', verb: 'interact' })
     case 'KeyF':
-      return send({ t: 'act', verb: 'take' })
+      return send({ t: 'act', verb: 'take', item: hud.boxOpen ? hud.boxPick() : undefined })
     case 'KeyG':
       return send({ t: 'act', verb: 'put' })
     case 'KeyU':
@@ -225,7 +231,7 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.code.startsWith('Digit')) {
     const i = Number(e.code.slice(5)) - 1
-    if (inventory[i]) send({ t: 'hold', item: inventory[i].id })
+    if (pack[i]) send({ t: 'hold', item: pack[i][0].id })
   }
 })
 window.addEventListener('keyup', (e) => {

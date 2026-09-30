@@ -11,6 +11,7 @@
     "gen:world": "tsx packages/tools/src/demo/world.ts",
     "gen:saenvar": "tsx packages/tools/src/genWorld.ts",
     "assets": "tsx packages/tools/src/copyAssets.ts",
+    "coverage": "tsx packages/tools/src/coverage.ts",
     "test": "vitest run",
     "typecheck": "tsc -p packages/engine && tsc -p packages/content && tsc -p packages/tools && tsc -p packages/client",
     "check": "npm run typecheck && npm test"

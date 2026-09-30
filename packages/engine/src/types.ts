@@ -267,6 +267,18 @@ export interface Pattern {
   status?: string[]
 }
 
+/** A number, or a numeric property read from a role at match time. */
+export type Operand = number | { prop: string; of: RoleName }
+
+/** Numeric bounds whose limits may be read from roles. A missing property fails the test. */
+export interface Bounds {
+  eq?: Operand
+  gt?: Operand
+  gte?: Operand
+  lt?: Operand
+  lte?: Operand
+}
+
 export type Cond =
   | { all: Cond[] }
   | { any: Cond[] }
@@ -275,6 +287,8 @@ export type Cond =
   | { prop: { role: RoleName; key: string; cmp: Cmp } }
   | { chance: number }
   | { hour: { from: number; to: number } }
+  /** How many entities (matching `match`) are in a role's contents, or on its tile besides itself. */
+  | { count: { role: RoleName; in: 'contents' | 'tile'; match?: Selector; cmp: Bounds } }
 
 /** An argument that names a role, or a tile relative to a role. */
 export type RoleRef = RoleName | 'tileOf:actor' | 'tileOf:target' | 'tileOf:instrument'
@@ -282,7 +296,7 @@ export type RoleRef = RoleName | 'tileOf:actor' | 'tileOf:target' | 'tileOf:inst
 export type Amount = number | 'power' | { prop: string; of: RoleName; mul?: number; add?: number }
 
 export type Effect =
-  | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: number }
+  | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount }
   | { op: 'destroy'; of: RoleRef }
   | { op: 'transform'; of: RoleRef; into: string }
   | { op: 'moveTo'; of: RoleRef; to: RoleRef; into?: 'tile' | 'contents' | 'hand' }
