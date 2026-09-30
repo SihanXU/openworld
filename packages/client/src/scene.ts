@@ -2,7 +2,7 @@
 // It only renders snapshots from the engine Worker; it never owns game state.
 
 import Phaser from 'phaser'
-import type { EntitySnap, Frame, FxEvent, MapData, Text } from '@lsw/engine'
+import type { Dir, EntitySnap, Frame, FxEvent, MapData, Text } from '@lsw/engine'
 import { TILE, Textures } from './textures.ts'
 
 export interface SceneHooks {
@@ -32,6 +32,9 @@ const OVERLAY_OF: [string, string][] = [
   ['oiled', 'oil'],
 ]
 
+// The engine's DIRS, kept here so the main thread does not bundle the engine.
+const STEP: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }
+
 const TINT_OF: Record<string, number> = { frozen: 0xbfe9ff, burning: 0xffc9a0, wet: 0xc8dcff, electrified: 0xfff6a0, oiled: 0xb9b29a }
 
 const ELEMENT_COLOR: Record<string, number> = { fire: 0xff7a1a, ice: 0x9fe8ff, lightning: 0xfff27a, water: 0x4aa0ff, wind: 0xe8fff4, earth: 0xb08850, none: 0xffffff }
@@ -53,6 +56,7 @@ export class WorldScene extends Phaser.Scene {
   private pending: { map?: MapData; frames: Frame[] } = { frames: [] }
   private animTick = 0
   private following?: Phaser.GameObjects.Container
+  private focus?: Phaser.GameObjects.Graphics
 
   constructor() {
     super('world')
@@ -165,10 +169,20 @@ export class WorldScene extends Phaser.Scene {
       this.following = me.root
       this.cameras.main.startFollow(me.root, true, 0.2, 0.2)
     }
+    this.drawFocus(f)
     for (const fx of f.fx) this.playFx(fx)
     this.updateNight(f)
     this.hooks.onFrame(f)
     for (const fx of f.fx) this.hooks.onFx(fx, f)
+  }
+
+  /** Outline the tile the player faces: where take, put and interact land. */
+  private drawFocus(f: Frame): void {
+    const [dx, dy] = STEP[f.player.facing]
+    const x = (f.player.x + dx) * TILE
+    const y = (f.player.y + dy) * TILE
+    this.focus ??= this.add.graphics().setDepth(1e5)
+    this.focus.clear().lineStyle(1, 0xffffff, 0.55).strokeRoundedRect(x + 0.5, y + 0.5, TILE - 1, TILE - 1, 2)
   }
 
   private applyTiles(f: Frame): void {
@@ -288,7 +302,8 @@ export class WorldScene extends Phaser.Scene {
       v.key = key
       v.body.setTexture(key, frame)
     } else if (e.kind !== 'actor') v.body.setFrame(frame)
-    v.root.setDepth(py + (e.kind === 'actor' ? 4 : e.kind === 'item' ? -2 : 0))
+    // items lie on top of the fixture sharing their tile (a table, a counter), under actors
+    v.root.setDepth(py + (e.kind === 'actor' ? 4 : e.kind === 'item' ? 1 : 0))
     // status overlay + tint
     const top = OVERLAY_OF.find(([s]) => e.statuses.includes(s))
     const want = top?.[1]

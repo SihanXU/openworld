@@ -4,6 +4,7 @@
 import type { Frame, FxEvent, ItemInfo, ModSpec, Patch, Rule, Text, ValidationResult, WorldIndex } from '@lsw/engine'
 import type { LibraryView, RecordView } from './protocol.ts'
 import { textOf } from './scene.ts'
+import { stacks } from './stacks.ts'
 
 export type Locale = 'en' | 'zh'
 
@@ -22,6 +23,7 @@ const UI: Record<string, [string, string]> = {
   undefinedToast: ['Undefined interaction → Mod port', '未定义交互 → 已发往模组接口'],
   patchedToast: ['Patched — the world learned a new rule', '已打补丁——世界学会了一条新规则'],
   open: ['Open', '打开'],
+  boxHint: ['↑↓ or click to choose · F take · G store · E close', '↑↓ 或点击挑选 · F 拿 · G 放入 · E 关上'],
   loading: ['Loading', '加载中'],
 }
 
@@ -79,6 +81,7 @@ export class Hud {
         <button id="bLang" title="L">中/EN</button>
         <button id="bMods" title="\`">⚙ <span id="modsLabel"></span> <span id="modBadge" class="badge hidden">0</span></button>
       </div>
+      <div class="box panel-glass hidden" id="box"></div>
       <div class="hud-bottom">
         <div class="slot hand" id="handSlot" title="Q: stow"><div class="lbl" id="handLbl"></div></div>
         <div class="pack" id="pack"></div>
@@ -171,6 +174,7 @@ export class Hud {
       ['U', 'use held item on yourself', '对自己使用'],
       ['Space', 'attack / cast', '攻击 / 施法'],
       ['1–9 · Q', 'hold item · stow', '拿起背包物品 · 收起'],
+      ['↑↓', 'choose in an open chest (then F)', '在打开的箱子里挑选（再按 F）'],
       ['`', 'Mod Console', '模组控制台'],
       ['L · H', 'language · help', '语言 · 帮助'],
     ]
@@ -202,6 +206,7 @@ export class Hud {
     $('#hpText').textContent = `${Math.max(0, Math.round(p.hp))} / ${p.maxHp}`
     $('#pStatus').innerHTML = p.statuses.map((s) => `<span class="st st-${s}">${s}</span>`).join('')
     this.renderInventory(p.held, p.inventory)
+    this.renderBox(f.container)
     // pending-mod indicators over frozen entities
     const frozen = new Set(f.entities.filter((e) => e.frozen).map((e) => e.id))
     for (const id of frozen)
@@ -231,13 +236,75 @@ export class Hud {
     hand.querySelectorAll('.icon,.name').forEach((n) => n.remove())
     if (held) hand.insertAdjacentHTML('afterbegin', `<div class="icon" data-icon="${held.id}"></div><div class="name">${esc(this.tx(held.name))}</div>`)
     else hand.insertAdjacentHTML('afterbegin', `<div class="name muted">${this.t('empty')}</div>`)
-    $('#pack').innerHTML = inv
+    $('#pack').innerHTML = stacks(inv)
       .slice(0, 18)
-      .map((it, i) => `<div class="slot" data-item="${it.id}" title="${esc(this.tx(it.name))}"><div class="icon" data-icon="${it.id}"></div><kbd>${i < 9 ? i + 1 : ''}</kbd></div>`)
+      .map(
+        (st, i) =>
+          `<div class="slot" data-item="${st[0].id}" title="${esc(this.tx(st[0].name))}${st.length > 1 ? ` ×${st.length}` : ''}"><div class="icon" data-icon="${st[0].id}"></div>` +
+          `${st.length > 1 ? `<span class="count">×${st.length}</span>` : ''}<kbd>${i < 9 ? i + 1 : ''}</kbd></div>`,
+      )
       .join('')
     $('#pack').querySelectorAll<HTMLElement>('[data-item]').forEach((el) => (el.onclick = () => this.send.hold(el.dataset.item)))
     hand.onclick = () => this.send.hold(undefined)
     this.paintIcons?.([held, ...inv].filter(Boolean) as ItemInfo[])
+  }
+
+  // ---------------------------------------------------------------- container panel
+
+  private box?: { id: string; stacks: ItemInfo[][] }
+  private boxSel = 0
+  private boxSig = ''
+
+  /** True while the player faces an open container: ↑↓ choose in it. */
+  get boxOpen(): boolean {
+    return !!this.box
+  }
+
+  /** The item F takes: the first of the highlighted stack. */
+  boxPick(): string | undefined {
+    return this.box?.stacks[this.boxSel]?.[0].id
+  }
+
+  private boxSelect(i: number): void {
+    if (!this.box || i < 0 || i >= this.box.stacks.length) return
+    this.boxSel = i
+    this.boxSig = ''
+    this.renderBox(this.frame?.container)
+  }
+
+  boxMove(d: number): void {
+    if (this.box?.stacks.length) this.boxSelect((this.boxSel + d + this.box.stacks.length) % this.box.stacks.length)
+  }
+
+  private renderBox(c: Frame['container']): void {
+    const el = $('#box')
+    if (!c) {
+      if (this.box) (el.classList.add('hidden'), (this.box = undefined), (this.boxSig = ''))
+      return
+    }
+    const st = stacks(c.contents)
+    if (this.box?.id !== c.id) this.boxSel = 0
+    this.boxSel = Math.min(this.boxSel, Math.max(0, st.length - 1))
+    this.box = { id: c.id, stacks: st }
+    const sig = `${this.locale}|${c.id}|${this.boxSel}|${c.contents.map((i) => i.id + i.type).join(',')}`
+    if (sig === this.boxSig) return
+    this.boxSig = sig
+    const fill = c.capacity !== undefined ? `${c.contents.length} / ${c.capacity}` : `${c.contents.length}`
+    el.innerHTML =
+      `<div class="box-head"><b>${esc(this.tx(c.name))}</b><span class="muted">${fill}</span></div>` +
+      (st.length
+        ? `<div class="box-rows">${st
+            .map(
+              (s, i) =>
+                `<div class="box-row${i === this.boxSel ? ' sel' : ''}" data-i="${i}"><div class="icon" data-icon="${s[0].id}"></div>` +
+                `<span class="name">${esc(this.tx(s[0].name))}</span>${s.length > 1 ? `<span class="count">×${s.length}</span>` : ''}</div>`,
+            )
+            .join('')}</div>`
+        : `<div class="muted box-empty">${this.t('empty')}</div>`) +
+      `<div class="box-hint muted">${this.t('boxHint')}</div>`
+    el.querySelectorAll<HTMLElement>('[data-i]').forEach((row) => (row.onclick = () => this.boxSelect(Number(row.dataset.i))))
+    el.classList.remove('hidden')
+    this.paintIcons?.(st.map((s) => s[0]))
   }
 
   /** Set by main.ts: paints item icons (from Phaser textures) into [data-icon] slots. */
