@@ -209,7 +209,26 @@ export class Engine {
       const under = this.world.entitiesAt(here.map, here.x, here.y).filter((e) => this.world.kindOf(e) === 'item')
       if (under.length) target = { e: under[under.length - 1].id }
     }
+    if (verb === 'interact') target = this.answeredInPile(p, target)
     return this.interact(verb, p.id, target)
+  }
+
+  /**
+   * Using the held item on loose items reaches for the topmost one it does something to
+   * (the log under a stick), then for the ground beneath them (the stump under the logs),
+   * and otherwise stays on the top item.
+   */
+  private answeredInPile(actor: Entity, target: Ref): Ref {
+    const w = this.world
+    const top = 'e' in target ? w.get(target.e) : undefined
+    if (!top || top.place.on !== 'tile') return target
+    const { map, x, y } = top.place
+    const here = w.entitiesAt(map, x, y)
+    if (here.some((e) => w.kindOf(e) !== 'item')) return target
+    const instrument = actor.held ? { e: actor.held } : undefined
+    const answers = (ref: Ref) => this.resolve({ kind: 'interaction', verb: 'interact', roles: { actor: { e: actor.id }, target: ref, instrument } }).defined
+    const candidates: Ref[] = [...here.reverse().map((e) => ({ e: e.id })), { tile: { map, x, y } }]
+    return candidates.find(answers) ?? target
   }
 
   /** Swap the held item with an inventory item (or stow it with `undefined`). */
