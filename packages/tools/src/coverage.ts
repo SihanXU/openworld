@@ -4,7 +4,7 @@
 // regression guard: packages/tools/test/coverage.test.ts fails when a combination loses its
 // answer or a form or fixture loses its purpose.
 //
-//   npm run coverage      → prints the numbers in docs/roadmap.md §1 and refreshes the
+//   npm run coverage      → prints the numbers in docs/roadmap.md (§1, §3) and refreshes the
 //                           baseline the test guards (packages/tools/test/coverage.baseline.json)
 
 import { writeFileSync } from 'node:fs'
@@ -15,15 +15,19 @@ import { BASE_RULES, FORMS, MATERIALS, TERRAINS, buildOntology } from '@lsw/cont
 // ------------------------------------------------------------------ definitions
 
 /**
- * Answers that do not depend on what the thing is: setting it down, storing it, handing it
- * over, splashing water or oil on it, examining it, or finding nothing to take. Every other
- * rule that answers an interaction is a specific answer.
+ * Answers that do not depend on what the thing is: setting it down, finding no room for it,
+ * storing it, handing it over, splashing water or oil on it, examining it, or finding nothing
+ * to take. Every other rule that answers an interaction is a specific answer.
  */
 export const GENERIC_RULES: Record<string, string> = {
   'core/put-down': 'set down',
   'core/put-on-item': 'set down',
+  'core/put-on-surface': 'set down',
+  'core/put-in-water': 'no room',
+  'core/put-blocked': 'no room',
   'core/store': 'store',
   'core/store-closed': 'store',
+  'core/store-full': 'store',
   'core/give': 'hand over',
   'core/splash': 'splash',
   'core/pour-oil': 'splash',
@@ -35,6 +39,7 @@ export const GENERIC_RULES: Record<string, string> = {
   'core/take-nothing': 'nothing to take',
   'core/take-closed': 'nothing to take',
   'core/take-empty': 'nothing to take',
+  'core/take-fixed': 'nothing to take',
 }
 
 /**
@@ -87,8 +92,8 @@ export type Baseline = Omit<Coverage, 'cells'>
 
 // ------------------------------------------------------------------ the swept space
 
-const ORIGIN = { x: 1, y: 2 } // the player, facing up
-const FRONT = { x: 1, y: 1 } // what they face
+export const ORIGIN = { x: 1, y: 2 } // the player, facing up
+export const FRONT = { x: 1, y: 1 } // what they face
 
 function tagsOf(onto: Ontology, type: string): Set<string> {
   const tags = new Set<string>()

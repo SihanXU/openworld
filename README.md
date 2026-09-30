@@ -24,7 +24,7 @@ npm run build       # static site in packages/client/dist (~12 MB, deploy anywhe
 
 Controls: WASD/arrows move · **F** take · **G** put · **E** interact (with the held item) ·
 **U** use on yourself · **Space** attack/cast · **1–9** hold an item · **Q** stow ·
-**`** Mod Console · **L** language · **H** help.
+**↑↓** choose in an open chest · **`** Mod Console · **L** language · **H** help.
 
 ## Status
 
@@ -35,6 +35,6 @@ Mod Console. The LLM modder is not wired in yet.
 
 ```bash
 npm test                                  # engine + rules + Mod port + coverage
-npm run coverage                          # interaction coverage (roadmap §1)
+npm run coverage                          # interaction coverage (roadmap §1, §3)
 npx tsx packages/tools/src/stress.ts 6    # all maps loaded, 6 game-hours simulated
 ```

@@ -5,7 +5,7 @@ import type { Dir, Frame, LibraryData, MapData, ModSpec, Patch, Rule, SaveData, 
 export type ToWorker =
   | { t: 'init'; base: string; save?: SaveData; library?: LibraryData }
   | { t: 'move'; dir: Dir | null }
-  | { t: 'act'; verb: Verb; self?: boolean }
+  | { t: 'act'; verb: Verb; self?: boolean; item?: string }
   | { t: 'attack' }
   | { t: 'hold'; item?: string }
   | { t: 'patch'; id?: string; patch: Patch }

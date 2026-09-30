@@ -165,6 +165,7 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
       '{prop:{role, key, cmp}}',
       '{chance:p}',
       '{hour:{from,to}}',
+      "{count:{role, in: contents|tile, match?: Selector, cmp: {eq|gt|gte|lt|lte: number | {prop, of: role}}}} — how many entities are in a role's contents (or on its tile besides itself); e.g. full when {gte:{prop:'capacity', of:'target'}}",
     ],
     events: {
       interaction: 'a verb: take (pick up) / put (place the held item on the target) / interact (use; with the held item as instrument). Roles actor, target, instrument(held item).',
@@ -549,6 +550,20 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ('has' in c) {
       if (!ROLES.includes(c.has.role)) errors.push(`${where}.has.role invalid`)
       if (c.has.status && !(c.has.status in onto.statuses)) errors.push(`${where}: unknown status "${c.has.status}"`)
+      return
+    }
+    if ('count' in c) {
+      const k = c.count
+      if (!ROLES.includes(k.role)) errors.push(`${where}.count.role invalid`)
+      if (k.in !== 'contents' && k.in !== 'tile') errors.push(`${where}.count.in must be contents|tile`)
+      checkSel(k.match, `${where}.count.match`)
+      const bounds = Object.entries(k.cmp ?? {})
+      if (!bounds.length) errors.push(`${where}.count.cmp needs a bound`)
+      for (const [op, o] of bounds) {
+        if (!['eq', 'gt', 'gte', 'lt', 'lte'].includes(op)) errors.push(`${where}.count.cmp.${op}: unknown bound`)
+        else if (typeof o !== 'number' && !(o && typeof o === 'object' && typeof o.prop === 'string' && ROLES.includes(o.of)))
+          errors.push(`${where}.count.cmp.${op}: must be a number or {prop, of: role}`)
+      }
       return
     }
     if ('prop' in c || 'chance' in c || 'hour' in c) return

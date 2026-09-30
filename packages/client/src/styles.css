@@ -62,6 +62,19 @@ button.mini { padding: 1px 6px; font-size: 11px; }
 .slot.hand .lbl { position: absolute; top: -9px; left: 8px; font-size: 10px; background: var(--bg); padding: 0 4px; border-radius: 4px; color: var(--accent); }
 .pack { display: flex; gap: 4px; flex-wrap: nowrap; max-width: calc(100vw - 520px); min-width: 48px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .pack .slot { flex: 0 0 auto; }
+.slot .count { position: absolute; left: 2px; top: 1px; font: 600 10px var(--mono); color: var(--ink); text-shadow: 0 1px 2px #000; }
+
+/* container panel (the open chest the player faces) */
+.box { position: absolute; right: 14px; bottom: 14px; width: 280px; padding: 8px 10px; }
+.box-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; font-size: 13px; }
+.box-rows { display: flex; flex-direction: column; gap: 2px; max-height: 42vh; overflow-y: auto; }
+.box-row { display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 6px; padding: 2px 6px; border-radius: 6px; border: 1px solid transparent; cursor: pointer; font-size: 12px; }
+.box-row:hover { background: rgba(255,255,255,0.05); }
+.box-row.sel { border-color: rgba(240,184,90,0.6); background: rgba(240,184,90,0.12); }
+.box-row canvas { width: 24px; height: 24px; image-rendering: pixelated; }
+.box-row .count { font: 11px var(--mono); color: var(--muted); }
+.box-empty { font-size: 12px; padding: 4px 6px; }
+.box-hint { margin-top: 6px; font-size: 10px; }
 
 .hud-log { position: absolute; left: 14px; bottom: 14px; width: min(440px, 34vw); display: flex; flex-direction: column; gap: 2px; pointer-events: none !important; }
 .hud-log .line { font-size: 13px; padding: 2px 8px; background: rgba(8, 10, 16, 0.55); border-radius: 5px; transition: opacity 1s; text-shadow: 0 1px 0 #000; }
