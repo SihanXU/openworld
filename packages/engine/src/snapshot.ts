@@ -56,6 +56,13 @@ export interface Frame {
     held?: ItemInfo
     inventory: ItemInfo[]
   }
+  /** The open container the player faces: what the container panel shows. */
+  container?: {
+    id: Id
+    name: Text
+    capacity?: number
+    contents: ItemInfo[]
+  }
   entities: EntitySnap[]
   tiles: TileSnap[]
   fx: FxEvent[]
@@ -116,6 +123,8 @@ export function snapshot(eng: Engine): Frame {
     const [, x, y] = k.split(':')
     tiles.push({ x: +x, y: +y, terrain: t.terrain, statuses: t.statuses ? Object.keys(t.statuses) : undefined })
   }
+  const box = eng.facingContainer()
+  const capacity = box && w.prop(box, 'capacity')
   const fx = w.fx
   w.fx = []
   return {
@@ -132,6 +141,12 @@ export function snapshot(eng: Engine): Frame {
       statuses: Object.keys(p.statuses ?? {}),
       held: p.held ? itemInfo(eng, p.held) : undefined,
       inventory: (p.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),
+    },
+    container: box && {
+      id: box.id,
+      name: box.name ?? w.onto.resolve(box.type).name ?? box.type.split('/').pop()!,
+      capacity: typeof capacity === 'number' ? capacity : undefined,
+      contents: (box.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),
     },
     entities,
     tiles,

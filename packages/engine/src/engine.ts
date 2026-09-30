@@ -124,22 +124,34 @@ export class Engine {
 
   // ---------------------------------------------------------------- interactions
 
-  /** Pick the target of a verb on a tile: actor > fixture > item > the tile itself. */
-  targetAt(pos: Pos, verb: Verb): Ref {
+  /**
+   * Pick the target of a verb on a tile: actor > fixture > item > the tile itself. `take`
+   * reaches into an open container (for `pick`, if it holds it; else its first item), then
+   * for the top item lying on the tile (on a table, say), before the fixture itself.
+   */
+  targetAt(pos: Pos, verb: Verb, pick?: Id): Ref {
     const es = this.world.entitiesAt(pos.map, pos.x, pos.y)
     const by = (k: string) => es.filter((e) => this.world.kindOf(e) === k)
     const actor = by('actor')[0]
     if (actor) return { e: actor.id }
     const fixture = by('fixture')[0]
-    if (fixture) {
-      // take from an open container takes its first item
-      if (verb === 'take' && this.world.hasStatus({ e: fixture.id }, 'open') && fixture.contents?.length)
-        return { e: fixture.contents[0] }
-      return { e: fixture.id }
-    }
     const items = by('item')
+    if (fixture && verb === 'take') {
+      const inside = this.world.hasStatus({ e: fixture.id }, 'open') ? (fixture.contents ?? []) : []
+      if (inside.length) return { e: pick && inside.includes(pick) ? pick : inside[0] }
+      if (items.length) return { e: items[items.length - 1].id }
+    }
+    if (fixture) return { e: fixture.id }
     if (items.length) return { e: items[items.length - 1].id }
     return { tile: pos }
+  }
+
+  /** The open container the player faces, if any. */
+  facingContainer(): Entity | undefined {
+    const p = this.world.player
+    const f = this.world.front(p)
+    if (!f || !this.world.inBounds(f.map, f.x, f.y)) return undefined
+    return this.world.entitiesAt(f.map, f.x, f.y).find((e) => this.world.kindOf(e) === 'fixture' && this.world.hasStatus({ e: e.id }, 'open'))
   }
 
   /**
@@ -183,14 +195,14 @@ export class Engine {
     if (actor) this.world.fx.push({ t: 'say', who: actor, text: { en: 'Nothing happens.', zh: '什么也没有发生。' } })
   }
 
-  /** Player verb aimed at the tile in front of them (or at themselves). */
-  playerVerb(verb: Verb, self = false): Resolution | undefined {
+  /** Player verb aimed at the tile in front of them (or at themselves); `pick` chooses what to take from an open container. */
+  playerVerb(verb: Verb, self = false, pick?: Id): Resolution | undefined {
     const p = this.world.player
     if (this.busy(p)) return undefined
     if (self) return this.interact(verb, p.id, { e: p.id })
     const f = this.world.front(p)
     if (!f || !this.world.inBounds(f.map, f.x, f.y)) return undefined
-    let target = this.targetAt(f, verb)
+    let target = this.targetAt(f, verb, pick)
     // nothing in front to take? pick up what lies at your feet
     if (verb === 'take' && 'tile' in target) {
       const here = this.world.posOf(p)!
