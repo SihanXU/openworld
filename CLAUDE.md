@@ -7,8 +7,8 @@ Design: [docs/design.md](docs/design.md). Paper draft lives in Notion ("Large Sy
 ## Working agreements
 
 - Converse with the user in Chinese; write code, comments and docs in English.
-- Aim every step at the final deliverable at full scale (dozens+ maps, thousands of NPCs,
-  tens of thousands of items, a public web demo). No shrunken "MVP first" plans.
+- Build order: a small, polished demo first (Hearthvale), then scale. Keep the architecture
+  scale-ready; ask when the scope of a request is ambiguous.
 - The subject is the WORLD (vs neural world models), not agents. NPCs are content.
 - Commit/push only when asked. End commit messages with the Co-Authored-By line.
 
@@ -26,11 +26,13 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   new game / save (`game.ts`).
 - `packages/content` — ontology (terrains, statuses, elements, types), item catalogue
   (forms × materials × qualities × elements), the BASE RULE LIBRARY (`rules.ts`), chunk codec.
-- `packages/tools` — `genWorld.ts` (Saenvar at full scale → `packages/client/public/world/`),
-  `stress.ts` (loads every map, simulates, checks invariants).
-- `packages/client` — `worker.ts` runs the engine at 10 ticks/s; `scene.ts` renders
-  snapshots; `hud.ts` HUD + Mod Console (the human-operated Mod port); `art/` procedural
-  pixel art (no image assets).
+- `packages/tools` — `demo/` (the hand-crafted Hearthvale demo: builder DSL, maps, people →
+  `public/world/`), `genWorld.ts` (Saenvar at scale → `public/world-saenvar/`), `stress.ts`,
+  `copyAssets.ts` (catalogue subset of the pack → `public/assets/na/`).
+- `packages/client` — `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
+  `render/scene.ts` renders snapshots with the Ninja Adventure pack; `assets/catalog.ts` maps
+  content keys to sprites; `assets/ground.ts` autotiles; `hud.ts` HUD, dialogue, objectives
+  and the Mod Console (the human-operated Mod port).
 
 ## Rules of thumb
 
@@ -47,7 +49,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 
 ```bash
 npm install
-npm run gen:world        # regenerate the world files (deterministic seed)
+npm run gen:world        # Hearthvale demo (default world)
+npm run gen:saenvar      # the 460-map scale world (?world=saenvar)
+npm run assets           # copy the catalogue's subset of the asset pack into public/assets/na
 npm run dev              # client at http://localhost:5173
 npm test                 # vitest (engine + base rules + Mod port)
 npm run typecheck

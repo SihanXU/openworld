@@ -104,6 +104,8 @@ export interface Entity {
   ai?: AiData
   /** Set while an undefined interaction involving this entity awaits a patch. */
   frozenBy?: string
+  /** Render hint: a character look key from the client's asset catalogue. */
+  look?: string
 }
 
 export interface ScheduleEntry {
@@ -120,7 +122,9 @@ export interface NpcData {
   role: string
   home?: Pos
   schedule: ScheduleEntry[]
-  appearance: Appearance
+  appearance?: Appearance
+  /** Character look key (asset catalogue); preferred over `appearance` when present. */
+  look?: string
   lines?: Text[]
   faction?: string
 }
@@ -153,6 +157,11 @@ export interface MapData {
   /** Row-major terrain ids, length = width*height. */
   terrain: string[]
   portals: Portal[]
+  /** Render hints (the engine ignores them): prefab stamps, room wall frames, music, light. */
+  stamps?: { key: string; x: number; y: number }[]
+  rooms?: { style: string; x: number; y: number; w: number; h: number }[]
+  music?: string
+  light?: 'outdoor' | 'indoor' | 'dark'
 }
 
 export interface Portal {

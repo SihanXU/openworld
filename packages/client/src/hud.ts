@@ -2,8 +2,9 @@
 // and the Mod Console (the human-operated Mod port until an LLM modder is plugged in).
 
 import type { Frame, FxEvent, ItemInfo, ModSpec, Patch, Rule, Text, ValidationResult, WorldIndex } from '@lsw/engine'
+import { OBJECTIVES } from '@lsw/content'
 import type { LibraryView, RecordView } from './protocol.ts'
-import { textOf } from './scene.ts'
+import { textOf } from './render/scene.ts'
 
 export type Locale = 'en' | 'zh'
 
@@ -74,8 +75,11 @@ export class Hud {
         <div class="hpbar"><div id="hpFill"></div><span id="hpText"></span></div>
         <div id="pStatus" class="statuses"></div>
       </div>
+      <div class="quest panel-glass hidden" id="quest"><div class="q-title" id="qTitle"></div><div class="q-hint" id="qHint"></div></div>
+      <div class="dialog hidden" id="dialog"><div class="face" id="dFace"></div><div class="dtext"><div class="dname" id="dName"></div><div class="dline" id="dLine"></div></div><div class="dmore">▼</div></div>
       <div class="hud-tr">
         <button id="bHelp" title="H">?</button>
+        <button id="bSound" title="M">♪</button>
         <button id="bLang" title="L">中/EN</button>
         <button id="bMods" title="\`">⚙ <span id="modsLabel"></span> <span id="modBadge" class="badge hidden">0</span></button>
       </div>
@@ -85,9 +89,12 @@ export class Hud {
       </div>
       <div class="hud-log" id="log"></div>
       <div class="toasts" id="toasts"></div>
-      <div class="hint" id="hint"></div>`
+      <div class="hint" id="hint"></div>
+      <div class="prompt hidden" id="prompt"></div>`
     $('#bHelp').onclick = () => this.toggle('#help')
     $('#bLang').onclick = () => this.toggleLocale()
+    $('#bSound').onclick = () => this.toggleSound()
+    $('#dialog').onclick = () => this.closeDialog()
     $('#bMods').onclick = () => this.toggleMods()
     this.renderHelp()
     this.relabel()
@@ -147,6 +154,7 @@ export class Hud {
           <div><b>${n(stats.fixtures)}</b><span>${zh ? '个物件' : 'fixtures'}</span></div>
         </div>
         <div class="controls-mini">${this.controlsHtml()}</div>
+        <div class="credit">${zh ? '美术与音乐：' : 'Art & music: '}<a href="https://pixel-boy.itch.io/ninja-adventure-asset-pack" target="_blank" rel="noopener">Ninja Adventure</a> by Pixel-boy &amp; AAA (CC0)</div>
         <div class="intro-actions">
           ${resumed ? `<button id="iCont" class="primary">${zh ? '继续' : 'Continue'}</button><button id="iNew">${zh ? '新游戏' : 'New game'}</button>` : `<button id="iCont" class="primary">${zh ? '开始' : 'Start'}</button>`}
         </div>
@@ -172,7 +180,7 @@ export class Hud {
       ['Space', 'attack / cast', '攻击 / 施法'],
       ['1–9 · Q', 'hold item · stow', '拿起背包物品 · 收起'],
       ['`', 'Mod Console', '模组控制台'],
-      ['L · H', 'language · help', '语言 · 帮助'],
+      ['L · H · M', 'language · help · sound', '语言 · 帮助 · 声音'],
     ]
     return `<table>${rows.map(([k, en, z]) => `<tr><td><kbd>${k}</kbd></td><td>${zh ? z : en}</td></tr>`).join('')}</table>`
   }
@@ -202,6 +210,8 @@ export class Hud {
     $('#hpText').textContent = `${Math.max(0, Math.round(p.hp))} / ${p.maxHp}`
     $('#pStatus').innerHTML = p.statuses.map((s) => `<span class="st st-${s}">${s}</span>`).join('')
     this.renderInventory(p.held, p.inventory)
+    this.renderQuest(f)
+    this.renderPrompt(f)
     // pending-mod indicators over frozen entities
     const frozen = new Set(f.entities.filter((e) => e.frozen).map((e) => e.id))
     for (const id of frozen)
@@ -214,6 +224,95 @@ export class Hud {
       }
     for (const [id, el] of this.dotEls) if (!frozen.has(id)) (el.remove(), this.dotEls.delete(id))
     if (!$('#dev').classList.contains('hidden') && this.tab === 'world') this.renderWorldTab()
+  }
+
+  // ---------------------------------------------------------------- dialogue & quest
+
+  muted = localStorage.getItem('lsw.muted') === '1'
+  onSound?: (muted: boolean) => void
+  facesetOf?: (id: string) => HTMLCanvasElement | undefined
+  private dialogTimer?: ReturnType<typeof setTimeout>
+  private typer?: ReturnType<typeof setInterval>
+
+  toggleSound(): void {
+    this.muted = !this.muted
+    localStorage.setItem('lsw.muted', this.muted ? '1' : '0')
+    $('#bSound').textContent = this.muted ? '♪̸' : '♪'
+    this.onSound?.(this.muted)
+  }
+
+  get dialogOpen(): boolean {
+    return !$('#dialog').classList.contains('hidden')
+  }
+
+  openDialog(who: string, name: string, text: string): void {
+    const face = $('#dFace')
+    face.replaceChildren()
+    const c = this.facesetOf?.(who)
+    if (c) face.appendChild(c)
+    face.classList.toggle('hidden', !c)
+    $('#dName').textContent = name
+    const line = $('#dLine')
+    line.textContent = ''
+    this.toggle('#dialog', true)
+    clearInterval(this.typer)
+    let i = 0
+    this.typer = setInterval(() => {
+      i += 2
+      line.textContent = text.slice(0, i)
+      if (i >= text.length) clearInterval(this.typer)
+    }, 22)
+    clearTimeout(this.dialogTimer)
+    this.dialogTimer = setTimeout(() => this.closeDialog(), 3500 + text.length * 55)
+  }
+
+  closeDialog(): void {
+    clearInterval(this.typer)
+    clearTimeout(this.dialogTimer)
+    this.toggle('#dialog', false)
+  }
+
+  private promptSig = ''
+
+  private renderPrompt(f: Frame): void {
+    const pr = f.prompt
+    const sig = pr ? `${this.locale}|${JSON.stringify(pr)}` : ''
+    if (sig === this.promptSig) return
+    this.promptSig = sig
+    const el = $('#prompt')
+    el.classList.toggle('hidden', !pr)
+    if (!pr) return
+    const zh = this.locale === 'zh'
+    const t = this.tx(pr.target)
+    const verb = actionName(pr.interact.rule, zh)
+    const lines: string[] = []
+    if (pr.targetKind === 'tile' && pr.interact.defined && !pr.interact.rule) {
+      // bare ground: only the take line
+    } else if (pr.holding && !pr.interact.defined) {
+      lines.push(`<kbd>E</kbd> ${zh ? `把<b>${esc(this.tx(pr.holding))}</b>用在<b>${esc(t)}</b>上` : `use <b>${esc(this.tx(pr.holding))}</b> on <b>${esc(t)}</b>`} <span class="unknown">${zh ? '？世界还不知道这件事' : '? the world has never seen this'}</span>`)
+      if (pr.targetKind === 'actor') lines.push(`<span class="muted"><kbd>Q</kbd> ${zh ? '收起手中物品再对话' : 'put it away to talk'}</span>`)
+    } else if (pr.holding) {
+      lines.push(`<kbd>E</kbd> ${verb ?? (zh ? '使用' : 'use')} <b>${esc(this.tx(pr.holding))}</b> ${zh ? '→' : 'on'} <b>${esc(t)}</b>`)
+    } else if (pr.interact.defined) {
+      lines.push(`<kbd>E</kbd> ${verb ?? (zh ? '交互' : 'interact')} <b>${esc(t)}</b>`)
+    }
+    if (pr.take) lines.push(`<kbd>F</kbd> ${zh ? '拿起' : 'take'} <b>${esc(this.tx(pr.take.item))}</b>`)
+    el.innerHTML = lines.join('<br>')
+  }
+
+  private questSig = ''
+
+  private renderQuest(f: Frame): void {
+    const stage = Number(f.player.props.quest ?? -1)
+    const slimes = Number(f.player.props.slimes ?? 0)
+    const sig = `${this.locale}|${stage}|${slimes}`
+    if (sig === this.questSig) return
+    this.questSig = sig
+    const o = OBJECTIVES[stage]
+    this.toggle('#quest', !!o)
+    if (!o) return
+    $('#qTitle').textContent = this.tx(o.title).replace('0/3', `${Math.min(3, slimes)}/3`)
+    $('#qHint').textContent = this.tx(o.hint)
   }
 
   setMapName(name: Text, region?: string): void {
@@ -245,12 +344,18 @@ export class Hud {
 
   // ---------------------------------------------------------------- fx → UI
 
-  onFx(fx: FxEvent): void {
+  onFx(fx: FxEvent, frame?: Frame): void {
     switch (fx.t) {
       case 'log':
         return this.log(this.tx(fx.text), fx.tone)
-      case 'say':
-        return this.say(fx.who, this.tx(fx.text))
+      case 'say': {
+        const text = this.tx(fx.text)
+        const who = frame?.entities.find((e) => e.id === fx.who)
+        const p = frame?.player
+        const near = who && p && who.id !== p.id && Math.abs(who.x - p.x) + Math.abs(who.y - p.y) <= 2 && (who.look || who.appearance)
+        if (near) return this.openDialog(fx.who, this.tx(who.name), text)
+        return this.say(fx.who, text)
+      }
       case 'damage':
         return this.floater(fx.who, fx.amount < 0 ? `+${-fx.amount}` : `-${fx.amount}`, fx.amount < 0 ? 'heal' : fx.element ?? 'hit')
       case 'undefined':
@@ -559,4 +664,34 @@ export function llmPrompt(r: RecordView, spec?: ModSpec): string {
     '## ModSpec',
     spec ? JSON.stringify(spec, null, 2) : '(open the ModSpec tab once to include it)',
   ].join('\n')
+}
+
+/** A short verb for the rule the E key would run. */
+function actionName(rule: string | undefined, zh: boolean): string | undefined {
+  if (!rule) return undefined
+  const m: Record<string, [string, string]> = {
+    'core/talk': ['Talk to', '对话：'],
+    'story/': ['Talk to', '对话：'],
+    'core/open-close': ['Open / close', '打开 / 关上'],
+    'core/locked': ['Try', '试着打开'],
+    'core/read': ['Read', '阅读'],
+    'core/examine': ['Look at', '查看'],
+    'core/eat': ['Eat', '吃'],
+    'core/drink': ['Drink', '喝'],
+    'core/fill-water': ['Fill at', '装水：'],
+    'core/douse': ['Douse', '浇灭'],
+    'core/splash': ['Splash', '泼向'],
+    'core/pour-oil': ['Pour oil on', '倒油：'],
+    'core/ignite': ['Set fire to', '点燃'],
+    'core/light': ['Light', '点燃'],
+    'core/snuff': ['Put out', '熄灭'],
+    'core/cook': ['Cook on', '烹饪：'],
+    'core/chop': ['Chop', '砍'],
+    'core/mine': ['Mine', '开采'],
+    'core/unlock': ['Unlock', '开锁'],
+    'core/till': ['Till', '翻土'],
+    'patch/': ['Use (learned)', '使用（新学会）'],
+  }
+  for (const [k, v] of Object.entries(m)) if (rule === k || (k.endsWith('/') && rule.startsWith(k)) || (k === 'core/examine' && rule.startsWith(k))) return zh ? v[1] : v[0]
+  return undefined
 }

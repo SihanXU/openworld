@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { Game, RuleLibrary, snapshot, type WorldIndex } from '@lsw/engine'
 import { BASE_RULES, buildOntology, decodeChunk, type RawChunk } from '@lsw/content'
 
-const DIR = join(dirname(fileURLToPath(import.meta.url)), '../../client/public/world')
+const DIR = join(dirname(fileURLToPath(import.meta.url)), '../../client/public/world-saenvar')
 const hours = Number(process.argv[2] ?? 6)
 
 const t0 = performance.now()

@@ -242,7 +242,7 @@ export class Engine {
     const p = w.player
     ;(p.props ??= {}).hp = w.num(p, 'maxHp', 30)
     for (const s of Object.keys(p.statuses ?? {})) w.clearStatus({ e: p.id }, s)
-    w.fx.push({ t: 'log', text: { en: 'You black out… and wake at the village well.', zh: '你眼前一黑……醒来时已在村口井边。' }, tone: 'bad' })
+    w.fx.push({ t: 'log', text: { en: 'You black out… and wake up back home.', zh: '你眼前一黑……醒来时已回到家中。' }, tone: 'bad' })
     this.teleport(p, w.state.spawn)
   }
 

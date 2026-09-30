@@ -12,6 +12,10 @@ export interface RawMap {
   height: number
   rows: string[]
   portals: Portal[]
+  stamps?: MapData['stamps']
+  rooms?: MapData['rooms']
+  music?: string
+  light?: MapData['light']
 }
 
 export interface RawChunk {
@@ -22,7 +26,20 @@ export interface RawChunk {
 export function decodeMap(m: RawMap): MapData {
   const terrain: string[] = []
   for (const row of m.rows) for (const c of row) terrain.push(TERRAIN_CHARS[c] ?? 'void')
-  return { id: m.id, name: m.name, region: m.region, kind: m.kind, width: m.width, height: m.height, terrain, portals: m.portals }
+  return {
+    id: m.id,
+    name: m.name,
+    region: m.region,
+    kind: m.kind,
+    width: m.width,
+    height: m.height,
+    terrain,
+    portals: m.portals,
+    stamps: m.stamps,
+    rooms: m.rooms,
+    music: m.music,
+    light: m.light,
+  }
 }
 
 export function decodeChunk(raw: RawChunk): MapChunk {

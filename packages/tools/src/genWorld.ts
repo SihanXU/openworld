@@ -14,7 +14,7 @@ import { linesFor, personName } from './names.ts'
 const SEED = 20260930
 /** Bump when content changes shape (types, map layout): old saves are then discarded. */
 const WORLD_VERSION = `saenvar-3-${SEED}`
-const OUT = join(dirname(fileURLToPath(import.meta.url)), '../../client/public/world')
+const OUT = join(dirname(fileURLToPath(import.meta.url)), '../../client/public/world-saenvar')
 
 // ------------------------------------------------------------------ world plan
 

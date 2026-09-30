@@ -1,7 +1,7 @@
 // Render-agnostic frame snapshots for the client (sent from the engine Worker each tick).
 
 import type { Engine } from './engine.ts'
-import type { Appearance, Dir, FxEvent, Id, Text } from './types.ts'
+import type { Appearance, Dir, FxEvent, Id, PropValue, Text } from './types.ts'
 
 export interface ItemInfo {
   id: Id
@@ -26,6 +26,7 @@ export interface EntitySnap {
   hp?: number
   maxHp?: number
   appearance?: Appearance
+  look?: string
   hostile?: boolean
   frozen?: boolean
   element?: string
@@ -53,6 +54,7 @@ export interface Frame {
     hp: number
     maxHp: number
     statuses: string[]
+    props: Record<string, PropValue>
     held?: ItemInfo
     inventory: ItemInfo[]
   }
@@ -60,6 +62,18 @@ export interface Frame {
   tiles: TileSnap[]
   fx: FxEvent[]
   pendingMap?: string
+  /** What the player's E / F keys would do right now (filled by the host, not by snapshot()). */
+  prompt?: Prompt
+}
+
+export interface Prompt {
+  target: Text
+  targetKind: string
+  holding?: Text
+  /** interact (E): defined by which rule, or undefined (the Mod port would be asked). */
+  interact: { defined: boolean; rule?: string }
+  /** take (F): only when there is something to take in front / underfoot. */
+  take?: { defined: boolean; rule?: string; item: Text }
 }
 
 export function itemInfo(eng: Engine, id: Id): ItemInfo | undefined {
@@ -100,7 +114,8 @@ export function snapshot(eng: Engine): Frame {
       name: e.name ?? r.name ?? e.type.split('/').pop()!,
       hp: r.kind === 'actor' ? w.num(e, 'hp') : undefined,
       maxHp: r.kind === 'actor' ? w.num(e, 'maxHp', 1) : undefined,
-      appearance: e.npc?.appearance ?? (e.id === w.state.player ? PLAYER_LOOK : undefined),
+      appearance: e.npc?.appearance ?? (e.id === w.state.player ? PLAYER_LOOK : e.npc ? PLAYER_LOOK : undefined),
+      look: e.look ?? e.npc?.look,
       hostile: e.ai?.hostile,
       frozen: !!e.frozenBy,
       element: (w.prop(e, 'element') as string | undefined) ?? undefined,
@@ -130,6 +145,7 @@ export function snapshot(eng: Engine): Frame {
       hp: w.num(p, 'hp'),
       maxHp: w.num(p, 'maxHp', 1),
       statuses: Object.keys(p.statuses ?? {}),
+      props: { ...(p.props ?? {}) },
       held: p.held ? itemInfo(eng, p.held) : undefined,
       inventory: (p.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),
     },

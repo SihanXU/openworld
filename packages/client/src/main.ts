@@ -2,9 +2,10 @@
 
 import Phaser from 'phaser'
 import type { Dir, ItemInfo, LibraryData, SaveData, Text } from '@lsw/engine'
+import { CATALOG } from './assets/catalog.ts'
 import { Hud } from './hud.ts'
 import type { FromWorker, ToWorker } from './protocol.ts'
-import { WorldScene } from './scene.ts'
+import { WorldScene } from './render/scene.ts'
 import { kvGet, kvSet } from './storage.ts'
 import './styles.css'
 
@@ -17,6 +18,8 @@ const REGION_NAMES: Record<string, Text> = {
   ringed: { en: 'the Ringed Ruins', zh: '环冠遗墟' },
 }
 
+// ?world=saenvar loads the 460-map generated world instead of the hand-crafted demo
+const WORLD = new URLSearchParams(location.search).get('world') === 'saenvar' ? 'world-saenvar' : 'world'
 const scene = new WorldScene()
 const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
 const send = (m: ToWorker) => worker.postMessage(m)
@@ -39,7 +42,28 @@ const hud = new Hud(
 
 scene.hooks = {
   onFrame: (f) => hud.onFrame(f),
-  onFx: (fx) => hud.onFx(fx),
+  onFx: (fx, f) => hud.onFx(fx, f),
+  onReady: () => scene.setMuted(hud.muted),
+}
+hud.onSound = (m) => scene.setMuted(m)
+
+/** Copy a region of a loaded Phaser texture into a fresh canvas (for DOM icons/portraits). */
+function crop(img: string, x: number, y: number, w: number, h: number): HTMLCanvasElement | undefined {
+  if (!scene.textures?.exists(img)) return undefined
+  const src = scene.textures.get(img).getSourceImage() as HTMLImageElement
+  const c = document.createElement('canvas')
+  c.width = w
+  c.height = h
+  const g = c.getContext('2d')!
+  g.imageSmoothingEnabled = false
+  g.drawImage(src, x, y, w, h, 0, 0, w, h)
+  return c
+}
+hud.facesetOf = (id) => {
+  const path = scene.facesetOf(id)
+  if (!path || !scene.textures.exists(path)) return undefined
+  const src = scene.textures.get(path).getSourceImage() as HTMLImageElement
+  return crop(path, 0, 0, src.width, src.height)
 }
 
 new Phaser.Game({
@@ -55,20 +79,17 @@ new Phaser.Game({
 // ------------------------------------------------------------------ icons in the DOM
 
 hud.paintIcons = (items: ItemInfo[]) => {
-  if (!scene.tex) return
   for (const it of items) {
-    const key = scene.tex.icon(it.sprite, it.tags)
-    const tex = scene.textures.get(key)
-    const frame = tex.get('icon')
-    const src = tex.getSourceImage() as HTMLCanvasElement
+    const d = CATALOG.items[it.sprite]
+    if (!d) continue
+    const c = crop(d.img, d.x, d.y, d.w, d.h)
+    if (!c) continue
     document.querySelectorAll<HTMLElement>(`[data-icon="${CSS.escape(it.id)}"]`).forEach((slot) => {
-      const c = document.createElement('canvas')
-      c.width = frame.width
-      c.height = frame.height
-      const g = c.getContext('2d')!
-      g.imageSmoothingEnabled = false
-      g.drawImage(src, frame.cutX, frame.cutY, frame.width, frame.height, 0, 0, frame.width, frame.height)
-      slot.replaceChildren(c)
+      const copy = document.createElement('canvas')
+      copy.width = c.width
+      copy.height = c.height
+      copy.getContext('2d')!.drawImage(c, 0, 0)
+      slot.replaceChildren(copy)
     })
   }
 }
@@ -92,8 +113,8 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       })
       break
     case 'map':
-      scene.setMap(m.map)
       hud.setMapName(m.map.name, m.map.region ? hud.tx(REGION_NAMES[m.map.region]) : undefined)
+      scene.setMap(m.map)
       break
     case 'frame':
       scene.applyFrame(m.frame)
@@ -109,7 +130,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       hud.showValidation(m.id, m.result)
       break
     case 'saved':
-      void kvSet('save', m.save)
+      void kvSet(`save:${WORLD}`, m.save)
       void kvSet('library', m.library)
       hud.log(hud.t('saved'), 'good')
       break
@@ -125,8 +146,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
 }
 
 async function boot() {
-  const [save, library] = await Promise.all([kvGet<SaveData>('save'), kvGet<LibraryData>('library')])
-  const base = new URL(`${import.meta.env.BASE_URL}world/`, location.href).href
+  const [save, library] = await Promise.all([kvGet<SaveData>(`save:${WORLD}`), kvGet<LibraryData>('library')])
+  // ?world=saenvar loads the 460-map generated world instead of the hand-crafted demo
+  const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
   send({ t: 'init', base, save, library })
 }
 void boot()
@@ -162,6 +184,10 @@ window.addEventListener('keydown', (e) => {
     return
   }
   if (!document.getElementById('intro')!.classList.contains('hidden')) return
+  if (hud.dialogOpen && ['KeyE', 'Space', 'Enter', 'Escape'].includes(e.code)) {
+    e.preventDefault()
+    return hud.closeDialog()
+  }
   const dir = KEY_DIR[e.code]
   if (dir) {
     if (!held.includes(dir)) held.push(dir)
@@ -192,6 +218,8 @@ window.addEventListener('keydown', (e) => {
       return hud.toggle('#help')
     case 'KeyL':
       return hud.toggleLocale()
+    case 'KeyM':
+      return hud.toggleSound()
     case 'Escape':
       return hud.closeAll()
   }

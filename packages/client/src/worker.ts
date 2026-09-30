@@ -1,7 +1,7 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
-import { Game, RuleLibrary, snapshot, type Dir, type LibraryData, type WorldIndex } from '@lsw/engine'
-import { BASE_RULES, buildOntology, decodeChunk, decodeMap, type RawChunk } from '@lsw/content'
+import { Game, RuleLibrary, snapshot, type Dir, type GameEvent, type LibraryData, type Prompt, type Ref, type WorldIndex } from '@lsw/engine'
+import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk, decodeMap, type RawChunk } from '@lsw/content'
 import type { FromWorker, LibraryView, RecordView, ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
@@ -17,12 +17,13 @@ let timer: ReturnType<typeof setInterval> | undefined
 let lastTickMs = 0
 let lastRecordsVersion = -1
 let saveEvery = 0
+let lastQuest: unknown
 
 const ontology = buildOntology()
 
 /** Base rules are always fresh from content; patches (and their types/statuses) persist. */
 function libraryFrom(saved?: LibraryData): RuleLibrary {
-  const lib = new RuleLibrary(BASE_RULES)
+  const lib = new RuleLibrary([...BASE_RULES, ...STORY_RULES])
   if (!saved) return lib
   for (const t of saved.types ?? []) lib.addType(t, 'restored')
   for (const s of saved.statuses ?? []) lib.addStatus(s, 'restored')
@@ -53,6 +54,41 @@ async function ensureMaps(): Promise<void> {
     } finally {
       fetching.delete(id)
     }
+  }
+}
+
+/** Preview what E and F would do on the tile in front of the player (dry run, no effects). */
+function prompt(): Prompt | undefined {
+  const eng = game!.engine
+  const w = eng.world
+  const p = w.player
+  const f = w.front(p)
+  if (!f || !w.inBounds(f.map, f.x, f.y)) return undefined
+  const target: Ref = eng.targetAt(f, 'interact')
+  const name = (r: Ref) => ({ en: eng.nameOf(r, 'en'), zh: eng.nameOf(r, 'zh') })
+  const isTile = 'tile' in target
+  const terrain = isTile ? w.terrainAt(f.map, f.x, f.y) : ''
+  const boring = isTile && !w.tileState(f.map, f.x, f.y)?.statuses && ['grass', 'path', 'dirt', 'cobble', 'floor_wood', 'floor_stone', 'carpet', 'cave_floor', 'flowers', 'wall', 'void'].includes(terrain)
+  const instrument: Ref | undefined = p.held ? { e: p.held } : undefined
+  const ev: GameEvent = { kind: 'interaction', verb: 'interact', roles: { actor: { e: p.id }, target, instrument } }
+  const r = eng.resolve(ev)
+  let take: Prompt['take']
+  const takeTarget = eng.targetAt(f, 'take')
+  const here = w.posOf(p)!
+  const under = w.entitiesAt(here.map, here.x, here.y).filter((e) => w.kindOf(e) === 'item')
+  const takeRef: Ref | undefined = 'e' in takeTarget && w.kindOf(w.get(takeTarget.e)!) === 'item' ? takeTarget : under.length ? { e: under[under.length - 1].id } : undefined
+  if (takeRef) {
+    const tr = eng.resolve({ kind: 'interaction', verb: 'take', roles: { actor: { e: p.id }, target: takeRef, instrument } })
+    take = { defined: tr.defined, rule: tr.rule?.id, item: name(takeRef) }
+  }
+  if (boring && !take) return undefined
+  if (boring) r.defined = true // using a thing on bare floor isn't worth a prompt
+  return {
+    target: name(target),
+    targetKind: isTile ? 'tile' : w.kindOf(w.get((target as { e: string }).e)!),
+    holding: instrument ? name(instrument) : undefined,
+    interact: { defined: r.defined, rule: r.rule?.id },
+    take,
   }
 }
 
@@ -96,10 +132,19 @@ function loop(): void {
   const pos = w.posOf(w.player)
   if (!pos || !w.state.maps[pos.map]) return
   if (pos.map !== lastMap) {
+    const first = !lastMap
     lastMap = pos.map
     post({ t: 'map', map: w.state.maps[pos.map] })
+    if (!first) saveEvery = 599 // save right after arriving somewhere new
+  }
+  // save as soon as the story moves on
+  const quest = w.player.props?.quest
+  if (quest !== lastQuest) {
+    if (lastQuest !== undefined) saveEvery = 599
+    lastQuest = quest
   }
   const frame = snapshot(eng)
+  frame.prompt = prompt()
   lastTickMs = performance.now() - t0
   post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length } })
   if (eng.lib.version !== lastRecordsVersion || frame.fx.some((f) => f.t === 'undefined' || f.t === 'patched')) {

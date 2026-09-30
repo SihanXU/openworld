@@ -381,6 +381,26 @@ Notes from verification that changed the design:
   a unit test asserts the base library has no equal-specificity overlaps.
 - Saves carry the world version; incompatible saves are discarded, rule-library patches are kept.
 
+### Phase 1b — a small, polished demo first (2026-09-30)
+
+Direction from the user: build a small but refined demo first, then scale. The 460-map world
+stays as the scale track (`?world=saenvar`); the default world is hand-crafted.
+
+- **Art**: the Ninja Adventure pack (CC0). `packages/client/src/assets/catalog.ts` maps every
+  terrain, fixture, item, creature, character look, VFX, UI piece, music and sound to the pack;
+  a preview page (`/src/assets/preview.html`) shows all of it.
+- **Renderer** (`packages/client/src/render/`): 47-tile blob autotiling (table `BLOB47`) into a
+  runtime ground atlas; terrain objects (trees, rocks, tall grass…) that follow terrain state
+  (burnt → charred, chopped → stump); prefab buildings stamped by the map author with correct
+  occlusion; nine-slice room walls; 4-direction animated actors; status overlays, projectiles,
+  day/night light, music per map and sound effects.
+- **World** (`packages/tools/src/demo/`): an authoring DSL (terrain painting, prefabs, rooms,
+  fixtures, items, creatures, portals) and the Hearthvale maps + 12 villagers.
+- **Story as data** (`packages/content/src/story.ts`): objectives keyed by a player prop and
+  advanced by ordinary rules (instance-bound to the unique story NPCs).
+- **UI**: JRPG dialogue box with portraits, objective panel, and an action prompt that shows
+  what E/F will do — including "the world has never seen this" for undefined interactions.
+
 ## 13. After Phase 1
 
 - Modder service: port BardOS's pipeline (comprehend → query → design → review) to

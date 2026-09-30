@@ -1,4 +1,6 @@
 node_modules/
 dist/
 packages/client/public/world/
+packages/client/public/world-saenvar/
 *.log
+/assets/

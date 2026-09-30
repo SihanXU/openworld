@@ -150,6 +150,7 @@ export const PERSON_ROLES: [string, string, string][] = [
   ['herbalist', 'herbalist', '草药师'],
   ['sailor', 'sailor', '水手'],
   ['traveler', 'traveler', '旅人'],
+  ['elder', 'village elder', '村长'],
 ]
 
 const actorTypes: TypeDef[] = [
@@ -168,6 +169,7 @@ const actorTypes: TypeDef[] = [
   P('actor/creature/slime/frost_slime', 'frost slime', '冰霜史莱姆', { tags: ['icy'], props: { element: 'ice', hp: 11, maxHp: 11 } }),
   P('actor/creature/slime/spark_slime', 'spark slime', '雷电史莱姆', { tags: ['charged'], props: { element: 'lightning', hp: 10, maxHp: 10 } }),
   P('actor/creature/slime/water_slime', 'water slime', '水史莱姆', { tags: ['watery'], props: { element: 'water', hp: 12, maxHp: 12 } }),
+  P('actor/creature/slime/king_slime', 'Slime King', '史莱姆王', { tags: ['boss', 'large'], sprite: 'boss:slime', props: { hp: 50, maxHp: 50, atk: 4, def: 1, speed: 9 } }),
   P('actor/creature/beast', 'beast', '野兽', { tags: ['beast', 'furry', 'flammable'], sprite: 'creature:wolf' }),
   P('actor/creature/beast/wolf', 'wolf', '狼', { props: { hp: 14, maxHp: 14, atk: 3, speed: 4 } }),
   P('actor/creature/beast/frost_wolf', 'frost wolf', '霜狼', { tags: ['icy'], props: { element: 'ice', hp: 18, maxHp: 18, atk: 4, speed: 4 } }),

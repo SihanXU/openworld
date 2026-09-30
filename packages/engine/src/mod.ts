@@ -687,6 +687,14 @@ export function patternsOverlap(a: Rule, b: Rule, onto?: Ontology): boolean {
     if (x.id && y.id && x.id !== y.id) return false
     if (x.tags?.some((t) => y.notTags?.includes(t)) || y.tags?.some((t) => x.notTags?.includes(t))) return false
     if (x.status?.some((t) => y.notStatus?.includes(t)) || y.status?.some((t) => x.notStatus?.includes(t))) return false
+    // the same property required to equal two different values
+    for (const [k, cx] of Object.entries(x.props ?? {})) {
+      const cy = y.props?.[k]
+      if (cy === undefined) continue
+      const vx = typeof cx === 'object' ? cx.eq : cx
+      const vy = typeof cy === 'object' ? cy.eq : cy
+      if (vx !== undefined && vy !== undefined && vx !== vy) return false
+    }
     if (onto && !satisfiable(x, y, onto)) return false
   }
   return true
