@@ -34,6 +34,7 @@ request + ModSpec → patch → validation → shared rule library), exercised b
 Mod Console. The LLM modder is not wired in yet.
 
 ```bash
-npm test                                  # engine + rules + Mod port
+npm test                                  # engine + rules + Mod port + coverage
+npm run coverage                          # interaction coverage (roadmap §1)
 npx tsx packages/tools/src/stress.ts 6    # all maps loaded, 6 game-hours simulated
 ```
