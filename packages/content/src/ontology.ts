@@ -235,6 +235,11 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/nature/mushroom_ring', 'mushroom ring', '蘑菇圈', ['plant', 'fungus'], { solid: false }),
   F('fixture/nature/beehive', 'beehive', '蜂巢', ['wooden', 'flammable', 'bees']),
   F('fixture/fence', 'fence', '栅栏', ['wooden', 'flammable'], { solid: true }),
+  F('fixture/build', 'unfinished work', '半成品', ['unfinished'], { solid: true }),
+  F('fixture/build/frame', 'wooden frame', '木框架', ['wooden', 'flammable']),
+  F('fixture/build/stakes', 'stakes', '木桩', ['wooden', 'flammable']),
+  F('fixture/build/post', 'sign post', '牌子立柱', ['wooden', 'flammable']),
+  F('fixture/build/ring', 'stone ring', '石圈', ['stone']),
   F('fixture/dummy', 'training dummy', '训练假人', ['wooden', 'flammable', 'straw'], { solid: true }),
 ]
 

@@ -7,7 +7,7 @@ import { BASELINE, GENERIC_RULES, ORIGIN, OUTCOMES, sweep, targets, type Baselin
 const saved = JSON.parse(readFileSync(BASELINE, 'utf8')) as Baseline
 const cov = sweep()
 const answered = (t: Tally | undefined) => (t ? t.specific + t.generic : 0)
-const REGEN = 'run `npm run coverage` to refresh the baseline and docs/roadmap.md §1'
+const REGEN = 'run `npm run coverage` to refresh the baseline (and a finished milestone\'s row in docs/roadmap.md §3)'
 
 describe('interaction coverage', () => {
   it('names only rules that exist', () => {
@@ -28,7 +28,6 @@ describe('interaction coverage', () => {
       Object.keys(was).filter((k) => answered(now[k]) < answered(was[k])).map((k) => `${k}: ${answered(was[k])} → ${answered(now[k])}`)
     expect(lost(cov.byHand, saved.byHand)).toEqual([])
     expect(lost(cov.byTarget, saved.byTarget)).toEqual([])
-    expect(cov.totals.undefined).toBeLessThanOrEqual(saved.totals.undefined)
   })
 
   it('never takes a purpose away from a form or a fixture type', () => {

@@ -43,6 +43,14 @@ describe('base library', () => {
     expect(ties).toEqual([])
   })
 
+  it('tells apart patterns that need incompatible property values', () => {
+    const r = (props: Record<string, object | number>) => ({ id: 'x', on: 'interaction' as const, when: { target: { type: 'fixture', props } }, do: [] })
+    expect(patternsOverlap(r({ planks: 2 }), r({ planks: 3 }), onto)).toBe(false)
+    expect(patternsOverlap(r({ planks: { lt: 4 } }), r({ planks: { gte: 4 } }), onto)).toBe(false)
+    expect(patternsOverlap(r({ planks: { lt: 4 } }), r({ planks: 3 }), onto)).toBe(true)
+    expect(patternsOverlap(r({ planks: { gt: 1 } }), r({ planks: { lte: 2 } }), onto)).toBe(true)
+  })
+
   it('orders by specificity: subtype beats supertype, more constraints beat fewer', () => {
     const general = specOf({ id: 'a', on: 'interaction', when: { target: { type: 'actor' } }, do: [] })
     const sub = specOf({ id: 'b', on: 'interaction', when: { target: { type: 'actor/person' } }, do: [] })
