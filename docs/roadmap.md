@@ -61,20 +61,21 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 
 ## 3. Order
 
-| # | Milestone | Depends on |
-|---|---|---|
-| M0 | Coverage report | — |
-| M1 | Hands, surfaces and storage | — |
-| M2 | Woodcutting | M1 (stacks) |
-| M3 | Building | M2 (planks) |
-| M4 | Farming | M1 (stacks, facing indicator) |
-| M5 | Gathering and fishing | M1 |
-| M6 | Cooking | M4 (wheat), M5 (fish) |
-| M7 | Mining and smithing | M3 (hammer, frames) |
-| M8 | Wearing, resting, trading | M1 |
-| M9 | Every item has a purpose | all of the above |
+| # | Milestone | Depends on | Undefined after | Without a purpose after |
+|---|---|---|---|---|
+| M0 | Coverage report | — | 70.4% | 61 forms, 18 fixture types |
+| M1 | Hands, surfaces and storage | — | 60.6% | 61 forms, 12 fixture types |
+| M2 | Woodcutting | M1 (stacks) | | |
+| M3 | Building | M2 (planks) | | |
+| M4 | Farming | M1 (stacks, facing indicator) | | |
+| M5 | Gathering and fishing | M1 | | |
+| M6 | Cooking | M4 (wheat), M5 (fish) | | |
+| M7 | Mining and smithing | M3 (hammer, frames) | | |
+| M8 | Wearing, resting, trading | M1 | | |
+| M9 | Every item has a purpose | all of the above | | |
 
-M1–M4 are the core. M5–M9 can follow in any order.
+M1–M4 are the core. M5–M9 can follow in any order. §1 stays the M0 baseline; each milestone
+fills in its row from `npm run coverage` when it lands.
 
 ## 4. Milestones
 
@@ -85,7 +86,7 @@ and fixture types without a purpose, and the three counts. It is the progress me
 everything below and runs with the tests: `npm test` fails if any form or target answers fewer
 combinations, or any form or fixture type loses its purpose, than the committed baseline.
 
-Done when: `npm run coverage` reproduces the §1 numbers on the current tree.
+Done when: `npm run coverage` reproduces the §1 numbers on the tree M0 lands on.
 
 ### M1 — Hands, surfaces and storage
 
@@ -96,8 +97,8 @@ Player flow:
 1. **G** facing a table, counter, stall, bench, altar or anvil sets the held item on it.
    **F** takes it back.
 2. **E** on a chest opens it and a panel shows what is inside. **F** takes the highlighted
-   item (choose with the arrow keys, a number, or a click); **G** stores the held item;
-   **E** closes it.
+   item (choose with ↑↓ or a click; the number keys still hold from the pack, so something
+   can be picked to store); **G** stores the held item; **E** with empty hands closes it.
 3. A full container refuses. A key locks an unlocked container again.
 4. The pack groups identical items into stacks (`Plank ×4`); **1–9** holds one from a stack.
 
@@ -109,6 +110,7 @@ Player flow:
 | `core/put-blocked` | put · solid tile | "There is no room there." |
 | `core/store-full` | put · open container at capacity | "It is full." |
 | `core/lock` | interact · `key` on a closed, unlocked container | container gains `locked` |
+| `core/take-fixed` | take · any other fixture | "That stays where it is." |
 
 Content: tag `surface` on table, counter, stall, bench, altar, anvil. A `capacity` prop per
 container type: chest and wardrobe 12, shelf and bookshelf 8, crate 6, barrel and sack 4,
@@ -370,7 +372,7 @@ rule.
 |---|---|---|
 | E1 | `take` prefers a loose item on a fixture's tile over the fixture, unless the fixture is an open container with contents | M1 |
 | E2 | The frame carries the contents of the open container the player faces; `take` accepts a chosen item id | M1 |
-| E3 | Condition `count`: how many entities matching a selector are in a role's contents or on its tile | M1, M7, M8 |
+| E3 | Condition `count`: how many entities matching a selector are in a role's contents or on its tile, compared with a number or a role's property (`capacity`) | M1, M7, M8 |
 | E4 | `spawn.type` accepts `@prop:` read from a named role, as `transform.into` already does for its own entity | M4 |
 | E5 | Text templates read props: `{target.planks}` | M3, M7 |
 | E6 | `addProp.delta` accepts an `Amount`, so it can read another role's prop | M8 |

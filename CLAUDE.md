@@ -43,9 +43,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - Only player interactions can be *undefined*; hits/ticks/status events simply have no effect
   when unmatched.
 - Only the player steps onto portals; NPCs transfer from the adjacent tile.
-- After changing rules, run `npm run coverage`, commit the refreshed baseline with them and
-  update `docs/roadmap.md` §1. The coverage test fails if any form or target loses an answer
-  or a purpose.
+- After changing rules, run `npm run coverage` and commit the refreshed baseline with them; a
+  finished milestone records its numbers in its row of `docs/roadmap.md` §3. The coverage test
+  fails if any form or target loses an answer or a purpose.
 
 ## Commands
 
@@ -55,7 +55,7 @@ npm run gen:world        # regenerate the world files (deterministic seed)
 npm run dev              # client at http://localhost:5173
 npm test                 # vitest (engine + base rules + Mod port)
 npm run typecheck
-npm run coverage         # interaction coverage (roadmap §1) + refresh its test baseline
+npm run coverage         # interaction coverage + refresh its test baseline
 npx tsx packages/tools/src/stress.ts 6   # full-scale stress run (6 game-hours)
 npm run build            # gen:world + static build → packages/client/dist
 ```
