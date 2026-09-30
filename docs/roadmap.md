@@ -23,7 +23,8 @@ on yourself). 20,313 combinations:
 
 A form or fixture type has a purpose when a rule that answers it singles it out by what it is
 for (a tag or type other than a material: "anything flammable burns in a fire" does not
-count), or, for a form, when it adds power to attacks.
+count), or, for a form, when it adds power to attacks or a rule singles it out as the thing
+acted on (a log to split).
 
 What that looks like in play:
 
@@ -65,7 +66,7 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 |---|---|---|---|---|
 | M0 | Coverage report | — | 70.4% | 61 forms, 18 fixture types |
 | M1 | Hands, surfaces and storage | — | 60.6% | 61 forms, 12 fixture types |
-| M2 | Woodcutting | M1 (stacks) | | |
+| M2 | Woodcutting | M1 (stacks) | 60.6% | 59 forms, 12 fixture types |
 | M3 | Building | M2 (planks) | | |
 | M4 | Farming | M1 (stacks, facing indicator) | | |
 | M5 | Gathering and fishing | M1 | | |
@@ -138,7 +139,8 @@ Player flow:
 |---|---|---|
 | `wood/notch` | interact · `tool:axe` on a `tree` tile without `notched` | tile gains `notched`; leaves fall |
 | `wood/fell` | interact · `tool:axe` on a `notched` tree | tile becomes `stump` with `regrowing`; spawn 2 logs, 1 stick |
-| `wood/regrow` | expire `regrowing` on a stump | tile becomes `tree` |
+| `wood/regrow` | expire `regrowing` on a stump nobody stands on | tile becomes `tree` |
+| `wood/regrow-later` | expire `regrowing` on a stump someone stands on | `regrowing` again for an hour |
 | `wood/split` | interact · `tool:axe` on a log item | log becomes a plank; spawn a second plank |
 | `wood/uproot` | interact · `tool:shovel` on a stump | tile becomes `dirt`; spawn a stick |
 | `wood/char` | interact · `tool:axe` on a charred tree | tile becomes `ash`; spawn coal |
@@ -378,6 +380,7 @@ rule.
 | E6 | `addProp.delta` accepts an `Amount`, so it can read another role's prop | M8 |
 | E7 | Property comparisons between roles (`actor.coins` ≥ `target.value`) | M8 |
 | E8 | Primitive `advanceTime` | M8 |
+| E9 | `interact` on loose items reaches the topmost one the held item answers, then the ground beneath (the log under a stick, the stump under the logs) | M2 |
 | C1 | Items draw above the surface fixture they lie on; today they draw beneath every fixture | M1 |
 | C2 | The pack and the container panel show stacks | M1 |
 | C3 | An outline on the tile the player faces | M1, M4 |
