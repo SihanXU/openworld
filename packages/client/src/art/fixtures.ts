@@ -1258,6 +1258,78 @@ function fence(): Pix {
   )
 }
 
+// ------------------------------------------------------------------ crops
+
+const LEAF = r5('#1f4a22', '#2f6b33', '#4f8f3a', '#74b04a', '#a8d86a')
+const GRAIN = r5('#6a4a14', '#a87c20', '#d4a838', '#ecc85a', '#f8e690')
+
+/** Plant positions in a crop tile: a loose 3 x 2 grid, so a field reads as rows. */
+const SPOTS: [number, number][] = [
+  [3, 7],
+  [8, 6],
+  [13, 7],
+  [4, 13],
+  [9, 12],
+  [13, 13],
+]
+
+function shoot(q: Pix, x: number, y: number, h: number, c: Ramp): void {
+  q.vline(x, y - h, y, c.base)
+  q.set(x - 1, y - h + 1, c.light)
+  q.set(x + 1, y - h, c.light)
+}
+
+function cropArt(plant: 'wheat' | 'herb' | 'berry', stage: 'sprout' | 'young' | 'ripe'): Pix {
+  return obj(16, 16, (q) => {
+    for (const [x, y] of SPOTS) {
+      if (stage === 'sprout') {
+        q.set(x, y, LEAF.base)
+        q.set(x - 1, y - 1, LEAF.light)
+        q.set(x + 1, y - 1, LEAF.light)
+        continue
+      }
+      if (plant === 'wheat') {
+        const c = stage === 'ripe' ? GRAIN : LEAF
+        shoot(q, x, y, stage === 'ripe' ? 5 : 3, c)
+        if (stage === 'ripe') {
+          q.rect(x - 1, y - 6, 2, 2, GRAIN.hi)
+          q.set(x, y - 4, GRAIN.dark)
+        }
+      } else if (plant === 'herb') {
+        shoot(q, x, y, 2, LEAF)
+        q.set(x - 1, y - 1, LEAF.dark)
+        q.set(x + 1, y - 1, LEAF.dark)
+        if (stage === 'ripe') {
+          q.set(x, y - 3, '#c8a0f0')
+          q.set(x - 1, y - 2, '#f0f0ff')
+        }
+      } else {
+        q.ellipse(x, y - 1, 1.8, 1.4, LEAF.base)
+        q.set(x - 1, y - 2, LEAF.light)
+        if (stage === 'ripe') {
+          q.set(x + 1, y - 1, '#d83a4a')
+          q.set(x - 1, y, '#e85a6a')
+        }
+      }
+    }
+  })
+}
+
+function oakSapling(): Pix {
+  return obj(
+    16,
+    16,
+    (q) => {
+      q.vline(8, 7, 13, WOOD.base)
+      q.set(8, 13, WOOD.dark)
+      q.ellipse(8, 6, 3, 2.4, LEAF.base)
+      q.ellipse(7, 5, 1.6, 1.2, LEAF.light)
+      q.set(10, 7, LEAF.dark)
+    },
+    [8, 14, 2.5, 0.8],
+  )
+}
+
 // ------------------------------------------------------------------ unfinished work
 
 /** A chest-sized wooden frame: corner posts and rails, open between them. */
@@ -1429,6 +1501,12 @@ const MAKERS: Record<string, Maker> = {
   stakes: { base: stakes },
   post: { base: post },
   ring: { base: ring },
+  oak_sapling: { base: oakSapling },
+  ...Object.fromEntries(
+    (['wheat', 'herb', 'berry'] as const).flatMap((plant) =>
+      (['sprout', 'young', 'ripe'] as const).map((stage): [string, Maker] => [`${plant}_${stage}`, { base: () => cropArt(plant, stage) }]),
+    ),
+  ),
 }
 
 const ALIASES: Record<string, string> = {

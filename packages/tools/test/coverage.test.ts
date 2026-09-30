@@ -39,8 +39,8 @@ describe('interaction coverage', () => {
 describe('nothing put down is lost', () => {
   const onto = buildOntology()
   const rules = new Map(BASE_RULES.map((r) => [r.id, r]))
-  /** Rules that use the held item up (burning it, eating it) do so by design. */
-  const consumes = (id: string) => rules.get(id)!.do.some((e) => e.op === 'destroy' && e.of === 'instrument')
+  /** Rules that use the held item up (burning it) or turn it into something else (planting it) do so by design. */
+  const consumes = (id: string) => rules.get(id)!.do.some((e) => (e.op === 'destroy' || e.op === 'transform') && e.of === 'instrument')
 
   it('every form put on every target stays in hand or can be taken back', () => {
     const lib = new RuleLibrary(BASE_RULES)

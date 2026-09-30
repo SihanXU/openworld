@@ -68,7 +68,7 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 | M1 | Hands, surfaces and storage | — | 12,312 / 20,313 (60.6%) | 61 forms, 12 of 38 fixture types |
 | M2 | Woodcutting | M1 (stacks) | 12,310 / 20,313 (60.6%) | 59 forms, 12 of 38 fixture types |
 | M3 | Building | M2 (planks) | 13,108 / 21,201 (61.8%) | 53 forms, 12 of 42 fixture types |
-| M4 | Farming | M1 (stacks, facing indicator) | | |
+| M4 | Farming | M1 (stacks, facing indicator) | 15,600 / 24,054 (64.9%) | 50 of 113 forms, 12 of 52 fixture types |
 | M5 | Gathering and fishing | M1 | | |
 | M6 | Cooking | M4 (wheat), M5 (fish) | | |
 | M7 | Mining and smithing | M3 (hammer, frames) | | |
@@ -77,8 +77,9 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 
 M1–M4 are the core. M5–M9 can follow in any order. §1 stays the M0 baseline; each milestone
 fills in its row from `npm run coverage` when it lands. New fixture types join the sweep as
-targets, so the space grows with them: M3 adds four kinds of unfinished work, and most
-forms have nothing to do with them, so the share undefined rises while nothing was lost.
+targets and new forms as held items, so the space grows with them (M3 adds four kinds of
+unfinished work, M4 ten crop stages and three seeds). Most forms have nothing to do with a
+new target, so the share undefined rises although nothing was lost.
 
 ## 4. Milestones
 
@@ -200,11 +201,11 @@ their field, fills it, and crosses the Hearthvale pond on a bridge they laid.
 Player flow:
 
 1. **E** with a hoe turns grass or dirt into farmland (exists today).
-2. **G** seeds onto farmland: a sprout appears.
+2. **G** (or **E**) seeds onto bare farmland: a sprout appears.
 3. **E** with a water bucket waters it. Two game hours later it has grown one stage. Water
    the young plant again; two hours later it is ripe.
-4. **E** with a sickle harvests two of the crop and two seeds. **F** with bare hands picks
-   one of each.
+4. **E** with a sickle harvests two of the crop and two seeds. **F** picks one of each (the
+   crop to the hand, the seed to the ground).
 5. Ash put on a growing plant fertilizes it: one more of the crop at harvest.
 6. **E** with a shovel digs a plant up and returns its seed.
 
@@ -218,26 +219,31 @@ and leave ash — which is fertilizer.
 | `farm/grow` | expire `watered` on a `growing` crop | crop becomes its `nextType` |
 | `farm/harvest` | interact · `tool:sickle` on a `ripe` crop | spawn 2 × `yieldType` and 2 × `seedType`; crop removed |
 | `farm/pick` | take · empty hand on a `ripe` crop | 1 × `yieldType` to hand, 1 × `seedType` to the tile; crop removed |
-| `farm/fertilize` | put · ash on a `growing` crop | crop gains `fertilized`; ash consumed |
-| `farm/harvest-rich` | as `farm/harvest`, crop is `fertilized` | one more of the crop |
+| `farm/fertilize` | put · ash on a `growing` crop without `fertilized` | crop gains `fertilized` and one more `yield` (harvest spawns `yield` of the crop); ash consumed |
+| `farm/harvest-perennial`, `farm/pick-perennial` | as harvest and pick, crop is `perennial` | the crop returns to `regrowType` (young), its fertilizer spent |
 | `farm/dig-up` | interact · `tool:shovel` on a crop | crop becomes its seed again |
+| `farm/plant-acorn` | put or interact · acorn on any diggable ground | a sapling with `rooting` (two game days) |
+| `farm/root`, `farm/root-later` | expire `rooting` on a sapling | the tile becomes `tree`; waits an hour while someone stands there |
+| `wood/acorn` | composes with `wood/fell`, 25% | an acorn |
+| `fire/spread-dry-things` | tick · burning `dry` fixture (ripe wheat, hay) | spreads as fast as dry grass |
 
 | Crop | Seed | Yields | Notes |
 |---|---|---|---|
 | Wheat | wheat seeds (today's generic "Seeds") | wheat | ripe stage is `dry`, `flammable` |
 | Herb | herb seeds | herb | |
-| Berry bush | berry seeds | berries | perennial: picking returns it to `young` instead of removing it |
-| Oak | acorn (a felled tree drops one, 25%) | — | no watering; after two game days the tile becomes `tree` |
+| Berry bush | berry seeds | berries | perennial: picking or harvesting returns it to `young` instead of removing it |
+| Oak | acorn (a felled tree drops one, 25%) | — | no watering; after two game days the tile becomes `tree`; also takes on grass, dirt, sand and snow |
 
 Content: types `fixture/crop/<plant>/{sprout,young,ripe}` as siblings, each with
-`nextType`; tags `crop`, `growing`, `ripe`; props `yieldType`, `seedType`. Seed types
-`item/seed/<plant>` with `cropType`. Statuses `watered` (1,200 ticks) and `fertilized`.
-Crops do not block movement.
+`nextType`; tags `crop`, `growing`, `ripe`; props `yieldType`, `seedType`, `yield`. Seed types
+`item/seed/<plant>` with `cropType` (the generic "Seeds" became wheat seeds). Statuses
+`watered` (1,200 ticks), `fertilized` and `rooting` (28,800). Crops do not block movement.
 
-World: the generator already lays up to three fenced fields in every village, half of them
-farmland and half dry grass; all become farmland, sown at mixed stages. Farm containers
-hold seeds; Hearthvale gets a small plot beside the well and
-a hoe, a sickle and four seeds in the kit.
+World: every village field is farmland, sown with one crop at mixed stages. The generator
+now keeps trying until three fields fit (it used to give up after three tries, so most
+villages had none): 9 of 12 villages have fields, about 440 crops across all six regions.
+Farm containers hold seeds. Hearthvale keeps its dry hay field (the fire lesson) and gets a
+small plot beside the well, and a hoe, a sickle and four wheat seeds in the kit.
 
 Needs: E4, C3.
 
@@ -379,7 +385,7 @@ rule.
 | E1 | `take` prefers a loose item on a fixture's tile over the fixture, unless the fixture is an open container with contents | M1 |
 | E2 | The frame carries the contents of the open container the player faces; `take` accepts a chosen item id | M1 |
 | E3 | Condition `count`: how many entities matching a selector are in a role's contents or on its tile, compared with a number or a role's property (`capacity`) | M1, M7, M8 |
-| E4 | `spawn.type` accepts `@prop:` read from a named role, as `transform.into` already does for its own entity | M4 |
+| E4 | `spawn.type` accepts `@prop:<role>.<key>`, a type read from a role's prop, as `transform.into` already does for its own entity | M4 |
 | E5 | Text templates read props: `{target.planks}` | M3, M7 |
 | E6 | `addProp.delta` accepts an `Amount`, so it can read another role's prop | M8 |
 | E7 | Property comparisons between roles (`actor.coins` ≥ `target.value`) | M8 |
