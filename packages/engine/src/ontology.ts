@@ -1,0 +1,91 @@
+// The is-a hierarchy. Type ids are slash paths, so `a isA b` is a prefix test; the
+// registry merges tags/props/sprite down the chain and caches the result per type.
+
+import type { EntityKind, Ontology, PropValue, StatusDef, TerrainDef, TypeDef } from './types.ts'
+
+export interface ResolvedType {
+  id: string
+  kind: EntityKind | 'tile'
+  tags: string[]
+  props: Record<string, PropValue>
+  sprite?: string
+  solid: boolean
+  name?: TypeDef['name']
+  /** Ancestor chain from root to self (only registered ids). */
+  chain: string[]
+  depth: number
+}
+
+export function isA(type: string, ancestor: string): boolean {
+  return type === ancestor || type.startsWith(ancestor + '/')
+}
+
+export function typeDepth(type: string): number {
+  return type.split('/').length
+}
+
+export class OntologyIndex {
+  readonly data: Ontology
+  private cache = new Map<string, ResolvedType>()
+
+  constructor(data: Ontology) {
+    this.data = data
+  }
+
+  /** Register (or replace) a type at runtime, e.g. from an accepted patch. */
+  addType(def: TypeDef): void {
+    this.data.types[def.id] = def
+    this.cache.clear()
+  }
+
+  addStatus(def: StatusDef): void {
+    this.data.statuses[def.id] = def
+  }
+
+  hasType(id: string): boolean {
+    return id in this.data.types
+  }
+
+  /** True when `id` is a registered type or a prefix of one (usable in a selector). */
+  knowsTypePrefix(id: string): boolean {
+    if (id in this.data.types) return true
+    for (const t in this.data.types) if (t.startsWith(id + '/')) return true
+    return false
+  }
+
+  status(id: string): StatusDef | undefined {
+    return this.data.statuses[id]
+  }
+
+  terrain(id: string): TerrainDef | undefined {
+    return this.data.terrains[id]
+  }
+
+  resolve(id: string): ResolvedType {
+    const hit = this.cache.get(id)
+    if (hit) return hit
+    const parts = id.split('/')
+    const chain: string[] = []
+    const tags = new Set<string>()
+    const props: Record<string, PropValue> = {}
+    let kind: ResolvedType['kind'] = parts[0] === 'tile' ? 'tile' : (parts[0] as EntityKind)
+    let sprite: string | undefined
+    let solid = false
+    let name: TypeDef['name']
+    for (let i = 1; i <= parts.length; i++) {
+      const p = parts.slice(0, i).join('/')
+      const def = this.data.types[p]
+      if (!def) continue
+      chain.push(p)
+      kind = def.kind
+      for (const t of def.tags ?? []) tags.add(t)
+      Object.assign(props, def.props ?? {})
+      if (def.sprite) sprite = def.sprite
+      if (def.solid !== undefined) solid = def.solid
+      if (def.name) name = def.name
+    }
+    const r: ResolvedType = { id, kind, tags: [...tags], props, sprite, solid, name, chain, depth: parts.length }
+    this.cache.set(id, r)
+    return r
+  }
+}

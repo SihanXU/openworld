@@ -1,6 +1,6 @@
 # Large Symbolic World — Design
 
-Status: **agreed design, pre-implementation** (2026-09-30).
+Status: **agreed design; Phase 1 (infra) implemented** (2026-09-30).
 Language: docs and code comments in English; discussion in Chinese.
 
 ## 1. What we are building
@@ -238,7 +238,7 @@ hand from a dev panel; nothing in the engine changes when an LLM is plugged in.
 
 ```ts
 interface ModProvider {
-  resolve(req: ModRequest): Promise<Patch[]>    // [] = declined / failed / offline
+  resolve(req: ModRequest, spec: ModSpec): Promise<Patch | null>   // null = declined / failed / offline
 }
 
 interface ModRequest {
@@ -260,10 +260,15 @@ interface ModSpec {
                                                 //   must not contradict existing rules, …
 }
 
-type Patch =
-  | { kind: 'rule',   rule: Rule, tests: RuleTest[] }   // new behaviour, with its own tests
-  | { kind: 'entity', entity: EntityDef }                // new item/fixture type if needed
+interface Patch { artifacts: Artifact[]; note?: string; author?: string }
+type Artifact =
+  | { kind: 'rule';   rule: Rule }          // new behaviour; rule.tests carries its own tests
+  | { kind: 'type';   type: TypeDef }       // a new item/fixture/actor type if the outcome needs one
+  | { kind: 'status'; status: StatusDef }   // a new status if the outcome needs one
 ```
+
+`ModRequest` also carries a **scenario**: a self-contained 7×7 snapshot of the interaction's
+neighbourhood that the validator replays in a sandbox engine (and that patch tests reuse).
 
 Lifecycle of a patch:
 
@@ -356,6 +361,25 @@ Acceptance: open the static build → walk across maps → take/put/interact →
 and is doused → fight with elemental reactions → trigger an undefined interaction →
 see its `ModRequest` in the dev panel → paste a patch → it validates, applies, persists,
 and fires again after reload.
+
+### Phase 1 — what was built (2026-09-30)
+
+All nine items above are implemented and verified in the browser: the static build plays from a
+URL; take/put/interact, fire spread and dousing, elemental combat (vaporize, freeze, conduct,
+explode), locked chests and keys, cooking, NPC talk, schedules across 460 maps; an undefined
+interaction reaches the Mod Console, a hand-written patch validates, applies, re-resolves the
+frozen interaction, generalises to other instances of the class, and persists across reloads.
+Notes from verification that changed the design:
+
+- Green grass is not flammable (only dry grass, bushes, trees and wood): otherwise one torch
+  burns the whole map.
+- Townsfolk pass through each other and path around solid fixtures; the player can push past a
+  person by holding the direction (~0.8 s). Only the player steps on portals.
+- Empty/full vessels and raw/cooked food are sibling types, not parent/child: children inherit
+  tags, so a "water bucket" under "bucket" was still an "empty vessel".
+- Conflict checking consults the ontology (plus instance-assignable tags such as materials);
+  a unit test asserts the base library has no equal-specificity overlaps.
+- Saves carry the world version; incompatible saves are discarded, rule-library patches are kept.
 
 ## 13. After Phase 1
 

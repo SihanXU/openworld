@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Art Preview</title>
+    <style>
+      :root {
+        --bg: #1c1b24;
+        --panel: #262532;
+        --text: #e8e4f0;
+        --muted: #9a96ac;
+        --accent: #f0c850;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 16px 20px 60px;
+        background: var(--bg);
+        color: var(--text);
+        font: 12px/1.35 ui-monospace, 'Cascadia Mono', Consolas, monospace;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 4px;
+        color: var(--accent);
+      }
+      h2 {
+        font-size: 14px;
+        margin: 26px 0 8px;
+        color: var(--accent);
+        border-bottom: 1px solid #3a3848;
+        padding-bottom: 4px;
+      }
+      .note {
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .cell {
+        background: var(--panel);
+        border-radius: 4px;
+        padding: 6px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+      .cell .label {
+        color: var(--muted);
+        font-size: 10px;
+        max-width: 160px;
+        text-align: center;
+        word-break: break-all;
+      }
+      .frames {
+        display: flex;
+        gap: 3px;
+        align-items: flex-end;
+      }
+      canvas {
+        image-rendering: pixelated;
+        display: block;
+      }
+      .checker {
+        background-color: #3a8a4a;
+      }
+      .light .checker {
+        background-color: #8ac06a;
+      }
+      #scene {
+        border: 2px solid #3a3848;
+      }
+      label {
+        color: var(--muted);
+        margin-right: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Large Symbolic World — procedural art preview</h1>
+    <div class="note">Every texture below is painted in code (packages/client/src/art). Shown at 3×.
+      <label><input type="checkbox" id="bgToggle" /> light backdrop</label>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="./preview.ts"></script>
+  </body>
+</html>
