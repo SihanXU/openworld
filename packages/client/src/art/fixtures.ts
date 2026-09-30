@@ -1258,6 +1258,100 @@ function fence(): Pix {
   )
 }
 
+// ------------------------------------------------------------------ unfinished work
+
+/** A chest-sized wooden frame: corner posts and rails, open between them. */
+function frame(): Pix {
+  return obj(
+    16,
+    16,
+    (q) => {
+      // back rails (the top face's far edge) and front rails
+      q.hline(3, 12, 5, WOOD.dark)
+      q.hline(2, 13, 8, WOOD.light)
+      q.hline(2, 13, 9, WOOD.base)
+      q.hline(2, 13, 13, WOOD.base)
+      q.hline(2, 13, 14, WOOD.dark)
+      // side rails of the top face
+      q.line(2, 8, 3, 5, WOOD.base)
+      q.line(13, 8, 12, 5, WOOD.dark)
+      // corner posts
+      for (const x of [2, 13]) {
+        q.vline(x, 8, 14, WOOD.base)
+        q.set(x, 8, WOOD.hi)
+      }
+      for (const x of [3, 12]) q.vline(x, 5, 9, WOOD.dark)
+      // one plank laid across the bottom
+      q.hline(3, 12, 11, WOOD.light)
+      q.hline(3, 12, 12, WOOD.dark)
+    },
+    [8, 14.5, 6.5, 1],
+  )
+}
+
+/** Two sticks driven into the ground, lashed together. */
+function stakes(): Pix {
+  return obj(
+    16,
+    16,
+    (q) => {
+      for (const x of [5, 10]) {
+        q.vline(x, 4, 13, WOOD.base)
+        q.vline(x + 1, 4, 13, WOOD.dark)
+        q.set(x, 3, WOOD.light)
+        q.set(x + 1, 3, WOOD.base)
+      }
+      q.hline(5, 11, 8, STRAW.base)
+      q.set(8, 9, STRAW.dark)
+    },
+    [8, 14, 4.5, 0.8],
+  )
+}
+
+/** A plank resting unnailed on a stick. */
+function post(): Pix {
+  return obj(
+    16,
+    16,
+    (q) => {
+      q.rect(7, 8, 2, 7, WOOD.dark)
+      q.set(7, 8, WOOD.base)
+      q.line(2, 7, 13, 4, WOOD.light)
+      q.line(2, 8, 13, 5, WOOD.base)
+      q.line(2, 9, 13, 6, WOOD.dark)
+    },
+    [8, 14.5, 3, 1],
+  )
+}
+
+/** A ring of stones laid for a fire, not yet stacked with wood. */
+function ring(): Pix {
+  return obj(
+    16,
+    16,
+    (q) => {
+      const stones: [number, number][] = [
+        [3, 10],
+        [5, 12],
+        [8, 13],
+        [11, 12],
+        [13, 10],
+        [12, 7],
+        [8, 6],
+        [4, 7],
+      ]
+      for (const [x, y] of stones) {
+        q.set(x, y, STONE.light)
+        q.set(x + 1, y, STONE.base)
+        q.set(x, y + 1, STONE.base)
+        q.set(x + 1, y + 1, STONE.dark)
+      }
+      q.ellipse(8.5, 10, 3, 1.6, '#3a2e28', 0.55)
+    },
+    [8, 11, 6.5, 3],
+  )
+}
+
 function dummy(): Pix {
   return obj(
     16,
@@ -1331,6 +1425,10 @@ const MAKERS: Record<string, Maker> = {
   beehive: { base: beehive },
   fence: { base: fence },
   dummy: { base: dummy },
+  frame: { base: frame },
+  stakes: { base: stakes },
+  post: { base: post },
+  ring: { base: ring },
 }
 
 const ALIASES: Record<string, string> = {

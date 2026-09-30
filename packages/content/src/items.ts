@@ -100,7 +100,7 @@ export const FORMS: Form[] = [
   W('item/tool/hoe', 'Hoe', '锄头', 'item:hoe', { tags: ['tool:hoe'], materials: TOOL_METALS, where: { farm: 3 } }),
   W('item/tool/sickle', 'Sickle', '镰刀', 'item:sickle', { tags: ['tool:sickle', 'sharp'], materials: TOOL_METALS, where: { farm: 2 } }),
   W('item/tool/fishing_rod', 'Fishing Rod', '鱼竿', 'item:rod', { tags: ['tool:fishing', 'wooden', 'flammable'], where: { home: 0.5, shop: 0.5, npc: 0.3 } }),
-  W('item/tool/smith_hammer', 'Smith Hammer', '锻锤', 'item:hammer', { tags: ['tool:hammer'], materials: TOOL_METALS, where: { smithy: 3 } }),
+  W('item/tool/smith_hammer', 'Smith Hammer', '锻锤', 'item:hammer', { tags: ['tool:hammer'], materials: TOOL_METALS, where: { smithy: 3, farm: 1, home: 0.5 } }),
   W('item/tool/knife', 'Knife', '小刀', 'item:dagger', { tags: ['tool:knife', 'sharp'], materials: TOOL_METALS, where: { home: 2, inn: 2, farm: 1 } }),
   W('item/tool/rope', 'Rope', '绳索', 'item:rope', { tags: ['flammable', 'fiber'], where: { home: 1, shop: 2, farm: 1, dungeon: 0.5 } }),
   W('item/tool/flint', 'Flint and Steel', '火镰', 'item:flint', { tags: ['fire-source', 'metal'], where: { home: 1, shop: 1, inn: 0.5, npc: 0.3 } }),

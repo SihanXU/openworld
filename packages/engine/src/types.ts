@@ -287,7 +287,7 @@ export type RoleRef = RoleName | 'tileOf:actor' | 'tileOf:target' | 'tileOf:inst
 export type Amount = number | 'power' | { prop: string; of: RoleName; mul?: number; add?: number }
 
 export type Effect =
-  | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: number }
+  | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount }
   | { op: 'destroy'; of: RoleRef }
   | { op: 'transform'; of: RoleRef; into: string }
   | { op: 'moveTo'; of: RoleRef; to: RoleRef; into?: 'tile' | 'contents' | 'hand' }

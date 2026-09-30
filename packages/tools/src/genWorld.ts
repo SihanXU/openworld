@@ -919,6 +919,7 @@ function genStart(): GenMap {
     ['item/weapon/blade/sword', 13, 17, { material: 'iron', quality: 'common', element: null }],
     ['item/weapon/blade/axe', 24, 13, { material: 'iron', quality: 'common', element: null }],
     ['item/tool/pickaxe', 25, 13, { material: 'iron', quality: 'common' }],
+    ['item/tool/smith_hammer', 23, 13, { material: 'iron', quality: 'common' }],
     ['item/tool/rope', 20, 22],
     ['item/food/fish/raw', 26, 18],
     ['item/food/apple', 19, 17],

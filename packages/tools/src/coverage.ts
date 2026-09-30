@@ -9,7 +9,7 @@
 
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { OntologyIndex, RuleLibrary, SANDBOX_MAP, buildSandbox, matchSelector, textOf, type Ontology, type Ref, type Rule, type Scenario, type Selector, type Verb } from '@lsw/engine'
+import { OntologyIndex, RuleLibrary, SANDBOX_MAP, buildSandbox, matchSelector, textOf, type Cond, type Ontology, type Ref, type Rule, type Scenario, type Selector, type Verb } from '@lsw/engine'
 import { BASE_RULES, FORMS, MATERIALS, TERRAINS, buildOntology } from '@lsw/content'
 
 // ------------------------------------------------------------------ definitions
@@ -179,6 +179,15 @@ function purposeful(sel: Selector | undefined): boolean {
   return !!sel.type || !!sel.id || (sel.tags ?? []).some((t) => !MATERIAL_TAGS.has(t))
 }
 
+/** The selectors a condition counts entities by. */
+function counted(c: Cond | undefined): Selector[] {
+  if (!c) return []
+  if ('all' in c) return c.all.flatMap(counted)
+  if ('any' in c) return c.any.flatMap(counted)
+  if ('not' in c) return counted(c.not)
+  return 'count' in c && c.count.match ? [c.count.match] : []
+}
+
 function summarize(cells: Cell[], onto: Ontology, rules: Rule[]): Coverage {
   const byId = new Map(rules.map((r) => [r.id, r]))
   const totals = zero()
@@ -199,13 +208,15 @@ function summarize(cells: Cell[], onto: Ontology, rules: Rule[]): Coverage {
   }
   // A held item's power is added to every attack (Engine.attack): weapons have a purpose.
   for (const f of FORMS) if (typeof f.props?.power === 'number') usedForms.add(f.id)
-  // So does a form an interaction rule singles out as the thing acted on (a log to split).
-  // The sweep holds forms rather than facing them, so this one is read from the rules.
+  // So does a form an interaction rule singles out in any other way: as the thing acted on
+  // (a log to split), or as something the actor must carry (ink to write with). The sweep
+  // cannot reach those states, so they are read from the rules.
   const index = new OntologyIndex(onto)
+  const singled = rules.filter((r) => r.on === 'interaction').flatMap((r) => [r.when.target, r.when.instrument, ...counted(r.guard)].filter(purposeful))
   for (const f of FORMS) {
     const r = index.resolve(f.id)
     const view = { ref: { e: f.id }, kind: r.kind, type: f.id, tags: new Set(r.tags), statuses: new Set<string>(), props: r.props, isPlayer: false }
-    if (rules.some((rule) => rule.on === 'interaction' && purposeful(rule.when.target) && matchSelector(rule.when.target, view))) usedForms.add(f.id)
+    if (singled.some((sel) => matchSelector({ ...sel, status: undefined, notStatus: undefined, props: undefined }, view))) usedForms.add(f.id)
   }
   const fixtures = [...new Set(cells.map((c) => c.target).filter((t) => t.startsWith('fixture/')).map((t) => t.split('#')[0]))]
   return {
