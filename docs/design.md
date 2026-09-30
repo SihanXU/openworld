@@ -14,6 +14,12 @@ Thesis: *a free, open-ended world does not need a neural world model — a symbo
 engine plus just-in-time code patching is enough, and it is the only route that stays
 consistent, persistent and cheap at scale.*
 
+Second thesis: *the world is also where its coder improves itself.* Patching the world
+makes the world better, not the coder; recursive self-improvement is the modder's own
+memory, skills and harness growing while it patches, until what it formed on its own
+solves harder coding tasks than world patches. Design: [rsi.md](rsi.md). The demo game
+does not show this; it is a paper thread.
+
 - The game runs on its own. When an interaction **is** defined, no AI is involved.
 - When an interaction is **undefined**, the engine raises it through the **Mod port**;
   a modder (later: an LLM service descended from BardOS) returns a **patch** — a
@@ -407,9 +413,14 @@ Near-term gameplay work — interactions and simple loops — is planned in [roa
 
 - Modder service: port BardOS's pipeline (comprehend → query → design → review) to
   author **rules** against this ModSpec; add a rule-library search tool so it reuses and
-  generalizes instead of duplicating.
+  generalizes instead of duplicating. It keeps a versioned **self-state** — memory,
+  skills, harness — read and written on every request ([rsi.md](rsi.md)).
+- Self-improvement: skills (procedural and sandboxed tools), harness edits behind a
+  meta-validation gate, and snapshots of the self-state for the team's external coding
+  benchmark runs (at the start and at several points as the world grows).
 - Offline content generation at full scale through the same modder.
 - Public deployment with the shared rule library.
 - Paper metrics: rule-library growth, patch reuse rate, LLM calls per play-hour over
-  time, validation pass rate, consistency checks, play-tester plausibility ratings.
+  time, validation pass rate, repair rounds per patch, consistency checks, play-tester
+  plausibility ratings; for RSI, the external benchmark at each self-state snapshot.
 - Free-text input (deferred, D9).

@@ -10,6 +10,9 @@ Design: [docs/design.md](docs/design.md). Paper draft lives in Notion ("Large Sy
 - Build order: a small, polished demo first (Hearthvale), then scale. Keep the architecture
   scale-ready; ask when the scope of a request is ambiguous.
 - The subject is the WORLD (vs neural world models), not agents. NPCs are content.
+- Second paper thread: RSI of the modder (memory, skills, harness it forms itself), see
+  `docs/rsi.md`. It is a paper matter: the demo stays a clean game without it. Evaluation is
+  an external benchmark run by the team.
 - Commit/push only when asked. End commit messages with the Co-Authored-By line.
 
 ## Architecture (strict dependency direction)
