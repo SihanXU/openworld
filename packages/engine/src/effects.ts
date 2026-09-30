@@ -7,7 +7,7 @@ import type { Amount, Effect, Entity, GameEvent, Place, Pos, Ref, RoleRef, Rule,
 import { NO_EXPIRY } from './world.ts'
 
 export const PRIMITIVES: Record<Effect['op'], string> = {
-  spawn: 'spawn {type, at, into?: tile|contents|hand, count?: number | {prop, of}} — create new entities (count may read a prop: the planks in a frame)',
+  spawn: 'spawn {type, at, into?: tile|contents|hand, count?: number | {prop, of}} — create new entities; type may be "@prop:<role>.<key>" (a crop\'s yieldType), count may read a prop (the planks in a frame)',
   destroy: 'destroy {of} — remove an entity (and everything it holds)',
   transform: 'transform {of, into} — change an entity\'s type in place',
   moveTo: 'moveTo {of, to, into?: tile|contents|hand} — move an entity to a role\'s tile / contents / hand',
@@ -97,12 +97,14 @@ export class EffectRunner {
     const w = eng.world
     switch (eff.op) {
       case 'spawn': {
+        const type = this.typeOf(ev, eff.type)
+        if (!type) return
         const at = this.ref(ev, eff.at)
         const into = eff.into ?? 'tile'
         const n = eff.count === undefined ? 1 : Math.max(0, Math.floor(this.amount(ev, eff.count)))
         for (let i = 0; i < n; i++) {
           const place = this.placeFor(at, into)
-          if (place) w.create(eff.type, place)
+          if (place) w.create(type, place)
         }
         return
       }
@@ -260,6 +262,14 @@ export class EffectRunner {
         return
       }
     }
+  }
+
+  /** A type named outright, or read from a role's prop: `@prop:target.yieldType`. */
+  private typeOf(ev: GameEvent, type: string): string | undefined {
+    const m = /^@prop:(actor|target|instrument)\.(\w+)$/.exec(type)
+    if (!m) return type
+    const v = this.eng.world.view(ev.roles[m[1] as 'actor'])?.props[m[2]]
+    return typeof v === 'string' && this.eng.world.onto.hasType(v) ? v : undefined
   }
 
   /** Where `into` lands relative to a role: its tile, its contents, or its hand. */

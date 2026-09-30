@@ -578,7 +578,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     const any = e as Record<string, unknown>
     for (const k of ['of', 'at', 'to', 'who', 'from', 'away'] as const) if (k in any) roleRef(any[k], `${where}.${k}`)
     if ((e.op === 'spawn' || e.op === 'transform') && !(e.op === 'spawn' ? e.type : e.into)) errors.push(`${where}: type required`)
-    if (e.op === 'spawn' && !(e.type in onto.types)) errors.push(`${where}: unknown type "${e.type}"`)
+    if (e.op === 'spawn' && !/^@prop:(actor|target|instrument)\.\w+$/.test(e.type) && !(e.type in onto.types)) errors.push(`${where}: unknown type "${e.type}"`)
     if (e.op === 'transform' && !e.into.startsWith('@prop:') && !(e.into in onto.types)) errors.push(`${where}: unknown type "${e.into}"`)
     if ((e.op === 'addStatus' || e.op === 'removeStatus' || e.op === 'spread') && e.status && !(e.status in onto.statuses))
       errors.push(`${where}: unknown status "${e.status}"`)
