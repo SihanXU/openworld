@@ -9,6 +9,7 @@
     "dev": "npm run dev -w @lsw/client",
     "build": "npm run gen:world && npm run build -w @lsw/client",
     "gen:world": "tsx packages/tools/src/genWorld.ts",
+    "coverage": "tsx packages/tools/src/coverage.ts",
     "test": "vitest run",
     "typecheck": "tsc -p packages/engine && tsc -p packages/content && tsc -p packages/tools && tsc -p packages/client",
     "check": "npm run typecheck && npm test"

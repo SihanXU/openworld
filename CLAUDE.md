@@ -27,7 +27,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - `packages/content` — ontology (terrains, statuses, elements, types), item catalogue
   (forms × materials × qualities × elements), the BASE RULE LIBRARY (`rules.ts`), chunk codec.
 - `packages/tools` — `genWorld.ts` (Saenvar at full scale → `packages/client/public/world/`),
-  `stress.ts` (loads every map, simulates, checks invariants).
+  `stress.ts` (loads every map, simulates, checks invariants), `coverage.ts` (every item form ×
+  every target × every verb through the rule library; the numbers in `docs/roadmap.md` §1).
 - `packages/client` — `worker.ts` runs the engine at 10 ticks/s; `scene.ts` renders
   snapshots; `hud.ts` HUD + Mod Console (the human-operated Mod port); `art/` procedural
   pixel art (no image assets).
@@ -42,6 +43,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - Only player interactions can be *undefined*; hits/ticks/status events simply have no effect
   when unmatched.
 - Only the player steps onto portals; NPCs transfer from the adjacent tile.
+- After changing rules, run `npm run coverage`, commit the refreshed baseline with them and
+  update `docs/roadmap.md` §1. The coverage test fails if any form or target loses an answer
+  or a purpose.
 
 ## Commands
 
@@ -51,6 +55,7 @@ npm run gen:world        # regenerate the world files (deterministic seed)
 npm run dev              # client at http://localhost:5173
 npm test                 # vitest (engine + base rules + Mod port)
 npm run typecheck
+npm run coverage         # interaction coverage (roadmap §1) + refresh its test baseline
 npx tsx packages/tools/src/stress.ts 6   # full-scale stress run (6 game-hours)
 npm run build            # gen:world + static build → packages/client/dist
 ```

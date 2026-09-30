@@ -9,16 +9,21 @@ the engine and client changes it needs are small and are listed in §5.
 
 ## 1. Baseline
 
-A coverage sweep resolved every item form (110, plus the empty hand) against 90 target
-classes — every fixture type, including open and lit states, every terrain, a person, a
-creature, yourself, and an item on the ground — with `put` and `interact` (`take` and
-`interact` for the empty hand). 19,869 combinations:
+`npm run coverage` resolves every item form (110, held as its bare type, plus the empty hand)
+against 92 targets — every fixture type, with containers also open, the chest also locked and
+lightable fixtures also lit, every terrain, a person, a creature, yourself, and an item on the
+ground — with `put` and `interact` (`take` and `interact` for the empty hand; only `interact`
+on yourself). 20,313 combinations:
 
 | Outcome | Count | Share |
 |---|---|---|
-| A rule written for that case | 716 | 3.6% |
-| A generic answer (set down, store, hand over, splash, examine) | 5,192 | 26.1% |
-| Undefined | 13,961 | 70.3% |
+| A rule written for that case | 689 | 3.4% |
+| A generic answer (set down, store, hand over, splash water or oil, examine, nothing to take) | 5,318 | 26.2% |
+| Undefined | 14,306 | 70.4% |
+
+A form or fixture type has a purpose when a rule that answers it singles it out by what it is
+for (a tag or type other than a material: "anything flammable burns in a fire" does not
+count), or, for a form, when it adds power to attacks.
 
 What that looks like in play:
 
@@ -76,10 +81,11 @@ M1–M4 are the core. M5–M9 can follow in any order.
 ### M0 — Coverage report
 
 Land the sweep behind §1 as `packages/tools/src/coverage.ts`: the matrix, the list of forms
-and fixture types no specific rule ever touches, and the three counts. It is the progress
-meter for everything below and runs with the tests.
+and fixture types without a purpose, and the three counts. It is the progress meter for
+everything below and runs with the tests: `npm test` fails if any form or target answers fewer
+combinations, or any form or fixture type loses its purpose, than the committed baseline.
 
-Done when: the report reproduces the §1 numbers on the current tree.
+Done when: `npm run coverage` reproduces the §1 numbers on the current tree.
 
 ### M1 — Hands, surfaces and storage
 
