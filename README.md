@@ -29,6 +29,34 @@ Controls: WASD/arrows move · **E** interact (with the held item) · **F** take 
 **U** use on yourself · **Space** attack/cast · **1–9** hold an item · **Q** stow ·
 **↑↓** choose in an open chest · **`** Mod Console · **L** language · **M** sound · **H** help.
 
+## The modder
+
+The game is complete without it: undefined interactions fall back, and can be patched by hand
+in the Mod Console. With the modder service running, they are patched live, and every
+accepted patch joins the shared rule library that all clients sync from.
+
+```bash
+# any OpenAI-compatible endpoint (default base URL: OpenRouter)
+LSW_MODEL_URL=https://openrouter.ai/api/v1 LSW_MODEL_KEY=... LSW_MODEL=<model> npm run modder -- serve
+# or offline, with a scripted model (rope on a creature is the one interaction it knows)
+npm run modder -- serve 8787 --script packages/modder/fixtures/offline.json --data var/offline
+```
+
+The dev client finds it at `http://localhost:8787`. Elsewhere, point the client at it with
+`?modder=<url>` or `VITE_MODDER_URL` at build time; `?modder=off` disables it.
+
+Data lives in `var/` (not committed):
+- `library.jsonl` — the shared library's append-only patch log;
+- `modder-state/` — the modder's memory, skills and harness ([docs/rsi.md](docs/rsi.md)).
+
+```bash
+npm run curriculum -- 20         # resolve 20 sampled undefined interactions offline
+npm run modder -- stats          # library and self-state numbers
+npm run modder -- snapshot <label>   # freeze the self-state (benchmark checkpoints)
+npm run modder -- export [label]     # the self-state as one document
+npm run modder -- library remove <rule-id>   # roll a patch back
+```
+
 ## Art & audio
 
 [Ninja Adventure asset pack](https://pixel-boy.itch.io/ninja-adventure-asset-pack) by
@@ -39,7 +67,7 @@ Pixel-boy & AAA, CC0. The full pack goes in `assets/ninja-adventure/` (not commi
 ## Checks
 
 ```bash
-npm test                                  # engine, base rules, story, Mod port, coverage
+npm test                                  # engine, base rules, story, Mod port, coverage, modder
 npm run typecheck
 npm run coverage                          # interaction coverage (roadmap §1, §3)
 npx tsx packages/tools/src/stress.ts 6    # Saenvar: all maps loaded, 6 game-hours simulated

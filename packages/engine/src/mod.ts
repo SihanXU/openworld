@@ -93,6 +93,37 @@ export interface ModProvider {
   resolve(req: ModRequest, spec: ModSpec): Promise<Patch | null>
 }
 
+// ---------------------------------------------------------------- the wire (client ↔ modder service)
+
+/** What the client knows that the service may not: its local patches and recent defined interactions. */
+export interface ModWorkspace {
+  patches?: { rules: Rule[]; types?: TypeDef[]; statuses?: StatusDef[] }
+  regression?: { scenario: Scenario; rule: string }[]
+}
+
+/** POST /resolve */
+export interface ResolveBody {
+  request: ModRequest
+  workspace?: ModWorkspace
+}
+
+/**
+ * `accepted`: a new patch was written and validated; `covered`: the shared library already
+ * answers this interaction (no model call); `failed`: no valid patch within the harness's
+ * budget; `unavailable`: no model configured.
+ */
+export interface ResolveReply {
+  patch: Patch | null
+  outcome: 'accepted' | 'covered' | 'failed' | 'unavailable'
+  episode?: string
+  diagnostics?: string[]
+}
+
+/** One entry of the shared library's append-only patch log (GET /patches?since=seq). */
+export type PatchLogEntry =
+  | { seq: number; at: string; patch: Patch; rules: string[]; request?: string; /** the triggering interaction (kept server-side as regression) */ scenario?: Scenario }
+  | { seq: number; at: string; remove: string }
+
 export type RecordStatus = 'pending' | 'patched' | 'fallback' | 'rejected'
 
 export interface UndefinedRecord {
@@ -205,6 +236,8 @@ export class ModPort implements UndefinedSink {
   /** Scenarios of recently *defined* interactions: regression set for new patches. */
   regression: { scenario: Scenario; rule: string }[] = []
   onChange?: () => void
+  /** How long an interaction waits for a patch before the fallback runs (a late patch still applies). */
+  timeoutTicks = TIMEOUT_TICKS
   private seq = 0
 
   constructor(private eng: Engine) {
@@ -224,7 +257,7 @@ export class ModPort implements UndefinedSink {
     const w = eng.world
     const id = `req-${w.state.seed.toString(36)}-${(++this.seq).toString(36)}-${w.state.tick.toString(36)}`
     const request = buildRequest(eng, ev, id)
-    const rec: UndefinedRecord = { id, tick: w.state.tick, status: 'pending', request, event: ev, deadline: w.state.tick + TIMEOUT_TICKS }
+    const rec: UndefinedRecord = { id, tick: w.state.tick, status: 'pending', request, event: ev, deadline: w.state.tick + this.timeoutTicks }
     this.records.push(rec)
     for (const r of [ev.roles.target, ev.roles.instrument]) {
       const e = r && 'e' in r ? w.get(r.e) : undefined
@@ -274,6 +307,24 @@ export class ModPort implements UndefinedSink {
     const eng = this.eng
     const w = eng.world
     const rec = id ? this.get(id) : undefined
+    // Idempotent: artifacts the library already holds verbatim (the same shared patch arriving
+    // twice, e.g. by sync and by reply) are skipped; the rest is validated as usual.
+    const fresh = patch.artifacts?.filter((a) => !alreadyHeld(eng.lib, a)) ?? []
+    if (Array.isArray(patch.artifacts) && patch.artifacts.length && !fresh.length) {
+      const res: ValidationResult = { ok: true, errors: [], warnings: ['already in the library'], overrides: [] }
+      if (rec && rec.status !== 'patched') {
+        const ruleIds = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : []))
+        rec.patch = patch
+        rec.rules = ruleIds
+        rec.status = 'patched'
+        this.unfreeze(rec.id)
+        w.fx.push({ t: 'patched', request: rec.id, rule: ruleIds[0] ?? '' })
+        if (stillValid(eng, rec.event) && eng.resolve(rec.event).defined) eng.queue(rec.event)
+        this.onChange?.()
+      }
+      return res
+    }
+    if (fresh.length !== patch.artifacts.length) patch = { ...patch, artifacts: fresh }
     const res = validatePatch(patch, {
       ontology: w.onto.data,
       library: eng.lib,
@@ -285,9 +336,10 @@ export class ModPort implements UndefinedSink {
       rec.diagnostics = [...res.errors, ...res.warnings]
     }
     if (!res.ok) {
-      if (rec && rec.status === 'pending') rec.status = 'rejected'
+      const wasPending = rec?.status === 'pending'
+      if (rec && wasPending) rec.status = 'rejected'
       if (rec) this.unfreeze(rec.id)
-      if (rec) eng.fallback(rec.event)
+      if (rec && wasPending) eng.fallback(rec.event)
       w.fx.push({ t: 'log', text: `patch rejected: ${res.errors[0]}`, tone: 'warn' })
       this.onChange?.()
       return res
@@ -328,6 +380,21 @@ export class ModPort implements UndefinedSink {
   dismiss(id: string): void {
     this.fallback(id)
   }
+}
+
+/** Does the library already hold this artifact, identically (provenance aside)? */
+export function alreadyHeld(lib: RuleLibrary, a: Artifact): boolean {
+  const same = (x: unknown, y: unknown) => JSON.stringify(x) === JSON.stringify(y)
+  if (a?.kind === 'rule') {
+    const r = lib.rules.get(a.rule?.id)
+    if (!r) return false
+    const { source: _s, ...held } = r
+    const { source: _t, ...given } = a.rule
+    return same(held, given)
+  }
+  if (a?.kind === 'type') return lib.types.some((t) => same(t, a.type))
+  if (a?.kind === 'status') return lib.statuses.some((s) => same(s, a.status))
+  return false
 }
 
 function stillValid(eng: Engine, ev: GameEvent): boolean {

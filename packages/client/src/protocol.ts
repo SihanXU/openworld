@@ -3,7 +3,7 @@
 import type { Dir, Frame, LibraryData, MapData, ModSpec, Patch, Rule, SaveData, UndefinedRecord, ValidationResult, Verb, WorldIndex } from '@lsw/engine'
 
 export type ToWorker =
-  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData }
+  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** the modder service, if any */ modder?: string }
   | { t: 'move'; dir: Dir | null }
   | { t: 'act'; verb: Verb; self?: boolean; item?: string }
   | { t: 'attack' }
@@ -45,4 +45,5 @@ export type FromWorker =
   | { t: 'validation'; id?: string; result: ValidationResult }
   | { t: 'saved'; save: SaveData; library: LibraryData }
   | { t: 'loading'; what: string }
+  | { t: 'modder'; online: boolean; url?: string; model?: string | null }
   | { t: 'error'; message: string }

@@ -18,7 +18,7 @@ Design: [docs/design.md](docs/design.md). Paper draft lives in Notion ("Large Sy
 ## Architecture (strict dependency direction)
 
 ```
-client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod port  →  [later] modder service
+client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod port  →  modder service (HTTP)
 ```
 
 - `packages/engine` — pure, deterministic, no DOM/AI. World state + indices (`world.ts`),
@@ -36,7 +36,19 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - `packages/client` — `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
   `render/scene.ts` renders snapshots with the Ninja Adventure pack; `assets/catalog.ts` maps
   content keys to sprites; `assets/ground.ts` autotiles; `hud.ts` HUD, dialogue, objectives
-  and the Mod Console (the human-operated Mod port).
+  and the Mod Console (patch by hand); the worker uses the modder service when one answers
+  (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it.
+- `packages/modder` — the modder service (design.md §13, rsi.md). It may depend on content;
+  the engine never depends on it. Parts:
+  - `model.ts`: a model interface — OpenAI-compatible, or scripted for tests and offline.
+  - `pipeline.ts`: comprehend → recall → design (tools) → verify/repair → review → commit →
+    record → reflect.
+  - `tools.ts`: the design tools.
+  - `library.ts`: the shared library as an append-only patch log.
+  - `state.ts`: the self-state — memory, skills, harness, journal, snapshots.
+  - `server.ts`, `cli.ts`: the HTTP API and the command line.
+  - The offline driver is `tools/src/curriculum.ts`.
+- Model choice is deferred: never hard-code a provider; tests use `ScriptedModel`.
 
 ## Rules of thumb
 
@@ -65,4 +77,8 @@ npm run typecheck
 npm run coverage         # interaction coverage + refresh its test baseline
 npx tsx packages/tools/src/stress.ts 6   # full-scale stress run (6 game-hours)
 npm run build            # gen:world + static build → packages/client/dist
+npm run modder -- serve  # modder service on :8787 (model from LSW_MODEL_URL/KEY/MODEL; data in var/)
+npm run modder -- serve 8787 --script packages/modder/fixtures/offline.json --data var/offline
+npm run curriculum -- 20 # resolve 20 sampled undefined interactions offline
+npm run modder -- stats | snapshot <label> | export [label] | library [remove <id>]
 ```

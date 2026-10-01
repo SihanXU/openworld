@@ -1,8 +1,13 @@
 # The self-improving modder (RSI)
 
-Status: **design** (2026-10-01). Not implemented; the modder itself is not wired yet and the
-model is not chosen. Evaluation uses an external coding benchmark (see §6) and is run by the
-team, not by this codebase. The demo game does not show any of this: it stays a clean game.
+Status (2026-10-01):
+- **Built** in `packages/modder` (design.md §13): memory, procedural skills with usage
+  bookkeeping, the harness as data, snapshots and export.
+- **Not built:** tool skills, harness proposals and the meta-validation gate.
+- **Not chosen:** the model.
+
+Evaluation uses an external coding benchmark (see §6) and is run by the team, not by this
+codebase. The demo game does not show any of this: it stays a clean game.
 
 ## 1. The claim
 
@@ -49,21 +54,26 @@ outer   memory + skills → proposed harness / skill changes → meta-validation
 
 ## 4. The self-state
 
-A directory next to the rule library, versioned the same way (append-only log + git), so any
-change can be traced, reverted or ablated:
+A directory next to the shared library (`var/modder-state/`, beside `var/library.jsonl`),
+versioned the same way: an append-only journal plus snapshots. Any change can be traced,
+reverted or ablated:
 
 ```
 modder-state/
   memory/
-    episodes/<request-id>.json     # request, every attempt, validator diagnostics, final patch
-    lessons.md                     # distilled rules of thumb, each linked to its episodes
+    episodes/<episode-id>.json     # request, every attempt, validator diagnostics, tools used,
+                                   #   what was recalled, model calls and tokens, final patch
+    index.jsonl                    # one line per episode: what retrieval reads
+    lessons.json / lessons.md      # distilled rules of thumb, each linked to its episodes
   skills/
     <name>/SKILL.md                # when to use it, how, examples (procedural skill)
-    <name>/tool.ts                 # optional executable tool, run in a sandbox
-    index.json                     # usage count, success rate, cost, provenance
+    <name>/tool.ts                 # (not yet) optional executable tool, run in a sandbox
+    index.json                     # uses, accepted/failed, version, status, origin episode
   harness/
-    pipeline.json                  # the working loop: stages, tools per stage, retries, checks
-    CHANGELOG.md                   # every accepted harness change and the evidence for it
+    pipeline.json                  # budgets and switches per stage, tools allowed, own addenda
+    CHANGELOG.md                   # every harness change and why
+  journal.jsonl                    # every write above, in order
+  snapshots/<label>/               # frozen copies + meta.json + SELF.md (see §6)
 ```
 
 ### 4.1 Memory
@@ -125,10 +135,20 @@ Out of scope for this codebase; recorded here so the pieces fit:
 
 ## 7. Build order
 
-1. The modder service (port BardOS's pipeline) with the self-state layout above, read and
-   written on every request — memory first.
-2. Skills: the writing prompt, the sandbox for tool skills, usage bookkeeping.
-3. Harness as data, the proposal step and the meta-validation gate.
-4. Snapshot/export of the self-state for the external benchmark runs.
+1. ✅ The modder service (BardOS's pipeline, ported to rules) with the self-state above, read
+   and written on every request. Memory: episodes, lessons, retrieval.
+2. Skills.
+   - ✅ The writing step in reflection, recurrence gating, usage and outcome bookkeeping,
+     retirement.
+   - ⬜ The sandbox for tool skills.
+3. Harness.
+   - ✅ The harness as data, with a changelog.
+   - ⬜ The proposal step and the meta-validation gate. The recorded episodes already hold the
+     requests a replay set needs.
+4. ✅ Snapshots and export:
+   - `npm run modder -- snapshot <label>` freezes the self-state.
+   - `npm run modder -- export [label]` prints it as one world-agnostic document (`SELF.md`:
+     skills, lessons, working notes), to put in front of the same model on any coding task.
+   - `npm run curriculum` grows the world and the self-state offline between checkpoints.
 
 Model choice and budget are deferred.

@@ -555,7 +555,12 @@ export class WorldScene extends Phaser.Scene {
     const start = () => {
       if (this.musicKey !== path) return
       const old = this.music
-      if (old) this.tweens.add({ targets: old, volume: 0, duration: 600, onComplete: () => old.destroy() })
+      if (old) {
+        // a quick second map change: its fade-in may still be running on the track we drop
+        this.tweens.killTweensOf(old)
+        if (old.isPlaying) this.tweens.add({ targets: old, volume: 0, duration: 600, onComplete: () => old.destroy() })
+        else old.destroy()
+      }
       this.music = this.sound.add(key, { loop: true, volume: 0 })
       if (!this.muted) {
         this.music.play()

@@ -1,0 +1,131 @@
+[
+ {
+  "purpose": "design",
+  "contains": "item/tool/rope",
+  "reply": {
+   "patch": {
+    "note": "rope binds creatures",
+    "artifacts": [
+     {
+      "kind": "rule",
+      "rule": {
+       "id": "patch/fiber-binds-creature",
+       "on": "interaction",
+       "doc": "A rope (anything fibrous) lashes a creature down for a while.",
+       "when": {
+        "verb": [
+         "interact"
+        ],
+        "instrument": {
+         "tags": [
+          "fiber"
+         ]
+        },
+        "target": {
+         "type": "actor/creature",
+         "notStatus": [
+          "frozen"
+         ]
+        }
+       },
+       "do": [
+        {
+         "op": "addStatus",
+         "of": "target",
+         "status": "frozen",
+         "duration": 40
+        },
+        {
+         "op": "destroy",
+         "of": "instrument"
+        },
+        {
+         "op": "vfx",
+         "at": "target",
+         "fx": "dust"
+        },
+        {
+         "op": "log",
+         "text": {
+          "en": "You lash {target} down with the rope.",
+          "zh": "你用绳子把{target}捆了个结实。"
+         }
+        }
+       ],
+       "tests": [
+        {
+         "name": "a rope binds a wolf too",
+         "given": {
+          "entities": [
+           {
+            "key": "actor",
+            "type": "actor/person/player",
+            "x": 2,
+            "y": 2
+           },
+           {
+            "key": "r",
+            "type": "item/tool/rope",
+            "x": 2,
+            "y": 2,
+            "heldBy": "actor"
+           },
+           {
+            "key": "w",
+            "type": "actor/creature/beast/wolf",
+            "x": 2,
+            "y": 1
+           }
+          ],
+          "event": {
+           "verb": "interact",
+           "actor": "actor",
+           "target": "w",
+           "instrument": "r"
+          }
+         },
+         "expect": [
+          {
+           "key": "w",
+           "hasStatus": "frozen"
+          },
+          {
+           "key": "r",
+           "destroyed": true
+          }
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "summary": "fibrous instruments bind creatures"
+  }
+ },
+ {
+  "purpose": "review",
+  "reply": {
+   "verdict": "ship",
+   "notes": []
+  }
+ },
+ {
+  "purpose": "reflect",
+  "contains": "fiber",
+  "reply": {
+   "lessons": {
+    "add": [
+     {
+      "text": "Select an instrument by what it is made of or for (a tag such as fiber), not by its exact type, so every rope-like thing behaves alike.",
+      "terms": [
+       "verb:interact",
+       "instrument#fiber"
+      ]
+     }
+    ]
+   },
+   "skill": null
+  }
+ }
+]

@@ -1,7 +1,56 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "client", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev", "-w", "@lsw/client"], "port": 5173 },
-    { "name": "client-dist", "runtimeExecutable": "npx", "runtimeArgs": ["vite", "preview", "packages/client", "--port", "4173", "--strictPort"], "port": 4173 }
+    {
+      "name": "client",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "-w",
+        "@lsw/client"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "client-dist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "packages/client",
+        "--port",
+        "4173",
+        "--strictPort"
+      ],
+      "port": 4173
+    },
+    {
+      "name": "modder",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "modder",
+        "--",
+        "serve"
+      ],
+      "port": 8787
+    },
+    {
+      "name": "modder-offline",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "modder",
+        "--",
+        "serve",
+        "8787",
+        "--script",
+        "packages/modder/fixtures/offline.json",
+        "--data",
+        "var/offline"
+      ],
+      "port": 8787
+    }
   ]
 }

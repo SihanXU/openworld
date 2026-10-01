@@ -23,6 +23,10 @@ const UI: Record<string, [string, string]> = {
   saved: ['Saved.', '已保存。'],
   undefinedToast: ['Undefined interaction → Mod port', '未定义交互 → 已发往模组接口'],
   patchedToast: ['Patched — the world learned a new rule', '已打补丁——世界学会了一条新规则'],
+  learningToast: ['Something new… the world is working it out', '没见过的事……世界正在琢磨'],
+  learnedToast: ['The world learned something new', '世界学会了一件新事'],
+  modderOn: ['modder', '模组师'],
+  modderOff: ['no modder: patch by hand', '无模组师：手动打补丁'],
   open: ['Open', '打开'],
   boxHint: ['↑↓ or click to choose · F take · G store · E close', '↑↓ 或点击挑选 · F 拿 · G 放入 · E 关上'],
   loading: ['Loading', '加载中'],
@@ -41,6 +45,8 @@ export class Hud {
   private floaters: { el: HTMLElement; born: number; who?: string; tile?: [number, number] }[] = []
   private dotEls = new Map<string, HTMLElement>()
   spec?: ModSpec
+  /** The modder service, when one answers: undefined interactions are patched without a person. */
+  modder: { online: boolean; url?: string; model?: string | null } = { online: false }
 
   constructor(
     private send: {
@@ -427,9 +433,18 @@ export class Hud {
         return this.floater(fx.who, fx.amount < 0 ? `+${-fx.amount}` : `-${fx.amount}`, fx.amount < 0 ? 'heal' : fx.element ?? 'hit')
       case 'undefined':
         this.log(`⚠ ${fx.summary}`, 'ai')
+        if (this.modder.online) return this.toast(`<b>✦ ${this.t('learningToast')}</b>`)
         return this.toast(`<b>${this.t('undefinedToast')}</b><br>${esc(fx.summary)}`, true)
       case 'patched':
         this.log(`✓ ${fx.rule}`, 'good')
+        if (this.modder.online) {
+          // the rule's doc arrives with the records message that follows this frame
+          setTimeout(() => {
+            const doc = this.library?.patches.find((r) => r.id === fx.rule)?.doc
+            this.toast(`<b>✦ ${this.t('learnedToast')}</b>${doc ? `<br>${esc(doc)}` : ''}`)
+          }, 200)
+          return
+        }
         return this.toast(`<b>${this.t('patchedToast')}</b><br><code>${esc(fx.rule)}</code>`)
     }
   }
@@ -522,6 +537,19 @@ export class Hud {
     if (!$('#dev').classList.contains('hidden') && !this.typing) this.renderMods()
   }
 
+  setModder(m: { online: boolean; url?: string; model?: string | null }): void {
+    this.modder = m
+    if (!$('#dev').classList.contains('hidden') && !this.typing) this.renderMods()
+  }
+
+  private modderChip(): string {
+    const m = this.modder
+    const title = esc(m.url ?? '')
+    return m.online
+      ? `<span class="modder on" title="${title}">● ${this.t('modderOn')}: ${esc(m.model ?? '—')}</span>`
+      : `<span class="modder" title="${title}">○ ${this.t('modderOff')}</span>`
+  }
+
   setSpec(spec: ModSpec): void {
     this.spec = spec
     if (this.tab === 'spec') this.renderMods()
@@ -552,6 +580,7 @@ export class Hud {
     const keepText = (dev.querySelector('#patchText') as HTMLTextAreaElement | null)?.value
     dev.innerHTML = `
       <div class="panel-head"><b>⚙ ${this.t('mods')}</b>
+        ${this.modderChip()}
         <span class="tabs">${tabs.map(([k, l]) => `<button data-tab="${k}" class="${this.tab === k ? 'on' : ''}">${l}</button>`).join('')}</span>
         <button class="x" id="devClose">✕</button></div>
       <div class="dev-body" id="devBody"></div>`

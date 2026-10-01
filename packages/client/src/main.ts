@@ -20,7 +20,10 @@ const REGION_NAMES: Record<string, Text> = {
 }
 
 // ?world=saenvar loads the 460-map generated world instead of the hand-crafted demo
-const WORLD = new URLSearchParams(location.search).get('world') === 'saenvar' ? 'world-saenvar' : 'world'
+const PARAMS = new URLSearchParams(location.search)
+const WORLD = PARAMS.get('world') === 'saenvar' ? 'world-saenvar' : 'world'
+/** The modder service: ?modder=<url> (or =off), else VITE_MODDER_URL, else a local one in development. */
+const MODDER = PARAMS.get('modder') === 'off' ? undefined : PARAMS.get('modder') || import.meta.env.VITE_MODDER_URL || (import.meta.env.DEV ? 'http://localhost:8787' : undefined)
 const scene = new WorldScene()
 const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
 const send = (m: ToWorker) => worker.postMessage(m)
@@ -135,6 +138,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       void kvSet('library', m.library)
       hud.log(hud.t('saved'), 'good')
       break
+    case 'modder':
+      hud.setModder(m)
+      break
     case 'loading':
       hud.hint(`${hud.t('loading')} ${m.what}…`)
       setTimeout(() => hud.hint(''), 800)
@@ -150,7 +156,7 @@ async function boot() {
   const [save, library] = await Promise.all([kvGet<SaveData>(`save:${WORLD}`), kvGet<LibraryData>('library')])
   // ?world=saenvar loads the 460-map generated world instead of the hand-crafted demo
   const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
-  send({ t: 'init', base, save, library })
+  send({ t: 'init', base, save, library, modder: MODDER })
 }
 void boot()
 

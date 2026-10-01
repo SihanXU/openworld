@@ -60,7 +60,7 @@ contract. We keep that contract and its three-layer discipline. What changes:
 Strict dependency direction, as in BardOS:
 
 ```
-client (Phaser + UI)  ──▶  engine (pure TS, in a Worker)  ──Mod port──▶  modder (later; HTTP)
+client (Phaser + UI)  ──▶  engine (pure TS, in a Worker)  ──Mod port──▶  modder (HTTP service)
    renders, inputs          world state, rules, sim,                  writes patches to the
    talks only to engine     ModSpec, validatePatch, rule library     ModSpec it is handed
 ```
@@ -81,7 +81,7 @@ packages/
   client/     Phaser app + UI; boots the engine Worker; Vite build → static site
   content/    ontology, items, NPCs, maps (Tiled JSON), base rule library, Saenvar data
   tools/      world generator (incl. stress world), sprite composer, map generator
-  modder/     (later) the LLM service, descended from BardOS
+  modder/     the modder service, descended from BardOS: pipeline, shared library, self-state (§13)
 docs/
 ```
 
@@ -237,10 +237,11 @@ All randomness uses the engine's seeded PRNG so replays are exact.
 - Budget target: the active map holds up to a few hundred actors at 60 fps; the rest
   of the world costs O(schedule transitions), not O(frames).
 
-## 8. The Mod port (the AI slot — defined now, wired later)
+## 8. The Mod port (the AI slot)
 
-The port is the exact contract a modder will implement. In Phase 1 it is exercised by
-hand from a dev panel; nothing in the engine changes when an LLM is plugged in.
+The port is the exact contract a modder implements. In Phase 1 it was exercised by hand from
+a dev panel; since Phase 2 the modder service (§13) is the provider, and the engine did not
+change when it was plugged in.
 
 ```ts
 interface ModProvider {
@@ -311,8 +312,10 @@ Two stores, deliberately separate:
 - Every rule carries provenance (`base` / `patch`, author, request id, timestamp) and
   the library is versioned (append-only log + snapshots), so any patch can be rolled
   back or ablated.
-- Phase 1 keeps the library local (a file / IndexedDB) behind the same interface a
-  server store will implement.
+- The modder service hosts the shared library as an append-only patch log
+  (`var/library.jsonl`: one line per accepted patch or removal). Clients pull the log and
+  run every patch through their own validator; the browser keeps a local copy (IndexedDB),
+  so the game still plays offline with what it has learned.
 
 ## 10. Content at scale
 
@@ -407,17 +410,82 @@ stays as the scale track (`?world=saenvar`); the default world is hand-crafted.
 - **UI**: JRPG dialogue box with portraits, objective panel, and an action prompt that shows
   what E/F will do — including "the world has never seen this" for undefined interactions.
 
-## 13. After Phase 1
+## 13. Phase 2 — the modder service (2026-10-01)
+
+`packages/modder` closes the loop: an undefined interaction in the browser reaches the
+service, which returns a validated patch, and the frozen interaction re-resolves under it.
+The model is not chosen yet, so the model is an interface (`model.ts`). Anything
+OpenAI-compatible plugs in (OpenRouter reaches most providers). A scripted model answers from
+code or a file, for the tests and for running offline.
+
+```
+client worker ──POST /resolve {request, workspace}──▶ modder ──▶ ResolveReply {patch, outcome}
+              ◀──GET /patches?since=seq── shared library log (every patch re-validated locally)
+```
+
+**Pipeline** (`pipeline.ts`), every budget and switch read from the harness file:
+
+1. **Comprehend** — the request's signature: its verb, and each role's type chain, tags and
+   statuses, as plain terms. If the shared library already answers the interaction (a sandbox
+   replay of the request's scenario), the patch that did is returned with no model call
+   (`covered`). Concurrent requests of one class wait for the first instead of paying twice.
+2. **Recall** — relevant lessons, similar past episodes, and the skill index, all from the
+   self-state. Retrieval is deterministic term overlap: no embeddings, so it can be inspected.
+3. **Design** — a tool-using conversation with the ModSpec in the system prompt. The tools are:
+   - `search_rules` and `get_rule`, over the rule library;
+   - `find_types` and `get_type`, over the ontology;
+   - `dry_run`: the real validator, plus a readable account of what the interaction does under
+     the draft;
+   - `read_skill` and `get_episode`, over the self-state.
+4. **Verify / repair** — `validatePatch` against the shared library plus the client's own
+   local patches and recent interactions (the *workspace*). The exact diagnostics go back into
+   the conversation, up to the harness's repair budget.
+5. **Review** — a second opinion on plausibility, scope, consistency and feedback. A `revise`
+   verdict sends notes back to design, within a bounded number of rounds.
+6. **Commit** — the patch is re-validated against the library as it is now and appended to
+   it. Validation and append are synchronous, so the step is atomic.
+7. **Record** — the episode: the request, every attempt with its diagnostics, the tools used,
+   what was recalled, model calls and tokens, time. Skill use is booked against the outcome,
+   and skills that keep doing worse than average are retired.
+8. **Reflect** — after replying, the model distils lessons, which are added, supported,
+   revised or dropped, each citing its episodes. It writes or revises a skill once that kind
+   of work has recurred.
+
+**Client.** The worker probes `?modder=<url>` (default `VITE_MODDER_URL`; in development,
+`localhost:8787`). If the service answers, the worker becomes the port's provider, waits up to
+45 s for a patch (a late patch still applies), and syncs the shared library every 15 s. The
+HUD speaks to the player ("Something new… the world is working it out" / "The world learned
+something new: <doc>"), and the Mod Console shows the service and model. Without a service the
+game is unchanged: undefined interactions fall back and can be patched by hand.
+
+**Offline curriculum** (`npm run curriculum`). It takes a diverse sample of the interactions
+the coverage sweep finds undefined, builds each one's request through the real engine path,
+and resolves them as if players had tried them. It writes the same library and self-state as
+the service does. This is how the world is written large without players, and how self-state
+checkpoints are produced between benchmark runs.
+
+**Verified:**
+- 13 modder tests with scripted models, covering accept, repair, budget exhaustion, cache
+  hits, coalescing, review/revise, skill writing and retirement bookkeeping, snapshots, the
+  HTTP API, and the OpenAI wire format (tool calls) against a mock server.
+- In the browser with the scripted offline model: rope on a slime goes undefined → the service
+  returns `patch/fiber-binds-creature` → the slime is bound and the rope used up. After a
+  reload the patch syncs back from the service. An interaction the model cannot answer falls
+  back cleanly.
+
+**Not yet:**
+- A run with a real model: the model is deferred.
+- Tool skills (sandboxed TypeScript).
+- Harness proposals and the meta-validation gate (rsi.md §5.3).
+- Per-player rate limits for public deployment.
+
+## 14. Next
 
 Near-term gameplay work — interactions and simple loops — is planned in [roadmap.md](roadmap.md).
 
-- Modder service: port BardOS's pipeline (comprehend → query → design → review) to
-  author **rules** against this ModSpec; add a rule-library search tool so it reuses and
-  generalizes instead of duplicating. It keeps a versioned **self-state** — memory,
-  skills, harness — read and written on every request ([rsi.md](rsi.md)).
-- Self-improvement: skills (procedural and sandboxed tools), harness edits behind a
-  meta-validation gate, and snapshots of the self-state for the team's external coding
-  benchmark runs (at the start and at several points as the world grows).
+- Run the modder with real models; tune prompts and budgets on the curriculum.
+- Self-improvement, the rest of [rsi.md](rsi.md): tool skills in a sandbox, harness edits
+  behind a meta-validation gate, and self-state snapshots for the team's external benchmark.
 - Offline content generation at full scale through the same modder.
 - Public deployment with the shared rule library.
 - Paper metrics: rule-library growth, patch reuse rate, LLM calls per play-hour over

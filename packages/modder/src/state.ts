@@ -1,0 +1,436 @@
+// The modder's self-state (docs/rsi.md §4): memory, skills, harness. Plain files in one
+// directory, so every part can be read, diffed, versioned, ablated and rolled back:
+//
+//   memory/episodes/<id>.json   every request: attempts, diagnostics, tools used, outcome
+//   memory/index.jsonl          one line per episode (what retrieval reads)
+//   memory/lessons.json         distilled rules of thumb, each linked to its episodes
+//   memory/lessons.md           the same, for people
+//   skills/<name>/SKILL.md      procedural skills the modder wrote for itself
+//   skills/index.json           usage, outcomes, provenance per skill
+//   harness/pipeline.json       the shape of its working loop
+//   harness/CHANGELOG.md        every harness change and why
+//   journal.jsonl               append-only log of every write above
+//   snapshots/<label>/          frozen copies (benchmark checkpoints, ablations, rollback)
+
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import type { ModRequest, Patch } from '@lsw/engine'
+import { similarity } from './signature.ts'
+
+// ---------------------------------------------------------------- records
+
+export type Outcome = 'accepted' | 'covered' | 'failed'
+
+export interface Attempt {
+  /** design: a fresh draft; repair: after validator diagnostics; review: after a reviewer's notes. */
+  phase: 'design' | 'repair' | 'review'
+  patch?: Patch
+  errors: string[]
+  warnings: string[]
+  /** Reviewer verdict on a valid draft, when the review stage ran. */
+  review?: { verdict: string; notes: string[] }
+}
+
+export interface Episode {
+  id: string
+  at: string
+  request: ModRequest
+  key: string
+  terms: string[]
+  outcome: Outcome
+  attempts: Attempt[]
+  tools: { name: string; args: unknown; ms: number }[]
+  /** Rules that now answer the interaction (new ones when accepted). */
+  rules: string[]
+  patch?: Patch
+  /** What was put in front of the modder: retrieval is part of the record. */
+  shown: { lessons: string[]; episodes: string[]; skills: string[] }
+  skillsRead: string[]
+  harness: number
+  model?: string
+  usage: { calls: number; input: number; output: number }
+  ms: number
+  error?: string
+}
+
+export interface EpisodeEntry {
+  id: string
+  at: string
+  key: string
+  terms: string[]
+  summary: string
+  outcome: Outcome
+  rules: string[]
+  attempts: number
+  calls: number
+  ms: number
+}
+
+export interface Lesson {
+  id: string
+  text: string
+  /** Signature terms it applies to; empty = always relevant. */
+  terms: string[]
+  episodes: string[]
+  status: 'active' | 'dropped'
+  created: string
+  updated: string
+}
+
+export interface SkillMeta {
+  name: string
+  description: string
+  /** Signature terms that suggest the skill. */
+  triggers: string[]
+  version: number
+  status: 'active' | 'retired'
+  created: string
+  updated: string
+  /** The episode it was written after. */
+  origin?: string
+  uses: number
+  accepted: number
+  failed: number
+  recent: string[]
+}
+
+export interface Harness {
+  version: number
+  design: { toolRounds: number; temperature: number }
+  repair: { maxRounds: number }
+  review: { enabled: boolean; maxRounds: number }
+  recall: { episodes: number; lessons: number }
+  reflect: { enabled: boolean; skillMinRecurrence: number }
+  /** Tools the design stage may call. */
+  tools: string[]
+  /** Instructions the modder has added to its own system prompt. */
+  addenda: string[]
+}
+
+export const DEFAULT_HARNESS: Harness = {
+  version: 1,
+  design: { toolRounds: 10, temperature: 0.3 },
+  repair: { maxRounds: 3 },
+  review: { enabled: true, maxRounds: 1 },
+  recall: { episodes: 4, lessons: 12 },
+  reflect: { enabled: true, skillMinRecurrence: 3 },
+  tools: ['search_rules', 'get_rule', 'find_types', 'get_type', 'dry_run', 'read_skill', 'get_episode'],
+  addenda: [],
+}
+
+/** A skill is retired once it has been used this often and does clearly worse than the average episode. */
+const RETIRE_AFTER_USES = 6
+const RETIRE_MARGIN = 0.2
+
+// ---------------------------------------------------------------- the store
+
+export class SelfState {
+  private index: EpisodeEntry[] = []
+  private lessonList: Lesson[] = []
+  private skillIndex: Record<string, SkillMeta> = {}
+  private harnessData: Harness = structuredClone(DEFAULT_HARNESS)
+
+  private constructor(
+    readonly dir: string,
+    private clock: () => Date,
+  ) {}
+
+  static open(dir: string, clock: () => Date = () => new Date()): SelfState {
+    const s = new SelfState(dir, clock)
+    for (const d of ['memory/episodes', 'skills', 'harness', 'snapshots']) mkdirSync(join(dir, d), { recursive: true })
+    const idx = join(dir, 'memory/index.jsonl')
+    if (existsSync(idx))
+      for (const line of readFileSync(idx, 'utf8').split('\n'))
+        if (line.trim())
+          try {
+            s.index.push(JSON.parse(line))
+          } catch {
+            /* torn line */
+          }
+    s.lessonList = readJson(join(dir, 'memory/lessons.json'), [])
+    s.skillIndex = readJson(join(dir, 'skills/index.json'), {})
+    const h = join(dir, 'harness/pipeline.json')
+    if (existsSync(h)) s.harnessData = { ...structuredClone(DEFAULT_HARNESS), ...readJson<Partial<Harness>>(h, {}) }
+    else {
+      writeJson(h, s.harnessData)
+      writeFileSync(join(dir, 'harness/CHANGELOG.md'), `# Harness changelog\n\n- v1 (${s.now()}): the default pipeline.\n`)
+    }
+    if (!existsSync(join(dir, 'memory/lessons.md'))) s.renderLessons()
+    return s
+  }
+
+  private now(): string {
+    return this.clock().toISOString()
+  }
+
+  /** Append to the journal (every write to the self-state goes through here). */
+  note(kind: string, data: Record<string, unknown>): void {
+    appendFileSync(join(this.dir, 'journal.jsonl'), JSON.stringify({ at: this.now(), kind, ...data }) + '\n')
+  }
+
+  // ---------------------------------------------------------------- harness
+
+  harness(): Harness {
+    return structuredClone(this.harnessData)
+  }
+
+  setHarness(h: Harness, reason: string, by?: string): void {
+    const next = { ...h, version: this.harnessData.version + 1 }
+    this.harnessData = next
+    writeJson(join(this.dir, 'harness/pipeline.json'), next)
+    appendFileSync(join(this.dir, 'harness/CHANGELOG.md'), `- v${next.version} (${this.now()}${by ? `, ${by}` : ''}): ${reason}\n`)
+    this.note('harness.set', { version: next.version, reason, by })
+  }
+
+  // ---------------------------------------------------------------- episodes
+
+  newEpisodeId(): string {
+    const t = this.now().replace(/[-:TZ.]/g, '').slice(0, 14)
+    return `ep-${t}-${Math.random().toString(36).slice(2, 6)}`
+  }
+
+  recordEpisode(ep: Episode): void {
+    writeJson(join(this.dir, 'memory/episodes', `${ep.id}.json`), ep)
+    const entry: EpisodeEntry = {
+      id: ep.id,
+      at: ep.at,
+      key: ep.key,
+      terms: ep.terms,
+      summary: ep.request.summary,
+      outcome: ep.outcome,
+      rules: ep.rules,
+      attempts: ep.attempts.length,
+      calls: ep.usage.calls,
+      ms: ep.ms,
+    }
+    this.index.push(entry)
+    appendFileSync(join(this.dir, 'memory/index.jsonl'), JSON.stringify(entry) + '\n')
+    this.note('episode', { id: ep.id, outcome: ep.outcome, rules: ep.rules })
+  }
+
+  episodes(): EpisodeEntry[] {
+    return [...this.index]
+  }
+
+  episode(id: string): Episode | undefined {
+    const p = join(this.dir, 'memory/episodes', `${id.replace(/[^\w.-]/g, '')}.json`)
+    return existsSync(p) ? readJson<Episode | undefined>(p, undefined) : undefined
+  }
+
+  /** Past episodes most like these terms (cache hits excluded: nothing was learned there). */
+  similarEpisodes(terms: string[], k: number, exclude?: string): (EpisodeEntry & { score: number })[] {
+    return this.index
+      .filter((e) => e.outcome !== 'covered' && e.id !== exclude)
+      .map((e) => ({ ...e, score: similarity(terms, e.terms) }))
+      .filter((e) => e.score > 0.3)
+      .sort((a, b) => b.score - a.score || b.at.localeCompare(a.at))
+      .slice(0, k)
+  }
+
+  // ---------------------------------------------------------------- lessons
+
+  lessons(): Lesson[] {
+    return this.lessonList.filter((l) => l.status === 'active')
+  }
+
+  relevantLessons(terms: string[], k: number): Lesson[] {
+    const set = new Set(terms)
+    const score = (l: Lesson) => (l.terms.length ? l.terms.filter((t) => set.has(t)).length / l.terms.length : 0.5) + 0.02 * l.episodes.length
+    return this.lessons()
+      .filter((l) => !l.terms.length || l.terms.some((t) => set.has(t)))
+      .sort((a, b) => score(b) - score(a))
+      .slice(0, k)
+  }
+
+  /** Apply a reflection: new lessons, revised ones, dropped ones; each change cites the episode. */
+  applyLessons(ops: { add?: { text: string; terms?: string[] }[]; revise?: { id: string; text: string }[]; drop?: string[]; support?: string[] }, episode: string, defaultTerms: string[]): string[] {
+    const now = this.now()
+    const touched: string[] = []
+    for (const a of ops.add ?? []) {
+      const text = String(a?.text ?? '').trim()
+      if (!text || this.lessonList.some((l) => l.status === 'active' && l.text === text)) continue
+      const id = `L${this.lessonList.length + 1}`
+      const terms = Array.isArray(a.terms) && a.terms.length ? a.terms.map(String) : defaultTerms
+      this.lessonList.push({ id, text, terms, episodes: [episode], status: 'active', created: now, updated: now })
+      touched.push(id)
+      this.note('lesson.add', { id, episode })
+    }
+    for (const r of ops.revise ?? []) {
+      const l = this.lessonList.find((x) => x.id === r?.id && x.status === 'active')
+      const text = String(r?.text ?? '').trim()
+      if (!l || !text) continue
+      l.text = text
+      l.updated = now
+      if (!l.episodes.includes(episode)) l.episodes.push(episode)
+      touched.push(l.id)
+      this.note('lesson.revise', { id: l.id, episode })
+    }
+    for (const id of ops.support ?? []) {
+      const l = this.lessonList.find((x) => x.id === id && x.status === 'active')
+      if (l && !l.episodes.includes(episode)) (l.episodes.push(episode), touched.push(l.id))
+    }
+    for (const id of ops.drop ?? []) {
+      const l = this.lessonList.find((x) => x.id === id && x.status === 'active')
+      if (!l) continue
+      l.status = 'dropped'
+      l.updated = now
+      touched.push(id)
+      this.note('lesson.drop', { id, episode })
+    }
+    if (touched.length) {
+      writeJson(join(this.dir, 'memory/lessons.json'), this.lessonList)
+      this.renderLessons()
+    }
+    return touched
+  }
+
+  private renderLessons(): void {
+    const lines = ['# Lessons', '', 'Distilled by the modder from its episodes. Each cites the episodes behind it.', '']
+    for (const l of this.lessons()) lines.push(`- **${l.id}** ${l.text}  `, `  _terms:_ ${l.terms.join(', ') || '(general)'} · _episodes:_ ${l.episodes.join(', ')}`)
+    writeFileSync(join(this.dir, 'memory/lessons.md'), lines.join('\n') + '\n')
+  }
+
+  // ---------------------------------------------------------------- skills
+
+  skills(all = false): SkillMeta[] {
+    return Object.values(this.skillIndex).filter((s) => all || s.status === 'active')
+  }
+
+  skill(name: string): SkillMeta | undefined {
+    return this.skillIndex[name]
+  }
+
+  readSkill(name: string): string | undefined {
+    const meta = this.skillIndex[name]
+    const p = join(this.dir, 'skills', safeName(name), 'SKILL.md')
+    if (!meta || meta.status !== 'active' || !existsSync(p)) return undefined
+    return readFileSync(p, 'utf8').replace(/^---[\s\S]*?---\s*/, '')
+  }
+
+  /** Write a new skill or a new version of one. */
+  writeSkill(s: { name: string; description: string; triggers: string[]; body: string }, episode?: string): SkillMeta {
+    const name = safeName(s.name)
+    const now = this.now()
+    const prev = this.skillIndex[name]
+    const meta: SkillMeta = prev
+      ? { ...prev, description: s.description, triggers: s.triggers, version: prev.version + 1, status: 'active', updated: now }
+      : { name, description: s.description, triggers: s.triggers, version: 1, status: 'active', created: now, updated: now, origin: episode, uses: 0, accepted: 0, failed: 0, recent: [] }
+    this.skillIndex[name] = meta
+    mkdirSync(join(this.dir, 'skills', name), { recursive: true })
+    const front = ['---', `name: ${name}`, `description: ${s.description.replace(/\n/g, ' ')}`, `triggers: ${s.triggers.join(', ')}`, `version: ${meta.version}`, '---', ''].join('\n')
+    writeFileSync(join(this.dir, 'skills', name, 'SKILL.md'), front + s.body.trim() + '\n')
+    this.saveSkills()
+    this.note(prev ? 'skill.revise' : 'skill.write', { name, version: meta.version, episode })
+    return meta
+  }
+
+  /** Book an episode's outcome against the skills it read; retire skills that keep doing worse. */
+  noteSkillUse(names: string[], outcome: Outcome, episode: string): string[] {
+    const retired: string[] = []
+    if (!names.length) return retired
+    const base = this.passRate()
+    for (const n of new Set(names)) {
+      const s = this.skillIndex[n]
+      if (!s) continue
+      s.uses++
+      if (outcome === 'accepted') s.accepted++
+      if (outcome === 'failed') s.failed++
+      s.recent = [...s.recent, episode].slice(-20)
+      const rate = s.accepted / Math.max(1, s.accepted + s.failed)
+      if (s.status === 'active' && s.uses >= RETIRE_AFTER_USES && rate < base - RETIRE_MARGIN) {
+        s.status = 'retired'
+        retired.push(n)
+        this.note('skill.retire', { name: n, rate, base, episode })
+      }
+    }
+    this.saveSkills()
+    return retired
+  }
+
+  private saveSkills(): void {
+    writeJson(join(this.dir, 'skills/index.json'), this.skillIndex)
+  }
+
+  // ---------------------------------------------------------------- numbers, snapshots, export
+
+  passRate(): number {
+    const tried = this.index.filter((e) => e.outcome !== 'covered')
+    return tried.length ? tried.filter((e) => e.outcome === 'accepted').length / tried.length : 1
+  }
+
+  stats() {
+    const tried = this.index.filter((e) => e.outcome !== 'covered')
+    const accepted = tried.filter((e) => e.outcome === 'accepted')
+    const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 100) / 100 : 0)
+    return {
+      episodes: this.index.length,
+      covered: this.index.length - tried.length,
+      accepted: accepted.length,
+      failed: tried.length - accepted.length,
+      passRate: Math.round(this.passRate() * 1000) / 1000,
+      attemptsPerAccepted: avg(accepted.map((e) => e.attempts)),
+      callsPerEpisode: avg(tried.map((e) => e.calls)),
+      msPerEpisode: Math.round(avg(tried.map((e) => e.ms))),
+      lessons: this.lessons().length,
+      skills: this.skills().length,
+      retiredSkills: this.skills(true).length - this.skills().length,
+      harness: this.harnessData.version,
+    }
+  }
+
+  /** Freeze the whole self-state under a label (for the benchmark runs, ablations, rollback). */
+  snapshot(label: string, extra: Record<string, unknown> = {}): string {
+    const name = safeName(label)
+    const to = join(this.dir, 'snapshots', name)
+    if (existsSync(to)) throw new Error(`snapshot "${name}" exists`)
+    mkdirSync(to, { recursive: true })
+    for (const d of ['memory', 'skills', 'harness']) cpSync(join(this.dir, d), join(to, d), { recursive: true })
+    for (const f of ['journal.jsonl']) if (existsSync(join(this.dir, f))) cpSync(join(this.dir, f), join(to, f))
+    writeJson(join(to, 'meta.json'), { label: name, at: this.now(), stats: this.stats(), ...extra })
+    writeFileSync(join(to, 'SELF.md'), this.render())
+    this.note('snapshot', { label: name })
+    return to
+  }
+
+  snapshots(): string[] {
+    const d = join(this.dir, 'snapshots')
+    return existsSync(d) ? readdirSync(d) : []
+  }
+
+  /**
+   * The transferable part of the self-state as one document — skills and lessons, nothing
+   * world-specific in its form — to put in front of the same model on any coding task.
+   */
+  render(): string {
+    const out = ['# Self-state', '', `Formed over ${this.index.length} episodes of patching a rule-based world (harness v${this.harnessData.version}).`, '']
+    out.push('## Skills', '')
+    for (const s of this.skills()) out.push(`### ${s.name}`, '', `_${s.description}_`, '', this.readSkill(s.name)?.trim() ?? '', '')
+    if (!this.skills().length) out.push('(none yet)', '')
+    out.push('## Lessons', '')
+    for (const l of this.lessons()) out.push(`- ${l.text}`)
+    if (!this.lessons().length) out.push('(none yet)')
+    if (this.harnessData.addenda.length) out.push('', '## Working notes', '', ...this.harnessData.addenda.map((a) => `- ${a}`))
+    return out.join('\n') + '\n'
+  }
+}
+
+// ---------------------------------------------------------------- files
+
+function readJson<T>(path: string, fallback: T): T {
+  try {
+    return JSON.parse(readFileSync(path, 'utf8')) as T
+  } catch {
+    return fallback
+  }
+}
+
+/** Write via a temp file so a crash never leaves half a file. */
+function writeJson(path: string, value: unknown): void {
+  const tmp = `${path}.tmp`
+  writeFileSync(tmp, JSON.stringify(value, null, 1) + '\n')
+  renameSync(tmp, path)
+}
+
+export function safeName(s: string): string {
+  return String(s).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'unnamed'
+}

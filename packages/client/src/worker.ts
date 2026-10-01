@@ -1,6 +1,21 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
-import { Game, RuleLibrary, snapshot, type Dir, type GameEvent, type LibraryData, type Prompt, type Ref, type WorldIndex } from '@lsw/engine'
+import {
+  Game,
+  RuleLibrary,
+  snapshot,
+  type Dir,
+  type GameEvent,
+  type LibraryData,
+  type ModRequest,
+  type Patch,
+  type PatchLogEntry,
+  type Prompt,
+  type Ref,
+  type ResolveBody,
+  type ResolveReply,
+  type WorldIndex,
+} from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk, decodeMap, type RawChunk } from '@lsw/content'
 import type { FromWorker, LibraryView, RecordView, ToWorker } from './protocol.ts'
 
@@ -20,6 +35,68 @@ let saveEvery = 0
 let lastQuest: unknown
 
 const ontology = buildOntology()
+
+// ------------------------------------------------------------------ the modder service
+
+const MODDER_TIMEOUT_TICKS = 450 // with a modder online, an interaction waits up to 45 s for its patch
+const SYNC_MS = 15_000
+let modderUrl = ''
+let modderSeq = 0
+let syncTimer: ReturnType<typeof setInterval> | undefined
+
+/** Probe the service; if it answers, undefined interactions go to it and the shared library syncs from it. */
+async function connectModder(url: string): Promise<void> {
+  if (syncTimer) clearInterval(syncTimer)
+  modderUrl = url.replace(/\/+$/, '')
+  modderSeq = 0
+  if (!modderUrl || !game) return
+  try {
+    const health = (await (await fetch(`${modderUrl}/health`, { signal: AbortSignal.timeout(2500) })).json()) as { model?: string | null }
+    if (!game) return
+    game.mods.provider = { resolve: resolveRemote }
+    game.mods.timeoutTicks = MODDER_TIMEOUT_TICKS
+    post({ t: 'modder', online: true, url: modderUrl, model: health.model })
+    await syncLibrary()
+    syncTimer = setInterval(() => void syncLibrary(), SYNC_MS)
+  } catch {
+    post({ t: 'modder', online: false, url: modderUrl })
+  }
+}
+
+async function resolveRemote(request: ModRequest): Promise<Patch | null> {
+  const lib = game!.engine.lib
+  const body: ResolveBody = {
+    request,
+    workspace: { patches: { rules: lib.patches(), types: lib.types, statuses: lib.statuses }, regression: game!.mods.regression },
+  }
+  const res = await fetch(`${modderUrl}/resolve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(240_000),
+  })
+  const reply = (await res.json()) as ResolveReply
+  return reply.patch
+}
+
+/** Pull the shared library's patch log; every patch still goes through this engine's validator. */
+async function syncLibrary(): Promise<void> {
+  if (!game || !modderUrl) return
+  try {
+    const log = (await (await fetch(`${modderUrl}/patches?since=${modderSeq}`, { signal: AbortSignal.timeout(5000) })).json()) as { seq: number; entries: PatchLogEntry[] }
+    const lib = game.engine.lib
+    const before = lib.version
+    for (const e of log.entries) {
+      if ('remove' in e) {
+        if (lib.rules.get(e.remove)?.source?.origin === 'patch') lib.remove(e.remove)
+      } else game.mods.submit(undefined, e.patch)
+    }
+    modderSeq = log.seq
+    if (lib.version !== before) sendRecords()
+  } catch {
+    /* offline for now: the next sync catches up */
+  }
+}
 
 /** Base rules are always fresh from content; patches (and their types/statuses) persist. */
 function libraryFrom(saved?: LibraryData): RuleLibrary {
@@ -180,6 +257,7 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   await ensureMaps()
   post({ t: 'ready', stats: index.stats, name: index.name, resumed: !!init.save && !fresh && compatible })
   sendRecords()
+  void connectModder(init.modder ?? modderUrl)
   if (timer) clearInterval(timer)
   timer = setInterval(loop, TICK_MS)
 }
