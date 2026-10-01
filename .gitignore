@@ -5,3 +5,4 @@ packages/client/public/world-saenvar/
 *.log
 /assets/
 /var/
+.env

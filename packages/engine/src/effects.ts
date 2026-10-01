@@ -73,22 +73,39 @@ export class EffectRunner {
     return t
   }
 
-  /** Substitute {target} / {instrument} / {actor} with display names, and {target.key} with a prop. */
+  /** Role names as they were when the rule started (set by run). */
+  private names?: Map<string, string>
+
+  /**
+   * Substitute {target} / {instrument} / {actor} with display names, and {target.key} with a prop.
+   * Names are the ones the roles had when the rule started: "you pour out {instrument}" still
+   * reads right after the bottle was emptied or destroyed earlier in the same rule.
+   */
   private fill(ev: GameEvent, s: string, locale: 'en' | 'zh' = 'en'): string {
     return s.replace(/\{(actor|target|instrument)(?:\.(\w+))?\}/g, (_, role: 'actor' | 'target' | 'instrument', key?: string) => {
-      if (!key) return this.eng.nameOf(ev.roles[role], locale)
+      if (!key) return this.names?.get(`${role}:${locale}`) ?? this.eng.nameOf(ev.roles[role], locale)
       const v = this.eng.world.view(ev.roles[role])?.props[key]
       return v === undefined ? '?' : String(v)
     })
   }
 
   run(rule: Rule, ev: GameEvent): void {
-    for (const eff of rule.do) {
-      try {
-        this.apply(eff, ev)
-      } catch (err) {
-        this.eng.world.fx.push({ t: 'log', text: `rule ${rule.id}: ${(err as Error).message}`, tone: 'warn' })
+    const outer = this.names
+    if (rule.do.some((e) => e.op === 'log' || e.op === 'say')) {
+      this.names = new Map()
+      for (const role of ['actor', 'target', 'instrument'] as const)
+        if (ev.roles[role]) for (const l of ['en', 'zh'] as const) this.names.set(`${role}:${l}`, this.eng.nameOf(ev.roles[role], l))
+    }
+    try {
+      for (const eff of rule.do) {
+        try {
+          this.apply(eff, ev)
+        } catch (err) {
+          this.eng.world.fx.push({ t: 'log', text: `rule ${rule.id}: ${(err as Error).message}`, tone: 'warn' })
+        }
       }
+    } finally {
+      this.names = outer
     }
   }
 

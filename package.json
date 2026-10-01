@@ -14,6 +14,7 @@
     "coverage": "tsx packages/tools/src/coverage.ts",
     "modder": "tsx packages/modder/src/cli.ts",
     "curriculum": "tsx packages/tools/src/curriculum.ts",
+    "latency": "tsx packages/tools/src/latency.ts",
     "test": "vitest run",
     "typecheck": "tsc -p packages/engine && tsc -p packages/content && tsc -p packages/tools && tsc -p packages/modder && tsc -p packages/client",
     "check": "npm run typecheck && npm test"

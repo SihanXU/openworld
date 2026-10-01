@@ -48,7 +48,11 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   - `state.ts`: the self-state — memory, skills, harness, journal, snapshots.
   - `server.ts`, `cli.ts`: the HTTP API and the command line.
   - The offline driver is `tools/src/curriculum.ts`.
-- Model choice is deferred: never hard-code a provider; tests use `ScriptedModel`.
+- The model is Kimi K3 via OpenRouter, with the key in the gitignored `.env`. Anthropic, Google and OpenAI
+  return 403 from here. Never hard-code a provider; tests use `ScriptedModel`.
+- Two harness profiles: **live** (a player waits: brief, one call, low reasoning, deterministic fixes,
+  derived tests, hedged calls, review after shipping) and **offline** (curriculum, escalations,
+  revisions: tools, more reasoning, blocking review). Measure live changes with `npm run latency`.
 
 ## Rules of thumb
 
@@ -79,6 +83,7 @@ npx tsx packages/tools/src/stress.ts 6   # full-scale stress run (6 game-hours)
 npm run build            # gen:world + static build → packages/client/dist
 npm run modder -- serve  # modder service on :8787 (model from LSW_MODEL_URL/KEY/MODEL; data in var/)
 npm run modder -- serve 8787 --script packages/modder/fixtures/offline.json --data var/offline
-npm run curriculum -- 20 # resolve 20 sampled undefined interactions offline
+npm run curriculum -- 20 # resolve 20 sampled undefined interactions offline (offline profile)
+npm run latency -- --n 20 # live-profile latency bench (fresh library each run; costs model calls)
 npm run modder -- stats | snapshot <label> | export [label] | library [remove <id>]
 ```

@@ -2,38 +2,52 @@
 // is a little different afterwards (docs/rsi.md §3).
 //
 //   comprehend  signature of the request; the shared library may already answer it (no model)
-//   recall      lessons, similar episodes and skills from the self-state
-//   design      a tool-using conversation that ends in a draft patch
+//   recall      lessons, similar episodes and skills from the self-state; the brief (brief.ts)
+//   design      the model's answer: one call from the brief (live), or a tool-using conversation
+//   fix         mechanical repairs and the derived generalization test, without the model (fixes.ts, derive.ts)
 //   verify      the engine's validator; its diagnostics go back into the conversation (repair)
-//   review      a second opinion on plausibility and scope (optional, bounded)
+//   review      before shipping (offline), or after it (live), when it may send the rule back
 //   commit      append to the shared library (re-validated against it as it is now)
 //   record      the episode, every attempt and diagnostic in it, skill bookkeeping
 //   reflect     after replying: distil lessons, write or revise a skill
 //
-// The harness (state/harness/pipeline.json) sets the budgets and switches of every stage.
+// Two profiles of one harness (state.ts): LIVE while a player waits, OFFLINE for everything
+// nobody waits on — curriculum, a failed live request worked again, a revision after review.
 
 import { buildModSpec, type ModRequest, type ModWorkspace, type Patch, type ResolveBody, type ResolveReply } from '@lsw/engine'
+import { briefOf } from './brief.ts'
+import { changesNothing, deriveTests } from './derive.ts'
+import { narrowVerbs, normalizePatch } from './fixes.ts'
 import type { WorldLibrary } from './library.ts'
-import { Meter, parseJson, type ChatMessage, type Model } from './model.ts'
-import { FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, designSystem, designUser, reflectUser, repairUser, reviewUser, reviseUser } from './prompts.ts'
+import { Meter, parseJson, type ChatMessage, type ChatOptions, type Model } from './model.ts'
+import { FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, designSystem, designUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser } from './prompts.ts'
 import { coarseTerms, signatureOf, type Signature } from './signature.ts'
-import { safeName, type Attempt, type Episode, type Harness, type SelfState } from './state.ts'
-import { asPatch, buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
+import { profileOf, safeName, type Attempt, type Episode, type Harness, type Profile, type SelfState } from './state.ts'
+import { buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
 
 export interface ModderOptions {
   library: WorldLibrary
   state: SelfState
   /** Absent: the modder still answers from the shared library, and reports `unavailable` otherwise. */
   model?: Model
+  /** Profile for resolve() calls that do not name one (default live). */
+  profile?: Profile
   clock?: () => Date
   log?: (line: string) => void
+}
+
+interface EpisodeOptions {
+  profile: Profile
+  escalatedFrom?: string
+  revise?: { episode: Episode; notes: string[] }
 }
 
 const TOOL_OUTPUT_CAP = 12_000
 
 export class Modder {
   private inflight = new Map<string, Promise<ResolveReply>>()
-  private reflecting: Promise<void> = Promise.resolve()
+  /** Work after the reply: reflections, late reviews, escalations, revisions (in order). */
+  private backlog: Promise<void> = Promise.resolve()
 
   constructor(readonly opts: ModderOptions) {}
 
@@ -49,12 +63,20 @@ export class Modder {
     this.opts.log?.(line)
   }
 
-  /** Resolves when every reflection started so far has been written. */
-  settled(): Promise<void> {
-    return this.reflecting
+  /** Resolves when all background work started so far is done. */
+  async settled(): Promise<void> {
+    let seen: Promise<void>
+    do {
+      seen = this.backlog
+      await seen
+    } while (seen !== this.backlog)
   }
 
-  async resolve(body: ResolveBody): Promise<ResolveReply> {
+  private later(what: string, job: () => Promise<void>): void {
+    this.backlog = this.backlog.then(() => job().catch((err) => this.log(`${what}: ${(err as Error).message}`)))
+  }
+
+  async resolve(body: ResolveBody, profile: Profile = this.opts.profile ?? 'live'): Promise<ResolveReply> {
     const req = body?.request
     if (!req?.event || !req.scenario || !req.context) return { patch: null, outcome: 'failed', diagnostics: ['malformed request'] }
     const sig = signatureOf(req)
@@ -68,12 +90,15 @@ export class Modder {
       if (again) return again
     }
     if (!this.opts.model) return { patch: null, outcome: 'unavailable' }
-    const p = this.episode(req, body.workspace, sig)
-    this.inflight.set(sig.key, p)
+    return this.track(sig.key, this.episode(req, body.workspace, sig, { profile }))
+  }
+
+  private async track(key: string, p: Promise<ResolveReply>): Promise<ResolveReply> {
+    this.inflight.set(key, p)
     try {
       return await p
     } finally {
-      if (this.inflight.get(sig.key) === p) this.inflight.delete(sig.key)
+      if (this.inflight.get(key) === p) this.inflight.delete(key)
     }
   }
 
@@ -111,23 +136,28 @@ export class Modder {
     }
   }
 
-  private async episode(req: ModRequest, ws: ModWorkspace | undefined, sig: Signature): Promise<ResolveReply> {
+  private async episode(req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, eo: EpisodeOptions): Promise<ResolveReply> {
     const t0 = Date.now()
     const { state, library } = this.opts
-    const h = state.harness()
+    const h = profileOf(state.harness(), eo.profile)
     const model = new Meter(this.opts.model!)
     const ep = this.blank(state.newEpisodeId(), req, sig, h)
+    ep.profile = eo.profile
+    if (eo.escalatedFrom) ep.escalatedFrom = eo.escalatedFrom
+    if (eo.revise) ep.revises = eo.revise.episode.id
+    const replaces = eo.revise?.episode.rules ?? []
 
     // recall
-    const lib = library.workspace(ws)
+    const lib = library.workspace(ws, replaces)
     const recall = { lessons: state.relevantLessons(sig.terms, h.recall.lessons), episodes: state.similarEpisodes(sig.terms, h.recall.episodes), skills: state.skills() }
     ep.shown = { lessons: recall.lessons.map((l) => l.id), episodes: recall.episodes.map((e) => e.id), skills: recall.skills.map((s) => s.name) }
 
-    const ctx: ToolContext = { library: lib, ontology: library.fullOntology(lib), request: req, state, validate: (p) => library.validate(p, req, ws), skillsRead: ep.skillsRead }
-    const tools = buildTools(ctx, h.tools)
+    const validate = (p: Patch) => library.validate(p, req, ws, replaces)
+    const ctx: ToolContext = { library: lib, ontology: library.fullOntology(lib), request: req, state, validate, skillsRead: ep.skillsRead }
+    const tools = h.design.toolRounds > 0 ? buildTools(ctx, h.tools) : []
     const messages: ChatMessage[] = [
       { role: 'system', content: designSystem(buildModSpec(library.ontology, lib), h) },
-      { role: 'user', content: designUser(req, recall) },
+      { role: 'user', content: designUser(req, recall, h.design.brief ? briefOf(req, lib, ctx.ontology) : undefined) + (eo.revise ? `\n\n${revisionUser(eo.revise.episode.patch!, eo.revise.notes)}` : '') },
     ]
 
     let repairs = 0
@@ -141,24 +171,39 @@ export class Modder {
     try {
       for (;;) {
         const answer = await this.converse(model, messages, tools, h, ep)
-        const draft = asPatch(parseJson(answer))
+        const { patch: draft, fixes } = normalizePatch(parseJson(answer))
         if (!draft) {
           ep.attempts.push({ phase, errors: ['no JSON patch in the answer'], warnings: [] })
           if (repairs++ >= h.repair.maxRounds) break
           retry(NO_JSON, 'repair')
           continue
         }
-        const patch: Patch = { ...draft, author: 'modder' }
-        const res = library.validate(patch, req, ws)
-        const attempt: Attempt = { phase, patch, errors: res.errors, warnings: res.warnings }
+        let patch: Patch = { ...draft, author: 'modder' }
+        let res = validate(patch)
+        // mechanical conflicts are fixed here, not with another model turn
+        const narrowed = res.ok ? undefined : narrowVerbs(patch, req, res)
+        if (narrowed) {
+          const again = validate(narrowed.patch)
+          if (again.ok || again.errors.length < res.errors.length) ((patch = narrowed.patch), (res = again), fixes.push(...narrowed.fixes))
+        }
+        // the generalization test, written by the harness (only for a draft that already holds)
+        let derived: string[] | undefined
+        if (res.ok && h.design.tests === 'harness') {
+          const d = deriveTests(patch, req, lib, ctx.ontology)
+          derived = d.notes
+          const withTests = validate(d.patch)
+          if (withTests.ok) ((patch = d.patch), (res = withTests))
+          else derived.push(`derived test dropped: ${withTests.errors[0]}`)
+        }
+        const attempt: Attempt = { phase, patch, errors: res.errors, warnings: res.warnings, ...(fixes.length ? { fixes } : {}), ...(derived?.length ? { derived } : {}) }
         ep.attempts.push(attempt)
         if (!res.ok) {
           if (repairs++ >= h.repair.maxRounds) break
           retry(repairUser(res.errors, res.warnings), 'repair')
           continue
         }
-        if (h.review.enabled && reviews < h.review.maxRounds) {
-          attempt.review = await this.review(model, req, patch, ctx)
+        if (h.review.enabled && h.review.blocking !== false && reviews < h.review.maxRounds) {
+          attempt.review = await this.review(model, req, patch, ctx, h, flagsOf(patch, derived))
           if (attempt.review.verdict === 'revise' && attempt.review.notes.length) {
             reviews++
             reviewed = patch
@@ -166,9 +211,9 @@ export class Modder {
             continue
           }
         }
-        if (this.commit(ep, patch, req, ws)) break
+        if (this.commit(ep, patch, req, ws, replaces)) break
         // the library moved under us: someone else's patch may already answer this
-        const meanwhile = library.covering(req)
+        const meanwhile = eo.revise ? undefined : library.covering(req)
         if (meanwhile) {
           ep.outcome = 'covered'
           ep.rules = [meanwhile.rule]
@@ -178,18 +223,21 @@ export class Modder {
         if (repairs++ >= h.repair.maxRounds) break
         retry(repairUser(ep.attempts.at(-1)!.errors, [], true), 'repair')
       }
-      if (ep.outcome === 'failed' && reviewed && this.commit(ep, reviewed, req, ws)) ep.error = 'the revision never validated; shipped the reviewed draft'
+      if (ep.outcome === 'failed' && reviewed && this.commit(ep, reviewed, req, ws, replaces)) ep.error = 'the revision never validated; shipped the reviewed draft'
     } catch (err) {
       ep.error = (err as Error).message
-      if (reviewed && ep.outcome === 'failed' && this.commit(ep, reviewed, req, ws)) ep.error += '; shipped the reviewed draft'
+      if (reviewed && ep.outcome === 'failed' && this.commit(ep, reviewed, req, ws, replaces)) ep.error += '; shipped the reviewed draft'
     }
 
-    ep.usage = { calls: model.calls, input: model.input, output: model.output }
+    ep.usage = { calls: model.calls, input: model.input, output: model.output, cost: model.cost }
+    ep.calls = model.log
     ep.ms = Date.now() - t0
     state.recordEpisode(ep)
     const retired = state.noteSkillUse(ep.skillsRead, ep.outcome, ep.id)
-    this.log(`${ep.id} ${ep.outcome} after ${ep.attempts.length} attempt(s), ${ep.usage.calls} call(s), ${ep.ms} ms: ${req.summary}${ep.rules.length ? ` → ${ep.rules.join(', ')}` : ''}${ep.error ? ` (${ep.error})` : ''}${retired.length ? `; retired skill ${retired.join(', ')}` : ''}`)
-    this.reflecting = this.reflecting.then(() => this.reflect(ep, sig).catch((err) => this.log(`reflect ${ep.id}: ${(err as Error).message}`)))
+    this.log(
+      `${ep.id} ${eo.profile}${eo.revise ? ' revision' : eo.escalatedFrom ? ' escalation' : ''} ${ep.outcome} after ${ep.attempts.length} attempt(s), ${ep.usage.calls} call(s), ${ep.ms} ms: ${req.summary}${ep.rules.length ? ` → ${ep.rules.join(', ')}` : ''}${ep.error ? ` (${ep.error})` : ''}${retired.length ? `; retired skill ${retired.join(', ')}` : ''}`,
+    )
+    this.afterwards(ep, req, ws, sig, h, ctx, eo)
     const last = ep.attempts.at(-1)
     return {
       patch: ep.outcome === 'failed' ? null : (ep.patch ?? null),
@@ -199,9 +247,30 @@ export class Modder {
     }
   }
 
+  /** What follows an episode once the player has their answer. */
+  private afterwards(ep: Episode, req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, h: Harness, ctx: ToolContext, eo: EpisodeOptions): void {
+    const shipped = ep.attempts.at(-1)
+    const flags = ep.patch ? flagsOf(ep.patch, shipped?.derived) : []
+    // a review after the fact: always for a live rule that narrates only or did not generalize
+    if (ep.outcome === 'accepted' && !eo.revise && h.review.enabled && (h.review.blocking === false || flags.length) && !shipped?.review)
+      this.later(`review ${ep.id}`, async () => {
+        const model = new Meter(this.opts.model!)
+        const v = await this.review(model, req, ep.patch!, ctx, h, flags)
+        this.opts.state.note('review', { episode: ep.id, rules: ep.rules, flags, ...v, usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
+        if (v.verdict === 'revise' && v.notes.length && h.revise) await this.episode(req, ws, sig, { profile: 'offline', revise: { episode: ep, notes: v.notes } })
+      })
+    // a live request that failed is worked again with the offline profile: the world still learns it
+    if (ep.outcome === 'failed' && eo.profile === 'live' && h.escalate && !this.inflight.has(`${sig.key}#offline`))
+      this.later(`escalate ${ep.id}`, async () => {
+        if (this.opts.library.covering(req)) return
+        await this.track(`${sig.key}#offline`, this.episode(req, ws, sig, { profile: 'offline', escalatedFrom: ep.id }))
+      })
+    this.later(`reflect ${ep.id}`, () => this.reflect(ep, sig))
+  }
+
   /** Append to the shared library; on failure the diagnostics land on the last attempt. */
-  private commit(ep: Episode, patch: Patch, req: ModRequest, ws?: ModWorkspace): boolean {
-    const c = this.opts.library.commit(patch, req, ws, this.now())
+  private commit(ep: Episode, patch: Patch, req: ModRequest, ws?: ModWorkspace, replaces: string[] = []): boolean {
+    const c = this.opts.library.commit(patch, req, ws, this.now(), replaces)
     if (!c.ok) {
       ep.attempts.push({ phase: 'repair', patch, errors: c.result.errors, warnings: c.result.warnings })
       return false
@@ -215,8 +284,9 @@ export class Modder {
   /** The design conversation: tool calls until the model answers, or the round budget runs out. */
   private async converse(model: Model, messages: ChatMessage[], tools: Tool[], h: Harness, ep: Episode): Promise<string> {
     const specs = tools.map(({ name, description, parameters }) => ({ name, description, parameters }))
+    const call: ChatOptions = { temperature: h.design.temperature, purpose: 'design', reasoning: h.design.reasoning, hedgeMs: h.design.hedgeMs, deadlineMs: h.design.deadlineMs, retries: h.design.retries }
     for (let round = 0; round < h.design.toolRounds; round++) {
-      const r = await model.chat(messages, { tools: specs, temperature: h.design.temperature, purpose: 'design' })
+      const r = await model.chat(messages, { ...call, tools: specs })
       if (!r.toolCalls.length) {
         messages.push({ role: 'assistant', content: r.content })
         return r.content
@@ -235,20 +305,21 @@ export class Modder {
         messages.push({ role: 'tool', toolCallId: c.id, name: c.name, content: out.length > TOOL_OUTPUT_CAP ? out.slice(0, TOOL_OUTPUT_CAP) + '\n… (truncated)' : out })
       }
     }
-    messages.push({ role: 'user', content: FINALIZE })
-    const r = await model.chat(messages, { json: true, temperature: h.design.temperature, purpose: 'design' })
+    // single-shot (toolRounds 0) answers straight from the brief; otherwise the tool budget ran out
+    if (h.design.toolRounds > 0) messages.push({ role: 'user', content: FINALIZE })
+    const r = await model.chat(messages, { ...call, json: true })
     messages.push({ role: 'assistant', content: r.content })
     return r.content
   }
 
-  private async review(model: Model, req: ModRequest, patch: Patch, ctx: ToolContext): Promise<{ verdict: string; notes: string[] }> {
+  private async review(model: Model, req: ModRequest, patch: Patch, ctx: ToolContext, h: Harness, flags: string[] = []): Promise<{ verdict: string; notes: string[] }> {
     const outcome = describeOutcome(req.scenario, patch, ctx)
     const r = await model.chat(
       [
         { role: 'system', content: REVIEW_SYSTEM },
-        { role: 'user', content: reviewUser(req, patch, outcome, req.context.nearMisses) },
+        { role: 'user', content: reviewUser(req, patch, outcome, req.context.nearMisses, flags) },
       ],
-      { json: true, temperature: 0.2, purpose: 'review' },
+      { json: true, temperature: 0.2, purpose: 'review', reasoning: h.review.reasoning },
     )
     const j = parseJson(r.content) as { verdict?: unknown; notes?: unknown } | undefined
     const notes = Array.isArray(j?.notes) ? j!.notes.filter((n): n is string => typeof n === 'string' && !!n.trim()).slice(0, 5) : []
@@ -268,7 +339,7 @@ export class Modder {
         { role: 'system', content: REFLECT_SYSTEM.replace('{N}', String(h.reflect.skillMinRecurrence)) },
         { role: 'user', content: reflectUser(ep, coarse, state.relevantLessons(sig.terms, 20), state.skills(), similar) },
       ],
-      { json: true, temperature: 0.2, purpose: 'reflect' },
+      { json: true, temperature: 0.2, purpose: 'reflect', reasoning: h.reflect.reasoning },
     )
     const j = parseJson(r.content) as { lessons?: Parameters<SelfState['applyLessons']>[0]; skill?: { name?: unknown; description?: unknown; triggers?: unknown; body?: unknown } | null } | undefined
     const touched = j?.lessons && typeof j.lessons === 'object' ? state.applyLessons(j.lessons, ep.id, coarse) : []
@@ -282,8 +353,18 @@ export class Modder {
         skill = name
       }
     }
-    state.note('reflect', { episode: ep.id, lessons: touched, skill, usage: { calls: model.calls, input: model.input, output: model.output } })
+    state.note('reflect', { episode: ep.id, lessons: touched, skill, usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
   }
+}
+
+/** What the reviewer should look at first: rules that change nothing, rules that did not generalize. */
+function flagsOf(patch: Patch, derived?: string[]): string[] {
+  const flags: string[] = []
+  for (const a of patch.artifacts)
+    if (a.kind === 'rule' && changesNothing(a.rule))
+      flags.push(`"${a.rule.id}" changes nothing in the world (it only narrates). Revise unless doing nothing is clearly the most plausible and interesting outcome — and then its class must be narrow.`)
+  for (const d of derived ?? []) if (d.includes('did not generalize')) flags.push(d)
+  return flags
 }
 
 function clipJson(x: unknown): unknown {

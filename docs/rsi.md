@@ -103,7 +103,14 @@ modder-state/
 
 ### 4.3 Harness
 
-`pipeline.json` describes the modder's own loop: its stages (comprehend → query → design →
+`pipeline.json` has two profiles of one loop:
+- **live**, for a player who is waiting: one call from a brief prepared by code, low
+  reasoning, review after shipping;
+- **offline**, for everything else: tools, more reasoning, blocking review.
+
+Both are data, so the outer loop can tune each: the live profile for latency, the offline one
+for quality (design.md §13, "Live latency"). Within a profile, `pipeline.json` describes the
+modder's own loop: its stages (comprehend → query → design →
 review → describe, as in BardOS), which tools and skills each stage may call, how many repair
 rounds follow a rejection, whether to decompose a request into several rules, when to write
 tests first. The modder may propose edits to it — add a pre-submit self-check, a retrieval

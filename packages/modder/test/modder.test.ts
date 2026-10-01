@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net'
 import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildSandbox, type ModRequest, type Patch, type Rule, type Scenario } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
-import { Modder, ScriptedModel, SelfState, WorldLibrary, createModderServer, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
+import { Modder, ScriptedModel, SelfState, WorldLibrary, createModderServer, narrowVerbs, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
@@ -88,10 +88,11 @@ function scripted(drafts: (Patch | string)[], over: Partial<Record<'review' | 'r
   return { model: new ScriptedModel(script), calls }
 }
 
-function setup(model?: Model, dir = mkdtempSync(join(tmpdir(), 'lsw-modder-'))) {
+/** The offline profile by default: the full loop (tools, blocking review, model-written tests). */
+function setup(model?: Model, dir = mkdtempSync(join(tmpdir(), 'lsw-modder-')), profile: 'live' | 'offline' = 'offline') {
   const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
   const state = SelfState.open(join(dir, 'modder-state'))
-  const modder = new Modder({ library, state, model })
+  const modder = new Modder({ library, state, model, profile })
   return { dir, library, state, modder }
 }
 
@@ -135,8 +136,8 @@ describe('the modder pipeline', () => {
     expect(ep.attempts.map((a) => a.phase)).toEqual(['design', 'repair'])
     expect(ep.attempts[0].errors.join()).toMatch(/unknown status "hogtied"/)
     // the repair turn showed the model exactly what the validator said
-    const repairTurn = calls.log.find((c) => c.purpose === 'design' && c.messages.some((m) => m.role === 'user' && m.content.includes('rejected')))
-    expect(repairTurn?.messages.find((m) => m.content.includes('rejected'))?.content).toContain('hogtied')
+    const repairTurn = calls.log.find((c) => c.purpose === 'design' && c.messages.some((m) => m.role === 'user' && m.content.startsWith('The validator rejected')))
+    expect(repairTurn?.messages.find((m) => m.content.startsWith('The validator rejected'))?.content).toContain('hogtied')
   })
 
   it('gives up after the harness\'s repair budget, leaving the library untouched', async () => {
@@ -144,7 +145,7 @@ describe('the modder pipeline', () => {
     bad.do = [{ op: 'addStatus', of: 'target', status: 'hogtied' }]
     const { model } = scripted([patchOf(bad)])
     const { modder, library, state } = setup(model)
-    state.setHarness({ ...state.harness(), repair: { maxRounds: 1 } }, 'test: one repair round')
+    state.setHarness({ ...state.harness(), offline: { ...state.harness().offline, repair: { maxRounds: 1 } } }, 'test: one repair round')
     const reply = await modder.resolve({ request: request() })
     expect(reply.outcome).toBe('failed')
     expect(reply.patch).toBeNull()
@@ -332,7 +333,7 @@ describe('the OpenAI-compatible adapter', () => {
         else if (last.role === 'user') message = { content: null, tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'get_type', arguments: '{"id":"item/tool/rope"}' } }] }
         else message = { content: '```json\n' + JSON.stringify({ patch: patchOf(bindRule()) }) + '\n```' }
         res.writeHead(200, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify({ choices: [{ message }], usage: { prompt_tokens: 100, completion_tokens: 20 } }))
+        res.end(JSON.stringify({ choices: [{ message }], usage: { prompt_tokens: 100, completion_tokens: 20, cost: 0.0005 } }))
       })
     }).listen(0)
     await new Promise((r) => server.once('listening', r))
@@ -350,9 +351,186 @@ describe('the OpenAI-compatible adapter', () => {
       expect(second.at(-1)!.content).toContain('fiber')
       const ep = state.episode(reply.episode!)!
       expect(ep.model).toBe('mock-1')
-      expect(ep.usage).toEqual({ calls: 3, input: 300, output: 60 })
+      expect(ep.usage).toMatchObject({ calls: 3, input: 300, output: 60 })
+      expect(ep.usage.cost).toBeCloseTo(0.0015)
     } finally {
       server.close()
     }
+  })
+})
+
+describe('integrity', () => {
+  it('rejects a catch-all that would swallow every undefined interaction', () => {
+    const { library } = setup()
+    const catchAll: Rule = { id: 'patch/use-item-no-effect', on: 'interaction', when: { verb: ['interact'], instrument: { none: false } }, do: [{ op: 'log', text: 'Nothing happens.' }] }
+    expect(library.validate(patchOf(catchAll), request()).errors.join()).toMatch(/too broad/)
+    // naming what the rule is about is enough
+    const scoped: Rule = { ...catchAll, id: 'patch/rope-on-anything', when: { verb: ['interact'], instrument: { tags: ['fiber'] } } }
+    expect(library.validate(patchOf(scoped), request()).errors.join()).not.toMatch(/too broad/)
+  })
+})
+
+describe('deterministic repairs', () => {
+  it('accepts a correct rule in the wrong wrapper without another model turn', async () => {
+    const { rule } = { rule: bindRule() }
+    // the shapes models actually produce: the rule as the artifact, or its fields spread on {kind:"rule"}
+    for (const draft of [{ artifacts: [rule] }, { artifacts: [{ kind: 'rule', ...rule }] }, rule, { rules: [rule] }]) {
+      const { model, calls } = scripted([draft as unknown as Patch])
+      const { modder, state } = setup(model)
+      const reply = await modder.resolve({ request: request() })
+      expect(reply.outcome).toBe('accepted')
+      const ep = state.episode(reply.episode!)!
+      expect(ep.attempts).toHaveLength(1)
+      expect(ep.attempts[0].fixes?.length).toBeGreaterThan(0)
+      expect(calls.design).toBe(2) // the tool turn and the answer: no repair round
+    }
+  })
+
+  it('narrows a rule to the verb the player used when an extra verb is what conflicts', () => {
+    const p = patchOf({ ...bindRule(), when: { ...bindRule().when, verb: ['interact', 'put'] } })
+    const res = { ok: false, errors: ['rule "patch/rope-binds-creature" conflicts with "core/put-down" at equal specificity — make it more specific or change the pattern'], warnings: [], overrides: [] }
+    const n = narrowVerbs(p, request(), res)!
+    expect(n.fixes[0]).toMatch(/narrowed/)
+    expect((n.patch.artifacts[0] as { rule: Rule }).rule.when.verb).toEqual(['interact'])
+    expect(narrowVerbs(p, request(), { ...res, errors: ['unknown status "x"'] })).toBeUndefined()
+  })
+})
+
+describe('the tail guard', () => {
+  async function mock(handler: (n: number, body: Record<string, unknown>, res: import('node:http').ServerResponse) => void) {
+    const { createServer } = await import('node:http')
+    let n = 0
+    const bodies: Record<string, unknown>[] = []
+    const server = createServer((req, res) => {
+      let raw = ''
+      req.on('data', (c) => (raw += c))
+      req.on('end', () => {
+        const body = JSON.parse(raw)
+        bodies.push(body)
+        handler(n++, body, res)
+      })
+    }).listen(0)
+    await new Promise((r) => server.once('listening', r))
+    const { OpenAICompatModel } = await import('../src/model.ts')
+    const model = new OpenAICompatModel({ baseUrl: `http://localhost:${(server.address() as AddressInfo).port}/v1`, apiKey: 't', model: 'm', extraBody: { provider: { order: ['a', 'b'] } } })
+    return { model, bodies, close: () => (server.closeAllConnections(), server.close()) }
+  }
+  const ok = (res: import('node:http').ServerResponse, text: string) => (res.writeHead(200, { 'Content-Type': 'application/json' }), res.end(JSON.stringify({ choices: [{ message: { content: text } }], provider: text })))
+
+  it('hedges a stalled call to the next provider and takes the first answer', async () => {
+    const m = await mock((n, _b, res) => (n === 0 ? undefined : ok(res, 'second')))
+    try {
+      const t0 = Date.now()
+      const r = await m.model.chat([{ role: 'user', content: 'hi' }], { hedgeMs: 150, deadlineMs: 3000 })
+      expect(r.content).toBe('second')
+      expect(r.hedged).toBe(true)
+      expect(Date.now() - t0).toBeLessThan(1500)
+      expect((m.bodies[1].provider as { order: string[] }).order).toEqual(['b', 'a'])
+    } finally {
+      m.close()
+    }
+  })
+
+  it('treats an empty body as a failure and asks again at once', async () => {
+    const m = await mock((n, _b, res) => (n === 0 ? (res.writeHead(200), res.end('')) : ok(res, 'again')))
+    try {
+      const r = await m.model.chat([{ role: 'user', content: 'hi' }], { hedgeMs: 5000, deadlineMs: 8000 })
+      expect(r.content).toBe('again')
+    } finally {
+      m.close()
+    }
+  })
+
+  it('gives up a try at the deadline and retries', async () => {
+    const m = await mock((n, _b, res) => (n < 2 ? undefined : ok(res, 'retry')))
+    try {
+      const r = await m.model.chat([{ role: 'user', content: 'hi' }], { hedgeMs: 50, deadlineMs: 300, retries: 1 })
+      expect(r.content).toBe('retry')
+    } finally {
+      m.close()
+    }
+  })
+})
+
+describe('the live profile', () => {
+  /** Live design calls carry no tools; offline ones do. */
+  function liveModel(o: { live: (n: number) => unknown; offline?: (n: number, m: ChatMessage[]) => unknown; review?: (n: number, m: ChatMessage[]) => unknown }) {
+    const n = { live: 0, offline: 0, review: 0 }
+    const model = new ScriptedModel((messages, opts) => {
+      if (opts.purpose === 'review') {
+        const i = n.review++
+        return (o.review?.(i, messages) ?? { verdict: 'ship' }) as object
+      }
+      if (opts.purpose === 'reflect') return {}
+      if (opts.tools?.length || messages.some((m) => m.role === 'tool')) {
+        n.offline++
+        const last = messages[messages.length - 1]
+        return last.role === 'user' ? { content: '', toolCalls: [{ id: 'x', name: 'get_type', args: { id: 'item/tool/rope' } }] } : (o.offline!(n.offline, messages) as object)
+      }
+      return o.live(n.live++) as object
+    })
+    return { model, n }
+  }
+  const noTests = (r: Rule): Rule => ({ ...r, tests: undefined })
+
+  it('answers in one call without tools and writes the generalization test itself', async () => {
+    const { model, n } = liveModel({ live: () => ({ patch: patchOf(noTests(bindRule())) }) })
+    const { modder, state, library } = setup(model, undefined, 'live')
+    const reply = await modder.resolve({ request: request() })
+    expect(reply.outcome).toBe('accepted')
+    const ep = state.episode(reply.episode!)!
+    expect(ep.usage.calls).toBe(1)
+    expect(ep.profile).toBe('live')
+    expect(ep.attempts[0].derived?.join()).toMatch(/derived a test on target/)
+    const tests = library.lib.rules.get('patch/rope-binds-creature')!.tests!
+    expect(tests[0].name).toMatch(/^derived: target actor\/creature\//)
+    expect(tests[0].given.entities.find((e) => e.key === 'target')!.type).not.toMatch(/^actor\/creature\/slime/) // another branch of the class
+    expect(tests[0].expect).toContainEqual({ key: 'target', hasStatus: 'frozen' })
+    await modder.settled()
+    expect(n.review).toBe(1) // reviewed after the player had the patch
+    expect(readFileSync(join(state.dir, 'journal.jsonl'), 'utf8')).toMatch(/"kind":"review"/)
+  })
+
+  it('works a failed live request again offline, in the background', async () => {
+    const { model, n } = liveModel({ live: () => 'I am not sure.', offline: () => ({ patch: patchOf(bindRule()) }) })
+    const { modder, state, library } = setup(model, undefined, 'live')
+    const reply = await modder.resolve({ request: request() })
+    expect(reply.outcome).toBe('failed') // the player gets the fallback now
+    expect(n.live).toBe(2) // one answer and one repair, the live budget
+    await modder.settled()
+    expect(library.lib.rules.has('patch/rope-binds-creature')).toBe(true) // ...and the world learns it anyway
+    const escalated = state.episodes().map((e) => state.episode(e.id)!).find((e) => e.escalatedFrom === reply.episode)!
+    expect(escalated).toMatchObject({ profile: 'offline', outcome: 'accepted' })
+  })
+
+  it('revises a shipped rule when the late reviewer asks, replacing it in the shared library', async () => {
+    const narrow = noTests(bindRule('patch/rope-binds-slime', 'actor/creature/slime', 'actor/creature/slime/frost_slime'))
+    const { model } = liveModel({
+      live: () => ({ patch: patchOf(narrow) }),
+      review: (i) => (i === 0 ? { verdict: 'revise', notes: ['Any creature can be tied up, not just slimes.'] } : { verdict: 'ship' }),
+      offline: (_i, messages) => {
+        expect(messages[1].content).toContain('# Revision')
+        return { patch: patchOf(bindRule()) }
+      },
+    })
+    const { modder, state, library } = setup(model, undefined, 'live')
+    const first = await modder.resolve({ request: request() })
+    expect(library.lib.rules.has('patch/rope-binds-slime')).toBe(true)
+    await modder.settled()
+    expect(library.lib.rules.has('patch/rope-binds-slime')).toBe(false)
+    expect(library.lib.rules.has('patch/rope-binds-creature')).toBe(true)
+    expect(library.since(0).map((e) => ('remove' in e ? `-${e.remove}` : `+${e.rules.join()}`))).toEqual(['+patch/rope-binds-slime', '-patch/rope-binds-slime', '+patch/rope-binds-creature'])
+    const rev = state.episodes().map((e) => state.episode(e.id)!).find((e) => e.revises === first.episode)!
+    expect(rev.outcome).toBe('accepted')
+  })
+
+  it('flags a rule that changes nothing for the reviewer', async () => {
+    const flavour: Rule = { id: 'patch/rope-on-creature-nothing', on: 'interaction', doc: 'Nothing.', when: { verb: ['interact'], instrument: { tags: ['fiber'] }, target: { type: 'actor/creature' } }, do: [{ op: 'log', text: 'You wave the rope about.' }] }
+    let seen = ''
+    const { model } = liveModel({ live: () => ({ patch: patchOf(flavour) }), review: (_i, m) => ((seen = m[1].content), { verdict: 'ship' }) })
+    const { modder } = setup(model, undefined, 'live')
+    await modder.resolve({ request: request() })
+    await modder.settled()
+    expect(seen).toContain('changes nothing in the world')
   })
 })

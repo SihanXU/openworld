@@ -68,13 +68,14 @@ export class WorldLibrary {
   }
 
   /** The library a request is judged against: the shared one plus the client's own local patches. */
-  workspace(ws?: ModWorkspace): RuleLibrary {
+  workspace(ws?: ModWorkspace, without: string[] = []): RuleLibrary {
     const lib = this.lib.clone()
+    for (const id of without) lib.remove(id)
     const p = ws?.patches
     if (!p) return lib
     for (const t of p.types ?? []) if (!lib.types.some((x) => x.id === t.id)) lib.types.push(t)
     for (const s of p.statuses ?? []) if (!lib.statuses.some((x) => x.id === s.id)) lib.statuses.push(s)
-    for (const r of p.rules ?? []) if (r?.id && !lib.rules.has(r.id) && r.source?.origin === 'patch') lib.add(r, r.source.at)
+    for (const r of p.rules ?? []) if (r?.id && !lib.rules.has(r.id) && !without.includes(r.id) && r.source?.origin === 'patch') lib.add(r, r.source.at)
     return lib
   }
 
@@ -110,19 +111,22 @@ export class WorldLibrary {
     return undefined // answered by a base rule the client lacks: a version skew, not the modder's job
   }
 
-  validate(patch: Patch, req?: ModRequest, ws?: ModWorkspace): ValidationResult {
+  /** replaces: patch rules this patch takes the place of (a revision), judged as if they were gone. */
+  validate(patch: Patch, req?: ModRequest, ws?: ModWorkspace, replaces: string[] = []): ValidationResult {
     return validatePatch(patch, {
       ontology: this.ontology,
-      library: this.workspace(ws),
+      library: this.workspace(ws, replaces),
       scenario: req?.scenario,
-      regression: [...this.regression, ...(ws?.regression ?? [])],
+      regression: [...this.regression, ...(ws?.regression ?? [])].filter((r) => !replaces.includes(r.rule)),
     })
   }
 
   /** Validate against the library as it is now and, if it passes, append it. Synchronous, so atomic. */
-  commit(patch: Patch, req?: ModRequest, ws?: ModWorkspace, now = new Date()): CommitResult {
-    const result = this.validate(patch, req, ws)
+  commit(patch: Patch, req?: ModRequest, ws?: ModWorkspace, now = new Date(), replaces: string[] = []): CommitResult {
+    const result = this.validate(patch, req, ws, replaces)
     if (!result.ok) return { ok: false, result, rules: [] }
+    // a revision: the old rules leave the log first, so every client sees remove-then-add
+    for (const id of replaces) if (this.lib.rules.get(id)?.source?.origin === 'patch') this.remove(id, now)
     const rules = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : []))
     const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), patch, rules, request: req?.id, scenario: req?.scenario }
     this.apply(entry)

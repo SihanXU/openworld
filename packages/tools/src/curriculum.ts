@@ -71,7 +71,7 @@ async function main(): Promise<void> {
       counts.answered = (counts.answered ?? 0) + 1
       continue
     }
-    const reply = await modder.resolve({ request: req })
+    const reply = await modder.resolve({ request: req }, 'offline') // nobody waits: quality first
     counts[reply.outcome] = (counts[reply.outcome] ?? 0) + 1
     console.log(`${label}: ${reply.outcome}${reply.diagnostics?.length ? ` (${reply.diagnostics[0]})` : ''}`)
   }

@@ -473,8 +473,55 @@ checkpoints are produced between benchmark runs.
   reload the patch syncs back from the service. An interaction the model cannot answer falls
   back cleanly.
 
+### Live latency (2026-10-01)
+
+**Model.** OpenRouter, with the key in the gitignored `.env`.
+- From where the team works, Anthropic, Google and OpenAI refuse requests (HTTP 403, a
+  regional restriction).
+- Among the models that answer, **Kimi K3** wrote the best patches. DeepSeek V4.1 Flash wrote
+  a catch-all rule ("anything on anything: nothing happens"), so the validator now rejects
+  interaction rules that select neither the target nor the instrument. GLM 5.3 was good but
+  slow; Qwen 3.8 27B could not produce JSON.
+
+**Where the time went.** Measured per call with `npm run latency`:
+- The first design took ~100 s per patch, spread over 5–14 calls.
+- Most of those calls were `search_rules` turns: up to 26 in one episode. Each turn resent the
+  whole conversation and spent reasoning tokens.
+- A single call is fast: 4.5 s median for ~11.6k input and ~440 output tokens, at low reasoning.
+
+**What the live profile does now** (the harness's base settings; `offline` overrides them):
+
+| Measure | Effect |
+|---|---|
+| **Brief** (`brief.ts`): the roles' types and the rules that already speak about this target or instrument, assembled by code | the model answers in one call, with no tools |
+| **Low reasoning** | ~1,800 → ~50–150 reasoning tokens per call |
+| **Deterministic repairs** (`fixes.ts`): a right rule in the wrong wrapper is re-wrapped; a conflict caused only by an extra verb is narrowed to the verb used | first answers valid 0/5 → 4/4 |
+| **Derived tests** (`derive.ts`): the harness replays the rule on another instance of its class and keeps that as its test | fewer output tokens; a rule that does not generalize is flagged |
+| **Tail guard**: providers pinned by measurement (`LSW_MODEL_PROVIDERS`); a hedge request to the next provider after 7 s; a 15 s deadline with one retry | stalls of 20–180 s seen before; OpenRouter's own throughput sort picked the slowest provider |
+| **Review after shipping**: rules that only narrate, or did not generalize, are always reviewed. A "revise" verdict sends the rule to one offline revision, which *replaces* it in the shared library (remove-then-add in the log) | quality without a model turn on the critical path |
+| **Escalation**: a live request that fails is worked again offline in the background | the player gets the fallback now; the world still learns it |
+
+**Results.** On 20 unseen curriculum interactions with the live profile:
+- 19/19 accepted (one was already covered); the first answer was valid for 17/19;
+- **median 5.7 s, max 16.6 s**, 1.1 calls and $0.037 per patch.
+
+The late reviewer shipped 17 of the 19 rules. It sent back 2, both of them narrate-only. One
+had a real inconsistency: it ignored ink that the player might be carrying.
+
+**In the game:**
+- **Immediate feedback.** The engine logs a neutral line at once ("You try Wine Bottle on
+  beehive…"). The line describes the attempt, never its outcome.
+- **Bounded wait.** The client waits up to 15 s; a later patch still teaches the world.
+- **Prefetch.** Facing an undefined interaction with something in hand for 0.5 s starts the
+  request, capped at 40 per session.
+- **Measured:** pressing E at once had the effect after 6.3 s. Standing still, the prompt
+  turned "defined" after 6.3 s, and E then resolved on the next tick.
+- **Engine fix.** Text templates use the role names from the start of the rule, so a
+  destroyed or emptied instrument is still named.
+
 **Not yet:**
-- A run with a real model: the model is deferred.
+- Choosing between speed and price per provider: Together is fastest but costs more for Kimi
+  than the slower providers.
 - Tool skills (sandboxed TypeScript).
 - Harness proposals and the meta-validation gate (rsi.md §5.3).
 - Per-player rate limits for public deployment.
@@ -483,7 +530,8 @@ checkpoints are produced between benchmark runs.
 
 Near-term gameplay work — interactions and simple loops — is planned in [roadmap.md](roadmap.md).
 
-- Run the modder with real models; tune prompts and budgets on the curriculum.
+- Grow Hearthvale with the offline profile (curriculum, guided by what players actually try);
+  watch the live numbers above as the library grows.
 - Self-improvement, the rest of [rsi.md](rsi.md): tool skills in a sandbox, harness edits
   behind a meta-validation gate, and self-state snapshots for the team's external benchmark.
 - Offline content generation at full scale through the same modder.

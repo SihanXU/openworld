@@ -150,6 +150,7 @@ export interface ValidationResult {
 
 const AUTHORING_RULES = [
   'Write the CLASS of the interaction, not the instance: select roles by the most general type/tags/statuses that make the outcome plausible. Never use `id` unless the behaviour truly belongs to one unique entity.',
+  'But never a catch-all: an interaction rule must select the target or the instrument by type, tags or status. "Anything on anything does nothing" is rejected.',
   'Prefer tags and statuses over deep types: `instrument: {tags:["liquid:oil"]}` covers every oily thing.',
   'A rule must not contradict an existing rule at the same specificity. To special-case, be MORE specific (a subtype, one more tag or status) — the engine then prefers your rule for that case only.',
   'Use only the listed primitives, statuses, terrains, types and vfx. If you need a new type or status, add a `type`/`status` artifact to the same patch.',
@@ -263,6 +264,8 @@ export class ModPort implements UndefinedSink {
       const e = r && 'e' in r ? w.get(r.e) : undefined
       if (e && e.id !== w.state.player) e.frozenBy = id
     }
+    // say at once what the player is doing (never what comes of it: that is the patch's to decide)
+    w.fx.push({ t: 'log', text: attemptLine(eng, ev) })
     w.fx.push({ t: 'undefined', request: id, summary: request.summary })
     this.onChange?.()
     if (this.provider) {
@@ -395,6 +398,18 @@ export function alreadyHeld(lib: RuleLibrary, a: Artifact): boolean {
   if (a?.kind === 'type') return lib.types.some((t) => same(t, a.type))
   if (a?.kind === 'status') return lib.statuses.some((s) => same(s, a.status))
   return false
+}
+
+/** A neutral line for an attempt whose outcome is not known yet. */
+export function attemptLine(eng: Engine, ev: GameEvent): { en: string; zh: string } {
+  const r = ev.roles
+  const n = (ref: Ref | undefined, l: 'en' | 'zh') => eng.nameOf(ref, l)
+  const self = !!r.target && !!r.actor && 'e' in r.target && 'e' in r.actor && r.target.e === r.actor.e
+  if (ev.verb === 'take') return { en: `You try to take ${n(r.target, 'en')}…`, zh: `你试着去拿${n(r.target, 'zh')}……` }
+  if (ev.verb === 'put') return { en: `You set ${n(r.instrument, 'en')} against ${n(r.target, 'en')}…`, zh: `你把${n(r.instrument, 'zh')}往${n(r.target, 'zh')}上放……` }
+  if (!r.instrument) return { en: `You reach out to ${n(r.target, 'en')}…`, zh: `你伸手去碰${n(r.target, 'zh')}……` }
+  if (self) return { en: `You try ${n(r.instrument, 'en')} on yourself…`, zh: `你试着对自己用${n(r.instrument, 'zh')}……` }
+  return { en: `You try ${n(r.instrument, 'en')} on ${n(r.target, 'en')}…`, zh: `你试着把${n(r.instrument, 'zh')}用在${n(r.target, 'zh')}上……` }
 }
 
 function stillValid(eng: Engine, ev: GameEvent): boolean {
@@ -678,6 +693,11 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       for (const el of r.when.element ?? []) if (el !== 'none' && !ctx.ontology.elements.includes(el)) errors.push(`${where}: unknown element "${el}"`)
       for (const st of r.when.status ?? []) if (!(st in onto.statuses)) errors.push(`${where}: unknown status "${st}"`)
       if (r.on === 'interaction' && !r.when.verb?.length) warnings.push(`${where}: interaction rule without verb matches every verb`)
+      // a catch-all ("any item on anything: nothing happens") would answer every undefined
+      // interaction at once and end the world's growth: say WHAT it is about
+      const positive = (s?: Selector) => !!s && !!(s.type || s.tags?.length || s.status?.length || s.id || s.player)
+      if (r.on === 'interaction' && !positive(r.when.target) && !positive(r.when.instrument))
+        errors.push(`${where}: too broad — select the target or the instrument by type, tags or status (a catch-all would swallow every undefined interaction)`)
     }
     checkCond(r.guard, `${where}.guard`)
     if (!Array.isArray(r.do) || !r.do.length) errors.push(`${where}: do must be a non-empty array`)

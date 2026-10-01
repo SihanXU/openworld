@@ -15,6 +15,7 @@
 import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ModRequest, Patch } from '@lsw/engine'
+import type { CallRecord, ChatOptions } from './model.ts'
 import { similarity } from './signature.ts'
 
 // ---------------------------------------------------------------- records
@@ -27,6 +28,10 @@ export interface Attempt {
   patch?: Patch
   errors: string[]
   warnings: string[]
+  /** Deterministic repairs the harness applied before validating (fixes.ts). */
+  fixes?: string[]
+  /** The harness-derived generalization test, or why there is none (derive.ts). */
+  derived?: string[]
   /** Reviewer verdict on a valid draft, when the review stage ran. */
   review?: { verdict: string; notes: string[] }
 }
@@ -34,6 +39,12 @@ export interface Attempt {
 export interface Episode {
   id: string
   at: string
+  /** live: a player was waiting; offline: curriculum, escalation or revision */
+  profile?: Profile
+  /** escalated from this failed live episode */
+  escalatedFrom?: string
+  /** a revision of this episode's rules, after a late review */
+  revises?: string
   request: ModRequest
   key: string
   terms: string[]
@@ -48,10 +59,15 @@ export interface Episode {
   skillsRead: string[]
   harness: number
   model?: string
-  usage: { calls: number; input: number; output: number }
+  /** cost in USD, when the provider reports it */
+  usage: { calls: number; input: number; output: number; cost?: number }
+  /** one record per model call: where the time went */
+  calls?: CallRecord[]
   ms: number
   error?: string
 }
+
+type Reasoning = ChatOptions['reasoning']
 
 export interface EpisodeEntry {
   id: string
@@ -63,6 +79,7 @@ export interface EpisodeEntry {
   rules: string[]
   attempts: number
   calls: number
+  cost?: number
   ms: number
 }
 
@@ -94,28 +111,71 @@ export interface SkillMeta {
   recent: string[]
 }
 
+export interface DesignConfig {
+  /** 0 = one call, no tools: answer from the brief */
+  toolRounds: number
+  temperature: number
+  /** prepare the roles and related rules up front (brief.ts) */
+  brief?: boolean
+  reasoning?: Reasoning
+  /** who writes the generalization test: the model, or the harness (derive.ts) */
+  tests?: 'model' | 'harness'
+  /** tail guard per call (ms; 0 = off): second request after hedgeMs, give up a try after deadlineMs */
+  hedgeMs?: number
+  deadlineMs?: number
+  retries?: number
+}
+
+export type Profile = 'live' | 'offline'
+
+/**
+ * The base settings are the LIVE profile: a player is waiting, so one call from a prepared
+ * brief, little reasoning, review after the fact. `offline` overrides them for work nobody
+ * waits on — the curriculum, escalations of failed live requests, revisions — where quality
+ * comes first.
+ */
 export interface Harness {
   version: number
-  design: { toolRounds: number; temperature: number }
+  design: DesignConfig
   repair: { maxRounds: number }
-  review: { enabled: boolean; maxRounds: number }
+  /** blocking: the reviewer runs before the patch ships (else after it, and may trigger a revision) */
+  review: { enabled: boolean; maxRounds: number; blocking?: boolean; reasoning?: Reasoning }
   recall: { episodes: number; lessons: number }
-  reflect: { enabled: boolean; skillMinRecurrence: number }
+  reflect: { enabled: boolean; skillMinRecurrence: number; reasoning?: Reasoning }
   /** Tools the design stage may call. */
   tools: string[]
   /** Instructions the modder has added to its own system prompt. */
   addenda: string[]
+  offline: { design?: Partial<DesignConfig>; repair?: Partial<Harness['repair']>; review?: Partial<Harness['review']> }
+  /** a live request that fails is worked again offline, in the background: the world still learns it */
+  escalate: boolean
+  /** a late review asking for changes sends the rule back for one offline revision */
+  revise: boolean
 }
 
 export const DEFAULT_HARNESS: Harness = {
   version: 1,
-  design: { toolRounds: 10, temperature: 0.3 },
-  repair: { maxRounds: 3 },
-  review: { enabled: true, maxRounds: 1 },
+  design: { toolRounds: 0, temperature: 0.3, brief: true, reasoning: 'low', tests: 'harness', hedgeMs: 7000, deadlineMs: 15000, retries: 1 },
+  repair: { maxRounds: 1 },
+  review: { enabled: true, maxRounds: 1, blocking: false, reasoning: 'low' },
   recall: { episodes: 4, lessons: 12 },
-  reflect: { enabled: true, skillMinRecurrence: 3 },
+  reflect: { enabled: true, skillMinRecurrence: 3, reasoning: 'low' },
   tools: ['search_rules', 'get_rule', 'find_types', 'get_type', 'dry_run', 'read_skill', 'get_episode'],
   addenda: [],
+  offline: {
+    design: { toolRounds: 10, brief: true, reasoning: 'medium', tests: 'model', hedgeMs: 0, deadlineMs: 0 },
+    repair: { maxRounds: 3 },
+    review: { blocking: true, reasoning: 'medium' },
+  },
+  escalate: true,
+  revise: true,
+}
+
+/** The harness as one profile sees it. */
+export function profileOf(h: Harness, p: Profile): Harness {
+  if (p === 'live') return h
+  const o = h.offline ?? {}
+  return { ...h, design: { ...h.design, ...o.design }, repair: { ...h.repair, ...o.repair }, review: { ...h.review, ...o.review } }
 }
 
 /** A skill is retired once it has been used this often and does clearly worse than the average episode. */
@@ -129,6 +189,8 @@ export class SelfState {
   private lessonList: Lesson[] = []
   private skillIndex: Record<string, SkillMeta> = {}
   private harnessData: Harness = structuredClone(DEFAULT_HARNESS)
+  /** USD spent on reflection (episodes carry their own). */
+  private reflectSpend = 0
 
   private constructor(
     readonly dir: string,
@@ -147,10 +209,19 @@ export class SelfState {
           } catch {
             /* torn line */
           }
+    const journal = join(dir, 'journal.jsonl')
+    if (existsSync(journal))
+      for (const line of readFileSync(journal, 'utf8').split('\n'))
+        if (line.includes('"kind":"reflect"'))
+          try {
+            s.reflectSpend += JSON.parse(line).usage?.cost ?? 0
+          } catch {
+            /* torn line */
+          }
     s.lessonList = readJson(join(dir, 'memory/lessons.json'), [])
     s.skillIndex = readJson(join(dir, 'skills/index.json'), {})
     const h = join(dir, 'harness/pipeline.json')
-    if (existsSync(h)) s.harnessData = { ...structuredClone(DEFAULT_HARNESS), ...readJson<Partial<Harness>>(h, {}) }
+    if (existsSync(h)) s.harnessData = mergeHarness(readJson<Partial<Harness>>(h, {}))
     else {
       writeJson(h, s.harnessData)
       writeFileSync(join(dir, 'harness/CHANGELOG.md'), `# Harness changelog\n\n- v1 (${s.now()}): the default pipeline.\n`)
@@ -165,6 +236,7 @@ export class SelfState {
 
   /** Append to the journal (every write to the self-state goes through here). */
   note(kind: string, data: Record<string, unknown>): void {
+    if (kind === 'reflect') this.reflectSpend += (data.usage as { cost?: number } | undefined)?.cost ?? 0
     appendFileSync(join(this.dir, 'journal.jsonl'), JSON.stringify({ at: this.now(), kind, ...data }) + '\n')
   }
 
@@ -201,6 +273,7 @@ export class SelfState {
       rules: ep.rules,
       attempts: ep.attempts.length,
       calls: ep.usage.calls,
+      cost: ep.usage.cost,
       ms: ep.ms,
     }
     this.index.push(entry)
@@ -371,6 +444,9 @@ export class SelfState {
       attemptsPerAccepted: avg(accepted.map((e) => e.attempts)),
       callsPerEpisode: avg(tried.map((e) => e.calls)),
       msPerEpisode: Math.round(avg(tried.map((e) => e.ms))),
+      /** USD: everything the model cost, and per accepted patch (reflection included) */
+      spend: Math.round((this.index.reduce((a, e) => a + (e.cost ?? 0), 0) + this.reflectSpend) * 10000) / 10000,
+      costPerAccepted: accepted.length ? Math.round(((this.index.reduce((a, e) => a + (e.cost ?? 0), 0) + this.reflectSpend) / accepted.length) * 10000) / 10000 : 0,
       lessons: this.lessons().length,
       skills: this.skills().length,
       retiredSkills: this.skills(true).length - this.skills().length,
@@ -415,6 +491,13 @@ export class SelfState {
 }
 
 // ---------------------------------------------------------------- files
+
+/** A harness file over the defaults, section by section (a file written before a setting existed still gets it). */
+function mergeHarness(file: Partial<Harness>): Harness {
+  const d = structuredClone(DEFAULT_HARNESS) as unknown as Record<string, unknown>
+  for (const [k, v] of Object.entries(file)) d[k] = v && typeof v === 'object' && !Array.isArray(v) ? { ...(d[k] as object), ...v } : v
+  return d as unknown as Harness
+}
 
 function readJson<T>(path: string, fallback: T): T {
   try {

@@ -36,8 +36,9 @@ in the Mod Console. With the modder service running, they are patched live, and 
 accepted patch joins the shared rule library that all clients sync from.
 
 ```bash
-# any OpenAI-compatible endpoint (default base URL: OpenRouter)
-LSW_MODEL_URL=https://openrouter.ai/api/v1 LSW_MODEL_KEY=... LSW_MODEL=<model> npm run modder -- serve
+# the model comes from .env (not committed): LSW_MODEL_KEY=..., LSW_MODEL=moonshotai/kimi-k3,
+# LSW_MODEL_PROVIDERS=together,parasail,inference-net (any OpenAI-compatible endpoint; default OpenRouter)
+npm run modder -- serve
 # or offline, with a scripted model (rope on a creature is the one interaction it knows)
 npm run modder -- serve 8787 --script packages/modder/fixtures/offline.json --data var/offline
 ```
@@ -50,7 +51,8 @@ Data lives in `var/` (not committed):
 - `modder-state/` — the modder's memory, skills and harness ([docs/rsi.md](docs/rsi.md)).
 
 ```bash
-npm run curriculum -- 20         # resolve 20 sampled undefined interactions offline
+npm run curriculum -- 20         # resolve 20 sampled undefined interactions offline (quality profile)
+npm run latency -- --n 20        # the live profile on 20 fresh interactions: latency, validity, cost
 npm run modder -- stats          # library and self-state numbers
 npm run modder -- snapshot <label>   # freeze the self-state (benchmark checkpoints)
 npm run modder -- export [label]     # the self-state as one document

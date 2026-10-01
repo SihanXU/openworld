@@ -3,6 +3,7 @@
 import {
   Game,
   RuleLibrary,
+  buildRequest,
   snapshot,
   type Dir,
   type GameEvent,
@@ -38,11 +39,20 @@ const ontology = buildOntology()
 
 // ------------------------------------------------------------------ the modder service
 
-const MODDER_TIMEOUT_TICKS = 450 // with a modder online, an interaction waits up to 45 s for its patch
+const MODDER_TIMEOUT_TICKS = 150 // with a modder online, an interaction waits up to 15 s; a later patch still teaches the world
 const SYNC_MS = 15_000
 let modderUrl = ''
 let modderSeq = 0
 let syncTimer: ReturnType<typeof setInterval> | undefined
+let modderOnline = false
+
+// Prefetch: the action prompt knows an interaction is undefined before E is pressed. Facing it
+// with something in hand for half a second starts the request, so the patch is often there first.
+const PREFETCH_DWELL_TICKS = 5
+const PREFETCH_CAP = 40 // per session: a prefetch costs a model call
+let probe: { key: string; ev: GameEvent; ticks: number } | undefined
+const prefetched = new Set<string>()
+let prefetching = false
 
 /** Probe the service; if it answers, undefined interactions go to it and the shared library syncs from it. */
 async function connectModder(url: string): Promise<void> {
@@ -55,10 +65,12 @@ async function connectModder(url: string): Promise<void> {
     if (!game) return
     game.mods.provider = { resolve: resolveRemote }
     game.mods.timeoutTicks = MODDER_TIMEOUT_TICKS
+    modderOnline = true
     post({ t: 'modder', online: true, url: modderUrl, model: health.model })
     await syncLibrary()
     syncTimer = setInterval(() => void syncLibrary(), SYNC_MS)
   } catch {
+    modderOnline = false
     post({ t: 'modder', online: false, url: modderUrl })
   }
 }
@@ -77,6 +89,29 @@ async function resolveRemote(request: ModRequest): Promise<Patch | null> {
   })
   const reply = (await res.json()) as ResolveReply
   return reply.patch
+}
+
+function noteProbe(ev: GameEvent | undefined): void {
+  if (!ev) return void (probe = undefined)
+  const t = ev.roles.target!
+  const key = `${'e' in t ? t.e : `${t.tile.map}:${t.tile.x},${t.tile.y}`}|${(ev.roles.instrument as { e: string }).e}`
+  probe = probe?.key === key ? { ...probe, ev } : { key, ev, ticks: 0 }
+}
+
+/** Ask the modder ahead of time; its patch goes through this engine's validator like any other. */
+function maybePrefetch(): void {
+  if (!probe || !modderUrl || !modderOnline || !game || prefetching || prefetched.size >= PREFETCH_CAP) return
+  if (++probe.ticks < PREFETCH_DWELL_TICKS || prefetched.has(probe.key)) return
+  prefetched.add(probe.key)
+  prefetching = true
+  const eng = game.engine
+  const request = buildRequest(eng, probe.ev, `pre-${eng.world.state.tick.toString(36)}`)
+  resolveRemote(request)
+    .then((patch) => {
+      if (patch && game) game.mods.submit(undefined, patch)
+    })
+    .catch(() => undefined)
+    .finally(() => (prefetching = false))
 }
 
 /** Pull the shared library's patch log; every patch still goes through this engine's validator. */
@@ -149,6 +184,7 @@ function prompt(): Prompt | undefined {
   const instrument: Ref | undefined = p.held ? { e: p.held } : undefined
   const ev: GameEvent = { kind: 'interaction', verb: 'interact', roles: { actor: { e: p.id }, target, instrument } }
   const r = eng.resolve(ev)
+  noteProbe(r.defined || !instrument || boring ? undefined : ev) // bare floor is not worth a model call
   let take: Prompt['take']
   const takeTarget = eng.targetAt(f, 'take')
   const here = w.posOf(p)!
@@ -222,6 +258,7 @@ function loop(): void {
   }
   const frame = snapshot(eng)
   frame.prompt = prompt()
+  maybePrefetch()
   lastTickMs = performance.now() - t0
   post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length } })
   if (eng.lib.version !== lastRecordsVersion || frame.fx.some((f) => f.t === 'undefined' || f.t === 'patched')) {

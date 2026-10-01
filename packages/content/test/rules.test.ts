@@ -27,7 +27,8 @@ describe('base library', () => {
     }
     // every base rule passes the same validator patches go through (minus the "exists" check)
     const res = validatePatch({ artifacts: BASE_RULES.map((r) => ({ kind: 'rule' as const, rule: r })) }, { ontology: onto, library: new RuleLibrary() })
-    expect(res.errors.filter((e) => !e.includes('conflicts'))).toEqual([])
+    // (the base library's generic answers — put down, examine — are deliberately broad; patches may not be)
+    expect(res.errors.filter((e) => !e.includes('conflicts') && !e.includes('too broad'))).toEqual([])
   })
 
   it('has no ties: overlapping base rules never share the same specificity', () => {
@@ -377,3 +378,32 @@ function replayWith(eng: ReturnType<typeof buildSandbox>, sc: Scenario) {
   eng.queue(ev)
   return r
 }
+
+describe('text', () => {
+  it('names roles as they were when the rule started, even after it destroyed one', () => {
+    const rule = {
+      id: 'patch/test-pour-out',
+      on: 'interaction' as const,
+      when: { verb: ['interact' as const], instrument: { tags: ['fiber'] }, target: { type: 'actor/creature' } },
+      do: [
+        { op: 'destroy' as const, of: 'instrument' as const },
+        { op: 'log' as const, text: { en: 'The {target} eats the {instrument}.', zh: '{target}吃掉了{instrument}。' } },
+      ],
+    }
+    const eng = buildSandbox(
+      {
+        entities: [
+          { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+          { key: 'rope', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
+          { key: 'slime', type: 'actor/creature/slime/green_slime', x: 2, y: 1 },
+        ],
+        event: {},
+      },
+      onto,
+      new RuleLibrary([...BASE_RULES, rule]),
+    )
+    eng.interact('interact', 'actor', { e: 'slime' })
+    const line = eng.world.fx.find((f) => f.t === 'log' && typeof f.text === 'object' && f.text.en.startsWith('The '))
+    expect(line && line.t === 'log' && typeof line.text === 'object' && line.text.en).toBe('The green slime eats the Rope.')
+  })
+})
