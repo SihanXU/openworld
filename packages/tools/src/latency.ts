@@ -12,7 +12,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { modelFromEnv, openModder, type ChatOptions, type Episode } from '@lsw/modder'
+import { modelFromEnv, openModder, type ChatOptions, type WorldEpisode } from '@lsw/modder'
 import { sweep } from './coverage.ts'
 import { cellRequest, pick } from './curriculum.ts'
 
@@ -67,12 +67,12 @@ async function main(): Promise<void> {
   const label = `${model.name} rounds=${d.toolRounds}${d.brief ? ' brief' : ''} reasoning=${d.reasoning ?? 'default'} tests=${d.tests}${d.hedgeMs ? ` hedge=${d.hedgeMs}` : ''}${a.sort ? ` sort=${a.sort}` : ''}${a.providers ? ` providers=${a.providers}` : ''}`
   console.log(`# ${label}`)
   const cells = pick(sweep(library.fullOntology(), [...library.lib.rules.values()]).cells.filter((c) => c.outcome === 'undefined'), a.n, a.seed)
-  const eps: Episode[] = []
+  const eps: WorldEpisode[] = []
   for (const cell of cells) {
     const req = cellRequest(cell, library.fullOntology(), library.lib)
     if (!req) continue
     const reply = await modder.resolve({ request: req }, 'live')
-    const ep = state.episode(reply.episode!)!
+    const ep = state.episode(reply.episode!)! as WorldEpisode
     eps.push(ep)
     const calls = ep.calls ?? []
     const rule = ep.patch?.artifacts.find((x) => x.kind === 'rule')

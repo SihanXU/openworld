@@ -47,11 +47,4 @@ export function coarseTerms(sig: Signature): string[] {
   })
 }
 
-/** Overlap of two term sets, weighted toward the smaller one (a short lesson can match a long request). */
-export function similarity(a: string[], b: string[]): number {
-  if (!a.length || !b.length) return 0
-  const sb = new Set(b)
-  let n = 0
-  for (const t of a) if (sb.has(t)) n++
-  return n / Math.sqrt(a.length * b.length)
-}
+export { similarity } from '@lsw/agent'

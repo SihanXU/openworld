@@ -2,7 +2,9 @@
 // ModSpec is its bulk), so providers can cache it; everything per-request goes in the user turn.
 
 import type { ModRequest, ModSpec, Patch, Rule } from '@lsw/engine'
-import type { Harness, EpisodeEntry, Episode, Lesson, SkillMeta } from './state.ts'
+import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta } from '@lsw/agent'
+
+type Episode = AgentEpisode<ModRequest, Patch>
 import { compactRule } from './tools.ts'
 
 export function designSystem(spec: ModSpec, h: Harness): string {
@@ -155,7 +157,7 @@ Skills:
 export function reflectUser(ep: Episode, coarse: string[], lessons: Lesson[], skills: SkillMeta[], similar: EpisodeEntry[]): string {
   const rules = (ep.patch?.artifacts ?? []).filter((a) => a.kind === 'rule').map((a) => (a.kind === 'rule' ? compactRule(a.rule) : ''))
   return [
-    `# Episode ${ep.id}: ${ep.request.summary}`,
+    `# Episode ${ep.id}: ${ep.summary}`,
     `outcome: ${ep.outcome} after ${ep.attempts.length} attempt(s), ${ep.usage.calls} model call(s)`,
     `signature terms: ${coarse.join(', ')}`,
     '',

@@ -134,6 +134,16 @@ export class WorldLibrary {
     return { ok: true, result, rules, seq: entry.seq }
   }
 
+  /**
+   * The library as if some log entries never happened, in memory (nothing is written): the outer
+   * loop replays a recorded request against the world as it was before the request was answered.
+   */
+  fork(keep: (e: PatchLogEntry) => boolean = () => true): WorldLibrary {
+    const w = new WorldLibrary(this.ontology, this.base)
+    for (const e of this.log) if (keep(e)) w.apply(e)
+    return w
+  }
+
   /** Roll a patch rule back (the log keeps both the addition and the removal). */
   remove(ruleId: string, now = new Date()): boolean {
     if (this.lib.rules.get(ruleId)?.source?.origin !== 'patch') return false

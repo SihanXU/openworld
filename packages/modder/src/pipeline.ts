@@ -19,10 +19,16 @@ import { briefOf } from './brief.ts'
 import { changesNothing, deriveTests } from './derive.ts'
 import { narrowVerbs, normalizePatch } from './fixes.ts'
 import type { WorldLibrary } from './library.ts'
-import { Meter, parseJson, type ChatMessage, type ChatOptions, type Model } from './model.ts'
+import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@lsw/agent'
+import { materializeWorld } from './repo.ts'
 import { FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, designSystem, designUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser } from './prompts.ts'
 import { coarseTerms, signatureOf, type Signature } from './signature.ts'
-import { profileOf, safeName, type Attempt, type Episode, type Harness, type Profile, type SelfState } from './state.ts'
+import { profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@lsw/agent'
+
+/** An episode of the patch pipeline: the request is the world's, the result a Patch. */
+export type WorldEpisode = AgentEpisode<ModRequest, Patch>
+type Episode = WorldEpisode
+type Attempt = AgentAttempt<Patch>
 import { buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
 
 export interface ModderOptions {
@@ -120,6 +126,8 @@ export class Modder {
     return {
       id,
       at: this.now().toISOString(),
+      kind: 'world',
+      summary: req.summary,
       request: req,
       key: sig.key,
       terms: sig.terms,
@@ -140,6 +148,7 @@ export class Modder {
     const t0 = Date.now()
     const { state, library } = this.opts
     const h = profileOf(state.harness(), eo.profile)
+    if (h.design.mode === 'repo') return this.repoEpisode(req, ws, sig, eo, h)
     const model = new Meter(this.opts.model!)
     const ep = this.blank(state.newEpisodeId(), req, sig, h)
     ep.profile = eo.profile
@@ -247,6 +256,73 @@ export class Modder {
     }
   }
 
+  /**
+   * The request as a repository task, worked by the SWE-style agent (offline: curriculum,
+   * escalations, revisions). The agent's tests are the validator; the patch it leaves is
+   * committed to the shared library like any other.
+   */
+  private async repoEpisode(req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, eo: EpisodeOptions, h: Harness): Promise<ResolveReply> {
+    const { state, library } = this.opts
+    const replaces = eo.revise?.episode.rules ?? []
+    const lib = library.workspace(ws, replaces)
+    const repo = materializeWorld({
+      request: req,
+      library: lib,
+      ontology: library.fullOntology(lib),
+      spec: buildModSpec(library.ontology, lib),
+      regression: [...library.regression, ...(ws?.regression ?? [])].filter((r) => !replaces.includes(r.rule)),
+      revise: eo.revise ? { rules: replaces, notes: eo.revise.notes } : undefined,
+    })
+    try {
+      const run = await runAgent({ ...repo.task, terms: sig.terms }, { model: this.opts.model!, state, harness: h, record: false, log: this.opts.log })
+      const ep = run.episode as unknown as Episode
+      ep.request = req
+      ep.summary = req.summary
+      ep.key = sig.key
+      ep.profile = eo.profile
+      if (eo.escalatedFrom) ep.escalatedFrom = eo.escalatedFrom
+      if (eo.revise) ep.revises = eo.revise.episode.id
+      const { patch, problems } = repo.collect()
+      ep.patch = undefined
+      if (run.submitted && patch && !problems.length) this.commit(ep, { ...patch, author: 'modder' }, req, ws, replaces)
+      else if (problems.length) ep.attempts.push({ phase: 'repair', errors: problems, warnings: [] })
+      if (ep.outcome !== 'accepted') ep.outcome = 'failed'
+      state.recordEpisode(ep)
+      state.noteSkillUse(ep.skillsRead, ep.outcome, ep.id)
+      this.log(`${ep.id} ${eo.profile} repo${eo.revise ? ' revision' : eo.escalatedFrom ? ' escalation' : ''} ${ep.outcome} in ${ep.usage.calls} steps, ${ep.ms} ms: ${req.summary}${ep.rules.length ? ` → ${ep.rules.join(', ')}` : ''}${ep.error ? ` (${ep.error})` : ''}`)
+      this.later(`reflect ${ep.id}`, () => reflectAgent(ep as never, { model: this.opts.model!, state, harness: h }))
+      const last = ep.attempts.at(-1)
+      return { patch: ep.outcome === 'accepted' ? (ep.patch ?? null) : null, outcome: ep.outcome, episode: ep.id, diagnostics: ep.outcome === 'failed' ? [...(last?.errors ?? []), ...(ep.error ? [ep.error] : [])] : undefined }
+    } finally {
+      repo.dispose()
+    }
+  }
+
+  /**
+   * World tasks for the outer loop's replays: a recorded request rebuilt as a repository against
+   * the library as it was before that request was answered.
+   */
+  taskSource(): TaskSource {
+    const dirs = new Map<AgentTask, () => void>()
+    return {
+      kinds: ['world-repo'],
+      replay: async (ep) => {
+        const req = ep.request as ModRequest
+        if (!req?.scenario) return undefined
+        const before = this.opts.library.fork((e) => !('patch' in e && e.request === req.id))
+        if (before.covering(req)) return undefined // something else answers it now: no test of the harness
+        const repo = materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), spec: buildModSpec(before.ontology, before.lib), regression: before.regression })
+        const task = { ...repo.task, terms: ep.terms }
+        dirs.set(task, repo.dispose)
+        return task
+      },
+      cleanup: async (task) => {
+        dirs.get(task)?.()
+        dirs.delete(task)
+      },
+    }
+  }
+
   /** What follows an episode once the player has their answer. */
   private afterwards(ep: Episode, req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, h: Harness, ctx: ToolContext, eo: EpisodeOptions): void {
     const shipped = ep.attempts.at(-1)
@@ -284,7 +360,7 @@ export class Modder {
   /** The design conversation: tool calls until the model answers, or the round budget runs out. */
   private async converse(model: Model, messages: ChatMessage[], tools: Tool[], h: Harness, ep: Episode): Promise<string> {
     const specs = tools.map(({ name, description, parameters }) => ({ name, description, parameters }))
-    const call: ChatOptions = { temperature: h.design.temperature, purpose: 'design', reasoning: h.design.reasoning, hedgeMs: h.design.hedgeMs, deadlineMs: h.design.deadlineMs, retries: h.design.retries }
+    const call: ChatOptions = { temperature: h.design.temperature, purpose: 'design', reasoning: h.design.reasoning, hedgeMs: h.design.hedgeMs, deadlineMs: h.design.deadlineMs, retries: h.design.retries, provider: h.design.provider }
     for (let round = 0; round < h.design.toolRounds; round++) {
       const r = await model.chat(messages, { ...call, tools: specs })
       if (!r.toolCalls.length) {
@@ -319,7 +395,8 @@ export class Modder {
         { role: 'system', content: REVIEW_SYSTEM },
         { role: 'user', content: reviewUser(req, patch, outcome, req.context.nearMisses, flags) },
       ],
-      { json: true, temperature: 0.2, purpose: 'review', reasoning: h.review.reasoning },
+      // nobody waits on a review: the cheap providers
+      { json: true, temperature: 0.2, purpose: 'review', reasoning: h.review.reasoning, provider: profileOf(h, 'offline').design.provider },
     )
     const j = parseJson(r.content) as { verdict?: unknown; notes?: unknown } | undefined
     const notes = Array.isArray(j?.notes) ? j!.notes.filter((n): n is string => typeof n === 'string' && !!n.trim()).slice(0, 5) : []
@@ -339,7 +416,7 @@ export class Modder {
         { role: 'system', content: REFLECT_SYSTEM.replace('{N}', String(h.reflect.skillMinRecurrence)) },
         { role: 'user', content: reflectUser(ep, coarse, state.relevantLessons(sig.terms, 20), state.skills(), similar) },
       ],
-      { json: true, temperature: 0.2, purpose: 'reflect', reasoning: h.reflect.reasoning },
+      { json: true, temperature: 0.2, purpose: 'reflect', reasoning: h.reflect.reasoning, provider: profileOf(h, 'offline').design.provider },
     )
     const j = parseJson(r.content) as { lessons?: Parameters<SelfState['applyLessons']>[0]; skill?: { name?: unknown; description?: unknown; triggers?: unknown; body?: unknown } | null } | undefined
     const touched = j?.lessons && typeof j.lessons === 'object' ? state.applyLessons(j.lessons, ep.id, coarse) : []

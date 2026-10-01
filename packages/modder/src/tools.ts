@@ -20,8 +20,8 @@ import {
   type Selector,
   type ValidationResult,
 } from '@lsw/engine'
-import type { ToolSpec } from './model.ts'
-import type { SelfState } from './state.ts'
+import type { ToolSpec } from '@lsw/agent'
+import type { SelfState } from '@lsw/agent'
 
 export interface Tool extends ToolSpec {
   run(args: Record<string, unknown>): string
@@ -162,10 +162,10 @@ export function buildTools(ctx: ToolContext, allowed: string[]): Tool[] {
       description: 'Read one of your past episodes (listed in the prompt): the request, every attempt with the validator\'s diagnostics, and the final patch.',
       parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
       run: (a) => {
-        const ep = ctx.state.episode(str(a.id))
+        const ep = ctx.state.episode(str(a.id)) as { summary: string; outcome: string; attempts: { phase: string; errors: string[]; review?: unknown }[]; patch?: unknown } | undefined
         if (!ep) return `(no episode "${str(a.id)}")`
         return JSON.stringify({
-          summary: ep.request.summary,
+          summary: ep.summary,
           outcome: ep.outcome,
           attempts: ep.attempts.map((t) => ({ phase: t.phase, errors: t.errors, review: t.review })),
           patch: ep.patch,

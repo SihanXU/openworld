@@ -1,17 +1,23 @@
-// The offline inner loop: the coverage sweep lists every interaction the library leaves
-// undefined; the curriculum hands a diverse sample of them to the modder, one by one, as if
-// players had tried them. The shared library and the modder's self-state grow exactly as they
-// do online (same files), so this is how the world is written large and how self-state
-// checkpoints are produced between benchmark runs (docs/rsi.md). Do not run it while the
-// service is running on the same data directory.
+// The offline inner loop: undefined interactions, handed to the modder one by one as if players
+// had tried them (offline profile: the SWE-style agent works each as a repository). The shared
+// library and the self-state grow exactly as they do online (same files). Optionally:
+// checkpoints (learning-curve numbers + a self-state snapshot), the outer loop every N episodes,
+// and a spending cap. Do not run it while the service is running on the same data directory.
 //
-//   npm run curriculum -- [count=20] [seed=1]
-//   (model from the environment, as for `npm run modder`; see packages/modder/src/model.ts)
+//   npm run curriculum -- [--n 20] [--seed 1] [--scope hearthvale|all] [--checkpoint 10]
+//                         [--improve-every 10] [--budget 5] [--engine]
+//   (model from .env / the environment, as for `npm run modder`)
 
+import { appendFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ModPort, Rng, buildSandbox, type ModRequest, type Ontology, type RuleLibrary, type Scenario } from '@lsw/engine'
-import { openModder } from '@lsw/modder'
+import { buildOntology } from '@lsw/content'
+import { improve, runAgent, type TaskSource } from '@lsw/agent'
+import { openModder, type Modder } from '@lsw/modder'
 import { FRONT, ORIGIN, sweep, targets, type Cell } from './coverage.ts'
+import { engineSource, engineTask, engineTaskDefs } from './engine-tasks.ts'
+import { pickWeighted, scopedTotals, worldScope, type Scope } from './scope.ts'
 
 const SIZE = 9 // the request window is 7×7 around the target (or around the actor, using a thing on itself)
 const SHIFT = { x: 4 - FRONT.x, y: 4 - FRONT.y }
@@ -49,36 +55,121 @@ export function pick(cells: Cell[], n: number, seed: number): Cell[] {
   return out
 }
 
+export interface Checkpoint {
+  at: string
+  episodes: number
+  label: string
+  library: { patches: number; seq: number }
+  coverage: { scope: string; undefined: number; total: number; allUndefined: number }
+  window: { n: number; accepted: number; steps: number; ms: number; cost: number; failingTestRuns: number }
+  spend: number
+  harness: number
+  lessons: number
+  skills: number
+}
+
+/** The learning-curve numbers at this point, and a snapshot of the self-state to evaluate. */
+export function checkpoint(modder: Modder, scope: Scope | undefined, scopeName: string, since: number, label: string): Checkpoint {
+  const { library, state } = modder.opts
+  const cov = sweep(library.fullOntology(), [...library.lib.rules.values()])
+  const t = scope ? scopedTotals(cov.cells, scope) : { undefined: cov.totals.undefined, total: cov.cells.length }
+  const recent = state.episodes().slice(since).filter((e) => e.outcome !== 'covered')
+  const full = recent.map((e) => state.episode(e.id)!).filter(Boolean)
+  const stats = state.stats()
+  const cp: Checkpoint = {
+    at: new Date().toISOString(),
+    episodes: state.episodes().length,
+    label,
+    library: { patches: library.patchRules().length, seq: library.seq },
+    coverage: { scope: scopeName, undefined: t.undefined, total: t.total, allUndefined: cov.totals.undefined },
+    window: {
+      n: full.length,
+      accepted: full.filter((e) => e.outcome === 'accepted').length,
+      steps: full.reduce((a, e) => a + e.usage.calls, 0) / Math.max(1, full.length),
+      ms: full.reduce((a, e) => a + e.ms, 0) / Math.max(1, full.length),
+      cost: full.reduce((a, e) => a + (e.usage.cost ?? 0), 0) / Math.max(1, full.length),
+      failingTestRuns: full.reduce((a, e) => a + e.attempts.filter((x) => x.errors.length).length, 0) / Math.max(1, full.length),
+    },
+    spend: stats.spend,
+    harness: stats.harness,
+    lessons: stats.lessons,
+    skills: stats.skills,
+  }
+  appendFileSync(join(state.dir, '..', 'curves.jsonl'), JSON.stringify(cp) + '\n')
+  state.snapshot(label, { checkpoint: cp })
+  return cp
+}
+
 async function main(): Promise<void> {
-  const n = Number(process.argv[2] ?? 20)
-  const seed = Number(process.argv[3] ?? 1)
+  const argv = process.argv.slice(2)
+  const flag = (k: string, d?: string) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1] : d)
+  // positional [count] [seed] still work
+  const n = Number(flag('n', /^\d+$/.test(argv[0] ?? '') ? argv[0] : '20'))
+  const seed = Number(flag('seed', /^\d+$/.test(argv[1] ?? '') ? argv[1] : '1'))
+  const scopeName = flag('scope', 'hearthvale')!
+  const every = Number(flag('checkpoint', '0'))
+  const improveEvery = Number(flag('improve-every', '0'))
+  const budget = Number(flag('budget', '0'))
+  const withEngine = argv.includes('--engine')
   const modder = openModder({ log: (l) => console.log(`  ${l}`) })
   if (!modder.model) {
-    console.error('no model configured: set LSW_MODEL_URL + LSW_MODEL_KEY + LSW_MODEL, or LSW_MODEL_SCRIPT')
+    console.error('no model configured: set LSW_MODEL_KEY + LSW_MODEL (e.g. in .env), or LSW_MODEL_SCRIPT')
     process.exit(1)
   }
   const { library, state } = modder.opts
-  const rulesNow = () => [...library.lib.rules.values()]
-  const before = sweep(library.fullOntology(), rulesNow())
+  const onto: Ontology = library.fullOntology()
+  const scope = scopeName === 'all' ? undefined : worldScope(buildOntology())
+  const before = sweep(onto, [...library.lib.rules.values()])
   const open = before.cells.filter((c) => c.outcome === 'undefined')
-  console.log(`${open.length} undefined of ${before.cells.length} swept interactions; taking ${n} (seed ${seed}) with ${modder.model.name}`)
+  const cells = scope ? pickWeighted(open, n, seed, scope) : pick(open, n, seed)
+  const sources: TaskSource[] = [modder.taskSource(), ...(withEngine ? [engineSource()] : [])]
+  console.log(`${scope ? `${scopedTotals(before.cells, scope).undefined} undefined in ${scopeName}` : `${open.length} undefined`}; taking ${cells.length} (seed ${seed}) with ${modder.model.name}`)
+  let since = state.episodes().length
+  if (every) checkpoint(modder, scope, scopeName, since, `ckpt-${state.episodes().length}-start-${Date.now().toString(36)}`)
   const counts: Record<string, number> = {}
-  for (const [i, cell] of pick(open, n, seed).entries()) {
+  for (const [i, cell] of cells.entries()) {
+    if (budget && state.stats().spend >= budget) {
+      console.log(`budget of $${budget} reached ($${state.stats().spend.toFixed(2)}): stopping`)
+      break
+    }
     const req = cellRequest(cell, library.fullOntology(), library.lib)
-    const label = `[${i + 1}/${n}] ${cell.verb} ${cell.hand || '(empty hand)'} → ${cell.target}`
+    const label = `[${i + 1}/${cells.length}] ${cell.verb} ${cell.hand || '(empty hand)'} → ${cell.target}`
     if (!req) {
       console.log(`${label}: already answered`)
       counts.answered = (counts.answered ?? 0) + 1
       continue
     }
-    const reply = await modder.resolve({ request: req }, 'offline') // nobody waits: quality first
+    const reply = await modder.resolve({ request: req }, 'offline') // nobody waits: the agent, quality first
     counts[reply.outcome] = (counts[reply.outcome] ?? 0) + 1
-    console.log(`${label}: ${reply.outcome}${reply.diagnostics?.length ? ` (${reply.diagnostics[0]})` : ''}`)
+    console.log(`${label}: ${reply.outcome}${reply.diagnostics?.length ? ` (${reply.diagnostics[0].slice(0, 200)})` : ''}`)
+    // stage 2: an engine task now and then (the world's own code, as an SWE task)
+    if (withEngine && (i + 1) % 5 === 0) {
+      const defs = engineTaskDefs()
+      const t = engineTask(defs[Math.floor((i + 1) / 5 - 1) % defs.length])
+      try {
+        const r = await runAgent(t.task, { model: modder.model, state, log: (l) => console.log(`  ${l}`) })
+        console.log(`  engine ${t.task.id}: ${r.outcome}`)
+      } finally {
+        t.dispose()
+      }
+    }
+    const done = i + 1
+    if (improveEvery && done % improveEvery === 0) {
+      await modder.settled()
+      const r = await improve({ model: modder.model, state, sources, select: Number(flag('select', '8')), confirm: Number(flag('confirm', '8')), log: (l) => console.log(`  ${l}`) })
+      console.log(`  outer loop: ${r.proposal.kind} ${r.accepted ? 'KEPT' : 'rejected'} — ${r.reason}`)
+    }
+    if (every && done % every === 0) {
+      await modder.settled()
+      const cp = checkpoint(modder, scope, scopeName, since, `ckpt-${state.episodes().length}`)
+      since = state.episodes().length
+      console.log(`  checkpoint ${cp.label}: ${cp.coverage.undefined}/${cp.coverage.total} undefined, window ${cp.window.accepted}/${cp.window.n} accepted, $${cp.spend.toFixed(2)} spent`)
+    }
   }
   await modder.settled()
-  const after = sweep(library.fullOntology(), rulesNow())
+  const after = sweep(library.fullOntology(), [...library.lib.rules.values()])
   console.log('\noutcomes', counts)
-  console.log(`undefined interactions: ${before.totals.undefined} → ${after.totals.undefined}`)
+  console.log(`undefined interactions${scope ? ` in ${scopeName}` : ''}: ${scope ? scopedTotals(before.cells, scope).undefined : before.totals.undefined} → ${scope ? scopedTotals(after.cells, scope).undefined : after.totals.undefined}`)
   console.log('self-state', state.stats())
 }
 

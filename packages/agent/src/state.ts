@@ -1,31 +1,32 @@
-// The modder's self-state (docs/rsi.md §4): memory, skills, harness. Plain files in one
+// The agent's self-state (docs/rsi.md §4): memory, skills, harness. Plain files in one
 // directory, so every part can be read, diffed, versioned, ablated and rolled back:
 //
-//   memory/episodes/<id>.json   every request: attempts, diagnostics, tools used, outcome
+//   memory/episodes/<id>.json   every task: attempts, diagnostics, tools used, outcome
 //   memory/index.jsonl          one line per episode (what retrieval reads)
 //   memory/lessons.json         distilled rules of thumb, each linked to its episodes
 //   memory/lessons.md           the same, for people
-//   skills/<name>/SKILL.md      procedural skills the modder wrote for itself
+//   skills/<name>/SKILL.md      procedural skills the agent wrote for itself (+ scripts beside it)
 //   skills/index.json           usage, outcomes, provenance per skill
 //   harness/pipeline.json       the shape of its working loop
+//   harness/hooks/<stage>/*.mjs code it wrote for its own loop (run in the task sandbox)
 //   harness/CHANGELOG.md        every harness change and why
 //   journal.jsonl               append-only log of every write above
 //   snapshots/<label>/          frozen copies (benchmark checkpoints, ablations, rollback)
 
-import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
+import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ModRequest, Patch } from '@lsw/engine'
 import type { CallRecord, ChatOptions } from './model.ts'
-import { similarity } from './signature.ts'
+import { similarity } from './util.ts'
 
 // ---------------------------------------------------------------- records
 
 export type Outcome = 'accepted' | 'covered' | 'failed'
 
-export interface Attempt {
+export interface Attempt<P = unknown> {
   /** design: a fresh draft; repair: after validator diagnostics; review: after a reviewer's notes. */
   phase: 'design' | 'repair' | 'review'
-  patch?: Patch
+  patch?: P
   errors: string[]
   warnings: string[]
   /** Deterministic repairs the harness applied before validating (fixes.ts). */
@@ -36,25 +37,32 @@ export interface Attempt {
   review?: { verdict: string; notes: string[] }
 }
 
-export interface Episode {
+/**
+ * One task the agent worked: a world interaction (Req = the ModRequest, P = a Patch), a world task
+ * in repo form, an engine issue, a SWE task (Req = the task spec, P = a diff).
+ */
+export interface Episode<Req = unknown, P = unknown> {
   id: string
   at: string
+  /** world (the patch pipeline) | world-repo | engine | swe | …: what kind of task */
+  kind?: string
+  summary: string
   /** live: a player was waiting; offline: curriculum, escalation or revision */
   profile?: Profile
   /** escalated from this failed live episode */
   escalatedFrom?: string
   /** a revision of this episode's rules, after a late review */
   revises?: string
-  request: ModRequest
+  request: Req
   key: string
   terms: string[]
   outcome: Outcome
-  attempts: Attempt[]
+  attempts: Attempt<P>[]
   tools: { name: string; args: unknown; ms: number }[]
   /** Rules that now answer the interaction (new ones when accepted). */
   rules: string[]
-  patch?: Patch
-  /** What was put in front of the modder: retrieval is part of the record. */
+  patch?: P
+  /** What was put in front of the agent: retrieval is part of the record. */
   shown: { lessons: string[]; episodes: string[]; skills: string[] }
   skillsRead: string[]
   harness: number
@@ -65,6 +73,8 @@ export interface Episode {
   calls?: CallRecord[]
   ms: number
   error?: string
+  /** the agent's own one-line summary when it submitted (repo-form tasks) */
+  submission?: string
 }
 
 type Reasoning = ChatOptions['reasoning']
@@ -72,6 +82,7 @@ type Reasoning = ChatOptions['reasoning']
 export interface EpisodeEntry {
   id: string
   at: string
+  kind?: string
   key: string
   terms: string[]
   summary: string
@@ -112,6 +123,8 @@ export interface SkillMeta {
 }
 
 export interface DesignConfig {
+  /** json: the patch pipeline (one call or a tool conversation); repo: the agent works the task as a repository */
+  mode?: 'json' | 'repo'
   /** 0 = one call, no tools: answer from the brief */
   toolRounds: number
   temperature: number
@@ -124,6 +137,8 @@ export interface DesignConfig {
   hedgeMs?: number
   deadlineMs?: number
   retries?: number
+  /** provider preferences (OpenRouter): unset = the pinned order from the environment (fastest, by measurement) */
+  provider?: Record<string, unknown>
 }
 
 export type Profile = 'live' | 'offline'
@@ -134,8 +149,32 @@ export type Profile = 'live' | 'offline'
  * waits on — the curriculum, escalations of failed live requests, revisions — where quality
  * comes first.
  */
+/**
+ * The SWE-style agent loop (loop.ts): the part of the harness that transfers. The same loop works
+ * a world task in repo form, an engine issue, and a benchmark repository.
+ */
+export interface AgentConfig {
+  maxSteps: number
+  temperature: number
+  reasoning?: Reasoning
+  /** characters of one tool result kept in the conversation */
+  maxToolOutput: number
+  /** ask for a short plan before the first tool call */
+  planFirst: boolean
+  /** memory put in front of the agent */
+  recall: { lessons: number; episodes: number }
+  /** scripts the agent wrote for its own loop: harness/hooks/<stage>/<name>.mjs, run in the task sandbox */
+  hooks: { start: string[]; presubmit: string[] }
+  provider?: Record<string, unknown>
+  hedgeMs?: number
+  deadlineMs?: number
+  retries?: number
+}
+
 export interface Harness {
   version: number
+  /** the agent loop (repo-form tasks): what the outer loop improves */
+  agent: AgentConfig
   design: DesignConfig
   repair: { maxRounds: number }
   /** blocking: the reviewer runs before the patch ships (else after it, and may trigger a revision) */
@@ -153,8 +192,22 @@ export interface Harness {
   revise: boolean
 }
 
+/** The naive agent loop: the starting point of a self-improvement run (no hooks, no notes, no skills). */
+export const NAIVE_AGENT: AgentConfig = {
+  maxSteps: 40,
+  temperature: 0.2,
+  reasoning: 'medium',
+  maxToolOutput: 6000,
+  planFirst: false,
+  recall: { lessons: 8, episodes: 3 },
+  hooks: { start: [], presubmit: [] },
+  // the agent lives on tool calls: providers by reliability (the cheapest returned empty turns), not price
+  provider: { order: ['moonshotai', 'parasail', 'together'], allow_fallbacks: true },
+}
+
 export const DEFAULT_HARNESS: Harness = {
   version: 1,
+  agent: NAIVE_AGENT,
   design: { toolRounds: 0, temperature: 0.3, brief: true, reasoning: 'low', tests: 'harness', hedgeMs: 7000, deadlineMs: 15000, retries: 1 },
   repair: { maxRounds: 1 },
   review: { enabled: true, maxRounds: 1, blocking: false, reasoning: 'low' },
@@ -163,7 +216,7 @@ export const DEFAULT_HARNESS: Harness = {
   tools: ['search_rules', 'get_rule', 'find_types', 'get_type', 'dry_run', 'read_skill', 'get_episode'],
   addenda: [],
   offline: {
-    design: { toolRounds: 10, brief: true, reasoning: 'medium', tests: 'model', hedgeMs: 0, deadlineMs: 0 },
+    design: { mode: 'repo', toolRounds: 10, brief: true, reasoning: 'medium', tests: 'model', hedgeMs: 0, deadlineMs: 0, provider: { sort: 'price' } },
     repair: { maxRounds: 3 },
     review: { blocking: true, reasoning: 'medium' },
   },
@@ -189,16 +242,24 @@ export class SelfState {
   private lessonList: Lesson[] = []
   private skillIndex: Record<string, SkillMeta> = {}
   private harnessData: Harness = structuredClone(DEFAULT_HARNESS)
-  /** USD spent on reflection (episodes carry their own). */
-  private reflectSpend = 0
+  /** USD spent after replies: reviews, reflections, the outer loop (episodes carry their own). */
+  private backgroundSpend = 0
 
   private constructor(
     readonly dir: string,
     private clock: () => Date,
+    readonly ablated: Set<Ablation> = new Set(),
   ) {}
 
-  static open(dir: string, clock: () => Date = () => new Date()): SelfState {
-    const s = new SelfState(dir, clock)
+  /** A throwaway copy (in a temp directory) to try a different harness or skill set on. */
+  fork(): SelfState {
+    const to = mkdtempSync(join(tmpdir(), 'lsw-state-fork-'))
+    for (const d of ['memory', 'skills', 'harness']) cpSync(join(this.dir, d), join(to, d), { recursive: true })
+    return SelfState.open(to, this.clock, [...this.ablated])
+  }
+
+  static open(dir: string, clock: () => Date = () => new Date(), ablate: Ablation[] = []): SelfState {
+    const s = new SelfState(dir, clock, new Set(ablate))
     for (const d of ['memory/episodes', 'skills', 'harness', 'snapshots']) mkdirSync(join(dir, d), { recursive: true })
     const idx = join(dir, 'memory/index.jsonl')
     if (existsSync(idx))
@@ -212,9 +273,9 @@ export class SelfState {
     const journal = join(dir, 'journal.jsonl')
     if (existsSync(journal))
       for (const line of readFileSync(journal, 'utf8').split('\n'))
-        if (line.includes('"kind":"reflect"'))
+        if (line.includes('"usage"'))
           try {
-            s.reflectSpend += JSON.parse(line).usage?.cost ?? 0
+            s.backgroundSpend += JSON.parse(line).usage?.cost ?? 0
           } catch {
             /* torn line */
           }
@@ -236,14 +297,14 @@ export class SelfState {
 
   /** Append to the journal (every write to the self-state goes through here). */
   note(kind: string, data: Record<string, unknown>): void {
-    if (kind === 'reflect') this.reflectSpend += (data.usage as { cost?: number } | undefined)?.cost ?? 0
+    this.backgroundSpend += (data.usage as { cost?: number } | undefined)?.cost ?? 0
     appendFileSync(join(this.dir, 'journal.jsonl'), JSON.stringify({ at: this.now(), kind, ...data }) + '\n')
   }
 
   // ---------------------------------------------------------------- harness
 
   harness(): Harness {
-    return structuredClone(this.harnessData)
+    return structuredClone(this.ablated.has('harness') ? DEFAULT_HARNESS : this.harnessData)
   }
 
   setHarness(h: Harness, reason: string, by?: string): void {
@@ -268,7 +329,8 @@ export class SelfState {
       at: ep.at,
       key: ep.key,
       terms: ep.terms,
-      summary: ep.request.summary,
+      kind: ep.kind,
+      summary: ep.summary,
       outcome: ep.outcome,
       rules: ep.rules,
       attempts: ep.attempts.length,
@@ -285,6 +347,30 @@ export class SelfState {
     return [...this.index]
   }
 
+  /** Journal entries of one kind (proposals, reviews, reflections…), oldest first. */
+  journalOf(kind: string): Record<string, unknown>[] {
+    const p = join(this.dir, 'journal.jsonl')
+    if (!existsSync(p)) return []
+    const out: Record<string, unknown>[] = []
+    for (const line of readFileSync(p, 'utf8').split('\n'))
+      if (line.includes(`"kind":"${kind}"`))
+        try {
+          out.push(JSON.parse(line))
+        } catch {
+          /* torn line */
+        }
+    return out
+  }
+
+  /** A small JSON document kept with the memory (e.g. the outer loop's replay sets). */
+  readDoc<T>(name: string, fallback: T): T {
+    return readJson(join(this.dir, 'memory', `${safeName(name)}.json`), fallback)
+  }
+
+  writeDoc(name: string, value: unknown): void {
+    writeJson(join(this.dir, 'memory', `${safeName(name)}.json`), value)
+  }
+
   episode(id: string): Episode | undefined {
     const p = join(this.dir, 'memory/episodes', `${id.replace(/[^\w.-]/g, '')}.json`)
     return existsSync(p) ? readJson<Episode | undefined>(p, undefined) : undefined
@@ -292,6 +378,7 @@ export class SelfState {
 
   /** Past episodes most like these terms (cache hits excluded: nothing was learned there). */
   similarEpisodes(terms: string[], k: number, exclude?: string): (EpisodeEntry & { score: number })[] {
+    if (this.ablated.has('memory')) return []
     return this.index
       .filter((e) => e.outcome !== 'covered' && e.id !== exclude)
       .map((e) => ({ ...e, score: similarity(terms, e.terms) }))
@@ -307,6 +394,7 @@ export class SelfState {
   }
 
   relevantLessons(terms: string[], k: number): Lesson[] {
+    if (this.ablated.has('memory')) return []
     const set = new Set(terms)
     const score = (l: Lesson) => (l.terms.length ? l.terms.filter((t) => set.has(t)).length / l.terms.length : 0.5) + 0.02 * l.episodes.length
     return this.lessons()
@@ -366,6 +454,7 @@ export class SelfState {
   // ---------------------------------------------------------------- skills
 
   skills(all = false): SkillMeta[] {
+    if (this.ablated.has('skills')) return []
     return Object.values(this.skillIndex).filter((s) => all || s.status === 'active')
   }
 
@@ -376,12 +465,12 @@ export class SelfState {
   readSkill(name: string): string | undefined {
     const meta = this.skillIndex[name]
     const p = join(this.dir, 'skills', safeName(name), 'SKILL.md')
-    if (!meta || meta.status !== 'active' || !existsSync(p)) return undefined
+    if (!meta || meta.status !== 'active' || !existsSync(p) || this.ablated.has('skills')) return undefined
     return readFileSync(p, 'utf8').replace(/^---[\s\S]*?---\s*/, '')
   }
 
   /** Write a new skill or a new version of one. */
-  writeSkill(s: { name: string; description: string; triggers: string[]; body: string }, episode?: string): SkillMeta {
+  writeSkill(s: { name: string; description: string; triggers: string[]; body: string; files?: Record<string, string> }, episode?: string): SkillMeta {
     const name = safeName(s.name)
     const now = this.now()
     const prev = this.skillIndex[name]
@@ -392,9 +481,33 @@ export class SelfState {
     mkdirSync(join(this.dir, 'skills', name), { recursive: true })
     const front = ['---', `name: ${name}`, `description: ${s.description.replace(/\n/g, ' ')}`, `triggers: ${s.triggers.join(', ')}`, `version: ${meta.version}`, '---', ''].join('\n')
     writeFileSync(join(this.dir, 'skills', name, 'SKILL.md'), front + s.body.trim() + '\n')
+    // scripts the skill runs (in the task sandbox, through the agent's run tool)
+    for (const [file, code] of Object.entries(s.files ?? {}).slice(0, MAX_SKILL_FILES))
+      if (typeof code === 'string' && code.length <= MAX_SCRIPT_BYTES && safeFile(file) !== 'SKILL.md') writeFileSync(join(this.dir, 'skills', name, safeFile(file)), code)
     this.saveSkills()
     this.note(prev ? 'skill.revise' : 'skill.write', { name, version: meta.version, episode })
     return meta
+  }
+
+  /** The files of a skill (SKILL.md and its scripts), to put into a task workspace. */
+  skillFiles(name: string): Record<string, string> {
+    const d = join(this.dir, 'skills', safeName(name))
+    if (!existsSync(d) || this.ablated.has('skills')) return {}
+    return Object.fromEntries(readdirSync(d).map((f) => [f, readFileSync(join(d, f), 'utf8')]))
+  }
+
+  // ---------------------------------------------------------------- hooks (code for its own loop)
+
+  writeHook(stage: HookStage, name: string, code: string, by?: string): void {
+    const d = join(this.dir, 'harness/hooks', stage)
+    mkdirSync(d, { recursive: true })
+    writeFileSync(join(d, `${safeName(name)}.mjs`), code)
+    this.note('hook.write', { stage, name: safeName(name), by })
+  }
+
+  hookCode(stage: HookStage, name: string): string | undefined {
+    const p = join(this.dir, 'harness/hooks', stage, `${safeName(name)}.mjs`)
+    return existsSync(p) ? readFileSync(p, 'utf8') : undefined
   }
 
   /** Book an episode's outcome against the skills it read; retire skills that keep doing worse. */
@@ -445,8 +558,8 @@ export class SelfState {
       callsPerEpisode: avg(tried.map((e) => e.calls)),
       msPerEpisode: Math.round(avg(tried.map((e) => e.ms))),
       /** USD: everything the model cost, and per accepted patch (reflection included) */
-      spend: Math.round((this.index.reduce((a, e) => a + (e.cost ?? 0), 0) + this.reflectSpend) * 10000) / 10000,
-      costPerAccepted: accepted.length ? Math.round(((this.index.reduce((a, e) => a + (e.cost ?? 0), 0) + this.reflectSpend) / accepted.length) * 10000) / 10000 : 0,
+      spend: Math.round((this.index.reduce((a, e) => a + (e.cost ?? 0), 0) + this.backgroundSpend) * 10000) / 10000,
+      costPerAccepted: accepted.length ? Math.round(((this.index.reduce((a, e) => a + (e.cost ?? 0), 0) + this.backgroundSpend) / accepted.length) * 10000) / 10000 : 0,
       lessons: this.lessons().length,
       skills: this.skills().length,
       retiredSkills: this.skills(true).length - this.skills().length,
@@ -512,6 +625,19 @@ function writeJson(path: string, value: unknown): void {
   const tmp = `${path}.tmp`
   writeFileSync(tmp, JSON.stringify(value, null, 1) + '\n')
   renameSync(tmp, path)
+}
+
+export type HookStage = 'start' | 'presubmit'
+
+/** Parts of the self-state an ablation run leaves out (docs/rsi.md §6). */
+export type Ablation = 'memory' | 'skills' | 'harness'
+
+const MAX_SKILL_FILES = 6
+const MAX_SCRIPT_BYTES = 40_000
+
+/** A file name inside a skill: no directories, no dot-files. */
+export function safeFile(s: string): string {
+  return String(s).replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^[.-]+/, '').slice(0, 64) || 'script.mjs'
 }
 
 export function safeName(s: string): string {

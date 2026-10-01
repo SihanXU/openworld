@@ -92,6 +92,8 @@ function scripted(drafts: (Patch | string)[], over: Partial<Record<'review' | 'r
 function setup(model?: Model, dir = mkdtempSync(join(tmpdir(), 'lsw-modder-')), profile: 'live' | 'offline' = 'offline') {
   const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
   const state = SelfState.open(join(dir, 'modder-state'))
+  // these tests drive the patch pipeline (json); the repo-form agent has its own tests
+  state.setHarness({ ...state.harness(), offline: { ...state.harness().offline, design: { ...state.harness().offline.design, mode: 'json' } } }, 'test: json pipeline offline')
   const modder = new Modder({ library, state, model, profile })
   return { dir, library, state, modder }
 }
@@ -152,7 +154,7 @@ describe('the modder pipeline', () => {
     expect(reply.diagnostics?.join()).toMatch(/hogtied/)
     expect(state.episode(reply.episode!)!.attempts).toHaveLength(2)
     expect(library.patchRules()).toHaveLength(0)
-    expect(state.harness().version).toBe(2)
+    expect(state.harness().version).toBe(3) // the setup's change and this one
     expect(readFileSync(join(state.dir, 'harness/CHANGELOG.md'), 'utf8')).toContain('one repair round')
   })
 
@@ -338,7 +340,7 @@ describe('the OpenAI-compatible adapter', () => {
     }).listen(0)
     await new Promise((r) => server.once('listening', r))
     try {
-      const { OpenAICompatModel } = await import('../src/model.ts')
+      const { OpenAICompatModel } = await import('@lsw/agent')
       const model = new OpenAICompatModel({ baseUrl: `http://localhost:${(server.address() as AddressInfo).port}/v1`, apiKey: 'test', model: 'mock-1' })
       const { modder, state } = setup(model)
       const reply = await modder.resolve({ request: request() })
@@ -411,7 +413,7 @@ describe('the tail guard', () => {
       })
     }).listen(0)
     await new Promise((r) => server.once('listening', r))
-    const { OpenAICompatModel } = await import('../src/model.ts')
+    const { OpenAICompatModel } = await import('@lsw/agent')
     const model = new OpenAICompatModel({ baseUrl: `http://localhost:${(server.address() as AddressInfo).port}/v1`, apiKey: 't', model: 'm', extraBody: { provider: { order: ['a', 'b'] } } })
     return { model, bodies, close: () => (server.closeAllConnections(), server.close()) }
   }

@@ -59,6 +59,14 @@ npm run modder -- export [label]     # the self-state as one document
 npm run modder -- library remove <rule-id>   # roll a patch back
 ```
 
+The offline modder is an SWE-style agent that improves its own way of working; the same agent
+runs SWE-bench-style instances from a self-state snapshot ([docs/rsi.md](docs/rsi.md)):
+
+```bash
+npm run agent -- swe --instances instances.jsonl --state var/modder-state --out predictions.jsonl
+npm run improve -- --select 8 --confirm 8   # one turn of the outer loop
+```
+
 ## Art & audio
 
 [Ninja Adventure asset pack](https://pixel-boy.itch.io/ninja-adventure-asset-pack) by

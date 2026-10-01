@@ -35,6 +35,8 @@ export interface ChatOptions {
   hedgeMs?: number
   deadlineMs?: number
   retries?: number
+  /** OpenRouter provider preferences for this call (replaces the configured ones), e.g. { sort: 'price' } */
+  provider?: Record<string, unknown>
 }
 
 export interface ModelReply {
@@ -91,6 +93,7 @@ export class OpenAICompatModel implements Model {
       body.tool_choice = 'auto'
     } else if (opts.json) body.response_format = { type: 'json_object' }
     if (opts.reasoning) body.reasoning = opts.reasoning === 'none' ? { enabled: false } : { effort: opts.reasoning }
+    if (opts.provider) body.provider = opts.provider
     if (!opts.hedgeMs && !opts.deadlineMs) return this.once(body, AbortSignal.timeout(this.cfg.timeoutMs ?? 180_000))
     let last: unknown
     for (let i = 0; i <= (opts.retries ?? 1); i++) {

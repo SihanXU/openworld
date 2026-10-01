@@ -38,6 +38,11 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   content keys to sprites; `assets/ground.ts` autotiles; `hud.ts` HUD, dialogue, objectives
   and the Mod Console (patch by hand); the worker uses the modder service when one answers
   (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it.
+- `packages/agent` — the SWE-style agent and its self-state, task-agnostic (no engine, no content):
+  `model.ts` (OpenAI-compatible / scripted), `state.ts` (memory, skills + scripts, harness, hooks,
+  journal, snapshots, ablations), `env.ts` (local / docker), `tools.ts`, `loop.ts` (the agent loop),
+  `reflect.ts`, `outer.ts` (proposals + meta-validation), `presets.ts` (naive / tuned), `swe.ts` +
+  `cli.ts` (SWE-bench instances → predictions.jsonl). See docs/rsi.md.
 - `packages/modder` — the modder service (design.md §13, rsi.md). It may depend on content;
   the engine never depends on it. Parts:
   - `model.ts`: a model interface — OpenAI-compatible, or scripted for tests and offline.
@@ -47,7 +52,11 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   - `library.ts`: the shared library as an append-only patch log.
   - `state.ts`: the self-state — memory, skills, harness, journal, snapshots.
   - `server.ts`, `cli.ts`: the HTTP API and the command line.
-  - The offline driver is `tools/src/curriculum.ts`.
+  - `repo.ts`, `validate-cli.ts`: a world request as a repository for the agent (the offline profile).
+  - The offline driver is `tools/src/curriculum.ts`; engine tasks (hidden fail-to-pass tests) are
+    `tools/src/engine-tasks.ts` + `tools/tasks/engine/<id>/`; one outer-loop turn is `tools/src/improve.ts`.
+- RSI design changes (what the outer loop may change, how it is judged, the benchmark interface)
+  are discussed with the user before they are coded.
 - The model is Kimi K3 via OpenRouter, with the key in the gitignored `.env`. Anthropic, Google and OpenAI
   return 403 from here. Never hard-code a provider; tests use `ScriptedModel`.
 - Two harness profiles: **live** (a player waits: brief, one call, low reasoning, deterministic fixes,
@@ -85,5 +94,8 @@ npm run modder -- serve  # modder service on :8787 (model from LSW_MODEL_URL/KEY
 npm run modder -- serve 8787 --script packages/modder/fixtures/offline.json --data var/offline
 npm run curriculum -- 20 # resolve 20 sampled undefined interactions offline (offline profile)
 npm run latency -- --n 20 # live-profile latency bench (fresh library each run; costs model calls)
+npm run improve -- --select 8 --confirm 8   # one outer-loop turn (costs model calls)
+npm run engine-task -- toggle-status --state <dir>
+npm run agent -- swe --instances <file> --state <snapshot> --out predictions.jsonl [--env docker]
 npm run modder -- stats | snapshot <label> | export [label] | library [remove <id>]
 ```

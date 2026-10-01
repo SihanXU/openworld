@@ -13,10 +13,13 @@
     "assets": "tsx packages/tools/src/copyAssets.ts",
     "coverage": "tsx packages/tools/src/coverage.ts",
     "modder": "tsx packages/modder/src/cli.ts",
+    "agent": "tsx packages/agent/src/cli.ts",
     "curriculum": "tsx packages/tools/src/curriculum.ts",
+    "improve": "tsx packages/tools/src/improve.ts",
+    "engine-task": "tsx packages/tools/src/engine-tasks.ts",
     "latency": "tsx packages/tools/src/latency.ts",
     "test": "vitest run",
-    "typecheck": "tsc -p packages/engine && tsc -p packages/content && tsc -p packages/tools && tsc -p packages/modder && tsc -p packages/client",
+    "typecheck": "tsc -p packages/engine && tsc -p packages/content && tsc -p packages/tools && tsc -p packages/agent && tsc -p packages/modder && tsc -p packages/client",
     "check": "npm run typecheck && npm test"
   },
   "devDependencies": {

@@ -1,13 +1,12 @@
 # The self-improving modder (RSI)
 
-Status (2026-10-01):
-- **Built** in `packages/modder` (design.md §13): memory, procedural skills with usage
-  bookkeeping, the harness as data, snapshots and export.
-- **Not built:** tool skills, harness proposals and the meta-validation gate.
-- **Not chosen:** the model.
+Status (2026-10-01): **built and smoke-tested end to end; no experiment has been run yet.**
 
-Evaluation uses an external coding benchmark (see §6) and is run by the team, not by this
-codebase. The demo game does not show any of this: it stays a clean game.
+- The model is Kimi K3 via OpenRouter.
+- Evaluation is an external **SWE-like benchmark**, run by the team on self-state snapshots
+  (§7). This codebase provides the agent that runs on it.
+- The demo game shows none of this: it stays a clean game, and its live path (design.md §13) is
+  not part of the claim.
 
 ## 1. The claim
 
@@ -15,147 +14,227 @@ Patching the world is not, by itself, recursive self-improvement. Each accepted 
 the **world** better — one more rule in the library — but leaves the **coder** unchanged: the
 next hard request starts from scratch.
 
-The claim is about the coder. While it patches the world, the modder accumulates a
+The claim is about the coder. While it works the world, the modder accumulates a
 **self-state** of its own:
 
-- **memory** — what happened on every request and what it learned from it;
-- **skills** — procedures and tools it wrote for itself and keeps using;
-- **harness** — the shape of its own working loop, which it edits.
+- **memory** — what happened on every task and what it learned from it;
+- **skills** — procedures, with scripts, that it wrote for itself and keeps using;
+- **harness** — the settings of its own working loop, notes to itself, and **hooks**: code it
+  wrote that runs at fixed points of that loop.
 
-RSI is shown when the skills and harness it forms *on its own*, while doing world patches, make
-it better at **harder coding tasks it was never trained on** — not just faster at more patches
-of the same kind. The model weights stay frozen; the improvement lives entirely in the
-self-state, which is code and text we can read, version, ablate and roll back.
+RSI is shown when the self-state it forms *on its own* makes the same frozen model better at
+**harder coding tasks it never saw**: SWE-like tasks on other repositories, not just more
+patches of the same kind. The improvement lives entirely in the self-state, which is code and
+text we can read, version, ablate and roll back.
 
 ## 2. Why this world is a good place for it
 
 | Property | Where it comes from |
 |---|---|
-| An endless stream of **real** coding tasks | every undefined interaction a player reaches is a task; `npm run coverage` enumerates the untouched space (item × target × verb) as a curriculum |
-| A **free, executable verifier** | `validatePatch`: schema, ontology, conflict at equal specificity, sandbox replay, the patch's own tests, regression — objective feedback with diagnostics, no human grading |
-| **Difficulty that rises by itself** | the larger the rule library, the more a new rule can conflict with, the deeper the chains it joins (fire → ash → fertilizer), and the more often a request needs a new primitive rather than a new rule |
-| **Credit assignment** | every rule carries provenance (request, author, time); every self-state change can be tied to the episodes that produced it |
+| An endless stream of **real** coding tasks | every undefined interaction a player reaches is a task; the coverage sweep enumerates the untouched space as a curriculum; some need engine code (§3.3) |
+| A **free, executable verifier** | `validatePatch` (schema, ontology, conflicts, sandbox replay, the patch's tests, regression), and the engine's vitest suite: objective feedback, no human grading |
+| **Difficulty that rises by itself** | the larger the library, the more a new rule can conflict with and the deeper the chains it joins; more requests need a new primitive, which is engine work |
+| **Credit assignment** | every rule carries provenance; every self-state change is tied to the episodes and the replays that justified it |
 
-The world and the coder grow together: a bigger world poses harder tasks; a stronger coder lets
-the world keep growing.
+## 3. One agent, every kind of task
 
-## 3. Three loops
+The world must train what the benchmark measures. So the modder that improves is an
+**SWE-style agent** (`packages/agent`): it works every task as a repository, with the ordinary
+tools of an engineer. World tasks are one adapter of it; benchmark repositories are another.
 
 ```
-inner   player → undefined interaction → ModRequest → patch → validatePatch → rule library
-middle  episodes (request, attempts, diagnostics, outcome) → memory, skills
-outer   memory + skills → proposed harness / skill changes → meta-validation → new self-state
+task      = workspace (a repository) + issue + test command + verdict
+tools     = list_dir, read_file, search, write_file, edit_file, run, run_tests, read_skill, submit
+loop      = agent.* settings · notes · skills · hooks   ← the self-state, nothing hard-wired
+verdict   = the task's own: the validator, hidden tests, the visible tests
 ```
 
-- **Inner** is the Mod port as built today (design.md §8).
-- **Middle** runs after every episode: it records it and distils what is worth keeping.
-- **Outer** runs periodically: the modder proposes changes to how it works; they are kept
-  only if they do not make it worse (§5.3).
+### 3.1 The loop (`loop.ts`)
 
-## 4. The self-state
+1. **Prepare.** The issue, the agent's skills (with their scripts) and its hooks are written
+   into `.agent/` in the workspace. That directory is kept out of the diff.
+2. **Start hooks** run. Whatever they print is shown with the task.
+3. **Recall.** Relevant lessons and similar past tasks.
+4. **Work.** Model turns with tools, under a step budget, with tool output clipped and old
+   output trimmed. An empty turn is a provider failure: the call is repeated.
+5. **Submit.** Presubmit hooks run first, and may block the submission with a message.
+6. **Verdict and record.** The task's verdict decides the outcome. The episode is recorded
+   with the diff, every test run, the tool calls, and per-call time, tokens and cost.
 
-A directory next to the shared library (`var/modder-state/`, beside `var/library.jsonl`),
-versioned the same way: an append-only journal plus snapshots. Any change can be traced,
-reverted or ablated:
+Two starting points (`presets.ts`):
+- **naive** — the bare loop: no notes, no hooks, no skills. Every self-improvement run starts
+  here.
+- **tuned** — the human reference arm. A start hook finds the files that mention the issue's
+  identifiers; a presubmit hook blocks submissions while the tests fail; there are three
+  working notes, and the agent plans first.
+
+They are made of the same kinds of things the outer loop may add, so a run can be compared
+with them.
+
+### 3.2 World tasks as repositories (`modder/src/repo.ts`)
+
+| In the repository | What it is |
+|---|---|
+| `ISSUE.md` | the undefined interaction |
+| `MODSPEC.md` | the docs |
+| `rules/**/*.json` | the codebase: every rule, one file each |
+| `ontology/` | types, statuses, terrains, elements, vfx |
+| `request.json` | the request with the triggering scenario |
+| `node validate.mjs` | the tests: the engine's validator on what was added |
+
+The agent adds rules under `rules/patch/`. They are collected into a Patch and committed to
+the shared library like any other. The offline profile uses this; the live demo path stays the
+fast one-call pipeline.
+
+### 3.3 Engine tasks (`tools/src/engine-tasks.ts`)
+
+When a request needs a new primitive, condition or expectation, the task is the engine's code:
+- **Workspace:** a copy of `packages/engine` and `packages/content` as its own git repository;
+  dependencies are linked in and line endings normalized.
+- **Task:** an issue, plus a **hidden fail-to-pass test** (SWE-bench style). It is solved when
+  the hidden test passes and so does everything else.
+- **Tasks so far:** `toggle-status` (a new effect primitive: types, runner, docs, validator)
+  and `prop-eq` (a new test expectation).
+
+### 3.4 SWE-like instances (`agent/src/swe.ts`, `npm run agent -- swe`)
+
+- **Input:** SWE-bench instances — `instance_id`, `repo` (GitHub name, URL or local path),
+  `base_commit`, `problem_statement`, optional `test_cmd`.
+- **Output:** `predictions.jsonl` (`instance_id`, `model_name_or_path`, `model_patch`), the
+  format SWE-bench evaluation reads.
+- **Repositories:** mirrored once, then checked out per instance at the base commit.
+- **Environments:** local processes, or `--env docker` (a container per instance, workspace
+  mounted, no network; the image comes from a template, SWE-bench naming by default).
+- **No learning on the benchmark:** the self-state runs from a fork, and nothing is recorded.
+
+## 4. Three loops
+
+```
+inner   task → agent → verdict → (world: commit to the shared library)
+middle  episode → lessons, skills (reflect.ts)
+outer   evidence → one proposal → replay base vs candidate → keep or reject (outer.ts)
+```
+
+### 4.1 Middle: reflection
+
+After every task, the model reads the episode: test runs, failures, tools used, its lessons
+and skills, and similar past tasks. It may then:
+- add, support, revise or drop lessons (each cites its episodes);
+- write or revise a skill with scripts — only once that kind of work has recurred, or to
+  improve a skill it used.
+
+Skills are booked against outcomes and retired when they keep doing worse than average.
+
+### 4.2 Outer: the agent improves its own loop
+
+1. **Evidence.** The agent's recent tasks: outcomes, steps, failing test runs and their last
+   failure, tool use, cost. With them, its current settings, notes, skills, lessons, and every
+   earlier proposal with its verdict.
+2. **One proposal**, exactly one of:
+   - a **setting** (bounded: steps, reasoning, temperature, tool-output size, plan first,
+     recall sizes);
+   - a **note** (≤ 12);
+   - a **skill** (markdown + scripts);
+   - a **hook**: code for `start` or `presubmit`, as an ES module run with node in the task
+     sandbox. Its environment is `TASK_ISSUE`, `TASK_TESTS` and `TASK_KIND`; it has a 120 s
+     limit and no network.
+3. **Meta-validation.** Recorded tasks are replayed twice, on two forks of the self-state: the
+   current one and the candidate. For world tasks the library is rolled back to before each
+   task was answered; tasks that are answered some other way by now are skipped.
+   - A fixed **selection set** decides.
+   - A separate **confirmation set** guards against fitting the selection set over many
+     proposals.
+   - Both sets are drawn once and kept (`memory/replay-sets.json`).
+4. **Keep** only if, on both sets:
+   - the pass rate does not drop;
+   - cost, steps or time improve by at least 10 % (strictly);
+   - none of them gets more than 10 % worse.
+
+   A kept change is written to the real self-state with its evidence (`harness/CHANGELOG.md`).
+   Every proposal, kept or not, is journaled with its numbers.
+
+## 5. The self-state
+
+A directory beside the shared library (`var/modder-state/`), versioned by an append-only
+journal and snapshots:
 
 ```
 modder-state/
   memory/
-    episodes/<episode-id>.json     # request, every attempt, validator diagnostics, tools used,
-                                   #   what was recalled, model calls and tokens, final patch
-    index.jsonl                    # one line per episode: what retrieval reads
-    lessons.json / lessons.md      # distilled rules of thumb, each linked to its episodes
-  skills/
-    <name>/SKILL.md                # when to use it, how, examples (procedural skill)
-    <name>/tool.ts                 # (not yet) optional executable tool, run in a sandbox
-    index.json                     # uses, accepted/failed, version, status, origin episode
+    episodes/<id>.json          # task, every test run, tools, recall, calls (time, tokens, cost), diff or patch
+    index.jsonl                 # what retrieval reads
+    lessons.json / lessons.md   # rules of thumb, each linked to its episodes
+    replay-sets.json            # the outer loop's fixed selection and confirmation sets
+  skills/<name>/SKILL.md (+ scripts), skills/index.json
   harness/
-    pipeline.json                  # budgets and switches per stage, tools allowed, own addenda
-    CHANGELOG.md                   # every harness change and why
-  journal.jsonl                    # every write above, in order
-  snapshots/<label>/               # frozen copies + meta.json + SELF.md (see §6)
+    pipeline.json               # agent.* settings, notes; the patch pipeline's live/offline profiles
+    hooks/<stage>/<name>.mjs    # code the agent wrote for its own loop
+    CHANGELOG.md                # every harness change and the evidence for it
+  journal.jsonl                 # every write, every proposal, every reflection (with cost)
+  snapshots/<label>/            # frozen copies + meta.json + SELF.md
 ```
 
-### 4.1 Memory
+**Ablations** come from opening a state with parts left out: no memory, no skills, or the naive
+harness (`SelfState.open(dir, clock, ['memory' | 'skills' | 'harness'])`).
 
-- **Episodes** are written for every request, successful or not, with the validator's exact
-  diagnostics (`unknown status "hogtied"`, `conflicts with core/talk at equal specificity`,
-  `replay: still undefined`).
-- **Lessons** are distilled from episodes after each one ("liquids are selected by tag, not by
-  vessel type", "a spread needs chance < 1", "to special-case, add a constraint, don't edit
-  the general rule"). Each lesson links to the episodes that support it; lessons contradicted
-  by later episodes are revised or dropped.
-- **Retrieval**: for a new request, similar episodes (by roles' types, tags, statuses and the
-  near-miss rules) and the lessons they cite are put in front of the modder.
+## 6. Guard rails
 
-### 4.2 Skills
+1. **The judges are outside the self-state.** The validator, hidden tests, task tests, replay
+   sets and the external benchmark cannot be changed by the agent.
+2. **The engine stays the trust boundary for the world.** Every patch passes `validatePatch`.
+   Catch-all rules are rejected.
+3. **Sandboxing.** Commands and hooks run with a scrubbed environment (never the model key) and
+   time limits. Local processes are not an isolation boundary — they are only for our own
+   world and engine tasks. Benchmark repositories run in containers.
+4. **Bounded changes.** Settings have ranges; notes and hook code have size limits; hooks may
+   not use the network.
+5. **Everything is versioned.** Snapshots, the journal and the changelog make any change
+   traceable and reversible.
 
-- **Procedural skills** (markdown): e.g. *elemental reaction* (the pattern, the conflicts to
-  check with existing reactions, the test scenarios to write), *generalize a selector* (from
-  the instance in the request to the widest class that stays plausible), *extend a chain*
-  (hook a new product into an existing loop: ash → fertilizer).
-- **Tool skills** (TypeScript, sandboxed, with access to the ModSpec, the rule library and
-  the sandbox replay): e.g. a scenario builder, a pre-submit conflict finder, a coverage probe
-  that lists which neighbouring interactions a draft rule would also answer.
-- The modder is prompted to write a skill when the same kind of work recurs; a skill is kept
-  while it raises validation pass rate or lowers cost on the episodes that used it, and retired
-  otherwise. Usage and outcomes are recorded in `index.json`.
+## 7. Measuring
 
-### 4.3 Harness
+- **Checkpoints.** `npm run curriculum -- --checkpoint N` appends learning-curve numbers to
+  `var/curves.jsonl`:
+  - Hearthvale coverage;
+  - library size;
+  - pass rate, steps, failing test runs, time and cost per task over the window;
+  - total spend;
+  - harness version, lessons, skills.
 
-`pipeline.json` has two profiles of one loop:
-- **live**, for a player who is waiting: one call from a brief prepared by code, low
-  reasoning, review after shipping;
-- **offline**, for everything else: tools, more reasoning, blocking review.
+  At each checkpoint it also snapshots the self-state for the benchmark.
+- **The benchmark.** The team runs `npm run agent -- swe --state <snapshot>` on its SWE-like
+  instances and evaluates the predictions.
+- **Ablations and reference arms:** the naive harness, the tuned harness, and the self-state
+  with memory, skills or harness left out.
 
-Both are data, so the outer loop can tune each: the live profile for latency, the offline one
-for quality (design.md §13, "Live latency"). Within a profile, `pipeline.json` describes the
-modder's own loop: its stages (comprehend → query → design →
-review → describe, as in BardOS), which tools and skills each stage may call, how many repair
-rounds follow a rejection, whether to decompose a request into several rules, when to write
-tests first. The modder may propose edits to it — add a pre-submit self-check, a retrieval
-step over the rule library, a decomposition stage, a sub-agent for test writing.
+## 8. Commands
 
-## 5. Guard rails
+```bash
+npm run curriculum -- --n 20 --checkpoint 10 --improve-every 10 [--engine] [--budget 5]
+npm run improve -- --select 8 --confirm 8                 # one outer-loop turn
+npm run engine-task -- toggle-status --state <dir> [--preset tuned]
+npm run agent -- preset naive|tuned --state <dir>
+npm run agent -- swe --instances <file> --state <snapshot> --out predictions.jsonl [--env docker]
+npm run agent -- task --dir <repo> --issue <file> --tests <cmd> --state <dir>
+npm run modder -- snapshot <label> | export [label] | stats
+```
 
-1. **The engine stays the trust boundary.** Whatever the self-state becomes, every patch still
-   goes through `validatePatch`. A modder that learns to cheat the verifier gains nothing.
-2. **Tools run sandboxed**, with read access to the ModSpec, rule library and replay, and no
-   write access to the world, the engine or the rule library.
-3. **Meta-validation for harness and skill changes**: a proposed change is replayed on a fixed
-   set of recorded requests; it is accepted only if pass rate does not drop and cost does not
-   rise beyond a margin. The replay set and the external benchmark (§6) are disjoint.
-4. **Everything is versioned.** Rolling back the self-state to any earlier point is one command;
-   ablations (no memory / no skills / frozen harness) are checkpoints with parts removed.
+## 9. Smoke tests (2026-10-01, Kimi K3, about $1 in all)
 
-## 6. Measuring improvement
+| What | Result |
+|---|---|
+| World tasks as repositories (naive agent, 3 Hearthvale interactions) | 3/3 accepted, 5–24 steps, 40–200 s, $0.33. Hearthvale's undefined interactions went 6022 → 5963 (the rules generalize) |
+| Engine task `toggle-status` | solved (hidden test + suite pass), 16 steps, 133 s, $0.09 |
+| Engine task `prop-eq` | solved with a clean 3-file diff (types, checker, ModSpec docs), 9 steps, 75 s, $0.06 |
+| SWE CLI on a local instance | correct diff in `predictions.jsonl`, 5 steps, 26 s, $0.01 |
+| One outer-loop turn (1 selection + 1 confirmation task) | proposed a note grounded in its record (one task needed 24 steps and 2 failing test runs); replay gain ~6 %, below the bar → rejected, $0.20 |
 
-Out of scope for this codebase; recorded here so the pieces fit:
+Found while testing:
+- **Providers.** OpenRouter's cheapest Kimi providers sometimes return empty turns on tool
+  calls, so the agent pins providers by reliability (Moonshot, Parasail, Together), and an
+  empty turn is retried.
+- **Line endings.** A Windows checkout's CRLF made an agent's whole-file write look like a
+  rewrite, so engine workspaces are normalized to LF.
 
-- The team evaluates on an **external coding benchmark**, once at the start and again at
-  several points as the world grows.
-- What this codebase must provide: **snapshots** of the self-state at those points, a way to
-  run the modder with a given snapshot on arbitrary coding tasks (the self-state must not be
-  world-specific in its interface), and the logs that explain what changed between snapshots.
-- World-side numbers that go with each snapshot: rule-library size, patches accepted, repair
-  rounds per patch, validation pass rate, and the coverage report.
-
-## 7. Build order
-
-1. ✅ The modder service (BardOS's pipeline, ported to rules) with the self-state above, read
-   and written on every request. Memory: episodes, lessons, retrieval.
-2. Skills.
-   - ✅ The writing step in reflection, recurrence gating, usage and outcome bookkeeping,
-     retirement.
-   - ⬜ The sandbox for tool skills.
-3. Harness.
-   - ✅ The harness as data, with a changelog.
-   - ⬜ The proposal step and the meta-validation gate. The recorded episodes already hold the
-     requests a replay set needs.
-4. ✅ Snapshots and export:
-   - `npm run modder -- snapshot <label>` freezes the self-state.
-   - `npm run modder -- export [label]` prints it as one world-agnostic document (`SELF.md`:
-     skills, lessons, working notes), to put in front of the same model on any coding task.
-   - `npm run curriculum` grows the world and the self-state offline between checkpoints.
-
-Model choice and budget are deferred.
+**Not tested here:** the docker environment (no docker on this machine), and anything at
+experiment scale.

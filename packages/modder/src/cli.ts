@@ -10,7 +10,7 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { scriptFromFile } from './model.ts'
+import { scriptFromFile } from '@lsw/agent'
 import { REPO, openModder } from './open.ts'
 import { createModderServer } from './server.ts'
 

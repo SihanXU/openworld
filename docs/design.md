@@ -526,14 +526,23 @@ had a real inconsistency: it ignored ink that the player might be carrying.
 - Harness proposals and the meta-validation gate (rsi.md §5.3).
 - Per-player rate limits for public deployment.
 
+### The self-improving agent (2026-10-01)
+
+The offline profile no longer uses the patch pipeline. A request is worked by an SWE-style agent
+(`packages/agent`) as a **repository**: rules as files, the ModSpec as docs, the validator as the
+tests. The same agent works engine issues (hidden fail-to-pass tests) and SWE-bench instances,
+and an outer loop lets it change its own loop under meta-validation. Design, guard rails and
+smoke results: [rsi.md](rsi.md).
+
 ## 14. Next
 
 Near-term gameplay work — interactions and simple loops — is planned in [roadmap.md](roadmap.md).
 
 - Grow Hearthvale with the offline profile (curriculum, guided by what players actually try);
   watch the live numbers above as the library grows.
-- Self-improvement, the rest of [rsi.md](rsi.md): tool skills in a sandbox, harness edits
-  behind a meta-validation gate, and self-state snapshots for the team's external benchmark.
+- Self-improvement experiments ([rsi.md](rsi.md)): the SWE-style agent, world tasks as
+  repositories, engine tasks, the outer loop and the SWE CLI are built and smoke-tested; runs at
+  scale and the team's benchmark on snapshots come next.
 - Offline content generation at full scale through the same modder.
 - Public deployment with the shared rule library.
 - Paper metrics: rule-library growth, patch reuse rate, LLM calls per play-hour over
