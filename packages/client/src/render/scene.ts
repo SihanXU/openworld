@@ -499,7 +499,9 @@ export class WorldScene extends Phaser.Scene {
     if (tintStatus) v.body.setTint(TINT_OF[tintStatus]).setTintMode(Phaser.TintModes.MULTIPLY)
     else if (v.actor?.tint) v.body.setTint(v.actor.tint).setTintMode(Phaser.TintModes.OVERLAY)
     else v.body.clearTint()
-    v.body.setAlpha(e.frozen ? 0.75 : 1)
+    // a thing an act waits on shimmers; one who is down lies on the ground
+    v.body.setAlpha(e.frozen && e.kind !== 'actor' ? 0.75 : 1)
+    v.body.setAngle(e.statuses.includes('down') ? 90 : 0)
     // held item (small, at the hand)
     if (e.held && e.kind === 'actor') {
       const d = CATALOG.items[e.held]
@@ -542,8 +544,11 @@ export class WorldScene extends Phaser.Scene {
         const moving = time < v.movingUntil
         const col = DIR_COL[e.facing] ?? 0
         const walkRows = Math.min(4, v.actor.rows)
-        const row = moving ? Math.floor((time + v.phase) / 130) % walkRows : e.look || e.appearance ? 0 : Math.floor((time + v.phase) / 260) % walkRows
+        // working something out (an act the world is learning): busy hands in place, a little bob
+        const working = e.frozen && !e.statuses.includes('down')
+        const row = moving ? Math.floor((time + v.phase) / 130) % walkRows : working ? Math.floor(time / 110) % walkRows : e.look || e.appearance ? 0 : Math.floor((time + v.phase) / 260) % walkRows
         v.body.setFrame(`${v.actor.key}:${col},${row}`)
+        v.body.y = working ? -Math.abs(Math.sin(time / 95)) * 1.5 : 0
       }
       if (v.glow) v.glow.setPosition(v.root.x, v.root.y - 8).setAlpha(this.darkness * 1.4 * (0.85 + 0.15 * Math.sin((time + v.phase) / 120)))
     }

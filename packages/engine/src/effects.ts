@@ -140,7 +140,8 @@ export class EffectRunner {
       }
       case 'destroy': {
         const e = this.entity(ev, eff.of)
-        if (e && e.id !== w.state.player) w.destroy(e)
+        // the essential (people, the player) are never removed: they collapse and come to
+        if (e && !w.hasTag(e, 'essential')) w.destroy(e)
         return
       }
       case 'transform': {

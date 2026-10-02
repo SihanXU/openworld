@@ -134,7 +134,7 @@ describe('the world raises its own events (design.md §5.4)', () => {
       { key: 'chest', type: 'fixture/container/chest', x: 1, y: 3 },
     ])
     const port = new ModPort(eng)
-    eng.world.get('slime')!.ai = { behaviour: 'melee', hostile: false, sight: 0, home: { map: 'sandbox', x: 1, y: 1 } }
+    eng.world.get('slime')!.ai = { behaviour: 'melee', temper: 'wary', sight: 0, home: { map: 'sandbox', x: 1, y: 1 } }
     eng.step(eng.world.get('slime')!, 'up')
     eng.step(eng.world.get('slime')!, 'down')
     expect(eng.world.hasStatus({ e: 'hay' }, 'burning')).toBe(true)

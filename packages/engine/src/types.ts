@@ -8,6 +8,9 @@ export type Id = string
 export type Text = string | { en: string; zh?: string }
 
 export type Dir = 'up' | 'down' | 'left' | 'right'
+/** How near a lit or burning thing the creatures that fear fire will not come (tiles, Chebyshev). */
+export const FIRE_RADIUS = 2
+
 export const DIRS: Record<Dir, [number, number]> = {
   up: [0, -1],
   down: [0, 1],
@@ -67,6 +70,14 @@ export interface Ontology {
   vfx: string[]
   /** Tags an instance may carry beyond its type's (materials, qualities…); used by conflict checks. */
   instanceTags?: string[]
+  /** Factions (an actor belongs to those its `faction:<id>` tags name) and whom each is hostile to. */
+  factions?: Record<string, FactionDef>
+}
+
+export interface FactionDef {
+  name?: Text
+  /** Factions its members attack on sight (when their temper says so). */
+  hostile?: string[]
 }
 
 // ------------------------------------------------------------------ world state
@@ -270,7 +281,15 @@ export interface Appearance {
 
 export interface AiData {
   behaviour: 'melee' | 'ranged' | 'passive'
-  hostile: boolean
+  /**
+   * When it attacks those its factions are hostile to: always, after dark only, or only once
+   * provoked. Whoever strikes it becomes a foe, whatever its temper.
+   */
+  temper: 'aggressive' | 'nocturnal' | 'wary'
+  /** Whoever struck it: attacked on sight. */
+  foes?: Id[]
+  /** How far from where it lives (home, or its night roam) it will chase before it gives up (default 8). */
+  leash?: number
   sight: number
   home: Pos
   state?: 'idle' | 'chase' | 'return'
@@ -434,8 +453,10 @@ export interface Selector {
   id?: Id
   /** The role must be empty (e.g. `instrument: { none: true }` = empty-handed). */
   none?: boolean
-  /** The role is the player. */
+  /** The role is the player (the controlled character). Rules about the world should not need it. */
   player?: boolean
+  /** The role is (true) or is not (false) the event's actor: eating is an interaction with oneself. */
+  self?: boolean
 }
 
 export type Cmp =

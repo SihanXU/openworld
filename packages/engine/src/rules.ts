@@ -124,7 +124,11 @@ export function matchPattern(rule: Rule, ev: GameEvent, roles: Roles): boolean {
   if (w.element && !w.element.includes(ev.element ?? 'none')) return false
   if (w.status && (!ev.status || !w.status.includes(ev.status))) return false
   if (w.about && (!ev.about || !w.about.includes(ev.about))) return false
-  for (const r of ROLES) if (!matchSelector(w[r], roles[r])) return false
+  for (const r of ROLES) {
+    const sel = w[r]
+    if (!matchSelector(sel, roles[r])) return false
+    if (sel?.self !== undefined && (!!roles[r]?.id && roles[r]?.id === roles.actor?.id) !== sel.self) return false
+  }
   return true
 }
 
@@ -141,6 +145,7 @@ function selSpec(s: Selector | undefined): [number, number, number] {
     (s.kind ? 1 : 0) +
     (s.none ? 1 : 0) +
     (s.player !== undefined ? 1 : 0) +
+    (s.self !== undefined ? 1 : 0) +
     (s.tags?.length ?? 0) +
     (s.notTags?.length ?? 0) +
     (s.status?.length ?? 0) +

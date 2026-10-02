@@ -103,8 +103,8 @@ function buildMap(): MapBuilder {
   // the dead tree at the narrows, and the hollow the slimes come out of
   m.fixture('fixture/nature/dead_tree', ...AT.deadTree, { id: 'ford.dead_tree' })
   m.fixture('fixture/nature/burrow', ...AT.burrow, { id: 'ford.burrow' })
-  m.creature('slime/fire_slime', ...AT.fireSlime, { id: 'ford.fire_slime', hostile: false, sight: 4 }).ai!.night = { map: 'ford', x: 11, y: 16 }
-  m.creature('slime/frost_slime', ...AT.frostSlime, { id: 'ford.frost_slime', hostile: false, sight: 4 }).ai!.night = { map: 'ford', x: 14, y: 12 }
+  m.creature('slime/fire_slime', ...AT.fireSlime, { id: 'ford.fire_slime', temper: 'wary', sight: 4 }).ai!.night = { map: 'ford', x: 11, y: 16 }
+  m.creature('slime/frost_slime', ...AT.frostSlime, { id: 'ford.frost_slime', temper: 'nocturnal', sight: 4 }).ai!.night = { map: 'ford', x: 14, y: 12 }
   // ------------------------------------------------------------ anchors (schedules, scenes) and the goal
   m.anchor('camp.fire', 15, 15)
   m.anchor('camp.warm', 17, 15)

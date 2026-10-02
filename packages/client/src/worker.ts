@@ -248,7 +248,8 @@ function loop(): void {
   }
   const frame = snapshot(eng, { panel })
   if (panel && !frame.container) panel = undefined // closed by the world (it burned, a rule shut it)
-  frame.keys = stopped ? undefined : keyViews()
+  // no labels while the player cannot act (working out an act, down, in a scene)
+  frame.keys = stopped || eng.busy(w.player) ? undefined : keyViews()
   maybePrefetch()
   lastTickMs = performance.now() - t0
   post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length } })

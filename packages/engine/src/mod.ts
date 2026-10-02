@@ -97,6 +97,8 @@ export interface ModSpec {
     statuses: { id: string; duration?: number; immobilize?: boolean; clears?: string[] }[]
     terrains: { id: string; tags: string[]; solid?: boolean; liquid?: boolean }[]
     elements: string[]
+    /** Factions: an actor belongs to those its faction:<id> tags name; the wild is hostile to folk. */
+    factions: Record<string, { hostile?: string[] }>
   }
   assets: { vfx: string[] }
   authoringRules: string[]
@@ -187,7 +189,7 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
   return {
     version: `lsw-modspec/1 lib@${lib.version}`,
     summary:
-      'Author RULES for a 2D JRPG world whose mechanics are data. Rules match events by role patterns and run effect primitives. You are called because an event matched no rule. From the player: an interaction (the player used, put or took something, or touched it bare-handed — event.strict: catch-all descriptions do not count), a hit (a blow or a spell landed on something with no reaction), or a step onto a tile in some state (enter). From the world itself: a status taking hold of something, a hit nobody aimed (lightning), a creature meeting a thing (meet), a person who cannot go on with their day (blocked), a person who saw the player act on something owned (witness), or content that state has broken (invalid).',
+      'Author RULES for a 2D JRPG world whose mechanics are data. Rules match events by role patterns and run effect primitives. You are called because an event matched no rule. From the player: an interaction (the player used, put or took something, or touched it bare-handed — event.strict: catch-all descriptions do not count), a hit (a blow or a spell landed on something with no reaction), or a step onto a tile in some state (enter). From the world itself: a status taking hold of something, a hit nobody aimed (lightning), a creature meeting a thing (meet), a person who cannot go on with their day (blocked), a person who saw someone act on something owned (witness), or content that state has broken (invalid).',
     rule: {
       id: 'unique string, e.g. "patch/oil-coats-frozen"',
       on: 'event kind: interaction | hit | status | expire | tick | enter | defeat | meet | blocked | witness | invalid',
@@ -210,7 +212,8 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
       notStatus: 'none of these statuses',
       props: 'property comparisons: {key: value | {eq,ne,gt,gte,lt,lte}}',
       none: 'true = the role must be empty (e.g. empty-handed)',
-      player: 'true/false = the role is/isn\'t the player',
+      player: 'true/false = the role is/isn\'t the player (rarely right: say what the role IS, by type, tags or status)',
+      self: 'true/false = the role is/isn\'t the event\'s actor (eating is an interaction with oneself)',
       id: 'instance id (discouraged)',
     },
     conditions: [
@@ -235,7 +238,7 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
       defeat: 'target\'s hp reached 0 (actor = killer)',
       meet: 'a creature (actor) came up to a thing or another creature (target)',
       blocked: 'a person (actor) cannot go on with their activity (about): target is what it needs (gone, or not as it must be), or the anchor tile they cannot reach',
-      witness: 'a person (actor) saw the player act on something owned (target; instrument = what the player held); about = "<verb>:owner" when the witness owns it, else "<verb>:bystander"',
+      witness: 'a person (actor) saw someone (target) act on a thing that is another\'s (instrument); about = "<verb>:owner" when the witness owns it, else "<verb>:bystander"',
       invalid: 'state broke content the world must keep playable: about = the invariant id, detail = what it was; actor = target = the person it belongs to',
     },
     primitives: { ...PRIMITIVES, _roles: 'RoleRef = actor | target | instrument | tileOf:actor | tileOf:target | tileOf:instrument', _amount: 'Amount = number | "power" | {prop, of, mul?, add?}' },
@@ -249,6 +252,7 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
       statuses: Object.values(statuses).map((s) => ({ id: s.id, duration: s.duration, immobilize: s.immobilize, clears: s.clears })),
       terrains: Object.values(onto.terrains).map((t) => ({ id: t.id, tags: t.tags ?? [], solid: t.solid, liquid: t.liquid })),
       elements: onto.elements,
+      factions: onto.factions ?? {},
     },
     assets: { vfx: onto.vfx },
     authoringRules: AUTHORING_RULES,
@@ -283,7 +287,8 @@ export function signatureOf(eng: Engine, ev: GameEvent): string {
     if ('tile' in r) return `tile:${w.terrainAt(r.tile.map, r.tile.x, r.tile.y)}`
     const e = w.get(r.e)
     if (!e) return '?'
-    return e.id === w.state.player && r === ev.roles.target ? 'self' : e.type
+    const actor = ev.roles.actor
+    return r === ev.roles.target && actor && 'e' in actor && actor.e === e.id ? 'self' : e.type
   }
   const actor = ev.kind === 'interaction' || ev.kind === 'enter' ? '' : `|by:${kind(ev.roles.actor)}`
   return `${ev.kind}:${ev.verb ?? ev.element ?? ev.status ?? ev.about ?? ''}|${kind(ev.roles.target)}|${kind(ev.roles.instrument)}${ev.strict ? '|strict' : ''}${actor}`
@@ -327,9 +332,11 @@ export class ModPort implements UndefinedSink {
     }
     this.asks.set(signature, (this.asks.get(signature) ?? 0) + 1)
     const rec = this.open(ev, signature, 'player')
-    for (const r of [ev.roles.target, ev.roles.instrument]) {
+    // everyone and everything in the act waits for its outcome — the one acting too: they are
+    // busy working it out (no other act, no step) until the patch or the fallback comes
+    for (const r of [ev.roles.actor, ev.roles.target, ev.roles.instrument]) {
       const e = r && 'e' in r ? w.get(r.e) : undefined
-      if (e && e.id !== w.state.player) e.frozenBy = rec.id
+      if (e) e.frozenBy = rec.id
     }
     // say at once what the player is doing (never what comes of it: that is the patch's to decide)
     w.fx.push({ t: 'log', text: attemptLine(eng, ev) })
@@ -374,10 +381,17 @@ export class ModPort implements UndefinedSink {
     if (ev.kind === 'invalid') return true
     if (ev.kind === 'witness' || ev.kind === 'blocked') return seen
     if (!seen) return false
+    // something steps into a tile in some state: the one stepping is what the world asks about
+    if (ev.kind === 'enter') {
+      const tile = ev.roles.target && 'tile' in ev.roles.target ? ev.roles.target.tile : undefined
+      const st = tile && w.tileState(tile.map, tile.x, tile.y)?.statuses
+      const a = ev.roles.actor && 'e' in ev.roles.actor ? w.get(ev.roles.actor.e) : undefined
+      return !!st && Object.keys(st).length > 0 && !!a && !isA(a.type, 'actor/person') && REACTIVE.some((g) => w.hasTag(a, g))
+    }
     const t = ev.roles.target
     if (!t || !('e' in t)) return false // the ground itself does not ask (a meadow catching fire is just fire)
     const e = w.get(t.e)
-    if (!e || e.id === w.state.player || e.npc) return false
+    if (!e || isA(e.type, 'actor/person')) return false
     if (ev.kind === 'hit' && !ev.element) return false
     const v = w.view(t)!
     return REACTIVE.some((g) => v.tags.has(g)) || eng.lib.nearMisses(ev, rolesOf(ev, w)).length > 0
@@ -613,7 +627,7 @@ export function summarize(eng: Engine, ev: GameEvent): string {
   if (ev.kind === 'status') return `${n(ev.roles.target)} becomes ${ev.status}`
   if (ev.kind === 'meet') return `${n(ev.roles.actor)} meets → ${n(ev.roles.target)}`
   if (ev.kind === 'blocked') return `${n(ev.roles.actor)} is blocked from "${ev.about}" by → ${n(ev.roles.target)}`
-  if (ev.kind === 'witness') return `${n(ev.roles.actor)} witnesses the player ${ev.about?.split(':')[0]} → ${n(ev.roles.target)}${inst} (${ev.about?.split(':')[1]})`
+  if (ev.kind === 'witness') return `${n(ev.roles.actor)} witnesses ${n(ev.roles.target)} ${ev.about?.split(':')[0]} → ${n(ev.roles.instrument)} (${ev.about?.split(':')[1]})`
   if (ev.kind === 'invalid') return `content "${ev.about}" of ${n(ev.roles.actor)} is broken`
   return `${n(ev.roles.actor)} ${ev.verb} → ${n(ev.roles.target)}${inst}${ev.strict && !ev.roles.instrument ? ' (bare hand)' : ''}`
 }
@@ -691,9 +705,9 @@ function detailOf(eng: Engine, ev: GameEvent): string | undefined {
     return inv ? textOf(inv.text) : undefined
   }
   if (ev.kind === 'witness') {
-    const t = ev.roles.target && 'e' in ev.roles.target ? w.get(ev.roles.target.e) : undefined
+    const t = ev.roles.instrument && 'e' in ev.roles.instrument ? w.get(ev.roles.instrument.e) : undefined
     const owner = t && eng.ownerOf(t)
-    return `the player ${ev.about?.split(':')[0]}s ${n(ev.roles.target)}${owner ? ` (it belongs to ${n({ e: owner })})` : ''}${ev.roles.instrument ? ` with ${n(ev.roles.instrument)}` : ''}`
+    return `${n(ev.roles.actor)} saw ${n(ev.roles.target)} ${ev.about?.split(':')[0]} ${n(ev.roles.instrument)}${owner ? ` (it belongs to ${n({ e: owner })})` : ''}`
   }
   if (ev.kind === 'blocked') {
     const p = ev.roles.actor && 'e' in ev.roles.actor ? w.get(ev.roles.actor.e) : undefined
@@ -922,7 +936,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (ctx.world && Array.isArray(r.do) && ['witness', 'blocked', 'invalid'].includes(r.on))
       for (const [j, e] of r.do.entries()) {
         const of = (e as { of?: string }).of
-        if (HARMFUL.has(e.op) && (of === 'actor' || (r.on === 'invalid' && of === 'target'))) errors.push(`${where}.do[${j}]: a world event may not harm a person (${e.op} on ${of})`)
+        if (HARMFUL.has(e.op) && (of === 'actor' || (r.on !== 'blocked' && of === 'target'))) errors.push(`${where}.do[${j}]: a world event may not harm a person (${e.op} on ${of})`)
       }
     if (!r.tests?.length) warnings.push(`${where}: no tests`)
   }
@@ -1054,6 +1068,13 @@ function satisfiable(x: Selector, y: Selector, onto: Ontology): boolean {
     if (q.kind && q.kind !== 'actor') return false
     if (q.type && !isA('actor/person/player', q.type)) return false
     if (q.player === false) return false
+  }
+  // oneself is the event's actor, and actors are actors: anything else is disjoint from it
+  for (const [p, q] of [[x, y], [y, x]]) {
+    if (p.self !== true) continue
+    if (q.kind && q.kind !== 'actor') return false
+    if (q.type && !isA(q.type, 'actor') && !isA('actor', q.type)) return false
+    if (q.self === false) return false
   }
   if (x.none || y.none || x.id || y.id || x.player !== undefined || y.player !== undefined) return true
   const need = [...(x.tags ?? []), ...(y.tags ?? [])]

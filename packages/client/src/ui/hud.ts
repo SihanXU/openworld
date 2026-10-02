@@ -119,13 +119,15 @@ export class Hud {
     this.renderKeys(f)
     this.renderScene(f)
     this.renderQuestion(f)
-    // pending-request dots over the things that wait for the weave
+    // while the world learns an act: the one acting is at work on it (a working bubble), the
+    // things it is done to shimmer with dots
     const frozen = new Set(f.entities.filter((e) => e.frozen).map((e) => e.id))
     for (const id of frozen)
       if (!this.dotEls.has(id)) {
         const el = document.createElement('div')
-        el.className = 'pending-dots'
-        el.textContent = '…'
+        const actor = f.entities.find((e) => e.id === id)?.kind === 'actor'
+        el.className = actor ? 'pending-dots working' : 'pending-dots'
+        el.innerHTML = actor ? '<span class="gear">✦</span><i></i><i></i><i></i>' : '…'
         $('#labels').appendChild(el)
         this.dotEls.set(id, el)
       }

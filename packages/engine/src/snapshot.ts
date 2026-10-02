@@ -145,7 +145,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       maxHp: r.kind === 'actor' ? w.num(e, 'maxHp', 1) : undefined,
       appearance: e.npc?.appearance ?? (e.id === w.state.player ? PLAYER_LOOK : e.npc ? PLAYER_LOOK : undefined),
       look: e.look ?? e.npc?.look,
-      hostile: e.ai?.hostile,
+      hostile: e.ai ? e.ai.state === 'chase' : undefined,
       frozen: !!e.frozenBy,
       element: (w.prop(e, 'element') as string | undefined) ?? undefined,
       open: !!e.statuses?.open,

@@ -51,9 +51,9 @@ learns.* So the game is about trying things, and the world answering:
 | | The Ford |
 |---|---|
 | Clock | Days and nights only: no weekdays, no seasons. A game minute is a real second (a day is 24 minutes). The game begins on day 1 at 13:00. |
-| Night | 21:00–05:00. People sleep; the slimes come out of the hollow and roam toward the camp. |
+| Night | 21:00–05:00. People sleep. The frost slime (nocturnal) comes out of the hollow and attacks folk — the player and the people alike — but never comes near a lit fire; the fire slime (wary) roams too and fights only if struck. |
 | Weather | Fixed for the first two days (cloud, an evening storm 17–20, rain, then fog and sun), drawn from the seed after. Rain wets everyone outdoors and douses fires; the storm's lightning seeks what stands tall (the dead tree). |
-| Health | The only bar. At none you wake by the fire, the story intact. There is no energy. |
+| Health | The only bar. At none, anyone essential (you, Hesper, Tobin) collapses for 30 seconds and comes to with half their health; the story stays intact. There is no energy. |
 
 ## 4. The map (40 × 30)
 
@@ -100,6 +100,9 @@ schedules and keyed lines (about 16 each, English and Chinese).
   Topic and once-only lines are said once; the last line is not repeated.
 - **Handing** someone a thing (right click on them) gives it to them; they say their line for it.
   No hearts, no tastes, no points.
+- **Danger**: people run from what would attack them, toward the fire. A fire keeps the wild off,
+  so Hesper tending it every evening is what keeps the camp safe at night, and dousing it lets
+  the night in. Tobin sleeps by his cart, outside the fire's reach.
 
 ## 6. The ways across
 
@@ -166,7 +169,8 @@ The requirements are derived from the system, not chosen:
 - **F. What a game needs at the least**: a goal stated as a state (F1); the three taught ways
   across, each played through (F2a–c); teaching by placement (F3); risk and recovery (F4); a
   world that acts alone (F5); people with lives (F6); save and continue (F7); legibility (F8); an
-  opening (F9).
+  opening (F9); danger by data — the wild attacks folk by faction, the player and people alike;
+  people run; a fire keeps the wild off (F10).
 
 **The proof** is `packages/tools/test/demo.test.ts`. It builds the real map in memory
 (`buildFord()`), and for every requirement runs a scenario on it — through the player's own
@@ -179,9 +183,9 @@ bed (Hesper sleeps by the fire) and a third slime.
 | Element | Requirements it witnesses |
 |---|---|
 | Hesper | B10, B11, B12, C1, F2a, F5, F6, F9 |
-| Tobin | B11, C1, E3, F2c, F5, F6, F9 |
+| Tobin | B11, C1, E3, F2c, F4, F5, F6, F9, F10 |
 | fire slime | B9, C1, C2, F3, F4, F5 |
-| frost slime | B9, C2, E2, F3 |
+| frost slime | B9, C2, E2, F3, F10 |
 | rope | B12, C1, D1, F2a |
 | bread | B1, D1, F2c, F9 |
 | axe | B2, D1, F2b |
@@ -189,7 +193,7 @@ bed (Hesper sleeps by the fire) and a third slime.
 | oil | B5, B11, C2 |
 | bucket | B10, C2, F3 |
 | torch | C2, F3 |
-| campfire | B10, C1, F3, F4 |
+| campfire | B10, C1, F3, F10 |
 | chest | B9, F2a |
 | cart (a pile on a fixture) | B11, D2 |
 | winch | B1, B3, B12, F2a, F8 |

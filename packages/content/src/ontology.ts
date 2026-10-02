@@ -106,6 +106,8 @@ export const STATUSES: StatusDef[] = [
   { id: 'chilled', name: { en: 'thin ice', zh: '薄冰' }, duration: 1500 },
   // a mechanism that needs mending (the ferry winch whose rope snapped)
   { id: 'broken', name: { en: 'broken', zh: '坏了' } },
+  // at no health the essential (people, the player) collapse for a while instead of dying
+  { id: 'down', name: { en: 'down', zh: '倒地' }, duration: 300, immobilize: true },
 ]
 
 export const ELEMENTS = ['fire', 'water', 'ice', 'lightning', 'wind', 'earth']
@@ -167,13 +169,13 @@ export const PERSON_ROLES: [string, string, string][] = [
 const actorTypes: TypeDef[] = [
   P('actor', 'creature', '生物'),
   P('actor/person', 'person', '人', {
-    tags: ['person', 'living', 'talkable'],
+    tags: ['person', 'living', 'talkable', 'faction:folk', 'essential'],
     props: { hp: 20, maxHp: 20, atk: 1, def: 0, speed: 2 },
     sprite: 'person',
   }),
   P('actor/person/player', 'you', '你', { props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2 } }),
   ...PERSON_ROLES.map(([id, en, zh]) => P(`actor/person/${id}`, en, zh)),
-  P('actor/creature', 'creature', '怪物', { tags: ['creature', 'living'], props: { hp: 10, maxHp: 10, atk: 2, def: 0, speed: 6 } }),
+  P('actor/creature', 'creature', '怪物', { tags: ['creature', 'living', 'faction:wild'], props: { hp: 10, maxHp: 10, atk: 2, def: 0, speed: 6 } }),
   P('actor/creature/slime', 'slime', '史莱姆', { tags: ['slime', 'gelatinous'], sprite: 'creature:slime', props: { hp: 9, maxHp: 9, atk: 2, speed: 7 } }),
   P('actor/creature/slime/green_slime', 'green slime', '绿史莱姆', {}),
   P('actor/creature/slime/fire_slime', 'fire slime', '火焰史莱姆', { tags: ['fiery'], props: { element: 'fire', hp: 11, maxHp: 11 } }),
@@ -287,6 +289,11 @@ export function buildOntology(): Ontology {
   return {
     types,
     statuses: Object.fromEntries(STATUSES.map((s) => [s.id, s])),
+    // who attacks whom: the wild attacks folk (when a creature's temper says so); folk attack no one
+    factions: {
+      folk: { name: { en: 'folk', zh: '人们' }, hostile: [] },
+      wild: { name: { en: 'the wild', zh: '野物' }, hostile: ['folk'] },
+    },
     terrains: Object.fromEntries(TERRAINS.map((t) => [t.id, t])),
     elements: ELEMENTS,
     vfx: VFX,

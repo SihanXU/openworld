@@ -6,7 +6,7 @@
 // inputs where there are any; then the converse: every placed thing witnesses some requirement.
 
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, tickAt, type Engine, type Entity, type EventKind, type Key, type Patch, type Plan, type Ref } from '@lsw/engine'
+import { FIRE_RADIUS, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, tickAt, type Engine, type Entity, type EventKind, type Key, type Patch, type Plan, type Ref } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
 import { AT, buildFord } from '../src/demo/world.ts'
 
@@ -150,7 +150,8 @@ req('B8', 'a cascade meets an unmodelled pair: the storm strikes the dead tree',
 req('B9', 'creatures meet things after dark: a fiery slime lights dry hay (a rule); other meetings are asked about', ['actor/creature/slime/fire_slime', 'actor/creature/slime/frost_slime', 'fixture/nature/haystack', 'fixture/container/chest', 'fixture/nature/burrow'], () => {
   const f = fresh()
   setHour(f, 2, 20.9)
-  stand(f, 20, 15)
+  // the player keeps by the fire, where the wild does not come: the slimes roam free
+  stand(f, 17, 16)
   W(f).player.props!.hp = 10_000
   W(f).player.props!.maxHp = 10_000
   expect(ticks(f, 2 * TICKS_PER_HOUR, () => asked(f, 'meet', 'world').length > 0)).toBe(true)
@@ -199,6 +200,10 @@ req('E1', 'a patch answers a request: validated, applied, in the Threadbook as y
   stand(f, 25, 15, 'right')
   run(f, 'hands', ...AT.raft)
   const rec = asked(f, 'interaction', 'player')[0]
+  // while the world works it out, the one acting is at it too: no other act, no step
+  expect(W(f).player.frozenBy).toBe(rec.id)
+  expect(f.eng.movePlayer('left')).toBe(false)
+  expect(f.eng.controls.plan('hands', at(...AT.raft))).toBeDefined()
   const patch: Patch = {
     artifacts: [
       {
@@ -215,6 +220,7 @@ req('E1', 'a patch answers a request: validated, applied, in the Threadbook as y
     ],
   }
   expect(f.game.mods.submit(rec.id, patch).ok).toBe(true)
+  expect(W(f).player.frozenBy).toBeUndefined()
   expect(f.eng.lib.rules.get('patch/rock-the-raft')?.source).toMatchObject({ origin: 'patch', trigger: 'player' })
   const again = f.eng.controls.plan('hands', at(...AT.raft))!
   expect(again.unknown).toBeUndefined()
@@ -402,28 +408,87 @@ req('F3', 'the place teaches, not text: ice shows by the frost slime, dry hay wa
   expect(m.anchors?.['camp.fire']).toBeDefined()
 })
 
-req('F4', 'risk, and recovery: creatures strike; at no health you wake by the fire, the story intact', ['actor/creature/slime/fire_slime', 'fixture/light/campfire'], () => {
+req('F4', 'risk, and recovery: anyone at no health — the player as any person — collapses for a while and comes to, the story intact', ['actor/creature/slime/fire_slime', 'npc.tobin'], () => {
   const f = fresh()
-  stand(f, 30 - 20, 10)
-  f.eng.damage(W(f).player, 999)
-  const p = W(f).posOf(W(f).player)!
-  expect(Math.abs(p.x - AT.spawn[0]) + Math.abs(p.y - AT.spawn[1])).toBeLessThanOrEqual(2)
+  stand(f, 20, 20)
+  const slime: Ref = { e: 'ford.fire_slime' }
+  for (const who of [W(f).player, W(f).get('npc.tobin')!]) {
+    f.eng.damage(who, 999, 'fire', true, slime)
+    ticks(f, 2)
+    expect(W(f).hasStatus({ e: who.id }, 'down')).toBe(true)
+    expect(f.eng.busy(who)).toBe(true)
+    ticks(f, 320)
+    expect(W(f).hasStatus({ e: who.id }, 'down')).toBe(false)
+    expect(W(f).num(who, 'hp')).toBeGreaterThan(0)
+    expect(W(f).get(who.id)).toBeDefined()
+  }
   expect(W(f).num(W(f).player, 'quest')).toBe(1)
-  expect(W(f).num(W(f).player, 'hp')).toBe(W(f).num(W(f).player, 'maxHp'))
+})
+
+req('F10', 'the wild attacks folk by faction — the player and people alike, after dark or once struck; people run; a lit fire keeps the wild off', ['actor/creature/slime/frost_slime', 'npc.tobin', 'fixture/light/campfire'], () => {
+  const f = fresh()
+  const slime = W(f).get('ford.frost_slime')!
+  const tobin = W(f).get('npc.tobin')!
+  setHour(f, 2, 12)
+  expect([f.eng.hostileTo(slime, tobin), f.eng.hostileTo(slime, W(f).player)]).toEqual([false, false])
+  setHour(f, 2, 22.5)
+  expect([f.eng.hostileTo(slime, tobin), f.eng.hostileTo(slime, W(f).player)]).toEqual([true, true])
+  setHour(f, 2, 12)
+  f.eng.damage(slime, 1, undefined, false, { e: tobin.id })
+  expect([f.eng.hostileTo(slime, tobin), f.eng.hostileTo(slime, W(f).player)]).toEqual([true, false])
+  // after dark, out in the meadow far from the fire: it goes for Tobin, and he runs (or takes the blow)
+  const g = fresh()
+  setHour(g, 2, 22.5)
+  stand(g, 5, 16)
+  const s2 = W(g).get('ford.frost_slime')!
+  const t2 = W(g).get('npc.tobin')!
+  W(g).place(t2, { on: 'tile', map: 'ford', x: 18, y: 6 })
+  W(g).place(s2, { on: 'tile', map: 'ford', x: 20, y: 6 })
+  const hp = W(g).num(t2, 'hp')
+  let ran = 0
+  ticks(g, 400, () => {
+    const p = W(g).posOf(t2)!
+    ran = Math.max(ran, Math.abs(p.x - 18) + Math.abs(p.y - 6))
+    return false
+  })
+  expect(ran).toBeGreaterThanOrEqual(2)
+  // one who cannot run (frozen stiff beside it, on its ground) is struck
+  W(g).place(t2, { on: 'tile', map: 'ford', x: 13, y: 9 })
+  W(g).place(s2, { on: 'tile', map: 'ford', x: 14, y: 9 })
+  W(g).setStatus({ e: t2.id }, 'frozen', W(g).state.tick + 200)
+  ticks(g, 60)
+  expect(W(g).num(t2, 'hp')).toBeLessThan(hp)
+  // a lit fire: the slime roams up to the camp at night, and never into the fire's reach
+  const h = fresh()
+  setHour(h, 2, 21.2)
+  stand(h, 5, 16)
+  const s3 = W(h).get('ford.frost_slime')!
+  s3.ai!.night = { map: 'ford', x: AT.campfire[0], y: AT.campfire[1] + 1 }
+  let nearest = Infinity
+  ticks(h, 1500, () => {
+    const p = W(h).posOf(s3)!
+    const d = Math.max(Math.abs(p.x - AT.campfire[0]), Math.abs(p.y - AT.campfire[1]))
+    nearest = Math.min(nearest, d)
+    return false
+  })
+  expect(nearest).toBe(FIRE_RADIUS + 1)
 })
 
 req('F5', 'the world acts alone: a storm strikes, the slimes come out at night, people keep their day', ['weather:storm', 'actor/creature/slime/fire_slime', 'npc.hesper', 'npc.tobin'], () => {
   const f = fresh()
   stand(f, 16, 16)
   const strikes: unknown[] = []
-  ticks(f, 9 * TICKS_PER_HOUR, () => (strikes.push(...W(f).fx.filter((x) => x.t === 'strike')), (W(f).fx = []), false))
+  const watch = () => (strikes.push(...W(f).fx.filter((x) => x.t === 'strike')), (W(f).fx = []), false)
+  // 20:50, after the storm: Hesper tends the fire, as her evening says
+  ticks(f, Math.round(7.83 * TICKS_PER_HOUR), watch)
   expect(strikes.length).toBeGreaterThan(0)
-  // 22:00: the fire slime has left the hollow; Hesper sleeps by the fire
+  const h = W(f).posOf(W(f).get('npc.hesper')!)!
+  const fire = W(f).map('ford')!.anchors!['camp.fire']
+  expect(Math.abs(h.x - fire[0]) + Math.abs(h.y - fire[1])).toBeLessThanOrEqual(2)
+  // 22:00: the fire slime has left the hollow
+  ticks(f, Math.round(1.17 * TICKS_PER_HOUR), watch)
   const slime = W(f).posOf(W(f).get('ford.fire_slime')!)!
   expect(Math.abs(slime.x - AT.fireSlime[0]) + Math.abs(slime.y - AT.fireSlime[1])).toBeGreaterThan(3)
-  const h = W(f).posOf(W(f).get('npc.hesper')!)!
-  const bed = W(f).map('ford')!.anchors!['camp.bed']
-  expect(Math.abs(h.x - bed[0]) + Math.abs(h.y - bed[1])).toBeLessThanOrEqual(2)
 })
 
 req('F6', 'people with lives of their own: a tie to each other, a day of their own, words for the moment', ['npc.hesper', 'npc.tobin'], () => {

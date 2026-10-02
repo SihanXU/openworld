@@ -28,6 +28,9 @@ for (let t = 0; t < TICKS_PER_HOUR * 48; t++) {
       const e = w.get(n.id)!
       const s = scheduleAt(scheduleFor(eng, e), w.hour())
       const p = w.posOf(e)
+      // an hour with a threat at hand (or flat on the ground) is not the schedule's to keep
+      const threatened = w.entitiesOnMap(p?.map ?? '').some((o) => o.place.on === 'tile' && p && eng.hostileTo(o, e) && Math.abs(o.place.x - p.x) + Math.abs(o.place.y - p.y) <= 6)
+      if (threatened || w.hasStatus({ e: e.id }, 'down')) continue
       total++
       if (!s || !p || p.map !== s.map || Math.abs(p.x - s.x) + Math.abs(p.y - s.y) > 3) (off++, (report[n.id] = (report[n.id] ?? 0) + 1), process.env.CHECK_VERBOSE && console.log(n.id, Math.floor(w.hour()), s?.activity, s && [s.x, s.y], p && [p.x, p.y], w.calendar().weather))
     }

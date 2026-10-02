@@ -3,6 +3,7 @@
 //  - everywhere else: NPCs jump between anchors on the hour (cost ~ schedule transitions).
 // A person whose day cannot go on — the thing their activity needs is gone or not as it must
 // be, or the anchor cannot be reached — raises a `blocked` event (design.md §5.4 source 10).
+// A person who sees something about to attack them runs from it, toward a fire if one is near.
 
 import type { Engine } from './engine.ts'
 import { astar } from './path.ts'
@@ -10,6 +11,7 @@ import { scheduleFor } from './people.ts'
 import { matchSelector } from './rules.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
 import type { Ref } from './types.ts'
+import { DIRS, FIRE_RADIUS } from './types.ts'
 import type { Dir, Entity, Id, Pos, ScheduleEntry } from './types.ts'
 
 interface Runtime {
@@ -21,7 +23,12 @@ interface Runtime {
   unreachable?: number
   /** someone stood in the way: the next path goes around people */
   around?: boolean
+  /** running from a threat (their alarm is shown once per flight) */
+  fleeing?: boolean
 }
+
+/** A person runs from what would attack them within this many tiles. */
+const FLEE = 3
 
 /** A person is blocked about one activity at most once an hour. */
 const BLOCKED_EVERY = TICKS_PER_HOUR
@@ -131,6 +138,45 @@ export class NpcSim {
     this.rt.clear()
   }
 
+  /**
+   * Run from the nearest one that would attack: the step that leaves it farthest, and a fire's
+   * reach (where creatures that fear fire do not come) counts as far.
+   */
+  private flee(e: Entity, active: string, rt: Runtime): boolean {
+    const eng = this.eng
+    const w = eng.world
+    if (e.place.on !== 'tile') return false
+    const { x, y } = e.place
+    let threat: Entity | undefined
+    let near = Infinity
+    let fires: Pos[] | undefined
+    // by a fire one is safe from what fears fire
+    const sheltered = (o: Entity) => eng.fearsFire(o) && (fires ??= eng.fires(active)).some((f) => Math.max(Math.abs(f.x - x), Math.abs(f.y - y)) <= FIRE_RADIUS)
+    for (const o of w.entitiesOnMap(active)) {
+      if (o.place.on !== 'tile' || !eng.hostileTo(o, e) || sheltered(o)) continue
+      const d = Math.abs(o.place.x - x) + Math.abs(o.place.y - y)
+      if (d <= FLEE && d < near) (threat = o), (near = d)
+    }
+    if (!threat || threat.place.on !== 'tile') return void (rt.fleeing = false), false
+    if (!rt.fleeing) w.fx.push({ t: 'emote', who: e.id, mood: 'surprised' })
+    rt.fleeing = true
+    rt.path = undefined
+    fires ??= eng.fires(active)
+    const tp = threat.place
+    const score = (px: number, py: number) => Math.abs(px - tp.x) + Math.abs(py - tp.y) + (eng.fearsFire(threat) && fires!.some((f) => Math.max(Math.abs(f.x - px), Math.abs(f.y - py)) <= FIRE_RADIUS) ? 6 : 0)
+    let bestDir: Dir | undefined
+    let best = score(x, y)
+    for (const d of ['up', 'down', 'left', 'right'] as Dir[]) {
+      const [dx, dy] = DIRS[d]
+      if (!w.walkable(active, x + dx, y + dy, e.id, true)) continue
+      const s = score(x + dx, y + dy)
+      if (s > best) (best = s), (bestDir = d)
+    }
+    if (bestDir) eng.step(e, bestDir)
+    eng.setCooldown(e.id, NPC_STEP_TICKS - 1)
+    return true
+  }
+
   /** At the anchor: is the thing the activity needs there, and as it must be? */
   private checkNeed(e: Entity, s: ScheduleEntry): void {
     const w = this.eng.world
@@ -155,6 +201,7 @@ export class NpcSim {
     if (!eng.ready(e.id) || eng.busy(e) || e.place.on !== 'tile') return budget
     const rt = this.rt.get(e.id) ?? { wait: 0, blocked: 0 }
     this.rt.set(e.id, rt)
+    if (this.flee(e, active, rt)) return budget
     const s = scheduleAt(scheduleFor(this.eng, e), w.hour())
     if (!s) return budget
     const { x, y } = e.place

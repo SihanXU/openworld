@@ -706,7 +706,7 @@ function populateCreatures(m: GenMap, kinds: string[], n: number) {
     const type = `actor/creature/${k}`
     const ai: AiData = {
       behaviour: RANGED.has(k) ? 'ranged' : 'melee',
-      hostile: !PASSIVE.has(k),
+      temper: PASSIVE.has(k) ? 'wary' : 'aggressive',
       sight: RANGED.has(k) ? 7 : 6,
       home: { map: m.id, x: p[0], y: p[1] },
     }
@@ -957,7 +957,7 @@ function genStart(): GenMap {
     ['beast/boar', 38, 15, false],
   ]
   for (const [k, x, y, hostile] of slimes)
-    m.entities.push({ id: eid(m.id), type: `actor/creature/${k}`, place: { on: 'tile', map: m.id, x, y }, facing: 'down', ai: { behaviour: 'melee', hostile, sight: 5, home: { map: m.id, x, y } } })
+    m.entities.push({ id: eid(m.id), type: `actor/creature/${k}`, place: { on: 'tile', map: m.id, x, y }, facing: 'down', ai: { behaviour: 'melee', temper: hostile ? 'aggressive' : 'wary', sight: 5, home: { map: m.id, x, y } } })
   m.spots.plaza = [[17, 17], [19, 16], [21, 18], [24, 17], [16, 20], [20, 19]]
   m.spots.field = [[30, 11], [34, 11], [38, 11], [27, 8]]
   m.spots.street = [[22, 10], [22, 24], [12, 16], [8, 16]]

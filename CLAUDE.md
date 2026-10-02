@@ -80,6 +80,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - New behaviour = a rule (data) in `content/src/rules.ts` or a patch. New primitive,
   condition or event kind = an engine change (and add it to the ModSpec docs in `effects.ts`/`mod.ts`).
 - Rules address classes (types/tags/statuses), never instances, unless unavoidable.
+- No judgment is "is it the player": who attacks whom (factions + temper + foes), who sees what
+  (witnesses of any actor), who collapses (`essential`), using on oneself (`self`) are data any
+  actor carries. Only the input knows which actor the keys move.
 - Specificity decides which rule fires: (instance-bound, type depth, constraint count, priority).
   Base rules must not tie at equal specificity on overlapping patterns — the validator checks it.
 - Undefined behaviour has many sources (design.md §5.4): the player's actions, the physical

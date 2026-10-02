@@ -335,7 +335,7 @@ export class MapBuilder {
       facing: 'down',
       ai: {
         behaviour: opts.behaviour ?? (ranged ? 'ranged' : 'melee'),
-        hostile: opts.hostile ?? true,
+        temper: opts.temper ?? 'aggressive',
         sight: opts.sight ?? 5,
         home: { map: this.id, x, y },
       },

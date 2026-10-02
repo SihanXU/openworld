@@ -122,7 +122,7 @@ const TAKING: Rule[] = [
     id: 'core/give',
     doc: 'Hand the held item to a person: they take it and say what they make of it.',
     on: 'interaction',
-    when: { verb: ['put'], target: { type: 'actor/person', player: false } },
+    when: { verb: ['put'], target: { type: 'actor/person', self: false } },
     do: [{ op: 'give', to: 'target', item: 'instrument' }],
   }),
 ]
@@ -134,7 +134,7 @@ const HANDS: Rule[] = [
     id: 'core/talk',
     doc: 'Talk to a person: they say what fits the moment.',
     on: 'interaction',
-    when: { verb: ['interact'], target: { type: 'actor/person', player: false }, instrument: EMPTY_HAND },
+    when: { verb: ['interact'], target: { type: 'actor/person', self: false }, instrument: EMPTY_HAND },
     do: [{ op: 'say', who: 'target', text: '@line' }],
   }),
   base({
@@ -187,7 +187,7 @@ const HANDS: Rule[] = [
     id: 'core/examine-self',
     fallback: true,
     on: 'interaction',
-    when: { verb: ['interact'], target: { player: true }, instrument: EMPTY_HAND },
+    when: { verb: ['interact'], target: { self: true }, instrument: EMPTY_HAND },
     do: [say('actor', 'I feel fine.', '我感觉还行。')],
   }),
 ]
@@ -199,7 +199,7 @@ const USING: Rule[] = [
     id: 'core/eat',
     confirm: { en: 'Eat {instrument}?', zh: '要吃掉{instrument}吗？' },
     on: 'interaction',
-    when: { verb: ['interact'], target: { player: true }, instrument: { tags: ['edible'] } },
+    when: { verb: ['interact'], target: { self: true }, instrument: { tags: ['edible'] } },
     do: [
       { op: 'heal', of: 'actor', amount: { prop: 'heal', of: 'instrument', add: 1 } },
       vfx('heal', 'actor'),
@@ -211,7 +211,7 @@ const USING: Rule[] = [
     id: 'core/drink',
     confirm: { en: 'Drink {instrument}?', zh: '要喝掉{instrument}吗？' },
     on: 'interaction',
-    when: { verb: ['interact'], target: { player: true }, instrument: { tags: ['drinkable'] } },
+    when: { verb: ['interact'], target: { self: true }, instrument: { tags: ['drinkable'] } },
     do: [{ op: 'heal', of: 'actor', amount: { prop: 'heal', of: 'instrument', add: 1 } }, vfx('heal', 'actor'), log('You drink {instrument}.', '你喝下了{instrument}。'), { op: 'destroy', of: 'instrument' }],
   }),
   base({
@@ -219,7 +219,7 @@ const USING: Rule[] = [
     confirm: { en: 'Drink {instrument}?', zh: '要喝掉{instrument}吗？' },
     on: 'interaction',
     priority: 1,
-    when: { verb: ['interact'], target: { player: true }, instrument: { tags: ['liquid:water'] } },
+    when: { verb: ['interact'], target: { self: true }, instrument: { tags: ['liquid:water'] } },
     do: [{ op: 'heal', of: 'actor', amount: 2 }, { op: 'transform', of: 'instrument', into: '@prop:emptyType' }, log('Refreshing.', '清凉解渴。')],
   }),
   base({
@@ -1123,9 +1123,23 @@ const WORLD: Rule[] = [
 
 const DEFEAT: Rule[] = [
   base({
+    id: 'combat/down',
+    doc: 'At no health the essential (people, the player) collapse for a while.',
+    on: 'defeat',
+    when: { target: { kind: 'actor', tags: ['essential'] } },
+    do: [{ op: 'addStatus', of: 'target', status: 'down' }, vfx('poof', 'tileOf:target'), log('{target} collapses.', '{target}倒下了。')],
+  }),
+  base({
+    id: 'combat/come-to',
+    doc: 'They come to with half their health.',
+    on: 'expire',
+    when: { status: ['down'], target: { kind: 'actor', tags: ['essential'] } },
+    do: [{ op: 'setProp', of: 'target', key: 'hp', value: 1 }, { op: 'heal', of: 'target', amount: { prop: 'maxHp', of: 'target', mul: 0.5 } }, log('{target} comes to.', '{target}醒了过来。')],
+  }),
+  base({
     id: 'combat/defeat',
     on: 'defeat',
-    when: { target: { kind: 'actor' } },
+    when: { target: { kind: 'actor', notTags: ['essential'] } },
     do: [{ op: 'dropContents', of: 'target' }, vfx('poof', 'tileOf:target'), log('{target} is defeated.', '{target}被打倒了。'), { op: 'destroy', of: 'target' }],
   }),
 ]

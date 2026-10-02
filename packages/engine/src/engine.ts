@@ -1,7 +1,7 @@
 // The engine: resolves events through the rule library, runs the simulation tick,
 // and raises undefined interactions through the Mod port. Pure, deterministic, no AI.
 
-import { rainy } from './calendar.ts'
+import { isNight, rainy } from './calendar.ts'
 import { EffectRunner } from './effects.ts'
 import { Controls } from './controls.ts'
 import { Scenes } from './scenes.ts'
@@ -57,7 +57,7 @@ export const SIGHT = 7
 const MEET_COOLDOWN = 600
 const INVARIANT_EVERY = 30
 /** Events the world raises by itself (design.md §5.4 B and C), asked about through the salience filter. */
-export const WORLD_KINDS = new Set(['status', 'hit', 'meet', 'blocked', 'witness', 'invalid'])
+export const WORLD_KINDS = new Set(['status', 'hit', 'enter', 'meet', 'blocked', 'witness', 'invalid'])
 
 export class Engine {
   world: World
@@ -220,7 +220,7 @@ export class Engine {
     }
     this.undefinedSink?.observe?.(ev, res.rule!.id)
     // who sees it is decided before the act (a thing taken from her chest is hers until it is taken)
-    const seen = actorId === w.state.player ? this.witnesses(ev) : []
+    const seen = this.witnesses(ev)
     this.queue(ev)
     for (const s of seen) this.queue(s)
     return res
@@ -264,25 +264,69 @@ export class Engine {
   }
 
   /**
-   * People who see the player act on something that is someone's (design.md §5.4 source 11):
-   * one `witness` event per person awake within sight — about = verb:owner or verb:bystander.
+   * People who see someone act on a thing that is another's (design.md §5.4 source 11): one
+   * `witness` event per person awake within sight of the doer — actor = the witness, target =
+   * the doer, instrument = the thing; about = <verb>:owner (the witness owns it) or :bystander.
    */
   witnesses(ev: GameEvent): GameEvent[] {
     const w = this.world
     const t = ev.roles.target
+    const a = ev.roles.actor
     const thing = t && 'e' in t ? w.get(t.e) : undefined
-    if (!thing || !ev.verb) return []
-    const owner = thing.npc?.person ? undefined : this.ownerOf(thing)
-    if (!owner || owner === w.state.player) return []
-    const at = w.posOf(w.player)
+    const doer = a && 'e' in a ? w.get(a.e) : undefined
+    if (!thing || !doer || !ev.verb || w.kindOf(thing) === 'actor') return []
+    const owner = this.ownerOf(thing)
+    if (!owner || owner === doer.id) return []
+    const at = w.posOf(doer)
     if (!at) return []
     const out: GameEvent[] = []
     for (const e of w.entitiesOnMap(at.map)) {
-      if (!e.npc?.person || e.id === w.state.player || e.place.on !== 'tile') continue
-      if (Math.max(Math.abs(e.place.x - at.x), Math.abs(e.place.y - at.y)) > SIGHT || this.asleep(e)) continue
-      out.push({ kind: 'witness', roles: { actor: { e: e.id }, target: { e: thing.id }, instrument: ev.roles.instrument }, about: `${ev.verb}:${e.id === owner ? 'owner' : 'bystander'}` })
+      if (!e.npc?.person || e.id === doer.id || e.place.on !== 'tile') continue
+      if (Math.max(Math.abs(e.place.x - at.x), Math.abs(e.place.y - at.y)) > SIGHT || this.asleep(e) || this.busy(e)) continue
+      out.push({ kind: 'witness', roles: { actor: { e: e.id }, target: { e: doer.id }, instrument: { e: thing.id } }, about: `${ev.verb}:${e.id === owner ? 'owner' : 'bystander'}` })
     }
     return out
+  }
+
+  // ---------------------------------------------------------------- factions and fear
+
+  /** The factions an entity belongs to: its `faction:<id>` tags. */
+  factionsOf(e: Entity): string[] {
+    return [...(this.world.view({ e: e.id })?.tags ?? [])].filter((t) => t.startsWith('faction:')).map((t) => t.slice(8))
+  }
+
+  /**
+   * Would `a` attack `b` now? Its foes (whoever struck it) always; the factions its own
+   * factions are hostile to, when its temper says so (always, or after dark). Nobody attacks
+   * one who is down.
+   */
+  hostileTo(a: Entity, b: Entity): boolean {
+    const w = this.world
+    if (!a.ai || a.id === b.id || w.kindOf(b) !== 'actor' || b.place.on !== 'tile' || w.hasStatus({ e: b.id }, 'down')) return false
+    if (a.ai.foes?.includes(b.id)) return true
+    const t = a.ai.temper
+    if (t === 'wary' || (t === 'nocturnal' && !isNight(w.hour()))) return false
+    const factions = w.onto.data.factions ?? {}
+    const theirs = this.factionsOf(b)
+    return this.factionsOf(a).some((f) => (factions[f]?.hostile ?? []).some((h) => theirs.includes(h)))
+  }
+
+  /** Where fire burns on a map: lit things and burning things and tiles. */
+  fires(map: string): Pos[] {
+    const w = this.world
+    const out: Pos[] = []
+    for (const key of w.statusful) {
+      const ref = w.keyRef(key)
+      if (!w.hasStatus(ref, 'lit') && !w.hasStatus(ref, 'burning')) continue
+      const p = w.refPos(ref)
+      if (p?.map === map) out.push(p)
+    }
+    return out
+  }
+
+  /** Does it keep away from fire? Everything with an AI, unless it is fiery itself. */
+  fearsFire(e: Entity): boolean {
+    return !!e.ai && !this.world.hasTag(e, 'fiery')
   }
 
   /** A creature came up to things (design.md §5.4 source 9): a `meet` event per thing, now and then. */
@@ -311,8 +355,8 @@ export class Engine {
       if (inv.when && !evalCond(inv.when, {}, w)) continue
       if (evalCond(inv.holds, {}, w)) continue
       w.setFact(`invalid.${inv.id}`, true)
-      const giver: Ref = inv.giver && w.get(inv.giver) ? { e: inv.giver } : { e: w.state.player }
-      this.queue({ kind: 'invalid', roles: { actor: giver, target: giver }, about: inv.id })
+      const giver: Ref | undefined = inv.giver && w.get(inv.giver) ? { e: inv.giver } : undefined
+      this.queue({ kind: 'invalid', roles: giver ? { actor: giver, target: giver } : {}, about: inv.id })
     }
   }
 
@@ -376,26 +420,23 @@ export class Engine {
     if (fresh) this.queue({ kind: 'status', roles: { target: ref }, status })
   }
 
+  /**
+   * Hurt an actor. At no health it is defeated (the rules decide what that means: the essential
+   * collapse, the rest are gone); whoever struck an actor with an AI becomes its foe.
+   */
   damage(e: Entity, amount: number, element?: string, pierce?: boolean, by?: Ref): void {
     const w = this.world
+    if (w.hasStatus({ e: e.id }, 'down')) return
     const def = pierce ? 0 : w.num(e, 'def')
     const dmg = Math.max(1, Math.round(amount - def))
     const hp = w.num(e, 'hp', 1) - dmg
     ;(e.props ??= {}).hp = hp
     w.fx.push({ t: 'damage', who: e.id, amount: dmg, element })
-    if (hp <= 0) {
-      if (e.id === w.state.player) this.respawn()
-      else this.queue({ kind: 'defeat', roles: { target: { e: e.id }, actor: by } })
-    } else if (e.ai && by && 'e' in by && by.e === w.state.player) e.ai.hostile = true
-  }
-
-  private respawn(): void {
-    const w = this.world
-    const p = w.player
-    ;(p.props ??= {}).hp = w.num(p, 'maxHp', 30)
-    for (const s of Object.keys(p.statuses ?? {})) w.clearStatus({ e: p.id }, s)
-    w.fx.push({ t: 'log', text: { en: 'You black out… and come to by the fire.', zh: '你眼前一黑……醒来时已躺在火堆旁。' }, tone: 'bad' })
-    this.teleport(p, w.state.spawn)
+    if (hp <= 0) this.queue({ kind: 'defeat', roles: { target: { e: e.id }, actor: by } })
+    else if (e.ai && by && 'e' in by && by.e !== e.id && w.get(by.e)) {
+      const foes = (e.ai.foes ??= [])
+      if (!foes.includes(by.e)) foes.push(by.e)
+    }
   }
 
   // ---------------------------------------------------------------- movement
@@ -425,8 +466,8 @@ export class Engine {
   /** Step one tile. Returns true if the entity moved. */
   step(e: Entity, dir: Dir): boolean {
     const w = this.world
-    e.facing = dir
     if (this.busy(e) || e.place.on !== 'tile') return false
+    e.facing = dir
     const { map, x, y } = e.place
     const [dx, dy] = DIRS[dir]
     const nx = x + dx
@@ -467,7 +508,7 @@ export class Engine {
   movePlayer(dir: Dir, walk = false): boolean {
     const p = this.world.player
     if (!this.ready(p.id) || this.pendingTransition) {
-      p.facing = dir
+      if (!this.busy(p)) p.facing = dir
       return false
     }
     const moved = this.step(p, dir)

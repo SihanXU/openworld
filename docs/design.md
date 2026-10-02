@@ -363,7 +363,9 @@ these hold:
 
 ### 5.7 How a request waits
 
-- **Player-initiated:** the involved entities freeze locally, as now; the rest of the world
+- **Player-initiated:** everyone and everything in the act waits for its outcome — the one
+  acting too: they are at work on it (a working animation and a turning spark over their
+  head), take no other act and no step, and the input shows no labels. The rest of the world
   runs. The fallback runs at the time-out, and a late patch still teaches the world.
 - **World-initiated:** the world never freezes. The default runs at once:
   - physical: nothing happens;
@@ -510,13 +512,29 @@ All randomness uses the engine's seeded PRNG so replays are exact.
 
 ### 6.4 Combat (on-map, real-time)
 
-- Actors have `hp, atk, def, speed` and an optional `combat` profile (hostility,
-  behaviour: melee / ranged / caster, element, drops).
-- Attacks are **hit events** (`{attacker, target, element, power}`) resolved by rules:
-  base damage is a core rule; elemental reactions are rules; a patch can add new ones.
-- Enemy behaviour is a small state machine (idle → notice → chase → attack → flee).
-- Combat is therefore not a separate system: it is the rule engine plus a hit event
-  and an enemy controller.
+**No judgment is "is it the player".** Who attacks whom, who sees what, who collapses, who
+flees — each is decided by data that any actor can carry. The player is an actor/person like
+any other; only the input (which character the keys move) knows who the player is.
+
+- **Factions** are data (`Ontology.factions`: whom each is hostile to) and an actor belongs to
+  those its `faction:<id>` tags name. Content: `folk` (every person, the player too) and
+  `wild` (creatures), the wild hostile to folk.
+- A creature's **temper** says when its faction's enmities apply: `aggressive` (always),
+  `nocturnal` (after dark), `wary` (never). Whoever strikes an actor with an AI becomes its
+  **foe**, attacked on sight whatever its temper. It attacks the nearest one it is hostile to
+  in sight, and gives up past its **leash** (8 tiles from where it lives: home by day, its roam
+  after dark).
+- **Fire**: creatures that are not fiery never come within 2 tiles of a lit or burning thing,
+  nor chase anyone there. A tended fire protects a camp.
+- **People run**: a person within 3 tiles of one who would attack them steps away, toward a
+  fire's protection when that helps, unless they already stand in it.
+- **At no health** an actor is defeated, and the rules decide what that means: the
+  `essential` (every person, the player too) collapse (`down`, 30 s) and come to with half
+  their health; the rest are gone. Nobody attacks one who is down.
+- Actors have `hp, atk, def, speed`; attacks are **hit events** (`{attacker, target, element,
+  power}`) resolved by rules: base damage is a core rule; elemental reactions are rules; a
+  patch can add new ones. Combat is not a separate system: it is the rule engine, a hit event,
+  the faction table and one controller for every creature.
 
 ## 7. NPC simulation at scale
 
