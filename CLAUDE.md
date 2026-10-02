@@ -34,7 +34,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   lines, schedule variants with the thing an activity needs, topics (`people.ts`), scripted
   scenes with regions and cards (`scenes.ts`); facts and invariants live in the world state and
   the engine; the world's own events — meet, blocked (`npc.ts`), witness, invalid — and the
-  salience filter, budgets and boundaries in `mod.ts` (design.md §5.4–5.9); the player's four
+  salience filter, budgets and boundaries in `mod.ts` (the previous event model, until the
+  migration of design.md §5.14); the player's four
   inputs (E hands, F take, left click use, right click put), layers, slots and magnet
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
   (`controls.ts`), what the ground yields by itself (`forage.ts`), experience and levels (`progression.ts`), hunger (`hunger.ts`).
@@ -86,13 +87,28 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - No judgment is "is it the player": who attacks whom (factions + temper + foes), who sees what
   (witnesses of any actor), who collapses (`essential`), using on oneself (`self`) are data any
   actor carries. Only the input knows which actor the keys move.
-- Specificity decides which rule fires: (instance-bound, type depth, constraint count, priority).
-  Base rules must not tie at equal specificity on overlapping patterns — the validator checks it.
-- Undefined behaviour has many sources (design.md §5.4): the player's actions, the physical
-  world (status/element cascades, creatures), and the social world (witnesses, blocked goals,
-  invalidated content). All are built except free intent and open conversation (reserved).
-  World events ask only through the salience filter (§5.6), never freeze the world, and their
-  patches obey §5.8 (no harm to persons, the story's facts untouched).
+- **The event model** (design.md §5.4–5.14, agreed 2026-10-02; the code migrates to it, §5.14):
+  - The game is an ordinary, complete game. It plays to the end without AI.
+  - The one AI interface is **the outcome of an event**. Defined: use it. Undefined: ask the
+    AI. No AI, a failure or a time-out: the leaf's default, normally nothing.
+  - Rules belong to a **host** type (`host × event kind → condition tree`). They **read
+    anything and write only their host**; to affect another thing they emit an event (an
+    impulse) to it, and it answers.
+  - Leaves are effects (an empty list means no change), emit, inherit, or undefined (with a
+    default).
+  - The event kinds are a closed tree: act, impulse, contact, bump, time, threshold, seen,
+    stuck, broken. Contact comes from the relation difference after every outcome, and only
+    where a stance meets a reach (a flyer never touches lava).
+  - Root defaults decide what is asked: deliberate acts and impulses are undefined; contact,
+    time and sight mean no change; elements follow physics.
+  - Patches only fill holes, never change defined behaviour. One question per hole and class.
+  - Behaviour (schedules, temper, behaviour trees) is the game's own logic, not the AI
+    interface. An outcome may change its host's script.
+  - The player's map is active. Dormant maps are frozen and catch up timers and their inbox
+    when entered. The world, the story and people's records are resident. Events cross maps
+    only by address.
+- Specificity: host first (instance-bound, type depth), then event kind depth. Two equally
+  specific rules are rejected by the validator; there is no compose.
 - The demo must stay complete: anything added to its maps witnesses a requirement in
   `tools/test/demo.test.ts` (or the test fails), and every requirement is checked on the real map.
 - Only the player steps onto portals; NPCs transfer from the adjacent tile.
