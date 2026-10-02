@@ -4,6 +4,7 @@
 
 import type { Engine } from './engine.ts'
 import { astar } from './path.ts'
+import { scheduleFor } from './people.ts'
 import type { Dir, Entity, Id, Pos, ScheduleEntry } from './types.ts'
 
 interface Runtime {
@@ -64,6 +65,8 @@ export class NpcSim {
       this.lastHour = hour
       this.coarse(active)
     }
+    // during a scene the people on stage are the script's
+    if (w.state.scene) return
     let budget = PATH_BUDGET_PER_TICK
     for (const e of w.entitiesOnMap(active)) {
       if (!e.npc || e.id === w.state.player) continue
@@ -79,7 +82,7 @@ export class NpcSim {
       const e = w.get(id)
       if (!e?.npc || e.place.on !== 'tile') continue
       if (e.place.map === active) continue
-      const s = scheduleAt(e.npc.schedule, h)
+      const s = scheduleAt(scheduleFor(this.eng, e), h)
       if (!s) continue
       if (s.map === active) this.arrive(e, s, active)
       else if (e.place.map !== s.map || e.place.x !== s.x || e.place.y !== s.y) w.place(e, { on: 'tile', map: s.map, x: s.x, y: s.y })
@@ -104,7 +107,7 @@ export class NpcSim {
     for (const id of this.ids()) {
       const e = w.get(id)
       if (!e?.npc || e.place.on !== 'tile' || e.place.map === map) continue
-      const s = scheduleAt(e.npc.schedule, h)
+      const s = scheduleAt(scheduleFor(this.eng, e), h)
       if (s?.map === map) {
         const at = { map, x: s.x, y: s.y }
         const free = w.walkable(map, s.x, s.y, e.id) ? at : this.eng.nearestFree(at)
@@ -120,7 +123,7 @@ export class NpcSim {
     if (!eng.ready(e.id) || eng.busy(e) || e.place.on !== 'tile') return budget
     const rt = this.rt.get(e.id) ?? { wait: 0, blocked: 0 }
     this.rt.set(e.id, rt)
-    const s = scheduleAt(e.npc!.schedule, w.hour())
+    const s = scheduleAt(scheduleFor(this.eng, e), w.hour())
     if (!s) return budget
     const { x, y } = e.place
     // where to head: the anchor here, or the portal toward the anchor's map

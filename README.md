@@ -1,4 +1,4 @@
-# Large Symbolic World
+# LoomWorld
 
 A web-playable 2D JRPG world whose rules are code. An LLM acts as a live modder: when an
 interaction is undefined, it writes a type-level rule patch that the engine validates,

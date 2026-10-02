@@ -245,6 +245,45 @@ export const CATALOG: Catalog = {
   },
 
   // -------------------------------------------------------------------------------------------
+  // Decor: the detail layer the map author places by hand or by mask (purely visual).
+  // -------------------------------------------------------------------------------------------
+  decor: {
+    // lying on the ground
+    pebbles: { sprites: [t(NATURE, 15, 18), t(NATURE, 16, 18), t(NATURE, 17, 18), t(DETAIL, 9, 0)] },
+    twigs: { sprites: [t(DETAIL, 5, 0), t(DETAIL, 6, 0), t(DETAIL, 7, 0), t(DETAIL, 8, 0)] },
+    leaves: { sprites: [t(DETAIL, 0, 0), t(DETAIL, 1, 0), t(NATURE, 12, 11), t(NATURE, 13, 12)] },
+    petals: { sprites: [t(DETAIL, 2, 0), t(DETAIL, 3, 0)] },
+    flowers: { sprites: [t(DETAIL, 5, 2), t(NATURE, 6, 11), t(NATURE, 3, 11), t(DETAIL, 2, 0)] },
+    sunflowers: { sorted: true, sprites: [t(NATURE, 0, 11), t(NATURE, 1, 11)] },
+    tufts: { sprites: [t(NATURE, 4, 10), t(NATURE, 5, 10), t(NATURE, 7, 10), t(NATURE, 8, 10), t(NATURE, 10, 10), t(DETAIL, 0, 2), t(DETAIL, 3, 2)] },
+    ferns: { sprites: [t(NATURE, 4, 11), t(NATURE, 5, 11), t(NATURE, 8, 11), t(NATURE, 9, 11)] },
+    clover: { sprites: [t(DETAIL, 7, 2), t(DETAIL, 6, 2), t(NATURE, 2, 11)] },
+    puddle: { sprites: [t(DETAIL, 0, 1)] },
+    shells: { sprites: [t(DETAIL, 11, 0), t(DETAIL, 15, 0)] },
+    // standing (y-sorted)
+    rocks: { sorted: true, sprites: [t(NATURE, 17, 17), t(NATURE, 18, 17), t(NATURE, 19, 17), t(NATURE, 18, 13), t(NATURE, 19, 13)] },
+    stump: { sorted: true, sprites: [t(NATURE, 12, 13), t(NATURE, 13, 13), t(NATURE, 14, 18)] },
+    log: { sorted: true, sprites: [t(CAMP, 0, 0, 2, 1), t(CAMP, 2, 0, 2, 1)] },
+    log_v: { sorted: true, sprites: [t(NATURE, 12, 14, 1, 2), t(NATURE, 13, 14, 1, 2)] },
+    logs: { sorted: true, sprites: [t(CAMP, 0, 1, 1, 2), t(CAMP, 3, 1, 1, 2)] },
+    planks: { sorted: true, sprites: [t(ELEM, 10, 2), t(ELEM, 9, 2)] },
+    baskets: { sorted: true, sprites: [t(HOUSE, 16, 13), t(HOUSE, 17, 13), t(HOUSE, 18, 13)] },
+    produce: { sorted: true, sprites: [t(HOUSE, 19, 14), t(HOUSE, 20, 14)] },
+    bucket: { sorted: true, sprites: [t(ELEM, 4, 0), t(ELEM, 5, 0)] },
+    sack: { sorted: true, sprites: [t(ELEM, 0, 5, 1, 2), t(CAMP, 4, 5)] },
+    jar: { sorted: true, sprites: [t(ELEM, 2, 9), t(ELEM, 1, 0)] },
+    potted: { sorted: true, sprites: [t(ELEM, 0, 7, 1, 2)] },
+    sheaf: { sorted: true, sprites: [t(ELEM, 12, 4, 1, 2)] },
+    tools: { sorted: true, sprites: [t(HOUSE, 14, 18, 1, 2)] },
+    workbench: { sorted: true, sprites: [t(HOUSE, 29, 8, 2, 1)] },
+    rope: { sprites: [t(CAMP, 10, 7, 2, 2)] },
+    tub: { sorted: true, sprites: [t(CAMP, 7, 3), t(CAMP, 7, 4)] },
+    lantern_post: { sorted: true, sprites: [t(CAMP, 6, 5, 1, 2), t(CAMP, 7, 5, 1, 2)] },
+    // an orchard's fruit trees: one kind, planted in rows (2x2, trunk on the tile)
+    fruit_tree: { sorted: true, sprites: [t(NATURE, 16, 0, 2, 2, 16, 31), t(NATURE, 18, 0, 2, 2, 16, 31)] },
+  },
+
+  // -------------------------------------------------------------------------------------------
   // Terrain objects (one per tile; overhang upwards). All from TilesetNature unless noted.
   // -------------------------------------------------------------------------------------------
   terrainObjects: {
@@ -445,6 +484,13 @@ export const CATALOG: Catalog = {
     'fixture:stakes': { base: t(CAMP, 0, 5, 1, 2) },
     'fixture:post': { base: t(CAMP, 6, 5, 1, 2) },
     'fixture:ring': { base: px(CAMP, 160, 48, 32, 32, 16, 28) },
+    // The Great Hearth: a wide ring of stones around old ash; lit, the embers glow.
+    'fixture:hearth': { base: t(CAMP, 12, 5, 2, 2, 16, 24), lit: t(CAMP, 12, 3, 2, 2, 16, 24) },
+    'fixture:scarecrow': { base: t(ELEM, 15, 0) },
+    'fixture:washing_line': { base: t(ELEM, 11, 2, 5, 1, 40, 16) },
+    'fixture:cart': { base: t(ELEM, 0, 3, 2, 2, 16, 30) },
+    'fixture:flower_cart': { base: t(ELEM, 2, 3, 2, 2, 16, 30) },
+    'fixture:workbench': { base: t(HOUSE, 29, 8, 2, 1, 16, 16) },
   },
 
   // -------------------------------------------------------------------------------------------

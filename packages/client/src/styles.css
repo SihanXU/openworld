@@ -168,3 +168,22 @@ details summary { cursor: pointer; font-size: 12px; color: var(--muted); }
 .credit a { color: #9fe0ee; }
 .modder { font-size: 11px; padding: 2px 8px; border-radius: 9px; background: #333; color: #bbb; white-space: nowrap; }
 .modder.on { background: rgba(80, 200, 140, 0.18); color: var(--good); }
+
+/* energy, day cards, the Threadbook and letters */
+.enbar { position: relative; height: 6px; margin-top: 4px; background: rgba(0,0,0,0.5); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.enbar > div { height: 100%; background: linear-gradient(90deg, #e2b33c, #f5d76e); transition: width 0.3s; }
+.fade { position: absolute; inset: 0; background: #05060c; display: grid; place-items: center; z-index: 50; animation: fadein 0.5s; }
+.fade #fadeText { font: 600 28px var(--pixel); color: #f1e3c0; letter-spacing: 2px; }
+@keyframes fadein { from { opacity: 0 } to { opacity: 1 } }
+.panel.book { right: 16px; top: 64px; width: min(560px, 92vw); max-height: 70vh; z-index: 30; }
+.book-body { display: flex; gap: 12px; padding: 10px 12px; overflow: auto; }
+.book-body.single { flex-direction: column; }
+.book-list { flex: 0 0 180px; display: flex; flex-direction: column; gap: 4px; }
+.book-list .entry { padding: 6px 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+.book-list .entry.new { font-weight: 600; }
+.book-list .entry.new::before { content: '● '; color: #e2b33c; }
+.book-list .entry.sel { border-color: var(--line); background: rgba(255,255,255,0.05); }
+.letter { flex: 1; background: #efe3c4; color: #3b2a18; border-radius: 6px; padding: 14px 16px; line-height: 1.6; box-shadow: inset 0 0 0 2px #c9b182; }
+.letter .sign { text-align: right; margin-top: 10px; font-style: italic; }
+.thread { padding: 8px 10px; border-left: 3px solid #e2b33c; background: rgba(255,255,255,0.03); border-radius: 4px; }
+.small { font-size: 11px; }

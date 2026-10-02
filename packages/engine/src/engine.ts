@@ -1,7 +1,9 @@
 // The engine: resolves events through the rule library, runs the simulation tick,
 // and raises undefined interactions through the Mod port. Pure, deterministic, no AI.
 
+import { MORNING_HOUR, nextHour, rainy } from './calendar.ts'
 import { EffectRunner } from './effects.ts'
+import { Scenes } from './scenes.ts'
 import { stepCreatures } from './creatures.ts'
 import { NpcSim } from './npc.ts'
 import { OntologyIndex } from './ontology.ts'
@@ -11,6 +13,7 @@ import type {
   Entity,
   GameEvent,
   Id,
+  LetterDef,
   MapData,
   Ontology,
   Pos,
@@ -50,6 +53,9 @@ export class Engine {
   lib: RuleLibrary
   effects: EffectRunner
   npcs: NpcSim
+  scenes: Scenes
+  /** Letters the world can send (game-design §8.5). */
+  letters = new Map<string, LetterDef>()
   undefinedSink?: UndefinedSink
   /** Portal graph of every map (loaded or not): map -> outgoing portals. */
   graph: Record<string, { to: string; x: number; y: number; tx: number; ty: number }[]> = {}
@@ -71,6 +77,11 @@ export class Engine {
     this.lib = lib
     this.effects = new EffectRunner(this)
     this.npcs = new NpcSim(this)
+    this.scenes = new Scenes(this)
+  }
+
+  loadLetters(defs: LetterDef[] = []): void {
+    for (const d of defs) this.letters.set(d.id, d)
   }
 
   get activeMap(): string {
@@ -281,6 +292,8 @@ export class Engine {
 
   busy(e: Entity): boolean {
     if (e.frozenBy) return true
+    // the player watches a scene
+    if (e.id === this.world.state.player && this.world.state.scene) return true
     for (const s of Object.keys(e.statuses ?? {})) if (this.world.onto.status(s)?.immobilize) return true
     return false
   }
@@ -314,7 +327,7 @@ export class Engine {
       // JRPG courtesy: keep pushing into a person (~0.8 s) and you swap places;
       // a single bump just turns you to face them (so you can talk)
       const other = w.actorAt(map, nx, ny)
-      if (!isPlayer || !other?.npc || this.busy(other) || w.isSolidTerrain(w.terrainAt(map, nx, ny))) return false
+      if (!isPlayer || !other?.npc || this.busy(other) || w.blocked(map, nx, ny)) return false
       const t = w.state.tick
       const b = this.bump
       this.bump = b && b.id === other.id && t - b.last <= 4 ? { id: other.id, since: b.since, last: t } : { id: other.id, since: t, last: t }
@@ -340,7 +353,9 @@ export class Engine {
       return false
     }
     const moved = this.step(p, dir)
-    if (moved) this.setCooldown(p.id, this.world.num(p, 'speed', 2))
+    // worn out (no energy left): slower
+    const tired = this.world.num(p, 'energy', 1) <= 0 ? 2 : 1
+    if (moved) this.setCooldown(p.id, this.world.num(p, 'speed', 2) * tired)
     return moved
   }
 
@@ -407,7 +422,7 @@ export class Engine {
         target = { e: victim.id }
         break
       }
-      if (w.isSolidTerrain(w.terrainAt(start.map, x, y)) && i > 1) break
+      if (w.blocked(start.map, x, y) && i > 1) break
     }
     if (!target && last) target = { tile: last }
     if (!target) return
@@ -427,6 +442,88 @@ export class Engine {
     this.npcs.tick(active)
     stepCreatures(this, active)
     this.undefinedSink?.tick()
+    this.dayTick()
+    this.weatherTick(active)
+    this.scenes.tick()
+  }
+
+  // ---------------------------------------------------------------- days, sleep, mail, weather
+
+  private lastDay = 0
+
+  /** Things that happen as days pass: letters, tiredness late at night. */
+  private dayTick(): void {
+    const w = this.world
+    const cal = w.calendar()
+    if (cal.day !== this.lastDay) {
+      this.lastDay = cal.day
+      for (const l of this.letters.values()) if (l.day === cal.day) this.deliver(l.id)
+    }
+    const t = w.state.tick
+    if (t % 60 === 0) for (const l of this.letters.values()) if (l.fact && w.fact(l.fact)) this.deliver(l.id)
+    // awake after midnight: tiring (game-design §3)
+    if (cal.hour < MORNING_HOUR && t % 70 === 0) {
+      const p = w.player
+      if (p.props && typeof p.props.energy === 'number') p.props.energy = Math.max(0, p.props.energy - 1)
+    }
+  }
+
+  /** The player sleeps until the next morning; energy is restored (less if they went to bed very late). */
+  sleep(): void {
+    const w = this.world
+    const p = w.player
+    const late = w.calendar().hour < MORNING_HOUR - 2
+    w.state.tick = nextHour(w.state.tick, MORNING_HOUR, w.state.seed)
+    const max = w.num(p, 'maxEnergy', 100)
+    ;(p.props ??= {}).energy = Math.round(late ? max * 0.75 : max)
+    w.fx.push({ t: 'sleep', day: w.calendar().day })
+    this.npcs.onEnterMap(this.activeMap)
+  }
+
+  /** A letter arrives (once). */
+  deliver(id: string): void {
+    const w = this.world
+    const def = this.letters.get(id)
+    if (!def) return
+    const box = (w.state.mailbox ??= [])
+    if (box.some((l) => l.id === id)) return
+    box.push({ id, day: w.calendar().day, items: def.items ? [...def.items] : undefined })
+    w.fx.push({ t: 'letter', id })
+  }
+
+  /** Read a letter: what it carries goes to the player's pack. */
+  readMail(id: string): void {
+    const w = this.world
+    const l = w.state.mailbox?.find((x) => x.id === id)
+    if (!l) return
+    l.read = true
+    for (const type of l.items ?? []) w.create(type, { on: 'inside', holder: w.state.player })
+    l.items = undefined
+  }
+
+  /** Rain wets everything outdoors and puts out fires; storms strike. (The elemental rules do the rest.) */
+  private weatherTick(active: string): void {
+    const w = this.world
+    const t = w.state.tick
+    if (t % 60 !== 0) return
+    const map = w.map(active)
+    if (!map || (map.light ?? 'outdoor') !== 'outdoor') return
+    const cal = w.calendar()
+    if (!rainy(cal.weather)) return
+    for (const e of w.entitiesOnMap(active)) if (e.place.on === 'tile' && w.kindOf(e) === 'actor' && w.onto.status('wet')) this.applyStatus({ e: e.id }, 'wet', 120)
+    for (const key of [...w.statusful]) {
+      const ref = w.keyRef(key)
+      const pos = w.refPos(ref)
+      if (pos?.map === active && w.hasStatus(ref, 'burning')) this.applyStatus(ref, 'wet', 120)
+    }
+    if (cal.weather === 'storm' && t % 600 === 0) {
+      const p = w.posOf(w.player)!
+      const x = p.x + Math.round((w.rand() - 0.5) * 12)
+      const y = p.y + Math.round((w.rand() - 0.5) * 12)
+      if (!w.inBounds(active, x, y)) return
+      w.fx.push({ t: 'strike', map: active, x, y })
+      this.queue({ kind: 'hit', roles: { target: { tile: { map: active, x, y } } }, element: 'lightning', power: 4 })
+    }
   }
 
   private statusTick(active: string): void {

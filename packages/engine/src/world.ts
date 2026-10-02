@@ -1,5 +1,6 @@
 // World: the mutable state plus derived indices (not serialized) for fast spatial queries.
 
+import { calendarAt, type Calendar, type WeatherPlan } from './calendar.ts'
 import { OntologyIndex } from './ontology.ts'
 import { nextRandom } from './rng.ts'
 import type {
@@ -193,9 +194,20 @@ export class World {
     return !d || !!d.solid
   }
 
+  private collision = new Map<string, Set<number>>()
+  /** Blocked by the ground: solid terrain, or the map's collision layer (under decor and buildings). */
+  blocked(map: string, x: number, y: number): boolean {
+    if (this.isSolidTerrain(this.terrainAt(map, x, y))) return true
+    const m = this.state.maps[map]
+    if (!m?.solid?.length) return false
+    let set = this.collision.get(map)
+    if (!set) this.collision.set(map, (set = new Set(m.solid)))
+    return set.has(y * m.width + x)
+  }
+
   /** Static passability for path planning: terrain and solid fixtures, ignoring actors. */
   passable(map: string, x: number, y: number): boolean {
-    if (!this.inBounds(map, x, y) || this.isSolidTerrain(this.terrainAt(map, x, y))) return false
+    if (!this.inBounds(map, x, y) || this.blocked(map, x, y)) return false
     for (const e of this.entitiesAt(map, x, y)) {
       const r = this.onto.resolve(e.type)
       if (r.kind === 'fixture' && r.solid) return false
@@ -209,7 +221,7 @@ export class World {
    */
   walkable(map: string, x: number, y: number, ignore?: Id, ghostNpcs = false): boolean {
     if (!this.inBounds(map, x, y)) return false
-    if (this.isSolidTerrain(this.terrainAt(map, x, y))) return false
+    if (this.blocked(map, x, y)) return false
     for (const e of this.entitiesAt(map, x, y)) {
       if (e.id === ignore) continue
       const r = this.onto.resolve(e.type)
@@ -394,8 +406,20 @@ export class World {
 
   // ---------------------------------------------------------------- time
 
-  /** 600 ticks = one game hour; the day starts at 08:00. */
+  /** The clock, 0 … 24 (calendar.ts: day 1 begins at 06:00, a game minute is 7 ticks). */
   hour(): number {
-    return (8 + this.state.tick / 600) % 24
+    return calendarAt(this.state.tick, this.state.seed).hour
+  }
+
+  calendar(): Calendar {
+    return calendarAt(this.state.tick, this.state.seed, this.state.weather as WeatherPlan | undefined)
+  }
+
+  fact(key: string): PropValue | undefined {
+    return this.state.facts?.[key]
+  }
+
+  setFact(key: string, value: PropValue): void {
+    ;(this.state.facts ??= {})[key] = value
   }
 }

@@ -1,4 +1,4 @@
-# CLAUDE.md — Large Symbolic World
+# CLAUDE.md — LoomWorld (paper: Large Symbolic World)
 
 A web-playable 2D JRPG world whose state and rules are code; an LLM modder (later)
 patches undefined interactions at runtime. Successor to BardOS (`C:\Users\chica\文字游戏`).
@@ -26,11 +26,17 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   dispatch + tick + movement + combat (`engine.ts`), NPC two-fidelity sim (`npc.ts`),
   creatures (`creatures.ts`), Mod port: ModSpec / ModRequest / validatePatch / records
   (`mod.ts`), sandbox replay (`sandbox.ts`), snapshots for rendering (`snapshot.ts`),
-  new game / save (`game.ts`).
+  new game / save (`game.ts`); the life sim (docs/game-design.md): 24-hour calendar, seasons and
+  weather (`calendar.ts`), people — keyed lines, schedule variants, friendship, gifts, topics
+  (`people.ts`), scripted scenes (`scenes.ts`); facts, letters, sleep and energy live in the
+  world state and the engine.
 - `packages/content` — ontology (terrains, statuses, elements, types), item catalogue
-  (forms × materials × qualities × elements), the BASE RULE LIBRARY (`rules.ts`), chunk codec.
-- `packages/tools` — `demo/` (the hand-crafted Hearthvale demo: builder DSL, maps, people →
-  `public/world/`), `genWorld.ts` (Saenvar at scale → `public/world-saenvar/`), `stress.ts`,
+  (forms × materials × qualities × elements), the BASE RULE LIBRARY (`rules.ts`), the first
+  week's story rules and objectives (`story.ts`), chunk codec.
+- `packages/tools` — `demo/` (the hand-crafted Hearthvale demo → `public/world/`: `builder.ts`
+  the map DSL with the tools of composition — curved paths, organic shapes, fences and yards,
+  decor by masks, collision layer, anchors; `world.ts` the maps, scenes, letters; `people/*.ts`
+  one record per person (`person.ts`); `check.ts` a headless two-day playtest), `genWorld.ts` (Saenvar at scale → `public/world-saenvar/`), `stress.ts`,
   `copyAssets.ts` (catalogue subset of the pack → `public/assets/na/`), `coverage.ts` (every item
   form × every target × every verb through the rule library; the numbers in `docs/roadmap.md` §1).
 - `packages/client` — `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
@@ -82,6 +88,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 ```bash
 npm install
 npm run gen:world        # Hearthvale demo (default world)
+npm run check:world      # headless playtest of it: schedules kept over two game days
 npm run gen:saenvar      # the 460-map scale world (?world=saenvar)
 npm run assets           # copy the catalogue's subset of the asset pack into public/assets/na
 npm run dev              # client at http://localhost:5173

@@ -1,9 +1,10 @@
 // Game bootstrap: new game from a generated world index, save/load.
 
+import { START_HOUR, TICKS_PER_HOUR } from './calendar.ts'
 import { Engine, type MapChunk } from './engine.ts'
 import { ModPort } from './mod.ts'
 import { RuleLibrary, type LibraryData } from './rules.ts'
-import type { Entity, MapData, Ontology, Pos, Portal, Text, WorldState } from './types.ts'
+import type { Entity, LetterDef, MapData, Ontology, Pos, Portal, SceneDef, Text, WorldState } from './types.ts'
 
 export interface MapMeta {
   id: string
@@ -24,11 +25,19 @@ export interface WorldIndex {
   version: string
   seed: number
   start: Pos
+  /** The hour of day 1 a new game begins at (default 06:00). */
+  startHour?: number
   maps: MapMeta[]
   /** NPCs are global (they travel between maps); their inventories ride along. */
   npcs: Entity[]
   player: Entity
   stats: { maps: number; npcs: number; creatures: number; items: number; itemKinds: number; fixtures: number }
+  /** Scripted scenes (arrival, heart events, gatherings). */
+  scenes?: SceneDef[]
+  /** Letters that arrive by day, by fact, or by a `mail` effect. */
+  letters?: LetterDef[]
+  /** Days whose weather the world fixes (the first week's story). */
+  weather?: Record<number, string>
 }
 
 export interface SaveData {
@@ -51,7 +60,7 @@ export class Game {
 
   static create(index: WorldIndex, ontology: Ontology, library: RuleLibrary): Game {
     const state: WorldState = {
-      tick: 0,
+      tick: (((index.startHour ?? START_HOUR) - START_HOUR + 24) % 24) * TICKS_PER_HOUR,
       seed: index.seed,
       rng: index.seed,
       player: index.player.id,
@@ -61,11 +70,13 @@ export class Game {
       loadedMaps: [],
       counter: 0,
       spawn: index.start,
+      weather: index.weather,
     }
     const eng = new Engine(state, ontology, library)
     for (const m of index.maps) eng.graph[m.id] = m.portals
     eng.world.add(structuredClone(index.player))
     for (const n of index.npcs) addTree(eng, n)
+    loadContent(eng, index)
     return new Game(eng)
   }
 
@@ -73,6 +84,7 @@ export class Game {
     const lib = library ?? RuleLibrary.fromJSON(save.library)
     const eng = new Engine(save.state, ontology, lib)
     for (const m of index.maps) eng.graph[m.id] = m.portals
+    loadContent(eng, index)
     return new Game(eng)
   }
 
@@ -113,4 +125,11 @@ function addTree(eng: Engine, e: Entity & { _items?: Entity[] }): void {
   const { _items, ...rest } = e
   eng.world.add(structuredClone(rest) as Entity)
   for (const it of _items ?? []) eng.world.add(structuredClone(it))
+}
+
+/** Scenes and letters are content: read from the world on every start (they are not saved). */
+function loadContent(eng: Engine, index: WorldIndex): void {
+  eng.scenes.load(index.scenes)
+  eng.loadLetters(index.letters)
+  if (index.weather && !eng.world.state.weather) eng.world.state.weather = index.weather
 }

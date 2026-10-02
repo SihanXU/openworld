@@ -58,6 +58,12 @@ export class WorldScene extends Phaser.Scene {
   private views = new Map<string, EView>()
   private tileFx = new Map<string, { sprites: Phaser.GameObjects.GameObject[]; sig: string }>()
   private night!: Phaser.GameObjects.Rectangle
+  // weather (outdoors): rain streaks, fog, the flash of a strike
+  private rainG?: Phaser.GameObjects.Graphics
+  private fogR?: Phaser.GameObjects.Rectangle
+  private flash?: Phaser.GameObjects.Rectangle
+  private drops: { x: number; y: number; v: number; len: number }[] = []
+  private weather = 'sun'
   private playerId = 'player'
   private ready = false
   private pending: { map?: MapData; frames: Frame[] } = { frames: [] }
@@ -101,6 +107,9 @@ export class WorldScene extends Phaser.Scene {
       this.fitBounds()
     })
     this.night = this.add.rectangle(-4000, -4000, 8000, 8000, 0x0a1030, 0).setOrigin(0, 0).setScrollFactor(0).setDepth(1e7)
+    this.fogR = this.add.rectangle(-4000, -4000, 8000, 8000, 0xd8e2ea, 0).setOrigin(0, 0).setScrollFactor(0).setDepth(1e7 - 2)
+    this.rainG = this.add.graphics().setScrollFactor(0).setDepth(1e7 - 1)
+    this.flash = this.add.rectangle(-4000, -4000, 8000, 8000, 0xf4f8ff, 0).setOrigin(0, 0).setScrollFactor(0).setDepth(1e7 + 1)
     this.ready = true
     this.hooks.onReady?.()
     if (this.pending.map) this.setMap(this.pending.map)
@@ -179,6 +188,7 @@ export class WorldScene extends Phaser.Scene {
         const t = map.terrain[y * map.width + x]
         if ((t === 'grass' || t === 'flowers') && hash2(x, y, 7) % 100 < (t === 'flowers' ? 70 : 9)) this.decal(x, y, t)
       }
+    for (const d of map.decor ?? []) this.decor(d.k, d.x, d.y)
     for (const s of map.stamps ?? []) this.stamp(s.key, s.x, s.y)
     for (const r of map.rooms ?? []) this.roomFrame(r.style, r.x, r.y, r.w, r.h)
     this.fitBounds()
@@ -197,6 +207,16 @@ export class WorldScene extends Phaser.Scene {
     const d = list[hash2(x, y, 3) % list.length]
     const img = this.addSprite(`decal:${t}:${list.indexOf(d)}`, d, x, y)
     img.setDepth(-50)
+    this.statics.push(img)
+  }
+
+  /** The detail layer: a variant of the decor group, on the ground or y-sorted. */
+  private decor(k: string, x: number, y: number): void {
+    const g = CATALOG.decor[k]
+    if (!g?.sprites.length) return
+    const i = hash2(x, y, 5) % g.sprites.length
+    const img = this.addSprite(`decor:${k}:${i}`, g.sprites[i], x, y)
+    img.setDepth(g.sorted ? (y + 1) * T - 1 : -45)
     this.statics.push(img)
   }
 
@@ -283,6 +303,7 @@ export class WorldScene extends Phaser.Scene {
     }
     this.drawFocus(f)
     for (const fx of f.fx) this.playFx(fx)
+    this.weather = (this.base.light ?? 'outdoor') === 'outdoor' ? f.calendar.weather : 'sun'
     this.updateNight(f)
     this.hooks.onFrame(f)
     for (const fx of f.fx) this.hooks.onFx(fx, f)
@@ -488,6 +509,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   update(time: number): void {
+    this.drawWeather(time)
     for (const v of this.views.values()) {
       const e = v.snap
       if (v.actor && v.actor.rows === 1) {
@@ -543,8 +565,34 @@ export class WorldScene extends Phaser.Scene {
     else if (h < 7) d = ((7 - h) / 2.5) * 0.6
     if (light === 'dark') d = 0.55
     if (light === 'indoor') d *= 0.4
+    // a grey day is a little darker
+    const dim: Record<string, number> = { cloud: 0.1, rain: 0.16, storm: 0.26, fog: 0.06 }
+    if (light === 'outdoor') d = Math.min(0.7, d + (dim[this.weather] ?? 0))
     this.darkness = d
     this.night.setFillStyle(light === 'dark' ? 0x05060c : 0x0a1030, d)
+  }
+
+  /** Rain and storm streaks across the screen; fog as a slow, breathing veil. */
+  private drawWeather(time: number): void {
+    const g = this.rainG
+    if (!g) return
+    g.clear()
+    const w = this.scale.width
+    const h = this.scale.height
+    const n = this.weather === 'storm' ? 260 : this.weather === 'rain' ? 140 : 0
+    while (this.drops.length < n) this.drops.push({ x: Math.random() * w, y: Math.random() * h, v: 9 + Math.random() * 6, len: 8 + Math.random() * 10 })
+    if (this.drops.length > n) this.drops.length = n
+    if (n) {
+      g.lineStyle(1, 0xbfd4ff, this.weather === 'storm' ? 0.55 : 0.45)
+      const slant = this.weather === 'storm' ? 0.45 : 0.22
+      for (const d of this.drops) {
+        d.y += d.v
+        d.x += d.v * slant
+        if (d.y > h || d.x > w) ((d.y = -d.len), (d.x = Math.random() * w - h * slant * 0.3))
+        g.lineBetween(d.x, d.y, d.x - d.len * slant, d.y - d.len)
+      }
+    }
+    this.fogR?.setFillStyle(0xd8e2ea, this.weather === 'fog' ? 0.22 + 0.06 * Math.sin(time / 2200) : 0)
   }
 
   private playMusic(mood?: string): void {
@@ -581,10 +629,22 @@ export class WorldScene extends Phaser.Scene {
     if (!m && this.music && !this.music.isPlaying) this.music.play()
   }
 
+  private sfxLoading = new Set<string>()
   sfx(name: string, volume = 0.5): void {
     if (this.muted) return
     const key = `sfx:${name}`
-    if (this.cache.audio.exists(key)) this.sound.play(key, { volume })
+    if (this.cache.audio.exists(key)) return void this.sound.play(key, { volume })
+    // first use: fetch it in the background; this one plays when it arrives (if still recent)
+    const path = CATALOG.sfx[name]
+    if (!path || this.sfxLoading.has(key)) return
+    this.sfxLoading.add(key)
+    const asked = this.time.now
+    this.load.audio(key, assetUrl(path))
+    this.load.once(`filecomplete-audio-${key}`, () => {
+      this.sfxLoading.delete(key)
+      if (!this.muted && this.time.now - asked < 600) this.sound.play(key, { volume })
+    })
+    this.load.start()
   }
 
   // ---------------------------------------------------------------- vfx
@@ -634,6 +694,13 @@ export class WorldScene extends Phaser.Scene {
   }
 
   playFx(fx: FxEvent): void {
+    if (fx.t === 'strike') {
+      // lightning: a flash over everything, then the bolt where it lands
+      this.flash?.setAlpha(0.75)
+      this.tweens.add({ targets: this.flash, alpha: 0, duration: 320 })
+      this.oneShot('sparks', fx.x * T + 8, fx.y * T + 8)
+      return this.sfx('thunder', 0.7)
+    }
     if (fx.t === 'vfx') {
       const x = fx.x * T + 8
       const y = fx.y * T + 8

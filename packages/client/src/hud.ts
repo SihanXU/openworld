@@ -24,13 +24,25 @@ const UI: Record<string, [string, string]> = {
   undefinedToast: ['Undefined interaction → Mod port', '未定义交互 → 已发往模组接口'],
   patchedToast: ['Patched — the world learned a new rule', '已打补丁——世界学会了一条新规则'],
   learningToast: ['Something new… the world is working it out', '没见过的事……世界正在琢磨'],
-  learnedToast: ['The world learned something new', '世界学会了一件新事'],
+  learnedToast: ['A new thread is woven', '织入了一根新线'],
+  letterToast: ['A letter has arrived', '收到一封信'],
+  mail: ['Letters', '信件'],
+  noMail: ['No letters yet.', '还没有信。'],
+  threads: ['Threadbook', '织线簿'],
+  noThreads: ['No new threads yet. Try something the valley has never seen.', '还没有新的线。试试山谷里从没发生过的事。'],
+  energy: ['Energy', '体力'],
+  day: ['Day', '第'],
   modderOn: ['modder', '模组师'],
   modderOff: ['no modder: patch by hand', '无模组师：手动打补丁'],
   open: ['Open', '打开'],
   boxHint: ['↑↓ or click to choose · F take · G store · E close', '↑↓ 或点击挑选 · F 拿 · G 放入 · E 关上'],
   loading: ['Loading', '加载中'],
 }
+
+const WEEKDAY_ZH: Record<string, string> = { firstday: '首日', ashday: '灰日', riverday: '河日', stoneday: '石日', seedday: '种日', windday: '风日', hearthday: '炉日' }
+const SEASON_ZH: Record<string, string> = { thaw: '融雪季', bloom: '花开季', ember: '余烬季', frost: '霜冻季' }
+const MOOD_GLYPH: Record<string, string> = { happy: '♥', sad: '…', angry: '!!', surprised: '!', shy: '♡', neutral: '…' }
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 export class Hud {
   locale: Locale = (localStorage.getItem('lsw.locale') as Locale) || 'en'
@@ -57,6 +69,8 @@ export class Hud {
       spec(): void
       save(): void
       newGame(): void
+      advance(): void
+      readMail(id: string): void
     },
     private screenOf: (id: string) => { x: number; y: number } | undefined,
     readonly screenOfTile: (x: number, y: number) => { x: number; y: number },
@@ -78,14 +92,17 @@ export class Hud {
   private build(): void {
     $('#hud').innerHTML = `
       <div class="hud-tl panel-glass">
-        <div class="map-name" id="mapName">…</div>
-        <div class="clock"><span id="clockIcon">☀</span> <span id="clock">08:00</span> <span id="region" class="muted"></span></div>
+        <div class="map-name"><span id="mapName">…</span> <span id="region" class="muted"></span></div>
+        <div class="clock"><span id="clockIcon">☀</span> <span id="clock">06:00</span> <span id="date" class="muted"></span></div>
         <div class="hpbar"><div id="hpFill"></div><span id="hpText"></span></div>
+        <div class="enbar" id="enBar"><div id="enFill"></div></div>
         <div id="pStatus" class="statuses"></div>
       </div>
       <div class="quest panel-glass hidden" id="quest"><div class="q-title" id="qTitle"></div><div class="q-hint" id="qHint"></div></div>
       <div class="dialog hidden" id="dialog"><div class="face" id="dFace"></div><div class="dtext"><div class="dname" id="dName"></div><div class="dline" id="dLine"></div></div><div class="dmore">▼</div></div>
       <div class="hud-tr">
+        <button id="bThreads" title="B">❦ <span id="threadsLabel"></span></button>
+        <button id="bMail" title="O">✉ <span id="mailBadge" class="badge hidden">0</span></button>
         <button id="bHelp" title="H">?</button>
         <button id="bSound" title="M">♪</button>
         <button id="bLang" title="L">中/EN</button>
@@ -99,12 +116,19 @@ export class Hud {
       <div class="hud-log" id="log"></div>
       <div class="toasts" id="toasts"></div>
       <div class="hint" id="hint"></div>
-      <div class="prompt hidden" id="prompt"></div>`
+      <div class="prompt hidden" id="prompt"></div>
+      <div class="fade hidden" id="fade"><div id="fadeText"></div></div>
+      <div class="panel book hidden" id="threads"></div>
+      <div class="panel book hidden" id="mail"></div>`
     $('#bHelp').onclick = () => this.toggle('#help')
     $('#bLang').onclick = () => this.toggleLocale()
     $('#bSound').onclick = () => this.toggleSound()
     $('#dialog').onclick = () => this.closeDialog()
     $('#bMods').onclick = () => this.toggleMods()
+    $('#bThreads').onclick = () => this.toggleThreads()
+    $('#bMail').onclick = () => this.toggleMail()
+    // the developer's console is not part of the clean game
+    $('#bMods').classList.toggle('hidden', !import.meta.env.DEV)
     this.renderHelp()
     this.relabel()
   }
@@ -112,6 +136,7 @@ export class Hud {
   relabel(): void {
     $('#modsLabel').textContent = this.t('mods')
     $('#handLbl').textContent = this.t('hand')
+    $('#threadsLabel').textContent = this.t('threads')
     document.documentElement.lang = this.locale === 'zh' ? 'zh-CN' : 'en'
   }
 
@@ -135,7 +160,7 @@ export class Hud {
   }
 
   closeAll(): void {
-    for (const s of ['#help', '#dev']) this.toggle(s, false)
+    for (const s of ['#help', '#dev', '#threads', '#mail']) this.toggle(s, false)
   }
 
   get typing(): boolean {
@@ -151,10 +176,10 @@ export class Hud {
     const n = (x: number) => x.toLocaleString('en-US')
     $('#intro').innerHTML = `
       <div class="intro-card">
-        <div class="kicker">Large Symbolic World</div>
+        <div class="kicker">LoomWorld</div>
         <h1>${esc(this.tx(name))}</h1>
-        <p class="lede">${zh ? '一个由代码构成、由 AI 实时打补丁的开放世界。已定义的交互直接运行；未定义的交互交给模组接口，补出一条新规则。' : 'An open world made of code. Defined interactions just run; an undefined one goes to the Mod port, which writes the world a new rule.'}</p>
-        <div class="stats">
+        <p class="lede">${zh ? '一座高山谷里的小镇，它的每一条道理都织在经纬里。你可以做任何事——山谷从没见过的事，它会学会。' : 'A small town in a high valley, where every way of the world is woven. Do anything you like — what the valley has never seen, it learns.'}</p>
+        <div class="stats${import.meta.env.DEV ? '' : ' hidden'}">
           <div><b>${n(stats.maps)}</b><span>${zh ? '张地图' : 'maps'}</span></div>
           <div><b>${n(stats.npcs)}</b><span>${zh ? '个 NPC' : 'NPCs'}</span></div>
           <div><b>${n(stats.creatures)}</b><span>${zh ? '只怪物' : 'creatures'}</span></div>
@@ -189,9 +214,10 @@ export class Hud {
       ['Space', 'attack / cast', '攻击 / 施法'],
       ['1–9 · Q', 'hold item · stow', '拿起背包物品 · 收起'],
       ['↑↓', 'choose in an open chest (then F)', '在打开的箱子里挑选（再按 F）'],
-      ['`', 'Mod Console', '模组控制台'],
+      ['B · O', 'Threadbook · letters', '织线簿 · 信件'],
       ['L · H · M', 'language · help · sound', '语言 · 帮助 · 声音'],
     ]
+    if (import.meta.env.DEV) rows.push(['`', 'Mod Console (dev)', '模组控制台（开发）'])
     return `<table>${rows.map(([k, en, z]) => `<tr><td><kbd>${k}</kbd></td><td>${zh ? z : en}</td></tr>`).join('')}</table>`
   }
 
@@ -202,7 +228,8 @@ export class Hud {
       <div class="help-body">
         ${this.controlsHtml()}
         <p>${zh ? '三个动作：<b>拿</b>、<b>放</b>、<b>交互</b>。手里拿着东西时，交互就是“用它作用于目标”。试试：把水泼到着火的草上、用火把点燃干草、在篝火上烤鱼、用冰杖冻住湿了的史莱姆、对湿的敌人放雷。' : 'Three verbs: <b>take</b>, <b>put</b>, <b>interact</b>. Holding something, interact means “apply it to the target”. Try: douse burning grass with water, light the hay with a torch, cook fish on a campfire, freeze a wet slime with an ice wand, shock wet enemies.'}</p>
-        <p>${zh ? '当你做了规则库里没有的事，交互就是<b>未定义</b>的：目标会短暂冻结，请求会发到<b>模组控制台</b>（`）。在那里可以查看完整请求、写一条补丁规则并提交；引擎校验通过后，这条规则就永久成为世界的一部分。' : 'When you do something the rule library does not cover, the interaction is <b>undefined</b>: the target freezes briefly and the request goes to the <b>Mod Console</b> (`). There you can inspect the full request, write a patch rule and submit it; once the engine validates it, the rule becomes a permanent part of the world.'}</p>
+        <p>${zh ? '当你做了山谷从没见过的事，世界会停顿片刻，然后学会它：一根新线织进了经纬，米拉会把它记进<b>织线簿</b>（B）。' : 'When you do something the valley has never seen, the world pauses for a moment, then learns it: a new thread is woven, and Mira writes it into the <b>Threadbook</b> (B).'}</p>
+        ${import.meta.env.DEV ? `<p>${zh ? '开发：未定义交互会进<b>模组控制台</b>（`），可查看请求、手写补丁。' : 'Dev: undefined interactions go to the <b>Mod Console</b> (`), to inspect the request and patch by hand.'}</p>` : ''}
       </div>`
     $('#help').querySelector<HTMLButtonElement>('[data-close]')!.onclick = () => this.toggle('#help', false)
   }
@@ -215,7 +242,33 @@ export class Hud {
     const hh = Math.floor(f.hour)
     const mm = Math.floor((f.hour - hh) * 60)
     $('#clock').textContent = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
-    $('#clockIcon').textContent = f.hour >= 6 && f.hour < 19 ? '☀' : '☾'
+    const c = f.calendar
+    const night = f.hour < 6 || f.hour >= 19
+    $('#clockIcon').textContent = { sun: night ? '☾' : '☀', cloud: '☁', rain: '☂', storm: '⚡', fog: '≋' }[c.weather] ?? '☀'
+    $('#date').textContent = this.locale === 'zh' ? `${SEASON_ZH[c.season]} ${c.dayOfSeason} 日 · ${WEEKDAY_ZH[c.weekday]}` : `${cap(c.weekday)} ${c.dayOfSeason} · ${cap(c.season)}`
+    const en = Number(p.props.energy ?? 0)
+    const enMax = Number(p.props.maxEnergy ?? 100)
+    $('#enBar').classList.toggle('hidden', p.props.energy === undefined)
+    $<HTMLDivElement>('#enFill').style.width = `${Math.max(0, (100 * en) / enMax)}%`
+    $('#enBar').title = `${this.t('energy')} ${Math.round(en)} / ${enMax}`
+    this.renderMailBadge(f)
+    // a scene's line stays until advanced; when the scene has moved on, so does the dialog
+    if (this.sceneDialog && f.scene?.waiting !== 'advance') this.sceneDialog = false
+    else if (this.dialogUnnamed) {
+      // the speaker arrived in a later frame (placed by the scene): name them now
+      const who = f.entities.find((e) => e.id === this.dialogUnnamed)
+      if (who) {
+        $('#dName').textContent = this.tx(who.name)
+        const c = this.facesetOf?.(who.id)
+        if (c) ($('#dFace').replaceChildren(c), $('#dFace').classList.remove('hidden'))
+        this.dialogUnnamed = undefined
+      }
+    } else if (!this.sceneDialog && f.scene?.waiting === 'advance' && f.scene.line) {
+      // the say event was missed (loading, a reload): show the waiting line from the frame
+      const l = f.scene.line
+      const who = f.entities.find((e) => e.id === l.who)
+      this.openDialog(l.who, who ? this.tx(who.name) : '', this.tx(l.text), true)
+    }
     $<HTMLDivElement>('#hpFill').style.width = `${Math.max(0, (100 * p.hp) / p.maxHp)}%`
     $('#hpText').textContent = `${Math.max(0, Math.round(p.hp))} / ${p.maxHp}`
     $('#pStatus').innerHTML = p.statuses.map((s) => `<span class="st st-${s}">${s}</span>`).join('')
@@ -256,7 +309,15 @@ export class Hud {
     return !$('#dialog').classList.contains('hidden')
   }
 
-  openDialog(who: string, name: string, text: string): void {
+  /** The dialog shows a scene's line: it stays until the player advances it. */
+  private sceneDialog = false
+
+  /** Who the open dialog belongs to, while their name or face is still unknown (not yet in a frame). */
+  private dialogUnnamed?: string
+
+  openDialog(who: string, name: string, text: string, scene = false): void {
+    this.sceneDialog = scene
+    this.dialogUnnamed = name ? undefined : who
     const face = $('#dFace')
     face.replaceChildren()
     const c = this.facesetOf?.(who)
@@ -274,13 +335,17 @@ export class Hud {
       if (i >= text.length) clearInterval(this.typer)
     }, 22)
     clearTimeout(this.dialogTimer)
-    this.dialogTimer = setTimeout(() => this.closeDialog(), 3500 + text.length * 55)
+    if (!scene) this.dialogTimer = setTimeout(() => this.closeDialog(), 3500 + text.length * 55)
   }
 
   closeDialog(): void {
     clearInterval(this.typer)
     clearTimeout(this.dialogTimer)
     this.toggle('#dialog', false)
+    if (this.sceneDialog) {
+      this.sceneDialog = false
+      this.send.advance()
+    }
   }
 
   private promptSig = ''
@@ -425,19 +490,30 @@ export class Hud {
         const text = this.tx(fx.text)
         const who = frame?.entities.find((e) => e.id === fx.who)
         const p = frame?.player
+        if (fx.mood && fx.mood !== 'neutral') this.say(fx.who, MOOD_GLYPH[fx.mood])
+        if (fx.scene) return this.openDialog(fx.who, who ? this.tx(who.name) : '', text, true)
         const near = who && p && who.id !== p.id && Math.abs(who.x - p.x) + Math.abs(who.y - p.y) <= 2 && (who.look || who.appearance)
         if (near) return this.openDialog(fx.who, this.tx(who.name), text)
         return this.say(fx.who, text)
       }
+      case 'emote':
+        return this.say(fx.who, MOOD_GLYPH[fx.mood])
+      case 'sleep':
+        return this.fadeCard(this.locale === 'zh' ? `${this.t('day')} ${fx.day} 天` : `${this.t('day')} ${fx.day}`)
+      case 'fade':
+        return this.toggle('#fade', fx.dir === 'out')
+      case 'letter':
+        return this.toast(`<b>✉ ${this.t('letterToast')}</b>`)
       case 'damage':
         return this.floater(fx.who, fx.amount < 0 ? `+${-fx.amount}` : `-${fx.amount}`, fx.amount < 0 ? 'heal' : fx.element ?? 'hit')
       case 'undefined':
-        this.log(`⚠ ${fx.summary}`, 'ai')
         if (this.modder.online) return this.toast(`<b>✦ ${this.t('learningToast')}</b>`)
+        if (!import.meta.env.DEV) return // the clean game: the attempt line and "nothing happens" say it all
+        this.log(`⚠ ${fx.summary}`, 'ai')
         return this.toast(`<b>${this.t('undefinedToast')}</b><br>${esc(fx.summary)}`, true)
       case 'patched':
-        this.log(`✓ ${fx.rule}`, 'good')
-        if (this.modder.online) {
+        if (import.meta.env.DEV) this.log(`✓ ${fx.rule}`, 'good')
+        if (this.modder.online || !import.meta.env.DEV) {
           // the rule's doc arrives with the records message that follows this frame
           setTimeout(() => {
             const doc = this.library?.patches.find((r) => r.id === fx.rule)?.doc
@@ -467,6 +543,70 @@ export class Hud {
     $('#toasts').appendChild(el)
     setTimeout(() => el.classList.add('fade'), 4500)
     setTimeout(() => el.remove(), 5200)
+  }
+
+  // ---------------------------------------------------------------- day cards, letters, the Threadbook
+
+  private fadeCard(text: string): void {
+    $('#fadeText').textContent = text
+    this.toggle('#fade', true)
+    setTimeout(() => this.toggle('#fade', false), 1600)
+  }
+
+  private mailSig = ''
+
+  private renderMailBadge(f: Frame): void {
+    const unread = f.mailbox.filter((l) => !l.read).length
+    const badge = $('#mailBadge')
+    badge.textContent = String(unread)
+    badge.classList.toggle('hidden', unread === 0)
+    const sig = JSON.stringify(f.mailbox) + this.locale
+    if (sig !== this.mailSig && !$('#mail').classList.contains('hidden')) this.renderMail()
+    this.mailSig = sig
+  }
+
+  private openLetter?: string
+
+  toggleMail(force?: boolean): void {
+    this.toggle('#mail', force)
+    if (!$('#mail').classList.contains('hidden')) this.renderMail()
+  }
+
+  private renderMail(): void {
+    const box = this.frame?.mailbox ?? []
+    const open = box.find((l) => l.id === this.openLetter)
+    const list = [...box].reverse()
+    $('#mail').innerHTML = `
+      <div class="panel-head"><b>✉ ${this.t('mail')}</b><button class="x" data-close>✕</button></div>
+      <div class="book-body">
+        <div class="book-list">${list.map((l) => `<div class="entry ${l.read ? '' : 'new'} ${l.id === this.openLetter ? 'sel' : ''}" data-l="${esc(l.id)}">${l.from ? esc(this.tx(l.from)) : '—'}<span class="muted"> · ${this.t('day')} ${l.day}</span></div>`).join('') || `<div class="muted pad">${this.t('noMail')}</div>`}</div>
+        ${open ? `<div class="letter">${esc(this.tx(open.text)).replace(/\n/g, '<br>')}${open.from ? `<div class="sign">— ${esc(this.tx(open.from))}</div>` : ''}</div>` : ''}
+      </div>`
+    $('#mail').querySelector<HTMLButtonElement>('[data-close]')!.onclick = () => this.toggleMail(false)
+    $('#mail').querySelectorAll<HTMLElement>('[data-l]').forEach(
+      (el) =>
+        (el.onclick = () => {
+          this.openLetter = el.dataset.l
+          if (!box.find((l) => l.id === el.dataset.l)?.read) this.send.readMail(el.dataset.l!)
+          this.renderMail()
+        }),
+    )
+  }
+
+  toggleThreads(force?: boolean): void {
+    this.toggle('#threads', force)
+    if (!$('#threads').classList.contains('hidden')) this.renderThreads()
+  }
+
+  /** Every thread the world has woven: the player's window onto what it learned (game-design §8.9). */
+  private renderThreads(): void {
+    const threads = [...(this.library?.patches ?? [])].reverse()
+    $('#threads').innerHTML = `
+      <div class="panel-head"><b>❦ ${this.t('threads')}</b><span class="muted">${threads.length}</span><button class="x" data-close>✕</button></div>
+      <div class="book-body single">
+        ${threads.map((r) => `<div class="thread"><div>${esc(r.doc ?? r.id.replace(/^patch\//, '').replace(/-/g, ' '))}</div><div class="muted small">${esc(r.source?.at?.slice(0, 10) ?? '')}</div></div>`).join('') || `<div class="muted pad">${this.t('noThreads')}</div>`}
+      </div>`
+    $('#threads').querySelector<HTMLButtonElement>('[data-close]')!.onclick = () => this.toggleThreads(false)
   }
 
   hint(text: string): void {

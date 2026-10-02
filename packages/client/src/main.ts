@@ -28,7 +28,7 @@ const scene = new WorldScene()
 const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
 const send = (m: ToWorker) => worker.postMessage(m)
 // dev-only hook for scripted testing from the console
-if (import.meta.env.DEV) (window as unknown as { lsw: unknown }).lsw = { send }
+if (import.meta.env.DEV) (window as unknown as { lsw: unknown }).lsw = { send, scene }
 
 const hud = new Hud(
   {
@@ -39,6 +39,8 @@ const hud = new Hud(
     spec: () => send({ t: 'spec' }),
     save: () => send({ t: 'save' }),
     newGame: () => send({ t: 'newGame' }),
+    advance: () => send({ t: 'advance' }),
+    readMail: (id) => send({ t: 'readMail', id }),
   },
   (id) => scene.screenOf(id),
   (x, y) => scene.screenOfTile(x, y),
@@ -225,6 +227,7 @@ window.addEventListener('keydown', (e) => {
     case 'Digit0':
       return send({ t: 'hold', item: undefined })
     case 'Backquote':
+      if (!import.meta.env.DEV) return
       return hud.toggleMods()
     case 'KeyH':
       return hud.toggle('#help')
@@ -232,6 +235,10 @@ window.addEventListener('keydown', (e) => {
       return hud.toggleLocale()
     case 'KeyM':
       return hud.toggleSound()
+    case 'KeyB':
+      return hud.toggleThreads()
+    case 'KeyO':
+      return hud.toggleMail()
     case 'Escape':
       return hud.closeAll()
   }

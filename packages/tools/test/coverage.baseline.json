@@ -1,8 +1,8 @@
 {
  "totals": {
-  "specific": 866,
-  "generic": 7588,
-  "undefined": 15600
+  "specific": 913,
+  "generic": 7859,
+  "undefined": 16422
  },
  "byRule": {
   "build/bridge": 1,
@@ -21,34 +21,36 @@
   "core/drink-water": 4,
   "core/eat": 15,
   "core/examine-creature": 1,
-  "core/examine-fixture": 48,
+  "core/examine-fixture": 49,
   "core/examine-ground": 35,
   "core/examine-item": 1,
   "core/examine-self": 1,
   "core/fill-water": 30,
+  "core/fish-wait": 2,
   "core/give": 113,
-  "core/ignite": 328,
+  "core/ignite": 360,
   "core/light": 48,
   "core/lock": 8,
   "core/locked": 1,
   "core/mine": 1,
   "core/mine-rock": 2,
   "core/open-close": 16,
-  "core/pour-oil": 308,
+  "core/pour-oil": 324,
   "core/put-blocked": 1132,
   "core/put-down": 2458,
   "core/put-in-lava": 31,
   "core/put-in-water": 219,
   "core/put-on-item": 106,
-  "core/put-on-surface": 662,
+  "core/put-on-surface": 880,
   "core/read": 2,
+  "core/sleep": 1,
   "core/snuff": 48,
-  "core/splash": 544,
+  "core/splash": 576,
   "core/store": 876,
   "core/store-closed": 985,
   "core/take-closed": 9,
   "core/take-empty": 8,
-  "core/take-fixed": 47,
+  "core/take-fixed": 51,
   "core/take-item": 1,
   "core/take-nothing": 35,
   "core/talk": 1,
@@ -63,580 +65,585 @@
   "farm/plant-acorn": 10,
   "farm/sow": 6,
   "farm/water": 48,
+  "village/hearth-cold": 8,
+  "village/hearth-look": 1,
+  "village/scarecrow-look": 1,
+  "village/washing-look": 1,
+  "village/washing-take": 1,
   "wood/char": 1,
   "wood/notch": 2,
   "wood/uproot": 1
  },
  "byHand": {
   "(empty hand)": {
-   "specific": 24,
-   "generic": 185,
+   "specific": 29,
+   "generic": 190,
    "undefined": 2
   },
   "item/weapon/blade/sword": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/weapon/blade/dagger": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/weapon/blade/axe": {
    "specific": 10,
-   "generic": 60,
-   "undefined": 141
+   "generic": 62,
+   "undefined": 149
   },
   "item/weapon/blade/scimitar": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/weapon/blunt/club": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/weapon/blunt/mace": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/weapon/blunt/warhammer": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/weapon/polearm/spear": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/weapon/polearm/halberd": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/weapon/ranged/bow": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/weapon/magic/wand": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/weapon/magic/staff": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/armor/helmet": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/armor/shield": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/armor/breastplate": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/clothing/cloak": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/clothing/hat": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/clothing/boots": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/clothing/gloves": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/tool/pickaxe": {
    "specific": 4,
-   "generic": 60,
-   "undefined": 147
+   "generic": 62,
+   "undefined": 155
   },
   "item/tool/shovel": {
    "specific": 11,
-   "generic": 60,
-   "undefined": 140
+   "generic": 62,
+   "undefined": 148
   },
   "item/tool/hoe": {
    "specific": 5,
-   "generic": 60,
-   "undefined": 146
+   "generic": 62,
+   "undefined": 154
   },
   "item/tool/sickle": {
    "specific": 3,
-   "generic": 60,
-   "undefined": 148
+   "generic": 62,
+   "undefined": 156
   },
   "item/tool/fishing_rod": {
-   "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "specific": 9,
+   "generic": 61,
+   "undefined": 151
   },
   "item/tool/smith_hammer": {
    "specific": 2,
-   "generic": 60,
-   "undefined": 149
+   "generic": 62,
+   "undefined": 157
   },
   "item/tool/knife": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/tool/rope": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/tool/flint": {
-   "specific": 94,
+   "specific": 104,
    "generic": 32,
    "undefined": 85
   },
   "item/tool/broom": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/tool/lockpick": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/light/torch": {
-   "specific": 101,
+   "specific": 111,
    "generic": 31,
    "undefined": 79
   },
   "item/light/candle": {
-   "specific": 101,
+   "specific": 111,
    "generic": 31,
    "undefined": 79
   },
   "item/light/lantern": {
-   "specific": 94,
+   "specific": 104,
    "generic": 32,
    "undefined": 85
   },
   "item/vessel/bucket/empty": {
    "specific": 10,
-   "generic": 58,
-   "undefined": 143
+   "generic": 60,
+   "undefined": 151
   },
   "item/vessel/bucket/water": {
    "specific": 25,
-   "generic": 184,
+   "generic": 194,
    "undefined": 2
   },
   "item/vessel/bucket/oil": {
    "specific": 7,
-   "generic": 202,
+   "generic": 212,
    "undefined": 2
   },
   "item/vessel/flask/empty": {
    "specific": 10,
-   "generic": 58,
-   "undefined": 143
+   "generic": 60,
+   "undefined": 151
   },
   "item/vessel/flask/water": {
    "specific": 25,
-   "generic": 184,
+   "generic": 194,
    "undefined": 2
   },
   "item/vessel/flask/oil": {
    "specific": 7,
-   "generic": 202,
+   "generic": 212,
    "undefined": 2
   },
   "item/vessel/flask/holy_water": {
    "specific": 25,
-   "generic": 184,
+   "generic": 194,
    "undefined": 2
   },
   "item/vessel/waterskin/full": {
    "specific": 25,
-   "generic": 184,
+   "generic": 194,
    "undefined": 2
   },
   "item/vessel/waterskin/empty": {
    "specific": 10,
-   "generic": 58,
-   "undefined": 143
+   "generic": 60,
+   "undefined": 151
   },
   "item/vessel/cup": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/vessel/plate": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/vessel/pot": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/food/bread": {
    "specific": 8,
-   "generic": 59,
-   "undefined": 144
+   "generic": 61,
+   "undefined": 152
   },
   "item/food/apple": {
    "specific": 1,
-   "generic": 60,
-   "undefined": 150
+   "generic": 62,
+   "undefined": 158
   },
   "item/food/cheese": {
    "specific": 1,
-   "generic": 60,
-   "undefined": 150
+   "generic": 62,
+   "undefined": 158
   },
   "item/food/fish/raw": {
    "specific": 7,
-   "generic": 60,
-   "undefined": 144
+   "generic": 62,
+   "undefined": 152
   },
   "item/food/fish/cooked": {
    "specific": 1,
-   "generic": 60,
-   "undefined": 150
+   "generic": 62,
+   "undefined": 158
   },
   "item/food/meat/raw": {
    "specific": 7,
-   "generic": 60,
-   "undefined": 144
+   "generic": 62,
+   "undefined": 152
   },
   "item/food/meat/cooked": {
    "specific": 1,
-   "generic": 60,
-   "undefined": 150
+   "generic": 62,
+   "undefined": 158
   },
   "item/food/mushroom/raw": {
    "specific": 7,
-   "generic": 60,
-   "undefined": 144
+   "generic": 62,
+   "undefined": 152
   },
   "item/food/mushroom/roasted": {
    "specific": 1,
-   "generic": 60,
-   "undefined": 150
+   "generic": 62,
+   "undefined": 158
   },
   "item/food/berries": {
    "specific": 1,
-   "generic": 60,
-   "undefined": 150
+   "generic": 62,
+   "undefined": 158
   },
   "item/food/egg/raw": {
    "specific": 7,
-   "generic": 60,
-   "undefined": 144
+   "generic": 62,
+   "undefined": 152
   },
   "item/food/egg/boiled": {
    "specific": 1,
-   "generic": 60,
-   "undefined": 150
+   "generic": 62,
+   "undefined": 158
   },
   "item/food/pie": {
    "specific": 8,
-   "generic": 59,
-   "undefined": 144
+   "generic": 61,
+   "undefined": 152
   },
   "item/food/honey": {
    "specific": 1,
-   "generic": 60,
-   "undefined": 150
+   "generic": 62,
+   "undefined": 158
   },
   "item/food/wine": {
    "specific": 1,
-   "generic": 60,
-   "undefined": 150
+   "generic": 62,
+   "undefined": 158
   },
   "item/food/ale": {
    "specific": 1,
-   "generic": 60,
-   "undefined": 150
+   "generic": 62,
+   "undefined": 158
   },
   "item/potion/healing": {
    "specific": 1,
-   "generic": 60,
-   "undefined": 150
+   "generic": 62,
+   "undefined": 158
   },
   "item/potion/antidote": {
    "specific": 1,
-   "generic": 60,
-   "undefined": 150
+   "generic": 62,
+   "undefined": 158
   },
   "item/potion/fire_resist": {
    "specific": 1,
-   "generic": 60,
-   "undefined": 150
+   "generic": 62,
+   "undefined": 158
   },
   "item/potion/mystery": {
    "specific": 1,
-   "generic": 60,
-   "undefined": 150
+   "generic": 62,
+   "undefined": 158
   },
   "item/material/log": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/material/plank": {
    "specific": 8,
-   "generic": 58,
-   "undefined": 145
+   "generic": 60,
+   "undefined": 153
   },
   "item/material/stick": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/material/stone": {
    "specific": 1,
-   "generic": 59,
-   "undefined": 151
+   "generic": 61,
+   "undefined": 159
   },
   "item/material/coal": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/material/iron_ore": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/material/gold_ore": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/material/herb": {
    "specific": 8,
-   "generic": 59,
-   "undefined": 144
+   "generic": 61,
+   "undefined": 152
   },
   "item/material/fireweed": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/material/frostcap": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/material/feather": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/material/bone": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/material/cloth": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/material/leather": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/material/wool": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/material/wax": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/material/salt": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/material/ash": {
    "specific": 12,
-   "generic": 60,
-   "undefined": 139
+   "generic": 62,
+   "undefined": 147
   },
   "item/seed/wheat": {
    "specific": 2,
-   "generic": 59,
-   "undefined": 150
+   "generic": 61,
+   "undefined": 158
   },
   "item/seed/herb": {
    "specific": 2,
-   "generic": 59,
-   "undefined": 150
+   "generic": 61,
+   "undefined": 158
   },
   "item/seed/berry": {
    "specific": 2,
-   "generic": 59,
-   "undefined": 150
+   "generic": 61,
+   "undefined": 158
   },
   "item/seed/acorn": {
    "specific": 10,
-   "generic": 55,
-   "undefined": 146
+   "generic": 57,
+   "undefined": 154
   },
   "item/material/wheat": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/gem": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/valuable/coin_pouch": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/valuable/ring": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/valuable/amulet": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/valuable/goblet": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/valuable/crown": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/valuable/ancient_ring_shard": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/document/book": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/document/scroll": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/document/letter": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/document/map": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/key": {
    "specific": 9,
-   "generic": 60,
-   "undefined": 142
+   "generic": 62,
+   "undefined": 150
   },
   "item/misc/bell": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/misc/flute": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/misc/lute": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/misc/dice": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/misc/doll": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/misc/mirror": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/misc/skull": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/misc/feather_quill": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/misc/ink": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/misc/soap": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   },
   "item/misc/firework": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/misc/bomb": {
    "specific": 7,
-   "generic": 59,
-   "undefined": 145
+   "generic": 61,
+   "undefined": 153
   },
   "item/misc/snowball": {
    "specific": 0,
-   "generic": 60,
-   "undefined": 151
+   "generic": 62,
+   "undefined": 159
   }
  },
  "byTarget": {
@@ -736,8 +743,8 @@
    "undefined": 206
   },
   "fixture/furniture/bed": {
-   "specific": 8,
-   "generic": 14,
+   "specific": 9,
+   "generic": 13,
    "undefined": 206
   },
   "fixture/furniture/bench": {
@@ -751,6 +758,16 @@
    "undefined": 103
   },
   "fixture/furniture/stall": {
+   "specific": 8,
+   "generic": 117,
+   "undefined": 103
+  },
+  "fixture/furniture/washing_line": {
+   "specific": 10,
+   "generic": 12,
+   "undefined": 206
+  },
+  "fixture/furniture/cart/flowers": {
    "specific": 8,
    "generic": 117,
    "undefined": 103
@@ -805,6 +822,11 @@
    "generic": 4,
    "undefined": 177
   },
+  "fixture/light/hearth": {
+   "specific": 9,
+   "generic": 13,
+   "undefined": 206
+  },
   "fixture/water/well": {
    "specific": 6,
    "generic": 14,
@@ -849,6 +871,11 @@
    "specific": 8,
    "generic": 14,
    "undefined": 206
+  },
+  "fixture/craft/workbench": {
+   "specific": 8,
+   "generic": 117,
+   "undefined": 103
   },
   "fixture/sacred/altar": {
    "specific": 0,
@@ -975,6 +1002,11 @@
    "generic": 14,
    "undefined": 206
   },
+  "fixture/scarecrow": {
+   "specific": 9,
+   "generic": 13,
+   "undefined": 206
+  },
   "tile:grass": {
    "specific": 3,
    "generic": 120,
@@ -1021,14 +1053,14 @@
    "undefined": 107
   },
   "tile:water": {
-   "specific": 7,
+   "specific": 8,
    "generic": 111,
-   "undefined": 110
+   "undefined": 109
   },
   "tile:deepwater": {
-   "specific": 6,
+   "specific": 7,
    "generic": 112,
-   "undefined": 110
+   "undefined": 109
   },
   "tile:tree": {
    "specific": 9,
@@ -1179,11 +1211,6 @@
   "item/clothing/hat",
   "item/clothing/boots",
   "item/clothing/gloves",
-  "item/tool/fishing_rod",
-  "item/tool/knife",
-  "item/tool/rope",
-  "item/tool/broom",
-  "item/tool/lockpick",
   "item/vessel/cup",
   "item/vessel/plate",
   "item/vessel/pot",
@@ -1225,7 +1252,6 @@
  ],
  "idleFixtures": [
   "fixture/furniture/chair",
-  "fixture/furniture/bed",
   "fixture/craft/cauldron",
   "fixture/craft/loom",
   "fixture/sacred/statue",

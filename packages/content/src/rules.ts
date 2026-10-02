@@ -118,14 +118,10 @@ const TAKING: Rule[] = [
   }),
   base({
     id: 'core/give',
-    doc: 'Hand the held item to a person.',
+    doc: 'Give the held item to a person: their taste decides how they take it (and the friendship).',
     on: 'interaction',
     when: { verb: ['put'], target: { type: 'actor/person', player: false } },
-    do: [
-      { op: 'moveTo', of: 'instrument', to: 'target', into: 'contents' },
-      say('target', 'For me? Thank you!', '给我的？谢谢你！'),
-      log('You give {instrument} to {target}.', '你把{instrument}交给了{target}。'),
-    ],
+    do: [{ op: 'gift', to: 'target', item: 'instrument' }],
   }),
 ]
 
@@ -134,9 +130,20 @@ const TAKING: Rule[] = [
 const HANDS: Rule[] = [
   base({
     id: 'core/talk',
+    doc: 'Talk to a person: they say what fits the moment; talking once a day builds friendship.',
     on: 'interaction',
     when: { verb: ['interact'], target: { type: 'actor/person', player: false }, instrument: EMPTY_HAND },
-    do: [{ op: 'say', who: 'target', text: '@line' }],
+    do: [
+      { op: 'say', who: 'target', text: '@line' },
+      { op: 'befriend', who: 'target', amount: 20, daily: true },
+    ],
+  }),
+  base({
+    id: 'core/sleep',
+    doc: 'Lie down in a bed: sleep until morning.',
+    on: 'interaction',
+    when: { verb: ['interact'], actor: { player: true }, target: { type: 'fixture/furniture/bed' }, instrument: EMPTY_HAND },
+    do: [log('You sleep.', '你睡着了。'), { op: 'sleep' }],
   }),
   base({
     id: 'core/examine-creature',
@@ -192,10 +199,24 @@ const HANDS: Rule[] = [
 
 const USING: Rule[] = [
   base({
+    id: 'core/work-tires',
+    doc: 'Working with a tool costs energy.',
+    on: 'interaction',
+    compose: true,
+    when: { verb: ['interact'], actor: { player: true }, instrument: { tags: ['tool'] } },
+    do: [{ op: 'addProp', of: 'actor', key: 'energy', delta: -2, min: 0 }],
+  }),
+  base({
     id: 'core/eat',
     on: 'interaction',
     when: { verb: ['interact'], target: { player: true }, instrument: { tags: ['edible'] } },
-    do: [{ op: 'heal', of: 'actor', amount: { prop: 'heal', of: 'instrument', add: 1 } }, vfx('heal', 'actor'), log('You eat {instrument}.', '你吃掉了{instrument}。'), { op: 'destroy', of: 'instrument' }],
+    do: [
+      { op: 'heal', of: 'actor', amount: { prop: 'heal', of: 'instrument', add: 1 } },
+      { op: 'addProp', of: 'actor', key: 'energy', delta: 15, max: 100 },
+      vfx('heal', 'actor'),
+      log('You eat {instrument}.', '你吃掉了{instrument}。'),
+      { op: 'destroy', of: 'instrument' },
+    ],
   }),
   base({
     id: 'core/drink',
@@ -349,6 +370,21 @@ const USING: Rule[] = [
     on: 'interaction',
     when: { verb: ['interact'], target: { kind: 'tile', tags: ['diggable'] }, instrument: { tags: ['tool:hoe'] } },
     do: [{ op: 'setTerrain', of: 'target', terrain: 'farmland' }, vfx('dust')],
+  }),
+  base({
+    id: 'core/fish-bite',
+    doc: 'Cast a line into water: sometimes something bites.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { kind: 'tile', tags: ['water'] }, instrument: { tags: ['tool:fishing'] } },
+    guard: { chance: 0.35 },
+    do: [{ op: 'spawn', type: 'item/food/fish/raw', at: 'actor', into: 'contents' }, vfx('splash'), log('A tug — you reel in a fish!', '一沉——你拉上来一条鱼！')],
+  }),
+  base({
+    id: 'core/fish-wait',
+    doc: 'Cast a line into water: nothing yet.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { kind: 'tile', tags: ['water'] }, instrument: { tags: ['tool:fishing'] } },
+    do: [vfx('splash'), log('The float bobs. Nothing bites — yet.', '浮漂晃了晃。还没咬钩。')],
   }),
 ]
 
@@ -1066,4 +1102,40 @@ const DEFEAT: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...TAKING, ...HANDS, ...USING, ...WOOD, ...BUILD, ...FARM, ...HITS, ...STATUS, ...ENTER, ...DEFEAT]
+/** The village's own things: the Great Hearth, the scarecrow, the washing on the line. */
+const VILLAGE: Rule[] = [
+  base({
+    id: 'village/hearth-cold',
+    doc: 'The cold Great Hearth will not take ordinary fire (it is rekindled with the four kindlings).',
+    on: 'interaction',
+    when: { verb: PUT_OR_USE, target: { type: 'fixture/light/hearth', notStatus: ['lit'] }, instrument: { tags: ['fire-source'] } },
+    do: [vfx('smoke'), log('The flame touches the old stones and dies, as if they would not have it.', '火苗碰到老石头就熄了，好像它们不肯要。')],
+  }),
+  base({
+    id: 'village/hearth-look',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { type: 'fixture/light/hearth' }, instrument: EMPTY_HAND },
+    do: [log('A ring of old stones around cold ash. The stones are faintly warm, still.', '一圈老石头围着冷灰。石头摸上去还有一丝余温。')],
+  }),
+  base({
+    id: 'village/scarecrow-look',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { type: 'fixture/scarecrow' }, instrument: EMPTY_HAND },
+    do: [log("Its stitched face watches the rows. The hat is a woman's, faded, and too good for a scarecrow.", '它缝出来的脸盯着田垄。头上的帽子是女式的，褪了色，给稻草人戴有点可惜。')],
+  }),
+  base({
+    id: 'village/washing-look',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { type: 'fixture/furniture/washing_line' }, instrument: EMPTY_HAND },
+    do: [log('Shirts on the line, stiff with sun and smelling of soap.', '绳上晾着衬衫，晒得发硬，一股肥皂味。')],
+  }),
+  base({
+    id: 'village/washing-take',
+    doc: 'Take the washing in: cloth.',
+    on: 'interaction',
+    when: { verb: ['take'], target: { type: 'fixture/furniture/washing_line' } },
+    do: [{ op: 'spawn', type: 'item/material/cloth', at: 'actor', into: 'contents' }, log('You take a shirt off the line. Someone will miss it.', '你从绳上取下一件衬衫。总会有人发现少了一件。')],
+  }),
+]
+
+export const BASE_RULES: Rule[] = [...TAKING, ...HANDS, ...USING, ...WOOD, ...BUILD, ...FARM, ...HITS, ...STATUS, ...ENTER, ...DEFEAT, ...VILLAGE]

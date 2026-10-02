@@ -65,6 +65,8 @@ export interface Ontology {
   vfx: string[]
   /** Tags an instance may carry beyond its type's (materials, qualities…); used by conflict checks. */
   instanceTags?: string[]
+  /** Gift tastes everyone shares (a person's own tastes override them). */
+  tastes?: Tastes
 }
 
 // ------------------------------------------------------------------ world state
@@ -127,6 +129,138 @@ export interface NpcData {
   look?: string
   lines?: Text[]
   faction?: string
+  /** A hero villager's full record (docs/game-design.md §5); crowd NPCs may have none. */
+  person?: PersonData
+}
+
+// ------------------------------------------------------------------ people (data)
+
+export type Mood = 'neutral' | 'happy' | 'sad' | 'angry' | 'surprised' | 'shy'
+
+/**
+ * A line and the context it is for. Keys, most specific first (people.ts resolves them):
+ * topic:<id> · topic:<id>:memory_week · date:<season>_<day> · birthday · greeting:first ·
+ * place:<map> · weekday:<day> · weather:<w> · hour:<morning|day|evening|night> ·
+ * greeting:<stranger|acquaintance|friend|close> · default — and for gifts:
+ * gift:item:<type> · gift:<loved|liked|neutral|disliked|hated> · gift:limit.
+ * Slots in the text: {player} {name} {friend:<id>} {fact:<key>} {item}.
+ */
+export interface LineDef {
+  key: string
+  text: Text
+  mood?: Mood
+  /** said at most once to the player */
+  once?: boolean
+  /** only from this many hearts on (and preferred over lower variants) */
+  hearts?: number
+}
+
+/**
+ * A schedule variant. Keys, most specific first: date:<season>_<day> · fact:<key> (the fact is
+ * truthy) · rain · storm · weekday:<day> · season:<s> · default.
+ */
+export interface ScheduleVariant {
+  key: string
+  entries: ScheduleEntry[]
+}
+
+/** Gift tastes: item type prefixes, or `tag:<tag>`. */
+export interface Tastes {
+  love?: string[]
+  like?: string[]
+  dislike?: string[]
+  hate?: string[]
+}
+
+export interface PersonData {
+  temperament?: { personality?: string; manner?: string; social?: string; outlook?: string }
+  /** id → relation ('daughter', 'old friend' …) */
+  ties?: Record<Id, string>
+  birthday?: { season: string; day: number }
+  tastes?: Tastes
+  lines?: LineDef[]
+  schedules?: ScheduleVariant[]
+}
+
+/** What a person remembers about the player. */
+export interface NpcMemory {
+  /** keys (or texts) of once-only and topic lines already said */
+  said?: string[]
+  /** the last line said, not repeated next time */
+  last?: string
+  /** the day they were last talked to */
+  talked?: number
+  gifts?: { day: number; week: number; count: number }
+}
+
+/** Something that happened, which people may talk about while it is fresh. */
+export interface Topic {
+  id: string
+  day: number
+  /** days it stays fresh (default 4) */
+  days?: number
+}
+
+export interface LetterDef {
+  id: string
+  /** delivered at the start of this day, or once this fact is truthy, or by a `mail` effect */
+  day?: number
+  fact?: string
+  from?: Id
+  text: Text
+  items?: string[]
+}
+
+export interface Letter {
+  id: string
+  day: number
+  read?: boolean
+  /** items still attached (taken when read) */
+  items?: string[]
+}
+
+/** A scripted scene (docs/game-design.md §8.6): an arrival, a heart event, a gathering. */
+export interface SceneDef {
+  id: string
+  map: string
+  when?: {
+    hour?: { from: number; to: number }
+    weather?: string[]
+    weekday?: string[]
+    facts?: Record<string, Cmp>
+    hearts?: { npc: Id; gte: number }
+    /** default false: a scene plays once */
+    repeat?: boolean
+  }
+  script: SceneCmd[]
+}
+
+export type SceneCmd =
+  | { say: Id | 'player'; text: Text; mood?: Mood }
+  | { move: Id | 'player'; x: number; y: number }
+  | { face: Id | 'player'; dir: Dir }
+  | { emote: Id | 'player'; mood: Mood }
+  | { wait: number }
+  | { fade: 'out' | 'in' }
+  | { place: Id; map: string; x: number; y: number }
+  | { fact: string; value: PropValue }
+  | { topic: string; days?: number }
+  | { give: string }
+  | { warp: string; x: number; y: number }
+  /** add or remove a status on an entity (the Hearth goes out: remove 'lit') */
+  | { status: Id; add?: string; remove?: string }
+  /** set a prop on the player (the story's stage) */
+  | { prop: string; value: PropValue }
+
+export interface SceneState {
+  id: string
+  step: number
+  until?: number
+  waiting?: 'advance' | 'move'
+  mover?: { who: Id; path: [number, number][]; next: number }
+  started?: number
+  /** the line waiting to be advanced (so a client that missed the say event can show it) */
+  line?: { who: Id; text: Text; mood?: Mood }
 }
 
 export interface Appearance {
@@ -160,8 +294,14 @@ export interface MapData {
   /** Render hints (the engine ignores them): prefab stamps, room wall frames, music, light. */
   stamps?: { key: string; x: number; y: number }[]
   rooms?: { style: string; x: number; y: number; w: number; h: number }[]
+  /** The detail layer: purely visual sprites (catalog decor groups) — stones, tufts, baskets. */
+  decor?: { k: string; x: number; y: number }[]
   music?: string
   light?: 'outdoor' | 'indoor' | 'dark'
+  /** The collision layer: tile indices (y * width + x) that block movement whatever the terrain. */
+  solid?: number[]
+  /** Named spots ('square.well') for schedules, scenes and authors. */
+  anchors?: Record<string, [number, number]>
 }
 
 export interface Portal {
@@ -194,6 +334,15 @@ export interface WorldState {
   counter: number // id allocator
   /** Where the player respawns. */
   spawn: Pos
+  /** World facts (docs/game-design.md §8.1): `hearth.stage`, `bridge.east.fixed`, `met.npc.maren` … */
+  facts?: Record<string, PropValue>
+  topics?: Topic[]
+  /** What each person remembers about the player. */
+  memory?: Record<Id, NpcMemory>
+  mailbox?: Letter[]
+  scene?: SceneState
+  /** Days whose weather the world fixes. */
+  weather?: Record<number, string>
 }
 
 // ------------------------------------------------------------------ events & interactions
@@ -289,6 +438,14 @@ export type Cond =
   | { hour: { from: number; to: number } }
   /** How many entities (matching `match`) are in a role's contents, or on its tile besides itself. */
   | { count: { role: RoleName; in: 'contents' | 'tile'; match?: Selector; cmp: Bounds } }
+  /** A world fact compared to a value (a missing fact is 0 / false). */
+  | { fact: { key: string; cmp: Cmp } }
+  /** Something that happened is still fresh. */
+  | { topic: string }
+  /** The calendar: weekday, weather, season, a day range. */
+  | { calendar: { weekday?: string[]; weather?: string[]; season?: string[]; day?: { gte?: number; lte?: number } } }
+  /** The player's friendship with a person (in hearts). */
+  | { hearts: { role: RoleName; cmp: Cmp } }
 
 /** An argument that names a role, or a tile relative to a role. */
 export type RoleRef = RoleName | 'tileOf:actor' | 'tileOf:target' | 'tileOf:instrument'
@@ -327,6 +484,14 @@ export type Effect =
   | { op: 'log'; text: Text }
   | { op: 'open'; of: RoleRef } // containers: toggle open/closed
   | { op: 'dropContents'; of: RoleRef } // spill contents onto the tile (loot, broken crates)
+  | { op: 'setFact'; key: string; value: PropValue }
+  | { op: 'addFact'; key: string; delta: number }
+  | { op: 'topic'; id: string; days?: number }
+  | { op: 'befriend'; who: RoleRef; amount: number; daily?: boolean }
+  | { op: 'gift'; to: RoleRef; item: RoleRef }
+  | { op: 'sleep' }
+  | { op: 'mail'; id: string }
+  | { op: 'scene'; id: string }
 
 export interface RuleTest {
   name?: string
@@ -407,7 +572,12 @@ export interface Rule {
 
 export type FxEvent =
   | { t: 'vfx'; fx: string; map: string; x: number; y: number }
-  | { t: 'say'; who: Id; text: Text }
+  | { t: 'say'; who: Id; text: Text; mood?: Mood; scene?: boolean }
+  | { t: 'emote'; who: Id; mood: Mood }
+  | { t: 'sleep'; day: number }
+  | { t: 'letter'; id: string }
+  | { t: 'fade'; dir: 'out' | 'in' }
+  | { t: 'strike'; map: string; x: number; y: number }
   | { t: 'log'; text: Text; tone?: 'info' | 'warn' | 'ai' | 'good' | 'bad' }
   | { t: 'damage'; who: Id; amount: number; element?: string }
   | { t: 'undefined'; request: string; summary: string }

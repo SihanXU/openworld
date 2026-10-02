@@ -14,6 +14,7 @@ export function imagePaths(c: Catalog): string[] {
   for (const list of Object.values(c.plain)) for (const [img] of list) s.add(img)
   for (const list of Object.values(c.decals)) list.forEach(sd)
   for (const list of Object.values(c.terrainObjects)) list.forEach(sd)
+  for (const g of Object.values(c.decor)) g.sprites.forEach(sd)
   for (const p of Object.values(c.prefabs)) s.add(p.img)
   for (const r of Object.values(c.rooms)) s.add(r.img)
   for (const f of Object.values(c.fixtures)) (sd(f.base), sd(f.open), sd(f.lit))
@@ -29,7 +30,7 @@ export function imagePaths(c: Catalog): string[] {
 
 export function preloadCatalog(scene: Phaser.Scene, c: Catalog): void {
   for (const p of imagePaths(c)) if (!scene.textures.exists(p)) scene.load.image(p, assetUrl(p))
-  for (const [k, p] of Object.entries(c.sfx)) scene.load.audio(`sfx:${k}`, assetUrl(p))
+  // sounds and music load lazily, on first use (the game starts on the images alone)
 }
 
 /** Register a SpriteDef's frames on its image texture; returns frame names. */

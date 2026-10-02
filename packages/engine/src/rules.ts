@@ -60,6 +60,26 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World): boole
     const v = roles[c.count.role]
     return !!v && within(countAt(v, c.count.in, c.count.match, world), c.count.cmp, roles)
   }
+  if ('fact' in c) return cmp(world.fact(c.fact.key) ?? 0, c.fact.cmp)
+  if ('topic' in c) {
+    const day = world.calendar().day
+    return (world.state.topics ?? []).some((t) => t.id === c.topic && day < t.day + (t.days ?? 4))
+  }
+  if ('calendar' in c) {
+    const cal = world.calendar()
+    const k = c.calendar
+    if (k.weekday && !k.weekday.includes(cal.weekday)) return false
+    if (k.weather && !k.weather.includes(cal.weather)) return false
+    if (k.season && !k.season.includes(cal.season)) return false
+    if (k.day?.gte !== undefined && cal.day < k.day.gte) return false
+    if (k.day?.lte !== undefined && cal.day > k.day.lte) return false
+    return true
+  }
+  if ('hearts' in c) {
+    const v = roles[c.hearts.role]
+    if (!v?.id) return false
+    return cmp(Math.floor(world.num(world.player, `friend.${v.id}`, 0) / 250), c.hearts.cmp)
+  }
   return false
 }
 

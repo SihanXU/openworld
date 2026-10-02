@@ -4,6 +4,7 @@ import {
   Game,
   RuleLibrary,
   buildRequest,
+  tickAt,
   snapshot,
   type Dir,
   type GameEvent,
@@ -345,13 +346,19 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'save':
         doSave()
         break
+      case 'advance':
+        game?.engine.scenes.advance()
+        break
+      case 'readMail':
+        game?.engine.readMail(m.id)
+        break
       case 'debug': {
         if (!game) break
         const eng = game.engine
         const w = eng.world
         if (m.op === 'teleport') eng.travel(w.player, { map: m.map ?? w.posOf(w.player)!.map, x: m.x, y: m.y })
         if (m.op === 'give') w.create(m.type, { on: 'inside', holder: w.state.player }, m.tags ? { tags: m.tags } : {})
-        if (m.op === 'hour') w.state.tick = Math.round((((m.hour - 8 + 24) % 24) * 600))
+        if (m.op === 'hour') w.state.tick = tickAt(w.calendar().day, m.hour)
         break
       }
     }

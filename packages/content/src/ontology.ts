@@ -222,12 +222,17 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/furniture/bench', 'bench', '长椅', ['surface'], { solid: false }),
   F('fixture/furniture/counter', 'counter', '柜台', ['surface']),
   F('fixture/furniture/stall', 'market stall', '市集摊位', ['cloth', 'surface']),
+  F('fixture/furniture/washing_line', 'washing line', '晾衣绳', ['cloth', 'flammable']),
+  F('fixture/furniture/cart', 'handcart', '手推车', ['surface']),
+  F('fixture/furniture/cart/flowers', 'flower cart', '花车', ['plant', 'flower'], { sprite: 'fixture:flower_cart' }),
   F('fixture/light', 'light', '灯', []),
   F('fixture/light/campfire', 'campfire', '篝火', ['lightable', 'cookware'], { solid: true }),
   F('fixture/light/brazier', 'brazier', '火盆', ['lightable', 'metal', 'conductive'], { solid: true }),
   F('fixture/light/lamppost', 'lamp post', '路灯', ['lightable', 'metal', 'conductive'], { solid: true }),
   F('fixture/light/candles', 'candles', '烛台', ['lightable'], { solid: true }),
   F('fixture/light/fireplace', 'fireplace', '壁炉', ['lightable', 'stone', 'cookware'], { solid: true }),
+  // The Great Hearth is not 'lightable': it takes fire only when it is rekindled (the story rules).
+  F('fixture/light/hearth', 'the Great Hearth', '大炉火', ['stone', 'sacred', 'hearth'], { solid: true }),
   F('fixture/water', 'water source', '水源', ['water-source', 'stone'], { solid: true }),
   F('fixture/water/well', 'well', '水井', []),
   F('fixture/water/fountain', 'fountain', '喷泉', []),
@@ -239,6 +244,7 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/craft/forge', 'forge', '熔炉', ['stone', 'lightable', 'cookware']),
   F('fixture/craft/cauldron', 'cauldron', '坩埚', ['metal', 'conductive', 'cookware']),
   F('fixture/craft/loom', 'loom', '织布机', ['wooden', 'flammable']),
+  F('fixture/craft/workbench', 'workbench', '工作台', ['wooden', 'flammable', 'surface']),
   F('fixture/sacred', 'sacred place', '圣所', ['stone'], { solid: true }),
   F('fixture/sacred/altar', 'altar', '祭坛', ['holy', 'surface']),
   F('fixture/sacred/statue', 'statue', '雕像', []),
@@ -263,6 +269,7 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/build/post', 'sign post', '牌子立柱', ['wooden', 'flammable']),
   F('fixture/build/ring', 'stone ring', '石圈', ['stone']),
   F('fixture/dummy', 'training dummy', '训练假人', ['wooden', 'flammable', 'straw'], { solid: true }),
+  F('fixture/scarecrow', 'scarecrow', '稻草人', ['straw', 'cloth', 'wooden', 'flammable'], { solid: true }),
 ]
 
 export function buildOntology(): Ontology {
@@ -271,6 +278,13 @@ export function buildOntology(): Ontology {
   return {
     types,
     statuses: Object.fromEntries(STATUSES.map((s) => [s.id, s])),
+    // what everyone thinks of a gift unless their own tastes say otherwise (game-design §5.4)
+    tastes: {
+      love: ['item/gem', 'item/valuable/crown'],
+      like: ['item/food/pie', 'item/food/honey', 'item/food/cheese', 'item/valuable', 'tag:flower'],
+      dislike: ['item/material/stone', 'item/material/stick', 'item/material/coal', 'tag:raw'],
+      hate: ['item/misc/skull', 'item/material/bone', 'item/food/mushroom/raw'],
+    },
     terrains: Object.fromEntries(TERRAINS.map((t) => [t.id, t])),
     elements: ELEMENTS,
     vfx: VFX,

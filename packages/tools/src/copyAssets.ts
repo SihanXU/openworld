@@ -19,7 +19,7 @@ export function catalogPaths(): string[] {
   const c = CATALOG
   for (const b of Object.values(c.blobs)) paths.add(b.img)
   for (const tiles of Object.values(c.plain)) for (const [img] of tiles) paths.add(img)
-  for (const list of [...Object.values(c.decals), ...Object.values(c.terrainObjects)]) for (const s of list) paths.add(s.img)
+  for (const list of [...Object.values(c.decals), ...Object.values(c.terrainObjects), ...Object.values(c.decor).map((g) => g.sprites)]) for (const s of list) paths.add(s.img)
   for (const p of Object.values(c.prefabs)) paths.add(p.img)
   for (const r of Object.values(c.rooms)) paths.add(r.img)
   for (const f of Object.values(c.fixtures)) for (const s of [f.base, f.open, f.lit]) if (s) paths.add(s.img)

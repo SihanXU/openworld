@@ -1,12 +1,20 @@
 // A small authoring DSL for hand-crafted maps: terrain painting, prefab stamps (houses),
-// room frames, fixtures, items, creatures and portals — emitted as engine chunks.
+// room frames, fixtures, items, creatures and portals — emitted as engine chunks — and the
+// tools of composition (docs/game-design.md §8.7): curved paths with soft edges, organic
+// shapes, fences and yards, the detail layer (decor) with mask-driven scattering, the
+// collision layer and named anchors.
 
 import type { AiData, Entity, Portal, PropValue, Text } from '@lsw/engine'
 import { CHAR_OF, FORM_BY_ID, makeItem, type RawChunk } from '@lsw/content'
 import { Rng } from '@lsw/engine'
 import type { PrefabDef } from '../../../client/src/assets/types.ts'
+import { CATALOG } from '../../../client/src/assets/catalog.ts'
 
 export const rng = new Rng(4242)
+
+const SOLID_TERRAIN = new Set(['water', 'deepwater', 'tree', 'pine', 'bush', 'rock', 'wall', 'woodwall', 'roof', 'cave_wall', 'lava', 'charred_tree', 'void'])
+
+export type Cell = [number, number]
 
 export type ItemSpec = string | { form: string; material?: string; quality?: string; element?: string | null; name?: Text; tags?: string[]; props?: Record<string, PropValue> }
 
@@ -19,6 +27,11 @@ export class MapBuilder {
   private seq = 0
   /** Door tiles of stamped prefabs, by a name the author chooses. */
   doors: Record<string, [number, number]> = {}
+  /** The detail layer and the collision layer (see MapData.decor / MapData.solid). */
+  decorList: { k: string; x: number; y: number }[] = []
+  private decorAt = new Set<number>()
+  solid = new Set<number>()
+  anchors: Record<string, [number, number]> = {}
 
   constructor(
     public id: string,
@@ -76,6 +89,184 @@ export class MapBuilder {
     while (y !== by) (put(x, y), (y += Math.sign(by - y)))
     put(bx, by)
   }
+  // ---------------------------------------------------------------- composition
+
+  /** A named spot (for schedules, scenes and the modder). */
+  anchor(name: string, x: number, y: number): Cell {
+    if (!this.in(x, y)) throw new Error(`${this.id}: anchor ${name} out of bounds`)
+    this.anchors[name] = [x, y]
+    return [x, y]
+  }
+
+  /** Mark a tile as blocking (the collision layer), whatever its terrain. */
+  block(x: number, y: number) {
+    if (this.in(x, y)) this.solid.add(y * this.w + x)
+  }
+
+  /** A detail-layer sprite (catalog decor group); `solid` also blocks the tile. */
+  decor(k: string, x: number, y: number, solid = false) {
+    if (!CATALOG.decor[k]) throw new Error(`decor group ${k} not in catalog`)
+    if (!this.in(x, y) || SOLID_TERRAIN.has(this.get(x, y))) return
+    this.decorList.push({ k, x, y })
+    this.decorAt.add(y * this.w + x)
+    if (solid) this.block(x, y)
+  }
+
+  /** Is the tile open ground: walkable terrain, not blocked, no decor, no entity? */
+  free(x: number, y: number): boolean {
+    if (!this.in(x, y)) return false
+    const i = y * this.w + x
+    if (this.solid.has(i) || this.decorAt.has(i)) return false
+    if (SOLID_TERRAIN.has(this.get(x, y)) || this.get(x, y) === 'door') return false
+    return !this.entities.some((e) => e.place.on === 'tile' && e.place.x === x && e.place.y === y)
+  }
+
+  /** Any tile within `r` (Chebyshev) of (x,y) passes `pred`. */
+  near(x: number, y: number, pred: (t: string, x: number, y: number) => boolean, r = 1): boolean {
+    for (let j = -r; j <= r; j++)
+      for (let i = -r; i <= r; i++) if ((i || j) && this.in(x + i, y + j) && pred(this.get(x + i, y + j), x + i, y + j)) return true
+    return false
+  }
+
+  /**
+   * A curved path through control points (a Catmull-Rom spline through cell centres). Width 1
+   * is a 4-connected trail; wider paths are painted as discs. `edge` terrain frays the border
+   * with probability `edgeP` (soft edges, never a ruler line). Returns the centre cells.
+   */
+  path(points: Cell[], t = 'path', width = 2, opts: { edge?: string; edgeP?: number; over?: (cur: string) => boolean } = {}): Cell[] {
+    const P = [points[0], ...points, points[points.length - 1]]
+    const centre: Cell[] = []
+    const seen = new Set<number>()
+    const paint = new Set<number>()
+    const r = width / 2
+    const over = opts.over ?? ((c: string) => c !== 'door' && c !== 'wall' && c !== 'woodwall' && c !== 'water' && c !== 'deepwater')
+    const add = (x: number, y: number) => this.in(x, y) && paint.add(y * this.w + x)
+    const visit = (px: number, py: number) => {
+      const cx = Math.floor(px)
+      const cy = Math.floor(py)
+      const last = centre[centre.length - 1]
+      if (width <= 1 && last && last[0] !== cx && last[1] !== cy && !seen.has(last[1] * this.w + cx)) {
+        // keep a 1-wide trail 4-connected
+        seen.add(last[1] * this.w + cx)
+        centre.push([cx, last[1]])
+        add(cx, last[1])
+      }
+      if (!seen.has(cy * this.w + cx)) (seen.add(cy * this.w + cx), centre.push([cx, cy]))
+      if (width <= 1) return void add(cx, cy)
+      for (let y = Math.floor(py - r) - 1; y <= Math.ceil(py + r); y++)
+        for (let x = Math.floor(px - r) - 1; x <= Math.ceil(px + r); x++) if (Math.hypot(x + 0.5 - px, y + 0.5 - py) <= r) add(x, y)
+    }
+    for (let i = 1; i < P.length - 2; i++) {
+      const [p0, p1, p2, p3] = [P[i - 1], P[i], P[i + 1], P[i + 2]]
+      const steps = Math.max(4, Math.ceil(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) * 4))
+      for (let s = 0; s <= steps; s++) {
+        const u = s / steps
+        const f = (a: number, b: number, c: number, d: number) => 0.5 * (2 * b + (-a + c) * u + (2 * a - 5 * b + 4 * c - d) * u * u + (-a + 3 * b - 3 * c + d) * u * u * u)
+        visit(f(p0[0], p1[0], p2[0], p3[0]) + 0.5, f(p0[1], p1[1], p2[1], p3[1]) + 0.5)
+      }
+    }
+    for (const k of paint) {
+      const x = k % this.w
+      const y = Math.floor(k / this.w)
+      if (over(this.get(x, y))) this.set(x, y, t)
+    }
+    if (opts.edge) {
+      const p = opts.edgeP ?? 0.35
+      for (const k of paint)
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = (k % this.w) + dx
+          const ny = Math.floor(k / this.w) + dy
+          if (!this.in(nx, ny) || paint.has(ny * this.w + nx)) continue
+          const cur = this.get(nx, ny)
+          if (over(cur) && !SOLID_TERRAIN.has(cur) && cur !== t && rng.chance(p)) this.set(nx, ny, opts.edge)
+        }
+    }
+    return centre
+  }
+
+  /** An organic patch: an ellipse whose radius wanders with the angle (shorelines, clearings). */
+  organic(cx: number, cy: number, rx: number, ry: number, t: string, opts: { rough?: number; only?: (cur: string) => boolean } = {}) {
+    const rough = opts.rough ?? 0.22
+    const ph = [rng.next() * 6.28, rng.next() * 6.28, rng.next() * 6.28]
+    for (let y = Math.floor(cy - ry * (1 + rough)) - 1; y <= Math.ceil(cy + ry * (1 + rough)) + 1; y++)
+      for (let x = Math.floor(cx - rx * (1 + rough)) - 1; x <= Math.ceil(cx + rx * (1 + rough)) + 1; x++) {
+        const dx = (x + 0.5 - cx) / rx
+        const dy = (y + 0.5 - cy) / ry
+        const a = Math.atan2(dy, dx)
+        const lim = 1 + rough * (0.5 * Math.sin(3 * a + ph[0]) + 0.3 * Math.sin(5 * a + ph[1]) + 0.2 * Math.sin(7 * a + ph[2]))
+        if (Math.hypot(dx, dy) <= lim && (!opts.only || opts.only(this.get(x, y)))) this.set(x, y, t)
+      }
+  }
+
+  /**
+   * Stamp a catalog prefab as scenery: the ground under it stays as painted, '#' cells join the
+   * collision layer, 'D' becomes a door (named `doorName`).
+   */
+  scenery(key: string, x: number, y: number, doorName?: string) {
+    const def = CATALOG.prefabs[key]
+    if (!def) throw new Error(`prefab ${key} not in catalog`)
+    this.stamps.push({ key, x, y })
+    def.grid.forEach((row, j) =>
+      [...row].forEach((c, i) => {
+        if (c === '#') this.block(x + i, y + j)
+        if (c === 'D') {
+          this.set(x + i, y + j, 'door')
+          if (doorName) this.doors[doorName] = [x + i, y + j]
+        }
+      }),
+    )
+  }
+
+  /** A building from the catalog (solid walls, a named door). Returns its door cell. */
+  house(key: string, x: number, y: number, doorName: string): Cell {
+    const def = CATALOG.prefabs[key]
+    if (!def) throw new Error(`prefab ${key} not in catalog`)
+    this.prefab(key, def, x, y, doorName)
+    return this.doors[doorName]
+  }
+
+  /**
+   * A straight fence run (horizontal or vertical) of 'rail' | 'fence' | 'stonewall' pieces,
+   * leaving gaps at `gates`. Pieces are scenery: the ground shows through, the tiles block.
+   */
+  fence(kind: 'rail' | 'fence' | 'stonewall', a: Cell, b: Cell, gates: Cell[] = []) {
+    const horiz = a[1] === b[1]
+    const key = `${kind}_${horiz ? 'h' : 'v'}`
+    const [dx, dy] = horiz ? [Math.sign(b[0] - a[0]) || 1, 0] : [0, Math.sign(b[1] - a[1]) || 1]
+    for (let x = a[0], y = a[1]; ; x += dx, y += dy) {
+      if (!gates.some(([gx, gy]) => gx === x && gy === y)) this.scenery(key, x, y)
+      if (x === b[0] && y === b[1]) break
+    }
+  }
+
+  /** A fenced lot: the rectangle's outline as fence runs, with gates. */
+  yard(x: number, y: number, w: number, h: number, kind: 'rail' | 'fence' | 'stonewall' = 'rail', gates: Cell[] = []) {
+    this.fence(kind, [x, y], [x + w - 1, y], gates)
+    this.fence(kind, [x, y + h - 1], [x + w - 1, y + h - 1], gates)
+    this.fence(kind, [x, y + 1], [x, y + h - 2], gates)
+    this.fence(kind, [x + w - 1, y + 1], [x + w - 1, y + h - 2], gates)
+  }
+
+  /**
+   * Detail by mask: on each free cell of the rect passing `where`, place decor `k` with
+   * probability p. Masks put things where they belong (stones at a cliff's foot, flowers along
+   * a path, leaves under trees), never as uniform noise.
+   */
+  sprinkle(k: string, p: number, where: (x: number, y: number, t: string) => boolean, rect: [number, number, number, number] = [0, 0, this.w, this.h]) {
+    const [rx, ry, rw, rh] = rect
+    for (let y = ry; y < ry + rh; y++) for (let x = rx; x < rx + rw; x++) if (this.free(x, y) && where(x, y, this.get(x, y)) && rng.chance(p)) this.decor(k, x, y)
+  }
+
+  /** An interior partition: a wall ring inside the room with doorways (drawn as a room frame). */
+  partition(style: string, x: number, y: number, w: number, h: number, doorways: Cell[] = []) {
+    for (let j = y; j < y + h; j++)
+      for (let i = x; i < x + w; i++) {
+        if (!(i === x || j === y || i === x + w - 1 || j === y + h - 1)) continue
+        this.set(i, j, doorways.some(([dx, dy]) => dx === i && dy === j) ? 'door' : 'wall')
+      }
+    this.rooms.push({ style, x, y, w, h })
+  }
+
   /** Scatter terrain in a rect with probability p onto cells passing `only`. */
   scatter(x: number, y: number, w: number, h: number, t: string, p: number, only: (cur: string) => boolean = (c) => c === 'grass') {
     for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (only(this.get(i, j)) && rng.chance(p)) this.set(i, j, t)
@@ -187,6 +378,9 @@ export class MapBuilder {
         portals: this.portals,
         stamps: this.stamps,
         rooms: this.rooms,
+        decor: this.decorList.length ? this.decorList : undefined,
+        solid: this.solid.size ? [...this.solid].sort((a, b) => a - b) : undefined,
+        anchors: Object.keys(this.anchors).length ? this.anchors : undefined,
         music: this.music,
         light: this.light,
       },

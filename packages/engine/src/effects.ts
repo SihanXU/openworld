@@ -5,6 +5,7 @@ import type { Engine } from './engine.ts'
 import { matchSelector } from './rules.ts'
 import type { Amount, Effect, Entity, GameEvent, Place, Pos, Ref, RoleRef, Rule, Text } from './types.ts'
 import { NO_EXPIRY } from './world.ts'
+import { GIFT_LINES, MOOD_OF, befriend, chooseLine, giveGift, memoryOf, raiseTopic } from './people.ts'
 
 export const PRIMITIVES: Record<Effect['op'], string> = {
   spawn: 'spawn {type, at, into?: tile|contents|hand, count?: number | {prop, of}} — create new entities; type may be "@prop:<role>.<key>" (a crop\'s yieldType), count may read a prop (the planks in a frame)',
@@ -28,6 +29,14 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   log: 'log {text} — message log line ({actor}/{target}/{instrument} = names, {target.key} = that role\'s prop)',
   open: 'open {of} — toggle a container open/closed',
   dropContents: 'dropContents {of} — spill everything inside onto the tile',
+  setFact: 'setFact {key, value} — set a world fact (people, schedules and scenes read facts)',
+  addFact: 'addFact {key, delta} — add to a numeric world fact',
+  topic: 'topic {id, days?} — something happened that people will talk about while it is fresh (default 4 days)',
+  befriend: 'befriend {who, amount, daily?} — change the player\'s friendship with a person (daily: at most once a day)',
+  gift: 'gift {to, item} — the player gives a person an item: their taste decides the friendship and the reaction',
+  sleep: 'sleep {} — the player sleeps until the next morning',
+  mail: 'mail {id} — a letter arrives in the player\'s mailbox',
+  scene: 'scene {id} — play a scripted scene',
 }
 
 export class EffectRunner {
@@ -255,7 +264,11 @@ export class EffectRunner {
       }
       case 'say': {
         const who = this.entity(ev, eff.who)
-        if (who) w.fx.push({ t: 'say', who: who.id, text: this.text(ev, who, eff.text) })
+        if (!who) return
+        // a person with a line book says the line for this moment (people.ts)
+        const line = eff.text === '@line' && who.npc?.person?.lines?.length ? chooseLine(this.eng, who) : undefined
+        if (line) w.fx.push({ t: 'say', who: who.id, text: line.text, mood: line.mood })
+        else w.fx.push({ t: 'say', who: who.id, text: this.text(ev, who, eff.text) })
         return
       }
       case 'log':
@@ -278,6 +291,50 @@ export class EffectRunner {
         }
         return
       }
+      case 'setFact':
+        w.setFact(eff.key, eff.value)
+        return
+      case 'addFact':
+        w.setFact(eff.key, (Number(w.fact(eff.key)) || 0) + eff.delta)
+        return
+      case 'topic':
+        raiseTopic(eng, eff.id, eff.days)
+        return
+      case 'befriend': {
+        const who = this.entity(ev, eff.who)
+        if (!who?.npc) return
+        const mem = memoryOf(eng, who.id)
+        const day = w.calendar().day
+        if (eff.daily && mem.talked === day) return
+        if (mem.talked === undefined) w.setFact(`met.${who.id}`, true)
+        if (eff.daily) mem.talked = day
+        befriend(eng, who.id, eff.amount)
+        return
+      }
+      case 'gift': {
+        const to = this.entity(ev, eff.to)
+        const item = this.entity(ev, eff.item)
+        if (!to || !item) return
+        if (!to.npc) {
+          w.place(item, { on: 'inside', holder: to.id })
+          return
+        }
+        const r = giveGift(eng, to, item)
+        if (r.taste !== 'limit') w.place(item, { on: 'inside', holder: to.id })
+        const line = to.npc.person?.lines?.length ? chooseLine(eng, to, { gift: { taste: r.taste, item } }) : undefined
+        w.fx.push({ t: 'say', who: to.id, text: line?.text ?? GIFT_LINES[r.taste], mood: line?.mood ?? MOOD_OF[r.taste] })
+        if (r.taste === 'loved') w.fx.push({ t: 'emote', who: to.id, mood: 'happy' })
+        return
+      }
+      case 'sleep':
+        eng.sleep()
+        return
+      case 'mail':
+        eng.deliver(eff.id)
+        return
+      case 'scene':
+        eng.scenes.start(eff.id)
+        return
     }
   }
 

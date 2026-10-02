@@ -85,6 +85,12 @@ export interface Catalog {
    * The renderer picks a variant per position.
    */
   terrainObjects: Record<string, SpriteDef[]>
+  /**
+   * The detail layer (MapData.decor): purely visual sprites the map author places — stones at a
+   * cliff's foot, tufts along a path, baskets by a stall. A group's variant is picked per position;
+   * `sorted` groups stand up and are y-sorted with actors, the others lie on the ground.
+   */
+  decor: Record<string, { sorted?: boolean; sprites: SpriteDef[] }>
   /** Buildings and big decorations stamped by the map author. */
   prefabs: Record<string, PrefabDef>
   /**

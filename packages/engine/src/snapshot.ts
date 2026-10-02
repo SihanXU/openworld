@@ -1,7 +1,8 @@
 // Render-agnostic frame snapshots for the client (sent from the engine Worker each tick).
 
+import type { Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
-import type { Appearance, Dir, FxEvent, Id, PropValue, Text } from './types.ts'
+import type { Appearance, Dir, FxEvent, Id, PropValue, SceneState, Text } from './types.ts'
 
 export interface ItemInfo {
   id: Id
@@ -45,6 +46,11 @@ export interface TileSnap {
 export interface Frame {
   tick: number
   hour: number
+  calendar: Calendar
+  /** A scene is playing: the player watches; `advance` moves past what is said. */
+  scene?: { id: string; waiting?: 'advance' | 'move'; line?: SceneState['line'] }
+  /** The player's letters (newest last). */
+  mailbox: { id: string; day: number; read: boolean; from?: Text; text: Text; items: number }[]
   map: string
   player: {
     id: Id
@@ -142,9 +148,16 @@ export function snapshot(eng: Engine): Frame {
   const capacity = box && w.prop(box, 'capacity')
   const fx = w.fx
   w.fx = []
+  const sc = w.state.scene
   return {
     tick: w.state.tick,
     hour: w.hour(),
+    calendar: w.calendar(),
+    scene: sc ? { id: sc.id, waiting: sc.waiting, line: sc.line } : undefined,
+    mailbox: (w.state.mailbox ?? []).map((l) => {
+      const def = eng.letters.get(l.id)
+      return { id: l.id, day: l.day, read: !!l.read, from: def?.from ? eng.nameOf({ e: def.from }) : undefined, text: def?.text ?? '', items: l.items?.length ?? 0 }
+    }),
     map,
     player: {
       id: p.id,

@@ -199,6 +199,10 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
       '{chance:p}',
       '{hour:{from,to}}',
       "{count:{role, in: contents|tile, match?: Selector, cmp: {eq|gt|gte|lt|lte: number | {prop, of: role}}}} — how many entities are in a role's contents (or on its tile besides itself); e.g. full when {gte:{prop:'capacity', of:'target'}}",
+      '{fact:{key, cmp}} — a world fact (missing = 0); facts are set by setFact/addFact (e.g. hearth.stage, bridge.east.fixed)',
+      '{topic:id} — something that happened is still fresh (raised by the topic effect)',
+      '{calendar:{weekday?:[firstday…hearthday], weather?:[sun|cloud|rain|storm|fog], season?:[thaw|bloom|ember|frost], day?:{gte?,lte?}}}',
+      '{hearts:{role, cmp}} — the player\'s friendship with that person, in hearts (0–10)',
     ],
     events: {
       interaction: 'a verb: take (pick up) / put (place the held item on the target) / interact (use; with the held item as instrument). Roles actor, target, instrument(held item).',
@@ -649,7 +653,11 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       }
       return
     }
-    if ('prop' in c || 'chance' in c || 'hour' in c) return
+    if ('prop' in c || 'chance' in c || 'hour' in c || 'fact' in c || 'topic' in c || 'calendar' in c) return
+    if ('hearts' in c) {
+      if (!ROLES.includes(c.hearts.role)) errors.push(`${where}.hearts.role invalid`)
+      return
+    }
     errors.push(`${where}: unknown condition`)
   }
   const roleRef = (r: unknown, where: string) => {
@@ -658,7 +666,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   const checkEffect = (e: Effect, where: string) => {
     if (!e || !OPS.has(e.op)) return errors.push(`${where}: unknown primitive "${(e as { op?: string })?.op}"`)
     const any = e as Record<string, unknown>
-    for (const k of ['of', 'at', 'to', 'who', 'from', 'away'] as const) if (k in any) roleRef(any[k], `${where}.${k}`)
+    for (const k of ['of', 'at', 'to', 'who', 'from', 'away', 'item'] as const) if (k in any) roleRef(any[k], `${where}.${k}`)
     if ((e.op === 'spawn' || e.op === 'transform') && !(e.op === 'spawn' ? e.type : e.into)) errors.push(`${where}: type required`)
     if (e.op === 'spawn' && !/^@prop:(actor|target|instrument)\.\w+$/.test(e.type) && !(e.type in onto.types)) errors.push(`${where}: unknown type "${e.type}"`)
     if (e.op === 'transform' && !e.into.startsWith('@prop:') && !(e.into in onto.types)) errors.push(`${where}: unknown type "${e.into}"`)

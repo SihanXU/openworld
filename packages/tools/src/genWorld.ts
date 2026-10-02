@@ -1048,7 +1048,7 @@ function main() {
     name: L('You', '你'),
     place: { on: 'none' },
     facing: 'down',
-    props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2 },
+    props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, energy: 100, maxEnergy: 100 },
   }
   const index: WorldIndex = {
     name: L('Saenvar', '赛恩瓦尔'),
