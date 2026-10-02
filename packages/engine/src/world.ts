@@ -35,6 +35,11 @@ export interface View {
   entity?: Entity
 }
 
+/** Does a base of [width, depth] standing on (ex,ey) — centred on it, reaching back (north) — cover (x,y)? */
+export function baseCovers(ex: number, ey: number, [w, d]: [number, number], x: number, y: number): boolean {
+  return x >= ex - Math.floor((w - 1) / 2) && x <= ex + Math.floor(w / 2) && y <= ey && y > ey - d
+}
+
 export class World {
   state: WorldState
   onto: OntologyIndex
@@ -194,25 +199,33 @@ export class World {
     return !d || !!d.solid
   }
 
-  private collision = new Map<string, Set<number>>()
-  /** Blocked by the ground: solid terrain, or the map's collision layer (under big things and buildings). */
-  blocked(map: string, x: number, y: number): boolean {
-    if (this.isSolidTerrain(this.terrainAt(map, x, y))) return true
-    const m = this.state.maps[map]
-    if (!m?.solid?.length) return false
-    let set = this.collision.get(map)
-    if (!set) this.collision.set(map, (set = new Set(m.solid)))
-    return set.has(y * m.width + x)
+  /** Does a thing's base (its tile, or its footprint for a bigger one) cover this tile? */
+  covers(e: Entity, map: string, x: number, y: number): boolean {
+    if (e.place.on !== 'tile' || e.place.map !== map) return false
+    return baseCovers(e.place.x, e.place.y, this.onto.resolve(e.type).footprint, x, y)
   }
 
-  /** Static passability for path planning: terrain and solid fixtures, ignoring actors. */
+  /** The solid thing whose base covers this tile, if any: one standing on it, or a bigger one in front or beside. */
+  solidAt(map: string, x: number, y: number, ignore?: Id): Entity | undefined {
+    const [mw, md] = this.onto.maxFootprint
+    for (let dy = 0; dy < md; dy++)
+      for (let dx = -Math.floor(mw / 2); dx <= Math.floor(mw / 2); dx++)
+        for (const e of this.entitiesAt(map, x + dx, y + dy)) {
+          if (e.id === ignore) continue
+          const r = this.onto.resolve(e.type)
+          if (r.kind === 'fixture' && r.solid && this.covers(e, map, x, y)) return e
+        }
+    return undefined
+  }
+
+  /** Blocked whoever moves: solid terrain, or the base of a solid thing. Nothing else blocks — no layer of the map's own. */
+  blocked(map: string, x: number, y: number, ignore?: Id): boolean {
+    return this.isSolidTerrain(this.terrainAt(map, x, y)) || !!this.solidAt(map, x, y, ignore)
+  }
+
+  /** Static passability for path planning: terrain and solid things, ignoring actors. */
   passable(map: string, x: number, y: number): boolean {
-    if (!this.inBounds(map, x, y) || this.blocked(map, x, y)) return false
-    for (const e of this.entitiesAt(map, x, y)) {
-      const r = this.onto.resolve(e.type)
-      if (r.kind === 'fixture' && r.solid) return false
-    }
-    return true
+    return this.inBounds(map, x, y) && !this.blocked(map, x, y)
   }
 
   /**
@@ -221,15 +234,11 @@ export class World {
    */
   walkable(map: string, x: number, y: number, ignore?: Id, ghostNpcs = false): boolean {
     if (!this.inBounds(map, x, y)) return false
-    if (this.blocked(map, x, y)) return false
+    if (this.blocked(map, x, y, ignore)) return false
     for (const e of this.entitiesAt(map, x, y)) {
-      if (e.id === ignore) continue
-      const r = this.onto.resolve(e.type)
-      if (r.kind === 'actor') {
-        if (ghostNpcs && e.npc) continue
-        return false
-      }
-      if (r.kind === 'fixture' && r.solid) return false
+      if (e.id === ignore || this.kindOf(e) !== 'actor') continue
+      if (ghostNpcs && e.npc) continue
+      return false
     }
     return true
   }

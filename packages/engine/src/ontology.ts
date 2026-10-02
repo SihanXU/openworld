@@ -10,6 +10,8 @@ export interface ResolvedType {
   props: Record<string, PropValue>
   sprite?: string
   solid: boolean
+  /** The base on the ground, [width, depth] (TypeDef.footprint). */
+  footprint: [number, number]
   name?: TypeDef['name']
   /** Ancestor chain from root to self (only registered ids). */
   chain: string[]
@@ -32,10 +34,22 @@ export class OntologyIndex {
     this.data = data
   }
 
+  private biggest?: [number, number]
+  /** The widest and deepest footprint of any type: how far around a tile a base can reach. */
+  get maxFootprint(): [number, number] {
+    if (!this.biggest) {
+      let [w, d] = [1, 1]
+      for (const t of Object.values(this.data.types)) if (t.footprint) [w, d] = [Math.max(w, t.footprint[0]), Math.max(d, t.footprint[1])]
+      this.biggest = [w, d]
+    }
+    return this.biggest
+  }
+
   /** Register (or replace) a type at runtime, e.g. from an accepted patch. */
   addType(def: TypeDef): void {
     this.data.types[def.id] = def
     this.cache.clear()
+    this.biggest = undefined
   }
 
   addStatus(def: StatusDef): void {
@@ -71,6 +85,7 @@ export class OntologyIndex {
     let kind: ResolvedType['kind'] = parts[0] === 'tile' ? 'tile' : (parts[0] as EntityKind)
     let sprite: string | undefined
     let solid = false
+    let footprint: [number, number] = [1, 1]
     let name: TypeDef['name']
     for (let i = 1; i <= parts.length; i++) {
       const p = parts.slice(0, i).join('/')
@@ -82,9 +97,10 @@ export class OntologyIndex {
       Object.assign(props, def.props ?? {})
       if (def.sprite) sprite = def.sprite
       if (def.solid !== undefined) solid = def.solid
+      if (def.footprint) footprint = def.footprint
       if (def.name) name = def.name
     }
-    const r: ResolvedType = { id, kind, tags: [...tags], props, sprite, solid, name, chain, depth: parts.length }
+    const r: ResolvedType = { id, kind, tags: [...tags], props, sprite, solid, footprint, name, chain, depth: parts.length }
     this.cache.set(id, r)
     return r
   }

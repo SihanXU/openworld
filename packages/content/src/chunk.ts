@@ -16,7 +16,6 @@ export interface RawMap {
   rooms?: MapData['rooms']
   music?: string
   light?: MapData['light']
-  solid?: number[]
   anchors?: MapData['anchors']
   regions?: MapData['regions']
 }
@@ -42,7 +41,6 @@ export function decodeMap(m: RawMap): MapData {
     rooms: m.rooms,
     music: m.music,
     light: m.light,
-    solid: m.solid,
     anchors: m.anchors,
     regions: m.regions,
   }

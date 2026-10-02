@@ -289,7 +289,13 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   sendRecords()
   void connectModder(init.modder ?? modderUrl)
   if (timer) clearInterval(timer)
-  timer = setInterval(loop, TICK_MS)
+  timer = setInterval(() => {
+    try {
+      loop()
+    } catch (err) {
+      post({ t: 'error', message: (err as Error).stack ?? String(err) })
+    }
+  }, TICK_MS)
 }
 
 self.onmessage = async (ev: MessageEvent<ToWorker>) => {

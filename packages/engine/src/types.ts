@@ -35,6 +35,12 @@ export interface TypeDef {
   sprite?: string
   /** Fixtures and tiles: does it block movement? */
   solid?: boolean
+  /**
+   * Fixtures bigger than a tile: the base they stand on, [width, depth] in tiles — centred on
+   * their own tile, reaching back (north) from it. A solid thing blocks all of it, and only
+   * while it is there. Default [1, 1].
+   */
+  footprint?: [number, number]
 }
 
 export type PropValue = number | string | boolean
@@ -324,8 +330,6 @@ export interface MapData {
   rooms?: { style: string; x: number; y: number; w: number; h: number }[]
   music?: string
   light?: 'outdoor' | 'indoor' | 'dark'
-  /** The collision layer: tile indices (y * width + x) that block movement whatever the terrain. */
-  solid?: number[]
   /** Named spots ('square.well') for schedules, scenes and authors. */
   anchors?: Record<string, [number, number]>
   /** Named areas [x, y, w, h] ('far_bank') for scenes and goals. */

@@ -1,18 +1,21 @@
 // A small authoring DSL for hand-crafted maps: terrain painting, prefab stamps (houses),
 // room frames, fixtures, items, creatures and portals — emitted as engine chunks — and the
 // tools of composition (docs/game-design.md §8.7): curved paths with soft edges, organic
-// shapes, fences and yards, mask-driven scattering of small things, the collision layer and
-// named anchors. There is no picture without a thing: what the map shows is terrain or an entity.
+// shapes, fences and yards, mask-driven scattering of small things, and named anchors. There is
+// no picture without a thing, and no wall without one: what the map shows and what blocks are
+// terrain or entities (a big thing blocks its type's footprint, and only while it stands).
 
 import type { AiData, Entity, Portal, PropValue, Text } from '@lsw/engine'
-import { CHAR_OF, FORM_BY_ID, makeItem, type RawChunk } from '@lsw/content'
-import { Rng } from '@lsw/engine'
+import { CHAR_OF, FORM_BY_ID, buildOntology, makeItem, type RawChunk } from '@lsw/content'
+import { OntologyIndex, Rng, baseCovers } from '@lsw/engine'
 import type { PrefabDef } from '../../../client/src/assets/types.ts'
 import { CATALOG } from '../../../client/src/assets/catalog.ts'
 
 export const rng = new Rng(4242)
 
 const SOLID_TERRAIN = new Set(['water', 'deepwater', 'tree', 'pine', 'bush', 'rock', 'wall', 'woodwall', 'roof', 'cave_wall', 'lava', 'charred_tree', 'void'])
+/** The content's types, for what the builder must know of a thing: its footprint, whether it is solid. */
+const ONTO = new OntologyIndex(buildOntology())
 
 export type Cell = [number, number]
 
@@ -27,8 +30,6 @@ export class MapBuilder {
   private seq = 0
   /** Door tiles of stamped prefabs, by a name the author chooses. */
   doors: Record<string, [number, number]> = {}
-  /** The collision layer (see MapData.solid). */
-  solid = new Set<number>()
   anchors: Record<string, [number, number]> = {}
   /** Named areas [x, y, w, h] (the goal's far bank). */
   regions: Record<string, [number, number, number, number]> = {}
@@ -98,18 +99,23 @@ export class MapBuilder {
     return [x, y]
   }
 
-  /** Mark a tile as blocking (the collision layer), whatever its terrain. */
-  block(x: number, y: number) {
-    if (this.in(x, y)) this.solid.add(y * this.w + x)
-  }
-
-  /** Is the tile open ground: walkable terrain, not blocked, no entity? */
+  /** Is the tile open ground: walkable terrain, nothing standing on it, under no thing's base? */
   free(x: number, y: number): boolean {
     if (!this.in(x, y)) return false
-    const i = y * this.w + x
-    if (this.solid.has(i)) return false
     if (SOLID_TERRAIN.has(this.get(x, y)) || this.get(x, y) === 'door') return false
-    return !this.entities.some((e) => e.place.on === 'tile' && e.place.x === x && e.place.y === y)
+    return !this.entities.some((e) => this.under(e, x, y))
+  }
+
+  /** Can one walk here: walkable terrain, and no solid thing's base covers it? */
+  walkable(x: number, y: number): boolean {
+    if (!this.in(x, y) || SOLID_TERRAIN.has(this.get(x, y))) return false
+    return !this.entities.some((e) => ONTO.resolve(e.type).solid && this.under(e, x, y))
+  }
+
+  /** Does a placed thing stand on (x,y), or cover it with its base (its type's footprint)? */
+  private under(e: Entity, x: number, y: number): boolean {
+    if (e.place.on !== 'tile') return false
+    return baseCovers(e.place.x, e.place.y, ONTO.resolve(e.type).footprint, x, y)
   }
 
   /** Any tile within `r` (Chebyshev) of (x,y) passes `pred`. */
@@ -190,8 +196,8 @@ export class MapBuilder {
   }
 
   /**
-   * Stamp a catalog prefab as scenery: the ground under it stays as painted, '#' cells join the
-   * collision layer, 'D' becomes a door (named `doorName`).
+   * Stamp a catalog prefab as scenery: the look of terrain. '#' cells become the prefab's solid
+   * terrain (a wall, a cliff) unless already solid, 'D' becomes a door (named `doorName`).
    */
   scenery(key: string, x: number, y: number, doorName?: string) {
     const def = CATALOG.prefabs[key]
@@ -199,7 +205,7 @@ export class MapBuilder {
     this.stamps.push({ key, x, y })
     def.grid.forEach((row, j) =>
       [...row].forEach((c, i) => {
-        if (c === '#') this.block(x + i, y + j)
+        if (c === '#' && this.in(x + i, y + j) && !SOLID_TERRAIN.has(this.get(x + i, y + j))) this.set(x + i, y + j, def.terrain ?? 'wall')
         if (c === 'D') {
           this.set(x + i, y + j, 'door')
           if (doorName) this.doors[doorName] = [x + i, y + j]
@@ -369,7 +375,6 @@ export class MapBuilder {
         portals: this.portals,
         stamps: this.stamps,
         rooms: this.rooms,
-        solid: this.solid.size ? [...this.solid].sort((a, b) => a - b) : undefined,
         anchors: Object.keys(this.anchors).length ? this.anchors : undefined,
         regions: Object.keys(this.regions).length ? this.regions : undefined,
         music: this.music,

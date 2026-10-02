@@ -36,7 +36,7 @@ export const FAR_BANK = 32
 export const AT = {
   spawn: [14, 17],
   campfire: [14, 16],
-  /** the tent's mouth: the tent stands three by three behind it */
+  /** the tent: three by three, standing on this, its front middle */
   tent: [10, 14],
   chest: [12, 14],
   cart: [20, 14],
@@ -99,7 +99,6 @@ function buildMap(): MapBuilder {
   clump(m, 24.5, 1.5, 2.6, 0.85)
   // the hollow: a rock mound with a cave mouth, bare trodden earth before it, bones and stones
   m.organic(5.5, 5.6, 3.2, 1.8, 'dirt', { only: grass })
-  for (const [x, y] of [[4, 2], [5, 2], [6, 2], [4, 3], [5, 3], [6, 3], [4, 4], [6, 4]] as const) m.block(x, y)
   m.item('item/material/bone', 3, 6)
   m.item('item/material/bone', 7, 7)
   m.fixture('fixture/nature/boulder', 2, 4)
@@ -127,9 +126,8 @@ function buildMap(): MapBuilder {
   // the landing and the far one: a short pier out into the pool on each side, the gap the ferry crossed
   for (const [x, y] of [[26, 16], [27, 16], [31, 16], [32, 16]] as const) m.set(x, y, 'bridge')
   // ------------------------------------------------------------ the camp
-  // the tent is a thing, not a stamp: drawn three by three over its mouth, its walls in the way
+  // the tent is a thing, not a stamp: three by three, in the way while it stands
   m.fixture('fixture/tent', ...AT.tent, { id: 'ford.tent' })
-  for (let dy = -2; dy <= 0; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) m.block(AT.tent[0] + dx, AT.tent[1] + dy)
   m.fixture('fixture/light/campfire', ...AT.campfire, { id: 'ford.campfire', statuses: { lit: -1 } })
   m.fixture('fixture/container/chest', ...AT.chest, { id: 'ford.chest', props: { owner: 'npc.hesper', capacity: 8 } }, [
     { form: 'item/tool/rope', props: { owner: '' } },
@@ -138,7 +136,6 @@ function buildMap(): MapBuilder {
   // around the fire: a log bench to sit on, a rack for the pot; the woodpile and the chopping stump by the tent
   // anything that looks like a thing is one: every input reaches it (requirement F11)
   m.fixture('fixture/furniture/bench/log', 14, 18)
-  for (const x of [13, 15]) m.block(x, 18)
   m.fixture('fixture/furniture/rack', 17, 15)
   m.fixture('fixture/nature/logpile/stack', 8, 15)
   m.fixture('fixture/nature/stump', 6, 16)
@@ -306,7 +303,7 @@ export function buildFord(): FordWorld {
   const m = buildMap()
   for (const [name, [x, y]] of Object.entries(m.anchors)) {
     const t = m.get(x, y)
-    if (SOLID.has(t) || m.solid.has(y * m.w + x)) throw new Error(`anchor ${name} at ${x},${y} is not walkable (${t})`)
+    if (SOLID.has(t) || !m.walkable(x, y)) throw new Error(`anchor ${name} at ${x},${y} is not walkable (${t})`)
   }
   const at = (name: string): Pos => {
     const a = m.anchors[name]
