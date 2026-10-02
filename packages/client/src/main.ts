@@ -140,6 +140,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       void kvSet('library', m.library)
       hud.log(hud.t('saved'), 'good')
       break
+    case 'library':
+      void kvSet('library', m.library)
+      break
     case 'modder':
       hud.setModder(m)
       break

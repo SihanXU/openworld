@@ -263,6 +263,7 @@ function loop(): void {
   lastTickMs = performance.now() - t0
   post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length } })
   if (eng.lib.version !== lastRecordsVersion || frame.fx.some((f) => f.t === 'undefined' || f.t === 'patched')) {
+    if (eng.lib.version !== lastRecordsVersion) post({ t: 'library', library: eng.lib.toJSON() })
     lastRecordsVersion = eng.lib.version
     sendRecords()
   }

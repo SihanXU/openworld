@@ -46,6 +46,8 @@ export type FromWorker =
   | { t: 'spec'; spec: ModSpec }
   | { t: 'validation'; id?: string; result: ValidationResult }
   | { t: 'saved'; save: SaveData; library: LibraryData }
+  /** The library changed (a patch was accepted or removed): keep it at once, not at the next save. */
+  | { t: 'library'; library: LibraryData }
   | { t: 'loading'; what: string }
   | { t: 'modder'; online: boolean; url?: string; model?: string | null }
   | { t: 'error'; message: string }

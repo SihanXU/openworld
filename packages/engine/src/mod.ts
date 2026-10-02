@@ -133,6 +133,10 @@ export interface UndefinedRecord {
   request: ModRequest
   event: GameEvent
   deadline: number
+  /** The interaction's class (verb, target kind, instrument kind): what counts as "the same action". */
+  signature: string
+  /** A reply from the provider is still on its way (it may arrive after the fallback). */
+  awaiting?: boolean
   patch?: Patch
   diagnostics?: string[]
   rules?: string[]
@@ -234,6 +238,25 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
 
 const WINDOW = 3 // tiles around the target in the scenario (7x7)
 const TIMEOUT_TICKS = 100 // 10 s: then fall back (the record stays patchable)
+/**
+ * How many requests one class of interaction may raise in a session. An answered class is a
+ * rule and never asks again; an unanswered one (timed out, rejected, dismissed) asks once more,
+ * then simply does nothing — the world does not ask the same question forever.
+ */
+const MAX_ASKS = 2
+
+/** The class of an interaction, instances aside: verb, what is acted on, what is held. */
+export function signatureOf(eng: Engine, ev: GameEvent): string {
+  const w = eng.world
+  const kind = (r: Ref | undefined): string => {
+    if (!r) return 'hand'
+    if ('tile' in r) return `tile:${w.terrainAt(r.tile.map, r.tile.x, r.tile.y)}`
+    const e = w.get(r.e)
+    if (!e) return '?'
+    return e.id === w.state.player && r === ev.roles.target ? 'self' : e.type
+  }
+  return `${ev.verb}|${kind(ev.roles.target)}|${kind(ev.roles.instrument)}`
+}
 
 export class ModPort implements UndefinedSink {
   provider?: ModProvider
@@ -244,6 +267,8 @@ export class ModPort implements UndefinedSink {
   /** How long an interaction waits for a patch before the fallback runs (a late patch still applies). */
   timeoutTicks = TIMEOUT_TICKS
   private seq = 0
+  /** Requests raised per interaction class this session (MAX_ASKS). */
+  private asks = new Map<string, number>()
 
   constructor(private eng: Engine) {
     eng.undefinedSink = this
@@ -260,9 +285,17 @@ export class ModPort implements UndefinedSink {
   raise(ev: GameEvent): void {
     const eng = this.eng
     const w = eng.world
+    // the same question is asked once at a time, and not forever
+    const signature = signatureOf(eng, ev)
+    const open = this.records.some((r) => r.signature === signature && (r.status === 'pending' || r.awaiting))
+    if (open || (this.asks.get(signature) ?? 0) >= MAX_ASKS) {
+      w.fx.push({ t: 'log', text: attemptLine(eng, ev) })
+      return eng.fallback(ev)
+    }
+    this.asks.set(signature, (this.asks.get(signature) ?? 0) + 1)
     const id = `req-${w.state.seed.toString(36)}-${(++this.seq).toString(36)}-${w.state.tick.toString(36)}`
     const request = buildRequest(eng, ev, id)
-    const rec: UndefinedRecord = { id, tick: w.state.tick, status: 'pending', request, event: ev, deadline: w.state.tick + this.timeoutTicks }
+    const rec: UndefinedRecord = { id, tick: w.state.tick, status: 'pending', request, event: ev, deadline: w.state.tick + this.timeoutTicks, signature }
     this.records.push(rec)
     for (const r of [ev.roles.target, ev.roles.instrument]) {
       const e = r && 'e' in r ? w.get(r.e) : undefined
@@ -273,10 +306,17 @@ export class ModPort implements UndefinedSink {
     w.fx.push({ t: 'undefined', request: id, summary: request.summary })
     this.onChange?.()
     if (this.provider) {
+      rec.awaiting = true
       this.provider
         .resolve(request, this.spec())
-        .then((p) => (p ? this.submit(id, p) : this.fallback(id)))
-        .catch(() => this.fallback(id))
+        .then((p) => {
+          rec.awaiting = false
+          return p ? this.submit(id, p) : this.fallback(id)
+        })
+        .catch(() => {
+          rec.awaiting = false
+          this.fallback(id)
+        })
     }
   }
 
@@ -384,7 +424,10 @@ export class ModPort implements UndefinedSink {
     return res
   }
 
+  /** A person answered "nothing happens": the class is not asked about again this session. */
   dismiss(id: string): void {
+    const r = this.get(id)
+    if (r) this.asks.set(r.signature, MAX_ASKS)
     this.fallback(id)
   }
 }

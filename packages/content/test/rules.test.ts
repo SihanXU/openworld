@@ -305,6 +305,34 @@ describe('the Mod port', () => {
     expect(eng.lib.rules.has('patch/rope-binds-creature')).toBe(true)
   })
 
+  it('asks about one class of interaction once at a time, and not forever', () => {
+    const eng = buildSandbox(ropeScenario(), onto, lib())
+    const port = new ModPort(eng)
+    eng.interact('interact', 'actor', { e: 'slime' })
+    expect(port.records).toHaveLength(1)
+    // while the question is open, the same action does not ask again
+    for (let i = 0; i < 120; i++) eng.tick()
+    expect(port.records[0].status).toBe('fallback')
+    // unanswered: asked once more, then the class simply does nothing this session
+    eng.interact('interact', 'actor', { e: 'slime' })
+    for (let i = 0; i < 120; i++) eng.tick()
+    eng.interact('interact', 'actor', { e: 'slime' })
+    expect(port.records).toHaveLength(2)
+    // a late patch for either record still teaches the world
+    expect(port.submit(port.records[1].id, tiePatch()).ok).toBe(true)
+    expect(port.records[1].status).toBe('patched')
+    expect(eng.lib.rules.has('patch/rope-binds-creature')).toBe(true)
+  })
+
+  it('a dismissed question is not asked again', () => {
+    const eng = buildSandbox(ropeScenario(), onto, lib())
+    const port = new ModPort(eng)
+    eng.interact('interact', 'actor', { e: 'slime' })
+    port.dismiss(port.records[0].id)
+    eng.interact('interact', 'actor', { e: 'slime' })
+    expect(port.records).toHaveLength(1)
+  })
+
   it('rejects unknown statuses, failing tests, and equal-specificity conflicts', () => {
     const base = tiePatch()
     const bad1 = structuredClone(base)
