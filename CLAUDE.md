@@ -76,8 +76,11 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - Rules address classes (types/tags/statuses), never instances, unless unavoidable.
 - Specificity decides which rule fires: (instance-bound, type depth, constraint count, priority).
   Base rules must not tie at equal specificity on overlapping patterns — the validator checks it.
-- Only player interactions can be *undefined*; hits/ticks/status events simply have no effect
-  when unmatched.
+- Undefined behaviour has many sources (design.md §5.4): the player's actions, the physical
+  world (status/element cascades, creatures), and the social world (witnesses, blocked goals,
+  invalidated content). Built so far: player interactions only. World events ask only through
+  the salience filter (§5.6), never freeze the world, and their patches obey §5.8 (no harm to
+  persons, quests survive).
 - Only the player steps onto portals; NPCs transfer from the adjacent tile.
 - After changing rules, run `npm run coverage` and commit the refreshed baseline with them; a
   finished milestone records its numbers in its row of `docs/roadmap.md` §3. The coverage test
