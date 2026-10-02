@@ -3,7 +3,7 @@
 // the latency bench, every malformed first answer had a correct rule inside the wrong wrapper.
 // Each fix is recorded on the attempt, so the episode shows what was changed and why.
 
-import type { Artifact, Cond, Effect, ModRequest, Patch, Rule, Tree, ValidationResult } from '@lsw/engine'
+import { PRIMITIVES, type Artifact, type Cond, type Effect, type ModRequest, type Patch, type Rule, type Tree, type ValidationResult } from '@lsw/engine'
 
 const looksLikeRule = (x: Record<string, unknown>) => typeof x.on === 'string' && (!!x.tree || Array.isArray(x.do))
 
@@ -51,13 +51,33 @@ export function normalizePatch(x: unknown): { patch?: Patch; fixes: string[] } {
   return { patch: { ...(o as object), artifacts } as Patch, fixes }
 }
 
-/** A rule with `do` (and maybe `if`) beside its tree instead of in it. */
+/** A rule with `do` (and maybe `if`) beside its tree instead of in it; effects keyed by their op. */
 function treeOf(r: Record<string, unknown>, fixes: string[]): Rule {
-  if (r.tree || !Array.isArray(r.do)) return r as unknown as Rule
+  const id = String(r.id)
+  if (r.tree) return { ...(r as object), tree: flatEffects(r.tree as Tree, id, fixes) } as Rule
+  if (!Array.isArray(r.do)) return r as unknown as Rule
   const { do: effects, if: cond, ...rest } = r
-  const leaf: Tree = { do: effects as Effect[] }
-  fixes.push(`moved the effects of "${String(r.id)}" into its tree`)
+  const leaf = flatEffects({ do: effects as Effect[] }, id, fixes)
+  fixes.push(`moved the effects of "${id}" into its tree`)
   return { ...(rest as object), tree: cond ? { if: cond as Cond, then: leaf } : leaf } as Rule
+}
+
+/** An effect written as `{spawn: {type, at}}` is `{op: 'spawn', type, at}`: the op is its only key. */
+function flatEffects(t: Tree, id: string, fixes: string[]): Tree {
+  if (!t || typeof t !== 'object') return t
+  if ('if' in t) return { ...t, then: flatEffects(t.then, id, fixes), ...(t.else !== undefined ? { else: flatEffects(t.else, id, fixes) } : {}) }
+  if (!('do' in t) || !Array.isArray(t.do)) return t
+  let n = 0
+  const effects = t.do.map((e) => {
+    const o = e as unknown as Record<string, unknown>
+    const keys = o && typeof o === 'object' && !('op' in o) ? Object.keys(o) : []
+    if (keys.length !== 1 || !(keys[0] in PRIMITIVES)) return e
+    const args = o[keys[0]]
+    n++
+    return { op: keys[0], ...(args && typeof args === 'object' ? args : {}) } as Effect
+  })
+  if (n) fixes.push(`flattened ${n} effect(s) of "${id}" written as {op: {...}} into {op, ...}`)
+  return n ? { ...t, do: effects } : t
 }
 
 /**

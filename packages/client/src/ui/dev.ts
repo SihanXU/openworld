@@ -5,6 +5,9 @@
 import type { Frame, ModSpec, Patch, Rule, ValidationResult, WorldIndex } from '@lsw/engine'
 import type { LibraryView, RecordView } from '../protocol.ts'
 import { $, esc, locale } from './common.ts'
+import { template } from './template.ts'
+
+export { template }
 
 export interface DevSend {
   patch(id: string | undefined, patch: Patch): void
@@ -229,31 +232,6 @@ function ruleCard(r: Rule): string {
     ${r.doc ? `<div class="muted">${esc(r.doc)}</div>` : ''}<pre>${esc(JSON.stringify({ host: r.host, tree: r.tree }, null, 2))}</pre></div>`
 }
 
-/** A starting-point patch for a record: a rule for the host's class, a visible outcome, and the triggering case as a test. */
-export function template(r: RecordView): Patch {
-  const req = r.request
-  const ev = req.event
-  const host = ev.host
-  const leaf = (t?: { type: string }) => (t ? t.type.split('/').pop()! : 'thing')
-  const hostType = !host ? undefined : host.kind === 'tile' ? host.type : host.typeChain.length > 1 ? host.typeChain[host.typeChain.length - 2] : host.type
-  return {
-    author: 'human',
-    note: `for ${req.summary}`,
-    artifacts: [
-      {
-        kind: 'rule',
-        rule: {
-          id: `patch/${leaf(host)}-${ev.kind.replace('/', '-')}`,
-          host: hostType ? { type: hostType } : { kind: 'fixture' },
-          on: ev.kind,
-          doc: 'TODO: one-line description',
-          tree: { do: [{ op: 'vfx', fx: 'sparkle' }, { op: 'log', text: { en: 'TODO: what happens', zh: 'TODO：发生了什么' } }] },
-          tests: [{ name: 'the triggering event', given: req.scenario, expect: [{ key: 'host', exists: true }] }],
-        },
-      },
-    ],
-  }
-}
 
 /** The request + spec as a self-contained prompt for any LLM. */
 export function llmPrompt(r: RecordView, spec?: ModSpec): string {

@@ -255,7 +255,7 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
     ],
     events: EVENTS,
     impulses: IMPULSES,
-    primitives: { ...PRIMITIVES, _roles: 'RoleRef = host | actor | target | instrument | other | item | source | tileOf:<role>', _amount: 'Amount = number | {param, mul?, add?} | {prop, of: role, mul?, add?}' },
+    primitives: { _shape: 'Each effect is ONE flat object naming its op: {"op": "spawn", "type": "item/tool/rope", "at": "target"} — never {"spawn": {…}}. Below, `name {args}` lists the fields beside op.', ...PRIMITIVES, _roles: 'RoleRef = host | actor | target | instrument | other | item | source | tileOf:<role>', _amount: 'Amount = number | {param, mul?, add?} | {prop, of: role, mul?, add?}' },
     expectations: [
       '{key, hasStatus} {key, lacksStatus} {key, isType} {key, destroyed:true} {key, exists:true}',
       '{key, propGt:[k,n]} {key, propLt:[k,n]} {tile:[x,y], terrain} {tile:[x,y], hasStatus} {spawned:type}',
