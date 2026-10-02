@@ -86,6 +86,7 @@ export function scenarioEvent(sc: Scenario): GameEvent {
     element: e.element,
     power: e.power,
     status: e.status,
+    strict: e.strict,
   }
 }
 

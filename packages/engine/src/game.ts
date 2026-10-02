@@ -56,6 +56,7 @@ export class Game {
   constructor(engine: Engine) {
     this.engine = engine
     this.mods = new ModPort(engine)
+    engine.controls.magnetic = true
   }
 
   static create(index: WorldIndex, ontology: Ontology, library: RuleLibrary): Game {

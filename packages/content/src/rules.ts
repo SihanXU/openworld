@@ -24,6 +24,7 @@ const TAKING: Rule[] = [
   }),
   base({
     id: 'core/take-nothing',
+    fallback: true,
     doc: 'Nothing loose on this tile.',
     on: 'interaction',
     when: { verb: ['take'], target: { kind: 'tile' } },
@@ -72,6 +73,7 @@ const TAKING: Rule[] = [
   }),
   base({
     id: 'core/take-fixed',
+    fallback: true,
     doc: 'Fixtures stay where they are (containers answer for themselves).',
     on: 'interaction',
     when: { verb: ['take'], target: { kind: 'fixture' } },
@@ -140,6 +142,7 @@ const HANDS: Rule[] = [
   }),
   base({
     id: 'core/sleep',
+    confirm: { en: 'Sleep until morning?', zh: '要睡到明天早上吗？' },
     doc: 'Lie down in a bed: sleep until morning.',
     on: 'interaction',
     when: { verb: ['interact'], actor: { player: true }, target: { type: 'fixture/furniture/bed' }, instrument: EMPTY_HAND },
@@ -147,6 +150,7 @@ const HANDS: Rule[] = [
   }),
   base({
     id: 'core/examine-creature',
+    fallback: true,
     on: 'interaction',
     when: { verb: ['interact'], target: { type: 'actor/creature' }, instrument: EMPTY_HAND },
     do: [log('{target} eyes you warily.', '{target}警惕地盯着你。')],
@@ -171,24 +175,28 @@ const HANDS: Rule[] = [
   }),
   base({
     id: 'core/examine-fixture',
+    fallback: true,
     on: 'interaction',
     when: { verb: ['interact'], target: { kind: 'fixture' }, instrument: EMPTY_HAND },
     do: [log('It is {target}.', '这是{target}。')],
   }),
   base({
     id: 'core/examine-item',
+    fallback: true,
     on: 'interaction',
     when: { verb: ['interact'], target: { kind: 'item' }, instrument: EMPTY_HAND },
     do: [log('{target}.', '{target}。')],
   }),
   base({
     id: 'core/examine-ground',
+    fallback: true,
     on: 'interaction',
     when: { verb: ['interact'], target: { kind: 'tile' }, instrument: EMPTY_HAND },
     do: [log('{target}.', '{target}。')],
   }),
   base({
     id: 'core/examine-self',
+    fallback: true,
     on: 'interaction',
     when: { verb: ['interact'], target: { player: true }, instrument: EMPTY_HAND },
     do: [say('actor', 'I feel fine.', '我感觉还行。')],
@@ -208,6 +216,7 @@ const USING: Rule[] = [
   }),
   base({
     id: 'core/eat',
+    confirm: { en: 'Eat {instrument}?', zh: '要吃掉{instrument}吗？' },
     on: 'interaction',
     when: { verb: ['interact'], target: { player: true }, instrument: { tags: ['edible'] } },
     do: [
@@ -220,12 +229,14 @@ const USING: Rule[] = [
   }),
   base({
     id: 'core/drink',
+    confirm: { en: 'Drink {instrument}?', zh: '要喝掉{instrument}吗？' },
     on: 'interaction',
     when: { verb: ['interact'], target: { player: true }, instrument: { tags: ['drinkable'] } },
     do: [{ op: 'heal', of: 'actor', amount: { prop: 'heal', of: 'instrument', add: 1 } }, vfx('heal', 'actor'), log('You drink {instrument}.', '你喝下了{instrument}。'), { op: 'destroy', of: 'instrument' }],
   }),
   base({
     id: 'core/drink-water',
+    confirm: { en: 'Drink {instrument}?', zh: '要喝掉{instrument}吗？' },
     on: 'interaction',
     priority: 1,
     when: { verb: ['interact'], target: { player: true }, instrument: { tags: ['liquid:water'] } },

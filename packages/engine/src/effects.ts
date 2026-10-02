@@ -130,7 +130,10 @@ export class EffectRunner {
         const n = eff.count === undefined ? 1 : Math.max(0, Math.floor(this.amount(ev, eff.count)))
         for (let i = 0; i < n; i++) {
           const place = this.placeFor(at, into)
-          if (place) w.create(type, place)
+          if (!place) continue
+          const made = w.create(type, place)
+          // an item a rule drops on the ground pops out for the player's magnet
+          if (place.on === 'tile' && w.kindOf(made) === 'item') made.dropped = true
         }
         return
       }
@@ -287,7 +290,7 @@ export class EffectRunner {
         if (!e || !p) return
         for (const id of [...(e.contents ?? [])]) {
           const c = w.get(id)
-          if (c) w.place(c, { on: 'tile', map: p.map, x: p.x, y: p.y })
+          if (c) (w.place(c, { on: 'tile', map: p.map, x: p.x, y: p.y }), (c.dropped = true))
         }
         return
       }

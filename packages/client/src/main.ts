@@ -1,23 +1,19 @@
-// Boot: Phaser (render) + engine Worker (simulation) + DOM HUD, wired by messages.
+// Boot: Phaser (render) + engine Worker (simulation) + DOM UI, wired by messages. The input
+// follows Stardew Valley (design.md §5.2): two keys, Action (X / right click) and Use
+// (C / left click), aimed at the mouse's neighbour tile or the tile in front.
 
 import Phaser from 'phaser'
-import type { Dir, ItemInfo, LibraryData, SaveData, Text } from '@lsw/engine'
+import type { Dir, ItemInfo, LibraryData, SaveData } from '@lsw/engine'
 import { CATALOG } from './assets/catalog.ts'
-import { Hud } from './hud.ts'
-import type { FromWorker, ToWorker } from './protocol.ts'
+import type { FromWorker, Tile, ToWorker } from './protocol.ts'
 import { WorldScene } from './render/scene.ts'
-import { stacks } from './stacks.ts'
 import { kvGet, kvSet } from './storage.ts'
+import { locale, t } from './ui/common.ts'
+import { ModConsole } from './ui/dev.ts'
+import { Hud } from './ui/hud.ts'
+import { Menu, type Tab } from './ui/menu.ts'
 import './styles.css'
-
-const REGION_NAMES: Record<string, Text> = {
-  frostfang: { en: 'Frostfang Hold', zh: '霜牙领' },
-  crownlands: { en: 'Argent Crownlands', zh: '银冠京畿' },
-  tidewatch: { en: 'Tidewatch', zh: '潮汐湾' },
-  verdant: { en: 'Verdant Reach', zh: '苍翠林域' },
-  ashen: { en: 'Ashen Waste', zh: '灰烬荒原' },
-  ringed: { en: 'the Ringed Ruins', zh: '环冠遗墟' },
-}
+import './ui/game.css'
 
 // ?world=saenvar loads the 460-map generated world instead of the hand-crafted demo
 const PARAMS = new URLSearchParams(location.search)
@@ -29,25 +25,57 @@ const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'modu
 const send = (m: ToWorker) => worker.postMessage(m)
 // dev-only hook for scripted testing from the console
 if (import.meta.env.DEV) (window as unknown as { lsw: unknown }).lsw = { send, scene }
+document.documentElement.lang = locale.value === 'zh' ? 'zh-CN' : 'en'
+
+const dev = new ModConsole({
+  patch: (id, patch) => send({ t: 'patch', id, patch }),
+  dismiss: (id) => send({ t: 'dismiss', id }),
+  removeRule: (id) => send({ t: 'removeRule', id }),
+  spec: () => send({ t: 'spec' }),
+  save: () => send({ t: 'save' }),
+  newGame: () => send({ t: 'newGame' }),
+})
+
+const menu = new Menu({
+  swap: (a, b) => send({ t: 'swap', a, b }),
+  drop: (slot, all) => send({ t: 'drop', slot, all }),
+  organize: () => send({ t: 'organize' }),
+  transfer: (from, item, all) => send({ t: 'transfer', from, item, all }),
+  closePanel: () => send({ t: 'closePanel' }),
+  readMail: (id) => send({ t: 'readMail', id }),
+  save: () => send({ t: 'save' }),
+  newGame: () => send({ t: 'newGame' }),
+  toggleLocale: () => {
+    locale.set(locale.value === 'en' ? 'zh' : 'en')
+    hud.relabel()
+  },
+  toggleSound: () => hud.toggleSound(),
+  devConsole: () => dev.toggle(true),
+})
 
 const hud = new Hud(
   {
-    hold: (item) => send({ t: 'hold', item }),
-    patch: (id, patch) => send({ t: 'patch', id, patch }),
-    dismiss: (id) => send({ t: 'dismiss', id }),
-    removeRule: (id) => send({ t: 'removeRule', id }),
-    spec: () => send({ t: 'spec' }),
-    save: () => send({ t: 'save' }),
-    newGame: () => send({ t: 'newGame' }),
+    select: (slot) => send({ t: 'select', slot }),
+    answer: (yes) => send({ t: 'answer', yes }),
     advance: () => send({ t: 'advance' }),
-    readMail: (id) => send({ t: 'readMail', id }),
+    openMenu: (tab) => menu.open(tab as Tab | undefined),
+    openJournal: () => (menu.openJournal(), hud.seenJournal()),
   },
   (id) => scene.screenOf(id),
   (x, y) => scene.screenOfTile(x, y),
 )
+menu.muted = hud.muted
+menu.currentMap = () => scene.currentMap()
+hud.threadDoc = (rule) => menu.library?.patches.find((r) => r.id === rule)?.doc
 
 scene.hooks = {
-  onFrame: (f) => hud.onFrame(f),
+  onFrame: (f) => {
+    hud.onFrame(f)
+    menu.onFrame(f)
+    dev.onFrame(f)
+    if (import.meta.env.DEV) (window as unknown as { lsw: { frame?: unknown } }).lsw.frame = f
+    syncPause()
+  },
   onFx: (fx, f) => hud.onFx(fx, f),
   onReady: () => scene.setMuted(hud.muted),
 }
@@ -65,26 +93,16 @@ function crop(img: string, x: number, y: number, w: number, h: number): HTMLCanv
   g.drawImage(src, x, y, w, h, 0, 0, w, h)
   return c
 }
-hud.facesetOf = (id) => {
+const faceset = (id: string) => {
   const path = scene.facesetOf(id)
   if (!path || !scene.textures.exists(path)) return undefined
   const src = scene.textures.get(path).getSourceImage() as HTMLImageElement
   return crop(path, 0, 0, src.width, src.height)
 }
+hud.facesetOf = faceset
+menu.facesetOf = faceset
 
-new Phaser.Game({
-  type: Phaser.WEBGL,
-  parent: 'game',
-  pixelArt: true,
-  backgroundColor: '#0b0d12',
-  scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
-  scene: [scene],
-  input: { keyboard: false },
-})
-
-// ------------------------------------------------------------------ icons in the DOM
-
-hud.paintIcons = (items: ItemInfo[]) => {
+const paintIcons = (items: ItemInfo[]) => {
   for (const it of items) {
     const d = CATALOG.items[it.sprite]
     if (!d) continue
@@ -98,7 +116,28 @@ hud.paintIcons = (items: ItemInfo[]) => {
       slot.replaceChildren(copy)
     })
   }
+  // portraits in the Social tab, by character look
+  document.querySelectorAll<HTMLElement>('[data-look]:empty').forEach((el) => {
+    const a = CATALOG.characters[el.dataset.look!]
+    const path = a?.faceset ? `${a.dir}/${a.faceset}` : undefined
+    if (!path || !scene.textures.exists(path)) return
+    const src = scene.textures.get(path).getSourceImage() as HTMLImageElement
+    const c = crop(path, 0, 0, src.width, src.height)
+    if (c) el.appendChild(c)
+  })
 }
+hud.paintIcons = paintIcons
+menu.paintIcons = paintIcons
+
+new Phaser.Game({
+  type: Phaser.WEBGL,
+  parent: 'game',
+  pixelArt: true,
+  backgroundColor: '#0b0d12',
+  scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
+  scene: [scene],
+  input: { keyboard: false },
+})
 
 // ------------------------------------------------------------------ worker messages
 
@@ -111,6 +150,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
   const m = ev.data
   switch (m.t) {
     case 'ready':
+      dev.stats = m.stats
       if (introShown) break // a later 'ready' is a restart (new game): no intro again
       introShown = true
       document.getElementById('loading')?.remove()
@@ -119,91 +159,129 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       })
       break
     case 'map':
-      hud.setMapName(m.map.name, m.map.region ? hud.tx(REGION_NAMES[m.map.region]) : undefined)
+      hud.setMapName(m.map.name)
       scene.setMap(m.map)
       break
     case 'frame':
       scene.applyFrame(m.frame)
-      hud.setPerf(m.perf, fps)
+      dev.setPerf(m.perf, fps)
       break
     case 'records':
-      hud.setRecords(m.records, m.library)
+      dev.setRecords(m.records, m.library)
+      menu.library = m.library
       break
     case 'spec':
-      hud.setSpec(m.spec)
+      dev.setSpec(m.spec)
       break
     case 'validation':
-      hud.showValidation(m.id, m.result)
+      dev.showValidation(m.id, m.result)
       break
     case 'saved':
       void kvSet(`save:${WORLD}`, m.save)
       void kvSet('library', m.library)
-      hud.log(hud.t('saved'), 'good')
+      hud.message(t('saved'), 'good')
       break
     case 'library':
       void kvSet('library', m.library)
       break
     case 'modder':
-      hud.setModder(m)
+      dev.setModder(m)
+      hud.modderOnline = m.online
       break
     case 'loading':
-      hud.hint(`${hud.t('loading')} ${m.what}…`)
-      setTimeout(() => hud.hint(''), 800)
       break
     case 'error':
       console.error(m.message)
-      hud.log(m.message.split('\n')[0], 'warn')
+      if (import.meta.env.DEV) hud.message(m.message.split('\n')[0], 'warn')
       break
   }
 }
 
 async function boot() {
   const [save, library] = await Promise.all([kvGet<SaveData>(`save:${WORLD}`), kvGet<LibraryData>('library')])
-  // ?world=saenvar loads the 460-map generated world instead of the hand-crafted demo
   const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
   send({ t: 'init', base, save, library, modder: MODDER })
 }
 void boot()
 
-// ------------------------------------------------------------------ input
+// ------------------------------------------------------------------ time stops while something is open
+
+let pausedNow = false
+function syncPause(): void {
+  const on = menu.anyOpen || hud.dialogOpen || dev.open || !document.getElementById('intro')!.classList.contains('hidden')
+  if (on !== pausedNow) {
+    pausedNow = on
+    send({ t: 'pause', on })
+    if (on) stopMoving()
+  }
+}
+
+// ------------------------------------------------------------------ keyboard
 
 const KEY_DIR: Record<string, Dir> = {
-  ArrowUp: 'up', KeyW: 'up',
-  ArrowDown: 'down', KeyS: 'down',
-  ArrowLeft: 'left', KeyA: 'left',
-  ArrowRight: 'right', KeyD: 'right',
+  ArrowUp: 'up',
+  KeyW: 'up',
+  ArrowDown: 'down',
+  KeyS: 'down',
+  ArrowLeft: 'left',
+  KeyA: 'left',
+  ArrowRight: 'right',
+  KeyD: 'right',
 }
+const SLOT_CODES = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus', 'Equal']
 const held: Dir[] = []
 let sentDir: Dir | null = null
+let shift = false
 const syncMove = () => {
   const d = held.length ? held[held.length - 1] : null
   if (d !== sentDir) {
     sentDir = d
-    send({ t: 'move', dir: d })
+    send({ t: 'move', dir: d, walk: shift })
   }
 }
-let pack: ItemInfo[][] = []
-const origOnFrame = scene.hooks.onFrame
-scene.hooks.onFrame = (f) => {
-  pack = stacks(f.player.inventory)
-  if (import.meta.env.DEV) (window as unknown as { lsw: { frame?: unknown } }).lsw.frame = f
-  origOnFrame(f)
+const stopMoving = () => {
+  held.length = 0
+  syncMove()
+}
+
+const typing = () => {
+  const a = document.activeElement
+  return !!a && (a.tagName === 'TEXTAREA' || a.tagName === 'INPUT')
 }
 
 window.addEventListener('keydown', (e) => {
-  if (hud.typing) {
+  if (typing()) {
     if (e.key === 'Escape') (document.activeElement as HTMLElement).blur()
     return
   }
   if (!document.getElementById('intro')!.classList.contains('hidden')) return
-  if (hud.dialogOpen && ['KeyE', 'Space', 'Enter', 'Escape'].includes(e.code)) {
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') shift = true
+  // a yes/no question: arrows choose, Action / Enter confirm, Esc says no
+  if (hud.questionShown) {
     e.preventDefault()
-    return hud.closeDialog()
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD', 'KeyW', 'KeyS'].includes(e.code)) return hud.moveChoice()
+    if (['KeyX', 'Enter', 'Space', 'KeyC'].includes(e.code)) return hud.confirmChoice()
+    if (e.code === 'KeyY') return hud.answer(true)
+    if (e.code === 'KeyN' || e.code === 'Escape') return hud.answer(false)
+    return
   }
-  // Facing an open container, ↑↓ choose in its panel (WASD still walk; walking away closes it).
-  if (hud.boxOpen && (e.code === 'ArrowUp' || e.code === 'ArrowDown')) {
+  // an open dialogue: Action, Use, Enter, Space or Esc moves it on
+  if (hud.dialogOpen && ['KeyX', 'KeyC', 'Enter', 'Space', 'Escape', 'KeyE'].includes(e.code)) {
     e.preventDefault()
-    return hud.boxMove(e.code === 'ArrowUp' ? -1 : 1)
+    return hud.advanceDialog()
+  }
+  if (e.code === 'Backquote') return dev.toggle()
+  // menus: Esc / E close what is open, or open the menu
+  if (e.code === 'Escape' || e.code === 'KeyE') {
+    e.preventDefault()
+    if (dev.open) return dev.toggle(false)
+    if (menu.anyOpen) return menu.close()
+    return menu.open('inventory')
+  }
+  if (menu.anyOpen || dev.open) {
+    if (e.code === 'KeyF' && menu.journalOpen) return menu.close()
+    if (e.code === 'KeyM' && menu.menuOpen) return menu.toggle('map')
+    return
   }
   const dir = KEY_DIR[e.code]
   if (dir) {
@@ -212,58 +290,75 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault()
     return
   }
-  if (e.repeat) return
+  if (e.repeat && !['KeyC', 'Space'].includes(e.code)) return
   switch (e.code) {
-    case 'KeyE':
-      return send({ t: 'act', verb: 'interact' })
-    case 'KeyF':
-      return send({ t: 'act', verb: 'take', item: hud.boxOpen ? hud.boxPick() : undefined })
-    case 'KeyG':
-      return send({ t: 'act', verb: 'put' })
-    case 'KeyU':
-      return send({ t: 'act', verb: 'interact', self: true })
-    case 'Space':
-    case 'KeyJ':
+    case 'KeyX':
+    case 'Enter':
       e.preventDefault()
-      return send({ t: 'attack' })
-    case 'KeyQ':
-    case 'Digit0':
-      return send({ t: 'hold', item: undefined })
-    case 'Backquote':
-      if (!import.meta.env.DEV) return
-      return hud.toggleMods()
-    case 'KeyH':
-      return hud.toggle('#help')
-    case 'KeyL':
-      return hud.toggleLocale()
+      return send({ t: 'action', tile: mouseTile })
+    case 'KeyC':
+    case 'Space':
+      e.preventDefault()
+      return send({ t: 'use', tile: mouseTile })
+    case 'Tab':
+      e.preventDefault()
+      return send({ t: 'row' })
+    case 'KeyF':
+      return (menu.openJournal(), hud.seenJournal())
     case 'KeyM':
-      return hud.toggleSound()
-    case 'KeyB':
-      return hud.toggleThreads()
-    case 'KeyO':
-      return hud.toggleMail()
-    case 'Escape':
-      return hud.closeAll()
+      return menu.open('map')
   }
-  if (e.code.startsWith('Digit')) {
-    const i = Number(e.code.slice(5)) - 1
-    if (pack[i]) send({ t: 'hold', item: pack[i][0].id })
-  }
+  const slot = SLOT_CODES.indexOf(e.code)
+  if (slot >= 0) send({ t: 'select', slot })
 })
 window.addEventListener('keyup', (e) => {
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+    shift = false
+    sentDir = null
+    syncMove()
+  }
   const dir = KEY_DIR[e.code]
   if (!dir) return
   const i = held.indexOf(dir)
   if (i >= 0) held.splice(i, 1)
   syncMove()
 })
-window.addEventListener('blur', () => {
-  held.length = 0
-  syncMove()
-})
+window.addEventListener('blur', () => stopMoving())
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') send({ t: 'save' })
 })
+
+// ------------------------------------------------------------------ mouse: aim at a neighbour tile, left = Use, right = Action
+
+let mouseTile: Tile | undefined
+const gameEl = document.getElementById('game')!
+window.addEventListener('mousemove', (e) => {
+  // only over the world itself (the HUD's own panels take their own clicks)
+  const over = e.target === gameEl || gameEl.contains(e.target as Node) || (e.target as HTMLElement).id === 'hud' || (e.target as HTMLElement).id === 'labels'
+  const tile = over ? scene.tileAtScreen(e.clientX, e.clientY) : undefined
+  if (tile?.x !== mouseTile?.x || tile?.y !== mouseTile?.y) {
+    mouseTile = tile
+    send({ t: 'aim', tile })
+  }
+})
+gameEl.addEventListener('contextmenu', (e) => e.preventDefault())
+gameEl.addEventListener('mousedown', (e) => {
+  if (hud.questionShown) return
+  if (hud.dialogOpen) return hud.advanceDialog()
+  if (menu.anyOpen || dev.open) return
+  const tile = scene.tileAtScreen(e.clientX, e.clientY)
+  if (e.button === 0) send({ t: 'use', tile })
+  if (e.button === 2) send({ t: 'action', tile })
+})
+window.addEventListener(
+  'wheel',
+  (e) => {
+    if (menu.anyOpen || dev.open || hud.dialogOpen) return
+    if ((e.target as HTMLElement).closest('.overlay, .panel')) return
+    send({ t: 'cycle', dir: e.deltaY > 0 ? 1 : -1 })
+  },
+  { passive: true },
+)
 
 // ------------------------------------------------------------------ per animation frame
 

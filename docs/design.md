@@ -129,8 +129,8 @@ in `content/ontology`; the ModSpec ships it to the modder.
 
 ## 5. Interaction model
 
-Status: **agreed 2026-10-01, not yet built** (the current build still uses the F/G/E/U/Space
-keys of Phase 1).
+Status: agreed 2026-10-01. **Built:** the input (§5.2–5.3: `engine/src/controls.ts`, the client's
+`ui/`) and the player's sources 3–5. **Next:** the world's own sources (§5.10 steps 2–4).
 
 Two halves. §5.1–5.3 are what the player does: the input design, taken from Stardew
 Valley's wiki and its decompiled source rather than from memory. §5.4–5.10 are where
@@ -374,7 +374,7 @@ due to a bug"). So:
 
 ### 5.10 Rollout
 
-1. **The input** (§5.2–5.3) and the remaining player sources 3–5.
+1. **The input** (§5.2–5.3) and the remaining player sources 3–5. *Done.*
 2. **The physical world** (8, 9), with salience and budgets. It is the cleanest to validate
    and the main driver of the undefined frontier's branching ratio *r*: a world whose
    undefined behaviour comes only from the player's hands cannot grow on its own. The

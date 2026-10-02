@@ -12,15 +12,15 @@ const L = (en: string, zh: string): Text => ({ en, zh })
 export const OBJECTIVES: Record<number, { title: Text; hint: Text }> = {
   0: {
     title: L('Rest in your cottage', '回小屋休息'),
-    hint: L('The cottage is on the homestead, west of town. Walk up to the bed and press E.', '小屋在镇子西边的老宅里。走到床边按 E。'),
+    hint: L('The cottage is on the homestead, west of town. Walk up to the bed and press X (or right-click it).', '小屋在镇子西边的老宅里。走到床边按 X（或右键点它）。'),
   },
   1: {
     title: L('Meet the people of Hearthvale', '认识炉谷的人们'),
-    hint: L('Say hello around town (E) — the square, the inn, the farm, the pond. Clear a little of your land, too.', '在镇上打个招呼（E）——广场、旅店、农场、池塘。也清一清你的地。'),
+    hint: L('Say hello around town (X, or right-click a person) — the square, the inn, the farm, the pond. Clear a little of your land, too.', '在镇上打个招呼（X，或右键点人）——广场、旅店、农场、池塘。也清一清你的地。'),
   },
   2: {
     title: L("Drive the slimes out of Hollis's turnips (0/3)", '把霍利斯萝卜地里的史莱姆赶走（0/3）'),
-    hint: L('Brann keeps a practice blade at the smithy. Hold it (1–9) and strike with Space.', '布兰的铁匠铺里有把练习剑。拿在手上（1–9），按空格出击。'),
+    hint: L('Brann keeps a practice blade at the smithy. Choose it on the toolbar (1–0) and swing with C (or left-click).', '布兰的铁匠铺里有把练习剑。在快捷栏选中它（1–0），按 C（或左键）挥动。'),
   },
   3: {
     title: L('Tamsin wanted a word', '塔姆辛有话想说'),
@@ -32,7 +32,7 @@ export const OBJECTIVES: Record<number, { title: Text; hint: Text }> = {
   },
   5: {
     title: L('Catch a fish for Tamsin', '给塔姆辛钓条鱼'),
-    hint: L('Hold the rod, face the water and press E. Give the fish to Tamsin with G.', '拿着鱼竿面朝水面按 E。用 G 把鱼交给塔姆辛。'),
+    hint: L('Choose the rod, face the water and press C. Then hold the fish and press X at Tamsin.', '选中鱼竿面朝水面按 C。然后拿着鱼对塔姆辛按 X。'),
   },
   6: {
     title: L('Sera could use a hand', '塞拉需要帮忙'),
@@ -40,7 +40,7 @@ export const OBJECTIVES: Record<number, { title: Text; hint: Text }> = {
   },
   7: {
     title: L('Bring Sera fireweed from Whisperwood', '从低语森林给塞拉带火草'),
-    hint: L('Fireweed grows in the burnt clearing, south of the gate. Give it to Sera with G.', '火草长在南门外林中被烧过的空地上。用 G 交给塞拉。'),
+    hint: L('Fireweed grows in the burnt clearing, south of the gate. Hold it and press X at Sera.', '火草长在南门外林中被烧过的空地上。拿着它对塞拉按 X。'),
   },
   8: {
     title: L('Mira asked to see you', '米拉想见你'),
@@ -56,7 +56,7 @@ export const OBJECTIVES: Record<number, { title: Text; hint: Text }> = {
   },
   11: {
     title: L('Rekindle the Great Hearth', '重燃大炉火'),
-    hint: L('Four kindlings: of the field, the water, the wood and the stone. Try anything — what the valley has never seen, Mira writes in the Threadbook (B).', '四份引火之物：田、水、林、石。什么都可以试——山谷从没见过的事，米拉会记进织线簿（B）。'),
+    hint: L('Four kindlings: of the field, the water, the wood and the stone. Try anything — what the valley has never seen, Mira writes in the Threadbook (the menu, E).', '四份引火之物：田、水、林、石。什么都可以试——山谷从没见过的事，米拉会记进织线簿（菜单，E）。'),
   },
 }
 

@@ -14,6 +14,7 @@ import type {
   Cmp,
   Cond,
   Effect,
+  EventKind,
   GameEvent,
   Ontology,
   Ref,
@@ -56,7 +57,8 @@ export interface EntityInfo {
 export interface ModRequest {
   id: string
   summary: string
-  event: { kind: 'interaction'; verb: string; actor?: EntityInfo; target?: EntityInfo; instrument?: EntityInfo }
+  /** The event that found no rule: an interaction (verb), a hit (element, power) or a step onto a tile (enter). */
+  event: { kind: EventKind; verb?: string; element?: string; power?: number; strict?: boolean; actor?: EntityInfo; target?: EntityInfo; instrument?: EntityInfo }
   context: {
     map: { id: string; name: string; kind: string; region?: string }
     hour: number
@@ -172,7 +174,7 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
   return {
     version: `lsw-modspec/1 lib@${lib.version}`,
     summary:
-      'Author RULES for a 2D JRPG world whose mechanics are data. Rules match events by role patterns and run effect primitives. You are called because an interaction matched no rule.',
+      'Author RULES for a 2D JRPG world whose mechanics are data. Rules match events by role patterns and run effect primitives. You are called because an event matched no rule: an interaction (the player used, put or took something, or touched it bare-handed — event.strict: catch-all descriptions do not count), a hit (a blow or a spell landed on something with no reaction), or a step onto a tile in some state (enter).',
     rule: {
       id: 'unique string, e.g. "patch/oil-coats-frozen"',
       on: 'event kind: interaction | hit | status | expire | tick | enter | defeat',
@@ -181,6 +183,8 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
       do: 'ordered Effect[] (primitives)',
       priority: 'optional tiebreaker (number)',
       compose: 'optional: true = run alongside the most specific rule instead of competing with it',
+      fallback: 'optional: true = a catch-all description ("It is a well.") that answers only when nothing else does; it does not define a strict (bare-handed Use) interaction. Patches rarely need it.',
+      confirm: 'optional Text: ask the player first when their Action key chooses this rule ("Eat {instrument}?"); for sleeping, eating and other things that end the moment',
       tests: 'RuleTest[]: { given: Scenario, expect: Expectation[] }',
       doc: 'one-line human summary',
     },
@@ -255,7 +259,7 @@ export function signatureOf(eng: Engine, ev: GameEvent): string {
     if (!e) return '?'
     return e.id === w.state.player && r === ev.roles.target ? 'self' : e.type
   }
-  return `${ev.verb}|${kind(ev.roles.target)}|${kind(ev.roles.instrument)}`
+  return `${ev.kind}:${ev.verb ?? ev.element ?? ''}|${kind(ev.roles.target)}|${kind(ev.roles.instrument)}${ev.strict ? '|strict' : ''}`
 }
 
 export class ModPort implements UndefinedSink {
@@ -452,6 +456,8 @@ export function attemptLine(eng: Engine, ev: GameEvent): { en: string; zh: strin
   const r = ev.roles
   const n = (ref: Ref | undefined, l: 'en' | 'zh') => eng.nameOf(ref, l)
   const self = !!r.target && !!r.actor && 'e' in r.target && 'e' in r.actor && r.target.e === r.actor.e
+  if (ev.kind === 'hit') return { en: `Your blow lands on ${n(r.target, 'en')}…`, zh: `你这一击落在了${n(r.target, 'zh')}上……` }
+  if (ev.kind === 'enter') return { en: `You step onto ${n(r.target, 'en')}…`, zh: `你踏上了${n(r.target, 'zh')}……` }
   if (ev.verb === 'take') return { en: `You try to take ${n(r.target, 'en')}…`, zh: `你试着去拿${n(r.target, 'zh')}……` }
   if (ev.verb === 'put') return { en: `You set ${n(r.instrument, 'en')} against ${n(r.target, 'en')}…`, zh: `你把${n(r.instrument, 'zh')}往${n(r.target, 'zh')}上放……` }
   if (!r.instrument) return { en: `You reach out to ${n(r.target, 'en')}…`, zh: `你伸手去碰${n(r.target, 'zh')}……` }
@@ -495,7 +501,9 @@ function info(eng: Engine, role: string, v: View | undefined, origin?: { x: numb
 export function summarize(eng: Engine, ev: GameEvent): string {
   const n = (r: Ref | undefined) => eng.nameOf(r)
   const inst = ev.roles.instrument ? ` holding ${n(ev.roles.instrument)}` : ''
-  return `${n(ev.roles.actor)} ${ev.verb} → ${n(ev.roles.target)}${inst}`
+  if (ev.kind === 'hit') return `${n(ev.roles.actor)} hits → ${n(ev.roles.target)}${ev.element ? ` with ${ev.element}` : ''}${inst}`
+  if (ev.kind === 'enter') return `${n(ev.roles.actor)} steps onto → ${n(ev.roles.target)}`
+  return `${n(ev.roles.actor)} ${ev.verb} → ${n(ev.roles.target)}${inst}${ev.strict && !ev.roles.instrument ? ' (bare hand)' : ''}`
 }
 
 export function buildRequest(eng: Engine, ev: GameEvent, id: string): ModRequest {
@@ -533,8 +541,11 @@ export function buildRequest(eng: Engine, ev: GameEvent, id: string): ModRequest
     id,
     summary: summarize(eng, ev),
     event: {
-      kind: 'interaction',
-      verb: ev.verb!,
+      kind: ev.kind,
+      verb: ev.verb,
+      element: ev.element,
+      power: ev.power,
+      strict: ev.strict,
       actor: info(eng, 'actor', roles.actor, center),
       target: info(eng, 'target', roles.target, center),
       instrument: info(eng, 'instrument', roles.instrument, center),
@@ -615,7 +626,7 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
   for (let y = 0; y <= 2 * WINDOW; y++)
     for (let x = 0; x <= 2 * WINDOW; x++)
       for (const e of w.entitiesAt(center.map, ox + x, oy + y)) if (!keyOf.has(e.id) && n < 12) addEntity(e.id, `n${++n}`)
-  return { terrain, entities, event: { kind: 'interaction', verb: ev.verb, actor, target, instrument } }
+  return { terrain, entities, event: { kind: ev.kind, verb: ev.verb, actor, target, instrument, element: ev.element, power: ev.power, strict: ev.strict } }
 }
 
 // ---------------------------------------------------------------- validation
@@ -778,7 +789,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   const patchIds = new Set(rules.map((r) => r.id))
 
   // 5. sandbox replay of the triggering interaction
-  if (ctx.scenario && rules.some((r) => r.on === 'interaction')) {
+  if (ctx.scenario && rules.some((r) => r.on === (ctx.scenario!.event.kind ?? 'interaction'))) {
     try {
       const rp = replay(ctx.scenario, ctx.ontology, cand)
       if (!rp.resolution.defined) errors.push('replay: the triggering interaction is still undefined under the patch')

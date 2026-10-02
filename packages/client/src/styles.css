@@ -36,55 +36,6 @@ button.primary { background: var(--accent); color: #1a1408; border-color: transp
 button.primary:hover { filter: brightness(1.08); }
 button.mini { padding: 1px 6px; font-size: 11px; }
 
-.panel-glass { background: var(--glass); border: 1px solid var(--line); border-radius: 10px; backdrop-filter: blur(6px); }
-.hud-tl { position: absolute; left: 14px; top: 14px; padding: 10px 14px; min-width: 230px; }
-.map-name { font-family: var(--pixel); font-size: 20px; font-weight: 600; letter-spacing: 0.3px; }
-.clock { font-size: 13px; margin: 2px 0 8px; }
-.hpbar { position: relative; height: 12px; background: rgba(0,0,0,0.5); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-#hpFill { height: 100%; background: linear-gradient(90deg, #d04848, #ee7a5a); transition: width 0.2s; }
-#hpText { position: absolute; inset: 0; font-size: 10px; line-height: 12px; text-align: center; font-family: var(--mono); }
-.statuses { margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
-.st { font-size: 11px; padding: 1px 6px; border-radius: 8px; background: rgba(255,255,255,0.1); }
-.st-burning { background: #a8431e; } .st-wet { background: #2d5d9a; } .st-frozen { background: #4e8fb0; } .st-electrified { background: #9a8a1e; } .st-oiled { background: #5a4e2e; }
-.hud-tr { position: absolute; right: 14px; top: 14px; display: flex; gap: 6px; }
-.badge { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: #555; font-size: 11px; }
-.badge.hot { background: var(--ai); color: #1b0d00; animation: pulse 1.2s infinite; }
-@keyframes pulse { 50% { filter: brightness(1.35); } }
-
-.hud-bottom { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 10px; align-items: flex-end; }
-.slot { position: relative; width: 44px; height: 44px; background: var(--glass); border: 1px solid var(--line); border-radius: 8px; display: grid; place-items: center; cursor: pointer; }
-.slot:hover { border-color: rgba(255,255,255,0.35); }
-.slot canvas { width: 32px; height: 32px; image-rendering: pixelated; }
-.slot kbd { position: absolute; right: 1px; bottom: 1px; font-size: 9px; padding: 0 3px; border-bottom-width: 1px; }
-.slot.hand { width: 150px; height: 56px; grid-template-columns: 44px 1fr; justify-items: start; padding: 0 8px; border-color: rgba(240,184,90,0.5); }
-.slot.hand canvas { width: 40px; height: 40px; }
-.slot.hand .name { font-size: 12px; line-height: 1.2; max-width: 92px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.slot.hand .lbl { position: absolute; top: -9px; left: 8px; font-size: 10px; background: var(--bg); padding: 0 4px; border-radius: 4px; color: var(--accent); }
-.pack { display: flex; gap: 4px; flex-wrap: nowrap; max-width: calc(100vw - 520px); min-width: 48px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
-.pack .slot { flex: 0 0 auto; }
-.slot .count { position: absolute; left: 2px; top: 1px; font: 600 10px var(--mono); color: var(--ink); text-shadow: 0 1px 2px #000; }
-
-/* container panel (the open chest the player faces) */
-.box { position: absolute; right: 14px; bottom: 84px; width: 280px; padding: 8px 10px; }
-.box-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; font-size: 13px; }
-.box-rows { display: flex; flex-direction: column; gap: 2px; max-height: 42vh; overflow-y: auto; }
-.box-row { display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 6px; padding: 2px 6px; border-radius: 6px; border: 1px solid transparent; cursor: pointer; font-size: 12px; }
-.box-row:hover { background: rgba(255,255,255,0.05); }
-.box-row.sel { border-color: rgba(240,184,90,0.6); background: rgba(240,184,90,0.12); }
-.box-row canvas { width: 24px; height: 24px; image-rendering: pixelated; }
-.box-row .count { font: 11px var(--mono); color: var(--muted); }
-.box-empty { font-size: 12px; padding: 4px 6px; }
-.box-hint { margin-top: 6px; font-size: 10px; }
-
-.hud-log { position: absolute; left: 14px; bottom: 14px; width: min(440px, 34vw); display: flex; flex-direction: column; gap: 2px; pointer-events: none !important; }
-.hud-log .line { font-size: 13px; padding: 2px 8px; background: rgba(8, 10, 16, 0.55); border-radius: 5px; transition: opacity 1s; text-shadow: 0 1px 0 #000; }
-.hud-log .line.fade { opacity: 0; }
-.hud-log .ai { color: var(--ai); } .hud-log .good { color: var(--good); } .hud-log .warn { color: var(--warn); } .hud-log .bad { color: var(--bad); }
-.toasts { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; }
-.toast { background: var(--panel); border: 1px solid rgba(240,138,60,0.55); border-radius: 10px; padding: 8px 14px; font-size: 13px; text-align: center; max-width: 520px; transition: opacity 0.6s; }
-.toast.fade { opacity: 0; }
-.hint { position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--muted); }
-
 .bubble { position: absolute; left: 0; top: 0; max-width: 240px; padding: 5px 9px; background: #fbf7ea; color: #231d12; border-radius: 8px; font-size: 13px; line-height: 1.35; box-shadow: 0 2px 0 rgba(0,0,0,0.35); white-space: normal; }
 .bubble::after { content: ''; position: absolute; left: 50%; bottom: -5px; margin-left: -5px; border: 5px solid transparent; border-top-color: #fbf7ea; border-bottom: 0; }
 .floater { position: absolute; left: 0; top: 0; font: 600 14px var(--pixel); color: #fff; text-shadow: 0 1px 0 #000, 0 0 3px #000; }
@@ -149,32 +100,11 @@ details summary { cursor: pointer; font-size: 12px; color: var(--muted); }
   .list { max-height: 30vh; border-right: 0; border-bottom: 1px solid var(--line); }
 }
 
-.quest { position: absolute; left: 14px; top: 132px; padding: 8px 12px; max-width: 300px; }
-.q-title { font: 600 14px var(--pixel); color: var(--accent); }
-.q-hint { font-size: 12px; color: #c7cedb; margin-top: 3px; line-height: 1.4; }
-.dialog { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); width: min(720px, 94vw); min-height: 96px; display: flex; gap: 14px; align-items: flex-start;
-  background: #fbf3dc; color: #2a2014; border: 4px solid #6b4a2b; border-radius: 10px; box-shadow: 0 0 0 2px #2a1c10, 0 10px 30px rgba(0,0,0,0.5); padding: 12px 16px; cursor: pointer; }
-.dialog .face { flex: 0 0 76px; height: 76px; border: 3px solid #6b4a2b; border-radius: 6px; background: #e8d9b4; display: grid; place-items: center; }
-.dialog .face canvas { width: 76px; height: 76px; image-rendering: pixelated; }
-.dialog .dname { font: 600 16px var(--pixel); color: #8a3b12; margin-bottom: 4px; }
-.dialog .dline { font-size: 16px; line-height: 1.5; min-height: 48px; }
-.dialog .dmore { position: absolute; right: 12px; bottom: 6px; font-size: 12px; color: #8a6a44; animation: pulse 1s infinite; }
-
-.prompt { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); background: rgba(10,12,18,0.72); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-size: 13px; line-height: 1.7; text-align: center; pointer-events: none !important; }
-.prompt .unknown { color: var(--ai); font-size: 12px; margin-left: 4px; }
-.dialog:not(.hidden) ~ .prompt { display: none; }
-
 .credit { font-size: 11px; color: var(--muted); margin-top: 10px; }
 .credit a { color: #9fe0ee; }
 .modder { font-size: 11px; padding: 2px 8px; border-radius: 9px; background: #333; color: #bbb; white-space: nowrap; }
 .modder.on { background: rgba(80, 200, 140, 0.18); color: var(--good); }
 
-/* energy, day cards, the Threadbook and letters */
-.enbar { position: relative; height: 6px; margin-top: 4px; background: rgba(0,0,0,0.5); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
-.enbar > div { height: 100%; background: linear-gradient(90deg, #e2b33c, #f5d76e); transition: width 0.3s; }
-.fade { position: absolute; inset: 0; background: #05060c; display: grid; place-items: center; z-index: 50; animation: fadein 0.5s; }
-.fade #fadeText { font: 600 28px var(--pixel); color: #f1e3c0; letter-spacing: 2px; }
-@keyframes fadein { from { opacity: 0 } to { opacity: 1 } }
 .panel.book { right: 16px; top: 64px; width: min(560px, 92vw); max-height: 70vh; z-index: 30; }
 .book-body { display: flex; gap: 12px; padding: 10px 12px; overflow: auto; }
 .book-body.single { flex-direction: column; }

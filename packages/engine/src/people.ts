@@ -226,6 +226,7 @@ export function giveGift(eng: Engine, npc: Entity, item: Entity): { taste: Taste
   const points = GIFT_POINTS[taste] * mult
   befriend(eng, npc.id, points)
   mem.gifts = { day: cal.day, week, count: g.count + 1 }
+  ;(mem.tasted ??= {})[item.type] = taste
   return { taste, points }
 }
 

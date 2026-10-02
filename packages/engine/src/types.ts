@@ -106,6 +106,12 @@ export interface Entity {
   ai?: AiData
   /** Set while an undefined interaction involving this entity awaits a patch. */
   frozenBy?: string
+  /** Items a rule dropped on the ground (a harvest, logs, loot): the player's magnet pulls them in. */
+  dropped?: boolean
+  /** The player: inventory slots (design.md §5.3), each the stack key of what it holds; row 1 is the toolbar. */
+  slots?: (string | null)[]
+  /** The player: the selected slot (what is held). */
+  selected?: number
   /** Render hint: a character look key from the client's asset catalogue. */
   look?: string
 }
@@ -191,6 +197,8 @@ export interface NpcMemory {
   /** the day they were last talked to */
   talked?: number
   gifts?: { day: number; week: number; count: number }
+  /** How they took each kind of gift (item type → taste): the Social tab's gift log. */
+  tasted?: Record<string, string>
 }
 
 /** Something that happened, which people may talk about while it is fresh. */
@@ -341,6 +349,8 @@ export interface WorldState {
   memory?: Record<Id, NpcMemory>
   mailbox?: Letter[]
   scene?: SceneState
+  /** A yes/no question waiting for the player (Action: "Eat the apple?"); time stops while it is open. */
+  question?: { text: Text; plan: Plan }
   /** Days whose weather the world fixes. */
   weather?: Record<number, string>
 }
@@ -351,6 +361,32 @@ export type Verb = 'take' | 'put' | 'interact'
 
 /** A reference to anything that can fill an event role: an entity or a map tile. */
 export type Ref = { e: Id } | { tile: Pos }
+
+/**
+ * What one of the player's two keys will do (design.md §5.2), chosen by dry runs through the
+ * rule library: the HUD shows its label before the key is pressed, and pressing runs it.
+ */
+export interface Plan {
+  key: 'action' | 'use'
+  /** The tile aimed at. */
+  at: Pos
+  /** A swing or a cast toward `at` (weapons, wands) instead of an interaction. */
+  attack?: boolean
+  verb?: Verb
+  target: Ref
+  /** The instrument: the held item, or none (talking while holding a tool). */
+  instrument?: Ref
+  label: Text
+  rule?: string
+  /** Use: no rule answers yet — the world has never seen this. */
+  unknown?: boolean
+  /** Use: fallback rules (catch-all descriptions) do not count. */
+  strict?: boolean
+  /** Action: ask first ("Eat the apple?"). */
+  confirm?: Text
+  /** Action on a container: open the transfer panel for it. */
+  panel?: Id
+}
 
 export type EventKind =
   | 'interaction' // a player/NPC verb
@@ -371,6 +407,8 @@ export interface GameEvent {
   status?: string
   at?: Pos
   tick?: number
+  /** The player's Use key: fallback rules (catch-all descriptions) do not define it. */
+  strict?: boolean
 }
 
 // ------------------------------------------------------------------ rules
@@ -515,6 +553,8 @@ export interface Scenario {
     instrument?: string
     element?: string
     power?: number
+    /** The player's Use key: fallback rules do not define the event. */
+    strict?: boolean
     status?: string
   }
 }
@@ -561,7 +601,13 @@ export interface Rule {
   priority?: number
   /** Runs alongside more specific rules instead of being shadowed by them. */
   compose?: boolean
-  /** For interactions: the rule "defines" the interaction but is a soft fallback. */
+  /**
+   * A catch-all description ("It is a well."): it answers when nothing else does, but the
+   * player's Use key does not count it as defining the interaction (design.md §5.4, source 4).
+   */
+  fallback?: boolean
+  /** Ask the player first when chosen by the Action key ("Sleep until morning?"); slots {instrument} {target}. */
+  confirm?: Text
   tests?: RuleTest[]
   source?: Provenance
   /** Human-readable summary. */
@@ -583,3 +629,5 @@ export type FxEvent =
   | { t: 'undefined'; request: string; summary: string }
   | { t: 'patched'; request: string; rule: string }
   | { t: 'mapChanged'; map: string }
+  /** The magnet pulled a dropped item into the player's bag (from its tile). */
+  | { t: 'pickup'; item: Id; sprite: string; name: Text; map: string; x: number; y: number }

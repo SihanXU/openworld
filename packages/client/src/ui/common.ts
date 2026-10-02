@@ -1,0 +1,108 @@
+// What every part of the DOM UI shares: the locale, the strings, small DOM helpers.
+
+import type { Text } from '@lsw/engine'
+import { textOf } from '../render/scene.ts'
+
+export type Locale = 'en' | 'zh'
+
+export const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) => root.querySelector(sel) as T
+export const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
+export const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
+/** The player's language, remembered between visits. */
+export const locale = {
+  value: ((): Locale => {
+    try {
+      return (localStorage.getItem('lsw.locale') as Locale) || 'en'
+    } catch {
+      return 'en'
+    }
+  })(),
+  set(l: Locale) {
+    this.value = l
+    try {
+      localStorage.setItem('lsw.locale', l)
+    } catch {
+      /* private mode */
+    }
+    document.documentElement.lang = l === 'zh' ? 'zh-CN' : 'en'
+  },
+}
+
+export const tx = (t: Text | undefined) => textOf(t, locale.value)
+
+const STRINGS: Record<string, [string, string]> = {
+  inventory: ['Inventory', '背包'],
+  social: ['Social', '人物'],
+  map: ['Map', '地图'],
+  threads: ['Threadbook', '织线簿'],
+  letters: ['Letters', '信件'],
+  options: ['Options', '选项'],
+  journal: ['Journal', '日志'],
+  organize: ['Organize', '整理'],
+  fillStacks: ['Add to existing stacks', '填充已有堆叠'],
+  dropHere: ['Drop', '丢下'],
+  empty: ['empty', '空'],
+  yes: ['Yes', '是'],
+  no: ['No', '否'],
+  energy: ['Energy', '体力'],
+  health: ['Health', '生命'],
+  day: ['Day', '第'],
+  noMail: ['No letters yet.', '还没有信。'],
+  noThreads: ['No threads yet. Try something the valley has never seen.', '还没有新的线。试试山谷里从没发生过的事。'],
+  learned: ['A new thread is woven', '织入了一根新线'],
+  learning: ['The valley pauses…', '山谷停顿了一下……'],
+  letterToast: ['A letter has arrived', '收到一封信'],
+  saved: ['Saved.', '已保存。'],
+  loading: ['Loading', '加载中'],
+  language: ['Language', '语言'],
+  sound: ['Sound', '声音'],
+  on: ['on', '开'],
+  off: ['off', '关'],
+  save: ['Save', '保存'],
+  newGame: ['New game', '新游戏'],
+  controls: ['Controls', '操作'],
+  devConsole: ['Mod Console (dev)', '模组控制台（开发）'],
+  you: ['you', '你'],
+  valley: ['the valley', '山谷'],
+  wovenBy: ['woven by', '织者'],
+  hearts: ['hearts', '心'],
+  giftsWeek: ['gifts this week', '本周礼物'],
+  talkedToday: ['talked today', '今天聊过'],
+  birthday: ['Birthday', '生日'],
+  giftLog: ['Gift log', '送礼记录'],
+  notMet: ['Not met yet', '还没见过'],
+  objective: ['Objective', '目标'],
+  done: ['Done', '已完成'],
+  youAreHere: ['you are here', '你在这里'],
+  confirmNew: ['Start a new game? (the threads the valley learned are kept)', '开始新游戏？（山谷学会的线会保留）'],
+}
+
+export function t(k: string): string {
+  const v = STRINGS[k]
+  return v ? (locale.value === 'zh' ? v[1] : v[0]) : k
+}
+
+export const WEEKDAY_ZH: Record<string, string> = { firstday: '首日', ashday: '灰日', riverday: '河日', stoneday: '石日', seedday: '种日', windday: '风日', hearthday: '炉日' }
+export const SEASON_ZH: Record<string, string> = { thaw: '融雪季', bloom: '花开季', ember: '余烬季', frost: '霜冻季' }
+export const MOOD_GLYPH: Record<string, string> = { happy: '♥', sad: '…', angry: '!!', surprised: '!', shy: '♡', neutral: '…' }
+export const TASTE_ZH: Record<string, string> = { loved: '最爱', liked: '喜欢', neutral: '一般', disliked: '不喜欢', hated: '讨厌' }
+
+/** Toolbar keys: 1–0, -, = (Stardew). */
+export const SLOT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=']
+
+/** The controls, as shown in the intro and the Options tab. */
+export function controlsTable(dev: boolean): string {
+  const zh = locale.value === 'zh'
+  const rows: [string, string, string][] = [
+    ['WASD · ↑↓←→', 'move (Shift: walk)', '移动（Shift：慢走）'],
+    ['X · Enter · right click', 'Action: talk, give, open, take, place, eat', '行动：交谈、送礼、打开、拿取、放下、吃'],
+    ['C · Space · left click', 'Use the held thing: tools, weapons, and trying things', '使用手上的东西：工具、武器、各种尝试'],
+    ['1–0 · - · = · wheel', 'choose from the toolbar', '选择快捷栏'],
+    ['Tab', 'next row of the bag', '换下一排背包'],
+    ['E · Esc', 'menu', '菜单'],
+    ['F · M', 'journal · map', '日志 · 地图'],
+  ]
+  if (dev) rows.push(['`', 'Mod Console (dev)', '模组控制台（开发）'])
+  return `<table>${rows.map(([k, en, z]) => `<tr><td><kbd>${k}</kbd></td><td>${zh ? z : en}</td></tr>`).join('')}</table>`
+}

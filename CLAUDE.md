@@ -29,7 +29,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   new game / save (`game.ts`); the life sim (docs/game-design.md): 24-hour calendar, seasons and
   weather (`calendar.ts`), people — keyed lines, schedule variants, friendship, gifts, topics
   (`people.ts`), scripted scenes (`scenes.ts`); facts, letters, sleep and energy live in the
-  world state and the engine.
+  world state and the engine; the player's two keys, slots and magnet (`controls.ts`, design.md §5.2).
 - `packages/content` — ontology (terrains, statuses, elements, types), item catalogue
   (forms × materials × qualities × elements), the BASE RULE LIBRARY (`rules.ts`), the first
   week's story rules and objectives (`story.ts`), chunk codec.
@@ -41,8 +41,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   form × every target × every verb through the rule library; the numbers in `docs/roadmap.md` §1).
 - `packages/client` — `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
   `render/scene.ts` renders snapshots with the Ninja Adventure pack; `assets/catalog.ts` maps
-  content keys to sprites; `assets/ground.ts` autotiles; `hud.ts` HUD, dialogue, objectives
-  and the Mod Console (patch by hand); the worker uses the modder service when one answers
+  content keys to sprites; `assets/ground.ts` autotiles; `ui/` the Stardew-style UI (`hud.ts` clock, bars,
+  toolbar, key labels, dialogue; `menu.ts` menu tabs, journal, chest panel; `dev.ts` the Mod Console, dev only); the worker uses the modder service when one answers
   (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it.
 - `packages/agent` — the SWE-style agent and its self-state, task-agnostic (no engine, no content):
   `model.ts` (OpenAI-compatible / scripted), `state.ts` (memory, skills + scripts, harness, hooks,

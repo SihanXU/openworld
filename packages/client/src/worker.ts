@@ -12,14 +12,15 @@ import {
   type ModRequest,
   type Patch,
   type PatchLogEntry,
-  type Prompt,
-  type Ref,
+  type Frame,
+  type KeyView,
+  type Plan,
   type ResolveBody,
   type ResolveReply,
   type WorldIndex,
 } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk, decodeMap, type RawChunk } from '@lsw/content'
-import type { FromWorker, LibraryView, RecordView, ToWorker } from './protocol.ts'
+import type { FromWorker, LibraryView, RecordView, Tile, ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
 const post = (m: FromWorker) => (self as unknown as Worker).postMessage(m)
@@ -28,6 +29,11 @@ let base = ''
 let index: WorldIndex
 let game: Game | undefined
 let moveDir: Dir | null = null
+let walk = false
+/** Where the mouse points, the open chest panel, and whether time is stopped (a menu or a dialogue is open). */
+let aimTile: Tile | undefined
+let panel: string | undefined
+let paused = false
 let lastMap = ''
 let fetching = new Set<string>()
 let timer: ReturnType<typeof setInterval> | undefined
@@ -170,40 +176,20 @@ async function ensureMaps(): Promise<void> {
   }
 }
 
-/** Preview what E and F would do on the tile in front of the player (dry run, no effects). */
-function prompt(): Prompt | undefined {
+/** What the two keys would do now (the labels over the target); a Use the world has never seen starts a prefetch. */
+function keyViews(): Frame['keys'] {
   const eng = game!.engine
-  const w = eng.world
-  const p = w.player
-  const f = w.front(p)
-  if (!f || !w.inBounds(f.map, f.x, f.y)) return undefined
-  const target: Ref = eng.targetAt(f, 'interact')
-  const name = (r: Ref) => ({ en: eng.nameOf(r, 'en'), zh: eng.nameOf(r, 'zh') })
-  const isTile = 'tile' in target
-  const terrain = isTile ? w.terrainAt(f.map, f.x, f.y) : ''
-  const boring = isTile && !w.tileState(f.map, f.x, f.y)?.statuses && ['grass', 'path', 'dirt', 'cobble', 'floor_wood', 'floor_stone', 'carpet', 'cave_floor', 'flowers', 'wall', 'void'].includes(terrain)
-  const instrument: Ref | undefined = p.held ? { e: p.held } : undefined
-  const ev: GameEvent = { kind: 'interaction', verb: 'interact', roles: { actor: { e: p.id }, target, instrument } }
-  const r = eng.resolve(ev)
-  noteProbe(r.defined || !instrument || boring ? undefined : ev) // bare floor is not worth a model call
-  let take: Prompt['take']
-  const takeTarget = eng.targetAt(f, 'take')
-  const here = w.posOf(p)!
-  const under = w.entitiesAt(here.map, here.x, here.y).filter((e) => w.kindOf(e) === 'item')
-  const takeRef: Ref | undefined = 'e' in takeTarget && w.kindOf(w.get(takeTarget.e)!) === 'item' ? takeTarget : under.length ? { e: under[under.length - 1].id } : undefined
-  if (takeRef) {
-    const tr = eng.resolve({ kind: 'interaction', verb: 'take', roles: { actor: { e: p.id }, target: takeRef, instrument } })
-    take = { defined: tr.defined, rule: tr.rule?.id, item: name(takeRef) }
-  }
-  if (boring && !take) return undefined
-  if (boring) r.defined = true // using a thing on bare floor isn't worth a prompt
-  return {
-    target: name(target),
-    targetKind: isTile ? 'tile' : w.kindOf(w.get((target as { e: string }).e)!),
-    holding: instrument ? name(instrument) : undefined,
-    interact: { defined: r.defined, rule: r.rule?.id },
-    take,
-  }
+  const c = eng.controls
+  const view = (pl: Plan | undefined): KeyView | undefined =>
+    pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y }
+  const action = c.planAction(aimTile)
+  const use = c.planUse(aimTile)
+  // prefetch: facing something unknown with a thing in hand (a bare hand is not worth a model call)
+  const p = eng.world.player
+  noteProbe(use?.unknown && use.instrument && use.verb ? { kind: 'interaction', verb: use.verb, roles: { actor: { e: p.id }, target: use.target, instrument: use.instrument }, strict: true } : undefined)
+  // the same thing under both keys (a bare hand opening a chest) is shown once
+  const same = !!action && !!use && use.rule === action.rule && !use.unknown
+  return { action: view(action), use: view(use?.key === 'use' && !same ? use : undefined) }
 }
 
 function libraryView(): LibraryView {
@@ -239,8 +225,12 @@ function loop(): void {
   if (!game) return
   const t0 = performance.now()
   const eng = game.engine
-  if (moveDir) eng.movePlayer(moveDir)
-  eng.tick()
+  // time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player)
+  const stopped = paused || !!eng.world.state.question || !!panel
+  if (!stopped) {
+    if (moveDir) eng.movePlayer(moveDir, walk)
+    eng.tick()
+  }
   if (game.neededMaps().length) void ensureMaps()
   const w = eng.world
   const pos = w.posOf(w.player)
@@ -257,8 +247,9 @@ function loop(): void {
     if (lastQuest !== undefined) saveEvery = 599
     lastQuest = quest
   }
-  const frame = snapshot(eng)
-  frame.prompt = prompt()
+  const frame = snapshot(eng, { panel })
+  if (panel && !frame.container) panel = undefined // closed by the world (it burned, a rule shut it)
+  frame.keys = stopped ? undefined : keyViews()
   maybePrefetch()
   lastTickMs = performance.now() - t0
   post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length } })
@@ -315,16 +306,53 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       }
       case 'move':
         moveDir = m.dir
-        if (m.dir) game?.engine.movePlayer(m.dir) // a quick tap still moves one tile
+        walk = !!m.walk
+        if (m.dir && !paused && !panel && !game?.engine.world.state.question) game?.engine.movePlayer(m.dir, walk) // a quick tap still moves one tile
         break
-      case 'act':
-        game?.engine.playerVerb(m.verb, m.self, m.item)
+      case 'action':
+      case 'use': {
+        if (!game || paused || panel || game.engine.world.state.question) break
+        const c = game.engine.controls
+        const plan = m.t === 'action' ? c.planAction(m.tile) : c.planUse(m.tile)
+        if (!plan) break
+        const out = c.run(plan)
+        if (out.panel) panel = out.panel
         break
-      case 'attack':
-        game?.engine.playerAttack()
+      }
+      case 'aim':
+        aimTile = m.tile
         break
-      case 'hold':
-        if (game) game.engine.hold(game.engine.world.state.player, m.item)
+      case 'answer':
+        game?.engine.controls.answer(m.yes)
+        break
+      case 'select':
+        game?.engine.controls.select(m.slot)
+        break
+      case 'cycle':
+        game?.engine.controls.cycle(m.dir)
+        break
+      case 'row':
+        game?.engine.controls.nextRow()
+        break
+      case 'swap':
+        game?.engine.controls.swap(m.a, m.b)
+        break
+      case 'drop':
+        game?.engine.controls.drop(m.slot, m.all)
+        break
+      case 'organize':
+        game?.engine.controls.organize()
+        break
+      case 'transfer':
+        if (game && panel) game.engine.controls.transfer(panel, m.from, m.item, m.all)
+        break
+      case 'closePanel': {
+        if (game && panel && game.engine.world.hasStatus({ e: panel }, 'open')) game.engine.interact('interact', game.engine.world.state.player, { e: panel }, { instrument: null })
+        panel = undefined
+        break
+      }
+      case 'pause':
+        paused = m.on
         break
       case 'patch': {
         if (!game) break

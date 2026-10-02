@@ -3,6 +3,7 @@
 
 import { MORNING_HOUR, nextHour, rainy } from './calendar.ts'
 import { EffectRunner } from './effects.ts'
+import { Controls } from './controls.ts'
 import { Scenes } from './scenes.ts'
 import { stepCreatures } from './creatures.ts'
 import { NpcSim } from './npc.ts'
@@ -54,6 +55,8 @@ export class Engine {
   effects: EffectRunner
   npcs: NpcSim
   scenes: Scenes
+  /** The player's two keys, slots and magnet (design.md §5.2–5.3). */
+  controls: Controls
   /** Letters the world can send (game-design §8.5). */
   letters = new Map<string, LetterDef>()
   undefinedSink?: UndefinedSink
@@ -78,6 +81,7 @@ export class Engine {
     this.effects = new EffectRunner(this)
     this.npcs = new NpcSim(this)
     this.scenes = new Scenes(this)
+    this.controls = new Controls(this)
   }
 
   loadLetters(defs: LetterDef[] = []): void {
@@ -114,7 +118,7 @@ export class Engine {
     ev.tick = this.world.state.tick
     const roles = rolesOf(ev, this.world)
     const matches = this.lib.match(ev, roles, this.world)
-    const rule = matches.find((r) => !r.compose)
+    const rule = matches.find((r) => !r.compose && !(ev.strict && r.fallback))
     const composed = matches.filter((r) => r.compose)
     if (this.trace.length > 200) this.trace.shift()
     this.trace.push({ ev, rule: rule?.id })
@@ -129,7 +133,7 @@ export class Engine {
     const saved = this.world.state.rng
     const matches = this.lib.match(ev, roles, this.world)
     this.world.state.rng = saved
-    const rule = matches.find((r) => !r.compose)
+    const rule = matches.find((r) => !r.compose && !(ev.strict && r.fallback))
     return { defined: !!rule, rule, composed: matches.filter((r) => r.compose) }
   }
 
@@ -169,11 +173,12 @@ export class Engine {
    * An actor performs a verb on a target. Returns the resolution; when nothing matches,
    * the interaction is undefined and goes to the Mod port.
    */
-  interact(verb: Verb, actorId: Id, target: Ref): Resolution {
+  interact(verb: Verb, actorId: Id, target: Ref, opts: { instrument?: Ref | null; strict?: boolean } = {}): Resolution {
     const w = this.world
     const actor = w.get(actorId)
     if (!actor) return { defined: false, composed: [] }
-    const instrument = actor.held ? { e: actor.held } : undefined
+    // the held item, unless the caller names another (an item from the bag) or none (talking while holding a tool)
+    const instrument = opts.instrument === undefined ? (actor.held ? { e: actor.held } : undefined) : (opts.instrument ?? undefined)
     const frozen = [target, instrument].some((r) => r && 'e' in r && w.get(r.e)?.frozenBy)
     if (frozen) {
       w.fx.push({ t: 'say', who: actorId, text: '…' })
@@ -188,6 +193,7 @@ export class Engine {
       verb,
       roles: { actor: { e: actorId }, target, instrument },
       at: w.refPos(target),
+      strict: opts.strict || undefined,
     }
     const res = this.resolve(ev)
     if (!res.defined) {
@@ -294,6 +300,8 @@ export class Engine {
     if (e.frozenBy) return true
     // the player watches a scene
     if (e.id === this.world.state.player && this.world.state.scene) return true
+    // the player answers a yes/no question
+    if (e.id === this.world.state.player && this.world.state.question) return true
     for (const s of Object.keys(e.statuses ?? {})) if (this.world.onto.status(s)?.immobilize) return true
     return false
   }
@@ -340,13 +348,17 @@ export class Engine {
       w.place(other, { on: 'tile', map, x, y })
     }
     w.place(e, { on: 'tile', map, x: nx, y: ny })
-    this.queue({ kind: 'enter', roles: { actor: { e: e.id }, target: { tile: { map, x: nx, y: ny } } } })
+    const enter: GameEvent = { kind: 'enter', roles: { actor: { e: e.id }, target: { tile: { map, x: nx, y: ny } } } }
+    // the player steps into a tile in some state the world has no answer for (design.md §5.4, source 5)
+    const st = w.tileState(map, nx, ny)?.statuses
+    if (isPlayer && st && Object.keys(st).length && this.undefinedSink && !this.resolve(enter).defined) this.undefinedSink.raise(enter)
+    else this.queue(enter)
     if (isPlayer && portalHere) this.travel(e, { map: portalHere.to, x: portalHere.tx, y: portalHere.ty })
     return true
   }
 
-  /** Player movement request (held direction); respects speed. */
-  movePlayer(dir: Dir): boolean {
+  /** Player movement request (held direction); respects speed. `walk` (Shift) is slower than the default run. */
+  movePlayer(dir: Dir, walk = false): boolean {
     const p = this.world.player
     if (!this.ready(p.id) || this.pendingTransition) {
       p.facing = dir
@@ -355,7 +367,7 @@ export class Engine {
     const moved = this.step(p, dir)
     // worn out (no energy left): slower
     const tired = this.world.num(p, 'energy', 1) <= 0 ? 2 : 1
-    if (moved) this.setCooldown(p.id, this.world.num(p, 'speed', 2) * tired)
+    if (moved) this.setCooldown(p.id, (this.world.num(p, 'speed', 2) + (walk ? 1 : 0)) * tired)
     return moved
   }
 
@@ -417,7 +429,8 @@ export class Engine {
       const y = start.y + dy * i
       if (!w.inBounds(start.map, x, y)) break
       last = { map: start.map, x, y }
-      const victim = w.actorAt(start.map, x, y)
+      // an actor first, then a fixture (a blow on the well is a blow on the well)
+      const victim = w.actorAt(start.map, x, y) ?? w.entitiesAt(start.map, x, y).find((e) => w.kindOf(e) === 'fixture')
       if (victim) {
         target = { e: victim.id }
         break
@@ -428,7 +441,24 @@ export class Engine {
     if (!target) return
     if (range > 1 && last) w.fx.push({ t: 'vfx', fx: `bolt:${element ?? 'none'}:${a.facing}:${Math.abs(last.x - start.x) + Math.abs(last.y - start.y)}`, map: start.map, x: start.x, y: start.y })
     else w.fx.push({ t: 'vfx', fx: `swing:${a.facing}`, map: start.map, x: start.x, y: start.y })
-    this.queue({ kind: 'hit', roles: { actor: { e: a.id }, target, instrument: weapon ? { e: weapon.id } : undefined }, element, power })
+    const hit: GameEvent = { kind: 'hit', roles: { actor: { e: a.id }, target, instrument: weapon ? { e: weapon.id } : undefined }, element, power }
+    // the player's blow lands on something with no reaction (design.md §5.4, source 3)
+    if (a.id === w.state.player && this.undefinedSink && this.salientHit(hit) && !this.resolve(hit).defined) return this.undefinedSink.raise(hit)
+    this.queue(hit)
+  }
+
+  /** A hit worth asking about: on a fixture, or with an element on a tile that holds something (a status, water, plants). */
+  private salientHit(ev: GameEvent): boolean {
+    const w = this.world
+    const t = ev.roles.target
+    if (!t) return false
+    if ('e' in t) return w.kindOf(w.get(t.e)!) === 'fixture'
+    if (!ev.element) return false
+    const { map, x, y } = t.tile
+    const st = w.tileState(map, x, y)?.statuses
+    if (st && Object.keys(st).length) return true
+    const tags = w.onto.terrain(w.terrainAt(map, x, y))?.tags ?? []
+    return tags.some((g) => !['ground', 'floor', 'road', 'indoor', 'stone', 'diggable', 'cave'].includes(g))
   }
 
   // ---------------------------------------------------------------- simulation tick
@@ -442,6 +472,7 @@ export class Engine {
     this.npcs.tick(active)
     stepCreatures(this, active)
     this.undefinedSink?.tick()
+    this.controls.magnet()
     this.dayTick()
     this.weatherTick(active)
     this.scenes.tick()

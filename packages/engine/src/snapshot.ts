@@ -3,6 +3,8 @@
 import type { Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
 import type { Appearance, Dir, FxEvent, Id, PropValue, SceneState, Text } from './types.ts'
+import { SLOT_COUNT } from './controls.ts'
+import { friendship, memoryOf } from './people.ts'
 
 export interface ItemInfo {
   id: Id
@@ -63,8 +65,17 @@ export interface Frame {
     props: Record<string, PropValue>
     held?: ItemInfo
     inventory: ItemInfo[]
+    /** The bag's slots (row 1 is the toolbar): a stack each, or empty. */
+    slots: ({ item: ItemInfo; count: number } | null)[]
+    selected: number
   }
-  /** The open container the player faces: what the container panel shows. */
+  /** A yes/no question waiting for the player (time is stopped). */
+  question?: { text: Text }
+  /** The people the player knows of: the Social tab. */
+  social: SocialEntry[]
+  /** What the two keys would do right now (filled by the host, not by snapshot()). */
+  keys?: { action?: KeyView; use?: KeyView }
+  /** The open container panel (the host names it): its contents. */
   container?: {
     id: Id
     name: Text
@@ -77,6 +88,31 @@ export interface Frame {
   pendingMap?: string
   /** What the player's E / F keys would do right now (filled by the host, not by snapshot()). */
   prompt?: Prompt
+}
+
+export interface KeyView {
+  label: Text
+  /** Use: the world has never seen this. */
+  unknown?: boolean
+  /** Action: it will ask first. */
+  confirm?: boolean
+  x: number
+  y: number
+}
+
+export interface SocialEntry {
+  id: Id
+  name: Text
+  look?: string
+  points: number
+  /** Gifts this week (of 2) and today. */
+  giftsWeek: number
+  giftedToday: boolean
+  talkedToday: boolean
+  birthday?: { season: string; day: number }
+  /** Gifts given so far and how they were taken (item type → taste). */
+  tasted: Record<string, string>
+  met: boolean
 }
 
 export interface Prompt {
@@ -104,7 +140,7 @@ export function itemInfo(eng: Engine, id: Id): ItemInfo | undefined {
   }
 }
 
-export function snapshot(eng: Engine): Frame {
+export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
   const w = eng.world
   const p = w.player
   const pos = w.posOf(p)!
@@ -144,8 +180,43 @@ export function snapshot(eng: Engine): Frame {
     const [, x, y] = k.split(':')
     tiles.push({ x: +x, y: +y, terrain: t.terrain, statuses: t.statuses ? Object.keys(t.statuses) : undefined })
   }
-  const box = eng.facingContainer()
+  const panel = opts.panel ? w.get(opts.panel) : undefined
+  const box = panel && w.hasStatus({ e: panel.id }, 'open') ? panel : undefined
   const capacity = box && w.prop(box, 'capacity')
+  // the bag's slots: each the stack of carried items with that key
+  const carried = new Map<string, Id[]>()
+  for (const id of [...(p.held ? [p.held] : []), ...(p.contents ?? [])]) {
+    const e = w.get(id)
+    if (!e) continue
+    const k = eng.controls.key(e)
+    carried.set(k, [...(carried.get(k) ?? []), id])
+  }
+  const slots = Array.from({ length: SLOT_COUNT }, (_, i) => {
+    const k = p.slots?.[i]
+    const ids = k ? carried.get(k) : undefined
+    const first = ids && itemInfo(eng, ids[0])
+    return first ? { item: first, count: ids!.length } : null
+  })
+  const cal = w.calendar()
+  const week = Math.floor((cal.day - 1) / 7)
+  const social: SocialEntry[] = Object.values(w.state.entities)
+    .filter((e) => e.npc?.person)
+    .map((e) => {
+      const mem = memoryOf(eng, e.id)
+      const g = mem.gifts && mem.gifts.week === week ? mem.gifts : undefined
+      return {
+        id: e.id,
+        name: e.name ?? e.id,
+        look: e.npc?.look,
+        points: friendship(eng, e.id),
+        giftsWeek: g?.count ?? 0,
+        giftedToday: g?.day === cal.day,
+        talkedToday: mem.talked === cal.day,
+        birthday: e.npc?.person?.birthday,
+        tasted: { ...(mem.tasted ?? {}) },
+        met: mem.talked !== undefined,
+      }
+    })
   const fx = w.fx
   w.fx = []
   const sc = w.state.scene
@@ -170,7 +241,11 @@ export function snapshot(eng: Engine): Frame {
       props: { ...(p.props ?? {}) },
       held: p.held ? itemInfo(eng, p.held) : undefined,
       inventory: (p.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),
+      slots,
+      selected: p.selected ?? 0,
     },
+    question: w.state.question ? { text: w.state.question.text } : undefined,
+    social,
     container: box && {
       id: box.id,
       name: box.name ?? w.onto.resolve(box.type).name ?? box.type.split('/').pop()!,

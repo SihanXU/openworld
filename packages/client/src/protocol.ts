@@ -1,13 +1,32 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { Dir, Frame, LibraryData, MapData, ModSpec, Patch, Rule, SaveData, UndefinedRecord, ValidationResult, Verb, WorldIndex } from '@lsw/engine'
+import type { Dir, Frame, LibraryData, MapData, ModSpec, Patch, Rule, SaveData, UndefinedRecord, ValidationResult, WorldIndex } from '@lsw/engine'
+
+/** A tile the mouse points at (the keys aim there when it is next to the player). */
+export type Tile = { x: number; y: number }
 
 export type ToWorker =
   | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** the modder service, if any */ modder?: string }
-  | { t: 'move'; dir: Dir | null }
-  | { t: 'act'; verb: Verb; self?: boolean; item?: string }
-  | { t: 'attack' }
-  | { t: 'hold'; item?: string }
+  /** Hold a direction (null: stop); `walk`: Shift, slower than the default run. */
+  | { t: 'move'; dir: Dir | null; walk?: boolean }
+  /** The two keys (design.md §5.2), aimed at a tile next to the player or the one in front. */
+  | { t: 'action'; tile?: Tile }
+  | { t: 'use'; tile?: Tile }
+  /** Where the mouse points (for the key labels). */
+  | { t: 'aim'; tile?: Tile }
+  | { t: 'answer'; yes: boolean }
+  /** Slots: select (toolbar), cycle (wheel), next row (Tab), swap (menu), drop (out of the menu), organize. */
+  | { t: 'select'; slot: number }
+  | { t: 'cycle'; dir: 1 | -1 }
+  | { t: 'row' }
+  | { t: 'swap'; a: number; b: number }
+  | { t: 'drop'; slot: number; all: boolean }
+  | { t: 'organize' }
+  /** The chest panel. */
+  | { t: 'transfer'; from: 'chest' | 'bag'; item: string; all: boolean }
+  | { t: 'closePanel' }
+  /** Time stops while a menu, a dialogue or a question is open. */
+  | { t: 'pause'; on: boolean }
   | { t: 'patch'; id?: string; patch: Patch }
   | { t: 'dismiss'; id: string }
   | { t: 'removeRule'; id: string }

@@ -309,14 +309,32 @@ export class WorldScene extends Phaser.Scene {
     for (const fx of f.fx) this.hooks.onFx(fx, f)
   }
 
-  /** Outline the tile the player faces: where take, put and interact land. */
+  /** Outline the tile the two keys aim at (Stardew's tool hit location): the mouse's neighbour tile, or the one in front. */
   private drawFocus(f: Frame): void {
+    const k = f.keys?.action ?? f.keys?.use
     const [dx, dy] = STEP[f.player.facing]
-    const x = (f.player.x + dx) * T
-    const y = (f.player.y + dy) * T
+    const tx = k ? k.x : f.player.x + dx
+    const ty = k ? k.y : f.player.y + dy
     this.focus ??= this.add.graphics().setDepth(1e5)
-    this.focus.clear().lineStyle(1, 0xffffff, 0.55).strokeRoundedRect(x + 0.5, y + 0.5, T - 1, T - 1, 2)
+    const unknown = !!f.keys?.use?.unknown && !f.keys?.action
+    this.focus.clear()
+    if (f.scene || !f.keys) return
+    this.focus.lineStyle(1, unknown ? 0xf0b85a : 0xffffff, 0.6).strokeRoundedRect(tx * T + 0.5, ty * T + 0.5, T - 1, T - 1, 2)
   }
+
+  /** The tile under a screen point (for mouse aiming). */
+  tileAtScreen(sx: number, sy: number): { x: number; y: number } | undefined {
+    if (!this.base) return undefined
+    const cam = this.cameras.main
+    return { x: Math.floor((cam.worldView.x + sx / cam.zoom) / T), y: Math.floor((cam.worldView.y + sy / cam.zoom) / T) }
+  }
+
+  /** The map on screen (for the menu's map tab). */
+  currentMap(): MapData | undefined {
+    return this.base
+  }
+
+  private lastStep = 0
 
   private applyTiles(f: Frame): void {
     const now = new Map<string, string>()
@@ -440,7 +458,11 @@ export class WorldScene extends Phaser.Scene {
       this.tweens.killTweensOf(v.root)
       if (far) v.root.setPosition(px, py)
       else {
-        const dur = e.id === this.playerId ? 190 : e.kind === 'actor' && (e.look || e.appearance) ? 380 : 330
+        // the player's step lasts as long as the gap between steps (running or walking)
+        const now = this.time.now
+        const gap = now - this.lastStep
+        if (e.id === this.playerId) this.lastStep = now
+        const dur = e.id === this.playerId ? Math.max(160, Math.min(320, gap > 400 ? 200 : gap)) : e.kind === 'actor' && (e.look || e.appearance) ? 380 : 330
         this.tweens.add({ targets: v.root, x: px, y: py, duration: dur, ease: 'Linear' })
         v.movingUntil = this.time.now + dur
       }
