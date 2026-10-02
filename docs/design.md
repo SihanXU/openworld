@@ -165,6 +165,11 @@ there was unreachable. Checked against the engine's event space, it had five hol
 a bare-hand interaction on the same fixture; a tool on the ground versus using it on oneself;
 layers under a pile; items in the bag as targets; an axe that both chops and strikes).
 
+**The attack key.** Besides the four, **Space** strikes straight ahead with the held weapon (or
+a fist): on the press, and again while held, paced by the attack cooldown. It adds no event the
+four cannot make (left click with a weapon makes the same blow, aimed at a spot); it is there
+for feel, because a fight should not wait for a mouse release or depend on where the cursor is.
+
 **Completeness**, the criterion every input design here must meet:
 
 1. **Expressible**: every player event the engine can make and a rule can define is produced
@@ -232,29 +237,63 @@ The craft is Stardew Valley's; the systems are the Ford's own (game-design.md §
 was cut).
 
 - **Inventory**
-  - 10 slots, keys 1–0: the bag is the toolbar, and the selected slot is what the player
-    holds; there is no separate hand slot.
+  - 30 slots in three rows of ten; the first row is the toolbar (keys 1–0), and the selected
+    slot is what the player holds; there is no separate hand slot.
+  - Tab brings the next row to the toolbar (Shift+Tab the previous one); a new kind takes the
+    first free slot, the toolbar's first; with the bag full it stays on the ground.
   - Equal items stack.
-  - In the menu: drag to move, right-click takes one, Shift+right-click takes half, dragging
-    an item out of the menu drops it, and a button organizes the bag.
+  - In the menu: drag to move, right-click takes one, Shift+right-click takes half, Shift+click
+    moves a stack between the toolbar and the rest of the bag, dragging an item out of the menu
+    drops it, and a button organizes the bag.
   - Slot order and the selected slot are part of the world state.
 - **Chests**
   - The chest's grid is shown above the inventory's grid.
   - Clicking an item moves it to the other side; right-click moves one.
   - Buttons: organize, and fill existing stacks.
 - **Pickup**
-  - Items that rules spawn (a harvest, logs, loot) pop out, and fly into the bag within 2
-    tiles (Stardew's default magnetic radius is 128 px).
+  - Items that rules spawn (a harvest, logs, stones) pop out, and fly into the bag within 2
+    tiles (Stardew's default magnetic radius is 128 px). What a creature leaves when it falls
+    (its meat, its loot) and a hen's eggs lie still instead (`spawn`/`dropContents` with
+    `still`): they are taken with F.
   - Items placed in the world are taken with F. Walking through town never vacuums it.
+- **Foraging** (Don't Starve's twigs, flint and grass): a map names what its ground yields
+  (`MapData.forage`: an item type, the terrains it lies on, a cap). While the player is on the
+  map, every 150 ticks one more of each kind below its cap appears on a free tile, never right
+  beside the player (`engine/src/forage.ts`). These are taken with F like any placed item.
+- **Crafting** (C, or the menu's Craft tab): recipes are content (`content/src/recipes.ts`);
+  each lists what it uses up from the bag and the item it makes. The first tools are the
+  catalogue's axe and pickaxe in stone (stone axe: stick, stone, grass; stone pickaxe: two
+  sticks, two stones, grass), so the rules that answer an axe or a pickaxe answer them.
+- **Creatures find their way**: a step toward a foe or home is greedy; when it is blocked (a
+  clump of trees), the creature takes a path around (A*) and keeps to it (`ai.detour`) until it
+  arrives or its goal moves. A fire's reach still stops it.
+- **Animals** (game-design.md §4b): `behaviour: 'passive'` creatures never attack and run from
+  their foes; `MapData.forage` also brings creatures back (with `every`, `ai`, `statuses`).
+- **Hunger** (Minecraft's food bar): an actor with `maxHunger` (the player: 20) loses one
+  point every 300 ticks; eating feeds it the food's `food` prop (the `feed` primitive in
+  `core/eat`). Food does not heal: health comes back from being well fed (below). Medicine eaten
+  (the healing herb, `core/eat-medicine`) and drinks (potions, `core/drink`) still heal. At 90 % and up it heals a point every 80 ticks; at 0 it loses one as often, but
+  starvation never takes the last point (`engine/src/hunger.ts`).
+- **Experience and levels**: the `gainXp` primitive. A defeated actor gives whoever struck
+  the last blow experience equal to its maxHp (`combat/defeat`); 20 × level of it raises the
+  level, and each level brings a skill point (`engine/src/progression.ts`). Props `xp`,
+  `level`, `skillPoints` on any actor. The skill tree that spends the points is not built yet.
 - **HUD**
   - Top right: the day, the weather, a clock dial.
   - Under it, a "!" journal button that flashes on a new objective.
-  - Bottom right: the health bar, shown when health is not full or near danger.
-  - Bottom: the toolbar. It moves to the top when the player walks near the bottom edge.
+  - Bottom: the toolbar, and above it Minecraft's status: the experience bar the toolbar's
+    width with the level on it, then ten hearts on the left (each a tenth of maxHp, emptying
+    from the right) and ten drumsticks on the right (hunger, emptying from the left). The
+    whole block moves to the top when the player walks near the bottom edge.
   - Bottom left: messages such as "+1 log" or "The world pauses…".
   - The map name fades in when the player enters a map.
   - Development only: the message log, performance numbers, the Mod Console.
-- **Menu** (Esc): Inventory, Options. **Journal** (J): the objective, what is done, and the
+- **Tooltips** (Minecraft's): hovering an item in the toolbar, the bag, a chest or the
+  crafting panel shows a box at the cursor (`client/src/ui/tooltip.ts`): the name in its
+  quality's rarity colour, its kind, "When held:" with the blow it makes (atk + power, reach,
+  element), what a tool does and what food restores, its material and traits as lore,
+  statuses and owner.
+- **Menu** (Esc): Inventory, Craft, Options. **Journal** (J): the objective, what is done, and the
   Threadbook (§5.9). An ending card closes the story when the goal state is reached.
 - **Time** stops while a menu, a dialogue, a scene or a yes/no question is open.
 - **Movement** stays on the tile grid, because rules are tile-based, with smooth

@@ -101,6 +101,29 @@ Composed, not scattered. The rules it follows:
 | The marsh | Ponds among tall grass: lightning runs here. |
 | The far bank | The goal (region `far_bank`, every column from 32 east); a road that leaves the map to the east. |
 
+### 4b. The meadow, west of the Ford (40 × 30)
+
+The road leaves the Ford through the gap in its western woods (rows 18–20) and comes out on the
+meadow's east edge: open grassland in a ring of woods, a pond, flowers and tufts (Minecraft's
+plains). Its ground yields sticks, stones and grass like the Ford's (three of each to start,
+up to 6/5/6). Three cows and four hens live there; more appear slowly while the player is on the map
+(`MapData.forage`: a cow every 1,200 ticks up to 4, a hen every 900 up to 5). Animals are
+passive: they wander near where they appeared and run from whoever strikes them. A cow leaves
+two raw beef, a hen one raw chicken (`drop` × `drops`, in `combat/defeat`); a hen lays an egg
+every 1,800 ticks (`laying`, `animal/lay-egg`). Both lie where they fell, taken with F. Every food is edible, raw or cooked, and feeds
+its own `food` (raw beef 3, steak 8, raw chicken 2, roast chicken 6, egg 1, bread 5).
+The cow and chicken sprites are the project's own (`tools/src/art/animals.ts`, served from
+`public/assets/lsw/`); the pack subset has none.
+
+### 4c. The forest, south of the meadow (40 × 30)
+
+A trail leaves the meadow through the gap in its southern woods (columns 22–24) and winds
+through thick woods: about two trees in five inside, clearings along the trail, side trails
+off it. Every tree and pine falls to an axe as anywhere (`wood/notch`, `wood/fell`: two swings,
+a stump that grows back in two game days, two logs and a stick); a couple of hundred stand
+beside ground the player can reach. Its ground yields sticks above all (up to 10), a few
+stones and grass.
+
 ## 5. People
 
 Two people, as data (`tools/src/demo/people/*.ts`): a record each with temperament, ties, keyed
@@ -233,7 +256,6 @@ bed (Hesper sleeps by the fire) and a third slime.
 | Hearthvale's fifteen maps, twelve villagers and ~830 lines; the homestead, shops, fishing | Stardew's content, not ours; none of it witnessed a requirement the Ford does not |
 | Weekdays, seasons, the weekly gathering, the long repair project | Stardew's loops; the Ford's loop is the goal and the world's answers |
 | Friendship hearts, gift tastes, letters, energy, sleeping in a bed | Stardew's systems; people react through lines, topics and witnesses instead |
-| The 36-slot bag | ten slots are the whole bag and the toolbar |
 | The social, map and letters tabs | nothing to show; the journal holds the objective and the Threadbook |
 
 The engine keeps what is general (rules, statuses, scenes, schedules with variants, lines with

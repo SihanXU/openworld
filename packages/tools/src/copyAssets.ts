@@ -30,7 +30,8 @@ export function catalogPaths(): string[] {
   }
   for (const f of Object.values(c.fx)) paths.add(f.img)
   for (const p of [...Object.values(c.music), ...Object.values(c.sfx)]) paths.add(p)
-  return [...paths].sort()
+  // the project's own art (public/assets/lsw/) is not the pack's
+  return [...paths].filter((p) => !p.startsWith('lsw/')).sort()
 }
 
 function main(): void {

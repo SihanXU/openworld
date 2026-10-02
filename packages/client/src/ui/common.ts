@@ -33,6 +33,13 @@ export const tx = (t: Text | undefined) => textOf(t, locale.value)
 
 const STRINGS: Record<string, [string, string]> = {
   inventory: ['Inventory', '背包'],
+  craft: ['Craft', '制作'],
+  craftIt: ['Craft', '制作'],
+  needMore: ['Not enough materials', '材料不够'],
+  level: ['Level', '等级'],
+  xp: ['Experience', '经验'],
+  skillPoints: ['Skill points', '技能点'],
+  levelUp: ['Level up! Level {n} · +1 skill point', '升级了！等级 {n} · 技能点 +1'],
   threads: ['Threadbook', '织线簿'],
   options: ['Options', '选项'],
   journal: ['Journal', '日志'],
@@ -43,6 +50,7 @@ const STRINGS: Record<string, [string, string]> = {
   yes: ['Yes', '是'],
   no: ['No', '否'],
   health: ['Health', '生命'],
+  hunger: ['Hunger', '饱食度'],
   day: ['Day', '第'],
   noThreads: ['No threads yet. Try something the world has never seen.', '还没有新的线。试试这个世界从没见过的事。'],
   learned: ['A new thread is woven', '织入了一根新线'],
@@ -85,7 +93,7 @@ export function t(k: string): string {
 
 export const MOOD_GLYPH: Record<string, string> = { happy: '♥', sad: '…', angry: '!!', surprised: '!', shy: '♡', neutral: '…' }
 
-/** The bag is the toolbar: ten slots, keys 1–0. */
+/** The toolbar (the bag's first row): ten slots, keys 1–0. */
 export const SLOT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 
 /** The controls, as shown in the intro and the Options tab. */
@@ -95,11 +103,13 @@ export function controlsTable(dev: boolean): string {
     ['WASD · ↑↓←→', 'move (Shift: walk)', '移动（Shift：慢走）'],
     ['E', 'hands: talk, open, read, push', '空手：说话、打开、阅读、推'],
     ['F', 'take: pick up, take down, take out', '拿：捡起、取下、取出'],
+    ['Space', 'attack: strike ahead (hold to keep striking)', '攻击：朝面前挥击（按住连续攻击）'],
     ['left click', 'use the held thing on it (click yourself: eat, drink); weapons strike', '用手上的东西作用于它（点自己：吃、喝）；武器就是攻击'],
     ['right click', 'put the held thing there: place, store, hand it over', '把手上的东西放过去：放下、放进、交给别人'],
     ['hold any of these', 'choose which of the things drawn there', '长按以上任一：选那个位置叠着的哪一样'],
     ['1–0 · wheel', 'choose what to hold', '选择拿在手里的东西'],
-    ['Esc · I · J', 'menu · inventory · Threadbook', '菜单 · 背包 · 织线簿'],
+    ['Tab · Shift+Tab', 'the next (previous) row of the bag becomes the toolbar', '把背包的下一行（上一行）换到快捷栏'],
+    ['Esc · I · C · J', 'menu · inventory · craft · Threadbook', '菜单 · 背包 · 制作 · 织线簿'],
   ]
   if (dev) rows.push(['`', 'Mod Console (dev)', '模组控制台（开发）'])
   return `<table>${rows.map(([k, en, z]) => `<tr><td><kbd>${k}</kbd></td><td>${zh ? z : en}</td></tr>`).join('')}</table>`

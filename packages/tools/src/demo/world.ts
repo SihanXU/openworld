@@ -9,10 +9,10 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Entity, MapMeta, Pos, SceneDef, ScheduleEntry, ScheduleVariant, Text, WorldIndex } from '@lsw/engine'
+import { tickAt, type AiData, type Entity, type Forage, type MapMeta, type Pos, type SceneDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
 import { INVARIANTS, PROTECTED_FACTS, type RawChunk } from '@lsw/content'
 import { CATALOG } from '../../../client/src/assets/catalog.ts'
-import { MapBuilder, rng } from './builder.ts'
+import { MapBuilder, linkEdge, reseed, rng } from './builder.ts'
 import type { PersonDef, Slot } from './person.ts'
 import { PEOPLE } from './people.ts'
 
@@ -189,6 +189,119 @@ function buildMap(): MapBuilder {
   m.sprinkle('fixture/nature/pebbles', 0.15, (x, y, t) => grass(t) && by(x, y, water) && y >= 10 && y <= 20)
   m.sprinkle('fixture/nature/boulder', 0.12, (x, y, t) => grass(t) && y === 3 && x < 22)
   m.sprinkle('fixture/nature/tuft', 0.05, (_x, _y, t) => grass(t))
+  // ------------------------------------------------------------ what the ground yields (Don't Starve's twigs, flint and grass)
+  // sticks under the western woods, stones on the slope, grass in the meadow: a first tool's worth
+  // lies there from the start, and the ground yields more over time, up to a handful of each
+  lay(m, 'item/material/stick', 3, [3, 11, 6, 9])
+  lay(m, 'item/material/stone', 3, [16, 5, 6, 6])
+  lay(m, 'item/material/grass', 3, [9, 5, 6, 5])
+  m.forage = [...MATERIALS_FORAGE]
+  return m
+}
+
+/** Sticks, stones and grass: every outdoor map's ground yields them, up to a handful of each. */
+const MATERIALS_FORAGE: Forage[] = [
+  { type: 'item/material/stick', on: ['grass'], max: 6 },
+  { type: 'item/material/stone', on: ['grass'], max: 5 },
+  { type: 'item/material/grass', on: ['grass', 'drygrass'], max: 6 },
+]
+
+/** Lay up to n of an item on open grass in a rect, spread on a fixed pattern (no randomness: the map's other draws stay as they were). */
+function lay(m: MapBuilder, type: string, n: number, [x0, y0, w, h]: [number, number, number, number]): void {
+  for (let y = y0, k = 0; y < y0 + h && k < n; y++)
+    for (let x = x0; x < x0 + w && k < n; x++) if ((x * 7 + y * 3) % 5 === 0 && ['grass', 'drygrass'].includes(m.get(x, y)) && m.free(x, y)) (m.item(type, x, y), k++)
+}
+
+// =================================================================== the meadow, west of the Ford
+
+/** The road's gap in the Ford's western woods, and the meadow's eastern one it leads to. */
+export const WEST_GAP = [18, 19, 20]
+/** The gap in the meadow's southern woods (columns), and the forest's northern one below it. */
+export const SOUTH_GAP = [22, 23, 24]
+/** Where the meadow's animals start (the completeness test reads these). */
+export const MEADOW = {
+  cows: [[12, 10], [18, 14], [9, 20]],
+  hens: [[24, 9], [26, 12], [22, 21], [28, 19]],
+} as const satisfies Record<string, readonly (readonly [number, number])[]>
+/** A passive animal: it wanders near where it lives, and runs from whoever strikes it. */
+const GRAZER: Omit<AiData, 'home'> = { behaviour: 'passive', temper: 'wary', sight: 4, leash: 6 }
+
+/** Open grassland in a ring of woods (Minecraft's plains): cows and chickens, and more of them in time. */
+function buildMeadow(): MapBuilder {
+  const m = new MapBuilder('meadow', L('The Meadow', '草原'), 'wild', 40, 30, 'grass', 'Village', 'outdoor', 'frostfang')
+  const open = (y: number) => WEST_GAP.includes(y)
+  // the woods all round, two to four deep, the east side open where the road comes in
+  for (let y = 0; y < m.h; y++)
+    for (let x = 0; x < m.w; x++) {
+      const edge = Math.min(x, y, m.w - 1 - x, m.h - 1 - y)
+      if (x >= m.w - 4 && open(y)) continue
+      if (y >= m.h - 4 && SOUTH_GAP.includes(x)) continue
+      if (edge < 2 || (edge < 4 && rng.chance(0.45 - edge * 0.1))) m.set(x, y, rng.chance(0.25) ? 'pine' : 'tree')
+    }
+  for (const [cx, cy, r, p] of [[4, 4, 3, 0.7], [35, 4, 2.6, 0.7], [4, 26, 3, 0.75], [33, 26, 2.4, 0.7], [20, 2.5, 2, 0.6], [2.5, 15, 2, 0.6]] as const) clump(m, cx, cy, r, p)
+  // the road in from the Ford fades into the grass
+  m.path([[39, 19], [34, 19], [30, 18]], 'path', 2, { edge: 'dirt', edgeP: 0.3 })
+  // and a trail south, into the forest
+  m.path([[27, 21], [23, 25], [23, 29]], 'path', 1, { edge: 'dirt', edgeP: 0.2 })
+  // a pond where the animals drink
+  m.organic(16, 22, 2.6, 1.7, 'water', { only: (t) => t === 'grass' })
+  // small things: flowers and tufts in the open, leaves under the trees
+  const tree = (t: string) => t === 'tree' || t === 'pine'
+  m.sprinkle('fixture/nature/flowers', 0.06, (x, y, t) => t === 'grass' && !m.near(x, y, tree, 2))
+  m.sprinkle('fixture/nature/tuft', 0.08, (x, y, t) => t === 'grass' && !m.near(x, y, tree, 1))
+  m.sprinkle('fixture/nature/leaves', 0.14, (x, y, t) => t === 'grass' && m.near(x, y, tree))
+  // the herd and the hens; hens lay through the day
+  const start = tickAt(1, START_HOUR)
+  for (const [x, y] of MEADOW.cows) m.creature('animal/cow', x, y, { ...GRAZER })
+  MEADOW.hens.forEach(([x, y], i) => (m.creature('animal/chicken', x, y, { ...GRAZER }).statuses = { laying: start + 600 + i * 300 }))
+  // sticks under the woods, stones and grass in the open, as on the Ford
+  lay(m, 'item/material/stick', 3, [5, 5, 8, 6])
+  lay(m, 'item/material/stone', 3, [20, 15, 8, 6])
+  lay(m, 'item/material/grass', 3, [26, 6, 8, 6])
+  // Minecraft's passive mobs are slow to come back: a cow every two minutes, a hen every ninety seconds, while there is room
+  m.forage = [
+    ...MATERIALS_FORAGE,
+    { type: 'actor/creature/animal/cow', on: ['grass'], max: 4, every: 1200, ai: GRAZER, statuses: [] },
+    { type: 'actor/creature/animal/chicken', on: ['grass'], max: 5, every: 900, ai: GRAZER, statuses: ['laying'] },
+  ]
+  return m
+}
+
+// =================================================================== the forest, south of the meadow
+
+/** Dense woods to fell (wood/notch, wood/fell: two swings of an axe; a stump grows back in two days), a trail and clearings through them. */
+function buildForest(): MapBuilder {
+  const m = new MapBuilder('forest', L('The Forest', '森林'), 'wild', 40, 30, 'grass', 'Village', 'outdoor', 'frostfang')
+  const tree = () => (rng.chance(0.3) ? 'pine' : 'tree')
+  // the woods close all round, the north open where the meadow's trail comes in
+  for (let y = 0; y < m.h; y++)
+    for (let x = 0; x < m.w; x++) {
+      const edge = Math.min(x, y, m.w - 1 - x, m.h - 1 - y)
+      if (y < 4 && SOUTH_GAP.includes(x)) continue
+      if (edge < 2 || (edge < 4 && rng.chance(0.5))) m.set(x, y, tree())
+      // inside, trees stand thick: two in five tiles
+      else if (rng.chance(0.4)) m.set(x, y, tree())
+    }
+  // clearings, a trail that winds through them, and side trails off it
+  const wood = (t: string) => t === 'tree' || t === 'pine'
+  for (const [cx, cy, rx, ry] of [[23, 7, 3.2, 2.2], [13, 13, 3.6, 2.6], [27, 17, 3, 2.4], [10, 23, 3.4, 2.2], [31, 25, 2.8, 2]] as const) m.organic(cx, cy, rx, ry, 'grass', { only: wood, rough: 0.2 })
+  m.path([[23, 0], [23, 5], [20, 9], [15, 12], [17, 16], [24, 17], [27, 21], [20, 23], [12, 23]], 'path', 1, { edge: 'dirt', edgeP: 0.25 })
+  m.path([[27, 21], [31, 25]], 'path', 1)
+  m.path([[15, 12], [7, 9], [5, 15]], 'path', 1)
+  // the forest floor: leaves under the trees, ferns and moss in the shade, tufts in the clearings
+  const near = (x: number, y: number) => m.near(x, y, wood)
+  m.sprinkle('fixture/nature/leaves', 0.3, (x, y, t) => t === 'grass' && near(x, y))
+  m.sprinkle('fixture/nature/ferns', 0.12, (x, y, t) => t === 'grass' && near(x, y))
+  m.sprinkle('fixture/nature/moss', 0.05, (x, y, t) => t === 'grass' && near(x, y))
+  m.sprinkle('fixture/nature/tuft', 0.08, (x, y, t) => t === 'grass' && !near(x, y))
+  // what falls in a forest: sticks above all
+  lay(m, 'item/material/stick', 4, [18, 4, 10, 8])
+  lay(m, 'item/material/stone', 2, [10, 10, 8, 6])
+  m.forage = [
+    { type: 'item/material/stick', on: ['grass'], max: 10 },
+    { type: 'item/material/stone', on: ['grass'], max: 3 },
+    { type: 'item/material/grass', on: ['grass'], max: 4 },
+  ]
   return m
 }
 
@@ -300,6 +413,8 @@ export interface FordWorld {
 }
 
 export function buildFord(): FordWorld {
+  // each map from its own seed: the same world on every build, and one map's draws never move another's
+  reseed(4242)
   const m = buildMap()
   for (const [name, [x, y]] of Object.entries(m.anchors)) {
     const t = m.get(x, y)
@@ -311,24 +426,34 @@ export function buildFord(): FordWorld {
     return { map: m.id, x: a[0], y: a[1] }
   }
   const npcs = PEOPLE.map((p) => person(p, at))
+  // the meadow west of the Ford, through the road's gap in the woods
+  reseed(4243)
+  const meadow = buildMeadow()
+  linkEdge(m, WEST_GAP.map((y) => [0, y]), [1, 0], meadow, WEST_GAP.map((y) => [meadow.w - 1, y]), [-1, 0])
+  // the forest south of the meadow
+  reseed(4244)
+  const forest = buildForest()
+  linkEdge(meadow, SOUTH_GAP.map((x) => [x, meadow.h - 1]), [0, -1], forest, SOUTH_GAP.map((x) => [x, 0]), [0, 1])
   const chunk = m.chunk()
+  const meadowChunk = meadow.chunk()
+  const forestChunk = forest.chunk()
   let items = 0
   let fixtures = 0
   let creatures = 0
   const kinds = new Set<string>()
-  for (const e of chunk.entities) {
+  for (const e of [...chunk.entities, ...meadowChunk.entities, ...forestChunk.entities]) {
     if (e.type.startsWith('item/')) (items++, kinds.add(`${e.type}|${(e.tags ?? []).join(',')}`))
     else if (e.type.startsWith('fixture/')) fixtures++
     else if (e.type.startsWith('actor/creature')) creatures++
   }
-  const meta: MapMeta = { id: m.id, name: m.name, kind: m.kind, region: m.region, width: m.w, height: m.h, portals: m.portals, npcs: npcs.length, items }
+  const metaOf = (b: MapBuilder, c: RawChunk): MapMeta => ({ id: b.id, name: b.name, kind: b.kind, region: b.region, width: b.w, height: b.h, portals: b.portals, npcs: b === m ? npcs.length : 0, items: c.entities.filter((e) => e.type.startsWith('item/')).length })
   const index: WorldIndex = {
     name: L('The Ford', '渡口'),
     version: VERSION,
     seed: 4242,
     start: { map: m.id, x: AT.spawn[0], y: AT.spawn[1] },
     startHour: START_HOUR,
-    maps: [meta],
+    maps: [metaOf(m, chunk), metaOf(meadow, meadowChunk), metaOf(forest, forestChunk)],
     npcs,
     player: {
       id: 'player',
@@ -336,10 +461,10 @@ export function buildFord(): FordWorld {
       name: L('You', '你'),
       place: { on: 'none' },
       facing: 'up',
-      look: CATALOG.roles.player?.[0] ?? 'NinjaGreen',
+      look: CATALOG.roles.player?.[0] ?? 'NinjaMasked',
       props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, quest: 0 },
     },
-    stats: { maps: 1, npcs: npcs.length, creatures, items, itemKinds: kinds.size, fixtures },
+    stats: { maps: 3, npcs: npcs.length, creatures, items, itemKinds: kinds.size, fixtures },
     scenes,
     invariants: INVARIANTS,
     protectedFacts: PROTECTED_FACTS,
@@ -351,7 +476,7 @@ export function buildFord(): FordWorld {
       { day: 2, from: 8, to: 24, weather: 'sun' },
     ],
   }
-  return { index, chunks: [chunk] }
+  return { index, chunks: [chunk, meadowChunk, forestChunk] }
 }
 
 // =================================================================== write
@@ -364,5 +489,5 @@ if (process.argv[1] && fileURLToPath(import.meta.url).toLowerCase() === resolve(
   writeFileSync(join(OUT, 'index.json'), JSON.stringify(index))
   const lines = PEOPLE.reduce((n, p) => n + p.lines.length, 0)
   const s = index.stats
-  console.log(`The Ford: ${s.maps} map, ${s.npcs} people (${lines} lines), ${s.creatures} creatures, ${s.items} items (${s.itemKinds} kinds), ${s.fixtures} fixtures → ${OUT}`)
+  console.log(`The Ford: ${s.maps} maps, ${s.npcs} people (${lines} lines), ${s.creatures} creatures, ${s.items} items (${s.itemKinds} kinds), ${s.fixtures} fixtures → ${OUT}`)
 }

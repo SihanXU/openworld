@@ -1,10 +1,12 @@
 // The heads-up display (design.md §5.3): the clock box top right with the journal button under
-// it, the health bar bottom right, the toolbar at the bottom,
+// it, the toolbar at the bottom with health, hunger and experience above it (Minecraft's way),
 // messages bottom left, the map name as it fades in, the two keys' labels over the target, the
 // dialogue box and the yes/no question, speech bubbles and floating numbers.
 
-import type { Frame, FxEvent, ItemInfo, KeyView, Text, WorldIndex } from '@lsw/engine'
+import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Text, type WorldIndex } from '@lsw/engine'
 import { OBJECTIVES } from '@lsw/content'
+import { CATALOG } from '../assets/catalog.ts'
+import { assetUrl } from '../render/assets.ts'
 import { $, MOOD_GLYPH, SLOT_KEYS, controlsTable, esc, locale, t, tx } from './common.ts'
 
 export interface HudSend {
@@ -57,10 +59,11 @@ export class Hud {
         <button class="mbtn" id="mbtn" title="Esc">☰</button>
       </div>
       <div class="objective" id="objective"><div class="ob-title" id="obTitle"></div></div>
-      <div class="bars" id="bars">
-        <div class="vbar hp hidden" id="hpBar" title=""><div class="fill" id="hpFill"></div><span>HP</span></div>
+      <div class="hotbar" id="hotbar">
+        <div class="vitals"><div class="hearts" id="hearts"></div><div class="food" id="food"></div></div>
+        <div class="xpbar" id="xpBar"><div class="fill" id="xpFill"></div><span class="lv" id="xpLv"></span></div>
+        <div class="toolbar wood" id="toolbar"></div>
       </div>
-      <div class="toolbar wood" id="toolbar"></div>
       <div class="msgs" id="msgs"></div>
       <div class="mapname" id="mapname"></div>
       <div class="keys" id="keys"></div>
@@ -68,6 +71,8 @@ export class Hud {
       <div class="dialog hidden" id="dialog"><div class="face" id="dFace"></div><div class="dtext"><div class="dname" id="dName"></div><div class="dline" id="dLine"></div><div class="dchoices hidden" id="dChoices"></div></div><div class="dmore" id="dMore">▼</div></div>
       <div class="fade hidden" id="fade"><div id="fadeText"></div></div>
       <div class="card hidden" id="card"><div class="card-text" id="cardText"></div><div class="dmore">▼</div></div>`
+    $('#hotbar').style.setProperty('--heart', `url("${assetUrl('Ui/Receptacle/Heart.png')}")`)
+    $('#hotbar').style.setProperty('--drum', `url("${assetUrl(CATALOG.ui.drumstick.img)}")`)
     $('#jbtn').onclick = () => this.send.openJournal()
     $('#mbtn').onclick = () => this.send.openMenu()
     $('#dialog').onclick = (e) => {
@@ -154,13 +159,39 @@ export class Hud {
     $<HTMLDivElement>('#dialHand').style.transform = `rotate(${-90 + frac * 180}deg)`
   }
 
+  private statSig = ''
+  /** Minecraft's status above the hotbar: ten hearts on the left, ten drumsticks on the right, the experience bar beneath them. */
   private renderBars(f: Frame): void {
     const p = f.player
-    // health shows only when it is not full, or where it is dangerous
-    const showHp = p.hp < p.maxHp || f.entities.some((e) => e.hostile)
-    $('#hpBar').classList.toggle('hidden', !showHp)
-    $<HTMLDivElement>('#hpFill').style.height = `${Math.max(0, (100 * p.hp) / p.maxHp)}%`
-    $('#hpBar').title = `${t('health')} ${Math.max(0, Math.round(p.hp))} / ${p.maxHp}`
+    const level = Math.max(1, Number(p.props.level ?? 1))
+    const xp = Number(p.props.xp ?? 0)
+    const need = xpToNext(level)
+    const points = Number(p.props.skillPoints ?? 0)
+    const sig = `${locale.value}|${p.hp}|${p.maxHp}|${p.hunger}|${p.maxHunger}|${level}|${xp}|${points}`
+    if (sig === this.statSig) return
+    this.statSig = sig
+    // health: each heart a tenth of maxHp, drawn in quarters (the pack's heart has five fills), emptying from the right
+    const per = p.maxHp / 10
+    const hp = Math.max(0, p.hp)
+    $('#hearts').innerHTML = Array.from({ length: 10 }, (_, i) => {
+      const q = Math.max(0, Math.min(4, Math.round(((hp - i * per) / per) * 4)))
+      return `<i class="heart" style="background-position:${q * 25}% 0"></i>`
+    }).join('')
+    $('#hearts').title = `${t('health')} ${Math.round(hp)} / ${p.maxHp}`
+    // hunger: each drumstick a tenth of maxHunger, in halves, emptying from the left (the row is mirrored)
+    const hunger = p.maxHunger > 0 ? p.hunger : 0
+    const fper = p.maxHunger / 10
+    $('#food').classList.toggle('hidden', p.maxHunger <= 0)
+    $('#food').innerHTML = Array.from({ length: 10 }, (_, i) => {
+      const fill = Math.max(0, Math.min(1, Math.round(((hunger - i * fper) / fper) * 2) / 2))
+      return `<i class="drum"><b style="width:${fill * 100}%"></b></i>`
+    }).join('')
+    $('#food').title = `${t('hunger')} ${Math.round(hunger)} / ${p.maxHunger}`
+    $('#food').classList.toggle('starving', p.maxHunger > 0 && hunger <= 0)
+    // experience toward the next level, the level on it
+    $<HTMLDivElement>('#xpFill').style.width = `${Math.min(100, (100 * xp) / need)}%`
+    $('#xpLv').textContent = String(level)
+    $('#xpBar').title = `${t('level')} ${level} · ${t('xp')} ${xp} / ${need}${points ? ` · ${t('skillPoints')} ${points}` : ''}`
   }
 
   private barSig = ''
@@ -169,14 +200,14 @@ export class Hud {
     // the toolbar moves to the top when the player walks near the bottom edge
     const me = this.screenOf(f.player.id)
     const top = !!me && me.y > window.innerHeight * 0.78
-    $('#toolbar').classList.toggle('top', top)
+    $('#hotbar').classList.toggle('top', top)
     const sig = `${f.player.selected}|${row.map((s) => (s ? `${s.item.id}:${s.count}` : '')).join(',')}`
     if (sig === this.barSig) return
     this.barSig = sig
     $('#toolbar').innerHTML = row
       .map(
         (s, i) =>
-          `<div class="slot${i === f.player.selected ? ' sel' : ''}" data-slot="${i}" title="${s ? esc(tx(s.item.name)) : ''}">` +
+          `<div class="slot${i === f.player.selected ? ' sel' : ''}" data-slot="${i}"${s ? ` data-item="${s.item.id}"` : ''}>` +
           `<span class="key">${SLOT_KEYS[i]}</span>${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}` : ''}</div>`,
       )
       .join('')
@@ -449,6 +480,8 @@ export class Hud {
         return this.floater(fx.who, fx.amount < 0 ? `+${-fx.amount}` : `-${fx.amount}`, fx.amount < 0 ? 'heal' : fx.element ?? 'hit')
       case 'pickup':
         return this.pickup(fx)
+      case 'levelup':
+        return void this.message(`★ ${t('levelUp').replace('{n}', String(fx.level))}`, 'good')
       case 'undefined':
         // the clean game: a light cue the first moments the valley works something out (design.md §5.9)
         if (fx.asked) return void this.message(`✦ ${t('learning')}`, 'ai')
@@ -471,7 +504,7 @@ export class Hud {
     el.innerHTML = `<div class="icon" data-icon="${fx.item}"></div>`
     $('#labels').appendChild(el)
     this.flyers.push({ el, born: performance.now(), from })
-    this.paintIcons?.([{ id: fx.item, type: '', sprite: fx.sprite, name: fx.name, tags: [], statuses: [] }])
+    this.paintIcons?.([{ id: fx.item, type: '', sprite: fx.sprite, name: fx.name, tags: [], statuses: [], props: {} }])
     const name = tx(fx.name)
     const prev = this.pickupSig.get(name)
     if (prev && performance.now() - prev.at < 2500) {

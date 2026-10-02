@@ -102,6 +102,7 @@ export const STATUSES: StatusDef[] = [
   { id: 'watered', name: { en: 'watered', zh: '浇过水' }, duration: 1200, overlay: 'wet' },
   { id: 'fertilized', name: { en: 'fertilized', zh: '施过肥' } },
   { id: 'rooting', name: { en: 'rooting', zh: '正在扎根' }, duration: 28800 },
+  { id: 'laying', name: { en: 'laying', zh: '快下蛋了' }, duration: 1800 },
   // ice that magic or a creature made: it thaws back to water
   { id: 'chilled', name: { en: 'thin ice', zh: '薄冰' }, duration: 1500 },
   // a mechanism that needs mending (the ferry winch whose rope snapped)
@@ -173,7 +174,7 @@ const actorTypes: TypeDef[] = [
     props: { hp: 20, maxHp: 20, atk: 1, def: 0, speed: 2 },
     sprite: 'person',
   }),
-  P('actor/person/player', 'you', '你', { props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2 } }),
+  P('actor/person/player', 'you', '你', { props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, hunger: 20, maxHunger: 20 } }),
   ...PERSON_ROLES.map(([id, en, zh]) => P(`actor/person/${id}`, en, zh)),
   P('actor/creature', 'creature', '怪物', { tags: ['creature', 'living', 'faction:wild'], props: { hp: 10, maxHp: 10, atk: 2, def: 0, speed: 6 } }),
   P('actor/creature/slime', 'slime', '史莱姆', { tags: ['slime', 'gelatinous'], sprite: 'creature:slime', props: { hp: 9, maxHp: 9, atk: 2, speed: 7 } }),
@@ -198,6 +199,10 @@ const actorTypes: TypeDef[] = [
   P('actor/creature/imp/fire_imp', 'fire imp', '火焰小鬼', { props: { hp: 12, maxHp: 12, atk: 3, speed: 5, element: 'fire' } }),
   P('actor/creature/wisp', 'wisp', '鬼火', { tags: ['spectral', 'charged'], sprite: 'creature:wisp' }),
   P('actor/creature/wisp/storm_wisp', 'storm wisp', '风暴鬼火', { props: { hp: 9, maxHp: 9, atk: 3, speed: 4, element: 'lightning' } }),
+  // the meadow's animals: passive, they run when struck, and leave food behind (drop × drops)
+  P('actor/creature/animal', 'animal', '动物', { tags: ['animal'] }),
+  P('actor/creature/animal/cow', 'cow', '牛', { tags: ['livestock', 'furry'], sprite: 'creature:cow', props: { hp: 10, maxHp: 10, atk: 0, speed: 7, drop: 'item/food/meat/raw', drops: 2 } }),
+  P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', props: { hp: 4, maxHp: 4, atk: 0, speed: 5, drop: 'item/food/chicken/raw', drops: 1 } }),
   P('actor/creature/crab', 'giant crab', '巨蟹', { tags: ['shelled', 'watery'], sprite: 'creature:crab', props: { hp: 20, maxHp: 20, atk: 4, def: 3, speed: 7 } }),
 ]
 
@@ -261,7 +266,7 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/sacred/gravestone', 'gravestone', '墓碑', ['readable']),
   F('fixture/sacred/seal_stone', 'seal stone', '封印石', ['ancient', 'runic']),
   F('fixture/nature', 'natural feature', '自然物', [], { solid: true }),
-  F('fixture/nature/boulder', 'boulder', '巨石', ['stone', 'rock', 'mineable']),
+  F('fixture/nature/boulder', 'boulder', '巨石', ['stone', 'rock', 'mineable'], { props: { cracks: 0 } }),
   F('fixture/nature/haystack', 'haystack', '干草垛', ['plant', 'flammable', 'dry']),
   F('fixture/nature/logpile', 'log pile', '柴堆', ['wooden', 'flammable']),
   F('fixture/nature/logpile/stack', 'firewood', '柴垛', [], { sprite: 'fixture:firewood' }),

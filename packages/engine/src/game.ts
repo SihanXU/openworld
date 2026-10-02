@@ -88,6 +88,9 @@ export class Game {
     const eng = new Engine(save.state, ontology, lib)
     for (const m of index.maps) eng.graph[m.id] = m.portals
     loadContent(eng, index)
+    // how the player looks is the world's to say, not the save's (a save from before a new look gets it)
+    const p = eng.world.get(eng.world.state.player)
+    if (p && index.player.look) p.look = index.player.look
     return new Game(eng)
   }
 

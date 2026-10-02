@@ -34,11 +34,12 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   the engine; the world's own events — meet, blocked (`npc.ts`), witness, invalid — and the
   salience filter, budgets and boundaries in `mod.ts` (design.md §5.4–5.9); the player's four
   inputs (E hands, F take, left click use, right click put), layers, slots and magnet
-  (`controls.ts`, design.md §5.2, with a completeness test).
+  (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
+  (`controls.ts`), what the ground yields by itself (`forage.ts`), experience and levels (`progression.ts`), hunger (`hunger.ts`).
 - `packages/content` — ontology (terrains, statuses, elements, types), item catalogue
-  (forms × materials × qualities × elements), the BASE RULE LIBRARY (`rules.ts`), the Ford's
+  (forms × materials × qualities × elements), crafting recipes (`recipes.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
   story rules, objectives and invariants (`ford.ts`), chunk codec.
-- `packages/tools` — `demo/` (the hand-crafted Ford → `public/world/`: `builder.ts` the map DSL
+- `packages/tools` — `art/animals.ts` (the project's own sprites → `client/public/assets/lsw/`), `demo/` (the hand-crafted Ford, the meadow west of it and the forest south of that → `public/world/`, each map from its own seed: `builder.ts` the map DSL
   with the tools of composition — curved paths, organic shapes, fences and yards, small things by masks,
   collision layer, anchors, regions; `world.ts` `buildFord()` — the map, scenes, invariants;
   `people/*.ts` one record per person (`person.ts`); `check.ts` a headless two-day playtest;

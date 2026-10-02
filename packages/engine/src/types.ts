@@ -298,7 +298,9 @@ export interface AiData {
   leash?: number
   sight: number
   home: Pos
-  state?: 'idle' | 'chase' | 'return'
+  state?: 'idle' | 'chase' | 'return' | 'flee'
+  /** The way around an obstacle it is following, to the goal it was planned for. */
+  detour?: { x: number; y: number; path: [number, number][] }
   cooldown?: number
   loot?: string[] // item type ids
   /** Where it roams at night (creatures come out after dark); by day it keeps to `home`. */
@@ -334,6 +336,29 @@ export interface MapData {
   anchors?: Record<string, [number, number]>
   /** Named areas [x, y, w, h] ('far_bank') for scenes and goals. */
   regions?: Record<string, [number, number, number, number]>
+  /** What the map yields by itself: things of `type` (items, or creatures) appear now and then on free tiles of these terrains, up to `max` on the map. */
+  forage?: Forage[]
+}
+
+export interface Forage {
+  type: string
+  on: string[]
+  max: number
+  /** Ticks between appearances (default FORAGE_EVERY). */
+  every?: number
+  /** A creature's behaviour (its home is where it appears). */
+  ai?: Omit<AiData, 'home'>
+  /** Statuses it appears with, for their default durations (a hen's laying). */
+  statuses?: string[]
+}
+
+/** A recipe for the crafting panel: the carried items it uses up, and the item it makes. */
+export interface Recipe {
+  id: string
+  name: Text
+  sprite: string
+  needs: { type: string; count: number }[]
+  make: Omit<Entity, 'id' | 'place'>
 }
 
 export interface Portal {
@@ -527,7 +552,7 @@ export type RoleRef = RoleName | 'tileOf:actor' | 'tileOf:target' | 'tileOf:inst
 export type Amount = number | 'power' | { prop: string; of: RoleName; mul?: number; add?: number }
 
 export type Effect =
-  | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount }
+  | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean }
   | { op: 'destroy'; of: RoleRef }
   | { op: 'transform'; of: RoleRef; into: string }
   | { op: 'moveTo'; of: RoleRef; to: RoleRef; into?: 'tile' | 'contents' | 'hand' }
@@ -539,6 +564,8 @@ export type Effect =
   | { op: 'removeTag'; of: RoleRef; tag: string }
   | { op: 'damage'; of: RoleRef; amount: Amount; element?: string; mul?: number; pierce?: boolean }
   | { op: 'heal'; of: RoleRef; amount: Amount }
+  | { op: 'gainXp'; of: RoleRef; amount: Amount }
+  | { op: 'feed'; of: RoleRef; amount: Amount }
   | { op: 'setTerrain'; of: RoleRef; terrain: string }
   | {
       op: 'spread'
@@ -557,7 +584,7 @@ export type Effect =
   | { op: 'say'; who: RoleRef; text: Text }
   | { op: 'log'; text: Text }
   | { op: 'open'; of: RoleRef } // containers: toggle open/closed
-  | { op: 'dropContents'; of: RoleRef } // spill contents onto the tile (loot, broken crates)
+  | { op: 'dropContents'; of: RoleRef; still?: boolean } // spill contents onto the tile (loot, broken crates)
   | { op: 'setFact'; key: string; value: PropValue }
   | { op: 'addFact'; key: string; delta: number }
   | { op: 'topic'; id: string; days?: number }
@@ -671,3 +698,5 @@ export type FxEvent =
   | { t: 'mapChanged'; map: string }
   /** The magnet pulled a dropped item into the player's bag (from its tile). */
   | { t: 'pickup'; item: Id; sprite: string; name: Text; map: string; x: number; y: number }
+  /** An actor the player controls reached a new level. */
+  | { t: 'levelup'; level: number }

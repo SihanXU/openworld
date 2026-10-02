@@ -5,13 +5,17 @@
 // no picture without a thing, and no wall without one: what the map shows and what blocks are
 // terrain or entities (a big thing blocks its type's footprint, and only while it stands).
 
-import type { AiData, Entity, Portal, PropValue, Text } from '@lsw/engine'
+import type { AiData, Entity, Forage, Portal, PropValue, Text } from '@lsw/engine'
 import { CHAR_OF, FORM_BY_ID, buildOntology, makeItem, type RawChunk } from '@lsw/content'
 import { OntologyIndex, Rng, baseCovers } from '@lsw/engine'
 import type { PrefabDef } from '../../../client/src/assets/types.ts'
 import { CATALOG } from '../../../client/src/assets/catalog.ts'
 
-export const rng = new Rng(4242)
+/** The builders' randomness. Re-seeded for each map (`reseed`), so a map comes out the same however many were built before it. */
+export let rng = new Rng(4242)
+export function reseed(seed: number): void {
+  rng = new Rng(seed)
+}
 
 const SOLID_TERRAIN = new Set(['water', 'deepwater', 'tree', 'pine', 'bush', 'rock', 'wall', 'woodwall', 'roof', 'cave_wall', 'lava', 'charred_tree', 'void'])
 /** The content's types, for what the builder must know of a thing: its footprint, whether it is solid. */
@@ -33,6 +37,8 @@ export class MapBuilder {
   anchors: Record<string, [number, number]> = {}
   /** Named areas [x, y, w, h] (the goal's far bank). */
   regions: Record<string, [number, number, number, number]> = {}
+  /** What the ground yields by itself (MapData.forage). */
+  forage: Forage[] = []
 
   constructor(
     public id: string,
@@ -377,6 +383,7 @@ export class MapBuilder {
         rooms: this.rooms,
         anchors: Object.keys(this.anchors).length ? this.anchors : undefined,
         regions: Object.keys(this.regions).length ? this.regions : undefined,
+        forage: this.forage.length ? this.forage : undefined,
         music: this.music,
         light: this.light,
       },

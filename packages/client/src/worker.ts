@@ -21,7 +21,7 @@ import {
   type ResolveReply,
   type WorldIndex,
 } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk, decodeMap, type RawChunk } from '@lsw/content'
+import { BASE_RULES, RECIPE_BY_ID, STORY_RULES, buildOntology, decodeChunk, decodeMap, type RawChunk } from '@lsw/content'
 import type { FromWorker, LibraryView, RecordView, Tile, ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
@@ -32,6 +32,8 @@ let index: WorldIndex
 let game: Game | undefined
 let moveDir: Dir | null = null
 let walk = false
+/** Space is held: the player strikes whenever the last blow's cooldown allows. */
+let attacking = false
 /** Where the mouse points, the open chest panel, and whether time is stopped (a menu or a dialogue is open). */
 let aimTile: Tile | undefined
 let panel: string | undefined
@@ -228,6 +230,7 @@ function loop(): void {
   const stopped = paused || !!eng.world.state.question || !!panel
   if (!stopped) {
     if (moveDir) eng.movePlayer(moveDir, walk)
+    if (attacking) eng.controls.strike()
     eng.tick()
   }
   if (game.neededMaps().length) void ensureMaps()
@@ -310,6 +313,11 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         await start({ t: 'init', base, library }, true)
         break
       }
+      case 'attack':
+        attacking = m.on
+        // the first blow lands on the press, not on the next tick
+        if (m.on && !paused && !panel && !game?.engine.world.state.question) game?.engine.controls.strike()
+        break
       case 'move':
         moveDir = m.dir
         walk = !!m.walk
@@ -349,10 +357,13 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         game?.engine.controls.cycle(m.dir)
         break
       case 'row':
-        game?.engine.controls.nextRow()
+        game?.engine.controls.nextRow(m.dir)
         break
       case 'swap':
         game?.engine.controls.swap(m.a, m.b)
+        break
+      case 'quickMove':
+        game?.engine.controls.quickMove(m.slot)
         break
       case 'drop':
         game?.engine.controls.drop(m.slot, m.all)
@@ -360,6 +371,11 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'organize':
         game?.engine.controls.organize()
         break
+      case 'craft': {
+        const r = RECIPE_BY_ID[m.id]
+        if (r) game?.engine.controls.craft(r)
+        break
+      }
       case 'transfer':
         if (game && panel) game.engine.controls.transfer(panel, m.from, m.item, m.all)
         break

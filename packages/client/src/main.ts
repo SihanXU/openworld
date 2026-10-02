@@ -7,12 +7,14 @@ import Phaser from 'phaser'
 import type { Dir, Frame, ItemInfo, Key, LibraryData, SaveData, Text } from '@lsw/engine'
 import { CATALOG } from './assets/catalog.ts'
 import type { FromWorker, Tile, ToWorker } from './protocol.ts'
+import { assetUrl } from './render/assets.ts'
 import { WorldScene } from './render/scene.ts'
 import { kvGet, kvSet } from './storage.ts'
-import { locale, t } from './ui/common.ts'
+import { locale, t, tx } from './ui/common.ts'
 import { ModConsole } from './ui/dev.ts'
 import { Hud } from './ui/hud.ts'
 import { Menu, type Tab } from './ui/menu.ts'
+import { Tooltip } from './ui/tooltip.ts'
 import './styles.css'
 import './ui/game.css'
 
@@ -38,8 +40,10 @@ const dev = new ModConsole({
 
 const menu = new Menu({
   swap: (a, b) => send({ t: 'swap', a, b }),
+  quickMove: (slot) => send({ t: 'quickMove', slot }),
   drop: (slot, all) => send({ t: 'drop', slot, all }),
   organize: () => send({ t: 'organize' }),
+  craft: (id) => send({ t: 'craft', id }),
   transfer: (from, item, all) => send({ t: 'transfer', from, item, all }),
   closePanel: () => send({ t: 'closePanel' }),
   save: () => send({ t: 'save' }),
@@ -65,6 +69,17 @@ const hud = new Hud(
   (x, y) => scene.screenOfTile(x, y),
 )
 menu.muted = hud.muted
+
+/** Minecraft's tooltip over any item in the toolbar, the bag, a chest or the crafting panel. */
+const tooltip = new Tooltip(() => ({
+  atk: Number(lastFrame?.player.props.atk ?? 0),
+  nameOf: (id) => {
+    const e = lastFrame?.entities.find((x) => x.id === id)
+    return e ? tx(e.name) : undefined
+  },
+}))
+menu.registerTip = (key, info) => tooltip.register(key, info)
+document.documentElement.style.setProperty('--drum-icon', `url("${assetUrl(CATALOG.ui.drumstick.img)}")`)
 hud.threadDoc = (rule) => menu.library?.patches.find((r) => r.id === rule)?.doc
 
 /** The latest frame (for aiming the chooser), and the chooser's handler (set below). */
@@ -76,6 +91,7 @@ scene.hooks = {
     lastFrame = f
     hud.onFrame(f)
     menu.onFrame(f)
+    tooltip.onFrame(f)
     dev.onFrame(f)
     if (import.meta.env.DEV) (window as unknown as { lsw: { frame?: unknown } }).lsw.frame = f
     syncPause()
@@ -247,9 +263,16 @@ const syncMove = () => {
     send({ t: 'move', dir: d, walk: shift })
   }
 }
+let attacking = false
+const setAttack = (on: boolean) => {
+  if (on === attacking) return
+  attacking = on
+  send({ t: 'attack', on })
+}
 const stopMoving = () => {
   held.length = 0
   syncMove()
+  setAttack(false)
 }
 
 const typing = () => {
@@ -326,6 +349,7 @@ window.addEventListener('keydown', (e) => {
     return menu.open('options')
   }
   if (e.code === 'KeyI') return menu.toggle('inventory')
+  if (e.code === 'KeyC') return menu.toggle('craft')
   if (e.code === 'KeyJ') return menu.journalOpen ? menu.close() : (menu.openJournal(), hud.seenJournal())
   if (menu.anyOpen || dev.open) return
   const dir = KEY_DIR[e.code]
@@ -335,13 +359,18 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault()
     return
   }
+  // Space: the attack key, a blow ahead on the press and again while it is held
+  if (e.code === 'Space') return void (e.preventDefault(), setAttack(true))
   if (e.repeat) return
+  // Tab: the next row of the bag becomes the toolbar (Shift+Tab: the previous one)
+  if (e.code === 'Tab') return void (e.preventDefault(), send({ t: 'row', dir: e.shiftKey ? -1 : 1 }))
   const key = KEY_OF[e.code]
   if (key) return press(key, mouseTile)
   const slot = SLOT_CODES.indexOf(e.code)
   if (slot >= 0) send({ t: 'select', slot })
 })
 window.addEventListener('keyup', (e) => {
+  if (e.code === 'Space') return setAttack(false)
   const key = KEY_OF[e.code]
   if (key) return release(key)
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {

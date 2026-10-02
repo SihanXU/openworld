@@ -47,7 +47,8 @@ What that looks like in play:
 
 - **Behaviour is rules.** Each loop below is a handful of rules, types and statuses. An
   engine change is listed only where no rule can do the job.
-- **Three verbs, one hand, no menus.** Choices are made in the world: what you hold, what
+- **Three verbs, one hand, no menus.** (One exception, chosen on 2026-10-02: a Don't Starve
+  crafting panel for the first tools, design.md §5.3.) Choices are made in the world: what you hold, what
   you put it on, how much is already there.
 - **Rules address classes.** `tool:axe` on anything tagged `tree`, never one tree.
 - **Timers are statuses.** Growth, regrowth and bites are statuses with a duration and a

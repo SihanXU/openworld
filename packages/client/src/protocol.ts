@@ -9,6 +9,8 @@ export type ToWorker =
   | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** the modder service, if any */ modder?: string }
   /** Hold a direction (null: stop); `walk`: Shift, slower than the default run. */
   | { t: 'move'; dir: Dir | null; walk?: boolean }
+  /** Space: strike ahead with the held weapon (or a fist), again and again while it is held. */
+  | { t: 'attack'; on: boolean }
   /** One of the four inputs (design.md §5.2): E hands, F take, left click use, right click put; on a chosen layer of the tile. */
   | { t: 'key'; key: Key; tile?: Tile; layer?: number }
   /** The same on an item in the bag or in the open chest (the inventory's context menu). */
@@ -18,13 +20,16 @@ export type ToWorker =
   /** Where the mouse points (for the key labels). */
   | { t: 'aim'; tile?: Tile }
   | { t: 'answer'; yes: boolean }
-  /** Slots: select (toolbar), cycle (wheel), next row (Tab), swap (menu), drop (out of the menu), organize. */
+  /** Slots: select (toolbar), cycle (wheel), next row (Tab, Shift+Tab back), swap and quick move (menu), drop (out of the menu), organize. */
   | { t: 'select'; slot: number }
   | { t: 'cycle'; dir: 1 | -1 }
-  | { t: 'row' }
+  | { t: 'row'; dir: 1 | -1 }
   | { t: 'swap'; a: number; b: number }
+  | { t: 'quickMove'; slot: number }
   | { t: 'drop'; slot: number; all: boolean }
   | { t: 'organize' }
+  /** The crafting panel: make a recipe from what is carried. */
+  | { t: 'craft'; id: string }
   /** The chest panel. */
   | { t: 'transfer'; from: 'chest' | 'bag'; item: string; all: boolean }
   | { t: 'closePanel' }

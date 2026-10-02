@@ -12,6 +12,8 @@ export interface ItemInfo {
   name: Text
   tags: string[]
   statuses: string[]
+  /** Its props, the type's under the instance's own (power, range, heal, food, element, owner…): what a tooltip tells. */
+  props: Record<string, PropValue>
 }
 
 export interface EntitySnap {
@@ -58,6 +60,9 @@ export interface Frame {
     facing: Dir
     hp: number
     maxHp: number
+    /** Hunger, for actors that grow hungry (maxHunger 0: never). */
+    hunger: number
+    maxHunger: number
     statuses: string[]
     props: Record<string, PropValue>
     held?: ItemInfo
@@ -117,6 +122,7 @@ export function itemInfo(eng: Engine, id: Id): ItemInfo | undefined {
     name: e.name ?? r.name ?? e.type.split('/').pop()!,
     tags: [...r.tags, ...(e.tags ?? [])],
     statuses: Object.keys(e.statuses ?? {}),
+    props: { ...r.props, ...(e.props ?? {}) },
   }
 }
 
@@ -193,6 +199,8 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       facing: p.facing ?? 'down',
       hp: w.num(p, 'hp'),
       maxHp: w.num(p, 'maxHp', 1),
+      hunger: w.num(p, 'hunger', w.num(p, 'maxHunger')),
+      maxHunger: w.num(p, 'maxHunger'),
       statuses: Object.keys(p.statuses ?? {}),
       props: { ...(p.props ?? {}) },
       held: p.held ? itemInfo(eng, p.held) : undefined,

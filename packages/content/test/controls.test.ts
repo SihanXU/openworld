@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, type Engine, type Key, type Ref, type ScenarioEntity, type Verb } from '@lsw/engine'
+import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, ModPort, RuleLibrary, buildSandbox, type Engine, type Key, type Ref, type ScenarioEntity, type Verb } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
@@ -219,6 +219,31 @@ describe('slots and the magnet', () => {
     expect(eng.world.get(p.held)!.type).toBe('item/vessel/bucket/empty')
   })
 
+  it('the bag holds three rows; Tab brings the next row to the toolbar, Shift+click moves a stack across', () => {
+    const known = ['ash', 'bone', 'cloth', 'coal', 'feather', 'herb', 'leather', 'log', 'plank', 'salt', 'stick', 'stone'].map((m) => `item/material/${m}`)
+    const eng = world(undefined, known.map((type, i) => ({ key: `k${i}`, type, x: 0, y: 0, inside: 'actor' })))
+    const p = eng.world.player
+    expect(p.slots).toHaveLength(30)
+    // more kinds than the toolbar holds: the rest go to row 2, nothing is dropped
+    expect(p.slots!.filter(Boolean)).toHaveLength(known.length)
+    expect(p.contents!.length + (p.held ? 1 : 0)).toBe(known.length)
+    const second = p.slots![10]
+    expect(second).toBeTruthy()
+    eng.controls.nextRow()
+    expect(p.slots![0]).toBe(second)
+    eng.controls.nextRow(-1)
+    expect(p.slots![10]).toBe(second)
+    // Shift+click: from the bag to the toolbar's first free slot, and back to the bag's
+    eng.controls.select(0)
+    eng.controls.drop(0, true)
+    eng.controls.quickMove(10)
+    expect(p.slots![0]).toBe(second)
+    expect(p.slots![10]).toBeNull()
+    eng.controls.quickMove(0)
+    expect(p.slots![0]).toBeNull()
+    expect(p.slots!.indexOf(second)).toBeGreaterThanOrEqual(10)
+  })
+
   it('the menu drops in front', () => {
     const bag = world(undefined, [{ key: 'b', type: 'item/food/bread', x: 0, y: 0, inside: 'actor' }])
     bag.controls.drop(bag.world.player.slots!.findIndex(Boolean), true)
@@ -231,5 +256,55 @@ describe('slots and the magnet', () => {
     eng.controls.magnetic = true
     eng.tick()
     expect(eng.world.get('log')!.place).toMatchObject({ holder: 'actor' })
+  })
+})
+
+describe('hunger', () => {
+  it('drains over time, food restores it, well fed heals, starving hurts but never takes the last point', () => {
+    const eng = world('item/food/bread', [])
+    const p = eng.world.player
+    const tickTo = (t: number) => {
+      while (eng.world.state.tick < t) eng.tick()
+    }
+    expect(eng.world.num(p, 'maxHunger')).toBe(20)
+    tickTo(HUNGER_EVERY)
+    expect(p.props!.hunger).toBe(19)
+    // bread feeds (5), never past the bar, and does not heal (Minecraft: health comes from being fed)
+    p.props!.hp = 30
+    eng.interact('interact', p.id, { e: p.id }, { instrument: { e: 'held' } })
+    expect(p.props!.hunger).toBe(20)
+    expect(p.props!.hp).toBe(30)
+    // a healing herb is medicine: it heals as well
+    const herb = eng.world.create('item/material/herb', { on: 'inside', holder: p.id })
+    eng.interact('interact', p.id, { e: p.id }, { instrument: { e: herb.id } })
+    expect(p.props!.hp).toBe(34)
+    // well fed: hurt health comes back slowly
+    p.props!.hp = 30
+    tickTo(eng.world.state.tick + HUNGER_EFFECT_EVERY * 3)
+    expect(p.props!.hp).toBeGreaterThan(30)
+    // starving: health falls, but not below 1
+    p.props!.hunger = 0
+    p.props!.hp = 3
+    tickTo(eng.world.state.tick + HUNGER_EFFECT_EVERY * 10)
+    expect(p.props!.hp).toBe(1)
+    expect(eng.world.hasStatus({ e: p.id }, 'down')).toBe(false)
+  })
+})
+
+describe('the attack key', () => {
+  it('strikes straight ahead with the held weapon; held down, the cooldown paces the blows', () => {
+    const eng = world('item/weapon/blade/sword', [{ key: 'slime', type: 'actor/creature/slime/green_slime', x: 2, y: 1, props: { hp: 50, maxHp: 50 } }])
+    const slime = eng.world.get('slime')!
+    eng.controls.strike()
+    eng.tick()
+    const after1 = eng.world.num(slime, 'hp')
+    expect(after1).toBeLessThan(50)
+    // pressed again at once: the blow is still on cooldown
+    eng.controls.strike()
+    eng.tick()
+    expect(eng.world.num(slime, 'hp')).toBe(after1)
+    // held down: blows keep landing as the cooldown allows
+    for (let i = 0; i < 20; i++) (eng.controls.strike(), eng.tick())
+    expect(eng.world.num(slime, 'hp')).toBeLessThan(after1)
   })
 })

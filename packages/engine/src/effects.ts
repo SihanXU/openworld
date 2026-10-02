@@ -7,9 +7,11 @@ import type { Amount, Effect, Entity, GameEvent, Place, Pos, Ref, RoleRef, Rule,
 import { NO_EXPIRY } from './world.ts'
 import { GIVEN_LINE, chooseLine, raiseTopic } from './people.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
+import { gainXp } from './progression.ts'
+import { setHunger } from './hunger.ts'
 
 export const PRIMITIVES: Record<Effect['op'], string> = {
-  spawn: 'spawn {type, at, into?: tile|contents|hand, count?: number | {prop, of}} — create new entities; type may be "@prop:<role>.<key>" (a crop\'s yieldType), count may read a prop (the planks in a frame)',
+  spawn: 'spawn {type, at, into?: tile|contents|hand, count?: number | {prop, of}, still?} — create new entities; type may be "@prop:<role>.<key>" (a crop\'s yieldType), count may read a prop (the planks in a frame); items on the ground pop out for the player\'s magnet unless still (then they are taken with F)',
   destroy: 'destroy {of} — remove an entity (and everything it holds)',
   transform: 'transform {of, into} — change an entity\'s type in place',
   moveTo: 'moveTo {of, to, into?: tile|contents|hand} — move an entity to a role\'s tile / contents / hand',
@@ -21,6 +23,8 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   removeTag: 'removeTag {of, tag}',
   damage: 'damage {of, amount, element?, mul?, pierce?} — reduce hp (defense applies unless pierce)',
   heal: 'heal {of, amount}',
+  feed: 'feed {of, amount} — an actor that grows hungry (has maxHunger) is fed: hunger rises by amount, up to maxHunger',
+  gainXp: 'gainXp {of, amount} — an actor gains experience; enough raises its level (props xp, level, skillPoints)',
   setTerrain: 'setTerrain {of: tile role, terrain}',
   spread: 'spread {from, status, radius, chance?, filter?, hit?} — propagate a status to nearby tiles/entities',
   hit: 'hit {of, element?, power, by?} — emit a hit event (elemental reactions resolve it)',
@@ -29,7 +33,7 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   say: 'say {who, text} — speech bubble ("@line" = one of the NPC\'s own lines; text fills {target}, {target.planks} …)',
   log: 'log {text} — message log line ({actor}/{target}/{instrument} = names, {target.key} = that role\'s prop)',
   open: 'open {of} — toggle a container open/closed',
-  dropContents: 'dropContents {of} — spill everything inside onto the tile',
+  dropContents: 'dropContents {of, still?} — spill everything inside onto the tile (for the magnet, unless still)',
   setFact: 'setFact {key, value} — set a world fact (people, schedules and scenes read facts)',
   addFact: 'addFact {key, delta} — add to a numeric world fact',
   topic: 'topic {id, days?} — something happened that people will talk about while it is fresh (default 4 days)',
@@ -133,8 +137,8 @@ export class EffectRunner {
           const place = this.placeFor(at, into)
           if (!place) continue
           const made = w.create(type, place)
-          // an item a rule drops on the ground pops out for the player's magnet
-          if (place.on === 'tile' && w.kindOf(made) === 'item') made.dropped = true
+          // an item a rule drops on the ground pops out for the player's magnet (unless it lies still: taken with F)
+          if (place.on === 'tile' && w.kindOf(made) === 'item' && !eff.still) made.dropped = true
         }
         return
       }
@@ -205,6 +209,29 @@ export class EffectRunner {
         const hp = Math.min(w.num(e, 'maxHp', 1), w.num(e, 'hp') + this.amount(ev, eff.amount))
         ;(e.props ??= {}).hp = hp
         w.fx.push({ t: 'damage', who: e.id, amount: -this.amount(ev, eff.amount) })
+        return
+      }
+      case 'feed': {
+        const e = this.entity(ev, eff.of)
+        const max = e ? w.num(e, 'maxHunger') : 0
+        if (!e || max <= 0) return
+        setHunger(e, w.num(e, 'hunger', max) + this.amount(ev, eff.amount), max)
+        return
+      }
+      case 'gainXp': {
+        const e = this.entity(ev, eff.of)
+        if (!e || w.kindOf(e) !== 'actor') return
+        const n = Math.round(this.amount(ev, eff.amount))
+        if (n <= 0) return
+        const up = gainXp(w, e, n)
+        if (e.id !== w.state.player) return
+        w.fx.push({ t: 'log', text: { en: `+${n} XP`, zh: `+${n} 经验` }, tone: 'good' })
+        if (up) {
+          const level = w.num(e, 'level', 1)
+          w.fx.push({ t: 'levelup', level })
+          const p = w.posOf(e)
+          if (p) w.fx.push({ t: 'vfx', fx: 'sparkle', map: p.map, x: p.x, y: p.y })
+        }
         return
       }
       case 'setTerrain': {
@@ -309,7 +336,9 @@ export class EffectRunner {
         if (!e || !p) return
         for (const id of [...(e.contents ?? [])]) {
           const c = w.get(id)
-          if (c) (w.place(c, { on: 'tile', map: p.map, x: p.x, y: p.y }), (c.dropped = true))
+          if (!c) continue
+          w.place(c, { on: 'tile', map: p.map, x: p.x, y: p.y })
+          if (!eff.still) c.dropped = true
         }
         return
       }

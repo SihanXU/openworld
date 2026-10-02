@@ -10,7 +10,7 @@
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { OntologyIndex, RuleLibrary, SANDBOX_MAP, buildSandbox, matchSelector, textOf, type Cond, type Ontology, type Ref, type Rule, type Scenario, type Selector, type Verb } from '@lsw/engine'
-import { BASE_RULES, FORMS, MATERIALS, TERRAINS, buildOntology } from '@lsw/content'
+import { BASE_RULES, FORMS, MATERIALS, RECIPES, TERRAINS, buildOntology } from '@lsw/content'
 
 // ------------------------------------------------------------------ definitions
 
@@ -218,6 +218,8 @@ function summarize(cells: Cell[], onto: Ontology, rules: Rule[]): Coverage {
     const view = { ref: { e: f.id }, kind: r.kind, type: f.id, tags: new Set(r.tags), statuses: new Set<string>(), props: r.props, isPlayer: false }
     if (singled.some((sel) => matchSelector({ ...sel, status: undefined, notStatus: undefined, props: undefined }, view))) usedForms.add(f.id)
   }
+  // And a form a crafting recipe uses up (grass, for the first tools).
+  for (const r of RECIPES) for (const n of r.needs) usedForms.add(n.type)
   const fixtures = [...new Set(cells.map((c) => c.target).filter((t) => t.startsWith('fixture/')).map((t) => t.split('#')[0]))]
   return {
     cells,

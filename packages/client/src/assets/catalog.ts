@@ -532,11 +532,15 @@ export const CATALOG: Catalog = {
     'item:cheese': icon('Items/Food/Sushi2.png', 16, 16),
     'item:fish': icon('Items/Food/Fish.png', 16, 16),
     'item:fish_cooked': icon('Items/Food/Yakitori.png', 16, 16),
-    'item:meat': icon('Items/Food/Beaf.png', 16, 16),
-    'item:meat_cooked': icon('Items/Food/Meat.png', 15, 15),
+    // raw beef, the steak, the egg: the project's own (tools/src/art/food.ts); the pack's read as a sausage and a nut
+    'item:meat': icon('lsw/Items/RawBeef.png', 16, 16),
+    'item:chicken': icon('lsw/Items/RawChicken.png', 16, 16),
+    'item:chicken_cooked': icon('lsw/Items/RoastChicken.png', 16, 16),
+    'item:meat_cooked': icon('lsw/Items/Steak.png', 16, 16),
     'item:mushroom': t('Actor/Monster/Mushroom/mushroom.png', 0, 0),
     'item:berries': t(DETAIL, 4, 0),
-    'item:egg': icon('Items/Food/Nut.png', 15, 15),
+    'item:egg': icon('lsw/Items/Egg.png', 16, 16),
+    'item:egg_boiled': icon('lsw/Items/BoiledEgg.png', 16, 16),
     'item:pie': t(HOUSE, 14, 17),
     'item:honey': icon('Items/Food/Honey.png', 16, 16),
     'item:wine': t(CAMP, 12, 7),
@@ -549,6 +553,8 @@ export const CATALOG: Catalog = {
     'item:plank': t(HOUSE, 31, 17),
     'item:stick': icon('Items/Resource/Branch.png', 16, 16),
     'item:stone': icon('Items/Resource/Rock.png', 16, 16),
+    // cut grass: one of the meadow's tufts
+    'item:grass': t(NATURE, 4, 10),
     'item:coal': t(NATURE, 7, 12),
     'item:ore': t(NATURE, 6, 14),
     'item:ore_gold': t(NATURE, 4, 14),
@@ -595,7 +601,8 @@ export const CATALOG: Catalog = {
   characters,
 
   roles: {
-    player: ['NinjaGreen', 'NinjaBlue', 'NinjaRed', 'NinjaYellow'],
+    // the player: the dog-masked ninja (first is the default)
+    player: ['NinjaMasked', 'NinjaGreen', 'NinjaBlue', 'NinjaRed', 'NinjaYellow'],
     person: ['Villager', 'Villager2', 'Villager3', 'Villager4', 'Villager5', 'Woman'],
     elder: ['OldMan', 'OldMan2', 'OldMan3', 'Master'],
     villager: ['Villager', 'Villager2', 'Villager3', 'Villager4', 'Villager5', 'Woman'],
@@ -653,6 +660,9 @@ export const CATALOG: Catalog = {
     'creature:wisp': mon('Flam2'),
     'creature:wisp:storm_wisp': mon('Flam2', 'SpriteSheet.png', 0xfff6a0),
     'creature:crab': mon('Mollusc', 'Mollusc.png'),
+    // the meadow's animals: the project's own art (tools/src/art/animals.ts), not the pack's
+    'creature:cow': { dir: 'lsw/Animal/Cow', sheet: 'SpriteSheet.png', cols: 4, rows: 4 },
+    'creature:chicken': { dir: 'lsw/Animal/Chicken', sheet: 'SpriteSheet.png', cols: 4, rows: 4 },
     // Boss sheets are single-row strips: cols = animation frames (62x52 each), no directions.
     'boss:slime': { dir: 'Actor/Boss/GiantSlime', sheet: 'Idle.png', faceset: 'Faceset.png', cols: 5, rows: 1 },
   },
@@ -713,6 +723,8 @@ export const CATALOG: Catalog = {
     // Heart receptacle: 5 frames of 16x16, frame 0 empty -> frame 4 full.
     heart: ui('Ui/Receptacle/Heart.png', 16, 16, { frames: 5, step: 16 }),
     iconHeart: ui('Ui/Receptacle/IconHeart.png', 14, 12),
+    // the hunger bar's drumstick (hud.ts)
+    drumstick: ui('Items/Food/Meat.png', 15, 15),
     lifebarUnder: ui('Ui/Receptacle/LifeBarMiniUnder.png', 18, 4),
     lifebarProgress: ui('Ui/Receptacle/LifeBarMiniProgress.png', 18, 4),
     // Emote face bubbles emote1..emote30 (14x13), added below as ui['emote<N>'].

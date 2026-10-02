@@ -4,7 +4,8 @@ import Phaser from 'phaser'
 import type { ActorDef, Catalog, FxDef, SpriteDef } from '../assets/types.ts'
 
 // encodeURI, not encodeURIComponent: folders like "Hit & Impact" must keep a raw '&' for Vite.
-export const assetUrl = (path: string) => encodeURI(`${import.meta.env.BASE_URL}assets/na/${path}`)
+/** Pack files live under assets/na/ (copied by tools/copyAssets.ts); the project's own art under assets/lsw/ (paths starting `lsw/`). */
+export const assetUrl = (path: string) => encodeURI(`${import.meta.env.BASE_URL}assets/${path.startsWith('lsw/') ? path : `na/${path}`}`)
 
 /** Every image path the catalogue references (loaded up front; the pack subset is small). */
 export function imagePaths(c: Catalog): string[] {

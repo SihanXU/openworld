@@ -10,19 +10,22 @@
 // acts on the top one, a long press (the chooser) on any of them. Only the view knows what is
 // drawn where, so it hands the stack over with the aim; without one (the keyboard, a test), the
 // stack is what stands on the tile.
+// Besides the four, Space is the attack key: a blow straight ahead with the held weapon (or a
+// fist), on the press and again while held (`strike`). It adds no verb: left click with a
+// weapon makes the same blow, aimed at a spot.
 // Also here: the inventory's slots (row 1 is the toolbar, the selected slot is what is held),
 // the magnet that pulls dropped items in, and the yes/no question asked before sleeping or
 // eating (the host stops time while it is open).
 
 import type { Engine, Resolution } from './engine.ts'
-import type { Aim, Dir, Entity, GameEvent, Id, Plan, Pos, Ref, Text, Verb } from './types.ts'
+import type { Aim, Dir, Entity, GameEvent, Id, Plan, Pos, Recipe, Ref, Text, Verb } from './types.ts'
 
 /** The four inputs (design.md §5.2). */
 export type Key = Plan['key']
 
-/** Slots per row (the toolbar is row 1) and in all. */
+/** Slots per row (the toolbar is row 1) and in all: three rows, Stardew's bag. */
 export const ROW = 10
-export const SLOT_COUNT = 10
+export const SLOT_COUNT = 30
 /** Dropped items within this many tiles fly into the bag (Stardew: 128 px, two tiles). */
 export const MAGNET = 2
 
@@ -46,6 +49,7 @@ const LABELS: [string, Text][] = [
   ['core/put-on-surface', { en: 'Set {instrument} on {target}', zh: '把{instrument}放在{target}上' }],
   ['core/put-down', { en: 'Place {instrument}', zh: '放下{instrument}' }],
   ['core/eat', { en: 'Eat {instrument}', zh: '吃掉{instrument}' }],
+  ['core/eat-medicine', { en: 'Eat {instrument}', zh: '吃掉{instrument}' }],
   ['core/drink', { en: 'Drink {instrument}', zh: '喝掉{instrument}' }],
   ['core/fill-water', { en: 'Fill {instrument}', zh: '装满{instrument}' }],
   ['core/douse', { en: 'Douse {target}', zh: '浇灭{target}' }],
@@ -242,6 +246,12 @@ export class Controls {
 
   // ---------------------------------------------------------------- running
 
+  /** The attack key: a blow in the facing direction (the engine's cooldown paces a held key). */
+  strike(): void {
+    if (this.eng.busy(this.w.player)) return
+    this.eng.playerAttack()
+  }
+
   /** Run a plan: an attack, or the interaction (unless it must ask first). Returns the container to open, if any. */
   run(plan: Plan, confirmed = false): { panel?: Id } {
     const eng = this.eng
@@ -376,13 +386,23 @@ export class Controls {
     this.select(i)
   }
 
-  /** Tab: the next row of the bag becomes the toolbar. */
-  nextRow(): void {
+  /** Tab: the next row of the bag becomes the toolbar (Shift+Tab: the last row). The selected column stays. */
+  nextRow(dir: 1 | -1 = 1): void {
     const p = this.w.player
     const slots = p.slots ?? []
+    if (this.eng.busy(p)) return
     this.stow()
-    p.slots = [...slots.slice(ROW), ...slots.slice(0, ROW)]
+    const n = dir === 1 ? ROW : slots.length - ROW
+    p.slots = [...slots.slice(n), ...slots.slice(0, n)]
     this.sync()
+  }
+
+  /** Shift+click in the menu: a stack moves between the toolbar and the rest of the bag, to the first free slot there. */
+  quickMove(i: number): void {
+    const slots = this.w.player.slots
+    if (!slots?.[i]) return
+    const [from, to] = i < ROW ? [ROW, SLOT_COUNT] : [0, ROW]
+    for (let j = from; j < to; j++) if (!slots[j]) return this.swap(i, j)
   }
 
   /** Move or swap two slots (the inventory menu). */
@@ -436,6 +456,38 @@ export class Controls {
       else eng.interact('put', p.id, { e: box.id }, { instrument: { e: e.id } })
     }
     this.sync()
+  }
+
+  // ---------------------------------------------------------------- crafting
+
+  /** How many of a type the player carries (bag and hand). */
+  count(type: string): number {
+    let n = 0
+    for (const items of this.carried().values()) for (const e of items) if (e.type === type && !e.frozenBy) n++
+    return n
+  }
+
+  canCraft(r: Recipe): boolean {
+    return r.needs.every((n) => this.count(n.type) >= n.count)
+  }
+
+  /** The crafting panel: use up what the recipe needs from what is carried, and the made item goes into the bag. */
+  craft(r: Recipe): boolean {
+    const w = this.w
+    const p = w.player
+    if (this.eng.busy(p) || !this.canCraft(r)) return false
+    this.stow()
+    for (const n of r.needs) {
+      // the bag's first: the hand keeps what it holds while there are others of its kind
+      const pool = [...this.carried().values()].flat().filter((e) => e.type === n.type && !e.frozenBy)
+      pool.sort((a, b) => Number(a.id === p.held) - Number(b.id === p.held))
+      for (const e of pool.slice(0, n.count)) w.destroy(e)
+    }
+    const made = w.create(r.make.type, { on: 'inside', holder: p.id }, structuredClone(r.make))
+    const here = w.posOf(p)
+    if (here) w.fx.push({ t: 'pickup', item: made.id, sprite: r.sprite, name: r.name, map: here.map, x: here.x, y: here.y })
+    this.sync()
+    return true
   }
 
   // ---------------------------------------------------------------- the magnet

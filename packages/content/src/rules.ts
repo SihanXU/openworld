@@ -199,9 +199,24 @@ const USING: Rule[] = [
     id: 'core/eat',
     confirm: { en: 'Eat {instrument}?', zh: '要吃掉{instrument}吗？' },
     on: 'interaction',
+    doc: "Food feeds hunger only (Minecraft): health comes back from being well fed, not from the bite.",
     when: { verb: ['interact'], target: { self: true }, instrument: { tags: ['edible'] } },
     do: [
+      // hunger restored: the food's own `food` (bread 5, steak 8, of a bar of 20)
+      { op: 'feed', of: 'actor', amount: { prop: 'food', of: 'instrument' } },
+      log('You eat {instrument}.', '你吃掉了{instrument}。'),
+      { op: 'destroy', of: 'instrument' },
+    ],
+  }),
+  base({
+    id: 'core/eat-medicine',
+    confirm: { en: 'Eat {instrument}?', zh: '要吃掉{instrument}吗？' },
+    on: 'interaction',
+    doc: 'Medicine eaten (a healing herb) heals as well as it feeds.',
+    when: { verb: ['interact'], target: { self: true }, instrument: { tags: ['edible', 'medicinal'] } },
+    do: [
       { op: 'heal', of: 'actor', amount: { prop: 'heal', of: 'instrument', add: 1 } },
+      { op: 'feed', of: 'actor', amount: { prop: 'food', of: 'instrument' } },
       vfx('heal', 'actor'),
       log('You eat {instrument}.', '你吃掉了{instrument}。'),
       { op: 'destroy', of: 'instrument' },
@@ -336,6 +351,20 @@ const USING: Rule[] = [
     on: 'interaction',
     when: { verb: ['interact'], target: { tags: ['mineable'] }, instrument: { tags: ['tool:pickaxe'] } },
     do: [{ op: 'spawn', type: 'item/material/stone', at: 'tileOf:actor' }, vfx('dust'), log('Chips of stone fly.', '石屑纷飞。')],
+  }),
+  base({
+    id: 'mine/crack',
+    doc: 'A pickaxe cracks a boulder; it holds for two blows.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { kind: 'fixture', tags: ['mineable', 'rock'], props: { cracks: { lt: 2 } } }, instrument: { tags: ['tool:pickaxe'] } },
+    do: [{ op: 'addProp', of: 'target', key: 'cracks', delta: 1 }, { op: 'spawn', type: 'item/material/stone', at: 'tileOf:actor' }, vfx('dust'), log('The pickaxe cracks {target}.', '镐子在{target}上凿出了裂缝。')],
+  }),
+  base({
+    id: 'mine/break',
+    doc: 'The third blow breaks the boulder into stones.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { kind: 'fixture', tags: ['mineable', 'rock'], props: { cracks: { gte: 2 } } }, instrument: { tags: ['tool:pickaxe'] } },
+    do: [{ op: 'spawn', type: 'item/material/stone', at: 'tileOf:target', count: 2 }, { op: 'destroy', of: 'target' }, vfx('dust'), log('{target} breaks apart.', '{target}碎开了。')],
   }),
   base({
     id: 'core/mine-rock',
@@ -1140,8 +1169,36 @@ const DEFEAT: Rule[] = [
     id: 'combat/defeat',
     on: 'defeat',
     when: { target: { kind: 'actor', notTags: ['essential'] } },
-    do: [{ op: 'dropContents', of: 'target' }, vfx('poof', 'tileOf:target'), log('{target} is defeated.', '{target}被打倒了。'), { op: 'destroy', of: 'target' }],
+    do: [
+      // what it carried and what it leaves behind (a cow's meat: `drops` of its `drop`) lie where it fell, taken with F
+      { op: 'dropContents', of: 'target', still: true },
+      { op: 'spawn', type: '@prop:target.drop', at: 'tileOf:target', count: { prop: 'drops', of: 'target' }, still: true },
+      // whoever struck the last blow learns from it: experience as much as the foe's full health
+      { op: 'gainXp', of: 'actor', amount: { prop: 'maxHp', of: 'target' } },
+      vfx('poof', 'tileOf:target'),
+      log('{target} is defeated.', '{target}被打倒了。'),
+      { op: 'destroy', of: 'target' },
+    ],
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...TAKING, ...HANDS, ...USING, ...WOOD, ...BUILD, ...FARM, ...HITS, ...STATUS, ...ENTER, ...WORLD, ...DEFEAT]
+// ------------------------------------------------------------------ animals
+
+const ANIMALS: Rule[] = [
+  base({
+    id: 'animal/lay-egg',
+    doc: 'A hen lays an egg where she stands, then starts on the next.',
+    on: 'expire',
+    when: { status: ['laying'], target: { kind: 'actor', tags: ['lays-eggs'] } },
+    do: [{ op: 'spawn', type: 'item/food/egg/raw', at: 'tileOf:target', still: true }, { op: 'addStatus', of: 'target', status: 'laying' }],
+  }),
+  base({
+    id: 'animal/graze',
+    doc: 'A grazing animal pays no mind to what it comes up to (grass, flowers, a fence, another beast); it only grazes on.',
+    on: 'meet',
+    when: { actor: { kind: 'actor', tags: ['animal'] } },
+    do: [{ op: 'addProp', of: 'actor', key: 'grazed', delta: 1 }],
+  }),
+]
+
+export const BASE_RULES: Rule[] = [...TAKING, ...HANDS, ...USING, ...WOOD, ...BUILD, ...FARM, ...HITS, ...STATUS, ...ENTER, ...WORLD, ...DEFEAT, ...ANIMALS]

@@ -4,19 +4,22 @@
 // moving a stack to the other side.
 
 import type { Frame, ItemInfo, Key, Rule } from '@lsw/engine'
-import { OBJECTIVES } from '@lsw/content'
+import { FORM_BY_ID, OBJECTIVES, RECIPES } from '@lsw/content'
 import type { LibraryView } from '../protocol.ts'
 import { $, SLOT_KEYS, controlsTable, esc, locale, t, tx } from './common.ts'
 
-export type Tab = 'inventory' | 'options'
-const TABS: Tab[] = ['inventory', 'options']
-const ICONS: Record<Tab, string> = { inventory: '🎒', options: '⚙' }
+export type Tab = 'inventory' | 'craft' | 'options'
+const TABS: Tab[] = ['inventory', 'craft', 'options']
+const ICONS: Record<Tab, string> = { inventory: '🎒', craft: '🔨', options: '⚙' }
 const ROW = SLOT_KEYS.length
 
 export interface MenuSend {
   swap(a: number, b: number): void
+  /** Shift+click: a stack between the toolbar and the rest of the bag. */
+  quickMove(slot: number): void
   drop(slot: number, all: boolean): void
   organize(): void
+  craft(id: string): void
   transfer(from: 'chest' | 'bag', item: string, all: boolean): void
   closePanel(): void
   save(): void
@@ -33,6 +36,8 @@ export class Menu {
   library?: LibraryView
   muted = false
   paintIcons?: (items: ItemInfo[]) => void
+  /** Set by main.ts: an item the tooltip should know that is not in the frame (the crafting panel's). */
+  registerTip?: (key: string, info: ItemInfo) => void
   facesetOf?: (id: string) => HTMLCanvasElement | undefined
   private frame?: Frame
   /** The inventory slot picked up by a click (placed by the next click). */
@@ -98,7 +103,7 @@ export class Menu {
     if (f.container && !this.chestOpen) ($('#chest').classList.remove('hidden'), (this.chestSig = ''))
     if (!f.container && this.chestOpen) $('#chest').classList.add('hidden')
     if (this.chestOpen) this.renderChest(f)
-    if (this.menuOpen && this.tab === 'inventory') this.renderLive()
+    if (this.menuOpen && (this.tab === 'inventory' || this.tab === 'craft')) this.renderLive()
     if (this.journalOpen && this.library && this.library.version !== this.journalLib) this.renderJournal()
   }
 
@@ -119,15 +124,22 @@ export class Menu {
     const head = `<div class="tabs-row">${TABS.map((k) => `<button class="tab${k === this.tab ? ' on' : ''}" data-tab="${k}" title="${t(k)}">${ICONS[k]} <span>${t(k)}</span></button>`).join('')}<button class="x" id="menuClose">✕</button></div>`
     let body = ''
     if (this.tab === 'inventory') body = this.inventoryHtml(f)
+    if (this.tab === 'craft') body = this.craftHtml(f)
     if (this.tab === 'options') body = this.optionsHtml()
     $('#menuSheet').innerHTML = head + `<div class="tab-body">${body}</div>`
     $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => (b.onclick = () => this.open(b.dataset.tab as Tab)))
     $('#menuClose').onclick = () => this.close()
     if (this.tab === 'inventory') this.wireInventory(f)
     if (this.tab === 'options') this.wireOptions()
+    if (this.tab === 'craft') this.wireCraft()
     if (f) {
       this.liveSig = this.sigOf(f)
       if (this.tab === 'inventory') this.paintIcons?.(f.player.slots.filter(Boolean).map((s) => s!.item))
+      if (this.tab === 'craft') {
+        const infos = craftInfos()
+        for (const it of infos) this.registerTip?.(it.id, it)
+        this.paintIcons?.(infos)
+      }
     }
   }
 
@@ -139,21 +151,24 @@ export class Menu {
 
   private slotHtml(s: Frame['player']['slots'][number], i: number, extra = ''): string {
     const key = i < ROW ? `<span class="key">${SLOT_KEYS[i]}</span>` : ''
-    return `<div class="slot${extra}" data-i="${i}" ${s ? `data-tip="${esc(tipOf(s.item))}"` : ''}>${key}${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}` : ''}</div>`
+    return `<div class="slot${extra}" data-i="${i}" ${s ? `data-item="${s.item.id}"` : ''}>${key}${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}` : ''}</div>`
   }
 
   private inventoryHtml(f?: Frame): string {
     if (!f) return ''
     const slots = f.player.slots
-    const rows = `<div class="grid-row toolbar-row">${slots.slice(0, ROW).map((s, j) => this.slotHtml(s, j, (j === this.picked ? ' picked' : '') + (j === f.player.selected ? ' sel' : ''))).join('')}</div>`
+    // the toolbar row first (keys 1–0, set apart), then the rest of the bag
+    const rows = chunk(slots.map((s, j) => this.slotHtml(s, j, (j === this.picked ? ' picked' : '') + (j === f.player.selected ? ' sel' : ''))), ROW)
+      .map((r, k) => `<div class="grid-row${k === 0 ? ' toolbar-row' : ''}">${r.join('')}</div>`)
+      .join('')
     const zh = locale.value === 'zh'
     return `<div class="inv">${rows}</div>
       <div class="inv-foot">
         <button id="bOrganize">⇅ ${t('organize')}</button>
         <button id="bDrop" ${this.picked === undefined ? 'disabled' : ''}>⤓ ${t('dropHere')}</button>
-        <span class="muted small">${zh ? '点击拿起、再点击交换 · “丢下”放到面前 · 右键：对它用手上的东西、放进去、空手摆弄' : 'Click to pick up, again to swap · Drop sets it down in front · right click: use or put the held thing on it, or handle it'}</span>
+        <span class="muted small">${zh ? '点击拿起、再点击交换 · Shift+点击：在快捷栏和背包间移动 · Tab：换一行到快捷栏 · “丢下”放到面前 · 右键：对它用手上的东西、放进去、空手摆弄' : 'Click to pick up, again to swap · Shift+click: between the toolbar and the bag · Tab: the next row to the toolbar · Drop sets it down in front · right click: use or put the held thing on it, or handle it'}</span>
       </div>
-      <div class="tip hidden" id="tip"></div>`
+`
   }
 
   private wireInventory(f?: Frame): void {
@@ -168,7 +183,8 @@ export class Menu {
     }
     $('#menuSheet').querySelectorAll<HTMLElement>('.inv [data-i]').forEach((el) => {
       const i = Number(el.dataset.i)
-      el.onclick = () => {
+      el.onclick = (e) => {
+        if (e.shiftKey && this.picked === undefined) return void (slots[i] && this.send.quickMove(i))
         if (this.picked === undefined) {
           if (slots[i]) this.picked = i
         } else {
@@ -177,16 +193,6 @@ export class Menu {
         }
         this.render()
       }
-      el.onmouseenter = () => {
-        const tip = $('#tip')
-        if (!el.dataset.tip) return tip.classList.add('hidden')
-        tip.textContent = el.dataset.tip
-        tip.classList.remove('hidden')
-        const r = el.getBoundingClientRect()
-        tip.style.left = `${r.left + r.width / 2}px`
-        tip.style.top = `${r.top - 6}px`
-      }
-      el.onmouseleave = () => $('#tip').classList.add('hidden')
       // right click: the context menu — this item as the target of the held thing or a bare hand
       el.oncontextmenu = (e) => {
         e.preventDefault()
@@ -216,6 +222,34 @@ export class Menu {
     document.body.appendChild(el)
     el.querySelectorAll<HTMLElement>('[data-k]').forEach((r) => (r.onclick = () => (el.remove(), rows[Number(r.dataset.k)][1]())))
     setTimeout(() => window.addEventListener('mousedown', (ev) => !el.contains(ev.target as Node) && el.remove(), { once: true }), 0)
+  }
+
+  // ---------------------------------------------------------------- crafting
+
+  /** Don't Starve's panel: each recipe, what it needs against what is carried, and a button that makes it. */
+  private craftHtml(f?: Frame): string {
+    if (!f) return ''
+    const have = (type: string) => f.player.slots.reduce((n, s) => n + (s && s.item.type === type ? s.count : 0), 0)
+    const rows = RECIPES.map((r) => {
+      const ok = r.needs.every((n) => have(n.type) >= n.count)
+      const needs = r.needs
+        .map((n) => {
+          const h = have(n.type)
+          return `<span class="need${h >= n.count ? '' : ' short'}" data-item="need:${n.type}"><span class="icon" data-icon="need:${n.type}"></span>${h}/${n.count}</span>`
+        })
+        .join('')
+      return `<div class="recipe${ok ? '' : ' off'}">
+        <div class="slot" data-item="recipe:${r.id}"><div class="icon" data-icon="recipe:${r.id}"></div></div>
+        <div class="rname">${esc(tx(r.name))}</div>
+        <div class="needs">${needs}</div>
+        <button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(t('needMore'))}"`}>${t('craftIt')}</button>
+      </div>`
+    }).join('')
+    return `<div class="recipes">${rows}</div>`
+  }
+
+  private wireCraft(): void {
+    $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-craft]').forEach((b) => (b.onclick = () => this.send.craft(b.dataset.craft!)))
   }
 
   // ---------------------------------------------------------------- options
@@ -281,15 +315,20 @@ export class Menu {
     const cap = Math.max(c.capacity ?? 12, stacks.length)
     const chestCells = Array.from({ length: Math.ceil(cap / ROW) * ROW }, (_, i) => {
       const s = stacks[i]
-      return `<div class="slot${i >= cap ? ' off' : ''}" ${s ? `data-c="${s[0].id}" data-tip="${esc(tipOf(s[0]))}"` : ''}>${s ? `<div class="icon" data-icon="${s[0].id}"></div>${s.length > 1 ? `<span class="count">${s.length}</span>` : ''}` : ''}</div>`
+      return `<div class="slot${i >= cap ? ' off' : ''}" ${s ? `data-c="${s[0].id}" data-item="${s[0].id}"` : ''}>${s ? `<div class="icon" data-icon="${s[0].id}"></div>${s.length > 1 ? `<span class="count">${s.length}</span>` : ''}` : ''}</div>`
     })
-    const bag = f.player.slots.slice(0, ROW)
+    const bag = f.player.slots
     const zh = locale.value === 'zh'
     $('#chestSheet').innerHTML = `
       <div class="jhead"><b>${esc(tx(c.name))}</b><span class="muted small">${c.contents.length} / ${c.capacity ?? '∞'}</span><button class="x" id="cClose">✕</button></div>
       <div class="inv chest-grid">${chunk(chestCells, ROW).map((r) => `<div class="grid-row">${r.join('')}</div>`).join('')}</div>
       <div class="inv-foot"><button id="cFill">⇣ ${t('fillStacks')}</button><button id="cOrg">⇅ ${t('organize')}</button><span class="muted small">${zh ? '点击：整堆移到另一边 · Shift+点击：移一个 · 右键：更多' : 'Click: the stack across · Shift+click: one · right click: more'}</span></div>
-      <div class="inv bag-grid"><div class="grid-row toolbar-row">${bag.map((s, j) => (s ? `<div class="slot" data-b="${s.item.id}" data-tip="${esc(tipOf(s.item))}"><div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}</div>` : `<div class="slot" data-i="${j}"></div>`)).join('')}</div></div>`
+      <div class="inv bag-grid">${chunk(
+        bag.map((s, j) => (s ? `<div class="slot" data-b="${s.item.id}" data-item="${s.item.id}"><div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}</div>` : `<div class="slot" data-i="${j}"></div>`)),
+        ROW,
+      )
+        .map((r, k) => `<div class="grid-row${k === 0 ? ' toolbar-row' : ''}">${r.join('')}</div>`)
+        .join('')}</div>`
     const sheet = $('#chestSheet')
     $('#cClose').onclick = () => this.close()
     const move = (from: 'chest' | 'bag', id: string, all: boolean) => this.send.transfer(from, id, all)
@@ -312,6 +351,17 @@ export class Menu {
   }
 }
 
+/** The crafting panel's items (each recipe's result, each material), keyed `recipe:<id>` / `need:<type>`: for their icons and tooltips. */
+function craftInfos(): ItemInfo[] {
+  const of = (id: string, type: string, extra: { name?: ItemInfo['name']; tags?: string[]; props?: ItemInfo['props'] } = {}): ItemInfo | undefined => {
+    const f = FORM_BY_ID[type]
+    if (!f) return undefined
+    return { id, type, sprite: f.sprite, name: extra.name ?? { en: f.en, zh: f.zh }, tags: [...(f.tags ?? []), ...(extra.tags ?? [])], statuses: [], props: { ...(f.props ?? {}), ...(extra.props ?? {}) } }
+  }
+  const needs = [...new Set(RECIPES.flatMap((r) => r.needs.map((n) => n.type)))]
+  return [...RECIPES.map((r) => of(`recipe:${r.id}`, r.make.type, { name: r.name, tags: r.make.tags, props: r.make.props })), ...needs.map((n) => of(`need:${n}`, n))].filter((x): x is ItemInfo => !!x)
+}
+
 function keyOf(it: ItemInfo): string {
   return JSON.stringify([it.type, it.name, [...it.tags].sort(), [...it.statuses].sort()])
 }
@@ -328,8 +378,3 @@ function chunk<T>(a: T[], n: number): T[][] {
   return out
 }
 
-/** A tooltip: the name and what it is in plain words (its kind and a few telling tags). */
-function tipOf(it: ItemInfo): string {
-  const plain = it.tags.filter((g) => !g.includes(':') && !['item', 'portable'].includes(g)).slice(0, 4)
-  return `${tx(it.name)}${plain.length ? ` · ${plain.join(', ')}` : ''}${it.statuses.length ? ` · ${it.statuses.join(', ')}` : ''}`
-}

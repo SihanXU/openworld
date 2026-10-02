@@ -6,9 +6,9 @@
 // inputs where there are any; then the converse: every placed thing witnesses some requirement.
 
 import { describe, expect, it } from 'vitest'
-import { FIRE_RADIUS, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, tickAt, type Engine, type Entity, type EventKind, type Key, type Patch, type Plan, type Ref } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
-import { AT, STAND, buildFord } from '../src/demo/world.ts'
+import { FIRE_RADIUS, FORAGE_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, tickAt, xpToNext, type Engine, type Entity, type EventKind, type Key, type Patch, type Plan, type Ref } from '@lsw/engine'
+import { BASE_RULES, FORM_BY_ID, RECIPE_BY_ID, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
+import { AT, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()
 /** Every event kind dispatched in any of the worlds below. */
@@ -39,8 +39,8 @@ function fresh(opts: { arrival?: boolean } = {}): Ford {
 
 const W = (f: Ford) => f.eng.world
 const ofType = (f: Ford, type: string) => Object.values(W(f).state.entities).find((e) => e.type === type)
-const stand = (f: Ford, x: number, y: number, facing: Entity['facing'] = 'up') => {
-  W(f).place(W(f).player, { on: 'tile', map: 'ford', x, y })
+const stand = (f: Ford, x: number, y: number, facing: Entity['facing'] = 'up', map = 'ford') => {
+  W(f).place(W(f).player, { on: 'tile', map, x, y })
   W(f).player.facing = facing
 }
 /** Put a thing in the player's hand the way the player would: in the bag, then its slot selected. */
@@ -557,7 +557,208 @@ req('F8', 'legible: before a press, every input shows what it will do, and the u
   stand(f, ...STAND.raft, 'right')
   for (const key of ['hands', 'take', 'use', 'put'] as Key[]) expect(f.eng.controls.plan(key, at(...AT.raft))?.label).toBeDefined()
   expect(f.eng.controls.plan('hands', at(...AT.raft))?.unknown).toBe(true)
-  expect(SLOT_COUNT).toBe(10)
+  expect(SLOT_COUNT).toBe(30)
+})
+
+const FORAGE = ['item/material/stick', 'item/material/stone', 'item/material/grass']
+const lying = (f: Ford, type: string, map = 'ford') => Object.values(W(f).state.entities).filter((e) => e.type === type && e.place.on === 'tile' && e.place.map === map)
+/** An open tile beside (x, y), and the way to face from it. */
+function beside(f: Ford, x: number, y: number): [number, number, Entity['facing']] {
+  for (const [dx, dy, dir] of [[-1, 0, 'right'], [1, 0, 'left'], [0, 1, 'up'], [0, -1, 'down']] as const)
+    if (W(f).walkable('ford', x + dx, y + dy)) return [x + dx, y + dy, dir]
+  throw new Error(`nothing open beside ${x},${y}`)
+}
+
+req('F10', "the ground yields sticks, stones and grass (Don't Starve): taken by hand, they craft the first tools, which fell a tree and break a boulder", [...FORAGE, 'fixture/nature/boulder'], () => {
+  const f = fresh()
+  const c = f.eng.controls
+  // gather everything lying about, through the take key
+  for (const type of FORAGE)
+    for (const e of lying(f, type)) {
+      const [x, y, dir] = beside(f, e.place.on === 'tile' ? e.place.x : 0, e.place.on === 'tile' ? e.place.y : 0)
+      stand(f, x, y, dir)
+      run(f, 'take', ...([e.place.on === 'tile' && e.place.x, e.place.on === 'tile' && e.place.y] as [number, number]))
+    }
+  for (const type of FORAGE) expect(c.count(type)).toBeGreaterThanOrEqual(3)
+  const axe = RECIPE_BY_ID['stone-axe']
+  const pick = RECIPE_BY_ID['stone-pickaxe']
+  expect(c.craft(axe)).toBe(true)
+  expect(c.craft(pick)).toBe(true)
+  // what they used up is gone; with too little, nothing is made
+  expect(c.count('item/material/stone')).toBe(lying(fresh(), 'item/material/stone').length - 3)
+  const made = (type: string) => [...(W(f).player.contents ?? []), W(f).player.held].map((id) => W(f).get(id)).find((e) => e?.type === type)!
+  expect(made('item/weapon/blade/axe').name).toEqual({ en: 'Stone Axe', zh: '石斧' })
+  expect(made('item/tool/pickaxe').name).toEqual({ en: 'Stone Pickaxe', zh: '石镐' })
+  while (c.canCraft(pick)) c.craft(pick)
+  expect(c.craft(pick)).toBe(false)
+  // the stone axe fells a tree: two swings, a stump, logs
+  hold(f, made('item/weapon/blade/axe'))
+  let tree: [number, number] | undefined
+  for (let y = 3; y < 28 && !tree; y++) for (let x = 0; x < 3 && !tree; x++) if (W(f).terrainAt('ford', x, y) === 'tree' && W(f).walkable('ford', x + 1, y)) tree = [x, y]
+  stand(f, tree![0] + 1, tree![1], 'left')
+  run(f, 'use', ...tree!)
+  run(f, 'use', ...tree!)
+  expect(W(f).terrainAt('ford', ...tree!)).toBe('stump')
+  // the stone pickaxe breaks a boulder in three blows
+  hold(f, made('item/tool/pickaxe'))
+  const boulder = ofType(f, 'fixture/nature/boulder')!
+  const bp = W(f).posOf(boulder)!
+  const [sx, sy, dir] = beside(f, bp.x, bp.y)
+  stand(f, sx, sy, dir)
+  const stones = lying(f, 'item/material/stone').length
+  for (let i = 0; i < 3; i++) run(f, 'use', bp.x, bp.y)
+  expect(W(f).get(boulder.id)).toBeUndefined()
+  expect(lying(f, 'item/material/stone').length).toBeGreaterThan(stones)
+  // and the ground yields again over time, never more than a handful of each
+  for (const type of FORAGE) for (const e of lying(f, type)) W(f).destroy(e)
+  ticks(f, FORAGE_EVERY * 40)
+  const forage = W(f).map('ford')!.forage!
+  for (const type of FORAGE) {
+    expect(lying(f, type).length).toBeGreaterThan(0)
+    expect(lying(f, type).length).toBeLessThanOrEqual(forage.find((g) => g.type === type)!.max)
+  }
+})
+
+req('F11', 'a defeated foe teaches whoever struck it: experience, levels, a skill point', ['actor/creature/slime/fire_slime', 'actor/creature/slime/frost_slime'], () => {
+  const f = fresh()
+  hold(f, ofType(f, 'item/weapon/blade/axe'))
+  const p = W(f).player
+  for (const id of ['ford.fire_slime', 'ford.frost_slime']) {
+    const s = W(f).get(id)!
+    W(f).place(s, { on: 'tile', map: 'ford', x: 16, y: 18 })
+    s.props = { ...(s.props ?? {}), hp: 1 }
+    stand(f, 16, 17, 'down')
+    f.eng.setCooldown('atk:player', 0)
+    run(f, 'use', 16, 18)
+    expect(W(f).get(id)).toBeUndefined()
+  }
+  // each slime is worth its full health (11); twenty make the second level
+  expect(xpToNext(1)).toBe(20)
+  expect(p.props).toMatchObject({ level: 2, xp: 2, skillPoints: 1 })
+})
+
+const COW = 'actor/creature/animal/cow'
+const HEN = 'actor/creature/animal/chicken'
+const onMeadow = (f: Ford, type: string) => Object.values(W(f).state.entities).filter((e) => e.type === type && e.place.on === 'tile' && e.place.map === 'meadow')
+
+req('F12', 'west of the Ford a meadow (Minecraft): cows and hens that run when struck and come back slowly; meat from both, eggs from hens; each food feeds its own amount', [COW, HEN], () => {
+  const f = fresh()
+  const p = W(f).player
+  // the road's gap in the western woods leads there
+  stand(f, 1, WEST_GAP[1], 'left')
+  f.eng.movePlayer('left')
+  expect(W(f).posOf(p)?.map).toBe('meadow')
+  expect(onMeadow(f, COW).length).toBeGreaterThan(0)
+  expect(onMeadow(f, HEN).length).toBeGreaterThan(0)
+  const here = W(f).posOf(p)!
+  hold(f, ofType(f, 'item/weapon/blade/axe'))
+  // a struck cow runs from whoever struck it, and never strikes back
+  const cow = onMeadow(f, COW)[0]
+  W(f).place(cow, { on: 'tile', map: 'meadow', x: here.x - 1, y: here.y })
+  p.facing = 'left'
+  f.eng.setCooldown('atk:player', 0)
+  run(f, 'use', here.x - 1, here.y)
+  const hp = W(f).num(p, 'hp')
+  ticks(f, 60)
+  const cp = W(f).posOf(cow)!
+  expect(Math.abs(cp.x - here.x) + Math.abs(cp.y - here.y)).toBeGreaterThan(2)
+  expect(W(f).num(p, 'hp')).toBeGreaterThanOrEqual(hp)
+  // a cow leaves meat, a hen chicken
+  const meat = (type: string) => Object.values(W(f).state.entities).filter((e) => e.type === type).length
+  // each killed on its own tile beside the player (west, then north), so their drops do not mix
+  for (const [type, food, n, dx, dy, face] of [[COW, 'item/food/meat/raw', 2, -1, 0, 'left'], [HEN, 'item/food/chicken/raw', 1, 0, -1, 'up']] as const) {
+    const a = onMeadow(f, type)[0]
+    const before = meat(food)
+    const [ax, ay] = [here.x + dx, here.y + dy]
+    stand(f, here.x, here.y, face, 'meadow')
+    W(f).place(a, { on: 'tile', map: 'meadow', x: ax, y: ay })
+    a.props = { ...(a.props ?? {}), hp: 1 }
+    f.eng.setCooldown('atk:player', 0)
+    run(f, 'use', ax, ay)
+    expect(W(f).get(a.id)).toBeUndefined()
+    expect(meat(food) - before).toBe(n)
+    // what a creature leaves lies where it fell: no magnet, taken with F
+    ticks(f, 10)
+    const there = W(f).entitiesAt('meadow', ax, ay).filter((e) => e.type === food)
+    expect(there.length).toBe(n)
+    expect(there.every((e) => !e.dropped)).toBe(true)
+    const carried = f.eng.controls.count(food)
+    run(f, 'take', ax, ay)
+    expect(f.eng.controls.count(food)).toBe(carried + 1)
+  }
+  // a hen lays an egg where she stands, and starts on the next
+  const hen = onMeadow(f, HEN)[0]
+  const eggs = meat('item/food/egg/raw')
+  W(f).setStatus({ e: hen.id }, 'laying', W(f).state.tick + 1)
+  ticks(f, 3)
+  expect(meat('item/food/egg/raw')).toBe(eggs + 1)
+  const egg = lying(f, 'item/food/egg/raw', 'meadow').find((e) => !e.dropped)
+  expect(egg).toBeDefined()
+  expect(W(f).hasStatus({ e: hen.id }, 'laying')).toBe(true)
+  // each food feeds its own amount: hunger rises by its `food`
+  for (const type of ['item/food/meat/raw', 'item/food/chicken/raw', 'item/food/egg/raw']) {
+    const e = Object.values(W(f).state.entities).find((x) => x.type === type)!
+    W(f).place(e, { on: 'inside', holder: 'player' })
+    f.eng.controls.sync()
+    f.eng.controls.select(p.slots!.indexOf(f.eng.controls.key(e)))
+    p.props!.hunger = 5
+    f.eng.interact('interact', p.id, { e: p.id }, { instrument: { e: p.held! } })
+    expect([type, p.props!.hunger]).toEqual([type, 5 + Number(FORM_BY_ID[type].props!.food)])
+  }
+  // and they come back, slowly, never more than the meadow holds
+  // the meadow's ground yields sticks, stones and grass too
+  for (const type of FORAGE) expect(lying(f, type, 'meadow').length).toBeGreaterThan(0)
+  for (const type of [COW, HEN]) for (const e of onMeadow(f, type)) W(f).destroy(e)
+  ticks(f, 1200)
+  expect(onMeadow(f, COW).length).toBeLessThanOrEqual(1)
+  expect(onMeadow(f, HEN).length).toBeLessThanOrEqual(2)
+  ticks(f, 1200 * 6)
+  const forage = W(f).map('meadow')!.forage!
+  for (const type of [COW, HEN]) {
+    expect(onMeadow(f, type).length).toBeGreaterThan(0)
+    expect(onMeadow(f, type).length).toBeLessThanOrEqual(forage.find((g) => g.type === type)!.max)
+  }
+  expect(onMeadow(f, HEN).every((h) => W(f).hasStatus({ e: h.id }, 'laying'))).toBe(true)
+})
+
+req('F13', 'south of the meadow, a forest: many trees within reach, and an axe fells them (two swings: a stump, logs and a stick)', [], () => {
+  const f = fresh()
+  const p = W(f).player
+  // the meadow's trail south leads there
+  stand(f, SOUTH_GAP[1], W(f).map('meadow')!.height - 2, 'down', 'meadow')
+  f.eng.movePlayer('down')
+  const here = W(f).posOf(p)!
+  expect(here.map).toBe('forest')
+  // the woods are thick, and a good many of their trees stand beside ground the player can reach
+  const map = W(f).map('forest')!
+  const wood = (x: number, y: number) => ['tree', 'pine'].includes(W(f).terrainAt('forest', x, y))
+  const seen = new Set<string>()
+  const q: [number, number][] = [[here.x, here.y]]
+  while (q.length) {
+    const [x, y] = q.pop()!
+    if (seen.has(`${x},${y}`) || !W(f).walkable('forest', x, y, p.id)) continue
+    seen.add(`${x},${y}`)
+    q.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1])
+  }
+  const SIDES = [[1, 0, 'left'], [-1, 0, 'right'], [0, 1, 'up'], [0, -1, 'down']] as const
+  const reachable: [number, number, number, number, Entity['facing']][] = []
+  for (let y = 0; y < map.height; y++)
+    for (let x = 0; x < map.width; x++) {
+      if (!wood(x, y)) continue
+      const side = SIDES.find(([dx, dy]) => seen.has(`${x + dx},${y + dy}`))
+      if (side) reachable.push([x, y, x + side[0], y + side[1], side[2]])
+    }
+  expect(reachable.length).toBeGreaterThan(100)
+  // the old axe fells one: two swings
+  hold(f, ofType(f, 'item/weapon/blade/axe'))
+  const [tx, ty, sx, sy, face] = reachable[Math.floor(reachable.length / 2)]
+  stand(f, sx, sy, face, 'forest')
+  const logs = () => Object.values(W(f).state.entities).filter((e) => e.type === 'item/material/log').length
+  const before = logs()
+  run(f, 'use', tx, ty)
+  run(f, 'use', tx, ty)
+  expect(W(f).terrainAt('forest', tx, ty)).toBe('stump')
+  expect(logs() - before).toBe(2)
 })
 
 req('F9', 'the arrival opens the story: the scene, the loaf in the pack, the objective', ['npc.hesper', 'npc.tobin', 'item/food/bread'], () => {

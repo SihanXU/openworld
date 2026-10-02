@@ -6,6 +6,8 @@ import { EffectRunner } from './effects.ts'
 import { Controls } from './controls.ts'
 import { Scenes } from './scenes.ts'
 import { stepCreatures } from './creatures.ts'
+import { forageTick } from './forage.ts'
+import { hungerTick } from './hunger.ts'
 import { NpcSim, scheduleAt } from './npc.ts'
 import { scheduleFor } from './people.ts'
 import { OntologyIndex } from './ontology.ts'
@@ -628,6 +630,8 @@ export class Engine {
     stepCreatures(this, active)
     this.undefinedSink?.tick()
     this.controls.magnet()
+    forageTick(this, active)
+    hungerTick(this, active)
     this.weatherTick(active)
     this.invariantTick()
     this.scenes.tick()

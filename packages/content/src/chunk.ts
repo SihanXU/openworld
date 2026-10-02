@@ -18,6 +18,7 @@ export interface RawMap {
   light?: MapData['light']
   anchors?: MapData['anchors']
   regions?: MapData['regions']
+  forage?: MapData['forage']
 }
 
 export interface RawChunk {
@@ -43,6 +44,7 @@ export function decodeMap(m: RawMap): MapData {
     light: m.light,
     anchors: m.anchors,
     regions: m.regions,
+    forage: m.forage,
   }
 }
 

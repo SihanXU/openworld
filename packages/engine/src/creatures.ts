@@ -2,10 +2,12 @@
 // (Engine.hostileTo: its foes, and the factions its own are hostile to when its temper says so)
 // that it can see; otherwise it keeps near home — by day its home, after dark where it roams.
 // Creatures that fear fire never come near a lit or burning thing, nor chase anyone who stands
-// by one. Attacks are ordinary `hit` events, so every elemental reaction is a rule.
+// by one. Attacks are ordinary `hit` events, so every elemental reaction is a rule. A passive
+// creature (a cow, a hen) never attacks: it runs from whoever struck it (Minecraft's panic).
 
 import { isNight } from './calendar.ts'
 import type { Engine } from './engine.ts'
+import { astar } from './path.ts'
 import type { Dir, Entity, Pos } from './types.ts'
 import { DIRS, FIRE_RADIUS } from './types.ts'
 
@@ -38,6 +40,12 @@ export function stepCreatures(eng: Engine, active: string): void {
       const d = Math.abs(o.place.x - x) + Math.abs(o.place.y - y)
       if (d <= ai.sight && d < best && safe(o.place.x, o.place.y)) (target = o), (best = d)
     }
+    if (target && target.place.on === 'tile' && ai.behaviour === 'passive') {
+      ai.state = 'flee'
+      if (!towards(eng, e, x - target.place.x, y - target.place.y, safe)) wander(eng, e, safe)
+      eng.setCooldown(e.id, Math.max(2, Math.floor(speed / 2)))
+      continue
+    }
     if (target && target.place.on === 'tile') {
       ai.state = 'chase'
       const dx = target.place.x - x
@@ -53,7 +61,7 @@ export function stepCreatures(eng: Engine, active: string): void {
         eng.setCooldown(e.id, speed)
         continue
       }
-      if (!towards(eng, e, dx, dy, safe)) wander(eng, e, safe)
+      if (!go(eng, e, target.place.x, target.place.y, safe)) wander(eng, e, safe)
       eng.setCooldown(e.id, speed)
       continue
     }
@@ -62,7 +70,7 @@ export function stepCreatures(eng: Engine, active: string): void {
     const hy = home.y - y
     if (Math.abs(hx) + Math.abs(hy) > 4) {
       ai.state = 'return'
-      towards(eng, e, hx, hy, safe)
+      go(eng, e, home.x, home.y, safe)
     } else {
       ai.state = 'idle'
       if (w.rand() < 0.3) wander(eng, e, safe)
@@ -77,6 +85,42 @@ function wander(eng: Engine, e: Entity, safe: (x: number, y: number) => boolean)
   const d = DIR_LIST[Math.floor(eng.world.rand() * 4)]
   const [dx, dy] = DIRS[d]
   return safe(e.place.x + dx, e.place.y + dy) && eng.step(e, d)
+}
+
+/**
+ * One step toward (gx, gy): along a detour it is already following to there; else the greedy
+ * step; and when that is blocked (a clump of trees in the way), a path around (A*, over the
+ * ground as it is) that it then keeps to, so it does not slide back into the same corner. A
+ * fire's reach still stops it.
+ */
+function go(eng: Engine, e: Entity, gx: number, gy: number, safe: (x: number, y: number) => boolean): boolean {
+  const ai = e.ai!
+  if (e.place.on !== 'tile') return false
+  const d = ai.detour
+  if (d && (d.x !== gx || d.y !== gy || !d.path.length)) delete ai.detour
+  if (ai.detour) {
+    if (stepTo(eng, e, ai.detour.path[0], safe)) {
+      ai.detour.path.shift()
+      return true
+    }
+    delete ai.detour
+  }
+  if (towards(eng, e, gx - e.place.x, gy - e.place.y, safe)) return true
+  const w = eng.world
+  const { map, x, y } = e.place
+  const m = w.map(map)
+  const path = m && astar(m.width, m.height, (px, py) => w.passable(map, px, py) || (px === gx && py === gy), x, y, gx, gy, 2000)
+  if (!path?.length || !stepTo(eng, e, path[0], safe)) return false
+  ai.detour = { x: gx, y: gy, path: path.slice(1) }
+  return true
+}
+
+/** One step onto a neighbouring tile, if it is safe. */
+function stepTo(eng: Engine, e: Entity, [nx, ny]: [number, number], safe: (x: number, y: number) => boolean): boolean {
+  if (e.place.on !== 'tile' || !safe(nx, ny)) return false
+  const { x, y } = e.place
+  if (Math.abs(nx - x) + Math.abs(ny - y) !== 1) return false
+  return eng.step(e, nx > x ? 'right' : nx < x ? 'left' : ny > y ? 'down' : 'up')
 }
 
 /** Greedy step reducing distance along the longer axis first (never into a fire's reach). */
