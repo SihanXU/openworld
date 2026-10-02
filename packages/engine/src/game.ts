@@ -36,7 +36,7 @@ export interface WorldIndex {
   scenes?: SceneDef[]
   /** Content the world must keep playable (the `invalid` source). */
   invariants?: Invariant[]
-  /** Fact-key prefixes that only the story's own rules may change (design.md §5.8). */
+  /** Fact-key prefixes that only the story's own rules may change (design.md §5.11). */
   protectedFacts?: string[]
   /** Spans of time whose weather the world fixes (the evening storm). */
   weather?: WeatherSpan[]
@@ -77,8 +77,11 @@ export class Game {
     }
     const eng = new Engine(state, ontology, library)
     for (const m of index.maps) eng.graph[m.id] = m.portals
-    eng.world.add(structuredClone(index.player))
-    for (const n of index.npcs) addTree(eng, n)
+    eng.ensureResidents()
+    eng.world.write(() => {
+      eng.world.add(structuredClone(index.player))
+      for (const n of index.npcs) addTree(eng, n)
+    })
     loadContent(eng, index)
     return new Game(eng)
   }
@@ -87,6 +90,7 @@ export class Game {
     const lib = library ?? RuleLibrary.fromJSON(save.library)
     const eng = new Engine(save.state, ontology, lib)
     for (const m of index.maps) eng.graph[m.id] = m.portals
+    eng.ensureResidents()
     loadContent(eng, index)
     // how the player looks is the world's to say, not the save's (a save from before a new look gets it)
     const p = eng.world.get(eng.world.state.player)

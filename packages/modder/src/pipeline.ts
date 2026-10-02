@@ -1,4 +1,4 @@
-// The modder: one undefined interaction in, one validated patch out, and a self-state that
+// The modder: one undefined outcome in, one validated patch out, and a self-state that
 // is a little different afterwards (docs/rsi.md §3).
 //
 //   comprehend  signature of the request; the shared library may already answer it (no model)
@@ -15,9 +15,9 @@
 // nobody waits on — curriculum, a failed live request worked again, a revision after review.
 
 import { buildModSpec, type ModRequest, type ModWorkspace, type Patch, type ResolveBody, type ResolveReply } from '@lsw/engine'
-import { briefOf } from './brief.ts'
+import { briefOf, relatedRules } from './brief.ts'
 import { changesNothing, deriveTests } from './derive.ts'
-import { narrowVerbs, normalizePatch } from './fixes.ts'
+import { narrowKinds, normalizePatch } from './fixes.ts'
 import type { WorldLibrary } from './library.ts'
 import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@lsw/agent'
 import { materializeWorld } from './repo.ts'
@@ -190,7 +190,7 @@ export class Modder {
         let patch: Patch = { ...draft, author: 'modder' }
         let res = validate(patch)
         // mechanical conflicts are fixed here, not with another model turn
-        const narrowed = res.ok ? undefined : narrowVerbs(patch, req, res)
+        const narrowed = res.ok ? undefined : narrowKinds(patch, req, res)
         if (narrowed) {
           const again = validate(narrowed.patch)
           if (again.ok || again.errors.length < res.errors.length) ((patch = narrowed.patch), (res = again), fixes.push(...narrowed.fixes))
@@ -395,7 +395,7 @@ export class Modder {
     const r = await model.chat(
       [
         { role: 'system', content: REVIEW_SYSTEM },
-        { role: 'user', content: reviewUser(req, patch, outcome, req.context.nearMisses, flags) },
+        { role: 'user', content: reviewUser(req, patch, outcome, relatedRules(req, ctx.library), flags) },
       ],
       // nobody waits on a review: the cheap providers
       { json: true, temperature: 0.2, purpose: 'review', reasoning: h.review.reasoning, provider: profileOf(h, 'offline').design.provider },

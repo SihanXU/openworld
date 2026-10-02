@@ -1,8 +1,10 @@
-// NPC schedules with two fidelities:
-//  - on the player's map: tile-level pathfinding toward the current schedule anchor;
-//  - everywhere else: NPCs jump between anchors on the hour (cost ~ schedule transitions).
-// A person whose day cannot go on — the thing their activity needs is gone or not as it must
-// be, or the anchor cannot be reached — raises a `blocked` event (design.md §5.4 source 10).
+// NPC behaviour (design.md §5.4: the game's own logic, as in any game), on the active map only:
+// tile-level pathfinding toward the current schedule anchor, submitting the same acts as the
+// player (steps, moving through portals). Dormant maps are frozen (design.md §5.12): their people
+// stay put; entering a map places its people by their schedules, and a person whose schedule
+// leads to the active map walks in through the portal on the hour. A person whose day cannot go
+// on — the thing their activity needs is gone or not as it must be, or the anchor cannot be
+// reached — is `stuck`, an event whose outcome may change their script.
 // A person who sees something about to attack them runs from it, toward a fire if one is near.
 
 import type { Engine } from './engine.ts'
@@ -95,18 +97,15 @@ export class NpcSim {
     }
   }
 
-  /** Coarse step: every NPC not on the active map jumps to its current anchor. */
+  /** On the hour: a person on a dormant map whose schedule leads here walks in (the rest stay put: their maps are frozen). */
   private coarse(active: string): void {
     const w = this.eng.world
     const h = w.hour()
     for (const id of this.ids()) {
       const e = w.get(id)
-      if (!e?.npc || e.place.on !== 'tile') continue
-      if (e.place.map === active) continue
+      if (!e?.npc || e.place.on !== 'tile' || e.place.map === active) continue
       const s = scheduleAt(scheduleFor(this.eng, e), h)
-      if (!s) continue
-      if (s.map === active) this.arrive(e, s, active)
-      else if (e.place.map !== s.map || e.place.x !== s.x || e.place.y !== s.y) w.place(e, { on: 'tile', map: s.map, x: s.x, y: s.y })
+      if (s?.map === active) this.arrive(e, s, active)
     }
   }
 
@@ -118,7 +117,7 @@ export class NpcSim {
     const back = this.eng.graph[cur]?.find((p) => p.to === active)
     const at: Pos = back ? { map: active, x: back.tx, y: back.ty } : { map: active, x: s.x, y: s.y }
     const free = w.walkable(at.map, at.x, at.y, e.id) ? at : this.eng.nearestFree(at)
-    if (free) w.place(e, { on: 'tile', ...free })
+    if (free) this.eng.relocate(e, free)
   }
 
   /** When the player enters a map, reconcile NPCs whose anchors are here. */
@@ -132,7 +131,7 @@ export class NpcSim {
       if (s?.map === map) {
         const at = { map, x: s.x, y: s.y }
         const free = w.walkable(map, s.x, s.y, e.id) ? at : this.eng.nearestFree(at)
-        if (free) w.place(e, { on: 'tile', ...free })
+        if (free) this.eng.relocate(e, free)
       }
     }
     this.rt.clear()
@@ -186,13 +185,13 @@ export class NpcSim {
     this.block(e, s.activity, u && u.place.on !== 'none' ? { e: u.id } : { tile: { map: p.map, x: s.x, y: s.y } })
   }
 
-  /** The person's activity cannot go on: a `blocked` event (at most once an hour per activity). */
+  /** The person's day cannot go on: a `stuck` event for them (at most once an hour per activity). */
   private block(e: Entity, activity: string, target: Ref): void {
     const t = this.eng.world.state.tick
     const key = `${e.id}|${activity}`
     if ((this.blockedUntil.get(key) ?? -1) > t) return
     this.blockedUntil.set(key, t + BLOCKED_EVERY)
-    this.eng.queue({ kind: 'blocked', roles: { actor: { e: e.id }, target }, about: activity })
+    this.eng.queue({ kind: 'stuck', host: { e: e.id }, roles: { target }, params: { activity }, origin: 'world' })
   }
 
   private fine(e: Entity, active: string, budget: number): number {
@@ -220,7 +219,7 @@ export class NpcSim {
     const dist = Math.abs(gx - x) + Math.abs(gy - y)
     if (dist <= 1 && leaving) {
       // walk "through" the portal from the tile beside it
-      w.place(e, { on: 'tile', map: leaving.to, x: leaving.tx, y: leaving.ty })
+      this.eng.relocate(e, { map: leaving.to, x: leaving.tx, y: leaving.ty })
       this.rt.delete(e.id)
       return budget
     }

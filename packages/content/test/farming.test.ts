@@ -1,7 +1,9 @@
-// M4: farming, played through the same entry point as the player's keys.
+// M4: farming, played through the same entry point as the player's keys (controls.plan + run).
+// A seed's own act sows it; water reaches a crop as an element; a sickle's blow (`strike`) is
+// answered by the ripe crop; a hand takes (`taken`) what it picks.
 
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, SANDBOX_MAP, buildSandbox, type Engine } from '@lsw/engine'
+import { RuleLibrary, SANDBOX_MAP, buildSandbox, type Engine, type Key } from '@lsw/engine'
 import { BASE_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
@@ -23,18 +25,40 @@ function farm(width: number, crops: Record<number, string> = {}, ground = 'farml
     new RuleLibrary(BASE_RULES),
   )
   eng.world.get('actor')!.facing = 'up'
+  eng.world.strict = true
   return eng
 }
 
-const standAt = (eng: Engine, x: number) => eng.world.place(eng.world.get('actor')!, { on: 'tile', map: SANDBOX_MAP, x, y: 2 })
-const hold = (eng: Engine, type: string) => {
-  eng.hold('actor')
-  eng.world.create(type, { on: 'hand', holder: 'actor' })
+/** The player walks to (x,2) (an act of moving), still facing up. */
+const standAt = (eng: Engine, x: number) => {
+  eng.relocate(eng.world.get('actor')!, { map: SANDBOX_MAP, x, y: 2 })
+  eng.world.get('actor')!.facing = 'up'
 }
-const act = (eng: Engine, verb: 'put' | 'interact' | 'take', type?: string) => {
+/** Put a fresh `type` in the player's hand (whatever was there is gone), as if picked from the toolbar. */
+const hold = (eng: Engine, type: string) => {
+  const w = eng.world
+  w.write(() => {
+    const old = w.get(w.player.held)
+    if (old) w.destroy(old)
+    w.create(type, { on: 'hand', holder: 'actor' })
+  })
+  eng.controls.sync()
+}
+/** Empty the player's hand (what it held is gone, so the toolbar keeps no slot for it). */
+const stow = (eng: Engine) => {
+  const w = eng.world
+  const h = w.get(w.player.held)
+  if (h) w.write(() => w.destroy(h))
+  eng.controls.sync()
+}
+
+/** Press a key at the tile in front, holding a fresh `type`; the rules the chain resolved to (defined ones). */
+const press = (eng: Engine, key: Key, type?: string): string[] => {
   if (type) hold(eng, type)
-  else eng.hold('actor')
-  return eng.playerVerb(verb)?.rule?.id
+  const plan = eng.controls.plan(key)
+  eng.trace.length = 0
+  if (plan) eng.controls.run(plan, true)
+  return eng.trace.filter((t) => t.defined && t.rule).map((t) => t.rule!)
 }
 const wait = (eng: Engine, ticks: number) => {
   for (let i = 0; i < ticks; i++) eng.tick()
@@ -51,20 +75,21 @@ describe('a season', () => {
     const eng = farm(4)
     for (let x = 0; x < 4; x++) {
       standAt(eng, x)
-      expect(act(eng, 'put', SEED)).toBe('farm/sow')
+      expect(press(eng, 'put', SEED)).toContain('farm/sow-put')
     }
     expect(at(eng, 2)).toEqual(['fixture/crop/wheat/sprout'])
     for (const stage of ['young', 'ripe']) {
       for (let x = 0; x < 4; x++) {
         standAt(eng, x)
-        expect(act(eng, 'interact', WATER)).toBe('farm/water')
+        expect(press(eng, 'use', WATER)).toEqual(expect.arrayContaining(['use/water', 'farm/water']))
       }
+      stow(eng)
       wait(eng, 2 * HOURS + 1)
       expect(at(eng, 0)).toEqual([`fixture/crop/wheat/${stage}`])
     }
     for (let x = 0; x < 4; x++) {
       standAt(eng, x)
-      expect(act(eng, 'interact', SICKLE)).toBe('farm/harvest')
+      expect(press(eng, 'use', SICKLE)).toEqual(expect.arrayContaining(['use/sickle', 'farm/harvest']))
     }
     expect(everywhere(eng, SEED)).toBe(8)
     expect(everywhere(eng, 'item/material/wheat')).toBe(8)
@@ -75,41 +100,48 @@ describe('a season', () => {
     const eng = farm(1, { 0: 'fixture/crop/wheat/sprout' })
     wait(eng, 24 * HOURS)
     expect(at(eng, 0)).toEqual(['fixture/crop/wheat/sprout'])
-    act(eng, 'interact', WATER)
-    expect(act(eng, 'interact', WATER)).toBe('core/splash')
+    expect(press(eng, 'use', WATER)).toContain('farm/water')
+    // watered already: the water only splashes it
+    const again = press(eng, 'use', WATER)
+    expect(again).toContain('core/element')
+    expect(again).not.toContain('farm/water')
+    stow(eng)
     wait(eng, 24 * HOURS)
     expect(at(eng, 0)).toEqual(['fixture/crop/wheat/young'])
   })
 
   it('picking by hand gives one of each; ash adds one to a sickle harvest', () => {
     const picked = farm(1, { 0: 'fixture/crop/wheat/ripe' })
-    expect(act(picked, 'take')).toBe('farm/pick')
+    expect(press(picked, 'take')).toEqual(expect.arrayContaining(['core/take', 'farm/pick']))
     expect(picked.world.get(picked.world.get('actor')!.held)?.type).toBe('item/material/wheat')
     expect(at(picked, 0)).toEqual([SEED])
 
     const rich = farm(1, { 0: 'fixture/crop/wheat/young' })
-    expect(act(rich, 'put', 'item/material/ash')).toBe('farm/fertilize')
-    act(rich, 'interact', WATER)
+    expect(press(rich, 'put', 'item/material/ash')).toEqual(expect.arrayContaining(['farm/ash-put', 'farm/fertilize']))
+    expect(rich.world.hasStatus({ e: 'c0' }, 'fertilized')).toBe(true)
+    press(rich, 'use', WATER)
+    stow(rich)
     wait(rich, 2 * HOURS + 1)
-    expect(act(rich, 'interact', SICKLE)).toBe('farm/harvest')
+    expect(press(rich, 'use', SICKLE)).toContain('farm/harvest')
     expect(everywhere(rich, 'item/material/wheat')).toBe(3)
   })
 
   it('a berry bush bears again after picking', () => {
     const eng = farm(1, { 0: 'fixture/crop/berry/ripe' })
-    expect(act(eng, 'take')).toBe('farm/pick-perennial')
+    expect(press(eng, 'take')).toContain('farm/pick')
+    expect(eng.world.get(eng.world.get('actor')!.held)?.type).toBe('item/food/berries')
     expect(at(eng, 0)).toContain('fixture/crop/berry/young')
   })
 
   it('a shovel lifts a plant and gives back its seed', () => {
     const eng = farm(1, { 0: 'fixture/crop/herb/young' })
-    expect(act(eng, 'interact', 'item/tool/shovel')).toBe('farm/dig-up')
+    expect(press(eng, 'use', 'item/tool/shovel')).toEqual(expect.arrayContaining(['use/shovel', 'farm/dig-up']))
     expect(at(eng, 0)).toEqual(['item/seed/herb'])
   })
 })
 
 describe('fire and trees', () => {
-  it('a torch dropped in ripe wheat costs the harvest and leaves ash', () => {
+  it('a torch held to ripe wheat costs the harvest and leaves ash', () => {
     // a 4 x 4 field of ripe wheat, the player below it
     const eng = buildSandbox(
       {
@@ -124,8 +156,10 @@ describe('fire and trees', () => {
       new RuleLibrary(BASE_RULES),
     )
     eng.world.get('actor')!.facing = 'up'
-    expect(act(eng, 'put', 'item/light/torch')).toBe('core/ignite')
-    eng.hold('actor')
+    eng.world.strict = true
+    expect(press(eng, 'use', 'item/light/torch')).toEqual(expect.arrayContaining(['use/fire', 'core/element']))
+    expect(eng.world.hasStatus({ e: 'c13' }, 'burning')).toBe(true)
+    stow(eng)
     wait(eng, 2 * HOURS)
     expect(everywhere(eng, 'fixture/crop/wheat/ripe')).toBe(0)
     expect(everywhere(eng, 'item/material/ash')).toBe(16)
@@ -134,9 +168,9 @@ describe('fire and trees', () => {
   it('an acorn grows into a tree in two game days', () => {
     const eng = farm(3, {}, 'grass')
     standAt(eng, 1)
-    expect(act(eng, 'put', 'item/seed/acorn')).toBe('farm/plant-acorn')
+    expect(press(eng, 'put', 'item/seed/acorn')).toContain('farm/plant-acorn-put')
     expect(at(eng, 1)).toEqual(['fixture/crop/oak/sapling'])
-    eng.hold('actor')
+    stow(eng)
     wait(eng, 48 * HOURS + 1)
     expect(eng.world.terrainAt(SANDBOX_MAP, 1, 1)).toBe('tree')
     expect(at(eng, 1)).toEqual([])
@@ -147,8 +181,9 @@ describe('fire and trees', () => {
     let acorns = 0
     for (let x = 0; x < 20; x++) {
       standAt(eng, x)
-      act(eng, 'interact', 'item/weapon/blade/axe')
-      act(eng, 'interact', 'item/weapon/blade/axe')
+      press(eng, 'use', 'item/weapon/blade/axe')
+      expect(press(eng, 'use', 'item/weapon/blade/axe')).toContain('wood/fell')
+      expect(eng.world.terrainAt(SANDBOX_MAP, x, 1)).toBe('stump')
       acorns += at(eng, x).filter((t) => t === 'item/seed/acorn').length
     }
     expect(acorns).toBeGreaterThan(0)

@@ -1,4 +1,4 @@
-// The offline inner loop: undefined interactions, handed to the modder one by one as if players
+// The offline inner loop: undefined outcomes of the player's acts, handed to the modder one by one as if players
 // had tried them (offline profile: the SWE-style agent works each as a repository). The shared
 // library and the self-state grow exactly as they do online (same files). Optionally:
 // checkpoints (learning-curve numbers + a self-state snapshot), the outer loop every N episodes,
@@ -40,8 +40,8 @@ export function cellRequest(cell: Cell, onto: Ontology, lib: RuleLibrary): ModRe
   const eng = buildSandbox(sc, onto, lib.clone())
   const port = new ModPort(eng)
   const ref = key.startsWith('tile:') ? { tile: { map: 'sandbox', x: FRONT.x + SHIFT.x, y: FRONT.y + SHIFT.y } } : { e: key }
-  const res = eng.interact(cell.verb, 'actor', ref)
-  return res.defined ? undefined : port.records[0]?.request
+  eng.act(cell.verb, 'actor', ref, { instrument: cell.hand ? { e: 'held' } : null })
+  return port.records[0]?.request
 }
 
 /** A spread-out sample: shuffled, then taken round-robin across targets so no single target dominates. */

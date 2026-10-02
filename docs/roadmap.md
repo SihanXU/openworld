@@ -75,6 +75,15 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 | M7 | Mining and smithing | M3 (hammer, frames) | | |
 | M8 | Wearing, resting, trading | M1 | | |
 | M9 | Every item has a purpose | all of the above | | |
+| EM | The event model (design.md §5.14), 2026-10-02 | M4 | 20,059 / 29,492 (68.0%) | 46 of 116 forms, 25 of 71 fixture types |
+
+The event model changed what is swept: the acts each input makes (use, put, take, hands; use
+or hands on yourself) and the outcomes of the impulses they send, so the space grew to 29,492.
+Two kinds of answer left the generic column by design: a bare hand on a thing that says nothing
+of being handled, and taking what cannot be carried, are now undefined (asked) with their old
+lines as defaults; pouring and lighting are `use` only (`put` places). The holes, by where they
+are: `core/use` 10,737, `core/receive` 6,620, `core/strike` 1,956, `core/handle` 526,
+`core/offered` 116, `core/taken` 104.
 
 M1–M4 are the core. M5–M9 can follow in any order. §1 stays the M0 baseline; each milestone
 fills in its row from `npm run coverage` when it lands. New fixture types join the sweep as

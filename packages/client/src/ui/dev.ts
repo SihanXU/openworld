@@ -141,14 +141,15 @@ export class ModConsole {
     const ent = (e?: { name: string; type: string; tags: string[]; statuses: string[] }) =>
       e ? `<b>${esc(e.name)}</b> <code>${esc(e.type)}</code> ${e.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join('')}${e.statuses.map((t) => `<span class="tag st">${esc(t)}</span>`).join('')}` : '—'
     const text = keepText ?? (r.patch ? JSON.stringify(r.patch, null, 2) : '')
-    const what = req.event.kind === 'interaction' ? `${req.event.verb}${req.event.strict ? ' (bare)' : ''}` : `${req.event.kind}${req.event.element ? ` · ${req.event.element}` : ''}`
+    const params = Object.entries(req.event.params ?? {}).filter(([k]) => !['power'].includes(k)).map(([k, v]) => `${k}=${v}`).join(' ')
+    const what = `${req.event.kind}${params ? ` · ${params}` : ''}`
     return `
       <div class="req">
         <div class="row"><span class="k">${zh ? '事件' : 'event'}</span> <code>${esc(what)}</code> <span class="pill p-${r.status}">${r.status}</span> <span class="muted">tick ${r.tick} · ${esc(req.context.map.name)} · ${req.context.hour}h</span></div>
-        <div class="row"><span class="k">actor</span> ${ent(req.event.actor)}</div>
-        <div class="row"><span class="k">target</span> ${ent(req.event.target)}</div>
-        <div class="row"><span class="k">instrument</span> ${ent(req.event.instrument)}</div>
-        <div class="row"><span class="k">near-miss</span> ${req.context.nearMisses.map((n) => `<code>${esc(n.id)}</code>`).join(' ') || '—'}</div>
+        <div class="row"><span class="k">host</span> ${ent(req.event.host)}</div>
+        ${Object.entries(req.event.roles).map(([k, e]) => `<div class="row"><span class="k">${esc(k)}</span> ${ent(e)}</div>`).join('')}
+        <div class="row"><span class="k">hole</span> <code>${esc(req.hole.rule)}</code> ${req.hole.path.map((p) => `<span class="tag">${esc(p)}</span>`).join('')}</div>
+        <div class="row"><span class="k">rules</span> ${req.context.rules.map((n) => `<code>${esc(n.id)}</code>`).join(' ') || '—'}</div>
         ${r.rules?.length ? `<div class="row"><span class="k">rules</span> ${r.rules.map((x) => `<code class="good">${esc(x)}</code>`).join(' ')}</div>` : ''}
         <details><summary>ModRequest JSON</summary><pre>${esc(JSON.stringify(req, null, 2))}</pre></details>
       </div>
@@ -225,20 +226,16 @@ function typing(): boolean {
 function ruleCard(r: Rule): string {
   const src = r.source
   return `<div class="rulecard"><div class="row"><code class="good">${esc(r.id)}</code> <span class="muted">${esc(r.on)} · ${esc(src?.author ?? '')} · ${esc(src?.at?.slice(0, 19).replace('T', ' ') ?? '')}</span><span class="grow"></span><button data-rm="${esc(r.id)}">remove</button></div>
-    ${r.doc ? `<div class="muted">${esc(r.doc)}</div>` : ''}<pre>${esc(JSON.stringify({ when: r.when, guard: r.guard, do: r.do }, null, 2))}</pre></div>`
+    ${r.doc ? `<div class="muted">${esc(r.doc)}</div>` : ''}<pre>${esc(JSON.stringify({ host: r.host, tree: r.tree }, null, 2))}</pre></div>`
 }
 
-/** A starting-point patch for a record: the class of the event, a visible effect, and the triggering case as a test. */
+/** A starting-point patch for a record: a rule for the host's class, a visible outcome, and the triggering case as a test. */
 export function template(r: RecordView): Patch {
   const req = r.request
   const ev = req.event
-  const leaf = (t?: { type: string }) => (t ? t.type.split('/').pop()! : 'hand')
-  const inst = ev.instrument
-  const tgt = ev.target!
-  const tType = tgt.kind === 'tile' ? tgt.type : tgt.typeChain.length > 1 ? tgt.typeChain[tgt.typeChain.length - 2] : tgt.type
-  const instSel = inst ? { tags: inst.tags.filter((t) => !t.startsWith('material:') && !t.startsWith('quality:')).slice(0, 1) } : { none: true }
-  const when: Rule['when'] =
-    ev.kind === 'interaction' ? { verb: [ev.verb as 'interact'], instrument: instSel, target: { type: tType } } : ev.kind === 'hit' ? { target: { type: tType }, ...(ev.element ? { element: [ev.element] } : {}) } : { target: { type: tType } }
+  const host = ev.host
+  const leaf = (t?: { type: string }) => (t ? t.type.split('/').pop()! : 'thing')
+  const hostType = !host ? undefined : host.kind === 'tile' ? host.type : host.typeChain.length > 1 ? host.typeChain[host.typeChain.length - 2] : host.type
   return {
     author: 'human',
     note: `for ${req.summary}`,
@@ -246,15 +243,12 @@ export function template(r: RecordView): Patch {
       {
         kind: 'rule',
         rule: {
-          id: `patch/${ev.verb ?? ev.kind}-${leaf(inst)}-on-${leaf(tgt)}`,
+          id: `patch/${leaf(host)}-${ev.kind.replace('/', '-')}`,
+          host: hostType ? { type: hostType } : { kind: 'fixture' },
           on: ev.kind,
           doc: 'TODO: one-line description',
-          when,
-          do: [
-            { op: 'vfx', at: 'target', fx: 'sparkle' },
-            { op: 'log', text: { en: 'TODO: what happens', zh: 'TODO：发生了什么' } },
-          ],
-          tests: [{ name: 'the triggering event', given: req.scenario, expect: [{ key: 'target', exists: true }] }],
+          tree: { do: [{ op: 'vfx', fx: 'sparkle' }, { op: 'log', text: { en: 'TODO: what happens', zh: 'TODO：发生了什么' } }] },
+          tests: [{ name: 'the triggering event', given: req.scenario, expect: [{ key: 'host', exists: true }] }],
         },
       },
     ],

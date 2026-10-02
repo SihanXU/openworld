@@ -4,9 +4,9 @@
 
 import {
   OntologyIndex,
-  ROLES,
   SANDBOX_MAP,
   isA,
+  kindCovers,
   buildSandbox,
   replay,
   textOf,
@@ -18,6 +18,7 @@ import {
   type RuleLibrary,
   type Scenario,
   type Selector,
+  type Tree,
   type ValidationResult,
 } from '@lsw/engine'
 import type { ToolSpec } from '@lsw/agent'
@@ -45,32 +46,31 @@ export function buildTools(ctx: ToolContext, allowed: string[]): Tool[] {
     {
       name: 'search_rules',
       description:
-        'Search the rule library (base rules and accepted patches). Filter by verb, by a type that some role selects (either direction of is-a), by a tag or status a role requires, or by text in the id/doc. Returns one compact line per rule; open one with get_rule. Use it to find the conventions in force before writing a rule, and to check what a new rule could collide with.',
+        'Search the rule library (base rules and accepted patches). Filter by event kind (or a branch such as "impulse"), by the host type (either direction of is-a), by a tag or status the host or a condition names, or by text in the id/doc. Returns one compact line per rule; open one with get_rule. Use it to find the conventions in force before writing a rule, and to check what a new rule could collide with.',
       parameters: {
         type: 'object',
         properties: {
-          verb: { type: 'string', description: 'take | put | interact' },
-          on: { type: 'string', description: 'event kind, default interaction' },
-          type: { type: 'string', description: 'a type id, e.g. item/tool or actor/creature/slime' },
-          tag: { type: 'string', description: 'a tag some role selects, e.g. liquid:water' },
-          status: { type: 'string', description: 'a status some role or the event names, e.g. burning' },
+          on: { type: 'string', description: 'an event kind or branch, e.g. act/use, impulse/strike, contact' },
+          host: { type: 'string', description: 'a type id the host is, e.g. fixture/nature or actor/creature/slime' },
+          tag: { type: 'string', description: 'a tag the host or a condition names, e.g. liquid:water' },
+          status: { type: 'string', description: 'a status the host or a condition names, e.g. burning' },
           text: { type: 'string', description: 'substring of the rule id or doc' },
           limit: { type: 'number' },
         },
       },
       run: (a) => {
-        const on = str(a.on) || 'interaction'
-        const verb = str(a.verb)
-        const type = str(a.type)
+        const on = str(a.on)
+        const type = str(a.host) || str(a.type)
         const tag = str(a.tag)
         const status = str(a.status)
         const text = str(a.text).toLowerCase()
-        const sels = (r: Rule): Selector[] => ROLES.map((role) => r.when[role]).filter((s): s is Selector => !!s)
-        const hits = ctx.library.forKind(on).filter((r) => {
-          if (verb && r.when.verb && !r.when.verb.includes(verb as 'take')) return false
-          if (type && !sels(r).some((s) => s.type && (isA(s.type, type) || isA(type, s.type)))) return false
-          if (tag && !sels(r).some((s) => s.tags?.includes(tag) || s.notTags?.includes(tag))) return false
-          if (status && !(r.when.status?.includes(status) || sels(r).some((s) => s.status?.includes(status) || s.notStatus?.includes(status)))) return false
+        const hits = [...ctx.library.rules.values()].filter((r) => {
+          if (on && !(kindCovers(r.on, on) || kindCovers(on, r.on))) return false
+          const h = r.host ?? {}
+          if (type && !(h.type && (isA(h.type, type) || isA(type, h.type)))) return false
+          const tree = JSON.stringify(r.tree)
+          if (tag && !(h.tags?.includes(tag) || h.notTags?.includes(tag) || tree.includes(`"${tag}"`))) return false
+          if (status && !(h.status?.includes(status) || h.notStatus?.includes(status) || tree.includes(`"${status}"`))) return false
           if (text && !`${r.id} ${r.doc ?? ''}`.toLowerCase().includes(text)) return false
           return true
         })
@@ -81,7 +81,7 @@ export function buildTools(ctx: ToolContext, allowed: string[]): Tool[] {
     },
     {
       name: 'get_rule',
-      description: 'Read one rule in full (pattern, guard, effects, tests) by id. Tests are good examples of scenarios.',
+      description: 'Read one rule in full (host, kind, tree, tests) by id. Tests are good examples of scenarios.',
       parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
       run: (a) => {
         const r = ctx.library.rules.get(str(a.id))
@@ -126,7 +126,7 @@ export function buildTools(ctx: ToolContext, allowed: string[]): Tool[] {
     {
       name: 'dry_run',
       description:
-        'Run a draft patch through the real validator (schema, ontology, conflicts, sandbox replay of the triggering interaction, the patch\'s own tests, regression) WITHOUT applying it, and show what the triggering interaction does under it. Pass `scenario` to replay another situation instead (e.g. to check the rule generalizes). Always dry-run before answering.',
+        'Run a draft patch through the real validator (schema, ontology, ties, sandbox replay of the triggering event, the patch\'s own tests, regression) WITHOUT applying it, and show what the triggering event does under it. Pass `scenario` to replay another situation instead (e.g. to check the rule generalizes). Always dry-run before answering.',
       parameters: {
         type: 'object',
         properties: { patch: { type: 'object', description: '{ "artifacts": [ { "kind": "rule", "rule": {…} } ] }' }, scenario: { type: 'object' } },
@@ -176,12 +176,20 @@ export function buildTools(ctx: ToolContext, allowed: string[]): Tool[] {
   return all.filter((t) => allowed.includes(t.name))
 }
 
-/** One line per rule: enough to see its pattern and what it does. */
+/** One line per rule: its host, its kind, and the shape of its tree. */
 export function compactRule(r: Rule): string {
-  const sel = (s?: Selector) => (s ? JSON.stringify(s).replace(/"/g, '') : '')
-  const roles = ROLES.filter((role) => r.when[role]).map((role) => `${role}${sel(r.when[role])}`)
-  const extra = [r.when.element?.length ? `element=${r.when.element.join(',')}` : '', r.when.status?.length ? `status=${r.when.status.join(',')}` : '', r.guard ? 'guard' : '', r.compose ? 'compose' : '']
-  return [`${r.id} [${r.on}${r.when.verb ? ` ${r.when.verb.join(',')}` : ''}]`, ...roles, ...extra.filter(Boolean), `do: ${r.do.map((e) => e.op).join(',')}`, r.doc ? `— ${r.doc}` : ''].filter(Boolean).join(' ')
+  const sel = (s?: Selector) => (s && Object.keys(s).length ? JSON.stringify(s).replace(/"/g, '') : '(any)')
+  return [`${r.id} [${r.on}]`, `host${sel(r.host)}`, `tree: ${treeLine(r.tree)}`, r.doc ? `— ${r.doc}` : ''].filter(Boolean).join(' ')
+}
+
+/** A tree in one line: branches as `cond ? then : else`, leaves as their ops. */
+function treeLine(t: Tree, depth = 0): string {
+  if (t === 'inherit') return 'inherit'
+  if ('undefined' in t) return 'UNDEFINED'
+  if ('do' in t) return t.do.length ? t.do.map((e) => (e.op === 'emit' ? `emit:${e.impulse}` : e.op)).join(',') : 'nothing'
+  if (depth > 3) return '…'
+  const c = JSON.stringify(t.if).replace(/"/g, '')
+  return `(${c.length > 70 ? c.slice(0, 67) + '…' : c} ? ${treeLine(t.then, depth + 1)} : ${treeLine(t.else ?? 'inherit', depth + 1)})`
 }
 
 export function asPatch(x: unknown): Patch | undefined {
@@ -201,7 +209,7 @@ export function describeOutcome(sc: Scenario, patch: Patch, ctx: Pick<ToolContex
       if (a.kind === 'type') onto.types[a.type.id] = a.type
       if (a.kind === 'status') onto.statuses[a.status.id] = a.status
     }
-    for (const a of patch.artifacts) if (a.kind === 'rule' && a.rule?.id && a.rule.on && a.rule.when && Array.isArray(a.rule.do)) lib.add({ ...a.rule, source: { origin: 'patch' } })
+    for (const a of patch.artifacts) if (a.kind === 'rule' && a.rule?.id && a.rule.on && a.rule.tree) lib.add({ ...a.rule, source: { origin: 'patch' } })
   } catch (err) {
     return `outcome: (draft could not be loaded: ${(err as Error).message})`
   }
@@ -212,7 +220,7 @@ export function describeOutcome(sc: Scenario, patch: Patch, ctx: Pick<ToolContex
     return `outcome: (${(err as Error).message})`
   }
   const w = rp.engine.world
-  const out = [`outcome: ${rp.resolution.defined ? `resolved by ${rp.resolution.rule!.id}` : 'still UNDEFINED'}${rp.resolution.composed?.length ? ` (+ ${rp.resolution.composed.map((r) => r.id).join(', ')})` : ''}`]
+  const out = [`outcome: ${rp.resolution.defined ? `resolved by ${rp.resolution.rule!.id}` : 'still UNDEFINED'}${rp.resolution.hole ? ` (the hole in ${rp.resolution.hole.rule.id})` : ''}`]
   for (const e of rp.errors) out.push(`runtime: ${e}`)
   for (const f of w.fx) {
     if (f.t === 'log') out.push(`log: ${textOf(f.text)}`)
@@ -221,7 +229,7 @@ export function describeOutcome(sc: Scenario, patch: Patch, ctx: Pick<ToolContex
     if (f.t === 'damage') out.push(`damage: ${f.who} ${f.amount}${f.element ? ` ${f.element}` : ''}`)
   }
   const before = buildSandbox(sc, onto, lib).world
-  const where = (e: Entity) => (e.place.on === 'tile' ? `tile ${e.place.x},${e.place.y}` : e.place.on === 'none' ? 'nowhere' : `${e.place.on}:${e.place.holder}`)
+  const where = (e: Entity) => (e.place.on === 'tile' ? `tile ${e.place.x},${e.place.y}` : e.place.on === 'none' || e.place.on === 'resident' ? e.place.on : `${e.place.on}:${e.place.holder}`)
   for (const b of Object.values(before.state.entities)) {
     if (b.id === '__player') continue
     const e = w.get(b.id)

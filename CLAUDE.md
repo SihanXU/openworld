@@ -32,10 +32,12 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   (`mod.ts`), sandbox replay (`sandbox.ts`), snapshots for rendering (`snapshot.ts`),
   new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
   lines, schedule variants with the thing an activity needs, topics (`people.ts`), scripted
-  scenes with regions and cards (`scenes.ts`); facts and invariants live in the world state and
-  the engine; the world's own events — meet, blocked (`npc.ts`), witness, invalid — and the
-  salience filter, budgets and boundaries in `mod.ts` (the previous event model, until the
-  migration of design.md §5.14); the player's four
+  scenes with regions and cards (`scenes.ts`, the story's script: it writes only the story and
+  sends pushes and notices); facts and invariants live in the world state and the engine; events,
+  relations (contact from the relation difference), active/dormant maps and the write guard
+  (`world.strict`) in `engine.ts`/`world.ts`; the request, one question per hole and class, the
+  validator (host-only writes, ties, replay) and the boundaries in `mod.ts` (design.md §5.4–5.14);
+  the player's four
   inputs (E hands, F take, left click use, right click put), layers, slots and magnet
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
   (`controls.ts`), what the ground yields by itself (`forage.ts`), experience and levels (`progression.ts`), hunger (`hunger.ts`).
@@ -48,7 +50,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   `people/*.ts` one record per person (`person.ts`); `check.ts` a headless two-day playtest;
   `test/demo.test.ts` the completeness and minimality proof),
   `copyAssets.ts` (catalogue subset of the pack → `public/assets/na/`), `coverage.ts` (every item
-  form × every target × every verb through the rule library; the numbers in `docs/roadmap.md` §1).
+  form × every target × every act through the rule library and the impulses it sends, counting
+  the holes; the numbers in `docs/roadmap.md` §1).
 - `packages/client` — `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
   `render/scene.ts` renders snapshots with the Ninja Adventure pack; `assets/catalog.ts` maps
   content keys to sprites; `assets/ground.ts` autotiles; `ui/` the Stardew-style UI (`hud.ts` clock, bars,
@@ -87,7 +90,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - No judgment is "is it the player": who attacks whom (factions + temper + foes), who sees what
   (witnesses of any actor), who collapses (`essential`), using on oneself (`self`) are data any
   actor carries. Only the input knows which actor the keys move.
-- **The event model** (design.md §5.4–5.14, agreed 2026-10-02; the code migrates to it, §5.14):
+- **The event model** (design.md §5.4–5.14, agreed and built 2026-10-02; §5.14 records what the
+  implementation refined):
   - The game is an ordinary, complete game. It plays to the end without AI.
   - The one AI interface is **the outcome of an event**. Defined: use it. Undefined: ask the
     AI. No AI, a failure or a time-out: the leaf's default, normally nothing.
@@ -101,7 +105,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
     where a stance meets a reach (a flyer never touches lava).
   - Root defaults decide what is asked: deliberate acts and impulses are undefined; contact,
     time and sight mean no change; elements follow physics.
-  - Patches only fill holes, never change defined behaviour. One question per hole and class.
+  - Patches only fill holes, never change defined behaviour (they are a layer consulted only at
+    undefined leaves). One question per hole and class. Put places; use applies.
   - Behaviour (schedules, temper, behaviour trees) is the game's own logic, not the AI
     interface. An outcome may change its host's script.
   - The player's map is active. Dormant maps are frozen and catch up timers and their inbox

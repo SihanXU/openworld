@@ -12,7 +12,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { modelFromEnv, openModder, type ChatOptions, type WorldEpisode } from '@lsw/modder'
+import { changesNothing, modelFromEnv, openModder, type ChatOptions, type WorldEpisode } from '@lsw/modder'
 import { sweep } from './coverage.ts'
 import { cellRequest, pick } from './curriculum.ts'
 
@@ -79,7 +79,7 @@ async function main(): Promise<void> {
     console.log(
       `${ep.outcome.padEnd(8)}${calls.some((c) => c.hedged) ? ' (hedged)' : ''} ${(ep.ms / 1000).toFixed(1).padStart(6)} s  calls ${calls.length}  attempts ${ep.attempts.length}  out ${calls.map((c) => c.output).join('+')}  reasoning ${calls.map((c) => c.reasoning ?? '?').join('+')}  per-call ${calls.map((c) => (c.ms / 1000).toFixed(1)).join('/')} s  via ${[...new Set(calls.map((c) => c.provider))].join(',')}  — ${req.summary}`,
     )
-    if (rule?.kind === 'rule') console.log(`         ${rule.rule.id}: ${rule.rule.doc ?? ''}${rule.rule.do.every((e) => ['log', 'say', 'vfx'].includes(e.op)) ? '  [narrates only]' : ''}`)
+    if (rule?.kind === 'rule') console.log(`         ${rule.rule.id}: ${rule.rule.doc ?? ''}${changesNothing(rule.rule) ? '  [narrates only]' : ''}`)
     for (const n of ep.attempts.at(-1)?.derived ?? []) console.log(`         · ${n}`)
     if (ep.outcome === 'failed') console.log(`         ${ep.attempts.at(-1)?.errors.slice(0, 2).join(' | ') ?? ep.error}`)
   }

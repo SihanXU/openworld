@@ -483,7 +483,7 @@ export class Hud {
       case 'levelup':
         return void this.message(`★ ${t('levelUp').replace('{n}', String(fx.level))}`, 'good')
       case 'undefined':
-        // the clean game: a light cue the first moments the valley works something out (design.md §5.9)
+        // the clean game: a light cue the first moments the valley works something out (design.md §5.11, legibility)
         if (fx.asked) return void this.message(`✦ ${t('learning')}`, 'ai')
         // no one to ask: in development say so plainly (npm run dev starts the modder too)
         if (import.meta.env.DEV) return void this.message(`⚠ ${t('noModder')} — ${fx.summary}`, 'warn')

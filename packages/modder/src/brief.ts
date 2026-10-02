@@ -1,39 +1,43 @@
 // The brief: what the modder would otherwise fetch with a dozen tool round trips, assembled by
 // code before the first call. In measured episodes most design time went to repeated
 // search_rules calls (up to 26 per episode), each a full model turn; all of them look for the
-// same few things — the roles' types, and the rules that already speak about this target or
-// this instrument. Those are deterministic queries, so they run here.
+// same few things — the roles' types, and the rules that already speak about this host or this
+// kind. Those are deterministic queries, so they run here.
 
-import { OntologyIndex, ROLES, matchSelector, type EntityInfo, type ModRequest, type Ontology, type Rule, type RuleLibrary, type Selector, type View } from '@lsw/engine'
+import { OntologyIndex, isA, kindCovers, type EntityInfo, type ModRequest, type Ontology, type Rule, type RuleLibrary, type Selector } from '@lsw/engine'
 import { compactRule } from './tools.ts'
 
 const MAX_RELATED = 24
 const MAX_FULL = 4
 
-const positive = (s?: Selector) => !!s && !!(s.type || s.tags?.length || s.status?.length || s.id)
-
-function viewOf(e: EntityInfo): View {
-  return { ref: { e: e.id ?? e.role }, kind: e.kind as View['kind'], type: e.type, tags: new Set(e.tags), statuses: new Set(e.statuses), props: e.props as View['props'], isPlayer: e.type === 'actor/person/player' }
+/** Does a host selector name this thing's class (type, tags, or kind), statuses aside? */
+function names(sel: Selector | undefined, e: EntityInfo): number {
+  if (!sel) return 0
+  if (sel.type) return e.typeChain.includes(sel.type) || isA(e.type, sel.type) ? 3 : 0
+  if (sel.tags?.length) return sel.tags.every((t) => e.tags.includes(t)) ? 2 : sel.tags.some((t) => e.tags.includes(t)) ? 1 : 0
+  return sel.kind === e.kind ? 1 : 0
 }
 
-/** Rules that speak about this target or this instrument, most relevant first. */
+/**
+ * Rules that speak about this host or this kind, most relevant first: the rules already
+ * consulted for it (the context), then this host's class on neighbouring kinds, then other hosts
+ * answering this kind for things like the other roles.
+ */
 export function relatedRules(req: ModRequest, lib: RuleLibrary): Rule[] {
   const ev = req.event
-  const near = new Set(req.context.nearMisses.map((r) => r.id))
+  const consulted = new Set(req.context.rules.map((r) => r.id))
+  const branch = ev.kind.split('/')[0]
+  const others = Object.values(ev.roles).filter((e): e is EntityInfo => !!e)
   const scored: [number, Rule][] = []
-  for (const r of lib.forKind('interaction')) {
-    let score = near.has(r.id) ? 4 : 0
-    for (const role of ['target', 'instrument'] as const) {
-      const sel = r.when[role]
-      const info = ev[role]
-      if (!positive(sel) || !info) continue
-      // the rule picks out this very role (by type, tags or status), whatever the other role is
-      const { status: _s, notStatus: _n, props: _p, ...shape } = sel!
-      if (matchSelector(shape, viewOf(info))) score += 3
-      else if (sel!.tags?.some((t) => info.tags.includes(t))) score += 1
-    }
-    if (score < 3) continue
-    if (r.when.verb?.includes(ev.verb as 'take')) score += 1
+  for (const r of lib.rules.values()) {
+    let score = consulted.has(r.id) ? 6 : 0
+    const host = ev.host ? names(r.host, ev.host) : 0
+    const sameKind = kindCovers(r.on, ev.kind)
+    if (host && sameKind) score += 4
+    else if (host && r.on.split('/')[0] === branch) score += 3
+    else if (host) score += 1
+    else if (sameKind && others.some((o) => names(r.host, o) >= 2)) score += 2
+    if (score < 2) continue
     scored.push([score, r])
   }
   return scored.sort((a, b) => b[0] - a[0]).map(([, r]) => r)
@@ -41,28 +45,27 @@ export function relatedRules(req: ModRequest, lib: RuleLibrary): Rule[] {
 
 export function briefOf(req: ModRequest, lib: RuleLibrary, onto: Ontology): string {
   const index = new OntologyIndex(onto)
-  const out = ['# Brief (prepared for you: the roles, and the rules that already speak about them)']
+  const out = ['# Brief (prepared for you: the roles, the hole, and the rules that already speak about them)']
   const ev = req.event
-  if (req.origin === 'world')
-    out.push(`- the world did this by itself (${ev.kind}${ev.about ? `, about "${ev.about}"` : ''}${ev.status ? `, status ${ev.status}` : ''}${ev.element ? `, element ${ev.element}` : ''}): no player asked. Keep it small and legible; never harm a person; never touch the story's facts.`)
+  if (req.origin === 'world') out.push(`- the world did this by itself (${ev.kind}): no player asked. Keep it small and legible; never harm a person; never touch the story's facts.`)
+  out.push(`- event: ${ev.kind}${Object.keys(ev.params).length ? ` ${JSON.stringify(ev.params)}` : ''}`)
+  out.push(`- undefined at: ${req.hole.rule}${req.hole.path.length ? ` (branches ${req.hole.path.join(' → ')})` : ''}; while nobody answers: ${req.hole.default.length ? JSON.stringify(req.hole.default) : 'nothing happens'}`)
   if (ev.detail) out.push(`- detail: ${ev.detail}`)
-  if (ev.kind === 'blocked' || ev.kind === 'invalid') out.push(`- anchors on this map (for goto): ${req.context.anchors?.join(', ') || '—'}`)
-  for (const role of ROLES) {
-    const e = req.event[role]
-    if (!e) {
-      out.push(`- ${role}: none (empty-handed)`)
-      continue
-    }
+  if (ev.kind === 'stuck' || ev.kind === 'broken') out.push(`- anchors on this map (for goto): ${req.context.anchors?.join(', ') || '—'}`)
+  const line = (role: string, e: EntityInfo) => {
     let props = ''
     if (e.kind !== 'tile' && e.type in onto.types) {
       const r = index.resolve(e.type)
       props = Object.keys(r.props).length ? ` default props ${JSON.stringify(r.props)}` : ''
     }
-    out.push(`- ${role}: ${e.name} — ${e.type} (chain ${e.typeChain.join(' > ')}); tags ${e.tags.join(', ') || '—'}; statuses ${e.statuses.join(', ') || '—'}${props}`)
+    return `- ${role}: ${e.name} — ${e.type} (chain ${e.typeChain.join(' > ')}); tags ${e.tags.join(', ') || '—'}; statuses ${e.statuses.join(', ') || '—'}${props}`
   }
+  if (ev.host) out.push(line('host (your rule is its nature)', ev.host))
+  for (const [role, e] of Object.entries(ev.roles)) if (e) out.push(line(role, e))
+  if (ev.kind.startsWith('act/use') && !ev.roles.instrument) out.push('- instrument: none (bare hands)')
   const related = relatedRules(req, lib)
-  out.push('', `## Rules about this target or this instrument (${related.length})`)
-  out.push(...(related.length ? related.slice(0, MAX_RELATED).map(compactRule) : ['(none: this pair is new ground)']))
+  out.push('', `## Rules about this host or this event (${related.length})`)
+  out.push(...(related.length ? related.slice(0, MAX_RELATED).map(compactRule) : ['(none: this is new ground)']))
   if (related.length > MAX_RELATED) out.push(`… ${related.length - MAX_RELATED} more (search_rules if you need them)`)
   const full = related.slice(0, MAX_FULL)
   if (full.length) {

@@ -20,7 +20,7 @@ export const DIRS: Record<Dir, [number, number]> = {
 
 // ------------------------------------------------------------------ ontology
 
-export type EntityKind = 'actor' | 'item' | 'fixture'
+export type EntityKind = 'actor' | 'item' | 'fixture' | 'resident'
 
 /** A node in the is-a hierarchy. Type ids are slash paths: `item/container/bucket`. */
 export interface TypeDef {
@@ -41,6 +41,8 @@ export interface TypeDef {
    * while it is there. Default [1, 1].
    */
   footprint?: [number, number]
+  /** Fixtures: the stances it acts on (default `ground`). A thing's own stance is its `stance` prop. */
+  reach?: string[]
 }
 
 export type PropValue = number | string | boolean
@@ -65,6 +67,8 @@ export interface TerrainDef {
   solid?: boolean
   /** Swimmable/liquid terrain: items put here are not simply dropped. */
   liquid?: boolean
+  /** The stances it acts on (default `ground`): what touches it (design.md §5.5). */
+  reach?: string[]
   color?: string // fallback render color
 }
 
@@ -78,6 +82,26 @@ export interface Ontology {
   instanceTags?: string[]
   /** Factions (an actor belongs to those its `faction:<id>` tags name) and whom each is hostile to. */
   factions?: Record<string, FactionDef>
+  /** Numeric lines that are events when a prop crosses them (design.md §5.7: threshold). */
+  thresholds?: ThresholdDef[]
+  /** Clocks that make `time/period` events for the hosts they name. */
+  periods?: PeriodDef[]
+}
+
+export interface ThresholdDef {
+  /** The event's `name` param ("defeated", "starving"). */
+  name: string
+  prop: string
+  /** Crossed when the value comes to this or below. */
+  lte: number
+}
+
+export interface PeriodDef {
+  name: string
+  /** Ticks between events. */
+  every: number
+  /** Things on the active map that have it (a selector), or a resident host. */
+  host: Selector | 'world' | 'story'
 }
 
 export interface FactionDef {
@@ -99,6 +123,7 @@ export type Place =
   | { on: 'tile'; map: string; x: number; y: number }
   | { on: 'inside'; holder: Id } // in a container's contents or an actor's inventory
   | { on: 'hand'; holder: Id } // the actor's single held-item slot
+  | { on: 'resident' } // a host on no map: the world, the story (design.md §5.5)
   | { on: 'none' }
 
 export interface Entity {
@@ -121,7 +146,7 @@ export interface Entity {
   npc?: NpcData
   /** Creatures: combat behaviour. */
   ai?: AiData
-  /** Set while an undefined interaction involving this entity awaits a patch. */
+  /** Set while an undefined outcome involving this entity awaits a patch (design.md §5.11). */
   frozenBy?: string
   /** Items a rule dropped on the ground (a harvest, logs, loot): the player's magnet pulls them in. */
   dropped?: boolean
@@ -232,10 +257,10 @@ export interface SceneDef {
 }
 
 /**
- * Content the world must keep playable (BardOS's stage invariant, design.md §5.4 source 12):
- * while `when` holds, `holds` must hold. When state breaks it (the rope she asked for burned),
- * the engine raises an `invalid` event (about = id, actor = target = the giver) for the modder;
- * if nobody answers, `fallback` runs (its roles: actor = target = the giver).
+ * Content the world must keep playable (BardOS's stage invariant): while `when` holds, `holds`
+ * must hold. When state breaks it (the rope she asked for burned), the story receives a `broken`
+ * event (`invariant` = id, target = the giver); its outcome is undefined, and `fallback` (run
+ * by the story) is the default while nobody answers.
  */
 export interface Invariant {
   id: string
@@ -401,25 +426,24 @@ export interface WorldState {
   question?: { text: Text; plan: Plan }
   /** Spans of time whose weather the world fixes (the evening storm). */
   weather?: WeatherSpan[]
+  /** Maps the player is not on: frozen since a tick, with the events addressed to them (design.md §5.12). */
+  dormant?: Record<string, { since: number; inbox: GameEvent[] }>
+  /** Each host's relations (contact and containment) when last computed: `how|ref` keys. */
+  relations?: Record<string, string[]>
 }
 
-// ------------------------------------------------------------------ events & interactions
-
-export type Verb = 'take' | 'put' | 'interact'
-
-/** A reference to anything that can fill an event role: an entity or a map tile. */
-export type Ref = { e: Id } | { tile: Pos }
+// ------------------------------------------------------------------ the player's inputs
 
 /**
- * What one of the player's two keys will do (design.md §5.2), chosen by dry runs through the
- * rule library: the HUD shows its label before the key is pressed, and pressing runs it.
+ * What one of the player's inputs will do (design.md §5.2), chosen by dry runs through the rule
+ * library: the HUD shows its label before the input is pressed, and pressing runs it.
  */
 export interface Plan {
   /** The input: E (hands), F (take), left click (use), right click (put). */
   key: 'hands' | 'take' | 'use' | 'put'
   /** The tile aimed at. */
   at: Pos
-  /** A swing or a cast toward `at` (weapons, wands) instead of an interaction. */
+  /** A blow or a cast toward `at` (weapons, wands): the act is aimed along the facing. */
   attack?: boolean
   verb?: Verb
   target: Ref
@@ -427,53 +451,99 @@ export interface Plan {
   instrument?: Ref
   label: Text
   rule?: string
-  /** No rule answers yet — the world has never seen this (an experiment). */
+  /** The chain it starts reaches an undefined outcome — the world has never seen this. */
   unknown?: boolean
-  /** Fallback rules (catch-all descriptions) do not count (hands and use). */
-  strict?: boolean
   /** Ask first ("Eat the apple?", "Sleep until morning?"). */
   confirm?: Text
   /** Hands on a container: open the transfer panel for it. */
   panel?: Id
 }
 
-export type EventKind =
-  | 'interaction' // a player/NPC verb
-  | 'hit' // an attack landed
-  | 'status' // a status was just applied (roles.target = subject)
-  | 'expire' // a status just ran out
-  | 'tick' // periodic, for subjects that carry statuses
-  | 'enter' // an actor stepped onto a tile
-  | 'defeat' // an actor's hp reached 0
-  | 'meet' // a creature came up to a thing or another creature (actor = creature, target = it)
-  | 'blocked' // a person cannot do what their day says (actor = person, target = what they need; about = activity)
-  | 'witness' // a person saw the player act on something owned (actor = witness, target = the thing; about = verb:owner|bystander)
-  | 'invalid' // state broke content the world must keep playable (actor = target = the giver; about = invariant id)
+// ------------------------------------------------------------------ events (design.md §5.7)
+
+/** What an actor does: the inputs, and the behaviour of people and creatures (the same acts). */
+export type Verb = 'use' | 'put' | 'take' | 'hands' | 'move' | 'craft'
+
+/** A reference to anything that can host or fill an event role: an entity or a map tile. */
+export type Ref = { e: Id } | { tile: Pos }
+
+/**
+ * The closed tree of event kinds. A rule answers a kind or a whole branch (`impulse` answers
+ * every impulse); the engine emits nothing outside this list.
+ */
+export const EVENT_KINDS = [
+  'act/use',
+  'act/put',
+  'act/take',
+  'act/hands',
+  'act/move',
+  'act/craft',
+  'impulse/strike',
+  'impulse/element',
+  'impulse/coat',
+  'impulse/restore',
+  'impulse/push',
+  'impulse/taken',
+  'impulse/receive',
+  'impulse/offered',
+  'impulse/handle',
+  'impulse/notify',
+  'contact/begin',
+  'contact/stay',
+  'contact/end',
+  'bump',
+  'time/period',
+  'time/timer',
+  'threshold/gain',
+  'threshold/lose',
+  'threshold/cross',
+  'seen',
+  'stuck',
+  'broken',
+] as const
+export type EventKind = (typeof EVENT_KINDS)[number]
+
+/** The impulses: what one thing does to another (design.md §5.8). */
+export type Impulse = 'strike' | 'element' | 'coat' | 'restore' | 'push' | 'taken' | 'receive' | 'offered' | 'handle' | 'notify'
+
+/**
+ * The roles of an event besides its host (whose rule answers it):
+ * - act: `actor`, `target`, `instrument` (the host is the instrument, or the actor's own hands);
+ * - impulse: `source` (what emitted it), `actor` (whose act started the chain), `instrument`,
+ *   `item` (the thing given, put or taken), `other` (the taker, for `taken`);
+ * - contact, bump: `other`, the thing on the other side;
+ * - seen: `actor` (the doer), `target`, `instrument`;
+ * - stuck: `target` (what the activity needs, or the spot); broken: `target` (the giver).
+ */
+export type RoleName = 'host' | 'actor' | 'target' | 'instrument' | 'other' | 'item' | 'source'
 
 export interface GameEvent {
   kind: EventKind
-  verb?: Verb
-  roles: { actor?: Ref; target?: Ref; instrument?: Ref }
-  /** hit: element + power; status/expire/tick: the status id. */
-  element?: string
-  power?: number
-  status?: string
-  at?: Pos
+  /** Whose nature answers it. */
+  host: Ref
+  roles: Partial<Record<Exclude<RoleName, 'host'>, Ref>>
+  /**
+   * The event's parameters: an act's `verb`; an impulse's `power`, `element`, `edge`, `substance`,
+   * `which`, `amount`, `dir`, `into`, `what`; a contact's `how`; a period's `name` or `status`; a
+   * timer's `status`; a threshold's `status` or `name`; a seen act's `act` and `owner`; stuck's
+   * `activity`; broken's `invariant`; `attack` on an act that is a blow.
+   */
+  params?: Record<string, PropValue>
+  /** The actor whose act started the chain (held while it waits; the Threadbook's "you"). */
+  cause?: Id
+  /** Who started the chain: the player's input, or the world by itself. */
+  origin?: 'player' | 'world'
+  /** How many events led to this one within the chain. */
+  depth?: number
   tick?: number
-  /** The player's Use key: fallback rules (catch-all descriptions) do not define it. */
-  strict?: boolean
-  /** blocked: the activity; witness: what was done and by whose sight; invalid: the invariant. */
-  about?: string
-  /** The player's own input made it (a blow, a step): never asked about as a world event. */
-  origin?: 'player'
 }
 
-// ------------------------------------------------------------------ rules
+// ------------------------------------------------------------------ rules (design.md §5.6, §6)
 
 /** Selects the entity or tile filling a role. All given constraints must hold. */
 export interface Selector {
-  /** `tile`, `actor`, `item`, `fixture`. */
-  kind?: EntityKind | 'tile'
+  /** `tile`, `actor`, `item`, `fixture`, `resident`. */
+  kind?: EntityKind | 'tile' | 'resident'
   /** Is-a match against the type hierarchy (prefix on slash paths). */
   type?: string
   /** All of these tags. */
@@ -488,35 +558,14 @@ export interface Selector {
   props?: Record<string, Cmp>
   /** Instance-bound (discouraged for patches). */
   id?: Id
-  /** The role must be empty (e.g. `instrument: { none: true }` = empty-handed). */
-  none?: boolean
-  /** The role is the player (the controlled character). Rules about the world should not need it. */
-  player?: boolean
-  /** The role is (true) or is not (false) the event's actor: eating is an interaction with oneself. */
-  self?: boolean
 }
 
 export type Cmp =
   | PropValue
   | { eq?: PropValue; ne?: PropValue; gt?: number; gte?: number; lt?: number; lte?: number }
 
-export type RoleName = 'actor' | 'target' | 'instrument'
-
-export interface Pattern {
-  verb?: Verb[]
-  actor?: Selector
-  target?: Selector
-  instrument?: Selector
-  /** hit events: the attack's element(s). `none` matches element-less hits. */
-  element?: string[]
-  /** status/expire/tick events: which status. */
-  status?: string[]
-  /** blocked / witness / invalid events: the event's `about`. */
-  about?: string[]
-}
-
-/** A number, or a numeric property read from a role at match time. */
-export type Operand = number | { prop: string; of: RoleName }
+/** A number, or a number read from a role's prop (scaled) or from the event's params. */
+export type Operand = number | { prop: string; of: RoleName; mul?: number } | { param: string; mul?: number }
 
 /** Numeric bounds whose limits may be read from roles. A missing property fails the test. */
 export interface Bounds {
@@ -531,8 +580,17 @@ export type Cond =
   | { all: Cond[] }
   | { any: Cond[] }
   | { not: Cond }
+  /** A role is filled and matches the selector. */
+  | { is: { role: RoleName; sel: Selector } }
+  /** A role is empty (an empty hand). */
+  | { none: RoleName }
+  /** Two roles are the same thing (food used on oneself). */
+  | { same: [RoleName, RoleName] }
   | { has: { role: RoleName; status?: string; tag?: string } }
-  | { prop: { role: RoleName; key: string; cmp: Cmp } }
+  /** A role's prop compared to a value, or bounded by other numbers. A missing prop is false. */
+  | { prop: { role: RoleName; key: string; cmp?: Cmp; bounds?: Bounds } }
+  /** An event parameter compared to a value (a missing parameter is false). */
+  | { param: { key: string; cmp: Cmp } }
   | { chance: number }
   | { hour: { from: number; to: number } }
   /** How many entities (matching `match`) are in a role's contents, or on its tile besides itself. */
@@ -545,54 +603,76 @@ export type Cond =
   | { weather: string[] }
   /** Something matching the selector exists anywhere in the loaded world (a rope, the dead tree). */
   | { exists: Selector }
+  /** The host's map (the player's, for the story and the world) is out under the sky. */
+  | { outdoors: true }
 
-/** An argument that names a role, or a tile relative to a role. */
-export type RoleRef = RoleName | 'tileOf:actor' | 'tileOf:target' | 'tileOf:instrument'
+/** A position or holder relative to a role: its own place, or its tile. */
+export type RoleRef = RoleName | 'tileOf:host' | 'tileOf:actor' | 'tileOf:target' | 'tileOf:instrument' | 'tileOf:other' | 'tileOf:item' | 'tileOf:source'
 
-export type Amount = number | 'power' | { prop: string; of: RoleName; mul?: number; add?: number }
+export type Amount = number | { param: string; mul?: number; add?: number } | { prop: string; of: RoleName; mul?: number; add?: number }
 
+/** Where an emitted event goes: a role, a resident host, a named thing, or a place of the host's map. */
+export type EmitTo =
+  | RoleRef
+  | 'story'
+  | 'world'
+  | { named: Id }
+  | { area: { at?: RoleRef; radius: number } }
+  | { line: { from?: RoleRef; away: RoleRef; length: number; over?: string[] } }
+  /** Everything on the host's map (the world's weather). */
+  | { map: true }
+
+/**
+ * The effect primitives. Every one writes only the host (design.md §5.6: read anything, write only
+ * yourself), spawns, or presents; `emit` sends an event to others, which answer for themselves.
+ */
 export type Effect =
   | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean }
-  | { op: 'destroy'; of: RoleRef }
-  | { op: 'transform'; of: RoleRef; into: string }
-  | { op: 'moveTo'; of: RoleRef; to: RoleRef; into?: 'tile' | 'contents' | 'hand' }
-  | { op: 'addStatus'; of: RoleRef; status: string; duration?: number }
-  | { op: 'removeStatus'; of: RoleRef; status: string }
-  | { op: 'setProp'; of: RoleRef; key: string; value: PropValue }
-  | { op: 'addProp'; of: RoleRef; key: string; delta: number; min?: number; max?: number }
-  | { op: 'addTag'; of: RoleRef; tag: string }
-  | { op: 'removeTag'; of: RoleRef; tag: string }
-  | { op: 'damage'; of: RoleRef; amount: Amount; element?: string; mul?: number; pierce?: boolean }
-  | { op: 'heal'; of: RoleRef; amount: Amount }
-  | { op: 'gainXp'; of: RoleRef; amount: Amount }
-  | { op: 'feed'; of: RoleRef; amount: Amount }
-  | { op: 'setTerrain'; of: RoleRef; terrain: string }
-  | {
-      op: 'spread'
-      from: RoleRef
-      status: string
-      radius: number
-      chance?: number
-      /** Only tiles/entities matching this receive it. */
-      filter?: Selector
-      /** Also emit a hit with this element/power on actors reached. */
-      hit?: { element?: string; power: number }
-    }
-  | { op: 'hit'; of: RoleRef; element?: string; power: Amount; by?: RoleRef }
-  | { op: 'push'; of: RoleRef; away: RoleRef; tiles: number }
-  | { op: 'vfx'; at: RoleRef; fx: string }
-  | { op: 'say'; who: RoleRef; text: Text }
-  | { op: 'log'; text: Text }
-  | { op: 'open'; of: RoleRef } // containers: toggle open/closed
-  | { op: 'dropContents'; of: RoleRef; still?: boolean } // spill contents onto the tile (loot, broken crates)
+  | { op: 'destroy' }
+  | { op: 'transform'; into: string }
+  | { op: 'move'; to: RoleRef; into?: 'tile' | 'contents' | 'hand' }
+  | { op: 'step'; dir?: Dir; away?: RoleRef; tiles?: number }
+  | { op: 'addStatus'; status: string; duration?: number }
+  | { op: 'removeStatus'; status: string }
+  | { op: 'setProp'; key: string; value: PropValue | { param: string } }
+  | { op: 'addProp'; key: string; delta: Amount; min?: number; max?: Amount }
+  | { op: 'addTag'; tag: string }
+  | { op: 'removeTag'; tag: string }
+  | { op: 'hurt'; amount: Amount; element?: string; pierce?: boolean }
+  | { op: 'heal'; amount: Amount }
+  | { op: 'feed'; amount: Amount }
+  | { op: 'gainXp'; amount: Amount }
+  | { op: 'foe' }
+  | { op: 'setTerrain'; terrain: string }
+  | { op: 'open' }
+  | { op: 'dropContents'; still?: boolean }
+  | { op: 'goto'; anchor: string; hours: number; activity?: string }
   | { op: 'setFact'; key: string; value: PropValue }
   | { op: 'addFact'; key: string; delta: number }
   | { op: 'topic'; id: string; days?: number }
-  | { op: 'give'; to: RoleRef; item: RoleRef }
-  | { op: 'emote'; who: RoleRef; mood: Mood }
-  | { op: 'goto'; who: RoleRef; anchor: string; hours: number; activity?: string }
-  | { op: 'layLine'; from: RoleRef; away: RoleRef; terrain: string; length: number; over?: string[] }
   | { op: 'scene'; id: string }
+  | { op: 'craft' }
+  | { op: 'forage' }
+  | { op: 'lightning'; power: number }
+  /** Send an impulse: `item` names the thing it carries (given, put, taken), `other` the role it names as the other side. */
+  | { op: 'emit'; impulse: Impulse; to: EmitTo; params?: Record<string, PropValue | Amount>; item?: RoleName; other?: RoleName; chance?: number; filter?: Selector }
+  /** Get out of where one cannot be (water closing over the ice): to the nearest free tile. */
+  | { op: 'ashore' }
+  /** The story's: an invariant's authored fallback (the default of a `broken` outcome). */
+  | { op: 'fallback' }
+  | { op: 'vfx'; at?: RoleRef; fx: string }
+  /** A line said by the host (or, for the story and the world, by one of the event's roles). */
+  | { op: 'say'; text: Text; who?: RoleName }
+  | { op: 'log'; text: Text }
+  | { op: 'emote'; mood: Mood }
+
+/**
+ * A rule's outcome: a condition tree whose leaves are effects (an empty list: no change),
+ * `inherit` (the next less specific rule answers), or undefined (the AI answers; its `default`
+ * runs while nobody does). An `if` without `else` inherits.
+ */
+export type Tree = 'inherit' | { do: Effect[]; confirm?: Text } | { undefined: true; default?: Effect[] } | { if: Cond; then: Tree; else?: Tree }
+export type Leaf = Exclude<Tree, { if: Cond }>
 
 export interface RuleTest {
   name?: string
@@ -607,21 +687,19 @@ export interface Scenario {
   entities: ScenarioEntity[]
   /** Simulation ticks to run after the event (for spreading/expiry). */
   ticks?: number
-  /** Which entity key is the player (default: "actor"); a world event's actor is someone else. */
+  /** Which entity key is the player (default: "actor"). */
   player?: string
-  /** The interaction/event to replay. Roles refer to scenario entity keys or `tile:x,y`. */
+  /** The event to replay. Roles refer to scenario entity keys or `tile:x,y`. */
   event: {
     kind?: EventKind
-    verb?: Verb
+    host?: string
     actor?: string
     target?: string
     instrument?: string
-    element?: string
-    power?: number
-    /** The player's Use key: fallback rules do not define the event. */
-    strict?: boolean
-    status?: string
-    about?: string
+    other?: string
+    item?: string
+    source?: string
+    params?: Record<string, PropValue>
   }
 }
 
@@ -652,7 +730,7 @@ export type Expectation =
 
 export interface Provenance {
   origin: 'base' | 'patch'
-  /** Who caused the request it answers: the player, or the world itself (design.md §5.9). */
+  /** Who started the chain the patch answers: the player, or the world itself (design.md §5.11). */
   trigger?: 'player' | 'world'
   request?: string
   author?: string
@@ -662,19 +740,12 @@ export interface Provenance {
 
 export interface Rule {
   id: string
-  on: EventKind
-  when: Pattern
-  guard?: Cond
-  do: Effect[]
-  priority?: number
-  /** Runs alongside more specific rules instead of being shadowed by them. */
-  compose?: boolean
-  /**
-   * A catch-all description ("It is a well."): it answers when nothing else does, but the
-   * player's Use key does not count it as defining the interaction (design.md §5.4, source 4).
-   */
-  fallback?: boolean
-  /** Ask the player first when chosen by the Action key ("Sleep until morning?"); slots {instrument} {target}. */
+  /** Whose nature this is: the host's class (empty: anything, the root). */
+  host?: Selector
+  /** The event kind it answers, or a branch of the kind tree (`impulse`). */
+  on: string
+  tree: Tree
+  /** Ask the player first when their input chooses this rule ("Eat {instrument}?"). */
   confirm?: Text
   tests?: RuleTest[]
   source?: Provenance

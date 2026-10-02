@@ -1,7 +1,8 @@
 // The map yields by itself (Don't Starve's twigs, flint and grass; Minecraft's cows and
-// chickens): each map names what it grows (MapData.forage), and while the player is on it, now
-// and then one more of each kind appears on a free tile of the right ground, until `max` of that
-// kind are on the map. Items lie there; creatures appear with their behaviour and statuses.
+// chickens): each map names what it grows (MapData.forage). The world's `forage` period runs the
+// `forage` primitive on the active map (design.md §5.12: dormant maps are frozen), and now and
+// then one more of each kind appears on a free tile of the right ground, until `max` of that kind
+// are on the map. Items lie there; creatures appear with their behaviour and statuses.
 
 import type { Engine } from './engine.ts'
 
@@ -11,7 +12,8 @@ export const FORAGE_EVERY = 150
 const NEAR = 2
 const TRIES = 24
 
-export function forageTick(eng: Engine, active: string): void {
+/** What a map yields now: each kind whose time has come appears once, below its cap. */
+export function forageMap(eng: Engine, active: string): void {
   const w = eng.world
   const map = w.map(active)
   if (!map?.forage?.length) return
@@ -29,6 +31,7 @@ export function forageTick(eng: Engine, active: string): void {
       if (p?.map === active && Math.max(Math.abs(p.x - x), Math.abs(p.y - y)) <= NEAR) continue
       if (!w.walkable(active, x, y) || w.entitiesAt(active, x, y).length) continue
       const e = w.create(f.type, { on: 'tile', map: active, x, y }, f.ai ? { facing: 'down', ai: { ...structuredClone(f.ai), home: { map: active, x, y } } } : {})
+      eng.touch({ e: e.id })
       for (const st of f.statuses ?? []) eng.applyStatus({ e: e.id }, st)
       break
     }

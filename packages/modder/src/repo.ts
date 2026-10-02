@@ -1,12 +1,12 @@
 // A world task as a repository, so the modder works it the way it works any code task (and what
 // it learns here — how to explore, test, fix — carries to SWE-style tasks):
 //
-//   ISSUE.md            the undefined interaction, as an issue
+//   ISSUE.md            the undefined outcome, as an issue
 //   README.md           how this repository is laid out
 //   MODSPEC.md          the authoring contract (rule shape, selectors, conditions, primitives…)
 //   rules/<id>.json     every rule of the library, one per file (base rules and accepted patches)
 //   ontology/*.json     types, statuses, terrains, elements, vfx
-//   request.json        the full request: roles, context, the triggering scenario
+//   request.json        the full request: the event, its host and roles, the hole, context, the triggering scenario
 //   validate.mjs        the tests: the engine's validator on the rules added under rules/patch/
 //
 // The agent adds rules (and, if needed, types/ or statuses/ files); collectPatch() turns what it
@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { LocalEnv, type AgentTask } from '@lsw/agent'
-import type { LibraryData, ModRequest, ModSpec, Ontology, Patch, Rule, RuleLibrary, Scenario, StatusDef, TypeDef } from '@lsw/engine'
+import type { EntityInfo, LibraryData, ModRequest, ModSpec, Ontology, Patch, Rule, RuleLibrary, Scenario, StatusDef, TypeDef } from '@lsw/engine'
 
 const VALIDATE_CLI = fileURLToPath(new URL('./validate-cli.ts', import.meta.url))
 const DIRS = ['rules', 'types', 'statuses']
@@ -71,16 +71,22 @@ export function modspecMarkdown(spec: ModSpec): string {
     '## Rule (rules/<id>.json)',
     kv(spec.rule),
     '',
-    '## Selector (a role pattern in `when`)',
+    '## Tree (`tree`: the outcome)',
+    kv(spec.tree),
+    '',
+    '## Selector (the `host` class, and `is` conditions on roles)',
     kv(spec.selector),
     '',
-    '## Conditions (`guard`)',
+    '## Conditions (`if` in the tree)',
     ...spec.conditions.map((c) => `- ${c}`),
     '',
     '## Events (`on`)',
     kv(spec.events),
     '',
-    '## Effect primitives (`do`)',
+    '## Impulses (`emit`: how a rule affects others)',
+    kv(spec.impulses),
+    '',
+    '## Effect primitives (`do` leaves; they act on the host)',
     kv(spec.primitives),
     '',
     '## Tests (`tests`: scenarios and expectations)',
@@ -94,28 +100,29 @@ export function modspecMarkdown(spec: ModSpec): string {
 }
 
 function issueOf(req: ModRequest, revise?: { rules: Rule[]; notes: string[] }): string {
-  const ent = (r: string, e?: ModRequest['event']['actor']) => (e ? `- ${r}: ${e.name} — \`${e.type}\`; tags ${e.tags.join(', ') || '—'}; statuses ${e.statuses.join(', ') || '—'}` : `- ${r}: none (empty-handed)`)
+  const ent = (r: string, e?: EntityInfo) => (e ? `- ${r}: ${e.name} — \`${e.type}\`; tags ${e.tags.join(', ') || '—'}; statuses ${e.statuses.join(', ') || '—'}` : `- ${r}: none`)
+  const params = Object.entries(req.event.params ?? {})
   return [
-    revise ? `# Revise: ${req.summary}` : `# Undefined ${req.event.kind === 'interaction' ? 'interaction' : 'event'}: ${req.summary}`,
+    revise ? `# Revise: ${req.summary}` : `# Undefined outcome: ${req.summary}`,
     '',
     req.origin === 'world'
-      ? 'In the game world, this happened by itself (no player asked) and no rule in `rules/` answers it. Keep the answer small and legible, never harm a person, never touch the story\'s facts:'
-      : 'In the game world, a player just did this and no rule in `rules/` answers it:',
+      ? 'In the game world, this happened by itself (no player asked) and its outcome is undefined. Keep the answer small and legible, never harm a person, never touch the story\'s facts:'
+      : 'In the game world, a player\'s act led to this event, and its outcome is undefined:',
     '',
-    `- event: \`${req.event.kind}\`${req.event.verb ? ` (verb \`${req.event.verb}\`)` : ''}${req.event.about ? ` (about \`${req.event.about}\`)` : ''}${req.event.status ? ` (status \`${req.event.status}\`)` : ''}${req.event.element ? ` (element \`${req.event.element}\`)` : ''}`,
+    `- event: \`${req.event.kind}\`${params.length ? ` (${params.map(([k, v]) => `${k} \`${v}\``).join(', ')})` : ''}`,
     ...(req.event.detail ? [`- detail: ${req.event.detail}`] : []),
-    ent('actor', req.event.actor),
-    ent('target', req.event.target),
-    ent('instrument', req.event.instrument),
+    ent('host (the rule you write is its nature)', req.event.host),
+    ...Object.entries(req.event.roles).map(([k, e]) => ent(k, e)),
+    `- undefined at: \`rules/${req.hole.rule}.json\`${req.hole.path.length ? ` (branches ${req.hole.path.join(' → ')})` : ''}`,
     `- where: ${req.context.map.name} (${req.context.map.kind}), hour ${req.context.hour}`,
     '',
     'The full request, with the triggering scenario, is in `request.json`.',
     '',
     revise
-      ? `This interaction is already answered by the rule(s) below, written quickly while the player waited. A reviewer asked for changes:\n${revise.notes.map((n) => `- ${n}`).join('\n')}\n\nReplace them: edit their files under rules/patch/ (or delete them and add new ones). Current rules: ${revise.rules.map((r) => `\`rules/${r.id}.json\``).join(', ')}.`
-      : 'Define it: add the rule(s) that answer this CLASS of interaction under `rules/patch/` (one JSON rule per file; ids start with `patch/`; new types go in `types/`, new statuses in `statuses/`). Follow `MODSPEC.md` and the conventions of the existing rules.',
+      ? `This outcome is already answered by the rule(s) below, written quickly while the player waited. A reviewer asked for changes:\n${revise.notes.map((n) => `- ${n}`).join('\n')}\n\nReplace them: edit their files under rules/patch/ (or delete them and add new ones). Current rules: ${revise.rules.map((r) => `\`rules/${r.id}.json\``).join(', ')}.`
+      : 'Define it: add the rule(s) that answer this CLASS of event for this CLASS of host under `rules/patch/` (one JSON rule `{id, host, on, tree, doc}` per file; ids start with `patch/`; new types go in `types/`, new statuses in `statuses/`). A rule writes only its host; it affects others by emitting impulses. Follow `MODSPEC.md` and the conventions of the existing rules.',
     '',
-    'Done means `node validate.mjs` passes: your rule is valid, the interaction resolves to it, its tests pass and nothing that worked before breaks. Do not change existing files outside rules/patch/.',
+    'Done means `node validate.mjs` passes: your rule is valid, the event resolves to it, its tests pass and nothing that worked before breaks. Do not change existing files outside rules/patch/.',
   ].join('\n')
 }
 
