@@ -1,4 +1,4 @@
-# LoomWorld
+# OpenWorld
 
 A web-playable 2D JRPG world whose rules are code. An LLM acts as a live modder: when an
 interaction is undefined, it writes a type-level rule patch that the engine validates,
@@ -8,10 +8,11 @@ Successor to BardOS. Design: [docs/design.md](docs/design.md).
 
 ## Worlds
 
-- **Hearthvale** (default, hand-crafted demo): a village with five buildings and interiors,
-  Whisperwood, and Slime Hollow — 8 maps, 12 hand-written villagers with routines, 30
-  creatures, ~110 curated items, and a short opening quest that walks through the verbs and
-  the elemental rules before handing over the open world.
+- **The Ford** (default, hand-crafted demo): one map at the edge of the world — a ferrykeeper,
+  a stranded peddler, two slimes, seven items, eight fixtures — and one goal: the far bank.
+  The place teaches three ways across; anything else the world learns from the player counts
+  too. Minimal and complete: every element the system needs is here, and nothing else
+  ([docs/game-design.md](docs/game-design.md) §9, proven by `packages/tools/test/demo.test.ts`).
 - **Saenvar** (`?world=saenvar`, generated for scale): 460 maps, ~2,400 NPCs, ~27,700 items
   (~1,000 kinds). Same engine and renderer; used for scaling experiments.
 
@@ -19,15 +20,17 @@ Successor to BardOS. Design: [docs/design.md](docs/design.md).
 
 ```bash
 npm install
-npm run gen:world     # Hearthvale → packages/client/public/world/
+npm run gen:world     # the Ford → packages/client/public/world/
 npm run gen:saenvar   # optional: the 460-map world → public/world-saenvar/
 npm run dev           # http://localhost:5173  (add ?world=saenvar for the large world)
 npm run build         # static site in packages/client/dist
 ```
 
-Controls: WASD/arrows move · **E** interact (with the held item) · **F** take · **G** put ·
-**U** use on yourself · **Space** attack/cast · **1–9** hold an item · **Q** stow ·
-**↑↓** choose in an open chest · **`** Mod Console · **L** language · **M** sound · **H** help.
+Controls: WASD/arrows move (Shift walks) · **E** hands (talk, open, push) · **F** take ·
+**left click** use the held thing (weapons strike; click yourself to eat) · **right click** put
+it there (place, store, hand over) · hold any of these to choose the layer · **1–0** / wheel
+choose what to hold · **Esc** menu · **I** inventory · **J** journal and Threadbook ·
+**`** Mod Console (dev).
 
 ## The modder
 

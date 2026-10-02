@@ -43,7 +43,6 @@ const menu = new Menu({
   organize: () => send({ t: 'organize' }),
   transfer: (from, item, all) => send({ t: 'transfer', from, item, all }),
   closePanel: () => send({ t: 'closePanel' }),
-  readMail: (id) => send({ t: 'readMail', id }),
   save: () => send({ t: 'save' }),
   newGame: () => send({ t: 'newGame' }),
   toggleLocale: () => {
@@ -67,7 +66,6 @@ const hud = new Hud(
   (x, y) => scene.screenOfTile(x, y),
 )
 menu.muted = hud.muted
-menu.currentMap = () => scene.currentMap()
 hud.threadDoc = (rule) => menu.library?.patches.find((r) => r.id === rule)?.doc
 
 /** The latest frame (for aiming the chooser), and the chooser's handler (set below). */
@@ -238,7 +236,7 @@ const KEY_DIR: Record<string, Dir> = {
   ArrowRight: 'right',
   KeyD: 'right',
 }
-const SLOT_CODES = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus', 'Equal']
+const SLOT_CODES = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0']
 const held: Dir[] = []
 let sentDir: Dir | null = null
 let shift = false
@@ -314,13 +312,13 @@ window.addEventListener('keydown', (e) => {
     if (e.code === 'Escape') return hud.answer(false)
     return
   }
-  // an open dialogue: E (or Esc) moves it on
-  if (hud.dialogOpen && (e.code === 'KeyE' || e.code === 'Escape')) {
+  // an open dialogue: E (or Esc) moves it on — unless a menu lies over it (Esc closes that first)
+  if (hud.dialogOpen && !menu.anyOpen && (e.code === 'KeyE' || e.code === 'Escape')) {
     e.preventDefault()
     return hud.advanceDialog()
   }
   if (e.code === 'Backquote') return dev.toggle()
-  // Esc closes what is open, else opens the menu; I the inventory, J the journal, M the map
+  // Esc closes what is open, else opens the menu; I the inventory, J the journal (and the Threadbook)
   if (e.code === 'Escape') {
     e.preventDefault()
     if (dev.open) return dev.toggle(false)
@@ -329,7 +327,6 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.code === 'KeyI') return menu.toggle('inventory')
   if (e.code === 'KeyJ') return menu.journalOpen ? menu.close() : (menu.openJournal(), hud.seenJournal())
-  if (e.code === 'KeyM') return menu.toggle('map')
   if (menu.anyOpen || dev.open) return
   const dir = KEY_DIR[e.code]
   if (dir) {

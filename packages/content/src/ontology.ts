@@ -102,6 +102,10 @@ export const STATUSES: StatusDef[] = [
   { id: 'watered', name: { en: 'watered', zh: '浇过水' }, duration: 1200, overlay: 'wet' },
   { id: 'fertilized', name: { en: 'fertilized', zh: '施过肥' } },
   { id: 'rooting', name: { en: 'rooting', zh: '正在扎根' }, duration: 28800 },
+  // ice that magic or a creature made: it thaws back to water
+  { id: 'chilled', name: { en: 'thin ice', zh: '薄冰' }, duration: 1500 },
+  // a mechanism that needs mending (the ferry winch whose rope snapped)
+  { id: 'broken', name: { en: 'broken', zh: '坏了' } },
 ]
 
 export const ELEMENTS = ['fire', 'water', 'ice', 'lightning', 'wind', 'earth']
@@ -156,6 +160,8 @@ export const PERSON_ROLES: [string, string, string][] = [
   ['sailor', 'sailor', '水手'],
   ['traveler', 'traveler', '旅人'],
   ['elder', 'village elder', '村长'],
+  ['ferrykeeper', 'ferrykeeper', '摆渡人'],
+  ['peddler', 'peddler', '货郎'],
 ]
 
 const actorTypes: TypeDef[] = [
@@ -231,8 +237,6 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/light/lamppost', 'lamp post', '路灯', ['lightable', 'metal', 'conductive'], { solid: true }),
   F('fixture/light/candles', 'candles', '烛台', ['lightable'], { solid: true }),
   F('fixture/light/fireplace', 'fireplace', '壁炉', ['lightable', 'stone', 'cookware'], { solid: true }),
-  // The Great Hearth is not 'lightable': it takes fire only when it is rekindled (the story rules).
-  F('fixture/light/hearth', 'the Great Hearth', '大炉火', ['stone', 'sacred', 'hearth'], { solid: true }),
   F('fixture/water', 'water source', '水源', ['water-source', 'stone'], { solid: true }),
   F('fixture/water/well', 'well', '水井', []),
   F('fixture/water/fountain', 'fountain', '喷泉', []),
@@ -256,6 +260,11 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/nature/logpile', 'log pile', '柴堆', ['wooden', 'flammable']),
   F('fixture/nature/mushroom_ring', 'mushroom ring', '蘑菇圈', ['plant', 'fungus'], { solid: false }),
   F('fixture/nature/beehive', 'beehive', '蜂巢', ['wooden', 'flammable', 'bees']),
+  F('fixture/nature/dead_tree', 'dead tree', '枯树', ['wooden', 'flammable', 'dry', 'tall', 'tree'], { props: { cuts: 0 } }),
+  F('fixture/nature/burrow', 'slime burrow', '史莱姆洞', ['stone', 'cave'], { solid: false }),
+  F('fixture/ferry', 'ferry', '渡船', ['wooden', 'flammable'], { solid: true }),
+  F('fixture/ferry/winch', 'ferry winch', '渡口绞盘', ['mechanism']),
+  F('fixture/ferry/raft', 'ferry raft', '渡筏', ['surface']),
   F('fixture/fence', 'fence', '栅栏', ['wooden', 'flammable'], { solid: true }),
   F('fixture/crop', 'crop', '作物', ['crop', 'plant'], { solid: false, props: { yield: 2 } }),
   ...crop('wheat', 'wheat', '麦子', 'item/material/wheat', ['young wheat', '青麦'], ['ripe wheat', '熟麦'], ['dry', 'flammable']),
@@ -278,13 +287,6 @@ export function buildOntology(): Ontology {
   return {
     types,
     statuses: Object.fromEntries(STATUSES.map((s) => [s.id, s])),
-    // what everyone thinks of a gift unless their own tastes say otherwise (game-design §5.4)
-    tastes: {
-      love: ['item/gem', 'item/valuable/crown'],
-      like: ['item/food/pie', 'item/food/honey', 'item/food/cheese', 'item/valuable', 'tag:flower'],
-      dislike: ['item/material/stone', 'item/material/stick', 'item/material/coal', 'tag:raw'],
-      hate: ['item/misc/skull', 'item/material/bone', 'item/food/mushroom/raw'],
-    },
     terrains: Object.fromEntries(TERRAINS.map((t) => [t.id, t])),
     elements: ELEMENTS,
     vfx: VFX,

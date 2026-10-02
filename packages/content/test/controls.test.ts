@@ -7,7 +7,7 @@ const lib = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
 
 /** The player at (2,2) facing up toward (2,1), holding `held` (if any), with `others` around. */
 function world(held: string | undefined, others: ScenarioEntity[], terrain?: string[][]): Engine {
-  const entities: ScenarioEntity[] = [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2, props: { energy: 100 } }, ...others]
+  const entities: ScenarioEntity[] = [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2, props: {} }, ...others]
   if (held) entities.push({ key: 'held', type: held, x: 2, y: 2, heldBy: 'actor' })
   const eng = buildSandbox({ entities, event: {}, terrain }, onto, lib())
   eng.world.player.facing = 'up'
@@ -37,19 +37,16 @@ describe('the four inputs: one verb each', () => {
     expect(eng.world.get('loaf')!.place).toMatchObject({ on: 'inside', holder: 'chest' })
   })
 
-  it('asks before sleeping (E) and before eating (left click on oneself)', () => {
-    const bed = world(undefined, [{ key: 'bed', type: 'fixture/furniture/bed', x: 2, y: 1 }])
-    const plan = bed.controls.plan('hands')!
-    expect(plan.confirm).toBeDefined()
-    bed.controls.run(plan)
-    expect(bed.world.state.question).toBeDefined()
-    const day = bed.world.calendar().day
-    bed.controls.answer(true)
-    expect(bed.world.calendar().day).toBe(day + 1)
+  it('asks before eating (left click on oneself), and eats on yes', () => {
     const meal = world('item/food/bread', [])
     const eat = meal.controls.plan('use', { x: 2, y: 2 })!
     expect(eat.rule).toBe('core/eat')
     expect(eat.confirm).toBeDefined()
+    meal.controls.run(eat)
+    expect(meal.world.state.question).toBeDefined()
+    expect(meal.world.get('held')).toBeDefined()
+    meal.controls.answer(true)
+    expect(meal.world.get('held')).toBeUndefined()
   })
 
   it('F takes a loose item; right click places anything, tools included', () => {

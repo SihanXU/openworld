@@ -96,11 +96,14 @@ export function modspecMarkdown(spec: ModSpec): string {
 function issueOf(req: ModRequest, revise?: { rules: Rule[]; notes: string[] }): string {
   const ent = (r: string, e?: ModRequest['event']['actor']) => (e ? `- ${r}: ${e.name} — \`${e.type}\`; tags ${e.tags.join(', ') || '—'}; statuses ${e.statuses.join(', ') || '—'}` : `- ${r}: none (empty-handed)`)
   return [
-    revise ? `# Revise: ${req.summary}` : `# Undefined interaction: ${req.summary}`,
+    revise ? `# Revise: ${req.summary}` : `# Undefined ${req.event.kind === 'interaction' ? 'interaction' : 'event'}: ${req.summary}`,
     '',
-    'In the game world, a player just did this and no rule in `rules/` answers it:',
+    req.origin === 'world'
+      ? 'In the game world, this happened by itself (no player asked) and no rule in `rules/` answers it. Keep the answer small and legible, never harm a person, never touch the story\'s facts:'
+      : 'In the game world, a player just did this and no rule in `rules/` answers it:',
     '',
-    `- verb: \`${req.event.verb}\``,
+    `- event: \`${req.event.kind}\`${req.event.verb ? ` (verb \`${req.event.verb}\`)` : ''}${req.event.about ? ` (about \`${req.event.about}\`)` : ''}${req.event.status ? ` (status \`${req.event.status}\`)` : ''}${req.event.element ? ` (element \`${req.event.element}\`)` : ''}`,
+    ...(req.event.detail ? [`- detail: ${req.event.detail}`] : []),
     ent('actor', req.event.actor),
     ent('target', req.event.target),
     ent('instrument', req.event.instrument),

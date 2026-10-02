@@ -2,6 +2,8 @@
 // Everything here is plain JSON-serializable data: state, rules and patches travel
 // between the engine, the client, saves and (later) the modder service.
 
+import type { WeatherSpan } from './calendar.ts'
+
 export type Id = string
 export type Text = string | { en: string; zh?: string }
 
@@ -65,8 +67,6 @@ export interface Ontology {
   vfx: string[]
   /** Tags an instance may carry beyond its type's (materials, qualities…); used by conflict checks. */
   instanceTags?: string[]
-  /** Gift tastes everyone shares (a person's own tastes override them). */
-  tastes?: Tastes
 }
 
 // ------------------------------------------------------------------ world state
@@ -124,6 +124,10 @@ export interface ScheduleEntry {
   x: number
   y: number
   activity: string
+  /** The thing the activity needs (the fire she tends, the cart he minds). */
+  uses?: Id
+  /** What `uses` must be for the activity to go on (the fire lit); else the person is blocked. */
+  need?: Selector
 }
 
 export interface NpcData {
@@ -135,8 +139,10 @@ export interface NpcData {
   look?: string
   lines?: Text[]
   faction?: string
-  /** A hero villager's full record (docs/game-design.md §5); crowd NPCs may have none. */
+  /** A person's record (docs/game-design.md §5); crowd NPCs may have none. */
   person?: PersonData
+  /** A detour a rule ordered (`goto`): this anchor until the tick, whatever the schedule says. */
+  override?: { map: string; x: number; y: number; until: number; activity: string }
 }
 
 // ------------------------------------------------------------------ people (data)
@@ -145,10 +151,9 @@ export type Mood = 'neutral' | 'happy' | 'sad' | 'angry' | 'surprised' | 'shy'
 
 /**
  * A line and the context it is for. Keys, most specific first (people.ts resolves them):
- * topic:<id> · topic:<id>:memory_week · date:<season>_<day> · birthday · greeting:first ·
- * place:<map> · weekday:<day> · weather:<w> · hour:<morning|day|evening|night> ·
- * greeting:<stranger|acquaintance|friend|close> · default — and for gifts:
- * gift:item:<type> · gift:<loved|liked|neutral|disliked|hated> · gift:limit.
+ * topic:<id> · fact:<key> (the fact is truthy) · greeting:first · weather:<w> ·
+ * hour:<morning|day|evening|night> · default — and when handed something:
+ * given:<type prefix> · given.
  * Slots in the text: {player} {name} {friend:<id>} {fact:<key>} {item}.
  */
 export interface LineDef {
@@ -157,33 +162,18 @@ export interface LineDef {
   mood?: Mood
   /** said at most once to the player */
   once?: boolean
-  /** only from this many hearts on (and preferred over lower variants) */
-  hearts?: number
 }
 
-/**
- * A schedule variant. Keys, most specific first: date:<season>_<day> · fact:<key> (the fact is
- * truthy) · rain · storm · weekday:<day> · season:<s> · default.
- */
+/** A schedule variant. Keys, most specific first: fact:<key> (the fact is truthy) · storm · rain · default. */
 export interface ScheduleVariant {
   key: string
   entries: ScheduleEntry[]
-}
-
-/** Gift tastes: item type prefixes, or `tag:<tag>`. */
-export interface Tastes {
-  love?: string[]
-  like?: string[]
-  dislike?: string[]
-  hate?: string[]
 }
 
 export interface PersonData {
   temperament?: { personality?: string; manner?: string; social?: string; outlook?: string }
   /** id → relation ('daughter', 'old friend' …) */
   ties?: Record<Id, string>
-  birthday?: { season: string; day: number }
-  tastes?: Tastes
   lines?: LineDef[]
   schedules?: ScheduleVariant[]
 }
@@ -196,9 +186,6 @@ export interface NpcMemory {
   last?: string
   /** the day they were last talked to */
   talked?: number
-  gifts?: { day: number; week: number; count: number }
-  /** How they took each kind of gift (item type → taste): the Social tab's gift log. */
-  tasted?: Record<string, string>
 }
 
 /** Something that happened, which people may talk about while it is fresh. */
@@ -209,38 +196,38 @@ export interface Topic {
   days?: number
 }
 
-export interface LetterDef {
-  id: string
-  /** delivered at the start of this day, or once this fact is truthy, or by a `mail` effect */
-  day?: number
-  fact?: string
-  from?: Id
-  text: Text
-  items?: string[]
-}
-
-export interface Letter {
-  id: string
-  day: number
-  read?: boolean
-  /** items still attached (taken when read) */
-  items?: string[]
-}
-
-/** A scripted scene (docs/game-design.md §8.6): an arrival, a heart event, a gathering. */
+/** A scripted scene (docs/game-design.md §8.6): the arrival, the ferry, the far bank. */
 export interface SceneDef {
   id: string
   map: string
+  /** Played only by a `scene` effect (the ferry), never by itself. */
+  manual?: boolean
   when?: {
     hour?: { from: number; to: number }
     weather?: string[]
-    weekday?: string[]
     facts?: Record<string, Cmp>
-    hearts?: { npc: Id; gte: number }
+    /** the player stands in this region of the map (MapData.regions) */
+    region?: string
     /** default false: a scene plays once */
     repeat?: boolean
   }
   script: SceneCmd[]
+}
+
+/**
+ * Content the world must keep playable (BardOS's stage invariant, design.md §5.4 source 12):
+ * while `when` holds, `holds` must hold. When state breaks it (the rope she asked for burned),
+ * the engine raises an `invalid` event (about = id, actor = target = the giver) for the modder;
+ * if nobody answers, `fallback` runs (its roles: actor = target = the giver).
+ */
+export interface Invariant {
+  id: string
+  giver?: Id
+  /** What the content is, in words (for the modder). */
+  text: Text
+  when?: Cond
+  holds: Cond
+  fallback?: Effect[]
 }
 
 export type SceneCmd =
@@ -259,6 +246,8 @@ export type SceneCmd =
   | { status: Id; add?: string; remove?: string }
   /** set a prop on the player (the story's stage) */
   | { prop: string; value: PropValue }
+  /** a full-screen card (the ending), advanced like a line */
+  | { card: Text }
 
 export interface SceneState {
   id: string
@@ -268,7 +257,7 @@ export interface SceneState {
   mover?: { who: Id; path: [number, number][]; next: number }
   started?: number
   /** the line waiting to be advanced (so a client that missed the say event can show it) */
-  line?: { who: Id; text: Text; mood?: Mood }
+  line?: { who: Id; text: Text; mood?: Mood; card?: boolean }
 }
 
 export interface Appearance {
@@ -287,6 +276,8 @@ export interface AiData {
   state?: 'idle' | 'chase' | 'return'
   cooldown?: number
   loot?: string[] // item type ids
+  /** Where it roams at night (creatures come out after dark); by day it keeps to `home`. */
+  night?: Pos
 }
 
 export interface MapData {
@@ -310,6 +301,8 @@ export interface MapData {
   solid?: number[]
   /** Named spots ('square.well') for schedules, scenes and authors. */
   anchors?: Record<string, [number, number]>
+  /** Named areas [x, y, w, h] ('far_bank') for scenes and goals. */
+  regions?: Record<string, [number, number, number, number]>
 }
 
 export interface Portal {
@@ -347,12 +340,11 @@ export interface WorldState {
   topics?: Topic[]
   /** What each person remembers about the player. */
   memory?: Record<Id, NpcMemory>
-  mailbox?: Letter[]
   scene?: SceneState
   /** A yes/no question waiting for the player (Action: "Eat the apple?"); time stops while it is open. */
   question?: { text: Text; plan: Plan }
-  /** Days whose weather the world fixes. */
-  weather?: Record<number, string>
+  /** Spans of time whose weather the world fixes (the evening storm). */
+  weather?: WeatherSpan[]
 }
 
 // ------------------------------------------------------------------ events & interactions
@@ -397,6 +389,10 @@ export type EventKind =
   | 'tick' // periodic, for subjects that carry statuses
   | 'enter' // an actor stepped onto a tile
   | 'defeat' // an actor's hp reached 0
+  | 'meet' // a creature came up to a thing or another creature (actor = creature, target = it)
+  | 'blocked' // a person cannot do what their day says (actor = person, target = what they need; about = activity)
+  | 'witness' // a person saw the player act on something owned (actor = witness, target = the thing; about = verb:owner|bystander)
+  | 'invalid' // state broke content the world must keep playable (actor = target = the giver; about = invariant id)
 
 export interface GameEvent {
   kind: EventKind
@@ -410,6 +406,10 @@ export interface GameEvent {
   tick?: number
   /** The player's Use key: fallback rules (catch-all descriptions) do not define it. */
   strict?: boolean
+  /** blocked: the activity; witness: what was done and by whose sight; invalid: the invariant. */
+  about?: string
+  /** The player's own input made it (a blow, a step): never asked about as a world event. */
+  origin?: 'player'
 }
 
 // ------------------------------------------------------------------ rules
@@ -453,6 +453,8 @@ export interface Pattern {
   element?: string[]
   /** status/expire/tick events: which status. */
   status?: string[]
+  /** blocked / witness / invalid events: the event's `about`. */
+  about?: string[]
 }
 
 /** A number, or a numeric property read from a role at match time. */
@@ -481,10 +483,10 @@ export type Cond =
   | { fact: { key: string; cmp: Cmp } }
   /** Something that happened is still fresh. */
   | { topic: string }
-  /** The calendar: weekday, weather, season, a day range. */
-  | { calendar: { weekday?: string[]; weather?: string[]; season?: string[]; day?: { gte?: number; lte?: number } } }
-  /** The player's friendship with a person (in hearts). */
-  | { hearts: { role: RoleName; cmp: Cmp } }
+  /** The weather now. */
+  | { weather: string[] }
+  /** Something matching the selector exists anywhere in the loaded world (a rope, the dead tree). */
+  | { exists: Selector }
 
 /** An argument that names a role, or a tile relative to a role. */
 export type RoleRef = RoleName | 'tileOf:actor' | 'tileOf:target' | 'tileOf:instrument'
@@ -526,10 +528,10 @@ export type Effect =
   | { op: 'setFact'; key: string; value: PropValue }
   | { op: 'addFact'; key: string; delta: number }
   | { op: 'topic'; id: string; days?: number }
-  | { op: 'befriend'; who: RoleRef; amount: number; daily?: boolean }
-  | { op: 'gift'; to: RoleRef; item: RoleRef }
-  | { op: 'sleep' }
-  | { op: 'mail'; id: string }
+  | { op: 'give'; to: RoleRef; item: RoleRef }
+  | { op: 'emote'; who: RoleRef; mood: Mood }
+  | { op: 'goto'; who: RoleRef; anchor: string; hours: number; activity?: string }
+  | { op: 'layLine'; from: RoleRef; away: RoleRef; terrain: string; length: number; over?: string[] }
   | { op: 'scene'; id: string }
 
 export interface RuleTest {
@@ -545,6 +547,8 @@ export interface Scenario {
   entities: ScenarioEntity[]
   /** Simulation ticks to run after the event (for spreading/expiry). */
   ticks?: number
+  /** Which entity key is the player (default: "actor"); a world event's actor is someone else. */
+  player?: string
   /** The interaction/event to replay. Roles refer to scenario entity keys or `tile:x,y`. */
   event: {
     kind?: EventKind
@@ -557,6 +561,7 @@ export interface Scenario {
     /** The player's Use key: fallback rules do not define the event. */
     strict?: boolean
     status?: string
+    about?: string
   }
 }
 
@@ -587,6 +592,8 @@ export type Expectation =
 
 export interface Provenance {
   origin: 'base' | 'patch'
+  /** Who caused the request it answers: the player, or the world itself (design.md §5.9). */
+  trigger?: 'player' | 'world'
   request?: string
   author?: string
   at?: string // ISO timestamp
@@ -621,9 +628,8 @@ export type FxEvent =
   | { t: 'vfx'; fx: string; map: string; x: number; y: number }
   | { t: 'say'; who: Id; text: Text; mood?: Mood; scene?: boolean }
   | { t: 'emote'; who: Id; mood: Mood }
-  | { t: 'sleep'; day: number }
-  | { t: 'letter'; id: string }
   | { t: 'fade'; dir: 'out' | 'in' }
+  | { t: 'card'; text: Text }
   | { t: 'strike'; map: string; x: number; y: number }
   | { t: 'log'; text: Text; tone?: 'info' | 'warn' | 'ai' | 'good' | 'bad' }
   | { t: 'damage'; who: Id; amount: number; element?: string }

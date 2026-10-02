@@ -388,9 +388,6 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'advance':
         game?.engine.scenes.advance()
         break
-      case 'readMail':
-        game?.engine.readMail(m.id)
-        break
       case 'debug': {
         if (!game) break
         const eng = game.engine

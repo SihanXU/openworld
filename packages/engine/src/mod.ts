@@ -1,12 +1,13 @@
 // The Mod port: the exact contract a modder (human now, LLM later) implements.
-//   undefined interaction → ModRequest (event + context + scenario) + ModSpec
+//   undefined event (the player's, or the world's own when salient) → ModRequest (event + context + scenario) + ModSpec
 //   → Patch → validatePatch (schema, ontology, conflicts, sandbox replay, tests, regression)
 //   → applied to the rule library with provenance → the frozen interaction re-resolves.
 // The engine is the trust boundary: patches are untrusted data until validated.
 
+import { TICKS_PER_HOUR } from './calendar.ts'
 import { PRIMITIVES } from './effects.ts'
 import type { Engine, UndefinedSink } from './engine.ts'
-import { textOf } from './engine.ts'
+import { WORLD_KINDS, textOf } from './engine.ts'
 import { OntologyIndex, isA } from './ontology.ts'
 import { ROLES, RuleLibrary, cmp, compareSpec, rolesOf, specOf } from './rules.ts'
 import { checkExpectations, replay } from './sandbox.ts'
@@ -38,6 +39,8 @@ export interface Patch {
   artifacts: Artifact[]
   note?: string
   author?: string
+  /** Who caused the request it answers (the Threadbook's "you" or "the world"). */
+  trigger?: 'player' | 'world'
 }
 
 export interface EntityInfo {
@@ -57,10 +60,18 @@ export interface EntityInfo {
 export interface ModRequest {
   id: string
   summary: string
-  /** The event that found no rule: an interaction (verb), a hit (element, power) or a step onto a tile (enter). */
-  event: { kind: EventKind; verb?: string; element?: string; power?: number; strict?: boolean; actor?: EntityInfo; target?: EntityInfo; instrument?: EntityInfo }
+  /** Who caused it: the player's own act, or the world by itself (a cascade, a creature, a person). */
+  origin: 'player' | 'world'
+  /**
+   * The event that found no rule: an interaction (verb), a hit (element, power), a step onto a
+   * tile (enter), a status taking hold, a creature meeting something, a person blocked, a
+   * witness, or broken content (about, detail).
+   */
+  event: { kind: EventKind; verb?: string; element?: string; power?: number; status?: string; strict?: boolean; about?: string; detail?: string; actor?: EntityInfo; target?: EntityInfo; instrument?: EntityInfo }
   context: {
     map: { id: string; name: string; kind: string; region?: string }
+    /** Named spots of the map (for `goto`). */
+    anchors: string[]
     hour: number
     nearby: EntityInfo[]
     tiles: string[][] // terrain window around the target, target at the center
@@ -137,6 +148,7 @@ export interface UndefinedRecord {
   deadline: number
   /** The interaction's class (verb, target kind, instrument kind): what counts as "the same action". */
   signature: string
+  origin: 'player' | 'world'
   /** A reply from the provider is still on its way (it may arrive after the fallback). */
   awaiting?: boolean
   patch?: Patch
@@ -164,6 +176,7 @@ const AUTHORING_RULES = [
   'Give the player feedback: a `vfx` and/or a `say`/`log` line, so the outcome is visible.',
   'Keep effects local and bounded: no unbounded spreading (chance < 1 or radius ≤ 3).',
   'Make interactions that consume or transform the instrument say so (transform/destroy the instrument).',
+  'World events (origin "world": a status taking hold, a world hit, meet, blocked, witness, invalid) happen without the player asking: keep them small and legible, never harm a person, never touch the story\'s facts, and let people react with say/emote/topic/goto.',
 ]
 
 export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
@@ -174,11 +187,11 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
   return {
     version: `lsw-modspec/1 lib@${lib.version}`,
     summary:
-      'Author RULES for a 2D JRPG world whose mechanics are data. Rules match events by role patterns and run effect primitives. You are called because an event matched no rule: an interaction (the player used, put or took something, or touched it bare-handed — event.strict: catch-all descriptions do not count), a hit (a blow or a spell landed on something with no reaction), or a step onto a tile in some state (enter).',
+      'Author RULES for a 2D JRPG world whose mechanics are data. Rules match events by role patterns and run effect primitives. You are called because an event matched no rule. From the player: an interaction (the player used, put or took something, or touched it bare-handed — event.strict: catch-all descriptions do not count), a hit (a blow or a spell landed on something with no reaction), or a step onto a tile in some state (enter). From the world itself: a status taking hold of something, a hit nobody aimed (lightning), a creature meeting a thing (meet), a person who cannot go on with their day (blocked), a person who saw the player act on something owned (witness), or content that state has broken (invalid).',
     rule: {
       id: 'unique string, e.g. "patch/oil-coats-frozen"',
-      on: 'event kind: interaction | hit | status | expire | tick | enter | defeat',
-      when: 'pattern: { verb?: [take|put|interact], actor?, target?, instrument?: Selector, element?: [..], status?: [..] }',
+      on: 'event kind: interaction | hit | status | expire | tick | enter | defeat | meet | blocked | witness | invalid',
+      when: 'pattern: { verb?: [take|put|interact], actor?, target?, instrument?: Selector, element?: [..], status?: [..], about?: [..] (blocked: the activity; witness: "<verb>:owner" | "<verb>:bystander"; invalid: the invariant id) }',
       guard: 'optional Cond evaluated at match time',
       do: 'ordered Effect[] (primitives)',
       priority: 'optional tiebreaker (number)',
@@ -207,10 +220,10 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
       '{chance:p}',
       '{hour:{from,to}}',
       "{count:{role, in: contents|tile, match?: Selector, cmp: {eq|gt|gte|lt|lte: number | {prop, of: role}}}} — how many entities are in a role's contents (or on its tile besides itself); e.g. full when {gte:{prop:'capacity', of:'target'}}",
-      '{fact:{key, cmp}} — a world fact (missing = 0); facts are set by setFact/addFact (e.g. hearth.stage, bridge.east.fixed)',
+      '{fact:{key, cmp}} — a world fact (missing = 0); facts are set by setFact/addFact (e.g. ford.winch)',
       '{topic:id} — something that happened is still fresh (raised by the topic effect)',
-      '{calendar:{weekday?:[firstday…hearthday], weather?:[sun|cloud|rain|storm|fog], season?:[thaw|bloom|ember|frost], day?:{gte?,lte?}}}',
-      '{hearts:{role, cmp}} — the player\'s friendship with that person, in hearts (0–10)',
+      '{weather:[sun|cloud|rain|storm|fog]} — the weather now',
+      '{exists: Selector} — something matching it exists anywhere in the world (a rope, the dead tree)',
     ],
     events: {
       interaction: 'a verb: take (pick up) / put (place the held item on the target) / interact (use; with the held item as instrument). Roles actor, target, instrument(held item).',
@@ -220,6 +233,10 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
       tick: 'periodic (every 0.5s) for each status the target carries',
       enter: 'actor stepped onto target tile',
       defeat: 'target\'s hp reached 0 (actor = killer)',
+      meet: 'a creature (actor) came up to a thing or another creature (target)',
+      blocked: 'a person (actor) cannot go on with their activity (about): target is what it needs (gone, or not as it must be), or the anchor tile they cannot reach',
+      witness: 'a person (actor) saw the player act on something owned (target; instrument = what the player held); about = "<verb>:owner" when the witness owns it, else "<verb>:bystander"',
+      invalid: 'state broke content the world must keep playable: about = the invariant id, detail = what it was; actor = target = the person it belongs to',
     },
     primitives: { ...PRIMITIVES, _roles: 'RoleRef = actor | target | instrument | tileOf:actor | tileOf:target | tileOf:instrument', _amount: 'Amount = number | "power" | {prop, of, mul?, add?}' },
     expectations: [
@@ -249,7 +266,16 @@ const TIMEOUT_TICKS = 100 // 10 s: then fall back (the record stays patchable)
  */
 const MAX_ASKS = 2
 
-/** The class of an interaction, instances aside: verb, what is acted on, what is held. */
+/** Requests per game hour the world may raise by itself, by kind (design.md §5.6). */
+const WORLD_BUDGET: Record<string, number> = { physical: 6, witness: 4, blocked: 2, invalid: 4 }
+/** How far from the player a physical event still counts as seen (tiles). */
+const VIEW = 12
+/** Tags that make a thing worth asking about when the world does something to it. */
+const REACTIVE = ['flammable', 'conductive', 'edible', 'fragile', 'liquid', 'bees', 'plant', 'crop', 'cloth', 'paper', 'metal', 'wooden', 'creature', 'dry', 'tall', 'fiber']
+
+const budgetOf = (kind: string) => (kind === 'status' || kind === 'hit' || kind === 'meet' ? 'physical' : kind)
+
+/** The class of an event, instances aside: kind, verb / element / status / about, what is acted on, what is held (and, for the world's events, who acts). */
 export function signatureOf(eng: Engine, ev: GameEvent): string {
   const w = eng.world
   const kind = (r: Ref | undefined): string => {
@@ -259,7 +285,8 @@ export function signatureOf(eng: Engine, ev: GameEvent): string {
     if (!e) return '?'
     return e.id === w.state.player && r === ev.roles.target ? 'self' : e.type
   }
-  return `${ev.kind}:${ev.verb ?? ev.element ?? ''}|${kind(ev.roles.target)}|${kind(ev.roles.instrument)}${ev.strict ? '|strict' : ''}`
+  const actor = ev.kind === 'interaction' || ev.kind === 'enter' ? '' : `|by:${kind(ev.roles.actor)}`
+  return `${ev.kind}:${ev.verb ?? ev.element ?? ev.status ?? ev.about ?? ''}|${kind(ev.roles.target)}|${kind(ev.roles.instrument)}${ev.strict ? '|strict' : ''}${actor}`
 }
 
 export class ModPort implements UndefinedSink {
@@ -273,6 +300,8 @@ export class ModPort implements UndefinedSink {
   private seq = 0
   /** Requests raised per interaction class this session (MAX_ASKS). */
   private asks = new Map<string, number>()
+  /** Ticks at which the world raised requests, by budget kind (WORLD_BUDGET). */
+  private spent = new Map<string, number[]>()
 
   constructor(private eng: Engine) {
     eng.undefinedSink = this
@@ -297,18 +326,75 @@ export class ModPort implements UndefinedSink {
       return eng.fallback(ev)
     }
     this.asks.set(signature, (this.asks.get(signature) ?? 0) + 1)
-    const id = `req-${w.state.seed.toString(36)}-${(++this.seq).toString(36)}-${w.state.tick.toString(36)}`
-    const request = buildRequest(eng, ev, id)
-    const rec: UndefinedRecord = { id, tick: w.state.tick, status: 'pending', request, event: ev, deadline: w.state.tick + this.timeoutTicks, signature }
-    this.records.push(rec)
+    const rec = this.open(ev, signature, 'player')
     for (const r of [ev.roles.target, ev.roles.instrument]) {
       const e = r && 'e' in r ? w.get(r.e) : undefined
-      if (e && e.id !== w.state.player) e.frozenBy = id
+      if (e && e.id !== w.state.player) e.frozenBy = rec.id
     }
     // say at once what the player is doing (never what comes of it: that is the patch's to decide)
     w.fx.push({ t: 'log', text: attemptLine(eng, ev) })
-    w.fx.push({ t: 'undefined', request: id, summary: request.summary })
+    w.fx.push({ t: 'undefined', request: rec.id, summary: rec.request.summary })
     this.onChange?.()
+    this.ask(rec)
+  }
+
+  /**
+   * The world's own event found no rule (design.md §5.6–5.7): asked about only when it is
+   * salient, not yet asked, and within its kind's budget. Nothing freezes; the safe default
+   * stands until a patch arrives (at the time-out, or when the provider gives up).
+   */
+  raiseWorld(ev: GameEvent): boolean {
+    const eng = this.eng
+    const w = eng.world
+    if (!this.salient(ev)) return false
+    const signature = signatureOf(eng, ev)
+    if (this.records.some((r) => r.signature === signature && (r.status === 'pending' || r.awaiting))) return false
+    if ((this.asks.get(signature) ?? 0) >= MAX_ASKS) return false
+    const kind = budgetOf(ev.kind)
+    const recent = (this.spent.get(kind) ?? []).filter((t) => t > w.state.tick - TICKS_PER_HOUR)
+    if (recent.length >= (WORLD_BUDGET[kind] ?? 2)) return false
+    this.spent.set(kind, [...recent, w.state.tick])
+    this.asks.set(signature, (this.asks.get(signature) ?? 0) + 1)
+    const rec = this.open(ev, signature, 'world')
+    w.fx.push({ t: 'log', text: worldLine(eng, ev), tone: 'ai' })
+    w.fx.push({ t: 'undefined', request: rec.id, summary: rec.request.summary })
+    this.onChange?.()
+    this.ask(rec)
+    return true
+  }
+
+  /** Is a world event worth a request (design.md §5.6)? */
+  salient(ev: GameEvent): boolean {
+    const eng = this.eng
+    const w = eng.world
+    const pp = w.posOf(w.player)
+    const at = w.refPos(ev.roles.target) ?? w.refPos(ev.roles.actor)
+    const seen = !!pp && !!at && pp.map === at.map && Math.max(Math.abs(pp.x - at.x), Math.abs(pp.y - at.y)) <= VIEW
+    // content and people matter even out of sight; a person's reaction only when the player is near
+    if (ev.kind === 'invalid') return true
+    if (ev.kind === 'witness' || ev.kind === 'blocked') return seen
+    if (!seen) return false
+    const t = ev.roles.target
+    if (!t || !('e' in t)) return false // the ground itself does not ask (a meadow catching fire is just fire)
+    const e = w.get(t.e)
+    if (!e || e.id === w.state.player || e.npc) return false
+    if (ev.kind === 'hit' && !ev.element) return false
+    const v = w.view(t)!
+    return REACTIVE.some((g) => v.tags.has(g)) || eng.lib.nearMisses(ev, rolesOf(ev, w)).length > 0
+  }
+
+  private open(ev: GameEvent, signature: string, origin: 'player' | 'world'): UndefinedRecord {
+    const w = this.eng.world
+    const id = `req-${w.state.seed.toString(36)}-${(++this.seq).toString(36)}-${w.state.tick.toString(36)}`
+    const request = buildRequest(this.eng, ev, id)
+    const rec: UndefinedRecord = { id, tick: w.state.tick, status: 'pending', request, event: ev, deadline: w.state.tick + this.timeoutTicks, signature, origin }
+    this.records.push(rec)
+    return rec
+  }
+
+  private ask(rec: UndefinedRecord): void {
+    const id = rec.id
+    const request = rec.request
     if (this.provider) {
       rec.awaiting = true
       this.provider
@@ -381,6 +467,8 @@ export class ModPort implements UndefinedSink {
       library: eng.lib,
       scenario: rec?.request.scenario,
       regression: this.regression,
+      world: (rec?.origin ?? patch.trigger) === 'world',
+      protectedFacts: eng.protectedFacts,
     })
     if (rec) {
       rec.patch = patch
@@ -406,9 +494,10 @@ export class ModPort implements UndefinedSink {
         eng.lib.addStatus(a.status, now)
       }
     }
+    const trigger = rec?.origin ?? patch.trigger ?? a0trigger(patch)
     for (const a of patch.artifacts) {
       if (a.kind !== 'rule') continue
-      const rule: Rule = { ...a.rule, source: { origin: 'patch', request: id, author: patch.author ?? 'manual', at: now, note: patch.note } }
+      const rule: Rule = { ...a.rule, source: { origin: 'patch', request: id, author: patch.author ?? 'manual', at: now, note: patch.note, trigger } }
       eng.lib.add(rule, now)
       ruleIds.push(rule.id)
     }
@@ -418,11 +507,11 @@ export class ModPort implements UndefinedSink {
       rec.status = 'patched'
       this.unfreeze(rec.id)
       w.fx.push({ t: 'patched', request: rec.id, rule: ruleIds[0] ?? '' })
-      // re-resolve the original interaction if its participants are still in place
-      if (wasPending && stillValid(eng, rec.event)) {
-        const again = eng.resolve(rec.event)
-        if (again.defined) eng.queue(rec.event)
-      }
+      // re-resolve the original event if it still makes sense: the player's act with its
+      // participants in place; of the world's, only a standing state (a person still blocked,
+      // content still broken) — a passing physical moment is learned for next time
+      const again = rec.origin === 'world' ? rec.event.kind === 'blocked' || rec.event.kind === 'invalid' : stillValid(eng, rec.event)
+      if (wasPending && again && eng.resolve(rec.event).defined) eng.queue(rec.event)
     }
     this.onChange?.()
     return res
@@ -449,6 +538,24 @@ export function alreadyHeld(lib: RuleLibrary, a: Artifact): boolean {
   if (a?.kind === 'type') return lib.types.some((t) => same(t, a.type))
   if (a?.kind === 'status') return lib.statuses.some((s) => same(s, a.status))
   return false
+}
+
+/** Patches synced from the shared library carry their trigger in their rules' provenance. */
+function a0trigger(patch: Patch): 'player' | 'world' | undefined {
+  for (const a of patch.artifacts ?? []) if (a?.kind === 'rule' && a.rule?.source?.trigger) return a.rule.source.trigger
+  return undefined
+}
+
+/** The light cue when the world pauses over something it has never seen (design.md §5.9). */
+export function worldLine(eng: Engine, ev: GameEvent): { en: string; zh: string } {
+  const r = ev.roles
+  const n = (ref: Ref | undefined, l: 'en' | 'zh') => eng.nameOf(ref, l)
+  if (ev.kind === 'meet') return { en: `${n(r.actor, 'en')} comes up to ${n(r.target, 'en')}…`, zh: `${n(r.actor, 'zh')}凑近了${n(r.target, 'zh')}……` }
+  if (ev.kind === 'witness') return { en: `${n(r.actor, 'en')} saw that.`, zh: `${n(r.actor, 'zh')}看见了。` }
+  if (ev.kind === 'blocked') return { en: `${n(r.actor, 'en')} stops short.`, zh: `${n(r.actor, 'zh')}停住了。` }
+  if (ev.kind === 'invalid') return { en: `Something ${n(r.actor, 'en')} was counting on is gone…`, zh: `${n(r.actor, 'zh')}指望的东西没了……` }
+  if (ev.kind === 'hit') return { en: `${ev.element ?? 'Something'} strikes ${n(r.target, 'en')}…`, zh: `${n(r.target, 'zh')}被击中了……` }
+  return { en: `The world pauses over ${n(r.target, 'en')}…`, zh: `世界在${n(r.target, 'zh')}上停顿了一下……` }
 }
 
 /** A neutral line for an attempt whose outcome is not known yet. */
@@ -501,8 +608,13 @@ function info(eng: Engine, role: string, v: View | undefined, origin?: { x: numb
 export function summarize(eng: Engine, ev: GameEvent): string {
   const n = (r: Ref | undefined) => eng.nameOf(r)
   const inst = ev.roles.instrument ? ` holding ${n(ev.roles.instrument)}` : ''
-  if (ev.kind === 'hit') return `${n(ev.roles.actor)} hits → ${n(ev.roles.target)}${ev.element ? ` with ${ev.element}` : ''}${inst}`
+  if (ev.kind === 'hit') return `${ev.roles.actor ? n(ev.roles.actor) : 'the world'} hits → ${n(ev.roles.target)}${ev.element ? ` with ${ev.element}` : ''}${inst}`
   if (ev.kind === 'enter') return `${n(ev.roles.actor)} steps onto → ${n(ev.roles.target)}`
+  if (ev.kind === 'status') return `${n(ev.roles.target)} becomes ${ev.status}`
+  if (ev.kind === 'meet') return `${n(ev.roles.actor)} meets → ${n(ev.roles.target)}`
+  if (ev.kind === 'blocked') return `${n(ev.roles.actor)} is blocked from "${ev.about}" by → ${n(ev.roles.target)}`
+  if (ev.kind === 'witness') return `${n(ev.roles.actor)} witnesses the player ${ev.about?.split(':')[0]} → ${n(ev.roles.target)}${inst} (${ev.about?.split(':')[1]})`
+  if (ev.kind === 'invalid') return `content "${ev.about}" of ${n(ev.roles.actor)} is broken`
   return `${n(ev.roles.actor)} ${ev.verb} → ${n(ev.roles.target)}${inst}${ev.strict && !ev.roles.instrument ? ' (bare hand)' : ''}`
 }
 
@@ -540,18 +652,23 @@ export function buildRequest(eng: Engine, ev: GameEvent, id: string): ModRequest
   return {
     id,
     summary: summarize(eng, ev),
+    origin: WORLD_KINDS.has(ev.kind) && ev.origin !== 'player' && !(ev.kind === 'hit' && isPlayer(eng, ev.roles.actor)) ? 'world' : 'player',
     event: {
       kind: ev.kind,
       verb: ev.verb,
       element: ev.element,
       power: ev.power,
+      status: ev.status,
       strict: ev.strict,
+      about: ev.about,
+      detail: detailOf(eng, ev),
       actor: info(eng, 'actor', roles.actor, center),
       target: info(eng, 'target', roles.target, center),
       instrument: info(eng, 'instrument', roles.instrument, center),
     },
     context: {
       map: { id: mapData.id, name: textOf(mapData.name), kind: mapData.kind, region: mapData.region },
+      anchors: Object.keys(mapData.anchors ?? {}),
       hour: Math.round(w.hour() * 10) / 10,
       nearby: nearby.slice(0, 16),
       tiles,
@@ -561,6 +678,29 @@ export function buildRequest(eng: Engine, ev: GameEvent, id: string): ModRequest
     },
     scenario: buildScenario(eng, ev),
   }
+}
+
+const isPlayer = (eng: Engine, r: Ref | undefined) => !!r && 'e' in r && r.e === eng.world.state.player
+
+/** What a world event is about, in words, for the modder. */
+function detailOf(eng: Engine, ev: GameEvent): string | undefined {
+  const w = eng.world
+  const n = (r: Ref | undefined) => eng.nameOf(r)
+  if (ev.kind === 'invalid') {
+    const inv = eng.invariants.find((i) => i.id === ev.about)
+    return inv ? textOf(inv.text) : undefined
+  }
+  if (ev.kind === 'witness') {
+    const t = ev.roles.target && 'e' in ev.roles.target ? w.get(ev.roles.target.e) : undefined
+    const owner = t && eng.ownerOf(t)
+    return `the player ${ev.about?.split(':')[0]}s ${n(ev.roles.target)}${owner ? ` (it belongs to ${n({ e: owner })})` : ''}${ev.roles.instrument ? ` with ${n(ev.roles.instrument)}` : ''}`
+  }
+  if (ev.kind === 'blocked') {
+    const p = ev.roles.actor && 'e' in ev.roles.actor ? w.get(ev.roles.actor.e) : undefined
+    const s = p?.npc?.person?.schedules?.flatMap((v) => v.entries).find((x) => x.activity === ev.about)
+    return `${n(ev.roles.actor)} wants to "${ev.about}" but ${'tile' in (ev.roles.target ?? {}) ? 'cannot reach the spot' : `${n(ev.roles.target)} is not as it must be${s?.need ? ` (${JSON.stringify(s.need)})` : ''}`}`
+  }
+  return undefined
 }
 
 /** Snapshot the interaction's neighbourhood as a replayable scenario. */
@@ -626,13 +766,16 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
   for (let y = 0; y <= 2 * WINDOW; y++)
     for (let x = 0; x <= 2 * WINDOW; x++)
       for (const e of w.entitiesAt(center.map, ox + x, oy + y)) if (!keyOf.has(e.id) && n < 12) addEntity(e.id, `n${++n}`)
-  return { terrain, entities, event: { kind: ev.kind, verb: ev.verb, actor, target, instrument, element: ev.element, power: ev.power, strict: ev.strict } }
+  const player = keyOf.get(w.state.player) ?? '__player'
+  return { terrain, entities, player, event: { kind: ev.kind, verb: ev.verb, actor, target, instrument, element: ev.element, power: ev.power, strict: ev.strict, status: ev.status, about: ev.about } }
 }
 
 // ---------------------------------------------------------------- validation
 
 const OPS = new Set(Object.keys(PRIMITIVES))
-const EVENT_KINDS = new Set(['interaction', 'hit', 'status', 'expire', 'tick', 'enter', 'defeat'])
+const EVENT_KINDS = new Set(['interaction', 'hit', 'status', 'expire', 'tick', 'enter', 'defeat', 'meet', 'blocked', 'witness', 'invalid'])
+/** Effects that would harm whoever fills the role. */
+const HARMFUL = new Set(['damage', 'hit', 'push', 'destroy', 'transform'])
 const ROLE_REFS = new Set(['actor', 'target', 'instrument', 'tileOf:actor', 'tileOf:target', 'tileOf:instrument'])
 
 interface ValidateCtx {
@@ -640,6 +783,10 @@ interface ValidateCtx {
   library: RuleLibrary
   scenario?: Scenario
   regression?: { scenario: Scenario; rule: string }[]
+  /** The patch answers the world's own event: the boundaries of design.md §5.8 apply. */
+  world?: boolean
+  /** Fact-key prefixes only the story may change. */
+  protectedFacts?: string[]
 }
 
 export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult {
@@ -707,11 +854,8 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       }
       return
     }
-    if ('prop' in c || 'chance' in c || 'hour' in c || 'fact' in c || 'topic' in c || 'calendar' in c) return
-    if ('hearts' in c) {
-      if (!ROLES.includes(c.hearts.role)) errors.push(`${where}.hearts.role invalid`)
-      return
-    }
+    if ('prop' in c || 'chance' in c || 'hour' in c || 'fact' in c || 'topic' in c || 'weather' in c) return
+    if ('exists' in c) return void checkSel(c.exists, `${where}.exists`)
     errors.push(`${where}: unknown condition`)
   }
   const roleRef = (r: unknown, where: string) => {
@@ -736,6 +880,16 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ((e.op === 'damage' || e.op === 'hit') && e.element && !ctx.ontology.elements.includes(e.element))
       errors.push(`${where}: unknown element "${e.element}"`)
     if (e.op === 'setTerrain' && !String(e.of).startsWith('tileOf:') && e.of !== 'target') errors.push(`${where}: setTerrain needs a tile role`)
+    if (e.op === 'layLine' && !(e.terrain in onto.terrains)) errors.push(`${where}: unknown terrain "${e.terrain}"`)
+    if (e.op === 'layLine' && !(e.length >= 1 && e.length <= 8)) errors.push(`${where}: layLine length must be 1–8`)
+    if (e.op === 'goto' && !(e.hours > 0 && e.hours <= 12)) errors.push(`${where}: goto hours must be in (0, 12]`)
+    if (e.op === 'emote' && !['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'].includes(e.mood)) errors.push(`${where}: unknown mood "${e.mood}"`)
+    // the boundaries of the world's own patches (design.md §5.8)
+    if (ctx.world) {
+      const fact = e.op === 'setFact' || e.op === 'addFact' ? e.key : undefined
+      if (fact && (ctx.protectedFacts ?? []).some((p) => fact.startsWith(p))) errors.push(`${where}: a world event may not change the story's fact "${fact}"`)
+      if ((e.op === 'setProp' || e.op === 'addProp') && e.key === 'quest') errors.push(`${where}: a world event may not change the story's stage`)
+    }
   }
   const ids = new Set<string>()
   for (const [i, r] of rules.entries()) {
@@ -764,6 +918,12 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     checkCond(r.guard, `${where}.guard`)
     if (!Array.isArray(r.do) || !r.do.length) errors.push(`${where}: do must be a non-empty array`)
     else r.do.forEach((e, j) => checkEffect(e, `${where}.do[${j}]`))
+    // a world event's people (the witness, the blocked, the giver) are never harmed by it
+    if (ctx.world && Array.isArray(r.do) && ['witness', 'blocked', 'invalid'].includes(r.on))
+      for (const [j, e] of r.do.entries()) {
+        const of = (e as { of?: string }).of
+        if (HARMFUL.has(e.op) && (of === 'actor' || (r.on === 'invalid' && of === 'target'))) errors.push(`${where}.do[${j}]: a world event may not harm a person (${e.op} on ${of})`)
+      }
     if (!r.tests?.length) warnings.push(`${where}: no tests`)
   }
   if (errors.length) return { ok: false, errors, warnings, overrides }
@@ -796,6 +956,14 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       else if (!patchIds.has(rp.resolution.rule!.id))
         errors.push(`replay: the triggering interaction resolved to "${rp.resolution.rule!.id}", not to the patch`)
       errors.push(...rp.errors.map((e) => `replay: ${e}`))
+      // no person in the scene is hurt or removed by the world's own patch (design.md §5.8)
+      if (ctx.world)
+        for (const se of ctx.scenario.entities) {
+          if (!isA(se.type, 'actor/person')) continue
+          const after = rp.engine.world.get(se.key)
+          if (!after) errors.push(`replay: a world event may not remove a person (${se.key})`)
+          else if (rp.engine.world.num(after, 'hp') < (rp.hpBefore[se.key] ?? 0)) errors.push(`replay: a world event may not hurt a person (${se.key})`)
+        }
     } catch (err) {
       errors.push(`replay: ${(err as Error).message}`)
     }
@@ -839,6 +1007,9 @@ export function patternsOverlap(a: Rule, b: Rule, onto?: Ontology): boolean {
   const as = a.when.status
   const bs = b.when.status
   if (as && bs && !as.some((v) => bs.includes(v))) return false
+  const aa = a.when.about
+  const ba = b.when.about
+  if (aa && ba && !aa.some((v) => ba.includes(v))) return false
   for (const role of ROLES) {
     const x = a.when[role]
     const y = b.when[role]

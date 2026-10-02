@@ -30,15 +30,18 @@ function roleTerms(role: string, e: EntityInfo | undefined): string[] {
 
 export function signatureOf(req: ModRequest): Signature {
   const ev = req.event
-  const terms = [`verb:${ev.verb}`, ...ROLES.flatMap((r) => roleTerms(r, ev[r])), `map:${req.context.map.kind}`]
-  const key = [ev.verb, ev.target?.type ?? '-', ev.instrument?.type ?? 'hand', [...(ev.target?.statuses ?? [])].sort().join('+')].join('|')
+  // what distinguishes the event within its kind: the verb, the element, the status, or (for the world's own events) what it is about
+  const what = ev.verb ?? ev.element ?? ev.status ?? ev.about ?? ''
+  const kind = ev.kind ?? 'interaction'
+  const terms = [kind === 'interaction' ? `verb:${what}` : `kind:${kind}:${what}`, ...ROLES.flatMap((r) => roleTerms(r, ev[r])), `map:${req.context.map.kind}`]
+  const key = [kind === 'interaction' ? what : `${kind}:${what}`, ev.target?.type ?? '-', ev.instrument?.type ?? 'hand', [...(ev.target?.statuses ?? [])].sort().join('+')].join('|')
   return { key, terms }
 }
 
 /** The coarse terms a lesson learned from this request should be filed under. */
 export function coarseTerms(sig: Signature): string[] {
   return sig.terms.filter((t) => {
-    if (t.startsWith('verb:')) return true
+    if (t.startsWith('verb:') || t.startsWith('kind:')) return true
     if (t.startsWith('actor')) return false
     if (/^(target|instrument):(kind:|none)/.test(t)) return true
     if (/^(target|instrument)#/.test(t)) return !/#(material|quality):/.test(t)

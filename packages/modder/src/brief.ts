@@ -42,6 +42,11 @@ export function relatedRules(req: ModRequest, lib: RuleLibrary): Rule[] {
 export function briefOf(req: ModRequest, lib: RuleLibrary, onto: Ontology): string {
   const index = new OntologyIndex(onto)
   const out = ['# Brief (prepared for you: the roles, and the rules that already speak about them)']
+  const ev = req.event
+  if (req.origin === 'world')
+    out.push(`- the world did this by itself (${ev.kind}${ev.about ? `, about "${ev.about}"` : ''}${ev.status ? `, status ${ev.status}` : ''}${ev.element ? `, element ${ev.element}` : ''}): no player asked. Keep it small and legible; never harm a person; never touch the story's facts.`)
+  if (ev.detail) out.push(`- detail: ${ev.detail}`)
+  if (ev.kind === 'blocked' || ev.kind === 'invalid') out.push(`- anchors on this map (for goto): ${req.context.anchors?.join(', ') || '—'}`)
   for (const role of ROLES) {
     const e = req.event[role]
     if (!e) {

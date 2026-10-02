@@ -346,6 +346,8 @@ export class Modder {
 
   /** Append to the shared library; on failure the diagnostics land on the last attempt. */
   private commit(ep: Episode, patch: Patch, req: ModRequest, ws?: ModWorkspace, replaces: string[] = []): boolean {
+    // the Threadbook says whose act taught the world this: the player's, or the world's own
+    patch = { ...patch, trigger: req.origin ?? 'player' }
     const c = this.opts.library.commit(patch, req, ws, this.now(), replaces)
     if (!c.ok) {
       ep.attempts.push({ phase: 'repair', patch, errors: c.result.errors, warnings: c.result.warnings })

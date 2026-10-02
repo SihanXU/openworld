@@ -65,20 +65,10 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World): boole
     const day = world.calendar().day
     return (world.state.topics ?? []).some((t) => t.id === c.topic && day < t.day + (t.days ?? 4))
   }
-  if ('calendar' in c) {
-    const cal = world.calendar()
-    const k = c.calendar
-    if (k.weekday && !k.weekday.includes(cal.weekday)) return false
-    if (k.weather && !k.weather.includes(cal.weather)) return false
-    if (k.season && !k.season.includes(cal.season)) return false
-    if (k.day?.gte !== undefined && cal.day < k.day.gte) return false
-    if (k.day?.lte !== undefined && cal.day > k.day.lte) return false
-    return true
-  }
-  if ('hearts' in c) {
-    const v = roles[c.hearts.role]
-    if (!v?.id) return false
-    return cmp(Math.floor(world.num(world.player, `friend.${v.id}`, 0) / 250), c.hearts.cmp)
+  if ('weather' in c) return c.weather.includes(world.calendar().weather)
+  if ('exists' in c) {
+    for (const e of Object.values(world.state.entities)) if (e.place.on !== 'none' && matchSelector(c.exists, world.view({ e: e.id }))) return true
+    return false
   }
   return false
 }
@@ -133,6 +123,7 @@ export function matchPattern(rule: Rule, ev: GameEvent, roles: Roles): boolean {
   if (w.verb && (!ev.verb || !w.verb.includes(ev.verb))) return false
   if (w.element && !w.element.includes(ev.element ?? 'none')) return false
   if (w.status && (!ev.status || !w.status.includes(ev.status))) return false
+  if (w.about && (!ev.about || !w.about.includes(ev.about))) return false
   for (const r of ROLES) if (!matchSelector(w[r], roles[r])) return false
   return true
 }
@@ -170,6 +161,7 @@ export function specOf(rule: Rule): Spec {
   }
   if (rule.when.element) n += 1
   if (rule.when.status) n += 1
+  if (rule.when.about) n += 1
   if (rule.guard) n += 1
   return [inst, depth, n, rule.priority ?? 0]
 }
@@ -282,6 +274,7 @@ export class RuleLibrary {
     const out: Rule[] = []
     for (const r of this.forKind(ev.kind)) {
       if (r.when.verb && (!ev.verb || !r.when.verb.includes(ev.verb))) continue
+      if (r.when.about && (!ev.about || !r.when.about.includes(ev.about))) continue
       let misses = 0
       for (const role of ROLES) if (!matchSelector(r.when[role], roles[role])) misses++
       if (misses === 1) out.push(r)

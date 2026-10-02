@@ -18,8 +18,8 @@ import type { Dir, Entity, GameEvent, Id, Plan, Pos, Ref, Text, Verb } from './t
 export type Key = Plan['key']
 
 /** Slots per row (the toolbar is row 1) and in all. */
-export const ROW = 12
-export const SLOT_COUNT = 36
+export const ROW = 10
+export const SLOT_COUNT = 10
 /** Dropped items within this many tiles fly into the bag (Stardew: 128 px, two tiles). */
 export const MAGNET = 2
 

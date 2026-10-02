@@ -1,15 +1,17 @@
-// The game menu (Esc / E), the journal (F) and the chest panel — design.md §5.3, after
-// Stardew Valley: one menu with tabs (Inventory, Social, Map, Threadbook, Letters, Options);
-// the chest's grid above the bag's grid, a click moving a stack to the other side.
+// The game menu (Esc), the journal (J) and the chest panel — design.md §5.3: a menu with two
+// tabs (Inventory, Options); the journal holds the objective and the Threadbook (every thread
+// the world has learned, and whose act taught it); the chest's grid above the bag, a click
+// moving a stack to the other side.
 
-import type { Frame, ItemInfo, Key, MapData, Rule } from '@lsw/engine'
-import { FORM_BY_ID, OBJECTIVES, TERRAINS } from '@lsw/content'
+import type { Frame, ItemInfo, Key, Rule } from '@lsw/engine'
+import { OBJECTIVES } from '@lsw/content'
 import type { LibraryView } from '../protocol.ts'
-import { $, SEASON_ZH, SLOT_KEYS, TASTE_ZH, cap, controlsTable, esc, locale, t, tx } from './common.ts'
+import { $, SLOT_KEYS, controlsTable, esc, locale, t, tx } from './common.ts'
 
-export type Tab = 'inventory' | 'social' | 'map' | 'threads' | 'letters' | 'options'
-const TABS: Tab[] = ['inventory', 'social', 'map', 'threads', 'letters', 'options']
-const ICONS: Record<Tab, string> = { inventory: '🎒', social: '♥', map: '🗺', threads: '❦', letters: '✉', options: '⚙' }
+export type Tab = 'inventory' | 'options'
+const TABS: Tab[] = ['inventory', 'options']
+const ICONS: Record<Tab, string> = { inventory: '🎒', options: '⚙' }
+const ROW = SLOT_KEYS.length
 
 export interface MenuSend {
   swap(a: number, b: number): void
@@ -17,7 +19,6 @@ export interface MenuSend {
   organize(): void
   transfer(from: 'chest' | 'bag', item: string, all: boolean): void
   closePanel(): void
-  readMail(id: string): void
   save(): void
   newGame(): void
   toggleLocale(): void
@@ -27,19 +28,15 @@ export interface MenuSend {
   keyOnItem(key: Key, item: string): void
 }
 
-const COLOR: Record<string, string> = Object.fromEntries(TERRAINS.map((x) => [x.id, (x as { color?: string }).color ?? '#000']))
-
 export class Menu {
   tab: Tab = 'inventory'
   library?: LibraryView
   muted = false
   paintIcons?: (items: ItemInfo[]) => void
   facesetOf?: (id: string) => HTMLCanvasElement | undefined
-  currentMap?: () => MapData | undefined
   private frame?: Frame
   /** The inventory slot picked up by a click (placed by the next click). */
   private picked?: number
-  private openLetter?: string
 
   constructor(private send: MenuSend) {
     document.body.insertAdjacentHTML(
@@ -101,7 +98,8 @@ export class Menu {
     if (f.container && !this.chestOpen) ($('#chest').classList.remove('hidden'), (this.chestSig = ''))
     if (!f.container && this.chestOpen) $('#chest').classList.add('hidden')
     if (this.chestOpen) this.renderChest(f)
-    if (this.menuOpen && (this.tab === 'inventory' || this.tab === 'social' || this.tab === 'letters')) this.renderLive()
+    if (this.menuOpen && this.tab === 'inventory') this.renderLive()
+    if (this.journalOpen && this.library && this.library.version !== this.journalLib) this.renderJournal()
   }
 
   // ---------------------------------------------------------------- the menu
@@ -110,7 +108,7 @@ export class Menu {
   private renderLive(): void {
     const f = this.frame
     if (!f) return
-    const sig = `${this.tab}|${locale.value}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${JSON.stringify(f.social)}|${JSON.stringify(f.mailbox)}|${this.picked}|${this.openLetter}`
+    const sig = this.sigOf(f)
     if (sig === this.liveSig) return
     this.render()
   }
@@ -121,42 +119,39 @@ export class Menu {
     const head = `<div class="tabs-row">${TABS.map((k) => `<button class="tab${k === this.tab ? ' on' : ''}" data-tab="${k}" title="${t(k)}">${ICONS[k]} <span>${t(k)}</span></button>`).join('')}<button class="x" id="menuClose">✕</button></div>`
     let body = ''
     if (this.tab === 'inventory') body = this.inventoryHtml(f)
-    if (this.tab === 'social') body = this.socialHtml(f)
-    if (this.tab === 'map') body = `<div class="mapwrap"><canvas id="minimap"></canvas><div class="muted small" id="mapLegend"></div></div>`
-    if (this.tab === 'threads') body = this.threadsHtml()
-    if (this.tab === 'letters') body = this.lettersHtml(f)
     if (this.tab === 'options') body = this.optionsHtml()
     $('#menuSheet').innerHTML = head + `<div class="tab-body">${body}</div>`
     $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => (b.onclick = () => this.open(b.dataset.tab as Tab)))
     $('#menuClose').onclick = () => this.close()
     if (this.tab === 'inventory') this.wireInventory(f)
-    if (this.tab === 'map') this.drawMap(f)
-    if (this.tab === 'letters') this.wireLetters(f)
     if (this.tab === 'options') this.wireOptions()
-    if (this.tab === 'social') this.paintIcons?.([])
     if (f) {
-      this.liveSig = `${this.tab}|${locale.value}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${JSON.stringify(f.social)}|${JSON.stringify(f.mailbox)}|${this.picked}|${this.openLetter}`
+      this.liveSig = this.sigOf(f)
       if (this.tab === 'inventory') this.paintIcons?.(f.player.slots.filter(Boolean).map((s) => s!.item))
     }
+  }
+
+  private sigOf(f: Frame): string {
+    return `${this.tab}|${locale.value}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${this.picked}`
   }
 
   // ---------------------------------------------------------------- inventory
 
   private slotHtml(s: Frame['player']['slots'][number], i: number, extra = ''): string {
-    const key = i < 12 ? `<span class="key">${SLOT_KEYS[i]}</span>` : ''
+    const key = i < ROW ? `<span class="key">${SLOT_KEYS[i]}</span>` : ''
     return `<div class="slot${extra}" data-i="${i}" ${s ? `data-tip="${esc(tipOf(s.item))}"` : ''}>${key}${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}` : ''}</div>`
   }
 
   private inventoryHtml(f?: Frame): string {
     if (!f) return ''
     const slots = f.player.slots
-    const rows = [0, 1, 2].map((r) => `<div class="grid-row${r === 0 ? ' toolbar-row' : ''}">${slots.slice(r * 12, r * 12 + 12).map((s, j) => this.slotHtml(s, r * 12 + j, (r * 12 + j === this.picked ? ' picked' : '') + (r * 12 + j === f.player.selected ? ' sel' : ''))).join('')}</div>`).join('')
+    const rows = `<div class="grid-row toolbar-row">${slots.slice(0, ROW).map((s, j) => this.slotHtml(s, j, (j === this.picked ? ' picked' : '') + (j === f.player.selected ? ' sel' : ''))).join('')}</div>`
     const zh = locale.value === 'zh'
     return `<div class="inv">${rows}</div>
       <div class="inv-foot">
         <button id="bOrganize">⇅ ${t('organize')}</button>
         <button id="bDrop" ${this.picked === undefined ? 'disabled' : ''}>⤓ ${t('dropHere')}</button>
-        <span class="muted small">${zh ? '点击拿起、再点击交换 · “丢下”放到面前 · Shift+点击在快捷栏与背包间移动 · 右键：对它用手上的东西、放进去、空手摆弄' : 'Click to pick up, again to swap · Drop sets it down in front · Shift+click: toolbar ↔ bag · right click: use or put the held thing on it, or handle it'}</span>
+        <span class="muted small">${zh ? '点击拿起、再点击交换 · “丢下”放到面前 · 右键：对它用手上的东西、放进去、空手摆弄' : 'Click to pick up, again to swap · Drop sets it down in front · right click: use or put the held thing on it, or handle it'}</span>
       </div>
       <div class="tip hidden" id="tip"></div>`
   }
@@ -173,14 +168,7 @@ export class Menu {
     }
     $('#menuSheet').querySelectorAll<HTMLElement>('.inv [data-i]').forEach((el) => {
       const i = Number(el.dataset.i)
-      el.onclick = (e) => {
-        if (e.shiftKey && slots[i]) {
-          // Shift: the toolbar row ↔ the rest of the bag, into the first empty slot
-          const range = i < 12 ? [12, 36] : [0, 12]
-          const to = slots.findIndex((s, j) => !s && j >= range[0] && j < range[1])
-          if (to >= 0) this.send.swap(i, to)
-          return
-        }
+      el.onclick = () => {
         if (this.picked === undefined) {
           if (slots[i]) this.picked = i
         } else {
@@ -230,96 +218,6 @@ export class Menu {
     setTimeout(() => window.addEventListener('mousedown', (ev) => !el.contains(ev.target as Node) && el.remove(), { once: true }), 0)
   }
 
-  // ---------------------------------------------------------------- social
-
-  private socialHtml(f?: Frame): string {
-    if (!f) return ''
-    const zh = locale.value === 'zh'
-    const people = [...f.social].sort((a, b) => Number(b.met) - Number(a.met) || b.points - a.points)
-    return `<div class="social">${people
-      .map((p) => {
-        const h = Math.floor(p.points / 250)
-        const hearts = Array.from({ length: 10 }, (_, i) => `<span class="${i < h ? 'h on' : 'h'}">♥</span>`).join('')
-        const gifts = [0, 1].map((i) => `<span class="gbox${i < p.giftsWeek ? ' on' : ''}"></span>`).join('')
-        const log = Object.entries(p.tasted)
-          .map(([type, taste]) => `<span class="taste t-${taste}" title="${esc(zh ? TASTE_ZH[taste] ?? taste : taste)}">${esc(itemName(type))}</span>`)
-          .join('')
-        const bd = p.birthday ? `${zh ? SEASON_ZH[p.birthday.season] : cap(p.birthday.season)} ${p.birthday.day}` : ''
-        return `<div class="person${p.met ? '' : ' unmet'}">
-          <div class="face" data-look="${esc(p.look ?? '')}"></div>
-          <div class="pinfo"><div class="pname">${esc(tx(p.name))}${p.talkedToday ? ` <span class="talked" title="${t('talkedToday')}">💬</span>` : ''}</div>
-            ${p.met ? `<div class="hearts">${hearts}</div>` : `<div class="muted small">${t('notMet')}</div>`}
-            ${log ? `<div class="glog"><span class="muted small">${t('giftLog')}:</span> ${log}</div>` : ''}</div>
-          <div class="pside"><div class="small muted">${t('giftsWeek')}</div><div>${gifts}</div>${bd ? `<div class="small muted">${t('birthday')}: ${esc(bd)}</div>` : ''}</div>
-        </div>`
-      })
-      .join('')}</div>`
-  }
-
-  // ---------------------------------------------------------------- map
-
-  private drawMap(f?: Frame): void {
-    const map = this.currentMap?.()
-    const cv = document.querySelector<HTMLCanvasElement>('#minimap')
-    if (!map || !cv || !f) return
-    const s = Math.max(2, Math.floor(Math.min(560 / map.width, 380 / map.height)))
-    cv.width = map.width * s
-    cv.height = map.height * s
-    const g = cv.getContext('2d')!
-    for (let y = 0; y < map.height; y++)
-      for (let x = 0; x < map.width; x++) {
-        g.fillStyle = COLOR[map.terrain[y * map.width + x]] ?? '#222'
-        g.fillRect(x * s, y * s, s, s)
-      }
-    // people and the player
-    for (const e of f.entities)
-      if (e.kind === 'actor' && (e.look || e.appearance) && e.id !== f.player.id) {
-        g.fillStyle = '#f5e6b8'
-        g.fillRect(e.x * s, e.y * s, s, s)
-      }
-    g.fillStyle = '#e04848'
-    g.beginPath()
-    g.arc(f.player.x * s + s / 2, f.player.y * s + s / 2, s * 1.2, 0, Math.PI * 2)
-    g.fill()
-    $('#mapLegend').textContent = `${tx(map.name)} · ● ${t('youAreHere')}`
-  }
-
-  // ---------------------------------------------------------------- threads & letters
-
-  private threadsHtml(): string {
-    const threads = [...(this.library?.patches ?? [])].reverse()
-    if (!threads.length) return `<div class="muted pad">${t('noThreads')}</div>`
-    return `<div class="threads">${threads
-      .map((r: Rule) => {
-        const by = r.source?.request ? t('you') : t('valley')
-        return `<div class="thread"><div>${esc(r.doc ?? r.id.replace(/^patch\//, '').replace(/-/g, ' '))}</div><div class="muted small">${t('wovenBy')}: ${by}${r.source?.at ? ` · ${esc(r.source.at.slice(0, 10))}` : ''}</div></div>`
-      })
-      .join('')}</div>`
-  }
-
-  private lettersHtml(f?: Frame): string {
-    const box = f?.mailbox ?? []
-    const open = box.find((l) => l.id === this.openLetter)
-    const list = [...box].reverse()
-    return `<div class="book-body">
-      <div class="book-list">${list.map((l) => `<div class="entry ${l.read ? '' : 'new'} ${l.id === this.openLetter ? 'sel' : ''}" data-l="${esc(l.id)}">${l.from ? esc(tx(l.from)) : '—'}<span class="muted"> · ${t('day')} ${l.day}</span></div>`).join('') || `<div class="muted pad">${t('noMail')}</div>`}</div>
-      ${open ? `<div class="letter">${esc(tx(open.text)).replace(/\n/g, '<br>')}${open.from ? `<div class="sign">— ${esc(tx(open.from))}</div>` : ''}</div>` : ''}
-    </div>`
-  }
-
-  private wireLetters(f?: Frame): void {
-    $('#menuSheet')
-      .querySelectorAll<HTMLElement>('[data-l]')
-      .forEach(
-        (el) =>
-          (el.onclick = () => {
-            this.openLetter = el.dataset.l
-            if (!f?.mailbox.find((l) => l.id === el.dataset.l)?.read) this.send.readMail(el.dataset.l!)
-            this.render()
-          }),
-      )
-  }
-
   // ---------------------------------------------------------------- options
 
   private optionsHtml(): string {
@@ -339,22 +237,35 @@ export class Menu {
     document.querySelector<HTMLButtonElement>('#oDev')?.addEventListener('click', () => (this.close(), this.send.devConsole?.()))
   }
 
-  // ---------------------------------------------------------------- journal
+  // ---------------------------------------------------------------- the journal: the objective and the Threadbook
 
+  private journalLib = -1
   renderJournal(): void {
     const f = this.frame
     const stage = Number(f?.player.props.quest ?? -1)
-    const slimes = Number(f?.player.props.slimes ?? 0)
     const now = OBJECTIVES[stage]
     const past = Object.entries(OBJECTIVES)
-      .filter(([k]) => Number(k) < stage)
-      .map(([, o]) => tx(o.title).replace(' (0/3)', '').replace('（0/3）', ''))
-      .filter((x, i, a) => a.indexOf(x) === i)
+      .filter(([k]) => Number(k) > 0 && Number(k) < stage)
+      .map(([, o]) => tx(o.title))
+    this.journalLib = this.library?.version ?? -1
     $('#journalSheet').innerHTML = `
       <div class="jhead"><b>${t('journal')}</b><button class="x" id="jClose">✕</button></div>
-      ${now ? `<div class="jnow"><div class="small muted">${t('objective')}</div><div class="jtitle">${esc(tx(now.title).replace('0/3', `${Math.min(3, slimes)}/3`))}</div><div class="jhint">${esc(tx(now.hint))}</div></div>` : ''}
-      ${past.length ? `<div class="small muted">${t('done')}</div><ul class="jpast">${past.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}`
+      ${now && tx(now.title) ? `<div class="jnow"><div class="small muted">${t('objective')}</div><div class="jtitle">${esc(tx(now.title))}</div><div class="jhint">${esc(tx(now.hint))}</div></div>` : ''}
+      ${past.length ? `<div class="small muted">${t('done')}</div><ul class="jpast">${past.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
+      <div class="small muted">${t('threads')}</div>${this.threadsHtml()}`
     $('#jClose').onclick = () => this.close()
+  }
+
+  /** Every thread the world has learned, newest first, and whose act taught it (design.md §5.9). */
+  private threadsHtml(): string {
+    const threads = [...(this.library?.patches ?? [])].reverse()
+    if (!threads.length) return `<div class="muted pad">${t('noThreads')}</div>`
+    return `<div class="threads">${threads
+      .map((r: Rule) => {
+        const by = r.source?.trigger === 'world' ? t('world') : t('you')
+        return `<div class="thread"><div>${esc(r.doc ?? r.id.replace(/^patch\//, '').replace(/-/g, ' '))}</div><div class="muted small">${t('wovenBy')}: ${by}${r.source?.at ? ` · ${esc(r.source.at.slice(0, 10))}` : ''}</div></div>`
+      })
+      .join('')}</div>`
   }
 
   // ---------------------------------------------------------------- the chest panel
@@ -368,17 +279,17 @@ export class Menu {
     this.chestSig = sig
     const stacks = stackItems(c.contents)
     const cap = Math.max(c.capacity ?? 12, stacks.length)
-    const chestCells = Array.from({ length: Math.ceil(cap / 12) * 12 }, (_, i) => {
+    const chestCells = Array.from({ length: Math.ceil(cap / ROW) * ROW }, (_, i) => {
       const s = stacks[i]
       return `<div class="slot${i >= cap ? ' off' : ''}" ${s ? `data-c="${s[0].id}" data-tip="${esc(tipOf(s[0]))}"` : ''}>${s ? `<div class="icon" data-icon="${s[0].id}"></div>${s.length > 1 ? `<span class="count">${s.length}</span>` : ''}` : ''}</div>`
     })
-    const bag = f.player.slots
+    const bag = f.player.slots.slice(0, ROW)
     const zh = locale.value === 'zh'
     $('#chestSheet').innerHTML = `
       <div class="jhead"><b>${esc(tx(c.name))}</b><span class="muted small">${c.contents.length} / ${c.capacity ?? '∞'}</span><button class="x" id="cClose">✕</button></div>
-      <div class="inv chest-grid">${chunk(chestCells, 12).map((r) => `<div class="grid-row">${r.join('')}</div>`).join('')}</div>
+      <div class="inv chest-grid">${chunk(chestCells, ROW).map((r) => `<div class="grid-row">${r.join('')}</div>`).join('')}</div>
       <div class="inv-foot"><button id="cFill">⇣ ${t('fillStacks')}</button><button id="cOrg">⇅ ${t('organize')}</button><span class="muted small">${zh ? '点击：整堆移到另一边 · Shift+点击：移一个 · 右键：更多' : 'Click: the stack across · Shift+click: one · right click: more'}</span></div>
-      <div class="inv bag-grid">${[0, 1, 2].map((r) => `<div class="grid-row${r === 0 ? ' toolbar-row' : ''}">${bag.slice(r * 12, r * 12 + 12).map((s, j) => (s ? `<div class="slot" data-b="${s.item.id}" data-tip="${esc(tipOf(s.item))}"><div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}</div>` : `<div class="slot" data-i="${r * 12 + j}"></div>`)).join('')}</div>`).join('')}</div>`
+      <div class="inv bag-grid"><div class="grid-row toolbar-row">${bag.map((s, j) => (s ? `<div class="slot" data-b="${s.item.id}" data-tip="${esc(tipOf(s.item))}"><div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}</div>` : `<div class="slot" data-i="${j}"></div>`)).join('')}</div></div>`
     const sheet = $('#chestSheet')
     $('#cClose').onclick = () => this.close()
     const move = (from: 'chest' | 'bag', id: string, all: boolean) => this.send.transfer(from, id, all)
@@ -415,11 +326,6 @@ function chunk<T>(a: T[], n: number): T[][] {
   const out: T[][] = []
   for (let i = 0; i < a.length; i += n) out.push(a.slice(i, i + n))
   return out
-}
-
-function itemName(type: string): string {
-  const f = FORM_BY_ID[type]
-  return f ? (locale.value === 'zh' ? f.zh : f.en) : type.split('/').pop()!.replace(/_/g, ' ')
 }
 
 /** A tooltip: the name and what it is in plain words (its kind and a few telling tags). */

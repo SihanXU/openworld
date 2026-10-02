@@ -1,20 +1,21 @@
 // The engine: resolves events through the rule library, runs the simulation tick,
 // and raises undefined interactions through the Mod port. Pure, deterministic, no AI.
 
-import { MORNING_HOUR, nextHour, rainy } from './calendar.ts'
+import { rainy } from './calendar.ts'
 import { EffectRunner } from './effects.ts'
 import { Controls } from './controls.ts'
 import { Scenes } from './scenes.ts'
 import { stepCreatures } from './creatures.ts'
-import { NpcSim } from './npc.ts'
+import { NpcSim, scheduleAt } from './npc.ts'
+import { scheduleFor } from './people.ts'
 import { OntologyIndex } from './ontology.ts'
-import { RuleLibrary, rolesOf } from './rules.ts'
+import { RuleLibrary, evalCond, rolesOf } from './rules.ts'
 import type {
   Dir,
   Entity,
   GameEvent,
   Id,
-  LetterDef,
+  Invariant,
   MapData,
   Ontology,
   Pos,
@@ -30,6 +31,8 @@ import { NO_EXPIRY, World } from './world.ts'
 /** Receives undefined interactions. Implemented by the Mod port (mod.ts). */
 export interface UndefinedSink {
   raise(ev: GameEvent): void
+  /** A world event found no rule: ask if it is salient (design.md §5.6). True if a request was raised. */
+  raiseWorld?(ev: GameEvent): boolean
   tick(): void
   /** Called with every defined player interaction (pre-state), e.g. to build a regression set. */
   observe?(ev: GameEvent, rule: string): void
@@ -48,6 +51,13 @@ export interface MapChunk {
 
 const STATUS_TICK_EVERY = 5
 const EVENT_BUDGET = 400
+/** How far people see (tiles, Chebyshev): what they see the player do is a `witness` event. */
+export const SIGHT = 7
+/** A creature meets the same thing again only after this many ticks. */
+const MEET_COOLDOWN = 600
+const INVARIANT_EVERY = 30
+/** Events the world raises by itself (design.md §5.4 B and C), asked about through the salience filter. */
+export const WORLD_KINDS = new Set(['status', 'hit', 'meet', 'blocked', 'witness', 'invalid'])
 
 export class Engine {
   world: World
@@ -57,8 +67,10 @@ export class Engine {
   scenes: Scenes
   /** The player's two keys, slots and magnet (design.md §5.2–5.3). */
   controls: Controls
-  /** Letters the world can send (game-design §8.5). */
-  letters = new Map<string, LetterDef>()
+  /** Content the world must keep playable (game-design: the Ford's invariants). */
+  invariants: Invariant[] = []
+  /** Fact keys (prefixes) the world's own patches may not touch: the story's state (design.md §5.8). */
+  protectedFacts: string[] = []
   undefinedSink?: UndefinedSink
   /** Portal graph of every map (loaded or not): map -> outgoing portals. */
   graph: Record<string, { to: string; x: number; y: number; tx: number; ty: number }[]> = {}
@@ -71,6 +83,8 @@ export class Engine {
   private bump?: { id: Id; since: number; last: number }
   private cooldowns = new Map<Id, number>()
   private flushing = false
+  /** creature|thing → the tick before which they do not meet again */
+  private met = new Map<string, number>()
 
   constructor(state: WorldState, ontology: Ontology, lib: RuleLibrary) {
     const onto = new OntologyIndex(ontology)
@@ -84,8 +98,9 @@ export class Engine {
     this.controls = new Controls(this)
   }
 
-  loadLetters(defs: LetterDef[] = []): void {
-    for (const d of defs) this.letters.set(d.id, d)
+  loadInvariants(defs: Invariant[] = [], protectedFacts: string[] = []): void {
+    this.invariants = defs
+    this.protectedFacts = protectedFacts
   }
 
   get activeMap(): string {
@@ -124,6 +139,8 @@ export class Engine {
     this.trace.push({ ev, rule: rule?.id })
     if (rule) this.effects.run(rule, ev)
     for (const r of composed) this.effects.run(r, ev)
+    // the world's own events that find no rule: asked about when salient, else the safe default
+    if (!rule && WORLD_KINDS.has(ev.kind) && ev.origin !== 'player' && !this.undefinedSink?.raiseWorld?.(ev)) this.worldFallback(ev)
     return { defined: !!rule, rule, composed }
   }
 
@@ -202,14 +219,101 @@ export class Engine {
       return res
     }
     this.undefinedSink?.observe?.(ev, res.rule!.id)
+    // who sees it is decided before the act (a thing taken from her chest is hers until it is taken)
+    const seen = actorId === w.state.player ? this.witnesses(ev) : []
     this.queue(ev)
+    for (const s of seen) this.queue(s)
     return res
   }
 
-  /** The safe default when an interaction stays undefined. */
+  /** The safe default when an event stays undefined. */
   fallback(ev: GameEvent): void {
+    if (WORLD_KINDS.has(ev.kind) && ev.origin !== 'player') return this.worldFallback(ev)
     const actor = ev.roles.actor && 'e' in ev.roles.actor ? ev.roles.actor.e : undefined
     if (actor) this.world.fx.push({ t: 'say', who: actor, text: { en: 'Nothing happens.', zh: '什么也没有发生。' } })
+  }
+
+  /**
+   * The world's safe defaults (design.md §5.7): physical events do nothing, a blocked person
+   * waits where they are, a witness says nothing; broken content runs its own fallback.
+   */
+  worldFallback(ev: GameEvent): void {
+    if (ev.kind !== 'invalid') return
+    const inv = this.invariants.find((i) => i.id === ev.about)
+    if (inv?.fallback?.length) this.effects.run({ id: `invariant/${inv.id}`, on: 'invalid', when: {}, do: inv.fallback }, ev)
+  }
+
+  // ---------------------------------------------------------------- the world's own events
+
+  /** Whose a thing is: its own `owner` prop ('' = nobody's), or the owner of the container it lies in. */
+  ownerOf(e: Entity): Id | undefined {
+    const w = this.world
+    const own = w.prop(e, 'owner')
+    if (typeof own === 'string') return own || undefined
+    if (e.place.on === 'inside') {
+      const holder = w.get(e.place.holder)
+      const h = holder && w.prop(holder, 'owner')
+      if (typeof h === 'string' && h) return h
+    }
+    return undefined
+  }
+
+  /** Is the person asleep (their day says so)? */
+  asleep(e: Entity): boolean {
+    return scheduleAt(scheduleFor(this, e), this.world.hour())?.activity === 'sleep'
+  }
+
+  /**
+   * People who see the player act on something that is someone's (design.md §5.4 source 11):
+   * one `witness` event per person awake within sight — about = verb:owner or verb:bystander.
+   */
+  witnesses(ev: GameEvent): GameEvent[] {
+    const w = this.world
+    const t = ev.roles.target
+    const thing = t && 'e' in t ? w.get(t.e) : undefined
+    if (!thing || !ev.verb) return []
+    const owner = thing.npc?.person ? undefined : this.ownerOf(thing)
+    if (!owner || owner === w.state.player) return []
+    const at = w.posOf(w.player)
+    if (!at) return []
+    const out: GameEvent[] = []
+    for (const e of w.entitiesOnMap(at.map)) {
+      if (!e.npc?.person || e.id === w.state.player || e.place.on !== 'tile') continue
+      if (Math.max(Math.abs(e.place.x - at.x), Math.abs(e.place.y - at.y)) > SIGHT || this.asleep(e)) continue
+      out.push({ kind: 'witness', roles: { actor: { e: e.id }, target: { e: thing.id }, instrument: ev.roles.instrument }, about: `${ev.verb}:${e.id === owner ? 'owner' : 'bystander'}` })
+    }
+    return out
+  }
+
+  /** A creature came up to things (design.md §5.4 source 9): a `meet` event per thing, now and then. */
+  private meet(c: Entity, map: string, x: number, y: number): void {
+    const w = this.world
+    const t = w.state.tick
+    for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      for (const o of w.entitiesAt(map, x + dx, y + dy)) {
+        if (o.id === c.id) continue
+        const kind = w.kindOf(o)
+        if (kind !== 'fixture' && !(o.ai && o.type !== c.type)) continue
+        const key = `${c.id}|${o.id}`
+        if ((this.met.get(key) ?? -1) > t) continue
+        this.met.set(key, t + MEET_COOLDOWN)
+        this.queue({ kind: 'meet', roles: { actor: { e: c.id }, target: { e: o.id } } })
+      }
+    }
+  }
+
+  /** Content the world must keep playable (game-design §8.10): a broken invariant raises `invalid` once. */
+  private invariantTick(): void {
+    const w = this.world
+    if (w.state.tick % INVARIANT_EVERY !== 0) return
+    for (const inv of this.invariants) {
+      if (w.fact(`invalid.${inv.id}`)) continue
+      if (inv.when && !evalCond(inv.when, {}, w)) continue
+      if (evalCond(inv.holds, {}, w)) continue
+      w.setFact(`invalid.${inv.id}`, true)
+      const giver: Ref = inv.giver && w.get(inv.giver) ? { e: inv.giver } : { e: w.state.player }
+      this.queue({ kind: 'invalid', roles: { actor: giver, target: giver }, about: inv.id })
+    }
   }
 
   /** Player verb aimed at the tile in front of them (or at themselves); `pick` chooses what to take from an open container. */
@@ -290,7 +394,7 @@ export class Engine {
     const p = w.player
     ;(p.props ??= {}).hp = w.num(p, 'maxHp', 30)
     for (const s of Object.keys(p.statuses ?? {})) w.clearStatus({ e: p.id }, s)
-    w.fx.push({ t: 'log', text: { en: 'You black out… and wake up back home.', zh: '你眼前一黑……醒来时已回到家中。' }, tone: 'bad' })
+    w.fx.push({ t: 'log', text: { en: 'You black out… and come to by the fire.', zh: '你眼前一黑……醒来时已躺在火堆旁。' }, tone: 'bad' })
     this.teleport(p, w.state.spawn)
   }
 
@@ -351,8 +455,10 @@ export class Engine {
     const enter: GameEvent = { kind: 'enter', roles: { actor: { e: e.id }, target: { tile: { map, x: nx, y: ny } } } }
     // the player steps into a tile in some state the world has no answer for (design.md §5.4, source 5)
     const st = w.tileState(map, nx, ny)?.statuses
+    if (isPlayer) enter.origin = 'player'
     if (isPlayer && st && Object.keys(st).length && this.undefinedSink && !this.resolve(enter).defined) this.undefinedSink.raise(enter)
     else this.queue(enter)
+    if (e.ai) this.meet(e, map, nx, ny)
     if (isPlayer && portalHere) this.travel(e, { map: portalHere.to, x: portalHere.tx, y: portalHere.ty })
     return true
   }
@@ -365,9 +471,7 @@ export class Engine {
       return false
     }
     const moved = this.step(p, dir)
-    // worn out (no energy left): slower
-    const tired = this.world.num(p, 'energy', 1) <= 0 ? 2 : 1
-    if (moved) this.setCooldown(p.id, (this.world.num(p, 'speed', 2) + (walk ? 1 : 0)) * tired)
+    if (moved) this.setCooldown(p.id, this.world.num(p, 'speed', 2) + (walk ? 1 : 0))
     return moved
   }
 
@@ -438,15 +542,20 @@ export class Engine {
       if (w.blocked(start.map, x, y) && i > 1) break
     }
     if (!target && last) target = { tile: last }
-    // a melee blow on the layer the player chose (the well rather than the bucket on it)
-    if (chosen && range <= 1) {
-      const cp = w.refPos(chosen)
-      if (cp && Math.max(Math.abs(cp.x - start.x), Math.abs(cp.y - start.y)) <= 1) target = chosen
+    // a melee blow on the layer the player chose (the well rather than the bucket on it); a cast
+    // at a tile the player chose lands there when it lies on the bolt's way (frost on the water at your feet)
+    const cp = chosen && w.refPos(chosen)
+    if (chosen && cp && range <= 1 && Math.max(Math.abs(cp.x - start.x), Math.abs(cp.y - start.y)) <= 1) target = chosen
+    else if (chosen && cp && range > 1 && last) {
+      const d = Math.abs(cp.x - start.x) + Math.abs(cp.y - start.y)
+      const onRay = cp.x - start.x === dx * d && cp.y - start.y === dy * d
+      if (onRay && d >= 1 && d <= Math.abs(last.x - start.x) + Math.abs(last.y - start.y)) (target = chosen), (last = cp)
     }
     if (!target) return
     if (range > 1 && last) w.fx.push({ t: 'vfx', fx: `bolt:${element ?? 'none'}:${a.facing}:${Math.abs(last.x - start.x) + Math.abs(last.y - start.y)}`, map: start.map, x: start.x, y: start.y })
     else w.fx.push({ t: 'vfx', fx: `swing:${a.facing}`, map: start.map, x: start.x, y: start.y })
     const hit: GameEvent = { kind: 'hit', roles: { actor: { e: a.id }, target, instrument: weapon ? { e: weapon.id } : undefined }, element, power }
+    if (a.id === w.state.player) hit.origin = 'player'
     // the player's blow lands on something with no reaction (design.md §5.4, source 3)
     if (a.id === w.state.player && this.undefinedSink && this.salientHit(hit) && !this.resolve(hit).defined) return this.undefinedSink.raise(hit)
     this.queue(hit)
@@ -478,66 +587,14 @@ export class Engine {
     stepCreatures(this, active)
     this.undefinedSink?.tick()
     this.controls.magnet()
-    this.dayTick()
     this.weatherTick(active)
+    this.invariantTick()
     this.scenes.tick()
   }
 
-  // ---------------------------------------------------------------- days, sleep, mail, weather
+  // ---------------------------------------------------------------- weather
 
-  private lastDay = 0
-
-  /** Things that happen as days pass: letters, tiredness late at night. */
-  private dayTick(): void {
-    const w = this.world
-    const cal = w.calendar()
-    if (cal.day !== this.lastDay) {
-      this.lastDay = cal.day
-      for (const l of this.letters.values()) if (l.day === cal.day) this.deliver(l.id)
-    }
-    const t = w.state.tick
-    if (t % 60 === 0) for (const l of this.letters.values()) if (l.fact && w.fact(l.fact)) this.deliver(l.id)
-    // awake after midnight: tiring (game-design §3)
-    if (cal.hour < MORNING_HOUR && t % 70 === 0) {
-      const p = w.player
-      if (p.props && typeof p.props.energy === 'number') p.props.energy = Math.max(0, p.props.energy - 1)
-    }
-  }
-
-  /** The player sleeps until the next morning; energy is restored (less if they went to bed very late). */
-  sleep(): void {
-    const w = this.world
-    const p = w.player
-    const late = w.calendar().hour < MORNING_HOUR - 2
-    w.state.tick = nextHour(w.state.tick, MORNING_HOUR, w.state.seed)
-    const max = w.num(p, 'maxEnergy', 100)
-    ;(p.props ??= {}).energy = Math.round(late ? max * 0.75 : max)
-    w.fx.push({ t: 'sleep', day: w.calendar().day })
-    this.npcs.onEnterMap(this.activeMap)
-  }
-
-  /** A letter arrives (once). */
-  deliver(id: string): void {
-    const w = this.world
-    const def = this.letters.get(id)
-    if (!def) return
-    const box = (w.state.mailbox ??= [])
-    if (box.some((l) => l.id === id)) return
-    box.push({ id, day: w.calendar().day, items: def.items ? [...def.items] : undefined })
-    w.fx.push({ t: 'letter', id })
-  }
-
-  /** Read a letter: what it carries goes to the player's pack. */
-  readMail(id: string): void {
-    const w = this.world
-    const l = w.state.mailbox?.find((x) => x.id === id)
-    if (!l) return
-    l.read = true
-    for (const type of l.items ?? []) w.create(type, { on: 'inside', holder: w.state.player })
-    l.items = undefined
-  }
-
-  /** Rain wets everything outdoors and puts out fires; storms strike. (The elemental rules do the rest.) */
+  /** Rain wets everything outdoors and puts out fires; storms strike the tallest things. (The elemental rules do the rest.) */
   private weatherTick(active: string): void {
     const w = this.world
     const t = w.state.tick
@@ -552,13 +609,21 @@ export class Engine {
       const pos = w.refPos(ref)
       if (pos?.map === active && w.hasStatus(ref, 'burning')) this.applyStatus(ref, 'wet', 120)
     }
-    if (cal.weather === 'storm' && t % 600 === 0) {
+    if (cal.weather === 'storm' && t % 300 === 0) {
       const p = w.posOf(w.player)!
-      const x = p.x + Math.round((w.rand() - 0.5) * 12)
-      const y = p.y + Math.round((w.rand() - 0.5) * 12)
-      if (!w.inBounds(active, x, y)) return
-      w.fx.push({ t: 'strike', map: active, x, y })
-      this.queue({ kind: 'hit', roles: { target: { tile: { map: active, x, y } } }, element: 'lightning', power: 4 })
+      // lightning seeks what stands tall (the dead tree); otherwise it falls anywhere near
+      const tall = w.entitiesOnMap(active).filter((e) => e.place.on === 'tile' && w.hasTag(e, 'tall') && Math.max(Math.abs(e.place.x - p.x), Math.abs(e.place.y - p.y)) <= 12)
+      let target: Ref
+      if (tall.length && w.rand() < 0.5) target = { e: tall[Math.floor(w.rand() * tall.length)].id }
+      else {
+        const x = p.x + Math.round((w.rand() - 0.5) * 12)
+        const y = p.y + Math.round((w.rand() - 0.5) * 12)
+        if (!w.inBounds(active, x, y)) return
+        target = { tile: { map: active, x, y } }
+      }
+      const at = w.refPos(target)!
+      w.fx.push({ t: 'strike', map: active, x: at.x, y: at.y })
+      this.queue({ kind: 'hit', roles: { target }, element: 'lightning', power: 4 })
     }
   }
 

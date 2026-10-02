@@ -1,11 +1,15 @@
-// The record of one person of Hearthvale (docs/game-design.md §5), as the authors write it.
+// The record of one person at the Ford (docs/game-design.md §5), as the authors write it.
 // world.ts resolves anchors to map positions and turns each record into an NPC entity with
 // `npc.person` (PersonData) for the engine.
 
-import type { LineDef, Mood, Tastes, Text } from '@lsw/engine'
+import type { LineDef, Mood, Selector, Text } from '@lsw/engine'
 
-/** [fromHour, toHour, anchor, activity]: hours 0..24, may wrap past midnight (22 → 6). */
-export type Slot = [number, number, string, string]
+/**
+ * [fromHour, toHour, anchor, activity, needs?]: hours 0..24, may wrap past midnight (21 → 5).
+ * `needs` names the thing the activity uses (an entity id) and what it must be (a selector):
+ * the fire she tends must be lit; if not, she is blocked.
+ */
+export type Slot = [number, number, string, string, { uses: string; need?: Selector }?]
 
 export interface PersonDef {
   id: string
@@ -15,22 +19,16 @@ export interface PersonDef {
   look: string
   age: number
   temperament: { personality: string; manner: 'polite' | 'plain' | 'rough'; social: 'outgoing' | 'reserved'; outlook: 'hopeful' | 'wary' }
-  /** npc id → relation, from this person's side ('daughter', 'old friend' …). */
+  /** npc id → relation, from this person's side. */
   ties: Record<string, string>
-  birthday: { season: 'thaw' | 'bloom' | 'ember' | 'frost'; day: number }
-  /** Item type prefixes ('item/food/pie') or 'tag:<tag>'. Universal tastes apply underneath. */
-  tastes: Tastes
-  /**
-   * Schedule variants by key (most specific wins): 'date:thaw_<n>', 'fact:<key>', 'rain', 'storm',
-   * 'weekday:<day>', 'season:<s>', 'default'. Each covers the whole 24 hours.
-   */
+  /** Schedule variants by key (most specific wins): 'fact:<key>', 'storm', 'rain', 'default'. Each covers the whole 24 hours. */
   schedules: Record<string, Slot[]>
   lines: LineDef[]
   /** Item forms the person carries. */
   items?: string[]
 }
 
-/** A line: key, English, Chinese, and options (mood, once, hearts). */
-export function line(key: string, en: string, zh: string, opts: { mood?: Mood; once?: boolean; hearts?: number } = {}): LineDef {
+/** A line: key, English, Chinese, and options (mood, once). */
+export function line(key: string, en: string, zh: string, opts: { mood?: Mood; once?: boolean } = {}): LineDef {
   return { key, text: { en, zh }, ...opts }
 }

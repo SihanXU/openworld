@@ -1,11 +1,11 @@
-// The heads-up display (design.md §5.3, after Stardew Valley): the clock box top right with the
-// journal button under it, the energy and health bars bottom right, the toolbar at the bottom,
+// The heads-up display (design.md §5.3): the clock box top right with the journal button under
+// it, the health bar bottom right, the toolbar at the bottom,
 // messages bottom left, the map name as it fades in, the two keys' labels over the target, the
 // dialogue box and the yes/no question, speech bubbles and floating numbers.
 
 import type { Frame, FxEvent, ItemInfo, KeyView, Text, WorldIndex } from '@lsw/engine'
 import { OBJECTIVES } from '@lsw/content'
-import { $, MOOD_GLYPH, SEASON_ZH, SLOT_KEYS, WEEKDAY_ZH, cap, controlsTable, esc, locale, t, tx } from './common.ts'
+import { $, MOOD_GLYPH, SLOT_KEYS, controlsTable, esc, locale, t, tx } from './common.ts'
 
 export interface HudSend {
   select(slot: number): void
@@ -54,12 +54,11 @@ export class Hud {
         <div class="cb-mid"><div class="dial" id="dial"><div class="hand" id="dialHand"></div></div><span class="cb-icons" id="cbIcons"></span></div>
         <div class="cb-time" id="cbTime"></div>
         <button class="jbtn" id="jbtn" title="F">!</button>
-        <button class="mbtn" id="mbtn" title="E">☰<span id="mailDot" class="dot hidden"></span></button>
+        <button class="mbtn" id="mbtn" title="Esc">☰</button>
       </div>
       <div class="objective" id="objective"><div class="ob-title" id="obTitle"></div></div>
       <div class="bars" id="bars">
         <div class="vbar hp hidden" id="hpBar" title=""><div class="fill" id="hpFill"></div><span>HP</span></div>
-        <div class="vbar en" id="enBar" title=""><div class="fill" id="enFill"></div><span>E</span></div>
       </div>
       <div class="toolbar wood" id="toolbar"></div>
       <div class="msgs" id="msgs"></div>
@@ -67,13 +66,15 @@ export class Hud {
       <div class="keys" id="keys"></div>
       <div class="chooser hidden" id="chooser"></div>
       <div class="dialog hidden" id="dialog"><div class="face" id="dFace"></div><div class="dtext"><div class="dname" id="dName"></div><div class="dline" id="dLine"></div><div class="dchoices hidden" id="dChoices"></div></div><div class="dmore" id="dMore">▼</div></div>
-      <div class="fade hidden" id="fade"><div id="fadeText"></div></div>`
+      <div class="fade hidden" id="fade"><div id="fadeText"></div></div>
+      <div class="card hidden" id="card"><div class="card-text" id="cardText"></div><div class="dmore">▼</div></div>`
     $('#jbtn').onclick = () => this.send.openJournal()
     $('#mbtn').onclick = () => this.send.openMenu()
     $('#dialog').onclick = (e) => {
       if ((e.target as HTMLElement).closest('[data-yes]')) return
       this.advanceDialog()
     }
+    $('#card').onclick = () => this.advanceDialog()
   }
 
   // ---------------------------------------------------------------- intro
@@ -83,9 +84,9 @@ export class Hud {
     const n = (x: number) => x.toLocaleString('en-US')
     $('#intro').innerHTML = `
       <div class="intro-card">
-        <div class="kicker">LoomWorld</div>
+        <div class="kicker">OpenWorld</div>
         <h1>${esc(tx(name))}</h1>
-        <p class="lede">${zh ? '一座高山谷里的小镇，它的每一条道理都织在经纬里。你可以做任何事——山谷从没见过的事，它会学会。' : 'A small town in a high valley, where every way of the world is woven. Do anything you like — what the valley has never seen, it learns.'}</p>
+        <p class="lede">${zh ? '一个渡口，在地图的尽头。河对岸，什么都还没写成。你可以做任何事——这个世界从没见过的事，它会学会，并且记住。' : 'A ford at the edge of the map. Past the river, nothing is written yet. Do anything you like — what the world has never seen, it learns, and remembers.'}</p>
         <div class="stats${import.meta.env.DEV ? '' : ' hidden'}">
           <div><b>${n(stats.maps)}</b><span>maps</span></div><div><b>${n(stats.npcs)}</b><span>people</span></div>
           <div><b>${n(stats.creatures)}</b><span>creatures</span></div><div><b>${n(stats.items)}</b><span>items</span></div>
@@ -118,7 +119,6 @@ export class Hud {
     this.renderKeys(f)
     this.renderScene(f)
     this.renderQuestion(f)
-    $('#mailDot').classList.toggle('hidden', !f.mailbox.some((l) => !l.read))
     // pending-request dots over the things that wait for the weave
     const frozen = new Set(f.entities.filter((e) => e.frozen).map((e) => e.id))
     for (const id of frozen)
@@ -142,11 +142,10 @@ export class Hud {
     const sig = `${locale.value}|${c.day}|${c.weather}|${time}`
     if (sig === this.clockSig) return
     this.clockSig = sig
-    $('#cbDate').textContent = zh ? `${WEEKDAY_ZH[c.weekday]} · ${c.dayOfSeason} 日` : `${cap(c.weekday).slice(0, 3)}. ${c.dayOfSeason}`
+    $('#cbDate').textContent = zh ? `第 ${c.day} 天` : `Day ${c.day}`
     const night = f.hour < 6 || f.hour >= 19
     const weather = { sun: night ? '☾' : '☀', cloud: '☁', rain: '☂', storm: '⚡', fog: '≋' }[c.weather] ?? '☀'
-    const season = { thaw: '❀', bloom: '✿', ember: '❦', frost: '❄' }[c.season] ?? ''
-    $('#cbIcons').innerHTML = `<span title="${esc(c.weather)}">${weather}</span><span title="${esc(zh ? SEASON_ZH[c.season] : cap(c.season))}">${season}</span>`
+    $('#cbIcons').innerHTML = `<span title="${esc(t(`weather.${c.weather}`))}">${weather}</span>`
     $('#cbTime').textContent = time
     // the dial: the hand sweeps from 6 am (left) over noon (top) to 2 am (right), like Stardew's
     const frac = Math.min(1, Math.max(0, (((f.hour - 6 + 24) % 24) / 20)))
@@ -155,11 +154,6 @@ export class Hud {
 
   private renderBars(f: Frame): void {
     const p = f.player
-    const en = Number(p.props.energy ?? 0)
-    const enMax = Number(p.props.maxEnergy ?? 100)
-    $<HTMLDivElement>('#enFill').style.height = `${Math.max(0, (100 * en) / enMax)}%`
-    $('#enBar').title = `${t('energy')} ${Math.round(en)} / ${enMax}`
-    $('#enBar').classList.toggle('low', en / enMax < 0.2)
     // health shows only when it is not full, or where it is dangerous
     const showHp = p.hp < p.maxHp || f.entities.some((e) => e.hostile)
     $('#hpBar').classList.toggle('hidden', !showHp)
@@ -169,7 +163,7 @@ export class Hud {
 
   private barSig = ''
   private renderToolbar(f: Frame): void {
-    const row = f.player.slots.slice(0, 12)
+    const row = f.player.slots.slice(0, SLOT_KEYS.length)
     // the toolbar moves to the top when the player walks near the bottom edge
     const me = this.screenOf(f.player.id)
     const top = !!me && me.y > window.innerHeight * 0.78
@@ -193,15 +187,14 @@ export class Hud {
   private obSig = ''
   private renderObjective(f: Frame): void {
     const stage = Number(f.player.props.quest ?? -1)
-    const slimes = Number(f.player.props.slimes ?? 0)
-    const sig = `${locale.value}|${stage}|${slimes}`
+    const sig = `${locale.value}|${stage}`
     if (sig === this.obSig) return
-    const changed = this.obSig !== '' && !this.obSig.endsWith(`|${stage}|${slimes}`)
+    const changed = this.obSig !== '' && !this.obSig.endsWith(`|${stage}`)
     this.obSig = sig
     const o = OBJECTIVES[stage]
-    $('#objective').classList.toggle('hidden', !o)
+    $('#objective').classList.toggle('hidden', !o || !tx(o.title))
     if (!o) return
-    $('#obTitle').textContent = tx(o.title).replace('0/3', `${Math.min(3, slimes)}/3`)
+    $('#obTitle').textContent = tx(o.title)
     // a new objective: the journal button flashes (Stardew's "!")
     if (changed) $('#jbtn').classList.add('flash')
   }
@@ -289,7 +282,16 @@ export class Hud {
   private questionOpen = false
 
   get dialogOpen(): boolean {
-    return !$('#dialog').classList.contains('hidden')
+    return !$('#dialog').classList.contains('hidden') || this.cardOpen
+  }
+
+  private cardOpen = false
+  /** A full-screen card in a scene (the ending): E or a click moves on. */
+  private openCard(text: string): void {
+    if (this.cardOpen) return
+    this.cardOpen = true
+    $('#cardText').textContent = text
+    $('#card').classList.remove('hidden')
   }
 
   get questionShown(): boolean {
@@ -328,6 +330,11 @@ export class Hud {
   /** E (or a click) on an open dialog: the first press finishes the typing, the next moves on. */
   advanceDialog(): void {
     if (this.questionOpen) return
+    if (this.cardOpen) {
+      this.cardOpen = false
+      $('#card').classList.add('hidden')
+      return this.send.advance()
+    }
     if (!this.typedAll) {
       clearInterval(this.typer)
       $('#dLine').textContent = this.fullText
@@ -342,6 +349,11 @@ export class Hud {
   }
 
   private renderScene(f: Frame): void {
+    if (this.cardOpen && f.scene?.waiting !== 'advance') {
+      this.cardOpen = false
+      $('#card').classList.add('hidden')
+    }
+    if (this.cardOpen) return
     if (this.sceneDialog && f.scene?.waiting !== 'advance') {
       this.sceneDialog = false
       $('#dialog').classList.add('hidden')
@@ -356,6 +368,7 @@ export class Hud {
     } else if (!this.sceneDialog && f.scene?.waiting === 'advance' && f.scene.line) {
       // the say event was missed (loading, a reload): show the waiting line from the frame
       const l = f.scene.line
+      if (l.card) return this.openCard(tx(l.text))
       const who = f.entities.find((e) => e.id === l.who)
       this.openDialog(l.who, who ? tx(who.name) : '', tx(l.text), true)
     }
@@ -426,12 +439,10 @@ export class Hud {
       }
       case 'emote':
         return this.bubble(fx.who, MOOD_GLYPH[fx.mood])
-      case 'sleep':
-        return this.fadeCard(locale.value === 'zh' ? `${t('day')} ${fx.day} 天` : `${t('day')} ${fx.day}`)
+      case 'card':
+        return this.openCard(tx(fx.text))
       case 'fade':
         return void $('#fade').classList.toggle('hidden', fx.dir !== 'out')
-      case 'letter':
-        return void this.message(`✉ ${t('letterToast')}`, 'good')
       case 'damage':
         return this.floater(fx.who, fx.amount < 0 ? `+${-fx.amount}` : `-${fx.amount}`, fx.amount < 0 ? 'heal' : fx.element ?? 'hit')
       case 'pickup':
@@ -480,12 +491,6 @@ export class Hud {
     setTimeout(() => el.classList.add('fade'), 5000)
     setTimeout(() => el.remove(), 6000)
     return el
-  }
-
-  private fadeCard(text: string): void {
-    $('#fadeText').textContent = text
-    $('#fade').classList.remove('hidden')
-    setTimeout(() => $('#fade').classList.add('hidden'), 1600)
   }
 
   setMapName(name: Text): void {

@@ -33,10 +33,7 @@ export const tx = (t: Text | undefined) => textOf(t, locale.value)
 
 const STRINGS: Record<string, [string, string]> = {
   inventory: ['Inventory', '背包'],
-  social: ['Social', '人物'],
-  map: ['Map', '地图'],
   threads: ['Threadbook', '织线簿'],
-  letters: ['Letters', '信件'],
   options: ['Options', '选项'],
   journal: ['Journal', '日志'],
   organize: ['Organize', '整理'],
@@ -45,14 +42,16 @@ const STRINGS: Record<string, [string, string]> = {
   empty: ['empty', '空'],
   yes: ['Yes', '是'],
   no: ['No', '否'],
-  energy: ['Energy', '体力'],
   health: ['Health', '生命'],
   day: ['Day', '第'],
-  noMail: ['No letters yet.', '还没有信。'],
-  noThreads: ['No threads yet. Try something the valley has never seen.', '还没有新的线。试试山谷里从没发生过的事。'],
+  noThreads: ['No threads yet. Try something the world has never seen.', '还没有新的线。试试这个世界从没见过的事。'],
   learned: ['A new thread is woven', '织入了一根新线'],
-  learning: ['The valley pauses…', '山谷停顿了一下……'],
-  letterToast: ['A letter has arrived', '收到一封信'],
+  learning: ['The world pauses…', '世界停顿了一下……'],
+  'weather.sun': ['Clear', '晴'],
+  'weather.cloud': ['Cloudy', '多云'],
+  'weather.rain': ['Rain', '雨'],
+  'weather.storm': ['Storm', '暴风雨'],
+  'weather.fog': ['Fog', '雾'],
   saved: ['Saved.', '已保存。'],
   loading: ['Loading', '加载中'],
   language: ['Language', '语言'],
@@ -64,17 +63,10 @@ const STRINGS: Record<string, [string, string]> = {
   controls: ['Controls', '操作'],
   devConsole: ['Mod Console (dev)', '模组控制台（开发）'],
   you: ['you', '你'],
-  valley: ['the valley', '山谷'],
+  world: ['the world', '世界'],
   wovenBy: ['woven by', '织者'],
-  hearts: ['hearts', '心'],
-  giftsWeek: ['gifts this week', '本周礼物'],
-  talkedToday: ['talked today', '今天聊过'],
-  birthday: ['Birthday', '生日'],
-  giftLog: ['Gift log', '送礼记录'],
-  notMet: ['Not met yet', '还没见过'],
   objective: ['Objective', '目标'],
   done: ['Done', '已完成'],
-  youAreHere: ['you are here', '你在这里'],
   lmb: ['L-click', '左键'],
   rmb: ['R-click', '右键'],
   chooseTarget: ['on which?', '对哪一个？'],
@@ -82,7 +74,7 @@ const STRINGS: Record<string, [string, string]> = {
   putIn: ['Put {held} into / onto it', '把{held}放进 / 放到它上'],
   handsOn: ['Handle it', '空手摆弄它'],
   moveOne: ['Move one', '移一个'],
-  confirmNew: ['Start a new game? (the threads the valley learned are kept)', '开始新游戏？（山谷学会的线会保留）'],
+  confirmNew: ['Start a new game? (the threads the world learned are kept)', '开始新游戏？（世界学会的线会保留）'],
 }
 
 export function t(k: string): string {
@@ -90,26 +82,23 @@ export function t(k: string): string {
   return v ? (locale.value === 'zh' ? v[1] : v[0]) : k
 }
 
-export const WEEKDAY_ZH: Record<string, string> = { firstday: '首日', ashday: '灰日', riverday: '河日', stoneday: '石日', seedday: '种日', windday: '风日', hearthday: '炉日' }
-export const SEASON_ZH: Record<string, string> = { thaw: '融雪季', bloom: '花开季', ember: '余烬季', frost: '霜冻季' }
 export const MOOD_GLYPH: Record<string, string> = { happy: '♥', sad: '…', angry: '!!', surprised: '!', shy: '♡', neutral: '…' }
-export const TASTE_ZH: Record<string, string> = { loved: '最爱', liked: '喜欢', neutral: '一般', disliked: '不喜欢', hated: '讨厌' }
 
-/** Toolbar keys: 1–0, -, = (Stardew). */
-export const SLOT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=']
+/** The bag is the toolbar: ten slots, keys 1–0. */
+export const SLOT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 
 /** The controls, as shown in the intro and the Options tab. */
 export function controlsTable(dev: boolean): string {
   const zh = locale.value === 'zh'
   const rows: [string, string, string][] = [
     ['WASD · ↑↓←→', 'move (Shift: walk)', '移动（Shift：慢走）'],
-    ['E', 'hands: talk, open, read, sleep, push', '空手：说话、打开、阅读、睡觉、推'],
-    ['F', 'take: pick up, pick, take down', '拿：捡起、采摘、取下'],
+    ['E', 'hands: talk, open, read, push', '空手：说话、打开、阅读、推'],
+    ['F', 'take: pick up, take down, take out', '拿：捡起、取下、取出'],
     ['left click', 'use the held thing on it (click yourself: eat, drink); weapons strike', '用手上的东西作用于它（点自己：吃、喝）；武器就是攻击'],
-    ['right click', 'put the held thing there: place, store, sow, give', '把手上的东西放过去：放下、放进、播种、送礼'],
+    ['right click', 'put the held thing there: place, store, hand it over', '把手上的东西放过去：放下、放进、交给别人'],
     ['hold any of these', 'choose which thing on the tile', '长按以上任一：选这一格里的哪一样'],
-    ['1–0 · - · = · wheel', 'choose from the toolbar', '选择快捷栏'],
-    ['Esc · I · J · M', 'menu · inventory · journal · map', '菜单 · 背包 · 日志 · 地图'],
+    ['1–0 · wheel', 'choose what to hold', '选择拿在手里的东西'],
+    ['Esc · I · J', 'menu · inventory · Threadbook', '菜单 · 背包 · 织线簿'],
   ]
   if (dev) rows.push(['`', 'Mod Console (dev)', '模组控制台（开发）'])
   return `<table>${rows.map(([k, en, z]) => `<tr><td><kbd>${k}</kbd></td><td>${zh ? z : en}</td></tr>`).join('')}</table>`

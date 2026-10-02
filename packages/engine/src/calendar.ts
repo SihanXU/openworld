@@ -1,40 +1,34 @@
-// Time and the calendar (docs/game-design.md §3). Days are full 24-hour days: the world never
-// stops — people sleep, shops close, the night has its own life — and the player may stay up as
-// long as they like (sleep skips to the morning; staying up tires). A game minute is 0.7 s (at
-// 10 ticks/s, 7 ticks), so a whole day is about 17 real minutes. Weather is drawn per day from
-// the world seed, unless the world fixes it for a day.
+// Time and weather (docs/game-design.md §3). Days and nights, and the weather: nothing more —
+// no weekdays or seasons. A game minute is one real second (10 ticks), so a day is 24 minutes
+// and the world never stops: people sleep, creatures come out at night, a storm rolls in. The
+// world may fix the weather for spans of time (the evening storm); otherwise it is drawn per
+// day from the seed.
 
-export const TICKS_PER_MINUTE = 7
+export const TICKS_PER_MINUTE = 10
 export const TICKS_PER_HOUR = TICKS_PER_MINUTE * 60
 export const TICKS_PER_DAY = TICKS_PER_HOUR * 24
-/** The game begins on day 1 at 06:00 (tick 0); days change at midnight. */
+/** Tick 0 is day 1 at 06:00; a world may start at another hour. Days change at midnight. */
 export const START_HOUR = 6
-/** Waking up after a night's sleep. */
-export const MORNING_HOUR = 6
 
-export const WEEKDAYS = ['firstday', 'ashday', 'riverday', 'stoneday', 'seedday', 'windday', 'hearthday'] as const
-export type Weekday = (typeof WEEKDAYS)[number]
-export const SEASONS = ['thaw', 'bloom', 'ember', 'frost'] as const
-export type Season = (typeof SEASONS)[number]
-export const SEASON_DAYS = 28
 export const WEATHERS = ['sun', 'cloud', 'rain', 'storm', 'fog'] as const
 export type Weather = (typeof WEATHERS)[number]
 
 export interface Calendar {
   /** Absolute day, from 1. */
   day: number
-  dayOfSeason: number
-  season: Season
-  year: number
-  weekday: Weekday
   /** The clock, 0 … 24 (fractional). */
   hour: number
   minute: number
   weather: Weather
 }
 
-/** Days the world fixes (e.g. the first week's story): day → weather. */
-export type WeatherPlan = Record<number, Weather>
+/** A span of fixed weather: a whole day, or hours [from, to) of it. */
+export interface WeatherSpan {
+  day: number
+  from?: number
+  to?: number
+  weather: Weather
+}
 
 function hash(n: number): number {
   let x = (n | 0) ^ 0x9e3779b9
@@ -43,12 +37,13 @@ function hash(n: number): number {
   return ((x ^ (x >>> 16)) >>> 0) / 4294967296
 }
 
-/** The day's weather: fixed by the world, or drawn from the seed (sun-heavy; storms rare). */
-export function weatherOf(day: number, seed: number, plan?: WeatherPlan): Weather {
-  if (plan?.[day]) return plan[day]
+/** The weather at an hour of a day: fixed by the world, or drawn from the seed (sun-heavy; storms rare). */
+export function weatherOf(day: number, hour: number, seed: number, plan?: WeatherSpan[]): Weather {
+  const span = plan?.find((s) => s.day === day && hour >= (s.from ?? 0) && hour < (s.to ?? 24))
+  if (span) return span.weather
   if (day === 1) return 'sun'
   const r = hash(seed * 7919 + day * 104729)
-  return r < 0.45 ? 'sun' : r < 0.7 ? 'cloud' : r < 0.88 ? 'rain' : r < 0.94 ? 'storm' : 'fog'
+  return r < 0.5 ? 'sun' : r < 0.75 ? 'cloud' : r < 0.9 ? 'rain' : r < 0.95 ? 'storm' : 'fog'
 }
 
 /** Hours since day 1 began (midnight). */
@@ -56,22 +51,12 @@ export function hoursAt(tick: number): number {
   return START_HOUR + tick / TICKS_PER_HOUR
 }
 
-export function calendarAt(tick: number, seed: number, plan?: WeatherPlan): Calendar {
+export function calendarAt(tick: number, seed: number, plan?: WeatherSpan[]): Calendar {
   const total = hoursAt(tick)
   const dayIndex = Math.floor(total / 24)
   const hour = total - dayIndex * 24
   const day = dayIndex + 1
-  const seasonIndex = Math.floor(dayIndex / SEASON_DAYS)
-  return {
-    day,
-    dayOfSeason: (dayIndex % SEASON_DAYS) + 1,
-    season: SEASONS[seasonIndex % SEASONS.length],
-    year: Math.floor(seasonIndex / SEASONS.length) + 1,
-    weekday: WEEKDAYS[dayIndex % WEEKDAYS.length],
-    hour,
-    minute: Math.floor((hour % 1) * 60),
-    weather: weatherOf(day, seed, plan),
-  }
+  return { day, hour, minute: Math.floor((hour % 1) * 60), weather: weatherOf(day, hour, seed, plan) }
 }
 
 /** The tick at which a clock hour (0 … 24) of a day falls. */
@@ -79,11 +64,7 @@ export function tickAt(day: number, hour: number): number {
   return Math.round(((day - 1) * 24 + hour - START_HOUR) * TICKS_PER_HOUR)
 }
 
-/** The next time the clock shows `hour` after `tick` (e.g. the next 06:00, when you sleep). */
-export function nextHour(tick: number, hour: number, seed = 0): number {
-  const c = calendarAt(tick, seed)
-  const today = tickAt(c.day, hour)
-  return today > tick ? today : tickAt(c.day + 1, hour)
-}
+/** Night: the hours creatures roam and people sleep. */
+export const isNight = (hour: number) => hour >= 21 || hour < 5
 
 export const rainy = (w: Weather) => w === 'rain' || w === 'storm'

@@ -48,7 +48,7 @@ contract. We keep that contract and its three-layer discipline. What changes:
 | D4 | Simulation | Own **pure TypeScript engine** (no DOM, no AI), run in a **Web Worker** |
 | D5 | Maps | **Tiled JSON**, whether hand-made or generated |
 | D6 | Art | **16×16**, **Ninja Adventure** (CC0) as the base pack; layered character composition + palette swaps for variety |
-| D7 | Setting | **Saenvar** (from BardOS) expanded to full scale |
+| D7 | Setting | **Saenvar** (from BardOS) expanded to full scale; the demo is one place in it, the Ford (game-design.md) |
 | D8 | Player input | four inputs, one verb each (§5.2): **E** interact bare-handed, **F** take, **left click** interact with the held thing (or strike), **right click** put; a long press chooses the layer; proven complete over the engine's event space |
 | D9 | Free-text input | **deferred**; reserved in the ModSpec as the `intent` and `ask` event kinds (§5.4) |
 | D10 | Combat | **on-map, real-time** (Zelda / Stardew-like), elemental reactions interacting with the environment |
@@ -129,8 +129,11 @@ in `content/ontology`; the ModSpec ships it to the modder.
 
 ## 5. Interaction model
 
-Status: agreed 2026-10-01. **Built:** the input (§5.2–5.3: `engine/src/controls.ts`, the client's
-`ui/`) and the player's sources 3–5. **Next:** the world's own sources (§5.10 steps 2–4).
+Status: agreed 2026-10-01. **Built** (2026-10-02): the input (§5.2–5.3: `engine/src/controls.ts`,
+the client's `ui/`), every player source (1–5), and the world's own sources 8–12 with the
+salience filter, budgets, safe defaults and boundaries (§5.5–5.9). Sources 6–7 stay reserved
+(D9). The demo, the Ford, contains an instance of each, proven by its completeness test
+(game-design.md §9).
 
 Two halves. §5.1–5.3 are what the player does: the input design, taken from Stardew
 Valley's wiki and its decompiled source rather than from memory. §5.4–5.10 are where
@@ -180,7 +183,7 @@ items of a pile, the ground), the player, and items in the bag or an open chest.
 
 | Input | Verb | For |
 |---|---|---|
-| **E** | `interact(none, target)` — hands | talk, open, read, sleep, push, shake (whatever is held) |
+| **E** | `interact(none, target)` — hands | talk, open, read, push, shake (whatever is held) |
 | **F** | `take(target)` | pick up, pick a crop, take down, take from a table |
 | **Left click** | `interact(held, target)`, or a blow | tools, eating and drinking (click yourself), the player's experiments; weapons strike |
 | **Right click** | `put(held, target)` | place, store, set on a table or fire, sow, give |
@@ -205,7 +208,7 @@ and the wheel (toolbar), Shift (walk), WASD (move). Dialogue moves on with E or 
   is an interaction, never a blow — no villager is hurt by accident. The events these exclude
   (a pure weapon's `interact` on a non-person, a tool's `hit` on a non-creature) are not player
   events.
-- Sleeping and eating ask first (yes / no).
+- Eating and drinking ask first (yes / no); so does any rule with `confirm`.
 
 **Proof sketch.** An event is (verb, instrument, target). The key fixes the verb; the slot fixes
 the instrument, and every carried thing (or none) can be selected; the aim, the chooser and the
@@ -219,11 +222,14 @@ bag): every (verb, instrument, target) is produced by some input, and each input
 left click with an object (source 1) or a weapon (source 3), right click (source 2). They go to
 the Mod port as in §5.5.
 
-### 5.3 Inventory, chests, pickup, HUD, menus, time (after Stardew Valley)
+### 5.3 Inventory, chests, pickup, HUD, menus, time
+
+The craft is Stardew Valley's; the systems are the Ford's own (game-design.md §10 lists what
+was cut).
 
 - **Inventory**
-  - 3 rows × 12 slots. The first row is the toolbar, and the selected slot is what the
-    player holds; there is no separate hand slot.
+  - 10 slots, keys 1–0: the bag is the toolbar, and the selected slot is what the player
+    holds; there is no separate hand slot.
   - Equal items stack.
   - In the menu: drag to move, right-click takes one, Shift+right-click takes half, dragging
     an item out of the menu drops it, and a button organizes the bag.
@@ -237,16 +243,15 @@ the Mod port as in §5.5.
     tiles (Stardew's default magnetic radius is 128 px).
   - Items placed in the world are taken with F. Walking through town never vacuums it.
 - **HUD**
-  - Top right: date and weekday, weather, season, a clock dial.
+  - Top right: the day, the weather, a clock dial.
   - Under it, a "!" journal button that flashes on a new objective.
-  - Bottom right: the energy bar. The health bar shows only when health is not full or in
-    dangerous places.
+  - Bottom right: the health bar, shown when health is not full or near danger.
   - Bottom: the toolbar. It moves to the top when the player walks near the bottom edge.
-  - Bottom left: messages such as "+2 log" or the energy a meal restored.
+  - Bottom left: messages such as "+1 log" or "The world pauses…".
   - The map name fades in when the player enters a map.
   - Development only: the message log, performance numbers, the Mod Console.
-- **Menu tabs**: Inventory, Social (hearts, gifts this week, talked to today, birthday), Map,
-  Threadbook, Letters, Options. The journal opens with F.
+- **Menu** (Esc): Inventory, Options. **Journal** (J): the objective, what is done, and the
+  Threadbook (§5.9). An ending card closes the story when the goal state is reached.
 - **Time** stops while a menu, a dialogue, a scene or a yes/no question is open.
 - **Movement** stays on the tile grid, because rules are tile-based, with smooth
   interpolation. Stardew moves freely; this is the one deliberate difference.
@@ -262,9 +267,9 @@ reasonable world would answer.
 |---|---|---|---|---|
 | 1 | apply the held thing to something | an apple on the well | `interaction` (interact holding X) | raised |
 | 2 | put something on or into something | a boot into the campfire | `interaction` (put) | raised |
-| 3 | a hit with no reaction | lightning on the well, ice on the inn's hearth | `hit` | silently nothing |
+| 3 | a hit with no reaction | lightning on the well, ice on the inn's hearth | `hit` | raised (salient blows) |
 | 4 | an empty-handed action nothing defines | push the boulder, shake the scarecrow | `interaction` | swallowed by the "examine" catch-alls |
-| 5 | stepping into a tile in some state | walking into fire, onto thin ice | `enter` | silently nothing |
+| 5 | stepping into a tile in some state | walking into fire, onto thin ice | `enter` | raised |
 | 6 | a free intent | "I hide behind the barrel until Oda leaves" | `intent` (reserved) | not offered (D9) |
 | 7 | a conversation beyond the written lines | ask Fenn who Skipper is | `ask` (reserved) | not offered (D9) |
 
@@ -275,16 +280,30 @@ interaction.
 
 | # | Source | Example | Event | Today |
 |---|---|---|---|---|
-| 8 | a status or element cascade meets an unmodelled pair | fire spreads to the beehive, the washing line, the mail; rain on oil; frostcaps in a burning chest | `status`, `tick`, `hit`, `expire` | silently nothing |
-| 9 | creatures meet things and each other | a fire slime walks into the hay; a boar eats crops; a slime meets the campfire | `enter`, `hit`, `meet` (new) | silently nothing |
+| 8 | a status or element cascade meets an unmodelled pair | fire spreads to the beehive, the washing line, the mail; rain on oil; frostcaps in a burning chest | `status`, `hit` (world-made) | raised when salient |
+| 9 | creatures meet things and each other | a fire slime walks into the hay; a boar eats crops; a slime meets the campfire | `meet` | raised when salient |
 
 **C. The world, social (the Radiant layer)**
 
 | # | Source | Example | Event | Today |
 |---|---|---|---|---|
-| 10 | a person's goal is blocked (Oblivion's rake) | Hollis's fields burned but his schedule says "farming"; Fenn's dock is gone; a bed burned; a fallen tree blocks the path | `blocked` (new) | the person stands or jumps |
-| 11 | witnessed events (Skyrim's Story Manager) | taking from Oda's shelf in front of her; lighting the hay with Hollis watching; casting in the inn; a slime's body on the square; litter | `witness` (new) | only the topics we wrote |
-| 12 | content invalidated by state (BardOS's stage invariant) | a quest giver unavailable, a schedule anchor destroyed, a letter about a thing that is gone | `invalid` (new) | unchecked |
+| 10 | a person's goal is blocked (Oblivion's rake) | a farmer's field burned but his schedule says "farming"; the fire she tends is soaked; a fallen tree blocks the path | `blocked` | raised when seen |
+| 11 | witnessed events (Skyrim's Story Manager) | taking from a shelf in front of its owner; lighting the hay with someone watching | `witness` | owner: a rule; bystander: raised when seen |
+| 12 | content invalidated by state (BardOS's stage invariant) | a quest giver unavailable, a schedule anchor destroyed, the rope she asked for burned | `invalid` | raised; the invariant's fallback if unanswered |
+
+**How each is built** (`engine.ts`, `npc.ts`, `mod.ts`):
+
+- **8:** a `status` event, or a `hit` nobody aimed (lightning, a spread), that matches no rule.
+- **9:** a creature that steps beside a fixture or a creature of another kind emits `meet`
+  (each pair at most once a minute).
+- **10:** a schedule entry may name the thing its activity `uses` and what it must be
+  (`need`); at the anchor, if it is gone or not so — or the anchor cannot be reached — the
+  person emits `blocked` (`about` = the activity), at most once an hour.
+- **11:** when the player acts on a thing with an `owner` (its own prop, or its container's),
+  every person awake within sight (7 tiles) emits `witness` (`about` = `<verb>:owner` or
+  `<verb>:bystander`).
+- **12:** content declares **invariants** (`Invariant`: while `when`, `holds` must hold; a
+  giver; a text; a fallback). A broken one emits `invalid` once.
 
 ### 5.5 One pipeline for every source
 
@@ -302,11 +321,15 @@ comes back as a patch of type-level **rules**. The patch is validated (schema, o
 conflicts, sandbox replay, its tests, regression), applied, and persisted in the shared
 library, exactly as today.
 
-- **New event kinds:** `witness`, `blocked`, `meet`, `arrive` (entering a place in a new
-  state, like BardOS's ambient beat) and `invalid`. Also reserved: `intent` and `ask`.
-- **New effects for people:** say a line, raise a topic, befriend, emote, set a mood, and
-  override the schedule (go to an anchor for N hours).
-- **New conditions:** who witnessed, at what distance, and their temperament.
+- **New event kinds** (built): `meet`, `blocked`, `witness`, `invalid`, with `about` in the
+  event and the pattern (the activity, `<verb>:owner|bystander`, the invariant id). Planned:
+  `arrive` (entering a place in a new state, like BardOS's ambient beat). Reserved: `intent`
+  and `ask`.
+- **New effects** (built): `give` (a person receives a thing and says their line for it),
+  `emote`, `goto` (leave the schedule for a named anchor for some hours), `layLine` (lay
+  terrain in a line away from a role: a felled tree across a river).
+- **New conditions** (built): `exists` (something matching a selector exists anywhere),
+  `weather`. Who saw it is in the event (the witness is its actor).
 - The ModSpec documents all of these, and the validator checks them.
 
 Examples of the patches each source asks for:
@@ -315,7 +338,7 @@ Examples of the patches each source asks for:
   tiles around it), plus a topic.
 - **10:** `on blocked, actor actor/person, activity farming, reason anchor-burnt` → go to the
   inn for the afternoon, say a line, raise a topic.
-- **11:** `on witness, event take-owned, witness = owner` → friendship −40, a line, the topic
+- **11:** `on witness, about take:owner` → a line, an emote, the topic
   `thief`.
 - **12:** `on invalid, fact quest stage …` → a schedule variant or an alternative anchor that
   keeps the quest playable.
@@ -382,10 +405,10 @@ Pete Hines: players read unexplained autonomy as bugs (they assume a stolen item
 due to a bug"). So:
 
 - Every learned thread enters the Threadbook with its cause and its author: **you**
-  (player-initiated) or **the valley** (world-initiated). For example: "Fire reached the
+  (player-initiated) or **the world** (world-initiated). For example: "Fire reached the
   beehive: the bees swarmed out."
 - The first time the player sees a world-learned moment, it gets a light cue: a shimmer on
-  the things involved, and "The valley pauses…" in the message line.
+  the things involved, and "The world pauses…" in the message line.
 - People talk about it. World-initiated patches may raise topics, so the village comments on
   it the next day.
 
@@ -394,10 +417,11 @@ due to a bug"). So:
 1. **The input** (§5.2–5.3) and the remaining player sources 3–5. *Done.*
 2. **The physical world** (8, 9), with salience and budgets. It is the cleanest to validate
    and the main driver of the undefined frontier's branching ratio *r*: a world whose
-   undefined behaviour comes only from the player's hands cannot grow on its own. The
-   coverage sweep extends to status × type and element × type.
-3. **Social reactions** (11): the event list after Skyrim's Story Manager, with witnesses.
-4. **Blocked goals** (10) and **content invalidation** (12).
+   undefined behaviour comes only from the player's hands cannot grow on its own. *Done.*
+   Still open: the coverage sweep over status × type and element × type.
+3. **Social reactions** (11): witnesses of acts on owned things. *Done.* Still open: the rest
+   of Skyrim's event list (casting in public, a body on the square, litter).
+4. **Blocked goals** (10) and **content invalidation** (12). *Done.*
 5. **Free intent** (6) and **open conversation** (7). Deferred (D9); their event kinds are
    reserved in the ModSpec now.
 
@@ -435,7 +459,7 @@ Rules are **data** (JSON), not engine code:
 ```jsonc
 {
   "id": "core/douse-fire",
-  "on": "interaction",                      // or "tick", "status-applied", "hit", "enter-tile"
+  "on": "interaction",                      // or "hit", "status", "expire", "tick", "enter", "defeat", "meet", "blocked", "witness", "invalid"
   "when": {
     "verb": ["put", "interact"],
     "instrument": { "tags": ["liquid:water"] },
@@ -677,9 +701,10 @@ stays as the scale track (`?world=saenvar`); the default world is hand-crafted.
   occlusion; nine-slice room walls; 4-direction animated actors; status overlays, projectiles,
   day/night light, music per map and sound effects.
 - **World** (`packages/tools/src/demo/`): an authoring DSL (terrain painting, prefabs, rooms,
-  fixtures, items, creatures, portals) and the Hearthvale maps + 12 villagers.
-- **Story as data** (`packages/content/src/story.ts`): objectives keyed by a player prop and
-  advanced by ordinary rules (instance-bound to the unique story NPCs).
+  fixtures, items, creatures, portals). First Hearthvale (15 maps, 12 villagers), replaced on
+  2026-10-02 by **the Ford** — one map, two people, minimal and complete (game-design.md).
+- **Story as data** (`packages/content/src/ford.ts`): objectives keyed by a player prop, rules
+  on classes (the ferrykeeper, the peddler, the dead tree), and invariants that keep it winnable.
 - **UI**: JRPG dialogue box with portraits, objective panel, and an action prompt that shows
   what E/F will do — including "the world has never seen this" for undefined interactions.
 
@@ -811,7 +836,7 @@ smoke results: [rsi.md](rsi.md).
 
 Near-term gameplay work — interactions and simple loops — is planned in [roadmap.md](roadmap.md).
 
-- Grow Hearthvale with the offline profile (curriculum, guided by what players actually try);
+- Grow the Ford with the offline profile (curriculum, guided by what players actually try);
   watch the live numbers above as the library grows.
 - Self-improvement experiments ([rsi.md](rsi.md)): the SWE-style agent, world tasks as
   repositories, engine tasks, the outer loop and the SWE CLI are built and smoke-tested; runs at
@@ -821,6 +846,6 @@ Near-term gameplay work — interactions and simple loops — is planned in [roa
 - Paper metrics: rule-library growth, patch reuse rate, LLM calls per play-hour over
   time, validation pass rate, repair rounds per patch, consistency checks, play-tester
   plausibility ratings; for RSI, the external benchmark at each self-state snapshot.
-- The sources of undefined behaviour beyond the player's hands (§5.4–5.10): the physical world
-  first, then witnessed reactions, blocked goals and invalidated content.
+- Live runs of the world's own requests through the modder (built and tested offline): budgets
+  and salience tuned against what players see.
 - Free-text input (deferred, D9).

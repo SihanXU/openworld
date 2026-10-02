@@ -1,4 +1,4 @@
-// Scripted scenes (docs/game-design.md §8.6): the arrival, heart events, Hearth Night. A scene
+// Scripted scenes (docs/game-design.md §8.6): the arrival, the ferry, the far bank. A scene
 // has a place, conditions and a script; while it plays the player watches (and advances what is
 // said); then control returns. Scenes play once unless they say they repeat, and every scene
 // that has played is a fact (`seen.<id>`), so lines, schedules and other scenes can follow it.
@@ -39,16 +39,18 @@ export class Scenes {
   eligible(d: SceneDef): boolean {
     const w = this.eng.world
     const pos = w.posOf(w.player)
-    if (!pos || pos.map !== d.map) return false
+    if (d.manual || !pos || pos.map !== d.map) return false
     if (!d.when?.repeat && w.fact(`seen.${d.id}`)) return false
     const k = d.when
     if (!k) return true
     const cal = w.calendar()
     if (k.hour && !(k.hour.from <= k.hour.to ? cal.hour >= k.hour.from && cal.hour < k.hour.to : cal.hour >= k.hour.from || cal.hour < k.hour.to)) return false
     if (k.weather && !k.weather.includes(cal.weather)) return false
-    if (k.weekday && !k.weekday.includes(cal.weekday)) return false
     for (const [key, c] of Object.entries(k.facts ?? {})) if (!cmp(w.fact(key) ?? 0, c)) return false
-    if (k.hearts && Math.floor(w.num(w.player, `friend.${k.hearts.npc}`, 0) / 250) < k.hearts.gte) return false
+    if (k.region) {
+      const r = w.map(d.map)?.regions?.[k.region]
+      if (!r || pos.x < r[0] || pos.y < r[1] || pos.x >= r[0] + r[2] || pos.y >= r[1] + r[3]) return false
+    }
     if (k.repeat && w.fact(`seen.${d.id}.day`) === cal.day) return false
     return true
   }
@@ -114,7 +116,11 @@ export class Scenes {
     const eng = this.eng
     const w = eng.world
     const s = w.state.scene!
-    if ('say' in c) {
+    if ('card' in c) {
+      w.fx.push({ t: 'card', text: c.card })
+      s.line = { who: w.state.player, text: c.card, card: true }
+      s.waiting = 'advance'
+    } else if ('say' in c) {
       const e = this.who(c.say)
       if (!e) return // the speaker is not in the world: the line is skipped
       w.fx.push({ t: 'say', who: e.id, text: c.text, mood: c.mood, scene: true })

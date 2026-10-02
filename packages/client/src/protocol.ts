@@ -37,7 +37,6 @@ export type ToWorker =
   | { t: 'save' }
   | { t: 'newGame' }
   | { t: 'advance' }
-  | { t: 'readMail'; id: string }
   | { t: 'debug'; op: 'teleport'; map?: string; x: number; y: number }
   | { t: 'debug'; op: 'give'; type: string; tags?: string[] }
   | { t: 'debug'; op: 'hour'; hour: number }

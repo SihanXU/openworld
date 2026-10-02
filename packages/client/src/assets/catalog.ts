@@ -458,6 +458,12 @@ export const CATALOG: Catalog = {
     // No static mushroom art: first frame of the (red-capped) Mushroom monster.
     'fixture:mushroom_ring': { base: t('Actor/Monster/Mushroom/mushroom.png', 0, 0) },
     'fixture:beehive': { base: t(ELEM, 12, 0) },
+    // The Ford: the dead tree at the narrows (the pack's bare tree), the slimes' hollow, the ferry's winch and raft.
+    'fixture:dead_tree': { base: px(NATURE, 64, 0, 32, 32, 16, 31) },
+    'fixture:burrow': { base: px(HOLE, 0, 0, 48, 32, 24, 28) },
+    'fixture:winch': { base: t(CAMP, 6, 5, 1, 2) },
+    'fixture:ferry': { base: t(WATER, 1, 13) },
+    'fixture:raft': { base: px(WATER, 0, 192, 32, 32, 16, 24) },
     'fixture:fence': { base: t(HOUSE, 11, 7) },
     'fixture:dummy': { base: t(ELEM, 15, 0) },
     // Crops (farming). The pack has no crop sheet: sprouts are ground details, young plants are

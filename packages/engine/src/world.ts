@@ -1,6 +1,6 @@
 // World: the mutable state plus derived indices (not serialized) for fast spatial queries.
 
-import { calendarAt, type Calendar, type WeatherPlan } from './calendar.ts'
+import { calendarAt, type Calendar } from './calendar.ts'
 import { OntologyIndex } from './ontology.ts'
 import { nextRandom } from './rng.ts'
 import type {
@@ -412,7 +412,7 @@ export class World {
   }
 
   calendar(): Calendar {
-    return calendarAt(this.state.tick, this.state.seed, this.state.weather as WeatherPlan | undefined)
+    return calendarAt(this.state.tick, this.state.seed, Array.isArray(this.state.weather) ? this.state.weather : undefined)
   }
 
   fact(key: string): PropValue | undefined {

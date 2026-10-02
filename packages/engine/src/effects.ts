@@ -5,7 +5,8 @@ import type { Engine } from './engine.ts'
 import { matchSelector } from './rules.ts'
 import type { Amount, Effect, Entity, GameEvent, Place, Pos, Ref, RoleRef, Rule, Text } from './types.ts'
 import { NO_EXPIRY } from './world.ts'
-import { GIFT_LINES, MOOD_OF, befriend, chooseLine, giveGift, memoryOf, raiseTopic } from './people.ts'
+import { GIVEN_LINE, chooseLine, raiseTopic } from './people.ts'
+import { TICKS_PER_HOUR } from './calendar.ts'
 
 export const PRIMITIVES: Record<Effect['op'], string> = {
   spawn: 'spawn {type, at, into?: tile|contents|hand, count?: number | {prop, of}} — create new entities; type may be "@prop:<role>.<key>" (a crop\'s yieldType), count may read a prop (the planks in a frame)',
@@ -32,10 +33,10 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   setFact: 'setFact {key, value} — set a world fact (people, schedules and scenes read facts)',
   addFact: 'addFact {key, delta} — add to a numeric world fact',
   topic: 'topic {id, days?} — something happened that people will talk about while it is fresh (default 4 days)',
-  befriend: 'befriend {who, amount, daily?} — change the player\'s friendship with a person (daily: at most once a day)',
-  gift: 'gift {to, item} — the player gives a person an item: their taste decides the friendship and the reaction',
-  sleep: 'sleep {} — the player sleeps until the next morning',
-  mail: 'mail {id} — a letter arrives in the player\'s mailbox',
+  give: 'give {to, item} — a person receives an item into their pack and says their line for it ("given:<type>" / "given")',
+  emote: 'emote {who, mood: neutral|happy|sad|angry|surprised|shy} — an emote bubble over a person or creature',
+  goto: 'goto {who, anchor, hours, activity?} — a person leaves their schedule for a named anchor of the map for some hours',
+  layLine: 'layLine {from, away, terrain, length, over?: tags} — lay terrain in a line from the tile beyond "from", in the direction from "away" to "from" (a felled tree falls away from the axe), for "length" tiles while the ground has all "over" tags',
   scene: 'scene {id} — play a scripted scene',
 }
 
@@ -207,7 +208,24 @@ export class EffectRunner {
       }
       case 'setTerrain': {
         const p = this.pos(ev, eff.of)
-        if (p) w.setTerrain(p.map, p.x, p.y, eff.terrain)
+        if (p) this.terrain(p, eff.terrain)
+        return
+      }
+      case 'layLine': {
+        const from = this.pos(ev, eff.from)
+        const away = this.pos(ev, eff.away)
+        if (!from || !away || from.map !== away.map) return
+        const dx = Math.sign(from.x - away.x)
+        const dy = dx === 0 ? Math.sign(from.y - away.y) : 0
+        if (!dx && !dy) return
+        for (let i = 1; i <= eff.length; i++) {
+          const x = from.x + dx * i
+          const y = from.y + dy * i
+          if (!w.inBounds(from.map, x, y)) break
+          const tags = w.onto.terrain(w.terrainAt(from.map, x, y))?.tags ?? []
+          if (eff.over && !eff.over.every((t) => tags.includes(t))) break
+          this.terrain({ map: from.map, x, y }, eff.terrain)
+        }
         return
       }
       case 'spread': {
@@ -303,41 +321,46 @@ export class EffectRunner {
       case 'topic':
         raiseTopic(eng, eff.id, eff.days)
         return
-      case 'befriend': {
-        const who = this.entity(ev, eff.who)
-        if (!who?.npc) return
-        const mem = memoryOf(eng, who.id)
-        const day = w.calendar().day
-        if (eff.daily && mem.talked === day) return
-        if (mem.talked === undefined) w.setFact(`met.${who.id}`, true)
-        if (eff.daily) mem.talked = day
-        befriend(eng, who.id, eff.amount)
-        return
-      }
-      case 'gift': {
+      case 'give': {
         const to = this.entity(ev, eff.to)
         const item = this.entity(ev, eff.item)
-        if (!to || !item) return
-        if (!to.npc) {
-          w.place(item, { on: 'inside', holder: to.id })
-          return
-        }
-        const r = giveGift(eng, to, item)
-        if (r.taste !== 'limit') w.place(item, { on: 'inside', holder: to.id })
-        const line = to.npc.person?.lines?.length ? chooseLine(eng, to, { gift: { taste: r.taste, item } }) : undefined
-        w.fx.push({ t: 'say', who: to.id, text: line?.text ?? GIFT_LINES[r.taste], mood: line?.mood ?? MOOD_OF[r.taste] })
-        if (r.taste === 'loved') w.fx.push({ t: 'emote', who: to.id, mood: 'happy' })
+        if (!to || !item || to.id === item.id) return
+        w.place(item, { on: 'inside', holder: to.id })
+        if (!to.npc) return
+        const line = to.npc.person?.lines?.length ? chooseLine(eng, to, { given: item }) : undefined
+        w.fx.push({ t: 'say', who: to.id, text: line?.text ?? GIVEN_LINE, mood: line?.mood })
         return
       }
-      case 'sleep':
-        eng.sleep()
+      case 'emote': {
+        const who = this.entity(ev, eff.who)
+        if (who) w.fx.push({ t: 'emote', who: who.id, mood: eff.mood })
         return
-      case 'mail':
-        eng.deliver(eff.id)
+      }
+      case 'goto': {
+        const who = this.entity(ev, eff.who)
+        const p = w.posOf(who)
+        const a = p && w.map(p.map)?.anchors?.[eff.anchor]
+        if (!who?.npc || !p || !a) return
+        const hours = Math.max(0.1, Math.min(12, eff.hours))
+        who.npc.override = { map: p.map, x: a[0], y: a[1], until: w.state.tick + Math.round(hours * TICKS_PER_HOUR), activity: eff.activity ?? eff.anchor }
         return
+      }
       case 'scene':
         eng.scenes.start(eff.id)
         return
+    }
+  }
+
+  /** Change a tile's terrain; anyone standing there when it turns solid is put ashore beside it. */
+  private terrain(p: Pos, terrain: string): void {
+    const eng = this.eng
+    const w = eng.world
+    w.setTerrain(p.map, p.x, p.y, terrain)
+    if (!w.onto.terrain(terrain)?.solid) return
+    for (const a of w.entitiesAt(p.map, p.x, p.y)) {
+      if (w.kindOf(a) !== 'actor') continue
+      const free = eng.nearestFree(p)
+      if (free) w.place(a, { on: 'tile', ...free })
     }
   }
 

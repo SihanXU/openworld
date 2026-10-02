@@ -1,5 +1,5 @@
 // A world's own interaction space. The coverage sweep is over the whole content catalogue (the
-// 460-map world's); Hearthvale holds a third of it. The scope lists what a world actually
+// 460-map world's); the demo (the Ford) holds a small part of it. The scope lists what a world actually
 // contains — item forms, fixtures in the states they appear in, terrains, people, creatures —
 // and how often a player meets each, so the curriculum spends its budget where players are.
 
@@ -10,7 +10,7 @@ import { Rng, type Ontology } from '@lsw/engine'
 import { FORMS, decodeChunk, decodeMap, type RawChunk } from '@lsw/content'
 import { OUTCOMES, targets, type Cell, type Tally } from './coverage.ts'
 
-export const HEARTHVALE = fileURLToPath(new URL('../../client/public/world', import.meta.url))
+export const DEMO = fileURLToPath(new URL('../../client/public/world', import.meta.url))
 
 export interface Scope {
   /** item form → instances in the world ('' = the empty hand) */
@@ -25,7 +25,7 @@ interface Ent {
   statuses?: Record<string, number>
 }
 
-export function worldScope(onto: Ontology, dir = HEARTHVALE): Scope {
+export function worldScope(onto: Ontology, dir = DEMO): Scope {
   if (!existsSync(join(dir, 'maps'))) throw new Error(`no world at ${dir} (npm run gen:world)`)
   const known = new Set(targets(onto).map((t) => t.id))
   const forms = FORMS.map((f) => f.id)

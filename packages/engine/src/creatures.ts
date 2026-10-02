@@ -2,6 +2,7 @@
 // player when hostile and in sight, return home when the player is gone. Attacks are
 // ordinary `hit` events, so every elemental reaction is a rule.
 
+import { isNight } from './calendar.ts'
 import type { Engine } from './engine.ts'
 import type { Dir, Entity } from './types.ts'
 
@@ -11,6 +12,7 @@ export function stepCreatures(eng: Engine, active: string): void {
   const w = eng.world
   const player = w.player
   const pp = w.posOf(player)
+  const night = isNight(w.hour())
   for (const e of w.entitiesOnMap(active)) {
     if (!e.ai || e.place.on !== 'tile' || eng.busy(e)) continue
     if (!eng.ready(e.id)) continue
@@ -37,9 +39,10 @@ export function stepCreatures(eng: Engine, active: string): void {
       eng.setCooldown(e.id, speed)
       continue
     }
-    // idle / return home
-    const hx = ai.home.x - x
-    const hy = ai.home.y - y
+    // idle / return home (after dark, the place it roams)
+    const home = night && ai.night ? ai.night : ai.home
+    const hx = home.x - x
+    const hy = home.y - y
     if (Math.abs(hx) + Math.abs(hy) > 4) {
       ai.state = 'return'
       towards(eng, e, hx, hy)

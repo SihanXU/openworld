@@ -4,7 +4,6 @@ import type { Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
 import type { Appearance, Dir, FxEvent, Id, PropValue, SceneState, Text } from './types.ts'
 import { SLOT_COUNT } from './controls.ts'
-import { friendship, memoryOf } from './people.ts'
 
 export interface ItemInfo {
   id: Id
@@ -51,8 +50,6 @@ export interface Frame {
   calendar: Calendar
   /** A scene is playing: the player watches; `advance` moves past what is said. */
   scene?: { id: string; waiting?: 'advance' | 'move'; line?: SceneState['line'] }
-  /** The player's letters (newest last). */
-  mailbox: { id: string; day: number; read: boolean; from?: Text; text: Text; items: number }[]
   map: string
   player: {
     id: Id
@@ -71,8 +68,6 @@ export interface Frame {
   }
   /** A yes/no question waiting for the player (time is stopped). */
   question?: { text: Text }
-  /** The people the player knows of: the Social tab. */
-  social: SocialEntry[]
   /** What the two keys would do right now (filled by the host, not by snapshot()). */
   keys?: { hands?: KeyView; take?: KeyView; use?: KeyView; put?: KeyView }
   /** The open container panel (the host names it): its contents. */
@@ -98,21 +93,6 @@ export interface KeyView {
   confirm?: boolean
   x: number
   y: number
-}
-
-export interface SocialEntry {
-  id: Id
-  name: Text
-  look?: string
-  points: number
-  /** Gifts this week (of 2) and today. */
-  giftsWeek: number
-  giftedToday: boolean
-  talkedToday: boolean
-  birthday?: { season: string; day: number }
-  /** Gifts given so far and how they were taken (item type → taste). */
-  tasted: Record<string, string>
-  met: boolean
 }
 
 export interface Prompt {
@@ -197,26 +177,6 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     const first = ids && itemInfo(eng, ids[0])
     return first ? { item: first, count: ids!.length } : null
   })
-  const cal = w.calendar()
-  const week = Math.floor((cal.day - 1) / 7)
-  const social: SocialEntry[] = Object.values(w.state.entities)
-    .filter((e) => e.npc?.person)
-    .map((e) => {
-      const mem = memoryOf(eng, e.id)
-      const g = mem.gifts && mem.gifts.week === week ? mem.gifts : undefined
-      return {
-        id: e.id,
-        name: e.name ?? e.id,
-        look: e.npc?.look,
-        points: friendship(eng, e.id),
-        giftsWeek: g?.count ?? 0,
-        giftedToday: g?.day === cal.day,
-        talkedToday: mem.talked === cal.day,
-        birthday: e.npc?.person?.birthday,
-        tasted: { ...(mem.tasted ?? {}) },
-        met: mem.talked !== undefined,
-      }
-    })
   const fx = w.fx
   w.fx = []
   const sc = w.state.scene
@@ -225,10 +185,6 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     hour: w.hour(),
     calendar: w.calendar(),
     scene: sc ? { id: sc.id, waiting: sc.waiting, line: sc.line } : undefined,
-    mailbox: (w.state.mailbox ?? []).map((l) => {
-      const def = eng.letters.get(l.id)
-      return { id: l.id, day: l.day, read: !!l.read, from: def?.from ? eng.nameOf({ e: def.from }) : undefined, text: def?.text ?? '', items: l.items?.length ?? 0 }
-    }),
     map,
     player: {
       id: p.id,
@@ -245,7 +201,6 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       selected: p.selected ?? 0,
     },
     question: w.state.question ? { text: w.state.question.text } : undefined,
-    social,
     container: box && {
       id: box.id,
       name: box.name ?? w.onto.resolve(box.type).name ?? box.type.split('/').pop()!,

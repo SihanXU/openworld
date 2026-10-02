@@ -120,10 +120,10 @@ const TAKING: Rule[] = [
   }),
   base({
     id: 'core/give',
-    doc: 'Give the held item to a person: their taste decides how they take it (and the friendship).',
+    doc: 'Hand the held item to a person: they take it and say what they make of it.',
     on: 'interaction',
     when: { verb: ['put'], target: { type: 'actor/person', player: false } },
-    do: [{ op: 'gift', to: 'target', item: 'instrument' }],
+    do: [{ op: 'give', to: 'target', item: 'instrument' }],
   }),
 ]
 
@@ -132,21 +132,10 @@ const TAKING: Rule[] = [
 const HANDS: Rule[] = [
   base({
     id: 'core/talk',
-    doc: 'Talk to a person: they say what fits the moment; talking once a day builds friendship.',
+    doc: 'Talk to a person: they say what fits the moment.',
     on: 'interaction',
     when: { verb: ['interact'], target: { type: 'actor/person', player: false }, instrument: EMPTY_HAND },
-    do: [
-      { op: 'say', who: 'target', text: '@line' },
-      { op: 'befriend', who: 'target', amount: 20, daily: true },
-    ],
-  }),
-  base({
-    id: 'core/sleep',
-    confirm: { en: 'Sleep until morning?', zh: '要睡到明天早上吗？' },
-    doc: 'Lie down in a bed: sleep until morning.',
-    on: 'interaction',
-    when: { verb: ['interact'], actor: { player: true }, target: { type: 'fixture/furniture/bed' }, instrument: EMPTY_HAND },
-    do: [log('You sleep.', '你睡着了。'), { op: 'sleep' }],
+    do: [{ op: 'say', who: 'target', text: '@line' }],
   }),
   base({
     id: 'core/examine-creature',
@@ -207,21 +196,12 @@ const HANDS: Rule[] = [
 
 const USING: Rule[] = [
   base({
-    id: 'core/work-tires',
-    doc: 'Working with a tool costs energy.',
-    on: 'interaction',
-    compose: true,
-    when: { verb: ['interact'], actor: { player: true }, instrument: { tags: ['tool'] } },
-    do: [{ op: 'addProp', of: 'actor', key: 'energy', delta: -2, min: 0 }],
-  }),
-  base({
     id: 'core/eat',
     confirm: { en: 'Eat {instrument}?', zh: '要吃掉{instrument}吗？' },
     on: 'interaction',
     when: { verb: ['interact'], target: { player: true }, instrument: { tags: ['edible'] } },
     do: [
       { op: 'heal', of: 'actor', amount: { prop: 'heal', of: 'instrument', add: 1 } },
-      { op: 'addProp', of: 'actor', key: 'energy', delta: 15, max: 100 },
       vfx('heal', 'actor'),
       log('You eat {instrument}.', '你吃掉了{instrument}。'),
       { op: 'destroy', of: 'instrument' },
@@ -914,6 +894,7 @@ const HITS: Rule[] = [
     when: { element: ['ice'], target: { type: 'tile/water' } },
     do: [
       { op: 'setTerrain', of: 'target', terrain: 'ice' },
+      { op: 'addStatus', of: 'target', status: 'chilled' },
       { op: 'spread', from: 'target', status: 'frozen', radius: 1, chance: 0.7, filter: { type: 'tile/water' } },
       vfx('frost'),
     ],
@@ -1064,7 +1045,14 @@ const STATUS: Rule[] = [
     id: 'frost/freeze-water-tile',
     on: 'status',
     when: { status: ['frozen'], target: { type: 'tile/water' } },
-    do: [{ op: 'setTerrain', of: 'target', terrain: 'ice' }, { op: 'removeStatus', of: 'target', status: 'frozen' }],
+    do: [{ op: 'setTerrain', of: 'target', terrain: 'ice' }, { op: 'removeStatus', of: 'target', status: 'frozen' }, { op: 'addStatus', of: 'target', status: 'chilled' }],
+  }),
+  base({
+    id: 'frost/thaw',
+    doc: 'Ice that magic made thaws back to water (whoever stands on it is put ashore, wet).',
+    on: 'expire',
+    when: { status: ['chilled'], target: { type: 'tile/ice' } },
+    do: [{ op: 'setTerrain', of: 'target', terrain: 'water' }, vfx('splash')],
   }),
   base({
     id: 'fire/no-fire-on-water',
@@ -1104,6 +1092,35 @@ const ENTER: Rule[] = [
   }),
 ]
 
+// ------------------------------------------------------------------ the world's own events
+//
+// The common cases of what creatures, people and content do by themselves. What these leave
+// open is undefined: the modder answers it when it is salient (design.md §5.4–5.7).
+
+const WORLD: Rule[] = [
+  base({
+    id: 'meet/fire-catches',
+    doc: 'A fiery creature that comes up to something dry and flammable sets it alight.',
+    on: 'meet',
+    when: { actor: { tags: ['fiery'] }, target: { kind: 'fixture', tags: ['flammable', 'dry'], notStatus: ['wet', 'burning', 'frozen'] } },
+    do: [{ op: 'addStatus', of: 'target', status: 'burning' }, vfx('fire_burst')],
+  }),
+  base({
+    id: 'witness/owner-take',
+    doc: 'A person who sees you take what is theirs objects (and people talk).',
+    on: 'witness',
+    when: { about: ['take:owner'], actor: { type: 'actor/person' } },
+    do: [say('actor', 'Hey — that is mine.', '喂——那是我的。'), { op: 'emote', who: 'actor', mood: 'angry' }, { op: 'topic', id: 'theft', days: 2 }],
+  }),
+  base({
+    id: 'blocked/relight',
+    doc: 'A person whose fire has gone out (and is not soaked) lights it again.',
+    on: 'blocked',
+    when: { actor: { type: 'actor/person' }, target: { tags: ['lightable'], notStatus: ['lit', 'wet'] } },
+    do: [{ op: 'addStatus', of: 'target', status: 'lit' }, vfx('fire_burst'), say('actor', 'Out again. Pass me the flint.', '又灭了。把火石递给我。')],
+  }),
+]
+
 const DEFEAT: Rule[] = [
   base({
     id: 'combat/defeat',
@@ -1113,40 +1130,4 @@ const DEFEAT: Rule[] = [
   }),
 ]
 
-/** The village's own things: the Great Hearth, the scarecrow, the washing on the line. */
-const VILLAGE: Rule[] = [
-  base({
-    id: 'village/hearth-cold',
-    doc: 'The cold Great Hearth will not take ordinary fire (it is rekindled with the four kindlings).',
-    on: 'interaction',
-    when: { verb: PUT_OR_USE, target: { type: 'fixture/light/hearth', notStatus: ['lit'] }, instrument: { tags: ['fire-source'] } },
-    do: [vfx('smoke'), log('The flame touches the old stones and dies, as if they would not have it.', '火苗碰到老石头就熄了，好像它们不肯要。')],
-  }),
-  base({
-    id: 'village/hearth-look',
-    on: 'interaction',
-    when: { verb: ['interact'], target: { type: 'fixture/light/hearth' }, instrument: EMPTY_HAND },
-    do: [log('A ring of old stones around cold ash. The stones are faintly warm, still.', '一圈老石头围着冷灰。石头摸上去还有一丝余温。')],
-  }),
-  base({
-    id: 'village/scarecrow-look',
-    on: 'interaction',
-    when: { verb: ['interact'], target: { type: 'fixture/scarecrow' }, instrument: EMPTY_HAND },
-    do: [log("Its stitched face watches the rows. The hat is a woman's, faded, and too good for a scarecrow.", '它缝出来的脸盯着田垄。头上的帽子是女式的，褪了色，给稻草人戴有点可惜。')],
-  }),
-  base({
-    id: 'village/washing-look',
-    on: 'interaction',
-    when: { verb: ['interact'], target: { type: 'fixture/furniture/washing_line' }, instrument: EMPTY_HAND },
-    do: [log('Shirts on the line, stiff with sun and smelling of soap.', '绳上晾着衬衫，晒得发硬，一股肥皂味。')],
-  }),
-  base({
-    id: 'village/washing-take',
-    doc: 'Take the washing in: cloth.',
-    on: 'interaction',
-    when: { verb: ['take'], target: { type: 'fixture/furniture/washing_line' } },
-    do: [{ op: 'spawn', type: 'item/material/cloth', at: 'actor', into: 'contents' }, log('You take a shirt off the line. Someone will miss it.', '你从绳上取下一件衬衫。总会有人发现少了一件。')],
-  }),
-]
-
-export const BASE_RULES: Rule[] = [...TAKING, ...HANDS, ...USING, ...WOOD, ...BUILD, ...FARM, ...HITS, ...STATUS, ...ENTER, ...DEFEAT, ...VILLAGE]
+export const BASE_RULES: Rule[] = [...TAKING, ...HANDS, ...USING, ...WOOD, ...BUILD, ...FARM, ...HITS, ...STATUS, ...ENTER, ...WORLD, ...DEFEAT]

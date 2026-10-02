@@ -4,7 +4,7 @@
 // checkpoints (learning-curve numbers + a self-state snapshot), the outer loop every N episodes,
 // and a spending cap. Do not run it while the service is running on the same data directory.
 //
-//   npm run curriculum -- [--n 20] [--seed 1] [--scope hearthvale|all] [--checkpoint 10]
+//   npm run curriculum -- [--n 20] [--seed 1] [--scope demo|all] [--checkpoint 10]
 //                         [--improve-every 10] [--budget 5] [--engine]
 //   (model from .env / the environment, as for `npm run modder`)
 
@@ -106,7 +106,7 @@ async function main(): Promise<void> {
   // positional [count] [seed] still work
   const n = Number(flag('n', /^\d+$/.test(argv[0] ?? '') ? argv[0] : '20'))
   const seed = Number(flag('seed', /^\d+$/.test(argv[1] ?? '') ? argv[1] : '1'))
-  const scopeName = flag('scope', 'hearthvale')!
+  const scopeName = flag('scope', 'demo')!
   const every = Number(flag('checkpoint', '0'))
   const improveEvery = Number(flag('improve-every', '0'))
   const budget = Number(flag('budget', '0'))

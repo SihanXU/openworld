@@ -32,6 +32,8 @@ export class MapBuilder {
   private decorAt = new Set<number>()
   solid = new Set<number>()
   anchors: Record<string, [number, number]> = {}
+  /** Named areas [x, y, w, h] (the goal's far bank). */
+  regions: Record<string, [number, number, number, number]> = {}
 
   constructor(
     public id: string,
@@ -381,6 +383,7 @@ export class MapBuilder {
         decor: this.decorList.length ? this.decorList : undefined,
         solid: this.solid.size ? [...this.solid].sort((a, b) => a - b) : undefined,
         anchors: Object.keys(this.anchors).length ? this.anchors : undefined,
+        regions: Object.keys(this.regions).length ? this.regions : undefined,
         music: this.music,
         light: this.light,
       },

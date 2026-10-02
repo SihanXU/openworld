@@ -1,10 +1,10 @@
 // Game bootstrap: new game from a generated world index, save/load.
 
-import { START_HOUR, TICKS_PER_HOUR } from './calendar.ts'
+import { START_HOUR, TICKS_PER_HOUR, type WeatherSpan } from './calendar.ts'
 import { Engine, type MapChunk } from './engine.ts'
 import { ModPort } from './mod.ts'
 import { RuleLibrary, type LibraryData } from './rules.ts'
-import type { Entity, LetterDef, MapData, Ontology, Pos, Portal, SceneDef, Text, WorldState } from './types.ts'
+import type { Entity, Invariant, MapData, Ontology, Pos, Portal, SceneDef, Text, WorldState } from './types.ts'
 
 export interface MapMeta {
   id: string
@@ -32,12 +32,14 @@ export interface WorldIndex {
   npcs: Entity[]
   player: Entity
   stats: { maps: number; npcs: number; creatures: number; items: number; itemKinds: number; fixtures: number }
-  /** Scripted scenes (arrival, heart events, gatherings). */
+  /** Scripted scenes (the arrival, the ferry, the far bank). */
   scenes?: SceneDef[]
-  /** Letters that arrive by day, by fact, or by a `mail` effect. */
-  letters?: LetterDef[]
-  /** Days whose weather the world fixes (the first week's story). */
-  weather?: Record<number, string>
+  /** Content the world must keep playable (the `invalid` source). */
+  invariants?: Invariant[]
+  /** Fact-key prefixes that only the story's own rules may change (design.md §5.8). */
+  protectedFacts?: string[]
+  /** Spans of time whose weather the world fixes (the evening storm). */
+  weather?: WeatherSpan[]
 }
 
 export interface SaveData {
@@ -128,9 +130,9 @@ function addTree(eng: Engine, e: Entity & { _items?: Entity[] }): void {
   for (const it of _items ?? []) eng.world.add(structuredClone(it))
 }
 
-/** Scenes and letters are content: read from the world on every start (they are not saved). */
+/** Scenes and invariants are content: read from the world on every start (they are not saved). */
 function loadContent(eng: Engine, index: WorldIndex): void {
   eng.scenes.load(index.scenes)
-  eng.loadLetters(index.letters)
-  if (index.weather && !eng.world.state.weather) eng.world.state.weather = index.weather
+  eng.loadInvariants(index.invariants, index.protectedFacts)
+  if (index.weather && !Array.isArray(eng.world.state.weather)) eng.world.state.weather = index.weather
 }

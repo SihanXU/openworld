@@ -1,4 +1,4 @@
-# CLAUDE.md — LoomWorld (paper: Large Symbolic World)
+# CLAUDE.md — OpenWorld (paper: Large Symbolic World)
 
 A web-playable 2D JRPG world whose state and rules are code; an LLM modder (later)
 patches undefined interactions at runtime. Successor to BardOS (`C:\Users\chica\文字游戏`).
@@ -7,7 +7,9 @@ Design: [docs/design.md](docs/design.md). Paper draft lives in Notion ("Large Sy
 ## Working agreements
 
 - Converse with the user in Chinese; write code, comments and docs in English.
-- Build order: a small, polished demo first (Hearthvale), then scale. Keep the architecture
+- Build order: a small, polished demo first (the Ford: one map, minimal and complete — every element
+  it holds witnesses a requirement, docs/game-design.md §9), then scale. Learn craft from other
+  games, never their content or loops. Keep the architecture
   scale-ready; ask when the scope of a request is ambiguous.
 - The subject is the WORLD (vs neural world models), not agents. NPCs are content.
 - Second paper thread: RSI of the modder (memory, skills, harness it forms itself), see
@@ -26,17 +28,21 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   dispatch + tick + movement + combat (`engine.ts`), NPC two-fidelity sim (`npc.ts`),
   creatures (`creatures.ts`), Mod port: ModSpec / ModRequest / validatePatch / records
   (`mod.ts`), sandbox replay (`sandbox.ts`), snapshots for rendering (`snapshot.ts`),
-  new game / save (`game.ts`); the life sim (docs/game-design.md): 24-hour calendar, seasons and
-  weather (`calendar.ts`), people — keyed lines, schedule variants, friendship, gifts, topics
-  (`people.ts`), scripted scenes (`scenes.ts`); facts, letters, sleep and energy live in the
-  world state and the engine; the player's four inputs (E hands, F take, left click use, right click put), layers, slots and magnet (`controls.ts`, design.md §5.2, with a completeness test).
+  new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
+  lines, schedule variants with the thing an activity needs, topics (`people.ts`), scripted
+  scenes with regions and cards (`scenes.ts`); facts and invariants live in the world state and
+  the engine; the world's own events — meet, blocked (`npc.ts`), witness, invalid — and the
+  salience filter, budgets and boundaries in `mod.ts` (design.md §5.4–5.9); the player's four
+  inputs (E hands, F take, left click use, right click put), layers, slots and magnet
+  (`controls.ts`, design.md §5.2, with a completeness test).
 - `packages/content` — ontology (terrains, statuses, elements, types), item catalogue
-  (forms × materials × qualities × elements), the BASE RULE LIBRARY (`rules.ts`), the first
-  week's story rules and objectives (`story.ts`), chunk codec.
-- `packages/tools` — `demo/` (the hand-crafted Hearthvale demo → `public/world/`: `builder.ts`
-  the map DSL with the tools of composition — curved paths, organic shapes, fences and yards,
-  decor by masks, collision layer, anchors; `world.ts` the maps, scenes, letters; `people/*.ts`
-  one record per person (`person.ts`); `check.ts` a headless two-day playtest), `genWorld.ts` (Saenvar at scale → `public/world-saenvar/`), `stress.ts`,
+  (forms × materials × qualities × elements), the BASE RULE LIBRARY (`rules.ts`), the Ford's
+  story rules, objectives and invariants (`ford.ts`), chunk codec.
+- `packages/tools` — `demo/` (the hand-crafted Ford → `public/world/`: `builder.ts` the map DSL
+  with the tools of composition — curved paths, organic shapes, fences and yards, decor by masks,
+  collision layer, anchors, regions; `world.ts` `buildFord()` — the map, scenes, invariants;
+  `people/*.ts` one record per person (`person.ts`); `check.ts` a headless two-day playtest;
+  `test/demo.test.ts` the completeness and minimality proof), `genWorld.ts` (Saenvar at scale → `public/world-saenvar/`), `stress.ts`,
   `copyAssets.ts` (catalogue subset of the pack → `public/assets/na/`), `coverage.ts` (every item
   form × every target × every verb through the rule library; the numbers in `docs/roadmap.md` §1).
 - `packages/client` — `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
@@ -78,9 +84,11 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   Base rules must not tie at equal specificity on overlapping patterns — the validator checks it.
 - Undefined behaviour has many sources (design.md §5.4): the player's actions, the physical
   world (status/element cascades, creatures), and the social world (witnesses, blocked goals,
-  invalidated content). Built so far: player interactions only. World events ask only through
-  the salience filter (§5.6), never freeze the world, and their patches obey §5.8 (no harm to
-  persons, quests survive).
+  invalidated content). All are built except free intent and open conversation (reserved).
+  World events ask only through the salience filter (§5.6), never freeze the world, and their
+  patches obey §5.8 (no harm to persons, the story's facts untouched).
+- The demo must stay complete and minimal: anything added to the Ford witnesses a requirement in
+  `tools/test/demo.test.ts` (or the test fails), and every requirement is checked on the real map.
 - Only the player steps onto portals; NPCs transfer from the adjacent tile.
 - After changing rules, run `npm run coverage` and commit the refreshed baseline with them; a
   finished milestone records its numbers in its row of `docs/roadmap.md` §3. The coverage test
@@ -90,8 +98,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 
 ```bash
 npm install
-npm run gen:world        # Hearthvale demo (default world)
-npm run check:world      # headless playtest of it: schedules kept over two game days
+npm run gen:world        # the Ford (default world)
+npm run check:world      # headless playtest of it: days kept over two game days, what the world asked
 npm run gen:saenvar      # the 460-map scale world (?world=saenvar)
 npm run assets           # copy the catalogue's subset of the asset pack into public/assets/na
 npm run dev              # client at http://localhost:5173

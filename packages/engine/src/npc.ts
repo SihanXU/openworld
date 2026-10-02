@@ -1,10 +1,15 @@
 // NPC schedules with two fidelities:
 //  - on the player's map: tile-level pathfinding toward the current schedule anchor;
 //  - everywhere else: NPCs jump between anchors on the hour (cost ~ schedule transitions).
+// A person whose day cannot go on — the thing their activity needs is gone or not as it must
+// be, or the anchor cannot be reached — raises a `blocked` event (design.md §5.4 source 10).
 
 import type { Engine } from './engine.ts'
 import { astar } from './path.ts'
 import { scheduleFor } from './people.ts'
+import { matchSelector } from './rules.ts'
+import { TICKS_PER_HOUR } from './calendar.ts'
+import type { Ref } from './types.ts'
 import type { Dir, Entity, Id, Pos, ScheduleEntry } from './types.ts'
 
 interface Runtime {
@@ -12,7 +17,14 @@ interface Runtime {
   goal?: string // `${map}:${x}:${y}` the path leads to
   wait: number
   blocked: number
+  /** failed path searches toward the current anchor */
+  unreachable?: number
+  /** someone stood in the way: the next path goes around people */
+  around?: boolean
 }
+
+/** A person is blocked about one activity at most once an hour. */
+const BLOCKED_EVERY = TICKS_PER_HOUR
 
 const PATH_BUDGET_PER_TICK = 10
 const NPC_STEP_TICKS = 4
@@ -27,6 +39,8 @@ export function scheduleAt(s: ScheduleEntry[], hour: number): ScheduleEntry | un
 export class NpcSim {
   private rt = new Map<Id, Runtime>()
   private lastHour = -1
+  /** npc|activity → the tick after which they may be blocked about it again */
+  private blockedUntil = new Map<string, number>()
   /** All NPC ids (the global roster); maintained lazily. */
   private roster?: Id[]
 
@@ -117,6 +131,24 @@ export class NpcSim {
     this.rt.clear()
   }
 
+  /** At the anchor: is the thing the activity needs there, and as it must be? */
+  private checkNeed(e: Entity, s: ScheduleEntry): void {
+    const w = this.eng.world
+    const u = w.get(s.uses)
+    if (u && u.place.on !== 'none' && matchSelector(s.need, w.view({ e: u.id }))) return
+    const p = w.posOf(e)!
+    this.block(e, s.activity, u && u.place.on !== 'none' ? { e: u.id } : { tile: { map: p.map, x: s.x, y: s.y } })
+  }
+
+  /** The person's activity cannot go on: a `blocked` event (at most once an hour per activity). */
+  private block(e: Entity, activity: string, target: Ref): void {
+    const t = this.eng.world.state.tick
+    const key = `${e.id}|${activity}`
+    if ((this.blockedUntil.get(key) ?? -1) > t) return
+    this.blockedUntil.set(key, t + BLOCKED_EVERY)
+    this.eng.queue({ kind: 'blocked', roles: { actor: { e: e.id }, target }, about: activity })
+  }
+
   private fine(e: Entity, active: string, budget: number): number {
     const eng = this.eng
     const w = eng.world
@@ -146,6 +178,8 @@ export class NpcSim {
       return budget
     }
     if (dist <= 1 && !leaving) {
+      rt.unreachable = 0
+      if (s.uses) this.checkNeed(e, s)
       // at the anchor: idle, occasionally mill about
       if (w.rand() < 0.02) {
         const dirs: Dir[] = ['up', 'down', 'left', 'right']
@@ -160,10 +194,13 @@ export class NpcSim {
       if (budget <= 0) return budget
       budget--
       const m = w.map(active)!
-      rt.path = astar(m.width, m.height, (px, py) => w.passable(active, px, py), x, y, gx, gy) ?? []
+      const free = (px: number, py: number) => w.passable(active, px, py) && !(rt.around && (px !== gx || py !== gy) && w.actorAt(active, px, py))
+      rt.path = astar(m.width, m.height, free, x, y, gx, gy) ?? []
+      rt.around = false
       rt.goal = goal
       if (!rt.path.length) {
         eng.setCooldown(e.id, 30) // unreachable for now; try later
+        if ((rt.unreachable = (rt.unreachable ?? 0) + 1) >= 3) this.block(e, s.activity, { tile: { map: active, x: gx, y: gy } })
         return budget
       }
     }
@@ -175,6 +212,7 @@ export class NpcSim {
     } else if (++rt.blocked > 6) {
       rt.path = undefined
       rt.blocked = 0
+      rt.around = true
     }
     eng.setCooldown(e.id, NPC_STEP_TICKS)
     return budget

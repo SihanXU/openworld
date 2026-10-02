@@ -166,7 +166,7 @@ export class WorldLibrary {
     }
     for (const a of e.patch.artifacts) {
       if (a.kind !== 'rule') continue
-      this.lib.add({ ...a.rule, source: { origin: 'patch', request: e.request, author: e.patch.author ?? 'modder', at: e.at, note: e.patch.note } }, e.at)
+      this.lib.add({ ...a.rule, source: { origin: 'patch', request: e.request, author: e.patch.author ?? 'modder', at: e.at, note: e.patch.note, trigger: e.patch.trigger } }, e.at)
     }
     // the interaction that asked for the patch must stay answered (by it, or by something more specific)
     const first = e.rules.find((id) => this.lib.rules.get(id)?.on === 'interaction')

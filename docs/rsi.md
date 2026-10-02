@@ -195,7 +195,7 @@ harness (`SelfState.open(dir, clock, ['memory' | 'skills' | 'harness'])`).
 
 - **Checkpoints.** `npm run curriculum -- --checkpoint N` appends learning-curve numbers to
   `var/curves.jsonl`:
-  - Hearthvale coverage;
+  - the demo world's coverage;
   - library size;
   - pass rate, steps, failing test runs, time and cost per task over the window;
   - total spend;

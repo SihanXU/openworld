@@ -12,6 +12,8 @@ export interface ReplayResult {
   resolution: Resolution
   engine: Engine
   errors: string[]
+  /** Every actor's hp before the event (to tell harm from a scenario's own wounds). */
+  hpBefore: Record<string, number>
 }
 
 export function buildSandbox(sc: Scenario, ontology: Ontology, lib: RuleLibrary): Engine {
@@ -28,11 +30,13 @@ export function buildSandbox(sc: Scenario, ontology: Ontology, lib: RuleLibrary)
     portals: [],
   }
   const hasActor = sc.entities.some((e) => e.key === 'actor')
+  // the player: the scenario says who (a world event's actor is not the player), else the actor
+  const player = sc.player ?? (hasActor ? 'actor' : '__player')
   const state: WorldState = {
     tick: 0,
     seed: 1,
     rng: 12345,
-    player: hasActor ? 'actor' : '__player',
+    player,
     entities: {},
     maps: { [SANDBOX_MAP]: map },
     tiles: {},
@@ -42,7 +46,7 @@ export function buildSandbox(sc: Scenario, ontology: Ontology, lib: RuleLibrary)
   }
   const eng = new Engine(state, structuredClone(ontology), lib)
   const w = eng.world
-  if (!hasActor) w.add({ id: '__player', type: 'actor/person/player', place: { on: 'none' } })
+  if (!sc.entities.some((e) => e.key === player)) w.add({ id: player, type: 'actor/person/player', place: { on: 'none' } })
   // two passes: holders first, then things inside/held
   const ordered = [...sc.entities].sort((a, b) => Number(!!(a.heldBy || a.inside)) - Number(!!(b.heldBy || b.inside)))
   for (const s of ordered) {
@@ -87,6 +91,7 @@ export function scenarioEvent(sc: Scenario): GameEvent {
     power: e.power,
     status: e.status,
     strict: e.strict,
+    about: e.about,
   }
 }
 
@@ -100,6 +105,8 @@ export function replay(sc: Scenario, ontology: Ontology, lib: RuleLibrary): Repl
     throw new Error(`scenario could not be built: ${(err as Error).message}`)
   }
   const ev = scenarioEvent(sc)
+  const hpBefore: Record<string, number> = {}
+  for (const e of Object.values(eng.world.state.entities)) if (eng.world.kindOf(e) === 'actor') hpBefore[e.id] = eng.world.num(e, 'hp')
   const resolution = eng.resolve(ev)
   try {
     eng.queue(ev)
@@ -108,7 +115,7 @@ export function replay(sc: Scenario, ontology: Ontology, lib: RuleLibrary): Repl
     errors.push(`runtime error: ${(err as Error).message}`)
   }
   for (const f of eng.world.fx) if (f.t === 'log' && f.tone === 'warn') errors.push(String(f.text))
-  return { resolution, engine: eng, errors }
+  return { resolution, engine: eng, errors, hpBefore }
 }
 
 export function checkExpectations(eng: Engine, exps: Expectation[]): string[] {
