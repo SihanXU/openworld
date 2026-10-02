@@ -1,9 +1,9 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { Dir, Frame, Key, LibraryData, MapData, ModSpec, Patch, Rule, SaveData, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@lsw/engine'
+import type { Aim, Dir, Frame, Key, LibraryData, MapData, ModSpec, Patch, Rule, SaveData, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@lsw/engine'
 
-/** A tile the mouse points at (the keys aim there when it is next to the player). */
-export type Tile = { x: number; y: number }
+/** Where the mouse points: its tile, and what is drawn at the point, top first (the keys act there when it is next to the player). */
+export type Tile = Aim
 
 export type ToWorker =
   | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** the modder service, if any */ modder?: string }

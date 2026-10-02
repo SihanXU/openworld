@@ -1,5 +1,5 @@
-// A world's own interaction space. The coverage sweep is over the whole content catalogue (the
-// 460-map world's); the demo (the Ford) holds a small part of it. The scope lists what a world actually
+// A world's own interaction space. The coverage sweep is over the whole content catalogue; the
+// demo (the Ford) holds a small part of it. The scope lists what a world actually
 // contains — item forms, fixtures in the states they appear in, terrains, people, creatures —
 // and how often a player meets each, so the curriculum spends its budget where players are.
 

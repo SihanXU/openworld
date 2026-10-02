@@ -5,14 +5,17 @@
 // - left click, **use**: the held thing on the target (tools, blows, eating when aimed at oneself,
 //   and the player's experiments);
 // - right click, **put**: the held thing onto or into the target (place, store, sow, give).
-// The target is a layer of the aimed tile (people, fixtures, items, the ground, oneself): by
-// default the first the key's verb is defined for, and any layer through the chooser.
+// An input points at a spot on the map. Whatever is drawn there is a layer of it, top first (a
+// person, a thing on a table, the table, the canopy of a tree behind them, the ground): a press
+// acts on the top one, a long press (the chooser) on any of them. Only the view knows what is
+// drawn where, so it hands the stack over with the aim; without one (the keyboard, a test), the
+// stack is what stands on the tile.
 // Also here: the inventory's slots (row 1 is the toolbar, the selected slot is what is held),
 // the magnet that pulls dropped items in, and the yes/no question asked before sleeping or
 // eating (the host stops time while it is open).
 
 import type { Engine, Resolution } from './engine.ts'
-import type { Dir, Entity, GameEvent, Id, Plan, Pos, Ref, Text, Verb } from './types.ts'
+import type { Aim, Dir, Entity, GameEvent, Id, Plan, Pos, Ref, Text, Verb } from './types.ts'
 
 /** The four inputs (design.md §5.2). */
 export type Key = Plan['key']
@@ -27,9 +30,6 @@ export const MAGNET = 2
 const TOOL_PREFIXES = ['item/weapon/', 'item/tool/', 'item/light/', 'item/vessel/bucket/', 'item/vessel/flask/', 'item/vessel/waterskin/']
 export const isTool = (type: string) => TOOL_PREFIXES.some((p) => type.startsWith(p))
 const isWeapon = (type: string) => type.startsWith('item/weapon/')
-
-/** Ground and walls that hold nothing of interest: a bare hand or a placed object has nothing to do there. */
-const BARE = new Set(['grass', 'flowers', 'path', 'dirt', 'cobble', 'sand', 'gravel', 'floor_wood', 'floor_stone', 'carpet', 'cave_floor', 'snow', 'bridge', 'mud', 'ash', 'wall', 'woodwall', 'roof', 'void', 'door'])
 
 /** Labels by rule (prefix) — what the HUD says a key will do. */
 const LABELS: [string, Text][] = [
@@ -92,14 +92,18 @@ export class Controls {
 
   // ---------------------------------------------------------------- aiming
 
-  /** The tile a key aims at: the given tile when it is the player's own or one of their 8 neighbours, else the tile in front. */
-  aim(at?: { x: number; y: number }): Pos | undefined {
+  /**
+   * Where a key acts: the pointed spot when its tile is the player's own or one of their 8
+   * neighbours (with what is drawn there), else the tile in front.
+   */
+  aim(at?: Aim): { at: Pos; stack?: Ref[] } | undefined {
     const w = this.w
     const p = w.player
     const pos = w.posOf(p)
     if (!pos) return undefined
-    if (at && Math.max(Math.abs(at.x - pos.x), Math.abs(at.y - pos.y)) <= 1) return { map: pos.map, x: at.x, y: at.y }
-    return w.front(p)
+    if (at && Math.max(Math.abs(at.x - pos.x), Math.abs(at.y - pos.y)) <= 1) return { at: { map: pos.map, x: at.x, y: at.y }, stack: at.stack }
+    const front = w.front(p)
+    return front && { at: front }
   }
 
   /** Turn the player toward a tile (the general direction). */
@@ -118,19 +122,25 @@ export class Controls {
   // ---------------------------------------------------------------- the layers of a tile
 
   /**
-   * Everything a key can act on at a tile, top first: people and creatures, fixtures, items
-   * (the top of a pile first), the ground — and the player, when the aim is their own tile.
+   * Everything drawn at a spot, top first, the ground under it last. `stack` is the view's (what
+   * is drawn at the point: the things, the tiles whose growth reaches there); without it, what
+   * stands on the tile, as it is drawn — people and creatures, items (the top of a pile first), fixtures.
    */
-  layers(at: Pos): Ref[] {
+  layers(at: Pos, stack?: Ref[]): Ref[] {
     const w = this.w
-    const p = w.player
-    const es = w.entitiesAt(at.map, at.x, at.y).filter((e) => e.id !== p.id)
-    const of = (k: string) => es.filter((e) => w.kindOf(e) === k)
-    const out: Ref[] = [...of('actor'), ...of('fixture'), ...of('item').reverse()].map((e) => ({ e: e.id }))
-    out.push({ tile: at })
-    const here = w.posOf(p)
-    if (here && here.map === at.map && here.x === at.x && here.y === at.y) out.push({ e: p.id })
-    return out
+    const ok = (r: Ref) => ('e' in r ? w.posOf(w.get(r.e))?.map === at.map : r.tile.map === at.map && w.inBounds(r.tile.map, r.tile.x, r.tile.y))
+    const sig = (r: Ref) => ('e' in r ? r.e : `${r.tile.x},${r.tile.y}`)
+    let out: Ref[]
+    if (stack) out = stack.filter(ok)
+    else {
+      const es = w.entitiesAt(at.map, at.x, at.y)
+      const of = (k: string) => es.filter((e) => w.kindOf(e) === k)
+      // in the order they are drawn: people and creatures over items, items over the fixture they lie on
+      out = [...of('actor'), ...of('item').reverse(), ...of('fixture')].map((e) => ({ e: e.id }))
+    }
+    out.push({ tile: { map: at.map, x: at.x, y: at.y } })
+    const seen = new Set<string>()
+    return out.filter((r) => !seen.has(sig(r)) && !!seen.add(sig(r)))
   }
 
   // ---------------------------------------------------------------- planning
@@ -150,7 +160,7 @@ export class Controls {
 
   private isPerson(r: Ref): boolean {
     const e = this.entity(r)
-    return !!e && e.type.startsWith('actor/person') && e.id !== this.w.state.player
+    return !!e && e.type.startsWith('actor/person')
   }
 
   private isCreature(r: Ref): boolean {
@@ -158,13 +168,6 @@ export class Controls {
     return !!e && e.type.startsWith('actor/creature')
   }
 
-  /** Bare ground or a wall: nothing there unless the player picks it on purpose (the layer chooser). */
-  private isBare(r: Ref): boolean {
-    if (!('tile' in r)) return false
-    const { map, x, y } = r.tile
-    const st = this.w.tileState(map, x, y)?.statuses
-    return !(st && Object.keys(st).length) && BARE.has(this.w.terrainAt(map, x, y))
-  }
 
   /** "Give {instrument} to {target}" with the names filled in. */
   private label(t: Text, target: Ref, instrument?: Ref): Text {
@@ -219,39 +222,22 @@ export class Controls {
   }
 
   /**
-   * A key's plan at the aim: on the chosen layer when the player picked one (the chooser), else
-   * on the first layer where the rule library answers (placing on open ground, tilling it), else
-   * on the first layer it reaches (top down, the ground last) as an experiment: undefined, so it
-   * goes to the Mod port. Every layer is reachable through the chooser, so the default never
-   * hides an event (design.md §5.2, completeness).
+   * A key's plan at the aim: on the top layer, or on the one the player picked (the chooser).
+   * What the rule library does not define there is an experiment, and goes to the Mod port.
+   * Every layer is reachable through the chooser (design.md §5.2, completeness).
    */
-  plan(key: Key, aim?: { x: number; y: number }, layer?: number): Plan | undefined {
-    const at = this.aim(aim)
-    if (!at) return undefined
-    const ls = this.layers(at)
-    if (layer !== undefined) return ls[layer] ? this.planOn(key, at, ls[layer]) : undefined
-    let experiment: Plan | undefined
-    let swing: Plan | undefined
-    for (const ref of ls) {
-      if ('e' in ref && ref.e === this.w.state.player && key !== 'use') continue
-      const pl = this.planOn(key, at, ref)
-      if (!pl) continue
-      if (pl.attack) {
-        if (!this.isBare(ref)) return pl
-        swing ??= pl // a swing at the open air, if nothing else is there
-        continue
-      }
-      if (!pl.unknown) return pl
-      experiment ??= pl // undefined: the modder decides what it does
-    }
-    return experiment ?? swing
+  plan(key: Key, aim?: Aim, layer = 0): Plan | undefined {
+    const a = this.aim(aim)
+    if (!a) return undefined
+    const ref = this.layers(a.at, a.stack)[layer]
+    return ref ? this.planOn(key, a.at, ref) : undefined
   }
 
   /** The chooser's list: every layer at the aim, with what the key would do there. */
-  choices(key: Key, aim?: { x: number; y: number }): { layer: number; name: Text; plan?: Plan }[] {
-    const at = this.aim(aim)
-    if (!at) return []
-    return this.layers(at).map((ref, layer) => ({ layer, name: this.label('{target}', ref), plan: this.planOn(key, at, ref) }))
+  choices(key: Key, aim?: Aim): { layer: number; name: Text; plan?: Plan }[] {
+    const a = this.aim(aim)
+    if (!a) return []
+    return this.layers(a.at, a.stack).map((ref, layer) => ({ layer, name: this.label('{target}', ref), plan: this.planOn(key, a.at, ref) }))
   }
 
   // ---------------------------------------------------------------- running

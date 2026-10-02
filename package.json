@@ -11,7 +11,6 @@
     "build": "npm run gen:world && npm run build -w @lsw/client",
     "gen:world": "tsx packages/tools/src/demo/world.ts",
     "check:world": "tsx packages/tools/src/demo/check.ts",
-    "gen:saenvar": "tsx packages/tools/src/genWorld.ts",
     "assets": "tsx packages/tools/src/copyAssets.ts",
     "coverage": "tsx packages/tools/src/coverage.ts",
     "modder": "tsx packages/modder/src/cli.ts",

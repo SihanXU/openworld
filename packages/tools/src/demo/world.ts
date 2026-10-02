@@ -17,7 +17,7 @@ import type { PersonDef, Slot } from './person.ts'
 import { PEOPLE } from './people.ts'
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '../../../client/public/world')
-export const VERSION = 'ford-1'
+export const VERSION = 'ford-3'
 export const START_HOUR = 13
 const L = (en: string, zh: string): Text => ({ en, zh })
 const SOLID = new Set(['water', 'deepwater', 'tree', 'pine', 'bush', 'rock', 'wall', 'woodwall', 'roof', 'cave_wall', 'lava', 'charred_tree', 'void'])
@@ -36,7 +36,8 @@ export const FAR_BANK = 32
 export const AT = {
   spawn: [14, 17],
   campfire: [14, 16],
-  tent: [9, 12],
+  /** the tent's mouth: the tent stands three by three behind it */
+  tent: [10, 14],
   chest: [12, 14],
   cart: [20, 14],
   haystack: [9, 10],
@@ -99,11 +100,11 @@ function buildMap(): MapBuilder {
   // the hollow: a rock mound with a cave mouth, bare trodden earth before it, bones and stones
   m.organic(5.5, 5.6, 3.2, 1.8, 'dirt', { only: grass })
   for (const [x, y] of [[4, 2], [5, 2], [6, 2], [4, 3], [5, 3], [6, 3], [4, 4], [6, 4]] as const) m.block(x, y)
-  m.decor('bones', 3, 6)
-  m.decor('bones', 7, 7)
-  m.decor('rocks', 2, 4, true)
-  m.decor('rocks', 8, 4, true)
-  m.decor('moss', 3, 4)
+  m.item('item/material/bone', 3, 6)
+  m.item('item/material/bone', 7, 7)
+  m.fixture('fixture/nature/boulder', 2, 4)
+  m.fixture('fixture/nature/boulder', 8, 4)
+  m.fixture('fixture/nature/moss', 3, 4)
   // ------------------------------------------------------------ the woods: west and south, in clumps with depth, the road's gap open
   for (let y = 3; y < m.h; y++) for (let x = 0; x < 3; x++) if (!(y >= 18 && y <= 20) && (x < 2 || rng.chance(0.55))) m.set(x, y, rng.chance(0.25) ? 'pine' : 'tree')
   for (const [cx, cy, r, p] of [[2.5, 7, 2.4, 0.7], [3, 13, 2, 0.55], [8.5, 26, 3, 0.75], [3, 25, 3, 0.8], [14, 28.5, 2.2, 0.8], [21, 29, 2, 0.75], [26, 28, 1.4, 0.6], [17.5, 4, 1.4, 0.5]] as const) clump(m, cx, cy, r, p)
@@ -126,26 +127,29 @@ function buildMap(): MapBuilder {
   // the landing and the far one: a short pier out into the pool on each side, the gap the ferry crossed
   for (const [x, y] of [[26, 16], [27, 16], [31, 16], [32, 16]] as const) m.set(x, y, 'bridge')
   // ------------------------------------------------------------ the camp
-  m.scenery('tent_patched', AT.tent[0], AT.tent[1], 'tent')
+  // the tent is a thing, not a stamp: drawn three by three over its mouth, its walls in the way
+  m.fixture('fixture/tent', ...AT.tent, { id: 'ford.tent' })
+  for (let dy = -2; dy <= 0; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) m.block(AT.tent[0] + dx, AT.tent[1] + dy)
   m.fixture('fixture/light/campfire', ...AT.campfire, { id: 'ford.campfire', statuses: { lit: -1 } })
   m.fixture('fixture/container/chest', ...AT.chest, { id: 'ford.chest', props: { owner: 'npc.hesper', capacity: 8 } }, [
     { form: 'item/tool/rope', props: { owner: '' } },
     { form: 'item/food/bread', props: { owner: 'npc.hesper' } },
   ])
   // around the fire: a log bench to sit on, a rack for the pot; the woodpile and the chopping stump by the tent
-  m.decor('bench', 14, 18)
-  for (const x of [13, 14, 15]) m.block(x, 18)
-  m.decor('rack', 17, 15, true)
-  m.decor('logs', 8, 15, true)
-  m.decor('stump_table', 6, 16, true)
+  // anything that looks like a thing is one: every input reaches it (requirement F11)
+  m.fixture('fixture/furniture/bench/log', 14, 18)
+  for (const x of [13, 15]) m.block(x, 18)
+  m.fixture('fixture/furniture/rack', 17, 15)
+  m.fixture('fixture/nature/logpile/stack', 8, 15)
+  m.fixture('fixture/nature/stump', 6, 16)
   m.item({ form: 'item/weapon/blade/axe', material: 'iron', name: L('Old Axe', '旧斧头') }, ...AT.axe)
   m.item('item/light/torch', ...AT.torch)
-  m.decor('lantern_post', 16, 21, true)
+  m.fixture('fixture/light/lantern', 16, 21)
   // the open slope between the meadow and the river: a few boulders and bushes to break it up
-  for (const [x, y] of [[20, 5], [21, 4], [17, 9]] as const) m.decor('rocks', x, y, true)
+  for (const [x, y] of [[20, 5], [21, 4], [17, 9]] as const) m.fixture('fixture/nature/boulder', x, y)
   clump(m, 22, 8, 1.2, 0.7)
   // where the road east leaves the far bank, a signpost to nowhere yet
-  m.decor('signpost', 35, 14, true)
+  m.fixture('fixture/sign', 35, 14, { props: { text: '→ ?' } })
   m.fixture('fixture/nature/haystack', ...AT.haystack)
   // the peddler's cart by the road, his wares on it, his mat beside it
   m.fixture('fixture/furniture/cart', ...AT.cart, { id: 'ford.cart', props: { owner: 'npc.tobin' } })
@@ -173,21 +177,21 @@ function buildMap(): MapBuilder {
   m.anchor('landing.edge', 25, 13)
   m.anchor('far.landing', ...AT.farLanding)
   m.regions = { far_bank: [FAR_BANK, 0, m.w - FAR_BANK, m.h] }
-  // ------------------------------------------------------------ detail, by masks: where things belong, never uniform noise
+  // ------------------------------------------------------------ small things, by masks: where they belong, never uniform noise
   const by = (x: number, y: number, what: (t: string) => boolean) => m.near(x, y, what)
   const water = (t: string) => t === 'water'
   const tree = (t: string) => t === 'tree' || t === 'pine'
   const road = (t: string) => t === 'path' || t === 'dirt'
   const marsh = (x: number, y: number) => y >= 20 && y <= 27 && x >= 15 && x <= 26
-  m.sprinkle('reeds', 0.22, (x, y, t) => grass(t) && marsh(x, y) && by(x, y, water))
-  m.sprinkle('ferns', 0.22, (x, y, t) => grass(t) && marsh(x, y))
-  m.sprinkle('reeds', 0.08, (x, y, t) => grass(t) && by(x, y, water) && (y < 9 || y > 21))
-  m.sprinkle('flowers', 0.12, (x, y, t) => grass(t) && by(x, y, road))
-  m.sprinkle('flowers', 0.1, (x, y, t) => grass(t) && x > FAR_BANK)
-  m.sprinkle('leaves', 0.16, (x, y, t) => grass(t) && by(x, y, tree))
-  m.sprinkle('pebbles', 0.15, (x, y, t) => grass(t) && by(x, y, water) && y >= 10 && y <= 20)
-  m.sprinkle('rocks', 0.12, (x, y, t) => grass(t) && y === 3 && x < 22, [0, 0, m.w, m.h])
-  m.sprinkle('tufts', 0.05, (_x, _y, t) => grass(t))
+  m.sprinkle('fixture/nature/reeds', 0.22, (x, y, t) => grass(t) && marsh(x, y) && by(x, y, water))
+  m.sprinkle('fixture/nature/ferns', 0.22, (x, y, t) => grass(t) && marsh(x, y))
+  m.sprinkle('fixture/nature/reeds', 0.08, (x, y, t) => grass(t) && by(x, y, water) && (y < 9 || y > 21))
+  m.sprinkle('fixture/nature/flowers', 0.12, (x, y, t) => grass(t) && by(x, y, road))
+  m.sprinkle('fixture/nature/flowers', 0.1, (x, y, t) => grass(t) && x > FAR_BANK)
+  m.sprinkle('fixture/nature/leaves', 0.16, (x, y, t) => grass(t) && by(x, y, tree))
+  m.sprinkle('fixture/nature/pebbles', 0.15, (x, y, t) => grass(t) && by(x, y, water) && y >= 10 && y <= 20)
+  m.sprinkle('fixture/nature/boulder', 0.12, (x, y, t) => grass(t) && y === 3 && x < 22)
+  m.sprinkle('fixture/nature/tuft', 0.05, (_x, _y, t) => grass(t))
   return m
 }
 

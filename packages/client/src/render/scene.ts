@@ -3,7 +3,7 @@
 // status overlays, VFX and day/night. It only renders engine snapshots.
 
 import Phaser from 'phaser'
-import type { Dir, EntitySnap, Frame, FxEvent, MapData, Text } from '@lsw/engine'
+import type { Aim, Dir, EntitySnap, Frame, FxEvent, MapData, Ref, Text } from '@lsw/engine'
 import { CATALOG } from '../assets/catalog.ts'
 import { GroundAtlas, T, groundTile, hash2 } from '../assets/ground.ts'
 import type { SpriteDef } from '../assets/types.ts'
@@ -44,9 +44,15 @@ const STEP: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [
 
 /** Terrain objects and decor groups that grow loose: drawn a few pixels off the tile grid. */
 const LOOSE = new Set(['drygrass', 'flowers', 'bush'])
-const LOOSE_DECOR = new Set(['reeds', 'ferns', 'tufts', 'flowers', 'clover', 'pebbles', 'leaves', 'puddle'])
 const TINT_OF: Record<string, number> ={ frozen: 0xbfe9ff, burning: 0xffc9a0, wet: 0xc8dcff, electrified: 0xfff6a0, oiled: 0xb9b29a }
 const ELEMENT_COLOR: Record<string, number> = { fire: 0xff7a1a, ice: 0x9fe8ff, lightning: 0xfff27a, water: 0x4aa0ff, wind: 0xe8fff4, earth: 0xb08850, none: 0xffffff }
+
+/** A stable hash of a string (an entity's id), salted. */
+function hashStr(s: string, salt = 0): number {
+  let h = 2166136261 ^ salt
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619)
+  return h >>> 0
+}
 
 export class WorldScene extends Phaser.Scene {
   hooks!: SceneHooks
@@ -191,7 +197,6 @@ export class WorldScene extends Phaser.Scene {
         const t = map.terrain[y * map.width + x]
         if ((t === 'grass' || t === 'flowers') && hash2(x, y, 7) % 100 < (t === 'flowers' ? 70 : 9)) this.decal(x, y, t)
       }
-    for (const d of map.decor ?? []) this.decor(d.k, d.x, d.y)
     for (const s of map.stamps ?? []) this.stamp(s.key, s.x, s.y)
     for (const r of map.rooms ?? []) this.roomFrame(r.style, r.x, r.y, r.w, r.h)
     this.fitBounds()
@@ -210,17 +215,6 @@ export class WorldScene extends Phaser.Scene {
     const d = list[hash2(x, y, 3) % list.length]
     const img = this.addSprite(`decal:${t}:${list.indexOf(d)}`, d, x, y)
     img.setDepth(-50)
-    this.statics.push(img)
-  }
-
-  /** The detail layer: a variant of the decor group, on the ground or y-sorted. */
-  private decor(k: string, x: number, y: number): void {
-    const g = CATALOG.decor[k]
-    if (!g?.sprites.length) return
-    const i = hash2(x, y, 5) % g.sprites.length
-    const img = this.addSprite(`decor:${k}:${i}`, g.sprites[i], x, y)
-    img.setDepth(g.sorted ? (y + 1) * T - 1 : -45)
-    if (LOOSE_DECOR.has(k)) img.setPosition(img.x + (hash2(x, y, 23) % 9) - 4, img.y + (hash2(x, y, 29) % 5) - 2)
     this.statics.push(img)
   }
 
@@ -331,11 +325,35 @@ export class WorldScene extends Phaser.Scene {
     this.focus.lineStyle(1, unknown ? 0xf0b85a : 0xffffff, 0.6).strokeRoundedRect(tx * T + 0.5, ty * T + 0.5, T - 1, T - 1, 2)
   }
 
-  /** The tile under a screen point (for mouse aiming). */
-  tileAtScreen(sx: number, sy: number): { x: number; y: number } | undefined {
+  /**
+   * Where a screen point aims: its tile, and everything drawn at the point, top first — things
+   * by id, trees and tall grass by their own tile (a canopy reaches over the tile behind it). The
+   * test is the picture's own pixels, so a thing is met wherever it shows and nowhere else.
+   */
+  aimAtScreen(sx: number, sy: number): Aim | undefined {
     if (!this.base) return undefined
     const cam = this.cameras.main
-    return { x: Math.floor((cam.worldView.x + sx / cam.zoom) / T), y: Math.floor((cam.worldView.y + sy / cam.zoom) / T) }
+    const wx = cam.worldView.x + sx / cam.zoom
+    const wy = cam.worldView.y + sy / cam.zoom
+    const hits: { ref: Ref; depth: number }[] = []
+    for (const v of this.views.values()) if (this.drawnAt(v.body, wx, wy)) hits.push({ ref: { e: v.snap.id }, depth: v.root.depth })
+    for (const [k, img] of this.objects) {
+      if (!this.drawnAt(img, wx, wy)) continue
+      const [x, y] = k.split(',').map(Number)
+      hits.push({ ref: { tile: { map: this.base.id, x, y } }, depth: img.depth })
+    }
+    hits.sort((a, b) => b.depth - a.depth)
+    return { x: Math.floor(wx / T), y: Math.floor(wy / T), stack: hits.map((h) => h.ref) }
+  }
+
+  /** Is a picture's own (not transparent) pixel at this world point? */
+  private drawnAt(o: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite, wx: number, wy: number): boolean {
+    if (!o.visible || !o.frame) return false
+    const p = o.getWorldTransformMatrix().applyInverse(wx, wy)
+    const fx = Math.floor(p.x + o.displayOriginX)
+    const fy = Math.floor(p.y + o.displayOriginY)
+    if (fx < 0 || fy < 0 || fx >= o.frame.width || fy >= o.frame.height) return false
+    return this.textures.getPixelAlpha(o.flipX ? o.frame.width - 1 - fx : fx, o.flipY ? o.frame.height - 1 - fy : fy, o.texture.key, o.frame.name) > 0
   }
 
   /** The map on screen (for the menu's map tab). */
@@ -427,16 +445,22 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     if (e.kind === 'fixture') {
-      const f = CATALOG.fixtures[e.sprite] ?? CATALOG.fixtures[`fixture:${e.type.split('/')[1]}`] ?? CATALOG.fixtures['fixture:fixture']
+      const f = this.fixtureDef(e)
       if (f) {
-        const d = (e.statuses.includes('lit') && f.lit) || (e.open && f.open) || f.base
-        const [frame] = spriteFrames(this, `fix:${e.sprite}:${d === f.lit ? 'lit' : d === f.open ? 'open' : 'base'}`, d)
+        // a look of its own among the type's variants, kept for its life
+        const v = f.variants?.length ? hashStr(e.id) % f.variants.length : -1
+        const d = (e.statuses.includes('lit') && f.lit) || (e.open && f.open) || (v >= 0 ? f.variants![v] : f.base)
+        const [frame] = spriteFrames(this, `fix:${e.sprite}:${d === f.lit ? 'lit' : d === f.open ? 'open' : v >= 0 ? `v${v}` : 'base'}`, d)
         return { img: d.img, frame, ax: d.ax, ay: d.ay }
       }
     }
     const d = CATALOG.items[e.sprite] ?? CATALOG.items['item:bag'] ?? Object.values(CATALOG.items)[0]
     const [frame] = spriteFrames(this, `ico:${e.sprite}`, d)
     return { img: d.img, frame, ax: d.w / 2, ay: d.h - 2 }
+  }
+
+  private fixtureDef(e: EntitySnap): (typeof CATALOG.fixtures)[string] | undefined {
+    return CATALOG.fixtures[e.sprite] ?? CATALOG.fixtures[`fixture:${e.type.split('/')[1]}`] ?? CATALOG.fixtures['fixture:fixture']
   }
 
   private makeView(e: EntitySnap): EView {
@@ -450,6 +474,8 @@ export class WorldScene extends Phaser.Scene {
     const body = this.add.sprite(0, 0, t.img, t.frame)
     body.setOrigin(t.ax / body.width, t.ay / body.height)
     if (e.kind === 'item') body.setScale(0.8)
+    // small growth and litter sit a little off the grid, never in rows
+    if (e.kind === 'fixture' && this.fixtureDef(e)?.loose) body.setPosition((hashStr(e.id, 23) % 9) - 4, (hashStr(e.id, 29) % 5) - 2)
     const hp = this.add.graphics()
     root.add([body, hp])
     const v: EView = { snap: e, root, body, shadow, hp, key: `${t.img}|${t.frame}`, movingUntil: 0, phase: Math.random() * 1000, actor: t.actor }
@@ -490,7 +516,8 @@ export class WorldScene extends Phaser.Scene {
       v.body.setTexture(t.img, t.frame)
     }
     // items lie on top of the fixture sharing their tile (a table, a counter), under actors
-    v.root.setDepth(py + (e.kind === 'actor' ? 2 : e.kind === 'item' ? 1 : 0))
+    // what lies flat on the ground (moss, leaves, pebbles) is under all that stands
+    v.root.setDepth(e.kind === 'fixture' && this.fixtureDef(e)?.ground ? -45 : py + (e.kind === 'actor' ? 2 : e.kind === 'item' ? 1 : 0))
     // status overlay + tint
     const top = OVERLAY_OF.find(([s]) => e.statuses.includes(s))
     const want = top?.[1]

@@ -314,7 +314,7 @@ req('D2', 'every layer a target can be: a person, a creature, a fixture, a loose
   stand(f, ...STAND.cart, 'left')
   const layers = f.eng.controls.layers({ map: 'ford', ...at(...AT.cart) })
   const kinds = layers.map((r) => ('tile' in r ? 'ground' : W(f).kindOf(W(f).get(r.e)!)))
-  expect(kinds).toEqual(['fixture', 'item', 'item', 'ground'])
+  expect(kinds).toEqual(['item', 'item', 'fixture', 'ground'])
   hold(f, ofType(f, 'item/food/bread'))
   for (const key of ['hands', 'take', 'use', 'put'] as Key[]) {
     const choices = f.eng.controls.choices(key, at(...AT.cart))
@@ -474,6 +474,34 @@ req('F10', 'the wild attacks folk by faction — the player and people alike, af
     return false
   })
   expect(nearest).toBe(FIRE_RADIUS + 1)
+})
+
+/** Everything on the Ford that is there to be seen: each is a thing, none a picture. */
+const SEEN = ['fixture/tent', 'fixture/furniture/bench/log', 'fixture/furniture/rack', 'fixture/nature/logpile/stack', 'fixture/nature/stump', 'fixture/light/lantern', 'fixture/nature/boulder', 'fixture/sign', 'item/material/bone', 'fixture/nature/moss', 'fixture/nature/flowers', 'fixture/nature/reeds', 'fixture/nature/ferns', 'fixture/nature/leaves', 'fixture/nature/pebbles', 'fixture/nature/tuft']
+req('F11', 'a place, not a picture: all that is drawn is terrain or a thing; an input meets the top of what is drawn where it points, any of it by a long press, and what nothing defines goes to the world', SEEN, () => {
+  const f = fresh()
+  // the map carries no picture of its own: a chunk is terrain, collision, anchors, and things
+  const raw = buildFord().chunks[0].map as unknown as Record<string, unknown>
+  expect(raw.decor).toBeUndefined()
+  for (const type of SEEN) expect([type, !!ofType(f, type)]).toEqual([type, true])
+  // the old axe on the chopping stump, pointed at where the stump is drawn over the grass
+  const stump = ofType(f, 'fixture/nature/stump')!
+  const { x, y } = stump.place as { x: number; y: number }
+  hold(f, ofType(f, 'item/weapon/blade/axe'))
+  stand(f, x - 1, y, 'right')
+  const point = { x, y, stack: [{ e: stump.id }] }
+  const plan = f.eng.controls.plan('use', point)!
+  expect(plan.target).toEqual({ e: stump.id })
+  // the long press reaches what lies under it: the ground
+  expect(f.eng.controls.choices('use', point).map((c) => c.plan?.target)).toEqual([{ e: stump.id }, { tile: { map: 'ford', x, y } }])
+  f.eng.controls.run(plan, true)
+  expect(plan.unknown).toBe(true)
+  expect(asked(f, 'interaction', 'player').some((r) => isE(targetOf(r), stump.id))).toBe(true)
+  // a thing drawn over the tile beside its own is met there too: the tent, pointed at its wall
+  const tent = ofType(f, 'fixture/tent')!
+  const t = tent.place as { x: number; y: number }
+  stand(f, t.x - 2, t.y - 1, 'right')
+  expect(f.eng.controls.plan('hands', { x: t.x - 1, y: t.y - 1, stack: [{ e: tent.id }] })?.target).toEqual({ e: tent.id })
 })
 
 req('F5', 'the world acts alone: a storm strikes, the slimes come out at night, people keep their day', ['weather:storm', 'actor/creature/slime/fire_slime', 'npc.hesper', 'npc.tobin'], () => {

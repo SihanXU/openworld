@@ -85,13 +85,7 @@ export interface Catalog {
    * The renderer picks a variant per position.
    */
   terrainObjects: Record<string, SpriteDef[]>
-  /**
-   * The detail layer (MapData.decor): purely visual sprites the map author places — stones at a
-   * cliff's foot, tufts along a path, baskets by a stall. A group's variant is picked per position;
-   * `sorted` groups stand up and are y-sorted with actors, the others lie on the ground.
-   */
-  decor: Record<string, { sorted?: boolean; sprites: SpriteDef[] }>
-  /** Buildings and big decorations stamped by the map author. */
+  /** Buildings and cliffs stamped by the map author: the look of the terrain under them. */
   prefabs: Record<string, PrefabDef>
   /**
    * Room wall frames for interiors, drawn nine-slice style: a square block of `size` x `size`
@@ -100,7 +94,11 @@ export interface Catalog {
    */
   rooms: Record<string, { img: string; col: number; row: number; size: number }>
   /** Fixture sprite keys used by the ontology ('fixture:chest', …) -> states. */
-  fixtures: Record<string, { base: SpriteDef; open?: SpriteDef; lit?: SpriteDef }>
+  /**
+   * Fixtures by sprite key. `variants`: looks picked per thing (by its id); `ground`: drawn flat
+   * on the ground, under whatever stands there; `loose`: set a little off the grid, never in rows.
+   */
+  fixtures: Record<string, { base: SpriteDef; open?: SpriteDef; lit?: SpriteDef; variants?: SpriteDef[]; ground?: boolean; loose?: boolean }>
   /** Item sprite keys used by the ontology ('item:sword', …) -> 16x16 icon. */
   items: Record<string, SpriteDef>
   /** Character looks for NPCs and the player: key -> sheet. */

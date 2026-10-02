@@ -192,14 +192,18 @@ Other keys: Esc (menu, and closes anything open), I (inventory), J (journal), M 
 and the wheel (toolbar), Shift (walk), WASD (move). Dialogue moves on with E or a click.
 
 - **The instrument** is the selected toolbar slot: any carried thing, or an empty slot (none).
-- **The aim**: the mouse's tile when it is the player's own or one of their 8 neighbours, else
-  the tile in front.
-- **The layer**: by default the first layer (top down) for which the input's verb is defined —
-  placing on open ground, tilling it, the table under a pile when putting — else the first it
-  reaches, bare ground included, as an experiment that goes to the Mod port (a weapon swung at
-  open air comes last). A **long press** of any input opens the chooser: every
-  layer of the tile, oneself included on the own tile, each with what the input would do. So
-  the default never hides an event.
+- **The aim**: the point the mouse is on, when its tile is the player's own or one of their 8
+  neighbours, else the tile in front.
+- **The layer**: whatever is drawn at that point, top first — a person, the things lying on a
+  table, the table, the canopy of a tree reaching over from behind, the ground last. The view
+  alone knows what is drawn where (it tests the pictures' own pixels), so it hands the stack to
+  the engine with the aim; with the keyboard the stack is what stands on the front tile, in
+  drawing order. A press acts on the **top** layer; what the rule library does not define there
+  is an experiment and goes to the Mod port. A **long press** of any input opens the chooser:
+  every layer at the point, each with what the input would do. So nothing drawn is out of reach.
+- **Nothing is only a picture**: a map is terrain and things. There is no decoration layer —
+  the bench, the stump, a tuft of grass, fallen leaves are entities of their types, so any input
+  reaches them and the rules (or the modder) answer for them.
 - **Items in the bag or an open chest** are targets through the context menu (right click on
   the item): use the held thing on it, put the held thing into or onto it, handle it bare-handed.
 - **Blows** (a convention the ModSpec states): pure weapons (blades, clubs, bows, wands) strike
@@ -707,8 +711,8 @@ Notes from verification that changed the design:
 
 ### Phase 1b — a small, polished demo first (2026-09-30)
 
-Direction from the user: build a small but refined demo first, then scale. The 460-map world
-stays as the scale track (`?world=saenvar`); the default world is hand-crafted.
+Direction from the user: build a small but refined demo first, then scale. The default world is
+hand-crafted; the generated 460-map world was removed on 2026-10-02.
 
 - **Art**: the Ninja Adventure pack (CC0). `packages/client/src/assets/catalog.ts` maps every
   terrain, fixture, item, creature, character look, VFX, UI piece, music and sound to the pack;

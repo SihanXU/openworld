@@ -16,9 +16,8 @@ import { Menu, type Tab } from './ui/menu.ts'
 import './styles.css'
 import './ui/game.css'
 
-// ?world=saenvar loads the 460-map generated world instead of the hand-crafted demo
 const PARAMS = new URLSearchParams(location.search)
-const WORLD = PARAMS.get('world') === 'saenvar' ? 'world-saenvar' : 'world'
+const WORLD = 'world'
 /** The modder service: ?modder=<url> (or =off), else VITE_MODDER_URL, else a local one in development. */
 const MODDER = PARAMS.get('modder') === 'off' ? undefined : PARAMS.get('modder') || import.meta.env.VITE_MODDER_URL || (import.meta.env.DEV ? 'http://localhost:8787' : undefined)
 const scene = new WorldScene()
@@ -169,6 +168,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       break
     case 'frame':
       scene.applyFrame(m.frame)
+      reaim()
       dev.setPerf(m.perf, fps)
       break
     case 'records':
@@ -258,8 +258,8 @@ const typing = () => {
 }
 
 // The four inputs (design.md §5.2): E hands, F take, left click use, right click put. A short
-// press acts on the default layer of the aimed tile; a long press opens the chooser of every
-// layer there (people, things, items, the ground, oneself), so every event is reachable.
+// press acts on the top of what is drawn where the pointer is; a long press opens the chooser
+// of all of it (people, things, items, the ground, oneself), so every event is reachable.
 const LONG_MS = 380
 const KEY_OF: Record<string, Key> = { KeyE: 'hands', KeyF: 'take' }
 const KEY_NAME: Record<Key, string> = { hands: 'E', take: 'F', use: 'L', put: 'R' }
@@ -363,15 +363,22 @@ document.addEventListener('visibilitychange', () => {
 // ------------------------------------------------------------------ mouse: aim at the own or a neighbour tile; left = use, right = put
 
 let mouseTile: Tile | undefined
+/** The pointer's screen point while it is over the world. */
+let mouseAt: { x: number; y: number } | undefined
+const aimSig = (a?: Tile) => (a ? `${a.x},${a.y}|${(a.stack ?? []).map((r) => ('e' in r ? r.e : `${r.tile.x},${r.tile.y}`)).join(' ')}` : '')
+/** Aim at what is drawn under the pointer: it changes as things move, not only as the mouse does. */
+function reaim(): void {
+  const a = mouseAt ? scene.aimAtScreen(mouseAt.x, mouseAt.y) : undefined
+  if (aimSig(a) === aimSig(mouseTile)) return
+  mouseTile = a
+  send({ t: 'aim', tile: a })
+}
 const gameEl = document.getElementById('game')!
 window.addEventListener('mousemove', (e) => {
   // only over the world itself (the HUD's own panels take their own clicks)
   const over = e.target === gameEl || gameEl.contains(e.target as Node) || (e.target as HTMLElement).id === 'hud' || (e.target as HTMLElement).id === 'labels'
-  const tile = over ? scene.tileAtScreen(e.clientX, e.clientY) : undefined
-  if (tile?.x !== mouseTile?.x || tile?.y !== mouseTile?.y) {
-    mouseTile = tile
-    send({ t: 'aim', tile })
-  }
+  mouseAt = over ? { x: e.clientX, y: e.clientY } : undefined
+  reaim()
 })
 gameEl.addEventListener('contextmenu', (e) => e.preventDefault())
 gameEl.addEventListener('mousedown', (e) => {
@@ -379,7 +386,7 @@ gameEl.addEventListener('mousedown', (e) => {
   if (hud.questionShown) return
   if (hud.dialogOpen) return hud.advanceDialog()
   if (menu.anyOpen || dev.open) return
-  const tile = scene.tileAtScreen(e.clientX, e.clientY)
+  const tile = scene.aimAtScreen(e.clientX, e.clientY)
   if (e.button === 0) press('use', tile)
   if (e.button === 2) press('put', tile)
 })

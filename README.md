@@ -13,22 +13,19 @@ Successor to BardOS. Design: [docs/design.md](docs/design.md).
   The place teaches three ways across; anything else the world learns from the player counts
   too. Minimal and complete: every element the system needs is here, and nothing else
   ([docs/game-design.md](docs/game-design.md) §9, proven by `packages/tools/test/demo.test.ts`).
-- **Saenvar** (`?world=saenvar`, generated for scale): 460 maps, ~2,400 NPCs, ~27,700 items
-  (~1,000 kinds). Same engine and renderer; used for scaling experiments.
 
 ## Run
 
 ```bash
 npm install
 npm run gen:world     # the Ford → packages/client/public/world/
-npm run gen:saenvar   # optional: the 460-map world → public/world-saenvar/
-npm run dev           # http://localhost:5173  (add ?world=saenvar for the large world)
+npm run dev           # http://localhost:5173, with the modder service on :8787
 npm run build         # static site in packages/client/dist
 ```
 
 Controls: WASD/arrows move (Shift walks) · **E** hands (talk, open, push) · **F** take ·
 **left click** use the held thing (weapons strike; click yourself to eat) · **right click** put
-it there (place, store, hand over) · hold any of these to choose the layer · **1–0** / wheel
+it there (place, store, hand over) — on the topmost thing drawn where you point; hold to choose another · **1–0** / wheel
 choose what to hold · **Esc** menu · **I** inventory · **J** journal and Threadbook ·
 **`** Mod Console (dev).
 
@@ -83,5 +80,4 @@ Pixel-boy & AAA, CC0. The full pack goes in `assets/ninja-adventure/` (not commi
 npm test                                  # engine, base rules, story, Mod port, coverage, modder
 npm run typecheck
 npm run coverage                          # interaction coverage (roadmap §1, §3)
-npx tsx packages/tools/src/stress.ts 6    # Saenvar: all maps loaded, 6 game-hours simulated
 ```

@@ -41,5 +41,6 @@ async function modderAnswers(): Promise<boolean> {
 process.on('SIGINT', stop)
 process.on('SIGTERM', stop)
 if (await modderAnswers()) console.log(`[dev] a modder already answers on :${PORT}`)
-else run('modder', ['run', 'modder', '--', 'serve', String(PORT)])
+// watched: the modder validates against the content it loaded, so it restarts when the content changes
+else run('modder', ['exec', '--', 'tsx', 'watch', 'packages/modder/src/cli.ts', 'serve', String(PORT)])
 run('client', ['run', 'dev', '-w', '@lsw/client'])

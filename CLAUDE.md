@@ -39,10 +39,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   (forms × materials × qualities × elements), the BASE RULE LIBRARY (`rules.ts`), the Ford's
   story rules, objectives and invariants (`ford.ts`), chunk codec.
 - `packages/tools` — `demo/` (the hand-crafted Ford → `public/world/`: `builder.ts` the map DSL
-  with the tools of composition — curved paths, organic shapes, fences and yards, decor by masks,
+  with the tools of composition — curved paths, organic shapes, fences and yards, small things by masks,
   collision layer, anchors, regions; `world.ts` `buildFord()` — the map, scenes, invariants;
   `people/*.ts` one record per person (`person.ts`); `check.ts` a headless two-day playtest;
-  `test/demo.test.ts` the completeness and minimality proof), `genWorld.ts` (Saenvar at scale → `public/world-saenvar/`), `stress.ts`,
+  `test/demo.test.ts` the completeness and minimality proof),
   `copyAssets.ts` (catalogue subset of the pack → `public/assets/na/`), `coverage.ts` (every item
   form × every target × every verb through the rule library; the numbers in `docs/roadmap.md` §1).
 - `packages/client` — `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
@@ -103,13 +103,11 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 npm install
 npm run gen:world        # the Ford (default world)
 npm run check:world      # headless playtest of it: days kept over two game days, what the world asked
-npm run gen:saenvar      # the 460-map scale world (?world=saenvar)
 npm run assets           # copy the catalogue's subset of the asset pack into public/assets/na
 npm run dev              # client at http://localhost:5173 + the modder on :8787 (dev:client for the client alone)
 npm test                 # vitest (engine + base rules + Mod port)
 npm run typecheck
 npm run coverage         # interaction coverage + refresh its test baseline
-npx tsx packages/tools/src/stress.ts 6   # full-scale stress run (6 game-hours)
 npm run build            # gen:world + static build → packages/client/dist
 npm run modder -- serve  # modder service on :8787 (model from LSW_MODEL_URL/KEY/MODEL; data in var/)
 npm run modder -- serve 8787 --script packages/modder/fixtures/offline.json --data var/offline

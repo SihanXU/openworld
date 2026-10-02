@@ -1,4 +1,4 @@
-// Base ontology of Saenvar: terrains, statuses, elements, visual effects and the type tree
+// Base ontology: terrains, statuses, elements, visual effects and the type tree
 // for actors and fixtures. Item types come from the catalogue in items.ts.
 
 import type { Ontology, StatusDef, TerrainDef, TypeDef } from '@lsw/engine'
@@ -228,6 +228,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/furniture/chair', 'chair', '椅子', [], { solid: false }),
   F('fixture/furniture/bed', 'bed', '床', ['cloth'], { solid: false }),
   F('fixture/furniture/bench', 'bench', '长椅', ['surface'], { solid: false }),
+  F('fixture/furniture/bench/log', 'log bench', '原木长凳', [], { solid: true, sprite: 'fixture:log_bench' }),
+  F('fixture/furniture/rack', 'cooking rack', '炊架', ['surface']),
   F('fixture/furniture/counter', 'counter', '柜台', ['surface']),
   F('fixture/furniture/stall', 'market stall', '市集摊位', ['cloth', 'surface']),
   F('fixture/furniture/washing_line', 'washing line', '晾衣绳', ['cloth', 'flammable']),
@@ -238,12 +240,14 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/light/brazier', 'brazier', '火盆', ['lightable', 'metal', 'conductive'], { solid: true }),
   F('fixture/light/lamppost', 'lamp post', '路灯', ['lightable', 'metal', 'conductive'], { solid: true }),
   F('fixture/light/candles', 'candles', '烛台', ['lightable'], { solid: true }),
+  F('fixture/light/lantern', 'lantern post', '灯笼柱', ['lightable', 'wooden', 'flammable'], { solid: true }),
   F('fixture/light/fireplace', 'fireplace', '壁炉', ['lightable', 'stone', 'cookware'], { solid: true }),
   F('fixture/water', 'water source', '水源', ['water-source', 'stone'], { solid: true }),
   F('fixture/water/well', 'well', '水井', []),
   F('fixture/water/fountain', 'fountain', '喷泉', []),
   F('fixture/water/trough', 'trough', '水槽', ['wooden']),
   F('fixture/sign', 'sign', '告示牌', ['wooden', 'flammable', 'readable'], { solid: true }),
+  F('fixture/tent', 'tent', '帐篷', ['cloth', 'flammable', 'shelter'], { solid: false }),
   F('fixture/sign/noticeboard', 'notice board', '布告栏', ['paper']),
   F('fixture/craft', 'workstation', '工作台', [], { solid: true }),
   F('fixture/craft/anvil', 'anvil', '铁砧', ['metal', 'conductive', 'surface']),
@@ -260,6 +264,16 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/nature/boulder', 'boulder', '巨石', ['stone', 'rock', 'mineable']),
   F('fixture/nature/haystack', 'haystack', '干草垛', ['plant', 'flammable', 'dry']),
   F('fixture/nature/logpile', 'log pile', '柴堆', ['wooden', 'flammable']),
+  F('fixture/nature/logpile/stack', 'firewood', '柴垛', [], { sprite: 'fixture:firewood' }),
+  F('fixture/nature/stump', 'stump', '树墩', ['wooden', 'flammable', 'surface']),
+  // the small things of the ground: each a thing, never a picture
+  F('fixture/nature/flowers', 'wildflowers', '野花', ['plant', 'flower', 'flammable'], { solid: false }),
+  F('fixture/nature/reeds', 'reeds', '芦苇', ['plant', 'flammable'], { solid: false }),
+  F('fixture/nature/ferns', 'ferns', '蕨草', ['plant', 'flammable'], { solid: false }),
+  F('fixture/nature/tuft', 'grass tuft', '草丛', ['plant', 'flammable'], { solid: false }),
+  F('fixture/nature/leaves', 'fallen leaves', '落叶', ['plant', 'dry', 'flammable'], { solid: false }),
+  F('fixture/nature/pebbles', 'pebbles', '卵石', ['stone'], { solid: false }),
+  F('fixture/nature/moss', 'moss', '苔藓', ['plant'], { solid: false }),
   F('fixture/nature/mushroom_ring', 'mushroom ring', '蘑菇圈', ['plant', 'fungus'], { solid: false }),
   F('fixture/nature/beehive', 'beehive', '蜂巢', ['wooden', 'flammable', 'bees']),
   F('fixture/nature/dead_tree', 'dead tree', '枯树', ['wooden', 'flammable', 'dry', 'tall', 'tree'], { props: { cuts: 0 } }),

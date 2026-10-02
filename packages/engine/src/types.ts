@@ -299,6 +299,16 @@ export interface AiData {
   night?: Pos
 }
 
+/**
+ * Where an input points: the tile under the pointer, and what the view draws at that point, top
+ * first (things by id, a tree or tall grass by its own tile). The ground of the tile comes last.
+ */
+export interface Aim {
+  x: number
+  y: number
+  stack?: Ref[]
+}
+
 export interface MapData {
   id: string
   name: Text
@@ -312,8 +322,6 @@ export interface MapData {
   /** Render hints (the engine ignores them): prefab stamps, room wall frames, music, light. */
   stamps?: { key: string; x: number; y: number }[]
   rooms?: { style: string; x: number; y: number; w: number; h: number }[]
-  /** The detail layer: purely visual sprites (catalog decor groups) — stones, tufts, baskets. */
-  decor?: { k: string; x: number; y: number }[]
   music?: string
   light?: 'outdoor' | 'indoor' | 'dark'
   /** The collision layer: tile indices (y * width + x) that block movement whatever the terrain. */

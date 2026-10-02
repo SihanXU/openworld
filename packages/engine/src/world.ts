@@ -195,7 +195,7 @@ export class World {
   }
 
   private collision = new Map<string, Set<number>>()
-  /** Blocked by the ground: solid terrain, or the map's collision layer (under decor and buildings). */
+  /** Blocked by the ground: solid terrain, or the map's collision layer (under big things and buildings). */
   blocked(map: string, x: number, y: number): boolean {
     if (this.isSolidTerrain(this.terrainAt(map, x, y))) return true
     const m = this.state.maps[map]

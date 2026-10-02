@@ -1,8 +1,8 @@
 // A small authoring DSL for hand-crafted maps: terrain painting, prefab stamps (houses),
 // room frames, fixtures, items, creatures and portals — emitted as engine chunks — and the
 // tools of composition (docs/game-design.md §8.7): curved paths with soft edges, organic
-// shapes, fences and yards, the detail layer (decor) with mask-driven scattering, the
-// collision layer and named anchors.
+// shapes, fences and yards, mask-driven scattering of small things, the collision layer and
+// named anchors. There is no picture without a thing: what the map shows is terrain or an entity.
 
 import type { AiData, Entity, Portal, PropValue, Text } from '@lsw/engine'
 import { CHAR_OF, FORM_BY_ID, makeItem, type RawChunk } from '@lsw/content'
@@ -27,9 +27,7 @@ export class MapBuilder {
   private seq = 0
   /** Door tiles of stamped prefabs, by a name the author chooses. */
   doors: Record<string, [number, number]> = {}
-  /** The detail layer and the collision layer (see MapData.decor / MapData.solid). */
-  decorList: { k: string; x: number; y: number }[] = []
-  private decorAt = new Set<number>()
+  /** The collision layer (see MapData.solid). */
   solid = new Set<number>()
   anchors: Record<string, [number, number]> = {}
   /** Named areas [x, y, w, h] (the goal's far bank). */
@@ -105,20 +103,11 @@ export class MapBuilder {
     if (this.in(x, y)) this.solid.add(y * this.w + x)
   }
 
-  /** A detail-layer sprite (catalog decor group); `solid` also blocks the tile. */
-  decor(k: string, x: number, y: number, solid = false) {
-    if (!CATALOG.decor[k]) throw new Error(`decor group ${k} not in catalog`)
-    if (!this.in(x, y) || SOLID_TERRAIN.has(this.get(x, y))) return
-    this.decorList.push({ k, x, y })
-    this.decorAt.add(y * this.w + x)
-    if (solid) this.block(x, y)
-  }
-
-  /** Is the tile open ground: walkable terrain, not blocked, no decor, no entity? */
+  /** Is the tile open ground: walkable terrain, not blocked, no entity? */
   free(x: number, y: number): boolean {
     if (!this.in(x, y)) return false
     const i = y * this.w + x
-    if (this.solid.has(i) || this.decorAt.has(i)) return false
+    if (this.solid.has(i)) return false
     if (SOLID_TERRAIN.has(this.get(x, y)) || this.get(x, y) === 'door') return false
     return !this.entities.some((e) => e.place.on === 'tile' && e.place.x === x && e.place.y === y)
   }
@@ -250,13 +239,13 @@ export class MapBuilder {
   }
 
   /**
-   * Detail by mask: on each free cell of the rect passing `where`, place decor `k` with
-   * probability p. Masks put things where they belong (stones at a cliff's foot, flowers along
-   * a path, leaves under trees), never as uniform noise.
+   * Small things by mask: on each free cell of the rect passing `where`, a fixture of `type`
+   * with probability p. Masks put things where they belong (stones at a cliff's foot, flowers
+   * along a path, leaves under trees), never as uniform noise.
    */
-  sprinkle(k: string, p: number, where: (x: number, y: number, t: string) => boolean, rect: [number, number, number, number] = [0, 0, this.w, this.h]) {
+  sprinkle(type: string, p: number, where: (x: number, y: number, t: string) => boolean, rect: [number, number, number, number] = [0, 0, this.w, this.h]) {
     const [rx, ry, rw, rh] = rect
-    for (let y = ry; y < ry + rh; y++) for (let x = rx; x < rx + rw; x++) if (this.free(x, y) && where(x, y, this.get(x, y)) && rng.chance(p)) this.decor(k, x, y)
+    for (let y = ry; y < ry + rh; y++) for (let x = rx; x < rx + rw; x++) if (this.free(x, y) && where(x, y, this.get(x, y)) && rng.chance(p)) this.fixture(type, x, y)
   }
 
   /** An interior partition: a wall ring inside the room with doorways (drawn as a room frame). */
@@ -380,7 +369,6 @@ export class MapBuilder {
         portals: this.portals,
         stamps: this.stamps,
         rooms: this.rooms,
-        decor: this.decorList.length ? this.decorList : undefined,
         solid: this.solid.size ? [...this.solid].sort((a, b) => a - b) : undefined,
         anchors: Object.keys(this.anchors).length ? this.anchors : undefined,
         regions: Object.keys(this.regions).length ? this.regions : undefined,

@@ -246,57 +246,6 @@ export const CATALOG: Catalog = {
   },
 
   // -------------------------------------------------------------------------------------------
-  // Decor: the detail layer the map author places by hand or by mask (purely visual).
-  // -------------------------------------------------------------------------------------------
-  decor: {
-    // lying on the ground
-    pebbles: { sprites: [t(NATURE, 15, 18), t(NATURE, 16, 18), t(NATURE, 17, 18), t(DETAIL, 9, 0)] },
-    twigs: { sprites: [t(DETAIL, 5, 0), t(DETAIL, 6, 0), t(DETAIL, 7, 0), t(DETAIL, 8, 0)] },
-    leaves: { sprites: [t(DETAIL, 0, 0), t(DETAIL, 1, 0), t(NATURE, 12, 11), t(NATURE, 13, 12)] },
-    petals: { sprites: [t(DETAIL, 2, 0), t(DETAIL, 3, 0)] },
-    flowers: { sprites: [t(DETAIL, 5, 2), t(NATURE, 6, 11), t(NATURE, 3, 11), t(DETAIL, 2, 0)] },
-    sunflowers: { sorted: true, sprites: [t(NATURE, 0, 11), t(NATURE, 1, 11)] },
-    tufts: { sprites: [t(NATURE, 4, 10), t(NATURE, 5, 10), t(NATURE, 7, 10), t(NATURE, 8, 10), t(NATURE, 10, 10), t(DETAIL, 0, 2), t(DETAIL, 3, 2)] },
-    ferns: { sprites: [t(NATURE, 4, 11), t(NATURE, 5, 11), t(NATURE, 8, 11), t(NATURE, 9, 11)] },
-    clover: { sprites: [t(DETAIL, 7, 2), t(DETAIL, 6, 2), t(NATURE, 2, 11)] },
-    puddle: { sprites: [t(DETAIL, 0, 1)] },
-    shells: { sprites: [t(DETAIL, 11, 0), t(DETAIL, 15, 0)] },
-    // standing (y-sorted)
-    rocks: { sorted: true, sprites: [t(NATURE, 17, 17), t(NATURE, 18, 17), t(NATURE, 19, 17), t(NATURE, 18, 13), t(NATURE, 19, 13)] },
-    stump: { sorted: true, sprites: [t(NATURE, 12, 13), t(NATURE, 13, 13), t(NATURE, 14, 18)] },
-    log: { sorted: true, sprites: [t(CAMP, 0, 0, 2, 1), t(CAMP, 2, 0, 2, 1)] },
-    log_v: { sorted: true, sprites: [t(NATURE, 12, 14, 1, 2), t(NATURE, 13, 14, 1, 2)] },
-    logs: { sorted: true, sprites: [t(CAMP, 0, 1, 1, 2), t(CAMP, 3, 1, 1, 2)] },
-    planks: { sorted: true, sprites: [t(ELEM, 10, 2), t(ELEM, 9, 2)] },
-    baskets: { sorted: true, sprites: [t(HOUSE, 16, 13), t(HOUSE, 17, 13), t(HOUSE, 18, 13)] },
-    produce: { sorted: true, sprites: [t(HOUSE, 19, 14), t(HOUSE, 20, 14)] },
-    bucket: { sorted: true, sprites: [t(ELEM, 4, 0), t(ELEM, 5, 0)] },
-    sack: { sorted: true, sprites: [t(ELEM, 0, 5, 1, 2), t(CAMP, 4, 5)] },
-    jar: { sorted: true, sprites: [t(ELEM, 2, 9), t(ELEM, 1, 0)] },
-    potted: { sorted: true, sprites: [t(ELEM, 0, 7, 1, 2)] },
-    sheaf: { sorted: true, sprites: [t(ELEM, 12, 4, 1, 2)] },
-    tools: { sorted: true, sprites: [t(HOUSE, 14, 18, 1, 2)] },
-    workbench: { sorted: true, sprites: [t(HOUSE, 29, 8, 2, 1)] },
-    rope: { sprites: [t(CAMP, 10, 7, 2, 2)] },
-    tub: { sorted: true, sprites: [t(CAMP, 7, 3), t(CAMP, 7, 4)] },
-    lantern_post: { sorted: true, sprites: [t(CAMP, 6, 5, 1, 2), t(CAMP, 7, 5, 1, 2)] },
-    // the camp: a log bench (3 wide), a cooking rack, a stump table, a straw mat, firewood
-    bench: { sorted: true, sprites: [t(CAMP, 0, 7, 3, 1)] },
-    rack: { sorted: true, sprites: [t(CAMP, 8, 3, 2, 2)] },
-    stump_table: { sorted: true, sprites: [t(CAMP, 1, 5, 2, 2)] },
-    mat: { sprites: [t(CAMP, 10, 5, 2, 2)] },
-    blanket: { sprites: [t(CAMP, 8, 5, 2, 2)] },
-    rope_coil: { sprites: [t(CAMP, 10, 7, 2, 2)] },
-    // the wild: reeds by water, bones at the hollow's mouth, moss
-    reeds: { sorted: true, sprites: [t(NATURE, 7, 10), t(NATURE, 4, 10), t(NATURE, 9, 10), t(NATURE, 8, 11)] },
-    bones: { sprites: [t(DETAIL, 13, 0), t(DETAIL, 14, 0)] },
-    signpost: { sorted: true, sprites: [t(ELEM, 0, 2)] },
-    moss: { sprites: [t(CAMP, 0, 8), t(CAMP, 3, 8)] },
-    // an orchard's fruit trees: one kind, planted in rows (2x2, trunk on the tile)
-    fruit_tree: { sorted: true, sprites: [t(NATURE, 16, 0, 2, 2, 16, 31), t(NATURE, 18, 0, 2, 2, 16, 31)] },
-  },
-
-  // -------------------------------------------------------------------------------------------
   // Terrain objects (one per tile; overhang upwards). All from TilesetNature unless noted.
   // -------------------------------------------------------------------------------------------
   terrainObjects: {
@@ -439,6 +388,21 @@ export const CATALOG: Catalog = {
     'fixture:chair': { base: t(ELEM, 0, 9) },
     'fixture:bed': { base: t(BED, 5, 3, 1, 2) },
     'fixture:bench': { base: t(CAMP, 3, 7) },
+    // the camp's things: a log bench three wide, a cooking rack, the chopping stump, firewood, a lantern post, the tent
+    'fixture:log_bench': { base: t(CAMP, 0, 7, 3, 1) },
+    'fixture:rack': { base: t(CAMP, 8, 3, 2, 2) },
+    'fixture:stump': { base: t(CAMP, 1, 5, 2, 2) },
+    'fixture:firewood': { base: t(CAMP, 0, 1, 1, 2) },
+    'fixture:lantern': { base: t(CAMP, 6, 5, 1, 2) },
+    'fixture:tent': { base: t(CAMP, 7, 0, 3, 3) },
+    // small things of the ground, scattered by mask: each a thing (pick a flower, burn the reeds)
+    'fixture:flowers': { base: t(DETAIL, 5, 2), variants: [t(DETAIL, 5, 2), t(NATURE, 6, 11), t(NATURE, 3, 11), t(DETAIL, 2, 0)], ground: true, loose: true },
+    'fixture:reeds': { base: t(NATURE, 7, 10), variants: [t(NATURE, 7, 10), t(NATURE, 4, 10), t(NATURE, 9, 10), t(NATURE, 8, 11)], loose: true },
+    'fixture:ferns': { base: t(NATURE, 4, 11), variants: [t(NATURE, 4, 11), t(NATURE, 5, 11), t(NATURE, 8, 11), t(NATURE, 9, 11)], loose: true },
+    'fixture:leaves': { base: t(DETAIL, 0, 0), variants: [t(DETAIL, 0, 0), t(DETAIL, 1, 0), t(NATURE, 12, 11), t(NATURE, 13, 12)], ground: true, loose: true },
+    'fixture:pebbles': { base: t(NATURE, 15, 18), variants: [t(NATURE, 15, 18), t(NATURE, 16, 18), t(NATURE, 17, 18), t(DETAIL, 9, 0)], ground: true, loose: true },
+    'fixture:tuft': { base: t(NATURE, 4, 10), variants: [t(NATURE, 4, 10), t(NATURE, 5, 10), t(NATURE, 7, 10), t(NATURE, 8, 10), t(NATURE, 10, 10), t(DETAIL, 0, 2), t(DETAIL, 3, 2)], loose: true },
+    'fixture:moss': { base: t(CAMP, 0, 8), variants: [t(CAMP, 0, 8), t(CAMP, 3, 8)], ground: true },
     'fixture:counter': { base: t(ELEM, 14, 0) },
     'fixture:stall': { base: t(ELEM, 7, 1, 1, 2) },
     'fixture:light': { base: px(ELEM, 96, 48, 16, 32, 8, 29) },

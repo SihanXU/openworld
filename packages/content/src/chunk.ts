@@ -14,7 +14,6 @@ export interface RawMap {
   portals: Portal[]
   stamps?: MapData['stamps']
   rooms?: MapData['rooms']
-  decor?: MapData['decor']
   music?: string
   light?: MapData['light']
   solid?: number[]
@@ -41,7 +40,6 @@ export function decodeMap(m: RawMap): MapData {
     portals: m.portals,
     stamps: m.stamps,
     rooms: m.rooms,
-    decor: m.decor,
     music: m.music,
     light: m.light,
     solid: m.solid,

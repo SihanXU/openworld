@@ -97,7 +97,7 @@ export function controlsTable(dev: boolean): string {
     ['F', 'take: pick up, take down, take out', '拿：捡起、取下、取出'],
     ['left click', 'use the held thing on it (click yourself: eat, drink); weapons strike', '用手上的东西作用于它（点自己：吃、喝）；武器就是攻击'],
     ['right click', 'put the held thing there: place, store, hand it over', '把手上的东西放过去：放下、放进、交给别人'],
-    ['hold any of these', 'choose which thing on the tile', '长按以上任一：选这一格里的哪一样'],
+    ['hold any of these', 'choose which of the things drawn there', '长按以上任一：选那个位置叠着的哪一样'],
     ['1–0 · wheel', 'choose what to hold', '选择拿在手里的东西'],
     ['Esc · I · J', 'menu · inventory · Threadbook', '菜单 · 背包 · 织线簿'],
   ]

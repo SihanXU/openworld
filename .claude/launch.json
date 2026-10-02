@@ -27,9 +27,11 @@
       "name": "modder",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
-        "run",
-        "modder",
+        "exec",
         "--",
+        "tsx",
+        "watch",
+        "packages/modder/src/cli.ts",
         "serve"
       ],
       "port": 8787

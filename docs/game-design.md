@@ -85,6 +85,8 @@ Composed, not scattered. The rules it follows:
   ponds are where lightning has water to run through.
 - **Detail by masks, never by noise**: tall grass and flowers sit off the grid; reeds only by
   water; leaves only under trees; pebbles only on banks. One season of trees.
+- **Nothing is only a picture**: every flower, tuft, pebble and bench is a thing of its type, met
+  by whatever input points at it (requirement F11); the map has no decoration layer.
 - **The far bank is quieter**: flowers, framing woods, a pier, and a road that leaves the map
   with a signpost to a place not written yet.
 
@@ -237,13 +239,13 @@ bed (Hesper sleeps by the fire) and a third slime.
 The engine keeps what is general (rules, statuses, scenes, schedules with variants, lines with
 keys, topics, facts) and gained what the Ford needs (the world's four event kinds, invariants,
 regions, `layLine`, `goto`, `give`, `emote`). The base rule library keeps its farming,
-building and fishing rules: they are world physics for the scale world (Saenvar), not the
+building and fishing rules: they are world physics for the places still to come, not the
 demo's game.
 
 ## 11. Scale
 
-The Ford is the first place of a world built to grow; the 460-map Saenvar stays the scale world
-for the paper's claims. What carries over unchanged: people as keyed data (heroes hand-written,
+The Ford is the first place of a world built to grow; the generated 460-map world that came
+before it is gone (2026-10-02), and scale is built out from the Ford. What carries over unchanged: people as keyed data (heroes hand-written,
 the crowd from templates with slots), schedules with fidelity tiers, invariants per piece of
 content, the world's own events with salience and budgets, and the shared library. The road
 east of the far bank is where the next place begins.
