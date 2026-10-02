@@ -49,7 +49,7 @@ contract. We keep that contract and its three-layer discipline. What changes:
 | D5 | Maps | **Tiled JSON**, whether hand-made or generated |
 | D6 | Art | **16×16**, **Ninja Adventure** (CC0) as the base pack; layered character composition + palette swaps for variety |
 | D7 | Setting | **Saenvar** (from BardOS) expanded to full scale |
-| D8 | Player input | two keys, **Action** and **Use** (after Stardew Valley, §5.2), over the engine's three verbs **take**, **put**, **interact** (+ hit); the keys choose the verb |
+| D8 | Player input | four inputs, one verb each (§5.2): **E** interact bare-handed, **F** take, **left click** interact with the held thing (or strike), **right click** put; a long press chooses the layer; proven complete over the engine's event space |
 | D9 | Free-text input | **deferred**; reserved in the ModSpec as the `intent` and `ask` event kinds (§5.4) |
 | D10 | Combat | **on-map, real-time** (Zelda / Stardew-like), elemental reactions interacting with the environment |
 | D11 | Rule system | **one** rule engine for world interactions, elemental reactions and combat |
@@ -150,57 +150,74 @@ Interaction = { verb, actor, target, instrument?, at, time }
 
 The player never chooses among the verbs. The two keys below do, using the rule library.
 
-### 5.2 Player input: two keys (after Stardew Valley)
+### 5.2 Player input: four inputs, one verb each
 
-| | Keyboard | Mouse |
+**Why not Stardew's contextual Action key.** Stardew's interaction space is closed: each pair
+of (held thing, target) means one thing, a tile holds one thing, and items in the bag do not
+act on each other. This world's promise is the opposite: anything may be used on, or put on,
+anything. "Holding X at Y" then means at least three different events — apply X to Y, put X
+onto Y, or do Y's own thing with a bare hand — and a contextual key always hides one of them.
+The first build (two Stardew keys) failed exactly so: where using X on Y was defined, putting X
+there was unreachable. Checked against the engine's event space, it had five holes (a take and
+a bare-hand interaction on the same fixture; a tool on the ground versus using it on oneself;
+layers under a pile; items in the bag as targets; an axe that both chops and strikes).
+
+**Completeness**, the criterion every input design here must meet:
+
+1. **Expressible**: every player event the engine can make and a rule can define is produced
+   by some input.
+2. **Unshadowed**: an input state (key, selected slot, aim, chosen layer) makes exactly one
+   event; no event is reachable only while another is undefined.
+3. **Foreseeable**: before the press, the HUD shows the event it will make.
+
+**The player's event space** (from the engine and the rules): `take(target)` — picking crops is
+a take; `put(held, target)` — sowing and giving are puts; `interact(none, target)`;
+`interact(held, target)` — eating is an interaction with oneself; `hit(held or fist, target)`;
+`enter(tile)`. Targets: every layer of a tile within reach (people and creatures, fixtures, the
+items of a pile, the ground), the player, and items in the bag or an open chest.
+
+**The inputs**, one verb each, as in action RPGs:
+
+| Input | Verb | For |
 |---|---|---|
-| **Use** | C · Space | left click |
-| **Action** | X · Enter | right click |
-| Menu | Esc · E | |
-| Journal (objectives) | F | |
-| Map | M | |
-| Toolbar | 1–0, -, = · Tab (next row) | wheel |
-| Run | Shift | |
+| **E** | `interact(none, target)` — hands | talk, open, read, sleep, push, shake (whatever is held) |
+| **F** | `take(target)` | pick up, pick a crop, take down, take from a table |
+| **Left click** | `interact(held, target)`, or a blow | tools, eating and drinking (click yourself), the player's experiments; weapons strike |
+| **Right click** | `put(held, target)` | place, store, set on a table or fire, sow, give |
 
-Space and Enter are conveniences; the rest are Stardew's own bindings.
+Other keys: Esc (menu, and closes anything open), I (inventory), J (journal), M (map), 1–0, -, =
+and the wheel (toolbar), Shift (walk), WASD (move). Dialogue moves on with E or a click.
 
-**The target tile.** This follows `Game1.pressActionButton`:
+- **The instrument** is the selected toolbar slot: any carried thing, or an empty slot (none).
+- **The aim**: the mouse's tile when it is the player's own or one of their 8 neighbours, else
+  the tile in front.
+- **The layer**: by default the first layer (top down) for which the input's verb is defined —
+  placing on open ground, tilling it, the table under a pile when putting — else the first it
+  reaches, bare ground included, as an experiment that goes to the Mod port (a weapon swung at
+  open air comes last). A **long press** of any input opens the chooser: every
+  layer of the tile, oneself included on the own tile, each with what the input would do. So
+  the default never hides an event.
+- **Items in the bag or an open chest** are targets through the context menu (right click on
+  the item): use the held thing on it, put the held thing into or onto it, handle it bare-handed.
+- **Blows** (a convention the ModSpec states): pure weapons (blades, clubs, bows, wands) strike
+  whatever they are used on except people; tools that are also weapons (the axe) strike living
+  things and work everything else; a bare fist on a creature punches. A weapon used on a person
+  is an interaction, never a blow — no villager is hurt by accident. The events these exclude
+  (a pure weapon's `interact` on a non-person, a tool's `hit` on a non-creature) are not player
+  events.
+- Sleeping and eating ask first (yes / no).
 
-- It is the mouse's tile if that tile is one of the player's 8 neighbours; otherwise it is the
-  tile the player faces.
-- Action is forgiving. If nothing answers on the target tile, it also tries the tile below
-  it, the tile above it, then the player's own tile.
-- The target is always outlined. Above it, a label shows what each key will do, taken from a
-  dry run.
+**Proof sketch.** An event is (verb, instrument, target). The key fixes the verb; the slot fixes
+the instrument, and every carried thing (or none) can be selected; the aim, the chooser and the
+context menu reach every target. The three are independent, so their product — the event space
+less the stated conventions — is reachable; and a given input state is one dry run, shown by the
+label. `packages/content/test/controls.test.ts` checks it by enumeration on a scene with the hard
+cases (a pile on a table, a stick on the ground, a person, the own tile, a second thing in the
+bag): every (verb, instrument, target) is produced by some input, and each input by one event.
 
-**Action resolves in this order; the first step that is defined (by dry run) wins:**
-
-1. A dialogue is open: the first press finishes the typing, the next advances or confirms a
-   choice.
-2. The target:
-   - a person: if the player holds a giftable (non-tool) item, give it (`put`); otherwise
-     talk (`interact`, empty hand). In Stardew (`NPC.checkAction`) the gift wins over talk,
-     so to chat you switch to a tool or an empty slot.
-   - a container: open the transfer panel.
-   - a bed: ask "Sleep until morning? Yes / No".
-   - a door, sign or board: enter or read.
-   - a ripe crop or a loose item: take it.
-   - something that accepts the held item (a fish on a campfire, a log into a fire): put it.
-3. The player holds a placeable item: place it in front (`put` on the tile).
-4. The player holds food or drink: ask "Eat X? Yes / No" ("Drink X?" for drinks).
-
-**Action never raises an undefined interaction.**
-
-**Use:**
-
-- A tool, weapon or wand swings or casts at the target. A tool applies itself (`interact`
-  holding the tool). A weapon or wand makes a **hit**, and the elemental reactions follow.
-- A tool or weapon facing a person becomes Action, so a villager is never hurt by accident
-  (`pressUseToolButton`).
-- A non-tool item facing empty ground is placed there (Stardew's left click).
-- A non-tool item facing something is **applied to it** (`interact` holding X). These are
-  the player's experiments, and they may be undefined (§5.4, source 1).
-- An empty hand does nothing.
+**Undefined behaviour from the inputs**: E on a thing only a catch-all describes (source 4),
+left click with an object (source 1) or a weapon (source 3), right click (source 2). They go to
+the Mod port as in §5.5.
 
 ### 5.3 Inventory, chests, pickup, HUD, menus, time (after Stardew Valley)
 
@@ -218,7 +235,7 @@ Space and Enter are conveniences; the rest are Stardew's own bindings.
 - **Pickup**
   - Items that rules spawn (a harvest, logs, loot) pop out, and fly into the bag within 2
     tiles (Stardew's default magnetic radius is 128 px).
-  - Items placed in the world are taken with Action. Walking through town never vacuums it.
+  - Items placed in the world are taken with F. Walking through town never vacuums it.
 - **HUD**
   - Top right: date and weekday, weather, season, a clock dial.
   - Under it, a "!" journal button that flashes on a new objective.

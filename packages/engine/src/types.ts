@@ -367,7 +367,8 @@ export type Ref = { e: Id } | { tile: Pos }
  * rule library: the HUD shows its label before the key is pressed, and pressing runs it.
  */
 export interface Plan {
-  key: 'action' | 'use'
+  /** The input: E (hands), F (take), left click (use), right click (put). */
+  key: 'hands' | 'take' | 'use' | 'put'
   /** The tile aimed at. */
   at: Pos
   /** A swing or a cast toward `at` (weapons, wands) instead of an interaction. */
@@ -378,13 +379,13 @@ export interface Plan {
   instrument?: Ref
   label: Text
   rule?: string
-  /** Use: no rule answers yet — the world has never seen this. */
+  /** No rule answers yet — the world has never seen this (an experiment). */
   unknown?: boolean
-  /** Use: fallback rules (catch-all descriptions) do not count. */
+  /** Fallback rules (catch-all descriptions) do not count (hands and use). */
   strict?: boolean
-  /** Action: ask first ("Eat the apple?"). */
+  /** Ask first ("Eat the apple?", "Sleep until morning?"). */
   confirm?: Text
-  /** Action on a container: open the transfer panel for it. */
+  /** Hands on a container: open the transfer panel for it. */
   panel?: Id
 }
 

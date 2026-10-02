@@ -74,7 +74,7 @@ export interface Frame {
   /** The people the player knows of: the Social tab. */
   social: SocialEntry[]
   /** What the two keys would do right now (filled by the host, not by snapshot()). */
-  keys?: { action?: KeyView; use?: KeyView }
+  keys?: { hands?: KeyView; take?: KeyView; use?: KeyView; put?: KeyView }
   /** The open container panel (the host names it): its contents. */
   container?: {
     id: Id
@@ -92,9 +92,9 @@ export interface Frame {
 
 export interface KeyView {
   label: Text
-  /** Use: the world has never seen this. */
+  /** The world has never seen this (an experiment). */
   unknown?: boolean
-  /** Action: it will ask first. */
+  /** It will ask first. */
   confirm?: boolean
   x: number
   y: number

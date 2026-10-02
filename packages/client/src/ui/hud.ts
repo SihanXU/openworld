@@ -65,6 +65,7 @@ export class Hud {
       <div class="msgs" id="msgs"></div>
       <div class="mapname" id="mapname"></div>
       <div class="keys" id="keys"></div>
+      <div class="chooser hidden" id="chooser"></div>
       <div class="dialog hidden" id="dialog"><div class="face" id="dFace"></div><div class="dtext"><div class="dname" id="dName"></div><div class="dline" id="dLine"></div><div class="dchoices hidden" id="dChoices"></div></div><div class="dmore" id="dMore">▼</div></div>
       <div class="fade hidden" id="fade"><div id="fadeText"></div></div>`
     $('#jbtn').onclick = () => this.send.openJournal()
@@ -218,15 +219,62 @@ export class Hud {
       this.keySig = sig
       const line = (key: string, v?: KeyView) =>
         v ? `<div class="kl${v.unknown ? ' unknown' : ''}"><kbd>${key}</kbd> ${esc(tx(v.label))}${v.unknown ? ` <span class="q">?</span>` : ''}</div>` : ''
-      $('#keys').innerHTML = k ? line('X', k.action) + line('C', k.use) : ''
+      // every input's label is shown (foreseeable); a bare-handed left click is the same event as E, so they share a line
+      const same = !!k?.hands && !!k?.use && JSON.stringify(k.hands.label) === JSON.stringify(k.use.label)
+      $('#keys').innerHTML = k ? line(same ? `E · ${t('lmb')}` : 'E', k.hands) + line('F', k.take) + (same ? '' : line(t('lmb'), k.use)) + line(t('rmb'), k.put) : ''
     }
-    const at = k?.action ?? k?.use
+    const at = k?.hands ?? k?.take ?? k?.use ?? k?.put
     const el = $('#keys')
     el.classList.toggle('hidden', !at)
     if (at) {
       const s = this.screenOfTile(at.x, at.y)
       el.style.transform = `translate(${s.x}px, ${s.y - 30}px) translate(-50%, -100%)`
     }
+  }
+
+  // ---------------------------------------------------------------- the layer chooser (a long press)
+
+  private pick?: (layer: number) => void
+  private pickLayers: number[] = []
+
+  get chooserOpen(): boolean {
+    return !$('#chooser').classList.contains('hidden')
+  }
+
+  /** Everything at the tile, with what the input would do to each: click one (or press its number). */
+  showChooser(key: string, tile: { x: number; y: number }, list: { layer: number; name: Text; label?: Text; unknown?: boolean }[], pick: (layer: number) => void): void {
+    const el = $('#chooser')
+    this.pick = pick
+    this.pickLayers = list.map((c) => c.layer)
+    el.innerHTML =
+      `<div class="ch-head"><kbd>${esc(key)}</kbd> ${t('chooseTarget')}</div>` +
+      list
+        .map(
+          (c, i) =>
+            `<div class="ch-row${c.unknown ? ' unknown' : ''}" data-layer="${c.layer}"><kbd>${i + 1}</kbd> <b>${esc(tx(c.name))}</b>${c.label ? ` · ${esc(tx(c.label))}` : ''}${c.unknown ? ' <span class="q">?</span>' : ''}</div>`,
+        )
+        .join('')
+    el.querySelectorAll<HTMLElement>('[data-layer]').forEach((row) => (row.onclick = () => this.choose(Number(row.dataset.layer))))
+    const s = this.screenOfTile(tile.x, tile.y)
+    el.style.transform = `translate(${s.x}px, ${s.y + 14}px) translate(-50%, 0)`
+    el.classList.remove('hidden')
+  }
+
+  /** The n-th row (1-based), from a number key. */
+  chooseNth(n: number): void {
+    const layer = this.pickLayers[n - 1]
+    if (layer !== undefined) this.choose(layer)
+  }
+
+  choose(layer: number): void {
+    const pick = this.pick
+    this.closeChooser()
+    pick?.(layer)
+  }
+
+  closeChooser(): void {
+    $('#chooser').classList.add('hidden')
+    this.pick = undefined
   }
 
   // ---------------------------------------------------------------- dialogue and questions
@@ -277,7 +325,7 @@ export class Hud {
     }, 22)
   }
 
-  /** Action on an open dialog: the first press finishes the typing, the next moves on (Stardew). */
+  /** E (or a click) on an open dialog: the first press finishes the typing, the next moves on. */
   advanceDialog(): void {
     if (this.questionOpen) return
     if (!this.typedAll) {
@@ -343,7 +391,7 @@ export class Hud {
     ch.querySelectorAll<HTMLButtonElement>('[data-yes]').forEach((b) => (b.onclick = () => this.answer(b.dataset.yes === '1')))
   }
 
-  /** ↑↓ / ←→ move between yes and no; Action confirms; Esc says no. */
+  /** Arrows move between yes and no; E confirms; Esc says no. */
   moveChoice(): void {
     this.qChoice = 1 - this.qChoice
     this.renderChoices()

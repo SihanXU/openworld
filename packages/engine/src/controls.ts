@@ -1,16 +1,21 @@
-// The player's controls (design.md §5.2–5.3), after Stardew Valley.
-//
-// Two keys choose the engine's verb by dry runs through the rule library:
-// - **Action** does the obvious thing (talk, give, open, take, place, eat, sleep, read) and is
-//   never undefined;
-// - **Use** applies the held thing to what is in front (tools, blows, spells, and the player's
-//   experiments): the world may never have seen it, and then it learns.
+// The player's controls (design.md §5.2–5.3): four inputs, one verb each, so every event the
+// rule library can define is reachable (completeness):
+// - E, **hands**: interact with a bare hand (talk, open, read, sleep, push, shake);
+// - F, **take**: take (pick up, pick a crop, take down, take from a table);
+// - left click, **use**: the held thing on the target (tools, blows, eating when aimed at oneself,
+//   and the player's experiments);
+// - right click, **put**: the held thing onto or into the target (place, store, sow, give).
+// The target is a layer of the aimed tile (people, fixtures, items, the ground, oneself): by
+// default the first the key's verb is defined for, and any layer through the chooser.
 // Also here: the inventory's slots (row 1 is the toolbar, the selected slot is what is held),
 // the magnet that pulls dropped items in, and the yes/no question asked before sleeping or
 // eating (the host stops time while it is open).
 
 import type { Engine, Resolution } from './engine.ts'
 import type { Dir, Entity, GameEvent, Id, Plan, Pos, Ref, Text, Verb } from './types.ts'
+
+/** The four inputs (design.md §5.2). */
+export type Key = Plan['key']
 
 /** Slots per row (the toolbar is row 1) and in all. */
 export const ROW = 12
@@ -70,7 +75,8 @@ const GENERIC: Record<string, Text> = {
   bare: { en: 'Touch {target}', zh: '摸摸{target}' },
   put: { en: 'Put {instrument} on {target}', zh: '把{instrument}放到{target}上' },
   take: { en: 'Take {target}', zh: '拿起{target}' },
-  attack: { en: 'Swing {instrument}', zh: '挥动{instrument}' },
+  attack: { en: 'Strike {target} with {instrument}', zh: '用{instrument}打{target}' },
+  punch: { en: 'Punch {target}', zh: '一拳打向{target}' },
   cast: { en: 'Cast {instrument}', zh: '施放{instrument}' },
 }
 
@@ -86,13 +92,13 @@ export class Controls {
 
   // ---------------------------------------------------------------- aiming
 
-  /** The tile a key aims at: the given tile when it is one of the player's 8 neighbours, else the tile in front. */
+  /** The tile a key aims at: the given tile when it is the player's own or one of their 8 neighbours, else the tile in front. */
   aim(at?: { x: number; y: number }): Pos | undefined {
     const w = this.w
     const p = w.player
     const pos = w.posOf(p)
     if (!pos) return undefined
-    if (at && Math.max(Math.abs(at.x - pos.x), Math.abs(at.y - pos.y)) === 1) return { map: pos.map, x: at.x, y: at.y }
+    if (at && Math.max(Math.abs(at.x - pos.x), Math.abs(at.y - pos.y)) <= 1) return { map: pos.map, x: at.x, y: at.y }
     return w.front(p)
   }
 
@@ -109,20 +115,29 @@ export class Controls {
     p.facing = dir
   }
 
+  // ---------------------------------------------------------------- the layers of a tile
+
+  /**
+   * Everything a key can act on at a tile, top first: people and creatures, fixtures, items
+   * (the top of a pile first), the ground — and the player, when the aim is their own tile.
+   */
+  layers(at: Pos): Ref[] {
+    const w = this.w
+    const p = w.player
+    const es = w.entitiesAt(at.map, at.x, at.y).filter((e) => e.id !== p.id)
+    const of = (k: string) => es.filter((e) => w.kindOf(e) === k)
+    const out: Ref[] = [...of('actor'), ...of('fixture'), ...of('item').reverse()].map((e) => ({ e: e.id }))
+    out.push({ tile: at })
+    const here = w.posOf(p)
+    if (here && here.map === at.map && here.x === at.x && here.y === at.y) out.push({ e: p.id })
+    return out
+  }
+
   // ---------------------------------------------------------------- planning
 
   private dry(verb: Verb, target: Ref, instrument: Ref | undefined, strict = false): Resolution {
     const ev: GameEvent = { kind: 'interaction', verb, roles: { actor: { e: this.w.state.player }, target, instrument }, strict: strict || undefined }
     return this.eng.resolve(ev)
-  }
-
-  /** What a key acts on at a tile: a person or creature, a fixture, the top item, else the tile (never the player). */
-  private refAt(t: Pos): Ref {
-    const w = this.w
-    const es = w.entitiesAt(t.map, t.x, t.y).filter((e) => e.id !== w.state.player)
-    const of = (k: string) => es.filter((e) => w.kindOf(e) === k)
-    const pick = of('actor')[0] ?? of('fixture')[0] ?? of('item').at(-1)
-    return pick ? { e: pick.id } : { tile: t }
   }
 
   private firm(r: Resolution): boolean {
@@ -140,9 +155,10 @@ export class Controls {
 
   private isCreature(r: Ref): boolean {
     const e = this.entity(r)
-    return !!e && !!e.ai
+    return !!e && e.type.startsWith('actor/creature')
   }
 
+  /** Bare ground or a wall: nothing there unless the player picks it on purpose (the layer chooser). */
   private isBare(r: Ref): boolean {
     if (!('tile' in r)) return false
     const { map, x, y } = r.tile
@@ -158,123 +174,84 @@ export class Controls {
   }
 
   private labelFor(rule: string | undefined, fallback: Text, target: Ref, instrument?: Ref): Text {
-    const hit = rule ? LABELS.find(([k]) => rule === k || (k.endsWith('/') ? rule.startsWith(k) : rule.startsWith(k))) : undefined
+    const hit = rule ? LABELS.find(([k]) => rule === k || rule.startsWith(k)) : undefined
     return this.label(hit?.[1] ?? fallback, target, instrument)
   }
 
-  private plan(key: Plan['key'], at: Pos, verb: Verb, target: Ref, instrument: Ref | undefined, r: Resolution, extra: Partial<Plan> = {}): Plan {
-    const generic = verb === 'interact' ? (instrument ? GENERIC.interact : GENERIC.bare) : GENERIC[verb]
-    const plan: Plan = { key, at, verb, target, instrument, rule: r.rule?.id, label: this.labelFor(r.rule?.id, generic, target, instrument), ...extra }
-    if (key === 'action' && r.rule?.confirm) plan.confirm = this.label(r.rule.confirm, target, instrument)
-    return plan
-  }
-
   /**
-   * The Action key: the first step the rule library answers (Stardew's pressActionButton,
-   * NPC.checkAction): a person (a gift when holding an object, else talk), what answers a bare
-   * hand (open, read, sleep, pick), something to take, something that accepts the held object,
-   * then placing it, then eating it, then a look. Forgiving: the tiles below and above the aim
-   * and the player's own tile are tried too. Never undefined.
+   * One key's plan for one layer: the event it makes (the verb is the key's, the instrument the
+   * held thing or none, the target the layer) and what the rule library says of it.
    */
-  planAction(aim?: { x: number; y: number }): Plan | undefined {
-    const w = this.w
-    const p = w.player
-    const at = this.aim(aim)
-    const here = w.posOf(p)
-    if (!at || !here) return undefined
+  private planOn(key: Key, at: Pos, target: Ref): Plan | undefined {
+    const p = this.w.player
     const held = p.held ? { e: p.held } : undefined
     const heldE = this.entity(held)
-    const object = heldE && !isTool(heldE.type) ? held : undefined
-    const tiles = [at, { ...at, y: at.y + 1 }, { ...at, y: at.y - 1 }, here].filter((t) => w.inBounds(t.map, t.x, t.y))
-    for (const t of tiles) {
-      const ref = this.refAt(t)
-      if (this.isPerson(ref)) {
-        if (object) {
-          const r = this.dry('put', ref, object)
-          if (this.firm(r)) return this.plan('action', t, 'put', ref, object, r)
-        }
-        const r = this.dry('interact', ref, undefined)
-        if (this.firm(r)) return this.plan('action', t, 'interact', ref, undefined, r, { instrument: undefined })
-        continue
-      }
-      // a bare hand: open, read, sleep, pick a ripe crop …
-      const bare = this.dry('interact', ref, undefined)
-      if (this.firm(bare)) {
-        const e = this.entity(ref)
-        const panel = e && w.hasTag(e, 'container') && bare.rule?.id === 'core/open-close' ? e.id : undefined
-        return this.plan('action', t, 'interact', ref, undefined, bare, panel ? { panel } : {})
-      }
-      // something to take: a loose item, or one lying on a table
-      const takeRef = this.eng.targetAt(t, 'take')
-      const takeE = this.entity(takeRef)
-      if (takeE && w.kindOf(takeE) === 'item' && takeE.place.on === 'tile') {
-        const r = this.dry('take', takeRef, held)
-        if (this.firm(r)) return this.plan('action', t, 'take', takeRef, undefined, r)
-      }
-      // something that accepts the held object: a fish on the campfire, a plank on the frame
-      if (object && !('tile' in ref)) {
-        const r = this.dry('put', ref, object)
-        if (this.firm(r)) return this.plan('action', t, 'put', ref, object, r)
-      }
-      if (!('tile' in ref) || !this.isBare(ref)) if (t === at) break // something is there: forgiveness stops here
-    }
-    const front = this.refAt(at)
-    if (object && 'tile' in front && !w.blocked(at.map, at.x, at.y)) {
-      // the held object on open ground: what the ground does with it (sowing), else placing it
-      const use = this.dry('interact', front, object)
-      if (this.firm(use)) return this.plan('action', at, 'interact', front, object, use)
-      if (!w.hasTag(heldE!, 'edible') && !w.hasTag(heldE!, 'drinkable')) {
-        const put = this.dry('put', front, object)
-        if (this.firm(put)) return this.plan('action', at, 'put', front, object, put)
-      }
-    }
-    if (held) {
-      const self = { e: p.id }
-      const r = this.dry('interact', self, held)
-      if (this.firm(r) && r.rule?.confirm) return this.plan('action', at, 'interact', self, held, r)
-    }
-    const look = this.dry('interact', front, undefined)
-    if (look.defined && !this.isBare(front)) return this.plan('action', at, 'interact', front, undefined, look, { instrument: undefined })
-    return undefined
-  }
-
-  /**
-   * The Use key: the held thing on what is in front. A person in front: Action instead (never
-   * hurt a villager by accident). A creature, or nothing the tool does there: a weapon or wand
-   * swings or casts. A tool or object on something: the rule library's answer, or — unknown —
-   * the player's experiment, which goes to the Mod port. An object on open ground: placed. A
-   * bare hand touches what is there (catch-all descriptions do not count).
-   */
-  planUse(aim?: { x: number; y: number }): Plan | undefined {
-    const w = this.w
-    const p = w.player
-    const at = this.aim(aim)
-    if (!at) return undefined
-    const ref = this.refAt(at)
-    if (this.isPerson(ref)) return this.planAction(aim)
-    const held = p.held ? { e: p.held } : undefined
-    const heldE = this.entity(held)
+    if (key === 'hands') return this.make(key, at, 'interact', target, undefined, true)
+    if (key === 'take') return this.make(key, at, 'take', target, held, false)
+    if (key === 'put') return held ? this.make(key, at, 'put', target, held, false) : undefined
+    // use: the held thing — a blow for weapons on creatures (and pure weapons on anything but
+    // people); a bare fist on a creature; otherwise the held thing applied to the target
+    const person = this.isPerson(target)
     if (heldE) {
-      const weapon = isWeapon(heldE.type)
-      if (weapon && this.isCreature(ref)) return this.attackPlan(at, ref, held!, heldE)
-      const r = this.dry('interact', ref, held, true)
-      if (r.defined) return this.plan('use', at, 'interact', ref, held, r, { strict: true })
-      if (weapon) return this.attackPlan(at, ref, held!, heldE)
-      if (!isTool(heldE.type) && this.isBare(ref) && !w.blocked(at.map, at.x, at.y)) {
-        const put = this.dry('put', ref, held)
-        if (this.firm(put)) return this.plan('use', at, 'put', ref, held, put)
-      }
-      if (this.isBare(ref)) return undefined
-      return this.plan('use', at, 'interact', ref, held, r, { strict: true, unknown: true })
+      const pure = isWeapon(heldE.type) && !this.w.hasTag(heldE, 'tool:axe') && !(heldE.tags ?? []).some((g) => g.startsWith('tool:'))
+      const blow = isWeapon(heldE.type) && !person && (pure || this.isCreature(target))
+      if (blow) return this.attackPlan(at, target, held!, heldE)
+      return this.make(key, at, 'interact', target, held, true)
     }
-    if (this.isBare(ref)) return undefined
-    const r = this.dry('interact', ref, undefined, true)
-    return this.plan('use', at, 'interact', ref, undefined, r, { strict: true, unknown: !r.defined, instrument: undefined })
+    if (this.isCreature(target)) return { key, at, attack: true, target, label: this.label(GENERIC.punch, target) }
+    return this.make(key, at, 'interact', target, undefined, true)
+  }
+
+  private make(key: Key, at: Pos, verb: Verb, target: Ref, instrument: Ref | undefined, strict: boolean): Plan {
+    const r = this.dry(verb, target, instrument, strict)
+    const firm = this.firm(r)
+    const generic = verb === 'interact' ? (instrument ? GENERIC.interact : GENERIC.bare) : GENERIC[verb]
+    const plan: Plan = { key, at, verb, target, instrument, rule: firm ? r.rule?.id : undefined, label: this.labelFor(firm ? r.rule?.id : undefined, generic, target, instrument), strict: strict || undefined, unknown: !firm || undefined }
+    if (firm && r.rule?.confirm) plan.confirm = this.label(r.rule.confirm, target, instrument)
+    const e = this.entity(target)
+    if (firm && e && this.w.hasTag(e, 'container') && r.rule?.id === 'core/open-close') plan.panel = e.id
+    return plan
   }
 
   private attackPlan(at: Pos, target: Ref, held: Ref, heldE: Entity): Plan {
     const cast = heldE.type.startsWith('item/weapon/magic/')
     return { key: 'use', at, attack: true, target, instrument: held, label: this.label(cast ? GENERIC.cast : GENERIC.attack, target, held) }
+  }
+
+  /**
+   * A key's plan at the aim: on the chosen layer when the player picked one (the chooser), else
+   * on the first layer where the rule library answers (placing on open ground, tilling it), else
+   * on the first layer it reaches (top down, the ground last) as an experiment: undefined, so it
+   * goes to the Mod port. Every layer is reachable through the chooser, so the default never
+   * hides an event (design.md §5.2, completeness).
+   */
+  plan(key: Key, aim?: { x: number; y: number }, layer?: number): Plan | undefined {
+    const at = this.aim(aim)
+    if (!at) return undefined
+    const ls = this.layers(at)
+    if (layer !== undefined) return ls[layer] ? this.planOn(key, at, ls[layer]) : undefined
+    let experiment: Plan | undefined
+    let swing: Plan | undefined
+    for (const ref of ls) {
+      if ('e' in ref && ref.e === this.w.state.player && key !== 'use') continue
+      const pl = this.planOn(key, at, ref)
+      if (!pl) continue
+      if (pl.attack) {
+        if (!this.isBare(ref)) return pl
+        swing ??= pl // a swing at the open air, if nothing else is there
+        continue
+      }
+      if (!pl.unknown) return pl
+      experiment ??= pl // undefined: the modder decides what it does
+    }
+    return experiment ?? swing
+  }
+
+  /** The chooser's list: every layer at the aim, with what the key would do there. */
+  choices(key: Key, aim?: { x: number; y: number }): { layer: number; name: Text; plan?: Plan }[] {
+    const at = this.aim(aim)
+    if (!at) return []
+    return this.layers(at).map((ref, layer) => ({ layer, name: this.label('{target}', ref), plan: this.planOn(key, at, ref) }))
   }
 
   // ---------------------------------------------------------------- running
@@ -291,7 +268,7 @@ export class Controls {
       return {}
     }
     if (plan.attack) {
-      eng.playerAttack()
+      eng.playerAttack(plan.target)
       return {}
     }
     // a container left open: just show its panel
@@ -307,6 +284,15 @@ export class Controls {
     if (!q) return
     delete this.w.state.question
     if (yes) this.run(q.plan, true)
+  }
+
+  /** The inventory's context menu: a key's event on an item in the bag (or in an open chest). */
+  planOnItem(key: Key, item: Id): Plan | undefined {
+    const w = this.w
+    const pos = w.posOf(w.player)
+    if (!pos || !w.get(item)) return undefined
+    if (key === 'use' && w.player.held === item) return undefined
+    return this.planOn(key, pos, { e: item })
   }
 
   // ---------------------------------------------------------------- inventory slots
@@ -435,15 +421,17 @@ export class Controls {
     this.sync()
   }
 
-  /** Drop a slot's stack (or one of it) at the player's feet (dragging out of the menu). */
+  /** Drop a slot's stack (or one of it) in front of the player, or at their feet when that is blocked (the menu's Drop). */
   drop(i: number, all = true): void {
     const w = this.w
     const p = w.player
     const k = p.slots?.[i]
     const here = w.posOf(p)
     if (!k || !here) return
+    const front = w.front(p)
+    const to = front && w.inBounds(front.map, front.x, front.y) && w.passable(front.map, front.x, front.y) ? front : here
     const items = this.carried().get(k) ?? []
-    for (const e of all ? items : items.slice(0, 1)) if (!e.frozenBy) w.place(e, { on: 'tile', map: here.map, x: here.x, y: here.y })
+    for (const e of all ? items : items.slice(0, 1)) if (!e.frozenBy) w.place(e, { on: 'tile', map: to.map, x: to.x, y: to.y })
     this.sync()
   }
 

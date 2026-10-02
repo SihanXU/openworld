@@ -404,16 +404,16 @@ export class Engine {
 
   // ---------------------------------------------------------------- combat
 
-  /** The player attacks with the held item (or bare hands) along the facing direction. */
-  playerAttack(): void {
+  /** The player attacks with the held item (or bare hands): at a chosen target next to them, or along the facing direction. */
+  playerAttack(target?: Ref): void {
     const w = this.world
     const p = w.player
     if (this.busy(p) || !this.ready('atk:' + p.id)) return
-    this.attack(p)
+    this.attack(p, target)
     this.setCooldown('atk:' + p.id, 5)
   }
 
-  attack(a: Entity): void {
+  attack(a: Entity, chosen?: Ref): void {
     const w = this.world
     const weapon = w.get(a.held)
     const range = weapon ? w.num(weapon, 'range', 1) : 1
@@ -438,6 +438,11 @@ export class Engine {
       if (w.blocked(start.map, x, y) && i > 1) break
     }
     if (!target && last) target = { tile: last }
+    // a melee blow on the layer the player chose (the well rather than the bucket on it)
+    if (chosen && range <= 1) {
+      const cp = w.refPos(chosen)
+      if (cp && Math.max(Math.abs(cp.x - start.x), Math.abs(cp.y - start.y)) <= 1) target = chosen
+    }
     if (!target) return
     if (range > 1 && last) w.fx.push({ t: 'vfx', fx: `bolt:${element ?? 'none'}:${a.facing}:${Math.abs(last.x - start.x) + Math.abs(last.y - start.y)}`, map: start.map, x: start.x, y: start.y })
     else w.fx.push({ t: 'vfx', fx: `swing:${a.facing}`, map: start.map, x: start.x, y: start.y })

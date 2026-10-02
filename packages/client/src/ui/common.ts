@@ -75,6 +75,13 @@ const STRINGS: Record<string, [string, string]> = {
   objective: ['Objective', '目标'],
   done: ['Done', '已完成'],
   youAreHere: ['you are here', '你在这里'],
+  lmb: ['L-click', '左键'],
+  rmb: ['R-click', '右键'],
+  chooseTarget: ['on which?', '对哪一个？'],
+  useOn: ['Use {held} on it', '用{held}作用于它'],
+  putIn: ['Put {held} into / onto it', '把{held}放进 / 放到它上'],
+  handsOn: ['Handle it', '空手摆弄它'],
+  moveOne: ['Move one', '移一个'],
   confirmNew: ['Start a new game? (the threads the valley learned are kept)', '开始新游戏？（山谷学会的线会保留）'],
 }
 
@@ -96,12 +103,13 @@ export function controlsTable(dev: boolean): string {
   const zh = locale.value === 'zh'
   const rows: [string, string, string][] = [
     ['WASD · ↑↓←→', 'move (Shift: walk)', '移动（Shift：慢走）'],
-    ['X · Enter · right click', 'Action: talk, give, open, take, place, eat', '行动：交谈、送礼、打开、拿取、放下、吃'],
-    ['C · Space · left click', 'Use the held thing: tools, weapons, and trying things', '使用手上的东西：工具、武器、各种尝试'],
+    ['E', 'hands: talk, open, read, sleep, push', '空手：说话、打开、阅读、睡觉、推'],
+    ['F', 'take: pick up, pick, take down', '拿：捡起、采摘、取下'],
+    ['left click', 'use the held thing on it (click yourself: eat, drink); weapons strike', '用手上的东西作用于它（点自己：吃、喝）；武器就是攻击'],
+    ['right click', 'put the held thing there: place, store, sow, give', '把手上的东西放过去：放下、放进、播种、送礼'],
+    ['hold any of these', 'choose which thing on the tile', '长按以上任一：选这一格里的哪一样'],
     ['1–0 · - · = · wheel', 'choose from the toolbar', '选择快捷栏'],
-    ['Tab', 'next row of the bag', '换下一排背包'],
-    ['E · Esc', 'menu', '菜单'],
-    ['F · M', 'journal · map', '日志 · 地图'],
+    ['Esc · I · J · M', 'menu · inventory · journal · map', '菜单 · 背包 · 日志 · 地图'],
   ]
   if (dev) rows.push(['`', 'Mod Console (dev)', '模组控制台（开发）'])
   return `<table>${rows.map(([k, en, z]) => `<tr><td><kbd>${k}</kbd></td><td>${zh ? z : en}</td></tr>`).join('')}</table>`

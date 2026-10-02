@@ -309,14 +309,15 @@ export class WorldScene extends Phaser.Scene {
     for (const fx of f.fx) this.hooks.onFx(fx, f)
   }
 
-  /** Outline the tile the two keys aim at (Stardew's tool hit location): the mouse's neighbour tile, or the one in front. */
+  /** Outline the tile the inputs aim at: the mouse's own or neighbour tile, or the one in front. */
   private drawFocus(f: Frame): void {
-    const k = f.keys?.action ?? f.keys?.use
+    const k = f.keys?.hands ?? f.keys?.take ?? f.keys?.use ?? f.keys?.put
     const [dx, dy] = STEP[f.player.facing]
     const tx = k ? k.x : f.player.x + dx
     const ty = k ? k.y : f.player.y + dy
     this.focus ??= this.add.graphics().setDepth(1e5)
-    const unknown = !!f.keys?.use?.unknown && !f.keys?.action
+    const ks = f.keys ? Object.values(f.keys).filter(Boolean) : []
+    const unknown = ks.length > 0 && ks.every((v) => v!.unknown)
     this.focus.clear()
     if (f.scene || !f.keys) return
     this.focus.lineStyle(1, unknown ? 0xf0b85a : 0xffffff, 0.6).strokeRoundedRect(tx * T + 0.5, ty * T + 0.5, T - 1, T - 1, 2)

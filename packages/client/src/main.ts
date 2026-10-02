@@ -1,9 +1,10 @@
 // Boot: Phaser (render) + engine Worker (simulation) + DOM UI, wired by messages. The input
-// follows Stardew Valley (design.md §5.2): two keys, Action (X / right click) and Use
-// (C / left click), aimed at the mouse's neighbour tile or the tile in front.
+// (design.md §5.2): four inputs, one verb each — E hands, F take, left click use, right click
+// put — aimed at the mouse's own or neighbour tile, else the tile in front; Esc menu, I
+// inventory, J journal, M map.
 
 import Phaser from 'phaser'
-import type { Dir, ItemInfo, LibraryData, SaveData } from '@lsw/engine'
+import type { Dir, Frame, ItemInfo, Key, LibraryData, SaveData, Text } from '@lsw/engine'
 import { CATALOG } from './assets/catalog.ts'
 import type { FromWorker, Tile, ToWorker } from './protocol.ts'
 import { WorldScene } from './render/scene.ts'
@@ -51,6 +52,7 @@ const menu = new Menu({
   },
   toggleSound: () => hud.toggleSound(),
   devConsole: () => dev.toggle(true),
+  keyOnItem: (key, item) => send({ t: 'keyOnItem', key, item }),
 })
 
 const hud = new Hud(
@@ -68,8 +70,13 @@ menu.muted = hud.muted
 menu.currentMap = () => scene.currentMap()
 hud.threadDoc = (rule) => menu.library?.patches.find((r) => r.id === rule)?.doc
 
+/** The latest frame (for aiming the chooser), and the chooser's handler (set below). */
+let lastFrame: Frame | undefined
+let onChoices: ((key: Key, tile: Tile | undefined, list: { layer: number; name: Text; label?: Text; unknown?: boolean }[]) => void) | undefined
+
 scene.hooks = {
   onFrame: (f) => {
+    lastFrame = f
     hud.onFrame(f)
     menu.onFrame(f)
     dev.onFrame(f)
@@ -190,6 +197,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       break
     case 'loading':
       break
+    case 'choices':
+      onChoices?.(m.key, m.tile, m.list)
+      break
     case 'error':
       console.error(m.message)
       if (import.meta.env.DEV) hud.message(m.message.split('\n')[0], 'warn')
@@ -208,7 +218,7 @@ void boot()
 
 let pausedNow = false
 function syncPause(): void {
-  const on = menu.anyOpen || hud.dialogOpen || dev.open || !document.getElementById('intro')!.classList.contains('hidden')
+  const on = menu.anyOpen || hud.dialogOpen || hud.chooserOpen || dev.open || !document.getElementById('intro')!.classList.contains('hidden')
   if (on !== pausedNow) {
     pausedNow = on
     send({ t: 'pause', on })
@@ -249,6 +259,38 @@ const typing = () => {
   return !!a && (a.tagName === 'TEXTAREA' || a.tagName === 'INPUT')
 }
 
+// The four inputs (design.md §5.2): E hands, F take, left click use, right click put. A short
+// press acts on the default layer of the aimed tile; a long press opens the chooser of every
+// layer there (people, things, items, the ground, oneself), so every event is reachable.
+const LONG_MS = 380
+const KEY_OF: Record<string, Key> = { KeyE: 'hands', KeyF: 'take' }
+const KEY_NAME: Record<Key, string> = { hands: 'E', take: 'F', use: 'L', put: 'R' }
+let pressing: { key: Key; tile?: Tile; timer: ReturnType<typeof setTimeout>; long: boolean } | undefined
+
+function press(key: Key, tile: Tile | undefined): void {
+  if (pressing) return
+  const p = { key, tile, long: false, timer: setTimeout(() => ((p.long = true), send({ t: 'choices', key, tile })), LONG_MS) }
+  pressing = p
+}
+function release(key: Key): void {
+  const p = pressing
+  if (!p || p.key !== key) return
+  clearTimeout(p.timer)
+  pressing = undefined
+  if (!p.long) send({ t: 'key', key, tile: p.tile })
+}
+/** The chooser's list arrived (after a long press): pick a layer, then the input acts on it. */
+onChoices = (key, tile, list) =>
+  hud.showChooser(KEY_NAME[key] === 'L' ? t('lmb') : KEY_NAME[key] === 'R' ? t('rmb') : KEY_NAME[key], tile ?? aimFront(), list, (layer) => send({ t: 'key', key, tile, layer }))
+
+/** The tile in front of the player (for placing the chooser when the keyboard aims). */
+function aimFront(): Tile {
+  const f = lastFrame
+  if (!f) return { x: 0, y: 0 }
+  const [dx, dy] = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[f.player.facing] as [number, number]
+  return { x: f.player.x + dx, y: f.player.y + dy }
+}
+
 window.addEventListener('keydown', (e) => {
   if (typing()) {
     if (e.key === 'Escape') (document.activeElement as HTMLElement).blur()
@@ -256,33 +298,39 @@ window.addEventListener('keydown', (e) => {
   }
   if (!document.getElementById('intro')!.classList.contains('hidden')) return
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') shift = true
-  // a yes/no question: arrows choose, Action / Enter confirm, Esc says no
+  // the layer chooser: a number picks, Esc closes
+  if (hud.chooserOpen) {
+    e.preventDefault()
+    if (e.code === 'Escape') return hud.closeChooser()
+    const n = Number(e.key)
+    if (n >= 1 && n <= 9) return hud.chooseNth(n)
+    return
+  }
+  // a yes/no question: arrows choose, E confirms, Esc says no
   if (hud.questionShown) {
     e.preventDefault()
     if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD', 'KeyW', 'KeyS'].includes(e.code)) return hud.moveChoice()
-    if (['KeyX', 'Enter', 'Space', 'KeyC'].includes(e.code)) return hud.confirmChoice()
-    if (e.code === 'KeyY') return hud.answer(true)
-    if (e.code === 'KeyN' || e.code === 'Escape') return hud.answer(false)
+    if (e.code === 'KeyE' || e.code === 'KeyF') return hud.confirmChoice()
+    if (e.code === 'Escape') return hud.answer(false)
     return
   }
-  // an open dialogue: Action, Use, Enter, Space or Esc moves it on
-  if (hud.dialogOpen && ['KeyX', 'KeyC', 'Enter', 'Space', 'Escape', 'KeyE'].includes(e.code)) {
+  // an open dialogue: E (or Esc) moves it on
+  if (hud.dialogOpen && (e.code === 'KeyE' || e.code === 'Escape')) {
     e.preventDefault()
     return hud.advanceDialog()
   }
   if (e.code === 'Backquote') return dev.toggle()
-  // menus: Esc / E close what is open, or open the menu
-  if (e.code === 'Escape' || e.code === 'KeyE') {
+  // Esc closes what is open, else opens the menu; I the inventory, J the journal, M the map
+  if (e.code === 'Escape') {
     e.preventDefault()
     if (dev.open) return dev.toggle(false)
     if (menu.anyOpen) return menu.close()
-    return menu.open('inventory')
+    return menu.open('options')
   }
-  if (menu.anyOpen || dev.open) {
-    if (e.code === 'KeyF' && menu.journalOpen) return menu.close()
-    if (e.code === 'KeyM' && menu.menuOpen) return menu.toggle('map')
-    return
-  }
+  if (e.code === 'KeyI') return menu.toggle('inventory')
+  if (e.code === 'KeyJ') return menu.journalOpen ? menu.close() : (menu.openJournal(), hud.seenJournal())
+  if (e.code === 'KeyM') return menu.toggle('map')
+  if (menu.anyOpen || dev.open) return
   const dir = KEY_DIR[e.code]
   if (dir) {
     if (!held.includes(dir)) held.push(dir)
@@ -290,28 +338,15 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault()
     return
   }
-  if (e.repeat && !['KeyC', 'Space'].includes(e.code)) return
-  switch (e.code) {
-    case 'KeyX':
-    case 'Enter':
-      e.preventDefault()
-      return send({ t: 'action', tile: mouseTile })
-    case 'KeyC':
-    case 'Space':
-      e.preventDefault()
-      return send({ t: 'use', tile: mouseTile })
-    case 'Tab':
-      e.preventDefault()
-      return send({ t: 'row' })
-    case 'KeyF':
-      return (menu.openJournal(), hud.seenJournal())
-    case 'KeyM':
-      return menu.open('map')
-  }
+  if (e.repeat) return
+  const key = KEY_OF[e.code]
+  if (key) return press(key, mouseTile)
   const slot = SLOT_CODES.indexOf(e.code)
   if (slot >= 0) send({ t: 'select', slot })
 })
 window.addEventListener('keyup', (e) => {
+  const key = KEY_OF[e.code]
+  if (key) return release(key)
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
     shift = false
     sentDir = null
@@ -328,7 +363,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') send({ t: 'save' })
 })
 
-// ------------------------------------------------------------------ mouse: aim at a neighbour tile, left = Use, right = Action
+// ------------------------------------------------------------------ mouse: aim at the own or a neighbour tile; left = use, right = put
 
 let mouseTile: Tile | undefined
 const gameEl = document.getElementById('game')!
@@ -343,12 +378,17 @@ window.addEventListener('mousemove', (e) => {
 })
 gameEl.addEventListener('contextmenu', (e) => e.preventDefault())
 gameEl.addEventListener('mousedown', (e) => {
+  if (hud.chooserOpen) return hud.closeChooser()
   if (hud.questionShown) return
   if (hud.dialogOpen) return hud.advanceDialog()
   if (menu.anyOpen || dev.open) return
   const tile = scene.tileAtScreen(e.clientX, e.clientY)
-  if (e.button === 0) send({ t: 'use', tile })
-  if (e.button === 2) send({ t: 'action', tile })
+  if (e.button === 0) press('use', tile)
+  if (e.button === 2) press('put', tile)
+})
+window.addEventListener('mouseup', (e) => {
+  if (e.button === 0) release('use')
+  if (e.button === 2) release('put')
 })
 window.addEventListener(
   'wheel',

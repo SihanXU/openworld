@@ -2,7 +2,7 @@
 // Stardew Valley: one menu with tabs (Inventory, Social, Map, Threadbook, Letters, Options);
 // the chest's grid above the bag's grid, a click moving a stack to the other side.
 
-import type { Frame, ItemInfo, MapData, Rule } from '@lsw/engine'
+import type { Frame, ItemInfo, Key, MapData, Rule } from '@lsw/engine'
 import { FORM_BY_ID, OBJECTIVES, TERRAINS } from '@lsw/content'
 import type { LibraryView } from '../protocol.ts'
 import { $, SEASON_ZH, SLOT_KEYS, TASTE_ZH, cap, controlsTable, esc, locale, t, tx } from './common.ts'
@@ -23,6 +23,8 @@ export interface MenuSend {
   toggleLocale(): void
   toggleSound(): void
   devConsole?(): void
+  /** One of the inputs on an item in the bag or the open chest (the context menu). */
+  keyOnItem(key: Key, item: string): void
 }
 
 const COLOR: Record<string, string> = Object.fromEntries(TERRAINS.map((x) => [x.id, (x as { color?: string }).color ?? '#000']))
@@ -153,7 +155,8 @@ export class Menu {
     return `<div class="inv">${rows}</div>
       <div class="inv-foot">
         <button id="bOrganize">⇅ ${t('organize')}</button>
-        <span class="muted small">${zh ? '点击拿起、再点击放下或交换 · Shift+点击在快捷栏与背包间移动 · 拿着东西点空白处丢下' : 'Click to pick up, click again to place or swap · Shift+click moves between the toolbar and the bag · click outside to drop'}</span>
+        <button id="bDrop" ${this.picked === undefined ? 'disabled' : ''}>⤓ ${t('dropHere')}</button>
+        <span class="muted small">${zh ? '点击拿起、再点击交换 · “丢下”放到面前 · Shift+点击在快捷栏与背包间移动 · 右键：对它用手上的东西、放进去、空手摆弄' : 'Click to pick up, again to swap · Drop sets it down in front · Shift+click: toolbar ↔ bag · right click: use or put the held thing on it, or handle it'}</span>
       </div>
       <div class="tip hidden" id="tip"></div>`
   }
@@ -162,6 +165,12 @@ export class Menu {
     if (!f) return
     const slots = f.player.slots
     $('#bOrganize').onclick = () => this.send.organize()
+    $('#bDrop').onclick = () => {
+      if (this.picked === undefined) return
+      this.send.drop(this.picked, true)
+      this.picked = undefined
+      this.render()
+    }
     $('#menuSheet').querySelectorAll<HTMLElement>('.inv [data-i]').forEach((el) => {
       const i = Number(el.dataset.i)
       el.onclick = (e) => {
@@ -190,7 +199,35 @@ export class Menu {
         tip.style.top = `${r.top - 6}px`
       }
       el.onmouseleave = () => $('#tip').classList.add('hidden')
+      // right click: the context menu — this item as the target of the held thing or a bare hand
+      el.oncontextmenu = (e) => {
+        e.preventDefault()
+        const s = slots[i]
+        if (!s) return
+        this.contextMenu(e.clientX, e.clientY, s.item.id, [[t('dropHere'), () => this.send.drop(i, true)]])
+      }
     })
+  }
+
+  /** The context menu on an item: use the held thing on it, put the held thing into it, handle it bare-handed — and extras. */
+  private contextMenu(x: number, y: number, item: string, extra: [string, () => void][] = []): void {
+    document.querySelector('.ctx')?.remove()
+    const held = this.frame?.player.held
+    const heldName = held ? tx(held.name) : ''
+    const rows: [string, () => void][] = []
+    if (held && held.id !== item) {
+      rows.push([t('useOn').replace('{held}', heldName), () => this.send.keyOnItem('use', item)])
+      rows.push([t('putIn').replace('{held}', heldName), () => this.send.keyOnItem('put', item)])
+    }
+    rows.push([t('handsOn'), () => this.send.keyOnItem('hands', item)], ...extra)
+    const el = document.createElement('div')
+    el.className = 'ctx'
+    el.innerHTML = rows.map(([l], k) => `<div class="ctx-row" data-k="${k}">${esc(l)}</div>`).join('')
+    el.style.left = `${x}px`
+    el.style.top = `${y}px`
+    document.body.appendChild(el)
+    el.querySelectorAll<HTMLElement>('[data-k]').forEach((r) => (r.onclick = () => (el.remove(), rows[Number(r.dataset.k)][1]())))
+    setTimeout(() => window.addEventListener('mousedown', (ev) => !el.contains(ev.target as Node) && el.remove(), { once: true }), 0)
   }
 
   // ---------------------------------------------------------------- social
@@ -340,18 +377,19 @@ export class Menu {
     $('#chestSheet').innerHTML = `
       <div class="jhead"><b>${esc(tx(c.name))}</b><span class="muted small">${c.contents.length} / ${c.capacity ?? '∞'}</span><button class="x" id="cClose">✕</button></div>
       <div class="inv chest-grid">${chunk(chestCells, 12).map((r) => `<div class="grid-row">${r.join('')}</div>`).join('')}</div>
-      <div class="inv-foot"><button id="cFill">⇣ ${t('fillStacks')}</button><button id="cOrg">⇅ ${t('organize')}</button><span class="muted small">${zh ? '点击：整堆移到另一边 · 右键：移一个' : 'Click: move the stack across · right click: move one'}</span></div>
+      <div class="inv-foot"><button id="cFill">⇣ ${t('fillStacks')}</button><button id="cOrg">⇅ ${t('organize')}</button><span class="muted small">${zh ? '点击：整堆移到另一边 · Shift+点击：移一个 · 右键：更多' : 'Click: the stack across · Shift+click: one · right click: more'}</span></div>
       <div class="inv bag-grid">${[0, 1, 2].map((r) => `<div class="grid-row${r === 0 ? ' toolbar-row' : ''}">${bag.slice(r * 12, r * 12 + 12).map((s, j) => (s ? `<div class="slot" data-b="${s.item.id}" data-tip="${esc(tipOf(s.item))}"><div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}</div>` : `<div class="slot" data-i="${r * 12 + j}"></div>`)).join('')}</div>`).join('')}</div>`
     const sheet = $('#chestSheet')
     $('#cClose').onclick = () => this.close()
     const move = (from: 'chest' | 'bag', id: string, all: boolean) => this.send.transfer(from, id, all)
+    // click: the stack across; Shift+click: one; right click: the context menu
     sheet.querySelectorAll<HTMLElement>('[data-c]').forEach((el) => {
-      el.onclick = () => move('chest', el.dataset.c!, true)
-      el.oncontextmenu = (e) => (e.preventDefault(), move('chest', el.dataset.c!, false))
+      el.onclick = (e) => move('chest', el.dataset.c!, !e.shiftKey)
+      el.oncontextmenu = (e) => (e.preventDefault(), this.contextMenu(e.clientX, e.clientY, el.dataset.c!, [[t('moveOne'), () => move('chest', el.dataset.c!, false)]]))
     })
     sheet.querySelectorAll<HTMLElement>('[data-b]').forEach((el) => {
-      el.onclick = () => move('bag', el.dataset.b!, true)
-      el.oncontextmenu = (e) => (e.preventDefault(), move('bag', el.dataset.b!, false))
+      el.onclick = (e) => move('bag', el.dataset.b!, !e.shiftKey)
+      el.oncontextmenu = (e) => (e.preventDefault(), this.contextMenu(e.clientX, e.clientY, el.dataset.b!, [[t('moveOne'), () => move('bag', el.dataset.b!, false)]]))
     })
     $('#cOrg').onclick = () => this.send.organize()
     $('#cFill').onclick = () => {

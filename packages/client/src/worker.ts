@@ -1,6 +1,7 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
 import {
+  signatureOf,
   Game,
   RuleLibrary,
   buildRequest,
@@ -13,6 +14,7 @@ import {
   type Patch,
   type PatchLogEntry,
   type Frame,
+  type Key,
   type KeyView,
   type Plan,
   type ResolveBody,
@@ -100,8 +102,8 @@ async function resolveRemote(request: ModRequest): Promise<Patch | null> {
 
 function noteProbe(ev: GameEvent | undefined): void {
   if (!ev) return void (probe = undefined)
-  const t = ev.roles.target!
-  const key = `${'e' in t ? t.e : `${t.tile.map}:${t.tile.x},${t.tile.y}`}|${(ev.roles.instrument as { e: string }).e}`
+  // one prefetch per class of interaction (as the Mod port asks), not per tile or item
+  const key = signatureOf(game!.engine, ev)
   probe = probe?.key === key ? { ...probe, ev } : { key, ev, ticks: 0 }
 }
 
@@ -176,20 +178,17 @@ async function ensureMaps(): Promise<void> {
   }
 }
 
-/** What the two keys would do now (the labels over the target); a Use the world has never seen starts a prefetch. */
+/** What the four inputs would do now (the labels over the target); an experiment with something in hand starts a prefetch. */
 function keyViews(): Frame['keys'] {
   const eng = game!.engine
   const c = eng.controls
-  const view = (pl: Plan | undefined): KeyView | undefined =>
-    pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y }
-  const action = c.planAction(aimTile)
-  const use = c.planUse(aimTile)
-  // prefetch: facing something unknown with a thing in hand (a bare hand is not worth a model call)
+  const view = (pl: Plan | undefined): KeyView | undefined => pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y }
+  const out: NonNullable<Frame['keys']> = {}
+  for (const k of ['hands', 'take', 'use', 'put'] as Key[]) out[k] = view(c.plan(k, aimTile))
+  const use = c.plan('use', aimTile)
   const p = eng.world.player
   noteProbe(use?.unknown && use.instrument && use.verb ? { kind: 'interaction', verb: use.verb, roles: { actor: { e: p.id }, target: use.target, instrument: use.instrument }, strict: true } : undefined)
-  // the same thing under both keys (a bare hand opening a chest) is shown once
-  const same = !!action && !!use && use.rule === action.rule && !use.unknown
-  return { action: view(action), use: view(use?.key === 'use' && !same ? use : undefined) }
+  return out
 }
 
 function libraryView(): LibraryView {
@@ -309,14 +308,25 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         walk = !!m.walk
         if (m.dir && !paused && !panel && !game?.engine.world.state.question) game?.engine.movePlayer(m.dir, walk) // a quick tap still moves one tile
         break
-      case 'action':
-      case 'use': {
+      case 'key': {
         if (!game || paused || panel || game.engine.world.state.question) break
         const c = game.engine.controls
-        const plan = m.t === 'action' ? c.planAction(m.tile) : c.planUse(m.tile)
+        const plan = c.plan(m.key, m.tile, m.layer)
         if (!plan) break
         const out = c.run(plan)
         if (out.panel) panel = out.panel
+        break
+      }
+      case 'keyOnItem': {
+        if (!game || game.engine.world.state.question) break
+        const plan = game.engine.controls.planOnItem(m.key, m.item)
+        if (plan) game.engine.controls.run(plan)
+        break
+      }
+      case 'choices': {
+        if (!game) break
+        const list = game.engine.controls.choices(m.key, m.tile).map((ch) => ({ layer: ch.layer, name: ch.name, label: ch.plan?.label, unknown: ch.plan?.unknown }))
+        post({ t: 'choices', key: m.key, tile: m.tile, list })
         break
       }
       case 'aim':

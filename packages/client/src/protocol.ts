@@ -1,6 +1,6 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { Dir, Frame, LibraryData, MapData, ModSpec, Patch, Rule, SaveData, UndefinedRecord, ValidationResult, WorldIndex } from '@lsw/engine'
+import type { Dir, Frame, Key, LibraryData, MapData, ModSpec, Patch, Rule, SaveData, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@lsw/engine'
 
 /** A tile the mouse points at (the keys aim there when it is next to the player). */
 export type Tile = { x: number; y: number }
@@ -9,9 +9,12 @@ export type ToWorker =
   | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** the modder service, if any */ modder?: string }
   /** Hold a direction (null: stop); `walk`: Shift, slower than the default run. */
   | { t: 'move'; dir: Dir | null; walk?: boolean }
-  /** The two keys (design.md §5.2), aimed at a tile next to the player or the one in front. */
-  | { t: 'action'; tile?: Tile }
-  | { t: 'use'; tile?: Tile }
+  /** One of the four inputs (design.md §5.2): E hands, F take, left click use, right click put; on a chosen layer of the tile. */
+  | { t: 'key'; key: Key; tile?: Tile; layer?: number }
+  /** The same on an item in the bag or in the open chest (the inventory's context menu). */
+  | { t: 'keyOnItem'; key: Key; item: string }
+  /** The layer chooser (a long press): what each layer of the tile would give. */
+  | { t: 'choices'; key: Key; tile?: Tile }
   /** Where the mouse points (for the key labels). */
   | { t: 'aim'; tile?: Tile }
   | { t: 'answer'; yes: boolean }
@@ -68,5 +71,7 @@ export type FromWorker =
   /** The library changed (a patch was accepted or removed): keep it at once, not at the next save. */
   | { t: 'library'; library: LibraryData }
   | { t: 'loading'; what: string }
+  /** The layer chooser's list for a key at a tile. */
+  | { t: 'choices'; key: Key; tile?: Tile; list: { layer: number; name: Text; label?: Text; unknown?: boolean }[] }
   | { t: 'modder'; online: boolean; url?: string; model?: string | null }
   | { t: 'error'; message: string }

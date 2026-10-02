@@ -68,8 +68,18 @@
 .keys { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; gap: 2px; align-items: center; pointer-events: none !important; }
 .kl { white-space: nowrap; padding: 1px 8px; font-size: 13px; background: rgba(32, 20, 10, 0.78); color: #fbe9c4; border-radius: 5px; }
 .kl kbd { background: var(--paper); color: var(--ink-warm); border-color: var(--wood-dark); font-size: 10px; }
-.kl.unknown { color: #ffd08a; }
+.kl.unknown { color: #ffd08a; opacity: 0.75; font-size: 12px; }
 .kl .q { color: #ffb24a; font-weight: 600; }
+
+/* the layer chooser (a long press on an input) and the context menu */
+.chooser, .ctx { position: absolute; left: 0; top: 0; min-width: 200px; padding: 4px; background: var(--paper); color: var(--ink-warm); border: 3px solid var(--wood-dark); border-radius: 6px; box-shadow: 0 0 0 2px var(--wood-edge), 0 6px 18px rgba(0,0,0,0.45); font-size: 13px; z-index: 45; }
+.ctx { position: fixed; z-index: 70; }
+.ch-head { font: 600 12px var(--pixel); color: #8a6a44; padding: 2px 6px 4px; }
+.ch-row, .ctx-row { padding: 4px 8px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+.ch-row:hover, .ctx-row:hover { background: var(--paper-dark); }
+.ch-row.unknown { color: #8a5a20; }
+.ch-row kbd { background: var(--paper-dark); color: var(--ink-warm); border-color: var(--wood-dark); font-size: 10px; }
+.ch-row .q { color: #c8782c; font-weight: 600; }
 
 /* the dialogue box and the yes/no question */
 .dialog { position: absolute; left: 50%; bottom: 76px; transform: translateX(-50%); width: min(760px, 94vw); min-height: 110px; display: flex; gap: 14px; align-items: flex-start;
@@ -106,6 +116,7 @@
 .grid-row.toolbar-row { padding-bottom: 6px; margin-bottom: 4px; border-bottom: 2px dashed var(--paper-dark); }
 .inv-foot { display: flex; gap: 10px; align-items: center; margin: 10px 0 4px; flex-wrap: wrap; }
 .inv-foot button { background: var(--paper-dark); color: var(--ink-warm); border: 2px solid var(--wood-dark); }
+.inv-foot button:disabled { opacity: 0.45; cursor: default; }
 .tip { position: fixed; transform: translate(-50%, -100%); background: var(--ink-warm); color: #fbe9c4; padding: 3px 8px; border-radius: 5px; font-size: 12px; pointer-events: none; z-index: 60; white-space: nowrap; }
 .chest-grid { margin-bottom: 4px; }
 .bag-grid { margin-top: 6px; }

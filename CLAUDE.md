@@ -29,7 +29,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   new game / save (`game.ts`); the life sim (docs/game-design.md): 24-hour calendar, seasons and
   weather (`calendar.ts`), people — keyed lines, schedule variants, friendship, gifts, topics
   (`people.ts`), scripted scenes (`scenes.ts`); facts, letters, sleep and energy live in the
-  world state and the engine; the player's two keys, slots and magnet (`controls.ts`, design.md §5.2).
+  world state and the engine; the player's four inputs (E hands, F take, left click use, right click put), layers, slots and magnet (`controls.ts`, design.md §5.2, with a completeness test).
 - `packages/content` — ontology (terrains, statuses, elements, types), item catalogue
   (forms × materials × qualities × elements), the BASE RULE LIBRARY (`rules.ts`), the first
   week's story rules and objectives (`story.ts`), chunk codec.
