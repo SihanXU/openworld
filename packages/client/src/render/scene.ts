@@ -42,7 +42,10 @@ const OVERLAY_OF: [string, string][] = [
 // The engine's DIRS, kept here so the main thread does not bundle the engine.
 const STEP: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }
 
-const TINT_OF: Record<string, number> = { frozen: 0xbfe9ff, burning: 0xffc9a0, wet: 0xc8dcff, electrified: 0xfff6a0, oiled: 0xb9b29a }
+/** Terrain objects and decor groups that grow loose: drawn a few pixels off the tile grid. */
+const LOOSE = new Set(['drygrass', 'flowers', 'bush'])
+const LOOSE_DECOR = new Set(['reeds', 'ferns', 'tufts', 'flowers', 'clover', 'pebbles', 'leaves', 'puddle'])
+const TINT_OF: Record<string, number> ={ frozen: 0xbfe9ff, burning: 0xffc9a0, wet: 0xc8dcff, electrified: 0xfff6a0, oiled: 0xb9b29a }
 const ELEMENT_COLOR: Record<string, number> = { fire: 0xff7a1a, ice: 0x9fe8ff, lightning: 0xfff27a, water: 0x4aa0ff, wind: 0xe8fff4, earth: 0xb08850, none: 0xffffff }
 
 export class WorldScene extends Phaser.Scene {
@@ -217,6 +220,7 @@ export class WorldScene extends Phaser.Scene {
     const i = hash2(x, y, 5) % g.sprites.length
     const img = this.addSprite(`decor:${k}:${i}`, g.sprites[i], x, y)
     img.setDepth(g.sorted ? (y + 1) * T - 1 : -45)
+    if (LOOSE_DECOR.has(k)) img.setPosition(img.x + (hash2(x, y, 23) % 9) - 4, img.y + (hash2(x, y, 29) % 5) - 2)
     this.statics.push(img)
   }
 
@@ -233,10 +237,14 @@ export class WorldScene extends Phaser.Scene {
     const t = this.terrainAt(x, y)
     const list = CATALOG.terrainObjects[t]
     if (!list?.length) return
+    // tall grass is a meadow, not a crop: a third of its tiles stay bare
+    if (t === 'drygrass' && hash2(x, y, 13) % 100 < 35) return
     const i = hash2(x, y, 11) % list.length
     const img = this.addSprite(`tobj:${t}:${i}`, list[i], x, y)
     img.setDepth((y + 1) * T - 1)
     if (t === 'drygrass') img.setTint(0xe8cf7a)
+    // loose growth (tall grass, flowers, bushes) sits a little off the grid, never in rows
+    if (LOOSE.has(t)) img.setPosition(img.x + (hash2(x, y, 17) % 9) - 4, img.y + (hash2(x, y, 19) % 5) - 2)
     this.objects.set(k, img)
   }
 

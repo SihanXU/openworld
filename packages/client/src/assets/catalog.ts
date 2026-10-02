@@ -27,6 +27,7 @@ const DUNGEON = TS + 'TilesetDungeon.png'
 const CAMP = TS + 'tileset_camp.png'
 const BED = TS + 'tileset_bed.png'
 const RELIEF = TS + 'TilesetRelief.png'
+const RELIEF_DETAIL = TS + 'TilesetReliefDetail.png'
 const HOLE = TS + 'TilesetHole.png'
 const DESERT = TS + 'TilesetDesert.png'
 const IFLOOR = TS + 'Interior/TilesetInteriorFloor.png'
@@ -279,6 +280,18 @@ export const CATALOG: Catalog = {
     rope: { sprites: [t(CAMP, 10, 7, 2, 2)] },
     tub: { sorted: true, sprites: [t(CAMP, 7, 3), t(CAMP, 7, 4)] },
     lantern_post: { sorted: true, sprites: [t(CAMP, 6, 5, 1, 2), t(CAMP, 7, 5, 1, 2)] },
+    // the camp: a log bench (3 wide), a cooking rack, a stump table, a straw mat, firewood
+    bench: { sorted: true, sprites: [t(CAMP, 0, 7, 3, 1)] },
+    rack: { sorted: true, sprites: [t(CAMP, 8, 3, 2, 2)] },
+    stump_table: { sorted: true, sprites: [t(CAMP, 1, 5, 2, 2)] },
+    mat: { sprites: [t(CAMP, 10, 5, 2, 2)] },
+    blanket: { sprites: [t(CAMP, 8, 5, 2, 2)] },
+    rope_coil: { sprites: [t(CAMP, 10, 7, 2, 2)] },
+    // the wild: reeds by water, bones at the hollow's mouth, moss
+    reeds: { sorted: true, sprites: [t(NATURE, 7, 10), t(NATURE, 4, 10), t(NATURE, 9, 10), t(NATURE, 8, 11)] },
+    bones: { sprites: [t(DETAIL, 13, 0), t(DETAIL, 14, 0)] },
+    signpost: { sorted: true, sprites: [t(ELEM, 0, 2)] },
+    moss: { sprites: [t(CAMP, 0, 8), t(CAMP, 3, 8)] },
     // an orchard's fruit trees: one kind, planted in rows (2x2, trunk on the tile)
     fruit_tree: { sorted: true, sprites: [t(NATURE, 16, 0, 2, 2, 16, 31), t(NATURE, 18, 0, 2, 2, 16, 31)] },
   },
@@ -294,18 +307,15 @@ export const CATALOG: Catalog = {
       px(NATURE, 96, 0, 32, 32, 15, 32), // bushy tree with roots
       px(NATURE, 96, 128, 32, 32, 15, 32), // small round tree on a trunk
       px(NATURE, 48, 288, 48, 48, 24, 48), // big 3x3 green
-      px(NATURE, 144, 288, 48, 48, 24, 48), // big 3x3 autumn
-      px(NATURE, 224, 0, 32, 32, 16, 31), // cherry blossom 2x2
-      px(NATURE, 0, 288, 48, 48, 24, 48), // big 3x3 cherry blossom
     ],
-    pine: [
-      px(NATURE, 32, 0, 32, 32, 16, 31),
-      px(NATURE, 128, 0, 32, 32, 16, 32), // lightly snowed
-      px(NATURE, 160, 0, 32, 32, 16, 32), // snowed
-    ],
+    // one season at a time: autumn, blossom and snow are their own terrains, never mixed in a wood
+    tree_autumn: [px(NATURE, 144, 288, 48, 48, 24, 48)],
+    tree_blossom: [px(NATURE, 224, 0, 32, 32, 16, 31), px(NATURE, 0, 288, 48, 48, 24, 48)],
+    pine: [px(NATURE, 32, 0, 32, 32, 16, 31)],
+    pine_snow: [px(NATURE, 128, 0, 32, 32, 16, 32), px(NATURE, 160, 0, 32, 32, 16, 32)],
     bush: [t(NATURE, 1, 10), t(NATURE, 2, 10), t(NATURE, 6, 10), t(NATURE, 10, 10), t(NATURE, 10, 8), t(NATURE, 8, 11), t(NATURE, 4, 11), t(NATURE, 5, 11)],
     rock: [
-      t(NATURE, 15, 9), t(NATURE, 18, 9), t(NATURE, 7, 12), t(NATURE, 8, 12), t(NATURE, 4, 13),
+      t(NATURE, 15, 9), t(NATURE, 18, 9), t(NATURE, 7, 12), t(NATURE, 8, 12),
       px(NATURE, 208, 128, 32, 32, 16, 31), // big brown rock
       px(NATURE, 256, 128, 32, 32, 16, 31), // big grey rock
     ],
@@ -313,8 +323,8 @@ export const CATALOG: Catalog = {
     // Bare dead trees (the pack has no burnt trees; these read as charred).
     charred_tree: [px(NATURE, 64, 0, 32, 32, 16, 31), t(NATURE, 4, 9)],
     // Tall grass tufts. The pack's tufts are green: tint them golden (e.g. 0xe0c060) for dry
-    // grass. The last one (orange straw bush, TilesetNature (9,8)) is already golden — no tint.
-    drygrass: [t(NATURE, 3, 10), t(NATURE, 4, 10), t(NATURE, 5, 10), t(NATURE, 7, 10), t(NATURE, 9, 10), t(DETAIL, 3, 2), t(NATURE, 9, 8)],
+    // grass. The renderer leaves some tiles bare, so a meadow never reads as planted rows.
+    drygrass: [t(NATURE, 3, 10), t(NATURE, 4, 10), t(NATURE, 5, 10), t(NATURE, 7, 10), t(NATURE, 9, 10), t(DETAIL, 3, 2)],
     flowers: [t(NATURE, 0, 11), t(NATURE, 1, 11), t(NATURE, 3, 11), t(NATURE, 6, 11), t(NATURE, 2, 11), t(DETAIL, 5, 2), t(DETAIL, 2, 0)],
     // Grey dead-grass tufts for burnt ground.
     ash: [t(NATURE, 8, 13), t(NATURE, 9, 13)],
@@ -383,6 +393,10 @@ export const CATALOG: Catalog = {
     // Cliffs (TilesetRelief): plateau with a cliff face on its bottom row, and a sheer rock face.
     cliff: pf(RELIEF, 1, 0, ['###', '###', '###'], 'cave_wall'),
     cliff_sand: pf(RELIEF, 1, 5, ['###', '###', '###'], 'cave_wall'),
+    // a mossy cliff face, three tiles tall, in columns: its left end, the middle (repeats), its right end
+    cliff_l: pf(RELIEF, 4, 0, ['#', '#', '#']),
+    cliff_m: pf(RELIEF, 5, 0, ['#', '#', '#']),
+    cliff_r: pf(RELIEF, 6, 0, ['#', '#', '#']),
     cliff_wall: pf(RELIEF, 4, 0, ['###', '###', '###'], 'cave_wall'),
     cliff_wall_sand: pf(RELIEF, 4, 5, ['###', '###', '###'], 'cave_wall'),
     // Desert lion-head wall fountain (2x3) and a square water basin (2x2).
@@ -460,10 +474,12 @@ export const CATALOG: Catalog = {
     'fixture:beehive': { base: t(ELEM, 12, 0) },
     // The Ford: the dead tree at the narrows (the pack's bare tree), the slimes' hollow, the ferry's winch and raft.
     'fixture:dead_tree': { base: px(NATURE, 64, 0, 32, 32, 16, 31) },
-    'fixture:burrow': { base: px(HOLE, 0, 0, 48, 32, 24, 28) },
-    'fixture:winch': { base: t(CAMP, 6, 5, 1, 2) },
-    'fixture:ferry': { base: t(WATER, 1, 13) },
-    'fixture:raft': { base: px(WATER, 0, 192, 32, 32, 16, 24) },
+    // the hollow: a mossy rock mound with a cave mouth, drawn on the mouth's tile
+    'fixture:burrow': { base: px(RELIEF_DETAIL, 0, 112, 48, 48, 24, 48) },
+    // the ferry: a rope post on the landing, and the rowboat that crosses on the line
+    'fixture:winch': { base: t(ELEM, 11, 2, 1, 2) },
+    'fixture:ferry': { base: px(WATER, 416, 0, 32, 16, 16, 13) },
+    'fixture:raft': { base: px(WATER, 416, 0, 32, 16, 16, 13) },
     'fixture:fence': { base: t(HOUSE, 11, 7) },
     'fixture:dummy': { base: t(ELEM, 15, 0) },
     // Crops (farming). The pack has no crop sheet: sprouts are ground details, young plants are

@@ -22,66 +22,109 @@ export const START_HOUR = 13
 const L = (en: string, zh: string): Text => ({ en, zh })
 const SOLID = new Set(['water', 'deepwater', 'tree', 'pine', 'bush', 'rock', 'wall', 'woodwall', 'roof', 'cave_wall', 'lava', 'charred_tree', 'void'])
 
-/** The river: x from..to (inclusive) per row; the narrows are one tile narrower. */
-export const RIVER = { from: 26, to: 30, narrows: [9, 10, 11], far: 31 }
+/**
+ * The river, row by row: its near (west) edge and far (east) edge. It comes down from the north
+ * between the woods and the far bank, narrows to three tiles where the dead tree stands, widens
+ * into a still pool at the landing (where a ferry makes sense), and bends away to the south.
+ */
+const NEAR = [27, 27, 27, 27, 27, 27, 28, 28, 28, 29, 29, 29, 28, 27, 26, 26, 26, 26, 26, 26, 27, 27, 28, 28, 28, 28, 28, 28, 28, 28]
+const FAR = [31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32]
+/** Everything east of this column is the far bank (the goal region); the river never reaches it on the near side. */
+export const FAR_BANK = 32
 
-/** Where things are (the completeness test reads these too). */
+/** Where things are, and where a person stands to use them (the completeness test reads these). */
 export const AT = {
-  spawn: [16, 16],
-  campfire: [16, 15],
-  tent: [11, 11],
-  chest: [14, 13],
-  cart: [19, 11],
-  haystack: [10, 18],
-  axe: [18, 18],
-  torch: [17, 16],
-  bucket: [24, 16],
-  winch: [24, 14],
-  raft: [26, 15],
-  deadTree: [26, 10],
-  burrow: [7, 3],
-  fireSlime: [8, 5],
-  frostSlime: [24, 4],
-  farLanding: [33, 15],
+  spawn: [14, 17],
+  campfire: [14, 16],
+  tent: [9, 12],
+  chest: [12, 14],
+  cart: [20, 14],
+  haystack: [9, 10],
+  axe: [7, 16],
+  torch: [15, 17],
+  bucket: [25, 17],
+  winch: [25, 15],
+  raft: [28, 16],
+  deadTree: [28, 10],
+  burrow: [5, 4],
+  fireSlime: [5, 6],
+  frostSlime: [25, 4],
+  farLanding: [33, 16],
+} as const satisfies Record<string, readonly [number, number]>
+
+/** Tiles to stand on for each use (each is open ground, next to what it is for). */
+export const STAND = {
+  /** west of the dead tree: the only side it can be felled from, across the water */
+  tree: [27, 10],
+  /** south of the winch, on the landing */
+  winch: [25, 16],
+  /** on the bank, with the river right (east) of it: where frost is cast to start a path */
+  castFrom: [26, 13],
+  /** a bank tile with water east of it, to fill a bucket */
+  fill: [27, 12],
+  /** the end of the near pier, the boat east of it */
+  raft: [27, 16],
+  /** south of the chest */
+  chest: [12, 15],
+  /** south of Tobin's place by the cart */
+  tobin: [20, 16],
+  /** east of the cart, facing its pile */
+  cart: [21, 14],
+  /** the road west of the camp: open ground with open ground east of it */
+  road: [6, 19],
+  /** the dry meadow */
+  meadow: [12, 7],
+  /** near where the frost slime roams at night, well away from the fire */
+  frostGround: [22, 10],
+  /** a spot by the fire, inside its reach */
+  byFire: [15, 17],
 } as const satisfies Record<string, readonly [number, number]>
 
 function buildMap(): MapBuilder {
   const m = new MapBuilder('ford', L('The Ford', '渡口'), 'wild', 40, 30, 'grass', 'Village', 'outdoor', 'frostfang')
-  // ------------------------------------------------------------ the river and its banks
-  for (let y = 0; y < m.h; y++) {
-    const from = RIVER.narrows.includes(y) ? RIVER.from + 1 : RIVER.from
-    for (let x = from; x <= RIVER.to; x++) m.set(x, y, 'water')
-    if (!RIVER.narrows.includes(y) && y % 7 !== 3) m.set(RIVER.from - 1, y, rng.chance(0.6) ? 'sand' : 'grass')
-    m.set(RIVER.far, y, rng.chance(0.5) ? 'sand' : 'grass')
-  }
-  // the dead tree stands on a spit at the narrows, rock to either side: it can only be felled from the west, across the water
-  m.set(26, 9, 'rock')
-  m.set(26, 11, 'rock')
-  m.set(25, 10, 'grass')
-  // the frost slime keeps the river's edge frozen by the hollow's mouth (the ice route, shown before it is taught)
-  for (const [x, y] of [[26, 3], [26, 4], [26, 5], [27, 4]] as const) m.set(x, y, 'ice')
-  // ------------------------------------------------------------ the edges: cliff and hollow to the north, woods west and south
-  for (let x = 0; x < 22; x++) for (let y = 0; y < 2 + (x % 5 === 0 ? 1 : 0); y++) m.set(x, y, 'rock')
-  m.organic(7, 3.5, 2.6, 1.6, 'gravel')
-  for (let y = 0; y < m.h; y++) for (let x = 0; x < 2; x++) if (!(y >= 15 && y <= 17)) m.set(x, y, rng.chance(0.25) ? 'pine' : 'tree')
-  for (let x = 0; x < RIVER.from - 1; x++) for (let y = 27; y < m.h; y++) if (y > 27 || rng.chance(0.7)) m.set(x, y, rng.chance(0.2) ? 'pine' : 'tree')
-  for (const [cx, cy, r] of [[4, 8, 2.2], [5, 23, 2.6], [12, 25, 1.8]] as const)
-    for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++)
-      for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++) if (Math.hypot(x - cx, y - cy) <= r && m.get(x, y) === 'grass' && rng.chance(0.7)) m.set(x, y, rng.chance(0.2) ? 'bush' : 'tree')
-  // ------------------------------------------------------------ the dry meadow (fire runs here) and the marsh (lightning runs here)
-  m.scatter(12, 3, 10, 6, 'drygrass', 0.75)
-  m.organic(21, 23, 3.2, 2.4, 'mud')
-  for (const [x, y] of [[20, 22], [21, 23], [22, 23], [22, 24]] as const) m.set(x, y, 'water')
-  // ------------------------------------------------------------ the road in from the west, and the paths of the camp
-  m.path([[0, 16], [6, 16], [12, 17], [16, 18]], 'path', 2, { edge: 'dirt', edgeP: 0.25 })
-  m.path([[17, 17], [20, 16], [23, 15]], 'path', 1)
-  m.path([[16, 14], [17, 12], [19, 12]], 'path', 1)
-  // the near landing and the far one, and the road east into the unwritten
-  m.set(25, 15, 'bridge')
-  m.set(25, 16, 'bridge')
-  m.set(RIVER.far, 15, 'bridge')
-  m.set(RIVER.far, 16, 'bridge')
-  m.path([[32, 15], [35, 14], [39, 15]], 'path', 1)
+  const grass = (t: string) => t === 'grass'
+  // ------------------------------------------------------------ the river: a pool at the landing, narrows at the dead tree
+  for (let y = 0; y < m.h; y++) for (let x = NEAR[y]; x <= FAR[y]; x++) m.set(x, y, 'water')
+  // the frost slime keeps its corner of the bank in rime and the river's edge frozen (the ice route, shown before it is taught)
+  m.organic(24.5, 4, 2.4, 1.6, 'snow', { only: (t) => t === 'grass' })
+  for (const [x, y] of [[27, 3], [27, 4], [28, 4], [27, 5]] as const) m.set(x, y, 'ice')
+  // the spit the dead tree stands on: rock either side, so it can only be felled from the west, across the water
+  m.set(28, 9, 'rock')
+  m.set(28, 11, 'rock')
+  // ------------------------------------------------------------ the north: a mossy cliff, and the hollow at its foot
+  for (let x = 0; x <= 22; x++) m.scenery(x === 22 ? 'cliff_r' : 'cliff_m', x, 0)
+  for (let x = 0; x <= 22; x++) for (let y = 0; y < 3; y++) m.set(x, y, 'cave_wall')
+  // the woods close the north-east corner between the cliff and the river
+  clump(m, 24.5, 1.5, 2.6, 0.85)
+  // the hollow: a rock mound with a cave mouth, bare trodden earth before it, bones and stones
+  m.organic(5.5, 5.6, 3.2, 1.8, 'dirt', { only: grass })
+  for (const [x, y] of [[4, 2], [5, 2], [6, 2], [4, 3], [5, 3], [6, 3], [4, 4], [6, 4]] as const) m.block(x, y)
+  m.decor('bones', 3, 6)
+  m.decor('bones', 7, 7)
+  m.decor('rocks', 2, 4, true)
+  m.decor('rocks', 8, 4, true)
+  m.decor('moss', 3, 4)
+  // ------------------------------------------------------------ the woods: west and south, in clumps with depth, the road's gap open
+  for (let y = 3; y < m.h; y++) for (let x = 0; x < 3; x++) if (!(y >= 18 && y <= 20) && (x < 2 || rng.chance(0.55))) m.set(x, y, rng.chance(0.25) ? 'pine' : 'tree')
+  for (const [cx, cy, r, p] of [[2.5, 7, 2.4, 0.7], [3, 13, 2, 0.55], [8.5, 26, 3, 0.75], [3, 25, 3, 0.8], [14, 28.5, 2.2, 0.8], [21, 29, 2, 0.75], [26, 28, 1.4, 0.6], [17.5, 4, 1.4, 0.5]] as const) clump(m, cx, cy, r, p)
+  for (let x = 0; x < 27; x++) for (let y = 28; y < m.h; y++) if (grass(m.get(x, y))) m.set(x, y, rng.chance(0.2) ? 'pine' : 'tree')
+  // the far bank: trees frame the road east, which leaves the map into the unwritten
+  clump(m, 37, 4, 3.2, 0.8)
+  clump(m, 37.5, 24.5, 3.5, 0.8)
+  clump(m, 35.5, 9.5, 1.3, 0.5)
+  // ------------------------------------------------------------ the dry meadow (fire runs here)
+  m.organic(11, 7.8, 5.6, 2.4, 'drygrass', { only: grass, rough: 0.3 })
+  // ------------------------------------------------------------ the marsh (lightning runs here): small ponds among reeds
+  // ponds are round: blobs of at least 3x3 (smaller ones render as slivers and diamonds)
+  for (let y = 21; y <= 23; y++) for (let x = 18; x <= 20; x++) m.set(x, y, 'water')
+  for (let y = 22; y <= 24; y++) for (let x = 22; x <= 25; x++) if (!(y === 24 && (x === 22 || x === 25))) m.set(x, y, 'water')
+  // ------------------------------------------------------------ paths: the road in from the west, through the camp to the landing; trails
+  m.path([[0, 19], [5, 19], [9, 19], [12, 20], [16, 20], [19, 18], [22, 16], [25, 16]], 'path', 2, { edge: 'dirt', edgeP: 0.18 })
+  m.path([[14, 14], [13, 11], [10, 8], [7, 6]], 'path', 1)
+  m.path([[22, 15], [24, 12], [27, 10]], 'path', 1)
+  m.path([[FAR_BANK + 1, 16], [35, 15], [37, 13], [39, 13]], 'path', 1)
+  // the landing and the far one: a short pier out into the pool on each side, the gap the ferry crossed
+  for (const [x, y] of [[26, 16], [27, 16], [31, 16], [32, 16]] as const) m.set(x, y, 'bridge')
   // ------------------------------------------------------------ the camp
   m.scenery('tent_patched', AT.tent[0], AT.tent[1], 'tent')
   m.fixture('fixture/light/campfire', ...AT.campfire, { id: 'ford.campfire', statuses: { lit: -1 } })
@@ -89,43 +132,70 @@ function buildMap(): MapBuilder {
     { form: 'item/tool/rope', props: { owner: '' } },
     { form: 'item/food/bread', props: { owner: 'npc.hesper' } },
   ])
+  // around the fire: a log bench to sit on, a rack for the pot; the woodpile and the chopping stump by the tent
+  m.decor('bench', 14, 18)
+  for (const x of [13, 14, 15]) m.block(x, 18)
+  m.decor('rack', 17, 15, true)
+  m.decor('logs', 8, 15, true)
+  m.decor('stump_table', 6, 16, true)
   m.item({ form: 'item/weapon/blade/axe', material: 'iron', name: L('Old Axe', '旧斧头') }, ...AT.axe)
   m.item('item/light/torch', ...AT.torch)
+  m.decor('lantern_post', 16, 21, true)
+  // the open slope between the meadow and the river: a few boulders and bushes to break it up
+  for (const [x, y] of [[20, 5], [21, 4], [17, 9]] as const) m.decor('rocks', x, y, true)
+  clump(m, 22, 8, 1.2, 0.7)
+  // where the road east leaves the far bank, a signpost to nowhere yet
+  m.decor('signpost', 35, 14, true)
   m.fixture('fixture/nature/haystack', ...AT.haystack)
-  // the peddler's cart and his wares on it
+  // the peddler's cart by the road, his wares on it, his mat beside it
   m.fixture('fixture/furniture/cart', ...AT.cart, { id: 'ford.cart', props: { owner: 'npc.tobin' } })
   m.item({ form: 'item/weapon/magic/wand', material: 'wood', element: 'ice', name: L('Frost Wand', '寒霜魔杖'), props: { owner: 'npc.tobin' } }, ...AT.cart)
   m.item({ form: 'item/vessel/flask/oil', props: { owner: 'npc.tobin' } }, ...AT.cart)
-  // the landing: the winch whose rope snapped, the raft, a bucket
+  // the landing: the post the ferry line ran from, the boat on the water, a bucket, a coil of old line
   m.fixture('fixture/ferry/winch', ...AT.winch, { id: 'ford.winch', statuses: { broken: -1 } })
   m.fixture('fixture/ferry/raft', ...AT.raft, { id: 'ford.raft' })
   m.item('item/vessel/bucket/empty', ...AT.bucket)
   // the dead tree at the narrows, and the hollow the slimes come out of
   m.fixture('fixture/nature/dead_tree', ...AT.deadTree, { id: 'ford.dead_tree' })
   m.fixture('fixture/nature/burrow', ...AT.burrow, { id: 'ford.burrow' })
-  m.creature('slime/fire_slime', ...AT.fireSlime, { id: 'ford.fire_slime', temper: 'wary', sight: 4 }).ai!.night = { map: 'ford', x: 11, y: 16 }
-  m.creature('slime/frost_slime', ...AT.frostSlime, { id: 'ford.frost_slime', temper: 'nocturnal', sight: 4 }).ai!.night = { map: 'ford', x: 14, y: 12 }
+  m.creature('slime/fire_slime', ...AT.fireSlime, { id: 'ford.fire_slime', temper: 'wary', sight: 4 }).ai!.night = { map: 'ford', x: 10, y: 9 }
+  m.creature('slime/frost_slime', ...AT.frostSlime, { id: 'ford.frost_slime', temper: 'nocturnal', sight: 4 }).ai!.night = { map: 'ford', x: 24, y: 12 }
   // ------------------------------------------------------------ anchors (schedules, scenes) and the goal
-  m.anchor('camp.fire', 15, 15)
-  m.anchor('camp.warm', 17, 15)
-  m.anchor('camp.bed', 15, 16)
-  m.anchor('tent.mouth', 12, 14)
-  m.anchor('tent.side', 14, 14)
-  m.anchor('cart', 19, 12)
-  m.anchor('cart.bed', 20, 12)
-  m.anchor('landing.winch', 23, 14)
-  m.anchor('landing.nets', 23, 17)
+  m.anchor('camp.fire', 13, 16)
+  m.anchor('camp.warm', 15, 16)
+  m.anchor('camp.bed', 12, 16)
+  m.anchor('tent.mouth', 10, 15)
+  m.anchor('tent.side', 12, 15)
+  m.anchor('cart', 20, 15)
+  m.anchor('cart.bed', 21, 14)
+  m.anchor('landing.winch', 24, 15)
+  m.anchor('landing.nets', 25, 18)
   m.anchor('landing.edge', 25, 13)
   m.anchor('far.landing', ...AT.farLanding)
-  m.regions = { far_bank: [RIVER.far, 0, m.w - RIVER.far, m.h] }
-  // ------------------------------------------------------------ detail
-  const grassy = (t: string) => t === 'grass'
-  m.sprinkle('tufts', 0.05, (_x, _y, t) => grassy(t))
-  m.sprinkle('pebbles', 0.25, (x, y, t) => t === 'gravel' || (t === 'sand' && m.near(x, y, (n) => n === 'water')))
-  m.sprinkle('flowers', 0.06, (x, y, t) => grassy(t) && x > RIVER.far)
-  m.sprinkle('leaves', 0.1, (x, y, t) => grassy(t) && m.near(x, y, (n) => n === 'tree' || n === 'pine'))
-  m.sprinkle('puddle', 0.15, (_x, _y, t) => t === 'mud')
+  m.regions = { far_bank: [FAR_BANK, 0, m.w - FAR_BANK, m.h] }
+  // ------------------------------------------------------------ detail, by masks: where things belong, never uniform noise
+  const by = (x: number, y: number, what: (t: string) => boolean) => m.near(x, y, what)
+  const water = (t: string) => t === 'water'
+  const tree = (t: string) => t === 'tree' || t === 'pine'
+  const road = (t: string) => t === 'path' || t === 'dirt'
+  const marsh = (x: number, y: number) => y >= 20 && y <= 27 && x >= 15 && x <= 26
+  m.sprinkle('reeds', 0.22, (x, y, t) => grass(t) && marsh(x, y) && by(x, y, water))
+  m.sprinkle('ferns', 0.22, (x, y, t) => grass(t) && marsh(x, y))
+  m.sprinkle('reeds', 0.08, (x, y, t) => grass(t) && by(x, y, water) && (y < 9 || y > 21))
+  m.sprinkle('flowers', 0.12, (x, y, t) => grass(t) && by(x, y, road))
+  m.sprinkle('flowers', 0.1, (x, y, t) => grass(t) && x > FAR_BANK)
+  m.sprinkle('leaves', 0.16, (x, y, t) => grass(t) && by(x, y, tree))
+  m.sprinkle('pebbles', 0.15, (x, y, t) => grass(t) && by(x, y, water) && y >= 10 && y <= 20)
+  m.sprinkle('rocks', 0.12, (x, y, t) => grass(t) && y === 3 && x < 22, [0, 0, m.w, m.h])
+  m.sprinkle('tufts', 0.05, (_x, _y, t) => grass(t))
   return m
+}
+
+/** A clump of trees (some pines, a few bushes) around a point, leaving free what is already built. */
+function clump(m: MapBuilder, cx: number, cy: number, r: number, p = 0.7): void {
+  for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++)
+    for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++)
+      if (Math.hypot(x - cx, y - cy) <= r && m.get(x, y) === 'grass' && m.free(x, y) && rng.chance(p)) m.set(x, y, rng.chance(0.12) ? 'bush' : rng.chance(0.25) ? 'pine' : 'tree')
 }
 
 // =================================================================== people
@@ -172,9 +242,9 @@ const scenes: SceneDef[] = [
     id: 'arrival',
     map: 'ford',
     script: [
-      { place: 'npc.hesper', map: 'ford', x: 17, y: 16 },
-      { face: 'npc.hesper', dir: 'left' },
-      { face: 'player', dir: 'right' },
+      { place: 'npc.hesper', map: 'ford', x: 13, y: 17 },
+      { face: 'npc.hesper', dir: 'right' },
+      { face: 'player', dir: 'left' },
       { wait: 10 },
       say('npc.hesper', 'Awake. Good. You came in with the storm last night, half drowned on the road.', '醒了。好。你昨夜跟着风暴一起来的，在路上差点淹死。'),
       say('npc.hesper', 'The storm took the ferry rope as well. Nobody crosses until it is mended.', '风暴把渡绳也扯断了。修好之前，谁也过不去。'),

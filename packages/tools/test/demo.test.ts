@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest'
 import { FIRE_RADIUS, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, tickAt, type Engine, type Entity, type EventKind, type Key, type Patch, type Plan, type Ref } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
-import { AT, buildFord } from '../src/demo/world.ts'
+import { AT, STAND, buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()
 /** Every event kind dispatched in any of the worlds below. */
@@ -98,7 +98,7 @@ const req = (id: string, what: string, by: string[], check: () => void) => R.pus
 req('B1', 'the held thing applied to something no rule covers is asked about (player)', ['item/food/bread', 'fixture/ferry/winch'], () => {
   const f = fresh()
   hold(f, ofType(f, 'item/food/bread'))
-  stand(f, 24, 15)
+  stand(f, ...STAND.winch)
   const plan = run(f, 'use', ...AT.winch)
   expect(plan.unknown).toBe(true)
   expect(asked(f, 'interaction', 'player')).toHaveLength(1)
@@ -107,7 +107,7 @@ req('B1', 'the held thing applied to something no rule covers is asked about (pl
 req('B2', 'putting something where no rule covers it is asked about', ['item/weapon/blade/axe', 'fixture/nature/dead_tree'], () => {
   const f = fresh()
   hold(f, ofType(f, 'item/weapon/blade/axe'))
-  stand(f, 25, 10, 'right')
+  stand(f, ...STAND.tree, 'right')
   // the default would set it down at the tree's foot; the chooser picks the tree itself
   f.eng.controls.run(f.eng.controls.plan('put', at(...AT.deadTree), 0)!)
   expect(asked(f, 'interaction', 'player').some((r) => r.event.verb === 'put' && isE(targetOf(r), 'ford.dead_tree'))).toBe(true)
@@ -116,7 +116,7 @@ req('B2', 'putting something where no rule covers it is asked about', ['item/wea
 req('B3', 'a blow with no reaction is asked about (a frost cast on the winch)', ['item/weapon/magic/wand', 'fixture/ferry/winch'], () => {
   const f = fresh()
   hold(f, ofType(f, 'item/weapon/magic/wand'))
-  stand(f, 24, 15)
+  stand(f, ...STAND.winch)
   const plan = run(f, 'use', ...AT.winch)
   expect(plan.attack).toBe(true)
   expect(asked(f, 'hit', 'player').some((r) => r.event.element === 'ice' && isE(targetOf(r), 'ford.winch'))).toBe(true)
@@ -124,7 +124,7 @@ req('B3', 'a blow with no reaction is asked about (a frost cast on the winch)', 
 
 req('B4', 'a bare hand on something only a description covers is asked about (E on the raft)', ['fixture/ferry/raft'], () => {
   const f = fresh()
-  stand(f, 25, 15, 'right')
+  stand(f, ...STAND.raft, 'right')
   const plan = run(f, 'hands', ...AT.raft)
   expect(plan.unknown).toBe(true)
   expect(asked(f, 'interaction', 'player').some((r) => isE(targetOf(r), 'ford.raft'))).toBe(true)
@@ -133,9 +133,9 @@ req('B4', 'a bare hand on something only a description covers is asked about (E 
 req('B5', 'stepping onto a tile in a state no rule covers is asked about (oil on the path)', ['item/vessel/flask/oil'], () => {
   const f = fresh()
   hold(f, ofType(f, 'item/vessel/flask/oil'))
-  stand(f, 21, 16, 'right')
-  run(f, 'use', 22, 16)
-  expect(W(f).hasStatus({ tile: { map: 'ford', x: 22, y: 16 } }, 'oiled')).toBe(true)
+  stand(f, ...STAND.road, 'right')
+  run(f, 'use', STAND.road[0] + 1, STAND.road[1])
+  expect(W(f).hasStatus({ tile: { map: 'ford', x: STAND.road[0] + 1, y: STAND.road[1] } }, 'oiled')).toBe(true)
   f.eng.movePlayer('right')
   expect(asked(f, 'enter', 'player')).toHaveLength(1)
 })
@@ -143,15 +143,15 @@ req('B5', 'stepping onto a tile in a state no rule covers is asked about (oil on
 req('B8', 'a cascade meets an unmodelled pair: the storm strikes the dead tree', ['fixture/nature/dead_tree', 'weather:storm'], () => {
   const f = fresh()
   setHour(f, 1, 17.2)
-  stand(f, 23, 10)
+  stand(f, ...STAND.tree)
   expect(ticks(f, 3000, () => asked(f, 'hit', 'world').some((r) => isE(targetOf(r), 'ford.dead_tree')))).toBe(true)
 })
 
 req('B9', 'creatures meet things after dark: a fiery slime lights dry hay (a rule); other meetings are asked about', ['actor/creature/slime/fire_slime', 'actor/creature/slime/frost_slime', 'fixture/nature/haystack', 'fixture/container/chest', 'fixture/nature/burrow'], () => {
   const f = fresh()
   setHour(f, 2, 20.9)
-  // the player keeps by the fire, where the wild does not come: the slimes roam free
-  stand(f, 17, 16)
+  // the player watches from the landing, near where the frost slime roams after dark
+  stand(f, ...STAND.winch)
   W(f).player.props!.hp = 10_000
   W(f).player.props!.maxHp = 10_000
   expect(ticks(f, 2 * TICKS_PER_HOUR, () => asked(f, 'meet', 'world').length > 0)).toBe(true)
@@ -165,9 +165,9 @@ req('B10', 'a person is blocked: her fire soaked, she cannot tend it', ['npc.hes
   const fire = W(f).get('ford.campfire')!
   hold(f, ofType(f, 'item/vessel/bucket/empty'))
   // fill the bucket at the river, douse the fire: it is out and wet
-  stand(f, 25, 12, 'right')
-  run(f, 'use', 26, 12)
-  stand(f, 16, 16)
+  stand(f, ...STAND.fill, 'right')
+  run(f, 'use', STAND.fill[0] + 1, STAND.fill[1])
+  stand(f, ...AT.spawn)
   run(f, 'use', ...AT.campfire)
   expect(W(f).hasStatus({ e: fire.id }, 'lit')).toBe(false)
   W(f).setStatus({ e: fire.id }, 'wet', W(f).state.tick + 2000)
@@ -176,7 +176,7 @@ req('B10', 'a person is blocked: her fire soaked, she cannot tend it', ['npc.hes
 
 req('B11', 'a theft is witnessed: the owner objects (a rule); a bystander is asked about', ['npc.tobin', 'npc.hesper', 'fixture/furniture/cart', 'item/vessel/flask/oil'], () => {
   const f = fresh()
-  stand(f, 20, 11, 'left')
+  stand(f, ...STAND.cart, 'left')
   const oil = ofType(f, 'item/vessel/flask/oil')!
   run(f, 'take', ...AT.cart)
   expect(W(f).player.held === oil.id || W(f).player.contents?.includes(oil.id)).toBe(true)
@@ -187,7 +187,7 @@ req('B11', 'a theft is witnessed: the owner objects (a rule); a bystander is ask
 req('B12', 'content is broken by state: the rope burns; asked about, and kept playable by its fallback', ['item/tool/rope', 'fixture/ferry/winch', 'npc.hesper'], () => {
   const f = fresh()
   const rope = ofType(f, 'item/tool/rope')!
-  W(f).place(rope, { on: 'tile', map: 'ford', x: 18, y: 17 })
+  W(f).place(rope, { on: 'tile', map: 'ford', x: STAND.road[0], y: STAND.road[1] })
   f.eng.applyStatus({ e: rope.id }, 'burning')
   expect(ticks(f, 200, () => asked(f, 'invalid', 'world').length > 0)).toBe(true)
   expect(ofType(f, 'item/tool/rope')).toBeUndefined()
@@ -197,7 +197,7 @@ req('B12', 'content is broken by state: the rope burns; asked about, and kept pl
 
 req('E1', 'a patch answers a request: validated, applied, in the Threadbook as yours; the class never asks again', ['fixture/ferry/raft'], () => {
   const f = fresh()
-  stand(f, 25, 15, 'right')
+  stand(f, ...STAND.raft, 'right')
   run(f, 'hands', ...AT.raft)
   const rec = asked(f, 'interaction', 'player')[0]
   // while the world works it out, the one acting is at it too: no other act, no step
@@ -232,7 +232,7 @@ req('E2', "the world's own requests are learned as the world's: the Threadbook s
   const f = fresh()
   const slime = W(f).get('ford.frost_slime')!
   W(f).place(slime, { on: 'tile', map: 'ford', x: 15, y: 13 })
-  stand(f, 17, 17)
+  stand(f, ...STAND.byFire)
   f.eng.queue({ kind: 'meet', roles: { actor: { e: slime.id }, target: { e: 'ford.chest' } } })
   const rec = asked(f, 'meet', 'world')[0]
   expect(rec).toBeDefined()
@@ -245,7 +245,7 @@ req('E2', "the world's own requests are learned as the world's: the Threadbook s
 
 req('E3', "a patch that breaks the rules is rejected and the safe default stands; the world's patches never harm a person", ['npc.tobin'], () => {
   const f = fresh()
-  stand(f, 25, 15, 'right')
+  stand(f, ...STAND.raft, 'right')
   run(f, 'hands', ...AT.raft)
   const rec = asked(f, 'interaction', 'player')[0]
   const bad = f.game.mods.submit(rec.id, { artifacts: [{ kind: 'rule', rule: { id: 'patch/bad', on: 'interaction', when: { verb: ['interact'], target: { type: 'fixture/ferry/raft' } }, do: [{ op: 'addStatus', of: 'target', status: 'no-such-status' }] } }] })
@@ -253,7 +253,7 @@ req('E3', "a patch that breaks the rules is rejected and the safe default stands
   expect(rec.status).toBe('rejected')
   // a bystander's witness answered with violence is refused
   const g = fresh()
-  stand(g, 20, 11, 'left')
+  stand(g, ...STAND.cart, 'left')
   run(g, 'take', ...AT.cart)
   const w = asked(g, 'witness', 'world')[0]
   const hurt = g.game.mods.submit(w.id, { artifacts: [{ kind: 'rule', rule: { id: 'patch/hurt', on: 'witness', when: { about: ['take:bystander'] }, do: [{ op: 'damage', of: 'actor', amount: 3 }] } }] })
@@ -262,7 +262,7 @@ req('E3', "a patch that breaks the rules is rejected and the safe default stands
 
 req('E4', 'the library is shared and persistent: a save keeps it, a new game keeps it', [], () => {
   const f = fresh()
-  stand(f, 25, 15, 'right')
+  stand(f, ...STAND.raft, 'right')
   run(f, 'hands', ...AT.raft)
   const rec = asked(f, 'interaction', 'player')[0]
   f.game.mods.submit(rec.id, { artifacts: [{ kind: 'rule', rule: { id: 'patch/raft', on: 'interaction', when: { verb: ['interact'], target: { type: 'fixture/ferry/raft' }, instrument: { none: true } }, do: [{ op: 'vfx', at: 'target', fx: 'splash' }], tests: [] } }] })
@@ -309,7 +309,7 @@ req('D1', 'every class of held thing is here: none, an object, food, a pure weap
 
 req('D2', 'every layer a target can be: a person, a creature, a fixture, a loose item, a pile on a fixture, the ground, oneself — each reachable by every input', ['fixture/furniture/cart', 'item/weapon/magic/wand'], () => {
   const f = fresh()
-  stand(f, 20, 11, 'left')
+  stand(f, ...STAND.cart, 'left')
   const layers = f.eng.controls.layers({ map: 'ford', ...at(...AT.cart) })
   const kinds = layers.map((r) => ('tile' in r ? 'ground' : W(f).kindOf(W(f).get(r.e)!)))
   expect(kinds).toEqual(['fixture', 'item', 'item', 'ground'])
@@ -319,12 +319,12 @@ req('D2', 'every layer a target can be: a person, a creature, a fixture, a loose
     expect(choices.every((c) => c.plan)).toBe(true)
   }
   // oneself, a person and a creature, from the own tile and beside them
-  stand(f, 18, 12)
-  expect(f.eng.controls.layers({ map: 'ford', x: 18, y: 12 }).some((r) => 'e' in r && r.e === 'player')).toBe(true)
-  expect(f.eng.controls.plan('hands', at(19, 12))?.target).toEqual({ e: 'npc.tobin' })
+  stand(f, ...STAND.tobin)
+  expect(f.eng.controls.layers({ map: 'ford', x: STAND.tobin[0], y: STAND.tobin[1] }).some((r) => 'e' in r && r.e === 'player')).toBe(true)
+  expect(f.eng.controls.plan('hands', at(STAND.tobin[0], STAND.tobin[1] - 1))?.target).toEqual({ e: 'npc.tobin' })
   const slime = W(f).get('ford.fire_slime')!
-  W(f).place(slime, { on: 'tile', map: 'ford', x: 17, y: 12 })
-  expect(f.eng.controls.plan('use', at(17, 12))?.target).toEqual({ e: slime.id })
+  W(f).place(slime, { on: 'tile', map: 'ford', x: STAND.tobin[0] - 1, y: STAND.tobin[1] })
+  expect(f.eng.controls.plan('use', at(STAND.tobin[0] - 1, STAND.tobin[1]))?.target).toEqual({ e: slime.id })
 })
 
 // ------------------------------------------------------------------ F. what a game needs at the least
@@ -347,12 +347,12 @@ req('F1', 'the goal is a state: the far bank ends the story, however the player 
 
 req('F2a', 'the ferry: the rope from her chest, the winch mended, and she takes you over', ['item/tool/rope', 'fixture/container/chest', 'fixture/ferry/winch', 'npc.hesper', 'fixture/ferry/raft'], () => {
   const f = fresh()
-  stand(f, 14, 14)
+  stand(f, ...STAND.chest)
   const open = run(f, 'hands', ...AT.chest)
   expect(open.panel).toBe('ford.chest')
   f.eng.controls.transfer('ford.chest', 'chest', ofType(f, 'item/tool/rope')!.id, true)
   hold(f, ofType(f, 'item/tool/rope'))
-  stand(f, 24, 15)
+  stand(f, ...STAND.winch)
   expect(run(f, 'put', ...AT.winch).rule).toBe('ford/mend-winch')
   const h = W(f).posOf(W(f).get('npc.hesper')!)!
   stand(f, h.x, h.y + 1 <= 20 && W(f).walkable('ford', h.x, h.y + 1) ? h.y + 1 : h.y - 1)
@@ -363,7 +363,7 @@ req('F2a', 'the ferry: the rope from her chest, the winch mended, and she takes 
 req('F2b', 'the dead tree: the axe, three blows from the west, and a walk across', ['item/weapon/blade/axe', 'fixture/nature/dead_tree'], () => {
   const f = fresh()
   hold(f, ofType(f, 'item/weapon/blade/axe'))
-  stand(f, 25, 10, 'right')
+  stand(f, ...STAND.tree, 'right')
   for (let i = 0; i < 3; i++) run(f, 'use', ...AT.deadTree)
   expect(W(f).fact('ford.tree')).toBe(1)
   walkEast(f)
@@ -373,13 +373,13 @@ req('F2b', 'the dead tree: the axe, three blows from the west, and a walk across
 req('F2c', "the ice: bread for the peddler's frost wand, then a path frozen across", ['npc.tobin', 'item/food/bread', 'item/weapon/magic/wand'], () => {
   const f = fresh()
   hold(f, ofType(f, 'item/food/bread'))
-  stand(f, 19, 13)
-  expect(run(f, 'put', 19, 12).rule).toBe('ford/feed-peddler')
-  stand(f, 20, 11, 'left')
+  stand(f, ...STAND.tobin)
+  expect(run(f, 'put', STAND.tobin[0], STAND.tobin[1] - 1).rule).toBe('ford/feed-peddler')
+  stand(f, ...STAND.cart, 'left')
   const wand = ofType(f, 'item/weapon/magic/wand')!
   f.eng.controls.run(f.eng.controls.plan('take', at(...AT.cart), 1)!)
   hold(f, W(f).get(wand.id))
-  stand(f, 25, 13, 'right')
+  stand(f, ...STAND.castFrom, 'right')
   for (let i = 0; i < 12 && !far(f); i++) {
     const p = W(f).posOf(W(f).player)!
     if (!W(f).walkable('ford', p.x + 1, p.y)) {
@@ -410,7 +410,7 @@ req('F3', 'the place teaches, not text: ice shows by the frost slime, dry hay wa
 
 req('F4', 'risk, and recovery: anyone at no health — the player as any person — collapses for a while and comes to, the story intact', ['actor/creature/slime/fire_slime', 'npc.tobin'], () => {
   const f = fresh()
-  stand(f, 20, 20)
+  stand(f, ...STAND.road)
   const slime: Ref = { e: 'ford.fire_slime' }
   for (const who of [W(f).player, W(f).get('npc.tobin')!]) {
     f.eng.damage(who, 999, 'fire', true, slime)
@@ -439,29 +439,29 @@ req('F10', 'the wild attacks folk by faction — the player and people alike, af
   // after dark, out in the meadow far from the fire: it goes for Tobin, and he runs (or takes the blow)
   const g = fresh()
   setHour(g, 2, 22.5)
-  stand(g, 5, 16)
+  stand(g, ...STAND.road)
   const s2 = W(g).get('ford.frost_slime')!
   const t2 = W(g).get('npc.tobin')!
-  W(g).place(t2, { on: 'tile', map: 'ford', x: 18, y: 6 })
-  W(g).place(s2, { on: 'tile', map: 'ford', x: 20, y: 6 })
+  W(g).place(t2, { on: 'tile', map: 'ford', x: STAND.frostGround[0] - 2, y: STAND.frostGround[1] })
+  W(g).place(s2, { on: 'tile', map: 'ford', x: STAND.frostGround[0], y: STAND.frostGround[1] })
   const hp = W(g).num(t2, 'hp')
   let ran = 0
   ticks(g, 400, () => {
     const p = W(g).posOf(t2)!
-    ran = Math.max(ran, Math.abs(p.x - 18) + Math.abs(p.y - 6))
+    ran = Math.max(ran, Math.abs(p.x - (STAND.frostGround[0] - 2)) + Math.abs(p.y - STAND.frostGround[1]))
     return false
   })
   expect(ran).toBeGreaterThanOrEqual(2)
   // one who cannot run (frozen stiff beside it, on its ground) is struck
-  W(g).place(t2, { on: 'tile', map: 'ford', x: 13, y: 9 })
-  W(g).place(s2, { on: 'tile', map: 'ford', x: 14, y: 9 })
+  W(g).place(t2, { on: 'tile', map: 'ford', x: STAND.frostGround[0], y: STAND.frostGround[1] })
+  W(g).place(s2, { on: 'tile', map: 'ford', x: STAND.frostGround[0] + 1, y: STAND.frostGround[1] })
   W(g).setStatus({ e: t2.id }, 'frozen', W(g).state.tick + 200)
   ticks(g, 60)
   expect(W(g).num(t2, 'hp')).toBeLessThan(hp)
   // a lit fire: the slime roams up to the camp at night, and never into the fire's reach
   const h = fresh()
   setHour(h, 2, 21.2)
-  stand(h, 5, 16)
+  stand(h, ...STAND.road)
   const s3 = W(h).get('ford.frost_slime')!
   s3.ai!.night = { map: 'ford', x: AT.campfire[0], y: AT.campfire[1] + 1 }
   let nearest = Infinity
@@ -476,7 +476,7 @@ req('F10', 'the wild attacks folk by faction — the player and people alike, af
 
 req('F5', 'the world acts alone: a storm strikes, the slimes come out at night, people keep their day', ['weather:storm', 'actor/creature/slime/fire_slime', 'npc.hesper', 'npc.tobin'], () => {
   const f = fresh()
-  stand(f, 16, 16)
+  stand(f, ...AT.spawn)
   const strikes: unknown[] = []
   const watch = () => (strikes.push(...W(f).fx.filter((x) => x.t === 'strike')), (W(f).fx = []), false)
   // 20:50, after the storm: Hesper tends the fire, as her evening says
@@ -504,20 +504,20 @@ req('F6', 'people with lives of their own: a tie to each other, a day of their o
 
 req('F7', 'save and continue', [], () => {
   const f = fresh()
-  stand(f, 20, 20)
+  stand(f, ...STAND.road)
   W(f).setFact('ford.tree', 1)
   const save = JSON.parse(JSON.stringify(f.game.save()))
   const { index, chunks } = buildFord()
   const g = Game.load(save, index, onto)
   g.loadMapData(decodeChunk(chunks[0]).map)
-  expect(g.engine.world.posOf(g.engine.world.player)).toMatchObject({ x: 20, y: 20 })
+  expect(g.engine.world.posOf(g.engine.world.player)).toMatchObject({ x: STAND.road[0], y: STAND.road[1] })
   expect(g.engine.world.fact('ford.tree')).toBe(1)
 })
 
 req('F8', 'legible: before a press, every input shows what it will do, and the unknown is marked', ['fixture/ferry/raft', 'fixture/ferry/winch'], () => {
   const f = fresh()
   hold(f, ofType(f, 'item/food/bread'))
-  stand(f, 25, 15, 'right')
+  stand(f, ...STAND.raft, 'right')
   for (const key of ['hands', 'take', 'use', 'put'] as Key[]) expect(f.eng.controls.plan(key, at(...AT.raft))?.label).toBeDefined()
   expect(f.eng.controls.plan('hands', at(...AT.raft))?.unknown).toBe(true)
   expect(SLOT_COUNT).toBe(10)

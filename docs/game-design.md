@@ -58,26 +58,46 @@ learns.* So the game is about trying things, and the world answering:
 ## 4. The map (40 × 30)
 
 ```
- N  rock and the hollow ──────────────── frost slime · ice ┃ river ┃ far bank
-    (the slimes' burrow)   dry meadow                       ┃       ┃  (the road east,
- W  woods                                    dead tree ▸ ═══┃narrows┃   into the unwritten)
-    road in ═══ tent · chest      cart (Tobin)              ┃       ┃
-                 campfire · torch          winch ▸ raft ════┃landing┃═ far landing
-    haystack            axe            bucket               ┃       ┃
-    woods                         marsh (puddles)           ┃       ┃
- S  woods ───────────────────────────────────────────────────┃       ┃
+     0         10        20         27  32  39
+ 0   ▓▓▓▓▓▓▓▓▓ mossy cliff ▓▓▓▓▓▓▓▓▓ ♣♣ ≈≈≈≈≈ ♣♣♣♣
+ 4   ♣ ⌂hollow  boulders      ❄rime ❄ ≈≈≈≈ ♣♣    (frost slime by day; the river's edge frozen)
+ 7   ♣  ‴‴ dry meadow ‴‴   ♣♣         ≈≈≈≈
+10   ♣  hay      trail ↗           ♠ ≈≈≈    dead tree on a spit, rock either side: the narrows
+13   ♣♣    tent▲ chest  rack  cart    ≈≈≈≈≈   ♣
+16   ═road═  stump  🔥fire    Tobin ┃═≈≈≈═┃═══ road east → (signpost)   winch, boat, two piers
+19   ═══════════════bench═══════╝   ≈≈≈≈≈≈≈
+22   ♣♣        lantern   ◯pond ◯pond ≈≈≈≈≈≈   ♣♣♣  the marsh: ponds among tall grass
+26   ♣♣♣♣♣♣ woods ♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣  ≈≈≈≈≈   ♣♣♣
 ```
+
+Composed, not scattered. The rules it follows:
+
+- **One landmark you see from the camp**: the dead tree standing alone on its spit at the
+  narrows, and below it the landing with the boat. The trail from the camp leads to both.
+- **The river has a shape that says something**: it comes down from under the cliff, narrows to
+  three tiles where the tree could bridge it, widens into a still pool where a ferry makes
+  sense, and bends away. Its banks are the pack's grass-bank water, never square patches.
+- **The camp is a clearing** ringed by woods: tent, chest, a stone-ring fire with a log bench
+  and a cooking rack, a stump with the axe beside the woodpile, a lantern where the road comes in.
+- **Every danger is placed where it teaches**: the hollow is a mossy cave mound at the cliff's
+  foot, trodden earth and bones before it; the frost slime's corner is white with rime and the
+  river's edge beside it is ice; dry tall grass lies between the hollow and the hay; the marsh's
+  ponds are where lightning has water to run through.
+- **Detail by masks, never by noise**: tall grass and flowers sit off the grid; reeds only by
+  water; leaves only under trees; pebbles only on banks. One season of trees.
+- **The far bank is quieter**: flowers, framing woods, a pier, and a road that leaves the map
+  with a signpost to a place not written yet.
 
 | Place | What it is for |
 |---|---|
-| The camp | Hesper's tent, her chest (a rope; her bread), the campfire, the torch. Where you wake, where she tends the fire, where the slimes wander at night. |
-| Tobin's cart | A pile on a fixture: the frost wand and a flask of oil, both his. |
-| The landing | The winch whose rope snapped (`broken`), the raft, the bucket. |
+| The camp | Hesper's tent, her chest (a rope; her bread), the campfire, the torch. Where you wake, where she tends the fire, the one place the wild keeps off at night. |
+| Tobin's cart | By the road short of the landing. A pile on a fixture: the frost wand and a flask of oil, both his. |
+| The landing | The rope post whose line snapped (the winch, `broken`), the boat at the near pier, the bucket; the far pier across the gap the ferry crossed. |
 | The narrows | The dead tree on a spit of land, rock to north and south, water to the east: it can only be felled across. |
-| The hollow | The slimes' burrow under the rocks; the river's edge frozen beside it. |
-| The dry meadow | Dry grass: fire runs here. |
-| The marsh | Mud and puddles: lightning runs here. |
-| The far bank | The goal (region `far_bank`); a road that leaves the map to the east. |
+| The hollow | The slimes' cave mound at the cliff's foot; the frost slime's rimed corner and the frozen edge of the river. |
+| The dry meadow | Tall dry grass: fire runs here. |
+| The marsh | Ponds among tall grass: lightning runs here. |
+| The far bank | The goal (region `far_bank`, every column from 32 east); a road that leaves the map to the east. |
 
 ## 5. People
 
