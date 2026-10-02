@@ -569,7 +569,7 @@ function beside(f: Ford, x: number, y: number): [number, number, Entity['facing'
   throw new Error(`nothing open beside ${x},${y}`)
 }
 
-req('F10', "the ground yields sticks, stones and grass (Don't Starve): taken by hand, they craft the first tools, which fell a tree and break a boulder", [...FORAGE, 'fixture/nature/boulder'], () => {
+req('F12', "the ground yields sticks, stones and grass (Don't Starve): taken by hand, they craft the first tools, which fell a tree and break a boulder", [...FORAGE, 'fixture/nature/boulder'], () => {
   const f = fresh()
   const c = f.eng.controls
   // gather everything lying about, through the take key
@@ -619,7 +619,7 @@ req('F10', "the ground yields sticks, stones and grass (Don't Starve): taken by 
   }
 })
 
-req('F11', 'a defeated foe teaches whoever struck it: experience, levels, a skill point', ['actor/creature/slime/fire_slime', 'actor/creature/slime/frost_slime'], () => {
+req('F13', 'a defeated foe teaches whoever struck it: experience, levels, a skill point', ['actor/creature/slime/fire_slime', 'actor/creature/slime/frost_slime'], () => {
   const f = fresh()
   hold(f, ofType(f, 'item/weapon/blade/axe'))
   const p = W(f).player
@@ -641,7 +641,7 @@ const COW = 'actor/creature/animal/cow'
 const HEN = 'actor/creature/animal/chicken'
 const onMeadow = (f: Ford, type: string) => Object.values(W(f).state.entities).filter((e) => e.type === type && e.place.on === 'tile' && e.place.map === 'meadow')
 
-req('F12', 'west of the Ford a meadow (Minecraft): cows and hens that run when struck and come back slowly; meat from both, eggs from hens; each food feeds its own amount', [COW, HEN], () => {
+req('F14', 'west of the Ford a meadow (Minecraft): cows and hens that run when struck and come back slowly; meat from both, eggs from hens; each food feeds its own amount', [COW, HEN], () => {
   const f = fresh()
   const p = W(f).player
   // the road's gap in the western woods leads there
@@ -721,7 +721,7 @@ req('F12', 'west of the Ford a meadow (Minecraft): cows and hens that run when s
   expect(onMeadow(f, HEN).every((h) => W(f).hasStatus({ e: h.id }, 'laying'))).toBe(true)
 })
 
-req('F13', 'south of the meadow, a forest: many trees within reach, and an axe fells them (two swings: a stump, logs and a stick)', [], () => {
+req('F15', 'south of the meadow, a forest: many trees within reach, and an axe fells them (two swings: a stump, logs and a stick)', [], () => {
   const f = fresh()
   const p = W(f).player
   // the meadow's trail south leads there

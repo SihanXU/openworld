@@ -7,10 +7,12 @@ Design: [docs/design.md](docs/design.md). Paper draft lives in Notion ("Large Sy
 ## Working agreements
 
 - Converse with the user in Chinese; write code, comments and docs in English.
-- Build order: a small, polished demo first (the Ford: one map, minimal and complete — every element
-  it holds witnesses a requirement, docs/game-design.md §9), then scale. Learn craft from other
-  games, never their content or loops. Keep the architecture
-  scale-ready; ask when the scope of a request is ambiguous.
+- Build order: a small, polished demo first, then scale. The target is hundreds of maps,
+  thousands of NPCs, tens of thousands of items; the demo (the Ford and the maps growing around
+  it) is the development scaffold, never an argument against growth. Every element it holds
+  witnesses a requirement (docs/game-design.md §9). Basic game systems (bag, crafting, levels,
+  hunger) are welcome; never copy one game's own content or loops (Stardew's shipping bin). Keep
+  the architecture scale-ready; ask when the scope of a request is ambiguous.
 - The subject is the WORLD (vs neural world models), not agents. NPCs are content.
 - Second paper thread: RSI of the modder (memory, skills, harness it forms itself), see
   `docs/rsi.md`. It is a paper matter: the demo stays a clean game without it. Evaluation is
@@ -41,7 +43,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   story rules, objectives and invariants (`ford.ts`), chunk codec.
 - `packages/tools` — `art/animals.ts` (the project's own sprites → `client/public/assets/lsw/`), `demo/` (the hand-crafted Ford, the meadow west of it and the forest south of that → `public/world/`, each map from its own seed: `builder.ts` the map DSL
   with the tools of composition — curved paths, organic shapes, fences and yards, small things by masks,
-  collision layer, anchors, regions; `world.ts` `buildFord()` — the map, scenes, invariants;
+  anchors, regions; `world.ts` `buildFord()` — the map, scenes, invariants;
   `people/*.ts` one record per person (`person.ts`); `check.ts` a headless two-day playtest;
   `test/demo.test.ts` the completeness and minimality proof),
   `copyAssets.ts` (catalogue subset of the pack → `public/assets/na/`), `coverage.ts` (every item
@@ -91,7 +93,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   invalidated content). All are built except free intent and open conversation (reserved).
   World events ask only through the salience filter (§5.6), never freeze the world, and their
   patches obey §5.8 (no harm to persons, the story's facts untouched).
-- The demo must stay complete and minimal: anything added to the Ford witnesses a requirement in
+- The demo must stay complete: anything added to its maps witnesses a requirement in
   `tools/test/demo.test.ts` (or the test fails), and every requirement is checked on the real map.
 - Only the player steps onto portals; NPCs transfer from the adjacent tile.
 - After changing rules, run `npm run coverage` and commit the refreshed baseline with them; a
