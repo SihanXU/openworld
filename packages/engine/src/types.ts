@@ -654,7 +654,7 @@ export type FxEvent =
   | { t: 'strike'; map: string; x: number; y: number }
   | { t: 'log'; text: Text; tone?: 'info' | 'warn' | 'ai' | 'good' | 'bad' }
   | { t: 'damage'; who: Id; amount: number; element?: string }
-  | { t: 'undefined'; request: string; summary: string }
+  | { t: 'undefined'; request: string; summary: string; /** someone (a provider) is working it out */ asked?: boolean }
   | { t: 'patched'; request: string; rule: string }
   | { t: 'mapChanged'; map: string }
   /** The magnet pulled a dropped item into the player's bag (from its tile). */

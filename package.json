@@ -6,7 +6,8 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev -w @lsw/client",
+    "dev": "tsx packages/tools/src/dev.ts",
+    "dev:client": "npm run dev -w @lsw/client",
     "build": "npm run gen:world && npm run build -w @lsw/client",
     "gen:world": "tsx packages/tools/src/demo/world.ts",
     "check:world": "tsx packages/tools/src/demo/check.ts",

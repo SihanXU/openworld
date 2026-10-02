@@ -47,6 +47,7 @@ const STRINGS: Record<string, [string, string]> = {
   noThreads: ['No threads yet. Try something the world has never seen.', '还没有新的线。试试这个世界从没见过的事。'],
   learned: ['A new thread is woven', '织入了一根新线'],
   learning: ['The world pauses…', '世界停顿了一下……'],
+  noModder: ['No modder online, nothing learned', '没有连上 modder，这次没学到'],
   'weather.sun': ['Clear', '晴'],
   'weather.cloud': ['Cloudy', '多云'],
   'weather.rain': ['Rain', '雨'],

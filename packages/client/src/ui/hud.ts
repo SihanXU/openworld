@@ -451,8 +451,9 @@ export class Hud {
         return this.pickup(fx)
       case 'undefined':
         // the clean game: a light cue the first moments the valley works something out (design.md §5.9)
-        if (this.modderOnline) return void this.message(`✦ ${t('learning')}`, 'ai')
-        if (import.meta.env.DEV) return void this.message(`⚠ ${fx.summary}`, 'ai')
+        if (fx.asked) return void this.message(`✦ ${t('learning')}`, 'ai')
+        // no one to ask: in development say so plainly (npm run dev starts the modder too)
+        if (import.meta.env.DEV) return void this.message(`⚠ ${t('noModder')} — ${fx.summary}`, 'warn')
         return
       case 'patched': {
         const doc = this.threadDoc?.(fx.rule)

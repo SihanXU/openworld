@@ -16,6 +16,8 @@ import { BASE_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
 const lib = () => new RuleLibrary(BASE_RULES)
+/** A provider still at work: the request stays pending until a patch or the time-out. */
+const working = { resolve: () => new Promise<null>(() => {}) }
 const field = (rows: string[]) => rows.map((r) => r.split('').map((c) => ({ '.': 'grass', ',': 'drygrass', '~': 'water', '#': 'cobble' })[c]!))
 
 describe('base library', () => {
@@ -271,6 +273,7 @@ describe('the Mod port', () => {
   it('raises an undefined interaction, freezes the target, and applies a valid patch', () => {
     const eng = buildSandbox(ropeScenario(), onto, lib())
     const port = new ModPort(eng)
+    port.provider = working
     const res = eng.interact('interact', 'actor', { e: 'slime' })
     expect(res.defined).toBe(false)
     expect(port.records).toHaveLength(1)
@@ -297,6 +300,7 @@ describe('the Mod port', () => {
   it('falls back after the timeout and still accepts a late patch', () => {
     const eng = buildSandbox(ropeScenario(), onto, lib())
     const port = new ModPort(eng)
+    port.provider = working
     eng.interact('interact', 'actor', { e: 'slime' })
     for (let i = 0; i < 120; i++) eng.tick()
     expect(port.records[0].status).toBe('fallback')

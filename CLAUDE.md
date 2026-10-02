@@ -105,7 +105,7 @@ npm run gen:world        # the Ford (default world)
 npm run check:world      # headless playtest of it: days kept over two game days, what the world asked
 npm run gen:saenvar      # the 460-map scale world (?world=saenvar)
 npm run assets           # copy the catalogue's subset of the asset pack into public/assets/na
-npm run dev              # client at http://localhost:5173
+npm run dev              # client at http://localhost:5173 + the modder on :8787 (dev:client for the client alone)
 npm test                 # vitest (engine + base rules + Mod port)
 npm run typecheck
 npm run coverage         # interaction coverage + refresh its test baseline

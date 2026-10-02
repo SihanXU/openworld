@@ -23,6 +23,8 @@ function fresh(opts: { arrival?: boolean } = {}): Ford {
   const { index, chunks } = buildFord()
   const game = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
   for (const c of chunks) game.loadChunk(decodeChunk(c))
+  // a modder at work that never answers: the tests answer by hand, or the time-out does
+  game.mods.provider = { resolve: () => new Promise<null>(() => {}) }
   const eng = game.engine
   const dispatch = eng.dispatch.bind(eng)
   eng.dispatch = (ev) => (KINDS.add(ev.kind), dispatch(ev))

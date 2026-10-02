@@ -332,15 +332,18 @@ export class ModPort implements UndefinedSink {
     }
     this.asks.set(signature, (this.asks.get(signature) ?? 0) + 1)
     const rec = this.open(ev, signature, 'player')
+    // say at once what the player is doing (never what comes of it: that is the patch's to decide)
+    w.fx.push({ t: 'log', text: attemptLine(eng, ev) })
+    w.fx.push({ t: 'undefined', request: rec.id, summary: rec.request.summary, asked: !!this.provider })
+    // with no one to ask, nothing is being worked out: the safe default runs now, and the record
+    // stays open to a patch (the Mod Console, a later sync), which re-runs the act if it still fits
+    if (!this.provider) return this.fallback(rec.id)
     // everyone and everything in the act waits for its outcome — the one acting too: they are
     // busy working it out (no other act, no step) until the patch or the fallback comes
     for (const r of [ev.roles.actor, ev.roles.target, ev.roles.instrument]) {
       const e = r && 'e' in r ? w.get(r.e) : undefined
       if (e) e.frozenBy = rec.id
     }
-    // say at once what the player is doing (never what comes of it: that is the patch's to decide)
-    w.fx.push({ t: 'log', text: attemptLine(eng, ev) })
-    w.fx.push({ t: 'undefined', request: rec.id, summary: rec.request.summary })
     this.onChange?.()
     this.ask(rec)
   }
@@ -364,7 +367,7 @@ export class ModPort implements UndefinedSink {
     this.asks.set(signature, (this.asks.get(signature) ?? 0) + 1)
     const rec = this.open(ev, signature, 'world')
     w.fx.push({ t: 'log', text: worldLine(eng, ev), tone: 'ai' })
-    w.fx.push({ t: 'undefined', request: rec.id, summary: rec.request.summary })
+    w.fx.push({ t: 'undefined', request: rec.id, summary: rec.request.summary, asked: !!this.provider })
     this.onChange?.()
     this.ask(rec)
     return true
