@@ -2,12 +2,15 @@
 // has a place, conditions and a script; while it plays the player watches (and advances what is
 // said); then control returns. Scenes play once unless they say they repeat, and every scene
 // that has played is a fact (`seen.<id>`), so lines, schedules and other scenes can follow it.
+// A scene is the story's script (design.md §5.5–5.8): it writes only the story — its facts and
+// topics, through story-hosted effects — and sends the rest as impulses that their receivers answer
+// themselves: a push to the place an actor must go, a notice of the player's stage.
 
-import type { Engine } from './engine.ts'
+import { STORY, type Engine } from './engine.ts'
 import { astar } from './path.ts'
 import { DIRS } from './types.ts'
 import { cmp } from './rules.ts'
-import type { Dir, Entity, Id, SceneCmd, SceneDef } from './types.ts'
+import type { Dir, Effect, Entity, Id, Pos, Ref, SceneCmd, SceneDef } from './types.ts'
 
 const MOVE_STEP_TICKS = 4
 const MOVE_TIMEOUT = 900
@@ -31,8 +34,20 @@ export class Scenes {
     const w = this.eng.world
     if (w.state.scene || !this.defs.has(id)) return false
     w.state.scene = { id, step: 0 }
-    w.setFact(`seen.${id}`, true)
+    this.story([{ op: 'setFact', key: `seen.${id}`, value: true }])
     return true
+  }
+
+  /** The story moves someone: it sends them a push to the place, and they go there themselves (it writes only itself). */
+  private send(e: Entity, to: Pos): void {
+    this.story([{ op: 'emit', impulse: 'push', to: 'target', params: { map: to.map, x: to.x, y: to.y } }], { e: e.id })
+  }
+
+  /** Run effects as the story (its facts, topics, what it gives), with a target for its spawns and notices. */
+  private story(effects: Effect[], target?: Ref): void {
+    const eng = this.eng
+    if (!eng.world.get(STORY)) eng.ensureResidents()
+    eng.run(effects, { kind: 'time/period', host: { e: STORY }, roles: target ? { target } : {}, params: {}, origin: 'world' }, 'scene')
   }
 
   /** Is a scene's place and moment now? */
@@ -74,7 +89,7 @@ export class Scenes {
         for (const d of this.defs.values())
           if (this.eligible(d)) {
             this.start(d.id)
-            if (d.when?.repeat) w.setFact(`seen.${d.id}.day`, w.calendar().day)
+            if (d.when?.repeat) this.story([{ op: 'setFact', key: `seen.${d.id}.day`, value: w.calendar().day }])
             break
           }
       return
@@ -147,22 +162,21 @@ export class Scenes {
       w.fx.push({ t: 'fade', dir: c.fade })
     } else if ('place' in c) {
       const e = w.get(c.place)
-      if (e) w.place(e, { on: 'tile', map: c.map, x: c.x, y: c.y })
+      if (e) this.send(e, { map: c.map, x: c.x, y: c.y })
     } else if ('fact' in c) {
-      w.setFact(c.fact, c.value)
+      this.story([{ op: 'setFact', key: c.fact, value: c.value }])
     } else if ('topic' in c) {
-      const day = w.calendar().day
-      w.state.topics = [...(w.state.topics ?? []).filter((x) => x.id !== c.topic), { id: c.topic, day, days: c.days }]
+      this.story([{ op: 'topic', id: c.topic, days: c.days }])
     } else if ('give' in c) {
-      w.create(c.give, { on: 'inside', holder: w.state.player })
+      this.story([{ op: 'spawn', type: c.give, at: 'target', into: 'contents', still: true }], { e: w.state.player })
     } else if ('warp' in c) {
-      eng.travel(w.player, { map: c.warp, x: c.x, y: c.y })
+      this.send(w.player, { map: c.warp, x: c.x, y: c.y })
     } else if ('prop' in c) {
-      ;(w.player.props ??= {})[c.prop] = c.value
+      // the story tells the player where the story stands; the player's own rule keeps it
+      this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: c.prop, value: c.value } }], { e: w.state.player })
     } else if ('status' in c) {
-      const e = w.get(c.status)
-      if (e && c.remove && e.statuses) delete e.statuses[c.remove]
-      if (e && c.add) (e.statuses ??= {})[c.add] = -1
+      if (c.add) this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'status', add: c.add } }], { e: c.status })
+      if (c.remove) this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'status', remove: c.remove } }], { e: c.status })
     }
   }
 
@@ -178,14 +192,14 @@ export class Scenes {
     if (!m.path.length) return true
     if (w.state.tick - started > MOVE_TIMEOUT) {
       const [x, y] = m.path[m.path.length - 1]
-      w.place(e, { on: 'tile', map: e.place.map, x, y })
+      this.send(e, { map: e.place.map, x, y })
       return true
     }
     if (w.state.tick < m.next) return false
     const [x, y] = m.path.shift()!
     const dir = (Object.entries(DIRS) as [Dir, [number, number]][]).find(([, [dx, dy]]) => e.place.on === 'tile' && dx === x - e.place.x && dy === y - e.place.y)?.[0]
     if (dir) e.facing = dir
-    w.place(e, { on: 'tile', map: e.place.map, x, y })
+    this.send(e, { map: e.place.map, x, y })
     m.next = w.state.tick + MOVE_STEP_TICKS
     return m.path.length === 0
   }

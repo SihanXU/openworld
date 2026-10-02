@@ -1,10 +1,14 @@
-// Rule matching, specificity ordering and the versioned rule library.
+// Rules as host natures (design.md §5.6): matching, specificity, the condition tree, and the
+// versioned rule library. Resolution is the same for every event: the most specific base rule
+// whose host and kind fit is walked to a leaf; `inherit` goes up a level; an undefined leaf
+// consults the patch layer — patch rules are only ever reached there, so the AI fills holes and
+// never changes what is defined.
 
 import { isA, typeDepth } from './ontology.ts'
-import type { Bounds, Cmp, Cond, GameEvent, Operand, PropValue, RoleName, Rule, Selector, StatusDef, TypeDef } from './types.ts'
+import type { Bounds, Cmp, Cond, GameEvent, Leaf, Operand, PropValue, RoleName, Rule, Selector, StatusDef, Tree, TypeDef } from './types.ts'
 import type { View, World } from './world.ts'
 
-export const ROLES: RoleName[] = ['actor', 'target', 'instrument']
+export const ROLES: RoleName[] = ['host', 'actor', 'target', 'instrument', 'other', 'item', 'source']
 
 export type Roles = Partial<Record<RoleName, View>>
 
@@ -24,12 +28,10 @@ export function cmp(v: PropValue | undefined, c: Cmp): boolean {
 
 export function matchSelector(sel: Selector | undefined, v: View | undefined): boolean {
   if (!sel) return true
-  if (sel.none) return v === undefined
   if (!v) return false
   if (sel.kind && v.kind !== sel.kind) return false
   if (sel.type && !isA(v.type, sel.type)) return false
   if (sel.id && v.id !== sel.id) return false
-  if (sel.player !== undefined && v.isPlayer !== sel.player) return false
   for (const t of sel.tags ?? []) if (!v.tags.has(t)) return false
   for (const t of sel.notTags ?? []) if (v.tags.has(t)) return false
   for (const s of sel.status ?? []) if (!v.statuses.has(s)) return false
@@ -38,11 +40,24 @@ export function matchSelector(sel: Selector | undefined, v: View | undefined): b
   return true
 }
 
-export function evalCond(c: Cond | undefined, roles: Roles, world: World): boolean {
+/** The views of an event's roles, its host included. */
+export function rolesOf(ev: GameEvent, world: World): Roles {
+  const out: Roles = { host: world.view(ev.host) }
+  for (const [k, r] of Object.entries(ev.roles)) out[k as RoleName] = world.view(r)
+  return out
+}
+
+export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: GameEvent): boolean {
   if (!c) return true
-  if ('all' in c) return c.all.every((x) => evalCond(x, roles, world))
-  if ('any' in c) return c.any.some((x) => evalCond(x, roles, world))
-  if ('not' in c) return !evalCond(c.not, roles, world)
+  if ('all' in c) return c.all.every((x) => evalCond(x, roles, world, ev))
+  if ('any' in c) return c.any.some((x) => evalCond(x, roles, world, ev))
+  if ('not' in c) return !evalCond(c.not, roles, world, ev)
+  if ('is' in c) return !!roles[c.is.role] && matchSelector(c.is.sel, roles[c.is.role])
+  if ('none' in c) return !roles[c.none]
+  if ('same' in c) {
+    const [a, b] = c.same.map((r) => roles[r])
+    return !!a && !!b && sameRef(a, b)
+  }
   if ('has' in c) {
     const v = roles[c.has.role]
     if (!v) return false
@@ -50,7 +65,17 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World): boole
     if (c.has.tag && !v.tags.has(c.has.tag)) return false
     return true
   }
-  if ('prop' in c) return cmp(roles[c.prop.role]?.props[c.prop.key], c.prop.cmp)
+  if ('prop' in c) {
+    const v = roles[c.prop.role]?.props[c.prop.key]
+    if (v === undefined) return false
+    if (c.prop.cmp !== undefined && !cmp(v, c.prop.cmp)) return false
+    if (c.prop.bounds && !(typeof v === 'number' && within(v, c.prop.bounds, roles, ev))) return false
+    return true
+  }
+  if ('param' in c) {
+    const v = ev?.params?.[c.param.key]
+    return v !== undefined && cmp(v, c.param.cmp)
+  }
   if ('chance' in c) return world.rand() < c.chance
   if ('hour' in c) {
     const h = world.hour()
@@ -58,7 +83,7 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World): boole
   }
   if ('count' in c) {
     const v = roles[c.count.role]
-    return !!v && within(countAt(v, c.count.in, c.count.match, world), c.count.cmp, roles)
+    return !!v && within(countAt(v, c.count.in, c.count.match, world), c.count.cmp, roles, ev)
   }
   if ('fact' in c) return cmp(world.fact(c.fact.key) ?? 0, c.fact.cmp)
   if ('topic' in c) {
@@ -70,6 +95,17 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World): boole
     for (const e of Object.values(world.state.entities)) if (e.place.on !== 'none' && matchSelector(c.exists, world.view({ e: e.id }))) return true
     return false
   }
+  if ('outdoors' in c) {
+    const host = roles.host
+    const map = (host && world.refPos(host.ref)?.map) ?? world.posOf(world.player)?.map
+    return !!map && (world.map(map)?.light ?? 'outdoor') === 'outdoor'
+  }
+  return false
+}
+
+export function sameRef(a: View, b: View): boolean {
+  if ('e' in a.ref && 'e' in b.ref) return a.ref.e === b.ref.e
+  if ('tile' in a.ref && 'tile' in b.ref) return a.ref.tile.map === b.ref.tile.map && a.ref.tile.x === b.ref.tile.x && a.ref.tile.y === b.ref.tile.y
   return false
 }
 
@@ -86,13 +122,17 @@ export function countAt(v: View, where: 'contents' | 'tile', match: Selector | u
   return n
 }
 
-function operand(o: Operand, roles: Roles): number | undefined {
+export function operand(o: Operand, roles: Roles, ev?: GameEvent): number | undefined {
   if (typeof o === 'number') return o
+  if ('param' in o) {
+    const v = ev?.params?.[o.param]
+    return typeof v === 'number' ? v * (o.mul ?? 1) : undefined
+  }
   const v = roles[o.of]?.props[o.prop]
-  return typeof v === 'number' ? v : undefined
+  return typeof v === 'number' ? v * (o.mul ?? 1) : undefined
 }
 
-export function within(n: number, b: Bounds, roles: Roles): boolean {
+export function within(n: number, b: Bounds, roles: Roles, ev?: GameEvent): boolean {
   const tests: [Operand | undefined, (lim: number) => boolean][] = [
     [b.eq, (l) => n === l],
     [b.gt, (l) => n > l],
@@ -102,78 +142,73 @@ export function within(n: number, b: Bounds, roles: Roles): boolean {
   ]
   for (const [o, ok] of tests) {
     if (o === undefined) continue
-    const lim = operand(o, roles)
+    const lim = operand(o, roles, ev)
     if (lim === undefined || !ok(lim)) return false
   }
   return true
 }
 
-export function rolesOf(ev: GameEvent, world: World): Roles {
-  return {
-    actor: world.view(ev.roles.actor),
-    target: world.view(ev.roles.target),
-    instrument: world.view(ev.roles.instrument),
-  }
+/** Does a rule's `on` (a kind or a branch of the kind tree) cover this kind? */
+export function kindCovers(on: string, kind: string): boolean {
+  return kind === on || kind.startsWith(on + '/')
 }
 
-/** Pattern match without the guard (guards may consume randomness). */
-export function matchPattern(rule: Rule, ev: GameEvent, roles: Roles): boolean {
-  if (rule.on !== ev.kind) return false
-  const w = rule.when
-  if (w.verb && (!ev.verb || !w.verb.includes(ev.verb))) return false
-  if (w.element && !w.element.includes(ev.element ?? 'none')) return false
-  if (w.status && (!ev.status || !w.status.includes(ev.status))) return false
-  if (w.about && (!ev.about || !w.about.includes(ev.about))) return false
-  for (const r of ROLES) {
-    const sel = w[r]
-    if (!matchSelector(sel, roles[r])) return false
-    if (sel?.self !== undefined && (!!roles[r]?.id && roles[r]?.id === roles.actor?.id) !== sel.self) return false
+// ---------------------------------------------------------------- the condition tree
+
+/** Walk a tree to its leaf; `path` records each branch taken (for the request and the hole's key). */
+export function walk(tree: Tree, roles: Roles, world: World, ev: GameEvent): { leaf: Leaf; path: string[] } {
+  const path: string[] = []
+  let t: Tree = tree
+  for (let guard = 0; guard < 64; guard++) {
+    if (typeof t === 'string' || !('if' in t)) return { leaf: t, path }
+    const yes = evalCond(t.if, roles, world, ev)
+    path.push(`${yes ? '' : '!'}${JSON.stringify(t.if)}`)
+    t = yes ? t.then : (t.else ?? 'inherit')
   }
-  return true
+  return { leaf: 'inherit', path }
 }
+
+/** Every leaf of a tree. */
+export function leaves(tree: Tree): Leaf[] {
+  if (typeof tree === 'string' || !('if' in tree)) return [tree]
+  return [...leaves(tree.then), ...leaves(tree.else ?? 'inherit')]
+}
+
+export const isDo = (l: Leaf): l is { do: import('./types.ts').Effect[] } => typeof l === 'object' && 'do' in l
+export const isHole = (l: Leaf): l is { undefined: true; default?: import('./types.ts').Effect[] } => typeof l === 'object' && 'undefined' in l
 
 // ---------------------------------------------------------------- specificity
 
-/** Lexicographic: (instance-bound, summed type depth, constraint count, priority). */
+/** Lexicographic: (instance-bound, host type depth, host constraints, event kind depth). */
 export type Spec = [number, number, number, number]
 
-function selSpec(s: Selector | undefined): [number, number, number] {
-  if (!s) return [0, 0, 0]
+export function specOf(rule: Rule): Spec {
+  const s = rule.host ?? {}
   const inst = s.id ? 1 : 0
   const depth = s.type ? typeDepth(s.type) : 0
-  const n =
-    (s.kind ? 1 : 0) +
-    (s.none ? 1 : 0) +
-    (s.player !== undefined ? 1 : 0) +
-    (s.self !== undefined ? 1 : 0) +
-    (s.tags?.length ?? 0) +
-    (s.notTags?.length ?? 0) +
-    (s.status?.length ?? 0) +
-    (s.notStatus?.length ?? 0) +
-    Object.keys(s.props ?? {}).length
-  return [inst, depth, n]
-}
-
-export function specOf(rule: Rule): Spec {
-  let inst = 0
-  let depth = 0
-  let n = 0
-  for (const r of ROLES) {
-    const [a, b, c] = selSpec(rule.when[r])
-    inst += a
-    depth += b
-    n += c
-  }
-  if (rule.when.element) n += 1
-  if (rule.when.status) n += 1
-  if (rule.when.about) n += 1
-  if (rule.guard) n += 1
-  return [inst, depth, n, rule.priority ?? 0]
+  const n = (s.kind ? 1 : 0) + (s.tags?.length ?? 0) + (s.notTags?.length ?? 0) + (s.status?.length ?? 0) + (s.notStatus?.length ?? 0) + Object.keys(s.props ?? {}).length
+  return [inst, depth, n, rule.on.split('/').length]
 }
 
 export function compareSpec(a: Spec, b: Spec): number {
   for (let i = 0; i < 4; i++) if (a[i] !== b[i]) return a[i] - b[i]
   return 0
+}
+
+export const isPatch = (r: Rule) => r.source?.origin === 'patch'
+/** A root rule: it names no host class (it answers for anything). */
+export const isRoot = (r: Rule) => !r.host || Object.keys(r.host).length === 0
+
+// ---------------------------------------------------------------- resolution
+
+export interface Resolution {
+  /** The outcome is defined: a rule (base or patch) gives effects. */
+  defined: boolean
+  /** The rule whose leaf decided (the patch that filled the hole, when one did). */
+  rule?: Rule
+  leaf?: Leaf
+  /** The base rule and path where the outcome was undefined (filled or not). */
+  hole?: { rule: Rule; path: string[]; default: import('./types.ts').Effect[] }
 }
 
 // ---------------------------------------------------------------- library
@@ -197,11 +232,13 @@ export interface LibraryData {
 }
 
 /**
- * The rule library: base rules + accepted patches, with an append-only log so any
- * patch can be inspected, rolled back or ablated. Rules are bucketed by event kind.
+ * The rule library: base rules + accepted patches, with an append-only log so any patch can be
+ * inspected, rolled back or ablated. Rules are bucketed by the root of their kind and kept most
+ * specific first; base and patch rules form separate layers.
  */
 export class RuleLibrary {
-  private byKind = new Map<string, Rule[]>()
+  private base = new Map<string, Rule[]>()
+  private layer = new Map<string, Rule[]>()
   private specs = new Map<string, Spec>()
   readonly rules = new Map<string, Rule>()
   /** Types and statuses introduced by patches (base ontology lives in content). */
@@ -211,19 +248,24 @@ export class RuleLibrary {
   version = 0
 
   constructor(rules: Rule[] = []) {
-    for (const r of rules) this.put(r)
+    for (const r of rules) {
+      // one id, one rule: a second would silently replace the first
+      if (this.rules.has(r.id)) throw new Error(`rule id "${r.id}" appears twice`)
+      this.put(r)
+    }
   }
 
   private put(r: Rule): void {
     this.rules.set(r.id, r)
     this.specs.set(r.id, specOf(r))
-    this.rebuildKind(r.on)
+    this.rebuild(r.on.split('/')[0])
   }
 
-  private rebuildKind(kind: string): void {
-    const list = [...this.rules.values()].filter((r) => r.on === kind)
-    list.sort((a, b) => compareSpec(this.specs.get(b.id)!, this.specs.get(a.id)!))
-    this.byKind.set(kind, list)
+  private rebuild(root: string): void {
+    const all = [...this.rules.values()].filter((r) => r.on.split('/')[0] === root)
+    const order = (a: Rule, b: Rule) => compareSpec(this.specs.get(b.id)!, this.specs.get(a.id)!)
+    this.base.set(root, all.filter((r) => !isPatch(r)).sort(order))
+    this.layer.set(root, all.filter(isPatch).sort(order))
   }
 
   spec(id: string): Spec | undefined {
@@ -253,43 +295,59 @@ export class RuleLibrary {
     if (!r) return false
     this.rules.delete(id)
     this.specs.delete(id)
-    this.rebuildKind(r.on)
+    this.rebuild(r.on.split('/')[0])
     this.version += 1
     this.log.push({ version: this.version, action: 'remove', ruleId: id, at: now })
     return true
   }
 
+  /** The rules of a layer whose kind covers this one and whose host fits, most specific first. */
+  candidates(kind: string, host: View | undefined, patches = false): Rule[] {
+    const list = (patches ? this.layer : this.base).get(kind.split('/')[0]) ?? []
+    return list.filter((r) => kindCovers(r.on, kind) && matchSelector(r.host, host))
+  }
+
+  /** Every rule a kind could reach (both layers), for the ModSpec's context and the dev panel. */
   forKind(kind: string): Rule[] {
-    return this.byKind.get(kind) ?? []
+    const root = kind.split('/')[0]
+    return [...(this.base.get(root) ?? []), ...(this.layer.get(root) ?? [])].filter((r) => kindCovers(r.on, kind) || kindCovers(kind, r.on))
   }
 
-  /** Every rule whose pattern (and guard) matches, most specific first. */
-  match(ev: GameEvent, roles: Roles, world: World): Rule[] {
-    const out: Rule[] = []
-    for (const r of this.forKind(ev.kind)) {
-      if (!matchPattern(r, ev, roles)) continue
-      if (!evalCond(r.guard, roles, world)) continue
-      out.push(r)
+  /** Walk one layer's chain: the first leaf that does not inherit. */
+  private chain(list: Rule[], roles: Roles, world: World, ev: GameEvent): { rule: Rule; leaf: Leaf; path: string[] } | undefined {
+    for (const rule of list) {
+      const { leaf, path } = walk(rule.tree, roles, world, ev)
+      if (leaf !== 'inherit') return { rule, leaf, path }
     }
-    return out
+    return undefined
   }
 
-  /** Rules that miss on exactly one role — shown to the modder as conventions in force. */
-  nearMisses(ev: GameEvent, roles: Roles, limit = 8): Rule[] {
-    const out: Rule[] = []
-    for (const r of this.forKind(ev.kind)) {
-      if (r.when.verb && (!ev.verb || !r.when.verb.includes(ev.verb))) continue
-      if (r.when.about && (!ev.about || !r.when.about.includes(ev.about))) continue
-      let misses = 0
-      for (const role of ROLES) if (!matchSelector(r.when[role], roles[role])) misses++
-      if (misses === 1) out.push(r)
-      if (out.length >= limit) break
-    }
-    return out
+  /** Resolve an event's outcome (design.md §5.6). Conditions may consume randomness: callers dry-running restore it. */
+  resolve(ev: GameEvent, roles: Roles, world: World): Resolution {
+    const base = this.chain(this.candidates(ev.kind, roles.host), roles, world, ev)
+    if (!base) return { defined: false }
+    if (!isHole(base.leaf)) return { defined: true, rule: base.rule, leaf: base.leaf }
+    const hole = { rule: base.rule, path: base.path, default: base.leaf.default ?? [] }
+    const patch = this.chain(this.candidates(ev.kind, roles.host, true), roles, world, ev)
+    if (patch && isDo(patch.leaf)) return { defined: true, rule: patch.rule, leaf: patch.leaf, hole }
+    return { defined: false, rule: base.rule, leaf: base.leaf, hole }
+  }
+
+  /**
+   * Could this host's event of this kind do anything? False when every rule that could answer it
+   * is a root rule whose only outcome is no change — then the engine need not make the event.
+   */
+  answers(kind: string, host: View | undefined): boolean {
+    for (const patches of [false, true])
+      for (const r of this.candidates(kind, host, patches)) {
+        if (!isRoot(r)) return true
+        if (leaves(r.tree).some((l) => l !== 'inherit' && !(isDo(l) && l.do.length === 0))) return true
+      }
+    return false
   }
 
   patches(): Rule[] {
-    return [...this.rules.values()].filter((r) => r.source?.origin === 'patch')
+    return [...this.rules.values()].filter(isPatch)
   }
 
   clone(): RuleLibrary {

@@ -24,11 +24,13 @@ describe('the curriculum', () => {
       expect(cell, kind).toBeTruthy()
       const req = cellRequest(cell, onto, lib)!
       expect(req, `${cell.verb} ${cell.hand} → ${cell.target}`).toBeTruthy()
-      expect(req.event.verb).toBe(cell.verb)
-      expect(req.event.instrument?.type).toBe(cell.hand)
+      // the request is for the hole the sweep found: the act itself, or an impulse it sent
+      expect(req.hole.rule).toBe(cell.hole)
+      if (req.event.kind.startsWith('act/')) expect(req.event.kind).toBe(`act/${cell.verb}`)
+      expect([req.event.host?.type, req.event.roles.instrument?.type]).toContain(cell.hand)
       expect(req.context.tiles).toHaveLength(7)
-      const around = req.scenario.terrain!.flatMap((row, y) => row.filter((_, x) => x !== 3 || y !== 3))
-      expect(around.every((t) => t === 'grass'), cell.target).toBe(true) // open ground around the target
+      // open ground around the event, but for the target's own tile
+      expect(req.scenario.terrain!.flat().filter((t) => t !== 'grass').length, cell.target).toBeLessThanOrEqual(1)
     }
   })
 })

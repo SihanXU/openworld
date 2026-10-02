@@ -10,32 +10,38 @@ import { Modder, ScriptedModel, SelfState, WorldLibrary, collectPatch, materiali
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
 
-function request(target = 'actor/creature/slime/green_slime'): ModRequest {
+/** The player puts a rope on a creature: the creature is offered it, and nothing says how it takes that. */
+function request(host = 'actor/creature/slime/green_slime'): ModRequest {
   const sc: Scenario = {
     entities: [
       { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
       { key: 'held', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
-      { key: 'it', type: target, x: 2, y: 1 },
+      { key: 'it', type: host, x: 2, y: 1 },
     ],
-    event: { verb: 'interact', actor: 'actor', target: 'it', instrument: 'held' },
+    event: {},
   }
   const eng = buildSandbox(sc, onto, new RuleLibrary(BASE))
   const port = new ModPort(eng)
-  eng.interact('interact', 'actor', { e: 'it' })
+  eng.act('put', 'actor', { e: 'it' })
   return port.records[0].request
 }
 
 const RULE: Rule = {
   id: 'patch/rope-binds-creature',
-  on: 'interaction',
-  doc: 'A rope lashes a creature down for a while.',
-  when: { verb: ['interact'], instrument: { tags: ['fiber'] }, target: { type: 'actor/creature', notStatus: ['frozen'] } },
-  do: [
-    { op: 'addStatus', of: 'target', status: 'frozen', duration: 30 },
-    { op: 'destroy', of: 'instrument' },
-    { op: 'vfx', at: 'target', fx: 'dust' },
-    { op: 'log', text: { en: 'You lash {target} down with the rope.', zh: '你用绳子捆住了{target}。' } },
-  ],
+  host: { type: 'actor/creature', notStatus: ['frozen'] },
+  on: 'impulse/offered',
+  doc: 'A creature offered a rope is lashed down with it for a while.',
+  tree: {
+    if: { is: { role: 'item', sel: { tags: ['fiber'] } } },
+    then: {
+      do: [
+        { op: 'addStatus', status: 'frozen', duration: 30 },
+        { op: 'emit', impulse: 'taken', to: 'item', params: { into: 'contents' }, other: 'host' },
+        { op: 'vfx', fx: 'dust' },
+        { op: 'log', text: { en: 'You lash {host} down with {item}.', zh: '你用{item}捆住了{host}。' } },
+      ],
+    },
+  },
   tests: [
     {
       name: 'a wolf too',
@@ -45,7 +51,7 @@ const RULE: Rule = {
           { key: 'r', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
           { key: 'w', type: 'actor/creature/beast/wolf', x: 2, y: 1 },
         ],
-        event: { verb: 'interact', actor: 'actor', target: 'w', instrument: 'r' },
+        event: { kind: 'act/put', actor: 'actor', target: 'w', instrument: 'r' },
       },
       expect: [{ key: 'w', hasStatus: 'frozen' }],
     },
@@ -82,15 +88,20 @@ describe('a world task as a repository', () => {
     const lib = new RuleLibrary(BASE)
     const repo = materializeWorld({ request: request(), library: lib, ontology: onto, spec: buildModSpec(onto, lib) })
     try {
-      expect(readFileSync(join(repo.dir, 'ISSUE.md'), 'utf8')).toMatch(/Undefined interaction: you interact → green slime holding Rope/)
-      expect(existsSync(join(repo.dir, 'rules/core/ignite.json'))).toBe(true)
+      expect(readFileSync(join(repo.dir, 'ISSUE.md'), 'utf8')).toContain('# Undefined outcome: green slime is sent offered (the thing: Rope)')
+      const issue = readFileSync(join(repo.dir, 'ISSUE.md'), 'utf8')
+      expect(issue).toContain('- event: `impulse/offered`')
+      expect(issue).toMatch(/- host \(the rule you write is its nature\): green slime — `actor\/creature\/slime\/green_slime`/)
+      expect(issue).toContain('- undefined at: `rules/core/offered.json`')
+      expect(existsSync(join(repo.dir, 'rules/core/offered.json'))).toBe(true)
+      expect(JSON.parse(readFileSync(join(repo.dir, 'request.json'), 'utf8'))).toMatchObject({ event: { kind: 'impulse/offered' }, hole: { rule: 'core/offered' } })
       expect(readFileSync(join(repo.dir, 'MODSPEC.md'), 'utf8')).toMatch(/## Effect primitives/)
       expect(collectPatch(repo.dir)).toEqual({ patch: undefined, problems: [] })
       writeFileSync(join(repo.dir, 'rules/patch/rope-binds-creature.json'), JSON.stringify(RULE))
-      writeFileSync(join(repo.dir, 'rules/core/ignite.json'), '{}')
+      writeFileSync(join(repo.dir, 'rules/core/offered.json'), '{}')
       const c = collectPatch(repo.dir)
       expect(c.patch?.artifacts).toHaveLength(1)
-      expect(c.problems.join()).toMatch(/rules\/core\/ignite.json is part of the world/)
+      expect(c.problems.join()).toMatch(/rules\/core\/offered.json is part of the world/)
     } finally {
       repo.dispose()
     }

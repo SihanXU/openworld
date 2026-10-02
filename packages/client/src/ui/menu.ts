@@ -290,7 +290,7 @@ export class Menu {
     $('#jClose').onclick = () => this.close()
   }
 
-  /** Every thread the world has learned, newest first, and whose act taught it (design.md §5.9). */
+  /** Every thread the world has learned, newest first, and whose act taught it (design.md §5.11, legibility). */
   private threadsHtml(): string {
     const threads = [...(this.library?.patches ?? [])].reverse()
     if (!threads.length) return `<div class="muted pad">${t('noThreads')}</div>`

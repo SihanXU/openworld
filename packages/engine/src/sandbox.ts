@@ -1,8 +1,9 @@
 // Sandboxed replay: build a tiny self-contained world from a Scenario, run one event
 // through a candidate rule library, and check expectations. Used by patch validation
-// (replay of the triggering interaction + the patch's own tests) and by unit tests.
+// (replay of the triggering event + the patch's own tests) and by unit tests.
 
 import { Engine, type Resolution } from './engine.ts'
+import type { Verb } from './types.ts'
 import type { RuleLibrary } from './rules.ts'
 import type { Entity, Expectation, GameEvent, MapData, Ontology, Ref, Scenario, WorldState } from './types.ts'
 
@@ -46,6 +47,14 @@ export function buildSandbox(sc: Scenario, ontology: Ontology, lib: RuleLibrary)
   }
   const eng = new Engine(state, structuredClone(ontology), lib)
   const w = eng.world
+  eng.ensureResidents()
+  w.write(() => fill(eng, sc, player))
+  eng.seedRelations(SANDBOX_MAP)
+  return eng
+}
+
+function fill(eng: Engine, sc: Scenario, player: string): void {
+  const w = eng.world
   if (!sc.entities.some((e) => e.key === player)) w.add({ id: player, type: 'actor/person/player', place: { on: 'none' } })
   // two passes: holders first, then things inside/held
   const ordered = [...sc.entities].sort((a, b) => Number(!!(a.heldBy || a.inside)) - Number(!!(b.heldBy || b.inside)))
@@ -69,7 +78,6 @@ export function buildSandbox(sc: Scenario, ontology: Ontology, lib: RuleLibrary)
     w.add(e)
     for (const st of s.statuses ?? []) w.setStatus({ e: e.id }, st, -1)
   }
-  return eng
 }
 
 function roleRef(key: string | undefined): Ref | undefined {
@@ -81,18 +89,20 @@ function roleRef(key: string | undefined): Ref | undefined {
   return { e: key }
 }
 
-export function scenarioEvent(sc: Scenario): GameEvent {
+/** The scenario's event: an act (its host the instrument, or the actor) unless it names another kind and host. */
+export function scenarioEvent(sc: Scenario, eng?: Engine): GameEvent {
   const e = sc.event
-  return {
-    kind: e.kind ?? 'interaction',
-    verb: e.verb,
-    roles: { actor: roleRef(e.actor), target: roleRef(e.target), instrument: roleRef(e.instrument) },
-    element: e.element,
-    power: e.power,
-    status: e.status,
-    strict: e.strict,
-    about: e.about,
+  const kind = e.kind ?? 'act/use'
+  const ref = (k?: string) => roleRef(k)
+  if (kind.startsWith('act/') && eng && e.actor) {
+    const ev = eng.actEvent(kind.slice(4) as Verb, e.actor, ref(e.target) ?? { e: e.actor }, ref(e.instrument), e.params ?? {})
+    if (e.host) ev.host = ref(e.host)!
+    return ev
   }
+  const roles: GameEvent['roles'] = {}
+  for (const r of ['actor', 'target', 'instrument', 'other', 'item', 'source'] as const) if (e[r]) roles[r] = ref(e[r])
+  const host = ref(e.host) ?? roles.instrument ?? roles.actor ?? roles.target ?? { e: 'world' }
+  return { kind, host, roles, params: e.params ?? {}, cause: e.actor, origin: e.actor && e.actor === sc.player ? 'player' : 'world' }
 }
 
 /** Replay a scenario's event once (and optional ticks); report effect errors. */
@@ -102,17 +112,19 @@ export function replay(sc: Scenario, ontology: Ontology, lib: RuleLibrary): Repl
   try {
     eng = buildSandbox(sc, ontology, lib)
   } catch (err) {
-    throw new Error(`scenario could not be built: ${(err as Error).message}`)
+    throw new Error('scenario could not be built: ' + (err as Error).message)
   }
-  const ev = scenarioEvent(sc)
+  const ev = scenarioEvent(sc, eng)
   const hpBefore: Record<string, number> = {}
   for (const e of Object.values(eng.world.state.entities)) if (eng.world.kindOf(e) === 'actor') hpBefore[e.id] = eng.world.num(e, 'hp')
-  const resolution = eng.resolve(ev)
+  const resolution = eng.resolveEvent(ev)
   try {
-    eng.queue(ev)
+    const a = ev.kind.startsWith('act/') && ev.roles.actor && 'e' in ev.roles.actor ? ev.roles.actor.e : undefined
+    if (a) eng.act(ev.kind.slice(4) as Verb, a, ev.roles.target!, { instrument: ev.roles.instrument ?? null, params: ev.params })
+    else eng.queue(ev)
     for (let i = 0; i < (sc.ticks ?? 0); i++) eng.tick()
   } catch (err) {
-    errors.push(`runtime error: ${(err as Error).message}`)
+    errors.push('runtime error: ' + (err as Error).message)
   }
   for (const f of eng.world.fx) if (f.t === 'log' && f.tone === 'warn') errors.push(String(f.text))
   return { resolution, engine: eng, errors, hpBefore }

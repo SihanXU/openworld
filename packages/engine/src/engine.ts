@@ -1,49 +1,35 @@
-// The engine: resolves events through the rule library, runs the simulation tick,
-// and raises undefined interactions through the Mod port. Pure, deterministic, no AI.
+// The engine (design.md §5.4–5.12): every happening is an event, and every event has one
+// outcome, resolved the same way — the most specific rule of its host, walked to a leaf. Where
+// the outcome is undefined, the Mod port is asked; with no one to ask, the leaf's default runs.
+// The engine also keeps time (timers, periods), the relations between things (contact and
+// containment, diffed after every outcome), sight, and the active, dormant and resident parts of
+// the world. Pure, deterministic, no AI.
 
-import { isNight, rainy } from './calendar.ts'
+import { isNight } from './calendar.ts'
 import { EffectRunner } from './effects.ts'
 import { Controls } from './controls.ts'
 import { Scenes } from './scenes.ts'
 import { stepCreatures } from './creatures.ts'
-import { forageTick } from './forage.ts'
-import { hungerTick } from './hunger.ts'
 import { NpcSim, scheduleAt } from './npc.ts'
 import { scheduleFor } from './people.ts'
 import { OntologyIndex } from './ontology.ts'
-import { RuleLibrary, evalCond, rolesOf } from './rules.ts'
-import type {
-  Dir,
-  Entity,
-  GameEvent,
-  Id,
-  Invariant,
-  MapData,
-  Ontology,
-  Pos,
-  Ref,
-  Rule,
-  Text,
-  Verb,
-  WorldState,
-} from './types.ts'
-import { DIRS } from './types.ts'
-import { NO_EXPIRY, World } from './world.ts'
+import { RuleLibrary, evalCond, isDo, matchSelector, rolesOf, type Resolution } from './rules.ts'
+import type { Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, Text, Verb, WorldState } from './types.ts'
+import { DIRS, FIRE_RADIUS } from './types.ts'
+import { NO_EXPIRY, REVERSE, World, refKey, tileKey } from './world.ts'
 
-/** Receives undefined interactions. Implemented by the Mod port (mod.ts). */
+export type { Resolution } from './rules.ts'
+
+/** Receives undefined outcomes. Implemented by the Mod port (mod.ts). */
 export interface UndefinedSink {
-  raise(ev: GameEvent): void
-  /** A world event found no rule: ask if it is salient (design.md §5.6). True if a request was raised. */
-  raiseWorld?(ev: GameEvent): boolean
+  /**
+   * An outcome is undefined (design.md §5.11). True when it is held while someone works it out;
+   * false when the leaf's default should run now (no one to ask, already asked, given up).
+   */
+  raise(ev: GameEvent, res: Resolution): boolean
   tick(): void
-  /** Called with every defined player interaction (pre-state), e.g. to build a regression set. */
+  /** Called with every defined act the player made, e.g. to build a regression set. */
   observe?(ev: GameEvent, rule: string): void
-}
-
-export interface Resolution {
-  defined: boolean
-  rule?: Rule
-  composed: Rule[]
 }
 
 export interface MapChunk {
@@ -52,14 +38,17 @@ export interface MapChunk {
 }
 
 const STATUS_TICK_EVERY = 5
-const EVENT_BUDGET = 400
-/** How far people see (tiles, Chebyshev): what they see the player do is a `witness` event. */
-export const SIGHT = 7
-/** A creature meets the same thing again only after this many ticks. */
-const MEET_COOLDOWN = 600
+const STAY_EVERY = 5
+/** Events handled in one flush; the rest wait for the next tick. */
+const EVENT_BUDGET = 600
+/** How deep a chain runs within one tick before the rest is deferred to the next (design.md §5.10). */
+const MAX_DEPTH = 12
 const INVARIANT_EVERY = 30
-/** Events the world raises by itself (design.md §5.4 B and C), asked about through the salience filter. */
-export const WORLD_KINDS = new Set(['status', 'hit', 'enter', 'meet', 'blocked', 'witness', 'invalid'])
+/** The resident hosts (design.md §5.5). */
+export const STORY = 'story'
+export const WORLD_HOST = 'world'
+
+const OPAQUE_TERRAIN = ['wall', 'tree', 'rock', 'roof']
 
 export class Engine {
   world: World
@@ -67,26 +56,30 @@ export class Engine {
   effects: EffectRunner
   npcs: NpcSim
   scenes: Scenes
-  /** The player's two keys, slots and magnet (design.md §5.2–5.3). */
+  /** The player's inputs, slots and magnet (design.md §5.2–5.3). */
   controls: Controls
   /** Content the world must keep playable (game-design: the Ford's invariants). */
   invariants: Invariant[] = []
-  /** Fact keys (prefixes) the world's own patches may not touch: the story's state (design.md §5.8). */
+  /** Fact keys (prefixes) only the story's rules change (design.md §5.11). */
   protectedFacts: string[] = []
+  /** Recipes an act of crafting may name. */
+  recipes = new Map<string, Recipe>()
   undefinedSink?: UndefinedSink
   /** Portal graph of every map (loaded or not): map -> outgoing portals. */
   graph: Record<string, { to: string; x: number; y: number; tx: number; ty: number }[]> = {}
   /** Set when the player walked into a portal whose map isn't loaded yet. */
   pendingTransition?: { map: string; x: number; y: number }
   /** Resolution trace of the last dispatched events (for tests and the dev panel). */
-  trace: { ev: GameEvent; rule?: string }[] = []
+  trace: { ev: GameEvent; rule?: string; defined: boolean }[] = []
 
   private q: GameEvent[] = []
+  /** Events deferred to the next tick: too deep in their chain, over the budget, or for a held host. */
+  private later: GameEvent[] = []
   private bump?: { id: Id; since: number; last: number }
   private cooldowns = new Map<Id, number>()
   private flushing = false
-  /** creature|thing → the tick before which they do not meet again */
-  private met = new Map<string, number>()
+  /** What outcomes touched since the last settle: ref key → ref. */
+  private touched = new Map<string, Ref>()
 
   constructor(state: WorldState, ontology: Ontology, lib: RuleLibrary) {
     const onto = new OntologyIndex(ontology)
@@ -109,143 +102,142 @@ export class Engine {
     return this.world.posOf(this.world.player)?.map ?? this.world.state.spawn.map
   }
 
+  /** The world and the story exist (design.md §5.5): made on a new game, and for older saves. */
+  ensureResidents(): void {
+    const w = this.world
+    w.write(() => {
+      if (!w.get(WORLD_HOST)) w.add({ id: WORLD_HOST, type: 'resident/world', place: { on: 'resident' } })
+      if (!w.get(STORY)) w.add({ id: STORY, type: 'resident/story', place: { on: 'resident' } })
+    })
+  }
+
   // ---------------------------------------------------------------- events
 
   queue(ev: GameEvent): void {
+    if ((ev.depth ?? 0) > MAX_DEPTH) {
+      this.later.push({ ...ev, depth: 0 })
+      return
+    }
     this.q.push(ev)
     if (!this.flushing) this.flush()
   }
 
-  private flush(): void {
+  /** Make an event only if its host could do anything with it (no-change roots make none). */
+  offer(ev: GameEvent): void {
+    if (this.lib.answers(ev.kind, this.world.view(ev.host))) this.queue(ev)
+  }
+
+  flush(): void {
+    if (this.flushing) return
     this.flushing = true
     let n = 0
     try {
-      while (this.q.length && n++ < EVENT_BUDGET) this.dispatch(this.q.shift()!)
-      if (this.q.length) {
-        this.q.length = 0
-        this.world.fx.push({ t: 'log', text: 'event budget exhausted (cascade cut)', tone: 'warn' })
+      while (this.q.length) {
+        if (n++ >= EVENT_BUDGET) {
+          this.later.push(...this.q.splice(0))
+          break
+        }
+        this.dispatch(this.q.shift()!)
       }
     } finally {
       this.flushing = false
     }
   }
 
-  /** Resolve one event against the library: the most specific rule plus all composing rules. */
+  /** Resolve one event and run its outcome (design.md §5.6). */
   dispatch(ev: GameEvent): Resolution {
-    ev.tick = this.world.state.tick
-    const roles = rolesOf(ev, this.world)
-    const matches = this.lib.match(ev, roles, this.world)
-    const rule = matches.find((r) => !r.compose && !(ev.strict && r.fallback))
-    const composed = matches.filter((r) => r.compose)
-    if (this.trace.length > 200) this.trace.shift()
-    this.trace.push({ ev, rule: rule?.id })
-    if (rule) this.effects.run(rule, ev)
-    for (const r of composed) this.effects.run(r, ev)
-    // the world's own events that find no rule: asked about when salient, else the safe default
-    if (!rule && WORLD_KINDS.has(ev.kind) && ev.origin !== 'player' && !this.undefinedSink?.raiseWorld?.(ev)) this.worldFallback(ev)
-    return { defined: !!rule, rule, composed }
-  }
-
-  /** Resolve without executing (dry run). */
-  resolve(ev: GameEvent): Resolution {
-    const roles = rolesOf(ev, this.world)
-    const saved = this.world.state.rng
-    const matches = this.lib.match(ev, roles, this.world)
-    this.world.state.rng = saved
-    const rule = matches.find((r) => !r.compose && !(ev.strict && r.fallback))
-    return { defined: !!rule, rule, composed: matches.filter((r) => r.compose) }
-  }
-
-  // ---------------------------------------------------------------- interactions
-
-  /**
-   * Pick the target of a verb on a tile: actor > fixture > item > the tile itself. `take`
-   * reaches into an open container (for `pick`, if it holds it; else its first item), then
-   * for the top item lying on the tile (on a table, say), before the fixture itself.
-   */
-  targetAt(pos: Pos, verb: Verb, pick?: Id): Ref {
-    const es = this.world.entitiesAt(pos.map, pos.x, pos.y)
-    const by = (k: string) => es.filter((e) => this.world.kindOf(e) === k)
-    const actor = by('actor')[0]
-    if (actor) return { e: actor.id }
-    const fixture = by('fixture')[0]
-    const items = by('item')
-    if (fixture && verb === 'take') {
-      const inside = this.world.hasStatus({ e: fixture.id }, 'open') ? (fixture.contents ?? []) : []
-      if (inside.length) return { e: pick && inside.includes(pick) ? pick : inside[0] }
-      if (items.length) return { e: items[items.length - 1].id }
-    }
-    if (fixture) return { e: fixture.id }
-    if (items.length) return { e: items[items.length - 1].id }
-    return { tile: pos }
-  }
-
-  /** The open container the player faces, if any. */
-  facingContainer(): Entity | undefined {
-    const p = this.world.player
-    const f = this.world.front(p)
-    if (!f || !this.world.inBounds(f.map, f.x, f.y)) return undefined
-    return this.world.entitiesAt(f.map, f.x, f.y).find((e) => this.world.kindOf(e) === 'fixture' && this.world.hasStatus({ e: e.id }, 'open'))
-  }
-
-  /**
-   * An actor performs a verb on a target. Returns the resolution; when nothing matches,
-   * the interaction is undefined and goes to the Mod port.
-   */
-  interact(verb: Verb, actorId: Id, target: Ref, opts: { instrument?: Ref | null; strict?: boolean } = {}): Resolution {
     const w = this.world
-    const actor = w.get(actorId)
-    if (!actor) return { defined: false, composed: [] }
-    // the held item, unless the caller names another (an item from the bag) or none (talking while holding a tool)
-    const instrument = opts.instrument === undefined ? (actor.held ? { e: actor.held } : undefined) : (opts.instrument ?? undefined)
-    const frozen = [target, instrument].some((r) => r && 'e' in r && w.get(r.e)?.frozenBy)
-    if (frozen) {
-      w.fx.push({ t: 'say', who: actorId, text: '…' })
-      return { defined: true, composed: [] }
+    ev.tick = w.state.tick
+    const host = 'e' in ev.host ? w.get(ev.host.e) : undefined
+    if ('e' in ev.host && (!host || host.place.on === 'none')) return { defined: false }
+    // a thing on a dormant map receives it when the player comes (design.md §5.12); people and residents at once
+    const at = 'tile' in ev.host ? ev.host.tile : w.posOf(host)
+    if (at && at.map !== this.activeMap && !(host && (host.npc || w.kindOf(host) === 'resident'))) {
+      const d = ((w.state.dormant ??= {})[at.map] ??= { since: w.state.tick, inbox: [] })
+      d.inbox.push(ev)
+      return { defined: false }
     }
-    if (verb === 'put' && !instrument) {
-      w.fx.push({ t: 'log', text: { en: 'Your hands are empty.', zh: '你手里什么也没有。' } })
-      return { defined: true, composed: [] }
+    // a thing held while its own outcome is worked out takes the event after
+    if (host?.frozenBy && !ev.kind.startsWith('act/')) {
+      this.later.push(ev)
+      return { defined: false }
     }
-    const ev: GameEvent = {
-      kind: 'interaction',
-      verb,
-      roles: { actor: { e: actorId }, target, instrument },
-      at: w.refPos(target),
-      strict: opts.strict || undefined,
+    const res = this.resolveEvent(ev)
+    if (this.trace.length > 300) this.trace.shift()
+    this.trace.push({ ev, rule: res.rule?.id, defined: res.defined })
+    if (res.defined && res.leaf && isDo(res.leaf)) this.run(res.leaf.do, ev, res.rule!.id)
+    else if (res.hole) {
+      const held = this.undefinedSink?.raise(ev, res) ?? false
+      if (!held) this.run(res.hole.default, ev, res.hole.rule.id)
     }
-    const res = this.resolve(ev)
-    if (!res.defined) {
-      if (this.undefinedSink) this.undefinedSink.raise(ev)
-      else this.fallback(ev)
-      return res
-    }
-    this.undefinedSink?.observe?.(ev, res.rule!.id)
-    // who sees it is decided before the act (a thing taken from her chest is hers until it is taken)
-    const seen = this.witnesses(ev)
-    this.queue(ev)
-    for (const s of seen) this.queue(s)
     return res
   }
 
-  /** The safe default when an event stays undefined. */
-  fallback(ev: GameEvent): void {
-    if (WORLD_KINDS.has(ev.kind) && ev.origin !== 'player') return this.worldFallback(ev)
-    const actor = ev.roles.actor && 'e' in ev.roles.actor ? ev.roles.actor.e : undefined
-    if (actor) this.world.fx.push({ t: 'say', who: actor, text: { en: 'Nothing happens.', zh: '什么也没有发生。' } })
+  /** The outcome an event would have now, without running it (randomness restored). */
+  resolveEvent(ev: GameEvent): Resolution {
+    const w = this.world
+    const saved = w.state.rng
+    const res = this.lib.resolve(ev, rolesOf(ev, w), w)
+    if (!this.running) w.state.rng = saved
+    return res
+  }
+
+  /** True while an outcome is being dispatched (its randomness is real, not a dry run's). */
+  private get running(): boolean {
+    return this.flushing || this.dispatching > 0
+  }
+  private dispatching = 0
+
+  /** Run an outcome's effects, then settle the relations they changed. */
+  run(effects: Effect[], ev: GameEvent, ruleId: string): void {
+    if (!effects.length) return
+    this.world.write(() => this.effects.run(effects, ev, ruleId))
+    this.settle()
+  }
+
+  /** Re-run an event whose outcome was undefined and is now defined (a late patch). */
+  replay(ev: GameEvent): void {
+    this.queue({ ...ev, depth: 0 })
   }
 
   /**
-   * The world's safe defaults (design.md §5.7): physical events do nothing, a blocked person
-   * waits where they are, a witness says nothing; broken content runs its own fallback.
+   * A dry run of the chain an event starts (the HUD's labels, design.md §5.2): its outcome, and the
+   * outcomes of the impulses it would send to single roles, a few levels deep. `unknown` when any
+   * of them is undefined.
    */
-  worldFallback(ev: GameEvent): void {
-    if (ev.kind !== 'invalid') return
-    const inv = this.invariants.find((i) => i.id === ev.about)
-    if (inv?.fallback?.length) this.effects.run({ id: `invariant/${inv.id}`, on: 'invalid', when: {}, do: inv.fallback }, ev)
+  preview(ev: GameEvent, depth = 3): { defined: boolean; unknown: boolean; rules: string[]; confirm?: Text; hole?: { ev: GameEvent; res: Resolution } } {
+    const res = this.resolveEvent(ev)
+    const rules = res.rule ? [res.rule.id] : []
+    const confirm = res.defined ? ((res.leaf && isDo(res.leaf) && res.leaf.confirm) || res.rule?.confirm) : undefined
+    if (!res.defined || !res.leaf || !isDo(res.leaf)) return { defined: false, unknown: true, rules, confirm, hole: res.hole ? { ev, res } : undefined }
+    let unknown = false
+    let hole: { ev: GameEvent; res: Resolution } | undefined
+    if (depth > 0)
+      for (const eff of res.leaf.do) {
+        if (eff.op !== 'emit' || typeof eff.to !== 'string' || eff.to === 'story' || eff.to === 'world' || eff.to.startsWith('tileOf:')) continue
+        const to = eff.to === 'host' ? ev.host : ev.roles[eff.to as Exclude<import('./types.ts').RoleName, 'host'>]
+        if (!to) continue
+        const params: Record<string, PropValue> = {}
+        for (const [k, v] of Object.entries(eff.params ?? {})) {
+          const x = this.effects.param(ev, v)
+          if (x !== undefined) params[k] = x
+        }
+        const child: GameEvent = {
+          kind: `impulse/${eff.impulse}`,
+          host: to,
+          roles: { source: ev.host, actor: ev.roles.actor, instrument: ev.roles.instrument, item: eff.item ? (eff.item === 'host' ? ev.host : ev.roles[eff.item]) : undefined, other: eff.other ? (eff.other === 'host' ? ev.host : ev.roles[eff.other]) : undefined },
+          params,
+          cause: ev.cause,
+        }
+        const p = this.preview(child, depth - 1)
+        rules.push(...p.rules)
+        if (p.unknown) unknown = true
+        hole ??= p.hole
+      }
+    return { defined: true, unknown, rules, confirm, hole }
   }
 
-  // ---------------------------------------------------------------- the world's own events
+  // ---------------------------------------------------------------- acts (design.md §5.7)
 
   /** Whose a thing is: its own `owner` prop ('' = nobody's), or the owner of the container it lies in. */
   ownerOf(e: Entity): Id | undefined {
@@ -260,34 +252,127 @@ export class Engine {
     return undefined
   }
 
-  /** Is the person asleep (their day says so)? */
-  asleep(e: Entity): boolean {
-    return scheduleAt(scheduleFor(this, e), this.world.hour())?.activity === 'sleep'
+  /** The act event an actor's verb makes: hosted by the instrument, or by the actor's own hands. */
+  actEvent(verb: Verb, actorId: Id, target: Ref, instrument?: Ref, params: Record<string, PropValue> = {}): GameEvent {
+    const w = this.world
+    const actor = w.get(actorId)
+    const inst = instrument && 'e' in instrument ? w.get(instrument.e) : undefined
+    const p: Record<string, PropValue> = { verb, ...params }
+    if (verb === 'use' && actor) {
+      p.power ??= w.num(actor, 'atk', 1) + (inst ? w.num(inst, 'power', 0) : 0)
+      const element = (inst && w.prop(inst, 'element')) || w.prop(actor, 'element')
+      if (typeof element === 'string' && p.element === undefined) p.element = element
+    }
+    return {
+      kind: `act/${verb}` as EventKind,
+      host: instrument ?? { e: actorId },
+      roles: { actor: { e: actorId }, target, instrument },
+      params: p,
+      cause: actorId,
+      origin: actorId === w.state.player ? 'player' : 'world',
+    }
   }
 
   /**
-   * People who see someone act on a thing that is another's (design.md §5.4 source 11): one
-   * `witness` event per person awake within sight of the doer — actor = the witness, target =
-   * the doer, instrument = the thing; about = <verb>:owner (the witness owns it) or :bystander.
+   * An actor acts: the event is resolved now, and then everyone who can see it sees it. Returns
+   * the act's resolution (its outcome may be undefined, or its chain may reach one).
    */
-  witnesses(ev: GameEvent): GameEvent[] {
+  act(verb: Verb, actorId: Id, target: Ref, opts: { instrument?: Ref | null; params?: Record<string, PropValue> } = {}): Resolution {
     const w = this.world
-    const t = ev.roles.target
-    const a = ev.roles.actor
-    const thing = t && 'e' in t ? w.get(t.e) : undefined
-    const doer = a && 'e' in a ? w.get(a.e) : undefined
-    if (!thing || !doer || !ev.verb || w.kindOf(thing) === 'actor') return []
-    const owner = this.ownerOf(thing)
-    if (!owner || owner === doer.id) return []
-    const at = w.posOf(doer)
-    if (!at) return []
-    const out: GameEvent[] = []
-    for (const e of w.entitiesOnMap(at.map)) {
-      if (!e.npc?.person || e.id === doer.id || e.place.on !== 'tile') continue
-      if (Math.max(Math.abs(e.place.x - at.x), Math.abs(e.place.y - at.y)) > SIGHT || this.asleep(e) || this.busy(e)) continue
-      out.push({ kind: 'witness', roles: { actor: { e: e.id }, target: { e: doer.id }, instrument: { e: thing.id } }, about: `${ev.verb}:${e.id === owner ? 'owner' : 'bystander'}` })
+    const actor = w.get(actorId)
+    if (!actor || this.busy(actor)) return { defined: false }
+    // the held item, unless the caller names another (an item from the bag) or none (talking while holding a tool)
+    const instrument = opts.instrument === undefined ? (actor.held ? { e: actor.held } : undefined) : (opts.instrument ?? undefined)
+    const frozen = [target, instrument].some((r) => r && 'e' in r && w.get(r.e)?.frozenBy)
+    if (frozen) {
+      w.fx.push({ t: 'say', who: actorId, text: '…' })
+      return { defined: false }
     }
-    return out
+    const ev = this.actEvent(verb, actorId, target, instrument, opts.params)
+    // whose the thing was, before the act (a thing taken from her chest is hers until it is taken)
+    const thing = 'e' in target ? w.get(target.e) : undefined
+    const owner = thing ? this.ownerOf(thing) : undefined
+    this.dispatching++
+    let res: Resolution
+    try {
+      res = this.dispatch(ev)
+    } finally {
+      this.dispatching--
+    }
+    this.flush()
+    if (res.defined && res.rule && ev.origin === 'player') this.undefinedSink?.observe?.(ev, res.rule.id)
+    if (verb !== 'move' && verb !== 'craft') this.see(ev, res, owner)
+    this.flush()
+    return res
+  }
+
+  /** The verbs of the earlier model (take / put / interact), for tests and tools: interact is use, or hands when nothing is held. */
+  interact(verb: 'take' | 'put' | 'interact', actorId: Id, target: Ref, opts: { instrument?: Ref | null; params?: Record<string, PropValue> } = {}): Resolution {
+    if (verb !== 'interact') return this.act(verb, actorId, target, opts)
+    const actor = this.world.get(actorId)
+    const instrument = opts.instrument === undefined ? (actor?.held ? { e: actor.held } : undefined) : (opts.instrument ?? undefined)
+    return this.act(instrument ? 'use' : 'hands', actorId, target, { ...opts, instrument: instrument ?? null })
+  }
+
+  // ---------------------------------------------------------------- sight (design.md §5.7: seen)
+
+  /** Is the person asleep (their day says so)? */
+  asleep(e: Entity): boolean {
+    return !!e.npc && scheduleAt(scheduleFor(this, e), this.world.hour())?.activity === 'sleep'
+  }
+
+  /** How far an actor sees now: its own `sight`, halved after dark away from a fire's light. */
+  sightOf(e: Entity, at: Pos): number {
+    const w = this.world
+    const s = w.num(e, 'sight', 0)
+    if (!s || !isNight(w.hour()) || w.hasTag(e, 'nightsight')) return s
+    const lit = this.fires(at.map).some((f) => Math.max(Math.abs(f.x - at.x), Math.abs(f.y - at.y)) <= FIRE_RADIUS + 1)
+    return lit ? s : Math.ceil(s / 2)
+  }
+
+  /** Nothing opaque stands between two tiles (walls, trees, rock; tall or opaque things). */
+  lineOfSight(map: string, a: Pos, b: Pos): boolean {
+    const w = this.world
+    let x = a.x
+    let y = a.y
+    const dx = Math.abs(b.x - a.x)
+    const dy = -Math.abs(b.y - a.y)
+    const sx = a.x < b.x ? 1 : -1
+    const sy = a.y < b.y ? 1 : -1
+    let err = dx + dy
+    for (let guard = 0; guard < 64; guard++) {
+      if (x === b.x && y === b.y) return true
+      const e2 = 2 * err
+      if (e2 >= dy) (err += dy), (x += sx)
+      if (e2 <= dx) (err += dx), (y += sy)
+      if (x === b.x && y === b.y) return true
+      const tags = w.onto.terrain(w.terrainAt(map, x, y))?.tags ?? []
+      if (tags.some((t) => OPAQUE_TERRAIN.includes(t))) return false
+      if (w.entitiesAt(map, x, y).some((o) => w.kindOf(o) === 'fixture' && (w.hasTag(o, 'opaque') || w.hasTag(o, 'tall')))) return false
+    }
+    return true
+  }
+
+  /** Everyone who can see an act sees it, once it is resolved: a `seen` event each (if it could matter to them). */
+  private see(ev: GameEvent, res: Resolution, owner: Id | undefined): void {
+    const w = this.world
+    const doer = ev.roles.actor && 'e' in ev.roles.actor ? w.get(ev.roles.actor.e) : undefined
+    const at = w.posOf(doer)
+    if (!doer || !at) return
+    for (const e of w.entitiesOnMap(at.map)) {
+      if (e.id === doer.id || e.place.on !== 'tile' || w.kindOf(e) !== 'actor' || this.asleep(e) || this.busy(e)) continue
+      const p = e.place
+      if (Math.max(Math.abs(p.x - at.x), Math.abs(p.y - at.y)) > this.sightOf(e, p)) continue
+      if (!this.lineOfSight(at.map, p, at)) continue
+      this.offer({
+        kind: 'seen',
+        host: { e: e.id },
+        roles: { actor: ev.roles.actor, target: ev.roles.target, instrument: ev.roles.instrument },
+        params: { act: String(ev.params?.verb ?? ''), owner: !owner ? 'nobody' : owner === e.id ? 'mine' : 'another', defined: res.defined },
+        cause: ev.cause,
+        origin: ev.origin,
+      })
+    }
   }
 
   // ---------------------------------------------------------------- factions and fear
@@ -331,113 +416,126 @@ export class Engine {
     return !!e.ai && !this.world.hasTag(e, 'fiery')
   }
 
-  /** A creature came up to things (design.md §5.4 source 9): a `meet` event per thing, now and then. */
-  private meet(c: Entity, map: string, x: number, y: number): void {
-    const w = this.world
-    const t = w.state.tick
-    for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      for (const o of w.entitiesAt(map, x + dx, y + dy)) {
-        if (o.id === c.id) continue
-        const kind = w.kindOf(o)
-        if (kind !== 'fixture' && !(o.ai && o.type !== c.type)) continue
-        const key = `${c.id}|${o.id}`
-        if ((this.met.get(key) ?? -1) > t) continue
-        this.met.set(key, t + MEET_COOLDOWN)
-        this.queue({ kind: 'meet', roles: { actor: { e: c.id }, target: { e: o.id } } })
-      }
-    }
-  }
+  // ---------------------------------------------------------------- statuses, props, health
 
-  /** Content the world must keep playable (game-design §8.10): a broken invariant raises `invalid` once. */
-  private invariantTick(): void {
-    const w = this.world
-    if (w.state.tick % INVARIANT_EVERY !== 0) return
-    for (const inv of this.invariants) {
-      if (w.fact(`invalid.${inv.id}`)) continue
-      if (inv.when && !evalCond(inv.when, {}, w)) continue
-      if (evalCond(inv.holds, {}, w)) continue
-      w.setFact(`invalid.${inv.id}`, true)
-      const giver: Ref | undefined = inv.giver && w.get(inv.giver) ? { e: inv.giver } : undefined
-      this.queue({ kind: 'invalid', roles: giver ? { actor: giver, target: giver } : {}, about: inv.id })
-    }
-  }
-
-  /** Player verb aimed at the tile in front of them (or at themselves); `pick` chooses what to take from an open container. */
-  playerVerb(verb: Verb, self = false, pick?: Id): Resolution | undefined {
-    const p = this.world.player
-    if (this.busy(p)) return undefined
-    if (self) return this.interact(verb, p.id, { e: p.id })
-    const f = this.world.front(p)
-    if (!f || !this.world.inBounds(f.map, f.x, f.y)) return undefined
-    let target = this.targetAt(f, verb, pick)
-    // nothing in front to take? pick up what lies at your feet
-    if (verb === 'take' && 'tile' in target) {
-      const here = this.world.posOf(p)!
-      const under = this.world.entitiesAt(here.map, here.x, here.y).filter((e) => this.world.kindOf(e) === 'item')
-      if (under.length) target = { e: under[under.length - 1].id }
-    }
-    if (verb === 'interact') target = this.answeredInPile(p, target)
-    return this.interact(verb, p.id, target)
-  }
-
-  /**
-   * Using the held item on loose items reaches for the topmost one it does something to
-   * (the log under a stick), then for the ground beneath them (the stump under the logs),
-   * and otherwise stays on the top item.
-   */
-  private answeredInPile(actor: Entity, target: Ref): Ref {
-    const w = this.world
-    const top = 'e' in target ? w.get(target.e) : undefined
-    if (!top || top.place.on !== 'tile') return target
-    const { map, x, y } = top.place
-    const here = w.entitiesAt(map, x, y)
-    if (here.some((e) => w.kindOf(e) !== 'item')) return target
-    const instrument = actor.held ? { e: actor.held } : undefined
-    const answers = (ref: Ref) => this.resolve({ kind: 'interaction', verb: 'interact', roles: { actor: { e: actor.id }, target: ref, instrument } }).defined
-    const candidates: Ref[] = [...here.reverse().map((e) => ({ e: e.id })), { tile: { map, x, y } }]
-    return candidates.find(answers) ?? target
-  }
-
-  /** Swap the held item with an inventory item (or stow it with `undefined`). */
-  hold(actorId: Id, itemId?: Id): void {
-    const w = this.world
-    const a = w.get(actorId)
-    if (!a) return
-    const cur = w.get(a.held)
-    if (cur?.frozenBy) return
-    if (itemId && !a.contents?.includes(itemId)) return
-    if (cur) w.place(cur, { on: 'inside', holder: a.id })
-    const next = w.get(itemId)
-    if (next) w.place(next, { on: 'hand', holder: a.id })
-  }
-
-  // ---------------------------------------------------------------- statuses & damage
-
+  /** A status taken on: its `clears` are lost, and a fresh one is a threshold/gain event. */
   applyStatus(ref: Ref, status: string, duration?: number): void {
     const w = this.world
     const def = w.onto.status(status)
-    for (const c of def?.clears ?? []) w.clearStatus(ref, c)
+    for (const c of def?.clears ?? []) if (w.hasStatus(ref, c)) this.removeStatus(ref, c)
     const dur = duration ?? def?.duration
-    const fresh = w.setStatus(ref, status, dur ? w.state.tick + dur : NO_EXPIRY)
-    if (fresh) this.queue({ kind: 'status', roles: { target: ref }, status })
+    const fresh = w.write(() => w.setStatus(ref, status, dur ? w.state.tick + dur : NO_EXPIRY))
+    if (fresh) this.offer({ kind: 'threshold/gain', host: ref, roles: {}, params: { status } })
   }
 
-  /**
-   * Hurt an actor. At no health it is defeated (the rules decide what that means: the essential
-   * collapse, the rest are gone); whoever struck an actor with an AI becomes its foe.
-   */
-  damage(e: Entity, amount: number, element?: string, pierce?: boolean, by?: Ref): void {
+  /** A status lost by an outcome: a threshold/lose event. */
+  removeStatus(ref: Ref, status: string): void {
+    const w = this.world
+    if (w.write(() => w.clearStatus(ref, status))) this.offer({ kind: 'threshold/lose', host: ref, roles: {}, params: { status } })
+  }
+
+  /** Set a prop; crossing a declared line downward is a threshold/cross event (design.md §5.7). */
+  setProp(e: Entity, key: string, value: PropValue, by?: GameEvent): void {
+    const w = this.world
+    const before = w.num(e, key, Number.NaN)
+    ;(e.props ??= {})[key] = value
+    if (typeof value !== 'number') return
+    for (const t of w.onto.data.thresholds ?? []) {
+      if (t.prop !== key) continue
+      // the one whose act brought it there (the last blow) is the event's actor
+      const actor = by?.roles.actor ?? (by?.cause ? { e: by.cause } : undefined)
+      if (value <= t.lte && !(before <= t.lte)) this.queue({ kind: 'threshold/cross', host: { e: e.id }, roles: actor ? { actor } : {}, params: { name: t.name, prop: key }, cause: by?.cause, origin: by?.origin })
+    }
+  }
+
+  /** The host loses health; its defence applies unless pierce. One who is down takes no more. */
+  hurt(e: Entity, amount: number, element?: string, pierce?: boolean, by?: GameEvent): void {
     const w = this.world
     if (w.hasStatus({ e: e.id }, 'down')) return
     const def = pierce ? 0 : w.num(e, 'def')
     const dmg = Math.max(1, Math.round(amount - def))
-    const hp = w.num(e, 'hp', 1) - dmg
-    ;(e.props ??= {}).hp = hp
     w.fx.push({ t: 'damage', who: e.id, amount: dmg, element })
-    if (hp <= 0) this.queue({ kind: 'defeat', roles: { target: { e: e.id }, actor: by } })
-    else if (e.ai && by && 'e' in by && by.e !== e.id && w.get(by.e)) {
-      const foes = (e.ai.foes ??= [])
-      if (!foes.includes(by.e)) foes.push(by.e)
+    this.setProp(e, 'hp', w.num(e, 'hp', 1) - dmg, by)
+  }
+
+  // ---------------------------------------------------------------- relations (design.md §5.10)
+
+  /** An outcome touched this (moved, made, gone, changed type; a tile changed terrain). */
+  touch(ref: Ref, _gone = false): void {
+    this.touched.set(refKey(ref), ref)
+  }
+
+  /**
+   * Recompute the relations of what outcomes touched, and of what stands where they are, and
+   * turn the differences into contact events: begin for each new relation, end for each lost one,
+   * for both sides — whatever caused them.
+   */
+  settle(): void {
+    if (!this.touched.size) return
+    const w = this.world
+    const rel = (w.state.relations ??= {})
+    const touched = [...this.touched.values()]
+    this.touched.clear()
+    const hosts = new Set<string>()
+    const tiles = new Set<string>()
+    const addTile = (p: Pos | undefined) => p && tiles.add(tileKey(p.map, p.x, p.y))
+    for (const r of touched) {
+      if ('tile' in r) addTile(r.tile)
+      else {
+        hosts.add(r.e)
+        const e = w.get(r.e)
+        addTile(w.posOf(e))
+        // where it was: the tiles of its old relations, and whoever lay on it (a fixture moved or gone)
+        for (const k of rel[r.e] ?? []) {
+          const to = k.slice(k.indexOf('|') + 1)
+          if (to.startsWith('t|')) tiles.add(to.slice(2).split('#')[0])
+        }
+        if (!e || w.kindOf(e) === 'fixture') for (const [h, ks] of Object.entries(rel)) if (ks.includes(`on|${r.e}`)) hosts.add(h)
+      }
+    }
+    for (const t of tiles) {
+      const [map, x, y] = t.split(':')
+      for (const o of w.entitiesAt(map, +x, +y)) hosts.add(o.id)
+    }
+    for (const h of hosts) this.diff(h)
+  }
+
+  /** One host's relations against what was kept: the differences become contact events. */
+  private diff(key: string, quiet = false): void {
+    const w = this.world
+    const rel = (w.state.relations ??= {})
+    const e = w.get(key)
+    const now = e && e.place.on !== 'none' && w.kindOf(e) !== 'resident' ? w.relationsOf(e) : []
+    const was = rel[key] ?? []
+    if (now.length) rel[key] = now
+    else delete rel[key]
+    if (quiet) return
+    for (const k of was) if (!now.includes(k)) this.contact('contact/end', key, k)
+    for (const k of now) if (!was.includes(k)) this.contact('contact/begin', key, k)
+  }
+
+  /** Both sides of a relation hear of it, each from its own side (on/under, in/contains, held/holds). */
+  private contact(kind: EventKind, from: string, k: string): void {
+    const w = this.world
+    const i = k.indexOf('|')
+    const how = k.slice(0, i)
+    const to = k.slice(i + 1)
+    const a = w.keyRef(from)
+    const b = w.keyRef(to)
+    if (w.view(a)) this.offer({ kind, host: a, roles: { other: b }, params: { how } })
+    if (w.view(b)) this.offer({ kind, host: b, roles: { other: a }, params: { how: REVERSE[how] ?? how } })
+  }
+
+  /** A map's relations as they stand, as its start (no events): a map loaded, a sandbox built. */
+  seedRelations(map: string): void {
+    this.diffMap(map, true)
+  }
+
+  /** Every thing on a map, diffed against the relations kept for it (entering a map; quiet when seeding). */
+  private diffMap(map: string, quiet: boolean): void {
+    for (const e of this.world.entitiesOnMap(map)) {
+      this.diff(e.id, quiet)
+      for (const c of [...(e.contents ?? []), ...(e.held ? [e.held] : [])]) this.diff(c, quiet)
     }
   }
 
@@ -465,10 +563,21 @@ export class Engine {
     return this.cooldown(id) <= this.world.state.tick
   }
 
-  /** Step one tile. Returns true if the entity moved. */
+  /** Step one tile: an act of moving (behaviour submits it like the player). True if it moved. */
   step(e: Entity, dir: Dir): boolean {
-    const w = this.world
     if (this.busy(e) || e.place.on !== 'tile') return false
+    const before = `${e.place.map}:${e.place.x}:${e.place.y}`
+    this.act('move', e.id, { e: e.id }, { instrument: null, params: { dir } })
+    return e.place.on === 'tile' && `${e.place.map}:${e.place.x}:${e.place.y}` !== before
+  }
+
+  /**
+   * The `step` primitive: the host moves itself one tile. What is solid stops it (a bump, for both
+   * sides); a portal carries the player; pushing on into a person swaps places (JRPG courtesy).
+   */
+  stepSelf(e: Entity, dir: Dir, ev: GameEvent): boolean {
+    const w = this.world
+    if (e.place.on !== 'tile') return false
     e.facing = dir
     const { map, x, y } = e.place
     const [dx, dy] = DIRS[dir]
@@ -479,31 +588,43 @@ export class Engine {
     // only the player uses portals by stepping on them; NPCs transfer from the tile beside
     if (portalHere && !isPlayer) return false
     if (!w.walkable(map, nx, ny, e.id, !!e.npc)) {
-      // JRPG courtesy: keep pushing into a person (~0.8 s) and you swap places;
-      // a single bump just turns you to face them (so you can talk)
       const other = w.actorAt(map, nx, ny)
-      if (!isPlayer || !other?.npc || this.busy(other) || w.blocked(map, nx, ny)) return false
+      if (!isPlayer || !other?.npc || this.busy(other) || w.blocked(map, nx, ny)) {
+        const thing = w.inBounds(map, nx, ny) ? (other ?? w.solidAt(map, nx, ny)) : undefined
+        const ref: Ref = thing ? { e: thing.id } : { tile: { map, x: nx, y: ny } }
+        this.offer({ kind: 'bump', host: { e: e.id }, roles: { other: ref }, params: { dir }, cause: ev.cause, origin: ev.origin })
+        if (w.view(ref)) this.offer({ kind: 'bump', host: ref, roles: { other: { e: e.id } }, params: { dir }, cause: ev.cause, origin: ev.origin })
+        return false
+      }
+      // keep pushing into a person (~0.8 s) and you swap places; a single bump just turns you to face them
       const t = w.state.tick
       const b = this.bump
       this.bump = b && b.id === other.id && t - b.last <= 4 ? { id: other.id, since: b.since, last: t } : { id: other.id, since: t, last: t }
       if (t - this.bump.since < 8) return false
       this.bump = undefined
-      if (portalHere) {
-        this.travel(e, { map: portalHere.to, x: portalHere.tx, y: portalHere.ty })
-        return true
-      }
-      w.place(other, { on: 'tile', map, x, y })
+      const back: Dir = dir === 'up' ? 'down' : dir === 'down' ? 'up' : dir === 'left' ? 'right' : 'left'
+      this.queue({ kind: 'impulse/push', host: { e: other.id }, roles: { source: { e: e.id }, actor: { e: e.id } }, params: { dir: back, swap: true }, cause: ev.cause, origin: ev.origin })
     }
+    this.touch({ e: e.id })
     w.place(e, { on: 'tile', map, x: nx, y: ny })
-    const enter: GameEvent = { kind: 'enter', roles: { actor: { e: e.id }, target: { tile: { map, x: nx, y: ny } } } }
-    // the player steps into a tile in some state the world has no answer for (design.md §5.4, source 5)
-    const st = w.tileState(map, nx, ny)?.statuses
-    if (isPlayer) enter.origin = 'player'
-    if (isPlayer && st && Object.keys(st).length && this.undefinedSink && !this.resolve(enter).defined) this.undefinedSink.raise(enter)
-    else this.queue(enter)
-    if (e.ai) this.meet(e, map, nx, ny)
+    this.touch({ e: e.id })
     if (isPlayer && portalHere) this.travel(e, { map: portalHere.to, x: portalHere.tx, y: portalHere.ty })
     return true
+  }
+
+  /** A step to a place: an act of moving there (a scene's direction, a person arriving through a portal). */
+  relocate(e: Entity, to: Pos): void {
+    this.act('move', e.id, { e: e.id }, { instrument: null, params: { map: to.map, x: to.x, y: to.y } })
+  }
+
+  /** The `step` primitive's travel: the host goes to a place (the nearest free tile there), across maps if need be. */
+  placeSelf(e: Entity, to: Pos): void {
+    if (e.id === this.world.state.player && this.world.posOf(e)?.map !== to.map) return this.travel(e, to)
+    const w = this.world
+    const at = w.walkable(to.map, to.x, to.y, e.id, true) ? to : (this.nearestFree(to) ?? to)
+    this.touch({ e: e.id })
+    w.place(e, { on: 'tile', map: at.map, x: at.x, y: at.y })
+    this.touch({ e: e.id })
   }
 
   /** Player movement request (held direction); respects speed. `walk` (Shift) is slower than the default run. */
@@ -534,11 +655,10 @@ export class Engine {
       const free = this.nearestFree(to)
       if (free) ({ x, y } = free)
     }
-    w.place(e, { on: 'tile', map: to.map, x, y })
-    if (e.id === w.state.player && from !== to.map) {
-      w.fx.push({ t: 'mapChanged', map: to.map })
-      this.npcs.onEnterMap(to.map, from)
-    }
+    w.write(() => w.place(e, { on: 'tile', map: to.map, x, y }))
+    this.touch({ e: e.id })
+    if (e.id === w.state.player && from !== to.map) this.enterMap(to.map, from)
+    this.settle()
   }
 
   nearestFree(p: Pos): Pos | undefined {
@@ -547,6 +667,44 @@ export class Engine {
         for (let dx = -r; dx <= r; dx++)
           if (this.world.walkable(p.map, p.x + dx, p.y + dy)) return { map: p.map, x: p.x + dx, y: p.y + dy }
     return undefined
+  }
+
+  // ---------------------------------------------------------------- active, dormant (design.md §5.12)
+
+  /**
+   * The player comes to a map. The map they left goes dormant (frozen from now); the one they
+   * enter catches up: the timers that fell due while it slept, in time order; the events
+   * addressed to it, in time order; its people, by their schedules; and the relation difference
+   * over the whole map against what was kept.
+   */
+  enterMap(map: string, from?: string): void {
+    const w = this.world
+    const dormant = (w.state.dormant ??= {})
+    if (from && from !== map) dormant[from] = { since: w.state.tick, inbox: dormant[from]?.inbox ?? [] }
+    const rec = dormant[map]
+    delete dormant[map]
+    w.fx.push({ t: 'mapChanged', map })
+    if (rec) {
+      this.catchUp(map)
+      for (const ev of rec.inbox.sort((a, b) => (a.tick ?? 0) - (b.tick ?? 0))) this.queue({ ...ev, depth: 0 })
+    }
+    this.npcs.onEnterMap(map, from)
+    this.diffMap(map, false)
+    this.flush()
+  }
+
+  /** The one-shot timers that ran out on a map while it slept, in the order they ran out. */
+  private catchUp(map: string): void {
+    const w = this.world
+    const now = w.state.tick
+    const due: { ref: Ref; status: string; at: number }[] = []
+    for (const key of [...w.statusful]) {
+      const ref = w.keyRef(key)
+      if (w.refPos(ref)?.map !== map) continue
+      for (const [status, exp] of Object.entries(w.statusesOf(ref) ?? {})) if (exp !== NO_EXPIRY && exp <= now) due.push({ ref, status, at: exp })
+    }
+    due.sort((a, b) => a.at - b.at)
+    for (const d of due) this.expire(d.ref, d.status)
   }
 
   // ---------------------------------------------------------------- combat
@@ -560,12 +718,12 @@ export class Engine {
     this.setCooldown('atk:' + p.id, 5)
   }
 
+  /** A blow (or a cast) along the facing: aiming is the input's; what the blow does is the act's outcome. */
   attack(a: Entity, chosen?: Ref): void {
     const w = this.world
     const weapon = w.get(a.held)
     const range = weapon ? w.num(weapon, 'range', 1) : 1
     const element = (weapon && (w.prop(weapon, 'element') as string | undefined)) || (w.prop(a, 'element') as string | undefined)
-    const power = w.num(a, 'atk', 1) + (weapon ? w.num(weapon, 'power', 0) : 0)
     const start = w.posOf(a)
     if (!start) return
     const [dx, dy] = DIRS[a.facing ?? 'down']
@@ -585,8 +743,7 @@ export class Engine {
       if (w.blocked(start.map, x, y) && i > 1) break
     }
     if (!target && last) target = { tile: last }
-    // a melee blow on the layer the player chose (the well rather than the bucket on it); a cast
-    // at a tile the player chose lands there when it lies on the bolt's way (frost on the water at your feet)
+    // a melee blow on the layer the player chose; a cast at a tile the player chose lands there when it lies on the bolt's way
     const cp = chosen && w.refPos(chosen)
     if (chosen && cp && range <= 1 && Math.max(Math.abs(cp.x - start.x), Math.abs(cp.y - start.y)) <= 1) target = chosen
     else if (chosen && cp && range > 1 && last) {
@@ -597,79 +754,57 @@ export class Engine {
     if (!target) return
     if (range > 1 && last) w.fx.push({ t: 'vfx', fx: `bolt:${element ?? 'none'}:${a.facing}:${Math.abs(last.x - start.x) + Math.abs(last.y - start.y)}`, map: start.map, x: start.x, y: start.y })
     else w.fx.push({ t: 'vfx', fx: `swing:${a.facing}`, map: start.map, x: start.x, y: start.y })
-    const hit: GameEvent = { kind: 'hit', roles: { actor: { e: a.id }, target, instrument: weapon ? { e: weapon.id } : undefined }, element, power }
-    if (a.id === w.state.player) hit.origin = 'player'
-    // the player's blow lands on something with no reaction (design.md §5.4, source 3)
-    if (a.id === w.state.player && this.undefinedSink && this.salientHit(hit) && !this.resolve(hit).defined) return this.undefinedSink.raise(hit)
-    this.queue(hit)
+    this.act('use', a.id, target, { params: { attack: true } })
   }
 
-  /** A hit worth asking about: on a fixture, or with an element on a tile that holds something (a status, water, plants). */
-  private salientHit(ev: GameEvent): boolean {
+  /** The `lightning` primitive: a bolt seeks what stands tall near the player (or falls near them). */
+  lightning(power: number, ev: GameEvent): void {
     const w = this.world
-    const t = ev.roles.target
-    if (!t) return false
-    if ('e' in t) return w.kindOf(w.get(t.e)!) === 'fixture'
-    if (!ev.element) return false
-    const { map, x, y } = t.tile
-    const st = w.tileState(map, x, y)?.statuses
-    if (st && Object.keys(st).length) return true
-    const tags = w.onto.terrain(w.terrainAt(map, x, y))?.tags ?? []
-    return tags.some((g) => !['ground', 'floor', 'road', 'indoor', 'stone', 'diggable', 'cave'].includes(g))
+    const active = this.activeMap
+    const p = w.posOf(w.player)
+    if (!p) return
+    const tall = w.entitiesOnMap(active).filter((e) => e.place.on === 'tile' && w.hasTag(e, 'tall') && Math.max(Math.abs(e.place.x - p.x), Math.abs(e.place.y - p.y)) <= 12)
+    let target: Ref
+    if (tall.length && w.rand() < 0.5) target = { e: tall[Math.floor(w.rand() * tall.length)].id }
+    else {
+      const x = p.x + Math.round((w.rand() - 0.5) * 12)
+      const y = p.y + Math.round((w.rand() - 0.5) * 12)
+      if (!w.inBounds(active, x, y)) return
+      target = { tile: { map: active, x, y } }
+    }
+    const at = w.refPos(target)!
+    w.fx.push({ t: 'strike', map: active, x: at.x, y: at.y })
+    this.queue({ kind: 'impulse/element', host: target, roles: { source: ev.host }, params: { element: 'lightning', power }, origin: 'world', depth: (ev.depth ?? 0) + 1 })
   }
 
-  // ---------------------------------------------------------------- simulation tick
+  // ---------------------------------------------------------------- the clock
 
   tick(): void {
     const w = this.world
     const s = w.state
     s.tick += 1
     const active = this.activeMap
+    if (this.later.length) {
+      const deferred = this.later.splice(0)
+      for (const ev of deferred) this.queue({ ...ev, depth: 0 })
+    }
     this.statusTick(active)
+    this.periodTick(active)
+    this.stayTick(active)
     this.npcs.tick(active)
     stepCreatures(this, active)
     this.undefinedSink?.tick()
     this.controls.magnet()
-    forageTick(this, active)
-    hungerTick(this, active)
-    this.weatherTick(active)
     this.invariantTick()
     this.scenes.tick()
+    this.flush()
   }
 
-  // ---------------------------------------------------------------- weather
-
-  /** Rain wets everything outdoors and puts out fires; storms strike the tallest things. (The elemental rules do the rest.) */
-  private weatherTick(active: string): void {
+  /** A status runs out (the clock clears it): a time/timer event. */
+  private expire(ref: Ref, status: string): void {
     const w = this.world
-    const t = w.state.tick
-    if (t % 60 !== 0) return
-    const map = w.map(active)
-    if (!map || (map.light ?? 'outdoor') !== 'outdoor') return
-    const cal = w.calendar()
-    if (!rainy(cal.weather)) return
-    for (const e of w.entitiesOnMap(active)) if (e.place.on === 'tile' && w.kindOf(e) === 'actor' && w.onto.status('wet')) this.applyStatus({ e: e.id }, 'wet', 120)
-    for (const key of [...w.statusful]) {
-      const ref = w.keyRef(key)
-      const pos = w.refPos(ref)
-      if (pos?.map === active && w.hasStatus(ref, 'burning')) this.applyStatus(ref, 'wet', 120)
-    }
-    if (cal.weather === 'storm' && t % 300 === 0) {
-      const p = w.posOf(w.player)!
-      // lightning seeks what stands tall (the dead tree); otherwise it falls anywhere near
-      const tall = w.entitiesOnMap(active).filter((e) => e.place.on === 'tile' && w.hasTag(e, 'tall') && Math.max(Math.abs(e.place.x - p.x), Math.abs(e.place.y - p.y)) <= 12)
-      let target: Ref
-      if (tall.length && w.rand() < 0.5) target = { e: tall[Math.floor(w.rand() * tall.length)].id }
-      else {
-        const x = p.x + Math.round((w.rand() - 0.5) * 12)
-        const y = p.y + Math.round((w.rand() - 0.5) * 12)
-        if (!w.inBounds(active, x, y)) return
-        target = { tile: { map: active, x, y } }
-      }
-      const at = w.refPos(target)!
-      w.fx.push({ t: 'strike', map: active, x: at.x, y: at.y })
-      this.queue({ kind: 'hit', roles: { target }, element: 'lightning', power: 4 })
-    }
+    w.write(() => w.clearStatus(ref, status))
+    this.offer({ kind: 'time/timer', host: ref, roles: {}, params: { status }, origin: 'world' })
   }
 
   private statusTick(active: string): void {
@@ -683,13 +818,56 @@ export class Engine {
       const bag = w.statusesOf(ref)
       if (!bag) continue
       for (const [status, exp] of Object.entries(bag)) {
-        if (exp !== NO_EXPIRY && exp <= t) {
-          w.clearStatus(ref, status)
-          this.queue({ kind: 'expire', roles: { target: ref }, status })
-        } else if (periodic) {
-          this.queue({ kind: 'tick', roles: { target: ref }, status })
-        }
+        if (exp !== NO_EXPIRY && exp <= t) this.expire(ref, status)
+        else if (periodic) this.offer({ kind: 'time/period', host: ref, roles: {}, params: { status }, origin: 'world' })
       }
+    }
+  }
+
+  /** The declared clocks (hunger, vitals, the ground's yield, the weather): a time/period event each. */
+  private periodTick(active: string): void {
+    const w = this.world
+    const t = w.state.tick
+    for (const p of w.onto.data.periods ?? []) {
+      if (t % p.every !== 0) continue
+      const hosts: Ref[] =
+        p.host === 'world' || p.host === 'story'
+          ? [{ e: p.host }]
+          : w
+              .entitiesOnMap(active)
+              .filter((e) => e.place.on === 'tile' && matchSelector(p.host as import('./types.ts').Selector, w.view({ e: e.id })))
+              .map((e) => ({ e: e.id }))
+      for (const h of hosts) this.offer({ kind: 'time/period', host: h, roles: {}, params: { name: p.name }, origin: 'world' })
+    }
+  }
+
+  /** Contact that lasts: a contact/stay event now and then, for hosts that answer it. */
+  private stayTick(active: string): void {
+    const w = this.world
+    if (w.state.tick % STAY_EVERY !== 0) return
+    const rel = w.state.relations ?? {}
+    for (const e of w.entitiesOnMap(active)) {
+      for (const k of rel[e.id] ?? []) {
+        const i = k.indexOf('|')
+        const how = k.slice(0, i)
+        const other = w.keyRef(k.slice(i + 1))
+        this.offer({ kind: 'contact/stay', host: { e: e.id }, roles: { other }, params: { how }, origin: 'world' })
+        if (w.view(other)) this.offer({ kind: 'contact/stay', host: other, roles: { other: { e: e.id } }, params: { how: REVERSE[how] ?? how }, origin: 'world' })
+      }
+    }
+  }
+
+  /** Content the world must keep playable: a broken invariant is a `broken` event for the story, once. */
+  private invariantTick(): void {
+    const w = this.world
+    if (w.state.tick % INVARIANT_EVERY !== 0 || !w.get(STORY)) return
+    for (const inv of this.invariants) {
+      if (w.fact(`invalid.${inv.id}`)) continue
+      if (inv.when && !evalCond(inv.when, {}, w)) continue
+      if (evalCond(inv.holds, {}, w)) continue
+      w.write(() => w.setFact(`invalid.${inv.id}`, true))
+      const giver: Ref | undefined = inv.giver && w.get(inv.giver) ? { e: inv.giver } : undefined
+      this.queue({ kind: 'broken', host: { e: STORY }, roles: giver ? { target: giver } : {}, params: { invariant: inv.id }, origin: 'world' })
     }
   }
 
@@ -700,7 +878,11 @@ export class Engine {
     s.maps[chunk.map.id] = chunk.map
     if (!s.loadedMaps.includes(chunk.map.id)) {
       s.loadedMaps.push(chunk.map.id)
-      for (const e of chunk.entities) if (!s.entities[e.id]) this.world.add(structuredClone(e))
+      this.world.write(() => {
+        for (const e of chunk.entities) if (!s.entities[e.id]) this.world.add(structuredClone(e))
+      })
+      // a map as it was made: its relations are where it starts, not events
+      this.diffMap(chunk.map.id, true)
     }
     if (this.pendingTransition?.map === chunk.map.id) {
       const to = this.pendingTransition

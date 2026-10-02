@@ -21,6 +21,10 @@ import { DIRS } from './types.ts'
 
 export const tileKey = (map: string, x: number, y: number) => `${map}:${x}:${y}`
 export const NO_EXPIRY = -1
+/** A ref's key in the statusful set and the relation index: an entity's id, or `t|map:x:y`. */
+export const refKey = (r: Ref): string => ('e' in r ? r.e : 't|' + tileKey(r.tile.map, r.tile.x, r.tile.y))
+/** The other side's view of a relation (design.md §5.10). */
+export const REVERSE: Record<string, string> = { on: 'under', in: 'contains', held: 'holds' }
 
 /** A uniform read-only view of whatever fills an event role. */
 export interface View {
@@ -45,6 +49,24 @@ export class World {
   onto: OntologyIndex
   /** Output buffer drained by the host each frame. */
   fx: FxEvent[] = []
+  /**
+   * Who may change the state now (design.md §5.13, A2): outcomes, the clock, loading, and the
+   * actor's own posture (what is in the hand, which way it faces). Anything else throws.
+   */
+  private writers = 0
+  write<T>(f: () => T): T {
+    this.writers++
+    try {
+      return f()
+    } finally {
+      this.writers--
+    }
+  }
+  /** Strict mode (tests): a change outside an outcome, the clock or loading is a bug. */
+  strict = false
+  private guard(what: string): void {
+    if (this.strict && this.writers <= 0) throw new Error(`${what} outside an outcome (design.md §5.13, A2)`)
+  }
 
   private onTile = new Map<string, Set<Id>>() // tileKey -> entity ids on that tile
   private onMap = new Map<string, Set<Id>>() // map -> entity ids on its tiles
@@ -136,7 +158,7 @@ export class World {
     return this.entitiesAt(map, x, y).find((e) => this.kindOf(e) === 'actor')
   }
 
-  /** Map position of an entity, following holders (an item in a hand is where the hand is). */
+  /** Map position of an entity, following holders (an item in a hand is where the hand is). Residents have none. */
   posOf(e: Entity | undefined, depth = 0): Pos | undefined {
     if (!e || depth > 8) return undefined
     const p = e.place
@@ -181,6 +203,7 @@ export class World {
   }
 
   setTerrain(map: string, x: number, y: number, terrain: string): void {
+    this.guard('setTerrain')
     const base = this.state.maps[map]?.terrain[y * (this.state.maps[map]?.width ?? 0) + x]
     const t = this.tileState(map, x, y, true)!
     if (terrain === base) delete t.terrain
@@ -243,6 +266,42 @@ export class World {
     return true
   }
 
+  // ---------------------------------------------------------------- stance, reach and relations (design.md §5.5, §5.10)
+
+  /** Where a thing is: on the ground (the default), in the air, in water. */
+  stanceOf(e: Entity): string {
+    const s = this.prop(e, 'stance')
+    return typeof s === 'string' ? s : 'ground'
+  }
+
+  /** The stances a tile acts on. */
+  tileReach(map: string, x: number, y: number): string[] {
+    return this.onto.terrain(this.terrainAt(map, x, y))?.reach ?? ['ground']
+  }
+
+  /** The stances a fixture acts on. */
+  reachOf(e: Entity): string[] {
+    return this.onto.resolve(e.type).reach ?? ['ground']
+  }
+
+  /**
+   * A thing's own relations, as `how|key`: on its tile (keyed with its terrain, so ice thawing to
+   * water underfoot is a new contact) and on the fixtures there, when its stance
+   * is in their reach (a flyer touches neither lava nor flowers); in its holder; held in a hand.
+   */
+  relationsOf(e: Entity): string[] {
+    const p = e.place
+    if (p.on === 'inside') return [`in|${p.holder}`]
+    if (p.on === 'hand') return [`held|${p.holder}`]
+    if (p.on !== 'tile') return []
+    const st = this.stanceOf(e)
+    const out: string[] = []
+    if (this.tileReach(p.map, p.x, p.y).includes(st)) out.push(`on|t|${tileKey(p.map, p.x, p.y)}#${this.terrainAt(p.map, p.x, p.y)}`)
+    if (this.kindOf(e) !== 'fixture')
+      for (const f of this.entitiesAt(p.map, p.x, p.y)) if (f.id !== e.id && this.kindOf(f) === 'fixture' && this.reachOf(f).includes(st)) out.push(`on|${f.id}`)
+    return out
+  }
+
   // ---------------------------------------------------------------- views
 
   view(ref: Ref | undefined): View | undefined {
@@ -296,6 +355,7 @@ export class World {
   // ---------------------------------------------------------------- entity lifecycle
 
   add(e: Entity): Entity {
+    this.guard('add')
     this.state.entities[e.id] = e
     this.indexAdd(e)
     if (e.place.on === 'inside' || e.place.on === 'hand') this.attach(e)
@@ -333,6 +393,7 @@ export class World {
 
   /** Move an entity to a new place, keeping all indices and holder links consistent. */
   place(e: Entity, to: Place): void {
+    this.guard('place')
     this.detach(e)
     e.place = to
     if (to.on === 'tile') this.indexAdd(e)
@@ -340,6 +401,7 @@ export class World {
   }
 
   destroy(e: Entity): void {
+    this.guard('destroy')
     for (const c of [...(e.contents ?? [])]) {
       const child = this.get(c)
       if (child) this.destroy(child)
@@ -367,6 +429,7 @@ export class World {
 
   /** Returns true when the status was newly applied (callers emit the `status` event). */
   setStatus(ref: Ref, status: string, expiry: number): boolean {
+    this.guard('setStatus')
     let bag: Record<string, number>
     let key: string
     if ('tile' in ref) {
@@ -386,6 +449,7 @@ export class World {
   }
 
   clearStatus(ref: Ref, status: string): boolean {
+    this.guard('clearStatus')
     const bag = this.statusesOf(ref)
     if (!bag || !(status in bag)) return false
     delete bag[status]
@@ -407,7 +471,8 @@ export class World {
   /** Resolve a statusful-set key back to a ref. */
   keyRef(key: string): Ref {
     if (key.startsWith('t|')) {
-      const [map, x, y] = key.slice(2).split(':')
+      // a tile's relation key carries its terrain after '#' (a terrain change is a new relation)
+      const [map, x, y] = key.slice(2).split('#')[0].split(':')
       return { tile: { map, x: +x, y: +y } }
     }
     return { e: key }
@@ -429,6 +494,7 @@ export class World {
   }
 
   setFact(key: string, value: PropValue): void {
+    this.guard('setFact')
     ;(this.state.facts ??= {})[key] = value
   }
 }

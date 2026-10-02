@@ -134,8 +134,8 @@ in `content/ontology`; the ModSpec ships it to the modder.
 ## 5. Interaction model
 
 Status: the input (§5.1–5.3) was agreed on 2026-10-01 and is built (`engine/src/controls.ts`,
-the client's `ui/`). The event model (§5.4–5.14) was agreed on 2026-10-02; the code still runs
-the previous model until its migration (§5.14).
+the client's `ui/`). The event model (§5.4–5.13) was agreed on 2026-10-02 and is built; §5.14
+records the migration and what the implementation refined.
 
 Two halves. §5.1–5.3 are what the player does: the input design, taken from Stardew Valley's
 wiki and its decompiled source rather than from memory. §5.4–5.14 are the event model: how
@@ -628,34 +628,61 @@ undefined behaviour is exactly reaching an undefined leaf.
 - Thresholds that were never declared.
 - Influence at a distance that no outcome emits: there is none, by A3.
 
-### 5.14 Migration
+### 5.14 Migration (done 2026-10-02)
 
-The code still runs the previous model. To move:
+The code runs the event model. The previous model's text is in git history, at commit `8be3fbb`.
 
-- **42 places change state outside the effect runner** (counted 2026-10-02). They become
-  events and base rules:
+**What moved.**
 
-  | File | Places | What |
-  |---|---|---|
-  | `engine.ts` | 16 | damage, movement, teleports |
-  | `controls.ts` | 9 | bag, drop, chests, crafting |
-  | `scenes.ts` | 8 | scene steps (run as the story's script) |
-  | `npc.ts` | 4 | off-map jumps (dormant maps instead) |
-  | `forage.ts` | 2 | what the ground yields (a region's timer) |
-  | `hunger.ts`, `people.ts` | 1, 1 | hunger (a period); `goto` (notify the person) |
-  | `game.ts` | 1 | loading, which makes no new relations |
-
+- **State changes only in outcomes.** The 42 places that changed state outside the effect
+  runner (counted 2026-10-02: damage, movement, teleports, the bag, drops, chests, crafting,
+  scene steps, off-map jumps, foraging, hunger, `goto`, loading) are events and base rules now.
+  The world's mutators check a write guard: `world.strict` makes any change outside an outcome,
+  the clock or loading throw, and the demo's proof runs with it on.
 - **Base rules split in two**: the instrument emits an impulse, and the receiver answers it.
   An axe used on a tree emits `strike cut`; the tree, struck by a cut, counts the blows and
   falls.
 - **Removed**: the salience filter, the per-kind budgets, the ask cap per session, fallback
-  rules and `strict`, composed rules, origin-dependent asks and waits, the world's special
-  fallbacks.
-- **Rewritten**: the ModSpec, the validator (locality, holes only), the modder's prompts, the
-  coverage tool (it counts holes), and the demo's proof (game-design.md §9).
-- Until then, code comments that cite the previous numbering (§5.4 *sources*, §5.6
-  *salience*, §5.7 *waits*, §5.8 *boundaries*, §5.9 *legibility*) refer to the previous model.
-  Its text is in git history, at commit `8be3fbb`.
+  rules and `strict` patterns, composed rules, origin-dependent asks and waits, the world's
+  special fallbacks.
+- **Rewritten**: the ModSpec, the validator (locality, holes only, ties), the modder's prompts,
+  brief, signature, deterministic fixes and derived tests, the coverage tool (it counts holes),
+  and the demo's proof (`tools/test/demo.test.ts`, game-design.md §9), which now also checks
+  §5.13's table: the root is total, no ties, rules write only their host, the kinds are closed,
+  a whole day in strict mode, the relation difference, and the three ways across with no AI.
+- The shared library of the previous model (101 patches in the old shape) was archived as
+  `var/library.pre-event-model.jsonl`; the live library starts empty.
+
+**Where the implementation refined the design.**
+
+- **Patches form a layer of their own.** Base rules and patches are kept apart. An event is
+  resolved through the base rules first; only when that reaches an undefined leaf are the
+  patches consulted, most specific first. So "a patch only fills holes" (§5.11, rule 4) holds by
+  construction, not by a decision procedure; the validator checks that the triggering event
+  now resolves to the patch.
+- **Two more acts**: `move` (a step, or going to a place) and `craft` (a recipe from what is
+  carried). The bag, drops and chest transfers are `put` and `take` with an `into` parameter.
+- **Containment names both sides**: `in`/`contains` and `held`/`holds` (as `on`/`under`).
+  Regions are not relations yet (`in-region` is reserved).
+- **A tile's relation carries its terrain**, so ice thawing to water underfoot ends one contact
+  and begins another, whatever caused the change.
+- **Ties are decided on answering regions.** Two rules tie when one event could reach both at
+  equal specificity: the same kind, the same specificity, hosts that overlap, and answering
+  cases that can hold together (conjunctions over roles' types, tags, statuses, prop ranges and
+  parameter values, decided against the ontology). Rules that split one host's cases between
+  them (a plank put on a frame, a plank put on a stick) do not tie. The base library has none.
+- **Touch is physics at the root.** `contact begin` has a root rule: what burns burns what
+  touches it, charged ground shocks what stands on it, wet ground wets it. Types override it
+  (lava, the river's edge, a fire slime).
+- **Put places; use applies.** Pouring water or oil and holding a flame to something are `use`
+  only; putting a vessel or a torch somewhere sets it there (into a chest too).
+- **Scenes write only the story.** A scene moves people by sending them a `push` to the place,
+  which they answer themselves; it notifies the player of their stage.
+- **Rain is water without force**: it wets and douses, it does not wound (a fire slime steams
+  in it).
+- **Events no rule could answer are not made** (`offer`): a contact `end` or `stay` with only
+  the no-change root behind it is passed over, which is the same as dispatching it and changing
+  nothing. Every kind is still made where some rule answers it.
 
 Sources:
 
@@ -691,8 +718,7 @@ Sources:
 
 ## 6. Rule system
 
-The shape below is the event model's (§5.6), agreed 2026-10-02. The code still uses the previous
-shape (patterns over every role, `compose`, `fallback`, `strict`) until the migration (§5.14).
+The shape below is the event model's (§5.6), agreed 2026-10-02 and built (§5.14).
 
 ### 6.1 Rule shape
 
@@ -814,8 +840,7 @@ other; only the input knows which character the keys move.
 
 The port is the exact contract a modder implements. In Phase 1 it was exercised by hand from a
 dev panel; since Phase 2 the modder service (§13) is the provider, and the engine did not
-change when it was plugged in. Below is the contract for the event model (§5.11). The code
-still serves the previous one until the migration (§5.14).
+change when it was plugged in. Below is the contract for the event model (§5.11), as built.
 
 ```ts
 interface ModProvider {
@@ -823,12 +848,23 @@ interface ModProvider {
 }
 
 interface ModRequest {
-  event: GameEvent                              // the event whose outcome is undefined
-  host: EntityInfo                              // whose rule reached the hole
-  path: Condition[]                             // the conditions already true on the way to the hole
-  context: WorldContext                         // the participants (type chain, tags, props,
-                                                //   statuses), nearby things, map, time,
-                                                //   recent events
+  id: string
+  summary: string                               // one line: "green slime is sent offered (the thing: Rope)"
+  origin: 'player' | 'world'                    // who started the chain
+  event: {                                      // the event whose outcome is undefined
+    kind: EventKind
+    params: Record<string, unknown>
+    host: EntityInfo                            // whose nature the patch describes
+    roles: Partial<Record<RoleName, EntityInfo>>
+    detail?: string                             // what a world event is about, in words
+  }
+  hole: { rule: string; path: string[]; default: Effect[] }  // the base rule whose leaf is
+                                                //   undefined, the branches taken to it, and
+                                                //   what runs while nobody answers
+  context: {                                    // map, anchors, hour, nearby things, the 7×7
+    map; anchors; hour; nearby; tiles;          //   terrain and its statuses, recent lines,
+    tileStatuses; recent; rules: Rule[]         //   and the rules already consulted for it
+  }
   scenario: Scenario                            // a self-contained 7×7 snapshot to replay
 }
 
@@ -861,7 +897,8 @@ Lifecycle of a patch:
    2. ontology (types, tags, kinds and assets exist);
    3. effect types;
    4. **writes only its host**;
-   5. **fills only holes**: its region lies inside the region that resolved to undefined;
+   5. **fills only holes**: by construction — patches are consulted only where the base rules
+      reach an undefined leaf (§5.14), and the replay must resolve to the patch;
    6. no tie with an existing rule;
    7. **sandbox replay** of the triggering event, of the patch's own `tests`, and of the
       regression set, on a copy of the state.
