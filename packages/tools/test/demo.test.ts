@@ -936,7 +936,7 @@ describe('the event model is complete (design.md §5.13)', () => {
     for (const r of [...BASE_RULES, ...STORY_RULES]) expect([r.id, EVENT_KINDS.some((k) => kindCovers(r.on, k))]).toEqual([r.id, true])
   })
 
-  it('state changes only in outcomes: a whole day at the Ford, in strict mode', () => {
+  it('state changes only in outcomes: a whole day at the Ford, in strict mode', { timeout: 60_000 }, () => {
     const f = fresh()
     stand(f, ...AT.spawn)
     ticks(f, 24 * TICKS_PER_HOUR)

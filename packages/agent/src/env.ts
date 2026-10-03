@@ -5,6 +5,7 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 export interface ExecResult {
   code: number
@@ -25,6 +26,8 @@ export interface Env {
   readonly root: string
   /** how the workspace is called where commands run (the same path locally, a mount in a container) */
   readonly cwd: string
+  /** commands cannot reach past the workspace (a container): only then may an agent run any command it likes */
+  readonly isolated: boolean
   exec(cmd: string, o?: ExecOptions): Promise<ExecResult>
   dispose?(): Promise<void>
 }
@@ -82,6 +85,7 @@ function run(file: string, args: string[], o: ExecOptions & { cwd?: string; env?
  */
 export class LocalEnv implements Env {
   readonly cwd: string
+  readonly isolated = false
   constructor(
     readonly root: string,
     private o: { shell?: string; env?: Record<string, string> } = {},
@@ -98,6 +102,7 @@ export class LocalEnv implements Env {
  * network by default. Needs a docker CLI on the host.
  */
 export class DockerEnv implements Env {
+  readonly isolated = true
   private constructor(
     readonly root: string,
     readonly cwd: string,
@@ -105,10 +110,30 @@ export class DockerEnv implements Env {
     private docker: string,
   ) {}
 
-  static async start(o: { image: string; root: string; mount?: string; network?: boolean; docker?: string }): Promise<DockerEnv> {
+  /**
+   * `mounts`: more host paths the commands may see, read-only unless said (code the tests need —
+   * never secrets). `user`: run as this uid:gid, so what the task writes stays the host user's.
+   * `limits`: memory and process caps, so a runaway command cannot take the host down.
+   */
+  static async start(o: {
+    image: string
+    root: string
+    mount?: string
+    mounts?: { host: string; container: string; writable?: boolean }[]
+    network?: boolean
+    user?: string
+    limits?: { memory?: string; cpus?: string; pids?: number }
+    docker?: string
+  }): Promise<DockerEnv> {
     const docker = o.docker ?? 'docker'
     const mount = o.mount ?? '/testbed'
-    const args = ['run', '-d', '--rm', ...(o.network ? [] : ['--network', 'none']), '-v', `${o.root}:${mount}`, '-w', mount, o.image, 'sleep', 'infinity']
+    const extra = (o.mounts ?? []).flatMap((m) => ['-v', `${m.host}:${m.container}${m.writable ? '' : ':ro'}`])
+    const limits = [
+      ...(o.limits?.memory ? ['--memory', o.limits.memory] : []),
+      ...(o.limits?.cpus ? ['--cpus', o.limits.cpus] : []),
+      ...(o.limits?.pids ? ['--pids-limit', String(o.limits.pids)] : []),
+    ]
+    const args = ['run', '-d', '--rm', ...(o.network ? [] : ['--network', 'none']), ...(o.user ? ['--user', o.user] : []), ...limits, '-v', `${o.root}:${mount}`, ...extra, '-w', mount, o.image, 'sleep', 'infinity']
     const r = await run(docker, args, { timeoutMs: 300_000, env: process.env as Record<string, string> })
     if (r.code !== 0) throw new Error(`docker run failed: ${r.stderr.trim() || r.stdout.trim()}`)
     return new DockerEnv(o.root, mount, r.stdout.trim(), docker)
@@ -124,6 +149,49 @@ export class DockerEnv implements Env {
     await run(this.docker, ['rm', '-f', this.id], { timeoutMs: 60_000, env: process.env as Record<string, string> })
   }
 }
+
+let dockerAnswer: Promise<boolean> | undefined
+/** Is there a Docker daemon this user can reach? Asked once per process. */
+export function dockerAvailable(docker = 'docker'): Promise<boolean> {
+  dockerAnswer ??= run(docker, ['version', '--format', '{{.Server.Version}}'], { timeoutMs: 15_000, env: process.env as Record<string, string> }).then((r) => r.code === 0 && !!r.stdout.trim())
+  return dockerAnswer
+}
+
+/**
+ * Where an unattended agent's commands run. `docker`: a container that sees only what the task
+ * mounts, with no network — the agent may run any command there. `none`: this machine — the agent
+ * gets no shell and its hooks do not run. Default: docker when a daemon answers;
+ * LSW_ISOLATION=docker|none overrides.
+ */
+export type Isolation = 'docker' | 'none'
+
+export async function chooseIsolation(): Promise<Isolation> {
+  const v = process.env.LSW_ISOLATION
+  if (v === 'docker' || v === 'none') return v
+  return (await dockerAvailable()) ? 'docker' : 'none'
+}
+
+const SANDBOX_DIR = fileURLToPath(new URL('../sandbox', import.meta.url))
+let imageAnswer: Promise<string> | undefined
+/** The sandbox image (LSW_SANDBOX_IMAGE, default `lsw-sandbox`, built from packages/agent/sandbox when missing). */
+export function sandboxImage(docker = 'docker'): Promise<string> {
+  imageAnswer ??= (async () => {
+    const name = process.env.LSW_SANDBOX_IMAGE ?? 'lsw-sandbox'
+    const env = process.env as Record<string, string>
+    if ((await run(docker, ['image', 'inspect', name], { timeoutMs: 30_000, env })).code === 0) return name
+    if (name !== 'lsw-sandbox') throw new Error(`sandbox image ${name} not found`)
+    const b = await run(docker, ['build', '-t', name, SANDBOX_DIR], { timeoutMs: 900_000, env })
+    if (b.code !== 0) throw new Error(`could not build the sandbox image: ${b.stderr.slice(-800)}`)
+    return name
+  })()
+  return imageAnswer
+}
+
+/** This process's uid:gid, so files a container writes into a mounted workspace stay the host user's. */
+export const hostUser = (): string | undefined => (typeof process.getuid === 'function' && typeof process.getgid === 'function' ? `${process.getuid()}:${process.getgid()}` : undefined)
+
+/** The caps every sandbox gets: a runaway command cannot take the host down. */
+export const SANDBOX_LIMITS = { memory: '1g', cpus: '1', pids: 256 }
 
 /** Quote a string for a POSIX shell. */
 export function sh(s: string): string {

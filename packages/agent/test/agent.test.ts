@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -31,7 +31,8 @@ function bugRepo(): string {
 }
 
 const ISSUE = 'add() returns the wrong result: `add(2, 3)` gives -1 instead of 5.'
-const task = (dir: string, extra: Partial<AgentTask> = {}): AgentTask => ({ id: 'add-bug', kind: 'mini', statement: ISSUE, env: new LocalEnv(dir), tests: { command: 'node test.mjs' }, ...extra })
+/** A task a person runs on their own machine (commands allowed locally); `localRun: false` is the unattended case. */
+const task = (dir: string, extra: Partial<AgentTask> = {}): AgentTask => ({ id: 'add-bug', kind: 'mini', statement: ISSUE, env: new LocalEnv(dir), tests: { command: 'node test.mjs' }, localRun: true, ...extra })
 
 const call = (name: string, args: Record<string, unknown>, id = name) => ({ content: '', toolCalls: [{ id, name, args }] })
 
@@ -81,6 +82,36 @@ describe('the environment and tools', () => {
     expect(await t('edit_file').run({ path: 'src/add.mjs', old_string: 'a - b', new_string: 'a + b' })).toMatch(/edited/)
     expect(await t('search').run({ pattern: 'a \\+ b' })).toMatch(/add\.mjs:1:/)
     expect(await t('read_file').run({ path: 'src/add.mjs' })).toMatch(/1 {2}export const add = \(a, b\) => a \+ b/)
+  })
+
+  it('gives no shell where commands are not isolated, unless a person allowed it', () => {
+    const dir = bugRepo()
+    const names = (o: Parameters<typeof agentTools>[1] = {}) => agentTools(new LocalEnv(dir), { testCommand: 'node test.mjs', ...o }).map((t) => t.name)
+    expect(names()).not.toContain('run')
+    expect(names()).toContain('run_tests')
+    expect(names({ localRun: true })).toContain('run')
+  })
+
+  it('does not write through a link out of the workspace', async () => {
+    const dir = bugRepo()
+    const outside = mkdtempSync(join(tmpdir(), 'lsw-outside-'))
+    symlinkSync(outside, join(dir, 'linked'), 'junction')
+    const t = agentTools(new LocalEnv(dir)).find((x) => x.name === 'write_file')!
+    await expect(async () => t.run({ path: 'linked/escaped.txt', content: 'x' })).rejects.toThrow(/outside the workspace/)
+    expect(existsSync(join(outside, 'escaped.txt'))).toBe(false)
+    expect(await t.run({ path: 'src/new.mjs', content: 'x' })).toMatch(/wrote/)
+  })
+
+  it('runs no hook the agent wrote for itself when its commands are not isolated', { timeout: 60_000 }, async () => {
+    const state = freshState()
+    applyPreset(state, 'tuned') // a start hook and a presubmit hook
+    let intro = ''
+    const base = engineer()
+    const model = new ScriptedModel(async (messages, opts) => ((intro = messages[1].content), base.chat(messages, opts)))
+    const r = await runAgent(task(bugRepo(), { localRun: false }), { model, state })
+    expect(intro).not.toContain('# From your start hooks')
+    expect(r.episode.tools.map((x) => x.name)).not.toContain('run')
+    expect(r.outcome).toBe('accepted')
   })
 })
 

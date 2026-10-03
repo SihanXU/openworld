@@ -13,7 +13,7 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync,
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { LocalEnv, SelfState, applyPreset, modelFromEnv, runAgent, type AgentTask, type Preset, type TaskSource } from '@lsw/agent'
+import { DockerEnv, LocalEnv, SANDBOX_LIMITS, SelfState, applyPreset, chooseIsolation, hostUser, modelFromEnv, runAgent, sandboxImage, type AgentTask, type Env, type Isolation, type Preset, type TaskSource } from '@lsw/agent'
 
 export const REPO = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
 const TASKS = join(REPO, 'packages/tools/tasks/engine')
@@ -52,23 +52,47 @@ export function engineWorkspace(): { dir: string; dispose: () => void } {
   lf(join(dir, 'packages'))
   // dependencies: links into the real node_modules, except our own packages, which point at the copies
   mkdirSync(join(dir, 'node_modules', '@lsw'), { recursive: true })
-  for (const n of readdirSync(join(REPO, 'node_modules'))) if (n !== '@lsw') symlinkSync(join(REPO, 'node_modules', n), join(dir, 'node_modules', n), 'junction')
+  // (not the tools' caches: each workspace keeps its own, and a container sees the host's read-only)
+  const CACHES = new Set(['.vite', '.vite-temp', '.cache'])
+  for (const n of readdirSync(join(REPO, 'node_modules'))) if (n !== '@lsw' && !CACHES.has(n)) symlinkSync(join(REPO, 'node_modules', n), join(dir, 'node_modules', n), 'junction')
   for (const p of PACKAGES) symlinkSync(join(dir, 'packages', p), join(dir, 'node_modules', '@lsw', p), 'junction')
   writeFileSync(join(dir, '.gitignore'), 'node_modules/\n')
   execSync('git init -q && git config core.autocrlf false && git add -A && git -c user.email=lsw@local -c user.name=lsw commit -qm base', { cwd: dir })
   return { dir, dispose: () => rmSync(dir, { recursive: true, force: true }) }
 }
 
-export function engineTask(def: EngineTaskDef): { task: AgentTask; dispose: () => void } {
+/**
+ * An engine task runs the agent's own code (its change, and the tests over it), so unattended it
+ * runs only in a container: the workspace and the host's node_modules (read-only, at the same
+ * paths, so the workspace's links resolve), no network. `localRun`: a person started it by hand
+ * and lets it run on this machine. Without either there is no task (undefined).
+ */
+export async function engineTask(def: EngineTaskDef, o: { isolation?: Isolation; localRun?: boolean } = {}): Promise<{ task: AgentTask; dispose: () => Promise<void> } | undefined> {
+  const iso = o.isolation ?? (await chooseIsolation())
+  if (iso === 'none' && !o.localRun) return undefined
   const ws = engineWorkspace()
   const tests = 'npx vitest run packages/engine packages/content'
+  let env: Env
+  try {
+    env =
+      iso === 'docker'
+        ? await DockerEnv.start({ image: await sandboxImage(), root: ws.dir, mount: ws.dir, mounts: [{ host: join(REPO, 'node_modules'), container: join(REPO, 'node_modules') }], user: hostUser(), limits: SANDBOX_LIMITS })
+        : new LocalEnv(ws.dir)
+  } catch (err) {
+    ws.dispose()
+    throw err
+  }
   return {
-    dispose: ws.dispose,
+    dispose: async () => {
+      await env.dispose?.()
+      ws.dispose()
+    },
     task: {
       id: def.id,
       kind: 'engine',
       statement: def.statement,
-      env: new LocalEnv(ws.dir),
+      env,
+      localRun: iso === 'none' && o.localRun,
       tests: { command: tests, timeoutMs: 300_000 },
       request: { id: def.id },
       notes: 'This repository is the engine (packages/engine) and content (packages/content) of a rule-based game world. The tests are vitest; content tests exercise the engine through the base rule library.',
@@ -87,21 +111,18 @@ export function engineTask(def: EngineTaskDef): { task: AgentTask; dispose: () =
   }
 }
 
+/** Engine tasks for the outer loop (unattended): only where they can run in a container. */
 export function engineSource(): TaskSource {
-  const open = new Map<AgentTask, () => void>()
   return {
     kinds: ['engine'],
     replay: async (ep) => {
       const def = engineTaskDefs().find((d) => d.id === (ep.request as { id?: string })?.id)
       if (!def) return undefined
-      const t = engineTask(def)
-      open.set(t.task, t.dispose)
-      return t.task
+      const t = await engineTask(def)
+      if (!t) return undefined // no container here: an unattended agent does not run its code on this machine
+      return { ...t.task, dispose: t.dispose }
     },
-    cleanup: async (task) => {
-      open.get(task)?.()
-      open.delete(task)
-    },
+    cleanup: async (task: AgentTask) => task.dispose?.(),
   }
 }
 
@@ -116,13 +137,15 @@ async function main(): Promise<void> {
   if (!model) throw new Error('no model (LSW_MODEL_KEY, LSW_MODEL)')
   const state = SelfState.open(resolve(flag('state') ?? join(REPO, 'var', 'agent-state')))
   if (flag('preset')) applyPreset(state, flag('preset') as Preset)
-  const t = engineTask(def)
+  // a person runs this by hand: on this machine if there is no container (they see the warning)
+  const t = (await engineTask(def, { localRun: true }))!
+  if (!t.task.env.isolated) console.log('warning: no container here — the commands and tests of the agent run on this machine')
   try {
     const r = await runAgent(t.task, { model, state, log: (l) => console.log(l) })
     console.log(r.diff)
     console.log(`${def.id}: ${r.outcome} · ${r.episode.usage.calls} steps · ${(r.episode.ms / 1000).toFixed(0)} s · $${(r.episode.usage.cost ?? 0).toFixed(3)}${r.verdict ? `\n${r.verdict.output.slice(-800)}` : ''}`)
   } finally {
-    t.dispose()
+    await t.dispose()
   }
 }
 

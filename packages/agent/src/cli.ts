@@ -83,7 +83,7 @@ async function main(): Promise<void> {
   if (cmd === 'task') {
     const dir = resolve(need('dir'))
     const r = await runAgent(
-      { id: flag('id') ?? 'task', kind: flag('kind') ?? 'adhoc', statement: readFileSync(need('issue'), 'utf8'), env: new LocalEnv(dir), tests: flag('tests') ? { command: flag('tests')! } : undefined },
+      { id: flag('id') ?? 'task', kind: flag('kind') ?? 'adhoc', statement: readFileSync(need('issue'), 'utf8'), env: new LocalEnv(dir), localRun: true, tests: flag('tests') ? { command: flag('tests')! } : undefined },
       { model, state, record: has('record'), log },
     )
     console.log(r.diff ?? '')

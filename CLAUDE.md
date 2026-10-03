@@ -62,6 +62,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   journal, snapshots, ablations), `env.ts` (local / docker), `tools.ts`, `loop.ts` (the agent loop),
   `reflect.ts`, `outer.ts` (proposals + meta-validation), `presets.ts` (naive / tuned), `swe.ts` +
   `cli.ts` (SWE-bench instances → predictions.jsonl). See docs/rsi.md.
+- An unattended agent runs commands only in a container (`env.ts` `chooseIsolation`: the
+  `lsw-sandbox` image, no network, no `.env`); without Docker it gets no shell and its hooks do
+  not run. `LSW_ISOLATION=docker|none` overrides. Never give an unattended agent a local shell.
 - `packages/modder` — the modder service (design.md §13, rsi.md). It may depend on content;
   the engine never depends on it. Parts:
   - `model.ts`: a model interface — OpenAI-compatible, or scripted for tests and offline.
