@@ -165,6 +165,7 @@ const AUTHORING_RULES = [
   'Use only the listed event kinds, impulses, primitives, statuses, terrains, types and vfx. If you need a new type or status, add a `type`/`status` artifact to the same patch.',
   'Every rule should carry at least one test (a small scenario + expectations). The triggering event is replayed automatically.',
   'Give the player feedback: a `vfx` and/or a `say`/`log` line, so the outcome is visible.',
+  'Name slots ({actor}, {target}, {host}, …) read "you" when they are the player: write lines that read right either way — no verb or possessive straight after a slot ("a warm glow mends {target}", not "{actor} holds" or "{target}\'s wounds").',
   'Keep emissions local and bounded: an area radius of at most 3, and a chance below 1 when it could cascade.',
   'An act hosted by an instrument that consumes or changes it says so: `destroy` or `transform` the host.',
   'Outcomes the world started by itself (origin "world") happen without the player asking: keep them small and legible, never harm a person, never touch the story\'s facts, and let people react with say/emote, a notice to the story (a topic), or goto.',
@@ -808,7 +809,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   const checkSel = (s: Selector | undefined, where: string) => {
     if (!s) return
     if (typeof s !== 'object') return errors.push(`${where}: selector must be an object`)
-    if (s.type && !s.type.startsWith('tile/') && !known(s.type)) errors.push(`${where}.type: unknown type "${s.type}"`)
+    if (s.type && !s.type.startsWith('tile/') && !known(s.type)) errors.push(`${where}.type: unknown type "${s.type}"${s.type in onto.terrains ? ` — a terrain is named "tile/${s.type}"` : ''}`)
     if (s.type?.startsWith('tile/') && !(s.type.slice(5) in onto.terrains)) errors.push(`${where}.type: unknown terrain "${s.type}"`)
     for (const st of [...(s.status ?? []), ...(s.notStatus ?? [])]) if (!(st in onto.statuses)) errors.push(`${where}: unknown status "${st}"`)
     if (s.kind && !['actor', 'item', 'fixture', 'tile', 'resident'].includes(s.kind)) errors.push(`${where}.kind invalid`)

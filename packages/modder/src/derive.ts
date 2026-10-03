@@ -82,13 +82,13 @@ const shape = (s: Selector): Selector => {
   return rest
 }
 
-/** Another instance the selector also picks: a type of the same kind elsewhere in the tree, or another terrain. */
-function sibling(sel: Selector, current: string, kind: string, onto: Ontology): string | undefined {
+/** Other instances the selector also picks, best first: types of the same kind elsewhere in the tree (another branch first), or other terrains. */
+function siblings(sel: Selector, current: string, kind: string, onto: Ontology): string[] {
   const s = shape(sel)
   if (kind === 'tile') {
     const terrains = Object.values(onto.terrains).filter((t) => `tile/${t.id}` !== current && t.id !== current)
     const view = (id: string, tags: string[] = []): View => ({ ref: { tile: { map: 'x', x: 0, y: 0 } }, kind: 'tile', type: `tile/${id}`, tags: new Set(tags), statuses: new Set(), props: {}, isPlayer: false })
-    return terrains.find((t) => matchSelector(s, view(t.id, t.tags)))?.id
+    return terrains.filter((t) => matchSelector(s, view(t.id, t.tags))).map((t) => t.id)
   }
   const index = new OntologyIndex(onto)
   const parent = current.split('/').slice(0, -1).join('/')
@@ -101,7 +101,7 @@ function sibling(sel: Selector, current: string, kind: string, onto: Ontology): 
     return matchSelector(s, { ref: { e: id }, kind: r.kind, type: id, tags: new Set(r.tags), statuses: new Set(), props: r.props, isPlayer: false })
   })
   // prefer an instance from another branch: that is what tests the class, not the family
-  return fits.find((id) => !isA(id, parent)) ?? fits[0]
+  return [...fits.filter((id) => !isA(id, parent)), ...fits.filter((id) => isA(id, parent))]
 }
 
 export interface Derived {
@@ -127,21 +127,29 @@ export function deriveTests(patch: Patch, req: ModRequest, lib: RuleLibrary, ont
       if (!expect) return a // not this rule's event: the validator will say so
       const key = hostKey(req.scenario)
       if (!key) return a
-      const sc: Scenario = structuredClone(req.scenario)
-      let other: string | undefined
-      if (key.startsWith('tile:')) {
-        const [x, y] = key.slice(5).split(',').map(Number)
-        other = sibling(r.host!, sc.terrain![y][x], 'tile', cand.onto)
-        if (other) sc.terrain![y][x] = other
-      } else {
-        const ent = sc.entities.find((e) => e.key === key)
-        if (!ent) return a // a resident host: one of a kind
-        const kind = new OntologyIndex(cand.onto).resolve(ent.type).kind
-        other = sibling(r.host!, ent.type, kind, cand.onto)
-        if (other) Object.assign(ent, { type: other, props: undefined, tags: undefined })
+      const tile = key.startsWith('tile:') ? key.slice(5).split(',').map(Number) : undefined
+      const ent = tile ? undefined : req.scenario.entities.find((e) => e.key === key)
+      if (!tile && !ent) return a // a resident host: one of a kind
+      const others = tile ? siblings(r.host!, req.scenario.terrain![tile[1]][tile[0]], 'tile', cand.onto) : siblings(r.host!, ent!.type, new OntologyIndex(cand.onto).resolve(ent!.type).kind, cand.onto)
+      const swap = (other: string): Scenario => {
+        const sc: Scenario = structuredClone(req.scenario)
+        if (tile) sc.terrain![tile[1]][tile[0]] = other
+        else Object.assign(sc.entities.find((e) => e.key === key)!, { type: other, props: undefined, tags: undefined })
+        return sc
       }
-      if (!other) {
-        notes.push(`${r.id}: no other instance of its host class to test on`)
+      // the first instance this rule answers, or one it should answer but the hole is still open;
+      // an instance a more specific rule already answers (another patch, a base rule) says nothing
+      let other: string | undefined
+      let sc: Scenario | undefined
+      for (const o of others.slice(0, 8)) {
+        const s = swap(o)
+        const res = replay(s, cand.onto, cand.lib).resolution
+        if (res.rule && res.rule.id !== r.id && res.defined) continue
+        ;[other, sc] = [o, s]
+        break
+      }
+      if (!other || !sc) {
+        notes.push(`${r.id}: no other instance of its host class to test on${others.length ? ' (the others are answered by more specific rules)' : ''}`)
         return a
       }
       const there = effectsOf(sc, r, cand.lib, cand.onto)

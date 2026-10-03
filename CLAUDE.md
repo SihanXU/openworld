@@ -136,6 +136,9 @@ npm run build            # gen:world + static build → packages/client/dist
 npm run modder -- serve  # modder service on :8787 (model from LSW_MODEL_URL/KEY/MODEL; data in var/)
 npm run modder -- serve 8787 --script packages/modder/fixtures/offline.json --data var/offline
 npm run curriculum -- 20 # resolve 20 sampled undefined interactions offline (offline profile)
+npm run curriculum -- --n 20 --profile live --by hole --data var/<run>   # live profile, spread over holes; per-step reach
+npm run curriculum:report -- var/<run>   # summarise a run: steps, reviews, revisions, spend
+npm run ford-live        # the eight kinds of hole on the Ford, live (costs model calls)
 npm run latency -- --n 20 # live-profile latency bench (fresh library each run; costs model calls)
 npm run improve -- --select 8 --confirm 8   # one outer-loop turn (costs model calls)
 npm run engine-task -- toggle-status --state <dir>

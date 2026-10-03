@@ -36,6 +36,7 @@ export function designSystem(spec: ModSpec, h: Harness): string {
       ? '- Every rule has a one-line `doc` and player-visible feedback (vfx and/or log/say). Do not write tests: the harness replays your rule on another instance of its class and keeps that as its test.'
       : '- Every rule has a one-line `doc`, player-visible feedback (vfx and/or log/say), and at least one test whose scenario uses ANOTHER instance of the host class than the triggering one (the triggering event is replayed automatically).',
     '- Prefer outcomes that change something (a status, a transformation, an item). A rule that only narrates is right only when nothing happening is clearly the most plausible outcome, and then its class must stay narrow.',
+    '- Nothing for nothing: if the outcome makes something (a stick shaken from a tree, food), let it cost or run out — use the instrument up, or change or spend the host (a status that clears with time, a prop that counts down) — so it is not a faucet pressed forever.',
     '- Your rule writes only its host; to affect anything else, emit an impulse to it and its receiver answers. Player-facing text is {"en": "...", "zh": "..."}; {host}, {actor}, {target}, {instrument}, {item} insert names.',
     '- If nothing should happen, still define it: {"do": []} (no change) or a short in-world line of feedback is a valid answer.',
     ...(h.addenda.length ? ['', 'Your own working notes:', ...h.addenda.map((a) => `- ${a}`)] : []),
@@ -105,7 +106,9 @@ The rule was written because an event reached an outcome no rule defined (a play
 - scope: does it cover the right CLASS — not one instance (too narrow), not unrelated things (too broad)?
 - consistency with the neighbouring rules shown;
 - feedback: does the player see what happened?
-- no destructive surprises (destroying or taking things the player values without reason).
+- no destructive surprises (destroying or taking things the player values without reason);
+- no free repeatable gain: an outcome that makes something (a stick, food, a resource) must cost something or run out — the instrument used up, the host changed or spent (a status, a prop) — or the world gains a faucet the player can press forever;
+- the lines read right when a name slot is the player ("you"): no "{actor} holds", no "{target}'s".
 Respond with JSON only: {"verdict": "ship" | "revise", "notes": ["..."]}. Default to "ship"; "revise" only for a real problem, with concrete notes.`
 
 export function reviewUser(req: ModRequest, patch: Patch, outcome: string, neighbours: Rule[], flags: string[] = []): string {

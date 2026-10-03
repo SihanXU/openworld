@@ -35,6 +35,8 @@ export interface Attempt<P = unknown> {
   derived?: string[]
   /** Reviewer verdict on a valid draft, when the review stage ran. */
   review?: { verdict: string; notes: string[] }
+  /** The answer as the model gave it, when no patch could be read from it (clipped). */
+  raw?: string
 }
 
 /**

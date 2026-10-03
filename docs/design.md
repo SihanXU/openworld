@@ -1177,6 +1177,55 @@ escalation off; a fresh library).
   own key in the scenario; `tools/test/console.test.ts` checks that the template is a valid
   patch for an act, a receive, a strike and a handle.
 
+### The curriculum on the event model (2026-10-03)
+
+`npm run curriculum -- --profile live --by hole` samples the demo's undefined cells across the
+holes they reach (each hole its share, at least two), answers each with the live profile (late
+review on; a failure escalates to the offline agent), and re-sweeps coverage after every step,
+so each patch's reach is measured: the undefined cells it answered, its own and the rest of its
+class. `npm run curriculum:report` summarises a run.
+
+| | Run 1 (seed 1, 20 cells) | Run 2 (seed 2, 12 cells, the fixes below) |
+|---|---|---|
+| live accepted / already answered by an earlier patch / failed | 15 / 4 / 1 | 9 / 2 / 1 |
+| first answer valid | 13 / 16 | 9 / 10 |
+| median live time | 4.7 s | 5.4 s |
+| undefined, whole sweep | 20,058 → 18,833 | 20,058 → 18,282 |
+| undefined, the Ford's scope | 640 → 505 | 640 → 472 |
+| late reviews sent back | 2 of 15 | 4 of 9 |
+| offline revisions / escalations accepted | 2/2, 1/1 | 3/4, 1/1 |
+| spend | $1.10 | $1.65 |
+
+- **Patches answer classes.** A patch answered 1 to 1,638 cells (median about 5). The wide
+  ones are class defaults: a slime takes whatever it is offered (116 cells), natural fixtures
+  hold nothing put on them (819, then 1,638). A fifth of the sampled cells were already
+  answered by an earlier patch when their turn came.
+- **Failures were mechanical**, and are now fixed by the harness:
+  - JSON with one `}` too many (the tree closed early): `repairBrackets` drops the closer
+    that ended the object too early;
+  - effects keyed by their op (`{"spawn": {…}}`, 2026-10-02);
+  - a terrain named bare (`"bush"` for `tile/bush`): `qualifyTerrains`, and the validator now
+    names the terrain;
+  - "no JSON patch in the answer" when the JSON did not parse: the error now says what failed
+    and where, because the modder's reflection had learnt the wrong lesson from it ("always
+    emit the JSON").
+- **Derived tests on the right instance.** The other instance a rule is tested on may already
+  be answered by a more specific patch; it is skipped now, instead of flagging the rule as
+  not generalizing.
+- **Review.** It now also checks free repeatable gains (a stick from every shake of a tree:
+  a faucet) and lines that read wrong for the player ("you gathers"). The ModSpec tells
+  authors how name slots read. The stricter review sends more rules back, and offline
+  revisions cost $0.10–0.44 each: in run 2 they were most of the spend.
+- **The offline agent left its workspace.** In one revision it ran commands in the real
+  repository (reading engine source, writing a debug script at its root). It changed no
+  tracked file. A world-repo task runs in `LocalEnv`, and its `validate.mjs` names the
+  repository's path. It should run isolated (the Docker environment the SWE tasks use)
+  before the offline agent runs unattended again.
+- **Open question: broad patches close their class.** A patch only fills a hole, and once
+  a broad default fills it ("natural fixtures hold nothing"), no more specific question about
+  any of those fixtures is asked again. Whether a broad default should stay open to more
+  specific answers is a question about the interface (§5.11).
+
 ### The self-improving agent (2026-10-01)
 
 The offline profile no longer uses the patch pipeline. A request is worked by an SWE-style agent
