@@ -1146,6 +1146,37 @@ had a real inconsistency: it ignored ink that the player might be carrying.
 - Harness proposals and the meta-validation gate (rsi.md §5.3).
 - Per-player rate limits for public deployment.
 
+### The event model, live (2026-10-02)
+
+`npm run ford-live` plays eight scenarios on the Ford, each reaching one kind of hole through
+the game's own path, and lets the live profile answer with Kimi K3 (review, reflection and
+escalation off; a fresh library).
+
+| Scenario | Event, hole | Patch | Time |
+|---|---|---|---|
+| bread used on the winch | `act/use` on the bread, `core/use` | edible things on a mechanism: a line ("gears don't eat") | 7.1 s |
+| the axe put on the dead tree | `impulse/receive` on the tree, `core/receive` | it sheds what is put on it: `emit taken` to the item, onto the ground | 6.5 s |
+| the axe on the chopping stump | `impulse/strike` on the stump, `core/strike` | a cut with an axe splits it into two sticks | 7.2 s |
+| a bare hand on the raft | `impulse/handle` on the raft, `core/handle` | it rocks on its line: only the winch moves it | 6.6 s |
+| taking the winch | `impulse/taken` on the winch, `core/taken` | bolted down: a line | 6.1 s |
+| the rope given to a fire slime | `impulse/offered` on the slime, `core/offered` | fiery slimes set flammable offerings alight (`emit element fire`) | 11.5 s |
+| Hesper's fire soaked | `stuck` on Hesper (world), `core/stuck` | a person whose fire is wet says so and waits by it (`goto`) | 6.0 s |
+| the rope burnt | `broken` on the story (world), `core/broken` | a spare rope turns up by the landing | 6.0 s |
+
+- **8/8 accepted, 7/8 first answers valid**, one call each but one, **median 6.6 s**, $0.35 in
+  all ($0.044 a patch). Every patch wrote only its host and reached others by impulses; every
+  host was a class (a type or tags), never an instance.
+- The participants and the actor were held while the patch was worked out and released when
+  it came. The Threadbook shows the eight threads, the stuck and broken ones as the world's.
+- The same class does not ask again: an apple on the winch resolves to the bread's patch with
+  no `?`; a frost slime offered rope (not fiery) still asks; defined behaviour is unchanged.
+- **The one failure** wrote effects as `{"spawn": {…}}`, as the ModSpec's own notation
+  (`spawn {type, at}`) suggested. The ModSpec now states the shape (`{"op": "spawn", …}`),
+  and the deterministic repairs flatten it, so it costs no repair turn.
+- The Mod Console's template expected its host under the key `host`. It now uses the host's
+  own key in the scenario; `tools/test/console.test.ts` checks that the template is a valid
+  patch for an act, a receive, a strike and a handle.
+
 ### The self-improving agent (2026-10-01)
 
 The offline profile no longer uses the patch pipeline. A request is worked by an SWE-style agent

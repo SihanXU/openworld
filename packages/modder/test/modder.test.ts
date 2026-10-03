@@ -449,8 +449,11 @@ describe('deterministic repairs', () => {
     const { tree: _t, ...bare } = rule
     // a rule written in the flat form: its condition and effects beside the rule, not in a tree
     const flat = { ...bare, if: FIBER, do: (bindTree() as { then: { do: unknown[] } }).then.do }
+    // effects keyed by their op ({"addStatus": {"status": …}}), as a live model wrote them
+    const tree = bindTree() as { if: unknown; then: { do: { op: string }[] } }
+    const keyed = { ...rule, tree: { ...tree, then: { do: tree.then.do.map(({ op, ...args }) => ({ [op]: args })) } } }
     // the shapes models actually produce: the rule as the artifact, or its fields spread on {kind:"rule"}
-    for (const draft of [{ artifacts: [rule] }, { artifacts: [{ kind: 'rule', ...rule }] }, rule, { rules: [rule] }, { artifacts: [{ kind: 'rule', rule: flat }] }]) {
+    for (const draft of [{ artifacts: [rule] }, { artifacts: [{ kind: 'rule', ...rule }] }, rule, { rules: [rule] }, { artifacts: [{ kind: 'rule', rule: flat }] }, { artifacts: [{ kind: 'rule', rule: keyed }] }]) {
       const { model, calls } = scripted([draft as unknown as Patch])
       const { modder, state, library } = setup(model)
       const reply = await modder.resolve({ request: request() })
