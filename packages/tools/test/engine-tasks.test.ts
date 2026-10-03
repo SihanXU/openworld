@@ -10,7 +10,8 @@ describe('engine tasks', () => {
     const defs = engineTaskDefs()
     expect(defs.map((d) => d.id).sort()).toEqual(['prop-eq', 'toggle-status'])
     for (const def of defs) {
-      const t = engineTask(def)
+      // run as a person would by hand: in a container if there is one, else on this machine
+      const t = (await engineTask(def, { localRun: true }))!
       try {
         const own = await t.task.env.exec(t.task.tests!.command, { timeoutMs: 300_000 })
         expect(own.code, own.stdout.slice(-2000)).toBe(0)
@@ -22,8 +23,20 @@ describe('engine tasks', () => {
         expect(r.verdict!.output).toMatch(/hidden/)
         expect(r.diff).toBe('')
       } finally {
-        t.dispose()
+        await t.dispose()
       }
+    }
+  })
+
+  it('are not made for unattended work where there is no container', async () => {
+    const def = engineTaskDefs()[0]
+    expect(await engineTask(def, { isolation: 'none' })).toBeUndefined()
+    const local = (await engineTask(def, { isolation: 'none', localRun: true }))!
+    try {
+      expect(local.task.env.isolated).toBe(false)
+      expect(local.task.localRun).toBe(true)
+    } finally {
+      await local.dispose()
     }
   })
 })

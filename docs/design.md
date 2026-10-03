@@ -1216,11 +1216,26 @@ class. `npm run curriculum:report` summarises a run.
   a faucet) and lines that read wrong for the player ("you gathers"). The ModSpec tells
   authors how name slots read. The stricter review sends more rules back, and offline
   revisions cost $0.10–0.44 each: in run 2 they were most of the spend.
-- **The offline agent left its workspace.** In one revision it ran commands in the real
-  repository (reading engine source, writing a debug script at its root). It changed no
-  tracked file. A world-repo task runs in `LocalEnv`, and its `validate.mjs` names the
-  repository's path. It should run isolated (the Docker environment the SWE tasks use)
-  before the offline agent runs unattended again.
+- **The offline agent left its workspace** — and now cannot. In one revision it ran commands
+  in the real repository (reading engine source, writing a debug script at its root; it
+  changed no tracked file). The task ran on the host (`LocalEnv`), and its `validate.mjs`
+  named the repository's path. Now (`packages/agent/src/env.ts`, `chooseIsolation`):
+  - **With Docker** (the Linux host has it since 2026-10-03), an unattended task's commands run
+    in the `lsw-sandbox` container (node, git, ripgrep; built from `packages/agent/sandbox`):
+    no network, 1 GB, 1 CPU, 256 processes, the host user's uid. A world task sees its
+    workspace and the engine's code read-only under `/repo` — not `.env`, not `var/`. An engine
+    task sees its workspace and the host's `node_modules` read-only.
+  - **Without Docker** the agent has no shell: no `run` tool, and its own hooks do not run.
+    The tests it runs are the validator from the engine's code, never a file it can edit.
+    Engine tasks (whose tests run the agent's code) are not made for unattended work at all.
+  - Writes cannot leave the workspace through a link (`insideForWrite`). A person who starts a
+    task by hand (`npm run agent -- task`, SWE with `--env local`, `npm run engine-task`) may
+    let it run commands locally (`localRun`).
+  - A task carries its own release (`AgentTask.dispose`), so its container cannot outlive it.
+  - Checked on the Linux host: the container cannot write the repository, cannot see `.env`
+    or `var/`, has no network; an agent replaying the incident (`cd <repo> && …`) leaves
+    nothing there; a real offline revision still succeeds inside (15 steps, $0.12); the whole
+    suite passes with no container or workspace left behind.
 - **Open question: broad patches close their class.** A patch only fills a hole, and once
   a broad default fills it ("natural fixtures hold nothing"), no more specific question about
   any of those fixtures is asked again. Whether a broad default should stay open to more
