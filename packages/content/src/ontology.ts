@@ -3,6 +3,8 @@
 
 import type { Ontology, StatusDef, TerrainDef, TypeDef } from '@lsw/engine'
 import { ELEMENT_NAMES, MATERIALS, QUALITIES, itemTypes } from './items.ts'
+import { VEGETABLE_CROPS } from './crops.ts'
+import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
 
 /** One char per terrain: maps are stored as strings. */
 export const TERRAIN_CHARS: Record<string, string> = {
@@ -97,12 +99,15 @@ export const STATUSES: StatusDef[] = [
   { id: 'oiled', name: { en: 'oiled', zh: '油污' }, duration: 900, overlay: 'oil' },
   { id: 'lit', name: { en: 'lit', zh: '点燃' }, overlay: 'flame' },
   { id: 'open', name: { en: 'open', zh: '打开' } },
+  /** A waypoint stone touched: it glows, and the world map can take you to it (docs/prologue.md). */
+  { id: 'attuned', name: { en: 'attuned', zh: '已共鸣' } },
   { id: 'notched', name: { en: 'notched', zh: '砍了一斧' }, duration: 100 },
   { id: 'regrowing', name: { en: 'regrowing', zh: '正在长回' }, duration: 28800 },
   { id: 'watered', name: { en: 'watered', zh: '浇过水' }, duration: 1200, overlay: 'wet' },
   { id: 'fertilized', name: { en: 'fertilized', zh: '施过肥' } },
   { id: 'rooting', name: { en: 'rooting', zh: '正在扎根' }, duration: 28800 },
   { id: 'laying', name: { en: 'laying', zh: '快下蛋了' }, duration: 1800 },
+  { id: 'fireproof', name: { en: 'fireproof', zh: '防火' }, duration: 3000, clears: ['burning'], wards: ['burning'] },
   // ice that magic or a creature made: it thaws back to water
   { id: 'chilled', name: { en: 'thin ice', zh: '薄冰' }, duration: 1500 },
   // a mechanism that needs mending (the ferry winch whose rope snapped)
@@ -176,6 +181,8 @@ const actorTypes: TypeDef[] = [
   }),
   P('actor/person/player', 'you', '你', { props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, hunger: 20, maxHunger: 20 } }),
   ...PERSON_ROLES.map(([id, en, zh]) => P(`actor/person/${id}`, en, zh)),
+  // the profession trainer (engine/src/profession.ts): a profession is chosen within reach of one
+  P('actor/person/trainer', 'profession trainer', '职业导师', { tags: ['trainer'] }),
   P('actor/creature', 'creature', '怪物', { tags: ['creature', 'living', 'faction:wild'], props: { hp: 10, maxHp: 10, atk: 2, def: 0, speed: 6 } }),
   P('actor/creature/slime', 'slime', '史莱姆', { tags: ['slime', 'gelatinous'], sprite: 'creature:slime', props: { hp: 9, maxHp: 9, atk: 2, speed: 7 } }),
   P('actor/creature/slime/green_slime', 'green slime', '绿史莱姆', {}),
@@ -190,6 +197,10 @@ const actorTypes: TypeDef[] = [
   P('actor/creature/beast/boar', 'boar', '野猪', { sprite: 'creature:boar', props: { hp: 18, maxHp: 18, atk: 4, def: 1, speed: 5 } }),
   P('actor/creature/beast/bat', 'bat', '蝙蝠', { sprite: 'creature:bat', tags: ['flying'], props: { hp: 6, maxHp: 6, atk: 2, speed: 3 } }),
   P('actor/creature/undead', 'undead', '亡灵', { tags: ['undead'], sprite: 'creature:skeleton' }),
+  // the night's walkers (engine/src/nightspawn.ts): slow, and gone at dawn
+  P('actor/creature/undead/zombie', 'zombie', '僵尸', { tags: ['rotting'], sprite: 'creature:zombie', props: { hp: 14, maxHp: 14, atk: 3, def: 0, speed: 10 } }),
+  // the Old Barrow's keeper (docs/quests.md)
+  P('actor/creature/undead/warden', 'barrow warden', '古墓守卫', { tags: ['bone', 'boss'], props: { hp: 45, maxHp: 45, atk: 5, def: 1, speed: 8 } }),
   P('actor/creature/undead/skeleton', 'skeleton', '骷髅', { tags: ['bone'], props: { hp: 16, maxHp: 16, atk: 4, def: 1, speed: 6 } }),
   P('actor/creature/undead/ghost', 'ghost', '幽灵', { sprite: 'creature:ghost', tags: ['spectral'], props: { hp: 12, maxHp: 12, atk: 3, speed: 5, element: 'ice' } }),
   P('actor/creature/golem', 'golem', '魔像', { tags: ['construct'], sprite: 'creature:golem' }),
@@ -199,10 +210,18 @@ const actorTypes: TypeDef[] = [
   P('actor/creature/imp/fire_imp', 'fire imp', '火焰小鬼', { props: { hp: 12, maxHp: 12, atk: 3, speed: 5, element: 'fire' } }),
   P('actor/creature/wisp', 'wisp', '鬼火', { tags: ['spectral', 'charged'], sprite: 'creature:wisp' }),
   P('actor/creature/wisp/storm_wisp', 'storm wisp', '风暴鬼火', { props: { hp: 9, maxHp: 9, atk: 3, speed: 4, element: 'lightning' } }),
+  // companions (docs/prologue.md): they follow a leader (props.companion), fly, never block nor fight
+  P('actor/companion', 'companion', '同伴', { tags: ['companion', 'living', 'airborne', 'essential'], props: { hp: 10, maxHp: 10, atk: 0, def: 0, speed: 2 } }),
+  P('actor/companion/bird', 'bird', '鸟', { tags: ['bird', 'feathered'], sprite: 'creature:parrot' }),
   // the meadow's animals: passive, they run when struck, and leave food behind (drop × drops)
   P('actor/creature/animal', 'animal', '动物', { tags: ['animal'] }),
   P('actor/creature/animal/cow', 'cow', '牛', { tags: ['livestock', 'furry'], sprite: 'creature:cow', props: { hp: 10, maxHp: 10, atk: 0, speed: 7, drop: 'item/food/meat/raw', drops: 2 } }),
   P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', props: { hp: 4, maxHp: 4, atk: 0, speed: 5, drop: 'item/food/chicken/raw', drops: 1 } }),
+  // the main quest's monsters (docs/main-quest.md)
+  P('actor/creature/spider', 'cave spider', '洞穴蜘蛛', { tags: ['spider', 'venomous'], sprite: 'creature:spider', props: { hp: 8, maxHp: 8, atk: 3, speed: 4 } }),
+  P('actor/creature/cyclops', 'cyclops', '独眼巨人', { tags: ['boss', 'large'], sprite: 'boss:cyclops', props: { hp: 60, maxHp: 60, atk: 6, def: 2, speed: 9, drop: 'item/material/iron_ore', drops: 2 } }),
+  P('actor/creature/whelp', 'dragon whelp', '幼龙', { tags: ['fiery', 'dragon'], sprite: 'creature:whelp', props: { hp: 14, maxHp: 14, atk: 4, speed: 5, element: 'fire' } }),
+  P('actor/creature/dragon', 'the dragon of Cinder Peak', '烬峰魔龙', { tags: ['boss', 'large', 'fiery', 'dragon'], sprite: 'boss:dragon', props: { hp: 700, maxHp: 700, atk: 7, def: 3, speed: 8, element: 'fire', range: 4 } }),
   P('actor/creature/crab', 'giant crab', '巨蟹', { tags: ['shelled', 'watery'], sprite: 'creature:crab', props: { hp: 20, maxHp: 20, atk: 4, def: 3, speed: 7 } }),
 ]
 
@@ -265,8 +284,13 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/sacred/statue', 'statue', '雕像', []),
   F('fixture/sacred/gravestone', 'gravestone', '墓碑', ['readable']),
   F('fixture/sacred/seal_stone', 'seal stone', '封印石', ['ancient', 'runic']),
+  F('fixture/sacred/waypoint', 'waypoint statue', '传送雕像', ['ancient', 'runic', 'waypoint']),
   F('fixture/nature', 'natural feature', '自然物', [], { solid: true }),
   F('fixture/nature/boulder', 'boulder', '巨石', ['stone', 'rock', 'mineable'], { props: { cracks: 0 } }),
+  // the old mine's veins: a pickaxe cracks them like a boulder, and they break into their ore
+  F('fixture/nature/vein', 'ore vein', '矿脉', ['stone', 'rock', 'mineable', 'vein'], { props: { cracks: 0, yields: 'item/material/stone', count: 1 } }),
+  F('fixture/nature/vein/iron', 'iron vein', '铁矿脉', [], { sprite: 'fixture:vein_iron', props: { yields: 'item/material/iron_ore', count: 2 } }),
+  F('fixture/nature/vein/coal', 'coal seam', '煤层', [], { sprite: 'fixture:vein_coal', props: { yields: 'item/material/coal', count: 2 } }),
   F('fixture/nature/haystack', 'haystack', '干草垛', ['plant', 'flammable', 'dry']),
   F('fixture/nature/logpile', 'log pile', '柴堆', ['wooden', 'flammable']),
   F('fixture/nature/logpile/stack', 'firewood', '柴垛', [], { sprite: 'fixture:firewood' }),
@@ -291,6 +315,9 @@ const fixtureTypes: TypeDef[] = [
   ...crop('wheat', 'wheat', '麦子', 'item/material/wheat', ['young wheat', '青麦'], ['ripe wheat', '熟麦'], ['dry', 'flammable']),
   ...crop('herb', 'herb', '草药', 'item/material/herb', ['herb plant', '草药苗'], ['ripe herbs', '成熟的草药']),
   ...crop('berry', 'berry bush', '浆果丛', 'item/food/berries', ['berry bush', '浆果丛'], ['berry bush in fruit', '结果的浆果丛'], [], ['perennial']),
+  ...VEGETABLE_CROPS.flatMap((c) => crop(c.id, c.en.toLowerCase(), c.zh, `item/food/${c.id}`,
+    [`young ${c.en.toLowerCase()}`, `${c.zh}幼株`], [`ripe ${c.en.toLowerCase()}`, `成熟的${c.zh}`],
+    [], c.perennial ? ['perennial'] : [])),
   F('fixture/crop/oak', 'oak', '橡树', [], { props: { seedType: 'item/seed/acorn' } }),
   F('fixture/crop/oak/sapling', 'oak sapling', '橡树苗', ['sapling'], { sprite: 'fixture:oak_sapling' }),
   F('fixture/build', 'unfinished work', '半成品', ['unfinished'], { solid: true }),
@@ -304,10 +331,10 @@ const fixtureTypes: TypeDef[] = [
 
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}
-  for (const t of [...actorTypes, ...fixtureTypes, ...itemTypes()]) types[t.id] = t
+  for (const t of [...actorTypes, ...fixtureTypes, ...itemTypes(), ...BOSS_TYPES]) types[t.id] = t
   return {
     types,
-    statuses: Object.fromEntries(STATUSES.map((s) => [s.id, s])),
+    statuses: Object.fromEntries([...STATUSES, ...BOSS_STATUSES].map((s) => [s.id, s])),
     // who attacks whom: the wild attacks folk (when a creature's temper says so); folk attack no one
     factions: {
       folk: { name: { en: 'folk', zh: '人们' }, hostile: [] },
@@ -315,7 +342,7 @@ export function buildOntology(): Ontology {
     },
     terrains: Object.fromEntries(TERRAINS.map((t) => [t.id, t])),
     elements: ELEMENTS,
-    vfx: VFX,
+    vfx: [...VFX, ...BOSSES.flatMap((b) => b.skills.map((s) => s.fx))],
     instanceTags: [
       ...new Set([
         ...Object.values(MATERIALS).flatMap((m) => [`material:${m.id}`, ...m.tags]),

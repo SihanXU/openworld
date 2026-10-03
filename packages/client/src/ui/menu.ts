@@ -6,6 +6,10 @@
 import type { Frame, ItemInfo, Key, Rule } from '@lsw/engine'
 import { FORM_BY_ID, OBJECTIVES, RECIPES } from '@lsw/content'
 import type { LibraryView } from '../protocol.ts'
+import { SkillTree } from './skilltree.ts'
+import { WorldMap } from './worldmap.ts'
+import { ProfessionPanel } from './profession.ts'
+import { QuestLog } from './questlog.ts'
 import { $, SLOT_KEYS, controlsTable, esc, locale, t, tx } from './common.ts'
 
 export type Tab = 'inventory' | 'craft' | 'options'
@@ -20,6 +24,13 @@ export interface MenuSend {
   drop(slot: number, all: boolean): void
   organize(): void
   craft(id: string): void
+  /** The skill tree: spend skill points on a skill. */
+  learn(id: string): void
+  /** The world map asks for the atlas, and travels to a waypoint stone. */
+  atlas(): void
+  travel(waypoint: string): void
+  /** Take up (or change to) a profession at a trainer. */
+  profession(id: string): void
   transfer(from: 'chest' | 'bag', item: string, all: boolean): void
   closePanel(): void
   save(): void
@@ -40,6 +51,13 @@ export class Menu {
   registerTip?: (key: string, info: ItemInfo) => void
   facesetOf?: (id: string) => HTMLCanvasElement | undefined
   private frame?: Frame
+  private skills: SkillTree
+  /** The world map (M), main.ts hands it the atlas. */
+  worldmap: WorldMap
+  /** The trainer's choice of profession (opened by talking to a trainer). */
+  profession: ProfessionPanel
+  /** The quest log (L). */
+  quests: QuestLog
   /** The inventory slot picked up by a click (placed by the next click). */
   private picked?: number
 
@@ -48,8 +66,18 @@ export class Menu {
       'beforeend',
       `<div id="menu" class="overlay hidden"><div class="sheet wood" id="menuSheet"></div></div>
        <div id="journal" class="overlay hidden"><div class="sheet paper" id="journalSheet"></div></div>
-       <div id="chest" class="overlay hidden"><div class="sheet wood" id="chestSheet"></div></div>`,
+       <div id="chest" class="overlay hidden"><div class="sheet wood" id="chestSheet"></div></div>
+       <div id="skills" class="sk-page hidden"></div>
+       <div id="worldmap" class="sk-page wm-page hidden"></div>
+       <div id="profession" class="overlay hidden"></div>
+       <div id="questlog" class="overlay hidden"></div>`,
     )
+    this.skills = new SkillTree($('#skills'), (id) => this.send.learn(id), () => this.close())
+    this.quests = new QuestLog($('#questlog'), () => this.close())
+    $('#questlog').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
+    this.profession = new ProfessionPanel($('#profession'), (id) => this.send.profession(id), () => this.close())
+    $('#profession').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
+    this.worldmap = new WorldMap($('#worldmap'), { atlas: () => this.send.atlas(), travel: (id) => (this.send.travel(id), this.close()), close: () => this.close() })
     // a click on the backdrop closes (or, holding a stack, drops it)
     for (const id of ['menu', 'journal', 'chest'])
       $(`#${id}`).addEventListener('mousedown', (e) => {
@@ -68,13 +96,18 @@ export class Menu {
   get chestOpen(): boolean {
     return !$('#chest').classList.contains('hidden')
   }
+  get skillsOpen(): boolean {
+    return !$('#skills').classList.contains('hidden')
+  }
   get anyOpen(): boolean {
-    return this.menuOpen || this.journalOpen || this.chestOpen
+    return this.menuOpen || this.journalOpen || this.chestOpen || this.skillsOpen || this.worldmap.open || this.profession.open || this.quests.open
   }
 
   open(tab?: Tab): void {
     if (tab) this.tab = tab
     $('#journal').classList.add('hidden')
+    $('#skills').classList.add('hidden')
+    $('#worldmap').classList.add('hidden')
     $('#menu').classList.remove('hidden')
     this.picked = undefined
     this.render()
@@ -85,15 +118,31 @@ export class Menu {
     else this.open(tab)
   }
 
+  /** The skill tree (K, or its button bottom right). */
+  /** The world map (M, or a click on the minimap). */
+  toggleMap(): void {
+    if (this.worldmap.open) return this.close()
+    this.close()
+    this.worldmap.show()
+  }
+
+  toggleSkills(): void {
+    if (this.skillsOpen) return this.close()
+    this.close()
+    $('#skills').classList.remove('hidden')
+    this.skills.open(this.frame)
+  }
+
   openJournal(): void {
     $('#menu').classList.add('hidden')
+    $('#skills').classList.add('hidden')
     $('#journal').classList.toggle('hidden')
     if (this.journalOpen) this.renderJournal()
   }
 
   close(): void {
     if (this.chestOpen) this.send.closePanel()
-    for (const id of ['#menu', '#journal', '#chest']) $(id).classList.add('hidden')
+    for (const id of ['#menu', '#journal', '#chest', '#skills', '#worldmap', '#profession', '#questlog']) $(id).classList.add('hidden')
     this.picked = undefined
   }
 
@@ -105,7 +154,26 @@ export class Menu {
     if (this.chestOpen) this.renderChest(f)
     if (this.menuOpen && (this.tab === 'inventory' || this.tab === 'craft')) this.renderLive()
     if (this.journalOpen && this.library && this.library.version !== this.journalLib) this.renderJournal()
+    if (this.skillsOpen) this.skills.render(f)
+    if (this.profession.open) this.profession.render(f)
+    if (this.quests.open) this.quests.render(f)
   }
+
+  /** The quest log (L, or its button). */
+  toggleQuests(): void {
+    if (this.quests.open) return this.close()
+    this.close()
+    this.quests.show(this.frame)
+  }
+
+  /** A trainer opened the choice of profession. */
+  openProfession(): void {
+    this.close()
+    this.profession.show(this.frame)
+  }
+
+  // ---------------------------------------------------------------- the skill tree
+
 
   // ---------------------------------------------------------------- the menu
 
@@ -258,7 +326,7 @@ export class Menu {
     return `<div class="options">
       <div class="opt"><span>${t('language')}</span><button id="oLang">${locale.value === 'zh' ? '中文 → English' : 'English → 中文'}</button></div>
       <div class="opt"><span>${t('sound')}</span><button id="oSound">${this.muted ? t('off') : t('on')}</button></div>
-      <div class="opt"><button id="oSave">${t('save')}</button><button id="oNew">${t('newGame')}</button>${import.meta.env.DEV ? `<button id="oDev">${t('devConsole')}</button>` : ''}</div>
+      <div class="opt"><button id="oSave">${t('save')}</button><button id="oNew">${t('toTitle')}</button>${import.meta.env.DEV ? `<button id="oDev">${t('devConsole')}</button>` : ''}</div>
       <h4>${t('controls')}</h4>${controlsTable(import.meta.env.DEV)}
     </div>`
   }
@@ -267,7 +335,8 @@ export class Menu {
     $('#oLang').onclick = () => (this.send.toggleLocale(), this.render())
     $('#oSound').onclick = () => (this.send.toggleSound(), (this.muted = !this.muted), this.render())
     $('#oSave').onclick = () => this.send.save()
-    $('#oNew').onclick = () => confirm(t('confirmNew')) && (this.close(), this.send.newGame())
+    // back to the cover (saved first): new games and other slots start there
+    $('#oNew').onclick = () => (this.close(), this.send.newGame())
     document.querySelector<HTMLButtonElement>('#oDev')?.addEventListener('click', () => (this.close(), this.send.devConsole?.()))
   }
 

@@ -202,6 +202,8 @@ export interface LibraryData {
  */
 export class RuleLibrary {
   private byKind = new Map<string, Rule[]>()
+  /** Safe defaults (`Rule.default`), kept apart: they never match, only the fallback runs them. */
+  private defaultsByKind = new Map<string, Rule[]>()
   private specs = new Map<string, Spec>()
   readonly rules = new Map<string, Rule>()
   /** Types and statuses introduced by patches (base ontology lives in content). */
@@ -223,7 +225,8 @@ export class RuleLibrary {
   private rebuildKind(kind: string): void {
     const list = [...this.rules.values()].filter((r) => r.on === kind)
     list.sort((a, b) => compareSpec(this.specs.get(b.id)!, this.specs.get(a.id)!))
-    this.byKind.set(kind, list)
+    this.byKind.set(kind, list.filter((r) => !r.default))
+    this.defaultsByKind.set(kind, list.filter((r) => r.default))
   }
 
   spec(id: string): Spec | undefined {
@@ -263,10 +266,14 @@ export class RuleLibrary {
     return this.byKind.get(kind) ?? []
   }
 
-  /** Every rule whose pattern (and guard) matches, most specific first. */
-  match(ev: GameEvent, roles: Roles, world: World): Rule[] {
+  /**
+   * Every rule whose pattern (and guard) matches, most specific first. With `defaults`, the
+   * safe defaults that match follow them (the fallback's view of the library).
+   */
+  match(ev: GameEvent, roles: Roles, world: World, defaults = false): Rule[] {
     const out: Rule[] = []
-    for (const r of this.forKind(ev.kind)) {
+    const pool = defaults ? [...this.forKind(ev.kind), ...(this.defaultsByKind.get(ev.kind) ?? [])] : this.forKind(ev.kind)
+    for (const r of pool) {
       if (!matchPattern(r, ev, roles)) continue
       if (!evalCond(r.guard, roles, world)) continue
       out.push(r)

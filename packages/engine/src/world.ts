@@ -74,10 +74,12 @@ export class World {
 
   private indexAdd(e: Entity): void {
     if (e.place.on !== 'tile') return
-    const k = tileKey(e.place.map, e.place.x, e.place.y)
-    let s = this.onTile.get(k)
-    if (!s) this.onTile.set(k, (s = new Set()))
-    s.add(e.id)
+    for (const [x, y] of this.occupiedCells(e)) {
+      const k = tileKey(e.place.map, x, y)
+      let s = this.onTile.get(k)
+      if (!s) this.onTile.set(k, (s = new Set()))
+      s.add(e.id)
+    }
     let m = this.onMap.get(e.place.map)
     if (!m) this.onMap.set(e.place.map, (m = new Set()))
     m.add(e.id)
@@ -85,8 +87,21 @@ export class World {
 
   private indexRemove(e: Entity): void {
     if (e.place.on !== 'tile') return
-    this.onTile.get(tileKey(e.place.map, e.place.x, e.place.y))?.delete(e.id)
+    for (const [x, y] of this.occupiedCells(e)) this.onTile.get(tileKey(e.place.map, x, y))?.delete(e.id)
     this.onMap.get(e.place.map)?.delete(e.id)
+  }
+
+  /** Actors occupy every base cell; fixtures retain their existing anchor/solidAt queries. */
+  occupiedCells(e: Entity, x = e.place.on === 'tile' ? e.place.x : 0, y = e.place.on === 'tile' ? e.place.y : 0): [number, number][] {
+    const [width, depth] = this.kindOf(e) === 'actor' ? this.onto.resolve(e.type).footprint : [1, 1]
+    const cells: [number, number][] = []
+    for (let dy = 0; dy < depth; dy++) for (let dx = 0; dx < width; dx++) cells.push([x - Math.floor((width - 1) / 2) + dx, y - dy])
+    return cells
+  }
+
+  /** Moving a large actor validates its whole body, not just its anchor. */
+  fits(e: Entity, map: string, x: number, y: number): boolean {
+    return this.occupiedCells(e, x, y).every(([cx, cy]) => this.walkable(map, cx, cy, e.id, !!e.npc))
   }
 
   // ---------------------------------------------------------------- basics
@@ -132,8 +147,8 @@ export class World {
     return this.onto.resolve(e.type).kind as EntityKind
   }
 
-  actorAt(map: string, x: number, y: number): Entity | undefined {
-    return this.entitiesAt(map, x, y).find((e) => this.kindOf(e) === 'actor')
+  actorAt(map: string, x: number, y: number, ignore?: Id): Entity | undefined {
+    return this.entitiesAt(map, x, y).find((e) => e.id !== ignore && this.kindOf(e) === 'actor' && !this.hasTag(e, 'airborne'))
   }
 
   /** Map position of an entity, following holders (an item in a hand is where the hand is). */
@@ -238,6 +253,8 @@ export class World {
     for (const e of this.entitiesAt(map, x, y)) {
       if (e.id === ignore || this.kindOf(e) !== 'actor') continue
       if (ghostNpcs && e.npc) continue
+      // a bird over the path is no wall
+      if (this.hasTag(e, 'airborne')) continue
       return false
     }
     return true
@@ -337,6 +354,12 @@ export class World {
     e.place = to
     if (to.on === 'tile') this.indexAdd(e)
     else this.attach(e)
+  }
+
+  transform(e: Entity, type: string): void {
+    this.indexRemove(e)
+    e.type = type
+    this.indexAdd(e)
   }
 
   destroy(e: Entity): void {

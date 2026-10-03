@@ -51,6 +51,10 @@ export interface ActorDef {
   /** Columns = directions down, up, left, right; rows = frames. Character sheets: rows 0-3 walk, 4 attack, 5 jump?, 6 special — document what you find. */
   cols: number
   rows: number
+  /** Nonstandard action atlases may keep transparent space below their feet. */
+  anchorY?: number
+  /** World-space scale of the original pixel atlas, independent of camera zoom. */
+  scale?: number
   /** Optional tint (0xRRGGBB) to recolour a monster for an element variant. */
   tint?: number
 }

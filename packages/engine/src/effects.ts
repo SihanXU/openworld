@@ -3,7 +3,7 @@
 
 import type { Engine } from './engine.ts'
 import { matchSelector } from './rules.ts'
-import type { Amount, Effect, Entity, GameEvent, Place, Pos, Ref, RoleRef, Rule, Text } from './types.ts'
+import type { AiData, Amount, Effect, Entity, GameEvent, Place, Pos, Ref, RoleRef, Rule, Text } from './types.ts'
 import { NO_EXPIRY } from './world.ts'
 import { GIVEN_LINE, chooseLine, raiseTopic } from './people.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
@@ -11,7 +11,7 @@ import { gainXp } from './progression.ts'
 import { setHunger } from './hunger.ts'
 
 export const PRIMITIVES: Record<Effect['op'], string> = {
-  spawn: 'spawn {type, at, into?: tile|contents|hand, count?: number | {prop, of}, still?} — create new entities; type may be "@prop:<role>.<key>" (a crop\'s yieldType), count may read a prop (the planks in a frame); items on the ground pop out for the player\'s magnet unless still (then they are taken with F)',
+  spawn: 'spawn {type, at, into?: tile|contents|hand, count?: number | {prop, of}, still?} — create new entities; type may be "@prop:<role>.<key>" (a crop\'s yieldType), count may read a prop (the planks in a frame); items on the ground pop out for the player\'s magnet unless still (then they are taken with F); a creature gets its type\'s behaviour (props behaviour, temper, sight)',
   destroy: 'destroy {of} — remove an entity (and everything it holds)',
   transform: 'transform {of, into} — change an entity\'s type in place',
   moveTo: 'moveTo {of, to, into?: tile|contents|hand} — move an entity to a role\'s tile / contents / hand',
@@ -21,7 +21,7 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   addProp: 'addProp {of, key, delta, min?, max?}',
   addTag: 'addTag {of, tag}',
   removeTag: 'removeTag {of, tag}',
-  damage: 'damage {of, amount, element?, mul?, pierce?} — reduce hp (defense applies unless pierce)',
+  damage: 'damage {of, amount, element?, mul?, pierce?} — reduce hp (defense applies unless pierce); element defaults to the event\'s (a fire blow does fire harm)',
   heal: 'heal {of, amount}',
   feed: 'feed {of, amount} — an actor that grows hungry (has maxHunger) is fed: hunger rises by amount, up to maxHunger',
   gainXp: 'gainXp {of, amount} — an actor gains experience; enough raises its level (props xp, level, skillPoints)',
@@ -39,6 +39,8 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   topic: 'topic {id, days?} — something happened that people will talk about while it is fresh (default 4 days)',
   give: 'give {to, item} — a person receives an item into their pack and says their line for it ("given:<type>" / "given")',
   emote: 'emote {who, mood: neutral|happy|sad|angry|surprised|shy} — an emote bubble over a person or creature',
+  quest: 'quest {} — the actor (the player) speaks to the target about quests: what is ready is handed in, what is offered is taken on, a talk goal is met; otherwise the target says its line',
+  panel: "panel {panel} — open one of the player's panels when the player is the actor: 'profession' (a trainer's choice of profession)",
   goto: 'goto {who, anchor, hours, activity?} — a person leaves their schedule for a named anchor of the map for some hours',
   layLine: 'layLine {from, away, terrain, length, over?: tags} — lay terrain in a line from the tile beyond "from", in the direction from "away" to "from" (a felled tree falls away from the axe), for "length" tiles while the ground has all "over" tags',
   scene: 'scene {id} — play a scripted scene',
@@ -75,6 +77,10 @@ export class EffectRunner {
   }
 
   private text(ev: GameEvent, who: Entity | undefined, t: Text): Text {
+    // a companion repeats the latest beat's line (companion.ts)
+    if (t === '@hint') return this.eng.companions.hint() ?? { en: '…', zh: '……' }
+    // what the story asks for now (the companion's guide)
+    if (t === '@objective') return this.eng.companions.objective() ?? { en: 'Nothing presses now. Go where you like!', zh: '现在没什么急事。想去哪就去哪吧！' }
     if (t === '@line') {
       const lines = who?.npc?.lines
       if (lines?.length) return lines[Math.floor(this.eng.world.rand() * lines.length)]
@@ -134,9 +140,21 @@ export class EffectRunner {
         const into = eff.into ?? 'tile'
         const n = eff.count === undefined ? 1 : Math.max(0, Math.floor(this.amount(ev, eff.count)))
         for (let i = 0; i < n; i++) {
-          const place = this.placeFor(at, into)
+          let place = this.placeFor(at, into)
           if (!place) continue
           const made = w.create(type, place)
+          // an actor never appears on top of another, or in a wall: it takes the nearest free tile
+          if (place.on === 'tile' && w.kindOf(made) === 'actor' && !w.walkable(place.map, place.x, place.y, made.id)) {
+            const free = eng.nearestFree({ map: place.map, x: place.x, y: place.y })
+            if (free) w.place(made, (place = { on: 'tile', map: free.map, x: free.x, y: free.y }))
+          }
+          // a creature a rule brings (a dragon's whelps) comes with the behaviour its type names, at home where it appears
+          if (place.on === 'tile' && w.kindOf(made) === 'actor' && w.hasTag(made, 'creature') && !made.ai) {
+            const behaviour = (w.prop(made, 'behaviour') as AiData['behaviour'] | undefined) ?? 'melee'
+            const temper = (w.prop(made, 'temper') as AiData['temper'] | undefined) ?? 'aggressive'
+            made.facing = 'down'
+            made.ai = { behaviour, temper, sight: w.num(made, 'sight', 6), home: { map: place.map, x: place.x, y: place.y } }
+          }
           // an item a rule drops on the ground pops out for the player's magnet (unless it lies still: taken with F)
           if (place.on === 'tile' && w.kindOf(made) === 'item' && !eff.still) made.dropped = true
         }
@@ -154,7 +172,7 @@ export class EffectRunner {
         // `@prop:key` reads the target type from the entity's own prop (e.g. emptyType)
         const into = eff.into.startsWith('@prop:') ? String(w.prop(e, eff.into.slice(6)) ?? '') : eff.into
         if (!into || !w.onto.hasType(into)) return
-        e.type = into
+        w.transform(e, into)
         delete e.name
         return
       }
@@ -200,7 +218,8 @@ export class EffectRunner {
       }
       case 'damage': {
         const e = this.entity(ev, eff.of)
-        if (e) eng.damage(e, this.amount(ev, eff.amount) * (eff.mul ?? 1), eff.element, eff.pierce, ev.roles.actor)
+        // a blow's harm is of its element unless the rule says otherwise (a fire blow is fire harm: fireproof quarters it)
+        if (e) eng.damage(e, this.amount(ev, eff.amount) * (eff.mul ?? 1), eff.element ?? ev.element, eff.pierce, ev.roles.actor)
         return
       }
       case 'heal': {
@@ -215,7 +234,9 @@ export class EffectRunner {
         const e = this.entity(ev, eff.of)
         const max = e ? w.num(e, 'maxHunger') : 0
         if (!e || max <= 0) return
-        setHunger(e, w.num(e, 'hunger', max) + this.amount(ev, eff.amount), max)
+        // Hearty Meals (the skill): food fills half as much again
+        const fill = this.amount(ev, eff.amount) * (w.hasTag(e, 'skill:hearty-meals') ? 1.5 : 1)
+        setHunger(e, w.num(e, 'hunger', max) + fill, max)
         return
       }
       case 'gainXp': {
@@ -359,6 +380,19 @@ export class EffectRunner {
         if (!to.npc) return
         const line = to.npc.person?.lines?.length ? chooseLine(eng, to, { given: item }) : undefined
         w.fx.push({ t: 'say', who: to.id, text: line?.text ?? GIVEN_LINE, mood: line?.mood })
+        return
+      }
+      case 'quest': {
+        const t = ev.roles.target
+        const a = ev.roles.actor
+        const player = !!t && 'e' in t && !!a && 'e' in a && a.e === w.state.player
+        if (!player || !this.eng.quests.talk((t as { e: string }).e)) this.apply({ op: 'say', who: 'target', text: '@line' }, ev)
+        return
+      }
+      case 'panel': {
+        // only for the player: a panel is the player's
+        const a = ev.roles.actor
+        if (a && 'e' in a && a.e === w.state.player) w.fx.push({ t: 'panel', panel: eff.panel, by: ev.roles.target && 'e' in ev.roles.target ? ev.roles.target.e : undefined })
         return
       }
       case 'emote': {

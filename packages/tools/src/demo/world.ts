@@ -9,10 +9,16 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { tickAt, type AiData, type Entity, type Forage, type MapMeta, type Pos, type SceneDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
-import { INVARIANTS, PROTECTED_FACTS, type RawChunk } from '@lsw/content'
+import { tickAt, type AiData, type Entity, type MapMeta, type Pos, type SceneDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
+import { BOSSES, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, type RawChunk } from '@lsw/content'
 import { CATALOG } from '../../../client/src/assets/catalog.ts'
 import { MapBuilder, linkEdge, reseed, rng } from './builder.ts'
+import { MATERIALS_FORAGE, clump, lay } from './kit.ts'
+import { plantGarden } from './garden.ts'
+import { EAST_ROAD, EMBERFALL, LAIR, MINE, PASS, buildEastRoad, buildEmberfall, buildLair, buildMine, buildPass } from './quest/maps.ts'
+import { QUEST_SCENES } from './quest/scenes.ts'
+import { PAT, PROLOGUE, buildFoot, buildSlope, buildSummit } from './prologue.ts'
+import { BARROW, HOLLOW, buildBarrow, buildHollow } from './hollow.ts'
 import type { PersonDef, Slot } from './person.ts'
 import { PEOPLE } from './people.ts'
 
@@ -24,13 +30,16 @@ const SOLID = new Set(['water', 'deepwater', 'tree', 'pine', 'bush', 'rock', 'wa
 
 /**
  * The river, row by row: its near (west) edge and far (east) edge. It comes down from the north
- * between the woods and the far bank, narrows to three tiles where the dead tree stands, widens
+ * between the woods and the far bank, narrows where the dead tree stands, widens
  * into a still pool at the landing (where a ferry makes sense), and bends away to the south.
  */
 const NEAR = [27, 27, 27, 27, 27, 27, 28, 28, 28, 29, 29, 29, 28, 27, 26, 26, 26, 26, 26, 26, 27, 27, 28, 28, 28, 28, 28, 28, 28, 28]
-const FAR = [31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32]
+const FAR = [31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32].map((x) => x + 3)
 /** Everything east of this column is the far bank (the goal region); the river never reaches it on the near side. */
-export const FAR_BANK = 32
+export const FAR_BANK = 36
+
+/** The footbridge south of the landing: its two ends stand, the storm tore out the middle span (main-quest chapter 1). */
+export const FOOTBRIDGE = { y: 22, ends: [30, 34], gap: [31, 32, 33], piers: [28, 29, 30, 34, 35] } as const
 
 /** Where things are, and where a person stands to use them (the completeness test reads these). */
 export const AT = {
@@ -39,7 +48,7 @@ export const AT = {
   /** the tent: three by three, standing on this, its front middle */
   tent: [10, 14],
   chest: [12, 14],
-  cart: [20, 14],
+  cart: FIRSTLIGHT.cart,
   haystack: [9, 10],
   axe: [7, 16],
   torch: [15, 17],
@@ -50,7 +59,7 @@ export const AT = {
   burrow: [5, 4],
   fireSlime: [5, 6],
   frostSlime: [25, 4],
-  farLanding: [33, 16],
+  farLanding: [37, 16],
 } as const satisfies Record<string, readonly [number, number]>
 
 /** Tiles to stand on for each use (each is open ground, next to what it is for). */
@@ -68,9 +77,9 @@ export const STAND = {
   /** south of the chest */
   chest: [12, 15],
   /** south of Tobin's place by the cart */
-  tobin: [20, 16],
+  tobin: FIRSTLIGHT.tobinStand,
   /** east of the cart, facing its pile */
-  cart: [21, 14],
+  cart: FIRSTLIGHT.cartStand,
   /** the road west of the camp: open ground with open ground east of it */
   road: [6, 19],
   /** the dry meadow */
@@ -82,7 +91,7 @@ export const STAND = {
 } as const satisfies Record<string, readonly [number, number]>
 
 function buildMap(): MapBuilder {
-  const m = new MapBuilder('ford', L('The Ford', '渡口'), 'wild', 40, 30, 'grass', 'Village', 'outdoor', 'frostfang')
+  const m = new MapBuilder('ford', L('The Ford', '渡口'), 'wild', 48, 30, 'grass', 'Village', 'outdoor', 'frostfang')
   const grass = (t: string) => t === 'grass'
   // ------------------------------------------------------------ the river: a pool at the landing, narrows at the dead tree
   for (let y = 0; y < m.h; y++) for (let x = NEAR[y]; x <= FAR[y]; x++) m.set(x, y, 'water')
@@ -93,8 +102,11 @@ function buildMap(): MapBuilder {
   m.set(28, 9, 'rock')
   m.set(28, 11, 'rock')
   // ------------------------------------------------------------ the north: a mossy cliff, and the hollow at its foot
-  for (let x = 0; x <= 22; x++) m.scenery(x === 22 ? 'cliff_r' : 'cliff_m', x, 0)
-  for (let x = 0; x <= 22; x++) for (let y = 0; y < 3; y++) m.set(x, y, 'cave_wall')
+  // the stair down the cliff from the mountain (docs/prologue.md): a gap in it, a trail to the camp
+  const stair = PROLOGUE.fordNorth as readonly number[]
+  const [s0, s1] = [stair[0], stair[stair.length - 1]]
+  for (let x = 0; x <= 22; x++) if (!stair.includes(x)) m.scenery(x === 22 || x === s0 - 1 ? 'cliff_r' : x === s1 + 1 ? 'cliff_l' : 'cliff_m', x, 0)
+  for (let x = 0; x <= 22; x++) for (let y = 0; y < 3; y++) m.set(x, y, stair.includes(x) ? 'path' : 'cave_wall')
   // the woods close the north-east corner between the cliff and the river
   clump(m, 24.5, 1.5, 2.6, 0.85)
   // the hollow: a rock mound with a cave mouth, bare trodden earth before it, bones and stones
@@ -109,9 +121,9 @@ function buildMap(): MapBuilder {
   for (const [cx, cy, r, p] of [[2.5, 7, 2.4, 0.7], [3, 13, 2, 0.55], [8.5, 26, 3, 0.75], [3, 25, 3, 0.8], [14, 28.5, 2.2, 0.8], [21, 29, 2, 0.75], [26, 28, 1.4, 0.6], [17.5, 4, 1.4, 0.5]] as const) clump(m, cx, cy, r, p)
   for (let x = 0; x < 27; x++) for (let y = 28; y < m.h; y++) if (grass(m.get(x, y))) m.set(x, y, rng.chance(0.2) ? 'pine' : 'tree')
   // the far bank: trees frame the road east, which leaves the map into the unwritten
-  clump(m, 37, 4, 3.2, 0.8)
-  clump(m, 37.5, 24.5, 3.5, 0.8)
-  clump(m, 35.5, 9.5, 1.3, 0.5)
+  clump(m, 44, 4, 3.2, 0.8)
+  clump(m, 44.5, 24.5, 3.5, 0.8)
+  clump(m, 41.5, 9.5, 1.3, 0.5)
   // ------------------------------------------------------------ the dry meadow (fire runs here)
   m.organic(11, 7.8, 5.6, 2.4, 'drygrass', { only: grass, rough: 0.3 })
   // ------------------------------------------------------------ the marsh (lightning runs here): small ponds among reeds
@@ -122,9 +134,9 @@ function buildMap(): MapBuilder {
   m.path([[0, 19], [5, 19], [9, 19], [12, 20], [16, 20], [19, 18], [22, 16], [25, 16]], 'path', 2, { edge: 'dirt', edgeP: 0.18 })
   m.path([[14, 14], [13, 11], [10, 8], [7, 6]], 'path', 1)
   m.path([[22, 15], [24, 12], [27, 10]], 'path', 1)
-  m.path([[FAR_BANK + 1, 16], [35, 15], [37, 13], [39, 13]], 'path', 1)
+  m.path([[FAR_BANK + 1, 16], [40, 15], [44, 13], [m.w - 1, 13]], 'path', 1)
   // the landing and the far one: a short pier out into the pool on each side, the gap the ferry crossed
-  for (const [x, y] of [[26, 16], [27, 16], [31, 16], [32, 16]] as const) m.set(x, y, 'bridge')
+  for (const [x, y] of [[26, 16], [27, 16], [34, 16], [35, 16]] as const) m.set(x, y, 'bridge')
   // ------------------------------------------------------------ the camp
   // the tent is a thing, not a stamp: three by three, in the way while it stands
   m.fixture('fixture/tent', ...AT.tent, { id: 'ford.tent' })
@@ -146,12 +158,8 @@ function buildMap(): MapBuilder {
   for (const [x, y] of [[20, 5], [21, 4], [17, 9]] as const) m.fixture('fixture/nature/boulder', x, y)
   clump(m, 22, 8, 1.2, 0.7)
   // where the road east leaves the far bank, a signpost to nowhere yet
-  m.fixture('fixture/sign', 35, 14, { props: { text: '→ ?' } })
+  m.fixture('fixture/sign', 40, 14, { props: { text: '→ Emberfall' } })
   m.fixture('fixture/nature/haystack', ...AT.haystack)
-  // the peddler's cart by the road, his wares on it, his mat beside it
-  m.fixture('fixture/furniture/cart', ...AT.cart, { id: 'ford.cart', props: { owner: 'npc.tobin' } })
-  m.item({ form: 'item/weapon/magic/wand', material: 'wood', element: 'ice', name: L('Frost Wand', '寒霜魔杖'), props: { owner: 'npc.tobin' } }, ...AT.cart)
-  m.item({ form: 'item/vessel/flask/oil', props: { owner: 'npc.tobin' } }, ...AT.cart)
   // the landing: the post the ferry line ran from, the boat on the water, a bucket, a coil of old line
   m.fixture('fixture/ferry/winch', ...AT.winch, { id: 'ford.winch', statuses: { broken: -1 } })
   m.fixture('fixture/ferry/raft', ...AT.raft, { id: 'ford.raft' })
@@ -167,8 +175,6 @@ function buildMap(): MapBuilder {
   m.anchor('camp.bed', 12, 16)
   m.anchor('tent.mouth', 10, 15)
   m.anchor('tent.side', 12, 15)
-  m.anchor('cart', 20, 15)
-  m.anchor('cart.bed', 21, 14)
   m.anchor('landing.winch', 24, 15)
   m.anchor('landing.nets', 25, 18)
   m.anchor('landing.edge', 25, 13)
@@ -196,29 +202,23 @@ function buildMap(): MapBuilder {
   lay(m, 'item/material/stone', 3, [16, 5, 6, 6])
   lay(m, 'item/material/grass', 3, [9, 5, 6, 5])
   m.forage = [...MATERIALS_FORAGE]
+  // ------------------------------------------------------------ the footbridge (chapter 1): a trail down from the landing to it, its ends standing, three planks gone
+  m.path([[25, 18], [25, 20], [26, 20], [26, 22], [27, 22]], 'path', 1)
+  for (const x of FOOTBRIDGE.piers) m.set(x, FOOTBRIDGE.y, 'bridge')
+  // the trail from the cliff stair to the camp (docs/prologue.md): drawn last, so every draw above stays as it was
+  m.path([[17, 2], [17, 5], [15, 8], [13, 11]], 'path', 1)
   return m
 }
 
-/** Sticks, stones and grass: every outdoor map's ground yields them, up to a handful of each. */
-const MATERIALS_FORAGE: Forage[] = [
-  { type: 'item/material/stick', on: ['grass'], max: 6 },
-  { type: 'item/material/stone', on: ['grass'], max: 5 },
-  { type: 'item/material/grass', on: ['grass', 'drygrass'], max: 6 },
-]
 
-/** Lay up to n of an item on open grass in a rect, spread on a fixed pattern (no randomness: the map's other draws stay as they were). */
-function lay(m: MapBuilder, type: string, n: number, [x0, y0, w, h]: [number, number, number, number]): void {
-  for (let y = y0, k = 0; y < y0 + h && k < n; y++)
-    for (let x = x0; x < x0 + w && k < n; x++) if ((x * 7 + y * 3) % 5 === 0 && ['grass', 'drygrass'].includes(m.get(x, y)) && m.free(x, y)) (m.item(type, x, y), k++)
-}
 
-// =================================================================== the meadow, west of the Ford
+// =================================================================== Firstlight Village, west of the Ford (stable id: meadow)
 
 /** The road's gap in the Ford's western woods, and the meadow's eastern one it leads to. */
 export const WEST_GAP = [18, 19, 20]
 /** The gap in the meadow's southern woods (columns), and the forest's northern one below it. */
 export const SOUTH_GAP = [22, 23, 24]
-/** Where the meadow's animals start (the completeness test reads these). */
+/** Where the grassland's animals start (the completeness test reads these). */
 export const MEADOW = {
   cows: [[12, 10], [18, 14], [9, 20]],
   hens: [[24, 9], [26, 12], [22, 21], [28, 19]],
@@ -226,9 +226,9 @@ export const MEADOW = {
 /** A passive animal: it wanders near where it lives, and runs from whoever strikes it. */
 const GRAZER: Omit<AiData, 'home'> = { behaviour: 'passive', temper: 'wary', sight: 4, leash: 6 }
 
-/** Open grassland in a ring of woods (Minecraft's plains): cows and chickens, and more of them in time. */
+/** A starting village in a ring of woods, with homes, a shared square, pasture and a garden. */
 function buildMeadow(): MapBuilder {
-  const m = new MapBuilder('meadow', L('The Meadow', '草原'), 'wild', 40, 30, 'grass', 'Village', 'outdoor', 'frostfang')
+  const m = new MapBuilder(FIRSTLIGHT.map, FIRSTLIGHT.name, 'village', 40, 30, 'grass', 'Village', 'outdoor', 'frostfang')
   const open = (y: number) => WEST_GAP.includes(y)
   // the woods all round, two to four deep, the east side open where the road comes in
   for (let y = 0; y < m.h; y++)
@@ -239,10 +239,48 @@ function buildMeadow(): MapBuilder {
       if (edge < 2 || (edge < 4 && rng.chance(0.45 - edge * 0.1))) m.set(x, y, rng.chance(0.25) ? 'pine' : 'tree')
     }
   for (const [cx, cy, r, p] of [[4, 4, 3, 0.7], [35, 4, 2.6, 0.7], [4, 26, 3, 0.75], [33, 26, 2.4, 0.7], [20, 2.5, 2, 0.6], [2.5, 15, 2, 0.6]] as const) clump(m, cx, cy, r, p)
-  // the road in from the Ford fades into the grass
-  m.path([[39, 19], [34, 19], [30, 18]], 'path', 2, { edge: 'dirt', edgeP: 0.3 })
+  // The east gate leads to a village square, then homes and the forest trail.
+  m.path([[39, 19], [34, 19], [29, 17], [23, 16], [18, 17], [11, 16]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
   // and a trail south, into the forest
-  m.path([[27, 21], [23, 25], [23, 29]], 'path', 1, { edge: 'dirt', edgeP: 0.2 })
+  m.path([[23, 17], [24, 20], [23, 25], [23, 29]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
+  m.organic(21, 16, 4.6, 3, 'cobble', { only: (t) => t === 'grass' || t === 'path' })
+  // Four modest homes, paths to each door, a communal well and an evening fire.
+  for (const [key, x, y] of [['house_plaster', 8, 5], ['house_wood', 19, 5], ['house_thatch', 28, 5], ['house_red', 7, 13]] as const) m.scenery(key, x, y)
+  m.path([[9, 8], [12, 11], [18, 16]], 'path', 1)
+  m.path([[20, 8], [20, 11], [20, 13]], 'path', 1)
+  m.path([[29, 8], [28, 11], [26, 15]], 'path', 1)
+  m.path([[8, 16], [12, 17], [17, 17]], 'path', 1)
+  m.fixture('fixture/water/well', ...FIRSTLIGHT.well, { id: 'village.well' })
+  m.fixture('fixture/light/campfire', ...FIRSTLIGHT.fire, { id: 'village.campfire', statuses: { lit: -1 } })
+  m.fixture('fixture/furniture/bench/log', 20, 19, { id: 'village.bench' })
+  m.fixture('fixture/sign/noticeboard', 17, 14, { id: 'village.notice', props: { text: 'FIRSTLIGHT VILLAGE — Every journey begins with a first step. East: The Ford. South: The Forest.' } })
+  for (const [x, y] of [[25, 13], [12, 16]] as const) m.fixture('fixture/light/lamppost', x, y, { id: `village.lamp.${x}`, statuses: { lit: -1 } })
+  // Tobin and his stock move together. Stable IDs keep saved trades and inventories intact.
+  m.fixture('fixture/furniture/cart', ...FIRSTLIGHT.cart, { id: 'ford.cart', props: { owner: 'npc.tobin' } })
+  m.item({ form: 'item/weapon/magic/wand', material: 'wood', element: 'ice', name: L('Frost Wand', '寒霜魔杖'), props: { owner: 'npc.tobin' } }, ...FIRSTLIGHT.cart).id = 'tobin.wand'
+  m.item({ form: 'item/vessel/flask/oil', props: { owner: 'npc.tobin' } }, ...FIRSTLIGHT.cart).id = 'tobin.oil'
+  m.anchor('cart', 30, 16)
+  m.anchor('cart.bed', 31, 16)
+  m.anchor('market.shelter', 29, 9)
+  m.anchor('square.well', 20, 14)
+  m.anchor('square.warm', 23, 17)
+  // the drill yard by the north-east cottage: Bram, the profession trainer (docs/skill-tree.md)
+  m.anchor('drill.yard', 33, 11)
+  m.anchor('drill.bed', 29, 9)
+  // the villagers who give quests (docs/quests.md), and where the rescued foragers live
+  m.anchor('elder.porch', 20, 9)
+  m.anchor('elder.home', 20, 8)
+  m.anchor('cook.fire', 21, 18)
+  m.anchor('cook.home', 9, 9)
+  m.anchor('pond.edge', 19, 21)
+  m.anchor('guard.post', 25, 25)
+  m.anchor('guard.home', 29, 9)
+  m.anchor('wood.pile', 9, 18)
+  m.anchor('wood.home', 8, 16)
+  m.anchor('lina.garden', 13, 18)
+  m.anchor('lina.home', 9, 9)
+  m.anchor('oskar.bench', 17, 19)
+  m.anchor('oskar.home', 29, 9)
   // a pond where the animals drink
   m.organic(16, 22, 2.6, 1.7, 'water', { only: (t) => t === 'grass' })
   // small things: flowers and tufts in the open, leaves under the trees
@@ -250,14 +288,50 @@ function buildMeadow(): MapBuilder {
   m.sprinkle('fixture/nature/flowers', 0.06, (x, y, t) => t === 'grass' && !m.near(x, y, tree, 2))
   m.sprinkle('fixture/nature/tuft', 0.08, (x, y, t) => t === 'grass' && !m.near(x, y, tree, 1))
   m.sprinkle('fixture/nature/leaves', 0.14, (x, y, t) => t === 'grass' && m.near(x, y, tree))
-  // the herd and the hens; hens lay through the day
-  const start = tickAt(1, START_HOUR)
-  for (const [x, y] of MEADOW.cows) m.creature('animal/cow', x, y, { ...GRAZER })
-  MEADOW.hens.forEach(([x, y], i) => (m.creature('animal/chicken', x, y, { ...GRAZER }).statuses = { laying: start + 600 + i * 300 }))
+  // the village keeps no herd: the cows and hens graze the grassland south of it (buildPasture)
   // sticks under the woods, stones and grass in the open, as on the Ford
   lay(m, 'item/material/stick', 3, [5, 5, 8, 6])
   lay(m, 'item/material/stone', 3, [20, 15, 8, 6])
   lay(m, 'item/material/grass', 3, [26, 6, 8, 6])
+  // fireweed in the open grass, for the herbalist of Emberfall (main quest)
+  lay(m, 'item/material/fireweed', 3, [10, 8, 10, 6])
+  m.forage = [...MATERIALS_FORAGE, { type: 'item/material/fireweed', on: ['grass'], max: 3, every: 900 }]
+  plantGarden(m)
+  return m
+}
+
+// =================================================================== the grassland, south of the village
+
+/** The village's southern gap (columns) and the grassland's way on south to the forest: the same columns, top and bottom. */
+export const PASTURE_GAP = SOUTH_GAP
+
+/** Open grassland in a ring of woods (Minecraft's plains): the cows and hens, and more of them in time. */
+function buildPasture(): MapBuilder {
+  const m = new MapBuilder('pasture', L('The Grassland', '草原'), 'wild', 40, 30, 'grass', 'Village', 'outdoor', 'frostfang')
+  const gap = (x: number) => (PASTURE_GAP as readonly number[]).includes(x)
+  // woods round the edge, thinner than the village's, open north (from the village) and south (to the forest)
+  for (let y = 0; y < m.h; y++)
+    for (let x = 0; x < m.w; x++) {
+      if (gap(x) && (y < 4 || y >= m.h - 4)) continue
+      const edge = Math.min(x, y, m.w - 1 - x, m.h - 1 - y)
+      if (edge < 2 || (edge < 3 && rng.chance(0.4))) m.set(x, y, rng.chance(0.3) ? 'pine' : 'tree')
+    }
+  // a few lone trees for shade, a pond the animals drink at
+  for (const [cx, cy, r, p] of [[9, 8, 1.4, 0.6], [31, 21, 1.6, 0.6], [30, 7, 1.2, 0.5]] as const) clump(m, cx, cy, r, p)
+  m.organic(14, 19, 3, 2, 'water', { only: (t) => t === 'grass' })
+  m.path([[23, 0], [22, 8], [24, 15], [22, 22], [23, 29]], 'path', 1, { edge: 'dirt', edgeP: 0.25 })
+  const tree = (t: string) => t === 'tree' || t === 'pine'
+  m.sprinkle('fixture/nature/flowers', 0.08, (x, y, t) => t === 'grass' && !m.near(x, y, tree, 2))
+  m.sprinkle('fixture/nature/tuft', 0.1, (x, y, t) => t === 'grass' && !m.near(x, y, tree, 1))
+  m.sprinkle('fixture/nature/leaves', 0.14, (x, y, t) => t === 'grass' && m.near(x, y, tree))
+  // the herd and the hens; hens lay through the day
+  const start = tickAt(1, START_HOUR)
+  for (const [x, y] of MEADOW.cows) m.creature('animal/cow', x, y, { ...GRAZER })
+  MEADOW.hens.forEach(([x, y], i) => (m.creature('animal/chicken', x, y, { ...GRAZER }).statuses = { laying: start + 600 + i * 300 }))
+  // sticks, stones and grass lie about from the start, as everywhere outdoors
+  lay(m, 'item/material/stick', 3, [4, 4, 10, 8])
+  lay(m, 'item/material/stone', 3, [26, 12, 8, 6])
+  lay(m, 'item/material/grass', 3, [16, 6, 8, 6])
   // Minecraft's passive mobs are slow to come back: a cow every two minutes, a hen every ninety seconds, while there is room
   m.forage = [
     ...MATERIALS_FORAGE,
@@ -297,27 +371,31 @@ function buildForest(): MapBuilder {
   // what falls in a forest: sticks above all
   lay(m, 'item/material/stick', 4, [18, 4, 10, 8])
   lay(m, 'item/material/stone', 2, [10, 10, 8, 6])
+  // frostcap in the shade, for the herbalist of Emberfall (main quest)
+  lay(m, 'item/material/frostcap', 3, [8, 12, 10, 8])
   m.forage = [
+    { type: 'item/material/frostcap', on: ['grass'], max: 3, every: 900 },
     { type: 'item/material/stick', on: ['grass'], max: 10 },
     { type: 'item/material/stone', on: ['grass'], max: 3 },
     { type: 'item/material/grass', on: ['grass'], max: 4 },
   ]
+  // the way on south, to Thornwood Hollow (docs/quests.md): opened last, so every draw above stays as it was
+  for (let y = m.h - 4; y < m.h; y++) for (const x of HOLLOW.forestSouth) m.set(x, y, 'grass')
+  m.path([[12, 23], [13, 26], [13, 29]], 'path', 1)
   return m
 }
 
-/** A clump of trees (some pines, a few bushes) around a point, leaving free what is already built. */
-function clump(m: MapBuilder, cx: number, cy: number, r: number, p = 0.7): void {
-  for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++)
-    for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++)
-      if (Math.hypot(x - cx, y - cy) <= r && m.get(x, y) === 'grass' && m.free(x, y) && rng.chance(p)) m.set(x, y, rng.chance(0.12) ? 'bush' : rng.chance(0.25) ? 'pine' : 'tree')
-}
 
 // =================================================================== people
 
 function slots(p: PersonDef, key: string, list: Slot[], at: (name: string) => Pos): ScheduleEntry[] {
   // a variant covers the whole day
   const covered = new Array(24).fill(false)
-  for (const [from, to] of list) for (let h = from; h !== to; h = (h + 1) % 24) covered[h] = true
+  for (const [from, to] of list) {
+    // a slot that comes round to where it began ([0, 24]) is the whole day
+    if (from % 24 === to % 24) covered.fill(true)
+    else for (let h = from % 24; h !== to % 24; h = (h + 1) % 24) covered[h] = true
+  }
   const gap = covered.indexOf(false)
   if (gap >= 0) throw new Error(`${p.id} schedule ${key} leaves hour ${gap} uncovered`)
   return list.map(([from, to, anchor, activity, needs]) => ({ from, to, ...at(anchor), activity, ...(needs && { uses: needs.uses, need: needs.need }) }))
@@ -352,21 +430,24 @@ const say = (who: string, en: string, zh: string, mood?: 'neutral' | 'happy' | '
 
 const scenes: SceneDef[] = [
   {
-    // The afternoon after the storm: you wake by the ferrykeeper's fire.
+    // The afternoon after the storm: you come down the cliff stair from the mountain (docs/prologue.md).
     id: 'arrival',
     map: 'ford',
     script: [
-      { place: 'npc.hesper', map: 'ford', x: 13, y: 17 },
-      { face: 'npc.hesper', dir: 'right' },
-      { face: 'player', dir: 'left' },
+      { place: 'npc.hesper', map: 'ford', x: 16, y: 5 },
+      { face: 'npc.hesper', dir: 'up' },
+      { face: 'player', dir: 'down' },
       { wait: 10 },
-      say('npc.hesper', 'Awake. Good. You came in with the storm last night, half drowned on the road.', '醒了。好。你昨夜跟着风暴一起来的，在路上差点淹死。'),
-      say('npc.hesper', 'The storm took the ferry rope as well. Nobody crosses until it is mended.', '风暴把渡绳也扯断了。修好之前，谁也过不去。'),
-      say('npc.tobin', 'And nobody eats, either!', '也没人有饭吃！', 'surprised'),
-      say('npc.hesper', 'That is Tobin. He talks.', '那是托宾。他话多。'),
+      say('npc.hesper', 'Someone off the mountain? Nobody has come down that stair since the storm — and the storm was a bad one.', '有人从山上下来了？风暴以后就没人走过那道石阶——那场风暴可真够大的。'),
+      say('npc.hesper', 'The storm took the ferry rope, and the middle of the footbridge down by the marsh with it. Nobody crosses until one of them is mended.', '风暴扯断了渡绳，连沼泽边那座小桥的中间一段也冲走了。修好一样之前，谁也过不去。'),
+      say('npc.hesper', 'Three planks would span the bridge. There is an old axe by the stump; the woods have trees.', '三块木板就能把桥接上。树桩边有把旧斧头，林子里有的是树。'),
+      say('npc.hesper', 'West of here is Firstlight Village. Tobin keeps his cart there now — a meal might buy you something useful.', '西边是初原村。托宾现在把货车停在那里——拿顿饭说不定能换点有用的东西。'),
+      say('npc.hesper', 'A small place. Good soil, a well, and a roof when the weather turns.', '村子不大。有能种东西的地，有井，变天了也有屋檐能躲。'),
+      // before the bridge, the village (docs/quests.md): its rescue opens the bridge chapter (quest 1)
+      say('npc.hesper', 'But the storm hit them harder than us — two of theirs are lost, they say. Rowan, their elder, is asking anyone who can fight. The bridge will keep; go to them first.', '不过风暴对他们的打击比我们还重——听说有两个人失踪了。他们的长老罗万在找能打的人。桥可以等，先去帮他们吧。'),
       { give: 'item/food/bread' },
       say('player', '(Still in your pack: the end of a travel loaf.)', '（行囊里还剩半块路上吃的面包。）'),
-      { prop: 'quest', value: 1 },
+      { fact: 'village.sent', value: 1 },
     ],
   },
   {
@@ -384,7 +465,7 @@ const scenes: SceneDef[] = [
     ],
   },
   {
-    // The goal is a state: however you got here, the far bank ends the story.
+    // The goal is a state: however you got here, the far bank ends the first chapter.
     id: 'far_bank',
     map: 'ford',
     when: { region: 'far_bank' },
@@ -392,13 +473,13 @@ const scenes: SceneDef[] = [
       { fact: 'ford.crossed', value: 1 },
       { prop: 'quest', value: 2 },
       { wait: 10 },
-      say('npc.hesper', 'Go on, then. If you find the far end of that road, come back and tell me what is there.', '那就走吧。要是你走到了那条路的尽头，回来告诉我那边有什么。'),
-      say('npc.tobin', 'Wait for me! … No? Next time, then.', '等等我！……不等？那下回吧。'),
+      say('npc.hesper', 'Go on, then. The road runs east to Emberfall. They say there is smoke over the hills again — if you find what makes it, come back and tell me.', '那就走吧。这条路往东通到余烬镇。听说山那边又在冒烟了——要是你找到了冒烟的东西，回来告诉我。'),
+      say('npc.hesper', 'If you need supplies before the road, Firstlight Village is still just west of here.', '上路前若还缺东西，初原村就在渡口西边。'),
       { topic: 'crossed', days: 30 },
       {
         card: L(
-          'THE FORD\n\nYou crossed.\nPast here, nothing is written yet.\n\nEverything the world learned from you is in the Threadbook (J).',
-          '渡口\n\n你过了河。\n从这里往东，什么都还没写成。\n\n世界从你身上学到的一切，都记在织线簿里（J）。',
+          'CHAPTER ONE · THE BRIDGE\n\nYou crossed.\nThe road runs east, to Emberfall —\nand smoke hangs over the hills beyond it.',
+          '第一章 · 断桥\n\n你过了河。\n大路往东，通向余烬镇——\n镇子那边的山上，烟还没散。',
         ),
       },
     ],
@@ -416,45 +497,92 @@ export function buildFord(): FordWorld {
   // each map from its own seed: the same world on every build, and one map's draws never move another's
   reseed(4242)
   const m = buildMap()
-  for (const [name, [x, y]] of Object.entries(m.anchors)) {
-    const t = m.get(x, y)
-    if (SOLID.has(t) || !m.walkable(x, y)) throw new Error(`anchor ${name} at ${x},${y} is not walkable (${t})`)
-  }
-  const at = (name: string): Pos => {
-    const a = m.anchors[name]
-    if (!a) throw new Error(`unknown anchor ${name}`)
-    return { map: m.id, x: a[0], y: a[1] }
-  }
-  const npcs = PEOPLE.map((p) => person(p, at))
   // the meadow west of the Ford, through the road's gap in the woods
   reseed(4243)
   const meadow = buildMeadow()
   linkEdge(m, WEST_GAP.map((y) => [0, y]), [1, 0], meadow, WEST_GAP.map((y) => [meadow.w - 1, y]), [-1, 0])
   // the forest south of the meadow
+  // the grassland south of the village (its cows and hens), and the forest south of that
+  reseed(4253)
+  const pasture = buildPasture()
+  linkEdge(meadow, SOUTH_GAP.map((x) => [x, meadow.h - 1]), [0, -1], pasture, PASTURE_GAP.map((x) => [x, 0]), [0, 1])
   reseed(4244)
   const forest = buildForest()
-  linkEdge(meadow, SOUTH_GAP.map((x) => [x, meadow.h - 1]), [0, -1], forest, SOUTH_GAP.map((x) => [x, 0]), [0, 1])
-  const chunk = m.chunk()
-  const meadowChunk = meadow.chunk()
-  const forestChunk = forest.chunk()
+  linkEdge(pasture, PASTURE_GAP.map((x) => [x, pasture.h - 1]), [0, -1], forest, SOUTH_GAP.map((x) => [x, 0]), [0, 1])
+  // south of the forest, before the bridge chapter (docs/quests.md): Thornwood Hollow and the Old Barrow under it
+  reseed(4254)
+  const hollow = buildHollow()
+  reseed(4255)
+  const barrow = buildBarrow()
+  linkEdge(forest, HOLLOW.forestSouth.map((x) => [x, forest.h - 1]), [0, -1], hollow, HOLLOW.north.map((x) => [x, 0]), [0, 1])
+  linkEdge(hollow, HOLLOW.south.map((x) => [x, hollow.h - 1]), [0, -1], barrow, BARROW.north.map((x) => [x, 0]), [0, 1])
+  // the main quest east of the Ford (docs/main-quest.md): the road, Emberfall, its mine, the pass, the lair
+  reseed(4245)
+  const road = buildEastRoad()
+  reseed(4246)
+  const ember = buildEmberfall()
+  reseed(4247)
+  const mine = buildMine()
+  reseed(4248)
+  const pass = buildPass()
+  reseed(4249)
+  const lair = buildLair()
+  const col = (b: MapBuilder, x: number, ys: readonly number[]): [number, number][] => ys.map((y) => [x, y])
+  const row = (b: MapBuilder, y: number, xs: readonly number[]): [number, number][] => xs.map((x) => [x, y])
+  linkEdge(m, col(m, m.w - 1, EAST_ROAD.fordEast), [-1, 0], road, col(road, 0, EAST_ROAD.west), [1, 0])
+  linkEdge(road, col(road, road.w - 1, EAST_ROAD.east), [-1, 0], ember, col(ember, 0, EMBERFALL.west), [1, 0])
+  linkEdge(ember, row(ember, 0, EMBERFALL.north), [0, 1], mine, row(mine, mine.h - 1, MINE.south), [0, -1])
+  linkEdge(ember, col(ember, ember.w - 1, EMBERFALL.east), [-1, 0], pass, col(pass, 0, PASS.west), [1, 0])
+  linkEdge(pass, row(pass, 0, PASS.north), [0, 1], lair, row(lair, lair.h - 1, LAIR.south), [0, -1])
+  // the prologue north of the Ford (docs/prologue.md): the summit, the slope, the foot, the cliff stair
+  reseed(4250)
+  const summit = buildSummit()
+  reseed(4251)
+  const slope = buildSlope()
+  reseed(4252)
+  const foot = buildFoot()
+  linkEdge(summit, row(summit, summit.h - 1, PROLOGUE.summitSouth), [0, -1], slope, row(slope, 0, PROLOGUE.slopeNorth), [0, 1])
+  linkEdge(slope, row(slope, slope.h - 1, PROLOGUE.slopeSouth), [0, -1], foot, row(foot, 0, PROLOGUE.footNorth), [0, 1])
+  linkEdge(foot, row(foot, foot.h - 1, PROLOGUE.footSouth), [0, -1], m, row(m, 0, PROLOGUE.fordNorth), [0, 1])
+  // towns and camps are peaceful: nothing comes out of the dark there (nightspawn.ts); everywhere else is a combat zone
+  for (const b of [m, meadow, ember, summit]) b.zone = 'peaceful'
+  const builders = [m, meadow, pasture, forest, hollow, barrow, road, ember, mine, pass, lair, summit, slope, foot]
+  const at = placeMaps(builders, m)
+  for (const b of builders)
+    for (const [name, [x, y]] of Object.entries(b.anchors)) {
+      const t = b.get(x, y)
+      if (SOLID.has(t) || !b.walkable(x, y)) throw new Error(`anchor ${b.id}:${name} at ${x},${y} is not walkable (${t})`)
+    }
+  // an anchor is the Ford's, or another map's as '<map>:<anchor>'
+  const anchorAt = (name: string): Pos => {
+    const [mapId, key] = name.includes(':') ? name.split(':') : [m.id, name]
+    const b = builders.find((x) => x.id === mapId)
+    const a = b?.anchors[key]
+    if (!b || !a) throw new Error(`unknown anchor ${name}`)
+    return { map: b.id, x: a[0], y: a[1] }
+  }
+  const npcs = PEOPLE.map((p) => person(p, anchorAt))
+  const chunks = builders.map((b) => b.chunk())
   let items = 0
   let fixtures = 0
   let creatures = 0
   const kinds = new Set<string>()
-  for (const e of [...chunk.entities, ...meadowChunk.entities, ...forestChunk.entities]) {
+  for (const e of chunks.flatMap((c) => c.entities)) {
     if (e.type.startsWith('item/')) (items++, kinds.add(`${e.type}|${(e.tags ?? []).join(',')}`))
     else if (e.type.startsWith('fixture/')) fixtures++
     else if (e.type.startsWith('actor/creature')) creatures++
   }
-  const metaOf = (b: MapBuilder, c: RawChunk): MapMeta => ({ id: b.id, name: b.name, kind: b.kind, region: b.region, width: b.w, height: b.h, portals: b.portals, npcs: b === m ? npcs.length : 0, items: c.entities.filter((e) => e.type.startsWith('item/')).length })
+  const metaOf = (b: MapBuilder, c: RawChunk): MapMeta => ({ id: b.id, name: b.name, kind: b.kind, region: b.region, width: b.w, height: b.h, portals: b.portals, npcs: npcs.filter((n) => n.place.on === 'tile' && n.place.map === b.id).length, items: c.entities.filter((e) => e.type.startsWith('item/')).length, at: at.get(b.id) })
   const index: WorldIndex = {
     name: L('The Ford', '渡口'),
     version: VERSION,
     seed: 4242,
-    start: { map: m.id, x: AT.spawn[0], y: AT.spawn[1] },
+    // a new game begins on the mountain (docs/prologue.md)
+    start: { map: summit.id, x: PAT.spawn[0], y: PAT.spawn[1] },
     startHour: START_HOUR,
-    maps: [metaOf(m, chunk), metaOf(meadow, meadowChunk), metaOf(forest, forestChunk)],
+    maps: builders.map((b, i) => metaOf(b, chunks[i])),
     npcs,
+    bosses: BOSSES,
     player: {
       id: 'player',
       type: 'actor/person/player',
@@ -462,10 +590,20 @@ export function buildFord(): FordWorld {
       place: { on: 'none' },
       facing: 'up',
       look: CATALOG.roles.player?.[0] ?? 'NinjaMasked',
-      props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, quest: 0 },
+      // a little hungry: the first thing the mountain teaches is to eat
+      props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, quest: 0, prologue: 0, hunger: 12 },
     },
-    stats: { maps: 3, npcs: npcs.length, creatures, items, itemKinds: kinds.size, fixtures },
-    scenes,
+    companions: [{ id: 'pip', type: 'actor/companion/bird', name: L('Pip', '小啾'), place: { on: 'none' }, facing: 'down' }],
+    beats: PROLOGUE_BEATS,
+    quests: VILLAGE_QUESTS,
+    // what Pip tells when taken hold of (F): the prologue's step on the mountain, then the main quest's
+    guides: [
+      { prop: 'prologue', until: PROLOGUE_DONE, start: PROLOGUE_DONE, stages: PROLOGUE_OBJECTIVES },
+      { prop: 'quest', stages: OBJECTIVES },
+    ],
+    waypoints: chunks.flatMap((c) => c.entities.filter((e) => e.type === 'fixture/sacred/waypoint').map((e) => ({ id: e.id, map: c.map.id, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: e.name ?? L('Waypoint', '传送雕像') }))),
+    stats: { maps: builders.length, npcs: npcs.length, creatures, items, itemKinds: kinds.size, fixtures },
+    scenes: [...scenes, ...QUEST_SCENES],
     invariants: INVARIANTS,
     protectedFacts: PROTECTED_FACTS,
     weather: [
@@ -476,7 +614,35 @@ export function buildFord(): FordWorld {
       { day: 2, from: 8, to: 24, weather: 'sun' },
     ],
   }
-  return { index, chunks: [chunk, meadowChunk, forestChunk] }
+  return { index, chunks }
+}
+
+/**
+ * Where each map lies in the world (its top left, in tiles), from the edge links: a portal on a
+ * map's east edge puts the map it leads to just east of it, lined up on the crossing. The world
+ * map lays the maps out by this; maps reached only through doors are left out.
+ */
+function placeMaps(builders: MapBuilder[], origin: MapBuilder): Map<string, { x: number; y: number }> {
+  const by = new Map(builders.map((b) => [b.id, b]))
+  const out = new Map([[origin.id, { x: 0, y: 0 }]])
+  const queue = [origin]
+  while (queue.length) {
+    const a = queue.shift()!
+    const pa = out.get(a.id)!
+    for (const p of a.portals) {
+      const b = by.get(p.to)
+      if (!b || out.has(b.id)) continue
+      let pos: { x: number; y: number } | undefined
+      if (p.x === a.w - 1) pos = { x: pa.x + a.w, y: pa.y + p.y - p.ty }
+      else if (p.x === 0) pos = { x: pa.x - b.w, y: pa.y + p.y - p.ty }
+      else if (p.y === a.h - 1) pos = { x: pa.x + p.x - p.tx, y: pa.y + a.h }
+      else if (p.y === 0) pos = { x: pa.x + p.x - p.tx, y: pa.y - b.h }
+      if (!pos) continue
+      out.set(b.id, pos)
+      queue.push(b)
+    }
+  }
+  return out
 }
 
 // =================================================================== write

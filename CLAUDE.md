@@ -26,7 +26,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - `packages/engine` — pure, deterministic, no DOM/AI. World state + indices (`world.ts`),
   rule matching/specificity/library (`rules.ts`), effect primitives (`effects.ts`), event
   dispatch + tick + movement + combat (`engine.ts`), NPC two-fidelity sim (`npc.ts`),
-  creatures (`creatures.ts`), Mod port: ModSpec / ModRequest / validatePatch / records
+  creatures (`creatures.ts`), locked-telegraph boss controllers (`bosses.ts`, docs/seven-sins.md), Mod port: ModSpec / ModRequest / validatePatch / records
   (`mod.ts`), sandbox replay (`sandbox.ts`), snapshots for rendering (`snapshot.ts`),
   new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
   lines, schedule variants with the thing an activity needs, topics (`people.ts`), scripted
@@ -35,11 +35,13 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   salience filter, budgets and boundaries in `mod.ts` (design.md §5.4–5.9); the player's four
   inputs (E hands, F take, left click use, right click put), layers, slots and magnet
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
-  (`controls.ts`), what the ground yields by itself (`forage.ts`), experience and levels (`progression.ts`), hunger (`hunger.ts`).
+  (`controls.ts`), what the ground yields by itself (`forage.ts`), experience and levels (`progression.ts`), hunger (`hunger.ts`); companions that follow a
+  leader and the tutorial's beats (`companion.ts`), waypoint stones (`waypoints.ts`) — docs/prologue.md.
 - `packages/content` — ontology (terrains, statuses, elements, types), item catalogue
-  (forms × materials × qualities × elements), crafting recipes (`recipes.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
-  story rules, objectives and invariants (`ford.ts`), chunk codec.
-- `packages/tools` — `art/animals.ts` (the project's own sprites → `client/public/assets/lsw/`), `demo/` (the hand-crafted Ford, the meadow west of it and the forest south of that → `public/world/`, each map from its own seed: `builder.ts` the map DSL
+  (forms × materials × qualities × elements), crafting recipes (`recipes.ts`), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
+  story rules, objectives and invariants (`ford.ts`), the prologue's objectives and beats (`prologue.ts`), the main quest's rules and objectives (`quest.ts`,
+  docs/main-quest.md), the seven sin boss kits, defeat rules and compatibility migration (`bosses.ts`), chunk codec.
+- `packages/tools` — `art/animals.ts` (the project's own sprites → `client/public/assets/lsw/`), `demo/` (the hand-crafted Ford, Firstlight Village west of it (`meadow`) and the forest south of that, and the main quest's maps and scenes in `quest/` → `public/world/`, each map from its own seed: `builder.ts` the map DSL
   with the tools of composition — curved paths, organic shapes, fences and yards, small things by masks,
   collision layer, anchors, regions; `world.ts` `buildFord()` — the map, scenes, invariants;
   `people/*.ts` one record per person (`person.ts`); `check.ts` a headless two-day playtest;
@@ -49,7 +51,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - `packages/client` — `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
   `render/scene.ts` renders snapshots with the Ninja Adventure pack; `assets/catalog.ts` maps
   content keys to sprites; `assets/ground.ts` autotiles; `ui/` the Stardew-style UI (`hud.ts` clock, bars,
-  toolbar, key labels, dialogue; `menu.ts` menu tabs, journal, chest panel; `dev.ts` the Mod Console, dev only); the worker uses the modder service when one answers
+  toolbar, key labels, dialogue; `menu.ts` menu tabs, journal, chest panel; `worldmap.ts` the world map (M) and the minimap; `dev.ts` the Mod Console, dev only); the worker uses the modder service when one answers
   (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it.
 - `packages/agent` — the SWE-style agent and its self-state, task-agnostic (no engine, no content):
   `model.ts` (OpenAI-compatible / scripted), `state.ts` (memory, skills + scripts, harness, hooks,

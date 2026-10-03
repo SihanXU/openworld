@@ -132,10 +132,10 @@ const TAKING: Rule[] = [
 const HANDS: Rule[] = [
   base({
     id: 'core/talk',
-    doc: 'Talk to a person: they say what fits the moment.',
+    doc: 'Talk to a person: a quest they have for you (handed in, taken on, a word they were to hear), else what fits the moment.',
     on: 'interaction',
     when: { verb: ['interact'], target: { type: 'actor/person', self: false }, instrument: EMPTY_HAND },
-    do: [{ op: 'say', who: 'target', text: '@line' }],
+    do: [{ op: 'quest' }],
   }),
   base({
     id: 'core/examine-creature',
@@ -221,6 +221,14 @@ const USING: Rule[] = [
       log('You eat {instrument}.', '你吃掉了{instrument}。'),
       { op: 'destroy', of: 'instrument' },
     ],
+  }),
+  base({
+    id: 'core/drink-fireproof',
+    doc: 'The fireproof draught: fire does a quarter of its harm for five minutes.',
+    confirm: { en: 'Drink {instrument}?', zh: '要喝掉{instrument}吗？' },
+    on: 'interaction',
+    when: { verb: ['interact'], target: { self: true }, instrument: { type: 'item/potion/fire_resist', tags: ['drinkable'] } },
+    do: [{ op: 'addStatus', of: 'actor', status: 'fireproof' }, vfx('sparkle', 'actor'), log('A cool calm spreads under your skin: fire will hardly touch you now.', '一股清凉在皮肤下散开：火现在几乎伤不到你了。'), { op: 'destroy', of: 'instrument' }],
   }),
   base({
     id: 'core/drink',
@@ -351,6 +359,14 @@ const USING: Rule[] = [
     on: 'interaction',
     when: { verb: ['interact'], target: { tags: ['mineable'] }, instrument: { tags: ['tool:pickaxe'] } },
     do: [{ op: 'spawn', type: 'item/material/stone', at: 'tileOf:actor' }, vfx('dust'), log('Chips of stone fly.', '石屑纷飞。')],
+  }),
+  base({
+    id: 'mine/vein',
+    doc: 'The third blow on an ore vein breaks it into what it holds (iron ore, coal).',
+    on: 'interaction',
+    priority: 1,
+    when: { verb: ['interact'], target: { kind: 'fixture', tags: ['mineable', 'rock', 'vein'], props: { cracks: { gte: 2 } } }, instrument: { tags: ['tool:pickaxe'] } },
+    do: [{ op: 'spawn', type: '@prop:target.yields', at: 'tileOf:target', count: { prop: 'count', of: 'target' } }, { op: 'destroy', of: 'target' }, vfx('dust'), log('{target} breaks open.', '{target}被凿开了。')],
   }),
   base({
     id: 'mine/crack',
@@ -1193,6 +1209,20 @@ const ANIMALS: Rule[] = [
     do: [{ op: 'spawn', type: 'item/food/egg/raw', at: 'tileOf:target', still: true }, { op: 'addStatus', of: 'target', status: 'laying' }],
   }),
   base({
+    id: 'creature/pass-stone',
+    doc: 'A creature passing rock or ore (a boulder, a vein in the mine) pays it no mind.',
+    on: 'meet',
+    when: { actor: { kind: 'actor', tags: ['creature'] }, target: { kind: 'fixture', tags: ['mineable'] } },
+    do: [{ op: 'addProp', of: 'actor', key: 'passed', delta: 1 }],
+  }),
+  base({
+    id: 'creature/pass-light',
+    doc: 'A creature passing a lamp or a brazier pays it no mind (fire it fears is kept off by its own behaviour).',
+    on: 'meet',
+    when: { actor: { kind: 'actor', tags: ['creature'] }, target: { kind: 'fixture', type: 'fixture/light', notTags: ['flammable'] } },
+    do: [{ op: 'addProp', of: 'actor', key: 'passed', delta: 1 }],
+  }),
+  base({
     id: 'animal/graze',
     doc: 'A grazing animal pays no mind to what it comes up to (grass, flowers, a fence, another beast); it only grazes on.',
     on: 'meet',
@@ -1201,4 +1231,119 @@ const ANIMALS: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...TAKING, ...HANDS, ...USING, ...WOOD, ...BUILD, ...FARM, ...HITS, ...STATUS, ...ENTER, ...WORLD, ...DEFEAT, ...ANIMALS]
+// ------------------------------------------------------------------ skills
+
+/** Abilities of the skill tree (skills.ts) that are rules: they match the learner's `skill:<id>` tag. */
+const SKILL_RULES: Rule[] = [
+  base({
+    id: 'skill/woodcutter',
+    doc: 'A woodcutter fells a tree for one more log.',
+    on: 'interaction',
+    compose: true,
+    when: { verb: ['interact'], actor: { tags: ['skill:woodcutter'] }, target: { ...LIVING_TREE, status: ['notched'] }, instrument: AXE },
+    do: [{ op: 'spawn', type: 'item/material/log', at: 'tileOf:target' }],
+  }),
+  base({
+    id: 'skill/firemaker',
+    doc: 'A firemaker lights a campfire, brazier or candles with a plain stick.',
+    on: 'interaction',
+    when: { verb: PUT_OR_USE, actor: { tags: ['skill:firemaker'] }, target: { tags: ['lightable'], notStatus: ['lit', 'wet'] }, instrument: { type: 'item/material/stick' } },
+    do: [{ op: 'addStatus', of: 'target', status: 'lit' }, vfx('fire_burst'), log('You work the stick until {target} catches.', '你钻木生火，{target}被点燃了。')],
+  }),
+]
+
+// ------------------------------------------------------------------ waypoints and companions
+
+/** Waypoint stones (docs/prologue.md): E attunes one; the world map takes you to any attuned stone. */
+const WAYPOINTS: Rule[] = [
+  base({
+    id: 'waypoint/attune',
+    doc: 'Touch a waypoint statue: it wakes and remembers you; the world map (M) can bring you back to it.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { type: 'fixture/sacred/waypoint', notStatus: ['attuned'] }, instrument: EMPTY_HAND },
+    do: [{ op: 'addStatus', of: 'target', status: 'attuned' }, { op: 'addFact', key: 'waypoints.attuned', delta: 1 }, vfx('heal'), log('The statue wakes under your hand. (M: the map — travel to any statue you have woken.)', '雕像在你手下亮了起来。（M：地图——可以传送到任何唤醒过的传送雕像。）')],
+  }),
+  base({
+    id: 'waypoint/hum',
+    doc: 'An attuned statue hums: travel from the world map.',
+    on: 'interaction',
+    when: { verb: ['interact'], target: { type: 'fixture/sacred/waypoint', status: ['attuned'] }, instrument: EMPTY_HAND },
+    do: [log('The statue hums. Open the map (M) to travel to another one.', '雕像嗡嗡作响。打开地图（M）就能传送到别的传送雕像。')],
+  }),
+  base({
+    id: 'companion/shrug',
+    doc: 'Rain, frost or fire on a companion: it shakes it off and flies on (nothing for the world to work out).',
+    on: 'status',
+    when: { target: { tags: ['companion'] } },
+    do: [{ op: 'addProp', of: 'target', key: 'shrugged', delta: 1 }],
+  }),
+  base({
+    id: 'trainer/talk',
+    doc: 'Talk to a profession trainer: a word, and the choice of profession (from level 5; a change gives back the profession branch\'s points).',
+    on: 'interaction',
+    priority: 1,
+    when: { verb: ['interact'], target: { type: 'actor/person/trainer' }, instrument: EMPTY_HAND },
+    do: [{ op: 'say', who: 'target', text: '@line' }, { op: 'panel', panel: 'profession' }],
+  }),
+  base({
+    id: 'companion/guide',
+    doc: 'Take hold of a companion (F): it tells what the story asks for now, and how to go about it.',
+    on: 'interaction',
+    priority: 1,
+    when: { verb: ['take'], target: { tags: ['companion'] } },
+    do: [{ op: 'say', who: 'target', text: '@objective' }],
+  }),
+  base({
+    id: 'companion/talk',
+    doc: 'A companion, spoken to, says again what it last pointed out.',
+    on: 'interaction',
+    priority: 1,
+    when: { verb: ['interact'], target: { tags: ['companion'] }, instrument: EMPTY_HAND },
+    do: [{ op: 'say', who: 'target', text: '@hint' }],
+  }),
+]
+
+// ------------------------------------------------------------------ safe defaults
+
+/**
+ * What happens when an interaction stays undefined and nobody answers it (no modder, a
+ * time-out, a rejected patch): plain physics, with no new meaning. These never define an
+ * interaction — the modder is still asked first — they only replace "Nothing happens".
+ * Catch-alls (`fallback`) that match take part too: bare hands on a well examine it.
+ */
+const DEFAULTS: Rule[] = [
+  base({
+    id: 'default/put-by',
+    default: true,
+    doc: 'Putting something on a thing nothing defines (grass, a boulder, a slime) sets it down on that tile.',
+    on: 'interaction',
+    when: { verb: ['put'], target: { kind: 'fixture' } },
+    do: [{ op: 'moveTo', of: 'instrument', to: 'tileOf:target' }, log('You set {instrument} down by {target}.', '你把{instrument}放在了{target}旁。')],
+  }),
+  base({
+    id: 'default/put-actor',
+    default: true,
+    doc: 'Putting something on a creature (or anyone who does not take it): it has no use for it, and it stays in hand.',
+    on: 'interaction',
+    when: { verb: ['put'], target: { kind: 'actor', self: false } },
+    do: [log('{target} has no use for {instrument}.', '{target}对{instrument}不感兴趣。')],
+  }),
+  base({
+    id: 'default/take-actor',
+    default: true,
+    doc: 'People and creatures cannot be picked up.',
+    on: 'interaction',
+    when: { verb: ['take'], target: { kind: 'actor' } },
+    do: [say('actor', 'I can\'t pick that up.', '这个拿不起来。')],
+  }),
+  base({
+    id: 'default/use',
+    default: true,
+    doc: 'Using a held thing on something nothing defines: a try, and nothing comes of it.',
+    on: 'interaction',
+    when: { verb: ['interact'], instrument: { kind: 'item' } },
+    do: [log('You try {instrument} on {target}. Nothing comes of it.', '你拿{instrument}对{target}试了试，没什么反应。')],
+  }),
+]
+
+export const BASE_RULES: Rule[] = [...TAKING, ...HANDS, ...USING, ...WOOD, ...BUILD, ...FARM, ...HITS, ...STATUS, ...ENTER, ...WORLD, ...DEFEAT, ...ANIMALS, ...SKILL_RULES, ...WAYPOINTS, ...DEFAULTS]

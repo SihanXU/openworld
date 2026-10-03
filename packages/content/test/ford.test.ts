@@ -80,7 +80,7 @@ describe('the Ford', () => {
     const ties: string[] = []
     for (const [i, a] of all.entries())
       for (const b of all.slice(i + 1)) {
-        if (a.on !== b.on || a.compose || b.compose || a.fallback || b.fallback) continue
+        if (a.on !== b.on || a.compose || b.compose || a.fallback || b.fallback || a.default || b.default) continue
         if (compareSpec(specOf(a), specOf(b)) === 0 && patternsOverlap(a, b, onto) && JSON.stringify(a.do) !== JSON.stringify(b.do)) ties.push(`${a.id} ~ ${b.id}`)
       }
     expect(ties).toEqual([])

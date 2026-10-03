@@ -1,0 +1,88 @@
+// Authored-content migration, kept outside the generic engine. No inventory or quest reset.
+import { scheduleAt, scheduleFor, tileKey, type Entity, type Game, type MapChunk, type WorldIndex } from '@lsw/engine'
+import { FIRSTLIGHT, FIRSTLIGHT_LAYOUT } from './firstlight.ts'
+
+const gardenEntity = (e: Entity) => e.id.startsWith('ford.garden.') || (e.place.on === 'inside' && e.place.holder === 'ford.garden.supplies')
+const relocated = (e: Entity) => gardenEntity(e) || ['ford.cart', 'tobin.wand', 'tobin.oil'].includes(e.id)
+const cosmetic = (e: Entity) => ['fixture/nature/tuft', 'fixture/nature/flowers', 'fixture/nature/leaves'].includes(e.type)
+
+/** Apply once when an older ford-3 save loads. `meadow` remains the village's stable map ID. */
+export function migrateFirstlight(game: Game, index: WorldIndex, ford: MapChunk, village: MapChunk): void {
+  const eng = game.engine
+  const w = eng.world
+  if (w.fact(FIRSTLIGHT_LAYOUT)) return
+  const fordLoaded = w.state.loadedMaps.includes('ford')
+  const villageLoaded = w.state.loadedMaps.includes(FIRSTLIGHT.map)
+  const saved = Object.values(w.state.entities)
+
+  game.loadChunk(ford)
+  // A previously visited Ford may have harvested crops, taken tools or lost its cart.
+  // Do not recreate them when the village is loaded for the first time.
+  game.loadChunk({ ...village, entities: village.entities.filter((e) => !fordLoaded || !relocated(e)) })
+  if (villageLoaded) {
+    for (const e of village.entities) {
+      if (e.id.startsWith('village.') || (!fordLoaded && relocated(e))) {
+        if (!w.get(e.id)) w.add(structuredClone(e))
+      }
+    }
+  }
+
+  const authored = new Map(village.entities.map((e) => [e.id, e]))
+  for (const e of saved) {
+    if (e.place.on !== 'tile' || e.place.map !== 'ford') continue
+    const target = authored.get(e.id)
+    if ((e.id === 'ford.cart' || gardenEntity(e)) && target?.place.on === 'tile') {
+      // Keep crop growth, watering, ownership and the supply crate's remaining contents.
+      w.place(e, structuredClone(target.place))
+    } else if (w.prop(e, 'owner') === 'npc.tobin' && e.place.x === 20 && e.place.y === 14) {
+      // Legacy generated IDs for loose stock; carried or stored stock is not moved.
+      w.place(e, { on: 'tile', map: FIRSTLIGHT.map, x: FIRSTLIGHT.cart[0], y: FIRSTLIGHT.cart[1] })
+    }
+  }
+
+  for (let y = 11; y <= 14; y++) for (let x = 16; x <= 19; x++) {
+    const tile = w.state.tiles[tileKey('ford', x, y)]
+    if (tile?.terrain === 'farmland') delete tile.terrain
+  }
+  // Each old repaired plank remains one repaired plank in the longer bridge's missing span.
+  const repaired = [29, 30, 31].map((x) => w.state.tiles[tileKey('ford', x, 22)]?.terrain === 'bridge')
+  for (const x of [29, 30, 31]) {
+    const tile = w.state.tiles[tileKey('ford', x, 22)]
+    if (tile?.terrain === 'bridge') delete tile.terrain
+  }
+  repaired.forEach((done, i) => { if (done) w.setTerrain('ford', 31 + i, 22, 'bridge') })
+
+  const tobin = w.get('npc.tobin')
+  const person = index.npcs.find((e) => e.id === 'npc.tobin')
+  if (tobin && person?.npc) {
+    const override = tobin.npc?.override
+    tobin.npc = structuredClone(person.npc)
+    if (override && override.map !== 'ford') tobin.npc.override = override
+    const slot = scheduleAt(scheduleFor(eng, tobin), w.hour())
+    if (slot) eng.teleport(tobin, { map: slot.map, x: slot.x, y: slot.y })
+  }
+
+  // New riverbanks and house walls can intersect old positions. Move rather than delete
+  // actors, loose belongings or user-built fixtures. The raft and dead tree belong on water.
+  for (const e of Object.values(w.state.entities)) {
+    const p = e.place
+    if (p.on !== 'tile' || !['ford', FIRSTLIGHT.map].includes(p.map)) continue
+    if (['fixture/ferry/raft', 'fixture/nature/dead_tree'].includes(e.type)) continue
+    const g = FIRSTLIGHT.garden
+    const inGarden = p.map === g.map && p.x >= g.x && p.x < g.x + g.width && p.y >= g.y && p.y < g.y + g.height
+    const blocked = w.isSolidTerrain(w.terrainAt(p.map, p.x, p.y))
+    if (!blocked && !(inGarden && cosmetic(e))) continue
+    // Select before teleporting: a cosmetic object is not itself a collision obstacle.
+    let free: { map: string; x: number; y: number } | undefined
+    for (let r = 1; r <= 12 && !free; r++) {
+      for (let dy = -r; dy <= r && !free; dy++) for (let dx = -r; dx <= r && !free; dx++) {
+        const x = p.x + dx, y = p.y + dy
+        if (inGarden && cosmetic(e) && x >= g.x && x < g.x + g.width && y >= g.y && y < g.y + g.height) continue
+        if (w.walkable(p.map, x, y, e.id)) free = { map: p.map, x, y }
+      }
+    }
+    if (free) eng.teleport(e, free)
+  }
+  eng.npcs.invalidate()
+  w.setFact(FIRSTLIGHT_LAYOUT, true)
+}

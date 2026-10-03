@@ -1,36 +1,48 @@
-// The Ford (docs/game-design.md): one crossing at the edge of the map, and one goal — the far
-// bank. The goal is a state, not a path: the ending plays when the player stands on the far
-// bank, however they got there. Three ways are taught by the place itself (ice on the river,
-// the dead tree felled across it, the ferry mended and asked for); anything else the world
-// learns that carries the player over counts the same. Story state is facts (`ford.*`) and the
+// The Ford (docs/game-design.md), the main quest's first chapter (docs/main-quest.md): one
+// crossing at the edge of the map, and one goal — the far bank. The goal is a state, not a path:
+// the chapter ends when the player stands on the far bank, however they got there. Four ways are
+// taught by the place itself (the footbridge mended with three planks, ice on the river, the dead
+// tree felled across it, the ferry mended and asked for); anything else the world learns that
+// carries the player over counts the same. Story state is facts (`ford.*`) and the
 // player's `quest` prop, changed only by these rules and the scenes; the world's own patches may
 // not touch them (design.md §5.8).
 
 import type { Effect, Invariant, Rule, Selector, Text } from '@lsw/engine'
+import { QUEST_OBJECTIVES, QUEST_RULES } from './quest.ts'
+import { PROLOGUE_RULES } from './prologue.ts'
+import { BOSS_RULES } from './bosses.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 
 /** Objective shown in the HUD for each value of the player's `quest` prop. */
-export const OBJECTIVES: Record<number, { title: Text; hint: Text }> = {
+/** An objective: its title and hint, and counters the HUD shows under it (a fact against what is needed). */
+export interface Objective {
+  title: Text
+  hint: Text
+  progress?: { fact: string; need: number; label: Text }[]
+}
+
+export const OBJECTIVES: Record<number, Objective> = {
   0: {
-    title: L('Wake by the fire', '在火堆旁醒来'),
-    hint: L('', ''),
+    title: L('Help Firstlight Village', '去初原村帮忙'),
+    hint: L('Firstlight Village is west of the Ford. Rowan, its elder, is looking for anyone who can fight: a yellow "!" over a head means someone has a task for you (E to take it on).', '初原村在渡口西边。村里的长老罗万在找能打的人：头顶有黄色"！"的人有任务给你（按 E 接受）。'),
   },
   1: {
-    title: L('Get across the river', '过河去'),
+    title: L('Mend the bridge', '修好断桥'),
     hint: L(
-      'The ferry rope snapped in last night\'s storm. Look around the ford: E handles things, F takes, left click uses what you hold, right click puts it. Hold any of them to choose what on a tile.',
-      '昨夜的风暴扯断了渡绳。在渡口四处看看：E 空手摆弄，F 拿取，左键用手里的东西，右键放下或交出。按住不放可以选这一格上的哪样东西。',
+      'The storm tore three planks out of the footbridge by the marsh. An axe fells a tree (two swings) and splits a log into planks; right click lays a plank on the water. Any other way across counts too: E handles things, F takes, left click uses what you hold, right click puts it.',
+      '风暴冲走了沼泽边小桥上的三块木板。斧头能砍倒树（砍两下），也能把木头劈成木板；右键把木板铺到水上。别的过河办法也算：E 空手摆弄，F 拿取，左键用手里的东西，右键放下或交出。',
     ),
   },
   2: {
     title: L('The road east', '往东的路'),
-    hint: L('You crossed. Past the ford the world is not written yet. What you taught it is in the Threadbook (J).', '你过了河。渡口以东，世界还没写成。你教会它的事都记在织线簿里（J）。'),
+    hint: L('Follow the road east to Emberfall. Smoke hangs over the hills beyond it.', '沿着大路往东走到余烬镇。镇子那边的山上冒着烟。'),
   },
+  ...QUEST_OBJECTIVES,
 }
 
 /** Fact prefixes only the story's rules and scenes may change. */
-export const PROTECTED_FACTS = ['ford.', 'seen.', 'invalid.']
+export const PROTECTED_FACTS = ['ford.', 'mq.', 'seen.', 'invalid.', 'sins.']
 
 const story = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base', note: 'story' } })
 const log = (en: string, zh: string): Effect => ({ op: 'log', text: { en, zh } })
@@ -42,7 +54,7 @@ const WINCH = 'fixture/ferry/winch'
 const DEAD_TREE = 'fixture/nature/dead_tree'
 const WAND = 'item/weapon/magic/wand'
 
-export const STORY_RULES: Rule[] = [
+const FORD_RULES: Rule[] = [
   // ---------------------------------------------------------------- the ferry
   story({
     id: 'ford/winch-look',
@@ -123,6 +135,9 @@ export const STORY_RULES: Rule[] = [
     do: [say('actor', 'That one is yours now. Mind the cold: it bites the hand that holds it.', '那根现在是你的了。小心寒气，它咬拿着它的手。')],
   }),
 ]
+
+/** The story's rules: the Ford's, then the main quest's (quest.ts). */
+export const STORY_RULES: Rule[] = [...FORD_RULES, ...QUEST_RULES, ...PROLOGUE_RULES, ...BOSS_RULES]
 
 const RIVER_CROSSED: Effect = { op: 'scene', id: 'ferry' }
 

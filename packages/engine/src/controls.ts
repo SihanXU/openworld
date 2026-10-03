@@ -18,7 +18,9 @@
 // eating (the host stops time while it is open).
 
 import type { Engine, Resolution } from './engine.ts'
-import type { Aim, Dir, Entity, GameEvent, Id, Plan, Pos, Recipe, Ref, Text, Verb } from './types.ts'
+import type { Aim, Dir, Entity, GameEvent, Id, Plan, Pos, Recipe, Ref, SkillDef, Text, Verb } from './types.ts'
+import { learnSkill } from './progression.ts'
+import { PROFESSION_LEVEL, cannotChoose, chooseProfession, type ProfessionDef, type ProfessionRefusal } from './profession.ts'
 
 /** The four inputs (design.md §5.2). */
 export type Key = Plan['key']
@@ -28,6 +30,8 @@ export const ROW = 10
 export const SLOT_COUNT = 30
 /** Dropped items within this many tiles fly into the bag (Stardew: 128 px, two tiles). */
 export const MAGNET = 2
+/** How far the pointer reaches: the tiles within this many steps of the player (two rings). */
+export const REACH = 2
 
 /** Stardew's line between tools and objects: tools are used, objects are given, placed or eaten. */
 const TOOL_PREFIXES = ['item/weapon/', 'item/tool/', 'item/light/', 'item/vessel/bucket/', 'item/vessel/flask/', 'item/vessel/waterskin/']
@@ -37,6 +41,9 @@ const isWeapon = (type: string) => type.startsWith('item/weapon/')
 /** Labels by rule (prefix) — what the HUD says a key will do. */
 const LABELS: [string, Text][] = [
   ['core/talk', { en: 'Talk to {target}', zh: '和{target}说话' }],
+  ['companion/guide', { en: 'Ask {target} what to do', zh: '问{target}该做什么' }],
+  ['companion/talk', { en: 'Talk to {target}', zh: '和{target}说话' }],
+  ['waypoint/attune', { en: 'Wake {target}', zh: '唤醒{target}' }],
   ['story/', { en: 'Talk to {target}', zh: '和{target}说话' }],
   ['core/give', { en: 'Give {instrument} to {target}', zh: '把{instrument}送给{target}' }],
   ['core/open-close', { en: 'Open {target}', zh: '打开{target}' }],
@@ -97,15 +104,17 @@ export class Controls {
   // ---------------------------------------------------------------- aiming
 
   /**
-   * Where a key acts: the pointed spot when its tile is the player's own or one of their 8
-   * neighbours (with what is drawn there), else the tile in front.
+   * Where a key acts: exactly the pointed tile when it lies within REACH of the player (two
+   * rings round them), with what is drawn there. Out of reach, the mouse's own inputs (use,
+   * put) do nothing; the keys (E, F) act on the tile in front, so the keyboard alone still plays.
    */
-  aim(at?: Aim): { at: Pos; stack?: Ref[] } | undefined {
+  aim(at?: Aim, key?: Key): { at: Pos; stack?: Ref[] } | undefined {
     const w = this.w
     const p = w.player
     const pos = w.posOf(p)
     if (!pos) return undefined
-    if (at && Math.max(Math.abs(at.x - pos.x), Math.abs(at.y - pos.y)) <= 1) return { at: { map: pos.map, x: at.x, y: at.y }, stack: at.stack }
+    if (at && Math.max(Math.abs(at.x - pos.x), Math.abs(at.y - pos.y)) <= REACH) return { at: { map: pos.map, x: at.x, y: at.y }, stack: at.stack }
+    if (at && (key === 'use' || key === 'put')) return undefined
     const front = w.front(p)
     return front && { at: front }
   }
@@ -142,6 +151,9 @@ export class Controls {
       // in the order they are drawn: people and creatures over items, items over the fixture they lie on
       out = [...of('actor'), ...of('item').reverse(), ...of('fixture')].map((e) => ({ e: e.id }))
     }
+    // a bird overhead is the last thing the keys meet (it is drawn on top, but rarely what is meant)
+    const aloft = (r: Ref) => 'e' in r && !!w.get(r.e) && w.hasTag(w.get(r.e)!, 'airborne')
+    out = [...out.filter((r) => !aloft(r)), ...out.filter(aloft)]
     out.push({ tile: { map: at.map, x: at.x, y: at.y } })
     const seen = new Set<string>()
     return out.filter((r) => !seen.has(sig(r)) && !!seen.add(sig(r)))
@@ -231,7 +243,7 @@ export class Controls {
    * Every layer is reachable through the chooser (design.md §5.2, completeness).
    */
   plan(key: Key, aim?: Aim, layer = 0): Plan | undefined {
-    const a = this.aim(aim)
+    const a = this.aim(aim, key)
     if (!a) return undefined
     const ref = this.layers(a.at, a.stack)[layer]
     return ref ? this.planOn(key, a.at, ref) : undefined
@@ -239,7 +251,7 @@ export class Controls {
 
   /** The chooser's list: every layer at the aim, with what the key would do there. */
   choices(key: Key, aim?: Aim): { layer: number; name: Text; plan?: Plan }[] {
-    const a = this.aim(aim)
+    const a = this.aim(aim, key)
     if (!a) return []
     return this.layers(a.at, a.stack).map((ref, layer) => ({ layer, name: this.label('{target}', ref), plan: this.planOn(key, a.at, ref) }))
   }
@@ -322,8 +334,8 @@ export class Controls {
   sync(): void {
     const w = this.w
     const p = w.player
-    const slots = (p.slots ??= Array(SLOT_COUNT).fill(null))
-    while (slots.length < SLOT_COUNT) slots.push(null)
+    const slots = (p.slots ??= Array(this.slotCount()).fill(null))
+    while (slots.length < this.slotCount()) slots.push(null)
     p.selected ??= 0
     const by = this.carried()
     const held = w.get(p.held)
@@ -401,14 +413,14 @@ export class Controls {
   quickMove(i: number): void {
     const slots = this.w.player.slots
     if (!slots?.[i]) return
-    const [from, to] = i < ROW ? [ROW, SLOT_COUNT] : [0, ROW]
+    const [from, to] = i < ROW ? [ROW, slots.length] : [0, ROW]
     for (let j = from; j < to; j++) if (!slots[j]) return this.swap(i, j)
   }
 
   /** Move or swap two slots (the inventory menu). */
   swap(a: number, b: number): void {
     const slots = this.w.player.slots
-    if (!slots || a === b || a < 0 || b < 0 || a >= SLOT_COUNT || b >= SLOT_COUNT) return
+    if (!slots || a === b || a < 0 || b < 0 || a >= slots.length || b >= slots.length) return
     this.stow()
     ;[slots[a], slots[b]] = [slots[b], slots[a]]
     this.sync()
@@ -458,6 +470,45 @@ export class Controls {
     this.sync()
   }
 
+  /** The bag's slots: three rows, and one more for each `bagRows` (the skill). */
+  slotCount(): number {
+    return SLOT_COUNT + ROW * Math.max(0, this.w.num(this.w.player, 'bagRows'))
+  }
+
+  // ---------------------------------------------------------------- the skill tree
+
+  /**
+   * Take up a profession at a trainer (level 5, a trainer within reach). Changing gives back the
+   * profession branch's points. Returns why not, or undefined when done.
+   */
+  takeProfession(def: ProfessionDef | undefined, skills: SkillDef[]): ProfessionRefusal | undefined {
+    const w = this.w
+    const p = w.player
+    const why = cannotChoose(w, p, def)
+    const n = (t: Text) => (typeof t === 'string' ? { en: t, zh: t } : { en: t.en, zh: t.zh ?? t.en })
+    if (why === 'level') w.fx.push({ t: 'log', text: { en: `Come back at level ${PROFESSION_LEVEL}.`, zh: `等你到 ${PROFESSION_LEVEL} 级再来。` }, tone: 'warn' })
+    if (why === 'trainer') w.fx.push({ t: 'log', text: { en: 'Only a trainer can set you on a profession.', zh: '只有职业导师能为你选定职业。' }, tone: 'warn' })
+    if (why || !def) return why
+    const had = w.prop(p, 'profession')
+    const back = chooseProfession(w, p, def, skills)
+    const name = n(def.name)
+    w.fx.push({ t: 'log', text: { en: `You are now a${/^[aeiou]/i.test(name.en) ? 'n' : ''} ${name.en}.${back ? ` ${back} skill points given back.` : ''}`, zh: `你成为了${name.zh}。${back ? `返还了 ${back} 技能点。` : ''}` }, tone: 'good' })
+    if (had) w.fx.push({ t: 'log', text: { en: 'Your old profession\'s skills are unlearned: spend the points again in the skill tree (K).', zh: '原职业的技能已重置：在技能树（K）里重新加点吧。' } })
+    this.sync()
+    return undefined
+  }
+
+  /** Spend skill points on a skill. */
+  learn(def: SkillDef): boolean {
+    const w = this.w
+    const p = w.player
+    if (!learnSkill(w, p, def)) return false
+    const n = typeof def.name === 'string' ? { en: def.name } : def.name
+    w.fx.push({ t: 'log', text: { en: `Learned ${n.en}.`, zh: `学会了${n.zh ?? n.en}。` }, tone: 'good' })
+    this.sync()
+    return true
+  }
+
   // ---------------------------------------------------------------- crafting
 
   /** How many of a type the player carries (bag and hand). */
@@ -500,8 +551,10 @@ export class Controls {
     if (!this.magnetic || !here || this.eng.busy(p)) return
     const by = this.carried()
     let free = (p.slots ?? []).filter((s) => !s).length
-    for (let dy = -MAGNET; dy <= MAGNET; dy++)
-      for (let dx = -MAGNET; dx <= MAGNET; dx++)
+    // a longer reach (the skill) adds `magnet` tiles
+    const reach = MAGNET + w.num(p, 'magnet')
+    for (let dy = -reach; dy <= reach; dy++)
+      for (let dx = -reach; dx <= reach; dx++)
         for (const e of w.entitiesAt(here.map, here.x + dx, here.y + dy)) {
           if (!e.dropped || e.frozenBy || w.kindOf(e) !== 'item') continue
           const k = this.key(e)

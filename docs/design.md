@@ -197,8 +197,9 @@ Other keys: Esc (menu, and closes anything open), I (inventory), J (journal), M 
 and the wheel (toolbar), Shift (walk), WASD (move). Dialogue moves on with E or a click.
 
 - **The instrument** is the selected toolbar slot: any carried thing, or an empty slot (none).
-- **The aim**: the point the mouse is on, when its tile is the player's own or one of their 8
-  neighbours, else the tile in front.
+- **The aim**: exactly the tile the mouse is on, when it lies within two rings of the player
+  (`REACH`, a 5 × 5 square). Out of reach, a click does nothing; E and F act on the tile in
+  front (the keyboard alone still plays).
 - **The layer**: whatever is drawn at that point, top first — a person, the things lying on a
   table, the table, the canopy of a tree reaching over from behind, the ground last. The view
   alone knows what is drawn where (it tests the pictures' own pixels), so it hands the stack to
@@ -264,9 +265,17 @@ was cut).
   each lists what it uses up from the bag and the item it makes. The first tools are the
   catalogue's axe and pickaxe in stone (stone axe: stick, stone, grass; stone pickaxe: two
   sticks, two stones, grass), so the rules that answer an axe or a pickaxe answer them.
+- **The main quest** (docs/main-quest.md): seven chapters over eight maps, from the Ford's
+  footbridge to the dragon of Cinder Peak; story rules in `content/src/quest.ts`, maps and scenes in
+  `tools/src/demo/quest/`.
 - **Creatures find their way**: a step toward a foe or home is greedy; when it is blocked (a
   clump of trees), the creature takes a path around (A*) and keeps to it (`ai.detour`) until it
   arrives or its goal moves. A fire's reach still stops it.
+- **Seven Sins** (docs/seven-sins.md): original data-driven boss kits with full actor
+  footprints, saved locked telegraphs, phases, generated action atlases and named skill FX.
+  The generic controller in `engine/src/bosses.ts` uses ordinary hit/defeat rules; authored
+  kits live in `content/src/bosses.ts`. `StatusDef.moveDelay` optionally multiplies movement
+  delay. Greed is on the East Road; all seven are playable in `/boss-gallery.html`.
 - **Animals** (game-design.md §4b): `behaviour: 'passive'` creatures never attack and run from
   their foes; `MapData.forage` also brings creatures back (with `every`, `ai`, `statuses`).
 - **Hunger** (Minecraft's food bar): an actor with `maxHunger` (the player: 20) loses one
@@ -277,10 +286,43 @@ was cut).
 - **Experience and levels**: the `gainXp` primitive. A defeated actor gives whoever struck
   the last blow experience equal to its maxHp (`combat/defeat`); 20 × level of it raises the
   level, and each level brings a skill point (`engine/src/progression.ts`). Props `xp`,
-  `level`, `skillPoints` on any actor. The skill tree that spends the points is not built yet.
+  `level`, `skillPoints` on any actor.
+- **Construction and farming palette** (B): a non-modal live-world rail for campfire,
+  crate, chest, fence and sign recipes, with carried-material/tool counts and a green/red
+  placement preview. Farming includes tilling, four original vegetable seeds, watering,
+  refilling and harvesting; carrots, turnips, tomatoes and pumpkins have three native
+  pixel stages and distinct produce/seed sprites. Construction replays existing rules,
+  with a full sandbox rehearsal before spending materials; no new primitive. New games
+  have a garden and supplies in Firstlight Village, west of the Ford.
+  [Controls, recipes and save compatibility](construction.md).
+- **Skill tree** (`content/src/skills.ts`, `engine/src/progression.ts`): two directions,
+  **Combat** (Swiftness, Survival, Damage, Profession) and **Life** (Gathering, Agriculture,
+  Animal Husbandry, Smithing). The player's initial `profession` is `assassin`; the profession
+  hub displays only that profession's skills, with engine-side eligibility checks. Unknown
+  professions keep an empty hub, never an assassin fallback. The four combat trees contain
+  25 nodes, fork into two arms and join at a capstone requiring both arms. Ordinary nodes
+  cost one point; combat capstones cost two. Life retains Gathering's four skills; the other
+  three life branches remain visible, non-purchasable entrances pending design.
+  Swiftness rewards movement and attack rhythm; Survival offers toughness or food-based
+  sustain and a lethal-hit safety net; Damage offers power/cleave or critical/execute bonuses;
+  Assassin rewards opening strikes, backstabs, three-hit finishers and melee defeat recovery.
+  All new abilities trigger automatically through existing movement/attack inputs, not a new
+  hotbar. Every skill has its own full-colour pixel illustration; locked states change
+  borders rather than washing out the artwork. No generic SVG glyph is substituted.
+  Full topology, numbers, art prompts and reference games: [skill-tree.md](skill-tree.md).
+  Learning adds `grant` to any actor's props and leaves `skill:<id>` tags. Rules may test the
+  same tags. `engine/src/combat.ts` calculates contextual attack/damage modifiers and saves
+  cadence carry, combo state and cooldowns on `Entity.combat`. Offensive bonuses add together,
+  then critical damage multiplies the result before defence. Sweep secondary hits cannot
+  generate/consume combo or mobility charges, or inherit guaranteed opener/backstab criticals.
+  Existing ids/grants are not reapplied on load; old saves gain the initial profession only
+  when missing. Old Iron Stomach intervals of 150 are corrected to 450 ticks (base 300 + 150).
 - **HUD**
   - Top right: the day, the weather, a clock dial.
   - Under it, a "!" journal button that flashes on a new objective.
+  - Bottom right: the bag (I) and the skill tree (K) buttons; the skill tree's carries a badge
+    with the unspent skill points. The skill tree is a page of its own with Combat / Life
+    navigation, radial branch entrances and learned / ready / locked skill nodes.
   - Bottom: the toolbar, and above it Minecraft's status: the experience bar the toolbar's
     width with the level on it, then ten hearts on the left (each a tenth of maxHp, emptying
     from the right) and ten drumsticks on the right (hunger, emptying from the left). The
@@ -356,7 +398,11 @@ The resolution order keeps BardOS's three layers for every source:
 2. **Mod port**: nothing matches (and, for world events, the event is salient) → the event is
    **undefined** → raise it.
 3. **Fallback**: the port returns nothing (no modder, offline, rejected) → a safe default.
-   The game never blocks.
+   The game never blocks. The default is the most specific rule marked `default` (base library
+   only, `content/src/rules.ts` DEFAULTS) or catch-all (`fallback`) that matches: putting a thing
+   on anything sets it down there (a creature leaves it in hand), bare hands examine, a held
+   thing is tried and nothing comes of it. Defaults never define an event — the port is
+   still asked first — and only then replace "Nothing happens".
 
 Every source is an event. Events resolve through the rule library; when nothing matches,
 the salience filter (§5.6) decides whether to ask. A request goes through the Mod port and

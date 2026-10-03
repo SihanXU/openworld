@@ -94,7 +94,7 @@ export interface ModSpec {
   expectations: string[]
   ontology: {
     types: { id: string; kind: string; tags: string[]; name?: string }[]
-    statuses: { id: string; duration?: number; immobilize?: boolean; clears?: string[] }[]
+    statuses: { id: string; duration?: number; immobilize?: boolean; moveDelay?: number; clears?: string[] }[]
     terrains: { id: string; tags: string[]; solid?: boolean; liquid?: boolean }[]
     elements: string[]
     /** Factions: an actor belongs to those its faction:<id> tags name; the wild is hostile to folk. */
@@ -169,6 +169,7 @@ export interface ValidationResult {
 // ---------------------------------------------------------------- the ModSpec
 
 const AUTHORING_RULES = [
+  'Combat talents are evaluated by the engine for any actor carrying skill:<id>. Actor props profession, moveHaste, attackHaste and critChance control eligibility/cadence/critical chance. Attack hit.power already includes offensive talents; do not apply them again in a hit rule. Direct combat damage reductions and Last Stand are handled by damage. Timed talent state lives in Entity.combat and is saved.',
   'Write the CLASS of the interaction, not the instance: select roles by the most general type/tags/statuses that make the outcome plausible. Never use `id` unless the behaviour truly belongs to one unique entity.',
   'But never a catch-all: an interaction rule must select the target or the instrument by type, tags or status. "Anything on anything does nothing" is rejected.',
   'Prefer tags and statuses over deep types: `instrument: {tags:["liquid:oil"]}` covers every oily thing.',
@@ -249,7 +250,7 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
     ],
     ontology: {
       types: Object.values(types).map((t) => ({ id: t.id, kind: t.kind, tags: t.tags ?? [], name: t.name ? textOf(t.name) : undefined })),
-      statuses: Object.values(statuses).map((s) => ({ id: s.id, duration: s.duration, immobilize: s.immobilize, clears: s.clears })),
+      statuses: Object.values(statuses).map((s) => ({ id: s.id, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears })),
       terrains: Object.values(onto.terrains).map((t) => ({ id: t.id, tags: t.tags ?? [], solid: t.solid, liquid: t.liquid })),
       elements: onto.elements,
       factions: onto.factions ?? {},
@@ -920,6 +921,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     ids.add(r.id)
     if (ctx.library.rules.has(r.id)) errors.push(`${where}: id already exists in the library`)
     if (!EVENT_KINDS.has(r.on)) errors.push(`${where}: on must be one of ${[...EVENT_KINDS].join('|')}`)
+    if (r.default) errors.push(`${where}: default is reserved for the base library's safe defaults — a patch defines the event`)
     if (!r.when || typeof r.when !== 'object') errors.push(`${where}: when required`)
     else {
       for (const role of ROLES) checkSel(r.when[role], `${where}.when.${role}`)

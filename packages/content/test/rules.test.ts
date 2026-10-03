@@ -30,7 +30,8 @@ describe('base library', () => {
     // every base rule passes the same validator patches go through (minus the "exists" check)
     const res = validatePatch({ artifacts: BASE_RULES.map((r) => ({ kind: 'rule' as const, rule: r })) }, { ontology: onto, library: new RuleLibrary() })
     // (the base library's generic answers — put down, examine — are deliberately broad; patches may not be)
-    expect(res.errors.filter((e) => !e.includes('conflicts') && !e.includes('too broad'))).toEqual([])
+    // (and only the base library has safe defaults)
+    expect(res.errors.filter((e) => !e.includes('conflicts') && !e.includes('too broad') && !e.includes('default is reserved'))).toEqual([])
   })
 
   it('has no ties: overlapping base rules never share the same specificity', () => {
@@ -39,7 +40,8 @@ describe('base library', () => {
       for (let j = i + 1; j < BASE_RULES.length; j++) {
         const a = BASE_RULES[i]
         const b = BASE_RULES[j]
-        if (a.on !== b.on || a.compose || b.compose) continue
+        // safe defaults are a pool of their own: they only meet each other (in the fallback)
+        if (a.on !== b.on || a.compose || b.compose || !!a.default !== !!b.default) continue
         if (compareSpec(specOf(a), specOf(b)) !== 0) continue
         if (patternsOverlap(a, b, onto)) ties.push(`${a.id} ~ ${b.id}`)
       }

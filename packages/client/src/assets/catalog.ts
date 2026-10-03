@@ -11,6 +11,8 @@
 // - UI SpriteDefs use (0, 0) (top-left) — they are screen-space pieces.
 
 import type { ActorDef, Catalog, FxDef, PrefabDef, SpriteDef } from './types.ts'
+import { CROP_FIXTURES, CROP_ITEMS } from './crops.ts'
+import { SIN_ACTORS, SIN_FX } from './bosses.ts'
 
 // ---------------------------------------------------------------------------------------------
 // Sheet paths
@@ -424,13 +426,19 @@ export const CATALOG: Catalog = {
     'fixture:cauldron': { base: t(HOUSE, 32, 10), lit: t(HOUSE, 31, 10) },
     // No loom in the pack: a wooden frame with a strung rope (TilesetElement (11..13, 2..3)).
     'fixture:loom': { base: px(ELEM, 176, 32, 48, 32, 24, 29) },
-    'fixture:sacred': { base: t(HOUSE, 7, 15, 1, 2) },
+    // the slender statue (7, 15) is the waypoint's alone: nothing else may look like one
+    'fixture:sacred': { base: t(HOUSE, 5, 15, 2, 2) },
     'fixture:altar': { base: px(HOUSE, 48, 240, 32, 32, 16, 32) },
-    'fixture:statue': { base: t(HOUSE, 7, 15, 1, 2) },
+    'fixture:statue': { base: t(HOUSE, 5, 15, 2, 2) },
     'fixture:gravestone': { base: t(ELEM, 4, 2) },
     'fixture:seal_stone': { base: t(DUNGEON, 3, 2), lit: t(DUNGEON, 5, 2) },
+    // the waypoint stone is a statue: it glows once woken (scene.ts lights what is attuned)
+    'fixture:waypoint': { base: t(HOUSE, 7, 15, 1, 2) },
     'fixture:nature': { base: t(NATURE, 18, 9) },
     'fixture:boulder': { base: t(NATURE, 18, 9) },
+    // the old mine's veins: a grey rock flecked with ore, a dark one for coal
+    'fixture:vein_iron': { base: t(NATURE, 4, 14) },
+    'fixture:vein_coal': { base: t(NATURE, 6, 15) },
     'fixture:haystack': { base: px(ELEM, 192, 64, 16, 32, 8, 31) },
     'fixture:logpile': { base: px(HOUSE, 496, 256, 32, 16, 16, 16) },
     // No static mushroom art: first frame of the (red-capped) Mushroom monster.
@@ -464,6 +472,7 @@ export const CATALOG: Catalog = {
     'fixture:berry_ripe': { base: t(NATURE, 4, 14) },
     'fixture:oak': { base: t(NATURE, 5, 9) },
     'fixture:oak_sapling': { base: t(NATURE, 5, 9) },
+    ...CROP_FIXTURES,
     // Building: a timber rack for the frame, a stake, a sign post and a ring of stones.
     'fixture:build': { base: px(CAMP, 128, 48, 32, 32, 16, 30) },
     'fixture:frame': { base: px(CAMP, 128, 48, 32, 32, 16, 30) },
@@ -571,6 +580,7 @@ export const CATALOG: Catalog = {
     'item:ash': t(NATURE, 11, 12),
     'item:seed': icon('Items/Food/Seed1.png', 8, 8),
     'item:wheat': t(ELEM, 12, 4),
+    ...CROP_ITEMS,
     'item:gem': icon('Items/Resource/GemRed.png', 15, 15),
     'item:coins': icon('Items/Object/MoneyBag.png', 14, 15),
     'item:ring': icon('Ui/Skill Icon/Items & Weapon/Ring.png', 24, 24),
@@ -628,6 +638,7 @@ export const CATALOG: Catalog = {
   },
 
   creatures: {
+    ...SIN_ACTORS,
     'creature:slime': SLIME_GREEN,
     'creature:slime:none': SLIME_GREEN,
     'creature:slime:fire': SLIME_FIRE,
@@ -649,6 +660,8 @@ export const CATALOG: Catalog = {
     'creature:boar': mon('Bear'),
     'creature:bat': mon('BlueBat'),
     'creature:skeleton': charCreature('Skeleton'),
+    // a zombie: the caveman, tinted the green of the grave
+    'creature:zombie': charCreature('Caveman2', 0x9fcf8a),
     'creature:ghost': mon('Spirit'),
     'creature:golem': charCreature('Statue'),
     'creature:golem:stone_golem': charCreature('Statue'),
@@ -660,14 +673,23 @@ export const CATALOG: Catalog = {
     'creature:wisp': mon('Flam2'),
     'creature:wisp:storm_wisp': mon('Flam2', 'SpriteSheet.png', 0xfff6a0),
     'creature:crab': mon('Mollusc', 'Mollusc.png'),
+    // the main quest's monsters
+    'creature:spider': mon('SpiderRed'),
+    'creature:whelp': mon('Dragon'),
     // the meadow's animals: the project's own art (tools/src/art/animals.ts), not the pack's
     'creature:cow': { dir: 'lsw/Animal/Cow', sheet: 'SpriteSheet.png', cols: 4, rows: 4 },
     'creature:chicken': { dir: 'lsw/Animal/Chicken', sheet: 'SpriteSheet.png', cols: 4, rows: 4 },
+    // the companion bird: a two-frame flap, no directions
+    'creature:parrot': { dir: 'Actor/Animal/Parrot', sheet: 'SpriteSheetRed.png', faceset: 'FacesetRed.png', cols: 2, rows: 1 },
     // Boss sheets are single-row strips: cols = animation frames (62x52 each), no directions.
     'boss:slime': { dir: 'Actor/Boss/GiantSlime', sheet: 'Idle.png', faceset: 'Faceset.png', cols: 5, rows: 1 },
+    'boss:cyclops': { dir: 'Actor/Boss/DemonCyclop', sheet: 'Idle.png', faceset: 'Faceset.png', cols: 5, rows: 1 },
+    // the dragon's head for now; the renderer composes wings and body around it (scene.ts)
+    'boss:dragon': { dir: 'Actor/Boss/DragonGreen', sheet: 'Head.png', faceset: 'Faceset.png', cols: 1, rows: 1 },
   },
 
   fx: {
+    ...SIN_FX,
     steam: fx('Magic/Spirit/SpriteSheet.png', 32, 32, 5, 10),
     splash: fx('Elemental/Water/SpriteSheet.png', 44, 33, 10, 16),
     fire_burst: fx('Elemental/Flam/SpriteSheet.png', 25, 30, 8, 14, { add: true }),
@@ -725,6 +747,11 @@ export const CATALOG: Catalog = {
     iconHeart: ui('Ui/Receptacle/IconHeart.png', 14, 12),
     // the hunger bar's drumstick (hud.ts)
     drumstick: ui('Items/Food/Meat.png', 15, 15),
+    // the dragon of Cinder Peak, in parts (scene.ts composes them round its head): a wing, two body segments, the tail
+    dragonWing: ui('Actor/Boss/DragonGreen/Wing.png', 57, 57),
+    dragonBody1: ui('Actor/Boss/DragonGreen/Body1.png', 31, 27),
+    dragonBody2: ui('Actor/Boss/DragonGreen/Body2.png', 31, 27),
+    dragonTail: ui('Actor/Boss/DragonGreen/BodyEnd.png', 29, 40),
     lifebarUnder: ui('Ui/Receptacle/LifeBarMiniUnder.png', 18, 4),
     lifebarProgress: ui('Ui/Receptacle/LifeBarMiniProgress.png', 18, 4),
     // Emote face bubbles emote1..emote30 (14x13), added below as ui['emote<N>'].

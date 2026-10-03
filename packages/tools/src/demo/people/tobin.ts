@@ -1,12 +1,12 @@
 // Tobin, the peddler. He brings charms and odd goods from the east twice a year and talks the
-// whole way. The storm caught him on this bank two days ago with a cart of things nobody here
-// will buy and nothing to eat. He owes Hesper last autumn's fare and hopes she has forgotten
+// whole way. The storm stopped the ferry, so he moved his cart to Firstlight Village with
+// things nobody here will buy and nothing to eat. He owes Hesper last autumn's fare and hopes she has forgotten
 // (she has not). He is afraid of the slimes that come up out of the hollow at night.
 
 import { line, type PersonDef } from '../person.ts'
 
 const CART = { uses: 'ford.cart', need: { notStatus: ['burning'] } }
-const FIRE = { uses: 'ford.campfire', need: { status: ['lit'] } }
+const FIRE = { uses: 'village.campfire', need: { status: ['lit'] } }
 
 export const tobin: PersonDef = {
   id: 'npc.tobin',
@@ -18,24 +18,24 @@ export const tobin: PersonDef = {
   ties: { 'npc.hesper': 'the ferrykeeper he owes a fare' },
   schedules: {
     default: [
-      [22, 6, 'cart.bed', 'sleep'],
-      [6, 9, 'cart', 'mind the cart', CART],
-      [9, 11, 'landing.edge', 'stare at the water'],
-      [11, 19, 'cart', 'mind the cart', CART],
-      [19, 22, 'camp.warm', 'warm his hands', FIRE],
+      [22, 6, 'meadow:cart.bed', 'sleep'],
+      [6, 9, 'meadow:cart', 'mind the cart', CART],
+      [9, 11, 'meadow:square.well', 'fetch water'],
+      [11, 19, 'meadow:cart', 'mind the cart', CART],
+      [19, 22, 'meadow:square.warm', 'warm his hands', FIRE],
     ],
     storm: [
-      [22, 6, 'cart.bed', 'sleep'],
-      [6, 22, 'tent.side', 'wait out the storm'],
+      [22, 6, 'meadow:cart.bed', 'sleep'],
+      [6, 22, 'meadow:market.shelter', 'wait out the storm'],
     ],
   },
   lines: [
-    line('greeting:first', "Another one stranded! Tobin, of the eastern road. Charms, oils, oddments — two days on this bank and not a crumb left. You wouldn't have anything to eat?", '又来一个被困的！我叫托宾，跑东边那条路的。护符、灯油、杂货——在这岸困了两天，一口吃的都没了。你身上没带点吃的吧？', { mood: 'surprised', once: true }),
+    line('greeting:first', "Welcome to Firstlight Village! Tobin, of the eastern road. Charms, oils, oddments — the ferry is still broken, so I brought the cart here. You wouldn't have anything to eat?", '欢迎来初原村！我叫托宾，跑东边那条路的。护符、灯油、杂货——渡船还没修好，我就把货车搬来了。你身上没带点吃的吧？', { mood: 'surprised', once: true }),
     line('default', "I'd trade the whole cart for a hot meal. Well — not the whole cart. Most of it.", '为了一顿热饭，我愿意拿整车货来换。嗯——也不是整车。大半车吧。'),
     line('default', 'That blue wand? Frost from the tip. Freezes a puddle solid. A river, I would not know — never tried.', '那根蓝魔杖？杖尖冒寒气，能把水洼冻得结结实实。河嘛，我不知道——没试过。'),
     line('default', "Hesper says I owe her a fare. I say the river owes us both. She doesn't laugh.", '赫斯珀说我欠她一趟船钱。我说是河欠我们俩的。她不笑。'),
     line('default', 'Oil, a flask of it. Burns hot and slick. Useful, if you are careful. I am not careful.', '灯油，一瓶。烧得又旺又滑。小心点用很有用。我就不小心。'),
-    line('hour:evening', "They come out after dark, you know. From the hollow. I'm sleeping by the cart with one eye open.", '天一黑它们就出来了，从那个洞里。我睡在车边，睁一只眼。'),
+    line('hour:evening', "The village fire is warm. Better than sleeping by the hollow at the Ford, with one eye open.", '村里的火暖和。总比睡在渡口洞边、还得睁一只眼强。'),
     line('hour:night', "Shh. Did you hear that? … Probably nothing. Probably.", '嘘。你听见了吗？……大概没什么。大概。', { mood: 'surprised' }),
     line('weather:storm', "Not under the tree! Never under the tree in a storm. My uncle — well. Never mind my uncle.", '别站树底下！打雷的时候千万别站树底下。我叔叔他——算了，别提我叔叔了。', { mood: 'surprised' }),
     line('weather:rain', 'Rain on the charms. They do not like it. Neither do I.', '雨淋到护符了。它们不喜欢，我也不喜欢。'),

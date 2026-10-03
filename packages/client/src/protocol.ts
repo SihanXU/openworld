@@ -1,6 +1,6 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { Aim, Dir, Frame, Key, LibraryData, MapData, ModSpec, Patch, Rule, SaveData, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@lsw/engine'
+import type { Aim, Dir, Frame, Key, LibraryData, MapData, ModSpec, Patch, PlacementPreview, Rule, SaveData, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@lsw/engine'
 
 /** Where the mouse points: its tile, and what is drawn at the point, top first (the keys act there when it is next to the player). */
 export type Tile = Aim
@@ -9,6 +9,8 @@ export type ToWorker =
   | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** the modder service, if any */ modder?: string }
   /** Hold a direction (null: stop); `walk`: Shift, slower than the default run. */
   | { t: 'move'; dir: Dir | null; walk?: boolean }
+  /** Q: dash (the skill), the way the player faces. */
+  | { t: 'dash' }
   /** Space: strike ahead with the held weapon (or a fist), again and again while it is held. */
   | { t: 'attack'; on: boolean }
   /** One of the four inputs (design.md §5.2): E hands, F take, left click use, right click put; on a chosen layer of the tile. */
@@ -19,6 +21,8 @@ export type ToWorker =
   | { t: 'choices'; key: Key; tile?: Tile }
   /** Where the mouse points (for the key labels). */
   | { t: 'aim'; tile?: Tile }
+  | { t: 'buildAim'; id?: string; tile?: Tile }
+  | { t: 'build'; id: string; tile: Tile }
   | { t: 'answer'; yes: boolean }
   /** Slots: select (toolbar), cycle (wheel), next row (Tab, Shift+Tab back), swap and quick move (menu), drop (out of the menu), organize. */
   | { t: 'select'; slot: number }
@@ -30,6 +34,14 @@ export type ToWorker =
   | { t: 'organize' }
   /** The crafting panel: make a recipe from what is carried. */
   | { t: 'craft'; id: string }
+  /** The skill tree: spend skill points on a skill. */
+  | { t: 'learn'; id: string }
+  /** Take up (or change to) a profession at a trainer. */
+  | { t: 'profession'; id: string }
+  /** The world map: what has been seen of the world (answered by `atlas`). */
+  | { t: 'atlas' }
+  /** Travel to an attuned waypoint stone (from the world map). */
+  | { t: 'travel'; waypoint: string }
   /** The chest panel. */
   | { t: 'transfer'; from: 'chest' | 'bag'; item: string; all: boolean }
   | { t: 'closePanel' }
@@ -65,13 +77,14 @@ export interface LibraryView {
 }
 
 export type FromWorker =
+  | { t: 'placement'; preview: PlacementPreview }
   | { t: 'ready'; stats: WorldIndex['stats']; name: WorldIndex['name']; resumed: boolean }
   | { t: 'map'; map: MapData }
   | { t: 'frame'; frame: Frame; perf: { tickMs: number; entities: number; loaded: number } }
   | { t: 'records'; records: RecordView[]; library: LibraryView }
   | { t: 'spec'; spec: ModSpec }
   | { t: 'validation'; id?: string; result: ValidationResult }
-  | { t: 'saved'; save: SaveData; library: LibraryData }
+  | { t: 'saved'; save: SaveData; library: LibraryData; summary: SaveSummary }
   /** The library changed (a patch was accepted or removed): keep it at once, not at the next save. */
   | { t: 'library'; library: LibraryData }
   | { t: 'loading'; what: string }
@@ -79,3 +92,34 @@ export type FromWorker =
   | { t: 'choices'; key: Key; tile?: Tile; list: { layer: number; name: Text; label?: Text; unknown?: boolean }[] }
   | { t: 'modder'; online: boolean; url?: string; model?: string | null }
   | { t: 'error'; message: string }
+  /** The world map's data: the visited maps where they lie, their terrain, the waypoint stones. */
+  | { t: 'atlas'; atlas: Atlas }
+
+export interface AtlasMap {
+  id: string
+  name: Text
+  /** Top left in world tiles (MapMeta.at); maps without one are not drawn. */
+  at: { x: number; y: number }
+  width: number
+  height: number
+  /** Row-major terrain ids. */
+  terrain: string[]
+}
+
+export interface Atlas {
+  maps: AtlasMap[]
+  waypoints: { id: string; map: string; x: number; y: number; name: Text; attuned: boolean }[]
+  here: { map: string; x: number; y: number }
+}
+
+/** What a save slot shows without loading it: where, when, how far. */
+export interface SaveSummary {
+  map: Text
+  day: number
+  hour: number
+  minute: number
+  level: number
+  /** The story's stages (the objective is looked up from them). */
+  prologue: number
+  quest: number
+}

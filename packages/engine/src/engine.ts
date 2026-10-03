@@ -4,9 +4,14 @@
 import { isNight, rainy } from './calendar.ts'
 import { EffectRunner } from './effects.ts'
 import { Controls } from './controls.ts'
+import { combatDamage, combatDelay, combatStrike, combatTick, finishCombatStrike, rangeBonus, recordCombatStep } from './combat.ts'
 import { Scenes } from './scenes.ts'
+import { Companions } from './companion.ts'
+import { Quests } from './quests.ts'
 import { stepCreatures } from './creatures.ts'
+import { stepBosses } from './bosses.ts'
 import { forageTick } from './forage.ts'
+import { nightTick } from './nightspawn.ts'
 import { hungerTick } from './hunger.ts'
 import { NpcSim, scheduleAt } from './npc.ts'
 import { scheduleFor } from './people.ts'
@@ -14,6 +19,7 @@ import { OntologyIndex } from './ontology.ts'
 import { RuleLibrary, evalCond, rolesOf } from './rules.ts'
 import type {
   Dir,
+  BossDef,
   Entity,
   GameEvent,
   Id,
@@ -62,11 +68,15 @@ const INVARIANT_EVERY = 30
 export const WORLD_KINDS = new Set(['status', 'hit', 'enter', 'meet', 'blocked', 'witness', 'invalid'])
 
 export class Engine {
+  /** Encounter mechanics supplied by the world, never imported from content. */
+  bossKits: Record<string, BossDef> = {}
   world: World
   lib: RuleLibrary
   effects: EffectRunner
   npcs: NpcSim
   scenes: Scenes
+  companions: Companions
+  quests: Quests
   /** The player's two keys, slots and magnet (design.md §5.2–5.3). */
   controls: Controls
   /** Content the world must keep playable (game-design: the Ford's invariants). */
@@ -97,6 +107,8 @@ export class Engine {
     this.effects = new EffectRunner(this)
     this.npcs = new NpcSim(this)
     this.scenes = new Scenes(this)
+    this.companions = new Companions(this)
+    this.quests = new Quests(this)
     this.controls = new Controls(this)
   }
 
@@ -139,6 +151,8 @@ export class Engine {
     const composed = matches.filter((r) => r.compose)
     if (this.trace.length > 200) this.trace.shift()
     this.trace.push({ ev, rule: rule?.id })
+    // a creature felled counts for the quests that ask for it (before a rule removes it)
+    if (ev.kind === 'defeat') this.quests.onDefeat(ev)
     if (rule) this.effects.run(rule, ev)
     for (const r of composed) this.effects.run(r, ev)
     // the world's own events that find no rule: asked about when salient, else the safe default
@@ -166,10 +180,13 @@ export class Engine {
   targetAt(pos: Pos, verb: Verb, pick?: Id): Ref {
     const es = this.world.entitiesAt(pos.map, pos.x, pos.y)
     const by = (k: string) => es.filter((e) => this.world.kindOf(e) === k)
-    const actor = by('actor')[0]
+    const actors = by('actor')
+    const actor = actors.find((e) => !this.world.hasTag(e, 'airborne'))
     if (actor) return { e: actor.id }
     const fixture = by('fixture')[0]
     const items = by('item')
+    // a bird overhead answers only when nothing else is there
+    if (!fixture && !items.length && actors.length) return { e: actors[0].id }
     if (fixture && verb === 'take') {
       const inside = this.world.hasStatus({ e: fixture.id }, 'open') ? (fixture.contents ?? []) : []
       if (inside.length) return { e: pick && inside.includes(pick) ? pick : inside[0] }
@@ -216,6 +233,8 @@ export class Engine {
     }
     const res = this.resolve(ev)
     if (!res.defined) {
+      // something the world has never seen was tried (counted with or without a modder)
+      if (actorId === w.state.player) w.setFact('world.experiments', Number(w.fact('world.experiments') ?? 0) + 1)
       if (this.undefinedSink) this.undefinedSink.raise(ev)
       else this.fallback(ev)
       return res
@@ -228,11 +247,19 @@ export class Engine {
     return res
   }
 
-  /** The safe default when an event stays undefined. */
+  /**
+   * The safe default when an event stays undefined: the most specific safe default or catch-all
+   * that matches it (a strict event's catch-alls count here), else "Nothing happens".
+   */
   fallback(ev: GameEvent): void {
     if (WORLD_KINDS.has(ev.kind) && ev.origin !== 'player') return this.worldFallback(ev)
+    const w = this.world
+    // the world may have moved on while a request waited: what was held may be gone
+    const gone = (['target', 'instrument'] as const).some((r) => { const x = ev.roles[r]; return x && 'e' in x && !w.get(x.e) })
+    const rule = gone ? undefined : this.lib.match(ev, rolesOf(ev, w), w, true).find((r) => !r.compose)
+    if (rule) return this.effects.run(rule, ev)
     const actor = ev.roles.actor && 'e' in ev.roles.actor ? ev.roles.actor.e : undefined
-    if (actor) this.world.fx.push({ t: 'say', who: actor, text: { en: 'Nothing happens.', zh: '什么也没有发生。' } })
+    if (actor) w.fx.push({ t: 'say', who: actor, text: { en: 'Nothing happens.', zh: '什么也没有发生。' } })
   }
 
   /**
@@ -354,6 +381,9 @@ export class Engine {
     if (w.state.tick % INVARIANT_EVERY !== 0) return
     for (const inv of this.invariants) {
       if (w.fact(`invalid.${inv.id}`)) continue
+      // content not in play yet: its giver's map is not loaded (the player is still on the mountain)
+      const at = inv.giver ? w.posOf(w.get(inv.giver)) : undefined
+      if (inv.giver && (!at || !w.map(at.map))) continue
       if (inv.when && !evalCond(inv.when, {}, w)) continue
       if (evalCond(inv.holds, {}, w)) continue
       w.setFact(`invalid.${inv.id}`, true)
@@ -416,6 +446,8 @@ export class Engine {
   applyStatus(ref: Ref, status: string, duration?: number): void {
     const w = this.world
     const def = w.onto.status(status)
+    // a status that wards this one off (fireproof against burning) keeps it from taking hold
+    for (const held of Object.keys(w.statusesOf(ref) ?? {})) if (w.onto.status(held)?.wards?.includes(status)) return
     for (const c of def?.clears ?? []) w.clearStatus(ref, c)
     const dur = duration ?? def?.duration
     const fresh = w.setStatus(ref, status, dur ? w.state.tick + dur : NO_EXPIRY)
@@ -430,8 +462,24 @@ export class Engine {
     const w = this.world
     if (w.hasStatus({ e: e.id }, 'down')) return
     const def = pierce ? 0 : w.num(e, 'def')
-    const dmg = Math.max(1, Math.round(amount - def))
-    const hp = w.num(e, 'hp', 1) - dmg
+    // fireproof (the herbalist's draught): fire does a quarter of its harm
+    if (element === 'fire' && w.hasStatus({ e: e.id }, 'fireproof')) amount *= 0.25
+    const attacker = by && 'e' in by ? w.get(by.e) : undefined
+    const dmg = combatDamage(w, e, Math.max(1, Math.round(amount - def)), attacker, !!pierce)
+    // a blow that found nothing (dodged, or the moment after a dash): still a foe for having swung
+    if (dmg <= 0) {
+      if (e.ai && attacker && attacker.id !== e.id && !(e.ai.foes ??= []).includes(attacker.id)) e.ai.foes.push(attacker.id)
+      return
+    }
+    let hp = w.num(e, 'hp', 1) - dmg
+    // Phoenix (the skill): once a day, any lethal damage leaves 30% health and a moment untouchable
+    if (hp <= 0 && w.hasTag(e, 'skill:phoenix') && w.prop(e, 'phoenixDay') !== w.calendar().day) {
+      hp = Math.max(1, Math.ceil(w.num(e, 'maxHp', 1) * 0.3))
+      ;(e.props ??= {}).phoenixDay = w.calendar().day
+      ;(e.combat ??= {}).guardUntil = w.state.tick + 30
+      w.fx.push({ t: 'log', text: { en: 'Phoenix: you rise from a lethal blow.', zh: '涅槃：你从致命一击中重新站起。' }, tone: 'good' })
+      w.fx.push({ t: 'vfx', fx: 'heal', ...w.posOf(e)! })
+    }
     ;(e.props ??= {}).hp = hp
     w.fx.push({ t: 'damage', who: e.id, amount: dmg, element })
     if (hp <= 0) this.queue({ kind: 'defeat', roles: { target: { e: e.id }, actor: by } })
@@ -478,7 +526,7 @@ export class Engine {
     const portalHere = w.map(map)?.portals.find((p) => p.x === nx && p.y === ny)
     // only the player uses portals by stepping on them; NPCs transfer from the tile beside
     if (portalHere && !isPlayer) return false
-    if (!w.walkable(map, nx, ny, e.id, !!e.npc)) {
+    if (!w.fits(e, map, nx, ny)) {
       // JRPG courtesy: keep pushing into a person (~0.8 s) and you swap places;
       // a single bump just turns you to face them (so you can talk)
       const other = w.actorAt(map, nx, ny)
@@ -495,6 +543,7 @@ export class Engine {
       w.place(other, { on: 'tile', map, x, y })
     }
     w.place(e, { on: 'tile', map, x: nx, y: ny })
+    recordCombatStep(w, e)
     const enter: GameEvent = { kind: 'enter', roles: { actor: { e: e.id }, target: { tile: { map, x: nx, y: ny } } } }
     // the player steps into a tile in some state the world has no answer for (design.md §5.4, source 5)
     const st = w.tileState(map, nx, ny)?.statuses
@@ -514,7 +563,7 @@ export class Engine {
       return false
     }
     const moved = this.step(p, dir)
-    if (moved) this.setCooldown(p.id, this.world.num(p, 'speed', 2) + (walk ? 1 : 0))
+    if (moved) this.setCooldown(p.id, combatDelay(this.world, p, this.world.num(p, 'speed', 2) + (walk ? 1 : 0), 'move'))
     return moved
   }
 
@@ -530,22 +579,25 @@ export class Engine {
     const w = this.world
     const from = w.posOf(e)?.map
     let { x, y } = to
-    if (!w.walkable(to.map, x, y, e.id)) {
-      const free = this.nearestFree(to)
-      if (free) ({ x, y } = free)
+    if (!w.fits(e, to.map, x, y)) {
+      const free = this.nearestFree(to, e)
+      if (!free) return
+      ;({ x, y } = free)
     }
     w.place(e, { on: 'tile', map: to.map, x, y })
+    // where the player has been: the world map shows it
+    if (e.id === w.state.player) w.setFact(`visited.${to.map}`, 1)
     if (e.id === w.state.player && from !== to.map) {
       w.fx.push({ t: 'mapChanged', map: to.map })
       this.npcs.onEnterMap(to.map, from)
     }
   }
 
-  nearestFree(p: Pos): Pos | undefined {
+  nearestFree(p: Pos, actor?: Entity): Pos | undefined {
     for (let r = 1; r < 6; r++)
       for (let dy = -r; dy <= r; dy++)
         for (let dx = -r; dx <= r; dx++)
-          if (this.world.walkable(p.map, p.x + dx, p.y + dy)) return { map: p.map, x: p.x + dx, y: p.y + dy }
+          if (actor ? this.world.fits(actor, p.map, p.x + dx, p.y + dy) : this.world.walkable(p.map, p.x + dx, p.y + dy)) return { map: p.map, x: p.x + dx, y: p.y + dy }
     return undefined
   }
 
@@ -557,13 +609,15 @@ export class Engine {
     const p = w.player
     if (this.busy(p) || !this.ready('atk:' + p.id)) return
     this.attack(p, target)
-    this.setCooldown('atk:' + p.id, 5)
+    this.setCooldown('atk:' + p.id, combatDelay(w, p, 5, 'attack'))
   }
 
   attack(a: Entity, chosen?: Ref): void {
     const w = this.world
     const weapon = w.get(a.held)
-    const range = weapon ? w.num(weapon, 'range', 1) : 1
+    // a weapon's reach; without one, the actor's own (a dragon's breath carries)
+    // (a profession may lengthen it: the ranger's bow, the archmage's focus)
+    const range = (weapon ? w.num(weapon, 'range', 1) : w.num(a, 'range', 1)) + rangeBonus(w, a, weapon)
     const element = (weapon && (w.prop(weapon, 'element') as string | undefined)) || (w.prop(a, 'element') as string | undefined)
     const power = w.num(a, 'atk', 1) + (weapon ? w.num(weapon, 'power', 0) : 0)
     const start = w.posOf(a)
@@ -577,7 +631,7 @@ export class Engine {
       if (!w.inBounds(start.map, x, y)) break
       last = { map: start.map, x, y }
       // an actor first, then a fixture (a blow on the well is a blow on the well)
-      const victim = w.actorAt(start.map, x, y) ?? w.entitiesAt(start.map, x, y).find((e) => w.kindOf(e) === 'fixture')
+      const victim = w.actorAt(start.map, x, y, a.id) ?? w.entitiesAt(start.map, x, y).find((e) => w.kindOf(e) === 'fixture')
       if (victim) {
         target = { e: victim.id }
         break
@@ -588,20 +642,39 @@ export class Engine {
     // a melee blow on the layer the player chose (the well rather than the bucket on it); a cast
     // at a tile the player chose lands there when it lies on the bolt's way (frost on the water at your feet)
     const cp = chosen && w.refPos(chosen)
-    if (chosen && cp && range <= 1 && Math.max(Math.abs(cp.x - start.x), Math.abs(cp.y - start.y)) <= 1) target = chosen
-    else if (chosen && cp && range > 1 && last) {
+    if (chosen && cp && cp.map === start.map && range <= 1 && Math.max(Math.abs(cp.x - start.x), Math.abs(cp.y - start.y)) <= 1) target = chosen
+    else if (chosen && cp && cp.map === start.map && range > 1 && last) {
       const d = Math.abs(cp.x - start.x) + Math.abs(cp.y - start.y)
       const onRay = cp.x - start.x === dx * d && cp.y - start.y === dy * d
       if (onRay && d >= 1 && d <= Math.abs(last.x - start.x) + Math.abs(last.y - start.y)) (target = chosen), (last = cp)
     }
-    if (!target) return
+    if (!target) {
+      finishCombatStrike(w, a, undefined, { power, critical: false, charged: false, comboHits: 0 }, 0, range, true)
+      return
+    }
     if (range > 1 && last) w.fx.push({ t: 'vfx', fx: `bolt:${element ?? 'none'}:${a.facing}:${Math.abs(last.x - start.x) + Math.abs(last.y - start.y)}`, map: start.map, x: start.x, y: start.y })
     else w.fx.push({ t: 'vfx', fx: `swing:${a.facing}`, map: start.map, x: start.x, y: start.y })
-    const hit: GameEvent = { kind: 'hit', roles: { actor: { e: a.id }, target, instrument: weapon ? { e: weapon.id } : undefined }, element, power }
+    const victim = 'e' in target ? w.get(target.e) : undefined
+    const before = victim ? w.num(victim, 'hp') : 0
+    const strike = combatStrike(w, a, victim, power, range, weapon, true)
+    const hit: GameEvent = { kind: 'hit', roles: { actor: { e: a.id }, target, instrument: weapon ? { e: weapon.id } : undefined }, element, power: strike.power }
     if (a.id === w.state.player) hit.origin = 'player'
     // the player's blow lands on something with no reaction (design.md §5.4, source 3)
     if (a.id === w.state.player && this.undefinedSink && this.salientHit(hit) && !this.resolve(hit).defined) return this.undefinedSink.raise(hit)
     this.queue(hit)
+    finishCombatStrike(w, a, victim, strike, before, range, true)
+    // a sweep (the skill): a melee blow also lands on the creatures on either side of the tile ahead
+    if (range <= 1 && w.hasTag(a, 'skill:sweep'))
+      for (const s of [1, -1]) {
+        const x = start.x + dx + dy * s
+        const y = start.y + dy + dx * s
+        const side = w.inBounds(start.map, x, y) ? w.actorAt(start.map, x, y) : undefined
+        if (!side || side.id === a.id || !w.hasTag(side, 'creature') || ('e' in target && target.e === side.id)) continue
+        const sideHp = w.num(side, 'hp')
+        const sideStrike = combatStrike(w, a, side, power, range, weapon, false)
+        this.queue({ ...hit, power: sideStrike.power, roles: { ...hit.roles, target: { e: side.id } } })
+        finishCombatStrike(w, a, side, sideStrike, sideHp, range, false)
+      }
   }
 
   /** A hit worth asking about: on a fixture, or with an element on a tile that holds something (a status, water, plants). */
@@ -628,13 +701,17 @@ export class Engine {
     this.statusTick(active)
     this.npcs.tick(active)
     stepCreatures(this, active)
+    stepBosses(this, active)
     this.undefinedSink?.tick()
     this.controls.magnet()
     forageTick(this, active)
+    nightTick(this, active)
+    combatTick(this, active)
     hungerTick(this, active)
     this.weatherTick(active)
     this.invariantTick()
     this.scenes.tick()
+    this.companions.tick()
   }
 
   // ---------------------------------------------------------------- weather

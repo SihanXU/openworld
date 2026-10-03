@@ -4,7 +4,9 @@ import { START_HOUR, TICKS_PER_HOUR, type WeatherSpan } from './calendar.ts'
 import { Engine, type MapChunk } from './engine.ts'
 import { ModPort } from './mod.ts'
 import { RuleLibrary, type LibraryData } from './rules.ts'
-import type { Entity, Invariant, MapData, Ontology, Pos, Portal, SceneDef, Text, WorldState } from './types.ts'
+import type { Beat, Guide } from './companion.ts'
+import type { QuestDef } from './quests.ts'
+import type { BossDef, Entity, Id, Invariant, MapData, Ontology, Pos, Portal, SceneDef, Text, WorldState } from './types.ts'
 
 export interface MapMeta {
   id: string
@@ -16,6 +18,8 @@ export interface MapMeta {
   portals: Portal[]
   npcs: number
   items: number
+  /** Where the map lies in the world (tiles, its top left), from the edge links; the world map lays maps out by it. */
+  at?: { x: number; y: number }
 }
 
 /** The generated world's global index (the per-map chunks are fetched lazily). */
@@ -40,6 +44,17 @@ export interface WorldIndex {
   protectedFacts?: string[]
   /** Spans of time whose weather the world fixes (the evening storm). */
   weather?: WeatherSpan[]
+  /** The tutorial's steps (companion.ts, docs/prologue.md). */
+  beats?: Beat[]
+  /** The story's objectives by stage, for a companion to tell (F on it). */
+  guides?: Guide[]
+  /** Quests people give (quests.ts, docs/quests.md). */
+  quests?: QuestDef[]
+  /** Actors who come with the player from the start (the bird), placed beside the start. */
+  companions?: Entity[]
+  /** The teleport stones (fixture/waypoint ids), for the world map. */
+  waypoints?: { id: Id; map: string; x: number; y: number; name: Text }[]
+  bosses?: BossDef[]
 }
 
 export interface SaveData {
@@ -79,6 +94,8 @@ export class Game {
     for (const m of index.maps) eng.graph[m.id] = m.portals
     eng.world.add(structuredClone(index.player))
     for (const n of index.npcs) addTree(eng, n)
+    // companions start beside the start, following the player
+    for (const c of index.companions ?? []) eng.world.add({ ...structuredClone(c), place: { on: 'tile', map: index.start.map, x: index.start.x - 1, y: index.start.y }, props: { ...c.props, companion: index.player.id } })
     loadContent(eng, index)
     return new Game(eng)
   }
@@ -91,6 +108,12 @@ export class Game {
     // how the player looks is the world's to say, not the save's (a save from before a new look gets it)
     const p = eng.world.get(eng.world.state.player)
     if (p && index.player.look) p.look = index.player.look
+    // Old saves acquire the world's initial profession; an explicit profession is never replaced.
+    if (p && p.props?.profession === undefined && index.player.props?.profession !== undefined)
+      (p.props ??= {}).profession = index.player.props.profession
+    // Early Iron Stomach saves used its delta as an absolute interval (faster, not slower).
+    for (const actor of Object.values(eng.world.state.entities))
+      if (actor.tags?.includes('skill:iron-stomach') && actor.props?.hungerEvery === 150) actor.props.hungerEvery = 450
     return new Game(eng)
   }
 
@@ -135,7 +158,10 @@ function addTree(eng: Engine, e: Entity & { _items?: Entity[] }): void {
 
 /** Scenes and invariants are content: read from the world on every start (they are not saved). */
 function loadContent(eng: Engine, index: WorldIndex): void {
+  eng.bossKits = Object.fromEntries((index.bosses ?? []).map((b) => [b.id, structuredClone(b)]))
   eng.scenes.load(index.scenes)
+  eng.companions.load(index.beats, index.guides)
+  eng.quests.load(index.quests)
   eng.loadInvariants(index.invariants, index.protectedFacts)
   if (index.weather && !Array.isArray(eng.world.state.weather)) eng.world.state.weather = index.weather
 }

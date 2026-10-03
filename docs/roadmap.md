@@ -48,7 +48,7 @@ What that looks like in play:
 - **Behaviour is rules.** Each loop below is a handful of rules, types and statuses. An
   engine change is listed only where no rule can do the job.
 - **Three verbs, one hand, no menus.** (One exception, chosen on 2026-10-02: a Don't Starve
-  crafting panel for the first tools, design.md §5.3.) Choices are made in the world: what you hold, what
+  crafting panel for the first tools and a B construction/farming palette, design.md §5.3.) Choices are made in the world: what you hold, what
   you put it on, how much is already there.
 - **Rules address classes.** `tool:axe` on anything tagged `tree`, never one tree.
 - **Timers are statuses.** Growth, regrowth and bites are statuses with a duration and a
@@ -70,6 +70,8 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 | M2 | Woodcutting | M1 (stacks) | 12,310 / 20,313 (60.6%) | 59 forms, 12 of 38 fixture types |
 | M3 | Building | M2 (planks) | 13,108 / 21,201 (61.8%) | 53 forms, 12 of 42 fixture types |
 | M4 | Farming | M1 (stacks, facing indicator) | 15,600 / 24,054 (64.9%) | 50 of 113 forms, 12 of 52 fixture types |
+| M4a | Original vegetables + live B building/farming palette (after quest expansion) | M3, M4 | 24,707 / 35,154 (70.3%) | 49 of 125 forms, 25 of 85 fixture types |
+| S1 | Seven original sin bosses, action/FX atlases, East Road encounter and save migration | M4a, Firstlight Village | 24,945 / 35,406 (70.5%) | 49 of 125 forms, 25 of 86 fixture types |
 | M5 | Gathering and fishing | M1 | | |
 | M6 | Cooking | M4 (wheat), M5 (fish) | | |
 | M7 | Mining and smithing | M3 (hammer, frames) | | |
