@@ -17,7 +17,7 @@
 import { buildModSpec, type ModRequest, type ModWorkspace, type Patch, type ResolveBody, type ResolveReply } from '@lsw/engine'
 import { briefOf, relatedRules } from './brief.ts'
 import { changesNothing, deriveTests } from './derive.ts'
-import { narrowKinds, normalizePatch } from './fixes.ts'
+import { narrowKinds, normalizePatch, qualifyTerrains } from './fixes.ts'
 import type { WorldLibrary } from './library.ts'
 import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@lsw/agent'
 import { materializeWorld } from './repo.ts'
@@ -180,14 +180,20 @@ export class Modder {
     try {
       for (;;) {
         const answer = await this.converse(model, messages, tools, h, ep)
-        const { patch: draft, fixes } = normalizePatch(parseJson(answer))
+        let bracketsRepaired = false
+        const { patch: draft, fixes } = normalizePatch(parseJson(answer, () => (bracketsRepaired = true)))
+        if (bracketsRepaired) fixes.unshift('repaired the JSON brackets (one closed too early, or missing at the end)')
         if (!draft) {
-          ep.attempts.push({ phase, errors: ['no JSON patch in the answer'], warnings: [] })
+          // say what was wrong: no JSON at all, JSON that does not parse (and where), or JSON with no patch in it
+          const why = unreadable(answer)
+          ep.attempts.push({ phase, errors: [why], warnings: [], raw: answer.slice(0, 2000) })
           if (repairs++ >= h.repair.maxRounds) break
-          retry(NO_JSON, 'repair')
+          retry(why === NO_PATCH ? NO_JSON : `${why}\n\n${NO_JSON}`, 'repair')
           continue
         }
         let patch: Patch = { ...draft, author: 'modder' }
+        const qualified = qualifyTerrains(patch, ctx.ontology)
+        if (qualified.fixes.length) ((patch = qualified.patch), fixes.push(...qualified.fixes))
         let res = validate(patch)
         // mechanical conflicts are fixed here, not with another model turn
         const narrowed = res.ok ? undefined : narrowKinds(patch, req, res)
@@ -449,4 +455,23 @@ function flagsOf(patch: Patch, derived?: string[]): string[] {
 function clipJson(x: unknown): unknown {
   const s = JSON.stringify(x ?? {})
   return s.length > 2000 ? `${s.slice(0, 2000)}…` : x
+}
+
+const NO_PATCH = 'no JSON patch in the answer'
+
+/** Why no patch could be read from an answer, precisely enough to fix it (and to learn the right lesson). */
+function unreadable(answer: string): string {
+  const a = answer.indexOf('{')
+  const b = answer.lastIndexOf('}')
+  if (a < 0 || b <= a) return NO_PATCH
+  const text = answer.slice(a, b + 1)
+  try {
+    JSON.parse(text)
+    return 'the answer is JSON but holds no patch: answer {"patch": {"artifacts": [...]}, "summary": "..."}'
+  } catch (err) {
+    const msg = (err as Error).message
+    const at = Number(/position (\d+)/.exec(msg)?.[1] ?? -1)
+    const near = at >= 0 ? ` near …${text.slice(Math.max(0, at - 60), at)}⟨here⟩${text.slice(at, at + 20)}…` : ''
+    return `the answer's JSON does not parse (${msg.replace(/ in JSON at position \d+.*$/, '')})${near} — count the brackets of the tree`
+  }
 }

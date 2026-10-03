@@ -19,6 +19,7 @@
     "improve": "tsx packages/tools/src/improve.ts",
     "engine-task": "tsx packages/tools/src/engine-tasks.ts",
     "latency": "tsx packages/tools/src/latency.ts",
+    "curriculum:report": "tsx packages/tools/src/curriculum-report.ts",
     "ford-live": "tsx packages/tools/src/ford-live.ts",
     "test": "vitest run",
     "typecheck": "tsc -p packages/engine && tsc -p packages/content && tsc -p packages/tools && tsc -p packages/agent && tsc -p packages/modder && tsc -p packages/client",

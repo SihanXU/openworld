@@ -3,7 +3,7 @@
 // the latency bench, every malformed first answer had a correct rule inside the wrong wrapper.
 // Each fix is recorded on the attempt, so the episode shows what was changed and why.
 
-import { PRIMITIVES, type Artifact, type Cond, type Effect, type ModRequest, type Patch, type Rule, type Tree, type ValidationResult } from '@lsw/engine'
+import { PRIMITIVES, type Artifact, type Cond, type Effect, type ModRequest, type Ontology, type Patch, type Rule, type Selector, type Tree, type ValidationResult } from '@lsw/engine'
 
 const looksLikeRule = (x: Record<string, unknown>) => typeof x.on === 'string' && (!!x.tree || Array.isArray(x.do))
 
@@ -96,4 +96,28 @@ export function narrowKinds(patch: Patch, req: ModRequest, res: ValidationResult
     return { kind: 'rule' as const, rule: { ...a.rule, on: kind } }
   })
   return fixes.length ? { patch: { ...patch, artifacts }, fixes } : undefined
+}
+
+/**
+ * A selector naming a terrain by its bare id (`{type: "bush"}`) means the tile type `tile/bush`:
+ * qualify it, in the host and in every `is` condition, when no type of that name exists.
+ */
+export function qualifyTerrains(patch: Patch, onto: Ontology): { patch: Patch; fixes: string[] } {
+  const fixes: string[] = []
+  const types = new Set([...Object.keys(onto.types), ...patch.artifacts.flatMap((a) => (a.kind === 'type' && a.type?.id ? [a.type.id] : []))])
+  const sel = (s: Selector | undefined, id: string): Selector | undefined => {
+    if (!s?.type || s.type.startsWith('tile/') || types.has(s.type) || !(s.type in onto.terrains)) return s
+    fixes.push(`read type "${s.type}" in "${id}" as the terrain "tile/${s.type}"`)
+    return { ...s, type: `tile/${s.type}` }
+  }
+  const cond = (c: Cond, id: string): Cond => {
+    if ('all' in c) return { all: c.all.map((x) => cond(x, id)) }
+    if ('any' in c) return { any: c.any.map((x) => cond(x, id)) }
+    if ('not' in c) return { not: cond(c.not, id) }
+    if ('is' in c) return { is: { ...c.is, sel: sel(c.is.sel, id)! } }
+    return c
+  }
+  const tree = (t: Tree, id: string): Tree => (t && typeof t === 'object' && 'if' in t ? { if: cond(t.if, id), then: tree(t.then, id), ...(t.else !== undefined ? { else: tree(t.else, id) } : {}) } : t)
+  const artifacts = patch.artifacts.map((a) => (a.kind === 'rule' && a.rule ? { ...a, rule: { ...a.rule, host: sel(a.rule.host, a.rule.id), tree: tree(a.rule.tree, a.rule.id) } } : a))
+  return { patch: fixes.length ? { ...patch, artifacts } : patch, fixes }
 }

@@ -246,7 +246,7 @@ export function scriptFromFile(path: string): ScriptedModel {
 // ---------------------------------------------------------------- helpers
 
 /** Best-effort JSON out of a model reply: strip code fences, else take the outermost {...}. */
-export function parseJson(text: string): unknown {
+export function parseJson(text: string, onRepair?: () => void): unknown {
   if (!text) return undefined
   const t = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```$/, '').trim()
   try {
@@ -262,6 +262,73 @@ export function parseJson(text: string): unknown {
     } catch {
       /* fall through */
     }
+    const fixed = repairBrackets(t.slice(a, b + 1))
+    if (fixed !== undefined) {
+      onRepair?.()
+      return fixed
+    }
+  }
+  return undefined
+}
+
+/**
+ * JSON whose only fault is its brackets — the commonest malformed answer from a model writing a
+ * deep tree: one `}` too many (an object closed early), or the closers missing at the end. Tries
+ * dropping one closer from the run just before the error, or appending the missing ones; up to a
+ * few rounds. Returns the value, or undefined when brackets are not the problem.
+ */
+export function repairBrackets(s: string): unknown {
+  const error = (x: string): { pos: number; end: boolean } | undefined => {
+    try {
+      JSON.parse(x)
+      return undefined
+    } catch (err) {
+      const m = /position (\d+)/.exec((err as Error).message)
+      const pos = m ? Number(m[1]) : x.length
+      return { pos, end: pos >= x.trimEnd().length || /end of (JSON|data)/i.test((err as Error).message) }
+    }
+  }
+  const missing = (x: string): string => {
+    const stack: string[] = []
+    let str = false
+    for (let i = 0; i < x.length; i++) {
+      const c = x[i]
+      if (str) {
+        if (c === '\\') i++
+        else if (c === '"') str = false
+      } else if (c === '"') str = true
+      else if (c === '{') stack.push('}')
+      else if (c === '[') stack.push(']')
+      else if (c === '}' || c === ']') stack.pop()
+    }
+    return stack.reverse().join('')
+  }
+  let cur = s
+  for (let round = 0; round < 4; round++) {
+    const e = error(cur)
+    if (!e) return JSON.parse(cur)
+    if (e.end) {
+      // a forgotten last brace or two; more than that is a truncated answer, not a typo
+      const tail = missing(cur)
+      if (!tail || tail.length > 2 || error(cur + tail)) return undefined
+      return JSON.parse(cur + tail)
+    }
+    // the nearest run of closers before the error (the parser may stumble a token or two later):
+    // one of them closed something too early
+    let i = e.pos - 1
+    while (i >= 0 && e.pos - i < 200 && cur[i] !== '}' && cur[i] !== ']') i--
+    let next: string | undefined
+    for (let j = i; j >= 0 && (cur[j] === '}' || cur[j] === ']'); j--) {
+      const cand = cur.slice(0, j) + cur.slice(j + 1)
+      const ce = error(cand)
+      if (!ce) return JSON.parse(cand)
+      if (ce.pos > e.pos) {
+        next = cand
+        break
+      }
+    }
+    if (next === undefined) return undefined
+    cur = next
   }
   return undefined
 }

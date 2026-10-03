@@ -6,9 +6,14 @@
 //
 //   npm run curriculum -- [--n 20] [--seed 1] [--scope demo|all] [--checkpoint 10]
 //                         [--improve-every 10] [--budget 5] [--engine]
+//                         [--profile live|offline] [--by hole] [--data <dir>]
+//   --profile live answers as a player would get it (one call; review after shipping; a failure
+//   escalates to the offline agent in the background); --by hole spreads the sample over the
+//   holes the cells reach. Every step is a row of <data>/runs/<time>.jsonl, with the coverage
+//   after it: how many undefined cells the patch answered (its class reaches further than the cell).
 //   (model from .env / the environment, as for `npm run modder`)
 
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ModPort, Rng, buildSandbox, type ModRequest, type Ontology, type RuleLibrary, type Scenario } from '@lsw/engine'
@@ -17,7 +22,7 @@ import { improve, runAgent, type TaskSource } from '@lsw/agent'
 import { openModder, type Modder } from '@lsw/modder'
 import { FRONT, ORIGIN, sweep, targets, type Cell } from './coverage.ts'
 import { engineSource, engineTask, engineTaskDefs } from './engine-tasks.ts'
-import { pickWeighted, scopedTotals, worldScope, type Scope } from './scope.ts'
+import { pickByHole, pickWeighted, scopedTotals, worldScope, type Scope } from './scope.ts'
 
 const SIZE = 9 // the request window is 7×7 around the target (or around the actor, using a thing on itself)
 const SHIFT = { x: 4 - FRONT.x, y: 4 - FRONT.y }
@@ -111,7 +116,10 @@ async function main(): Promise<void> {
   const improveEvery = Number(flag('improve-every', '0'))
   const budget = Number(flag('budget', '0'))
   const withEngine = argv.includes('--engine')
-  const modder = openModder({ log: (l) => console.log(`  ${l}`) })
+  const profile = flag('profile', 'offline') as 'live' | 'offline'
+  const byHole = flag('by') === 'hole'
+  const data = flag('data')
+  const modder = openModder({ log: (l) => console.log(`  ${l}`), ...(data ? { data } : {}) })
   if (!modder.model) {
     console.error('no model configured: set LSW_MODEL_KEY + LSW_MODEL (e.g. in .env), or LSW_MODEL_SCRIPT')
     process.exit(1)
@@ -121,7 +129,11 @@ async function main(): Promise<void> {
   const scope = scopeName === 'all' ? undefined : worldScope(buildOntology())
   const before = sweep(onto, [...library.lib.rules.values()])
   const open = before.cells.filter((c) => c.outcome === 'undefined')
-  const cells = scope ? pickWeighted(open, n, seed, scope) : pick(open, n, seed)
+  const cells = scope ? (byHole ? pickByHole(open, n, seed, scope) : pickWeighted(open, n, seed, scope)) : pick(open, n, seed)
+  const runs = join(state.dir, '..', 'runs')
+  mkdirSync(runs, { recursive: true })
+  const runFile = join(runs, `${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`)
+  let undefinedNow = before.totals.undefined
   const sources: TaskSource[] = [modder.taskSource(), ...(withEngine ? [engineSource()] : [])]
   console.log(`${scope ? `${scopedTotals(before.cells, scope).undefined} undefined in ${scopeName}` : `${open.length} undefined`}; taking ${cells.length} (seed ${seed}) with ${modder.model.name}`)
   let since = state.episodes().length
@@ -139,9 +151,34 @@ async function main(): Promise<void> {
       counts.answered = (counts.answered ?? 0) + 1
       continue
     }
-    const reply = await modder.resolve({ request: req }, 'offline') // nobody waits: the agent, quality first
+    const t0 = Date.now()
+    const reply = await modder.resolve({ request: req }, profile) // offline: nobody waits, the agent, quality first
     counts[reply.outcome] = (counts[reply.outcome] ?? 0) + 1
-    console.log(`${label}: ${reply.outcome}${reply.diagnostics?.length ? ` (${reply.diagnostics[0].slice(0, 200)})` : ''}`)
+    const ep = reply.episode ? state.episode(reply.episode) : undefined
+    // how far the answer reaches: the undefined cells it answered, this one and the rest of its class
+    const cov = sweep(library.fullOntology(), [...library.lib.rules.values()])
+    const answered = undefinedNow - cov.totals.undefined
+    undefinedNow = cov.totals.undefined
+    const row = {
+      step: i + 1,
+      cell,
+      summary: req.summary,
+      kind: req.event.kind,
+      host: req.event.host?.type,
+      hole: req.hole.rule,
+      outcome: reply.outcome,
+      episode: reply.episode,
+      rules: ep?.rules ?? [],
+      attempts: ep?.attempts.length,
+      firstValid: !!ep?.attempts[0] && !ep.attempts[0].errors.length,
+      calls: ep?.usage.calls,
+      cost: ep?.usage.cost,
+      ms: Date.now() - t0,
+      answered,
+      undefined: undefinedNow,
+    }
+    appendFileSync(runFile, JSON.stringify(row) + '\n')
+    console.log(`${label}: ${reply.outcome}${reply.diagnostics?.length ? ` (${reply.diagnostics[0].slice(0, 200)})` : ''} · ${(row.ms / 1000).toFixed(1)} s · answers ${answered} cell(s) · ${undefinedNow} undefined`)
     // stage 2: an engine task now and then (the world's own code, as an SWE task)
     if (withEngine && (i + 1) % 5 === 0) {
       const defs = engineTaskDefs()
@@ -171,6 +208,7 @@ async function main(): Promise<void> {
   console.log('\noutcomes', counts)
   console.log(`undefined interactions${scope ? ` in ${scopeName}` : ''}: ${scope ? scopedTotals(before.cells, scope).undefined : before.totals.undefined} → ${scope ? scopedTotals(after.cells, scope).undefined : after.totals.undefined}`)
   console.log('self-state', state.stats())
+  console.log(`steps: ${runFile}`)
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) await main()

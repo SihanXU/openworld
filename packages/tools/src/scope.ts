@@ -97,6 +97,26 @@ export function pickWeighted(cells: Cell[], n: number, seed: number, s: Scope): 
   return out
 }
 
+/**
+ * A weighted sample spread over the holes the cells reach (`core/use`, `core/receive`,
+ * `core/strike`, …): each hole gets its share of n, and at least two, so the thousands of
+ * undefined uses do not crowd out the rarer kinds of question.
+ */
+export function pickByHole(cells: Cell[], n: number, seed: number, s: Scope): Cell[] {
+  const by = new Map<string, Cell[]>()
+  for (const c of cells) if (c.hole && inScope(c, s)) (by.get(c.hole) ?? by.set(c.hole, []).get(c.hole)!).push(c)
+  const total = [...by.values()].reduce((a, cs) => a + cs.length, 0)
+  const holes = [...by.keys()].sort()
+  const quota = new Map(holes.map((h) => [h, Math.min(by.get(h)!.length, Math.max(2, Math.round((n * by.get(h)!.length) / total)))]))
+  // trim the largest shares until the quotas add up to n
+  while ([...quota.values()].reduce((a, b) => a + b, 0) > n) {
+    const big = holes.reduce((a, b) => (quota.get(a)! >= quota.get(b)! ? a : b))
+    if (quota.get(big)! <= 2) break
+    quota.set(big, quota.get(big)! - 1)
+  }
+  return holes.flatMap((h, i) => pickWeighted(by.get(h)!, quota.get(h)!, seed + i, s))
+}
+
 /** Outcome totals over the scope only. */
 export function scopedTotals(cells: Cell[], s: Scope): Tally & { total: number } {
   const t = { specific: 0, generic: 0, undefined: 0, total: 0 }
