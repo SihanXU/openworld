@@ -17,6 +17,10 @@ function tool(id: string, form: string, material: string, needs: Recipe['needs']
 }
 
 export const RECIPES: Recipe[] = [
+  tool('stone-hoe', 'item/tool/hoe', 'stone', [{ type: STICK, count: 2 }, { type: STONE, count: 2 }, { type: GRASS, count: 1 }]),
+  tool('stone-sickle', 'item/tool/sickle', 'stone', [{ type: STICK, count: 1 }, { type: STONE, count: 2 }, { type: GRASS, count: 1 }]),
+  tool('stone-hammer', 'item/tool/smith_hammer', 'stone', [{ type: STICK, count: 1 }, { type: STONE, count: 2 }]),
+  tool('wooden-bucket', 'item/vessel/bucket/empty', 'wood', [{ type: 'item/material/plank', count: 3 }, { type: GRASS, count: 1 }]),
   tool('stone-axe', 'item/weapon/blade/axe', 'stone', [
     { type: STICK, count: 1 },
     { type: STONE, count: 1 },

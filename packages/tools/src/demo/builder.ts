@@ -39,6 +39,8 @@ export class MapBuilder {
   regions: Record<string, [number, number, number, number]> = {}
   /** What the ground yields by itself (MapData.forage). */
   forage: Forage[] = []
+  /** Peaceful (towns, camps) or combat (night brings monsters): MapData.zone. */
+  zone: 'peaceful' | 'combat' = 'combat'
 
   constructor(
     public id: string,
@@ -339,6 +341,7 @@ export class MapBuilder {
         temper: opts.temper ?? 'aggressive',
         sight: opts.sight ?? 5,
         home: { map: this.id, x, y },
+        ...(opts.leash !== undefined && { leash: opts.leash }),
       },
     }
     this.entities.push(e)
@@ -386,6 +389,7 @@ export class MapBuilder {
         forage: this.forage.length ? this.forage : undefined,
         music: this.music,
         light: this.light,
+        zone: this.zone,
       },
       entities: this.entities,
     }

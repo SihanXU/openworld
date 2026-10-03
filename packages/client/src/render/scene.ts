@@ -29,8 +29,20 @@ interface EView {
   key: string
   movingUntil: number
   phase: number
-  actor?: { key: string; rows: number; cols: number; tint?: number }
+  /** The quest mark over a person ('!' a quest to give, '?' one to take back). */
+  quest?: { mark: string; text: Phaser.GameObjects.Text }
+  /** The player: the tile it walks to; drawn chasing it at the walking pace (walk()). */
+  walker?: { x: number; y: number; t: number }
+  /** A flyer (a companion): where it heads; it is drawn gliding there, not stepped tile by tile. */
+  flyer?: { x: number; y: number; t: number }
+  actor?: { key: string; rows: number; cols: number; tint?: number; scale?: number }
+  /** The dragon's parts round its head: wings on the head's container, body and tail trailing it in the world. */
+  dragon?: { wings: Phaser.GameObjects.Image[]; segments: Phaser.GameObjects.Image[]; trail: { x: number; y: number }[] }
 }
+
+/** How far apart (px) the dragon's body segments trail, and how many there are (the last is the tail). */
+const DRAGON_GAP = 11
+const DRAGON_SEGMENTS = 5
 
 const OVERLAY_OF: [string, string][] = [
   ['burning', 'ovl:burning'],
@@ -78,6 +90,7 @@ export class WorldScene extends Phaser.Scene {
   private pending: { map?: MapData; frames: Frame[] } = { frames: [] }
   private following?: Phaser.GameObjects.Container
   private focus?: Phaser.GameObjects.Graphics
+  private bossWarnings?: Phaser.GameObjects.Graphics
   private darkness = 0
   private music?: Phaser.Sound.BaseSound
   private musicKey?: string
@@ -290,6 +303,16 @@ export class WorldScene extends Phaser.Scene {
     if (f.map !== this.base.id) return
     this.playerId = f.player.id
     this.applyTiles(f)
+    this.bossWarnings ??= this.add.graphics().setDepth(-20)
+    this.bossWarnings.clear()
+    for (const e of f.entities) if (e.boss?.warning) {
+      const warning = e.boss.warning, color = e.boss.color
+      for (const [x, y] of warning.tiles) {
+        this.bossWarnings.fillStyle(color, 0.13 + warning.progress * 0.24).fillRect(x * T + 1, y * T + 1, T - 2, T - 2)
+        this.bossWarnings.lineStyle(1, color, 0.6 + warning.progress * 0.4).strokeRect(x * T + 1, y * T + 1, T - 2, T - 2)
+        this.bossWarnings.fillStyle(0xffeee0, warning.progress).fillRect(x * T + 7, y * T + 7, 2, 2)
+      }
+    }
     const seen = new Set<string>()
     for (const e of f.entities) {
       seen.add(e.id)
@@ -298,10 +321,32 @@ export class WorldScene extends Phaser.Scene {
       else this.updateView(v, e)
     }
     for (const [id, v] of this.views) if (!seen.has(id)) (this.destroyView(v), this.views.delete(id))
+    this.drawQuestMarks(f)
     const me = this.views.get(this.playerId)
     if (me && this.following !== me.root) {
       this.following = me.root
       this.cameras.main.startFollow(me.root, true, 0.2, 0.2)
+    }
+    // Frame the crown and the player's dodge floor together, reserving the encounter
+    // plate and toolbar. Scale belongs to the actor, not to the camera.
+    const sovereign = f.entities.find((e) => e.boss && (e.hp ?? 0) > 0 && Math.max(Math.abs(e.x - f.player.x), Math.abs(e.y - f.player.y)) <= 12)
+    const view = sovereign && this.views.get(sovereign.id)
+    let zoom = this.fitZoom(), offset = 0
+    if (me && view) {
+      const top = Math.min(me.root.y - T, view.root.y - view.body.displayHeight * 0.9)
+      const bottom = Math.max(me.root.y, view.root.y)
+      const span = Math.max(bottom - top, view.body.displayHeight * 0.9 + T)
+      const compact = this.scale.height <= 800
+      zoom = Math.min(zoom, Math.max(1.5, Math.floor((this.scale.height - (compact ? 240 : 300)) / span * 4) / 4))
+      offset = me.root.y - ((top + bottom) / 2 - (compact ? 20 : 40) / zoom)
+    }
+    if (this.cameras.main.zoom !== zoom) { this.cameras.main.setZoom(zoom); this.fitBounds() }
+    this.cameras.main.setFollowOffset(0, offset)
+    // Tall silhouettes may overhang walkable cells behind their actual collision base.
+    // Keep a backstabbing player and ground warnings legible through that overhang.
+    if (me) for (const v of this.views.values()) if (v.snap.boss) {
+      const behind = me.root.depth < v.root.depth && v.body.getBounds().contains(me.root.x, me.root.y - T / 2)
+      v.body.setAlpha(behind ? 0.55 : 1)
     }
     this.drawFocus(f)
     for (const fx of f.fx) this.playFx(fx)
@@ -309,6 +354,21 @@ export class WorldScene extends Phaser.Scene {
     this.updateNight(f)
     this.hooks.onFrame(f)
     for (const fx of f.fx) this.hooks.onFx(fx, f)
+  }
+
+  /** A yellow "!" over people with a quest to give, "?" over those to hand one back to (bobbing). */
+  private drawQuestMarks(f: Frame): void {
+    const marks = f.quests?.marks ?? {}
+    for (const [id, v] of this.views) {
+      const mark = marks[id]
+      if (v.quest && v.quest.mark !== mark) (v.quest.text.destroy(), (v.quest = undefined))
+      if (!mark || v.quest) continue
+      const text = this.add.text(0, -T * 1.45, mark, { fontFamily: 'Pixelify Sans, monospace', fontSize: '20px', color: '#ffd23f', stroke: '#3a2414', strokeThickness: 4, fontStyle: 'bold' }).setOrigin(0.5, 1).setResolution(2)
+      text.setScale(0.5)
+      v.root.add(text)
+      this.tweens.add({ targets: text, y: -T * 1.45 - 2, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
+      v.quest = { mark, text }
+    }
   }
 
   /** Outline the tile the inputs aim at: the mouse's own or neighbour tile, or the one in front. */
@@ -362,6 +422,8 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private lastStep = 0
+  /** The player's steps come every 1–2 ticks when hasted (fractional cadence): their glide follows the running average, so the walk keeps an even speed. */
+  private stepAvg = 200
 
   private applyTiles(f: Frame): void {
     const now = new Map<string, string>()
@@ -440,8 +502,8 @@ export class WorldScene extends Phaser.Scene {
       const a = this.actorDef(e)
       if (a) {
         const { img, fw, fh } = actorFrames(this, a.key, a.def)
-        const col = a.def.rows === 1 ? 0 : (DIR_COL[e.facing] ?? 0)
-        return { img, frame: `${a.key}:${col},0`, ax: fw / 2, ay: fh, actor: { key: a.key, rows: a.def.rows, cols: a.def.cols, tint: a.def.tint } }
+        const col = e.boss || a.def.rows === 1 ? 0 : (DIR_COL[e.facing] ?? 0)
+        return { img, frame: `${a.key}:${col},0`, ax: fw / 2, ay: a.def.anchorY ?? fh, actor: { key: a.key, rows: a.def.rows, cols: a.def.cols, tint: a.def.tint, scale: a.def.scale } }
       }
     }
     if (e.kind === 'fixture') {
@@ -449,7 +511,7 @@ export class WorldScene extends Phaser.Scene {
       if (f) {
         // a look of its own among the type's variants, kept for its life
         const v = f.variants?.length ? hashStr(e.id) % f.variants.length : -1
-        const d = (e.statuses.includes('lit') && f.lit) || (e.open && f.open) || (v >= 0 ? f.variants![v] : f.base)
+        const d = ((e.statuses.includes('lit') || e.statuses.includes('attuned')) && f.lit) || (e.open && f.open) || (v >= 0 ? f.variants![v] : f.base)
         const [frame] = spriteFrames(this, `fix:${e.sprite}:${d === f.lit ? 'lit' : d === f.open ? 'open' : v >= 0 ? `v${v}` : 'base'}`, d)
         return { img: d.img, frame, ax: d.ax, ay: d.ay }
       }
@@ -468,19 +530,56 @@ export class WorldScene extends Phaser.Scene {
     const root = this.add.container(e.x * T + T / 2, (e.y + 1) * T)
     let shadow: Phaser.GameObjects.Ellipse | undefined
     if (e.kind === 'actor') {
-      shadow = this.add.ellipse(0, -1, 11, 4, 0x000000, 0.22)
+      const [width, depth] = e.boss?.footprint ?? [1, 1]
+      shadow = this.add.ellipse(0, -depth * 4, width * 11, depth * 6, 0x000000, 0.22)
       root.add(shadow)
     }
     const body = this.add.sprite(0, 0, t.img, t.frame)
     body.setOrigin(t.ax / body.width, t.ay / body.height)
+    if (t.actor?.scale) body.setScale(t.actor.scale)
     if (e.kind === 'item') body.setScale(0.8)
     // small growth and litter sit a little off the grid, never in rows
     if (e.kind === 'fixture' && this.fixtureDef(e)?.loose) body.setPosition((hashStr(e.id, 23) % 9) - 4, (hashStr(e.id, 29) % 5) - 2)
     const hp = this.add.graphics()
     root.add([body, hp])
     const v: EView = { snap: e, root, body, shadow, hp, key: `${t.img}|${t.frame}`, movingUntil: 0, phase: Math.random() * 1000, actor: t.actor }
+    if (e.sprite === 'boss:dragon') v.dragon = this.dragonParts(root, body)
     this.updateView(v, e, true)
     return v
+  }
+
+  /** The dragon composed (the pack draws it in parts): two wings behind the head, a body of segments and a tail in the world behind it. */
+  private dragonParts(root: Phaser.GameObjects.Container, head: Phaser.GameObjects.Sprite): EView['dragon'] {
+    const ui = CATALOG.ui
+    const wings = [-1, 1].map((side) => {
+      const w = this.add.image(side * 16, -30, ui.dragonWing.img).setOrigin(side < 0 ? 1 : 0, 0.75)
+      if (side > 0) w.setFlipX(true)
+      return w
+    })
+    root.addAt(wings, 1)
+    root.bringToTop(head)
+    const segments = Array.from({ length: DRAGON_SEGMENTS }, (_, i) => {
+      const img = i === DRAGON_SEGMENTS - 1 ? ui.dragonTail.img : i % 2 ? ui.dragonBody2.img : ui.dragonBody1.img
+      return this.add.image(root.x, root.y, img).setOrigin(0.5, 0.8)
+    })
+    return { wings, segments, trail: [] }
+  }
+
+  /** Wings beat; the body follows the way the head has come, and curls behind it at rest. */
+  private updateDragon(v: EView, time: number): void {
+    const d = v.dragon!
+    const beat = Math.sin((time + v.phase) / 160)
+    d.wings.forEach((w, i) => w.setAngle((i ? 1 : -1) * (8 + beat * 14)).setScale(1, 0.9 + 0.1 * beat))
+    const head = { x: v.root.x, y: v.root.y - 6 }
+    const last = d.trail[0]
+    if (!last || Math.hypot(last.x - head.x, last.y - head.y) >= 2) d.trail.unshift(head)
+    d.trail.length = Math.min(d.trail.length, DRAGON_SEGMENTS * DRAGON_GAP + 2)
+    d.segments.forEach((s, i) => {
+      // along the trail, or where it would lie curled behind a head that has not moved yet
+      const p = d.trail[Math.round(((i + 1) * DRAGON_GAP) / 2)] ?? { x: head.x + Math.sin(i * 0.9) * 10, y: head.y + (i + 1) * 9 }
+      s.setPosition(p.x, p.y + Math.sin((time + v.phase) / 300 + i) * 1.2)
+      s.setDepth(v.root.depth - 1 - i * 0.01)
+    })
   }
 
   private updateView(v: EView, e: EntitySnap, first = false): void {
@@ -488,18 +587,35 @@ export class WorldScene extends Phaser.Scene {
     v.snap = e
     const px = e.x * T + T / 2
     const py = (e.y + 1) * T
-    if (!first && (prev.x !== e.x || prev.y !== e.y)) {
-      const far = Math.abs(prev.x - e.x) + Math.abs(prev.y - e.y) > 1
+    // a flyer glides toward where it is (update()); only a long way off does it appear there at once
+    if (e.tags.includes('companion')) {
+      if (first || !v.flyer || Math.max(Math.abs(prev.x - e.x), Math.abs(prev.y - e.y)) > 6) v.root.setPosition(px, py)
+      v.flyer = { x: px, y: py, t: v.flyer?.t ?? this.time.now }
+    } else if (!first && (prev.x !== e.x || prev.y !== e.y)) {
+      // one step, straight or diagonal, slides; anything farther jumps
+      const far = Math.max(Math.abs(prev.x - e.x), Math.abs(prev.y - e.y)) > 1
       this.tweens.killTweensOf(v.root)
-      if (far) v.root.setPosition(px, py)
+      if (far) {
+        v.root.setPosition(px, py)
+        if (v.walker) v.walker = { x: px, y: py, t: this.time.now }
+      }
       else {
-        // the player's step lasts as long as the gap between steps (running or walking)
         const now = this.time.now
         const gap = now - this.lastStep
-        if (e.id === this.playerId) this.lastStep = now
-        const dur = e.id === this.playerId ? Math.max(160, Math.min(320, gap > 400 ? 200 : gap)) : e.kind === 'actor' && (e.look || e.appearance) ? 380 : 330
-        this.tweens.add({ targets: v.root, x: px, y: py, duration: dur, ease: 'Linear' })
-        v.movingUntil = this.time.now + dur
+        if (e.id === this.playerId) {
+          this.lastStep = now
+          // a pause (a stop, a turn) does not count toward the walking pace
+          if (gap < 400) this.stepAvg = this.stepAvg * 0.75 + gap * 0.25
+        }
+        if (e.id === this.playerId) {
+          // the player is not tweened step by step: walk() chases the tile at the walking pace
+          v.walker = { x: px, y: py, t: v.walker?.t ?? now }
+          v.movingUntil = now + this.stepAvg
+        } else {
+          const dur = e.tags.includes('companion') ? 110 : e.kind === 'actor' && (e.look || e.appearance) ? 380 : 330
+          this.tweens.add({ targets: v.root, x: px, y: py, duration: dur, ease: 'Linear' })
+          v.movingUntil = this.time.now + dur
+        }
       }
     }
     if (e.kind !== 'actor') {
@@ -514,6 +630,7 @@ export class WorldScene extends Phaser.Scene {
       const t = this.textureFor(e)
       v.actor = t.actor
       v.body.setTexture(t.img, t.frame)
+      v.body.setScale(t.actor?.scale ?? 1)
     }
     // items lie on top of the fixture sharing their tile (a table, a counter), under actors
     // what lies flat on the ground (moss, leaves, pebbles) is under all that stands
@@ -536,7 +653,7 @@ export class WorldScene extends Phaser.Scene {
     else v.body.clearTint()
     // a thing an act waits on shimmers; one who is down lies on the ground
     v.body.setAlpha(e.frozen && e.kind !== 'actor' ? 0.75 : 1)
-    v.body.setAngle(e.statuses.includes('down') ? 90 : 0)
+    v.body.setAngle(!e.boss && e.statuses.includes('down') ? 90 : 0)
     // held item (small, at the hand)
     if (e.held && e.kind === 'actor') {
       const d = CATALOG.items[e.held]
@@ -549,12 +666,12 @@ export class WorldScene extends Phaser.Scene {
       }
     } else if (v.held) (v.held.destroy(), (v.held = undefined))
     // lights glow at night
-    const lit = e.statuses.includes('lit') || e.statuses.includes('burning') || (e.id === this.playerId && e.heldTags?.includes('light'))
+    const lit = e.statuses.includes('lit') || e.statuses.includes('burning') || e.statuses.includes('attuned') || (e.id === this.playerId && e.heldTags?.includes('light'))
     if (lit && !v.glow) v.glow = this.add.image(px, py - 8, 'glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(1e7 + 1).setTint(0xffb050)
     if (!lit && v.glow) (v.glow.destroy(), (v.glow = undefined))
     // hp bar
     v.hp.clear()
-    if (e.kind === 'actor' && e.maxHp && e.hp !== undefined && (e.hp < e.maxHp || e.hostile) && e.id !== this.playerId) {
+    if (e.kind === 'actor' && !e.boss && e.maxHp && e.hp !== undefined && (e.hp < e.maxHp || e.hostile) && e.id !== this.playerId) {
       const w = 14
       const top2 = -v.body.displayHeight - 3
       v.hp.fillStyle(0x000000, 0.6).fillRect(-w / 2, top2, w, 2)
@@ -565,14 +682,62 @@ export class WorldScene extends Phaser.Scene {
   private destroyView(v: EView): void {
     this.tweens.killTweensOf(v.root)
     v.glow?.destroy()
+    for (const s of v.dragon?.segments ?? []) s.destroy()
     v.root.destroy()
+  }
+
+  /**
+   * The player's sprite chases its tile at the walking pace (a tile per average step), a little
+   * faster the further behind it is. Steps come every one or two ticks when hasted (fractional
+   * cadence); stepping a tween per step made it stop and lurch, this keeps it moving evenly and
+   * never more than about a tile and a half behind.
+   */
+  private walk(v: EView, time: number): void {
+    const w = v.walker!
+    const dt = Math.min(100, time - w.t)
+    w.t = time
+    const dx = w.x - v.root.x
+    const dy = w.y - v.root.y
+    const lag = Math.hypot(dx, dy) / T
+    if (lag < 0.001) return
+    const speed = (1 / Math.max(60, Math.min(320, this.stepAvg))) * Math.max(0.4, 1 + 0.3 * (lag - 0.9))
+    const step = Math.min(lag, speed * dt)
+    v.root.x += (dx / lag) * step
+    v.root.y += (dy / lag) * step
+  }
+
+  /**
+   * A flyer eases toward where it is going (fast when far, slow as it arrives), bobs as it flies,
+   * and turns to face the way it goes.
+   */
+  private glide(v: EView, time: number): void {
+    const f = v.flyer!
+    const dt = Math.min(100, time - f.t)
+    f.t = time
+    const dx = f.x - v.root.x
+    const dy = f.y - v.root.y
+    const a = 1 - Math.exp(-dt / 330)
+    v.root.x += dx * a
+    v.root.y += dy * a
+    if (Math.abs(dx) > 2) v.body.setFlipX(dx < 0)
+    // aloft: a little above the ground, rising and falling with its wingbeats
+    v.body.y = -4 - Math.sin((time + v.phase) / 210) * 1.5
   }
 
   update(time: number): void {
     this.drawWeather(time)
     for (const v of this.views.values()) {
       const e = v.snap
-      if (v.actor && v.actor.rows === 1) {
+      if (v.flyer) this.glide(v, time)
+      if (v.walker) this.walk(v, time)
+      if (v.actor && e.boss) {
+        const { action, progress } = e.boss
+        const row = action === 'idle' ? 0 : action === 'walk' ? 1 : action === 'attack' ? 2 : action === 'cast' ? 3 : 4
+        const col = action === 'death' ? progress < 0.6 ? 2 : 3 : action === 'hurt' ? Math.floor(time / 100) % 2
+          : action === 'idle' || action === 'walk' ? Math.floor((time + v.phase) / (action === 'walk' ? 150 : 260)) % 4
+          : Math.min(3, Math.floor(progress * 4))
+        v.body.setFrame(`${v.actor.key}:${col},${row}`).setFlipX(e.facing === 'left')
+      } else if (v.actor && v.actor.rows === 1) {
         // single-row strips (bosses): animate across the columns
         v.body.setFrame(`${v.actor.key}:${Math.floor((time + v.phase) / 140) % v.actor.cols},0`)
       } else if (v.actor) {
@@ -585,6 +750,7 @@ export class WorldScene extends Phaser.Scene {
         v.body.setFrame(`${v.actor.key}:${col},${row}`)
         v.body.y = working ? -Math.abs(Math.sin(time / 95)) * 1.5 : 0
       }
+      if (v.dragon) this.updateDragon(v, time)
       if (v.glow) v.glow.setPosition(v.root.x, v.root.y - 8).setAlpha(this.darkness * 1.4 * (0.85 + 0.15 * Math.sin((time + v.phase) / 120)))
     }
     for (const t of this.tileFx.values())
@@ -787,7 +953,9 @@ export class WorldScene extends Phaser.Scene {
         this.tweens.add({ targets: p, x: x + dx * len * T, y: y + dy * len * T, duration: 45 * len + 40, onComplete: () => p.destroy() })
         return
       }
-      const s = this.oneShot(kind, x, y)
+      // Authored effects may have a namespaced key (sin:greed:stamp); keep the
+      // complete key before falling back to the legacy colon-argument convention.
+      const s = this.oneShot(CATALOG.fx[fx.fx] ? fx.fx : kind, x, y)
       if (!s) this.oneShot('poof', x, y, { tint: ELEMENT_COLOR[kind] })
       if (kind === 'explosion') this.cameras.main.shake(160, 0.004)
       const snd = WorldScene.SFX_OF[kind]

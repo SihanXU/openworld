@@ -4,7 +4,7 @@
 
 import type { Engine } from './engine.ts'
 import { matchSelector } from './rules.ts'
-import type { Amount, Effect, EmitTo, Entity, GameEvent, Impulse, Place, Pos, PropValue, Ref, RoleName, RoleRef, Text } from './types.ts'
+import type { AiData, Amount, Effect, EmitTo, Entity, GameEvent, Impulse, Place, Pos, PropValue, Ref, RoleName, RoleRef, Text } from './types.ts'
 import { GIVEN_LINE, chooseLine, raiseTopic } from './people.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
 import { gainXp } from './progression.ts'
@@ -45,6 +45,8 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   say: 'say {text, who?} — the host says a line ("@line": one of its own lines for the moment; "@given": its line for the item it was given); text fills {host} {actor} {target} {instrument} {other} {item} and {role.key}',
   log: 'log {text} — a message line ({role} = names, {role.key} = that role\'s prop, {param.key} = an event param)',
   emote: 'emote {mood: neutral|happy|sad|angry|surprised|shy} — an emote bubble over the host',
+  quest: 'quest {} — the host (a person) is spoken to by the player about quests: what is ready is handed in, what is offered is taken on, a talk goal is met; otherwise it says its line (quests.ts)',
+  panel: "panel {panel} — the host (a trainer) opens one of the player's panels when the player spoke to it: 'profession'",
 }
 
 /** Primitives only the story's and the world's rules may use. */
@@ -86,6 +88,10 @@ export class EffectRunner {
   }
 
   private text(ev: GameEvent, who: Entity | undefined, t: Text): Text {
+    // a companion repeats the latest beat's line (companion.ts)
+    if (t === '@hint') return this.eng.companions.hint() ?? { en: '…', zh: '……' }
+    // what the story asks for now (the companion's guide)
+    if (t === '@objective') return this.eng.companions.objective() ?? { en: 'Nothing presses now. Go where you like!', zh: '现在没什么急事。想去哪就去哪吧！' }
     if (t === '@line') {
       const lines = who?.npc?.lines
       if (lines?.length) return lines[Math.floor(this.eng.world.rand() * lines.length)]
@@ -151,9 +157,21 @@ export class EffectRunner {
         const into = eff.into ?? 'tile'
         const n = eff.count === undefined ? 1 : Math.max(0, Math.floor(this.amount(ev, eff.count)))
         for (let i = 0; i < n; i++) {
-          const place = this.placeFor(at, into)
+          let place = this.placeFor(at, into)
           if (!place) continue
           const made = w.create(type, place)
+          // an actor never appears on top of another, or in a wall: it takes the nearest free tile
+          if (place.on === 'tile' && w.kindOf(made) === 'actor' && !w.walkable(place.map, place.x, place.y, made.id)) {
+            const free = eng.nearestFree({ map: place.map, x: place.x, y: place.y })
+            if (free) w.place(made, (place = { on: 'tile', map: free.map, x: free.x, y: free.y }))
+          }
+          // a creature a rule brings (a dragon's whelps) comes with the behaviour its type names, at home where it appears
+          if (place.on === 'tile' && w.kindOf(made) === 'actor' && w.hasTag(made, 'creature') && !made.ai) {
+            const behaviour = (w.prop(made, 'behaviour') as AiData['behaviour'] | undefined) ?? 'melee'
+            const temper = (w.prop(made, 'temper') as AiData['temper'] | undefined) ?? 'aggressive'
+            made.facing = 'down'
+            made.ai = { behaviour, temper, sight: w.num(made, 'sight', 6), home: { map: place.map, x: place.x, y: place.y } }
+          }
           eng.touch({ e: made.id })
           // an item a rule drops on the ground pops out for the player's magnet (unless it lies still: taken with F)
           if (place.on === 'tile' && w.kindOf(made) === 'item' && !eff.still) made.dropped = true
@@ -250,9 +268,10 @@ export class EffectRunner {
         return
       }
       case 'feed': {
+        // Hearty Meals (the skill): food fills half as much again
         const max = host ? w.num(host, 'maxHunger') : 0
         if (!host || max <= 0) return
-        eng.setProp(host, 'hunger', Math.max(0, Math.min(max, Math.round(w.num(host, 'hunger', max) + this.amount(ev, eff.amount)))), ev)
+        eng.setProp(host, 'hunger', Math.max(0, Math.min(max, Math.round(w.num(host, 'hunger', max) + this.amount(ev, eff.amount) * (w.hasTag(host, 'skill:hearty-meals') ? 1.5 : 1)))), ev)
         return
       }
       case 'gainXp': {
@@ -317,6 +336,19 @@ export class EffectRunner {
       case 'topic': {
         const id = this.str(ev, eff.id)
         if (id) raiseTopic(eng, id, eff.days ?? (typeof ev.params?.days === 'number' ? ev.params.days : undefined))
+        return
+      }
+      case 'quest': {
+        // the host is spoken to; the one speaking is the act's actor (quests.ts)
+        const a = ev.roles.actor
+        const byPlayer = !!host && !!a && 'e' in a && a.e === w.state.player
+        if (!byPlayer || !eng.quests.talk(host!.id)) this.apply({ op: 'say', text: '@line' }, ev)
+        return
+      }
+      case 'panel': {
+        // a panel is the player's: only when the player is the one who spoke
+        const a = ev.roles.actor
+        if (host && a && 'e' in a && a.e === w.state.player) w.fx.push({ t: 'panel', panel: eff.panel, by: host.id })
         return
       }
       case 'scene':

@@ -290,7 +290,15 @@ const BODIES: Rule[] = [
       IF(
         param('name', 'vitals'),
         IF(
-          all({ prop: { role: 'host', key: 'hunger', bounds: { gte: { prop: 'maxHunger', of: 'host', mul: 0.9 } } } }, { prop: { role: 'host', key: 'hp', bounds: { lt: { prop: 'maxHp', of: 'host' } } } }),
+          all(
+            // well fed: 90 % and up — from half with Second Wind, a quarter with Regeneration (the skills)
+            any(
+              { prop: { role: 'host', key: 'hunger', bounds: { gte: { prop: 'maxHunger', of: 'host', mul: 0.9 } } } },
+              all(tag('host', 'skill:second-wind'), { prop: { role: 'host', key: 'hunger', bounds: { gte: { prop: 'maxHunger', of: 'host', mul: 0.5 } } } }),
+              all(tag('host', 'skill:regeneration'), { prop: { role: 'host', key: 'hunger', bounds: { gte: { prop: 'maxHunger', of: 'host', mul: 0.25 } } } }),
+            ),
+            { prop: { role: 'host', key: 'hp', bounds: { lt: { prop: 'maxHp', of: 'host' } } } },
+          ),
           DO({ op: 'heal', amount: 1 }),
           IF(all({ prop: { role: 'host', key: 'hunger', cmp: { lte: 0 } } }, { prop: { role: 'host', key: 'hp', cmp: { gt: 1 } } }), DO({ op: 'hurt', amount: 1, pierce: true }), NOTHING),
         ),
@@ -311,10 +319,10 @@ const BODIES: Rule[] = [
 const PEOPLE: Rule[] = [
   rule({
     id: 'people/talk',
-    doc: 'A hand on a person: they say what fits the moment.',
+    doc: 'A hand on a person: a quest they have for you (handed in, taken on, a word they were to hear — docs/quests.md), else what fits the moment.',
     host: PERSON,
     on: 'impulse/handle',
-    tree: IF({ same: ['host', 'actor'] }, 'inherit', DO({ op: 'say', text: '@line' })),
+    tree: IF({ same: ['host', 'actor'] }, 'inherit', DO({ op: 'quest' })),
   }),
   rule({
     id: 'people/accept',
@@ -352,7 +360,7 @@ const INSTRUMENTS: Rule[] = [
     doc: 'Food used on oneself feeds hunger (Minecraft): health comes back from being well fed, not from the bite.',
     host: { tags: ['edible'] },
     on: 'act/use',
-    tree: IF({ same: ['actor', 'target'] }, DO(emit('restore', 'actor', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), log('You eat {host}.', '你吃掉了{host}。'), { op: 'destroy' })),
+    tree: IF({ same: ['actor', 'target'] }, DO(emit('restore', 'actor', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), emit('notify', 'story', { what: 'meal' }), log('You eat {host}.', '你吃掉了{host}。'), { op: 'destroy' })),
   }),
   rule({
     id: 'use/eat-medicine',
@@ -592,7 +600,12 @@ const GROUND: Rule[] = [
     on: 'impulse/strike',
     tree: IF(
       tag('instrument', 'tool:axe'),
-      IF(has('host', 'notched'), IF({ chance: 0.25 }, DO(...FELL, { op: 'spawn', type: 'item/seed/acorn', at: 'host' }), DO(...FELL)), DO(add('notched'), vfx('leaves'), log('The axe bites into {host}.', '斧头砍进了{host}。'))),
+      IF(
+        has('host', 'notched'),
+        // a woodcutter (the skill, content/src/skills.ts) gets one more log from the same tree
+        IF(tag('actor', 'skill:woodcutter'), DO(...FELL, { op: 'spawn', type: 'item/material/log', at: 'host' }), IF({ chance: 0.25 }, DO(...FELL, { op: 'spawn', type: 'item/seed/acorn', at: 'host' }), DO(...FELL))),
+        DO(add('notched'), vfx('leaves'), log('The axe bites into {host}.', '斧头砍进了{host}。')),
+      ),
     ),
   }),
   rule({
@@ -1094,4 +1107,100 @@ const WORLD_RULES: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES]
+
+// ------------------------------------------------------------------ the prologue, the village, professions (docs/prologue.md, quests.md, skill-tree.md)
+
+const COMPANION: Selector = { kind: 'actor', tags: ['companion'] }
+const WAYPOINT: Selector = { type: 'fixture/sacred/waypoint' }
+
+const JOURNEY: Rule[] = [
+  rule({
+    id: 'trainer/talk',
+    doc: 'A profession trainer, spoken to: a quest if they have one, a word, and the choice of profession (from level 5; a change gives back the profession branch\'s points).',
+    host: { type: 'actor/person/trainer' },
+    on: 'impulse/handle',
+    tree: IF({ same: ['host', 'actor'] }, 'inherit', DO({ op: 'quest' }, { op: 'panel', panel: 'profession' })),
+  }),
+  rule({
+    id: 'companion/talk',
+    doc: 'A companion, spoken to (E), says again what it last pointed out.',
+    host: COMPANION,
+    on: 'impulse/handle',
+    tree: DO({ op: 'say', text: '@hint' }),
+  }),
+  rule({
+    id: 'companion/guide',
+    doc: 'Take hold of a companion (F): it stays where it is and tells what the story asks for now, and how.',
+    host: COMPANION,
+    on: 'impulse/taken',
+    tree: DO({ op: 'say', text: '@objective' }),
+  }),
+  rule({
+    id: 'creature/not-taken',
+    doc: 'People and creatures are not picked up: undefined (the AI may say otherwise), and with no answer the hand comes away empty.',
+    host: ACTOR,
+    on: 'impulse/taken',
+    tree: HOLE(log('It cannot be picked up.', '这个拿不起来。')),
+  }),
+  rule({
+    id: 'waypoint/attune',
+    doc: 'A hand on a waypoint statue wakes it (once): it remembers you, and the world map (M) can take you to it. Woken, it hums.',
+    host: WAYPOINT,
+    on: 'impulse/handle',
+    tree: IF(
+      has('host', 'attuned'),
+      DO(log('The statue hums. Open the map (M) to travel to another one.', '雕像嗡嗡作响。打开地图（M）就能传送到别的传送雕像。')),
+      DO(add('attuned'), emit('notify', 'story', { what: 'waypoint' }), vfx('heal'), log('The statue wakes under your hand. (M: the map — travel to any statue you have woken.)', '雕像在你手下亮了起来。（M：地图——可以传送到任何唤醒过的传送雕像。）')),
+    ),
+  }),
+  rule({
+    id: 'skill/firemaker',
+    doc: 'A firemaker (the skill) works a plain stick until a campfire, brazier or candles catch.',
+    host: { type: 'item/material/stick' },
+    on: 'act/use',
+    tree: IF(
+      all(tag('actor', 'skill:firemaker'), is('target', { tags: ['lightable'], notStatus: ['lit', 'wet'] })),
+      DO(emit('element', 'target', { element: 'fire', power: 2 }), log('You work the stick until {target} catches.', '你钻木生火，{target}被点燃了。')),
+      'inherit',
+    ),
+  }),
+  rule({
+    id: 'fixture/receive',
+    doc: 'Something put on a thing nothing else defines (a grass tuft, a boulder, a statue): undefined — the AI may answer — and with no answer it is set down on that thing\'s tile.',
+    host: { kind: 'fixture' },
+    on: 'impulse/receive',
+    tree: IF({ none: 'item' }, 'inherit', HOLE(taken('tile'), log('You set {item} down by {host}.', '你把{item}放在了{host}旁。'))),
+  }),
+  rule({
+    id: 'body/fireproof',
+    doc: 'The fireproof draught\'s coat: fire does a quarter of its harm for five minutes.',
+    host: ACTOR,
+    on: 'impulse/coat',
+    tree: IF(param('substance', 'fireproof'), DO(add('fireproof', 3000), vfx('sparkle'), log('A cool calm spreads under your skin: fire will hardly touch you now.', '一股清凉在皮肤下散开：火现在几乎伤不到你了。')), 'inherit'),
+  }),
+  rule({
+    id: 'use/drink-fireproof',
+    confirm: L('Drink {instrument}?', '要喝掉{instrument}吗？'),
+    doc: 'The fireproof draught, drunk.',
+    host: { type: 'item/potion/fire_resist' },
+    on: 'act/use',
+    tree: IF({ same: ['actor', 'target'] }, DO(emit('coat', 'actor', { substance: 'fireproof' }), { op: 'destroy' }), 'inherit'),
+  }),
+  rule({
+    id: 'mine/vein',
+    doc: 'A pickaxe on an ore vein: the third blow breaks it into what it holds (iron ore, coal).',
+    host: { kind: 'fixture', type: 'fixture/nature/vein' },
+    on: 'impulse/strike',
+    tree: IF(
+      tag('instrument', 'tool:pickaxe'),
+      IF(
+        { prop: { role: 'host', key: 'cracks', cmp: { gte: 2 } } },
+        DO({ op: 'spawn', type: '@prop:host.yields', at: 'tileOf:host', count: { prop: 'count', of: 'host' } }, vfx('dust'), log('{host} breaks open.', '{host}被凿开了。'), { op: 'destroy' }),
+        DO({ op: 'addProp', key: 'cracks', delta: 1 }, vfx('dust'), log('The pick bites into {host}.', '镐头凿进了{host}。')),
+      ),
+      'inherit',
+    ),
+  }),
+]
+
+export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY]

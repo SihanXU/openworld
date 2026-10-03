@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Seven Sins · Boss Studio</title></head>
+  <body>
+    <div id="app"><div id="game"></div><div id="labels"></div><div id="hud"></div><div id="intro" class="hidden"></div></div>
+    <aside id="bossStudio">
+      <div class="studio-kicker">SYMBOLIC WORLD / ORIGINAL ART</div><h1>七宗罪 · 试战台</h1>
+      <p>独立沙盒 · 不读取或写入游戏存档</p>
+      <label>领主<select id="bossSelect"></select></label>
+      <label>查看模式<select id="modeSelect"><option value="live">实战：完整技能循环</option><option value="idle">待机 · 4 帧</option><option value="walk">移动 · 4 帧</option><option value="attack">攻击 · 4 帧</option><option value="cast">施法 · 4 帧</option><option value="hurt">受击 · 2 帧</option><option value="death">死亡 · 2 帧</option></select></label>
+      <div class="studio-actions"><button id="resetFight">重新开始</button><button id="enrageBoss">进入第二阶段</button><button id="pauseFight">暂停</button></div>
+      <div id="bossInfo"></div><div id="skillButtons"></div>
+      <p class="studio-help">WASD / 方向键移动<br>空格攻击（面向目标）<br>点击技能可单独试招<br>测试角色生命 200，不会影响正式角色</p>
+      <output id="studioStatus">加载资源…</output><a href="./">返回游戏 →</a>
+    </aside>
+    <section id="challengeLobby" class="challenge-overlay hidden" aria-labelledby="challengeTitle"></section>
+    <section id="challengeResult" class="challenge-overlay hidden" aria-labelledby="resultTitle" aria-live="polite"></section>
+    <script type="module" src="/src/boss-gallery.ts"></script>
+  </body>
+</html>

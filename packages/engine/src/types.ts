@@ -33,10 +33,10 @@ export interface TypeDef {
   props?: Record<string, PropValue>
   /** Render key; resolved by the client's art layer. */
   sprite?: string
-  /** Fixtures and tiles: does it block movement? */
+  /** Fixtures and tiles: does it block movement? Actors occupy their footprint. */
   solid?: boolean
   /**
-   * Fixtures bigger than a tile: the base they stand on, [width, depth] in tiles — centred on
+   * Things bigger than a tile: the base they stand on, [width, depth] in tiles — centred on
    * their own tile, reaching back (north) from it. A solid thing blocks all of it, and only
    * while it is there. Default [1, 1].
    */
@@ -54,8 +54,12 @@ export interface StatusDef {
   duration?: number
   /** Statuses removed when this one is applied (e.g. frozen removes burning). */
   clears?: string[]
+  /** Statuses that cannot take hold while this one lasts (fireproof wards off burning). */
+  wards?: string[]
   /** An actor with this status cannot move or act. */
   immobilize?: boolean
+  /** Multiplier on movement delay while held (e.g. dream mist slows any actor). */
+  moveDelay?: number
   /** Render hint for the client overlay. */
   overlay?: string
 }
@@ -102,6 +106,8 @@ export interface PeriodDef {
   every: number
   /** Things on the active map that have it (a selector), or a resident host. */
   host: Selector | 'world' | 'story'
+  /** A prop on the host that overrides `every` for it (Iron Stomach's slower hunger: `hungerEvery`). */
+  everyProp?: string
 }
 
 export interface FactionDef {
@@ -146,6 +152,10 @@ export interface Entity {
   npc?: NpcData
   /** Creatures: combat behaviour. */
   ai?: AiData
+  /** Deterministic, saved combat talent state; any actor may carry it. */
+  combat?: CombatState
+  /** Data-driven encounter state, including locked telegraphs; survives saves. */
+  boss?: BossState
   /** Set while an undefined outcome involving this entity awaits a patch (design.md §5.11). */
   frozenBy?: string
   /** Items a rule dropped on the ground (a harvest, logs, loot): the player's magnet pulls them in. */
@@ -156,6 +166,88 @@ export interface Entity {
   selected?: number
   /** Render hint: a character look key from the client's asset catalogue. */
   look?: string
+}
+
+export interface BossSkill {
+  id: string
+  name: Text
+  shape: 'circle' | 'ring' | 'line' | 'cross' | 'cone' | 'spots'
+  aim: 'self' | 'target'
+  radius: number
+  windup: number
+  recovery: number
+  damage: number
+  element?: string
+  fx: string
+  action: 'attack' | 'cast'
+  status?: string
+  heal?: number
+  shift?: 'pull' | 'push'
+  blink?: boolean
+}
+
+export interface BossDef {
+  id: string
+  name: Text
+  footprint: [number, number]
+  hp: number
+  defense: number
+  sight: number
+  leash: number
+  color: number
+  enrageAt: number
+  skills: BossSkill[]
+}
+
+export interface BossState {
+  kit: string
+  phase?: number
+  nextSkill?: number
+  nextAt?: number
+  action?: 'idle' | 'walk' | 'attack' | 'cast' | 'hurt' | 'death'
+  actionTick?: number
+  actionEnd?: number
+  pending?: { skill: number; target: Id; origin: Pos; aim: Pos; tiles: [number, number][]; releaseAt: number }
+}
+
+export interface CombatState {
+  lastMoveTick?: number
+  lastAttackTick?: number
+  lastHurtTick?: number
+  steps?: number
+  comboTarget?: Id
+  comboHits?: number
+  comboTick?: number
+  pursuitUntil?: number
+  lastStandTick?: number
+  moveCarry?: number
+  attackCarry?: number
+  /** Warrior: a Retaliation is ready until this tick (after taking a hit). */
+  retaliateUntil?: number
+  /** Warrior: Rampage stacks, and when they lapse. */
+  rampageStacks?: number
+  rampageUntil?: number
+  /** Ranger: Hunter's Mark — ranged hits in a row on one target. */
+  markTarget?: Id
+  markHits?: number
+  /** Ranger: Fleet Archer's speed lasts until this tick. */
+  fleetUntil?: number
+  /** Mage: magic hits landed (every fourth echoes). */
+  spellHits?: number
+  /** Swiftness: the last dodge (Untouchable readies a critical from it), and blows pass by until this tick (Phantom Step, Phoenix). */
+  dodgeTick?: number
+  guardUntil?: number
+  /** Swiftness: Slipstream's speed after a dash lasts until this tick. */
+  slipUntil?: number
+  /** Damage: Momentum — hits landed in a chain, and when the last one was. */
+  chain?: number
+  chainTick?: number
+  /** Damage: Hemorrhage — bleeding until this tick, from whom. */
+  bleedUntil?: number
+  bleedBy?: Id
+  /** Survival: Adrenaline — when it last came (once a minute), and how long it lasts. */
+  adrenalineTick?: number
+  adrenalineUntil?: number
 }
 
 export interface ScheduleEntry {
@@ -363,6 +455,8 @@ export interface MapData {
   regions?: Record<string, [number, number, number, number]>
   /** What the map yields by itself: things of `type` (items, or creatures) appear now and then on free tiles of these terrains, up to `max` on the map. */
   forage?: Forage[]
+  /** Peaceful (towns, camps: nothing comes out at night) or combat (default: zombies and bats come out after dark, nightspawn.ts). */
+  zone?: 'peaceful' | 'combat'
 }
 
 export interface Forage {
@@ -375,6 +469,32 @@ export interface Forage {
   ai?: Omit<AiData, 'home'>
   /** Statuses it appears with, for their default durations (a hen's laying). */
   statuses?: string[]
+}
+
+/**
+ * A node of the skill tree. Learning it spends skill points (progression.ts), adds `grant` to
+ * the learner's props and tags them `skill:<id>`. Stat nodes work through their grants; an
+ * ability works through its tag, which rules (`actor: { tags: ['skill:<id>'] }`) and the
+ * engine test for.
+ */
+export interface SkillDef {
+  id: string
+  name: Text
+  doc: Text
+  /** The branch it belongs to; content groups branches into directions. */
+  branch: string
+  /** Only this profession may learn/use the node; absent means a shared skill. */
+  profession?: string
+  /** Skills learned first. */
+  requires?: string[]
+  /** Skill points it costs (default 1). */
+  cost?: number
+  /** Added to the learner's props (maxHp also fills hp by as much; maxHunger, hunger). */
+  grant?: Record<string, number>
+  /** Unlocks something new rather than raising a number (shown as such). */
+  ability?: boolean
+  /** The client's round icon for it (ui/skillIcons.ts). */
+  icon?: string
 }
 
 /** A recipe for the crafting panel: the carried items it uses up, and the item it makes. */
@@ -418,6 +538,8 @@ export interface WorldState {
   spawn: Pos
   /** World facts (docs/game-design.md §8.1): `hearth.stage`, `bridge.east.fixed`, `met.npc.maren` … */
   facts?: Record<string, PropValue>
+  /** The latest beat that fired (companion.ts): what a companion repeats when spoken to. */
+  lastBeat?: string
   topics?: Topic[]
   /** What each person remembers about the player. */
   memory?: Record<Id, NpcMemory>
@@ -650,6 +772,10 @@ export type Effect =
   | { op: 'setFact'; key: string; value: PropValue }
   | { op: 'addFact'; key: string; delta: number }
   | { op: 'topic'; id: string; days?: number }
+  /** The player speaks to the host (a person) about quests (quests.ts): hand in, take on, a talk goal; else nothing. */
+  | { op: 'quest' }
+  /** Open one of the player's panels (the profession trainer's: 'profession'). */
+  | { op: 'panel'; panel: string }
   | { op: 'scene'; id: string }
   | { op: 'craft' }
   | { op: 'forage' }
@@ -771,3 +897,5 @@ export type FxEvent =
   | { t: 'pickup'; item: Id; sprite: string; name: Text; map: string; x: number; y: number }
   /** An actor the player controls reached a new level. */
   | { t: 'levelup'; level: number }
+  /** A rule opened one of the player's panels ('profession'). */
+  | { t: 'panel'; panel: string; by?: Id }

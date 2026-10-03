@@ -2,8 +2,10 @@
 
 import type { Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
-import type { Appearance, Dir, FxEvent, Id, PropValue, SceneState, Text } from './types.ts'
+import type { Appearance, BossState, Dir, FxEvent, Id, PropValue, SceneState, Text } from './types.ts'
 import { SLOT_COUNT } from './controls.ts'
+import { skillsOf } from './progression.ts'
+import type { QuestView } from './quests.ts'
 
 export interface ItemInfo {
   id: Id
@@ -37,6 +39,16 @@ export interface EntitySnap {
   open?: boolean
   held?: string // sprite key of the held item
   heldTags?: string[]
+  boss?: {
+    kit: string
+    phase: number
+    color: number
+    footprint: [number, number]
+    enrageAt: number
+    action: BossState['action']
+    progress: number
+    warning?: { name: Text; tiles: [number, number][]; progress: number }
+  }
 }
 
 export interface TileSnap {
@@ -65,6 +77,8 @@ export interface Frame {
     maxHunger: number
     statuses: string[]
     props: Record<string, PropValue>
+    /** The skills learned (the skill tree). */
+    skills: string[]
     held?: ItemInfo
     inventory: ItemInfo[]
     /** The bag's slots (row 1 is the toolbar): a stack each, or empty. */
@@ -73,6 +87,8 @@ export interface Frame {
   }
   /** A yes/no question waiting for the player (time is stopped). */
   question?: { text: Text }
+  /** The world's facts (the story's counts: what the smith has been given…), for the HUD's objective. */
+  facts: Record<string, PropValue>
   /** What the two keys would do right now (filled by the host, not by snapshot()). */
   keys?: { hands?: KeyView; take?: KeyView; use?: KeyView; put?: KeyView }
   /** The open container panel (the host names it): its contents. */
@@ -88,6 +104,8 @@ export interface Frame {
   pendingMap?: string
   /** What the player's E / F keys would do right now (filled by the host, not by snapshot()). */
   prompt?: Prompt
+  /** Quests: the marks over the people on this map ('!' to give, '?' to take back), and the player's log. */
+  quests: { marks: Record<Id, '!' | '?'>; log: QuestView[] }
 }
 
 export interface KeyView {
@@ -136,6 +154,10 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     if (e.place.on !== 'tile') continue
     const r = w.onto.resolve(e.type)
     const held = e.held ? w.get(e.held) : undefined
+    const b = e.boss, kit = b && eng.bossKits[b.kit]
+    const elapsed = w.state.tick - (b?.actionTick ?? w.state.tick)
+    const windup = b?.pending ? Math.min(1, elapsed / Math.max(1, b.pending.releaseAt - (b.actionTick ?? 0))) : 0
+    const hurt = w.num(e, 'hp') > 0 && w.state.tick - (e.combat?.lastHurtTick ?? -100) < 4
     entities.push({
       id: e.id,
       type: e.type,
@@ -157,6 +179,12 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       open: !!e.statuses?.open,
       held: held ? (w.onto.resolve(held.type).sprite ?? held.type) : undefined,
       heldTags: held ? [...w.onto.resolve(held.type).tags, ...(held.tags ?? [])] : undefined,
+      boss: b && kit ? {
+        kit: b.kit, phase: b.phase ?? 1, color: kit.color, footprint: kit.footprint, enrageAt: kit.enrageAt,
+        action: w.num(e, 'hp') <= 0 ? 'death' : hurt ? 'hurt' : b.action,
+        progress: w.num(e, 'hp') <= 0 ? Math.min(1, elapsed / 16) : b.pending ? windup * 0.5 : Math.min(1, 0.5 + 0.5 * elapsed / Math.max(1, (b.actionEnd ?? 0) - (b.actionTick ?? 0))),
+        warning: b.pending ? { name: kit.skills[b.pending.skill].name, tiles: b.pending.tiles, progress: windup } : undefined,
+      } : undefined,
     })
   }
   const tiles: TileSnap[] = []
@@ -177,7 +205,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     const k = eng.controls.key(e)
     carried.set(k, [...(carried.get(k) ?? []), id])
   }
-  const slots = Array.from({ length: SLOT_COUNT }, (_, i) => {
+  const slots = Array.from({ length: Math.max(SLOT_COUNT, p.slots?.length ?? 0) }, (_, i) => {
     const k = p.slots?.[i]
     const ids = k ? carried.get(k) : undefined
     const first = ids && itemInfo(eng, ids[0])
@@ -202,13 +230,16 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       hunger: w.num(p, 'hunger', w.num(p, 'maxHunger')),
       maxHunger: w.num(p, 'maxHunger'),
       statuses: Object.keys(p.statuses ?? {}),
-      props: { ...(p.props ?? {}) },
+      props: { ...w.onto.resolve(p.type).props, ...(p.props ?? {}) },
+      skills: skillsOf(p),
       held: p.held ? itemInfo(eng, p.held) : undefined,
       inventory: (p.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),
       slots,
       selected: p.selected ?? 0,
     },
     question: w.state.question ? { text: w.state.question.text } : undefined,
+    quests: questsOf(eng, entities),
+    facts: { ...(w.state.facts ?? {}) },
     container: box && {
       id: box.id,
       name: box.name ?? w.onto.resolve(box.type).name ?? box.type.split('/').pop()!,
@@ -223,3 +254,15 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
 }
 
 export const PLAYER_LOOK: Appearance = { skin: 1, hair: 2, hairStyle: 0, top: 0, bottom: 1 }
+
+/** The marks over the people in view, and the player's quest log. */
+function questsOf(eng: Engine, entities: EntitySnap[]): Frame['quests'] {
+  const marks: Record<Id, '!' | '?'> = {}
+  if (eng.quests.defs.length)
+    for (const e of entities) {
+      if (e.kind !== 'actor' || !e.tags.includes('person')) continue
+      const m = eng.quests.mark(e.id)
+      if (m) marks[e.id] = m
+    }
+  return { marks, log: eng.quests.log() }
+}

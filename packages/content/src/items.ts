@@ -3,6 +3,7 @@
 // whole classes while the world still holds tens of thousands of distinct items.
 
 import type { Entity, PropValue, Rng, TypeDef } from '@lsw/engine'
+import { VEGETABLE_CROPS } from './crops.ts'
 
 export interface Form {
   id: string // full type path
@@ -77,6 +78,8 @@ export const FORMS: Form[] = [
   W('item/weapon/blade/sword', 'Sword', '剑', 'item:sword', { props: { power: 4 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 5, dungeon: 3, shop: 1 } }),
   W('item/weapon/blade/dagger', 'Dagger', '匕首', 'item:dagger', { props: { power: 2 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 3, dungeon: 2, home: 0.5, npc: 1 } }),
   W('item/weapon/blade/axe', 'Axe', '斧', 'item:axe', { tags: ['tool:axe'], props: { power: 4 }, materials: TOOL_METALS, elemental: true, where: { smithy: 3, farm: 2, wild: 0.5 } }),
+  // the smith of Emberfall's blade, forged for the dragon (the main quest)
+  W('item/weapon/blade/dragonsbane', 'Dragonsbane', '屠龙剑', 'item:sword', { tags: ['dragonsbane', 'quality:legendary'], props: { power: 12 }, where: {} }),
   W('item/weapon/blade/scimitar', 'Scimitar', '弯刀', 'item:sword', { props: { power: 4 }, materials: WEAPON_METALS, elemental: true, where: { dungeon: 1, smithy: 1 } }),
   W('item/weapon/blunt/club', 'Club', '棍棒', 'item:club', { props: { power: 2 }, materials: ['wood', 'bone'], where: { wild: 1, npc: 1, dungeon: 1 } }),
   W('item/weapon/blunt/mace', 'Mace', '钉锤', 'item:mace', { props: { power: 4 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 2, dungeon: 2 } }),
@@ -136,6 +139,9 @@ export const FORMS: Form[] = [
   W('item/food/mushroom/raw', 'Mushroom', '蘑菇', 'item:mushroom', { tags: ['edible', 'raw', 'cookable'], props: { heal: 2, food: 1, cookedType: 'item/food/mushroom/roasted' }, where: { wild: 3, dungeon: 1 } }),
   W('item/food/mushroom/roasted', 'Roasted Mushroom', '烤蘑菇', 'item:mushroom', { tags: ['edible', 'cooked'], props: { heal: 5, food: 4 }, where: {} }),
   W('item/food/berries', 'Berries', '浆果', 'item:berries', { tags: ['edible', 'fruit'], props: { heal: 2, food: 2 }, where: { wild: 3, farm: 1 } }),
+  ...VEGETABLE_CROPS.map((c) => W(`item/food/${c.id}`, c.en, c.zh, `item:${c.id}`, {
+    tags: ['edible', 'plant', 'vegetable'], props: { heal: c.heal, food: c.food }, where: { farm: 2, home: 0.5, shop: 0.5 },
+  })),
   W('item/food/egg/raw', 'Egg', '鸡蛋', 'item:egg', { tags: ['edible', 'raw', 'fragile', 'cookable'], props: { heal: 1, food: 1, cookedType: 'item/food/egg/boiled' }, where: { farm: 2, home: 1 } }),
   W('item/food/egg/boiled', 'Boiled Egg', '熟鸡蛋', 'item:egg_boiled', { tags: ['edible', 'cooked'], props: { heal: 4, food: 3 }, where: {} }),
   W('item/food/pie', 'Pie', '馅饼', 'item:pie', { tags: ['edible', 'flammable'], props: { heal: 9, food: 8 }, where: { inn: 1, home: 0.5 } }),
@@ -170,6 +176,9 @@ export const FORMS: Form[] = [
   W('item/seed/wheat', 'Wheat Seeds', '麦种', 'item:seed', { tags: ['plantable'], props: { cropType: 'fixture/crop/wheat/sprout' }, where: { farm: 3, shop: 0.5 } }),
   W('item/seed/herb', 'Herb Seeds', '草药种子', 'item:seed', { tags: ['plantable'], props: { cropType: 'fixture/crop/herb/sprout' }, where: { farm: 1, temple: 0.3, shop: 0.3 } }),
   W('item/seed/berry', 'Berry Seeds', '浆果种子', 'item:seed', { tags: ['plantable'], props: { cropType: 'fixture/crop/berry/sprout' }, where: { farm: 1, wild: 0.3 } }),
+  ...VEGETABLE_CROPS.map((c) => W(`item/seed/${c.id}`, `${c.en} Seeds`, `${c.zh}种子`, `item:${c.id}_seed`, {
+    tags: ['plantable'], props: { cropType: `fixture/crop/${c.id}/sprout` }, where: { farm: 2, shop: 0.5 },
+  })),
   W('item/seed/acorn', 'Acorn', '橡子', 'item:acorn', { tags: ['acorn'], props: { cropType: 'fixture/crop/oak/sapling' }, where: { wild: 0.5 } }),
   W('item/material/wheat', 'Wheat', '麦子', 'item:wheat', { tags: ['plant', 'flammable', 'dry'], where: { farm: 3 } }),
   // gems & valuables

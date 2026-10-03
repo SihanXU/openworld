@@ -7,6 +7,11 @@ import {
   buildRequest,
   tickAt,
   snapshot,
+  previewPlacement,
+  travelToWaypoint,
+  dash,
+  waypoints,
+  performPlacement,
   type Dir,
   type GameEvent,
   type LibraryData,
@@ -22,8 +27,8 @@ import {
   type ResolveReply,
   type WorldIndex,
 } from '@lsw/engine'
-import { BASE_RULES, RECIPE_BY_ID, STORY_RULES, buildOntology, decodeChunk, decodeMap, type RawChunk } from '@lsw/content'
-import type { FromWorker, LibraryView, RecordView, Tile, ToWorker } from './protocol.ts'
+import { BASE_RULES, BOSS_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateFirstlight, type RawChunk } from '@lsw/content'
+import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
 const post = (m: FromWorker) => (self as unknown as Worker).postMessage(m)
@@ -39,6 +44,7 @@ let attacking = false
 let aimTile: Tile | undefined
 let panel: string | undefined
 let paused = false
+let buildAim: { id: string; tile: Tile } | undefined
 let lastMap = ''
 let fetching = new Set<string>()
 let timer: ReturnType<typeof setInterval> | undefined
@@ -195,6 +201,32 @@ function keyViews(): Frame['keys'] {
   return out
 }
 
+/** Terrain of maps no longer in memory (the world map draws every visited one), fetched once. */
+const terrainCache = new Map<string, string[]>()
+
+async function atlas(): Promise<Atlas | undefined> {
+  if (!game) return undefined
+  const w = game.engine.world
+  const maps: AtlasMap[] = []
+  for (const m of index.maps) {
+    if (!m.at || !w.fact(`visited.${m.id}`)) continue
+    let terrain = w.state.maps[m.id]?.terrain ?? terrainCache.get(m.id)
+    if (!terrain) {
+      try {
+        terrain = decodeMap((await fetchJson<RawChunk>(`maps/${m.id}.json`)).map).terrain
+        terrainCache.set(m.id, terrain)
+      } catch {
+        continue
+      }
+    }
+    maps.push({ id: m.id, name: m.name, at: m.at, width: m.width, height: m.height, terrain })
+  }
+  const named = new Map((index.waypoints ?? []).map((x) => [x.id, x.name]))
+  const stones = waypoints(game.engine).map(({ e, attuned }) => ({ id: e.id, map: (e.place as { map: string }).map, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: named.get(e.id) ?? e.name ?? { en: 'Waypoint', zh: '传送雕像' }, attuned }))
+  const pos = w.posOf(w.player)!
+  return { maps, waypoints: stones, here: { map: pos.map, x: pos.x, y: pos.y } }
+}
+
 function libraryView(): LibraryView {
   const lib = game!.engine.lib
   const counts: Record<string, number> = {}
@@ -221,7 +253,20 @@ function sendRecords(): void {
 function doSave(): void {
   if (!game) return
   const save = game.save()
-  post({ t: 'saved', save, library: game.engine.lib.toJSON() })
+  const w = game.engine.world
+  const p = w.player
+  const cal = w.calendar()
+  const here = w.posOf(p)?.map
+  const summary: SaveSummary = {
+    map: index.maps.find((m) => m.id === here)?.name ?? here ?? '',
+    day: cal.day,
+    hour: Math.floor(cal.hour),
+    minute: cal.minute,
+    level: Math.max(1, w.num(p, 'level', 1)),
+    prologue: w.num(p, 'prologue', 10),
+    quest: w.num(p, 'quest'),
+  }
+  post({ t: 'saved', save, library: game.engine.lib.toJSON(), summary })
 }
 
 function loop(): void {
@@ -258,6 +303,7 @@ function loop(): void {
   maybePrefetch()
   lastTickMs = performance.now() - t0
   post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length } })
+  if (buildAim && PLACEMENT_BY_ID[buildAim.id]) post({ t: 'placement', preview: previewPlacement(eng, w.state.player, PLACEMENT_BY_ID[buildAim.id], { map: frame.map, x: buildAim.tile.x, y: buildAim.tile.y }) })
   if (eng.lib.version !== lastRecordsVersion || frame.fx.some((f) => f.t === 'undefined' || f.t === 'patched')) {
     if (eng.lib.version !== lastRecordsVersion) post({ t: 'library', library: eng.lib.toJSON() })
     lastRecordsVersion = eng.lib.version
@@ -276,6 +322,14 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   const compatible = init.save?.world === index.version
   if (init.save && !fresh && compatible) {
     game = Game.load(init.save, index, ontology, lib)
+    if (!game.engine.world.fact(FIRSTLIGHT_LAYOUT)) {
+      const [ford, village] = await Promise.all(['ford', 'meadow'].map((id) => fetchJson<RawChunk>(`maps/${id}.json`)))
+      migrateFirstlight(game, index, decodeChunk(ford), decodeChunk(village))
+    }
+    if (!game.engine.world.fact(BOSS_LAYOUT)) {
+      const road = game.engine.world.state.loadedMaps.includes('eastroad') ? decodeChunk(await fetchJson<RawChunk>('maps/eastroad.json')) : undefined
+      migrateBosses(game, road)
+    }
     // re-fetch base terrain for the map we are standing on
     const here = game.engine.world.posOf(game.engine.world.player)?.map
     if (here) {
@@ -285,6 +339,8 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     for (const id of game.engine.world.state.loadedMaps) if (id !== here) delete game.engine.world.state.maps[id]
   } else {
     game = Game.create(index, ontology, lib)
+    game.engine.world.setFact(FIRSTLIGHT_LAYOUT, true)
+    game.engine.world.setFact(BOSS_LAYOUT, true)
   }
   game.worldVersion = index.version
   game.mods.onChange = () => sendRecords()
@@ -315,6 +371,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         await start({ t: 'init', base, library }, true)
         break
       }
+      case 'dash':
+        if (game && !paused && !panel && !game.engine.world.state.question) dash(game.engine, game.engine.world.player)
+        break
       case 'attack':
         attacking = m.on
         // the first blow lands on the press, not on the next tick
@@ -332,6 +391,19 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (!plan) break
         const out = c.run(plan)
         if (out.panel) panel = out.panel
+        break
+      }
+      case 'buildAim':
+        buildAim = m.id && m.tile && PLACEMENT_BY_ID[m.id] ? { id: m.id, tile: m.tile } : undefined
+        break
+      case 'build': {
+        if (!game || paused || panel || game.engine.world.state.question || !PLACEMENT_BY_ID[m.id]) break
+        const eng = game.engine
+        const at = eng.world.posOf(eng.world.player)
+        if (!at) break
+        const result = performPlacement(eng, eng.world.state.player, PLACEMENT_BY_ID[m.id], { map: at.map, x: m.tile.x, y: m.tile.y })
+        if (!result.ok) eng.world.fx.push({ t: 'log', text: result.reason, tone: 'warn' })
+        post({ t: 'placement', preview: result })
         break
       }
       case 'keyOnItem': {
@@ -376,6 +448,22 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'craft': {
         const r = RECIPE_BY_ID[m.id]
         if (r) game?.engine.controls.craft(r)
+        break
+      }
+      case 'atlas': {
+        const a = await atlas()
+        if (a) post({ t: 'atlas', atlas: a })
+        break
+      }
+      case 'travel':
+        if (game && travelToWaypoint(game.engine, m.waypoint)) void ensureMaps()
+        break
+      case 'profession':
+        game?.engine.controls.takeProfession(PROFESSION_BY_ID[m.id], SKILLS)
+        break
+      case 'learn': {
+        const s = SKILL_BY_ID[m.id]
+        if (s) game?.engine.controls.learn(s)
         break
       }
       case 'transfer':

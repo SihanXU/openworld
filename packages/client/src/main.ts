@@ -1,6 +1,6 @@
 // Boot: Phaser (render) + engine Worker (simulation) + DOM UI, wired by messages. The input
 // (design.md §5.2): four inputs, one verb each — E hands, F take, left click use, right click
-// put — aimed at the mouse's own or neighbour tile, else the tile in front; Esc menu, I
+// put — aimed at the pointed tile within two rings (E, F: else the tile in front); Esc menu, I
 // inventory, J journal, M map.
 
 import Phaser from 'phaser'
@@ -10,11 +10,15 @@ import type { FromWorker, Tile, ToWorker } from './protocol.ts'
 import { assetUrl } from './render/assets.ts'
 import { WorldScene } from './render/scene.ts'
 import { kvGet, kvSet } from './storage.ts'
+import { writeSlot, type Slot } from './saves.ts'
+import { Cover } from './ui/cover.ts'
 import { locale, t, tx } from './ui/common.ts'
 import { ModConsole } from './ui/dev.ts'
 import { Hud } from './ui/hud.ts'
+import { BuildingMode } from './ui/building.ts'
 import { Menu, type Tab } from './ui/menu.ts'
 import { Tooltip } from './ui/tooltip.ts'
+import { Minimap } from './ui/worldmap.ts'
 import './styles.css'
 import './ui/game.css'
 
@@ -44,10 +48,18 @@ const menu = new Menu({
   drop: (slot, all) => send({ t: 'drop', slot, all }),
   organize: () => send({ t: 'organize' }),
   craft: (id) => send({ t: 'craft', id }),
+  learn: (id) => send({ t: 'learn', id }),
+  atlas: () => send({ t: 'atlas' }),
+  travel: (waypoint) => send({ t: 'travel', waypoint }),
+  profession: (id) => send({ t: 'profession', id }),
   transfer: (from, item, all) => send({ t: 'transfer', from, item, all }),
   closePanel: () => send({ t: 'closePanel' }),
   save: () => send({ t: 'save' }),
-  newGame: () => send({ t: 'newGame' }),
+  // back to the cover: the game is saved to its slot first
+  newGame: () => {
+    send({ t: 'save' })
+    void cover.show()
+  },
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
     hud.relabel()
@@ -64,11 +76,23 @@ const hud = new Hud(
     advance: () => send({ t: 'advance' }),
     openMenu: (tab) => menu.open(tab as Tab | undefined),
     openJournal: () => (menu.openJournal(), hud.seenJournal()),
+    toggleInventory: () => menu.toggle('inventory'),
+    toggleSkills: () => menu.toggleSkills(),
+    toggleQuests: () => menu.toggleQuests(),
+    toggleBuilding: () => toggleBuilding(),
   },
   (id) => scene.screenOf(id),
   (x, y) => scene.screenOfTile(x, y),
 )
 menu.muted = hud.muted
+const minimap = new Minimap(() => menu.toggleMap())
+const building = new BuildingMode(send, (x, y) => ({ ...scene.screenOfTile(x, y), scale: scene.cameras.main.zoom }))
+function toggleBuilding(): void {
+  if (menu.anyOpen || dev.open || hud.dialogOpen || hud.questionShown || hud.chooserOpen || !lastFrame || !document.getElementById('intro')!.classList.contains('hidden')) return
+  if (pressing) { clearTimeout(pressing.timer); pressing = undefined }
+  setAttack(false)
+  building.toggle()
+}
 
 /** Minecraft's tooltip over any item in the toolbar, the bag, a chest or the crafting panel. */
 const tooltip = new Tooltip(() => ({
@@ -93,6 +117,7 @@ scene.hooks = {
     menu.onFrame(f)
     tooltip.onFrame(f)
     dev.onFrame(f)
+    building.onFrame(f)
     if (import.meta.env.DEV) (window as unknown as { lsw: { frame?: unknown } }).lsw.frame = f
     syncPause()
   },
@@ -148,6 +173,10 @@ const paintIcons = (items: ItemInfo[]) => {
 }
 hud.paintIcons = paintIcons
 menu.paintIcons = paintIcons
+building.paint = (sprite) => {
+  const d = CATALOG.fixtures[sprite]?.base ?? CATALOG.items[sprite]
+  return d ? crop(d.img, d.x, d.y, d.w, d.h) : undefined
+}
 
 new Phaser.Game({
   type: Phaser.WEBGL,
@@ -162,28 +191,37 @@ new Phaser.Game({
 // ------------------------------------------------------------------ worker messages
 
 let fps = 0
-let introShown = false
 let frames = 0
 let last = performance.now()
 
 worker.onmessage = (ev: MessageEvent<FromWorker>) => {
   const m = ev.data
   switch (m.t) {
+    case 'placement':
+      building.onPreview(m.preview)
+      break
     case 'ready':
       dev.stats = m.stats
-      if (introShown) break // a later 'ready' is a restart (new game): no intro again
-      introShown = true
-      document.getElementById('loading')?.remove()
-      hud.showIntro(m.name, m.stats, m.resumed, (fresh) => {
-        if (fresh) send({ t: 'newGame' })
-      })
+      cover.hide()
+      // a slot's save from another version of the world cannot be played on: a new game began instead
+      if (startingFrom && !m.resumed) hud.message(t('cvIncompatible'), 'warn')
+      // the slot is filled at once (a new game) or refreshed (a loaded one)
+      send({ t: 'save' })
       break
     case 'map':
       hud.setMapName(m.map.name)
       scene.setMap(m.map)
+      minimap.setMap(m.map)
+      break
+    case 'atlas':
+      menu.worldmap.onAtlas(m.atlas)
       break
     case 'frame':
+      if (building.open) m.frame.keys = undefined
       scene.applyFrame(m.frame)
+      minimap.onFrame(m.frame)
+      // a rule opened one of the player's panels (a trainer: the choice of profession)
+      if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'profession')) menu.openProfession()
       reaim()
       dev.setPerf(m.perf, fps)
       break
@@ -198,9 +236,10 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       dev.showValidation(m.id, m.result)
       break
     case 'saved':
-      void kvSet(`save:${WORLD}`, m.save)
+      if (slot) void writeSlot(WORLD, slot, { save: m.save, summary: m.summary, savedAt: m.save.savedAt })
       void kvSet('library', m.library)
-      hud.message(t('saved'), 'good')
+      if (!cover.open && !quietSave) hud.message(t('savedSlot').replace('{n}', String(slot ?? '')), 'good')
+      quietSave = false
       break
     case 'library':
       void kvSet('library', m.library)
@@ -221,18 +260,37 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
   }
 }
 
-async function boot() {
-  const [save, library] = await Promise.all([kvGet<SaveData>(`save:${WORLD}`), kvGet<LibraryData>('library')])
-  const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
-  send({ t: 'init', base, save, library, modder: MODDER })
-}
-void boot()
+// ------------------------------------------------------------------ the cover and the save slots
+
+/** The slot being played (autosaves and the menu's Save write to it). */
+let slot: Slot | undefined
+/** The save the slot started from (undefined: a new game). */
+let startingFrom: SaveData | undefined
+/** The save right after loading is not announced. */
+let quietSave = false
+
+const cover = new Cover(WORLD, {
+  start: async (s, data) => {
+    slot = s
+    startingFrom = data?.save
+    quietSave = true
+    const library = await kvGet<LibraryData>('library')
+    const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
+    send({ t: 'init', base, save: data?.save, library, modder: MODDER })
+  },
+  toggleLocale: () => {
+    locale.set(locale.value === 'en' ? 'zh' : 'en')
+    hud.relabel()
+  },
+})
+void cover.show()
 
 // ------------------------------------------------------------------ time stops while something is open
 
 let pausedNow = false
 function syncPause(): void {
   const on = menu.anyOpen || hud.dialogOpen || hud.chooserOpen || dev.open || !document.getElementById('intro')!.classList.contains('hidden')
+  if (on && building.open) building.toggle(false)
   if (on !== pausedNow) {
     pausedNow = on
     send({ t: 'pause', on })
@@ -341,15 +399,21 @@ window.addEventListener('keydown', (e) => {
     return hud.advanceDialog()
   }
   if (e.code === 'Backquote') return dev.toggle()
-  // Esc closes what is open, else opens the menu; I the inventory, J the journal (and the Threadbook)
+  if (e.code === 'KeyB' && !e.repeat) return void (e.preventDefault(), toggleBuilding())
+  // Esc closes what is open, else opens the menu; I the inventory, K the skill tree, J the journal (and the Threadbook)
   if (e.code === 'Escape') {
     e.preventDefault()
+    if (building.open) return building.toggle(false)
     if (dev.open) return dev.toggle(false)
     if (menu.anyOpen) return menu.close()
     return menu.open('options')
   }
   if (e.code === 'KeyI') return menu.toggle('inventory')
   if (e.code === 'KeyC') return menu.toggle('craft')
+  if (e.code === 'KeyK') return menu.toggleSkills()
+  if (e.code === 'KeyM') return menu.toggleMap()
+  if (e.code === 'KeyL') return menu.toggleQuests()
+  if (e.code === 'KeyQ' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'dash' })
   if (e.code === 'KeyJ') return menu.journalOpen ? menu.close() : (menu.openJournal(), hud.seenJournal())
   if (menu.anyOpen || dev.open) return
   const dir = KEY_DIR[e.code]
@@ -357,6 +421,11 @@ window.addEventListener('keydown', (e) => {
     if (!held.includes(dir)) held.push(dir)
     syncMove()
     e.preventDefault()
+    return
+  }
+  if (building.open) {
+    if (e.code === 'KeyE' && !e.repeat) building.place()
+    if (['KeyE', 'KeyF', 'Space', 'Tab'].includes(e.code)) e.preventDefault()
     return
   }
   // Space: the attack key, a blow ahead on the press and again while it is held
@@ -386,10 +455,10 @@ window.addEventListener('keyup', (e) => {
 })
 window.addEventListener('blur', () => stopMoving())
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') send({ t: 'save' })
+  if (document.visibilityState === 'hidden' && slot && !cover.open) send({ t: 'save' })
 })
 
-// ------------------------------------------------------------------ mouse: aim at the own or a neighbour tile; left = use, right = put
+// ------------------------------------------------------------------ mouse: aim at the pointed tile within two rings; left = use, right = put
 
 let mouseTile: Tile | undefined
 /** The pointer's screen point while it is over the world. */
@@ -398,6 +467,7 @@ const aimSig = (a?: Tile) => (a ? `${a.x},${a.y}|${(a.stack ?? []).map((r) => ('
 /** Aim at what is drawn under the pointer: it changes as things move, not only as the mouse does. */
 function reaim(): void {
   const a = mouseAt ? scene.aimAtScreen(mouseAt.x, mouseAt.y) : undefined
+  building.setAim(a)
   if (aimSig(a) === aimSig(mouseTile)) return
   mouseTile = a
   send({ t: 'aim', tile: a })
@@ -416,6 +486,11 @@ gameEl.addEventListener('mousedown', (e) => {
   if (hud.dialogOpen) return hud.advanceDialog()
   if (menu.anyOpen || dev.open) return
   const tile = scene.aimAtScreen(e.clientX, e.clientY)
+  if (building.open) {
+    if (e.button === 0 && tile) building.place(tile)
+    if (e.button === 2) building.toggle(false)
+    return
+  }
   if (e.button === 0) press('use', tile)
   if (e.button === 2) press('put', tile)
 })
@@ -426,7 +501,7 @@ window.addEventListener('mouseup', (e) => {
 window.addEventListener(
   'wheel',
   (e) => {
-    if (menu.anyOpen || dev.open || hud.dialogOpen) return
+    if (menu.anyOpen || dev.open || hud.dialogOpen || building.open) return
     if ((e.target as HTMLElement).closest('.overlay, .panel')) return
     send({ t: 'cycle', dir: e.deltaY > 0 ? 1 : -1 })
   },
@@ -443,6 +518,7 @@ function raf(now: number) {
     last = now
   }
   hud.tickLabels()
+  building.tick()
   requestAnimationFrame(raf)
 }
 requestAnimationFrame(raf)

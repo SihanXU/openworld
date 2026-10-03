@@ -7,6 +7,7 @@
 
 import { isNight } from './calendar.ts'
 import type { Engine } from './engine.ts'
+import { combatDelay } from './combat.ts'
 import { astar } from './path.ts'
 import type { Dir, Entity, Pos } from './types.ts'
 import { DIRS, FIRE_RADIUS } from './types.ts'
@@ -21,11 +22,11 @@ export function stepCreatures(eng: Engine, active: string): void {
   const actors = w.entitiesOnMap(active).filter((e) => e.place.on === 'tile' && w.kindOf(e) === 'actor')
   let fires: Pos[] | undefined
   for (const e of actors) {
-    if (!e.ai || e.place.on !== 'tile' || eng.busy(e)) continue
+    if (!e.ai || e.boss || e.place.on !== 'tile' || eng.busy(e)) continue
     if (!eng.ready(e.id)) continue
     const ai = e.ai
     const { x, y } = e.place
-    const speed = w.num(e, 'speed', 6)
+    const speed = combatDelay(w, e, w.num(e, 'speed', 6), 'move')
     const afraid = eng.fearsFire(e)
     if (afraid) fires ??= eng.fires(active)
     const safe = (px: number, py: number) => !afraid || !fires!.some((f) => Math.max(Math.abs(f.x - px), Math.abs(f.y - py)) <= FIRE_RADIUS)
@@ -56,7 +57,7 @@ export function stepCreatures(eng: Engine, active: string): void {
         e.facing = face
         if (eng.ready('atk:' + e.id)) {
           eng.attack(e, { e: target.id })
-          eng.setCooldown('atk:' + e.id, ai.behaviour === 'ranged' ? 22 : 14)
+          eng.setCooldown('atk:' + e.id, combatDelay(w, e, ai.behaviour === 'ranged' ? 22 : 14, 'attack'))
         }
         eng.setCooldown(e.id, speed)
         continue

@@ -82,7 +82,7 @@ export interface ModSpec {
   expectations: string[]
   ontology: {
     types: { id: string; kind: string; tags: string[]; name?: string }[]
-    statuses: { id: string; duration?: number; immobilize?: boolean; clears?: string[] }[]
+    statuses: { id: string; duration?: number; immobilize?: boolean; moveDelay?: number; clears?: string[] }[]
     terrains: { id: string; tags: string[]; solid?: boolean; liquid?: boolean }[]
     elements: string[]
     /** Factions: an actor belongs to those its faction:<id> tags name; the wild is hostile to folk. */
@@ -164,6 +164,7 @@ const AUTHORING_RULES = [
   'Conditions narrow the cases (the other role\'s tags, a param like element or how). Cases you do not want to answer: leave them to `inherit` (an `if` without `else` inherits).',
   'Use only the listed event kinds, impulses, primitives, statuses, terrains, types and vfx. If you need a new type or status, add a `type`/`status` artifact to the same patch.',
   'Every rule should carry at least one test (a small scenario + expectations). The triggering event is replayed automatically.',
+  'Combat talents are evaluated by the engine for any actor carrying skill:<id>. Actor props profession, moveHaste, attackHaste and critChance control eligibility/cadence/critical chance. Attack hit.power already includes offensive talents; do not apply them again in a hit rule. Direct combat damage reductions and Last Stand are handled by damage. Timed talent state lives in Entity.combat and is saved.',
   'Give the player feedback: a `vfx` and/or a `say`/`log` line, so the outcome is visible.',
   'Keep emissions local and bounded: an area radius of at most 3, and a chance below 1 when it could cascade.',
   'An act hosted by an instrument that consumes or changes it says so: `destroy` or `transform` the host.',
@@ -263,7 +264,7 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
     ],
     ontology: {
       types: Object.values(types).map((t) => ({ id: t.id, kind: t.kind, tags: t.tags ?? [], name: t.name ? textOf(t.name) : undefined })),
-      statuses: Object.values(statuses).map((s) => ({ id: s.id, duration: s.duration, immobilize: s.immobilize, clears: s.clears })),
+      statuses: Object.values(statuses).map((s) => ({ id: s.id, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears })),
       terrains: Object.values(onto.terrains).map((t) => ({ id: t.id, tags: t.tags ?? [], solid: t.solid, liquid: t.liquid })),
       elements: onto.elements,
       factions: onto.factions ?? {},
