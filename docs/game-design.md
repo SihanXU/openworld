@@ -1,10 +1,10 @@
 # OpenWorld — game design
 
 OpenWorld is the world; *Large Symbolic World* is the method and the paper. The playable demo is
-**the Ford** (渡口): one map, two people, two creatures, seven items, eight fixtures — the
-smallest world that still contains every element the system needs (§9 proves it). This
-document is the design bible for the demo: what it is, why it is built that way, and why
-nothing in it can be removed.
+**the Ford** (渡口) and the maps growing around it (the meadow, §4b; the forest, §4c): the
+development scaffold of a world meant to reach hundreds of maps. Every element it holds
+witnesses a requirement (§9 proves it). This document is the design bible for the demo: what
+it is, why it is built that way, and why nothing in it is idle.
 
 ## 1. What the demo is, and what it is not
 
@@ -175,8 +175,10 @@ keeps the Ford winnable.
 
 ## 8. What the world does by itself
 
-Each source of undefined behaviour (design.md §5.4) has an instance at the Ford. The common
-cases are rules; the rest go to the modder when they are salient.
+Each source of undefined behaviour of the previous event model has an instance at the Ford.
+The common cases are rules; the rest go to the modder when they are salient. Under the event
+model agreed on 2026-10-02 (design.md §5.4–5.14), the twelve sources become kinds of one event
+tree and this table is re-derived with the migration (§5.14).
 
 | # | Source | At the Ford (a rule) | At the Ford (asked) |
 |---|---|---|---|
@@ -199,6 +201,9 @@ The requirements are derived from the system, not chosen:
 
 - **A. The engine's event space**: every event kind — `interaction`, `hit`, `status`, `expire`,
   `tick`, `enter`, `defeat`, `meet`, `blocked`, `witness`, `invalid` — occurs on the map.
+  After the event model's migration (design.md §5.14): every kind of its tree (act, impulse,
+  contact, bump, time, threshold, seen, stuck, broken) occurs, and every undefined leaf the root
+  defaults leave open has an instance that is asked.
 - **B. The sources of undefined behaviour** (design.md §5.4): 1–5 from the player, 8–9
   physical, 10–12 social; each has an instance that is asked about (6–7 are reserved).
 - **C. The ontology the rules address**: every kind of thing (the player, people, creatures,
@@ -215,7 +220,10 @@ The requirements are derived from the system, not chosen:
   across, each played through (F2a–c); teaching by placement (F3); risk and recovery (F4); a
   world that acts alone (F5); people with lives (F6); save and continue (F7); legibility (F8); an
   opening (F9); danger by data — the wild attacks folk by faction, the player and people alike;
-  people run; a fire keeps the wild off (F10).
+  people run; a fire keeps the wild off (F10); a place, not a picture — all that is drawn or in
+  the way is terrain or a thing, met by whatever input points at it (F11); the ground yields
+  sticks, stones and grass that craft the first tools (F12); a defeated foe teaches whoever
+  struck it (F13); the meadow's animals and their food (F14); the forest's trees (F15).
 
 **The proof** is `packages/tools/test/demo.test.ts`. It builds the real map in memory
 (`buildFord()`), and for every requirement runs a scenario on it — through the player's own

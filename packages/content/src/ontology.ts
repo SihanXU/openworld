@@ -1,7 +1,7 @@
 // Base ontology: terrains, statuses, elements, visual effects and the type tree
 // for actors and fixtures. Item types come from the catalogue in items.ts.
 
-import type { Ontology, StatusDef, TerrainDef, TypeDef } from '@lsw/engine'
+import { FORAGE_EVERY, HUNGER_EFFECT_EVERY, HUNGER_EVERY, type Ontology, type StatusDef, type TerrainDef, type TypeDef } from '@lsw/engine'
 import { ELEMENT_NAMES, MATERIALS, QUALITIES, itemTypes } from './items.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
@@ -176,7 +176,7 @@ const actorTypes: TypeDef[] = [
   P('actor', 'creature', '生物'),
   P('actor/person', 'person', '人', {
     tags: ['person', 'living', 'talkable', 'faction:folk', 'essential'],
-    props: { hp: 20, maxHp: 20, atk: 1, def: 0, speed: 2 },
+    props: { hp: 20, maxHp: 20, atk: 1, def: 0, speed: 2, sight: 7 },
     sprite: 'person',
   }),
   P('actor/person/player', 'you', '你', { props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, hunger: 20, maxHunger: 20 } }),
@@ -195,20 +195,20 @@ const actorTypes: TypeDef[] = [
   P('actor/creature/beast/wolf', 'wolf', '狼', { props: { hp: 14, maxHp: 14, atk: 3, speed: 4 } }),
   P('actor/creature/beast/frost_wolf', 'frost wolf', '霜狼', { tags: ['icy'], props: { element: 'ice', hp: 18, maxHp: 18, atk: 4, speed: 4 } }),
   P('actor/creature/beast/boar', 'boar', '野猪', { sprite: 'creature:boar', props: { hp: 18, maxHp: 18, atk: 4, def: 1, speed: 5 } }),
-  P('actor/creature/beast/bat', 'bat', '蝙蝠', { sprite: 'creature:bat', tags: ['flying'], props: { hp: 6, maxHp: 6, atk: 2, speed: 3 } }),
+  P('actor/creature/beast/bat', 'bat', '蝙蝠', { sprite: 'creature:bat', tags: ['flying'], props: { hp: 6, maxHp: 6, atk: 2, speed: 3, stance: 'air' } }),
   P('actor/creature/undead', 'undead', '亡灵', { tags: ['undead'], sprite: 'creature:skeleton' }),
   // the night's walkers (engine/src/nightspawn.ts): slow, and gone at dawn
   P('actor/creature/undead/zombie', 'zombie', '僵尸', { tags: ['rotting'], sprite: 'creature:zombie', props: { hp: 14, maxHp: 14, atk: 3, def: 0, speed: 10 } }),
   // the Old Barrow's keeper (docs/quests.md)
   P('actor/creature/undead/warden', 'barrow warden', '古墓守卫', { tags: ['bone', 'boss'], props: { hp: 45, maxHp: 45, atk: 5, def: 1, speed: 8 } }),
   P('actor/creature/undead/skeleton', 'skeleton', '骷髅', { tags: ['bone'], props: { hp: 16, maxHp: 16, atk: 4, def: 1, speed: 6 } }),
-  P('actor/creature/undead/ghost', 'ghost', '幽灵', { sprite: 'creature:ghost', tags: ['spectral'], props: { hp: 12, maxHp: 12, atk: 3, speed: 5, element: 'ice' } }),
+  P('actor/creature/undead/ghost', 'ghost', '幽灵', { sprite: 'creature:ghost', tags: ['spectral'], props: { hp: 12, maxHp: 12, atk: 3, speed: 5, element: 'ice', stance: 'air' } }),
   P('actor/creature/golem', 'golem', '魔像', { tags: ['construct'], sprite: 'creature:golem' }),
   P('actor/creature/golem/stone_golem', 'stone golem', '石魔像', { tags: ['stone'], props: { hp: 30, maxHp: 30, atk: 6, def: 3, speed: 9, element: 'earth' } }),
   P('actor/creature/golem/ice_golem', 'ice golem', '冰魔像', { tags: ['icy'], props: { hp: 28, maxHp: 28, atk: 5, def: 2, speed: 9, element: 'ice' } }),
   P('actor/creature/imp', 'imp', '小恶魔', { tags: ['demon', 'fiery'], sprite: 'creature:imp' }),
   P('actor/creature/imp/fire_imp', 'fire imp', '火焰小鬼', { props: { hp: 12, maxHp: 12, atk: 3, speed: 5, element: 'fire' } }),
-  P('actor/creature/wisp', 'wisp', '鬼火', { tags: ['spectral', 'charged'], sprite: 'creature:wisp' }),
+  P('actor/creature/wisp', 'wisp', '鬼火', { tags: ['spectral', 'charged'], sprite: 'creature:wisp', props: { stance: 'air' } }),
   P('actor/creature/wisp/storm_wisp', 'storm wisp', '风暴鬼火', { props: { hp: 9, maxHp: 9, atk: 3, speed: 4, element: 'lightning' } }),
   // companions (docs/prologue.md): they follow a leader (props.companion), fly, never block nor fight
   P('actor/companion', 'companion', '同伴', { tags: ['companion', 'living', 'airborne', 'essential'], props: { hp: 10, maxHp: 10, atk: 0, def: 0, speed: 2 } }),
@@ -235,6 +235,13 @@ function crop(id: string, en: string, zh: string, yieldType: string, young: [str
     F(`${base}/ripe`, ripe[0], ripe[1], ['ripe', ...ripeTags], { sprite: `fixture:${id}_ripe` }),
   ]
 }
+
+/** The resident hosts (design.md §5.5): the world (its clocks: the ground's yield, the weather) and the story (its facts and scenes). */
+const RESIDENTS: TypeDef[] = [
+  { id: 'resident', kind: 'resident', name: { en: 'the world', zh: '世界' } },
+  { id: 'resident/world', kind: 'resident', name: { en: 'the world', zh: '世界' } },
+  { id: 'resident/story', kind: 'resident', name: { en: 'the story', zh: '故事' } },
+]
 
 const fixtureTypes: TypeDef[] = [
   F('fixture', 'thing', '物件', []),
@@ -271,7 +278,7 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/water/fountain', 'fountain', '喷泉', []),
   F('fixture/water/trough', 'trough', '水槽', ['wooden']),
   F('fixture/sign', 'sign', '告示牌', ['wooden', 'flammable', 'readable'], { solid: true }),
-  F('fixture/tent', 'tent', '帐篷', ['cloth', 'flammable', 'shelter'], { solid: true, footprint: [3, 3] }),
+  F('fixture/tent', 'tent', '帐篷', ['cloth', 'flammable', 'shelter', 'opaque'], { solid: true, footprint: [3, 3] }),
   F('fixture/sign/noticeboard', 'notice board', '布告栏', ['paper']),
   F('fixture/craft', 'workstation', '工作台', [], { solid: true }),
   F('fixture/craft/anvil', 'anvil', '铁砧', ['metal', 'conductive', 'surface']),
@@ -331,7 +338,7 @@ const fixtureTypes: TypeDef[] = [
 
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}
-  for (const t of [...actorTypes, ...fixtureTypes, ...itemTypes(), ...BOSS_TYPES]) types[t.id] = t
+  for (const t of [...actorTypes, ...fixtureTypes, ...itemTypes(), ...RESIDENTS, ...BOSS_TYPES]) types[t.id] = t
   return {
     types,
     statuses: Object.fromEntries([...STATUSES, ...BOSS_STATUSES].map((s) => [s.id, s])),
@@ -341,6 +348,15 @@ export function buildOntology(): Ontology {
       wild: { name: { en: 'the wild', zh: '野物' }, hostile: ['folk'] },
     },
     terrains: Object.fromEntries(TERRAINS.map((t) => [t.id, t])),
+    // the lines whose crossing is an event, and the clocks (design.md §5.7)
+    thresholds: [{ name: 'defeated', prop: 'hp', lte: 0 }],
+    periods: [
+      { name: 'hunger', every: HUNGER_EVERY, everyProp: 'hungerEvery', host: { kind: 'actor', props: { maxHunger: { gt: 0 } } } },
+      { name: 'vitals', every: HUNGER_EFFECT_EVERY, host: { kind: 'actor', props: { maxHunger: { gt: 0 } } } },
+      { name: 'forage', every: FORAGE_EVERY, host: 'world' },
+      { name: 'weather', every: 60, host: 'world' },
+      { name: 'storm', every: 300, host: 'world' },
+    ],
     elements: ELEMENTS,
     vfx: [...VFX, ...BOSSES.flatMap((b) => b.skills.map((s) => s.fx))],
     instanceTags: [

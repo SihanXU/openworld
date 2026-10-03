@@ -1,6 +1,6 @@
-// The player's controls (design.md §5.2–5.3): four inputs, one verb each, so every event the
-// rule library can define is reachable (completeness):
-// - E, **hands**: interact with a bare hand (talk, open, read, sleep, push, shake);
+// The player's controls (design.md §5.2–5.3): four inputs, one verb each, so every act the
+// rule library can answer is reachable (completeness):
+// - E, **hands**: a bare hand on the target (talk, open, read, push, shake);
 // - F, **take**: take (pick up, pick a crop, take down, take from a table);
 // - left click, **use**: the held thing on the target (tools, blows, eating when aimed at oneself,
 //   and the player's experiments);
@@ -9,16 +9,15 @@
 // person, a thing on a table, the table, the canopy of a tree behind them, the ground): a press
 // acts on the top one, a long press (the chooser) on any of them. Only the view knows what is
 // drawn where, so it hands the stack over with the aim; without one (the keyboard, a test), the
-// stack is what stands on the tile.
-// Besides the four, Space is the attack key: a blow straight ahead with the held weapon (or a
-// fist), on the press and again while held (`strike`). It adds no verb: left click with a
-// weapon makes the same blow, aimed at a spot.
+// stack is what stands on the tile. Each input makes an act (design.md §5.7); its label is a dry
+// run of the chain the act starts, marked unknown where that chain reaches an undefined outcome.
 // Also here: the inventory's slots (row 1 is the toolbar, the selected slot is what is held),
-// the magnet that pulls dropped items in, and the yes/no question asked before sleeping or
-// eating (the host stops time while it is open).
+// the magnet that pulls dropped items in, crafting, and the yes/no question asked before sleeping
+// or eating (the host stops time while it is open).
 
-import type { Engine, Resolution } from './engine.ts'
-import type { Aim, Dir, Entity, GameEvent, Id, Plan, Pos, Recipe, Ref, SkillDef, Text, Verb } from './types.ts'
+import { isRoot } from './rules.ts'
+import type { Engine } from './engine.ts'
+import type { Aim, Dir, Entity, Id, Place, Plan, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb } from './types.ts'
 import { learnSkill } from './progression.ts'
 import { PROFESSION_LEVEL, cannotChoose, chooseProfession, type ProfessionDef, type ProfessionRefusal } from './profession.ts'
 
@@ -38,52 +37,54 @@ const TOOL_PREFIXES = ['item/weapon/', 'item/tool/', 'item/light/', 'item/vessel
 export const isTool = (type: string) => TOOL_PREFIXES.some((p) => type.startsWith(p))
 const isWeapon = (type: string) => type.startsWith('item/weapon/')
 
-/** Labels by rule (prefix) — what the HUD says a key will do. */
+/** Labels by rule (prefix) — what the HUD says an input will do; the receiver's rule is asked first. */
 const LABELS: [string, Text][] = [
-  ['core/talk', { en: 'Talk to {target}', zh: '和{target}说话' }],
+  ['people/talk', { en: 'Talk to {target}', zh: '和{target}说话' }],
+  ['ford/ask-crossing', { en: 'Ask {target} for the crossing', zh: '请{target}送你过河' }],
+  ['people/accept', { en: 'Give {instrument} to {target}', zh: '把{instrument}送给{target}' }],
+  ['ford/feed-peddler', { en: 'Give {instrument} to {target}', zh: '把{instrument}送给{target}' }],
   ['companion/guide', { en: 'Ask {target} what to do', zh: '问{target}该做什么' }],
   ['companion/talk', { en: 'Talk to {target}', zh: '和{target}说话' }],
   ['waypoint/attune', { en: 'Wake {target}', zh: '唤醒{target}' }],
-  ['story/', { en: 'Talk to {target}', zh: '和{target}说话' }],
-  ['core/give', { en: 'Give {instrument} to {target}', zh: '把{instrument}送给{target}' }],
   ['core/open-close', { en: 'Open {target}', zh: '打开{target}' }],
   ['core/locked', { en: 'Try {target}', zh: '试着打开{target}' }],
   ['core/read', { en: 'Read {target}', zh: '阅读{target}' }],
-  ['core/sleep', { en: 'Sleep', zh: '睡觉' }],
-  ['core/examine', { en: 'Look at {target}', zh: '查看{target}' }],
-  ['core/take', { en: 'Take {target}', zh: '拿起{target}' }],
-  ['core/store', { en: 'Put {instrument} in {target}', zh: '把{instrument}放进{target}' }],
-  ['core/put-on-surface', { en: 'Set {instrument} on {target}', zh: '把{instrument}放在{target}上' }],
-  ['core/put-down', { en: 'Place {instrument}', zh: '放下{instrument}' }],
-  ['core/eat', { en: 'Eat {instrument}', zh: '吃掉{instrument}' }],
-  ['core/eat-medicine', { en: 'Eat {instrument}', zh: '吃掉{instrument}' }],
-  ['core/drink', { en: 'Drink {instrument}', zh: '喝掉{instrument}' }],
-  ['core/fill-water', { en: 'Fill {instrument}', zh: '装满{instrument}' }],
-  ['core/douse', { en: 'Douse {target}', zh: '浇灭{target}' }],
-  ['core/splash', { en: 'Splash {target}', zh: '泼向{target}' }],
-  ['core/pour-oil', { en: 'Pour oil on {target}', zh: '往{target}上倒油' }],
-  ['core/ignite', { en: 'Set fire to {target}', zh: '点燃{target}' }],
-  ['core/light', { en: 'Light {target}', zh: '点燃{target}' }],
-  ['core/snuff', { en: 'Put out {target}', zh: '熄灭{target}' }],
-  ['core/cook', { en: 'Cook {instrument}', zh: '烤{instrument}' }],
-  ['core/burn-in-fire', { en: 'Burn {instrument}', zh: '烧掉{instrument}' }],
-  ['core/mine', { en: 'Mine {target}', zh: '开采{target}' }],
+  ['core/look', { en: 'Look at {target}', zh: '查看{target}' }],
+  ['core/taken', { en: 'Take {target}', zh: '拿起{target}' }],
+  ['core/receive-store', { en: 'Put {instrument} in {target}', zh: '把{instrument}放进{target}' }],
+  ['core/receive-surface', { en: 'Set {instrument} on {target}', zh: '把{instrument}放在{target}上' }],
+  ['core/receive-ground', { en: 'Place {instrument}', zh: '放下{instrument}' }],
+  ['use/eat', { en: 'Eat {instrument}', zh: '吃掉{instrument}' }],
+  ['use/drink', { en: 'Drink {instrument}', zh: '喝掉{instrument}' }],
+  ['use/fill', { en: 'Fill {instrument}', zh: '装满{instrument}' }],
+  ['element/douse', { en: 'Douse {target}', zh: '浇灭{target}' }],
+  ['use/water', { en: 'Splash {target}', zh: '泼向{target}' }],
+  ['use/oil', { en: 'Pour oil on {target}', zh: '往{target}上倒油' }],
+  ['element/light', { en: 'Light {target}', zh: '点燃{target}' }],
+  ['element/ignite', { en: 'Set fire to {target}', zh: '点燃{target}' }],
+  ['use/fire', { en: 'Set fire to {target}', zh: '点燃{target}' }],
+  ['element/snuff', { en: 'Put out {target}', zh: '熄灭{target}' }],
+  ['element/cook', { en: 'Cook {instrument}', zh: '烤{instrument}' }],
+  ['element/burn-away', { en: 'Burn {instrument}', zh: '烧掉{instrument}' }],
+  ['mine/', { en: 'Mine {target}', zh: '开采{target}' }],
   ['core/unlock', { en: 'Unlock {target}', zh: '打开{target}的锁' }],
-  ['core/till', { en: 'Till', zh: '翻土' }],
+  ['farm/till', { en: 'Till', zh: '翻土' }],
   ['core/fish', { en: 'Fish', zh: '钓鱼' }],
   ['wood/', { en: 'Chop {target}', zh: '砍{target}' }],
+  ['ford/chop', { en: 'Chop {target}', zh: '砍{target}' }],
+  ['ford/fell', { en: 'Chop {target}', zh: '砍{target}' }],
+  ['ford/mend', { en: 'Mend {target}', zh: '修好{target}' }],
   ['farm/sow', { en: 'Sow {instrument}', zh: '播下{instrument}' }],
   ['farm/water', { en: 'Water {target}', zh: '给{target}浇水' }],
   ['farm/harvest', { en: 'Harvest {target}', zh: '收割{target}' }],
   ['farm/pick', { en: 'Pick {target}', zh: '采摘{target}' }],
   ['build/', { en: 'Build', zh: '搭建' }],
-  ['village/hearth-look', { en: 'Look at {target}', zh: '查看{target}' }],
-  ['village/', { en: 'Use {instrument} on {target}', zh: '把{instrument}用在{target}上' }],
   ['patch/', { en: 'Use {instrument} on {target}', zh: '把{instrument}用在{target}上' }],
 ]
 const GENERIC: Record<string, Text> = {
-  interact: { en: 'Use {instrument} on {target}', zh: '把{instrument}用在{target}上' },
+  use: { en: 'Use {instrument} on {target}', zh: '把{instrument}用在{target}上' },
   bare: { en: 'Touch {target}', zh: '摸摸{target}' },
+  hands: { en: 'Touch {target}', zh: '摸摸{target}' },
   put: { en: 'Put {instrument} on {target}', zh: '把{instrument}放到{target}上' },
   take: { en: 'Take {target}', zh: '拿起{target}' },
   attack: { en: 'Strike {target} with {instrument}', zh: '用{instrument}打{target}' },
@@ -161,13 +162,9 @@ export class Controls {
 
   // ---------------------------------------------------------------- planning
 
-  private dry(verb: Verb, target: Ref, instrument: Ref | undefined, strict = false): Resolution {
-    const ev: GameEvent = { kind: 'interaction', verb, roles: { actor: { e: this.w.state.player }, target, instrument }, strict: strict || undefined }
-    return this.eng.resolve(ev)
-  }
-
-  private firm(r: Resolution): boolean {
-    return r.defined && !r.rule?.fallback
+  /** A dry run of the act this input would make: its outcome and the chain it starts. */
+  private dry(verb: Verb, target: Ref, instrument: Ref | undefined, params: Record<string, PropValue> = {}) {
+    return this.eng.preview(this.eng.actEvent(verb, this.w.state.player, target, instrument, params))
   }
 
   private entity(r: Ref | undefined): Entity | undefined {
@@ -184,7 +181,6 @@ export class Controls {
     return !!e && e.type.startsWith('actor/creature')
   }
 
-
   /** "Give {instrument} to {target}" with the names filled in. */
   private label(t: Text, target: Ref, instrument?: Ref): Text {
     const fill = (s: string, l: 'en' | 'zh') => s.replace('{target}', this.eng.nameOf(target, l)).replace('{instrument}', this.eng.nameOf(instrument, l))
@@ -192,54 +188,65 @@ export class Controls {
     return { en: fill(tt.en, 'en'), zh: fill(tt.zh ?? tt.en, 'zh') }
   }
 
-  private labelFor(rule: string | undefined, fallback: Text, target: Ref, instrument?: Ref): Text {
-    const hit = rule ? LABELS.find(([k]) => rule === k || rule.startsWith(k)) : undefined
-    return this.label(hit?.[1] ?? fallback, target, instrument)
+  /** The label of the most telling rule of the chain (the receiver's, before the act's own). */
+  private labelFor(rules: string[], fallback: Text, target: Ref, instrument?: Ref): Text {
+    // the hosts' answers first (deepest first), then the roots that passed the act on
+    const root = (id: string) => { const r = this.eng.lib.rules.get(id); return !r || isRoot(r) }
+    for (const id of [...rules.filter((x) => !root(x)).reverse(), ...rules.filter(root).reverse()]) {
+      const hit = LABELS.find(([k]) => id === k || id.startsWith(k))
+      if (hit) return this.label(hit[1], target, instrument)
+    }
+    return this.label(fallback, target, instrument)
   }
 
   /**
-   * One key's plan for one layer: the event it makes (the verb is the key's, the instrument the
-   * held thing or none, the target the layer) and what the rule library says of it.
+   * One key's plan for one layer: the act it makes (the verb is the key's, the instrument the
+   * held thing or none, the target the layer) and what the chain it starts would come to.
    */
   private planOn(key: Key, at: Pos, target: Ref): Plan | undefined {
     const p = this.w.player
     const held = p.held ? { e: p.held } : undefined
     const heldE = this.entity(held)
-    if (key === 'hands') return this.make(key, at, 'interact', target, undefined, true)
-    if (key === 'take') return this.make(key, at, 'take', target, held, false)
-    if (key === 'put') return held ? this.make(key, at, 'put', target, held, false) : undefined
+    if (key === 'hands') return this.make(key, at, 'hands', target, undefined)
+    if (key === 'take') return this.make(key, at, 'take', target, undefined)
+    if (key === 'put') return held ? this.make(key, at, 'put', target, held) : undefined
     // use: the held thing — a blow for weapons on creatures (and pure weapons on anything but
-    // people); a bare fist on a creature; otherwise the held thing applied to the target
+    // people); a bare fist on a creature; otherwise the held thing used on the target
     const person = this.isPerson(target)
     if (heldE) {
       const pure = isWeapon(heldE.type) && !this.w.hasTag(heldE, 'tool:axe') && !(heldE.tags ?? []).some((g) => g.startsWith('tool:'))
       const blow = isWeapon(heldE.type) && !person && (pure || this.isCreature(target))
-      if (blow) return this.attackPlan(at, target, held!, heldE)
-      return this.make(key, at, 'interact', target, held, true)
+      const plan = this.make(key, at, 'use', target, held, blow)
+      if (blow) plan.label = this.label(heldE.type.startsWith('item/weapon/magic/') ? GENERIC.cast : GENERIC.attack, target, held)
+      return plan
     }
-    if (this.isCreature(target)) return { key, at, attack: true, target, label: this.label(GENERIC.punch, target) }
-    return this.make(key, at, 'interact', target, undefined, true)
+    if (this.isCreature(target)) {
+      const plan = this.make(key, at, 'use', target, undefined, true)
+      plan.label = this.label(GENERIC.punch, target)
+      return plan
+    }
+    return this.make(key, at, 'hands', target, undefined)
   }
 
-  private make(key: Key, at: Pos, verb: Verb, target: Ref, instrument: Ref | undefined, strict: boolean): Plan {
-    const r = this.dry(verb, target, instrument, strict)
-    const firm = this.firm(r)
-    const generic = verb === 'interact' ? (instrument ? GENERIC.interact : GENERIC.bare) : GENERIC[verb]
-    const plan: Plan = { key, at, verb, target, instrument, rule: firm ? r.rule?.id : undefined, label: this.labelFor(firm ? r.rule?.id : undefined, generic, target, instrument), strict: strict || undefined, unknown: !firm || undefined }
-    if (firm && r.rule?.confirm) plan.confirm = this.label(r.rule.confirm, target, instrument)
+  /** The rule that answers: the deepest one of the chain that belongs to a host (the receiver's answer, not the root that passed it on). */
+  private telling(rules: string[]): string | undefined {
+    return [...rules].reverse().find((id) => { const r = this.eng.lib.rules.get(id); return r && !isRoot(r) }) ?? rules[0]
+  }
+
+  private make(key: Key, at: Pos, verb: Verb, target: Ref, instrument: Ref | undefined, attack = false): Plan {
+    const r = this.dry(verb, target, instrument, attack ? { attack: true } : {})
+    const generic = verb === 'use' ? (instrument ? GENERIC.use : GENERIC.bare) : GENERIC[verb] ?? GENERIC.bare
+    const plan: Plan = { key, at, verb, target, instrument, rule: this.telling(r.rules), label: this.labelFor(r.rules, generic, target, instrument), unknown: r.unknown || undefined }
+    if (attack) plan.attack = true
+    if (r.confirm && !r.unknown) plan.confirm = this.label(r.confirm, target, instrument)
     const e = this.entity(target)
-    if (firm && e && this.w.hasTag(e, 'container') && r.rule?.id === 'core/open-close') plan.panel = e.id
+    if (e && this.w.hasTag(e, 'container') && r.rules.includes('core/open-close')) plan.panel = e.id
     return plan
-  }
-
-  private attackPlan(at: Pos, target: Ref, held: Ref, heldE: Entity): Plan {
-    const cast = heldE.type.startsWith('item/weapon/magic/')
-    return { key: 'use', at, attack: true, target, instrument: held, label: this.label(cast ? GENERIC.cast : GENERIC.attack, target, held) }
   }
 
   /**
    * A key's plan at the aim: on the top layer, or on the one the player picked (the chooser).
-   * What the rule library does not define there is an experiment, and goes to the Mod port.
+   * What the rule library does not define there is an experiment: its outcome is the AI's to say.
    * Every layer is reachable through the chooser (design.md §5.2, completeness).
    */
   plan(key: Key, aim?: Aim, layer = 0): Plan | undefined {
@@ -264,7 +271,7 @@ export class Controls {
     this.eng.playerAttack()
   }
 
-  /** Run a plan: an attack, or the interaction (unless it must ask first). Returns the container to open, if any. */
+  /** Run a plan: a blow, or the act (unless it must ask first). Returns the container to open, if any. */
   run(plan: Plan, confirmed = false): { panel?: Id } {
     const eng = this.eng
     const w = this.w
@@ -281,7 +288,8 @@ export class Controls {
     }
     // a container left open: just show its panel
     if (plan.panel && w.hasStatus({ e: plan.panel }, 'open')) return { panel: plan.panel }
-    eng.interact(plan.verb!, p.id, plan.target, { instrument: plan.instrument ?? null, strict: plan.strict })
+    eng.act(plan.verb!, p.id, plan.target, { instrument: plan.instrument ?? null })
+    this.sync()
     if (plan.panel && w.hasStatus({ e: plan.panel }, 'open')) return { panel: plan.panel }
     return {}
   }
@@ -294,7 +302,7 @@ export class Controls {
     if (yes) this.run(q.plan, true)
   }
 
-  /** The inventory's context menu: a key's event on an item in the bag (or in an open chest). */
+  /** The inventory's context menu: a key's act on an item in the bag (or in an open chest). */
   planOnItem(key: Key, item: Id): Plan | undefined {
     const w = this.w
     const pos = w.posOf(w.player)
@@ -333,6 +341,12 @@ export class Controls {
    */
   sync(): void {
     const w = this.w
+    w.write(() => this.syncSlots())
+    this.eng.settle()
+  }
+
+  private syncSlots(): void {
+    const w = this.w
     const p = w.player
     const slots = (p.slots ??= Array(this.slotCount()).fill(null))
     while (slots.length < this.slotCount()) slots.push(null)
@@ -349,7 +363,7 @@ export class Controls {
           const other = slots.indexOf(hk)
           if (other >= 0) slots[other] = null
           slots[p.selected] = hk
-        } else w.place(held, { on: 'inside', holder: p.id }) // it belongs elsewhere; the hand takes the selected stack below
+        } else this.posture(held, { on: 'inside', holder: p.id }) // it belongs elsewhere; the hand takes the selected stack below
       }
     }
     for (let i = 0; i < slots.length; i++) if (slots[i] && !by.has(slots[i]!)) slots[i] = null
@@ -358,16 +372,23 @@ export class Controls {
       if (slots.includes(k)) continue
       const free = slots.indexOf(null)
       if (free >= 0) slots[free] = k
-      else if (here) for (const e of items) w.place(e, { on: 'tile', map: here.map, x: here.x, y: here.y })
+      else if (here) for (const e of items) this.posture(e, { on: 'tile', map: here.map, x: here.x, y: here.y })
     }
     // the hand holds one of the selected stack (or nothing)
     const want = slots[p.selected]
     const inHand = w.get(p.held)
-    if (inHand && (!want || this.key(inHand) !== want)) w.place(inHand, { on: 'inside', holder: p.id })
+    if (inHand && (!want || this.key(inHand) !== want)) this.posture(inHand, { on: 'inside', holder: p.id })
     if (want && !w.get(p.held)) {
       const next = (this.carried().get(want) ?? [])[0]
-      if (next && !next.frozenBy) w.place(next, { on: 'hand', holder: p.id })
+      if (next && !next.frozenBy) this.posture(next, { on: 'hand', holder: p.id })
     }
+  }
+
+  /** The actor's own posture: a thing between its hand and its bag (its relation changes; settle follows). */
+  private posture(e: Entity, to: Place): void {
+    this.eng.touch({ e: e.id })
+    this.w.place(e, to)
+    this.eng.touch({ e: e.id })
   }
 
   /** The hand puts its item back in the bag (before the slots are rearranged or another is chosen). */
@@ -375,7 +396,7 @@ export class Controls {
     const w = this.w
     const p = w.player
     const h = w.get(p.held)
-    if (h && !h.frozenBy) w.place(h, { on: 'inside', holder: p.id })
+    if (h && !h.frozenBy) w.write(() => this.posture(h, { on: 'inside', holder: p.id }))
   }
 
   select(i: number): void {
@@ -439,7 +460,7 @@ export class Controls {
     this.sync()
   }
 
-  /** Drop a slot's stack (or one of it) in front of the player, or at their feet when that is blocked (the menu's Drop). */
+  /** Drop a slot's stack (or one of it) in front of the player, or at their feet when that is blocked (the menu's Drop): an act of putting each. */
   drop(i: number, all = true): void {
     const w = this.w
     const p = w.player
@@ -449,11 +470,11 @@ export class Controls {
     const front = w.front(p)
     const to = front && w.inBounds(front.map, front.x, front.y) && w.passable(front.map, front.x, front.y) ? front : here
     const items = this.carried().get(k) ?? []
-    for (const e of all ? items : items.slice(0, 1)) if (!e.frozenBy) w.place(e, { on: 'tile', map: to.map, x: to.x, y: to.y })
+    for (const e of all ? items : items.slice(0, 1)) if (!e.frozenBy) this.eng.act('put', p.id, { tile: to }, { instrument: { e: e.id } })
     this.sync()
   }
 
-  /** The chest panel: move one or all of a stack between the bag and an open container (through the rules). */
+  /** The chest panel: move one or all of a stack between the bag and an open container — acts of taking and putting. */
   transfer(container: Id, from: 'chest' | 'bag', item: Id, all: boolean): void {
     const w = this.w
     const eng = this.eng
@@ -464,8 +485,8 @@ export class Controls {
     const k = this.key(it)
     const pool = from === 'chest' ? (box.contents ?? []).map((id) => w.get(id)!).filter((e) => e && this.key(e) === k) : this.carried().get(k) ?? []
     for (const e of all ? pool : pool.slice(0, 1)) {
-      if (from === 'chest') eng.interact('take', p.id, { e: e.id }, { instrument: null })
-      else eng.interact('put', p.id, { e: box.id }, { instrument: { e: e.id } })
+      if (from === 'chest') eng.act('take', p.id, { e: e.id }, { instrument: null })
+      else eng.act('put', p.id, { e: box.id }, { instrument: { e: e.id } })
     }
     this.sync()
   }
@@ -490,7 +511,7 @@ export class Controls {
     if (why === 'trainer') w.fx.push({ t: 'log', text: { en: 'Only a trainer can set you on a profession.', zh: '只有职业导师能为你选定职业。' }, tone: 'warn' })
     if (why || !def) return why
     const had = w.prop(p, 'profession')
-    const back = chooseProfession(w, p, def, skills)
+    const back = w.write(() => chooseProfession(w, p, def, skills))
     const name = n(def.name)
     w.fx.push({ t: 'log', text: { en: `You are now a${/^[aeiou]/i.test(name.en) ? 'n' : ''} ${name.en}.${back ? ` ${back} skill points given back.` : ''}`, zh: `你成为了${name.zh}。${back ? `返还了 ${back} 技能点。` : ''}` }, tone: 'good' })
     if (had) w.fx.push({ t: 'log', text: { en: 'Your old profession\'s skills are unlearned: spend the points again in the skill tree (K).', zh: '原职业的技能已重置：在技能树（K）里重新加点吧。' } })
@@ -502,7 +523,7 @@ export class Controls {
   learn(def: SkillDef): boolean {
     const w = this.w
     const p = w.player
-    if (!learnSkill(w, p, def)) return false
+    if (!w.write(() => learnSkill(w, p, def))) return false
     const n = typeof def.name === 'string' ? { en: def.name } : def.name
     w.fx.push({ t: 'log', text: { en: `Learned ${n.en}.`, zh: `学会了${n.zh ?? n.en}。` }, tone: 'good' })
     this.sync()
@@ -522,28 +543,20 @@ export class Controls {
     return r.needs.every((n) => this.count(n.type) >= n.count)
   }
 
-  /** The crafting panel: use up what the recipe needs from what is carried, and the made item goes into the bag. */
+  /** The crafting panel: an act of crafting (the recipe's needs are used up, what it makes goes into the bag). */
   craft(r: Recipe): boolean {
-    const w = this.w
-    const p = w.player
+    const p = this.w.player
     if (this.eng.busy(p) || !this.canCraft(r)) return false
     this.stow()
-    for (const n of r.needs) {
-      // the bag's first: the hand keeps what it holds while there are others of its kind
-      const pool = [...this.carried().values()].flat().filter((e) => e.type === n.type && !e.frozenBy)
-      pool.sort((a, b) => Number(a.id === p.held) - Number(b.id === p.held))
-      for (const e of pool.slice(0, n.count)) w.destroy(e)
-    }
-    const made = w.create(r.make.type, { on: 'inside', holder: p.id }, structuredClone(r.make))
-    const here = w.posOf(p)
-    if (here) w.fx.push({ t: 'pickup', item: made.id, sprite: r.sprite, name: r.name, map: here.map, x: here.x, y: here.y })
+    this.eng.recipes.set(r.id, r)
+    this.eng.act('craft', p.id, { e: p.id }, { instrument: null, params: { recipe: r.id } })
     this.sync()
     return true
   }
 
   // ---------------------------------------------------------------- the magnet
 
-  /** Dropped items within MAGNET tiles fly into the bag while there is room. */
+  /** Dropped items within MAGNET tiles fly into the bag while there is room: an act of taking each, quietly. */
   magnet(): void {
     const w = this.w
     const p = w.player
@@ -551,6 +564,7 @@ export class Controls {
     if (!this.magnetic || !here || this.eng.busy(p)) return
     const by = this.carried()
     let free = (p.slots ?? []).filter((s) => !s).length
+    let took = false
     // a longer reach (the skill) adds `magnet` tiles
     const reach = MAGNET + w.num(p, 'magnet')
     for (let dy = -reach; dy <= reach; dy++)
@@ -563,11 +577,11 @@ export class Controls {
             free--
             by.set(k, [e])
           }
-          delete e.dropped
           const r = w.onto.resolve(e.type)
           w.fx.push({ t: 'pickup', item: e.id, sprite: r.sprite ?? e.type, name: e.name ?? r.name ?? { en: e.type }, map: here.map, x: here.x + dx, y: here.y + dy })
-          w.place(e, { on: 'inside', holder: p.id })
+          this.eng.act('take', p.id, { e: e.id }, { instrument: null, params: { quiet: true, into: 'contents' } })
+          took = true
         }
-    this.sync()
+    if (took) this.sync()
   }
 }

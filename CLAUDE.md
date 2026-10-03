@@ -7,10 +7,12 @@ Design: [docs/design.md](docs/design.md). Paper draft lives in Notion ("Large Sy
 ## Working agreements
 
 - Converse with the user in Chinese; write code, comments and docs in English.
-- Build order: a small, polished demo first (the Ford: one map, minimal and complete — every element
-  it holds witnesses a requirement, docs/game-design.md §9), then scale. Learn craft from other
-  games, never their content or loops. Keep the architecture
-  scale-ready; ask when the scope of a request is ambiguous.
+- Build order: a small, polished demo first, then scale. The target is hundreds of maps,
+  thousands of NPCs, tens of thousands of items; the demo (the Ford and the maps growing around
+  it) is the development scaffold, never an argument against growth. Every element it holds
+  witnesses a requirement (docs/game-design.md §9). Basic game systems (bag, crafting, levels,
+  hunger) are welcome; never copy one game's own content or loops (Stardew's shipping bin). Keep
+  the architecture scale-ready; ask when the scope of a request is ambiguous.
 - The subject is the WORLD (vs neural world models), not agents. NPCs are content.
 - Second paper thread: RSI of the modder (memory, skills, harness it forms itself), see
   `docs/rsi.md`. It is a paper matter: the demo stays a clean game without it. Evaluation is
@@ -30,9 +32,12 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   (`mod.ts`), sandbox replay (`sandbox.ts`), snapshots for rendering (`snapshot.ts`),
   new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
   lines, schedule variants with the thing an activity needs, topics (`people.ts`), scripted
-  scenes with regions and cards (`scenes.ts`); facts and invariants live in the world state and
-  the engine; the world's own events — meet, blocked (`npc.ts`), witness, invalid — and the
-  salience filter, budgets and boundaries in `mod.ts` (design.md §5.4–5.9); the player's four
+  scenes with regions and cards (`scenes.ts`, the story's script: it writes only the story and
+  sends pushes and notices); facts and invariants live in the world state and the engine; events,
+  relations (contact from the relation difference), active/dormant maps and the write guard
+  (`world.strict`) in `engine.ts`/`world.ts`; the request, one question per hole and class, the
+  validator (host-only writes, ties, replay) and the boundaries in `mod.ts` (design.md §5.4–5.14);
+  the player's four
   inputs (E hands, F take, left click use, right click put), layers, slots and magnet
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
   (`controls.ts`), what the ground yields by itself (`forage.ts`), experience and levels (`progression.ts`), hunger (`hunger.ts`); companions that follow a
@@ -43,11 +48,12 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   docs/main-quest.md), the seven sin boss kits, defeat rules and compatibility migration (`bosses.ts`), chunk codec.
 - `packages/tools` — `art/animals.ts` (the project's own sprites → `client/public/assets/lsw/`), `demo/` (the hand-crafted Ford, Firstlight Village west of it (`meadow`) and the forest south of that, and the main quest's maps and scenes in `quest/` → `public/world/`, each map from its own seed: `builder.ts` the map DSL
   with the tools of composition — curved paths, organic shapes, fences and yards, small things by masks,
-  collision layer, anchors, regions; `world.ts` `buildFord()` — the map, scenes, invariants;
+  anchors, regions; `world.ts` `buildFord()` — the map, scenes, invariants;
   `people/*.ts` one record per person (`person.ts`); `check.ts` a headless two-day playtest;
   `test/demo.test.ts` the completeness and minimality proof),
   `copyAssets.ts` (catalogue subset of the pack → `public/assets/na/`), `coverage.ts` (every item
-  form × every target × every verb through the rule library; the numbers in `docs/roadmap.md` §1).
+  form × every target × every act through the rule library and the impulses it sends, counting
+  the holes; the numbers in `docs/roadmap.md` §1).
 - `packages/client` — `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
   `render/scene.ts` renders snapshots with the Ninja Adventure pack; `assets/catalog.ts` maps
   content keys to sprites; `assets/ground.ts` autotiles; `ui/` the Stardew-style UI (`hud.ts` clock, bars,
@@ -86,14 +92,31 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - No judgment is "is it the player": who attacks whom (factions + temper + foes), who sees what
   (witnesses of any actor), who collapses (`essential`), using on oneself (`self`) are data any
   actor carries. Only the input knows which actor the keys move.
-- Specificity decides which rule fires: (instance-bound, type depth, constraint count, priority).
-  Base rules must not tie at equal specificity on overlapping patterns — the validator checks it.
-- Undefined behaviour has many sources (design.md §5.4): the player's actions, the physical
-  world (status/element cascades, creatures), and the social world (witnesses, blocked goals,
-  invalidated content). All are built except free intent and open conversation (reserved).
-  World events ask only through the salience filter (§5.6), never freeze the world, and their
-  patches obey §5.8 (no harm to persons, the story's facts untouched).
-- The demo must stay complete and minimal: anything added to the Ford witnesses a requirement in
+- **The event model** (design.md §5.4–5.14, agreed and built 2026-10-02; §5.14 records what the
+  implementation refined):
+  - The game is an ordinary, complete game. It plays to the end without AI.
+  - The one AI interface is **the outcome of an event**. Defined: use it. Undefined: ask the
+    AI. No AI, a failure or a time-out: the leaf's default, normally nothing.
+  - Rules belong to a **host** type (`host × event kind → condition tree`). They **read
+    anything and write only their host**; to affect another thing they emit an event (an
+    impulse) to it, and it answers.
+  - Leaves are effects (an empty list means no change), emit, inherit, or undefined (with a
+    default).
+  - The event kinds are a closed tree: act, impulse, contact, bump, time, threshold, seen,
+    stuck, broken. Contact comes from the relation difference after every outcome, and only
+    where a stance meets a reach (a flyer never touches lava).
+  - Root defaults decide what is asked: deliberate acts and impulses are undefined; contact,
+    time and sight mean no change; elements follow physics.
+  - Patches only fill holes, never change defined behaviour (they are a layer consulted only at
+    undefined leaves). One question per hole and class. Put places; use applies.
+  - Behaviour (schedules, temper, behaviour trees) is the game's own logic, not the AI
+    interface. An outcome may change its host's script.
+  - The player's map is active. Dormant maps are frozen and catch up timers and their inbox
+    when entered. The world, the story and people's records are resident. Events cross maps
+    only by address.
+- Specificity: host first (instance-bound, type depth), then event kind depth. Two equally
+  specific rules are rejected by the validator; there is no compose.
+- The demo must stay complete: anything added to its maps witnesses a requirement in
   `tools/test/demo.test.ts` (or the test fails), and every requirement is checked on the real map.
 - Only the player steps onto portals; NPCs transfer from the adjacent tile.
 - After changing rules, run `npm run coverage` and commit the refreshed baseline with them; a

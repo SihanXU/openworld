@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { Engine, RuleLibrary, buildSandbox, type Scenario } from '@lsw/engine'
+import { Engine, RuleLibrary, SANDBOX_MAP, buildSandbox, isDo, leaves, type Ref, type Scenario } from '@lsw/engine'
 import { BASE_RULES, FORMS, buildOntology } from '@lsw/content'
-import { BASELINE, GENERIC_RULES, ORIGIN, OUTCOMES, sweep, targets, type Baseline, type Tally } from '../src/coverage.ts'
+import { BASELINE, FRONT, GENERIC_RULES, ORIGIN, OUTCOMES, sweep, targets, type Baseline, type Tally } from '../src/coverage.ts'
 
 const saved = JSON.parse(readFileSync(BASELINE, 'utf8')) as Baseline
 const cov = sweep()
@@ -38,12 +38,14 @@ describe('interaction coverage', () => {
 
 describe('nothing put down is lost', () => {
   const onto = buildOntology()
-  const rules = new Map(BASE_RULES.map((r) => [r.id, r]))
-  /** Rules that use the held item up (burning it) or turn it into something else (planting it) do so by design. */
-  const consumes = (id: string) => rules.get(id)!.do.some((e) => (e.op === 'destroy' || e.op === 'transform') && e.of === 'instrument')
+  const lib = new RuleLibrary(BASE_RULES)
+  /** An act's own rule that uses the put thing up (building with it) or turns it into something else (sowing it) does so by design. */
+  const consumes = (id: string) => {
+    const r = lib.rules.get(id)
+    return !!r && r.on === 'act/put' && leaves(r.tree).some((l) => isDo(l) && l.do.some((e) => e.op === 'destroy' || e.op === 'transform'))
+  }
 
   it('every form put on every target stays in hand or can be taken back', () => {
-    const lib = new RuleLibrary(BASE_RULES)
     const lost: string[] = []
     for (const target of targets(onto)) {
       // Handing something to a person gives it away; yourself is not a place to put things.
@@ -53,18 +55,20 @@ describe('nothing put down is lost', () => {
         entities: [{ key: 'actor', type: 'actor/person/player', ...ORIGIN }],
         event: {},
       }
-      target.scenario(sc)
+      const key = target.scenario(sc)
+      const ref: Ref = key === 'target' ? { e: key } : { tile: { map: SANDBOX_MAP, ...FRONT } }
       const start = buildSandbox(sc, onto, lib)
       for (const form of FORMS) {
         const eng = new Engine(structuredClone(start.world.state), start.world.onto.data, lib)
         const actor = eng.world.get('actor')!
-        actor.facing = 'up'
-        eng.world.add({ id: 'held', type: form.id, place: { on: 'hand', holder: 'actor' } })
-        const put = eng.playerVerb('put')
-        if (put?.rule && consumes(put.rule.id)) continue
+        eng.world.write(() => eng.world.add({ id: 'held', type: form.id, place: { on: 'hand', holder: 'actor' } }))
+        eng.world.strict = true
+        eng.trace.length = 0
+        const put = eng.act('put', 'actor', ref, { instrument: { e: 'held' } })
+        if (eng.trace.some((t) => t.rule && consumes(t.rule))) continue
         if (actor.held === 'held') continue
-        eng.playerVerb('take', false, 'held')
-        if (actor.held !== 'held') lost.push(`${form.id} → ${target.id} (${put?.rule?.id ?? 'undefined'})`)
+        eng.act('take', 'actor', { e: 'held' }, { instrument: null })
+        if (actor.held !== 'held' && !actor.contents?.includes('held')) lost.push(`${form.id} → ${target.id} (${put.rule?.id ?? 'undefined'})`)
       }
     }
     expect(lost).toEqual([])

@@ -1,16 +1,16 @@
 // Deterministic repairs. A model repair round costs a full turn (5–10 s); most first answers
 // that fail validation fail for mechanical reasons the harness can fix itself. Measured on
-// the latency bench, every malformed first answer had a correct rule inside the wrong wrapper,
-// and the most common real conflict came from a verb the player did not use. Each fix is
-// recorded on the attempt, so the episode shows what was changed and why.
+// the latency bench, every malformed first answer had a correct rule inside the wrong wrapper.
+// Each fix is recorded on the attempt, so the episode shows what was changed and why.
 
-import type { Artifact, ModRequest, Patch, Rule, ValidationResult } from '@lsw/engine'
+import { PRIMITIVES, type Artifact, type Cond, type Effect, type ModRequest, type Patch, type Rule, type Tree, type ValidationResult } from '@lsw/engine'
 
-const looksLikeRule = (x: Record<string, unknown>) => typeof x.on === 'string' && !!x.when && Array.isArray(x.do)
+const looksLikeRule = (x: Record<string, unknown>) => typeof x.on === 'string' && (!!x.tree || Array.isArray(x.do))
 
 /**
  * Bring a draft into the Patch shape: a bare rule, a list of rules, or an artifact with the
- * rule's fields spread on it all become `{ kind: 'rule', rule }`.
+ * rule's fields spread on it all become `{ kind: 'rule', rule }`; a rule written as a flat
+ * `do` list (with an optional `if`) gets that as its tree.
  */
 export function normalizePatch(x: unknown): { patch?: Patch; fixes: string[] } {
   const fixes: string[] = []
@@ -26,13 +26,17 @@ export function normalizePatch(x: unknown): { patch?: Patch; fixes: string[] } {
   for (const it of items) {
     if (!it || typeof it !== 'object') continue
     const a = it as Record<string, unknown>
-    if ((a.kind === 'rule' && a.rule && typeof a.rule === 'object') || (a.kind === 'type' && a.type) || (a.kind === 'status' && a.status)) {
+    if (a.kind === 'rule' && a.rule && typeof a.rule === 'object') {
+      artifacts.push({ kind: 'rule', rule: treeOf(a.rule as Record<string, unknown>, fixes) })
+      continue
+    }
+    if ((a.kind === 'type' && a.type) || (a.kind === 'status' && a.status)) {
       artifacts.push(a as unknown as Artifact)
       continue
     }
     if (looksLikeRule(a)) {
       const { kind: _k, ...rule } = a
-      artifacts.push({ kind: 'rule', rule: rule as unknown as Rule })
+      artifacts.push({ kind: 'rule', rule: treeOf(rule, fixes) })
       fixes.push(`wrapped rule "${String(a.id)}" as {kind:"rule", rule}`)
       continue
     }
@@ -47,19 +51,49 @@ export function normalizePatch(x: unknown): { patch?: Patch; fixes: string[] } {
   return { patch: { ...(o as object), artifacts } as Patch, fixes }
 }
 
+/** A rule with `do` (and maybe `if`) beside its tree instead of in it; effects keyed by their op. */
+function treeOf(r: Record<string, unknown>, fixes: string[]): Rule {
+  const id = String(r.id)
+  if (r.tree) return { ...(r as object), tree: flatEffects(r.tree as Tree, id, fixes) } as Rule
+  if (!Array.isArray(r.do)) return r as unknown as Rule
+  const { do: effects, if: cond, ...rest } = r
+  const leaf = flatEffects({ do: effects as Effect[] }, id, fixes)
+  fixes.push(`moved the effects of "${id}" into its tree`)
+  return { ...(rest as object), tree: cond ? { if: cond as Cond, then: leaf } : leaf } as Rule
+}
+
+/** An effect written as `{spawn: {type, at}}` is `{op: 'spawn', type, at}`: the op is its only key. */
+function flatEffects(t: Tree, id: string, fixes: string[]): Tree {
+  if (!t || typeof t !== 'object') return t
+  if ('if' in t) return { ...t, then: flatEffects(t.then, id, fixes), ...(t.else !== undefined ? { else: flatEffects(t.else, id, fixes) } : {}) }
+  if (!('do' in t) || !Array.isArray(t.do)) return t
+  let n = 0
+  const effects = t.do.map((e) => {
+    const o = e as unknown as Record<string, unknown>
+    const keys = o && typeof o === 'object' && !('op' in o) ? Object.keys(o) : []
+    if (keys.length !== 1 || !(keys[0] in PRIMITIVES)) return e
+    const args = o[keys[0]]
+    n++
+    return { op: keys[0], ...(args && typeof args === 'object' ? args : {}) } as Effect
+  })
+  if (n) fixes.push(`flattened ${n} effect(s) of "${id}" written as {op: {...}} into {op, ...}`)
+  return n ? { ...t, do: effects } : t
+}
+
 /**
- * A rule that conflicts only because it also claims verbs the player did not use: keep the
- * requested verb. Returns the narrowed patch, or undefined when that is not the problem.
+ * A rule that answers a broader kind than the one asked (`impulse` for `impulse/strike`) and so
+ * ties with another patch there: narrow it to the requested kind. Returns the narrowed patch, or
+ * undefined when that is not the problem.
  */
-export function narrowVerbs(patch: Patch, req: ModRequest, res: ValidationResult): { patch: Patch; fixes: string[] } | undefined {
-  if (!res.errors.some((e) => e.includes('at equal specificity'))) return undefined
-  const verb = req.event.verb
+export function narrowKinds(patch: Patch, req: ModRequest, res: ValidationResult): { patch: Patch; fixes: string[] } | undefined {
+  if (!res.errors.some((e) => e.includes(' ties with '))) return undefined
+  const kind = req.event.kind
   const fixes: string[] = []
   const artifacts = patch.artifacts.map((a) => {
-    if (a.kind !== 'rule' || a.rule.on !== 'interaction' || !a.rule.when?.verb?.includes(verb as 'take') || a.rule.when.verb.length < 2) return a
-    if (!res.errors.some((e) => e.includes(`"${a.rule.id}" conflicts`))) return a
-    fixes.push(`narrowed "${a.rule.id}" from verbs [${a.rule.when.verb.join(', ')}] to [${verb}]`)
-    return { kind: 'rule' as const, rule: { ...a.rule, when: { ...a.rule.when, verb: [verb as 'take'] } } }
+    if (a.kind !== 'rule' || a.rule.on === kind || !kind.startsWith(a.rule.on + '/')) return a
+    if (!res.errors.some((e) => e.includes(`"${a.rule.id}"`))) return a
+    fixes.push(`narrowed "${a.rule.id}" from ${a.rule.on} to ${kind}`)
+    return { kind: 'rule' as const, rule: { ...a.rule, on: kind } }
   })
   return fixes.length ? { patch: { ...patch, artifacts }, fixes } : undefined
 }

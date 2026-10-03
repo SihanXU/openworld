@@ -83,11 +83,17 @@ export function performPlacement(eng: Engine, actorId: Id, recipe: PlacementReci
     for (const s of steps) {
       if (!s.instrument) return false
       const target = s.target === 'tile' ? { tile: at } : work
-      const event = { kind: 'interaction' as const, verb: s.verb, roles: { actor: { e: actorId }, target, instrument: { e: s.instrument } }, at, strict: true }
+      // the earlier `interact` is `use` with something in hand (design.md §5.14)
+      const verb = (s.verb as string) === 'interact' ? 'use' : s.verb
+      const event = on.actEvent(verb, actorId, target, { e: s.instrument })
+      // the step is the act and what its impulses meet: a rule it names (or, ending in '/', any of that family) answers along the chain
       const allowed = Array.isArray(s.rule) ? s.rule : [s.rule]
-      if (!allowed.includes(on.resolve(event).rule?.id ?? '')) return false
-      const out = on.interact(s.verb, actorId, target, { instrument: { e: s.instrument }, strict: true })
-      if (!allowed.includes(out.rule?.id ?? '')) return false
+      const named = (ids: string[]) => ids.some((id) => allowed.some((a) => (a.endsWith('/') ? id.startsWith(a) : id === a)))
+      const dry = on.preview(event)
+      if (!dry.defined || dry.unknown || !named(dry.rules)) return false
+      const mark = on.trace.length
+      on.act(verb, actorId, target, { instrument: { e: s.instrument } })
+      if (!named(on.trace.slice(mark).map((t) => t.rule ?? ''))) return false
       if (recipe.result && s.target === 'tile') work = { e: s.instrument }
     }
     return !recipe.result || ('e' in work && on.world.get(work.e)?.type === recipe.result)

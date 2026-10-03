@@ -190,7 +190,7 @@ export class Quests {
   onDefeat(ev: GameEvent): void {
     const w = this.w
     const by = ev.roles.actor
-    const t = ev.roles.target
+    const t = ev.host
     if (!by || !('e' in by) || by.e !== w.state.player || !t || !('e' in t)) return
     const victim = w.get(t.e)
     const at = victim && w.posOf(victim)
@@ -201,7 +201,7 @@ export class Quests {
         if (g.kind === 'defeat' && victim.type.startsWith(g.type) && (!g.map || g.map === at.map)) {
           const key = `q.${q.id}.${g.id}`
           const n = Number(w.fact(key) ?? 0)
-          if (n < g.count) w.setFact(key, n + 1)
+          if (n < g.count) w.write(() => w.setFact(key, n + 1))
         }
     }
   }

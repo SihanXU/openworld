@@ -59,7 +59,8 @@ function release(eng: Engine, e: Entity, skill: BossSkill): void {
   const victims = w.entitiesOnMap(p.origin.map).filter((o) => o.id !== e.id && o.place.on === 'tile' && eng.hostileTo(e, o)
     && w.occupiedCells(o).some(([x, y]) => touched.has(`${x},${y}`)))
   for (const target of victims) {
-    eng.queue({ kind: 'hit', roles: { actor: { e: e.id }, target: { e: target.id } }, element: skill.element, power: Math.round(skill.damage * ((b.phase ?? 1) > 1 ? 1.35 : 1)) })
+    // the blow is a strike the target answers for itself (design.md §5.8)
+    eng.queue({ kind: 'impulse/strike', host: { e: target.id }, roles: { source: { e: e.id }, actor: { e: e.id } }, params: { power: Math.round(skill.damage * ((b.phase ?? 1) > 1 ? 1.35 : 1)), edge: 'blunt', ...(skill.element && { element: skill.element }) }, cause: e.id, origin: 'world' })
     if (w.num(target, 'hp') <= 0) continue
     if (skill.shift) {
       const at = w.posOf(target)!
@@ -70,7 +71,7 @@ function release(eng: Engine, e: Entity, skill: BossSkill): void {
     }
     if (skill.status) eng.applyStatus({ e: target.id }, skill.status)
   }
-  if (skill.heal && victims.length) eng.effects.apply({ op: 'heal', of: 'actor', amount: skill.heal * victims.length }, { kind: 'tick', roles: { actor: { e: e.id } } })
+  if (skill.heal && victims.length) eng.effects.apply({ op: 'heal', amount: skill.heal * victims.length }, { kind: 'time/period', host: { e: e.id }, roles: {}, origin: 'world' })
   if (skill.blink) {
     for (const [dx, dy] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
       const x = p.aim.x + dx, y = p.aim.y + dy

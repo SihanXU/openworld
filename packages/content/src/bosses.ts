@@ -57,17 +57,31 @@ export const BOSS_STATUSES: StatusDef[] = [
 
 /** Rewards happen once, then the death animation has two seconds before removal. */
 export const BOSS_RULES: Rule[] = [
-  ...BOSSES.map((b): Rule => ({ id: `sins/${b.id}-defeated`, on: 'defeat', source: { origin: 'base', note: 'story' },
-    when: { target: { type: `actor/creature/sin/${b.id}`, notStatus: ['down'] } }, do: [
-      { op: 'setProp', of: 'target', key: 'hp', value: 0 },
-      { op: 'addStatus', of: 'target', status: 'down', duration: 20 },
-      { op: 'setFact', key: `sins.defeated.${b.id}`, value: 1 },
-      { op: 'gainXp', of: 'actor', amount: { prop: 'maxHp', of: 'target' } },
-      { op: 'dropContents', of: 'target', still: true },
-      { op: 'spawn', type: 'item/material/iron_ore', at: 'tileOf:target', count: b.id === 'greed' ? 2 : 4 },
-      { op: 'log', text: L('Defeated {target}.', '击败了{target}。') },
-    ] })),
-  { id: 'sins/death-fades', on: 'expire', source: { origin: 'base' }, when: { target: { type: 'actor/creature/sin' }, status: ['down'] }, do: [{ op: 'destroy', of: 'target' }] },
+  // a sin at no health goes down for two seconds (its death), leaves its reward, and tells the story
+  ...BOSSES.map((b): Rule => ({
+    id: `sins/${b.id}-defeated`,
+    source: { origin: 'base', note: 'story' },
+    host: { type: `actor/creature/sin/${b.id}`, notStatus: ['down'] },
+    on: 'threshold/cross',
+    tree: { if: { param: { key: 'name', cmp: 'defeated' } }, then: { do: [
+      { op: 'setProp', key: 'hp', value: 0 },
+      { op: 'addStatus', status: 'down', duration: 20 },
+      { op: 'emit', impulse: 'notify', to: 'story', params: { what: `sin.${b.id}` } },
+      { op: 'emit', impulse: 'notify', to: 'actor', params: { what: 'defeat', xp: { prop: 'maxHp', of: 'host' } } },
+      { op: 'dropContents', still: true },
+      { op: 'spawn', type: 'item/material/iron_ore', at: 'host', count: b.id === 'greed' ? 2 : 4 },
+      { op: 'log', text: L('Defeated {host}.', '击败了{host}。') },
+    ] }, else: 'inherit' },
+  })),
+  { id: 'sins/death-fades', source: { origin: 'base' }, host: { type: 'actor/creature/sin' }, on: 'time/timer', tree: { if: { param: { key: 'status', cmp: 'down' } }, then: { do: [{ op: 'destroy' }] }, else: 'inherit' } },
+  {
+    id: 'sins/story',
+    source: { origin: 'base', note: 'story' },
+    doc: 'The story keeps which sins have fallen.',
+    host: { type: 'resident/story' },
+    on: 'impulse/notify',
+    tree: BOSSES.reduceRight<Rule['tree']>((rest, b) => ({ if: { param: { key: 'what', cmp: `sin.${b.id}` } }, then: { do: [{ op: 'setFact', key: `sins.defeated.${b.id}`, value: 1 }] }, else: rest }), 'inherit'),
+  },
 ]
 
 export const FIRST_BOSS = { map: 'eastroad', x: 23, y: 15, id: 'eastroad.sin.greed' } as const

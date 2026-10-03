@@ -1,31 +1,18 @@
-// The Mod port: the exact contract a modder (human now, LLM later) implements.
-//   undefined event (the player's, or the world's own when salient) → ModRequest (event + context + scenario) + ModSpec
-//   → Patch → validatePatch (schema, ontology, conflicts, sandbox replay, tests, regression)
-//   → applied to the rule library with provenance → the frozen interaction re-resolves.
+// The Mod port (design.md §5.11, §8): the exact contract a modder implements.
+//   an event whose outcome is undefined → ModRequest (event + host + the path to the hole +
+//   context + scenario) + ModSpec → Patch → validatePatch (schema, ontology, locality, sandbox
+//   replay, tests, regression) → the patch layer of the library, which is consulted only where
+//   the base outcome is undefined → the held event replays.
 // The engine is the trust boundary: patches are untrusted data until validated.
 
-import { TICKS_PER_HOUR } from './calendar.ts'
-import { PRIMITIVES } from './effects.ts'
-import type { Engine, UndefinedSink } from './engine.ts'
-import { WORLD_KINDS, textOf } from './engine.ts'
+import { EVENT_KINDS } from './types.ts'
+import { PRIMITIVES, RESIDENT_ONLY } from './effects.ts'
+import type { Engine, Resolution, UndefinedSink } from './engine.ts'
+import { STORY, textOf } from './engine.ts'
 import { OntologyIndex, isA } from './ontology.ts'
-import { ROLES, RuleLibrary, cmp, compareSpec, rolesOf, specOf } from './rules.ts'
+import { RuleLibrary, cmp, compareSpec, isDo, isHole, leaves, rolesOf, specOf } from './rules.ts'
 import { checkExpectations, replay } from './sandbox.ts'
-import type {
-  Cmp,
-  Cond,
-  Effect,
-  EventKind,
-  GameEvent,
-  Ontology,
-  Ref,
-  Rule,
-  Scenario,
-  ScenarioEntity,
-  Selector,
-  StatusDef,
-  TypeDef,
-} from './types.ts'
+import type { Cmp, Cond, Effect, EmitTo, GameEvent, Ontology, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Tree, TypeDef } from './types.ts'
 import type { View } from './world.ts'
 
 // ---------------------------------------------------------------- contract
@@ -39,7 +26,7 @@ export interface Patch {
   artifacts: Artifact[]
   note?: string
   author?: string
-  /** Who caused the request it answers (the Threadbook's "you" or "the world"). */
+  /** Who started the chain it answers (the Threadbook's "you" or "the world"). */
   trigger?: 'player' | 'world'
 }
 
@@ -53,33 +40,32 @@ export interface EntityInfo {
   tags: string[]
   statuses: string[]
   props: Record<string, unknown>
-  /** Offset from the target's tile. */
+  /** Offset from the host's tile. */
   at?: [number, number]
 }
 
 export interface ModRequest {
   id: string
   summary: string
-  /** Who caused it: the player's own act, or the world by itself (a cascade, a creature, a person). */
+  /** Who started the chain: the player's own act, or the world by itself (a cascade, a creature, a person, the story). */
   origin: 'player' | 'world'
-  /**
-   * The event that found no rule: an interaction (verb), a hit (element, power), a step onto a
-   * tile (enter), a status taking hold, a creature meeting something, a person blocked, a
-   * witness, or broken content (about, detail).
-   */
-  event: { kind: EventKind; verb?: string; element?: string; power?: number; status?: string; strict?: boolean; about?: string; detail?: string; actor?: EntityInfo; target?: EntityInfo; instrument?: EntityInfo }
+  /** The event whose outcome is undefined: its kind, its parameters, its host and its other roles. */
+  event: { kind: string; params: Record<string, unknown>; host?: EntityInfo; roles: Partial<Record<RoleName, EntityInfo>>; detail?: string }
+  /** Where the base outcome is undefined: the rule, the branches taken to reach it, and its default (what happens while nobody answers). */
+  hole: { rule: string; path: string[]; default: Effect[] }
   context: {
     map: { id: string; name: string; kind: string; region?: string }
     /** Named spots of the map (for `goto`). */
     anchors: string[]
     hour: number
     nearby: EntityInfo[]
-    tiles: string[][] // terrain window around the target, target at the center
+    tiles: string[][] // terrain window around the host, the host at the center
     tileStatuses: { at: [number, number]; statuses: string[] }[]
     recent: string[]
-    nearMisses: Rule[]
+    /** What the world already says about this host and kind: the rules that cover it, most specific first. */
+    rules: Rule[]
   }
-  /** A self-contained replay of the interaction (used by validation and by patch tests). */
+  /** A self-contained replay of the event (used by validation and by patch tests). */
   scenario: Scenario
 }
 
@@ -87,9 +73,11 @@ export interface ModSpec {
   version: string
   summary: string
   rule: Record<string, string>
+  tree: Record<string, string>
   selector: Record<string, string>
   conditions: string[]
   events: Record<string, string>
+  impulses: Record<string, string>
   primitives: Record<string, string>
   expectations: string[]
   ontology: {
@@ -110,7 +98,7 @@ export interface ModProvider {
 
 // ---------------------------------------------------------------- the wire (client ↔ modder service)
 
-/** What the client knows that the service may not: its local patches and recent defined interactions. */
+/** What the client knows that the service may not: its local patches and recent defined acts. */
 export interface ModWorkspace {
   patches?: { rules: Rule[]; types?: TypeDef[]; statuses?: StatusDef[] }
   regression?: { scenario: Scenario; rule: string }[]
@@ -124,8 +112,8 @@ export interface ResolveBody {
 
 /**
  * `accepted`: a new patch was written and validated; `covered`: the shared library already
- * answers this interaction (no model call); `failed`: no valid patch within the harness's
- * budget; `unavailable`: no model configured.
+ * answers this event (no model call); `failed`: no valid patch within the harness's budget;
+ * `unavailable`: no model configured.
  */
 export interface ResolveReply {
   patch: Patch | null
@@ -136,7 +124,7 @@ export interface ResolveReply {
 
 /** One entry of the shared library's append-only patch log (GET /patches?since=seq). */
 export type PatchLogEntry =
-  | { seq: number; at: string; patch: Patch; rules: string[]; request?: string; /** the triggering interaction (kept server-side as regression) */ scenario?: Scenario }
+  | { seq: number; at: string; patch: Patch; rules: string[]; request?: string; /** the triggering event (kept server-side as regression) */ scenario?: Scenario }
   | { seq: number; at: string; remove: string }
 
 export type RecordStatus = 'pending' | 'patched' | 'fallback' | 'rejected'
@@ -148,10 +136,10 @@ export interface UndefinedRecord {
   request: ModRequest
   event: GameEvent
   deadline: number
-  /** The interaction's class (verb, target kind, instrument kind): what counts as "the same action". */
+  /** The hole and the class of the event: what counts as "the same question". */
   signature: string
   origin: 'player' | 'world'
-  /** A reply from the provider is still on its way (it may arrive after the fallback). */
+  /** A reply from the provider is still on its way (it may arrive after the default ran). */
   awaiting?: boolean
   patch?: Patch
   diagnostics?: string[]
@@ -162,25 +150,58 @@ export interface ValidationResult {
   ok: boolean
   errors: string[]
   warnings: string[]
-  /** Previously-defined interactions that the patch now overrides (informational). */
+  /** Earlier patches the new one now shadows for some events (informational). */
   overrides: string[]
 }
 
 // ---------------------------------------------------------------- the ModSpec
 
 const AUTHORING_RULES = [
+  'You answer ONE undefined outcome: an event reached an undefined leaf (request.hole). Write a rule that gives that outcome — your rule is consulted only where the world says "undefined", so it can never change what is already defined.',
+  'A rule belongs to a HOST: the thing whose nature it describes. Write what the host does when the event happens to it. Read anything (conditions on any role), but WRITE ONLY THE HOST: every effect acts on the host, spawns new things, or presents. To affect anything else, `emit` an impulse to it — the receiver answers for itself (lava does not hurt people; lava emits element fire to what stands on it, and a person, taking fire, loses health).',
+  'Write the CLASS, not the instance: select the host by the most general type/tags/statuses that make the outcome plausible. Never use `id` unless the behaviour truly belongs to one unique thing.',
+  'Name the host: a rule with an empty host is a root rule and is not allowed in a patch.',
+  'Conditions narrow the cases (the other role\'s tags, a param like element or how). Cases you do not want to answer: leave them to `inherit` (an `if` without `else` inherits).',
+  'Use only the listed event kinds, impulses, primitives, statuses, terrains, types and vfx. If you need a new type or status, add a `type`/`status` artifact to the same patch.',
+  'Every rule should carry at least one test (a small scenario + expectations). The triggering event is replayed automatically.',
   'Combat talents are evaluated by the engine for any actor carrying skill:<id>. Actor props profession, moveHaste, attackHaste and critChance control eligibility/cadence/critical chance. Attack hit.power already includes offensive talents; do not apply them again in a hit rule. Direct combat damage reductions and Last Stand are handled by damage. Timed talent state lives in Entity.combat and is saved.',
-  'Write the CLASS of the interaction, not the instance: select roles by the most general type/tags/statuses that make the outcome plausible. Never use `id` unless the behaviour truly belongs to one unique entity.',
-  'But never a catch-all: an interaction rule must select the target or the instrument by type, tags or status. "Anything on anything does nothing" is rejected.',
-  'Prefer tags and statuses over deep types: `instrument: {tags:["liquid:oil"]}` covers every oily thing.',
-  'A rule must not contradict an existing rule at the same specificity. To special-case, be MORE specific (a subtype, one more tag or status) — the engine then prefers your rule for that case only.',
-  'Use only the listed primitives, statuses, terrains, types and vfx. If you need a new type or status, add a `type`/`status` artifact to the same patch.',
-  'Every rule should carry at least one test (a small scenario + expectations). The triggering interaction is replayed automatically.',
   'Give the player feedback: a `vfx` and/or a `say`/`log` line, so the outcome is visible.',
-  'Keep effects local and bounded: no unbounded spreading (chance < 1 or radius ≤ 3).',
-  'Make interactions that consume or transform the instrument say so (transform/destroy the instrument).',
-  'World events (origin "world": a status taking hold, a world hit, meet, blocked, witness, invalid) happen without the player asking: keep them small and legible, never harm a person, never touch the story\'s facts, and let people react with say/emote/topic/goto.',
+  'Keep emissions local and bounded: an area radius of at most 3, and a chance below 1 when it could cascade.',
+  'An act hosted by an instrument that consumes or changes it says so: `destroy` or `transform` the host.',
+  'Outcomes the world started by itself (origin "world") happen without the player asking: keep them small and legible, never harm a person, never touch the story\'s facts, and let people react with say/emote, a notice to the story (a topic), or goto.',
 ]
+
+const EVENTS: Record<string, string> = {
+  'act/use': 'an actor uses the host (an instrument) on the target; with no instrument the host is the actor\'s own hands. Roles actor, target, instrument. Params verb, power (atk + the instrument\'s power), element (the instrument\'s or the actor\'s), attack (a blow aimed along the facing).',
+  'act/put': 'an actor puts the host (an item) onto or into the target. The root emits `receive` (or `offered` to an actor) to the target.',
+  'act/take': 'an actor takes the target with their hands (host: the actor). The root emits `taken` to the target.',
+  'act/hands': 'an actor touches, opens, talks to the target bare-handed (host: the actor). The root emits `handle` to the target.',
+  'act/move': 'an actor steps (param dir) or goes to a place (params map, x, y); the root moves it.',
+  'act/craft': 'an actor crafts the recipe of param recipe from what it carries.',
+  'impulse/*': 'something was done to the host by another (source = the emitter; actor = whose act started it; instrument; item). See `impulses` for each kind and its params.',
+  'contact/begin|stay|end': 'the host and other start, keep, or stop touching. Param how, from the host\'s side: on (I stand on other), under (other stands on me), in (I am inside other), contains (other is inside me), held (I am in other\'s hand), holds (other is in my hand). Only where a stance (ground, air, water) meets a reach: a flyer never touches lava.',
+  bump: 'the host and other collided: a step into something solid (param dir).',
+  'time/period': 'a clock ticked for the host: param status (every 0.5 s while it has that status) or name (a declared period: hunger, vitals, forage, weather, storm).',
+  'time/timer': 'a status ran out on the host (param status).',
+  'threshold/gain|lose': 'the host gained or lost a status (param status).',
+  'threshold/cross': 'a prop of the host came to a declared line (param name: defeated at hp 0, starving at hunger 0; param prop).',
+  seen: 'the host (an actor) saw someone act: roles actor (the doer), target, instrument; params act (the verb), owner (mine | another | nobody: whose the target was before), defined.',
+  stuck: 'the host (a person) cannot go on with their day: param activity; target is what it needs (gone, or not as it must be), or the spot they cannot reach.',
+  broken: 'the story: content it must keep playable broke (param invariant; target the person it belongs to). The default is the invariant\'s fallback.',
+}
+
+const IMPULSES: Record<string, string> = {
+  strike: 'a blow or a tool\'s work: params power, edge (cut | blunt | pierce | dig), element (optional); the instrument role says what struck (an axe, a hoe)',
+  element: 'fire, water, ice, lightning, wind or earth reaching the host: params element, power',
+  coat: 'a substance laid on the host: param substance (oil, …)',
+  restore: 'health or hunger given back: params which (hp | hunger), amount',
+  push: 'shoved: param dir (and swap: a person making way)',
+  taken: 'the host (a thing) is being taken: other = the taker (or receiver); param into (hand | contents | tile). Its root moves it there.',
+  receive: 'something is put on or into the host: item = the thing. The host decides: take it (emit taken to the item with into) or refuse.',
+  offered: 'the host (an actor) is handed a thing: item = the thing; accept (emit taken with into contents) or decline.',
+  handle: 'a bare hand on the host: open, read, talk, push, shake — the host says',
+  notify: 'news for the host: params what (a key) and value — a topic for the story, the player\'s stage, a defeat for the one who struck.',
+}
 
 export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
   const types = { ...onto.types }
@@ -188,65 +209,58 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
   const statuses = { ...onto.statuses }
   for (const s of lib.statuses) statuses[s.id] = s
   return {
-    version: `lsw-modspec/1 lib@${lib.version}`,
+    version: `lsw-modspec/2 lib@${lib.version}`,
     summary:
-      'Author RULES for a 2D JRPG world whose mechanics are data. Rules match events by role patterns and run effect primitives. You are called because an event matched no rule. From the player: an interaction (the player used, put or took something, or touched it bare-handed — event.strict: catch-all descriptions do not count), a hit (a blow or a spell landed on something with no reaction), or a step onto a tile in some state (enter). From the world itself: a status taking hold of something, a hit nobody aimed (lightning), a creature meeting a thing (meet), a person who cannot go on with their day (blocked), a person who saw someone act on something owned (witness), or content that state has broken (invalid).',
+      'Author RULES for a 2D JRPG world whose mechanics are data. Every happening is an event with one outcome. A rule belongs to a HOST type and answers one event kind (or a branch of kinds) with a condition tree whose leaves are effects, `inherit` or undefined. You are called because an event reached an undefined leaf (request.hole): write the host rule that gives it an outcome. Effects write only the host; to affect others, emit impulses (strike, element, coat, restore, push, taken, receive, offered, handle, notify), which their receivers answer.',
     rule: {
-      id: 'unique string, e.g. "patch/oil-coats-frozen"',
-      on: 'event kind: interaction | hit | status | expire | tick | enter | defeat | meet | blocked | witness | invalid',
-      when: 'pattern: { verb?: [take|put|interact], actor?, target?, instrument?: Selector, element?: [..], status?: [..], about?: [..] (blocked: the activity; witness: "<verb>:owner" | "<verb>:bystander"; invalid: the invariant id) }',
-      guard: 'optional Cond evaluated at match time',
-      do: 'ordered Effect[] (primitives)',
-      priority: 'optional tiebreaker (number)',
-      compose: 'optional: true = run alongside the most specific rule instead of competing with it',
-      fallback: 'optional: true = a catch-all description ("It is a well.") that answers only when nothing else does; it does not define a strict (bare-handed Use) interaction. Patches rarely need it.',
-      confirm: 'optional Text: ask the player first when their Action key chooses this rule ("Eat {instrument}?"); for sleeping, eating and other things that end the moment',
+      id: 'unique string, e.g. "patch/slime-wets-in-rain"',
+      host: 'Selector: the class of thing whose nature this is (required in a patch)',
+      on: `an event kind or a branch: ${[...EVENT_KINDS].join(' | ')} — or a prefix such as "impulse" or "contact"`,
+      tree: 'the outcome: a Tree (see `tree`)',
+      confirm: 'optional Text: ask the player first when their input chooses this rule ("Eat {instrument}?")',
       tests: 'RuleTest[]: { given: Scenario, expect: Expectation[] }',
       doc: 'one-line human summary',
     },
+    tree: {
+      leaf: '{do: Effect[]} — the outcome; an empty list means no change (a definition)',
+      inherit: '"inherit" — not this rule\'s case: the next, less specific rule answers',
+      branch: '{if: Cond, then: Tree, else?: Tree} — else defaults to "inherit"',
+      note: 'patches may not contain undefined leaves',
+    },
     selector: {
-      kind: 'actor | item | fixture | tile',
+      kind: 'actor | item | fixture | tile | resident (the story, the world)',
       type: 'is-a match on the slash-path type hierarchy (prefix)',
       tags: 'all of these tags',
       notTags: 'none of these tags',
       status: 'all of these statuses',
       notStatus: 'none of these statuses',
       props: 'property comparisons: {key: value | {eq,ne,gt,gte,lt,lte}}',
-      none: 'true = the role must be empty (e.g. empty-handed)',
-      player: 'true/false = the role is/isn\'t the player (rarely right: say what the role IS, by type, tags or status)',
-      self: 'true/false = the role is/isn\'t the event\'s actor (eating is an interaction with oneself)',
       id: 'instance id (discouraged)',
     },
     conditions: [
       '{all:[..]} {any:[..]} {not:C}',
+      '{is:{role, sel: Selector}} — a role is filled and matches (roles: host, actor, target, instrument, other, item, source)',
+      '{none: role} — a role is empty (an empty hand)',
+      '{same:[roleA, roleB]} — the same thing (food used on oneself: same [actor, target])',
       '{has:{role, status?, tag?}}',
-      '{prop:{role, key, cmp}}',
+      '{prop:{role, key, cmp?, bounds?}} — bounds: {eq|gt|gte|lt|lte: number | {prop, of: role, mul?} | {param, mul?}}',
+      '{param:{key, cmp}} — an event parameter (element, how, edge, verb, status, name, …)',
       '{chance:p}',
       '{hour:{from,to}}',
-      "{count:{role, in: contents|tile, match?: Selector, cmp: {eq|gt|gte|lt|lte: number | {prop, of: role}}}} — how many entities are in a role's contents (or on its tile besides itself); e.g. full when {gte:{prop:'capacity', of:'target'}}",
-      '{fact:{key, cmp}} — a world fact (missing = 0); facts are set by setFact/addFact (e.g. ford.winch)',
-      '{topic:id} — something that happened is still fresh (raised by the topic effect)',
+      "{count:{role, in: contents|tile, match?: Selector, cmp: Bounds}} — how many things are in a role's contents (or on its tile besides itself)",
+      '{fact:{key, cmp}} — a world fact (missing = 0)',
+      '{topic:id} — something that happened is still fresh',
       '{weather:[sun|cloud|rain|storm|fog]} — the weather now',
-      '{exists: Selector} — something matching it exists anywhere in the world (a rope, the dead tree)',
+      '{exists: Selector} — something matching it exists anywhere in the world',
+      '{outdoors:true} — the host is out under the sky',
     ],
-    events: {
-      interaction: 'a verb: take (pick up) / put (place the held item on the target) / interact (use; with the held item as instrument). Roles actor, target, instrument(held item).',
-      hit: 'an attack landed on target (actor = attacker, instrument = weapon); has element + power',
-      status: 'a status was just applied to target; `status` names it',
-      expire: 'a status just ran out on target',
-      tick: 'periodic (every 0.5s) for each status the target carries',
-      enter: 'actor stepped onto target tile',
-      defeat: 'target\'s hp reached 0 (actor = killer)',
-      meet: 'a creature (actor) came up to a thing or another creature (target)',
-      blocked: 'a person (actor) cannot go on with their activity (about): target is what it needs (gone, or not as it must be), or the anchor tile they cannot reach',
-      witness: 'a person (actor) saw someone (target) act on a thing that is another\'s (instrument); about = "<verb>:owner" when the witness owns it, else "<verb>:bystander"',
-      invalid: 'state broke content the world must keep playable: about = the invariant id, detail = what it was; actor = target = the person it belongs to',
-    },
-    primitives: { ...PRIMITIVES, _roles: 'RoleRef = actor | target | instrument | tileOf:actor | tileOf:target | tileOf:instrument', _amount: 'Amount = number | "power" | {prop, of, mul?, add?}' },
+    events: EVENTS,
+    impulses: IMPULSES,
+    primitives: { _shape: 'Each effect is ONE flat object naming its op: {"op": "spawn", "type": "item/tool/rope", "at": "target"} — never {"spawn": {…}}. Below, `name {args}` lists the fields beside op.', ...PRIMITIVES, _roles: 'RoleRef = host | actor | target | instrument | other | item | source | tileOf:<role>', _amount: 'Amount = number | {param, mul?, add?} | {prop, of: role, mul?, add?}' },
     expectations: [
       '{key, hasStatus} {key, lacksStatus} {key, isType} {key, destroyed:true} {key, exists:true}',
       '{key, propGt:[k,n]} {key, propLt:[k,n]} {tile:[x,y], terrain} {tile:[x,y], hasStatus} {spawned:type}',
-      'Scenario: {terrain?: string[][], entities:[{key,type,x,y,tags?,statuses?,props?,heldBy?,inside?}], event:{kind?,verb?,actor?,target?,instrument?,element?,power?,status?}, ticks?} — roles reference entity keys or "tile:x,y"',
+      'Scenario: {terrain?: string[][], entities:[{key,type,x,y,tags?,statuses?,props?,heldBy?,inside?}], event:{kind?, host?, actor?, target?, instrument?, other?, item?, source?, params?}, ticks?} — roles reference entity keys or "tile:x,y"; kind defaults to act/use, host to the instrument (or the actor)',
     ],
     ontology: {
       types: Object.values(types).map((t) => ({ id: t.id, kind: t.kind, tags: t.tags ?? [], name: t.name ? textOf(t.name) : undefined })),
@@ -262,52 +276,45 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
 
 // ---------------------------------------------------------------- the port
 
-const WINDOW = 3 // tiles around the target in the scenario (7x7)
-const TIMEOUT_TICKS = 100 // 10 s: then fall back (the record stays patchable)
-/**
- * How many requests one class of interaction may raise in a session. An answered class is a
- * rule and never asks again; an unanswered one (timed out, rejected, dismissed) asks once more,
- * then simply does nothing — the world does not ask the same question forever.
- */
-const MAX_ASKS = 2
+const WINDOW = 3 // tiles around the host in the scenario (7x7)
+const TIMEOUT_TICKS = 100 // 10 s: then the default (the record stays patchable)
 
-/** Requests per game hour the world may raise by itself, by kind (design.md §5.6). */
-const WORLD_BUDGET: Record<string, number> = { physical: 6, witness: 4, blocked: 2, invalid: 4 }
-/** How far from the player a physical event still counts as seen (tiles). */
-const VIEW = 12
-/** Tags that make a thing worth asking about when the world does something to it. */
-const REACTIVE = ['flammable', 'conductive', 'edible', 'fragile', 'liquid', 'bees', 'plant', 'crop', 'cloth', 'paper', 'metal', 'wooden', 'creature', 'dry', 'tall', 'fiber']
-
-const budgetOf = (kind: string) => (kind === 'status' || kind === 'hit' || kind === 'meet' ? 'physical' : kind)
-
-/** The class of an event, instances aside: kind, verb / element / status / about, what is acted on, what is held (and, for the world's events, who acts). */
-export function signatureOf(eng: Engine, ev: GameEvent): string {
+/** The class of an event, instances aside: the hole, the kind, the host's type, the branching params, the other roles' types. */
+export function signatureOf(eng: Engine, ev: GameEvent, res?: Resolution): string {
   const w = eng.world
   const kind = (r: Ref | undefined): string => {
-    if (!r) return 'hand'
+    if (!r) return '-'
     if ('tile' in r) return `tile:${w.terrainAt(r.tile.map, r.tile.x, r.tile.y)}`
     const e = w.get(r.e)
     if (!e) return '?'
-    const actor = ev.roles.actor
-    return r === ev.roles.target && actor && 'e' in actor && actor.e === e.id ? 'self' : e.type
+    return e.type
   }
-  const actor = ev.kind === 'interaction' || ev.kind === 'enter' ? '' : `|by:${kind(ev.roles.actor)}`
-  return `${ev.kind}:${ev.verb ?? ev.element ?? ev.status ?? ev.about ?? ''}|${kind(ev.roles.target)}|${kind(ev.roles.instrument)}${ev.strict ? '|strict' : ''}${actor}`
+  const same = (r: Ref | undefined) => !!r && 'e' in r && 'e' in ev.host && r.e === ev.host.e
+  const roles = Object.entries(ev.roles)
+    .filter(([k]) => k !== 'actor' && k !== 'source')
+    .map(([k, r]) => `${k}=${same(r) ? 'self' : kind(r)}`)
+    .sort()
+    .join(',')
+  const params = Object.entries(ev.params ?? {})
+    .filter(([k]) => ['verb', 'element', 'edge', 'how', 'status', 'name', 'act', 'owner', 'activity', 'invariant', 'what', 'substance', 'which', 'into'].includes(k))
+    .map(([k, v]) => `${k}=${v}`)
+    .sort()
+    .join(',')
+  const hole = res?.hole ? `${res.hole.rule.id}${res.hole.path.length ? '#' + res.hole.path.join('&') : ''}` : '?'
+  return `${hole}|${ev.kind}|${kind(ev.host)}|${roles}|${params}`
 }
 
 export class ModPort implements UndefinedSink {
   provider?: ModProvider
   records: UndefinedRecord[] = []
-  /** Scenarios of recently *defined* interactions: regression set for new patches. */
+  /** Scenarios of recently *defined* acts: regression set for new patches. */
   regression: { scenario: Scenario; rule: string }[] = []
   onChange?: () => void
-  /** How long an interaction waits for a patch before the fallback runs (a late patch still applies). */
+  /** How long an outcome waits for a patch before the default runs (a late patch still applies). */
   timeoutTicks = TIMEOUT_TICKS
   private seq = 0
-  /** Requests raised per interaction class this session (MAX_ASKS). */
-  private asks = new Map<string, number>()
-  /** Ticks at which the world raised requests, by budget kind (WORLD_BUDGET). */
-  private spent = new Map<string, number[]>()
+  /** Questions that failed this session: not asked again until the next one. */
+  private failed = new Set<string>()
 
   constructor(private eng: Engine) {
     eng.undefinedSink = this
@@ -321,90 +328,44 @@ export class ModPort implements UndefinedSink {
     return this.records.find((r) => r.id === id)
   }
 
-  raise(ev: GameEvent): void {
-    const eng = this.eng
-    const w = eng.world
-    // the same question is asked once at a time, and not forever
-    const signature = signatureOf(eng, ev)
-    const open = this.records.some((r) => r.signature === signature && (r.status === 'pending' || r.awaiting))
-    if (open || (this.asks.get(signature) ?? 0) >= MAX_ASKS) {
-      w.fx.push({ t: 'log', text: attemptLine(eng, ev) })
-      return eng.fallback(ev)
-    }
-    this.asks.set(signature, (this.asks.get(signature) ?? 0) + 1)
-    const rec = this.open(ev, signature, 'player')
-    // say at once what the player is doing (never what comes of it: that is the patch's to decide)
-    w.fx.push({ t: 'log', text: attemptLine(eng, ev) })
-    w.fx.push({ t: 'undefined', request: rec.id, summary: rec.request.summary, asked: !!this.provider })
-    // with no one to ask, nothing is being worked out: the safe default runs now, and the record
-    // stays open to a patch (the Mod Console, a later sync), which re-runs the act if it still fits
-    if (!this.provider) return this.fallback(rec.id)
-    // everyone and everything in the act waits for its outcome — the one acting too: they are
-    // busy working it out (no other act, no step) until the patch or the fallback comes
-    for (const r of [ev.roles.actor, ev.roles.target, ev.roles.instrument]) {
-      const e = r && 'e' in r ? w.get(r.e) : undefined
-      if (e) e.frozenBy = rec.id
-    }
-    this.onChange?.()
-    this.ask(rec)
-  }
-
   /**
-   * The world's own event found no rule (design.md §5.6–5.7): asked about only when it is
-   * salient, not yet asked, and within its kind's budget. Nothing freezes; the safe default
-   * stands until a patch arrives (at the time-out, or when the provider gives up).
+   * An outcome is undefined (design.md §5.11). One question per hole and class at a time; one that
+   * failed is not asked again this session. With no one to ask, the default runs now and the record
+   * stays open to a patch. Otherwise the event's participants — and the actor who started the
+   * chain — are held, and the default runs at the time-out if no patch has come.
    */
-  raiseWorld(ev: GameEvent): boolean {
+  raise(ev: GameEvent, res: Resolution): boolean {
     const eng = this.eng
     const w = eng.world
-    if (!this.salient(ev)) return false
-    const signature = signatureOf(eng, ev)
-    if (this.records.some((r) => r.signature === signature && (r.status === 'pending' || r.awaiting))) return false
-    if ((this.asks.get(signature) ?? 0) >= MAX_ASKS) return false
-    const kind = budgetOf(ev.kind)
-    const recent = (this.spent.get(kind) ?? []).filter((t) => t > w.state.tick - TICKS_PER_HOUR)
-    if (recent.length >= (WORLD_BUDGET[kind] ?? 2)) return false
-    this.spent.set(kind, [...recent, w.state.tick])
-    this.asks.set(signature, (this.asks.get(signature) ?? 0) + 1)
-    const rec = this.open(ev, signature, 'world')
-    w.fx.push({ t: 'log', text: worldLine(eng, ev), tone: 'ai' })
+    const signature = signatureOf(eng, ev, res)
+    const origin: 'player' | 'world' = ev.origin === 'player' ? 'player' : 'world'
+    if (this.records.some((r) => r.signature === signature && (r.status === 'pending' || r.awaiting)) || this.failed.has(signature)) {
+      if (origin === 'player' && ev.kind.startsWith('act/')) w.fx.push({ t: 'log', text: attemptLine(eng, ev) })
+      return false
+    }
+    const rec = this.open(ev, res, signature, origin)
+    // say at once what is being tried (never what comes of it: that is the patch's to decide)
+    w.fx.push({ t: 'log', text: origin === 'player' ? attemptLine(eng, ev) : worldLine(eng, ev), tone: origin === 'player' ? undefined : 'ai' })
     w.fx.push({ t: 'undefined', request: rec.id, summary: rec.request.summary, asked: !!this.provider })
     this.onChange?.()
+    if (!this.provider) {
+      rec.status = 'fallback'
+      return false
+    }
+    // everyone and everything in the event waits for its outcome — the one who started it too:
+    // they are at work on it (no other act, no step) until the patch or the default comes
+    for (const r of [ev.host, ...Object.values(ev.roles), ...(ev.cause ? [{ e: ev.cause }] : [])]) {
+      const e = r && 'e' in r ? w.get(r.e) : undefined
+      if (e && w.kindOf(e) !== 'resident') e.frozenBy = rec.id
+    }
     this.ask(rec)
     return true
   }
 
-  /** Is a world event worth a request (design.md §5.6)? */
-  salient(ev: GameEvent): boolean {
-    const eng = this.eng
-    const w = eng.world
-    const pp = w.posOf(w.player)
-    const at = w.refPos(ev.roles.target) ?? w.refPos(ev.roles.actor)
-    const seen = !!pp && !!at && pp.map === at.map && Math.max(Math.abs(pp.x - at.x), Math.abs(pp.y - at.y)) <= VIEW
-    // content and people matter even out of sight; a person's reaction only when the player is near
-    if (ev.kind === 'invalid') return true
-    if (ev.kind === 'witness' || ev.kind === 'blocked') return seen
-    if (!seen) return false
-    // something steps into a tile in some state: the one stepping is what the world asks about
-    if (ev.kind === 'enter') {
-      const tile = ev.roles.target && 'tile' in ev.roles.target ? ev.roles.target.tile : undefined
-      const st = tile && w.tileState(tile.map, tile.x, tile.y)?.statuses
-      const a = ev.roles.actor && 'e' in ev.roles.actor ? w.get(ev.roles.actor.e) : undefined
-      return !!st && Object.keys(st).length > 0 && !!a && !isA(a.type, 'actor/person') && REACTIVE.some((g) => w.hasTag(a, g))
-    }
-    const t = ev.roles.target
-    if (!t || !('e' in t)) return false // the ground itself does not ask (a meadow catching fire is just fire)
-    const e = w.get(t.e)
-    if (!e || isA(e.type, 'actor/person')) return false
-    if (ev.kind === 'hit' && !ev.element) return false
-    const v = w.view(t)!
-    return REACTIVE.some((g) => v.tags.has(g)) || eng.lib.nearMisses(ev, rolesOf(ev, w)).length > 0
-  }
-
-  private open(ev: GameEvent, signature: string, origin: 'player' | 'world'): UndefinedRecord {
+  private open(ev: GameEvent, res: Resolution, signature: string, origin: 'player' | 'world'): UndefinedRecord {
     const w = this.eng.world
     const id = `req-${w.state.seed.toString(36)}-${(++this.seq).toString(36)}-${w.state.tick.toString(36)}`
-    const request = buildRequest(this.eng, ev, id)
+    const request = buildRequest(this.eng, ev, res, id)
     const rec: UndefinedRecord = { id, tick: w.state.tick, status: 'pending', request, event: ev, deadline: w.state.tick + this.timeoutTicks, signature, origin }
     this.records.push(rec)
     return rec
@@ -412,20 +373,23 @@ export class ModPort implements UndefinedSink {
 
   private ask(rec: UndefinedRecord): void {
     const id = rec.id
-    const request = rec.request
-    if (this.provider) {
-      rec.awaiting = true
-      this.provider
-        .resolve(request, this.spec())
-        .then((p) => {
-          rec.awaiting = false
-          return p ? this.submit(id, p) : this.fallback(id)
-        })
-        .catch(() => {
-          rec.awaiting = false
+    if (!this.provider) return
+    rec.awaiting = true
+    this.provider
+      .resolve(rec.request, this.spec())
+      .then((p) => {
+        rec.awaiting = false
+        if (p) this.submit(id, p)
+        else {
+          this.failed.add(rec.signature)
           this.fallback(id)
-        })
-    }
+        }
+      })
+      .catch(() => {
+        rec.awaiting = false
+        this.failed.add(rec.signature)
+        this.fallback(id)
+      })
   }
 
   tick(): void {
@@ -434,7 +398,7 @@ export class ModPort implements UndefinedSink {
   }
 
   observe(ev: GameEvent, rule: string): void {
-    if (ev.kind !== 'interaction') return
+    if (!ev.kind.startsWith('act/') || ev.kind === 'act/move') return
     try {
       const sc = buildScenario(this.eng, ev)
       this.regression.push({ scenario: sc, rule })
@@ -448,12 +412,13 @@ export class ModPort implements UndefinedSink {
     for (const e of Object.values(this.eng.world.state.entities)) if (e.frozenBy === id) delete e.frozenBy
   }
 
+  /** Nobody answered in time (or the answer failed): the default runs; a later patch still applies. */
   fallback(id: string): void {
     const r = this.get(id)
     if (!r || r.status !== 'pending') return
     r.status = 'fallback'
     this.unfreeze(id)
-    this.eng.fallback(r.event)
+    this.eng.run(r.request.hole.default, r.event, r.request.hole.rule)
     this.onChange?.()
   }
 
@@ -467,16 +432,7 @@ export class ModPort implements UndefinedSink {
     const fresh = patch.artifacts?.filter((a) => !alreadyHeld(eng.lib, a)) ?? []
     if (Array.isArray(patch.artifacts) && patch.artifacts.length && !fresh.length) {
       const res: ValidationResult = { ok: true, errors: [], warnings: ['already in the library'], overrides: [] }
-      if (rec && rec.status !== 'patched') {
-        const ruleIds = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : []))
-        rec.patch = patch
-        rec.rules = ruleIds
-        rec.status = 'patched'
-        this.unfreeze(rec.id)
-        w.fx.push({ t: 'patched', request: rec.id, rule: ruleIds[0] ?? '' })
-        if (stillValid(eng, rec.event) && eng.resolve(rec.event).defined) eng.queue(rec.event)
-        this.onChange?.()
-      }
+      if (rec && rec.status !== 'patched') this.settled(rec, patch, patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : [])))
       return res
     }
     if (fresh.length !== patch.artifacts.length) patch = { ...patch, artifacts: fresh }
@@ -494,9 +450,12 @@ export class ModPort implements UndefinedSink {
     }
     if (!res.ok) {
       const wasPending = rec?.status === 'pending'
-      if (rec && wasPending) rec.status = 'rejected'
-      if (rec) this.unfreeze(rec.id)
-      if (rec && wasPending) eng.fallback(rec.event)
+      if (rec) this.failed.add(rec.signature)
+      if (rec && wasPending) {
+        rec.status = 'rejected'
+        this.unfreeze(rec.id)
+        eng.run(rec.request.hole.default, rec.event, rec.request.hole.rule)
+      }
       w.fx.push({ t: 'log', text: `patch rejected: ${res.errors[0]}`, tone: 'warn' })
       this.onChange?.()
       return res
@@ -519,26 +478,28 @@ export class ModPort implements UndefinedSink {
       eng.lib.add(rule, now)
       ruleIds.push(rule.id)
     }
-    const wasPending = rec?.status === 'pending' || rec?.status === 'fallback' || rec?.status === 'rejected'
-    if (rec) {
-      rec.rules = ruleIds
-      rec.status = 'patched'
-      this.unfreeze(rec.id)
-      w.fx.push({ t: 'patched', request: rec.id, rule: ruleIds[0] ?? '' })
-      // re-resolve the original event if it still makes sense: the player's act with its
-      // participants in place; of the world's, only a standing state (a person still blocked,
-      // content still broken) — a passing physical moment is learned for next time
-      const again = rec.origin === 'world' ? rec.event.kind === 'blocked' || rec.event.kind === 'invalid' : stillValid(eng, rec.event)
-      if (wasPending && again && eng.resolve(rec.event).defined) eng.queue(rec.event)
-    }
+    if (rec) this.settled(rec, patch, ruleIds)
     this.onChange?.()
     return res
   }
 
-  /** A person answered "nothing happens": the class is not asked about again this session. */
+  /** A record's question is answered: the held let go, and the event replays if it still stands. */
+  private settled(rec: UndefinedRecord, patch: Patch, ruleIds: string[]): void {
+    const eng = this.eng
+    const wasOpen = rec.status !== 'patched'
+    rec.patch = patch
+    rec.rules = ruleIds
+    rec.status = 'patched'
+    this.failed.delete(rec.signature)
+    this.unfreeze(rec.id)
+    eng.world.fx.push({ t: 'patched', request: rec.id, rule: ruleIds[0] ?? '' })
+    if (wasOpen && stillValid(eng, rec.event) && eng.resolveEvent(rec.event).defined) eng.replay(rec.event)
+  }
+
+  /** A person answered "nothing happens": the question is not asked again this session. */
   dismiss(id: string): void {
     const r = this.get(id)
-    if (r) this.asks.set(r.signature, MAX_ASKS)
+    if (r) this.failed.add(r.signature)
     this.fallback(id)
   }
 }
@@ -564,38 +525,43 @@ function a0trigger(patch: Patch): 'player' | 'world' | undefined {
   return undefined
 }
 
-/** The light cue when the world pauses over something it has never seen (design.md §5.9). */
+const nm = (eng: Engine, ref: Ref | undefined, l: 'en' | 'zh') => eng.nameOf(ref, l)
+
+/** The light cue when the world pauses over something it has never seen (design.md §5.11). */
 export function worldLine(eng: Engine, ev: GameEvent): { en: string; zh: string } {
-  const r = ev.roles
-  const n = (ref: Ref | undefined, l: 'en' | 'zh') => eng.nameOf(ref, l)
-  if (ev.kind === 'meet') return { en: `${n(r.actor, 'en')} comes up to ${n(r.target, 'en')}…`, zh: `${n(r.actor, 'zh')}凑近了${n(r.target, 'zh')}……` }
-  if (ev.kind === 'witness') return { en: `${n(r.actor, 'en')} saw that.`, zh: `${n(r.actor, 'zh')}看见了。` }
-  if (ev.kind === 'blocked') return { en: `${n(r.actor, 'en')} stops short.`, zh: `${n(r.actor, 'zh')}停住了。` }
-  if (ev.kind === 'invalid') return { en: `Something ${n(r.actor, 'en')} was counting on is gone…`, zh: `${n(r.actor, 'zh')}指望的东西没了……` }
-  if (ev.kind === 'hit') return { en: `${ev.element ?? 'Something'} strikes ${n(r.target, 'en')}…`, zh: `${n(r.target, 'zh')}被击中了……` }
-  return { en: `The world pauses over ${n(r.target, 'en')}…`, zh: `世界在${n(r.target, 'zh')}上停顿了一下……` }
+  const h = ev.host
+  const o = ev.roles.other ?? ev.roles.source
+  if (ev.kind.startsWith('contact') || ev.kind === 'bump') return { en: `${nm(eng, h, 'en')} meets ${nm(eng, o, 'en')}…`, zh: `${nm(eng, h, 'zh')}碰上了${nm(eng, o, 'zh')}……` }
+  if (ev.kind === 'seen') return { en: `${nm(eng, h, 'en')} saw that.`, zh: `${nm(eng, h, 'zh')}看见了。` }
+  if (ev.kind === 'stuck') return { en: `${nm(eng, h, 'en')} stops short.`, zh: `${nm(eng, h, 'zh')}停住了。` }
+  if (ev.kind === 'broken') return { en: `Something ${nm(eng, ev.roles.target, 'en')} was counting on is gone…`, zh: `${nm(eng, ev.roles.target, 'zh')}指望的东西没了……` }
+  if (ev.kind === 'impulse/element') return { en: `${String(ev.params?.element ?? 'Something')} reaches ${nm(eng, h, 'en')}…`, zh: `${nm(eng, h, 'zh')}被波及了……` }
+  return { en: `The world pauses over ${nm(eng, h, 'en')}…`, zh: `世界在${nm(eng, h, 'zh')}上停顿了一下……` }
 }
 
 /** A neutral line for an attempt whose outcome is not known yet. */
 export function attemptLine(eng: Engine, ev: GameEvent): { en: string; zh: string } {
   const r = ev.roles
-  const n = (ref: Ref | undefined, l: 'en' | 'zh') => eng.nameOf(ref, l)
+  const verb = ev.params?.verb
+  const target = ev.kind.startsWith('impulse') ? ev.host : r.target
   const self = !!r.target && !!r.actor && 'e' in r.target && 'e' in r.actor && r.target.e === r.actor.e
-  if (ev.kind === 'hit') return { en: `Your blow lands on ${n(r.target, 'en')}…`, zh: `你这一击落在了${n(r.target, 'zh')}上……` }
-  if (ev.kind === 'enter') return { en: `You step onto ${n(r.target, 'en')}…`, zh: `你踏上了${n(r.target, 'zh')}……` }
-  if (ev.verb === 'take') return { en: `You try to take ${n(r.target, 'en')}…`, zh: `你试着去拿${n(r.target, 'zh')}……` }
-  if (ev.verb === 'put') return { en: `You set ${n(r.instrument, 'en')} against ${n(r.target, 'en')}…`, zh: `你把${n(r.instrument, 'zh')}往${n(r.target, 'zh')}上放……` }
-  if (!r.instrument) return { en: `You reach out to ${n(r.target, 'en')}…`, zh: `你伸手去碰${n(r.target, 'zh')}……` }
-  if (self) return { en: `You try ${n(r.instrument, 'en')} on yourself…`, zh: `你试着对自己用${n(r.instrument, 'zh')}……` }
-  return { en: `You try ${n(r.instrument, 'en')} on ${n(r.target, 'en')}…`, zh: `你试着把${n(r.instrument, 'zh')}用在${n(r.target, 'zh')}上……` }
+  if (ev.params?.attack || ev.kind === 'impulse/strike') return { en: `Your blow lands on ${nm(eng, target, 'en')}…`, zh: `你这一击落在了${nm(eng, target, 'zh')}上……` }
+  if (verb === 'take') return { en: `You try to take ${nm(eng, target, 'en')}…`, zh: `你试着去拿${nm(eng, target, 'zh')}……` }
+  if (verb === 'put') return { en: `You set ${nm(eng, r.instrument, 'en')} against ${nm(eng, target, 'en')}…`, zh: `你把${nm(eng, r.instrument, 'zh')}往${nm(eng, target, 'zh')}上放……` }
+  if (!r.instrument) return { en: `You reach out to ${nm(eng, target, 'en')}…`, zh: `你伸手去碰${nm(eng, target, 'zh')}……` }
+  if (self) return { en: `You try ${nm(eng, r.instrument, 'en')} on yourself…`, zh: `你试着对自己用${nm(eng, r.instrument, 'zh')}……` }
+  return { en: `You try ${nm(eng, r.instrument, 'en')} on ${nm(eng, target, 'en')}…`, zh: `你试着把${nm(eng, r.instrument, 'zh')}用在${nm(eng, target, 'zh')}上……` }
 }
 
+/** Does the event still stand (its things there, the actor still near and holding what it held)? */
 function stillValid(eng: Engine, ev: GameEvent): boolean {
   const w = eng.world
+  if ('e' in ev.host && !w.get(ev.host.e)) return false
+  for (const r of Object.values(ev.roles)) if (r && 'e' in r && !w.get(r.e)) return false
+  if (!ev.kind.startsWith('act/')) return true
   const a = ev.roles.actor && 'e' in ev.roles.actor ? w.get(ev.roles.actor.e) : undefined
   if (!a) return false
-  if (ev.roles.instrument && 'e' in ev.roles.instrument && a.held !== ev.roles.instrument.e) return false
-  if (ev.roles.target && 'e' in ev.roles.target && !w.get(ev.roles.target.e)) return false
+  if (ev.roles.instrument && 'e' in ev.roles.instrument && a.held !== ev.roles.instrument.e && !(a.contents ?? []).includes(ev.roles.instrument.e)) return false
   const ap = w.posOf(a)
   const tp = w.refPos(ev.roles.target)
   if (!ap || !tp || ap.map !== tp.map) return false
@@ -625,21 +591,34 @@ function info(eng: Engine, role: string, v: View | undefined, origin?: { x: numb
 
 export function summarize(eng: Engine, ev: GameEvent): string {
   const n = (r: Ref | undefined) => eng.nameOf(r)
-  const inst = ev.roles.instrument ? ` holding ${n(ev.roles.instrument)}` : ''
-  if (ev.kind === 'hit') return `${ev.roles.actor ? n(ev.roles.actor) : 'the world'} hits → ${n(ev.roles.target)}${ev.element ? ` with ${ev.element}` : ''}${inst}`
-  if (ev.kind === 'enter') return `${n(ev.roles.actor)} steps onto → ${n(ev.roles.target)}`
-  if (ev.kind === 'status') return `${n(ev.roles.target)} becomes ${ev.status}`
-  if (ev.kind === 'meet') return `${n(ev.roles.actor)} meets → ${n(ev.roles.target)}`
-  if (ev.kind === 'blocked') return `${n(ev.roles.actor)} is blocked from "${ev.about}" by → ${n(ev.roles.target)}`
-  if (ev.kind === 'witness') return `${n(ev.roles.actor)} witnesses ${n(ev.roles.target)} ${ev.about?.split(':')[0]} → ${n(ev.roles.instrument)} (${ev.about?.split(':')[1]})`
-  if (ev.kind === 'invalid') return `content "${ev.about}" of ${n(ev.roles.actor)} is broken`
-  return `${n(ev.roles.actor)} ${ev.verb} → ${n(ev.roles.target)}${inst}${ev.strict && !ev.roles.instrument ? ' (bare hand)' : ''}`
+  const p = ev.params ?? {}
+  const r = ev.roles
+  if (ev.kind.startsWith('act/')) {
+    const verb = String(p.verb ?? ev.kind.slice(4))
+    const what = r.instrument ? ` ${n(r.instrument)}` : ''
+    const how = verb === 'use' ? (r.instrument ? ' on' : ' bare hands on') : verb === 'put' ? ' on' : ''
+    return `${n(r.actor)} ${verb}${what}${how} ${n(r.target)}`
+  }
+  if (ev.kind.startsWith('impulse/')) {
+    const what = ev.kind.slice(8)
+    const detail = [p.element, p.edge, p.substance, p.what].filter(Boolean).join(' ')
+    const from = r.source && !(r.item && 'e' in r.item && 'e' in r.source && r.item.e === r.source.e) ? ` from ${n(r.source)}` : ''
+    return `${n(ev.host)} is sent ${what}${detail ? ` (${detail})` : ''}${from}${r.item ? ` (the thing: ${n(r.item)})` : ''}`
+  }
+  if (ev.kind.startsWith('contact/')) return `${n(ev.host)} ${ev.kind.slice(8)}s contact (${p.how}) → ${n(r.other)}`
+  if (ev.kind === 'bump') return `${n(ev.host)} bumps → ${n(r.other)}`
+  if (ev.kind.startsWith('time/')) return `${n(ev.host)}: ${ev.kind === 'time/timer' ? `${p.status} runs out` : `period ${p.name ?? p.status}`}`
+  if (ev.kind.startsWith('threshold/')) return `${n(ev.host)} ${ev.kind === 'threshold/cross' ? `crosses ${p.name}` : `${ev.kind.slice(10)}s ${p.status}`}`
+  if (ev.kind === 'seen') return `${n(ev.host)} sees ${n(r.actor)} ${p.act} → ${n(r.target)} (${p.owner})`
+  if (ev.kind === 'stuck') return `${n(ev.host)} is stuck at "${p.activity}" by → ${n(r.target)}`
+  if (ev.kind === 'broken') return `content "${p.invariant}" of ${n(r.target)} is broken`
+  return `${ev.kind} → ${n(ev.host)}`
 }
 
-export function buildRequest(eng: Engine, ev: GameEvent, id: string): ModRequest {
+export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: string): ModRequest {
   const w = eng.world
   const roles = rolesOf(ev, w)
-  const center = w.refPos(ev.roles.target) ?? w.refPos(ev.roles.actor)!
+  const center = w.refPos(ev.host) ?? w.refPos(ev.roles.target) ?? w.refPos(ev.roles.actor) ?? w.posOf(w.player)!
   const mapData = w.map(center.map)!
   const tiles: string[][] = []
   const tileStatuses: { at: [number, number]; statuses: string[] }[] = []
@@ -654,12 +633,12 @@ export function buildRequest(eng: Engine, ev: GameEvent, id: string): ModRequest
     }
     tiles.push(row)
   }
-  const involved = new Set([roles.actor?.id, roles.target?.id, roles.instrument?.id].filter(Boolean))
+  const involved = new Set(Object.values(roles).map((v) => v?.id).filter(Boolean))
   const nearby: EntityInfo[] = []
   for (let dy = -2; dy <= 2; dy++)
     for (let dx = -2; dx <= 2; dx++)
       for (const e of w.entitiesAt(center.map, center.x + dx, center.y + dy)) {
-        if (involved.has(e.id)) continue
+        if (involved.has(e.id) || nearby.some((x) => x.id === e.id)) continue
         const i = info(eng, 'nearby', w.view({ e: e.id }), center)
         if (i) nearby.push(i)
       }
@@ -667,23 +646,15 @@ export function buildRequest(eng: Engine, ev: GameEvent, id: string): ModRequest
     .filter((f) => f.t === 'log' || f.t === 'say')
     .slice(-6)
     .map((f) => ('text' in f ? textOf(f.text) : ''))
+  const hostView = roles.host
+  const infos: Partial<Record<RoleName, EntityInfo>> = {}
+  for (const [k, v] of Object.entries(roles)) if (k !== 'host' && v) infos[k as RoleName] = info(eng, k, v, center)
   return {
     id,
     summary: summarize(eng, ev),
-    origin: WORLD_KINDS.has(ev.kind) && ev.origin !== 'player' && !(ev.kind === 'hit' && isPlayer(eng, ev.roles.actor)) ? 'world' : 'player',
-    event: {
-      kind: ev.kind,
-      verb: ev.verb,
-      element: ev.element,
-      power: ev.power,
-      status: ev.status,
-      strict: ev.strict,
-      about: ev.about,
-      detail: detailOf(eng, ev),
-      actor: info(eng, 'actor', roles.actor, center),
-      target: info(eng, 'target', roles.target, center),
-      instrument: info(eng, 'instrument', roles.instrument, center),
-    },
+    origin: ev.origin === 'player' ? 'player' : 'world',
+    event: { kind: ev.kind, params: { ...(ev.params ?? {}) }, host: info(eng, 'host', hostView, center), roles: infos, detail: detailOf(eng, ev) },
+    hole: { rule: res.hole?.rule.id ?? '?', path: res.hole?.path ?? [], default: res.hole?.default ?? [] },
     context: {
       map: { id: mapData.id, name: textOf(mapData.name), kind: mapData.kind, region: mapData.region },
       anchors: Object.keys(mapData.anchors ?? {}),
@@ -692,39 +663,33 @@ export function buildRequest(eng: Engine, ev: GameEvent, id: string): ModRequest
       tiles,
       tileStatuses,
       recent,
-      nearMisses: eng.lib.nearMisses(ev, roles),
+      rules: [...eng.lib.candidates(ev.kind, hostView), ...eng.lib.candidates(ev.kind, hostView, true)].slice(0, 8),
     },
     scenario: buildScenario(eng, ev),
   }
 }
 
-const isPlayer = (eng: Engine, r: Ref | undefined) => !!r && 'e' in r && r.e === eng.world.state.player
-
 /** What a world event is about, in words, for the modder. */
 function detailOf(eng: Engine, ev: GameEvent): string | undefined {
   const w = eng.world
   const n = (r: Ref | undefined) => eng.nameOf(r)
-  if (ev.kind === 'invalid') {
-    const inv = eng.invariants.find((i) => i.id === ev.about)
+  if (ev.kind === 'broken') {
+    const inv = eng.invariants.find((i) => i.id === ev.params?.invariant)
     return inv ? textOf(inv.text) : undefined
   }
-  if (ev.kind === 'witness') {
-    const t = ev.roles.instrument && 'e' in ev.roles.instrument ? w.get(ev.roles.instrument.e) : undefined
-    const owner = t && eng.ownerOf(t)
-    return `${n(ev.roles.actor)} saw ${n(ev.roles.target)} ${ev.about?.split(':')[0]} ${n(ev.roles.instrument)}${owner ? ` (it belongs to ${n({ e: owner })})` : ''}`
-  }
-  if (ev.kind === 'blocked') {
-    const p = ev.roles.actor && 'e' in ev.roles.actor ? w.get(ev.roles.actor.e) : undefined
-    const s = p?.npc?.person?.schedules?.flatMap((v) => v.entries).find((x) => x.activity === ev.about)
-    return `${n(ev.roles.actor)} wants to "${ev.about}" but ${'tile' in (ev.roles.target ?? {}) ? 'cannot reach the spot' : `${n(ev.roles.target)} is not as it must be${s?.need ? ` (${JSON.stringify(s.need)})` : ''}`}`
+  if (ev.kind === 'seen') return `${n(ev.host)} saw ${n(ev.roles.actor)} ${ev.params?.act} ${n(ev.roles.target)} (${ev.params?.owner === 'mine' ? 'it is theirs' : ev.params?.owner === 'another' ? "it is someone else's" : "it is nobody's"})`
+  if (ev.kind === 'stuck') {
+    const p = 'e' in ev.host ? w.get(ev.host.e) : undefined
+    const s = p?.npc?.person?.schedules?.flatMap((v) => v.entries).find((x) => x.activity === ev.params?.activity)
+    return `${n(ev.host)} wants to "${ev.params?.activity}" but ${ev.roles.target && 'tile' in ev.roles.target ? 'cannot reach the spot' : `${n(ev.roles.target)} is not as it must be${s?.need ? ` (${JSON.stringify(s.need)})` : ''}`}`
   }
   return undefined
 }
 
-/** Snapshot the interaction's neighbourhood as a replayable scenario. */
+/** Snapshot the event's neighbourhood as a replayable scenario. */
 export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
   const w = eng.world
-  const center = w.refPos(ev.roles.target) ?? w.refPos(ev.roles.actor)!
+  const center = w.refPos(ev.host) ?? w.refPos(ev.roles.target) ?? w.refPos(ev.roles.actor) ?? w.posOf(w.player)!
   const ox = center.x - WINDOW
   const oy = center.y - WINDOW
   const terrain: string[][] = []
@@ -740,7 +705,7 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
   const keyOf = new Map<string, string>()
   const addEntity = (id: string, key: string) => {
     const e = w.get(id)
-    if (!e || keyOf.has(id)) return
+    if (!e || keyOf.has(id) || w.kindOf(e) === 'resident') return
     const p = w.posOf(e)
     if (!p) return
     keyOf.set(id, key)
@@ -759,8 +724,6 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
       if (holderKey) {
         if (e.place.on === 'hand') se.heldBy = holderKey
         else se.inside = holderKey
-      } else {
-        delete se.heldBy
       }
     }
   }
@@ -769,39 +732,44 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
     if ('tile' in r) return `tile:${r.tile.x - ox},${r.tile.y - oy}`
     const e = w.get(r.e)
     if (!e) return undefined
+    if (w.kindOf(e) === 'resident') return e.id
     // make sure holders come first so held/inside links resolve
     if (e.place.on === 'hand' || e.place.on === 'inside') {
       const h = e.place.holder
-      if (!keyOf.has(h)) addEntity(h, h === (ev.roles.actor as { e?: string })?.e ? 'actor' : `holder_${key}`)
+      if (!keyOf.has(h)) addEntity(h, ev.roles.actor && 'e' in ev.roles.actor && h === ev.roles.actor.e ? 'actor' : `holder_${key}`)
     }
     addEntity(r.e, key)
     return keyOf.get(r.e)
   }
-  const actor = roleKey(ev.roles.actor, 'actor')
-  const instrument = roleKey(ev.roles.instrument, 'instrument')
-  const target = roleKey(ev.roles.target, 'target')
+  const event: Scenario['event'] = { kind: ev.kind, params: ev.params ? { ...ev.params } : undefined }
+  for (const role of ['actor', 'instrument', 'target', 'other', 'item', 'source'] as const) {
+    const k = roleKey(ev.roles[role], role)
+    if (k) event[role] = k
+  }
+  event.host = roleKey(ev.host, 'host') ?? undefined
   let n = 0
   for (let y = 0; y <= 2 * WINDOW; y++)
     for (let x = 0; x <= 2 * WINDOW; x++)
       for (const e of w.entitiesAt(center.map, ox + x, oy + y)) if (!keyOf.has(e.id) && n < 12) addEntity(e.id, `n${++n}`)
   const player = keyOf.get(w.state.player) ?? '__player'
-  return { terrain, entities, player, event: { kind: ev.kind, verb: ev.verb, actor, target, instrument, element: ev.element, power: ev.power, strict: ev.strict, status: ev.status, about: ev.about } }
+  return { terrain, entities, player, event }
 }
 
 // ---------------------------------------------------------------- validation
 
 const OPS = new Set(Object.keys(PRIMITIVES))
-const EVENT_KINDS = new Set(['interaction', 'hit', 'status', 'expire', 'tick', 'enter', 'defeat', 'meet', 'blocked', 'witness', 'invalid'])
-/** Effects that would harm whoever fills the role. */
-const HARMFUL = new Set(['damage', 'hit', 'push', 'destroy', 'transform'])
-const ROLE_REFS = new Set(['actor', 'target', 'instrument', 'tileOf:actor', 'tileOf:target', 'tileOf:instrument'])
+const IMPULSE_KINDS = new Set(['strike', 'element', 'coat', 'restore', 'push', 'taken', 'receive', 'offered', 'handle', 'notify'])
+const KIND_PREFIXES = new Set<string>(EVENT_KINDS.flatMap((k) => k.split('/').map((_, i, a) => a.slice(0, i + 1).join('/'))))
+const BOUNDS = new Set(['eq', 'gt', 'gte', 'lt', 'lte'])
+const ROLE_NAMES = new Set(['host', 'actor', 'target', 'instrument', 'other', 'item', 'source'])
+const ROLE_REFS = new Set([...ROLE_NAMES, ...[...ROLE_NAMES].map((r) => `tileOf:${r}`)])
 
 interface ValidateCtx {
   ontology: Ontology
   library: RuleLibrary
   scenario?: Scenario
   regression?: { scenario: Scenario; rule: string }[]
-  /** The patch answers the world's own event: the boundaries of design.md §5.8 apply. */
+  /** The patch answers an event the world started by itself: the boundaries apply. */
   world?: boolean
   /** Fact-key prefixes only the story may change. */
   protectedFacts?: string[]
@@ -836,78 +804,116 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   }
   if (!rules.length && !errors.length) warnings.push('patch has no rule: nothing will change behaviour')
 
-  // 1-3. schema, ontology & assets, effect typing
+  // 1-3. schema, ontology & assets, effect typing, locality
   const known = (id: string) => id in onto.types || Object.keys(onto.types).some((t) => t.startsWith(id + '/'))
   const checkSel = (s: Selector | undefined, where: string) => {
     if (!s) return
     if (typeof s !== 'object') return errors.push(`${where}: selector must be an object`)
     if (s.type && !s.type.startsWith('tile/') && !known(s.type)) errors.push(`${where}.type: unknown type "${s.type}"`)
     if (s.type?.startsWith('tile/') && !(s.type.slice(5) in onto.terrains)) errors.push(`${where}.type: unknown terrain "${s.type}"`)
-    for (const st of [...(s.status ?? []), ...(s.notStatus ?? [])])
-      if (!(st in onto.statuses)) errors.push(`${where}: unknown status "${st}"`)
-    if (s.kind && !['actor', 'item', 'fixture', 'tile'].includes(s.kind)) errors.push(`${where}.kind invalid`)
+    for (const st of [...(s.status ?? []), ...(s.notStatus ?? [])]) if (!(st in onto.statuses)) errors.push(`${where}: unknown status "${st}"`)
+    if (s.kind && !['actor', 'item', 'fixture', 'tile', 'resident'].includes(s.kind)) errors.push(`${where}.kind invalid`)
     if (s.id) warnings.push(`${where}: instance-bound selector (id) — prefer types/tags`)
   }
+  const role = (r: unknown, where: string) => {
+    if (typeof r !== 'string' || !ROLE_NAMES.has(r)) errors.push(`${where}: role must be one of ${[...ROLE_NAMES].join('|')}`)
+  }
   const checkCond = (c: Cond | undefined, where: string): void => {
-    if (!c) return
+    if (!c || typeof c !== 'object') return void errors.push(`${where}: condition must be an object`)
     if ('all' in c) return c.all.forEach((x, i) => checkCond(x, `${where}.all[${i}]`))
     if ('any' in c) return c.any.forEach((x, i) => checkCond(x, `${where}.any[${i}]`))
     if ('not' in c) return checkCond(c.not, `${where}.not`)
+    if ('is' in c) {
+      role(c.is.role, `${where}.is.role`)
+      checkSel(c.is.sel, `${where}.is.sel`)
+      return
+    }
+    if ('none' in c) return role(c.none, `${where}.none`)
+    if ('same' in c) return c.same.forEach((r, i) => role(r, `${where}.same[${i}]`))
     if ('has' in c) {
-      if (!ROLES.includes(c.has.role)) errors.push(`${where}.has.role invalid`)
+      role(c.has.role, `${where}.has.role`)
       if (c.has.status && !(c.has.status in onto.statuses)) errors.push(`${where}: unknown status "${c.has.status}"`)
       return
     }
+    if ('prop' in c) {
+      for (const b of Object.keys(c.prop.bounds ?? {})) if (!BOUNDS.has(b)) errors.push(`${where}.prop.bounds.${b}: a bound is eq|gt|gte|lt|lte`)
+      return role(c.prop.role, `${where}.prop.role`)
+    }
     if ('count' in c) {
       const k = c.count
-      if (!ROLES.includes(k.role)) errors.push(`${where}.count.role invalid`)
+      role(k.role, `${where}.count.role`)
       if (k.in !== 'contents' && k.in !== 'tile') errors.push(`${where}.count.in must be contents|tile`)
       checkSel(k.match, `${where}.count.match`)
-      const bounds = Object.entries(k.cmp ?? {})
-      if (!bounds.length) errors.push(`${where}.count.cmp needs a bound`)
-      for (const [op, o] of bounds) {
-        if (!['eq', 'gt', 'gte', 'lt', 'lte'].includes(op)) errors.push(`${where}.count.cmp.${op}: unknown bound`)
-        else if (typeof o !== 'number' && !(o && typeof o === 'object' && typeof o.prop === 'string' && ROLES.includes(o.of)))
-          errors.push(`${where}.count.cmp.${op}: must be a number or {prop, of: role}`)
-      }
+      if (!Object.keys(k.cmp ?? {}).length) errors.push(`${where}.count.cmp needs a bound`)
+      for (const b of Object.keys(k.cmp ?? {})) if (!BOUNDS.has(b)) errors.push(`${where}.count.cmp.${b}: a bound is eq|gt|gte|lt|lte`)
       return
     }
-    if ('prop' in c || 'chance' in c || 'hour' in c || 'fact' in c || 'topic' in c || 'weather' in c) return
+    if ('param' in c || 'chance' in c || 'hour' in c || 'fact' in c || 'topic' in c || 'weather' in c || 'outdoors' in c) return
     if ('exists' in c) return void checkSel(c.exists, `${where}.exists`)
     errors.push(`${where}: unknown condition`)
   }
-  const roleRef = (r: unknown, where: string) => {
-    if (typeof r !== 'string' || !ROLE_REFS.has(r)) errors.push(`${where}: role ref must be one of ${[...ROLE_REFS].join('|')}`)
+  const checkTo = (to: EmitTo, where: string) => {
+    if (typeof to === 'string') {
+      if (to !== 'story' && to !== 'world' && !ROLE_REFS.has(to)) errors.push(`${where}: unknown receiver "${to}"`)
+      return
+    }
+    if ('named' in to || 'map' in to) return
+    if ('area' in to) {
+      if (!(to.area.radius >= 1 && to.area.radius <= 3)) errors.push(`${where}: area radius must be 1–3`)
+      return
+    }
+    if ('line' in to) {
+      if (!(to.line.length >= 1 && to.line.length <= 8)) errors.push(`${where}: line length must be 1–8`)
+      return
+    }
+    errors.push(`${where}: unknown receiver`)
   }
-  const checkEffect = (e: Effect, where: string) => {
+  const checkEffect = (e: Effect, where: string, resident: boolean) => {
     if (!e || !OPS.has(e.op)) return errors.push(`${where}: unknown primitive "${(e as { op?: string })?.op}"`)
     const any = e as Record<string, unknown>
-    for (const k of ['of', 'at', 'to', 'who', 'from', 'away', 'item'] as const) if (k in any) roleRef(any[k], `${where}.${k}`)
-    if ((e.op === 'spawn' || e.op === 'transform') && !(e.op === 'spawn' ? e.type : e.into)) errors.push(`${where}: type required`)
-    if (e.op === 'spawn' && !/^@prop:(actor|target|instrument)\.\w+$/.test(e.type) && !(e.type in onto.types)) errors.push(`${where}: unknown type "${e.type}"`)
+    if ('of' in any) errors.push(`${where}: effects act on the host only (no "of"): to affect another thing, emit an impulse to it`)
+    for (const k of ['at', 'to'] as const) if (k in any && typeof any[k] === 'string' && e.op !== 'emit' && !ROLE_REFS.has(any[k] as string)) errors.push(`${where}.${k}: role ref must be one of ${[...ROLE_REFS].join('|')}`)
+    if (RESIDENT_ONLY.has(e.op) && !resident) errors.push(`${where}: ${e.op} is the story's and the world's only — notify the story instead`)
+    if (e.op === 'spawn' && !/^@prop:(host|actor|target|instrument|other|item|source)\.\w+$/.test(e.type) && !(e.type in onto.types)) errors.push(`${where}: unknown type "${e.type}"`)
     if (e.op === 'transform' && !e.into.startsWith('@prop:') && !(e.into in onto.types)) errors.push(`${where}: unknown type "${e.into}"`)
-    if ((e.op === 'addStatus' || e.op === 'removeStatus' || e.op === 'spread') && e.status && !(e.status in onto.statuses))
-      errors.push(`${where}: unknown status "${e.status}"`)
+    if ((e.op === 'addStatus' || e.op === 'removeStatus') && !(e.status in onto.statuses)) errors.push(`${where}: unknown status "${e.status}"`)
     if (e.op === 'setTerrain' && !(e.terrain in onto.terrains)) errors.push(`${where}: unknown terrain "${e.terrain}"`)
     if (e.op === 'vfx' && !onto.vfx.includes(e.fx)) errors.push(`${where}: unknown vfx "${e.fx}"`)
-    if (e.op === 'spread') {
-      if (e.radius > 3) errors.push(`${where}: spread radius must be ≤ 3`)
-      if (e.chance === undefined || e.chance >= 1) warnings.push(`${where}: spread with chance 1 can cascade`)
-      checkSel(e.filter, `${where}.filter`)
-    }
-    if ((e.op === 'damage' || e.op === 'hit') && e.element && !ctx.ontology.elements.includes(e.element))
-      errors.push(`${where}: unknown element "${e.element}"`)
-    if (e.op === 'setTerrain' && !String(e.of).startsWith('tileOf:') && e.of !== 'target') errors.push(`${where}: setTerrain needs a tile role`)
-    if (e.op === 'layLine' && !(e.terrain in onto.terrains)) errors.push(`${where}: unknown terrain "${e.terrain}"`)
-    if (e.op === 'layLine' && !(e.length >= 1 && e.length <= 8)) errors.push(`${where}: layLine length must be 1–8`)
+    if (e.op === 'hurt' && e.element && !ctx.ontology.elements.includes(e.element)) errors.push(`${where}: unknown element "${e.element}"`)
     if (e.op === 'goto' && !(e.hours > 0 && e.hours <= 12)) errors.push(`${where}: goto hours must be in (0, 12]`)
     if (e.op === 'emote' && !['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'].includes(e.mood)) errors.push(`${where}: unknown mood "${e.mood}"`)
-    // the boundaries of the world's own patches (design.md §5.8)
+    if (e.op === 'emit') {
+      if (!IMPULSE_KINDS.has(e.impulse)) errors.push(`${where}: unknown impulse "${e.impulse}"`)
+      checkTo(e.to, `${where}.to`)
+      if (e.item) role(e.item, `${where}.item`)
+      if (e.other) role(e.other, `${where}.other`)
+      const el = e.params?.element
+      if (typeof el === 'string' && !ctx.ontology.elements.includes(el)) errors.push(`${where}: unknown element "${el}"`)
+      if (typeof e.to === 'object' && ('area' in e.to || 'map' in e.to) && (e.chance === undefined || e.chance >= 1)) warnings.push(`${where}: an emission to an area with chance 1 can cascade`)
+      checkSel(e.filter, `${where}.filter`)
+    }
+    // the boundaries of what the world does by itself
     if (ctx.world) {
       const fact = e.op === 'setFact' || e.op === 'addFact' ? e.key : undefined
       if (fact && (ctx.protectedFacts ?? []).some((p) => fact.startsWith(p))) errors.push(`${where}: a world event may not change the story's fact "${fact}"`)
-      if ((e.op === 'setProp' || e.op === 'addProp') && e.key === 'quest') errors.push(`${where}: a world event may not change the story's stage`)
+      if (e.op === 'setProp' && e.key === 'quest') errors.push(`${where}: a world event may not change the story's stage`)
     }
+  }
+  const checkTree = (t: Tree, where: string, resident: boolean, host: Selector | undefined) => {
+    if (t === 'inherit') return
+    if (!t || typeof t !== 'object') return void errors.push(`${where}: a tree is "inherit", {do}, or {if, then, else?}`)
+    if ('if' in t) {
+      checkCond(t.if, `${where}.if`)
+      checkTree(t.then, `${where}.then`, resident, host)
+      if (t.else !== undefined) checkTree(t.else, `${where}.else`, resident, host)
+      return
+    }
+    if ('undefined' in t) return void errors.push(`${where}: a patch may not leave an outcome undefined`)
+    if (!('do' in t) || !Array.isArray(t.do)) return void errors.push(`${where}: a leaf is {do: Effect[]}`)
+    t.do.forEach((e, j) => checkEffect(e, `${where}.do[${j}]`, resident))
+    // a world event's people are never harmed by what it learns
+    if (ctx.world && host && (host.type ? isA(host.type, 'actor/person') || isA('actor/person', host.type) : host.kind === 'actor' || !host.kind))
+      for (const [j, e] of t.do.entries()) if (e.op === 'hurt' || e.op === 'destroy') errors.push(`${where}.do[${j}]: a world event may not harm a person (${e.op})`)
   }
   const ids = new Set<string>()
   for (const [i, r] of rules.entries()) {
@@ -920,40 +926,22 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (ids.has(r.id)) errors.push(`${where}: duplicate id in patch`)
     ids.add(r.id)
     if (ctx.library.rules.has(r.id)) errors.push(`${where}: id already exists in the library`)
-    if (!EVENT_KINDS.has(r.on)) errors.push(`${where}: on must be one of ${[...EVENT_KINDS].join('|')}`)
-    if (r.default) errors.push(`${where}: default is reserved for the base library's safe defaults — a patch defines the event`)
-    if (!r.when || typeof r.when !== 'object') errors.push(`${where}: when required`)
-    else {
-      for (const role of ROLES) checkSel(r.when[role], `${where}.when.${role}`)
-      for (const el of r.when.element ?? []) if (el !== 'none' && !ctx.ontology.elements.includes(el)) errors.push(`${where}: unknown element "${el}"`)
-      for (const st of r.when.status ?? []) if (!(st in onto.statuses)) errors.push(`${where}: unknown status "${st}"`)
-      if (r.on === 'interaction' && !r.when.verb?.length) warnings.push(`${where}: interaction rule without verb matches every verb`)
-      // a catch-all ("any item on anything: nothing happens") would answer every undefined
-      // interaction at once and end the world's growth: say WHAT it is about
-      const positive = (s?: Selector) => !!s && !!(s.type || s.tags?.length || s.status?.length || s.id || s.player)
-      if (r.on === 'interaction' && !positive(r.when.target) && !positive(r.when.instrument))
-        errors.push(`${where}: too broad — select the target or the instrument by type, tags or status (a catch-all would swallow every undefined interaction)`)
-    }
-    checkCond(r.guard, `${where}.guard`)
-    if (!Array.isArray(r.do) || !r.do.length) errors.push(`${where}: do must be a non-empty array`)
-    else r.do.forEach((e, j) => checkEffect(e, `${where}.do[${j}]`))
-    // a world event's people (the witness, the blocked, the giver) are never harmed by it
-    if (ctx.world && Array.isArray(r.do) && ['witness', 'blocked', 'invalid'].includes(r.on))
-      for (const [j, e] of r.do.entries()) {
-        const of = (e as { of?: string }).of
-        if (HARMFUL.has(e.op) && (of === 'actor' || (r.on !== 'blocked' && of === 'target'))) errors.push(`${where}.do[${j}]: a world event may not harm a person (${e.op} on ${of})`)
-      }
+    if (typeof r.on !== 'string' || !KIND_PREFIXES.has(r.on)) errors.push(`${where}: on must be an event kind or a branch (${[...EVENT_KINDS].join('|')})`)
+    if (!r.host || typeof r.host !== 'object' || !Object.keys(r.host).length) errors.push(`${where}: name the host — a patch answers for a class of thing, never for anything at all`)
+    else checkSel(r.host, `${where}.host`)
+    if ('when' in (r as object) || 'do' in (r as object)) errors.push(`${where}: this is the earlier rule shape (when/do); write {host, on, tree}`)
+    const resident = r.host?.kind === 'resident' || !!r.host?.type?.startsWith('resident/')
+    if (r.tree === undefined) errors.push(`${where}: tree required`)
+    else checkTree(r.tree, `${where}.tree`, resident, r.host)
+    if (r.tree !== undefined && leaves(r.tree).every((l) => l === 'inherit')) errors.push(`${where}: every leaf inherits — the rule answers nothing`)
     if (!r.tests?.length) warnings.push(`${where}: no tests`)
   }
   if (errors.length) return { ok: false, errors, warnings, overrides }
 
-  // 4. conflicts at equal specificity
+  // 4. no two patches tie (one event could reach both at equal specificity)
   for (const r of rules) {
-    const s = specOf(r)
-    for (const other of ctx.library.forKind(r.on)) {
-      if (compareSpec(s, specOf(other)) !== 0 || r.compose || other.compose) continue
-      if (patternsOverlap(r, other, onto) && JSON.stringify(r.do) !== JSON.stringify(other.do))
-        errors.push(`rule "${r.id}" conflicts with "${other.id}" at equal specificity — make it more specific or change the pattern`)
+    for (const other of ctx.library.patches()) {
+      if (rulesTie(r, other, onto)) errors.push(`rule "${r.id}" ties with "${other.id}" (same kind, same specificity, an event both could answer) — make it more specific or name a different host`)
     }
   }
   if (errors.length) return { ok: false, errors, warnings, overrides }
@@ -967,15 +955,14 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   for (const r of rules) cand.add({ ...r, source: { origin: 'patch' } })
   const patchIds = new Set(rules.map((r) => r.id))
 
-  // 5. sandbox replay of the triggering interaction
-  if (ctx.scenario && rules.some((r) => r.on === (ctx.scenario!.event.kind ?? 'interaction'))) {
+  // 5. sandbox replay of the triggering event: it now resolves to the patch
+  if (ctx.scenario) {
     try {
       const rp = replay(ctx.scenario, ctx.ontology, cand)
-      if (!rp.resolution.defined) errors.push('replay: the triggering interaction is still undefined under the patch')
-      else if (!patchIds.has(rp.resolution.rule!.id))
-        errors.push(`replay: the triggering interaction resolved to "${rp.resolution.rule!.id}", not to the patch`)
+      if (!rp.resolution.defined) errors.push('replay: the triggering event is still undefined under the patch')
+      else if (!patchIds.has(rp.resolution.rule!.id)) errors.push(`replay: the triggering event resolved to "${rp.resolution.rule!.id}", not to the patch`)
       errors.push(...rp.errors.map((e) => `replay: ${e}`))
-      // no person in the scene is hurt or removed by the world's own patch (design.md §5.8)
+      // no person in the scene is hurt or removed by what the world learns by itself
       if (ctx.world)
         for (const se of ctx.scenario.entities) {
           if (!isA(se.type, 'actor/person')) continue
@@ -998,11 +985,12 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
         errors.push(`test "${t.name ?? `${r.id}#${i}`}": ${(err as Error).message}`)
       }
     }
-  // 7. regression: previously-defined interactions must stay defined
+  // 7. regression: what was defined stays defined (base outcomes cannot change — patches only fill holes —
+  // but a more specific patch may now answer where an earlier patch did)
   for (const reg of ctx.regression ?? []) {
     try {
       const rp = replay(reg.scenario, ctx.ontology, cand)
-      if (!rp.resolution.defined) errors.push(`regression: an interaction resolved by "${reg.rule}" became undefined`)
+      if (!rp.resolution.defined) errors.push(`regression: an act resolved by "${reg.rule}" became undefined`)
       else if (rp.resolution.rule!.id !== reg.rule && patchIds.has(rp.resolution.rule!.id)) overrides.push(`${reg.rule} → ${rp.resolution.rule!.id}`)
     } catch {
       /* scenario no longer buildable (e.g. removed types) — ignore */
@@ -1011,95 +999,131 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   return { ok: errors.length === 0, errors, warnings, overrides }
 }
 
-/**
- * Could one concrete event match both rules? Contradictory constraints rule it out, and so
- * does the ontology: two tag sets overlap only if some type (plus instance-assignable tags)
- * can carry all of them at once.
- */
-export function patternsOverlap(a: Rule, b: Rule, onto?: Ontology): boolean {
-  const av = a.when.verb
-  const bv = b.when.verb
-  if (av && bv && !av.some((v) => bv.includes(v))) return false
-  const ae = a.when.element
-  const be = b.when.element
-  if (ae && be && !ae.some((v) => be.includes(v))) return false
-  const as = a.when.status
-  const bs = b.when.status
-  if (as && bs && !as.some((v) => bs.includes(v))) return false
-  const aa = a.when.about
-  const ba = b.when.about
-  if (aa && ba && !aa.some((v) => ba.includes(v))) return false
-  for (const role of ROLES) {
-    const x = a.when[role]
-    const y = b.when[role]
-    if (!x || !y) continue
-    if (!!x.none !== !!y.none && (x.none || y.none)) {
-      if (x.none && Object.keys(y).length > 0) return false
-      if (y.none && Object.keys(x).length > 0) return false
-    }
-    if (x.kind && y.kind && x.kind !== y.kind) return false
-    if (x.type && y.type && !isA(x.type, y.type) && !isA(y.type, x.type)) return false
-    if (x.id && y.id && x.id !== y.id) return false
-    if (x.tags?.some((t) => y.notTags?.includes(t)) || y.tags?.some((t) => x.notTags?.includes(t))) return false
-    if (x.status?.some((t) => y.notStatus?.includes(t)) || y.status?.some((t) => x.notStatus?.includes(t))) return false
-    for (const [k, c] of Object.entries(x.props ?? {})) if (y.props && k in y.props && !cmpsMeet(c, y.props[k])) return false
-    if (onto && !satisfiable(x, y, onto)) return false
-  }
+/** Could one thing be the host of both rules? Contradictory constraints rule it out, and so does the ontology. */
+export function hostsOverlap(x: Selector, y: Selector, onto?: Ontology): boolean {
+  if (x.kind && y.kind && x.kind !== y.kind) return false
+  if (x.type && y.type && !isA(x.type, y.type) && !isA(y.type, x.type)) return false
+  if (x.id && y.id && x.id !== y.id) return false
+  if (x.tags?.some((t) => y.notTags?.includes(t)) || y.tags?.some((t) => x.notTags?.includes(t))) return false
+  if (x.status?.some((t) => y.notStatus?.includes(t)) || y.status?.some((t) => x.notStatus?.includes(t))) return false
+  for (const k of Object.keys(x.props ?? {})) if (k in (y.props ?? {}) && !cmpsOverlap(x.props![k], y.props![k])) return false
+  if (onto && !satisfiable(x, y, onto)) return false
   return true
 }
 
-/** Can some value pass both property comparisons? (`planks: 2` and `planks: 3` cannot; nor `< 4` and `>= 4`.) */
-function cmpsMeet(a: Cmp, b: Cmp): boolean {
-  const eqOf = (c: Cmp) => (typeof c !== 'object' || c === null ? c : c.eq)
-  const ea = eqOf(a)
-  const eb = eqOf(b)
-  if (ea !== undefined) return cmp(ea, b) && cmp(ea, a)
-  if (eb !== undefined) return cmp(eb, a)
-  const lo = (c: Cmp) => (typeof c === 'object' && c ? [c.gt ?? c.gte ?? -Infinity, c.gt !== undefined] as const : ([-Infinity, false] as const))
-  const hi = (c: Cmp) => (typeof c === 'object' && c ? [c.lt ?? c.lte ?? Infinity, c.lt !== undefined] as const : ([Infinity, false] as const))
-  const [la, xa] = lo(a)
-  const [lb, xb] = lo(b)
-  const [ha, ya] = hi(a)
-  const [hb, yb] = hi(b)
-  const [l, lx] = la > lb ? [la, xa] : lb > la ? [lb, xb] : [la, xa || xb]
-  const [h, hx] = ha < hb ? [ha, ya] : hb < ha ? [hb, yb] : [ha, ya || yb]
-  return l < h || (l === h && !lx && !hx)
+/** Can one value pass both comparisons? Tried on the values that decide them: each limit, between limits, beyond them. */
+function cmpsOverlap(a: Cmp, b: Cmp): boolean {
+  const vals: PropValue[] = []
+  const nums: number[] = []
+  for (const c of [a, b]) {
+    if (typeof c !== 'object' || c === null) vals.push(c)
+    else {
+      if (c.eq !== undefined) vals.push(c.eq)
+      for (const v of [c.ne, c.gt, c.gte, c.lt, c.lte]) if (typeof v === 'number') nums.push(v)
+    }
+  }
+  for (const v of vals) if (typeof v === 'number') nums.push(v)
+  if (!vals.length && !nums.length) return true
+  const s = [...new Set(nums)].sort((p, q) => p - q)
+  const tries: PropValue[] = [...vals, ...s, ...s.slice(1).map((v, i) => (v + s[i]) / 2)]
+  if (s.length) tries.push(s[0] - 1, s[s.length - 1] + 1)
+  return tries.some((v) => cmp(v, a) && cmp(v, b))
 }
 
 function satisfiable(x: Selector, y: Selector, onto: Ontology): boolean {
-  // the player is an actor/person/player: anything that excludes that is disjoint from it
-  for (const [p, q] of [[x, y], [y, x]]) {
-    if (p.player !== true) continue
-    if (q.kind && q.kind !== 'actor') return false
-    if (q.type && !isA('actor/person/player', q.type)) return false
-    if (q.player === false) return false
-  }
-  // oneself is the event's actor, and actors are actors: anything else is disjoint from it
-  for (const [p, q] of [[x, y], [y, x]]) {
-    if (p.self !== true) continue
-    if (q.kind && q.kind !== 'actor') return false
-    if (q.type && !isA(q.type, 'actor') && !isA('actor', q.type)) return false
-    if (q.self === false) return false
-  }
-  if (x.none || y.none || x.id || y.id || x.player !== undefined || y.player !== undefined) return true
+  if (x.id || y.id) return true
   const need = [...(x.tags ?? []), ...(y.tags ?? [])]
   const forbid = [...(x.notTags ?? []), ...(y.notTags ?? [])]
   const free = new Set(onto.instanceTags ?? [])
   const kind = x.kind ?? y.kind
   const type = [x.type, y.type].filter(Boolean).sort((p, q) => q!.length - p!.length)[0]
   const ok = (tags: Set<string>) => need.every((t) => tags.has(t) || free.has(t)) && !forbid.some((t) => tags.has(t))
-  if (kind === 'tile' || type?.startsWith('tile/')) {
-    return Object.values(onto.terrains).some((t) => (!type || isA(`tile/${t.id}`, type)) && ok(new Set(t.tags ?? [])))
-  }
+  if (kind === 'tile' || type?.startsWith('tile/')) return Object.values(onto.terrains).some((t) => (!type || isA(`tile/${t.id}`, type)) && ok(new Set(t.tags ?? [])))
   const index = new OntologyIndex(onto)
   for (const id of Object.keys(onto.types)) {
     if (type && !isA(id, type)) continue
     const r = index.resolve(id)
     if (kind && r.kind !== kind) continue
-    if (!kind && !type && r.kind === 'tile') continue
     if (ok(new Set(r.tags))) return true
   }
-  // no x.kind/x.type: tiles can fill the role too
   if (!kind && !type) return Object.values(onto.terrains).some((t) => ok(new Set(t.tags ?? [])))
   return false
 }
+
+// ---------------------------------------------------------------- ties
+
+type Literal = { c: Cond; yes: boolean }
+
+/** The paths of a tree to the leaves that answer (anything but `inherit`), as the literals taken on the way. */
+function answering(t: Tree, path: Literal[] = []): Literal[][] {
+  if (t === 'inherit') return []
+  if (typeof t === 'string' || !('if' in t)) return [path]
+  const flat = (c: Cond, yes: boolean): Literal[] => (yes && 'all' in c ? c.all.flatMap((x) => flat(x, true)) : !yes && 'any' in c ? c.any.flatMap((x) => flat(x, false)) : 'not' in c ? flat(c.not, !yes) : [{ c, yes }])
+  return [...answering(t.then, [...path, ...flat(t.if, true)]), ...answering(t.else ?? 'inherit', [...path, ...flat(t.if, false)])]
+}
+
+const primitive = (v: unknown): v is string | number | boolean => ['string', 'number', 'boolean'].includes(typeof v)
+
+/** Can every literal hold at once (for one event), with these hosts? Decided against the ontology; unknown conditions are taken to be satisfiable. */
+function consistent(lits: Literal[], hosts: Selector[], onto: Ontology): boolean {
+  const key = (c: Cond) => JSON.stringify(c)
+  const pos = new Set(lits.filter((l) => l.yes).map((l) => key(l.c)))
+  if (lits.some((l) => !l.yes && pos.has(key(l.c)))) return false
+  // a parameter has one value
+  const params = new Map<string, unknown[]>()
+  for (const { c, yes } of lits) if ('param' in c) (params.get(c.param.key) ?? params.set(c.param.key, []).get(c.param.key)!).push(yes ? c.param.cmp : { not: c.param.cmp })
+  for (const vs of params.values()) {
+    const eq = vs.filter(primitive)
+    if (new Set(eq).size > 1) return false
+    for (const v of vs) {
+      const ne = v && typeof v === 'object' ? ((v as { ne?: unknown }).ne ?? (v as { not?: unknown }).not) : undefined
+      if (primitive(ne) && eq.includes(ne)) return false
+    }
+  }
+  // each role is one thing: what the conditions say of it must fit one type
+  const roles = new Map<string, { sels: Selector[]; none: boolean | undefined }>()
+  const of = (r: string) => roles.get(r) ?? roles.set(r, { sels: [], none: undefined }).get(r)!
+  for (const h of hosts) of('host').sels.push(h)
+  for (const { c, yes } of lits) {
+    if ('is' in c && yes) of(c.is.role).sels.push(c.is.sel)
+    if ('none' in c) {
+      const r = of(c.none)
+      if (r.none !== undefined && r.none !== yes) return false
+      r.none = yes
+    }
+    if ('prop' in c && yes && c.prop.cmp !== undefined) of(c.prop.role).sels.push({ props: { [c.prop.key]: c.prop.cmp } })
+    if ('has' in c) {
+      const s: Selector = c.has.tag ? (yes ? { tags: [c.has.tag] } : { notTags: [c.has.tag] }) : c.has.status ? (yes ? { status: [c.has.status] } : { notStatus: [c.has.status] }) : {}
+      of(c.has.role).sels.push(s)
+    }
+  }
+  for (const { sels, none } of roles.values()) {
+    if (none && sels.some((s) => Object.keys(s).length)) return false
+    const merged: Selector = {}
+    for (const s of sels) {
+      if (s.type) merged.type = !merged.type || isA(s.type, merged.type) ? s.type : merged.type
+      if (s.kind) merged.kind = s.kind
+      for (const k of ['tags', 'notTags', 'status', 'notStatus'] as const) if (s[k]?.length) merged[k] = [...(merged[k] ?? []), ...s[k]!]
+    }
+    for (let i = 0; i < sels.length; i++) for (let j = i + 1; j < sels.length; j++) if (!hostsOverlap(sels[i], sels[j], onto)) return false
+    if (!hostsOverlap(merged, merged, onto)) return false
+  }
+  return true
+}
+
+/**
+ * Two rules tie when one event could reach both at equal specificity: the same kind, the same
+ * specificity, hosts that overlap, and answering cases that can hold together. Rules that split a
+ * host's cases between them (a plank put on a frame, a plank put on a stick) do not tie.
+ */
+export function rulesTie(a: Rule, b: Rule, onto?: Ontology): boolean {
+  if (a.on !== b.on || compareSpec(specOf(a), specOf(b)) !== 0) return false
+  if (!hostsOverlap(a.host ?? {}, b.host ?? {}, onto)) return false
+  if (!onto) return true
+  const hosts = [a.host ?? {}, b.host ?? {}]
+  for (const pa of answering(a.tree)) for (const pb of answering(b.tree)) if (consistent([...pa, ...pb], hosts, onto)) return true
+  return false
+}
+
+// re-exported helpers some tools use
+export { isDo, isHole, STORY }

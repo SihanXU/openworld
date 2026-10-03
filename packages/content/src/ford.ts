@@ -1,15 +1,14 @@
 // The Ford (docs/game-design.md), the main quest's first chapter (docs/main-quest.md): one
 // crossing at the edge of the map, and one goal — the far bank. The goal is a state, not a path:
-// the chapter ends when the player stands on the far bank, however they got there. Four ways are
+// the chapter ends when the player stands on the far bank, however they got there. The ways are
 // taught by the place itself (the footbridge mended with three planks, ice on the river, the dead
 // tree felled across it, the ferry mended and asked for); anything else the world learns that
-// carries the player over counts the same. Story state is facts (`ford.*`) and the
-// player's `quest` prop, changed only by these rules and the scenes; the world's own patches may
-// not touch them (design.md §5.8).
+// carries the player over counts the same. Story state is facts (`ford.*`) and the player's
+// `quest` prop: the story's rules keep the facts (others notify it), and the world's own patches
+// may not touch them (design.md §5.11).
 
-import type { Effect, Invariant, Rule, Selector, Text } from '@lsw/engine'
+import type { Cond, Effect, Invariant, RoleName, Rule, Selector, Text } from '@lsw/engine'
 import { QUEST_OBJECTIVES, QUEST_RULES } from './quest.ts'
-import { PROLOGUE_RULES } from './prologue.ts'
 import { BOSS_RULES } from './bosses.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
@@ -46,9 +45,11 @@ export const PROTECTED_FACTS = ['ford.', 'mq.', 'seen.', 'invalid.', 'sins.']
 
 const story = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base', note: 'story' } })
 const log = (en: string, zh: string): Effect => ({ op: 'log', text: { en, zh } })
-const say = (who: 'actor' | 'target', en: string, zh: string): Effect => ({ op: 'say', who, text: { en, zh } })
-const fact = (key: string, value: number): Effect => ({ op: 'setFact', key, value })
-const EMPTY: Selector = { none: true }
+const say = (en: string, zh: string): Effect => ({ op: 'say', text: { en, zh } })
+const notify = (what: string): Effect => ({ op: 'emit', impulse: 'notify', to: 'story', params: { what } })
+const fact = (key: string, value: number): Cond => ({ fact: { key, cmp: value } })
+const is = (role: RoleName, sel: Selector): Cond => ({ is: { role, sel } })
+const what = (w: string): Cond => ({ param: { key: 'what', cmp: w } })
 const ROPE = 'item/tool/rope'
 const WINCH = 'fixture/ferry/winch'
 const DEAD_TREE = 'fixture/nature/dead_tree'
@@ -59,87 +60,117 @@ const FORD_RULES: Rule[] = [
   story({
     id: 'ford/winch-look',
     doc: 'The snapped ferry rope says what it needs.',
-    on: 'interaction',
-    when: { verb: ['interact'], target: { type: WINCH, status: ['broken'] }, instrument: EMPTY },
-    do: [log('The ferry rope snapped at the drum; the frayed end trails in the water. A good length of rope would mend it.', '渡绳在绞盘上断了，磨烂的一头拖在水里。有一段结实的绳子就能接上。')],
+    host: { type: WINCH, status: ['broken'] },
+    on: 'impulse/handle',
+    tree: { if: { none: 'instrument' }, then: { do: [log('The ferry rope snapped at the drum; the frayed end trails in the water. A good length of rope would mend it.', '渡绳在绞盘上断了，磨烂的一头拖在水里。有一段结实的绳子就能接上。')] } },
   }),
   story({
     id: 'ford/mend-winch',
-    doc: 'Rope on the broken winch mends the ferry line.',
-    on: 'interaction',
-    when: { verb: ['put', 'interact'], target: { type: WINCH, status: ['broken'] }, instrument: { type: ROPE } },
-    do: [
-      { op: 'removeStatus', of: 'target', status: 'broken' },
-      { op: 'destroy', of: 'instrument' },
-      fact('ford.winch', 1),
-      { op: 'topic', id: 'winch_mended', days: 6 },
-      { op: 'vfx', at: 'target', fx: 'sparkle' },
-      log('You splice the rope onto the drum. The line runs taut across the water again.', '你把绳子接在绞盘上。渡绳又绷直了，横过水面。'),
-    ],
+    doc: 'A rope given to the broken winch is spliced onto its drum: the ferry line runs again.',
+    host: { type: WINCH, status: ['broken'] },
+    on: 'impulse/receive',
+    tree: {
+      if: is('item', { type: ROPE }),
+      then: {
+        do: [
+          { op: 'removeStatus', status: 'broken' },
+          { op: 'emit', impulse: 'taken', to: 'item', params: { into: 'contents' }, other: 'host' },
+          notify('winch'),
+          { op: 'vfx', fx: 'sparkle' },
+          log('You splice the rope onto the drum. The line runs taut across the water again.', '你把绳子接在绞盘上。渡绳又绷直了，横过水面。'),
+        ],
+      },
+    },
   }),
   story({
     id: 'ford/ask-crossing',
     doc: 'With the line mended, the ferrykeeper takes you across.',
-    on: 'interaction',
-    priority: 1,
-    when: { verb: ['interact'], actor: { type: 'actor/person' }, target: { type: 'actor/person/ferrykeeper' }, instrument: EMPTY },
-    guard: { all: [{ fact: { key: 'ford.winch', cmp: 1 } }, { fact: { key: 'ford.crossed', cmp: 0 } }] },
-    do: [{ op: 'scene', id: 'ferry' }],
+    host: { type: 'actor/person/ferrykeeper' },
+    on: 'impulse/handle',
+    tree: { if: { all: [fact('ford.winch', 1), fact('ford.crossed', 0), is('actor', { type: 'actor/person' }), { none: 'instrument' }] }, then: { do: [notify('ferry')] }, else: 'inherit' },
   }),
   // ---------------------------------------------------------------- the dead tree
   story({
     id: 'ford/chop-dead-tree',
-    doc: 'An axe bites into the dead tree at the narrows (it takes three blows).',
-    on: 'interaction',
-    when: { verb: ['interact'], target: { type: DEAD_TREE, notStatus: ['burning'] }, instrument: { tags: ['tool:axe'] } },
-    guard: { prop: { role: 'target', key: 'cuts', cmp: { lt: 2 } } },
-    do: [{ op: 'addProp', of: 'target', key: 'cuts', delta: 1 }, { op: 'vfx', at: 'target', fx: 'dust' }, log('The axe bites into the dead wood. It creaks.', '斧头砍进了枯木。它嘎吱作响。')],
-  }),
-  story({
-    id: 'ford/fell-dead-tree',
-    doc: 'The third blow fells the dead tree away from the axe — across the river, if the river lies that way.',
-    on: 'interaction',
-    priority: 1,
-    when: { verb: ['interact'], target: { type: DEAD_TREE, notStatus: ['burning'] }, instrument: { tags: ['tool:axe'] } },
-    guard: { prop: { role: 'target', key: 'cuts', cmp: { gte: 2 } } },
-    do: [
-      { op: 'vfx', at: 'target', fx: 'dust' },
-      log('The dead tree groans, leans… and falls with a crash.', '枯树呻吟着，倾斜……轰然倒下。'),
-      { op: 'layLine', from: 'target', away: 'actor', terrain: 'bridge', length: 8, over: ['water'] },
-      { op: 'setTerrain', of: 'tileOf:target', terrain: 'stump' },
-      { op: 'destroy', of: 'target' },
-      fact('ford.tree', 1),
-      { op: 'topic', id: 'tree_felled', days: 6 },
-    ],
+    doc: 'An axe bites into the dead tree at the narrows; the third blow fells it away from the axe — across the river, if the river lies that way.',
+    host: { type: DEAD_TREE, notStatus: ['burning'] },
+    on: 'impulse/strike',
+    tree: {
+      if: { has: { role: 'instrument', tag: 'tool:axe' } },
+      then: {
+        if: { prop: { role: 'host', key: 'cuts', cmp: { gte: 2 } } },
+        then: {
+          do: [
+            { op: 'vfx', fx: 'dust' },
+            log('The dead tree groans, leans… and falls with a crash.', '枯树呻吟着，倾斜……轰然倒下。'),
+            { op: 'emit', impulse: 'receive', to: { line: { from: 'host', away: 'actor', length: 8, over: ['water'] } }, params: { what: 'trunk' } },
+            { op: 'emit', impulse: 'receive', to: 'tileOf:host', params: { what: 'stump' } },
+            notify('tree'),
+            { op: 'destroy' },
+          ],
+        },
+        else: { do: [{ op: 'addProp', key: 'cuts', delta: 1 }, { op: 'vfx', fx: 'dust' }, log('The axe bites into the dead wood. It creaks.', '斧头砍进了枯木。它嘎吱作响。')] },
+      },
+    },
   }),
   // ---------------------------------------------------------------- the peddler
   story({
     id: 'ford/feed-peddler',
     doc: 'The hungry peddler trades his frost wand for a meal.',
-    on: 'interaction',
-    when: { verb: ['put'], actor: { type: 'actor/person' }, target: { type: 'actor/person/peddler' }, instrument: { tags: ['edible'] } },
-    guard: { fact: { key: 'ford.charm', cmp: 0 } },
-    do: [
-      { op: 'give', to: 'target', item: 'instrument' },
-      fact('ford.charm', 1),
-      say('target', 'Bless you. The wand on my cart — the blue one — it is yours. Frost from the tip, if you point it right.', '谢天谢地。我车上那根魔杖——蓝的那根——归你了。指准了，杖尖会冒寒气。'),
-      { op: 'emote', who: 'target', mood: 'happy' },
-    ],
+    host: { type: 'actor/person/peddler' },
+    on: 'impulse/offered',
+    tree: {
+      if: { all: [is('item', { tags: ['edible'] }), fact('ford.charm', 0), is('actor', { type: 'actor/person' })] },
+      then: {
+        do: [
+          { op: 'emit', impulse: 'taken', to: 'item', params: { into: 'contents' }, other: 'host' },
+          notify('charm'),
+          say('Bless you. The wand on my cart — the blue one — it is yours. Frost from the tip, if you point it right.', '谢天谢地。我车上那根魔杖——蓝的那根——归你了。指准了，杖尖会冒寒气。'),
+          { op: 'emote', mood: 'happy' },
+        ],
+      },
+      else: 'inherit',
+    },
   }),
   story({
     id: 'ford/wand-is-yours',
     doc: 'Once traded, the peddler does not mind the wand being taken.',
-    on: 'witness',
-    when: { about: ['take:owner'], actor: { type: 'actor/person/peddler' }, instrument: { type: WAND } },
-    guard: { fact: { key: 'ford.charm', cmp: 1 } },
-    do: [say('actor', 'That one is yours now. Mind the cold: it bites the hand that holds it.', '那根现在是你的了。小心寒气，它咬拿着它的手。')],
+    host: { type: 'actor/person/peddler' },
+    on: 'seen',
+    tree: {
+      if: { all: [{ param: { key: 'act', cmp: 'take' } }, { param: { key: 'owner', cmp: 'mine' } }, is('target', { type: WAND }), fact('ford.charm', 1)] },
+      then: { do: [say('That one is yours now. Mind the cold: it bites the hand that holds it.', '那根现在是你的了。小心寒气，它咬拿着它的手。')] },
+      else: 'inherit',
+    },
+  }),
+  // ---------------------------------------------------------------- the story keeps its own facts
+  story({
+    id: 'ford/story',
+    doc: 'The story hears what happened at the ford and keeps it: the line mended, the tree felled, the wand traded; asked for the crossing, it plays the ferry.',
+    host: { type: 'resident/story' },
+    on: 'impulse/notify',
+    tree: {
+      if: what('winch'),
+      then: { do: [{ op: 'setFact', key: 'ford.winch', value: 1 }, { op: 'topic', id: 'winch_mended', days: 6 }] },
+      else: {
+        if: what('tree'),
+        then: { do: [{ op: 'setFact', key: 'ford.tree', value: 1 }, { op: 'topic', id: 'tree_felled', days: 6 }] },
+        else: {
+          if: what('charm'),
+          then: { do: [{ op: 'setFact', key: 'ford.charm', value: 1 }] },
+          else: { if: { all: [what('ferry'), fact('ford.crossed', 0)] }, then: { do: [{ op: 'scene', id: 'ferry' }] }, else: 'inherit' },
+        },
+      },
+    },
   }),
 ]
 
 /** The story's rules: the Ford's, then the main quest's (quest.ts). */
-export const STORY_RULES: Rule[] = [...FORD_RULES, ...QUEST_RULES, ...PROLOGUE_RULES, ...BOSS_RULES]
+export const STORY_RULES: Rule[] = [...FORD_RULES, ...QUEST_RULES, ...BOSS_RULES]
 
 const RIVER_CROSSED: Effect = { op: 'scene', id: 'ferry' }
+/** The story speaks through the person the content belongs to. */
+const sayAs = (en: string, zh: string): Effect => ({ op: 'say', text: { en, zh }, who: 'target' })
 
 /**
  * Content the world must keep playable. If fire takes the rope she asked for, or every way
@@ -157,8 +188,8 @@ export const INVARIANTS: Invariant[] = [
     when: { exists: { type: WINCH, status: ['broken'] } },
     holds: { exists: { type: ROPE } },
     fallback: [
-      { op: 'spawn', type: ROPE, at: 'tileOf:actor' },
-      say('actor', 'That was my last good rope. … No — there is the old one off the raft. Frayed, but it will splice.', '那是我最后一根好绳子。……不对——筏子上还拆下来一根旧的。磨毛了，但还能接。'),
+      { op: 'spawn', type: ROPE, at: 'tileOf:target' },
+      sayAs( 'That was my last good rope. … No — there is the old one off the raft. Frayed, but it will splice.', '那是我最后一根好绳子。……不对——筏子上还拆下来一根旧的。磨毛了，但还能接。'),
     ],
   },
   {
@@ -178,6 +209,6 @@ export const INVARIANTS: Invariant[] = [
         { fact: { key: 'ford.tree', cmp: 1 } },
       ],
     },
-    fallback: [say('actor', 'The water is dropping. Come, I will take you over on the raft myself, line or no line.', '水在退了。来，不管有没有渡绳，我亲自撑筏送你过去。'), RIVER_CROSSED],
+    fallback: [sayAs('The water is dropping. Come, I will take you over on the raft myself, line or no line.', '水在退了。来，不管有没有渡绳，我亲自撑筏送你过去。'), RIVER_CROSSED],
   },
 ]

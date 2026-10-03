@@ -1,7 +1,7 @@
 // The tests of a world repository (repo.ts): `node validate.mjs` runs this. It collects the rules
 // the agent added, runs the engine's validator on them — schema, ontology, conflicts, the replay
-// of the triggering interaction, the rules' own tests, regression — and shows what the
-// interaction does under them. Exit 0 = the patch would be accepted.
+// of the triggering event, the rules' own tests, regression — and shows what the
+// event does under them. Exit 0 = the patch would be accepted.
 
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -28,7 +28,7 @@ if (patch) {
     const onto = { ...ontology, types: { ...ontology.types }, statuses: { ...ontology.statuses } }
     for (const t of lib.types) onto.types[t.id] = t
     for (const s of lib.statuses) onto.statuses[s.id] = s
-    out.push('', 'What the triggering interaction does now:', describeOutcome(state.request.scenario, patch, { library: lib, ontology: onto }))
+    out.push('', 'What the triggering event does now:', describeOutcome(state.request.scenario, patch, { library: lib, ontology: onto }))
   }
 }
 const failed = out.some((l) => l.startsWith('FAIL'))

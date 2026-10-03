@@ -241,7 +241,7 @@ export function combatTick(eng: Engine, active: string): void {
   for (const e of w.entitiesOnMap(active)) {
     const c = e.combat
     if (!c || e.place.on !== 'tile' || w.kindOf(e) !== 'actor') continue
-    if ((c.bleedUntil ?? 0) > w.state.tick && w.num(e, 'hp') > 0) eng.damage(e, 1, undefined, true, c.bleedBy && w.get(c.bleedBy) ? { e: c.bleedBy } : undefined)
+    if ((c.bleedUntil ?? 0) > w.state.tick && w.num(e, 'hp') > 0) eng.hurt(e, 1, undefined, true, { kind: 'impulse/strike', host: { e: e.id }, roles: c.bleedBy && w.get(c.bleedBy) ? { actor: { e: c.bleedBy } } : {}, cause: c.bleedBy, origin: 'world' })
     if ((c.adrenalineUntil ?? 0) > w.state.tick && skill(w, e, 'adrenaline')) heal(w, e, 1)
   }
 }
@@ -268,10 +268,16 @@ export function dash(eng: Engine, e: Entity): boolean {
   }
   if (!land) return false
   w.fx.push({ t: 'vfx', fx: 'poof', map: at.map, x: at.x, y: at.y })
-  w.place(e, { on: 'tile', map: at.map, x: land.x, y: land.y })
+  // a move of the actor's own, like a step: its relations are settled after (design.md §5.10)
+  eng.touch({ e: e.id })
+  w.write(() => {
+    w.place(e, { on: 'tile', map: at.map, x: land.x, y: land.y })
+    const state = (e.combat ??= {})
+    if (skill(w, e, 'slipstream')) state.slipUntil = w.state.tick + 20
+    if (through) state.guardUntil = w.state.tick + 5
+  })
+  eng.touch({ e: e.id })
+  eng.settle()
   eng.setCooldown('dash:' + e.id, skill(w, e, 'tailwind') ? 25 : 40)
-  const state = (e.combat ??= {})
-  if (skill(w, e, 'slipstream')) state.slipUntil = w.state.tick + 20
-  if (through) state.guardUntil = w.state.tick + 5
   return true
 }

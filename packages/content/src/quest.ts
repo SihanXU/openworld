@@ -4,7 +4,7 @@
 // state; the rules here are the turn-ins and rewards the people of Emberfall make, and the
 // dragon's phases.
 
-import type { Effect, Rule, Selector, Text } from '@lsw/engine'
+import type { Cond, Effect, Rule, Text, Tree } from '@lsw/engine'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 
@@ -44,12 +44,15 @@ export const QUEST_OBJECTIVES: Record<number, { title: Text; hint: Text; progres
 }
 
 const story = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base', note: 'story' } })
-const say = (who: 'actor' | 'target', en: string, zh: string): Effect => ({ op: 'say', who, text: { en, zh } })
+const say = (en: string, zh: string): Effect => ({ op: 'say', text: { en, zh } })
 const log = (en: string, zh: string): Effect => ({ op: 'log', text: { en, zh } })
-const add = (key: string): Effect => ({ op: 'addFact', key, delta: 1 })
-const fact = (key: string, value: number): Effect => ({ op: 'setFact', key, value })
-const EMPTY: Selector = { none: true }
-const PLAYER: Selector = { type: 'actor/person' }
+/** News for the story, which keeps the `mq.` facts (design.md §5.8: others notify it). */
+const notify = (what: string): Effect => ({ op: 'emit', impulse: 'notify', to: 'story', params: { what } })
+const DO = (...effects: Effect[]): Tree => ({ do: effects })
+const IF = (cond: Cond, then: Tree, otherwise: Tree = 'inherit'): Tree => ({ if: cond, then, else: otherwise })
+const all = (...c: Cond[]): Cond => ({ all: c })
+const fact = (key: string, cmp: number | { gte?: number; lt?: number }): Cond => ({ fact: { key, cmp } })
+const what = (w: string): Cond => ({ param: { key: 'what', cmp: w } })
 
 export const ELDER = 'actor/person/elder'
 export const SMITH = 'actor/person/smith'
@@ -66,28 +69,25 @@ export const ASKS = {
   frostcap: { type: 'item/material/frostcap', fact: 'mq.frostcap', need: 3, of: HERBALIST },
 } as const
 
-/** A turn-in: the item put on the person counts toward what they asked, until it is enough. */
-function turnIn(id: string, ask: (typeof ASKS)[keyof typeof ASKS], thanks: [string, string], enough: [string, string]): Rule[] {
-  return [
-    story({
-      id: `mq/${id}`,
-      doc: `${ask.of.split('/').pop()} takes ${ask.type.split('/').pop()} toward the ${ask.need} asked for.`,
-      on: 'interaction',
-      priority: 2,
-      when: { verb: ['put'], actor: PLAYER, target: { type: ask.of }, instrument: { type: ask.type } },
-      guard: { all: [{ fact: { key: 'mq.council', cmp: 1 } }, { fact: { key: ask.fact, cmp: { lt: ask.need } } }] },
-      do: [{ op: 'destroy', of: 'instrument' }, add(ask.fact), say('target', ...thanks), { op: 'emote', who: 'target', mood: 'happy' }],
-    }),
-    story({
-      id: `mq/${id}-enough`,
-      doc: `${ask.of.split('/').pop()} has all the ${ask.type.split('/').pop()} asked for.`,
-      on: 'interaction',
-      priority: 1,
-      when: { verb: ['put'], actor: PLAYER, target: { type: ask.of }, instrument: { type: ask.type } },
-      guard: { fact: { key: ask.fact, cmp: { gte: ask.need } } },
-      do: [say('target', ...enough)],
-    }),
-  ]
+/**
+ * A turn-in: the person handed the asked-for item takes it and tells the story, until it is
+ * enough; then they say so and leave it in your hand.
+ */
+function turnIn(id: string, ask: (typeof ASKS)[keyof typeof ASKS], thanks: [string, string], enough: [string, string]): Rule {
+  return story({
+    id: `mq/${id}`,
+    doc: `${ask.of.split('/').pop()} takes ${ask.type.split('/').pop()} toward the ${ask.need} asked for.`,
+    host: { type: ask.of },
+    on: 'impulse/offered',
+    tree: IF(
+      { is: { role: 'item', sel: { type: ask.type } } },
+      IF(
+        all(fact('mq.council', 1), fact(ask.fact, { lt: ask.need })),
+        DO({ op: 'emit', impulse: 'taken', to: 'item', params: { into: 'contents' }, other: 'host' }, notify(ask.fact), say(...thanks), { op: 'emote', mood: 'happy' }),
+        IF(fact(ask.fact, { gte: ask.need }), DO(say(...enough))),
+      ),
+    ),
+  })
 }
 
 export const QUEST_RULES: Rule[] = [
@@ -95,69 +95,125 @@ export const QUEST_RULES: Rule[] = [
   story({
     id: 'mq/elder-council',
     doc: 'The elder tells of the dragon and what it will take (once).',
-    on: 'interaction',
-    priority: 2,
-    when: { verb: ['interact'], actor: PLAYER, target: { type: ELDER }, instrument: EMPTY },
-    guard: { fact: { key: 'mq.council', cmp: 0 } },
-    do: [{ op: 'scene', id: 'council' }],
+    host: { type: ELDER },
+    on: 'impulse/handle',
+    tree: IF(all(fact('mq.council', 0), { none: 'instrument' }), DO(notify('council'))),
   }),
-  // ---------------------------------------------------------------- the smith: three ore, two coal, a blade
-  ...turnIn('smith-ore', ASKS.ore, ['Good iron. Five ore and three coal, and you will have your blade.', '好铁。五块矿石、三块煤，你的剑就有了。'], ['That is iron enough. Coal, now — if you have not brought it.', '铁够了。还差煤——如果你还没带来的话。']),
-  ...turnIn('smith-coal', ASKS.coal, ['Coal for the forge. It will burn hot enough for dragon-steel.', '炉子用的煤。烧得够旺，能炼屠龙的钢。'], ['That is coal enough.', '煤够了。']),
+  // ---------------------------------------------------------------- the smith: ore and coal, a blade
+  turnIn('smith-ore', ASKS.ore, ['Good iron. Five ore and three coal, and you will have your blade.', '好铁。五块矿石、三块煤，你的剑就有了。'], ['That is iron enough. Coal, now — if you have not brought it.', '铁够了。现在要煤——如果你还没带来的话。']),
+  turnIn('smith-coal', ASKS.coal, ['Coal for the forge. It will burn hot enough for dragon-steel.', '炉子用的煤。烧得够旺，能炼屠龙的钢。'], ['That is coal enough.', '煤够了。']),
   story({
     id: 'mq/smith-forge',
     doc: 'With five ore and three coal, the smith forges Dragonsbane.',
-    on: 'interaction',
-    priority: 3,
-    when: { verb: ['interact'], actor: PLAYER, target: { type: SMITH }, instrument: EMPTY },
-    guard: { all: [{ fact: { key: 'mq.ore', cmp: { gte: ASKS.ore.need } } }, { fact: { key: 'mq.coal', cmp: { gte: ASKS.coal.need } } }, { fact: { key: 'mq.blade', cmp: 0 } }] },
-    do: [
-      { op: 'spawn', type: BLADE, at: 'actor', into: 'contents' },
-      fact('mq.blade', 1),
-      { op: 'vfx', at: 'target', fx: 'sparkle' },
-      say('target', 'There. Dragonsbane. Twelve generations of my family have waited to forge that one. Bring it back red.', '拿着。屠龙剑。我家十二代人都在等着锻这一把。带着它沾满龙血回来。'),
-      log('Garrick hands you Dragonsbane.', '加里克把屠龙剑交到你手里。'),
-    ],
+    host: { type: SMITH },
+    on: 'impulse/handle',
+    tree: IF(
+      all(fact('mq.ore', { gte: ASKS.ore.need }), fact('mq.coal', { gte: ASKS.coal.need }), fact('mq.blade', 0)),
+      DO(
+        { op: 'spawn', type: BLADE, at: 'actor', into: 'contents' },
+        notify('blade'),
+        { op: 'vfx', fx: 'sparkle' },
+        say('There. Dragonsbane. Twelve generations of my family have waited to forge that one. Bring it back red.', '拿着。屠龙剑。我家十二代人都在等着锻这一把。带着它沾满龙血回来。'),
+        log('Garrick hands you Dragonsbane.', '加里克把屠龙剑交到你手里。'),
+      ),
+    ),
   }),
-  // ---------------------------------------------------------------- the herbalist: two fireweed, two frostcap, a draught
-  ...turnIn('herbalist-fireweed', ASKS.fireweed, ['Fireweed — it drinks the heat. Three of these, and three frostcap.', '火焰草——它能吸走热气。要三株，再加三朵霜盖菇。'], ['Fireweed enough.', '火焰草够了。']),
-  ...turnIn('herbalist-frostcap', ASKS.frostcap, ['Frostcap, from the cold side of the forest. Good.', '霜盖菇，长在森林背阴那边的。很好。'], ['Frostcap enough.', '霜盖菇够了。']),
+  // ---------------------------------------------------------------- the herbalist: fireweed and frostcap, two draughts
+  turnIn('herbalist-fireweed', ASKS.fireweed, ['Fireweed. It only grows where the ground remembers fire.', '火焰草。只长在记得火的地方。'], ['Fireweed enough.', '火焰草够了。']),
+  turnIn('herbalist-frostcap', ASKS.frostcap, ['Frostcap, from the cold side of the forest. Good.', '霜盖菇，长在森林背阴那边的。很好。'], ['Frostcap enough.', '霜盖菇够了。']),
   story({
     id: 'mq/herbalist-brew',
     doc: 'With three fireweed and three frostcap, the herbalist brews two fireproof draughts.',
-    on: 'interaction',
-    priority: 3,
-    when: { verb: ['interact'], actor: PLAYER, target: { type: HERBALIST }, instrument: EMPTY },
-    guard: { all: [{ fact: { key: 'mq.fireweed', cmp: { gte: ASKS.fireweed.need } } }, { fact: { key: 'mq.frostcap', cmp: { gte: ASKS.frostcap.need } } }, { fact: { key: 'mq.draught', cmp: 0 } }] },
-    do: [
-      { op: 'spawn', type: DRAUGHT, at: 'actor', into: 'contents', count: 2 },
-      fact('mq.draught', 1),
-      { op: 'vfx', at: 'target', fx: 'sparkle' },
-      say('target', 'Two draughts. Drink one at the lair\'s mouth: for a few minutes the fire will barely warm you. The other is for when the first runs out.', '两瓶药剂。在巢穴门口喝一瓶：接下来几分钟，火只会让你觉得有点暖。另一瓶留着第一瓶失效时喝。'),
-      log('Wren gives you two fireproof draughts.', '雷恩给了你两瓶防火药剂。'),
-    ],
+    host: { type: HERBALIST },
+    on: 'impulse/handle',
+    tree: IF(
+      all(fact('mq.fireweed', { gte: ASKS.fireweed.need }), fact('mq.frostcap', { gte: ASKS.frostcap.need }), fact('mq.draught', 0)),
+      DO(
+        { op: 'spawn', type: DRAUGHT, at: 'actor', into: 'contents', count: 2 },
+        notify('draught'),
+        { op: 'vfx', fx: 'sparkle' },
+        say("Two draughts. Drink one at the lair's mouth: for a few minutes the fire will barely warm you. The other is for when the first runs out.", '两瓶药剂。在巢穴门口喝一瓶：接下来几分钟，火只会让你觉得有点暖。另一瓶留着第一瓶失效时用。'),
+        log('Wren gives you two fireproof draughts.', '雷恩给了你两瓶防火药剂。'),
+      ),
+    ),
   }),
   // ---------------------------------------------------------------- the dragon
   story({
     id: 'mq/dragon-whelps',
-    doc: 'Wounded again once below half, the dragon shrieks and its whelps pour out of the dark (once).',
-    on: 'hit',
-    compose: true,
-    when: { target: { type: DRAGON } },
-    guard: { all: [{ prop: { role: 'target', key: 'hp', cmp: { lt: 350 } } }, { fact: { key: 'mq.whelps', cmp: 0 } }] },
-    do: [
-      fact('mq.whelps', 1),
-      { op: 'spawn', type: 'actor/creature/whelp', at: 'tileOf:target', count: 3 },
-      { op: 'vfx', at: 'target', fx: 'fire_burst' },
-      log('The dragon shrieks. Its whelps pour out of the dark!', '魔龙一声尖啸，幼龙从黑暗里涌了出来！'),
-    ],
+    doc: 'Struck again once below half, the dragon shrieks and its whelps pour out of the dark (once); every blow still wounds it.',
+    host: { type: DRAGON },
+    on: 'impulse/strike',
+    tree: IF(
+      all({ prop: { role: 'host', key: 'hp', cmp: { lt: 350 } } }, fact('mq.whelps', 0)),
+      DO(
+        { op: 'hurt', amount: { param: 'power' } },
+        { op: 'foe' },
+        notify('whelps'),
+        { op: 'spawn', type: 'actor/creature/whelp', at: 'host', count: 3 },
+        { op: 'vfx', fx: 'fire_burst' },
+        log('The dragon shrieks. Its whelps pour out of the dark!', '魔龙一声尖啸，幼龙从黑暗里涌了出来！'),
+      ),
+    ),
   }),
   story({
     id: 'mq/dragon-slain',
-    doc: 'The dragon falls: the end of the main quest.',
-    on: 'defeat',
-    compose: true,
-    when: { target: { type: DRAGON } },
-    do: [fact('mq.dragon', 1), { op: 'scene', id: 'victory' }],
+    doc: 'The dragon falls: what it leaves, the experience of it, and the end of the main quest.',
+    host: { type: DRAGON },
+    on: 'threshold/cross',
+    tree: IF(
+      { param: { key: 'name', cmp: 'defeated' } },
+      DO(
+        { op: 'dropContents', still: true },
+        { op: 'emit', impulse: 'notify', to: 'actor', params: { what: 'defeat', xp: { prop: 'maxHp', of: 'host' } } },
+        notify('dragon'),
+        { op: 'vfx', fx: 'poof' },
+        log('{host} is defeated.', '{host}被打倒了。'),
+        { op: 'destroy' },
+      ),
+    ),
+  }),
+  // ---------------------------------------------------------------- the story keeps the main quest's facts
+  story({
+    id: 'mq/story',
+    doc: 'The story hears what happened past the Ford and keeps it: what the smith and the herbalist were given, the blade and the draughts, the whelps, the dragon slain; the council.',
+    host: { type: 'resident/story' },
+    on: 'impulse/notify',
+    tree: IF(
+      what('mq.ore'),
+      DO({ op: 'addFact', key: 'mq.ore', delta: 1 }),
+      IF(
+        what('mq.coal'),
+        DO({ op: 'addFact', key: 'mq.coal', delta: 1 }),
+        IF(
+          what('mq.fireweed'),
+          DO({ op: 'addFact', key: 'mq.fireweed', delta: 1 }),
+          IF(
+            what('mq.frostcap'),
+            DO({ op: 'addFact', key: 'mq.frostcap', delta: 1 }),
+            IF(
+              what('blade'),
+              DO({ op: 'setFact', key: 'mq.blade', value: 1 }),
+              IF(
+                what('draught'),
+                DO({ op: 'setFact', key: 'mq.draught', value: 1 }),
+                IF(
+                  what('whelps'),
+                  DO({ op: 'setFact', key: 'mq.whelps', value: 1 }),
+                  IF(what('dragon'), DO({ op: 'setFact', key: 'mq.dragon', value: 1 }, { op: 'scene', id: 'victory' }), IF(what('council'), DO({ op: 'scene', id: 'council' }))),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  }),
+  // ---------------------------------------------------------------- the journey's own news (docs/prologue.md, quests.md)
+  story({
+    id: 'journey/story',
+    doc: 'The story counts the waypoint statues woken and the meals eaten (the prologue waits for the first of each).',
+    host: { type: 'resident/story' },
+    on: 'impulse/notify',
+    tree: IF(what('waypoint'), DO({ op: 'addFact', key: 'waypoints.attuned', delta: 1 }), IF(what('meal'), DO({ op: 'addFact', key: 'prologue.meals', delta: 1 }))),
   }),
 ]

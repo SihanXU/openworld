@@ -12,6 +12,8 @@ export interface ResolvedType {
   solid: boolean
   /** The base on the ground, [width, depth] (TypeDef.footprint). */
   footprint: [number, number]
+  /** The stances it acts on (TypeDef.reach). */
+  reach?: string[]
   name?: TypeDef['name']
   /** Ancestor chain from root to self (only registered ids). */
   chain: string[]
@@ -86,6 +88,7 @@ export class OntologyIndex {
     let sprite: string | undefined
     let solid = false
     let footprint: [number, number] = [1, 1]
+    let reach: string[] | undefined
     let name: TypeDef['name']
     for (let i = 1; i <= parts.length; i++) {
       const p = parts.slice(0, i).join('/')
@@ -98,9 +101,10 @@ export class OntologyIndex {
       if (def.sprite) sprite = def.sprite
       if (def.solid !== undefined) solid = def.solid
       if (def.footprint) footprint = def.footprint
+      if (def.reach) reach = def.reach
       if (def.name) name = def.name
     }
-    const r: ResolvedType = { id, kind, tags: [...tags], props, sprite, solid, footprint, name, chain, depth: parts.length }
+    const r: ResolvedType = { id, kind, tags: [...tags], props, sprite, solid, footprint, reach, name, chain, depth: parts.length }
     this.cache.set(id, r)
     return r
   }

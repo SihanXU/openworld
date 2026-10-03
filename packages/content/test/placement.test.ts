@@ -4,7 +4,7 @@ import { BASE_RULES, BUILDINGS, PLACEMENT_BY_ID, VEGETABLE_CROPS, buildOntology 
 
 const at = { map: 'sandbox', x: 2, y: 1 }
 function fresh(actorId = 'actor'): Engine {
-  return buildSandbox({ entities: [{ key: actorId, type: 'actor/person/player', x: 2, y: 2 }], event: { verb: 'interact', actor: actorId, target: 'tile:2,1' } }, buildOntology(), new RuleLibrary(BASE_RULES))
+  return buildSandbox({ entities: [{ key: actorId, type: 'actor/person/player', x: 2, y: 2 }], event: { kind: 'act/hands', host: actorId, actor: actorId, target: 'tile:2,1' } }, buildOntology(), new RuleLibrary(BASE_RULES))
 }
 function kit(eng: Engine, recipeId: string, actorId = 'actor') {
   const r = PLACEMENT_BY_ID[recipeId]
@@ -21,7 +21,9 @@ describe('rule-driven construction', () => {
     expect(place(e, r.id).ok).toBe(true)
     const made = e.world.entitiesAt(at.map, at.x, at.y).find((x) => x.type === r.result)
     expect(made).toBeDefined()
-    expect(e.trace.filter((x) => x.ev.kind === 'interaction').map((x) => x.rule)).toEqual(r.steps.map((x) => x.rule))
+    // every step answered by the rules it names, along its chain (an act and the impulses it sends)
+    const acted = e.trace.filter((x) => x.ev.kind.startsWith('act/')).length
+    expect(acted).toBe(r.steps.length)
     const actor = e.world.get('actor')!
     expect([...(actor.contents ?? []), ...(actor.held ? [actor.held] : [])]).toHaveLength(r.needs.filter((x) => !x.consume).length)
     for (const tool of items.filter((x) => e.world.hasTag(x, 'tool:hammer'))) expect(e.world.posOf(e.world.get(tool.id))).toEqual(e.world.posOf(actor))
@@ -53,7 +55,7 @@ describe('rule-driven construction', () => {
   it('rehearses every step before spending if the library no longer permits a finish', () => {
     const e = fresh()
     kit(e, 'chest')
-    e.lib = new RuleLibrary(BASE_RULES.filter((r) => r.id !== 'build/finish-chest'))
+    e.lib = new RuleLibrary(BASE_RULES.filter((r) => r.id !== 'build/frame'))
     const before = structuredClone(e.world.state)
     expect(place(e, 'chest').ok).toBe(false)
     expect(e.world.state).toEqual(before)
@@ -89,13 +91,15 @@ describe('vegetable garden', () => {
       expect(place(e, 'water').ok).toBe(true)
       expect(place(e, 'water').ok).toBe(false)
       expect(e.world.hasStatus({ e: crop.id }, 'watered')).toBe(true)
-      e.world.clearStatus({ e: crop.id }, 'watered')
-      e.dispatch({ kind: 'expire', status: 'watered', roles: { target: { e: crop.id } }, at })
+      // two hours on: the watering runs out (the clock), and the crop grows a stage
+      e.world.write(() => e.world.clearStatus({ e: crop.id }, 'watered'))
+      e.dispatch({ kind: 'time/timer', host: { e: crop.id }, roles: {}, params: { status: 'watered' }, origin: 'world' })
+      e.flush()
     }
     grow()
     expect(crop.type).toBe(`fixture/crop/${c.id}/young`)
     expect(place(e, 'harvest').ok).toBe(false)
-    e.world.setTerrain(at.map, at.x - 1, at.y, 'water')
+    e.world.write(() => e.world.setTerrain(at.map, at.x - 1, at.y, 'water'))
     expect(performPlacement(e, 'actor', PLACEMENT_BY_ID.fill, { ...at, x: at.x - 1 }).ok).toBe(true)
     grow()
     expect(crop.type).toBe(`fixture/crop/${c.id}/ripe`)

@@ -22,6 +22,7 @@ import {
   type Key,
   type KeyView,
   type Plan,
+  type Resolution,
   type ResolveBody,
   type ResolveReply,
   type WorldIndex,
@@ -67,7 +68,7 @@ let modderOnline = false
 // with something in hand for half a second starts the request, so the patch is often there first.
 const PREFETCH_DWELL_TICKS = 5
 const PREFETCH_CAP = 40 // per session: a prefetch costs a model call
-let probe: { key: string; ev: GameEvent; ticks: number } | undefined
+let probe: { key: string; ev: GameEvent; res: Resolution; ticks: number } | undefined
 const prefetched = new Set<string>()
 let prefetching = false
 
@@ -108,11 +109,11 @@ async function resolveRemote(request: ModRequest): Promise<Patch | null> {
   return reply.patch
 }
 
-function noteProbe(ev: GameEvent | undefined): void {
-  if (!ev) return void (probe = undefined)
-  // one prefetch per class of interaction (as the Mod port asks), not per tile or item
-  const key = signatureOf(game!.engine, ev)
-  probe = probe?.key === key ? { ...probe, ev } : { key, ev, ticks: 0 }
+function noteProbe(hole: { ev: GameEvent; res: Resolution } | undefined): void {
+  if (!hole) return void (probe = undefined)
+  // one prefetch per hole and class (as the Mod port asks), not per tile or item
+  const key = signatureOf(game!.engine, hole.ev, hole.res)
+  probe = probe?.key === key ? { ...probe, ...hole } : { key, ...hole, ticks: 0 }
 }
 
 /** Ask the modder ahead of time; its patch goes through this engine's validator like any other. */
@@ -122,7 +123,7 @@ function maybePrefetch(): void {
   prefetched.add(probe.key)
   prefetching = true
   const eng = game.engine
-  const request = buildRequest(eng, probe.ev, `pre-${eng.world.state.tick.toString(36)}`)
+  const request = buildRequest(eng, probe.ev, probe.res, `pre-${eng.world.state.tick.toString(36)}`)
   resolveRemote(request)
     .then((patch) => {
       if (patch && game) game.mods.submit(undefined, patch)
@@ -195,7 +196,8 @@ function keyViews(): Frame['keys'] {
   for (const k of ['hands', 'take', 'use', 'put'] as Key[]) out[k] = view(c.plan(k, aimTile))
   const use = c.plan('use', aimTile)
   const p = eng.world.player
-  noteProbe(use?.unknown && use.instrument && use.verb ? { kind: 'interaction', verb: use.verb, roles: { actor: { e: p.id }, target: use.target, instrument: use.instrument }, strict: true } : undefined)
+  // an experiment with something in hand: where its chain reaches an undefined outcome
+  noteProbe(use?.unknown && use.instrument && use.verb ? eng.preview(eng.actEvent(use.verb, p.id, use.target, use.instrument)).hole : undefined)
   return out
 }
 

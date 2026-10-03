@@ -49,7 +49,7 @@ describe('professions', () => {
     const bram = atBram(eng, 1)
     expect(eng.world.posOf(bram)?.map).toBe('meadow')
     eng.world.fx.length = 0
-    eng.interact('interact', eng.world.state.player, { e: bram.id }, { instrument: null, strict: true })
+    eng.interact('interact', eng.world.state.player, { e: bram.id }, { instrument: null })
     expect(eng.world.fx.some((x) => x.t === 'panel' && x.panel === 'profession')).toBe(true)
   })
 

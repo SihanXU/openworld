@@ -122,7 +122,7 @@ export class Companions {
     const at = w.posOf(e)
     if (!to || lead.place.on !== 'tile' || !w.map(to.map)) return
     const perch = this.perch(lead, to.map, to.x, to.y)
-    if (!at || at.map !== to.map || Math.max(Math.abs(at.x - to.x), Math.abs(at.y - to.y)) > 8) return void w.place(e, { on: 'tile', map: to.map, ...perch })
+    if (!at || at.map !== to.map || Math.max(Math.abs(at.x - to.x), Math.abs(at.y - to.y)) > 8) return this.fly(e, to.map, perch.x, perch.y)
     const ahead = { x: to.x + DIRS[lead.facing ?? 'down'][0], y: to.y + DIRS[lead.facing ?? 'down'][1] }
     const d = Math.max(Math.abs(at.x - to.x), Math.abs(at.y - to.y))
     // how long the leader has stood still
@@ -137,7 +137,16 @@ export class Companions {
     const y = at.y + Math.sign(perch.y - at.y)
     if (x === at.x && y === at.y) return
     e.facing = x !== at.x ? (x > at.x ? 'right' : 'left') : y > at.y ? 'down' : 'up'
-    w.place(e, { on: 'tile', map: to.map, x, y })
+    this.fly(e, to.map, x, y)
+  }
+
+  /** The companion's own move (its behaviour, like a creature's step): its relations are settled after (design.md §5.10). */
+  private fly(e: Entity, map: string, x: number, y: number): void {
+    const w = this.eng.world
+    this.eng.touch({ e: e.id })
+    w.write(() => w.place(e, { on: 'tile', map, x, y }))
+    this.eng.touch({ e: e.id })
+    this.eng.settle()
   }
 
   /** The tile behind the leader (or beside them, at the map's edge). */
@@ -189,9 +198,12 @@ export class Companions {
     const lead = this.leader()
     for (const b of this.beats) {
       if (w.fact(`beat.${b.id}`) || !this.met(b.when, lead)) continue
-      w.setFact(`beat.${b.id}`, w.state.tick)
-      for (const [k, v] of Object.entries(b.props ?? {})) (lead.props ??= {})[k] = v
-      for (const [k, v] of Object.entries(b.facts ?? {})) w.setFact(k, v)
+      // a beat is the story's (the tutorial's step): it writes as the story does, in its own outcome
+      w.write(() => {
+        w.setFact(`beat.${b.id}`, w.state.tick)
+        for (const [k, v] of Object.entries(b.props ?? {})) (lead.props ??= {})[k] = v
+        for (const [k, v] of Object.entries(b.facts ?? {})) w.setFact(k, v)
+      })
       const bird = this.of(lead.id)[0]
       if (b.say && bird) w.fx.push({ t: 'say', who: bird.id, text: b.say })
       w.state.lastBeat = b.id

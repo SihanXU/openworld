@@ -92,7 +92,7 @@ export class WorldLibrary {
   }
 
   /**
-   * Does the shared library already answer this interaction? Then the patch that added the
+   * Does the shared library already answer this outcome? Then the patch that added the
    * answering rule is returned, and no model is needed.
    */
   covering(req: ModRequest): { rule: string; patch: Patch } | undefined {
@@ -168,8 +168,8 @@ export class WorldLibrary {
       if (a.kind !== 'rule') continue
       this.lib.add({ ...a.rule, source: { origin: 'patch', request: e.request, author: e.patch.author ?? 'modder', at: e.at, note: e.patch.note, trigger: e.patch.trigger } }, e.at)
     }
-    // the interaction that asked for the patch must stay answered (by it, or by something more specific)
-    const first = e.rules.find((id) => this.lib.rules.get(id)?.on === 'interaction')
+    // the event that asked for the patch must stay answered (by it, or by something more specific)
+    const first = e.rules.find((id) => !!this.lib.rules.get(id)?.host)
     const sc = e.scenario ?? firstTestScenario(e.patch)
     if (first && sc) {
       this.regression.push({ scenario: sc, rule: first })
@@ -185,6 +185,6 @@ export class WorldLibrary {
 }
 
 function firstTestScenario(p: Patch): Scenario | undefined {
-  for (const a of p.artifacts) if (a.kind === 'rule' && a.rule.on === 'interaction' && a.rule.tests?.length) return a.rule.tests[0].given
+  for (const a of p.artifacts) if (a.kind === 'rule' && a.rule.tests?.length) return a.rule.tests[0].given
   return undefined
 }

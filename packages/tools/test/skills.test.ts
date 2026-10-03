@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Engine, Game, RuleLibrary, buildSandbox, cannotLearn, combatDelay, combatStrike, hungerTick, snapshot, type Ref, type Scenario } from '@lsw/engine'
+import { Engine, Game, RuleLibrary, buildSandbox, cannotLearn, combatDelay, combatStrike, snapshot, type Ref, type Scenario } from '@lsw/engine'
 import { BASE_RULES, SKILLS, SKILL_DIRECTIONS, SKILL_BRANCHES, SKILL_BY_ID, skillsForProfession, branchesForProfession, buildOntology } from '@lsw/content'
 import { layoutBranches, layoutSkills } from '../../client/src/ui/skillLayout.ts'
 import { buildFord } from '../src/demo/world.ts'
@@ -171,7 +171,7 @@ describe('the skill tree', () => {
       const eng = setup([{ key: 'fire', type: 'fixture/light/campfire', ...FRONT }])
       if (skilled) learn(eng, 'firemaker')
       eng.world.add({ id: 'stick', type: 'item/material/stick', place: { on: 'hand', holder: 'actor' } })
-      eng.interact('interact', 'actor', { e: 'fire' }, { strict: true })
+      eng.interact('interact', 'actor', { e: 'fire' })
       expect(eng.world.hasStatus({ e: 'fire' }, 'lit')).toBe(skilled)
     }
   })
@@ -183,7 +183,7 @@ describe('the skill tree', () => {
       eng.world.add({ id: 'axe', type: 'item/weapon/blade/axe', place: { on: 'hand', holder: 'actor' } })
       const tree = { tile: { map: eng.world.posOf(eng.world.get('actor')!)!.map, ...FRONT } }
       eng.world.setStatus(tree, 'notched', -1)
-      eng.interact('interact', 'actor', tree, { strict: true })
+      eng.interact('interact', 'actor', tree)
       return eng.world.entitiesAt(tree.tile.map, FRONT.x, FRONT.y).filter((e) => e.type === 'item/material/log').length
     }
     expect(logs(true)).toBe(logs(false) + 1)
@@ -394,14 +394,14 @@ describe('automatic combat talents', () => {
     expect(p.props!.hungerEvery).toBe(450)
     p.props!.hunger = 10
     p.props!.hp = 10
-    eng.world.state.tick = 80
-    hungerTick(eng, eng.world.posOf(p)!.map)
+    eng.world.state.tick = 79
+    eng.tick() // the clock reaches 80: the body's periods come
     expect(p.props!.hp).toBe(11)
-    eng.world.state.tick = 300
-    hungerTick(eng, eng.world.posOf(p)!.map)
+    eng.world.state.tick = 299
+    eng.tick() // the clock reaches 300: the body's periods come
     expect(p.props!.hunger).toBe(10)
-    eng.world.state.tick = 450
-    hungerTick(eng, eng.world.posOf(p)!.map)
+    eng.world.state.tick = 449
+    eng.tick() // the clock reaches 450: the body's periods come
     expect(p.props!.hunger).toBe(9)
   })
 

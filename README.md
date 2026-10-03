@@ -8,11 +8,15 @@ Successor to BardOS. Design: [docs/design.md](docs/design.md).
 
 ## Worlds
 
-- **The Ford** (default, hand-crafted demo): one map at the edge of the world — a ferrykeeper,
-  a stranded peddler, two slimes, seven items, eight fixtures — and one goal: the far bank.
-  The place teaches three ways across; anything else the world learns from the player counts
-  too. Minimal and complete: every element the system needs is here, and nothing else
+- **The Ford** (default, hand-crafted demo): a river crossing at the edge of the world — a
+  ferrykeeper, a stranded peddler, slimes — with a meadow west of it and a forest south of that,
+  and one goal: the far bank. The place teaches three ways across; anything else the world
+  learns from the player counts too. It is the development scaffold of a world meant to reach
+  hundreds of maps; every element it holds witnesses a requirement
   ([docs/game-design.md](docs/game-design.md) §9, proven by `packages/tools/test/demo.test.ts`).
+
+The event model — one AI interface, the outcome of an event — is in
+[docs/design.md](docs/design.md) §5.4–5.14.
 
 ## Run
 

@@ -3,7 +3,7 @@
 // Pip, the bird, say one line each; the objectives are what the HUD shows meanwhile. Every beat
 // waits for a state, never for a path: whatever gets the player there counts.
 
-import type { Beat, BeatCond, Rule, Text } from '@lsw/engine'
+import type { Beat, BeatCond, Text } from '@lsw/engine'
 import type { Objective } from './ford.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
@@ -98,18 +98,5 @@ export const PROLOGUE_BEATS: Beat[] = [
     when: { map: 'ford', props: { prologue: { lt: PROLOGUE_DONE } } },
     props: { prologue: PROLOGUE_DONE },
     say: L('The Ford! Someone down there looks like they need a hand.', '渡口到了！那边的人好像需要帮忙。'),
-  },
-]
-
-/** The prologue's story rule: eating counts (any actor's meal; the beat reads it on its stage). */
-export const PROLOGUE_RULES: Rule[] = [
-  {
-    id: 'prologue/meal',
-    doc: 'A meal is counted (the prologue waits for the first).',
-    on: 'interaction',
-    compose: true,
-    when: { verb: ['interact'], target: { self: true }, instrument: { tags: ['edible'] } },
-    do: [{ op: 'addFact', key: 'prologue.meals', delta: 1 }],
-    source: { origin: 'base' },
   },
 ]
