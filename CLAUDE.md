@@ -2,7 +2,8 @@
 
 A web-playable 2D JRPG world whose state and rules are code; an LLM modder (later)
 patches undefined interactions at runtime. Successor to BardOS (`C:\Users\chica\文字游戏`).
-Design: [docs/design.md](docs/design.md). Paper draft lives in Notion ("Large Symbolic World").
+Design: [docs/design.md](docs/design.md); the agreed world model and base gameplay (not yet built,
+steps W1–W10): [docs/world-model.md](docs/world-model.md). Paper draft lives in Notion ("Large Symbolic World").
 
 ## Working agreements
 
@@ -84,6 +85,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
     `tools/src/engine-tasks.ts` + `tools/tasks/engine/<id>/`; one outer-loop turn is `tools/src/improve.ts`.
 - RSI design changes (what the outer loop may change, how it is judged, the benchmark interface)
   are discussed with the user before they are coded.
+- Game mechanics are designed reference-first: read how Elin (installed; decompile
+  `Elin_Data/Managed/Elin.dll` with `ilspycmd` into the scratchpad) and other games built it,
+  then adapt to our principles; invent only where no game has a model.
 - The model is Kimi K3 via OpenRouter, with the key in the gitignored `.env`. Anthropic, Google and OpenAI
   return 403 from here. Never hard-code a provider; tests use `ScriptedModel`. A second backend,
   `claude-code`, calls `claude -p` signed in as the user (Opus 5.5, effort low by default; `ClaudeCodeModel`).

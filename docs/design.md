@@ -91,6 +91,11 @@ docs/
 
 ## 4. World model
 
+> **Superseded by [world-model.md](world-model.md)** (agreed 2026-10-04, not yet built): one
+> root type `thing` with no kinds, things and the clock as the whole state, cells with occupied
+> spaces, z and height, durability and materials for everything, makeup, two-level maps. This
+> section describes the world as built today.
+
 ### 4.1 Entities
 
 Everything in the world is an entity with a stable id:
@@ -320,6 +325,10 @@ lists where it fell short).
 
 ### 5.5 What the world is made of
 
+> The agreed extension is [world-model.md](world-model.md) §3–5: the state is things and the
+> clock (facts become props of the story and the world), cells are `(map, x, y, z)` with occupied
+> spaces, regions and rooms are things, and maps form two levels (overworld and local maps).
+
 - **Things**, each with a type, props, statuses and a place: on a tile, inside a thing, or in a
   hand. Tiles are things of `tile/*` types; map regions are things too.
 - **Stance**: where a thing is — `ground` (the default), `air` (flyers), `water` (swimmers).
@@ -416,6 +425,9 @@ Checked against the base rules: every cross-thing effect maps to one impulse.
 | change another person's schedule | notify that person, who changes it |
 
 ### 5.9 Root defaults: what is asked
+
+> [world-model.md](world-model.md) §7 adds the rows for durability, `broken`, building, support,
+> falling, stages, regions and sites; the policy below is unchanged.
 
 The policy: **what someone does on purpose is undefined at the root; what happens around them
 all the time is defined by physics at the root.** Authors then leave undefined leaves on
@@ -554,6 +566,10 @@ At the Ford:
   map costs its inbox plus the timers that fell due. The number of maps appears in neither.
 
 ### 5.13 Completeness
+
+> [world-model.md](world-model.md) §10 re-argues A1–A7 for the extended world and lists the new
+> checks (no kinds, one reference form, exclusivity, every damage channel, economy,
+> reachability, mirrored barriers, deterministic generation, parameters).
 
 **The claim.** For the simulated world, every consequence passes through an event, and every
 event reaches exactly one leaf; only undefined leaves ask the AI, and without one they run
@@ -1350,6 +1366,9 @@ smoke results: [rsi.md](rsi.md).
 
 ## 14. Next
 
+The world model and base gameplay (state, things, space, breaking, makeup, building, rooms,
+storeys, stages, combat, behaviour, the story's script, two-level maps) are agreed in
+[world-model.md](world-model.md); its steps W1–W10 (§12 there) are the next engine work.
 Near-term gameplay work — interactions and simple loops — is planned in [roadmap.md](roadmap.md).
 
 - Grow the Ford with the offline profile (curriculum, guided by what players actually try);

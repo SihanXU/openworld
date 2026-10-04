@@ -197,6 +197,12 @@ Sources 6 (free intent) and 7 (open conversation) stay reserved (D9).
 
 ## 9. Completeness: the Ford contains everything the demo needs, and nothing else
 
+The world model ([world-model.md](world-model.md) §10.3) adds fifteen requirements, each landing
+with its step (W1–W10): felling, too hard, mining, leaving by an edge, overworld time, the river
+as a barrier, persistent wilderness, height and falls, derived recipes, bedrooms, cover, storeys
+and collapse, fire on structures, real work and people entering from edges, story steps on
+entering regions.
+
 The requirements are derived from the system, not chosen:
 
 - **A. The engine's event space**: every event kind — `interaction`, `hit`, `status`, `expire`,

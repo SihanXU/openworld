@@ -72,13 +72,23 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 | M4 | Farming | M1 (stacks, facing indicator) | 15,600 / 24,054 (64.9%) | 50 of 113 forms, 12 of 52 fixture types |
 | M4a | Original vegetables + live B building/farming palette (after quest expansion) | M3, M4 | 24,707 / 35,154 (70.3%) | 49 of 125 forms, 25 of 85 fixture types |
 | S1 | Seven original sin bosses, action/FX atlases, East Road encounter and save migration | M4a, Firstlight Village | 24,945 / 35,406 (70.5%) | 49 of 125 forms, 25 of 86 fixture types |
-| M5 | Gathering and fishing | M1 | | |
-| M6 | Cooking | M4 (wheat), M5 (fish) | | |
-| M7 | Mining and smithing | M3 (hammer, frames) | | |
-| M8 | Wearing, resting, trading | M1 | | |
-| M9 | Every item has a purpose | all of the above | | |
+| M5 | Gathering and fishing (superseded by W2, W7) | M1 | | |
+| M6 | Cooking (superseded by W4, W7) | M4 (wheat), M5 (fish) | | |
+| M7 | Mining and smithing (superseded by W2, W4) | M3 (hammer, frames) | | |
+| M8 | Wearing, resting, trading (resting: W3, W5; wearing and trading after W8) | M1 | | |
+| M9 | Every item has a purpose (after W10) | all of the above | | |
 | EM | The event model (design.md §5.14), 2026-10-02 | M4 | 20,059 / 29,492 (68.0%) | 46 of 116 forms, 25 of 71 fixture types |
 | EM2 | Completeness enforced: the writer, A2–A3 at run time; companions, beats, quests, learning, talents, sins and the night as events (design.md §5.15), 2026-10-04 | EM, S1 | 25,320 / 35,546 (71.2%) | 46 of 125 forms, 25 of 86 fixture types |
+| W1 | State model: no kinds off the grid, facts and the like onto things, regions as things ([world-model.md](world-model.md) §12) | EM2 | | |
+| W2 | Space and breaking: occupied spaces, z, height, cells as things and one reference form, durability, materials, instruments, damage channels, makeup, `broken`, `breakdown`, `fall` | W1 | | |
+| W3 | Two-level maps: overworld, sites, open edges, durations and fast-forward, generated wilderness, changes-only saves | W2 | | |
+| W4 | Makeup and recipes: stations, derived recipes, quality, building as `move`, economy and reachability | W2 | | |
+| W5 | Cover and rooms | W2 | | |
+| W6 | Storeys: slabs, stairs, support, collapse | W5 | | |
+| W7 | Stages and appearances | W2 | | |
+| W8 | Combat: material and quality, elements and resistances as data | W2 | | |
+| W9 | Behaviour: one goal system, real work | W3 | | |
+| W10 | The story's script | W1 | | |
 
 The event model changed what is swept: the acts each input makes (use, put, take, hands; use
 or hands on yourself) and the outcomes of the impulses they send, so the space grew to 29,492.
@@ -88,7 +98,9 @@ lines as defaults; pouring and lighting are `use` only (`put` places). The holes
 are: `core/use` 10,737, `core/receive` 6,620, `core/strike` 1,956, `core/handle` 526,
 `core/offered` 116, `core/taken` 104.
 
-M1–M4 are the core. M5–M9 can follow in any order. §1 stays the M0 baseline; each milestone
+M1–M4 are the core. The world model ([world-model.md](world-model.md), agreed 2026-10-04) replaces
+M5–M7 and parts of M8 with its steps W1–W10, in that order (each depends on the state model and
+on space and breaking). M5–M9 as written below are kept for their content ideas. §1 stays the M0 baseline; each milestone
 fills in its row from `npm run coverage` when it lands. New fixture types join the sweep as
 targets and new forms as held items, so the space grows with them (M3 adds four kinds of
 unfinished work, M4 ten crop stages and three seeds). Most forms have nothing to do with a
