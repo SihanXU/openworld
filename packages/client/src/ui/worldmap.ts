@@ -214,7 +214,7 @@ export class Minimap {
 
 function dotColor(e: EntitySnap): string | undefined {
   if (e.type === 'fixture/sacred/waypoint') return e.statuses.includes('attuned') ? '#5ff0ff' : '#3a7f8a'
-  if (e.kind !== 'actor') return undefined
+  if (!e.tags.includes('agent')) return undefined
   if (e.tags.includes('companion')) return '#ffd23f'
   if (e.tags.includes('person')) return '#5aa0ff'
   if (e.tags.includes('animal')) return '#e8d2a0'

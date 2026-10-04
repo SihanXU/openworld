@@ -36,7 +36,7 @@ describe('isolated profession boss challenges', () => {
   it.each(BOSSES.map((b) => b.id))('loads %s alone, with no campaign exits or spawns', (id) => {
     const game = createBossChallenge(index, raw, 'assassin', id), w = game.engine.world
     expect(w.get(FIRST_BOSS.id)?.boss?.kit).toBe(id)
-    expect(w.entitiesOnMap(FIRST_BOSS.map).filter((e) => w.kindOf(e) === 'actor')).toHaveLength(2)
+    expect(w.entitiesOnMap(FIRST_BOSS.map).filter((e) => w.isAgent(e))).toHaveLength(2)
     expect(w.fits(w.get(FIRST_BOSS.id)!, FIRST_BOSS.map, FIRST_BOSS.x, FIRST_BOSS.y)).toBe(true)
     expect(w.map(FIRST_BOSS.map)?.portals).toEqual([])
     expect(w.map(FIRST_BOSS.map)?.forage).toEqual([])

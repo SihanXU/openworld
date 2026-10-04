@@ -152,9 +152,11 @@ export class Controls {
     const ok = (r: Ref) => ('e' in r ? w.posOf(w.get(r.e))?.map === at.map : r.tile.map === at.map && w.inBounds(r.tile.map, r.tile.x, r.tile.y))
     const sig = (r: Ref) => ('e' in r ? r.e : `${r.tile.x},${r.tile.y}`)
     const es = w.entitiesAt(at.map, at.x, at.y)
-    const of = (k: string) => es.filter((e) => w.kindOf(e) === k)
-    // in the order they are drawn: people and creatures over items, items over the fixture they lie on
-    const standing: Ref[] = [...of('actor'), ...of('item').reverse(), ...of('fixture')].map((e) => ({ e: e.id }))
+    // in the order they are drawn: bodies over what can be carried, that over what it lies on
+    const bodies = es.filter((e) => w.isAgent(e))
+    const loose = es.filter((e) => !w.isAgent(e) && w.isPortable(e)).reverse()
+    const ground = es.filter((e) => !w.isAgent(e) && !w.isPortable(e))
+    const standing: Ref[] = [...bodies, ...loose, ...ground].map((e) => ({ e: e.id }))
     let out: Ref[] = stack ? [...stack.filter(ok), ...standing] : standing
     // a bird overhead is the last thing the keys meet (it is drawn on top, but rarely what is meant)
     const aloft = (r: Ref) => 'e' in r && !!w.get(r.e) && w.hasTag(w.get(r.e)!, 'airborne')
@@ -582,7 +584,7 @@ export class Controls {
     for (let dy = -reach; dy <= reach; dy++)
       for (let dx = -reach; dx <= reach; dx++)
         for (const e of w.entitiesAt(here.map, here.x + dx, here.y + dy)) {
-          if (!e.dropped || e.frozenBy || w.kindOf(e) !== 'item') continue
+          if (!e.dropped || e.frozenBy || !w.isPortable(e)) continue
           const k = this.key(e)
           if (!by.has(k)) {
             if (free <= 0) continue

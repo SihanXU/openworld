@@ -331,7 +331,7 @@ describe('the Mod port', () => {
         kind: 'rule',
         rule: {
           id: 'patch/rope-binds-creature',
-          host: { tags: ['fiber'], kind: 'item' },
+          host: { tags: ['fiber'], type: 'item' },
           on: 'act/use',
           tree: {
             if: { is: { role: 'target', sel: { type: 'actor/creature', notStatus: ['frozen'] } } },
@@ -567,7 +567,7 @@ describe('text', () => {
   it('names roles as they were when the outcome started, even after it destroyed its host', () => {
     const rule: Rule = {
       id: 'test/slime-eats-rope',
-      host: { tags: ['fiber'], kind: 'item' },
+      host: { tags: ['fiber'], type: 'item' },
       on: 'act/use',
       tree: {
         if: { is: { role: 'target', sel: { type: 'actor/creature' } } },

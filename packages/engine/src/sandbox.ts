@@ -71,7 +71,7 @@ function fill(eng: Engine, sc: Scenario, player: string): void {
       facing: 'down',
     }
     const r = w.onto.resolve(s.type)
-    if (r.kind === 'actor') {
+    if (r.tags.includes('agent')) {
       e.props = { hp: 20, maxHp: 20, atk: 1, def: 0, ...r.props, ...e.props }
     }
     w.add(e)
@@ -115,7 +115,7 @@ export function replay(sc: Scenario, ontology: Ontology, lib: RuleLibrary): Repl
   }
   const ev = scenarioEvent(sc, eng)
   const hpBefore: Record<string, number> = {}
-  for (const e of Object.values(eng.world.state.entities)) if (eng.world.kindOf(e) === 'actor') hpBefore[e.id] = eng.world.num(e, 'hp')
+  for (const e of Object.values(eng.world.state.entities)) if (eng.world.prop(e, 'maxHp') !== undefined) hpBefore[e.id] = eng.world.num(e, 'hp')
   const resolution = eng.resolveEvent(ev)
   try {
     const a = ev.kind.startsWith('act/') && ev.roles.actor && 'e' in ev.roles.actor ? ev.roles.actor.e : undefined

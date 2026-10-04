@@ -19,7 +19,7 @@ const LEASH = 8
 export function stepCreatures(eng: Engine, active: string): void {
   const w = eng.world
   const night = isNight(w.hour())
-  const actors = w.entitiesOnMap(active).filter((e) => e.place.on === 'tile' && w.kindOf(e) === 'actor')
+  const actors = w.entitiesOnMap(active).filter((e) => e.place.on === 'tile' && w.isAgent(e))
   let fires: Pos[] | undefined
   for (const e of actors) {
     if (!e.ai || e.boss || e.place.on !== 'tile' || eng.busy(e)) continue

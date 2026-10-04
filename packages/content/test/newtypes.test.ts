@@ -33,7 +33,6 @@ const INGOT_ART: PixelArt = {
 
 const ingot = (over: Partial<TypeDef> = {}): TypeDef => ({
   id: 'item/material/iron_ingot',
-  kind: 'item',
   name: { en: 'Iron Ingot', zh: '铁锭' },
   tags: ['metal', 'conductive'],
   sprite: 'art:item/material/iron_ingot',

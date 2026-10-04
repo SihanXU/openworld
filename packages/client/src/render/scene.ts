@@ -499,8 +499,8 @@ export class WorldScene extends Phaser.Scene {
 
   private textureFor(e: EntitySnap): { img: string; frame: string; ax: number; ay: number; actor?: EView['actor'] } {
     // a thing the world learned, with a picture of its own
-    if (e.kind !== 'actor' && e.sprite?.startsWith('art:') && this.textures.exists(e.sprite)) return { img: e.sprite, frame: '__BASE', ax: 8, ay: 14 }
-    if (e.kind === 'actor') {
+    if (!e.tags.includes('agent') && e.sprite?.startsWith('art:') && this.textures.exists(e.sprite)) return { img: e.sprite, frame: '__BASE', ax: 8, ay: 14 }
+    if (e.tags.includes('agent')) {
       const a = this.actorDef(e)
       if (a) {
         const { img, fw, fh } = actorFrames(this, a.key, a.def)
@@ -508,7 +508,7 @@ export class WorldScene extends Phaser.Scene {
         return { img, frame: `${a.key}:${col},0`, ax: fw / 2, ay: a.def.anchorY ?? fh, actor: { key: a.key, rows: a.def.rows, cols: a.def.cols, tint: a.def.tint, scale: a.def.scale } }
       }
     }
-    if (e.kind === 'fixture') {
+    if ((!e.tags.includes('agent') && !e.tags.includes('portable'))) {
       const f = this.fixtureDef(e)
       if (f) {
         // a look of its own among the type's variants, kept for its life
@@ -531,7 +531,7 @@ export class WorldScene extends Phaser.Scene {
     const t = this.textureFor(e)
     const root = this.add.container(e.x * T + T / 2, (e.y + 1) * T)
     let shadow: Phaser.GameObjects.Ellipse | undefined
-    if (e.kind === 'actor') {
+    if (e.tags.includes('agent')) {
       const [width, depth] = e.boss?.footprint ?? [1, 1]
       shadow = this.add.ellipse(0, -depth * 4, width * 11, depth * 6, 0x000000, 0.22)
       root.add(shadow)
@@ -539,9 +539,9 @@ export class WorldScene extends Phaser.Scene {
     const body = this.add.sprite(0, 0, t.img, t.frame)
     body.setOrigin(t.ax / body.width, t.ay / body.height)
     if (t.actor?.scale) body.setScale(t.actor.scale)
-    if (e.kind === 'item') body.setScale(0.8)
+    if ((!e.tags.includes('agent') && e.tags.includes('portable'))) body.setScale(0.8)
     // small growth and litter sit a little off the grid, never in rows
-    if (e.kind === 'fixture' && this.fixtureDef(e)?.loose) body.setPosition((hashStr(e.id, 23) % 9) - 4, (hashStr(e.id, 29) % 5) - 2)
+    if ((!e.tags.includes('agent') && !e.tags.includes('portable')) && this.fixtureDef(e)?.loose) body.setPosition((hashStr(e.id, 23) % 9) - 4, (hashStr(e.id, 29) % 5) - 2)
     const hp = this.add.graphics()
     root.add([body, hp])
     const v: EView = { snap: e, root, body, shadow, hp, key: `${t.img}|${t.frame}`, movingUntil: 0, phase: Math.random() * 1000, actor: t.actor }
@@ -614,13 +614,13 @@ export class WorldScene extends Phaser.Scene {
           v.walker = { x: px, y: py, t: v.walker?.t ?? now }
           v.movingUntil = now + this.stepAvg
         } else {
-          const dur = e.tags.includes('companion') ? 110 : e.kind === 'actor' && (e.look || e.appearance) ? 380 : 330
+          const dur = e.tags.includes('companion') ? 110 : e.tags.includes('agent') && (e.look || e.appearance) ? 380 : 330
           this.tweens.add({ targets: v.root, x: px, y: py, duration: dur, ease: 'Linear' })
           v.movingUntil = this.time.now + dur
         }
       }
     }
-    if (e.kind !== 'actor') {
+    if (!e.tags.includes('agent')) {
       const t = this.textureFor(e)
       const k = `${t.img}|${t.frame}`
       if (k !== v.key) {
@@ -636,7 +636,7 @@ export class WorldScene extends Phaser.Scene {
     }
     // items lie on top of the fixture sharing their tile (a table, a counter), under actors
     // what lies flat on the ground (moss, leaves, pebbles) is under all that stands
-    v.root.setDepth(e.kind === 'fixture' && this.fixtureDef(e)?.ground ? -45 : py + (e.kind === 'actor' ? 2 : e.kind === 'item' ? 1 : 0))
+    v.root.setDepth((!e.tags.includes('agent') && !e.tags.includes('portable')) && this.fixtureDef(e)?.ground ? -45 : py + (e.tags.includes('agent') ? 2 : (!e.tags.includes('agent') && e.tags.includes('portable')) ? 1 : 0))
     // status overlay + tint
     const top = OVERLAY_OF.find(([s]) => e.statuses.includes(s))
     const want = top?.[1]
@@ -654,10 +654,10 @@ export class WorldScene extends Phaser.Scene {
     else if (v.actor?.tint) v.body.setTint(v.actor.tint).setTintMode(Phaser.TintModes.OVERLAY)
     else v.body.clearTint()
     // a thing an act waits on shimmers; one who is down lies on the ground
-    v.body.setAlpha(e.frozen && e.kind !== 'actor' ? 0.75 : 1)
+    v.body.setAlpha(e.frozen && !e.tags.includes('agent') ? 0.75 : 1)
     v.body.setAngle(!e.boss && e.statuses.includes('down') ? 90 : 0)
     // held item (small, at the hand)
-    if (e.held && e.kind === 'actor') {
+    if (e.held && e.tags.includes('agent')) {
       const d = CATALOG.items[e.held]
       if (d) {
         const [frame] = spriteFrames(this, `ico:${e.held}`, d)
@@ -673,7 +673,7 @@ export class WorldScene extends Phaser.Scene {
     if (!lit && v.glow) (v.glow.destroy(), (v.glow = undefined))
     // hp bar
     v.hp.clear()
-    if (e.kind === 'actor' && !e.boss && e.maxHp && e.hp !== undefined && (e.hp < e.maxHp || e.hostile) && e.id !== this.playerId) {
+    if (e.tags.includes('agent') && !e.boss && e.maxHp && e.hp !== undefined && (e.hp < e.maxHp || e.hostile) && e.id !== this.playerId) {
       const w = 14
       const top2 = -v.body.displayHeight - 3
       v.hp.fillStyle(0x000000, 0.6).fillRect(-w / 2, top2, w, 2)

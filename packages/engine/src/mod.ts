@@ -34,7 +34,6 @@ export interface EntityInfo {
   role: string
   id?: string
   name: string
-  kind: string
   type: string
   typeChain: string[]
   tags: string[]
@@ -81,7 +80,7 @@ export interface ModSpec {
   primitives: Record<string, string>
   expectations: string[]
   ontology: {
-    types: { id: string; kind: string; tags: string[]; name?: string }[]
+    types: { id: string; tags: string[]; name?: string }[]
     statuses: { id: string; duration?: number; immobilize?: boolean; moveDelay?: number; clears?: string[] }[]
     terrains: { id: string; tags: string[]; solid?: boolean; liquid?: boolean }[]
     elements: string[]
@@ -245,8 +244,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       note: 'patches may not contain undefined leaves',
     },
     selector: {
-      kind: 'actor | item | fixture | tile | resident (the story, the world)',
-      type: 'is-a match on the slash-path type hierarchy (prefix)',
+      type: 'is-a match on the slash-path type hierarchy (prefix): everything is one tree of things — actor (agents, with bodies), item (portable), fixture, tile/<terrain>, resident/story, resident/world. There are no kinds.',
       tags: 'all of these tags',
       notTags: 'none of these tags',
       status: 'all of these statuses',
@@ -281,7 +279,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
     ],
     ontology: {
       // without types: the model is shown the request's own types (the brief) and asks for the rest (the router)
-      types: opts.types === false ? [] : Object.values(types).map((t) => ({ id: t.id, kind: t.kind, tags: t.tags ?? [], name: t.name ? textOf(t.name) : undefined })),
+      types: opts.types === false ? [] : Object.values(types).map((t) => ({ id: t.id, tags: t.tags ?? [], name: t.name ? textOf(t.name) : undefined })),
       statuses: Object.values(statuses).map((s) => ({ id: s.id, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears })),
       terrains: Object.values(onto.terrains).map((t) => ({ id: t.id, tags: t.tags ?? [], solid: t.solid, liquid: t.liquid })),
       elements: onto.elements,
@@ -379,7 +377,7 @@ export class ModPort implements UndefinedSink {
     // they are at work on it (no other act, no step) until the patch or the default comes
     for (const r of [ev.host, ...Object.values(ev.roles), ...(ev.cause ? [{ e: ev.cause }] : [])]) {
       const e = r && 'e' in r ? w.get(r.e) : undefined
-      if (e && w.kindOf(e) !== 'resident') e.frozenBy = rec.id
+      if (e && !w.isPlaceless(e)) e.frozenBy = rec.id
     }
     this.ask(rec)
     return true
@@ -620,12 +618,11 @@ function info(eng: Engine, role: string, v: View | undefined, origin?: { x: numb
   if (!v) return undefined
   const w = eng.world
   const p = w.refPos(v.ref)
-  const chain = v.kind === 'tile' ? [v.type] : w.onto.resolve(v.type).chain
+  const chain = 'tile' in v.ref ? [v.type] : w.onto.resolve(v.type).chain
   return {
     role,
     id: v.id,
     name: eng.nameOf(v.ref),
-    kind: v.kind,
     type: v.type,
     typeChain: chain,
     tags: [...v.tags],
@@ -751,7 +748,7 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
   const keyOf = new Map<string, string>()
   const addEntity = (id: string, key: string) => {
     const e = w.get(id)
-    if (!e || keyOf.has(id) || w.kindOf(e) === 'resident') return
+    if (!e || keyOf.has(id) || w.isPlaceless(e)) return
     const p = w.posOf(e)
     if (!p) return
     keyOf.set(id, key)
@@ -778,7 +775,7 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
     if ('tile' in r) return `tile:${r.tile.x - ox},${r.tile.y - oy}`
     const e = w.get(r.e)
     if (!e) return undefined
-    if (w.kindOf(e) === 'resident') return e.id
+    if (w.isPlaceless(e)) return e.id
     // make sure holders come first so held/inside links resolve
     if (e.place.on === 'hand' || e.place.on === 'inside') {
       const h = e.place.holder
@@ -838,8 +835,6 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (a?.kind === 'type') {
       const t = a.type
       if (!t?.id || typeof t.id !== 'string') errors.push(`${where}: type.id required`)
-      else if (!['actor', 'item', 'fixture'].includes(t.kind)) errors.push(`${where}: type.kind must be actor|item|fixture`)
-      else if (!t.id.startsWith(t.kind + '/')) errors.push(`${where}: type id must start with "${t.kind}/"`)
       else {
         const problems = newTypeProblems(t, onto, patch)
         if (problems.length) errors.push(...problems.map((p) => `${where} (type "${t.id}"): ${p}`))
@@ -859,10 +854,10 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   const checkSel = (s: Selector | undefined, where: string) => {
     if (!s) return
     if (typeof s !== 'object') return errors.push(`${where}: selector must be an object`)
-    if (s.type && !s.type.startsWith('tile/') && !known(s.type)) errors.push(`${where}.type: unknown type "${s.type}"${s.type in onto.terrains ? ` — a terrain is named "tile/${s.type}"` : closest(s.type, onto)}`)
+    if (s.type && s.type !== 'tile' && !s.type.startsWith('tile/') && !known(s.type)) errors.push(`${where}.type: unknown type "${s.type}"${s.type in onto.terrains ? ` — a terrain is named "tile/${s.type}"` : closest(s.type, onto)}`)
     if (s.type?.startsWith('tile/') && !(s.type.slice(5) in onto.terrains)) errors.push(`${where}.type: unknown terrain "${s.type}"`)
     for (const st of [...(s.status ?? []), ...(s.notStatus ?? [])]) if (!(st in onto.statuses)) errors.push(`${where}: unknown status "${st}"`)
-    if (s.kind && !['actor', 'item', 'fixture', 'tile', 'resident'].includes(s.kind)) errors.push(`${where}.kind invalid`)
+    if ('kind' in s) errors.push(`${where}.kind: there are no kinds; select by type (actor, item, fixture, tile/…, resident/…), tags or props`)
     if (s.id) warnings.push(`${where}: instance-bound selector (id) — prefer types/tags`)
   }
   const role = (r: unknown, where: string) => {
@@ -962,7 +957,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (!('do' in t) || !Array.isArray(t.do)) return void errors.push(`${where}: a leaf is {do: Effect[]}`)
     t.do.forEach((e, j) => checkEffect(e, `${where}.do[${j}]`, resident))
     // a world event's people are never harmed by what it learns
-    if (ctx.world && host && (host.type ? isA(host.type, 'actor/person') || isA('actor/person', host.type) : host.kind === 'actor' || !host.kind))
+    if (ctx.world && host && (host.type ? isA(host.type, 'actor/person') || isA('actor/person', host.type) : !host.type))
       for (const [j, e] of t.do.entries()) if (e.op === 'hurt' || e.op === 'destroy') errors.push(`${where}.do[${j}]: a world event may not harm a person (${e.op})`)
   }
   const ids = new Set<string>()
@@ -980,7 +975,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (!r.host || typeof r.host !== 'object' || !Object.keys(r.host).length) errors.push(`${where}: name the host — a patch answers for a class of thing, never for anything at all`)
     else checkSel(r.host, `${where}.host`)
     if ('when' in (r as object) || 'do' in (r as object)) errors.push(`${where}: this is the earlier rule shape (when/do); write {host, on, tree}`)
-    const resident = r.host?.kind === 'resident' || !!r.host?.type?.startsWith('resident/')
+    const resident = !!r.host?.type && isA(r.host.type, 'resident')
     if (r.tree === undefined) errors.push(`${where}: tree required`)
     else checkTree(r.tree, `${where}.tree`, resident, r.host)
     if (r.tree !== undefined && leaves(r.tree).every((l) => l === 'inherit')) errors.push(`${where}: every leaf inherits — the rule answers nothing`)
@@ -1052,7 +1047,6 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
 
 /** Could one thing be the host of both rules? Contradictory constraints rule it out, and so does the ontology. */
 export function hostsOverlap(x: Selector, y: Selector, onto?: Ontology): boolean {
-  if (x.kind && y.kind && x.kind !== y.kind) return false
   if (x.type && y.type && !isA(x.type, y.type) && !isA(y.type, x.type)) return false
   if (x.id && y.id && x.id !== y.id) return false
   if (x.tags?.some((t) => y.notTags?.includes(t)) || y.tags?.some((t) => x.notTags?.includes(t))) return false
@@ -1086,18 +1080,16 @@ function satisfiable(x: Selector, y: Selector, onto: Ontology): boolean {
   const need = [...(x.tags ?? []), ...(y.tags ?? [])]
   const forbid = [...(x.notTags ?? []), ...(y.notTags ?? [])]
   const free = new Set(onto.instanceTags ?? [])
-  const kind = x.kind ?? y.kind
   const type = [x.type, y.type].filter(Boolean).sort((p, q) => q!.length - p!.length)[0]
   const ok = (tags: Set<string>) => need.every((t) => tags.has(t) || free.has(t)) && !forbid.some((t) => tags.has(t))
-  if (kind === 'tile' || type?.startsWith('tile/')) return Object.values(onto.terrains).some((t) => (!type || isA(`tile/${t.id}`, type)) && ok(new Set(t.tags ?? [])))
+  if (type && isA(type, 'tile')) return Object.values(onto.terrains).some((t) => (!type || isA(`tile/${t.id}`, type)) && ok(new Set(t.tags ?? [])))
   const index = new OntologyIndex(onto)
   for (const id of Object.keys(onto.types)) {
     if (type && !isA(id, type)) continue
     const r = index.resolve(id)
-    if (kind && r.kind !== kind) continue
     if (ok(new Set(r.tags))) return true
   }
-  if (!kind && !type) return Object.values(onto.terrains).some((t) => ok(new Set(t.tags ?? [])))
+  if (!type) return Object.values(onto.terrains).some((t) => ok(new Set(t.tags ?? [])))
   return false
 }
 
@@ -1153,7 +1145,6 @@ function consistent(lits: Literal[], hosts: Selector[], onto: Ontology): boolean
     const merged: Selector = {}
     for (const s of sels) {
       if (s.type) merged.type = !merged.type || isA(s.type, merged.type) ? s.type : merged.type
-      if (s.kind) merged.kind = s.kind
       for (const k of ['tags', 'notTags', 'status', 'notStatus'] as const) if (s[k]?.length) merged[k] = [...(merged[k] ?? []), ...s[k]!]
     }
     for (let i = 0; i < sels.length; i++) for (let j = i + 1; j < sels.length; j++) if (!hostsOverlap(sels[i], sels[j], onto)) return false

@@ -158,7 +158,7 @@ export class EffectRunner {
     const eng = this.eng
     const w = eng.world
     const host = this.hostEntity(ev)
-    if (RESIDENT_ONLY.has(eff.op) && (!host || w.kindOf(host) !== 'resident')) throw new Error(`${eff.op} is the story's and the world's only`)
+    if (RESIDENT_ONLY.has(eff.op) && (!host || !w.isPlaceless(host))) throw new Error(`${eff.op} is the story's and the world's only`)
     switch (eff.op) {
       case 'spawn': {
         const type = this.typeOf(ev, eff.type)
@@ -171,12 +171,12 @@ export class EffectRunner {
           if (!place) continue
           const made = w.create(type, place)
           // an actor never appears on top of another, or in a wall: it takes the nearest free tile
-          if (place.on === 'tile' && w.kindOf(made) === 'actor' && !w.walkable(place.map, place.x, place.y, made.id)) {
+          if (place.on === 'tile' && w.isAgent(made) && !w.walkable(place.map, place.x, place.y, made.id)) {
             const free = eng.nearestFree({ map: place.map, x: place.x, y: place.y })
             if (free) w.place(made, (place = { on: 'tile', map: free.map, x: free.x, y: free.y }))
           }
           // a creature a rule brings (a dragon's whelps) comes with the behaviour its type names, at home where it appears
-          if (place.on === 'tile' && w.kindOf(made) === 'actor' && w.hasTag(made, 'creature') && !made.ai) {
+          if (place.on === 'tile' && w.isAgent(made) && w.hasTag(made, 'creature') && !made.ai) {
             const behaviour = (w.prop(made, 'behaviour') as AiData['behaviour'] | undefined) ?? 'melee'
             const temper = (w.prop(made, 'temper') as AiData['temper'] | undefined) ?? 'aggressive'
             made.facing = 'down'
@@ -184,7 +184,7 @@ export class EffectRunner {
           }
           eng.touch({ e: made.id })
           // an item a rule drops on the ground pops out for the player's magnet (unless it lies still: taken with F)
-          if (place.on === 'tile' && w.kindOf(made) === 'item' && !eff.still) made.dropped = true
+          if (place.on === 'tile' && w.isPortable(made) && !eff.still) made.dropped = true
         }
         return
       }
@@ -289,7 +289,8 @@ export class EffectRunner {
         return
       }
       case 'gainXp': {
-        if (!host || w.kindOf(host) !== 'actor') return
+        // a thing that has a level can learn (any thing with the prop, not only people)
+        if (!host || w.prop(host, 'level') === undefined) return
         const n = Math.round(this.amount(ev, eff.amount))
         if (n <= 0) return
         const up = gainXp(w, host, n)
@@ -433,7 +434,7 @@ export class EffectRunner {
         return
       }
       case 'say': {
-        const ref = eff.who && host && w.kindOf(host) === 'resident' ? this.roleRef(ev, eff.who) : ev.host
+        const ref = eff.who && host && w.isPlaceless(host) ? this.roleRef(ev, eff.who) : ev.host
         const who = ref && 'e' in ref ? w.get(ref.e) : undefined
         if (!who) return
         if (eff.text === '@given') {

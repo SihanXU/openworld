@@ -82,6 +82,17 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
     expect(found).toEqual([])
   })
 
+  it('there are no kinds: no code branches on what kind of thing something is, no type or selector names one (world-model.md §4.2)', () => {
+    const found: string[] = []
+    for (const { file, lines } of sources())
+      lines.forEach((l, i) => {
+        const c = code(l)
+        if (c.startsWith('*') || c.startsWith('/*')) return
+        if (/\bkindOf\(/.test(c) || /\bkind: '(actor|item|fixture|tile|resident)'/.test(c) || /\bEntityKind\b/.test(c)) found.push(`${file}:${i + 1}: ${c.slice(0, 120)}`)
+      })
+    expect(found).toEqual([])
+  })
+
   it('the scan sees the ways around the mutators, and not their definitions', () => {
     const hit = (c: string) => WRITES.some((re) => re.test(c))
     for (const c of [

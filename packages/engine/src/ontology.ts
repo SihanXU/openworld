@@ -1,11 +1,10 @@
 // The is-a hierarchy. Type ids are slash paths, so `a isA b` is a prefix test; the
 // registry merges tags/props/sprite down the chain and caches the result per type.
 
-import type { EntityKind, Ontology, PropValue, StatusDef, TerrainDef, TypeDef } from './types.ts'
+import type { Ontology, PropValue, StatusDef, TerrainDef, TypeDef } from './types.ts'
 
 export interface ResolvedType {
   id: string
-  kind: EntityKind | 'tile'
   tags: string[]
   props: Record<string, PropValue>
   sprite?: string
@@ -84,7 +83,6 @@ export class OntologyIndex {
     const chain: string[] = []
     const tags = new Set<string>()
     const props: Record<string, PropValue> = {}
-    let kind: ResolvedType['kind'] = parts[0] === 'tile' ? 'tile' : (parts[0] as EntityKind)
     let sprite: string | undefined
     let solid = false
     let footprint: [number, number] = [1, 1]
@@ -95,7 +93,6 @@ export class OntologyIndex {
       const def = this.data.types[p]
       if (!def) continue
       chain.push(p)
-      kind = def.kind
       for (const t of def.tags ?? []) tags.add(t)
       Object.assign(props, def.props ?? {})
       if (def.sprite) sprite = def.sprite
@@ -104,7 +101,7 @@ export class OntologyIndex {
       if (def.reach) reach = def.reach
       if (def.name) name = def.name
     }
-    const r: ResolvedType = { id, kind, tags: [...tags], props, sprite, solid, footprint, reach, name, chain, depth: parts.length }
+    const r: ResolvedType = { id, tags: [...tags], props, sprite, solid, footprint, reach, name, chain, depth: parts.length }
     this.cache.set(id, r)
     return r
   }

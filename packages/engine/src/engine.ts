@@ -184,7 +184,7 @@ export class Engine {
     // a thing on a dormant map receives it when the player comes (design.md §5.12); people and residents at once
     const at = 'tile' in ev.host ? ev.host.tile : w.posOf(host)
     // (an act is made by one who acts now — a companion following its leader off a map — and resolves at once)
-    if (at && at.map !== this.activeMap && !ev.kind.startsWith('act/') && !(host && (host.npc || w.kindOf(host) === 'resident'))) {
+    if (at && at.map !== this.activeMap && !ev.kind.startsWith('act/') && !(host && (host.npc || w.isPlaceless(host)))) {
       const d = ((w.state.dormant ??= {})[at.map] ??= { since: w.state.tick, inbox: [] })
       d.inbox.push(ev)
       return { defined: false }
@@ -394,7 +394,7 @@ export class Engine {
       if (x === b.x && y === b.y) return true
       const tags = w.onto.terrain(w.terrainAt(map, x, y))?.tags ?? []
       if (tags.some((t) => OPAQUE_TERRAIN.includes(t))) return false
-      if (w.entitiesAt(map, x, y).some((o) => w.kindOf(o) === 'fixture' && (w.hasTag(o, 'opaque') || w.hasTag(o, 'tall')))) return false
+      if (w.entitiesAt(map, x, y).some((o) => w.hasTag(o, 'opaque') || w.hasTag(o, 'tall'))) return false
     }
     return true
   }
@@ -406,7 +406,8 @@ export class Engine {
     const at = w.posOf(doer)
     if (!doer || !at) return
     for (const e of w.entitiesOnMap(at.map)) {
-      if (e.id === doer.id || e.place.on !== 'tile' || w.kindOf(e) !== 'actor' || this.asleep(e) || this.busy(e)) continue
+      // a seer is anything with sight of its own
+      if (e.id === doer.id || e.place.on !== 'tile' || !(w.num(e, 'sight') > 0) || this.asleep(e) || this.busy(e)) continue
       const p = e.place
       if (Math.max(Math.abs(p.x - at.x), Math.abs(p.y - at.y)) > this.sightOf(e, p)) continue
       if (!this.lineOfSight(at.map, p, at)) continue
@@ -435,7 +436,7 @@ export class Engine {
    */
   hostileTo(a: Entity, b: Entity): boolean {
     const w = this.world
-    if (!a.ai || a.id === b.id || w.kindOf(b) !== 'actor' || b.place.on !== 'tile' || w.hasStatus({ e: b.id }, 'down')) return false
+    if (!a.ai || a.id === b.id || !w.isAgent(b) || b.place.on !== 'tile' || w.hasStatus({ e: b.id }, 'down')) return false
     if (a.ai.foes?.includes(b.id)) return true
     const t = a.ai.temper
     if (t === 'wary' || (t === 'nocturnal' && !isNight(w.hour()))) return false
@@ -564,12 +565,12 @@ export class Engine {
         hosts.add(r.e)
         const e = w.get(r.e)
         addTile(w.posOf(e))
-        // where it was: the tiles of its old relations, and whoever lay on it (a fixture moved or gone)
+        // where it was: the tiles of its old relations, and whoever lay on it (a thing with a reach moved or gone)
         for (const k of rel[r.e] ?? []) {
           const to = k.slice(k.indexOf('|') + 1)
           if (to.startsWith('t|')) tiles.add(to.slice(2).split('#')[0])
         }
-        if (!e || w.kindOf(e) === 'fixture') for (const [h, ks] of Object.entries(rel)) if (ks.includes(`on|${r.e}`)) hosts.add(h)
+        if (!e || w.reachOf(e).length) for (const [h, ks] of Object.entries(rel)) if (ks.includes(`on|${r.e}`)) hosts.add(h)
       }
     }
     for (const t of tiles) {
@@ -584,7 +585,7 @@ export class Engine {
     const w = this.world
     const rel = (w.state.relations ??= {})
     const e = w.get(key)
-    const now = e && e.place.on !== 'none' && w.kindOf(e) !== 'resident' ? w.relationsOf(e) : []
+    const now = e && e.place.on !== 'none' && !w.isPlaceless(e) ? w.relationsOf(e) : []
     const was = rel[key] ?? []
     if (now.length) rel[key] = now
     else delete rel[key]
@@ -821,8 +822,8 @@ export class Engine {
       const y = start.y + dy * i
       if (!w.inBounds(start.map, x, y)) break
       last = { map: start.map, x, y }
-      // an actor first, then a fixture (a blow on the well is a blow on the well)
-      const victim = w.actorAt(start.map, x, y, a.id) ?? w.entitiesAt(start.map, x, y).find((e) => w.kindOf(e) === 'fixture')
+      // a body first, then what stands there and cannot be carried (a blow on the well is a blow on the well)
+      const victim = w.actorAt(start.map, x, y, a.id) ?? w.entitiesAt(start.map, x, y).find((e) => !w.isAgent(e) && !w.isPortable(e))
       if (victim) {
         target = { e: victim.id }
         break

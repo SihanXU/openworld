@@ -20,8 +20,6 @@ export const DIRS: Record<Dir, [number, number]> = {
 
 // ------------------------------------------------------------------ ontology
 
-export type EntityKind = 'actor' | 'item' | 'fixture' | 'resident'
-
 /**
  * A 16x16 icon as data: one string per row, one character per pixel ("." transparent), each
  * other character a colour of the palette. Things the world learned carry their own picture
@@ -33,9 +31,13 @@ export interface PixelArt {
 }
 
 /** A node in the is-a hierarchy. Type ids are slash paths: `item/container/bucket`. */
+/**
+ * A type of thing (world-model.md §4). There are no kinds: everything descends from the one root,
+ * and whatever the engine asks of a thing is data here, inherited down the type path (the tags
+ * `agent` — acts by itself with a body — and `portable`, the stances it `reach`es, its props).
+ */
 export interface TypeDef {
   id: string
-  kind: EntityKind | 'tile'
   name?: Text
   /** Tags inherited by every instance (instances may add more). */
   tags?: string[]
@@ -53,7 +55,7 @@ export interface TypeDef {
    * while it is there. Default [1, 1].
    */
   footprint?: [number, number]
-  /** Fixtures: the stances it acts on (default `ground`). A thing's own stance is its `stance` prop. */
+  /** The stances it acts on: what can stand or lie on it (none by default). A thing's own stance is its `stance` prop. */
   reach?: string[]
 }
 
@@ -680,9 +682,7 @@ export interface GameEvent {
 
 /** Selects the entity or tile filling a role. All given constraints must hold. */
 export interface Selector {
-  /** `tile`, `actor`, `item`, `fixture`, `resident`. */
-  kind?: EntityKind | 'tile' | 'resident'
-  /** Is-a match against the type hierarchy (prefix on slash paths). */
+  /** Is-a match against the type hierarchy (prefix on slash paths): `actor`, `item/food`, `tile/grass`… */
   type?: string
   /** All of these tags. */
   tags?: string[]

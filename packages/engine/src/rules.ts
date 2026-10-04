@@ -29,7 +29,6 @@ export function cmp(v: PropValue | undefined, c: Cmp): boolean {
 export function matchSelector(sel: Selector | undefined, v: View | undefined): boolean {
   if (!sel) return true
   if (!v) return false
-  if (sel.kind && v.kind !== sel.kind) return false
   if (sel.type && !isA(v.type, sel.type)) return false
   if (sel.id && v.id !== sel.id) return false
   for (const t of sel.tags ?? []) if (!v.tags.has(t)) return false
@@ -179,14 +178,47 @@ export const isHole = (l: Leaf): l is { undefined: true; default?: import('./typ
 
 // ---------------------------------------------------------------- specificity
 
+/**
+ * Rules written before there were no kinds (world-model.md §4.1) selected `{kind: 'actor'}`;
+ * the kind names are the type tree's roots, so such a selector is `{type: 'actor'}` (or, when it
+ * also named a type, just that type). Applied in place to a rule's host, its conditions' selectors
+ * and its emissions' filters whenever a rule enters a library (old saves, old patches).
+ */
+export function selectByType(rule: Rule): Rule {
+  const fix = (s: unknown): void => {
+    if (!s || typeof s !== 'object' || !('kind' in s)) return
+    const sel = s as { kind?: unknown; type?: string }
+    if (typeof sel.kind === 'string' && !sel.type) sel.type = sel.kind
+    delete sel.kind
+  }
+  const tree = (t: unknown): void => {
+    if (!t || typeof t !== 'object') return
+    const node = t as Record<string, unknown>
+    if ('if' in node) (cond(node.if), tree(node.then), tree(node.else))
+    for (const e of (Array.isArray(node.do) ? node.do : []).concat(Array.isArray(node.default) ? node.default : [])) fix((e as { filter?: unknown })?.filter)
+  }
+  const cond = (c: unknown): void => {
+    if (!c || typeof c !== 'object') return
+    const node = c as Record<string, unknown>
+    for (const k of ['all', 'any']) if (Array.isArray(node[k])) (node[k] as unknown[]).forEach(cond)
+    if (node.not) cond(node.not)
+    if (node.is && typeof node.is === 'object') fix((node.is as { sel?: unknown }).sel)
+  }
+  fix(rule.host)
+  tree(rule.tree)
+  return rule
+}
+
 /** Lexicographic: (instance-bound, host type depth, host constraints, event kind depth). */
 export type Spec = [number, number, number, number]
 
 export function specOf(rule: Rule): Spec {
   const s = rule.host ?? {}
   const inst = s.id ? 1 : 0
-  const depth = s.type ? typeDepth(s.type) : 0
-  const n = (s.kind ? 1 : 0) + (s.tags?.length ?? 0) + (s.notTags?.length ?? 0) + (s.status?.length ?? 0) + (s.notStatus?.length ?? 0) + Object.keys(s.props ?? {}).length
+  // a type below the root is one level deeper; naming a root type (actor, item, fixture, tile) is
+  // one constraint, as naming its kind was before there were none
+  const depth = s.type ? typeDepth(s.type) - 1 : 0
+  const n = (s.type ? 1 : 0) + (s.tags?.length ?? 0) + (s.notTags?.length ?? 0) + (s.status?.length ?? 0) + (s.notStatus?.length ?? 0) + Object.keys(s.props ?? {}).length
   return [inst, depth, n, rule.on.split('/').length]
 }
 
@@ -256,6 +288,7 @@ export class RuleLibrary {
   }
 
   private put(r: Rule): void {
+    selectByType(r)
     this.rules.set(r.id, r)
     this.specs.set(r.id, specOf(r))
     this.rebuild(r.on.split('/')[0])

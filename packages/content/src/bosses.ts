@@ -46,8 +46,8 @@ export const BOSSES: BossDef[] = [
 ]
 export const BOSS_BY_ID = Object.fromEntries(BOSSES.map((b) => [b.id, b]))
 export const BOSS_TYPES: TypeDef[] = [
-  { id: 'actor/creature/sin', kind: 'actor', name: L('Sin sovereign', '原罪领主'), tags: ['boss'], props: { range: 1 } },
-  ...BOSSES.map((b): TypeDef => ({ id: `actor/creature/sin/${b.id}`, kind: 'actor', name: b.name, sprite: `boss:sin:${b.id}`, footprint: b.footprint,
+  { id: 'actor/creature/sin', name: L('Sin sovereign', '原罪领主'), tags: ['boss'], props: { range: 1 } },
+  ...BOSSES.map((b): TypeDef => ({ id: `actor/creature/sin/${b.id}`, name: b.name, sprite: `boss:sin:${b.id}`, footprint: b.footprint,
     tags: b.id === 'envy' ? ['small'] : ['large'], props: { hp: b.hp, maxHp: b.hp, def: b.defense, atk: b.skills[0].damage, speed: 8 } })),
 ]
 export const BOSS_STATUSES: StatusDef[] = [
@@ -86,7 +86,7 @@ export const BOSS_RULES: Rule[] = [
     id: 'sins/afflict',
     source: { origin: 'base' },
     doc: 'What a sin\'s skill leaves clinging to a body: a mire that slows it, a trance that holds it.',
-    host: { kind: 'actor' },
+    host: { type: 'actor' },
     on: 'impulse/coat',
     tree: {
       if: { param: { key: 'substance', cmp: 'mired' } },

@@ -79,7 +79,7 @@ export function designUser(req: ModRequest, recall: Recall, brief?: string, adde
   if (brief) out.push('', brief)
   if (added && (added.types.length || added.statuses.length)) {
     out.push('', '# Types and statuses added by patches (beyond the ModSpec; use them like any other)')
-    for (const t of added.types) out.push(`- type ${JSON.stringify({ id: t.id, kind: t.kind, tags: t.tags ?? [], name: t.name })}`)
+    for (const t of added.types) out.push(`- type ${JSON.stringify({ id: t.id, tags: t.tags ?? [], name: t.name })}`)
     for (const s of added.statuses) out.push(`- status ${JSON.stringify({ id: s.id, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears })}`)
   }
   out.push('', '# Your skills (read one with read_skill)')
@@ -268,7 +268,7 @@ export function createUser(creations: Creation[]): string {
     '# Create',
     `The world is making ${creations.length === 1 ? 'a new thing' : 'new things'}: ${creations.map((c) => `${c.id} (${c.name.en} / ${c.name.zh})`).join(', ')}.`,
     'Write the patch with, for each, a type artifact beside your rule(s):',
-    '{"kind": "type", "type": {"id": "<parent>/<snake_case>", "kind": "item|fixture|actor", "name": {"en": "...", "zh": "..."}, "tags": ["only what it adds to its parent"], "props": {}}}',
+    '{"kind": "type", "type": {"id": "<parent>/<snake_case>", "name": {"en": "...", "zh": "..."}, "tags": ["only what it adds to its parent"], "props": {}}}',
     '- The parent must exist; the new type inherits its tags and its rules, so choose the parent whose behaviour fits (an ingot under item/material, a dish under item/food).',
     '- Its name is what a player would call it, in both languages; it must not be another name for a thing the world has.',
     '- Do not draw it: an artist draws its icon next.',

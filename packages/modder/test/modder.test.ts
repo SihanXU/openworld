@@ -527,11 +527,11 @@ describe('deterministic repairs', () => {
   })
 
   it('reads a bare terrain id as its tile type, in the host and in conditions', () => {
-    // 2026-10-03, Kimi K3: {"kind": "tile", "type": "bush"} for the bush tile
-    const r: Rule = { id: 'patch/bush-chop', host: { kind: 'tile', type: 'bush' }, on: 'impulse/strike', doc: 'd', tree: { if: { is: { role: 'other', sel: { type: 'grass' } } }, then: { do: [{ op: 'vfx', fx: 'leaves' }] } } }
+    // 2026-10-03, Kimi K3: {"kind": "tile", "type": "bush"} for the bush tile (the kind goes in normalizePatch)
+    const r: Rule = { id: 'patch/bush-chop', host: { type: 'bush' }, on: 'impulse/strike', doc: 'd', tree: { if: { is: { role: 'other', sel: { type: 'grass' } } }, then: { do: [{ op: 'vfx', fx: 'leaves' }] } } }
     const { patch, fixes } = qualifyTerrains(patchOf(r), onto)
     const q = (patch.artifacts[0] as { rule: Rule }).rule
-    expect(q.host).toEqual({ kind: 'tile', type: 'tile/bush' })
+    expect(q.host).toEqual({ type: 'tile/bush' })
     expect((q.tree as { if: { is: { sel: unknown } } }).if.is.sel).toEqual({ type: 'tile/grass' })
     expect(fixes).toHaveLength(2)
     // a real type of that name is left alone, and the validator says what the terrain is called
@@ -636,7 +636,7 @@ describe('the router: local, then find, then create', () => {
   }
   /** A creature offered rope leaves something behind: the router's answers are scripted by what each call shows. */
   const leaves = (type: string): Rule => ({ id: 'patch/rope-on-creature-leaves', host: { type: 'actor/creature' }, on: 'impulse/offered', doc: `A creature offered rope leaves ${type} behind.`, tree: { if: FIBER, then: { do: [{ op: 'spawn', type, at: 'host' }, { op: 'log', text: { en: 'Something drops.', zh: '掉下了东西。' } }] } } })
-  const INGOT_TYPE = { id: 'item/material/iron_ingot', kind: 'item' as const, name: { en: 'Iron Ingot', zh: '铁锭' }, tags: ['metal'] }
+  const INGOT_TYPE = { id: 'item/material/iron_ingot', name: { en: 'Iron Ingot', zh: '铁锭' }, tags: ['metal'] }
 
   function router(o: { local: unknown; find?: unknown; create?: unknown; art?: (n: number) => unknown; onArt?: () => void }) {
     const seen: { purpose?: string; system: string; last: string }[] = []

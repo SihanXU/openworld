@@ -21,7 +21,6 @@ export interface ItemInfo {
 export interface EntitySnap {
   id: Id
   type: string
-  kind: string
   sprite: string
   x: number
   y: number
@@ -161,7 +160,6 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     entities.push({
       id: e.id,
       type: e.type,
-      kind: r.kind,
       sprite: r.sprite ?? e.type,
       x: e.place.x,
       y: e.place.y,
@@ -169,8 +167,8 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       statuses: Object.keys(e.statuses ?? {}),
       tags: [...r.tags, ...(e.tags ?? [])],
       name: e.name ?? r.name ?? e.type.split('/').pop()!,
-      hp: r.kind === 'actor' ? w.num(e, 'hp') : undefined,
-      maxHp: r.kind === 'actor' ? w.num(e, 'maxHp', 1) : undefined,
+      hp: w.prop(e, 'maxHp') !== undefined ? w.num(e, 'hp') : undefined,
+      maxHp: w.prop(e, 'maxHp') !== undefined ? w.num(e, 'maxHp', 1) : undefined,
       appearance: e.npc?.appearance ?? (e.id === w.state.player ? PLAYER_LOOK : e.npc ? PLAYER_LOOK : undefined),
       look: e.look ?? e.npc?.look,
       hostile: e.ai ? e.ai.state === 'chase' : undefined,
@@ -259,7 +257,7 @@ function questsOf(eng: Engine, entities: EntitySnap[]): Frame['quests'] {
   const marks: Record<Id, '!' | '?'> = {}
   if (eng.quests.defs.length)
     for (const e of entities) {
-      if (e.kind !== 'actor' || !e.tags.includes('person')) continue
+      if (!e.tags.includes('person')) continue
       const m = eng.quests.mark(e.id)
       if (m) marks[e.id] = m
     }

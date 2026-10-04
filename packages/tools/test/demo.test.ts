@@ -35,6 +35,7 @@ import {
   type Patch,
   type Plan,
   type Ref,
+  type World,
 } from '@lsw/engine'
 import { BASE_RULES, CROP_STAGES, FIRSTLIGHT, PROLOGUE_DONE, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILLS, STORY_RULES, VEGETABLE_CROPS, buildOntology, decodeChunk } from '@lsw/content'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
@@ -85,6 +86,8 @@ function fresh(opts: { arrival?: boolean; ai?: boolean } = {}): Ford {
 }
 
 const W = (f: Ford) => f.eng.world
+/** What the demo's checks call a thing's form: a body that acts, a thing to carry, or what stands there — read from its data. */
+const formOf = (w: World, e: Entity) => (w.isPlaceless(e) ? 'resident' : w.isAgent(e) ? 'actor' : w.isPortable(e) ? 'item' : 'fixture')
 /** The test sets the scene: an author's hand, not a change the world made. */
 const author = <T>(f: Ford, fn: () => T): T => f.eng.author(fn)
 const ofType = (f: Ford, type: string) => Object.values(W(f).state.entities).find((e) => e.type === type)
@@ -412,7 +415,7 @@ req('E4', 'the library is shared and persistent: a save keeps it, a new game kee
 
 req('C1', 'every kind of thing: the player, people, creatures, items, fixtures, tiles with statuses, and the residents', ['npc.hesper', 'npc.tobin', 'actor/creature/slime/fire_slime', 'item/tool/rope', 'fixture/light/campfire'], () => {
   const f = fresh()
-  const kinds = new Set<string>(Object.values(W(f).state.entities).filter((e) => e.place.on !== 'none').map((e) => (e.npc ? 'person' : e.ai ? 'creature' : W(f).kindOf(e))))
+  const kinds = new Set<string>(Object.values(W(f).state.entities).filter((e) => e.place.on !== 'none').map((e) => (e.npc ? 'person' : e.ai ? 'creature' : formOf(W(f), e))))
   for (const k of ['actor', 'person', 'creature', 'item', 'fixture', 'resident']) expect([k, kinds.has(k)]).toEqual([k, true])
   // tiles take statuses (the oiled path of B5, the burning meadow): a tile here can burn
   expect(W(f).map('ford')!.terrain.includes('drygrass')).toBe(true)
@@ -446,7 +449,7 @@ req('D2', 'every layer a target can be: a person, a creature, a fixture, a loose
   // the cart is in Firstlight Village now
   stand(f, ...STAND.cart, 'left', FIRSTLIGHT.map)
   const layers = f.eng.controls.layers({ map: FIRSTLIGHT.map, ...at(...AT.cart) })
-  const kinds = layers.map((r) => ('tile' in r ? 'ground' : W(f).kindOf(W(f).get(r.e)!)))
+  const kinds = layers.map((r) => ('tile' in r ? 'ground' : formOf(W(f), W(f).get(r.e)!)))
   expect(kinds).toEqual(['item', 'item', 'fixture', 'ground'])
   hold(f, ofType(f, 'item/food/bread'))
   for (const key of ['hands', 'take', 'use', 'put'] as Key[]) {

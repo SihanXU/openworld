@@ -56,7 +56,7 @@ function plan(eng: Engine, actorId: Id, recipe: PlacementRecipe, at: Pos) {
   if (actor.place.map !== at.map || Math.max(Math.abs(actor.place.x - at.x), Math.abs(actor.place.y - at.y)) > 1)
     return fail('Move next to the target.', '请走到目标格旁边。')
   const es = w.entitiesAt(at.map, at.x, at.y)
-  if (recipe.empty && es.some((e) => recipe.empty === 'all' || w.kindOf(e) !== 'actor')) return fail('This tile is occupied.', '这格有东西，无法放置。')
+  if (recipe.empty && es.some((e) => recipe.empty === 'all' || !w.isAgent(e))) return fail('This tile is occupied.', '这格有东西，无法放置。')
   if (recipe.excludeTerrain?.includes(w.terrainAt(at.map, at.x, at.y))) return fail('Already prepared.', '这格已经是耕地了。')
   const tile = { tile: at }
   const entity = es.find((e) => !e.frozenBy && matchSelector(recipe.site, w.view({ e: e.id })))

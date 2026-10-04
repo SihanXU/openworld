@@ -3,7 +3,7 @@
 // the latency bench, every malformed first answer had a correct rule inside the wrong wrapper.
 // Each fix is recorded on the attempt, so the episode shows what was changed and why.
 
-import { PRIMITIVES, type Artifact, type Cond, type Effect, type ModRequest, type Ontology, type Patch, type Rule, type Selector, type Tree, type ValidationResult } from '@lsw/engine'
+import { PRIMITIVES, selectByType, type Artifact, type Cond, type Effect, type ModRequest, type Ontology, type Patch, type Rule, type Selector, type Tree, type ValidationResult } from '@lsw/engine'
 
 const looksLikeRule = (x: Record<string, unknown>) => typeof x.on === 'string' && (!!x.tree || Array.isArray(x.do))
 
@@ -47,6 +47,13 @@ export function normalizePatch(x: unknown): { patch?: Patch; fixes: string[] } {
       continue
     }
     artifacts.push(a as unknown as Artifact) // let the validator say what is wrong with it
+  }
+  // there are no kinds (world-model.md §4.1): a selector naming one selects by that root type
+  for (const a of artifacts) {
+    if (a?.kind !== 'rule' || !a.rule) continue
+    const before = JSON.stringify(a.rule)
+    selectByType(a.rule)
+    if (JSON.stringify(a.rule) !== before) fixes.push(`rule "${a.rule.id}" selected by kind: now by its root type`)
   }
   return { patch: { ...(o as object), artifacts } as Patch, fixes }
 }

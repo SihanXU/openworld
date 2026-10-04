@@ -6,7 +6,6 @@ import { nextRandom } from './rng.ts'
 import type {
   Dir,
   Entity,
-  EntityKind,
   FxEvent,
   Id,
   MapData,
@@ -30,13 +29,11 @@ export const REVERSE: Record<string, string> = { on: 'under', in: 'contains', he
 /** A uniform read-only view of whatever fills an event role. */
 export interface View {
   ref: Ref
-  kind: EntityKind | 'tile'
   type: string
   tags: Set<string>
   statuses: Set<string>
   props: Record<string, PropValue>
   id?: Id
-  isPlayer: boolean
   entity?: Entity
 }
 
@@ -102,10 +99,10 @@ export class World {
     const of = target === 'fact' ? 'a fact' : name('id' in target ? { e: target.id } : target)
     throw new WriteError(`${what} of ${of} in an outcome of ${name(s.host)}: an outcome writes only its host (design.md §5.13, A3)`)
   }
-  /** Whether an outcome of `s.host` may write `target`: itself, what it holds, what it made; facts if it is a resident. */
+  /** Whether an outcome of `s.host` may write `target`: itself, what it holds, what it made; facts if it keeps no place (the story, the world). */
   private reaches(s: { host: Ref; made: Set<Id> }, target: Entity | Ref | 'fact'): boolean {
     const h = s.host
-    if (target === 'fact') return 'e' in h && !!this.get(h.e) && this.kindOf(this.get(h.e)!) === 'resident'
+    if (target === 'fact') return 'e' in h && !!this.get(h.e) && this.isPlaceless(this.get(h.e)!)
     if ('tile' in target) return 'tile' in h && h.tile.map === target.tile.map && h.tile.x === target.tile.x && h.tile.y === target.tile.y
     if (!('e' in h)) return false
     let e: Entity | undefined = 'id' in target ? target : this.get(target.e)
@@ -168,9 +165,9 @@ export class World {
     this.onMap.get(e.place.map)?.delete(e.id)
   }
 
-  /** Actors occupy every base cell; fixtures retain their existing anchor/solidAt queries. */
+  /** Agents occupy every base cell; other things keep their anchor tile (solidAt reads their footprint). */
   occupiedCells(e: Entity, x = e.place.on === 'tile' ? e.place.x : 0, y = e.place.on === 'tile' ? e.place.y : 0): [number, number][] {
-    const [width, depth] = this.kindOf(e) === 'actor' ? this.onto.resolve(e.type).footprint : [1, 1]
+    const [width, depth] = this.isAgent(e) ? this.onto.resolve(e.type).footprint : [1, 1]
     const cells: [number, number][] = []
     for (let dy = 0; dy < depth; dy++) for (let dx = 0; dx < width; dx++) cells.push([x - Math.floor((width - 1) / 2) + dx, y - dy])
     return cells
@@ -220,12 +217,26 @@ export class World {
     return out
   }
 
-  kindOf(e: Entity): EntityKind {
-    return this.onto.resolve(e.type).kind as EntityKind
+  // ---------------------------------------------------------------- what a thing is, as data (world-model.md §4.2)
+
+  /** Does it act by itself, with a body that takes its cells? (the `agent` tag) */
+  isAgent(e: Entity): boolean {
+    return this.hasTag(e, 'agent')
   }
 
+  /** Can it be carried? (the `portable` tag) */
+  isPortable(e: Entity): boolean {
+    return this.hasTag(e, 'portable')
+  }
+
+  /** Does it keep no place on any map (the story, the world)? */
+  isPlaceless(e: Entity): boolean {
+    return e.place.on === 'resident'
+  }
+
+  /** A body standing on the tile: an agent that does not fly over it. */
   actorAt(map: string, x: number, y: number, ignore?: Id): Entity | undefined {
-    return this.entitiesAt(map, x, y).find((e) => e.id !== ignore && this.kindOf(e) === 'actor' && !this.hasTag(e, 'airborne'))
+    return this.entitiesAt(map, x, y).find((e) => e.id !== ignore && this.isAgent(e) && !this.hasTag(e, 'airborne'))
   }
 
   /** Map position of an entity, following holders (an item in a hand is where the hand is). Residents have none. */
@@ -306,7 +317,7 @@ export class World {
         for (const e of this.entitiesAt(map, x + dx, y + dy)) {
           if (e.id === ignore) continue
           const r = this.onto.resolve(e.type)
-          if (r.kind === 'fixture' && r.solid && this.covers(e, map, x, y)) return e
+          if (r.solid && !this.isAgent(e) && this.covers(e, map, x, y)) return e
         }
     return undefined
   }
@@ -329,7 +340,7 @@ export class World {
     if (!this.inBounds(map, x, y)) return false
     if (this.blocked(map, x, y, ignore)) return false
     for (const e of this.entitiesAt(map, x, y)) {
-      if (e.id === ignore || this.kindOf(e) !== 'actor') continue
+      if (e.id === ignore || !this.isAgent(e)) continue
       if (ghostNpcs && e.npc) continue
       // a bird over the path is no wall
       if (this.hasTag(e, 'airborne')) continue
@@ -352,14 +363,15 @@ export class World {
   }
 
   /** The stances a fixture acts on. */
+  /** The stances a thing acts on: what can stand or lie on it (none unless its type says). */
   reachOf(e: Entity): string[] {
-    return this.onto.resolve(e.type).reach ?? ['ground']
+    return this.onto.resolve(e.type).reach ?? []
   }
 
   /**
    * A thing's own relations, as `how|key`: on its tile (keyed with its terrain, so ice thawing to
-   * water underfoot is a new contact) and on the fixtures there, when its stance
-   * is in their reach (a flyer touches neither lava nor flowers); in its holder; held in a hand.
+   * water underfoot is a new contact) and on the things there whose reach includes its stance
+   * (a flyer touches neither lava nor flowers); in its holder; held in a hand.
    */
   relationsOf(e: Entity): string[] {
     const p = e.place
@@ -369,8 +381,9 @@ export class World {
     const st = this.stanceOf(e)
     const out: string[] = []
     if (this.tileReach(p.map, p.x, p.y).includes(st)) out.push(`on|t|${tileKey(p.map, p.x, p.y)}#${this.terrainAt(p.map, p.x, p.y)}`)
-    if (this.kindOf(e) !== 'fixture')
-      for (const f of this.entitiesAt(p.map, p.x, p.y)) if (f.id !== e.id && this.kindOf(f) === 'fixture' && this.reachOf(f).includes(st)) out.push(`on|${f.id}`)
+    // what has a reach of its own is ground for others, not something that lies on them
+    if (!this.reachOf(e).length)
+      for (const f of this.entitiesAt(p.map, p.x, p.y)) if (f.id !== e.id && this.reachOf(f).includes(st)) out.push(`on|${f.id}`)
     return out
   }
 
@@ -385,12 +398,10 @@ export class World {
       const st = this.tileState(map, x, y)?.statuses
       return {
         ref,
-        kind: 'tile',
         type: `tile/${terrain}`,
         tags: new Set(def?.tags ?? []),
         statuses: new Set(st ? Object.keys(st) : []),
         props: {},
-        isPlayer: false,
       }
     }
     const e = this.get(ref.e)
@@ -400,13 +411,11 @@ export class World {
     for (const t of e.tags ?? []) tags.add(t)
     return {
       ref,
-      kind: r.kind,
       type: e.type,
       tags,
       statuses: new Set(e.statuses ? Object.keys(e.statuses) : []),
       props: { ...r.props, ...(e.props ?? {}) },
       id: e.id,
-      isPlayer: e.id === this.state.player,
       entity: e,
     }
   }

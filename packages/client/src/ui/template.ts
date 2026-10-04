@@ -9,7 +9,7 @@ export function template(r: RecordView): Patch {
   const ev = req.event
   const host = ev.host
   const leaf = (t?: { type: string }) => (t ? t.type.split('/').pop()! : 'thing')
-  const hostType = !host ? undefined : host.kind === 'tile' ? host.type : host.typeChain.length > 1 ? host.typeChain[host.typeChain.length - 2] : host.type
+  const hostType = !host ? undefined : host.type.startsWith('tile/') ? host.type : host.typeChain.length > 1 ? host.typeChain[host.typeChain.length - 2] : host.type
   // the host as the scenario names it (its role's key); a tile or a resident has no entity to expect
   const sc = req.scenario.event
   const hostKey = sc.host ?? sc.instrument ?? sc.actor ?? sc.target
@@ -22,7 +22,7 @@ export function template(r: RecordView): Patch {
         kind: 'rule',
         rule: {
           id: `patch/${leaf(host)}-${ev.kind.replace('/', '-')}`,
-          host: hostType ? { type: hostType } : { kind: 'fixture' },
+          host: { type: hostType ?? 'fixture' },
           on: ev.kind,
           doc: 'TODO: one-line description',
           tree: { do: [{ op: 'vfx', fx: 'sparkle' }, { op: 'log', text: { en: 'TODO: what happens', zh: 'TODO：发生了什么' } }] },

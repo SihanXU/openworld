@@ -167,7 +167,7 @@ export class Hud {
     for (const id of frozen)
       if (!this.dotEls.has(id)) {
         const el = document.createElement('div')
-        const actor = f.entities.find((e) => e.id === id)?.kind === 'actor'
+        const actor = !!f.entities.find((e) => e.id === id)?.tags.includes('agent')
         el.className = actor ? 'pending-dots working' : 'pending-dots'
         el.innerHTML = actor ? '<span class="gear">✦</span><i></i><i></i><i></i>' : '…'
         $('#labels').appendChild(el)

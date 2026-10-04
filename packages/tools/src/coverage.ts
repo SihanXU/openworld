@@ -101,7 +101,7 @@ export function targets(onto: Ontology): Target[] {
   const place = (id: string, type: string, statuses: string[] = [], tags: string[] = []) =>
     out.push({ id, scenario: (sc) => (sc.entities.push({ key: 'target', type, ...FRONT, statuses, tags }), 'target') })
 
-  const fixtures = Object.keys(onto.types).filter((id) => onto.types[id].kind === 'fixture')
+  const fixtures = Object.keys(onto.types).filter((id) => id === 'fixture' || id.startsWith('fixture/'))
   for (const type of fixtures.filter((id) => !fixtures.some((o) => o.startsWith(id + '/')))) {
     const tags = tagsOf(onto, type)
     place(type, type)
@@ -179,10 +179,10 @@ export function sweep(onto: Ontology = buildOntology(), rules: Rule[] = BASE_RUL
 
 const zero = (): Tally => ({ specific: 0, generic: 0, undefined: 0 })
 
-/** True when a selector picks a thing out by what it is for, not merely by kind or material. */
+/** True when a selector picks a thing out by what it is for, not merely by a root type (actor, item, fixture, tile) or material. */
 function purposeful(sel: Selector | undefined): boolean {
   if (!sel) return false
-  return !!sel.type || !!sel.id || (sel.tags ?? []).some((t) => !MATERIAL_TAGS.has(t))
+  return !!sel.type?.includes('/') || !!sel.id || (sel.tags ?? []).some((t) => !MATERIAL_TAGS.has(t))
 }
 
 /** The selectors a condition singles things out by: `is` patterns and what it counts. */
@@ -208,7 +208,7 @@ function summarize(cells: Cell[], fired: { cell: Cell; rules: string[] }[], onto
   const index = new OntologyIndex(onto)
   const view = (type: string): View => {
     const r = index.resolve(type)
-    return { ref: { e: type }, kind: r.kind, type, tags: new Set(r.tags), statuses: new Set<string>(), props: r.props, isPlayer: false }
+    return { ref: { e: type }, type, tags: new Set(r.tags), statuses: new Set<string>(), props: r.props }
   }
   const fits = (sel: Selector, v: View) => matchSelector({ ...sel, status: undefined, notStatus: undefined, props: undefined }, v)
   const totals = zero()

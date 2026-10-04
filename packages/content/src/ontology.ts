@@ -139,10 +139,9 @@ export const VFX = [
   'shatter',
 ]
 
-const P = (id: string, en: string, zh: string, extra: Partial<TypeDef> = {}): TypeDef => ({ id, kind: 'actor', name: { en, zh }, ...extra })
+const P = (id: string, en: string, zh: string, extra: Partial<TypeDef> = {}): TypeDef => ({ id, name: { en, zh }, ...extra })
 const F = (id: string, en: string, zh: string, tags: string[], extra: Partial<TypeDef> = {}): TypeDef => ({
   id,
-  kind: 'fixture',
   name: { en, zh },
   tags,
   sprite: 'fixture:' + id.split('/').pop(),
@@ -176,7 +175,8 @@ export const PERSON_ROLES: [string, string, string][] = [
 ]
 
 const actorTypes: TypeDef[] = [
-  P('actor', 'creature', '生物'),
+  // an agent acts by itself, with a body that takes its cells (world-model.md §4.2)
+  P('actor', 'creature', '生物', { tags: ['agent'], props: { level: 1 } }),
   P('actor/person', 'person', '人', {
     tags: ['person', 'living', 'talkable', 'faction:folk', 'essential'],
     props: { hp: 20, maxHp: 20, atk: 1, def: 0, speed: 2, sight: 7 },
@@ -241,13 +241,14 @@ function crop(id: string, en: string, zh: string, yieldType: string, young: [str
 
 /** The resident hosts (design.md §5.5): the world (its clocks: the ground's yield, the weather) and the story (its facts and scenes). */
 const RESIDENTS: TypeDef[] = [
-  { id: 'resident', kind: 'resident', name: { en: 'the world', zh: '世界' } },
-  { id: 'resident/world', kind: 'resident', name: { en: 'the world', zh: '世界' } },
-  { id: 'resident/story', kind: 'resident', name: { en: 'the story', zh: '故事' } },
+  { id: 'resident', name: { en: 'the world', zh: '世界' } },
+  { id: 'resident/world', name: { en: 'the world', zh: '世界' } },
+  { id: 'resident/story', name: { en: 'the story', zh: '故事' } },
 ]
 
 const fixtureTypes: TypeDef[] = [
-  F('fixture', 'thing', '物件', []),
+  // what stands in a cell can be stood or set on, by what walks (its reach)
+  F('fixture', 'thing', '物件', [], { reach: ['ground'] }),
   F('fixture/container', 'container', '容器', ['container'], { solid: true }),
   F('fixture/container/chest', 'chest', '箱子', ['wooden', 'flammable'], { solid: true, props: { capacity: 12 } }),
   F('fixture/container/barrel', 'barrel', '木桶', ['wooden', 'flammable', 'breakable'], { solid: true, props: { capacity: 4 } }),
@@ -354,14 +355,14 @@ export function buildOntology(): Ontology {
     // the lines whose crossing is an event, and the clocks (design.md §5.7)
     thresholds: [{ name: 'defeated', prop: 'hp', lte: 0 }],
     periods: [
-      { name: 'hunger', every: HUNGER_EVERY, everyProp: 'hungerEvery', host: { kind: 'actor', props: { maxHunger: { gt: 0 } } } },
-      { name: 'vitals', every: HUNGER_EFFECT_EVERY, host: { kind: 'actor', props: { maxHunger: { gt: 0 } } } },
+      { name: 'hunger', every: HUNGER_EVERY, everyProp: 'hungerEvery', host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
+      { name: 'vitals', every: HUNGER_EFFECT_EVERY, host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
       { name: 'forage', every: FORAGE_EVERY, host: 'world' },
       { name: 'weather', every: 60, host: 'world' },
       { name: 'storm', every: 300, host: 'world' },
       // the night's walkers come (the world's), and crumble at dawn (their own)
       { name: 'night', every: NIGHT_EVERY, host: 'world' },
-      { name: 'dawn', every: 5, host: { kind: 'actor', tags: ['nightborn'] } },
+      { name: 'dawn', every: 5, host: { type: 'actor', tags: ['nightborn'] } },
     ],
     elements: ELEMENTS,
     vfx: [...VFX, ...BOSSES.flatMap((b) => b.skills.map((s) => s.fx))],
