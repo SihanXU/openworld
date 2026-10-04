@@ -38,6 +38,15 @@ export const TERRAIN_CHARS: Record<string, string> = {
   a: 'ash',
   t: 'charred_tree',
   K: 'burnt_wall',
+  // the overworld's ground (world-model.md §5.1)
+  '0': 'ow_sea',
+  '1': 'ow_plain',
+  '2': 'ow_forest',
+  '3': 'ow_hills',
+  '4': 'ow_mountain',
+  '5': 'ow_snow',
+  '6': 'ow_road',
+  '7': 'ow_river',
   u: 'stump',
   g: 'gravel',
   B: 'bridge',
@@ -59,6 +68,8 @@ export const RECOVERY = 0.5
 /** A drop of a level does no harm; each level beyond it hurts this much (world-model.md §5.5). */
 export const SAFE_FALL = 1
 export const FALL_DAMAGE = 6
+/** Heavy weather slows a long step (world-model.md §5.6): rain, storm, snow. */
+export const RAIN_COST = 1.5
 
 /**
  * How well each capability and each edge works on each material category (world-model.md §6.1,
@@ -117,6 +128,17 @@ export const TERRAINS: TerrainDef[] = [
   T('farmland', '农田', 'farmland', ['ground', 'diggable', 'soil'], { color: '#7a5634' }),
   T('mud', '泥潭', 'mud', ['ground', 'wet-ground'], { color: '#5e4a33' }),
   T('void', '虚空', 'void', [], { solid: true, color: '#000000' }),
+  // the overworld (world-model.md §5.1): an ordinary map whose every cell is a local map; each step
+  // costs time by its ground (props.cost: road half, rough ground half again); sea, mountains and
+  // rivers do not let one pass
+  T('ow_sea', '海', 'sea', ['water', 'overworld'], { solid: true, liquid: true, color: '#2c5fae' }),
+  T('ow_plain', '平原', 'plains', ['ground', 'overworld'], { props: { cost: 1 }, color: '#6ab04c' }),
+  T('ow_forest', '森林', 'forest', ['ground', 'overworld', 'wooded'], { props: { cost: 1.5 }, color: '#2f6b33' }),
+  T('ow_hills', '丘陵', 'hills', ['ground', 'overworld', 'rough'], { props: { cost: 1.5 }, color: '#8a9a52' }),
+  T('ow_mountain', '山脉', 'mountains', ['overworld', 'rock'], { solid: true, color: '#7d7a74' }),
+  T('ow_snow', '雪原', 'snowfield', ['ground', 'overworld', 'cold'], { props: { cost: 1.5 }, color: '#eef3f6' }),
+  T('ow_road', '大道', 'road', ['ground', 'overworld', 'road'], { props: { cost: 0.5 }, color: '#c9a86a' }),
+  T('ow_river', '河流', 'river', ['water', 'overworld'], { solid: true, liquid: true, color: '#3d7fd6' }),
 ]
 
 export const STATUSES: StatusDef[] = [
@@ -276,6 +298,11 @@ const RESIDENTS: TypeDef[] = [
   { id: 'resident/story', name: { en: 'the story', zh: '故事' } },
   // a map's named area (world-model.md §5.4): entering and leaving it is the relation in-region
   { id: 'region', name: { en: 'an area', zh: '区域' } },
+  // a cell of the overworld, standing for its local map (world-model.md §5.1, §5.6): it covers the
+  // cell's block of the overworld; empty hands on it go in (props.map: the map it stands for)
+  { id: 'site', name: { en: 'a place', zh: '地点' }, sprite: 'site', footprint: [3, 3] },
+  { id: 'site/wild', name: { en: 'the wild', zh: '荒野' }, sprite: 'site:wild' },
+  { id: 'site/place', name: { en: 'a place', zh: '地点' }, sprite: 'site:place' },
 ]
 
 const fixtureTypes: TypeDef[] = [
@@ -390,7 +417,7 @@ export function buildOntology(): Ontology {
     // what things are made of, and how well each instrument works on each (world-model.md §4.5, §6.1)
     materials: MATERIAL_DEFS,
     efficiency: EFFICIENCY,
-    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE },
+    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST },
     periods: [
       { name: 'hunger', every: HUNGER_EVERY, everyProp: 'hungerEvery', host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
       { name: 'vitals', every: HUNGER_EFFECT_EVERY, host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },

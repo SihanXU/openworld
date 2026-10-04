@@ -38,15 +38,19 @@ const spread = (chance: number): Effect => emit('element', { area: { radius: 1 }
 
 // ------------------------------------------------------------------ the roots: resolution is total
 
+/** A place of the overworld (world-model.md §5.6): what is done to it from there is out of reach. */
+const SITE: Selector = { type: 'site' }
+const TOO_FAR = log('Too far to reach: go in first (E).', '够不着：先进去（E）。')
+
 const ROOTS: Rule[] = [
   rule({
     id: 'core/use',
-    doc: 'Using a thing on something is undefined unless its nature says (the AI answers); a bare hand strikes what a blow is aimed at (and any creature), and handles anything else.',
+    doc: 'Using a thing on something is undefined unless its nature says (the AI answers) — on a place of the overworld it is out of reach; a bare hand strikes what a blow is aimed at (and any creature), and handles anything else.',
     on: 'act/use',
     tree: IF(
       { none: 'instrument' },
       IF(any(param('attack', true), is('target', { type: 'actor/creature' })), DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND })), DO(emit('handle', 'target'))),
-      HOLE(log('Nothing happens.', '什么也没有发生。')),
+      IF(is('target', SITE), DO(TOO_FAR), HOLE(log('Nothing happens.', '什么也没有发生。'))),
     ),
   }),
   rule({
@@ -1270,4 +1274,24 @@ const JOURNEY: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY]
+// ------------------------------------------------------------------ the overworld (world-model.md §5.1, §5.6)
+
+
+const SITES: Rule[] = [
+  rule({
+    id: 'site/enter',
+    doc: 'Empty hands on a place of the overworld: one goes in — pushed into the map it stands for, on the side one stands.',
+    host: SITE,
+    on: 'impulse/handle',
+    tree: DO(emit('push', 'actor', { map: { prop: 'map', of: 'host' } })),
+  }),
+  rule({
+    id: 'site/far',
+    doc: 'Anything else done to a place of the overworld (a blow, something put, taken) is out of reach: defined, nothing changes (the question would mix scales).',
+    host: SITE,
+    on: 'impulse',
+    tree: DO(TOO_FAR),
+  }),
+]
+
+export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES]

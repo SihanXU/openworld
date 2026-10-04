@@ -38,7 +38,8 @@ import {
   type Ref,
   type World,
 } from '@lsw/engine'
-import { BASE_RULES, CROP_STAGES, FIRSTLIGHT, PROLOGUE_DONE, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILLS, STORY_RULES, VEGETABLE_CROPS, buildOntology, decodeChunk } from '@lsw/content'
+import { BASE_RULES, CROP_STAGES, FIRSTLIGHT, PROLOGUE_DONE, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILLS, STORY_RULES, VEGETABLE_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@lsw/content'
+import { BLOCK, OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
 import { DRAGON_AT, EAST_ROAD, EMBERFALL, PASS } from '../src/demo/quest/maps.ts'
 import { GARDEN } from '../src/demo/garden.ts'
@@ -1019,6 +1020,132 @@ req('W8', 'height: the summit stands two levels above the land below the cut; do
   expect(W(f).num(W(f).player, 'hp')).toBeLessThan(hp)
   // and it cannot be climbed back
   expect(walk(f, 'up')).toMatchObject({ x, y: 22 })
+})
+
+/** Make the map a wait for is (a wilderness is made from the world's seed and its cell, as the client does). */
+function arrive(f: Ford): void {
+  const to = f.eng.pendingTransition?.map
+  if (!to) return
+  const made = wildChunkFor(W(f), to)
+  if (!made) throw new Error(`no map ${to}`)
+  f.game.loadChunk(made)
+}
+/** Into the place the player stands on (E on its site, world-model.md §5.6). */
+function goIn(f: Ford): void {
+  const p = W(f).posOf(W(f).player)!
+  const site = W(f).coveringAt(p.map, p.x, p.y).concat(W(f).entitiesAt(p.map, p.x, p.y)).find((e) => e.type.startsWith('site'))!
+  f.eng.act('hands', 'player', { e: site.id }, { instrument: null })
+  arrive(f)
+}
+/** The overworld tiles one can walk to from a tile (over its open ground). */
+function reach(f: Ford, x: number, y: number): Set<string> {
+  const seen = new Set([`${x},${y}`])
+  const queue: [number, number][] = [[x, y]]
+  while (queue.length) {
+    const [cx, cy] = queue.pop()!
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const k = `${cx + dx},${cy + dy}`
+      if (seen.has(k) || !W(f).passable(OVERWORLD, cx + dx, cy + dy)) continue
+      seen.add(k)
+      queue.push([cx + dx, cy + dy])
+    }
+  }
+  return seen
+}
+
+req('W4', 'every map lies on the overworld, and its edges are open: mined through the rock at the summit\'s edge, one walks out onto its cell there', ['site/place'], () => {
+  const f = fresh()
+  for (const m of W(f).state.loadedMaps.filter((id) => id !== OVERWORLD)) {
+    const site = W(f).map(m)!.site!
+    expect([m, site.map]).toEqual([m, OVERWORLD])
+    expect([m, W(f).entitiesAt(OVERWORLD, site.x + 1, site.y + BLOCK - 1).some((e) => e.type === 'site/place' && e.props?.map === m)]).toEqual([m, true])
+  }
+  // the summit's north rim: two rows of rock above open ground
+  const x = [...Array(36).keys()].map((i) => i + 2).find((x) => W(f).terrainAt('summit', x, 0) === 'rock' && W(f).terrainAt('summit', x, 1) === 'rock' && W(f).walkable('summit', x, 2))!
+  hold(f, made(f, 'stone-pickaxe'))
+  stand(f, x, 2, 'up', 'summit')
+  for (let i = 0; i < 2; i++) run(f, 'use', x, 1)
+  expect(walk(f, 'up')).toMatchObject({ map: 'summit', x, y: 1 })
+  for (let i = 0; i < 2; i++) run(f, 'use', x, 0)
+  expect(walk(f, 'up')).toMatchObject({ map: 'summit', x, y: 0 })
+  const out = walk(f, 'up')
+  expect(out.map).toBe(OVERWORLD)
+  const site = W(f).map('summit')!.site!
+  expect(out.x - site.x).toBeGreaterThanOrEqual(0)
+  expect(out.x - site.x).toBeLessThan(BLOCK)
+  // the north row of its block: the side it left by
+  expect(out.y).toBe(site.y)
+  // and E on its place there takes one back in, on that side
+  goIn(f)
+  expect(W(f).posOf(W(f).player)!.map).toBe('summit')
+  expect(W(f).posOf(W(f).player)!.y).toBeLessThan(5)
+})
+
+req('W5', 'an overworld step passes its time at once (half an hour on plains, by its ground), and hunger falls; harm stops it', [], () => {
+  const f = fresh()
+  const ford = W(f).map('ford')!.site!
+  // west of the river, on the meadow's cell
+  stand(f, ford.x - 2, ford.y + 1, 'left', OVERWORLD)
+  const t0 = W(f).state.tick
+  const hunger = W(f).num(W(f).player, 'hunger')
+  walk(f, 'left')
+  const took = W(f).state.tick - t0
+  const cost = W(f).num(W(f).cellTop(OVERWORLD, ford.x - 3, ford.y + 1)!, 'cost', 1)
+  expect(took).toBeGreaterThanOrEqual(30 * cost * TICKS_PER_HOUR / 60)
+  expect(W(f).num(W(f).player, 'hunger')).toBeLessThan(hunger)
+  // burning, one is hurt on the way: the step's time stops passing
+  author(f, () => f.eng.applyStatus({ e: W(f).player.id }, 'burning', 600))
+  const t1 = W(f).state.tick
+  walk(f, 'left')
+  expect(W(f).state.tick - t1).toBeLessThan(took)
+})
+
+req('W6', 'the river is a barrier on the overworld too: from the west bank no way leads to the far bank but the Ford; one comes into the Ford from the east on the far bank', ['region:far_bank'], () => {
+  const f = fresh()
+  const ford = W(f).map('ford')!.site!
+  const west = reach(f, ford.x, ford.y + 1)
+  const east = [ford.x + BLOCK - 1, ford.y + 1] as const
+  expect(W(f).passable(OVERWORLD, ...east)).toBe(true)
+  expect(west.has(`${east[0]},${east[1]}`)).toBe(false)
+  const road = W(f).map('eastroad')!.site!
+  expect(west.has(`${road.x + 1},${road.y + 1}`)).toBe(false)
+  // from the east road's cell, west into the Ford's: the far bank
+  stand(f, road.x, road.y + 1, 'left', OVERWORLD)
+  expect(walk(f, 'left')).toMatchObject({ map: OVERWORLD, x: east[0] })
+  goIn(f)
+  expect(W(f).within(W(f).player, regionId('ford', 'far_bank'))).toBe(true)
+})
+
+req('W7', 'a wilderness is made from the world\'s seed and its cell: entered, left and entered again — or saved and loaded — it is the same map, with what one changed kept', ['site/wild'], () => {
+  const f = fresh()
+  const site = Object.values(W(f).state.entities).find((e) => e.type === 'site/wild' && e.props?.ground === 'ow_plain')!
+  const at = site.place as { x: number; y: number }
+  stand(f, at.x, at.y - 1, 'up', OVERWORLD)
+  goIn(f)
+  const id = String(site.props!.map)
+  expect(W(f).posOf(W(f).player)!.map).toBe(id)
+  const terrain = [...W(f).map(id)!.terrain]
+  // the same seed and cell give the same map
+  const again = wildChunk(W(f).state.seed, wildCell(id)!.cx, wildCell(id)!.cy, 'ow_plain', W(f).map(id)!.site)
+  expect(again.map.terrain).toEqual(terrain)
+  // change it: a tree gone, a stone set down
+  const t = terrain.findIndex((x) => x === 'tree')
+  const [tx, ty] = [t % WILD_W, Math.floor(t / WILD_W)]
+  author(f, () => W(f).destroy(W(f).cellTop(id, tx, ty)!))
+  author(f, () => W(f).create('item/material/stone', { on: 'tile', map: id, x: tx, y: ty }, { id: 'w7.stone' }))
+  // out by its west edge, and in again
+  const p = W(f).posOf(W(f).player)!
+  stand(f, 0, p.y, 'left', id)
+  expect(walk(f, 'left').map).toBe(OVERWORLD)
+  goIn(f)
+  expect(W(f).posOf(W(f).player)!.map).toBe(id)
+  expect(W(f).terrainAt(id, tx, ty)).not.toBe('tree')
+  expect(W(f).get('w7.stone')?.place).toMatchObject({ map: id, x: tx, y: ty })
+  // saved and loaded: the map is made again, the changes come from the save
+  const loaded = Game.load(structuredClone(f.game.save()), buildFord().index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+  loaded.loadMapData(wildChunkFor(loaded.engine.world, id)!.map)
+  expect(loaded.engine.world.terrainAt(id, tx, ty)).not.toBe('tree')
+  expect(loaded.engine.world.get('w7.stone')).toBeDefined()
 })
 
 req('W13', 'a burning wooden wall (the summit shelter) loses durability as it burns and leaves a burnt wall', [], () => {

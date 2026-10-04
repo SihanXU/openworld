@@ -99,6 +99,8 @@ export interface WorldParams {
   safeFall: number
   /** The harm of each level fallen beyond the safe height. */
   fallDamage: number
+  /** How much longer a long step takes in rain, a storm or snow (a map with a `scale`). */
+  rainCost?: number
 }
 
 /** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */
@@ -534,6 +536,10 @@ export interface MapData {
    * down; more down is a fall, more up a cliff.
    */
   heights?: number[]
+  /** A step here lasts this many minutes (times its ground's `cost`): the overworld's scale. Without it, a step is a body's own pace. */
+  scale?: number
+  /** Where the map lies on the overworld: the top left of its cell's block there (world-model.md §5.1). Its open edges lead to it. */
+  site?: { map: string; x: number; y: number; size: number }
   portals: Portal[]
   /** Render hints (the engine ignores them): prefab stamps, room wall frames, music, light. */
   stamps?: { key: string; x: number; y: number }[]

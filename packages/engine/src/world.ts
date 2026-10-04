@@ -142,6 +142,8 @@ export class World {
   private areas = new Map<string, Set<Id>>() // map -> its regions' ids
   /** Each map's static cell things (from its data, recomputed when the data is replaced). */
   private layers = new Map<string, { data: MapData; layers: Layers }>()
+  /** Each map's parts (from its data). */
+  private parts = new Map<string, { data: MapData; parts: Int32Array }>()
   /** The static cell things asked for so far: built from the map's data, not state (world-model.md §4.6). */
   private statics = new Map<Id, Entity>()
   /** Things that currently carry statuses, by id. */
@@ -383,6 +385,81 @@ export class World {
     if (!category || !table) return 1
     const rows = [...(edge ? [`edge:${edge}`] : []), ...this.onto.resolve(instrument.type).tags, ...(instrument.tags ?? [])].filter((r) => table[r]?.[category] !== undefined)
     return rows.length ? Math.max(...rows.map((r) => table[r][category])) : 1
+  }
+
+  /**
+   * A map's parts (world-model.md §5.1, D22): the cells one could reach from one another, whatever
+   * stands in the way that can be broken (trees, rock), but not across what has no floor to stand
+   * on (water, lava, the void) — a river splits a map into its banks. -1: no part (no floor).
+   * From the map's data, so it never changes with play.
+   */
+  partsOf(map: string): Int32Array | undefined {
+    const data = this.state.maps[map]
+    if (!data) return undefined
+    const hit = this.parts.get(map)
+    if (hit?.data === data) return hit.parts
+    const layers = this.layersOf(map)!
+    const n = data.width * data.height
+    const parts = new Int32Array(n).fill(-1)
+    const open = (i: number) => { const f = layers.floor[i]; return f !== undefined && !this.isSolidTerrain(f) }
+    let next = 0
+    for (let s = 0; s < n; s++) {
+      if (parts[s] !== -1 || !open(s)) continue
+      const queue = [s]
+      parts[s] = next
+      while (queue.length) {
+        const i = queue.pop()!
+        const x = i % data.width
+        const y = (i - x) / data.width
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx
+          const ny = y + dy
+          if (nx < 0 || ny < 0 || nx >= data.width || ny >= data.height) continue
+          const j = ny * data.width + nx
+          if (parts[j] === -1 && open(j)) (parts[j] = next), queue.push(j)
+        }
+      }
+      next++
+    }
+    this.parts.set(map, { data, parts })
+    return parts
+  }
+
+  /** The part a cell lies in (-1: none). */
+  partAt(map: string, x: number, y: number): number {
+    const m = this.state.maps[map]
+    if (!m || !this.inBounds(map, x, y)) return -1
+    return this.partsOf(map)![y * m.width + x]
+  }
+
+  /**
+   * The part most of a region of a map lies in: the region the tile (i, j) of an overworld block of
+   * `size` × `size` tiles stands for (-1: mostly no floor).
+   */
+  regionPart(map: string, i: number, j: number, size: number): number {
+    const m = this.state.maps[map]
+    const parts = this.partsOf(map)
+    if (!m || !parts) return -1
+    const count = new Map<number, number>()
+    for (let y = Math.floor((j * m.height) / size); y < Math.floor(((j + 1) * m.height) / size); y++)
+      for (let x = Math.floor((i * m.width) / size); x < Math.floor(((i + 1) * m.width) / size); x++) {
+        const p = parts[y * m.width + x]
+        if (p >= 0) count.set(p, (count.get(p) ?? 0) + 1)
+      }
+    let best = -1
+    let most = 0
+    for (const [p, c] of count) if (c > most) [best, most] = [p, c]
+    return best
+  }
+
+  /** Things whose base covers a tile (a big thing drawn over the tiles beside its own: a tent, a site), but bodies. */
+  coveringAt(map: string, x: number, y: number): Entity[] {
+    const out: Entity[] = []
+    const [mw, md] = this.onto.maxFootprint
+    for (let dy = 0; dy < md; dy++)
+      for (let dx = -Math.floor(mw / 2); dx <= Math.floor(mw / 2); dx++)
+        for (const e of this.entitiesAt(map, x + dx, y + dy)) if (!this.isAgent(e) && (dx || dy) && this.covers(e, map, x, y)) out.push(e)
+    return out
   }
 
   /** The ground height of a column, in half levels (0 off the map or where the map says none). */

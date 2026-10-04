@@ -273,6 +273,10 @@ export const CATALOG: Catalog = {
       px(NATURE, 256, 128, 32, 32, 16, 31), // big grey rock
     ],
     stump: [t(NATURE, 4, 8), t(NATURE, 14, 18), t(NATURE, 12, 13), px(NATURE, 0, 128, 32, 32, 16, 29), px(NATURE, 32, 128, 32, 32, 16, 29)],
+    // the overworld: woods and mountains drawn as the trees and rocks they stand for
+    ow_forest: [px(NATURE, 32, 0, 32, 32, 16, 31), px(NATURE, 0, 0, 32, 32, 16, 31)],
+    ow_mountain: [px(NATURE, 208, 128, 32, 32, 16, 31), px(NATURE, 256, 128, 32, 32, 16, 31)],
+    ow_hills: [t(NATURE, 15, 9), t(NATURE, 7, 12)],
     // Bare dead trees (the pack has no burnt trees; these read as charred).
     charred_tree: [px(NATURE, 64, 0, 32, 32, 16, 31), t(NATURE, 4, 9)],
     // Tall grass tufts. The pack's tufts are green: tint them golden (e.g. 0xe0c060) for dry
@@ -421,6 +425,9 @@ export const CATALOG: Catalog = {
     'fixture:fountain': { base: px(DESERT, 128, 112, 32, 32, 16, 28) },
     'fixture:trough': { base: t(ELEM, 6, 10) },
     'fixture:sign': { base: t(ELEM, 0, 2) },
+    // a place on the overworld: a signpost where it is; the wild shows no mark of its own
+    'site:place': { base: t(ELEM, 0, 2) },
+    'site:wild': { base: t(DETAIL, 3, 2) },
     'fixture:noticeboard': { base: t(ELEM, 1, 2) },
     'fixture:craft': { base: t(HOUSE, 29, 15) },
     'fixture:anvil': { base: t(HOUSE, 29, 15) },

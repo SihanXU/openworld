@@ -5,7 +5,7 @@
 // containment, diffed after every outcome), sight, and the active, dormant and resident parts of
 // the world. Pure, deterministic, no AI.
 
-import { isNight } from './calendar.ts'
+import { TICKS_PER_MINUTE, isNight } from './calendar.ts'
 import { EffectRunner } from './effects.ts'
 import { Controls } from './controls.ts'
 import { Scenes } from './scenes.ts'
@@ -51,6 +51,13 @@ const MAX_DEPTH = 12
 const INVARIANT_EVERY = 30
 /** The resident hosts (design.md §5.5). */
 export const STORY = 'story'
+
+/** Where on a site's block one stood going in: the tile, and the point (0..1 across the block) it stands for. */
+export interface Entry {
+  rel: [number, number]
+  tile: [number, number]
+  size: number
+}
 export const WORLD_HOST = 'world'
 
 const OPAQUE_TERRAIN = ['wall', 'tree', 'rock', 'roof']
@@ -87,7 +94,9 @@ export class Engine {
   /** Portal graph of every map (loaded or not): map -> outgoing portals. */
   graph: Record<string, { to: string; x: number; y: number; tx: number; ty: number }[]> = {}
   /** Set when the player walked into a portal whose map isn't loaded yet. */
-  pendingTransition?: { map: string; x: number; y: number }
+  pendingTransition?: { map: string; x: number; y: number; entry?: Entry }
+  /** Ticks to run at once at the end of this tick: a long step (the overworld) passing (world-model.md §6.11). */
+  private fastForward = 0
   /** Resolution trace of the last dispatched events (for tests and the dev panel). */
   trace: { ev: GameEvent; rule?: string; defined: boolean }[] = []
 
@@ -716,6 +725,11 @@ export class Engine {
     const portalHere = w.map(map)?.portals.find((p) => p.x === nx && p.y === ny)
     // only the player uses portals by stepping on them; NPCs transfer from the tile beside
     if (portalHere && !isPlayer) return false
+    // off the edge of a map that lies on the overworld: out onto its cell there (world-model.md §5.1)
+    if (!w.inBounds(map, nx, ny) && isPlayer && w.map(map)?.site) {
+      this.leaveByEdge(e, x, y, dir)
+      return true
+    }
     // a cliff cannot be climbed: one bumps into it (what makes up the cell above)
     const over = w.stepOver(e, map, x, y, nx, ny)
     if ('climb' in over) {
@@ -747,6 +761,15 @@ export class Engine {
     this.touch({ e: e.id })
     // a step off a ledge is a fall (world-model.md §5.5): the faller strikes itself by the drop
     if ('fall' in over) this.fallBy(e, over.fall, ev)
+    // a step on a map with a scale lasts its minutes, by its ground and the weather (world-model.md §5.6)
+    const scale = w.map(map)?.scale
+    if (scale) {
+      const cost = w.num(w.cellTop(map, nx, ny) ?? e, 'cost', 1)
+      const wet = ['rain', 'storm', 'snow'].includes(w.calendar().weather) ? (w.onto.data.params?.rainCost ?? 1) : 1
+      const ticks = Math.round(scale * cost * wet * TICKS_PER_MINUTE)
+      if (isPlayer) this.fastForward = ticks
+      else this.setCooldown(e.id, ticks)
+    }
     // a successful step charges the swiftness talents (combat.ts)
     recordCombatStep(w, e)
     if (isPlayer && portalHere) this.travel(e, { map: portalHere.to, x: portalHere.tx, y: portalHere.ty })
@@ -766,6 +789,71 @@ export class Engine {
     if (harm <= 0) return
     if (e.id === w.state.player) w.fx.push({ t: 'log', text: { en: 'A hard fall.', zh: '重重地摔了下去。' } })
     this.hurt(e, harm, undefined, true, ev)
+  }
+
+  /**
+   * Out of a map by its edge (world-model.md §5.1, Elin's ExitBorder): onto its cell's block on the
+   * overworld, at the tile of the same part of the map (the bank one left from) nearest where one
+   * left. A part the block does not show: its nearest open tile.
+   */
+  private leaveByEdge(e: Entity, x: number, y: number, dir: Dir): void {
+    const w = this.world
+    const map = w.map(w.posOf(e)!.map)!
+    const site = map.site!
+    const part = w.partAt(map.id, x, y)
+    const at = [(x + 0.5) / map.width, (y + 0.5) / map.height]
+    let best: { x: number; y: number; d: number; same: boolean } | undefined
+    for (let j = 0; j < site.size; j++)
+      for (let i = 0; i < site.size; i++) {
+        const tx = site.x + i
+        const ty = site.y + j
+        const open = !w.map(site.map) || w.walkable(site.map, tx, ty, e.id)
+        if (!open) continue
+        const same = w.regionPart(map.id, i, j, site.size) === part
+        const d = Math.hypot((i + 0.5) / site.size - at[0], (j + 0.5) / site.size - at[1])
+        if (!best || (same && !best.same) || (same === best.same && d < best.d)) best = { x: tx, y: ty, d, same }
+      }
+    e.facing = dir
+    this.travel(e, { map: site.map, x: best?.x ?? site.x, y: best?.y ?? site.y })
+  }
+
+  /**
+   * Into a map through the thing that stands for it (a site, world-model.md §5.6): one arrives where
+   * one stands on it — its block of the overworld scaled to the map — in the part that tile shows,
+   * at the nearest place one fits; from beside it, on the side one came from.
+   */
+  enterFrom(e: Entity, map: string, through: Entity | undefined): void {
+    const w = this.world
+    const p = w.posOf(e)
+    const size = through ? this.world.onto.resolve(through.type).footprint[0] : 1
+    const bx = through?.place.on === 'tile' ? through.place.x - Math.floor((size - 1) / 2) : 0
+    const by = through?.place.on === 'tile' ? through.place.y - (size - 1) : 0
+    const rel: [number, number] = p ? [Math.min(1, Math.max(0, (p.x - bx + 0.5) / size)), Math.min(1, Math.max(0, (p.y - by + 0.5) / size))] : [0.5, 0.5]
+    const tile: [number, number] = [Math.min(size - 1, Math.floor(rel[0] * size)), Math.min(size - 1, Math.floor(rel[1] * size))]
+    const entry: Entry = { rel, tile, size }
+    if (!w.map(map)) {
+      this.pendingTransition = { map, x: -1, y: -1, entry }
+      return
+    }
+    this.teleport(e, this.entryPoint(e, map, entry))
+  }
+
+  /** Where one comes into a map from a tile of its block: in that tile's part, nearest the point it stands for. */
+  private entryPoint(e: Entity, map: string, entry: Entry): Pos {
+    const w = this.world
+    const m = w.map(map)!
+    const part = w.regionPart(map, entry.tile[0], entry.tile[1], entry.size)
+    const tx = entry.rel[0] * m.width
+    const ty = entry.rel[1] * m.height
+    let best: { x: number; y: number; d: number; same: boolean } | undefined
+    for (let y = 0; y < m.height; y++)
+      for (let x = 0; x < m.width; x++) {
+        if (!w.fits(e, map, x, y)) continue
+        const same = part < 0 || w.partAt(map, x, y) === part
+        const d = Math.hypot(x + 0.5 - tx, y + 0.5 - ty)
+        if (!best || (same && !best.same) || (same === best.same && d < best.d)) best = { x, y, d, same }
+      }
+    return { map, x: best?.x ?? Math.floor(m.width / 2), y: best?.y ?? Math.floor(m.height / 2) }
   }
 
   /** A step to a place: an act of moving there (a scene's direction, a person arriving through a portal). */
@@ -991,6 +1079,20 @@ export class Engine {
     this.invariantTick()
     this.scenes.tick()
     this.flush()
+    // a long step's time passes now, all at once; harm stops it (world-model.md §6.11)
+    if (this.fastForward > 0) {
+      const n = this.fastForward
+      this.fastForward = 0
+      const p = this.world.player
+      const hp = w.num(p, 'hp')
+      for (let i = 0; i < n; i++) {
+        this.tick()
+        if (w.num(p, 'hp') < hp) {
+          w.fx.push({ t: 'log', text: { en: 'Hurt, you stop on the way.', zh: '你受了伤，停下了脚步。' } })
+          break
+        }
+      }
+    }
   }
 
   /** A status runs out (the clock clears it): a time/timer event (its actor: who gave it). */
@@ -1102,7 +1204,8 @@ export class Engine {
     if (this.pendingTransition?.map === chunk.map.id) {
       const to = this.pendingTransition
       this.pendingTransition = undefined
-      this.write(() => this.teleport(this.world.player, to))
+      const p = this.world.player
+      this.write(() => this.teleport(p, to.entry ? this.entryPoint(p, to.map, to.entry) : to))
     }
   }
 

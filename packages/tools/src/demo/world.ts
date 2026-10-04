@@ -20,6 +20,7 @@ import { QUEST_SCENES } from './quest/scenes.ts'
 import { PAT, PROLOGUE, buildFoot, buildSlope, buildSummit } from './prologue.ts'
 import { BARROW, HOLLOW, buildBarrow, buildHollow } from './hollow.ts'
 import type { PersonDef, Slot } from './person.ts'
+import { buildOverworld, placeCells, siteOf } from './overworld.ts'
 import { PEOPLE } from './people.ts'
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '../../../client/public/world')
@@ -562,7 +563,15 @@ export function buildFord(): FordWorld {
     return { map: b.id, x: a[0], y: a[1] }
   }
   const npcs = PEOPLE.map((p) => person(p, anchorAt))
+  // the overworld (world-model.md §5.1): each map on its cell, the rest of the continent wild
+  const cells = placeCells(builders, m)
+  for (const b of builders) {
+    const c = cells.get(b.id)
+    if (c) b.site = siteOf(c)
+  }
   const chunks = builders.map((b) => b.chunk())
+  reseed(4260)
+  const overworld = buildOverworld(chunks, cells)
   let items = 0
   let fixtures = 0
   let creatures = 0
@@ -580,7 +589,7 @@ export function buildFord(): FordWorld {
     // a new game begins on the mountain (docs/prologue.md)
     start: { map: summit.id, x: PAT.spawn[0], y: PAT.spawn[1] },
     startHour: START_HOUR,
-    maps: builders.map((b, i) => metaOf(b, chunks[i])),
+    maps: [...builders.map((b, i) => metaOf(b, chunks[i])), { id: overworld.map.id, name: overworld.map.name, kind: overworld.map.kind, region: overworld.map.region, width: overworld.map.width, height: overworld.map.height, portals: [], npcs: 0, items: 0 }],
     npcs,
     bosses: BOSSES,
     player: {
@@ -614,7 +623,7 @@ export function buildFord(): FordWorld {
       { day: 2, from: 8, to: 24, weather: 'sun' },
     ],
   }
-  return { index, chunks }
+  return { index, chunks: [...chunks, overworld] }
 }
 
 /**

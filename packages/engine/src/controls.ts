@@ -157,7 +157,8 @@ export class Controls {
       return c ? w.cellRef(c.map, c.x, c.y) : r
     }
     const sig = (r: Ref) => r.e
-    const es = w.entitiesAt(at.map, at.x, at.y)
+    // what stands there, and what bigger stands beside it and covers it with its base (a tent, a place on the overworld)
+    const es = [...w.entitiesAt(at.map, at.x, at.y), ...w.coveringAt(at.map, at.x, at.y)]
     // in the order they are drawn: bodies over what can be carried, that over what it lies on
     const bodies = es.filter((e) => w.isAgent(e))
     const loose = es.filter((e) => !w.isAgent(e) && w.isPortable(e)).reverse()

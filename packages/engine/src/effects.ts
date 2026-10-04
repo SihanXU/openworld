@@ -233,6 +233,8 @@ export class EffectRunner {
         // a step to a place (a scene's direction, a person arriving through a portal), or one tile
         const p = ev.params
         if (typeof p?.x === 'number' && typeof p?.y === 'number') return eng.placeSelf(host, { map: String(p.map ?? w.posOf(host)?.map ?? eng.activeMap), x: p.x, y: p.y })
+        // to a map with no place named: in through what sent it (a site, world-model.md §5.6)
+        if (typeof p?.map === 'string') return eng.enterFrom(host, p.map, ev.roles.source && w.get(ev.roles.source.e))
         let dir = eff.dir ?? (p?.dir as Entity['facing'])
         // away from a role (a gust from the one who cast it)
         const from = eff.away && this.pos(ev, eff.away)
@@ -525,6 +527,8 @@ export class EffectRunner {
     if (typeof v !== 'object' || v === null) return v
     if ('typeOf' in v) return this.eng.world.view(this.roleRef(ev, v.typeOf))?.type
     if ('param' in v && v.mul === undefined && v.add === undefined) return ev.params?.[v.param]
+    // a role's prop passed on as it is (a word too: a site's map)
+    if ('prop' in v && v.mul === undefined && v.add === undefined) return this.eng.world.view(this.roleRef(ev, v.of))?.props[v.prop]
     return this.amount(ev, v)
   }
 

@@ -5,7 +5,7 @@
 // no picture without a thing, and no wall without one: what the map shows and what blocks are
 // terrain or entities (a big thing blocks its type's footprint, and only while it stands).
 
-import type { AiData, Entity, Forage, Portal, PropValue, Text } from '@lsw/engine'
+import type { AiData, Entity, Forage, MapData, Portal, PropValue, Text } from '@lsw/engine'
 import { CHAR_OF, FORM_BY_ID, buildOntology, makeItem, type RawChunk } from '@lsw/content'
 import { OntologyIndex, Rng, baseCovers, splitLayers } from '@lsw/engine'
 import type { PrefabDef } from '../../../client/src/assets/types.ts'
@@ -41,6 +41,8 @@ export class MapBuilder {
   forage: Forage[] = []
   /** Peaceful (towns, camps) or combat (night brings monsters): MapData.zone. */
   zone: 'peaceful' | 'combat' = 'combat'
+  /** Where the map lies on the overworld (MapData.site): its open edges lead there. */
+  site?: MapData['site']
   /** Ground heights in half levels (MapData.heights): a level is two, a ramp is a column between. */
   heights: number[][] = []
 
@@ -416,6 +418,7 @@ export class MapBuilder {
         music: this.music,
         light: this.light,
         zone: this.zone,
+        site: this.site,
       },
       entities: this.entities,
     }

@@ -28,7 +28,7 @@ import {
   type ResolveReply,
   type WorldIndex,
 } from '@lsw/engine'
-import { BASE_RULES, BOSS_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateFirstlight, type RawChunk } from '@lsw/content'
+import { BASE_RULES, BOSS_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
@@ -215,9 +215,11 @@ async function ensureMaps(): Promise<void> {
     fetching.add(id)
     post({ t: 'loading', what: id })
     try {
-      const raw = await fetchJson<RawChunk>(`maps/${id}.json`)
-      if (game.engine.world.state.loadedMaps.includes(id)) game.loadMapData(decodeMap(raw.map))
-      game.loadChunk(decodeChunk(raw))
+      // a wilderness is made here, from the world's seed and its cell (world-model.md §5.7); the rest is fetched
+      const made = wildChunkFor(game.engine.world, id)
+      const chunk = made ?? decodeChunk(await fetchJson<RawChunk>(`maps/${id}.json`))
+      if (game.engine.world.state.loadedMaps.includes(id)) game.loadMapData(chunk.map)
+      game.loadChunk(chunk)
     } catch (err) {
       post({ t: 'error', message: `could not load map ${id}: ${(err as Error).message}` })
     } finally {
@@ -376,8 +378,8 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     // re-fetch base terrain for the map we are standing on
     const here = game.engine.world.posOf(game.engine.world.player)?.map
     if (here) {
-      const raw = await fetchJson<RawChunk>(`maps/${here}.json`)
-      game.loadMapData(decodeMap(raw.map))
+      const made = wildChunkFor(game.engine.world, here)
+      game.loadMapData(made?.map ?? decodeMap((await fetchJson<RawChunk>(`maps/${here}.json`)).map))
     }
     for (const id of game.engine.world.state.loadedMaps) if (id !== here) delete game.engine.world.state.maps[id]
   } else {
