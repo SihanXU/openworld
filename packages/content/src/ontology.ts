@@ -56,6 +56,9 @@ const T = (id: string, zh: string, en: string, tags: string[], extra: Partial<Te
 
 /** The share of what a thing is made of that it leaves when it breaks (world-model.md §6.4, D9). */
 export const RECOVERY = 0.5
+/** A drop of a level does no harm; each level beyond it hurts this much (world-model.md §5.5). */
+export const SAFE_FALL = 1
+export const FALL_DAMAGE = 6
 
 /**
  * How well each capability and each edge works on each material category (world-model.md §6.1,
@@ -387,7 +390,7 @@ export function buildOntology(): Ontology {
     // what things are made of, and how well each instrument works on each (world-model.md §4.5, §6.1)
     materials: MATERIAL_DEFS,
     efficiency: EFFICIENCY,
-    params: { recovery: RECOVERY },
+    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE },
     periods: [
       { name: 'hunger', every: HUNGER_EVERY, everyProp: 'hungerEvery', host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
       { name: 'vitals', every: HUNGER_EFFECT_EVERY, host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },

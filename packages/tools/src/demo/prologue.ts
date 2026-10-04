@@ -73,6 +73,10 @@ export function buildSummit(): MapBuilder {
   for (let x = 2; x < m.w - 2; x++) for (const y of [20, 21]) m.set(x, y, x === PAT.pine[0] ? 'grass' : 'rock')
   m.set(...PAT.pine, 'pine')
   m.regions.below_cut = [2, 22, m.w - 4, 6]
+  // the plateau stands two levels above the land below the cut, the cut its cliff: a ramp runs
+  // down through the gap (each column half a level lower), and a drop anywhere else hurts
+  m.raise(0, 0, m.w, 22, 4)
+  for (const [y, h] of [[20, 3], [21, 2], [22, 1]] as const) m.raise(PAT.pine[0], y, 1, 1, h)
   m.path([[10, 9], [13, 13], [18, 16], [20, 19]], 'path', 1)
   m.path([[20, 22], [20, 25], [20, 29]], 'path', 2)
   m.anchor('spawn', ...PAT.spawn)

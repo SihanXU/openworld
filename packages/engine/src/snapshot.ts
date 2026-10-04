@@ -56,6 +56,9 @@ export interface TileSnap {
   y: number
   terrain?: string
   statuses?: string[]
+  /** The durability of what fills or makes up the cell, when it has lost some (a notched tree, a cracked rock). */
+  hp?: number
+  maxHp?: number
 }
 
 export interface Frame {
@@ -197,7 +200,9 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
   for (const k of changed) {
     const [x, y] = k.split(',').map(Number)
     const statuses = w.entitiesAt(map, x, y).filter((c) => w.isTerrain(c)).flatMap((c) => Object.keys(c.statuses ?? {}))
-    tiles.push({ x, y, terrain: w.terrainAt(map, x, y), statuses: statuses.length ? statuses : undefined })
+    const top = w.cellTop(map, x, y)
+    const hurt = top && w.prop(top, 'maxHp') !== undefined && w.num(top, 'hp', w.num(top, 'maxHp')) < w.num(top, 'maxHp')
+    tiles.push({ x, y, terrain: w.terrainAt(map, x, y), statuses: statuses.length ? statuses : undefined, ...(hurt && { hp: w.num(top!, 'hp'), maxHp: w.num(top!, 'maxHp') }) })
   }
   const panel = opts.panel ? w.get(opts.panel) : undefined
   const box = panel && w.hasStatus({ e: panel.id }, 'open') ? panel : undefined

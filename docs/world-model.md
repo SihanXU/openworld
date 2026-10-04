@@ -302,6 +302,17 @@ becomes per cell); under eaves, a bridge or a tree one is dry.
   drop above a safe height (a prop, defaulting to the parameter). Behaviour avoids unsafe drops.
 - Pathfinding, sight and range include z; height blocks sight and gives reach.
 
+As built (W2d): heights are a map's `heights` (one per column, in half levels: a level is two, a
+ramp is a column between two levels; the chunk stores a digit per column). `World.stepOver`: a
+step up or down of at most half a level is a walk; more up is a cliff (a bump into what makes up
+the cell above); more down is a fall of that many levels, which hurts beyond the safe height
+(`params.safeFall` 1, `params.fallDamage` 6 a level) as the faller's own blow (`Engine.fallBy`).
+What flies neither climbs nor falls. Planning (A*) takes only walks and safe drops; ground higher
+than both ends blocks sight. Cloudtop stands two levels above the land below the cut, the gap a
+ramp. The renderer draws higher ground lighter, a lip and a rock face with its shadow where it
+drops a level, a ramp's steps, and a durability bar over a struck cell or thing. z for storeys,
+the `fall` primitive (support lost) and reach by height come with W6.
+
 ### 5.6 Sites, travel and the overworld's acts
 
 - A site is a thing on its overworld cell. Its base rules: empty hands → `push` the actor into

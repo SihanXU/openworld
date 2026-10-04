@@ -992,6 +992,35 @@ req('W3', 'a stone pickaxe breaks rock in two blows and gives back stone (its ma
   expect(records(f)).toHaveLength(0)
 })
 
+/** One step the player's own way (an act of moving), and the time it takes. */
+function walk(f: Ford, dir: Entity['facing']): { map: string; x: number; y: number } {
+  f.eng.movePlayer(dir!)
+  ticks(f, 8)
+  return W(f).posOf(W(f).player)!
+}
+
+req('W8', 'height: the summit stands two levels above the land below the cut; down the ramp through the gap and back up unharmed; off the cliff a drop of two levels hurts, and the cliff cannot be climbed', [], () => {
+  const f = fresh()
+  // the pine felled (the prologue's way), the gap is a ramp: each column half a level lower
+  author(f, () => W(f).destroy(W(f).cellTop('summit', ...PAT.pine)!))
+  expect([19, 20, 21, 22, 23].map((y) => W(f).heightAt('summit', PAT.pine[0], y))).toEqual([4, 3, 2, 1, 0])
+  stand(f, PAT.pine[0], 19, 'down', 'summit')
+  const hp = W(f).num(W(f).player, 'hp')
+  for (let i = 0; i < 4; i++) walk(f, 'down')
+  expect(W(f).posOf(W(f).player)).toMatchObject({ x: PAT.pine[0], y: 23 })
+  for (let i = 0; i < 4; i++) walk(f, 'up')
+  expect(W(f).posOf(W(f).player)).toMatchObject({ x: PAT.pine[0], y: 19 })
+  expect(W(f).num(W(f).player, 'hp')).toBe(hp)
+  // the cliff beside it, opened (as a pickaxe would): stepping off is a fall of two levels
+  const x = PAT.pine[0] + 2
+  author(f, () => [20, 21].forEach((y) => W(f).destroy(W(f).cellTop('summit', x, y)!)))
+  stand(f, x, 21, 'down', 'summit')
+  expect(walk(f, 'down')).toMatchObject({ x, y: 22 })
+  expect(W(f).num(W(f).player, 'hp')).toBeLessThan(hp)
+  // and it cannot be climbed back
+  expect(walk(f, 'up')).toMatchObject({ x, y: 22 })
+})
+
 req('W13', 'a burning wooden wall (the summit shelter) loses durability as it burns and leaves a burnt wall', [], () => {
   const f = fresh()
   // a dry hour: rain would put the fire out

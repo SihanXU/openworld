@@ -75,6 +75,8 @@ export class WorldScene extends Phaser.Scene {
   private base?: MapData
   private overrides = new Map<string, string>() // "x,y" -> terrain
   private statics: Phaser.GameObjects.GameObject[] = []
+  /** The durability bars over struck cells. */
+  private tileBars?: Phaser.GameObjects.Graphics
   private objects = new Map<string, Phaser.GameObjects.Image>() // terrain objects by "x,y"
   private views = new Map<string, EView>()
   private tileFx = new Map<string, { sprites: Phaser.GameObjects.GameObject[]; sig: string }>()
@@ -212,6 +214,7 @@ export class WorldScene extends Phaser.Scene {
       }
     for (const s of map.stamps ?? []) this.stamp(s.key, s.x, s.y)
     for (const r of map.rooms ?? []) this.roomFrame(r.style, r.x, r.y, r.w, r.h)
+    this.drawHeights(map)
     this.fitBounds()
     this.playMusic(map.music)
     this.hooks.onMap?.(map)
@@ -470,6 +473,49 @@ export class WorldScene extends Phaser.Scene {
       this.tileFx.set(k, { sprites, sig })
     }
     for (const [k, v] of this.tileFx) if (!statusNow.has(k)) (v.sprites.forEach((s) => s.destroy()), this.tileFx.delete(k))
+    // what a struck tree or rock has left: a small bar over its cell
+    this.tileBars ??= this.add.graphics().setDepth(1e7)
+    this.tileBars.clear()
+    for (const t of f.tiles) {
+      if (t.hp === undefined || !t.maxHp) continue
+      const w = 12
+      const bx = t.x * T + (T - w) / 2
+      const by = t.y * T - 4
+      this.tileBars.fillStyle(0x000000, 0.6).fillRect(bx, by, w, 2)
+      this.tileBars.fillStyle(0xd8b060, 1).fillRect(bx, by, Math.max(1, (w * t.hp) / t.maxHp), 2)
+    }
+  }
+
+  /**
+   * The ground's height (world-model.md §5.2): higher ground a little lighter, a cliff where it
+   * drops a level or more (a dark lip on every side, a rock face and its shadow below it), and a
+   * ramp's steps. Heights are half levels.
+   */
+  private drawHeights(map: MapData): void {
+    const hs = map.heights
+    if (!hs?.some((h) => h)) return
+    const g = this.add.graphics().setDepth(-90)
+    this.statics.push(g)
+    const at = (x: number, y: number) => (x < 0 || y < 0 || x >= map.width || y >= map.height ? undefined : hs[y * map.width + x] ?? 0)
+    for (let y = 0; y < map.height; y++)
+      for (let x = 0; x < map.width; x++) {
+        const h = at(x, y)!
+        if (h >= 2) g.fillStyle(0xffffff, Math.min(0.12, 0.03 * Math.floor(h / 2))).fillRect(x * T, y * T, T, T)
+        // a ramp: the steps across it
+        if (h % 2) for (let i = 3; i < T; i += 5) g.fillStyle(0x000000, 0.12).fillRect(x * T + 1, y * T + i, T - 2, 1)
+        const drop = (dx: number, dy: number) => h - (at(x + dx, y + dy) ?? h) >= 2
+        g.fillStyle(0x2a2018, 0.55)
+        if (drop(0, -1)) g.fillRect(x * T, y * T, T, 1)
+        if (drop(-1, 0)) g.fillRect(x * T, y * T, 1, T)
+        if (drop(1, 0)) g.fillRect((x + 1) * T - 1, y * T, 1, T)
+        if (drop(0, 1)) {
+          // the face of the cliff, on the ground below it, and its shadow
+          g.fillStyle(0x6b5a48, 0.85).fillRect(x * T, (y + 1) * T, T, 5)
+          for (let i = 2; i < T; i += 4) g.fillStyle(0x4a3c30, 0.9).fillRect(x * T + i, (y + 1) * T, 1, 5)
+          g.fillStyle(0x000000, 0.22).fillRect(x * T, (y + 1) * T + 5, T, 3)
+          g.fillStyle(0xfff2d8, 0.35).fillRect(x * T, (y + 1) * T - 1, T, 1)
+        }
+      }
   }
 
   private overlaySprite(name: string, x: number, y: number): Phaser.GameObjects.Sprite | undefined {
@@ -674,11 +720,12 @@ export class WorldScene extends Phaser.Scene {
     if (!lit && v.glow) (v.glow.destroy(), (v.glow = undefined))
     // hp bar
     v.hp.clear()
-    if (e.tags.includes('agent') && !e.boss && e.maxHp && e.hp !== undefined && (e.hp < e.maxHp || e.hostile) && e.id !== this.playerId) {
+    // a body's health, or what a thing has left of its durability once struck (world-model.md §6.3)
+    if (!e.boss && e.maxHp && e.hp !== undefined && (e.hp < e.maxHp || (e.tags.includes('agent') && e.hostile)) && e.id !== this.playerId) {
       const w = 14
       const top2 = -v.body.displayHeight - 3
       v.hp.fillStyle(0x000000, 0.6).fillRect(-w / 2, top2, w, 2)
-      v.hp.fillStyle(e.hostile ? 0xe04848 : 0x6ad06a, 1).fillRect(-w / 2, top2, Math.max(1, (w * e.hp) / e.maxHp), 2)
+      v.hp.fillStyle(e.hostile ? 0xe04848 : e.tags.includes('agent') ? 0x6ad06a : 0xd8b060, 1).fillRect(-w / 2, top2, Math.max(1, (w * e.hp) / e.maxHp), 2)
     }
   }
 

@@ -11,6 +11,8 @@ export interface RawMap {
   width: number
   height: number
   rows: string[]
+  /** Ground heights in half levels, one digit per column (omitted: all 0). */
+  heights?: string[]
   portals: Portal[]
   stamps?: MapData['stamps']
   rooms?: MapData['rooms']
@@ -38,6 +40,7 @@ export function decodeMap(m: RawMap): MapData {
     width: m.width,
     height: m.height,
     terrain,
+    heights: m.heights ? m.heights.flatMap((row) => [...row].map(Number)) : undefined,
     portals: m.portals,
     stamps: m.stamps,
     rooms: m.rooms,

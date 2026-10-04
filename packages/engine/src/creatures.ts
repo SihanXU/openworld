@@ -110,7 +110,7 @@ function go(eng: Engine, e: Entity, gx: number, gy: number, safe: (x: number, y:
   const w = eng.world
   const { map, x, y } = e.place
   const m = w.map(map)
-  const path = m && astar(m.width, m.height, (px, py) => w.passable(map, px, py) || (px === gx && py === gy), x, y, gx, gy, 2000)
+  const path = m && astar(m.width, m.height, (px, py) => w.passable(map, px, py) || (px === gx && py === gy), x, y, gx, gy, 2000, (ax, ay, bx, by) => w.safeStep(e, map, ax, ay, bx, by))
   if (!path?.length || !stepTo(eng, e, path[0], safe)) return false
   ai.detour = { x: gx, y: gy, path: path.slice(1) }
   return true

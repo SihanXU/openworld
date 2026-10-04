@@ -243,7 +243,7 @@ export class NpcSim {
       budget--
       const m = w.map(active)!
       const free = (px: number, py: number) => w.passable(active, px, py) && !(rt.around && (px !== gx || py !== gy) && w.actorAt(active, px, py))
-      rt.path = astar(m.width, m.height, free, x, y, gx, gy) ?? []
+      rt.path = astar(m.width, m.height, free, x, y, gx, gy, undefined, (ax, ay, bx, by) => w.safeStep(e, active, ax, ay, bx, by)) ?? []
       rt.around = false
       rt.goal = goal
       if (!rt.path.length) {

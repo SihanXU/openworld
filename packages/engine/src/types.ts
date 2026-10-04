@@ -95,6 +95,10 @@ export interface MaterialDef {
 export interface WorldParams {
   /** The share of its makeup a thing leaves when it breaks (D9). */
   recovery: number
+  /** A drop of this many levels or less does no harm (world-model.md §5.5). */
+  safeFall: number
+  /** The harm of each level fallen beyond the safe height. */
+  fallDamage: number
 }
 
 /** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */
@@ -524,6 +528,12 @@ export interface MapData {
    * The engine makes the cell's things from it (cells.ts): the floor, and what fills or roots in it.
    */
   terrain: string[]
+  /**
+   * Row-major ground height of each column, in half levels (world-model.md §5.2; default 0): a
+   * level is two; a column between two levels is a ramp. One walks at most half a level up or
+   * down; more down is a fall, more up a cliff.
+   */
+  heights?: number[]
   portals: Portal[]
   /** Render hints (the engine ignores them): prefab stamps, room wall frames, music, light. */
   stamps?: { key: string; x: number; y: number }[]

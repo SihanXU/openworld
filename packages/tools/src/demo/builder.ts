@@ -41,6 +41,8 @@ export class MapBuilder {
   forage: Forage[] = []
   /** Peaceful (towns, camps) or combat (night brings monsters): MapData.zone. */
   zone: 'peaceful' | 'combat' = 'combat'
+  /** Ground heights in half levels (MapData.heights): a level is two, a ramp is a column between. */
+  heights: number[][] = []
 
   constructor(
     public id: string,
@@ -54,6 +56,12 @@ export class MapBuilder {
     public region = 'frostfang',
   ) {
     this.cells = Array.from({ length: h }, () => Array(w).fill(fill))
+    this.heights = Array.from({ length: h }, () => Array(w).fill(0))
+  }
+
+  /** Raise ground to `half` half levels (a level is 2; an odd height is a ramp between two levels). */
+  raise(x: number, y: number, w: number, h: number, half: number) {
+    for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (this.in(i, j)) this.heights[j][i] = half
   }
 
   in(x: number, y: number) {
@@ -398,6 +406,7 @@ export class MapBuilder {
         width: this.w,
         height: this.h,
         rows,
+        heights: this.heights.some((r) => r.some((v) => v)) ? this.heights.map((r) => r.join('')) : undefined,
         portals: this.portals,
         stamps: this.stamps,
         rooms: this.rooms,

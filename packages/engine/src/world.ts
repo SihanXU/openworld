@@ -385,6 +385,32 @@ export class World {
     return rows.length ? Math.max(...rows.map((r) => table[r][category])) : 1
   }
 
+  /** The ground height of a column, in half levels (0 off the map or where the map says none). */
+  heightAt(map: string, x: number, y: number): number {
+    const m = this.state.maps[map]
+    if (!m?.heights || !this.inBounds(map, x, y)) return 0
+    return m.heights[y * m.width + x] ?? 0
+  }
+
+  /**
+   * What a step from one column to the next is for a thing (world-model.md §5.5): a walk (half a
+   * level up or down at most: level ground, a ramp), a fall (further down: that many levels), or a
+   * climb, which one cannot make (a cliff). What flies does neither.
+   */
+  stepOver(e: Entity | undefined, map: string, ax: number, ay: number, bx: number, by: number): { walk: true } | { fall: number } | { climb: true } {
+    if (e && this.stanceOf(e) === 'air') return { walk: true }
+    const d = this.heightAt(map, bx, by) - this.heightAt(map, ax, ay)
+    if (d > 1) return { climb: true }
+    if (d < -1) return { fall: -d / 2 }
+    return { walk: true }
+  }
+
+  /** A step one would plan to take: a walk, or a fall that does no harm (behaviour avoids unsafe drops). */
+  safeStep(e: Entity | undefined, map: string, ax: number, ay: number, bx: number, by: number): boolean {
+    const s = this.stepOver(e, map, ax, ay, bx, by)
+    return 'walk' in s || ('fall' in s && s.fall <= (this.onto.data.params?.safeFall ?? 1))
+  }
+
   /** Can it be carried? (the `portable` tag) */
   isPortable(e: Entity): boolean {
     return this.hasTag(e, 'portable')

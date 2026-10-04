@@ -53,7 +53,7 @@ function moveToward(eng: Engine, e: Entity, goal: Pos): boolean {
   faceToward(e, pos, goal)
   if (eng.step(e, e.facing!)) return true
   const map = w.map(pos.map)!
-  const path = astar(map.width, map.height, (x, y) => w.fits(e, pos.map, x, y), pos.x, pos.y, goal.x, goal.y, 2000)
+  const path = astar(map.width, map.height, (x, y) => w.fits(e, pos.map, x, y), pos.x, pos.y, goal.x, goal.y, 2000, (ax, ay, bx, by) => w.safeStep(e, pos.map, ax, ay, bx, by))
   if (!path?.length || !nextStep(path[0])) return false
   ai.detour = { x: goal.x, y: goal.y, path: path.slice(1) }
   return true

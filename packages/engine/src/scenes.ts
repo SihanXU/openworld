@@ -153,7 +153,7 @@ export class Scenes {
       const e = this.who(c.move)
       if (!e || e.place.on !== 'tile') return
       const map = w.map(e.place.map)!
-      const path = astar(map.width, map.height, (x, y) => w.walkable(map.id, x, y, e.id, true) || (x === c.x && y === c.y), e.place.x, e.place.y, c.x, c.y)
+      const path = astar(map.width, map.height, (x, y) => w.walkable(map.id, x, y, e.id, true) || (x === c.x && y === c.y), e.place.x, e.place.y, c.x, c.y, undefined, (ax, ay, bx, by) => w.safeStep(e, map.id, ax, ay, bx, by))
       s.mover = { who: e.id, path: path ?? [[c.x, c.y]], next: w.state.tick + MOVE_STEP_TICKS }
       s.until = undefined
       s.waiting = 'move'

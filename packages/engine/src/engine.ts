@@ -425,6 +425,8 @@ export class Engine {
       if (x === b.x && y === b.y) return true
       const tags = w.onto.terrain(w.terrainAt(map, x, y))?.tags ?? []
       if (tags.some((t) => OPAQUE_TERRAIN.includes(t))) return false
+      // ground higher than both ends stands in the way (world-model.md §5.5: height blocks sight)
+      if (w.heightAt(map, x, y) > Math.max(w.heightAt(map, a.x, a.y), w.heightAt(map, b.x, b.y)) + 1) return false
       if (w.entitiesAt(map, x, y).some((o) => w.hasTag(o, 'opaque') || w.hasTag(o, 'tall'))) return false
     }
     return true
@@ -714,6 +716,13 @@ export class Engine {
     const portalHere = w.map(map)?.portals.find((p) => p.x === nx && p.y === ny)
     // only the player uses portals by stepping on them; NPCs transfer from the tile beside
     if (portalHere && !isPlayer) return false
+    // a cliff cannot be climbed: one bumps into it (what makes up the cell above)
+    const over = w.stepOver(e, map, x, y, nx, ny)
+    if ('climb' in over) {
+      const cliff = w.cellTop(map, nx, ny)
+      this.offer({ kind: 'bump', host: { e: e.id }, roles: cliff ? { other: { e: cliff.id } } : {}, params: { dir }, cause: ev.cause, origin: ev.origin })
+      return false
+    }
     if (!w.fits(e, map, nx, ny)) {
       const other = w.actorAt(map, nx, ny)
       if (!isPlayer || !other?.npc || this.busy(other) || w.blocked(map, nx, ny)) {
@@ -736,10 +745,27 @@ export class Engine {
     this.touch({ e: e.id })
     w.place(e, { on: 'tile', map, x: nx, y: ny })
     this.touch({ e: e.id })
+    // a step off a ledge is a fall (world-model.md §5.5): the faller strikes itself by the drop
+    if ('fall' in over) this.fallBy(e, over.fall, ev)
     // a successful step charges the swiftness talents (combat.ts)
     recordCombatStep(w, e)
     if (isPlayer && portalHere) this.travel(e, { map: portalHere.to, x: portalHere.tx, y: portalHere.ty })
     return true
+  }
+
+  /**
+   * A fall of `levels` (world-model.md §5.5, D12): beyond the safe height each level hurts the
+   * faller, as a blow to itself (physics: defined, never asked).
+   */
+  fallBy(e: Entity, levels: number, ev?: GameEvent): void {
+    const w = this.world
+    const p = w.onto.data.params
+    const harm = Math.max(0, levels - (p?.safeFall ?? 1)) * (p?.fallDamage ?? 0)
+    const at = w.posOf(e)
+    if (at) w.fx.push({ t: 'vfx', fx: 'dust', map: at.map, x: at.x, y: at.y })
+    if (harm <= 0) return
+    if (e.id === w.state.player) w.fx.push({ t: 'log', text: { en: 'A hard fall.', zh: '重重地摔了下去。' } })
+    this.hurt(e, harm, undefined, true, ev)
   }
 
   /** A step to a place: an act of moving there (a scene's direction, a person arriving through a portal). */
