@@ -2,14 +2,16 @@
 // world.ts resolves anchors to map positions and turns each record into an NPC entity with
 // `npc.person` (PersonData) for the engine.
 
-import type { LineDef, Mood, Selector, Text } from '@lsw/engine'
+import type { LineDef, Mood, Selector, Text, WorkDef } from '@lsw/engine'
+import type { ItemSpec } from './builder.ts'
 
 /**
  * [fromHour, toHour, anchor, activity, needs?]: hours 0..24, may wrap past midnight (21 → 5).
  * `needs` names the thing the activity uses (an entity id) and what it must be (a selector):
- * the fire she tends must be lit; if not, she is blocked.
+ * the fire she tends must be lit; if not, she is blocked. `work` is the work the activity is: real
+ * acts on what is about (world-model.md §6.10).
  */
-export type Slot = [number, number, string, string, { uses: string; need?: Selector }?]
+export type Slot = [number, number, string, string, { uses?: string; need?: Selector; work?: WorkDef[] }?]
 
 export interface PersonDef {
   id: string
@@ -24,8 +26,10 @@ export interface PersonDef {
   /** Schedule variants by key (most specific wins): 'fact:<key>', 'storm', 'rain', 'default'. Each covers the whole 24 hours. */
   schedules: Record<string, Slot[]>
   lines: LineDef[]
-  /** Item forms the person carries. */
-  items?: string[]
+  /** What the person carries (a woodcutter's axe). */
+  items?: ItemSpec[]
+  /** What the person is, beyond their role (the woodcutter's skill). */
+  tags?: string[]
 }
 
 /** A line: key, English, Chinese, and options (mood, once). */

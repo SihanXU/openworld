@@ -28,8 +28,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 
 - `packages/engine` — pure, deterministic, no DOM/AI. World state + indices (`world.ts`),
   rule matching/specificity/library (`rules.ts`), effect primitives (`effects.ts`), event
-  dispatch + tick + movement + combat (`engine.ts`), NPC two-fidelity sim (`npc.ts`),
-  creatures (`creatures.ts`), locked-telegraph boss controllers (`bosses.ts`, docs/seven-sins.md), Mod port: ModSpec / ModRequest / validatePatch / records
+  dispatch + tick + movement + combat (`engine.ts`), one goal system for every actor (`behaviour.ts`:
+  goals in each type's order — encounter, threat, follow, schedule, home, idle; the people's goals and
+  their real work in `npc.ts`, the creatures' in `creatures.ts`, the sins' locked telegraphs in
+  `bosses.ts`, docs/seven-sins.md), Mod port: ModSpec / ModRequest / validatePatch / records
   (`mod.ts`), sandbox replay (`sandbox.ts`), snapshots for rendering (`snapshot.ts`),
   new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
   lines, schedule variants with the thing an activity needs, topics (`people.ts`), scripted

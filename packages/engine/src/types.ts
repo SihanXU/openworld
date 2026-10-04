@@ -63,6 +63,8 @@ export interface TypeDef {
   makeup?: MakeupPart[]
   /** How long it stays what it is, and what it becomes (world-model.md §6.5). */
   stage?: StageDef
+  /** The order its goals are tried in (world-model.md §6.10): encounter, threat, follow, schedule, home, idle. */
+  goals?: string[]
   /** Where it is made from its makeup (world-model.md §6.4): `hands` (anywhere), or a station a thing within reach is (its `station:<x>` tag). */
   station?: string
   /** The level its recipe asks (default 1): a maker above it makes it finer. */
@@ -211,6 +213,8 @@ export interface Ontology {
   periods?: PeriodDef[]
   /** What appears by itself on any map its `where` fits (the night's walkers), besides each map's own (MapData.appear). */
   appear?: AppearDef[]
+  /** The order goals are tried in for a thing whose type does not say (world-model.md §6.10). */
+  goals?: string[]
 }
 
 /**
@@ -441,6 +445,22 @@ export interface ScheduleEntry {
   uses?: Id
   /** What `uses` must be for the activity to go on (the fire lit); else the person is blocked. */
   need?: Selector
+  /** The work the activity is (world-model.md §6.10): real acts on what is about, tried in order. */
+  work?: WorkDef[]
+}
+
+/**
+ * A piece of work (world-model.md §6.10, D26): the act a person does, with the player's own acts,
+ * on the nearest thing that fits within `radius` of their anchor (a woodcutter's axe on a tree),
+ * with what they carry that fits `holding`.
+ */
+export interface WorkDef {
+  verb: Verb
+  target: Selector
+  holding?: Selector
+  radius: number
+  /** A condition on the worker (the host) the work waits for: carrying fewer than six logs. */
+  when?: Cond
 }
 
 export interface NpcData {

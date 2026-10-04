@@ -112,21 +112,29 @@ export class Companions {
     return Object.values(this.eng.world.state.entities).filter((e) => e.props?.companion === leader && e.place.on === 'tile')
   }
 
+  /** The beats, checked now and then (following is the companions' goal, behaviour.ts). */
   tick(): void {
     const w = this.eng.world
-    // a companion hops every tick: it flies faster than anyone runs, so it never falls behind
-    for (const e of Object.values(w.state.entities)) {
-      const lead = typeof e.props?.companion === 'string' ? w.get(e.props.companion) : undefined
-      if (lead) this.follow(e, lead)
-    }
     if (w.state.tick % EVERY === 0 && !w.scene) this.checkBeats()
+  }
+
+  /**
+   * Follow (world-model.md §6.10): an actor with a leader keeps beside them. A companion hops every
+   * tick: it flies faster than anyone runs, so it never falls behind.
+   */
+  follow(e: Entity): boolean {
+    const w = this.eng.world
+    const lead = typeof e.props?.companion === 'string' ? w.get(e.props.companion) : undefined
+    if (!lead) return false
+    this.keepUp(e, lead)
+    return true
   }
 
   /**
    * Keep near the leader, behind them (never where they face and act): across maps at once,
    * else a hop toward its perch when they draw away. It flies over whatever stands between.
    */
-  private follow(e: Entity, lead: Entity): void {
+  private keepUp(e: Entity, lead: Entity): void {
     const w = this.eng.world
     const to = w.posOf(lead)
     const at = w.posOf(e)

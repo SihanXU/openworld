@@ -130,55 +130,58 @@ export function releaseSkill(eng: Engine, e: Entity, ev: GameEvent): void {
   for (const c of centers) w.fx.push({ t: 'vfx', fx: skill.fx, ...c })
 }
 
-export function stepBosses(eng: Engine, active: string): void {
+/**
+ * The encounter goal (world-model.md §6.10): a sin's locked telegraphs — it walks to its foe, winds
+ * up a skill on the cells it will strike, and releases it; it keeps to its arena.
+ */
+export function encounter(eng: Engine, e: Entity, active: string): boolean {
   const w = eng.world, now = w.state.tick
-  for (const e of w.entitiesOnMap(active)) {
-    if (!e.boss || !e.ai || e.place.on !== 'tile') continue
-    const b = e.boss, kit = eng.bossKits[b.kit]
-    if (!kit) continue
-    if (w.num(e, 'hp') <= 0) {
-      if (b.action !== 'death') { b.action = 'death'; b.actionTick = now }
-      delete b.pending
-      continue
-    }
-    if (eng.busy(e)) { delete b.pending; b.action = 'hurt'; continue }
-    const pos = w.posOf(e)!, home = e.ai?.home ?? pos
-    b.phase = w.num(e, 'hp') <= w.num(e, 'maxHp') * kit.enrageAt ? 2 : 1
-    const candidates = w.entitiesOnMap(active).filter((o) => o.place.on === 'tile' && eng.hostileTo(e, o) && w.num(o, 'hp') > 0 && !o.statuses?.down)
-    candidates.sort((a, c) => { const x = w.posOf(a)!, y = w.posOf(c)!; return Math.abs(x.x-pos.x)+Math.abs(x.y-pos.y)-Math.abs(y.x-pos.x)-Math.abs(y.y-pos.y) })
-    const target = candidates[0], at = w.posOf(target)
-    const inLeash = Math.max(Math.abs(pos.x-home.x), Math.abs(pos.y-home.y)) <= kit.leash
-    if (b.pending) {
-      if (!at || !inLeash || Math.max(Math.abs(at.x-home.x), Math.abs(at.y-home.y)) > kit.leash + 3) { delete b.pending; b.action = 'idle'; b.nextAt = now + 10; continue }
-      if (now >= b.pending.releaseAt) release(eng, e, kit.skills[b.pending.skill])
-      continue
-    }
-    if (now < (b.nextAt ?? 0)) continue
-    if (!target || !at || !inLeash || Math.max(Math.abs(at.x-pos.x), Math.abs(at.y-pos.y)) > kit.sight) {
-      b.action = 'idle'
-      if (e.ai) e.ai.state = 'idle'
-      // Return to the encounter instead of camping the map exit or chasing into a town.
-      if (Math.abs(pos.x-home.x)+Math.abs(pos.y-home.y)>1 && eng.ready(e.id)) {
-        if (moveToward(eng, e, home)) b.action = 'walk'
-        eng.setCooldown(e.id, combatDelay(w, e, w.num(e, 'speed', 8), 'move'))
-      }
-      continue
-    }
-    faceToward(e, pos, at)
-    if (e.ai) e.ai.state = 'chase'
-    const skillIndex = b.nextSkill ?? 0, skill = kit.skills[skillIndex]
-    const reach = skill.aim === 'self' ? skill.radius : kit.sight
-    if (Math.max(Math.abs(at.x-pos.x), Math.abs(at.y-pos.y)) > reach) {
-      if (eng.ready(e.id)) {
-        if (moveToward(eng, e, at)) b.action = 'walk'
-        else b.action = 'idle'
-        eng.setCooldown(e.id, combatDelay(w, e, w.num(e, 'speed', 8), 'move'))
-      }
-      continue
-    }
-    const windup = Math.max(8, Math.round(skill.windup * ((b.phase ?? 1) > 1 ? 0.8 : 1)))
-    b.action = skill.action; b.actionTick = now; b.actionEnd = now + windup + skill.recovery
-    b.pending = { skill: skillIndex, target: target.id, origin: { ...pos }, aim: { ...at }, tiles: bossPattern(skill, pos, at).filter(([x, y]) => w.inBounds(active, x, y)), releaseAt: now + windup }
-    w.fx.push({ t: 'say', who: e.id, text: skill.name })
+  if (!e.boss || !e.ai || e.place.on !== 'tile') return false
+  const b = e.boss, kit = eng.bossKits[b.kit]
+  if (!kit) return false
+  if (w.num(e, 'hp') <= 0) {
+    if (b.action !== 'death') { b.action = 'death'; b.actionTick = now }
+    delete b.pending
+    return true
   }
+  if (eng.busy(e)) { delete b.pending; b.action = 'hurt'; return true }
+  const pos = w.posOf(e)!, home = e.ai?.home ?? pos
+  b.phase = w.num(e, 'hp') <= w.num(e, 'maxHp') * kit.enrageAt ? 2 : 1
+  const candidates = w.entitiesOnMap(active).filter((o) => o.place.on === 'tile' && eng.hostileTo(e, o) && w.num(o, 'hp') > 0 && !o.statuses?.down)
+  candidates.sort((a, c) => { const x = w.posOf(a)!, y = w.posOf(c)!; return Math.abs(x.x-pos.x)+Math.abs(x.y-pos.y)-Math.abs(y.x-pos.x)-Math.abs(y.y-pos.y) })
+  const target = candidates[0], at = w.posOf(target)
+  const inLeash = Math.max(Math.abs(pos.x-home.x), Math.abs(pos.y-home.y)) <= kit.leash
+  if (b.pending) {
+    if (!at || !inLeash || Math.max(Math.abs(at.x-home.x), Math.abs(at.y-home.y)) > kit.leash + 3) { delete b.pending; b.action = 'idle'; b.nextAt = now + 10; return true }
+    if (now >= b.pending.releaseAt) release(eng, e, kit.skills[b.pending.skill])
+    return true
+  }
+  if (now < (b.nextAt ?? 0)) return true
+  if (!target || !at || !inLeash || Math.max(Math.abs(at.x-pos.x), Math.abs(at.y-pos.y)) > kit.sight) {
+    b.action = 'idle'
+    if (e.ai) e.ai.state = 'idle'
+    // Return to the encounter instead of camping the map exit or chasing into a town.
+    if (Math.abs(pos.x-home.x)+Math.abs(pos.y-home.y)>1 && eng.ready(e.id)) {
+      if (moveToward(eng, e, home)) b.action = 'walk'
+      eng.setCooldown(e.id, combatDelay(w, e, w.num(e, 'speed', 8), 'move'))
+    }
+    return true
+  }
+  faceToward(e, pos, at)
+  if (e.ai) e.ai.state = 'chase'
+  const skillIndex = b.nextSkill ?? 0, skill = kit.skills[skillIndex]
+  const reach = skill.aim === 'self' ? skill.radius : kit.sight
+  if (Math.max(Math.abs(at.x-pos.x), Math.abs(at.y-pos.y)) > reach) {
+    if (eng.ready(e.id)) {
+      if (moveToward(eng, e, at)) b.action = 'walk'
+      else b.action = 'idle'
+      eng.setCooldown(e.id, combatDelay(w, e, w.num(e, 'speed', 8), 'move'))
+    }
+    return true
+  }
+  const windup = Math.max(8, Math.round(skill.windup * ((b.phase ?? 1) > 1 ? 0.8 : 1)))
+  b.action = skill.action; b.actionTick = now; b.actionEnd = now + windup + skill.recovery
+  b.pending = { skill: skillIndex, target: target.id, origin: { ...pos }, aim: { ...at }, tiles: bossPattern(skill, pos, at).filter(([x, y]) => w.inBounds(active, x, y)), releaseAt: now + windup }
+  w.fx.push({ t: 'say', who: e.id, text: skill.name })
+  return true
 }

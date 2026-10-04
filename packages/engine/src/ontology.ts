@@ -21,6 +21,8 @@ export interface ResolvedType {
   makeup?: MakeupPart[]
   /** How long it stays what it is (TypeDef.stage). */
   stage?: StageDef
+  /** The order its goals are tried in (TypeDef.goals). */
+  goals?: string[]
   name?: TypeDef['name']
   /** Ancestor chain from root to self (only registered ids). */
   chain: string[]
@@ -113,6 +115,7 @@ export class OntologyIndex {
     let terrain: string | undefined
     let makeup: MakeupPart[] | undefined
     let stage: StageDef | undefined
+    let goals: string[] | undefined
     let name: TypeDef['name']
     for (let i = 1; i <= parts.length; i++) {
       const p = parts.slice(0, i).join('/')
@@ -129,9 +132,10 @@ export class OntologyIndex {
       if (def.terrain) terrain = def.terrain
       if (def.makeup) makeup = def.makeup
       if (def.stage) stage = def.stage
+      if (def.goals) goals = def.goals
       if (def.name) name = def.name
     }
-    const r: ResolvedType = { id, tags: [...tags], props, sprite, solid, footprint, reach, occupies, terrain, makeup, stage, name, chain, depth: parts.length }
+    const r: ResolvedType = { id, tags: [...tags], props, sprite, solid, footprint, reach, occupies, terrain, makeup, stage, goals, name, chain, depth: parts.length }
     this.cache.set(id, r)
     return r
   }

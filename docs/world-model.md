@@ -580,6 +580,28 @@ today has four (`npc.ts`, `creatures.ts`, `companion.ts`, `bosses.ts`). They bec
 - Relations are per pair and come from what each saw; factions, temper, foes stay data.
 - People change maps by their schedules (D21).
 
+As built (W9): `behaviour.ts` is the one system. Every tick, each actor on the active map but the
+one at the keys (and each companion, wherever its leader went) tries its goals in its order —
+its type's `goals`, else the world's (`Ontology.goals`), else encounter, threat, follow,
+schedule, home, idle — and the first that applies takes its turn: encounter (a sin's telegraphs,
+`bosses.ts`), threat (fight what it is hostile to in sight, or flee it if passive; a person runs
+from what would attack them), follow (a companion), schedule (a person's day), home, idle. The
+paced goals wait for the actor's cooldown and for it to be free; a scene keeps the people on
+stage. The four loops are gone (`stepCreatures`, `stepBosses`, the people's and the companions'
+own), each controller a goal now; the people, creatures and sins behave as before (the playtest
+keeps the same days to the person). Work is real: a schedule entry's `work` (`WorkDef`: a verb, a
+target selector, what to hold, a radius about the anchor, a condition on the worker) makes the
+person do the player's own acts on the nearest thing that fits — Gus, the woodcutter, takes the
+logs about the forest clearing and fells its trees with his iron axe in the morning (carrying no
+more than six logs), and in the afternoon stacks them on the village's wood pile (a container
+anyone may take from); the stumps grow back (§6.5). People bound for the active map come in on
+the hour by the edge or portal of the last map on their way (D21), and walk on from there (req
+14). The playtest (`check:world`) now stands in the village and counts the people on or bound
+for the active map (0 of 324 off their day over two days); a dormant map's people are frozen by
+design, so the old count of everyone (87 of 576 from the village) is printed beside it. Not yet:
+needs (hunger, sleep) as goals, idle use of what is near, patrols, per-pair relations from what
+each saw.
+
 ### 6.11 Durations and fast-forward
 
 - Every act has a duration: a move takes the actor's step time × the terrain's cost × the

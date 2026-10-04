@@ -10,11 +10,10 @@ import { EffectRunner } from './effects.ts'
 import { Controls } from './controls.ts'
 import { Scenes } from './scenes.ts'
 import { deriveRecipes } from './recipes.ts'
-import { stepCreatures } from './creatures.ts'
+import { Behaviour } from './behaviour.ts'
 import { combatDamage, combatDelay, combatStrike, finishCombatStrike, rangeBonus, recordCombatStep } from './combat.ts'
 import { Companions } from './companion.ts'
 import { Quests } from './quests.ts'
-import { stepBosses } from './bosses.ts'
 import { NpcSim, scheduleAt } from './npc.ts'
 import { scheduleFor } from './people.ts'
 import { OntologyIndex } from './ontology.ts'
@@ -75,6 +74,8 @@ export class Engine {
   private readonly write: Writer
   effects: EffectRunner
   npcs: NpcSim
+  /** Everyone's goals (behaviour.ts). */
+  behaviour: Behaviour
   scenes: Scenes
   /** The player's inputs, slots and magnet (design.md §5.2–5.3). */
   controls: Controls
@@ -121,6 +122,7 @@ export class Engine {
     this.lib = lib
     this.effects = new EffectRunner(this)
     this.npcs = new NpcSim(this)
+    this.behaviour = new Behaviour(this)
     this.scenes = new Scenes(this)
     this.companions = new Companions(this)
     this.quests = new Quests(this)
@@ -1107,11 +1109,9 @@ export class Engine {
     this.statusTick(active)
     this.periodTick(active)
     this.stayTick(active)
-    this.npcs.tick(active)
-    stepCreatures(this, active)
-    // the encounters' own behaviour (bosses.ts): telegraphs, approaches; their blows are acts
-    stepBosses(this, active)
-    // the companions' behaviour: they fly after their leader (their moves are acts)
+    // everyone's behaviour, one goal system (world-model.md §6.10): their moves and blows are acts
+    this.behaviour.tick(active)
+    // the tutorial's beats (the story's script)
     this.companions.tick()
     this.undefinedSink?.tick()
     this.controls.magnet()

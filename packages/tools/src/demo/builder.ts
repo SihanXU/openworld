@@ -25,6 +25,18 @@ export type Cell = [number, number]
 
 export type ItemSpec = string | { form: string; material?: string; quality?: string; element?: string | null; name?: Text; tags?: string[]; props?: Record<string, PropValue> }
 
+/** An item as a spec says: its form, material, quality, element, name, tags and props. */
+export function itemOf(spec: ItemSpec): Omit<Entity, 'id' | 'place'> {
+  const s = typeof spec === 'string' ? { form: spec } : spec
+  const form = FORM_BY_ID[s.form]
+  if (!form) throw new Error(`unknown item form ${s.form}`)
+  const it = makeItem(rng, form, { material: s.material, quality: s.quality ?? 'common', element: s.element === undefined ? null : s.element })
+  if (s.name) it.name = s.name
+  if (s.tags) it.tags = [...(it.tags ?? []), ...s.tags]
+  if (s.props) it.props = { ...(it.props ?? {}), ...s.props }
+  return it
+}
+
 export class MapBuilder {
   cells: string[][]
   portals: Portal[] = []
@@ -323,14 +335,7 @@ export class MapBuilder {
   }
 
   makeItem(spec: ItemSpec): Omit<Entity, 'id' | 'place'> {
-    const s = typeof spec === 'string' ? { form: spec } : spec
-    const form = FORM_BY_ID[s.form]
-    if (!form) throw new Error(`unknown item form ${s.form}`)
-    const it = makeItem(rng, form, { material: s.material, quality: s.quality ?? 'common', element: s.element === undefined ? null : s.element })
-    if (s.name) it.name = s.name
-    if (s.tags) it.tags = [...(it.tags ?? []), ...s.tags]
-    if (s.props) it.props = { ...(it.props ?? {}), ...s.props }
-    return it
+    return itemOf(spec)
   }
 
   item(spec: ItemSpec, x: number, y: number): Entity {

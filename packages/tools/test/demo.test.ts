@@ -1328,6 +1328,39 @@ req('W17', 'combat by what things are made of: iron strikes harder than wood, fi
   expect(blow(8, 'fire', true)).toBe(0)
 })
 
+req('W14', 'real work, and walking in: mornings the woodcutter fells trees in the forest with his axe and gathers the logs; at noon he comes into the village by its south edge and stacks them on the wood pile', ['fixture/container/woodpile', 'npc.gus'], () => {
+  const f = fresh()
+  const w = W(f)
+  const gus = () => w.get('npc.gus')!
+  const logs = (e: Entity) => [...(e.held ? [e.held] : []), ...(e.contents ?? [])].filter((id) => w.get(id)?.type === 'item/material/log').length
+  const [cx, cy] = [23, 7]
+  const trees = () => { let n = 0; for (let y = cy - 5; y <= cy + 5; y++) for (let x = cx - 5; x <= cx + 5; x++) if (w.terrainAt('forest', x, y) === 'tree') n++; return n }
+  // he carries his own axe; felling is a woodcutter's skill
+  expect(gus().contents?.some((id) => w.get(id)?.type === 'item/weapon/blade/axe')).toBe(true)
+  // a morning: the player comes down the grassland's trail into the forest, and he is at work there
+  setHour(f, 2, 7)
+  stand(f, PASTURE_GAP[1], w.map('pasture')!.height - 2, 'down', 'pasture')
+  f.eng.movePlayer('down')
+  expect(w.posOf(w.player)!.map).toBe('forest')
+  expect(w.posOf(gus())!.map).toBe('forest')
+  const before = trees()
+  ticks(f, 1500, () => logs(gus()) >= 3)
+  // a tree felled with his own swings (a stump where it stood, growing back), its logs gathered
+  expect(trees()).toBeLessThan(before)
+  expect(logs(gus())).toBeGreaterThanOrEqual(3)
+  // noon: the player is in the village; on the hour he comes in by its south edge (the way from the forest)
+  author(f, () => f.eng.teleport(w.player, { map: 'meadow', x: 20, y: 14 }))
+  setHour(f, 2, 11.99)
+  ticks(f, 30, () => w.posOf(gus())!.map === 'meadow')
+  const came = w.posOf(gus())!
+  expect(came.map).toBe('meadow')
+  expect(came.y).toBeGreaterThanOrEqual(w.map('meadow')!.height - 4)
+  // and walks to the wood pile and stacks the logs on it, where anyone may take them
+  const pile = () => w.get('village.woodpile')!
+  ticks(f, 3000, () => (pile().contents ?? []).length >= 3)
+  expect((pile().contents ?? []).filter((id) => w.get(id)?.type === 'item/material/log').length).toBeGreaterThanOrEqual(3)
+})
+
 req('W12', 'a second storey: walls, a floor laid over them (held up by them), stairs, and up one goes; break the wall and the floor comes down, and whoever stood on it falls', [], () => {
   const f = fresh()
   // an open stretch of the Ford, five cells across

@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { tickAt, type AiData, type Entity, type MapMeta, type Pos, type SceneDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
 import { BOSSES, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, type RawChunk } from '@lsw/content'
 import { CATALOG } from '../../../client/src/assets/catalog.ts'
-import { MapBuilder, linkEdge, reseed, rng } from './builder.ts'
+import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
 import { EAST_ROAD, EMBERFALL, LAIR, MINE, PASS, buildEastRoad, buildEmberfall, buildLair, buildMine, buildPass } from './quest/maps.ts'
@@ -279,6 +279,8 @@ function buildMeadow(): MapBuilder {
   m.anchor('guard.post', 25, 25)
   m.anchor('guard.home', 29, 9)
   m.anchor('wood.pile', 9, 18)
+  // the wood pile Gus stacks his logs on (world-model.md §6.10: work is real)
+  m.fixture('fixture/container/woodpile', 9, 19, { id: 'village.woodpile', statuses: { open: -1 } })
   m.anchor('wood.home', 8, 16)
   m.anchor('lina.garden', 13, 18)
   m.anchor('lina.home', 9, 9)
@@ -359,11 +361,12 @@ function buildForest(): MapBuilder {
       // inside, trees stand thick: two in five tiles
       else if (rng.chance(0.4)) m.set(x, y, tree())
     }
-  // clearings, a trail that winds through them, and side trails off it
+  // clearings, a trail that winds through them, and side trails off it (the first is where the woodcutter works)
   const wood = (t: string) => t === 'tree' || t === 'pine'
   for (const [cx, cy, rx, ry] of [[23, 7, 3.2, 2.2], [13, 13, 3.6, 2.6], [27, 17, 3, 2.4], [10, 23, 3.4, 2.2], [31, 25, 2.8, 2]] as const) m.organic(cx, cy, rx, ry, 'grass', { only: wood, rough: 0.2 })
   m.path([[23, 0], [23, 5], [20, 9], [15, 12], [17, 16], [24, 17], [27, 21], [20, 23], [12, 23]], 'path', 1, { edge: 'dirt', edgeP: 0.25 })
   m.path([[27, 21], [31, 25]], 'path', 1)
+  m.anchor('woods.clearing', 23, 7)
   m.path([[15, 12], [7, 9], [5, 15]], 'path', 1)
   // the forest floor: leaves under the trees, ferns and moss in the shade, tufts in the clearings
   const near = (x: number, y: number) => m.near(x, y, wood)
@@ -401,7 +404,7 @@ function slots(p: PersonDef, key: string, list: Slot[], at: (name: string) => Po
   }
   const gap = covered.indexOf(false)
   if (gap >= 0) throw new Error(`${p.id} schedule ${key} leaves hour ${gap} uncovered`)
-  return list.map(([from, to, anchor, activity, needs]) => ({ from, to, ...at(anchor), activity, ...(needs && { uses: needs.uses, need: needs.need }) }))
+  return list.map(([from, to, anchor, activity, needs]) => ({ from, to, ...at(anchor), activity, ...(needs?.uses && { uses: needs.uses, need: needs.need }), ...(needs?.work && { work: needs.work }) }))
 }
 
 function person(p: PersonDef, at: (name: string) => Pos): Entity {
@@ -416,6 +419,9 @@ function person(p: PersonDef, at: (name: string) => Pos): Entity {
     place: { on: 'tile', map: first.map, x: first.x, y: first.y },
     facing: 'down',
     props: { age: p.age },
+    ...(p.tags && { tags: p.tags }),
+    // what they carry (addTree puts it in their bag)
+    ...(p.items && { _items: p.items.map((spec, i) => ({ id: `${p.id}.item${i}`, ...itemOf(spec), place: { on: 'inside' as const, holder: p.id } })) }),
     npc: {
       role: p.role,
       schedule,
