@@ -6,7 +6,8 @@
 //   library                   list the patch rules in the shared library
 //   library remove <rule-id>  roll a patch rule back
 // Data: --data <dir> or $LSW_DATA (default <repo>/var). Model: LSW_MODEL_URL + LSW_MODEL_KEY +
-// LSW_MODEL (OpenAI-compatible), or --script <file> / LSW_MODEL_SCRIPT (scripted, no network).
+// LSW_MODEL (OpenAI-compatible), --backend claude-code | claude-code-fast (claude -p; LSW_CLAUDE_MODEL,
+// LSW_CLAUDE_EFFORT), --backend none, or --script <file> / LSW_MODEL_SCRIPT (scripted, no network). See modelFromEnv.
 
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -20,6 +21,8 @@ const flag = (name: string): string | undefined => {
   return i < 0 ? undefined : argv.splice(i, 2)[1]
 }
 const script = flag('script')
+const backend = flag('backend')
+if (backend) process.env.LSW_MODEL_BACKEND = backend
 const data = flag('data')
 const [cmd = 'serve', ...args] = argv
 const stamp = () => new Date().toISOString().slice(11, 19)

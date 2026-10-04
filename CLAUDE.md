@@ -79,7 +79,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - RSI design changes (what the outer loop may change, how it is judged, the benchmark interface)
   are discussed with the user before they are coded.
 - The model is Kimi K3 via OpenRouter, with the key in the gitignored `.env`. Anthropic, Google and OpenAI
-  return 403 from here. Never hard-code a provider; tests use `ScriptedModel`.
+  return 403 from here. Never hard-code a provider; tests use `ScriptedModel`. A second backend,
+  `claude-code`, calls `claude -p` signed in as the user (Opus 5.5, effort low by default; `ClaudeCodeModel`).
+  `npm run dev` asks which backend to use (or `--backend openrouter|claude-code|none`, `LSW_MODEL_BACKEND`).
 - Two harness profiles: **live** (a player waits: brief, one call, low reasoning, deterministic fixes,
   derived tests, hedged calls, review after shipping) and **offline** (curriculum, escalations,
   revisions: tools, more reasoning, blocking review). Measure live changes with `npm run latency`.
@@ -130,7 +132,8 @@ npm install
 npm run gen:world        # the Ford (default world)
 npm run check:world      # headless playtest of it: days kept over two game days, what the world asked
 npm run assets           # copy the catalogue's subset of the asset pack into public/assets/na
-npm run dev              # client at http://localhost:5173 + the modder on :8787 (dev:client for the client alone)
+npm run dev              # client at http://localhost:5173 + the modder on :8787 (asks for its model; dev:client for the client alone)
+npm run dev -- --backend claude-code   # the modder through claude -p (Opus 5.5, effort low)
 npm test                 # vitest (engine + base rules + Mod port)
 npm run typecheck
 npm run coverage         # interaction coverage + refresh its test baseline
