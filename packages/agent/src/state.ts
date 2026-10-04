@@ -24,8 +24,8 @@ import { similarity } from './util.ts'
 export type Outcome = 'accepted' | 'covered' | 'failed'
 
 export interface Attempt<P = unknown> {
-  /** design: a fresh draft; repair: after validator diagnostics; review: after a reviewer's notes. */
-  phase: 'design' | 'repair' | 'review'
+  /** design: a fresh draft; repair: after validator diagnostics; review: after a reviewer's notes; find, create: the router's later layers. */
+  phase: 'design' | 'repair' | 'review' | 'find' | 'create'
   patch?: P
   errors: string[]
   warnings: string[]
@@ -55,6 +55,11 @@ export interface Episode<Req = unknown, P = unknown> {
   escalatedFrom?: string
   /** a revision of this episode's rules, after a late review */
   revises?: string
+  /** the layers of the router the episode went through (world episodes): local, then find, then create */
+  route?: ('local' | 'find' | 'create')[]
+  /** the things the design asked for beyond the request, by name, and the types it created */
+  needed?: string[]
+  created?: string[]
   request: Req
   key: string
   terms: string[]
@@ -200,6 +205,8 @@ export interface Harness {
   escalate: boolean
   /** a late review asking for changes sends the rule back for one offline revision */
   revise: boolean
+  /** design: episodes worked at once (live requests first); background: reviews, reflections, escalations at once */
+  concurrency?: { design: number; background: number }
 }
 
 /** The naive agent loop: the starting point of a self-improvement run (no hooks, no notes, no skills). */
@@ -232,6 +239,7 @@ export const DEFAULT_HARNESS: Harness = {
   },
   escalate: true,
   revise: true,
+  concurrency: { design: 1, background: 3 },
 }
 
 /** The harness as one profile sees it. */

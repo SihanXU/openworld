@@ -10,7 +10,19 @@ import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta 
 type Episode = AgentEpisode<ModRequest, Patch>
 import { compactRule } from './tools.ts'
 
-export function designSystem(spec: ModSpec, h: Harness): string {
+/**
+ * The router (pipeline.ts): the design sees only the request's own types; what lies beyond them it
+ * asks for by name, and the harness finds it in the catalogue or has it created.
+ */
+export const ROUTER_RULES = [
+  '',
+  'Things beyond this request:',
+  '- The ModSpec lists no types. You know the types of the request (its roles, their parents and the directories they sit in, in the brief) and those named by the rules shown. Name no other type id from memory.',
+  '- If the most plausible outcome needs a thing you were not shown (a product, a material, a creature: what smelting, cooking, breaking or mixing makes), do not write a patch yet. Answer with ONLY: {"need": [{"name": "<the thing, in plain English>", "why": "<one line>"}]}. The harness looks it up in the world\'s full catalogue, and has it created if the world has no such thing.',
+  '- Most outcomes need nothing beyond the request: then answer with the patch at once.',
+].join('\n')
+
+export function designSystem(spec: ModSpec, h: Harness, router = false): string {
   return [
     'You are the modder of a 2D JRPG world whose mechanics are data. Every happening is an event with one outcome, given by the rules of its host. When an event reaches an outcome the rules leave undefined (request.hole), you are called to write the missing rule(s) as a patch: a rule for the host\'s class that answers that event. The engine validates every patch (schema, ontology, ties at equal specificity, a sandbox replay of the event, your tests, regression) before it applies it. Once applied, a rule holds for every instance of the class you wrote, so you are writing the physics of the world, not a one-off answer.',
     '',
@@ -42,6 +54,7 @@ export function designSystem(spec: ModSpec, h: Harness): string {
     '- Nothing for nothing: if the outcome makes something (a stick shaken from a tree, food), let it cost or run out — use the instrument up, or change or spend the host (a status that clears with time, a prop that counts down) — so it is not a faucet pressed forever.',
     '- Your rule writes only its host; to affect anything else, emit an impulse to it and its receiver answers. Player-facing text is {"en": "...", "zh": "..."}; {host}, {actor}, {target}, {instrument}, {item} insert names.',
     '- If nothing should happen, still define it: {"do": []} (no change) or a short in-world line of feedback is a valid answer.',
+    ...(router ? [ROUTER_RULES] : []),
     ...(h.addenda.length ? ['', 'Your own working notes:', ...h.addenda.map((a) => `- ${a}`)] : []),
     '',
     '# ModSpec',
@@ -206,4 +219,89 @@ function episodeSection(ep: Episode, coarse?: string[]): string[] {
     ep.tools.map((t) => t.name).join(', ') || '(none)',
     `skills read: ${ep.skillsRead.join(', ') || '(none)'}`,
   ]
+}
+
+// ---------------------------------------------------------------- the router: find, then create
+
+export interface Need {
+  name: string
+  why?: string
+}
+export interface Creation {
+  id: string
+  name: { en: string; zh: string }
+  parent?: string
+  why?: string
+}
+
+/** The catalogue: every type, grouped under its parent, with its English name where it differs from its id. */
+export function catalogueOf(types: TypeDef[]): string {
+  const kids = new Map<string, string[]>()
+  for (const t of types) {
+    const segs = t.id.split('/')
+    const parent = segs.slice(0, -1).join('/') || '(root)'
+    const leaf = segs.at(-1)!
+    const en = typeof t.name === 'string' ? t.name : t.name?.en
+    const label = en && en.toLowerCase().replace(/[^a-z0-9]+/g, '_') !== leaf ? `${leaf} (${en})` : leaf
+    ;(kids.get(parent) ?? kids.set(parent, []).get(parent)!).push(label)
+  }
+  return [...kids].map(([p, c]) => `${p}/: ${c.join(', ')}`).join('\n')
+}
+
+/** Find: the things the design asked for, the closest matches by name, and the whole catalogue. */
+export function findUser(needs: Need[], candidates: Map<string, string[]>, catalogue: string): string {
+  return [
+    '# What you asked for, and what the world has',
+    ...needs.map((n) => `- "${n.name}"${n.why ? ` (${n.why})` : ''}: closest by name: ${candidates.get(n.name)?.join(', ') || '(none)'}`),
+    '',
+    '# The world\'s catalogue (every type: parent/: children)',
+    catalogue,
+    '',
+    'For each thing: if the catalogue has it, or something that serves just as well, write the patch now with its exact id.',
+    'If the world truly has no such thing, answer with ONLY: {"create": [{"id": "<existing parent>/<snake_case>", "name": {"en": "...", "zh": "..."}, "why": "<one line>"}]}. Create only what is missing; reuse everything else.',
+  ].join('\n')
+}
+
+/** Create: define the new types in the patch, beside the rule that makes them. */
+export function createUser(creations: Creation[]): string {
+  return [
+    '# Create',
+    `The world is making ${creations.length === 1 ? 'a new thing' : 'new things'}: ${creations.map((c) => `${c.id} (${c.name.en} / ${c.name.zh})`).join(', ')}.`,
+    'Write the patch with, for each, a type artifact beside your rule(s):',
+    '{"kind": "type", "type": {"id": "<parent>/<snake_case>", "kind": "item|fixture|actor", "name": {"en": "...", "zh": "..."}, "tags": ["only what it adds to its parent"], "props": {}}}',
+    '- The parent must exist; the new type inherits its tags and its rules, so choose the parent whose behaviour fits (an ingot under item/material, a dish under item/food).',
+    '- Its name is what a player would call it, in both languages; it must not be another name for a thing the world has.',
+    '- Do not draw it: an artist draws its icon next.',
+    'Answer with ONLY the JSON object {"patch": {"artifacts": [...]}, "summary": "..."}.',
+  ].join('\n')
+}
+
+// ---------------------------------------------------------------- the artist
+
+export const ART_SYSTEM = 'You are a pixel artist for the 16x16 icon pack of a JRPG. You answer with JSON only.'
+
+/** Two icons of the pack as character grids, for the style: outline, tones, light. */
+export const ART_REFERENCES: { name: string; grid: string[]; palette: Record<string, string> }[] = [
+  {
+    name: 'Stone (item/material/stone)',
+    grid: ['.......kk.......', '....kkkaak......', '..kkaabaaakkk...', '.kaaaaababbbbk..', 'kaaaaaaabaabbbk.', 'kaaaaaabaabbcck.', 'kaaaaaabaabccck.', 'kaaaaabcbbcccck.', '.kaaaaccccccck..', '.kaabbbbdccck...', '..kbaaaabdck....', '.kaaaaaabck..kk.', '.kaaaaabcck.kcck', '..kkbbbccck.kcck', '....kkccck...kk.', '......kkk.......'],
+    palette: { k: '#141b1b', a: '#b6beb0', b: '#8d977f', c: '#5f7160', d: '#485341' },
+  },
+  {
+    name: 'Red Gem (item/material/gem)',
+    grid: ['..kkkkkk........', '.kaaaaaakk......', 'kaaaabbbaakk....', 'kaaaabaabbbbk...', 'kaaaabaaabccbk..', 'kaaaabaabbbbcbk.', 'kaaaababbbbbcbk.', 'kaabbabcbbbbcbk.', 'kbbbbbaaccbbcbk.', 'kcbbbbbbbbcccbk.', 'kbcbbcccbbbbbbk.', 'kbbcddccccbbbbk.', 'kbbbccddcccccck.', 'kbbcccccddccck..', '.kkkkkkkkkkkkk..', '................'],
+    palette: { k: '#141b1b', a: '#f2eaf1', b: '#ff8b62', c: '#e66a3a', d: '#a5608b' },
+  },
+]
+
+export function artUser(t: { id: string; name: { en: string; zh: string } }, what: string): string {
+  return [
+    `Draw a 16x16 pixel-art inventory icon of: ${t.name.en} (${t.id}) - ${what}.`,
+    'Draw it in a 3/4 view where it helps (a lighter top face above a darker front face), as the pack does.',
+    'Match the style of the game\'s icon pack exactly, shown here as character grids ("." is transparent, each other character is one palette colour):',
+    ...ART_REFERENCES.flatMap((r) => ['', `${r.name}:`, ...r.grid, `palette ${JSON.stringify(r.palette)}`]),
+    '',
+    'Style rules of the pack: a 1-pixel dark outline "k" = #141b1b around the whole shape; 3-4 tones of the object\'s colour plus a highlight; light from the top-left; flat colours, no dithering noise; the object fills about 12-14 px and is centred; transparent background.',
+    'Answer with ONLY a JSON object: {"grid": [16 strings of exactly 16 characters], "palette": {"<char>": "#rrggbb", ...}} using at most 7 colours ("." not counted).',
+  ].join('\n')
 }

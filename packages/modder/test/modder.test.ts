@@ -593,6 +593,110 @@ describe('the tail guard', () => {
   })
 })
 
+describe('the router: local, then find, then create', () => {
+  const INGOT_ART = {
+    grid: ['................', '................', '................', '....kkkkkkkkk...', '...kaaeaaaaaak..', '..kaeaaaaaaabk..', '.kaaaaaaaaabbck.', 'kbbbbbbbbbbbcck.', 'kbbbbbbbbbbccdk.', 'kbccbbbbbbbccdk.', 'kcccccccccccddk.', 'kccccccccccddk..', '.kkkkkkkkkkkkk..', '................', '................', '................'],
+    palette: { k: '#141b1b', e: '#eef2f0', a: '#b9c1c6', b: '#8a949c', c: '#5e6870', d: '#3e464e' },
+  }
+  /** A creature offered rope leaves something behind: the router's answers are scripted by what each call shows. */
+  const leaves = (type: string): Rule => ({ id: 'patch/rope-on-creature-leaves', host: { type: 'actor/creature' }, on: 'impulse/offered', doc: `A creature offered rope leaves ${type} behind.`, tree: { if: FIBER, then: { do: [{ op: 'spawn', type, at: 'host' }, { op: 'log', text: { en: 'Something drops.', zh: '掉下了东西。' } }] } } })
+  const INGOT_TYPE = { id: 'item/material/iron_ingot', kind: 'item' as const, name: { en: 'Iron Ingot', zh: '铁锭' }, tags: ['metal'] }
+
+  function router(o: { local: unknown; find?: unknown; create?: unknown; art?: (n: number) => unknown; onArt?: () => void }) {
+    const seen: { purpose?: string; system: string; last: string }[] = []
+    let arts = 0
+    const model = new ScriptedModel((messages, opts) => {
+      const last = messages[messages.length - 1].content
+      seen.push({ purpose: opts.purpose, system: messages[0].content, last })
+      if (opts.purpose === 'review') return { verdict: 'ship' }
+      if (opts.purpose === 'reflect') return {}
+      if (opts.purpose === 'art') return (o.onArt?.(), o.art?.(arts++) ?? INGOT_ART) as object
+      if (last.startsWith('# Create')) return o.create as object
+      if (last.startsWith('# What you asked for')) return o.find as object
+      return o.local as object
+    })
+    return { model, seen }
+  }
+
+  it('answers from the request alone when nothing beyond it is needed: no catalogue, the directories in the brief', async () => {
+    const { model, seen } = router({ local: { patch: patchOf(noTestsRule(bindRule())) } })
+    const { modder, state } = setup(model, undefined, 'live')
+    const reply = await modder.resolve({ request: request() })
+    expect(reply.outcome).toBe('accepted')
+    expect(state.episode(reply.episode!)!.route).toEqual(['local'])
+    const design = seen.filter((c) => c.purpose === 'design')
+    expect(design).toHaveLength(1)
+    expect(design[0].system).toContain('"types":[]')
+    expect(design[0].system).toContain('Things beyond this request')
+    expect(seen.find((c) => c.purpose === 'design')!.last).toMatch(/## The directories of this request[\s\S]*actor\/creature\/slime\/ \(green_slime here\): green_slime, fire_slime/)
+  })
+
+  it('finds what the design needs in the catalogue, and uses the type the world has', async () => {
+    const { model, seen } = router({ local: { need: [{ name: 'stick', why: 'what it leaves behind' }] }, find: { patch: patchOf(leaves('item/material/stick')) } })
+    const { modder, state, library } = setup(model, undefined, 'live')
+    const reply = await modder.resolve({ request: request() })
+    expect(reply.outcome).toBe('accepted')
+    const ep = state.episode(reply.episode!)!
+    expect(ep).toMatchObject({ route: ['local', 'find'], needed: ['stick'], created: [] })
+    const find = seen.find((c) => c.last.startsWith('# What you asked for'))!.last
+    expect(find).toMatch(/"stick" \(what it leaves behind\): closest by name: item\/material\/stick/)
+    expect(find).toMatch(/item\/material\/: .*stick/)
+    expect(library.lib.types).toEqual([])
+  })
+
+  it('creates what the world does not have, with its picture, and says so while it works', async () => {
+    let during: unknown
+    const req = request()
+    const { model } = router({
+      local: { need: [{ name: 'iron ingot' }] },
+      find: { create: [{ id: 'item/material/iron_ingot', name: { en: 'Iron Ingot', zh: '铁锭' }, why: 'smelted iron' }] },
+      create: { patch: { artifacts: [{ kind: 'type', type: INGOT_TYPE }, { kind: 'rule', rule: leaves('item/material/iron_ingot') }] } },
+      onArt: () => (during = modder.progressOf(req.id)),
+    })
+    const { modder, state, library } = setup(model, undefined, 'live')
+    const reply = await modder.resolve({ request: req })
+    expect(reply.outcome).toBe('accepted')
+    expect(during).toEqual({ stage: 'art', creating: [{ en: 'Iron Ingot', zh: '铁锭' }] })
+    expect(modder.progressOf(req.id)).toBeUndefined()
+    expect(state.episode(reply.episode!)).toMatchObject({ route: ['local', 'find', 'create'], created: ['item/material/iron_ingot'] })
+    const t = library.lib.types.find((x) => x.id === 'item/material/iron_ingot')!
+    expect(t).toMatchObject({ sprite: 'art:item/material/iron_ingot', art: INGOT_ART })
+    // every client gets the new thing with the rule that makes it
+    expect(library.since(0).at(-1)).toMatchObject({ patch: { artifacts: [{ kind: 'type', type: { id: 'item/material/iron_ingot' } }, { kind: 'rule' }] } })
+  })
+
+  it('still creates the thing when its picture cannot be drawn: it shows its parent\'s', async () => {
+    const { model } = router({
+      local: { need: [{ name: 'iron ingot' }] },
+      find: { create: [{ id: 'item/material/iron_ingot', name: { en: 'Iron Ingot', zh: '铁锭' } }] },
+      create: { patch: { artifacts: [{ kind: 'type', type: INGOT_TYPE }, { kind: 'rule', rule: leaves('item/material/iron_ingot') }] } },
+      art: () => ({ grid: ['k'], palette: { k: '#000000' } }),
+    })
+    const { modder, library } = setup(model, undefined, 'live')
+    expect((await modder.resolve({ request: request() })).outcome).toBe('accepted')
+    const t = library.lib.types.find((x) => x.id === 'item/material/iron_ingot')!
+    expect(t.art).toBeUndefined()
+    expect(t.sprite).toBeUndefined()
+  })
+
+  it('designs one patch at a time, so the second request sees what the first committed', async () => {
+    let busy = 0
+    let most = 0
+    const model = new ScriptedModel(async (messages, opts) => {
+      if (opts.purpose !== 'design') return opts.purpose === 'review' ? { verdict: 'ship' } : {}
+      busy++
+      most = Math.max(most, busy)
+      await new Promise((r) => setTimeout(r, 20))
+      busy--
+      return { patch: patchOf(noTestsRule(messages[1].content.includes('impulse/offered') ? bindRule() : { ...bindRule('patch/rope-used-on-creature'), on: 'act/use', host: { type: 'item/tool/rope' }, tree: { if: { is: { role: 'target', sel: { type: 'actor/creature' } } }, then: { do: [{ op: 'log', text: 'You wave the rope.' }] } } })) }
+    })
+    const { modder } = setup(model, undefined, 'live')
+    const replies = await Promise.all([modder.resolve({ request: request() }), modder.resolve({ request: useRequest() })])
+    expect(replies.map((r) => r.outcome)).toEqual(['accepted', 'accepted'])
+    expect(most).toBe(1)
+  })
+})
+
 describe('the design prompt', () => {
   it('keeps the system prompt byte for byte the same across clients and library versions (the cached prefix), and the user turn to what the model uses', async () => {
     const seen: { system: string; user: string }[] = []

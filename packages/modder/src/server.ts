@@ -3,6 +3,7 @@
 //   POST /resolve         ResolveBody → ResolveReply (a validated patch, or why not)
 //   GET  /patches?since=n the shared library's patch log after seq n (clients sync from it)
 //   GET  /stats           the numbers the paper reports
+//   GET  /progress?id=r   where request r is (queued, local, find, create, art; {} when not here)
 
 import { createServer, type IncomingMessage, type Server } from 'node:http'
 import type { ResolveBody } from '@lsw/engine'
@@ -33,6 +34,7 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
         const since = Number(url.searchParams.get('since') ?? 0) || 0
         return send(200, { seq: library.seq, entries: library.since(since) })
       }
+      if (req.method === 'GET' && url.pathname === '/progress') return send(200, modder.progressOf(url.searchParams.get('id') ?? '') ?? {})
       if (req.method === 'GET' && url.pathname === '/stats') return send(200, { library: libraryInfo(), state: state.stats(), snapshots: state.snapshots() })
       if (req.method === 'POST' && url.pathname === '/resolve') {
         const body = (await readJson(req, opts.maxBody ?? 4_000_000)) as ResolveBody

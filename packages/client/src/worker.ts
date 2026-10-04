@@ -15,6 +15,7 @@ import {
   type Dir,
   type GameEvent,
   type LibraryData,
+  type ModProgress,
   type ModRequest,
   type Patch,
   type PatchLogEntry,
@@ -58,6 +59,7 @@ const ontology = buildOntology()
 // ------------------------------------------------------------------ the modder service
 
 const MODDER_TIMEOUT_TICKS = 150 // with a modder online, an interaction waits up to 15 s; a later patch still teaches the world
+const PROGRESS_MS = 1000 // how often a waiting request asks where it is
 const SYNC_MS = 15_000
 let modderUrl = ''
 let modderSeq = 0
@@ -99,14 +101,47 @@ async function resolveRemote(request: ModRequest): Promise<Patch | null> {
     request,
     workspace: { patches: { rules: lib.patches(), types: lib.types, statuses: lib.statuses }, regression: game!.mods.regression },
   }
-  const res = await fetch(`${modderUrl}/resolve`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(240_000),
-  })
-  const reply = (await res.json()) as ResolveReply
-  return reply.patch
+  const watching = watchProgress(request.id)
+  try {
+    const res = await fetch(`${modderUrl}/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(240_000),
+    })
+    const reply = (await res.json()) as ResolveReply
+    return reply.patch
+  } finally {
+    watching.stop()
+  }
+}
+
+/**
+ * While a request waits, ask the modder where it is. Once it is making things the world does not
+ * have yet, the act waits for them past the time-out (the player is told), until the patch comes.
+ */
+function watchProgress(id: string): { stop: () => void } {
+  let told = false
+  const timer = setInterval(async () => {
+    try {
+      const p = (await (await fetch(`${modderUrl}/progress?id=${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(2000) })).json()) as ModProgress
+      if (told || !game || (p.stage !== 'create' && p.stage !== 'art')) return
+      told = true
+      if (game.mods.hold(id)) post({ t: 'creating', names: p.creating ?? [] })
+    } catch {
+      /* the reply still comes, or the request fails: either ends the wait */
+    }
+  }, PROGRESS_MS)
+  return { stop: () => clearInterval(timer) }
+}
+
+/** The pictures of learned things not sent to the main thread yet. */
+const artSent = new Set<string>()
+function sendArts(): void {
+  const arts = (game?.engine.lib.types ?? []).filter((t) => t.art && !artSent.has(t.id)).map((t) => ({ id: t.id, art: t.art! }))
+  if (!arts.length) return
+  for (const a of arts) artSent.add(a.id)
+  post({ t: 'art', arts })
 }
 
 function noteProbe(hole: { ev: GameEvent; res: Resolution } | undefined): void {
@@ -305,7 +340,7 @@ function loop(): void {
   post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length } })
   if (buildAim && PLACEMENT_BY_ID[buildAim.id]) post({ t: 'placement', preview: previewPlacement(eng, w.state.player, PLACEMENT_BY_ID[buildAim.id], { map: frame.map, x: buildAim.tile.x, y: buildAim.tile.y }) })
   if (eng.lib.version !== lastRecordsVersion || frame.fx.some((f) => f.t === 'undefined' || f.t === 'patched')) {
-    if (eng.lib.version !== lastRecordsVersion) post({ t: 'library', library: eng.lib.toJSON() })
+    if (eng.lib.version !== lastRecordsVersion) (post({ t: 'library', library: eng.lib.toJSON() }), sendArts())
     lastRecordsVersion = eng.lib.version
     sendRecords()
   }
@@ -347,6 +382,8 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   lastMap = ''
   await ensureMaps()
   post({ t: 'ready', stats: index.stats, name: index.name, resumed: !!init.save && !fresh && compatible })
+  artSent.clear()
+  sendArts()
   sendRecords()
   void connectModder(init.modder ?? modderUrl)
   if (timer) clearInterval(timer)
