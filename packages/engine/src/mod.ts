@@ -12,7 +12,7 @@ import { STORY, textOf } from './engine.ts'
 import { OntologyIndex, isA } from './ontology.ts'
 import { RuleLibrary, cmp, compareSpec, isDo, isHole, leaves, rolesOf, specOf } from './rules.ts'
 import { checkExpectations, replay } from './sandbox.ts'
-import type { Cmp, Cond, Effect, EmitTo, GameEvent, Ontology, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Tree, TypeDef } from './types.ts'
+import type { Cmp, Cond, Effect, EmitTo, GameEvent, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tree, TypeDef } from './types.ts'
 import { RECENT_LINES, type View } from './world.ts'
 
 // ---------------------------------------------------------------- contract
@@ -122,6 +122,16 @@ export interface ResolveReply {
   diagnostics?: string[]
 }
 
+/**
+ * Where a request is in the modder (GET /progress?id=): waiting its turn, designed from what the
+ * request holds (local), looked up in the world's catalogue (find), or making things the world
+ * does not have yet (create, art), with their names. While it creates, the client keeps waiting.
+ */
+export interface ModProgress {
+  stage: 'queued' | 'local' | 'find' | 'create' | 'art'
+  creating?: Text[]
+}
+
 /** One entry of the shared library's append-only patch log (GET /patches?since=seq). */
 export type PatchLogEntry =
   | { seq: number; at: string; patch: Patch; rules: string[]; request?: string; /** the triggering event (kept server-side as regression) */ scenario?: Scenario }
@@ -204,13 +214,18 @@ const IMPULSES: Record<string, string> = {
   notify: 'news for the host: params what (a key) and value — a topic for the story, the player\'s stage, a defeat for the one who struck.',
 }
 
-export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
+/**
+ * The ModSpec: the ontology, with the types and statuses `lib` adds (patches) when it is given.
+ * It carries no library version: a model's prompt built from it stays byte for byte the same
+ * while the library grows, so a provider's prompt cache keeps serving it.
+ */
+export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | 'statuses'>, opts: { types?: boolean } = {}): ModSpec {
   const types = { ...onto.types }
-  for (const t of lib.types) types[t.id] = t
+  for (const t of lib?.types ?? []) types[t.id] = t
   const statuses = { ...onto.statuses }
-  for (const s of lib.statuses) statuses[s.id] = s
+  for (const s of lib?.statuses ?? []) statuses[s.id] = s
   return {
-    version: `lsw-modspec/2 lib@${lib.version}`,
+    version: 'lsw-modspec/2',
     summary:
       'Author RULES for a 2D JRPG world whose mechanics are data. Every happening is an event with one outcome. A rule belongs to a HOST type and answers one event kind (or a branch of kinds) with a condition tree whose leaves are effects, `inherit` or undefined. You are called because an event reached an undefined leaf (request.hole): write the host rule that gives it an outcome. Effects write only the host; to affect others, emit impulses (strike, element, coat, restore, push, taken, receive, offered, handle, notify), which their receivers answer.',
     rule: {
@@ -264,7 +279,8 @@ export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
       'Scenario: {terrain?: string[][], entities:[{key,type,x,y,tags?,statuses?,props?,heldBy?,inside?}], event:{kind?, host?, actor?, target?, instrument?, other?, item?, source?, params?}, ticks?} — roles reference entity keys or "tile:x,y"; kind defaults to act/use, host to the instrument (or the actor)',
     ],
     ontology: {
-      types: Object.values(types).map((t) => ({ id: t.id, kind: t.kind, tags: t.tags ?? [], name: t.name ? textOf(t.name) : undefined })),
+      // without types: the model is shown the request's own types (the brief) and asks for the rest (the router)
+      types: opts.types === false ? [] : Object.values(types).map((t) => ({ id: t.id, kind: t.kind, tags: t.tags ?? [], name: t.name ? textOf(t.name) : undefined })),
       statuses: Object.values(statuses).map((s) => ({ id: s.id, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears })),
       terrains: Object.values(onto.terrains).map((t) => ({ id: t.id, tags: t.tags ?? [], solid: t.solid, liquid: t.liquid })),
       elements: onto.elements,
@@ -406,6 +422,17 @@ export class ModPort implements UndefinedSink {
     for (const r of this.records) if (r.status === 'pending' && t >= r.deadline) this.fallback(r.id)
   }
 
+  /**
+   * The modder is making things the world does not have yet: the outcome waits for them, past the
+   * time-out, until the patch comes (or the asking fails, which runs the default as ever).
+   */
+  hold(id: string): boolean {
+    const r = this.get(id)
+    if (!r || r.status !== 'pending') return false
+    r.deadline = Number.POSITIVE_INFINITY
+    return true
+  }
+
   observe(ev: GameEvent, rule: string): void {
     if (!ev.kind.startsWith('act/') || ev.kind === 'act/move') return
     try {
@@ -428,6 +455,7 @@ export class ModPort implements UndefinedSink {
     r.status = 'fallback'
     this.unfreeze(id)
     this.eng.run(r.request.hole.default, r.event, r.request.hole.rule)
+    this.syncBag()
     this.onChange?.()
   }
 
@@ -504,6 +532,13 @@ export class ModPort implements UndefinedSink {
     this.unfreeze(rec.id)
     eng.world.fx.push({ t: 'patched', request: rec.id, rule: ruleIds[0] ?? '' })
     if (wasOpen && stillValid(eng, rec.event) && eng.resolveEvent(rec.event).defined) eng.replay(rec.event)
+    this.syncBag()
+  }
+
+  /** What the outcome did to the player's things (a held ore become an ingot) shows in their slots. */
+  private syncBag(): void {
+    const w = this.eng.world
+    if (w.state.player && w.get(w.state.player)) this.eng.controls.sync()
   }
 
   /** A person answered "nothing happens": the question is not asked again this session. */
@@ -802,7 +837,11 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       if (!t?.id || typeof t.id !== 'string') errors.push(`${where}: type.id required`)
       else if (!['actor', 'item', 'fixture'].includes(t.kind)) errors.push(`${where}: type.kind must be actor|item|fixture`)
       else if (!t.id.startsWith(t.kind + '/')) errors.push(`${where}: type id must start with "${t.kind}/"`)
-      else onto.types[t.id] = t
+      else {
+        const problems = newTypeProblems(t, onto, patch)
+        if (problems.length) errors.push(...problems.map((p) => `${where} (type "${t.id}"): ${p}`))
+        else onto.types[t.id] = t
+      }
     } else if (a?.kind === 'status') {
       if (!a.status?.id) errors.push(`${where}: status.id required`)
       else onto.statuses[a.status.id] = a.status
@@ -817,7 +856,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   const checkSel = (s: Selector | undefined, where: string) => {
     if (!s) return
     if (typeof s !== 'object') return errors.push(`${where}: selector must be an object`)
-    if (s.type && !s.type.startsWith('tile/') && !known(s.type)) errors.push(`${where}.type: unknown type "${s.type}"${s.type in onto.terrains ? ` — a terrain is named "tile/${s.type}"` : ''}`)
+    if (s.type && !s.type.startsWith('tile/') && !known(s.type)) errors.push(`${where}.type: unknown type "${s.type}"${s.type in onto.terrains ? ` — a terrain is named "tile/${s.type}"` : closest(s.type, onto)}`)
     if (s.type?.startsWith('tile/') && !(s.type.slice(5) in onto.terrains)) errors.push(`${where}.type: unknown terrain "${s.type}"`)
     for (const st of [...(s.status ?? []), ...(s.notStatus ?? [])]) if (!(st in onto.statuses)) errors.push(`${where}: unknown status "${st}"`)
     if (s.kind && !['actor', 'item', 'fixture', 'tile', 'resident'].includes(s.kind)) errors.push(`${where}.kind invalid`)
@@ -882,8 +921,8 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ('of' in any) errors.push(`${where}: effects act on the host only (no "of"): to affect another thing, emit an impulse to it`)
     for (const k of ['at', 'to'] as const) if (k in any && typeof any[k] === 'string' && e.op !== 'emit' && !ROLE_REFS.has(any[k] as string)) errors.push(`${where}.${k}: role ref must be one of ${[...ROLE_REFS].join('|')}`)
     if (RESIDENT_ONLY.has(e.op) && !resident) errors.push(`${where}: ${e.op} is the story's and the world's only — notify the story instead`)
-    if (e.op === 'spawn' && !/^@prop:(host|actor|target|instrument|other|item|source)\.\w+$/.test(e.type) && !(e.type in onto.types)) errors.push(`${where}: unknown type "${e.type}"`)
-    if (e.op === 'transform' && !e.into.startsWith('@prop:') && !(e.into in onto.types)) errors.push(`${where}: unknown type "${e.into}"`)
+    if (e.op === 'spawn' && !/^@prop:(host|actor|target|instrument|other|item|source)\.\w+$/.test(e.type) && !(e.type in onto.types)) errors.push(`${where}: unknown type "${e.type}"${closest(e.type, onto)}`)
+    if (e.op === 'transform' && !e.into.startsWith('@prop:') && !(e.into in onto.types)) errors.push(`${where}: unknown type "${e.into}"${closest(e.into, onto)}`)
     if ((e.op === 'addStatus' || e.op === 'removeStatus') && !(e.status in onto.statuses)) errors.push(`${where}: unknown status "${e.status}"`)
     if (e.op === 'setTerrain' && !(e.terrain in onto.terrains)) errors.push(`${where}: unknown terrain "${e.terrain}"`)
     if (e.op === 'vfx' && !onto.vfx.includes(e.fx)) errors.push(`${where}: unknown vfx "${e.fx}"`)
@@ -1136,3 +1175,65 @@ export function rulesTie(a: Rule, b: Rule, onto?: Ontology): boolean {
 
 // re-exported helpers some tools use
 export { isDo, isHole, STORY }
+
+// ---------------------------------------------------------------- new types: names and pictures
+
+const SEGMENT = /^[a-z0-9]+(_[a-z0-9]+)*$/
+const HEX = /^#[0-9a-fA-F]{6}$/
+const words = (id: string) => id.toLowerCase().split(/[/_\s-]+/).filter(Boolean)
+const enName = (t: TypeDef) => (typeof t.name === 'string' ? t.name : t.name?.en ?? '').trim().toLowerCase()
+
+/** The types whose id or English name shares the most words with `name` (an id or a plain name), best first. */
+export function closestTypes(name: string, onto: Ontology, n = 6): string[] {
+  const want = new Set(words(name))
+  return Object.values(onto.types)
+    .map((t) => [new Set([...words(t.id), ...words(enName(t))].filter((w) => want.has(w))).size, t.id] as const)
+    .filter(([s]) => s > 0)
+    .sort((a, b) => b[0] - a[0] || a[1].length - b[1].length)
+    .slice(0, n)
+    .map(([, t]) => t)
+}
+
+/** " — the closest known types: a, b, c" for an unknown type id (by shared words), or "". */
+export function closest(id: string, onto: Ontology, n = 4): string {
+  const found = closestTypes(id, onto, n)
+  return found.length ? ` — the closest known types: ${found.join(', ')}` : ''
+}
+
+/**
+ * What is wrong with a type a patch introduces: it must be new, live under a type that exists
+ * (or another of the patch's own), have a lowercase snake_case id, an English and a Chinese
+ * name, not be another name for something the world has, and draw a valid picture if it has one.
+ */
+export function newTypeProblems(t: TypeDef, onto: Ontology, patch: Patch): string[] {
+  const out: string[] = []
+  if (t.id in onto.types) out.push('a type of this id exists already: use it instead of defining it')
+  const segs = t.id.split('/')
+  if (segs.length < 2 || !segs.every((s) => SEGMENT.test(s))) out.push('ids are lowercase snake_case segments under the kind, e.g. "item/material/iron_ingot"')
+  const parent = segs.slice(0, -1).join('/')
+  const ownTypes = new Set(patch.artifacts.flatMap((a) => (a?.kind === 'type' && a.type?.id ? [a.type.id] : [])))
+  if (segs.length > 2 && !(parent in onto.types) && !ownTypes.has(parent)) out.push(`its parent "${parent}" does not exist${closest(parent, onto)}`)
+  const name = t.name
+  if (!name || typeof name === 'string' || !name.en?.trim() || !name.zh?.trim()) out.push('a new type needs a name in both languages: {"en": "...", "zh": "..."}')
+  const leaf = segs.at(-1)!
+  const same = Object.values(onto.types).find((o) => o.id !== t.id && (o.id.split('/').at(-1) === leaf || (enName(t) && enName(o) === enName(t))))
+  if (same) out.push(`"${same.id}" already is this thing (same name): use it, or name what is different about the new one`)
+  if (t.art) out.push(...artProblems(t.art))
+  return out
+}
+
+/** What is wrong with a 16x16 picture given as data. */
+export function artProblems(art: PixelArt): string[] {
+  const out: string[] = []
+  if (!Array.isArray(art?.grid) || art.grid.length !== 16 || !art.grid.every((r) => typeof r === 'string' && r.length === 16)) out.push('art.grid must be 16 strings of 16 characters')
+  const pal = art?.palette && typeof art.palette === 'object' ? art.palette : {}
+  const keys = Object.keys(pal)
+  if (!keys.length || keys.length > 8) out.push('art.palette must have 1 to 8 colours')
+  for (const [k, v] of Object.entries(pal)) if (k.length !== 1 || k === '.' || !HEX.test(String(v))) out.push(`art.palette entry "${k}": one character (not ".") to a "#rrggbb" colour`)
+  if (!out.length) {
+    const unknown = new Set(art.grid.join('').split('').filter((c) => c !== '.' && !(c in pal)))
+    if (unknown.size) out.push(`art.grid uses characters not in the palette: ${[...unknown].join(' ')}`)
+    if (art.grid.join('').replace(/\./g, '').length < 20) out.push('art.grid draws almost nothing')
+  }
+  return out
+}

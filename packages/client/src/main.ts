@@ -7,7 +7,7 @@ import Phaser from 'phaser'
 import type { Dir, Frame, ItemInfo, Key, LibraryData, SaveData, Text } from '@lsw/engine'
 import { CATALOG } from './assets/catalog.ts'
 import type { FromWorker, Tile, ToWorker } from './protocol.ts'
-import { assetUrl } from './render/assets.ts'
+import { assetUrl, registerArt } from './render/assets.ts'
 import { WorldScene } from './render/scene.ts'
 import { kvGet, kvSet } from './storage.ts'
 import { writeSlot, type Slot } from './saves.ts'
@@ -35,6 +35,7 @@ document.documentElement.lang = locale.value === 'zh' ? 'zh-CN' : 'en'
 
 const dev = new ModConsole({
   patch: (id, patch) => send({ t: 'patch', id, patch }),
+  debug: (op) => send({ t: 'debug', ...op }),
   dismiss: (id) => send({ t: 'dismiss', id }),
   removeRule: (id) => send({ t: 'removeRule', id }),
   spec: () => send({ t: 'spec' }),
@@ -149,7 +150,7 @@ menu.facesetOf = faceset
 
 const paintIcons = (items: ItemInfo[]) => {
   for (const it of items) {
-    const d = CATALOG.items[it.sprite]
+    const d = it.sprite.startsWith('art:') && scene.textures.exists(it.sprite) ? { img: it.sprite, x: 0, y: 0, w: 16, h: 16 } : CATALOG.items[it.sprite]
     if (!d) continue
     const c = crop(d.img, d.x, d.y, d.w, d.h)
     if (!c) continue
@@ -247,6 +248,12 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     case 'modder':
       dev.setModder(m)
       hud.modderOnline = m.online
+      break
+    case 'art':
+      for (const a of m.arts) registerArt(scene, a.id, a.art)
+      break
+    case 'creating':
+      hud.message(`✦ ${t('creating')}: ${m.names.map((n) => tx(n)).join(locale.value === 'zh' ? '、' : ', ')}…`, 'ai')
       break
     case 'loading':
       break

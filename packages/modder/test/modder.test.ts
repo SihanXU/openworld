@@ -629,16 +629,146 @@ describe('the tail guard', () => {
   })
 })
 
+describe('the router: local, then find, then create', () => {
+  const INGOT_ART = {
+    grid: ['................', '................', '................', '....kkkkkkkkk...', '...kaaeaaaaaak..', '..kaeaaaaaaabk..', '.kaaaaaaaaabbck.', 'kbbbbbbbbbbbcck.', 'kbbbbbbbbbbccdk.', 'kbccbbbbbbbccdk.', 'kcccccccccccddk.', 'kccccccccccddk..', '.kkkkkkkkkkkkk..', '................', '................', '................'],
+    palette: { k: '#141b1b', e: '#eef2f0', a: '#b9c1c6', b: '#8a949c', c: '#5e6870', d: '#3e464e' },
+  }
+  /** A creature offered rope leaves something behind: the router's answers are scripted by what each call shows. */
+  const leaves = (type: string): Rule => ({ id: 'patch/rope-on-creature-leaves', host: { type: 'actor/creature' }, on: 'impulse/offered', doc: `A creature offered rope leaves ${type} behind.`, tree: { if: FIBER, then: { do: [{ op: 'spawn', type, at: 'host' }, { op: 'log', text: { en: 'Something drops.', zh: '掉下了东西。' } }] } } })
+  const INGOT_TYPE = { id: 'item/material/iron_ingot', kind: 'item' as const, name: { en: 'Iron Ingot', zh: '铁锭' }, tags: ['metal'] }
+
+  function router(o: { local: unknown; find?: unknown; create?: unknown; art?: (n: number) => unknown; onArt?: () => void }) {
+    const seen: { purpose?: string; system: string; last: string }[] = []
+    let arts = 0
+    const model = new ScriptedModel((messages, opts) => {
+      const last = messages[messages.length - 1].content
+      seen.push({ purpose: opts.purpose, system: messages[0].content, last })
+      if (opts.purpose === 'review') return { verdict: 'ship' }
+      if (opts.purpose === 'reflect') return {}
+      if (opts.purpose === 'art') return (o.onArt?.(), o.art?.(arts++) ?? INGOT_ART) as object
+      if (last.startsWith('# Create')) return o.create as object
+      if (last.startsWith('# What you asked for')) return o.find as object
+      return o.local as object
+    })
+    return { model, seen }
+  }
+
+  it('answers from the request alone when nothing beyond it is needed: no catalogue, the directories in the brief', async () => {
+    const { model, seen } = router({ local: { patch: patchOf(noTestsRule(bindRule())) } })
+    const { modder, state } = setup(model, undefined, 'live')
+    const reply = await modder.resolve({ request: request() })
+    expect(reply.outcome).toBe('accepted')
+    expect(state.episode(reply.episode!)!.route).toEqual(['local'])
+    const design = seen.filter((c) => c.purpose === 'design')
+    expect(design).toHaveLength(1)
+    expect(design[0].system).toContain('"types":[]')
+    expect(design[0].system).toContain('Things beyond this request')
+    expect(seen.find((c) => c.purpose === 'design')!.last).toMatch(/## The directories of this request[\s\S]*actor\/creature\/slime\/ \(green_slime here\): green_slime, fire_slime/)
+  })
+
+  it('finds what the design needs in the catalogue, and uses the type the world has', async () => {
+    const { model, seen } = router({ local: { need: [{ name: 'stick', why: 'what it leaves behind' }] }, find: { patch: patchOf(leaves('item/material/stick')) } })
+    const { modder, state, library } = setup(model, undefined, 'live')
+    const reply = await modder.resolve({ request: request() })
+    expect(reply.outcome).toBe('accepted')
+    const ep = state.episode(reply.episode!)!
+    expect(ep).toMatchObject({ route: ['local', 'find'], needed: ['stick'], created: [] })
+    const find = seen.find((c) => c.last.startsWith('# What you asked for'))!.last
+    expect(find).toMatch(/"stick" \(what it leaves behind\): closest by name: item\/material\/stick/)
+    expect(find).toMatch(/item\/material\/: .*stick/)
+    expect(library.lib.types).toEqual([])
+  })
+
+  it('creates what the world does not have, with its picture, and says so while it works', async () => {
+    let during: unknown
+    const req = request()
+    const { model } = router({
+      local: { need: [{ name: 'iron ingot' }] },
+      find: { create: [{ id: 'item/material/iron_ingot', name: { en: 'Iron Ingot', zh: '铁锭' }, why: 'smelted iron' }] },
+      create: { patch: { artifacts: [{ kind: 'type', type: INGOT_TYPE }, { kind: 'rule', rule: leaves('item/material/iron_ingot') }] } },
+      onArt: () => (during = modder.progressOf(req.id)),
+    })
+    const { modder, state, library } = setup(model, undefined, 'live')
+    const reply = await modder.resolve({ request: req })
+    expect(reply.outcome).toBe('accepted')
+    expect(during).toEqual({ stage: 'art', creating: [{ en: 'Iron Ingot', zh: '铁锭' }] })
+    expect(modder.progressOf(req.id)).toBeUndefined()
+    expect(state.episode(reply.episode!)).toMatchObject({ route: ['local', 'find', 'create'], created: ['item/material/iron_ingot'] })
+    const t = library.lib.types.find((x) => x.id === 'item/material/iron_ingot')!
+    expect(t).toMatchObject({ sprite: 'art:item/material/iron_ingot', art: INGOT_ART })
+    // every client gets the new thing with the rule that makes it
+    expect(library.since(0).at(-1)).toMatchObject({ patch: { artifacts: [{ kind: 'type', type: { id: 'item/material/iron_ingot' } }, { kind: 'rule' }] } })
+  })
+
+  it('still creates the thing when its picture cannot be drawn: it shows its parent\'s', async () => {
+    const { model } = router({
+      local: { need: [{ name: 'iron ingot' }] },
+      find: { create: [{ id: 'item/material/iron_ingot', name: { en: 'Iron Ingot', zh: '铁锭' } }] },
+      create: { patch: { artifacts: [{ kind: 'type', type: INGOT_TYPE }, { kind: 'rule', rule: leaves('item/material/iron_ingot') }] } },
+      art: () => ({ grid: ['k'], palette: { k: '#000000' } }),
+    })
+    const { modder, library } = setup(model, undefined, 'live')
+    expect((await modder.resolve({ request: request() })).outcome).toBe('accepted')
+    const t = library.lib.types.find((x) => x.id === 'item/material/iron_ingot')!
+    expect(t.art).toBeUndefined()
+    expect(t.sprite).toBeUndefined()
+  })
+
+  it('designs one patch at a time, so the second request sees what the first committed', async () => {
+    let busy = 0
+    let most = 0
+    const model = new ScriptedModel(async (messages, opts) => {
+      if (opts.purpose !== 'design') return opts.purpose === 'review' ? { verdict: 'ship' } : {}
+      busy++
+      most = Math.max(most, busy)
+      await new Promise((r) => setTimeout(r, 20))
+      busy--
+      return { patch: patchOf(noTestsRule(messages[1].content.includes('impulse/offered') ? bindRule() : { ...bindRule('patch/rope-used-on-creature'), on: 'act/use', host: { type: 'item/tool/rope' }, tree: { if: { is: { role: 'target', sel: { type: 'actor/creature' } } }, then: { do: [{ op: 'log', text: 'You wave the rope.' }] } } })) }
+    })
+    const { modder } = setup(model, undefined, 'live')
+    const replies = await Promise.all([modder.resolve({ request: request() }), modder.resolve({ request: useRequest() })])
+    expect(replies.map((r) => r.outcome)).toEqual(['accepted', 'accepted'])
+    expect(most).toBe(1)
+  })
+})
+
+describe('the design prompt', () => {
+  it('keeps the system prompt byte for byte the same across clients and library versions (the cached prefix), and the user turn to what the model uses', async () => {
+    const seen: { system: string; user: string }[] = []
+    const model = new ScriptedModel((messages, opts) => {
+      if (opts.purpose === 'design') seen.push({ system: messages[0].content, user: messages[1].content })
+      return opts.purpose === 'review' ? { verdict: 'ship' } : opts.purpose === 'reflect' ? {} : { patch: patchOf(noTestsRule(bindRule())) }
+    })
+    const { modder, library } = setup(model, undefined, 'live')
+    await modder.resolve({ request: request() })
+    const first = seen[0]
+    // later: the shared library has a patch, and this client a status of its own
+    expect(library.lib.version).toBeGreaterThan(0)
+    const n = seen.length
+    await modder.resolve({ request: useRequest(), workspace: { patches: { rules: [], statuses: [{ id: 'glowing', duration: 30 }] } } })
+    const later = seen[n]
+    expect(later.system).toBe(first.system)
+    expect(first.system).not.toMatch(/lib@/)
+    // the scenario is the harness's to replay, and the brief carries the rules: neither is in the model's request
+    expect(first.user).not.toMatch(/"scenario"/)
+    expect(first.user).toMatch(/"rules":\[\]/)
+    expect(later.user).toMatch(/# Types and statuses added by patches[\s\S]*"id":"glowing"/)
+  })
+})
+
+const noTestsRule = (r: Rule): Rule => ({ ...r, tests: undefined })
+
 describe('the live profile', () => {
   /** Live design calls carry no tools; offline ones do. */
-  function liveModel(o: { live: (n: number) => unknown; offline?: (n: number, m: ChatMessage[]) => unknown; review?: (n: number, m: ChatMessage[]) => unknown }) {
-    const n = { live: 0, offline: 0, review: 0 }
+  function liveModel(o: { live: (n: number) => unknown; offline?: (n: number, m: ChatMessage[]) => unknown; review?: (n: number, m: ChatMessage[]) => unknown; reflect?: (n: number, m: ChatMessage[]) => unknown }) {
+    const n = { live: 0, offline: 0, review: 0, reflect: 0 }
     const model = new ScriptedModel((messages, opts) => {
       if (opts.purpose === 'review') {
         const i = n.review++
         return (o.review?.(i, messages) ?? { verdict: 'ship' }) as object
       }
-      if (opts.purpose === 'reflect') return {}
+      if (opts.purpose === 'reflect') return (o.reflect?.(n.reflect++, messages) ?? {}) as object
       if (opts.tools?.length || messages.some((m) => m.role === 'tool')) {
         n.offline++
         const last = messages[messages.length - 1]
@@ -666,8 +796,47 @@ describe('the live profile', () => {
     expect(tests[0].given.entities.find((e) => e.key === 'host')!.type).not.toMatch(/^actor\/creature\/slime/)
     expect(tests[0].expect).toContainEqual({ key: 'host', hasStatus: 'frozen' })
     await modder.settled()
+    // nothing flagged in it (it changes the world, and generalized): no review after the fact
+    expect(n.review).toBe(0)
+  })
+
+  it('reviews every live rule after the fact when the harness says review.unflagged', async () => {
+    const { model, n } = liveModel({ live: () => ({ patch: patchOf(noTests(bindRule())) }) })
+    const { modder, state } = setup(model, undefined, 'live')
+    state.setHarness({ ...state.harness(), review: { ...state.harness().review, unflagged: true } }, 'test: review everything')
+    await modder.resolve({ request: request() })
+    await modder.settled()
     expect(n.review).toBe(1) // reviewed after the player had the patch
     expect(readFileSync(join(state.dir, 'journal.jsonl'), 'utf8')).toMatch(/"kind":"review"/)
+  })
+
+  it('reflects on live episodes that went cleanly a batch at a time, citing each', async () => {
+    const classes = [
+      ['slime', 'green_slime', 'frost_slime'],
+      ['beast', 'wolf', 'boar'],
+      ['undead', 'zombie', 'skeleton'],
+      ['golem', 'stone_golem', 'ice_golem'],
+    ]
+    let batch = ''
+    const { model, n } = liveModel({
+      live: (i) => {
+        const [cls, , sibling] = classes[i]
+        return { patch: patchOf(noTests(bindRule(`patch/rope-binds-${cls}`, `actor/creature/${cls}`, `actor/creature/${cls}/${sibling}`))) }
+      },
+      reflect: (_i, m) => ((batch = m[1].content), { lessons: { add: [{ text: 'Bind by the fiber tag.', terms: [] }] } }),
+    })
+    const { modder, state } = setup(model, undefined, 'live')
+    expect(state.harness().reflect.batch).toBe(4)
+    const ids: string[] = []
+    for (const [i, [cls, host]] of classes.entries()) {
+      const reply = await modder.resolve({ request: request(`actor/creature/${cls}/${host}`) })
+      expect(reply.outcome).toBe('accepted')
+      ids.push(reply.episode!)
+      await modder.settled()
+      expect(n.reflect).toBe(i < 3 ? 0 : 1)
+    }
+    expect(batch).toContain('# 4 episodes, each accepted at its first answer')
+    expect(state.lessons().find((l) => l.text === 'Bind by the fiber tag.')!.episodes).toEqual(ids)
   })
 
   it('works a failed live request again offline, in the background', async () => {
@@ -693,6 +862,7 @@ describe('the live profile', () => {
       },
     })
     const { modder, state, library } = setup(model, undefined, 'live')
+    state.setHarness({ ...state.harness(), review: { ...state.harness().review, unflagged: true } }, 'test: review everything')
     const first = await modder.resolve({ request: request() })
     expect(library.lib.rules.has('patch/rope-binds-slime')).toBe(true)
     await modder.settled()

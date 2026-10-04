@@ -11,6 +11,8 @@ export { template }
 
 export interface DevSend {
   patch(id: string | undefined, patch: Patch): void
+  /** Development only: give the player a thing, move them, set the hour (to stage an act by hand). */
+  debug(op: { op: 'give'; type: string } | { op: 'teleport'; map?: string; x: number; y: number } | { op: 'hour'; hour: number }): void
   dismiss(id: string): void
   removeRule(id: string): void
   spec(): void
@@ -202,8 +204,26 @@ export class ModConsole {
     const f = this.frame
     const body = document.querySelector('#devBody')
     if (!body || !s) return
+    // the tools stay put (what is typed in them survives the per-frame refresh); the numbers refresh
+    if (!body.querySelector('#devTools')) {
+      body.innerHTML = `<div class="pad world-tab">
+        <div id="devTools" class="dev-tools">
+          <div class="row"><input id="dGive" list="dTypes" placeholder="item/material/iron_ore" spellcheck="false"><button id="bGive">Give</button></div>
+          <datalist id="dTypes">${(this.spec?.ontology.types ?? []).filter((t) => t.kind === 'item').map((t) => `<option value="${esc(t.id)}">`).join('')}</datalist>
+          <div class="row"><input id="dMap" placeholder="map (blank: this one)" spellcheck="false"><input id="dX" type="number" placeholder="x"><input id="dY" type="number" placeholder="y"><button id="bGo">Teleport</button></div>
+          <div class="row"><button id="bForge">Emberfall, by the lit forge</button><input id="dHour" type="number" min="0" max="23" placeholder="hour"><button id="bHour">Set hour</button></div>
+        </div>
+        <div id="worldStats"></div>
+      </div>`
+      const val = (id: string) => (body.querySelector(`#${id}`) as HTMLInputElement).value.trim()
+      body.querySelector<HTMLButtonElement>('#bGive')!.onclick = () => val('dGive') && this.send.debug({ op: 'give', type: val('dGive') })
+      body.querySelector<HTMLButtonElement>('#bGo')!.onclick = () => this.send.debug({ op: 'teleport', map: val('dMap') || undefined, x: Number(val('dX')), y: Number(val('dY')) })
+      body.querySelector<HTMLButtonElement>('#bForge')!.onclick = () => this.send.debug({ op: 'teleport', map: 'emberfall', x: 31, y: 8 })
+      body.querySelector<HTMLButtonElement>('#bHour')!.onclick = () => val('dHour') && this.send.debug({ op: 'hour', hour: Number(val('dHour')) })
+      if (!this.spec) this.send.spec()
+    }
     const n = (x: number) => x.toLocaleString('en-US')
-    body.innerHTML = `<div class="pad world-tab">
+    body.querySelector('#worldStats')!.innerHTML = `
       <div class="stats small">
         <div><b>${n(s.maps)}</b><span>maps</span></div><div><b>${n(s.npcs)}</b><span>NPCs</span></div>
         <div><b>${n(s.creatures)}</b><span>creatures</span></div><div><b>${n(s.items)}</b><span>items</span></div>
@@ -216,8 +236,7 @@ export class ModConsole {
         <tr><td>engine tick</td><td>${this.perf.tickMs.toFixed(2)} ms</td></tr>
         <tr><td>FPS</td><td>${this.perf.fps.toFixed(0)}</td></tr>
         <tr><td>tick</td><td>${f?.tick ?? 0}</td></tr>
-      </table>
-    </div>`
+      </table>`
   }
 }
 
