@@ -223,17 +223,24 @@ const ESSENTIAL: Selector = { type: 'actor', tags: ['essential'] }
 
 const BODIES: Rule[] = [
   rule({
+    id: 'body/wear',
+    doc: 'Something one wears, put on oneself: one puts it on (what was in its slot comes off), or takes it off if it is on (world-model.md §6.8).',
+    host: ACTOR,
+    on: 'impulse/offered',
+    tree: IF(all({ same: ['host', 'actor'] }, is('item', { tags: ['wearable'] })), DO({ op: 'wear' }), 'inherit'),
+  }),
+  rule({
     id: 'combat/struck',
-    doc: 'An actor struck loses health (a frozen one shatters under a blunt or earthen blow); the one who struck becomes its foe; the element of the blow reaches it.',
+    doc: 'An actor struck takes the blow as anything with durability does — as well as what struck works on what it is made of (world-model.md §6.1, §6.8; a frozen one shatters under a blunt or earthen blow); the one who struck becomes its foe; the element of the blow reaches it.',
     host: ACTOR,
     on: 'impulse/strike',
     tree: IF(
       all(has('host', 'frozen'), any(param('edge', 'blunt'), param('element', 'earth'))),
-      DO(remove('frozen'), { op: 'hurt', amount: { param: 'power', mul: 1.5 } }, { op: 'foe' }, vfx('shatter')),
+      DO(remove('frozen'), { op: 'hurt', amount: { param: 'power', mul: 1.5 }, blow: true }, { op: 'foe' }, vfx('shatter')),
       IF(
         { param: { key: 'element', cmp: { ne: '' } } },
-        DO({ op: 'hurt', amount: POWER }, { op: 'foe' }, vfx('hit'), emit('element', 'host', { element: ELEMENT, power: POWER })),
-        DO({ op: 'hurt', amount: POWER }, { op: 'foe' }, vfx('hit')),
+        DO({ op: 'hurt', amount: POWER, blow: true }, { op: 'foe' }, vfx('hit'), emit('element', 'host', { element: ELEMENT, power: POWER })),
+        DO({ op: 'hurt', amount: POWER, blow: true }, { op: 'foe' }, vfx('hit')),
       ),
     ),
   }),
@@ -279,7 +286,7 @@ const BODIES: Rule[] = [
   }),
   rule({
     id: 'combat/defeat',
-    doc: 'At no health: the essential (people, the player) go down for a while (as anything essential); the rest are gone — they drop what they carried and what they leave behind, and the one who struck learns from it.',
+    doc: 'At no health: the essential (people, the player) go down for a while (as anything essential); the rest break down into what they are made of and spill what they carried (lying still: taken with F), and the one who struck learns from it (world-model.md §6.8, D9).',
     host: ACTOR,
     on: 'threshold/cross',
     tree: IF(
@@ -288,14 +295,12 @@ const BODIES: Rule[] = [
         tag('host', 'essential'),
         'inherit',
         DO(
-          { op: 'dropContents', still: true },
-          { op: 'spawn', type: '@prop:host.drop', at: 'tileOf:host', count: { prop: 'drops', of: 'host' }, still: true },
           emit('notify', 'actor', { what: 'defeat', xp: { prop: 'maxHp', of: 'host' } }),
           // the story hears what fell, and to whom (quests count it)
           emit('notify', 'story', { what: 'defeat', type: { typeOf: 'host' } }),
           vfx('poof', 'tileOf:host'),
           log('{host} is defeated.', '{host}被打倒了。'),
-          { op: 'destroy' },
+          { op: 'breakdown', still: true },
         ),
       ),
     ),

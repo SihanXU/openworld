@@ -86,7 +86,7 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 | W5 | Cover and rooms (done 2026-10-04, after W6) | W2 | 26,002 / 37,823 (68.7%) | 46 of 125 forms, 23 of 86 fixture types |
 | W6 | Storeys: slabs, stairs, support, collapse (core done 2026-10-04, before W5: building as `move` with it) | W5 | 26,007 / 37,823 (68.8%) | 46 of 125 forms, 24 of 86 fixture types |
 | W7 | Stages and appearances (done 2026-10-04) | W2 | 26,002 / 37,823 (68.7%) | 46 of 125 forms, 23 of 86 fixture types |
-| W8 | Combat: material and quality, elements and resistances as data | W2 | | |
+| W8 | Combat: material and quality, elements and resistances as data (done 2026-10-04) | W2 | 26,002 / 37,823 (68.7%) | 39 of 125 forms, 23 of 86 fixture types |
 | W9 | Behaviour: one goal system, real work | W3 | | |
 | W10 | The story's script | W1 | | |
 

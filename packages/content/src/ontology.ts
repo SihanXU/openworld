@@ -179,7 +179,8 @@ export const STATUSES: StatusDef[] = [
   { id: 'fertilized', name: { en: 'fertilized', zh: '施过肥' } },
   // a stage's clock (world-model.md §6.5): when it runs out, the thing becomes what its stage says next
   { id: 'stage', name: { en: 'growing', zh: '生长中' } },
-  { id: 'fireproof', name: { en: 'fireproof', zh: '防火' }, duration: 3000, clears: ['burning'], wards: ['burning'] },
+  // the herbalist's draught: fire does a quarter of its harm while it lasts (a resistance, world-model.md §6.8)
+  { id: 'fireproof', name: { en: 'fireproof', zh: '防火' }, duration: 3000, clears: ['burning'], wards: ['burning'], props: { resFire: 75 } },
   // ice that magic or a creature made: it thaws back to water
   { id: 'chilled', name: { en: 'thin ice', zh: '薄冰' }, duration: 1500 },
   // a mechanism that needs mending (the ferry winch whose rope snapped)
@@ -290,11 +291,11 @@ const actorTypes: TypeDef[] = [
   P('actor/companion/bird', 'bird', '鸟', { tags: ['bird', 'feathered'], sprite: 'creature:parrot' }),
   // the meadow's animals: passive, they run when struck, and leave food behind (drop × drops)
   P('actor/creature/animal', 'animal', '动物', { tags: ['animal'] }),
-  P('actor/creature/animal/cow', 'cow', '牛', { tags: ['livestock', 'furry'], sprite: 'creature:cow', props: { hp: 10, maxHp: 10, atk: 0, speed: 7, drop: 'item/food/meat/raw', drops: 2 } }),
-  P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', stage: { lasts: LAYS_EVERY, yields: [{ type: 'item/food/egg/raw' }] }, props: { hp: 4, maxHp: 4, atk: 0, speed: 5, drop: 'item/food/chicken/raw', drops: 1 } }),
+  P('actor/creature/animal/cow', 'cow', '牛', { tags: ['livestock', 'furry'], sprite: 'creature:cow', props: { hp: 10, maxHp: 10, atk: 0, speed: 7, }, makeup: [{ type: 'item/food/meat/raw', count: 4 }] }),
+  P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', stage: { lasts: LAYS_EVERY, yields: [{ type: 'item/food/egg/raw' }] }, props: { hp: 4, maxHp: 4, atk: 0, speed: 5, }, makeup: [{ type: 'item/food/chicken/raw', count: 2 }] }),
   // the main quest's monsters (docs/main-quest.md)
   P('actor/creature/spider', 'cave spider', '洞穴蜘蛛', { tags: ['spider', 'venomous'], sprite: 'creature:spider', props: { hp: 8, maxHp: 8, atk: 3, speed: 4 } }),
-  P('actor/creature/cyclops', 'cyclops', '独眼巨人', { tags: ['boss', 'large'], sprite: 'boss:cyclops', props: { hp: 60, maxHp: 60, atk: 6, def: 2, speed: 9, drop: 'item/material/iron_ore', drops: 2 } }),
+  P('actor/creature/cyclops', 'cyclops', '独眼巨人', { tags: ['boss', 'large'], sprite: 'boss:cyclops', props: { hp: 60, maxHp: 60, atk: 6, def: 2, speed: 9 } }),
   P('actor/creature/whelp', 'dragon whelp', '幼龙', { tags: ['fiery', 'dragon'], sprite: 'creature:whelp', props: { hp: 14, maxHp: 14, atk: 4, speed: 5, element: 'fire' } }),
   P('actor/creature/dragon', 'the dragon of Cinder Peak', '烬峰魔龙', { tags: ['boss', 'large', 'fiery', 'dragon'], sprite: 'boss:dragon', props: { hp: 700, maxHp: 700, atk: 7, def: 3, speed: 8, element: 'fire', range: 4 } }),
   P('actor/creature/crab', 'giant crab', '巨蟹', { tags: ['shelled', 'watery'], sprite: 'creature:crab', props: { hp: 20, maxHp: 20, atk: 4, def: 3, speed: 7 } }),
@@ -483,6 +484,8 @@ export function buildOntology(): Ontology {
       },
     ],
     elements: ELEMENTS,
+    // each element's resistance: a stat in percent (a status or a worn thing may add to it), world-model.md §6.8
+    resistances: { fire: 'resFire', water: 'resWater', ice: 'resIce', lightning: 'resLightning', wind: 'resWind', earth: 'resEarth' },
     vfx: [...VFX, ...BOSSES.flatMap((b) => b.skills.map((s) => s.fx))],
     instanceTags: [
       ...new Set([

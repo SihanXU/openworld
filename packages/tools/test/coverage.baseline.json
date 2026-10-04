@@ -1459,13 +1459,6 @@
   }
  },
  "idleForms": [
-  "item/armor/helmet",
-  "item/armor/shield",
-  "item/armor/breastplate",
-  "item/clothing/cloak",
-  "item/clothing/hat",
-  "item/clothing/boots",
-  "item/clothing/gloves",
   "item/tool/knife",
   "item/tool/broom",
   "item/tool/lockpick",

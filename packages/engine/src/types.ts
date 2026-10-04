@@ -95,18 +95,20 @@ export interface MaterialDef {
   id: string
   category: string
   hardness: number
-  /** How a thing of it is named ("Stone" Axe, 石斧), what tags it gives, how much power it adds (a weapon, a tool). */
+  /** How a thing of it is named ("Stone" Axe, 石斧), what tags it gives. */
   name?: Text
   tags?: string[]
-  power?: number
+  /** How much it makes of a weapon's or tool's power, and of a worn thing's defence (world-model.md §6.8, Elin's material atk/pv): factors, 1 when absent. */
+  attack?: number
+  defence?: number
 }
 
-/** A quality a made thing can have (world-model.md §6.4): its tag, name and power, and from how far above a recipe's level its maker reaches it (none: not by making). */
+/** A quality a made thing can have (world-model.md §6.4): its tag, name and factor on power and defence (Elin's rarity), and from how far above a recipe's level its maker reaches it (none: not by making). */
 export interface QualityDef {
   id: string
   tag?: string
   name?: Text
-  power: number
+  factor: number
   from?: number
 }
 
@@ -149,6 +151,8 @@ export interface StatusDef {
   every?: number
   /** Render hint for the client overlay. */
   overlay?: string
+  /** What it adds to its holder's stats while held (world-model.md §6.8): fireproof's resistance to fire. */
+  props?: Record<string, number>
 }
 
 export interface TerrainDef {
@@ -176,6 +180,8 @@ export interface Ontology {
   statuses: Record<string, StatusDef>
   terrains: Record<string, TerrainDef>
   elements: string[]
+  /** Each element's resistance: the stat that takes a share of its harm away (percent; below 0, more harm), world-model.md §6.8. */
+  resistances?: Record<string, string>
   vfx: string[]
   /** Tags an instance may carry beyond its type's (materials, qualities…); used by conflict checks. */
   instanceTags?: string[]
@@ -951,7 +957,9 @@ export type Effect =
   | { op: 'removeTag'; tag: string }
   | { op: 'hurt'; amount: Amount; element?: string; pierce?: boolean; blow?: boolean }
   /** The host breaks into what it is made of (its makeup × the recovery rate, in its material), spills what it holds, and is gone. */
-  | { op: 'breakdown' }
+  | { op: 'breakdown'; still?: boolean }
+  /** The host (an actor) puts on what it is offered of its own (param item), or takes it off when it is on: one thing to a slot (world-model.md §6.8). */
+  | { op: 'wear' }
   /** With nothing under it on its storey, the host drops to the first floor below (and is struck by the drop). */
   | { op: 'fall' }
   /** The host sleeps until it is time to rise (time passes at once for the one at the keys); it wakes with health back as its room gives (a bedroom's `rest`). */

@@ -219,7 +219,7 @@ export class Menu {
 
   private slotHtml(s: Frame['player']['slots'][number], i: number, extra = ''): string {
     const key = i < ROW ? `<span class="key">${SLOT_KEYS[i]}</span>` : ''
-    return `<div class="slot${extra}" data-i="${i}" ${s ? `data-item="${s.item.id}"` : ''}>${key}${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}` : ''}</div>`
+    return `<div class="slot${extra}" data-i="${i}" ${s ? `data-item="${s.item.id}"` : ''}>${key}${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}${s.worn ? '<span class="worn"></span>' : ''}` : ''}</div>`
   }
 
   private inventoryHtml(f?: Frame): string {

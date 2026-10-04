@@ -107,10 +107,10 @@ The road leaves the Ford through the gap in its western woods (rows 18–20) and
 meadow's east edge: open grassland in a ring of woods, a pond, flowers and tufts (Minecraft's
 plains). Its ground yields sticks, stones and grass like the Ford's (three of each to start,
 up to 6/5/6). Three cows and four hens live there; more appear slowly while the player is on the map
-(`MapData.forage`: a cow every 1,200 ticks up to 4, a hen every 900 up to 5). Animals are
+(`MapData.appear`: a cow every 1,200 ticks up to 4, a hen every 900 up to 5). Animals are
 passive: they wander near where they appeared and run from whoever strikes them. A cow leaves
-two raw beef, a hen one raw chicken (`drop` × `drops`, in `combat/defeat`); a hen lays an egg
-every 1,800 ticks (`laying`, `animal/lay-egg`). Both lie where they fell, taken with F. Every food is edible, raw or cooked, and feeds
+two raw beef, a hen one raw chicken (what they are made of, broken down: `combat/defeat`); a hen
+lays an egg every 1,800 ticks (her stage, world-model.md §6.5). Both lie where they fell, taken with F. Every food is edible, raw or cooked, and feeds
 its own `food` (raw beef 3, steak 8, raw chicken 2, roast chicken 6, egg 1, bread 5).
 The cow and chicken sprites are the project's own (`tools/src/art/animals.ts`, served from
 `public/assets/lsw/`); the pack subset has none.

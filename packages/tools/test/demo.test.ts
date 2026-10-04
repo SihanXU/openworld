@@ -1273,6 +1273,61 @@ req('W16', 'stages: a watered sprout out under the sky grows a stage, one in a r
   expect(W(f).terrainAt('ford', tx, ty)).toBe('tree')
 })
 
+req('W17', 'combat by what things are made of: iron strikes harder than wood, fine harder than crude; a helmet put on oneself takes a share off every blow (one to a slot; put on again, it comes off); what resists an element takes its share of that harm away, all of it at full', [], () => {
+  const f = fresh()
+  const w = W(f)
+  const made = (type: string, material?: string, quality?: string) => madeOf(w.onto.data, w.onto, type, material, quality)
+  // the form's power times the material's factor and the quality's (Elin)
+  expect(made('item/weapon/blade/sword', 'wood').props?.power).toBe(3)
+  expect(made('item/weapon/blade/sword', 'iron').props?.power).toBe(6)
+  expect(made('item/weapon/blade/sword', 'iron', 'crude').props?.power).toBe(5)
+  expect(made('item/weapon/blade/sword', 'iron', 'fine').props?.power).toBe(8)
+  expect(made('item/armor/helmet', 'iron').props?.def).toBe(2)
+  expect(made('item/armor/breastplate', 'leather').props?.def).toBe(3)
+  // a blow on the player: as hard as it is, less its defence
+  const p = w.player
+  const blow = (n: number, element?: string, pierce = false) => {
+    author(f, () => w.setProp(p, 'hp', 40))
+    author(f, () => f.eng.hurt(p, n, element, pierce))
+    return 40 - w.num(p, 'hp')
+  }
+  expect(blow(6)).toBe(6)
+  // put on oneself (right click on one's own place): worn
+  const helmet = author(f, () => w.add({ ...made('item/armor/helmet', 'iron'), id: 'w17.helmet', place: { on: 'inside', holder: 'player' } }))
+  stand(f, 20, 14, 'up')
+  hold(f, helmet)
+  expect(run(f, 'put', 20, 14).rule).toBe('body/wear')
+  expect(w.prop(p, 'wear:head')).toBe(helmet.id)
+  expect(w.stat(p, 'def')).toBe(2)
+  expect(blow(6)).toBe(4)
+  // a hat on the same head: the helmet comes off
+  const hat = author(f, () => w.add({ ...made('item/clothing/hat', 'cloth'), id: 'w17.hat', place: { on: 'inside', holder: 'player' } }))
+  hold(f, hat)
+  run(f, 'put', 20, 14)
+  expect(w.prop(p, 'wear:head')).toBe(hat.id)
+  expect(w.stat(p, 'def')).toBe(0)
+  // the helmet again, and again: on, then off
+  hold(f, helmet)
+  run(f, 'put', 20, 14)
+  expect(w.prop(p, 'wear:head')).toBe(helmet.id)
+  run(f, 'put', 20, 14)
+  expect(w.prop(p, 'wear:head')).toBeUndefined()
+  // what is no longer one's own is not worn
+  run(f, 'put', 20, 14)
+  author(f, () => w.place(w.get(helmet.id)!, { on: 'tile', map: 'ford', x: 21, y: 14 }))
+  expect(w.stat(p, 'def')).toBe(0)
+  // resistances: the herbalist's draught takes three quarters of fire's harm; a cloak that resists fire, the rest
+  expect(blow(8, 'fire', true)).toBe(8)
+  author(f, () => f.eng.applyStatus({ e: p.id }, 'fireproof'))
+  expect(blow(8, 'fire', true)).toBe(2)
+  expect(blow(8, 'ice', true)).toBe(8)
+  const cloak = author(f, () => w.add({ ...made('item/clothing/cloak', 'leather'), id: 'w17.cloak', props: { slot: 'back', resFire: 25 }, place: { on: 'inside', holder: 'player' } }))
+  hold(f, cloak)
+  run(f, 'put', 20, 14)
+  expect(w.stat(p, 'resFire')).toBe(100)
+  expect(blow(8, 'fire', true)).toBe(0)
+})
+
 req('W12', 'a second storey: walls, a floor laid over them (held up by them), stairs, and up one goes; break the wall and the floor comes down, and whoever stood on it falls', [], () => {
   const f = fresh()
   // an open stretch of the Ford, five cells across
@@ -1537,7 +1592,7 @@ req('Q3', 'chapter 3, Emberfall: the elder tells of the dragon, gives bread, and
   expect(f.eng.controls.count('item/food/bread')).toBe(bread + 2)
 })
 
-req('Q4', 'chapter 4, the old mine: a pickaxe breaks iron and coal from the veins among bats, spiders and the dead; the cyclops guards the deep vein; three ore and two coal and the smith forges Dragonsbane', ['npc.garrick', 'fixture/nature/vein/iron', 'fixture/nature/vein/coal', 'fixture/light/brazier', 'item/tool/pickaxe', 'actor/creature/beast/bat', 'actor/creature/spider', 'actor/creature/undead/skeleton', 'actor/creature/cyclops'], () => {
+req('Q4', 'chapter 4, the old mine: a pickaxe breaks iron and coal from the veins among bats, spiders and the dead; the cyclops guards the deep vein; three ore and two coal and the smith forges Dragonsbane', ['npc.garrick', 'fixture/nature/vein/iron', 'fixture/nature/vein/coal', 'fixture/light/brazier', 'item/tool/pickaxe', 'actor/creature/beast/bat', 'actor/creature/spider', 'actor/creature/undead/skeleton', 'actor/creature/cyclops', 'item/material/iron_ore'], () => {
   const f = fresh()
   const c = f.eng.controls
   author(f, () => W(f).setFact('mq.council', 1))
@@ -1582,6 +1637,10 @@ req('Q4', 'chapter 4, the old mine: a pickaxe breaks iron and coal from the vein
   f.eng.controls.strike()
   ticks(f, 2)
   expect(W(f).get('mine.cyclops')).toBeUndefined()
+  // what it carried lies where it fell, still (taken with F)
+  const hoard = W(f).placedAt('mine', 20, 25).filter((e) => e.type === 'item/material/iron_ore')
+  expect(hoard).toHaveLength(2)
+  expect(hoard.every((e) => !e.dropped)).toBe(true)
   // to the smith: ore and coal put on him, then a word, and the blade
   const [gx, gy] = faceNpc(f, 'npc.garrick')
   expect(putAll(f, 'item/material/iron_ore', 5, gx, gy).map((p) => p.rule)).toEqual(Array(5).fill('mq/smith-ore'))

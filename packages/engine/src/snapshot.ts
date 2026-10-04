@@ -91,7 +91,7 @@ export interface Frame {
     held?: ItemInfo
     inventory: ItemInfo[]
     /** The bag's slots (row 1 is the toolbar): a stack each, or empty. */
-    slots: ({ item: ItemInfo; count: number } | null)[]
+    slots: ({ item: ItemInfo; count: number; worn?: boolean } | null)[]
     selected: number
   }
   /** A yes/no question waiting for the player (time is stopped). */
@@ -223,11 +223,14 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     const k = eng.controls.key(e)
     carried.set(k, [...(carried.get(k) ?? []), id])
   }
+  const wearing = new Set(w.worn(p).map((e) => e.id))
   const slots = Array.from({ length: Math.max(SLOT_COUNT, p.slots?.length ?? 0) }, (_, i) => {
     const k = p.slots?.[i]
     const ids = k ? carried.get(k) : undefined
     const first = ids && itemInfo(eng, ids[0])
-    return first ? { item: first, count: ids!.length } : null
+    // what of the stack the player wears (world-model.md §6.8)
+    const worn = !!ids && ids.some((id) => wearing.has(id))
+    return first ? { item: first, count: ids!.length, ...(worn && { worn }) } : null
   })
   const fx = w.drainFx()
   const sc = w.scene

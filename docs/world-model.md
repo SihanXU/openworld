@@ -414,7 +414,7 @@ it held. `transform` gives the new form its full durability. Trees (10: a stone 
 notched between), pines, bushes, rock (10), cave walls, stone and wooden walls, roofs, stumps,
 charred trees, boulders, veins and the breakable containers have durability and makeup; the
 pickaxe's endless `mine/chip` and the counters `mine/crack`, `mine/vein`, `mine/rock` are gone. A
-burning wooden wall wears and stands black (`burnt_wall`). Bodies keep `combat/struck` until W8.
+burning wooden wall wears and stands black (`burnt_wall`). Bodies took their blows apart (`combat/struck`) until W8; now as anything with durability (§6.8).
 
 At 0, `threshold/cross` `broken` (for every thing), resolved by the most specific rule:
 1. a type's own rule (a tree becomes a stump and drops logs; a person goes down; a sin falls);
@@ -525,6 +525,25 @@ for walls and floors (they are crafted and set down by hand).
 - Element side effects stay physics rules (Elin hard-codes them in a switch).
 - Death is `broken`: `essential` beings go down; others break down into their makeup and spill
   their contents (D9). Throwing is later.
+
+As built (W8): a material carries `attack` and `defence` factors and a quality a `factor` (Elin's
+material atk/pv and rarity: crude 0.8, fine 1.25, masterwork 1.5, legendary 2); a made or found
+thing's power and defence are its form's times both (`gearProps`, used by `madeOf` and the item
+catalogue alike: an iron sword 6, a wooden one 3, a fine iron one 8). Armour and clothing are
+`wearable` with a `slot`: put on oneself (right click on one's own place) they are worn — the
+actor's `body/wear` on the `offered` impulse runs the new primitive `wear`, which keeps the
+thing's id in the actor's `wear:<slot>` prop (one to a slot; put on again, it comes off; given
+away or dropped, it no longer counts). `World.stat(e, key)` is a stat as it stands: the thing's
+own number, what its statuses add while they last (`StatusDef.props`) and what it wears adds;
+attack (`atk`), defence (`def`) and resistances read it. Elements name their resistances
+(`Ontology.resistances`: fire `resFire`, …, in percent; at 100 none of that harm, below 0 more);
+harm done in answer to an element is that element's. The herbalist's draught is a status that
+adds `resFire` 75 (the engine's special case for it is gone). A body takes a blow as anything
+with durability does (`hurt {blow}`: what struck on what it is made of; bodies are flesh), and
+at no health breaks down into its makeup lying still (a cow four raw beef, two left; a hen two
+raw chicken) and spills what it carried (the cyclops's hoard of ore); the `drop`/`drops` props
+are gone. Req 17. Element side effects stay rules (`element/actor`). Not yet: shields that block,
+armour that wears out, what a worn thing looks like on its wearer.
 
 ### 6.9 Weather and the world's appearances
 
@@ -720,6 +739,8 @@ What remains for the AI is what needs invention:
 15. A story step triggered by entering an authored region (no polling).
 16. A stage waits for what it needs: a watered sprout under a roof does not grow, one out under
     the sky does; a felled tree's stump grows back, but not up through someone standing on it.
+17. A thing's material and quality make its power and defence; armour put on oneself takes a
+    share off every blow; what resists an element takes its share of that harm away.
 
 ## 11. Parameters (world data)
 
@@ -743,7 +764,7 @@ the browser.
 | W5 Cover and rooms | | 10, 11 |
 | W6 Storeys | slabs, stairs, support, collapse, storey fading | 12 |
 | W7 Stages and appearances | stages for all; `forage` + night spawner → `appear` | reachability with renewables, 16 |
-| W8 Combat | material and quality in attack/defence; elements and resistances as data | coverage holds |
+| W8 Combat | material and quality in attack/defence; elements and resistances as data | coverage holds, 17 |
 | W9 Behaviour | one goal system for people, creatures, companions, sins; real work | 14 |
 | W10 The story's script | scenes, beats, quests, objectives as one script | the prologue and quests unchanged in play |
 

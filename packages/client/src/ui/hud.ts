@@ -276,14 +276,14 @@ export class Hud {
     const me = this.screenOf(f.player.id)
     const top = !!me && me.y > window.innerHeight * 0.78 && $('#sinBoss').classList.contains('hidden')
     $('#hotbar').classList.toggle('top', top)
-    const sig = `${f.player.selected}|${row.map((s) => (s ? `${s.item.id}:${s.count}` : '')).join(',')}`
+    const sig = `${f.player.selected}|${row.map((s) => (s ? `${s.item.id}:${s.count}${s.worn ? 'w' : ''}` : '')).join(',')}`
     if (sig === this.barSig) return
     this.barSig = sig
     $('#toolbar').innerHTML = row
       .map(
         (s, i) =>
           `<div class="slot${i === f.player.selected ? ' sel' : ''}" data-slot="${i}"${s ? ` data-item="${s.item.id}"` : ''}>` +
-          `<span class="key">${SLOT_KEYS[i]}</span>${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}` : ''}</div>`,
+          `<span class="key">${SLOT_KEYS[i]}</span>${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}${s.worn ? '<span class="worn"></span>' : ''}` : ''}</div>`,
       )
       .join('')
     $('#toolbar')

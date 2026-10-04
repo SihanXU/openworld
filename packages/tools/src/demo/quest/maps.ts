@@ -132,7 +132,8 @@ export function buildMine(): MapBuilder {
   for (const [x, y] of [[8, 11], [31, 11]] as const) m.creature('beast/bat', x, y, { sight: 5 })
   for (const [x, y] of [[12, 21], [29, 20], [7, 15]] as const) m.creature('spider', x, y, { sight: 4 })
   m.creature('undead/skeleton', 20, 14, { sight: 5 })
-  m.creature('cyclops', DEEP.x, DEEP.y, { id: 'mine.cyclops', sight: 5, leash: 6 })
+  // it has hoarded ore from the vein: what it carries spills when it falls
+  m.creature('cyclops', DEEP.x, DEEP.y, { id: 'mine.cyclops', sight: 5, leash: 6, loot: ['item/material/iron_ore', 'item/material/iron_ore'] })
   m.regions = { deep: [14, 1, 13, 7] }
   // the mine gives back slowly: veins in the galleries, and what hunts there
   m.appear = [

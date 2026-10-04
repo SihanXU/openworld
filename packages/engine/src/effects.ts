@@ -27,6 +27,7 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   addTag: 'addTag {tag}',
   removeTag: 'removeTag {tag}',
   hurt: 'hurt {amount, element?, pierce?, blow?} — the host loses health, or durability (hp; its defence applies unless pierce); at none, threshold/cross "broken". blow: a strike\'s — times how well the instrument (what struck, else the striker\'s own body) works on the host\'s material (the efficiency table), and nothing if the instrument is softer than it ("too hard")',
+  wear: 'wear — the host (an actor) puts on the thing of its own it is offered (param item, by its slot prop: a helmet on the head), what was in that slot coming off; offered what it wears, it takes it off (world-model.md §6.8)',
   sleep: 'sleep — the host sleeps until it is time to rise (time passes at once for the one at the keys), and wakes with what it was missing given back as its room says (a bedroom: all; elsewhere: half)',
   fall: 'fall — with nothing under it on its storey, the host drops to the first floor below, struck by the drop beyond the safe height (the root of contact/end on)',
   breakdown: 'breakdown — the host breaks into what it is made of (its makeup × the world\'s recovery rate, in its material), what it holds spills out, and it is gone (the root outcome of broken for anything with a makeup)',
@@ -286,9 +287,25 @@ export class EffectRunner {
       case 'removeTag':
         if (host) w.removeTag(host, eff.tag)
         return
-      case 'hurt':
-        if (host) eng.hurt(host, this.amount(ev, eff.amount), eff.element, eff.pierce, ev, eff.blow)
+      case 'hurt': {
+        // harm done in answer to an element is that element's (what resists it takes a share away)
+        const element = eff.element ?? (ev.kind === 'impulse/element' && typeof ev.params?.element === 'string' ? ev.params.element : undefined)
+        if (host) eng.hurt(host, this.amount(ev, eff.amount), element, eff.pierce, ev, eff.blow)
         return
+      }
+      case 'wear': {
+        // one's own thing, put on oneself: worn in its slot (what was there comes off), or taken off when it is on
+        const item = ev.roles.item && 'e' in ev.roles.item ? w.get(ev.roles.item.e) : undefined
+        if (!host || !item || (item.place.on !== 'inside' && item.place.on !== 'hand') || item.place.holder !== host.id) return
+        const slot = w.prop(item, 'slot')
+        if (typeof slot !== 'string') return
+        const key = `wear:${slot}`
+        const on = w.prop(host, key) === item.id
+        if (on) w.setProp(host, key, undefined)
+        else eng.setProp(host, key, item.id, ev)
+        w.fx.push({ t: 'log', text: on ? { en: `You take off ${eng.nameOf({ e: item.id }, 'en')}.`, zh: `你脱下了${eng.nameOf({ e: item.id }, 'zh')}。` } : { en: `You put on ${eng.nameOf({ e: item.id }, 'en')}.`, zh: `你穿上了${eng.nameOf({ e: item.id }, 'zh')}。` } })
+        return
+      }
       case 'sleep': {
         // until it is time to rise; what a night gives back: as much as the best room it lies in says (a bedroom all)
         if (!host) return
@@ -329,8 +346,8 @@ export class EffectRunner {
             for (let i = 0; i < n; i++) {
               const made = w.create(part.type, { on: 'tile', map: at.map, x: at.x, y: at.y }, material && w.onto.resolve(part.type).tags.includes('portable') ? { tags: [material] } : {})
               eng.touch({ e: made.id })
-              // it pops out for the magnet, as anything a rule drops
-              if (w.isPortable(made)) made.dropped = true
+              // it pops out for the magnet, as anything a rule drops (what a body leaves lies still: taken with F)
+              if (w.isPortable(made) && !eff.still) made.dropped = true
             }
           }
         // what it held spills where it stood
@@ -339,7 +356,7 @@ export class EffectRunner {
           if (!c || !at) continue
           w.place(c, { on: 'tile', map: at.map, x: at.x, y: at.y })
           eng.touch({ e: c.id })
-          c.dropped = true
+          if (!eff.still) c.dropped = true
         }
         eng.touch({ e: host.id }, true)
         w.destroy(host)

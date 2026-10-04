@@ -2,7 +2,7 @@
 // material × quality × element, carried as tags and props, so type-level rules address
 // whole classes while the world still holds tens of thousands of distinct items.
 
-import type { Entity, MaterialDef, PropValue, QualityDef, Rng, TypeDef } from '@lsw/engine'
+import { gearProps, type Entity, type MaterialDef, type PropValue, type QualityDef, type Rng, type TypeDef } from '@lsw/engine'
 import { VEGETABLE_CROPS } from './crops.ts'
 
 export interface Form {
@@ -31,7 +31,9 @@ export interface Material {
   en: string
   zh: string
   tags: string[]
-  power: number // weapon power bonus
+  /** What it makes of a weapon's power and a worn thing's defence: factors (world-model.md §6.8, Elin's material atk and pv). */
+  attack: number
+  defence: number
   value: number // value multiplier
   color: string
   /** What tools work on (world-model.md §4.5): wood, plant, stone, ore, metal, soil, fibre, skin, bone, organic, flesh, crystal. */
@@ -41,23 +43,23 @@ export interface Material {
 }
 
 export const MATERIALS: Record<string, Material> = {
-  wood: { id: 'wood', en: 'Wooden', zh: '木', tags: ['wooden', 'flammable'], power: 0, value: 0.6, color: '#a0703c', category: 'wood', hardness: 1 },
-  bronze: { id: 'bronze', en: 'Bronze', zh: '青铜', tags: ['metal', 'conductive'], power: 1, value: 0.9, color: '#b8783a', category: 'metal', hardness: 3 },
-  iron: { id: 'iron', en: 'Iron', zh: '铁', tags: ['metal', 'conductive'], power: 2, value: 1, color: '#8a8f98', category: 'metal', hardness: 4 },
-  steel: { id: 'steel', en: 'Steel', zh: '钢', tags: ['metal', 'conductive'], power: 3, value: 1.6, color: '#b9c2cc', category: 'metal', hardness: 5 },
-  silver: { id: 'silver', en: 'Silver', zh: '银', tags: ['metal', 'conductive', 'holy'], power: 2, value: 2.5, color: '#dfe6ee', category: 'metal', hardness: 3 },
-  gold: { id: 'gold', en: 'Golden', zh: '金', tags: ['metal', 'conductive', 'precious'], power: 1, value: 5, color: '#e9c24a', category: 'metal', hardness: 2 },
-  bone: { id: 'bone', en: 'Bone', zh: '骨', tags: ['bone'], power: 1, value: 0.5, color: '#e8e0c8', category: 'bone', hardness: 2 },
-  stone: { id: 'stone', en: 'Stone', zh: '石', tags: ['stone'], power: 1, value: 0.4, color: '#8d8a84', category: 'stone', hardness: 2 },
-  crystal: { id: 'crystal', en: 'Crystal', zh: '水晶', tags: ['crystal', 'fragile', 'arcane'], power: 3, value: 3, color: '#9fe3f0', category: 'crystal', hardness: 4 },
-  glass: { id: 'glass', en: 'Glass', zh: '玻璃', tags: ['glass', 'fragile'], power: 0, value: 0.8, color: '#cfeff7', category: 'crystal', hardness: 1 },
-  clay: { id: 'clay', en: 'Clay', zh: '陶', tags: ['clay', 'fragile'], power: 0, value: 0.4, color: '#b86a44', category: 'soil', hardness: 0 },
-  leather: { id: 'leather', en: 'Leather', zh: '皮', tags: ['leather', 'flammable'], power: 0, value: 0.8, color: '#7a4b2a', category: 'skin', hardness: 1 },
-  cloth: { id: 'cloth', en: 'Cloth', zh: '布', tags: ['cloth', 'flammable'], power: 0, value: 0.5, color: '#c9b79c', category: 'fibre', hardness: 0 },
-  silk: { id: 'silk', en: 'Silk', zh: '丝', tags: ['cloth', 'flammable', 'precious'], power: 0, value: 2.2, color: '#e7c6d8', category: 'fibre', hardness: 0 },
-  obsidian: { id: 'obsidian', en: 'Obsidian', zh: '黑曜石', tags: ['stone', 'volcanic', 'fragile'], power: 4, value: 2.4, color: '#2d2438', category: 'stone', hardness: 4 },
-  mithril: { id: 'mithril', en: 'Mithril', zh: '秘银', tags: ['metal', 'arcane'], power: 5, value: 6, color: '#bfe0ff', category: 'metal', hardness: 6 },
-  ringsteel: { id: 'ringsteel', en: 'Ringsteel', zh: '环钢', tags: ['metal', 'ancient', 'runic', 'conductive'], power: 6, value: 8, color: '#9ad0c2', category: 'metal', hardness: 7 },
+  wood: { id: 'wood', en: 'Wooden', zh: '木', tags: ['wooden', 'flammable'], attack: 0.75, defence: 0.75, value: 0.6, color: '#a0703c', category: 'wood', hardness: 1 },
+  bronze: { id: 'bronze', en: 'Bronze', zh: '青铜', tags: ['metal', 'conductive'], attack: 1.25, defence: 1.25, value: 0.9, color: '#b8783a', category: 'metal', hardness: 3 },
+  iron: { id: 'iron', en: 'Iron', zh: '铁', tags: ['metal', 'conductive'], attack: 1.5, defence: 1.5, value: 1, color: '#8a8f98', category: 'metal', hardness: 4 },
+  steel: { id: 'steel', en: 'Steel', zh: '钢', tags: ['metal', 'conductive'], attack: 1.75, defence: 1.75, value: 1.6, color: '#b9c2cc', category: 'metal', hardness: 5 },
+  silver: { id: 'silver', en: 'Silver', zh: '银', tags: ['metal', 'conductive', 'holy'], attack: 1.5, defence: 1.25, value: 2.5, color: '#dfe6ee', category: 'metal', hardness: 3 },
+  gold: { id: 'gold', en: 'Golden', zh: '金', tags: ['metal', 'conductive', 'precious'], attack: 1.25, defence: 1, value: 5, color: '#e9c24a', category: 'metal', hardness: 2 },
+  bone: { id: 'bone', en: 'Bone', zh: '骨', tags: ['bone'], attack: 1.25, defence: 1, value: 0.5, color: '#e8e0c8', category: 'bone', hardness: 2 },
+  stone: { id: 'stone', en: 'Stone', zh: '石', tags: ['stone'], attack: 1.25, defence: 1, value: 0.4, color: '#8d8a84', category: 'stone', hardness: 2 },
+  crystal: { id: 'crystal', en: 'Crystal', zh: '水晶', tags: ['crystal', 'fragile', 'arcane'], attack: 1.75, defence: 1, value: 3, color: '#9fe3f0', category: 'crystal', hardness: 4 },
+  glass: { id: 'glass', en: 'Glass', zh: '玻璃', tags: ['glass', 'fragile'], attack: 1, defence: 0.5, value: 0.8, color: '#cfeff7', category: 'crystal', hardness: 1 },
+  clay: { id: 'clay', en: 'Clay', zh: '陶', tags: ['clay', 'fragile'], attack: 1, defence: 0.5, value: 0.4, color: '#b86a44', category: 'soil', hardness: 0 },
+  leather: { id: 'leather', en: 'Leather', zh: '皮', tags: ['leather', 'flammable'], attack: 1, defence: 1, value: 0.8, color: '#7a4b2a', category: 'skin', hardness: 1 },
+  cloth: { id: 'cloth', en: 'Cloth', zh: '布', tags: ['cloth', 'flammable'], attack: 1, defence: 0.5, value: 0.5, color: '#c9b79c', category: 'fibre', hardness: 0 },
+  silk: { id: 'silk', en: 'Silk', zh: '丝', tags: ['cloth', 'flammable', 'precious'], attack: 1, defence: 0.75, value: 2.2, color: '#e7c6d8', category: 'fibre', hardness: 0 },
+  obsidian: { id: 'obsidian', en: 'Obsidian', zh: '黑曜石', tags: ['stone', 'volcanic', 'fragile'], attack: 2, defence: 1.25, value: 2.4, color: '#2d2438', category: 'stone', hardness: 4 },
+  mithril: { id: 'mithril', en: 'Mithril', zh: '秘银', tags: ['metal', 'arcane'], attack: 2.25, defence: 2.25, value: 6, color: '#bfe0ff', category: 'metal', hardness: 6 },
+  ringsteel: { id: 'ringsteel', en: 'Ringsteel', zh: '环钢', tags: ['metal', 'ancient', 'runic', 'conductive'], attack: 2.5, defence: 2.5, value: 8, color: '#9ad0c2', category: 'metal', hardness: 7 },
 }
 
 /** What else things are made of (the world's own: bodies, plants, the ground) — never an item's material. */
@@ -72,21 +74,22 @@ const NATURAL: MaterialDef[] = [
 
 /** Every material, as the world reads it (world-model.md §4.5): its category and hardness. */
 export const MATERIAL_DEFS: Record<string, MaterialDef> = Object.fromEntries([
-  ...Object.values(MATERIALS).map((m) => ({ id: m.id, category: m.category, hardness: m.hardness, name: { en: m.en, zh: m.zh }, tags: m.tags, power: m.power })),
+  ...Object.values(MATERIALS).map((m) => ({ id: m.id, category: m.category, hardness: m.hardness, name: { en: m.en, zh: m.zh }, tags: m.tags, attack: m.attack, defence: m.defence })),
   ...NATURAL,
 ].map((m) => [m.id, m]))
 
 /** The qualities as the world reads them: a maker reaches each by how far above the recipe's level they are (legendary: never by making). */
 export const QUALITY_DEFS = (): QualityDef[] =>
-  QUALITIES.map((q) => ({ id: q.id, tag: q.id === 'common' ? undefined : `quality:${q.id}`, name: q.en ? { en: q.en, zh: q.zh } : undefined, power: q.power, from: QUALITY_FROM[q.id] }))
+  QUALITIES.map((q) => ({ id: q.id, tag: q.id === 'common' ? undefined : `quality:${q.id}`, name: q.en ? { en: q.en, zh: q.zh } : undefined, factor: q.factor, from: QUALITY_FROM[q.id] }))
 const QUALITY_FROM: Record<string, number | undefined> = { crude: -99, common: 0, fine: 3, masterwork: 6 }
 
 export const QUALITIES = [
-  { id: 'crude', en: 'Crude', zh: '粗制', power: -1, value: 0.5, w: 3 },
-  { id: 'common', en: '', zh: '', power: 0, value: 1, w: 8 },
-  { id: 'fine', en: 'Fine', zh: '精良', power: 1, value: 1.8, w: 3 },
-  { id: 'masterwork', en: 'Masterwork', zh: '大师', power: 2, value: 3.5, w: 1 },
-  { id: 'legendary', en: 'Legendary', zh: '传说', power: 4, value: 9, w: 0.15 },
+  // a quality's factor on power and defence (Elin's rarity: crude 120/150, superior 120/100, legendary 120/80)
+  { id: 'crude', en: 'Crude', zh: '粗制', factor: 0.8, value: 0.5, w: 3 },
+  { id: 'common', en: '', zh: '', factor: 1, value: 1, w: 8 },
+  { id: 'fine', en: 'Fine', zh: '精良', factor: 1.25, value: 1.8, w: 3 },
+  { id: 'masterwork', en: 'Masterwork', zh: '大师', factor: 1.5, value: 3.5, w: 1 },
+  { id: 'legendary', en: 'Legendary', zh: '传说', factor: 2, value: 9, w: 0.15 },
 ]
 
 export const ELEMENT_NAMES: Record<string, { en: string; zh: string }> = {
@@ -118,14 +121,14 @@ export const FORMS: Form[] = [
   W('item/weapon/ranged/bow', 'Bow', '弓', 'item:bow', { props: { power: 3, range: 6 }, materials: ['wood', 'bone'], elemental: true, where: { smithy: 1, wild: 0.3, dungeon: 1 }, makeup: [{ type: 'item/material/stick', count: 2 }, { type: 'item/material/grass', count: 3 }], station: 'workbench', craftLevel: 2 }),
   W('item/weapon/magic/wand', 'Wand', '魔杖', 'item:wand', { tags: ['arcane'], props: { power: 3, range: 5 }, materials: ['wood', 'crystal', 'bone', 'silver'], elemental: true, where: { library: 3, temple: 1, dungeon: 2, shop: 0.5 } }),
   W('item/weapon/magic/staff', 'Staff', '法杖', 'item:staff', { tags: ['arcane'], props: { power: 5, range: 4 }, materials: ['wood', 'crystal', 'bone', 'mithril'], elemental: true, where: { library: 1, dungeon: 1 } }),
-  // armour & clothing (inert for now; rules may use them)
-  W('item/armor/helmet', 'Helmet', '头盔', 'item:helmet', { props: { armor: 1 }, materials: ['iron', 'steel', 'bronze', 'leather', 'bone'], where: { smithy: 2, dungeon: 1 } }),
-  W('item/armor/shield', 'Shield', '盾牌', 'item:shield', { props: { armor: 2 }, materials: ['wood', 'iron', 'steel', 'bronze'], where: { smithy: 2, dungeon: 1 }, makeup: [{ type: 'item/material/plank', count: 3 }, { type: 'item/material/stick', count: 1 }], station: 'workbench' }),
-  W('item/armor/breastplate', 'Breastplate', '胸甲', 'item:armor', { props: { armor: 3 }, materials: ['iron', 'steel', 'leather', 'mithril'], where: { smithy: 1, dungeon: 0.5 } }),
-  W('item/clothing/cloak', 'Cloak', '斗篷', 'item:cloak', { materials: ['cloth', 'leather', 'silk'], where: { home: 2, shop: 1 } }),
-  W('item/clothing/hat', 'Hat', '帽子', 'item:hat', { materials: ['cloth', 'leather', 'silk'], where: { home: 2, shop: 1, npc: 0.3 } }),
-  W('item/clothing/boots', 'Boots', '靴子', 'item:boots', { materials: ['leather', 'cloth'], where: { home: 2, shop: 1 } }),
-  W('item/clothing/gloves', 'Gloves', '手套', 'item:gloves', { materials: ['leather', 'cloth', 'silk'], where: { home: 1, shop: 1, smithy: 1 } }),
+  // armour and clothing: put on oneself, worn in a slot (world-model.md §6.8); armour adds its defence
+  W('item/armor/helmet', 'Helmet', '头盔', 'item:helmet', { tags: ['wearable'], props: { def: 1, slot: 'head' }, materials: ['iron', 'steel', 'bronze', 'leather', 'bone'], where: { smithy: 2, dungeon: 1 } }),
+  W('item/armor/shield', 'Shield', '盾牌', 'item:shield', { tags: ['wearable'], props: { def: 2, slot: 'arm' }, materials: ['wood', 'iron', 'steel', 'bronze'], where: { smithy: 2, dungeon: 1 }, makeup: [{ type: 'item/material/plank', count: 3 }, { type: 'item/material/stick', count: 1 }], station: 'workbench' }),
+  W('item/armor/breastplate', 'Breastplate', '胸甲', 'item:armor', { tags: ['wearable'], props: { def: 3, slot: 'body' }, materials: ['iron', 'steel', 'leather', 'mithril'], where: { smithy: 1, dungeon: 0.5 } }),
+  W('item/clothing/cloak', 'Cloak', '斗篷', 'item:cloak', { tags: ['wearable'], props: { slot: 'back' }, materials: ['cloth', 'leather', 'silk'], where: { home: 2, shop: 1 } }),
+  W('item/clothing/hat', 'Hat', '帽子', 'item:hat', { tags: ['wearable'], props: { slot: 'head' }, materials: ['cloth', 'leather', 'silk'], where: { home: 2, shop: 1, npc: 0.3 } }),
+  W('item/clothing/boots', 'Boots', '靴子', 'item:boots', { tags: ['wearable'], props: { slot: 'feet' }, materials: ['leather', 'cloth'], where: { home: 2, shop: 1 } }),
+  W('item/clothing/gloves', 'Gloves', '手套', 'item:gloves', { tags: ['wearable'], props: { slot: 'hands' }, materials: ['leather', 'cloth', 'silk'], where: { home: 1, shop: 1, smithy: 1 } }),
   // tools
   W('item/tool/pickaxe', 'Pickaxe', '镐', 'item:pickaxe', { tags: ['tool:pickaxe'], props: { power: 3 }, materials: TOOL_METALS, where: { smithy: 2, dungeon: 1, farm: 0.5 }, makeup: [{ type: 'item/material/stone', count: 2 }, { type: 'item/material/stick', count: 2 }, { type: 'item/material/grass', count: 1 }], station: 'hands' }),
   W('item/tool/shovel', 'Shovel', '铲子', 'item:shovel', { tags: ['tool:shovel'], props: { power: 2 }, materials: TOOL_METALS, where: { farm: 2, smithy: 1, home: 0.5 } }),
@@ -298,8 +301,8 @@ export function makeItem(rng: Rng, form: Form, opts: { material?: string; qualit
     tags.push(`material:${m.id}`, ...m.tags)
     en = `${m.en} ${en}`
     zh = `${m.zh}${zh}`
-    if (typeof form.props?.power === 'number') props.power = (form.props.power as number) + m.power
   }
+  let quality: string | undefined
   const isGear = form.id.startsWith('item/weapon') || form.id.startsWith('item/armor') || form.id.startsWith('item/tool') || form.id.startsWith('item/valuable')
   if (isGear) {
     const q = opts.quality ? QUALITIES.find((x) => x.id === opts.quality)! : weighted(rng, QUALITIES)
@@ -308,8 +311,10 @@ export function makeItem(rng: Rng, form: Form, opts: { material?: string; qualit
       en = `${q.en} ${en}`
       zh = `${q.zh}${zh}`
     }
-    if (typeof props.power === 'number') props.power = Math.max(1, (props.power as number) + q.power)
+    quality = q.id
   }
+  // what the material and the quality make of its power and defence (world-model.md §6.8)
+  Object.assign(props, gearProps(form.props ?? {}, matId ? MATERIAL_DEFS[matId] : undefined, QUALITY_DEFS().find((x) => x.id === quality)))
   const el = opts.element === null ? undefined : (opts.element ?? (form.elemental && rng.chance(0.28) ? rng.pick(Object.keys(ELEMENT_NAMES)) : undefined))
   if (el && form.elemental) {
     tags.push(`element:${el}`)

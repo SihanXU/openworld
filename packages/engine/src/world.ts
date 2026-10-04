@@ -816,6 +816,28 @@ export class World {
     return typeof v === 'number' ? v : dflt
   }
 
+  /**
+   * A stat as it stands now (world-model.md §6.8): the thing's own number, what its statuses add
+   * while they last, and what the things it wears add (a helmet's defence, a cloak's resistance).
+   */
+  stat(e: Entity, key: string, dflt = 0): number {
+    let v = this.num(e, key, dflt)
+    for (const id of Object.keys(e.statuses ?? {})) v += this.onto.status(id)?.props?.[key] ?? 0
+    for (const w of this.worn(e)) v += this.num(w, key)
+    return v
+  }
+
+  /** What a thing wears: what each of its `wear:<slot>` props names, while it still has it (in its bag or its hand). */
+  worn(e: Entity): Entity[] {
+    const out: Entity[] = []
+    for (const [k, id] of Object.entries(e.props ?? {})) {
+      if (!k.startsWith('wear:') || typeof id !== 'string') continue
+      const w = this.get(id)
+      if (w && (w.place.on === 'inside' || w.place.on === 'hand') && w.place.holder === e.id) out.push(w)
+    }
+    return out
+  }
+
   hasTag(e: Entity, tag: string): boolean {
     return (e.tags?.includes(tag) ?? false) || this.onto.resolve(e.type).tags.includes(tag)
   }

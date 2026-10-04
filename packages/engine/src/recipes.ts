@@ -5,7 +5,7 @@
 // the recipe's, and its power from its form, material and quality.
 
 import type { OntologyIndex } from './ontology.ts'
-import type { Entity, Ontology, PropValue, Recipe, Text } from './types.ts'
+import type { Entity, MaterialDef, Ontology, PropValue, QualityDef, Recipe, Text } from './types.ts'
 
 /** Every recipe the types give: those with a station and a makeup. */
 export function deriveRecipes(onto: OntologyIndex): Recipe[] {
@@ -39,13 +39,25 @@ export function qualityFor(onto: Ontology, makerLevel: number, recipeLevel: numb
  * A made thing's look as data: its type, its material's tags (and `material:<id>`), its quality's
  * tag, its name (quality, material, form) and its power (form + material + quality).
  */
+/**
+ * What a thing's material and quality make of its form's power and defence (world-model.md §6.8, after
+ * Elin's ApplyMaterial): the form's number times the material's factor and the quality's, whole, at least 1.
+ */
+export function gearProps(form: Record<string, PropValue>, m?: MaterialDef, q?: QualityDef): Record<string, number> {
+  const out: Record<string, number> = {}
+  const f = q?.factor ?? 1
+  if (typeof form.power === 'number') out.power = Math.max(1, Math.round(form.power * (m?.attack ?? 1) * f))
+  if (typeof form.def === 'number') out.def = Math.max(1, Math.round(form.def * (m?.defence ?? 1) * f))
+  return out
+}
+
 export function madeOf(data: Ontology, onto: OntologyIndex, type: string, material?: string, quality?: string): Omit<Entity, 'id' | 'place'> {
   const r = onto.resolve(type)
   const m = material ? data.materials?.[material] : undefined
   const q = quality ? data.qualities?.find((x) => x.id === quality) : undefined
   const tags = [...(m ? [`material:${m.id}`, ...(m.tags ?? [])] : []), ...(q?.tag ? [q.tag] : [])]
   const props: Record<string, PropValue> = {}
-  if (typeof r.props.power === 'number') props.power = Math.max(1, r.props.power + (m?.power ?? 0) + (q?.power ?? 0))
+  Object.assign(props, gearProps(r.props, m, q))
   const base = r.name ?? { en: type.split('/').pop()!, zh: type.split('/').pop()! }
   const say = (x: Text | undefined, l: 'en' | 'zh') => (x === undefined ? '' : typeof x === 'string' ? x : (x[l] ?? x.en))
   const en = [say(q?.name, 'en'), say(m?.name, 'en'), say(base, 'en')].filter(Boolean).join(' ')

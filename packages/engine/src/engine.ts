@@ -352,7 +352,7 @@ export class Engine {
     const inst = instrument && 'e' in instrument ? w.get(instrument.e) : undefined
     const p: Record<string, PropValue> = { verb, ...params }
     if (verb === 'use' && actor) {
-      p.power ??= w.num(actor, 'atk', 1) + (inst ? w.num(inst, 'power', 0) : 0)
+      p.power ??= w.stat(actor, 'atk', 1) + (inst ? w.num(inst, 'power', 0) : 0)
       const element = (inst && w.prop(inst, 'element')) || w.prop(actor, 'element')
       if (typeof element === 'string' && p.element === undefined) p.element = element
     }
@@ -579,9 +579,12 @@ export class Engine {
       const edge = by?.params?.edge
       if (tool) amount *= w.efficiency(tool, typeof edge === 'string' ? edge : undefined, e)
     }
-    const def = pierce ? 0 : w.num(e, 'def')
-    // fireproof (the herbalist's draught): fire does a quarter of its harm
-    if (element === 'fire' && w.hasStatus({ e: e.id }, 'fireproof')) amount *= 0.25
+    // an element's harm, less what resists it (world-model.md §6.8: each element names its resistance; the
+    // herbalist's draught gives it while it lasts, a worn thing may): all of it, none; below none, more
+    const resist = element ? w.onto.data.resistances?.[element] : undefined
+    if (resist) amount *= 1 - Math.min(100, w.stat(e, resist)) / 100
+    if (amount <= 0) return
+    const def = pierce ? 0 : w.stat(e, 'def')
     // the combat talents of the one struck (combat.ts): dodge, a guarded moment, reductions, the brink
     const by_ = by?.roles.actor ?? (by?.cause ? { e: by.cause } : undefined)
     const attacker = by_ && 'e' in by_ ? w.get(by_.e) : undefined
@@ -1041,7 +1044,7 @@ export class Engine {
       const onRay = cp.x - start.x === dx * d && cp.y - start.y === dy * d
       if (onRay && d >= 1 && d <= Math.abs(last.x - start.x) + Math.abs(last.y - start.y)) (target = chosen), (last = cp)
     }
-    const base = w.num(a, 'atk', 1) + (weapon ? w.num(weapon, 'power', 0) : 0)
+    const base = w.stat(a, 'atk', 1) + (weapon ? w.num(weapon, 'power', 0) : 0)
     if (!target) {
       finishCombatStrike(w, a, undefined, { power: base, critical: false, charged: false, comboHits: 0, bleed: 0, drain: 0 }, 0, range, true)
       return
