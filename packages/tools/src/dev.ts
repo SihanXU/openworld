@@ -3,8 +3,8 @@
 // Client only: npm run dev:client.
 //
 // The modder's model is asked for at start (in a terminal), or given:
-//   npm run dev -- --backend openrouter | claude-code | claude-code-fast | none
-//   (or LSW_MODEL_BACKEND in the environment / .env)
+//   npm run dev -- --backend openrouter | claude-code | none   [--fast: claude-code's fast mode]
+//   (or LSW_MODEL_BACKEND and LSW_CLAUDE_FAST=1 in the environment / .env)
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
@@ -16,7 +16,6 @@ const kids: ChildProcess[] = []
 const BACKENDS = [
   ['openrouter', 'OpenRouter (LSW_MODEL from .env)'],
   ['claude-code', 'Claude Code: claude -p, Opus 5.5, effort low (signed in as you; no API key)'],
-  ['claude-code-fast', 'Claude Code, fast mode (needs extra usage on the account)'],
   ['none', 'none: answer from the shared library only'],
 ] as const
 
@@ -73,5 +72,9 @@ process.on('SIGTERM', stop)
 if (existsSync('.env')) process.loadEnvFile('.env')
 if (await modderAnswers()) console.log(`[dev] a modder already answers on :${PORT}`)
 // watched: the modder validates against the content it loaded, so it restarts when the content changes
-else run('modder', ['exec', '--', 'tsx', 'watch', 'packages/modder/src/cli.ts', 'serve', String(PORT)], { ...process.env, LSW_MODEL_BACKEND: await chooseBackend() })
+else {
+  // --fast asks claude-code for fast mode (the account must allow it: extra usage on)
+  const fast = process.argv.includes('--fast') ? { LSW_CLAUDE_FAST: '1' } : {}
+  run('modder', ['exec', '--', 'tsx', 'watch', 'packages/modder/src/cli.ts', 'serve', String(PORT)], { ...process.env, LSW_MODEL_BACKEND: await chooseBackend(), ...fast })
+}
 run('client', ['run', 'dev', '-w', '@lsw/client'])

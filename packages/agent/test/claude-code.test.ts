@@ -94,7 +94,8 @@ describe('the Claude Code backend (claude -p)', () => {
 
   it('is chosen by LSW_MODEL_BACKEND, Opus 5.5 at low effort by default', () => {
     expect(modelFromEnv({ LSW_MODEL_BACKEND: 'claude-code' })?.name).toBe('claude-code:claude-opus-5-5@low')
-    expect(modelFromEnv({ LSW_MODEL_BACKEND: 'claude-code-fast' })?.name).toBe('claude-code:claude-opus-5-5@low+fast')
+    expect(modelFromEnv({ LSW_MODEL_BACKEND: 'claude-code', LSW_CLAUDE_FAST: '1' })?.name).toBe('claude-code:claude-opus-5-5@low+fast')
+    expect(() => modelFromEnv({ LSW_CLAUDE_FAST: '1', LSW_MODEL_KEY: 'k', LSW_MODEL: 'm' })).toThrow(/claude-code backend only/)
     expect(modelFromEnv({ LSW_MODEL_BACKEND: 'none', LSW_MODEL_KEY: 'k', LSW_MODEL: 'm' })).toBeUndefined()
     expect(modelFromEnv({ LSW_MODEL_KEY: 'k', LSW_MODEL: 'moonshotai/kimi-k3' })?.name).toBe('moonshotai/kimi-k3')
     expect(() => modelFromEnv({ LSW_MODEL_BACKEND: 'nope' })).toThrow(/unknown backend/)

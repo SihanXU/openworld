@@ -517,17 +517,19 @@ export class Meter implements Model {
  *   pin by measurement (npm run latency): OpenRouter's own throughput sort picked the slowest one.
  *   LSW_MODEL_SORT=throughput|latency|price lets OpenRouter choose instead.
  * - `claude-code`: `claude -p`, signed in as the user. LSW_CLAUDE_MODEL (default claude-opus-5-5),
- *   LSW_CLAUDE_EFFORT (default low), LSW_CLAUDE_BIN (default `claude`). `claude-code-fast` (or
- *   LSW_CLAUDE_FAST=1) asks for fast mode.
+ *   LSW_CLAUDE_EFFORT (default low), LSW_CLAUDE_BIN (default `claude`). LSW_CLAUDE_FAST=1 (`--fast`)
+ *   asks for fast mode; it applies to this backend only.
  * - `none`: no model; the modder answers from the shared library only.
  */
 export function modelFromEnv(env: Record<string, string | undefined> = process.env): Model | undefined {
   if (env.LSW_MODEL_SCRIPT) return scriptFromFile(env.LSW_MODEL_SCRIPT)
   const backend = env.LSW_MODEL_BACKEND || 'openrouter'
+  const fast = env.LSW_CLAUDE_FAST === '1'
+  if (!['openrouter', 'claude-code', 'none'].includes(backend)) throw new Error(`LSW_MODEL_BACKEND: unknown backend "${backend}" (openrouter | claude-code | none)`)
+  if (fast && backend !== 'claude-code') throw new Error(`--fast (LSW_CLAUDE_FAST=1) applies to the claude-code backend only, not "${backend}"`)
   if (backend === 'none') return undefined
-  if (backend === 'claude-code' || backend === 'claude-code-fast')
-    return new ClaudeCodeModel({ model: env.LSW_CLAUDE_MODEL || 'claude-opus-5-5', effort: env.LSW_CLAUDE_EFFORT || 'low', fast: backend === 'claude-code-fast' || env.LSW_CLAUDE_FAST === '1', bin: env.LSW_CLAUDE_BIN })
-  if (backend !== 'openrouter') throw new Error(`LSW_MODEL_BACKEND: unknown backend "${backend}" (openrouter | claude-code | claude-code-fast | none)`)
+  if (backend === 'claude-code')
+    return new ClaudeCodeModel({ model: env.LSW_CLAUDE_MODEL || 'claude-opus-5-5', effort: env.LSW_CLAUDE_EFFORT || 'low', fast, bin: env.LSW_CLAUDE_BIN })
   if (!env.LSW_MODEL_KEY || !env.LSW_MODEL) return undefined
   const extra: Record<string, unknown> = env.LSW_MODEL_EXTRA ? JSON.parse(env.LSW_MODEL_EXTRA) : {}
   if (env.LSW_MODEL_SORT) extra.provider = { ...(extra.provider as object), sort: env.LSW_MODEL_SORT }
