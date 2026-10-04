@@ -35,6 +35,7 @@ document.documentElement.lang = locale.value === 'zh' ? 'zh-CN' : 'en'
 
 const dev = new ModConsole({
   patch: (id, patch) => send({ t: 'patch', id, patch }),
+  debug: (op) => send({ t: 'debug', ...op }),
   dismiss: (id) => send({ t: 'dismiss', id }),
   removeRule: (id) => send({ t: 'removeRule', id }),
   spec: () => send({ t: 'spec' }),

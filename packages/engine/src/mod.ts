@@ -447,6 +447,7 @@ export class ModPort implements UndefinedSink {
     r.status = 'fallback'
     this.unfreeze(id)
     this.eng.run(r.request.hole.default, r.event, r.request.hole.rule)
+    this.syncBag()
     this.onChange?.()
   }
 
@@ -522,6 +523,13 @@ export class ModPort implements UndefinedSink {
     this.unfreeze(rec.id)
     eng.world.fx.push({ t: 'patched', request: rec.id, rule: ruleIds[0] ?? '' })
     if (wasOpen && stillValid(eng, rec.event) && eng.resolveEvent(rec.event).defined) eng.replay(rec.event)
+    this.syncBag()
+  }
+
+  /** What the outcome did to the player's things (a held ore become an ingot) shows in their slots. */
+  private syncBag(): void {
+    const w = this.eng.world
+    if (w.state.player && w.get(w.state.player)) this.eng.controls.sync()
   }
 
   /** A person answered "nothing happens": the question is not asked again this session. */

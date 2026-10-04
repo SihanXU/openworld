@@ -3,7 +3,7 @@
 // the icon format, and points at what exists when a patch names a type that does not.
 
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, artProblems, buildSandbox, validatePatch, type Patch, type PixelArt, type Rule, type Scenario, type TypeDef } from '@lsw/engine'
+import { ModPort, RuleLibrary, artProblems, buildSandbox, validatePatch, type Patch, type PixelArt, type Rule, type Scenario, type TypeDef } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
@@ -94,6 +94,21 @@ describe('a patch that brings a new thing', () => {
     expect(artProblems({ ...INGOT_ART, palette: { ...INGOT_ART.palette, k: 'black' } }).join()).toMatch(/#rrggbb/)
     expect(artProblems({ ...INGOT_ART, palette: { a: '#ffffff' } }).join()).toMatch(/not in the palette/)
     expect(artProblems({ grid: Array(16).fill('.'.repeat(16)), palette: { a: '#ffffff' } }).join()).toMatch(/almost nothing/)
+  })
+
+  it('arrives in the hand that waited for it: the held ore becomes the ingot, in the same slot', () => {
+    const eng = buildSandbox(scenario, onto, lib())
+    eng.world.player.facing = 'up'
+    eng.controls.sync()
+    const port = new ModPort(eng)
+    port.provider = { resolve: () => new Promise(() => {}) }
+    eng.act('use', 'actor', { e: 'it' }, { instrument: { e: 'held' } })
+    const rec = port.records[0]
+    const slot = eng.world.player.selected!
+    port.submit(rec.id, { artifacts: [{ kind: 'type', type: ingot() }, { kind: 'rule', rule: smelt() }] })
+    const held = eng.world.get(eng.world.player.held!)!
+    expect(held.type).toBe('item/material/iron_ingot')
+    expect(eng.world.player.slots![slot]).toBe(eng.controls.key(held))
   })
 
   it('points at what exists when a patch names a type that does not', () => {

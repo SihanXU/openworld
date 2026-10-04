@@ -1226,6 +1226,60 @@ class. `npm run curriculum:report` summarises a run.
   any of those fixtures is asked again. Whether a broad default should stay open to more
   specific answers is a question about the interface (§5.11).
 
+### The router: find, then create (2026-10-04)
+
+A live design no longer carries the world's type catalogue (334 types, 62% of the ModSpec, and
+growing with the content). Removing it from the prompt changed nothing measurable on twelve live
+cases, and a patch needs a type beyond the request only when its outcome is a thing the request
+does not hold (iron from smelting, a stick from a stump). So the design works in layers:
+
+| Layer | Sees | Answers |
+|---|---|---|
+| **local** | the request's own types: roles, parents, and the directory beside each role's type (brief) | a patch, or `{"need": [{"name", "why"}]}` |
+| **find** | the closest types by name, and the whole catalogue (`parent/: children`) | a patch with the type it found, or `{"create": [{"id", "name", "why"}]}` |
+| **create** | — | the patch with the new type(s) beside the rule; an artist call draws each new type's 16x16 icon as data |
+
+- **New types** (`TypeDef.art`, sprite `art:<id>`) travel in the patch like any rule, so every
+  client gets the thing and its picture with the library log; the client draws the picture as a
+  texture. The validator holds a new type to the world's conventions: new, under a parent that
+  exists, snake_case, named in both languages, not another name for a known thing; its picture
+  to 16x16 and at most 8 colours. An unknown type id is answered with the closest known ones.
+- **Pictures.** Opus draws a usable 16x16 icon in one call when it is shown two of the pack's
+  icons as character grids (the pack's outline, tones and light). A picture that cannot be drawn
+  in two tries leaves the thing with its parent's.
+- **The player waits for a creation.** `GET /progress?id=` says where a request is; once it
+  creates, the client holds the act past its time-out (`ModPort.hold`) and the HUD says "The
+  world is making something new: <names>".
+- **One design at a time** (`harness.concurrency.design`, live before offline): a request that
+  waited is answered by what was committed meanwhile. Reviews, reflections and escalations run
+  three at a time (`concurrency.background`).
+- **A rule writes only its host, so one act can take several holes.** A knife on a haystack is
+  answered by the knife (a cut sent to the haystack), and the haystack's answer to a cut is its
+  own hole, asked next. `npm run eval:objects` follows an act through up to four holes and judges
+  the world afterwards: five acts whose outcome the world has elsewhere (find), five whose outcome
+  it does not have (create).
+
+**Measured** (Opus 5.5 at effort low through `claude -p`, 2026-10-04):
+
+| | Passed | Notes |
+|---|---|---|
+| find | 3/5 | haystack → cut grass and beehive → honey through two holes (the tool's cut, then the target's answer, which asked for the thing and found it); feather on ink → the quill from the ink's directory, in one call |
+| create | 2/5 | iron ingot, berry jam (each about 4 calls, 26 s, $0.15–0.17, with a usable picture) |
+
+- Every request that reached find or create was answered by the router as intended. The
+  failures stopped at local by choice: reeds cut into a new *reed bundle* rather than cut grass
+  (arguably right), pebbles scattered, salt made raw meat more filling (a prop), frostcap hissed
+  into steam, a cut pumpkin was only marked cut. Whether the world should make a new thing in
+  such cases is a design question about how eager the modder should be, not a defect of the
+  router.
+- **In the game**: iron ore used on Emberfall's lit forge became an *Iron Ingot* the bag shows
+  with its own icon. Gold ore on the same forge: the HUD said "The world is making something new:
+  Gold Ingot…", the player waited about 20 s, and the gold ingot came with its picture; it
+  survives a reload. A held thing an answer transforms keeps its slot (the bag is synced after a
+  late patch or a fallback).
+- The Mod Console's World tab gives the player a thing and moves them (development only), to
+  stage an act by hand.
+
 ### The self-improving agent (2026-10-01)
 
 The offline profile no longer uses the patch pipeline. A request is worked by an SWE-style agent

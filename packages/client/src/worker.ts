@@ -543,7 +543,8 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         const eng = game.engine
         const w = eng.world
         if (m.op === 'teleport') eng.travel(w.player, { map: m.map ?? w.posOf(w.player)!.map, x: m.x, y: m.y })
-        if (m.op === 'give') w.create(m.type, { on: 'inside', holder: w.state.player }, m.tags ? { tags: m.tags } : {})
+        // into the bag, and onto a slot of it (the bag shows its slots)
+        if (m.op === 'give') w.write(() => (w.create(m.type, { on: 'inside', holder: w.state.player }, m.tags ? { tags: m.tags } : {}), eng.controls.sync()))
         if (m.op === 'hour') w.state.tick = tickAt(w.calendar().day, m.hour)
         break
       }
