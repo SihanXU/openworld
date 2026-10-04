@@ -1,7 +1,7 @@
 // Base ontology: terrains, statuses, elements, visual effects and the type tree
 // for actors and fixtures. Item types come from the catalogue in items.ts.
 
-import { FORAGE_EVERY, HUNGER_EFFECT_EVERY, HUNGER_EVERY, NIGHT_EVERY, type Ontology, type StatusDef, type TerrainDef, type TypeDef } from '@lsw/engine'
+import { APPEAR_TICK, HUNGER_EFFECT_EVERY, HUNGER_EVERY, type Cond, type Ontology, type StageDef, type StatusDef, type TerrainDef, type TypeDef } from '@lsw/engine'
 import { ELEMENT_NAMES, MATERIALS, MATERIAL_DEFS, QUALITIES, QUALITY_DEFS, itemTypes } from './items.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
@@ -72,6 +72,22 @@ export const FALL_DAMAGE = 6
 export const RAIN_COST = 1.5
 /** How many storeys may stand above the ground (world-model.md §5.2). */
 export const STOREYS = 4
+
+// ------------------------------------------------------------------ stages (world-model.md §6.5)
+
+/** Out under the sky (a plant needs light, after Elin's GrowSystem). */
+const LIGHT: Cond = { outdoors: true }
+/** Nobody standing on it (a tree does not grow up through someone). */
+const CLEAR: Cond = { count: { role: 'host', in: 'tile', match: { type: 'actor' }, cmp: { eq: 0 } } }
+/** Two game days for a felled tree's stump, or a sapling, to grow into a tree; an hour more while something stops it. */
+export const TREE_GROWS = 28800
+const GROWS_INTO_TREE: StageDef = { into: 'tile/tree', lasts: TREE_GROWS, needs: { all: [LIGHT, CLEAR] }, wait: 600, fx: 'leaves' }
+/** A hen lays an egg every three game hours. */
+export const LAYS_EVERY = 1800
+
+/** How many night-born walk a map at once, and how often (ticks) another may come (world-model.md §6.9). */
+export const NIGHT_CAP = 4
+export const NIGHT_EVERY = 60
 /** The largest a room may be, in cells (larger is out of doors). */
 export const ROOM_SIZE = 256
 
@@ -103,7 +119,8 @@ export const TERRAINS: TerrainDef[] = [
   T('cobble', '石板路', 'cobblestones', ['ground', 'road', 'stone'], { color: '#9ea3a8' }),
   T('sand', '沙地', 'sand', ['ground', 'diggable'], { color: '#e3cf8f' }),
   T('snow', '雪地', 'snow', ['ground', 'cold', 'diggable'], { color: '#eef3f6' }),
-  T('ice', '冰面', 'ice', ['ground', 'cold', 'frozen-water', 'slippery'], { color: '#bfe6f5' }),
+  // ice that froze from water (thin: `chilled`) thaws back to water when that runs out; the ice a map is made with does not
+  T('ice', '冰面', 'ice', ['ground', 'cold', 'frozen-water', 'slippery'], { stage: { into: 'tile/water', clock: 'chilled', fx: 'splash' }, color: '#bfe6f5' }),
   T('water', '浅水', 'water', ['water', 'water-source', 'conductive'], { solid: true, liquid: true, color: '#3d7fd6' }),
   T('deepwater', '深水', 'deep water', ['water', 'water-source', 'conductive', 'deep'], { solid: true, liquid: true, color: '#2c5fae' }),
   // what fills a cell can be broken (world-model.md §6.3): its durability, what it is made of
@@ -126,7 +143,7 @@ export const TERRAINS: TerrainDef[] = [
   T('lava', '熔岩', 'lava', ['fire-source', 'hot', 'molten'], { solid: true, liquid: true, color: '#e2541b' }),
   T('ash', '灰烬', 'ash', ['ground', 'burnt'], { color: '#5b5550' }),
   T('charred_tree', '焦木', 'charred tree', ['burnt', 'tree'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/coal', count: 2 }], color: '#3a2e28' }),
-  T('stump', '树桩', 'stump', ['wooden', 'flammable'], { space: 'soil', props: { material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/log', count: 2 }], color: '#7a5a3a' }),
+  T('stump', '树桩', 'stump', ['wooden', 'flammable'], { space: 'soil', props: { material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/log', count: 2 }], stage: GROWS_INTO_TREE, color: '#7a5a3a' }),
   T('gravel', '碎石', 'gravel', ['ground', 'stone'], { color: '#8b8680' }),
   T('bridge', '木桥', 'wooden bridge', ['wooden', 'flammable', 'road'], { color: '#a07a4a' }),
   T('farmland', '农田', 'farmland', ['ground', 'diggable', 'soil'], { color: '#7a5634' }),
@@ -158,11 +175,10 @@ export const STATUSES: StatusDef[] = [
   /** A waypoint stone touched: it glows, and the world map can take you to it (docs/prologue.md). */
   { id: 'attuned', name: { en: 'attuned', zh: '已共鸣' } },
   { id: 'notched', name: { en: 'notched', zh: '砍了一斧' }, duration: 100 },
-  { id: 'regrowing', name: { en: 'regrowing', zh: '正在长回' }, duration: 28800 },
   { id: 'watered', name: { en: 'watered', zh: '浇过水' }, duration: 1200, overlay: 'wet' },
   { id: 'fertilized', name: { en: 'fertilized', zh: '施过肥' } },
-  { id: 'rooting', name: { en: 'rooting', zh: '正在扎根' }, duration: 28800 },
-  { id: 'laying', name: { en: 'laying', zh: '快下蛋了' }, duration: 1800 },
+  // a stage's clock (world-model.md §6.5): when it runs out, the thing becomes what its stage says next
+  { id: 'stage', name: { en: 'growing', zh: '生长中' } },
   { id: 'fireproof', name: { en: 'fireproof', zh: '防火' }, duration: 3000, clears: ['burning'], wards: ['burning'] },
   // ice that magic or a creature made: it thaws back to water
   { id: 'chilled', name: { en: 'thin ice', zh: '薄冰' }, duration: 1500 },
@@ -275,7 +291,7 @@ const actorTypes: TypeDef[] = [
   // the meadow's animals: passive, they run when struck, and leave food behind (drop × drops)
   P('actor/creature/animal', 'animal', '动物', { tags: ['animal'] }),
   P('actor/creature/animal/cow', 'cow', '牛', { tags: ['livestock', 'furry'], sprite: 'creature:cow', props: { hp: 10, maxHp: 10, atk: 0, speed: 7, drop: 'item/food/meat/raw', drops: 2 } }),
-  P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', props: { hp: 4, maxHp: 4, atk: 0, speed: 5, drop: 'item/food/chicken/raw', drops: 1 } }),
+  P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', stage: { lasts: LAYS_EVERY, yields: [{ type: 'item/food/egg/raw' }] }, props: { hp: 4, maxHp: 4, atk: 0, speed: 5, drop: 'item/food/chicken/raw', drops: 1 } }),
   // the main quest's monsters (docs/main-quest.md)
   P('actor/creature/spider', 'cave spider', '洞穴蜘蛛', { tags: ['spider', 'venomous'], sprite: 'creature:spider', props: { hp: 8, maxHp: 8, atk: 3, speed: 4 } }),
   P('actor/creature/cyclops', 'cyclops', '独眼巨人', { tags: ['boss', 'large'], sprite: 'boss:cyclops', props: { hp: 60, maxHp: 60, atk: 6, def: 2, speed: 9, drop: 'item/material/iron_ore', drops: 2 } }),
@@ -289,8 +305,9 @@ function crop(id: string, en: string, zh: string, yieldType: string, young: [str
   const base = `fixture/crop/${id}`
   return [
     F(base, en, zh, tags, { props: { yieldType, seedType: `item/seed/${id}`, ...(tags.includes('perennial') && { regrowType: `${base}/young` }) } }),
-    F(`${base}/sprout`, `${en} sprout`, `${zh}嫩芽`, ['growing'], { sprite: `fixture:${id}_sprout`, props: { nextType: `${base}/young` } }),
-    F(`${base}/young`, young[0], young[1], ['growing'], { sprite: `fixture:${id}_young`, props: { nextType: `${base}/ripe` } }),
+    // a stage a watering moves on when it has soaked in (two game hours), out under the sky
+    F(`${base}/sprout`, `${en} sprout`, `${zh}嫩芽`, ['growing'], { sprite: `fixture:${id}_sprout`, stage: { into: `${base}/young`, clock: 'watered', needs: LIGHT, wait: 600, fx: 'leaves' } }),
+    F(`${base}/young`, young[0], young[1], ['growing'], { sprite: `fixture:${id}_young`, stage: { into: `${base}/ripe`, clock: 'watered', needs: LIGHT, wait: 600, fx: 'leaves' } }),
     F(`${base}/ripe`, ripe[0], ripe[1], ['ripe', ...ripeTags], { sprite: `fixture:${id}_ripe` }),
   ]
 }
@@ -403,7 +420,7 @@ const fixtureTypes: TypeDef[] = [
     [`young ${c.en.toLowerCase()}`, `${c.zh}幼株`], [`ripe ${c.en.toLowerCase()}`, `成熟的${c.zh}`],
     [], c.perennial ? ['perennial'] : [])),
   F('fixture/crop/oak', 'oak', '橡树', [], { props: { seedType: 'item/seed/acorn' } }),
-  F('fixture/crop/oak/sapling', 'oak sapling', '橡树苗', ['sapling'], { sprite: 'fixture:oak_sapling' }),
+  F('fixture/crop/oak/sapling', 'oak sapling', '橡树苗', ['sapling'], { sprite: 'fixture:oak_sapling', stage: GROWS_INTO_TREE }),
   F('fixture/build', 'unfinished work', '半成品', ['unfinished'], { solid: true }),
   F('fixture/build/frame', 'wooden frame', '木框架', ['wooden', 'flammable']),
   F('fixture/build/stakes', 'stakes', '木桩', ['wooden', 'flammable']),
@@ -444,12 +461,26 @@ export function buildOntology(): Ontology {
     periods: [
       { name: 'hunger', every: HUNGER_EVERY, everyProp: 'hungerEvery', host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
       { name: 'vitals', every: HUNGER_EFFECT_EVERY, host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
-      { name: 'forage', every: FORAGE_EVERY, host: 'world' },
+      // what appears by itself: the ground's yield, creatures that come back, the night's walkers (world-model.md §6.9)
+      { name: 'appear', every: APPEAR_TICK, host: 'world' },
       { name: 'weather', every: 60, host: 'world' },
       { name: 'storm', every: 300, host: 'world' },
-      // the night's walkers come (the world's), and crumble at dawn (their own)
-      { name: 'night', every: NIGHT_EVERY, host: 'world' },
+      // the night's walkers crumble at dawn (their own)
       { name: 'dawn', every: 5, host: { type: 'actor', tags: ['nightborn'] } },
+    ],
+    // what appears on any map its `where` fits, besides each map's own: after dark, out in the wild,
+    // the dead and the bats, a few at a time, six to ten cells off (out of sight where they come)
+    appear: [
+      {
+        types: { 'actor/creature/undead/zombie': 0.6, 'actor/creature/beast/bat': 0.4 },
+        where: { zone: 'combat', light: 'outdoor' },
+        hours: [21, 5],
+        ring: [6, 10],
+        max: NIGHT_CAP,
+        every: NIGHT_EVERY,
+        tag: 'nightborn',
+        ai: { behaviour: 'melee', temper: 'aggressive', sight: 8, leash: 14 },
+      },
     ],
     elements: ELEMENTS,
     vfx: [...VFX, ...BOSSES.flatMap((b) => b.skills.map((s) => s.fx))],

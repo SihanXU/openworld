@@ -5,7 +5,7 @@
 // contact, time and sight are no change, elements follow physics. Anything these rules leave
 // undefined is the Mod port's.
 
-import { NIGHT_CAP, type Amount, type Cond, type Effect, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@lsw/engine'
+import { type Amount, type Cond, type Effect, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@lsw/engine'
 
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
 const L = (en: string, zh: string) => ({ en, zh })
@@ -183,6 +183,12 @@ const ROOTS: Rule[] = [
   }),
   rule({ id: 'core/bump', doc: 'Bumping is no change unless the host says.', on: 'bump', tree: NOTHING }),
   rule({ id: 'core/time', doc: 'Time passing is no change unless the host says.', on: 'time', tree: NOTHING }),
+  rule({
+    id: 'core/stage',
+    doc: 'A clock running out: a thing in a stage whose clock it is becomes what its stage says next (a stump a tree, a sprout a young plant, thin ice water; a hen lays) — world-model.md §6.5; for anything else, no change.',
+    on: 'time/timer',
+    tree: DO({ op: 'grow' }),
+  }),
   rule({ id: 'core/threshold', doc: 'Gaining or losing a status, crossing a line: no change unless the host says.', on: 'threshold', tree: NOTHING }),
   rule({
     id: 'core/fall',
@@ -648,8 +654,7 @@ const PLACING: Rule[] = [
 
 const LIVING_TREE: Selector = { type: 'tile', tags: ['tree', 'flammable'] }
 const STUMP: Selector = { type: 'tile/stump' }
-const NOBODY_HERE: Cond = { count: { role: 'host', in: 'tile', match: { type: 'actor' }, cmp: { eq: 0 } } }
-const FELL: Effect[] = [remove('notched'), { op: 'transform', into: 'tile/stump' }, add('regrowing'), { op: 'spawn', type: 'item/material/log', at: 'host', count: 2 }, { op: 'spawn', type: 'item/material/stick', at: 'host' }, vfx('leaves'), log('Timber!', '树倒了！')]
+const FELL: Effect[] = [remove('notched'), { op: 'transform', into: 'tile/stump' }, { op: 'spawn', type: 'item/material/log', at: 'host', count: 2 }, { op: 'spawn', type: 'item/material/stick', at: 'host' }, vfx('leaves'), log('Timber!', '树倒了！')]
 
 const GROUND: Rule[] = [
   rule({
@@ -681,13 +686,6 @@ const GROUND: Rule[] = [
       ),
       'inherit',
     ),
-  }),
-  rule({
-    id: 'wood/regrow',
-    doc: 'A stump left alone grows back into a tree (someone standing on it: it waits an hour).',
-    host: STUMP,
-    on: 'time/timer',
-    tree: IF(param('status', 'regrowing'), IF(NOBODY_HERE, DO({ op: 'transform', into: 'tile/tree' }, vfx('leaves')), DO(add('regrowing', 600)))),
   }),
   rule({
     id: 'wood/uproot',
@@ -744,13 +742,6 @@ const GROUND: Rule[] = [
     host: { type: 'tile/ice' },
     on: 'impulse/element',
     tree: IF(param('element', 'fire'), DO({ op: 'transform', into: 'tile/water' }, vfx('steam')), 'inherit'),
-  }),
-  rule({
-    id: 'frost/thaw',
-    doc: 'Ice that magic made thaws back to water.',
-    host: { type: 'tile/ice' },
-    on: 'time/timer',
-    tree: IF(param('status', 'chilled'), DO({ op: 'transform', into: 'tile/water' }, vfx('splash'))),
   }),
   rule({
     id: 'water/ashore',
@@ -1077,7 +1068,7 @@ const FARM: Rule[] = [
       doc: 'An acorn takes root in any diggable ground and becomes a tree in two game days.',
       host: { tags: ['acorn'] },
       on,
-      tree: IF(all(is('target', { type: 'tile', tags: ['diggable'] }), NOTHING_GROWS), DO(log('You plant an acorn.', '你种下了一颗橡子。'), { op: 'move', to: 'target' }, { op: 'transform', into: '@prop:cropType' }, add('rooting'), vfx('dust'))),
+      tree: IF(all(is('target', { type: 'tile', tags: ['diggable'] }), NOTHING_GROWS), DO(log('You plant an acorn.', '你种下了一颗橡子。'), { op: 'move', to: 'target' }, { op: 'transform', into: '@prop:cropType' }, vfx('dust'))),
     }),
   ),
   rule({
@@ -1087,7 +1078,6 @@ const FARM: Rule[] = [
     on: 'impulse/element',
     tree: IF(all(param('element', 'water'), not(has('host', 'watered'))), DO(add('watered'), vfx('splash'), log('You water {host}.', '你给{host}浇了水。')), 'inherit'),
   }),
-  rule({ id: 'farm/grow', doc: 'Two game hours after watering, a crop grows one stage.', host: GROWING, on: 'time/timer', tree: IF(param('status', 'watered'), DO({ op: 'transform', into: '@prop:nextType' }, vfx('leaves'))) }),
   ...useOrPut.map((on) =>
     rule({
       id: `farm/ash${on === 'act/put' ? '-put' : ''}`,
@@ -1125,33 +1115,19 @@ const FARM: Rule[] = [
     on: 'impulse/strike',
     tree: IF(tag('instrument', 'tool:shovel'), DO(log('You dig up {host}.', '你挖出了{host}。'), { op: 'transform', into: '@prop:seedType' }, vfx('dust'))),
   }),
-  rule({
-    id: 'farm/root',
-    doc: 'A rooted sapling becomes a tree (someone standing on it: an hour later).',
-    host: { type: 'fixture/crop/oak/sapling' },
-    on: 'time/timer',
-    tree: IF(param('status', 'rooting'), IF(NOBODY_HERE, DO({ op: 'transform', into: 'tile/tree' }, vfx('leaves')), DO(add('rooting', 600)))),
-  }),
 ]
 
 // ------------------------------------------------------------------ animals and the world's clocks
 
 const WORLD_RULES: Rule[] = [
   rule({
-    id: 'animal/lay-egg',
-    doc: 'A hen lays an egg where she stands, then starts on the next.',
-    host: { type: 'actor', tags: ['lays-eggs'] },
-    on: 'time/timer',
-    tree: IF(param('status', 'laying'), DO({ op: 'spawn', type: 'item/food/egg/raw', at: 'tileOf:host', still: true }, add('laying'))),
-  }),
-  rule({
     id: 'world/clocks',
-    doc: 'The world\'s clocks: the ground yields; rain wets the people and creatures out under it and douses fires; a storm\'s lightning seeks what stands tall.',
+    doc: 'The world\'s clocks: what appears by itself appears (the ground\'s yield, creatures that come back, the night\'s walkers); rain wets the people and creatures out under it and douses fires; a storm\'s lightning seeks what stands tall.',
     host: { type: 'resident/world' },
     on: 'time/period',
     tree: IF(
-      param('name', 'forage'),
-      DO({ op: 'forage' }),
+      param('name', 'appear'),
+      DO({ op: 'appear' }),
       IF(
         all(param('name', 'weather'), { weather: ['rain', 'storm'] }, { outdoors: true }),
         // rain is water without force: it wets and douses, it does not wound (a fire slime steams in it)
@@ -1160,12 +1136,7 @@ const WORLD_RULES: Rule[] = [
         IF(
           all(param('name', 'storm'), { weather: ['storm'] }, { outdoors: true }),
           DO({ op: 'lightning', power: 4 }),
-          // after dark, out in the wild, the dead and the bats come, a few at a time (nightspawn.ts)
-          IF(
-            all(param('name', 'night'), { hour: { from: 21, to: 5 } }, { outdoors: true }),
-            DO({ op: 'appear', types: { 'actor/creature/undead/zombie': 0.6, 'actor/creature/beast/bat': 0.4 }, ring: [6, 10], cap: NIGHT_CAP, tag: 'nightborn' }),
-            NOTHING,
-          ),
+          NOTHING,
         ),
       ),
     ),

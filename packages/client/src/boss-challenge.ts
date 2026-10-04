@@ -21,7 +21,7 @@ export function createBossChallenge(index: WorldIndex, raw: RawChunk, profession
   const chunk = decodeChunk(structuredClone(raw))
   chunk.entities = chunk.entities.filter((e) => !e.type.startsWith('actor/'))
   chunk.entities.push(createBoss(bossId, FIRST_BOSS, FIRST_BOSS.id))
-  chunk.map.forage = []
+  chunk.map.appear = []
   chunk.map.portals = [] // a trial cannot accidentally stream into the campaign
   chunk.map.zone = 'peaceful' // suppress unrelated nighttime spawns, not the authored boss
   game.loadChunk(chunk)

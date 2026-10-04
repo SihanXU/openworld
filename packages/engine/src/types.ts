@@ -61,6 +61,8 @@ export interface TypeDef {
    * part's count is scaled by the world's recovery rate, in the thing's own material.
    */
   makeup?: MakeupPart[]
+  /** How long it stays what it is, and what it becomes (world-model.md §6.5). */
+  stage?: StageDef
   /** Where it is made from its makeup (world-model.md §6.4): `hands` (anywhere), or a station a thing within reach is (its `station:<x>` tag). */
   station?: string
   /** The level its recipe asks (default 1): a maker above it makes it finer. */
@@ -164,6 +166,8 @@ export interface TerrainDef {
   props?: Record<string, PropValue>
   /** What it is made of (TypeDef.makeup). */
   makeup?: MakeupPart[]
+  /** How long it stays what it is, and what it becomes (TypeDef.stage). */
+  stage?: StageDef
   color?: string // fallback render color
 }
 
@@ -199,6 +203,59 @@ export interface Ontology {
   roomRoles?: { role: string; needs: Selector; count?: number; props?: Record<string, PropValue> }[]
   /** Clocks that make `time/period` events for the hosts they name. */
   periods?: PeriodDef[]
+  /** What appears by itself on any map its `where` fits (the night's walkers), besides each map's own (MapData.appear). */
+  appear?: AppearDef[]
+}
+
+/**
+ * A stage (world-model.md §6.5, after Elin's GrowSystem, generalised): a thing stays what it is
+ * until its clock runs out, then becomes the next (a stump a tree, thin ice water) and leaves what
+ * the stage yields (a hen's egg). One mechanism for every such change; it runs on timers, so a
+ * dormant map catches up when it is entered.
+ */
+export interface StageDef {
+  /** What it becomes at the end; none: it stays what it is and the stage begins again (a hen lays, and lays again). */
+  into?: string
+  /** Ticks the stage lasts, its clock (the status `stage`) started when the thing comes to be what it is. */
+  lasts?: number
+  /** Another status as its clock, started by whatever gives it (a crop moves on when its watering runs out): then nothing starts it by itself. */
+  clock?: string
+  /** A condition on the thing (the host) the end waits for (light, nobody standing on it); not met, it waits `wait` ticks and looks again. */
+  needs?: Cond
+  wait?: number
+  /** What is seen at the end (a vfx: leaves, a splash). */
+  fx?: string
+  /** What the end leaves where it is (an egg laid). */
+  yields?: { type: string; count?: number }[]
+}
+
+/**
+ * What appears by itself (world-model.md §6.9; Don't Starve's twigs and flint, Minecraft's
+ * mobs, the night's walkers): data only. Now and then one more of the weighted types appears on
+ * a free cell of the right ground, at the right distance from the one at the keys, at the right
+ * hours and weather, until `max` of them are on the map.
+ */
+export interface AppearDef {
+  /** What appears: types, weighted. */
+  types: Record<string, number>
+  /** The grounds it appears on (terrain ids); any ground one can stand on when absent. */
+  on?: string[]
+  /** At most this many on the map: those tagged `tag` if it is given, else those of its types. */
+  max: number
+  /** Ticks between appearances (a multiple of the `appear` period). */
+  every: number
+  /** How far from the one at the keys, [near, far] cells (default: anywhere, not within two). */
+  ring?: [number, number]
+  /** When: hours [from, to) (past midnight when from > to), and weathers. */
+  hours?: [number, number]
+  weather?: string[]
+  /** Which maps (for the world's own): by the map's zone and light. */
+  where?: { zone?: 'peaceful' | 'combat'; light?: 'outdoor' | 'indoor' | 'dark' }
+  /** A tag what appears carries (counted by `max`). */
+  tag?: string
+  /** A creature's behaviour (its home is where it appears), and statuses it appears with. */
+  ai?: Omit<AiData, 'home'>
+  statuses?: string[]
 }
 
 export interface ThresholdDef {
@@ -584,12 +641,15 @@ export interface MapData {
   anchors?: Record<string, [number, number]>
   /** Named areas [x, y, w, h] ('far_bank') for scenes and goals. */
   regions?: Record<string, [number, number, number, number]>
-  /** What the map yields by itself: things of `type` (items, or creatures) appear now and then on free tiles of these terrains, up to `max` on the map. */
+  /** What appears on the map by itself (world-model.md §6.9): the ground's yield, creatures that come back. */
+  appear?: AppearDef[]
+  /** Older chunks' name for `appear`, one type each (read when a chunk is decoded). */
   forage?: Forage[]
   /** Peaceful (towns, camps: nothing comes out at night) or combat (default: zombies and bats come out after dark, nightspawn.ts). */
   zone?: 'peaceful' | 'combat'
 }
 
+/** An older chunk's appearance (MapData.forage): one type. */
 export interface Forage {
   type: string
   on: string[]
@@ -908,8 +968,10 @@ export type Effect =
   | { op: 'quest' }
   /** The story's: a quest's business (a word with its giver, a defeat) is settled (quests.ts). */
   | { op: 'quests' }
-  /** The world's: a creature of a weighted type appears out of sight around the player (nightfall). */
-  | { op: 'appear'; types: Record<string, number>; ring: [number, number]; cap: number; tag: string }
+  /** The world's: what appears by itself on the active map now (its own and the world's appearances), or the one given. */
+  | { op: 'appear'; what?: AppearDef }
+  /** The host's stage clock ran out (param status): it becomes what its stage says next (world-model.md §6.5). */
+  | { op: 'grow' }
   /** The host learns: the skill (param skill) or the profession (param profession) its act names. */
   | { op: 'learn' }
   /** The host's encounter skill lands on the cells its act telegraphed (bosses.ts). */
@@ -918,7 +980,6 @@ export type Effect =
   | { op: 'panel'; panel: string }
   | { op: 'scene'; id: string }
   | { op: 'craft' }
-  | { op: 'forage' }
   | { op: 'lightning'; power: number }
   /** Send an impulse: `item` names the thing it carries (given, put, taken), `other` the role it names as the other side. */
   | { op: 'emit'; impulse: Impulse; to: EmitTo; params?: Record<string, PropValue | Amount | { typeOf: RoleName }>; item?: RoleName; other?: RoleName; chance?: number; filter?: Selector }

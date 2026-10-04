@@ -201,6 +201,12 @@ function upgrade(eng: Engine, index: WorldIndex): void {
     eng.legacyTiles.set(map, list)
   }
   delete s.tiles
+  // a stage's clock was a status of each kind of thing's own (world-model.md §6.5): it is the stage's now
+  const clock = (bag?: Record<string, number>) => {
+    for (const k of ['regrowing', 'rooting', 'laying']) if (bag && k in bag) (bag.stage = bag[k]), delete bag[k]
+  }
+  for (const e of Object.values(s.entities)) clock(e.statuses)
+  for (const t of eng.legacyTiles.values()) for (const c of t) clock(c.statuses)
   if (Object.values(s.relations ?? {}).some((ks) => ks.some((k) => k.includes('|t|')))) {
     delete s.relations
     for (const m of s.loadedMaps) eng.reseed.add(m)

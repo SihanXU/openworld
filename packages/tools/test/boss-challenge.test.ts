@@ -39,7 +39,7 @@ describe('isolated profession boss challenges', () => {
     expect(w.entitiesOnMap(FIRST_BOSS.map).filter((e) => w.isAgent(e))).toHaveLength(2)
     expect(w.fits(w.get(FIRST_BOSS.id)!, FIRST_BOSS.map, FIRST_BOSS.x, FIRST_BOSS.y)).toBe(true)
     expect(w.map(FIRST_BOSS.map)?.portals).toEqual([])
-    expect(w.map(FIRST_BOSS.map)?.forage).toEqual([])
+    expect(w.map(FIRST_BOSS.map)?.appear).toEqual([])
     expect(challengeOutcome(game)).toBeUndefined()
   })
 

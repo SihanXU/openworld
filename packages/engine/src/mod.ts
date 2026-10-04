@@ -197,7 +197,7 @@ const EVENTS: Record<string, string> = {
   'impulse/*': 'something was done to the host by another (source = the emitter; actor = whose act started it; instrument; item). See `impulses` for each kind and its params.',
   'contact/begin|stay|end': 'the host and other start, keep, or stop touching. Param how, from the host\'s side: on (I stand on other), under (other stands on me), in (I am inside other), contains (other is inside me), held (I am in other\'s hand), holds (other is in my hand), in-region (I stand in the region other: a named area of a map, type region, or a room, region/room, found where cells are walled round and covered), encloses (other stands in me, a region). Only where a stance (ground, air, water) meets a reach: a flyer never touches lava.',
   bump: 'the host and other collided: a step into something solid (param dir).',
-  'time/period': 'a clock ticked for the host: param status (every 0.5 s while it has that status, or at the pace the status sets; actor: who gave it) or name (a declared period: hunger, vitals, forage, weather, storm, night, dawn).',
+  'time/period': 'a clock ticked for the host: param status (every 0.5 s while it has that status, or at the pace the status sets; actor: who gave it) or name (a declared period: hunger, vitals, appear, weather, storm, dawn).',
   'time/timer': 'a status ran out on the host (param status; actor: who gave it).',
   'threshold/gain|lose': 'the host gained or lost a status (param status).',
   'threshold/cross': 'a prop of the host came to a declared line (param name: broken at hp 0 — for every thing with durability: a person goes down, a tree falls, a rock breaks into its makeup — starving at hunger 0; param prop).',

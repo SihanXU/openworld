@@ -463,6 +463,23 @@ comes with W6, with the walls and floors it is for; the B palette's frames stay 
 - **Harvest** (empty hands or a sickle) takes the yield and leaves the plant at its return
   stage; felling or digging is breaking.
 
+As built (W7): a type (or terrain) carries `stage: {into?, lasts?, clock?, needs?, wait?, yields?, fx?}`
+(`StageDef`, inherited like makeup). A thing that comes to be of such a type (`World.add`,
+`World.transform`) starts its clock, the status `stage` for `lasts` ticks, unless the stage's clock
+is another status, given by what gives it (a crop moves on when its `watered` runs out). The root
+of `time/timer` is `core/stage`, the new primitive `grow`: when the stage's clock runs out, a
+condition the stage `needs` (on the host: light, nobody standing on it) unmet makes it wait `wait`
+ticks and look again; met, it leaves its `yields` where it is (still, taken with F) and becomes
+`into`, or begins the stage again when there is none (a hen lays every three hours). A map's own
+things in a stage start their clocks when the map comes (`World.startStages`). On it now: stumps
+and saplings (into a tree in two game days, out under the sky, nobody on them), crops' sprouts
+and young plants (clock `watered`, out under the sky: a crop in a room waits, req 16), thin ice
+(clock `chilled`, into water), hens (an egg). Gone: `wood/regrow`, `farm/grow`, `farm/root`,
+`animal/lay-egg`, `frost/thaw` and the statuses `regrowing`, `rooting`, `laying` (an old save's
+become `stage`). Harvest stays the crop rules' (the plant's props name yield, seed and the stage it
+returns to). Not yet: food spoiling, iron rusting, a campfire burning out, eggs hatching (each is
+now a stage in data).
+
 ### 6.6 Building
 
 - A buildable thing has `occupies`; putting it on a cell moves it there (the existing `move`
@@ -515,6 +532,20 @@ for walls and floors (they are crafted and set down by hand).
   night spawner): what (weighted types), on which spaces and terrains, when (hours, weather),
   how many at most, how far from the player. Data only.
 - Periods (hunger, vitals, weather, storm, night, dawn) stay data.
+
+As built (W7): `AppearDef {types (weighted), on?, max, every, ring?, hours?, weather?, where?, tag?,
+ai?, statuses?}`; a map's own in `MapData.appear` (an older chunk's `forage` is read as it), the
+world's in `Ontology.appear`, each fitting the maps its `where` names (zone, light). One period,
+`appear` (every 30 ticks), runs the primitive `appear` on the active map: every appearance whose
+`every` divides the tick, at its hours and weather, adds one of its types on a free cell of its
+ground — in its ring around the one at the keys, or anywhere not within two of them — unless
+`max` are there (counted by its tag, else its types); a creature comes with its behaviour, at home
+where it appears. The night's walkers are the world's one appearance (combat zones out of doors,
+21–5, six to ten cells off, four at most, tagged `nightborn`); `forage.ts` and `nightspawn.ts` are
+gone, and an older rule's `forage` or `appear {types, ring, cap, tag}` is read as the new one.
+Reachability with renewables (`economy.test.ts`): from what appears by itself, the wilderness's
+things and grounds, and every stage on a cycle (a stump to a tree, a seed to a plant that gives
+seed, a hen), every recipe's and building's input comes back without end.
 
 ### 6.10 Behaviour
 
@@ -687,6 +718,8 @@ What remains for the AI is what needs invention:
 13. A burning wooden wall loses durability and leaves a burnt wall.
 14. A person does real work (the woodcutter fells a tree); people walk in from an edge.
 15. A story step triggered by entering an authored region (no polling).
+16. A stage waits for what it needs: a watered sprout under a roof does not grow, one out under
+    the sky does; a felled tree's stump grows back, but not up through someone standing on it.
 
 ## 11. Parameters (world data)
 
@@ -709,7 +742,7 @@ the browser.
 | W4 Makeup and recipes | stations, derived recipes, quality and material inheritance, building as `move`, economy, reachability, build-and-break-back | 9 |
 | W5 Cover and rooms | | 10, 11 |
 | W6 Storeys | slabs, stairs, support, collapse, storey fading | 12 |
-| W7 Stages and appearances | stages for all; `forage` + night spawner → `appear` | reachability with renewables |
+| W7 Stages and appearances | stages for all; `forage` + night spawner → `appear` | reachability with renewables, 16 |
 | W8 Combat | material and quality in attack/defence; elements and resistances as data | coverage holds |
 | W9 Behaviour | one goal system for people, creatures, companions, sins; real work | 14 |
 | W10 The story's script | scenes, beats, quests, objectives as one script | the prologue and quests unchanged in play |

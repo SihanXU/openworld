@@ -16,6 +16,23 @@ function ford() {
 }
 
 describe('cells are things (world-model.md §4.6)', () => {
+  it('a stage in a map\'s own data starts its clock when the map comes (world-model.md §6.5): a map\'s stump grows back like a felled one', () => {
+    const { index, chunks } = buildFord()
+    const raw = structuredClone(chunks)
+    const ford = raw.find((c) => c.map.id === 'ford')!
+    const map = decodeChunk(ford).map
+    const i = map.terrain.findIndex((t) => t === 'grass')
+    const [x, y] = [i % map.width, Math.floor(i / map.width)]
+    ford.map.rows[y] = ford.map.rows[y].slice(0, x) + 'u' + ford.map.rows[y].slice(x + 1)
+    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    for (const c of raw) game.loadChunk(decodeChunk(c))
+    const w = game.engine.world
+    expect(w.terrainAt('ford', x, y)).toBe('stump')
+    const stump = w.get(cellId('ford', x, y, 'soil'))!
+    expect(w.isStatic(stump)).toBe(false)
+    expect(w.statusesOf({ e: stump.id })?.stage).toBeGreaterThan(w.state.tick)
+  })
+
   it('one reference form: a cell thing has one id, the same before and after it changes', () => {
     const { eng, w } = ford()
     // a tree on the Ford: what fills its cell
@@ -105,7 +122,8 @@ describe('cells are things (world-model.md §4.6)', () => {
     for (const c of chunks) loaded.loadChunk(decodeChunk(c))
     const lw = loaded.engine.world
     expect(lw.terrainAt('ford', tx, ty)).toBe('stump')
-    expect(lw.hasStatus(lw.cellRef('ford', tx, ty), 'regrowing')).toBe(true)
+    // a stump's old clock is its stage's now (world-model.md §6.5)
+    expect(lw.hasStatus(lw.cellRef('ford', tx, ty), 'stage')).toBe(true)
     expect(lw.hasStatus(lw.cellRef('ford', gx, gy), 'wet')).toBe(true)
     expect(Object.values(lw.state.relations ?? {}).flat().some((k) => k.includes('|t|'))).toBe(false)
     expect('tiles' in lw.state).toBe(false)

@@ -44,7 +44,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   the player's four
   inputs (E hands, F take, left click use, right click put), layers, slots and magnet
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
-  (`controls.ts`), what the ground yields by itself (`forage.ts`), experience and levels (`progression.ts`), hunger (`hunger.ts`); companions that follow a
+  (`controls.ts`), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`), hunger (`hunger.ts`); companions that follow a
   leader and the tutorial's beats (`companion.ts`), waypoint stones (`waypoints.ts`) — docs/prologue.md.
 - `packages/content` — ontology (terrains, statuses, elements, types), item catalogue
   (forms × materials × qualities × elements), crafting recipes (`recipes.ts`), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's

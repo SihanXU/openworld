@@ -259,10 +259,11 @@ was cut).
     (its meat, its loot) and a hen's eggs lie still instead (`spawn`/`dropContents` with
     `still`): they are taken with F.
   - Items placed in the world are taken with F. Walking through town never vacuums it.
-- **Foraging** (Don't Starve's twigs, flint and grass): a map names what its ground yields
-  (`MapData.forage`: an item type, the terrains it lies on, a cap). While the player is on the
-  map, every 150 ticks one more of each kind below its cap appears on a free tile, never right
-  beside the player (`engine/src/forage.ts`). These are taken with F like any placed item.
+- **Foraging** (Don't Starve's twigs, flint and grass): a map names what appears on it by itself
+  (`MapData.appear`: weighted types, the terrains, a cap, a pace). While the player is on the
+  map, one more of each below its cap appears on a free tile at its pace (150 ticks for the
+  ground's yield), never right beside the player (`engine/src/appear.ts`, world-model.md §6.9).
+  These are taken with F like any placed item.
 - **Crafting** (C, or the menu's Craft tab): recipes are content (`content/src/recipes.ts`);
   each lists what it uses up from the bag and the item it makes. The first tools are the
   catalogue's axe and pickaxe in stone (stone axe: stick, stone, grass; stone pickaxe: two
@@ -271,7 +272,7 @@ was cut).
   clump of trees), the creature takes a path around (A*) and keeps to it (`ai.detour`) until it
   arrives or its goal moves. A fire's reach still stops it.
 - **Animals** (game-design.md §4b): `behaviour: 'passive'` creatures never attack and run from
-  their foes; `MapData.forage` also brings creatures back (with `every`, `ai`, `statuses`).
+  their foes; `MapData.appear` also brings creatures back (with `every`, `ai`, `statuses`).
 - **Hunger** (Minecraft's food bar): an actor with `maxHunger` (the player: 20) loses one
   point every 300 ticks; eating feeds it the food's `food` prop (the `feed` primitive in
   `core/eat`). Food does not heal: health comes back from being well fed (below). Medicine eaten

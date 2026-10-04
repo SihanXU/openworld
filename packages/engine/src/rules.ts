@@ -255,7 +255,8 @@ export function factsOnTheStory(rule: Rule): Rule {
  * of things, so `setTerrain {terrain}` — the host becomes that terrain — is the host transforming
  * into `tile/<terrain>` (which gives way when that space of its cell is taken). Applied in place.
  * And a thing at no health was `defeated`; every thing with durability is `broken` (world-model.md
- * D30): a condition on the old name reads the new one.
+ * D30): a condition on the old name reads the new one. The ground's `forage` and the night's `appear {types, ring, cap, tag}`
+ * are one `appear` over data.
  */
 export function cellsAsThings(rule: Rule): Rule {
   const cond = (c: unknown): void => {
@@ -271,6 +272,10 @@ export function cellsAsThings(rule: Rule): Rule {
     list.forEach((e, i) => {
       const x = e as { op?: string; terrain?: string }
       if (x?.op === 'setTerrain') list[i] = { op: 'transform', into: `tile/${x.terrain}` }
+      // what appears by itself is one primitive over data (world-model.md §6.9)
+      if (x?.op === 'forage') list[i] = { op: 'appear' }
+      const old = x as { op?: string; types?: Record<string, number>; ring?: [number, number]; cap?: number; tag?: string }
+      if (old?.op === 'appear' && old.types) list[i] = { op: 'appear', what: { types: old.types, ring: old.ring, max: old.cap ?? 1, every: 0, tag: old.tag, ai: { behaviour: 'melee', temper: 'aggressive', sight: 8, leash: 14 } } }
     })
   }
   const tree = (t: unknown): void => {

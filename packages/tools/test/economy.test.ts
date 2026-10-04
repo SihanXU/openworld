@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { OntologyIndex, RuleLibrary, buildSandbox, performPlacement, type Effect, type Rule, type Tree } from '@lsw/engine'
-import { BASE_RULES, BUILDINGS, RECIPES, RECOVERY, STORY_RULES, TERRAINS, buildOntology, decodeChunk } from '@lsw/content'
+import { BASE_RULES, BUILDINGS, RECIPES, RECOVERY, STORY_RULES, TERRAINS, WILD_GROUNDS, buildOntology, decodeChunk, wildChunk } from '@lsw/content'
 import { buildFord } from '../src/demo/world.ts'
 
 // The economy (world-model.md §6.4, §10.2, D23): what is built and broken back returns no more
@@ -114,7 +114,7 @@ describe('the economy (world-model.md §10.2)', () => {
     for (const c of chunks.map(decodeChunk)) {
       for (const t of new Set(c.map.terrain)) present.add(`tile/${t}`)
       for (const e of c.entities) (e.type.startsWith('item/') ? have : present).add(e.type)
-      for (const f of c.map.forage ?? []) have.add(f.type)
+      for (const a of [...(c.map.appear ?? []), ...(onto.appear ?? [])]) for (const t of Object.keys(a.types)) (t.startsWith('item/') ? have : present).add(t)
     }
     for (const n of world.npcs) for (const it of (n as { _items?: { type: string }[] })._items ?? []) have.add(it.type)
     const stations = new Set([...present].flatMap((t) => index.resolve(t).tags.filter((x) => x.startsWith('station:')).map((x) => x.slice(8))))
@@ -143,5 +143,74 @@ describe('the economy (world-model.md §10.2)', () => {
       }
     expect(missing).toEqual([])
     expect(TERRAINS.length).toBeGreaterThan(0)
+  })
+
+  it('reachability with renewables (world-model.md §10.2, W7): everything the recipes and buildings ask for comes back without end — from what appears by itself, from the wilderness that is made as one goes, or from a stage that returns (a stump grows back into a tree, a seed into a plant that gives seed, a hen lays)', () => {
+    const { chunks } = buildFord()
+    // what a type leads to: what it becomes or leaves (a rule on it, its stage), what breaking it gives, what it makes (a recipe)
+    const prop = (type: string, ref: string) => {
+      const key = ref.slice(6).replace(/^host\./, '')
+      const v = index.resolve(type).props[key]
+      return typeof v === 'string' ? v : undefined
+    }
+    const named = (type: string, t: string) => (t.startsWith('@prop:') ? prop(type, t) : t)
+    const edges = new Map<string, Set<string>>()
+    const stageEdges: [string, string][] = []
+    const link = (a: string, b: string | undefined) => {
+      if (!b || !onto.types[b]) return
+      if (!edges.has(a)) edges.set(a, new Set())
+      edges.get(a)!.add(b)
+    }
+    const types = Object.keys(onto.types)
+    for (const t of types) {
+      const r = index.resolve(t)
+      if (typeof r.props.maxHp === 'number') for (const m of r.makeup ?? []) link(t, m.type)
+      for (const rule of BASE_RULES as Rule[]) {
+        const h = rule.host
+        if (!h || (h.type && t !== h.type && !t.startsWith(h.type + '/')) || !(h.tags ?? []).every((x) => r.tags.includes(x))) continue
+        for (const e of effectsOf(rule.tree)) if (e.op === 'spawn') link(t, named(t, e.type)); else if (e.op === 'transform') link(t, named(t, e.into))
+      }
+      const st = r.stage
+      if (st) {
+        // a stage with nothing next returns to itself: what it leaves comes again and again
+        const next = st.into ?? t
+        link(t, next)
+        stageEdges.push([t, next])
+        for (const y of st.yields ?? []) (link(t, y.type), stageEdges.push([t, y.type]))
+      }
+    }
+    for (const r of RECIPES) for (const n of r.needs) link(n.type, r.make.type)
+    const reach = (from: string): Set<string> => {
+      const seen = new Set([from])
+      const todo = [from]
+      while (todo.length) for (const b of edges.get(todo.pop()!) ?? []) if (!seen.has(b)) (seen.add(b), todo.push(b))
+      return seen
+    }
+    // the sources without end: what appears by itself (each map's and the world's), the wilderness's things and
+    // grounds (made anew wherever one goes), and every stage on a cycle (only time makes more: a stage edge on it)
+    const sources = new Set<string>()
+    for (const c of chunks.map(decodeChunk)) for (const a of c.map.appear ?? []) for (const t of Object.keys(a.types)) sources.add(t)
+    for (const a of onto.appear ?? []) for (const t of Object.keys(a.types)) sources.add(t)
+    for (const g of WILD_GROUNDS)
+      for (let i = 0; i < 6; i++) {
+        const c = wildChunk(7 + i, i, 2 * i, g, undefined)
+        for (const t of new Set(c.map.terrain)) sources.add(`tile/${t}`)
+        for (const e of c.entities) sources.add(e.type)
+        for (const a of c.map.appear ?? []) for (const t of Object.keys(a.types)) sources.add(t)
+      }
+    const cycles: string[] = []
+    for (const [a, b] of stageEdges) if (reach(b).has(a)) (sources.add(a), cycles.push(`${a} → ${b}`))
+    // a stump grows back into the tree it was felled from; a seed grows into a plant that gives seed; a hen lays
+    expect(cycles).toEqual(expect.arrayContaining(['tile/stump → tile/tree', 'actor/creature/animal/chicken → actor/creature/animal/chicken', 'fixture/crop/wheat/young → fixture/crop/wheat/ripe']))
+    const renewable = new Set<string>()
+    for (const s of sources) for (const t of reach(s)) renewable.add(t)
+    const finite: string[] = []
+    for (const r of RECIPES) for (const n of r.needs) if (!renewable.has(n.type)) finite.push(`${r.id}: ${n.type}`)
+    for (const b of BUILDINGS)
+      for (const n of b.needs) {
+        const ok = n.match.type ? renewable.has(n.match.type) : [...renewable].some((t) => (n.match.tags ?? []).every((tag) => index.resolve(t).tags.includes(tag)))
+        if (!ok) finite.push(`${b.id}: ${JSON.stringify(n.match)}`)
+      }
+    expect([...new Set(finite)]).toEqual([])
   })
 })

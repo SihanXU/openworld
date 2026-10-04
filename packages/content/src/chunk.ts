@@ -1,6 +1,6 @@
 // On-disk map chunk format: terrain as one char per tile (see TERRAIN_CHARS).
 
-import type { Entity, MapChunk, MapData, Portal, Text } from '@lsw/engine'
+import { appearFromForage, type Entity, type MapChunk, type MapData, type Portal, type Text } from '@lsw/engine'
 import { TERRAIN_CHARS } from './ontology.ts'
 
 export interface RawMap {
@@ -20,6 +20,8 @@ export interface RawMap {
   light?: MapData['light']
   anchors?: MapData['anchors']
   regions?: MapData['regions']
+  appear?: MapData['appear']
+  /** An older chunk's `appear` (one type each). */
   forage?: MapData['forage']
   zone?: MapData['zone']
   scale?: MapData['scale']
@@ -50,7 +52,7 @@ export function decodeMap(m: RawMap): MapData {
     light: m.light,
     anchors: m.anchors,
     regions: m.regions,
-    forage: m.forage,
+    appear: m.appear ?? appearFromForage(m as unknown as MapData),
     zone: m.zone,
     scale: m.scale,
     site: m.site,

@@ -3,10 +3,10 @@
 // Each is built from its own seed (world.ts), linked edge to edge, and every placed thing
 // witnesses a requirement in tools/test/demo.test.ts.
 
-import type { AiData, Forage } from '@lsw/engine'
+import type { AiData, AppearDef } from '@lsw/engine'
 import { FIRST_BOSS, createBoss } from '@lsw/content'
 import { MapBuilder, rng } from '../builder.ts'
-import { L, MATERIALS_FORAGE, clump, lay } from '../kit.ts'
+import { L, GROUND_YIELD, appears, clump, lay } from '../kit.ts'
 
 const tree = () => (rng.chance(0.3) ? 'pine' : 'tree')
 const grassy = (t: string) => t === 'grass'
@@ -21,14 +21,9 @@ function woods(m: MapBuilder, open: (x: number, y: number) => boolean): void {
     }
 }
 
-/** Monsters that come back on a map now and then (MapData.forage with a behaviour). */
-const hunters = (type: string, max: number, every: number, on: string[], ai: Partial<Omit<AiData, 'home'>> = {}): Forage => ({
-  type,
-  on,
-  max,
-  every,
-  ai: { behaviour: 'melee', temper: 'aggressive', sight: 5, ...ai },
-})
+/** Monsters that come back on a map now and then (MapData.appear with a behaviour). */
+const hunters = (type: string, max: number, every: number, on: string[], ai: Partial<Omit<AiData, 'home'>> = {}): AppearDef =>
+  appears(type, on, max, every, { ai: { behaviour: 'melee', temper: 'aggressive', sight: 5, ...ai } })
 
 // =================================================================== the East Road (chapter 2)
 
@@ -53,7 +48,7 @@ export function buildEastRoad(): MapBuilder {
   m.creature('beast/boar', 12, 16, { temper: 'wary', sight: 4 })
   lay(m, 'item/material/stick', 2, [6, 14, 8, 5])
   lay(m, 'item/material/stone', 2, [36, 5, 8, 4])
-  m.forage = [...MATERIALS_FORAGE, hunters('actor/creature/beast/wolf', 2, 2400, ['grass'])]
+  m.appear = [...GROUND_YIELD, hunters('actor/creature/beast/wolf', 2, 2400, ['grass'])]
   // The first sin guards the road after the Ford, with room to circle its broad body.
   m.organic(FIRST_BOSS.x, FIRST_BOSS.y, 7, 4, 'dirt', { only: (t) => t === 'grass', rough: 0.12 })
   m.entities.push(createBoss('greed', FIRST_BOSS, FIRST_BOSS.id))
@@ -96,7 +91,7 @@ export function buildEmberfall(): MapBuilder {
   m.fixture('fixture/craft/cauldron', 12, 16, { id: 'emberfall.cauldron', statuses: { lit: -1 } })
   m.fixture('fixture/container/crate', 8, 16)
   // a few things of a village: hens about, flowers by the doors, a scorched patch where the dragon breathed
-  for (const [x, y] of [[14, 9], [25, 17]] as const) m.creature('animal/chicken', x, y, { behaviour: 'passive', temper: 'wary', sight: 4, leash: 5 }).statuses = { laying: -1 }
+  for (const [x, y] of [[14, 9], [25, 17]] as const) m.creature('animal/chicken', x, y, { behaviour: 'passive', temper: 'wary', sight: 4, leash: 5 })
   m.organic(33, 16, 2.4, 1.6, 'ash', { only: grassy })
   m.sprinkle('fixture/nature/flowers', 0.08, (x, y, t) => t === 'grass' && m.near(x, y, (u) => u === 'cobble' || u === 'path', 2))
   m.sprinkle('fixture/nature/tuft', 0.05, (_x, _y, t) => t === 'grass')
@@ -108,7 +103,7 @@ export function buildEmberfall(): MapBuilder {
   m.anchor('herb.cauldron', 12, 17)
   m.anchor('herb.home', 10, 15)
   m.regions = { gate: [0, 12, 6, 7] }
-  m.forage = [...MATERIALS_FORAGE]
+  m.appear = [...GROUND_YIELD]
   return m
 }
 
@@ -140,9 +135,9 @@ export function buildMine(): MapBuilder {
   m.creature('cyclops', DEEP.x, DEEP.y, { id: 'mine.cyclops', sight: 5, leash: 6 })
   m.regions = { deep: [14, 1, 13, 7] }
   // the mine gives back slowly: veins in the galleries, and what hunts there
-  m.forage = [
-    { type: 'fixture/nature/vein/iron', on: ['cave_floor'], max: 4, every: 1800 },
-    { type: 'fixture/nature/vein/coal', on: ['cave_floor'], max: 4, every: 1800 },
+  m.appear = [
+    appears('fixture/nature/vein/iron', ['cave_floor'], 4, 1800),
+    appears('fixture/nature/vein/coal', ['cave_floor'], 4, 1800),
     hunters('actor/creature/spider', 3, 1500, ['cave_floor']),
     hunters('actor/creature/beast/bat', 2, 1800, ['cave_floor']),
   ]
@@ -176,7 +171,7 @@ export function buildPass(): MapBuilder {
   m.creature('imp/fire_imp', 20, 9, { sight: 6 })
   m.creature('golem/stone_golem', 14, 4, { sight: 4, leash: 5 })
   lay(m, 'item/material/stone', 2, [10, 28, 10, 6])
-  m.forage = [hunters('actor/creature/imp/fire_imp', 2, 2400, ['ash'], { behaviour: 'ranged', sight: 6 })]
+  m.appear = [hunters('actor/creature/imp/fire_imp', 2, 2400, ['ash'], { behaviour: 'ranged', sight: 6 })]
   return m
 }
 

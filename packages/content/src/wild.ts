@@ -3,7 +3,7 @@
 // give the same map, so only what changed there is kept (D20). Its edges are open: whichever way
 // one walks out, one is back on the overworld (§5.1).
 
-import { Rng, type AiData, type Entity, type MapChunk, type MapData, type Text, type World } from '@lsw/engine'
+import { APPEAR_EVERY, Rng, type AiData, type Entity, type MapChunk, type MapData, type Text, type World } from '@lsw/engine'
 
 export const WILD_W = 40
 export const WILD_H = 30
@@ -164,10 +164,10 @@ export function wildChunk(seed: number, cx: number, cy: number, ground: string, 
     light: 'outdoor',
     zone: 'combat',
     site,
-    forage: [
-      { type: 'item/material/stick', on: ['grass', 'snow'], max: 4 },
-      { type: 'item/material/stone', on: ['grass', 'snow'], max: 3 },
-      { type: 'item/material/grass', on: ['grass', 'drygrass'], max: 4 },
+    appear: [
+      { types: { 'item/material/stick': 1 }, on: ['grass', 'snow'], max: 4, every: APPEAR_EVERY },
+      { types: { 'item/material/stone': 1 }, on: ['grass', 'snow'], max: 3, every: APPEAR_EVERY },
+      { types: { 'item/material/grass': 1 }, on: ['grass', 'drygrass'], max: 4, every: APPEAR_EVERY },
     ],
   }
   return { map, entities }

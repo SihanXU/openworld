@@ -1,7 +1,7 @@
 // The is-a hierarchy. Type ids are slash paths, so `a isA b` is a prefix test; the
 // registry merges tags/props/sprite down the chain and caches the result per type.
 
-import type { MakeupPart, Ontology, PropValue, Space, StatusDef, TerrainDef, TypeDef } from './types.ts'
+import type { MakeupPart, Ontology, PropValue, Space, StageDef, StatusDef, TerrainDef, TypeDef } from './types.ts'
 
 export interface ResolvedType {
   id: string
@@ -19,6 +19,8 @@ export interface ResolvedType {
   terrain?: string
   /** What it is made of (TypeDef.makeup). */
   makeup?: MakeupPart[]
+  /** How long it stays what it is (TypeDef.stage). */
+  stage?: StageDef
   name?: TypeDef['name']
   /** Ancestor chain from root to self (only registered ids). */
   chain: string[]
@@ -39,7 +41,7 @@ export function withTerrainTypes(data: Ontology): Ontology {
 /** The type of the cell things made of a terrain: its space, what stands on it (a floor: the ground by default), whether it blocks. */
 export function terrainType(t: TerrainDef): TypeDef {
   const space = t.space ?? 'floor'
-  return { id: `tile/${t.id}`, name: t.name, tags: t.tags, props: t.props, makeup: t.makeup, solid: t.solid, occupies: [space], terrain: t.id, reach: t.reach ?? (space === 'floor' ? ['ground'] : []) }
+  return { id: `tile/${t.id}`, name: t.name, tags: t.tags, props: t.props, makeup: t.makeup, stage: t.stage, solid: t.solid, occupies: [space], terrain: t.id, reach: t.reach ?? (space === 'floor' ? ['ground'] : []) }
 }
 
 export function typeDepth(type: string): number {
@@ -110,6 +112,7 @@ export class OntologyIndex {
     let occupies: Space[] | undefined
     let terrain: string | undefined
     let makeup: MakeupPart[] | undefined
+    let stage: StageDef | undefined
     let name: TypeDef['name']
     for (let i = 1; i <= parts.length; i++) {
       const p = parts.slice(0, i).join('/')
@@ -125,9 +128,10 @@ export class OntologyIndex {
       if (def.occupies) occupies = def.occupies
       if (def.terrain) terrain = def.terrain
       if (def.makeup) makeup = def.makeup
+      if (def.stage) stage = def.stage
       if (def.name) name = def.name
     }
-    const r: ResolvedType = { id, tags: [...tags], props, sprite, solid, footprint, reach, occupies, terrain, makeup, name, chain, depth: parts.length }
+    const r: ResolvedType = { id, tags: [...tags], props, sprite, solid, footprint, reach, occupies, terrain, makeup, stage, name, chain, depth: parts.length }
     this.cache.set(id, r)
     return r
   }

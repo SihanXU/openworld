@@ -3,14 +3,13 @@
 // themselves. New behaviour is data (rules); only a new primitive is an engine change.
 
 import type { Engine } from './engine.ts'
-import { matchSelector } from './rules.ts'
+import { evalCond, matchSelector, rolesOf } from './rules.ts'
 import type { AiData, Amount, Effect, EmitTo, Entity, GameEvent, Impulse, Place, Pos, PropValue, Ref, RoleName, RoleRef, Text } from './types.ts'
 import { GIVEN_LINE, chooseLine, raiseTopic } from './people.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
 import { gainXp, learnSkill } from './progression.ts'
 import { cannotChoose, chooseProfession } from './profession.ts'
-import { forageMap } from './forage.ts'
-import { appear } from './nightspawn.ts'
+import { appear } from './appear.ts'
 import { releaseSkill } from './bosses.ts'
 import { WriteError } from './world.ts'
 import { madeOf, qualityFor } from './recipes.ts'
@@ -41,7 +40,7 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   topic: "topic {id, days?} — the story's only: something happened that people will talk about (default 4 days); it keeps topic.<id> (the day) and topic.<id>.days as its own props. Others notify the story",
   scene: 'scene {id} — the story\'s only: play a scripted scene',
   craft: 'craft {} — the host uses up what the act\'s recipe needs from what it carries and gets what it makes',
-  forage: 'forage {} — the world\'s: what the active map yields by itself appears on its ground',
+  grow: 'grow — the host\'s stage clock ran out (param status): it becomes what its stage says next and leaves what the stage yields; a condition the stage needs, unmet, makes it wait (world-model.md §6.5; the root of time/timer)',
   lightning: 'lightning {power} — the world\'s: a bolt seeks what stands tall near the player and emits element lightning to it',
   ashore: 'ashore {} — the host gets out of where it cannot be, to the nearest free tile',
   fallback: 'fallback {} — the story\'s: run the broken invariant\'s authored fallback',
@@ -53,13 +52,13 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   quest: 'quest {} — the host (a person) is spoken to about quests: business with the speaker (a quest to hand in, to take on, a talk goal) is told to the story; else the host says how a quest goes, or its line (quests.ts)',
   quests: "quests {} — the story's: a quest's business it is told of is settled (notify what = quest: between the source, a giver, and the actor; what = defeat: the actor felled a thing of param type) — its facts change, the giver takes what was brought, the taker is told its reward",
   learn: 'learn {} — the host learns what its act names: param skill (spending its skill points) or param profession (at a trainer; a change gives back the profession branch)',
-  appear: "appear {types, ring, cap, tag} — the world's: one creature of a weighted type appears on a free tile ring[0]–ring[1] tiles from the player, under the open sky of a map that is not peaceful, unless cap of those tagged tag already walk it",
+  appear: "appear {what?} — the world's: what appears by itself on the active map now (the map's own appearances and the world's that fit it, each at its pace, hours and weather, up to its max), or only the appearance given (world-model.md §6.9)",
   release: "release {} — the host's encounter skill lands on the cells its act telegraphed (params skill, ox, oy, ax, ay): a strike to each foe there, a push or pull and a coat as the skill says; the host heals or blinks itself",
   panel: "panel {panel} — the host (a trainer) opens one of the player's panels when the player spoke to it: 'profession'",
 }
 
 /** Primitives only the story's and the world's rules may use. */
-export const RESIDENT_ONLY = new Set<Effect['op']>(['topic', 'scene', 'forage', 'lightning', 'fallback', 'quests', 'appear'])
+export const RESIDENT_ONLY = new Set<Effect['op']>(['topic', 'scene', 'lightning', 'fallback', 'quests', 'appear'])
 
 export class EffectRunner {
   constructor(private eng: Engine) {}
@@ -442,7 +441,7 @@ export class EffectRunner {
         return
       }
       case 'appear':
-        appear(eng, eff)
+        appear(eng, eff.what)
         return
       case 'release':
         if (host) releaseSkill(eng, host, ev)
@@ -496,9 +495,24 @@ export class EffectRunner {
         if (p) w.fx.push({ t: 'pickup', item: made.id, sprite: r.sprite, name: r.name, map: p.map, x: p.x, y: p.y })
         return
       }
-      case 'forage':
-        forageMap(eng, eng.activeMap)
+      case 'grow': {
+        // a stage's clock ran out (world-model.md §6.5): it becomes the next, leaving what the stage yields
+        if (!host) return
+        const st = w.onto.resolve(host.type).stage
+        const clock = st?.clock ?? 'stage'
+        if (!st || ev.params?.status !== clock) return
+        if (st.needs && !evalCond(st.needs, rolesOf(ev, w), w, ev)) {
+          // not yet (no light, someone standing on it): it waits, and looks again
+          w.setStatus({ e: host.id }, clock, w.state.tick + (st.wait ?? st.lasts ?? TICKS_PER_HOUR))
+          return
+        }
+        for (const y of st.yields ?? []) this.apply({ op: 'spawn', type: y.type, at: 'tileOf:host', count: y.count ?? 1, still: true }, ev)
+        if (st.fx) this.apply({ op: 'vfx', fx: st.fx, at: 'tileOf:host' }, ev)
+        if (st.into) this.apply({ op: 'transform', into: st.into }, ev)
+        // a stage with nothing next begins again (a hen lays, and lays again)
+        else if (st.lasts) w.setStatus({ e: host.id }, clock, w.state.tick + st.lasts)
         return
+      }
       case 'lightning':
         eng.lightning(eff.power, ev)
         return

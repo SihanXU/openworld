@@ -18,6 +18,7 @@ import { stepBosses } from './bosses.ts'
 import { NpcSim, scheduleAt } from './npc.ts'
 import { scheduleFor } from './people.ts'
 import { OntologyIndex } from './ontology.ts'
+import { appearFromForage } from './appear.ts'
 import { RuleLibrary, evalCond, isDo, matchSelector, rolesOf, type Resolution } from './rules.ts'
 import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb, WorldState } from './types.ts'
 import type { ProfessionDef } from './profession.ts'
@@ -170,11 +171,16 @@ export class Engine {
    */
   mapArrived(map: string): void {
     const w = this.world
+    // an older chunk named what appears by itself `forage`
+    const data = w.map(map)
+    if (data?.forage && !data.appear) (data.appear = appearFromForage(data)), delete data.forage
     const named = Object.entries(w.map(map)?.regions ?? {}).filter(([name]) => !w.get(regionId(map, name)))
     const old = this.legacyTiles.get(map) ?? []
     this.legacyTiles.delete(map)
     this.write(() => {
       for (const [name, r] of named) w.add({ id: regionId(map, name), type: 'region', place: { on: 'area', map, rects: [r] } })
+      // what is in a stage in the map's data starts its clock (a stump grows back)
+      w.startStages(map)
       for (const t of old) {
         if (t.terrain) w.setTerrain(map, t.x, t.y, t.terrain)
         const top = w.cellTop(map, t.x, t.y)

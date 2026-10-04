@@ -848,7 +848,33 @@ export class World {
     this.indexAdd(e)
     if (e.place.on === 'inside' || e.place.on === 'hand') this.attach(e)
     if (e.statuses && Object.keys(e.statuses).length) this.statusful.add(e.id)
+    this.startStage(e)
     return e
+  }
+
+  /**
+   * A thing that comes to be what it is starts its stage's clock (world-model.md §6.5), unless it
+   * is already running (a thing loaded) or the stage's clock is another status, given by what gives it.
+   */
+  private startStage(e: Entity): void {
+    const st = this.onto.resolve(e.type).stage
+    if (!st?.lasts || st.clock || e.statuses?.stage !== undefined) return
+    this.setStatus({ e: e.id }, 'stage', this.state.tick + st.lasts)
+  }
+
+  /** A map's cells whose static things are in a stage start their clocks (kept from then on): a map's stumps grow back too. */
+  startStages(map: string): void {
+    const layers = this.layersOf(map)
+    const m = this.state.maps[map]
+    if (!layers || !m) return
+    for (const space of CELL_SPACES)
+      layers[space].forEach((t, i) => {
+        if (t === undefined) return
+        const st = this.onto.resolve(`tile/${t}`).stage
+        if (!st?.lasts || st.clock) return
+        const e = this.staticThing(map, i % m.width, Math.floor(i / m.width), space)
+        if (e) this.startStage(e)
+      })
   }
 
   create(type: string, place: Place, extra: Partial<Entity> = {}): Entity {
@@ -904,6 +930,9 @@ export class World {
     this.indexRemove(e)
     e.type = type
     this.indexAdd(e)
+    // what it was, it no longer is: a stage begins again from the start (or none)
+    if (e.statuses?.stage !== undefined) this.clearStatus({ e: e.id }, 'stage')
+    this.startStage(e)
   }
 
   destroy(e: Entity): void {

@@ -1,16 +1,19 @@
 // Shared tools of map composition for the demo's maps (the Ford, the meadow, the forest, and
 // the main quest's maps under quest/).
 
-import type { Forage, Text } from '@lsw/engine'
+import { APPEAR_EVERY, type AppearDef, type Text } from '@lsw/engine'
 import { MapBuilder, rng } from './builder.ts'
 
 export const L = (en: string, zh: string): Text => ({ en, zh })
 
+/** One type that appears on a map by itself, now and then, up to `max` (MapData.appear, world-model.md §6.9). */
+export const appears = (type: string, on: string[], max: number, every = APPEAR_EVERY, more: Partial<AppearDef> = {}): AppearDef => ({ types: { [type]: 1 }, on, max, every, ...more })
+
 /** Sticks, stones and grass: every outdoor map's ground yields them, up to a handful of each. */
-export const MATERIALS_FORAGE: Forage[] = [
-  { type: 'item/material/stick', on: ['grass'], max: 6 },
-  { type: 'item/material/stone', on: ['grass'], max: 5 },
-  { type: 'item/material/grass', on: ['grass', 'drygrass'], max: 6 },
+export const GROUND_YIELD: AppearDef[] = [
+  appears('item/material/stick', ['grass'], 6),
+  appears('item/material/stone', ['grass'], 5),
+  appears('item/material/grass', ['grass', 'drygrass'], 6),
 ]
 
 /** Lay up to n of an item on open grass in a rect, spread on a fixed pattern (no randomness: the map's other draws stay as they were). */

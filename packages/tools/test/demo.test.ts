@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest'
 import {
   EVENT_KINDS,
   FIRE_RADIUS,
-  FORAGE_EVERY,
+  APPEAR_EVERY,
   Game,
   RuleLibrary,
   SLOT_COUNT,
@@ -28,8 +28,6 @@ import {
   madeOf,
   travelToWaypoint,
   PROFESSION_LEVEL,
-  NIGHT_CAP,
-  NIGHT_EVERY,
   type Engine,
   type Entity,
   type GameEvent,
@@ -39,7 +37,7 @@ import {
   type Ref,
   type World,
 } from '@lsw/engine'
-import { BASE_RULES, CROP_STAGES, FIRSTLIGHT, PROLOGUE_DONE, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILLS, STORY_RULES, VEGETABLE_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@lsw/content'
+import { BASE_RULES, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, PROLOGUE_DONE, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILLS, STORY_RULES, VEGETABLE_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@lsw/content'
 import { BLOCK, OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
 import { DRAGON_AT, EAST_ROAD, EMBERFALL, PASS } from '../src/demo/quest/maps.ts'
@@ -755,11 +753,11 @@ req('F12', "the ground yields sticks, stones and grass (Don't Starve): taken by 
   author(f, () => {
     for (const type of FORAGE) for (const e of lying(f, type)) W(f).destroy(e)
   })
-  ticks(f, FORAGE_EVERY * 40)
-  const forage = W(f).map('ford')!.forage!
+  ticks(f, APPEAR_EVERY * 40)
+  const appear = W(f).map('ford')!.appear!
   for (const type of FORAGE) {
     expect(lying(f, type).length).toBeGreaterThan(0)
-    expect(lying(f, type).length).toBeLessThanOrEqual(forage.find((g) => g.type === type)!.max)
+    expect(lying(f, type).length).toBeLessThanOrEqual(appear.find((g) => type in g.types)!.max)
   }
 })
 
@@ -845,12 +843,12 @@ req('F14', 'west of the Ford the village, and south of it the grassland (Minecra
   // a hen lays an egg where she stands, and starts on the next
   const hen = onMeadow(f, HEN)[0]
   const eggs = meat('item/food/egg/raw')
-  author(f, () => W(f).setStatus({ e: hen.id }, 'laying', W(f).state.tick + 1))
+  author(f, () => W(f).setStatus({ e: hen.id }, 'stage', W(f).state.tick + 1))
   ticks(f, 3)
   expect(meat('item/food/egg/raw')).toBe(eggs + 1)
   const egg = lying(f, 'item/food/egg/raw', 'pasture').find((e) => !e.dropped)
   expect(egg).toBeDefined()
-  expect(W(f).hasStatus({ e: hen.id }, 'laying')).toBe(true)
+  expect(W(f).hasStatus({ e: hen.id }, 'stage')).toBe(true)
   // each food feeds its own amount: hunger rises by its `food`
   for (const type of ['item/food/meat/raw', 'item/food/chicken/raw', 'item/food/egg/raw']) {
     const e = Object.values(W(f).state.entities).find((x) => x.type === type)!
@@ -871,12 +869,13 @@ req('F14', 'west of the Ford the village, and south of it the grassland (Minecra
   expect(onMeadow(f, COW).length).toBeLessThanOrEqual(1)
   expect(onMeadow(f, HEN).length).toBeLessThanOrEqual(2)
   ticks(f, 1200 * 6)
-  const forage = W(f).map('pasture')!.forage!
+  const appear = W(f).map('pasture')!.appear!
   for (const type of [COW, HEN]) {
     expect(onMeadow(f, type).length).toBeGreaterThan(0)
-    expect(onMeadow(f, type).length).toBeLessThanOrEqual(forage.find((g) => g.type === type)!.max)
+    expect(onMeadow(f, type).length).toBeLessThanOrEqual(appear.find((g) => type in g.types)!.max)
   }
-  expect(onMeadow(f, HEN).every((h) => W(f).hasStatus({ e: h.id }, 'laying'))).toBe(true)
+  // a hen comes laying: her stage's clock runs from when she appears
+  expect(onMeadow(f, HEN).every((h) => W(f).hasStatus({ e: h.id }, 'stage'))).toBe(true)
 })
 
 req('F15', 'south of the grassland, a forest: many trees within reach, and an axe fells them (two swings: a stump, logs and a stick)', [], () => {
@@ -1233,6 +1232,45 @@ req('W11', 'rain falls only on what is out under the sky: in the room one stays 
   ticks(f, 130, () => W(f).hasStatus({ e: hen.id }, 'wet'))
   expect(W(f).hasStatus({ e: hen.id }, 'wet')).toBe(true)
   expect(W(f).hasStatus({ e: W(f).player.id }, 'wet')).toBe(false)
+})
+
+req('W16', 'stages: a watered sprout out under the sky grows a stage, one in a room waits for light; a felled tree\'s stump grows back into a tree, but not up through someone standing on it', [], () => {
+  const f = fresh()
+  const [x, y] = buildRoom(f)
+  // an open cell outside, a few steps off
+  let out: [number, number] | undefined
+  for (let d = 3; d < 12 && !out; d++) for (const [ox, oy] of [[x + d, y], [x - d, y], [x, y + d], [x, y - d]]) if (!out && W(f).walkable('ford', ox, oy) && !W(f).placedAt('ford', ox, oy).length && !W(f).covered('ford', ox, oy)) out = [ox, oy]
+  const sprout = (cx: number, cy: number) => author(f, () => W(f).create('fixture/crop/carrot/sprout', { on: 'tile', map: 'ford', x: cx, y: cy }))
+  const inside = sprout(x, y)
+  const outside = sprout(...out!)
+  // nothing starts a crop's stage but water: unwatered, it stays
+  expect(W(f).hasStatus({ e: outside.id }, 'stage')).toBe(false)
+  for (const s of [inside, outside]) author(f, () => W(f).setStatus({ e: s.id }, 'watered', W(f).state.tick + 2))
+  ticks(f, 5)
+  expect(W(f).get(outside.id)?.type).toBe('fixture/crop/carrot/young')
+  expect(W(f).get(inside.id)?.type).toBe('fixture/crop/carrot/sprout')
+  // in the dark it waits, and looks again
+  expect(W(f).hasStatus({ e: inside.id }, 'watered')).toBe(true)
+  // a tree felled: its stump grows back on its own clock (two game days)
+  const map = W(f).map('ford')!
+  const i = map.terrain.findIndex((t, k) => t === 'tree' && !W(f).placedAt('ford', k % map.width, Math.floor(k / map.width)).length)
+  const [tx, ty] = [i % map.width, Math.floor(i / map.width)]
+  const tree = W(f).get(W(f).cellRef('ford', tx, ty).e)!
+  author(f, () => W(f).transform(tree, 'tile/stump'))
+  const stump = W(f).occupant('ford', tx, ty, 'soil') ?? W(f).get(tree.id)!
+  expect(stump.type).toBe('tile/stump')
+  expect(W(f).statusesOf({ e: stump.id })?.stage).toBe(W(f).state.tick + TREE_GROWS)
+  // someone standing on it: it waits
+  stand(f, tx, ty, 'down')
+  author(f, () => W(f).setStatus({ e: stump.id }, 'stage', W(f).state.tick + 1))
+  ticks(f, 3)
+  expect(W(f).terrainAt('ford', tx, ty)).toBe('stump')
+  expect(W(f).hasStatus({ e: stump.id }, 'stage')).toBe(true)
+  // gone, it grows
+  stand(f, ...out!, 'down')
+  author(f, () => W(f).setStatus({ e: stump.id }, 'stage', W(f).state.tick + 1))
+  ticks(f, 3)
+  expect(W(f).terrainAt('ford', tx, ty)).toBe('tree')
 })
 
 req('W12', 'a second storey: walls, a floor laid over them (held up by them), stairs, and up one goes; break the wall and the floor comes down, and whoever stood on it falls', [], () => {

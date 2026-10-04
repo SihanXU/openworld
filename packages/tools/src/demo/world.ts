@@ -13,7 +13,7 @@ import { tickAt, type AiData, type Entity, type MapMeta, type Pos, type SceneDef
 import { BOSSES, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, type RawChunk } from '@lsw/content'
 import { CATALOG } from '../../../client/src/assets/catalog.ts'
 import { MapBuilder, linkEdge, reseed, rng } from './builder.ts'
-import { MATERIALS_FORAGE, clump, lay } from './kit.ts'
+import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
 import { EAST_ROAD, EMBERFALL, LAIR, MINE, PASS, buildEastRoad, buildEmberfall, buildLair, buildMine, buildPass } from './quest/maps.ts'
 import { QUEST_SCENES } from './quest/scenes.ts'
@@ -202,7 +202,7 @@ function buildMap(): MapBuilder {
   lay(m, 'item/material/stick', 3, [3, 11, 6, 9])
   lay(m, 'item/material/stone', 3, [16, 5, 6, 6])
   lay(m, 'item/material/grass', 3, [9, 5, 6, 5])
-  m.forage = [...MATERIALS_FORAGE]
+  m.appear = [...GROUND_YIELD]
   // ------------------------------------------------------------ the footbridge (chapter 1): a trail down from the landing to it, its ends standing, three planks gone
   m.path([[25, 18], [25, 20], [26, 20], [26, 22], [27, 22]], 'path', 1)
   for (const x of FOOTBRIDGE.piers) m.set(x, FOOTBRIDGE.y, 'bridge')
@@ -298,7 +298,7 @@ function buildMeadow(): MapBuilder {
   lay(m, 'item/material/grass', 3, [26, 6, 8, 6])
   // fireweed in the open grass, for the herbalist of Emberfall (main quest)
   lay(m, 'item/material/fireweed', 3, [10, 8, 10, 6])
-  m.forage = [...MATERIALS_FORAGE, { type: 'item/material/fireweed', on: ['grass'], max: 3, every: 900 }]
+  m.appear = [...GROUND_YIELD, appears('item/material/fireweed', ['grass'], 3, 900)]
   plantGarden(m)
   return m
 }
@@ -330,16 +330,16 @@ function buildPasture(): MapBuilder {
   // the herd and the hens; hens lay through the day
   const start = tickAt(1, START_HOUR)
   for (const [x, y] of MEADOW.cows) m.creature('animal/cow', x, y, { ...GRAZER })
-  MEADOW.hens.forEach(([x, y], i) => (m.creature('animal/chicken', x, y, { ...GRAZER }).statuses = { laying: start + 600 + i * 300 }))
+  MEADOW.hens.forEach(([x, y], i) => (m.creature('animal/chicken', x, y, { ...GRAZER }).statuses = { stage: start + 600 + i * 300 }))
   // sticks, stones and grass lie about from the start, as everywhere outdoors
   lay(m, 'item/material/stick', 3, [4, 4, 10, 8])
   lay(m, 'item/material/stone', 3, [26, 12, 8, 6])
   lay(m, 'item/material/grass', 3, [16, 6, 8, 6])
   // Minecraft's passive mobs are slow to come back: a cow every two minutes, a hen every ninety seconds, while there is room
-  m.forage = [
-    ...MATERIALS_FORAGE,
-    { type: 'actor/creature/animal/cow', on: ['grass'], max: 4, every: 1200, ai: GRAZER, statuses: [] },
-    { type: 'actor/creature/animal/chicken', on: ['grass'], max: 5, every: 900, ai: GRAZER, statuses: ['laying'] },
+  m.appear = [
+    ...GROUND_YIELD,
+    appears('actor/creature/animal/cow', ['grass'], 4, 1200, { ai: GRAZER }),
+    appears('actor/creature/animal/chicken', ['grass'], 5, 900, { ai: GRAZER }),
   ]
   return m
 }
@@ -376,11 +376,11 @@ function buildForest(): MapBuilder {
   lay(m, 'item/material/stone', 2, [10, 10, 8, 6])
   // frostcap in the shade, for the herbalist of Emberfall (main quest)
   lay(m, 'item/material/frostcap', 3, [8, 12, 10, 8])
-  m.forage = [
-    { type: 'item/material/frostcap', on: ['grass'], max: 3, every: 900 },
-    { type: 'item/material/stick', on: ['grass'], max: 10 },
-    { type: 'item/material/stone', on: ['grass'], max: 3 },
-    { type: 'item/material/grass', on: ['grass'], max: 4 },
+  m.appear = [
+    appears('item/material/frostcap', ['grass'], 3, 900),
+    appears('item/material/stick', ['grass'], 10),
+    appears('item/material/stone', ['grass'], 3),
+    appears('item/material/grass', ['grass'], 4),
   ]
   // the way on south, to Thornwood Hollow (docs/quests.md): opened last, so every draw above stays as it was
   for (let y = m.h - 4; y < m.h; y++) for (const x of HOLLOW.forestSouth) m.set(x, y, 'grass')

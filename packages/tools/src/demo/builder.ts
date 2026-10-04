@@ -5,7 +5,7 @@
 // no picture without a thing, and no wall without one: what the map shows and what blocks are
 // terrain or entities (a big thing blocks its type's footprint, and only while it stands).
 
-import type { AiData, Entity, Forage, MapData, Portal, PropValue, Text } from '@lsw/engine'
+import type { AiData, Entity, AppearDef, MapData, Portal, PropValue, Text } from '@lsw/engine'
 import { CHAR_OF, FORM_BY_ID, buildOntology, makeItem, type RawChunk } from '@lsw/content'
 import { OntologyIndex, Rng, baseCovers, splitLayers } from '@lsw/engine'
 import type { PrefabDef } from '../../../client/src/assets/types.ts'
@@ -37,8 +37,8 @@ export class MapBuilder {
   anchors: Record<string, [number, number]> = {}
   /** Named areas [x, y, w, h] (the goal's far bank). */
   regions: Record<string, [number, number, number, number]> = {}
-  /** What the ground yields by itself (MapData.forage). */
-  forage: Forage[] = []
+  /** What appears on the map by itself: the ground's yield, creatures that come back (MapData.appear). */
+  appear: AppearDef[] = []
   /** Peaceful (towns, camps) or combat (night brings monsters): MapData.zone. */
   zone: 'peaceful' | 'combat' = 'combat'
   /** Where the map lies on the overworld (MapData.site): its open edges lead there. */
@@ -414,7 +414,7 @@ export class MapBuilder {
         rooms: this.rooms,
         anchors: Object.keys(this.anchors).length ? this.anchors : undefined,
         regions: Object.keys(this.regions).length ? this.regions : undefined,
-        forage: this.forage.length ? this.forage : undefined,
+        appear: this.appear.length ? this.appear : undefined,
         music: this.music,
         light: this.light,
         zone: this.zone,

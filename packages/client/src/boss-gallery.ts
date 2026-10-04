@@ -75,7 +75,7 @@ function reset(): void {
   // Real East Road terrain and scenery, one isolated boss for readable review.
   chunk.entities = chunk.entities.filter((e) => !e.type.startsWith('actor/creature'))
   chunk.entities.push(createBoss(select.value, FIRST_BOSS, FIRST_BOSS.id))
-  chunk.map.forage = []
+  chunk.map.appear = []
   if (!challenge) game.loadChunk(chunk)
   scene.setMap(game.engine.world.map(FIRST_BOSS.map)!)
   finished = false; startedAt = game.engine.world.state.tick
