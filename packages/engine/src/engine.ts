@@ -5,7 +5,7 @@
 // containment, diffed after every outcome), sight, and the active, dormant and resident parts of
 // the world. Pure, deterministic, no AI.
 
-import { TICKS_PER_MINUTE, isNight } from './calendar.ts'
+import { TICKS_PER_HOUR, TICKS_PER_MINUTE, isNight } from './calendar.ts'
 import { EffectRunner } from './effects.ts'
 import { Controls } from './controls.ts'
 import { Scenes } from './scenes.ts'
@@ -796,6 +796,14 @@ export class Engine {
     recordCombatStep(w, e)
     if (isPlayer && portalHere) this.travel(e, { map: portalHere.to, x: portalHere.tx, y: portalHere.ty })
     return true
+  }
+
+  /** The one at the keys sleeps until the hour comes round (the clock runs at once, as on a long step). */
+  sleepUntil(hour: number): void {
+    const w = this.world
+    const now = w.hour()
+    const hours = (hour - now + 24) % 24 || 24
+    this.fastForward = Math.round(hours * TICKS_PER_HOUR)
   }
 
   /**

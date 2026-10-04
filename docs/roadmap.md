@@ -83,7 +83,7 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 | W2 | Space and breaking: occupied spaces, z, height, cells as things and one reference form, durability, materials, instruments, damage channels, makeup, `broken`, `breakdown`, `fall` (done 2026-10-04: W2a cells, W2b breaking, W2c the repeat check, W2d height; storeys' z and the `fall` primitive: W6) | W1 | 25,177 / 35,799 (70.3%) | 46 of 125 forms, 25 of 86 fixture types |
 | W3 | Two-level maps: overworld, sites, open edges, durations and fast-forward, generated wilderness, changes-only saves (done 2026-10-04; people walking in from edges: W9) | W2 | 26,131 / 37,823 (69.1%) | 46 of 125 forms, 25 of 86 fixture types |
 | W4 | Makeup and recipes: stations, derived recipes, quality, building as `move`, economy and reachability (done 2026-10-04 but building as `move`, which comes with W6) | W2 | 26,007 / 37,823 (68.8%) | 46 of 125 forms, 24 of 86 fixture types |
-| W5 | Cover and rooms | W2 | | |
+| W5 | Cover and rooms (done 2026-10-04, after W6) | W2 | 26,002 / 37,823 (68.7%) | 46 of 125 forms, 23 of 86 fixture types |
 | W6 | Storeys: slabs, stairs, support, collapse (core done 2026-10-04, before W5: building as `move` with it) | W5 | 26,007 / 37,823 (68.8%) | 46 of 125 forms, 24 of 86 fixture types |
 | W7 | Stages and appearances | W2 | | |
 | W8 | Combat: material and quality, elements and resistances as data | W2 | | |

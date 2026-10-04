@@ -100,8 +100,10 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
     return !!v && !!world.onto.resolve(v.type).makeup?.length
   }
   if ('outdoors' in c) {
-    const host = roles.host
-    const map = (host && world.refPos(host.ref)?.map) ?? world.posOf(world.player)?.map
+    // a thing with a place: its cell is not covered; the story and the world: the map one plays on has a sky
+    const p = roles.host && world.refPos(roles.host.ref)
+    if (p) return !world.covered(p.map, p.x, p.y, p.z)
+    const map = world.posOf(world.player)?.map
     return !!map && (world.map(map)?.light ?? 'outdoor') === 'outdoor'
   }
   return false

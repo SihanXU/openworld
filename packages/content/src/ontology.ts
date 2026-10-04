@@ -72,6 +72,8 @@ export const FALL_DAMAGE = 6
 export const RAIN_COST = 1.5
 /** How many storeys may stand above the ground (world-model.md §5.2). */
 export const STOREYS = 4
+/** The largest a room may be, in cells (larger is out of doors). */
+export const ROOM_SIZE = 256
 
 /**
  * How well each capability and each edge works on each material category (world-model.md §6.1,
@@ -300,6 +302,8 @@ const RESIDENTS: TypeDef[] = [
   { id: 'resident/story', name: { en: 'the story', zh: '故事' } },
   // a map's named area (world-model.md §5.4): entering and leaving it is the relation in-region
   { id: 'region', name: { en: 'an area', zh: '区域' } },
+  // a room: found where cells are covered and walled all round (derived, read-only, world-model.md §5.4)
+  { id: 'region/room', name: { en: 'a room', zh: '房间' } },
   // a cell of the overworld, standing for its local map (world-model.md §5.1, §5.6): it covers the
   // cell's block of the overworld; empty hands on it go in (props.map: the map it stands for)
   { id: 'site', name: { en: 'a place', zh: '地点' }, sprite: 'site', footprint: [3, 3] },
@@ -428,7 +432,15 @@ export function buildOntology(): Ontology {
     materials: MATERIAL_DEFS,
     qualities: QUALITY_DEFS(),
     efficiency: EFFICIENCY,
-    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS },
+    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5 },
+    // what makes a room what it is: a bed a bedroom (a night there gives everything back), a cooking fire a
+    // kitchen, a workbench or forge a workshop, three chests and more a storeroom (world-model.md §5.4)
+    roomRoles: [
+      { role: 'bedroom', needs: { type: 'fixture/furniture/bed' }, props: { rest: 1 } },
+      { role: 'kitchen', needs: { tags: ['cookware'] } },
+      { role: 'workshop', needs: { type: 'fixture/craft' } },
+      { role: 'storeroom', needs: { type: 'fixture/container' }, count: 3 },
+    ],
     periods: [
       { name: 'hunger', every: HUNGER_EVERY, everyProp: 'hungerEvery', host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
       { name: 'vitals', every: HUNGER_EFFECT_EVERY, host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },

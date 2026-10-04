@@ -1183,6 +1183,58 @@ req('W9', 'a recipe derived from what a thing is made of, made at the village wo
   expect(records(f)).toHaveLength(0)
 })
 
+/** A room of one cell on the Ford, built: four walls round it and a floor laid over it (the roof). Returns the cell. */
+function buildRoom(f: Ford): [number, number] {
+  let at: [number, number] | undefined
+  for (let y = 4; y < 26 && !at; y++) for (let x = 4; x < 40 && !at; x++) if ([-1, 0, 1].every((dy) => [-1, 0, 1].every((dx) => W(f).walkable('ford', x + dx, y + dy) && !W(f).placedAt('ford', x + dx, y + dy).length && W(f).heightAt('ford', x + dx, y + dy) === 0))) at = [x, y]
+  const [x, y] = at!
+  const put = (type: string, cx: number, cy: number) => {
+    const thing = author(f, () => W(f).add({ ...madeOf(W(f).onto.data, W(f).onto, type, 'wood'), id: `room.${type}.${cx}.${cy}`, place: { on: 'inside', holder: 'player' } }))
+    const target = W(f).placedAt('ford', cx, cy).find((e) => e.type.startsWith('structure')) ?? W(f).cellTop('ford', cx, cy)!
+    f.eng.act('put', 'player', { e: target.id }, { instrument: { e: thing.id } })
+  }
+  stand(f, x, y, 'up')
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) put('structure/wall', x + dx, y + dy)
+  put('structure/floor', x, y)
+  return [x, y]
+}
+
+req('W10', 'a room: a cell walled all round and covered (a floor laid over it) is a room; a bed in it makes it a bedroom; a night there gives everything back', [], () => {
+  const f = fresh()
+  const [x, y] = buildRoom(f)
+  expect(W(f).covered('ford', x, y)).toBe(true)
+  const room = () => W(f).regionsAt('ford', x, y).find((r) => r.type === 'region/room')
+  expect(room()).toBeDefined()
+  expect(room()!.props?.size).toBe(1)
+  expect(W(f).hasTag(room()!, 'role:bedroom')).toBe(false)
+  const bed = author(f, () => W(f).create('fixture/furniture/bed', { on: 'tile', map: 'ford', x, y }))
+  expect(W(f).hasTag(room()!, 'role:bedroom')).toBe(true)
+  // hurt (and fed: a starving sleeper wakes), one lies down there: by morning, whole again
+  author(f, () => { W(f).setProp(W(f).player, 'hp', 10); W(f).setProp(W(f).player, 'hunger', W(f).num(W(f).player, 'maxHunger')) })
+  setHour(f, 1, 22)
+  f.eng.act('hands', 'player', { e: bed.id }, { instrument: null })
+  f.eng.tick()
+  expect(W(f).num(W(f).player, 'hp')).toBe(W(f).num(W(f).player, 'maxHp'))
+  expect(Math.floor(W(f).hour()) % 24).toBe(6)
+  // a room is a thing one can name (found, not kept); a wall taken away, it is no room at all
+  expect(W(f).get(room()!.id)).toMatchObject({ type: 'region/room' })
+  author(f, () => W(f).destroy(W(f).placedAt('ford', x + 1, y).find((e) => e.type === 'structure/wall')!))
+  expect(room()).toBeUndefined()
+  expect(W(f).covered('ford', x, y)).toBe(true)
+})
+
+req('W11', 'rain falls only on what is out under the sky: in the room one stays dry; outside, one is soaked', [], () => {
+  const f = fresh()
+  const [x, y] = buildRoom(f)
+  const hen = author(f, () => W(f).create('actor/creature/animal/chicken', { on: 'tile', map: 'ford', x: x + 3, y }))
+  // the evening's rain (day 1, after the storm)
+  setHour(f, 1, 21)
+  expect(W(f).calendar().weather).toBe('rain')
+  ticks(f, 130, () => W(f).hasStatus({ e: hen.id }, 'wet'))
+  expect(W(f).hasStatus({ e: hen.id }, 'wet')).toBe(true)
+  expect(W(f).hasStatus({ e: W(f).player.id }, 'wet')).toBe(false)
+})
+
 req('W12', 'a second storey: walls, a floor laid over them (held up by them), stairs, and up one goes; break the wall and the floor comes down, and whoever stood on it falls', [], () => {
   const f = fresh()
   // an open stretch of the Ford, five cells across

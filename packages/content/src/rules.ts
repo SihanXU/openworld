@@ -99,9 +99,9 @@ const ROOTS: Rule[] = [
   rule({ id: 'core/offered', doc: 'Something offered with no answer of its own: undefined.', on: 'impulse/offered', tree: HOLE() }),
   rule({
     id: 'core/restore',
-    doc: 'Health or hunger given back.',
+    doc: 'Health or hunger given back; or a night\'s sleep (until it is time to rise, giving back as the room says).',
     on: 'impulse/restore',
-    tree: IF(param('which', 'hunger'), DO({ op: 'feed', amount: { param: 'amount' } }), DO({ op: 'heal', amount: { param: 'amount' } })),
+    tree: IF(param('which', 'sleep'), DO({ op: 'sleep' }), IF(param('which', 'hunger'), DO({ op: 'feed', amount: { param: 'amount' } }), DO({ op: 'heal', amount: { param: 'amount' } }))),
   }),
   rule({ id: 'core/notify', doc: 'News: noted, nothing changes, unless the host says.', on: 'impulse/notify', tree: NOTHING }),
   rule({
@@ -1155,7 +1155,8 @@ const WORLD_RULES: Rule[] = [
       IF(
         all(param('name', 'weather'), { weather: ['rain', 'storm'] }, { outdoors: true }),
         // rain is water without force: it wets and douses, it does not wound (a fire slime steams in it)
-        DO(emit('element', { map: true }, { element: 'water', power: 0 }, { filter: { type: 'actor' } }), emit('element', { map: true }, { element: 'water', power: 0 }, { filter: { status: ['burning'] } })),
+        // and falls only on what is out under the sky: under a roof one stays dry (world-model.md §5.3)
+        DO(emit('element', { map: true, sky: true }, { element: 'water', power: 0 }, { filter: { type: 'actor' } }), emit('element', { map: true, sky: true }, { element: 'water', power: 0 }, { filter: { status: ['burning'] } })),
         IF(
           all(param('name', 'storm'), { weather: ['storm'] }, { outdoors: true }),
           DO({ op: 'lightning', power: 4 }),
@@ -1286,6 +1287,13 @@ const JOURNEY: Rule[] = [
 // ------------------------------------------------------------------ building (world-model.md §6.6, §6.7)
 
 const BUILDING: Rule[] = [
+  rule({
+    id: 'bed/sleep',
+    doc: 'A bed, taken hold of: one lies down and sleeps until it is time to rise (a bed in a bedroom gives a full night\'s rest).',
+    host: { type: 'fixture/furniture/bed' },
+    on: 'impulse/handle',
+    tree: DO(log('You lie down.', '你躺了下来。'), emit('restore', 'actor', { which: 'sleep' })),
+  }),
   rule({
     id: 'build/stack',
     doc: 'Something put on a built thing goes on top of it: it comes to rest on the lowest storey with room for it there (a floor laid over a wall, a bed set on a floor).',

@@ -28,6 +28,7 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   addTag: 'addTag {tag}',
   removeTag: 'removeTag {tag}',
   hurt: 'hurt {amount, element?, pierce?, blow?} — the host loses health, or durability (hp; its defence applies unless pierce); at none, threshold/cross "broken". blow: a strike\'s — times how well the instrument (what struck, else the striker\'s own body) works on the host\'s material (the efficiency table), and nothing if the instrument is softer than it ("too hard")',
+  sleep: 'sleep — the host sleeps until it is time to rise (time passes at once for the one at the keys), and wakes with what it was missing given back as its room says (a bedroom: all; elsewhere: half)',
   fall: 'fall — with nothing under it on its storey, the host drops to the first floor below, struck by the drop beyond the safe height (the root of contact/end on)',
   breakdown: 'breakdown — the host breaks into what it is made of (its makeup × the world\'s recovery rate, in its material), what it holds spills out, and it is gone (the root outcome of broken for anything with a makeup)',
   heal: 'heal {amount}',
@@ -289,6 +290,18 @@ export class EffectRunner {
       case 'hurt':
         if (host) eng.hurt(host, this.amount(ev, eff.amount), eff.element, eff.pierce, ev, eff.blow)
         return
+      case 'sleep': {
+        // until it is time to rise; what a night gives back: as much as the best room it lies in says (a bedroom all)
+        if (!host) return
+        const params = w.onto.data.params
+        const at = w.posOf(host)
+        const rest = Math.max(params?.rest ?? 0.5, ...(at ? w.regionsAt(at.map, at.x, at.y, at.z).map((r) => w.num(r, 'rest', 0)) : []))
+        const missing = w.num(host, 'maxHp', 1) - w.num(host, 'hp', w.num(host, 'maxHp', 1))
+        if (missing > 0) eng.setProp(host, 'hp', w.num(host, 'hp') + Math.ceil(missing * Math.min(1, rest)), ev)
+        w.fx.push({ t: 'log', text: rest >= 1 ? { en: 'You sleep soundly, and wake rested.', zh: '你睡得很沉，醒来精神饱满。' } : { en: 'You sleep, after a fashion.', zh: '你勉强睡了一觉。' } })
+        if (host.id === w.state.player) eng.sleepUntil(params?.riseHour ?? 6)
+        return
+      }
       case 'fall': {
         // nothing under it on its storey: it drops to the first floor below, struck by the drop
         if (!host || host.place.on !== 'tile' || !host.place.z || w.occupant(host.place.map, host.place.x, host.place.y, 'floor', host.place.z)) return
@@ -585,7 +598,12 @@ export class EffectRunner {
     if ('map' in to) {
       const p = w.posOf(this.hostEntity(ev))
       const map = p?.map ?? eng.activeMap
-      return w.entitiesOnMap(map).filter((e) => !self({ e: e.id })).map((e) => ({ e: e.id }))
+      // the sky's: only what is out under it (world-model.md §5.3: rain does not fall under a roof)
+      const under = (e: Entity) => {
+        const at = w.posOf(e)
+        return !!at && !w.covered(at.map, at.x, at.y, at.z)
+      }
+      return w.entitiesOnMap(map).filter((e) => !self({ e: e.id }) && (!to.sky || under(e))).map((e) => ({ e: e.id }))
     }
     if ('area' in to) {
       const c = this.pos(ev, to.area.at ?? 'host')

@@ -1,10 +1,11 @@
 {
  "totals": {
-  "specific": 2693,
+  "specific": 2698,
   "generic": 9123,
-  "undefined": 26007
+  "undefined": 26002
  },
  "byRule": {
+  "bed/sleep": 5,
   "body/fireproof": 1,
   "build/dismantle-chest": 2,
   "build/dismantle-crate": 2,
@@ -65,7 +66,7 @@
   "wood/uproot": 1
  },
  "byHole": {
-  "core/handle": 639,
+  "core/handle": 634,
   "core/offered": 125,
   "core/strike": 2102,
   "core/taken": 122,
@@ -75,9 +76,9 @@
  },
  "byHand": {
   "(empty hand)": {
-   "specific": 52,
+   "specific": 54,
    "generic": 18,
-   "undefined": 378
+   "undefined": 376
   },
   "item/weapon/blade/sword": {
    "specific": 30,
@@ -200,9 +201,9 @@
    "undefined": 189
   },
   "item/tool/fishing_rod": {
-   "specific": 34,
+   "specific": 35,
    "generic": 73,
-   "undefined": 192
+   "undefined": 191
   },
   "item/tool/smith_hammer": {
    "specific": 32,
@@ -635,9 +636,9 @@
    "undefined": 218
   },
   "item/key": {
-   "specific": 15,
+   "specific": 16,
    "generic": 73,
-   "undefined": 211
+   "undefined": 210
   },
   "item/misc/bell": {
    "specific": 1,
@@ -675,9 +676,9 @@
    "undefined": 225
   },
   "item/misc/feather_quill": {
-   "specific": 30,
+   "specific": 31,
    "generic": 73,
-   "undefined": 196
+   "undefined": 195
   },
   "item/misc/ink": {
    "specific": 1,
@@ -802,9 +803,9 @@
    "undefined": 243
   },
   "fixture/furniture/bed": {
-   "specific": 10,
+   "specific": 15,
    "generic": 0,
-   "undefined": 243
+   "undefined": 238
   },
   "fixture/furniture/bench/log": {
    "specific": 11,
@@ -1507,7 +1508,6 @@
  ],
  "idleFixtures": [
   "fixture/furniture/chair",
-  "fixture/furniture/bed",
   "fixture/furniture/washing_line",
   "fixture/tent",
   "fixture/craft/cauldron",

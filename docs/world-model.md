@@ -310,6 +310,25 @@ becomes per cell); under eaves, a bridge or a tree one is dry.
   from enough containers; the requirements are data); the set of owners of what is in it.
 - **Recomputed** when an outcome changes what blocks, covers or occupies a cell, from that
   cell; the whole map on entering.
+
+As built (W5, after W6: what covers a cell stands on a storey above it): `World.covered(map, x, y, z)`
+is true where anything on a higher storey takes `floor` or `volume`, and everywhere on a map that is
+not out of doors. The condition `outdoors` is per cell (the host's), and an emission may say
+`{map: true, sky: true}`: only things out under the sky receive it (the rain rule uses it; under a
+floor laid over walls one stays dry, req W11). `World.roomsOf(map)` floods each storey: a room is a
+largest connected set of cells one can stand in, every one covered, that flooding cannot leave, no
+larger than `params.roomSize` (256). Rooms are `region/room` things, found and not kept (`room.<z>.<x>.<y>.<map>`;
+`World.get` resolves them; kept things come first); they are among the regions a cell is in, so
+entering and leaving one is the `in-region` relation like any named area. Their shapes are cached
+until a cell's spaces change (the whole map is flooded again, not from the cell); their roles are
+read from what is in them each time, from `Ontology.roomRoles` (data: a bed makes a bedroom with
+`rest` 1, cookware a kitchen, a crafting fixture a workshop, three containers a storeroom), with the
+props the roles give (the largest wins). A bed taken hold of (`bed/sleep`) sends the sleeper
+`restore {which: sleep}`; the new primitive `sleep` gives back the missing health times the best
+`rest` of the regions it lies in (`params.rest` 0.5 elsewhere) and, for the one at the keys, passes
+the time to `params.riseHour` (6) at once (the fast-forward, which harm interrupts: hunger goes on
+through the night, and a starving sleeper wakes, req W10). Not yet: the owners of what is in a room,
+and rooms on the overworld.
 - **Read-only**: rules may host on rooms and react (`contact in-region`, `threshold gain/lose`
   with the role), never write them.
 - Room quality (beauty, cleanliness) is later (D27).

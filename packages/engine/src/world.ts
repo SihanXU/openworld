@@ -21,6 +21,7 @@ import type {
   WorldState,
 } from './types.ts'
 import { DIRS } from './types.ts'
+import { matchSelector } from './rules.ts'
 
 export const tileKey = (map: string, x: number, y: number) => `${map}:${x}:${y}`
 /** A cell's key in the index: its tile, and its storey above the ground's. */
@@ -32,6 +33,12 @@ export const NO_EXPIRY = -1
 export const refKey = (r: Ref): string => r.e
 /** The other side's view of a relation (design.md §5.10). */
 export const REVERSE: Record<string, string> = { on: 'under', in: 'contains', held: 'holds', 'in-region': 'encloses' }
+
+/** Does a thing match a selector (a view of it, read as a rule would)? */
+const matches = (w: World, e: Entity, sel: Parameters<typeof matchSelector>[0]): boolean => {
+  const v = w.view({ e: e.id })
+  return !!v && matchSelector(sel, v)
+}
 
 /** The id of a map's authored region (world-model.md §5.4): a thing made from the map's named area. */
 export const regionId = (map: string, name: string): string => `region.${map}.${name}`
@@ -148,6 +155,10 @@ export class World {
   private layers = new Map<string, { data: MapData; layers: Layers }>()
   /** Each map's parts (from its data). */
   private parts = new Map<string, { data: MapData; parts: Int32Array }>()
+  /** Each map's rooms, as of a count of changes to what takes a cell's spaces. */
+  private rooms = new Map<string, { version: number; data: MapData; shapes: { z: number; cells: [number, number][] }[] }>()
+  /** Changes to what takes a cell's spaces (a wall built, a floor laid, a tree felled): rooms are found again after one. */
+  private cellsVersion = 0
   /** The static cell things asked for so far: built from the map's data, not state (world-model.md §4.6). */
   private statics = new Map<Id, Entity>()
   /** Things that currently carry statuses, by id. */
@@ -174,6 +185,7 @@ export class World {
   }
 
   private indexAdd(e: Entity): void {
+    if (e.place.on === 'tile' && this.spacesOf(e).some((s) => s !== 'body')) this.cellsVersion++
     if (e.place.on === 'area') {
       let a = this.areas.get(e.place.map)
       if (!a) this.areas.set(e.place.map, (a = new Set()))
@@ -194,6 +206,7 @@ export class World {
   }
 
   private indexRemove(e: Entity): void {
+    if (e.place.on === 'tile' && this.spacesOf(e).some((s) => s !== 'body')) this.cellsVersion++
     if (e.place.on === 'area') this.areas.get(e.place.map)?.delete(e.id)
     if (e.place.on !== 'tile') return
     for (const [x, y] of this.occupiedCells(e)) this.onTile.get(cellKey(e.place.map, x, y, e.place.z))?.delete(e.id)
@@ -224,6 +237,8 @@ export class World {
     if (!id) return undefined
     const e = this.state.entities[id]
     if (e) return e.place.on === 'none' && parseCellId(id) ? undefined : e
+    // a room: found, not kept (room.<z>.<x>.<y>.<map>; a map's id may hold dots)
+    if (id.startsWith('room.')) return this.roomsOf(id.split('.').slice(4).join('.')).find((r) => r.id === id)
     const c = parseCellId(id)
     return c && this.staticThing(c.map, c.x, c.y, c.space)
   }
@@ -345,13 +360,92 @@ export class World {
     return out
   }
 
-  /** The regions a cell lies in (world-model.md §5.4). */
-  regionsAt(map: string, x: number, y: number): Entity[] {
+  /**
+   * Is a cell covered (world-model.md §5.3)? Something above it on a higher storey takes its floor
+   * or its volume (a floor laid over, a roof); a map that is not out of doors (a cave, a house's
+   * inside) is covered everywhere.
+   */
+  covered(map: string, x: number, y: number, z = 0): boolean {
+    if ((this.state.maps[map]?.light ?? 'outdoor') !== 'outdoor') return true
+    const top = this.onto.data.params?.storeys ?? 4
+    for (let zz = z + 1; zz <= top; zz++) if (this.entitiesAt(map, x, y, zz).some((e) => this.spacesOf(e).some((s) => s === 'floor' || s === 'volume'))) return true
+    return false
+  }
+
+  /**
+   * A map's rooms (world-model.md §5.4, after Elin and RimWorld): each a largest connected set of
+   * cells one can stand in on a storey, every one covered, that flooding cannot leave (walls all
+   * round; no door is needed), no larger than the room size. Derived and read-only: things (regions)
+   * no rule writes, with the size and the roles what is in them gives. Recomputed when a cell's things change.
+   */
+  roomsOf(map: string): Entity[] {
+    const m = this.state.maps[map]
+    if (!m) return []
+    const hit = this.rooms.get(map)
+    // the shapes are kept until a cell's spaces change; the roles are read from what is in them each time
+    if (hit && hit.version === this.cellsVersion && hit.data === m) return hit.shapes.map((r) => this.room(map, r.z, r.cells))
+    const shapes: { z: number; cells: [number, number][] }[] = []
+    const top = this.onto.data.params?.storeys ?? 4
+    const limit = this.onto.data.params?.roomSize ?? 256
+    const stand = (x: number, y: number, z: number) => this.inBounds(map, x, y) && !!this.occupant(map, x, y, 'floor', z) && !this.solidAt(map, x, y, undefined, z)
+    for (let z = 0; z <= top; z++) {
+      const seen = new Set<number>()
+      for (let y0 = 0; y0 < m.height; y0++)
+        for (let x0 = 0; x0 < m.width; x0++) {
+          const i0 = y0 * m.width + x0
+          if (seen.has(i0) || !stand(x0, y0, z) || !this.covered(map, x0, y0, z)) continue
+          const cells: [number, number][] = []
+          let open = false
+          const queue: [number, number][] = [[x0, y0]]
+          seen.add(i0)
+          while (queue.length) {
+            const [x, y] = queue.pop()!
+            cells.push([x, y])
+            if (cells.length > limit) open = true
+            for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+              const nx = x + dx
+              const ny = y + dy
+              if (!this.inBounds(map, nx, ny)) { open = true; continue }
+              const j = ny * m.width + nx
+              if (seen.has(j) || !stand(nx, ny, z)) continue
+              if (!this.covered(map, nx, ny, z)) { open = true; continue }
+              seen.add(j)
+              queue.push([nx, ny])
+            }
+          }
+          if (open) continue
+          shapes.push({ z, cells })
+        }
+    }
+    this.rooms.set(map, { version: this.cellsVersion, data: m, shapes })
+    return shapes.map((r) => this.room(map, r.z, r.cells))
+  }
+
+  /** A room as a thing: an area of its cells, its size, its roles (what is in it says). */
+  private room(map: string, z: number, cells: [number, number][]): Entity {
+    const [x0, y0] = cells.reduce(([ax, ay], [x, y]) => [Math.min(ax, x), Math.min(ay, y)], [Infinity, Infinity])
+    const tags: string[] = []
+    const props: Record<string, PropValue> = { size: cells.length }
+    const inside = cells.flatMap(([x, y]) => this.placedAt(map, x, y, z))
+    for (const r of this.onto.data.roomRoles ?? []) {
+      const n = inside.filter((e) => matches(this, e, r.needs)).length
+      if (n < (r.count ?? 1)) continue
+      tags.push(`role:${r.role}`)
+      for (const [k, v] of Object.entries(r.props ?? {})) if (typeof v !== 'number' || typeof props[k] !== 'number' || v > (props[k] as number)) props[k] = v
+    }
+    return { id: `room.${z}.${x0}.${y0}.${map}`, type: 'region/room', tags, props, place: { on: 'area', map, rects: cells.map(([x, y]) => [x, y, 1, 1] as [number, number, number, number]), ...(z && { z }) } as Place }
+  }
+
+  /** The regions a cell lies in (world-model.md §5.4).
+   * The authored ones (a map's named areas) and the rooms a cell on storey z is in. */
+  regionsAt(map: string, x: number, y: number, z = 0): Entity[] {
     const out: Entity[] = []
     for (const id of this.areas.get(map) ?? []) {
       const r = this.state.entities[id]
       if (r?.place.on === 'area' && r.place.rects.some(([rx, ry, rw, rh]) => x >= rx && y >= ry && x < rx + rw && y < ry + rh)) out.push(r)
     }
+    for (const r of this.roomsOf(map))
+      if (r.place.on === 'area' && (r.place.z ?? 0) === z && r.place.rects.some(([rx, ry]) => rx === x && ry === y)) out.push(r)
     return out
   }
 
@@ -689,7 +783,7 @@ export class World {
     }
     // held up: by what holds it within its reach on the storey below (a floor laid over walls)
     for (const s of this.supportersOf(e)) out.push(`support|${s.id}`)
-    for (const r of this.regionsAt(p.map, p.x, p.y)) out.push(`in-region|${r.id}`)
+    for (const r of this.regionsAt(p.map, p.x, p.y, p.z)) out.push(`in-region|${r.id}`)
     return out
   }
 
@@ -806,6 +900,7 @@ export class World {
   /** Change an entity's type, re-indexing the cells it covers (a new type may have another footprint). */
   transform(e: Entity, type: string): void {
     this.guard('transform', e)
+    this.cellsVersion++
     this.indexRemove(e)
     e.type = type
     this.indexAdd(e)

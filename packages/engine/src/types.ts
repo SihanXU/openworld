@@ -120,6 +120,11 @@ export interface WorldParams {
   rainCost?: number
   /** How many storeys may stand above the ground (world-model.md §5.2). */
   storeys?: number
+  /** The largest a room may be, in cells: larger is out of doors (world-model.md §5.4). */
+  roomSize?: number
+  /** The hour one rises; and how much of what is missing a night's sleep gives back outside a room that says more. */
+  riseHour?: number
+  rest?: number
 }
 
 /** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */
@@ -186,6 +191,12 @@ export interface Ontology {
   efficiency?: Record<string, Record<string, number>>
   /** The world parameters. */
   params?: WorldParams
+  /**
+   * What makes a room what it is (world-model.md §5.4, RimWorld's roles, as tags): a room with
+   * `count` things matching `needs` in it has the tag `role:<role>`, and the role's props (a
+   * bedroom's `rest`: how much a night's sleep there gives back).
+   */
+  roomRoles?: { role: string; needs: Selector; count?: number; props?: Record<string, PropValue> }[]
   /** Clocks that make `time/period` events for the hosts they name. */
   periods?: PeriodDef[]
 }
@@ -230,7 +241,7 @@ export type Place =
   | { on: 'inside'; holder: Id } // in a container's contents or an actor's inventory
   | { on: 'hand'; holder: Id } // the actor's single held-item slot
   | { on: 'resident' } // a host on no map: the world, the story (design.md §5.5)
-  | { on: 'area'; map: string; rects: [number, number, number, number][] } // a region: the cells it spans, as rectangles (world-model.md §5.4)
+  | { on: 'area'; map: string; rects: [number, number, number, number][]; z?: number } // a region: the cells it spans, as rectangles, on a storey (world-model.md §5.4)
   | { on: 'none' }
 
 export interface Entity {
@@ -859,8 +870,8 @@ export type EmitTo =
   | { named: Id }
   | { area: { at?: RoleRef; radius: number } }
   | { line: { from?: RoleRef; away: RoleRef; length: number; over?: string[] } }
-  /** Everything on the host's map (the world's weather). */
-  | { map: true }
+  /** Everything on the host's map (the world's weather); `sky`: only what is out under it (world-model.md §5.3). */
+  | { map: true; sky?: boolean }
 
 /**
  * The effect primitives. Every one writes only the host (design.md §5.6: read anything, write only
@@ -883,6 +894,8 @@ export type Effect =
   | { op: 'breakdown' }
   /** With nothing under it on its storey, the host drops to the first floor below (and is struck by the drop). */
   | { op: 'fall' }
+  /** The host sleeps until it is time to rise (time passes at once for the one at the keys); it wakes with health back as its room gives (a bedroom's `rest`). */
+  | { op: 'sleep' }
   | { op: 'heal'; amount: Amount }
   | { op: 'feed'; amount: Amount }
   | { op: 'gainXp'; amount: Amount }
