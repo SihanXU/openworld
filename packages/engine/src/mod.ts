@@ -189,15 +189,16 @@ const EVENTS: Record<string, string> = {
   'act/hands': 'an actor touches, opens, talks to the target bare-handed (host: the actor). The root emits `handle` to the target.',
   'act/move': 'an actor steps (param dir) or goes to a place (params map, x, y); the root moves it.',
   'act/craft': 'an actor crafts the recipe of param recipe from what it carries.',
+  'act/learn': 'an actor learns what it names: param skill (spending skill points) or param profession (at a trainer).',
   'impulse/*': 'something was done to the host by another (source = the emitter; actor = whose act started it; instrument; item). See `impulses` for each kind and its params.',
   'contact/begin|stay|end': 'the host and other start, keep, or stop touching. Param how, from the host\'s side: on (I stand on other), under (other stands on me), in (I am inside other), contains (other is inside me), held (I am in other\'s hand), holds (other is in my hand). Only where a stance (ground, air, water) meets a reach: a flyer never touches lava.',
   bump: 'the host and other collided: a step into something solid (param dir).',
-  'time/period': 'a clock ticked for the host: param status (every 0.5 s while it has that status) or name (a declared period: hunger, vitals, forage, weather, storm).',
-  'time/timer': 'a status ran out on the host (param status).',
+  'time/period': 'a clock ticked for the host: param status (every 0.5 s while it has that status, or at the pace the status sets; actor: who gave it) or name (a declared period: hunger, vitals, forage, weather, storm, night, dawn).',
+  'time/timer': 'a status ran out on the host (param status; actor: who gave it).',
   'threshold/gain|lose': 'the host gained or lost a status (param status).',
   'threshold/cross': 'a prop of the host came to a declared line (param name: defeated at hp 0, starving at hunger 0; param prop).',
-  seen: 'the host (an actor) saw someone act: roles actor (the doer), target, instrument; params act (the verb), owner (mine | another | nobody: whose the target was before), defined.',
-  stuck: 'the host (a person) cannot go on with their day: param activity; target is what it needs (gone, or not as it must be), or the spot they cannot reach.',
+  seen: 'the host (an actor) saw someone act: roles actor (the doer), target, instrument; params act (the verb), owner (mine | another | nobody: whose the target was before), defined (the world had an answer for the act and all it set going).',
+  stuck: 'the host cannot go on with what it does (param activity): the day of a person — target is what it needs (gone, or not as it must be), or the spot they cannot reach; a companion that cannot follow (activity follow) — target is its leader.',
   broken: 'the story: content it must keep playable broke (param invariant; target the person it belongs to). The default is the invariant\'s fallback.',
 }
 
@@ -724,6 +725,8 @@ function detailOf(eng: Engine, ev: GameEvent): string | undefined {
   if (ev.kind === 'stuck') {
     const p = 'e' in ev.host ? w.get(ev.host.e) : undefined
     const s = p?.npc?.person?.schedules?.flatMap((v) => v.entries).find((x) => x.activity === ev.params?.activity)
+    // behaviour that is not a day (a companion following): what holds the host back is its own state
+    if (!s) return `${n(ev.host)} cannot go on with "${ev.params?.activity}" (${n(ev.roles.target)}): it is ${Object.keys(p?.statuses ?? {}).join(', ') || 'held fast'}`
     return `${n(ev.host)} wants to "${ev.params?.activity}" but ${ev.roles.target && 'tile' in ev.roles.target ? 'cannot reach the spot' : `${n(ev.roles.target)} is not as it must be${s?.need ? ` (${JSON.stringify(s.need)})` : ''}`}`
   }
   return undefined

@@ -18,7 +18,7 @@ function atBram(eng: Engine, level: number, points = 0): Entity {
   const w = eng.world
   const bram = w.get('npc.bram')!
   const at = w.posOf(bram)!
-  eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 })
+  eng.author(() => eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 }))
   Object.assign((w.player.props ??= {}), { level, skillPoints: points })
   return bram
 }
@@ -26,7 +26,7 @@ function atBram(eng: Engine, level: number, points = 0): Entity {
 /** How many of a type the player carries, in hand or bag. */
 const carries = (eng: Engine, type: string) => [eng.world.player.held, ...(eng.world.player.contents ?? [])].filter((id) => eng.world.get(id)?.type === type).length
 const learnAll = (eng: Engine, ids: string[]) => ids.forEach((id) => expect(eng.controls.learn(SKILL_BY_ID[id]), id).toBe(true))
-const weapon = (eng: Engine, type: string, props: Record<string, number | string> = {}) => eng.world.create(type, { on: 'hand', holder: eng.world.state.player }, { props: { power: 3, ...props } })
+const weapon = (eng: Engine, type: string, props: Record<string, number | string> = {}) => eng.author(() => eng.world.create(type, { on: 'hand', holder: eng.world.state.player }, { props: { power: 3, ...props } }))
 
 describe('professions', () => {
   it('none at the start: no profession skill can be learned', () => {
@@ -58,7 +58,7 @@ describe('professions', () => {
     const w = eng.world
     atBram(eng, PROFESSION_LEVEL - 1)
     expect(eng.controls.takeProfession(PROFESSION_BY_ID.warrior, SKILLS)).toBe('level')
-    eng.teleport(w.player, { map: 'ford', x: 14, y: 17 })
+    eng.author(() => eng.teleport(w.player, { map: 'ford', x: 14, y: 17 }))
     w.player.props!.level = PROFESSION_LEVEL
     expect(eng.controls.takeProfession(PROFESSION_BY_ID.warrior, SKILLS)).toBe('trainer')
     atBram(eng, PROFESSION_LEVEL)
@@ -98,7 +98,7 @@ describe('the new trees', () => {
     eng.controls.takeProfession(PROFESSION_BY_ID[profession], SKILLS)
     learnAll(eng, skills)
     const pos = w.posOf(w.player)!
-    const slime = w.create('actor/creature/slime/green_slime', { on: 'tile', map: pos.map, x: pos.x + 1, y: pos.y }, { props: { hp: 50, maxHp: 50 } })
+    const slime = w.author(() => w.create('actor/creature/slime/green_slime', { on: 'tile', map: pos.map, x: pos.x + 1, y: pos.y }, { props: { hp: 50, maxHp: 50 } }))
     return { eng, w, p: w.player, slime }
   }
   const power = (f: ReturnType<typeof fighter>, held: Entity, range = 1) => combatStrike(f.w, f.p, f.slime, 3, range, held, true).power
@@ -108,7 +108,7 @@ describe('the new trees', () => {
     const mace = weapon(f.eng, 'item/weapon/blunt/mace')
     f.p.held = mace.id
     expect(power(f, mace)).toBe(4)
-    expect(combatDamage(f.w, f.p, 10, f.slime, false)).toBe(9) // −15% (and retaliation is now ready)
+    expect(f.eng.author(() => combatDamage(f.eng, f.p, 10, f.slime, false))).toBe(9) // −15% (and retaliation is now ready)
     expect(power(f, mace)).toBeCloseTo(4 * 1.4)
   })
 
@@ -118,7 +118,7 @@ describe('the new trees', () => {
     expect(rangeBonus(f.w, f.p, bow)).toBe(1)
     f.w.state.tick += 20 // stood still a while
     const pos = f.w.posOf(f.p)!
-    f.w.place(f.slime, { on: 'tile', map: pos.map, x: pos.x + 4, y: pos.y })
+    f.w.author(() => f.w.place(f.slime, { on: 'tile', map: pos.map, x: pos.x + 4, y: pos.y }))
     expect(power(f, bow, 7)).toBeCloseTo(4 * (1 + 0.3 + 0.25))
   })
 
@@ -134,7 +134,7 @@ describe('the new trees', () => {
     const wand = weapon(f.eng, 'item/weapon/magic/wand', { range: 5, element: 'fire' })
     f.p.held = wand.id
     expect(power(f, wand, 5)).toBeCloseTo(4 * 1.25)
-    expect(combatDamage(f.w, f.p, 10, f.slime, false)).toBe(8)
+    expect(f.eng.author(() => combatDamage(f.eng, f.p, 10, f.slime, false))).toBe(8)
     expect(rangeBonus(f.w, f.p, wand)).toBe(0)
   })
 })

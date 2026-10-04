@@ -27,16 +27,16 @@ function legacy(visited = true, fordVisited = true) {
   if (fordVisited) game.loadChunk({ ...oldFord, entities: [...ford.entities, ...goods] })
   if (visited) game.loadChunk({ ...village, entities: village.entities.filter((e) => !e.id.startsWith('village.') && !garden(e) && !['ford.cart', 'tobin.wand', 'tobin.oil'].includes(e.id)) })
   const tobin = w.get('npc.tobin')!
-  w.place(tobin, { on: 'tile', map: 'ford', x: 20, y: 15 })
+  w.author(() => w.place(tobin, { on: 'tile', map: 'ford', x: 20, y: 15 }))
   tobin.npc!.schedule = [{ from: 0, to: 24, map: 'ford', x: 20, y: 15, activity: 'mind the cart' }]
   tobin.npc!.person!.schedules = [{ key: 'default', entries: structuredClone(tobin.npc!.schedule) }]
   w.state.tick = tickAt(1, 13)
-  w.place(w.player, { on: 'tile', map: 'ford', x: 14, y: 17 })
+  w.author(() => w.place(w.player, { on: 'tile', map: 'ford', x: 14, y: 17 }))
   Object.assign(w.player.props!, { prologue: PROLOGUE_DONE, quest: 4, xp: 42 })
-  w.setFact('seen.arrival', true)
-  w.setFact('mq.smith', 3)
+  w.author(() => w.setFact('seen.arrival', true))
+  w.author(() => w.setFact('mq.smith', 3))
   const resume = () => Game.load(structuredClone(game.save()), index, buildOntology(), lib())
-  const migrate = (saved: Game) => migrateFirstlight(saved, index, ford, village)
+  const migrate = (saved: Game) => saved.engine.author(() => migrateFirstlight(saved, index, ford, village))
   return { game, w, resume, migrate, ford, village }
 }
 
@@ -46,13 +46,13 @@ describe('Firstlight Village save compatibility', () => {
     const crate = f.w.get('ford.garden.supplies')!
     const before = [...crate.contents!]
     const tool = f.w.get(before[8])!
-    f.w.place(tool, { on: 'inside', holder: 'player' })
+    f.w.author(() => f.w.place(tool, { on: 'inside', holder: 'player' }))
     const wand = f.w.get('legacy.wand')!
-    f.w.place(wand, { on: 'hand', holder: 'player' })
-    f.w.destroy(f.w.get('ford.garden.carrot.ripe')!)
-    f.w.setStatus({ e: 'ford.garden.turnip.sprout' }, 'watered', f.w.state.tick + 600)
-    f.w.setTerrain('ford', 17, 12, 'farmland')
-    f.w.setTerrain('ford', 4, 19, 'farmland') // A user-made plot must not be removed.
+    f.w.author(() => f.w.place(wand, { on: 'hand', holder: 'player' }))
+    f.w.author(() => f.w.destroy(f.w.get('ford.garden.carrot.ripe')!))
+    f.w.author(() => f.w.setStatus({ e: 'ford.garden.turnip.sprout' }, 'watered', f.w.state.tick + 600))
+    f.w.author(() => f.w.setTerrain('ford', 17, 12, 'farmland'))
+    f.w.author(() => f.w.setTerrain('ford', 4, 19, 'farmland')) // A user-made plot must not be removed.
     f.w.state.memory = { 'npc.tobin': { talked: 1, said: ['greeting:first'] } }
     const saved = f.resume()
     f.migrate(saved)
@@ -85,9 +85,9 @@ describe('Firstlight Village save compatibility', () => {
 
   it('preserves a partially repaired bridge, and relocates a player covered by the wider river', () => {
     const f = legacy()
-    f.w.setTerrain('ford', 29, 22, 'bridge')
-    f.w.setTerrain('ford', 30, 22, 'bridge')
-    f.w.place(f.w.player, { on: 'tile', map: 'ford', x: 33, y: 13 })
+    f.w.author(() => f.w.setTerrain('ford', 29, 22, 'bridge'))
+    f.w.author(() => f.w.setTerrain('ford', 30, 22, 'bridge'))
+    f.w.author(() => f.w.place(f.w.player, { on: 'tile', map: 'ford', x: 33, y: 13 }))
     const saved = f.resume()
     f.migrate(saved)
     const w = saved.engine.world
@@ -99,8 +99,8 @@ describe('Firstlight Village save compatibility', () => {
 
   it('does not respawn a destroyed cart, empty garden or taken supply crate', () => {
     const f = legacy(false)
-    f.w.destroy(f.w.get('ford.cart')!)
-    for (const e of Object.values(f.w.state.entities)) if (garden(e)) f.w.destroy(e)
+    f.w.author(() => f.w.destroy(f.w.get('ford.cart')!))
+    for (const e of Object.values(f.w.state.entities)) if (garden(e)) f.w.author(() => f.w.destroy(e))
     const saved = f.resume()
     f.migrate(saved)
     expect(saved.engine.world.get('ford.cart')).toBeUndefined()
@@ -119,8 +119,8 @@ describe('Firstlight Village save compatibility', () => {
 
   it('keeps new builds and inventory when house walls replace open grass', () => {
     const f = legacy()
-    const crate = f.w.create('fixture/container/crate', { on: 'tile', map: FIRSTLIGHT.map, x: 8, y: 5 })
-    const ore = f.w.create('item/material/stone', { on: 'inside', holder: crate.id })
+    const crate = f.w.author(() => f.w.create('fixture/container/crate', { on: 'tile', map: FIRSTLIGHT.map, x: 8, y: 5 }))
+    const ore = f.w.author(() => f.w.create('item/material/stone', { on: 'inside', holder: crate.id }))
     const saved = f.resume()
     f.migrate(saved)
     const w = saved.engine.world

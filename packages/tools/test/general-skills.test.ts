@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Engine, RuleLibrary, buildSandbox, combatDamage, combatDelay, combatStrike, combatTick, dash, finishCombatStrike, type Entity, type Scenario } from '@lsw/engine'
+import { Engine, RuleLibrary, buildSandbox, combatDamage, combatDelay, combatStrike, dash, finishCombatStrike, type Entity, type Scenario } from '@lsw/engine'
 import { BASE_RULES, SKILLS, buildOntology } from '@lsw/content'
 
 // The general combat branches, deeper (docs/skill-tree.md): swiftness (dodge, the dash and what
@@ -28,6 +28,8 @@ function arena(skills: string[] = [], extra: Scenario['entities'] = []): { eng: 
   return { eng, p, foe }
 }
 const at = (eng: Engine, e: Entity) => eng.world.posOf(e)!
+/** What a blow of n does to e, in e's own outcome (`hurt` runs it). */
+const struck = (eng: Engine, e: Entity, n: number, by: Entity, pierce: boolean) => eng.author(() => combatDamage(eng, e, n, by, pierce))
 
 describe('the general branches', () => {
   it('each holds a second capstone that needs both new arms, costs two points, and ends the branch', () => {
@@ -46,17 +48,17 @@ describe('swiftness', () => {
     const { eng, p, foe } = arena()
     p.props!.dodge = 0.9
     let missed = 0
-    for (let i = 0; i < 400; i++) if (combatDamage(eng.world, p, 5, foe, false) === 0) missed++
+    for (let i = 0; i < 400; i++) if (struck(eng, p, 5, foe, false) === 0) missed++
     expect(missed / 400).toBeGreaterThan(0.4)
     expect(missed / 400).toBeLessThan(0.6)
     // piercing harm (hunger, fire) is never dodged
-    expect(combatDamage(eng.world, p, 5, foe, true)).toBe(5)
+    expect(struck(eng, p, 5, foe, true)).toBe(5)
   })
 
   it('dodge: no roll at all for those without it (the world\'s dice stay as they were)', () => {
     const { eng, p, foe } = arena()
     const rng = eng.world.state.rng
-    combatDamage(eng.world, p, 5, foe, false)
+    struck(eng, p, 5, foe, false)
     expect(eng.world.state.rng).toBe(rng)
   })
 
@@ -64,7 +66,7 @@ describe('swiftness', () => {
     const { eng, p } = arena(['dash'])
     expect(dash(eng, p)).toBe(true)
     expect(at(eng, p).x).toBe(2) // the slime at x=3 stops it
-    eng.world.place(eng.world.get('foe')!, { on: 'tile', map: at(eng, p).map, x: 10, y: 0 })
+    eng.world.author(() => eng.world.place(eng.world.get('foe')!, { on: 'tile', map: at(eng, p).map, x: 10, y: 0 }))
     expect(dash(eng, p)).toBe(false) // cooling down
     for (let i = 0; i < 40; i++) eng.tick()
     expect(dash(eng, p)).toBe(true)
@@ -76,10 +78,10 @@ describe('swiftness', () => {
     const slow = combatDelay(eng.world, p, 10, 'move')
     expect(dash(eng, p)).toBe(true)
     expect(at(eng, p).x).toBe(5) // through the slime, four tiles
-    expect(combatDamage(eng.world, p, 9, foe, false)).toBe(0)
+    expect(struck(eng, p, 9, foe, false)).toBe(0)
     expect(combatDelay(eng.world, p, 10, 'move')).toBeLessThan(slow)
     for (let i = 0; i < 25; i++) eng.tick()
-    expect(combatDamage(eng.world, p, 9, foe, false)).toBe(9)
+    expect(struck(eng, p, 9, foe, false)).toBe(9)
     p.facing = 'left'
     expect(dash(eng, p)).toBe(true) // 2.5 s cooldown
   })
@@ -135,12 +137,15 @@ describe('damage', () => {
     foe.props!.def = 5
     p.props!.critChance = 1
     eng.attack(p, { e: foe.id }) // out of reach: place it beside first
-    eng.world.place(foe, { on: 'tile', map: at(eng, p).map, x: 2, y: 1 })
+    eng.world.author(() => eng.world.place(foe, { on: 'tile', map: at(eng, p).map, x: 2, y: 1 }))
     eng.attack(p, { e: foe.id })
-    expect(foe.combat?.bleedUntil).toBeGreaterThan(eng.world.state.tick)
+    // the wound is the target's own status, opened in the striker's name
+    expect(eng.world.hasStatus({ e: foe.id }, 'bleeding')).toBe(true)
+    expect(eng.world.statusBy({ e: foe.id }, 'bleeding')).toBe(p.id)
     const hp = eng.world.num(foe, 'hp')
-    for (let i = 0; i < 60; i++) combatTick(eng, at(eng, foe).map), (eng.world.state.tick += 1)
+    for (let i = 0; i < 60; i++) eng.tick()
     expect(hp - eng.world.num(foe, 'hp')).toBe(4)
+    expect(eng.world.hasStatus({ e: foe.id }, 'bleeding')).toBe(false)
   })
 })
 
@@ -158,7 +163,7 @@ describe('survival', () => {
     for (const [skills, fill] of [[[], 5], [['hearty-meals'], 7.5]] as const) {
       const { eng, p } = arena([...skills])
       p.props!.hunger = 2
-      const bread = eng.world.create('item/food/bread', { on: 'hand', holder: p.id })
+      const bread = eng.world.author(() => eng.world.create('item/food/bread', { on: 'hand', holder: p.id }))
       p.held = bread.id
       eng.interact('interact', p.id, { e: p.id }, { instrument: { e: bread.id } })
       expect(eng.world.num(p, 'hunger')).toBe(2 + Math.round(fill))
@@ -182,7 +187,7 @@ describe('survival', () => {
     const { eng, p } = arena(['phoenix'])
     eng.damage(p, 999, undefined, true)
     expect(eng.world.num(p, 'hp')).toBe(12)
-    expect(combatDamage(eng.world, p, 50, eng.world.get('foe')!, false)).toBe(0) // untouchable a moment
+    expect(struck(eng, p, 50, eng.world.get('foe')!, false)).toBe(0) // untouchable a moment
     for (let i = 0; i < 31; i++) eng.tick()
     eng.damage(p, 999, undefined, true)
     expect(eng.world.num(p, 'hp')).toBeLessThanOrEqual(0)

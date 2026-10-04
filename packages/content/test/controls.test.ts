@@ -10,7 +10,6 @@ function world(held: string | undefined, others: ScenarioEntity[], terrain?: str
   const entities: ScenarioEntity[] = [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2, props: {} }, ...others]
   if (held) entities.push({ key: 'held', type: held, x: 2, y: 2, heldBy: 'actor' })
   const eng = buildSandbox({ entities, event: {}, terrain }, onto, lib())
-  eng.world.strict = true
   eng.world.player.facing = 'up'
   eng.controls.sync()
   return eng
@@ -140,8 +139,8 @@ describe('the four inputs: one verb each', () => {
   it('stepping onto a tile is contact: no change unless the tile says (nothing asked); a burning tile burns who steps on it', () => {
     const eng = world(undefined, [])
     const port = new ModPort(eng)
-    eng.applyStatus({ tile: { map: 'sandbox', x: 2, y: 1 } }, 'oiled')
-    eng.applyStatus({ tile: { map: 'sandbox', x: 2, y: 0 } }, 'burning', 999)
+    eng.author(() => eng.applyStatus({ tile: { map: 'sandbox', x: 2, y: 1 } }, 'oiled'))
+    eng.author(() => eng.applyStatus({ tile: { map: 'sandbox', x: 2, y: 0 } }, 'burning', 999))
     eng.trace = []
     eng.world.player.facing = 'up'
     expect(eng.step(eng.world.player, 'up')).toBe(true)
@@ -317,7 +316,7 @@ describe('hunger', () => {
     expect(p.props!.hunger).toBe(20)
     expect(p.props!.hp).toBe(30)
     // a healing herb is medicine: it heals as well
-    const herb = eng.world.write(() => eng.world.create('item/material/herb', { on: 'inside', holder: p.id }))
+    const herb = eng.author(() => eng.world.create('item/material/herb', { on: 'inside', holder: p.id }))
     eng.act('use', p.id, { e: p.id }, { instrument: { e: herb.id } })
     expect(p.props!.hp).toBe(34)
     // well fed: hurt health comes back slowly

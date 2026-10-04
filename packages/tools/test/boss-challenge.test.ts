@@ -26,7 +26,7 @@ describe('isolated profession boss challenges', () => {
     if (id === 'mage') expect(w.prop(weapon, 'element')).toBe('fire')
     // Each real loadout can hurt a multi-cell body through the normal attack path.
     const boss = w.get(FIRST_BOSS.id)!
-    w.place(p, { on: 'tile', map: FIRST_BOSS.map, x: 23, y: 16 })
+    w.author(() => w.place(p, { on: 'tile', map: FIRST_BOSS.map, x: 23, y: 16 }))
     p.facing = 'up'
     game.engine.playerAttack()
     expect(w.num(boss, 'hp')).toBeLessThan(BOSS_BY_ID.greed.hp)

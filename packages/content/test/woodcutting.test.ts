@@ -25,7 +25,6 @@ function grove(row: string[], held: string): Engine {
     new RuleLibrary(BASE_RULES),
   )
   eng.world.get('actor')!.facing = 'up'
-  eng.world.strict = true
   return eng
 }
 
@@ -97,9 +96,9 @@ describe('woodcutting', () => {
     }
     expect([0, 1, 2, 3, 4].map((x) => terrain(eng, x))).toEqual(Array(5).fill('stump'))
     // the axe for a shovel
-    eng.world.write(() => {
-      eng.world.destroy(eng.world.get('held')!)
-      eng.world.create('item/tool/shovel', { on: 'hand', holder: 'actor' })
+    eng.author(() => {
+      eng.world.author(() => eng.world.destroy(eng.world.get('held')!))
+      eng.world.author(() => eng.world.create('item/tool/shovel', { on: 'hand', holder: 'actor' }))
     })
     eng.controls.sync()
     standAt(eng, 1)

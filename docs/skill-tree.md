@@ -314,6 +314,20 @@ two-point capstone that needs both of them (the last node of the branch). Icons 
 Mechanics: `dodge` (capped at 50%; rolled only by those who have it, so the world's dice are
 unchanged for others) and the untouchable moment (`combat.guardUntil`) live in
 `combat.ts` `combatDamage`; a dodged blow does nothing (`Engine.damage`). Critical damage is
-`(Deadly Focus ? 2 : 1.5) + critDamage`. Bleeding and Adrenaline's healing tick in
-`combatTick`; the dash is `combat.ts` `dash` (any actor; the player's Q). Phoenix is checked in
-`Engine.damage`, so it covers piercing and environmental harm too.
+`(Deadly Focus ? 2 : 1.5) + critDamage`. Phoenix is checked in the struck one's own `hurt`, so it
+covers piercing and environmental harm too.
+
+Where each talent acts (design.md §5.13: every change is an outcome, and an outcome writes only
+its host). What a talent does to the striker's blow is computed by the striker's act-making
+(`combatStrike`) and carried by the act: its power, a critical, a bleed it opens (Hemorrhage:
+`bleed`), health it draws back (the Warlord's answer: `drain`). The weapons' rules pass `bleed` and
+`drain` on to the strike; the struck one's `hurt` opens the wound — the status `bleeding`, given
+in the striker's name, which pulses once a second (`body/bleed`), so a creature that bleeds out
+was felled by them — and sends the drained health back as a `restore` the striker answers.
+Adrenaline is the status `adrenaline` the struck one takes in its own `hurt` (`body/adrenaline`
+mends 1 a second). Arcane and Shadow Recovery are the striker's own rule on the defeat's notice
+(`combat/learn`: the defeat carries the instrument of the last blow). The dash is an act of moving
+(`combat.ts` `dash`, any actor; the player's Q). Combos, chains, marks and the windows a talent
+opens are the actor's memory of its own blows (`Entity.combat`), written only by itself.
+Learning a skill and taking up a profession are acts (`learn`, design.md §5.14): the skill tree
+and the trainer's panel make them, the actor's outcome spends the points and grants.

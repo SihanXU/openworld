@@ -48,6 +48,16 @@ export function baseCovers(ex: number, ey: number, [w, d]: [number, number], x: 
 /** How many recent lines a request carries as context. */
 export const RECENT_LINES = 6
 
+/**
+ * The right to change the world: whoever holds it runs `f` as a change of state — as the outcome
+ * of `host` (it writes only that host, design.md §5.13, A3), or with no host (the clock, loading,
+ * the input's posture, the author).
+ */
+export type Writer = <T>(f: () => T, host?: Ref) => T
+
+/** A change of state outside an outcome (A2), or beyond its host (A3): a bug in the code, never a rule's failure. */
+export class WriteError extends Error {}
+
 export class World {
   state: WorldState
   onto: OntologyIndex
@@ -56,22 +66,61 @@ export class World {
   /** The last lines logged or said, kept past the drain of `fx` (a request's recent context). */
   recent: Text[] = []
   /**
-   * Who may change the state now (design.md §5.13, A2): outcomes, the clock, loading, and the
-   * actor's own posture (what is in the hand, which way it faces). Anything else throws.
+   * The state changes only through its one writer (design.md §5.13, A2). The engine claims it
+   * when it is made and lends it to outcomes (the effect runner), the clock (a status running
+   * out), loading, and the input's own posture (what is in the hand). No other code holds it, so a
+   * change anywhere else throws — always, not only in tests.
    */
   private writers = 0
-  write<T>(f: () => T): T {
-    this.writers++
-    try {
-      return f()
-    } finally {
-      this.writers--
+  private granted = false
+  /**
+   * The host of the outcome being run (design.md §5.13, A3): its writes reach only the host, what
+   * the host holds, and what the outcome makes; the world's facts only when the host is the story
+   * or the world. None while the clock, loading, the input's posture or the author write.
+   */
+  private scope: { host: Ref; made: Set<Id> } | undefined
+  grant(): Writer {
+    if (this.granted) throw new Error("the world's writer is already held (design.md §5.13, A2)")
+    this.granted = true
+    return <T>(f: () => T, host?: Ref): T => {
+      const outer = this.scope
+      this.writers++
+      this.scope = host ? { host, made: new Set() } : undefined
+      try {
+        return f()
+      } finally {
+        this.writers--
+        this.scope = outer
+      }
     }
   }
-  /** Strict mode (tests): a change outside an outcome, the clock or loading is a bug. */
-  strict = false
-  private guard(what: string): void {
-    if (this.strict && this.writers <= 0) throw new Error(`${what} outside an outcome (design.md §5.13, A2)`)
+  private guard(what: string, target?: Entity | Ref | 'fact'): void {
+    if (this.writers <= 0) throw new WriteError(`${what} outside an outcome (design.md §5.13, A2)`)
+    const s = this.scope
+    if (!s || target === undefined || this.reaches(s, target)) return
+    const name = (r: Ref) => ('e' in r ? r.e : `${r.tile.map}:${r.tile.x},${r.tile.y}`)
+    const of = target === 'fact' ? 'a fact' : name('id' in target ? { e: target.id } : target)
+    throw new WriteError(`${what} of ${of} in an outcome of ${name(s.host)}: an outcome writes only its host (design.md §5.13, A3)`)
+  }
+  /** Whether an outcome of `s.host` may write `target`: itself, what it holds, what it made; facts if it is a resident. */
+  private reaches(s: { host: Ref; made: Set<Id> }, target: Entity | Ref | 'fact'): boolean {
+    const h = s.host
+    if (target === 'fact') return 'e' in h && !!this.get(h.e) && this.kindOf(this.get(h.e)!) === 'resident'
+    if ('tile' in target) return 'tile' in h && h.tile.map === target.tile.map && h.tile.x === target.tile.x && h.tile.y === target.tile.y
+    if (!('e' in h)) return false
+    let e: Entity | undefined = 'id' in target ? target : this.get(target.e)
+    if (!e) return true
+    if (s.made.has(e.id)) return true
+    // the host itself, or something in its hand or its contents (at any depth)
+    for (let i = 0; e && i < 32; i++) {
+      if (e.id === h.e) return true
+      e = e.place.on === 'inside' || e.place.on === 'hand' ? this.get(e.place.holder) : undefined
+    }
+    return false
+  }
+  /** The author's hand (the engine's `author`, installed by it): tests, world building, the dev console — never game code. */
+  author: Writer = () => {
+    throw new Error('no engine holds this world: nobody may write it')
   }
 
   private onTile = new Map<string, Set<Id>>() // tileKey -> entity ids on that tile
@@ -224,7 +273,7 @@ export class World {
   }
 
   setTerrain(map: string, x: number, y: number, terrain: string): void {
-    this.guard('setTerrain')
+    this.guard('setTerrain', { tile: { map, x, y } })
     const base = this.state.maps[map]?.terrain[y * (this.state.maps[map]?.width ?? 0) + x]
     const t = this.tileState(map, x, y, true)!
     if (terrain === base) delete t.terrain
@@ -375,10 +424,30 @@ export class World {
     return (e.tags?.includes(tag) ?? false) || this.onto.resolve(e.type).tags.includes(tag)
   }
 
+  /** A thing's own prop changes (the engine's `setProp` adds the threshold events). */
+  setProp(e: Entity, key: string, value: PropValue | undefined): void {
+    this.guard('setProp', e)
+    if (value === undefined) {
+      if (e.props) delete e.props[key]
+    } else (e.props ??= {})[key] = value
+  }
+
+  addTag(e: Entity, tag: string): void {
+    this.guard('addTag', e)
+    if (!e.tags?.includes(tag)) (e.tags ??= []).push(tag)
+  }
+
+  removeTag(e: Entity, tag: string): void {
+    this.guard('removeTag', e)
+    if (e.tags?.includes(tag)) e.tags = e.tags.filter((t) => t !== tag)
+  }
+
   // ---------------------------------------------------------------- entity lifecycle
 
   add(e: Entity): Entity {
     this.guard('add')
+    // what an outcome makes is its own to shape
+    this.scope?.made.add(e.id)
     this.state.entities[e.id] = e
     this.indexAdd(e)
     if (e.place.on === 'inside' || e.place.on === 'hand') this.attach(e)
@@ -416,7 +485,7 @@ export class World {
 
   /** Move an entity to a new place, keeping all indices and holder links consistent. */
   place(e: Entity, to: Place): void {
-    this.guard('place')
+    this.guard('place', e)
     this.detach(e)
     e.place = to
     if (to.on === 'tile') this.indexAdd(e)
@@ -434,14 +503,14 @@ export class World {
 
   /** Change an entity's type, re-indexing the cells it covers (a new type may have another footprint). */
   transform(e: Entity, type: string): void {
-    this.guard('transform')
+    this.guard('transform', e)
     this.indexRemove(e)
     e.type = type
     this.indexAdd(e)
   }
 
   destroy(e: Entity): void {
-    this.guard('destroy')
+    this.guard('destroy', e)
     for (const c of [...(e.contents ?? [])]) {
       const child = this.get(c)
       if (child) this.destroy(child)
@@ -467,32 +536,51 @@ export class World {
     return this.statusesOf(ref)?.[status] !== undefined
   }
 
-  /** Returns true when the status was newly applied (callers emit the `status` event). */
-  setStatus(ref: Ref, status: string, expiry: number): boolean {
-    this.guard('setStatus')
-    let bag: Record<string, number>
+  /** Who gave a thing a status it holds (the actor of the outcome that set it), if anyone. */
+  statusBy(ref: Ref, status: string): Id | undefined {
+    const by = 'tile' in ref ? this.tileState(ref.tile.map, ref.tile.x, ref.tile.y)?.statusBy : this.get(ref.e)?.statusBy
+    return by?.[status]
+  }
+
+  /**
+   * Returns true when the status was newly applied (callers emit the `status` event). `by`: who
+   * gave it — its later time events carry them as their actor (a bleed or a fire one set).
+   */
+  setStatus(ref: Ref, status: string, expiry: number, by?: Id): boolean {
+    this.guard('setStatus', ref)
+    let holder: { statuses?: Record<string, number>; statusBy?: Record<string, Id> }
     let key: string
     if ('tile' in ref) {
-      const t = this.tileState(ref.tile.map, ref.tile.x, ref.tile.y, true)!
-      bag = t.statuses ??= {}
+      holder = this.tileState(ref.tile.map, ref.tile.x, ref.tile.y, true)!
       key = 't|' + tileKey(ref.tile.map, ref.tile.x, ref.tile.y)
     } else {
       const e = this.get(ref.e)
       if (!e) return false
-      bag = e.statuses ??= {}
+      holder = e
       key = e.id
     }
+    const bag = (holder.statuses ??= {})
     const fresh = !(status in bag)
     bag[status] = expiry
+    if (by) (holder.statusBy ??= {})[status] = by
+    else if (holder.statusBy) {
+      delete holder.statusBy[status]
+      if (!Object.keys(holder.statusBy).length) delete holder.statusBy
+    }
     this.statusful.add(key)
     return fresh
   }
 
   clearStatus(ref: Ref, status: string): boolean {
-    this.guard('clearStatus')
+    this.guard('clearStatus', ref)
     const bag = this.statusesOf(ref)
     if (!bag || !(status in bag)) return false
     delete bag[status]
+    const holder = 'tile' in ref ? this.tileState(ref.tile.map, ref.tile.x, ref.tile.y) : this.get(ref.e)
+    if (holder?.statusBy) {
+      delete holder.statusBy[status]
+      if (!Object.keys(holder.statusBy).length) delete holder.statusBy
+    }
     if (!Object.keys(bag).length) {
       if ('tile' in ref) {
         this.statusful.delete('t|' + tileKey(ref.tile.map, ref.tile.x, ref.tile.y))
@@ -534,7 +622,7 @@ export class World {
   }
 
   setFact(key: string, value: PropValue): void {
-    this.guard('setFact')
+    this.guard('setFact', 'fact')
     ;(this.state.facts ??= {})[key] = value
   }
 }

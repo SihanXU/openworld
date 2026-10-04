@@ -36,7 +36,6 @@ const tile = (x: number, y: number) => ({ tile: { map: 'sandbox', x, y } })
 /** A sandbox in strict mode: any change of state outside an outcome throws (design.md §5.13, A2). */
 const sandbox = (sc: Scenario, l = lib()): Engine => {
   const eng = buildSandbox(sc, onto, l)
-  eng.world.strict = true
   return eng
 }
 /** The rules that answered the events an act started, in order. */
@@ -149,7 +148,7 @@ describe('acts and the impulses they send', () => {
       ],
       event: {},
     })
-    eng.applyStatus(tile(1, 1), 'burning', 999)
+    eng.author(() => eng.applyStatus(tile(1, 1), 'burning', 999))
     const rules = chain(eng, () => expect(eng.act('use', 'actor', tile(1, 1)).rule?.id).toBe('use/water'))
     expect(rules).toContain('core/element')
     expect(eng.world.hasStatus(tile(1, 1), 'burning')).toBe(false)

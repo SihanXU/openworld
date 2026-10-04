@@ -19,17 +19,16 @@ function site(ground: string[] = [], front = 'grass'): Engine {
     new RuleLibrary(BASE_RULES),
   )
   eng.world.get('actor')!.facing = 'up'
-  eng.world.strict = true
   return eng
 }
 
 /** Put a fresh `type` in the player's hand (whatever was there is gone), as if picked from the toolbar. */
 function hold(eng: Engine, type: string): void {
   const w = eng.world
-  w.write(() => {
+  eng.author(() => {
     const old = w.get(w.player.held)
     if (old) w.destroy(old)
-    w.create(type, { on: 'hand', holder: 'actor' })
+    w.author(() => w.create(type, { on: 'hand', holder: 'actor' }))
   })
   eng.controls.sync()
 }
@@ -38,7 +37,7 @@ function hold(eng: Engine, type: string): void {
 function emptyHand(eng: Engine): void {
   const w = eng.world
   const old = w.get(w.player.held)
-  if (old) w.write(() => w.destroy(old))
+  if (old) eng.author(() => w.destroy(old))
   eng.controls.sync()
 }
 
@@ -145,7 +144,6 @@ describe('a chest from a frame', () => {
       new RuleLibrary(BASE_RULES),
     )
     locked.world.get('actor')!.facing = 'up'
-    locked.world.strict = true
     // a plain blow on a locked chest is no rule's: undefined (the AI answers), nothing meanwhile
     const r = press(locked, 'use', AXE)
     expect(r.rules).not.toContain('build/dismantle-chest')
@@ -205,7 +203,7 @@ describe('the same pattern', () => {
     // a quill without ink writes nothing (the sign is only read)
     expect(press(eng, 'use', 'item/misc/feather_quill').rules).not.toContain('build/write-sign')
     expect(eng.world.hasTag(sign, 'blank')).toBe(true)
-    eng.world.write(() => eng.world.create('item/misc/ink', { on: 'inside', holder: 'actor' }))
+    eng.author(() => eng.world.create('item/misc/ink', { on: 'inside', holder: 'actor' }))
     expect(press(eng, 'use', 'item/misc/feather_quill').rules).toContain('build/write-sign')
     expect(eng.world.hasTag(sign, 'blank')).toBe(false)
     expect(eng.world.hasTag(sign, 'handmade')).toBe(true)

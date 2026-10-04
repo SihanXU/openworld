@@ -248,7 +248,8 @@ async function atlas(): Promise<Atlas | undefined> {
   const w = game.engine.world
   const maps: AtlasMap[] = []
   for (const m of index.maps) {
-    if (!m.at || !w.fact(`visited.${m.id}`)) continue
+    // the maps the player has been on: their own record
+    if (!m.at || w.prop(w.player, `visited.${m.id}`) === undefined) continue
     let terrain = w.state.maps[m.id]?.terrain ?? terrainCache.get(m.id)
     if (!terrain) {
       try {
@@ -363,11 +364,14 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     game = Game.load(init.save, index, ontology, lib)
     if (!game.engine.world.fact(FIRSTLIGHT_LAYOUT)) {
       const [ford, village] = await Promise.all(['ford', 'meadow'].map((id) => fetchJson<RawChunk>(`maps/${id}.json`)))
-      migrateFirstlight(game, index, decodeChunk(ford), decodeChunk(village))
+      const g = game
+      // an older save brought up to the world as it is now: the author's, on loading
+      g.engine.author(() => migrateFirstlight(g, index, decodeChunk(ford), decodeChunk(village)))
     }
     if (!game.engine.world.fact(BOSS_LAYOUT)) {
       const road = game.engine.world.state.loadedMaps.includes('eastroad') ? decodeChunk(await fetchJson<RawChunk>('maps/eastroad.json')) : undefined
-      migrateBosses(game, road)
+      const g = game
+      g.engine.author(() => migrateBosses(g, road))
     }
     // re-fetch base terrain for the map we are standing on
     const here = game.engine.world.posOf(game.engine.world.player)?.map
@@ -546,9 +550,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (!game) break
         const eng = game.engine
         const w = eng.world
-        if (m.op === 'teleport') eng.travel(w.player, { map: m.map ?? w.posOf(w.player)!.map, x: m.x, y: m.y })
+        if (m.op === 'teleport') eng.author(() => eng.travel(w.player, { map: m.map ?? w.posOf(w.player)!.map, x: m.x, y: m.y }))
         // into the bag, and onto a slot of it (the bag shows its slots)
-        if (m.op === 'give') w.write(() => (w.create(m.type, { on: 'inside', holder: w.state.player }, m.tags ? { tags: m.tags } : {}), eng.controls.sync()))
+        if (m.op === 'give') eng.author(() => (w.create(m.type, { on: 'inside', holder: w.state.player }, m.tags ? { tags: m.tags } : {}), eng.controls.sync()))
         if (m.op === 'hour') w.state.tick = tickAt(w.calendar().day, m.hour)
         break
       }

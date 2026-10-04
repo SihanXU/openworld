@@ -98,7 +98,7 @@ function reset(): void {
       if (!e || game.engine.world.num(e, 'hp') <= 0) return
       delete e.boss!.pending; e.boss!.nextSkill = i; e.boss!.nextAt = 0
       const at = game.engine.world.posOf(e)!
-      game.engine.teleport(game.engine.world.player, { ...at, y: at.y + Math.min(4, s.radius) })
+      game.engine.author(() => game.engine.teleport(game.engine.world.player, { ...at, y: at.y + Math.min(4, s.radius) }))
       mode.value = 'live'; paused = false; $('pauseFight').textContent = '暂停'
     }
     return button

@@ -17,10 +17,10 @@ describe('the Mod Console template', () => {
     const eng = game.engine
     const w = eng.world
     const press = (key: Key, held: string | undefined, at: readonly [number, number], target: readonly [number, number], facing: 'up' | 'right' = 'up') => {
-      w.write(() => {
+      eng.author(() => {
         const e = held ? w.create(held, { on: 'hand', holder: 'player' }) : undefined
         w.player.held = e?.id
-        w.place(w.player, { on: 'tile', map: 'ford', x: at[0], y: at[1] })
+        w.author(() => w.place(w.player, { on: 'tile', map: 'ford', x: at[0], y: at[1] }))
         w.player.facing = facing
       })
       eng.controls.run(eng.controls.plan(key, { x: target[0], y: target[1] })!, true)

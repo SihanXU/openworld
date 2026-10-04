@@ -10,18 +10,18 @@ import { EffectRunner } from './effects.ts'
 import { Controls } from './controls.ts'
 import { Scenes } from './scenes.ts'
 import { stepCreatures } from './creatures.ts'
-import { combatDamage, combatDelay, combatStrike, combatTick, finishCombatStrike, rangeBonus, recordCombatStep } from './combat.ts'
+import { combatDamage, combatDelay, combatStrike, finishCombatStrike, rangeBonus, recordCombatStep } from './combat.ts'
 import { Companions } from './companion.ts'
 import { Quests } from './quests.ts'
 import { stepBosses } from './bosses.ts'
-import { nightTick } from './nightspawn.ts'
 import { NpcSim, scheduleAt } from './npc.ts'
 import { scheduleFor } from './people.ts'
 import { OntologyIndex } from './ontology.ts'
 import { RuleLibrary, evalCond, isDo, matchSelector, rolesOf, type Resolution } from './rules.ts'
-import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, Text, Verb, WorldState } from './types.ts'
+import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb, WorldState } from './types.ts'
+import type { ProfessionDef } from './profession.ts'
 import { DIRS, FIRE_RADIUS } from './types.ts'
-import { NO_EXPIRY, REVERSE, World, refKey, tileKey } from './world.ts'
+import { NO_EXPIRY, REVERSE, World, refKey, tileKey, type Writer } from './world.ts'
 
 export type { Resolution } from './rules.ts'
 
@@ -58,6 +58,12 @@ const OPAQUE_TERRAIN = ['wall', 'tree', 'rock', 'roof']
 export class Engine {
   world: World
   lib: RuleLibrary
+  /**
+   * The world's one writer (design.md §5.13, A2), lent only to outcomes (`run`), the clock (a
+   * status running out), loading and the input's posture. Game code never takes it; tests, world
+   * building and the dev console write as the author (`author`).
+   */
+  private readonly write: Writer
   effects: EffectRunner
   npcs: NpcSim
   scenes: Scenes
@@ -69,6 +75,9 @@ export class Engine {
   protectedFacts: string[] = []
   /** Recipes an act of crafting may name. */
   recipes = new Map<string, Recipe>()
+  /** Skills and professions an act of learning may name (the skill tree, the trainers). */
+  skills = new Map<string, SkillDef>()
+  professions = new Map<string, ProfessionDef>()
   undefinedSink?: UndefinedSink
   /** Encounter mechanics supplied by the world, never imported from content (bosses.ts). */
   bossKits: Record<string, BossDef> = {}
@@ -96,13 +105,23 @@ export class Engine {
     for (const t of lib.types) onto.addType(t)
     for (const s of lib.statuses) onto.addStatus(s)
     this.world = new World(state, onto)
+    this.write = this.world.grant()
+    this.world.author = (f) => this.write(f)
     this.lib = lib
     this.effects = new EffectRunner(this)
     this.npcs = new NpcSim(this)
     this.scenes = new Scenes(this)
     this.companions = new Companions(this)
     this.quests = new Quests(this)
-    this.controls = new Controls(this)
+    this.controls = new Controls(this, this.write)
+  }
+
+  /**
+   * The author's hand: tests setting a scene, a world being built or loaded, the dev console.
+   * Never game code — the engine's and the content's source may not call it (a test checks).
+   */
+  author<T>(f: () => T): T {
+    return this.write(f)
   }
 
   loadInvariants(defs: Invariant[] = [], protectedFacts: string[] = []): void {
@@ -117,7 +136,7 @@ export class Engine {
   /** The world and the story exist (design.md §5.5): made on a new game, and for older saves. */
   ensureResidents(): void {
     const w = this.world
-    w.write(() => {
+    this.write(() => {
       if (!w.get(WORLD_HOST)) w.add({ id: WORLD_HOST, type: 'resident/world', place: { on: 'resident' } })
       if (!w.get(STORY)) w.add({ id: STORY, type: 'resident/story', place: { on: 'resident' } })
     })
@@ -164,7 +183,8 @@ export class Engine {
     if ('e' in ev.host && (!host || host.place.on === 'none')) return { defined: false }
     // a thing on a dormant map receives it when the player comes (design.md §5.12); people and residents at once
     const at = 'tile' in ev.host ? ev.host.tile : w.posOf(host)
-    if (at && at.map !== this.activeMap && !(host && (host.npc || w.kindOf(host) === 'resident'))) {
+    // (an act is made by one who acts now — a companion following its leader off a map — and resolves at once)
+    if (at && at.map !== this.activeMap && !ev.kind.startsWith('act/') && !(host && (host.npc || w.kindOf(host) === 'resident'))) {
       const d = ((w.state.dormant ??= {})[at.map] ??= { since: w.state.tick, inbox: [] })
       d.inbox.push(ev)
       return { defined: false }
@@ -174,15 +194,12 @@ export class Engine {
       this.later.push(ev)
       return { defined: false }
     }
-    // a creature felled counts for the quests that ask for it (quests.ts), before its outcome removes it
-    if (ev.kind === 'threshold/cross' && ev.params?.name === 'defeated') this.quests.onDefeat(ev)
     const res = this.resolveEvent(ev)
     if (this.trace.length > 300) this.trace.shift()
     this.trace.push({ ev, rule: res.rule?.id, defined: res.defined })
     if (res.defined && res.leaf && isDo(res.leaf)) this.run(res.leaf.do, ev, res.rule!.id)
     else if (res.hole) {
-      // something the world had no answer for was tried by the player (counted with or without a modder)
-      if (ev.origin === 'player') w.write(() => w.setFact('world.experiments', Number(w.fact('world.experiments') ?? 0) + 1))
+      this.holes++
       const held = this.undefinedSink?.raise(ev, res) ?? false
       if (!held) this.run(res.hole.default, ev, res.hole.rule.id)
     }
@@ -203,12 +220,23 @@ export class Engine {
     return this.flushing || this.dispatching > 0
   }
   private dispatching = 0
+  /** Undefined outcomes reached so far (an act's seers learn whether anything in its chain was). */
+  private holes = 0
 
   /** Run an outcome's effects, then settle the relations they changed. */
   run(effects: Effect[], ev: GameEvent, ruleId: string): void {
     if (!effects.length) return
-    this.world.write(() => this.effects.run(effects, ev, ruleId))
+    this.write(() => this.effects.run(effects, ev, ruleId), ev.host)
     this.settle()
+  }
+
+  /**
+   * The story's script (its scenes and beats, design.md §5.5): its effects run as the story's own
+   * outcome — it writes only its facts and topics, and sends the rest as impulses to `roles`.
+   */
+  script(effects: Effect[], roles: GameEvent['roles'], label: string): void {
+    if (!this.world.get(STORY)) this.ensureResidents()
+    this.run(effects, { kind: 'time/period', host: { e: STORY }, roles, params: {}, origin: 'world' }, label)
   }
 
   /** Re-run an event whose outcome was undefined and is now defined (a late patch). */
@@ -308,6 +336,7 @@ export class Engine {
     // whose the thing was, before the act (a thing taken from her chest is hers until it is taken)
     const thing = 'e' in target ? w.get(target.e) : undefined
     const owner = thing ? this.ownerOf(thing) : undefined
+    const holes = this.holes
     this.dispatching++
     let res: Resolution
     try {
@@ -317,7 +346,8 @@ export class Engine {
     }
     this.flush()
     if (res.defined && res.rule && ev.origin === 'player') this.undefinedSink?.observe?.(ev, res.rule.id)
-    if (verb !== 'move' && verb !== 'craft') this.see(ev, res, owner)
+    // what the seers see: the act, and whether the world had an answer for all it set going
+    if (verb !== 'move' && verb !== 'craft' && verb !== 'learn') this.see(ev, res.defined && this.holes === holes, owner)
     this.flush()
     return res
   }
@@ -370,7 +400,7 @@ export class Engine {
   }
 
   /** Everyone who can see an act sees it, once it is resolved: a `seen` event each (if it could matter to them). */
-  private see(ev: GameEvent, res: Resolution, owner: Id | undefined): void {
+  private see(ev: GameEvent, defined: boolean, owner: Id | undefined): void {
     const w = this.world
     const doer = ev.roles.actor && 'e' in ev.roles.actor ? w.get(ev.roles.actor.e) : undefined
     const at = w.posOf(doer)
@@ -384,7 +414,7 @@ export class Engine {
         kind: 'seen',
         host: { e: e.id },
         roles: { actor: ev.roles.actor, target: ev.roles.target, instrument: ev.roles.instrument },
-        params: { act: String(ev.params?.verb ?? ''), owner: !owner ? 'nobody' : owner === e.id ? 'mine' : 'another', defined: res.defined },
+        params: { act: String(ev.params?.verb ?? ''), owner: !owner ? 'nobody' : owner === e.id ? 'mine' : 'another', defined },
         cause: ev.cause,
         origin: ev.origin,
       })
@@ -434,33 +464,34 @@ export class Engine {
 
   // ---------------------------------------------------------------- statuses, props, health
 
-  /** A status taken on: its `clears` are lost, and a fresh one is a threshold/gain event. */
-  applyStatus(ref: Ref, status: string, duration?: number): void {
+  /** A status taken on (from `by`, if someone gave it): its `clears` are lost, and a fresh one is a threshold/gain event. */
+  applyStatus(ref: Ref, status: string, duration?: number, by?: Id): void {
     const w = this.world
     const def = w.onto.status(status)
     for (const c of def?.clears ?? []) if (w.hasStatus(ref, c)) this.removeStatus(ref, c)
     const dur = duration ?? def?.duration
-    const fresh = w.write(() => w.setStatus(ref, status, dur ? w.state.tick + dur : NO_EXPIRY))
+    const fresh = w.setStatus(ref, status, dur ? w.state.tick + dur : NO_EXPIRY, by && w.get(by) ? by : undefined)
     if (fresh) this.offer({ kind: 'threshold/gain', host: ref, roles: {}, params: { status } })
   }
 
   /** A status lost by an outcome: a threshold/lose event. */
   removeStatus(ref: Ref, status: string): void {
     const w = this.world
-    if (w.write(() => w.clearStatus(ref, status))) this.offer({ kind: 'threshold/lose', host: ref, roles: {}, params: { status } })
+    if (w.clearStatus(ref, status)) this.offer({ kind: 'threshold/lose', host: ref, roles: {}, params: { status } })
   }
 
   /** Set a prop; crossing a declared line downward is a threshold/cross event (design.md §5.7). */
   setProp(e: Entity, key: string, value: PropValue, by?: GameEvent): void {
     const w = this.world
     const before = w.num(e, key, Number.NaN)
-    ;(e.props ??= {})[key] = value
+    w.setProp(e, key, value)
     if (typeof value !== 'number') return
     for (const t of w.onto.data.thresholds ?? []) {
       if (t.prop !== key) continue
-      // the one whose act brought it there (the last blow) is the event's actor
+      // the one whose act brought it there (the last blow) is the event's actor, and what they struck with its instrument
       const actor = by?.roles.actor ?? (by?.cause ? { e: by.cause } : undefined)
-      if (value <= t.lte && !(before <= t.lte)) this.queue({ kind: 'threshold/cross', host: { e: e.id }, roles: actor ? { actor } : {}, params: { name: t.name, prop: key }, cause: by?.cause, origin: by?.origin })
+      const instrument = actor ? by?.roles.instrument : undefined
+      if (value <= t.lte && !(before <= t.lte)) this.queue({ kind: 'threshold/cross', host: { e: e.id }, roles: { ...(actor && { actor }), ...(instrument && { instrument }) }, params: { name: t.name, prop: key }, cause: by?.cause, origin: by?.origin })
     }
   }
 
@@ -470,7 +501,7 @@ export class Engine {
    */
   damage(e: Entity, amount: number, element?: string, pierce?: boolean, by?: Ref): void {
     const ev: GameEvent = { kind: 'impulse/strike', host: { e: e.id }, roles: by ? { actor: by } : {}, params: {}, cause: by && 'e' in by ? by.e : undefined, origin: 'world' }
-    this.world.write(() => this.hurt(e, amount, element, pierce, ev))
+    this.author(() => this.hurt(e, amount, element, pierce, ev))
     this.flush()
   }
 
@@ -484,7 +515,7 @@ export class Engine {
     // the combat talents of the one struck (combat.ts): dodge, a guarded moment, reductions, the brink
     const by_ = by?.roles.actor ?? (by?.cause ? { e: by.cause } : undefined)
     const attacker = by_ && 'e' in by_ ? w.get(by_.e) : undefined
-    const dmg = combatDamage(w, e, Math.max(1, Math.round(amount - def)), attacker, !!pierce)
+    const dmg = combatDamage(this, e, Math.max(1, Math.round(amount - def)), attacker, !!pierce)
     // a blow that found nothing (dodged, or the moment after a dash)
     if (dmg <= 0) return
     w.fx.push({ t: 'damage', who: e.id, amount: dmg, element })
@@ -492,11 +523,18 @@ export class Engine {
     // Phoenix (the skill): once a day, any lethal damage leaves 30% health and a moment untouchable
     if (hp <= 0 && w.hasTag(e, 'skill:phoenix') && w.prop(e, 'phoenixDay') !== w.calendar().day) {
       hp = Math.max(1, Math.ceil(w.num(e, 'maxHp', 1) * 0.3))
-      ;(e.props ??= {}).phoenixDay = w.calendar().day
+      w.setProp(e, 'phoenixDay', w.calendar().day)
       ;(e.combat ??= {}).guardUntil = w.state.tick + 30
       w.fx.push({ t: 'log', text: { en: 'Phoenix: you rise from a lethal blow.', zh: '涅槃：你从致命一击中重新站起。' }, tone: 'good' })
     }
     this.setProp(e, 'hp', hp, by)
+    // what a landed blow carries beyond its harm (combat.ts): a wound that bleeds (from the one who
+    // struck), and health drawn back to them — a restore they answer for themselves
+    const bleed = by?.params?.bleed
+    if (typeof bleed === 'number' && bleed > 0 && w.get(e.id)) this.applyStatus({ e: e.id }, 'bleeding', bleed, attacker?.id)
+    const drain = by?.params?.drain
+    if (typeof drain === 'number' && drain > 0 && attacker && attacker.id !== e.id)
+      this.queue({ kind: 'impulse/restore', host: { e: attacker.id }, roles: { source: { e: e.id }, actor: { e: attacker.id } }, params: { which: 'hp', amount: drain }, cause: by?.cause, origin: by?.origin, depth: (by?.depth ?? 0) + 1 })
   }
 
   // ---------------------------------------------------------------- relations (design.md §5.10)
@@ -664,7 +702,9 @@ export class Engine {
   placeSelf(e: Entity, to: Pos): void {
     if (e.id === this.world.state.player && this.world.posOf(e)?.map !== to.map) return this.travel(e, to)
     const w = this.world
-    const at = w.walkable(to.map, to.x, to.y, e.id, true) ? to : (this.nearestFree(to) ?? to)
+    // a flyer goes over what stops walkers (a companion over a wall, a river)
+    const open = w.hasTag(e, 'airborne') ? w.inBounds(to.map, to.x, to.y) : w.walkable(to.map, to.x, to.y, e.id, true)
+    const at = open ? to : (this.nearestFree(to) ?? to)
     this.touch({ e: e.id })
     w.place(e, { on: 'tile', map: at.map, x: at.x, y: at.y })
     this.touch({ e: e.id })
@@ -699,11 +739,9 @@ export class Engine {
       if (!free) return
       ;({ x, y } = free)
     }
-    w.write(() => {
-      w.place(e, { on: 'tile', map: to.map, x, y })
-      // where the player has been: the world map shows it
-      if (e.id === w.state.player) w.setFact(`visited.${to.map}`, 1)
-    })
+    w.place(e, { on: 'tile', map: to.map, x, y })
+    // where it has been (the world map shows the player's): its own record
+    if (w.prop(e, `visited.${to.map}`) === undefined) w.setProp(e, `visited.${to.map}`, 1)
     this.touch({ e: e.id })
     if (e.id === w.state.player && from !== to.map) this.enterMap(to.map, from)
     this.settle()
@@ -802,7 +840,7 @@ export class Engine {
     }
     const base = w.num(a, 'atk', 1) + (weapon ? w.num(weapon, 'power', 0) : 0)
     if (!target) {
-      finishCombatStrike(w, a, undefined, { power: base, critical: false, charged: false, comboHits: 0 }, 0, range, true)
+      finishCombatStrike(w, a, undefined, { power: base, critical: false, charged: false, comboHits: 0, bleed: 0, drain: 0 }, 0, range, true)
       return
     }
     if (range > 1 && last) w.fx.push({ t: 'vfx', fx: `bolt:${element ?? 'none'}:${a.facing}:${Math.abs(last.x - start.x) + Math.abs(last.y - start.y)}`, map: start.map, x: start.x, y: start.y })
@@ -811,8 +849,8 @@ export class Engine {
     const victim = 'e' in target ? w.get(target.e) : undefined
     const before = victim ? w.num(victim, 'hp') : 0
     const strike = combatStrike(w, a, victim, base, range, weapon, true)
-    this.act('use', a.id, target, { params: { attack: true, power: strike.power, ...(strike.critical && { critical: true }) } })
-    w.write(() => finishCombatStrike(w, a, victim, strike, before, range, true))
+    this.act('use', a.id, target, { params: { attack: true, power: strike.power, ...(strike.critical && { critical: true }), ...(strike.bleed && { bleed: strike.bleed }), ...(strike.drain && { drain: strike.drain }) } })
+    finishCombatStrike(w, a, victim, strike, before, range, true)
     // a sweep (the skill): a melee blow also lands on the creatures on either side of the tile ahead
     if (range <= 1 && w.hasTag(a, 'skill:sweep'))
       for (const s of [1, -1]) {
@@ -823,7 +861,7 @@ export class Engine {
         const sideHp = w.num(side, 'hp')
         const sideStrike = combatStrike(w, a, side, base, range, weapon, false)
         this.act('use', a.id, { e: side.id }, { params: { attack: true, power: sideStrike.power } })
-        w.write(() => finishCombatStrike(w, a, side, sideStrike, sideHp, range, false))
+        finishCombatStrike(w, a, side, sideStrike, sideHp, range, false)
       }
   }
 
@@ -863,13 +901,9 @@ export class Engine {
     this.stayTick(active)
     this.npcs.tick(active)
     stepCreatures(this, active)
-    // the encounters' own behaviour (bosses.ts): telegraphs, blinks, phases
-    w.write(() => stepBosses(this, active))
-    // the night's walkers, bleeding and adrenaline, the companions (the clock's, like a status expiring)
-    w.write(() => {
-      nightTick(this, active)
-      combatTick(this, active)
-    })
+    // the encounters' own behaviour (bosses.ts): telegraphs, approaches; their blows are acts
+    stepBosses(this, active)
+    // the companions' behaviour: they fly after their leader (their moves are acts)
     this.companions.tick()
     this.undefinedSink?.tick()
     this.controls.magnet()
@@ -878,17 +912,23 @@ export class Engine {
     this.flush()
   }
 
-  /** A status runs out (the clock clears it): a time/timer event. */
+  /** A status runs out (the clock clears it): a time/timer event (its actor: who gave it). */
   private expire(ref: Ref, status: string): void {
     const w = this.world
-    w.write(() => w.clearStatus(ref, status))
-    this.offer({ kind: 'time/timer', host: ref, roles: {}, params: { status }, origin: 'world' })
+    const roles = this.givenBy(ref, status)
+    this.write(() => w.clearStatus(ref, status))
+    this.offer({ kind: 'time/timer', host: ref, roles, params: { status }, cause: roles.actor && 'e' in roles.actor ? roles.actor.e : undefined, origin: 'world' })
+  }
+
+  /** The roles of a status's time events: who gave it, while they are still about. */
+  private givenBy(ref: Ref, status: string): GameEvent['roles'] {
+    const by = this.world.statusBy(ref, status)
+    return by && this.world.get(by) ? { actor: { e: by } } : {}
   }
 
   private statusTick(active: string): void {
     const w = this.world
     const t = w.state.tick
-    const periodic = t % STATUS_TICK_EVERY === 0
     for (const key of [...w.statusful]) {
       const ref = w.keyRef(key)
       const pos = w.refPos(ref)
@@ -896,8 +936,16 @@ export class Engine {
       const bag = w.statusesOf(ref)
       if (!bag) continue
       for (const [status, exp] of Object.entries(bag)) {
-        if (exp !== NO_EXPIRY && exp <= t) this.expire(ref, status)
-        else if (periodic) this.offer({ kind: 'time/period', host: ref, roles: {}, params: { status }, origin: 'world' })
+        // a status with a pace of its own pulses every `every` ticks counted back from its end, the
+        // last pulse as it ends (a four-second bleed bleeds four times); the rest every half second
+        const every = w.onto.status(status)?.every
+        const ends = exp !== NO_EXPIRY && exp <= t
+        const pulse = every && exp !== NO_EXPIRY ? exp >= t && (exp - t) % every === 0 : !ends && t % (every ?? STATUS_TICK_EVERY) === 0
+        if (pulse) {
+          const roles = this.givenBy(ref, status)
+          this.offer({ kind: 'time/period', host: ref, roles, params: { status }, cause: roles.actor && 'e' in roles.actor ? roles.actor.e : undefined, origin: 'world' })
+        }
+        if (ends) this.expire(ref, status)
       }
     }
   }
@@ -948,7 +996,7 @@ export class Engine {
       if (inv.giver && (!at || !w.map(at.map))) continue
       if (inv.when && !evalCond(inv.when, {}, w)) continue
       if (evalCond(inv.holds, {}, w)) continue
-      w.write(() => w.setFact(`invalid.${inv.id}`, true))
+      this.write(() => w.setFact(`invalid.${inv.id}`, true))
       const giver: Ref | undefined = inv.giver && w.get(inv.giver) ? { e: inv.giver } : undefined
       this.queue({ kind: 'broken', host: { e: STORY }, roles: giver ? { target: giver } : {}, params: { invariant: inv.id }, origin: 'world' })
     }
@@ -961,16 +1009,17 @@ export class Engine {
     s.maps[chunk.map.id] = chunk.map
     if (!s.loadedMaps.includes(chunk.map.id)) {
       s.loadedMaps.push(chunk.map.id)
-      this.world.write(() => {
+      this.write(() => {
         for (const e of chunk.entities) if (!s.entities[e.id]) this.world.add(structuredClone(e))
       })
       // a map as it was made: its relations are where it starts, not events
       this.diffMap(chunk.map.id, true)
     }
+    // the step through a portal that waited for this map ends here (its outcome, finished on loading)
     if (this.pendingTransition?.map === chunk.map.id) {
       const to = this.pendingTransition
       this.pendingTransition = undefined
-      this.teleport(this.world.player, to)
+      this.write(() => this.teleport(this.world.player, to))
     }
   }
 

@@ -29,11 +29,17 @@ game:
 
 - **Follows** its leader (`props.companion` = the leader's id — data, not "the player"): it
   hops beside them, flies over what blocks people, follows them across maps, and is airborne:
-  it never blocks a tile nor takes a blow.
+  it never blocks a tile, and blows along the facing pass under it (a blow aimed at it lands).
+  Following is its behaviour: each hop is an act of moving. Struck down (it is `essential`: it
+  goes down, it is not gone) it cannot follow, and says so: a `stuck` event (activity
+  `follow`, target its leader) at most once an hour, whose outcome is undefined — the AI says
+  what becomes of a guide that cannot guide; with no answer it waits, comes to, and follows again.
 - **Beats** (`WorldIndex.beats`): once-firing, non-blocking steps of the tutorial. Each has a
   condition (facts, the leader's props, skills, what they carry, the map, a region) and, when it
-  first holds, sets props or facts (the prologue's stage) and lets the bird say one line in a
-  bubble. Beats are content; the engine only evaluates them (`engine/src/companion.ts`).
+  first holds, the story's script runs (like a scene's): the story keeps the beat (`beat.<id>`,
+  `beat.last`) and its facts, tells the leader its new stage (`notify` what = `prologue`, which
+  the leader keeps itself: `body/stage`), and the bird says one line in a bubble. Beats are
+  content; the engine only evaluates them (`engine/src/companion.ts`).
 - **E on the bird** repeats the line of the stage you are at (`@hint`).
 
 ## The map system
@@ -52,8 +58,11 @@ game:
   scene follows on the Ford). `quest` stays 0 until the Ford, so the main quest's stages and
   tests are untouched.
 - `PROLOGUE_OBJECTIVES` (content) are shown while `prologue` < 9.
-- Facts: `visited.<map>` (set on entering a map), `world.experiments` (an undefined player
-  interaction was tried — online or off, so the beat never depends on a modder).
+- The traveller's own record: `visited.<map>` props (set on entering a map; the world map shows
+  the player's).
+- `world.experiments`: the story's count of acts the world had no answer for, as a companion saw
+  them (its `seen` rule, `companion/witness`: an act whose chain reached an undefined outcome is
+  seen with `defined` false) — online or off, so the beat never depends on a modder.
 
 | `prologue` | Objective | Beat that ends it |
 |---|---|---|

@@ -5,14 +5,14 @@
 // contact, time and sight are no change, elements follow physics. Anything these rules leave
 // undefined is the Mod port's.
 
-import type { Amount, Cond, Effect, EmitTo, Impulse, PropValue, RoleName, RoleRef, Rule, Selector, Tree } from '@lsw/engine'
+import { NIGHT_CAP, type Amount, type Cond, type Effect, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@lsw/engine'
 
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
 const L = (en: string, zh: string) => ({ en, zh })
 const log = (en: string, zh: string): Effect => ({ op: 'log', text: L(en, zh) })
 const say = (en: string, zh: string, who?: RoleName): Effect => ({ op: 'say', text: L(en, zh), ...(who && { who }) })
 const vfx = (fx: string, at?: RoleRef): Effect => ({ op: 'vfx', fx, ...(at && { at }) })
-const emit = (impulse: Impulse, to: EmitTo, params?: Record<string, PropValue | Amount>, extra: Partial<Extract<Effect, { op: 'emit' }>> = {}): Effect => ({ op: 'emit', impulse, to, ...(params && { params }), ...extra })
+const emit = (impulse: Impulse, to: EmitTo, params?: Record<string, PropValue | Amount | { typeOf: RoleName }>, extra: Partial<Extract<Effect, { op: 'emit' }>> = {}): Effect => ({ op: 'emit', impulse, to, ...(params && { params }), ...extra })
 const add = (status: string, duration?: number): Effect => ({ op: 'addStatus', status, ...(duration && { duration }) })
 const remove = (status: string): Effect => ({ op: 'removeStatus', status })
 const DO = (...effects: Effect[]): Tree => ({ do: effects })
@@ -30,6 +30,8 @@ const any = (...c: Cond[]): Cond => ({ any: c })
 const taken = (into: 'hand' | 'contents' | 'tile'): Effect => emit('taken', 'item', { into }, { other: 'host' })
 const POWER: Amount = { param: 'power' }
 const ELEMENT = { param: 'element' }
+/** What a blow carries beyond its power, passed on to the strike (combat.ts): a bleed it opens, health it draws back. */
+const WOUND = { bleed: { param: 'bleed' }, drain: { param: 'drain' } }
 
 // ------------------------------------------------------------------ the roots: resolution is total
 
@@ -40,7 +42,7 @@ const ROOTS: Rule[] = [
     on: 'act/use',
     tree: IF(
       { none: 'instrument' },
-      IF(any(param('attack', true), is('target', { type: 'actor/creature' })), DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt' })), DO(emit('handle', 'target'))),
+      IF(any(param('attack', true), is('target', { type: 'actor/creature' })), DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND })), DO(emit('handle', 'target'))),
       HOLE(log('Nothing happens.', '什么也没有发生。')),
     ),
   }),
@@ -54,6 +56,7 @@ const ROOTS: Rule[] = [
   rule({ id: 'core/hands', doc: 'A bare hand on the target: it is handled (and answers how).', on: 'act/hands', tree: DO(emit('handle', 'target')) }),
   rule({ id: 'core/move', doc: 'Moving: one step, or to a place.', on: 'act/move', tree: DO({ op: 'step' }) }),
   rule({ id: 'core/craft', doc: 'Crafting what the recipe makes from what is carried.', on: 'act/craft', tree: DO({ op: 'craft' }) }),
+  rule({ id: 'core/learn', doc: 'Learning what the act names: a skill (with skill points), a profession (at a trainer).', on: 'act/learn', tree: DO({ op: 'learn' }) }),
   rule({ id: 'core/impulse', doc: 'What is done to a thing is undefined unless its nature says (the AI answers).', on: 'impulse', tree: HOLE() }),
   rule({
     id: 'core/strike',
@@ -258,6 +261,8 @@ const BODIES: Rule[] = [
           { op: 'dropContents', still: true },
           { op: 'spawn', type: '@prop:host.drop', at: 'tileOf:host', count: { prop: 'drops', of: 'host' }, still: true },
           emit('notify', 'actor', { what: 'defeat', xp: { prop: 'maxHp', of: 'host' } }),
+          // the story hears what fell, and to whom (quests count it)
+          emit('notify', 'story', { what: 'defeat', type: { typeOf: 'host' } }),
           vfx('poof', 'tileOf:host'),
           log('{host} is defeated.', '{host}被打倒了。'),
           { op: 'destroy' },
@@ -274,10 +279,36 @@ const BODIES: Rule[] = [
   }),
   rule({
     id: 'combat/learn',
-    doc: 'Whoever defeated a foe gains experience as much as its full health.',
+    doc: 'Whoever defeated a foe gains experience as much as its full health (and is rewarded with experience when a quest is handed in). A mage felling a foe with a focus mends 3 (Arcane Recovery); an assassin felling one up close mends a tenth of their health (Shadow Recovery).',
     host: ACTOR,
     on: 'impulse/notify',
-    tree: IF(param('what', 'defeat'), DO({ op: 'gainXp', amount: { param: 'xp' } }), 'inherit'),
+    tree: IF(
+      param('what', 'defeat'),
+      IF(
+        all(tag('host', 'skill:arcane-recovery'), is('instrument', { type: 'item/weapon/magic' })),
+        DO({ op: 'gainXp', amount: { param: 'xp' } }, { op: 'heal', amount: 3 }),
+        IF(
+          all(tag('host', 'skill:shadow-recovery'), not(is('instrument', { type: 'item/weapon/magic' })), not(is('instrument', { type: 'item/weapon/ranged' }))),
+          DO({ op: 'gainXp', amount: { param: 'xp' } }, { op: 'heal', amount: { prop: 'maxHp', of: 'host', mul: 0.1 } }),
+          DO({ op: 'gainXp', amount: { param: 'xp' } }),
+        ),
+      ),
+      IF(param('what', 'reward'), DO({ op: 'gainXp', amount: { param: 'xp' } }), 'inherit'),
+    ),
+  }),
+  rule({
+    id: 'body/bleed',
+    doc: 'A bleeding body loses 1 health a second, through any defence (Hemorrhage\'s wound): in the name of whoever opened it.',
+    host: { kind: 'actor', status: ['bleeding'] },
+    on: 'time/period',
+    tree: IF(param('status', 'bleeding'), DO({ op: 'hurt', amount: 1, pierce: true }), 'inherit'),
+  }),
+  rule({
+    id: 'body/adrenaline',
+    doc: 'Adrenaline (the skill): while the rush lasts the body mends 1 a second.',
+    host: { kind: 'actor', status: ['adrenaline'], tags: ['skill:adrenaline'] },
+    on: 'time/period',
+    tree: IF(param('status', 'adrenaline'), DO({ op: 'heal', amount: 1 }), 'inherit'),
   }),
   rule({
     id: 'body/hunger',
@@ -310,7 +341,11 @@ const BODIES: Rule[] = [
     doc: 'The story tells a person where it stands (the player\'s stage): they keep it.',
     host: PERSON,
     on: 'impulse/notify',
-    tree: IF(param('what', 'quest'), DO({ op: 'setProp', key: 'quest', value: { param: 'value' } }), 'inherit'),
+    tree: IF(
+      param('what', 'quest'),
+      DO({ op: 'setProp', key: 'quest', value: { param: 'value' } }),
+      IF(param('what', 'prologue'), DO({ op: 'setProp', key: 'prologue', value: { param: 'value' } }), 'inherit'),
+    ),
   }),
 ]
 
@@ -427,21 +462,21 @@ const INSTRUMENTS: Rule[] = [
     doc: 'A blade used on something (not a person) strikes it with a cutting edge.',
     host: { type: 'item/weapon/blade' },
     on: 'act/use',
-    tree: IF(is('target', PERSON), 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'cut' }))),
+    tree: IF(is('target', PERSON), 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'cut', ...WOUND }))),
   }),
   rule({
     id: 'use/weapon',
     doc: 'A weapon used on something (not a person) strikes it.',
     host: { type: 'item/weapon' },
     on: 'act/use',
-    tree: IF(is('target', PERSON), 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt' }))),
+    tree: IF(is('target', PERSON), 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND }))),
   }),
   rule({
     id: 'use/spell',
     doc: 'A wand cast at something (not a person) strikes it with its element.',
     host: { type: 'item/weapon/magic' },
     on: 'act/use',
-    tree: IF(is('target', PERSON), 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'magic' }))),
+    tree: IF(is('target', PERSON), 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'magic', ...WOUND }))),
   }),
   ...(
     [
@@ -457,7 +492,7 @@ const INSTRUMENTS: Rule[] = [
       doc: `A ${t.slice(5)} works what it is used on: a blow with a ${edge} edge.`,
       host: { tags: [t] },
       on: 'act/use',
-      tree: IF(any({ same: ['actor', 'target'] }, is('target', PERSON)), 'inherit', DO(emit('strike', 'target', { power: POWER, edge }))),
+      tree: IF(any({ same: ['actor', 'target'] }, is('target', PERSON)), 'inherit', DO(emit('strike', 'target', { power: POWER, edge, ...WOUND }))),
     }),
   ),
   ...(['key', 'writing', 'tool:fishing'] as const).map((t) =>
@@ -1094,7 +1129,16 @@ const WORLD_RULES: Rule[] = [
         all(param('name', 'weather'), { weather: ['rain', 'storm'] }, { outdoors: true }),
         // rain is water without force: it wets and douses, it does not wound (a fire slime steams in it)
         DO(emit('element', { map: true }, { element: 'water', power: 0 }, { filter: { kind: 'actor' } }), emit('element', { map: true }, { element: 'water', power: 0 }, { filter: { status: ['burning'] } })),
-        IF(all(param('name', 'storm'), { weather: ['storm'] }, { outdoors: true }), DO({ op: 'lightning', power: 4 }), NOTHING),
+        IF(
+          all(param('name', 'storm'), { weather: ['storm'] }, { outdoors: true }),
+          DO({ op: 'lightning', power: 4 }),
+          // after dark, out in the wild, the dead and the bats come, a few at a time (nightspawn.ts)
+          IF(
+            all(param('name', 'night'), { hour: { from: 21, to: 5 } }, { outdoors: true }),
+            DO({ op: 'appear', types: { 'actor/creature/undead/zombie': 0.6, 'actor/creature/beast/bat': 0.4 }, ring: [6, 10], cap: NIGHT_CAP, tag: 'nightborn' }),
+            NOTHING,
+          ),
+        ),
       ),
     ),
   }),
@@ -1127,6 +1171,27 @@ const JOURNEY: Rule[] = [
     host: COMPANION,
     on: 'impulse/handle',
     tree: DO({ op: 'say', text: '@hint' }),
+  }),
+  rule({
+    id: 'companion/witness',
+    doc: 'A companion sees someone try what the world has never seen (an act it has no answer for): it tells the story, which counts the experiments (the prologue waits for the first).',
+    host: COMPANION,
+    on: 'seen',
+    tree: IF(param('defined', false), DO(emit('notify', 'story', { what: 'experiment' })), NOTHING),
+  }),
+  rule({
+    id: 'night/dawn',
+    doc: 'The night-born crumble away in daylight, a few at a time.',
+    host: { kind: 'actor', tags: ['nightborn'] },
+    on: 'time/period',
+    tree: IF(all(param('name', 'dawn'), { hour: { from: 5, to: 21 } }, { chance: 0.5 }), DO(vfx('poof', 'tileOf:host'), { op: 'destroy' }), 'inherit'),
+  }),
+  rule({
+    id: 'story/quests',
+    doc: 'The story settles a quest\'s business it is told of: a word between a giver and the one who spoke to them, a defeat (quests.ts).',
+    host: { type: 'resident/story' },
+    on: 'impulse/notify',
+    tree: IF(param('what', 'quest'), DO({ op: 'quests' }), IF(param('what', 'defeat'), DO({ op: 'quests' }), 'inherit')),
   }),
   rule({
     id: 'companion/guide',

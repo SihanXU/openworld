@@ -25,7 +25,6 @@ function farm(width: number, crops: Record<number, string> = {}, ground = 'farml
     new RuleLibrary(BASE_RULES),
   )
   eng.world.get('actor')!.facing = 'up'
-  eng.world.strict = true
   return eng
 }
 
@@ -37,10 +36,10 @@ const standAt = (eng: Engine, x: number) => {
 /** Put a fresh `type` in the player's hand (whatever was there is gone), as if picked from the toolbar. */
 const hold = (eng: Engine, type: string) => {
   const w = eng.world
-  w.write(() => {
+  eng.author(() => {
     const old = w.get(w.player.held)
     if (old) w.destroy(old)
-    w.create(type, { on: 'hand', holder: 'actor' })
+    w.author(() => w.create(type, { on: 'hand', holder: 'actor' }))
   })
   eng.controls.sync()
 }
@@ -48,7 +47,7 @@ const hold = (eng: Engine, type: string) => {
 const stow = (eng: Engine) => {
   const w = eng.world
   const h = w.get(w.player.held)
-  if (h) w.write(() => w.destroy(h))
+  if (h) eng.author(() => w.destroy(h))
   eng.controls.sync()
 }
 
@@ -156,7 +155,6 @@ describe('fire and trees', () => {
       new RuleLibrary(BASE_RULES),
     )
     eng.world.get('actor')!.facing = 'up'
-    eng.world.strict = true
     expect(press(eng, 'use', 'item/light/torch')).toEqual(expect.arrayContaining(['use/fire', 'core/element']))
     expect(eng.world.hasStatus({ e: 'c13' }, 'burning')).toBe(true)
     stow(eng)

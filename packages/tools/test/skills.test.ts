@@ -170,7 +170,7 @@ describe('the skill tree', () => {
     for (const skilled of [false, true]) {
       const eng = setup([{ key: 'fire', type: 'fixture/light/campfire', ...FRONT }])
       if (skilled) learn(eng, 'firemaker')
-      eng.world.add({ id: 'stick', type: 'item/material/stick', place: { on: 'hand', holder: 'actor' } })
+      eng.world.author(() => eng.world.add({ id: 'stick', type: 'item/material/stick', place: { on: 'hand', holder: 'actor' } }))
       eng.interact('interact', 'actor', { e: 'fire' })
       expect(eng.world.hasStatus({ e: 'fire' }, 'lit')).toBe(skilled)
     }
@@ -180,9 +180,9 @@ describe('the skill tree', () => {
     const logs = (skilled: boolean) => {
       const eng = setup([], 'tree')
       if (skilled) learn(eng, 'woodcutter')
-      eng.world.add({ id: 'axe', type: 'item/weapon/blade/axe', place: { on: 'hand', holder: 'actor' } })
+      eng.world.author(() => eng.world.add({ id: 'axe', type: 'item/weapon/blade/axe', place: { on: 'hand', holder: 'actor' } }))
       const tree = { tile: { map: eng.world.posOf(eng.world.get('actor')!)!.map, ...FRONT } }
-      eng.world.setStatus(tree, 'notched', -1)
+      eng.world.author(() => eng.world.setStatus(tree, 'notched', -1))
       eng.interact('interact', 'actor', tree)
       return eng.world.entitiesAt(tree.tile.map, FRONT.x, FRONT.y).filter((e) => e.type === 'item/material/log').length
     }
@@ -198,7 +198,7 @@ describe('the skill tree', () => {
       ])
       if (skilled) learn(eng, 'sweep')
       const full = eng.world.num(eng.world.get('b')!, 'hp')
-      eng.world.add({ id: 'sword', type: 'item/weapon/blade/sword', place: { on: 'hand', holder: 'actor' } })
+      eng.world.author(() => eng.world.add({ id: 'sword', type: 'item/weapon/blade/sword', place: { on: 'hand', holder: 'actor' } }))
       eng.attack(eng.world.get('actor')!)
       // hurt, or felled outright
       return ['b', 'c'].filter((id) => { const e = eng.world.get(id); return !e || eng.world.num(e, 'hp') < full }).length
@@ -280,13 +280,13 @@ describe('automatic combat talents', () => {
     const eng = duel(['windrunner', 'sweep'])
     const p = eng.world.player
     const map = eng.world.posOf(p)!.map
-    for (const x of [0, 2]) eng.world.add({ id: `side${x}`, type: 'actor/creature/slime/green_slime', place: { on: 'tile', map, x, y: FRONT.y }, props: { hp: 200, maxHp: 200, def: 0 } })
+    for (const x of [0, 2]) eng.world.author(() => eng.world.add({ id: `side${x}`, type: 'actor/creature/slime/green_slime', place: { on: 'tile', map, x, y: FRONT.y }, props: { hp: 200, maxHp: 200, def: 0 } }))
     eng.step(p, 'left')
     expect(eng.step(p, 'left')).toBe(false)
     eng.step(p, 'right')
     eng.step(p, 'right')
     expect(p.combat!.steps).toBe(3)
-    eng.teleport(p, { map, ...ORIGIN })
+    eng.author(() => eng.teleport(p, { map, ...ORIGIN }))
     p.facing = 'up'
     expect(blow(eng)).toBe(15)
     expect(p.combat!.steps).toBe(0)
@@ -299,7 +299,7 @@ describe('automatic combat talents', () => {
     const eng = duel(['windrunner', 'relentless'])
     const p = eng.world.player
     p.combat = { steps: 3, comboHits: 1, comboTarget: 'foe', comboTick: 0 }
-    eng.world.setStatus({ e: 'foe' }, 'down', -1)
+    eng.world.author(() => eng.world.setStatus({ e: 'foe' }, 'down', -1))
     expect(blow(eng)).toBe(0)
     expect(p.combat.steps).toBe(3)
     expect(p.combat.comboHits).toBeUndefined()
@@ -408,7 +408,7 @@ describe('automatic combat talents', () => {
   it('assassin training needs a melee blade and becomes inactive when profession changes', () => {
     const eng = duel(['assassin-training'])
     expect(blow(eng)).toBe(10)
-    eng.world.add({ id: 'dagger', type: 'item/weapon/blade/dagger', place: { on: 'hand', holder: 'actor' } })
+    eng.world.author(() => eng.world.add({ id: 'dagger', type: 'item/weapon/blade/dagger', place: { on: 'hand', holder: 'actor' } }))
     expect(blow(eng)).toBe(13)
     eng.world.player.props!.profession = 'warrior'
     expect(blow(eng)).toBe(12)
@@ -445,7 +445,7 @@ describe('automatic combat talents', () => {
     blow(eng)
     expect(eng.world.player.combat!.comboHits).toBe(1)
     const map = eng.world.posOf(eng.world.player)!.map
-    eng.world.add({ id: 'other', type: 'actor/creature/slime/green_slime', place: { on: 'tile', map, x: 0, y: FRONT.y }, props: { hp: 200, maxHp: 200, def: 0 } })
+    eng.world.author(() => eng.world.add({ id: 'other', type: 'actor/creature/slime/green_slime', place: { on: 'tile', map, x: 0, y: FRONT.y }, props: { hp: 200, maxHp: 200, def: 0 } }))
     blow(eng, { e: 'other' })
     expect(eng.world.player.combat!.comboTarget).toBe('other')
     expect(eng.world.player.combat!.comboHits).toBe(1)
@@ -456,7 +456,7 @@ describe('automatic combat talents', () => {
   it('sweep secondary targets never generate combo hits or inherit guaranteed opener criticals', () => {
     const eng = duel(['relentless', 'ambush', 'death-dance', 'sweep'])
     const map = eng.world.posOf(eng.world.player)!.map
-    eng.world.add({ id: 'side', type: 'actor/creature/slime/green_slime', place: { on: 'tile', map, x: 0, y: FRONT.y }, props: { hp: 200, maxHp: 200, def: 0 } })
+    eng.world.author(() => eng.world.add({ id: 'side', type: 'actor/creature/slime/green_slime', place: { on: 'tile', map, x: 0, y: FRONT.y }, props: { hp: 200, maxHp: 200, def: 0 } }))
     expect(blow(eng)).toBe(23)
     expect(eng.world.player.combat!.comboHits).toBe(1)
     expect(eng.world.get('side')!.props!.hp).toBe(190)
@@ -465,7 +465,7 @@ describe('automatic combat talents', () => {
   it('ranged attacks reset melee combos without triggering assassin openers or mobility charges', () => {
     const eng = duel(['ambush', 'backstab', 'relentless', 'windrunner', 'death-dance'])
     eng.world.player.combat = { steps: 3, comboHits: 2, comboTarget: 'foe', comboTick: 0 }
-    eng.world.add({ id: 'bow', type: 'item/weapon/ranged/bow', place: { on: 'hand', holder: 'actor' } })
+    eng.world.author(() => eng.world.add({ id: 'bow', type: 'item/weapon/ranged/bow', place: { on: 'hand', holder: 'actor' } }))
     expect(blow(eng)).toBe(13)
     expect(eng.world.player.combat!.comboHits).toBeUndefined()
     expect(eng.world.player.combat!.steps).toBe(3)
@@ -483,7 +483,7 @@ describe('automatic combat talents', () => {
     const ranged = duel(['shadow-recovery'])
     ranged.world.player.props!.hp = 20
     ranged.world.get('foe')!.props!.hp = 1
-    ranged.world.add({ id: 'bow', type: 'item/weapon/ranged/bow', place: { on: 'hand', holder: 'actor' } })
+    ranged.world.author(() => ranged.world.add({ id: 'bow', type: 'item/weapon/ranged/bow', place: { on: 'hand', holder: 'actor' } }))
     blow(ranged)
     expect(ranged.world.player.props!.hp).toBe(20)
   })
@@ -502,7 +502,7 @@ describe('automatic combat talents', () => {
   it('an NPC with the same profession and talents gets the same backstab calculations', () => {
     const eng = duel()
     const map = eng.world.posOf(eng.world.player)!.map
-    const npc = eng.world.add({ id: 'npc', type: 'actor/person', place: { on: 'tile', map, x: 2, y: 1 }, props: { hp: 20, maxHp: 20, profession: 'assassin' }, tags: ['skill:backstab'] })
+    const npc = eng.world.author(() => eng.world.add({ id: 'npc', type: 'actor/person', place: { on: 'tile', map, x: 2, y: 1 }, props: { hp: 20, maxHp: 20, profession: 'assassin' }, tags: ['skill:backstab'] }))
     eng.world.player.facing = 'left'
     expect(combatStrike(eng.world, npc, eng.world.player, 10, 1, undefined, true).power).toBe(14)
   })

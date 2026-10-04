@@ -23,7 +23,6 @@ function play(front: Omit<ScenarioEntity, 'x' | 'y'>[], held?: string, terrain?:
   }
   const eng = buildSandbox(sc, onto, new RuleLibrary(BASE_RULES))
   eng.world.get('actor')!.facing = 'up'
-  eng.world.strict = true
   return eng
 }
 
@@ -51,7 +50,7 @@ const carried = (eng: Engine) => [...(eng.world.get('actor')!.contents ?? []), .
 const stow = (eng: Engine) => {
   const w = eng.world
   const h = w.get(heldBy(eng))
-  if (h) w.write(() => w.place(h, { on: 'inside', holder: 'actor' }))
+  if (h) eng.author(() => w.place(h, { on: 'inside', holder: 'actor' }))
 }
 
 describe('surfaces', () => {
@@ -212,10 +211,9 @@ describe('the count condition', () => {
       event: {},
     }
     const eng = buildSandbox(sc, onto, lib)
-    eng.world.strict = true
     const ev = { kind: 'impulse/handle' as const, host: { e: 'table' }, roles: { actor: { e: 'actor' } }, params: {} }
     expect(eng.resolveEvent(ev).rule?.id).not.toBe('test/count')
-    eng.world.write(() => eng.world.create('item/food/apple', { on: 'tile', map: 'sandbox', x: 2, y: 1 }))
+    eng.author(() => eng.world.create('item/food/apple', { on: 'tile', map: 'sandbox', x: 2, y: 1 }))
     expect(eng.resolveEvent(ev).rule?.id).toBe('test/count')
   })
 

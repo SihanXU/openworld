@@ -28,18 +28,21 @@ export function createBossChallenge(index: WorldIndex, raw: RawChunk, profession
   const w = game.engine.world, player = w.player
   const shared = new Set(['light-footed', 'quick-hands', 'strength', 'vitality'])
   const pending = SKILLS.filter((s) => shared.has(s.id) || s.profession === profession)
-  while (pending.length) {
-    const next = pending.findIndex((s) => learnSkill(w, player, s))
-    if (next === -1) throw new Error('Invalid challenge skill prerequisites')
-    pending.splice(next, 1)
-  }
-  player.props!.skillPoints = 0
-  player.props!.hp = w.num(player, 'maxHp')
-  const weapon = w.create(role.weapon.type, { on: 'hand', holder: player.id }, structuredClone(role.weapon))
-  if (profession === 'mage') {
-    (weapon.props ??= {}).element = 'fire'
-    weapon.name = { en: 'Challenge Ember Wand', zh: '试炼·炽焰魔杖' }
-  }
+  // the trial is built by its author, not played into being
+  game.engine.author(() => {
+    while (pending.length) {
+      const next = pending.findIndex((s) => learnSkill(w, player, s))
+      if (next === -1) throw new Error('Invalid challenge skill prerequisites')
+      pending.splice(next, 1)
+    }
+    player.props!.skillPoints = 0
+    player.props!.hp = w.num(player, 'maxHp')
+    const weapon = w.create(role.weapon!.type, { on: 'hand', holder: player.id }, structuredClone(role.weapon))
+    if (profession === 'mage') {
+      (weapon.props ??= {}).element = 'fire'
+      weapon.name = { en: 'Challenge Ember Wand', zh: '试炼·炽焰魔杖' }
+    }
+  })
   game.engine.controls.sync()
   w.fx = []
   return game

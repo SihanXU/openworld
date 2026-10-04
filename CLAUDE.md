@@ -33,9 +33,11 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
   lines, schedule variants with the thing an activity needs, topics (`people.ts`), scripted
   scenes with regions and cards (`scenes.ts`, the story's script: it writes only the story and
-  sends pushes and notices); facts and invariants live in the world state and the engine; events,
-  relations (contact from the relation difference), active/dormant maps and the write guard
-  (`world.strict`) in `engine.ts`/`world.ts`; the request, one question per hole and class, the
+  sends pushes and notices; the tutorial's beats are its script too); facts and invariants live in
+  the world state and the engine; events, relations (contact from the relation difference),
+  active/dormant maps and the writer (`World.grant`: the mutators throw outside an outcome, the
+  clock, loading, the input's posture and the author, and in an outcome beyond its host —
+  design.md §5.15; `tools/test/writes.test.ts` scans for writes behind them) in `engine.ts`/`world.ts`; the request, one question per hole and class, the
   validator (host-only writes, ties, replay) and the boundaries in `mod.ts` (design.md §5.4–5.14);
   the player's four
   inputs (E hands, F take, left click use, right click put), layers, slots and magnet
@@ -122,6 +124,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
     only by address.
 - Specificity: host first (instance-bound, type depth), then event kind depth. Two equally
   specific rules are rejected by the validator; there is no compose.
+- Game code never writes the state directly and never takes the author's hand (`Engine.author`
+  is for tests, world building, loading, migrations and the dev console). A system that changes
+  the world does it as events: behaviour makes acts, the clock makes periods and timers, a
+  system's own logic runs inside its host's outcome as an effect primitive (design.md §5.15).
 - The demo must stay complete: anything added to its maps witnesses a requirement in
   `tools/test/demo.test.ts` (or the test fails), and every requirement is checked on the real map.
 - Only the player steps onto portals; NPCs transfer from the adjacent tile.

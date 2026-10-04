@@ -61,8 +61,7 @@ describe('nothing put down is lost', () => {
       for (const form of FORMS) {
         const eng = new Engine(structuredClone(start.world.state), start.world.onto.data, lib)
         const actor = eng.world.get('actor')!
-        eng.world.write(() => eng.world.add({ id: 'held', type: form.id, place: { on: 'hand', holder: 'actor' } }))
-        eng.world.strict = true
+        eng.author(() => eng.world.add({ id: 'held', type: form.id, place: { on: 'hand', holder: 'actor' } }))
         eng.trace.length = 0
         const put = eng.act('put', 'actor', ref, { instrument: { e: 'held' } })
         if (eng.trace.some((t) => t.rule && consumes(t.rule))) continue

@@ -6,7 +6,7 @@
 // topics, through story-hosted effects — and sends the rest as impulses that their receivers answer
 // themselves: a push to the place an actor must go, a notice of the player's stage.
 
-import { STORY, type Engine } from './engine.ts'
+import type { Engine } from './engine.ts'
 import { astar } from './path.ts'
 import { DIRS } from './types.ts'
 import { cmp } from './rules.ts'
@@ -45,9 +45,7 @@ export class Scenes {
 
   /** Run effects as the story (its facts, topics, what it gives), with a target for its spawns and notices. */
   private story(effects: Effect[], target?: Ref): void {
-    const eng = this.eng
-    if (!eng.world.get(STORY)) eng.ensureResidents()
-    eng.run(effects, { kind: 'time/period', host: { e: STORY }, roles: target ? { target } : {}, params: {}, origin: 'world' }, 'scene')
+    this.eng.script(effects, target ? { target } : {}, 'scene')
   }
 
   /** Is a scene's place and moment now? */

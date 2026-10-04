@@ -1,16 +1,20 @@
 // Companions and beats (docs/prologue.md). A companion is any actor whose `companion` prop names
 // a leader: it keeps beside them, flies over what blocks people, and follows them from map to
 // map. It is `airborne` (its type's tag): it never blocks a tile, and blows pass under it.
+// Following is its behaviour: each hop is an act of moving, and when it cannot go on (it is down)
+// it reports `stuck` (design.md §5.7), whose outcome is the world's to say.
 //
-// Beats are the content's once-firing, non-blocking steps (the tutorial): each waits for its
-// condition on the leader, then sets props or facts and lets the companion say one line in a
-// bubble. `@hint` (a `say` text) is the line of the latest beat whose stage still holds — what
-// the companion repeats when spoken to.
+// Beats are the content's once-firing, non-blocking steps (the tutorial): the story's script,
+// like a scene. Each waits for its condition on the leader; then the story keeps it as a fact,
+// tells the leader its new stage (a notice it answers itself) and lets the companion say one line
+// in a bubble. `@hint` (a `say` text) is the line of the latest beat — what the companion
+// repeats when spoken to.
 
 import type { Engine } from './engine.ts'
 import { cmp } from './rules.ts'
-import type { Cmp, Entity, Id, PropValue, Text } from './types.ts'
+import type { Cmp, Effect, Entity, Id, PropValue, Text } from './types.ts'
 import { DIRS } from './types.ts'
+import { TICKS_PER_HOUR } from './calendar.ts'
 
 /** What a beat waits for, all on its leader (the actor the companion follows, or the player). */
 export interface BeatCond {
@@ -32,8 +36,9 @@ export interface BeatCond {
 export interface Beat {
   id: string
   when: BeatCond
-  /** Props set on the leader (the prologue's stage). */
+  /** The leader's stage props: the story tells them (`notify` what = key, value), and they keep it. */
   props?: Record<string, PropValue>
+  /** The story's own facts. */
   facts?: Record<string, PropValue>
   /** Said by the companion, in a bubble, when the beat fires. */
   say?: Text
@@ -62,12 +67,16 @@ const EVERY = 3
 const NEAR = 1
 /** How far a companion may trail a leader on the move before it hurries to catch up. */
 const LAG = 3
+/** A companion that cannot follow says so at most this often (ticks). */
+const STUCK_EVERY = TICKS_PER_HOUR
 
 export class Companions {
   beats: Beat[] = []
   guides: Guide[] = []
   /** Where each companion's leader last stood, and for how many ticks (runtime only). */
   private still = new Map<Id, { map: string; x: number; y: number; ticks: number }>()
+  /** When each companion may next report that it cannot follow (runtime only). */
+  private stuckUntil = new Map<Id, number>()
 
   constructor(private eng: Engine) {}
 
@@ -121,6 +130,14 @@ export class Companions {
     const to = w.posOf(lead)
     const at = w.posOf(e)
     if (!to || lead.place.on !== 'tile' || !w.map(to.map)) return
+    // it cannot go on (down, held fast): it says so, and the world's answer is the outcome
+    if (this.eng.busy(e)) {
+      if (!e.frozenBy && (this.stuckUntil.get(e.id) ?? -1) <= w.state.tick) {
+        this.stuckUntil.set(e.id, w.state.tick + STUCK_EVERY)
+        this.eng.queue({ kind: 'stuck', host: { e: e.id }, roles: { target: { e: lead.id } }, params: { activity: 'follow' }, origin: 'world' })
+      }
+      return
+    }
     const perch = this.perch(lead, to.map, to.x, to.y)
     if (!at || at.map !== to.map || Math.max(Math.abs(at.x - to.x), Math.abs(at.y - to.y)) > 8) return this.fly(e, to.map, perch.x, perch.y)
     const ahead = { x: to.x + DIRS[lead.facing ?? 'down'][0], y: to.y + DIRS[lead.facing ?? 'down'][1] }
@@ -140,13 +157,9 @@ export class Companions {
     this.fly(e, to.map, x, y)
   }
 
-  /** The companion's own move (its behaviour, like a creature's step): its relations are settled after (design.md §5.10). */
+  /** The companion's own move: an act of moving there (a flyer goes over what stops walkers). */
   private fly(e: Entity, map: string, x: number, y: number): void {
-    const w = this.eng.world
-    this.eng.touch({ e: e.id })
-    w.write(() => w.place(e, { on: 'tile', map, x, y }))
-    this.eng.touch({ e: e.id })
-    this.eng.settle()
+    this.eng.act('move', e.id, { e: e.id }, { instrument: null, params: { map, x, y } })
   }
 
   /** The tile behind the leader (or beside them, at the map's edge). */
@@ -198,15 +211,16 @@ export class Companions {
     const lead = this.leader()
     for (const b of this.beats) {
       if (w.fact(`beat.${b.id}`) || !this.met(b.when, lead)) continue
-      // a beat is the story's (the tutorial's step): it writes as the story does, in its own outcome
-      w.write(() => {
-        w.setFact(`beat.${b.id}`, w.state.tick)
-        for (const [k, v] of Object.entries(b.props ?? {})) (lead.props ??= {})[k] = v
-        for (const [k, v] of Object.entries(b.facts ?? {})) w.setFact(k, v)
-      })
+      // a beat is the story's script (the tutorial's step): the story keeps it, and tells the leader their stage
+      const effects: Effect[] = [
+        { op: 'setFact', key: `beat.${b.id}`, value: w.state.tick },
+        { op: 'setFact', key: 'beat.last', value: b.id },
+        ...Object.entries(b.facts ?? {}).map(([key, value]): Effect => ({ op: 'setFact', key, value })),
+        ...Object.entries(b.props ?? {}).map(([what, value]): Effect => ({ op: 'emit', impulse: 'notify', to: 'target', params: { what, value } })),
+      ]
+      this.eng.script(effects, { target: { e: lead.id } }, `beat/${b.id}`)
       const bird = this.of(lead.id)[0]
       if (b.say && bird) w.fx.push({ t: 'say', who: bird.id, text: b.say })
-      w.state.lastBeat = b.id
       // one beat at a time: the next waits for the next check
       return
     }
@@ -214,7 +228,7 @@ export class Companions {
 
   /** The line a companion repeats when spoken to: the latest beat's hint. */
   hint(): Text | undefined {
-    const id = this.eng.world.state.lastBeat
+    const id = this.eng.world.fact('beat.last')
     const b = this.beats.find((x) => x.id === id)
     return b ? (b.hint ?? b.say) : undefined
   }

@@ -108,9 +108,12 @@ human player's kill time. No invulnerability, extra damage or healing is used by
 
 - `content/src/bosses.ts` owns names, footprints, stats, kits, statuses and defeat rules.
   `WorldIndex.bosses` loads them into the content-independent encounter controller.
-- `engine/src/bosses.ts` builds locked tile patterns, tracks wind-up/recovery and phases,
-  queues ordinary `hit` events and emits the generated FX names. One hit per victim,
-  regardless of how many cells its body intersects.
+- `engine/src/bosses.ts` builds locked tile patterns, tracks wind-up/recovery and phases (the
+  encounter's behaviour). When a wind-up runs out the blow is the sin's act (`use` with its own
+  body on the aimed tile, carrying the skill, the origin and the aim); its rule (`sins/release`)
+  answers with the `release` effect: a `strike` to each foe on the locked cells, a `push` (push
+  or pull) and a `coat` (mired, entranced: `sins/afflict`) that they answer themselves, and its
+  own heal or blink. One hit per victim, regardless of how many cells its body intersects.
 - Actor spatial indices cover the full footprint. Steps and teleports validate the whole
   body; weapon rays can strike the near edge instead of needing to reach the anchor.
 - `Entity.boss` is plain saved data, including locked aim, cells and release time. Reloading

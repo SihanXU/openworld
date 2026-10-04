@@ -15,7 +15,7 @@ export function waypoints(eng: Engine): { e: Entity; attuned: boolean }[] {
     .map((e) => ({ e, attuned: w.hasStatus({ e: e.id }, 'attuned') }))
 }
 
-/** Take the player to an attuned stone: the free tile below it (or the nearest). */
+/** Take the player to an attuned stone: an act of moving to the free tile below it (or the nearest). */
 export function travelToWaypoint(eng: Engine, id: Id): boolean {
   const w = eng.world
   const p = w.player
@@ -23,8 +23,11 @@ export function travelToWaypoint(eng: Engine, id: Id): boolean {
   if (!stone || stone.type !== WAYPOINT_TYPE || stone.place.on !== 'tile' || !w.hasStatus({ e: id }, 'attuned')) return false
   if (eng.busy(p) || w.state.scene || w.state.question) return false
   const { map, x, y } = stone.place
-  w.fx.push({ t: 'vfx', fx: 'poof', ...w.posOf(p)! })
-  eng.travel(p, { map, x, y: y + 1 })
+  const from = w.posOf(p)!
+  eng.act('move', p.id, { e: p.id }, { instrument: null, params: { map, x, y: y + 1 } })
+  const to = w.posOf(p)
+  if (!eng.pendingTransition && to?.map === from.map && to.x === from.x && to.y === from.y) return false
+  w.fx.push({ t: 'vfx', fx: 'poof', ...from })
   p.facing = 'up'
   return true
 }

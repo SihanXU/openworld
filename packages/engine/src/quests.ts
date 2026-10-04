@@ -1,9 +1,17 @@
 // Quests (docs/quests.md): content lays out who gives what, what it asks and what it pays; the
-// engine keeps the state in world facts and answers the player's word to a person.
+// story keeps the state in its facts (design.md §5.5: the story's facts belong to the story).
 //
 //   q.<id>              'active' | 'done'
+//   q.<id>.by           who took it on (their defeats count, they hand it in)
 //   q.<id>.<goal>       a defeat goal's count, or 1 when a talk goal is met
 //   q.<id>.day          the day a repeatable quest was last handed in
+//
+// Every change is an outcome (design.md §5.13, A2–A3): a person spoken to (the `quest` primitive,
+// the person's own rule) tells the story there is business between them and the speaker; the
+// story's `quests` primitive settles it — and counts a defeat it is told of — writing only its
+// facts. What it pays goes as the world's other changes go: the reward is spawned into the
+// taker's bag, the taker is notified of its experience and stage (and answers itself), and what
+// was to be brought is taken by the giver.
 //
 // A quest is `available` when its requirements hold and it is not active (a repeatable one: not
 // handed in today), `ready` when every goal is met, and handed in to its giver (or `turnIn`).
@@ -13,7 +21,6 @@
 
 import type { Engine } from './engine.ts'
 import { cmp } from './rules.ts'
-import { gainXp } from './progression.ts'
 import type { Cmp, Entity, GameEvent, Id, PropValue, Text } from './types.ts'
 
 export type QuestKind = 'main' | 'side' | 'repeat'
@@ -73,19 +80,26 @@ export class Quests {
     return this.eng.world
   }
 
-  private carried(type: string): Entity[] {
-    const p = this.w.player
-    return [p.held, ...(p.contents ?? [])].map((id) => this.w.get(id)).filter((e): e is Entity => !!e && e.type.startsWith(type) && !e.frozenBy)
+  private carried(type: string, by: Entity = this.w.player): Entity[] {
+    return [by.held, ...(by.contents ?? [])].map((id) => this.w.get(id)).filter((e): e is Entity => !!e && e.type.startsWith(type) && !e.frozenBy)
   }
 
-  /** How far a goal is: have / need. */
+  /** Who took a quest on (the player, for a save from before it was kept). */
+  private taker(q: QuestDef): Entity | undefined {
+    const by = this.w.fact(`q.${q.id}.by`)
+    return this.w.get(typeof by === 'string' ? by : this.w.state.player)
+  }
+
+  /** How far a goal is: have / need (what is carried, on the one who took it on). */
   progress(q: QuestDef, g: QuestGoal): { have: number; need: number } {
     const w = this.w
     switch (g.kind) {
       case 'defeat':
         return { have: Math.min(g.count, Number(w.fact(`q.${q.id}.${g.id}`) ?? 0)), need: g.count }
-      case 'carry':
-        return { have: Math.min(g.count, this.carried(g.type).length), need: g.count }
+      case 'carry': {
+        const t = this.taker(q)
+        return { have: Math.min(g.count, t ? this.carried(g.type, t).length : 0), need: g.count }
+      }
       case 'talk':
         return { have: w.fact(`q.${q.id}.${g.id}`) ? 1 : 0, need: 1 }
       case 'fact':
@@ -93,13 +107,14 @@ export class Quests {
     }
   }
 
-  status(q: QuestDef): QuestStatus {
+  /** Where a quest stands; whether it is open to `who` (by default the player, whose log and marks these are). */
+  status(q: QuestDef, who: Entity = this.w.player): QuestStatus {
     const w = this.w
     const state = w.fact(`q.${q.id}`)
     if (state === 'active') return q.goals.every((g) => { const p = this.progress(q, g); return p.have >= p.need }) ? 'ready' : 'active'
     if (state === 'done' && (q.kind !== 'repeat' || w.fact(`q.${q.id}.day`) === w.calendar().day)) return 'done'
     const r = q.requires
-    if (r?.level && w.num(w.player, 'level', 1) < r.level) return 'locked'
+    if (r?.level && w.num(who, 'level', 1) < r.level) return 'locked'
     for (const [k, c] of Object.entries(r?.facts ?? {})) if (!cmp(w.fact(k) ?? 0, c)) return 'locked'
     for (const id of r?.quests ?? []) if (w.fact(`q.${id}`) !== 'done') return 'locked'
     return 'available'
@@ -125,83 +140,101 @@ export class Quests {
   }
 
   /**
-   * The player speaks to a person (the quest/talk rule). True if a quest answered: handed in,
-   * taken on, or a talk goal met. Otherwise the person just talks.
+   * What a person spoken to has with the speaker: something to hand in, to take on, a talk goal
+   * (the story settles these), or only a word on how it goes. Read only: the person's own rule.
    */
-  talk(npc: Id): boolean {
+  business(npc: Id, who: Entity): 'story' | Text | undefined {
     const w = this.w
+    for (const q of this.defs) {
+      const s = this.status(q, who)
+      if ((q.turnIn ?? q.giver) === npc && s === 'ready' && this.taker(q)?.id === who.id) return 'story'
+      if (q.giver === npc && s === 'available') return 'story'
+      if (s === 'active' && q.goals.some((g) => g.kind === 'talk' && g.npc === npc && !w.fact(`q.${q.id}.${g.id}`))) return 'story'
+    }
+    for (const q of this.defs) if (q.giver === npc && this.status(q, who) === 'active' && q.waiting) return q.waiting
+    return undefined
+  }
+
+  /**
+   * The story's `quests` primitive (its outcome, on a notice): a word between a giver (the
+   * source) and the one who spoke (the actor) — hand in what is ready, else take on what is
+   * offered, else meet a talk goal; or a defeat (the actor felled a thing of type `param type`).
+   */
+  settle(ev: GameEvent): void {
+    const w = this.w
+    const who = ev.roles.actor && 'e' in ev.roles.actor ? w.get(ev.roles.actor.e) : undefined
+    if (!who) return
+    if (ev.params?.what === 'defeat') return this.defeat(who, String(ev.params.type ?? ''))
+    const npc = ev.roles.source && 'e' in ev.roles.source ? ev.roles.source.e : undefined
+    if (!npc) return
     const say = (text: Text) => w.fx.push({ t: 'say', who: npc, text })
     // hand in what is ready
     for (const q of this.defs)
-      if ((q.turnIn ?? q.giver) === npc && this.status(q) === 'ready') {
-        this.complete(q)
+      if ((q.turnIn ?? q.giver) === npc && this.status(q, who) === 'ready' && this.taker(q)?.id === who.id) {
+        this.complete(q, who, npc, ev)
         say(q.done)
-        return true
+        return
       }
     // take on what is offered
     for (const q of this.defs)
-      if (q.giver === npc && this.status(q) === 'available') {
+      if (q.giver === npc && this.status(q, who) === 'available') {
         w.setFact(`q.${q.id}`, 'active')
+        w.setFact(`q.${q.id}.by`, who.id)
         for (const g of q.goals) if (g.kind === 'defeat' || g.kind === 'talk') w.setFact(`q.${q.id}.${g.id}`, 0)
         say(q.offer)
         w.fx.push({ t: 'log', text: { en: `Quest taken: ${txt(q.title, 'en')}`, zh: `接受任务：${txt(q.title, 'zh')}` }, tone: 'good' })
-        return true
+        return
       }
-    // a talk goal: someone the quest sent you to
+    // a talk goal: someone the quest sent them to
     for (const q of this.defs) {
-      if (this.status(q) !== 'active') continue
+      if (this.status(q, who) !== 'active') continue
       for (const g of q.goals)
         if (g.kind === 'talk' && g.npc === npc && !w.fact(`q.${q.id}.${g.id}`)) {
           w.setFact(`q.${q.id}.${g.id}`, 1)
           say(g.line)
-          return true
+          return
         }
     }
-    // the giver of a quest still under way says how it goes
-    for (const q of this.defs)
-      if (q.giver === npc && this.status(q) === 'active' && q.waiting) {
-        say(q.waiting)
-        return true
-      }
-    return false
   }
 
-  private complete(q: QuestDef): void {
+  /** The story's outcome: the facts change; the rest is sent (the giver takes, the taker is told) or spawned. */
+  private complete(q: QuestDef, who: Entity, npc: Id, ev: GameEvent): void {
     const w = this.w
-    const p = w.player
-    // what was to be brought is handed over
-    for (const g of q.goals) if (g.kind === 'carry' && g.consume) for (const e of this.carried(g.type).slice(0, g.count)) w.destroy(e)
+    const eng = this.eng
+    const depth = (ev.depth ?? 0) + 1
+    const send = (kind: 'impulse/taken' | 'impulse/notify', to: Id, params: Record<string, PropValue>, roles: GameEvent['roles'] = {}) =>
+      eng.queue({ kind, host: { e: to }, roles, params, cause: ev.cause, origin: ev.origin, depth })
+    // what was to be brought is taken by the giver (each thing moves itself into their bag)
+    for (const g of q.goals)
+      if (g.kind === 'carry' && g.consume) for (const e of this.carried(g.type, who).slice(0, g.count)) send('impulse/taken', e.id, { into: 'contents', quiet: true }, { other: { e: npc }, actor: { e: npc } })
     w.setFact(`q.${q.id}`, 'done')
     if (q.kind === 'repeat') w.setFact(`q.${q.id}.day`, w.calendar().day)
     const r = q.reward
     for (const [k, v] of Object.entries(r?.facts ?? {})) w.setFact(k, v)
-    for (const [k, v] of Object.entries(r?.props ?? {})) (p.props ??= {})[k] = v
-    for (const it of r?.items ?? []) for (let i = 0; i < it.count; i++) w.create(it.type, { on: 'inside', holder: p.id })
+    // the taker's stage and experience: they are told, and keep it themselves
+    for (const [what, value] of Object.entries(r?.props ?? {})) send('impulse/notify', who.id, { what, value }, { source: { e: npc } })
+    if (r?.xp) send('impulse/notify', who.id, { what: 'reward', xp: r.xp }, { source: { e: npc } })
+    // what it pays is spawned into their bag
+    for (const it of r?.items ?? [])
+      for (let i = 0; i < it.count; i++) {
+        const made = w.create(it.type, { on: 'inside', holder: who.id })
+        eng.touch({ e: made.id })
+      }
     w.fx.push({ t: 'log', text: { en: `Quest complete: ${txt(q.title, 'en')}`, zh: `完成任务：${txt(q.title, 'zh')}` }, tone: 'good' })
-    if (r?.xp) {
-      const up = gainXp(w, p, r.xp)
-      w.fx.push({ t: 'log', text: { en: `+${r.xp} XP`, zh: `+${r.xp} 经验` }, tone: 'good' })
-      if (up) w.fx.push({ t: 'levelup', level: w.num(p, 'level', 1) })
-    }
-    this.eng.controls.sync()
   }
 
-  /** A creature fell: count it for the player's defeat goals. */
-  onDefeat(ev: GameEvent): void {
+  /** The story's outcome: a thing of `type` felled by `who` counts for the defeat goals of the quests they took on. */
+  private defeat(who: Entity, type: string): void {
     const w = this.w
-    const by = ev.roles.actor
-    const t = ev.host
-    if (!by || !('e' in by) || by.e !== w.state.player || !t || !('e' in t)) return
-    const victim = w.get(t.e)
-    const at = victim && w.posOf(victim)
-    if (!victim || !at) return
+    const at = w.posOf(who)
+    if (!type || !at) return
     for (const q of this.defs) {
-      if (this.status(q) !== 'active') continue
+      if (this.status(q, who) !== 'active' || this.taker(q)?.id !== who.id) continue
       for (const g of q.goals)
-        if (g.kind === 'defeat' && victim.type.startsWith(g.type) && (!g.map || g.map === at.map)) {
+        if (g.kind === 'defeat' && type.startsWith(g.type) && (!g.map || g.map === at.map)) {
           const key = `q.${q.id}.${g.id}`
           const n = Number(w.fact(key) ?? 0)
-          if (n < g.count) w.write(() => w.setFact(key, n + 1))
+          if (n < g.count) w.setFact(key, n + 1)
         }
     }
   }

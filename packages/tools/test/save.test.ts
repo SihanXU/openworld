@@ -19,7 +19,7 @@ describe('a save taken while the modder works', () => {
     // a modder still at work: the participants are held until it answers
     game.mods.provider = { resolve: () => new Promise(() => {}) }
     const p = w.player
-    const rope = w.write(() => w.create('item/tool/rope', { on: 'hand', holder: p.id }))
+    const rope = eng.author(() => w.create('item/tool/rope', { on: 'hand', holder: p.id }))
     const at = w.posOf(p)!
     for (const e of w.entitiesOnMap(at.map)) {
       if (e.id === p.id || e.place.on !== 'tile') continue

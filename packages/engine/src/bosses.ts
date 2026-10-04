@@ -1,9 +1,15 @@
 // Generic locked-telegraph encounters. Identity, patterns, timing and effects are world data.
 // Damage still travels through ordinary hit rules; no player-ID or named-boss decisions.
+//
+// The approach, the aim and the telegraph are the encounter's behaviour (its memory: `boss`).
+// When the telegraph runs out the blow is an act (design.md §5.13, A2): `use` with its own body
+// on the aimed tile, carrying the skill and the locked cells; the encounter's rule answers it
+// with `release` — a strike to each foe on those cells, a push or pull and a coat that they
+// answer themselves, and its own heal or blink.
 import type { Engine } from './engine.ts'
 import { combatDelay } from './combat.ts'
 import { astar } from './path.ts'
-import type { BossSkill, Entity, Pos } from './types.ts'
+import type { BossSkill, Entity, GameEvent, Pos } from './types.ts'
 
 /** Discrete hit cells; the same locked cells are sent to the renderer and used for damage. */
 export function bossPattern(skill: BossSkill, origin: Pos, aim: Pos): [number, number][] {
@@ -53,47 +59,73 @@ function moveToward(eng: Engine, e: Entity, goal: Pos): boolean {
   return true
 }
 
+/** The telegraph runs out: the blow is the encounter's act (its own body on the aimed tile); then its behaviour recovers. */
 function release(eng: Engine, e: Entity, skill: BossSkill): void {
   const w = eng.world, b = e.boss!, p = b.pending!
-  const touched = new Set(p.tiles.map(([x, y]) => `${x},${y}`))
-  const victims = w.entitiesOnMap(p.origin.map).filter((o) => o.id !== e.id && o.place.on === 'tile' && eng.hostileTo(e, o)
-    && w.occupiedCells(o).some(([x, y]) => touched.has(`${x},${y}`)))
-  for (const target of victims) {
-    // the blow is a strike the target answers for itself (design.md §5.8)
-    eng.queue({ kind: 'impulse/strike', host: { e: target.id }, roles: { source: { e: e.id }, actor: { e: e.id } }, params: { power: Math.round(skill.damage * ((b.phase ?? 1) > 1 ? 1.35 : 1)), edge: 'blunt', ...(skill.element && { element: skill.element }) }, cause: e.id, origin: 'world' })
-    if (w.num(target, 'hp') <= 0) continue
-    if (skill.shift) {
-      const at = w.posOf(target)!
-      const dx = Math.sign(p.origin.x - at.x), dy = Math.sign(p.origin.y - at.y)
-      const sign = skill.shift === 'pull' ? 1 : -1
-      const dir = Math.abs(p.origin.x - at.x) >= Math.abs(p.origin.y - at.y) ? dx * sign > 0 ? 'right' : 'left' : dy * sign > 0 ? 'down' : 'up'
-      eng.step(target, dir)
-    }
-    if (skill.status) eng.applyStatus({ e: target.id }, skill.status)
-  }
-  if (skill.heal && victims.length) eng.effects.apply({ op: 'heal', amount: skill.heal * victims.length }, { kind: 'time/period', host: { e: e.id }, roles: {}, origin: 'world' })
-  if (skill.blink) {
-    for (const [dx, dy] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
-      const x = p.aim.x + dx, y = p.aim.y + dy
-      if (w.fits(e, p.aim.map, x, y)) { w.place(e, { on: 'tile', map: p.aim.map, x, y }); break }
-    }
-  }
-  // Distinct generated effects at the impact's center and extremities, not a tile-sized flood.
-  const center = skill.aim === 'self' ? p.origin : p.aim
-  const centers = [center]
-  if (skill.shape === 'ring' || skill.shape === 'spots' || skill.shape === 'cross') {
-    centers.push(...p.tiles.filter(([x, y]) => (x === center.x || y === center.y) && Math.max(Math.abs(x-center.x), Math.abs(y-center.y)) === skill.radius).map(([x, y]) => ({ map: p.origin.map, x, y })))
-  } else if (skill.shape === 'cone' || skill.shape === 'line') {
-    const dx = p.aim.x - p.origin.x, dy = p.aim.y - p.origin.y
-    const vx = Math.abs(dx) >= Math.abs(dy) ? Math.sign(dx) || 1 : 0, vy = vx ? 0 : Math.sign(dy) || 1
-    centers.push({ map: p.origin.map, x: p.origin.x + vx * Math.ceil(skill.radius / 2), y: p.origin.y + vy * Math.ceil(skill.radius / 2) })
-  }
-  for (const at of centers) w.fx.push({ t: 'vfx', fx: skill.fx, ...at })
+  eng.act('use', e.id, { tile: p.aim }, { instrument: null, params: { skill: p.skill, ox: p.origin.x, oy: p.origin.y, ax: p.aim.x, ay: p.aim.y, enraged: (b.phase ?? 1) > 1 } })
   b.actionTick = w.state.tick
   b.actionEnd = w.state.tick + Math.max(6, Math.round(skill.recovery * ((b.phase ?? 1) > 1 ? 0.65 : 1)))
   b.nextAt = b.actionEnd
   b.nextSkill = (p.skill + 1) % eng.bossKits[b.kit].skills.length
   delete b.pending
+}
+
+/**
+ * The `release` primitive (the encounter's own outcome): the skill its act names lands on the
+ * cells it telegraphed — each foe there is struck, pushed or pulled, and coated as the skill says
+ * (impulses they answer themselves); the host heals itself by what it hit, or blinks beside its aim.
+ */
+export function releaseSkill(eng: Engine, e: Entity, ev: GameEvent): void {
+  const w = eng.world
+  const kit = e.boss && eng.bossKits[e.boss.kit]
+  const q = ev.params ?? {}
+  const skill = kit?.skills[Number(q.skill)]
+  const at = w.posOf(e)
+  if (!skill || !at || typeof q.ox !== 'number' || typeof q.oy !== 'number' || typeof q.ax !== 'number' || typeof q.ay !== 'number') return
+  const origin: Pos = { map: at.map, x: q.ox, y: q.oy }
+  const aim: Pos = { map: at.map, x: q.ax, y: q.ay }
+  const tiles = bossPattern(skill, origin, aim).filter(([x, y]) => w.inBounds(at.map, x, y))
+  const touched = new Set(tiles.map(([x, y]) => `${x},${y}`))
+  const victims = w.entitiesOnMap(at.map).filter((o) => o.id !== e.id && o.place.on === 'tile' && eng.hostileTo(e, o)
+    && w.occupiedCells(o).some(([x, y]) => touched.has(`${x},${y}`)))
+  const send = (kind: GameEvent['kind'], to: Entity, params: GameEvent['params']) =>
+    eng.queue({ kind, host: { e: to.id }, roles: { source: { e: e.id }, actor: { e: e.id } }, params, cause: e.id, origin: ev.origin, depth: (ev.depth ?? 0) + 1 })
+  for (const target of victims) {
+    // the blow is a strike the target answers for itself (design.md §5.8)
+    send('impulse/strike', target, { power: Math.round(skill.damage * (q.enraged ? 1.35 : 1)), edge: 'blunt', ...(skill.element && { element: skill.element }) })
+    if (skill.shift) {
+      const t = w.posOf(target)!
+      const dx = Math.sign(origin.x - t.x), dy = Math.sign(origin.y - t.y)
+      const sign = skill.shift === 'pull' ? 1 : -1
+      const dir = Math.abs(origin.x - t.x) >= Math.abs(origin.y - t.y) ? dx * sign > 0 ? 'right' : 'left' : dy * sign > 0 ? 'down' : 'up'
+      send('impulse/push', target, { dir })
+    }
+    // what clings (a mire, a trance): a coat the target answers
+    if (skill.status) send('impulse/coat', target, { substance: skill.status })
+  }
+  if (skill.heal && victims.length) eng.effects.apply({ op: 'heal', amount: skill.heal * victims.length }, ev)
+  if (skill.blink) {
+    for (const [dx, dy] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
+      const x = aim.x + dx, y = aim.y + dy
+      if (w.fits(e, aim.map, x, y)) {
+        eng.touch({ e: e.id })
+        w.place(e, { on: 'tile', map: aim.map, x, y })
+        eng.touch({ e: e.id })
+        break
+      }
+    }
+  }
+  // Distinct generated effects at the impact's center and extremities, not a tile-sized flood.
+  const center = skill.aim === 'self' ? origin : aim
+  const centers = [center]
+  if (skill.shape === 'ring' || skill.shape === 'spots' || skill.shape === 'cross') {
+    centers.push(...tiles.filter(([x, y]) => (x === center.x || y === center.y) && Math.max(Math.abs(x-center.x), Math.abs(y-center.y)) === skill.radius).map(([x, y]) => ({ map: at.map, x, y })))
+  } else if (skill.shape === 'cone' || skill.shape === 'line') {
+    const dx = aim.x - origin.x, dy = aim.y - origin.y
+    const vx = Math.abs(dx) >= Math.abs(dy) ? Math.sign(dx) || 1 : 0, vy = vx ? 0 : Math.sign(dy) || 1
+    centers.push({ map: at.map, x: origin.x + vx * Math.ceil(skill.radius / 2), y: origin.y + vy * Math.ceil(skill.radius / 2) })
+  }
+  for (const c of centers) w.fx.push({ t: 'vfx', fx: skill.fx, ...c })
 }
 
 export function stepBosses(eng: Engine, active: string): void {

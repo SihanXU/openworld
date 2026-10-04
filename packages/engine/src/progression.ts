@@ -10,20 +10,19 @@ import { HUNGER_EVERY } from './hunger.ts'
 /** Experience needed to go from `level` to the next: 20, 40, 60 … */
 export const xpToNext = (level: number): number => 20 * Math.max(1, level)
 
-/** Add experience to an actor; returns how many levels it gained. */
+/** Add experience to an actor (in its own outcome: `gainXp`); returns how many levels it gained. */
 export function gainXp(w: World, e: Entity, amount: number): number {
-  const props = (e.props ??= {})
-  let level = Math.max(1, Number(props.level ?? 1))
-  let xp = Number(props.xp ?? 0) + Math.max(0, Math.round(amount))
+  let level = Math.max(1, Number(e.props?.level ?? 1))
+  let xp = Number(e.props?.xp ?? 0) + Math.max(0, Math.round(amount))
   let gained = 0
   while (xp >= xpToNext(level)) {
     xp -= xpToNext(level)
     level++
     gained++
   }
-  props.xp = xp
-  props.level = level
-  if (gained) props.skillPoints = Number(props.skillPoints ?? 0) + gained
+  w.setProp(e, 'xp', xp)
+  w.setProp(e, 'level', level)
+  if (gained) w.setProp(e, 'skillPoints', Number(e.props?.skillPoints ?? 0) + gained)
   return gained
 }
 
@@ -49,17 +48,16 @@ export function cannotLearn(e: Entity, def: SkillDef, profession = e.props?.prof
   return undefined
 }
 
-/** Learn a skill: spend its points, add its grants, leave its tag. False if it cannot be learned. */
+/** Learn a skill (in its own outcome: an act of learning): spend its points, add its grants, leave its tag. False if it cannot be learned. */
 export function learnSkill(w: World, e: Entity, def: SkillDef): boolean {
   if (cannotLearn(e, def, w.prop(e, 'profession'))) return false
-  const props = (e.props ??= {})
-  props.skillPoints = Number(props.skillPoints ?? 0) - (def.cost ?? 1)
+  w.setProp(e, 'skillPoints', Number(e.props?.skillPoints ?? 0) - (def.cost ?? 1))
   for (const [key, delta] of Object.entries(def.grant ?? {})) {
-    props[key] = w.num(e, key, key === 'hungerEvery' ? HUNGER_EVERY : 0) + delta
+    w.setProp(e, key, w.num(e, key, key === 'hungerEvery' ? HUNGER_EVERY : 0) + delta)
     // a bigger pool comes full by as much
-    if (key === 'maxHp') props.hp = w.num(e, 'hp') + delta
-    if (key === 'maxHunger') props.hunger = w.num(e, 'hunger', w.num(e, 'maxHunger')) + delta
+    if (key === 'maxHp') w.setProp(e, 'hp', w.num(e, 'hp') + delta)
+    if (key === 'maxHunger') w.setProp(e, 'hunger', w.num(e, 'hunger', w.num(e, 'maxHunger')) + delta)
   }
-  ;(e.tags ??= []).push(skillTag(def.id))
+  w.addTag(e, skillTag(def.id))
   return true
 }
