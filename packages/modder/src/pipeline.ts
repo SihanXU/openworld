@@ -95,6 +95,8 @@ export class Modder {
       const again = this.cover(req, sig)
       if (again) return again
     }
+    const base = this.opts.library.answeredByBase(req)
+    if (base) return { patch: null, outcome: 'failed', diagnostics: [`answered by the base rule "${base}" here: the client's base rules are older than the service's`] }
     if (!this.opts.model) return { patch: null, outcome: 'unavailable' }
     return this.track(sig.key, this.episode(req, body.workspace, sig, { profile }))
   }
@@ -226,7 +228,7 @@ export class Modder {
             continue
           }
         }
-        if (this.commit(ep, patch, req, ws, replaces)) break
+        if (this.commit(ep, patch, req, replaces)) break
         // the library moved under us: someone else's patch may already answer this
         const meanwhile = eo.revise ? undefined : library.covering(req)
         if (meanwhile) {
@@ -238,10 +240,10 @@ export class Modder {
         if (repairs++ >= h.repair.maxRounds) break
         retry(repairUser(ep.attempts.at(-1)!.errors, [], true), 'repair')
       }
-      if (ep.outcome === 'failed' && reviewed && this.commit(ep, reviewed, req, ws, replaces)) ep.error = 'the revision never validated; shipped the reviewed draft'
+      if (ep.outcome === 'failed' && reviewed && this.commit(ep, reviewed, req, replaces)) ep.error = 'the revision never validated; shipped the reviewed draft'
     } catch (err) {
       ep.error = (err as Error).message
-      if (reviewed && ep.outcome === 'failed' && this.commit(ep, reviewed, req, ws, replaces)) ep.error += '; shipped the reviewed draft'
+      if (reviewed && ep.outcome === 'failed' && this.commit(ep, reviewed, req, replaces)) ep.error += '; shipped the reviewed draft'
     }
 
     ep.usage = { calls: model.calls, input: model.input, output: model.output, cost: model.cost }
@@ -290,7 +292,7 @@ export class Modder {
       if (eo.revise) ep.revises = eo.revise.episode.id
       const { patch, problems } = repo.collect()
       ep.patch = undefined
-      if (run.submitted && patch && !problems.length) this.commit(ep, { ...patch, author: 'modder' }, req, ws, replaces)
+      if (run.submitted && patch && !problems.length) this.commit(ep, { ...patch, author: 'modder' }, req, replaces)
       else if (problems.length) ep.attempts.push({ phase: 'repair', errors: problems, warnings: [] })
       if (ep.outcome !== 'accepted') ep.outcome = 'failed'
       state.recordEpisode(ep)
@@ -351,10 +353,10 @@ export class Modder {
   }
 
   /** Append to the shared library; on failure the diagnostics land on the last attempt. */
-  private commit(ep: Episode, patch: Patch, req: ModRequest, ws?: ModWorkspace, replaces: string[] = []): boolean {
+  private commit(ep: Episode, patch: Patch, req: ModRequest, replaces: string[] = []): boolean {
     // the Threadbook says whose act taught the world this: the player's, or the world's own
     patch = { ...patch, trigger: req.origin ?? 'player' }
-    const c = this.opts.library.commit(patch, req, ws, this.now(), replaces)
+    const c = this.opts.library.commit(patch, req, this.now(), replaces)
     if (!c.ok) {
       ep.attempts.push({ phase: 'repair', patch, errors: c.result.errors, warnings: c.result.warnings })
       return false

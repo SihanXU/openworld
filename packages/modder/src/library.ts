@@ -96,19 +96,32 @@ export class WorldLibrary {
    * answering rule is returned, and no model is needed.
    */
   covering(req: ModRequest): { rule: string; patch: Patch } | undefined {
-    let rule: string | undefined
-    try {
-      const rp = replay(req.scenario, this.fullOntology(), this.lib)
-      rule = rp.resolution.defined ? rp.resolution.rule?.id : undefined
-    } catch {
-      return undefined
-    }
+    const rule = this.answering(req)
     if (!rule) return undefined
     for (let i = this.log.length - 1; i >= 0; i--) {
       const e = this.log[i]
       if ('patch' in e && e.rules.includes(rule)) return { rule, patch: e.patch }
     }
-    return undefined // answered by a base rule the client lacks: a version skew, not the modder's job
+    return undefined // answered by a base rule the client lacks: see answeredByBase
+  }
+
+  /**
+   * A base rule of this service answers the request: the client's base rules are older than the
+   * service's (a version skew). No patch could fill a hole that is not one here, so no model is asked.
+   */
+  answeredByBase(req: ModRequest): string | undefined {
+    const rule = this.answering(req)
+    return rule && this.lib.rules.get(rule)?.source?.origin !== 'patch' ? rule : undefined
+  }
+
+  /** The rule that answers the request's event in the shared library, if any. */
+  private answering(req: ModRequest): string | undefined {
+    try {
+      const rp = replay(req.scenario, this.fullOntology(), this.lib)
+      return rp.resolution.defined ? rp.resolution.rule?.id : undefined
+    } catch {
+      return undefined
+    }
   }
 
   /** replaces: patch rules this patch takes the place of (a revision), judged as if they were gone. */
@@ -121,9 +134,14 @@ export class WorldLibrary {
     })
   }
 
-  /** Validate against the library as it is now and, if it passes, append it. Synchronous, so atomic. */
-  commit(patch: Patch, req?: ModRequest, ws?: ModWorkspace, now = new Date(), replaces: string[] = []): CommitResult {
-    const result = this.validate(patch, req, ws, replaces)
+  /**
+   * Validate against the library as it is now and, if it passes, append it. Synchronous, so atomic.
+   * The shared log must stand on its own for every client, so the commit is judged against the
+   * shared library alone: a patch that leans on one client's local types, statuses or rules fails
+   * here (and its diagnostics go back to the design as a repair).
+   */
+  commit(patch: Patch, req?: ModRequest, now = new Date(), replaces: string[] = []): CommitResult {
+    const result = this.validate(patch, req, undefined, replaces)
     if (!result.ok) return { ok: false, result, rules: [] }
     // a revision: the old rules leave the log first, so every client sees remove-then-add
     for (const id of replaces) if (this.lib.rules.get(id)?.source?.origin === 'patch') this.remove(id, now)

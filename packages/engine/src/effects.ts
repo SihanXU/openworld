@@ -191,7 +191,7 @@ export class EffectRunner {
         // `@prop:key` reads the target type from the host's own prop (e.g. emptyType)
         const into = eff.into.startsWith('@prop:') ? String(w.prop(host, eff.into.slice(6)) ?? '') : eff.into
         if (!into || !w.onto.hasType(into)) return
-        host.type = into
+        w.transform(host, into)
         delete host.name
         eng.touch({ e: host.id })
         return
