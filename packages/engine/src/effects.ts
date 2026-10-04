@@ -17,7 +17,7 @@ import { WriteError } from './world.ts'
 export const PRIMITIVES: Record<Effect['op'], string> = {
   spawn: 'spawn {type, at: role ref, into?: tile|contents|hand, count?, still?} — create new things at a role\'s place (its tile, contents or hand); type may be "@prop:<role>.<key>" (a crop\'s yieldType); count may read a prop or a param; items on the ground pop out for the magnet unless still (then they are taken with F)',
   destroy: 'destroy {} — the host is gone (with what it holds); the essential (people) never are: they go down instead',
-  transform: 'transform {into} — the host becomes another type ("@prop:key" reads the type from its own prop, e.g. emptyType)',
+  transform: 'transform {into} — the host becomes another type ("@prop:key" reads the type from its own prop, e.g. emptyType). A cell is made of things (tile/<terrain>: the floor, what roots in the soil, what fills the volume): water becoming ice is the water transforming; becoming a type whose space in its cell another thing holds (rock into gravel, where a floor is), the host is gone instead',
   move: 'move {to: role ref, into?: tile|contents|hand} — the host moves itself to a role\'s tile, contents or hand',
   step: 'step {dir?} — the host steps one tile (dir, or the act\'s `dir` param): walls and the solid stop it (a bump), portals carry it',
   addStatus: 'addStatus {status, duration?} — the host gains a status (a threshold/gain event follows)',
@@ -31,7 +31,6 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   feed: 'feed {amount} — the host\'s hunger rises by amount, up to its maxHunger',
   gainXp: 'gainXp {amount} — the host gains experience; enough raises its level (props xp, level, skillPoints)',
   foe: 'foe {} — whoever started the chain (the one who struck) becomes the host\'s foe, attacked on sight',
-  setTerrain: 'setTerrain {terrain} — the host tile becomes another terrain',
   open: 'open {} — the host opens or closes (toggles the `open` status)',
   dropContents: 'dropContents {still?} — the host spills what it holds onto its tile',
   goto: 'goto {anchor, hours, activity?} — the host (a person) leaves its schedule for a named anchor of its map for some hours',
@@ -63,9 +62,11 @@ export class EffectRunner {
 
   private ref(ev: GameEvent, r: RoleRef): Ref | undefined {
     const w = this.eng.world
+    // the cell under a role: what makes it up on top
     if (r.startsWith('tileOf:')) {
       const p = w.refPos(this.roleRef(ev, r.slice(7) as RoleName))
-      return p ? { tile: p } : undefined
+      const top = p && w.cellTop(p.map, p.x, p.y)
+      return top ? { e: top.id } : undefined
     }
     return this.roleRef(ev, r as RoleName)
   }
@@ -199,6 +200,16 @@ export class EffectRunner {
         // `@prop:key` reads the target type from the host's own prop (e.g. emptyType)
         const into = eff.into.startsWith('@prop:') ? String(w.prop(host, eff.into.slice(6)) ?? '') : eff.into
         if (!into || !w.onto.hasType(into)) return
+        // becoming a thing that takes a space of its cell another holds, it gives way: it is gone (rock
+        // turning to gravel where there is a floor already), as one destroyed
+        const p = host.place.on === 'tile' ? host.place : undefined
+        const taken = p && w.spacesOf({ ...host, type: into }).some((s) => w.entitiesAt(p.map, p.x, p.y).some((o) => o.id !== host.id && w.spacesOf(o).includes(s)))
+        if (taken) {
+          if (w.hasTag(host, 'essential')) return
+          eng.touch({ e: host.id }, true)
+          w.destroy(host)
+          return
+        }
         w.transform(host, into)
         delete host.name
         eng.touch({ e: host.id })
@@ -306,13 +317,6 @@ export class EffectRunner {
         if (!host?.ai || !by || by === host.id || !w.get(by)) return
         const foes = (host.ai.foes ??= [])
         if (!foes.includes(by)) foes.push(by)
-        return
-      }
-      case 'setTerrain': {
-        if (!('tile' in ev.host)) return
-        const { map, x, y } = ev.host.tile
-        w.setTerrain(map, x, y, eff.terrain)
-        eng.touch(ev.host)
         return
       }
       case 'open':
@@ -506,10 +510,11 @@ export class EffectRunner {
       return r ? [r] : []
     }
     if ('named' in to) return w.get(to.named) ? [{ e: to.named }] : []
-    const self = (r: Ref) => ('e' in r && 'e' in ev.host ? r.e === ev.host.e : 'tile' in r && 'tile' in ev.host && r.tile.x === ev.host.tile.x && r.tile.y === ev.host.tile.y && r.tile.map === ev.host.tile.map)
-    const at = (map: string, x: number, y: number): Ref[] => (w.inBounds(map, x, y) ? [{ tile: { map, x, y } }, ...w.entitiesAt(map, x, y).map((e) => ({ e: e.id }))] : [])
+    const self = (r: Ref) => r.e === ev.host.e
+    // every thing in a cell: what stands there and what makes it up, top first
+    const at = (map: string, x: number, y: number): Ref[] => (w.inBounds(map, x, y) ? w.entitiesAt(map, x, y).sort((a, b) => w.cellRank(b) - w.cellRank(a)).map((e) => ({ e: e.id })) : [])
     if ('map' in to) {
-      const p = w.posOf(this.hostEntity(ev)) ?? ('tile' in ev.host ? ev.host.tile : undefined)
+      const p = w.posOf(this.hostEntity(ev))
       const map = p?.map ?? eng.activeMap
       return w.entitiesOnMap(map).filter((e) => !self({ e: e.id })).map((e) => ({ e: e.id }))
     }
@@ -553,12 +558,13 @@ export class EffectRunner {
   private placeFor(at: Ref | undefined, into: 'tile' | 'contents' | 'hand', moving?: string): Place | undefined {
     const w = this.eng.world
     if (!at) return undefined
-    if (into === 'tile' || 'tile' in at) {
-      const p = w.refPos(at)
-      return p ? { on: 'tile', map: p.map, x: p.x, y: p.y } : undefined
-    }
     const holder = w.get(at.e)
     if (!holder) return undefined
+    // onto a cell (or what makes one up: it holds nothing)
+    if (into === 'tile' || w.isTerrain(holder)) {
+      const p = w.posOf(holder)
+      return p ? { on: 'tile', map: p.map, x: p.x, y: p.y } : undefined
+    }
     if (into === 'hand' && (!holder.held || holder.held === moving)) return { on: 'hand', holder: holder.id }
     return { on: 'inside', holder: holder.id }
   }

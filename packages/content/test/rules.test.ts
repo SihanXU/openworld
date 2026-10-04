@@ -32,7 +32,8 @@ const lib = () => new RuleLibrary(BASE_RULES)
 /** A provider still at work: the request stays pending until a patch or the time-out. */
 const working = { resolve: () => new Promise<null>(() => {}) }
 const field = (rows: string[]) => rows.map((r) => r.split('').map((c) => ({ '.': 'grass', ',': 'drygrass', '~': 'water', '#': 'cobble' })[c]!))
-const tile = (x: number, y: number) => ({ tile: { map: 'sandbox', x, y } })
+/** A cell of the sandbox: what makes it up on top (world-model.md §4.6). */
+const cellOf = (eng: Engine, x: number, y: number) => eng.world.cellRef('sandbox', x, y)
 /** A sandbox in strict mode: any change of state outside an outcome throws (design.md §5.13, A2). */
 const sandbox = (sc: Scenario, l = lib()): Engine => {
   const eng = buildSandbox(sc, onto, l)
@@ -148,11 +149,11 @@ describe('acts and the impulses they send', () => {
       ],
       event: {},
     })
-    eng.author(() => eng.applyStatus(tile(1, 1), 'burning', 999))
-    const rules = chain(eng, () => expect(eng.act('use', 'actor', tile(1, 1)).rule?.id).toBe('use/water'))
+    eng.author(() => eng.applyStatus(cellOf(eng, 1, 1), 'burning', 999))
+    const rules = chain(eng, () => expect(eng.act('use', 'actor', cellOf(eng, 1, 1)).rule?.id).toBe('use/water'))
     expect(rules).toContain('core/element')
-    expect(eng.world.hasStatus(tile(1, 1), 'burning')).toBe(false)
-    expect(eng.world.hasStatus(tile(1, 1), 'wet')).toBe(true)
+    expect(eng.world.hasStatus(cellOf(eng, 1, 1), 'burning')).toBe(false)
+    expect(eng.world.hasStatus(cellOf(eng, 1, 1), 'wet')).toBe(true)
     expect(eng.world.get('bucket')!.type).toBe('item/vessel/bucket/empty')
   })
 

@@ -56,7 +56,8 @@ describe('the Ford', () => {
     expect(eng.world.num(eng.world.get('tree')!, 'cuts')).toBe(2)
     expect(hit()).toBe('ford/chop-dead-tree')
     expect(noHoles(eng)).toEqual([])
-    expect(eng.world.get('tree')).toBeUndefined()
+    // what stands is its stump: the same thing, become part of its cell
+    expect(eng.world.get('tree')?.type).toBe('tile/stump')
     expect(eng.world.terrainAt('sandbox', 2, 2)).toBe('stump')
     expect([3, 4].map((x) => eng.world.terrainAt('sandbox', x, 2))).toEqual(['bridge', 'bridge'])
     expect(eng.world.terrainAt('sandbox', 5, 2)).toBe('grass')
@@ -66,16 +67,16 @@ describe('the Ford', () => {
   it('felled toward dry land, the tree bridges nothing', () => {
     const eng = ford([{ key: 'tree', type: 'fixture/nature/dead_tree', x: 1, y: 1, props: { cuts: 2 } }, { key: 'axe', type: 'item/weapon/blade/axe', x: 1, y: 2, heldBy: 'actor' }])
     eng.act('use', 'actor', { e: 'tree' })
-    expect(eng.world.get('tree')).toBeUndefined()
+    expect(eng.world.get('tree')?.type).toBe('tile/stump')
     expect(eng.world.terrainAt('sandbox', 1, 0)).toBe('grass')
     expect(eng.world.terrainAt('sandbox', 1, 1)).toBe('stump')
   })
 
   it('the ice: frost on the river freezes a path that thaws again, putting whoever stands on it ashore', () => {
     const eng = ford([])
-    eng.queue({ kind: 'impulse/element', host: { tile: { map: 'sandbox', x: 3, y: 2 } }, roles: { actor: { e: 'actor' } }, params: { element: 'ice', power: 3 }, cause: 'actor', origin: 'player' })
+    eng.queue({ kind: 'impulse/element', host: eng.world.cellRef('sandbox', 3, 2), roles: { actor: { e: 'actor' } }, params: { element: 'ice', power: 3 }, cause: 'actor', origin: 'player' })
     expect(eng.world.terrainAt('sandbox', 3, 2)).toBe('ice')
-    expect(eng.world.hasStatus({ tile: { map: 'sandbox', x: 3, y: 2 } }, 'chilled')).toBe(true)
+    expect(eng.world.hasStatus(eng.world.cellRef('sandbox', 3, 2), 'chilled')).toBe(true)
     eng.author(() => eng.teleport(eng.world.player, { map: 'sandbox', x: 3, y: 2 }))
     expect(eng.world.posOf(eng.world.player)).toMatchObject({ x: 3, y: 2 })
     for (let i = 0; i < 1600; i++) eng.tick()

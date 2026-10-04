@@ -3,7 +3,7 @@
 // status overlays, VFX and day/night. It only renders engine snapshots.
 
 import Phaser from 'phaser'
-import type { Aim, Dir, EntitySnap, Frame, FxEvent, MapData, Ref, Text } from '@lsw/engine'
+import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type MapData, type Ref, type Text } from '@lsw/engine'
 import { CATALOG } from '../assets/catalog.ts'
 import { GroundAtlas, T, groundTile, hash2 } from '../assets/ground.ts'
 import type { SpriteDef } from '../assets/types.ts'
@@ -387,7 +387,8 @@ export class WorldScene extends Phaser.Scene {
 
   /**
    * Where a screen point aims: its tile, and everything drawn at the point, top first — things
-   * by id, trees and tall grass by their own tile (a canopy reaches over the tile behind it). The
+   * by id, trees and tall grass by their cell (a canopy reaches over the tile behind it): the id of
+   * what fills it, which the engine takes for whatever makes up that cell on top. The
    * test is the picture's own pixels, so a thing is met wherever it shows and nowhere else.
    */
   aimAtScreen(sx: number, sy: number): Aim | undefined {
@@ -400,7 +401,7 @@ export class WorldScene extends Phaser.Scene {
     for (const [k, img] of this.objects) {
       if (!this.drawnAt(img, wx, wy)) continue
       const [x, y] = k.split(',').map(Number)
-      hits.push({ ref: { tile: { map: this.base.id, x, y } }, depth: img.depth })
+      hits.push({ ref: { e: cellId(this.base.id, x, y, 'volume') }, depth: img.depth })
     }
     hits.sort((a, b) => b.depth - a.depth)
     return { x: Math.floor(wx / T), y: Math.floor(wy / T), stack: hits.map((h) => h.ref) }

@@ -61,7 +61,7 @@ function press(eng: Engine, key: Key, type?: string): Pressed {
   }
 }
 
-const here = (eng: Engine) => eng.world.entitiesAt(FRONT.map, FRONT.x, FRONT.y)
+const here = (eng: Engine) => eng.world.placedAt(FRONT.map, FRONT.x, FRONT.y)
 const fixture = (eng: Engine) => here(eng).find((e) => !eng.world.isAgent(e) && !eng.world.isPortable(e))
 const count = (eng: Engine, type: string) => here(eng).filter((e) => e.type === type).length
 const said = (eng: Engine) => eng.world.fx.flatMap((f) => (f.t === 'say' || f.t === 'log' ? [textOf(f.text)] : []))

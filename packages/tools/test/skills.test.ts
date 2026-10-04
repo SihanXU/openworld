@@ -181,10 +181,11 @@ describe('the skill tree', () => {
       const eng = setup([], 'tree')
       if (skilled) learn(eng, 'woodcutter')
       eng.world.author(() => eng.world.add({ id: 'axe', type: 'item/weapon/blade/axe', place: { on: 'hand', holder: 'actor' } }))
-      const tree = { tile: { map: eng.world.posOf(eng.world.get('actor')!)!.map, ...FRONT } }
+      const map = eng.world.posOf(eng.world.get('actor')!)!.map
+      const tree = eng.world.cellRef(map, FRONT.x, FRONT.y)
       eng.world.author(() => eng.world.setStatus(tree, 'notched', -1))
       eng.interact('interact', 'actor', tree)
-      return eng.world.entitiesAt(tree.tile.map, FRONT.x, FRONT.y).filter((e) => e.type === 'item/material/log').length
+      return eng.world.entitiesAt(map, FRONT.x, FRONT.y).filter((e) => e.type === 'item/material/log').length
     }
     expect(logs(true)).toBe(logs(false) + 1)
   })
@@ -449,7 +450,7 @@ describe('automatic combat talents', () => {
     blow(eng, { e: 'other' })
     expect(eng.world.player.combat!.comboTarget).toBe('other')
     expect(eng.world.player.combat!.comboHits).toBe(1)
-    blow(eng, { tile: { map, x: 0, y: ORIGIN.y } })
+    blow(eng, eng.world.cellRef(map, 0, ORIGIN.y))
     expect(eng.world.player.combat!.comboHits).toBeUndefined()
   })
 

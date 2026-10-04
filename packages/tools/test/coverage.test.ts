@@ -56,8 +56,8 @@ describe('nothing put down is lost', () => {
         event: {},
       }
       const key = target.scenario(sc)
-      const ref: Ref = key === 'target' ? { e: key } : { tile: { map: SANDBOX_MAP, ...FRONT } }
       const start = buildSandbox(sc, onto, lib)
+      const ref: Ref = key === 'target' ? { e: key } : start.world.cellRef(SANDBOX_MAP, FRONT.x, FRONT.y)
       for (const form of FORMS) {
         const eng = new Engine(structuredClone(start.world.state), start.world.onto.data, lib)
         const actor = eng.world.get('actor')!

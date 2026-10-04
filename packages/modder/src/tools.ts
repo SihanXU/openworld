@@ -255,7 +255,7 @@ export function describeOutcome(sc: Scenario, patch: Patch, ctx: Pick<ToolContex
     for (let x = 0; x < rows[y].length; x++) {
       const t = w.terrainAt(SANDBOX_MAP, x, y)
       if (t !== rows[y][x]) out.push(`tile ${x},${y}: ${rows[y][x]} → ${t}`)
-      const st = Object.keys(w.tileState(SANDBOX_MAP, x, y)?.statuses ?? {})
+      const st = w.entitiesAt(SANDBOX_MAP, x, y).filter((c) => w.isTerrain(c)).flatMap((c) => Object.keys(c.statuses ?? {}))
       if (st.length) out.push(`tile ${x},${y}: ${st.join(',')}`)
     }
   if (out.length === 1) out.push('(no visible effect: give the player feedback)')

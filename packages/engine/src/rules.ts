@@ -100,18 +100,16 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
 }
 
 export function sameRef(a: View, b: View): boolean {
-  if ('e' in a.ref && 'e' in b.ref) return a.ref.e === b.ref.e
-  if ('tile' in a.ref && 'tile' in b.ref) return a.ref.tile.map === b.ref.tile.map && a.ref.tile.x === b.ref.tile.x && a.ref.tile.y === b.ref.tile.y
-  return false
+  return a.ref.e === b.ref.e
 }
 
-/** Entities in a role's contents, or on its tile besides the role itself, that match a selector. */
+/** Things in a role's contents, or lying on its tile besides the role itself (not the ground there), that match a selector. */
 export function countAt(v: View, where: 'contents' | 'tile', match: Selector | undefined, world: World): number {
   let ids: Iterable<string>
   if (where === 'contents') ids = v.entity?.contents ?? []
   else {
     const p = world.refPos(v.ref)
-    ids = p ? world.entitiesAt(p.map, p.x, p.y).map((e) => e.id) : []
+    ids = p ? world.placedAt(p.map, p.x, p.y).map((e) => e.id) : []
   }
   let n = 0
   for (const id of ids) if (id !== v.id && matchSelector(match, world.view({ e: id }))) n++
@@ -242,6 +240,30 @@ export function factsOnTheStory(rule: Rule): Rule {
   return rule
 }
 
+/**
+ * Rules written when a cell was a terrain with an override (world-model.md §4.6): a cell is made
+ * of things, so `setTerrain {terrain}` — the host becomes that terrain — is the host transforming
+ * into `tile/<terrain>` (which gives way when that space of its cell is taken). Applied in place.
+ */
+export function cellsAsThings(rule: Rule): Rule {
+  const effects = (list: unknown): void => {
+    if (!Array.isArray(list)) return
+    list.forEach((e, i) => {
+      const x = e as { op?: string; terrain?: string }
+      if (x?.op === 'setTerrain') list[i] = { op: 'transform', into: `tile/${x.terrain}` }
+    })
+  }
+  const tree = (t: unknown): void => {
+    if (!t || typeof t !== 'object') return
+    const node = t as Record<string, unknown>
+    if ('if' in node) tree(node.then), tree(node.else)
+    effects(node.do)
+    effects(node.default)
+  }
+  tree(rule.tree)
+  return rule
+}
+
 /** Lexicographic: (instance-bound, host type depth, host constraints, event kind depth). */
 export type Spec = [number, number, number, number]
 
@@ -323,6 +345,7 @@ export class RuleLibrary {
   private put(r: Rule): void {
     selectByType(r)
     factsOnTheStory(r)
+    cellsAsThings(r)
     this.rules.set(r.id, r)
     this.specs.set(r.id, specOf(r))
     this.rebuild(r.on.split('/')[0])

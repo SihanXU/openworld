@@ -1,7 +1,7 @@
 // The is-a hierarchy. Type ids are slash paths, so `a isA b` is a prefix test; the
 // registry merges tags/props/sprite down the chain and caches the result per type.
 
-import type { Ontology, PropValue, StatusDef, TerrainDef, TypeDef } from './types.ts'
+import type { Ontology, PropValue, Space, StatusDef, TerrainDef, TypeDef } from './types.ts'
 
 export interface ResolvedType {
   id: string
@@ -13,6 +13,10 @@ export interface ResolvedType {
   footprint: [number, number]
   /** The stances it acts on (TypeDef.reach). */
   reach?: string[]
+  /** The spaces it takes in its cell, if its type says (TypeDef.occupies). */
+  occupies?: Space[]
+  /** The terrain it is drawn as, if it makes up its cell (TypeDef.terrain). */
+  terrain?: string
   name?: TypeDef['name']
   /** Ancestor chain from root to self (only registered ids). */
   chain: string[]
@@ -21,6 +25,19 @@ export interface ResolvedType {
 
 export function isA(type: string, ancestor: string): boolean {
   return type === ancestor || type.startsWith(ancestor + '/')
+}
+
+/** A terrain is a type of thing like any other (world-model.md §4.6): each is registered as `tile/<id>`, under `tile`. */
+export function withTerrainTypes(data: Ontology): Ontology {
+  data.types.tile ??= { id: 'tile' }
+  for (const t of Object.values(data.terrains)) data.types[`tile/${t.id}`] ??= terrainType(t)
+  return data
+}
+
+/** The type of the cell things made of a terrain: its space, what stands on it (a floor: the ground by default), whether it blocks. */
+export function terrainType(t: TerrainDef): TypeDef {
+  const space = t.space ?? 'floor'
+  return { id: `tile/${t.id}`, name: t.name, tags: t.tags, solid: t.solid, occupies: [space], terrain: t.id, reach: t.reach ?? (space === 'floor' ? ['ground'] : []) }
 }
 
 export function typeDepth(type: string): number {
@@ -33,6 +50,7 @@ export class OntologyIndex {
 
   constructor(data: Ontology) {
     this.data = data
+    withTerrainTypes(data)
   }
 
   private biggest?: [number, number]
@@ -87,6 +105,8 @@ export class OntologyIndex {
     let solid = false
     let footprint: [number, number] = [1, 1]
     let reach: string[] | undefined
+    let occupies: Space[] | undefined
+    let terrain: string | undefined
     let name: TypeDef['name']
     for (let i = 1; i <= parts.length; i++) {
       const p = parts.slice(0, i).join('/')
@@ -99,9 +119,11 @@ export class OntologyIndex {
       if (def.solid !== undefined) solid = def.solid
       if (def.footprint) footprint = def.footprint
       if (def.reach) reach = def.reach
+      if (def.occupies) occupies = def.occupies
+      if (def.terrain) terrain = def.terrain
       if (def.name) name = def.name
     }
-    const r: ResolvedType = { id, tags: [...tags], props, sprite, solid, footprint, reach, name, chain, depth: parts.length }
+    const r: ResolvedType = { id, tags: [...tags], props, sprite, solid, footprint, reach, occupies, terrain, name, chain, depth: parts.length }
     this.cache.set(id, r)
     return r
   }

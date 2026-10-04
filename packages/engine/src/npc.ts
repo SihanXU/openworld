@@ -182,7 +182,9 @@ export class NpcSim {
     const u = w.get(s.uses)
     if (u && u.place.on !== 'none' && matchSelector(s.need, w.view({ e: u.id }))) return
     const p = w.posOf(e)!
-    this.block(e, s.activity, u && u.place.on !== 'none' ? { e: u.id } : { tile: { map: p.map, x: s.x, y: s.y } })
+    const spot = w.cellTop(p.map, s.x, s.y)
+    const at = u && u.place.on !== 'none' ? u : spot
+    if (at) this.block(e, s.activity, { e: at.id })
   }
 
   /** The person's day cannot go on: a `stuck` event for them (at most once an hour per activity). */
@@ -246,7 +248,10 @@ export class NpcSim {
       rt.goal = goal
       if (!rt.path.length) {
         eng.setCooldown(e.id, 30) // unreachable for now; try later
-        if ((rt.unreachable = (rt.unreachable ?? 0) + 1) >= 3) this.block(e, s.activity, { tile: { map: active, x: gx, y: gy } })
+        if ((rt.unreachable = (rt.unreachable ?? 0) + 1) >= 3) {
+          const spot = eng.world.cellTop(active, gx, gy)
+          if (spot) this.block(e, s.activity, { e: spot.id })
+        }
         return budget
       }
     }

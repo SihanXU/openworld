@@ -4,6 +4,7 @@ import type { Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
 import type { Appearance, BossState, Dir, FxEvent, Id, PropValue, SceneState, Text } from './types.ts'
 import { SLOT_COUNT } from './controls.ts'
+import { parseCellId } from './cells.ts'
 import { skillsOf } from './progression.ts'
 import type { QuestView } from './quests.ts'
 
@@ -185,12 +186,18 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       } : undefined,
     })
   }
+  // the cells that differ from the map's data: what they show now, and what their things carry
   const tiles: TileSnap[] = []
-  const prefix = map + ':'
-  for (const [k, t] of Object.entries(w.state.tiles)) {
-    if (!k.startsWith(prefix)) continue
-    const [, x, y] = k.split(':')
-    tiles.push({ x: +x, y: +y, terrain: t.terrain, statuses: t.statuses ? Object.keys(t.statuses) : undefined })
+  const changed = new Set<string>()
+  for (const c of w.keptCells(map)) {
+    const at = parseCellId(c.id)!
+    changed.add(`${at.x},${at.y}`)
+    if (c.place.on === 'tile' && c.place.map === map) changed.add(`${c.place.x},${c.place.y}`)
+  }
+  for (const k of changed) {
+    const [x, y] = k.split(',').map(Number)
+    const statuses = w.entitiesAt(map, x, y).filter((c) => w.isTerrain(c)).flatMap((c) => Object.keys(c.statuses ?? {}))
+    tiles.push({ x, y, terrain: w.terrainAt(map, x, y), statuses: statuses.length ? statuses : undefined })
   }
   const panel = opts.panel ? w.get(opts.panel) : undefined
   const box = panel && w.hasStatus({ e: panel.id }, 'open') ? panel : undefined

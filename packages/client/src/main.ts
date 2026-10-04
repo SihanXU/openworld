@@ -470,7 +470,7 @@ document.addEventListener('visibilitychange', () => {
 let mouseTile: Tile | undefined
 /** The pointer's screen point while it is over the world. */
 let mouseAt: { x: number; y: number } | undefined
-const aimSig = (a?: Tile) => (a ? `${a.x},${a.y}|${(a.stack ?? []).map((r) => ('e' in r ? r.e : `${r.tile.x},${r.tile.y}`)).join(' ')}` : '')
+const aimSig = (a?: Tile) => (a ? `${a.x},${a.y}|${(a.stack ?? []).map((r) => r.e).join(' ')}` : '')
 /** Aim at what is drawn under the pointer: it changes as things move, not only as the mouse does. */
 function reaim(): void {
   const a = mouseAt ? scene.aimAtScreen(mouseAt.x, mouseAt.y) : undefined

@@ -1,5 +1,5 @@
 // Authored-content migration, kept outside the generic engine. No inventory or quest reset.
-import { scheduleAt, scheduleFor, tileKey, type Entity, type Game, type MapChunk, type WorldIndex } from '@lsw/engine'
+import { scheduleAt, scheduleFor, type Entity, type Game, type MapChunk, type WorldIndex } from '@lsw/engine'
 import { FIRSTLIGHT, FIRSTLIGHT_LAYOUT } from './firstlight.ts'
 
 const gardenEntity = (e: Entity) => e.id.startsWith('ford.garden.') || (e.place.on === 'inside' && e.place.holder === 'ford.garden.supplies')
@@ -40,16 +40,15 @@ export function migrateFirstlight(game: Game, index: WorldIndex, ford: MapChunk,
     }
   }
 
-  for (let y = 11; y <= 14; y++) for (let x = 16; x <= 19; x++) {
-    const tile = w.state.tiles[tileKey('ford', x, y)]
-    if (tile?.terrain === 'farmland') delete tile.terrain
+  // a cell changed to `terrain` since the map was made (kept in the state), back as the map has it
+  const unmake = (x: number, y: number, terrain: string): boolean => {
+    const c = w.entitiesAt('ford', x, y).find((e) => e.type === `tile/${terrain}` && !w.isStatic(e))
+    if (c) w.revert(c)
+    return !!c
   }
+  for (let y = 11; y <= 14; y++) for (let x = 16; x <= 19; x++) unmake(x, y, 'farmland')
   // Each old repaired plank remains one repaired plank in the longer bridge's missing span.
-  const repaired = [29, 30, 31].map((x) => w.state.tiles[tileKey('ford', x, 22)]?.terrain === 'bridge')
-  for (const x of [29, 30, 31]) {
-    const tile = w.state.tiles[tileKey('ford', x, 22)]
-    if (tile?.terrain === 'bridge') delete tile.terrain
-  }
+  const repaired = [29, 30, 31].map((x) => unmake(x, 22, 'bridge'))
   repaired.forEach((done, i) => { if (done) w.setTerrain('ford', 31 + i, 22, 'bridge') })
 
   const tobin = w.get('npc.tobin')

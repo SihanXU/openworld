@@ -46,8 +46,16 @@ export interface TypeDef {
   sprite?: string
   /** Its own picture, for a type a patch introduced (sprite `art:<id>`). */
   art?: PixelArt
-  /** Fixtures and tiles: does it block movement? Actors occupy their footprint. */
+  /** Does it block movement? (it fills its cell's volume; a body blocks by its own space) */
   solid?: boolean
+  /**
+   * The spaces it takes in its cell (world-model.md §5.2): in a cell each space has at most one
+   * occupant. Default: a body for an agent that does not fly, the volume for a solid thing,
+   * none for the rest (items and most furniture share a cell with anything).
+   */
+  occupies?: Space[]
+  /** It is drawn as the ground of its cell, this terrain (the cell things of a map's data; world-model.md §4.6). */
+  terrain?: string
   /**
    * Things bigger than a tile: the base they stand on, [width, depth] in tiles — centred on
    * their own tile, reaching back (north) from it. A solid thing blocks all of it, and only
@@ -59,6 +67,9 @@ export interface TypeDef {
 }
 
 export type PropValue = number | string | boolean
+
+/** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */
+export type Space = 'floor' | 'soil' | 'volume' | 'body'
 
 export interface StatusDef {
   id: string
@@ -80,14 +91,16 @@ export interface StatusDef {
 }
 
 export interface TerrainDef {
-  id: string // terrain id, also the tile type `tile/<id>`
+  id: string // terrain id; the cell things made of it are of type `tile/<id>` (world-model.md §4.6)
   name?: Text
   tags?: string[]
   solid?: boolean
   /** Swimmable/liquid terrain: items put here are not simply dropped. */
   liquid?: boolean
-  /** The stances it acts on (default `ground`): what touches it (design.md §5.5). */
+  /** The stances it acts on (default `ground` for a floor, none for the rest): what touches it (design.md §5.5). */
   reach?: string[]
+  /** The space it takes in its cell (default `floor`): ground is a floor; trees, rock and walls fill the volume; a stump roots in the soil. */
+  space?: 'floor' | 'soil' | 'volume'
   color?: string // fallback render color
 }
 
@@ -463,7 +476,10 @@ export interface MapData {
   kind: string // town / village / wild / dungeon / interior …
   width: number
   height: number
-  /** Row-major terrain ids, length = width*height. */
+  /**
+   * Row-major terrain ids, length = width*height: each cell as authored, by what is on top of it.
+   * The engine makes the cell's things from it (cells.ts): the floor, and what fills or roots in it.
+   */
   terrain: string[]
   portals: Portal[]
   /** Render hints (the engine ignores them): prefab stamps, room wall frames, music, light. */
@@ -537,23 +553,19 @@ export interface Portal {
   label?: Text
 }
 
-/** Mutable per-tile state layered on top of the map's base terrain. */
-export interface TileState {
-  terrain?: string // override
-  statuses?: Record<string, number>
-  statusBy?: Record<string, Id>
-}
-
 export interface WorldState {
   tick: number
   seed: number
   rng: number // PRNG state
   player: Id
+  /**
+   * Every thing that differs from static data: what was made, and the cell things of a map's static
+   * layers once changed (materialised under their derived id; one destroyed stays as a record with
+   * no place, so the static one does not come back) — world-model.md §4.6.
+   */
   entities: Record<Id, Entity>
   /** Loaded maps' base data (static) keyed by id. */
   maps: Record<string, MapData>
-  /** Tile overrides: `${map}:${x}:${y}` -> state. */
-  tiles: Record<string, TileState>
   /** Maps whose entity chunk has been merged into `entities`. */
   loadedMaps: string[]
   counter: number // id allocator
@@ -602,7 +614,8 @@ export interface Plan {
 export type Verb = 'use' | 'put' | 'take' | 'hands' | 'move' | 'craft' | 'learn'
 
 /** A reference to anything that can host or fill an event role: an entity or a map tile. */
-export type Ref = { e: Id } | { tile: Pos }
+/** The one reference form (world-model.md §4.6): every thing has an id; a thing of a map's cells has one derived from its place. */
+export type Ref = { e: Id }
 
 /**
  * The closed tree of event kinds. A rule answers a kind or a whole branch (`impulse` answers
@@ -743,7 +756,7 @@ export type Cond =
   /** The host's map (the player's, for the story and the world) is out under the sky. */
   | { outdoors: true }
 
-/** A position or holder relative to a role: its own place, or its tile. */
+/** A role, or the cell under it (`tileOf:`: the thing that makes up that cell on top — what fills it, roots in it, or the floor). */
 export type RoleRef = RoleName | 'tileOf:host' | 'tileOf:actor' | 'tileOf:target' | 'tileOf:instrument' | 'tileOf:other' | 'tileOf:item' | 'tileOf:source'
 
 export type Amount = number | { param: string; mul?: number; add?: number } | { prop: string; of: RoleName; mul?: number; add?: number }
@@ -780,7 +793,6 @@ export type Effect =
   | { op: 'feed'; amount: Amount }
   | { op: 'gainXp'; amount: Amount }
   | { op: 'foe' }
-  | { op: 'setTerrain'; terrain: string }
   | { op: 'open' }
   | { op: 'dropContents'; still?: boolean }
   | { op: 'goto'; anchor: string; hours: number; activity?: string }
@@ -836,6 +848,8 @@ export interface Scenario {
   ticks?: number
   /** Which entity key is the player (default: "actor"). */
   player?: string
+  /** What the things on top of some cells carry (statuses, props), at their place in the terrain rows. */
+  cells?: { x: number; y: number; statuses?: string[]; props?: Record<string, PropValue> }[]
   /** The event to replay. Roles refer to scenario entity keys or `tile:x,y`. */
   event: {
     kind?: EventKind

@@ -1,6 +1,7 @@
 // World: the mutable state plus derived indices (not serialized) for fast spatial queries.
 
 import { calendarAt, type Calendar, type WeatherSpan } from './calendar.ts'
+import { CELL_SPACES, cellId, parseCellId, splitLayers, type CellSpace, type Layers } from './cells.ts'
 import { OntologyIndex } from './ontology.ts'
 import { nextRandom } from './rng.ts'
 import type {
@@ -14,16 +15,16 @@ import type {
   PropValue,
   Ref,
   SceneState,
+  Space,
   Text,
-  TileState,
   WorldState,
 } from './types.ts'
 import { DIRS } from './types.ts'
 
 export const tileKey = (map: string, x: number, y: number) => `${map}:${x}:${y}`
 export const NO_EXPIRY = -1
-/** A ref's key in the statusful set and the relation index: an entity's id, or `t|map:x:y`. */
-export const refKey = (r: Ref): string => ('e' in r ? r.e : 't|' + tileKey(r.tile.map, r.tile.x, r.tile.y))
+/** A ref's key in the statusful set and the relation index: the thing's id. */
+export const refKey = (r: Ref): string => r.e
 /** The other side's view of a relation (design.md §5.10). */
 export const REVERSE: Record<string, string> = { on: 'under', in: 'contains', held: 'holds', 'in-region': 'encloses' }
 
@@ -45,6 +46,9 @@ export interface View {
 export function baseCovers(ex: number, ey: number, [w, d]: [number, number], x: number, y: number): boolean {
   return x >= ex - Math.floor((w - 1) / 2) && x <= ex + Math.floor(w / 2) && y <= ey && y > ey - d
 }
+
+/** The spaces that make up a cell, by height: what is on top shows (terrainAt) and is acted on (cellTop). */
+const CELL_RANK: Partial<Record<Space, number>> = { floor: 0, soil: 1, volume: 2 }
 
 /** How many recent lines a request carries as context. */
 export const RECENT_LINES = 6
@@ -106,17 +110,17 @@ export class World {
   private guard(what: string, target?: Entity | Ref | 'fact'): void {
     if (this.writers <= 0) throw new WriteError(`${what} outside an outcome (design.md §5.13, A2)`)
     const s = this.scope
-    if (!s || target === undefined || this.reaches(s, target)) return
-    const name = (r: Ref) => ('e' in r ? r.e : `${r.tile.map}:${r.tile.x},${r.tile.y}`)
-    const of = target === 'fact' ? 'a fact' : name('id' in target ? { e: target.id } : target)
-    throw new WriteError(`${what} of ${of} in an outcome of ${name(s.host)}: an outcome writes only its host (design.md §5.13, A3)`)
+    if (s && target !== undefined && !this.reaches(s, target)) {
+      const of = target === 'fact' ? 'a fact' : 'id' in target ? target.id : target.e
+      throw new WriteError(`${what} of ${of} in an outcome of ${s.host.e}: an outcome writes only its host (design.md §5.13, A3)`)
+    }
+    // a cell thing of the map's static data is kept from its first change on, under the same id
+    if (target !== undefined && target !== 'fact') this.materialise('id' in target ? target : this.get(target.e))
   }
   /** Whether an outcome of `s.host` may write `target`: itself, what it holds, what it made; facts if it keeps no place (the story, the world). */
   private reaches(s: { host: Ref; made: Set<Id> }, target: Entity | Ref | 'fact'): boolean {
     const h = s.host
-    if (target === 'fact') return 'e' in h && !!this.get(h.e) && this.isPlaceless(this.get(h.e)!)
-    if ('tile' in target) return 'tile' in h && h.tile.map === target.tile.map && h.tile.x === target.tile.x && h.tile.y === target.tile.y
-    if (!('e' in h)) return false
+    if (target === 'fact') return !!this.get(h.e) && this.isPlaceless(this.get(h.e)!)
     let e: Entity | undefined = 'id' in target ? target : this.get(target.e)
     if (!e) return true
     if (s.made.has(e.id)) return true
@@ -132,10 +136,14 @@ export class World {
     throw new Error('no engine holds this world: nobody may write it')
   }
 
-  private onTile = new Map<string, Set<Id>>() // tileKey -> entity ids on that tile
-  private onMap = new Map<string, Set<Id>>() // map -> entity ids on its tiles
+  private onTile = new Map<string, Set<Id>>() // tileKey -> ids of the kept things on that tile
+  private onMap = new Map<string, Set<Id>>() // map -> ids of the kept things on its tiles, but its cell things
   private areas = new Map<string, Set<Id>>() // map -> its regions' ids
-  /** Subjects that currently carry statuses: entity ids and `t|map:x:y` tile keys. */
+  /** Each map's static cell things (from its data, recomputed when the data is replaced). */
+  private layers = new Map<string, { data: MapData; layers: Layers }>()
+  /** The static cell things asked for so far: built from the map's data, not state (world-model.md §4.6). */
+  private statics = new Map<Id, Entity>()
+  /** Things that currently carry statuses, by id. */
   statusful = new Set<string>()
 
   constructor(state: WorldState, onto: OntologyIndex) {
@@ -151,12 +159,10 @@ export class World {
     this.onMap.clear()
     this.areas.clear()
     this.statusful.clear()
+    this.statics.clear()
     for (const e of Object.values(this.state.entities)) {
       this.indexAdd(e)
       if (e.statuses && Object.keys(e.statuses).length) this.statusful.add(e.id)
-    }
-    for (const [k, t] of Object.entries(this.state.tiles)) {
-      if (t.statuses && Object.keys(t.statuses).length) this.statusful.add('t|' + k)
     }
   }
 
@@ -173,6 +179,8 @@ export class World {
       if (!s) this.onTile.set(k, (s = new Set()))
       s.add(e.id)
     }
+    // the things that make up the cells are read by cell, not with the map's loose things
+    if (parseCellId(e.id)) return
     let m = this.onMap.get(e.place.map)
     if (!m) this.onMap.set(e.place.map, (m = new Set()))
     m.add(e.id)
@@ -204,8 +212,51 @@ export class World {
     return nextRandom(this.state)
   }
 
+  /** A thing by id: one kept in the state, or a cell thing of a map's static data (a destroyed one is gone). */
   get(id: Id | undefined): Entity | undefined {
-    return id ? this.state.entities[id] : undefined
+    if (!id) return undefined
+    const e = this.state.entities[id]
+    if (e) return e.place.on === 'none' && parseCellId(id) ? undefined : e
+    const c = parseCellId(id)
+    return c && this.staticThing(c.map, c.x, c.y, c.space)
+  }
+
+  /** Is it a thing of a map's static data, not yet kept in the state? */
+  isStatic(e: Entity): boolean {
+    return this.state.entities[e.id] !== e
+  }
+
+  /** Keep a static cell thing in the state, under its id, from its first change on. */
+  private materialise(e: Entity | undefined): void {
+    if (!e || !this.isStatic(e) || !parseCellId(e.id)) return
+    this.statics.delete(e.id)
+    this.state.entities[e.id] = e
+    this.indexAdd(e)
+  }
+
+  /** A map's static cell things. */
+  private layersOf(map: string): Layers | undefined {
+    const data = this.state.maps[map]
+    if (!data) return undefined
+    const hit = this.layers.get(map)
+    if (hit?.data === data) return hit.layers
+    const spaceOf = (t: string): CellSpace => this.onto.terrain(t)?.space ?? 'floor'
+    const layers = splitLayers(data, spaceOf, (t) => !this.isSolidTerrain(t))
+    this.layers.set(map, { data, layers })
+    return layers
+  }
+
+  /** The thing of a map's static data in a cell's space, unless the state keeps (or lost) it. */
+  private staticThing(map: string, x: number, y: number, space: CellSpace): Entity | undefined {
+    if (!this.inBounds(map, x, y)) return undefined
+    const t = this.layersOf(map)?.[space][y * this.state.maps[map].width + x]
+    if (t === undefined) return undefined
+    const id = cellId(map, x, y, space)
+    if (this.state.entities[id]) return undefined
+    const type = `tile/${t}`
+    let e = this.statics.get(id)
+    if (!e || e.type !== type) this.statics.set(id, (e = { id, type, place: { on: 'tile', map, x, y } }))
+    return e
   }
 
   get player(): Entity {
@@ -221,11 +272,68 @@ export class World {
     return `${prefix}${this.state.counter.toString(36)}`
   }
 
+  /** Every thing in a cell: the kept ones, then the cell things of the map's static data. */
   entitiesAt(map: string, x: number, y: number): Entity[] {
-    const s = this.onTile.get(tileKey(map, x, y))
-    if (!s) return []
     const out: Entity[] = []
-    for (const id of s) out.push(this.state.entities[id])
+    for (const id of this.onTile.get(tileKey(map, x, y)) ?? []) out.push(this.state.entities[id])
+    for (const space of CELL_SPACES) {
+      const e = this.staticThing(map, x, y, space)
+      if (e) out.push(e)
+    }
+    return out
+  }
+
+  /** What stands or lies in a cell: its things but those that make it up (its ground, what roots in or fills it). */
+  placedAt(map: string, x: number, y: number): Entity[] {
+    return this.entitiesAt(map, x, y).filter((e) => !this.isTerrain(e))
+  }
+
+  /** The spaces a thing takes in its cell (world-model.md §5.2): its type's, else a body for a walking agent, the volume for a solid thing. */
+  spacesOf(e: Entity): Space[] {
+    const r = this.onto.resolve(e.type)
+    if (r.occupies) return r.occupies
+    if (this.isAgent(e)) return this.hasTag(e, 'airborne') ? [] : ['body']
+    return r.solid ? ['volume'] : []
+  }
+
+  /** What takes a space of a cell, if anything. */
+  occupant(map: string, x: number, y: number, space: Space): Entity | undefined {
+    return this.entitiesAt(map, x, y).find((e) => this.spacesOf(e).includes(space))
+  }
+
+  /** How high in its cell a thing lies: the floor, the soil, the volume (-1: it makes up no cell). */
+  cellRank(e: Entity): number {
+    return Math.max(-1, ...this.spacesOf(e).map((s) => CELL_RANK[s] ?? -1))
+  }
+
+  /** Is it drawn as the ground of its cell (its type names a terrain): one of the things that make up the cell? */
+  isTerrain(e: Entity): boolean {
+    return this.onto.resolve(e.type).terrain !== undefined
+  }
+
+  /** What makes up a cell on top, of the things drawn as its ground: what fills it, else what roots in it, else its floor. */
+  cellTop(map: string, x: number, y: number): Entity | undefined {
+    let top: Entity | undefined
+    let rank = -1
+    for (const e of this.entitiesAt(map, x, y)) {
+      if (!this.isTerrain(e)) continue
+      for (const s of this.spacesOf(e)) {
+        const r = CELL_RANK[s]
+        if (r !== undefined && r > rank) [top, rank] = [e, r]
+      }
+    }
+    return top
+  }
+
+  /** A cell as a reference: what makes it up on top (its floor's id if nothing does: a reference to nothing). */
+  cellRef(map: string, x: number, y: number): Ref {
+    return { e: this.cellTop(map, x, y)?.id ?? cellId(map, x, y, 'floor') }
+  }
+
+  /** The things of a map's cells that the state keeps (changed, made there, or gone): what differs from its data. */
+  keptCells(map: string): Entity[] {
+    const out: Entity[] = []
+    for (const e of Object.values(this.state.entities)) if (parseCellId(e.id)?.map === map) out.push(e)
     return out
   }
 
@@ -285,9 +393,7 @@ export class World {
   }
 
   refPos(ref: Ref | undefined): Pos | undefined {
-    if (!ref) return undefined
-    if ('tile' in ref) return ref.tile
-    return this.posOf(this.get(ref.e))
+    return ref && this.posOf(this.get(ref.e))
   }
 
   front(e: Entity, dir: Dir = e.facing ?? 'down'): Pos | undefined {
@@ -304,34 +410,30 @@ export class World {
     return !!m && x >= 0 && y >= 0 && x < m.width && y < m.height
   }
 
+  /** The terrain a cell shows: the terrain of the cell thing on top ('void' off the map, or with nothing there). */
   terrainAt(map: string, x: number, y: number): string {
-    const t = this.state.tiles[tileKey(map, x, y)]
-    if (t?.terrain) return t.terrain
-    const m = this.state.maps[map]
-    if (!m || x < 0 || y < 0 || x >= m.width || y >= m.height) return 'void'
-    return m.terrain[y * m.width + x]
+    const top = this.cellTop(map, x, y)
+    return (top && this.onto.resolve(top.type).terrain) ?? 'void'
   }
 
-  tileState(map: string, x: number, y: number, create = false): TileState | undefined {
-    const k = tileKey(map, x, y)
-    let t = this.state.tiles[k]
-    if (!t && create) this.state.tiles[k] = t = {}
-    return t
-  }
-
+  /**
+   * The author's terrain brush (world building, loading, migrations, tests — never a rule: rules
+   * transform their own host): the cell shows `terrain` on top. Its space gets a thing of that
+   * terrain (the one there is changed, else one is made under the cell's id); what lies above that
+   * space goes.
+   */
   setTerrain(map: string, x: number, y: number, terrain: string): void {
-    this.guard('setTerrain', { tile: { map, x, y } })
-    const base = this.state.maps[map]?.terrain[y * (this.state.maps[map]?.width ?? 0) + x]
-    const t = this.tileState(map, x, y, true)!
-    if (terrain === base) delete t.terrain
-    else t.terrain = terrain
-    this.pruneTile(map, x, y)
-  }
-
-  private pruneTile(map: string, x: number, y: number): void {
-    const k = tileKey(map, x, y)
-    const t = this.state.tiles[k]
-    if (t && !t.terrain && (!t.statuses || !Object.keys(t.statuses).length)) delete this.state.tiles[k]
+    const space = this.onto.terrain(terrain)?.space ?? 'floor'
+    const above = CELL_SPACES.slice(CELL_SPACES.indexOf(space) + 1)
+    for (const e of this.entitiesAt(map, x, y)) {
+      if (!this.isTerrain(e)) continue
+      const s = this.spacesOf(e)
+      if (s.some((sp) => (above as Space[]).includes(sp))) this.destroy(e)
+    }
+    const there = this.entitiesAt(map, x, y).find((e) => this.spacesOf(e).includes(space))
+    if (there) {
+      if (there.type !== `tile/${terrain}`) this.transform(there, `tile/${terrain}`)
+    } else this.add({ id: cellId(map, x, y, space), type: `tile/${terrain}`, place: { on: 'tile', map, x, y } })
   }
 
   isSolidTerrain(terrain: string): boolean {
@@ -358,9 +460,9 @@ export class World {
     return undefined
   }
 
-  /** Blocked whoever moves: solid terrain, or the base of a solid thing. Nothing else blocks — no layer of the map's own. */
+  /** Blocked whoever moves: no floor, or the base of a solid thing (a tree, rock, water, a wall, a cart). */
   blocked(map: string, x: number, y: number, ignore?: Id): boolean {
-    return this.isSolidTerrain(this.terrainAt(map, x, y)) || !!this.solidAt(map, x, y, ignore)
+    return !this.occupant(map, x, y, 'floor') || !!this.solidAt(map, x, y, ignore)
   }
 
   /** Static passability for path planning: terrain and solid things, ignoring actors. */
@@ -393,22 +495,16 @@ export class World {
     return typeof s === 'string' ? s : 'ground'
   }
 
-  /** The stances a tile acts on. */
-  tileReach(map: string, x: number, y: number): string[] {
-    return this.onto.terrain(this.terrainAt(map, x, y))?.reach ?? ['ground']
-  }
-
-  /** The stances a fixture acts on. */
   /** The stances a thing acts on: what can stand or lie on it (none unless its type says). */
   reachOf(e: Entity): string[] {
     return this.onto.resolve(e.type).reach ?? []
   }
 
   /**
-   * A thing's own relations, as `how|key`: on its tile (keyed with its terrain, so ice thawing to
-   * water underfoot is a new contact) and on the things there whose reach includes its stance
-   * (a flyer touches neither lava nor flowers); in the regions its cell lies in; in its holder;
-   * held in a hand.
+   * A thing's own relations, as `how|key`: on the things of its cell whose reach includes its
+   * stance (a flyer touches neither lava nor flowers) — on the floor, keyed with what the floor is
+   * (ice thawing to water underfoot is a new contact); in the regions its cell lies in; in its
+   * holder; held in a hand. The floor itself lies on nothing.
    */
   relationsOf(e: Entity): string[] {
     const p = e.place
@@ -417,10 +513,14 @@ export class World {
     if (p.on !== 'tile') return []
     const st = this.stanceOf(e)
     const out: string[] = []
-    if (this.tileReach(p.map, p.x, p.y).includes(st)) out.push(`on|t|${tileKey(p.map, p.x, p.y)}#${this.terrainAt(p.map, p.x, p.y)}`)
-    // what has a reach of its own is ground for others, not something that lies on them
-    if (!this.reachOf(e).length)
-      for (const f of this.entitiesAt(p.map, p.x, p.y)) if (f.id !== e.id && this.reachOf(f).includes(st)) out.push(`on|${f.id}`)
+    const mine = this.spacesOf(e)
+    if (!mine.includes('floor')) {
+      const floor = this.occupant(p.map, p.x, p.y, 'floor')
+      if (floor && this.reachOf(floor).includes(st)) out.push(`on|${floor.id}#${floor.type}`)
+      // what has a reach of its own is ground for others, not something that lies on them
+      if (!this.reachOf(e).length)
+        for (const f of this.entitiesAt(p.map, p.x, p.y)) if (f !== floor && f.id !== e.id && this.reachOf(f).includes(st)) out.push(`on|${f.id}`)
+    }
     for (const r of this.regionsAt(p.map, p.x, p.y)) out.push(`in-region|${r.id}`)
     return out
   }
@@ -429,19 +529,6 @@ export class World {
 
   view(ref: Ref | undefined): View | undefined {
     if (!ref) return undefined
-    if ('tile' in ref) {
-      const { map, x, y } = ref.tile
-      const terrain = this.terrainAt(map, x, y)
-      const def = this.onto.terrain(terrain)
-      const st = this.tileState(map, x, y)?.statuses
-      return {
-        ref,
-        type: `tile/${terrain}`,
-        tags: new Set(def?.tags ?? []),
-        statuses: new Set(st ? Object.keys(st) : []),
-        props: {},
-      }
-    }
     const e = this.get(ref.e)
     if (!e || e.place.on === 'none') return undefined
     const r = this.onto.resolve(e.type)
@@ -569,13 +656,23 @@ export class World {
     this.detach(e)
     e.place = { on: 'none' }
     this.statusful.delete(e.id)
+    // a cell thing of the map's data stays gone: its record keeps the static one from coming back
+    if (parseCellId(e.id)) this.state.entities[e.id] = { id: e.id, type: e.type, place: { on: 'none' } }
+    else delete this.state.entities[e.id]
+  }
+
+  /** The author's: a cell thing as the map's data has it again (what the state kept of it is forgotten). */
+  revert(e: Entity): void {
+    this.guard('revert', e)
+    if (!parseCellId(e.id)) throw new Error(`${e.id} is not a cell thing of a map's data`)
+    this.detach(e)
+    this.statusful.delete(e.id)
     delete this.state.entities[e.id]
   }
 
   // ---------------------------------------------------------------- statuses
 
   statusesOf(ref: Ref): Record<string, number> | undefined {
-    if ('tile' in ref) return this.tileState(ref.tile.map, ref.tile.x, ref.tile.y)?.statuses
     return this.get(ref.e)?.statuses
   }
 
@@ -585,8 +682,7 @@ export class World {
 
   /** Who gave a thing a status it holds (the actor of the outcome that set it), if anyone. */
   statusBy(ref: Ref, status: string): Id | undefined {
-    const by = 'tile' in ref ? this.tileState(ref.tile.map, ref.tile.x, ref.tile.y)?.statusBy : this.get(ref.e)?.statusBy
-    return by?.[status]
+    return this.get(ref.e)?.statusBy?.[status]
   }
 
   /**
@@ -595,17 +691,9 @@ export class World {
    */
   setStatus(ref: Ref, status: string, expiry: number, by?: Id): boolean {
     this.guard('setStatus', ref)
-    let holder: { statuses?: Record<string, number>; statusBy?: Record<string, Id> }
-    let key: string
-    if ('tile' in ref) {
-      holder = this.tileState(ref.tile.map, ref.tile.x, ref.tile.y, true)!
-      key = 't|' + tileKey(ref.tile.map, ref.tile.x, ref.tile.y)
-    } else {
-      const e = this.get(ref.e)
-      if (!e) return false
-      holder = e
-      key = e.id
-    }
+    const holder = this.get(ref.e)
+    if (!holder) return false
+    const key = holder.id
     const bag = (holder.statuses ??= {})
     const fresh = !(status in bag)
     bag[status] = expiry
@@ -623,34 +711,21 @@ export class World {
     const bag = this.statusesOf(ref)
     if (!bag || !(status in bag)) return false
     delete bag[status]
-    const holder = 'tile' in ref ? this.tileState(ref.tile.map, ref.tile.x, ref.tile.y) : this.get(ref.e)
+    const holder = this.get(ref.e)
     if (holder?.statusBy) {
       delete holder.statusBy[status]
       if (!Object.keys(holder.statusBy).length) delete holder.statusBy
     }
     if (!Object.keys(bag).length) {
-      if ('tile' in ref) {
-        this.statusful.delete('t|' + tileKey(ref.tile.map, ref.tile.x, ref.tile.y))
-        const t = this.tileState(ref.tile.map, ref.tile.x, ref.tile.y)
-        if (t) delete t.statuses
-        this.pruneTile(ref.tile.map, ref.tile.x, ref.tile.y)
-      } else {
-        this.statusful.delete(ref.e)
-        const e = this.get(ref.e)
-        if (e) delete e.statuses
-      }
+      this.statusful.delete(ref.e)
+      if (holder) delete holder.statuses
     }
     return true
   }
 
-  /** Resolve a statusful-set key back to a ref. */
+  /** Resolve a statusful-set or relation key back to a ref (a floor's relation key carries its type after '#'). */
   keyRef(key: string): Ref {
-    if (key.startsWith('t|')) {
-      // a tile's relation key carries its terrain after '#' (a terrain change is a new relation)
-      const [map, x, y] = key.slice(2).split('#')[0].split(':')
-      return { tile: { map, x: +x, y: +y } }
-    }
-    return { e: key }
+    return { e: key.split('#')[0] }
   }
 
   // ---------------------------------------------------------------- time

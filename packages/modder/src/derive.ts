@@ -87,7 +87,7 @@ function siblings(sel: Selector, current: string, tile: boolean, onto: Ontology)
   const s = shape(sel)
   if (tile) {
     const terrains = Object.values(onto.terrains).filter((t) => `tile/${t.id}` !== current && t.id !== current)
-    const view = (id: string, tags: string[] = []): View => ({ ref: { tile: { map: 'x', x: 0, y: 0 } }, type: `tile/${id}`, tags: new Set(tags), statuses: new Set(), props: {} })
+    const view = (id: string, tags: string[] = []): View => ({ ref: { e: `x:0,0,0:${id}` }, type: `tile/${id}`, tags: new Set(tags), statuses: new Set(), props: {} })
     return terrains.filter((t) => matchSelector(s, view(t.id, t.tags))).map((t) => t.id)
   }
   const index = new OntologyIndex(onto)

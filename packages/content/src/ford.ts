@@ -104,9 +104,9 @@ const FORD_RULES: Rule[] = [
             { op: 'vfx', fx: 'dust' },
             log('The dead tree groans, leans… and falls with a crash.', '枯树呻吟着，倾斜……轰然倒下。'),
             { op: 'emit', impulse: 'receive', to: { line: { from: 'host', away: 'actor', length: 8, over: ['water'] } }, params: { what: 'trunk' } },
-            { op: 'emit', impulse: 'receive', to: 'tileOf:host', params: { what: 'stump' } },
             notify('tree'),
-            { op: 'destroy' },
+            // what stands is its stump
+            { op: 'transform', into: 'tile/stump' },
           ],
         },
         else: { do: [{ op: 'addProp', key: 'cuts', delta: 1 }, { op: 'vfx', fx: 'dust' }, log('The axe bites into the dead wood. It creaks.', '斧头砍进了枯木。它嘎吱作响。')] },

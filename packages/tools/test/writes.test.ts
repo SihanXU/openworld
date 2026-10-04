@@ -23,7 +23,7 @@ function sources(): { file: string; lines: string[] }[] {
   return out
 }
 
-/** What changes the state behind the mutators: a thing's props, tags, statuses, place, contents; the world's facts and tiles. */
+/** What changes the state behind the mutators: a thing's props, tags, statuses, place, contents; the things kept (entities). */
 const WRITES: RegExp[] = [
   /\.(props|tags|statusBy|contents|held|place)!?\s*(\?\?)?=[^=]/,
   // a thing's statuses (not a rule library's status definitions)
@@ -33,8 +33,8 @@ const WRITES: RegExp[] = [
   /\(\s*[\w.!]+\.(props|tags|statuses) \?\?= /,
   /Object\.assign\([^,]*\.props/,
   /delete [\w.!]+\.(props|statuses|statusBy)\b/,
-  /state\.(facts|tiles)!?(\.[\w$]+|\[[^\]]+\])?!?\s*(\?\?)?=[^=]/,
-  /delete [\w.!]*state\.(facts|tiles)/,
+  /state\.entities!?(\.[\w$]+|\[[^\]]+\])!?\s*(\?\?)?=[^=]/,
+  /delete [\w.!]*state\.entities/,
 ]
 
 /**
@@ -49,7 +49,7 @@ const MAY_GRANT = ['engine/src/engine.ts', 'engine/src/world.ts']
 const code = (l: string) => l.replace(/\/\/.*$/, '').trim()
 
 describe('the state changes only in outcomes, and an outcome only its host (design.md §5.13, A2–A3)', () => {
-  it('no game code changes props, tags, statuses, places, facts or tiles behind the mutators', () => {
+  it('no game code changes props, tags, statuses, places or the kept things behind the mutators', () => {
     const found: string[] = []
     for (const { file, lines } of sources()) {
       if (MAY_WRITE.includes(file)) continue
@@ -104,7 +104,8 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
       'Object.assign(existing.props ??= {}, { hp: 1 })',
       'delete e.statuses',
       'target.statuses = {}',
-      "w.state.facts!['x'] = 1",
+      "w.state.entities['x'] = e",
+      'delete w.state.entities[id]',
       'delete tile.statuses',
     ])
       expect(hit(c), c).toBe(true)
@@ -123,7 +124,7 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
   })
 
   it('the writer is held once; a write without it throws, and so does an outcome writing beyond its host', () => {
-    const eng = new Engine({ tick: 0, seed: 1, rng: 1, player: 'p', entities: {}, maps: {}, tiles: {}, loadedMaps: [], counter: 0, spawn: { map: 'm', x: 0, y: 0 } }, buildOntology(), new RuleLibrary(BASE_RULES))
+    const eng = new Engine({ tick: 0, seed: 1, rng: 1, player: 'p', entities: {}, maps: {}, loadedMaps: [], counter: 0, spawn: { map: 'm', x: 0, y: 0 } }, buildOntology(), new RuleLibrary(BASE_RULES))
     eng.ensureResidents()
     expect(() => eng.world.grant()).toThrow(/already held/)
     // a fact is the story's prop: kept outside an outcome, it throws like any other write

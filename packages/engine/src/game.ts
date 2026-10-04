@@ -85,7 +85,6 @@ export class Game {
       player: index.player.id,
       entities: {},
       maps: {},
-      tiles: {},
       loadedMaps: [],
       counter: 0,
       spawn: index.start,
@@ -143,7 +142,7 @@ export class Game {
   /** Base terrain for a revisit after load (entities come from the save). */
   loadMapData(map: MapData): void {
     this.engine.world.state.maps[map.id] = map
-    this.engine.ensureRegions(map.id)
+    this.engine.mapArrived(map.id)
   }
 }
 
@@ -158,6 +157,7 @@ function upgrade(eng: Engine, index: WorldIndex): void {
     memory?: Record<Id, NpcMemory>
     scene?: SceneState
     weather?: unknown
+    tiles?: Record<string, { terrain?: string; statuses?: Record<string, number>; statusBy?: Record<Id, Id> }>
   }
   // how the player looks is the world's to say, not the save's (a save from before a new look gets it)
   const p = w.get(s.player)
@@ -192,6 +192,19 @@ function upgrade(eng: Engine, index: WorldIndex): void {
   delete s.memory
   if (s.scene) (w.scene = s.scene), delete s.scene
   delete s.weather
+  // a cell was a terrain with overrides; it is made of things (world-model.md §4.6): the overrides
+  // become the cells' things when each map's data comes, and relations keyed by tile start again
+  for (const [k, t] of Object.entries(s.tiles ?? {})) {
+    const [map, x, y] = k.split(':')
+    const list = eng.legacyTiles.get(map) ?? []
+    list.push({ x: +x, y: +y, ...t })
+    eng.legacyTiles.set(map, list)
+  }
+  delete s.tiles
+  if (Object.values(s.relations ?? {}).some((ks) => ks.some((k) => k.includes('|t|')))) {
+    delete s.relations
+    for (const m of s.loadedMaps) eng.reseed.add(m)
+  }
 }
 
 /** NPC entities carry their inventory inline as `_items` in the index. */

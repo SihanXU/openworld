@@ -155,7 +155,7 @@ export function sweep(onto: Ontology = buildOntology(), rules: Rule[] = BASE_RUL
     }
     const key = target.scenario(sc)
     const eng = buildSandbox(sc, onto, lib)
-    const ref: Ref = key === 'actor' || key === 'target' ? { e: key } : { tile: { map: SANDBOX_MAP, ...FRONT } }
+    const ref: Ref = key === 'actor' || key === 'target' ? { e: key } : eng.world.cellRef(SANDBOX_MAP, FRONT.x, FRONT.y)
     HANDS.forEach((hand, i) => {
       for (const verb of verbsFor(hand, target.id)) {
         const instrument: Ref | undefined = hand ? { e: `hand${i - 1}` } : undefined

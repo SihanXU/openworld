@@ -244,7 +244,7 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
     const port = new ModPort(eng)
     port.provider = working
     eng.author(() => eng.applyStatus({ e: 'rope' }, 'burning'))
-    eng.author(() => eng.applyStatus({ tile: { map: 'sandbox', x: 1, y: 1 } }, 'wet'))
+    eng.author(() => eng.applyStatus(eng.world.cellRef('sandbox', 1, 1), 'wet'))
     eng.queue({ kind: 'impulse/element', host: { e: 'tree' }, roles: {}, params: { element: 'lightning', power: 4 }, origin: 'world' })
     expect(eng.world.hasStatus({ e: 'tree' }, 'burning')).toBe(true)
     expect(port.records).toHaveLength(0)

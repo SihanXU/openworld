@@ -29,7 +29,7 @@ export function forageMap(eng: Engine, active: string): void {
       const y = Math.floor(w.rand() * map.height)
       if (!f.on.includes(w.terrainAt(active, x, y))) continue
       if (p?.map === active && Math.max(Math.abs(p.x - x), Math.abs(p.y - y)) <= NEAR) continue
-      if (!w.walkable(active, x, y) || w.entitiesAt(active, x, y).length) continue
+      if (!w.walkable(active, x, y) || w.placedAt(active, x, y).length) continue
       const e = w.create(f.type, { on: 'tile', map: active, x, y }, f.ai ? { facing: 'down', ai: { ...structuredClone(f.ai), home: { map: active, x, y } } } : {})
       eng.touch({ e: e.id })
       for (const st of f.statuses ?? []) eng.applyStatus({ e: e.id }, st)

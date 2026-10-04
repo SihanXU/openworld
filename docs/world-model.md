@@ -204,6 +204,19 @@ derived from its position and space (`ford:12,8,0:volume`). Whether it lives in 
 static arrays or has been materialised into the save, rules and the AI see one thing with one
 id; materialising it on its first change keeps the id.
 
+As built (W2a): a map is still authored as one terrain per cell, the thing on top; the engine
+(`cells.ts`) splits it into the cell's things — the floor, what roots in the soil (a stump), what
+fills the volume (a tree, rock, a wall) — and gives a filled cell the ground most common among its
+nearest standable neighbours. Each terrain is a type `tile/<id>` whose data says its space and
+that it is drawn as the cell's ground (`terrain`); a thing so drawn makes up its cell, the rest
+stands or lies in it (`placedAt`). The state keeps a cell thing from its first change, and one
+destroyed as a record with no place; `state.tiles` and `{tile}` are gone, and so is `setTerrain`:
+a host becomes another terrain by `transform`, and becoming a type whose space in its cell is
+taken it gives way (rock becoming gravel where a floor is: the rock is gone). A cell as a role
+(`tileOf:`, a put on a cell, a blow that meets no one) is what makes it up on top. Older saves'
+overrides become cell things when each map's data comes; older rules' `setTerrain` is rewritten
+on entering a library; the map builder clears the volume under a solid fixture set in rock.
+
 ## 5. Space
 
 ### 5.1 Two-level maps

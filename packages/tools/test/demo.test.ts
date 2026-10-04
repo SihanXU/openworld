@@ -244,10 +244,11 @@ req('B5', 'stepping onto a tile in a state is contact, answered by the tile (oil
   stand(f, ...STAND.road, 'right')
   const tile = { map: 'ford', x: STAND.road[0] + 1, y: STAND.road[1] }
   run(f, 'use', tile.x, tile.y)
-  expect(W(f).hasStatus({ tile }, 'oiled')).toBe(true)
+  const road = W(f).cellRef('ford', tile.x, tile.y)
+  expect(W(f).hasStatus(road, 'oiled')).toBe(true)
   f.events.length = 0
   f.eng.movePlayer('right')
-  const touch = f.events.find((e) => e.kind === 'contact/begin' && 'tile' in e.host && e.host.tile.x === tile.x && e.host.tile.y === tile.y)
+  const touch = f.events.find((e) => e.kind === 'contact/begin' && e.host.e === road.e)
   expect(touch?.params?.how).toBe('under')
   expect(records(f)).toHaveLength(0)
 })
@@ -450,7 +451,7 @@ req('D2', 'every layer a target can be: a person, a creature, a fixture, a loose
   // the cart is in Firstlight Village now
   stand(f, ...STAND.cart, 'left', FIRSTLIGHT.map)
   const layers = f.eng.controls.layers({ map: FIRSTLIGHT.map, ...at(...AT.cart) })
-  const kinds = layers.map((r) => ('tile' in r ? 'ground' : formOf(W(f), W(f).get(r.e)!)))
+  const kinds = layers.map((r) => (W(f).isTerrain(W(f).get(r.e)!) ? 'ground' : formOf(W(f), W(f).get(r.e)!)))
   expect(kinds).toEqual(['item', 'item', 'fixture', 'ground'])
   hold(f, ofType(f, 'item/food/bread'))
   for (const key of ['hands', 'take', 'use', 'put'] as Key[]) {
@@ -629,7 +630,7 @@ req('F11', 'a place, not a picture: all that is drawn or in the way is terrain o
   const plan = f.eng.controls.plan('use', point)!
   expect(plan.target).toEqual({ e: stump.id })
   // the long press reaches what lies under it: the ground
-  expect(f.eng.controls.choices('use', point).map((c) => c.plan?.target)).toEqual([{ e: stump.id }, { tile: { map: 'ford', x, y } }])
+  expect(f.eng.controls.choices('use', point).map((c) => c.plan?.target)).toEqual([{ e: stump.id }, W(f).cellRef('ford', x, y)])
   f.eng.controls.run(plan, true)
   expect(plan.unknown).toBe(true)
   // the blow is the axe's; what the stump does when struck is undefined, and asked of the stump

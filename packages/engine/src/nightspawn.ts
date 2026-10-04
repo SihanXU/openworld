@@ -40,7 +40,7 @@ export function appear(eng: Engine, eff: Extract<Effect, { op: 'appear' }>): voi
     const r = near + w.rand() * (far - near)
     const x = Math.round(p.x + Math.cos(a) * r)
     const y = Math.round(p.y + Math.sin(a) * r)
-    if (!w.walkable(active, x, y) || w.entitiesAt(active, x, y).length) continue
+    if (!w.walkable(active, x, y) || w.placedAt(active, x, y).length) continue
     const made = w.create(type, { on: 'tile', map: active, x, y }, { facing: 'down', tags: [eff.tag], ai: { behaviour: 'melee', temper: 'aggressive', sight: 8, leash: 14, home: { map: active, x, y } } })
     eng.touch({ e: made.id })
     return

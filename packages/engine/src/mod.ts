@@ -9,7 +9,7 @@ import { EVENT_KINDS } from './types.ts'
 import { PRIMITIVES, RESIDENT_ONLY } from './effects.ts'
 import type { Engine, Resolution, UndefinedSink } from './engine.ts'
 import { STORY, textOf } from './engine.ts'
-import { OntologyIndex, isA } from './ontology.ts'
+import { OntologyIndex, isA, withTerrainTypes } from './ontology.ts'
 import { RuleLibrary, cmp, compareSpec, isDo, isHole, leaves, rolesOf, specOf } from './rules.ts'
 import { checkExpectations, replay } from './sandbox.ts'
 import type { Cmp, Cond, Effect, EmitTo, GameEvent, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tree, TypeDef } from './types.ts'
@@ -299,7 +299,6 @@ export function signatureOf(eng: Engine, ev: GameEvent, res?: Resolution): strin
   const w = eng.world
   const kind = (r: Ref | undefined): string => {
     if (!r) return '-'
-    if ('tile' in r) return `tile:${w.terrainAt(r.tile.map, r.tile.x, r.tile.y)}`
     const e = w.get(r.e)
     if (!e) return '?'
     return e.type
@@ -617,7 +616,7 @@ function info(eng: Engine, role: string, v: View | undefined, origin?: { x: numb
   if (!v) return undefined
   const w = eng.world
   const p = w.refPos(v.ref)
-  const chain = 'tile' in v.ref ? [v.type] : w.onto.resolve(v.type).chain
+  const chain = w.onto.resolve(v.type).chain
   return {
     role,
     id: v.id,
@@ -670,8 +669,9 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
       const x = center.x + dx
       const y = center.y + dy
       row.push(w.terrainAt(center.map, x, y))
-      const st = w.tileState(center.map, x, y)?.statuses
-      if (st && Object.keys(st).length) tileStatuses.push({ at: [dx, dy], statuses: Object.keys(st) })
+      // what the things that make up the cell carry
+      const st = w.entitiesAt(center.map, x, y).filter((c) => w.isTerrain(c)).flatMap((c) => Object.keys(c.statuses ?? {}))
+      if (st.length) tileStatuses.push({ at: [dx, dy], statuses: st })
     }
     tiles.push(row)
   }
@@ -680,7 +680,8 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
   for (let dy = -2; dy <= 2; dy++)
     for (let dx = -2; dx <= 2; dx++)
       for (const e of w.entitiesAt(center.map, center.x + dx, center.y + dy)) {
-        if (involved.has(e.id) || nearby.some((x) => x.id === e.id)) continue
+        // the cells themselves are the tiles' rows; nearby is what stands or lies there
+        if (w.isTerrain(e) || involved.has(e.id) || nearby.some((x) => x.id === e.id)) continue
         const i = info(eng, 'nearby', w.view({ e: e.id }), center)
         if (i) nearby.push(i)
       }
@@ -723,7 +724,7 @@ function detailOf(eng: Engine, ev: GameEvent): string | undefined {
     const s = p?.npc?.person?.schedules?.flatMap((v) => v.entries).find((x) => x.activity === ev.params?.activity)
     // behaviour that is not a day (a companion following): what holds the host back is its own state
     if (!s) return `${n(ev.host)} cannot go on with "${ev.params?.activity}" (${n(ev.roles.target)}): it is ${Object.keys(p?.statuses ?? {}).join(', ') || 'held fast'}`
-    return `${n(ev.host)} wants to "${ev.params?.activity}" but ${ev.roles.target && 'tile' in ev.roles.target ? 'cannot reach the spot' : `${n(ev.roles.target)} is not as it must be${s?.need ? ` (${JSON.stringify(s.need)})` : ''}`}`
+    return `${n(ev.host)} wants to "${ev.params?.activity}" but ${ev.roles.target && w.get(ev.roles.target.e) && w.isTerrain(w.get(ev.roles.target.e)!) ? 'cannot reach the spot' : `${n(ev.roles.target)} is not as it must be${s?.need ? ` (${JSON.stringify(s.need)})` : ''}`}`
   }
   return undefined
 }
@@ -745,9 +746,17 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
   }
   const entities: ScenarioEntity[] = []
   const keyOf = new Map<string, string>()
+  // a kept cell thing's own state (a notched tree, a wet floor): its cell carries it
+  const cells: NonNullable<Scenario['cells']> = []
+  for (let y = 0; y <= 2 * WINDOW; y++)
+    for (let x = 0; x <= 2 * WINDOW; x++) {
+      const top = w.cellTop(center.map, ox + x, oy + y)
+      if (top && !w.isStatic(top) && (top.statuses || top.props)) cells.push({ x, y, statuses: top.statuses && Object.keys(top.statuses), props: top.props && { ...top.props } })
+    }
   const addEntity = (id: string, key: string) => {
     const e = w.get(id)
-    if (!e || keyOf.has(id) || w.isPlaceless(e)) return
+    // what makes up a cell comes with the terrain rows
+    if (!e || keyOf.has(id) || w.isPlaceless(e) || w.isTerrain(e)) return
     const p = w.posOf(e)
     if (!p) return
     keyOf.set(id, key)
@@ -771,9 +780,12 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
   }
   const roleKey = (r: Ref | undefined, key: string): string | undefined => {
     if (!r) return undefined
-    if ('tile' in r) return `tile:${r.tile.x - ox},${r.tile.y - oy}`
     const e = w.get(r.e)
     if (!e) return undefined
+    if (w.isTerrain(e)) {
+      const p = w.posOf(e)
+      return p && `tile:${p.x - ox},${p.y - oy}`
+    }
     if (w.isPlaceless(e)) return e.id
     // make sure holders come first so held/inside links resolve
     if (e.place.on === 'hand' || e.place.on === 'inside') {
@@ -794,7 +806,7 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
     for (let x = 0; x <= 2 * WINDOW; x++)
       for (const e of w.entitiesAt(center.map, ox + x, oy + y)) if (!keyOf.has(e.id) && n < 12) addEntity(e.id, `n${++n}`)
   const player = keyOf.get(w.state.player) ?? '__player'
-  return { terrain, entities, player, event }
+  return { terrain, entities, player, event, ...(cells.length && { cells }) }
 }
 
 // ---------------------------------------------------------------- validation
@@ -818,6 +830,7 @@ interface ValidateCtx {
 }
 
 export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult {
+  withTerrainTypes(ctx.ontology)
   const errors: string[] = []
   const warnings: string[] = []
   const overrides: string[] = []
@@ -913,6 +926,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     errors.push(`${where}: unknown receiver`)
   }
   const checkEffect = (e: Effect, where: string, resident: boolean) => {
+    if ((e as { op?: string })?.op === 'setTerrain') return errors.push(`${where}: there is no setTerrain — a cell is made of things; the host becomes another with {op: "transform", into: "tile/<terrain>"}`)
     if (!e || !OPS.has(e.op)) return errors.push(`${where}: unknown primitive "${(e as { op?: string })?.op}"`)
     const any = e as Record<string, unknown>
     if ('of' in any) errors.push(`${where}: effects act on the host only (no "of"): to affect another thing, emit an impulse to it`)
@@ -921,7 +935,6 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (e.op === 'spawn' && !/^@prop:(host|actor|target|instrument|other|item|source)\.\w+$/.test(e.type) && !(e.type in onto.types)) errors.push(`${where}: unknown type "${e.type}"${closest(e.type, onto)}`)
     if (e.op === 'transform' && !e.into.startsWith('@prop:') && !(e.into in onto.types)) errors.push(`${where}: unknown type "${e.into}"${closest(e.into, onto)}`)
     if ((e.op === 'addStatus' || e.op === 'removeStatus') && !(e.status in onto.statuses)) errors.push(`${where}: unknown status "${e.status}"`)
-    if (e.op === 'setTerrain' && !(e.terrain in onto.terrains)) errors.push(`${where}: unknown terrain "${e.terrain}"`)
     if (e.op === 'vfx' && !onto.vfx.includes(e.fx)) errors.push(`${where}: unknown vfx "${e.fx}"`)
     if (e.op === 'hurt' && e.element && !ctx.ontology.elements.includes(e.element)) errors.push(`${where}: unknown element "${e.element}"`)
     if (e.op === 'goto' && !(e.hours > 0 && e.hours <= 12)) errors.push(`${where}: goto hours must be in (0, 12]`)
@@ -1082,7 +1095,6 @@ function satisfiable(x: Selector, y: Selector, onto: Ontology): boolean {
   const free = new Set(onto.instanceTags ?? [])
   const type = [x.type, y.type].filter(Boolean).sort((p, q) => q!.length - p!.length)[0]
   const ok = (tags: Set<string>) => need.every((t) => tags.has(t) || free.has(t)) && !forbid.some((t) => tags.has(t))
-  if (type && isA(type, 'tile')) return Object.values(onto.terrains).some((t) => (!type || isA(`tile/${t.id}`, type)) && ok(new Set(t.tags ?? [])))
   const index = new OntologyIndex(onto)
   for (const id of Object.keys(onto.types)) {
     if (type && !isA(id, type)) continue

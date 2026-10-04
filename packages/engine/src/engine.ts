@@ -143,18 +143,34 @@ export class Engine {
   }
 
   /**
-   * A map's authored areas are things (world-model.md §5.4), made when its data first comes and
-   * kept after (they may carry props and host rules). On a map already in play (an older save)
+   * An older save's tile overrides, by map (game.ts upgrade): its cells as they were, made
+   * things when the map's data comes (not state: nothing else reads them).
+   */
+  readonly legacyTiles = new Map<string, { x: number; y: number; terrain?: string; statuses?: Record<string, number>; statusBy?: Record<string, Id> }[]>()
+  /** Maps whose relations an older save kept in another form: they start again from where things stand. */
+  readonly reseed = new Set<string>()
+
+  /**
+   * A map's data has come (a new map, or one loaded again with a save). Its authored areas are
+   * things (world-model.md §5.4), made the first time and kept after (they may carry props and
+   * host rules); an older save's changed cells become the cells' things. On a map already in play,
    * what stands in them is in them from now, as its start, not an event.
    */
-  ensureRegions(map: string): void {
+  mapArrived(map: string): void {
     const w = this.world
     const named = Object.entries(w.map(map)?.regions ?? {}).filter(([name]) => !w.get(regionId(map, name)))
-    if (!named.length) return
+    const old = this.legacyTiles.get(map) ?? []
+    this.legacyTiles.delete(map)
     this.write(() => {
       for (const [name, r] of named) w.add({ id: regionId(map, name), type: 'region', place: { on: 'area', map, rects: [r] } })
+      for (const t of old) {
+        if (t.terrain) w.setTerrain(map, t.x, t.y, t.terrain)
+        const top = w.cellTop(map, t.x, t.y)
+        if (top) for (const [st, until] of Object.entries(t.statuses ?? {})) w.setStatus({ e: top.id }, st, until, t.statusBy?.[st])
+      }
     })
-    if (w.state.loadedMaps.includes(map)) this.diffMap(map, true)
+    const again = this.reseed.delete(map)
+    if ((named.length || old.length || again) && w.state.loadedMaps.includes(map)) this.diffMap(map, true)
   }
 
   // ---------------------------------------------------------------- events
@@ -197,7 +213,7 @@ export class Engine {
     const host = 'e' in ev.host ? w.get(ev.host.e) : undefined
     if ('e' in ev.host && (!host || host.place.on === 'none')) return { defined: false }
     // a thing on a dormant map receives it when the player comes (design.md §5.12); people and residents at once
-    const at = 'tile' in ev.host ? ev.host.tile : w.posOf(host)
+    const at = w.posOf(host)
     // (an act is made by one who acts now — a companion following its leader off a map — and resolves at once)
     if (at && at.map !== this.activeMap && !ev.kind.startsWith('act/') && !(host && (host.npc || w.isPlaceless(host)))) {
       const d = ((w.state.dormant ??= {})[at.map] ??= { since: w.state.tick, inbox: [] })
@@ -575,18 +591,13 @@ export class Engine {
     const tiles = new Set<string>()
     const addTile = (p: Pos | undefined) => p && tiles.add(tileKey(p.map, p.x, p.y))
     for (const r of touched) {
-      if ('tile' in r) addTile(r.tile)
-      else {
-        hosts.add(r.e)
-        const e = w.get(r.e)
-        addTile(w.posOf(e))
-        // where it was: the tiles of its old relations, and whoever lay on it (a thing with a reach moved or gone)
-        for (const k of rel[r.e] ?? []) {
-          const to = k.slice(k.indexOf('|') + 1)
-          if (to.startsWith('t|')) tiles.add(to.slice(2).split('#')[0])
-        }
-        if (!e || w.reachOf(e).length) for (const [h, ks] of Object.entries(rel)) if (ks.includes(`on|${r.e}`)) hosts.add(h)
-      }
+      hosts.add(r.e)
+      const e = w.get(r.e)
+      addTile(w.posOf(e))
+      // where it was: the cells of what it lay on, and whoever lay on it (a thing with a reach changed, moved or gone)
+      for (const k of rel[r.e] ?? []) if (k.startsWith('on|')) addTile(w.posOf(w.get(w.keyRef(k.slice(3)).e)))
+      if (!e || w.reachOf(e).length)
+        for (const [h, ks] of Object.entries(rel)) if (ks.some((k) => k === `on|${r.e}` || k.startsWith(`on|${r.e}#`))) hosts.add(h)
     }
     for (const t of tiles) {
       const [map, x, y] = t.split(':')
@@ -688,9 +699,10 @@ export class Engine {
       const other = w.actorAt(map, nx, ny)
       if (!isPlayer || !other?.npc || this.busy(other) || w.blocked(map, nx, ny)) {
         const thing = w.inBounds(map, nx, ny) ? (other ?? w.solidAt(map, nx, ny)) : undefined
-        const ref: Ref = thing ? { e: thing.id } : { tile: { map, x: nx, y: ny } }
-        this.offer({ kind: 'bump', host: { e: e.id }, roles: { other: ref }, params: { dir }, cause: ev.cause, origin: ev.origin })
-        if (w.view(ref)) this.offer({ kind: 'bump', host: ref, roles: { other: { e: e.id } }, params: { dir }, cause: ev.cause, origin: ev.origin })
+        const other2 = thing ?? w.cellTop(map, nx, ny)
+        const ref: Ref | undefined = other2 && { e: other2.id }
+        this.offer({ kind: 'bump', host: { e: e.id }, roles: ref ? { other: ref } : {}, params: { dir }, cause: ev.cause, origin: ev.origin })
+        if (ref && w.view(ref)) this.offer({ kind: 'bump', host: ref, roles: { other: { e: e.id } }, params: { dir }, cause: ev.cause, origin: ev.origin })
         return false
       }
       // keep pushing into a person (~0.8 s) and you swap places; a single bump just turns you to face them
@@ -840,14 +852,18 @@ export class Engine {
       if (!w.inBounds(start.map, x, y)) break
       last = { map: start.map, x, y }
       // a body first, then what stands there and cannot be carried (a blow on the well is a blow on the well)
-      const victim = w.actorAt(start.map, x, y, a.id) ?? w.entitiesAt(start.map, x, y).find((e) => !w.isAgent(e) && !w.isPortable(e))
+      // (the ground of a cell is not in the way: a blow goes on to what the cell's top is, where it stops)
+      const victim = w.actorAt(start.map, x, y, a.id) ?? w.entitiesAt(start.map, x, y).find((e) => !w.isAgent(e) && !w.isPortable(e) && !w.isTerrain(e))
       if (victim) {
         target = { e: victim.id }
         break
       }
       if (w.blocked(start.map, x, y) && i > 1) break
     }
-    if (!target && last) target = { tile: last }
+    if (!target && last) {
+      const top = w.cellTop(last.map, last.x, last.y)
+      if (top) target = { e: top.id }
+    }
     // a melee blow on the layer the player chose; a cast at a tile the player chose lands there when it lies on the bolt's way
     const cp = chosen && w.refPos(chosen)
     if (chosen && cp && cp.map === start.map && range <= 1 && Math.max(Math.abs(cp.x - start.x), Math.abs(cp.y - start.y)) <= 1) target = chosen
@@ -896,7 +912,9 @@ export class Engine {
       const x = p.x + Math.round((w.rand() - 0.5) * 12)
       const y = p.y + Math.round((w.rand() - 0.5) * 12)
       if (!w.inBounds(active, x, y)) return
-      target = { tile: { map: active, x, y } }
+      const top = w.cellTop(active, x, y)
+      if (!top) return
+      target = { e: top.id }
     }
     const at = w.refPos(target)!
     w.fx.push({ t: 'strike', map: active, x: at.x, y: at.y })
@@ -1026,7 +1044,7 @@ export class Engine {
   loadChunk(chunk: MapChunk): void {
     const s = this.world.state
     s.maps[chunk.map.id] = chunk.map
-    this.ensureRegions(chunk.map.id)
+    this.mapArrived(chunk.map.id)
     if (!s.loadedMaps.includes(chunk.map.id)) {
       s.loadedMaps.push(chunk.map.id)
       this.write(() => {
@@ -1048,14 +1066,10 @@ export class Engine {
   nameOf(ref: Ref | undefined, locale: 'en' | 'zh' = 'en'): string {
     if (!ref) return ''
     const w = this.world
-    let name: Text | undefined
-    if ('tile' in ref) name = w.onto.terrain(w.terrainAt(ref.tile.map, ref.tile.x, ref.tile.y))?.name
-    else {
-      const e = w.get(ref.e)
-      if (!e) return ''
-      if (e.id === w.state.player) return locale === 'zh' ? '你' : 'you'
-      name = e.name ?? w.onto.resolve(e.type).name ?? e.type.split('/').pop()!.replace(/_/g, ' ')
-    }
+    const e = w.get(ref.e)
+    if (!e) return ''
+    if (e.id === w.state.player) return locale === 'zh' ? '你' : 'you'
+    const name: Text | undefined = e.name ?? w.onto.resolve(e.type).name ?? e.type.split('/').pop()!.replace(/_/g, ' ')
     return textOf(name, locale)
   }
 }

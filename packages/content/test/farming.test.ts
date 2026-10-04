@@ -62,7 +62,7 @@ const press = (eng: Engine, key: Key, type?: string): string[] => {
 const wait = (eng: Engine, ticks: number) => {
   for (let i = 0; i < ticks; i++) eng.tick()
 }
-const at = (eng: Engine, x: number, y = 1) => eng.world.entitiesAt(SANDBOX_MAP, x, y).map((e) => e.type)
+const at = (eng: Engine, x: number, y = 1) => eng.world.placedAt(SANDBOX_MAP, x, y).map((e) => e.type)
 const everywhere = (eng: Engine, type: string) => Object.values(eng.world.state.entities).filter((e) => e.type === type).length
 
 const SEED = 'item/seed/wheat'

@@ -62,7 +62,9 @@ function moveToward(eng: Engine, e: Entity, goal: Pos): boolean {
 /** The telegraph runs out: the blow is the encounter's act (its own body on the aimed tile); then its behaviour recovers. */
 function release(eng: Engine, e: Entity, skill: BossSkill): void {
   const w = eng.world, b = e.boss!, p = b.pending!
-  eng.act('use', e.id, { tile: p.aim }, { instrument: null, params: { skill: p.skill, ox: p.origin.x, oy: p.origin.y, ax: p.aim.x, ay: p.aim.y, enraged: (b.phase ?? 1) > 1 } })
+  // its body on the aimed cell: on what makes up the cell there
+  const aimed = w.cellTop(p.aim.map, p.aim.x, p.aim.y)
+  if (aimed) eng.act('use', e.id, { e: aimed.id }, { instrument: null, params: { skill: p.skill, ox: p.origin.x, oy: p.origin.y, ax: p.aim.x, ay: p.aim.y, enraged: (b.phase ?? 1) > 1 } })
   b.actionTick = w.state.tick
   b.actionEnd = w.state.tick + Math.max(6, Math.round(skill.recovery * ((b.phase ?? 1) > 1 ? 0.65 : 1)))
   b.nextAt = b.actionEnd

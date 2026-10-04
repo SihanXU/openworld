@@ -818,8 +818,9 @@ answers, and a condition tree:
 - **Leaves** (§5.6): `effects` (an empty list means no change), `emit`, `inherit`, and
   `undefined` with an optional authored default.
 - **Effects** are drawn from a fixed, typed set of primitives that act on the host:
-  `transform, destroy, move, addStatus, removeStatus, setProp, addProp, setTerrain` (a tile
-  host), `spawn, dropContents, setScript`; presentation: `say, log, vfx, emote, scene`.
+  `transform, destroy, move, addStatus, removeStatus, setProp, addProp` (a cell is made of
+  things, world-model.md §4.6: water freezing is the water transforming), `spawn, dropContents,
+  setScript`; presentation: `say, log, vfx, emote, scene`.
   `emit` sends an impulse or a notice to a role, an area, a line, a direction, or a named
   receiver (§5.12).
 - Adding a primitive, a condition or an event kind is an engine change; adding behaviour is

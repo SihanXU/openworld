@@ -19,7 +19,7 @@ describe('rule-driven construction', () => {
     const items = kit(e, r.id)
     expect(previewPlacement(e, 'actor', r, at).ok).toBe(true)
     expect(place(e, r.id).ok).toBe(true)
-    const made = e.world.entitiesAt(at.map, at.x, at.y).find((x) => x.type === r.result)
+    const made = e.world.placedAt(at.map, at.x, at.y).find((x) => x.type === r.result)
     expect(made).toBeDefined()
     // every step answered by the rules it names, along its chain (an act and the impulses it sends)
     const acted = e.trace.filter((x) => x.ev.kind.startsWith('act/')).length
@@ -68,7 +68,7 @@ describe('vegetable garden', () => {
     e.world.author(() => e.world.setTerrain(at.map, at.x, at.y, 'farmland'))
     kit(e, 'sow-carrot'); kit(e, 'water')
     place(e, 'sow-carrot')
-    const crop = e.world.entitiesAt(at.map, at.x, at.y)[0]
+    const crop = e.world.placedAt(at.map, at.x, at.y)[0]
     for (let i = 0; i < 1200; i++) e.tick()
     expect(crop.type).toBe('fixture/crop/carrot/sprout')
     expect(place(e, 'water').ok).toBe(true)
@@ -84,7 +84,7 @@ describe('vegetable garden', () => {
     expect(place(e, 'till').ok).toBe(true)
     expect(e.world.terrainAt(at.map, at.x, at.y)).toBe('farmland')
     expect(place(e, `sow-${c.id}`).ok).toBe(true)
-    const crop = e.world.entitiesAt(at.map, at.x, at.y)[0]
+    const crop = e.world.placedAt(at.map, at.x, at.y)[0]
     expect(crop.type).toBe(`fixture/crop/${c.id}/sprout`)
     expect(place(e, `sow-${c.id}`).ok).toBe(false)
     const grow = () => {

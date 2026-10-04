@@ -625,7 +625,7 @@ const PLACING: Rule[] = [
 const LIVING_TREE: Selector = { type: 'tile', tags: ['tree', 'flammable'] }
 const STUMP: Selector = { type: 'tile/stump' }
 const NOBODY_HERE: Cond = { count: { role: 'host', in: 'tile', match: { type: 'actor' }, cmp: { eq: 0 } } }
-const FELL: Effect[] = [remove('notched'), { op: 'setTerrain', terrain: 'stump' }, add('regrowing'), { op: 'spawn', type: 'item/material/log', at: 'host', count: 2 }, { op: 'spawn', type: 'item/material/stick', at: 'host' }, vfx('leaves'), log('Timber!', '树倒了！')]
+const FELL: Effect[] = [remove('notched'), { op: 'transform', into: 'tile/stump' }, add('regrowing'), { op: 'spawn', type: 'item/material/log', at: 'host', count: 2 }, { op: 'spawn', type: 'item/material/stick', at: 'host' }, vfx('leaves'), log('Timber!', '树倒了！')]
 
 const GROUND: Rule[] = [
   rule({
@@ -648,21 +648,21 @@ const GROUND: Rule[] = [
     doc: 'A stump left alone grows back into a tree (someone standing on it: it waits an hour).',
     host: STUMP,
     on: 'time/timer',
-    tree: IF(param('status', 'regrowing'), IF(NOBODY_HERE, DO({ op: 'setTerrain', terrain: 'tree' }, vfx('leaves')), DO(add('regrowing', 600)))),
+    tree: IF(param('status', 'regrowing'), IF(NOBODY_HERE, DO({ op: 'transform', into: 'tile/tree' }, vfx('leaves')), DO(add('regrowing', 600)))),
   }),
   rule({
     id: 'wood/uproot',
     doc: 'A shovel digs a stump out for good.',
     host: STUMP,
     on: 'impulse/strike',
-    tree: IF(tag('instrument', 'tool:shovel'), DO(remove('regrowing'), { op: 'setTerrain', terrain: 'dirt' }, { op: 'spawn', type: 'item/material/stick', at: 'host' }, vfx('dust'), log('You dig out the stump.', '你把树桩挖了出来。'))),
+    tree: IF(tag('instrument', 'tool:shovel'), DO({ op: 'spawn', type: 'item/material/stick', at: 'host' }, vfx('dust'), log('You dig out the stump.', '你把树桩挖了出来。'), { op: 'destroy' })),
   }),
   rule({
     id: 'wood/char',
-    doc: 'An axe breaks a charred tree down to coal and ash.',
+    doc: 'An axe breaks a charred tree down to coal.',
     host: { type: 'tile/charred_tree' },
     on: 'impulse/strike',
-    tree: IF(tag('instrument', 'tool:axe'), DO({ op: 'setTerrain', terrain: 'ash' }, { op: 'spawn', type: 'item/material/coal', at: 'host' }, vfx('dust'), log('The charred wood crumbles to coal.', '焦木碎成了煤炭。'))),
+    tree: IF(tag('instrument', 'tool:axe'), DO({ op: 'spawn', type: 'item/material/coal', at: 'host' }, vfx('dust'), log('The charred wood crumbles to coal.', '焦木碎成了煤炭。'), { op: 'destroy' })),
   }),
   rule({
     id: 'wood/split',
@@ -676,14 +676,14 @@ const GROUND: Rule[] = [
     doc: 'A hoe turns diggable ground into farmland.',
     host: { type: 'tile', tags: ['diggable'] },
     on: 'impulse/strike',
-    tree: IF(tag('instrument', 'tool:hoe'), DO({ op: 'setTerrain', terrain: 'farmland' }, vfx('dust'))),
+    tree: IF(tag('instrument', 'tool:hoe'), DO({ op: 'transform', into: 'tile/farmland' }, vfx('dust'))),
   }),
   rule({
     id: 'mine/rock',
-    doc: 'A pickaxe breaks rock into gravel and a stone.',
+    doc: 'A pickaxe breaks rock: a stone, and the ground under it.',
     host: { type: 'tile', tags: ['mineable', 'rock'] },
     on: 'impulse/strike',
-    tree: IF(tag('instrument', 'tool:pickaxe'), DO({ op: 'setTerrain', terrain: 'gravel' }, { op: 'spawn', type: 'item/material/stone', at: 'host' }, vfx('dust'), log('The rock breaks apart.', '岩石碎开了。'))),
+    tree: IF(tag('instrument', 'tool:pickaxe'), DO({ op: 'spawn', type: 'item/material/stone', at: 'host' }, vfx('dust'), log('The rock breaks apart.', '岩石碎开了。'), { op: 'destroy' })),
   }),
   rule({
     id: 'mine/crack',
@@ -721,21 +721,21 @@ const GROUND: Rule[] = [
     doc: 'Ice turns water into walkable ice, spreading a little; that ice thaws in time.',
     host: { type: 'tile/water' },
     on: 'impulse/element',
-    tree: IF(param('element', 'ice'), DO({ op: 'setTerrain', terrain: 'ice' }, add('chilled'), emit('element', { area: { radius: 1 } }, { element: 'ice', power: 1 }, { chance: 0.7, filter: { type: 'tile/water' } }), vfx('frost')), 'inherit'),
+    tree: IF(param('element', 'ice'), DO({ op: 'transform', into: 'tile/ice' }, add('chilled'), emit('element', { area: { radius: 1 } }, { element: 'ice', power: 1 }, { chance: 0.7, filter: { type: 'tile/water' } }), vfx('frost')), 'inherit'),
   }),
   rule({
     id: 'element/thaw-ice',
     doc: 'Fire on ice turns it back to water.',
     host: { type: 'tile/ice' },
     on: 'impulse/element',
-    tree: IF(param('element', 'fire'), DO({ op: 'setTerrain', terrain: 'water' }, vfx('steam')), 'inherit'),
+    tree: IF(param('element', 'fire'), DO({ op: 'transform', into: 'tile/water' }, vfx('steam')), 'inherit'),
   }),
   rule({
     id: 'frost/thaw',
     doc: 'Ice that magic made thaws back to water.',
     host: { type: 'tile/ice' },
     on: 'time/timer',
-    tree: IF(param('status', 'chilled'), DO({ op: 'setTerrain', terrain: 'water' }, vfx('splash'))),
+    tree: IF(param('status', 'chilled'), DO({ op: 'transform', into: 'tile/water' }, vfx('splash'))),
   }),
   rule({
     id: 'water/ashore',
@@ -764,24 +764,17 @@ const GROUND: Rule[] = [
   }),
   rule({
     id: 'fire/burn-out-ground',
-    doc: 'Burnt ground is ash; a burnt tree is charred.',
+    doc: 'Burnt ground is ash; a burnt tree is charred; what burns on the ground (a bush, a stump, a wooden wall) is gone.',
     host: { type: 'tile', tags: ['flammable'] },
     on: 'time/timer',
-    tree: IF(param('status', 'burning'), IF(tag('host', 'tree'), DO({ op: 'setTerrain', terrain: 'charred_tree' }, vfx('smoke')), DO({ op: 'setTerrain', terrain: 'ash' }, vfx('smoke')))),
-  }),
-  rule({
-    id: 'ground/receive-growth',
-    doc: 'Ground where a tree is felled leaves a stump; where a sapling grows up, a tree.',
-    host: { type: 'tile', notTags: ['solid'] },
-    on: 'impulse/receive',
-    tree: IF(param('what', 'stump'), DO({ op: 'setTerrain', terrain: 'stump' }), IF(param('what', 'tree'), DO({ op: 'setTerrain', terrain: 'tree' }, vfx('leaves')), 'inherit')),
+    tree: IF(param('status', 'burning'), IF(tag('host', 'tree'), DO({ op: 'transform', into: 'tile/charred_tree' }, vfx('smoke')), DO({ op: 'transform', into: 'tile/ash' }, vfx('smoke')))),
   }),
   rule({
     id: 'water/bridge',
     doc: 'A plank laid on shallow water, or a trunk fallen across it, makes a stretch of bridge.',
     host: { type: 'tile/water' },
     on: 'impulse/receive',
-    tree: IF(any(param('what', 'plank'), param('what', 'trunk')), DO({ op: 'setTerrain', terrain: 'bridge' }, vfx('splash')), 'inherit'),
+    tree: IF(any(param('what', 'plank'), param('what', 'trunk')), DO({ op: 'transform', into: 'tile/bridge' }, vfx('splash')), 'inherit'),
   }),
 ]
 
@@ -849,7 +842,7 @@ const FIRE: Rule[] = [
     doc: 'Water that freezes is ice (thin: it thaws).',
     host: { type: 'tile/water' },
     on: 'threshold/gain',
-    tree: IF(param('status', 'frozen'), DO({ op: 'setTerrain', terrain: 'ice' }, remove('frozen'), add('chilled'))),
+    tree: IF(param('status', 'frozen'), DO({ op: 'transform', into: 'tile/ice' }, remove('frozen'), add('chilled'))),
   }),
   rule({
     id: 'combat/break',
@@ -1103,7 +1096,7 @@ const FARM: Rule[] = [
     doc: 'A rooted sapling becomes a tree (someone standing on it: an hour later).',
     host: { type: 'fixture/crop/oak/sapling' },
     on: 'time/timer',
-    tree: IF(param('status', 'rooting'), IF(NOBODY_HERE, DO(emit('receive', 'tileOf:host', { what: 'tree' }), vfx('leaves', 'tileOf:host'), { op: 'destroy' }), DO(add('rooting', 600)))),
+    tree: IF(param('status', 'rooting'), IF(NOBODY_HERE, DO({ op: 'transform', into: 'tile/tree' }, vfx('leaves')), DO(add('rooting', 600)))),
   }),
 ]
 

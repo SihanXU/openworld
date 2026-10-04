@@ -7,7 +7,7 @@
 
 import type { AiData, Entity, Forage, Portal, PropValue, Text } from '@lsw/engine'
 import { CHAR_OF, FORM_BY_ID, buildOntology, makeItem, type RawChunk } from '@lsw/content'
-import { OntologyIndex, Rng, baseCovers } from '@lsw/engine'
+import { OntologyIndex, Rng, baseCovers, splitLayers } from '@lsw/engine'
 import type { PrefabDef } from '../../../client/src/assets/types.ts'
 import { CATALOG } from '../../../client/src/assets/catalog.ts'
 
@@ -362,7 +362,24 @@ export class MapBuilder {
     interior.portal(ix, iy, this.id, x, y + 1, this.name)
   }
 
+  /**
+   * One occupant per space of a cell (world-model.md §5.2): a thing set where the map's terrain
+   * fills the volume (a brazier against a cave wall, a vein in the rock) takes that volume, and the
+   * cell shows the ground its neighbours show.
+   */
+  private clearVolumes(): void {
+    const spaceOf = (t: string) => ONTO.data.terrains[t]?.space ?? 'floor'
+    const data = { id: this.id, name: this.name, kind: this.kind, width: this.w, height: this.h, terrain: this.cells.flat(), portals: [] }
+    const layers = splitLayers(data, spaceOf, (t) => !ONTO.data.terrains[t]?.solid)
+    for (const e of this.entities) {
+      if (e.place.on !== 'tile' || !ONTO.resolve(e.type).solid || ONTO.resolve(e.type).tags.includes('agent')) continue
+      const { x, y } = e.place
+      if (spaceOf(this.get(x, y)) === 'volume') this.set(x, y, layers.floor[y * this.w + x]!)
+    }
+  }
+
   chunk(): RawChunk {
+    this.clearVolumes()
     const rows = this.cells.map((r) =>
       r
         .map((t) => {
