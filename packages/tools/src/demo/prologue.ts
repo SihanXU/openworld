@@ -4,9 +4,9 @@
 // berries, the only way off the plateau is a cut with a pine grown across it, slimes sit on the
 // switchbacks, an old seal stone nobody can read stands where the trail levels out.
 
-import type { AiData, Forage } from '@lsw/engine'
+import type { AiData, AppearDef } from '@lsw/engine'
 import { MapBuilder, rng } from './builder.ts'
-import { L, MATERIALS_FORAGE, lay } from './kit.ts'
+import { L, GROUND_YIELD, appears, lay } from './kit.ts'
 
 /** Edge openings: each map's way in from above and out below (columns), and the Ford's cliff stair. */
 export const PROLOGUE = {
@@ -73,10 +73,14 @@ export function buildSummit(): MapBuilder {
   for (let x = 2; x < m.w - 2; x++) for (const y of [20, 21]) m.set(x, y, x === PAT.pine[0] ? 'grass' : 'rock')
   m.set(...PAT.pine, 'pine')
   m.regions.below_cut = [2, 22, m.w - 4, 6]
+  // the plateau stands two levels above the land below the cut, the cut its cliff: a ramp runs
+  // down through the gap (each column half a level lower), and a drop anywhere else hurts
+  m.raise(0, 0, m.w, 22, 4)
+  for (const [y, h] of [[20, 3], [21, 2], [22, 1]] as const) m.raise(PAT.pine[0], y, 1, 1, h)
   m.path([[10, 9], [13, 13], [18, 16], [20, 19]], 'path', 1)
   m.path([[20, 22], [20, 25], [20, 29]], 'path', 2)
   m.anchor('spawn', ...PAT.spawn)
-  m.forage = MATERIALS_FORAGE
+  m.appear = GROUND_YIELD
   return m
 }
 
@@ -96,8 +100,8 @@ export function buildSlope(): MapBuilder {
   m.fixture('fixture/light/campfire', ...PAT.slopeFire, { statuses: { lit: -1 } })
   m.fixture('fixture/sacred/waypoint', ...PAT.slopeStone, { id: 'wp.slope', name: L('Pinewind Slope', '松风坡') })
   lay(m, 'item/food/berries', 2, [8, 17, 10, 4])
-  const slimes: Forage = { type: 'actor/creature/slime/green_slime', on: ['grass'], max: 4, every: 1200, ai: { ...SLIME } }
-  m.forage = [...MATERIALS_FORAGE, slimes]
+  const slimes: AppearDef = appears('actor/creature/slime/green_slime', ['grass'], 4, 1200, { ai: { ...SLIME } })
+  m.appear = [...GROUND_YIELD, slimes]
   return m
 }
 
@@ -113,6 +117,6 @@ export function buildFoot(): MapBuilder {
   m.fixture('fixture/sacred/waypoint', ...PAT.footStone, { id: 'wp.foot', name: L('Mountain Foot', '山脚') })
   m.path([[20, 0], [20, 7], [24, 12], [21, 17], [18, 22], [17, 29]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
   m.fixture('fixture/sign', 19, 25, { props: { text: 'The Ford ↓' } })
-  m.forage = MATERIALS_FORAGE
+  m.appear = GROUND_YIELD
   return m
 }

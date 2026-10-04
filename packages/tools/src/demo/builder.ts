@@ -5,9 +5,9 @@
 // no picture without a thing, and no wall without one: what the map shows and what blocks are
 // terrain or entities (a big thing blocks its type's footprint, and only while it stands).
 
-import type { AiData, Entity, Forage, Portal, PropValue, Text } from '@lsw/engine'
+import type { AiData, Entity, AppearDef, MapData, Portal, PropValue, Text } from '@lsw/engine'
 import { CHAR_OF, FORM_BY_ID, buildOntology, makeItem, type RawChunk } from '@lsw/content'
-import { OntologyIndex, Rng, baseCovers } from '@lsw/engine'
+import { OntologyIndex, Rng, baseCovers, splitLayers } from '@lsw/engine'
 import type { PrefabDef } from '../../../client/src/assets/types.ts'
 import { CATALOG } from '../../../client/src/assets/catalog.ts'
 
@@ -17,13 +17,25 @@ export function reseed(seed: number): void {
   rng = new Rng(seed)
 }
 
-const SOLID_TERRAIN = new Set(['water', 'deepwater', 'tree', 'pine', 'bush', 'rock', 'wall', 'woodwall', 'roof', 'cave_wall', 'lava', 'charred_tree', 'void'])
+const SOLID_TERRAIN = new Set(['water', 'deepwater', 'tree', 'pine', 'bush', 'rock', 'wall', 'woodwall', 'burnt_wall', 'roof', 'cave_wall', 'lava', 'charred_tree', 'void'])
 /** The content's types, for what the builder must know of a thing: its footprint, whether it is solid. */
 const ONTO = new OntologyIndex(buildOntology())
 
 export type Cell = [number, number]
 
 export type ItemSpec = string | { form: string; material?: string; quality?: string; element?: string | null; name?: Text; tags?: string[]; props?: Record<string, PropValue> }
+
+/** An item as a spec says: its form, material, quality, element, name, tags and props. */
+export function itemOf(spec: ItemSpec): Omit<Entity, 'id' | 'place'> {
+  const s = typeof spec === 'string' ? { form: spec } : spec
+  const form = FORM_BY_ID[s.form]
+  if (!form) throw new Error(`unknown item form ${s.form}`)
+  const it = makeItem(rng, form, { material: s.material, quality: s.quality ?? 'common', element: s.element === undefined ? null : s.element })
+  if (s.name) it.name = s.name
+  if (s.tags) it.tags = [...(it.tags ?? []), ...s.tags]
+  if (s.props) it.props = { ...(it.props ?? {}), ...s.props }
+  return it
+}
 
 export class MapBuilder {
   cells: string[][]
@@ -37,10 +49,14 @@ export class MapBuilder {
   anchors: Record<string, [number, number]> = {}
   /** Named areas [x, y, w, h] (the goal's far bank). */
   regions: Record<string, [number, number, number, number]> = {}
-  /** What the ground yields by itself (MapData.forage). */
-  forage: Forage[] = []
+  /** What appears on the map by itself: the ground's yield, creatures that come back (MapData.appear). */
+  appear: AppearDef[] = []
   /** Peaceful (towns, camps) or combat (night brings monsters): MapData.zone. */
   zone: 'peaceful' | 'combat' = 'combat'
+  /** Where the map lies on the overworld (MapData.site): its open edges lead there. */
+  site?: MapData['site']
+  /** Ground heights in half levels (MapData.heights): a level is two, a ramp is a column between. */
+  heights: number[][] = []
 
   constructor(
     public id: string,
@@ -54,6 +70,12 @@ export class MapBuilder {
     public region = 'frostfang',
   ) {
     this.cells = Array.from({ length: h }, () => Array(w).fill(fill))
+    this.heights = Array.from({ length: h }, () => Array(w).fill(0))
+  }
+
+  /** Raise ground to `half` half levels (a level is 2; an odd height is a ramp between two levels). */
+  raise(x: number, y: number, w: number, h: number, half: number) {
+    for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (this.in(i, j)) this.heights[j][i] = half
   }
 
   in(x: number, y: number) {
@@ -313,14 +335,7 @@ export class MapBuilder {
   }
 
   makeItem(spec: ItemSpec): Omit<Entity, 'id' | 'place'> {
-    const s = typeof spec === 'string' ? { form: spec } : spec
-    const form = FORM_BY_ID[s.form]
-    if (!form) throw new Error(`unknown item form ${s.form}`)
-    const it = makeItem(rng, form, { material: s.material, quality: s.quality ?? 'common', element: s.element === undefined ? null : s.element })
-    if (s.name) it.name = s.name
-    if (s.tags) it.tags = [...(it.tags ?? []), ...s.tags]
-    if (s.props) it.props = { ...(it.props ?? {}), ...s.props }
-    return it
+    return itemOf(spec)
   }
 
   item(spec: ItemSpec, x: number, y: number): Entity {
@@ -362,7 +377,24 @@ export class MapBuilder {
     interior.portal(ix, iy, this.id, x, y + 1, this.name)
   }
 
+  /**
+   * One occupant per space of a cell (world-model.md §5.2): a thing set where the map's terrain
+   * fills the volume (a brazier against a cave wall, a vein in the rock) takes that volume, and the
+   * cell shows the ground its neighbours show.
+   */
+  private clearVolumes(): void {
+    const spaceOf = (t: string) => ONTO.data.terrains[t]?.space ?? 'floor'
+    const data = { id: this.id, name: this.name, kind: this.kind, width: this.w, height: this.h, terrain: this.cells.flat(), portals: [] }
+    const layers = splitLayers(data, spaceOf, (t) => !ONTO.data.terrains[t]?.solid)
+    for (const e of this.entities) {
+      if (e.place.on !== 'tile' || !ONTO.resolve(e.type).solid || ONTO.resolve(e.type).tags.includes('agent')) continue
+      const { x, y } = e.place
+      if (spaceOf(this.get(x, y)) === 'volume') this.set(x, y, layers.floor[y * this.w + x]!)
+    }
+  }
+
   chunk(): RawChunk {
+    this.clearVolumes()
     const rows = this.cells.map((r) =>
       r
         .map((t) => {
@@ -381,15 +413,17 @@ export class MapBuilder {
         width: this.w,
         height: this.h,
         rows,
+        heights: this.heights.some((r) => r.some((v) => v)) ? this.heights.map((r) => r.join('')) : undefined,
         portals: this.portals,
         stamps: this.stamps,
         rooms: this.rooms,
         anchors: Object.keys(this.anchors).length ? this.anchors : undefined,
         regions: Object.keys(this.regions).length ? this.regions : undefined,
-        forage: this.forage.length ? this.forage : undefined,
+        appear: this.appear.length ? this.appear : undefined,
         music: this.music,
         light: this.light,
         zone: this.zone,
+        site: this.site,
       },
       entities: this.entities,
     }

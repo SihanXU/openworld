@@ -4,9 +4,10 @@ import { START_HOUR, TICKS_PER_HOUR, type WeatherSpan } from './calendar.ts'
 import { Engine, type MapChunk } from './engine.ts'
 import { ModPort } from './mod.ts'
 import { RuleLibrary, type LibraryData } from './rules.ts'
-import type { Beat, Guide } from './companion.ts'
+import type { Guide } from './story.ts'
 import type { QuestDef } from './quests.ts'
-import type { BossDef, Entity, Id, Invariant, MapData, Ontology, Pos, Portal, SceneDef, Text, WorldState } from './types.ts'
+import type { BossDef, Entity, Id, Invariant, MapData, NpcMemory, Ontology, Pos, Portal, PropValue, SceneState, StepDef, Text, WorldState } from './types.ts'
+import { TOPIC_DAYS } from './world.ts'
 
 export interface MapMeta {
   id: string
@@ -36,16 +37,14 @@ export interface WorldIndex {
   npcs: Entity[]
   player: Entity
   stats: { maps: number; npcs: number; creatures: number; items: number; itemKinds: number; fixtures: number }
-  /** Scripted scenes (the arrival, the ferry, the far bank). */
-  scenes?: SceneDef[]
+  /** The story's script (story.ts, world-model.md §6.12): its scenes and its beats, steps all. */
+  steps?: StepDef[]
   /** Content the world must keep playable (the `invalid` source). */
   invariants?: Invariant[]
   /** Fact-key prefixes that only the story's own rules may change (design.md §5.11). */
   protectedFacts?: string[]
   /** Spans of time whose weather the world fixes (the evening storm). */
   weather?: WeatherSpan[]
-  /** The tutorial's steps (companion.ts, docs/prologue.md). */
-  beats?: Beat[]
   /** The story's objectives by stage, for a companion to tell (F on it). */
   guides?: Guide[]
   /** Quests people give (quests.ts, docs/quests.md). */
@@ -84,11 +83,9 @@ export class Game {
       player: index.player.id,
       entities: {},
       maps: {},
-      tiles: {},
       loadedMaps: [],
       counter: 0,
       spawn: index.start,
-      weather: index.weather,
     }
     const eng = new Engine(state, ontology, library)
     for (const m of index.maps) eng.graph[m.id] = m.portals
@@ -143,13 +140,23 @@ export class Game {
   /** Base terrain for a revisit after load (entities come from the save). */
   loadMapData(map: MapData): void {
     this.engine.world.state.maps[map.id] = map
+    this.engine.mapArrived(map.id)
   }
 }
 
 /** An older save, brought up to the world as it is now (on loading, as its author). */
 function upgrade(eng: Engine, index: WorldIndex): void {
   const w = eng.world
-  const s = w.state as typeof w.state & { lastBeat?: string }
+  // what an older save kept outside the things it belongs to (world-model.md §3)
+  const s = w.state as typeof w.state & {
+    lastBeat?: string
+    facts?: Record<string, PropValue>
+    topics?: { id: string; day: number; days?: number }[]
+    memory?: Record<Id, NpcMemory>
+    scene?: SceneState
+    weather?: unknown
+    tiles?: Record<string, { terrain?: string; statuses?: Record<string, number>; statusBy?: Record<Id, Id> }>
+  }
   // how the player looks is the world's to say, not the save's (a save from before a new look gets it)
   const p = w.get(s.player)
   if (p && index.player.look) p.look = index.player.look
@@ -164,13 +171,52 @@ function upgrade(eng: Engine, index: WorldIndex): void {
     // itself is not saved: nobody will answer it, so they are let go (as after a time-out).
     delete e.frozenBy
   }
-  // what was the world's before it was the story's or the traveller's own: the latest beat, the maps seen
-  if (s.lastBeat) (w.setFact('beat.last', s.lastBeat), delete s.lastBeat)
-  for (const [k, v] of Object.entries(s.facts ?? {}))
-    if (k.startsWith('visited.') && p) {
-      if (w.prop(p, k) === undefined) w.setProp(p, k, v)
-      delete s.facts![k]
-    }
+  // what was the world's before it was the story's or the traveller's own: facts, the latest beat,
+  // the maps seen, the reported invariants (the detector's own record), topics, memories, the scene
+  for (const [k, v] of Object.entries(s.facts ?? {})) {
+    if (k.startsWith('visited.')) {
+      if (p && w.prop(p, k) === undefined) w.setProp(p, k, v)
+    } else if (k.startsWith('invalid.')) (s.reported ??= []).push(k.slice(8))
+    else w.setFact(k, v)
+  }
+  delete s.facts
+  if (s.lastBeat) (w.setFact('step.last', s.lastBeat), delete s.lastBeat)
+  for (const t of s.topics ?? []) (w.setFact(`topic.${t.id}`, t.day), w.setFact(`topic.${t.id}.days`, t.days ?? TOPIC_DAYS))
+  delete s.topics
+  for (const [id, m] of Object.entries(s.memory ?? {})) {
+    const e = w.get(id)
+    if (e?.npc) e.npc.memory = m
+  }
+  delete s.memory
+  if (s.scene) (w.scene = s.scene), delete s.scene
+  delete s.weather
+  // a cell was a terrain with overrides; it is made of things (world-model.md §4.6): the overrides
+  // become the cells' things when each map's data comes, and relations keyed by tile start again
+  for (const [k, t] of Object.entries(s.tiles ?? {})) {
+    const [map, x, y] = k.split(':')
+    const list = eng.legacyTiles.get(map) ?? []
+    list.push({ x: +x, y: +y, ...t })
+    eng.legacyTiles.set(map, list)
+  }
+  delete s.tiles
+  // a beat was a step of its own kind; it is a step of the story's one script now (world-model.md §6.12)
+  const story = w.story
+  for (const [k, v] of Object.entries(story?.props ?? {})) {
+    if (!k.startsWith('beat.')) continue
+    w.setProp(story!, k, undefined)
+    if (k === 'beat.last') w.setFact('step.last', v)
+    else if (w.fact(`seen.${k.slice(5)}`) === undefined) w.setFact(`seen.${k.slice(5)}`, v)
+  }
+  // a stage's clock was a status of each kind of thing's own (world-model.md §6.5): it is the stage's now
+  const clock = (bag?: Record<string, number>) => {
+    for (const k of ['regrowing', 'rooting', 'laying']) if (bag && k in bag) (bag.stage = bag[k]), delete bag[k]
+  }
+  for (const e of Object.values(s.entities)) clock(e.statuses)
+  for (const t of eng.legacyTiles.values()) for (const c of t) clock(c.statuses)
+  if (Object.values(s.relations ?? {}).some((ks) => ks.some((k) => k.includes('|t|')))) {
+    delete s.relations
+    for (const m of s.loadedMaps) eng.reseed.add(m)
+  }
 }
 
 /** NPC entities carry their inventory inline as `_items` in the index. */
@@ -183,9 +229,9 @@ function addTree(eng: Engine, e: Entity & { _items?: Entity[] }): void {
 /** Scenes and invariants are content: read from the world on every start (they are not saved). */
 function loadContent(eng: Engine, index: WorldIndex): void {
   eng.bossKits = Object.fromEntries((index.bosses ?? []).map((b) => [b.id, structuredClone(b)]))
-  eng.scenes.load(index.scenes)
-  eng.companions.load(index.beats, index.guides)
+  eng.story.load(index.steps, index.guides)
   eng.quests.load(index.quests)
   eng.loadInvariants(index.invariants, index.protectedFacts)
-  if (index.weather && !Array.isArray(eng.world.state.weather)) eng.world.state.weather = index.weather
+  // the weather the world fixes is content, like the scenes: read on every start, never saved
+  eng.world.weather = index.weather
 }

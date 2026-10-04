@@ -3,6 +3,8 @@
 // (replay of the triggering event + the patch's own tests) and by unit tests.
 
 import { Engine, type Resolution } from './engine.ts'
+import type { World } from './world.ts'
+import { parseCellId } from './cells.ts'
 import type { Verb } from './types.ts'
 import type { RuleLibrary } from './rules.ts'
 import type { Entity, Expectation, GameEvent, MapData, Ontology, Ref, Scenario, WorldState } from './types.ts'
@@ -40,7 +42,6 @@ export function buildSandbox(sc: Scenario, ontology: Ontology, lib: RuleLibrary)
     player,
     entities: {},
     maps: { [SANDBOX_MAP]: map },
-    tiles: {},
     loadedMaps: [SANDBOX_MAP],
     counter: 0,
     spawn: { map: SANDBOX_MAP, x: 0, y: 0 },
@@ -71,29 +72,37 @@ function fill(eng: Engine, sc: Scenario, player: string): void {
       facing: 'down',
     }
     const r = w.onto.resolve(s.type)
-    if (r.kind === 'actor') {
+    if (r.tags.includes('agent')) {
       e.props = { hp: 20, maxHp: 20, atk: 1, def: 0, ...r.props, ...e.props }
     }
     w.add(e)
     for (const st of s.statuses ?? []) w.setStatus({ e: e.id }, st, -1)
   }
+  for (const c of sc.cells ?? []) {
+    const top = w.cellTop(SANDBOX_MAP, c.x, c.y)
+    if (!top) continue
+    for (const [k, v] of Object.entries(c.props ?? {})) w.setProp(top, k, v)
+    for (const st of c.statuses ?? []) w.setStatus({ e: top.id }, st, -1)
+  }
 }
 
-function roleRef(key: string | undefined): Ref | undefined {
+/** A scenario's role: a thing by key, or a cell (`tile:x,y`) — what makes it up on top. */
+function roleRef(w: World, key: string | undefined): Ref | undefined {
   if (!key) return undefined
   if (key.startsWith('tile:')) {
     const [x, y] = key.slice(5).split(',').map(Number)
-    return { tile: { map: SANDBOX_MAP, x, y } }
+    const top = w.cellTop(SANDBOX_MAP, x, y)
+    return top && { e: top.id }
   }
   return { e: key }
 }
 
 /** The scenario's event: an act (its host the instrument, or the actor) unless it names another kind and host. */
-export function scenarioEvent(sc: Scenario, eng?: Engine): GameEvent {
+export function scenarioEvent(sc: Scenario, eng: Engine): GameEvent {
   const e = sc.event
   const kind = e.kind ?? 'act/use'
-  const ref = (k?: string) => roleRef(k)
-  if (kind.startsWith('act/') && eng && e.actor) {
+  const ref = (k?: string) => roleRef(eng.world, k)
+  if (kind.startsWith('act/') && e.actor) {
     const ev = eng.actEvent(kind.slice(4) as Verb, e.actor, ref(e.target) ?? { e: e.actor }, ref(e.instrument), e.params ?? {})
     if (e.host) ev.host = ref(e.host)!
     return ev
@@ -102,6 +111,44 @@ export function scenarioEvent(sc: Scenario, eng?: Engine): GameEvent {
   for (const r of ['actor', 'target', 'instrument', 'other', 'item', 'source'] as const) if (e[r]) roles[r] = ref(e[r])
   const host = ref(e.host) ?? roles.instrument ?? roles.actor ?? roles.target ?? { e: 'world' }
   return { kind, host, roles, params: e.params ?? {}, cause: e.actor, origin: e.actor && e.actor === sc.player ? 'player' : 'world' }
+}
+
+/**
+ * What one event makes, replayed again and again with no time between (world-model.md §8.4):
+ * the things each replay made (cell things changing are not things made), while its host stands.
+ */
+export function repeatYields(eng: Engine, ev: GameEvent, times = REPEAT_TIMES): number[] {
+  const w = eng.world
+  const out: number[] = []
+  for (let i = 0; i < times && w.get(ev.host.e); i++) {
+    const before = new Set(Object.keys(w.state.entities))
+    eng.queue({ ...structuredClone(ev), depth: 0 })
+    eng.flush()
+    let made = 0
+    for (const id of Object.keys(w.state.entities)) if (!before.has(id) && !parseCellId(id) && w.get(id)) made++
+    out.push(made)
+  }
+  return out
+}
+
+/** How often the repeat check replays an event, and how many of the last replays must make nothing. */
+export const REPEAT_TIMES = 12
+export const REPEAT_TAIL = 4
+/** The events someone can make happen again at will (the rest wait on time or on a change). */
+export const REPEATABLE = ['act', 'impulse', 'contact', 'bump', 'seen']
+
+/**
+ * An endless yield (D23): replayed with no time between, on a host that is not used up, the event
+ * still makes things at the end — something from nothing, as often as one likes. A yield must cost
+ * its host: change it (a status that gates the yield and runs out, a stage, durability) or use it up.
+ */
+export function endlessYield(eng: Engine, ev: GameEvent): boolean {
+  // only what someone can do again at will: acts and what they set off (impulses, contact, bumps,
+  // being seen). The clock's events wait on time, a threshold on the host changing, broken content
+  // is reported once.
+  if (!REPEATABLE.some((k) => ev.kind === k || ev.kind.startsWith(k + '/'))) return false
+  const ys = repeatYields(eng, ev)
+  return ys.length === REPEAT_TIMES && !!eng.world.get(ev.host.e) && ys.slice(-REPEAT_TAIL).some((n) => n > 0)
 }
 
 /** Replay a scenario's event once (and optional ticks); report effect errors. */
@@ -115,7 +162,7 @@ export function replay(sc: Scenario, ontology: Ontology, lib: RuleLibrary): Repl
   }
   const ev = scenarioEvent(sc, eng)
   const hpBefore: Record<string, number> = {}
-  for (const e of Object.values(eng.world.state.entities)) if (eng.world.kindOf(e) === 'actor') hpBefore[e.id] = eng.world.num(e, 'hp')
+  for (const e of Object.values(eng.world.state.entities)) if (eng.world.prop(e, 'maxHp') !== undefined) hpBefore[e.id] = eng.world.num(e, 'hp')
   const resolution = eng.resolveEvent(ev)
   try {
     const a = ev.kind.startsWith('act/') && ev.roles.actor && 'e' in ev.roles.actor ? ev.roles.actor.e : undefined
@@ -142,7 +189,7 @@ export function checkExpectations(eng: Engine, exps: Expectation[]): string[] {
       const [tx, ty] = x.tile
       if ('terrain' in x && w.terrainAt(SANDBOX_MAP, tx, ty) !== x.terrain)
         fails.push(`tile ${tx},${ty}: terrain ${w.terrainAt(SANDBOX_MAP, tx, ty)} ≠ ${x.terrain}`)
-      if ('hasStatus' in x && !w.hasStatus({ tile: { map: SANDBOX_MAP, x: tx, y: ty } }, x.hasStatus))
+      if ('hasStatus' in x && !w.entitiesAt(SANDBOX_MAP, tx, ty).some((c) => w.isTerrain(c) && w.hasStatus({ e: c.id }, x.hasStatus)))
         fails.push(`tile ${tx},${ty}: lacks status ${x.hasStatus}`)
       continue
     }

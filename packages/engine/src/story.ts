@@ -1,0 +1,315 @@
+// The story's script (world-model.md §6.12): one script of steps. A step waits for its trigger —
+// a condition on the one at the keys and on the story (their map and region, their stage, what
+// they carry and have learned, what stands near; the story's facts; the hour and weather; another
+// step played) — and then plays, once (or once a day): it may take control while it plays (a scene:
+// the arrival, the ferry, the far bank — lines to advance, people walked to their places) or not (a
+// beat: the tutorial's steps, a line in the companion's bubble). Either way its effects are the
+// story's own props (its facts, `seen.<id>`) and events it sends to others (a push to the place an
+// actor must go, a notice of the leader's stage): it writes only the story (design.md §5.5–5.8).
+// A step with a region begins when the one at the keys enters it, or as another step ends — an
+// event, never a poll; the rest are looked at now and then. Objectives (quests, guides) are story
+// props and leader props plus how they are shown: a guide tells the objective of the stage the
+// leader is at (the companion's `@objective`), the latest beat its hint (`@hint`).
+
+import type { Engine } from './engine.ts'
+import { astar } from './path.ts'
+import { DIRS } from './types.ts'
+import { cmp } from './rules.ts'
+import { regionId } from './world.ts'
+import type { Dir, Effect, Entity, Id, Pos, Ref, SceneCmd, StepCond, StepDef, Text } from './types.ts'
+
+const MOVE_STEP_TICKS = 4
+const MOVE_TIMEOUT = 900
+/** How often (ticks) the steps without a region are looked at. */
+const CHECK_EVERY = 3
+
+/**
+ * What the story asks for now, for a companion to tell (E on it): the first guide whose stage
+ * prop the leader is still within, and that stage's objective — its title, how to go about it,
+ * and the counts it waits on.
+ */
+export interface Guide {
+  /** The leader's prop that holds the stage ('prologue', 'quest'). */
+  prop: string
+  /** The guide applies while the stage is below this (the prologue's end). */
+  until?: number
+  /** The prop's value when the leader has none yet. */
+  start?: number
+  stages: Record<number, { title: Text; hint: Text; progress?: { fact: string; need: number; label: Text }[] }>
+}
+
+export class Story {
+  readonly defs = new Map<string, StepDef>()
+  guides: Guide[] = []
+  /** The player entered a region, or a step played: the steps with a region are looked at on the next tick (an event, not a poll). */
+  private arrived = false
+
+  constructor(private eng: Engine) {}
+
+  load(steps: StepDef[] = [], guides: Guide[] = []): void {
+    this.defs.clear()
+    for (const d of steps) this.defs.set(d.id, d)
+    this.guides = guides
+  }
+
+  get running(): boolean {
+    return !!this.eng.world.scene
+  }
+
+  /** The one the story follows: the one at the keys. */
+  private leader(): Entity {
+    return this.eng.world.player
+  }
+
+  /** Start a step now (an effect, a trigger). Returns false if another holds control or it is unknown. */
+  start(id: string): boolean {
+    const w = this.eng.world
+    const d = this.defs.get(id)
+    if (w.scene || !d) return false
+    this.play(d)
+    return true
+  }
+
+  /** A step plays: the story keeps it, sets its facts, tells the leader their stage, the companion says its line; one with a script takes control. */
+  private play(d: StepDef): void {
+    const w = this.eng.world
+    const lead = this.leader()
+    const effects: Effect[] = [
+      { op: 'setProp', key: `seen.${d.id}`, value: w.state.tick },
+      ...(d.repeat ? [{ op: 'setProp', key: `seen.${d.id}.day`, value: w.calendar().day } as Effect] : []),
+      // the latest beat: what the companion repeats when spoken to
+      ...(d.script ? [] : [{ op: 'setProp', key: 'step.last', value: d.id } as Effect]),
+      ...Object.entries(d.facts ?? {}).map(([key, value]): Effect => ({ op: 'setProp', key, value })),
+      ...Object.entries(d.props ?? {}).map(([what, value]): Effect => ({ op: 'emit', impulse: 'notify', to: 'target', params: { what, value } })),
+    ]
+    this.eng.script(effects, { target: { e: lead.id } }, `step/${d.id}`)
+    const bird = this.eng.companions.of(lead.id)[0]
+    if (d.say && bird) w.fx.push({ t: 'say', who: bird.id, text: d.say })
+    if (d.script) w.scene = { id: d.id, step: 0 }
+    // what has a region may begin now that the story moved
+    this.arrived = true
+  }
+
+  /** The story moves someone: it sends them a push to the place, and they go there themselves (it writes only itself). */
+  private send(e: Entity, to: Pos): void {
+    this.story([{ op: 'emit', impulse: 'push', to: 'target', params: { map: to.map, x: to.x, y: to.y } }], { e: e.id })
+  }
+
+  /** Run effects as the story (its facts, topics, what it gives), with a target for its spawns and notices. */
+  private story(effects: Effect[], target?: Ref): void {
+    this.eng.script(effects, target ? { target } : {}, 'step')
+  }
+
+  /** Someone entered a region (the engine's contact): if it is the player, the steps with a region are looked at. */
+  entered(who: Ref): void {
+    if ('e' in who && who.e === this.eng.world.state.player) this.arrived = true
+  }
+
+  /** Does a step's trigger hold now, for the leader and the story? */
+  met(c: StepCond, lead: Entity = this.leader()): boolean {
+    const w = this.eng.world
+    const pos = w.posOf(lead)
+    if (!pos) return false
+    if (c.map && pos.map !== c.map) return false
+    if (c.region && !w.within(lead, regionId(c.map ?? pos.map, c.region))) return false
+    const cal = w.calendar()
+    if (c.hour && !(c.hour.from <= c.hour.to ? cal.hour >= c.hour.from && cal.hour < c.hour.to : cal.hour >= c.hour.from || cal.hour < c.hour.to)) return false
+    if (c.weather && !c.weather.includes(cal.weather)) return false
+    for (const [k, v] of Object.entries(c.facts ?? {})) if (!cmp(w.fact(k) ?? 0, v)) return false
+    for (const [k, v] of Object.entries(c.props ?? {})) if (!cmp(lead.props?.[k] ?? 0, v)) return false
+    if (c.carrying) {
+      const carried = [lead.held, ...(lead.contents ?? [])].map((id) => w.get(id)).filter((x): x is Entity => !!x)
+      if (!carried.some((x) => x.type.startsWith(c.carrying!))) return false
+    }
+    if (c.skill) {
+      const skills = (lead.tags ?? []).filter((t) => t.startsWith('skill:'))
+      if (c.skill === true ? !skills.length : !skills.includes(`skill:${c.skill}`)) return false
+    }
+    if (c.after && !w.fact(`seen.${c.after}`)) return false
+    if (c.near) {
+      const { type, r } = c.near
+      const seen = w.entitiesOnMap(pos.map).some((e) => e.place.on === 'tile' && e.type.startsWith(type) && Math.max(Math.abs(e.place.x - pos.x), Math.abs(e.place.y - pos.y)) <= r)
+      if (!seen) return false
+    }
+    return true
+  }
+
+  /** Is a step's moment now: not played (today, for one that repeats), and its trigger holds? */
+  eligible(d: StepDef): boolean {
+    const w = this.eng.world
+    if (d.manual) return false
+    if (d.repeat ? w.fact(`seen.${d.id}.day`) === w.calendar().day : w.fact(`seen.${d.id}`)) return false
+    return this.met(d.when ?? {})
+  }
+
+  /** The player has advanced past what was said. */
+  advance(): void {
+    const s = this.eng.world.scene
+    if (s?.waiting === 'advance') {
+      s.waiting = undefined
+      s.line = undefined
+      s.step++
+    }
+  }
+
+  tick(): void {
+    const eng = this.eng
+    const w = eng.world
+    const t = w.state.tick
+    if (!w.scene) {
+      // a step with a region begins when the player enters it (or stands in it as another plays);
+      // the rest are looked at now and then; one step at a time
+      const arrived = this.arrived
+      this.arrived = false
+      const now = t % CHECK_EVERY === 0
+      if (arrived || now)
+        for (const d of this.defs.values())
+          if ((d.when?.region ? arrived : now) && this.eligible(d)) {
+            this.play(d)
+            break
+          }
+      return
+    }
+    for (let guard = 0; guard < 50; guard++) {
+      const s = w.scene
+      if (!s) return
+      if (s.until !== undefined) {
+        if (t < s.until) return
+        s.until = undefined
+        s.step++
+        continue
+      }
+      if (s.waiting === 'advance') return
+      if (s.waiting === 'move') {
+        if (!this.moveStep()) return
+        s.waiting = undefined
+        s.mover = undefined
+        s.step++
+        continue
+      }
+      const def = this.defs.get(s.id)
+      const cmd = def?.script?.[s.step]
+      if (!cmd) {
+        w.scene = undefined
+        this.arrived = true
+        return
+      }
+      this.run(cmd)
+      if (!w.scene?.waiting && w.scene?.until === undefined && w.scene) w.scene.step++
+    }
+  }
+
+  // ---------------------------------------------------------------- objectives
+
+  /** The objective now, as a companion says it: "Mend the bridge — three planks … (planks 1/3)". */
+  objective(): Text | undefined {
+    const w = this.eng.world
+    const lead = this.leader()
+    for (const g of this.guides) {
+      const v = Number(lead.props?.[g.prop] ?? g.start ?? 0)
+      if (g.until !== undefined && v >= g.until) continue
+      const o = g.stages[v]
+      // within this guide's span but between its stages (the first moments): nothing to tell yet
+      if (!o) return undefined
+      const text = (l: 'en' | 'zh') => {
+        const pick = (t: Text) => (typeof t === 'string' ? t : (l === 'zh' ? t.zh : undefined) ?? t.en)
+        const counts = (o.progress ?? []).map((p) => `${pick(p.label)} ${Math.min(p.need, Number(w.fact(p.fact) ?? 0))}/${p.need}`)
+        const head = l === 'zh' ? `现在要：${pick(o.title)}。` : `Now: ${pick(o.title)}.`
+        return [head, pick(o.hint), counts.length ? (l === 'zh' ? `（${counts.join('，')}）` : `(${counts.join(', ')})`) : ''].filter(Boolean).join(' ')
+      }
+      return { en: text('en'), zh: text('zh') }
+    }
+    return undefined
+  }
+
+  /** The line a companion repeats when spoken to: the latest beat's hint. */
+  hint(): Text | undefined {
+    const id = this.eng.world.fact('step.last')
+    const d = typeof id === 'string' ? this.defs.get(id) : undefined
+    return d ? (d.hint ?? d.say) : undefined
+  }
+
+  // ---------------------------------------------------------------- a step that holds control
+
+  private who(id: Id | 'player'): Entity | undefined {
+    const w = this.eng.world
+    return id === 'player' ? w.player : w.get(id)
+  }
+
+  private run(c: SceneCmd): void {
+    const eng = this.eng
+    const w = eng.world
+    const s = w.scene!
+    if ('card' in c) {
+      w.fx.push({ t: 'card', text: c.card })
+      s.line = { who: w.state.player, text: c.card, card: true }
+      s.waiting = 'advance'
+    } else if ('say' in c) {
+      const e = this.who(c.say)
+      if (!e) return // the speaker is not in the world: the line is skipped
+      w.fx.push({ t: 'say', who: e.id, text: c.text, mood: c.mood, scene: true })
+      s.line = { who: e.id, text: c.text, mood: c.mood }
+      s.waiting = 'advance'
+    } else if ('move' in c) {
+      const e = this.who(c.move)
+      if (!e || e.place.on !== 'tile') return
+      const map = w.map(e.place.map)!
+      const path = astar(map.width, map.height, (x, y) => w.walkable(map.id, x, y, e.id, true) || (x === c.x && y === c.y), e.place.x, e.place.y, c.x, c.y, undefined, (ax, ay, bx, by) => w.safeStep(e, map.id, ax, ay, bx, by))
+      s.mover = { who: e.id, path: path ?? [[c.x, c.y]], next: w.state.tick + MOVE_STEP_TICKS }
+      s.until = undefined
+      s.waiting = 'move'
+      s.started = w.state.tick
+    } else if ('face' in c) {
+      const e = this.who(c.face)
+      if (e) e.facing = c.dir
+    } else if ('emote' in c) {
+      const e = this.who(c.emote)
+      if (e) w.fx.push({ t: 'emote', who: e.id, mood: c.mood })
+    } else if ('wait' in c) {
+      s.until = w.state.tick + c.wait
+    } else if ('fade' in c) {
+      w.fx.push({ t: 'fade', dir: c.fade })
+    } else if ('place' in c) {
+      const e = w.get(c.place)
+      if (e) this.send(e, { map: c.map, x: c.x, y: c.y })
+    } else if ('fact' in c) {
+      this.story([{ op: 'setProp', key: c.fact, value: c.value }])
+    } else if ('topic' in c) {
+      this.story([{ op: 'topic', id: c.topic, days: c.days }])
+    } else if ('give' in c) {
+      this.story([{ op: 'spawn', type: c.give, at: 'target', into: 'contents', still: true }], { e: w.state.player })
+    } else if ('warp' in c) {
+      this.send(w.player, { map: c.warp, x: c.x, y: c.y })
+    } else if ('prop' in c) {
+      // the story tells the player where the story stands; the player's own rule keeps it
+      this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: c.prop, value: c.value } }], { e: w.state.player })
+    } else if ('status' in c) {
+      if (c.add) this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'status', add: c.add } }], { e: c.status })
+      if (c.remove) this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'status', remove: c.remove } }], { e: c.status })
+    }
+  }
+
+  /** One step of a scripted walk. True when it has arrived (or given up and been placed). */
+  private moveStep(): boolean {
+    const w = this.eng.world
+    const s = w.scene!
+    const m = s.mover
+    if (!m) return true
+    const e = w.get(m.who)
+    if (!e || e.place.on !== 'tile') return true
+    const started = s.started ?? w.state.tick
+    if (!m.path.length) return true
+    if (w.state.tick - started > MOVE_TIMEOUT) {
+      const [x, y] = m.path[m.path.length - 1]
+      this.send(e, { map: e.place.map, x, y })
+      return true
+    }
+    if (w.state.tick < m.next) return false
+    const [x, y] = m.path.shift()!
+    const dir = (Object.entries(DIRS) as [Dir, [number, number]][]).find(([, [dx, dy]]) => e.place.on === 'tile' && dx === x - e.place.x && dy === y - e.place.y)?.[0]
+    if (dir) e.facing = dir
+    this.send(e, { map: e.place.map, x, y })
+    m.next = w.state.tick + MOVE_STEP_TICKS
+    return m.path.length === 0
+  }
+}

@@ -23,7 +23,6 @@ function roleTerms(role: string, e: EntityInfo | undefined): string[] {
     const parts = t.split('/')
     for (let i = 1; i <= parts.length; i++) out.add(`${role}:${parts.slice(0, i).join('/')}`)
   }
-  out.add(`${role}:kind:${e.kind}`)
   for (const t of e.tags ?? []) out.add(`${role}#${t}`)
   for (const s of e.statuses ?? []) out.add(`${role}!${s}`)
   return [...out]

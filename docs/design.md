@@ -91,6 +91,11 @@ docs/
 
 ## 4. World model
 
+> **Superseded by [world-model.md](world-model.md)** (agreed 2026-10-04, not yet built): one
+> root type `thing` with no kinds, things and the clock as the whole state, cells with occupied
+> spaces, z and height, durability and materials for everything, makeup, two-level maps. This
+> section describes the world as built today.
+
 ### 4.1 Entities
 
 Everything in the world is an entity with a stable id:
@@ -254,10 +259,11 @@ was cut).
     (its meat, its loot) and a hen's eggs lie still instead (`spawn`/`dropContents` with
     `still`): they are taken with F.
   - Items placed in the world are taken with F. Walking through town never vacuums it.
-- **Foraging** (Don't Starve's twigs, flint and grass): a map names what its ground yields
-  (`MapData.forage`: an item type, the terrains it lies on, a cap). While the player is on the
-  map, every 150 ticks one more of each kind below its cap appears on a free tile, never right
-  beside the player (`engine/src/forage.ts`). These are taken with F like any placed item.
+- **Foraging** (Don't Starve's twigs, flint and grass): a map names what appears on it by itself
+  (`MapData.appear`: weighted types, the terrains, a cap, a pace). While the player is on the
+  map, one more of each below its cap appears on a free tile at its pace (150 ticks for the
+  ground's yield), never right beside the player (`engine/src/appear.ts`, world-model.md §6.9).
+  These are taken with F like any placed item.
 - **Crafting** (C, or the menu's Craft tab): recipes are content (`content/src/recipes.ts`);
   each lists what it uses up from the bag and the item it makes. The first tools are the
   catalogue's axe and pickaxe in stone (stone axe: stick, stone, grass; stone pickaxe: two
@@ -266,7 +272,7 @@ was cut).
   clump of trees), the creature takes a path around (A*) and keeps to it (`ai.detour`) until it
   arrives or its goal moves. A fire's reach still stops it.
 - **Animals** (game-design.md §4b): `behaviour: 'passive'` creatures never attack and run from
-  their foes; `MapData.forage` also brings creatures back (with `every`, `ai`, `statuses`).
+  their foes; `MapData.appear` also brings creatures back (with `every`, `ai`, `statuses`).
 - **Hunger** (Minecraft's food bar): an actor with `maxHunger` (the player: 20) loses one
   point every 300 ticks; eating feeds it the food's `food` prop (the `feed` primitive in
   `core/eat`). Food does not heal: health comes back from being well fed (below). Medicine eaten
@@ -319,6 +325,10 @@ lists where it fell short).
   script, as one of its effects; that is the one way an outcome reaches behaviour.
 
 ### 5.5 What the world is made of
+
+> The agreed extension is [world-model.md](world-model.md) §3–5: the state is things and the
+> clock (facts become props of the story and the world), cells are `(map, x, y, z)` with occupied
+> spaces, regions and rooms are things, and maps form two levels (overworld and local maps).
 
 - **Things**, each with a type, props, statuses and a place: on a tile, inside a thing, or in a
   hand. Tiles are things of `tile/*` types; map regions are things too.
@@ -416,6 +426,9 @@ Checked against the base rules: every cross-thing effect maps to one impulse.
 | change another person's schedule | notify that person, who changes it |
 
 ### 5.9 Root defaults: what is asked
+
+> [world-model.md](world-model.md) §7 adds the rows for durability, `broken`, building, support,
+> falling, stages, regions and sites; the policy below is unchanged.
 
 The policy: **what someone does on purpose is undefined at the root; what happens around them
 all the time is defined by physics at the root.** Authors then leave undefined leaves on
@@ -554,6 +567,10 @@ At the Ford:
   map costs its inbox plus the timers that fell due. The number of maps appears in neither.
 
 ### 5.13 Completeness
+
+> [world-model.md](world-model.md) §10 re-argues A1–A7 for the extended world and lists the new
+> checks (no kinds, one reference form, exclusivity, every damage channel, economy,
+> reachability, mirrored barriers, deterministic generation, parameters).
 
 **The claim.** For the simulated world, every consequence passes through an event, and every
 event reaches exactly one leaf; only undefined leaves ask the AI, and without one they run
@@ -802,8 +819,9 @@ answers, and a condition tree:
 - **Leaves** (§5.6): `effects` (an empty list means no change), `emit`, `inherit`, and
   `undefined` with an optional authored default.
 - **Effects** are drawn from a fixed, typed set of primitives that act on the host:
-  `transform, destroy, move, addStatus, removeStatus, setProp, addProp, setTerrain` (a tile
-  host), `spawn, dropContents, setScript`; presentation: `say, log, vfx, emote, scene`.
+  `transform, destroy, move, addStatus, removeStatus, setProp, addProp` (a cell is made of
+  things, world-model.md §4.6: water freezing is the water transforming), `spawn, dropContents,
+  setScript`; presentation: `say, log, vfx, emote, scene`.
   `emit` sends an impulse or a notice to a role, an area, a line, a direction, or a named
   receiver (§5.12).
 - Adding a primitive, a condition or an event kind is an engine change; adding behaviour is
@@ -1350,6 +1368,9 @@ smoke results: [rsi.md](rsi.md).
 
 ## 14. Next
 
+The world model and base gameplay (state, things, space, breaking, makeup, building, rooms,
+storeys, stages, combat, behaviour, the story's script, two-level maps) are agreed in
+[world-model.md](world-model.md); its steps W1–W10 (§12 there) are the next engine work.
 Near-term gameplay work — interactions and simple loops — is planned in [roadmap.md](roadmap.md).
 
 - Grow the Ford with the offline profile (curriculum, guided by what players actually try);

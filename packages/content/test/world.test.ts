@@ -78,7 +78,7 @@ describe('time and weather', () => {
 
   it('rain wets people outdoors and puts out fires (the world\'s clock emits water; each thing answers it)', () => {
     const eng = place({}, [{ key: 'hay', type: 'fixture/nature/haystack', x: 1, y: 1, statuses: ['burning'] }])
-    eng.world.state.weather = [{ day: 1, weather: 'rain' }]
+    eng.world.weather = [{ day: 1, weather: 'rain' }]
     eng.trace = []
     ticks(eng, 60)
     expect(eng.trace.some((t) => t.ev.kind === 'time/period' && t.ev.params?.name === 'weather' && t.rule === 'world/clocks')).toBe(true)
@@ -91,21 +91,21 @@ describe('people', () => {
   it('say the most specific line that fits: first meeting, a fact, the weather, the hour, default — never the same twice in a row', () => {
     const eng = place({ lines: [L('greeting:first', 'Who are you?'), L('fact:nets.mended', 'The line holds.', { once: true }), L('weather:storm', 'Get under something.'), L('default', 'A'), L('default', 'B')] })
     expect(talk(eng)).toBe('Who are you?')
-    expect(eng.world.state.memory?.hesper?.talked).toBeDefined()
+    expect(eng.world.get('hesper')!.npc!.memory?.talked).toBeDefined()
     const a = talk(eng)
     const b = talk(eng)
     expect([a, b].sort()).toEqual(['A', 'B'])
     fact(eng, 'nets.mended', 1)
     expect(talk(eng)).toBe('The line holds.')
     expect(['A', 'B']).toContain(talk(eng))
-    eng.world.state.weather = [{ day: 1, weather: 'storm' }]
+    eng.world.weather = [{ day: 1, weather: 'storm' }]
     expect(talk(eng)).toBe('Get under something.')
   })
 
   it('remember what happened: a topic line is said once while it is fresh', () => {
     const eng = place({ lines: [L('topic:theft', 'I saw that.'), L('default', 'Hm.')] })
-    eng.world.state.memory = { hesper: { talked: 1 } }
-    eng.world.state.topics = [{ id: 'theft', day: 1, days: 2 }]
+    eng.world.get('hesper')!.npc!.memory = { talked: 1 }
+    eng.author(() => (eng.world.setFact('topic.theft', 1), eng.world.setFact('topic.theft.days', 2)))
     expect(talk(eng)).toBe('I saw that.')
     expect(talk(eng)).toBe('Hm.')
   })
@@ -126,7 +126,7 @@ describe('people', () => {
     const eng = place({ schedules: [{ key: 'default', entries: at(1) }, { key: 'storm', entries: at(2) }, { key: 'fact:ford.crossed', entries: at(3) }] })
     const h = eng.world.get('hesper')!
     expect(scheduleFor(eng, h)[0].x).toBe(1)
-    eng.world.state.weather = [{ day: 1, weather: 'storm' }]
+    eng.world.weather = [{ day: 1, weather: 'storm' }]
     expect(scheduleFor(eng, h)[0].x).toBe(2)
     fact(eng, 'ford.crossed', 1)
     expect(scheduleFor(eng, h)[0].x).toBe(3)
@@ -170,7 +170,7 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
     const seen = eng.trace.filter((t) => t.ev.kind === 'seen')
     expect(seen.find((t) => 'e' in t.ev.host && t.ev.host.e === 'hesper')).toMatchObject({ rule: 'seen/owner-take', defined: true, ev: { params: { act: 'take', owner: 'mine' } } })
     expect(seen.find((t) => 'e' in t.ev.host && t.ev.host.e === 'tobin')).toMatchObject({ rule: 'core/seen', defined: true, ev: { params: { owner: 'another' } } })
-    expect(eng.world.state.topics?.some((t) => t.id === 'theft')).toBe(true)
+    expect(eng.world.topicFresh('theft')).toBe(true)
     expect(port.records).toHaveLength(0)
   })
 
@@ -185,7 +185,7 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
     eng.trace = []
     eng.act('take', 'actor', { e: 'oil' }, { instrument: null })
     expect(byHesper()).toEqual([])
-    expect(eng.world.state.topics?.some((t) => t.id === 'theft')).toBeFalsy()
+    expect(eng.world.topicFresh('theft')).toBe(false)
   })
 
   it('stuck: a person whose fire is out lights it again (a rule); a burning cart is asked about, at most once an hour', () => {
@@ -244,7 +244,7 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
     const port = new ModPort(eng)
     port.provider = working
     eng.author(() => eng.applyStatus({ e: 'rope' }, 'burning'))
-    eng.author(() => eng.applyStatus({ tile: { map: 'sandbox', x: 1, y: 1 } }, 'wet'))
+    eng.author(() => eng.applyStatus(eng.world.cellRef('sandbox', 1, 1), 'wet'))
     eng.queue({ kind: 'impulse/element', host: { e: 'tree' }, roles: {}, params: { element: 'lightning', power: 4 }, origin: 'world' })
     expect(eng.world.hasStatus({ e: 'tree' }, 'burning')).toBe(true)
     expect(port.records).toHaveLength(0)
@@ -261,7 +261,7 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
   })
 
   it('one question per hole and class: many things of one class reaching the same hole ask once', () => {
-    const things = Array.from({ length: 4 }, (_, i) => ({ key: `b${i}`, type: 'fixture/nature/boulder', x: i * 2, y: 1 }))
+    const things = Array.from({ length: 4 }, (_, i) => ({ key: `b${i}`, type: 'fixture/sacred/statue', x: i * 2, y: 1 }))
     const eng = place({}, [...things, { key: 'well', type: 'fixture/water/well', x: 1, y: 7 }])
     const port = new ModPort(eng)
     port.provider = working
@@ -277,7 +277,7 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
 
 describe('the Mod port holds up', () => {
   it('a question with no reply at all (the service down) is asked again, a few times, not given up at once', async () => {
-    const eng = place({}, [{ key: 'b', type: 'fixture/nature/boulder', x: 2, y: 1 }])
+    const eng = place({}, [{ key: 'b', type: 'fixture/sacred/statue', x: 2, y: 1 }])
     const port = new ModPort(eng)
     let asked = 0
     port.provider = { resolve: () => (asked++, Promise.reject(new Error('fetch failed'))) }
@@ -292,7 +292,7 @@ describe('the Mod port holds up', () => {
   })
 
   it('a request carries the lines said lately, after the frame drained them', () => {
-    const eng = place({}, [{ key: 'b', type: 'fixture/nature/boulder', x: 2, y: 1 }])
+    const eng = place({}, [{ key: 'b', type: 'fixture/sacred/statue', x: 2, y: 1 }])
     const port = new ModPort(eng)
     eng.world.fx.push({ t: 'log', text: { en: 'The ferry bell rings.', zh: '渡口的钟响了。' } })
     eng.world.drainFx()
@@ -319,7 +319,7 @@ describe('the Mod port holds up', () => {
 
 describe('a request the modder is creating things for', () => {
   it('waits past the time-out, holding who is in it, until the patch comes', () => {
-    const eng = place({}, [{ key: 'b', type: 'fixture/nature/boulder', x: 2, y: 1 }])
+    const eng = place({}, [{ key: 'b', type: 'fixture/sacred/statue', x: 2, y: 1 }])
     const port = new ModPort(eng)
     port.provider = working
     eng.queue({ kind: 'impulse/strike', host: { e: 'b' }, roles: {}, params: { power: 2, edge: 'blunt' }, origin: 'world' })
@@ -353,7 +353,8 @@ describe('the boundaries of the world\'s own patches (design.md §5.11)', () => 
 
   it('but is never harmed, and never changes the story', () => {
     expect(check(rule('patch/hurt', [{ op: 'hurt', amount: 5 }])).errors.join()).toContain('may not harm a person')
-    expect(check(rule('patch/story', [{ op: 'setFact', key: 'ford.crossed', value: 1 }])).errors.join()).toContain("story's fact")
+    // the story's facts are its own props: a person's rule writes only the person (its own prop of that name is not the fact)
+    expect(check(rule('patch/story', [{ op: 'setProp', key: 'ford.crossed', value: 1 }])).errors.join()).not.toContain("story's fact")
     // the player's own patches keep their limits
     expect(check(rule('patch/hurt2', [{ op: 'hurt', amount: 5 }]), false).errors).toEqual([])
   })

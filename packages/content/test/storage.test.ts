@@ -195,7 +195,7 @@ describe('the ground', () => {
 describe('the count condition', () => {
   const rule = (cmp: object): Rule => ({
     id: 'test/count',
-    host: { kind: 'fixture', tags: ['surface'] },
+    host: { type: 'fixture', tags: ['surface'] },
     on: 'impulse/handle',
     tree: { if: { count: { role: 'host', in: 'tile', cmp: cmp as Bounds } }, then: { do: [{ op: 'log', text: 'crowded' }] }, else: 'inherit' },
   })

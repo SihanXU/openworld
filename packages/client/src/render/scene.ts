@@ -3,9 +3,12 @@
 // status overlays, VFX and day/night. It only renders engine snapshots.
 
 import Phaser from 'phaser'
-import type { Aim, Dir, EntitySnap, Frame, FxEvent, MapData, Ref, Text } from '@lsw/engine'
+import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type MapData, type Ref, type Text } from '@lsw/engine'
 import { CATALOG } from '../assets/catalog.ts'
 import { GroundAtlas, T, groundTile, hash2 } from '../assets/ground.ts'
+
+/** How much higher a storey is drawn than the one below it (world-model.md §5.2). */
+const STOREY_LIFT = 10
 import type { SpriteDef } from '../assets/types.ts'
 import { DIR_COL, actorFrames, assetUrl, fxAnim, preloadCatalog, spriteFrames } from './assets.ts'
 
@@ -75,6 +78,10 @@ export class WorldScene extends Phaser.Scene {
   private base?: MapData
   private overrides = new Map<string, string>() // "x,y" -> terrain
   private statics: Phaser.GameObjects.GameObject[] = []
+  /** Where the player stands (and on which storey): what is above them near them fades. */
+  private playerAt?: { x: number; y: number; z: number }
+  /** The durability bars over struck cells. */
+  private tileBars?: Phaser.GameObjects.Graphics
   private objects = new Map<string, Phaser.GameObjects.Image>() // terrain objects by "x,y"
   private views = new Map<string, EView>()
   private tileFx = new Map<string, { sprites: Phaser.GameObjects.GameObject[]; sig: string }>()
@@ -212,6 +219,7 @@ export class WorldScene extends Phaser.Scene {
       }
     for (const s of map.stamps ?? []) this.stamp(s.key, s.x, s.y)
     for (const r of map.rooms ?? []) this.roomFrame(r.style, r.x, r.y, r.w, r.h)
+    this.drawHeights(map)
     this.fitBounds()
     this.playMusic(map.music)
     this.hooks.onMap?.(map)
@@ -302,6 +310,7 @@ export class WorldScene extends Phaser.Scene {
     }
     if (f.map !== this.base.id) return
     this.playerId = f.player.id
+    this.playerAt = { x: f.player.x, y: f.player.y, z: f.player.z ?? 0 }
     this.applyTiles(f)
     this.bossWarnings ??= this.add.graphics().setDepth(-20)
     this.bossWarnings.clear()
@@ -387,7 +396,8 @@ export class WorldScene extends Phaser.Scene {
 
   /**
    * Where a screen point aims: its tile, and everything drawn at the point, top first — things
-   * by id, trees and tall grass by their own tile (a canopy reaches over the tile behind it). The
+   * by id, trees and tall grass by their cell (a canopy reaches over the tile behind it): the id of
+   * what fills it, which the engine takes for whatever makes up that cell on top. The
    * test is the picture's own pixels, so a thing is met wherever it shows and nowhere else.
    */
   aimAtScreen(sx: number, sy: number): Aim | undefined {
@@ -400,7 +410,7 @@ export class WorldScene extends Phaser.Scene {
     for (const [k, img] of this.objects) {
       if (!this.drawnAt(img, wx, wy)) continue
       const [x, y] = k.split(',').map(Number)
-      hits.push({ ref: { tile: { map: this.base.id, x, y } }, depth: img.depth })
+      hits.push({ ref: { e: cellId(this.base.id, x, y, 'volume') }, depth: img.depth })
     }
     hits.sort((a, b) => b.depth - a.depth)
     return { x: Math.floor(wx / T), y: Math.floor(wy / T), stack: hits.map((h) => h.ref) }
@@ -469,6 +479,49 @@ export class WorldScene extends Phaser.Scene {
       this.tileFx.set(k, { sprites, sig })
     }
     for (const [k, v] of this.tileFx) if (!statusNow.has(k)) (v.sprites.forEach((s) => s.destroy()), this.tileFx.delete(k))
+    // what a struck tree or rock has left: a small bar over its cell
+    this.tileBars ??= this.add.graphics().setDepth(1e7)
+    this.tileBars.clear()
+    for (const t of f.tiles) {
+      if (t.hp === undefined || !t.maxHp) continue
+      const w = 12
+      const bx = t.x * T + (T - w) / 2
+      const by = t.y * T - 4
+      this.tileBars.fillStyle(0x000000, 0.6).fillRect(bx, by, w, 2)
+      this.tileBars.fillStyle(0xd8b060, 1).fillRect(bx, by, Math.max(1, (w * t.hp) / t.maxHp), 2)
+    }
+  }
+
+  /**
+   * The ground's height (world-model.md §5.2): higher ground a little lighter, a cliff where it
+   * drops a level or more (a dark lip on every side, a rock face and its shadow below it), and a
+   * ramp's steps. Heights are half levels.
+   */
+  private drawHeights(map: MapData): void {
+    const hs = map.heights
+    if (!hs?.some((h) => h)) return
+    const g = this.add.graphics().setDepth(-90)
+    this.statics.push(g)
+    const at = (x: number, y: number) => (x < 0 || y < 0 || x >= map.width || y >= map.height ? undefined : hs[y * map.width + x] ?? 0)
+    for (let y = 0; y < map.height; y++)
+      for (let x = 0; x < map.width; x++) {
+        const h = at(x, y)!
+        if (h >= 2) g.fillStyle(0xffffff, Math.min(0.12, 0.03 * Math.floor(h / 2))).fillRect(x * T, y * T, T, T)
+        // a ramp: the steps across it
+        if (h % 2) for (let i = 3; i < T; i += 5) g.fillStyle(0x000000, 0.12).fillRect(x * T + 1, y * T + i, T - 2, 1)
+        const drop = (dx: number, dy: number) => h - (at(x + dx, y + dy) ?? h) >= 2
+        g.fillStyle(0x2a2018, 0.55)
+        if (drop(0, -1)) g.fillRect(x * T, y * T, T, 1)
+        if (drop(-1, 0)) g.fillRect(x * T, y * T, 1, T)
+        if (drop(1, 0)) g.fillRect((x + 1) * T - 1, y * T, 1, T)
+        if (drop(0, 1)) {
+          // the face of the cliff, on the ground below it, and its shadow
+          g.fillStyle(0x6b5a48, 0.85).fillRect(x * T, (y + 1) * T, T, 5)
+          for (let i = 2; i < T; i += 4) g.fillStyle(0x4a3c30, 0.9).fillRect(x * T + i, (y + 1) * T, 1, 5)
+          g.fillStyle(0x000000, 0.22).fillRect(x * T, (y + 1) * T + 5, T, 3)
+          g.fillStyle(0xfff2d8, 0.35).fillRect(x * T, (y + 1) * T - 1, T, 1)
+        }
+      }
   }
 
   private overlaySprite(name: string, x: number, y: number): Phaser.GameObjects.Sprite | undefined {
@@ -499,8 +552,8 @@ export class WorldScene extends Phaser.Scene {
 
   private textureFor(e: EntitySnap): { img: string; frame: string; ax: number; ay: number; actor?: EView['actor'] } {
     // a thing the world learned, with a picture of its own
-    if (e.kind !== 'actor' && e.sprite?.startsWith('art:') && this.textures.exists(e.sprite)) return { img: e.sprite, frame: '__BASE', ax: 8, ay: 14 }
-    if (e.kind === 'actor') {
+    if (!e.tags.includes('agent') && e.sprite?.startsWith('art:') && this.textures.exists(e.sprite)) return { img: e.sprite, frame: '__BASE', ax: 8, ay: 14 }
+    if (e.tags.includes('agent')) {
       const a = this.actorDef(e)
       if (a) {
         const { img, fw, fh } = actorFrames(this, a.key, a.def)
@@ -508,7 +561,8 @@ export class WorldScene extends Phaser.Scene {
         return { img, frame: `${a.key}:${col},0`, ax: fw / 2, ay: a.def.anchorY ?? fh, actor: { key: a.key, rows: a.def.rows, cols: a.def.cols, tint: a.def.tint, scale: a.def.scale } }
       }
     }
-    if (e.kind === 'fixture') {
+    // a thing set in its cell (a built wall, a laid floor) is drawn as part of the place
+    if (!e.tags.includes('agent') && (!e.tags.includes('portable') || e.spaces)) {
       const f = this.fixtureDef(e)
       if (f) {
         // a look of its own among the type's variants, kept for its life
@@ -531,7 +585,7 @@ export class WorldScene extends Phaser.Scene {
     const t = this.textureFor(e)
     const root = this.add.container(e.x * T + T / 2, (e.y + 1) * T)
     let shadow: Phaser.GameObjects.Ellipse | undefined
-    if (e.kind === 'actor') {
+    if (e.tags.includes('agent')) {
       const [width, depth] = e.boss?.footprint ?? [1, 1]
       shadow = this.add.ellipse(0, -depth * 4, width * 11, depth * 6, 0x000000, 0.22)
       root.add(shadow)
@@ -539,9 +593,9 @@ export class WorldScene extends Phaser.Scene {
     const body = this.add.sprite(0, 0, t.img, t.frame)
     body.setOrigin(t.ax / body.width, t.ay / body.height)
     if (t.actor?.scale) body.setScale(t.actor.scale)
-    if (e.kind === 'item') body.setScale(0.8)
+    if (!e.tags.includes('agent') && e.tags.includes('portable') && !e.spaces) body.setScale(0.8)
     // small growth and litter sit a little off the grid, never in rows
-    if (e.kind === 'fixture' && this.fixtureDef(e)?.loose) body.setPosition((hashStr(e.id, 23) % 9) - 4, (hashStr(e.id, 29) % 5) - 2)
+    if ((!e.tags.includes('agent') && !e.tags.includes('portable')) && this.fixtureDef(e)?.loose) body.setPosition((hashStr(e.id, 23) % 9) - 4, (hashStr(e.id, 29) % 5) - 2)
     const hp = this.add.graphics()
     root.add([body, hp])
     const v: EView = { snap: e, root, body, shadow, hp, key: `${t.img}|${t.frame}`, movingUntil: 0, phase: Math.random() * 1000, actor: t.actor }
@@ -588,7 +642,8 @@ export class WorldScene extends Phaser.Scene {
     const prev = v.snap
     v.snap = e
     const px = e.x * T + T / 2
-    const py = (e.y + 1) * T
+    // a storey above the ground's is drawn raised
+    const py = (e.y + 1) * T - (e.z ?? 0) * STOREY_LIFT
     // a flyer glides toward where it is (update()); only a long way off does it appear there at once
     if (e.tags.includes('companion')) {
       if (first || !v.flyer || Math.max(Math.abs(prev.x - e.x), Math.abs(prev.y - e.y)) > 6) v.root.setPosition(px, py)
@@ -614,13 +669,13 @@ export class WorldScene extends Phaser.Scene {
           v.walker = { x: px, y: py, t: v.walker?.t ?? now }
           v.movingUntil = now + this.stepAvg
         } else {
-          const dur = e.tags.includes('companion') ? 110 : e.kind === 'actor' && (e.look || e.appearance) ? 380 : 330
+          const dur = e.tags.includes('companion') ? 110 : e.tags.includes('agent') && (e.look || e.appearance) ? 380 : 330
           this.tweens.add({ targets: v.root, x: px, y: py, duration: dur, ease: 'Linear' })
           v.movingUntil = this.time.now + dur
         }
       }
     }
-    if (e.kind !== 'actor') {
+    if (!e.tags.includes('agent')) {
       const t = this.textureFor(e)
       const k = `${t.img}|${t.frame}`
       if (k !== v.key) {
@@ -636,7 +691,10 @@ export class WorldScene extends Phaser.Scene {
     }
     // items lie on top of the fixture sharing their tile (a table, a counter), under actors
     // what lies flat on the ground (moss, leaves, pebbles) is under all that stands
-    v.root.setDepth(e.kind === 'fixture' && this.fixtureDef(e)?.ground ? -45 : py + (e.kind === 'actor' ? 2 : e.kind === 'item' ? 1 : 0))
+    v.root.setDepth((!e.tags.includes('agent') && !e.tags.includes('portable')) && this.fixtureDef(e)?.ground ? -45 : (e.z ?? 0) * 4000 + py + (e.tags.includes('agent') ? 2 : (!e.tags.includes('agent') && e.tags.includes('portable') && !e.spaces) ? 1 : 0))
+    // what stands on a storey above the player, near them, fades: one sees under the floor overhead
+    const me = this.playerAt
+    v.root.setAlpha(me && (e.z ?? 0) > me.z && Math.abs(e.x - me.x) <= 3 && Math.abs(e.y - me.y) <= 3 ? 0.3 : 1)
     // status overlay + tint
     const top = OVERLAY_OF.find(([s]) => e.statuses.includes(s))
     const want = top?.[1]
@@ -654,10 +712,10 @@ export class WorldScene extends Phaser.Scene {
     else if (v.actor?.tint) v.body.setTint(v.actor.tint).setTintMode(Phaser.TintModes.OVERLAY)
     else v.body.clearTint()
     // a thing an act waits on shimmers; one who is down lies on the ground
-    v.body.setAlpha(e.frozen && e.kind !== 'actor' ? 0.75 : 1)
+    v.body.setAlpha(e.frozen && !e.tags.includes('agent') ? 0.75 : 1)
     v.body.setAngle(!e.boss && e.statuses.includes('down') ? 90 : 0)
     // held item (small, at the hand)
-    if (e.held && e.kind === 'actor') {
+    if (e.held && e.tags.includes('agent')) {
       const d = CATALOG.items[e.held]
       if (d) {
         const [frame] = spriteFrames(this, `ico:${e.held}`, d)
@@ -673,11 +731,12 @@ export class WorldScene extends Phaser.Scene {
     if (!lit && v.glow) (v.glow.destroy(), (v.glow = undefined))
     // hp bar
     v.hp.clear()
-    if (e.kind === 'actor' && !e.boss && e.maxHp && e.hp !== undefined && (e.hp < e.maxHp || e.hostile) && e.id !== this.playerId) {
+    // a body's health, or what a thing has left of its durability once struck (world-model.md §6.3)
+    if (!e.boss && e.maxHp && e.hp !== undefined && (e.hp < e.maxHp || (e.tags.includes('agent') && e.hostile)) && e.id !== this.playerId) {
       const w = 14
       const top2 = -v.body.displayHeight - 3
       v.hp.fillStyle(0x000000, 0.6).fillRect(-w / 2, top2, w, 2)
-      v.hp.fillStyle(e.hostile ? 0xe04848 : 0x6ad06a, 1).fillRect(-w / 2, top2, Math.max(1, (w * e.hp) / e.maxHp), 2)
+      v.hp.fillStyle(e.hostile ? 0xe04848 : e.tags.includes('agent') ? 0x6ad06a : 0xd8b060, 1).fillRect(-w / 2, top2, Math.max(1, (w * e.hp) / e.maxHp), 2)
     }
   }
 

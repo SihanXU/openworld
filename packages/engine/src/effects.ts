@@ -3,21 +3,21 @@
 // themselves. New behaviour is data (rules); only a new primitive is an engine change.
 
 import type { Engine } from './engine.ts'
-import { matchSelector } from './rules.ts'
+import { evalCond, matchSelector, rolesOf } from './rules.ts'
 import type { AiData, Amount, Effect, EmitTo, Entity, GameEvent, Impulse, Place, Pos, PropValue, Ref, RoleName, RoleRef, Text } from './types.ts'
 import { GIVEN_LINE, chooseLine, raiseTopic } from './people.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
 import { gainXp, learnSkill } from './progression.ts'
 import { cannotChoose, chooseProfession } from './profession.ts'
-import { forageMap } from './forage.ts'
-import { appear } from './nightspawn.ts'
+import { appear } from './appear.ts'
 import { releaseSkill } from './bosses.ts'
 import { WriteError } from './world.ts'
+import { madeOf, qualityFor } from './recipes.ts'
 
 export const PRIMITIVES: Record<Effect['op'], string> = {
   spawn: 'spawn {type, at: role ref, into?: tile|contents|hand, count?, still?} — create new things at a role\'s place (its tile, contents or hand); type may be "@prop:<role>.<key>" (a crop\'s yieldType); count may read a prop or a param; items on the ground pop out for the magnet unless still (then they are taken with F)',
   destroy: 'destroy {} — the host is gone (with what it holds); the essential (people) never are: they go down instead',
-  transform: 'transform {into} — the host becomes another type ("@prop:key" reads the type from its own prop, e.g. emptyType)',
+  transform: 'transform {into} — the host becomes another type ("@prop:key" reads the type from its own prop, e.g. emptyType). A cell is made of things (tile/<terrain>: the floor, what roots in the soil, what fills the volume): water becoming ice is the water transforming; becoming a type whose space in its cell another thing holds (rock into gravel, where a floor is), the host is gone instead',
   move: 'move {to: role ref, into?: tile|contents|hand} — the host moves itself to a role\'s tile, contents or hand',
   step: 'step {dir?} — the host steps one tile (dir, or the act\'s `dir` param): walls and the solid stop it (a bump), portals carry it',
   addStatus: 'addStatus {status, duration?} — the host gains a status (a threshold/gain event follows)',
@@ -26,21 +26,22 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   addProp: 'addProp {key, delta, min?, max?} — delta and max are Amounts',
   addTag: 'addTag {tag}',
   removeTag: 'removeTag {tag}',
-  hurt: 'hurt {amount, element?, pierce?} — the host loses health (its defence applies unless pierce); at none, threshold/cross "defeated"',
+  hurt: 'hurt {amount, element?, pierce?, blow?} — the host loses health, or durability (hp; its defence applies unless pierce); at none, threshold/cross "broken". blow: a strike\'s — times how well the instrument (what struck, else the striker\'s own body) works on the host\'s material (the efficiency table), and nothing if the instrument is softer than it ("too hard")',
+  wear: 'wear — the host (an actor) puts on the thing of its own it is offered (param item, by its slot prop: a helmet on the head), what was in that slot coming off; offered what it wears, it takes it off (world-model.md §6.8)',
+  sleep: 'sleep — the host sleeps until it is time to rise (time passes at once for the one at the keys), and wakes with what it was missing given back as its room says (a bedroom: all; elsewhere: half)',
+  fall: 'fall — with nothing under it on its storey, the host drops to the first floor below, struck by the drop beyond the safe height (the root of contact/end on)',
+  breakdown: 'breakdown — the host breaks into what it is made of (its makeup × the world\'s recovery rate, in its material), what it holds spills out, and it is gone (the root outcome of broken for anything with a makeup)',
   heal: 'heal {amount}',
   feed: 'feed {amount} — the host\'s hunger rises by amount, up to its maxHunger',
   gainXp: 'gainXp {amount} — the host gains experience; enough raises its level (props xp, level, skillPoints)',
   foe: 'foe {} — whoever started the chain (the one who struck) becomes the host\'s foe, attacked on sight',
-  setTerrain: 'setTerrain {terrain} — the host tile becomes another terrain',
   open: 'open {} — the host opens or closes (toggles the `open` status)',
   dropContents: 'dropContents {still?} — the host spills what it holds onto its tile',
   goto: 'goto {anchor, hours, activity?} — the host (a person) leaves its schedule for a named anchor of its map for some hours',
-  setFact: 'setFact {key, value} — the story\'s and the world\'s only: set a world fact (people, schedules and scenes read facts)',
-  addFact: 'addFact {key, delta} — the story\'s and the world\'s only',
-  topic: 'topic {id, days?} — the story\'s and the world\'s only: something happened that people will talk about (default 4 days); others notify the story',
+  topic: "topic {id, days?} — the story's only: something happened that people will talk about (default 4 days); it keeps topic.<id> (the day) and topic.<id>.days as its own props. Others notify the story",
   scene: 'scene {id} — the story\'s only: play a scripted scene',
   craft: 'craft {} — the host uses up what the act\'s recipe needs from what it carries and gets what it makes',
-  forage: 'forage {} — the world\'s: what the active map yields by itself appears on its ground',
+  grow: 'grow — the host\'s stage clock ran out (param status): it becomes what its stage says next and leaves what the stage yields; a condition the stage needs, unmet, makes it wait (world-model.md §6.5; the root of time/timer)',
   lightning: 'lightning {power} — the world\'s: a bolt seeks what stands tall near the player and emits element lightning to it',
   ashore: 'ashore {} — the host gets out of where it cannot be, to the nearest free tile',
   fallback: 'fallback {} — the story\'s: run the broken invariant\'s authored fallback',
@@ -52,22 +53,24 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   quest: 'quest {} — the host (a person) is spoken to about quests: business with the speaker (a quest to hand in, to take on, a talk goal) is told to the story; else the host says how a quest goes, or its line (quests.ts)',
   quests: "quests {} — the story's: a quest's business it is told of is settled (notify what = quest: between the source, a giver, and the actor; what = defeat: the actor felled a thing of param type) — its facts change, the giver takes what was brought, the taker is told its reward",
   learn: 'learn {} — the host learns what its act names: param skill (spending its skill points) or param profession (at a trainer; a change gives back the profession branch)',
-  appear: "appear {types, ring, cap, tag} — the world's: one creature of a weighted type appears on a free tile ring[0]–ring[1] tiles from the player, under the open sky of a map that is not peaceful, unless cap of those tagged tag already walk it",
+  appear: "appear {what?} — the world's: what appears by itself on the active map now (the map's own appearances and the world's that fit it, each at its pace, hours and weather, up to its max), or only the appearance given (world-model.md §6.9)",
   release: "release {} — the host's encounter skill lands on the cells its act telegraphed (params skill, ox, oy, ax, ay): a strike to each foe there, a push or pull and a coat as the skill says; the host heals or blinks itself",
   panel: "panel {panel} — the host (a trainer) opens one of the player's panels when the player spoke to it: 'profession'",
 }
 
 /** Primitives only the story's and the world's rules may use. */
-export const RESIDENT_ONLY = new Set<Effect['op']>(['setFact', 'addFact', 'topic', 'scene', 'forage', 'lightning', 'fallback', 'quests', 'appear'])
+export const RESIDENT_ONLY = new Set<Effect['op']>(['topic', 'scene', 'lightning', 'fallback', 'quests', 'appear'])
 
 export class EffectRunner {
   constructor(private eng: Engine) {}
 
   private ref(ev: GameEvent, r: RoleRef): Ref | undefined {
     const w = this.eng.world
+    // the cell under a role: what makes it up on top
     if (r.startsWith('tileOf:')) {
       const p = w.refPos(this.roleRef(ev, r.slice(7) as RoleName))
-      return p ? { tile: p } : undefined
+      const top = p && w.cellTop(p.map, p.x, p.y)
+      return top ? { e: top.id } : undefined
     }
     return this.roleRef(ev, r as RoleName)
   }
@@ -97,9 +100,9 @@ export class EffectRunner {
 
   private text(ev: GameEvent, who: Entity | undefined, t: Text): Text {
     // a companion repeats the latest beat's line (companion.ts)
-    if (t === '@hint') return this.eng.companions.hint() ?? { en: '…', zh: '……' }
+    if (t === '@hint') return this.eng.story.hint() ?? { en: '…', zh: '……' }
     // what the story asks for now (the companion's guide)
-    if (t === '@objective') return this.eng.companions.objective() ?? { en: 'Nothing presses now. Go where you like!', zh: '现在没什么急事。想去哪就去哪吧！' }
+    if (t === '@objective') return this.eng.story.objective() ?? { en: 'Nothing presses now. Go where you like!', zh: '现在没什么急事。想去哪就去哪吧！' }
     if (t === '@line') {
       const lines = who?.npc?.lines
       if (lines?.length) return lines[Math.floor(this.eng.world.rand() * lines.length)]
@@ -158,7 +161,7 @@ export class EffectRunner {
     const eng = this.eng
     const w = eng.world
     const host = this.hostEntity(ev)
-    if (RESIDENT_ONLY.has(eff.op) && (!host || w.kindOf(host) !== 'resident')) throw new Error(`${eff.op} is the story's and the world's only`)
+    if (RESIDENT_ONLY.has(eff.op) && (!host || !w.isPlaceless(host))) throw new Error(`${eff.op} is the story's and the world's only`)
     switch (eff.op) {
       case 'spawn': {
         const type = this.typeOf(ev, eff.type)
@@ -171,12 +174,12 @@ export class EffectRunner {
           if (!place) continue
           const made = w.create(type, place)
           // an actor never appears on top of another, or in a wall: it takes the nearest free tile
-          if (place.on === 'tile' && w.kindOf(made) === 'actor' && !w.walkable(place.map, place.x, place.y, made.id)) {
+          if (place.on === 'tile' && w.isAgent(made) && !w.walkable(place.map, place.x, place.y, made.id)) {
             const free = eng.nearestFree({ map: place.map, x: place.x, y: place.y })
             if (free) w.place(made, (place = { on: 'tile', map: free.map, x: free.x, y: free.y }))
           }
           // a creature a rule brings (a dragon's whelps) comes with the behaviour its type names, at home where it appears
-          if (place.on === 'tile' && w.kindOf(made) === 'actor' && w.hasTag(made, 'creature') && !made.ai) {
+          if (place.on === 'tile' && w.isAgent(made) && w.hasTag(made, 'creature') && !made.ai) {
             const behaviour = (w.prop(made, 'behaviour') as AiData['behaviour'] | undefined) ?? 'melee'
             const temper = (w.prop(made, 'temper') as AiData['temper'] | undefined) ?? 'aggressive'
             made.facing = 'down'
@@ -184,7 +187,7 @@ export class EffectRunner {
           }
           eng.touch({ e: made.id })
           // an item a rule drops on the ground pops out for the player's magnet (unless it lies still: taken with F)
-          if (place.on === 'tile' && w.kindOf(made) === 'item' && !eff.still) made.dropped = true
+          if (place.on === 'tile' && w.isPortable(made) && !eff.still) made.dropped = true
         }
         return
       }
@@ -201,8 +204,20 @@ export class EffectRunner {
         // `@prop:key` reads the target type from the host's own prop (e.g. emptyType)
         const into = eff.into.startsWith('@prop:') ? String(w.prop(host, eff.into.slice(6)) ?? '') : eff.into
         if (!into || !w.onto.hasType(into)) return
+        // becoming a thing that takes a space of its cell another holds, it gives way: it is gone (rock
+        // turning to gravel where there is a floor already), as one destroyed
+        const p = host.place.on === 'tile' ? host.place : undefined
+        const taken = p && w.spacesOf({ ...host, type: into }).some((s) => w.entitiesAt(p.map, p.x, p.y).some((o) => o.id !== host.id && w.spacesOf(o).includes(s)))
+        if (taken) {
+          if (w.hasTag(host, 'essential')) return
+          eng.touch({ e: host.id }, true)
+          w.destroy(host)
+          return
+        }
         w.transform(host, into)
         delete host.name
+        // a thing become another is whole as what it is now (a felled tree's stump, a regrown tree)
+        if (host.props?.hp !== undefined && w.onto.resolve(into).props.maxHp !== undefined) w.setProp(host, 'hp', undefined)
         eng.touch({ e: host.id })
         return
       }
@@ -221,6 +236,8 @@ export class EffectRunner {
         // a step to a place (a scene's direction, a person arriving through a portal), or one tile
         const p = ev.params
         if (typeof p?.x === 'number' && typeof p?.y === 'number') return eng.placeSelf(host, { map: String(p.map ?? w.posOf(host)?.map ?? eng.activeMap), x: p.x, y: p.y })
+        // to a map with no place named: in through what sent it (a site, world-model.md §5.6)
+        if (typeof p?.map === 'string') return eng.enterFrom(host, p.map, ev.roles.source && w.get(ev.roles.source.e))
         let dir = eff.dir ?? (p?.dir as Entity['facing'])
         // away from a role (a gust from the one who cast it)
         const from = eff.away && this.pos(ev, eff.away)
@@ -270,9 +287,81 @@ export class EffectRunner {
       case 'removeTag':
         if (host) w.removeTag(host, eff.tag)
         return
-      case 'hurt':
-        if (host) eng.hurt(host, this.amount(ev, eff.amount), eff.element, eff.pierce, ev)
+      case 'hurt': {
+        // harm done in answer to an element is that element's (what resists it takes a share away)
+        const element = eff.element ?? (ev.kind === 'impulse/element' && typeof ev.params?.element === 'string' ? ev.params.element : undefined)
+        if (host) eng.hurt(host, this.amount(ev, eff.amount), element, eff.pierce, ev, eff.blow)
         return
+      }
+      case 'wear': {
+        // one's own thing, put on oneself: worn in its slot (what was there comes off), or taken off when it is on
+        const item = ev.roles.item && 'e' in ev.roles.item ? w.get(ev.roles.item.e) : undefined
+        if (!host || !item || (item.place.on !== 'inside' && item.place.on !== 'hand') || item.place.holder !== host.id) return
+        const slot = w.prop(item, 'slot')
+        if (typeof slot !== 'string') return
+        const key = `wear:${slot}`
+        const on = w.prop(host, key) === item.id
+        if (on) w.setProp(host, key, undefined)
+        else eng.setProp(host, key, item.id, ev)
+        w.fx.push({ t: 'log', text: on ? { en: `You take off ${eng.nameOf({ e: item.id }, 'en')}.`, zh: `你脱下了${eng.nameOf({ e: item.id }, 'zh')}。` } : { en: `You put on ${eng.nameOf({ e: item.id }, 'en')}.`, zh: `你穿上了${eng.nameOf({ e: item.id }, 'zh')}。` } })
+        return
+      }
+      case 'sleep': {
+        // until it is time to rise; what a night gives back: as much as the best room it lies in says (a bedroom all)
+        if (!host) return
+        const params = w.onto.data.params
+        const at = w.posOf(host)
+        const rest = Math.max(params?.rest ?? 0.5, ...(at ? w.regionsAt(at.map, at.x, at.y, at.z).map((r) => w.num(r, 'rest', 0)) : []))
+        const missing = w.num(host, 'maxHp', 1) - w.num(host, 'hp', w.num(host, 'maxHp', 1))
+        if (missing > 0) eng.setProp(host, 'hp', w.num(host, 'hp') + Math.ceil(missing * Math.min(1, rest)), ev)
+        w.fx.push({ t: 'log', text: rest >= 1 ? { en: 'You sleep soundly, and wake rested.', zh: '你睡得很沉，醒来精神饱满。' } : { en: 'You sleep, after a fashion.', zh: '你勉强睡了一觉。' } })
+        if (host.id === w.state.player) eng.sleepUntil(params?.riseHour ?? 6)
+        return
+      }
+      case 'fall': {
+        // nothing under it on its storey: it drops to the first floor below, struck by the drop
+        if (!host || host.place.on !== 'tile' || !host.place.z || w.occupant(host.place.map, host.place.x, host.place.y, 'floor', host.place.z)) return
+        if (w.stanceOf(host) === 'air') return
+        const { map, x, y } = host.place
+        let z = host.place.z - 1
+        while (z > 0 && !w.occupant(map, x, y, 'floor', z)) z--
+        const levels = host.place.z - z
+        eng.touch({ e: host.id })
+        w.place(host, { on: 'tile', map, x, y, ...(z && { z }) })
+        eng.touch({ e: host.id })
+        eng.fallBy(host, levels, ev)
+        return
+      }
+      case 'breakdown': {
+        if (!host) return
+        if (w.hasTag(host, 'essential')) return
+        const at = w.posOf(host)
+        const rate = w.onto.data.params?.recovery ?? 1
+        const material = [...(host.tags ?? []), ...w.onto.resolve(host.type).tags].find((t) => t.startsWith('material:'))
+        if (at)
+          for (const part of w.onto.resolve(host.type).makeup ?? []) {
+            // the expected count: whole parts, and the fraction by chance
+            const expect = part.count * (part.chance ?? 1) * rate
+            const n = Math.floor(expect) + (w.rand() < expect - Math.floor(expect) ? 1 : 0)
+            for (let i = 0; i < n; i++) {
+              const made = w.create(part.type, { on: 'tile', map: at.map, x: at.x, y: at.y }, material && w.onto.resolve(part.type).tags.includes('portable') ? { tags: [material] } : {})
+              eng.touch({ e: made.id })
+              // it pops out for the magnet, as anything a rule drops (what a body leaves lies still: taken with F)
+              if (w.isPortable(made) && !eff.still) made.dropped = true
+            }
+          }
+        // what it held spills where it stood
+        for (const id of [...(host.contents ?? []), ...(host.held ? [host.held] : [])]) {
+          const c = w.get(id)
+          if (!c || !at) continue
+          w.place(c, { on: 'tile', map: at.map, x: at.x, y: at.y })
+          eng.touch({ e: c.id })
+          if (!eff.still) c.dropped = true
+        }
+        eng.touch({ e: host.id }, true)
+        w.destroy(host)
+        return
+      }
       case 'heal': {
         if (!host) return
         // whole points: a tenth of a body mends at least one
@@ -289,7 +378,8 @@ export class EffectRunner {
         return
       }
       case 'gainXp': {
-        if (!host || w.kindOf(host) !== 'actor') return
+        // a thing that has a level can learn (any thing with the prop, not only people)
+        if (!host || w.prop(host, 'level') === undefined) return
         const n = Math.round(this.amount(ev, eff.amount))
         if (n <= 0) return
         const up = gainXp(w, host, n)
@@ -307,13 +397,6 @@ export class EffectRunner {
         if (!host?.ai || !by || by === host.id || !w.get(by)) return
         const foes = (host.ai.foes ??= [])
         if (!foes.includes(by)) foes.push(by)
-        return
-      }
-      case 'setTerrain': {
-        if (!('tile' in ev.host)) return
-        const { map, x, y } = ev.host.tile
-        w.setTerrain(map, x, y, eff.terrain)
-        eng.touch(ev.host)
         return
       }
       case 'open':
@@ -341,15 +424,9 @@ export class EffectRunner {
         host.npc.override = { map: p.map, x: a[0], y: a[1], until: w.state.tick + Math.round(hours * TICKS_PER_HOUR), activity: eff.activity ?? eff.anchor }
         return
       }
-      case 'setFact':
-        w.setFact(eff.key, eff.value)
-        return
-      case 'addFact':
-        w.setFact(eff.key, (Number(w.fact(eff.key)) || 0) + eff.delta)
-        return
       case 'topic': {
         const id = this.str(ev, eff.id)
-        if (id) raiseTopic(eng, id, eff.days ?? (typeof ev.params?.days === 'number' ? ev.params.days : undefined))
+        if (id && host) raiseTopic(eng, host, id, eff.days ?? (typeof ev.params?.days === 'number' ? ev.params.days : undefined))
         return
       }
       case 'quest': {
@@ -381,7 +458,7 @@ export class EffectRunner {
         return
       }
       case 'appear':
-        appear(eng, eff)
+        appear(eng, eff.what)
         return
       case 'release':
         if (host) releaseSkill(eng, host, ev)
@@ -393,7 +470,7 @@ export class EffectRunner {
         return
       }
       case 'scene':
-        eng.scenes.start(eff.id)
+        eng.story.start(eff.id)
         return
       case 'fallback': {
         const inv = eng.invariants.find((i) => i.id === ev.params?.invariant)
@@ -405,23 +482,54 @@ export class EffectRunner {
         if (!host || !r) return
         const carried = [...(host.contents ?? []), ...(host.held ? [host.held] : [])].map((id) => w.get(id)!).filter(Boolean)
         if (!r.needs.every((n) => carried.filter((e) => e.type === n.type && !e.frozenBy).length >= n.count)) return
-        for (const n of r.needs) {
+        // a station's recipe is made beside one (a workbench within reach); the hands' anywhere
+        if (r.station && r.station !== 'hands') {
+          const p = w.posOf(host)
+          let near = false
+          for (let dy = -1; dy <= 1 && p && !near; dy++)
+            for (let dx = -1; dx <= 1 && !near; dx++) near = [...w.entitiesAt(p.map, p.x + dx, p.y + dy), ...w.coveringAt(p.map, p.x + dx, p.y + dy)].some((e) => w.hasTag(e, `station:${r.station}`))
+          if (!near) {
+            w.fx.push({ t: 'log', text: { en: `That is made at a ${r.station}.`, zh: `这要在${r.station === 'workbench' ? '工作台' : r.station}旁边做。` } })
+            return
+          }
+        }
+        // the main ingredient (the first) gives what is made its material
+        let material: string | undefined
+        for (const [i, n] of r.needs.entries()) {
           // the bag's first: the hand keeps what it holds while there are others of its kind
           const pool = carried.filter((e) => e.type === n.type && !e.frozenBy).sort((a, b) => Number(a.id === host.held) - Number(b.id === host.held))
           for (const e of pool.slice(0, n.count)) {
+            if (i === 0) material ??= w.materialOf(e)?.id
             eng.touch({ e: e.id }, true)
             w.destroy(e)
           }
         }
-        const made = w.create(r.make.type, { on: 'inside', holder: host.id }, structuredClone(r.make))
+        const quality = qualityFor(w.onto.data, w.num(host, 'level', 1), r.level ?? 1)
+        const look = r.make.tags || r.make.name ? r.make : madeOf(w.onto.data, w.onto, r.make.type, material, quality)
+        const made = w.create(r.make.type, { on: 'inside', holder: host.id }, structuredClone(look))
         eng.touch({ e: made.id })
         const p = w.posOf(host)
         if (p) w.fx.push({ t: 'pickup', item: made.id, sprite: r.sprite, name: r.name, map: p.map, x: p.x, y: p.y })
         return
       }
-      case 'forage':
-        forageMap(eng, eng.activeMap)
+      case 'grow': {
+        // a stage's clock ran out (world-model.md §6.5): it becomes the next, leaving what the stage yields
+        if (!host) return
+        const st = w.onto.resolve(host.type).stage
+        const clock = st?.clock ?? 'stage'
+        if (!st || ev.params?.status !== clock) return
+        if (st.needs && !evalCond(st.needs, rolesOf(ev, w), w, ev)) {
+          // not yet (no light, someone standing on it): it waits, and looks again
+          w.setStatus({ e: host.id }, clock, w.state.tick + (st.wait ?? st.lasts ?? TICKS_PER_HOUR))
+          return
+        }
+        for (const y of st.yields ?? []) this.apply({ op: 'spawn', type: y.type, at: 'tileOf:host', count: y.count ?? 1, still: true }, ev)
+        if (st.fx) this.apply({ op: 'vfx', fx: st.fx, at: 'tileOf:host' }, ev)
+        if (st.into) this.apply({ op: 'transform', into: st.into }, ev)
+        // a stage with nothing next begins again (a hen lays, and lays again)
+        else if (st.lasts) w.setStatus({ e: host.id }, clock, w.state.tick + st.lasts)
         return
+      }
       case 'lightning':
         eng.lightning(eff.power, ev)
         return
@@ -433,17 +541,17 @@ export class EffectRunner {
         return
       }
       case 'say': {
-        const ref = eff.who && host && w.kindOf(host) === 'resident' ? this.roleRef(ev, eff.who) : ev.host
+        const ref = eff.who && host && w.isPlaceless(host) ? this.roleRef(ev, eff.who) : ev.host
         const who = ref && 'e' in ref ? w.get(ref.e) : undefined
         if (!who) return
         if (eff.text === '@given') {
           const item = ev.roles.item && 'e' in ev.roles.item ? w.get(ev.roles.item.e) : undefined
-          const line = who.npc?.person?.lines?.length && item ? chooseLine(eng, who, { given: item }) : undefined
+          const line = who.npc?.person?.lines?.length && item ? chooseLine(eng, who, { given: item, record: who.id === host?.id }) : undefined
           w.fx.push({ t: 'say', who: who.id, text: line?.text ?? GIVEN_LINE, mood: line?.mood })
           return
         }
         // a person with a line book says the line for this moment (people.ts)
-        const line = eff.text === '@line' && who.npc?.person?.lines?.length ? chooseLine(eng, who) : undefined
+        const line = eff.text === '@line' && who.npc?.person?.lines?.length ? chooseLine(eng, who, { record: who.id === host?.id }) : undefined
         if (line) w.fx.push({ t: 'say', who: who.id, text: line.text, mood: line.mood })
         else w.fx.push({ t: 'say', who: who.id, text: this.text(ev, who, eff.text) })
         return
@@ -495,6 +603,8 @@ export class EffectRunner {
     if (typeof v !== 'object' || v === null) return v
     if ('typeOf' in v) return this.eng.world.view(this.roleRef(ev, v.typeOf))?.type
     if ('param' in v && v.mul === undefined && v.add === undefined) return ev.params?.[v.param]
+    // a role's prop passed on as it is (a word too: a site's map)
+    if ('prop' in v && v.mul === undefined && v.add === undefined) return this.eng.world.view(this.roleRef(ev, v.of))?.props[v.prop]
     return this.amount(ev, v)
   }
 
@@ -513,12 +623,18 @@ export class EffectRunner {
       return r ? [r] : []
     }
     if ('named' in to) return w.get(to.named) ? [{ e: to.named }] : []
-    const self = (r: Ref) => ('e' in r && 'e' in ev.host ? r.e === ev.host.e : 'tile' in r && 'tile' in ev.host && r.tile.x === ev.host.tile.x && r.tile.y === ev.host.tile.y && r.tile.map === ev.host.tile.map)
-    const at = (map: string, x: number, y: number): Ref[] => (w.inBounds(map, x, y) ? [{ tile: { map, x, y } }, ...w.entitiesAt(map, x, y).map((e) => ({ e: e.id }))] : [])
+    const self = (r: Ref) => r.e === ev.host.e
+    // every thing in a cell: what stands there and what makes it up, top first
+    const at = (map: string, x: number, y: number): Ref[] => (w.inBounds(map, x, y) ? w.entitiesAt(map, x, y).sort((a, b) => w.cellRank(b) - w.cellRank(a)).map((e) => ({ e: e.id })) : [])
     if ('map' in to) {
-      const p = w.posOf(this.hostEntity(ev)) ?? ('tile' in ev.host ? ev.host.tile : undefined)
+      const p = w.posOf(this.hostEntity(ev))
       const map = p?.map ?? eng.activeMap
-      return w.entitiesOnMap(map).filter((e) => !self({ e: e.id })).map((e) => ({ e: e.id }))
+      // the sky's: only what is out under it (world-model.md §5.3: rain does not fall under a roof)
+      const under = (e: Entity) => {
+        const at = w.posOf(e)
+        return !!at && !w.covered(at.map, at.x, at.y, at.z)
+      }
+      return w.entitiesOnMap(map).filter((e) => !self({ e: e.id }) && (!to.sky || under(e))).map((e) => ({ e: e.id }))
     }
     if ('area' in to) {
       const c = this.pos(ev, to.area.at ?? 'host')
@@ -560,12 +676,18 @@ export class EffectRunner {
   private placeFor(at: Ref | undefined, into: 'tile' | 'contents' | 'hand', moving?: string): Place | undefined {
     const w = this.eng.world
     if (!at) return undefined
-    if (into === 'tile' || 'tile' in at) {
-      const p = w.refPos(at)
-      return p ? { on: 'tile', map: p.map, x: p.x, y: p.y } : undefined
-    }
     const holder = w.get(at.e)
     if (!holder) return undefined
+    // onto a cell (or what makes one up: it holds nothing): it comes to rest on the lowest storey
+    // from there with room for it and something to hold it (building is this, world-model.md §6.6)
+    if (into === 'tile' || w.isTerrain(holder)) {
+      const p = w.posOf(holder)
+      if (!p) return undefined
+      const thing = moving ? w.get(moving) : undefined
+      const z = thing ? w.settleZ(thing, p.map, p.x, p.y, p.z ?? 0) : (p.z ?? 0)
+      if (z === undefined) return undefined
+      return { on: 'tile', map: p.map, x: p.x, y: p.y, ...(z && { z }) }
+    }
     if (into === 'hand' && (!holder.held || holder.held === moving)) return { on: 'hand', holder: holder.id }
     return { on: 'inside', holder: holder.id }
   }

@@ -41,13 +41,13 @@ export const OBJECTIVES: Record<number, Objective> = {
 }
 
 /** Fact prefixes only the story's rules and scenes may change. */
-export const PROTECTED_FACTS = ['ford.', 'mq.', 'seen.', 'invalid.', 'sins.']
+export const PROTECTED_FACTS = ['ford.', 'mq.', 'seen.', 'sins.']
 
 const story = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base', note: 'story' } })
 const log = (en: string, zh: string): Effect => ({ op: 'log', text: { en, zh } })
 const say = (en: string, zh: string): Effect => ({ op: 'say', text: { en, zh } })
 const notify = (what: string): Effect => ({ op: 'emit', impulse: 'notify', to: 'story', params: { what } })
-const fact = (key: string, value: number): Cond => ({ fact: { key, cmp: value } })
+const fact = (key: string, value: number): Cond => ({ prop: { role: 'story', key, cmp: value, default: 0 } })
 const is = (role: RoleName, sel: Selector): Cond => ({ is: { role, sel } })
 const what = (w: string): Cond => ({ param: { key: 'what', cmp: w } })
 const ROPE = 'item/tool/rope'
@@ -104,9 +104,9 @@ const FORD_RULES: Rule[] = [
             { op: 'vfx', fx: 'dust' },
             log('The dead tree groans, leans… and falls with a crash.', '枯树呻吟着，倾斜……轰然倒下。'),
             { op: 'emit', impulse: 'receive', to: { line: { from: 'host', away: 'actor', length: 8, over: ['water'] } }, params: { what: 'trunk' } },
-            { op: 'emit', impulse: 'receive', to: 'tileOf:host', params: { what: 'stump' } },
             notify('tree'),
-            { op: 'destroy' },
+            // what stands is its stump
+            { op: 'transform', into: 'tile/stump' },
           ],
         },
         else: { do: [{ op: 'addProp', key: 'cuts', delta: 1 }, { op: 'vfx', fx: 'dust' }, log('The axe bites into the dead wood. It creaks.', '斧头砍进了枯木。它嘎吱作响。')] },
@@ -151,13 +151,13 @@ const FORD_RULES: Rule[] = [
     on: 'impulse/notify',
     tree: {
       if: what('winch'),
-      then: { do: [{ op: 'setFact', key: 'ford.winch', value: 1 }, { op: 'topic', id: 'winch_mended', days: 6 }] },
+      then: { do: [{ op: 'setProp', key: 'ford.winch', value: 1 }, { op: 'topic', id: 'winch_mended', days: 6 }] },
       else: {
         if: what('tree'),
-        then: { do: [{ op: 'setFact', key: 'ford.tree', value: 1 }, { op: 'topic', id: 'tree_felled', days: 6 }] },
+        then: { do: [{ op: 'setProp', key: 'ford.tree', value: 1 }, { op: 'topic', id: 'tree_felled', days: 6 }] },
         else: {
           if: what('charm'),
-          then: { do: [{ op: 'setFact', key: 'ford.charm', value: 1 }] },
+          then: { do: [{ op: 'setProp', key: 'ford.charm', value: 1 }] },
           else: { if: { all: [what('ferry'), fact('ford.crossed', 0)] }, then: { do: [{ op: 'scene', id: 'ferry' }] }, else: 'inherit' },
         },
       },
@@ -199,14 +199,14 @@ export const INVARIANTS: Invariant[] = [
       'There must always be some way across the river: rope for the ferry, the dead tree to fell, or frost to freeze the water.',
       '过河总得有条路：修渡船的绳子、能砍倒的枯树，或者能冻住河水的寒气。',
     ),
-    when: { fact: { key: 'ford.crossed', cmp: 0 } },
+    when: { prop: { role: 'story', key: 'ford.crossed', cmp: 0, default: 0 } },
     holds: {
       any: [
         { exists: { type: ROPE } },
         { exists: { type: DEAD_TREE } },
         { exists: { type: WAND, tags: ['element:ice'] } },
-        { fact: { key: 'ford.winch', cmp: 1 } },
-        { fact: { key: 'ford.tree', cmp: 1 } },
+        { prop: { role: 'story', key: 'ford.winch', cmp: 1, default: 0 } },
+        { prop: { role: 'story', key: 'ford.tree', cmp: 1, default: 0 } },
       ],
     },
     fallback: [sayAs('The water is dropping. Come, I will take you over on the raft myself, line or no line.', '水在退了。来，不管有没有渡绳，我亲自撑筏送你过去。'), RIVER_CROSSED],

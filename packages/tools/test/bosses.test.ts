@@ -1,6 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, bossPattern, combatDelay, snapshot, stepBosses, type MapData } from '@lsw/engine'
+import { Game, RuleLibrary, bossPattern, combatDelay, encounter, snapshot, type Engine, type MapData } from '@lsw/engine'
+
+/** The encounter goal of every sin on a map, alone (world-model.md §6.10): what the bosses do this tick. */
+const stepBosses = (eng: Engine, map: string) => {
+  for (const e of eng.world.entitiesOnMap(map)) encounter(eng, e, map)
+}
 import { BASE_RULES, BOSSES, BOSS_BY_ID, BOSS_LAYOUT, FIRST_BOSS, PROLOGUE_DONE, STORY_RULES, buildOntology, createBoss, decodeChunk, migrateBosses } from '@lsw/content'
 import { SIN_ACTORS, SIN_FX } from '../../client/src/assets/bosses.ts'
 import { buildFord } from '../src/demo/world.ts'
@@ -10,7 +15,7 @@ const library = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
 function arena(id = 'greed') {
   const { index } = buildFord()
   const at = { map: 'arena', x: 16, y: 20 }
-  Object.assign(index, { start: at, npcs: [], companions: [], scenes: [], beats: [], quests: [], invariants: [], waypoints: [] })
+  Object.assign(index, { start: at, npcs: [], companions: [], steps: [], quests: [], invariants: [], waypoints: [] })
   index.player.place = { on: 'tile', ...at }
   index.player.props = { ...index.player.props, hp: 1000, maxHp: 1000, def: 0, prologue: PROLOGUE_DONE }
   const game = Game.create(index, onto, library()), eng = game.engine, w = eng.world

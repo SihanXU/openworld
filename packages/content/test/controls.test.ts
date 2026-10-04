@@ -17,7 +17,7 @@ function world(held: string | undefined, others: ScenarioEntity[], terrain?: str
 
 const npc = (key = 'npc.hollis'): ScenarioEntity => ({ key, type: 'actor/person/farmer', x: 2, y: 1 })
 /** The index of the ground among the layers of a tile (the chooser's pick). */
-const ground = (eng: Engine, x = 2, y = 1) => eng.controls.layers({ map: 'sandbox', x, y }).findIndex((r) => 'tile' in r)
+const ground = (eng: Engine, x = 2, y = 1) => eng.controls.layers({ map: 'sandbox', x, y }).findIndex((r) => eng.world.cellRank(eng.world.get(r.e)!) >= 0)
 const label = (p: Plan | undefined) => textOf(p?.label)
 
 describe('the four inputs: one verb each', () => {
@@ -84,8 +84,8 @@ describe('the four inputs: one verb each', () => {
 
   it('an object used on bare ground is an experiment for the modder, not nothing', () => {
     const eng = world('item/food/apple', [])
-    expect(eng.controls.plan('use')).toMatchObject({ verb: 'use', target: { tile: { x: 2, y: 1 } }, unknown: true })
-    expect(eng.controls.plan('use', { x: 2, y: 1 })).toMatchObject({ verb: 'use', target: { tile: { x: 2, y: 1 } }, unknown: true })
+    expect(eng.controls.plan('use')).toMatchObject({ verb: 'use', target: eng.world.cellRef('sandbox', 2, 1), unknown: true })
+    expect(eng.controls.plan('use', { x: 2, y: 1 })).toMatchObject({ verb: 'use', target: eng.world.cellRef('sandbox', 2, 1), unknown: true })
   })
 
   it('left click works the ground with a tool: the hoe strikes, the ground answers', () => {
@@ -139,8 +139,8 @@ describe('the four inputs: one verb each', () => {
   it('stepping onto a tile is contact: no change unless the tile says (nothing asked); a burning tile burns who steps on it', () => {
     const eng = world(undefined, [])
     const port = new ModPort(eng)
-    eng.author(() => eng.applyStatus({ tile: { map: 'sandbox', x: 2, y: 1 } }, 'oiled'))
-    eng.author(() => eng.applyStatus({ tile: { map: 'sandbox', x: 2, y: 0 } }, 'burning', 999))
+    eng.author(() => eng.applyStatus(eng.world.cellRef('sandbox', 2, 1), 'oiled'))
+    eng.author(() => eng.applyStatus(eng.world.cellRef('sandbox', 2, 0), 'burning', 999))
     eng.trace = []
     eng.world.player.facing = 'up'
     expect(eng.step(eng.world.player, 'up')).toBe(true)

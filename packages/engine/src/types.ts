@@ -2,7 +2,6 @@
 // Everything here is plain JSON-serializable data: state, rules and patches travel
 // between the engine, the client, saves and (later) the modder service.
 
-import type { WeatherSpan } from './calendar.ts'
 
 export type Id = string
 export type Text = string | { en: string; zh?: string }
@@ -20,8 +19,6 @@ export const DIRS: Record<Dir, [number, number]> = {
 
 // ------------------------------------------------------------------ ontology
 
-export type EntityKind = 'actor' | 'item' | 'fixture' | 'resident'
-
 /**
  * A 16x16 icon as data: one string per row, one character per pixel ("." transparent), each
  * other character a colour of the palette. Things the world learned carry their own picture
@@ -33,9 +30,13 @@ export interface PixelArt {
 }
 
 /** A node in the is-a hierarchy. Type ids are slash paths: `item/container/bucket`. */
+/**
+ * A type of thing (world-model.md §4). There are no kinds: everything descends from the one root,
+ * and whatever the engine asks of a thing is data here, inherited down the type path (the tags
+ * `agent` — acts by itself with a body — and `portable`, the stances it `reach`es, its props).
+ */
 export interface TypeDef {
   id: string
-  kind: EntityKind | 'tile'
   name?: Text
   /** Tags inherited by every instance (instances may add more). */
   tags?: string[]
@@ -45,19 +46,95 @@ export interface TypeDef {
   sprite?: string
   /** Its own picture, for a type a patch introduced (sprite `art:<id>`). */
   art?: PixelArt
-  /** Fixtures and tiles: does it block movement? Actors occupy their footprint. */
+  /** Does it block movement? (it fills its cell's volume; a body blocks by its own space) */
   solid?: boolean
+  /**
+   * The spaces it takes in its cell (world-model.md §5.2): in a cell each space has at most one
+   * occupant. Default: a body for an agent that does not fly, the volume for a solid thing,
+   * none for the rest (items and most furniture share a cell with anything).
+   */
+  occupies?: Space[]
+  /** It is drawn as the ground of its cell, this terrain (the cell things of a map's data; world-model.md §4.6). */
+  terrain?: string
+  /**
+   * What it is made of, which is also what it leaves when it breaks (world-model.md §6.4): each
+   * part's count is scaled by the world's recovery rate, in the thing's own material.
+   */
+  makeup?: MakeupPart[]
+  /** How long it stays what it is, and what it becomes (world-model.md §6.5). */
+  stage?: StageDef
+  /** The order its goals are tried in (world-model.md §6.10): encounter, threat, follow, schedule, home, idle. */
+  goals?: string[]
+  /** Where it is made from its makeup (world-model.md §6.4): `hands` (anywhere), or a station a thing within reach is (its `station:<x>` tag). */
+  station?: string
+  /** The level its recipe asks (default 1): a maker above it makes it finer. */
+  craftLevel?: number
   /**
    * Things bigger than a tile: the base they stand on, [width, depth] in tiles — centred on
    * their own tile, reaching back (north) from it. A solid thing blocks all of it, and only
    * while it is there. Default [1, 1].
    */
   footprint?: [number, number]
-  /** Fixtures: the stances it acts on (default `ground`). A thing's own stance is its `stance` prop. */
+  /** The stances it acts on: what can stand or lie on it (none by default). A thing's own stance is its `stance` prop. */
   reach?: string[]
 }
 
 export type PropValue = number | string | boolean
+
+/** A part of what a thing is made of: `count` of `type`, each with `chance` (default 1). */
+export interface MakeupPart {
+  type: string
+  count: number
+  chance?: number
+}
+
+/**
+ * A material (world-model.md §4.5): its category (what tools work on: wood, stone, ore, flesh …)
+ * and its hardness — an instrument softer than what it strikes does nothing (Elin: a tool below the
+ * material's level). Things carry theirs as a `material:<id>` tag, or their type's `material` prop.
+ */
+export interface MaterialDef {
+  id: string
+  category: string
+  hardness: number
+  /** How a thing of it is named ("Stone" Axe, 石斧), what tags it gives. */
+  name?: Text
+  tags?: string[]
+  /** How much it makes of a weapon's or tool's power, and of a worn thing's defence (world-model.md §6.8, Elin's material atk/pv): factors, 1 when absent. */
+  attack?: number
+  defence?: number
+}
+
+/** A quality a made thing can have (world-model.md §6.4): its tag, name and factor on power and defence (Elin's rarity), and from how far above a recipe's level its maker reaches it (none: not by making). */
+export interface QualityDef {
+  id: string
+  tag?: string
+  name?: Text
+  factor: number
+  from?: number
+}
+
+/** Numbers the world is made with (world-model.md §11): data, never literals in the engine. */
+export interface WorldParams {
+  /** The share of its makeup a thing leaves when it breaks (D9). */
+  recovery: number
+  /** A drop of this many levels or less does no harm (world-model.md §5.5). */
+  safeFall: number
+  /** The harm of each level fallen beyond the safe height. */
+  fallDamage: number
+  /** How much longer a long step takes in rain, a storm or snow (a map with a `scale`). */
+  rainCost?: number
+  /** How many storeys may stand above the ground (world-model.md §5.2). */
+  storeys?: number
+  /** The largest a room may be, in cells: larger is out of doors (world-model.md §5.4). */
+  roomSize?: number
+  /** The hour one rises; and how much of what is missing a night's sleep gives back outside a room that says more. */
+  riseHour?: number
+  rest?: number
+}
+
+/** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */
+export type Space = 'floor' | 'soil' | 'volume' | 'body'
 
 export interface StatusDef {
   id: string
@@ -76,17 +153,27 @@ export interface StatusDef {
   every?: number
   /** Render hint for the client overlay. */
   overlay?: string
+  /** What it adds to its holder's stats while held (world-model.md §6.8): fireproof's resistance to fire. */
+  props?: Record<string, number>
 }
 
 export interface TerrainDef {
-  id: string // terrain id, also the tile type `tile/<id>`
+  id: string // terrain id; the cell things made of it are of type `tile/<id>` (world-model.md §4.6)
   name?: Text
   tags?: string[]
   solid?: boolean
   /** Swimmable/liquid terrain: items put here are not simply dropped. */
   liquid?: boolean
-  /** The stances it acts on (default `ground`): what touches it (design.md §5.5). */
+  /** The stances it acts on (default `ground` for a floor, none for the rest): what touches it (design.md §5.5). */
   reach?: string[]
+  /** The space it takes in its cell (default `floor`): ground is a floor; trees, rock and walls fill the volume; a stump roots in the soil. */
+  space?: 'floor' | 'soil' | 'volume'
+  /** Its props as a thing (its material, its durability: maxHp and hp). */
+  props?: Record<string, PropValue>
+  /** What it is made of (TypeDef.makeup). */
+  makeup?: MakeupPart[]
+  /** How long it stays what it is, and what it becomes (TypeDef.stage). */
+  stage?: StageDef
   color?: string // fallback render color
 }
 
@@ -95,6 +182,8 @@ export interface Ontology {
   statuses: Record<string, StatusDef>
   terrains: Record<string, TerrainDef>
   elements: string[]
+  /** Each element's resistance: the stat that takes a share of its harm away (percent; below 0, more harm), world-model.md §6.8. */
+  resistances?: Record<string, string>
   vfx: string[]
   /** Tags an instance may carry beyond its type's (materials, qualities…); used by conflict checks. */
   instanceTags?: string[]
@@ -102,12 +191,85 @@ export interface Ontology {
   factions?: Record<string, FactionDef>
   /** Numeric lines that are events when a prop crosses them (design.md §5.7: threshold). */
   thresholds?: ThresholdDef[]
+  /** The materials things are made of, by id. */
+  materials?: Record<string, MaterialDef>
+  /** The qualities made things have. */
+  qualities?: QualityDef[]
+  /**
+   * How well an instrument works on a material category (world-model.md §6.1): rows are its
+   * capabilities (`tool:axe` …) and its edge (`edge:cut` …); an instrument takes its best row.
+   * A category no row names: 1.
+   */
+  efficiency?: Record<string, Record<string, number>>
+  /** The world parameters. */
+  params?: WorldParams
+  /**
+   * What makes a room what it is (world-model.md §5.4, RimWorld's roles, as tags): a room with
+   * `count` things matching `needs` in it has the tag `role:<role>`, and the role's props (a
+   * bedroom's `rest`: how much a night's sleep there gives back).
+   */
+  roomRoles?: { role: string; needs: Selector; count?: number; props?: Record<string, PropValue> }[]
   /** Clocks that make `time/period` events for the hosts they name. */
   periods?: PeriodDef[]
+  /** What appears by itself on any map its `where` fits (the night's walkers), besides each map's own (MapData.appear). */
+  appear?: AppearDef[]
+  /** The order goals are tried in for a thing whose type does not say (world-model.md §6.10). */
+  goals?: string[]
+}
+
+/**
+ * A stage (world-model.md §6.5, after Elin's GrowSystem, generalised): a thing stays what it is
+ * until its clock runs out, then becomes the next (a stump a tree, thin ice water) and leaves what
+ * the stage yields (a hen's egg). One mechanism for every such change; it runs on timers, so a
+ * dormant map catches up when it is entered.
+ */
+export interface StageDef {
+  /** What it becomes at the end; none: it stays what it is and the stage begins again (a hen lays, and lays again). */
+  into?: string
+  /** Ticks the stage lasts, its clock (the status `stage`) started when the thing comes to be what it is. */
+  lasts?: number
+  /** Another status as its clock, started by whatever gives it (a crop moves on when its watering runs out): then nothing starts it by itself. */
+  clock?: string
+  /** A condition on the thing (the host) the end waits for (light, nobody standing on it); not met, it waits `wait` ticks and looks again. */
+  needs?: Cond
+  wait?: number
+  /** What is seen at the end (a vfx: leaves, a splash). */
+  fx?: string
+  /** What the end leaves where it is (an egg laid). */
+  yields?: { type: string; count?: number }[]
+}
+
+/**
+ * What appears by itself (world-model.md §6.9; Don't Starve's twigs and flint, Minecraft's
+ * mobs, the night's walkers): data only. Now and then one more of the weighted types appears on
+ * a free cell of the right ground, at the right distance from the one at the keys, at the right
+ * hours and weather, until `max` of them are on the map.
+ */
+export interface AppearDef {
+  /** What appears: types, weighted. */
+  types: Record<string, number>
+  /** The grounds it appears on (terrain ids); any ground one can stand on when absent. */
+  on?: string[]
+  /** At most this many on the map: those tagged `tag` if it is given, else those of its types. */
+  max: number
+  /** Ticks between appearances (a multiple of the `appear` period). */
+  every: number
+  /** How far from the one at the keys, [near, far] cells (default: anywhere, not within two). */
+  ring?: [number, number]
+  /** When: hours [from, to) (past midnight when from > to), and weathers. */
+  hours?: [number, number]
+  weather?: string[]
+  /** Which maps (for the world's own): by the map's zone and light. */
+  where?: { zone?: 'peaceful' | 'combat'; light?: 'outdoor' | 'indoor' | 'dark' }
+  /** A tag what appears carries (counted by `max`). */
+  tag?: string
+  /** A creature's behaviour (its home is where it appears), and statuses it appears with. */
+  ai?: Omit<AiData, 'home'>
+  statuses?: string[]
 }
 
 export interface ThresholdDef {
-  /** The event's `name` param ("defeated", "starving"). */
+  /** The event's `name` param ("broken", "starving"). */
   name: string
   prop: string
   /** Crossed when the value comes to this or below. */
@@ -136,14 +298,17 @@ export interface Pos {
   map: string
   x: number
   y: number
+  /** The storey (world-model.md §5.2): 0 the ground's, 1 the floor above it … (omitted: 0). */
+  z?: number
 }
 
 /** Where an entity is: on a tile, inside a container/inventory, or nowhere (destroyed). */
 export type Place =
-  | { on: 'tile'; map: string; x: number; y: number }
+  | { on: 'tile'; map: string; x: number; y: number; z?: number } // z: the storey (omitted: the ground's)
   | { on: 'inside'; holder: Id } // in a container's contents or an actor's inventory
   | { on: 'hand'; holder: Id } // the actor's single held-item slot
   | { on: 'resident' } // a host on no map: the world, the story (design.md §5.5)
+  | { on: 'area'; map: string; rects: [number, number, number, number][]; z?: number } // a region: the cells it spans, as rectangles, on a storey (world-model.md §5.4)
   | { on: 'none' }
 
 export interface Entity {
@@ -174,6 +339,8 @@ export interface Entity {
    * like a cooldown. Anything others see (health, a bleed) is a prop or a status.
    */
   combat?: CombatState
+  /** The story's script: where it stands (the scene playing) — its behaviour memory. */
+  script?: SceneState
   /** An encounter's behaviour memory (its telegraph, its animation); its blows are acts. */
   boss?: BossState
   /** Set while an undefined outcome involving this entity awaits a patch (design.md §5.11). */
@@ -278,6 +445,22 @@ export interface ScheduleEntry {
   uses?: Id
   /** What `uses` must be for the activity to go on (the fire lit); else the person is blocked. */
   need?: Selector
+  /** The work the activity is (world-model.md §6.10): real acts on what is about, tried in order. */
+  work?: WorkDef[]
+}
+
+/**
+ * A piece of work (world-model.md §6.10, D26): the act a person does, with the player's own acts,
+ * on the nearest thing that fits within `radius` of their anchor (a woodcutter's axe on a tree),
+ * with what they carry that fits `holding`.
+ */
+export interface WorkDef {
+  verb: Verb
+  target: Selector
+  holding?: Selector
+  radius: number
+  /** A condition on the worker (the host) the work waits for: carrying fewer than six logs. */
+  when?: Cond
 }
 
 export interface NpcData {
@@ -293,6 +476,8 @@ export interface NpcData {
   person?: PersonData
   /** A detour a rule ordered (`goto`): this anchor until the tick, whatever the schedule says. */
   override?: { map: string; x: number; y: number; until: number; activity: string }
+  /** What the person remembers of talking: the lines said, the last one, the day last talked to (their own record). */
+  memory?: NpcMemory
 }
 
 // ------------------------------------------------------------------ people (data)
@@ -347,21 +532,53 @@ export interface Topic {
 }
 
 /** A scripted scene (docs/game-design.md §8.6): the arrival, the ferry, the far bank. */
-export interface SceneDef {
+/**
+ * What starts a step of the story's script (world-model.md §6.12), on the one at the keys (the
+ * leader) and the story: all that is given must hold.
+ */
+export interface StepCond {
+  /** The leader is on this map. */
+  map?: string
+  /** The leader stands in this region (of `map`, else of their map): looked at when they enter it, and as a step plays — never polled. */
+  region?: string
+  hour?: { from: number; to: number }
+  weather?: string[]
+  /** The story's facts. */
+  facts?: Record<string, Cmp>
+  /** The leader's props (their stage). */
+  props?: Record<string, Cmp>
+  /** The leader carries (hand or bag) something of a type starting with this. */
+  carrying?: string
+  /** The leader has learned a skill: any (true) or this one. */
+  skill?: boolean | string
+  /** Another step has played. */
+  after?: string
+  /** Something of a type starting with this stands within r tiles of the leader (in view). */
+  near?: { type: string; r: number }
+}
+
+/**
+ * A step of the story's script (world-model.md §6.12): when its trigger holds it plays, once (or
+ * once a day); it may take control while it plays (a scene: its `script`) or not (a beat); its
+ * effects are the story's own props and the notices it sends.
+ */
+export interface StepDef {
   id: string
-  map: string
-  /** Played only by a `scene` effect (the ferry), never by itself. */
+  when?: StepCond
+  /** Played only when something starts it (a `scene` effect: the ferry), never by itself. */
   manual?: boolean
-  when?: {
-    hour?: { from: number; to: number }
-    weather?: string[]
-    facts?: Record<string, Cmp>
-    /** the player stands in this region of the map (MapData.regions) */
-    region?: string
-    /** default false: a scene plays once */
-    repeat?: boolean
-  }
-  script: SceneCmd[]
+  /** Again each day its trigger holds (default: once). */
+  repeat?: boolean
+  /** It takes control while it plays: what is said and done, in order. */
+  script?: SceneCmd[]
+  /** The story's facts it sets. */
+  facts?: Record<string, PropValue>
+  /** The leader's stage: the story tells them (`notify` what = key, value), and they keep it. */
+  props?: Record<string, PropValue>
+  /** Said by the leader's companion, in a bubble, when it plays. */
+  say?: Text
+  /** What the companion says when spoken to while this is the latest beat (default: `say`). */
+  hint?: Text
 }
 
 /**
@@ -457,8 +674,21 @@ export interface MapData {
   kind: string // town / village / wild / dungeon / interior …
   width: number
   height: number
-  /** Row-major terrain ids, length = width*height. */
+  /**
+   * Row-major terrain ids, length = width*height: each cell as authored, by what is on top of it.
+   * The engine makes the cell's things from it (cells.ts): the floor, and what fills or roots in it.
+   */
   terrain: string[]
+  /**
+   * Row-major ground height of each column, in half levels (world-model.md §5.2; default 0): a
+   * level is two; a column between two levels is a ramp. One walks at most half a level up or
+   * down; more down is a fall, more up a cliff.
+   */
+  heights?: number[]
+  /** A step here lasts this many minutes (times its ground's `cost`): the overworld's scale. Without it, a step is a body's own pace. */
+  scale?: number
+  /** Where the map lies on the overworld: the top left of its cell's block there (world-model.md §5.1). Its open edges lead to it. */
+  site?: { map: string; x: number; y: number; size: number }
   portals: Portal[]
   /** Render hints (the engine ignores them): prefab stamps, room wall frames, music, light. */
   stamps?: { key: string; x: number; y: number }[]
@@ -469,12 +699,15 @@ export interface MapData {
   anchors?: Record<string, [number, number]>
   /** Named areas [x, y, w, h] ('far_bank') for scenes and goals. */
   regions?: Record<string, [number, number, number, number]>
-  /** What the map yields by itself: things of `type` (items, or creatures) appear now and then on free tiles of these terrains, up to `max` on the map. */
+  /** What appears on the map by itself (world-model.md §6.9): the ground's yield, creatures that come back. */
+  appear?: AppearDef[]
+  /** Older chunks' name for `appear`, one type each (read when a chunk is decoded). */
   forage?: Forage[]
   /** Peaceful (towns, camps: nothing comes out at night) or combat (default: zombies and bats come out after dark, nightspawn.ts). */
   zone?: 'peaceful' | 'combat'
 }
 
+/** An older chunk's appearance (MapData.forage): one type. */
 export interface Forage {
   type: string
   on: string[]
@@ -518,8 +751,12 @@ export interface Recipe {
   id: string
   name: Text
   sprite: string
+  /** What it uses up: its makeup (the first part is the main ingredient, whose material it takes). */
   needs: { type: string; count: number }[]
   make: Omit<Entity, 'id' | 'place'>
+  /** Where it is made: `hands`, or a station within reach. */
+  station?: string
+  level?: number
 }
 
 export interface Portal {
@@ -531,38 +768,28 @@ export interface Portal {
   label?: Text
 }
 
-/** Mutable per-tile state layered on top of the map's base terrain. */
-export interface TileState {
-  terrain?: string // override
-  statuses?: Record<string, number>
-  statusBy?: Record<string, Id>
-}
-
 export interface WorldState {
   tick: number
   seed: number
   rng: number // PRNG state
   player: Id
+  /**
+   * Every thing that differs from static data: what was made, and the cell things of a map's static
+   * layers once changed (materialised under their derived id; one destroyed stays as a record with
+   * no place, so the static one does not come back) — world-model.md §4.6.
+   */
   entities: Record<Id, Entity>
   /** Loaded maps' base data (static) keyed by id. */
   maps: Record<string, MapData>
-  /** Tile overrides: `${map}:${x}:${y}` -> state. */
-  tiles: Record<string, TileState>
   /** Maps whose entity chunk has been merged into `entities`. */
   loadedMaps: string[]
   counter: number // id allocator
   /** Where the player respawns. */
   spawn: Pos
-  /** World facts (docs/game-design.md §8.1): `hearth.stage`, `bridge.east.fixed` … (the story's: only its rules change them) */
-  facts?: Record<string, PropValue>
-  topics?: Topic[]
-  /** What each person remembers about the player. */
-  memory?: Record<Id, NpcMemory>
-  scene?: SceneState
+  /** The engine's record of the broken invariants it has already reported (not world state: the detector's memory). */
+  reported?: string[]
   /** A yes/no question waiting for the player (Action: "Eat the apple?"); time stops while it is open. */
   question?: { text: Text; plan: Plan }
-  /** Spans of time whose weather the world fixes (the evening storm). */
-  weather?: WeatherSpan[]
   /** Maps the player is not on: frozen since a tick, with the events addressed to them (design.md §5.12). */
   dormant?: Record<string, { since: number; inbox: GameEvent[] }>
   /** Each host's relations (contact and containment) when last computed: `how|ref` keys. */
@@ -602,7 +829,8 @@ export interface Plan {
 export type Verb = 'use' | 'put' | 'take' | 'hands' | 'move' | 'craft' | 'learn'
 
 /** A reference to anything that can host or fill an event role: an entity or a map tile. */
-export type Ref = { e: Id } | { tile: Pos }
+/** The one reference form (world-model.md §4.6): every thing has an id; a thing of a map's cells has one derived from its place. */
+export type Ref = { e: Id }
 
 /**
  * The closed tree of event kinds. A rule answers a kind or a whole branch (`impulse` answers
@@ -654,6 +882,8 @@ export type Impulse = 'strike' | 'element' | 'coat' | 'restore' | 'push' | 'take
  * - stuck: `target` (what the activity needs, or the spot); broken: `target` (the giver).
  */
 export type RoleName = 'host' | 'actor' | 'target' | 'instrument' | 'other' | 'item' | 'source'
+/** What a condition may read: the event's roles, and the stewards every rule may read (the story, the world). */
+export type Reader = RoleName | 'story' | 'world'
 
 export interface GameEvent {
   kind: EventKind
@@ -680,9 +910,7 @@ export interface GameEvent {
 
 /** Selects the entity or tile filling a role. All given constraints must hold. */
 export interface Selector {
-  /** `tile`, `actor`, `item`, `fixture`, `resident`. */
-  kind?: EntityKind | 'tile' | 'resident'
-  /** Is-a match against the type hierarchy (prefix on slash paths). */
+  /** Is-a match against the type hierarchy (prefix on slash paths): `actor`, `item/food`, `tile/grass`… */
   type?: string
   /** All of these tags. */
   tags?: string[]
@@ -726,15 +954,14 @@ export type Cond =
   | { same: [RoleName, RoleName] }
   | { has: { role: RoleName; status?: string; tag?: string } }
   /** A role's prop compared to a value, or bounded by other numbers. A missing prop is false. */
-  | { prop: { role: RoleName; key: string; cmp?: Cmp; bounds?: Bounds } }
+  /** `default` is read when the prop is missing (a fact the story has not set reads 0 with `default: 0`). */
+  | { prop: { role: Reader; key: string; cmp?: Cmp; bounds?: Bounds; default?: PropValue } }
   /** An event parameter compared to a value (a missing parameter is false). */
   | { param: { key: string; cmp: Cmp } }
   | { chance: number }
   | { hour: { from: number; to: number } }
   /** How many entities (matching `match`) are in a role's contents, or on its tile besides itself. */
   | { count: { role: RoleName; in: 'contents' | 'tile'; match?: Selector; cmp: Bounds } }
-  /** A world fact compared to a value (a missing fact is 0 / false). */
-  | { fact: { key: string; cmp: Cmp } }
   /** Something that happened is still fresh. */
   | { topic: string }
   /** The weather now. */
@@ -743,8 +970,12 @@ export type Cond =
   | { exists: Selector }
   /** The host's map (the player's, for the story and the world) is out under the sky. */
   | { outdoors: true }
+  /** A role's type says what it is made of (it has a makeup). */
+  | { makeup: RoleName }
+  /** A role has a relation now (world-model.md §7): `on`, `support`, `in-region` … */
+  | { rel: { role: RoleName; how: string } }
 
-/** A position or holder relative to a role: its own place, or its tile. */
+/** A role, or the cell under it (`tileOf:`: the thing that makes up that cell on top — what fills it, roots in it, or the floor). */
 export type RoleRef = RoleName | 'tileOf:host' | 'tileOf:actor' | 'tileOf:target' | 'tileOf:instrument' | 'tileOf:other' | 'tileOf:item' | 'tileOf:source'
 
 export type Amount = number | { param: string; mul?: number; add?: number } | { prop: string; of: RoleName; mul?: number; add?: number }
@@ -757,8 +988,8 @@ export type EmitTo =
   | { named: Id }
   | { area: { at?: RoleRef; radius: number } }
   | { line: { from?: RoleRef; away: RoleRef; length: number; over?: string[] } }
-  /** Everything on the host's map (the world's weather). */
-  | { map: true }
+  /** Everything on the host's map (the world's weather); `sky`: only what is out under it (world-model.md §5.3). */
+  | { map: true; sky?: boolean }
 
 /**
  * The effect primitives. Every one writes only the host (design.md §5.6: read anything, write only
@@ -776,24 +1007,31 @@ export type Effect =
   | { op: 'addProp'; key: string; delta: Amount; min?: number; max?: Amount }
   | { op: 'addTag'; tag: string }
   | { op: 'removeTag'; tag: string }
-  | { op: 'hurt'; amount: Amount; element?: string; pierce?: boolean }
+  | { op: 'hurt'; amount: Amount; element?: string; pierce?: boolean; blow?: boolean }
+  /** The host breaks into what it is made of (its makeup × the recovery rate, in its material), spills what it holds, and is gone. */
+  | { op: 'breakdown'; still?: boolean }
+  /** The host (an actor) puts on what it is offered of its own (param item), or takes it off when it is on: one thing to a slot (world-model.md §6.8). */
+  | { op: 'wear' }
+  /** With nothing under it on its storey, the host drops to the first floor below (and is struck by the drop). */
+  | { op: 'fall' }
+  /** The host sleeps until it is time to rise (time passes at once for the one at the keys); it wakes with health back as its room gives (a bedroom's `rest`). */
+  | { op: 'sleep' }
   | { op: 'heal'; amount: Amount }
   | { op: 'feed'; amount: Amount }
   | { op: 'gainXp'; amount: Amount }
   | { op: 'foe' }
-  | { op: 'setTerrain'; terrain: string }
   | { op: 'open' }
   | { op: 'dropContents'; still?: boolean }
   | { op: 'goto'; anchor: string; hours: number; activity?: string }
-  | { op: 'setFact'; key: string; value: PropValue }
-  | { op: 'addFact'; key: string; delta: number }
   | { op: 'topic'; id: string; days?: number }
   /** The host (a person) is spoken to about quests: its business with the speaker goes to the story; else it says its line. */
   | { op: 'quest' }
   /** The story's: a quest's business (a word with its giver, a defeat) is settled (quests.ts). */
   | { op: 'quests' }
-  /** The world's: a creature of a weighted type appears out of sight around the player (nightfall). */
-  | { op: 'appear'; types: Record<string, number>; ring: [number, number]; cap: number; tag: string }
+  /** The world's: what appears by itself on the active map now (its own and the world's appearances), or the one given. */
+  | { op: 'appear'; what?: AppearDef }
+  /** The host's stage clock ran out (param status): it becomes what its stage says next (world-model.md §6.5). */
+  | { op: 'grow' }
   /** The host learns: the skill (param skill) or the profession (param profession) its act names. */
   | { op: 'learn' }
   /** The host's encounter skill lands on the cells its act telegraphed (bosses.ts). */
@@ -802,7 +1040,6 @@ export type Effect =
   | { op: 'panel'; panel: string }
   | { op: 'scene'; id: string }
   | { op: 'craft' }
-  | { op: 'forage' }
   | { op: 'lightning'; power: number }
   /** Send an impulse: `item` names the thing it carries (given, put, taken), `other` the role it names as the other side. */
   | { op: 'emit'; impulse: Impulse; to: EmitTo; params?: Record<string, PropValue | Amount | { typeOf: RoleName }>; item?: RoleName; other?: RoleName; chance?: number; filter?: Selector }
@@ -839,6 +1076,8 @@ export interface Scenario {
   ticks?: number
   /** Which entity key is the player (default: "actor"). */
   player?: string
+  /** What the things on top of some cells carry (statuses, props), at their place in the terrain rows. */
+  cells?: { x: number; y: number; statuses?: string[]; props?: Record<string, PropValue> }[]
   /** The event to replay. Roles refer to scenario entity keys or `tile:x,y`. */
   event: {
     kind?: EventKind

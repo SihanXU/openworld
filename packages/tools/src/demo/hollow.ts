@@ -2,9 +2,9 @@
 // dell full of small things to fight, and under it the Old Barrow, where the storm-lost foragers
 // of Firstlight Village are held by the dead. Both are combat zones; the barrow is dark.
 
-import type { AiData, Forage } from '@lsw/engine'
+import type { AiData, AppearDef } from '@lsw/engine'
 import { MapBuilder, rng } from './builder.ts'
-import { L, MATERIALS_FORAGE, lay } from './kit.ts'
+import { L, GROUND_YIELD, appears, lay } from './kit.ts'
 
 /** The forest's new southern gap (columns), the hollow's way in from it, and the hollow's way down to the barrow. */
 export const HOLLOW = { forestSouth: [12, 13, 14], north: [12, 13, 14], south: [26, 27, 28] } as const
@@ -19,7 +19,7 @@ export const HAT = {
 } as const satisfies Record<string, readonly [number, number]>
 
 const HUNT = (sight = 5): Omit<AiData, 'home'> => ({ behaviour: 'melee', temper: 'aggressive', sight, leash: 7 })
-const hunters = (type: string, max: number, every: number, on: string[]): Forage => ({ type, on, max, every, ai: HUNT() })
+const hunters = (type: string, max: number, every: number, on: string[]): AppearDef => appears(type, on, max, every, { ai: HUNT() })
 
 // =================================================================== Thornwood Hollow
 
@@ -47,8 +47,8 @@ export function buildHollow(): MapBuilder {
   for (const [x, y] of [[8, 9], [31, 11], [21, 19]] as const) m.creature('spider', x, y, HUNT(4))
   for (const [x, y] of [[33, 20], [6, 22]] as const) m.creature('beast/wolf', x, y, HUNT(5))
   lay(m, 'item/material/stick', 2, [15, 3, 8, 5])
-  m.forage = [
-    ...MATERIALS_FORAGE,
+  m.appear = [
+    ...GROUND_YIELD,
     hunters('actor/creature/slime/green_slime', 3, 900, ['grass', 'drygrass']),
     hunters('actor/creature/spider', 3, 1200, ['grass', 'drygrass']),
   ]
@@ -73,6 +73,6 @@ export function buildBarrow(): MapBuilder {
   m.creature('undead/warden', ...HAT.warden, { id: 'barrow.warden', ...HUNT(5), leash: 5 })
   m.anchor('cell.lina', ...HAT.lina)
   m.anchor('cell.oskar', ...HAT.oskar)
-  m.forage = [hunters('actor/creature/undead/skeleton', 2, 2400, ['floor_stone'])]
+  m.appear = [hunters('actor/creature/undead/skeleton', 2, 2400, ['floor_stone'])]
   return m
 }

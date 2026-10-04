@@ -2,7 +2,8 @@
 
 A web-playable 2D JRPG world whose state and rules are code; an LLM modder (later)
 patches undefined interactions at runtime. Successor to BardOS (`C:\Users\chica\文字游戏`).
-Design: [docs/design.md](docs/design.md). Paper draft lives in Notion ("Large Symbolic World").
+Design: [docs/design.md](docs/design.md); the agreed world model and base gameplay (not yet built,
+steps W1–W10): [docs/world-model.md](docs/world-model.md). Paper draft lives in Notion ("Large Symbolic World").
 
 ## Working agreements
 
@@ -27,14 +28,17 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 
 - `packages/engine` — pure, deterministic, no DOM/AI. World state + indices (`world.ts`),
   rule matching/specificity/library (`rules.ts`), effect primitives (`effects.ts`), event
-  dispatch + tick + movement + combat (`engine.ts`), NPC two-fidelity sim (`npc.ts`),
-  creatures (`creatures.ts`), locked-telegraph boss controllers (`bosses.ts`, docs/seven-sins.md), Mod port: ModSpec / ModRequest / validatePatch / records
+  dispatch + tick + movement + combat (`engine.ts`), one goal system for every actor (`behaviour.ts`:
+  goals in each type's order — encounter, threat, follow, schedule, home, idle; the people's goals and
+  their real work in `npc.ts`, the creatures' in `creatures.ts`, the sins' locked telegraphs in
+  `bosses.ts`, docs/seven-sins.md), Mod port: ModSpec / ModRequest / validatePatch / records
   (`mod.ts`), sandbox replay (`sandbox.ts`), snapshots for rendering (`snapshot.ts`),
   new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
-  lines, schedule variants with the thing an activity needs, topics (`people.ts`), scripted
-  scenes with regions and cards (`scenes.ts`, the story's script: it writes only the story and
-  sends pushes and notices; the tutorial's beats are its script too); facts and invariants live in
-  the world state and the engine; events, relations (contact from the relation difference),
+  lines, schedule variants with the thing an activity needs, topics (`people.ts`), the story's one
+  script (`story.ts`, world-model.md §6.12: steps with triggers — a scene takes control, a beat does
+  not — that write only the story and send pushes and notices; guides and hints); the state is things and the
+  clock (world-model.md §3): facts and topics are the story's props, memories each person's,
+  a map's named areas are `region` things (`in-region`); invariants live in the engine; events, relations (contact from the relation difference),
   active/dormant maps and the writer (`World.grant`: the mutators throw outside an outcome, the
   clock, loading, the input's posture and the author, and in an outcome beyond its host —
   design.md §5.15; `tools/test/writes.test.ts` scans for writes behind them) in `engine.ts`/`world.ts`; the request, one question per hole and class, the
@@ -42,8 +46,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   the player's four
   inputs (E hands, F take, left click use, right click put), layers, slots and magnet
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
-  (`controls.ts`), what the ground yields by itself (`forage.ts`), experience and levels (`progression.ts`), hunger (`hunger.ts`); companions that follow a
-  leader and the tutorial's beats (`companion.ts`), waypoint stones (`waypoints.ts`) — docs/prologue.md.
+  (`controls.ts`), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`), hunger (`hunger.ts`); companions that follow a
+  leader (`companion.ts`), waypoint stones (`waypoints.ts`) — docs/prologue.md.
 - `packages/content` — ontology (terrains, statuses, elements, types), item catalogue
   (forms × materials × qualities × elements), crafting recipes (`recipes.ts`), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
   story rules, objectives and invariants (`ford.ts`), the prologue's objectives and beats (`prologue.ts`), the main quest's rules and objectives (`quest.ts`,
@@ -84,6 +88,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
     `tools/src/engine-tasks.ts` + `tools/tasks/engine/<id>/`; one outer-loop turn is `tools/src/improve.ts`.
 - RSI design changes (what the outer loop may change, how it is judged, the benchmark interface)
   are discussed with the user before they are coded.
+- Game mechanics are designed reference-first: read how Elin (installed; decompile
+  `Elin_Data/Managed/Elin.dll` with `ilspycmd` into the scratchpad) and other games built it,
+  then adapt to our principles; invent only where no game has a model.
 - The model is Kimi K3 via OpenRouter, with the key in the gitignored `.env`. Anthropic, Google and OpenAI
   return 403 from here. Never hard-code a provider; tests use `ScriptedModel`. A second backend,
   `claude-code`, calls `claude -p` signed in as the user (Opus 5.5, effort low by default; `ClaudeCodeModel`).

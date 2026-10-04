@@ -54,14 +54,15 @@ barrow warden; Lina and Oskar in the side cells). `tools/src/demo/hollow.ts`.
 Lina and Oskar wait in the barrow until found, then live in the village. Bram, the profession
 trainer (docs/skill-tree.md), and Tobin, the peddler, are there too.
 
-## Peaceful and combat zones (`engine/src/nightspawn.ts`)
+## Peaceful and combat zones (`engine/src/appear.ts`)
 
 Every map is a combat zone unless marked peaceful (`MapData.zone`): the Ford's camp, Firstlight
 Village, Emberfall and the mountaintop are peaceful. At night (21:00–05:00), in a combat zone
 under the open sky, zombies and bats come out 6–10 tiles from the player, every 6 seconds, up to
 4 at a time; at dawn they crumble a few at a time. The minimap shows the zone. It is the world's:
-its `night` period's rule (`world/clocks`) makes them `appear` (tagged `nightborn`), and their own
-rule on the `dawn` period (`night/dawn`) crumbles them in daylight.
+one of its appearances (`Ontology.appear`, world-model.md §6.9: combat zones out of doors) makes
+them appear on its `appear` period (tagged `nightborn`), and their own rule on the `dawn` period
+(`night/dawn`) crumbles them in daylight.
 
 ## Tests
 

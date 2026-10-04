@@ -10,14 +10,14 @@ const onto = buildOntology()
 const TICKS_PER_DAY = 24 * 600
 
 /** A row of terrain along y = 1 and the player at (2,2) facing up, holding `held`. */
-function grove(row: string[], held: string): Engine {
+function grove(row: string[], held: string | undefined): Engine {
   const rows = [Array(row.length).fill('grass'), row, Array(row.length).fill('grass')]
   const eng = buildSandbox(
     {
       terrain: rows,
       entities: [
         { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
-        { key: 'held', type: held, x: 2, y: 2, heldBy: 'actor' },
+        ...(held ? [{ key: 'held', type: held, x: 2, y: 2, heldBy: 'actor' }] : []),
       ],
       event: {},
     },
@@ -31,7 +31,7 @@ function grove(row: string[], held: string): Engine {
 const terrain = (eng: Engine, x: number, y = 1) => eng.world.terrainAt('sandbox', x, y)
 const itemsAt = (eng: Engine, x: number, y = 1) =>
   eng.world
-    .entitiesAt('sandbox', x, y)
+    .placedAt('sandbox', x, y)
     .map((e) => e.type)
     .sort()
 /** The player walks to (x,2) (an act of moving; teleporting keeps the test about the rules), still facing up. */
@@ -58,9 +58,10 @@ function press(eng: Engine, key: Key, on?: string): string[] {
 describe('woodcutting', () => {
   it('turns one tree into four planks', () => {
     const eng = grove(['grass', 'grass', 'tree', 'grass', 'grass'], 'item/weapon/blade/axe')
-    expect(press(eng, 'use')).toEqual(expect.arrayContaining(['use/blade', 'wood/fell']))
+    // the first blow bites (durability, and a notch to show it); the second fells it
+    expect(press(eng, 'use')).toEqual(['use/blade', 'wood/notch'])
     expect(terrain(eng, 2)).toBe('tree')
-    expect(eng.world.hasStatus({ tile: { map: 'sandbox', x: 2, y: 1 } }, 'notched')).toBe(true)
+    expect(eng.world.hasStatus(eng.world.cellRef('sandbox', 2, 1), 'notched')).toBe(true)
     expect(press(eng, 'use')).toContain('wood/fell')
     expect(terrain(eng, 2)).toBe('stump')
     expect(itemsAt(eng, 2).filter((t) => t !== 'item/seed/acorn')).toEqual(['item/material/log', 'item/material/log', 'item/material/stick'])
@@ -77,12 +78,12 @@ describe('woodcutting', () => {
 
   it('a notch heals if the tree is left alone', () => {
     const eng = grove(['grass', 'grass', 'pine', 'grass', 'grass'], 'item/weapon/blade/axe')
-    const pine = { tile: { map: 'sandbox', x: 2, y: 1 } }
+    const pine = eng.world.cellRef('sandbox', 2, 1)
     press(eng, 'use')
     expect(eng.world.hasStatus(pine, 'notched')).toBe(true)
     for (let i = 0; i < 101; i++) eng.tick()
     expect(eng.world.hasStatus(pine, 'notched')).toBe(false)
-    expect(press(eng, 'use')).toContain('wood/fell')
+    expect(press(eng, 'use')).toContain('wood/notch')
     expect(terrain(eng, 2)).toBe('pine') // notched again, not felled
     expect(eng.world.hasStatus(pine, 'notched')).toBe(true)
   })
@@ -104,12 +105,13 @@ describe('woodcutting', () => {
     standAt(eng, 1)
     // the logs lie on the stump: the chooser picks the ground under them
     expect(press(eng, 'use', 'tile/stump')).toEqual(expect.arrayContaining(['use/shovel', 'wood/uproot']))
-    expect(terrain(eng, 1)).toBe('dirt')
+    // the stump is gone: the ground it stood on shows
+    expect(terrain(eng, 1)).toBe('grass')
     standAt(eng, 4)
     days(eng, 1)
     expect(terrain(eng, 0)).toBe('stump')
     days(eng, 1)
-    expect([0, 1, 2, 3, 4].map((x) => terrain(eng, x))).toEqual(['tree', 'dirt', 'tree', 'tree', 'tree'])
+    expect([0, 1, 2, 3, 4].map((x) => terrain(eng, x))).toEqual(['tree', 'grass', 'tree', 'tree', 'tree'])
   })
 
   it('does not grow a tree around someone standing on the stump', () => {
@@ -125,19 +127,28 @@ describe('woodcutting', () => {
     expect(terrain(eng, 2)).toBe('tree')
   })
 
-  it('breaks a charred tree down to coal and ash', () => {
+  it('breaks a charred tree down to coal', () => {
     const eng = grove(['grass', 'grass', 'charred_tree', 'grass', 'grass'], 'item/weapon/blade/axe')
     expect(press(eng, 'use')).toContain('wood/char')
-    expect(terrain(eng, 2)).toBe('ash')
+    expect(terrain(eng, 2)).toBe('grass')
     expect(itemsAt(eng, 2)).toEqual(['item/material/coal'])
   })
 
-  it('a plain axe blow on a stump is undefined: the AI answers, nothing happens meanwhile', () => {
+  it('a plain axe blow on a stump breaks it: what it is made of comes back, at the recovery rate (world-model.md §6.3)', () => {
     const eng = grove(['grass', 'grass', 'stump', 'grass', 'grass'], 'item/weapon/blade/axe')
     const plan = eng.controls.plan('use')!
-    expect(plan.unknown).toBe(true)
-    press(eng, 'use')
-    expect(eng.trace.some((t) => !t.defined && t.rule === 'core/strike')).toBe(true)
-    expect(terrain(eng, 2)).toBe('stump')
+    expect(plan.unknown).toBeFalsy()
+    expect(press(eng, 'use')).toEqual(expect.arrayContaining(['core/strike', 'core/break']))
+    expect(terrain(eng, 2)).toBe('grass')
+    expect(itemsAt(eng, 2)).toEqual(['item/material/log'])
+  })
+
+  it('bare hands on a tree: too hard, and nothing is asked', () => {
+    const eng = grove(['grass', 'grass', 'tree', 'grass', 'grass'], undefined)
+    eng.trace.length = 0
+    eng.act('use', 'actor', eng.world.cellRef('sandbox', 2, 1), { instrument: null, params: { attack: true } })
+    expect(eng.trace.filter((t) => !t.defined)).toEqual([])
+    expect(eng.world.fx.some((f) => f.t === 'log' && (f.text as { en: string }).en === 'Too hard.')).toBe(true)
+    expect(terrain(eng, 2)).toBe('tree')
   })
 })

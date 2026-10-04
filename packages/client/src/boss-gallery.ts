@@ -66,7 +66,7 @@ function render(): void {
 function reset(): void {
   if (!index || !raw || !ready) return
   const settings = structuredClone(index)
-  Object.assign(settings, { start: { map: 'eastroad', x: 23, y: 19 }, npcs: [], companions: [], scenes: [], beats: [], quests: [], invariants: [], waypoints: [], startHour: 12 })
+  Object.assign(settings, { start: { map: 'eastroad', x: 23, y: 19 }, npcs: [], companions: [], steps: [], quests: [], invariants: [], waypoints: [], startHour: 12 })
   settings.player.place = { on: 'tile', ...settings.start }
   settings.player.facing = 'up'
   settings.player.props = { ...settings.player.props, hp: 200, maxHp: 200, maxHunger: 0, def: 0, atk: 8, prologue: PROLOGUE_DONE }
@@ -75,7 +75,7 @@ function reset(): void {
   // Real East Road terrain and scenery, one isolated boss for readable review.
   chunk.entities = chunk.entities.filter((e) => !e.type.startsWith('actor/creature'))
   chunk.entities.push(createBoss(select.value, FIRST_BOSS, FIRST_BOSS.id))
-  chunk.map.forage = []
+  chunk.map.appear = []
   if (!challenge) game.loadChunk(chunk)
   scene.setMap(game.engine.world.map(FIRST_BOSS.map)!)
   finished = false; startedAt = game.engine.world.state.tick

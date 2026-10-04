@@ -1,17 +1,16 @@
 // The main quest's scenes (docs/main-quest.md): the burned farm on the road, the arrival in
 // Emberfall, the elder's council, the village's send-off, the lair's mouth and the victory.
 
-import type { SceneDef } from '@lsw/engine'
+import type { StepDef } from '@lsw/engine'
 import { L } from '../kit.ts'
 
 const say = (who: string, en: string, zh: string, mood?: 'neutral' | 'happy' | 'sad' | 'angry' | 'surprised' | 'shy') => ({ say: who, text: L(en, zh), ...(mood && { mood }) })
 
-export const QUEST_SCENES: SceneDef[] = [
+export const QUEST_SCENES: StepDef[] = [
   {
     // Chapter 2: the dragon's mark on the road.
     id: 'burned_farm',
-    map: 'eastroad',
-    when: { region: 'farmstead' },
+    when: { map: 'eastroad', region: 'farmstead' },
     script: [
       say('player', '(Everything here burned — the hay, the orchard, the hen house. The house alone still stands.)', '（这里的一切都烧光了——干草、果园、鸡舍。只剩那座房子还立着。）'),
       say('player', '(Marks in the ash, each longer than my arm. Claws.)', '（灰烬里有印子，每一道都比我的胳膊还长。是爪痕。）', 'surprised'),
@@ -21,8 +20,7 @@ export const QUEST_SCENES: SceneDef[] = [
   {
     // Chapter 3 begins: the road comes into Emberfall.
     id: 'emberfall_arrival',
-    map: 'emberfall',
-    when: { region: 'gate' },
+    when: { map: 'emberfall', region: 'gate' },
     script: [
       say('player', '(Emberfall. Half its roofs are new thatch; the rest are still black.)', '（余烬镇。一半的屋顶是新铺的茅草，另一半还是黑的。）'),
       { prop: 'quest', value: 3 },
@@ -31,7 +29,7 @@ export const QUEST_SCENES: SceneDef[] = [
   {
     // The elder's council: what burns the hills, and what it will take (played by mq/elder-council).
     id: 'council',
-    map: 'emberfall',
+    when: { map: 'emberfall' },
     manual: true,
     script: [
       { face: 'npc.mara', dir: 'down' },
@@ -48,8 +46,7 @@ export const QUEST_SCENES: SceneDef[] = [
   {
     // Chapter 5: armed and fireproof, the village sends you up the pass.
     id: 'ready',
-    map: 'emberfall',
-    when: { facts: { 'mq.blade': 1, 'mq.draught': 1 } },
+    when: { map: 'emberfall', facts: { 'mq.blade': 1, 'mq.draught': 1 } },
     script: [
       say('player', '(Dragonsbane at my side, the draughts in my pack. The pass east of the village climbs to Cinder Peak.)', '（屠龙剑在身侧，药剂在行囊里。镇东的山道一直通到烬峰。）'),
       { prop: 'quest', value: 5 },
@@ -58,8 +55,7 @@ export const QUEST_SCENES: SceneDef[] = [
   {
     // Chapter 6: the lair's mouth; the dragon wakes.
     id: 'lair_gate',
-    map: 'lair',
-    when: { region: 'mouth' },
+    when: { map: 'lair', region: 'mouth' },
     script: [
       say('player', '(Heat, and the smell of scorched stone. Something vast breathes in the dark.)', '（一股热浪，还有烧焦石头的气味。有个庞然大物在黑暗里呼吸。）', 'surprised'),
       { prop: 'quest', value: 6 },
@@ -68,7 +64,7 @@ export const QUEST_SCENES: SceneDef[] = [
   {
     // The end (played by mq/dragon-slain).
     id: 'victory',
-    map: 'lair',
+    when: { map: 'lair' },
     manual: true,
     script: [
       { wait: 20 },

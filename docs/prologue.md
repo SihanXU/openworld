@@ -34,12 +34,13 @@ game:
   goes down, it is not gone) it cannot follow, and says so: a `stuck` event (activity
   `follow`, target its leader) at most once an hour, whose outcome is undefined — the AI says
   what becomes of a guide that cannot guide; with no answer it waits, comes to, and follows again.
-- **Beats** (`WorldIndex.beats`): once-firing, non-blocking steps of the tutorial. Each has a
-  condition (facts, the leader's props, skills, what they carry, the map, a region) and, when it
-  first holds, the story's script runs (like a scene's): the story keeps the beat (`beat.<id>`,
-  `beat.last`) and its facts, tells the leader its new stage (`notify` what = `prologue`, which
-  the leader keeps itself: `body/stage`), and the bird says one line in a bubble. Beats are
-  content; the engine only evaluates them (`engine/src/companion.ts`).
+- **Beats**: once-firing, non-blocking steps of the story's one script (`WorldIndex.steps`,
+  world-model.md §6.12). Each has a trigger (facts, the leader's props, skills, what they carry,
+  the map, a region — a region looked at when the leader enters it) and, when it first holds, it
+  plays: the story keeps it (`seen.<id>`, `step.last`) and its facts, tells the leader its new
+  stage (`notify` what = `prologue`, which the leader keeps itself: `body/stage`), and the bird
+  says one line in a bubble. Beats are content; the engine only evaluates them
+  (`engine/src/story.ts`).
 - **E on the bird** repeats the line of the stage you are at (`@hint`).
 
 ## The map system
@@ -77,7 +78,7 @@ game:
 | 9 | (done) Down to the Ford | — |
 
 Status: **built** (2026-10-02). `content/src/prologue.ts` (objectives, beats, the meal rule),
-`tools/src/demo/prologue.ts` (the maps), `engine/src/companion.ts`, `engine/src/waypoints.ts`,
+`tools/src/demo/prologue.ts` (the maps), `engine/src/companion.ts`, `engine/src/story.ts`, `engine/src/waypoints.ts`,
 `client/src/ui/worldmap.ts`. Whatever the player skips, reaching the Ford ends the prologue.
 Invariants wait until their giver's map is loaded (the Ford's content is not in play while the
 player is on the mountain).

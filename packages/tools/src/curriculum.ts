@@ -44,7 +44,7 @@ export function cellRequest(cell: Cell, onto: Ontology, lib: RuleLibrary): ModRe
   const sc: Scenario = { terrain, entities: small.entities.map((e) => ({ ...e, x: e.x + SHIFT.x, y: e.y + SHIFT.y })), event: {} }
   const eng = buildSandbox(sc, onto, lib.clone())
   const port = new ModPort(eng)
-  const ref = key.startsWith('tile:') ? { tile: { map: 'sandbox', x: FRONT.x + SHIFT.x, y: FRONT.y + SHIFT.y } } : { e: key }
+  const ref = key.startsWith('tile:') ? eng.world.cellRef('sandbox', FRONT.x + SHIFT.x, FRONT.y + SHIFT.y) : { e: key }
   eng.act(cell.verb, 'actor', ref, { instrument: cell.hand ? { e: 'held' } : null })
   return port.records[0]?.request
 }

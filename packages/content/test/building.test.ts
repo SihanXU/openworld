@@ -61,8 +61,8 @@ function press(eng: Engine, key: Key, type?: string): Pressed {
   }
 }
 
-const here = (eng: Engine) => eng.world.entitiesAt(FRONT.map, FRONT.x, FRONT.y)
-const fixture = (eng: Engine) => here(eng).find((e) => eng.world.kindOf(e) === 'fixture')
+const here = (eng: Engine) => eng.world.placedAt(FRONT.map, FRONT.x, FRONT.y)
+const fixture = (eng: Engine) => here(eng).find((e) => !eng.world.isAgent(e) && !eng.world.isPortable(e))
 const count = (eng: Engine, type: string) => here(eng).filter((e) => e.type === type).length
 const said = (eng: Engine) => eng.world.fx.flatMap((f) => (f.t === 'say' || f.t === 'log' ? [textOf(f.text)] : []))
 const heldType = (eng: Engine) => eng.world.get(eng.world.player.held)?.type
@@ -119,7 +119,7 @@ describe('a chest from a frame', () => {
     expect(count(eng, PLANK)).toBe(3)
   })
 
-  it('an axe breaks up a chest: its contents spill and two planks come back; a locked one resists', () => {
+  it('an axe breaks up a chest: its contents spill and two planks come back; a locked one is not taken apart, only worn', () => {
     const eng = site([PLANK])
     press(eng, 'put', PLANK)
     press(eng, 'put', PLANK)
@@ -144,11 +144,13 @@ describe('a chest from a frame', () => {
       new RuleLibrary(BASE_RULES),
     )
     locked.world.get('actor')!.facing = 'up'
-    // a plain blow on a locked chest is no rule's: undefined (the AI answers), nothing meanwhile
+    // a locked chest is not taken apart: a blow on it only wears it (its durability, world-model.md §6.3)
     const r = press(locked, 'use', AXE)
     expect(r.rules).not.toContain('build/dismantle-chest')
-    expect(r.holes).toContain('core/strike')
-    expect(locked.world.get('chest')).toBeDefined()
+    expect(r.rules).toContain('core/strike')
+    expect(r.holes).toEqual([])
+    const chest = locked.world.get('chest')!
+    expect(locked.world.num(chest, 'hp')).toBeLessThan(locked.world.num(chest, 'maxHp'))
   })
 })
 

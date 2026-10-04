@@ -9,9 +9,9 @@ import { EVENT_KINDS } from './types.ts'
 import { PRIMITIVES, RESIDENT_ONLY } from './effects.ts'
 import type { Engine, Resolution, UndefinedSink } from './engine.ts'
 import { STORY, textOf } from './engine.ts'
-import { OntologyIndex, isA } from './ontology.ts'
+import { OntologyIndex, isA, withTerrainTypes } from './ontology.ts'
 import { RuleLibrary, cmp, compareSpec, isDo, isHole, leaves, rolesOf, specOf } from './rules.ts'
-import { checkExpectations, replay } from './sandbox.ts'
+import { REPEAT_TIMES, checkExpectations, endlessYield, replay, scenarioEvent } from './sandbox.ts'
 import type { Cmp, Cond, Effect, EmitTo, GameEvent, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tree, TypeDef } from './types.ts'
 import { RECENT_LINES, type View } from './world.ts'
 
@@ -34,12 +34,14 @@ export interface EntityInfo {
   role: string
   id?: string
   name: string
-  kind: string
   type: string
   typeChain: string[]
   tags: string[]
   statuses: string[]
   props: Record<string, unknown>
+  /** What it is made of (its material's category and hardness), and what it leaves when it breaks (world-model.md §8.1). */
+  material?: { id: string; category: string; hardness: number }
+  makeup?: { type: string; count: number; chance?: number }[]
   /** Offset from the host's tile. */
   at?: [number, number]
 }
@@ -81,7 +83,7 @@ export interface ModSpec {
   primitives: Record<string, string>
   expectations: string[]
   ontology: {
-    types: { id: string; kind: string; tags: string[]; name?: string }[]
+    types: { id: string; tags: string[]; name?: string }[]
     statuses: { id: string; duration?: number; immobilize?: boolean; moveDelay?: number; clears?: string[] }[]
     terrains: { id: string; tags: string[]; solid?: boolean; liquid?: boolean }[]
     elements: string[]
@@ -178,6 +180,8 @@ const AUTHORING_RULES = [
   'Give the player feedback: a `vfx` and/or a `say`/`log` line, so the outcome is visible.',
   'Name slots ({actor}, {target}, {host}, …) read "you" when they are the player: write lines that read right either way — no verb or possessive straight after a slot ("a warm glow mends {target}", not "{actor} holds" or "{target}\'s wounds").',
   'Keep emissions local and bounded: an area radius of at most 3, and a chance below 1 when it could cascade.',
+  'A yield must cost its host (world-model.md §8.4): what someone can do again at will (an act, what it sets off) may not keep making things from a host that is neither changed nor used up — the validator replays the triggering event 12 times with no time between, and refuses an endless yield. Change the host (a status that gates the yield and runs out, its durability, its type) or use it up.',
+  'Things with durability (props.maxHp) already lose it to blows and fire, and break into their makeup: a blow on a tree, rock or a wall is defined. A new type that can break names props.material and what it leaves (makeup [{type, count}] or a rule of its own on threshold/cross "broken").',
   'An act hosted by an instrument that consumes or changes it says so: `destroy` or `transform` the host.',
   'Outcomes the world started by itself (origin "world") happen without the player asking: keep them small and legible, never harm a person, never touch the story\'s facts, and let people react with say/emote, a notice to the story (a topic), or goto.',
 ]
@@ -191,12 +195,12 @@ const EVENTS: Record<string, string> = {
   'act/craft': 'an actor crafts the recipe of param recipe from what it carries.',
   'act/learn': 'an actor learns what it names: param skill (spending skill points) or param profession (at a trainer).',
   'impulse/*': 'something was done to the host by another (source = the emitter; actor = whose act started it; instrument; item). See `impulses` for each kind and its params.',
-  'contact/begin|stay|end': 'the host and other start, keep, or stop touching. Param how, from the host\'s side: on (I stand on other), under (other stands on me), in (I am inside other), contains (other is inside me), held (I am in other\'s hand), holds (other is in my hand). Only where a stance (ground, air, water) meets a reach: a flyer never touches lava.',
+  'contact/begin|stay|end': 'the host and other start, keep, or stop touching. Param how, from the host\'s side: on (I stand on other), under (other stands on me), in (I am inside other), contains (other is inside me), held (I am in other\'s hand), holds (other is in my hand), in-region (I stand in the region other: a named area of a map, type region, or a room, region/room, found where cells are walled round and covered), encloses (other stands in me, a region). Only where a stance (ground, air, water) meets a reach: a flyer never touches lava.',
   bump: 'the host and other collided: a step into something solid (param dir).',
-  'time/period': 'a clock ticked for the host: param status (every 0.5 s while it has that status, or at the pace the status sets; actor: who gave it) or name (a declared period: hunger, vitals, forage, weather, storm, night, dawn).',
+  'time/period': 'a clock ticked for the host: param status (every 0.5 s while it has that status, or at the pace the status sets; actor: who gave it) or name (a declared period: hunger, vitals, appear, weather, storm, dawn).',
   'time/timer': 'a status ran out on the host (param status; actor: who gave it).',
   'threshold/gain|lose': 'the host gained or lost a status (param status).',
-  'threshold/cross': 'a prop of the host came to a declared line (param name: defeated at hp 0, starving at hunger 0; param prop).',
+  'threshold/cross': 'a prop of the host came to a declared line (param name: broken at hp 0 — for every thing with durability: a person goes down, a tree falls, a rock breaks into its makeup — starving at hunger 0; param prop).',
   seen: 'the host (an actor) saw someone act: roles actor (the doer), target, instrument; params act (the verb), owner (mine | another | nobody: whose the target was before), defined (the world had an answer for the act and all it set going).',
   stuck: 'the host cannot go on with what it does (param activity): the day of a person — target is what it needs (gone, or not as it must be), or the spot they cannot reach; a companion that cannot follow (activity follow) — target is its leader.',
   broken: 'the story: content it must keep playable broke (param invariant; target the person it belongs to). The default is the invariant\'s fallback.',
@@ -245,8 +249,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       note: 'patches may not contain undefined leaves',
     },
     selector: {
-      kind: 'actor | item | fixture | tile | resident (the story, the world)',
-      type: 'is-a match on the slash-path type hierarchy (prefix)',
+      type: 'is-a match on the slash-path type hierarchy (prefix): everything is one tree of things — actor (agents, with bodies), item (portable), fixture, tile/<terrain>, resident/story, resident/world. There are no kinds.',
       tags: 'all of these tags',
       notTags: 'none of these tags',
       status: 'all of these statuses',
@@ -260,16 +263,17 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       '{none: role} — a role is empty (an empty hand)',
       '{same:[roleA, roleB]} — the same thing (food used on oneself: same [actor, target])',
       '{has:{role, status?, tag?}}',
-      '{prop:{role, key, cmp?, bounds?}} — bounds: {eq|gt|gte|lt|lte: number | {prop, of: role, mul?} | {param, mul?}}',
+      "{prop:{role, key, cmp?, bounds?, default?}} — role may also be story or world (anyone may read them; the story's facts are its props: {prop:{role:'story', key:'mq.ore', cmp:{gte:5}, default:0}}); default is read when the prop is missing. bounds: {eq|gt|gte|lt|lte: number | {prop, of: role, mul?} | {param, mul?}}",
       '{param:{key, cmp}} — an event parameter (element, how, edge, verb, status, name, …)',
       '{chance:p}',
       '{hour:{from,to}}',
       "{count:{role, in: contents|tile, match?: Selector, cmp: Bounds}} — how many things are in a role's contents (or on its tile besides itself)",
-      '{fact:{key, cmp}} — a world fact (missing = 0)',
       '{topic:id} — something that happened is still fresh',
       '{weather:[sun|cloud|rain|storm|fog]} — the weather now',
       '{exists: Selector} — something matching it exists anywhere in the world',
       '{outdoors:true} — the host is out under the sky',
+      "{makeup: role} — the role's type says what it is made of (its makeup: what it leaves when it breaks)",
+      "{rel: {role, how}} — the role has that relation now: on (stands on something), support (something holds it up), in-region …",
     ],
     events: EVENTS,
     impulses: IMPULSES,
@@ -281,7 +285,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
     ],
     ontology: {
       // without types: the model is shown the request's own types (the brief) and asks for the rest (the router)
-      types: opts.types === false ? [] : Object.values(types).map((t) => ({ id: t.id, kind: t.kind, tags: t.tags ?? [], name: t.name ? textOf(t.name) : undefined })),
+      types: opts.types === false ? [] : Object.values(types).map((t) => ({ id: t.id, tags: t.tags ?? [], name: t.name ? textOf(t.name) : undefined })),
       statuses: Object.values(statuses).map((s) => ({ id: s.id, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears })),
       terrains: Object.values(onto.terrains).map((t) => ({ id: t.id, tags: t.tags ?? [], solid: t.solid, liquid: t.liquid })),
       elements: onto.elements,
@@ -302,7 +306,6 @@ export function signatureOf(eng: Engine, ev: GameEvent, res?: Resolution): strin
   const w = eng.world
   const kind = (r: Ref | undefined): string => {
     if (!r) return '-'
-    if ('tile' in r) return `tile:${w.terrainAt(r.tile.map, r.tile.x, r.tile.y)}`
     const e = w.get(r.e)
     if (!e) return '?'
     return e.type
@@ -379,7 +382,7 @@ export class ModPort implements UndefinedSink {
     // they are at work on it (no other act, no step) until the patch or the default comes
     for (const r of [ev.host, ...Object.values(ev.roles), ...(ev.cause ? [{ e: ev.cause }] : [])]) {
       const e = r && 'e' in r ? w.get(r.e) : undefined
-      if (e && w.kindOf(e) !== 'resident') e.frozenBy = rec.id
+      if (e && !w.isPlaceless(e)) e.frozenBy = rec.id
     }
     this.ask(rec)
     return true
@@ -620,17 +623,18 @@ function info(eng: Engine, role: string, v: View | undefined, origin?: { x: numb
   if (!v) return undefined
   const w = eng.world
   const p = w.refPos(v.ref)
-  const chain = v.kind === 'tile' ? [v.type] : w.onto.resolve(v.type).chain
+  const chain = w.onto.resolve(v.type).chain
   return {
     role,
     id: v.id,
     name: eng.nameOf(v.ref),
-    kind: v.kind,
     type: v.type,
     typeChain: chain,
     tags: [...v.tags],
     statuses: [...v.statuses],
     props: v.props,
+    material: v.entity && w.materialOf(v.entity),
+    makeup: w.onto.resolve(v.type).makeup,
     at: p && origin ? [p.x - origin.x, p.y - origin.y] : undefined,
   }
 }
@@ -674,8 +678,9 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
       const x = center.x + dx
       const y = center.y + dy
       row.push(w.terrainAt(center.map, x, y))
-      const st = w.tileState(center.map, x, y)?.statuses
-      if (st && Object.keys(st).length) tileStatuses.push({ at: [dx, dy], statuses: Object.keys(st) })
+      // what the things that make up the cell carry
+      const st = w.entitiesAt(center.map, x, y).filter((c) => w.isTerrain(c)).flatMap((c) => Object.keys(c.statuses ?? {}))
+      if (st.length) tileStatuses.push({ at: [dx, dy], statuses: st })
     }
     tiles.push(row)
   }
@@ -684,7 +689,8 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
   for (let dy = -2; dy <= 2; dy++)
     for (let dx = -2; dx <= 2; dx++)
       for (const e of w.entitiesAt(center.map, center.x + dx, center.y + dy)) {
-        if (involved.has(e.id) || nearby.some((x) => x.id === e.id)) continue
+        // the cells themselves are the tiles' rows; nearby is what stands or lies there
+        if (w.isTerrain(e) || involved.has(e.id) || nearby.some((x) => x.id === e.id)) continue
         const i = info(eng, 'nearby', w.view({ e: e.id }), center)
         if (i) nearby.push(i)
       }
@@ -727,7 +733,7 @@ function detailOf(eng: Engine, ev: GameEvent): string | undefined {
     const s = p?.npc?.person?.schedules?.flatMap((v) => v.entries).find((x) => x.activity === ev.params?.activity)
     // behaviour that is not a day (a companion following): what holds the host back is its own state
     if (!s) return `${n(ev.host)} cannot go on with "${ev.params?.activity}" (${n(ev.roles.target)}): it is ${Object.keys(p?.statuses ?? {}).join(', ') || 'held fast'}`
-    return `${n(ev.host)} wants to "${ev.params?.activity}" but ${ev.roles.target && 'tile' in ev.roles.target ? 'cannot reach the spot' : `${n(ev.roles.target)} is not as it must be${s?.need ? ` (${JSON.stringify(s.need)})` : ''}`}`
+    return `${n(ev.host)} wants to "${ev.params?.activity}" but ${ev.roles.target && w.get(ev.roles.target.e) && w.isTerrain(w.get(ev.roles.target.e)!) ? 'cannot reach the spot' : `${n(ev.roles.target)} is not as it must be${s?.need ? ` (${JSON.stringify(s.need)})` : ''}`}`
   }
   return undefined
 }
@@ -749,9 +755,17 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
   }
   const entities: ScenarioEntity[] = []
   const keyOf = new Map<string, string>()
+  // a kept cell thing's own state (a notched tree, a wet floor): its cell carries it
+  const cells: NonNullable<Scenario['cells']> = []
+  for (let y = 0; y <= 2 * WINDOW; y++)
+    for (let x = 0; x <= 2 * WINDOW; x++) {
+      const top = w.cellTop(center.map, ox + x, oy + y)
+      if (top && !w.isStatic(top) && (top.statuses || top.props)) cells.push({ x, y, statuses: top.statuses && Object.keys(top.statuses), props: top.props && { ...top.props } })
+    }
   const addEntity = (id: string, key: string) => {
     const e = w.get(id)
-    if (!e || keyOf.has(id) || w.kindOf(e) === 'resident') return
+    // what makes up a cell comes with the terrain rows
+    if (!e || keyOf.has(id) || w.isPlaceless(e) || w.isTerrain(e)) return
     const p = w.posOf(e)
     if (!p) return
     keyOf.set(id, key)
@@ -775,10 +789,13 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
   }
   const roleKey = (r: Ref | undefined, key: string): string | undefined => {
     if (!r) return undefined
-    if ('tile' in r) return `tile:${r.tile.x - ox},${r.tile.y - oy}`
     const e = w.get(r.e)
     if (!e) return undefined
-    if (w.kindOf(e) === 'resident') return e.id
+    if (w.isTerrain(e)) {
+      const p = w.posOf(e)
+      return p && `tile:${p.x - ox},${p.y - oy}`
+    }
+    if (w.isPlaceless(e)) return e.id
     // make sure holders come first so held/inside links resolve
     if (e.place.on === 'hand' || e.place.on === 'inside') {
       const h = e.place.holder
@@ -798,7 +815,7 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
     for (let x = 0; x <= 2 * WINDOW; x++)
       for (const e of w.entitiesAt(center.map, ox + x, oy + y)) if (!keyOf.has(e.id) && n < 12) addEntity(e.id, `n${++n}`)
   const player = keyOf.get(w.state.player) ?? '__player'
-  return { terrain, entities, player, event }
+  return { terrain, entities, player, event, ...(cells.length && { cells }) }
 }
 
 // ---------------------------------------------------------------- validation
@@ -822,6 +839,7 @@ interface ValidateCtx {
 }
 
 export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult {
+  withTerrainTypes(ctx.ontology)
   const errors: string[] = []
   const warnings: string[] = []
   const overrides: string[] = []
@@ -838,8 +856,6 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (a?.kind === 'type') {
       const t = a.type
       if (!t?.id || typeof t.id !== 'string') errors.push(`${where}: type.id required`)
-      else if (!['actor', 'item', 'fixture'].includes(t.kind)) errors.push(`${where}: type.kind must be actor|item|fixture`)
-      else if (!t.id.startsWith(t.kind + '/')) errors.push(`${where}: type id must start with "${t.kind}/"`)
       else {
         const problems = newTypeProblems(t, onto, patch)
         if (problems.length) errors.push(...problems.map((p) => `${where} (type "${t.id}"): ${p}`))
@@ -859,10 +875,10 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   const checkSel = (s: Selector | undefined, where: string) => {
     if (!s) return
     if (typeof s !== 'object') return errors.push(`${where}: selector must be an object`)
-    if (s.type && !s.type.startsWith('tile/') && !known(s.type)) errors.push(`${where}.type: unknown type "${s.type}"${s.type in onto.terrains ? ` — a terrain is named "tile/${s.type}"` : closest(s.type, onto)}`)
+    if (s.type && s.type !== 'tile' && !s.type.startsWith('tile/') && !known(s.type)) errors.push(`${where}.type: unknown type "${s.type}"${s.type in onto.terrains ? ` — a terrain is named "tile/${s.type}"` : closest(s.type, onto)}`)
     if (s.type?.startsWith('tile/') && !(s.type.slice(5) in onto.terrains)) errors.push(`${where}.type: unknown terrain "${s.type}"`)
     for (const st of [...(s.status ?? []), ...(s.notStatus ?? [])]) if (!(st in onto.statuses)) errors.push(`${where}: unknown status "${st}"`)
-    if (s.kind && !['actor', 'item', 'fixture', 'tile', 'resident'].includes(s.kind)) errors.push(`${where}.kind invalid`)
+    if ('kind' in s) errors.push(`${where}.kind: there are no kinds; select by type (actor, item, fixture, tile/…, resident/…), tags or props`)
     if (s.id) warnings.push(`${where}: instance-bound selector (id) — prefer types/tags`)
   }
   const role = (r: unknown, where: string) => {
@@ -879,6 +895,8 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       return
     }
     if ('none' in c) return role(c.none, `${where}.none`)
+    if ('makeup' in c) return role(c.makeup, `${where}.makeup`)
+    if ('rel' in c) return role(c.rel.role, `${where}.rel.role`)
     if ('same' in c) return c.same.forEach((r, i) => role(r, `${where}.same[${i}]`))
     if ('has' in c) {
       role(c.has.role, `${where}.has.role`)
@@ -887,7 +905,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     }
     if ('prop' in c) {
       for (const b of Object.keys(c.prop.bounds ?? {})) if (!BOUNDS.has(b)) errors.push(`${where}.prop.bounds.${b}: a bound is eq|gt|gte|lt|lte`)
-      return role(c.prop.role, `${where}.prop.role`)
+      return c.prop.role === 'story' || c.prop.role === 'world' ? undefined : role(c.prop.role, `${where}.prop.role`)
     }
     if ('count' in c) {
       const k = c.count
@@ -898,7 +916,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       for (const b of Object.keys(k.cmp ?? {})) if (!BOUNDS.has(b)) errors.push(`${where}.count.cmp.${b}: a bound is eq|gt|gte|lt|lte`)
       return
     }
-    if ('param' in c || 'chance' in c || 'hour' in c || 'fact' in c || 'topic' in c || 'weather' in c || 'outdoors' in c) return
+    if ('param' in c || 'chance' in c || 'hour' in c || 'topic' in c || 'weather' in c || 'outdoors' in c) return
     if ('exists' in c) return void checkSel(c.exists, `${where}.exists`)
     errors.push(`${where}: unknown condition`)
   }
@@ -919,6 +937,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     errors.push(`${where}: unknown receiver`)
   }
   const checkEffect = (e: Effect, where: string, resident: boolean) => {
+    if ((e as { op?: string })?.op === 'setTerrain') return errors.push(`${where}: there is no setTerrain — a cell is made of things; the host becomes another with {op: "transform", into: "tile/<terrain>"}`)
     if (!e || !OPS.has(e.op)) return errors.push(`${where}: unknown primitive "${(e as { op?: string })?.op}"`)
     const any = e as Record<string, unknown>
     if ('of' in any) errors.push(`${where}: effects act on the host only (no "of"): to affect another thing, emit an impulse to it`)
@@ -927,7 +946,6 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (e.op === 'spawn' && !/^@prop:(host|actor|target|instrument|other|item|source)\.\w+$/.test(e.type) && !(e.type in onto.types)) errors.push(`${where}: unknown type "${e.type}"${closest(e.type, onto)}`)
     if (e.op === 'transform' && !e.into.startsWith('@prop:') && !(e.into in onto.types)) errors.push(`${where}: unknown type "${e.into}"${closest(e.into, onto)}`)
     if ((e.op === 'addStatus' || e.op === 'removeStatus') && !(e.status in onto.statuses)) errors.push(`${where}: unknown status "${e.status}"`)
-    if (e.op === 'setTerrain' && !(e.terrain in onto.terrains)) errors.push(`${where}: unknown terrain "${e.terrain}"`)
     if (e.op === 'vfx' && !onto.vfx.includes(e.fx)) errors.push(`${where}: unknown vfx "${e.fx}"`)
     if (e.op === 'hurt' && e.element && !ctx.ontology.elements.includes(e.element)) errors.push(`${where}: unknown element "${e.element}"`)
     if (e.op === 'goto' && !(e.hours > 0 && e.hours <= 12)) errors.push(`${where}: goto hours must be in (0, 12]`)
@@ -944,7 +962,8 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     }
     // the boundaries of what the world does by itself
     if (ctx.world) {
-      const fact = e.op === 'setFact' || e.op === 'addFact' ? e.key : undefined
+      // the story's facts are its props: a world event's patch on the story may not change its protected ones
+      const fact = (e.op === 'setProp' || e.op === 'addProp') && resident ? e.key : undefined
       if (fact && (ctx.protectedFacts ?? []).some((p) => fact.startsWith(p))) errors.push(`${where}: a world event may not change the story's fact "${fact}"`)
       if (e.op === 'setProp' && e.key === 'quest') errors.push(`${where}: a world event may not change the story's stage`)
     }
@@ -962,7 +981,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (!('do' in t) || !Array.isArray(t.do)) return void errors.push(`${where}: a leaf is {do: Effect[]}`)
     t.do.forEach((e, j) => checkEffect(e, `${where}.do[${j}]`, resident))
     // a world event's people are never harmed by what it learns
-    if (ctx.world && host && (host.type ? isA(host.type, 'actor/person') || isA('actor/person', host.type) : host.kind === 'actor' || !host.kind))
+    if (ctx.world && host && (host.type ? isA(host.type, 'actor/person') || isA('actor/person', host.type) : !host.type))
       for (const [j, e] of t.do.entries()) if (e.op === 'hurt' || e.op === 'destroy') errors.push(`${where}.do[${j}]: a world event may not harm a person (${e.op})`)
   }
   const ids = new Set<string>()
@@ -980,7 +999,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (!r.host || typeof r.host !== 'object' || !Object.keys(r.host).length) errors.push(`${where}: name the host — a patch answers for a class of thing, never for anything at all`)
     else checkSel(r.host, `${where}.host`)
     if ('when' in (r as object) || 'do' in (r as object)) errors.push(`${where}: this is the earlier rule shape (when/do); write {host, on, tree}`)
-    const resident = r.host?.kind === 'resident' || !!r.host?.type?.startsWith('resident/')
+    const resident = !!r.host?.type && isA(r.host.type, 'resident')
     if (r.tree === undefined) errors.push(`${where}: tree required`)
     else checkTree(r.tree, `${where}.tree`, resident, r.host)
     if (r.tree !== undefined && leaves(r.tree).every((l) => l === 'inherit')) errors.push(`${where}: every leaf inherits — the rule answers nothing`)
@@ -1013,6 +1032,10 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       if (!rp.resolution.defined) errors.push('replay: the triggering event is still undefined under the patch')
       else if (!patchIds.has(rp.resolution.rule!.id)) errors.push(`replay: the triggering event resolved to "${rp.resolution.rule!.id}", not to the patch`)
       errors.push(...rp.errors.map((e) => `replay: ${e}`))
+      // the repeat check (world-model.md §8.4): again and again with no time between, it must stop making things
+      const again = replay(ctx.scenario, ctx.ontology, cand)
+      if (again.resolution.defined && endlessYield(again.engine, scenarioEvent(ctx.scenario, again.engine)))
+        errors.push(`endless yield: the triggering event, repeated with no time between on a host that is not used up, keeps making things (${REPEAT_TIMES} times). A yield must cost its host — change it (a status that gates the yield and runs out, durability) or use it up`)
       // no person in the scene is hurt or removed by what the world learns by itself
       if (ctx.world)
         for (const se of ctx.scenario.entities) {
@@ -1052,7 +1075,6 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
 
 /** Could one thing be the host of both rules? Contradictory constraints rule it out, and so does the ontology. */
 export function hostsOverlap(x: Selector, y: Selector, onto?: Ontology): boolean {
-  if (x.kind && y.kind && x.kind !== y.kind) return false
   if (x.type && y.type && !isA(x.type, y.type) && !isA(y.type, x.type)) return false
   if (x.id && y.id && x.id !== y.id) return false
   if (x.tags?.some((t) => y.notTags?.includes(t)) || y.tags?.some((t) => x.notTags?.includes(t))) return false
@@ -1086,18 +1108,15 @@ function satisfiable(x: Selector, y: Selector, onto: Ontology): boolean {
   const need = [...(x.tags ?? []), ...(y.tags ?? [])]
   const forbid = [...(x.notTags ?? []), ...(y.notTags ?? [])]
   const free = new Set(onto.instanceTags ?? [])
-  const kind = x.kind ?? y.kind
   const type = [x.type, y.type].filter(Boolean).sort((p, q) => q!.length - p!.length)[0]
   const ok = (tags: Set<string>) => need.every((t) => tags.has(t) || free.has(t)) && !forbid.some((t) => tags.has(t))
-  if (kind === 'tile' || type?.startsWith('tile/')) return Object.values(onto.terrains).some((t) => (!type || isA(`tile/${t.id}`, type)) && ok(new Set(t.tags ?? [])))
   const index = new OntologyIndex(onto)
   for (const id of Object.keys(onto.types)) {
     if (type && !isA(id, type)) continue
     const r = index.resolve(id)
-    if (kind && r.kind !== kind) continue
     if (ok(new Set(r.tags))) return true
   }
-  if (!kind && !type) return Object.values(onto.terrains).some((t) => ok(new Set(t.tags ?? [])))
+  if (!type) return Object.values(onto.terrains).some((t) => ok(new Set(t.tags ?? [])))
   return false
 }
 
@@ -1153,7 +1172,6 @@ function consistent(lits: Literal[], hosts: Selector[], onto: Ontology): boolean
     const merged: Selector = {}
     for (const s of sels) {
       if (s.type) merged.type = !merged.type || isA(s.type, merged.type) ? s.type : merged.type
-      if (s.kind) merged.kind = s.kind
       for (const k of ['tags', 'notTags', 'status', 'notStatus'] as const) if (s[k]?.length) merged[k] = [...(merged[k] ?? []), ...s[k]!]
     }
     for (let i = 0; i < sels.length; i++) for (let j = i + 1; j < sels.length; j++) if (!hostsOverlap(sels[i], sels[j], onto)) return false
@@ -1222,6 +1240,20 @@ export function newTypeProblems(t: TypeDef, onto: Ontology, patch: Patch): strin
   const same = Object.values(onto.types).find((o) => o.id !== t.id && (o.id.split('/').at(-1) === leaf || (enName(t) && enName(o) === enName(t))))
   if (same) out.push(`"${same.id}" already is this thing (same name): use it, or name what is different about the new one`)
   if (t.art) out.push(...artProblems(t.art))
+  // what it is made of and how it breaks (world-model.md §8.3), read through what it inherits
+  const index = new OntologyIndex({ ...onto, types: { ...onto.types, ...Object.fromEntries(patch.artifacts.flatMap((a) => (a?.kind === 'type' && a.type?.id ? [[a.type.id, a.type]] : []))) } })
+  const r = index.resolve(t.id)
+  const material = r.props.material
+  if (material !== undefined && (typeof material !== 'string' || !onto.materials?.[material])) out.push(`props.material "${String(material)}" is not a material: one of ${Object.keys(onto.materials ?? {}).join(', ')}`)
+  if (typeof r.props.maxHp === 'number') {
+    if (material === undefined) out.push('a thing that can break (props.maxHp) names what it is made of: props.material (one of the materials)')
+    const ownRule = patch.artifacts.some((a) => a?.kind === 'rule' && a.rule?.host?.type === t.id && a.rule.on === 'threshold/cross')
+    if (!r.makeup?.length && !ownRule) out.push('a thing that can break (props.maxHp) says what it leaves: makeup [{type, count, chance?}] (what it is made of), or a rule of its own on threshold/cross "broken"')
+  }
+  for (const [i, m] of (t.makeup ?? []).entries()) {
+    if (!m || typeof m.type !== 'string' || !(m.type in onto.types || ownTypes.has(m.type))) out.push(`makeup[${i}]: unknown type "${m?.type}"${m?.type ? closest(m.type, onto) : ''}`)
+    if (!(typeof m?.count === 'number' && m.count > 0)) out.push(`makeup[${i}].count: a number above 0`)
+  }
   return out
 }
 

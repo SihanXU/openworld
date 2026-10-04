@@ -56,12 +56,15 @@ function plan(eng: Engine, actorId: Id, recipe: PlacementRecipe, at: Pos) {
   if (actor.place.map !== at.map || Math.max(Math.abs(actor.place.x - at.x), Math.abs(actor.place.y - at.y)) > 1)
     return fail('Move next to the target.', '请走到目标格旁边。')
   const es = w.entitiesAt(at.map, at.x, at.y)
-  if (recipe.empty && es.some((e) => recipe.empty === 'all' || w.kindOf(e) !== 'actor')) return fail('This tile is occupied.', '这格有东西，无法放置。')
+  // what stands or lies there (not what makes up the cell)
+  if (recipe.empty && es.some((e) => !w.isTerrain(e) && (recipe.empty === 'all' || !w.isAgent(e)))) return fail('This tile is occupied.', '这格有东西，无法放置。')
   if (recipe.excludeTerrain?.includes(w.terrainAt(at.map, at.x, at.y))) return fail('Already prepared.', '这格已经是耕地了。')
-  const tile = { tile: at }
-  const entity = es.find((e) => !e.frozenBy && matchSelector(recipe.site, w.view({ e: e.id })))
+  // the cell is what makes it up on top; an entity is what else stands there
+  const top = w.cellTop(at.map, at.x, at.y)
+  const tile: Ref | undefined = top && { e: top.id }
+  const entity = es.find((e) => !w.isTerrain(e) && !e.frozenBy && matchSelector(recipe.site, w.view({ e: e.id })))
   const target: Ref | undefined = recipe.target !== 'tile' && entity ? { e: entity.id }
-    : recipe.target !== 'entity' && matchSelector(recipe.site, w.view(tile)) ? tile : undefined
+    : recipe.target !== 'entity' && tile && matchSelector(recipe.site, w.view(tile)) ? tile : undefined
   if (!target) return fail('Not a suitable target.', '目标不适合此操作。')
   const missing = recipe.needs.findIndex((n, i) => pools[i].length < n.count)
   if (missing >= 0) return fail('Missing materials or tool.', '背包中缺少材料或工具。')
@@ -82,7 +85,9 @@ export function performPlacement(eng: Engine, actorId: Id, recipe: PlacementReci
     let work = p.target!
     for (const s of steps) {
       if (!s.instrument) return false
-      const target = s.target === 'tile' ? { tile: at } : work
+      const top = on.world.cellTop(at.map, at.x, at.y)
+      const target: Ref | undefined = s.target === 'tile' ? top && { e: top.id } : work
+      if (!target) return false
       // the earlier `interact` is `use` with something in hand (design.md §5.14)
       const verb = (s.verb as string) === 'interact' ? 'use' : s.verb
       const event = on.actEvent(verb, actorId, target, { e: s.instrument })
@@ -96,7 +101,7 @@ export function performPlacement(eng: Engine, actorId: Id, recipe: PlacementReci
       if (!named(on.trace.slice(mark).map((t) => t.rule ?? ''))) return false
       if (recipe.result && s.target === 'tile') work = { e: s.instrument }
     }
-    return !recipe.result || ('e' in work && on.world.get(work.e)?.type === recipe.result)
+    return !recipe.result || on.world.get(work.e)?.type === recipe.result
   }
   const rehearsal = new Engine(structuredClone(eng.world.state), structuredClone(eng.world.onto.data), eng.lib)
   rehearsal.loadInvariants(eng.invariants, eng.protectedFacts)

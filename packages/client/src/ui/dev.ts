@@ -209,7 +209,7 @@ export class ModConsole {
       body.innerHTML = `<div class="pad world-tab">
         <div id="devTools" class="dev-tools">
           <div class="row"><input id="dGive" list="dTypes" placeholder="item/material/iron_ore" spellcheck="false"><button id="bGive">Give</button></div>
-          <datalist id="dTypes">${(this.spec?.ontology.types ?? []).filter((t) => t.kind === 'item').map((t) => `<option value="${esc(t.id)}">`).join('')}</datalist>
+          <datalist id="dTypes">${(this.spec?.ontology.types ?? []).filter((t) => t.id === 'item' || t.id.startsWith('item/')).map((t) => `<option value="${esc(t.id)}">`).join('')}</datalist>
           <div class="row"><input id="dMap" placeholder="map (blank: this one)" spellcheck="false"><input id="dX" type="number" placeholder="x"><input id="dY" type="number" placeholder="y"><button id="bGo">Teleport</button></div>
           <div class="row"><button id="bForge">Emberfall, by the lit forge</button><input id="dHour" type="number" min="0" max="23" placeholder="hour"><button id="bHour">Set hour</button></div>
         </div>

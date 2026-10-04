@@ -23,7 +23,7 @@ function sources(): { file: string; lines: string[] }[] {
   return out
 }
 
-/** What changes the state behind the mutators: a thing's props, tags, statuses, place, contents; the world's facts and tiles. */
+/** What changes the state behind the mutators: a thing's props, tags, statuses, place, contents; the things kept (entities). */
 const WRITES: RegExp[] = [
   /\.(props|tags|statusBy|contents|held|place)!?\s*(\?\?)?=[^=]/,
   // a thing's statuses (not a rule library's status definitions)
@@ -33,8 +33,8 @@ const WRITES: RegExp[] = [
   /\(\s*[\w.!]+\.(props|tags|statuses) \?\?= /,
   /Object\.assign\([^,]*\.props/,
   /delete [\w.!]+\.(props|statuses|statusBy)\b/,
-  /state\.(facts|tiles)!?(\.[\w$]+|\[[^\]]+\])?!?\s*(\?\?)?=[^=]/,
-  /delete [\w.!]*state\.(facts|tiles)/,
+  /state\.entities!?(\.[\w$]+|\[[^\]]+\])!?\s*(\?\?)?=[^=]/,
+  /delete [\w.!]*state\.entities/,
 ]
 
 /**
@@ -49,7 +49,7 @@ const MAY_GRANT = ['engine/src/engine.ts', 'engine/src/world.ts']
 const code = (l: string) => l.replace(/\/\/.*$/, '').trim()
 
 describe('the state changes only in outcomes, and an outcome only its host (design.md §5.13, A2–A3)', () => {
-  it('no game code changes props, tags, statuses, places, facts or tiles behind the mutators', () => {
+  it('no game code changes props, tags, statuses, places or the kept things behind the mutators', () => {
     const found: string[] = []
     for (const { file, lines } of sources()) {
       if (MAY_WRITE.includes(file)) continue
@@ -82,6 +82,17 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
     expect(found).toEqual([])
   })
 
+  it('there are no kinds: no code branches on what kind of thing something is, no type or selector names one (world-model.md §4.2)', () => {
+    const found: string[] = []
+    for (const { file, lines } of sources())
+      lines.forEach((l, i) => {
+        const c = code(l)
+        if (c.startsWith('*') || c.startsWith('/*')) return
+        if (/\bkindOf\(/.test(c) || /\bkind: '(actor|item|fixture|tile|resident)'/.test(c) || /\bEntityKind\b/.test(c)) found.push(`${file}:${i + 1}: ${c.slice(0, 120)}`)
+      })
+    expect(found).toEqual([])
+  })
+
   it('the scan sees the ways around the mutators, and not their definitions', () => {
     const hit = (c: string) => WRITES.some((re) => re.test(c))
     for (const c of [
@@ -93,7 +104,8 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
       'Object.assign(existing.props ??= {}, { hp: 1 })',
       'delete e.statuses',
       'target.statuses = {}',
-      "w.state.facts!['x'] = 1",
+      "w.state.entities['x'] = e",
+      'delete w.state.entities[id]',
       'delete tile.statuses',
     ])
       expect(hit(c), c).toBe(true)
@@ -112,8 +124,10 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
   })
 
   it('the writer is held once; a write without it throws, and so does an outcome writing beyond its host', () => {
-    const eng = new Engine({ tick: 0, seed: 1, rng: 1, player: 'p', entities: {}, maps: {}, tiles: {}, loadedMaps: [], counter: 0, spawn: { map: 'm', x: 0, y: 0 } }, buildOntology(), new RuleLibrary(BASE_RULES))
+    const eng = new Engine({ tick: 0, seed: 1, rng: 1, player: 'p', entities: {}, maps: {}, loadedMaps: [], counter: 0, spawn: { map: 'm', x: 0, y: 0 } }, buildOntology(), new RuleLibrary(BASE_RULES))
+    eng.ensureResidents()
     expect(() => eng.world.grant()).toThrow(/already held/)
+    // a fact is the story's prop: kept outside an outcome, it throws like any other write
     expect(() => eng.world.setFact('x', 1)).toThrow(/outside an outcome/)
     expect(() => eng.world.add({ id: 'a', type: 'item/food/bread', place: { on: 'none' } })).toThrow(/outside an outcome/)
     eng.author(() => eng.world.setFact('x', 1))
@@ -136,5 +150,47 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
     // a world no engine holds cannot be written at all
     const loose = new World(eng.world.state, eng.world.onto)
     expect(() => loose.author(() => 0)).toThrow(/nobody may write it/)
+  })
+})
+
+describe('the state is things and the clock (world-model.md §3)', () => {
+  it('a played and saved Ford keeps nothing outside its things but the clock and the engine records', async () => {
+    const { Game } = await import('@lsw/engine')
+    const { STORY_RULES, decodeChunk } = await import('@lsw/content')
+    const { buildFord } = await import('../src/demo/world.ts')
+    const { index, chunks } = buildFord()
+    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    for (const c of chunks) game.loadChunk(decodeChunk(c))
+    for (let i = 0; i < 600; i++) game.engine.tick()
+    const state = game.save().state as unknown as Record<string, unknown>
+    // the clock and the generator; the things; the maps' base data and what changed on their cells;
+    // and the engine's own records (what is loaded, asked, frozen, related, reported) — no facts,
+    // topics, scenes, weather or memories beside the things they belong to
+    const ALLOWED = ['tick', 'seed', 'rng', 'counter', 'player', 'spawn', 'entities', 'maps', 'tiles', 'loadedMaps', 'question', 'dormant', 'relations', 'reported']
+    expect(Object.keys(state).filter((k) => !ALLOWED.includes(k))).toEqual([])
+    // the story and the world are things, and so are the maps' named areas
+    const w = game.engine.world
+    expect(w.get('story')?.place).toEqual({ on: 'resident' })
+    expect(Object.values(w.state.entities).some((e) => e.type === 'region' && e.place.on === 'area')).toBe(true)
+  })
+
+  it("an older save's beats are steps of the story's one script: their records are seen.<id>, the latest step.last (world-model.md §6.12)", async () => {
+    const { Game } = await import('@lsw/engine')
+    const { STORY_RULES, decodeChunk } = await import('@lsw/content')
+    const { buildFord } = await import('../src/demo/world.ts')
+    const { index, chunks } = buildFord()
+    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    for (const c of chunks) game.loadChunk(decodeChunk(c))
+    const old = structuredClone(game.save())
+    const story = old.state.entities.story
+    story.props = { ...(story.props ?? {}), 'beat.wake': 40, 'beat.outside': 90, 'beat.last': 'outside' }
+    const loaded = Game.load(old, index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    const w = loaded.engine.world
+    expect(w.fact('seen.wake')).toBe(40)
+    expect(w.fact('seen.outside')).toBe(90)
+    expect(w.fact('step.last')).toBe('outside')
+    expect(Object.keys(w.story!.props ?? {}).filter((k) => k.startsWith('beat.'))).toEqual([])
+    // what the companion repeats is the latest beat's hint
+    expect(loaded.engine.story.hint()).toEqual(index.steps!.find((d) => d.id === 'outside')!.hint ?? index.steps!.find((d) => d.id === 'outside')!.say)
   })
 })

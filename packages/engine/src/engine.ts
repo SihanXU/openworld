@@ -5,23 +5,24 @@
 // containment, diffed after every outcome), sight, and the active, dormant and resident parts of
 // the world. Pure, deterministic, no AI.
 
-import { isNight } from './calendar.ts'
+import { TICKS_PER_HOUR, TICKS_PER_MINUTE, isNight } from './calendar.ts'
 import { EffectRunner } from './effects.ts'
 import { Controls } from './controls.ts'
-import { Scenes } from './scenes.ts'
-import { stepCreatures } from './creatures.ts'
+import { Story } from './story.ts'
+import { deriveRecipes } from './recipes.ts'
+import { Behaviour } from './behaviour.ts'
 import { combatDamage, combatDelay, combatStrike, finishCombatStrike, rangeBonus, recordCombatStep } from './combat.ts'
 import { Companions } from './companion.ts'
 import { Quests } from './quests.ts'
-import { stepBosses } from './bosses.ts'
 import { NpcSim, scheduleAt } from './npc.ts'
 import { scheduleFor } from './people.ts'
 import { OntologyIndex } from './ontology.ts'
+import { appearFromForage } from './appear.ts'
 import { RuleLibrary, evalCond, isDo, matchSelector, rolesOf, type Resolution } from './rules.ts'
 import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb, WorldState } from './types.ts'
 import type { ProfessionDef } from './profession.ts'
 import { DIRS, FIRE_RADIUS } from './types.ts'
-import { NO_EXPIRY, REVERSE, World, refKey, tileKey, type Writer } from './world.ts'
+import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type Writer } from './world.ts'
 
 export type { Resolution } from './rules.ts'
 
@@ -51,6 +52,13 @@ const MAX_DEPTH = 12
 const INVARIANT_EVERY = 30
 /** The resident hosts (design.md §5.5). */
 export const STORY = 'story'
+
+/** Where on a site's block one stood going in: the tile, and the point (0..1 across the block) it stands for. */
+export interface Entry {
+  rel: [number, number]
+  tile: [number, number]
+  size: number
+}
 export const WORLD_HOST = 'world'
 
 const OPAQUE_TERRAIN = ['wall', 'tree', 'rock', 'roof']
@@ -66,7 +74,10 @@ export class Engine {
   private readonly write: Writer
   effects: EffectRunner
   npcs: NpcSim
-  scenes: Scenes
+  /** Everyone's goals (behaviour.ts). */
+  behaviour: Behaviour
+  /** The story's script: its steps, scenes and beats (story.ts). */
+  story: Story
   /** The player's inputs, slots and magnet (design.md §5.2–5.3). */
   controls: Controls
   /** Content the world must keep playable (game-design: the Ford's invariants). */
@@ -87,7 +98,9 @@ export class Engine {
   /** Portal graph of every map (loaded or not): map -> outgoing portals. */
   graph: Record<string, { to: string; x: number; y: number; tx: number; ty: number }[]> = {}
   /** Set when the player walked into a portal whose map isn't loaded yet. */
-  pendingTransition?: { map: string; x: number; y: number }
+  pendingTransition?: { map: string; x: number; y: number; entry?: Entry }
+  /** Ticks to run at once at the end of this tick: a long step (the overworld) passing (world-model.md §6.11). */
+  private fastForward = 0
   /** Resolution trace of the last dispatched events (for tests and the dev panel). */
   trace: { ev: GameEvent; rule?: string; defined: boolean }[] = []
 
@@ -110,10 +123,13 @@ export class Engine {
     this.lib = lib
     this.effects = new EffectRunner(this)
     this.npcs = new NpcSim(this)
-    this.scenes = new Scenes(this)
+    this.behaviour = new Behaviour(this)
+    this.story = new Story(this)
     this.companions = new Companions(this)
     this.quests = new Quests(this)
     this.controls = new Controls(this, this.write)
+    // what can be made: every type with a station and a makeup (world-model.md §6.4)
+    for (const r of deriveRecipes(onto)) this.recipes.set(r.id, r)
   }
 
   /**
@@ -140,6 +156,42 @@ export class Engine {
       if (!w.get(WORLD_HOST)) w.add({ id: WORLD_HOST, type: 'resident/world', place: { on: 'resident' } })
       if (!w.get(STORY)) w.add({ id: STORY, type: 'resident/story', place: { on: 'resident' } })
     })
+  }
+
+  /**
+   * An older save's tile overrides, by map (game.ts upgrade): its cells as they were, made
+   * things when the map's data comes (not state: nothing else reads them).
+   */
+  readonly legacyTiles = new Map<string, { x: number; y: number; terrain?: string; statuses?: Record<string, number>; statusBy?: Record<string, Id> }[]>()
+  /** Maps whose relations an older save kept in another form: they start again from where things stand. */
+  readonly reseed = new Set<string>()
+
+  /**
+   * A map's data has come (a new map, or one loaded again with a save). Its authored areas are
+   * things (world-model.md §5.4), made the first time and kept after (they may carry props and
+   * host rules); an older save's changed cells become the cells' things. On a map already in play,
+   * what stands in them is in them from now, as its start, not an event.
+   */
+  mapArrived(map: string): void {
+    const w = this.world
+    // an older chunk named what appears by itself `forage`
+    const data = w.map(map)
+    if (data?.forage && !data.appear) (data.appear = appearFromForage(data)), delete data.forage
+    const named = Object.entries(w.map(map)?.regions ?? {}).filter(([name]) => !w.get(regionId(map, name)))
+    const old = this.legacyTiles.get(map) ?? []
+    this.legacyTiles.delete(map)
+    this.write(() => {
+      for (const [name, r] of named) w.add({ id: regionId(map, name), type: 'region', place: { on: 'area', map, rects: [r] } })
+      // what is in a stage in the map's data starts its clock (a stump grows back)
+      w.startStages(map)
+      for (const t of old) {
+        if (t.terrain) w.setTerrain(map, t.x, t.y, t.terrain)
+        const top = w.cellTop(map, t.x, t.y)
+        if (top) for (const [st, until] of Object.entries(t.statuses ?? {})) w.setStatus({ e: top.id }, st, until, t.statusBy?.[st])
+      }
+    })
+    const again = this.reseed.delete(map)
+    if ((named.length || old.length || again) && w.state.loadedMaps.includes(map)) this.diffMap(map, true)
   }
 
   // ---------------------------------------------------------------- events
@@ -182,9 +234,9 @@ export class Engine {
     const host = 'e' in ev.host ? w.get(ev.host.e) : undefined
     if ('e' in ev.host && (!host || host.place.on === 'none')) return { defined: false }
     // a thing on a dormant map receives it when the player comes (design.md §5.12); people and residents at once
-    const at = 'tile' in ev.host ? ev.host.tile : w.posOf(host)
+    const at = w.posOf(host)
     // (an act is made by one who acts now — a companion following its leader off a map — and resolves at once)
-    if (at && at.map !== this.activeMap && !ev.kind.startsWith('act/') && !(host && (host.npc || w.kindOf(host) === 'resident'))) {
+    if (at && at.map !== this.activeMap && !ev.kind.startsWith('act/') && !(host && (host.npc || w.isPlaceless(host)))) {
       const d = ((w.state.dormant ??= {})[at.map] ??= { since: w.state.tick, inbox: [] })
       d.inbox.push(ev)
       return { defined: false }
@@ -303,7 +355,7 @@ export class Engine {
     const inst = instrument && 'e' in instrument ? w.get(instrument.e) : undefined
     const p: Record<string, PropValue> = { verb, ...params }
     if (verb === 'use' && actor) {
-      p.power ??= w.num(actor, 'atk', 1) + (inst ? w.num(inst, 'power', 0) : 0)
+      p.power ??= w.stat(actor, 'atk', 1) + (inst ? w.num(inst, 'power', 0) : 0)
       const element = (inst && w.prop(inst, 'element')) || w.prop(actor, 'element')
       if (typeof element === 'string' && p.element === undefined) p.element = element
     }
@@ -394,7 +446,9 @@ export class Engine {
       if (x === b.x && y === b.y) return true
       const tags = w.onto.terrain(w.terrainAt(map, x, y))?.tags ?? []
       if (tags.some((t) => OPAQUE_TERRAIN.includes(t))) return false
-      if (w.entitiesAt(map, x, y).some((o) => w.kindOf(o) === 'fixture' && (w.hasTag(o, 'opaque') || w.hasTag(o, 'tall')))) return false
+      // ground higher than both ends stands in the way (world-model.md §5.5: height blocks sight)
+      if (w.heightAt(map, x, y) > Math.max(w.heightAt(map, a.x, a.y), w.heightAt(map, b.x, b.y)) + 1) return false
+      if (w.entitiesAt(map, x, y).some((o) => w.hasTag(o, 'opaque') || w.hasTag(o, 'tall'))) return false
     }
     return true
   }
@@ -406,7 +460,8 @@ export class Engine {
     const at = w.posOf(doer)
     if (!doer || !at) return
     for (const e of w.entitiesOnMap(at.map)) {
-      if (e.id === doer.id || e.place.on !== 'tile' || w.kindOf(e) !== 'actor' || this.asleep(e) || this.busy(e)) continue
+      // a seer is anything with sight of its own
+      if (e.id === doer.id || e.place.on !== 'tile' || !(w.num(e, 'sight') > 0) || this.asleep(e) || this.busy(e)) continue
       const p = e.place
       if (Math.max(Math.abs(p.x - at.x), Math.abs(p.y - at.y)) > this.sightOf(e, p)) continue
       if (!this.lineOfSight(at.map, p, at)) continue
@@ -435,7 +490,7 @@ export class Engine {
    */
   hostileTo(a: Entity, b: Entity): boolean {
     const w = this.world
-    if (!a.ai || a.id === b.id || w.kindOf(b) !== 'actor' || b.place.on !== 'tile' || w.hasStatus({ e: b.id }, 'down')) return false
+    if (!a.ai || a.id === b.id || !w.isAgent(b) || b.place.on !== 'tile' || w.hasStatus({ e: b.id }, 'down')) return false
     if (a.ai.foes?.includes(b.id)) return true
     const t = a.ai.temper
     if (t === 'wary' || (t === 'nocturnal' && !isNight(w.hour()))) return false
@@ -506,12 +561,33 @@ export class Engine {
   }
 
   /** The host loses health; its defence applies unless pierce. One who is down takes no more. */
-  hurt(e: Entity, amount: number, element?: string, pierce?: boolean, by?: GameEvent): void {
+  hurt(e: Entity, amount: number, element?: string, pierce?: boolean, by?: GameEvent, blow = false): void {
     const w = this.world
     if (w.hasStatus({ e: e.id }, 'down')) return
-    const def = pierce ? 0 : w.num(e, 'def')
-    // fireproof (the herbalist's draught): fire does a quarter of its harm
-    if (element === 'fire' && w.hasStatus({ e: e.id }, 'fireproof')) amount *= 0.25
+    // what has no durability cannot be harmed (world-model.md §4.2: without maxHp, it cannot break)
+    if (w.prop(e, 'maxHp') === undefined) return
+    if (blow) {
+      // a blow: what struck (else the striker's own body) on what the host is made of (world-model.md §6.1)
+      const struckWith = by?.roles.instrument ? w.get(by.roles.instrument.e) : undefined
+      const striker = by?.roles.actor ? w.get(by.roles.actor.e) : undefined
+      const tool = struckWith ?? striker
+      const mine = tool && w.materialOf(tool)
+      const its = w.materialOf(e)
+      if (mine && its && mine.hardness < its.hardness) {
+        w.fx.push({ t: 'log', text: { en: 'Too hard.', zh: '太硬了。' } })
+        const p = w.posOf(e)
+        if (p) w.fx.push({ t: 'vfx', fx: 'dust', map: p.map, x: p.x, y: p.y })
+        return
+      }
+      const edge = by?.params?.edge
+      if (tool) amount *= w.efficiency(tool, typeof edge === 'string' ? edge : undefined, e)
+    }
+    // an element's harm, less what resists it (world-model.md §6.8: each element names its resistance; the
+    // herbalist's draught gives it while it lasts, a worn thing may): all of it, none; below none, more
+    const resist = element ? w.onto.data.resistances?.[element] : undefined
+    if (resist) amount *= 1 - Math.min(100, w.stat(e, resist)) / 100
+    if (amount <= 0) return
+    const def = pierce ? 0 : w.stat(e, 'def')
     // the combat talents of the one struck (combat.ts): dodge, a guarded moment, reductions, the brink
     const by_ = by?.roles.actor ?? (by?.cause ? { e: by.cause } : undefined)
     const attacker = by_ && 'e' in by_ ? w.get(by_.e) : undefined
@@ -519,7 +595,8 @@ export class Engine {
     // a blow that found nothing (dodged, or the moment after a dash)
     if (dmg <= 0) return
     w.fx.push({ t: 'damage', who: e.id, amount: dmg, element })
-    let hp = w.num(e, 'hp', 1) - dmg
+    // what has durability starts whole: its hp is its maxHp until it is struck
+    let hp = w.num(e, 'hp', w.num(e, 'maxHp', 1)) - dmg
     // Phoenix (the skill): once a day, any lethal damage leaves 30% health and a moment untouchable
     if (hp <= 0 && w.hasTag(e, 'skill:phoenix') && w.prop(e, 'phoenixDay') !== w.calendar().day) {
       hp = Math.max(1, Math.ceil(w.num(e, 'maxHp', 1) * 0.3))
@@ -559,22 +636,19 @@ export class Engine {
     const tiles = new Set<string>()
     const addTile = (p: Pos | undefined) => p && tiles.add(tileKey(p.map, p.x, p.y))
     for (const r of touched) {
-      if ('tile' in r) addTile(r.tile)
-      else {
-        hosts.add(r.e)
-        const e = w.get(r.e)
-        addTile(w.posOf(e))
-        // where it was: the tiles of its old relations, and whoever lay on it (a fixture moved or gone)
-        for (const k of rel[r.e] ?? []) {
-          const to = k.slice(k.indexOf('|') + 1)
-          if (to.startsWith('t|')) tiles.add(to.slice(2).split('#')[0])
-        }
-        if (!e || w.kindOf(e) === 'fixture') for (const [h, ks] of Object.entries(rel)) if (ks.includes(`on|${r.e}`)) hosts.add(h)
-      }
+      hosts.add(r.e)
+      const e = w.get(r.e)
+      addTile(w.posOf(e))
+      // where it was: the cells of what it lay on, and whoever relied on it (lay on it, or was held up by it:
+      // a thing with a reach, or one that supports, changed, moved or gone)
+      for (const k of rel[r.e] ?? []) if (k.startsWith('on|')) addTile(w.posOf(w.get(w.keyRef(k.slice(3)).e)))
+      if (!e || w.reachOf(e).length || w.prop(e, 'supports') !== undefined)
+        for (const [h, ks] of Object.entries(rel)) if (ks.some((k) => w.keyRef(k.slice(k.indexOf('|') + 1)).e === r.e)) hosts.add(h)
     }
+    const storeys = w.onto.data.params?.storeys ?? 4
     for (const t of tiles) {
       const [map, x, y] = t.split(':')
-      for (const o of w.entitiesAt(map, +x, +y)) hosts.add(o.id)
+      for (let z = 0; z <= storeys; z++) for (const o of w.entitiesAt(map, +x, +y, z)) hosts.add(o.id)
     }
     for (const h of hosts) this.diff(h)
   }
@@ -584,7 +658,7 @@ export class Engine {
     const w = this.world
     const rel = (w.state.relations ??= {})
     const e = w.get(key)
-    const now = e && e.place.on !== 'none' && w.kindOf(e) !== 'resident' ? w.relationsOf(e) : []
+    const now = e && e.place.on !== 'none' && !w.isPlaceless(e) ? w.relationsOf(e) : []
     const was = rel[key] ?? []
     if (now.length) rel[key] = now
     else delete rel[key]
@@ -603,6 +677,8 @@ export class Engine {
     const b = w.keyRef(to)
     if (w.view(a)) this.offer({ kind, host: a, roles: { other: b }, params: { how } })
     if (w.view(b)) this.offer({ kind, host: b, roles: { other: a }, params: { how: REVERSE[how] ?? how } })
+    // the story's script hears who enters a region (its triggers are events, not polls)
+    if (how === 'in-region' && kind === 'contact/begin') this.story.entered(a)
   }
 
   /** A map's relations as they stand, as its start (no events): a map loaded, a sandbox built. */
@@ -623,7 +699,7 @@ export class Engine {
   busy(e: Entity): boolean {
     if (e.frozenBy) return true
     // the player watches a scene
-    if (e.id === this.world.state.player && this.world.state.scene) return true
+    if (e.id === this.world.state.player && this.world.scene) return true
     // the player answers a yes/no question
     if (e.id === this.world.state.player && this.world.state.question) return true
     for (const s of Object.keys(e.statuses ?? {})) if (this.world.onto.status(s)?.immobilize) return true
@@ -666,13 +742,42 @@ export class Engine {
     const portalHere = w.map(map)?.portals.find((p) => p.x === nx && p.y === ny)
     // only the player uses portals by stepping on them; NPCs transfer from the tile beside
     if (portalHere && !isPlayer) return false
-    if (!w.fits(e, map, nx, ny)) {
-      const other = w.actorAt(map, nx, ny)
-      if (!isPlayer || !other?.npc || this.busy(other) || w.blocked(map, nx, ny)) {
-        const thing = w.inBounds(map, nx, ny) ? (other ?? w.solidAt(map, nx, ny)) : undefined
-        const ref: Ref = thing ? { e: thing.id } : { tile: { map, x: nx, y: ny } }
-        this.offer({ kind: 'bump', host: { e: e.id }, roles: { other: ref }, params: { dir }, cause: ev.cause, origin: ev.origin })
-        if (w.view(ref)) this.offer({ kind: 'bump', host: ref, roles: { other: { e: e.id } }, params: { dir }, cause: ev.cause, origin: ev.origin })
+    // off the edge of a map that lies on the overworld: out onto its cell there (world-model.md §5.1)
+    if (!w.inBounds(map, nx, ny) && isPlayer && w.map(map)?.site) {
+      this.leaveByEdge(e, x, y, dir)
+      return true
+    }
+    // storeys (world-model.md §5.2, §5.5): on a floor one walks; from stairs up onto the floor above;
+    // onto the stairs below from above them; off a floor's edge one falls to the first below
+    const z = e.place.z ?? 0
+    const floorAt = (zz: number) => !!w.occupant(map, nx, ny, 'floor', zz)
+    const stairsAt = (sx: number, sy: number, zz: number) => w.entitiesAt(map, sx, sy, zz).some((o) => w.hasTag(o, 'stairs'))
+    let nz = z
+    let drop = 0
+    if (!floorAt(z) || (stairsAt(x, y, z) && floorAt(z + 1))) {
+      if (stairsAt(x, y, z) && floorAt(z + 1)) nz = z + 1
+      else if (z > 0 && stairsAt(nx, ny, z - 1)) nz = z - 1
+      else if (z > 0 && w.stanceOf(e) !== 'air') {
+        nz = z - 1
+        while (nz > 0 && !floorAt(nz)) nz--
+        drop = z - nz
+      }
+    }
+    // a cliff cannot be climbed: one bumps into it (what makes up the cell above)
+    const over = z === 0 && nz === 0 ? w.stepOver(e, map, x, y, nx, ny) : ({ walk: true } as const)
+    if ('climb' in over) {
+      const cliff = w.cellTop(map, nx, ny)
+      this.offer({ kind: 'bump', host: { e: e.id }, roles: cliff ? { other: { e: cliff.id } } : {}, params: { dir }, cause: ev.cause, origin: ev.origin })
+      return false
+    }
+    if (!w.fits(e, map, nx, ny, nz)) {
+      const other = w.actorAt(map, nx, ny, undefined, nz)
+      if (!isPlayer || !other?.npc || this.busy(other) || w.blocked(map, nx, ny, undefined, nz)) {
+        const thing = w.inBounds(map, nx, ny) ? (other ?? w.solidAt(map, nx, ny, undefined, nz)) : undefined
+        const other2 = thing ?? w.cellTop(map, nx, ny)
+        const ref: Ref | undefined = other2 && { e: other2.id }
+        this.offer({ kind: 'bump', host: { e: e.id }, roles: ref ? { other: ref } : {}, params: { dir }, cause: ev.cause, origin: ev.origin })
+        if (ref && w.view(ref)) this.offer({ kind: 'bump', host: ref, roles: { other: { e: e.id } }, params: { dir }, cause: ev.cause, origin: ev.origin })
         return false
       }
       // keep pushing into a person (~0.8 s) and you swap places; a single bump just turns you to face them
@@ -685,12 +790,112 @@ export class Engine {
       this.queue({ kind: 'impulse/push', host: { e: other.id }, roles: { source: { e: e.id }, actor: { e: e.id } }, params: { dir: back, swap: true }, cause: ev.cause, origin: ev.origin })
     }
     this.touch({ e: e.id })
-    w.place(e, { on: 'tile', map, x: nx, y: ny })
+    w.place(e, { on: 'tile', map, x: nx, y: ny, ...(nz && { z: nz }) })
     this.touch({ e: e.id })
+    if (drop) this.fallBy(e, drop, ev)
+    // a step off a ledge is a fall (world-model.md §5.5): the faller strikes itself by the drop
+    if ('fall' in over) this.fallBy(e, over.fall, ev)
+    // a step on a map with a scale lasts its minutes, by its ground and the weather (world-model.md §5.6)
+    const scale = w.map(map)?.scale
+    if (scale) {
+      const cost = w.num(w.cellTop(map, nx, ny) ?? e, 'cost', 1)
+      const wet = ['rain', 'storm', 'snow'].includes(w.calendar().weather) ? (w.onto.data.params?.rainCost ?? 1) : 1
+      const ticks = Math.round(scale * cost * wet * TICKS_PER_MINUTE)
+      if (isPlayer) this.fastForward = ticks
+      else this.setCooldown(e.id, ticks)
+    }
     // a successful step charges the swiftness talents (combat.ts)
     recordCombatStep(w, e)
     if (isPlayer && portalHere) this.travel(e, { map: portalHere.to, x: portalHere.tx, y: portalHere.ty })
     return true
+  }
+
+  /** The one at the keys sleeps until the hour comes round (the clock runs at once, as on a long step). */
+  sleepUntil(hour: number): void {
+    const w = this.world
+    const now = w.hour()
+    const hours = (hour - now + 24) % 24 || 24
+    this.fastForward = Math.round(hours * TICKS_PER_HOUR)
+  }
+
+  /**
+   * A fall of `levels` (world-model.md §5.5, D12): beyond the safe height each level hurts the
+   * faller, as a blow to itself (physics: defined, never asked).
+   */
+  fallBy(e: Entity, levels: number, ev?: GameEvent): void {
+    const w = this.world
+    const p = w.onto.data.params
+    const harm = Math.max(0, levels - (p?.safeFall ?? 1)) * (p?.fallDamage ?? 0)
+    const at = w.posOf(e)
+    if (at) w.fx.push({ t: 'vfx', fx: 'dust', map: at.map, x: at.x, y: at.y })
+    if (harm <= 0) return
+    if (e.id === w.state.player) w.fx.push({ t: 'log', text: { en: 'A hard fall.', zh: '重重地摔了下去。' } })
+    this.hurt(e, harm, undefined, true, ev)
+  }
+
+  /**
+   * Out of a map by its edge (world-model.md §5.1, Elin's ExitBorder): onto its cell's block on the
+   * overworld, at the tile of the same part of the map (the bank one left from) nearest where one
+   * left. A part the block does not show: its nearest open tile.
+   */
+  private leaveByEdge(e: Entity, x: number, y: number, dir: Dir): void {
+    const w = this.world
+    const map = w.map(w.posOf(e)!.map)!
+    const site = map.site!
+    const part = w.partAt(map.id, x, y)
+    const at = [(x + 0.5) / map.width, (y + 0.5) / map.height]
+    let best: { x: number; y: number; d: number; same: boolean } | undefined
+    for (let j = 0; j < site.size; j++)
+      for (let i = 0; i < site.size; i++) {
+        const tx = site.x + i
+        const ty = site.y + j
+        const open = !w.map(site.map) || w.walkable(site.map, tx, ty, e.id)
+        if (!open) continue
+        const same = w.regionPart(map.id, i, j, site.size) === part
+        const d = Math.hypot((i + 0.5) / site.size - at[0], (j + 0.5) / site.size - at[1])
+        if (!best || (same && !best.same) || (same === best.same && d < best.d)) best = { x: tx, y: ty, d, same }
+      }
+    e.facing = dir
+    this.travel(e, { map: site.map, x: best?.x ?? site.x, y: best?.y ?? site.y })
+  }
+
+  /**
+   * Into a map through the thing that stands for it (a site, world-model.md §5.6): one arrives where
+   * one stands on it — its block of the overworld scaled to the map — in the part that tile shows,
+   * at the nearest place one fits; from beside it, on the side one came from.
+   */
+  enterFrom(e: Entity, map: string, through: Entity | undefined): void {
+    const w = this.world
+    const p = w.posOf(e)
+    const size = through ? this.world.onto.resolve(through.type).footprint[0] : 1
+    const bx = through?.place.on === 'tile' ? through.place.x - Math.floor((size - 1) / 2) : 0
+    const by = through?.place.on === 'tile' ? through.place.y - (size - 1) : 0
+    const rel: [number, number] = p ? [Math.min(1, Math.max(0, (p.x - bx + 0.5) / size)), Math.min(1, Math.max(0, (p.y - by + 0.5) / size))] : [0.5, 0.5]
+    const tile: [number, number] = [Math.min(size - 1, Math.floor(rel[0] * size)), Math.min(size - 1, Math.floor(rel[1] * size))]
+    const entry: Entry = { rel, tile, size }
+    if (!w.map(map)) {
+      this.pendingTransition = { map, x: -1, y: -1, entry }
+      return
+    }
+    this.teleport(e, this.entryPoint(e, map, entry))
+  }
+
+  /** Where one comes into a map from a tile of its block: in that tile's part, nearest the point it stands for. */
+  private entryPoint(e: Entity, map: string, entry: Entry): Pos {
+    const w = this.world
+    const m = w.map(map)!
+    const part = w.regionPart(map, entry.tile[0], entry.tile[1], entry.size)
+    const tx = entry.rel[0] * m.width
+    const ty = entry.rel[1] * m.height
+    let best: { x: number; y: number; d: number; same: boolean } | undefined
+    for (let y = 0; y < m.height; y++)
+      for (let x = 0; x < m.width; x++) {
+        if (!w.fits(e, map, x, y)) continue
+        const same = part < 0 || w.partAt(map, x, y) === part
+        const d = Math.hypot(x + 0.5 - tx, y + 0.5 - ty)
+        if (!best || (same && !best.same) || (same === best.same && d < best.d)) best = { x, y, d, same }
+      }
+    return { map, x: best?.x ?? Math.floor(m.width / 2), y: best?.y ?? Math.floor(m.height / 2) }
   }
 
   /** A step to a place: an act of moving there (a scene's direction, a person arriving through a portal). */
@@ -821,15 +1026,19 @@ export class Engine {
       const y = start.y + dy * i
       if (!w.inBounds(start.map, x, y)) break
       last = { map: start.map, x, y }
-      // an actor first, then a fixture (a blow on the well is a blow on the well)
-      const victim = w.actorAt(start.map, x, y, a.id) ?? w.entitiesAt(start.map, x, y).find((e) => w.kindOf(e) === 'fixture')
+      // a body first, then what stands there and cannot be carried (a blow on the well is a blow on the well)
+      // (the ground of a cell is not in the way: a blow goes on to what the cell's top is, where it stops)
+      const victim = w.actorAt(start.map, x, y, a.id) ?? w.entitiesAt(start.map, x, y).find((e) => !w.isAgent(e) && !w.isPortable(e) && !w.isTerrain(e))
       if (victim) {
         target = { e: victim.id }
         break
       }
       if (w.blocked(start.map, x, y) && i > 1) break
     }
-    if (!target && last) target = { tile: last }
+    if (!target && last) {
+      const top = w.cellTop(last.map, last.x, last.y)
+      if (top) target = { e: top.id }
+    }
     // a melee blow on the layer the player chose; a cast at a tile the player chose lands there when it lies on the bolt's way
     const cp = chosen && w.refPos(chosen)
     if (chosen && cp && cp.map === start.map && range <= 1 && Math.max(Math.abs(cp.x - start.x), Math.abs(cp.y - start.y)) <= 1) target = chosen
@@ -838,7 +1047,7 @@ export class Engine {
       const onRay = cp.x - start.x === dx * d && cp.y - start.y === dy * d
       if (onRay && d >= 1 && d <= Math.abs(last.x - start.x) + Math.abs(last.y - start.y)) (target = chosen), (last = cp)
     }
-    const base = w.num(a, 'atk', 1) + (weapon ? w.num(weapon, 'power', 0) : 0)
+    const base = w.stat(a, 'atk', 1) + (weapon ? w.num(weapon, 'power', 0) : 0)
     if (!target) {
       finishCombatStrike(w, a, undefined, { power: base, critical: false, charged: false, comboHits: 0, bleed: 0, drain: 0 }, 0, range, true)
       return
@@ -878,7 +1087,9 @@ export class Engine {
       const x = p.x + Math.round((w.rand() - 0.5) * 12)
       const y = p.y + Math.round((w.rand() - 0.5) * 12)
       if (!w.inBounds(active, x, y)) return
-      target = { tile: { map: active, x, y } }
+      const top = w.cellTop(active, x, y)
+      if (!top) return
+      target = { e: top.id }
     }
     const at = w.refPos(target)!
     w.fx.push({ t: 'strike', map: active, x: at.x, y: at.y })
@@ -899,17 +1110,27 @@ export class Engine {
     this.statusTick(active)
     this.periodTick(active)
     this.stayTick(active)
-    this.npcs.tick(active)
-    stepCreatures(this, active)
-    // the encounters' own behaviour (bosses.ts): telegraphs, approaches; their blows are acts
-    stepBosses(this, active)
-    // the companions' behaviour: they fly after their leader (their moves are acts)
-    this.companions.tick()
+    // everyone's behaviour, one goal system (world-model.md §6.10): their moves and blows are acts
+    this.behaviour.tick(active)
     this.undefinedSink?.tick()
     this.controls.magnet()
     this.invariantTick()
-    this.scenes.tick()
+    this.story.tick()
     this.flush()
+    // a long step's time passes now, all at once; harm stops it (world-model.md §6.11)
+    if (this.fastForward > 0) {
+      const n = this.fastForward
+      this.fastForward = 0
+      const p = this.world.player
+      const hp = w.num(p, 'hp')
+      for (let i = 0; i < n; i++) {
+        this.tick()
+        if (w.num(p, 'hp') < hp) {
+          w.fx.push({ t: 'log', text: { en: 'Hurt, you stop on the way.', zh: '你受了伤，停下了脚步。' } })
+          break
+        }
+      }
+    }
   }
 
   /** A status runs out (the clock clears it): a time/timer event (its actor: who gave it). */
@@ -990,13 +1211,14 @@ export class Engine {
     const w = this.world
     if (w.state.tick % INVARIANT_EVERY !== 0 || !w.get(STORY)) return
     for (const inv of this.invariants) {
-      if (w.fact(`invalid.${inv.id}`)) continue
+      if (w.state.reported?.includes(inv.id)) continue
       // content not in play yet: its giver's map is not loaded (the player is still on the mountain)
       const at = inv.giver ? w.posOf(w.get(inv.giver)) : undefined
       if (inv.giver && (!at || !w.map(at.map))) continue
       if (inv.when && !evalCond(inv.when, {}, w)) continue
       if (evalCond(inv.holds, {}, w)) continue
-      this.write(() => w.setFact(`invalid.${inv.id}`, true))
+      // the detector's own record (not the story's): reported once
+      ;(w.state.reported ??= []).push(inv.id)
       const giver: Ref | undefined = inv.giver && w.get(inv.giver) ? { e: inv.giver } : undefined
       this.queue({ kind: 'broken', host: { e: STORY }, roles: giver ? { target: giver } : {}, params: { invariant: inv.id }, origin: 'world' })
     }
@@ -1007,6 +1229,7 @@ export class Engine {
   loadChunk(chunk: MapChunk): void {
     const s = this.world.state
     s.maps[chunk.map.id] = chunk.map
+    this.mapArrived(chunk.map.id)
     if (!s.loadedMaps.includes(chunk.map.id)) {
       s.loadedMaps.push(chunk.map.id)
       this.write(() => {
@@ -1019,7 +1242,8 @@ export class Engine {
     if (this.pendingTransition?.map === chunk.map.id) {
       const to = this.pendingTransition
       this.pendingTransition = undefined
-      this.write(() => this.teleport(this.world.player, to))
+      const p = this.world.player
+      this.write(() => this.teleport(p, to.entry ? this.entryPoint(p, to.map, to.entry) : to))
     }
   }
 
@@ -1028,14 +1252,10 @@ export class Engine {
   nameOf(ref: Ref | undefined, locale: 'en' | 'zh' = 'en'): string {
     if (!ref) return ''
     const w = this.world
-    let name: Text | undefined
-    if ('tile' in ref) name = w.onto.terrain(w.terrainAt(ref.tile.map, ref.tile.x, ref.tile.y))?.name
-    else {
-      const e = w.get(ref.e)
-      if (!e) return ''
-      if (e.id === w.state.player) return locale === 'zh' ? '你' : 'you'
-      name = e.name ?? w.onto.resolve(e.type).name ?? e.type.split('/').pop()!.replace(/_/g, ' ')
-    }
+    const e = w.get(ref.e)
+    if (!e) return ''
+    if (e.id === w.state.player) return locale === 'zh' ? '你' : 'you'
+    const name: Text | undefined = e.name ?? w.onto.resolve(e.type).name ?? e.type.split('/').pop()!.replace(/_/g, ' ')
     return textOf(name, locale)
   }
 }

@@ -102,7 +102,7 @@ export function buildTools(ctx: ToolContext, allowed: string[]): Tool[] {
           if (prefix && !isA(id, prefix)) continue
           const r = index.resolve(id)
           if (tag && !r.tags.includes(tag)) continue
-          out.push(`${id} [${r.kind}] ${r.tags.join(',')}`)
+          out.push(`${id} ${r.tags.join(',')}`)
         }
         if (!out.length) return '(no type matches)'
         return out.slice(0, 80).join('\n') + (out.length > 80 ? `\n… ${out.length - 80} more` : '')
@@ -110,17 +110,17 @@ export function buildTools(ctx: ToolContext, allowed: string[]): Tool[] {
     },
     {
       name: 'get_type',
-      description: 'Resolve one type: its ancestor chain, kind, all tags (inherited) and default props.',
+      description: 'Resolve one type: its ancestor chain, all tags (inherited) and default props.',
       parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
       run: (a) => {
         const id = str(a.id)
         if (id.startsWith('tile/')) {
           const t = ctx.ontology.terrains[id.slice(5)]
-          return t ? JSON.stringify({ kind: 'tile', ...t, id }) : `(no terrain "${id.slice(5)}")`
+          return t ? JSON.stringify({ ...t, id }) : `(no terrain "${id.slice(5)}")`
         }
         if (!(id in ctx.ontology.types)) return `(no type "${id}")`
         const r = index.resolve(id)
-        return JSON.stringify({ id, kind: r.kind, chain: r.chain, tags: r.tags, props: r.props, name: r.name ? textOf(r.name) : undefined })
+        return JSON.stringify({ id, chain: r.chain, tags: r.tags, props: r.props, name: r.name ? textOf(r.name) : undefined })
       },
     },
     {
@@ -229,7 +229,7 @@ export function describeOutcome(sc: Scenario, patch: Patch, ctx: Pick<ToolContex
     if (f.t === 'damage') out.push(`damage: ${f.who} ${f.amount}${f.element ? ` ${f.element}` : ''}`)
   }
   const before = buildSandbox(sc, onto, lib).world
-  const where = (e: Entity) => (e.place.on === 'tile' ? `tile ${e.place.x},${e.place.y}` : e.place.on === 'none' || e.place.on === 'resident' ? e.place.on : `${e.place.on}:${e.place.holder}`)
+  const where = (e: Entity) => (e.place.on === 'tile' ? `tile ${e.place.x},${e.place.y}` : e.place.on === 'none' || e.place.on === 'resident' || e.place.on === 'area' ? e.place.on : `${e.place.on}:${e.place.holder}`)
   for (const b of Object.values(before.state.entities)) {
     if (b.id === '__player') continue
     const e = w.get(b.id)
@@ -255,7 +255,7 @@ export function describeOutcome(sc: Scenario, patch: Patch, ctx: Pick<ToolContex
     for (let x = 0; x < rows[y].length; x++) {
       const t = w.terrainAt(SANDBOX_MAP, x, y)
       if (t !== rows[y][x]) out.push(`tile ${x},${y}: ${rows[y][x]} → ${t}`)
-      const st = Object.keys(w.tileState(SANDBOX_MAP, x, y)?.statuses ?? {})
+      const st = w.entitiesAt(SANDBOX_MAP, x, y).filter((c) => w.isTerrain(c)).flatMap((c) => Object.keys(c.statuses ?? {}))
       if (st.length) out.push(`tile ${x},${y}: ${st.join(',')}`)
     }
   if (out.length === 1) out.push('(no visible effect: give the player feedback)')

@@ -82,12 +82,12 @@ const shape = (s: Selector): Selector => {
   return rest
 }
 
-/** Other instances the selector also picks, best first: types of the same kind elsewhere in the tree (another branch first), or other terrains. */
-function siblings(sel: Selector, current: string, kind: string, onto: Ontology): string[] {
+/** Other instances the selector also picks, best first: types under the same root elsewhere in the tree (another branch first), or other terrains. */
+function siblings(sel: Selector, current: string, tile: boolean, onto: Ontology): string[] {
   const s = shape(sel)
-  if (kind === 'tile') {
+  if (tile) {
     const terrains = Object.values(onto.terrains).filter((t) => `tile/${t.id}` !== current && t.id !== current)
-    const view = (id: string, tags: string[] = []): View => ({ ref: { tile: { map: 'x', x: 0, y: 0 } }, kind: 'tile', type: `tile/${id}`, tags: new Set(tags), statuses: new Set(), props: {}, isPlayer: false })
+    const view = (id: string, tags: string[] = []): View => ({ ref: { e: `x:0,0,0:${id}` }, type: `tile/${id}`, tags: new Set(tags), statuses: new Set(), props: {} })
     return terrains.filter((t) => matchSelector(s, view(t.id, t.tags))).map((t) => t.id)
   }
   const index = new OntologyIndex(onto)
@@ -95,10 +95,11 @@ function siblings(sel: Selector, current: string, kind: string, onto: Ontology):
   const leafTypes = Object.keys(onto.types)
     .filter((id) => id !== current && !Object.keys(onto.types).some((o) => o.startsWith(id + '/')))
     .sort()
+  const root = current.split('/')[0]
   const fits = leafTypes.filter((id) => {
     const r = index.resolve(id)
-    if (r.kind !== kind) return false
-    return matchSelector(s, { ref: { e: id }, kind: r.kind, type: id, tags: new Set(r.tags), statuses: new Set(), props: r.props, isPlayer: false })
+    if (id.split('/')[0] !== root) return false
+    return matchSelector(s, { ref: { e: id }, type: id, tags: new Set(r.tags), statuses: new Set(), props: r.props })
   })
   // prefer an instance from another branch: that is what tests the class, not the family
   return [...fits.filter((id) => !isA(id, parent)), ...fits.filter((id) => isA(id, parent))]
@@ -130,7 +131,7 @@ export function deriveTests(patch: Patch, req: ModRequest, lib: RuleLibrary, ont
       const tile = key.startsWith('tile:') ? key.slice(5).split(',').map(Number) : undefined
       const ent = tile ? undefined : req.scenario.entities.find((e) => e.key === key)
       if (!tile && !ent) return a // a resident host: one of a kind
-      const others = tile ? siblings(r.host!, req.scenario.terrain![tile[1]][tile[0]], 'tile', cand.onto) : siblings(r.host!, ent!.type, new OntologyIndex(cand.onto).resolve(ent!.type).kind, cand.onto)
+      const others = tile ? siblings(r.host!, req.scenario.terrain![tile[1]][tile[0]], true, cand.onto) : siblings(r.host!, ent!.type, false, cand.onto)
       const swap = (other: string): Scenario => {
         const sc: Scenario = structuredClone(req.scenario)
         if (tile) sc.terrain![tile[1]][tile[0]] = other

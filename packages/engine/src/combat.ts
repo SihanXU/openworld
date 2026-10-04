@@ -71,7 +71,7 @@ export interface Strike {
 /** Contextual bonuses are additive, then the critical multiplier applies before defence. */
 export function combatStrike(w: World, a: Entity, target: Entity | undefined, base: number, range: number, weapon: Entity | undefined, primary: boolean): Strike {
   const out: Strike = { power: base, critical: false, charged: false, comboHits: 0, bleed: 0, drain: 0 }
-  if (!target || w.kindOf(target) !== 'actor' || w.num(target, 'hp') <= 0 || w.hasStatus({ e: target.id }, 'down')) return out
+  if (!target || !w.isAgent(target) || w.num(target, 'hp') <= 0 || w.hasStatus({ e: target.id }, 'down')) return out
   const melee = range <= 1
   if (melee && weapon && w.hasTag(weapon, 'blade') && assassin(w, a, 'assassin-training')) out.power += 1
   // the professions' weapon training: the warrior's melee arms, the ranger's bow, the mage's focus
@@ -151,7 +151,7 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
  * chains, the windows a defeat opens. Immunity and misses consume no charge and build no combo.
  */
 export function finishCombatStrike(w: World, a: Entity, target: Entity | undefined, strike: Strike, before: number, range: number, primary: boolean): void {
-  const landed = !!target && w.kindOf(target) === 'actor' && before > 0 && w.num(target, 'hp') < before
+  const landed = !!target && w.isAgent(target) && before > 0 && w.num(target, 'hp') < before
   const weapon = w.get(a.held)
   if (primary && landed) {
     const state = (a.combat ??= {})
@@ -196,7 +196,7 @@ export function finishCombatStrike(w: World, a: Entity, target: Entity | undefin
 /** Only non-piercing damage attributed to another actor is direct combat damage. Runs in the struck one's own outcome (`hurt`). */
 export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: Entity | undefined, pierce: boolean): number {
   const w = eng.world
-  if (pierce || !attacker || attacker.id === e.id || w.kindOf(attacker) !== 'actor') return damage
+  if (pierce || !attacker || attacker.id === e.id || !w.isAgent(attacker)) return damage
   const state = (e.combat ??= {})
   // untouchable for a moment (Phantom Step after a dash, Phoenix after a fall)
   if ((state.guardUntil ?? 0) > w.state.tick) return 0

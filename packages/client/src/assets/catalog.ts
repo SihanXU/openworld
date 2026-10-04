@@ -225,6 +225,8 @@ export const CATALOG: Catalog = {
     // Solid-looking fallbacks (the pointed tops have a few transparent pixels).
     wall: [[HOUSE, 11, 9], [HOUSE, 12, 9]],
     woodwall: [[HOUSE, 11, 5], [HOUSE, 12, 5]],
+    // a wooden wall burnt black (the pack has none: the wall, darkened by its tint in ground.ts)
+    burnt_wall: [[HOUSE, 11, 5], [HOUSE, 12, 5]],
     roof: [[HOUSE, 13, 1], [HOUSE, 14, 1]],
     cave_wall: [[RELIEF, 5, 1], [RELIEF, 9, 1], [RELIEF, 10, 1]],
   },
@@ -271,6 +273,10 @@ export const CATALOG: Catalog = {
       px(NATURE, 256, 128, 32, 32, 16, 31), // big grey rock
     ],
     stump: [t(NATURE, 4, 8), t(NATURE, 14, 18), t(NATURE, 12, 13), px(NATURE, 0, 128, 32, 32, 16, 29), px(NATURE, 32, 128, 32, 32, 16, 29)],
+    // the overworld: woods and mountains drawn as the trees and rocks they stand for
+    ow_forest: [px(NATURE, 32, 0, 32, 32, 16, 31), px(NATURE, 0, 0, 32, 32, 16, 31)],
+    ow_mountain: [px(NATURE, 208, 128, 32, 32, 16, 31), px(NATURE, 256, 128, 32, 32, 16, 31)],
+    ow_hills: [t(NATURE, 15, 9), t(NATURE, 7, 12)],
     // Bare dead trees (the pack has no burnt trees; these read as charred).
     charred_tree: [px(NATURE, 64, 0, 32, 32, 16, 31), t(NATURE, 4, 9)],
     // Tall grass tufts. The pack's tufts are green: tint them golden (e.g. 0xe0c060) for dry
@@ -419,6 +425,13 @@ export const CATALOG: Catalog = {
     'fixture:fountain': { base: px(DESERT, 128, 112, 32, 32, 16, 28) },
     'fixture:trough': { base: t(ELEM, 6, 10) },
     'fixture:sign': { base: t(ELEM, 0, 2) },
+    // a place on the overworld: a signpost where it is; the wild shows no mark of its own
+    'site:place': { base: t(ELEM, 0, 2) },
+    // what one builds, set in its cell: drawn as the wall, the floor, the stairs of the place
+    'structure:wall': { base: t(HOUSE, 11, 5) },
+    'structure:floor': { base: t(IFLOOR, 12, 1) },
+    'structure:stairs': { base: t(ELEM, 6, 12) },
+    'site:wild': { base: t(DETAIL, 3, 2) },
     'fixture:noticeboard': { base: t(ELEM, 1, 2) },
     'fixture:craft': { base: t(HOUSE, 29, 15) },
     'fixture:anvil': { base: t(HOUSE, 29, 15) },
@@ -560,6 +573,10 @@ export const CATALOG: Catalog = {
     'item:potion_purple': t(HOUSE, 21, 13),
     'item:log': t(CAMP, 8, 8),
     'item:plank': t(HOUSE, 31, 17),
+    // what one builds, carried
+    'structure:wall': t(HOUSE, 11, 5),
+    'structure:floor': t(IFLOOR, 12, 1),
+    'structure:stairs': t(ELEM, 6, 12),
     'item:stick': icon('Items/Resource/Branch.png', 16, 16),
     'item:stone': icon('Items/Resource/Rock.png', 16, 16),
     // cut grass: one of the meadow's tufts

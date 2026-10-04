@@ -16,6 +16,7 @@
 // or eating (the host stops time while it is open).
 
 import { isRoot } from './rules.ts'
+import { parseCellId } from './cells.ts'
 import type { Engine } from './engine.ts'
 import type { Writer } from './world.ts'
 import type { Aim, Dir, Entity, Id, Place, Plan, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb } from './types.ts'
@@ -149,17 +150,28 @@ export class Controls {
    */
   layers(at: Pos, stack?: Ref[]): Ref[] {
     const w = this.w
-    const ok = (r: Ref) => ('e' in r ? w.posOf(w.get(r.e))?.map === at.map : r.tile.map === at.map && w.inBounds(r.tile.map, r.tile.x, r.tile.y))
-    const sig = (r: Ref) => ('e' in r ? r.e : `${r.tile.x},${r.tile.y}`)
-    const es = w.entitiesAt(at.map, at.x, at.y)
-    const of = (k: string) => es.filter((e) => w.kindOf(e) === k)
-    // in the order they are drawn: people and creatures over items, items over the fixture they lie on
-    const standing: Ref[] = [...of('actor'), ...of('item').reverse(), ...of('fixture')].map((e) => ({ e: e.id }))
-    let out: Ref[] = stack ? [...stack.filter(ok), ...standing] : standing
+    const ok = (r: Ref) => w.posOf(w.get(r.e))?.map === at.map
+    // a cell drawn at the point (a tree's canopy) is named by any of its ids: it is what makes it up on top
+    const cellOf = (r: Ref): Ref => {
+      const c = !w.get(r.e) && parseCellId(r.e)
+      return c ? w.cellRef(c.map, c.x, c.y) : r
+    }
+    const sig = (r: Ref) => r.e
+    // what stands there, and what bigger stands beside it and covers it with its base (a tent, a place on the overworld)
+    const es = [...w.entitiesAt(at.map, at.x, at.y), ...w.coveringAt(at.map, at.x, at.y)]
+    // in the order they are drawn: bodies over what can be carried, that over what it lies on
+    const bodies = es.filter((e) => w.isAgent(e))
+    const loose = es.filter((e) => !w.isAgent(e) && w.isPortable(e)).reverse()
+    // what stands there, then what makes up the cell, top first: what fills it, roots in it, the floor
+    const cell = (e: Entity) => w.isTerrain(e)
+    const ground = es.filter((e) => !w.isAgent(e) && !w.isPortable(e) && !cell(e))
+    const made = es.filter(cell).sort((a, b) => w.cellRank(b) - w.cellRank(a))
+    const standing: Ref[] = [...bodies, ...loose, ...ground].map((e) => ({ e: e.id }))
+    let out: Ref[] = stack ? [...stack.map(cellOf).filter(ok), ...standing] : standing
     // a bird overhead is the last thing the keys meet (it is drawn on top, but rarely what is meant)
     const aloft = (r: Ref) => 'e' in r && !!w.get(r.e) && w.hasTag(w.get(r.e)!, 'airborne')
     out = [...out.filter((r) => !aloft(r)), ...out.filter(aloft)]
-    out.push({ tile: { map: at.map, x: at.x, y: at.y } })
+    out.push(...made.map((e) => ({ e: e.id })))
     const seen = new Set<string>()
     return out.filter((r) => !seen.has(sig(r)) && !!seen.add(sig(r)))
   }
@@ -473,7 +485,10 @@ export class Controls {
     const front = w.front(p)
     const to = front && w.inBounds(front.map, front.x, front.y) && w.passable(front.map, front.x, front.y) ? front : here
     const items = this.carried().get(k) ?? []
-    for (const e of all ? items : items.slice(0, 1)) if (!e.frozenBy) this.eng.act('put', p.id, { tile: to }, { instrument: { e: e.id } })
+    // put on the cell: on what is on top of it there
+    const onto = w.cellTop(to.map, to.x, to.y)
+    if (!onto) return
+    for (const e of all ? items : items.slice(0, 1)) if (!e.frozenBy) this.eng.act('put', p.id, { e: onto.id }, { instrument: { e: e.id } })
     this.sync()
   }
 
@@ -582,7 +597,7 @@ export class Controls {
     for (let dy = -reach; dy <= reach; dy++)
       for (let dx = -reach; dx <= reach; dx++)
         for (const e of w.entitiesAt(here.map, here.x + dx, here.y + dy)) {
-          if (!e.dropped || e.frozenBy || w.kindOf(e) !== 'item') continue
+          if (!e.dropped || e.frozenBy || !w.isPortable(e)) continue
           const k = this.key(e)
           if (!by.has(k)) {
             if (free <= 0) continue

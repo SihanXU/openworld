@@ -4,6 +4,7 @@ import type { Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
 import type { Appearance, BossState, Dir, FxEvent, Id, PropValue, SceneState, Text } from './types.ts'
 import { SLOT_COUNT } from './controls.ts'
+import { parseCellId } from './cells.ts'
 import { skillsOf } from './progression.ts'
 import type { QuestView } from './quests.ts'
 
@@ -21,10 +22,13 @@ export interface ItemInfo {
 export interface EntitySnap {
   id: Id
   type: string
-  kind: string
   sprite: string
   x: number
   y: number
+  /** The storey it stands on (omitted: the ground's). */
+  z?: number
+  /** The spaces it takes in its cell, if any (a built wall, a floor laid): drawn as part of the place, not as a thing lying there. */
+  spaces?: string[]
   facing: Dir
   statuses: string[]
   tags: string[]
@@ -56,6 +60,9 @@ export interface TileSnap {
   y: number
   terrain?: string
   statuses?: string[]
+  /** The durability of what fills or makes up the cell, when it has lost some (a notched tree, a cracked rock). */
+  hp?: number
+  maxHp?: number
 }
 
 export interface Frame {
@@ -69,6 +76,8 @@ export interface Frame {
     id: Id
     x: number
     y: number
+    /** The storey the player is on (omitted: the ground's). */
+    z?: number
     facing: Dir
     hp: number
     maxHp: number
@@ -82,7 +91,7 @@ export interface Frame {
     held?: ItemInfo
     inventory: ItemInfo[]
     /** The bag's slots (row 1 is the toolbar): a stack each, or empty. */
-    slots: ({ item: ItemInfo; count: number } | null)[]
+    slots: ({ item: ItemInfo; count: number; worn?: boolean } | null)[]
     selected: number
   }
   /** A yes/no question waiting for the player (time is stopped). */
@@ -161,16 +170,17 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     entities.push({
       id: e.id,
       type: e.type,
-      kind: r.kind,
       sprite: r.sprite ?? e.type,
       x: e.place.x,
       y: e.place.y,
+      ...(e.place.z && { z: e.place.z }),
+      ...(w.spacesOf(e).some((s) => s !== 'body') && { spaces: w.spacesOf(e) }),
       facing: e.facing ?? 'down',
       statuses: Object.keys(e.statuses ?? {}),
       tags: [...r.tags, ...(e.tags ?? [])],
       name: e.name ?? r.name ?? e.type.split('/').pop()!,
-      hp: r.kind === 'actor' ? w.num(e, 'hp') : undefined,
-      maxHp: r.kind === 'actor' ? w.num(e, 'maxHp', 1) : undefined,
+      hp: w.prop(e, 'maxHp') !== undefined ? w.num(e, 'hp') : undefined,
+      maxHp: w.prop(e, 'maxHp') !== undefined ? w.num(e, 'maxHp', 1) : undefined,
       appearance: e.npc?.appearance ?? (e.id === w.state.player ? PLAYER_LOOK : e.npc ? PLAYER_LOOK : undefined),
       look: e.look ?? e.npc?.look,
       hostile: e.ai ? e.ai.state === 'chase' : undefined,
@@ -187,12 +197,20 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       } : undefined,
     })
   }
+  // the cells that differ from the map's data: what they show now, and what their things carry
   const tiles: TileSnap[] = []
-  const prefix = map + ':'
-  for (const [k, t] of Object.entries(w.state.tiles)) {
-    if (!k.startsWith(prefix)) continue
-    const [, x, y] = k.split(':')
-    tiles.push({ x: +x, y: +y, terrain: t.terrain, statuses: t.statuses ? Object.keys(t.statuses) : undefined })
+  const changed = new Set<string>()
+  for (const c of w.keptCells(map)) {
+    const at = parseCellId(c.id)!
+    changed.add(`${at.x},${at.y}`)
+    if (c.place.on === 'tile' && c.place.map === map) changed.add(`${c.place.x},${c.place.y}`)
+  }
+  for (const k of changed) {
+    const [x, y] = k.split(',').map(Number)
+    const statuses = w.entitiesAt(map, x, y).filter((c) => w.isTerrain(c)).flatMap((c) => Object.keys(c.statuses ?? {}))
+    const top = w.cellTop(map, x, y)
+    const hurt = top && w.prop(top, 'maxHp') !== undefined && w.num(top, 'hp', w.num(top, 'maxHp')) < w.num(top, 'maxHp')
+    tiles.push({ x, y, terrain: w.terrainAt(map, x, y), statuses: statuses.length ? statuses : undefined, ...(hurt && { hp: w.num(top!, 'hp'), maxHp: w.num(top!, 'maxHp') }) })
   }
   const panel = opts.panel ? w.get(opts.panel) : undefined
   const box = panel && w.hasStatus({ e: panel.id }, 'open') ? panel : undefined
@@ -205,14 +223,17 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     const k = eng.controls.key(e)
     carried.set(k, [...(carried.get(k) ?? []), id])
   }
+  const wearing = new Set(w.worn(p).map((e) => e.id))
   const slots = Array.from({ length: Math.max(SLOT_COUNT, p.slots?.length ?? 0) }, (_, i) => {
     const k = p.slots?.[i]
     const ids = k ? carried.get(k) : undefined
     const first = ids && itemInfo(eng, ids[0])
-    return first ? { item: first, count: ids!.length } : null
+    // what of the stack the player wears (world-model.md §6.8)
+    const worn = !!ids && ids.some((id) => wearing.has(id))
+    return first ? { item: first, count: ids!.length, ...(worn && { worn }) } : null
   })
   const fx = w.drainFx()
-  const sc = w.state.scene
+  const sc = w.scene
   return {
     tick: w.state.tick,
     hour: w.hour(),
@@ -223,6 +244,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       id: p.id,
       x: pos.x,
       y: pos.y,
+      ...(pos.z && { z: pos.z }),
       facing: p.facing ?? 'down',
       hp: w.num(p, 'hp'),
       maxHp: w.num(p, 'maxHp', 1),
@@ -238,7 +260,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     },
     question: w.state.question ? { text: w.state.question.text } : undefined,
     quests: questsOf(eng, entities),
-    facts: { ...(w.state.facts ?? {}) },
+    facts: { ...(w.story?.props ?? {}) },
     container: box && {
       id: box.id,
       name: box.name ?? w.onto.resolve(box.type).name ?? box.type.split('/').pop()!,
@@ -259,7 +281,7 @@ function questsOf(eng: Engine, entities: EntitySnap[]): Frame['quests'] {
   const marks: Record<Id, '!' | '?'> = {}
   if (eng.quests.defs.length)
     for (const e of entities) {
-      if (e.kind !== 'actor' || !e.tags.includes('person')) continue
+      if (!e.tags.includes('person')) continue
       const m = eng.quests.mark(e.id)
       if (m) marks[e.id] = m
     }

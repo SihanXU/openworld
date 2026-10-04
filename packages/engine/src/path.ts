@@ -10,6 +10,8 @@ export function astar(
   tx: number,
   ty: number,
   maxNodes = 6000,
+  /** Can one go from a column to the next (heights: no climbing a cliff, no unsafe drop)? */
+  step?: (ax: number, ay: number, bx: number, by: number) => boolean,
 ): [number, number][] | undefined {
   if (sx === tx && sy === ty) return []
   const N = width * height
@@ -72,6 +74,7 @@ export function astar(
       const ni = ny * width + nx
       if (closed[ni]) continue
       if (ni !== goal && !passable(nx, ny)) continue
+      if (step && !step(cx, cy, nx, ny)) continue
       const ng = g[cur] + 1
       if (ng < g[ni]) {
         g[ni] = ng
