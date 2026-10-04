@@ -62,6 +62,26 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
     expect(found).toEqual([])
   })
 
+  it('the client changes the world only as the author (a new game, loading, the dev console) or through the input', () => {
+    // a call of a world mutator or an engine move outside an author block
+    const CALL = /\b(w|world|engine\.world|eng\.world|game\.engine\.world)\.(setFact|setStatus|clearStatus|setProp|addTag|removeTag|setTerrain|place|add|create|destroy|transform)\(|\b(eng|engine|game\.engine)\.(teleport|travel|applyStatus|removeStatus|hurt)\(/
+    const found: string[] = []
+    const dir = join(ROOT, 'client/src')
+    const files = readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('.ts'))
+    for (const f of files) {
+      let depth = 0
+      readFileSync(join(dir, f), 'utf8')
+        .split(/\r?\n/)
+        .forEach((l, i) => {
+          const c = code(l)
+          const opens = /author\(\(\) => \{/.test(c)
+          if (depth === 0 && !opens && !c.includes('author(') && CALL.test(c)) found.push(`client/src/${f}:${i + 1}: ${c.slice(0, 120)}`)
+          if (opens || depth > 0) depth += (c.match(/\{/g) ?? []).length - (c.match(/\}/g) ?? []).length
+        })
+    }
+    expect(found).toEqual([])
+  })
+
   it('the scan sees the ways around the mutators, and not their definitions', () => {
     const hit = (c: string) => WRITES.some((re) => re.test(c))
     for (const c of [
