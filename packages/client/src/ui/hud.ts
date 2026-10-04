@@ -83,10 +83,10 @@ export class Hud {
         <div class="toolbar wood" id="toolbar"></div>
       </div>
       <div class="corner" id="corner">
-        <button class="cbtn wood" id="questBtn" title="L"><span class="cb-glyph">📜</span><kbd>L</kbd><span class="badge hidden" id="questBadge"></span></button>
-        <button class="cbtn wood" id="buildBtn" title="B"><span class="cb-glyph">⚒</span><kbd>B</kbd></button>
-        <button class="cbtn wood" id="bagBtn" title="I"><span class="cb-glyph">🎒</span><kbd>I</kbd></button>
-        <button class="cbtn wood" id="skillBtn" title="K"><span class="cb-glyph">✦</span><kbd>K</kbd><span class="badge hidden" id="skillBadge"></span></button>
+        <button class="cbtn wood" id="questBtn" title="L"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerQuests.img)}" alt=""><kbd>L</kbd><span class="badge hidden" id="questBadge"></span></button>
+        <button class="cbtn wood" id="buildBtn" title="B"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerBuild.img)}" alt=""><kbd>B</kbd></button>
+        <button class="cbtn wood" id="bagBtn" title="I"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerBag.img)}" alt=""><kbd>I</kbd></button>
+        <button class="cbtn wood" id="skillBtn" title="K"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerSkills.img)}" alt=""><kbd>K</kbd><span class="badge hidden" id="skillBadge"></span></button>
       </div>
       <div class="msgs" id="msgs"></div>
       <div class="mapname" id="mapname"></div>
