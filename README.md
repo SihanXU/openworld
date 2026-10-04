@@ -27,6 +27,9 @@ npm run dev           # http://localhost:5173, with the modder service on :8787
 npm run build         # static site in packages/client/dist
 ```
 
+With Nix, `nix develop` (or `direnv allow`, through `.envrc`) gives Node 24 with npm; install
+with `npm ci` to keep the lockfile as it is.
+
 Controls: WASD/arrows move (Shift walks) · **E** hands (talk, open, push) · **F** take ·
 **left click** use the held thing (weapons strike; click yourself to eat) · **right click** put
 it there (place, store, hand over) — on the topmost thing drawn where you point; hold to choose another · **1–0** / wheel
