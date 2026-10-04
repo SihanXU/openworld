@@ -32,6 +32,9 @@ const POWER: Amount = { param: 'power' }
 const ELEMENT = { param: 'element' }
 /** What a blow carries beyond its power, passed on to the strike (combat.ts): a bleed it opens, health it draws back. */
 const WOUND = { bleed: { param: 'bleed' }, drain: { param: 'drain' } }
+/** What burning takes from a thing with durability (nothing from one without: it cannot break). */
+const WEAR: Effect = { op: 'hurt', amount: 1, element: 'fire', pierce: true }
+const spread = (chance: number): Effect => emit('element', { area: { radius: 1 } }, { element: 'fire', power: 1 }, { chance, filter: { tags: ['flammable'], notStatus: ['wet', 'burning', 'frozen'] } })
 
 // ------------------------------------------------------------------ the roots: resolution is total
 
@@ -60,9 +63,13 @@ const ROOTS: Rule[] = [
   rule({ id: 'core/impulse', doc: 'What is done to a thing is undefined unless its nature says (the AI answers).', on: 'impulse', tree: HOLE() }),
   rule({
     id: 'core/strike',
-    doc: 'A blow on something with no answer of its own: the element it carries still reaches it; a plain blow is undefined.',
+    doc: 'A blow on something with no answer of its own: what has durability loses it (as well as the instrument works on what it is made of; nothing if the instrument is softer — too hard), and the element the blow carries reaches it; a plain blow on what cannot break is undefined.',
     on: 'impulse/strike',
-    tree: IF({ param: { key: 'element', cmp: { ne: '' } } }, DO(emit('element', 'host', { element: ELEMENT, power: POWER })), HOLE()),
+    tree: IF(
+      { prop: { role: 'host', key: 'maxHp', cmp: { gt: 0 } } },
+      IF({ param: { key: 'element', cmp: { ne: '' } } }, DO({ op: 'hurt', amount: POWER, blow: true }, emit('element', 'host', { element: ELEMENT, power: POWER })), DO({ op: 'hurt', amount: POWER, blow: true })),
+      IF({ param: { key: 'element', cmp: { ne: '' } } }, DO(emit('element', 'host', { element: ELEMENT, power: POWER })), HOLE()),
+    ),
   }),
   rule({
     id: 'core/handle',
@@ -173,6 +180,20 @@ const ROOTS: Rule[] = [
   rule({ id: 'core/bump', doc: 'Bumping is no change unless the host says.', on: 'bump', tree: NOTHING }),
   rule({ id: 'core/time', doc: 'Time passing is no change unless the host says.', on: 'time', tree: NOTHING }),
   rule({ id: 'core/threshold', doc: 'Gaining or losing a status, crossing a line: no change unless the host says.', on: 'threshold', tree: NOTHING }),
+  rule({
+    id: 'core/break',
+    doc: 'Something with durability at none (world-model.md §6.3): an essential one goes down (and comes to); one made of something breaks down into it (its makeup × the recovery rate) and spills what it holds; anything else is undefined (meanwhile it is gone).',
+    on: 'threshold/cross',
+    tree: IF(
+      param('name', 'broken'),
+      IF(
+        tag('host', 'essential'),
+        DO(add('down'), vfx('poof', 'tileOf:host'), log('{host} collapses.', '{host}倒下了。')),
+        IF({ makeup: 'host' }, DO(vfx('dust', 'tileOf:host'), log('{host} breaks.', '{host}碎了。'), { op: 'breakdown' }), HOLE({ op: 'dropContents' }, { op: 'destroy' })),
+      ),
+      NOTHING,
+    ),
+  }),
   rule({ id: 'core/seen', doc: 'Seeing an act is no change unless the seer says.', on: 'seen', tree: NOTHING }),
   rule({ id: 'core/stuck', doc: 'A person who cannot go on: undefined (the AI answers); meanwhile they wait.', on: 'stuck', tree: HOLE() }),
   rule({ id: 'core/broken', doc: 'Content the story must keep playable broke: undefined (the AI answers); meanwhile its authored fallback runs.', on: 'broken', tree: HOLE({ op: 'fallback' }) }),
@@ -241,22 +262,15 @@ const BODIES: Rule[] = [
     ),
   }),
   rule({
-    id: 'fire/scorch',
-    doc: 'A burning body hurts now and then.',
-    host: { type: 'actor', status: ['burning'] },
-    on: 'time/period',
-    tree: IF(all(param('status', 'burning'), { chance: 0.5 }), DO({ op: 'hurt', amount: 1, element: 'fire', pierce: true })),
-  }),
-  rule({
     id: 'combat/defeat',
-    doc: 'At no health: the essential (people, the player) go down for a while; the rest are gone — they drop what they carried and what they leave behind, and the one who struck learns from it.',
+    doc: 'At no health: the essential (people, the player) go down for a while (as anything essential); the rest are gone — they drop what they carried and what they leave behind, and the one who struck learns from it.',
     host: ACTOR,
     on: 'threshold/cross',
     tree: IF(
-      param('name', 'defeated'),
+      param('name', 'broken'),
       IF(
         tag('host', 'essential'),
-        DO(add('down'), vfx('poof', 'tileOf:host'), log('{host} collapses.', '{host}倒下了。')),
+        'inherit',
         DO(
           { op: 'dropContents', still: true },
           { op: 'spawn', type: '@prop:host.drop', at: 'tileOf:host', count: { prop: 'drops', of: 'host' }, still: true },
@@ -629,18 +643,33 @@ const FELL: Effect[] = [remove('notched'), { op: 'transform', into: 'tile/stump'
 
 const GROUND: Rule[] = [
   rule({
-    id: 'wood/fell',
-    doc: 'An axe on a living tree: the first blow notches it, the second fells it — a stump that grows back, two logs, a stick, and now and then an acorn.',
+    id: 'wood/notch',
+    doc: 'An axe on a living tree bites into it: it loses durability (as any blow) and shows a notch, which heals if the tree is left alone.',
     host: LIVING_TREE,
     on: 'impulse/strike',
+    tree: IF(tag('instrument', 'tool:axe'), DO({ op: 'hurt', amount: POWER, blow: true }, add('notched'), vfx('leaves'), log('The axe bites into {host}.', '斧头砍进了{host}。')), 'inherit'),
+  }),
+  rule({
+    id: 'wood/heal',
+    doc: 'A notch left alone heals: the tree is whole again.',
+    host: LIVING_TREE,
+    on: 'time/timer',
+    tree: IF(param('status', 'notched'), DO({ op: 'heal', amount: { prop: 'maxHp', of: 'host' } }), 'inherit'),
+  }),
+  rule({
+    id: 'wood/fell',
+    doc: 'A living tree broken falls: a stump that grows back, two logs, a stick, and now and then an acorn (a woodcutter gets a log more); one broken by fire is a charred tree.',
+    host: LIVING_TREE,
+    on: 'threshold/cross',
     tree: IF(
-      tag('instrument', 'tool:axe'),
+      param('name', 'broken'),
       IF(
-        has('host', 'notched'),
+        has('host', 'burning'),
+        DO({ op: 'transform', into: 'tile/charred_tree' }, vfx('smoke')),
         // a woodcutter (the skill, content/src/skills.ts) gets one more log from the same tree
         IF(tag('actor', 'skill:woodcutter'), DO(...FELL, { op: 'spawn', type: 'item/material/log', at: 'host' }), IF({ chance: 0.25 }, DO(...FELL, { op: 'spawn', type: 'item/seed/acorn', at: 'host' }), DO(...FELL))),
-        DO(add('notched'), vfx('leaves'), log('The axe bites into {host}.', '斧头砍进了{host}。')),
       ),
+      'inherit',
     ),
   }),
   rule({
@@ -677,34 +706,6 @@ const GROUND: Rule[] = [
     host: { type: 'tile', tags: ['diggable'] },
     on: 'impulse/strike',
     tree: IF(tag('instrument', 'tool:hoe'), DO({ op: 'transform', into: 'tile/farmland' }, vfx('dust'))),
-  }),
-  rule({
-    id: 'mine/rock',
-    doc: 'A pickaxe breaks rock: a stone, and the ground under it.',
-    host: { type: 'tile', tags: ['mineable', 'rock'] },
-    on: 'impulse/strike',
-    tree: IF(tag('instrument', 'tool:pickaxe'), DO({ op: 'spawn', type: 'item/material/stone', at: 'host' }, vfx('dust'), log('The rock breaks apart.', '岩石碎开了。'), { op: 'destroy' })),
-  }),
-  rule({
-    id: 'mine/crack',
-    doc: 'A pickaxe cracks a boulder: two blows chip stones off, the third breaks it into stones.',
-    host: { type: 'fixture', tags: ['mineable', 'rock'] },
-    on: 'impulse/strike',
-    tree: IF(
-      tag('instrument', 'tool:pickaxe'),
-      IF(
-        { prop: { role: 'host', key: 'cracks', cmp: { gte: 2 } } },
-        DO({ op: 'spawn', type: 'item/material/stone', at: 'tileOf:host', count: 2 }, vfx('dust'), log('{host} breaks apart.', '{host}碎开了。'), { op: 'destroy' }),
-        DO({ op: 'addProp', key: 'cracks', delta: 1 }, { op: 'spawn', type: 'item/material/stone', at: 'tileOf:actor' }, vfx('dust'), log('The pickaxe cracks {host}.', '镐子在{host}上凿出了裂缝。')),
-      ),
-    ),
-  }),
-  rule({
-    id: 'mine/chip',
-    doc: 'A pickaxe chips a stone off anything mineable.',
-    host: { tags: ['mineable'] },
-    on: 'impulse/strike',
-    tree: IF(tag('instrument', 'tool:pickaxe'), DO({ op: 'spawn', type: 'item/material/stone', at: 'tileOf:actor' }, vfx('dust'), log('Chips of stone fly.', '石屑纷飞。'))),
   }),
   rule({
     id: 'core/fish',
@@ -764,10 +765,27 @@ const GROUND: Rule[] = [
   }),
   rule({
     id: 'fire/burn-out-ground',
-    doc: 'Burnt ground is ash; a burnt tree is charred; what burns on the ground (a bush, a stump, a wooden wall) is gone.',
+    doc: 'Burnt ground is ash; a burnt tree is charred, a burnt wall black; what else burns on the ground (a bush, a stump) is gone.',
     host: { type: 'tile', tags: ['flammable'] },
     on: 'time/timer',
-    tree: IF(param('status', 'burning'), IF(tag('host', 'tree'), DO({ op: 'transform', into: 'tile/charred_tree' }, vfx('smoke')), DO({ op: 'transform', into: 'tile/ash' }, vfx('smoke')))),
+    tree: IF(
+      param('status', 'burning'),
+      IF(tag('host', 'tree'), DO({ op: 'transform', into: 'tile/charred_tree' }, vfx('smoke')), IF(tag('host', 'wall'), DO({ op: 'transform', into: 'tile/burnt_wall' }, vfx('smoke')), DO({ op: 'transform', into: 'tile/ash' }, vfx('smoke')))),
+    ),
+  }),
+  rule({
+    id: 'fire/wear',
+    doc: 'A burning thing with durability (a body, a tree, a wooden wall) loses it as it burns, now and then (an element is a damage channel, world-model.md §6.2).',
+    host: { status: ['burning'], props: { maxHp: { gt: 0 } } },
+    on: 'time/period',
+    tree: IF(all(param('status', 'burning'), { chance: 0.5 }), DO(WEAR), 'inherit'),
+  }),
+  rule({
+    id: 'fire/burnt-wall',
+    doc: 'A wooden wall that burns down to nothing stands black (world-model.md §10.3, 13).',
+    host: { type: 'tile/woodwall' },
+    on: 'threshold/cross',
+    tree: IF(all(param('name', 'broken'), has('host', 'burning')), DO({ op: 'transform', into: 'tile/burnt_wall' }, vfx('smoke')), 'inherit'),
   }),
   rule({
     id: 'water/bridge',
@@ -779,6 +797,7 @@ const GROUND: Rule[] = [
 ]
 
 // ------------------------------------------------------------------ things on fire, things that burn what they touch
+
 
 const FIRE: Rule[] = [
   ...(
@@ -794,7 +813,8 @@ const FIRE: Rule[] = [
       doc: 'A burning thing reaches its flammable neighbours now and then (dry things fast).',
       host,
       on: 'time/period',
-      tree: IF(param('status', 'burning'), DO(emit('element', { area: { radius: 1 } }, { element: 'fire', power: 1 }, { chance, filter: { tags: ['flammable'], notStatus: ['wet', 'burning', 'frozen'] } }))),
+      // and it wears as it burns, as anything burning does (fire/wear)
+      tree: IF(param('status', 'burning'), IF({ chance: 0.5 }, DO(spread(chance), WEAR), DO(spread(chance)))),
     }),
   ),
 
@@ -846,10 +866,10 @@ const FIRE: Rule[] = [
   }),
   rule({
     id: 'combat/break',
-    doc: 'Breakable fixtures shatter under a blow and spill their contents; fragile ones under earth too.',
+    doc: 'Breakable fixtures shatter when broken and spill their contents (into their makeup, if they have one).',
     host: { type: 'fixture', tags: ['breakable'] },
-    on: 'impulse/strike',
-    tree: DO({ op: 'dropContents' }, vfx('poof', 'tileOf:host'), { op: 'destroy' }),
+    on: 'threshold/cross',
+    tree: IF(param('name', 'broken'), IF({ makeup: 'host' }, DO(vfx('poof', 'tileOf:host'), { op: 'breakdown' }), DO({ op: 'dropContents' }, vfx('poof', 'tileOf:host'), { op: 'destroy' })), 'inherit'),
   }),
   rule({
     id: 'element/shatter-fragile',
@@ -1243,21 +1263,6 @@ const JOURNEY: Rule[] = [
     host: { type: 'item/potion/fire_resist' },
     on: 'act/use',
     tree: IF({ same: ['actor', 'target'] }, DO(emit('coat', 'actor', { substance: 'fireproof' }), { op: 'destroy' }), 'inherit'),
-  }),
-  rule({
-    id: 'mine/vein',
-    doc: 'A pickaxe on an ore vein: the third blow breaks it into what it holds (iron ore, coal).',
-    host: { type: 'fixture/nature/vein' },
-    on: 'impulse/strike',
-    tree: IF(
-      tag('instrument', 'tool:pickaxe'),
-      IF(
-        { prop: { role: 'host', key: 'cracks', cmp: { gte: 2 } } },
-        DO({ op: 'spawn', type: '@prop:host.yields', at: 'tileOf:host', count: { prop: 'count', of: 'host' } }, vfx('dust'), log('{host} breaks open.', '{host}被凿开了。'), { op: 'destroy' }),
-        DO({ op: 'addProp', key: 'cracks', delta: 1 }, vfx('dust'), log('The pick bites into {host}.', '镐头凿进了{host}。')),
-      ),
-      'inherit',
-    ),
   }),
 ]
 

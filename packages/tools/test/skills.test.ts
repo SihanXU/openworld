@@ -183,7 +183,8 @@ describe('the skill tree', () => {
       eng.world.author(() => eng.world.add({ id: 'axe', type: 'item/weapon/blade/axe', place: { on: 'hand', holder: 'actor' } }))
       const map = eng.world.posOf(eng.world.get('actor')!)!.map
       const tree = eng.world.cellRef(map, FRONT.x, FRONT.y)
-      eng.world.author(() => eng.world.setStatus(tree, 'notched', -1))
+      // one blow from falling
+      eng.world.author(() => eng.world.setProp(eng.world.get(tree.e)!, 'hp', 1))
       eng.interact('interact', 'actor', tree)
       return eng.world.entitiesAt(map, FRONT.x, FRONT.y).filter((e) => e.type === 'item/material/log').length
     }

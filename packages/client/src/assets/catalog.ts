@@ -225,6 +225,8 @@ export const CATALOG: Catalog = {
     // Solid-looking fallbacks (the pointed tops have a few transparent pixels).
     wall: [[HOUSE, 11, 9], [HOUSE, 12, 9]],
     woodwall: [[HOUSE, 11, 5], [HOUSE, 12, 5]],
+    // a wooden wall burnt black (the pack has none: the wall, darkened by its tint in ground.ts)
+    burnt_wall: [[HOUSE, 11, 5], [HOUSE, 12, 5]],
     roof: [[HOUSE, 13, 1], [HOUSE, 14, 1]],
     cave_wall: [[RELIEF, 5, 1], [RELIEF, 9, 1], [RELIEF, 10, 1]],
   },

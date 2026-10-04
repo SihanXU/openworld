@@ -14,6 +14,7 @@ import type {
   Pos,
   PropValue,
   Ref,
+  MaterialDef,
   SceneState,
   Space,
   Text,
@@ -366,6 +367,22 @@ export class World {
   /** Does it act by itself, with a body that takes its cells? (the `agent` tag) */
   isAgent(e: Entity): boolean {
     return this.hasTag(e, 'agent')
+  }
+
+  /** What it is made of: its own `material:<id>` tag (an item's), else its type's, else its `material` prop. */
+  materialOf(e: Entity): MaterialDef | undefined {
+    const tag = [...(e.tags ?? []), ...this.onto.resolve(e.type).tags].find((t) => t.startsWith('material:'))
+    const id = tag ? tag.slice(9) : this.prop(e, 'material')
+    return typeof id === 'string' ? this.onto.data.materials?.[id] : undefined
+  }
+
+  /** How well an instrument works on what a thing is made of (world-model.md §6.1): its best row of the efficiency table for the thing's material category. */
+  efficiency(instrument: Entity, edge: string | undefined, target: Entity): number {
+    const category = this.materialOf(target)?.category
+    const table = this.onto.data.efficiency
+    if (!category || !table) return 1
+    const rows = [...(edge ? [`edge:${edge}`] : []), ...this.onto.resolve(instrument.type).tags, ...(instrument.tags ?? [])].filter((r) => table[r]?.[category] !== undefined)
+    return rows.length ? Math.max(...rows.map((r) => table[r][category])) : 1
   }
 
   /** Can it be carried? (the `portable` tag) */

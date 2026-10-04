@@ -261,7 +261,7 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
   })
 
   it('one question per hole and class: many things of one class reaching the same hole ask once', () => {
-    const things = Array.from({ length: 4 }, (_, i) => ({ key: `b${i}`, type: 'fixture/nature/boulder', x: i * 2, y: 1 }))
+    const things = Array.from({ length: 4 }, (_, i) => ({ key: `b${i}`, type: 'fixture/sacred/statue', x: i * 2, y: 1 }))
     const eng = place({}, [...things, { key: 'well', type: 'fixture/water/well', x: 1, y: 7 }])
     const port = new ModPort(eng)
     port.provider = working
@@ -277,7 +277,7 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
 
 describe('the Mod port holds up', () => {
   it('a question with no reply at all (the service down) is asked again, a few times, not given up at once', async () => {
-    const eng = place({}, [{ key: 'b', type: 'fixture/nature/boulder', x: 2, y: 1 }])
+    const eng = place({}, [{ key: 'b', type: 'fixture/sacred/statue', x: 2, y: 1 }])
     const port = new ModPort(eng)
     let asked = 0
     port.provider = { resolve: () => (asked++, Promise.reject(new Error('fetch failed'))) }
@@ -292,7 +292,7 @@ describe('the Mod port holds up', () => {
   })
 
   it('a request carries the lines said lately, after the frame drained them', () => {
-    const eng = place({}, [{ key: 'b', type: 'fixture/nature/boulder', x: 2, y: 1 }])
+    const eng = place({}, [{ key: 'b', type: 'fixture/sacred/statue', x: 2, y: 1 }])
     const port = new ModPort(eng)
     eng.world.fx.push({ t: 'log', text: { en: 'The ferry bell rings.', zh: '渡口的钟响了。' } })
     eng.world.drainFx()
@@ -319,7 +319,7 @@ describe('the Mod port holds up', () => {
 
 describe('a request the modder is creating things for', () => {
   it('waits past the time-out, holding who is in it, until the patch comes', () => {
-    const eng = place({}, [{ key: 'b', type: 'fixture/nature/boulder', x: 2, y: 1 }])
+    const eng = place({}, [{ key: 'b', type: 'fixture/sacred/statue', x: 2, y: 1 }])
     const port = new ModPort(eng)
     port.provider = working
     eng.queue({ kind: 'impulse/strike', host: { e: 'b' }, roles: {}, params: { power: 2, edge: 'blunt' }, origin: 'world' })

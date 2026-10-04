@@ -352,6 +352,21 @@ fire leaves is each type's own (Elin: a tree becomes a burnt tree, a wall a burn
 
 ### 6.3 Breaking
 
+As built (W2b): materials are world data (`Ontology.materials`: category and hardness; the item
+materials gained both, and flesh, plant, gel, earth, ice, ore were added); a thing's material is its
+`material:<id>` tag or its type's `material` prop. The efficiency table is `Ontology.efficiency`
+(rows `tool:<x>` and `edge:<x>`), the recovery rate `Ontology.params.recovery` (0.5). The root
+strike (`core/strike`) on anything with `maxHp` is `hurt {blow: true}`: the instrument (what struck,
+else the striker's body) times its best row; softer than the target, "Too hard." and nothing.
+`hurt` does nothing to what has no `maxHp`. Burning wears what has durability (`fire/wear`, and the
+spreading rules wear too); `fire/scorch` merged into it. The root of `broken` is `core/break`;
+`breakdown` makes the parts (popping out for the magnet, in the host's material) and spills what
+it held. `transform` gives the new form its full durability. Trees (10: a stone axe, two blows,
+notched between), pines, bushes, rock (10), cave walls, stone and wooden walls, roofs, stumps,
+charred trees, boulders, veins and the breakable containers have durability and makeup; the
+pickaxe's endless `mine/chip` and the counters `mine/crack`, `mine/vein`, `mine/rock` are gone. A
+burning wooden wall wears and stands black (`burnt_wall`). Bodies keep `combat/struck` until W8.
+
 At 0, `threshold/cross` `broken` (for every thing), resolved by the most specific rule:
 1. a type's own rule (a tree becomes a stump and drops logs; a person goes down; a sin falls);
 2. otherwise the root: `breakdown` — its makeup × the recovery rate (with chances; at least

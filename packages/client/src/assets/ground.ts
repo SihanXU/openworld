@@ -173,6 +173,7 @@ const TINT: Record<string, string> = {
   drygrass: 'rgba(214,190,90,0.30)',
   ash: 'rgba(45,40,38,0.62)',
   charred_tree: 'rgba(40,34,30,0.45)',
+  burnt_wall: 'rgba(30,24,20,0.6)',
   ice: 'rgba(225,245,255,0.72)',
 }
 /** Tiles with transparent parts are drawn over a full tile of this terrain. */

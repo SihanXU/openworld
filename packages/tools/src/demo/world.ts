@@ -26,7 +26,7 @@ const OUT = join(dirname(fileURLToPath(import.meta.url)), '../../../client/publi
 export const VERSION = 'ford-3'
 export const START_HOUR = 13
 const L = (en: string, zh: string): Text => ({ en, zh })
-const SOLID = new Set(['water', 'deepwater', 'tree', 'pine', 'bush', 'rock', 'wall', 'woodwall', 'roof', 'cave_wall', 'lava', 'charred_tree', 'void'])
+const SOLID = new Set(['water', 'deepwater', 'tree', 'pine', 'bush', 'rock', 'wall', 'woodwall', 'burnt_wall', 'roof', 'cave_wall', 'lava', 'charred_tree', 'void'])
 
 /**
  * The river, row by row: its near (west) edge and far (east) edge. It comes down from the north

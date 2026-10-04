@@ -17,7 +17,7 @@ export function reseed(seed: number): void {
   rng = new Rng(seed)
 }
 
-const SOLID_TERRAIN = new Set(['water', 'deepwater', 'tree', 'pine', 'bush', 'rock', 'wall', 'woodwall', 'roof', 'cave_wall', 'lava', 'charred_tree', 'void'])
+const SOLID_TERRAIN = new Set(['water', 'deepwater', 'tree', 'pine', 'bush', 'rock', 'wall', 'woodwall', 'burnt_wall', 'roof', 'cave_wall', 'lava', 'charred_tree', 'void'])
 /** The content's types, for what the builder must know of a thing: its footprint, whether it is solid. */
 const ONTO = new OntologyIndex(buildOntology())
 

@@ -26,7 +26,8 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   addProp: 'addProp {key, delta, min?, max?} — delta and max are Amounts',
   addTag: 'addTag {tag}',
   removeTag: 'removeTag {tag}',
-  hurt: 'hurt {amount, element?, pierce?} — the host loses health (its defence applies unless pierce); at none, threshold/cross "defeated"',
+  hurt: 'hurt {amount, element?, pierce?, blow?} — the host loses health, or durability (hp; its defence applies unless pierce); at none, threshold/cross "broken". blow: a strike\'s — times how well the instrument (what struck, else the striker\'s own body) works on the host\'s material (the efficiency table), and nothing if the instrument is softer than it ("too hard")',
+  breakdown: 'breakdown — the host breaks into what it is made of (its makeup × the world\'s recovery rate, in its material), what it holds spills out, and it is gone (the root outcome of broken for anything with a makeup)',
   heal: 'heal {amount}',
   feed: 'feed {amount} — the host\'s hunger rises by amount, up to its maxHunger',
   gainXp: 'gainXp {amount} — the host gains experience; enough raises its level (props xp, level, skillPoints)',
@@ -212,6 +213,8 @@ export class EffectRunner {
         }
         w.transform(host, into)
         delete host.name
+        // a thing become another is whole as what it is now (a felled tree's stump, a regrown tree)
+        if (host.props?.hp !== undefined && w.onto.resolve(into).props.maxHp !== undefined) w.setProp(host, 'hp', undefined)
         eng.touch({ e: host.id })
         return
       }
@@ -280,8 +283,38 @@ export class EffectRunner {
         if (host) w.removeTag(host, eff.tag)
         return
       case 'hurt':
-        if (host) eng.hurt(host, this.amount(ev, eff.amount), eff.element, eff.pierce, ev)
+        if (host) eng.hurt(host, this.amount(ev, eff.amount), eff.element, eff.pierce, ev, eff.blow)
         return
+      case 'breakdown': {
+        if (!host) return
+        if (w.hasTag(host, 'essential')) return
+        const at = w.posOf(host)
+        const rate = w.onto.data.params?.recovery ?? 1
+        const material = [...(host.tags ?? []), ...w.onto.resolve(host.type).tags].find((t) => t.startsWith('material:'))
+        if (at)
+          for (const part of w.onto.resolve(host.type).makeup ?? []) {
+            // the expected count: whole parts, and the fraction by chance
+            const expect = part.count * (part.chance ?? 1) * rate
+            const n = Math.floor(expect) + (w.rand() < expect - Math.floor(expect) ? 1 : 0)
+            for (let i = 0; i < n; i++) {
+              const made = w.create(part.type, { on: 'tile', map: at.map, x: at.x, y: at.y }, material && w.onto.resolve(part.type).tags.includes('portable') ? { tags: [material] } : {})
+              eng.touch({ e: made.id })
+              // it pops out for the magnet, as anything a rule drops
+              if (w.isPortable(made)) made.dropped = true
+            }
+          }
+        // what it held spills where it stood
+        for (const id of [...(host.contents ?? []), ...(host.held ? [host.held] : [])]) {
+          const c = w.get(id)
+          if (!c || !at) continue
+          w.place(c, { on: 'tile', map: at.map, x: at.x, y: at.y })
+          eng.touch({ e: c.id })
+          c.dropped = true
+        }
+        eng.touch({ e: host.id }, true)
+        w.destroy(host)
+        return
+      }
       case 'heal': {
         if (!host) return
         // whole points: a tenth of a body mends at least one

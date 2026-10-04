@@ -91,6 +91,10 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
     for (const e of Object.values(world.state.entities)) if (e.place.on !== 'none' && matchSelector(c.exists, world.view({ e: e.id }))) return true
     return false
   }
+  if ('makeup' in c) {
+    const v = roles[c.makeup]
+    return !!v && !!world.onto.resolve(v.type).makeup?.length
+  }
   if ('outdoors' in c) {
     const host = roles.host
     const map = (host && world.refPos(host.ref)?.map) ?? world.posOf(world.player)?.map
@@ -244,8 +248,18 @@ export function factsOnTheStory(rule: Rule): Rule {
  * Rules written when a cell was a terrain with an override (world-model.md §4.6): a cell is made
  * of things, so `setTerrain {terrain}` — the host becomes that terrain — is the host transforming
  * into `tile/<terrain>` (which gives way when that space of its cell is taken). Applied in place.
+ * And a thing at no health was `defeated`; every thing with durability is `broken` (world-model.md
+ * D30): a condition on the old name reads the new one.
  */
 export function cellsAsThings(rule: Rule): Rule {
+  const cond = (c: unknown): void => {
+    if (!c || typeof c !== 'object') return
+    const node = c as Record<string, unknown>
+    for (const k of ['all', 'any']) if (Array.isArray(node[k])) (node[k] as unknown[]).forEach(cond)
+    if (node.not) cond(node.not)
+    const p = node.param as { key?: string; cmp?: unknown } | undefined
+    if (p?.key === 'name' && p.cmp === 'defeated') p.cmp = 'broken'
+  }
   const effects = (list: unknown): void => {
     if (!Array.isArray(list)) return
     list.forEach((e, i) => {
@@ -256,7 +270,7 @@ export function cellsAsThings(rule: Rule): Rule {
   const tree = (t: unknown): void => {
     if (!t || typeof t !== 'object') return
     const node = t as Record<string, unknown>
-    if ('if' in node) tree(node.then), tree(node.else)
+    if ('if' in node) cond(node.if), tree(node.then), tree(node.else)
     effects(node.do)
     effects(node.default)
   }

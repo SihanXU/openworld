@@ -631,10 +631,11 @@ req('F11', 'a place, not a picture: all that is drawn or in the way is terrain o
   expect(plan.target).toEqual({ e: stump.id })
   // the long press reaches what lies under it: the ground
   expect(f.eng.controls.choices('use', point).map((c) => c.plan?.target)).toEqual([{ e: stump.id }, W(f).cellRef('ford', x, y)])
+  // the blow is the axe's; the stump has durability and breaks into what it is made of (world-model.md §6.3)
+  expect(plan.unknown).toBeFalsy()
   f.eng.controls.run(plan, true)
-  expect(plan.unknown).toBe(true)
-  // the blow is the axe's; what the stump does when struck is undefined, and asked of the stump
-  expect(asked(f, 'impulse/strike', 'player').some((r) => hostIs(r.event, stump.id))).toBe(true)
+  expect(W(f).get(stump.id)).toBeUndefined()
+  expect(W(f).placedAt('ford', x, y).some((e) => e.type === 'item/material/log')).toBe(true)
   // a thing drawn over the tile beside its own is met there too: the tent, pointed at its wall
   const tent = ofType(f, 'fixture/tent')!
   const t = tent.place as { x: number; y: number }
@@ -738,14 +739,14 @@ req('F12', "the ground yields sticks, stones and grass (Don't Starve): taken by 
   run(f, 'use', ...tree!)
   run(f, 'use', ...tree!)
   expect(W(f).terrainAt('ford', ...tree!)).toBe('stump')
-  // the stone pickaxe breaks a boulder in three blows
+  // the stone pickaxe breaks a boulder in two blows (its durability), into stones (its makeup)
   hold(f, made('item/tool/pickaxe'))
   const boulder = ofType(f, 'fixture/nature/boulder')!
   const bp = W(f).posOf(boulder)!
   const [sx, sy, dir] = beside(f, bp.x, bp.y)
   stand(f, sx, sy, dir)
   const stones = lying(f, 'item/material/stone').length
-  for (let i = 0; i < 3; i++) run(f, 'use', bp.x, bp.y)
+  for (let i = 0; i < 2; i++) run(f, 'use', bp.x, bp.y)
   expect(W(f).get(boulder.id)).toBeUndefined()
   expect(lying(f, 'item/material/stone').length).toBeGreaterThan(stones)
   // and the ground yields again over time, never more than a handful of each
@@ -924,6 +925,91 @@ req('F9', 'the arrival opens the story: the scene, the loaf in the pack, and Hes
 })
 
 // =================================================================== the proof
+
+// ------------------------------------------------------------------ W. the world model: breaking (world-model.md §10.3)
+
+/** A thing made the way a recipe makes it, in the player's bag (the test's own hand). */
+function made(f: Ford, recipe: string): Entity {
+  const make = structuredClone(RECIPE_BY_ID[recipe].make)
+  const e = author(f, () => W(f).add({ id: `given.${recipe}`, ...make, place: { on: 'inside', holder: 'player' } }))
+  f.eng.controls.sync()
+  return e
+}
+/** A cell of `terrain` on a map with open ground beside it. */
+function cellOf(f: Ford, map: string, terrain: string): [number, number] {
+  const m = W(f).map(map)!
+  for (let y = 1; y < m.height - 1; y++)
+    for (let x = 1; x < m.width - 1; x++)
+      if (W(f).terrainAt(map, x, y) === terrain && [[-1, 0], [1, 0], [0, 1], [0, -1]].some(([dx, dy]) => W(f).walkable(map, x + dx, y + dy))) return [x, y]
+  throw new Error(`no ${terrain} on ${map}`)
+}
+
+req('W1', 'a stone axe fells a tree in two blows (its durability, as an axe works on wood): it becomes a stump and drops logs', [], () => {
+  const f = fresh()
+  hold(f, made(f, 'stone-axe'))
+  const [x, y] = cellOf(f, 'ford', 'tree')
+  const [sx, sy, d] = beside(f, x, y)
+  stand(f, sx, sy, d)
+  const tree = W(f).cellTop('ford', x, y)!
+  run(f, 'use', x, y)
+  expect(W(f).num(tree, 'hp')).toBeLessThan(W(f).num(tree, 'maxHp'))
+  expect(W(f).terrainAt('ford', x, y)).toBe('tree')
+  run(f, 'use', x, y)
+  expect(W(f).terrainAt('ford', x, y)).toBe('stump')
+  expect(W(f).placedAt('ford', x, y).filter((e) => e.type === 'item/material/log').length).toBeGreaterThanOrEqual(2)
+  expect(records(f)).toHaveLength(0)
+})
+
+req('W2', 'a wooden club on rock: too hard — the rock is untouched, it is said, and nothing is asked', [], () => {
+  const f = fresh()
+  const club = author(f, () => W(f).create('item/weapon/blunt/club', { on: 'inside', holder: 'player' }, { tags: ['material:wood', 'wooden', 'flammable'] }))
+  f.eng.controls.sync()
+  hold(f, club)
+  const [x, y] = cellOf(f, 'summit', 'rock')
+  const [sx, sy, d] = beside(f, x, y, 'summit')
+  stand(f, sx, sy, d, 'summit')
+  const rock = W(f).cellTop('summit', x, y)!
+  W(f).fx = []
+  const plan = run(f, 'use', x, y)
+  expect(plan.unknown).toBeFalsy()
+  expect(W(f).num(rock, 'hp')).toBe(W(f).num(rock, 'maxHp'))
+  expect(W(f).fx.some((x) => x.t === 'log' && (x.text as { en: string }).en === 'Too hard.')).toBe(true)
+  expect(records(f)).toHaveLength(0)
+})
+
+req('W3', 'a stone pickaxe breaks rock in two blows and gives back stone (its makeup, at the recovery rate); the ground under it shows', [], () => {
+  const f = fresh()
+  hold(f, made(f, 'stone-pickaxe'))
+  const [x, y] = cellOf(f, 'summit', 'rock')
+  const [sx, sy, d] = beside(f, x, y, 'summit')
+  stand(f, sx, sy, d, 'summit')
+  run(f, 'use', x, y)
+  expect(W(f).terrainAt('summit', x, y)).toBe('rock')
+  run(f, 'use', x, y)
+  expect(W(f).terrainAt('summit', x, y)).not.toBe('rock')
+  expect(W(f).walkable('summit', x, y)).toBe(true)
+  expect(W(f).placedAt('summit', x, y).some((e) => e.type === 'item/material/stone')).toBe(true)
+  expect(records(f)).toHaveLength(0)
+})
+
+req('W13', 'a burning wooden wall (the summit shelter) loses durability as it burns and leaves a burnt wall', [], () => {
+  const f = fresh()
+  // a dry hour: rain would put the fire out
+  while (['rain', 'storm'].includes(W(f).calendar().weather)) W(f).state.tick += TICKS_PER_HOUR
+  const [x, y] = cellOf(f, 'summit', 'woodwall')
+  stand(f, ...beside(f, x, y, 'summit'), 'summit')
+  const wall = W(f).cellTop('summit', x, y)!
+  author(f, () => f.eng.applyStatus({ e: wall.id }, 'burning'))
+  const full = W(f).num(wall, 'maxHp')
+  let least = full
+  ticks(f, 80, () => {
+    const now = W(f).cellTop('summit', x, y)
+    if (now?.type === 'tile/woodwall') least = Math.min(least, W(f).num(now, 'hp'))
+    return now?.type === 'tile/burnt_wall'
+  })
+  expect(least).toBeLessThan(full)
+  expect(W(f).terrainAt('summit', x, y)).toBe('burnt_wall')
+})
 
 // ------------------------------------------------------------------ the village, the garden, the East Road
 
@@ -1144,7 +1230,7 @@ req('Q4', 'chapter 4, the old mine: a pickaxe breaks iron and coal from the vein
   stand(f, px, py, pd, 'mine')
   run(f, 'take', pp.x, pp.y)
   hold(f, W(f).get(pick.id))
-  // three blows break a vein; its ore pops out to the magnet
+  // two blows break a vein (its durability, as the pickaxe works on ore); its ore pops out to the magnet
   const mineVein = (type: string) => {
     const v = onMap(f, type, 'mine').find((e) => {
       const p = W(f).posOf(e)!
@@ -1158,7 +1244,7 @@ req('Q4', 'chapter 4, the old mine: a pickaxe breaks iron and coal from the vein
     const vp = W(f).posOf(v)!
     const [x, y, d] = beside(f, vp.x, vp.y, 'mine')
     stand(f, x, y, d, 'mine')
-    for (let i = 0; i < 3; i++) run(f, 'use', vp.x, vp.y)
+    for (let i = 0; i < 2; i++) run(f, 'use', vp.x, vp.y)
     expect(W(f).get(v.id)).toBeUndefined()
     ticks(f, 3)
   }

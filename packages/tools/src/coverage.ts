@@ -230,6 +230,8 @@ function summarize(cells: Cell[], fired: { cell: Cell; rules: string[] }[], onto
     const v = view(cell.target.split('#')[0])
     if (ids.some((id) => !isRoot(byId.get(id)!) && singles(byId.get(id)!).some((s) => fits(s, v)))) usedFixtures.add(cell.target.split('#')[0])
   }
+  // And one that breaks into something (its makeup: a boulder gives stone, a vein its ore, world-model.md §6.4).
+  for (const t of [...new Set(cells.map((c) => c.target.split('#')[0]))]) if (t.startsWith('fixture/') && index.resolve(t).makeup?.length) usedFixtures.add(t)
   // A form has a purpose when some rule singles it out: as the instrument whose nature an act is
   // (an axe on a tree), as the thing acted on (a log to split), or as something carried (ink to
   // write with). Many of those states are out of the sweep's reach, so they are read from the rules.

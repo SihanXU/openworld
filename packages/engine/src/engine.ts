@@ -538,9 +538,27 @@ export class Engine {
   }
 
   /** The host loses health; its defence applies unless pierce. One who is down takes no more. */
-  hurt(e: Entity, amount: number, element?: string, pierce?: boolean, by?: GameEvent): void {
+  hurt(e: Entity, amount: number, element?: string, pierce?: boolean, by?: GameEvent, blow = false): void {
     const w = this.world
     if (w.hasStatus({ e: e.id }, 'down')) return
+    // what has no durability cannot be harmed (world-model.md §4.2: without maxHp, it cannot break)
+    if (w.prop(e, 'maxHp') === undefined) return
+    if (blow) {
+      // a blow: what struck (else the striker's own body) on what the host is made of (world-model.md §6.1)
+      const struckWith = by?.roles.instrument ? w.get(by.roles.instrument.e) : undefined
+      const striker = by?.roles.actor ? w.get(by.roles.actor.e) : undefined
+      const tool = struckWith ?? striker
+      const mine = tool && w.materialOf(tool)
+      const its = w.materialOf(e)
+      if (mine && its && mine.hardness < its.hardness) {
+        w.fx.push({ t: 'log', text: { en: 'Too hard.', zh: '太硬了。' } })
+        const p = w.posOf(e)
+        if (p) w.fx.push({ t: 'vfx', fx: 'dust', map: p.map, x: p.x, y: p.y })
+        return
+      }
+      const edge = by?.params?.edge
+      if (tool) amount *= w.efficiency(tool, typeof edge === 'string' ? edge : undefined, e)
+    }
     const def = pierce ? 0 : w.num(e, 'def')
     // fireproof (the herbalist's draught): fire does a quarter of its harm
     if (element === 'fire' && w.hasStatus({ e: e.id }, 'fireproof')) amount *= 0.25
@@ -551,7 +569,8 @@ export class Engine {
     // a blow that found nothing (dodged, or the moment after a dash)
     if (dmg <= 0) return
     w.fx.push({ t: 'damage', who: e.id, amount: dmg, element })
-    let hp = w.num(e, 'hp', 1) - dmg
+    // what has durability starts whole: its hp is its maxHp until it is struck
+    let hp = w.num(e, 'hp', w.num(e, 'maxHp', 1)) - dmg
     // Phoenix (the skill): once a day, any lethal damage leaves 30% health and a moment untouchable
     if (hp <= 0 && w.hasTag(e, 'skill:phoenix') && w.prop(e, 'phoenixDay') !== w.calendar().day) {
       hp = Math.max(1, Math.ceil(w.num(e, 'maxHp', 1) * 0.3))

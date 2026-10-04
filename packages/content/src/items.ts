@@ -2,7 +2,7 @@
 // material × quality × element, carried as tags and props, so type-level rules address
 // whole classes while the world still holds tens of thousands of distinct items.
 
-import type { Entity, PropValue, Rng, TypeDef } from '@lsw/engine'
+import type { Entity, MaterialDef, PropValue, Rng, TypeDef } from '@lsw/engine'
 import { VEGETABLE_CROPS } from './crops.ts'
 
 export interface Form {
@@ -30,27 +30,47 @@ export interface Material {
   power: number // weapon power bonus
   value: number // value multiplier
   color: string
+  /** What tools work on (world-model.md §4.5): wood, plant, stone, ore, metal, soil, fibre, skin, bone, organic, flesh, crystal. */
+  category: string
+  /** An instrument softer than what it strikes does nothing to it. */
+  hardness: number
 }
 
 export const MATERIALS: Record<string, Material> = {
-  wood: { id: 'wood', en: 'Wooden', zh: '木', tags: ['wooden', 'flammable'], power: 0, value: 0.6, color: '#a0703c' },
-  bronze: { id: 'bronze', en: 'Bronze', zh: '青铜', tags: ['metal', 'conductive'], power: 1, value: 0.9, color: '#b8783a' },
-  iron: { id: 'iron', en: 'Iron', zh: '铁', tags: ['metal', 'conductive'], power: 2, value: 1, color: '#8a8f98' },
-  steel: { id: 'steel', en: 'Steel', zh: '钢', tags: ['metal', 'conductive'], power: 3, value: 1.6, color: '#b9c2cc' },
-  silver: { id: 'silver', en: 'Silver', zh: '银', tags: ['metal', 'conductive', 'holy'], power: 2, value: 2.5, color: '#dfe6ee' },
-  gold: { id: 'gold', en: 'Golden', zh: '金', tags: ['metal', 'conductive', 'precious'], power: 1, value: 5, color: '#e9c24a' },
-  bone: { id: 'bone', en: 'Bone', zh: '骨', tags: ['bone'], power: 1, value: 0.5, color: '#e8e0c8' },
-  stone: { id: 'stone', en: 'Stone', zh: '石', tags: ['stone'], power: 1, value: 0.4, color: '#8d8a84' },
-  crystal: { id: 'crystal', en: 'Crystal', zh: '水晶', tags: ['crystal', 'fragile', 'arcane'], power: 3, value: 3, color: '#9fe3f0' },
-  glass: { id: 'glass', en: 'Glass', zh: '玻璃', tags: ['glass', 'fragile'], power: 0, value: 0.8, color: '#cfeff7' },
-  clay: { id: 'clay', en: 'Clay', zh: '陶', tags: ['clay', 'fragile'], power: 0, value: 0.4, color: '#b86a44' },
-  leather: { id: 'leather', en: 'Leather', zh: '皮', tags: ['leather', 'flammable'], power: 0, value: 0.8, color: '#7a4b2a' },
-  cloth: { id: 'cloth', en: 'Cloth', zh: '布', tags: ['cloth', 'flammable'], power: 0, value: 0.5, color: '#c9b79c' },
-  silk: { id: 'silk', en: 'Silk', zh: '丝', tags: ['cloth', 'flammable', 'precious'], power: 0, value: 2.2, color: '#e7c6d8' },
-  obsidian: { id: 'obsidian', en: 'Obsidian', zh: '黑曜石', tags: ['stone', 'volcanic', 'fragile'], power: 4, value: 2.4, color: '#2d2438' },
-  mithril: { id: 'mithril', en: 'Mithril', zh: '秘银', tags: ['metal', 'arcane'], power: 5, value: 6, color: '#bfe0ff' },
-  ringsteel: { id: 'ringsteel', en: 'Ringsteel', zh: '环钢', tags: ['metal', 'ancient', 'runic', 'conductive'], power: 6, value: 8, color: '#9ad0c2' },
+  wood: { id: 'wood', en: 'Wooden', zh: '木', tags: ['wooden', 'flammable'], power: 0, value: 0.6, color: '#a0703c', category: 'wood', hardness: 1 },
+  bronze: { id: 'bronze', en: 'Bronze', zh: '青铜', tags: ['metal', 'conductive'], power: 1, value: 0.9, color: '#b8783a', category: 'metal', hardness: 3 },
+  iron: { id: 'iron', en: 'Iron', zh: '铁', tags: ['metal', 'conductive'], power: 2, value: 1, color: '#8a8f98', category: 'metal', hardness: 4 },
+  steel: { id: 'steel', en: 'Steel', zh: '钢', tags: ['metal', 'conductive'], power: 3, value: 1.6, color: '#b9c2cc', category: 'metal', hardness: 5 },
+  silver: { id: 'silver', en: 'Silver', zh: '银', tags: ['metal', 'conductive', 'holy'], power: 2, value: 2.5, color: '#dfe6ee', category: 'metal', hardness: 3 },
+  gold: { id: 'gold', en: 'Golden', zh: '金', tags: ['metal', 'conductive', 'precious'], power: 1, value: 5, color: '#e9c24a', category: 'metal', hardness: 2 },
+  bone: { id: 'bone', en: 'Bone', zh: '骨', tags: ['bone'], power: 1, value: 0.5, color: '#e8e0c8', category: 'bone', hardness: 2 },
+  stone: { id: 'stone', en: 'Stone', zh: '石', tags: ['stone'], power: 1, value: 0.4, color: '#8d8a84', category: 'stone', hardness: 2 },
+  crystal: { id: 'crystal', en: 'Crystal', zh: '水晶', tags: ['crystal', 'fragile', 'arcane'], power: 3, value: 3, color: '#9fe3f0', category: 'crystal', hardness: 4 },
+  glass: { id: 'glass', en: 'Glass', zh: '玻璃', tags: ['glass', 'fragile'], power: 0, value: 0.8, color: '#cfeff7', category: 'crystal', hardness: 1 },
+  clay: { id: 'clay', en: 'Clay', zh: '陶', tags: ['clay', 'fragile'], power: 0, value: 0.4, color: '#b86a44', category: 'soil', hardness: 0 },
+  leather: { id: 'leather', en: 'Leather', zh: '皮', tags: ['leather', 'flammable'], power: 0, value: 0.8, color: '#7a4b2a', category: 'skin', hardness: 1 },
+  cloth: { id: 'cloth', en: 'Cloth', zh: '布', tags: ['cloth', 'flammable'], power: 0, value: 0.5, color: '#c9b79c', category: 'fibre', hardness: 0 },
+  silk: { id: 'silk', en: 'Silk', zh: '丝', tags: ['cloth', 'flammable', 'precious'], power: 0, value: 2.2, color: '#e7c6d8', category: 'fibre', hardness: 0 },
+  obsidian: { id: 'obsidian', en: 'Obsidian', zh: '黑曜石', tags: ['stone', 'volcanic', 'fragile'], power: 4, value: 2.4, color: '#2d2438', category: 'stone', hardness: 4 },
+  mithril: { id: 'mithril', en: 'Mithril', zh: '秘银', tags: ['metal', 'arcane'], power: 5, value: 6, color: '#bfe0ff', category: 'metal', hardness: 6 },
+  ringsteel: { id: 'ringsteel', en: 'Ringsteel', zh: '环钢', tags: ['metal', 'ancient', 'runic', 'conductive'], power: 6, value: 8, color: '#9ad0c2', category: 'metal', hardness: 7 },
 }
+
+/** What else things are made of (the world's own: bodies, plants, the ground) — never an item's material. */
+const NATURAL: MaterialDef[] = [
+  { id: 'flesh', category: 'flesh', hardness: 0 },
+  { id: 'plant', category: 'plant', hardness: 0 },
+  { id: 'gel', category: 'organic', hardness: 0 },
+  { id: 'earth', category: 'soil', hardness: 0 },
+  { id: 'ice', category: 'crystal', hardness: 1 },
+  { id: 'ore', category: 'ore', hardness: 2 },
+]
+
+/** Every material, as the world reads it (world-model.md §4.5): its category and hardness. */
+export const MATERIAL_DEFS: Record<string, MaterialDef> = Object.fromEntries([
+  ...Object.values(MATERIALS).map((m) => ({ id: m.id, category: m.category, hardness: m.hardness })),
+  ...NATURAL,
+].map((m) => [m.id, m]))
 
 export const QUALITIES = [
   { id: 'crude', en: 'Crude', zh: '粗制', power: -1, value: 0.5, w: 3 },
@@ -98,12 +118,12 @@ export const FORMS: Form[] = [
   W('item/clothing/boots', 'Boots', '靴子', 'item:boots', { materials: ['leather', 'cloth'], where: { home: 2, shop: 1 } }),
   W('item/clothing/gloves', 'Gloves', '手套', 'item:gloves', { materials: ['leather', 'cloth', 'silk'], where: { home: 1, shop: 1, smithy: 1 } }),
   // tools
-  W('item/tool/pickaxe', 'Pickaxe', '镐', 'item:pickaxe', { tags: ['tool:pickaxe'], materials: TOOL_METALS, where: { smithy: 2, dungeon: 1, farm: 0.5 } }),
-  W('item/tool/shovel', 'Shovel', '铲子', 'item:shovel', { tags: ['tool:shovel'], materials: TOOL_METALS, where: { farm: 2, smithy: 1, home: 0.5 } }),
-  W('item/tool/hoe', 'Hoe', '锄头', 'item:hoe', { tags: ['tool:hoe'], materials: TOOL_METALS, where: { farm: 3 } }),
-  W('item/tool/sickle', 'Sickle', '镰刀', 'item:sickle', { tags: ['tool:sickle', 'sharp'], materials: TOOL_METALS, where: { farm: 2 } }),
+  W('item/tool/pickaxe', 'Pickaxe', '镐', 'item:pickaxe', { tags: ['tool:pickaxe'], props: { power: 3 }, materials: TOOL_METALS, where: { smithy: 2, dungeon: 1, farm: 0.5 } }),
+  W('item/tool/shovel', 'Shovel', '铲子', 'item:shovel', { tags: ['tool:shovel'], props: { power: 2 }, materials: TOOL_METALS, where: { farm: 2, smithy: 1, home: 0.5 } }),
+  W('item/tool/hoe', 'Hoe', '锄头', 'item:hoe', { tags: ['tool:hoe'], props: { power: 2 }, materials: TOOL_METALS, where: { farm: 3 } }),
+  W('item/tool/sickle', 'Sickle', '镰刀', 'item:sickle', { tags: ['tool:sickle', 'sharp'], props: { power: 2 }, materials: TOOL_METALS, where: { farm: 2 } }),
   W('item/tool/fishing_rod', 'Fishing Rod', '鱼竿', 'item:rod', { tags: ['tool:fishing', 'wooden', 'flammable'], where: { home: 0.5, shop: 0.5, npc: 0.3 } }),
-  W('item/tool/smith_hammer', 'Smith Hammer', '锻锤', 'item:hammer', { tags: ['tool:hammer'], materials: TOOL_METALS, where: { smithy: 3, farm: 1, home: 0.5 } }),
+  W('item/tool/smith_hammer', 'Smith Hammer', '锻锤', 'item:hammer', { tags: ['tool:hammer'], props: { power: 3 }, materials: TOOL_METALS, where: { smithy: 3, farm: 1, home: 0.5 } }),
   W('item/tool/knife', 'Knife', '小刀', 'item:dagger', { tags: ['tool:knife', 'sharp'], materials: TOOL_METALS, where: { home: 2, inn: 2, farm: 1 } }),
   W('item/tool/rope', 'Rope', '绳索', 'item:rope', { tags: ['flammable', 'fiber'], where: { home: 1, shop: 2, farm: 1, dungeon: 0.5 } }),
   W('item/tool/flint', 'Flint and Steel', '火镰', 'item:flint', { tags: ['fire-source', 'metal'], where: { home: 1, shop: 1, inn: 0.5, npc: 0.3 } }),

@@ -57,6 +57,11 @@ export interface TypeDef {
   /** It is drawn as the ground of its cell, this terrain (the cell things of a map's data; world-model.md §4.6). */
   terrain?: string
   /**
+   * What it is made of, which is also what it leaves when it breaks (world-model.md §6.4): each
+   * part's count is scaled by the world's recovery rate, in the thing's own material.
+   */
+  makeup?: MakeupPart[]
+  /**
    * Things bigger than a tile: the base they stand on, [width, depth] in tiles — centred on
    * their own tile, reaching back (north) from it. A solid thing blocks all of it, and only
    * while it is there. Default [1, 1].
@@ -67,6 +72,30 @@ export interface TypeDef {
 }
 
 export type PropValue = number | string | boolean
+
+/** A part of what a thing is made of: `count` of `type`, each with `chance` (default 1). */
+export interface MakeupPart {
+  type: string
+  count: number
+  chance?: number
+}
+
+/**
+ * A material (world-model.md §4.5): its category (what tools work on: wood, stone, ore, flesh …)
+ * and its hardness — an instrument softer than what it strikes does nothing (Elin: a tool below the
+ * material's level). Things carry theirs as a `material:<id>` tag, or their type's `material` prop.
+ */
+export interface MaterialDef {
+  id: string
+  category: string
+  hardness: number
+}
+
+/** Numbers the world is made with (world-model.md §11): data, never literals in the engine. */
+export interface WorldParams {
+  /** The share of its makeup a thing leaves when it breaks (D9). */
+  recovery: number
+}
 
 /** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */
 export type Space = 'floor' | 'soil' | 'volume' | 'body'
@@ -101,6 +130,10 @@ export interface TerrainDef {
   reach?: string[]
   /** The space it takes in its cell (default `floor`): ground is a floor; trees, rock and walls fill the volume; a stump roots in the soil. */
   space?: 'floor' | 'soil' | 'volume'
+  /** Its props as a thing (its material, its durability: maxHp and hp). */
+  props?: Record<string, PropValue>
+  /** What it is made of (TypeDef.makeup). */
+  makeup?: MakeupPart[]
   color?: string // fallback render color
 }
 
@@ -116,12 +149,22 @@ export interface Ontology {
   factions?: Record<string, FactionDef>
   /** Numeric lines that are events when a prop crosses them (design.md §5.7: threshold). */
   thresholds?: ThresholdDef[]
+  /** The materials things are made of, by id. */
+  materials?: Record<string, MaterialDef>
+  /**
+   * How well an instrument works on a material category (world-model.md §6.1): rows are its
+   * capabilities (`tool:axe` …) and its edge (`edge:cut` …); an instrument takes its best row.
+   * A category no row names: 1.
+   */
+  efficiency?: Record<string, Record<string, number>>
+  /** The world parameters. */
+  params?: WorldParams
   /** Clocks that make `time/period` events for the hosts they name. */
   periods?: PeriodDef[]
 }
 
 export interface ThresholdDef {
-  /** The event's `name` param ("defeated", "starving"). */
+  /** The event's `name` param ("broken", "starving"). */
   name: string
   prop: string
   /** Crossed when the value comes to this or below. */
@@ -755,6 +798,8 @@ export type Cond =
   | { exists: Selector }
   /** The host's map (the player's, for the story and the world) is out under the sky. */
   | { outdoors: true }
+  /** A role's type says what it is made of (it has a makeup). */
+  | { makeup: RoleName }
 
 /** A role, or the cell under it (`tileOf:`: the thing that makes up that cell on top — what fills it, roots in it, or the floor). */
 export type RoleRef = RoleName | 'tileOf:host' | 'tileOf:actor' | 'tileOf:target' | 'tileOf:instrument' | 'tileOf:other' | 'tileOf:item' | 'tileOf:source'
@@ -788,7 +833,9 @@ export type Effect =
   | { op: 'addProp'; key: string; delta: Amount; min?: number; max?: Amount }
   | { op: 'addTag'; tag: string }
   | { op: 'removeTag'; tag: string }
-  | { op: 'hurt'; amount: Amount; element?: string; pierce?: boolean }
+  | { op: 'hurt'; amount: Amount; element?: string; pierce?: boolean; blow?: boolean }
+  /** The host breaks into what it is made of (its makeup × the recovery rate, in its material), spills what it holds, and is gone. */
+  | { op: 'breakdown' }
   | { op: 'heal'; amount: Amount }
   | { op: 'feed'; amount: Amount }
   | { op: 'gainXp'; amount: Amount }

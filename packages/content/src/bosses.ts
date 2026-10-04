@@ -63,7 +63,7 @@ export const BOSS_RULES: Rule[] = [
     source: { origin: 'base', note: 'story' },
     host: { type: `actor/creature/sin/${b.id}`, notStatus: ['down'] },
     on: 'threshold/cross',
-    tree: { if: { param: { key: 'name', cmp: 'defeated' } }, then: { do: [
+    tree: { if: { param: { key: 'name', cmp: 'broken' } }, then: { do: [
       { op: 'setProp', key: 'hp', value: 0 },
       { op: 'addStatus', status: 'down', duration: 20 },
       { op: 'emit', impulse: 'notify', to: 'story', params: { what: `sin.${b.id}` } },

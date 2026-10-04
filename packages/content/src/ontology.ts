@@ -2,7 +2,7 @@
 // for actors and fixtures. Item types come from the catalogue in items.ts.
 
 import { FORAGE_EVERY, HUNGER_EFFECT_EVERY, HUNGER_EVERY, NIGHT_EVERY, type Ontology, type StatusDef, type TerrainDef, type TypeDef } from '@lsw/engine'
-import { ELEMENT_NAMES, MATERIALS, QUALITIES, itemTypes } from './items.ts'
+import { ELEMENT_NAMES, MATERIALS, MATERIAL_DEFS, QUALITIES, itemTypes } from './items.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
 
@@ -37,6 +37,7 @@ export const TERRAIN_CHARS: Record<string, string> = {
   L: 'lava',
   a: 'ash',
   t: 'charred_tree',
+  K: 'burnt_wall',
   u: 'stump',
   g: 'gravel',
   B: 'bridge',
@@ -53,6 +54,28 @@ const T = (id: string, zh: string, en: string, tags: string[], extra: Partial<Te
   ...extra,
 })
 
+/** The share of what a thing is made of that it leaves when it breaks (world-model.md §6.4, D9). */
+export const RECOVERY = 0.5
+
+/**
+ * How well each capability and each edge works on each material category (world-model.md §6.1,
+ * after Elin's tool efficiency): a stone axe fells a tree in two blows, a pickaxe breaks rock in
+ * two, a sword cuts wood at half pace and stone hardly at all.
+ */
+const ROW = (wood: number, plant: number, stone: number, ore: number, soil: number, soft: number, bone: number, crystal: number) =>
+  ({ wood, plant, stone, ore, metal: ore, soil, skin: soft, organic: soft, flesh: soft, fibre: soft, bone, crystal })
+export const EFFICIENCY: Record<string, Record<string, number>> = {
+  'tool:axe': ROW(1, 1, 0.25, 0.1, 0.25, 1, 0.5, 0.25),
+  'tool:pickaxe': ROW(0.25, 0.25, 1, 1, 0.5, 0.5, 1, 1),
+  'tool:shovel': ROW(0.25, 1, 0.25, 0.1, 1, 0.25, 0.25, 0.1),
+  'tool:hammer': ROW(0.5, 0.25, 0.5, 0.5, 0.25, 0.5, 1, 1),
+  'edge:cut': ROW(0.5, 1, 0.1, 0.1, 0.1, 1, 0.5, 0.25),
+  'edge:blunt': ROW(0.25, 0.5, 0.1, 0.1, 0.1, 1, 0.5, 0.25),
+  'edge:pierce': ROW(0.25, 0.5, 0.1, 0.1, 0.1, 1, 0.25, 0.1),
+  'edge:dig': ROW(0.25, 1, 0.25, 0.1, 1, 0.25, 0.25, 0.1),
+  'edge:magic': ROW(0.25, 0.5, 0.25, 0.25, 0.25, 1, 0.5, 0.5),
+}
+
 export const TERRAINS: TerrainDef[] = [
   T('grass', '草地', 'grass', ['ground', 'plant', 'diggable'], { color: '#6ab04c' }),
   T('drygrass', '枯草', 'dry grass', ['ground', 'plant', 'flammable', 'dry'], { color: '#b6b94f' }),
@@ -65,13 +88,15 @@ export const TERRAINS: TerrainDef[] = [
   T('ice', '冰面', 'ice', ['ground', 'cold', 'frozen-water', 'slippery'], { color: '#bfe6f5' }),
   T('water', '浅水', 'water', ['water', 'water-source', 'conductive'], { solid: true, liquid: true, color: '#3d7fd6' }),
   T('deepwater', '深水', 'deep water', ['water', 'water-source', 'conductive', 'deep'], { solid: true, liquid: true, color: '#2c5fae' }),
-  T('tree', '树', 'tree', ['plant', 'tree', 'flammable', 'wooden'], { space: 'volume', solid: true, color: '#2f6b33' }),
-  T('pine', '松树', 'pine tree', ['plant', 'tree', 'flammable', 'wooden', 'cold'], { space: 'volume', solid: true, color: '#23553a' }),
-  T('bush', '灌木', 'bush', ['plant', 'flammable'], { space: 'volume', solid: true, color: '#4f8f3a' }),
-  T('rock', '岩石', 'rock', ['rock', 'stone', 'mineable'], { space: 'volume', solid: true, color: '#7d7a74' }),
-  T('wall', '石墙', 'stone wall', ['stone', 'wall'], { space: 'volume', solid: true, color: '#6b6e75' }),
-  T('woodwall', '木墙', 'wooden wall', ['wooden', 'wall', 'flammable'], { space: 'volume', solid: true, color: '#8a5a33' }),
-  T('roof', '屋顶', 'roof', ['roof'], { space: 'volume', solid: true, color: '#a8432f' }),
+  // what fills a cell can be broken (world-model.md §6.3): its durability, what it is made of
+  T('tree', '树', 'tree', ['plant', 'tree', 'flammable', 'wooden'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/log', count: 4 }, { type: 'item/material/stick', count: 2 }], color: '#2f6b33' }),
+  T('pine', '松树', 'pine tree', ['plant', 'tree', 'flammable', 'wooden', 'cold'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/log', count: 4 }, { type: 'item/material/stick', count: 2 }], color: '#23553a' }),
+  T('bush', '灌木', 'bush', ['plant', 'flammable'], { space: 'volume', solid: true, props: { material: 'plant', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/stick', count: 2 }], color: '#4f8f3a' }),
+  T('rock', '岩石', 'rock', ['rock', 'stone', 'mineable'], { space: 'volume', solid: true, props: { material: 'stone', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/stone', count: 2 }], color: '#7d7a74' }),
+  T('wall', '石墙', 'stone wall', ['stone', 'wall'], { space: 'volume', solid: true, props: { material: 'stone', maxHp: 24, hp: 24 }, makeup: [{ type: 'item/material/stone', count: 4 }], color: '#6b6e75' }),
+  T('woodwall', '木墙', 'wooden wall', ['wooden', 'wall', 'flammable'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/plank', count: 2 }], color: '#8a5a33' }),
+  T('burnt_wall', '焦黑的木墙', 'burnt wall', ['wall', 'burnt'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/coal', count: 2 }], color: '#3a2e28' }),
+  T('roof', '屋顶', 'roof', ['roof'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 1 }], color: '#a8432f' }),
   T('floor_wood', '木地板', 'wooden floor', ['floor', 'wooden', 'flammable', 'indoor'], { color: '#9c7a4c' }),
   T('floor_stone', '石地板', 'stone floor', ['floor', 'stone', 'indoor'], { color: '#8d8f94' }),
   T('carpet', '地毯', 'carpet', ['floor', 'cloth', 'flammable', 'indoor'], { color: '#8e3b46' }),
@@ -79,11 +104,11 @@ export const TERRAINS: TerrainDef[] = [
   T('stairs_down', '下行阶梯', 'stairs down', ['stairs'], { color: '#4a4d52' }),
   T('stairs_up', '上行阶梯', 'stairs up', ['stairs'], { color: '#77797e' }),
   T('cave_floor', '洞穴地面', 'cave floor', ['ground', 'stone', 'cave'], { color: '#5a5550' }),
-  T('cave_wall', '洞壁', 'cave wall', ['rock', 'stone', 'mineable', 'cave'], { space: 'volume', solid: true, color: '#34302c' }),
+  T('cave_wall', '洞壁', 'cave wall', ['rock', 'stone', 'mineable', 'cave'], { space: 'volume', solid: true, props: { material: 'stone', maxHp: 16, hp: 16 }, makeup: [{ type: 'item/material/stone', count: 2 }], color: '#34302c' }),
   T('lava', '熔岩', 'lava', ['fire-source', 'hot', 'molten'], { solid: true, liquid: true, color: '#e2541b' }),
   T('ash', '灰烬', 'ash', ['ground', 'burnt'], { color: '#5b5550' }),
-  T('charred_tree', '焦木', 'charred tree', ['burnt', 'tree'], { space: 'volume', solid: true, color: '#3a2e28' }),
-  T('stump', '树桩', 'stump', ['wooden', 'flammable'], { space: 'soil', color: '#7a5a3a' }),
+  T('charred_tree', '焦木', 'charred tree', ['burnt', 'tree'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/coal', count: 2 }], color: '#3a2e28' }),
+  T('stump', '树桩', 'stump', ['wooden', 'flammable'], { space: 'soil', props: { material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/log', count: 2 }], color: '#7a5a3a' }),
   T('gravel', '碎石', 'gravel', ['ground', 'stone'], { color: '#8b8680' }),
   T('bridge', '木桥', 'wooden bridge', ['wooden', 'flammable', 'road'], { color: '#a07a4a' }),
   T('farmland', '农田', 'farmland', ['ground', 'diggable', 'soil'], { color: '#7a5634' }),
@@ -176,7 +201,7 @@ export const PERSON_ROLES: [string, string, string][] = [
 
 const actorTypes: TypeDef[] = [
   // an agent acts by itself, with a body that takes its cells (world-model.md §4.2)
-  P('actor', 'creature', '生物', { tags: ['agent'], props: { level: 1 } }),
+  P('actor', 'creature', '生物', { tags: ['agent'], props: { level: 1, material: 'flesh' } }),
   P('actor/person', 'person', '人', {
     tags: ['person', 'living', 'talkable', 'faction:folk', 'essential'],
     props: { hp: 20, maxHp: 20, atk: 1, def: 0, speed: 2, sight: 7 },
@@ -253,9 +278,9 @@ const fixtureTypes: TypeDef[] = [
   F('fixture', 'thing', '物件', [], { reach: ['ground'] }),
   F('fixture/container', 'container', '容器', ['container'], { solid: true }),
   F('fixture/container/chest', 'chest', '箱子', ['wooden', 'flammable'], { solid: true, props: { capacity: 12 } }),
-  F('fixture/container/barrel', 'barrel', '木桶', ['wooden', 'flammable', 'breakable'], { solid: true, props: { capacity: 4 } }),
-  F('fixture/container/crate', 'crate', '板条箱', ['wooden', 'flammable', 'breakable'], { solid: true, props: { capacity: 6 } }),
-  F('fixture/container/pot', 'clay pot', '陶罐', ['clay', 'fragile', 'breakable'], { solid: true, props: { capacity: 2 } }),
+  F('fixture/container/barrel', 'barrel', '木桶', ['wooden', 'flammable', 'breakable'], { solid: true, props: { capacity: 4, material: 'wood', maxHp: 1, hp: 1 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
+  F('fixture/container/crate', 'crate', '板条箱', ['wooden', 'flammable', 'breakable'], { solid: true, props: { capacity: 6, material: 'wood', maxHp: 1, hp: 1 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
+  F('fixture/container/pot', 'clay pot', '陶罐', ['clay', 'fragile', 'breakable'], { solid: true, props: { capacity: 2, material: 'clay', maxHp: 1, hp: 1 } }),
   F('fixture/container/wardrobe', 'wardrobe', '衣柜', ['wooden', 'flammable'], { solid: true, props: { capacity: 12 } }),
   F('fixture/container/shelf', 'shelf', '货架', ['wooden', 'flammable'], { solid: true, props: { capacity: 8 } }),
   F('fixture/container/bookshelf', 'bookshelf', '书架', ['wooden', 'flammable', 'paper'], { solid: true, props: { capacity: 8 } }),
@@ -299,15 +324,15 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/sacred/seal_stone', 'seal stone', '封印石', ['ancient', 'runic']),
   F('fixture/sacred/waypoint', 'waypoint statue', '传送雕像', ['ancient', 'runic', 'waypoint']),
   F('fixture/nature', 'natural feature', '自然物', [], { solid: true }),
-  F('fixture/nature/boulder', 'boulder', '巨石', ['stone', 'rock', 'mineable'], { props: { cracks: 0 } }),
-  // the old mine's veins: a pickaxe cracks them like a boulder, and they break into their ore
-  F('fixture/nature/vein', 'ore vein', '矿脉', ['stone', 'rock', 'mineable', 'vein'], { props: { cracks: 0, yields: 'item/material/stone', count: 1 } }),
-  F('fixture/nature/vein/iron', 'iron vein', '铁矿脉', [], { sprite: 'fixture:vein_iron', props: { yields: 'item/material/iron_ore', count: 2 } }),
-  F('fixture/nature/vein/coal', 'coal seam', '煤层', [], { sprite: 'fixture:vein_coal', props: { yields: 'item/material/coal', count: 2 } }),
+  F('fixture/nature/boulder', 'boulder', '巨石', ['stone', 'rock', 'mineable'], { props: { material: 'stone', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/stone', count: 8 }] }),
+  // the old mine's veins: a pickaxe breaks them like a boulder, into the ore they hold
+  F('fixture/nature/vein', 'ore vein', '矿脉', ['stone', 'rock', 'mineable', 'vein'], { props: { material: 'ore', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/stone', count: 2 }] }),
+  F('fixture/nature/vein/iron', 'iron vein', '铁矿脉', [], { sprite: 'fixture:vein_iron', makeup: [{ type: 'item/material/iron_ore', count: 4 }] }),
+  F('fixture/nature/vein/coal', 'coal seam', '煤层', [], { sprite: 'fixture:vein_coal', makeup: [{ type: 'item/material/coal', count: 4 }] }),
   F('fixture/nature/haystack', 'haystack', '干草垛', ['plant', 'flammable', 'dry']),
   F('fixture/nature/logpile', 'log pile', '柴堆', ['wooden', 'flammable']),
   F('fixture/nature/logpile/stack', 'firewood', '柴垛', [], { sprite: 'fixture:firewood' }),
-  F('fixture/nature/stump', 'stump', '树墩', ['wooden', 'flammable', 'surface']),
+  F('fixture/nature/stump', 'stump', '树墩', ['wooden', 'flammable', 'surface'], { props: { material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/log', count: 2 }] }),
   // the small things of the ground: each a thing, never a picture
   F('fixture/nature/flowers', 'wildflowers', '野花', ['plant', 'flower', 'flammable'], { solid: false }),
   F('fixture/nature/reeds', 'reeds', '芦苇', ['plant', 'flammable'], { solid: false }),
@@ -355,7 +380,12 @@ export function buildOntology(): Ontology {
     },
     terrains: Object.fromEntries(TERRAINS.map((t) => [t.id, t])),
     // the lines whose crossing is an event, and the clocks (design.md §5.7)
-    thresholds: [{ name: 'defeated', prop: 'hp', lte: 0 }],
+    // every thing with durability breaks at none (world-model.md §6.3): a person goes down, a tree falls, rock breaks
+    thresholds: [{ name: 'broken', prop: 'hp', lte: 0 }],
+    // what things are made of, and how well each instrument works on each (world-model.md §4.5, §6.1)
+    materials: MATERIAL_DEFS,
+    efficiency: EFFICIENCY,
+    params: { recovery: RECOVERY },
     periods: [
       { name: 'hunger', every: HUNGER_EVERY, everyProp: 'hungerEvery', host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
       { name: 'vitals', every: HUNGER_EFFECT_EVERY, host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },

@@ -161,7 +161,7 @@ export const QUEST_RULES: Rule[] = [
     host: { type: DRAGON },
     on: 'threshold/cross',
     tree: IF(
-      { param: { key: 'name', cmp: 'defeated' } },
+      { param: { key: 'name', cmp: 'broken' } },
       DO(
         { op: 'dropContents', still: true },
         { op: 'emit', impulse: 'notify', to: 'actor', params: { what: 'defeat', xp: { prop: 'maxHp', of: 'host' } } },
