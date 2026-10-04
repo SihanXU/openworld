@@ -4,9 +4,9 @@
 // scripted model that answers from code or a file.
 
 import { spawn } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, isAbsolute, join } from 'node:path'
 
 export interface ToolSpec {
   name: string
@@ -294,11 +294,48 @@ interface ClaudeResult {
   usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number; output_tokens_details?: { thinking_tokens?: number } }
 }
 
+/**
+ * How to start a command by name or path on this platform. Elsewhere: as given. On Windows a
+ * process can only be started from an .exe: a script with a node shebang runs under this node,
+ * and a name is looked up on PATH as .exe, then .cmd (what `npm i -g` installs, run through
+ * cmd.exe with its arguments quoted — ours are flags, model ids and temp-file paths; the prompt
+ * goes through stdin).
+ */
+export function commandFor(bin: string, args: string[]): { file: string; args: string[]; shell: boolean } {
+  if (process.platform !== 'win32') return { file: bin, args, shell: false }
+  const isScript = (p: string) => {
+    try {
+      return /^#!.*\bnode\b/.test(readFileSync(p, 'utf8').slice(0, 200))
+    } catch {
+      return false
+    }
+  }
+  const cmd = (p: string) => ({ file: `"${p}"`, args: args.map((a) => `"${a.replace(/"/g, '""')}"`), shell: true })
+  const found = (p: string) => {
+    if (/\.exe$/i.test(p)) return { file: p, args, shell: false }
+    if (/\.(cmd|bat)$/i.test(p)) return cmd(p)
+    if (isScript(p)) return { file: process.execPath, args: [p, ...args], shell: false }
+    return undefined
+  }
+  if (/[\\/]/.test(bin) || isAbsolute(bin)) {
+    for (const p of [bin, `${bin}.exe`, `${bin}.cmd`]) if (existsSync(p) && statSync(p).isFile()) return found(p) ?? { file: p, args, shell: false }
+    return { file: bin, args, shell: false }
+  }
+  for (const dir of (process.env.PATH ?? '').split(delimiter).filter(Boolean))
+    for (const ext of ['.exe', '.cmd', '.bat', ''])
+      if (existsSync(join(dir, bin + ext)) && statSync(join(dir, bin + ext)).isFile()) {
+        const f = found(join(dir, bin + ext))
+        if (f) return f
+      }
+  return { file: bin, args, shell: false }
+}
+
 function runClaude(bin: string, args: string[], stdin: string, timeoutMs: number): Promise<{ data: ClaudeResult; ms: number }> {
   return new Promise((resolve, reject) => {
     const t0 = Date.now()
     // outside the repo, so the session picks up no project instructions
-    const child = spawn(bin, args, { cwd: tmpdir(), stdio: ['pipe', 'pipe', 'pipe'] })
+    const c = commandFor(bin, args)
+    const child = spawn(c.file, c.args, { cwd: tmpdir(), stdio: ['pipe', 'pipe', 'pipe'], shell: c.shell, windowsHide: true })
     let out = ''
     let err = ''
     const timer = setTimeout(() => (child.kill(), reject(new Error(`model: no answer within ${timeoutMs} ms`))), timeoutMs)
