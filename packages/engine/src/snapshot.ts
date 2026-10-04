@@ -211,8 +211,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     const first = ids && itemInfo(eng, ids[0])
     return first ? { item: first, count: ids!.length } : null
   })
-  const fx = w.fx
-  w.fx = []
+  const fx = w.drainFx()
   const sc = w.state.scene
   return {
     tick: w.state.tick,

@@ -747,6 +747,11 @@ export const CATALOG: Catalog = {
     iconHeart: ui('Ui/Receptacle/IconHeart.png', 14, 12),
     // the hunger bar's drumstick (hud.ts)
     drumstick: ui('Items/Food/Meat.png', 15, 15),
+    // the corner buttons (hud.ts): quests, build, bag, skills
+    cornerQuests: ui('Items/Scroll/ScrollEmpty.png', 16, 16),
+    cornerBuild: ui('Items/Tool/Hammer.png', 16, 16),
+    cornerBag: ui('Items/Object/Bag.png', 16, 16),
+    cornerSkills: ui('lsw/Ui/Star.png', 16, 16),
     // the dragon of Cinder Peak, in parts (scene.ts composes them round its head): a wing, two body segments, the tail
     dragonWing: ui('Actor/Boss/DragonGreen/Wing.png', 57, 57),
     dragonBody1: ui('Actor/Boss/DragonGreen/Body1.png', 31, 27),

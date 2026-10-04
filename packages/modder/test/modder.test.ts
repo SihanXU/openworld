@@ -441,6 +441,41 @@ describe('integrity', () => {
     const elsewhere: Rule = { ...bindRule(), on: 'impulse/handle' }
     expect(library.validate(patchOf(elsewhere), request()).errors.join()).toMatch(/still undefined/)
   })
+
+  it('refuses two rules of one patch that tie with each other, as it would across patches', () => {
+    const { library } = setup()
+    const a = bindRule('patch/a')
+    const b = { ...bindRule('patch/b'), doc: 'the same class, said again' }
+    expect(library.validate(patchOf(a, b), request()).errors.join()).toMatch(/"patch\/a" ties with "patch\/b"/)
+  })
+
+  it('commits to the shared log only what stands on the shared library alone', async () => {
+    const glow: Rule = { ...bindRule('patch/rope-glows'), tree: { if: FIBER, then: { do: [{ op: 'addStatus', status: 'glowing', duration: 30 }] } }, tests: [] }
+    const status = { id: 'glowing', duration: 30 }
+    // the first draft leans on a status only this client has (a local patch of its own); the repair carries it
+    const { model, calls } = scripted([patchOf(glow), { artifacts: [{ kind: 'status', status }, { kind: 'rule', rule: glow }] }])
+    const { modder, library } = setup(model)
+    const ws = { patches: { rules: [], statuses: [status] } }
+    expect(library.validate(patchOf(glow), request(), ws).ok).toBe(true)
+    const reply = await modder.resolve({ request: request(), workspace: ws })
+    expect(reply.outcome).toBe('accepted')
+    expect(calls.log.some((c) => c.messages.some((m) => m.role !== 'system' && /glowing/.test(m.content) && /unknown status/.test(m.content)))).toBe(true)
+    // the shared library now knows the status, so every client can take the rule
+    expect(library.lib.statuses.map((s) => s.id)).toContain('glowing')
+  })
+
+  it('asks no model when the service\'s own base rules already answer (the client is older)', async () => {
+    const { model, calls } = scripted([patchOf(bindRule())])
+    const dir = mkdtempSync(join(tmpdir(), 'lsw-modder-'))
+    // the service's base rules have learned what the client's have not
+    const newer: Rule = { ...bindRule('creature/offered-rope'), source: { origin: 'base' } }
+    const library = new WorldLibrary(onto, [...BASE, newer], join(dir, 'library.jsonl'))
+    const modder = new Modder({ library, state: SelfState.open(join(dir, 'modder-state')), model })
+    const reply = await modder.resolve({ request: request() })
+    expect(reply).toMatchObject({ patch: null, outcome: 'failed' })
+    expect(reply.diagnostics?.join()).toMatch(/creature\/offered-rope/)
+    expect(calls.design).toBe(0)
+  })
 })
 
 describe('deterministic repairs', () => {
@@ -481,7 +516,8 @@ describe('deterministic repairs', () => {
     const port = new ModPort(eng)
     eng.act('put', 'actor', { e: 'it' })
     const req = port.records[0].request
-    expect(req.hole.rule).toBe('core/receive')
+    // a fixture's own hole for what is put on it (fixture/receive, #11), under core/receive
+    expect(req.hole.rule).toBe('fixture/receive')
     const shed = (id: string, host: Rule['host']): Rule => ({ id, host, on: 'impulse/receive', doc: 'Things slide off it.', tree: { do: [{ op: 'emit', impulse: 'taken', to: 'item', params: { into: 'tile' } }, { op: 'vfx', fx: 'leaves' }] } })
     const library = new WorldLibrary(onto, BASE)
     expect(library.commit(patchOf(shed('patch/flowers-shed', { type: 'fixture/nature/flowers' }))).ok).toBe(true)

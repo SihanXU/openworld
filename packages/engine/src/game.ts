@@ -118,6 +118,9 @@ export class Game {
     // Early Iron Stomach saves used its delta as an absolute interval (faster, not slower).
     for (const actor of Object.values(eng.world.state.entities))
       if (actor.tags?.includes('skill:iron-stomach') && actor.props?.hungerEvery === 150) actor.props.hungerEvery = 450
+    // A save taken while an outcome was being worked out holds its participants, but the request
+    // itself is not saved: nobody will answer it, so they are let go (as after a time-out).
+    for (const e of Object.values(eng.world.state.entities)) delete e.frozenBy
     return new Game(eng)
   }
 

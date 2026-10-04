@@ -176,6 +176,7 @@
 .options .opt span { width: 90px; }
 .options button { background: var(--paper-dark); color: var(--ink-warm); border: 2px solid var(--wood-dark); }
 .options td { padding: 2px 12px 2px 0; }
+.tab-body kbd, .cv-help kbd { background: var(--paper-dark); color: var(--ink-warm); border-color: var(--wood-dark); }
 .tab-body .muted, .sheet .muted { color: #8a6a44; }
 .tab-body .thread { border-left-color: #c8782c; background: var(--paper-dark); }
 @media (max-width: 720px) {
@@ -215,10 +216,10 @@
 .cbtn { position: relative; width: 50px; height: 50px; padding: 0; display: grid; place-items: center; cursor: pointer; }
 /* (its own background: the global button:hover would wash the wood out) */
 .cbtn:hover { background: linear-gradient(#f3c47e, #dca65e); transform: translateY(-1px); }
-.cbtn .cb-glyph { font-size: 22px; line-height: 1; color: var(--ink-warm); }
+.cbtn .cb-icon { width: 32px; height: 32px; image-rendering: pixelated; filter: drop-shadow(1px 1px 0 rgba(58, 36, 20, 0.35)); pointer-events: none; }
 .cbtn kbd { position: absolute; left: 3px; bottom: 1px; font: 600 10px var(--pixel); color: var(--ink-warm); opacity: 0.75; background: none; border: 0; padding: 0; }
 .cbtn .badge { position: absolute; right: -6px; top: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #e04848; color: #fff; border: 2px solid #fff; font: 700 11px/14px var(--pixel); animation: jflash 1.2s infinite; }
-@media (max-width: 720px) { .corner { right: 8px; bottom: 74px; flex-direction: column; } .cbtn { width: 40px; height: 40px; } }
+@media (max-width: 720px) { .corner { right: 8px; bottom: 74px; flex-direction: column; } .cbtn { width: 40px; height: 40px; } .cbtn .cb-icon { width: 24px; height: 24px; } }
 
 /* the skill tree page: a field to drag and zoom, the start in the middle */
 .sk-page { position: fixed; inset: 0; z-index: 40; background:

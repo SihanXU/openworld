@@ -276,6 +276,48 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
   })
 })
 
+describe('the Mod port holds up', () => {
+  it('a question with no reply at all (the service down) is asked again, a few times, not given up at once', async () => {
+    const eng = place({}, [{ key: 'b', type: 'fixture/nature/boulder', x: 2, y: 1 }])
+    const port = new ModPort(eng)
+    let asked = 0
+    port.provider = { resolve: () => (asked++, Promise.reject(new Error('fetch failed'))) }
+    const strike = () => eng.queue({ kind: 'impulse/strike', host: { e: 'b' }, roles: {}, params: { power: 2, edge: 'blunt' }, origin: 'world' })
+    for (let i = 0; i < 5; i++) {
+      strike()
+      await Promise.resolve()
+      await Promise.resolve()
+    }
+    expect(asked).toBe(3)
+    expect(eng.world.get('b')!.frozenBy).toBeUndefined()
+  })
+
+  it('a request carries the lines said lately, after the frame drained them', () => {
+    const eng = place({}, [{ key: 'b', type: 'fixture/nature/boulder', x: 2, y: 1 }])
+    const port = new ModPort(eng)
+    eng.world.fx.push({ t: 'log', text: { en: 'The ferry bell rings.', zh: '渡口的钟响了。' } })
+    eng.world.drainFx()
+    eng.queue({ kind: 'impulse/strike', host: { e: 'b' }, roles: {}, params: { power: 2, edge: 'blunt' }, origin: 'world' })
+    expect(port.records[0].request.context.recent).toContain('The ferry bell rings.')
+  })
+
+  it('a thing that changes type takes up the cells of its new footprint', () => {
+    const grow: Rule = { id: 'test/grow', host: { type: 'actor/creature/slime' }, on: 'impulse/handle', tree: { do: [{ op: 'transform', into: 'actor/creature/sin/greed' }] } }
+    const eng = buildSandbox(
+      { terrain: Array.from({ length: 9 }, () => Array(9).fill('grass')), entities: [{ key: 'actor', type: 'actor/person/player', x: 1, y: 4 }, { key: 'c', type: 'actor/creature/slime/green_slime', x: 4, y: 4 }], event: {} },
+      onto,
+      new RuleLibrary([...BASE_RULES, ...STORY_RULES, grow]),
+    )
+    const w = eng.world
+    eng.act('hands', 'actor', { e: 'c' }, { instrument: null })
+    const c = w.get('c')!
+    expect(c.type).toBe('actor/creature/sin/greed')
+    const cells = w.occupiedCells(c)
+    expect(cells.length).toBeGreaterThan(1)
+    for (const [x, y] of cells) expect(w.entitiesAt('sandbox', x, y).map((e) => e.id)).toContain('c')
+  })
+})
+
 describe('the boundaries of the world\'s own patches (design.md §5.11)', () => {
   const stuck: Scenario = {
     entities: [

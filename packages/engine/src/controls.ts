@@ -139,19 +139,18 @@ export class Controls {
    * Everything drawn at a spot, top first, the ground under it last. `stack` is the view's (what
    * is drawn at the point: the things, the tiles whose growth reaches there); without it, what
    * stands on the tile, as it is drawn — people and creatures, items (the top of a pile first), fixtures.
+   * What stands on the tile always comes before its ground: a pointer on the tile but beside a small
+   * sprite (a stone) still meets the stone, not the bare ground.
    */
   layers(at: Pos, stack?: Ref[]): Ref[] {
     const w = this.w
     const ok = (r: Ref) => ('e' in r ? w.posOf(w.get(r.e))?.map === at.map : r.tile.map === at.map && w.inBounds(r.tile.map, r.tile.x, r.tile.y))
     const sig = (r: Ref) => ('e' in r ? r.e : `${r.tile.x},${r.tile.y}`)
-    let out: Ref[]
-    if (stack) out = stack.filter(ok)
-    else {
-      const es = w.entitiesAt(at.map, at.x, at.y)
-      const of = (k: string) => es.filter((e) => w.kindOf(e) === k)
-      // in the order they are drawn: people and creatures over items, items over the fixture they lie on
-      out = [...of('actor'), ...of('item').reverse(), ...of('fixture')].map((e) => ({ e: e.id }))
-    }
+    const es = w.entitiesAt(at.map, at.x, at.y)
+    const of = (k: string) => es.filter((e) => w.kindOf(e) === k)
+    // in the order they are drawn: people and creatures over items, items over the fixture they lie on
+    const standing: Ref[] = [...of('actor'), ...of('item').reverse(), ...of('fixture')].map((e) => ({ e: e.id }))
+    let out: Ref[] = stack ? [...stack.filter(ok), ...standing] : standing
     // a bird overhead is the last thing the keys meet (it is drawn on top, but rarely what is meant)
     const aloft = (r: Ref) => 'e' in r && !!w.get(r.e) && w.hasTag(w.get(r.e)!, 'airborne')
     out = [...out.filter((r) => !aloft(r)), ...out.filter(aloft)]

@@ -47,6 +47,14 @@ describe('the four inputs: one verb each', () => {
     expect(eng.world.get('loaf')!.place).toMatchObject({ on: 'inside', holder: 'chest' })
   })
 
+  it('a pointer on the tile but beside a small sprite still meets what lies there, not the bare ground', () => {
+    const eng = world('item/material/stone', [{ key: 'stone', type: 'item/material/stone', x: 2, y: 1 }])
+    const put = eng.controls.plan('put', { x: 2, y: 1, stack: [] })
+    expect(put?.target).toEqual({ e: 'stone' })
+    eng.controls.run(put!)
+    expect(eng.world.get('stone')!.type).toBe('fixture/build/ring')
+  })
+
   it('asks before eating (left click on oneself), and eats on yes', () => {
     const meal = world('item/food/bread', [])
     const eat = meal.controls.plan('use', { x: 2, y: 2 })!

@@ -13,7 +13,7 @@ import { OntologyIndex, isA } from './ontology.ts'
 import { RuleLibrary, cmp, compareSpec, isDo, isHole, leaves, rolesOf, specOf } from './rules.ts'
 import { checkExpectations, replay } from './sandbox.ts'
 import type { Cmp, Cond, Effect, EmitTo, GameEvent, Ontology, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Tree, TypeDef } from './types.ts'
-import type { View } from './world.ts'
+import { RECENT_LINES, type View } from './world.ts'
 
 // ---------------------------------------------------------------- contract
 
@@ -305,6 +305,9 @@ export function signatureOf(eng: Engine, ev: GameEvent, res?: Resolution): strin
   return `${hole}|${ev.kind}|${kind(ev.host)}|${roles}|${params}`
 }
 
+/** Asks of one question that may go unanswered (no reply) before it is given up for the session. */
+const MAX_UNREACHABLE = 3
+
 export class ModPort implements UndefinedSink {
   provider?: ModProvider
   records: UndefinedRecord[] = []
@@ -316,6 +319,8 @@ export class ModPort implements UndefinedSink {
   private seq = 0
   /** Questions that failed this session: not asked again until the next one. */
   private failed = new Set<string>()
+  /** Questions whose asking itself failed (no reply: the service restarting, a dropped connection), by count. */
+  private unreachable = new Map<string, number>()
 
   constructor(private eng: Engine) {
     eng.undefinedSink = this
@@ -387,8 +392,11 @@ export class ModPort implements UndefinedSink {
         }
       })
       .catch(() => {
+        // no reply at all is not an answer: the question may be asked again, a few times
         rec.awaiting = false
-        this.failed.add(rec.signature)
+        const n = (this.unreachable.get(rec.signature) ?? 0) + 1
+        this.unreachable.set(rec.signature, n)
+        if (n >= MAX_UNREACHABLE) this.failed.add(rec.signature)
         this.fallback(id)
       })
   }
@@ -492,6 +500,7 @@ export class ModPort implements UndefinedSink {
     rec.rules = ruleIds
     rec.status = 'patched'
     this.failed.delete(rec.signature)
+    this.unreachable.delete(rec.signature)
     this.unfreeze(rec.id)
     eng.world.fx.push({ t: 'patched', request: rec.id, rule: ruleIds[0] ?? '' })
     if (wasOpen && stillValid(eng, rec.event) && eng.resolveEvent(rec.event).defined) eng.replay(rec.event)
@@ -643,10 +652,8 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
         const i = info(eng, 'nearby', w.view({ e: e.id }), center)
         if (i) nearby.push(i)
       }
-  const recent = w.fx
-    .filter((f) => f.t === 'log' || f.t === 'say')
-    .slice(-6)
-    .map((f) => ('text' in f ? textOf(f.text) : ''))
+  // what was said lately: the lines already shown (drained each frame) and this frame's
+  const recent = [...w.recent, ...w.fx.flatMap((f) => (f.t === 'log' || f.t === 'say' ? [f.text] : []))].slice(-RECENT_LINES).map((t) => textOf(t))
   const hostView = roles.host
   const infos: Partial<Record<RoleName, EntityInfo>> = {}
   for (const [k, v] of Object.entries(roles)) if (k !== 'host' && v) infos[k as RoleName] = info(eng, k, v, center)
@@ -939,12 +946,13 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   }
   if (errors.length) return { ok: false, errors, warnings, overrides }
 
-  // 4. no two patches tie (one event could reach both at equal specificity)
-  for (const r of rules) {
-    for (const other of ctx.library.patches()) {
+  // 4. no two patches tie (one event could reach both at equal specificity), the rules of this
+  //    patch among themselves included
+  rules.forEach((r, i) => {
+    for (const other of [...ctx.library.patches(), ...rules.slice(i + 1)]) {
       if (rulesTie(r, other, onto)) errors.push(`rule "${r.id}" ties with "${other.id}" (same kind, same specificity, an event both could answer) — make it more specific or name a different host`)
     }
-  }
+  })
   if (errors.length) return { ok: false, errors, warnings, overrides }
 
   // candidate library

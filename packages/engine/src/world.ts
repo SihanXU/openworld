@@ -14,6 +14,7 @@ import type {
   Pos,
   PropValue,
   Ref,
+  Text,
   TileState,
   WorldState,
 } from './types.ts'
@@ -44,11 +45,16 @@ export function baseCovers(ex: number, ey: number, [w, d]: [number, number], x: 
   return x >= ex - Math.floor((w - 1) / 2) && x <= ex + Math.floor(w / 2) && y <= ey && y > ey - d
 }
 
+/** How many recent lines a request carries as context. */
+export const RECENT_LINES = 6
+
 export class World {
   state: WorldState
   onto: OntologyIndex
   /** Output buffer drained by the host each frame. */
   fx: FxEvent[] = []
+  /** The last lines logged or said, kept past the drain of `fx` (a request's recent context). */
+  recent: Text[] = []
   /**
    * Who may change the state now (design.md §5.13, A2): outcomes, the clock, loading, and the
    * actor's own posture (what is in the hand, which way it faces). Anything else throws.
@@ -417,7 +423,18 @@ export class World {
     else this.attach(e)
   }
 
+  /** Drain the output buffer (the host, once a frame), keeping its last lines in `recent`. */
+  drainFx(): FxEvent[] {
+    const fx = this.fx
+    this.fx = []
+    for (const f of fx) if (f.t === 'log' || f.t === 'say') this.recent.push(f.text)
+    if (this.recent.length > RECENT_LINES) this.recent.splice(0, this.recent.length - RECENT_LINES)
+    return fx
+  }
+
+  /** Change an entity's type, re-indexing the cells it covers (a new type may have another footprint). */
   transform(e: Entity, type: string): void {
+    this.guard('transform')
     this.indexRemove(e)
     e.type = type
     this.indexAdd(e)
