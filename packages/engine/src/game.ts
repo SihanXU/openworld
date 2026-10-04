@@ -4,9 +4,9 @@ import { START_HOUR, TICKS_PER_HOUR, type WeatherSpan } from './calendar.ts'
 import { Engine, type MapChunk } from './engine.ts'
 import { ModPort } from './mod.ts'
 import { RuleLibrary, type LibraryData } from './rules.ts'
-import type { Beat, Guide } from './companion.ts'
+import type { Guide } from './story.ts'
 import type { QuestDef } from './quests.ts'
-import type { BossDef, Entity, Id, Invariant, MapData, NpcMemory, Ontology, Pos, Portal, PropValue, SceneDef, SceneState, Text, WorldState } from './types.ts'
+import type { BossDef, Entity, Id, Invariant, MapData, NpcMemory, Ontology, Pos, Portal, PropValue, SceneState, StepDef, Text, WorldState } from './types.ts'
 import { TOPIC_DAYS } from './world.ts'
 
 export interface MapMeta {
@@ -37,16 +37,14 @@ export interface WorldIndex {
   npcs: Entity[]
   player: Entity
   stats: { maps: number; npcs: number; creatures: number; items: number; itemKinds: number; fixtures: number }
-  /** Scripted scenes (the arrival, the ferry, the far bank). */
-  scenes?: SceneDef[]
+  /** The story's script (story.ts, world-model.md §6.12): its scenes and its beats, steps all. */
+  steps?: StepDef[]
   /** Content the world must keep playable (the `invalid` source). */
   invariants?: Invariant[]
   /** Fact-key prefixes that only the story's own rules may change (design.md §5.11). */
   protectedFacts?: string[]
   /** Spans of time whose weather the world fixes (the evening storm). */
   weather?: WeatherSpan[]
-  /** The tutorial's steps (companion.ts, docs/prologue.md). */
-  beats?: Beat[]
   /** The story's objectives by stage, for a companion to tell (F on it). */
   guides?: Guide[]
   /** Quests people give (quests.ts, docs/quests.md). */
@@ -182,7 +180,7 @@ function upgrade(eng: Engine, index: WorldIndex): void {
     else w.setFact(k, v)
   }
   delete s.facts
-  if (s.lastBeat) (w.setFact('beat.last', s.lastBeat), delete s.lastBeat)
+  if (s.lastBeat) (w.setFact('step.last', s.lastBeat), delete s.lastBeat)
   for (const t of s.topics ?? []) (w.setFact(`topic.${t.id}`, t.day), w.setFact(`topic.${t.id}.days`, t.days ?? TOPIC_DAYS))
   delete s.topics
   for (const [id, m] of Object.entries(s.memory ?? {})) {
@@ -201,6 +199,14 @@ function upgrade(eng: Engine, index: WorldIndex): void {
     eng.legacyTiles.set(map, list)
   }
   delete s.tiles
+  // a beat was a step of its own kind; it is a step of the story's one script now (world-model.md §6.12)
+  const story = w.story
+  for (const [k, v] of Object.entries(story?.props ?? {})) {
+    if (!k.startsWith('beat.')) continue
+    w.setProp(story!, k, undefined)
+    if (k === 'beat.last') w.setFact('step.last', v)
+    else if (w.fact(`seen.${k.slice(5)}`) === undefined) w.setFact(`seen.${k.slice(5)}`, v)
+  }
   // a stage's clock was a status of each kind of thing's own (world-model.md §6.5): it is the stage's now
   const clock = (bag?: Record<string, number>) => {
     for (const k of ['regrowing', 'rooting', 'laying']) if (bag && k in bag) (bag.stage = bag[k]), delete bag[k]
@@ -223,8 +229,7 @@ function addTree(eng: Engine, e: Entity & { _items?: Entity[] }): void {
 /** Scenes and invariants are content: read from the world on every start (they are not saved). */
 function loadContent(eng: Engine, index: WorldIndex): void {
   eng.bossKits = Object.fromEntries((index.bosses ?? []).map((b) => [b.id, structuredClone(b)]))
-  eng.scenes.load(index.scenes)
-  eng.companions.load(index.beats, index.guides)
+  eng.story.load(index.steps, index.guides)
   eng.quests.load(index.quests)
   eng.loadInvariants(index.invariants, index.protectedFacts)
   // the weather the world fixes is content, like the scenes: read on every start, never saved

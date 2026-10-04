@@ -9,7 +9,7 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { tickAt, type AiData, type Entity, type MapMeta, type Pos, type SceneDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
+import { tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
 import { BOSSES, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, type RawChunk } from '@lsw/content'
 import { CATALOG } from '../../../client/src/assets/catalog.ts'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
@@ -437,11 +437,11 @@ function person(p: PersonDef, at: (name: string) => Pos): Entity {
 
 const say = (who: string, en: string, zh: string, mood?: 'neutral' | 'happy' | 'sad' | 'angry' | 'surprised' | 'shy') => ({ say: who, text: L(en, zh), ...(mood && { mood }) })
 
-const scenes: SceneDef[] = [
+const scenes: StepDef[] = [
   {
     // The afternoon after the storm: you come down the cliff stair from the mountain (docs/prologue.md).
     id: 'arrival',
-    map: 'ford',
+    when: { map: 'ford' },
     script: [
       { place: 'npc.hesper', map: 'ford', x: 16, y: 5 },
       { face: 'npc.hesper', dir: 'up' },
@@ -462,7 +462,7 @@ const scenes: SceneDef[] = [
   {
     // The ferry: she takes you over on the mended line (or wades you over when every way is gone).
     id: 'ferry',
-    map: 'ford',
+    when: { map: 'ford' },
     manual: true,
     script: [
       { fade: 'out' },
@@ -476,8 +476,7 @@ const scenes: SceneDef[] = [
   {
     // The goal is a state: however you got here, the far bank ends the first chapter.
     id: 'far_bank',
-    map: 'ford',
-    when: { region: 'far_bank' },
+    when: { map: 'ford', region: 'far_bank' },
     script: [
       { fact: 'ford.crossed', value: 1 },
       { prop: 'quest', value: 2 },
@@ -611,7 +610,6 @@ export function buildFord(): FordWorld {
       props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, quest: 0, prologue: 0, hunger: 12 },
     },
     companions: [{ id: 'pip', type: 'actor/companion/bird', name: L('Pip', '小啾'), place: { on: 'none' }, facing: 'down' }],
-    beats: PROLOGUE_BEATS,
     quests: VILLAGE_QUESTS,
     // what Pip tells when taken hold of (F): the prologue's step on the mountain, then the main quest's
     guides: [
@@ -620,7 +618,8 @@ export function buildFord(): FordWorld {
     ],
     waypoints: chunks.flatMap((c) => c.entities.filter((e) => e.type === 'fixture/sacred/waypoint').map((e) => ({ id: e.id, map: c.map.id, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: e.name ?? L('Waypoint', '传送雕像') }))),
     stats: { maps: builders.length, npcs: npcs.length, creatures, items, itemKinds: kinds.size, fixtures },
-    scenes: [...scenes, ...QUEST_SCENES],
+    // the story's one script (world-model.md §6.12): the tutorial's beats, then the scenes
+    steps: [...PROLOGUE_BEATS, ...scenes, ...QUEST_SCENES],
     invariants: INVARIANTS,
     protectedFacts: PROTECTED_FACTS,
     weather: [

@@ -13,7 +13,7 @@ export function createBossChallenge(index: WorldIndex, raw: RawChunk, profession
   const loadout = CHALLENGE_LOADOUTS[profession], role = PROFESSION_BY_ID[profession]
   if (!loadout || !role?.weapon || !BOSS_BY_ID[bossId]) throw new Error('Unknown challenge profession or boss')
   const settings = structuredClone(index)
-  Object.assign(settings, { start: { map: FIRST_BOSS.map, x: 23, y: 17 }, npcs: [], companions: [], scenes: [], beats: [], quests: [], invariants: [], waypoints: [], startHour: 12 })
+  Object.assign(settings, { start: { map: FIRST_BOSS.map, x: 23, y: 17 }, npcs: [], companions: [], steps: [], quests: [], invariants: [], waypoints: [], startHour: 12 })
   const looks: Record<string, string> = { assassin: 'NinjaDark', warrior: 'Knight', ranger: 'Hunter', mage: 'SorcererOrange' }
   settings.player = { id: 'player', type: 'actor/person/player', look: looks[profession], facing: 'up', place: { on: 'tile', ...settings.start },
     props: { hp: loadout.hp, maxHp: loadout.hp, atk: loadout.atk, def: loadout.def, profession, level: 20, xp: 0, maxHunger: 0, prologue: PROLOGUE_DONE, skillPoints: 100 } }

@@ -173,4 +173,24 @@ describe('the state is things and the clock (world-model.md §3)', () => {
     expect(w.get('story')?.place).toEqual({ on: 'resident' })
     expect(Object.values(w.state.entities).some((e) => e.type === 'region' && e.place.on === 'area')).toBe(true)
   })
+
+  it("an older save's beats are steps of the story's one script: their records are seen.<id>, the latest step.last (world-model.md §6.12)", async () => {
+    const { Game } = await import('@lsw/engine')
+    const { STORY_RULES, decodeChunk } = await import('@lsw/content')
+    const { buildFord } = await import('../src/demo/world.ts')
+    const { index, chunks } = buildFord()
+    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    for (const c of chunks) game.loadChunk(decodeChunk(c))
+    const old = structuredClone(game.save())
+    const story = old.state.entities.story
+    story.props = { ...(story.props ?? {}), 'beat.wake': 40, 'beat.outside': 90, 'beat.last': 'outside' }
+    const loaded = Game.load(old, index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    const w = loaded.engine.world
+    expect(w.fact('seen.wake')).toBe(40)
+    expect(w.fact('seen.outside')).toBe(90)
+    expect(w.fact('step.last')).toBe('outside')
+    expect(Object.keys(w.story!.props ?? {}).filter((k) => k.startsWith('beat.'))).toEqual([])
+    // what the companion repeats is the latest beat's hint
+    expect(loaded.engine.story.hint()).toEqual(index.steps!.find((d) => d.id === 'outside')!.hint ?? index.steps!.find((d) => d.id === 'outside')!.say)
+  })
 })

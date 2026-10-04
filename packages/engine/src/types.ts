@@ -532,21 +532,53 @@ export interface Topic {
 }
 
 /** A scripted scene (docs/game-design.md §8.6): the arrival, the ferry, the far bank. */
-export interface SceneDef {
+/**
+ * What starts a step of the story's script (world-model.md §6.12), on the one at the keys (the
+ * leader) and the story: all that is given must hold.
+ */
+export interface StepCond {
+  /** The leader is on this map. */
+  map?: string
+  /** The leader stands in this region (of `map`, else of their map): looked at when they enter it, and as a step plays — never polled. */
+  region?: string
+  hour?: { from: number; to: number }
+  weather?: string[]
+  /** The story's facts. */
+  facts?: Record<string, Cmp>
+  /** The leader's props (their stage). */
+  props?: Record<string, Cmp>
+  /** The leader carries (hand or bag) something of a type starting with this. */
+  carrying?: string
+  /** The leader has learned a skill: any (true) or this one. */
+  skill?: boolean | string
+  /** Another step has played. */
+  after?: string
+  /** Something of a type starting with this stands within r tiles of the leader (in view). */
+  near?: { type: string; r: number }
+}
+
+/**
+ * A step of the story's script (world-model.md §6.12): when its trigger holds it plays, once (or
+ * once a day); it may take control while it plays (a scene: its `script`) or not (a beat); its
+ * effects are the story's own props and the notices it sends.
+ */
+export interface StepDef {
   id: string
-  map: string
-  /** Played only by a `scene` effect (the ferry), never by itself. */
+  when?: StepCond
+  /** Played only when something starts it (a `scene` effect: the ferry), never by itself. */
   manual?: boolean
-  when?: {
-    hour?: { from: number; to: number }
-    weather?: string[]
-    facts?: Record<string, Cmp>
-    /** the player stands in this region of the map (its region thing): checked when they enter it, and when a scene ends — never polled */
-    region?: string
-    /** default false: a scene plays once */
-    repeat?: boolean
-  }
-  script: SceneCmd[]
+  /** Again each day its trigger holds (default: once). */
+  repeat?: boolean
+  /** It takes control while it plays: what is said and done, in order. */
+  script?: SceneCmd[]
+  /** The story's facts it sets. */
+  facts?: Record<string, PropValue>
+  /** The leader's stage: the story tells them (`notify` what = key, value), and they keep it. */
+  props?: Record<string, PropValue>
+  /** Said by the leader's companion, in a bubble, when it plays. */
+  say?: Text
+  /** What the companion says when spoken to while this is the latest beat (default: `say`). */
+  hint?: Text
 }
 
 /**

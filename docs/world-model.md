@@ -619,6 +619,22 @@ Scenes (taking control), beats (not taking control), quests and objectives becom
 whose effects are the story's own props or events sent to others; and **objectives** (quests,
 guides), which are story props plus how they are shown.
 
+As built (W10): `story.ts` is the one script; `scenes.ts` and the companions' beats are gone. A
+`StepDef` has a trigger (`StepCond`: the leader's map, region, stage props, what they carry,
+skills, what stands near; the story's facts; the hour and weather; another step played), may be
+`manual` or `repeat` daily, and may carry a `script` (it takes control: a scene), facts, stage
+props it tells the leader, and the companion's line and hint (a beat). The index carries `steps`
+(the prologue's beats, then the scenes); a step plays once, recorded as `seen.<id>` (the tick; a
+repeating one also `seen.<id>.day`; a beat also `step.last`, whose hint the companion repeats);
+`seen.` is protected for every step now. A step with a region is looked at when the one at the
+keys enters a region and as a step plays — never polled (a beat with a region too: the prologue's
+test walks into the relic's ground instead of being set down in it); the rest every three ticks,
+one step at a time, the beats first. Guides (the objective by stage, `@objective`) and the hint
+(`@hint`) are the story's; quests keep their own lifecycle in the story's facts (`quests.ts`), the
+objectives with a giver. An older save's `beat.<id>` facts become `seen.<id>`, `beat.last`
+`step.last`. The prologue and the quests play as before (P1, P3, P4, Q1–Q5). Not yet: one view of
+all objectives (the quest log and the guide are shown apart).
+
 ## 7. The event model, extended
 
 - **References**: `{e: id}` only; derived ids for things in cell spaces (§4.6).

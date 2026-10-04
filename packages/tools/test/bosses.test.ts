@@ -15,7 +15,7 @@ const library = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
 function arena(id = 'greed') {
   const { index } = buildFord()
   const at = { map: 'arena', x: 16, y: 20 }
-  Object.assign(index, { start: at, npcs: [], companions: [], scenes: [], beats: [], quests: [], invariants: [], waypoints: [] })
+  Object.assign(index, { start: at, npcs: [], companions: [], steps: [], quests: [], invariants: [], waypoints: [] })
   index.player.place = { on: 'tile', ...at }
   index.player.props = { ...index.player.props, hp: 1000, maxHp: 1000, def: 0, prologue: PROLOGUE_DONE }
   const game = Game.create(index, onto, library()), eng = game.engine, w = eng.world

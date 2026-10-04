@@ -82,7 +82,7 @@ describe('cells are things (world-model.md §4.6)', () => {
     }
     expect(check()).toEqual([])
     for (let t = 0; t < TICKS_PER_HOUR * 48; t++) {
-      if (w.scene) eng.scenes.advance()
+      if (w.scene) eng.story.advance()
       eng.tick()
     }
     expect(check()).toEqual([])

@@ -88,7 +88,7 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 | W7 | Stages and appearances (done 2026-10-04) | W2 | 26,002 / 37,823 (68.7%) | 46 of 125 forms, 23 of 86 fixture types |
 | W8 | Combat: material and quality, elements and resistances as data (done 2026-10-04) | W2 | 26,002 / 37,823 (68.7%) | 39 of 125 forms, 23 of 86 fixture types |
 | W9 | Behaviour: one goal system, real work (done 2026-10-04) | W3 | 26,189 / 38,329 (68.3%) | 39 of 125 forms, 23 of 87 fixture types |
-| W10 | The story's script | W1 | | |
+| W10 | The story's script (done 2026-10-04) | W1 | 26,189 / 38,329 (68.3%) | 39 of 125 forms, 23 of 87 fixture types |
 
 The event model changed what is swept: the acts each input makes (use, put, take, hands; use
 or hands on yourself) and the outcomes of the impulses they send, so the space grew to 29,492.

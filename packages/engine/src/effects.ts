@@ -100,9 +100,9 @@ export class EffectRunner {
 
   private text(ev: GameEvent, who: Entity | undefined, t: Text): Text {
     // a companion repeats the latest beat's line (companion.ts)
-    if (t === '@hint') return this.eng.companions.hint() ?? { en: '…', zh: '……' }
+    if (t === '@hint') return this.eng.story.hint() ?? { en: '…', zh: '……' }
     // what the story asks for now (the companion's guide)
-    if (t === '@objective') return this.eng.companions.objective() ?? { en: 'Nothing presses now. Go where you like!', zh: '现在没什么急事。想去哪就去哪吧！' }
+    if (t === '@objective') return this.eng.story.objective() ?? { en: 'Nothing presses now. Go where you like!', zh: '现在没什么急事。想去哪就去哪吧！' }
     if (t === '@line') {
       const lines = who?.npc?.lines
       if (lines?.length) return lines[Math.floor(this.eng.world.rand() * lines.length)]
@@ -470,7 +470,7 @@ export class EffectRunner {
         return
       }
       case 'scene':
-        eng.scenes.start(eff.id)
+        eng.story.start(eff.id)
         return
       case 'fallback': {
         const inv = eng.invariants.find((i) => i.id === ev.params?.invariant)

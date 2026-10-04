@@ -547,7 +547,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         doSave()
         break
       case 'advance':
-        game?.engine.scenes.advance()
+        game?.engine.story.advance()
         break
       case 'debug': {
         if (!game) break

@@ -8,7 +8,7 @@
 import { TICKS_PER_HOUR, TICKS_PER_MINUTE, isNight } from './calendar.ts'
 import { EffectRunner } from './effects.ts'
 import { Controls } from './controls.ts'
-import { Scenes } from './scenes.ts'
+import { Story } from './story.ts'
 import { deriveRecipes } from './recipes.ts'
 import { Behaviour } from './behaviour.ts'
 import { combatDamage, combatDelay, combatStrike, finishCombatStrike, rangeBonus, recordCombatStep } from './combat.ts'
@@ -76,7 +76,8 @@ export class Engine {
   npcs: NpcSim
   /** Everyone's goals (behaviour.ts). */
   behaviour: Behaviour
-  scenes: Scenes
+  /** The story's script: its steps, scenes and beats (story.ts). */
+  story: Story
   /** The player's inputs, slots and magnet (design.md §5.2–5.3). */
   controls: Controls
   /** Content the world must keep playable (game-design: the Ford's invariants). */
@@ -123,7 +124,7 @@ export class Engine {
     this.effects = new EffectRunner(this)
     this.npcs = new NpcSim(this)
     this.behaviour = new Behaviour(this)
-    this.scenes = new Scenes(this)
+    this.story = new Story(this)
     this.companions = new Companions(this)
     this.quests = new Quests(this)
     this.controls = new Controls(this, this.write)
@@ -677,7 +678,7 @@ export class Engine {
     if (w.view(a)) this.offer({ kind, host: a, roles: { other: b }, params: { how } })
     if (w.view(b)) this.offer({ kind, host: b, roles: { other: a }, params: { how: REVERSE[how] ?? how } })
     // the story's script hears who enters a region (its triggers are events, not polls)
-    if (how === 'in-region' && kind === 'contact/begin') this.scenes.entered(a)
+    if (how === 'in-region' && kind === 'contact/begin') this.story.entered(a)
   }
 
   /** A map's relations as they stand, as its start (no events): a map loaded, a sandbox built. */
@@ -1111,12 +1112,10 @@ export class Engine {
     this.stayTick(active)
     // everyone's behaviour, one goal system (world-model.md §6.10): their moves and blows are acts
     this.behaviour.tick(active)
-    // the tutorial's beats (the story's script)
-    this.companions.tick()
     this.undefinedSink?.tick()
     this.controls.magnet()
     this.invariantTick()
-    this.scenes.tick()
+    this.story.tick()
     this.flush()
     // a long step's time passes now, all at once; harm stops it (world-model.md §6.11)
     if (this.fastForward > 0) {

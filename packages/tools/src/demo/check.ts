@@ -26,7 +26,7 @@ const kinds: Record<string, number> = {}
 const dispatch = eng.dispatch.bind(eng)
 eng.dispatch = (ev) => ((kinds[ev.kind] = (kinds[ev.kind] ?? 0) + 1), dispatch(ev))
 for (let t = 0; t < TICKS_PER_HOUR * 48; t++) {
-  if (w.scene) eng.scenes.advance()
+  if (w.scene) eng.story.advance()
   eng.tick()
   // measured at the end of each hour: people have had the hour to get where their day says
   if (w.state.tick % TICKS_PER_HOUR === TICKS_PER_HOUR - 1) {

@@ -34,9 +34,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   `bosses.ts`, docs/seven-sins.md), Mod port: ModSpec / ModRequest / validatePatch / records
   (`mod.ts`), sandbox replay (`sandbox.ts`), snapshots for rendering (`snapshot.ts`),
   new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
-  lines, schedule variants with the thing an activity needs, topics (`people.ts`), scripted
-  scenes with regions and cards (`scenes.ts`, the story's script: it writes only the story and
-  sends pushes and notices; the tutorial's beats are its script too); the state is things and the
+  lines, schedule variants with the thing an activity needs, topics (`people.ts`), the story's one
+  script (`story.ts`, world-model.md §6.12: steps with triggers — a scene takes control, a beat does
+  not — that write only the story and send pushes and notices; guides and hints); the state is things and the
   clock (world-model.md §3): facts and topics are the story's props, memories each person's,
   a map's named areas are `region` things (`in-region`); invariants live in the engine; events, relations (contact from the relation difference),
   active/dormant maps and the writer (`World.grant`: the mutators throw outside an outcome, the
@@ -47,7 +47,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   inputs (E hands, F take, left click use, right click put), layers, slots and magnet
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
   (`controls.ts`), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`), hunger (`hunger.ts`); companions that follow a
-  leader and the tutorial's beats (`companion.ts`), waypoint stones (`waypoints.ts`) — docs/prologue.md.
+  leader (`companion.ts`), waypoint stones (`waypoints.ts`) — docs/prologue.md.
 - `packages/content` — ontology (terrains, statuses, elements, types), item catalogue
   (forms × materials × qualities × elements), crafting recipes (`recipes.ts`), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
   story rules, objectives and invariants (`ford.ts`), the prologue's objectives and beats (`prologue.ts`), the main quest's rules and objectives (`quest.ts`,

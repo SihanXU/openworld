@@ -115,7 +115,7 @@ const run = (f: Ford, key: Key, x: number, y: number): Plan => {
 }
 const ticks = (f: Ford, n: number, until?: () => boolean) => {
   for (let i = 0; i < n; i++) {
-    if (W(f).scene?.waiting === 'advance') f.eng.scenes.advance()
+    if (W(f).scene?.waiting === 'advance') f.eng.story.advance()
     f.eng.tick()
     if (until?.()) return true
   }
@@ -1806,7 +1806,7 @@ req('P1', 'the prologue, offline: down from the plateau to the Ford, every beat 
   expect(w.hasStatus({ e: 'wp.summit' }, 'attuned')).toBe(true)
   until(4)
   // Pip pointed the statue out the first time it came into view
-  expect(w.fact('beat.see_waypoint')).toBeTruthy()
+  expect(w.fact('seen.see_waypoint')).toBeTruthy()
   // F on Pip: what to do now, and how
   expect(askPip()).toContain('做一把石斧')
   // the yard holds a stone axe's worth: a stick, a stone, a tuft of grass; C makes it
@@ -1853,9 +1853,12 @@ req('P1', 'the prologue, offline: down from the plateau to the Ford, every beat 
   f.eng.movePlayer('down')
   ticks(f, 10)
   expect(w.posOf(p)?.map).toBe('foot')
-  stand(f, PAT.relic[0], PAT.relic[1] + 1, 'up', 'foot')
+  // walking up to it: entering its ground starts the beat (an event, not a poll, world-model.md §6.12)
+  stand(f, PAT.relic[0], PAT.relic[1] + 6, 'up', 'foot')
+  for (let i = 0; i < 5; i++) walk(f, 'up')
+  expect(w.posOf(p)).toMatchObject({ map: 'foot', x: PAT.relic[0], y: PAT.relic[1] + 1 })
   ticks(f, 10)
-  expect(w.fact('beat.relic')).toBeTruthy()
+  expect(w.fact('seen.relic')).toBeTruthy()
   run(f, 'use', ...PAT.relic)
   until(9, 200)
   // the trail comes out at the top of the Ford's cliff: the prologue is over, the story begins

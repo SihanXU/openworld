@@ -3,7 +3,7 @@
 // Pip, the bird, say one line each; the objectives are what the HUD shows meanwhile. Every beat
 // waits for a state, never for a path: whatever gets the player there counts.
 
-import type { Beat, BeatCond, Text } from '@lsw/engine'
+import type { StepCond, StepDef, Text } from '@lsw/engine'
 import type { Objective } from './ford.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
@@ -24,9 +24,9 @@ export const PROLOGUE_OBJECTIVES: Record<number, Objective> = {
 }
 
 /** Every prologue beat waits for its stage too: once past it, it never fires (nor pulls the stage back). */
-const at = (stage: number, when: BeatCond = {}): BeatCond => ({ ...when, props: { ...when.props, prologue: stage } })
+const at = (stage: number, when: StepCond = {}): StepCond => ({ ...when, props: { ...when.props, prologue: stage } })
 
-export const PROLOGUE_BEATS: Beat[] = [
+export const PROLOGUE_BEATS: StepDef[] = [
   {
     // the first waypoint statue in view, whenever that is
     id: 'see_waypoint',

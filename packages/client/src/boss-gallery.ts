@@ -66,7 +66,7 @@ function render(): void {
 function reset(): void {
   if (!index || !raw || !ready) return
   const settings = structuredClone(index)
-  Object.assign(settings, { start: { map: 'eastroad', x: 23, y: 19 }, npcs: [], companions: [], scenes: [], beats: [], quests: [], invariants: [], waypoints: [], startHour: 12 })
+  Object.assign(settings, { start: { map: 'eastroad', x: 23, y: 19 }, npcs: [], companions: [], steps: [], quests: [], invariants: [], waypoints: [], startHour: 12 })
   settings.player.place = { on: 'tile', ...settings.start }
   settings.player.facing = 'up'
   settings.player.props = { ...settings.player.props, hp: 200, maxHp: 200, maxHunger: 0, def: 0, atk: 8, prologue: PROLOGUE_DONE }
