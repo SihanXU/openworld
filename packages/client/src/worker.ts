@@ -81,8 +81,12 @@ async function connectModder(url: string): Promise<void> {
   try {
     const health = (await (await fetch(`${modderUrl}/health`, { signal: AbortSignal.timeout(2500) })).json()) as { model?: string | null }
     if (!game) return
-    game.mods.provider = { resolve: resolveRemote }
-    game.mods.timeoutTicks = MODDER_TIMEOUT_TICKS
+    // a service with no model answers only from the shared library, which syncs here anyway:
+    // asking it would only pause the world before the default, so the default runs at once
+    if (health.model) {
+      game.mods.provider = { resolve: resolveRemote }
+      game.mods.timeoutTicks = MODDER_TIMEOUT_TICKS
+    }
     modderOnline = true
     post({ t: 'modder', online: true, url: modderUrl, model: health.model })
     await syncLibrary()
@@ -118,7 +122,7 @@ function noteProbe(hole: { ev: GameEvent; res: Resolution } | undefined): void {
 
 /** Ask the modder ahead of time; its patch goes through this engine's validator like any other. */
 function maybePrefetch(): void {
-  if (!probe || !modderUrl || !modderOnline || !game || prefetching || prefetched.size >= PREFETCH_CAP) return
+  if (!probe || !modderUrl || !modderOnline || !game || !game.mods.provider || prefetching || prefetched.size >= PREFETCH_CAP) return
   if (++probe.ticks < PREFETCH_DWELL_TICKS || prefetched.has(probe.key)) return
   prefetched.add(probe.key)
   prefetching = true
