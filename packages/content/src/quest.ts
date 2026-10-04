@@ -51,7 +51,7 @@ const notify = (what: string): Effect => ({ op: 'emit', impulse: 'notify', to: '
 const DO = (...effects: Effect[]): Tree => ({ do: effects })
 const IF = (cond: Cond, then: Tree, otherwise: Tree = 'inherit'): Tree => ({ if: cond, then, else: otherwise })
 const all = (...c: Cond[]): Cond => ({ all: c })
-const fact = (key: string, cmp: number | { gte?: number; lt?: number }): Cond => ({ fact: { key, cmp } })
+const fact = (key: string, cmp: number | { gte?: number; lt?: number }): Cond => ({ prop: { role: 'story', key, cmp, default: 0 } })
 const what = (w: string): Cond => ({ param: { key: 'what', cmp: w } })
 
 export const ELDER = 'actor/person/elder'
@@ -180,26 +180,26 @@ export const QUEST_RULES: Rule[] = [
     on: 'impulse/notify',
     tree: IF(
       what('mq.ore'),
-      DO({ op: 'addFact', key: 'mq.ore', delta: 1 }),
+      DO({ op: 'addProp', key: 'mq.ore', delta: 1 }),
       IF(
         what('mq.coal'),
-        DO({ op: 'addFact', key: 'mq.coal', delta: 1 }),
+        DO({ op: 'addProp', key: 'mq.coal', delta: 1 }),
         IF(
           what('mq.fireweed'),
-          DO({ op: 'addFact', key: 'mq.fireweed', delta: 1 }),
+          DO({ op: 'addProp', key: 'mq.fireweed', delta: 1 }),
           IF(
             what('mq.frostcap'),
-            DO({ op: 'addFact', key: 'mq.frostcap', delta: 1 }),
+            DO({ op: 'addProp', key: 'mq.frostcap', delta: 1 }),
             IF(
               what('blade'),
-              DO({ op: 'setFact', key: 'mq.blade', value: 1 }),
+              DO({ op: 'setProp', key: 'mq.blade', value: 1 }),
               IF(
                 what('draught'),
-                DO({ op: 'setFact', key: 'mq.draught', value: 1 }),
+                DO({ op: 'setProp', key: 'mq.draught', value: 1 }),
                 IF(
                   what('whelps'),
-                  DO({ op: 'setFact', key: 'mq.whelps', value: 1 }),
-                  IF(what('dragon'), DO({ op: 'setFact', key: 'mq.dragon', value: 1 }, { op: 'scene', id: 'victory' }), IF(what('council'), DO({ op: 'scene', id: 'council' }))),
+                  DO({ op: 'setProp', key: 'mq.whelps', value: 1 }),
+                  IF(what('dragon'), DO({ op: 'setProp', key: 'mq.dragon', value: 1 }, { op: 'scene', id: 'victory' }), IF(what('council'), DO({ op: 'scene', id: 'council' }))),
                 ),
               ),
             ),
@@ -216,8 +216,8 @@ export const QUEST_RULES: Rule[] = [
     on: 'impulse/notify',
     tree: IF(
       what('waypoint'),
-      DO({ op: 'addFact', key: 'waypoints.attuned', delta: 1 }),
-      IF(what('meal'), DO({ op: 'addFact', key: 'prologue.meals', delta: 1 }), IF(what('experiment'), DO({ op: 'addFact', key: 'world.experiments', delta: 1 }))),
+      DO({ op: 'addProp', key: 'waypoints.attuned', delta: 1 }),
+      IF(what('meal'), DO({ op: 'addProp', key: 'prologue.meals', delta: 1 }), IF(what('experiment'), DO({ op: 'addProp', key: 'world.experiments', delta: 1 }))),
     ),
   }),
 ]

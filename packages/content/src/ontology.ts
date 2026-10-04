@@ -244,6 +244,8 @@ const RESIDENTS: TypeDef[] = [
   { id: 'resident', name: { en: 'the world', zh: '世界' } },
   { id: 'resident/world', name: { en: 'the world', zh: '世界' } },
   { id: 'resident/story', name: { en: 'the story', zh: '故事' } },
+  // a map's named area (world-model.md §5.4): entering and leaving it is the relation in-region
+  { id: 'region', name: { en: 'an area', zh: '区域' } },
 ]
 
 const fixtureTypes: TypeDef[] = [

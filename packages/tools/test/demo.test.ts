@@ -24,6 +24,7 @@ import {
   xpToNext,
   astar,
   performPlacement,
+  regionId,
   travelToWaypoint,
   PROFESSION_LEVEL,
   NIGHT_CAP,
@@ -114,7 +115,7 @@ const run = (f: Ford, key: Key, x: number, y: number): Plan => {
 }
 const ticks = (f: Ford, n: number, until?: () => boolean) => {
   for (let i = 0; i < n; i++) {
-    if (W(f).state.scene?.waiting === 'advance') f.eng.scenes.advance()
+    if (W(f).scene?.waiting === 'advance') f.eng.scenes.advance()
     f.eng.tick()
     if (until?.()) return true
   }
@@ -476,14 +477,30 @@ req('F1', 'the goal is a state: the far bank ends the story, however the player 
     ticks(f, 400, () => {
       cards.push(...W(f).fx.filter((x) => x.t === 'card'))
       W(f).fx = []
-      return W(f).num(W(f).player, 'quest') === 2 && !W(f).state.scene
+      return W(f).num(W(f).player, 'quest') === 2 && !W(f).scene
     }),
   ).toBe(true)
   expect(far(f)).toBe(true)
   expect(cards.length).toBe(1)
 })
 
-req('F2a', 'the ferry: the rope from her chest, the winch mended, and she takes you over', ['item/tool/rope', 'fixture/container/chest', 'fixture/ferry/winch', 'npc.hesper', 'fixture/ferry/raft'], () => {
+req('F1b', 'a story step begins on entering an authored region: the far bank is a thing, entering it is contact (in-region), and its scene starts on the next tick, not at a poll', ['region:far_bank'], () => {
+  const f = fresh()
+  const bank = W(f).get(regionId('ford', 'far_bank'))!
+  expect(bank.type).toBe('region')
+  // a tick no poll falls on
+  W(f).state.tick += 5 - (W(f).state.tick % 20)
+  f.made.length = 0
+  author(f, () => f.eng.teleport(W(f).player, { map: 'ford', x: AT.farLanding[0], y: AT.farLanding[1] }))
+  const enter = f.made.filter((ev) => ev.kind === 'contact/begin' && ev.params?.how === 'in-region' && hostIs(ev, W(f).state.player))
+  // (an event is recorded when offered and again when dispatched)
+  expect(new Set(enter.map((ev) => ev.roles.other && 'e' in ev.roles.other && ev.roles.other.e))).toEqual(new Set([bank.id]))
+  expect(f.made.some((ev) => ev.kind === 'contact/begin' && ev.params?.how === 'encloses' && hostIs(ev, bank.id))).toBe(true)
+  f.eng.tick()
+  expect(W(f).scene?.id).toBe('far_bank')
+})
+
+req('F2a', 'the ferry:the rope from her chest, the winch mended, and she takes you over', ['item/tool/rope', 'fixture/container/chest', 'fixture/ferry/winch', 'npc.hesper', 'fixture/ferry/raft'], () => {
   const f = fresh()
   byFerry(f)
   expect(far(f)).toBe(true)
@@ -900,7 +917,7 @@ req('F15', 'south of the grassland, a forest: many trees within reach, and an ax
 
 req('F9', 'the arrival opens the story: the scene, the loaf in the pack, and Hesper sends you to the village first (its rescue opens the bridge chapter, docs/quests.md)', ['npc.hesper', 'item/food/bread'], () => {
   const f = fresh({ arrival: true })
-  expect(ticks(f, 300, () => W(f).fact('village.sent') === 1 && !W(f).state.scene)).toBe(true)
+  expect(ticks(f, 300, () => W(f).fact('village.sent') === 1 && !W(f).scene)).toBe(true)
   expect(W(f).num(W(f).player, 'quest')).toBe(0)
   expect(W(f).player.contents?.some((id) => W(f).get(id)?.type === 'item/food/bread') || W(f).get(W(f).player.held)?.type === 'item/food/bread').toBe(true)
 })
@@ -1045,7 +1062,7 @@ req('Q1', 'chapter 1, mend the bridge: the old axe fells a tree, splits its logs
   // The longer pier leads to the far bank; the missing span still costs three planks.
   f.eng.setCooldown(p.id, 0)
   walkEast(f)
-  expect(ticks(f, 400, () => W(f).num(p, 'quest') === 2 && !W(f).state.scene)).toBe(true)
+  expect(ticks(f, 400, () => W(f).num(p, 'quest') === 2 && !W(f).scene)).toBe(true)
   expect(far(f)).toBe(true)
 })
 
@@ -1091,23 +1108,23 @@ req('Q2', 'chapter 2, the road east: past the far bank the road leads on; the bu
   expect(onMap(f, 'actor/creature/beast/boar', 'eastroad').length).toBe(1)
   // the burned farm: the player sees the claw marks
   stand(f, 24, 8, 'up', 'eastroad')
-  expect(ticks(f, 200, () => fact(f, 'mq.farm') === 1 && !W(f).state.scene)).toBe(true)
+  expect(ticks(f, 200, () => fact(f, 'mq.farm') === 1 && !W(f).scene)).toBe(true)
   // the road ends at Emberfall: chapter 3 begins
   expect(cross(f, 'eastroad', EAST_ROAD.w - 2, EAST_ROAD.east[1], 'right')).toBe('emberfall')
-  expect(ticks(f, 200, () => quest(f) === 3 && !W(f).state.scene)).toBe(true)
+  expect(ticks(f, 200, () => quest(f) === 3 && !W(f).scene)).toBe(true)
 })
 
 req('Q3', 'chapter 3, Emberfall: the elder tells of the dragon, gives bread, and sets the tasks; the smithy and the herbalist\'s cauldron are lit', ['npc.mara', 'fixture/water/well', 'fixture/sign/noticeboard', 'fixture/light/lamppost', 'fixture/craft/forge', 'fixture/craft/anvil', 'fixture/container/barrel', 'fixture/craft/cauldron', 'fixture/container/crate'], () => {
   const f = fresh()
   stand(f, 2, EMBERFALL.west[1], 'right', 'emberfall')
-  expect(ticks(f, 200, () => quest(f) === 3 && !W(f).state.scene)).toBe(true)
+  expect(ticks(f, 200, () => quest(f) === 3 && !W(f).scene)).toBe(true)
   for (const t of ['fixture/water/well', 'fixture/sign/noticeboard', 'fixture/light/lamppost', 'fixture/container/barrel', 'fixture/container/crate']) expect(onMap(f, t, 'emberfall').length).toBeGreaterThan(0)
   expect(W(f).hasStatus({ e: 'emberfall.forge' }, 'lit')).toBe(true)
   expect(W(f).hasStatus({ e: 'emberfall.cauldron' }, 'lit')).toBe(true)
   expect(onMap(f, 'fixture/craft/anvil', 'emberfall').length).toBe(1)
   const bread = f.eng.controls.count('item/food/bread')
   run(f, 'hands', ...faceNpc(f, 'npc.mara'))
-  expect(ticks(f, 400, () => quest(f) === 4 && !W(f).state.scene)).toBe(true)
+  expect(ticks(f, 400, () => quest(f) === 4 && !W(f).scene)).toBe(true)
   expect(fact(f, 'mq.council')).toBe(1)
   expect(f.eng.controls.count('item/food/bread')).toBe(bread + 2)
 })
@@ -1193,7 +1210,7 @@ req('Q5', 'chapter 5, fire and frost: fireweed grows in the meadow and frostcap 
   expect(W(f).num(p, 'hp')).toBe(37)
   // with the blade too, the village sends you up the pass
   author(f, () => W(f).setFact('mq.blade', 1))
-  expect(ticks(f, 200, () => quest(f) === 5 && !W(f).state.scene)).toBe(true)
+  expect(ticks(f, 200, () => quest(f) === 5 && !W(f).scene)).toBe(true)
 })
 
 req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem on the way up, a fire to rest by; the dragon wakes at the mouth, calls its whelps at half health, and its fall ends the story', ['actor/creature/beast/frost_wolf', 'actor/creature/imp/fire_imp', 'actor/creature/golem/stone_golem', 'actor/creature/dragon'], () => {
@@ -1205,7 +1222,7 @@ req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem
   expect(onMap(f, 'fixture/light/campfire', 'pass').some((e) => W(f).hasStatus({ e: e.id }, 'lit'))).toBe(true)
   // the lair at the top: its mouth wakes the dragon
   expect(cross(f, 'pass', PASS.north[1], 1, 'up')).toBe('lair')
-  expect(ticks(f, 200, () => quest(f) === 6 && !W(f).state.scene)).toBe(true)
+  expect(ticks(f, 200, () => quest(f) === 6 && !W(f).scene)).toBe(true)
   const dragon = onMap(f, 'actor/creature/dragon', 'lair')[0]
   expect(W(f).num(dragon, 'range')).toBeGreaterThan(1)
   // Dragonsbane in hand; the dragon brought to bay
@@ -1239,7 +1256,7 @@ req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem
     ticks(f, 400, () => {
       cards.push(...W(f).fx.filter((x) => x.t === 'card'))
       W(f).fx = []
-      return quest(f) === 7 && !W(f).state.scene
+      return quest(f) === 7 && !W(f).scene
     }),
   ).toBe(true)
   expect(fact(f, 'mq.dragon')).toBe(1)
@@ -1348,7 +1365,7 @@ req('P1', 'the prologue, offline: down from the plateau to the Ford, every beat 
   ticks(f, 10)
   expect(w.posOf(p)?.map).toBe('ford')
   until(PROLOGUE_DONE)
-  expect(ticks(f, 400, () => w.fact('village.sent') === 1 && !w.state.scene)).toBe(true)
+  expect(ticks(f, 400, () => w.fact('village.sent') === 1 && !w.scene)).toBe(true)
   expect(w.posOf(pip())?.map).toBe('ford')
   // past the prologue, Pip tells the main story's next step: the village first (docs/quests.md)
   expect(askPip()).toContain('去初原村帮忙')

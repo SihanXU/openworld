@@ -79,7 +79,7 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 | M9 | Every item has a purpose (after W10) | all of the above | | |
 | EM | The event model (design.md §5.14), 2026-10-02 | M4 | 20,059 / 29,492 (68.0%) | 46 of 116 forms, 25 of 71 fixture types |
 | EM2 | Completeness enforced: the writer, A2–A3 at run time; companions, beats, quests, learning, talents, sins and the night as events (design.md §5.15), 2026-10-04 | EM, S1 | 25,320 / 35,546 (71.2%) | 46 of 125 forms, 25 of 86 fixture types |
-| W1 | State model: no kinds off the grid, facts and the like onto things, regions as things ([world-model.md](world-model.md) §12) | EM2 | | |
+| W1 | State model: no kinds off the grid, facts and the like onto things, regions as things ([world-model.md](world-model.md) §12), 2026-10-04 | EM2 | 25,320 / 35,546 (71.2%) | 46 of 125 forms, 25 of 86 fixture types |
 | W2 | Space and breaking: occupied spaces, z, height, cells as things and one reference form, durability, materials, instruments, damage channels, makeup, `broken`, `breakdown`, `fall` | W1 | | |
 | W3 | Two-level maps: overworld, sites, open edges, durations and fast-forward, generated wilderness, changes-only saves | W2 | | |
 | W4 | Makeup and recipes: stations, derived recipes, quality, building as `move`, economy and reachability | W2 | | |

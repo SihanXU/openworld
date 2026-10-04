@@ -1,6 +1,6 @@
 // World: the mutable state plus derived indices (not serialized) for fast spatial queries.
 
-import { calendarAt, type Calendar } from './calendar.ts'
+import { calendarAt, type Calendar, type WeatherSpan } from './calendar.ts'
 import { OntologyIndex } from './ontology.ts'
 import { nextRandom } from './rng.ts'
 import type {
@@ -13,6 +13,7 @@ import type {
   Pos,
   PropValue,
   Ref,
+  SceneState,
   Text,
   TileState,
   WorldState,
@@ -24,7 +25,10 @@ export const NO_EXPIRY = -1
 /** A ref's key in the statusful set and the relation index: an entity's id, or `t|map:x:y`. */
 export const refKey = (r: Ref): string => ('e' in r ? r.e : 't|' + tileKey(r.tile.map, r.tile.x, r.tile.y))
 /** The other side's view of a relation (design.md §5.10). */
-export const REVERSE: Record<string, string> = { on: 'under', in: 'contains', held: 'holds' }
+export const REVERSE: Record<string, string> = { on: 'under', in: 'contains', held: 'holds', 'in-region': 'encloses' }
+
+/** The id of a map's authored region (world-model.md §5.4): a thing made from the map's named area. */
+export const regionId = (map: string, name: string): string => `region.${map}.${name}`
 
 /** A uniform read-only view of whatever fills an event role. */
 export interface View {
@@ -55,9 +59,17 @@ export type Writer = <T>(f: () => T, host?: Ref) => T
 /** A change of state outside an outcome (A2), or beyond its host (A3): a bug in the code, never a rule's failure. */
 export class WriteError extends Error {}
 
+/** The story's id: a thing like any other, whose props are the facts it keeps (world-model.md §3). */
+const STORY_ID = 'story'
+
+/** How long a topic stays fresh when its raiser does not say (days). */
+export const TOPIC_DAYS = 4
+
 export class World {
   state: WorldState
   onto: OntologyIndex
+  /** The weather the world's content fixes (the evening storm): content, read on every start, never saved. */
+  weather?: WeatherSpan[]
   /** Output buffer drained by the host each frame. */
   fx: FxEvent[] = []
   /** The last lines logged or said, kept past the drain of `fx` (a request's recent context). */
@@ -122,6 +134,7 @@ export class World {
 
   private onTile = new Map<string, Set<Id>>() // tileKey -> entity ids on that tile
   private onMap = new Map<string, Set<Id>>() // map -> entity ids on its tiles
+  private areas = new Map<string, Set<Id>>() // map -> its regions' ids
   /** Subjects that currently carry statuses: entity ids and `t|map:x:y` tile keys. */
   statusful = new Set<string>()
 
@@ -136,6 +149,7 @@ export class World {
   reindex(): void {
     this.onTile.clear()
     this.onMap.clear()
+    this.areas.clear()
     this.statusful.clear()
     for (const e of Object.values(this.state.entities)) {
       this.indexAdd(e)
@@ -147,6 +161,11 @@ export class World {
   }
 
   private indexAdd(e: Entity): void {
+    if (e.place.on === 'area') {
+      let a = this.areas.get(e.place.map)
+      if (!a) this.areas.set(e.place.map, (a = new Set()))
+      a.add(e.id)
+    }
     if (e.place.on !== 'tile') return
     for (const [x, y] of this.occupiedCells(e)) {
       const k = tileKey(e.place.map, x, y)
@@ -160,6 +179,7 @@ export class World {
   }
 
   private indexRemove(e: Entity): void {
+    if (e.place.on === 'area') this.areas.get(e.place.map)?.delete(e.id)
     if (e.place.on !== 'tile') return
     for (const [x, y] of this.occupiedCells(e)) this.onTile.get(tileKey(e.place.map, x, y))?.delete(e.id)
     this.onMap.get(e.place.map)?.delete(e.id)
@@ -207,6 +227,22 @@ export class World {
     const out: Entity[] = []
     for (const id of s) out.push(this.state.entities[id])
     return out
+  }
+
+  /** The regions a cell lies in (world-model.md §5.4). */
+  regionsAt(map: string, x: number, y: number): Entity[] {
+    const out: Entity[] = []
+    for (const id of this.areas.get(map) ?? []) {
+      const r = this.state.entities[id]
+      if (r?.place.on === 'area' && r.place.rects.some(([rx, ry, rw, rh]) => x >= rx && y >= ry && x < rx + rw && y < ry + rh)) out.push(r)
+    }
+    return out
+  }
+
+  /** Does a thing stand in a region (by its relation, as the last outcome left it)? */
+  within(e: Entity | undefined, region: Id): boolean {
+    const p = e && this.posOf(e)
+    return !!p && this.regionsAt(p.map, p.x, p.y).some((r) => r.id === region)
   }
 
   entitiesOnMap(map: string): Entity[] {
@@ -371,7 +407,8 @@ export class World {
   /**
    * A thing's own relations, as `how|key`: on its tile (keyed with its terrain, so ice thawing to
    * water underfoot is a new contact) and on the things there whose reach includes its stance
-   * (a flyer touches neither lava nor flowers); in its holder; held in a hand.
+   * (a flyer touches neither lava nor flowers); in the regions its cell lies in; in its holder;
+   * held in a hand.
    */
   relationsOf(e: Entity): string[] {
     const p = e.place
@@ -384,6 +421,7 @@ export class World {
     // what has a reach of its own is ground for others, not something that lies on them
     if (!this.reachOf(e).length)
       for (const f of this.entitiesAt(p.map, p.x, p.y)) if (f.id !== e.id && this.reachOf(f).includes(st)) out.push(`on|${f.id}`)
+    for (const r of this.regionsAt(p.map, p.x, p.y)) out.push(`in-region|${r.id}`)
     return out
   }
 
@@ -623,15 +661,52 @@ export class World {
   }
 
   calendar(): Calendar {
-    return calendarAt(this.state.tick, this.state.seed, Array.isArray(this.state.weather) ? this.state.weather : undefined)
+    return calendarAt(this.state.tick, this.state.seed, this.weather)
   }
 
+  // ---------------------------------------------------------------- the story's own state (world-model.md §3)
+
+  /** The story: its props are the facts it keeps, its topics and where its script stands. */
+  get story(): Entity | undefined {
+    return this.get(STORY_ID)
+  }
+
+  /** A fact the story keeps: one of its props. */
   fact(key: string): PropValue | undefined {
-    return this.state.facts?.[key]
+    return this.story?.props?.[key]
   }
 
+  /** The story keeps a fact: it sets its own prop (in its own outcome, or as the author). */
   setFact(key: string, value: PropValue): void {
-    this.guard('setFact', 'fact')
-    ;(this.state.facts ??= {})[key] = value
+    const s = this.story
+    if (!s) throw new Error('no story in this world')
+    this.setProp(s, key, value)
+  }
+
+  /** Is a topic fresh (raised `topic.<id>` days ago, for `topic.<id>.days` days)? */
+  topicFresh(id: string, day = this.calendar().day): boolean {
+    const since = this.fact(`topic.${id}`)
+    if (typeof since !== 'number') return false
+    const days = this.fact(`topic.${id}.days`)
+    return day < since + (typeof days === 'number' ? days : TOPIC_DAYS)
+  }
+
+  /** The topics the story has ever raised (fresh or not), by id. */
+  topicIds(): string[] {
+    const out: string[] = []
+    for (const k of Object.keys(this.story?.props ?? {})) if (k.startsWith('topic.') && !k.endsWith('.days')) out.push(k.slice(6))
+    return out
+  }
+
+  /** Where the story's script stands (the scene playing): the story's behaviour memory, like a creature's chase. */
+  get scene(): SceneState | undefined {
+    return this.story?.script
+  }
+
+  set scene(s: SceneState | undefined) {
+    const story = this.story
+    if (!story) throw new Error('no story in this world')
+    if (s) story.script = s
+    else delete story.script
   }
 }

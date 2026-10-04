@@ -96,7 +96,7 @@ describe('the Ford', () => {
     expect(eng.world.fact('ford.charm')).toBe(1)
     expect(chain(eng, () => eng.act('take', 'actor', { e: 'wand' }, { instrument: null }))).toContainEqual(['seen', 'ford/wand-is-yours'])
     expect(eng.world.get('wand')!.place).toMatchObject({ holder: 'actor' })
-    expect(eng.world.state.topics?.some((t) => t.id === 'theft')).toBeFalsy()
+    expect(eng.world.topicFresh('theft')).toBe(false)
     expect(noHoles(eng)).toEqual([])
   })
 })

@@ -6,7 +6,8 @@ import { ModPort } from './mod.ts'
 import { RuleLibrary, type LibraryData } from './rules.ts'
 import type { Beat, Guide } from './companion.ts'
 import type { QuestDef } from './quests.ts'
-import type { BossDef, Entity, Id, Invariant, MapData, Ontology, Pos, Portal, SceneDef, Text, WorldState } from './types.ts'
+import type { BossDef, Entity, Id, Invariant, MapData, NpcMemory, Ontology, Pos, Portal, PropValue, SceneDef, SceneState, Text, WorldState } from './types.ts'
+import { TOPIC_DAYS } from './world.ts'
 
 export interface MapMeta {
   id: string
@@ -88,7 +89,6 @@ export class Game {
       loadedMaps: [],
       counter: 0,
       spawn: index.start,
-      weather: index.weather,
     }
     const eng = new Engine(state, ontology, library)
     for (const m of index.maps) eng.graph[m.id] = m.portals
@@ -143,13 +143,22 @@ export class Game {
   /** Base terrain for a revisit after load (entities come from the save). */
   loadMapData(map: MapData): void {
     this.engine.world.state.maps[map.id] = map
+    this.engine.ensureRegions(map.id)
   }
 }
 
 /** An older save, brought up to the world as it is now (on loading, as its author). */
 function upgrade(eng: Engine, index: WorldIndex): void {
   const w = eng.world
-  const s = w.state as typeof w.state & { lastBeat?: string }
+  // what an older save kept outside the things it belongs to (world-model.md §3)
+  const s = w.state as typeof w.state & {
+    lastBeat?: string
+    facts?: Record<string, PropValue>
+    topics?: { id: string; day: number; days?: number }[]
+    memory?: Record<Id, NpcMemory>
+    scene?: SceneState
+    weather?: unknown
+  }
   // how the player looks is the world's to say, not the save's (a save from before a new look gets it)
   const p = w.get(s.player)
   if (p && index.player.look) p.look = index.player.look
@@ -164,13 +173,25 @@ function upgrade(eng: Engine, index: WorldIndex): void {
     // itself is not saved: nobody will answer it, so they are let go (as after a time-out).
     delete e.frozenBy
   }
-  // what was the world's before it was the story's or the traveller's own: the latest beat, the maps seen
+  // what was the world's before it was the story's or the traveller's own: facts, the latest beat,
+  // the maps seen, the reported invariants (the detector's own record), topics, memories, the scene
+  for (const [k, v] of Object.entries(s.facts ?? {})) {
+    if (k.startsWith('visited.')) {
+      if (p && w.prop(p, k) === undefined) w.setProp(p, k, v)
+    } else if (k.startsWith('invalid.')) (s.reported ??= []).push(k.slice(8))
+    else w.setFact(k, v)
+  }
+  delete s.facts
   if (s.lastBeat) (w.setFact('beat.last', s.lastBeat), delete s.lastBeat)
-  for (const [k, v] of Object.entries(s.facts ?? {}))
-    if (k.startsWith('visited.') && p) {
-      if (w.prop(p, k) === undefined) w.setProp(p, k, v)
-      delete s.facts![k]
-    }
+  for (const t of s.topics ?? []) (w.setFact(`topic.${t.id}`, t.day), w.setFact(`topic.${t.id}.days`, t.days ?? TOPIC_DAYS))
+  delete s.topics
+  for (const [id, m] of Object.entries(s.memory ?? {})) {
+    const e = w.get(id)
+    if (e?.npc) e.npc.memory = m
+  }
+  delete s.memory
+  if (s.scene) (w.scene = s.scene), delete s.scene
+  delete s.weather
 }
 
 /** NPC entities carry their inventory inline as `_items` in the index. */
@@ -187,5 +208,6 @@ function loadContent(eng: Engine, index: WorldIndex): void {
   eng.companions.load(index.beats, index.guides)
   eng.quests.load(index.quests)
   eng.loadInvariants(index.invariants, index.protectedFacts)
-  if (index.weather && !Array.isArray(eng.world.state.weather)) eng.world.state.weather = index.weather
+  // the weather the world fixes is content, like the scenes: read on every start, never saved
+  eng.world.weather = index.weather
 }

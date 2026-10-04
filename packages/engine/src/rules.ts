@@ -5,12 +5,12 @@
 // never changes what is defined.
 
 import { isA, typeDepth } from './ontology.ts'
-import type { Bounds, Cmp, Cond, GameEvent, Leaf, Operand, PropValue, RoleName, Rule, Selector, StatusDef, Tree, TypeDef } from './types.ts'
+import type { Bounds, Cmp, Cond, GameEvent, Leaf, Operand, PropValue, Reader, RoleName, Rule, Selector, StatusDef, Tree, TypeDef } from './types.ts'
 import type { View, World } from './world.ts'
 
 export const ROLES: RoleName[] = ['host', 'actor', 'target', 'instrument', 'other', 'item', 'source']
 
-export type Roles = Partial<Record<RoleName, View>>
+export type Roles = Partial<Record<Reader, View>>
 
 // ---------------------------------------------------------------- matching
 
@@ -41,7 +41,8 @@ export function matchSelector(sel: Selector | undefined, v: View | undefined): b
 
 /** The views of an event's roles, its host included. */
 export function rolesOf(ev: GameEvent, world: World): Roles {
-  const out: Roles = { host: world.view(ev.host) }
+  // read anything: the event's roles, and the stewards (the story's facts are its props)
+  const out: Roles = { host: world.view(ev.host), story: world.view({ e: 'story' }), world: world.view({ e: 'world' }) }
   for (const [k, r] of Object.entries(ev.roles)) out[k as RoleName] = world.view(r)
   return out
 }
@@ -65,7 +66,7 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
     return true
   }
   if ('prop' in c) {
-    const v = roles[c.prop.role]?.props[c.prop.key]
+    const v = roles[c.prop.role]?.props[c.prop.key] ?? c.prop.default
     if (v === undefined) return false
     if (c.prop.cmp !== undefined && !cmp(v, c.prop.cmp)) return false
     if (c.prop.bounds && !(typeof v === 'number' && within(v, c.prop.bounds, roles, ev))) return false
@@ -84,11 +85,7 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
     const v = roles[c.count.role]
     return !!v && within(countAt(v, c.count.in, c.count.match, world), c.count.cmp, roles, ev)
   }
-  if ('fact' in c) return cmp(world.fact(c.fact.key) ?? 0, c.fact.cmp)
-  if ('topic' in c) {
-    const day = world.calendar().day
-    return (world.state.topics ?? []).some((t) => t.id === c.topic && day < t.day + (t.days ?? 4))
-  }
+  if ('topic' in c) return world.topicFresh(c.topic)
   if ('weather' in c) return c.weather.includes(world.calendar().weather)
   if ('exists' in c) {
     for (const e of Object.values(world.state.entities)) if (e.place.on !== 'none' && matchSelector(c.exists, world.view({ e: e.id }))) return true
@@ -209,6 +206,42 @@ export function selectByType(rule: Rule): Rule {
   return rule
 }
 
+/**
+ * Rules written when facts were the world's (world-model.md §3): a fact is a prop of the story,
+ * so `{fact: {key, cmp}}` reads it (`{prop: {role: 'story', key, cmp, default: 0}}`) and
+ * `setFact`/`addFact` are the story's `setProp`/`addProp`. Applied in place, like `selectByType`.
+ */
+export function factsOnTheStory(rule: Rule): Rule {
+  const cond = (c: unknown): unknown => {
+    if (!c || typeof c !== 'object') return c
+    const node = c as Record<string, unknown>
+    if (node.fact && typeof node.fact === 'object') {
+      const f = node.fact as { key: string; cmp: unknown }
+      return { prop: { role: 'story', key: f.key, cmp: f.cmp, default: 0 } }
+    }
+    for (const k of ['all', 'any']) if (Array.isArray(node[k])) node[k] = (node[k] as unknown[]).map(cond)
+    if (node.not) node.not = cond(node.not)
+    return node
+  }
+  const effects = (list: unknown): void => {
+    if (!Array.isArray(list)) return
+    list.forEach((e, i) => {
+      const x = e as { op?: string; key?: string; value?: unknown; delta?: unknown }
+      if (x?.op === 'setFact') list[i] = { op: 'setProp', key: x.key, value: x.value }
+      if (x?.op === 'addFact') list[i] = { op: 'addProp', key: x.key, delta: x.delta }
+    })
+  }
+  const tree = (t: unknown): void => {
+    if (!t || typeof t !== 'object') return
+    const node = t as Record<string, unknown>
+    if ('if' in node) (node.if = cond(node.if)), tree(node.then), tree(node.else)
+    effects(node.do)
+    effects(node.default)
+  }
+  tree(rule.tree)
+  return rule
+}
+
 /** Lexicographic: (instance-bound, host type depth, host constraints, event kind depth). */
 export type Spec = [number, number, number, number]
 
@@ -289,6 +322,7 @@ export class RuleLibrary {
 
   private put(r: Rule): void {
     selectByType(r)
+    factsOnTheStory(r)
     this.rules.set(r.id, r)
     this.specs.set(r.id, specOf(r))
     this.rebuild(r.on.split('/')[0])

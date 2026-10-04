@@ -34,8 +34,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
   lines, schedule variants with the thing an activity needs, topics (`people.ts`), scripted
   scenes with regions and cards (`scenes.ts`, the story's script: it writes only the story and
-  sends pushes and notices; the tutorial's beats are its script too); facts and invariants live in
-  the world state and the engine; events, relations (contact from the relation difference),
+  sends pushes and notices; the tutorial's beats are its script too); the state is things and the
+  clock (world-model.md §3): facts and topics are the story's props, memories each person's,
+  a map's named areas are `region` things (`in-region`); invariants live in the engine; events, relations (contact from the relation difference),
   active/dormant maps and the writer (`World.grant`: the mutators throw outside an outcome, the
   clock, loading, the input's posture and the author, and in an outcome beyond its host —
   design.md §5.15; `tools/test/writes.test.ts` scans for writes behind them) in `engine.ts`/`world.ts`; the request, one question per hole and class, the

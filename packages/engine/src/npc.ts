@@ -89,7 +89,7 @@ export class NpcSim {
       this.coarse(active)
     }
     // during a scene the people on stage are the script's
-    if (w.state.scene) return
+    if (w.scene) return
     let budget = PATH_BUDGET_PER_TICK
     for (const e of w.entitiesOnMap(active)) {
       if (!e.npc || e.id === w.state.player) continue

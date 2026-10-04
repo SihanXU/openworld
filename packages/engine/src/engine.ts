@@ -21,7 +21,7 @@ import { RuleLibrary, evalCond, isDo, matchSelector, rolesOf, type Resolution } 
 import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb, WorldState } from './types.ts'
 import type { ProfessionDef } from './profession.ts'
 import { DIRS, FIRE_RADIUS } from './types.ts'
-import { NO_EXPIRY, REVERSE, World, refKey, tileKey, type Writer } from './world.ts'
+import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type Writer } from './world.ts'
 
 export type { Resolution } from './rules.ts'
 
@@ -140,6 +140,21 @@ export class Engine {
       if (!w.get(WORLD_HOST)) w.add({ id: WORLD_HOST, type: 'resident/world', place: { on: 'resident' } })
       if (!w.get(STORY)) w.add({ id: STORY, type: 'resident/story', place: { on: 'resident' } })
     })
+  }
+
+  /**
+   * A map's authored areas are things (world-model.md §5.4), made when its data first comes and
+   * kept after (they may carry props and host rules). On a map already in play (an older save)
+   * what stands in them is in them from now, as its start, not an event.
+   */
+  ensureRegions(map: string): void {
+    const w = this.world
+    const named = Object.entries(w.map(map)?.regions ?? {}).filter(([name]) => !w.get(regionId(map, name)))
+    if (!named.length) return
+    this.write(() => {
+      for (const [name, r] of named) w.add({ id: regionId(map, name), type: 'region', place: { on: 'area', map, rects: [r] } })
+    })
+    if (w.state.loadedMaps.includes(map)) this.diffMap(map, true)
   }
 
   // ---------------------------------------------------------------- events
@@ -604,6 +619,8 @@ export class Engine {
     const b = w.keyRef(to)
     if (w.view(a)) this.offer({ kind, host: a, roles: { other: b }, params: { how } })
     if (w.view(b)) this.offer({ kind, host: b, roles: { other: a }, params: { how: REVERSE[how] ?? how } })
+    // the story's script hears who enters a region (its triggers are events, not polls)
+    if (how === 'in-region' && kind === 'contact/begin') this.scenes.entered(a)
   }
 
   /** A map's relations as they stand, as its start (no events): a map loaded, a sandbox built. */
@@ -624,7 +641,7 @@ export class Engine {
   busy(e: Entity): boolean {
     if (e.frozenBy) return true
     // the player watches a scene
-    if (e.id === this.world.state.player && this.world.state.scene) return true
+    if (e.id === this.world.state.player && this.world.scene) return true
     // the player answers a yes/no question
     if (e.id === this.world.state.player && this.world.state.question) return true
     for (const s of Object.keys(e.statuses ?? {})) if (this.world.onto.status(s)?.immobilize) return true
@@ -991,13 +1008,14 @@ export class Engine {
     const w = this.world
     if (w.state.tick % INVARIANT_EVERY !== 0 || !w.get(STORY)) return
     for (const inv of this.invariants) {
-      if (w.fact(`invalid.${inv.id}`)) continue
+      if (w.state.reported?.includes(inv.id)) continue
       // content not in play yet: its giver's map is not loaded (the player is still on the mountain)
       const at = inv.giver ? w.posOf(w.get(inv.giver)) : undefined
       if (inv.giver && (!at || !w.map(at.map))) continue
       if (inv.when && !evalCond(inv.when, {}, w)) continue
       if (evalCond(inv.holds, {}, w)) continue
-      this.write(() => w.setFact(`invalid.${inv.id}`, true))
+      // the detector's own record (not the story's): reported once
+      ;(w.state.reported ??= []).push(inv.id)
       const giver: Ref | undefined = inv.giver && w.get(inv.giver) ? { e: inv.giver } : undefined
       this.queue({ kind: 'broken', host: { e: STORY }, roles: giver ? { target: giver } : {}, params: { invariant: inv.id }, origin: 'world' })
     }
@@ -1008,6 +1026,7 @@ export class Engine {
   loadChunk(chunk: MapChunk): void {
     const s = this.world.state
     s.maps[chunk.map.id] = chunk.map
+    this.ensureRegions(chunk.map.id)
     if (!s.loadedMaps.includes(chunk.map.id)) {
       s.loadedMaps.push(chunk.map.id)
       this.write(() => {

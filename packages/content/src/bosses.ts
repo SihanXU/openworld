@@ -100,7 +100,7 @@ export const BOSS_RULES: Rule[] = [
     doc: 'The story keeps which sins have fallen.',
     host: { type: 'resident/story' },
     on: 'impulse/notify',
-    tree: BOSSES.reduceRight<Rule['tree']>((rest, b) => ({ if: { param: { key: 'what', cmp: `sin.${b.id}` } }, then: { do: [{ op: 'setFact', key: `sins.defeated.${b.id}`, value: 1 }] }, else: rest }), 'inherit'),
+    tree: BOSSES.reduceRight<Rule['tree']>((rest, b) => ({ if: { param: { key: 'what', cmp: `sin.${b.id}` } }, then: { do: [{ op: 'setProp', key: `sins.defeated.${b.id}`, value: 1 }] }, else: rest }), 'inherit'),
   },
 ]
 

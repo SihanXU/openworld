@@ -35,9 +35,7 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   open: 'open {} — the host opens or closes (toggles the `open` status)',
   dropContents: 'dropContents {still?} — the host spills what it holds onto its tile',
   goto: 'goto {anchor, hours, activity?} — the host (a person) leaves its schedule for a named anchor of its map for some hours',
-  setFact: 'setFact {key, value} — the story\'s and the world\'s only: set a world fact (people, schedules and scenes read facts)',
-  addFact: 'addFact {key, delta} — the story\'s and the world\'s only',
-  topic: 'topic {id, days?} — the story\'s and the world\'s only: something happened that people will talk about (default 4 days); others notify the story',
+  topic: "topic {id, days?} — the story's only: something happened that people will talk about (default 4 days); it keeps topic.<id> (the day) and topic.<id>.days as its own props. Others notify the story",
   scene: 'scene {id} — the story\'s only: play a scripted scene',
   craft: 'craft {} — the host uses up what the act\'s recipe needs from what it carries and gets what it makes',
   forage: 'forage {} — the world\'s: what the active map yields by itself appears on its ground',
@@ -58,7 +56,7 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
 }
 
 /** Primitives only the story's and the world's rules may use. */
-export const RESIDENT_ONLY = new Set<Effect['op']>(['setFact', 'addFact', 'topic', 'scene', 'forage', 'lightning', 'fallback', 'quests', 'appear'])
+export const RESIDENT_ONLY = new Set<Effect['op']>(['topic', 'scene', 'forage', 'lightning', 'fallback', 'quests', 'appear'])
 
 export class EffectRunner {
   constructor(private eng: Engine) {}
@@ -342,15 +340,9 @@ export class EffectRunner {
         host.npc.override = { map: p.map, x: a[0], y: a[1], until: w.state.tick + Math.round(hours * TICKS_PER_HOUR), activity: eff.activity ?? eff.anchor }
         return
       }
-      case 'setFact':
-        w.setFact(eff.key, eff.value)
-        return
-      case 'addFact':
-        w.setFact(eff.key, (Number(w.fact(eff.key)) || 0) + eff.delta)
-        return
       case 'topic': {
         const id = this.str(ev, eff.id)
-        if (id) raiseTopic(eng, id, eff.days ?? (typeof ev.params?.days === 'number' ? ev.params.days : undefined))
+        if (id && host) raiseTopic(eng, host, id, eff.days ?? (typeof ev.params?.days === 'number' ? ev.params.days : undefined))
         return
       }
       case 'quest': {
@@ -439,12 +431,12 @@ export class EffectRunner {
         if (!who) return
         if (eff.text === '@given') {
           const item = ev.roles.item && 'e' in ev.roles.item ? w.get(ev.roles.item.e) : undefined
-          const line = who.npc?.person?.lines?.length && item ? chooseLine(eng, who, { given: item }) : undefined
+          const line = who.npc?.person?.lines?.length && item ? chooseLine(eng, who, { given: item, record: who.id === host?.id }) : undefined
           w.fx.push({ t: 'say', who: who.id, text: line?.text ?? GIVEN_LINE, mood: line?.mood })
           return
         }
         // a person with a line book says the line for this moment (people.ts)
-        const line = eff.text === '@line' && who.npc?.person?.lines?.length ? chooseLine(eng, who) : undefined
+        const line = eff.text === '@line' && who.npc?.person?.lines?.length ? chooseLine(eng, who, { record: who.id === host?.id }) : undefined
         if (line) w.fx.push({ t: 'say', who: who.id, text: line.text, mood: line.mood })
         else w.fx.push({ t: 'say', who: who.id, text: this.text(ev, who, eff.text) })
         return

@@ -10,6 +10,7 @@ import type { Engine } from './engine.ts'
 import { astar } from './path.ts'
 import { DIRS } from './types.ts'
 import { cmp } from './rules.ts'
+import { regionId } from './world.ts'
 import type { Dir, Effect, Entity, Id, Pos, Ref, SceneCmd, SceneDef } from './types.ts'
 
 const MOVE_STEP_TICKS = 4
@@ -18,6 +19,8 @@ const CHECK_EVERY = 20
 
 export class Scenes {
   readonly defs = new Map<string, SceneDef>()
+  /** The player entered a region, or a scene ended: the region scenes are checked on the next tick (an event, not a poll). */
+  private arrived = false
 
   constructor(private eng: Engine) {}
 
@@ -26,15 +29,15 @@ export class Scenes {
   }
 
   get running(): boolean {
-    return !!this.eng.world.state.scene
+    return !!this.eng.world.scene
   }
 
   /** Start a scene now (effects, or a trigger). Returns false if another is playing or it is unknown. */
   start(id: string): boolean {
     const w = this.eng.world
-    if (w.state.scene || !this.defs.has(id)) return false
-    w.state.scene = { id, step: 0 }
-    this.story([{ op: 'setFact', key: `seen.${id}`, value: true }])
+    if (w.scene || !this.defs.has(id)) return false
+    w.scene = { id, step: 0 }
+    this.story([{ op: 'setProp', key: `seen.${id}`, value: true }])
     return true
   }
 
@@ -46,6 +49,11 @@ export class Scenes {
   /** Run effects as the story (its facts, topics, what it gives), with a target for its spawns and notices. */
   private story(effects: Effect[], target?: Ref): void {
     this.eng.script(effects, target ? { target } : {}, 'scene')
+  }
+
+  /** Someone entered a region (the engine's contact): if it is the player, the region scenes are checked. */
+  entered(who: Ref): void {
+    if ('e' in who && who.e === this.eng.world.state.player) this.arrived = true
   }
 
   /** Is a scene's place and moment now? */
@@ -60,17 +68,14 @@ export class Scenes {
     if (k.hour && !(k.hour.from <= k.hour.to ? cal.hour >= k.hour.from && cal.hour < k.hour.to : cal.hour >= k.hour.from || cal.hour < k.hour.to)) return false
     if (k.weather && !k.weather.includes(cal.weather)) return false
     for (const [key, c] of Object.entries(k.facts ?? {})) if (!cmp(w.fact(key) ?? 0, c)) return false
-    if (k.region) {
-      const r = w.map(d.map)?.regions?.[k.region]
-      if (!r || pos.x < r[0] || pos.y < r[1] || pos.x >= r[0] + r[2] || pos.y >= r[1] + r[3]) return false
-    }
+    if (k.region && !w.within(w.player, regionId(d.map, k.region))) return false
     if (k.repeat && w.fact(`seen.${d.id}.day`) === cal.day) return false
     return true
   }
 
   /** The player has advanced past what was said. */
   advance(): void {
-    const s = this.eng.world.state.scene
+    const s = this.eng.world.scene
     if (s?.waiting === 'advance') {
       s.waiting = undefined
       s.line = undefined
@@ -82,18 +87,22 @@ export class Scenes {
     const eng = this.eng
     const w = eng.world
     const t = w.state.tick
-    if (!w.state.scene) {
-      if (t % CHECK_EVERY === 0)
+    if (!w.scene) {
+      // a scene tied to a region begins when the player enters it (or stands in it as another ends);
+      // the rest are checked now and then
+      const arrived = this.arrived
+      this.arrived = false
+      if (arrived || t % CHECK_EVERY === 0)
         for (const d of this.defs.values())
-          if (this.eligible(d)) {
+          if (!!d.when?.region === arrived && this.eligible(d)) {
             this.start(d.id)
-            if (d.when?.repeat) this.story([{ op: 'setFact', key: `seen.${d.id}.day`, value: w.calendar().day }])
+            if (d.when?.repeat) this.story([{ op: 'setProp', key: `seen.${d.id}.day`, value: w.calendar().day }])
             break
           }
       return
     }
     for (let guard = 0; guard < 50; guard++) {
-      const s = w.state.scene
+      const s = w.scene
       if (!s) return
       if (s.until !== undefined) {
         if (t < s.until) return
@@ -112,11 +121,12 @@ export class Scenes {
       const def = this.defs.get(s.id)
       const cmd = def?.script[s.step]
       if (!cmd) {
-        w.state.scene = undefined
+        w.scene = undefined
+        this.arrived = true
         return
       }
       this.run(cmd)
-      if (!w.state.scene?.waiting && w.state.scene?.until === undefined && w.state.scene) w.state.scene.step++
+      if (!w.scene?.waiting && w.scene?.until === undefined && w.scene) w.scene.step++
     }
   }
 
@@ -128,7 +138,7 @@ export class Scenes {
   private run(c: SceneCmd): void {
     const eng = this.eng
     const w = eng.world
-    const s = w.state.scene!
+    const s = w.scene!
     if ('card' in c) {
       w.fx.push({ t: 'card', text: c.card })
       s.line = { who: w.state.player, text: c.card, card: true }
@@ -162,7 +172,7 @@ export class Scenes {
       const e = w.get(c.place)
       if (e) this.send(e, { map: c.map, x: c.x, y: c.y })
     } else if ('fact' in c) {
-      this.story([{ op: 'setFact', key: c.fact, value: c.value }])
+      this.story([{ op: 'setProp', key: c.fact, value: c.value }])
     } else if ('topic' in c) {
       this.story([{ op: 'topic', id: c.topic, days: c.days }])
     } else if ('give' in c) {
@@ -181,7 +191,7 @@ export class Scenes {
   /** One step of a scripted walk. True when it has arrived (or given up and been placed). */
   private moveStep(): boolean {
     const w = this.eng.world
-    const s = w.state.scene!
+    const s = w.scene!
     const m = s.mover
     if (!m) return true
     const e = w.get(m.who)

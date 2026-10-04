@@ -210,7 +210,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     return first ? { item: first, count: ids!.length } : null
   })
   const fx = w.drainFx()
-  const sc = w.state.scene
+  const sc = w.scene
   return {
     tick: w.state.tick,
     hour: w.hour(),
@@ -236,7 +236,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     },
     question: w.state.question ? { text: w.state.question.text } : undefined,
     quests: questsOf(eng, entities),
-    facts: { ...(w.state.facts ?? {}) },
+    facts: { ...(w.story?.props ?? {}) },
     container: box && {
       id: box.id,
       name: box.name ?? w.onto.resolve(box.type).name ?? box.type.split('/').pop()!,

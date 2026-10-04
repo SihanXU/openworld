@@ -21,7 +21,7 @@ export function travelToWaypoint(eng: Engine, id: Id): boolean {
   const p = w.player
   const stone = w.get(id)
   if (!stone || stone.type !== WAYPOINT_TYPE || stone.place.on !== 'tile' || !w.hasStatus({ e: id }, 'attuned')) return false
-  if (eng.busy(p) || w.state.scene || w.state.question) return false
+  if (eng.busy(p) || w.scene || w.state.question) return false
   const { map, x, y } = stone.place
   const from = w.posOf(p)!
   eng.act('move', p.id, { e: p.id }, { instrument: null, params: { map, x, y: y + 1 } })

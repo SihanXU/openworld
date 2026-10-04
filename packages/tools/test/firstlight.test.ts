@@ -53,13 +53,13 @@ describe('Firstlight Village save compatibility', () => {
     f.w.author(() => f.w.setStatus({ e: 'ford.garden.turnip.sprout' }, 'watered', f.w.state.tick + 600))
     f.w.author(() => f.w.setTerrain('ford', 17, 12, 'farmland'))
     f.w.author(() => f.w.setTerrain('ford', 4, 19, 'farmland')) // A user-made plot must not be removed.
-    f.w.state.memory = { 'npc.tobin': { talked: 1, said: ['greeting:first'] } }
+    f.w.get('npc.tobin')!.npc!.memory = { talked: 1, said: ['greeting:first'] }
     const saved = f.resume()
     f.migrate(saved)
     const w = saved.engine.world
     expect(w.player.props).toMatchObject({ quest: 4, xp: 42 })
     expect(w.fact('mq.smith')).toBe(3)
-    expect(w.state.memory).toEqual(f.w.state.memory)
+    expect(w.get('npc.tobin')!.npc!.memory).toEqual({ talked: 1, said: ['greeting:first'] })
     expect(w.get(tool.id)?.place).toEqual({ on: 'inside', holder: 'player' })
     expect(w.get(wand.id)?.place).toEqual({ on: 'hand', holder: 'player' })
     expect(w.get('tobin.wand')).toBeUndefined()

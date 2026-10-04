@@ -15,6 +15,7 @@ import { cmp } from './rules.ts'
 import type { Cmp, Effect, Entity, Id, PropValue, Text } from './types.ts'
 import { DIRS } from './types.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
+import { regionId } from './world.ts'
 
 /** What a beat waits for, all on its leader (the actor the companion follows, or the player). */
 export interface BeatCond {
@@ -118,7 +119,7 @@ export class Companions {
       const lead = typeof e.props?.companion === 'string' ? w.get(e.props.companion) : undefined
       if (lead) this.follow(e, lead)
     }
-    if (w.state.tick % EVERY === 0 && !w.state.scene) this.checkBeats()
+    if (w.state.tick % EVERY === 0 && !w.scene) this.checkBeats()
   }
 
   /**
@@ -185,10 +186,7 @@ export class Companions {
     for (const [k, v] of Object.entries(c.facts ?? {})) if (!cmp(w.fact(k) ?? 0, v)) return false
     for (const [k, v] of Object.entries(c.props ?? {})) if (!cmp(lead.props?.[k] ?? 0, v)) return false
     if (c.map && pos.map !== c.map) return false
-    if (c.region) {
-      const r = w.map(pos.map)?.regions?.[c.region]
-      if (!r || pos.x < r[0] || pos.y < r[1] || pos.x >= r[0] + r[2] || pos.y >= r[1] + r[3]) return false
-    }
+    if (c.region && !w.within(lead, regionId(pos.map, c.region))) return false
     if (c.carrying) {
       const carried = [lead.held, ...(lead.contents ?? [])].map((id) => w.get(id)).filter((x): x is Entity => !!x)
       if (!carried.some((x) => x.type.startsWith(c.carrying!))) return false
@@ -213,9 +211,9 @@ export class Companions {
       if (w.fact(`beat.${b.id}`) || !this.met(b.when, lead)) continue
       // a beat is the story's script (the tutorial's step): the story keeps it, and tells the leader their stage
       const effects: Effect[] = [
-        { op: 'setFact', key: `beat.${b.id}`, value: w.state.tick },
-        { op: 'setFact', key: 'beat.last', value: b.id },
-        ...Object.entries(b.facts ?? {}).map(([key, value]): Effect => ({ op: 'setFact', key, value })),
+        { op: 'setProp', key: `beat.${b.id}`, value: w.state.tick },
+        { op: 'setProp', key: 'beat.last', value: b.id },
+        ...Object.entries(b.facts ?? {}).map(([key, value]): Effect => ({ op: 'setProp', key, value })),
         ...Object.entries(b.props ?? {}).map(([what, value]): Effect => ({ op: 'emit', impulse: 'notify', to: 'target', params: { what, value } })),
       ]
       this.eng.script(effects, { target: { e: lead.id } }, `beat/${b.id}`)

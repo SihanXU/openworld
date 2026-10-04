@@ -229,7 +229,7 @@ export function describeOutcome(sc: Scenario, patch: Patch, ctx: Pick<ToolContex
     if (f.t === 'damage') out.push(`damage: ${f.who} ${f.amount}${f.element ? ` ${f.element}` : ''}`)
   }
   const before = buildSandbox(sc, onto, lib).world
-  const where = (e: Entity) => (e.place.on === 'tile' ? `tile ${e.place.x},${e.place.y}` : e.place.on === 'none' || e.place.on === 'resident' ? e.place.on : `${e.place.on}:${e.place.holder}`)
+  const where = (e: Entity) => (e.place.on === 'tile' ? `tile ${e.place.x},${e.place.y}` : e.place.on === 'none' || e.place.on === 'resident' || e.place.on === 'area' ? e.place.on : `${e.place.on}:${e.place.holder}`)
   for (const b of Object.values(before.state.entities)) {
     if (b.id === '__player') continue
     const e = w.get(b.id)

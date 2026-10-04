@@ -2,7 +2,6 @@
 // Everything here is plain JSON-serializable data: state, rules and patches travel
 // between the engine, the client, saves and (later) the modder service.
 
-import type { WeatherSpan } from './calendar.ts'
 
 export type Id = string
 export type Text = string | { en: string; zh?: string }
@@ -146,6 +145,7 @@ export type Place =
   | { on: 'inside'; holder: Id } // in a container's contents or an actor's inventory
   | { on: 'hand'; holder: Id } // the actor's single held-item slot
   | { on: 'resident' } // a host on no map: the world, the story (design.md §5.5)
+  | { on: 'area'; map: string; rects: [number, number, number, number][] } // a region: the cells it spans, as rectangles (world-model.md §5.4)
   | { on: 'none' }
 
 export interface Entity {
@@ -176,6 +176,8 @@ export interface Entity {
    * like a cooldown. Anything others see (health, a bleed) is a prop or a status.
    */
   combat?: CombatState
+  /** The story's script: where it stands (the scene playing) — its behaviour memory. */
+  script?: SceneState
   /** An encounter's behaviour memory (its telegraph, its animation); its blows are acts. */
   boss?: BossState
   /** Set while an undefined outcome involving this entity awaits a patch (design.md §5.11). */
@@ -295,6 +297,8 @@ export interface NpcData {
   person?: PersonData
   /** A detour a rule ordered (`goto`): this anchor until the tick, whatever the schedule says. */
   override?: { map: string; x: number; y: number; until: number; activity: string }
+  /** What the person remembers of talking: the lines said, the last one, the day last talked to (their own record). */
+  memory?: NpcMemory
 }
 
 // ------------------------------------------------------------------ people (data)
@@ -358,7 +362,7 @@ export interface SceneDef {
     hour?: { from: number; to: number }
     weather?: string[]
     facts?: Record<string, Cmp>
-    /** the player stands in this region of the map (MapData.regions) */
+    /** the player stands in this region of the map (its region thing): checked when they enter it, and when a scene ends — never polled */
     region?: string
     /** default false: a scene plays once */
     repeat?: boolean
@@ -555,16 +559,10 @@ export interface WorldState {
   counter: number // id allocator
   /** Where the player respawns. */
   spawn: Pos
-  /** World facts (docs/game-design.md §8.1): `hearth.stage`, `bridge.east.fixed` … (the story's: only its rules change them) */
-  facts?: Record<string, PropValue>
-  topics?: Topic[]
-  /** What each person remembers about the player. */
-  memory?: Record<Id, NpcMemory>
-  scene?: SceneState
+  /** The engine's record of the broken invariants it has already reported (not world state: the detector's memory). */
+  reported?: string[]
   /** A yes/no question waiting for the player (Action: "Eat the apple?"); time stops while it is open. */
   question?: { text: Text; plan: Plan }
-  /** Spans of time whose weather the world fixes (the evening storm). */
-  weather?: WeatherSpan[]
   /** Maps the player is not on: frozen since a tick, with the events addressed to them (design.md §5.12). */
   dormant?: Record<string, { since: number; inbox: GameEvent[] }>
   /** Each host's relations (contact and containment) when last computed: `how|ref` keys. */
@@ -656,6 +654,8 @@ export type Impulse = 'strike' | 'element' | 'coat' | 'restore' | 'push' | 'take
  * - stuck: `target` (what the activity needs, or the spot); broken: `target` (the giver).
  */
 export type RoleName = 'host' | 'actor' | 'target' | 'instrument' | 'other' | 'item' | 'source'
+/** What a condition may read: the event's roles, and the stewards every rule may read (the story, the world). */
+export type Reader = RoleName | 'story' | 'world'
 
 export interface GameEvent {
   kind: EventKind
@@ -726,15 +726,14 @@ export type Cond =
   | { same: [RoleName, RoleName] }
   | { has: { role: RoleName; status?: string; tag?: string } }
   /** A role's prop compared to a value, or bounded by other numbers. A missing prop is false. */
-  | { prop: { role: RoleName; key: string; cmp?: Cmp; bounds?: Bounds } }
+  /** `default` is read when the prop is missing (a fact the story has not set reads 0 with `default: 0`). */
+  | { prop: { role: Reader; key: string; cmp?: Cmp; bounds?: Bounds; default?: PropValue } }
   /** An event parameter compared to a value (a missing parameter is false). */
   | { param: { key: string; cmp: Cmp } }
   | { chance: number }
   | { hour: { from: number; to: number } }
   /** How many entities (matching `match`) are in a role's contents, or on its tile besides itself. */
   | { count: { role: RoleName; in: 'contents' | 'tile'; match?: Selector; cmp: Bounds } }
-  /** A world fact compared to a value (a missing fact is 0 / false). */
-  | { fact: { key: string; cmp: Cmp } }
   /** Something that happened is still fresh. */
   | { topic: string }
   /** The weather now. */
@@ -785,8 +784,6 @@ export type Effect =
   | { op: 'open' }
   | { op: 'dropContents'; still?: boolean }
   | { op: 'goto'; anchor: string; hours: number; activity?: string }
-  | { op: 'setFact'; key: string; value: PropValue }
-  | { op: 'addFact'; key: string; delta: number }
   | { op: 'topic'; id: string; days?: number }
   /** The host (a person) is spoken to about quests: its business with the speaker goes to the story; else it says its line. */
   | { op: 'quest' }

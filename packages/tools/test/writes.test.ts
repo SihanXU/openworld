@@ -124,7 +124,9 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
 
   it('the writer is held once; a write without it throws, and so does an outcome writing beyond its host', () => {
     const eng = new Engine({ tick: 0, seed: 1, rng: 1, player: 'p', entities: {}, maps: {}, tiles: {}, loadedMaps: [], counter: 0, spawn: { map: 'm', x: 0, y: 0 } }, buildOntology(), new RuleLibrary(BASE_RULES))
+    eng.ensureResidents()
     expect(() => eng.world.grant()).toThrow(/already held/)
+    // a fact is the story's prop: kept outside an outcome, it throws like any other write
     expect(() => eng.world.setFact('x', 1)).toThrow(/outside an outcome/)
     expect(() => eng.world.add({ id: 'a', type: 'item/food/bread', place: { on: 'none' } })).toThrow(/outside an outcome/)
     eng.author(() => eng.world.setFact('x', 1))
@@ -147,5 +149,27 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
     // a world no engine holds cannot be written at all
     const loose = new World(eng.world.state, eng.world.onto)
     expect(() => loose.author(() => 0)).toThrow(/nobody may write it/)
+  })
+})
+
+describe('the state is things and the clock (world-model.md §3)', () => {
+  it('a played and saved Ford keeps nothing outside its things but the clock and the engine records', async () => {
+    const { Game } = await import('@lsw/engine')
+    const { STORY_RULES, decodeChunk } = await import('@lsw/content')
+    const { buildFord } = await import('../src/demo/world.ts')
+    const { index, chunks } = buildFord()
+    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    for (const c of chunks) game.loadChunk(decodeChunk(c))
+    for (let i = 0; i < 600; i++) game.engine.tick()
+    const state = game.save().state as unknown as Record<string, unknown>
+    // the clock and the generator; the things; the maps' base data and what changed on their cells;
+    // and the engine's own records (what is loaded, asked, frozen, related, reported) — no facts,
+    // topics, scenes, weather or memories beside the things they belong to
+    const ALLOWED = ['tick', 'seed', 'rng', 'counter', 'player', 'spawn', 'entities', 'maps', 'tiles', 'loadedMaps', 'question', 'dormant', 'relations', 'reported']
+    expect(Object.keys(state).filter((k) => !ALLOWED.includes(k))).toEqual([])
+    // the story and the world are things, and so are the maps' named areas
+    const w = game.engine.world
+    expect(w.get('story')?.place).toEqual({ on: 'resident' })
+    expect(Object.values(w.state.entities).some((e) => e.type === 'region' && e.place.on === 'area')).toBe(true)
   })
 })

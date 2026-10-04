@@ -84,11 +84,19 @@ Moved onto things:
 
 | Was | Becomes |
 |---|---|
-| `state.facts` | props of the story (story facts) and of the world (world facts) |
-| `state.topics` | a prop of the story |
-| `state.scene` | the story's current step (a prop of the story) |
-| `state.weather` | a prop of the world |
-| `state.memory` | each person's own record (props of that person) |
+| `state.facts` | props of the story; `visited.<map>` became a prop of whoever went there; `invalid.<id>` the detector's record (`reported`) |
+| `state.topics` | props of the story: `topic.<id>` (the day it was raised) and `topic.<id>.days` |
+| `state.scene` | the story's current step (`script` on the story thing) |
+| `state.weather` | not state: the weather spans are authored content, loaded with the world like map data; the day's weather is derived from them |
+| `state.memory` | each person's own record (`npc.memory` on that person) |
+
+As built (W1): a condition reads a named thing's prop as `{prop: {role: 'story' | 'world', key, default}}`
+(the story and the world are roles every event has); `setFact`/`addFact` are gone (a story-hosted
+`setProp`/`addProp`; old rules and patches are rewritten when the library takes them); a saved
+state keeps only the fields of §3 (a test holds the list). A map's named areas are things of type
+`region` (`region.<map>.<name>`, place `{on: 'area', map, rects}`), made when the map's data first
+comes; standing in one is the relation `in-region` (the region's side is `encloses`); a scene tied to
+a region begins when the player enters it, or stands in it as another scene ends, never by a poll.
 
 **Derived, not state.** Recomputed from the state after every outcome and on entering a map,
 the same state always giving the same result: relations (on/under, in/contains, held/holds,
@@ -435,7 +443,7 @@ guides), which are story props plus how they are shown.
 - **Kinds**: unchanged. `contact` gains `how` values `in-region` and `support`.
 - **Condition `rel`**: whether the host has a relation now (`support`, `on`, `in-region` …).
 - **Conditions on named things**: a condition may read a named thing's prop
-  (`{prop: {of: 'story', key}}`); `fact` becomes this.
+  (`{prop: {role: 'story', key}}`); `fact` becomes this.
 - **New primitives** (each writes only its host): `fall` (drop to the first thing that holds,
   striking oneself by the drop) and `breakdown` (§6.3). `setFact`, `addFact` and `topic` become
   the story's or the world's own `setProp`/`addProp`. `forage` and `appear` merge (§6.9).

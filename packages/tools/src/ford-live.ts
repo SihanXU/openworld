@@ -66,7 +66,7 @@ const run = (f: Ford, key: Key, x: number, y: number, layer?: number) => {
 }
 const ticks = (f: Ford, n: number, until?: () => boolean) => {
   for (let i = 0; i < n; i++) {
-    if (W(f).state.scene?.waiting === 'advance') f.eng.scenes.advance()
+    if (W(f).scene?.waiting === 'advance') f.eng.scenes.advance()
     f.eng.tick()
     if (until?.()) return true
   }

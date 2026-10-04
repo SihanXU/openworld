@@ -190,7 +190,7 @@ const EVENTS: Record<string, string> = {
   'act/craft': 'an actor crafts the recipe of param recipe from what it carries.',
   'act/learn': 'an actor learns what it names: param skill (spending skill points) or param profession (at a trainer).',
   'impulse/*': 'something was done to the host by another (source = the emitter; actor = whose act started it; instrument; item). See `impulses` for each kind and its params.',
-  'contact/begin|stay|end': 'the host and other start, keep, or stop touching. Param how, from the host\'s side: on (I stand on other), under (other stands on me), in (I am inside other), contains (other is inside me), held (I am in other\'s hand), holds (other is in my hand). Only where a stance (ground, air, water) meets a reach: a flyer never touches lava.',
+  'contact/begin|stay|end': 'the host and other start, keep, or stop touching. Param how, from the host\'s side: on (I stand on other), under (other stands on me), in (I am inside other), contains (other is inside me), held (I am in other\'s hand), holds (other is in my hand), in-region (I stand in the region other: a named area of a map, type region), encloses (other stands in me, a region). Only where a stance (ground, air, water) meets a reach: a flyer never touches lava.',
   bump: 'the host and other collided: a step into something solid (param dir).',
   'time/period': 'a clock ticked for the host: param status (every 0.5 s while it has that status, or at the pace the status sets; actor: who gave it) or name (a declared period: hunger, vitals, forage, weather, storm, night, dawn).',
   'time/timer': 'a status ran out on the host (param status; actor: who gave it).',
@@ -258,12 +258,11 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       '{none: role} — a role is empty (an empty hand)',
       '{same:[roleA, roleB]} — the same thing (food used on oneself: same [actor, target])',
       '{has:{role, status?, tag?}}',
-      '{prop:{role, key, cmp?, bounds?}} — bounds: {eq|gt|gte|lt|lte: number | {prop, of: role, mul?} | {param, mul?}}',
+      "{prop:{role, key, cmp?, bounds?, default?}} — role may also be story or world (anyone may read them; the story's facts are its props: {prop:{role:'story', key:'mq.ore', cmp:{gte:5}, default:0}}); default is read when the prop is missing. bounds: {eq|gt|gte|lt|lte: number | {prop, of: role, mul?} | {param, mul?}}",
       '{param:{key, cmp}} — an event parameter (element, how, edge, verb, status, name, …)',
       '{chance:p}',
       '{hour:{from,to}}',
       "{count:{role, in: contents|tile, match?: Selector, cmp: Bounds}} — how many things are in a role's contents (or on its tile besides itself)",
-      '{fact:{key, cmp}} — a world fact (missing = 0)',
       '{topic:id} — something that happened is still fresh',
       '{weather:[sun|cloud|rain|storm|fog]} — the weather now',
       '{exists: Selector} — something matching it exists anywhere in the world',
@@ -882,7 +881,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     }
     if ('prop' in c) {
       for (const b of Object.keys(c.prop.bounds ?? {})) if (!BOUNDS.has(b)) errors.push(`${where}.prop.bounds.${b}: a bound is eq|gt|gte|lt|lte`)
-      return role(c.prop.role, `${where}.prop.role`)
+      return c.prop.role === 'story' || c.prop.role === 'world' ? undefined : role(c.prop.role, `${where}.prop.role`)
     }
     if ('count' in c) {
       const k = c.count
@@ -893,7 +892,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       for (const b of Object.keys(k.cmp ?? {})) if (!BOUNDS.has(b)) errors.push(`${where}.count.cmp.${b}: a bound is eq|gt|gte|lt|lte`)
       return
     }
-    if ('param' in c || 'chance' in c || 'hour' in c || 'fact' in c || 'topic' in c || 'weather' in c || 'outdoors' in c) return
+    if ('param' in c || 'chance' in c || 'hour' in c || 'topic' in c || 'weather' in c || 'outdoors' in c) return
     if ('exists' in c) return void checkSel(c.exists, `${where}.exists`)
     errors.push(`${where}: unknown condition`)
   }
@@ -939,7 +938,8 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     }
     // the boundaries of what the world does by itself
     if (ctx.world) {
-      const fact = e.op === 'setFact' || e.op === 'addFact' ? e.key : undefined
+      // the story's facts are its props: a world event's patch on the story may not change its protected ones
+      const fact = (e.op === 'setProp' || e.op === 'addProp') && resident ? e.key : undefined
       if (fact && (ctx.protectedFacts ?? []).some((p) => fact.startsWith(p))) errors.push(`${where}: a world event may not change the story's fact "${fact}"`)
       if (e.op === 'setProp' && e.key === 'quest') errors.push(`${where}: a world event may not change the story's stage`)
     }

@@ -55,9 +55,11 @@ export function migrateFirstlight(game: Game, index: WorldIndex, ford: MapChunk,
   const tobin = w.get('npc.tobin')
   const person = index.npcs.find((e) => e.id === 'npc.tobin')
   if (tobin && person?.npc) {
-    const override = tobin.npc?.override
+    const { override, memory } = tobin.npc ?? {}
     tobin.npc = structuredClone(person.npc)
     if (override && override.map !== 'ford') tobin.npc.override = override
+    // what Tobin remembers belongs to Tobin, not to the layout
+    if (memory) tobin.npc.memory = memory
     const slot = scheduleAt(scheduleFor(eng, tobin), w.hour())
     if (slot) eng.teleport(tobin, { map: slot.map, x: slot.x, y: slot.y })
   }
