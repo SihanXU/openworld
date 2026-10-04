@@ -23,6 +23,8 @@ export interface HudSend {
 
 export class Hud {
   frame?: Frame
+  /** The development warning that no one learns (no model) is said once a session. */
+  private warnedNoModder = false
   muted = (() => {
     try {
       return localStorage.getItem('lsw.muted') === '1'
@@ -558,8 +560,11 @@ export class Hud {
       case 'undefined':
         // the clean game: a light cue the first moments the valley works something out (design.md §5.11, legibility)
         if (fx.asked) return void this.message(`✦ ${t('learning')}`, 'ai')
-        // no one to ask: in development say so plainly (npm run dev starts the modder too)
-        if (import.meta.env.DEV) return void this.message(`⚠ ${t('noModder')} — ${fx.summary}`, 'warn')
+        // no one to ask: in development say so plainly, once a session (npm run dev starts the modder too)
+        if (import.meta.env.DEV && !this.warnedNoModder) {
+          this.warnedNoModder = true
+          return void this.message(`⚠ ${t('noModder')} — ${fx.summary}`, 'warn')
+        }
         return
       case 'patched': {
         const doc = this.threadDoc?.(fx.rule)
