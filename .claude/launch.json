@@ -11,6 +11,18 @@
       "port": 5173
     },
     {
+      "name": "dev-claude",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--backend",
+        "claude-code"
+      ],
+      "port": 5173
+    },
+    {
       "name": "client-dist",
       "runtimeExecutable": "npx",
       "runtimeArgs": [

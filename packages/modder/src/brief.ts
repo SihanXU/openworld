@@ -63,6 +63,20 @@ export function briefOf(req: ModRequest, lib: RuleLibrary, onto: Ontology): stri
   if (ev.host) out.push(line('host (your rule is its nature)', ev.host))
   for (const [role, e] of Object.entries(ev.roles)) if (e) out.push(line(role, e))
   if (ev.kind.startsWith('act/use') && !ev.roles.instrument) out.push('- instrument: none (bare hands)')
+  // the relative directory: what else lives beside each role's type (the router's first place to look)
+  const dirs = new Map<string, string[]>()
+  for (const e of [ev.host, ...Object.values(ev.roles)]) {
+    if (!e || e.kind === 'tile') continue
+    const parent = e.type.split('/').slice(0, -1).join('/')
+    if (parent.includes('/')) (dirs.get(parent) ?? dirs.set(parent, []).get(parent)!).push(e.type.split('/').at(-1)!)
+  }
+  if (dirs.size) {
+    out.push('', '## The directories of this request (beside each role\'s type)')
+    for (const [parent, here] of dirs) {
+      const children = Object.keys(onto.types).filter((t) => t.startsWith(parent + '/') && !t.slice(parent.length + 1).includes('/'))
+      out.push(`- ${parent}/ (${[...new Set(here)].join(', ')} here): ${children.map((c) => c.slice(parent.length + 1)).join(', ')}`)
+    }
+  }
   const related = relatedRules(req, lib)
   out.push('', `## Rules about this host or this event (${related.length})`)
   out.push(...(related.length ? related.slice(0, MAX_RELATED).map(compactRule) : ['(none: this is new ground)']))

@@ -22,6 +22,16 @@ export const DIRS: Record<Dir, [number, number]> = {
 
 export type EntityKind = 'actor' | 'item' | 'fixture' | 'resident'
 
+/**
+ * A 16x16 icon as data: one string per row, one character per pixel ("." transparent), each
+ * other character a colour of the palette. Things the world learned carry their own picture
+ * this way (the client draws it), so it travels with the patch like the rest of the type.
+ */
+export interface PixelArt {
+  grid: string[]
+  palette: Record<string, string>
+}
+
 /** A node in the is-a hierarchy. Type ids are slash paths: `item/container/bucket`. */
 export interface TypeDef {
   id: string
@@ -31,8 +41,10 @@ export interface TypeDef {
   tags?: string[]
   /** Default properties (instances may override). */
   props?: Record<string, PropValue>
-  /** Render key; resolved by the client's art layer. */
+  /** Render key; resolved by the client's art layer (`art:<type id>` for a type that carries its own `art`). */
   sprite?: string
+  /** Its own picture, for a type a patch introduced (sprite `art:<id>`). */
+  art?: PixelArt
   /** Fixtures and tiles: does it block movement? Actors occupy their footprint. */
   solid?: boolean
   /**

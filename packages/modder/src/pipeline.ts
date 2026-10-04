@@ -14,14 +14,14 @@
 // Two profiles of one harness (state.ts): LIVE while a player waits, OFFLINE for everything
 // nobody waits on — curriculum, a failed live request worked again, a revision after review.
 
-import { buildModSpec, type ModRequest, type ModWorkspace, type Patch, type ResolveBody, type ResolveReply } from '@lsw/engine'
+import { artProblems, buildModSpec, closestTypes, type ModProgress, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef } from '@lsw/engine'
 import { briefOf, relatedRules } from './brief.ts'
 import { changesNothing, deriveTests } from './derive.ts'
 import { narrowKinds, normalizePatch, qualifyTerrains } from './fixes.ts'
 import type { WorldLibrary } from './library.ts'
 import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@lsw/agent'
 import { materializeWorld } from './repo.ts'
-import { FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, designSystem, designUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser } from './prompts.ts'
+import { ART_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, artUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, type Creation, type Need } from './prompts.ts'
 import { coarseTerms, signatureOf, type Signature } from './signature.ts'
 import { profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@lsw/agent'
 
@@ -50,10 +50,42 @@ interface EpisodeOptions {
 
 const TOOL_OUTPUT_CAP = 12_000
 
+/** Turns to do one kind of work, a few at a time; the lower priority goes first (live before offline). */
+class Gate {
+  private running = 0
+  private queue: { priority: number; go: () => void }[] = []
+  constructor(private limit: () => number) {}
+  async acquire(priority: number): Promise<() => void> {
+    if (this.running >= this.limit()) {
+      await new Promise<void>((go) => {
+        this.queue.push({ priority, go })
+        this.queue.sort((a, b) => a.priority - b.priority)
+      })
+    }
+    this.running++
+    let done = false
+    return () => {
+      if (done) return
+      done = true
+      this.running--
+      this.queue.shift()?.go()
+    }
+  }
+}
+
 export class Modder {
   private inflight = new Map<string, Promise<ResolveReply>>()
-  /** Work after the reply: reflections, late reviews, escalations, revisions (in order). */
-  private backlog: Promise<void> = Promise.resolve()
+  /** Designs, one at a time by default (harness concurrency.design): what one patch adds, the next request sees. */
+  private design = new Gate(() => this.opts.state.harness().concurrency?.design ?? 1)
+  /** Work after the reply: reflections, late reviews, escalations, revisions (harness concurrency.background at once). */
+  private jobs: { what: string; job: () => Promise<void> }[] = []
+  private running = 0
+  private idle: (() => void)[] = []
+  /** Where each class of request is (GET /progress), and the class of each request id. */
+  private progress = new Map<string, ModProgress>()
+  private requestKey = new Map<string, string>()
+  /** Live episodes that went cleanly, waiting to be reflected on together (harness reflect.batch). */
+  private clean: { ep: Episode; sig: Signature }[] = []
 
   constructor(readonly opts: ModderOptions) {}
 
@@ -69,23 +101,51 @@ export class Modder {
     this.opts.log?.(line)
   }
 
-  /** Resolves when all background work started so far is done. */
+  /** Resolves when all background work started so far (and what it started) is done. */
   async settled(): Promise<void> {
-    let seen: Promise<void>
-    do {
-      seen = this.backlog
-      await seen
-    } while (seen !== this.backlog)
+    if (!this.running && !this.jobs.length) return
+    await new Promise<void>((done) => this.idle.push(done))
   }
 
   private later(what: string, job: () => Promise<void>): void {
-    this.backlog = this.backlog.then(() => job().catch((err) => this.log(`${what}: ${(err as Error).message}`)))
+    this.jobs.push({ what, job })
+    this.pump()
+  }
+
+  private pump(): void {
+    const limit = this.opts.state.harness().concurrency?.background ?? 3
+    while (this.running < limit && this.jobs.length) {
+      const { what, job } = this.jobs.shift()!
+      this.running++
+      job()
+        .catch((err) => this.log(`${what}: ${(err as Error).message}`))
+        .finally(() => {
+          this.running--
+          this.pump()
+        })
+    }
+    if (!this.running && !this.jobs.length) for (const done of this.idle.splice(0)) done()
+  }
+
+  /** Where a request is: waiting its turn, designing, finding, creating (undefined: not here, or done). */
+  progressOf(requestId: string): ModProgress | undefined {
+    const key = this.requestKey.get(requestId)
+    return key ? this.progress.get(key) : undefined
   }
 
   async resolve(body: ResolveBody, profile: Profile = this.opts.profile ?? 'live'): Promise<ResolveReply> {
     const req = body?.request
     if (!req?.event || !req.scenario || !req.context) return { patch: null, outcome: 'failed', diagnostics: ['malformed request'] }
     const sig = signatureOf(req)
+    this.requestKey.set(req.id, sig.key)
+    try {
+      return await this.resolveClass(req, body, sig, profile)
+    } finally {
+      this.requestKey.delete(req.id)
+    }
+  }
+
+  private async resolveClass(req: ModRequest, body: ResolveBody, sig: Signature, profile: Profile): Promise<ResolveReply> {
     const hit = this.cover(req, sig)
     if (hit) return hit
     // the same class already being worked on: wait for it, then see whether it answers this one too
@@ -144,7 +204,23 @@ export class Modder {
     }
   }
 
+  /** One design at a time (live first); a request that waited is answered by what was committed meanwhile, if it can be. */
   private async episode(req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, eo: EpisodeOptions): Promise<ResolveReply> {
+    if (!this.progress.has(sig.key)) this.progress.set(sig.key, { stage: 'queued' })
+    const release = await this.design.acquire(eo.profile === 'live' ? 0 : 1)
+    try {
+      if (!eo.revise) {
+        const hit = this.cover(req, sig)
+        if (hit) return hit
+      }
+      return await this.work(req, ws, sig, eo)
+    } finally {
+      release()
+      this.progress.delete(sig.key)
+    }
+  }
+
+  private async work(req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, eo: EpisodeOptions): Promise<ResolveReply> {
     const t0 = Date.now()
     const { state, library } = this.opts
     const h = profileOf(state.harness(), eo.profile)
@@ -164,9 +240,20 @@ export class Modder {
     const validate = (p: Patch) => library.validate(p, req, ws, replaces)
     const ctx: ToolContext = { library: lib, ontology: library.fullOntology(lib), request: req, state, validate, skillsRead: ep.skillsRead }
     const tools = h.design.toolRounds > 0 ? buildTools(ctx, h.tools) : []
+    // the system prompt is the same for every request and every client (the base ontology), so
+    // it is served from the provider's prompt cache; what patches added goes in the user turn.
+    // The router (one call, no tools: live): the design sees the request's own types and asks for
+    // the rest by name; the harness finds them in the catalogue, or has them created.
+    const router = h.design.toolRounds === 0
+    let stage: 'local' | 'find' | 'create' = 'local'
+    let creations: Creation[] = []
+    const at = (p: ModProgress) => this.progress.set(sig.key, p)
+    at({ stage: 'local' })
+    if (router) ep.route = ['local']
+    const added = { types: lib.types.filter((t) => !(t.id in library.ontology.types)), statuses: lib.statuses.filter((s) => !(s.id in library.ontology.statuses)) }
     const messages: ChatMessage[] = [
-      { role: 'system', content: designSystem(buildModSpec(library.ontology, lib), h) },
-      { role: 'user', content: designUser(req, recall, h.design.brief ? briefOf(req, lib, ctx.ontology) : undefined) + (eo.revise ? `\n\n${revisionUser(eo.revise.episode.patch!, eo.revise.notes)}` : '') },
+      { role: 'system', content: designSystem(buildModSpec(library.ontology, undefined, { types: !router }), h, router) },
+      { role: 'user', content: designUser(req, recall, h.design.brief ? briefOf(req, lib, ctx.ontology) : undefined, added) + (eo.revise ? `\n\n${revisionUser(eo.revise.episode.patch!, eo.revise.notes)}` : '') },
     ]
 
     let repairs = 0
@@ -179,9 +266,39 @@ export class Modder {
     }
     try {
       for (;;) {
-        const answer = await this.converse(model, messages, tools, h, ep)
+        const answer = await this.converse(model, messages, tools, h, ep, stage === 'local' ? undefined : SLOW_MS)
         let bracketsRepaired = false
-        const { patch: draft, fixes } = normalizePatch(parseJson(answer, () => (bracketsRepaired = true)))
+        const parsed = parseJson(answer, () => (bracketsRepaired = true))
+        const ask = router ? routeOf(parsed) : undefined
+        if (ask?.need && stage === 'local') {
+          // find: what the design needs beyond the request, in the whole catalogue
+          stage = 'find'
+          ep.route!.push('find')
+          ep.needed = ask.need.map((n) => n.name)
+          at({ stage: 'find' })
+          ep.attempts.push({ phase, errors: [], warnings: [], raw: answer.slice(0, 2000) })
+          const candidates = new Map(ask.need.map((n) => [n.name, closestTypes(n.name, ctx.ontology)]))
+          retry(findUser(ask.need, candidates, catalogueOf(Object.values(ctx.ontology.types))), 'find')
+          continue
+        }
+        if (ask?.create && stage !== 'create') {
+          // create: the world has no such thing; the player is told, and waits for it
+          stage = 'create'
+          if (!ep.route!.includes('find')) ep.route!.push('find')
+          ep.route!.push('create')
+          creations = ask.create
+          at({ stage: 'create', creating: creations.map((c) => c.name) })
+          ep.attempts.push({ phase, errors: [], warnings: [], raw: answer.slice(0, 2000) })
+          retry(createUser(creations), 'create')
+          continue
+        }
+        if (ask) {
+          ep.attempts.push({ phase, errors: [ask.need ? 'asked for more things after the catalogue: write the patch now' : 'asked to create again: write the patch now'], warnings: [], raw: answer.slice(0, 2000) })
+          if (repairs++ >= h.repair.maxRounds) break
+          retry(`${ask.need ? 'You have the catalogue.' : 'Creating is already under way.'} Answer now with ONLY the JSON object {"patch": {"artifacts": [...]}, "summary": "..."}.`, 'repair')
+          continue
+        }
+        const { patch: draft, fixes } = normalizePatch(parsed)
         if (bracketsRepaired) fixes.unshift('repaired the JSON brackets (one closed too early, or missing at the end)')
         if (!draft) {
           // say what was wrong: no JSON at all, JSON that does not parse (and where), or JSON with no patch in it
@@ -210,6 +327,15 @@ export class Modder {
           if (withTests.ok) ((patch = d.patch), (res = withTests))
           else derived.push(`derived test dropped: ${withTests.errors[0]}`)
         }
+        // the new things' pictures, drawn once the patch holds (a thing with no picture shows its parent's)
+        if (res.ok && patch.artifacts.some((a) => a.kind === 'type' && !a.type.art)) {
+          at({ stage: 'art', creating: patch.artifacts.flatMap((a) => (a.kind === 'type' ? [a.type.name as { en: string; zh: string }] : [])) })
+          const drawn = await this.drawAll(model, patch, creations)
+          const again = validate(drawn)
+          if (again.ok) ((patch = drawn), (res = again))
+          else fixes.push(`pictures dropped: ${again.errors[0]}`)
+        }
+        if (res.ok) ep.created = patch.artifacts.flatMap((a) => (a.kind === 'type' ? [a.type.id] : []))
         const attempt: Attempt = { phase, patch, errors: res.errors, warnings: res.warnings, ...(fixes.length ? { fixes } : {}), ...(derived?.length ? { derived } : {}) }
         ep.attempts.push(attempt)
         if (!res.ok) {
@@ -333,8 +459,9 @@ export class Modder {
   private afterwards(ep: Episode, req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, h: Harness, ctx: ToolContext, eo: EpisodeOptions): void {
     const shipped = ep.attempts.at(-1)
     const flags = ep.patch ? flagsOf(ep.patch, shipped?.derived) : []
-    // a review after the fact: always for a live rule that narrates only or did not generalize
-    if (ep.outcome === 'accepted' && !eo.revise && h.review.enabled && (h.review.blocking === false || flags.length) && !shipped?.review)
+    // a review after the fact: for a rule that narrates only or did not generalize (and for every
+    // live rule when the harness says review.unflagged)
+    if (ep.outcome === 'accepted' && !eo.revise && h.review.enabled && (flags.length || (h.review.blocking === false && h.review.unflagged)) && !shipped?.review)
       this.later(`review ${ep.id}`, async () => {
         const model = new Meter(this.opts.model!)
         const v = await this.review(model, req, ep.patch!, ctx, h, flags)
@@ -347,7 +474,14 @@ export class Modder {
         if (this.opts.library.covering(req)) return
         await this.track(`${sig.key}#offline`, this.episode(req, ws, sig, { profile: 'offline', escalatedFrom: ep.id }))
       })
-    this.later(`reflect ${ep.id}`, () => this.reflect(ep, sig))
+    // what went wrong is reflected on at once; live episodes that went cleanly, a batch at a time
+    const clean = eo.profile === 'live' && !eo.revise && !eo.escalatedFrom && ep.outcome === 'accepted' && ep.attempts.length === 1 && !flags.length
+    if (clean && (h.reflect.batch ?? 1) > 1) {
+      this.clean.push({ ep, sig })
+      if (this.clean.length < h.reflect.batch!) return
+      const due = this.clean.splice(0)
+      this.later(`reflect ${due.map((d) => d.ep.id).join(', ')}`, () => this.reflect(due))
+    } else this.later(`reflect ${ep.id}`, () => this.reflect([{ ep, sig }]))
   }
 
   /** Append to the shared library; on failure the diagnostics land on the last attempt. */
@@ -366,9 +500,41 @@ export class Modder {
   }
 
   /** The design conversation: tool calls until the model answers, or the round budget runs out. */
-  private async converse(model: Model, messages: ChatMessage[], tools: Tool[], h: Harness, ep: Episode): Promise<string> {
+  /** Each new type of the patch gets a picture (two tries each); one that cannot be drawn keeps its parent's. */
+  private async drawAll(model: Model, patch: Patch, creations: Creation[]): Promise<Patch> {
+    const artifacts = []
+    for (const a of patch.artifacts) {
+      if (a.kind !== 'type' || a.type.art) {
+        artifacts.push(a)
+        continue
+      }
+      const why = creations.find((c) => c.id === a.type.id)?.why ?? `a new kind of ${a.type.id.split('/').slice(-2, -1)[0] ?? 'thing'}`
+      const art = await this.draw(model, a.type, why)
+      artifacts.push(art ? { ...a, type: { ...a.type, art, sprite: `art:${a.type.id}` } } : a)
+    }
+    return { ...patch, artifacts }
+  }
+
+  private async draw(model: Model, t: TypeDef, why: string): Promise<PixelArt | undefined> {
+    const name = typeof t.name === 'object' && t.name ? (t.name as { en: string; zh: string }) : { en: String(t.name ?? t.id), zh: String(t.name ?? t.id) }
+    const messages: ChatMessage[] = [
+      { role: 'system', content: ART_SYSTEM },
+      { role: 'user', content: artUser({ id: t.id, name }, why) },
+    ]
+    for (let i = 0; i < 2; i++) {
+      const r = await model.chat(messages, { json: true, temperature: 0.4, purpose: 'art', reasoning: 'medium', deadlineMs: SLOW_MS })
+      const j = parseJson(r.content) as Partial<PixelArt> | undefined
+      const art = { grid: j?.grid ?? [], palette: j?.palette ?? {} } as PixelArt
+      const problems = artProblems(art)
+      if (!problems.length) return art
+      messages.push({ role: 'assistant', content: r.content }, { role: 'user', content: `Fix this and answer with the whole JSON again: ${problems.join('; ')}` })
+    }
+    return undefined
+  }
+
+  private async converse(model: Model, messages: ChatMessage[], tools: Tool[], h: Harness, ep: Episode, deadlineMs?: number): Promise<string> {
     const specs = tools.map(({ name, description, parameters }) => ({ name, description, parameters }))
-    const call: ChatOptions = { temperature: h.design.temperature, purpose: 'design', reasoning: h.design.reasoning, hedgeMs: h.design.hedgeMs, deadlineMs: h.design.deadlineMs, retries: h.design.retries, provider: h.design.provider }
+    const call: ChatOptions = { temperature: h.design.temperature, purpose: 'design', reasoning: h.design.reasoning, hedgeMs: h.design.hedgeMs, deadlineMs: deadlineMs ?? h.design.deadlineMs, retries: h.design.retries, provider: h.design.provider }
     for (let round = 0; round < h.design.toolRounds; round++) {
       const r = await model.chat(messages, { ...call, tools: specs })
       if (!r.toolCalls.length) {
@@ -412,33 +578,38 @@ export class Modder {
   }
 
   /** The middle loop: what is worth keeping from this episode. */
-  private async reflect(ep: Episode, sig: Signature): Promise<void> {
+  /** One reflection call: on one episode, or on a batch of clean ones (each cited by what it teaches). */
+  private async reflect(items: { ep: Episode; sig: Signature }[]): Promise<void> {
     const { state } = this.opts
     const h = state.harness()
-    if (!h.reflect.enabled || !this.opts.model || ep.outcome === 'covered') return
+    const done = items.filter((i) => i.ep.outcome !== 'covered')
+    if (!h.reflect.enabled || !this.opts.model || !done.length) return
     const model = new Meter(this.opts.model)
-    const coarse = coarseTerms(sig)
-    const similar = state.similarEpisodes(sig.terms, 8, ep.id)
+    const last = done[done.length - 1]
+    const ids = done.map((i) => i.ep.id)
+    const coarse = [...new Set(done.flatMap((i) => coarseTerms(i.sig)))]
+    const terms = [...new Set(done.flatMap((i) => i.sig.terms))]
+    const similar = state.similarEpisodes(last.sig.terms, 8, last.ep.id)
     const r = await model.chat(
       [
         { role: 'system', content: REFLECT_SYSTEM.replace('{N}', String(h.reflect.skillMinRecurrence)) },
-        { role: 'user', content: reflectUser(ep, coarse, state.relevantLessons(sig.terms, 20), state.skills(), similar) },
+        { role: 'user', content: reflectUser(done.length === 1 ? last.ep : done.map((i) => i.ep), coarse, state.relevantLessons(terms, 20), state.skills(), similar) },
       ],
       { json: true, temperature: 0.2, purpose: 'reflect', reasoning: h.reflect.reasoning, provider: profileOf(h, 'offline').design.provider },
     )
     const j = parseJson(r.content) as { lessons?: Parameters<SelfState['applyLessons']>[0]; skill?: { name?: unknown; description?: unknown; triggers?: unknown; body?: unknown } | null } | undefined
-    const touched = j?.lessons && typeof j.lessons === 'object' ? state.applyLessons(j.lessons, ep.id, coarse) : []
+    const touched = j?.lessons && typeof j.lessons === 'object' ? state.applyLessons(j.lessons, done.length === 1 ? last.ep.id : ids, coarse) : []
     let skill: string | undefined
     const s = j?.skill
     if (s && typeof s.name === 'string' && typeof s.body === 'string' && s.body.trim()) {
       const name = safeName(s.name)
       if (state.skill(name) || similar.length >= h.reflect.skillMinRecurrence) {
         const triggers = Array.isArray(s.triggers) ? s.triggers.map(String) : coarse
-        state.writeSkill({ name, description: String(s.description ?? name), triggers, body: s.body }, ep.id)
+        state.writeSkill({ name, description: String(s.description ?? name), triggers, body: s.body }, last.ep.id)
         skill = name
       }
     }
-    state.note('reflect', { episode: ep.id, lessons: touched, skill, usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
+    state.note('reflect', { episode: done.length === 1 ? last.ep.id : ids, lessons: touched, skill, usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
   }
 }
 
@@ -474,4 +645,19 @@ function unreadable(answer: string): string {
     const near = at >= 0 ? ` near …${text.slice(Math.max(0, at - 60), at)}⟨here⟩${text.slice(at, at + 20)}…` : ''
     return `the answer's JSON does not parse (${msg.replace(/ in JSON at position \d+.*$/, '')})${near} — count the brackets of the tree`
   }
+}
+
+/** Finding and creating take longer than a design (a long catalogue, a picture): their calls may. */
+const SLOW_MS = 60_000
+
+/** The router's two answers besides a patch: things needed beyond the request, or things to create. */
+function routeOf(j: unknown): { need?: Need[]; create?: Creation[] } | undefined {
+  if (!j || typeof j !== 'object' || 'patch' in j) return undefined
+  const o = j as { need?: unknown; create?: unknown }
+  const need = Array.isArray(o.need) ? o.need.filter((n): n is Need => !!n && typeof (n as Need).name === 'string' && !!(n as Need).name.trim()) : []
+  if (need.length) return { need }
+  const create = Array.isArray(o.create)
+    ? o.create.filter((c): c is Creation => !!c && typeof (c as Creation).id === 'string' && typeof (c as Creation).name?.en === 'string' && typeof (c as Creation).name?.zh === 'string')
+    : []
+  return create.length ? { create } : undefined
 }
