@@ -71,7 +71,7 @@ export async function solve(inst: SweInstance, o: SweOptions): Promise<SwePredic
   try {
     const statement = [inst.problem_statement.trim(), ...(o.hints && inst.hints_text ? ['', '## Hints', inst.hints_text.trim()] : [])].join('\n')
     const r = await runAgent(
-      { id: inst.instance_id, kind: 'swe', statement, env, tests: inst.test_cmd ? { command: inst.test_cmd } : undefined, request: { instance_id: inst.instance_id, repo: inst.repo } },
+      { id: inst.instance_id, kind: 'swe', statement, env, localRun: !env.isolated, tests: inst.test_cmd ? { command: inst.test_cmd } : undefined, request: { instance_id: inst.instance_id, repo: inst.repo } },
       { model: o.model, state: o.state.fork(), harness: o.harness, record: false, log: o.log },
     )
     const patch = r.diff ?? (await gitDiff(env))

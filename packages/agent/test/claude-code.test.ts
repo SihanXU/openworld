@@ -1,8 +1,9 @@
+import { execFileSync } from 'node:child_process'
 import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ClaudeCodeModel, modelFromEnv } from '../src/index.ts'
+import { ClaudeCodeModel, commandFor, modelFromEnv } from '../src/index.ts'
 
 /**
  * A stand-in for `claude -p`: it answers by what its system prompt and stdin say, as print mode's
@@ -86,10 +87,27 @@ describe('the Claude Code backend (claude -p)', () => {
   it('a session that exits before reading its input is an error, not a crash (EPIPE)', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'fake-claude-'))
     const bin = join(dir, 'claude')
-    writeFileSync(bin, '#!/bin/sh\nexit 3\n')
+    // exits at once, reading none of its (large) input; a node script, so it runs on Windows too
+    writeFileSync(bin, '#!/usr/bin/env node\nprocess.exit(3)\n')
     chmodSync(bin, 0o755)
     const m = new ClaudeCodeModel({ model: 'claude-opus-5-5', bin })
     await expect(m.chat([{ role: 'user', content: 'x'.repeat(4_000_000) }])).rejects.toThrow(/exit 3/)
+  })
+
+  // `npm i -g` installs claude as claude.cmd on Windows, which a process cannot be started from directly
+  it.runIf(process.platform === 'win32')('finds a .cmd on PATH by its name and passes its arguments whole (Windows)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'fake-cmd-'))
+    writeFileSync(join(dir, 'lswprobe.cmd'), '@echo off\r\necho [%1] [%2]\r\n')
+    const saved = process.env.PATH
+    process.env.PATH = `${dir};${saved}`
+    try {
+      const c = commandFor('lswprobe', ['--model', 'C:\\tmp dir\\sys.txt'])
+      expect(c.shell).toBe(true)
+      const out = execFileSync(c.file, c.args, { shell: true, encoding: 'utf8' })
+      expect(out.trim()).toBe('["--model"] ["C:\\tmp dir\\sys.txt"]')
+    } finally {
+      process.env.PATH = saved
+    }
   })
 
   it('is chosen by LSW_MODEL_BACKEND, Opus 5.5 at low effort by default', () => {

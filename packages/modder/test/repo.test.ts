@@ -2,13 +2,16 @@ import { execSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildModSpec, buildSandbox, type ModRequest, type Rule, type Scenario } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
-import { Modder, ScriptedModel, SelfState, WorldLibrary, collectPatch, materializeWorld, type ChatMessage } from '../src/index.ts'
+import { Modder, ScriptedModel, SelfState, WorldLibrary, collectPatch, dockerAvailable, materializeWorld, type ChatMessage } from '../src/index.ts'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
+const REPO = fileURLToPath(new URL('../../..', import.meta.url))
+const DOCKER = await dockerAvailable()
 
 /** The player puts a rope on a creature: the creature is offered it, and nothing says how it takes that. */
 function request(host = 'actor/creature/slime/green_slime'): ModRequest {
@@ -84,9 +87,9 @@ function setup(model?: ScriptedModel) {
 }
 
 describe('a world task as a repository', () => {
-  it('lays the world out as files, and turns what the agent added into a patch', () => {
+  it('lays the world out as files, and turns what the agent added into a patch', async () => {
     const lib = new RuleLibrary(BASE)
-    const repo = materializeWorld({ request: request(), library: lib, ontology: onto, spec: buildModSpec(onto, lib) })
+    const repo = await materializeWorld({ request: request(), library: lib, ontology: onto, spec: buildModSpec(onto, lib), isolation: 'none' })
     try {
       expect(readFileSync(join(repo.dir, 'ISSUE.md'), 'utf8')).toContain('# Undefined outcome: green slime is sent offered (the thing: Rope)')
       const issue = readFileSync(join(repo.dir, 'ISSUE.md'), 'utf8')
@@ -103,14 +106,18 @@ describe('a world task as a repository', () => {
       expect(c.patch?.artifacts).toHaveLength(1)
       expect(c.problems.join()).toMatch(/rules\/core\/offered.json is part of the world/)
     } finally {
-      repo.dispose()
+      await repo.dispose()
     }
   })
 
-  it('runs the validator as the repository\'s tests', { timeout: 120_000 }, () => {
+  it('runs the validator as the repository\'s tests', { timeout: 120_000 }, async () => {
     const lib = new RuleLibrary(BASE)
-    const repo = materializeWorld({ request: request(), library: lib, ontology: onto, spec: buildModSpec(onto, lib) })
+    const repo = await materializeWorld({ request: request(), library: lib, ontology: onto, spec: buildModSpec(onto, lib), isolation: 'none' })
     try {
+      // the task's own tests run the validator from the engine's code, not the workspace's file
+      expect(repo.task.tests!.command).not.toMatch(/validate\.mjs/)
+      const own = await repo.task.env.exec(repo.task.tests!.command, { timeoutMs: 120_000 })
+      expect(own.stdout).toMatch(/FAILED: 0 artifact\(s\)/)
       const fail = (() => {
         try {
           execSync('node validate.mjs', { cwd: repo.dir, encoding: 'utf8', stdio: 'pipe' })
@@ -125,8 +132,53 @@ describe('a world task as a repository', () => {
       expect(ok).toMatch(/PASSED: 1 artifact/)
       expect(ok).toMatch(/resolved by patch\/rope-binds-creature/)
     } finally {
-      repo.dispose()
+      await repo.dispose()
     }
+  })
+
+  // where a Docker daemon answers (the Linux host): the boundary itself, not a description of it
+  it.runIf(DOCKER)('in a container: the engine is read-only, the secrets and the network are out of reach, the validator runs', { timeout: 300_000 }, async () => {
+    const lib = new RuleLibrary(BASE)
+    const repo = await materializeWorld({ request: request(), library: lib, ontology: onto, spec: buildModSpec(onto, lib), isolation: 'docker' })
+    try {
+      const env = repo.task.env
+      expect(env.isolated).toBe(true)
+      const write = await env.exec('echo x > /repo/packages/escaped.txt && echo WROTE || echo REFUSED')
+      expect(write.stdout).toContain('REFUSED')
+      expect(existsSync(join(REPO, 'packages', 'escaped.txt'))).toBe(false)
+      expect((await env.exec('test -e /repo/.env && echo SEEN || echo HIDDEN; test -e /repo/var && echo SEEN || echo HIDDEN')).stdout.trim().split('\n')).toEqual(['HIDDEN', 'HIDDEN'])
+      const net = await env.exec(`node -e "require('https').get('https://openrouter.ai', () => console.log('NET')).on('error', () => console.log('NONET'))"`, { timeoutMs: 30_000 })
+      expect(net.stdout).toContain('NONET')
+      // the workspace is the agent's: what it writes there is the host user's
+      expect((await env.exec('echo ok > rules/patch/probe.txt && cat rules/patch/probe.txt')).stdout.trim()).toBe('ok')
+      expect(readFileSync(join(repo.dir, 'rules/patch/probe.txt'), 'utf8').trim()).toBe('ok')
+      const fail = await env.exec(repo.task.tests!.command, { timeoutMs: 180_000 })
+      expect(fail.stdout).toMatch(/FAILED/)
+      writeFileSync(join(repo.dir, 'rules/patch/rope-binds-creature.json'), JSON.stringify(RULE))
+      const ok = await env.exec(repo.task.tests!.command, { timeoutMs: 180_000 })
+      expect(ok.stdout).toMatch(/PASSED: 1 artifact/)
+    } finally {
+      await repo.dispose()
+    }
+  })
+
+  // 2026-10-03: an offline revision ran `cd <the repository> && cat > dbg.ts …` on the host
+  it('an agent that tries to write into the real repository cannot', { timeout: 300_000 }, async () => {
+    const marker = `escaped-${Date.now()}.txt`
+    const attempt = `cd ${JSON.stringify(REPO)} && echo x > ${marker}; echo done`
+    let ran = false
+    const model = new ScriptedModel((messages: ChatMessage[]) => {
+      const done = messages.filter((m) => m.role === 'tool').map((m) => (m as { name: string }).name)
+      if (!done.includes('run') && !ran) {
+        ran = true
+        return { content: '', toolCalls: [{ id: 'r', name: 'run', args: { command: attempt } }] }
+      }
+      return { content: '', toolCalls: [{ id: 's', name: 'submit', args: { summary: 'tried' } }] }
+    })
+    const { modder } = setup(model)
+    await modder.resolve({ request: request() }, 'offline')
+    // with a container the command ran there and could not reach the repository; without one there was no shell
+    expect(existsSync(join(REPO, marker))).toBe(false)
   })
 
   it('the offline modder works the request as a repository and commits what it wrote', { timeout: 180_000 }, async () => {

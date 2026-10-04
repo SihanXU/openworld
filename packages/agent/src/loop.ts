@@ -28,6 +28,14 @@ export interface AgentTask {
   request?: unknown
   /** notes about this family of tasks, shown after the statement */
   notes?: string
+  /**
+   * A person started this task by hand and lets the agent run commands on this machine though
+   * the env is not isolated. Unattended work (curriculum, escalations, revisions, the outer loop)
+   * never sets it: there, the agent's own commands and hooks run only in a container.
+   */
+  localRun?: boolean
+  /** Release what the task holds (its workspace, its container); whoever made the task calls it when done. */
+  dispose?: () => Promise<void>
 }
 
 export interface AgentResult {
@@ -87,6 +95,8 @@ function prepare(task: AgentTask, state: SelfState, h: Harness): string[] {
 /** Run the hooks of a stage; each prints text for the agent (start) or a verdict (presubmit). */
 async function hooks(task: AgentTask, h: Harness, stage: HookStage): Promise<{ name: string; ok: boolean; out: string }[]> {
   const out: { name: string; ok: boolean; out: string }[] = []
+  // hooks are code the agent wrote for itself: they run where its commands may run, nowhere else
+  if (!task.env.isolated && !task.localRun) return out
   for (const name of h.agent.hooks[stage] ?? []) {
     if (!existsSync(join(task.env.root, '.agent', 'hooks', stage, `${name}.mjs`))) continue
     const r = await task.env.exec(`node .agent/hooks/${stage}/${name}.mjs`, {
@@ -133,6 +143,7 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
   const started = await hooks(task, h, 'start')
   let submitted = false
   const tools: AgentTool[] = agentTools(task.env, {
+    localRun: task.localRun,
     testCommand: task.tests?.command,
     testTimeoutMs: task.tests?.timeoutMs,
     onTests: (ok, output) => ep.attempts.push({ phase: ep.attempts.length ? 'repair' : 'design', errors: ok ? [] : [clip(output.trim(), 1500)], warnings: [] }),

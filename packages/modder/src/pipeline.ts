@@ -399,7 +399,7 @@ export class Modder {
     const { state, library } = this.opts
     const replaces = eo.revise?.episode.rules ?? []
     const lib = library.workspace(ws, replaces)
-    const repo = materializeWorld({
+    const repo = await materializeWorld({
       request: req,
       library: lib,
       ontology: library.fullOntology(lib),
@@ -428,7 +428,7 @@ export class Modder {
       const last = ep.attempts.at(-1)
       return { patch: ep.outcome === 'accepted' ? (ep.patch ?? null) : null, outcome: ep.outcome, episode: ep.id, diagnostics: ep.outcome === 'failed' ? [...(last?.errors ?? []), ...(ep.error ? [ep.error] : [])] : undefined }
     } finally {
-      repo.dispose()
+      await repo.dispose()
     }
   }
 
@@ -437,7 +437,6 @@ export class Modder {
    * the library as it was before that request was answered.
    */
   taskSource(): TaskSource {
-    const dirs = new Map<AgentTask, () => void>()
     return {
       kinds: ['world-repo'],
       replay: async (ep) => {
@@ -445,15 +444,11 @@ export class Modder {
         if (!req?.scenario) return undefined
         const before = this.opts.library.fork((e) => !('patch' in e && e.request === req.id))
         if (before.covering(req)) return undefined // something else answers it now: no test of the harness
-        const repo = materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), spec: buildModSpec(before.ontology, before.lib), regression: before.regression })
-        const task = { ...repo.task, terms: ep.terms }
-        dirs.set(task, repo.dispose)
-        return task
+        const repo = await materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), spec: buildModSpec(before.ontology, before.lib), regression: before.regression })
+        // the task carries its own release: its workspace and its container go with it, whoever cleans up
+        return { ...repo.task, terms: ep.terms, dispose: repo.dispose }
       },
-      cleanup: async (task) => {
-        dirs.get(task)?.()
-        dirs.delete(task)
-      },
+      cleanup: async (task: AgentTask) => task.dispose?.(),
     }
   }
 

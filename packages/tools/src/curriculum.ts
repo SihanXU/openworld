@@ -182,13 +182,15 @@ async function main(): Promise<void> {
     // stage 2: an engine task now and then (the world's own code, as an SWE task)
     if (withEngine && (i + 1) % 5 === 0) {
       const defs = engineTaskDefs()
-      const t = engineTask(defs[Math.floor((i + 1) / 5 - 1) % defs.length])
-      try {
-        const r = await runAgent(t.task, { model: modder.model, state, log: (l) => console.log(`  ${l}`) })
-        console.log(`  engine ${t.task.id}: ${r.outcome}`)
-      } finally {
-        t.dispose()
-      }
+      const t = await engineTask(defs[Math.floor((i + 1) / 5 - 1) % defs.length])
+      if (!t) console.log('  engine task skipped: no container here, and an unattended agent does not run its code on this machine')
+      else
+        try {
+          const r = await runAgent(t.task, { model: modder.model, state, log: (l) => console.log(`  ${l}`) })
+          console.log(`  engine ${t.task.id}: ${r.outcome}`)
+        } finally {
+          await t.dispose()
+        }
     }
     const done = i + 1
     if (improveEvery && done % improveEvery === 0) {

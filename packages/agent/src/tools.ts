@@ -1,7 +1,7 @@
 // The agent's tools: the ordinary ones of a software engineer in a repository. File tools work
 // on the host under the workspace root (paths cannot leave it); commands go through the Env.
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import type { Env } from './env.ts'
 import { sh } from './env.ts'
@@ -12,6 +12,11 @@ export interface AgentTool extends ToolSpec {
 }
 
 export interface ToolHooks {
+  /**
+   * Allow `run` although commands are not isolated (the env is local): only for a task a person
+   * started by hand on their own machine. Unattended work gets `run` only in a container.
+   */
+  localRun?: boolean
   testCommand?: string
   testTimeoutMs?: number
   /** called by run_tests with each result (the loop records them as attempts) */
@@ -28,6 +33,20 @@ export function inside(root: string, p: string): string {
   const abs = resolve(root, p || '.')
   const rel = relative(resolve(root), abs)
   if (rel.startsWith('..') || rel.includes(`..${sep}`) || resolve(rel) === rel) throw new Error(`path outside the workspace: ${p}`)
+  return abs
+}
+
+/**
+ * A path to write: inside the workspace by its name AND by where it really is — a symlink in the
+ * workspace (node_modules linked to the host's) must not carry a write out of it.
+ */
+export function insideForWrite(root: string, p: string): string {
+  const abs = inside(root, p)
+  let probe = abs
+  while (!existsSync(probe) && dirname(probe) !== probe) probe = dirname(probe)
+  const real = realpathSync(probe)
+  const rel = relative(realpathSync(root), real)
+  if (rel.startsWith('..') || resolve(rel) === rel) throw new Error(`path outside the workspace (through a link): ${p}`)
   return abs
 }
 
@@ -124,7 +143,7 @@ export function agentTools(env: Env, hooks: ToolHooks = {}): AgentTool[] {
       description: 'Create or overwrite a file with the given content.',
       parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] },
       run: (a) => {
-        const p = inside(root, str(a.path))
+        const p = insideForWrite(root, str(a.path))
         mkdirSync(dirname(p), { recursive: true })
         writeFileSync(p, str(a.content))
         return `wrote ${str(a.path)} (${str(a.content).split('\n').length} lines)`
@@ -135,7 +154,7 @@ export function agentTools(env: Env, hooks: ToolHooks = {}): AgentTool[] {
       description: 'Replace an exact string in a file. old_string must occur exactly once (or set replace_all). Read the file first.',
       parameters: { type: 'object', properties: { path: { type: 'string' }, old_string: { type: 'string' }, new_string: { type: 'string' }, replace_all: { type: 'boolean' } }, required: ['path', 'old_string', 'new_string'] },
       run: (a) => {
-        const p = inside(root, str(a.path))
+        const p = insideForWrite(root, str(a.path))
         if (!existsSync(p)) return `(no file ${str(a.path)})`
         const s = readFileSync(p, 'utf8')
         const from = str(a.old_string)
@@ -156,6 +175,8 @@ export function agentTools(env: Env, hooks: ToolHooks = {}): AgentTool[] {
       },
     },
   ]
+  // a shell that is not in a container reaches the whole machine: no `run` there, unless a person asked for it
+  if (!env.isolated && !hooks.localRun) tools.splice(tools.findIndex((t) => t.name === 'run'), 1)
   if (hooks.testCommand)
     tools.push({
       name: 'run_tests',

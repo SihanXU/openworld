@@ -17,11 +17,42 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { LocalEnv, type AgentTask } from '@lsw/agent'
+import { createRequire } from 'node:module'
+import { DockerEnv, LocalEnv, SANDBOX_LIMITS, chooseIsolation, hostUser, sandboxImage, sh, type AgentTask, type Env, type Isolation } from '@lsw/agent'
 import type { EntityInfo, LibraryData, ModRequest, ModSpec, Ontology, Patch, Rule, RuleLibrary, Scenario, StatusDef, TypeDef } from '@lsw/engine'
 
 const VALIDATE_CLI = fileURLToPath(new URL('./validate-cli.ts', import.meta.url))
+const REPO = fileURLToPath(new URL('../../..', import.meta.url))
+const TSX = createRequire(import.meta.url).resolve('tsx/cli')
 const DIRS = ['rules', 'types', 'statuses']
+
+/**
+ * A world task in a container sees its workspace (written to), the engine's code (read-only)
+ * and nothing else — not the repository's `.env`, not `var/`, no network; there the agent may run
+ * any command. Without a container it gets no shell: file tools and the validator only
+ * (`chooseIsolation`, packages/agent/src/env.ts).
+ */
+export const worldIsolation = chooseIsolation
+
+/** The engine's code as a container sees it: read-only, under /repo, without secrets. */
+const IN_REPO = '/repo'
+const asSeen = (p: string, iso: Isolation) => (iso === 'docker' ? `${IN_REPO}/${relative(REPO, p).split(sep).join('/')}` : p)
+
+/** The validator, run from the engine's own code (never from a file the agent can edit). */
+const validateCommand = (iso: Isolation) => `node ${sh(asSeen(TSX, iso))} ${sh(asSeen(VALIDATE_CLI, iso))} .`
+
+async function worldEnv(dir: string, iso: Isolation): Promise<Env> {
+  if (iso === 'none') return new LocalEnv(dir)
+  const ro = (p: string) => ({ host: join(REPO, p), container: `${IN_REPO}/${p}` })
+  return DockerEnv.start({
+    image: await sandboxImage(),
+    root: dir,
+    mount: '/work',
+    mounts: [ro('packages'), ro('node_modules'), ro('package.json'), ro('tsconfig.base.json')],
+    user: hostUser(),
+    limits: SANDBOX_LIMITS,
+  })
+}
 
 export interface WorldRepoState {
   request: ModRequest
@@ -35,7 +66,7 @@ export interface WorldRepo {
   dir: string
   task: AgentTask
   collect(): { patch?: Patch; problems: string[] }
-  dispose(): void
+  dispose(): Promise<void>
 }
 
 const hash = (s: string) => createHash('sha1').update(s).digest('hex')
@@ -126,7 +157,8 @@ function issueOf(req: ModRequest, revise?: { rules: Rule[]; notes: string[] }): 
   ].join('\n')
 }
 
-export function materializeWorld(o: { request: ModRequest; library: RuleLibrary; ontology: Ontology; spec: ModSpec; regression?: { scenario: Scenario; rule: string }[]; revise?: { rules: string[]; notes: string[] } }): WorldRepo {
+export async function materializeWorld(o: { request: ModRequest; library: RuleLibrary; ontology: Ontology; spec: ModSpec; regression?: { scenario: Scenario; rule: string }[]; revise?: { rules: string[]; notes: string[] }; isolation?: Isolation }): Promise<WorldRepo> {
+  const iso = o.isolation ?? (await worldIsolation())
   const dir = mkdtempSync(join(tmpdir(), 'lsw-world-'))
   const lib = o.library
   write(dir, 'ISSUE.md', issueOf(o.request, o.revise ? { rules: o.revise.rules.map((id) => lib.rules.get(id)!).filter(Boolean), notes: o.revise.notes } : undefined))
@@ -150,24 +182,29 @@ export function materializeWorld(o: { request: ModRequest; library: RuleLibrary;
   write(
     dir,
     'validate.mjs',
-    `// the tests of this repository: the engine's validator on the rules under rules/patch/\nimport { spawnSync } from 'node:child_process'\nconst r = spawnSync('npx', ['tsx', ${JSON.stringify(VALIDATE_CLI)}, '.'], { stdio: 'inherit', shell: true })\nprocess.exit(r.status ?? 1)\n`,
+    `// the tests of this repository: the engine's validator on the rules under rules/patch/\nimport { spawnSync } from 'node:child_process'\nconst r = spawnSync(process.execPath, ${JSON.stringify([asSeen(TSX, iso), asSeen(VALIDATE_CLI, iso), '.'])}, { stdio: 'inherit' })\nprocess.exit(r.status ?? 1)\n`,
   )
   const state: WorldRepoState = { request: o.request, library: lib.toJSON(), replaces: o.revise?.rules ?? [], regression: o.regression ?? [] }
   write(dir, '.lsw/state.json', JSON.stringify(state))
   const manifest = Object.fromEntries(DIRS.flatMap((d) => files(dir, d)).map((f) => [f, hash(readFileSync(join(dir, f), 'utf8'))]))
   write(dir, '.lsw/manifest.json', JSON.stringify(manifest))
+  const env = await worldEnv(dir, iso)
   return {
     dir,
     task: {
       id: o.request.id,
       kind: 'world-repo',
       statement: readFileSync(join(dir, 'ISSUE.md'), 'utf8'),
-      env: new LocalEnv(dir),
-      tests: { command: 'node validate.mjs', timeoutMs: 180_000 },
+      env,
+      // the validator itself, never the workspace's validate.mjs: the agent may edit that file
+      tests: { command: validateCommand(iso), timeoutMs: 180_000 },
       request: o.request,
     },
     collect: () => collectPatch(dir),
-    dispose: () => rmSync(dir, { recursive: true, force: true }),
+    dispose: async () => {
+      await env.dispose?.()
+      rmSync(dir, { recursive: true, force: true })
+    },
   }
 }
 
