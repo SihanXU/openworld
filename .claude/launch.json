@@ -11,6 +11,15 @@
       "port": 5173
     },
     {
+      "name": "client-only",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:client"
+      ],
+      "port": 5173
+    },
+    {
       "name": "dev-claude",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
