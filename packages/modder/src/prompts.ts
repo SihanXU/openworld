@@ -1,7 +1,10 @@
-// Every prompt the modder sends. The system prompt is stable per library version (the
-// ModSpec is its bulk), so providers can cache it; everything per-request goes in the user turn.
+// Every prompt the modder sends. The design system prompt is the same for every request, every
+// client and every library version (the ModSpec of the base ontology is its bulk), so providers
+// serve it from their prompt cache; everything per request goes in the user turn, and only what
+// the model can use: the brief replaces the rules the request carries, and the scenario (the
+// harness replays it) is left out.
 
-import type { ModRequest, ModSpec, Patch, Rule } from '@lsw/engine'
+import type { ModRequest, ModSpec, Patch, Rule, StatusDef, TypeDef } from '@lsw/engine'
 import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta } from '@lsw/agent'
 
 type Episode = AgentEpisode<ModRequest, Patch>
@@ -52,9 +55,20 @@ export interface Recall {
   skills: SkillMeta[]
 }
 
-export function designUser(req: ModRequest, recall: Recall, brief?: string): string {
-  const out = [`# Request ${req.id}`, req.summary, '', '```json', JSON.stringify(req), '```']
+/** The request as the model reads it: no scenario (the harness replays it); with a brief, no rules (the brief has them). */
+export function requestView(req: ModRequest, brief: boolean): Omit<ModRequest, 'scenario'> {
+  const { scenario: _s, ...rest } = req
+  return brief ? { ...rest, context: { ...rest.context, rules: [] } } : rest
+}
+
+export function designUser(req: ModRequest, recall: Recall, brief?: string, added?: { types: TypeDef[]; statuses: StatusDef[] }): string {
+  const out = [`# Request ${req.id}`, req.summary, '', '```json', JSON.stringify(requestView(req, !!brief)), '```']
   if (brief) out.push('', brief)
+  if (added && (added.types.length || added.statuses.length)) {
+    out.push('', '# Types and statuses added by patches (beyond the ModSpec; use them like any other)')
+    for (const t of added.types) out.push(`- type ${JSON.stringify({ id: t.id, kind: t.kind, tags: t.tags ?? [], name: t.name })}`)
+    for (const s of added.statuses) out.push(`- status ${JSON.stringify({ id: s.id, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears })}`)
+  }
   out.push('', '# Your skills (read one with read_skill)')
   out.push(...(recall.skills.length ? recall.skills.map((s) => `- ${s.name}: ${s.description} (used ${s.uses}×, ${s.accepted} accepted)`) : ['(none yet)']))
   out.push('', '# Lessons from your past episodes')
@@ -157,12 +171,29 @@ Lessons:
 Skills:
 - A skill is a procedure you will follow again: when to use it, the steps, the checks, a template. Set "skill" to {"name": "kebab-case", "description": "when to use it, one line", "triggers": ["signature terms"], "body": "markdown"} only when this kind of work has recurred at least {N} times (see the similar episodes) and no skill of yours covers it, or to improve a skill you used (same name). Otherwise null.`
 
-export function reflectUser(ep: Episode, coarse: string[], lessons: Lesson[], skills: SkillMeta[], similar: EpisodeEntry[]): string {
+/** One episode, or several that each went cleanly (reflected on together, to save calls). */
+export function reflectUser(eps: Episode | Episode[], coarse: string[], lessons: Lesson[], skills: SkillMeta[], similar: EpisodeEntry[]): string {
+  const list = Array.isArray(eps) ? eps : [eps]
+  return [
+    ...(list.length > 1 ? [`# ${list.length} episodes, each accepted at its first answer (reflect on them together)`, `signature terms: ${coarse.join(', ')}`, ''] : []),
+    ...list.flatMap((ep) => [...episodeSection(ep, list.length > 1 ? undefined : coarse), '']),
+    '## Your lessons on file (relevant ones)',
+    ...(lessons.length ? lessons.map((l) => `- [${l.id}] ${l.text} (from ${l.episodes.length} episode(s))`) : ['(none)']),
+    '',
+    '## Your skills',
+    ...(skills.length ? skills.map((s) => `- ${s.name}: ${s.description} (used ${s.uses}×, ${s.accepted} accepted)`) : ['(none)']),
+    '',
+    `## Similar past episodes (${similar.length})`,
+    ...(similar.length ? similar.map((e) => `- ${e.summary} → ${e.outcome}`) : ['(none)']),
+  ].join('\n')
+}
+
+function episodeSection(ep: Episode, coarse?: string[]): string[] {
   const rules = (ep.patch?.artifacts ?? []).filter((a) => a.kind === 'rule').map((a) => (a.kind === 'rule' ? compactRule(a.rule) : ''))
   return [
     `# Episode ${ep.id}: ${ep.summary}`,
     `outcome: ${ep.outcome} after ${ep.attempts.length} attempt(s), ${ep.usage.calls} model call(s)`,
-    `signature terms: ${coarse.join(', ')}`,
+    ...(coarse ? [`signature terms: ${coarse.join(', ')}`] : []),
     '',
     '## Attempts',
     ...ep.attempts.map((a, i) => `${i + 1}. ${a.phase}: ${a.errors.length ? a.errors.map((e) => `error: ${e}`).join(' | ') : 'valid'}${a.review ? ` · review ${a.review.verdict}${a.review.notes.length ? `: ${a.review.notes.join(' / ')}` : ''}` : ''}`),
@@ -174,14 +205,5 @@ export function reflectUser(ep: Episode, coarse: string[], lessons: Lesson[], sk
     '## Tools you used',
     ep.tools.map((t) => t.name).join(', ') || '(none)',
     `skills read: ${ep.skillsRead.join(', ') || '(none)'}`,
-    '',
-    '## Your lessons on file (relevant ones)',
-    ...(lessons.length ? lessons.map((l) => `- [${l.id}] ${l.text} (from ${l.episodes.length} episode(s))`) : ['(none)']),
-    '',
-    '## Your skills',
-    ...(skills.length ? skills.map((s) => `- ${s.name}: ${s.description} (used ${s.uses}×, ${s.accepted} accepted)`) : ['(none)']),
-    '',
-    `## Similar past episodes (${similar.length})`,
-    ...(similar.length ? similar.map((e) => `- ${e.summary} → ${e.outcome}`) : ['(none)']),
-  ].join('\n')
+  ]
 }

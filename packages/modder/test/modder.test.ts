@@ -593,16 +593,42 @@ describe('the tail guard', () => {
   })
 })
 
+describe('the design prompt', () => {
+  it('keeps the system prompt byte for byte the same across clients and library versions (the cached prefix), and the user turn to what the model uses', async () => {
+    const seen: { system: string; user: string }[] = []
+    const model = new ScriptedModel((messages, opts) => {
+      if (opts.purpose === 'design') seen.push({ system: messages[0].content, user: messages[1].content })
+      return opts.purpose === 'review' ? { verdict: 'ship' } : opts.purpose === 'reflect' ? {} : { patch: patchOf(noTestsRule(bindRule())) }
+    })
+    const { modder, library } = setup(model, undefined, 'live')
+    await modder.resolve({ request: request() })
+    const first = seen[0]
+    // later: the shared library has a patch, and this client a status of its own
+    expect(library.lib.version).toBeGreaterThan(0)
+    const n = seen.length
+    await modder.resolve({ request: useRequest(), workspace: { patches: { rules: [], statuses: [{ id: 'glowing', duration: 30 }] } } })
+    const later = seen[n]
+    expect(later.system).toBe(first.system)
+    expect(first.system).not.toMatch(/lib@/)
+    // the scenario is the harness's to replay, and the brief carries the rules: neither is in the model's request
+    expect(first.user).not.toMatch(/"scenario"/)
+    expect(first.user).toMatch(/"rules":\[\]/)
+    expect(later.user).toMatch(/# Types and statuses added by patches[\s\S]*"id":"glowing"/)
+  })
+})
+
+const noTestsRule = (r: Rule): Rule => ({ ...r, tests: undefined })
+
 describe('the live profile', () => {
   /** Live design calls carry no tools; offline ones do. */
-  function liveModel(o: { live: (n: number) => unknown; offline?: (n: number, m: ChatMessage[]) => unknown; review?: (n: number, m: ChatMessage[]) => unknown }) {
-    const n = { live: 0, offline: 0, review: 0 }
+  function liveModel(o: { live: (n: number) => unknown; offline?: (n: number, m: ChatMessage[]) => unknown; review?: (n: number, m: ChatMessage[]) => unknown; reflect?: (n: number, m: ChatMessage[]) => unknown }) {
+    const n = { live: 0, offline: 0, review: 0, reflect: 0 }
     const model = new ScriptedModel((messages, opts) => {
       if (opts.purpose === 'review') {
         const i = n.review++
         return (o.review?.(i, messages) ?? { verdict: 'ship' }) as object
       }
-      if (opts.purpose === 'reflect') return {}
+      if (opts.purpose === 'reflect') return (o.reflect?.(n.reflect++, messages) ?? {}) as object
       if (opts.tools?.length || messages.some((m) => m.role === 'tool')) {
         n.offline++
         const last = messages[messages.length - 1]
@@ -630,8 +656,47 @@ describe('the live profile', () => {
     expect(tests[0].given.entities.find((e) => e.key === 'host')!.type).not.toMatch(/^actor\/creature\/slime/)
     expect(tests[0].expect).toContainEqual({ key: 'host', hasStatus: 'frozen' })
     await modder.settled()
+    // nothing flagged in it (it changes the world, and generalized): no review after the fact
+    expect(n.review).toBe(0)
+  })
+
+  it('reviews every live rule after the fact when the harness says review.unflagged', async () => {
+    const { model, n } = liveModel({ live: () => ({ patch: patchOf(noTests(bindRule())) }) })
+    const { modder, state } = setup(model, undefined, 'live')
+    state.setHarness({ ...state.harness(), review: { ...state.harness().review, unflagged: true } }, 'test: review everything')
+    await modder.resolve({ request: request() })
+    await modder.settled()
     expect(n.review).toBe(1) // reviewed after the player had the patch
     expect(readFileSync(join(state.dir, 'journal.jsonl'), 'utf8')).toMatch(/"kind":"review"/)
+  })
+
+  it('reflects on live episodes that went cleanly a batch at a time, citing each', async () => {
+    const classes = [
+      ['slime', 'green_slime', 'frost_slime'],
+      ['beast', 'wolf', 'boar'],
+      ['undead', 'zombie', 'skeleton'],
+      ['golem', 'stone_golem', 'ice_golem'],
+    ]
+    let batch = ''
+    const { model, n } = liveModel({
+      live: (i) => {
+        const [cls, , sibling] = classes[i]
+        return { patch: patchOf(noTests(bindRule(`patch/rope-binds-${cls}`, `actor/creature/${cls}`, `actor/creature/${cls}/${sibling}`))) }
+      },
+      reflect: (_i, m) => ((batch = m[1].content), { lessons: { add: [{ text: 'Bind by the fiber tag.', terms: [] }] } }),
+    })
+    const { modder, state } = setup(model, undefined, 'live')
+    expect(state.harness().reflect.batch).toBe(4)
+    const ids: string[] = []
+    for (const [i, [cls, host]] of classes.entries()) {
+      const reply = await modder.resolve({ request: request(`actor/creature/${cls}/${host}`) })
+      expect(reply.outcome).toBe('accepted')
+      ids.push(reply.episode!)
+      await modder.settled()
+      expect(n.reflect).toBe(i < 3 ? 0 : 1)
+    }
+    expect(batch).toContain('# 4 episodes, each accepted at its first answer')
+    expect(state.lessons().find((l) => l.text === 'Bind by the fiber tag.')!.episodes).toEqual(ids)
   })
 
   it('works a failed live request again offline, in the background', async () => {
@@ -657,6 +722,7 @@ describe('the live profile', () => {
       },
     })
     const { modder, state, library } = setup(model, undefined, 'live')
+    state.setHarness({ ...state.harness(), review: { ...state.harness().review, unflagged: true } }, 'test: review everything')
     const first = await modder.resolve({ request: request() })
     expect(library.lib.rules.has('patch/rope-binds-slime')).toBe(true)
     await modder.settled()

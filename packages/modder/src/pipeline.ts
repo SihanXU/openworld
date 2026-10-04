@@ -54,6 +54,8 @@ export class Modder {
   private inflight = new Map<string, Promise<ResolveReply>>()
   /** Work after the reply: reflections, late reviews, escalations, revisions (in order). */
   private backlog: Promise<void> = Promise.resolve()
+  /** Live episodes that went cleanly, waiting to be reflected on together (harness reflect.batch). */
+  private clean: { ep: Episode; sig: Signature }[] = []
 
   constructor(readonly opts: ModderOptions) {}
 
@@ -164,9 +166,12 @@ export class Modder {
     const validate = (p: Patch) => library.validate(p, req, ws, replaces)
     const ctx: ToolContext = { library: lib, ontology: library.fullOntology(lib), request: req, state, validate, skillsRead: ep.skillsRead }
     const tools = h.design.toolRounds > 0 ? buildTools(ctx, h.tools) : []
+    // the system prompt is the same for every request and every client (the base ontology), so
+    // it is served from the provider's prompt cache; what patches added goes in the user turn
+    const added = { types: lib.types.filter((t) => !(t.id in library.ontology.types)), statuses: lib.statuses.filter((s) => !(s.id in library.ontology.statuses)) }
     const messages: ChatMessage[] = [
-      { role: 'system', content: designSystem(buildModSpec(library.ontology, lib), h) },
-      { role: 'user', content: designUser(req, recall, h.design.brief ? briefOf(req, lib, ctx.ontology) : undefined) + (eo.revise ? `\n\n${revisionUser(eo.revise.episode.patch!, eo.revise.notes)}` : '') },
+      { role: 'system', content: designSystem(buildModSpec(library.ontology), h) },
+      { role: 'user', content: designUser(req, recall, h.design.brief ? briefOf(req, lib, ctx.ontology) : undefined, added) + (eo.revise ? `\n\n${revisionUser(eo.revise.episode.patch!, eo.revise.notes)}` : '') },
     ]
 
     let repairs = 0
@@ -333,8 +338,9 @@ export class Modder {
   private afterwards(ep: Episode, req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, h: Harness, ctx: ToolContext, eo: EpisodeOptions): void {
     const shipped = ep.attempts.at(-1)
     const flags = ep.patch ? flagsOf(ep.patch, shipped?.derived) : []
-    // a review after the fact: always for a live rule that narrates only or did not generalize
-    if (ep.outcome === 'accepted' && !eo.revise && h.review.enabled && (h.review.blocking === false || flags.length) && !shipped?.review)
+    // a review after the fact: for a rule that narrates only or did not generalize (and for every
+    // live rule when the harness says review.unflagged)
+    if (ep.outcome === 'accepted' && !eo.revise && h.review.enabled && (flags.length || (h.review.blocking === false && h.review.unflagged)) && !shipped?.review)
       this.later(`review ${ep.id}`, async () => {
         const model = new Meter(this.opts.model!)
         const v = await this.review(model, req, ep.patch!, ctx, h, flags)
@@ -347,7 +353,14 @@ export class Modder {
         if (this.opts.library.covering(req)) return
         await this.track(`${sig.key}#offline`, this.episode(req, ws, sig, { profile: 'offline', escalatedFrom: ep.id }))
       })
-    this.later(`reflect ${ep.id}`, () => this.reflect(ep, sig))
+    // what went wrong is reflected on at once; live episodes that went cleanly, a batch at a time
+    const clean = eo.profile === 'live' && !eo.revise && !eo.escalatedFrom && ep.outcome === 'accepted' && ep.attempts.length === 1 && !flags.length
+    if (clean && (h.reflect.batch ?? 1) > 1) {
+      this.clean.push({ ep, sig })
+      if (this.clean.length < h.reflect.batch!) return
+      const due = this.clean.splice(0)
+      this.later(`reflect ${due.map((d) => d.ep.id).join(', ')}`, () => this.reflect(due))
+    } else this.later(`reflect ${ep.id}`, () => this.reflect([{ ep, sig }]))
   }
 
   /** Append to the shared library; on failure the diagnostics land on the last attempt. */
@@ -412,33 +425,38 @@ export class Modder {
   }
 
   /** The middle loop: what is worth keeping from this episode. */
-  private async reflect(ep: Episode, sig: Signature): Promise<void> {
+  /** One reflection call: on one episode, or on a batch of clean ones (each cited by what it teaches). */
+  private async reflect(items: { ep: Episode; sig: Signature }[]): Promise<void> {
     const { state } = this.opts
     const h = state.harness()
-    if (!h.reflect.enabled || !this.opts.model || ep.outcome === 'covered') return
+    const done = items.filter((i) => i.ep.outcome !== 'covered')
+    if (!h.reflect.enabled || !this.opts.model || !done.length) return
     const model = new Meter(this.opts.model)
-    const coarse = coarseTerms(sig)
-    const similar = state.similarEpisodes(sig.terms, 8, ep.id)
+    const last = done[done.length - 1]
+    const ids = done.map((i) => i.ep.id)
+    const coarse = [...new Set(done.flatMap((i) => coarseTerms(i.sig)))]
+    const terms = [...new Set(done.flatMap((i) => i.sig.terms))]
+    const similar = state.similarEpisodes(last.sig.terms, 8, last.ep.id)
     const r = await model.chat(
       [
         { role: 'system', content: REFLECT_SYSTEM.replace('{N}', String(h.reflect.skillMinRecurrence)) },
-        { role: 'user', content: reflectUser(ep, coarse, state.relevantLessons(sig.terms, 20), state.skills(), similar) },
+        { role: 'user', content: reflectUser(done.length === 1 ? last.ep : done.map((i) => i.ep), coarse, state.relevantLessons(terms, 20), state.skills(), similar) },
       ],
       { json: true, temperature: 0.2, purpose: 'reflect', reasoning: h.reflect.reasoning, provider: profileOf(h, 'offline').design.provider },
     )
     const j = parseJson(r.content) as { lessons?: Parameters<SelfState['applyLessons']>[0]; skill?: { name?: unknown; description?: unknown; triggers?: unknown; body?: unknown } | null } | undefined
-    const touched = j?.lessons && typeof j.lessons === 'object' ? state.applyLessons(j.lessons, ep.id, coarse) : []
+    const touched = j?.lessons && typeof j.lessons === 'object' ? state.applyLessons(j.lessons, done.length === 1 ? last.ep.id : ids, coarse) : []
     let skill: string | undefined
     const s = j?.skill
     if (s && typeof s.name === 'string' && typeof s.body === 'string' && s.body.trim()) {
       const name = safeName(s.name)
       if (state.skill(name) || similar.length >= h.reflect.skillMinRecurrence) {
         const triggers = Array.isArray(s.triggers) ? s.triggers.map(String) : coarse
-        state.writeSkill({ name, description: String(s.description ?? name), triggers, body: s.body }, ep.id)
+        state.writeSkill({ name, description: String(s.description ?? name), triggers, body: s.body }, last.ep.id)
         skill = name
       }
     }
-    state.note('reflect', { episode: ep.id, lessons: touched, skill, usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
+    state.note('reflect', { episode: done.length === 1 ? last.ep.id : ids, lessons: touched, skill, usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
   }
 }
 

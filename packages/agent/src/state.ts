@@ -179,10 +179,18 @@ export interface Harness {
   agent: AgentConfig
   design: DesignConfig
   repair: { maxRounds: number }
-  /** blocking: the reviewer runs before the patch ships (else after it, and may trigger a revision) */
-  review: { enabled: boolean; maxRounds: number; blocking?: boolean; reasoning?: Reasoning }
+  /**
+   * blocking: the reviewer runs before the patch ships (else after it, and may trigger a revision).
+   * unflagged: a review after the fact also for rules the harness flagged nothing in (else only
+   * for flagged ones: rules that only narrate, or did not generalize).
+   */
+  review: { enabled: boolean; maxRounds: number; blocking?: boolean; unflagged?: boolean; reasoning?: Reasoning }
   recall: { episodes: number; lessons: number }
-  reflect: { enabled: boolean; skillMinRecurrence: number; reasoning?: Reasoning }
+  /**
+   * batch: live episodes that went cleanly (accepted at the first answer, nothing flagged) are
+   * reflected on together, this many to a call; every other episode is reflected on at once.
+   */
+  reflect: { enabled: boolean; skillMinRecurrence: number; batch?: number; reasoning?: Reasoning }
   /** Tools the design stage may call. */
   tools: string[]
   /** Instructions the modder has added to its own system prompt. */
@@ -212,9 +220,9 @@ export const DEFAULT_HARNESS: Harness = {
   agent: NAIVE_AGENT,
   design: { toolRounds: 0, temperature: 0.3, brief: true, reasoning: 'low', tests: 'harness', hedgeMs: 7000, deadlineMs: 15000, retries: 1 },
   repair: { maxRounds: 1 },
-  review: { enabled: true, maxRounds: 1, blocking: false, reasoning: 'low' },
+  review: { enabled: true, maxRounds: 1, blocking: false, unflagged: false, reasoning: 'low' },
   recall: { episodes: 4, lessons: 12 },
-  reflect: { enabled: true, skillMinRecurrence: 3, reasoning: 'low' },
+  reflect: { enabled: true, skillMinRecurrence: 3, batch: 4, reasoning: 'low' },
   tools: ['search_rules', 'get_rule', 'find_types', 'get_type', 'dry_run', 'read_skill', 'get_episode'],
   addenda: [],
   offline: {
@@ -406,15 +414,22 @@ export class SelfState {
   }
 
   /** Apply a reflection: new lessons, revised ones, dropped ones; each change cites the episode. */
-  applyLessons(ops: { add?: { text: string; terms?: string[] }[]; revise?: { id: string; text: string }[]; drop?: string[]; support?: string[] }, episode: string, defaultTerms: string[]): string[] {
+  /** `episode`: the episode the reflection was on, or the episodes of a batch (each is cited). */
+  applyLessons(ops: { add?: { text: string; terms?: string[] }[]; revise?: { id: string; text: string }[]; drop?: string[]; support?: string[] }, episode: string | string[], defaultTerms: string[]): string[] {
     const now = this.now()
     const touched: string[] = []
+    const eps = Array.isArray(episode) ? episode : [episode]
+    const cite = (l: Lesson) => {
+      let added = false
+      for (const e of eps) if (!l.episodes.includes(e)) (l.episodes.push(e), (added = true))
+      return added
+    }
     for (const a of ops.add ?? []) {
       const text = String(a?.text ?? '').trim()
       if (!text || this.lessonList.some((l) => l.status === 'active' && l.text === text)) continue
       const id = `L${this.lessonList.length + 1}`
       const terms = Array.isArray(a.terms) && a.terms.length ? a.terms.map(String) : defaultTerms
-      this.lessonList.push({ id, text, terms, episodes: [episode], status: 'active', created: now, updated: now })
+      this.lessonList.push({ id, text, terms, episodes: [...eps], status: 'active', created: now, updated: now })
       touched.push(id)
       this.note('lesson.add', { id, episode })
     }
@@ -424,13 +439,13 @@ export class SelfState {
       if (!l || !text) continue
       l.text = text
       l.updated = now
-      if (!l.episodes.includes(episode)) l.episodes.push(episode)
+      cite(l)
       touched.push(l.id)
       this.note('lesson.revise', { id: l.id, episode })
     }
     for (const id of ops.support ?? []) {
       const l = this.lessonList.find((x) => x.id === id && x.status === 'active')
-      if (l && !l.episodes.includes(episode)) (l.episodes.push(episode), touched.push(l.id))
+      if (l && cite(l)) touched.push(l.id)
     }
     for (const id of ops.drop ?? []) {
       const l = this.lessonList.find((x) => x.id === id && x.status === 'active')

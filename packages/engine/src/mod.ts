@@ -204,13 +204,18 @@ const IMPULSES: Record<string, string> = {
   notify: 'news for the host: params what (a key) and value — a topic for the story, the player\'s stage, a defeat for the one who struck.',
 }
 
-export function buildModSpec(onto: Ontology, lib: RuleLibrary): ModSpec {
+/**
+ * The ModSpec: the ontology, with the types and statuses `lib` adds (patches) when it is given.
+ * It carries no library version: a model's prompt built from it stays byte for byte the same
+ * while the library grows, so a provider's prompt cache keeps serving it.
+ */
+export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | 'statuses'>): ModSpec {
   const types = { ...onto.types }
-  for (const t of lib.types) types[t.id] = t
+  for (const t of lib?.types ?? []) types[t.id] = t
   const statuses = { ...onto.statuses }
-  for (const s of lib.statuses) statuses[s.id] = s
+  for (const s of lib?.statuses ?? []) statuses[s.id] = s
   return {
-    version: `lsw-modspec/2 lib@${lib.version}`,
+    version: 'lsw-modspec/2',
     summary:
       'Author RULES for a 2D JRPG world whose mechanics are data. Every happening is an event with one outcome. A rule belongs to a HOST type and answers one event kind (or a branch of kinds) with a condition tree whose leaves are effects, `inherit` or undefined. You are called because an event reached an undefined leaf (request.hole): write the host rule that gives it an outcome. Effects write only the host; to affect others, emit impulses (strike, element, coat, restore, push, taken, receive, offered, handle, notify), which their receivers answer.',
     rule: {
