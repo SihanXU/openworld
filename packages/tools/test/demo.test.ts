@@ -1183,6 +1183,46 @@ req('W9', 'a recipe derived from what a thing is made of, made at the village wo
   expect(records(f)).toHaveLength(0)
 })
 
+req('W12', 'a second storey: walls, a floor laid over them (held up by them), stairs, and up one goes; break the wall and the floor comes down, and whoever stood on it falls', [], () => {
+  const f = fresh()
+  // an open stretch of the Ford, five cells across
+  let at: [number, number] | undefined
+  for (let y = 3; y < 27 && !at; y++) for (let x = 3; x < 40 && !at; x++) if ([0, 1, 2, 3, 4].every((d) => W(f).walkable('ford', x + d, y) && !W(f).placedAt('ford', x + d, y).length && W(f).heightAt('ford', x + d, y) === 0)) at = [x, y]
+  const [x, y] = at!
+  const build = (type: string, cx: number) => {
+    const thing = author(f, () => W(f).add({ ...madeOf(W(f).onto.data, W(f).onto, type, 'wood'), id: `w12.${type}.${cx}`, place: { on: 'inside', holder: 'player' } }))
+    const target = W(f).placedAt('ford', cx, y).find((e) => e.type.startsWith('structure')) ?? W(f).cellTop('ford', cx, y)!
+    f.eng.act('put', 'player', { e: target.id }, { instrument: { e: thing.id } })
+    return W(f).get(thing.id)!
+  }
+  stand(f, x + 4, y + 1, 'up')
+  const wall = build('structure/wall', x)
+  expect(wall.place).toMatchObject({ on: 'tile', x, y })
+  expect(wall.place.on === 'tile' && wall.place.z).toBeFalsy()
+  // a floor laid over the wall comes to rest above it; one beside it, held up by it (two cells round)
+  const over = build('structure/floor', x)
+  const beside = build('structure/floor', x + 1)
+  expect(over.place).toMatchObject({ x, y, z: 1 })
+  expect(beside.place).toMatchObject({ x: x + 1, y, z: 1 })
+  expect(W(f).relationsOf(beside).some((k) => k.startsWith('support|'))).toBe(true)
+  const stairs = build('structure/stairs', x + 2)
+  expect(stairs.place).toMatchObject({ x: x + 2, y })
+  // up: onto the stairs, and from them onto the floor above
+  stand(f, x + 3, y, 'left')
+  expect(walk(f, 'left')).toMatchObject({ x: x + 2, y })
+  expect(walk(f, 'left')).toMatchObject({ x: x + 1, y, z: 1 })
+  // the wall broken: the floors come down, and the one standing there with them
+  author(f, () => f.eng.hurt(W(f).get(wall.id)!, 99, undefined, true))
+  ticks(f, 3)
+  expect(W(f).get(wall.id)).toBeUndefined()
+  expect(W(f).get(beside.id)).toBeUndefined()
+  expect(W(f).get(over.id)).toBeUndefined()
+  expect(W(f).posOf(W(f).player)).toMatchObject({ x: x + 1, y })
+  expect(W(f).posOf(W(f).player)!.z).toBeUndefined()
+  // what they were made of comes back (and pops out to the magnet)
+  expect(W(f).placedAt('ford', x + 1, y).filter((e) => e.type === 'item/material/plank').length + f.eng.controls.count('item/material/plank')).toBeGreaterThan(0)
+})
+
 req('W13', 'a burning wooden wall (the summit shelter) loses durability as it burns and leaves a burnt wall', [], () => {
   const f = fresh()
   // a dry hour: rain would put the fire out

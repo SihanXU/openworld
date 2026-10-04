@@ -70,6 +70,8 @@ export const SAFE_FALL = 1
 export const FALL_DAMAGE = 6
 /** Heavy weather slows a long step (world-model.md §5.6): rain, storm, snow. */
 export const RAIN_COST = 1.5
+/** How many storeys may stand above the ground (world-model.md §5.2). */
+export const STOREYS = 4
 
 /**
  * How well each capability and each edge works on each material category (world-model.md §6.1,
@@ -107,8 +109,8 @@ export const TERRAINS: TerrainDef[] = [
   T('pine', '松树', 'pine tree', ['plant', 'tree', 'flammable', 'wooden', 'cold'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/log', count: 4 }, { type: 'item/material/stick', count: 2 }], color: '#23553a' }),
   T('bush', '灌木', 'bush', ['plant', 'flammable'], { space: 'volume', solid: true, props: { material: 'plant', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/stick', count: 2 }], color: '#4f8f3a' }),
   T('rock', '岩石', 'rock', ['rock', 'stone', 'mineable'], { space: 'volume', solid: true, props: { material: 'stone', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/stone', count: 2 }], color: '#7d7a74' }),
-  T('wall', '石墙', 'stone wall', ['stone', 'wall'], { space: 'volume', solid: true, props: { material: 'stone', maxHp: 24, hp: 24 }, makeup: [{ type: 'item/material/stone', count: 4 }], color: '#6b6e75' }),
-  T('woodwall', '木墙', 'wooden wall', ['wooden', 'wall', 'flammable'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/plank', count: 2 }], color: '#8a5a33' }),
+  T('wall', '石墙', 'stone wall', ['stone', 'wall'], { space: 'volume', solid: true, props: { material: 'stone', maxHp: 24, hp: 24, supports: 2 }, makeup: [{ type: 'item/material/stone', count: 4 }], color: '#6b6e75' }),
+  T('woodwall', '木墙', 'wooden wall', ['wooden', 'wall', 'flammable'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 12, hp: 12, supports: 2 }, makeup: [{ type: 'item/material/plank', count: 2 }], color: '#8a5a33' }),
   T('burnt_wall', '焦黑的木墙', 'burnt wall', ['wall', 'burnt'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/coal', count: 2 }], color: '#3a2e28' }),
   T('roof', '屋顶', 'roof', ['roof'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 1 }], color: '#a8432f' }),
   T('floor_wood', '木地板', 'wooden floor', ['floor', 'wooden', 'flammable', 'indoor'], { color: '#9c7a4c' }),
@@ -303,6 +305,13 @@ const RESIDENTS: TypeDef[] = [
   { id: 'site', name: { en: 'a place', zh: '地点' }, sprite: 'site', footprint: [3, 3] },
   { id: 'site/wild', name: { en: 'the wild', zh: '荒野' }, sprite: 'site:wild' },
   { id: 'site/place', name: { en: 'a place', zh: '地点' }, sprite: 'site:place' },
+  // what one builds (world-model.md §6.6): a thing one carries and sets down — set in a cell it takes
+  // its space there (a wall the volume, a floor the floor, on the storey where it comes to rest), and
+  // can be picked up again; a floor needs holding up (walls hold what is laid over them, two cells round)
+  { id: 'structure', name: { en: 'structure', zh: '建筑件' }, tags: ['portable', 'structure', 'wooden', 'flammable'], props: { material: 'wood' } },
+  { id: 'structure/wall', name: { en: 'Wooden Wall', zh: '木墙' }, sprite: 'structure:wall', occupies: ['volume'], solid: true, tags: ['wall', 'opaque'], props: { maxHp: 12, hp: 12, supports: 2 }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
+  { id: 'structure/floor', name: { en: 'Wooden Floor', zh: '木地板' }, sprite: 'structure:floor', occupies: ['floor'], reach: ['ground'], props: { maxHp: 8, hp: 8, needsSupport: true }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
+  { id: 'structure/stairs', name: { en: 'Wooden Stairs', zh: '木楼梯' }, sprite: 'structure:stairs', tags: ['stairs'], props: { maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 3 }], station: 'hands' },
 ]
 
 const fixtureTypes: TypeDef[] = [
@@ -419,7 +428,7 @@ export function buildOntology(): Ontology {
     materials: MATERIAL_DEFS,
     qualities: QUALITY_DEFS(),
     efficiency: EFFICIENCY,
-    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST },
+    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS },
     periods: [
       { name: 'hunger', every: HUNGER_EVERY, everyProp: 'hungerEvery', host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
       { name: 'vitals', every: HUNGER_EFFECT_EVERY, host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },

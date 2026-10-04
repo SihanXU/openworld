@@ -23,6 +23,10 @@ import type {
 import { DIRS } from './types.ts'
 
 export const tileKey = (map: string, x: number, y: number) => `${map}:${x}:${y}`
+/** A cell's key in the index: its tile, and its storey above the ground's. */
+export const cellKey = (map: string, x: number, y: number, z = 0) => (z ? `${tileKey(map, x, y)}@${z}` : tileKey(map, x, y))
+/** The storey a place is on (0: the ground's). */
+export const storeyOf = (p: Place): number => (p.on === 'tile' ? (p.z ?? 0) : 0)
 export const NO_EXPIRY = -1
 /** A ref's key in the statusful set and the relation index: the thing's id. */
 export const refKey = (r: Ref): string => r.e
@@ -177,7 +181,7 @@ export class World {
     }
     if (e.place.on !== 'tile') return
     for (const [x, y] of this.occupiedCells(e)) {
-      const k = tileKey(e.place.map, x, y)
+      const k = cellKey(e.place.map, x, y, e.place.z)
       let s = this.onTile.get(k)
       if (!s) this.onTile.set(k, (s = new Set()))
       s.add(e.id)
@@ -192,7 +196,7 @@ export class World {
   private indexRemove(e: Entity): void {
     if (e.place.on === 'area') this.areas.get(e.place.map)?.delete(e.id)
     if (e.place.on !== 'tile') return
-    for (const [x, y] of this.occupiedCells(e)) this.onTile.get(tileKey(e.place.map, x, y))?.delete(e.id)
+    for (const [x, y] of this.occupiedCells(e)) this.onTile.get(cellKey(e.place.map, x, y, e.place.z))?.delete(e.id)
     this.onMap.get(e.place.map)?.delete(e.id)
   }
 
@@ -205,8 +209,8 @@ export class World {
   }
 
   /** Moving a large actor validates its whole body, not just its anchor. */
-  fits(e: Entity, map: string, x: number, y: number): boolean {
-    return this.occupiedCells(e, x, y).every(([cx, cy]) => this.walkable(map, cx, cy, e.id, !!e.npc))
+  fits(e: Entity, map: string, x: number, y: number, z = 0): boolean {
+    return this.occupiedCells(e, x, y).every(([cx, cy]) => this.walkable(map, cx, cy, e.id, !!e.npc, z))
   }
 
   // ---------------------------------------------------------------- basics
@@ -275,10 +279,11 @@ export class World {
     return `${prefix}${this.state.counter.toString(36)}`
   }
 
-  /** Every thing in a cell: the kept ones, then the cell things of the map's static data. */
-  entitiesAt(map: string, x: number, y: number): Entity[] {
+  /** Every thing in a cell (on storey z: 0, the ground's): the kept ones, then the cell things of the map's static data. */
+  entitiesAt(map: string, x: number, y: number, z = 0): Entity[] {
     const out: Entity[] = []
-    for (const id of this.onTile.get(tileKey(map, x, y)) ?? []) out.push(this.state.entities[id])
+    for (const id of this.onTile.get(cellKey(map, x, y, z)) ?? []) out.push(this.state.entities[id])
+    if (z) return out
     for (const space of CELL_SPACES) {
       const e = this.staticThing(map, x, y, space)
       if (e) out.push(e)
@@ -287,8 +292,8 @@ export class World {
   }
 
   /** What stands or lies in a cell: its things but those that make it up (its ground, what roots in or fills it). */
-  placedAt(map: string, x: number, y: number): Entity[] {
-    return this.entitiesAt(map, x, y).filter((e) => !this.isTerrain(e))
+  placedAt(map: string, x: number, y: number, z = 0): Entity[] {
+    return this.entitiesAt(map, x, y, z).filter((e) => !this.isTerrain(e))
   }
 
   /** The spaces a thing takes in its cell (world-model.md §5.2): its type's, else a body for a walking agent, the volume for a solid thing. */
@@ -300,8 +305,8 @@ export class World {
   }
 
   /** What takes a space of a cell, if anything. */
-  occupant(map: string, x: number, y: number, space: Space): Entity | undefined {
-    return this.entitiesAt(map, x, y).find((e) => this.spacesOf(e).includes(space))
+  occupant(map: string, x: number, y: number, space: Space, z = 0): Entity | undefined {
+    return this.entitiesAt(map, x, y, z).find((e) => this.spacesOf(e).includes(space))
   }
 
   /** How high in its cell a thing lies: the floor, the soil, the volume (-1: it makes up no cell). */
@@ -453,13 +458,54 @@ export class World {
   }
 
   /** Things whose base covers a tile (a big thing drawn over the tiles beside its own: a tent, a site), but bodies. */
-  coveringAt(map: string, x: number, y: number): Entity[] {
+  coveringAt(map: string, x: number, y: number, z = 0): Entity[] {
     const out: Entity[] = []
     const [mw, md] = this.onto.maxFootprint
     for (let dy = 0; dy < md; dy++)
       for (let dx = -Math.floor(mw / 2); dx <= Math.floor(mw / 2); dx++)
-        for (const e of this.entitiesAt(map, x + dx, y + dy)) if (!this.isAgent(e) && (dx || dy) && this.covers(e, map, x, y)) out.push(e)
+        for (const e of this.entitiesAt(map, x + dx, y + dy, z)) if (!this.isAgent(e) && (dx || dy) && this.covers(e, map, x, y)) out.push(e)
     return out
+  }
+
+  /**
+   * What holds a thing up (world-model.md §6.7): if it needs support (`needsSupport`), the things
+   * on the storey below within their `supports` reach (a wall holds a floor laid over it, two
+   * cells round); on the ground's storey the ground holds everything.
+   */
+  supportersOf(e: Entity): Entity[] {
+    const p = e.place
+    if (p.on !== 'tile' || !this.prop(e, 'needsSupport')) return []
+    const z = p.z ?? 0
+    if (z === 0) return []
+    const out: Entity[] = []
+    const reach = 4
+    for (let dy = -reach; dy <= reach; dy++)
+      for (let dx = -reach; dx <= reach; dx++)
+        for (const s of this.entitiesAt(p.map, p.x + dx, p.y + dy, z - 1)) {
+          const r = this.num(s, 'supports', -1)
+          if (r >= 0 && Math.max(Math.abs(dx), Math.abs(dy)) <= r) out.push(s)
+        }
+    return out
+  }
+
+  /**
+   * Where a thing set on a cell comes to rest (building is moving it there, world-model.md §6.6):
+   * the lowest storey from `from` where the spaces it takes are free, and it is held — by a floor
+   * there, or, being a floor itself, by what supports it. Undefined: no room.
+   */
+  settleZ(e: Entity, map: string, x: number, y: number, from = 0): number | undefined {
+    const top = this.onto.data.params?.storeys ?? 4
+    const mine = this.spacesOf(e)
+    for (let z = from; z <= top; z++) {
+      const here = this.entitiesAt(map, x, y, z).filter((o) => o.id !== e.id)
+      if (mine.some((s) => here.some((o) => this.spacesOf(o).includes(s)))) continue
+      if (mine.includes('floor')) {
+        if (z === 0 || this.supportersOf({ ...e, place: { on: 'tile', map, x, y, z } }).length) return z
+        continue
+      }
+      if (here.some((o) => this.spacesOf(o).includes('floor'))) return z
+    }
+    return undefined
   }
 
   /** The ground height of a column, in half levels (0 off the map or where the map says none). */
@@ -499,15 +545,15 @@ export class World {
   }
 
   /** A body standing on the tile: an agent that does not fly over it. */
-  actorAt(map: string, x: number, y: number, ignore?: Id): Entity | undefined {
-    return this.entitiesAt(map, x, y).find((e) => e.id !== ignore && this.isAgent(e) && !this.hasTag(e, 'airborne'))
+  actorAt(map: string, x: number, y: number, ignore?: Id, z = 0): Entity | undefined {
+    return this.entitiesAt(map, x, y, z).find((e) => e.id !== ignore && this.isAgent(e) && !this.hasTag(e, 'airborne'))
   }
 
   /** Map position of an entity, following holders (an item in a hand is where the hand is). Residents have none. */
   posOf(e: Entity | undefined, depth = 0): Pos | undefined {
     if (!e || depth > 8) return undefined
     const p = e.place
-    if (p.on === 'tile') return { map: p.map, x: p.x, y: p.y }
+    if (p.on === 'tile') return p.z ? { map: p.map, x: p.x, y: p.y, z: p.z } : { map: p.map, x: p.x, y: p.y }
     if (p.on === 'inside' || p.on === 'hand') return this.posOf(this.get(p.holder), depth + 1)
     return undefined
   }
@@ -568,11 +614,11 @@ export class World {
   }
 
   /** The solid thing whose base covers this tile, if any: one standing on it, or a bigger one in front or beside. */
-  solidAt(map: string, x: number, y: number, ignore?: Id): Entity | undefined {
+  solidAt(map: string, x: number, y: number, ignore?: Id, z = 0): Entity | undefined {
     const [mw, md] = this.onto.maxFootprint
     for (let dy = 0; dy < md; dy++)
       for (let dx = -Math.floor(mw / 2); dx <= Math.floor(mw / 2); dx++)
-        for (const e of this.entitiesAt(map, x + dx, y + dy)) {
+        for (const e of this.entitiesAt(map, x + dx, y + dy, z)) {
           if (e.id === ignore) continue
           const r = this.onto.resolve(e.type)
           if (r.solid && !this.isAgent(e) && this.covers(e, map, x, y)) return e
@@ -581,8 +627,8 @@ export class World {
   }
 
   /** Blocked whoever moves: no floor, or the base of a solid thing (a tree, rock, water, a wall, a cart). */
-  blocked(map: string, x: number, y: number, ignore?: Id): boolean {
-    return !this.occupant(map, x, y, 'floor') || !!this.solidAt(map, x, y, ignore)
+  blocked(map: string, x: number, y: number, ignore?: Id, z = 0): boolean {
+    return !this.occupant(map, x, y, 'floor', z) || !!this.solidAt(map, x, y, ignore, z)
   }
 
   /** Static passability for path planning: terrain and solid things, ignoring actors. */
@@ -594,10 +640,10 @@ export class World {
    * Can an actor step onto this tile? With `ghostNpcs`, townsfolk pass through each other
    * (crowds never deadlock); the player and creatures still block.
    */
-  walkable(map: string, x: number, y: number, ignore?: Id, ghostNpcs = false): boolean {
+  walkable(map: string, x: number, y: number, ignore?: Id, ghostNpcs = false, z = 0): boolean {
     if (!this.inBounds(map, x, y)) return false
-    if (this.blocked(map, x, y, ignore)) return false
-    for (const e of this.entitiesAt(map, x, y)) {
+    if (this.blocked(map, x, y, ignore, z)) return false
+    for (const e of this.entitiesAt(map, x, y, z)) {
       if (e.id === ignore || !this.isAgent(e)) continue
       if (ghostNpcs && e.npc) continue
       // a bird over the path is no wall
@@ -635,12 +681,14 @@ export class World {
     const out: string[] = []
     const mine = this.spacesOf(e)
     if (!mine.includes('floor')) {
-      const floor = this.occupant(p.map, p.x, p.y, 'floor')
+      const floor = this.occupant(p.map, p.x, p.y, 'floor', p.z)
       if (floor && this.reachOf(floor).includes(st)) out.push(`on|${floor.id}#${floor.type}`)
       // what has a reach of its own is ground for others, not something that lies on them
       if (!this.reachOf(e).length)
-        for (const f of this.entitiesAt(p.map, p.x, p.y)) if (f !== floor && f.id !== e.id && this.reachOf(f).includes(st)) out.push(`on|${f.id}`)
+        for (const f of this.entitiesAt(p.map, p.x, p.y, p.z)) if (f !== floor && f.id !== e.id && this.reachOf(f).includes(st)) out.push(`on|${f.id}`)
     }
+    // held up: by what holds it within its reach on the storey below (a floor laid over walls)
+    for (const s of this.supportersOf(e)) out.push(`support|${s.id}`)
     for (const r of this.regionsAt(p.map, p.x, p.y)) out.push(`in-region|${r.id}`)
     return out
   }

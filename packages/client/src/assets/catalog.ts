@@ -427,6 +427,10 @@ export const CATALOG: Catalog = {
     'fixture:sign': { base: t(ELEM, 0, 2) },
     // a place on the overworld: a signpost where it is; the wild shows no mark of its own
     'site:place': { base: t(ELEM, 0, 2) },
+    // what one builds, set in its cell: drawn as the wall, the floor, the stairs of the place
+    'structure:wall': { base: t(HOUSE, 11, 5) },
+    'structure:floor': { base: t(IFLOOR, 12, 1) },
+    'structure:stairs': { base: t(ELEM, 6, 12) },
     'site:wild': { base: t(DETAIL, 3, 2) },
     'fixture:noticeboard': { base: t(ELEM, 1, 2) },
     'fixture:craft': { base: t(HOUSE, 29, 15) },
@@ -569,6 +573,10 @@ export const CATALOG: Catalog = {
     'item:potion_purple': t(HOUSE, 21, 13),
     'item:log': t(CAMP, 8, 8),
     'item:plank': t(HOUSE, 31, 17),
+    // what one builds, carried
+    'structure:wall': t(HOUSE, 11, 5),
+    'structure:floor': t(IFLOOR, 12, 1),
+    'structure:stairs': t(ELEM, 6, 12),
     'item:stick': icon('Items/Resource/Branch.png', 16, 16),
     'item:stone': icon('Items/Resource/Rock.png', 16, 16),
     // cut grass: one of the meadow's tufts

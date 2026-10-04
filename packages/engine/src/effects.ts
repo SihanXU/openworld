@@ -28,6 +28,7 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   addTag: 'addTag {tag}',
   removeTag: 'removeTag {tag}',
   hurt: 'hurt {amount, element?, pierce?, blow?} — the host loses health, or durability (hp; its defence applies unless pierce); at none, threshold/cross "broken". blow: a strike\'s — times how well the instrument (what struck, else the striker\'s own body) works on the host\'s material (the efficiency table), and nothing if the instrument is softer than it ("too hard")',
+  fall: 'fall — with nothing under it on its storey, the host drops to the first floor below, struck by the drop beyond the safe height (the root of contact/end on)',
   breakdown: 'breakdown — the host breaks into what it is made of (its makeup × the world\'s recovery rate, in its material), what it holds spills out, and it is gone (the root outcome of broken for anything with a makeup)',
   heal: 'heal {amount}',
   feed: 'feed {amount} — the host\'s hunger rises by amount, up to its maxHunger',
@@ -288,6 +289,20 @@ export class EffectRunner {
       case 'hurt':
         if (host) eng.hurt(host, this.amount(ev, eff.amount), eff.element, eff.pierce, ev, eff.blow)
         return
+      case 'fall': {
+        // nothing under it on its storey: it drops to the first floor below, struck by the drop
+        if (!host || host.place.on !== 'tile' || !host.place.z || w.occupant(host.place.map, host.place.x, host.place.y, 'floor', host.place.z)) return
+        if (w.stanceOf(host) === 'air') return
+        const { map, x, y } = host.place
+        let z = host.place.z - 1
+        while (z > 0 && !w.occupant(map, x, y, 'floor', z)) z--
+        const levels = host.place.z - z
+        eng.touch({ e: host.id })
+        w.place(host, { on: 'tile', map, x, y, ...(z && { z }) })
+        eng.touch({ e: host.id })
+        eng.fallBy(host, levels, ev)
+        return
+      }
       case 'breakdown': {
         if (!host) return
         if (w.hasTag(host, 'essential')) return
@@ -614,10 +629,15 @@ export class EffectRunner {
     if (!at) return undefined
     const holder = w.get(at.e)
     if (!holder) return undefined
-    // onto a cell (or what makes one up: it holds nothing)
+    // onto a cell (or what makes one up: it holds nothing): it comes to rest on the lowest storey
+    // from there with room for it and something to hold it (building is this, world-model.md §6.6)
     if (into === 'tile' || w.isTerrain(holder)) {
       const p = w.posOf(holder)
-      return p ? { on: 'tile', map: p.map, x: p.x, y: p.y } : undefined
+      if (!p) return undefined
+      const thing = moving ? w.get(moving) : undefined
+      const z = thing ? w.settleZ(thing, p.map, p.x, p.y, p.z ?? 0) : (p.z ?? 0)
+      if (z === undefined) return undefined
+      return { on: 'tile', map: p.map, x: p.x, y: p.y, ...(z && { z }) }
     }
     if (into === 'hand' && (!holder.held || holder.held === moving)) return { on: 'hand', holder: holder.id }
     return { on: 'inside', holder: holder.id }

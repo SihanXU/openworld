@@ -185,6 +185,12 @@ const ROOTS: Rule[] = [
   rule({ id: 'core/time', doc: 'Time passing is no change unless the host says.', on: 'time', tree: NOTHING }),
   rule({ id: 'core/threshold', doc: 'Gaining or losing a status, crossing a line: no change unless the host says.', on: 'threshold', tree: NOTHING }),
   rule({
+    id: 'core/fall',
+    doc: 'What stood on something and stands on nothing now falls to the first floor below (physics: defined, never asked; nothing happens while a floor is there).',
+    on: 'contact/end',
+    tree: IF(param('how', 'on'), DO({ op: 'fall' }), NOTHING),
+  }),
+  rule({
     id: 'core/break',
     doc: 'Something with durability at none (world-model.md §6.3): an essential one goes down (and comes to); one made of something breaks down into it (its makeup × the recovery rate) and spills what it holds; anything else is undefined (meanwhile it is gone).',
     on: 'threshold/cross',
@@ -1277,6 +1283,25 @@ const JOURNEY: Rule[] = [
 // ------------------------------------------------------------------ the overworld (world-model.md §5.1, §5.6)
 
 
+// ------------------------------------------------------------------ building (world-model.md §6.6, §6.7)
+
+const BUILDING: Rule[] = [
+  rule({
+    id: 'build/stack',
+    doc: 'Something put on a built thing goes on top of it: it comes to rest on the lowest storey with room for it there (a floor laid over a wall, a bed set on a floor).',
+    host: { type: 'structure' },
+    on: 'impulse/receive',
+    tree: IF({ none: 'item' }, 'inherit', DO(taken('tile'))),
+  }),
+  rule({
+    id: 'build/collapse',
+    doc: 'A floor that loses what held it up (the wall under it broken) and has nothing else to hold it comes down: it breaks, and what stood on it falls.',
+    host: { props: { needsSupport: true } },
+    on: 'contact/end',
+    tree: IF(all(param('how', 'support'), not({ rel: { role: 'host', how: 'support' } })), DO(vfx('dust', 'tileOf:host'), log('{host} comes down.', '{host}塌了下来。'), { op: 'setProp', key: 'hp', value: 0 }), 'inherit'),
+  }),
+]
+
 const SITES: Rule[] = [
   rule({
     id: 'site/enter',
@@ -1294,4 +1319,4 @@ const SITES: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES]
+export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...BUILDING]

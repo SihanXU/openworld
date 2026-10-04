@@ -463,6 +463,23 @@ comes with W6, with the walls and floors it is for; the B palette's frames stay 
   root rule sets its durability to 0, so it breaks, falls and strikes what is below (D24).
 - Slabs, roofs, hanging lamps and furniture upstairs all behave the same.
 
+As built (W6, before W5: cover needs what stands above): a place on a cell has a storey `z` (0 the
+ground's; `params.storeys` 4 above it); spaces, exclusivity, walking, sight of bodies and relations
+are per storey. Built things are `structure/*`, carried (portable) and crafted at hand from
+planks: a wall (fills the volume, `supports` 2), a floor (`needsSupport`), stairs. Building is
+putting one on a cell: it comes to rest on the lowest storey from the one aimed at where its spaces
+are free and it is held (`World.settleZ`) — a wall on the ground, a floor laid over a wall above it
+(something put on a built thing goes on top of it, `build/stack`); picked up again like anything
+carried. A floor relates `support` to what holds it (walls on the storey below within their
+reach; the map's walls hold too). Walking: on a floor one walks; from stairs onto the floor above
+them; onto stairs from above them; off a floor's edge one falls to the first floor below. The
+root of `contact/end on` is the new primitive `fall`; a floor whose last support goes
+(`build/collapse`, the new condition `rel`) breaks, and what stood on it falls. The relation
+difference reaches every storey of a touched cell and whoever relied on a thing gone. The client
+draws a storey raised, things set in a cell as part of the place, and fades what stands above the
+player near them. Not yet: the overworld's and paths' z, roofs drawn as roofs, and the B palette
+for walls and floors (they are crafted and set down by hand).
+
 ### 6.8 Combat
 
 - One durability and damage model for all things; material and quality enter attack and

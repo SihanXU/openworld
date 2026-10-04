@@ -91,6 +91,10 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
     for (const e of Object.values(world.state.entities)) if (e.place.on !== 'none' && matchSelector(c.exists, world.view({ e: e.id }))) return true
     return false
   }
+  if ('rel' in c) {
+    const e = roles[c.rel.role]?.entity
+    return !!e && world.relationsOf(e).some((k) => k.startsWith(`${c.rel.how}|`))
+  }
   if ('makeup' in c) {
     const v = roles[c.makeup]
     return !!v && !!world.onto.resolve(v.type).makeup?.length

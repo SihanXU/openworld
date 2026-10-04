@@ -118,6 +118,8 @@ export interface WorldParams {
   fallDamage: number
   /** How much longer a long step takes in rain, a storm or snow (a map with a `scale`). */
   rainCost?: number
+  /** How many storeys may stand above the ground (world-model.md §5.2). */
+  storeys?: number
 }
 
 /** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */
@@ -218,11 +220,13 @@ export interface Pos {
   map: string
   x: number
   y: number
+  /** The storey (world-model.md §5.2): 0 the ground's, 1 the floor above it … (omitted: 0). */
+  z?: number
 }
 
 /** Where an entity is: on a tile, inside a container/inventory, or nowhere (destroyed). */
 export type Place =
-  | { on: 'tile'; map: string; x: number; y: number }
+  | { on: 'tile'; map: string; x: number; y: number; z?: number } // z: the storey (omitted: the ground's)
   | { on: 'inside'; holder: Id } // in a container's contents or an actor's inventory
   | { on: 'hand'; holder: Id } // the actor's single held-item slot
   | { on: 'resident' } // a host on no map: the world, the story (design.md §5.5)
@@ -839,6 +843,8 @@ export type Cond =
   | { outdoors: true }
   /** A role's type says what it is made of (it has a makeup). */
   | { makeup: RoleName }
+  /** A role has a relation now (world-model.md §7): `on`, `support`, `in-region` … */
+  | { rel: { role: RoleName; how: string } }
 
 /** A role, or the cell under it (`tileOf:`: the thing that makes up that cell on top — what fills it, roots in it, or the floor). */
 export type RoleRef = RoleName | 'tileOf:host' | 'tileOf:actor' | 'tileOf:target' | 'tileOf:instrument' | 'tileOf:other' | 'tileOf:item' | 'tileOf:source'
@@ -875,6 +881,8 @@ export type Effect =
   | { op: 'hurt'; amount: Amount; element?: string; pierce?: boolean; blow?: boolean }
   /** The host breaks into what it is made of (its makeup × the recovery rate, in its material), spills what it holds, and is gone. */
   | { op: 'breakdown' }
+  /** With nothing under it on its storey, the host drops to the first floor below (and is struck by the drop). */
+  | { op: 'fall' }
   | { op: 'heal'; amount: Amount }
   | { op: 'feed'; amount: Amount }
   | { op: 'gainXp'; amount: Amount }

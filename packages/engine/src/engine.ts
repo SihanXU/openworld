@@ -627,14 +627,16 @@ export class Engine {
       hosts.add(r.e)
       const e = w.get(r.e)
       addTile(w.posOf(e))
-      // where it was: the cells of what it lay on, and whoever lay on it (a thing with a reach changed, moved or gone)
+      // where it was: the cells of what it lay on, and whoever relied on it (lay on it, or was held up by it:
+      // a thing with a reach, or one that supports, changed, moved or gone)
       for (const k of rel[r.e] ?? []) if (k.startsWith('on|')) addTile(w.posOf(w.get(w.keyRef(k.slice(3)).e)))
-      if (!e || w.reachOf(e).length)
-        for (const [h, ks] of Object.entries(rel)) if (ks.some((k) => k === `on|${r.e}` || k.startsWith(`on|${r.e}#`))) hosts.add(h)
+      if (!e || w.reachOf(e).length || w.prop(e, 'supports') !== undefined)
+        for (const [h, ks] of Object.entries(rel)) if (ks.some((k) => w.keyRef(k.slice(k.indexOf('|') + 1)).e === r.e)) hosts.add(h)
     }
+    const storeys = w.onto.data.params?.storeys ?? 4
     for (const t of tiles) {
       const [map, x, y] = t.split(':')
-      for (const o of w.entitiesAt(map, +x, +y)) hosts.add(o.id)
+      for (let z = 0; z <= storeys; z++) for (const o of w.entitiesAt(map, +x, +y, z)) hosts.add(o.id)
     }
     for (const h of hosts) this.diff(h)
   }
@@ -733,17 +735,33 @@ export class Engine {
       this.leaveByEdge(e, x, y, dir)
       return true
     }
+    // storeys (world-model.md §5.2, §5.5): on a floor one walks; from stairs up onto the floor above;
+    // onto the stairs below from above them; off a floor's edge one falls to the first below
+    const z = e.place.z ?? 0
+    const floorAt = (zz: number) => !!w.occupant(map, nx, ny, 'floor', zz)
+    const stairsAt = (sx: number, sy: number, zz: number) => w.entitiesAt(map, sx, sy, zz).some((o) => w.hasTag(o, 'stairs'))
+    let nz = z
+    let drop = 0
+    if (!floorAt(z) || (stairsAt(x, y, z) && floorAt(z + 1))) {
+      if (stairsAt(x, y, z) && floorAt(z + 1)) nz = z + 1
+      else if (z > 0 && stairsAt(nx, ny, z - 1)) nz = z - 1
+      else if (z > 0 && w.stanceOf(e) !== 'air') {
+        nz = z - 1
+        while (nz > 0 && !floorAt(nz)) nz--
+        drop = z - nz
+      }
+    }
     // a cliff cannot be climbed: one bumps into it (what makes up the cell above)
-    const over = w.stepOver(e, map, x, y, nx, ny)
+    const over = z === 0 && nz === 0 ? w.stepOver(e, map, x, y, nx, ny) : ({ walk: true } as const)
     if ('climb' in over) {
       const cliff = w.cellTop(map, nx, ny)
       this.offer({ kind: 'bump', host: { e: e.id }, roles: cliff ? { other: { e: cliff.id } } : {}, params: { dir }, cause: ev.cause, origin: ev.origin })
       return false
     }
-    if (!w.fits(e, map, nx, ny)) {
-      const other = w.actorAt(map, nx, ny)
-      if (!isPlayer || !other?.npc || this.busy(other) || w.blocked(map, nx, ny)) {
-        const thing = w.inBounds(map, nx, ny) ? (other ?? w.solidAt(map, nx, ny)) : undefined
+    if (!w.fits(e, map, nx, ny, nz)) {
+      const other = w.actorAt(map, nx, ny, undefined, nz)
+      if (!isPlayer || !other?.npc || this.busy(other) || w.blocked(map, nx, ny, undefined, nz)) {
+        const thing = w.inBounds(map, nx, ny) ? (other ?? w.solidAt(map, nx, ny, undefined, nz)) : undefined
         const other2 = thing ?? w.cellTop(map, nx, ny)
         const ref: Ref | undefined = other2 && { e: other2.id }
         this.offer({ kind: 'bump', host: { e: e.id }, roles: ref ? { other: ref } : {}, params: { dir }, cause: ev.cause, origin: ev.origin })
@@ -760,8 +778,9 @@ export class Engine {
       this.queue({ kind: 'impulse/push', host: { e: other.id }, roles: { source: { e: e.id }, actor: { e: e.id } }, params: { dir: back, swap: true }, cause: ev.cause, origin: ev.origin })
     }
     this.touch({ e: e.id })
-    w.place(e, { on: 'tile', map, x: nx, y: ny })
+    w.place(e, { on: 'tile', map, x: nx, y: ny, ...(nz && { z: nz }) })
     this.touch({ e: e.id })
+    if (drop) this.fallBy(e, drop, ev)
     // a step off a ledge is a fall (world-model.md §5.5): the faller strikes itself by the drop
     if ('fall' in over) this.fallBy(e, over.fall, ev)
     // a step on a map with a scale lasts its minutes, by its ground and the weather (world-model.md §5.6)

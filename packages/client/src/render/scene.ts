@@ -6,6 +6,9 @@ import Phaser from 'phaser'
 import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type MapData, type Ref, type Text } from '@lsw/engine'
 import { CATALOG } from '../assets/catalog.ts'
 import { GroundAtlas, T, groundTile, hash2 } from '../assets/ground.ts'
+
+/** How much higher a storey is drawn than the one below it (world-model.md §5.2). */
+const STOREY_LIFT = 10
 import type { SpriteDef } from '../assets/types.ts'
 import { DIR_COL, actorFrames, assetUrl, fxAnim, preloadCatalog, spriteFrames } from './assets.ts'
 
@@ -75,6 +78,8 @@ export class WorldScene extends Phaser.Scene {
   private base?: MapData
   private overrides = new Map<string, string>() // "x,y" -> terrain
   private statics: Phaser.GameObjects.GameObject[] = []
+  /** Where the player stands (and on which storey): what is above them near them fades. */
+  private playerAt?: { x: number; y: number; z: number }
   /** The durability bars over struck cells. */
   private tileBars?: Phaser.GameObjects.Graphics
   private objects = new Map<string, Phaser.GameObjects.Image>() // terrain objects by "x,y"
@@ -305,6 +310,7 @@ export class WorldScene extends Phaser.Scene {
     }
     if (f.map !== this.base.id) return
     this.playerId = f.player.id
+    this.playerAt = { x: f.player.x, y: f.player.y, z: f.player.z ?? 0 }
     this.applyTiles(f)
     this.bossWarnings ??= this.add.graphics().setDepth(-20)
     this.bossWarnings.clear()
@@ -555,7 +561,8 @@ export class WorldScene extends Phaser.Scene {
         return { img, frame: `${a.key}:${col},0`, ax: fw / 2, ay: a.def.anchorY ?? fh, actor: { key: a.key, rows: a.def.rows, cols: a.def.cols, tint: a.def.tint, scale: a.def.scale } }
       }
     }
-    if ((!e.tags.includes('agent') && !e.tags.includes('portable'))) {
+    // a thing set in its cell (a built wall, a laid floor) is drawn as part of the place
+    if (!e.tags.includes('agent') && (!e.tags.includes('portable') || e.spaces)) {
       const f = this.fixtureDef(e)
       if (f) {
         // a look of its own among the type's variants, kept for its life
@@ -586,7 +593,7 @@ export class WorldScene extends Phaser.Scene {
     const body = this.add.sprite(0, 0, t.img, t.frame)
     body.setOrigin(t.ax / body.width, t.ay / body.height)
     if (t.actor?.scale) body.setScale(t.actor.scale)
-    if ((!e.tags.includes('agent') && e.tags.includes('portable'))) body.setScale(0.8)
+    if (!e.tags.includes('agent') && e.tags.includes('portable') && !e.spaces) body.setScale(0.8)
     // small growth and litter sit a little off the grid, never in rows
     if ((!e.tags.includes('agent') && !e.tags.includes('portable')) && this.fixtureDef(e)?.loose) body.setPosition((hashStr(e.id, 23) % 9) - 4, (hashStr(e.id, 29) % 5) - 2)
     const hp = this.add.graphics()
@@ -635,7 +642,8 @@ export class WorldScene extends Phaser.Scene {
     const prev = v.snap
     v.snap = e
     const px = e.x * T + T / 2
-    const py = (e.y + 1) * T
+    // a storey above the ground's is drawn raised
+    const py = (e.y + 1) * T - (e.z ?? 0) * STOREY_LIFT
     // a flyer glides toward where it is (update()); only a long way off does it appear there at once
     if (e.tags.includes('companion')) {
       if (first || !v.flyer || Math.max(Math.abs(prev.x - e.x), Math.abs(prev.y - e.y)) > 6) v.root.setPosition(px, py)
@@ -683,7 +691,10 @@ export class WorldScene extends Phaser.Scene {
     }
     // items lie on top of the fixture sharing their tile (a table, a counter), under actors
     // what lies flat on the ground (moss, leaves, pebbles) is under all that stands
-    v.root.setDepth((!e.tags.includes('agent') && !e.tags.includes('portable')) && this.fixtureDef(e)?.ground ? -45 : py + (e.tags.includes('agent') ? 2 : (!e.tags.includes('agent') && e.tags.includes('portable')) ? 1 : 0))
+    v.root.setDepth((!e.tags.includes('agent') && !e.tags.includes('portable')) && this.fixtureDef(e)?.ground ? -45 : (e.z ?? 0) * 4000 + py + (e.tags.includes('agent') ? 2 : (!e.tags.includes('agent') && e.tags.includes('portable') && !e.spaces) ? 1 : 0))
+    // what stands on a storey above the player, near them, fades: one sees under the floor overhead
+    const me = this.playerAt
+    v.root.setAlpha(me && (e.z ?? 0) > me.z && Math.abs(e.x - me.x) <= 3 && Math.abs(e.y - me.y) <= 3 ? 0.3 : 1)
     // status overlay + tint
     const top = OVERLAY_OF.find(([s]) => e.statuses.includes(s))
     const want = top?.[1]

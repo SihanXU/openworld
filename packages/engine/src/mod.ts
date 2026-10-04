@@ -273,6 +273,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       '{exists: Selector} — something matching it exists anywhere in the world',
       '{outdoors:true} — the host is out under the sky',
       "{makeup: role} — the role's type says what it is made of (its makeup: what it leaves when it breaks)",
+      "{rel: {role, how}} — the role has that relation now: on (stands on something), support (something holds it up), in-region …",
     ],
     events: EVENTS,
     impulses: IMPULSES,
@@ -895,6 +896,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     }
     if ('none' in c) return role(c.none, `${where}.none`)
     if ('makeup' in c) return role(c.makeup, `${where}.makeup`)
+    if ('rel' in c) return role(c.rel.role, `${where}.rel.role`)
     if ('same' in c) return c.same.forEach((r, i) => role(r, `${where}.same[${i}]`))
     if ('has' in c) {
       role(c.has.role, `${where}.has.role`)

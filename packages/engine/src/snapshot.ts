@@ -25,6 +25,10 @@ export interface EntitySnap {
   sprite: string
   x: number
   y: number
+  /** The storey it stands on (omitted: the ground's). */
+  z?: number
+  /** The spaces it takes in its cell, if any (a built wall, a floor laid): drawn as part of the place, not as a thing lying there. */
+  spaces?: string[]
   facing: Dir
   statuses: string[]
   tags: string[]
@@ -72,6 +76,8 @@ export interface Frame {
     id: Id
     x: number
     y: number
+    /** The storey the player is on (omitted: the ground's). */
+    z?: number
     facing: Dir
     hp: number
     maxHp: number
@@ -167,6 +173,8 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       sprite: r.sprite ?? e.type,
       x: e.place.x,
       y: e.place.y,
+      ...(e.place.z && { z: e.place.z }),
+      ...(w.spacesOf(e).some((s) => s !== 'body') && { spaces: w.spacesOf(e) }),
       facing: e.facing ?? 'down',
       statuses: Object.keys(e.statuses ?? {}),
       tags: [...r.tags, ...(e.tags ?? [])],
@@ -233,6 +241,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       id: p.id,
       x: pos.x,
       y: pos.y,
+      ...(pos.z && { z: pos.z }),
       facing: p.facing ?? 'down',
       hp: w.num(p, 'hp'),
       maxHp: w.num(p, 'maxHp', 1),

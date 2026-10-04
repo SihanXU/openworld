@@ -84,7 +84,7 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 | W3 | Two-level maps: overworld, sites, open edges, durations and fast-forward, generated wilderness, changes-only saves (done 2026-10-04; people walking in from edges: W9) | W2 | 26,131 / 37,823 (69.1%) | 46 of 125 forms, 25 of 86 fixture types |
 | W4 | Makeup and recipes: stations, derived recipes, quality, building as `move`, economy and reachability (done 2026-10-04 but building as `move`, which comes with W6) | W2 | 26,007 / 37,823 (68.8%) | 46 of 125 forms, 24 of 86 fixture types |
 | W5 | Cover and rooms | W2 | | |
-| W6 | Storeys: slabs, stairs, support, collapse | W5 | | |
+| W6 | Storeys: slabs, stairs, support, collapse (core done 2026-10-04, before W5: building as `move` with it) | W5 | 26,007 / 37,823 (68.8%) | 46 of 125 forms, 24 of 86 fixture types |
 | W7 | Stages and appearances | W2 | | |
 | W8 | Combat: material and quality, elements and resistances as data | W2 | | |
 | W9 | Behaviour: one goal system, real work | W3 | | |
