@@ -516,7 +516,8 @@ describe('deterministic repairs', () => {
     const port = new ModPort(eng)
     eng.act('put', 'actor', { e: 'it' })
     const req = port.records[0].request
-    expect(req.hole.rule).toBe('core/receive')
+    // a fixture's own hole for what is put on it (fixture/receive, #11), under core/receive
+    expect(req.hole.rule).toBe('fixture/receive')
     const shed = (id: string, host: Rule['host']): Rule => ({ id, host, on: 'impulse/receive', doc: 'Things slide off it.', tree: { do: [{ op: 'emit', impulse: 'taken', to: 'item', params: { into: 'tile' } }, { op: 'vfx', fx: 'leaves' }] } })
     const library = new WorldLibrary(onto, BASE)
     expect(library.commit(patchOf(shed('patch/flowers-shed', { type: 'fixture/nature/flowers' }))).ok).toBe(true)
