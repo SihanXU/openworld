@@ -318,6 +318,22 @@ describe('the Mod port holds up', () => {
   })
 })
 
+describe('a request the modder is creating things for', () => {
+  it('waits past the time-out, holding who is in it, until the patch comes', () => {
+    const eng = place({}, [{ key: 'b', type: 'fixture/nature/boulder', x: 2, y: 1 }])
+    const port = new ModPort(eng)
+    port.provider = working
+    eng.queue({ kind: 'impulse/strike', host: { e: 'b' }, roles: {}, params: { power: 2, edge: 'blunt' }, origin: 'world' })
+    const rec = port.records[0]
+    expect(port.hold(rec.id)).toBe(true)
+    ticks(eng, port.timeoutTicks * 3)
+    expect(rec.status).toBe('pending')
+    expect(eng.world.get('b')!.frozenBy).toBe(rec.id)
+    // a request that is not pending any more cannot be held
+    expect(port.hold('nope')).toBe(false)
+  })
+})
+
 describe('the boundaries of the world\'s own patches (design.md §5.11)', () => {
   const stuck: Scenario = {
     entities: [

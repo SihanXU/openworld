@@ -1,6 +1,7 @@
 // Loading and slicing the Ninja Adventure pack at runtime from the catalogue.
 
 import Phaser from 'phaser'
+import type { PixelArt } from '@lsw/engine'
 import type { ActorDef, Catalog, FxDef, SpriteDef } from '../assets/types.ts'
 
 // encodeURI, not encodeURIComponent: folders like "Hit & Impact" must keep a raw '&' for Vite.
@@ -44,6 +45,25 @@ export function spriteFrames(scene: Phaser.Scene, key: string, d: SpriteDef): st
     names.push(name)
   }
   return names
+}
+
+/** A learned thing's picture (16x16 as data) as the texture `art:<id>`, once. */
+export function registerArt(scene: Phaser.Scene, id: string, art: PixelArt): void {
+  const key = `art:${id}`
+  if (scene.textures.exists(key)) return
+  const c = document.createElement('canvas')
+  c.width = 16
+  c.height = 16
+  const g = c.getContext('2d')!
+  art.grid.forEach((row, y) =>
+    [...row].forEach((ch, x) => {
+      const colour = art.palette[ch]
+      if (ch === '.' || !colour) return
+      g.fillStyle = colour
+      g.fillRect(x, y, 1, 1)
+    }),
+  )
+  scene.textures.addCanvas(key, c)
 }
 
 /** Actor sheet: frame name `${key}:${col},${row}` (col = direction, row = frame). */

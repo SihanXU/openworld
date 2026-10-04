@@ -498,6 +498,8 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private textureFor(e: EntitySnap): { img: string; frame: string; ax: number; ay: number; actor?: EView['actor'] } {
+    // a thing the world learned, with a picture of its own
+    if (e.kind !== 'actor' && e.sprite?.startsWith('art:') && this.textures.exists(e.sprite)) return { img: e.sprite, frame: '__BASE', ax: 8, ay: 14 }
     if (e.kind === 'actor') {
       const a = this.actorDef(e)
       if (a) {

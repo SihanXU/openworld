@@ -68,7 +68,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   the engine never depends on it. Parts:
   - `model.ts`: a model interface — OpenAI-compatible, or scripted for tests and offline.
   - `pipeline.ts`: comprehend → recall → design (tools) → verify/repair → review → commit →
-    record → reflect.
+    record → reflect. Live designs are routed (design.md §13, the router): local (the request's
+    own types) → find (the catalogue) → create (a new type with its 16x16 picture as data).
   - `tools.ts`: the design tools.
   - `library.ts`: the shared library as an append-only patch log.
   - `state.ts`: the self-state — memory, skills, harness, journal, snapshots.
@@ -144,6 +145,7 @@ npm run curriculum -- 20 # resolve 20 sampled undefined interactions offline (of
 npm run curriculum -- --n 20 --profile live --by hole --data var/<run>   # live profile, spread over holes; per-step reach
 npm run curriculum:report -- var/<run>   # summarise a run: steps, reviews, revisions, spend
 npm run ford-live        # the eight kinds of hole on the Ford, live (costs model calls)
+npm run eval:objects     # five acts to find a known thing, five to create a new one, live (costs model calls)
 npm run latency -- --n 20 # live-profile latency bench (fresh library each run; costs model calls)
 npm run improve -- --select 8 --confirm 8   # one outer-loop turn (costs model calls)
 npm run engine-task -- toggle-status --state <dir>

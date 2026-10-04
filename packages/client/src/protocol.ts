@@ -1,6 +1,6 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { Aim, Dir, Frame, Key, LibraryData, MapData, ModSpec, Patch, PlacementPreview, Rule, SaveData, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@lsw/engine'
+import type { Aim, Dir, Frame, Key, LibraryData, MapData, ModSpec, Patch, PixelArt, PlacementPreview, Rule, SaveData, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@lsw/engine'
 
 /** Where the mouse points: its tile, and what is drawn at the point, top first (the keys act there when it is next to the player). */
 export type Tile = Aim
@@ -91,6 +91,10 @@ export type FromWorker =
   /** The layer chooser's list for a key at a tile. */
   | { t: 'choices'; key: Key; tile?: Tile; list: { layer: number; name: Text; label?: Text; unknown?: boolean }[] }
   | { t: 'modder'; online: boolean; url?: string; model?: string | null }
+  /** The pictures of things the world learned (types a patch introduced): drawn as textures `art:<id>`. */
+  | { t: 'art'; arts: { id: string; art: PixelArt }[] }
+  /** The modder is making things the world does not have yet; the act waits for them. */
+  | { t: 'creating'; names: Text[] }
   | { t: 'error'; message: string }
   /** The world map's data: the visited maps where they lie, their terrain, the waypoint stones. */
   | { t: 'atlas'; atlas: Atlas }
