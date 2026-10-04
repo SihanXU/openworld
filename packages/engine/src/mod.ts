@@ -11,7 +11,7 @@ import type { Engine, Resolution, UndefinedSink } from './engine.ts'
 import { STORY, textOf } from './engine.ts'
 import { OntologyIndex, isA, withTerrainTypes } from './ontology.ts'
 import { RuleLibrary, cmp, compareSpec, isDo, isHole, leaves, rolesOf, specOf } from './rules.ts'
-import { checkExpectations, replay } from './sandbox.ts'
+import { REPEAT_TIMES, checkExpectations, endlessYield, replay, scenarioEvent } from './sandbox.ts'
 import type { Cmp, Cond, Effect, EmitTo, GameEvent, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tree, TypeDef } from './types.ts'
 import { RECENT_LINES, type View } from './world.ts'
 
@@ -39,6 +39,9 @@ export interface EntityInfo {
   tags: string[]
   statuses: string[]
   props: Record<string, unknown>
+  /** What it is made of (its material's category and hardness), and what it leaves when it breaks (world-model.md §8.1). */
+  material?: { id: string; category: string; hardness: number }
+  makeup?: { type: string; count: number; chance?: number }[]
   /** Offset from the host's tile. */
   at?: [number, number]
 }
@@ -177,6 +180,8 @@ const AUTHORING_RULES = [
   'Give the player feedback: a `vfx` and/or a `say`/`log` line, so the outcome is visible.',
   'Name slots ({actor}, {target}, {host}, …) read "you" when they are the player: write lines that read right either way — no verb or possessive straight after a slot ("a warm glow mends {target}", not "{actor} holds" or "{target}\'s wounds").',
   'Keep emissions local and bounded: an area radius of at most 3, and a chance below 1 when it could cascade.',
+  'A yield must cost its host (world-model.md §8.4): what someone can do again at will (an act, what it sets off) may not keep making things from a host that is neither changed nor used up — the validator replays the triggering event 12 times with no time between, and refuses an endless yield. Change the host (a status that gates the yield and runs out, its durability, its type) or use it up.',
+  'Things with durability (props.maxHp) already lose it to blows and fire, and break into their makeup: a blow on a tree, rock or a wall is defined. A new type that can break names props.material and what it leaves (makeup [{type, count}] or a rule of its own on threshold/cross "broken").',
   'An act hosted by an instrument that consumes or changes it says so: `destroy` or `transform` the host.',
   'Outcomes the world started by itself (origin "world") happen without the player asking: keep them small and legible, never harm a person, never touch the story\'s facts, and let people react with say/emote, a notice to the story (a topic), or goto.',
 ]
@@ -627,6 +632,8 @@ function info(eng: Engine, role: string, v: View | undefined, origin?: { x: numb
     tags: [...v.tags],
     statuses: [...v.statuses],
     props: v.props,
+    material: v.entity && w.materialOf(v.entity),
+    makeup: w.onto.resolve(v.type).makeup,
     at: p && origin ? [p.x - origin.x, p.y - origin.y] : undefined,
   }
 }
@@ -1023,6 +1030,10 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       if (!rp.resolution.defined) errors.push('replay: the triggering event is still undefined under the patch')
       else if (!patchIds.has(rp.resolution.rule!.id)) errors.push(`replay: the triggering event resolved to "${rp.resolution.rule!.id}", not to the patch`)
       errors.push(...rp.errors.map((e) => `replay: ${e}`))
+      // the repeat check (world-model.md §8.4): again and again with no time between, it must stop making things
+      const again = replay(ctx.scenario, ctx.ontology, cand)
+      if (again.resolution.defined && endlessYield(again.engine, scenarioEvent(ctx.scenario, again.engine)))
+        errors.push(`endless yield: the triggering event, repeated with no time between on a host that is not used up, keeps making things (${REPEAT_TIMES} times). A yield must cost its host — change it (a status that gates the yield and runs out, durability) or use it up`)
       // no person in the scene is hurt or removed by what the world learns by itself
       if (ctx.world)
         for (const se of ctx.scenario.entities) {
@@ -1227,6 +1238,20 @@ export function newTypeProblems(t: TypeDef, onto: Ontology, patch: Patch): strin
   const same = Object.values(onto.types).find((o) => o.id !== t.id && (o.id.split('/').at(-1) === leaf || (enName(t) && enName(o) === enName(t))))
   if (same) out.push(`"${same.id}" already is this thing (same name): use it, or name what is different about the new one`)
   if (t.art) out.push(...artProblems(t.art))
+  // what it is made of and how it breaks (world-model.md §8.3), read through what it inherits
+  const index = new OntologyIndex({ ...onto, types: { ...onto.types, ...Object.fromEntries(patch.artifacts.flatMap((a) => (a?.kind === 'type' && a.type?.id ? [[a.type.id, a.type]] : []))) } })
+  const r = index.resolve(t.id)
+  const material = r.props.material
+  if (material !== undefined && (typeof material !== 'string' || !onto.materials?.[material])) out.push(`props.material "${String(material)}" is not a material: one of ${Object.keys(onto.materials ?? {}).join(', ')}`)
+  if (typeof r.props.maxHp === 'number') {
+    if (material === undefined) out.push('a thing that can break (props.maxHp) names what it is made of: props.material (one of the materials)')
+    const ownRule = patch.artifacts.some((a) => a?.kind === 'rule' && a.rule?.host?.type === t.id && a.rule.on === 'threshold/cross')
+    if (!r.makeup?.length && !ownRule) out.push('a thing that can break (props.maxHp) says what it leaves: makeup [{type, count, chance?}] (what it is made of), or a rule of its own on threshold/cross "broken"')
+  }
+  for (const [i, m] of (t.makeup ?? []).entries()) {
+    if (!m || typeof m.type !== 'string' || !(m.type in onto.types || ownTypes.has(m.type))) out.push(`makeup[${i}]: unknown type "${m?.type}"${m?.type ? closest(m.type, onto) : ''}`)
+    if (!(typeof m?.count === 'number' && m.count > 0)) out.push(`makeup[${i}].count: a number above 0`)
+  }
   return out
 }
 

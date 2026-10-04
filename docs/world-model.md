@@ -526,6 +526,17 @@ guides), which are story props plus how they are shown.
    rewritten automatically; those that cannot be, and those that fail the repeat check (the
    stick farms), are listed for the user before removal.
 
+As built (W2c): the repeat check is `endlessYield` (engine `sandbox.ts`): the triggering event
+replayed 12 times with no time between; if its host still stands and any of the last 4 replays
+made a thing, the patch is refused. It applies to what someone can repeat at will (acts, impulses,
+contact, bumps, being seen); the clock's events wait on time, thresholds on a change, broken content
+is reported once. The whole base library passes it (a test sweeps every input on everything the
+player can face); fishing now stirs the water (`stirred`, a status that runs out). A new type with
+`maxHp` must name a known `material` and a makeup (or a rule of its own on `broken`); the request
+carries each role's material and makeup. `npm run modder -- library audit [--data <dir>]` lists the
+stored patches that make something from nothing, for the user to remove (`library remove <id>`);
+nothing is removed automatically. The economy check (consumption graph) and reachability are W4.
+
 ## 9. Holes after the change
 
 What remains for the AI is what needs invention:

@@ -57,6 +57,13 @@ switch (cmd) {
     break
   }
   case 'library':
+    if (args[0] === 'audit') {
+      // the patches that make something from nothing: listed, for you to remove (library remove <id>)
+      const bad = library.audit()
+      for (const b of bad) console.log(`${b.rule}  ${b.reason}`)
+      console.log(`${library.patchRules().length} patch rules, ${library.regression.length} with the event that asked for them: ` + (bad.length ? `${bad.length} to review (npm run modder -- library remove <id>)` : 'none makes something from nothing'))
+      break
+    }
     if (args[0] === 'remove') {
       if (!args[1]) throw new Error('usage: library remove <rule-id>')
       console.log(library.remove(args[1]) ? `removed ${args[1]}` : `no patch rule "${args[1]}"`)

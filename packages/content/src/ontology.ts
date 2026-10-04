@@ -119,6 +119,8 @@ export const TERRAINS: TerrainDef[] = [
 export const STATUSES: StatusDef[] = [
   { id: 'burning', name: { en: 'burning', zh: '燃烧' }, duration: 45, clears: ['frozen'], overlay: 'fire' },
   { id: 'wet', name: { en: 'wet', zh: '潮湿' }, duration: 400, clears: ['burning'], overlay: 'wet' },
+  // water a line was cast into: nothing bites there until it settles
+  { id: 'stirred', name: { en: 'stirred up', zh: '搅浑' }, duration: 100 },
   { id: 'frozen', name: { en: 'frozen', zh: '冰冻' }, duration: 40, clears: ['burning', 'wet'], immobilize: true, overlay: 'ice' },
   { id: 'electrified', name: { en: 'electrified', zh: '感电' }, duration: 8, immobilize: true, overlay: 'spark' },
   { id: 'oiled', name: { en: 'oiled', zh: '油污' }, duration: 900, overlay: 'oil' },

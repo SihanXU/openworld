@@ -7,7 +7,9 @@ import { dirname } from 'node:path'
 import {
   RuleLibrary,
   buildModSpec,
+  endlessYield,
   replay,
+  scenarioEvent,
   validatePatch,
   type ModRequest,
   type ModSpec,
@@ -160,6 +162,25 @@ export class WorldLibrary {
     const w = new WorldLibrary(this.ontology, this.base)
     for (const e of this.log) if (keep(e)) w.apply(e)
     return w
+  }
+
+  /**
+   * The patches that make something from nothing (world-model.md §8.4, the stick farms): the event
+   * each answered, repeated with no time between on a host not used up, keeps yielding. Listed
+   * for the user, who removes them (`library remove <id>`); nothing is removed here.
+   */
+  audit(): { rule: string; reason: string }[] {
+    const out: { rule: string; reason: string }[] = []
+    for (const reg of this.regression) {
+      if (!this.lib.rules.has(reg.rule)) continue
+      try {
+        const rp = replay(reg.scenario, this.fullOntology(), this.lib)
+        if (rp.resolution.defined && endlessYield(rp.engine, scenarioEvent(reg.scenario, rp.engine))) out.push({ rule: reg.rule, reason: 'endless yield: its event, repeated on an unchanged host, keeps making things' })
+      } catch {
+        /* a scenario no longer buildable (types removed): nothing to judge */
+      }
+    }
+    return out
   }
 
   /** Roll a patch rule back (the log keeps both the addition and the removal). */

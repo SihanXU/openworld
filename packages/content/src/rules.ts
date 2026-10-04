@@ -709,12 +709,16 @@ const GROUND: Rule[] = [
   }),
   rule({
     id: 'core/fish',
-    doc: 'A line cast into water: sometimes something bites.',
+    doc: 'A line cast into water: sometimes something bites; a cast stirs the water, and nothing bites there until it settles (a yield waits on time, world-model.md D23).',
     host: { type: 'tile', tags: ['water'] },
     on: 'impulse/handle',
     tree: IF(
       tag('instrument', 'tool:fishing'),
-      IF({ chance: 0.35 }, DO({ op: 'spawn', type: 'item/food/fish/raw', at: 'actor', into: 'contents' }, vfx('splash'), log('A tug — you reel in a fish!', '一沉——你拉上来一条鱼！')), DO(vfx('splash'), log('The float bobs. Nothing bites — yet.', '浮漂晃了晃。还没咬钩。'))),
+      IF(
+        has('host', 'stirred'),
+        DO(vfx('splash'), log('The water is stirred up. Let it settle.', '水被搅浑了，等它静下来。')),
+        IF({ chance: 0.35 }, DO(add('stirred'), { op: 'spawn', type: 'item/food/fish/raw', at: 'actor', into: 'contents' }, vfx('splash'), log('A tug — you reel in a fish!', '一沉——你拉上来一条鱼！')), DO(add('stirred'), vfx('splash'), log('The float bobs. Nothing bites — yet.', '浮漂晃了晃。还没咬钩。'))),
+      ),
     ),
   }),
   rule({

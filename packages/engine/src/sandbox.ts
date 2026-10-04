@@ -4,6 +4,7 @@
 
 import { Engine, type Resolution } from './engine.ts'
 import type { World } from './world.ts'
+import { parseCellId } from './cells.ts'
 import type { Verb } from './types.ts'
 import type { RuleLibrary } from './rules.ts'
 import type { Entity, Expectation, GameEvent, MapData, Ontology, Ref, Scenario, WorldState } from './types.ts'
@@ -110,6 +111,44 @@ export function scenarioEvent(sc: Scenario, eng: Engine): GameEvent {
   for (const r of ['actor', 'target', 'instrument', 'other', 'item', 'source'] as const) if (e[r]) roles[r] = ref(e[r])
   const host = ref(e.host) ?? roles.instrument ?? roles.actor ?? roles.target ?? { e: 'world' }
   return { kind, host, roles, params: e.params ?? {}, cause: e.actor, origin: e.actor && e.actor === sc.player ? 'player' : 'world' }
+}
+
+/**
+ * What one event makes, replayed again and again with no time between (world-model.md §8.4):
+ * the things each replay made (cell things changing are not things made), while its host stands.
+ */
+export function repeatYields(eng: Engine, ev: GameEvent, times = REPEAT_TIMES): number[] {
+  const w = eng.world
+  const out: number[] = []
+  for (let i = 0; i < times && w.get(ev.host.e); i++) {
+    const before = new Set(Object.keys(w.state.entities))
+    eng.queue({ ...structuredClone(ev), depth: 0 })
+    eng.flush()
+    let made = 0
+    for (const id of Object.keys(w.state.entities)) if (!before.has(id) && !parseCellId(id) && w.get(id)) made++
+    out.push(made)
+  }
+  return out
+}
+
+/** How often the repeat check replays an event, and how many of the last replays must make nothing. */
+export const REPEAT_TIMES = 12
+export const REPEAT_TAIL = 4
+/** The events someone can make happen again at will (the rest wait on time or on a change). */
+export const REPEATABLE = ['act', 'impulse', 'contact', 'bump', 'seen']
+
+/**
+ * An endless yield (D23): replayed with no time between, on a host that is not used up, the event
+ * still makes things at the end — something from nothing, as often as one likes. A yield must cost
+ * its host: change it (a status that gates the yield and runs out, a stage, durability) or use it up.
+ */
+export function endlessYield(eng: Engine, ev: GameEvent): boolean {
+  // only what someone can do again at will: acts and what they set off (impulses, contact, bumps,
+  // being seen). The clock's events wait on time, a threshold on the host changing, broken content
+  // is reported once.
+  if (!REPEATABLE.some((k) => ev.kind === k || ev.kind.startsWith(k + '/'))) return false
+  const ys = repeatYields(eng, ev)
+  return ys.length === REPEAT_TIMES && !!eng.world.get(ev.host.e) && ys.slice(-REPEAT_TAIL).some((n) => n > 0)
 }
 
 /** Replay a scenario's event once (and optional ticks); report effect errors. */
