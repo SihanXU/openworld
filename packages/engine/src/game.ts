@@ -93,7 +93,7 @@ export class Game {
     const eng = new Engine(state, ontology, library)
     for (const m of index.maps) eng.graph[m.id] = m.portals
     eng.ensureResidents()
-    eng.world.write(() => {
+    eng.author(() => {
       eng.world.add(structuredClone(index.player))
       for (const n of index.npcs) addTree(eng, n)
       // companions start beside the start, following the player (companion.ts)
@@ -109,18 +109,8 @@ export class Game {
     for (const m of index.maps) eng.graph[m.id] = m.portals
     eng.ensureResidents()
     loadContent(eng, index)
-    // how the player looks is the world's to say, not the save's (a save from before a new look gets it)
-    const p = eng.world.get(eng.world.state.player)
-    if (p && index.player.look) p.look = index.player.look
-    // Old saves acquire the world's initial profession; an explicit profession is never replaced.
-    if (p && p.props?.profession === undefined && index.player.props?.profession !== undefined)
-      (p.props ??= {}).profession = index.player.props.profession
-    // Early Iron Stomach saves used its delta as an absolute interval (faster, not slower).
-    for (const actor of Object.values(eng.world.state.entities))
-      if (actor.tags?.includes('skill:iron-stomach') && actor.props?.hungerEvery === 150) actor.props.hungerEvery = 450
-    // A save taken while an outcome was being worked out holds its participants, but the request
-    // itself is not saved: nobody will answer it, so they are let go (as after a time-out).
-    for (const e of Object.values(eng.world.state.entities)) delete e.frozenBy
+    // loading is the author's: an older save is brought up to the world as it is now
+    eng.author(() => upgrade(eng, index))
     return new Game(eng)
   }
 
@@ -146,7 +136,7 @@ export class Game {
     this.engine.loadChunk(chunk)
     this.engine.npcs.invalidate()
     if (first && chunk.map.id === this.engine.world.state.spawn.map) {
-      this.engine.teleport(this.engine.world.player, this.engine.world.state.spawn)
+      this.engine.author(() => this.engine.teleport(this.engine.world.player, this.engine.world.state.spawn))
     }
   }
 
@@ -154,6 +144,33 @@ export class Game {
   loadMapData(map: MapData): void {
     this.engine.world.state.maps[map.id] = map
   }
+}
+
+/** An older save, brought up to the world as it is now (on loading, as its author). */
+function upgrade(eng: Engine, index: WorldIndex): void {
+  const w = eng.world
+  const s = w.state as typeof w.state & { lastBeat?: string }
+  // how the player looks is the world's to say, not the save's (a save from before a new look gets it)
+  const p = w.get(s.player)
+  if (p && index.player.look) p.look = index.player.look
+  // Old saves acquire the world's initial profession; an explicit profession is never replaced.
+  if (p && p.props?.profession === undefined && index.player.props?.profession !== undefined) w.setProp(p, 'profession', index.player.props.profession)
+  for (const e of Object.values(s.entities)) {
+    // Early Iron Stomach saves used its delta as an absolute interval (faster, not slower).
+    if (e.tags?.includes('skill:iron-stomach') && e.props?.hungerEvery === 150) w.setProp(e, 'hungerEvery', 450)
+    // the night-born were marked by a prop before they had a tag
+    if (e.props?.nightborn) (w.setProp(e, 'nightborn', undefined), w.addTag(e, 'nightborn'))
+    // A save taken while an outcome was being worked out holds its participants, but the request
+    // itself is not saved: nobody will answer it, so they are let go (as after a time-out).
+    delete e.frozenBy
+  }
+  // what was the world's before it was the story's or the traveller's own: the latest beat, the maps seen
+  if (s.lastBeat) (w.setFact('beat.last', s.lastBeat), delete s.lastBeat)
+  for (const [k, v] of Object.entries(s.facts ?? {}))
+    if (k.startsWith('visited.') && p) {
+      if (w.prop(p, k) === undefined) w.setProp(p, k, v)
+      delete s.facts![k]
+    }
 }
 
 /** NPC entities carry their inventory inline as `_items` in the index. */

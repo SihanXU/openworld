@@ -122,10 +122,8 @@ export function chooseLine(eng: Engine, e: Entity, ctx: LineContext = {}): Chose
   const id = lineId(pick)
   mem.last = id
   if (pick.once || pick.key.startsWith('topic:') || pick.key === 'greeting:first') mem.said = [...(mem.said ?? []), id]
-  if (!ctx.given) {
-    if (mem.talked === undefined) w.setFact(`met.${e.id}`, true)
-    mem.talked = cal.day
-  }
+  // the person's own record (design.md §5.5): whom they have met is theirs, not the story's
+  if (!ctx.given) mem.talked = cal.day
   return { text: fill(eng, e, pick.text, ctx), mood: pick.mood, key: pick.key }
 }
 

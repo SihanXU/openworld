@@ -7,8 +7,12 @@ import { matchSelector } from './rules.ts'
 import type { AiData, Amount, Effect, EmitTo, Entity, GameEvent, Impulse, Place, Pos, PropValue, Ref, RoleName, RoleRef, Text } from './types.ts'
 import { GIVEN_LINE, chooseLine, raiseTopic } from './people.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
-import { gainXp } from './progression.ts'
+import { gainXp, learnSkill } from './progression.ts'
+import { cannotChoose, chooseProfession } from './profession.ts'
 import { forageMap } from './forage.ts'
+import { appear } from './nightspawn.ts'
+import { releaseSkill } from './bosses.ts'
+import { WriteError } from './world.ts'
 
 export const PRIMITIVES: Record<Effect['op'], string> = {
   spawn: 'spawn {type, at: role ref, into?: tile|contents|hand, count?, still?} — create new things at a role\'s place (its tile, contents or hand); type may be "@prop:<role>.<key>" (a crop\'s yieldType); count may read a prop or a param; items on the ground pop out for the magnet unless still (then they are taken with F)',
@@ -40,17 +44,21 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   lightning: 'lightning {power} — the world\'s: a bolt seeks what stands tall near the player and emits element lightning to it',
   ashore: 'ashore {} — the host gets out of where it cannot be, to the nearest free tile',
   fallback: 'fallback {} — the story\'s: run the broken invariant\'s authored fallback',
-  emit: 'emit {impulse, to, params?, item?, other?, chance?, filter?} — send an impulse (strike, element, coat, restore, push, taken, receive, offered, handle, notify) to a role, "story", "world", {named: id}, {area: {at?, radius}}, {line: {from?, away, length, over?}} or {map: true}; params are values or Amounts; filter and chance pick who receives it; the receiver answers for itself',
+  emit: 'emit {impulse, to, params?, item?, other?, chance?, filter?} — send an impulse (strike, element, coat, restore, push, taken, receive, offered, handle, notify) to a role, "story", "world", {named: id}, {area: {at?, radius}}, {line: {from?, away, length, over?}} or {map: true}; params are values, Amounts or {typeOf: role} (what kind of thing a role is, kept even after it is gone); filter and chance pick who receives it; the receiver answers for itself',
   vfx: 'vfx {at?, fx} — play a visual effect (at the host unless at names a role)',
   say: 'say {text, who?} — the host says a line ("@line": one of its own lines for the moment; "@given": its line for the item it was given); text fills {host} {actor} {target} {instrument} {other} {item} and {role.key}',
   log: 'log {text} — a message line ({role} = names, {role.key} = that role\'s prop, {param.key} = an event param)',
   emote: 'emote {mood: neutral|happy|sad|angry|surprised|shy} — an emote bubble over the host',
-  quest: 'quest {} — the host (a person) is spoken to by the player about quests: what is ready is handed in, what is offered is taken on, a talk goal is met; otherwise it says its line (quests.ts)',
+  quest: 'quest {} — the host (a person) is spoken to about quests: business with the speaker (a quest to hand in, to take on, a talk goal) is told to the story; else the host says how a quest goes, or its line (quests.ts)',
+  quests: "quests {} — the story's: a quest's business it is told of is settled (notify what = quest: between the source, a giver, and the actor; what = defeat: the actor felled a thing of param type) — its facts change, the giver takes what was brought, the taker is told its reward",
+  learn: 'learn {} — the host learns what its act names: param skill (spending its skill points) or param profession (at a trainer; a change gives back the profession branch)',
+  appear: "appear {types, ring, cap, tag} — the world's: one creature of a weighted type appears on a free tile ring[0]–ring[1] tiles from the player, under the open sky of a map that is not peaceful, unless cap of those tagged tag already walk it",
+  release: "release {} — the host's encounter skill lands on the cells its act telegraphed (params skill, ox, oy, ax, ay): a strike to each foe there, a push or pull and a coat as the skill says; the host heals or blinks itself",
   panel: "panel {panel} — the host (a trainer) opens one of the player's panels when the player spoke to it: 'profession'",
 }
 
 /** Primitives only the story's and the world's rules may use. */
-export const RESIDENT_ONLY = new Set<Effect['op']>(['setFact', 'addFact', 'topic', 'scene', 'forage', 'lightning', 'fallback'])
+export const RESIDENT_ONLY = new Set<Effect['op']>(['setFact', 'addFact', 'topic', 'scene', 'forage', 'lightning', 'fallback', 'quests', 'appear'])
 
 export class EffectRunner {
   constructor(private eng: Engine) {}
@@ -136,6 +144,8 @@ export class EffectRunner {
         try {
           this.apply(eff, ev)
         } catch (err) {
+          // a write outside an outcome or beyond its host is the engine's bug, not the rule's: it is not swallowed
+          if (err instanceof WriteError) throw err
           this.eng.world.fx.push({ t: 'log', text: `rule ${ruleId}: ${(err as Error).message}`, tone: 'warn' })
         }
       }
@@ -233,8 +243,11 @@ export class EffectRunner {
         eng.touch({ e: host.id })
         return
       }
-      case 'addStatus':
-        return eng.applyStatus(ev.host, eff.status, eff.duration)
+      case 'addStatus': {
+        // who gave it: the act's doer, or whoever started the chain (a fire one set burns in their name)
+        const by = ev.roles.actor && 'e' in ev.roles.actor ? ev.roles.actor.e : ev.cause
+        return eng.applyStatus(ev.host, eff.status, eff.duration, by)
+      }
       case 'removeStatus':
         return eng.removeStatus(ev.host, eff.status)
       case 'setProp': {
@@ -252,17 +265,18 @@ export class EffectRunner {
         return
       }
       case 'addTag':
-        if (host && !host.tags?.includes(eff.tag)) (host.tags ??= []).push(eff.tag)
+        if (host) w.addTag(host, eff.tag)
         return
       case 'removeTag':
-        if (host?.tags) host.tags = host.tags.filter((t) => t !== eff.tag)
+        if (host) w.removeTag(host, eff.tag)
         return
       case 'hurt':
         if (host) eng.hurt(host, this.amount(ev, eff.amount), eff.element, eff.pierce, ev)
         return
       case 'heal': {
         if (!host) return
-        const n = this.amount(ev, eff.amount)
+        // whole points: a tenth of a body mends at least one
+        const n = Math.ceil(this.amount(ev, eff.amount))
         eng.setProp(host, 'hp', Math.min(w.num(host, 'maxHp', 1), w.num(host, 'hp') + n), ev)
         w.fx.push({ t: 'damage', who: host.id, amount: -n })
         return
@@ -339,12 +353,39 @@ export class EffectRunner {
         return
       }
       case 'quest': {
-        // the host is spoken to; the one speaking is the act's actor (quests.ts)
+        // the host is spoken to; the one speaking is the act's actor (quests.ts): the story settles their business
         const a = ev.roles.actor
-        const byPlayer = !!host && !!a && 'e' in a && a.e === w.state.player
-        if (!byPlayer || !eng.quests.talk(host!.id)) this.apply({ op: 'say', text: '@line' }, ev)
+        const who = a && 'e' in a ? w.get(a.e) : undefined
+        const business = host && who ? eng.quests.business(host.id, who) : undefined
+        if (business === 'story')
+          eng.queue({ kind: 'impulse/notify', host: { e: 'story' }, roles: { actor: a, source: ev.host }, params: { what: 'quest' }, cause: ev.cause, origin: ev.origin, depth: (ev.depth ?? 0) + 1 })
+        else this.apply({ op: 'say', text: business ?? '@line' }, ev)
         return
       }
+      case 'quests':
+        eng.quests.settle(ev)
+        return
+      case 'learn': {
+        // the host's own: its tags, props and points; a profession's starter weapon is made in its bag
+        if (!host) return
+        const skill = eng.skills.get(String(ev.params?.skill ?? ''))
+        if (skill) {
+          learnSkill(w, host, skill)
+          return
+        }
+        const prof = eng.professions.get(String(ev.params?.profession ?? ''))
+        if (!prof || cannotChoose(w, host, prof)) return
+        const before = new Set(host.contents ?? [])
+        chooseProfession(w, host, prof, [...eng.skills.values()])
+        for (const id of host.contents ?? []) if (!before.has(id)) eng.touch({ e: id })
+        return
+      }
+      case 'appear':
+        appear(eng, eff)
+        return
+      case 'release':
+        if (host) releaseSkill(eng, host, ev)
+        return
       case 'panel': {
         // a panel is the player's: only when the player is the one who spoke
         const a = ev.roles.actor
@@ -449,9 +490,10 @@ export class EffectRunner {
     }
   }
 
-  /** An emitted param: a value, an Amount, or a param passed on as it is (`{param}` alone: a string goes through). */
-  param(ev: GameEvent, v: PropValue | Amount): PropValue | undefined {
+  /** An emitted param: a value, an Amount, a param passed on as it is (`{param}` alone: a string goes through), or what kind of thing a role is. */
+  param(ev: GameEvent, v: PropValue | Amount | { typeOf: RoleName }): PropValue | undefined {
     if (typeof v !== 'object' || v === null) return v
+    if ('typeOf' in v) return this.eng.world.view(this.roleRef(ev, v.typeOf))?.type
     if ('param' in v && v.mul === undefined && v.add === undefined) return ev.params?.[v.param]
     return this.amount(ev, v)
   }

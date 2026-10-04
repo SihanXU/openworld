@@ -37,21 +37,21 @@ describe('seven original sin encounters', () => {
     const { eng, w, boss, player } = arena()
     expect(w.occupiedCells(boss)).toHaveLength(15)
     for (const [x, y] of w.occupiedCells(boss)) expect(w.actorAt('arena', x, y)?.id).toBe(boss.id)
-    w.place(player, { on: 'tile', map: 'arena', x: 13, y: 15 })
+    w.author(() => w.place(player, { on: 'tile', map: 'arena', x: 13, y: 15 }))
     expect(eng.step(player, 'right')).toBe(false)
     player.facing = 'right'
     eng.playerAttack({ e: boss.id })
     expect(w.num(boss, 'hp')).toBeLessThan(BOSS_BY_ID.greed.hp)
     expect(w.entitiesOnMap('arena').filter((e) => e.id === boss.id)).toHaveLength(1)
     // A wall under only the far side still prevents movement.
-    w.setTerrain('arena', 19, 15, 'wall')
+    w.author(() => w.setTerrain('arena', 19, 15, 'wall'))
     expect(eng.step(boss, 'right')).toBe(false)
-    w.setTerrain('arena', 19, 15, 'grass')
+    w.author(() => w.setTerrain('arena', 19, 15, 'grass'))
     expect(eng.step(boss, 'right')).toBe(true)
     expect(w.actorAt('arena', 14, 16)).toBeUndefined()
-    w.transform(boss, 'actor/creature/sin/envy')
+    w.author(() => w.transform(boss, 'actor/creature/sin/envy'))
     expect(w.actorAt('arena', 18, 16)).toBeUndefined()
-    w.destroy(boss)
+    w.author(() => w.destroy(boss))
     expect(w.actorAt('arena', 17, 16)).toBeUndefined()
   })
 
@@ -63,7 +63,7 @@ describe('seven original sin encounters', () => {
     expect(pending).toBeDefined()
     expect(w.num(player, 'hp')).toBe(1000)
     expect(snapshot(eng).entities.find((e) => e.id === boss.id)!.boss!.warning!.tiles).toEqual(pending.tiles)
-    w.place(player, { on: 'tile', map: 'arena', x: 20, y: 19 })
+    w.author(() => w.place(player, { on: 'tile', map: 'arena', x: 20, y: 19 }))
     ticks(pending.releaseAt - w.state.tick)
     expect(w.num(player, 'hp')).toBe(1000)
     expect(boss.boss!.pending).toBeUndefined()
@@ -78,7 +78,7 @@ describe('seven original sin encounters', () => {
     const tiles = bossPattern(skill, origin, aim)
     const hit = tiles.find(([x, y]) => y > origin.y && w.walkable('arena', x, y, player.id))!
     expect(hit).toBeDefined()
-    w.place(player, { on: 'tile', map: 'arena', x: hit[0], y: hit[1] })
+    w.author(() => w.place(player, { on: 'tile', map: 'arena', x: hit[0], y: hit[1] }))
     const before = w.num(boss, 'hp') - 100
     ;(boss.props ??= {}).hp = before
     boss.boss!.pending = { skill: skillIndex, target: player.id, origin, aim, tiles, releaseAt: w.state.tick }
@@ -96,8 +96,8 @@ describe('seven original sin encounters', () => {
 
   it('uses factions, not player identity, and damages a large victim only once', () => {
     const { eng, w, boss, player } = arena()
-    w.place(player, { on: 'tile', map: 'arena', x: 35, y: 35 })
-    const victim = w.add({ ...createBoss('gluttony', { map: 'arena', x: 16, y: 20 }, 'folk.guard'), ai: undefined, tags: ['faction:folk'] })
+    w.author(() => w.place(player, { on: 'tile', map: 'arena', x: 35, y: 35 }))
+    const victim = w.author(() => w.add({ ...createBoss('gluttony', { map: 'arena', x: 16, y: 20 }, 'folk.guard'), ai: undefined, tags: ['faction:folk'] }))
     boss.boss!.nextSkill = 2
     stepBosses(eng, 'arena')
     const pending = boss.boss!.pending!
@@ -111,11 +111,11 @@ describe('seven original sin encounters', () => {
 
   it('never casts out of range while movement is cooling down; second phase shortens warning', () => {
     const { eng, w, boss, player } = arena()
-    w.place(player, { on: 'tile', map: 'arena', x: 16, y: 24 })
+    w.author(() => w.place(player, { on: 'tile', map: 'arena', x: 16, y: 24 }))
     eng.setCooldown(boss.id, 30)
     stepBosses(eng, 'arena')
     expect(boss.boss!.pending).toBeUndefined()
-    w.place(player, { on: 'tile', map: 'arena', x: 16, y: 20 })
+    w.author(() => w.place(player, { on: 'tile', map: 'arena', x: 16, y: 20 }))
     ;(boss.props ??= {}).hp = 50
     stepBosses(eng, 'arena')
     expect(boss.boss!.phase).toBe(2)
@@ -126,7 +126,7 @@ describe('seven original sin encounters', () => {
   it('slows movement without slowing attacks, and preserves locked casts through saves', () => {
     const { game, index, eng, w, boss, player, map, ticks } = arena()
     const base = combatDelay(w, player, 4, 'move')
-    eng.applyStatus({ e: player.id }, 'mired')
+    eng.author(() => eng.applyStatus({ e: player.id }, 'mired'))
     expect(combatDelay(w, player, 4, 'move')).toBeGreaterThan(base)
     expect(combatDelay(w, player, 5, 'attack')).toBe(5)
     ticks(1)
@@ -157,8 +157,8 @@ describe('seven original sin encounters', () => {
 
   it('routes a wide body around an obstacle instead of clipping its side or getting stuck', () => {
     const { eng, w, boss, player, ticks } = arena()
-    w.place(player, { on: 'tile', map: 'arena', x: 16, y: 24 })
-    for (let x = 14; x <= 18; x++) w.setTerrain('arena', x, 17, 'wall')
+    w.author(() => w.place(player, { on: 'tile', map: 'arena', x: 16, y: 24 }))
+    for (let x = 14; x <= 18; x++) w.author(() => w.setTerrain('arena', x, 17, 'wall'))
     stepBosses(eng, 'arena')
     expect(boss.ai!.detour?.path.length).toBeGreaterThan(0)
     for (let i = 0; i < 100 && !boss.boss!.pending; i++) {
@@ -177,8 +177,8 @@ describe('seven original sin encounters', () => {
     ticks(release - w.state.tick)
     expect(w.posOf(player)?.y).toBe(19)
     expect(eng.busy(player)).toBe(true)
-    w.place(player, { on: 'tile', map: 'arena', x: 36, y: 36 })
-    w.place(boss, { on: 'tile', map: 'arena', x: 22, y: 20 })
+    w.author(() => w.place(player, { on: 'tile', map: 'arena', x: 36, y: 36 }))
+    w.author(() => w.place(boss, { on: 'tile', map: 'arena', x: 22, y: 20 }))
     ticks(120)
     expect(boss.boss!.pending).toBeUndefined()
     const at = w.posOf(boss)!, home = boss.ai!.home
@@ -228,9 +228,9 @@ describe('sin encounter assets and compatibility', () => {
     const road = decodeChunk(chunks.find((c) => c.map.id === FIRST_BOSS.map)!)
     if (visited) game.loadChunk({ ...road, entities: road.entities.filter((e) => !e.boss) })
     ;(w.player.props ??= {}).quest = 6
-    w.setFact('mq.smith', 3)
-    if (visited) w.place(w.player, { on: 'tile', map: 'eastroad', x: 23, y: 15 })
-    migrateBosses(game, visited ? road : undefined)
+    w.author(() => w.setFact('mq.smith', 3))
+    if (visited) w.author(() => w.place(w.player, { on: 'tile', map: 'eastroad', x: 23, y: 15 }))
+    game.engine.author(() => migrateBosses(game, visited ? road : undefined))
     expect(w.fact(BOSS_LAYOUT)).toBe(true)
     if (visited) {
       const b = w.get(FIRST_BOSS.id)!
@@ -244,7 +244,7 @@ describe('sin encounter assets and compatibility', () => {
       expect(w.get(FIRST_BOSS.id)).toBeDefined()
     }
     const state = structuredClone(w.state)
-    migrateBosses(game, road)
+    game.engine.author(() => migrateBosses(game, road))
     expect(w.state).toEqual(state)
     expect(w.num(w.player, 'quest')).toBe(6)
     expect(w.fact('mq.smith')).toBe(3)
@@ -254,8 +254,8 @@ describe('sin encounter assets and compatibility', () => {
     const { index, chunks } = buildFord(), game = Game.create(index, onto, library()), w = game.engine.world
     const road = decodeChunk(chunks.find((c) => c.map.id === FIRST_BOSS.map)!)
     game.loadChunk({ ...road, entities: road.entities.filter((e) => !e.boss) })
-    w.setFact('sins.defeated.greed', 1)
-    migrateBosses(game, road)
+    w.author(() => w.setFact('sins.defeated.greed', 1))
+    game.engine.author(() => migrateBosses(game, road))
     expect(w.get(FIRST_BOSS.id)).toBeUndefined()
   })
 
@@ -265,9 +265,9 @@ describe('sin encounter assets and compatibility', () => {
     game.loadChunk(road)
     const boss = w.get(FIRST_BOSS.id)!
     boss.props = { hp: 60 }
-    w.setFact('content.seven-sins-v1', true)
-    w.place(w.player, { on: 'tile', map: FIRST_BOSS.map, x: 21, y: 15 })
-    migrateBosses(game, road)
+    w.author(() => w.setFact('content.seven-sins-v1', true))
+    w.author(() => w.place(w.player, { on: 'tile', map: FIRST_BOSS.map, x: 21, y: 15 }))
+    game.engine.author(() => migrateBosses(game, road))
     expect(w.num(boss, 'hp')).toBe(BOSS_BY_ID.greed.hp / 2)
     expect(w.occupiedCells(boss)).not.toContainEqual([21, 15])
     expect(w.fits(boss, FIRST_BOSS.map, w.posOf(boss)!.x, w.posOf(boss)!.y)).toBe(true)

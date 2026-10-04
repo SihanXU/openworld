@@ -72,6 +72,8 @@ export interface StatusDef {
   immobilize?: boolean
   /** Multiplier on movement delay while held (e.g. dream mist slows any actor). */
   moveDelay?: number
+  /** Ticks between the status's time/period events (default 5): a bleed pulses once a second. */
+  every?: number
   /** Render hint for the client overlay. */
   overlay?: string
 }
@@ -153,6 +155,8 @@ export interface Entity {
   props?: Record<string, PropValue>
   /** status id -> expiry tick (Infinity-like = -1 means no expiry) */
   statuses?: Record<string, number>
+  /** status id -> who gave it (the actor of the outcome that set it): its time events name them. */
+  statusBy?: Record<string, Id>
   place: Place
   facing?: Dir
   /** Actors: current hp etc. live in props (hp, maxHp, atk, def, speed). */
@@ -164,9 +168,13 @@ export interface Entity {
   npc?: NpcData
   /** Creatures: combat behaviour. */
   ai?: AiData
-  /** Deterministic, saved combat talent state; any actor may carry it. */
+  /**
+   * The actor's memory of its own blows and steps (combos, chains, windows its talents open):
+   * written only by its own act-making (combat.ts) and its own outcomes, never read by rules —
+   * like a cooldown. Anything others see (health, a bleed) is a prop or a status.
+   */
   combat?: CombatState
-  /** Data-driven encounter state, including locked telegraphs; survives saves. */
+  /** An encounter's behaviour memory (its telegraph, its animation); its blows are acts. */
   boss?: BossState
   /** Set while an undefined outcome involving this entity awaits a patch (design.md §5.11). */
   frozenBy?: string
@@ -254,12 +262,8 @@ export interface CombatState {
   /** Damage: Momentum — hits landed in a chain, and when the last one was. */
   chain?: number
   chainTick?: number
-  /** Damage: Hemorrhage — bleeding until this tick, from whom. */
-  bleedUntil?: number
-  bleedBy?: Id
-  /** Survival: Adrenaline — when it last came (once a minute), and how long it lasts. */
+  /** Survival: Adrenaline — when it last came (once a minute; the rush itself is a status). */
   adrenalineTick?: number
-  adrenalineUntil?: number
 }
 
 export interface ScheduleEntry {
@@ -531,6 +535,7 @@ export interface Portal {
 export interface TileState {
   terrain?: string // override
   statuses?: Record<string, number>
+  statusBy?: Record<string, Id>
 }
 
 export interface WorldState {
@@ -548,10 +553,8 @@ export interface WorldState {
   counter: number // id allocator
   /** Where the player respawns. */
   spawn: Pos
-  /** World facts (docs/game-design.md §8.1): `hearth.stage`, `bridge.east.fixed`, `met.npc.maren` … */
+  /** World facts (docs/game-design.md §8.1): `hearth.stage`, `bridge.east.fixed` … (the story's: only its rules change them) */
   facts?: Record<string, PropValue>
-  /** The latest beat that fired (companion.ts): what a companion repeats when spoken to. */
-  lastBeat?: string
   topics?: Topic[]
   /** What each person remembers about the player. */
   memory?: Record<Id, NpcMemory>
@@ -596,7 +599,7 @@ export interface Plan {
 // ------------------------------------------------------------------ events (design.md §5.7)
 
 /** What an actor does: the inputs, and the behaviour of people and creatures (the same acts). */
-export type Verb = 'use' | 'put' | 'take' | 'hands' | 'move' | 'craft'
+export type Verb = 'use' | 'put' | 'take' | 'hands' | 'move' | 'craft' | 'learn'
 
 /** A reference to anything that can host or fill an event role: an entity or a map tile. */
 export type Ref = { e: Id } | { tile: Pos }
@@ -612,6 +615,7 @@ export const EVENT_KINDS = [
   'act/hands',
   'act/move',
   'act/craft',
+  'act/learn',
   'impulse/strike',
   'impulse/element',
   'impulse/coat',
@@ -784,8 +788,16 @@ export type Effect =
   | { op: 'setFact'; key: string; value: PropValue }
   | { op: 'addFact'; key: string; delta: number }
   | { op: 'topic'; id: string; days?: number }
-  /** The player speaks to the host (a person) about quests (quests.ts): hand in, take on, a talk goal; else nothing. */
+  /** The host (a person) is spoken to about quests: its business with the speaker goes to the story; else it says its line. */
   | { op: 'quest' }
+  /** The story's: a quest's business (a word with its giver, a defeat) is settled (quests.ts). */
+  | { op: 'quests' }
+  /** The world's: a creature of a weighted type appears out of sight around the player (nightfall). */
+  | { op: 'appear'; types: Record<string, number>; ring: [number, number]; cap: number; tag: string }
+  /** The host learns: the skill (param skill) or the profession (param profession) its act names. */
+  | { op: 'learn' }
+  /** The host's encounter skill lands on the cells its act telegraphed (bosses.ts). */
+  | { op: 'release' }
   /** Open one of the player's panels (the profession trainer's: 'profession'). */
   | { op: 'panel'; panel: string }
   | { op: 'scene'; id: string }
@@ -793,7 +805,7 @@ export type Effect =
   | { op: 'forage' }
   | { op: 'lightning'; power: number }
   /** Send an impulse: `item` names the thing it carries (given, put, taken), `other` the role it names as the other side. */
-  | { op: 'emit'; impulse: Impulse; to: EmitTo; params?: Record<string, PropValue | Amount>; item?: RoleName; other?: RoleName; chance?: number; filter?: Selector }
+  | { op: 'emit'; impulse: Impulse; to: EmitTo; params?: Record<string, PropValue | Amount | { typeOf: RoleName }>; item?: RoleName; other?: RoleName; chance?: number; filter?: Selector }
   /** Get out of where one cannot be (water closing over the ice): to the nearest free tile. */
   | { op: 'ashore' }
   /** The story's: an invariant's authored fallback (the default of a `broken` outcome). */

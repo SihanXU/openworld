@@ -4,7 +4,7 @@
 // be spent again. Shared branches are kept. The first time an actor takes up a profession, it
 // is handed the profession's starter weapon.
 
-import type { Entity, PropValue, SkillDef, Text } from './types.ts'
+import type { Entity, SkillDef, Text } from './types.ts'
 import type { World } from './world.ts'
 import { HUNGER_EVERY } from './hunger.ts'
 import { skillTag, skillsOf } from './progression.ts'
@@ -41,37 +41,35 @@ export function cannotChoose(w: World, e: Entity, def: ProfessionDef | undefined
   return undefined
 }
 
-/** Undo the profession branch: every skill of any profession is unlearned and its points come back. */
+/** Undo the profession branch (in the actor's own outcome): every skill of any profession is unlearned and its points come back. */
 export function refundProfessionSkills(w: World, e: Entity, skills: SkillDef[]): number {
   const by = new Map(skills.map((s) => [s.id, s]))
-  const props = (e.props ??= {})
   let refunded = 0
   for (const id of skillsOf(e)) {
     const def = by.get(id)
     if (!def?.profession) continue
-    e.tags = (e.tags ?? []).filter((t) => t !== skillTag(id))
+    w.removeTag(e, skillTag(id))
     refunded += def.cost ?? 1
     for (const [key, delta] of Object.entries(def.grant ?? {})) {
-      props[key] = w.num(e, key, key === 'hungerEvery' ? HUNGER_EVERY : 0) - delta
+      w.setProp(e, key, w.num(e, key, key === 'hungerEvery' ? HUNGER_EVERY : 0) - delta)
       // a smaller pool: what was in it beyond the new top is gone
-      if (key === 'maxHp') props.hp = Math.max(1, Math.min(w.num(e, 'hp'), w.num(e, 'maxHp', 1)))
-      if (key === 'maxHunger') props.hunger = Math.min(w.num(e, 'hunger'), w.num(e, 'maxHunger'))
+      if (key === 'maxHp') w.setProp(e, 'hp', Math.max(1, Math.min(w.num(e, 'hp'), w.num(e, 'maxHp', 1))))
+      if (key === 'maxHunger') w.setProp(e, 'hunger', Math.min(w.num(e, 'hunger'), w.num(e, 'maxHunger')))
     }
   }
-  props.skillPoints = Number(props.skillPoints ?? 0) + refunded
+  w.setProp(e, 'skillPoints', Number(e.props?.skillPoints ?? 0) + refunded)
   // timed state of the old profession's talents goes with them
   if (e.combat) for (const k of ['comboTarget', 'comboHits', 'comboTick', 'markTarget', 'markHits', 'spellHits', 'rampageStacks', 'rampageUntil', 'retaliateUntil', 'fleetUntil'] as const) delete e.combat[k]
   return refunded
 }
 
-/** Take up a profession (the checks are the caller's: cannotChoose). Returns the points given back. */
+/** Take up a profession (in the actor's own outcome; the checks are the caller's: cannotChoose). Returns the points given back. */
 export function chooseProfession(w: World, e: Entity, def: ProfessionDef, skills: SkillDef[]): number {
   const refunded = refundProfessionSkills(w, e, skills)
-  const props = (e.props ??= {}) as Record<string, PropValue>
-  props.profession = def.id
+  w.setProp(e, 'profession', def.id)
   // the starter weapon, once per profession
-  if (def.weapon && !props[`kit.${def.id}`]) {
-    props[`kit.${def.id}`] = true
+  if (def.weapon && !w.prop(e, `kit.${def.id}`)) {
+    w.setProp(e, `kit.${def.id}`, true)
     w.create(def.weapon.type, { on: 'inside', holder: e.id }, structuredClone(def.weapon))
   }
   return refunded

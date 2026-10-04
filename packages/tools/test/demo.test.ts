@@ -72,22 +72,21 @@ function fresh(opts: { arrival?: boolean; ai?: boolean } = {}): Ford {
   const f = { game, eng, events, made }
   // the Ford's tests begin where the prologue ends: down the mountain, on the Ford (docs/prologue.md)
   author(f, () => ((eng.world.player.props ??= {}).prologue = PROLOGUE_DONE))
-  eng.teleport(eng.world.player, { map: 'ford', x: AT.spawn[0], y: AT.spawn[1] })
+  eng.author(() => eng.teleport(eng.world.player, { map: 'ford', x: AT.spawn[0], y: AT.spawn[1] }))
   if (!opts.arrival)
     author(f, () => {
-      eng.world.setFact('seen.arrival', true)
+      eng.world.author(() => eng.world.setFact('seen.arrival', true))
       ;(eng.world.player.props ??= {}).quest = 1
-      eng.world.create('item/food/bread', { on: 'inside', holder: 'player' })
+      eng.world.author(() => eng.world.create('item/food/bread', { on: 'inside', holder: 'player' }))
       eng.controls.sync()
     })
   // from here on, only outcomes change the world (and the tests, as its author, in `author`)
-  eng.world.strict = true
   return f
 }
 
 const W = (f: Ford) => f.eng.world
 /** The test sets the scene: an author's hand, not a change the world made. */
-const author = <T>(f: Ford, fn: () => T): T => W(f).write(fn)
+const author = <T>(f: Ford, fn: () => T): T => f.eng.author(fn)
 const ofType = (f: Ford, type: string) => Object.values(W(f).state.entities).find((e) => e.type === type)
 const stand = (f: Ford, x: number, y: number, facing: Entity['facing'] = 'up', map = 'ford') =>
   author(f, () => {
@@ -1368,7 +1367,7 @@ req('P2', 'a profession trainer in Firstlight Village: spoken to, he offers the 
   const bram = w.get('npc.bram')!
   const at = w.posOf(bram)!
   expect(at.map).toBe('meadow')
-  f.eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 })
+  f.eng.author(() => f.eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 }))
   w.fx.length = 0
   f.eng.interact('interact', 'player', { e: bram.id }, { instrument: null })
   expect(w.fx.some((x) => x.t === 'panel' && x.panel === 'profession')).toBe(true)
@@ -1385,7 +1384,7 @@ req('P2', 'a profession trainer in Firstlight Village: spoken to, he offers the 
 function talkTo(f: Ford, id: string): string {
   const w = W(f)
   const at = w.posOf(w.get(id)!)!
-  f.eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 })
+  f.eng.author(() => f.eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 }))
   w.player.facing = 'up'
   w.fx.length = 0
   f.eng.interact('interact', 'player', { e: id }, { instrument: null })
@@ -1399,7 +1398,7 @@ function fell(f: Ford, e: Entity): void {
   f.eng.controls.sync()
   f.eng.controls.select(w.player.slots!.findIndex((s) => !s))
   const at = w.posOf(e)!
-  f.eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 })
+  f.eng.author(() => f.eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 }))
   author(f, () => w.place(e, { on: 'tile', map: at.map, x: at.x, y: at.y }))
   w.player.facing = 'up'
   ;(e.props ??= {}).hp = 1
@@ -1469,7 +1468,8 @@ req('P4', 'the villagers\' errands: three side quests (stew, a lost ring, cleari
   stand(f, at.x, at.y + 1, 'up', 'hollow')
   run(f, 'take', at.x, at.y)
   expect(talkTo(f, 'npc.mia')).toContain('你找到了')
-  expect([w.fact('q.ring'), w.get('quest.mia.ring')]).toEqual(['done', undefined])
+  // handed in: the ring goes back to Mia (she takes it into her bag)
+  expect([w.fact('q.ring'), w.get('quest.mia.ring')?.place]).toEqual(['done', { on: 'inside', holder: 'npc.mia' }])
   // the hollow cleared: six felled there count; elsewhere they do not
   w.player.props!.level = 2
   expect(markOf(f, 'npc.holt')).toBe('!')
@@ -1489,18 +1489,18 @@ req('P4', 'the villagers\' errands: three side quests (stew, a lost ring, cleari
   w.state.tick = tickAt(w.calendar().day + 1, 8)
   expect(markOf(f, 'npc.gus')).toBe('!')
   // the night: in the wild (the grassland) they come, a few at a time; in the village, never
-  const born = (map: string) => w.entitiesOnMap(map).filter((e) => e.props?.nightborn)
+  const born = (map: string) => w.entitiesOnMap(map).filter((e) => w.hasTag(e, 'nightborn'))
   stand(f, 20, 12, 'down', 'pasture')
   setHour(f, 2, 22)
   ticks(f, NIGHT_EVERY * 8)
   expect(born('pasture').length).toBeGreaterThan(0)
   expect(born('pasture').length).toBeLessThanOrEqual(NIGHT_CAP)
   expect(born('pasture').every((e) => e.type === 'actor/creature/undead/zombie' || e.type === 'actor/creature/beast/bat')).toBe(true)
-  f.eng.teleport(w.player, { map: 'meadow', x: 20, y: 14 })
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow', x: 20, y: 14 }))
   ticks(f, NIGHT_EVERY * 8)
   expect(born('meadow')).toEqual([])
   // dawn: those of the night crumble
-  f.eng.teleport(w.player, { map: 'pasture', x: 20, y: 12 })
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'pasture', x: 20, y: 12 }))
   setHour(f, 3, 6)
   ticks(f, 60)
   expect(born('pasture')).toEqual([])
@@ -1569,7 +1569,6 @@ describe('the event model is complete (design.md §5.13)', () => {
     const f = fresh()
     stand(f, ...AT.spawn)
     ticks(f, 24 * TICKS_PER_HOUR)
-    expect(W(f).strict).toBe(true)
   })
 
   it('the relation difference: a thing put in a chest is in it, a thing set down is on the ground', () => {

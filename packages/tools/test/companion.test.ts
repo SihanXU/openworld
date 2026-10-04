@@ -16,7 +16,7 @@ describe('the companion', () => {
     const w = eng.world
     const p = w.player
     // the slope's open middle row, from west to east and back, zig-zagging
-    eng.teleport(p, { map: 'slope', x: 8, y: 12 })
+    eng.author(() => eng.teleport(p, { map: 'slope', x: 8, y: 12 }))
     for (let i = 0; i < 10; i++) eng.tick()
     const pip = w.get('pip')!
     let prev = w.posOf(pip)!
@@ -38,6 +38,42 @@ describe('the companion', () => {
     const at = w.posOf(pip)!
     const me = w.posOf(p)!
     expect(Math.max(Math.abs(at.x - me.x), Math.abs(at.y - me.y))).toBe(1)
+  })
+
+  it('struck down, it cannot follow: its behaviour reports stuck, and the world (the AI) answers; with no answer it comes to and follows again', () => {
+    const { index, chunks } = buildFord()
+    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    for (const c of chunks) game.loadChunk(decodeChunk(c))
+    const eng = game.engine
+    const w = eng.world
+    const p = w.player
+    eng.author(() => eng.teleport(p, { map: 'slope', x: 8, y: 12 }))
+    for (let i = 0; i < 20; i++) eng.tick()
+    const pip = w.get('pip')!
+    // the player strikes the bird it can point at (blows along the facing pass under a flyer)
+    eng.author(() => w.setProp(p, 'atk', 50))
+    const at = w.posOf(pip)!
+    const me = w.posOf(p)!
+    p.facing = at.x > me.x ? 'right' : at.x < me.x ? 'left' : at.y > me.y ? 'down' : 'up'
+    eng.playerAttack({ e: pip.id })
+    // essential: it goes down, it is not gone
+    expect(w.hasStatus({ e: pip.id }, 'down')).toBe(true)
+    // no modder: the request is the Mod port's to make; here it is only recorded and its default (wait) runs
+    eng.trace.length = 0
+    eng.author(() => eng.teleport(p, { map: 'slope', x: 14, y: 12 }))
+    for (let i = 0; i < 5; i++) eng.tick()
+    const stuck = eng.trace.find((t) => t.ev.kind === 'stuck' && 'e' in t.ev.host && t.ev.host.e === pip.id)
+    expect(stuck?.defined).toBe(false)
+    expect(stuck?.ev.params).toMatchObject({ activity: 'follow' })
+    expect(stuck?.ev.roles.target).toEqual({ e: p.id })
+    // it stays where it fell, and says so once an hour, not every tick
+    expect(eng.trace.filter((t) => t.ev.kind === 'stuck').length).toBe(1)
+    expect(w.posOf(pip)).toEqual(at)
+    // it comes to (the essential's timer) and flies after its leader again
+    for (let i = 0; i < 320; i++) eng.tick()
+    expect(w.hasStatus({ e: pip.id }, 'down')).toBe(false)
+    const back = w.posOf(pip)!
+    expect(Math.max(Math.abs(back.x - 14), Math.abs(back.y - 12))).toBeLessThanOrEqual(3)
   })
 })
 

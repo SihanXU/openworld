@@ -42,20 +42,19 @@ function fresh(): Ford {
   }
   const eng = game.engine
   const w = eng.world
-  w.write(() => {
+  eng.author(() => {
     w.setFact('seen.arrival', true)
     w.player.props!.quest = 1
     w.create('item/food/bread', { on: 'inside', holder: 'player' })
     eng.controls.sync()
   })
-  w.strict = true
   return { game, eng }
 }
 const W = (f: Ford) => f.eng.world
 const ofType = (f: Ford, type: string) => Object.values(W(f).state.entities).find((e) => e.type === type)!
-const stand = (f: Ford, x: number, y: number, facing: Entity['facing'] = 'up') => W(f).write(() => (W(f).place(W(f).player, { on: 'tile', map: 'ford', x, y }), (W(f).player.facing = facing)))
+const stand = (f: Ford, x: number, y: number, facing: Entity['facing'] = 'up') => f.eng.author(() => (W(f).place(W(f).player, { on: 'tile', map: 'ford', x, y }), (W(f).player.facing = facing)))
 function hold(f: Ford, e: Entity): void {
-  W(f).write(() => W(f).place(e, { on: 'inside', holder: 'player' }))
+  f.eng.author(() => W(f).place(e, { on: 'inside', holder: 'player' }))
   f.eng.controls.sync()
   f.eng.controls.select(W(f).player.slots!.indexOf(f.eng.controls.key(e)))
 }
@@ -120,7 +119,7 @@ const SCENARIOS: { name: string; act: (f: Ford) => void }[] = [
     act: (f) => {
       const slime = W(f).get('ford.fire_slime')!
       stand(f, ...STAND.road, 'right')
-      W(f).write(() => W(f).place(slime, { on: 'tile', map: 'ford', x: STAND.road[0] + 1, y: STAND.road[1] }))
+      f.eng.author(() => W(f).place(slime, { on: 'tile', map: 'ford', x: STAND.road[0] + 1, y: STAND.road[1] }))
       hold(f, ofType(f, 'item/tool/rope'))
       run(f, 'put', STAND.road[0] + 1, STAND.road[1])
     },
@@ -130,7 +129,7 @@ const SCENARIOS: { name: string; act: (f: Ford) => void }[] = [
     act: (f) => {
       W(f).state.tick = tickAt(2, 17.8)
       const fire = W(f).get('ford.campfire')!
-      W(f).write(() => {
+      f.eng.author(() => {
         W(f).clearStatus({ e: fire.id }, 'lit')
         W(f).setStatus({ e: fire.id }, 'wet', W(f).state.tick + 4000)
       })
@@ -142,7 +141,7 @@ const SCENARIOS: { name: string; act: (f: Ford) => void }[] = [
     name: 'the rope burns (broken)',
     act: (f) => {
       const rope = ofType(f, 'item/tool/rope')
-      W(f).write(() => W(f).place(rope, { on: 'tile', map: 'ford', x: STAND.road[0], y: STAND.road[1] }))
+      f.eng.author(() => W(f).place(rope, { on: 'tile', map: 'ford', x: STAND.road[0], y: STAND.road[1] }))
       f.eng.queue({ kind: 'impulse/element', host: { e: rope.id }, roles: {}, params: { element: 'fire', power: 2 }, origin: 'world' })
       ticks(f, 300, () => f.game.mods.records.length > 0)
     },

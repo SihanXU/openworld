@@ -46,9 +46,8 @@ export function buildSandbox(sc: Scenario, ontology: Ontology, lib: RuleLibrary)
     spawn: { map: SANDBOX_MAP, x: 0, y: 0 },
   }
   const eng = new Engine(state, structuredClone(ontology), lib)
-  const w = eng.world
   eng.ensureResidents()
-  w.write(() => fill(eng, sc, player))
+  eng.author(() => fill(eng, sc, player))
   eng.seedRelations(SANDBOX_MAP)
   return eng
 }

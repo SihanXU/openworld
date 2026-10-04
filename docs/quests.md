@@ -13,11 +13,17 @@ in the village, and three side quests of our own design.
   level), the giver's lines (offer, waiting, done), goals and a reward (xp, items, facts, props).
 - Goals: **defeat** creatures of a type (optionally on one map), **carry** things (taken on
   hand-in when `consume`), **talk** to someone (they say a line), a **fact** reaching a value.
-- State lives in world facts: `q.<id>` = active / done, `q.<id>.<goal>` counts, `q.<id>.day`
-  for a repeatable quest (it comes back the next day).
-- E on a person runs the `quest` effect (the `core/talk` rule): hand in what is ready, else take
-  on what is offered, else meet a talk goal, else the giver's "waiting" line, else their usual
-  line. Defeats count in `Engine.dispatch` before rules remove the felled.
+- State lives in the story's facts: `q.<id>` = active / done, `q.<id>.by` who took it on,
+  `q.<id>.<goal>` counts, `q.<id>.day` for a repeatable quest (it comes back the next day).
+- Every change is an outcome (design.md §5.13): E on a person runs the person's `quest` effect;
+  if there is business between them and the speaker (something to hand in, to take on, a talk
+  goal) it tells the story (`notify` what = quest), else it says the giver's "waiting" line or
+  its usual line. The story's `quests` effect (`story/quests`) settles it: hand in what is ready,
+  else take on what is offered, else meet a talk goal. On hand-in what was to be brought is taken
+  by the giver (each thing a `taken` impulse into their bag), the reward's items are spawned into
+  the taker's bag, and the taker is told its experience and stage (`notify` reward / quest),
+  which it keeps itself. A defeat counts when the felled one's defeat rule tells the story
+  (`notify` what = defeat, its type), for the quests the one who felled it took on.
 - The frame carries `quests.marks` (yellow **!** a quest to give, **?** one to hand in, drawn
   over the person's head) and `quests.log` (the quest log, L or the 📜 button, grouped main /
   side / repeatable, with goal counts; the button's badge counts quests under way, red when
@@ -53,7 +59,9 @@ trainer (docs/skill-tree.md), and Tobin, the peddler, are there too.
 Every map is a combat zone unless marked peaceful (`MapData.zone`): the Ford's camp, Firstlight
 Village, Emberfall and the mountaintop are peaceful. At night (21:00–05:00), in a combat zone
 under the open sky, zombies and bats come out 6–10 tiles from the player, every 6 seconds, up to
-4 at a time; at dawn they crumble one by one. The minimap shows the zone.
+4 at a time; at dawn they crumble a few at a time. The minimap shows the zone. It is the world's:
+its `night` period's rule (`world/clocks`) makes them `appear` (tagged `nightborn`), and their own
+rule on the `dawn` period (`night/dawn`) crumbles them in daylight.
 
 ## Tests
 

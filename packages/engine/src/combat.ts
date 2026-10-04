@@ -1,5 +1,11 @@
 // Automatic combat talents. Every actor uses the same calculations; only input chooses
 // the player. Timers, fractional cadence and combo state are deterministic and saved.
+//
+// Where they act (design.md §5.13, A2–A3): what a talent does to the striker's blow (its power,
+// a critical, a bleed it opens, health it draws back) is computed by the striker's act-making and
+// carried by the act; what the one struck takes is its own outcome (`hurt`: dodges, guards, the
+// brink); what a defeat gives back is the striker's rule (content: combat/learn). The memory of
+// one's own blows and steps (`Entity.combat`) is written only by its owner.
 
 import { DIRS, type Entity } from './types.ts'
 import type { World } from './world.ts'
@@ -40,7 +46,7 @@ export function combatDelay(w: World, e: Entity, base: number, kind: 'move' | 'a
   if (kind === 'attack' && skill(w, e, 'battle-tempo') && recentlyMoved(w, e)) haste += 0.1
   if (kind === 'move' && ranger(w, e, 'fleet-archer') && (e.combat?.fleetUntil ?? 0) > w.state.tick) haste += 0.2
   if (kind === 'move' && skill(w, e, 'slipstream') && (e.combat?.slipUntil ?? 0) > w.state.tick) haste += 0.3
-  if (kind === 'move' && skill(w, e, 'adrenaline') && (e.combat?.adrenalineUntil ?? 0) > w.state.tick) haste += 0.3
+  if (kind === 'move' && skill(w, e, 'adrenaline') && w.hasStatus({ e: e.id }, 'adrenaline')) haste += 0.3
   if (kind === 'attack' && ranger(w, e, 'quick-draw') && isRanged(w.get(e.held))) haste += 0.2
   if (!haste) return Math.max(1, base)
   const state = (e.combat ??= {})
@@ -56,11 +62,15 @@ export interface Strike {
   critical: boolean
   charged: boolean
   comboHits: number
+  /** Ticks the target bleeds if the blow lands (Hemorrhage). */
+  bleed: number
+  /** Health the striker draws back if the blow lands (the Warlord's answer). */
+  drain: number
 }
 
 /** Contextual bonuses are additive, then the critical multiplier applies before defence. */
 export function combatStrike(w: World, a: Entity, target: Entity | undefined, base: number, range: number, weapon: Entity | undefined, primary: boolean): Strike {
-  const out: Strike = { power: base, critical: false, charged: false, comboHits: 0 }
+  const out: Strike = { power: base, critical: false, charged: false, comboHits: 0, bleed: 0, drain: 0 }
   if (!target || w.kindOf(target) !== 'actor' || w.num(target, 'hp') <= 0 || w.hasStatus({ e: target.id }, 'down')) return out
   const melee = range <= 1
   if (melee && weapon && w.hasTag(weapon, 'blade') && assassin(w, a, 'assassin-training')) out.power += 1
@@ -81,7 +91,11 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
   if (primary) {
     const state = a.combat
     // warrior: a hit taken readies the next melee blow; defeats build a rampage
-    if (melee && warrior(w, a, 'retaliation') && (state?.retaliateUntil ?? 0) > w.state.tick) bonus += 0.4
+    if (melee && warrior(w, a, 'retaliation') && (state?.retaliateUntil ?? 0) > w.state.tick) {
+      bonus += 0.4
+      // the warlord's answer also mends
+      if (warrior(w, a, 'warlord')) out.drain = 2
+    }
     if (melee && warrior(w, a, 'rampage') && (state?.rampageUntil ?? 0) > w.state.tick) bonus += 0.15 * Math.min(3, state?.rampageStacks ?? 0)
     // ranger: standing still steadies the aim; far targets reward it; every third hit on one target is sure
     if (isRanged(weapon)) {
@@ -127,10 +141,15 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
   out.critical = guaranteed || (chance > 0 && w.rand() < chance)
   // a critical: ×1.5 (Deadly Focus ×2), and what critDamage adds (Lethal Edge, Brutal)
   out.power *= (1 + bonus) * (out.critical ? (skill(w, a, 'deadly-focus') ? 2 : 1.5) + Math.max(0, w.num(a, 'critDamage')) : 1)
+  // a critical opens a wound that bleeds 1 a second for 4 seconds (Hemorrhage)
+  if (primary && out.critical && skill(w, a, 'hemorrhage')) out.bleed = 40
   return out
 }
 
-/** Called after a hit resolves; immunity/misses cannot consume a charge or generate a combo. */
+/**
+ * The striker's memory after its blow resolved (its own act-making, like a cooldown): combos,
+ * chains, the windows a defeat opens. Immunity and misses consume no charge and build no combo.
+ */
 export function finishCombatStrike(w: World, a: Entity, target: Entity | undefined, strike: Strike, before: number, range: number, primary: boolean): void {
   const landed = !!target && w.kindOf(target) === 'actor' && before > 0 && w.num(target, 'hp') < before
   const weapon = w.get(a.held)
@@ -138,16 +157,7 @@ export function finishCombatStrike(w: World, a: Entity, target: Entity | undefin
     const state = (a.combat ??= {})
     if (skill(w, a, 'momentum')) (state.chain = w.state.tick - (state.chainTick ?? -Infinity) <= 15 ? (state.chain ?? 0) + 1 : 1), (state.chainTick = w.state.tick)
     if (strike.critical && skill(w, a, 'untouchable')) delete state.dodgeTick
-    if (strike.critical && skill(w, a, 'hemorrhage') && target && w.get(target.id)) {
-      const t = (target.combat ??= {})
-      t.bleedUntil = w.state.tick + 40
-      t.bleedBy = a.id
-    }
-    if (range <= 1 && warrior(w, a, 'retaliation') && (state.retaliateUntil ?? 0) > w.state.tick) {
-      delete state.retaliateUntil
-      // the warlord's answer also mends
-      if (warrior(w, a, 'warlord')) heal(w, a, 2)
-    }
+    if (range <= 1 && warrior(w, a, 'retaliation') && (state.retaliateUntil ?? 0) > w.state.tick) delete state.retaliateUntil
     if (isRanged(weapon)) {
       if (ranger(w, a, 'hunters-mark')) (state.markTarget = target!.id), (state.markHits = strike.comboHits)
       if (ranger(w, a, 'fleet-archer')) state.fleetUntil = w.state.tick + 15
@@ -179,20 +189,13 @@ export function finishCombatStrike(w: World, a: Entity, target: Entity | undefin
     state.rampageStacks = (state.rampageUntil ?? 0) > w.state.tick ? Math.min(3, (state.rampageStacks ?? 0) + 1) : 1
     state.rampageUntil = w.state.tick + 50
   }
-  if (isMagic(weapon) && mage(w, a, 'arcane-recovery')) heal(w, a, 3)
-  if (range <= 1 && assassin(w, a, 'shadow-recovery')) {
-    const hp = w.num(a, 'hp')
-    const max = w.num(a, 'maxHp', 1)
-    const healed = Math.max(0, Math.min(max - hp, Math.ceil(max * 0.1)))
-    if (healed) {
-      ;(a.props ??= {}).hp = hp + healed
-      w.fx.push({ t: 'damage', who: a.id, amount: -healed })
-    }
-  }
+  // what a defeat gives back (Arcane Recovery, Shadow Recovery) is the striker's own rule on the
+  // defeat's notify (content: combat/learn)
 }
 
-/** Only non-piercing damage attributed to another actor is direct combat damage. */
-export function combatDamage(w: World, e: Entity, damage: number, attacker: Entity | undefined, pierce: boolean): number {
+/** Only non-piercing damage attributed to another actor is direct combat damage. Runs in the struck one's own outcome (`hurt`). */
+export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: Entity | undefined, pierce: boolean): number {
+  const w = eng.world
   if (pierce || !attacker || attacker.id === e.id || w.kindOf(attacker) !== 'actor') return damage
   const state = (e.combat ??= {})
   // untouchable for a moment (Phantom Step after a dash, Phoenix after a fall)
@@ -215,7 +218,8 @@ export function combatDamage(w: World, e: Entity, damage: number, attacker: Enti
   // adrenaline: a blow that leaves you at the brink, once a minute
   if (skill(w, e, 'adrenaline') && hp - damage > 0 && hp - damage <= w.num(e, 'maxHp', 1) * 0.3 && w.state.tick - (state.adrenalineTick ?? -Infinity) >= 600) {
     state.adrenalineTick = w.state.tick
-    state.adrenalineUntil = w.state.tick + 50
+    // the rush: faster, and mending a little each second (content: body/adrenaline)
+    eng.applyStatus({ e: e.id }, 'adrenaline', 50)
     w.fx.push({ t: 'log', text: { en: 'Adrenaline!', zh: '肾上腺素！' }, tone: 'good' })
   }
   if (skill(w, e, 'last-stand') && hp > 0 && damage >= hp && w.state.tick - (state.lastStandTick ?? -Infinity) >= 300) {
@@ -226,30 +230,11 @@ export function combatDamage(w: World, e: Entity, damage: number, attacker: Enti
   return damage
 }
 
-function heal(w: World, a: Entity, amount: number): void {
-  const hp = w.num(a, 'hp')
-  const healed = Math.max(0, Math.min(w.num(a, 'maxHp', 1) - hp, amount))
-  if (!healed) return
-  ;(a.props ??= {}).hp = hp + healed
-  w.fx.push({ t: 'damage', who: a.id, amount: -healed })
-}
-
-/** Each tick on the active map: bleeding (Hemorrhage) and Adrenaline's healing, every second. */
-export function combatTick(eng: Engine, active: string): void {
-  const w = eng.world
-  if (w.state.tick % 10) return
-  for (const e of w.entitiesOnMap(active)) {
-    const c = e.combat
-    if (!c || e.place.on !== 'tile' || w.kindOf(e) !== 'actor') continue
-    if ((c.bleedUntil ?? 0) > w.state.tick && w.num(e, 'hp') > 0) eng.hurt(e, 1, undefined, true, { kind: 'impulse/strike', host: { e: e.id }, roles: c.bleedBy && w.get(c.bleedBy) ? { actor: { e: c.bleedBy } } : {}, cause: c.bleedBy, origin: 'world' })
-    if ((c.adrenalineUntil ?? 0) > w.state.tick && skill(w, e, 'adrenaline')) heal(w, e, 1)
-  }
-}
-
 /**
  * Dash (the skill, Q): up to 3 tiles the way the actor faces (Tailwind: 4), stopping before
  * anything solid, or before a creature (Phantom Step passes through, but never ends on one).
- * Cooldown 4 s (Tailwind: 2.5 s). Slipstream and Phantom Step follow it.
+ * Cooldown 4 s (Tailwind: 2.5 s). Slipstream and Phantom Step follow it. The dash is an act of
+ * moving to the tile it lands on; its windows are the actor's memory.
  */
 export function dash(eng: Engine, e: Entity): boolean {
   const w = eng.world
@@ -267,17 +252,13 @@ export function dash(eng: Engine, e: Entity): boolean {
     else if (!through) break
   }
   if (!land) return false
+  eng.act('move', e.id, { e: e.id }, { instrument: null, params: { map: at.map, x: land.x, y: land.y, dash: true } })
+  const now = w.posOf(e)
+  if (!now || (now.x === at.x && now.y === at.y && now.map === at.map)) return false
   w.fx.push({ t: 'vfx', fx: 'poof', map: at.map, x: at.x, y: at.y })
-  // a move of the actor's own, like a step: its relations are settled after (design.md §5.10)
-  eng.touch({ e: e.id })
-  w.write(() => {
-    w.place(e, { on: 'tile', map: at.map, x: land.x, y: land.y })
-    const state = (e.combat ??= {})
-    if (skill(w, e, 'slipstream')) state.slipUntil = w.state.tick + 20
-    if (through) state.guardUntil = w.state.tick + 5
-  })
-  eng.touch({ e: e.id })
-  eng.settle()
+  const state = (e.combat ??= {})
+  if (skill(w, e, 'slipstream')) state.slipUntil = w.state.tick + 20
+  if (through) state.guardUntil = w.state.tick + 5
   eng.setCooldown('dash:' + e.id, skill(w, e, 'tailwind') ? 25 : 40)
   return true
 }

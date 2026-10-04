@@ -581,8 +581,8 @@ undefined behaviour is exactly reaching an undefined leaf.
 
 | Check | How |
 |---|---|
-| state changes only in outcomes | the world's mutators are callable only from the effect runner |
-| write only yourself | the validator for patches; a lint over the base rules |
+| state changes only in outcomes | the world's mutators throw unless the engine's one writer is lent to the caller (outcomes, the clock, loading, the input's posture, the author); a scan of the game's source finds no write behind them (§5.15) |
+| write only yourself | in an outcome the mutators throw unless what they change is its host, held by it, or made by it, and a fact unless the host is a resident (§5.15); the validator for patches; a lint over the base rules |
 | the root is total | the root has a rule for every kind and no `inherit` leaf |
 | no ties | the validator |
 | the kinds are closed | the engine emits only kinds of the tree |
@@ -683,6 +683,51 @@ The code runs the event model. The previous model's text is in git history, at c
 - **Events no rule could answer are not made** (`offer`): a contact `end` or `stay` with only
   the no-change root behind it is passed over, which is the same as dispatching it and changing
   nothing. Every kind is still made where some rule answers it.
+
+### 5.15 Completeness enforced (2026-10-04)
+
+Systems added after the migration (companions and the tutorial's beats, quests, professions and
+the skill tree, combat talents, the seven sins, the night) changed the state outside outcomes:
+striking Pip down changed nothing the world could answer, a quest wrote the player's bag from
+code, the night made and unmade creatures from the clock's code. The guard of §5.14 could not
+see it: it was on only in tests, and any code could take the writer. A2 and A3 are now held by
+construction, always.
+
+**The writer.** The world's mutators (place, add, destroy, transform, a prop, a tag, a status,
+terrain, a fact) throw unless the one writer is lent to the caller. The engine claims it when it
+is made (`World.grant`, once) and lends it to: an outcome (`run`, scoped to its host), the clock
+(a status running out), loading (a map, a save brought up to date), the input's posture (what is
+in the hand, the slots) and the author (`Engine.author`: tests, world building, the dev console,
+migrations of older saves). Within an outcome the mutators also throw unless what they change is
+the host, something the host holds, or something the outcome made; a fact unless the host is the
+story or the world. A write error is never swallowed as a rule's warning. A scan of the engine's
+and the content's source (`tools/test/writes.test.ts`) finds no write behind the mutators (a prop,
+a tag, a status, a place, a fact set by hand) outside the world, the effect runner and loading,
+and no use of the author's hand in game code.
+
+**Not state.** An actor's posture (which way it faces; what the input puts in its hand) and its
+behaviour's memory (a creature's chase, a path, an encounter's telegraph, cooldowns, and
+`Entity.combat`: the memory of its own blows and steps — combos, chains, the windows a talent
+opens) are its own: written only by its own behaviour and outcomes, never read by rules.
+
+**The systems, as events** (no new event kind but one act):
+
+| Before | Now |
+|---|---|
+| the companion moved itself by code; struck down, it flew on | each hop is an act of moving (a flyer goes over what stops walkers); when it cannot go on it reports `stuck` (activity `follow`), undefined at the root: the AI answers; with none it waits and comes to |
+| beats wrote the leader's props and facts | the story's script (as a scene's): its facts, and a notice of the stage the leader keeps itself (`body/stage`) |
+| the dispatcher counted the player's experiments | a companion sees an act whose chain reached an undefined outcome (`seen`, `defined` false: the act and all it set going) and tells the story (`companion/witness`) |
+| the teleport set `visited.<map>` facts for the player | the traveller's own props, in its outcome |
+| a quest wrote facts, the player's props and bag from the person's rule; the dispatcher counted defeats by the player | the person tells the story; the story's `quests` effect writes its facts, spawns the reward into the taker's bag, notifies the taker (experience, stage) and sends the brought things a `taken` into the giver's bag; a defeat tells the story what fell (`{typeOf}` param), counted for the quests its feller took on (`q.<id>.by`) |
+| the skill tree and the trainer wrote the player's tags and props | `act/learn` (param `skill` or `profession`), like `craft`: the actor's outcome (`learn`) |
+| talents healed the striker and bled the target from the striker's code; a clock hurt and healed | the act carries `bleed` and `drain`; the struck one's `hurt` opens `bleeding` and sends a `restore`; `adrenaline` is a status; recoveries on a defeat are the striker's rule (the defeat carries the last blow's instrument) |
+| the dash, waypoint travel moved by code | acts of moving |
+| a sin's release struck, stepped and statused its victims from code | the sin's act (`use`, its own body), answered by `release`: strikes, a push, a coat they answer |
+| the night made and destroyed creatures from the clock's code | the world's `night` period → `appear` (world-only); the night-born's own `dawn` rule destroys them |
+
+**Two general refinements.** A status remembers who gave it (the outcome's actor): its time
+events name them, so a bleed or a fire one set fells in their name. A status may keep its own
+pace (`every`): it pulses counted back from its end, the last pulse as it ends.
 
 Sources:
 

@@ -21,7 +21,7 @@ function setup(target: string, held: string, sink?: UndefinedSink): Engine {
   const eng = new Engine(structuredClone(start.world.state), start.world.onto.data, lib)
   eng.world.state.player = 'actor'
   eng.world.get('actor')!.facing = 'up'
-  eng.world.write(() => eng.world.add({ id: 'held', type: held, place: { on: 'hand', holder: 'actor' } }))
+  eng.author(() => eng.world.add({ id: 'held', type: held, place: { on: 'hand', holder: 'actor' } }))
   if (sink) eng.undefinedSink = sink
   return eng
 }

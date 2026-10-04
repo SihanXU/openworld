@@ -211,9 +211,13 @@ export const QUEST_RULES: Rule[] = [
   // ---------------------------------------------------------------- the journey's own news (docs/prologue.md, quests.md)
   story({
     id: 'journey/story',
-    doc: 'The story counts the waypoint statues woken and the meals eaten (the prologue waits for the first of each).',
+    doc: 'The story counts the waypoint statues woken, the meals eaten and the experiments a companion saw (the prologue waits for the first of each).',
     host: { type: 'resident/story' },
     on: 'impulse/notify',
-    tree: IF(what('waypoint'), DO({ op: 'addFact', key: 'waypoints.attuned', delta: 1 }), IF(what('meal'), DO({ op: 'addFact', key: 'prologue.meals', delta: 1 }))),
+    tree: IF(
+      what('waypoint'),
+      DO({ op: 'addFact', key: 'waypoints.attuned', delta: 1 }),
+      IF(what('meal'), DO({ op: 'addFact', key: 'prologue.meals', delta: 1 }), IF(what('experiment'), DO({ op: 'addFact', key: 'world.experiments', delta: 1 }))),
+    ),
   }),
 ]

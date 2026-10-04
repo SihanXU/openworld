@@ -1,7 +1,7 @@
 // Base ontology: terrains, statuses, elements, visual effects and the type tree
 // for actors and fixtures. Item types come from the catalogue in items.ts.
 
-import { FORAGE_EVERY, HUNGER_EFFECT_EVERY, HUNGER_EVERY, type Ontology, type StatusDef, type TerrainDef, type TypeDef } from '@lsw/engine'
+import { FORAGE_EVERY, HUNGER_EFFECT_EVERY, HUNGER_EVERY, NIGHT_EVERY, type Ontology, type StatusDef, type TerrainDef, type TypeDef } from '@lsw/engine'
 import { ELEMENT_NAMES, MATERIALS, QUALITIES, itemTypes } from './items.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
@@ -114,6 +114,9 @@ export const STATUSES: StatusDef[] = [
   { id: 'broken', name: { en: 'broken', zh: '坏了' } },
   // at no health the essential (people, the player) collapse for a while instead of dying
   { id: 'down', name: { en: 'down', zh: '倒地' }, duration: 300, immobilize: true },
+  // a wound that bleeds 1 a second (Hemorrhage), and the rush of Adrenaline (the skills)
+  { id: 'bleeding', name: { en: 'bleeding', zh: '流血' }, duration: 40, every: 10 },
+  { id: 'adrenaline', name: { en: 'adrenaline', zh: '肾上腺素' }, duration: 50, every: 10 },
 ]
 
 export const ELEMENTS = ['fire', 'water', 'ice', 'lightning', 'wind', 'earth']
@@ -211,7 +214,7 @@ const actorTypes: TypeDef[] = [
   P('actor/creature/wisp', 'wisp', '鬼火', { tags: ['spectral', 'charged'], sprite: 'creature:wisp', props: { stance: 'air' } }),
   P('actor/creature/wisp/storm_wisp', 'storm wisp', '风暴鬼火', { props: { hp: 9, maxHp: 9, atk: 3, speed: 4, element: 'lightning' } }),
   // companions (docs/prologue.md): they follow a leader (props.companion), fly, never block nor fight
-  P('actor/companion', 'companion', '同伴', { tags: ['companion', 'living', 'airborne', 'essential'], props: { hp: 10, maxHp: 10, atk: 0, def: 0, speed: 2 } }),
+  P('actor/companion', 'companion', '同伴', { tags: ['companion', 'living', 'airborne', 'essential'], props: { hp: 10, maxHp: 10, atk: 0, def: 0, speed: 2, sight: 8 } }),
   P('actor/companion/bird', 'bird', '鸟', { tags: ['bird', 'feathered'], sprite: 'creature:parrot' }),
   // the meadow's animals: passive, they run when struck, and leave food behind (drop × drops)
   P('actor/creature/animal', 'animal', '动物', { tags: ['animal'] }),
@@ -356,6 +359,9 @@ export function buildOntology(): Ontology {
       { name: 'forage', every: FORAGE_EVERY, host: 'world' },
       { name: 'weather', every: 60, host: 'world' },
       { name: 'storm', every: 300, host: 'world' },
+      // the night's walkers come (the world's), and crumble at dawn (their own)
+      { name: 'night', every: NIGHT_EVERY, host: 'world' },
+      { name: 'dawn', every: 5, host: { kind: 'actor', tags: ['nightborn'] } },
     ],
     elements: ELEMENTS,
     vfx: [...VFX, ...BOSSES.flatMap((b) => b.skills.map((s) => s.fx))],

@@ -78,6 +78,7 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 | M8 | Wearing, resting, trading | M1 | | |
 | M9 | Every item has a purpose | all of the above | | |
 | EM | The event model (design.md §5.14), 2026-10-02 | M4 | 20,059 / 29,492 (68.0%) | 46 of 116 forms, 25 of 71 fixture types |
+| EM2 | Completeness enforced: the writer, A2–A3 at run time; companions, beats, quests, learning, talents, sins and the night as events (design.md §5.15), 2026-10-04 | EM, S1 | 25,320 / 35,546 (71.2%) | 46 of 125 forms, 25 of 86 fixture types |
 
 The event model changed what is swept: the acts each input makes (use, put, take, hands; use
 or hands on yourself) and the outcomes of the impulses they send, so the space grew to 29,492.

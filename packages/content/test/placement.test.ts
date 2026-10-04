@@ -9,7 +9,7 @@ function fresh(actorId = 'actor'): Engine {
 function kit(eng: Engine, recipeId: string, actorId = 'actor') {
   const r = PLACEMENT_BY_ID[recipeId]
   const tools: Record<string, string> = { 'tool:hammer': 'item/tool/smith_hammer', 'tool:hoe': 'item/tool/hoe', 'tool:sickle': 'item/tool/sickle', 'liquid:water': 'item/vessel/bucket/water', 'empty-vessel': 'item/vessel/bucket/empty' }
-  return r.needs.flatMap((n) => Array.from({ length: n.count }, () => eng.world.create(n.match.type ?? tools[n.match.tags![0]], { on: 'inside', holder: actorId })))
+  return r.needs.flatMap((n) => Array.from({ length: n.count }, () => eng.world.author(() => eng.world.create(n.match.type ?? tools[n.match.tags![0]], { on: 'inside', holder: actorId }))))
 }
 const place = (e: Engine, id: string, actor = 'actor') => performPlacement(e, actor, PLACEMENT_BY_ID[id], at)
 
@@ -34,19 +34,19 @@ describe('rule-driven construction', () => {
     kit(e, 'chest', 'builder')
     expect(place(e, 'chest', 'builder').ok).toBe(true)
     expect(e.world.player.id).not.toBe('builder')
-    e.world.place(e.world.get('builder')!, { on: 'tile', map: at.map, x: 1, y: 1 })
+    e.world.author(() => e.world.place(e.world.get('builder')!, { on: 'tile', map: at.map, x: 1, y: 1 }))
     expect(place(e, 'crate').ok).toBe(false)
   })
   it.each(['missing', 'occupied', 'self', 'far', 'fractional', 'water', 'frozen'] as const)('rejects %s without spending or changing equipment', (kind) => {
     const e = fresh()
     const items = kit(e, 'crate')
     let target = at
-    if (kind === 'missing') e.world.destroy(items[1])
-    if (kind === 'occupied') e.world.create('item/material/stick', { on: 'tile', ...at })
+    if (kind === 'missing') e.world.author(() => e.world.destroy(items[1]))
+    if (kind === 'occupied') e.world.author(() => e.world.create('item/material/stick', { on: 'tile', ...at }))
     if (kind === 'self') target = { ...at, y: 2 }
     if (kind === 'far') target = { ...at, x: 4 }
     if (kind === 'fractional') target = { ...at, x: 2.5 }
-    if (kind === 'water') e.world.setTerrain(at.map, at.x, at.y, 'water')
+    if (kind === 'water') e.world.author(() => e.world.setTerrain(at.map, at.x, at.y, 'water'))
     if (kind === 'frozen') items[0].frozenBy = 'pending'
     const before = structuredClone(e.world.state)
     expect(performPlacement(e, 'actor', PLACEMENT_BY_ID.crate, target).ok).toBe(false)
@@ -65,7 +65,7 @@ describe('rule-driven construction', () => {
 describe('vegetable garden', () => {
   it('grows on the real expiry clock, never on an unwatered timer', () => {
     const e = fresh()
-    e.world.setTerrain(at.map, at.x, at.y, 'farmland')
+    e.world.author(() => e.world.setTerrain(at.map, at.x, at.y, 'farmland'))
     kit(e, 'sow-carrot'); kit(e, 'water')
     place(e, 'sow-carrot')
     const crop = e.world.entitiesAt(at.map, at.x, at.y)[0]
@@ -92,14 +92,14 @@ describe('vegetable garden', () => {
       expect(place(e, 'water').ok).toBe(false)
       expect(e.world.hasStatus({ e: crop.id }, 'watered')).toBe(true)
       // two hours on: the watering runs out (the clock), and the crop grows a stage
-      e.world.write(() => e.world.clearStatus({ e: crop.id }, 'watered'))
+      e.author(() => e.world.clearStatus({ e: crop.id }, 'watered'))
       e.dispatch({ kind: 'time/timer', host: { e: crop.id }, roles: {}, params: { status: 'watered' }, origin: 'world' })
       e.flush()
     }
     grow()
     expect(crop.type).toBe(`fixture/crop/${c.id}/young`)
     expect(place(e, 'harvest').ok).toBe(false)
-    e.world.write(() => e.world.setTerrain(at.map, at.x - 1, at.y, 'water'))
+    e.author(() => e.world.setTerrain(at.map, at.x - 1, at.y, 'water'))
     expect(performPlacement(e, 'actor', PLACEMENT_BY_ID.fill, { ...at, x: at.x - 1 }).ok).toBe(true)
     grow()
     expect(crop.type).toBe(`fixture/crop/${c.id}/ripe`)
@@ -112,7 +112,7 @@ describe('vegetable garden', () => {
   })
   it('keeps the bucket in its selected slot across watering and refilling', () => {
     const e = fresh()
-    e.world.setTerrain(at.map, at.x, at.y, 'farmland')
+    e.world.author(() => e.world.setTerrain(at.map, at.x, at.y, 'farmland'))
     kit(e, 'sow-carrot')
     const [bucket] = kit(e, 'water')
     e.controls.sync()

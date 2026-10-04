@@ -14,7 +14,6 @@ const lib = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
 function ford(extra: Scenario['entities'], player: Partial<Scenario['entities'][number]> = {}): Engine {
   const row = ['grass', 'grass', 'grass', 'water', 'water', 'grass', 'grass']
   const eng = buildSandbox({ terrain: Array.from({ length: 5 }, () => [...row]), entities: [{ key: 'actor', type: 'actor/person/player', x: 1, y: 2, ...player }, ...extra], event: {} }, onto, lib())
-  eng.world.strict = true
   return eng
 }
 
@@ -77,7 +76,7 @@ describe('the Ford', () => {
     eng.queue({ kind: 'impulse/element', host: { tile: { map: 'sandbox', x: 3, y: 2 } }, roles: { actor: { e: 'actor' } }, params: { element: 'ice', power: 3 }, cause: 'actor', origin: 'player' })
     expect(eng.world.terrainAt('sandbox', 3, 2)).toBe('ice')
     expect(eng.world.hasStatus({ tile: { map: 'sandbox', x: 3, y: 2 } }, 'chilled')).toBe(true)
-    eng.teleport(eng.world.player, { map: 'sandbox', x: 3, y: 2 })
+    eng.author(() => eng.teleport(eng.world.player, { map: 'sandbox', x: 3, y: 2 }))
     expect(eng.world.posOf(eng.world.player)).toMatchObject({ x: 3, y: 2 })
     for (let i = 0; i < 1600; i++) eng.tick()
     expect(eng.world.terrainAt('sandbox', 3, 2)).toBe('water')

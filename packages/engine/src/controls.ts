@@ -17,9 +17,10 @@
 
 import { isRoot } from './rules.ts'
 import type { Engine } from './engine.ts'
+import type { Writer } from './world.ts'
 import type { Aim, Dir, Entity, Id, Place, Plan, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb } from './types.ts'
-import { learnSkill } from './progression.ts'
-import { PROFESSION_LEVEL, cannotChoose, chooseProfession, type ProfessionDef, type ProfessionRefusal } from './profession.ts'
+import { cannotLearn, skillsOf } from './progression.ts'
+import { PROFESSION_LEVEL, cannotChoose, type ProfessionDef, type ProfessionRefusal } from './profession.ts'
 
 /** The four inputs (design.md §5.2). */
 export type Key = Plan['key']
@@ -96,7 +97,11 @@ export class Controls {
   /** The magnet is on in a played game (Game turns it on); sandboxes and replays leave items where rules put them. */
   magnetic = false
 
-  constructor(private eng: Engine) {}
+  /** `hand`: the writer for the input's own posture only (what is in the hand, the slots): lent by the engine, held by no one else. */
+  constructor(
+    private eng: Engine,
+    private hand: Writer,
+  ) {}
 
   private get w() {
     return this.eng.world
@@ -339,8 +344,7 @@ export class Controls {
    * of the selected slot's stack. A held item a rule changed (a bucket emptied) keeps its slot.
    */
   sync(): void {
-    const w = this.w
-    w.write(() => this.syncSlots())
+    this.hand(() => this.syncSlots())
     this.eng.settle()
   }
 
@@ -395,7 +399,7 @@ export class Controls {
     const w = this.w
     const p = w.player
     const h = w.get(p.held)
-    if (h && !h.frozenBy) w.write(() => this.posture(h, { on: 'inside', holder: p.id }))
+    if (h && !h.frozenBy) this.hand(() => this.posture(h, { on: 'inside', holder: p.id }))
   }
 
   select(i: number): void {
@@ -498,8 +502,8 @@ export class Controls {
   // ---------------------------------------------------------------- the skill tree
 
   /**
-   * Take up a profession at a trainer (level 5, a trainer within reach). Changing gives back the
-   * profession branch's points. Returns why not, or undefined when done.
+   * Take up a profession at a trainer (level 5, a trainer within reach): an act of learning it.
+   * Changing gives back the profession branch's points. Returns why not, or undefined when done.
    */
   takeProfession(def: ProfessionDef | undefined, skills: SkillDef[]): ProfessionRefusal | undefined {
     const w = this.w
@@ -508,9 +512,14 @@ export class Controls {
     const n = (t: Text) => (typeof t === 'string' ? { en: t, zh: t } : { en: t.en, zh: t.zh ?? t.en })
     if (why === 'level') w.fx.push({ t: 'log', text: { en: `Come back at level ${PROFESSION_LEVEL}.`, zh: `等你到 ${PROFESSION_LEVEL} 级再来。` }, tone: 'warn' })
     if (why === 'trainer') w.fx.push({ t: 'log', text: { en: 'Only a trainer can set you on a profession.', zh: '只有职业导师能为你选定职业。' }, tone: 'warn' })
-    if (why || !def) return why
+    if (why || !def || this.eng.busy(p)) return why
     const had = w.prop(p, 'profession')
-    const back = w.write(() => chooseProfession(w, p, def, skills))
+    const points = w.num(p, 'skillPoints')
+    for (const s of skills) this.eng.skills.set(s.id, s)
+    this.eng.professions.set(def.id, def)
+    this.eng.act('learn', p.id, { e: p.id }, { instrument: null, params: { profession: def.id } })
+    if (w.prop(p, 'profession') !== def.id) return 'unknown'
+    const back = w.num(p, 'skillPoints') - points
     const name = n(def.name)
     w.fx.push({ t: 'log', text: { en: `You are now a${/^[aeiou]/i.test(name.en) ? 'n' : ''} ${name.en}.${back ? ` ${back} skill points given back.` : ''}`, zh: `你成为了${name.zh}。${back ? `返还了 ${back} 技能点。` : ''}` }, tone: 'good' })
     if (had) w.fx.push({ t: 'log', text: { en: 'Your old profession\'s skills are unlearned: spend the points again in the skill tree (K).', zh: '原职业的技能已重置：在技能树（K）里重新加点吧。' } })
@@ -518,11 +527,15 @@ export class Controls {
     return undefined
   }
 
-  /** Spend skill points on a skill. */
+  /** Spend skill points on a skill: an act of learning it. */
   learn(def: SkillDef): boolean {
     const w = this.w
     const p = w.player
-    if (!w.write(() => learnSkill(w, p, def))) return false
+    // what the panel offers is what can be learned now (as the crafting panel offers what can be made)
+    if (this.eng.busy(p) || cannotLearn(p, def, w.prop(p, 'profession'))) return false
+    this.eng.skills.set(def.id, def)
+    this.eng.act('learn', p.id, { e: p.id }, { instrument: null, params: { skill: def.id } })
+    if (!skillsOf(p).includes(def.id)) return false
     const n = typeof def.name === 'string' ? { en: def.name } : def.name
     w.fx.push({ t: 'log', text: { en: `Learned ${n.en}.`, zh: `学会了${n.zh ?? n.en}。` }, tone: 'good' })
     this.sync()

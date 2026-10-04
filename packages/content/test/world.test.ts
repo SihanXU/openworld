@@ -41,7 +41,6 @@ function place(person: PersonData = {}, extra: Scenario['entities'] = [], size =
     onto,
     lib(),
   )
-  eng.world.strict = true
   const h = eng.world.get('hesper')!
   h.name = { en: 'Hesper', zh: '赫斯珀' }
   h.npc = { role: 'ferrykeeper', schedule: [{ from: 0, to: 24, map: 'sandbox', x: 4, y: 4, activity: 'watch the water' }], person }
@@ -58,7 +57,7 @@ const L = (key: string, en: string, more: Partial<LineDef> = {}): LineDef => ({ 
 const ticks = (eng: Engine, n: number) => {
   for (let i = 0; i < n; i++) eng.tick()
 }
-const fact = (eng: Engine, key: string, value: number) => eng.world.write(() => eng.world.setFact(key, value))
+const fact = (eng: Engine, key: string, value: number) => eng.author(() => eng.world.setFact(key, value))
 
 describe('time and weather', () => {
   it('days and nights, nothing more: day 1 begins at 06:00, a game minute is a second', () => {
@@ -92,7 +91,7 @@ describe('people', () => {
   it('say the most specific line that fits: first meeting, a fact, the weather, the hour, default — never the same twice in a row', () => {
     const eng = place({ lines: [L('greeting:first', 'Who are you?'), L('fact:nets.mended', 'The line holds.', { once: true }), L('weather:storm', 'Get under something.'), L('default', 'A'), L('default', 'B')] })
     expect(talk(eng)).toBe('Who are you?')
-    expect(eng.world.fact('met.hesper')).toBe(true)
+    expect(eng.world.state.memory?.hesper?.talked).toBeDefined()
     const a = talk(eng)
     const b = talk(eng)
     expect([a, b].sort()).toEqual(['A', 'B'])
@@ -113,7 +112,7 @@ describe('people', () => {
 
   it('take what they are handed and say what they make of it (no tastes, no points)', () => {
     const eng = place({ lines: [L('given:item/food', 'Thank you.'), L('given', 'What is this?')] })
-    const loaf = eng.world.write(() => eng.world.create('item/food/bread', { on: 'hand', holder: 'actor' }))
+    const loaf = eng.author(() => eng.world.create('item/food/bread', { on: 'hand', holder: 'actor' }))
     eng.world.fx = []
     eng.trace = []
     eng.act('put', 'actor', { e: 'hesper' })
@@ -244,8 +243,8 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
     const eng = place({}, [{ key: 'rope', type: 'item/tool/rope', x: 3, y: 3 }, { key: 'tree', type: 'fixture/nature/dead_tree', x: 6, y: 3 }])
     const port = new ModPort(eng)
     port.provider = working
-    eng.applyStatus({ e: 'rope' }, 'burning')
-    eng.applyStatus({ tile: { map: 'sandbox', x: 1, y: 1 } }, 'wet')
+    eng.author(() => eng.applyStatus({ e: 'rope' }, 'burning'))
+    eng.author(() => eng.applyStatus({ tile: { map: 'sandbox', x: 1, y: 1 } }, 'wet'))
     eng.queue({ kind: 'impulse/element', host: { e: 'tree' }, roles: {}, params: { element: 'lightning', power: 4 }, origin: 'world' })
     expect(eng.world.hasStatus({ e: 'tree' }, 'burning')).toBe(true)
     expect(port.records).toHaveLength(0)
