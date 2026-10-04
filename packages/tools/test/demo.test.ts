@@ -25,6 +25,7 @@ import {
   astar,
   performPlacement,
   regionId,
+  madeOf,
   travelToWaypoint,
   PROFESSION_LEVEL,
   NIGHT_CAP,
@@ -721,8 +722,8 @@ req('F12', "the ground yields sticks, stones and grass (Don't Starve): taken by 
       run(f, 'take', ...([e.place.on === 'tile' && e.place.x, e.place.on === 'tile' && e.place.y] as [number, number]))
     }
   for (const type of FORAGE) expect(c.count(type)).toBeGreaterThanOrEqual(3)
-  const axe = RECIPE_BY_ID['stone-axe']
-  const pick = RECIPE_BY_ID['stone-pickaxe']
+  const axe = RECIPE_BY_ID['item/weapon/blade/axe']
+  const pick = RECIPE_BY_ID['item/tool/pickaxe']
   expect(c.craft(axe)).toBe(true)
   expect(c.craft(pick)).toBe(true)
   // what they used up is gone; with too little, nothing is made
@@ -930,8 +931,8 @@ req('F9', 'the arrival opens the story: the scene, the loaf in the pack, and Hes
 // ------------------------------------------------------------------ W. the world model: breaking (world-model.md §10.3)
 
 /** A thing made the way a recipe makes it, in the player's bag (the test's own hand). */
-function made(f: Ford, recipe: string): Entity {
-  const make = structuredClone(RECIPE_BY_ID[recipe].make)
+function made(f: Ford, recipe: string, material = 'stone'): Entity {
+  const make = madeOf(W(f).onto.data, W(f).onto, RECIPE_BY_ID[recipe].make.type, material)
   const e = author(f, () => W(f).add({ id: `given.${recipe}`, ...make, place: { on: 'inside', holder: 'player' } }))
   f.eng.controls.sync()
   return e
@@ -947,7 +948,7 @@ function cellOf(f: Ford, map: string, terrain: string): [number, number] {
 
 req('W1', 'a stone axe fells a tree in two blows (its durability, as an axe works on wood): it becomes a stump and drops logs', [], () => {
   const f = fresh()
-  hold(f, made(f, 'stone-axe'))
+  hold(f, made(f, 'item/weapon/blade/axe'))
   const [x, y] = cellOf(f, 'ford', 'tree')
   const [sx, sy, d] = beside(f, x, y)
   stand(f, sx, sy, d)
@@ -980,7 +981,7 @@ req('W2', 'a wooden club on rock: too hard — the rock is untouched, it is said
 
 req('W3', 'a stone pickaxe breaks rock in two blows and gives back stone (its makeup, at the recovery rate); the ground under it shows', [], () => {
   const f = fresh()
-  hold(f, made(f, 'stone-pickaxe'))
+  hold(f, made(f, 'item/tool/pickaxe'))
   const [x, y] = cellOf(f, 'summit', 'rock')
   const [sx, sy, d] = beside(f, x, y, 'summit')
   stand(f, sx, sy, d, 'summit')
@@ -1062,7 +1063,7 @@ req('W4', 'every map lies on the overworld, and its edges are open: mined throug
   }
   // the summit's north rim: two rows of rock above open ground
   const x = [...Array(36).keys()].map((i) => i + 2).find((x) => W(f).terrainAt('summit', x, 0) === 'rock' && W(f).terrainAt('summit', x, 1) === 'rock' && W(f).walkable('summit', x, 2))!
-  hold(f, made(f, 'stone-pickaxe'))
+  hold(f, made(f, 'item/tool/pickaxe'))
   stand(f, x, 2, 'up', 'summit')
   for (let i = 0; i < 2; i++) run(f, 'use', x, 1)
   expect(walk(f, 'up')).toMatchObject({ map: 'summit', x, y: 1 })
@@ -1146,6 +1147,40 @@ req('W7', 'a wilderness is made from the world\'s seed and its cell: entered, le
   loaded.loadMapData(wildChunkFor(loaded.engine.world, id)!.map)
   expect(loaded.engine.world.terrainAt(id, tx, ty)).not.toBe('tree')
   expect(loaded.engine.world.get('w7.stone')).toBeDefined()
+})
+
+req('W9', 'a recipe derived from what a thing is made of, made at the village workbench: it takes its main ingredient\'s material, and a quality by its maker\'s level; away from a workbench it is not made', ['fixture/craft/workbench'], () => {
+  const f = fresh()
+  const c = f.eng.controls
+  const recipe = RECIPE_BY_ID['item/armor/shield']
+  expect(recipe).toMatchObject({ station: 'workbench', needs: [{ type: 'item/material/plank', count: 3 }, { type: 'item/material/stick', count: 1 }] })
+  const supply = () =>
+    author(f, () => {
+      for (let i = 0; i < 3; i++) W(f).create('item/material/plank', { on: 'inside', holder: 'player' })
+      W(f).create('item/material/stick', { on: 'inside', holder: 'player' })
+    })
+  const shields = () => (W(f).player.contents ?? []).map((id) => W(f).get(id)!).filter((e) => e.type === 'item/armor/shield')
+  supply()
+  c.sync()
+  // on the Ford, no workbench at hand: nothing is made, nothing used up
+  c.craft(recipe)
+  expect(shields()).toHaveLength(0)
+  expect(c.count('item/material/plank')).toBe(3)
+  // beside the village's
+  stand(f, 11, 19, 'up', FIRSTLIGHT.map)
+  expect(c.craft(recipe)).toBe(true)
+  const plain = shields()[0]
+  expect(plain.name).toEqual({ en: 'Wooden Shield', zh: '木盾牌' })
+  expect(W(f).materialOf(plain)?.id).toBe('wood')
+  // a maker well above the recipe's level makes it finer
+  author(f, () => W(f).setProp(W(f).player, 'level', 4))
+  supply()
+  c.sync()
+  expect(c.craft(recipe)).toBe(true)
+  const fine = shields().find((e) => e.id !== plain.id)!
+  expect(fine.name).toEqual({ en: 'Fine Wooden Shield', zh: '精良木盾牌' })
+  expect(W(f).hasTag(fine, 'quality:fine')).toBe(true)
+  expect(records(f)).toHaveLength(0)
 })
 
 req('W13', 'a burning wooden wall (the summit shelter) loses durability as it burns and leaves a burnt wall', [], () => {
@@ -1557,7 +1592,7 @@ req('P1', 'the prologue, offline: down from the plateau to the Ford, every beat 
     stand(f, x, y + 1, 'up', 'summit')
     run(f, 'take', x, y)
   }
-  expect(c.craft(RECIPE_BY_ID['stone-axe'])).toBe(true)
+  expect(c.craft(RECIPE_BY_ID['item/weapon/blade/axe'])).toBe(true)
   until(5)
   // the pine in the cut: two swings of the axe
   hold(f, carried('item/weapon/blade/axe'))

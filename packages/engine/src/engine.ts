@@ -9,6 +9,7 @@ import { TICKS_PER_MINUTE, isNight } from './calendar.ts'
 import { EffectRunner } from './effects.ts'
 import { Controls } from './controls.ts'
 import { Scenes } from './scenes.ts'
+import { deriveRecipes } from './recipes.ts'
 import { stepCreatures } from './creatures.ts'
 import { combatDamage, combatDelay, combatStrike, finishCombatStrike, rangeBonus, recordCombatStep } from './combat.ts'
 import { Companions } from './companion.ts'
@@ -123,6 +124,8 @@ export class Engine {
     this.companions = new Companions(this)
     this.quests = new Quests(this)
     this.controls = new Controls(this, this.write)
+    // what can be made: every type with a station and a makeup (world-model.md §6.4)
+    for (const r of deriveRecipes(onto)) this.recipes.set(r.id, r)
   }
 
   /**

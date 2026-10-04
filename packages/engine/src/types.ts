@@ -61,6 +61,10 @@ export interface TypeDef {
    * part's count is scaled by the world's recovery rate, in the thing's own material.
    */
   makeup?: MakeupPart[]
+  /** Where it is made from its makeup (world-model.md §6.4): `hands` (anywhere), or a station a thing within reach is (its `station:<x>` tag). */
+  station?: string
+  /** The level its recipe asks (default 1): a maker above it makes it finer. */
+  craftLevel?: number
   /**
    * Things bigger than a tile: the base they stand on, [width, depth] in tiles — centred on
    * their own tile, reaching back (north) from it. A solid thing blocks all of it, and only
@@ -89,6 +93,19 @@ export interface MaterialDef {
   id: string
   category: string
   hardness: number
+  /** How a thing of it is named ("Stone" Axe, 石斧), what tags it gives, how much power it adds (a weapon, a tool). */
+  name?: Text
+  tags?: string[]
+  power?: number
+}
+
+/** A quality a made thing can have (world-model.md §6.4): its tag, name and power, and from how far above a recipe's level its maker reaches it (none: not by making). */
+export interface QualityDef {
+  id: string
+  tag?: string
+  name?: Text
+  power: number
+  from?: number
 }
 
 /** Numbers the world is made with (world-model.md §11): data, never literals in the engine. */
@@ -157,6 +174,8 @@ export interface Ontology {
   thresholds?: ThresholdDef[]
   /** The materials things are made of, by id. */
   materials?: Record<string, MaterialDef>
+  /** The qualities made things have. */
+  qualities?: QualityDef[]
   /**
    * How well an instrument works on a material category (world-model.md §6.1): rows are its
    * capabilities (`tool:axe` …) and its edge (`edge:cut` …); an instrument takes its best row.
@@ -599,8 +618,12 @@ export interface Recipe {
   id: string
   name: Text
   sprite: string
+  /** What it uses up: its makeup (the first part is the main ingredient, whose material it takes). */
   needs: { type: string; count: number }[]
   make: Omit<Entity, 'id' | 'place'>
+  /** Where it is made: `hands`, or a station within reach. */
+  station?: string
+  level?: number
 }
 
 export interface Portal {

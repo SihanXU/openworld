@@ -1,8 +1,8 @@
 {
  "totals": {
-  "specific": 2569,
+  "specific": 2693,
   "generic": 9123,
-  "undefined": 26131
+  "undefined": 26007
  },
  "byRule": {
   "body/fireproof": 1,
@@ -40,7 +40,7 @@
   "farm/till": 5,
   "farm/water": 56,
   "people/talk": 5,
-  "use/blade": 100,
+  "use/blade": 133,
   "use/cook": 15,
   "use/drink": 5,
   "use/eat": 20,
@@ -48,16 +48,16 @@
   "use/fill": 15,
   "use/fill-put": 15,
   "use/fire": 584,
-  "use/hammer": 21,
-  "use/hoe": 21,
+  "use/hammer": 28,
+  "use/hoe": 28,
   "use/oil": 290,
-  "use/pickaxe": 21,
+  "use/pickaxe": 28,
   "use/rope": 28,
-  "use/shovel": 20,
-  "use/sickle": 21,
-  "use/spell": 42,
+  "use/shovel": 27,
+  "use/sickle": 28,
+  "use/spell": 56,
   "use/water": 528,
-  "use/weapon": 126,
+  "use/weapon": 168,
   "water/bridge": 1,
   "waypoint/attune": 5,
   "wood/char": 1,
@@ -67,7 +67,7 @@
  "byHole": {
   "core/handle": 639,
   "core/offered": 125,
-  "core/strike": 2226,
+  "core/strike": 2102,
   "core/taken": 122,
   "core/use": 13984,
   "creature/not-taken": 2,
@@ -80,69 +80,69 @@
    "undefined": 378
   },
   "item/weapon/blade/sword": {
-   "specific": 23,
+   "specific": 30,
    "generic": 73,
-   "undefined": 203
+   "undefined": 196
   },
   "item/weapon/blade/dagger": {
-   "specific": 23,
+   "specific": 30,
    "generic": 73,
-   "undefined": 203
+   "undefined": 196
   },
   "item/weapon/blade/axe": {
-   "specific": 28,
+   "specific": 33,
    "generic": 73,
-   "undefined": 198
+   "undefined": 193
   },
   "item/weapon/blade/dragonsbane": {
-   "specific": 23,
+   "specific": 30,
    "generic": 73,
-   "undefined": 203
+   "undefined": 196
   },
   "item/weapon/blade/scimitar": {
-   "specific": 23,
+   "specific": 30,
    "generic": 73,
-   "undefined": 203
+   "undefined": 196
   },
   "item/weapon/blunt/club": {
-   "specific": 23,
+   "specific": 30,
    "generic": 73,
-   "undefined": 203
+   "undefined": 196
   },
   "item/weapon/blunt/mace": {
-   "specific": 23,
+   "specific": 30,
    "generic": 73,
-   "undefined": 203
+   "undefined": 196
   },
   "item/weapon/blunt/warhammer": {
-   "specific": 23,
+   "specific": 30,
    "generic": 73,
-   "undefined": 203
+   "undefined": 196
   },
   "item/weapon/polearm/spear": {
-   "specific": 23,
+   "specific": 30,
    "generic": 73,
-   "undefined": 203
+   "undefined": 196
   },
   "item/weapon/polearm/halberd": {
-   "specific": 23,
+   "specific": 30,
    "generic": 73,
-   "undefined": 203
+   "undefined": 196
   },
   "item/weapon/ranged/bow": {
-   "specific": 23,
+   "specific": 30,
    "generic": 73,
-   "undefined": 203
+   "undefined": 196
   },
   "item/weapon/magic/wand": {
-   "specific": 23,
+   "specific": 30,
    "generic": 73,
-   "undefined": 203
+   "undefined": 196
   },
   "item/weapon/magic/staff": {
-   "specific": 23,
+   "specific": 30,
    "generic": 73,
-   "undefined": 203
+   "undefined": 196
   },
   "item/armor/helmet": {
    "specific": 1,
@@ -180,24 +180,24 @@
    "undefined": 225
   },
   "item/tool/pickaxe": {
-   "specific": 24,
+   "specific": 31,
    "generic": 73,
-   "undefined": 202
+   "undefined": 195
   },
   "item/tool/shovel": {
-   "specific": 45,
+   "specific": 52,
    "generic": 73,
-   "undefined": 181
+   "undefined": 174
   },
   "item/tool/hoe": {
-   "specific": 28,
+   "specific": 35,
    "generic": 73,
-   "undefined": 198
+   "undefined": 191
   },
   "item/tool/sickle": {
-   "specific": 30,
+   "specific": 37,
    "generic": 73,
-   "undefined": 196
+   "undefined": 189
   },
   "item/tool/fishing_rod": {
    "specific": 34,
@@ -205,9 +205,9 @@
    "undefined": 192
   },
   "item/tool/smith_hammer": {
-   "specific": 25,
+   "specific": 32,
    "generic": 73,
-   "undefined": 201
+   "undefined": 194
   },
   "item/tool/knife": {
    "specific": 1,
@@ -707,19 +707,19 @@
  },
  "byTarget": {
   "fixture/container/chest": {
-   "specific": 17,
+   "specific": 34,
    "generic": 126,
-   "undefined": 110
+   "undefined": 93
   },
   "fixture/container/chest#open": {
-   "specific": 16,
+   "specific": 33,
    "generic": 126,
-   "undefined": 111
+   "undefined": 94
   },
   "fixture/container/chest#locked": {
-   "specific": 16,
+   "specific": 34,
    "generic": 126,
-   "undefined": 111
+   "undefined": 93
   },
   "fixture/container/barrel": {
    "specific": 34,
@@ -837,14 +837,14 @@
    "undefined": 117
   },
   "fixture/light/campfire": {
-   "specific": 10,
+   "specific": 28,
    "generic": 0,
-   "undefined": 243
+   "undefined": 225
   },
   "fixture/light/campfire#lit": {
-   "specific": 53,
+   "specific": 71,
    "generic": 0,
-   "undefined": 200
+   "undefined": 182
   },
   "fixture/light/brazier": {
    "specific": 10,
@@ -917,9 +917,9 @@
    "undefined": 243
   },
   "fixture/sign/noticeboard": {
-   "specific": 15,
+   "specific": 33,
    "generic": 0,
-   "undefined": 238
+   "undefined": 220
   },
   "fixture/craft/anvil": {
    "specific": 11,
@@ -1072,9 +1072,9 @@
    "undefined": 117
   },
   "fixture/fence": {
-   "specific": 10,
+   "specific": 28,
    "generic": 0,
-   "undefined": 243
+   "undefined": 225
   },
   "fixture/crop/wheat/sprout": {
    "specific": 13,
@@ -1528,7 +1528,6 @@
   "fixture/nature/dead_tree",
   "fixture/nature/burrow",
   "fixture/ferry/winch",
-  "fixture/fence",
   "fixture/dummy",
   "fixture/scarecrow"
  ]

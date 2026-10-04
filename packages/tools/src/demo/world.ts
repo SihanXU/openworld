@@ -254,6 +254,8 @@ function buildMeadow(): MapBuilder {
   m.fixture('fixture/water/well', ...FIRSTLIGHT.well, { id: 'village.well' })
   m.fixture('fixture/light/campfire', ...FIRSTLIGHT.fire, { id: 'village.campfire', statuses: { lit: -1 } })
   m.fixture('fixture/furniture/bench/log', 20, 19, { id: 'village.bench' })
+  // the woodworker's bench by the wood pile: what is made at a workbench is made here (world-model.md §6.4)
+  m.fixture('fixture/craft/workbench', 11, 18, { id: 'village.workbench' })
   m.fixture('fixture/sign/noticeboard', 17, 14, { id: 'village.notice', props: { text: 'FIRSTLIGHT VILLAGE — Every journey begins with a first step. East: The Ford. South: The Forest.' } })
   for (const [x, y] of [[25, 13], [12, 16]] as const) m.fixture('fixture/light/lamppost', x, y, { id: `village.lamp.${x}`, statuses: { lit: -1 } })
   // Tobin and his stock move together. Stable IDs keep saved trades and inventories intact.

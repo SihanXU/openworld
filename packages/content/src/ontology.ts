@@ -2,7 +2,7 @@
 // for actors and fixtures. Item types come from the catalogue in items.ts.
 
 import { FORAGE_EVERY, HUNGER_EFFECT_EVERY, HUNGER_EVERY, NIGHT_EVERY, type Ontology, type StatusDef, type TerrainDef, type TypeDef } from '@lsw/engine'
-import { ELEMENT_NAMES, MATERIALS, MATERIAL_DEFS, QUALITIES, itemTypes } from './items.ts'
+import { ELEMENT_NAMES, MATERIALS, MATERIAL_DEFS, QUALITIES, QUALITY_DEFS, itemTypes } from './items.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
 
@@ -309,7 +309,7 @@ const fixtureTypes: TypeDef[] = [
   // what stands in a cell can be stood or set on, by what walks (its reach)
   F('fixture', 'thing', '物件', [], { reach: ['ground'] }),
   F('fixture/container', 'container', '容器', ['container'], { solid: true }),
-  F('fixture/container/chest', 'chest', '箱子', ['wooden', 'flammable'], { solid: true, props: { capacity: 12 } }),
+  F('fixture/container/chest', 'chest', '箱子', ['wooden', 'flammable'], { solid: true, props: { capacity: 12, material: 'wood', maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 4 }] }),
   F('fixture/container/barrel', 'barrel', '木桶', ['wooden', 'flammable', 'breakable'], { solid: true, props: { capacity: 4, material: 'wood', maxHp: 1, hp: 1 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
   F('fixture/container/crate', 'crate', '板条箱', ['wooden', 'flammable', 'breakable'], { solid: true, props: { capacity: 6, material: 'wood', maxHp: 1, hp: 1 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
   F('fixture/container/pot', 'clay pot', '陶罐', ['clay', 'fragile', 'breakable'], { solid: true, props: { capacity: 2, material: 'clay', maxHp: 1, hp: 1 } }),
@@ -330,7 +330,7 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/furniture/cart', 'handcart', '手推车', ['surface']),
   F('fixture/furniture/cart/flowers', 'flower cart', '花车', ['plant', 'flower'], { sprite: 'fixture:flower_cart' }),
   F('fixture/light', 'light', '灯', []),
-  F('fixture/light/campfire', 'campfire', '篝火', ['lightable', 'cookware'], { solid: true }),
+  F('fixture/light/campfire', 'campfire', '篝火', ['lightable', 'cookware'], { solid: true, props: { material: 'stone', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/stone', count: 2 }, { type: 'item/material/stick', count: 2 }] }),
   F('fixture/light/brazier', 'brazier', '火盆', ['lightable', 'metal', 'conductive'], { solid: true }),
   F('fixture/light/lamppost', 'lamp post', '路灯', ['lightable', 'metal', 'conductive'], { solid: true }),
   F('fixture/light/candles', 'candles', '烛台', ['lightable'], { solid: true }),
@@ -340,7 +340,7 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/water/well', 'well', '水井', []),
   F('fixture/water/fountain', 'fountain', '喷泉', []),
   F('fixture/water/trough', 'trough', '水槽', ['wooden']),
-  F('fixture/sign', 'sign', '告示牌', ['wooden', 'flammable', 'readable'], { solid: true }),
+  F('fixture/sign', 'sign', '告示牌', ['wooden', 'flammable', 'readable'], { solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/stick', count: 1 }, { type: 'item/material/plank', count: 1 }] }),
   F('fixture/tent', 'tent', '帐篷', ['cloth', 'flammable', 'shelter', 'opaque'], { solid: true, footprint: [3, 3] }),
   F('fixture/sign/noticeboard', 'notice board', '布告栏', ['paper']),
   F('fixture/craft', 'workstation', '工作台', [], { solid: true }),
@@ -348,7 +348,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/craft/forge', 'forge', '熔炉', ['stone', 'lightable', 'cookware']),
   F('fixture/craft/cauldron', 'cauldron', '坩埚', ['metal', 'conductive', 'cookware']),
   F('fixture/craft/loom', 'loom', '织布机', ['wooden', 'flammable']),
-  F('fixture/craft/workbench', 'workbench', '工作台', ['wooden', 'flammable', 'surface']),
+  // a station (world-model.md §6.4): what is made at a workbench is made beside one
+  F('fixture/craft/workbench', 'workbench', '工作台', ['wooden', 'flammable', 'surface', 'station:workbench']),
   F('fixture/sacred', 'sacred place', '圣所', ['stone'], { solid: true }),
   F('fixture/sacred/altar', 'altar', '祭坛', ['holy', 'surface']),
   F('fixture/sacred/statue', 'statue', '雕像', []),
@@ -380,7 +381,7 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/ferry', 'ferry', '渡船', ['wooden', 'flammable'], { solid: true }),
   F('fixture/ferry/winch', 'ferry winch', '渡口绞盘', ['mechanism']),
   F('fixture/ferry/raft', 'ferry raft', '渡筏', ['surface']),
-  F('fixture/fence', 'fence', '栅栏', ['wooden', 'flammable'], { solid: true }),
+  F('fixture/fence', 'fence', '栅栏', ['wooden', 'flammable'], { solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/stick', count: 2 }] }),
   F('fixture/crop', 'crop', '作物', ['crop', 'plant'], { solid: false, props: { yield: 2 } }),
   ...crop('wheat', 'wheat', '麦子', 'item/material/wheat', ['young wheat', '青麦'], ['ripe wheat', '熟麦'], ['dry', 'flammable']),
   ...crop('herb', 'herb', '草药', 'item/material/herb', ['herb plant', '草药苗'], ['ripe herbs', '成熟的草药']),
@@ -416,6 +417,7 @@ export function buildOntology(): Ontology {
     thresholds: [{ name: 'broken', prop: 'hp', lte: 0 }],
     // what things are made of, and how well each instrument works on each (world-model.md §4.5, §6.1)
     materials: MATERIAL_DEFS,
+    qualities: QUALITY_DEFS(),
     efficiency: EFFICIENCY,
     params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST },
     periods: [

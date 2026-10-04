@@ -308,7 +308,7 @@ export class Menu {
         .join('')
       return `<div class="recipe${ok ? '' : ' off'}">
         <div class="slot" data-item="recipe:${r.id}"><div class="icon" data-icon="recipe:${r.id}"></div></div>
-        <div class="rname">${esc(tx(r.name))}</div>
+        <div class="rname">${esc(tx(r.name))}${r.station && r.station !== 'hands' ? ` <span class="station">${esc(tx({ en: 'at a ' + r.station, zh: r.station === 'workbench' ? '需在工作台旁' : r.station }))}</span>` : ''}</div>
         <div class="needs">${needs}</div>
         <button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(t('needMore'))}"`}>${t('craftIt')}</button>
       </div>`

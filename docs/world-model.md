@@ -417,6 +417,22 @@ At 0, `threshold/cross` `broken` (for every thing), resolved by the most specifi
 - A **station** is any placed thing with a station capability; the C panel is the `hands`
   station.
 
+As built (W4): a type's `station` (`hands`, or `workbench` …: a thing within reach tagged
+`station:<x>`) and `makeup` make its recipe (`deriveRecipes`, engine `recipes.ts`); content's
+`RECIPES` is that list for its own types, and the engine derives the same from whatever types it
+holds (a patch's new type included). The first part of the makeup is the main ingredient: what
+is made takes its material (basic materials carry a `material` prop), a quality by how far its
+maker's level is above the recipe's (`Ontology.qualities`: crude below, fine from 3, masterwork
+from 6; legendary never by making), and its power from form, material and quality; its name is
+made from them ("Fine Wooden Shield"). The first tools are made at hand, a shield, a club and a
+bow at a workbench (one stands in Firstlight Village). Chests, campfires, signs and fences have
+durability and makeup. Checks: build and break back (every building returns no more than went
+in), the economy (no step, and no two steps in a row — recipes, breaking down, an item a rule
+turns into others — make more of a thing than they took), and reachability (every recipe's and
+building's needs from the world as it starts and what it yields, without the AI). Not yet:
+building as moving a carried thing into a cell (furniture and walls carried and set down) — it
+comes with W6, with the walls and floors it is for; the B palette's frames stay meanwhile.
+
 ### 6.5 Stages and harvest
 
 - **Stages** (Elin `GrowSystem`, generalised): a list of stages, each with a duration and

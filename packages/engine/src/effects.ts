@@ -13,6 +13,7 @@ import { forageMap } from './forage.ts'
 import { appear } from './nightspawn.ts'
 import { releaseSkill } from './bosses.ts'
 import { WriteError } from './world.ts'
+import { madeOf, qualityFor } from './recipes.ts'
 
 export const PRIMITIVES: Record<Effect['op'], string> = {
   spawn: 'spawn {type, at: role ref, into?: tile|contents|hand, count?, still?} — create new things at a role\'s place (its tile, contents or hand); type may be "@prop:<role>.<key>" (a crop\'s yieldType); count may read a prop or a param; items on the ground pop out for the magnet unless still (then they are taken with F)',
@@ -437,15 +438,31 @@ export class EffectRunner {
         if (!host || !r) return
         const carried = [...(host.contents ?? []), ...(host.held ? [host.held] : [])].map((id) => w.get(id)!).filter(Boolean)
         if (!r.needs.every((n) => carried.filter((e) => e.type === n.type && !e.frozenBy).length >= n.count)) return
-        for (const n of r.needs) {
+        // a station's recipe is made beside one (a workbench within reach); the hands' anywhere
+        if (r.station && r.station !== 'hands') {
+          const p = w.posOf(host)
+          let near = false
+          for (let dy = -1; dy <= 1 && p && !near; dy++)
+            for (let dx = -1; dx <= 1 && !near; dx++) near = [...w.entitiesAt(p.map, p.x + dx, p.y + dy), ...w.coveringAt(p.map, p.x + dx, p.y + dy)].some((e) => w.hasTag(e, `station:${r.station}`))
+          if (!near) {
+            w.fx.push({ t: 'log', text: { en: `That is made at a ${r.station}.`, zh: `这要在${r.station === 'workbench' ? '工作台' : r.station}旁边做。` } })
+            return
+          }
+        }
+        // the main ingredient (the first) gives what is made its material
+        let material: string | undefined
+        for (const [i, n] of r.needs.entries()) {
           // the bag's first: the hand keeps what it holds while there are others of its kind
           const pool = carried.filter((e) => e.type === n.type && !e.frozenBy).sort((a, b) => Number(a.id === host.held) - Number(b.id === host.held))
           for (const e of pool.slice(0, n.count)) {
+            if (i === 0) material ??= w.materialOf(e)?.id
             eng.touch({ e: e.id }, true)
             w.destroy(e)
           }
         }
-        const made = w.create(r.make.type, { on: 'inside', holder: host.id }, structuredClone(r.make))
+        const quality = qualityFor(w.onto.data, w.num(host, 'level', 1), r.level ?? 1)
+        const look = r.make.tags || r.make.name ? r.make : madeOf(w.onto.data, w.onto, r.make.type, material, quality)
+        const made = w.create(r.make.type, { on: 'inside', holder: host.id }, structuredClone(look))
         eng.touch({ e: made.id })
         const p = w.posOf(host)
         if (p) w.fx.push({ t: 'pickup', item: made.id, sprite: r.sprite, name: r.name, map: p.map, x: p.x, y: p.y })
