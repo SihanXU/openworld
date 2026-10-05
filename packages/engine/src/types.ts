@@ -664,6 +664,8 @@ export interface AiData {
   state?: 'idle' | 'chase' | 'return' | 'flee'
   /** The way around an obstacle it is following, to the goal it was planned for. */
   detour?: { x: number; y: number; path: [number, number][] }
+  /** A goal no way led to (one shut in a house): it does not look for a way there again until then. */
+  noWay?: { x: number; y: number; until: number }
   cooldown?: number
   loot?: string[] // item type ids
   /** Where it roams at night (creatures come out after dark); by day it keeps to `home`. */

@@ -112,6 +112,9 @@ export function idle(eng: Engine, e: Entity, sc: Scene): boolean {
   return true
 }
 
+/** Ticks a creature waits before looking again for a way to a goal none led to (three seconds). */
+const NO_WAY_WAIT = 30
+
 /** One step in a random direction, if it is safe. */
 function wander(eng: Engine, e: Entity, safe: (x: number, y: number) => boolean): boolean {
   if (e.place.on !== 'tile') return false
@@ -142,8 +145,16 @@ function go(eng: Engine, e: Entity, gx: number, gy: number, safe: (x: number, y:
   const w = eng.world
   const { map, x, y } = e.place
   const m = w.map(map)
+  // a goal no way led to a moment ago (one shut in behind a door): it waits a while before looking again
+  const t = w.state.tick
+  if (ai?.noWay && ai.noWay.x === gx && ai.noWay.y === gy && t < ai.noWay.until) return false
   const path = m && astar(m.width, m.height, (px, py) => w.passable(map, px, py) || (px === gx && py === gy), x, y, gx, gy, 2000, (ax, ay, bx, by) => w.safeStep(e, map, ax, ay, bx, by))
-  if (!path?.length || !stepTo(eng, e, path[0], safe)) return false
+  if (!path?.length) {
+    if (ai) ai.noWay = { x: gx, y: gy, until: t + NO_WAY_WAIT }
+    return false
+  }
+  delete ai?.noWay
+  if (!stepTo(eng, e, path[0], safe)) return false
   if (ai) ai.detour = { x: gx, y: gy, path: path.slice(1) }
   return true
 }
