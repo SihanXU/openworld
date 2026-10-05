@@ -222,3 +222,52 @@ describe('the same pattern', () => {
     expect(said(eng)).toContain('Made by hand.')
   })
 })
+
+describe('a house', () => {
+  /** A meadow of 7 × 7, the player in its middle. */
+  function meadow(): Engine {
+    const rows = Array.from({ length: 7 }, () => Array(7).fill('grass'))
+    const eng = buildSandbox({ terrain: rows, entities: [{ key: 'actor', type: 'actor/person/player', x: 3, y: 3 }], event: {} }, onto, new RuleLibrary(BASE_RULES))
+    eng.world.get('actor')!.facing = 'up'
+    return eng
+  }
+  const put = (eng: Engine, type: string, x: number, y: number) => {
+    hold(eng, type)
+    const plan = eng.controls.plan('put', { x, y })
+    expect(plan, `put ${type} at ${x},${y}`).toBeDefined()
+    eng.controls.run(plan!)
+    eng.tick()
+  }
+  const rooms = (eng: Engine) => eng.world.roomsOf(SANDBOX_MAP)
+
+  it('walls, a door and a floor over them make a room round oneself; a bed makes it a bedroom; the door opens and shuts, and the room stays', () => {
+    const eng = meadow()
+    const w = eng.world
+    put(eng, 'fixture/furniture/bed', 3, 3)
+    for (const [x, y] of [[3, 2], [2, 3], [4, 3]] as const) put(eng, 'structure/wall', x, y)
+    put(eng, 'structure/door', 3, 4)
+    put(eng, 'structure/floor', 3, 3)
+    expect(w.covered(SANDBOX_MAP, 3, 3)).toBe(true)
+    expect(rooms(eng).map((r) => r.tags)).toEqual([['role:bedroom']])
+    // E on the door opens it (it was shut: nothing passed), and one walks out through it
+    const door = () => w.placedAt(SANDBOX_MAP, 3, 4).find((e) => e.type.startsWith('structure/door'))!
+    expect(door().type).toBe('structure/door')
+    const open = eng.controls.plan('hands', { x: 3, y: 4 })!
+    expect(textOf(open.label)).toBe('Open Wooden Door')
+    eng.controls.run(open)
+    eng.tick()
+    expect(door().type).toBe('structure/door/open')
+    expect(rooms(eng)).toHaveLength(1)
+    for (let i = 0; i < 2; i++) {
+      eng.movePlayer('down')
+      for (let t = 0; t < 8; t++) eng.tick()
+    }
+    expect(w.posOf(w.player)).toMatchObject({ x: 3, y: 5 })
+    // and shuts it behind
+    w.player.facing = 'up'
+    eng.controls.run(eng.controls.plan('hands', { x: 3, y: 4 })!)
+    eng.tick()
+    expect(door().type).toBe('structure/door')
+    expect(w.walkable(SANDBOX_MAP, 3, 4)).toBe(false)
+  })
+})

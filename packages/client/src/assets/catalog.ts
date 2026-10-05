@@ -431,6 +431,9 @@ export const CATALOG: Catalog = {
     'structure:wall': { base: t(HOUSE, 11, 5) },
     'structure:floor': { base: t(IFLOOR, 12, 1) },
     'structure:stairs': { base: t(ELEM, 6, 12) },
+    'structure:door': { base: t(ELEM, 8, 13) },
+    // an open door: the doorway's floor
+    'structure:door_open': { base: t(IFLOOR, 12, 1) },
     'site:wild': { base: t(DETAIL, 3, 2) },
     'fixture:noticeboard': { base: t(ELEM, 1, 2) },
     'fixture:craft': { base: t(HOUSE, 29, 15) },
@@ -577,6 +580,9 @@ export const CATALOG: Catalog = {
     'structure:wall': t(HOUSE, 11, 5),
     'structure:floor': t(IFLOOR, 12, 1),
     'structure:stairs': t(ELEM, 6, 12),
+    'structure:door': t(ELEM, 8, 13),
+    'structure:door_open': t(ELEM, 8, 13),
+    'fixture:bed': t(BED, 5, 3),
     'item:stick': icon('Items/Resource/Branch.png', 16, 16),
     'item:stone': icon('Items/Resource/Rock.png', 16, 16),
     // cut grass: one of the meadow's tufts

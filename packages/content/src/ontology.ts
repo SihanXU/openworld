@@ -187,6 +187,8 @@ export const STATUSES: StatusDef[] = [
   { id: 'broken', name: { en: 'broken', zh: '坏了' } },
   // at no health the essential (people, the player) collapse for a while instead of dying
   { id: 'down', name: { en: 'down', zh: '倒地' }, duration: 300, immobilize: true },
+  // out cold (a new game's first moments): lying still a while, then one comes round
+  { id: 'out_cold', name: { en: 'out cold', zh: '昏迷' }, duration: 50, immobilize: true },
   // a wound that bleeds 1 a second (Hemorrhage), and the rush of Adrenaline (the skills)
   { id: 'bleeding', name: { en: 'bleeding', zh: '流血' }, duration: 40, every: 10 },
   { id: 'adrenaline', name: { en: 'adrenaline', zh: '肾上腺素' }, duration: 50, every: 10 },
@@ -334,6 +336,9 @@ const RESIDENTS: TypeDef[] = [
   { id: 'structure/wall', name: { en: 'Wooden Wall', zh: '木墙' }, sprite: 'structure:wall', occupies: ['volume'], solid: true, tags: ['wall', 'opaque'], props: { maxHp: 12, hp: 12, supports: 2 }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
   { id: 'structure/floor', name: { en: 'Wooden Floor', zh: '木地板' }, sprite: 'structure:floor', occupies: ['floor'], reach: ['ground'], props: { maxHp: 8, hp: 8, needsSupport: true }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
   { id: 'structure/stairs', name: { en: 'Wooden Stairs', zh: '木楼梯' }, sprite: 'structure:stairs', tags: ['stairs'], props: { maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 3 }], station: 'hands' },
+  // a door: shut it stops what walks, as a wall does; open, one walks through; either way it is a room's edge
+  { id: 'structure/door', name: { en: 'Wooden Door', zh: '木门' }, sprite: 'structure:door', occupies: ['volume'], solid: true, tags: ['door'], props: { maxHp: 10, hp: 10, supports: 2 }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
+  { id: 'structure/door/open', name: { en: 'Open Door', zh: '开着的门' }, sprite: 'structure:door_open', solid: false },
 ]
 
 const fixtureTypes: TypeDef[] = [
@@ -354,7 +359,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/furniture/table', 'table', '桌子', ['surface']),
   F('fixture/furniture/chair', 'chair', '椅子', [], { solid: false }),
   // one lies on a bed: a hand on it reaches only from on it
-  F('fixture/furniture/bed', 'bed', '床', ['cloth'], { solid: false, props: { handsRange: 0 } }),
+  // a bed is made by hand (planks and a mattress of grass), carried, and set down where one sleeps
+  F('fixture/furniture/bed', 'bed', '床', ['cloth', 'portable'], { solid: false, props: { handsRange: 0 }, makeup: [{ type: 'item/material/plank', count: 2 }, { type: 'item/material/grass', count: 2 }], station: 'hands' }),
   F('fixture/furniture/bench', 'bench', '长椅', ['surface'], { solid: false }),
   F('fixture/furniture/bench/log', 'log bench', '原木长凳', [], { solid: true, footprint: [3, 1], sprite: 'fixture:log_bench' }),
   F('fixture/furniture/rack', 'cooking rack', '炊架', ['surface']),

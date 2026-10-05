@@ -27,6 +27,10 @@ export interface MapMeta {
 export interface StartDef {
   at: Pos
   props?: Record<string, PropValue>
+  /** The hour of day 1 the game begins at here (else the world's). */
+  hour?: number
+  /** Statuses the player begins with, for so many ticks (out cold: one wakes). */
+  statuses?: Record<string, number>
 }
 
 /** The generated world's global index (the per-map chunks are fetched lazily). */
@@ -36,6 +40,8 @@ export interface WorldIndex {
   version: string
   seed: number
   start: Pos
+  /** How the default start begins (its hour, the statuses one begins with). */
+  begin?: Omit<StartDef, 'at'>
   /** Other places a new game may begin, by name (a tutorial skipped); `start` is the default. */
   starts?: Record<string, StartDef>
   /** The hour of day 1 a new game begins at (default 06:00). */
@@ -85,11 +91,13 @@ export class Game {
 
   /** A new game, at the world's start or at one of its other starts (`start`, a name in `index.starts`). */
   static create(index: WorldIndex, ontology: Ontology, library: RuleLibrary, start?: string): Game {
-    const from = start ? index.starts?.[start] : undefined
-    if (start && !from) throw new Error(`no start ${start}`)
-    const at = from?.at ?? index.start
+    const other = start ? index.starts?.[start] : undefined
+    if (start && !other) throw new Error(`no start ${start}`)
+    const from: StartDef = other ?? { at: index.start, ...index.begin }
+    const at = from.at
+    const tick = (((from.hour ?? index.startHour ?? START_HOUR) - START_HOUR + 24) % 24) * TICKS_PER_HOUR
     const state: WorldState = {
-      tick: (((index.startHour ?? START_HOUR) - START_HOUR + 24) % 24) * TICKS_PER_HOUR,
+      tick,
       seed: index.seed,
       rng: index.seed,
       player: index.player.id,
@@ -104,7 +112,8 @@ export class Game {
     eng.ensureResidents()
     eng.author(() => {
       const player = structuredClone(index.player)
-      if (from?.props) player.props = { ...player.props, ...structuredClone(from.props) }
+      if (from.props) player.props = { ...player.props, ...structuredClone(from.props) }
+      for (const [s, ticks] of Object.entries(from.statuses ?? {})) (player.statuses ??= {})[s] = tick + ticks
       eng.world.add(player)
       for (const n of index.npcs) addTree(eng, n)
       // companions start beside the start, following the player (companion.ts)
