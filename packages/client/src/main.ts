@@ -512,7 +512,7 @@ gameEl.addEventListener('mousedown', (e) => {
   if (menu.anyOpen || dev.open) return
   const tile = scene.aimAtScreen(e.clientX, e.clientY)
   if (building.open) {
-    if (e.button === 0 && tile) building.place(tile)
+    if (e.button === 0 && tile) building.press(tile)
     if (e.button === 2) building.toggle(false)
     return
   }
@@ -520,6 +520,7 @@ gameEl.addEventListener('mousedown', (e) => {
   if (e.button === 2) press('self', tile)
 })
 window.addEventListener('mouseup', (e) => {
+  if (e.button === 0) building.release()
   if (e.button === 0) release('use')
   if (e.button === 2) release('self')
 })

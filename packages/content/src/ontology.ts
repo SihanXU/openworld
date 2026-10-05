@@ -393,7 +393,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/craft/cauldron', 'cauldron', '坩埚', ['metal', 'conductive', 'cookware']),
   F('fixture/craft/loom', 'loom', '织布机', ['wooden', 'flammable']),
   // a station (world-model.md §6.4): what is made at a workbench is made beside one
-  F('fixture/craft/workbench', 'workbench', '工作台', ['wooden', 'flammable', 'surface', 'station:workbench']),
+  // made by hand from planks, carried, and set down where one works (as a bed is)
+  F('fixture/craft/workbench', 'workbench', '工作台', ['wooden', 'flammable', 'surface', 'station:workbench', 'portable'], { makeup: [{ type: 'item/material/plank', count: 4 }], station: 'hands' }),
   F('fixture/sacred', 'sacred place', '圣所', ['stone'], { solid: true }),
   F('fixture/sacred/altar', 'altar', '祭坛', ['holy', 'surface']),
   F('fixture/sacred/statue', 'statue', '雕像', []),

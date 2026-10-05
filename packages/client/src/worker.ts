@@ -28,6 +28,8 @@ import {
   type ResolveBody,
   type ResolveReply,
   type WorldIndex,
+  type Engine,
+  type PlacementPreview,
 } from '@lsw/engine'
 import { BASE_RULES, BOSS_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, PROLOGUE_DONE, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
@@ -56,6 +58,16 @@ let saveEvery = 0
 let lastQuest: unknown
 
 const ontology = buildOntology()
+
+/** The build palette's entries that set a thing down (`put:<type>`), beside the placement recipes. */
+const PUT = 'put:'
+
+/** What the build palette would do at a cell: a placement recipe's plan, or setting a thing down. */
+function buildPreview(eng: Engine, id: string, at: { map: string; x: number; y: number }): PlacementPreview {
+  if (!id.startsWith(PUT)) return previewPlacement(eng, eng.world.state.player, PLACEMENT_BY_ID[id], at)
+  const pv = eng.controls.previewPlace(id.slice(PUT.length), { x: at.x, y: at.y })
+  return { id, at, ok: pv.ok, reason: pv.reason, have: [pv.carried] }
+}
 
 // ------------------------------------------------------------------ the modder service
 
@@ -370,7 +382,7 @@ function loop(): void {
   maybePrefetch()
   lastTickMs = performance.now() - t0
   post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length } })
-  if (buildAim && PLACEMENT_BY_ID[buildAim.id]) post({ t: 'placement', preview: previewPlacement(eng, w.state.player, PLACEMENT_BY_ID[buildAim.id], { map: frame.map, x: buildAim.tile.x, y: buildAim.tile.y }) })
+  if (buildAim) post({ t: 'placement', preview: buildPreview(eng, buildAim.id, { map: frame.map, x: buildAim.tile.x, y: buildAim.tile.y }) })
   if (eng.lib.version !== lastRecordsVersion || frame.fx.some((f) => f.t === 'undefined' || f.t === 'patched')) {
     if (eng.lib.version !== lastRecordsVersion) (post({ t: 'library', library: eng.lib.toJSON() }), sendArts())
     lastRecordsVersion = eng.lib.version
@@ -467,14 +479,22 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       }
       case 'buildAim':
-        buildAim = m.id && m.tile && PLACEMENT_BY_ID[m.id] ? { id: m.id, tile: m.tile } : undefined
+        buildAim = m.id && m.tile && (PLACEMENT_BY_ID[m.id] || m.id.startsWith(PUT)) ? { id: m.id, tile: m.tile } : undefined
         break
       case 'build': {
-        if (!game || paused || panel || game.engine.world.state.question || !PLACEMENT_BY_ID[m.id]) break
+        if (!game || paused || panel || game.engine.world.state.question || !(PLACEMENT_BY_ID[m.id] || m.id.startsWith(PUT))) break
         const eng = game.engine
         const at = eng.world.posOf(eng.world.player)
         if (!at) break
-        const result = performPlacement(eng, eng.world.state.player, PLACEMENT_BY_ID[m.id], { map: at.map, x: m.tile.x, y: m.tile.y })
+        const to = { map: at.map, x: m.tile.x, y: m.tile.y }
+        // a thing set down (one carried, or made from what is carried first): G's own act
+        if (m.id.startsWith(PUT)) {
+          const before = buildPreview(eng, m.id, to)
+          if (!eng.controls.place(m.id.slice(PUT.length), m.tile)) eng.world.fx.push({ t: 'log', text: before.reason, tone: 'warn' })
+          post({ t: 'placement', preview: buildPreview(eng, m.id, to) })
+          break
+        }
+        const result = performPlacement(eng, eng.world.state.player, PLACEMENT_BY_ID[m.id], to)
         if (!result.ok) eng.world.fx.push({ t: 'log', text: result.reason, tone: 'warn' })
         post({ t: 'placement', preview: result })
         break
