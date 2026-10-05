@@ -4,8 +4,8 @@
 // barrier between (the Ford: the west bank, the river, the far bank); the river and a mountain
 // range carry the Ford's barrier across the continent, so only the Ford crosses it (D22).
 
-import { OntologyIndex, World, type Entity, type MapData, type WorldState } from '@lsw/engine'
-import { buildOntology, decodeMap, wildId, type RawChunk } from '@lsw/content'
+import { OntologyIndex, World, type Entity, type MapData, type Text, type WorldState } from '@lsw/engine'
+import { TERRAINS, buildOntology, decodeMap, wildId, type RawChunk } from '@lsw/content'
 import { MapBuilder, rng } from './builder.ts'
 import { L } from './kit.ts'
 
@@ -58,6 +58,13 @@ export function placeCells(builders: MapBuilder[], origin: MapBuilder): Map<stri
     }
   }
   return out
+}
+
+/** A wild place is named by its ground, as it is drawn: "The wild forest", 森林荒野. */
+const wildName = (ground: string): Text => {
+  const t = TERRAINS.find((x) => x.id === ground)
+  const n = t?.name && typeof t.name === 'object' ? t.name : { en: ground, zh: ground }
+  return { en: `The wild ${n.en}`, zh: `${n.zh ?? n.en}荒野` }
 }
 
 /** Where a hand-made map lies on the overworld: the top left of its cell's block. */
@@ -144,7 +151,7 @@ export function buildOverworld(chunks: RawChunk[], cells: Map<string, { x: numbe
   for (const k of kept) {
     const place = { on: 'tile' as const, map: OVERWORLD, x: k.cx * BLOCK + 1, y: k.cy * BLOCK + BLOCK - 1 }
     if (k.map) entities.push({ id: `site.${k.map}`, type: 'site/place', name: names.get(k.map), place, props: { map: k.map } })
-    else entities.push({ id: `site.${k.cx}.${k.cy}`, type: 'site/wild', place, props: { map: wildId(k.cx, k.cy), ground: k.ground } })
+    else entities.push({ id: `site.${k.cx}.${k.cy}`, type: 'site/wild', name: wildName(k.ground), place, props: { map: wildId(k.cx, k.cy), ground: k.ground } })
   }
   const chunk = m.chunk()
   chunk.map.scale = OVERWORLD_STEP

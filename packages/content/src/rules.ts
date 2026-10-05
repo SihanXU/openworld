@@ -5,7 +5,7 @@
 // contact, time and sight are no change, elements follow physics. Anything these rules leave
 // undefined is the Mod port's.
 
-import { type Amount, type Cond, type Effect, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@lsw/engine'
+import { type Amount, type Cond, type Effect, type Text, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@lsw/engine'
 
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
 const L = (en: string, zh: string) => ({ en, zh })
@@ -17,6 +17,8 @@ const add = (status: string, duration?: number): Effect => ({ op: 'addStatus', s
 const remove = (status: string): Effect => ({ op: 'removeStatus', status })
 const DO = (...effects: Effect[]): Tree => ({ do: effects })
 const ASK = (confirm: { en: string; zh: string }, ...effects: Effect[]): Tree => ({ do: effects, confirm })
+/** An answer that says what the input ending at it does ("Eat {instrument}", "Feed {instrument} to {target}"). */
+const AS = (label: Text, leaf: Tree): Tree => (typeof leaf === 'object' && 'do' in leaf ? { ...leaf, label } : leaf)
 const NOTHING: Tree = { do: [] }
 const IF = (cond: Cond, then: Tree, otherwise?: Tree): Tree => ({ if: cond, then, ...(otherwise !== undefined && { else: otherwise }) })
 const HOLE = (...dflt: Effect[]): Tree => ({ undefined: true, ...(dflt.length && { default: dflt }) })
@@ -50,7 +52,7 @@ const ROOTS: Rule[] = [
     tree: IF(
       { none: 'instrument' },
       DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND })),
-      IF(is('target', SITE), DO(TOO_FAR), HOLE(log('Nothing happens.', '什么也没有发生。'))),
+      IF(is('target', SITE), AS(L('Out of reach — go in first (E)', '够不着——先进去（E）'), DO(TOO_FAR)), HOLE(log('Nothing happens.', '什么也没有发生。'))),
     ),
   }),
   rule({
@@ -59,7 +61,7 @@ const ROOTS: Rule[] = [
     on: 'act/put',
     tree: IF(
       is('target', { type: 'actor/person' }),
-      DO(emit('offered', 'target', undefined, { item: 'host' })),
+      AS(L('Give {instrument} to {target}', '把{instrument}交给{target}'), DO(emit('offered', 'target', undefined, { item: 'host' }))),
       IF(is('target', { type: 'actor' }), DO(log('{target} does not take it.', '{target}不收。')), DO(emit('receive', 'target', undefined, { item: 'host' }))),
     ),
   }),
@@ -94,7 +96,7 @@ const ROOTS: Rule[] = [
       IF(
         param('into', 'contents'),
         DO({ op: 'move', to: 'other', into: 'contents' }),
-        IF(param('into', 'tile'), DO({ op: 'move', to: 'other', into: 'tile' }), IF(param('quiet', true), DO({ op: 'move', to: 'other', into: 'hand' }), DO({ op: 'move', to: 'other', into: 'hand' }, log('You take {host}.', '你拿起了{host}。')))),
+        IF(param('into', 'tile'), DO({ op: 'move', to: 'other', into: 'tile' }), IF(param('quiet', true), DO({ op: 'move', to: 'other', into: 'hand' }), AS(L('Take {target}', '拿起{target}'), DO({ op: 'move', to: 'other', into: 'hand' }, log('You take {host}.', '你拿起了{host}。'))))),
       ),
       DO(log('That stays where it is.', '这个拿不走。')),
     ),
@@ -395,6 +397,7 @@ const BODIES: Rule[] = [
 const PEOPLE: Rule[] = [
   rule({
     id: 'people/talk',
+    label: L('Talk to {target}', '和{target}说话'),
     doc: 'A hand on a person: a quest they have for you (handed in, taken on, a word they were to hear — docs/quests.md), else what fits the moment.',
     host: PERSON,
     on: 'impulse/handle',
@@ -402,6 +405,7 @@ const PEOPLE: Rule[] = [
   }),
   rule({
     id: 'people/accept',
+    label: L('Give {instrument} to {target}', '把{instrument}送给{target}'),
     doc: 'A person handed a thing takes it and says what they make of it (one put on them is theirs to wear).',
     host: PERSON,
     on: 'impulse/offered',
@@ -432,13 +436,29 @@ const useOrPut = ['act/use', 'act/put'] as const
 /** Who gets hungry, and so can be fed. */
 const FEEDS: Selector = { type: 'actor', props: { maxHunger: { gt: 0 } } }
 
+/** What each tool does to what it is used on, when the thing itself does not say. */
+const TOOL_LABELS: Record<string, Text> = {
+  'tool:pickaxe': L('Mine {target}', '开采{target}'),
+  'tool:hoe': L('Hoe {target}', '锄{target}'),
+  'tool:shovel': L('Dig {target}', '挖{target}'),
+  'tool:sickle': L('Cut {target}', '割{target}'),
+  'tool:hammer': L('Hammer {target}', '敲打{target}'),
+  key: L('Try the key in {target}', '用钥匙试{target}'),
+  writing: L('Write on {target}', '在{target}上写字'),
+  'tool:fishing': L('Cast into {target}', '往{target}里甩竿'),
+}
+
 const INSTRUMENTS: Rule[] = [
   rule({
     id: 'use/wear',
     doc: 'Something one wears, used on someone (oneself, or another): it is put on them (world-model.md §6.8).',
     host: { tags: ['wearable'] },
     on: 'act/use',
-    tree: IF(is('target', { type: 'actor' }), DO(emit('offered', 'target', { wear: true }, { item: 'host' })), 'inherit'),
+    tree: IF(
+      { same: ['actor', 'target'] },
+      AS(L('Put on {instrument}', '穿上{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' }))),
+      IF(is('target', { type: 'actor' }), AS(L('Put {instrument} on {target}', '给{target}穿上{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' }))), 'inherit'),
+    ),
   }),
   rule({
     id: 'use/eat',
@@ -447,8 +467,8 @@ const INSTRUMENTS: Rule[] = [
     on: 'act/use',
     tree: IF(
       { same: ['actor', 'target'] },
-      ASK(L('Eat {instrument}?', '要吃掉{instrument}吗？'), emit('restore', 'actor', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), emit('notify', 'story', { what: 'meal' }), log('You eat {host}.', '你吃掉了{host}。'), { op: 'destroy' }),
-      IF(is('target', FEEDS), DO(emit('restore', 'target', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), log('You feed {target} {host}.', '你喂{target}吃了{host}。'), { op: 'destroy' }), 'inherit'),
+      AS(L('Eat {instrument}', '吃掉{instrument}'), ASK(L('Eat {instrument}?', '要吃掉{instrument}吗？'), emit('restore', 'actor', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), emit('notify', 'story', { what: 'meal' }), log('You eat {host}.', '你吃掉了{host}。'), { op: 'destroy' })),
+      IF(is('target', FEEDS), AS(L('Feed {instrument} to {target}', '给{target}吃{instrument}'), DO(emit('restore', 'target', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), log('You feed {target} {host}.', '你喂{target}吃了{host}。'), { op: 'destroy' })), 'inherit'),
     ),
   }),
   rule({
@@ -458,8 +478,8 @@ const INSTRUMENTS: Rule[] = [
     on: 'act/use',
     tree: IF(
       { same: ['actor', 'target'] },
-      ASK(L('Eat {instrument}?', '要吃掉{instrument}吗？'), emit('restore', 'actor', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), emit('restore', 'actor', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), vfx('heal', 'actor'), log('You eat {host}.', '你吃掉了{host}。'), { op: 'destroy' }),
-      IF(is('target', FEEDS), DO(emit('restore', 'target', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), emit('restore', 'target', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), vfx('heal', 'target'), log('You give {target} {host}.', '你给{target}吃了{host}。'), { op: 'destroy' }), 'inherit'),
+      AS(L('Eat {instrument}', '吃掉{instrument}'), ASK(L('Eat {instrument}?', '要吃掉{instrument}吗？'), emit('restore', 'actor', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), emit('restore', 'actor', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), vfx('heal', 'actor'), log('You eat {host}.', '你吃掉了{host}。'), { op: 'destroy' })),
+      IF(is('target', FEEDS), AS(L('Give {instrument} to {target}', '给{target}吃{instrument}'), DO(emit('restore', 'target', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), emit('restore', 'target', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), vfx('heal', 'target'), log('You give {target} {host}.', '你给{target}吃了{host}。'), { op: 'destroy' })), 'inherit'),
     ),
   }),
   rule({
@@ -469,8 +489,8 @@ const INSTRUMENTS: Rule[] = [
     on: 'act/use',
     tree: IF(
       { same: ['actor', 'target'] },
-      ASK(L('Drink {instrument}?', '要喝掉{instrument}吗？'), emit('restore', 'actor', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), vfx('heal', 'actor'), log('You drink {host}.', '你喝下了{host}。'), { op: 'destroy' }),
-      IF(is('target', { type: 'actor' }), DO(emit('restore', 'target', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), vfx('heal', 'target'), log('You give {target} {host}.', '你给{target}喝下了{host}。'), { op: 'destroy' }), 'inherit'),
+      AS(L('Drink {instrument}', '喝掉{instrument}'), ASK(L('Drink {instrument}?', '要喝掉{instrument}吗？'), emit('restore', 'actor', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), vfx('heal', 'actor'), log('You drink {host}.', '你喝下了{host}。'), { op: 'destroy' })),
+      IF(is('target', { type: 'actor' }), AS(L('Give {instrument} to {target} to drink', '给{target}喝{instrument}'), DO(emit('restore', 'target', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), vfx('heal', 'target'), log('You give {target} {host}.', '你给{target}喝下了{host}。'), { op: 'destroy' })), 'inherit'),
     ),
   }),
   rule({
@@ -480,12 +500,13 @@ const INSTRUMENTS: Rule[] = [
     on: 'act/use',
     tree: IF(
       { same: ['actor', 'target'] },
-      ASK(L('Drink {instrument}?', '要喝掉{instrument}吗？'), emit('restore', 'actor', { which: 'hp', amount: 2 }), { op: 'transform', into: '@prop:emptyType' }, log('Refreshing.', '清凉解渴。')),
-      IF(is('target', { tags: ['water'] }), 'inherit', DO(emit('element', 'target', { element: 'water', power: 1 }), { op: 'transform', into: '@prop:emptyType' }, log('You pour water on {target}.', '你把水泼在了{target}上。'))),
+      AS(L('Drink {instrument}', '喝掉{instrument}'), ASK(L('Drink {instrument}?', '要喝掉{instrument}吗？'), emit('restore', 'actor', { which: 'hp', amount: 2 }), { op: 'transform', into: '@prop:emptyType' }, log('Refreshing.', '清凉解渴。'))),
+      IF(is('target', { tags: ['water'] }), 'inherit', AS(L('Splash {target}', '泼向{target}'), DO(emit('element', 'target', { element: 'water', power: 1 }), { op: 'transform', into: '@prop:emptyType' }, log('You pour water on {target}.', '你把水泼在了{target}上。')))),
     ),
   }),
   rule({
     id: 'use/oil',
+    label: L('Pour oil on {target}', '往{target}上倒油'),
     doc: 'Oil poured on something coats it; the vessel is empty.',
     host: { tags: ['liquid:oil'] },
     on: 'act/use',
@@ -494,6 +515,7 @@ const INSTRUMENTS: Rule[] = [
   ...useOrPut.map((on) =>
     rule({
       id: `use/fill${on === 'act/put' ? '-put' : ''}`,
+      label: L('Fill {instrument}', '装满{instrument}'),
       doc: 'An empty vessel at water (a well, a fountain, a lake) fills.',
       host: { tags: ['empty-vessel'] },
       on,
@@ -502,6 +524,7 @@ const INSTRUMENTS: Rule[] = [
   ),
   rule({
     id: 'use/fire',
+    label: L('Set fire to {target}', '点燃{target}'),
     doc: 'A flame held to something: fire reaches it (the flammable burn, the lightable are lit). A torch put down is only set down.',
     host: { tags: ['fire-source'] },
     on: 'act/use',
@@ -509,6 +532,7 @@ const INSTRUMENTS: Rule[] = [
   }),
   rule({
     id: 'use/cook',
+    label: L('Cook {instrument} over {target}', '在{target}上烤{instrument}'),
     doc: 'Raw food held over a lit fire cooks.',
     host: { tags: ['cookable', 'raw'] },
     on: 'act/use',
@@ -546,6 +570,7 @@ const INSTRUMENTS: Rule[] = [
   ).map(([t, edge]) =>
     rule({
       id: `use/${t.slice(5)}`,
+      label: TOOL_LABELS[t],
       doc: `A ${t.slice(5)} works what it is used on: a blow with a ${edge} edge.`,
       host: { tags: [t] },
       on: 'act/use',
@@ -555,6 +580,7 @@ const INSTRUMENTS: Rule[] = [
   ...(['key', 'writing', 'tool:fishing'] as const).map((t) =>
     rule({
       id: `use/${t.replace('tool:', '')}`,
+      label: TOOL_LABELS[t],
       doc: 'A key, a quill, a fishing line: a careful hand on the target, with the instrument in it.',
       host: { tags: [t] },
       on: 'act/use',
@@ -563,6 +589,7 @@ const INSTRUMENTS: Rule[] = [
   ),
   rule({
     id: 'use/rope',
+    label: L('Tie {instrument} to {target}', '把{instrument}系在{target}上'),
     doc: 'A rope used on a fixture is tied to it (it receives the rope).',
     host: { type: 'item/tool/rope' },
     on: 'act/use',
@@ -577,6 +604,7 @@ const CONTAINER: Selector = { type: 'fixture', tags: ['container'] }
 const PLACING: Rule[] = [
   rule({
     id: 'core/receive-ground',
+    label: L('Place {instrument}', '放下{instrument}'),
     doc: 'Open ground takes what is put down on it.',
     host: { type: 'tile', notTags: ['solid', 'liquid'] },
     on: 'impulse/receive',
@@ -598,6 +626,7 @@ const PLACING: Rule[] = [
   }),
   rule({
     id: 'core/receive-lava',
+    label: L('Throw {instrument} into {target}', '把{instrument}扔进{target}'),
     doc: 'Lava takes what is put in it (and burns what can burn).',
     host: { type: 'tile', tags: ['molten'] },
     on: 'impulse/receive',
@@ -605,6 +634,7 @@ const PLACING: Rule[] = [
   }),
   rule({
     id: 'core/receive-item',
+    label: L('Put {instrument} down by {target}', '把{instrument}放在{target}旁'),
     doc: 'Something put on a loose item lies beside it.',
     host: { type: 'item' },
     on: 'impulse/receive',
@@ -612,6 +642,7 @@ const PLACING: Rule[] = [
   }),
   rule({
     id: 'core/receive-surface',
+    label: L('Set {instrument} on {target}', '把{instrument}放在{target}上'),
     doc: 'A table, counter, bench or altar takes what is set on it (it lies on that tile).',
     host: { type: 'fixture', tags: ['surface'] },
     on: 'impulse/receive',
@@ -619,6 +650,7 @@ const PLACING: Rule[] = [
   }),
   rule({
     id: 'core/receive-store',
+    label: L('Put {instrument} in {target}', '把{instrument}放进{target}'),
     doc: 'An open container takes what is put in it, up to its capacity; a closed one takes nothing.',
     host: CONTAINER,
     on: 'impulse/receive',
@@ -634,6 +666,7 @@ const PLACING: Rule[] = [
   }),
   rule({
     id: 'element/burn-away',
+    label: L('Put {instrument} into the fire', '把{instrument}丢进火里'),
     doc: 'A lit fire takes what is fed to it: the flammable burn there; raw food is held to it.',
     host: { tags: ['lightable'], status: ['lit'] },
     on: 'impulse/receive',
@@ -645,6 +678,7 @@ const PLACING: Rule[] = [
   }),
   rule({
     id: 'element/cook',
+    label: L('Cook {instrument}', '烤{instrument}'),
     doc: 'Raw food in fire cooks.',
     host: { tags: ['cookable', 'raw'] },
     on: 'impulse/element',
@@ -664,12 +698,13 @@ const PLACING: Rule[] = [
     on: 'impulse/handle',
     tree: IF(
       tag('instrument', 'key'),
-      IF(tag('host', 'locked'), DO({ op: 'removeTag', tag: 'locked' }, { op: 'open' }, vfx('sparkle'), log('Click. It opens.', '咔哒一声，开了。')), IF(has('host', 'open'), 'inherit', DO({ op: 'addTag', tag: 'locked' }, vfx('sparkle'), log('Click. It is locked.', '咔哒一声，锁上了。')))),
-      IF(tag('host', 'locked'), DO(say('Locked.', '锁住了。', 'actor')), DO({ op: 'open' }, vfx('dust'))),
+      IF(tag('host', 'locked'), AS(L('Unlock {target}', '打开{target}的锁'), DO({ op: 'removeTag', tag: 'locked' }, { op: 'open' }, vfx('sparkle'), log('Click. It opens.', '咔哒一声，开了。'))), IF(has('host', 'open'), 'inherit', AS(L('Lock {target}', '锁上{target}'), DO({ op: 'addTag', tag: 'locked' }, vfx('sparkle'), log('Click. It is locked.', '咔哒一声，锁上了。'))))),
+      IF(tag('host', 'locked'), AS(L('Try {target}', '试着打开{target}'), DO(say('Locked.', '锁住了。', 'actor'))), IF(has('host', 'open'), AS(L('Close {target}', '关上{target}'), DO({ op: 'open' }, vfx('dust'))), AS(L('Open {target}', '打开{target}'), DO({ op: 'open' }, vfx('dust'))))),
     ),
   }),
   rule({
     id: 'core/read',
+    label: L('Read {target}', '阅读{target}'),
     doc: 'A hand on something written: it is read.',
     host: { type: 'fixture', tags: ['readable'] },
     on: 'impulse/handle',
@@ -686,6 +721,7 @@ const FELL: Effect[] = [remove('notched'), { op: 'transform', into: 'tile/stump'
 const GROUND: Rule[] = [
   rule({
     id: 'wood/notch',
+    label: L('Chop {target}', '砍{target}'),
     doc: 'An axe on a living tree bites into it: it loses durability (as any blow) and shows a notch, which heals if the tree is left alone.',
     host: LIVING_TREE,
     on: 'impulse/strike',
@@ -716,6 +752,7 @@ const GROUND: Rule[] = [
   }),
   rule({
     id: 'wood/uproot',
+    label: L('Dig out {target}', '挖出{target}'),
     doc: 'A shovel digs a stump out for good.',
     host: STUMP,
     on: 'impulse/strike',
@@ -723,6 +760,7 @@ const GROUND: Rule[] = [
   }),
   rule({
     id: 'wood/char',
+    label: L('Break up {target}', '敲碎{target}'),
     doc: 'An axe breaks a charred tree down to coal.',
     host: { type: 'tile/charred_tree' },
     on: 'impulse/strike',
@@ -730,6 +768,7 @@ const GROUND: Rule[] = [
   }),
   rule({
     id: 'wood/split',
+    label: L('Split {target}', '劈开{target}'),
     doc: 'An axe splits a log into two planks.',
     host: { type: 'item/material/log' },
     on: 'impulse/strike',
@@ -737,6 +776,7 @@ const GROUND: Rule[] = [
   }),
   rule({
     id: 'farm/till',
+    label: L('Till {target}', '翻{target}的土'),
     doc: 'A hoe turns diggable ground into farmland.',
     host: { type: 'tile', tags: ['diggable'] },
     on: 'impulse/strike',
@@ -744,6 +784,7 @@ const GROUND: Rule[] = [
   }),
   rule({
     id: 'core/fish',
+    label: L('Fish in {target}', '在{target}里钓鱼'),
     doc: 'A line cast into water: sometimes something bites; a cast stirs the water, and nothing bites there until it settles (a yield waits on time, world-model.md D23).',
     host: { type: 'tile', tags: ['water'] },
     on: 'impulse/handle',
@@ -758,6 +799,7 @@ const GROUND: Rule[] = [
   }),
   rule({
     id: 'element/freeze-water',
+    label: L('Freeze {target}', '冻住{target}'),
     doc: 'Ice turns water into walkable ice, spreading a little; that ice thaws in time.',
     host: { type: 'tile/water' },
     on: 'impulse/element',
@@ -765,6 +807,7 @@ const GROUND: Rule[] = [
   }),
   rule({
     id: 'element/thaw-ice',
+    label: L('Thaw {target}', '融化{target}'),
     doc: 'Fire on ice turns it back to water.',
     host: { type: 'tile/ice' },
     on: 'impulse/element',
@@ -821,6 +864,7 @@ const GROUND: Rule[] = [
   }),
   rule({
     id: 'water/bridge',
+    label: L('Lay {instrument} across {target}', '用{instrument}在{target}上搭桥'),
     doc: 'A plank laid on shallow water, or a trunk fallen across it, makes a stretch of bridge.',
     host: { type: 'tile/water' },
     on: 'impulse/receive',
@@ -924,15 +968,17 @@ const RING = 'fixture/build/ring'
 const give = (id: string, material: string, on: Selector, when: Cond | undefined = undefined): Rule =>
   rule({
     id,
+    label: L('Build with {instrument}', '用{instrument}搭建'),
     doc: 'A material put on another to build: it gives itself to the work.',
     host: { type: material },
     on: 'act/put',
     tree: IF(when ? all(is('target', on), when) : is('target', on), DO(emit('receive', 'target', { what: material.split('/').pop()! }, { item: 'host' }), { op: 'destroy' })),
   })
 /** A loose `on` item receiving `what` becomes `into` (with these props). */
-const become = (id: string, on: string, what: string, into: string, en: string, zh: string, props: Record<string, number> = {}): Rule =>
+const become = (id: string, on: string, what: string, into: string, en: string, zh: string, props: Record<string, number> = {}, label?: Text): Rule =>
   rule({
     id,
+    ...(label && { label }),
     host: { type: on },
     on: 'impulse/receive',
     tree: IF(param('what', what), DO({ op: 'transform', into }, ...Object.entries(props).map(([key, value]): Effect => ({ op: 'setProp', key, value })), vfx('dust'), log(en, zh)), 'inherit'),
@@ -941,6 +987,7 @@ const become = (id: string, on: string, what: string, into: string, en: string, 
 const undo = (id: string, from: string, tool: string, back: [string, Amount][]): Rule =>
   rule({
     id,
+    label: L('Take {target} apart', '拆开{target}'),
     doc: 'Nothing put into unfinished work is lost: it comes apart into its materials.',
     host: { type: from },
     on: 'impulse/strike',
@@ -950,7 +997,7 @@ const undo = (id: string, from: string, tool: string, back: [string, Amount][]):
 const BUILD: Rule[] = [
   // a chest (or a crate) from a frame of planks
   give('build/plank-to-plank', PLANK, { type: PLANK }),
-  become('build/start-frame', PLANK, 'plank', FRAME, 'Two planks make a frame.', '两块木板搭成了框架。', { planks: 2 }),
+  become('build/start-frame', PLANK, 'plank', FRAME, 'Two planks make a frame.', '两块木板搭成了框架。', { planks: 2 }, L('Start a frame', '搭一个框架')),
   give('build/plank-to-frame', PLANK, { type: FRAME }, { prop: { role: 'target', key: 'planks', cmp: { lt: 4 } } }),
   rule({
     id: 'build/frame',
@@ -959,13 +1006,13 @@ const BUILD: Rule[] = [
     on: 'impulse',
     tree: IF(
       all({ param: { key: 'what', cmp: 'plank' } }, { prop: { role: 'host', key: 'planks', cmp: { lt: 4 } } }),
-      DO({ op: 'addProp', key: 'planks', delta: 1 }, log('A frame of {host.planks} planks.', '框架上有{host.planks}块木板了。')),
+      { do: [{ op: 'addProp', key: 'planks', delta: 1 }, log('A frame of {host.planks} planks.', '框架上有{host.planks}块木板了。')], label: L('Add {instrument} to {target}', '把{instrument}加到{target}上') },
       IF(
         all(tag('instrument', 'tool:hammer'), { prop: { role: 'host', key: 'planks', cmp: 2 } }),
-        DO({ op: 'transform', into: 'fixture/container/crate' }, vfx('dust'), log('You nail together a crate.', '你钉好了一个板条箱。')),
+        { do: [{ op: 'transform', into: 'fixture/container/crate' }, vfx('dust'), log('You nail together a crate.', '你钉好了一个板条箱。')], label: L('Nail {target} into a crate', '把{target}钉成板条箱') },
         IF(
           all(tag('instrument', 'tool:hammer'), { prop: { role: 'host', key: 'planks', cmp: 4 } }),
-          DO({ op: 'transform', into: 'fixture/container/chest' }, vfx('dust'), log('You nail together a chest.', '你钉好了一个箱子。')),
+          { do: [{ op: 'transform', into: 'fixture/container/chest' }, vfx('dust'), log('You nail together a chest.', '你钉好了一个箱子。')], label: L('Nail {target} into a chest', '把{target}钉成箱子') },
           IF(
             all(tag('instrument', 'tool:hammer'), { prop: { role: 'host', key: 'planks', cmp: 3 } }),
             DO(say('One more plank.', '还差一块木板。', 'actor')),
@@ -977,6 +1024,7 @@ const BUILD: Rule[] = [
   }),
   rule({
     id: 'build/read-frame',
+    label: L('Look at {target}', '看看{target}'),
     doc: 'A frame says how far it is.',
     host: { type: FRAME },
     on: 'impulse/handle',
@@ -1003,9 +1051,10 @@ const BUILD: Rule[] = [
   ),
   // a fence from stakes
   give('build/stick-to-stick', STICK, { type: STICK }),
-  become('build/stakes', STICK, 'stick', 'fixture/build/stakes', 'Two sticks make stakes.', '两根树枝立成了木桩。'),
+  become('build/stakes', STICK, 'stick', 'fixture/build/stakes', 'Two sticks make stakes.', '两根树枝立成了木桩。', {}, L('Set stakes', '立木桩')),
   rule({
     id: 'build/fence',
+    label: L('Build a fence', '搭篱笆'),
     host: { type: 'fixture/build/stakes' },
     on: 'impulse/strike',
     tree: IF(tag('instrument', 'tool:hammer'), DO({ op: 'transform', into: 'fixture/fence' }, vfx('dust'), log('You nail up a fence.', '你钉好了一段栅栏。'))),
@@ -1013,10 +1062,11 @@ const BUILD: Rule[] = [
   undo('build/unstake', 'fixture/build/stakes', 'tool:axe', [[STICK, 2]]),
   // a campfire from a ring of stones and two sticks
   give('build/stone-to-stone', STONE, { type: STONE }),
-  become('build/ring', STONE, 'stone', RING, 'Two stones make a fire ring.', '两块石头围成了火圈。', { sticks: 0 }),
+  become('build/ring', STONE, 'stone', RING, 'Two stones make a fire ring.', '两块石头围成了火圈。', { sticks: 0 }, L('Lay a ring of stones', '摆一圈石头')),
   give('build/stick-to-ring', STICK, { type: RING }),
   rule({
     id: 'build/ring-stick',
+    label: L('Build a campfire', '搭营火'),
     doc: 'A fire ring takes two sticks and is a campfire.',
     host: { type: RING },
     on: 'impulse/receive',
@@ -1032,9 +1082,10 @@ const BUILD: Rule[] = [
   ]),
   // a sign from a plank on a stick, written with a quill while carrying ink
   give('build/plank-to-stick', PLANK, { type: STICK }),
-  become('build/post', STICK, 'plank', 'fixture/build/post', 'A plank on a stick: a sign post.', '木板架在树枝上，成了牌子立柱。'),
+  become('build/post', STICK, 'plank', 'fixture/build/post', 'A plank on a stick: a sign post.', '木板架在树枝上，成了牌子立柱。', {}, L('Put up a post', '立一根柱子')),
   rule({
     id: 'build/sign',
+    label: L('Make a sign', '做告示牌'),
     host: { type: 'fixture/build/post' },
     on: 'impulse/strike',
     tree: IF(tag('instrument', 'tool:hammer'), DO({ op: 'transform', into: 'fixture/sign' }, { op: 'addTag', tag: 'blank' }, vfx('dust'), log('You nail up a blank sign.', '你钉好了一块空白的告示牌。'))),
@@ -1045,6 +1096,7 @@ const BUILD: Rule[] = [
   ]),
   rule({
     id: 'build/write-sign',
+    label: L('Write on {target}', '在{target}上写字'),
     doc: 'A blank sign: bare-handed it is blank; a quill writes on it while you carry ink. Until free-text input exists, it writes one fixed line.',
     host: { type: 'fixture/sign', tags: ['blank'] },
     on: 'impulse/handle',
@@ -1054,7 +1106,7 @@ const BUILD: Rule[] = [
       DO(say('It is blank.', '上面什么也没写。', 'actor')),
     ),
   }),
-  rule({ id: 'build/read-handmade', host: { type: 'fixture/sign', tags: ['handmade'] }, on: 'impulse/handle', tree: DO(say('Made by hand.', '亲手所制。', 'actor')) }),
+  rule({ id: 'build/read-handmade', label: L('Read {target}', '阅读{target}'), host: { type: 'fixture/sign', tags: ['handmade'] }, on: 'impulse/handle', tree: DO(say('Made by hand.', '亲手所制。', 'actor')) }),
   // a bridge, one plank at a time
   give('build/plank-on-water', PLANK, { type: 'tile/water' }),
 ]
@@ -1083,6 +1135,7 @@ const FARM: Rule[] = [
   ...useOrPut.map((on) =>
     rule({
       id: `farm/sow${on === 'act/put' ? '-put' : ''}`,
+      label: L('Sow {instrument}', '播下{instrument}'),
       doc: 'A seed put on bare farmland takes root as its crop.',
       host: { tags: ['plantable'] },
       on,
@@ -1092,6 +1145,7 @@ const FARM: Rule[] = [
   ...useOrPut.map((on) =>
     rule({
       id: `farm/plant-acorn${on === 'act/put' ? '-put' : ''}`,
+      label: L('Plant {instrument}', '种下{instrument}'),
       doc: 'An acorn takes root in any diggable ground and becomes a tree in two game days.',
       host: { tags: ['acorn'] },
       on,
@@ -1100,6 +1154,7 @@ const FARM: Rule[] = [
   ),
   rule({
     id: 'farm/water',
+    label: L('Water {target}', '给{target}浇水'),
     doc: 'Water on a growing crop waters it (two hours later it grows a stage).',
     host: GROWING,
     on: 'impulse/element',
@@ -1108,6 +1163,7 @@ const FARM: Rule[] = [
   ...useOrPut.map((on) =>
     rule({
       id: `farm/ash${on === 'act/put' ? '-put' : ''}`,
+      label: L('Work {instrument} into {target}', '把{instrument}翻进{target}的土里'),
       doc: 'Ash worked into a growing crop\'s soil is used up.',
       host: { type: 'item/material/ash' },
       on,
@@ -1116,6 +1172,7 @@ const FARM: Rule[] = [
   ),
   rule({
     id: 'farm/fertilize',
+    label: L('Fertilize {target}', '给{target}施肥'),
     doc: 'Ash on a growing crop: one more of the crop at harvest.',
     host: GROWING,
     on: 'impulse/coat',
@@ -1123,6 +1180,7 @@ const FARM: Rule[] = [
   }),
   rule({
     id: 'farm/harvest',
+    label: L('Harvest {target}', '收割{target}'),
     doc: 'A sickle harvests a ripe crop: its yield and two seeds (a perennial grows back).',
     host: { type: 'fixture', tags: ['crop', 'ripe'] },
     on: 'impulse/strike',
@@ -1130,6 +1188,7 @@ const FARM: Rule[] = [
   }),
   rule({
     id: 'farm/pick',
+    label: L('Pick {target}', '采摘{target}'),
     doc: 'Picking a ripe crop by hand: one of the crop and one seed (a perennial grows back).',
     host: { type: 'fixture', tags: ['crop', 'ripe'] },
     on: 'impulse/taken',
@@ -1137,6 +1196,7 @@ const FARM: Rule[] = [
   }),
   rule({
     id: 'farm/dig-up',
+    label: L('Dig up {target}', '挖出{target}'),
     doc: 'A shovel lifts a plant and gives back its seed.',
     host: CROP,
     on: 'impulse/strike',
@@ -1186,6 +1246,7 @@ const WAYPOINT: Selector = { type: 'fixture/sacred/waypoint' }
 const JOURNEY: Rule[] = [
   rule({
     id: 'trainer/talk',
+    label: L('Talk to {target}', '和{target}说话'),
     doc: 'A profession trainer, spoken to: a quest if they have one, a word, and the choice of profession (from level 5; a change gives back the profession branch\'s points).',
     host: { type: 'actor/person/trainer' },
     on: 'impulse/handle',
@@ -1193,6 +1254,7 @@ const JOURNEY: Rule[] = [
   }),
   rule({
     id: 'companion/talk',
+    label: L('Talk to {target}', '和{target}说话'),
     doc: 'A companion, spoken to (E), tells what the story asks for now and how (else what it last pointed out).',
     host: COMPANION,
     on: 'impulse/handle',
@@ -1233,12 +1295,13 @@ const JOURNEY: Rule[] = [
     on: 'impulse/handle',
     tree: IF(
       has('host', 'attuned'),
-      DO(log('The statue hums. Open the map (M) to travel to another one.', '雕像嗡嗡作响。打开地图（M）就能传送到别的传送雕像。')),
-      DO(add('attuned'), emit('notify', 'story', { what: 'waypoint' }), vfx('heal'), log('The statue wakes under your hand. (M: the map — travel to any statue you have woken.)', '雕像在你手下亮了起来。（M：地图——可以传送到任何唤醒过的传送雕像。）')),
+      AS(L('Listen to {target}', '倾听{target}'), DO(log('The statue hums. Open the map (M) to travel to another one.', '雕像嗡嗡作响。打开地图（M）就能传送到别的传送雕像。'))),
+      AS(L('Wake {target}', '唤醒{target}'), DO(add('attuned'), emit('notify', 'story', { what: 'waypoint' }), vfx('heal'), log('The statue wakes under your hand. (M: the map — travel to any statue you have woken.)', '雕像在你手下亮了起来。（M：地图——可以传送到任何唤醒过的传送雕像。）'))),
     ),
   }),
   rule({
     id: 'skill/firemaker',
+    label: L('Light {target} with {instrument}', '用{instrument}点燃{target}'),
     doc: 'A firemaker (the skill) works a plain stick until a campfire, brazier or candles catch.',
     host: { type: 'item/material/stick' },
     on: 'act/use',
@@ -1250,6 +1313,7 @@ const JOURNEY: Rule[] = [
   }),
   rule({
     id: 'fixture/receive',
+    label: L('Set {instrument} down by {target}', '把{instrument}放在{target}旁'),
     doc: 'Something put on a thing nothing else defines (a grass tuft, a boulder, a statue) is set down on that thing\'s tile (putting is physics: never asked).',
     host: { type: 'fixture' },
     on: 'impulse/receive',
@@ -1269,8 +1333,8 @@ const JOURNEY: Rule[] = [
     on: 'act/use',
     tree: IF(
       { same: ['actor', 'target'] },
-      ASK(L('Drink {instrument}?', '要喝掉{instrument}吗？'), emit('coat', 'actor', { substance: 'fireproof' }), { op: 'destroy' }),
-      IF(is('target', { type: 'actor' }), DO(emit('coat', 'target', { substance: 'fireproof' }), log('You give {target} {host}.', '你给{target}喝下了{host}。'), { op: 'destroy' }), 'inherit'),
+      AS(L('Drink {instrument}', '喝掉{instrument}'), ASK(L('Drink {instrument}?', '要喝掉{instrument}吗？'), emit('coat', 'actor', { substance: 'fireproof' }), { op: 'destroy' })),
+      IF(is('target', { type: 'actor' }), AS(L('Give {instrument} to {target} to drink', '给{target}喝{instrument}'), DO(emit('coat', 'target', { substance: 'fireproof' }), log('You give {target} {host}.', '你给{target}喝下了{host}。'), { op: 'destroy' })), 'inherit'),
     ),
   }),
 ]
@@ -1283,6 +1347,7 @@ const JOURNEY: Rule[] = [
 const BUILDING: Rule[] = [
   rule({
     id: 'bed/sleep',
+    label: L('Sleep', '睡觉'),
     doc: 'A bed, taken hold of: one lies down and sleeps until it is time to rise (a bed in a bedroom gives a full night\'s rest).',
     host: { type: 'fixture/furniture/bed' },
     on: 'impulse/handle',
@@ -1290,6 +1355,7 @@ const BUILDING: Rule[] = [
   }),
   rule({
     id: 'build/stack',
+    label: L('Stack {instrument} on {target}', '把{instrument}叠在{target}上'),
     doc: 'Something put on a built thing goes on top of it: it comes to rest on the lowest storey with room for it there (a floor laid over a wall, a bed set on a floor).',
     host: { type: 'structure' },
     on: 'impulse/receive',
@@ -1307,6 +1373,7 @@ const BUILDING: Rule[] = [
 const SITES: Rule[] = [
   rule({
     id: 'site/enter',
+    label: L('Enter {target}', '进入{target}'),
     doc: 'Empty hands on a place of the overworld: one goes in — pushed into the map it stands for, on the side one stands.',
     host: SITE,
     on: 'impulse/handle',
@@ -1314,6 +1381,7 @@ const SITES: Rule[] = [
   }),
   rule({
     id: 'site/far',
+    label: L('Out of reach — go in first (E)', '够不着——先进去（E）'),
     doc: 'Anything else done to a place of the overworld (a blow, something put, taken) is out of reach: defined, nothing changes (the question would mix scales).',
     host: SITE,
     on: 'impulse',

@@ -1367,6 +1367,31 @@ req('W14', 'real work, and walking in: mornings the woodcutter fells trees in th
   expect((pile().contents ?? []).filter((id) => w.get(id)?.type === 'item/material/log').length).toBeGreaterThanOrEqual(3)
 })
 
+req('W18', 'the overworld is what it shows: every cell of it one can stand on is a place, entered by standing on it and pressing E, whichever way one faces; the place says its name ("Enter …") and is outlined whole', [], () => {
+  const f = fresh()
+  const w = W(f)
+  const m = w.map('overworld')!
+  let tiles = 0
+  for (let y = 0; y < m.height; y++)
+    for (let x = 0; x < m.width; x++) {
+      if (!w.walkable('overworld', x, y)) continue
+      const site = [...w.entitiesAt('overworld', x, y), ...w.coveringAt('overworld', x, y)].find((e) => e.type.startsWith('site'))
+      expect([x, y, !!site]).toEqual([x, y, true])
+      author(f, () => w.place(w.player, { on: 'tile', map: 'overworld', x, y }))
+      for (const facing of ['up', 'down', 'left', 'right'] as const) {
+        w.player.facing = facing
+        const plan = f.eng.controls.plan('hands')
+        expect([x, y, facing, plan?.rule, plan?.target]).toEqual([x, y, facing, 'site/enter', { e: site!.id }])
+        expect(textOf(plan!.label).startsWith('Enter ')).toBe(true)
+      }
+      tiles++
+    }
+  expect(tiles).toBeGreaterThan(300)
+  // a wild place is named by its ground, as drawn
+  const wild = Object.values(w.state.entities).find((e) => e.type === 'site/wild' && e.props?.ground === 'ow_forest')!
+  expect(f.eng.nameOf({ e: wild.id }, 'zh')).toBe('森林荒野')
+})
+
 req('W12', 'a second storey: walls, a floor laid over them (held up by them), stairs, and up one goes; break the wall and the floor comes down, and whoever stood on it falls', [], () => {
   const f = fresh()
   // an open stretch of the Ford, five cells across

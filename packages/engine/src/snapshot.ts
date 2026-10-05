@@ -125,6 +125,8 @@ export interface KeyView {
   confirm?: boolean
   x: number
   y: number
+  /** The target's base when it covers more than its cell (a place of the overworld, a tent): x, y, width, height. */
+  rect?: [number, number, number, number]
 }
 
 export interface Prompt {

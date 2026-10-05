@@ -59,6 +59,7 @@ const FORD_RULES: Rule[] = [
   // ---------------------------------------------------------------- the ferry
   story({
     id: 'ford/winch-look',
+    label: L('Look at {target}', '查看{target}'),
     doc: 'The snapped ferry rope says what it needs.',
     host: { type: WINCH, status: ['broken'] },
     on: 'impulse/handle',
@@ -66,6 +67,7 @@ const FORD_RULES: Rule[] = [
   }),
   story({
     id: 'ford/mend-winch',
+    label: L('Mend {target} with {instrument}', '用{instrument}修好{target}'),
     doc: 'A rope given to the broken winch is spliced onto its drum: the ferry line runs again.',
     host: { type: WINCH, status: ['broken'] },
     on: 'impulse/receive',
@@ -84,6 +86,7 @@ const FORD_RULES: Rule[] = [
   }),
   story({
     id: 'ford/ask-crossing',
+    label: L('Ask {target} for the crossing', '请{target}送你过河'),
     doc: 'With the line mended, the ferrykeeper takes you across.',
     host: { type: 'actor/person/ferrykeeper' },
     on: 'impulse/handle',
@@ -92,6 +95,7 @@ const FORD_RULES: Rule[] = [
   // ---------------------------------------------------------------- the dead tree
   story({
     id: 'ford/chop-dead-tree',
+    label: L('Chop {target}', '砍{target}'),
     doc: 'An axe bites into the dead tree at the narrows; the third blow fells it away from the axe — across the river, if the river lies that way.',
     host: { type: DEAD_TREE, notStatus: ['burning'] },
     on: 'impulse/strike',
@@ -116,6 +120,7 @@ const FORD_RULES: Rule[] = [
   // ---------------------------------------------------------------- the peddler
   story({
     id: 'ford/feed-peddler',
+    label: L('Give {instrument} to {target}', '把{instrument}送给{target}'),
     doc: 'The hungry peddler trades his frost wand for a meal.',
     host: { type: 'actor/person/peddler' },
     on: 'impulse/offered',

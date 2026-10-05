@@ -25,6 +25,7 @@ export function template(r: RecordView): Patch {
           host: { type: hostType ?? 'fixture' },
           on: ev.kind,
           doc: 'TODO: one-line description',
+          label: { en: 'TODO: what the input does to {target}', zh: 'TODO：对{target}做什么' },
           tree: { do: [{ op: 'vfx', fx: 'sparkle' }, { op: 'log', text: { en: 'TODO: what happens', zh: 'TODO：发生了什么' } }] },
           tests: [{ name: 'the triggering event', given: req.scenario, expect }],
         },

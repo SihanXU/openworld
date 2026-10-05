@@ -239,11 +239,12 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       on: `an event kind or a branch: ${[...EVENT_KINDS].join(' | ')} — or a prefix such as "impulse" or "contact"`,
       tree: 'the outcome: a Tree (see `tree`)',
       confirm: 'optional Text: ask the player first when their input chooses this rule ("Eat {instrument}?")',
+      label: 'Text, for a rule an input reaches (act/*, impulse/*): what the input does, as the HUD shows it before the press — {en, zh}, naming {target}, {instrument}, {actor} ("Feed {instrument} to {target}" / "给{target}吃{instrument}"); a leaf may carry its own. Without it the input shows its default.',
       tests: 'RuleTest[]: { given: Scenario, expect: Expectation[] }',
       doc: 'one-line human summary',
     },
     tree: {
-      leaf: '{do: Effect[]} — the outcome; an empty list means no change (a definition)',
+      leaf: '{do: Effect[], label?: Text} — the outcome; an empty list means no change (a definition); label: what an input ending here does, over the rule\'s',
       inherit: '"inherit" — not this rule\'s case: the next, less specific rule answers',
       branch: '{if: Cond, then: Tree, else?: Tree} — else defaults to "inherit"',
       note: 'patches may not contain undefined leaves',
@@ -968,6 +969,14 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       if (e.op === 'setProp' && e.key === 'quest') errors.push(`${where}: a world event may not change the story's stage`)
     }
   }
+  /** A label is Text naming only the roles an input has: {target}, {instrument}, {actor}. */
+  const checkLabel = (l: unknown, where: string) => {
+    const texts = typeof l === 'string' ? [l] : l && typeof l === 'object' ? Object.values(l as object) : []
+    if (!texts.length || texts.some((s) => typeof s !== 'string')) return void errors.push(`${where}: a label is Text: a string, or {en, zh}`)
+    for (const s of texts as string[]) for (const m of s.matchAll(/\{(\w+)\}/g)) if (!['target', 'instrument', 'actor'].includes(m[1])) errors.push(`${where}: a label names {target}, {instrument} or {actor}, not {${m[1]}}`)
+  }
+  /** Does a tree say what it does anywhere (a leaf's label)? */
+  const labelled = (t: Tree): boolean => (t === 'inherit' || !t || typeof t !== 'object' ? false : 'if' in t ? labelled(t.then) || (t.else !== undefined && labelled(t.else)) : 'do' in t ? t.label !== undefined : false)
   const checkTree = (t: Tree, where: string, resident: boolean, host: Selector | undefined) => {
     if (t === 'inherit') return
     if (!t || typeof t !== 'object') return void errors.push(`${where}: a tree is "inherit", {do}, or {if, then, else?}`)
@@ -979,6 +988,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     }
     if ('undefined' in t) return void errors.push(`${where}: a patch may not leave an outcome undefined`)
     if (!('do' in t) || !Array.isArray(t.do)) return void errors.push(`${where}: a leaf is {do: Effect[]}`)
+    if (t.label !== undefined) checkLabel(t.label, `${where}.label`)
     t.do.forEach((e, j) => checkEffect(e, `${where}.do[${j}]`, resident))
     // a world event's people are never harmed by what it learns
     if (ctx.world && host && (host.type ? isA(host.type, 'actor/person') || isA('actor/person', host.type) : !host.type))
@@ -1002,6 +1012,9 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     const resident = !!r.host?.type && isA(r.host.type, 'resident')
     if (r.tree === undefined) errors.push(`${where}: tree required`)
     else checkTree(r.tree, `${where}.tree`, resident, r.host)
+    if (r.label !== undefined) checkLabel(r.label, `${where}.label`)
+    // an input that ends here says what it does: without a label the HUD shows the input's default
+    if (r.tree !== undefined && /^(act|impulse)/.test(String(r.on)) && r.label === undefined && !labelled(r.tree)) warnings.push(`${where}: no label — the input that reaches it shows its default description`)
     if (r.tree !== undefined && leaves(r.tree).every((l) => l === 'inherit')) errors.push(`${where}: every leaf inherits — the rule answers nothing`)
     if (!r.tests?.length) warnings.push(`${where}: no tests`)
   }

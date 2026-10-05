@@ -94,6 +94,7 @@ export const QUEST_RULES: Rule[] = [
   // ---------------------------------------------------------------- Emberfall: the elder's council
   story({
     id: 'mq/elder-council',
+    label: L('Talk to {target}', '和{target}说话'),
     doc: 'The elder tells of the dragon and what it will take (once).',
     host: { type: ELDER },
     on: 'impulse/handle',
@@ -104,6 +105,7 @@ export const QUEST_RULES: Rule[] = [
   turnIn('smith-coal', ASKS.coal, ['Coal for the forge. It will burn hot enough for dragon-steel.', '炉子用的煤。烧得够旺，能炼屠龙的钢。'], ['That is coal enough.', '煤够了。']),
   story({
     id: 'mq/smith-forge',
+    label: L('Talk to {target}', '和{target}说话'),
     doc: 'With five ore and three coal, the smith forges Dragonsbane.',
     host: { type: SMITH },
     on: 'impulse/handle',
@@ -123,6 +125,7 @@ export const QUEST_RULES: Rule[] = [
   turnIn('herbalist-frostcap', ASKS.frostcap, ['Frostcap, from the cold side of the forest. Good.', '霜盖菇，长在森林背阴那边的。很好。'], ['Frostcap enough.', '霜盖菇够了。']),
   story({
     id: 'mq/herbalist-brew',
+    label: L('Talk to {target}', '和{target}说话'),
     doc: 'With three fireweed and three frostcap, the herbalist brews two fireproof draughts.',
     host: { type: HERBALIST },
     on: 'impulse/handle',

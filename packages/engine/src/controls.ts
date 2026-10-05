@@ -42,49 +42,10 @@ const TOOL_PREFIXES = ['item/weapon/', 'item/tool/', 'item/light/', 'item/vessel
 export const isTool = (type: string) => TOOL_PREFIXES.some((p) => type.startsWith(p))
 const isWeapon = (type: string) => type.startsWith('item/weapon/')
 
-/** Labels by rule (prefix) — what the HUD says an input will do; the receiver's rule is asked first. */
-const LABELS: [string, Text][] = [
-  ['people/talk', { en: 'Talk to {target}', zh: '和{target}说话' }],
-  ['ford/ask-crossing', { en: 'Ask {target} for the crossing', zh: '请{target}送你过河' }],
-  ['people/accept', { en: 'Give {instrument} to {target}', zh: '把{instrument}送给{target}' }],
-  ['ford/feed-peddler', { en: 'Give {instrument} to {target}', zh: '把{instrument}送给{target}' }],
-  ['companion/guide', { en: 'Ask {target} what to do', zh: '问{target}该做什么' }],
-  ['companion/talk', { en: 'Talk to {target}', zh: '和{target}说话' }],
-  ['waypoint/attune', { en: 'Wake {target}', zh: '唤醒{target}' }],
-  ['core/open-close', { en: 'Open {target}', zh: '打开{target}' }],
-  ['core/locked', { en: 'Try {target}', zh: '试着打开{target}' }],
-  ['core/read', { en: 'Read {target}', zh: '阅读{target}' }],
-  ['core/look', { en: 'Look at {target}', zh: '查看{target}' }],
-  ['core/taken', { en: 'Take {target}', zh: '拿起{target}' }],
-  ['core/receive-store', { en: 'Put {instrument} in {target}', zh: '把{instrument}放进{target}' }],
-  ['core/receive-surface', { en: 'Set {instrument} on {target}', zh: '把{instrument}放在{target}上' }],
-  ['core/receive-ground', { en: 'Place {instrument}', zh: '放下{instrument}' }],
-  ['use/eat', { en: 'Eat {instrument}', zh: '吃掉{instrument}' }],
-  ['use/drink', { en: 'Drink {instrument}', zh: '喝掉{instrument}' }],
-  ['use/fill', { en: 'Fill {instrument}', zh: '装满{instrument}' }],
-  ['element/douse', { en: 'Douse {target}', zh: '浇灭{target}' }],
-  ['use/water', { en: 'Splash {target}', zh: '泼向{target}' }],
-  ['use/oil', { en: 'Pour oil on {target}', zh: '往{target}上倒油' }],
-  ['element/light', { en: 'Light {target}', zh: '点燃{target}' }],
-  ['element/ignite', { en: 'Set fire to {target}', zh: '点燃{target}' }],
-  ['use/fire', { en: 'Set fire to {target}', zh: '点燃{target}' }],
-  ['element/snuff', { en: 'Put out {target}', zh: '熄灭{target}' }],
-  ['element/cook', { en: 'Cook {instrument}', zh: '烤{instrument}' }],
-  ['element/burn-away', { en: 'Burn {instrument}', zh: '烧掉{instrument}' }],
-  ['mine/', { en: 'Mine {target}', zh: '开采{target}' }],
-  ['core/unlock', { en: 'Unlock {target}', zh: '打开{target}的锁' }],
-  ['farm/till', { en: 'Till', zh: '翻土' }],
-  ['core/fish', { en: 'Fish', zh: '钓鱼' }],
-  ['wood/', { en: 'Chop {target}', zh: '砍{target}' }],
-  ['ford/chop', { en: 'Chop {target}', zh: '砍{target}' }],
-  ['ford/fell', { en: 'Chop {target}', zh: '砍{target}' }],
-  ['ford/mend', { en: 'Mend {target}', zh: '修好{target}' }],
-  ['farm/sow', { en: 'Sow {instrument}', zh: '播下{instrument}' }],
-  ['farm/water', { en: 'Water {target}', zh: '给{target}浇水' }],
-  ['farm/harvest', { en: 'Harvest {target}', zh: '收割{target}' }],
-  ['farm/pick', { en: 'Pick {target}', zh: '采摘{target}' }],
-  ['build/', { en: 'Build', zh: '搭建' }],
-]
+/**
+ * What an input does where no rule says (the labels are the rules' own: a rule, or one of its
+ * answers, says what an input ending there does — world-model.md; a patch says it too).
+ */
 const GENERIC: Record<string, Text> = {
   use: { en: 'Use {instrument} on {target}', zh: '把{instrument}用在{target}上' },
   self: { en: 'Use {instrument} on yourself', zh: '对自己用{instrument}' },
@@ -213,20 +174,19 @@ export class Controls {
 
   /** "Give {instrument} to {target}" with the names filled in. */
   private label(t: Text, target: Ref, instrument?: Ref): Text {
-    const fill = (s: string, l: 'en' | 'zh') => s.replace('{target}', this.eng.nameOf(target, l)).replace('{instrument}', this.eng.nameOf(instrument, l))
+    const me = { e: this.w.state.player }
+    const fill = (s: string, l: 'en' | 'zh') => s.replace('{target}', this.eng.nameOf(target, l)).replace('{instrument}', this.eng.nameOf(instrument, l)).replace('{actor}', this.eng.nameOf(me, l))
     const tt = typeof t === 'string' ? { en: t, zh: t } : t
     return { en: fill(tt.en, 'en'), zh: fill(tt.zh ?? tt.en, 'zh') }
   }
 
-  /** The label of the most telling rule of the chain (the receiver's, before the act's own). */
-  private labelFor(rules: string[], fallback: Text, target: Ref, instrument?: Ref): Text {
+  /** The label of the most telling answer of the chain that says one (the receiver's, before the act's own); else the input's default. */
+  private labelFor(labels: { text: Text; rule: string }[], fallback: Text, target: Ref, instrument?: Ref): Text {
     // the hosts' answers first (deepest first), then the roots that passed the act on
     const root = (id: string) => { const r = this.eng.lib.rules.get(id); return !r || isRoot(r) }
-    for (const id of [...rules.filter((x) => !root(x)).reverse(), ...rules.filter(root).reverse()]) {
-      const hit = LABELS.find(([k]) => id === k || id.startsWith(k))
+    for (const l of [...labels.filter((x) => !root(x.rule)).reverse(), ...labels.filter((x) => root(x.rule)).reverse()])
       // a label that names what is held does not fit an act with nothing held (E, F)
-      if (hit && (instrument || !JSON.stringify(hit[1]).includes('{instrument}'))) return this.label(hit[1], target, instrument)
-    }
+      if (instrument || !JSON.stringify(l.text).includes('{instrument}')) return this.label(l.text, target, instrument)
     return this.label(fallback, target, instrument)
   }
 
@@ -270,15 +230,10 @@ export class Controls {
       const pure = isWeapon(heldE.type) && !w.hasTag(heldE, 'tool:axe') && !(heldE.tags ?? []).some((g) => g.startsWith('tool:'))
       const blow = isWeapon(heldE.type) && !this.isPerson(target) && (pure || this.isCreature(target))
       if (blow && reach > 1 && !aligned) return undefined
-      const plan = this.make(key, at, 'use', target, held, blow)
-      if (blow) plan.label = this.label(heldE.type.startsWith('item/weapon/magic/') ? GENERIC.cast : GENERIC.attack, target, held)
-      else if (key === 'self' && !plan.rule?.includes('/')) plan.label = this.label(GENERIC.self, target, held)
-      return plan
+      return this.make(key, at, 'use', target, held, blow, blow ? (heldE.type.startsWith('item/weapon/magic/') ? GENERIC.cast : GENERIC.attack) : undefined)
     }
     if (reach > 1 && !aligned) return undefined
-    const plan = this.make(key, at, 'use', target, undefined, true)
-    plan.label = this.label(GENERIC.punch, target)
-    return plan
+    return this.make(key, at, 'use', target, undefined, true, GENERIC.punch)
   }
 
   /** The rule that answers: the deepest one of the chain that belongs to a host (the receiver's answer, not the root that passed it on). */
@@ -286,10 +241,10 @@ export class Controls {
     return [...rules].reverse().find((id) => { const r = this.eng.lib.rules.get(id); return r && !isRoot(r) }) ?? rules[0]
   }
 
-  private make(key: Key, at: Pos, verb: Verb, target: Ref, instrument: Ref | undefined, attack = false): Plan {
+  private make(key: Key, at: Pos, verb: Verb, target: Ref, instrument: Ref | undefined, attack = false, fallback?: Text): Plan {
     const r = this.dry(verb, target, instrument, attack ? { attack: true } : {})
-    const generic = key === 'self' ? GENERIC.self : GENERIC[verb] ?? GENERIC.use
-    const plan: Plan = { key, at, verb, target, instrument, rule: this.telling(r.rules), label: this.labelFor(r.rules, generic, target, instrument), unknown: r.unknown || undefined, changes: r.changes || r.unknown || undefined }
+    const generic = fallback ?? (key === 'self' ? GENERIC.self : GENERIC[verb] ?? GENERIC.use)
+    const plan: Plan = { key, at, verb, target, instrument, rule: this.telling(r.rules), label: this.labelFor(r.labels, generic, target, instrument), unknown: r.unknown || undefined, changes: r.changes || r.unknown || undefined }
     if (attack) plan.attack = true
     if (r.confirm && !r.unknown) plan.confirm = this.label(r.confirm, target, instrument)
     const e = this.entity(target)
@@ -314,7 +269,16 @@ export class Controls {
    */
   plan(key: Key, aim?: Aim, layer = 0): Plan | undefined {
     const a = this.aim(aim, key)
-    return a && this.planAt(key, a.at, a.stack, layer)
+    if (!a) return undefined
+    const p = this.planAt(key, a.at, a.stack, layer)
+    // E with no spot pointed at: the place in front — unless what is there has no answer of its own
+    // and what one stands on has one (the bed one lies on, a place of the overworld)
+    if (key === 'hands' && layer === 0 && !(aim && this.reachable(aim)) && (!p || p.unknown)) {
+      const pos = this.w.posOf(this.w.player)
+      const own = pos && this.planAt(key, pos, undefined, 0)
+      if (own && !own.unknown) return own
+    }
+    return p
   }
 
   /** The chooser's list: every layer at the aim the key reaches, with what it would do there. */
