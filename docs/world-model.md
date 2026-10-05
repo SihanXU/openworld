@@ -480,6 +480,12 @@ become `stage`). Harvest stays the crop rules' (the plant's props name yield, se
 returns to). Not yet: food spoiling, iron rusting, a campfire burning out, eggs hatching (each is
 now a stage in data).
 
+As built (2026-10-05): a timer carries its scheduled deadline. Repeated stages, waits and
+transformed stages start their next clocks from that deadline. Entry processes newly due
+clocks in time order, finishing each outcome before choosing the next, even when entry comes
+from a queued event. Catch-up stops at the engine's event budget; clocks still due stay for
+following ticks. Dormant maps still do not run continuous behaviour.
+
 ### 6.6 Building
 
 - A buildable thing has `occupies`; putting it on a cell moves it there (the existing `move`
@@ -544,6 +550,9 @@ at no health breaks down into its makeup lying still (a cow four raw beef, two l
 raw chicken) and spills what it carried (the cyclops's hoard of ore); the `drop`/`drops` props
 are gone. Req 17. Element side effects stay rules (`element/actor`). Not yet: shields that block,
 armour that wears out, what a worn thing looks like on its wearer.
+
+As built (2026-10-05): a ranged blow checks blocking from the first cell ahead, on the shooter's
+storey. An adjacent wall stops the ray and receives an unaimed blow through its own rules.
 
 ### 6.9 Weather and the world's appearances
 

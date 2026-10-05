@@ -91,7 +91,7 @@ export class Controls {
       return front && { at: front }
     }
     if (at.stack?.[0]?.e === p.id) return { at: pos, pointed: true }
-    if (this.reachable(at)) return { at: { map: pos.map, x: at.x, y: at.y }, stack: at.stack, pointed: true }
+    if (this.reachable(at)) return { at: { ...pos, x: at.x, y: at.y }, stack: at.stack, pointed: true }
     // beyond every input's reach: step back along the line to the pointer until a spot is reached
     const dx = at.x - pos.x
     const dy = at.y - pos.y
@@ -100,7 +100,7 @@ export class Controls {
     const step = (v: number) => Math.sign(v) * Math.round(Math.abs(v))
     for (let i = n - 1; i >= 1; i--) {
       const spot = { x: pos.x + step((dx * i) / n), y: pos.y + step((dy * i) / n) }
-      if (this.reachable(spot)) return { at: { map: pos.map, ...spot } }
+      if (this.reachable(spot)) return { at: { ...pos, ...spot } }
     }
     return { at: pos }
   }
@@ -111,7 +111,7 @@ export class Controls {
     const pos = w.posOf(w.player)
     if (!pos) return false
     if (at.x === pos.x && at.y === pos.y) return true
-    const here: Pos = { map: pos.map, x: at.x, y: at.y }
+    const here: Pos = { ...pos, x: at.x, y: at.y }
     return (['hands', 'take', 'put', 'use'] as Key[]).some((k) => this.planAt(k, here, at.stack, 0))
   }
 
@@ -139,25 +139,25 @@ export class Controls {
    */
   layers(at: Pos, stack?: Ref[]): Ref[] {
     const w = this.w
-    const ok = (r: Ref) => w.posOf(w.get(r.e))?.map === at.map
+    const ok = (r: Ref) => { const p = w.refPos(r); return p?.map === at.map && (p.z ?? 0) === (at.z ?? 0) }
     // a cell drawn at the point (a tree's canopy) is named by any of its ids: it is what makes it up on top
     const cellOf = (r: Ref): Ref => {
       const c = !w.get(r.e) && parseCellId(r.e)
-      return c ? w.cellRef(c.map, c.x, c.y) : r
+      return c ? w.cellRef(c.map, c.x, c.y, c.z) : r
     }
     const sig = (r: Ref) => r.e
     // what stands there, and what bigger stands beside it and covers it with its base (a tent, a place on the overworld)
-    const es = [...w.entitiesAt(at.map, at.x, at.y), ...w.coveringAt(at.map, at.x, at.y)]
+    const es = [...w.entitiesAt(at.map, at.x, at.y, at.z), ...w.coveringAt(at.map, at.x, at.y, at.z)]
+    const cell = (e: Entity) => w.isTerrain(e) || w.spacesOf(e).includes('floor')
     // in the order they are drawn: bodies over what can be carried, that over what it lies on
     const bodies = es.filter((e) => w.isAgent(e))
-    const loose = es.filter((e) => !w.isAgent(e) && w.isPortable(e)).reverse()
+    const loose = es.filter((e) => !w.isAgent(e) && w.isPortable(e) && !cell(e)).reverse()
     // what stands there, then what makes up the cell, top first: what fills it, roots in it, the floor
-    const cell = (e: Entity) => w.isTerrain(e)
     const ground = es.filter((e) => !w.isAgent(e) && !w.isPortable(e) && !cell(e))
     const made = es.filter(cell).sort((a, b) => w.cellRank(b) - w.cellRank(a))
     const standing: Ref[] = [...bodies, ...loose, ...ground].map((e) => ({ e: e.id }))
     // the view's cells of this very tile are its make-up, under what stands on it (they come last, below)
-    const own = (r: Ref) => { const c = parseCellId(r.e); return !!c && c.map === at.map && c.x === at.x && c.y === at.y }
+    const own = (r: Ref) => { const e = w.get(r.e); const c = parseCellId(r.e) ?? (e && cell(e) ? w.posOf(e) : undefined); return !!c && c.map === at.map && c.x === at.x && c.y === at.y && (c.z ?? 0) === (at.z ?? 0) }
     let out: Ref[] = stack ? [...stack.filter((r) => !own(r)).map(cellOf).filter(ok), ...standing] : standing
     // a bird overhead is the last thing the keys meet (it is drawn on top, but rarely what is meant)
     const aloft = (r: Ref) => 'e' in r && !!w.get(r.e) && w.hasTag(w.get(r.e)!, 'airborne')
@@ -416,7 +416,7 @@ export class Controls {
       if (slots.includes(k)) continue
       const free = slots.indexOf(null)
       if (free >= 0) slots[free] = k
-      else if (here) for (const e of items) this.posture(e, { on: 'tile', map: here.map, x: here.x, y: here.y })
+      else if (here) for (const e of items) this.posture(e, { on: 'tile', ...here })
     }
     // the hand holds one of the selected stack (or nothing)
     const want = slots[p.selected]
@@ -499,7 +499,7 @@ export class Controls {
     const keys = slots.filter((k): k is string => !!k).sort((a, b) => Number(!isTool(typeOf(a))) - Number(!isTool(typeOf(b))) || typeOf(a).localeCompare(typeOf(b)))
     const held = p.selected !== undefined ? slots[p.selected] : null
     this.stow()
-    p.slots = [...keys, ...Array(SLOT_COUNT - keys.length).fill(null)]
+    p.slots = [...keys, ...Array(this.slotCount() - keys.length).fill(null)]
     if (held) p.selected = Math.min(ROW - 1, p.slots.indexOf(held)) === p.slots.indexOf(held) ? p.slots.indexOf(held) : p.selected
     this.sync()
   }
@@ -512,10 +512,10 @@ export class Controls {
     const here = w.posOf(p)
     if (!k || !here) return
     const front = w.front(p)
-    const to = front && w.inBounds(front.map, front.x, front.y) && w.passable(front.map, front.x, front.y) ? front : here
+    const to = front && w.inBounds(front.map, front.x, front.y) && !w.blocked(front.map, front.x, front.y, undefined, front.z) ? front : here
     const items = this.carried().get(k) ?? []
     // put on the cell: on what is on top of it there
-    const onto = w.cellTop(to.map, to.x, to.y)
+    const onto = w.cellTop(to.map, to.x, to.y, to.z)
     if (!onto) return
     for (const e of all ? items : items.slice(0, 1)) if (!e.frozenBy) this.eng.act('put', p.id, { e: onto.id }, { instrument: { e: e.id } })
     this.sync()
@@ -625,7 +625,7 @@ export class Controls {
     const reach = MAGNET + w.num(p, 'magnet')
     for (let dy = -reach; dy <= reach; dy++)
       for (let dx = -reach; dx <= reach; dx++)
-        for (const e of w.entitiesAt(here.map, here.x + dx, here.y + dy)) {
+        for (const e of w.entitiesAt(here.map, here.x + dx, here.y + dy, here.z)) {
           if (!e.dropped || e.frozenBy || !w.isPortable(e)) continue
           const k = this.key(e)
           if (!by.has(k)) {

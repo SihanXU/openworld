@@ -41,7 +41,7 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   topic: "topic {id, days?} — the story's only: something happened that people will talk about (default 4 days); it keeps topic.<id> (the day) and topic.<id>.days as its own props. Others notify the story",
   scene: 'scene {id} — the story\'s only: play a scripted scene',
   craft: 'craft {} — the host uses up what the act\'s recipe needs from what it carries and gets what it makes',
-  grow: 'grow — the host\'s stage clock ran out (param status): it becomes what its stage says next and leaves what the stage yields; a condition the stage needs, unmet, makes it wait (world-model.md §6.5; the root of time/timer)',
+  grow: 'grow — the host\'s stage clock ran out (params status, at: its deadline): it becomes what its stage says next and leaves what the stage yields; a condition the stage needs, unmet, makes it wait (world-model.md §6.5; the root of time/timer)',
   lightning: 'lightning {power} — the world\'s: a bolt seeks what stands tall near the player and emits element lightning to it',
   ashore: 'ashore {} — the host gets out of where it cannot be, to the nearest free tile',
   fallback: 'fallback {} — the story\'s: run the broken invariant\'s authored fallback',
@@ -216,7 +216,8 @@ export class EffectRunner {
           w.destroy(host)
           return
         }
-        w.transform(host, into)
+        const at = ev.kind === 'time/timer' && typeof ev.params?.at === 'number' ? ev.params.at : w.state.tick
+        w.transform(host, into, at)
         delete host.name
         // a thing become another is whole as what it is now (a felled tree's stump, a regrown tree)
         if (host.props?.hp !== undefined && w.onto.resolve(into).props.maxHp !== undefined) w.setProp(host, 'hp', undefined)
@@ -526,16 +527,17 @@ export class EffectRunner {
         const st = w.onto.resolve(host.type).stage
         const clock = st?.clock ?? 'stage'
         if (!st || ev.params?.status !== clock) return
+        const at = typeof ev.params?.at === 'number' ? ev.params.at : w.state.tick
         if (st.needs && !evalCond(st.needs, rolesOf(ev, w), w, ev)) {
           // not yet (no light, someone standing on it): it waits, and looks again
-          w.setStatus({ e: host.id }, clock, w.state.tick + (st.wait ?? st.lasts ?? TICKS_PER_HOUR))
+          w.setStatus({ e: host.id }, clock, at + (st.wait ?? st.lasts ?? TICKS_PER_HOUR))
           return
         }
         for (const y of st.yields ?? []) this.apply({ op: 'spawn', type: y.type, at: 'tileOf:host', count: y.count ?? 1, still: true }, ev)
         if (st.fx) this.apply({ op: 'vfx', fx: st.fx, at: 'tileOf:host' }, ev)
         if (st.into) this.apply({ op: 'transform', into: st.into }, ev)
         // a stage with nothing next begins again (a hen lays, and lays again)
-        else if (st.lasts) w.setStatus({ e: host.id }, clock, w.state.tick + st.lasts)
+        else if (st.lasts) w.setStatus({ e: host.id }, clock, at + st.lasts)
         return
       }
       case 'lightning':

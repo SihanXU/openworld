@@ -928,7 +928,7 @@ export interface GameEvent {
   /**
    * The event's parameters: an act's `verb`; an impulse's `power`, `element`, `edge`, `substance`,
    * `which`, `amount`, `dir`, `into`, `what`; a contact's `how`; a period's `name` or `status`; a
-   * timer's `status`; a threshold's `status` or `name`; a seen act's `act` and `owner`; stuck's
+   * timer's `status` and scheduled `at`; a threshold's `status` or `name`; a seen act's `act` and `owner`; stuck's
    * `activity`; broken's `invariant`; `attack` on an act that is a blow.
    */
   params?: Record<string, PropValue>
