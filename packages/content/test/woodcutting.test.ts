@@ -3,8 +3,8 @@
 // counts the blows and falls; the stump grows back on its own timer.
 
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, buildSandbox, type Engine, type Key, type Ref } from '@lsw/engine'
-import { BASE_RULES, buildOntology } from '../src/index.ts'
+import { OntologyIndex, RuleLibrary, buildSandbox, type Engine, type Key, type Ref } from '@lsw/engine'
+import { BASE_RULES, RECIPE_BY_ID, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
 const TICKS_PER_DAY = 24 * 600
@@ -74,6 +74,40 @@ describe('woodcutting', () => {
     expect(press(eng, 'use', 'item/material/log')).toContain('wood/split')
     expect(itemsAt(eng, 2).filter((t) => t === 'item/material/plank')).toHaveLength(4)
     expect(itemsAt(eng, 2)).not.toContain('item/material/log')
+  })
+
+  it('splits logs into planks in the crafting panel with an axe carried (not used up): one log, two planks; "all" splits every log; a split log on the ground pops its planks out', () => {
+    const eng = grove(['grass', 'grass', 'grass', 'grass', 'grass'], undefined)
+    const w = eng.world
+    const c = eng.controls
+    const plank = RECIPE_BY_ID['item/material/plank']
+    expect(plank).toMatchObject({ needs: [{ type: 'item/material/log', count: 1 }], tools: ['tool:axe'], count: 2, station: 'hands' })
+    const give = (type: string, n = 1) => eng.author(() => { for (let i = 0; i < n; i++) w.create(type, { on: 'inside', holder: 'actor' }) })
+    give('item/material/log', 3)
+    c.sync()
+    // no axe: not made
+    expect(c.canCraft(plank)).toBe(false)
+    expect(c.craft(plank)).toBe(false)
+    give('item/weapon/blade/axe')
+    c.sync()
+    expect(c.craft(plank)).toBe(true)
+    expect([c.count('item/material/log'), c.count('item/material/plank'), c.count('item/weapon/blade/axe')]).toEqual([2, 2, 1])
+    // one kind of plank: named as any plank, not "Wooden Plank"
+    const made = w.get(w.player.contents!.find((id) => w.get(id)?.type === 'item/material/plank')!)!
+    expect(made.name).toBeUndefined()
+    expect(c.craftAll(plank)).toBe(2)
+    expect([c.count('item/material/log'), c.count('item/material/plank')]).toEqual([0, 6])
+    // on the ground, the axe on a log: two planks pop out for the magnet, the log is gone
+    eng.author(() => w.create('item/material/log', { on: 'tile', map: 'sandbox', x: 2, y: 1 }))
+    const axe = w.player.contents!.find((id) => w.get(id)?.type === 'item/weapon/blade/axe')!
+    eng.act('use', 'actor', { e: w.placedAt('sandbox', 2, 1).find((e) => e.type === 'item/material/log')!.id }, { instrument: { e: axe } })
+    const split = w.placedAt('sandbox', 2, 1)
+    expect(split.map((e) => e.type)).toEqual(['item/material/plank', 'item/material/plank'])
+    expect(split.every((e) => e.dropped)).toBe(true)
+  })
+
+  it('a plank made two to a log breaks back into half a log, not a whole one', () => {
+    expect(new OntologyIndex(onto).resolve('item/material/plank').yields).toBe(2)
   })
 
   it('a notch heals if the tree is left alone', () => {

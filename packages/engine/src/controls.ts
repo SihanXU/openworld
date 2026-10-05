@@ -596,7 +596,9 @@ export class Controls {
   }
 
   canCraft(r: Recipe): boolean {
-    return r.needs.every((n) => this.count(n.type) >= n.count)
+    const p = this.w.player
+    const carried = [p.held, ...(p.contents ?? [])].map((id) => this.w.get(id)).filter((e): e is Entity => !!e && !e.frozenBy)
+    return r.needs.every((n) => this.count(n.type) >= n.count) && (r.tools ?? []).every((tag) => carried.some((e) => this.w.hasTag(e, tag)))
   }
 
   /** The crafting panel: an act of crafting (the recipe's needs are used up, what it makes goes into the bag). */
@@ -608,6 +610,13 @@ export class Controls {
     this.eng.act('craft', p.id, { e: p.id }, { instrument: null, params: { recipe: r.id } })
     this.sync()
     return true
+  }
+
+  /** Make it again and again while what it needs is carried (the crafting panel's "all"): how many times. */
+  craftAll(r: Recipe, most = 99): number {
+    let n = 0
+    while (n < most && this.craft(r)) n++
+    return n
   }
 
   // ---------------------------------------------------------------- the magnet

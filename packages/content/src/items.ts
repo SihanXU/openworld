@@ -22,6 +22,9 @@ export interface Form {
   makeup?: TypeDef['makeup']
   station?: string
   craftLevel?: number
+  /** Tools its making needs carried, not used up; how many one making gives. */
+  tools?: string[]
+  yields?: number
 }
 
 export type Context = 'home' | 'shop' | 'smithy' | 'inn' | 'temple' | 'library' | 'wild' | 'dungeon' | 'farm' | 'npc'
@@ -188,7 +191,8 @@ export const FORMS: Form[] = [
   W('item/potion/mystery', 'Murky Potion', '浑浊药水', 'item:potion_purple', { tags: ['drinkable', 'glass', 'fragile', 'magical', 'unknown'], where: { dungeon: 1, library: 0.5 } }),
   // materials
   W('item/material/log', 'Log', '木头', 'item:log', { tags: ['wooden', 'flammable', 'fuel'], props: { material: 'wood' }, where: { wild: 1, farm: 1, home: 0.5 } }),
-  W('item/material/plank', 'Plank', '木板', 'item:plank', { tags: ['wooden', 'flammable'], props: { material: 'wood' }, where: { smithy: 1, farm: 0.5 } }),
+  // a log split with an axe at hand (the crafting panel; or the axe on a log on the ground): two planks
+  W('item/material/plank', 'Plank', '木板', 'item:plank', { tags: ['wooden', 'flammable'], props: { material: 'wood' }, where: { smithy: 1, farm: 0.5 }, makeup: [{ type: 'item/material/log', count: 1 }], station: 'hands', tools: ['tool:axe'], yields: 2 }),
   W('item/material/stick', 'Stick', '树枝', 'item:stick', { tags: ['wooden', 'flammable', 'fuel'], props: { material: 'wood' }, where: { wild: 3 } }),
   W('item/material/stone', 'Stone', '石块', 'item:stone', { tags: ['stone', 'heavy'], props: { material: 'stone' }, where: { wild: 3, dungeon: 2 } }),
   W('item/material/grass', 'Cut Grass', '干草', 'item:grass', { tags: ['plant', 'flammable', 'fuel', 'fiber'], props: { material: 'plant' }, where: { wild: 3, farm: 1 } }),
@@ -283,7 +287,7 @@ export function itemTypes(): TypeDef[] {
       sprite: f.sprite,
       tags: f.tags ?? [],
       props: f.props,
-      ...(f.makeup && { makeup: f.makeup, station: f.station, craftLevel: f.craftLevel }),
+      ...(f.makeup && { makeup: f.makeup, station: f.station, craftLevel: f.craftLevel, tools: f.tools, yields: f.yields }),
     })),
   ]
 }

@@ -520,7 +520,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'craft': {
         const r = RECIPE_BY_ID[m.id]
-        if (r) game?.engine.controls.craft(r)
+        if (r) m.all ? game?.engine.controls.craftAll(r) : game?.engine.controls.craft(r)
         break
       }
       case 'atlas': {

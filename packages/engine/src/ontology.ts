@@ -19,6 +19,8 @@ export interface ResolvedType {
   terrain?: string
   /** What it is made of (TypeDef.makeup). */
   makeup?: MakeupPart[]
+  /** How many one making gives (TypeDef.yields): what it breaks back into is its share. */
+  yields?: number
   /** How long it stays what it is (TypeDef.stage). */
   stage?: StageDef
   /** The order its goals are tried in (TypeDef.goals). */
@@ -114,6 +116,7 @@ export class OntologyIndex {
     let occupies: Space[] | undefined
     let terrain: string | undefined
     let makeup: MakeupPart[] | undefined
+    let yields: number | undefined
     let stage: StageDef | undefined
     let goals: string[] | undefined
     let name: TypeDef['name']
@@ -130,12 +133,12 @@ export class OntologyIndex {
       if (def.reach) reach = def.reach
       if (def.occupies) occupies = def.occupies
       if (def.terrain) terrain = def.terrain
-      if (def.makeup) makeup = def.makeup
+      if (def.makeup) (makeup = def.makeup), (yields = def.yields)
       if (def.stage) stage = def.stage
       if (def.goals) goals = def.goals
       if (def.name) name = def.name
     }
-    const r: ResolvedType = { id, tags: [...tags], props, sprite, solid, footprint, reach, occupies, terrain, makeup, stage, goals, name, chain, depth: parts.length }
+    const r: ResolvedType = { id, tags: [...tags], props, sprite, solid, footprint, reach, occupies, terrain, makeup, yields, stage, goals, name, chain, depth: parts.length }
     this.cache.set(id, r)
     return r
   }
