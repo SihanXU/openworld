@@ -545,7 +545,7 @@ export function buildFord(): FordWorld {
   // the prologue north of the Ford (docs/prologue.md): the foot of the mountain, the cliff stair
   reseed(4252)
   const foot = buildFoot()
-  foot.anchors.skip = [TUTORIAL.skip[0], TUTORIAL.skip[1]]
+  foot.anchors.arrive = [TUTORIAL.arrive[0], TUTORIAL.arrive[1]]
   // the tutorial: a plot of its own, linked to nothing
   const tutorial = buildTutorial()
   linkEdge(foot, row(foot, foot.h - 1, PROLOGUE.footSouth), [0, -1], m, row(m, 0, PROLOGUE.fordNorth), [0, 1])
@@ -590,10 +590,12 @@ export function buildFord(): FordWorld {
     name: L('The Ford', '渡口'),
     version: VERSION,
     seed: 4242,
-    // a new game begins in the tutorial; one that skips it, at the foot of the mountain before the
-    // seal stone (docs/prologue.md)
-    start: { map: tutorial.id, x: TUTORIAL.spawn[0], y: TUTORIAL.spawn[1] },
-    starts: { skip: { at: { map: foot.id, x: TUTORIAL.skip[0], y: TUTORIAL.skip[1] }, props: { prologue: PROLOGUE_AT_FOOT } } },
+    // the game begins at the foot of the mountain, before the seal stone; with the tutorial (the
+    // cover's choice, and its default), in the clearing first (docs/prologue.md)
+    start: { map: foot.id, x: TUTORIAL.arrive[0], y: TUTORIAL.arrive[1] },
+    begin: { props: { prologue: PROLOGUE_AT_FOOT } },
+    // one comes round in the clearing early in the morning: a long day to get ready for the night
+    starts: { tutorial: { at: { map: tutorial.id, x: TUTORIAL.spawn[0], y: TUTORIAL.spawn[1] }, hour: 7, statuses: { out_cold: 50 } } },
     startHour: START_HOUR,
     maps: [...builders.map((b, i) => metaOf(b, chunks[i])), { id: overworld.map.id, name: overworld.map.name, kind: overworld.map.kind, region: overworld.map.region, width: overworld.map.width, height: overworld.map.height, portals: [], npcs: 0, items: 0 }],
     npcs,

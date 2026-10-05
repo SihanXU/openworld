@@ -4,7 +4,8 @@
 // of flowers, and runs out of the map's south edge at the top of the Ford's cliff.
 
 import { MapBuilder, rng } from './builder.ts'
-import { L, GROUND_YIELD } from './kit.ts'
+import { TUTORIAL_OPEN } from '@lsw/content'
+import { L, GROUND_YIELD, appears } from './kit.ts'
 
 /** Edge openings: the foot's way in from the north (the tutorial's road comes out there), its way out below, the Ford's cliff stair. */
 export const PROLOGUE = {
@@ -56,29 +57,54 @@ export function buildFoot(): MapBuilder {
   m.set(6, 16, 'floor_wood')
   m.path([[20, 0], [20, 7], [24, 12], [21, 17], [18, 22], [17, 29]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
   m.fixture('fixture/sign', 19, 25, { props: { text: 'The Ford ↓' } })
-  m.appear = GROUND_YIELD
+  // the clearing's own: berries keep turning up, enough to eat one's fill before the night
+  m.appear = [...GROUND_YIELD, appears('item/food/berries', ['grass'], 6)]
   return m
 }
 
 // =================================================================== the tutorial
 
-/** The tutorial plot: where a new game begins unless the player skips it (then: the Mountain Foot). */
+/** The tutorial clearing: where a new game begins unless the player skips it (then: the Mountain Foot). */
 export const TUTORIAL = {
-  size: [20, 14],
-  spawn: [10, 7],
-  /** where a game that skips the tutorial begins: the trail coming down onto the foot */
-  skip: [20, 1],
+  size: [36, 26],
+  /** where one comes round */
+  spawn: [12, 12],
+  /** the path out, south, two columns wide: open once the story says so */
+  exit: [17, 18],
+  /** where one comes out at the foot (and where a game without the tutorial begins): the top of its trail */
+  arrive: [20, 1],
+  /** what lies about the clearing to begin with */
+  berries: [[11, 10], [14, 11], [13, 14], [9, 11], [15, 13], [12, 16]],
+  sticks: [[8, 13], [16, 9], [9, 16]],
+  stones: [[7, 10], [15, 15], [10, 17], [17, 12]],
+  grass: [[6, 12], [13, 8], [11, 15], [16, 14], [8, 9]],
+  /** the grove on the clearing's east side: the wood a house is made of */
+  grove: [[25, 9], [28, 8], [27, 12], [30, 11], [26, 15], [29, 16], [31, 13]],
 } as const
 
 /**
- * The tutorial: an empty plot of grass and nothing else, with no way out — it lies on no cell of
- * the overworld and has no portal, so its edges are the world's edge. Nothing appears on it and
- * nothing comes out of its dark.
+ * The tutorial (docs/prologue.md): a clearing ringed by forest where one comes round, finds food,
+ * gathers, makes an axe, cuts wood, lights a fire, builds a house and gets through a night. It lies
+ * on no cell of the overworld and nothing leads back into it: a scene played once. Its one way out,
+ * the path south to the Mountain Foot, opens on the first morning after the house stands. It is a
+ * combat zone: the night's walkers come.
  */
 export function buildTutorial(): MapBuilder {
   const [w, h] = TUTORIAL.size
-  const m = new MapBuilder('tutorial', L('Tutorial', '新手教程'), 'wild', w, h, 'grass', 'Village', 'outdoor', 'frostfang')
-  m.zone = 'peaceful'
+  const m = new MapBuilder('tutorial', L('The Clearing', '林间空地'), 'wild', w, h, 'grass', 'Village', 'outdoor', 'frostfang')
+  const exit = TUTORIAL.exit as readonly number[]
+  rim(m, (x, y) => y >= h - 3 && exit.includes(x), () => (rng.chance(0.6) ? 'tree' : 'pine'))
+  for (const [x, y] of TUTORIAL.grove) m.set(x, y, 'tree')
+  m.organic(21, 6, 3, 2, 'flowers', { only: (t) => t === 'grass', rough: 0.3 })
+  m.path([[exit[0], 18], [exit[0], h - 1]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
+  for (const [x, y] of TUTORIAL.berries) m.item('item/food/berries', x, y)
+  for (const [x, y] of TUTORIAL.sticks) m.item('item/material/stick', x, y)
+  for (const [x, y] of TUTORIAL.stones) m.item('item/material/stone', x, y)
+  for (const [x, y] of TUTORIAL.grass) m.item('item/material/grass', x, y)
+  m.regions.exit = [exit[0] - 3, h - 5, 8, 5]
+  // the way out: only once the story has opened it
+  for (const [i, x] of exit.entries()) m.portals.push({ x, y: h - 1, to: 'foot', tx: TUTORIAL.arrive[0] + i, ty: TUTORIAL.arrive[1], label: L('Mountain Foot', '山脚'), opensWhen: TUTORIAL_OPEN })
   m.anchors.spawn = [TUTORIAL.spawn[0], TUTORIAL.spawn[1]]
+  m.appear = GROUND_YIELD
   return m
 }

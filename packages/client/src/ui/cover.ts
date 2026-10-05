@@ -63,7 +63,7 @@ export class Cover {
   private panel: 'new' | 'load' | 'help' | undefined
   /** The difficulty a new game starts at (Minecraft's choice): normal unless chosen. */
   private difficulty: Difficulty = 'normal'
-  /** Whether a new game begins with the tutorial (else at the foot of the mountain: the world's start `skip`). */
+  /** Whether a new game begins with the tutorial (the world's start `tutorial`; else at its own start, the foot of the mountain). */
   private tutorial = true
 
   constructor(
@@ -196,7 +196,7 @@ export class Cover {
           case 'new':
             if (d && !confirm(t('cvConfirmOverwrite').replace('{n}', String(slot)))) return
             this.busy()
-            return this.on.start(slot, undefined, { difficulty: this.difficulty, ...(!this.tutorial && { start: 'skip' }) })
+            return this.on.start(slot, undefined, { difficulty: this.difficulty, ...(this.tutorial && { start: 'tutorial' }) })
           case 'export':
             if (d) exportSlot(this.world, slot, d)
             return
