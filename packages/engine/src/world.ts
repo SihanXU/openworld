@@ -652,6 +652,21 @@ export class World {
     return undefined
   }
 
+  /**
+   * How many cells from a place to a thing (Chebyshev: the eight round are 1): to the nearest cell
+   * its base covers (a tent, a place of the overworld); 0 for what one carries. Off the map: none.
+   */
+  distance(from: Pos, e: Entity): number | undefined {
+    const p = this.posOf(e)
+    if (!p || p.map !== from.map) return undefined
+    if (e.place.on !== 'tile') return Math.max(Math.abs(p.x - from.x), Math.abs(p.y - from.y))
+    const [fw, fd] = this.onto.resolve(e.type).footprint
+    let best = Infinity
+    for (let x = p.x - Math.floor((fw - 1) / 2); x <= p.x + Math.floor(fw / 2); x++)
+      for (let y = p.y - fd + 1; y <= p.y; y++) best = Math.min(best, Math.max(Math.abs(x - from.x), Math.abs(y - from.y)))
+    return best
+  }
+
   refPos(ref: Ref | undefined): Pos | undefined {
     return ref && this.posOf(this.get(ref.e))
   }

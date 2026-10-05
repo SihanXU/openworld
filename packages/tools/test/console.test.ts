@@ -8,7 +8,7 @@ import { template } from '../../client/src/ui/template.ts'
 import { AT, STAND, buildFord } from '../src/demo/world.ts'
 
 describe('the Mod Console template', () => {
-  it('is a valid patch for an undefined act, a receive, a strike and a handle', () => {
+  it('is a valid patch for an undefined act, a strike and a handle', () => {
     const onto = buildOntology()
     const { index, chunks } = buildFord()
     const lib = new RuleLibrary([...BASE_RULES, ...STORY_RULES])
@@ -26,11 +26,10 @@ describe('the Mod Console template', () => {
       eng.controls.run(eng.controls.plan(key, { x: target[0], y: target[1] })!, true)
     }
     press('use', 'item/food/bread', STAND.winch, AT.winch)
-    press('put', 'item/tool/rope', STAND.tree, AT.deadTree, 'right')
     press('use', 'item/weapon/blade/axe', STAND.winch, AT.winch)
     press('hands', undefined, STAND.raft, AT.raft, 'right')
     const kinds = game.mods.records.map((r) => r.request.event.kind)
-    expect(kinds).toEqual(['act/use', 'impulse/receive', 'impulse/strike', 'impulse/handle'])
+    expect(kinds).toEqual(['act/use', 'impulse/strike', 'impulse/handle'])
     for (const r of game.mods.records) {
       const patch = template({ id: r.id, request: r.request, status: r.status } as Parameters<typeof template>[0])
       const res = validatePatch(patch, { ontology: onto, library: lib, scenario: r.request.scenario })

@@ -303,7 +303,7 @@ describe('the Mod port holds up', () => {
   it('a thing that changes type takes up the cells of its new footprint', () => {
     const grow: Rule = { id: 'test/grow', host: { type: 'actor/creature/slime' }, on: 'impulse/handle', tree: { do: [{ op: 'transform', into: 'actor/creature/sin/greed' }] } }
     const eng = buildSandbox(
-      { terrain: Array.from({ length: 9 }, () => Array(9).fill('grass')), entities: [{ key: 'actor', type: 'actor/person/player', x: 1, y: 4 }, { key: 'c', type: 'actor/creature/slime/green_slime', x: 4, y: 4 }], event: {} },
+      { terrain: Array.from({ length: 9 }, () => Array(9).fill('grass')), entities: [{ key: 'actor', type: 'actor/person/player', x: 4, y: 5 }, { key: 'c', type: 'actor/creature/slime/green_slime', x: 4, y: 4 }], event: {} },
       onto,
       new RuleLibrary([...BASE_RULES, ...STORY_RULES, grow]),
     )

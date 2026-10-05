@@ -46,6 +46,8 @@ interface Pressed {
   rules: string[]
   /** The rules whose leaf was undefined (asked of the AI; the default ran). */
   holes: string[]
+  /** The input offered the act (taking and putting are offered only where they change something). */
+  offered: boolean
 }
 
 /** Press a key at the tile in front (holding a fresh `type`, or with an empty hand). */
@@ -55,9 +57,16 @@ function press(eng: Engine, key: Key, type?: string): Pressed {
   const plan = eng.controls.plan(key)
   eng.trace.length = 0
   if (plan) eng.controls.run(plan, true)
+  // an input that would change nothing is not offered (taking and putting are physics): the act itself, as the world answers it
+  else if (key === 'put' || key === 'take') {
+    const front = eng.world.front(eng.world.player)!
+    const target = eng.controls.layers(front)[0]
+    if (target) eng.act(key, eng.world.state.player, target, { instrument: key === 'put' ? (eng.world.player.held ? { e: eng.world.player.held } : null) : null })
+  }
   return {
     rules: eng.trace.filter((t) => t.defined && t.rule).map((t) => t.rule!),
     holes: eng.trace.filter((t) => !t.defined && t.rule).map((t) => t.rule!),
+    offered: !!plan,
   }
 }
 
@@ -74,7 +83,7 @@ const AXE = 'item/weapon/blade/axe'
 describe('a chest from a frame', () => {
   it('counts planks into a frame, reports progress, and a hammer makes a chest', () => {
     const eng = site([PLANK])
-    expect(press(eng, 'put', PLANK)).toEqual({ rules: expect.arrayContaining(['build/plank-to-plank', 'build/start-frame']), holes: [] })
+    expect(press(eng, 'put', PLANK)).toMatchObject({ rules: expect.arrayContaining(['build/plank-to-plank', 'build/start-frame']), holes: [] })
     expect(fixture(eng)?.type).toBe('fixture/build/frame')
     expect(heldType(eng)).toBeUndefined() // the plank gave itself to the work
     expect(press(eng, 'put', PLANK).rules).toEqual(expect.arrayContaining(['build/plank-to-frame', 'build/frame']))
@@ -83,7 +92,7 @@ describe('a chest from a frame', () => {
     expect(said(eng)).toContain('A frame of 3 planks. One more makes a chest.')
     // a hammer on a frame of three: one more plank
     const early = press(eng, 'use', HAMMER)
-    expect(early).toEqual({ rules: expect.arrayContaining(['use/hammer', 'build/frame']), holes: [] })
+    expect(early).toMatchObject({ rules: expect.arrayContaining(['use/hammer', 'build/frame']), holes: [] })
     expect(said(eng)).toContain('One more plank.')
     expect(fixture(eng)?.type).toBe('fixture/build/frame')
     expect(press(eng, 'put', PLANK).rules).toContain('build/plank-to-frame')
@@ -114,7 +123,7 @@ describe('a chest from a frame', () => {
     const eng = site([PLANK])
     press(eng, 'put', PLANK)
     press(eng, 'put', PLANK)
-    expect(press(eng, 'use', AXE)).toEqual({ rules: expect.arrayContaining(['use/blade', 'build/unframe']), holes: [] })
+    expect(press(eng, 'use', AXE)).toMatchObject({ rules: expect.arrayContaining(['use/blade', 'build/unframe']), holes: [] })
     expect(fixture(eng)).toBeUndefined()
     expect(count(eng, PLANK)).toBe(3)
   })
@@ -189,7 +198,7 @@ describe('the same pattern', () => {
     expect(press(eng, 'put', PLANK).rules).toEqual(expect.arrayContaining(['build/plank-on-water', 'water/bridge']))
     expect(eng.world.terrainAt(FRONT.map, FRONT.x, FRONT.y)).toBe('bridge')
     const deep = site([], 'deepwater')
-    expect(press(deep, 'put', PLANK).rules).toContain('core/receive-water')
+    expect(press(deep, 'put', PLANK)).toMatchObject({ rules: expect.arrayContaining(['core/receive-water']), offered: false })
     expect(deep.world.terrainAt(FRONT.map, FRONT.x, FRONT.y)).toBe('deepwater')
     expect(heldType(deep)).toBe(PLANK) // nothing is lost
   })

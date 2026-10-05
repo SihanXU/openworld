@@ -25,7 +25,8 @@ function request(host = 'actor/creature/slime/green_slime'): ModRequest {
   }
   const eng = buildSandbox(sc, onto, new RuleLibrary(BASE))
   const port = new ModPort(eng)
-  eng.act('put', 'actor', { e: 'it' })
+  // the rope held out to it, as a rope used on it does
+  eng.queue({ kind: 'impulse/offered', host: { e: 'it' }, roles: { actor: { e: 'actor' }, item: { e: 'held' }, source: { e: 'held' } }, params: {}, cause: 'actor', origin: 'player' })
   return port.records[0].request
 }
 
@@ -54,7 +55,7 @@ const RULE: Rule = {
           { key: 'r', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
           { key: 'w', type: 'actor/creature/beast/wolf', x: 2, y: 1 },
         ],
-        event: { kind: 'act/put', actor: 'actor', target: 'w', instrument: 'r' },
+        event: { kind: 'impulse/offered', host: 'w', actor: 'actor', item: 'r', source: 'r' },
       },
       expect: [{ key: 'w', hasStatus: 'frozen' }],
     },

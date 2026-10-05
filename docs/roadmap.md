@@ -89,6 +89,14 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 | W8 | Combat: material and quality, elements and resistances as data (done 2026-10-04) | W2 | 26,002 / 37,823 (68.7%) | 39 of 125 forms, 23 of 86 fixture types |
 | W9 | Behaviour: one goal system, real work (done 2026-10-04) | W3 | 26,189 / 38,329 (68.3%) | 39 of 125 forms, 23 of 87 fixture types |
 | W10 | The story's script (done 2026-10-04) | W1 | 26,189 / 38,329 (68.3%) | 39 of 125 forms, 23 of 87 fixture types |
+| Inputs v2 | Five inputs with reach (E, F, G, left click, right click on oneself); taking and putting are physics (done 2026-10-04) | W10 | 16,716 / 38,329 (43.6%) | 39 of 125 forms, 23 of 87 fixture types |
+
+Inputs v2 (design.md §5.2) moved taking and putting out of the AI's questions by design: what is
+taken or put down, what refuses it, and a creature not taking what is put on it are the world's
+physics now (`core/taken`, `core/receive`, `fixture/receive`, `creature/not-taken`, `core/put`), so
+the 9,473 holes they held (9,033 at `fixture/receive` alone) are defined; using one thing on another
+(`core/use`), a blow on what cannot break (`core/strike`) and a hand on what does not say
+(`core/handle`) remain the AI's. A bare left click is a blow now, never E's hand.
 
 The event model changed what is swept: the acts each input makes (use, put, take, hands; use
 or hands on yourself) and the outcomes of the impulses they send, so the space grew to 29,492.

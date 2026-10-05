@@ -325,12 +325,13 @@ export class Hud {
       this.keySig = sig
       const line = (key: string, v?: KeyView) =>
         v ? `<div class="kl${v.unknown ? ' unknown' : ''}"><kbd>${key}</kbd> ${esc(tx(v.label))}${v.unknown ? ` <span class="q">?</span>` : ''}</div>` : ''
-      // every input's label is shown (foreseeable); a bare-handed left click is the same event as E, so they share a line
-      const same = !!k?.hands && !!k?.use && JSON.stringify(k.hands.label) === JSON.stringify(k.use.label)
-      $('#keys').innerHTML = k ? line(same ? `E · ${t('lmb')}` : 'E', k.hands) + line('F', k.take) + (same ? '' : line(t('lmb'), k.use)) + line(t('rmb'), k.put) : ''
+      // what each input that reaches the spot would do (foreseeable): E, F, G, the left click there, the right click on oneself
+      // (a left click on one's own place is the right click's act: one line for both)
+      const same = !!k?.use && !!k?.self && JSON.stringify(k.use.label) === JSON.stringify(k.self.label) && k.use.x === k.self.x && k.use.y === k.self.y
+      $('#keys').innerHTML = k ? line('E', k.hands) + line('F', k.take) + line('G', k.put) + line(same ? `${t('lmb')} · ${t('rmb')}` : t('lmb'), k.use) + (same ? '' : line(t('rmb'), k.self)) : ''
     }
     // over the target: what each key would do, where it would be done (the tile is outlined in the scene)
-    const at = k?.hands ?? k?.take ?? k?.use ?? k?.put
+    const at = k?.hands ?? k?.take ?? k?.put ?? k?.use ?? k?.self
     const el = $('#keys')
     el.classList.toggle('hidden', !at)
     if (at) {

@@ -228,15 +228,23 @@ async function ensureMaps(): Promise<void> {
   }
 }
 
-/** What the four inputs would do now (the labels over the target); an experiment with something in hand starts a prefetch. */
+/**
+ * What the inputs that reach the aimed spot would do now (the labels over the target): E, F, G and the
+ * left click there; the right click (on oneself) when something is held and it is something to do
+ * there, or the player points at themself. An experiment with something in hand starts a prefetch.
+ */
 function keyViews(): Frame['keys'] {
   const eng = game!.engine
   const c = eng.controls
   const view = (pl: Plan | undefined): KeyView | undefined => pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y }
   const out: NonNullable<Frame['keys']> = {}
-  for (const k of ['hands', 'take', 'use', 'put'] as Key[]) out[k] = view(c.plan(k, aimTile))
-  const use = c.plan('use', aimTile)
+  for (const k of ['hands', 'take', 'put', 'use'] as Key[]) out[k] = view(c.plan(k, aimTile))
   const p = eng.world.player
+  const here = eng.world.posOf(p)
+  const self = c.plan('self')
+  const atSelf = !!aimTile && !!here && aimTile.x === here.x && aimTile.y === here.y
+  if (self && (atSelf || (p.held && !self.unknown))) out.self = view(self)
+  const use = c.plan('use', aimTile)
   // an experiment with something in hand: where its chain reaches an undefined outcome
   noteProbe(use?.unknown && use.instrument && use.verb ? eng.preview(eng.actEvent(use.verb, p.id, use.target, use.instrument)).hole : undefined)
   return out

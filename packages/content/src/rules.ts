@@ -45,19 +45,23 @@ const TOO_FAR = log('Too far to reach: go in first (E).', '够不着：先进去
 const ROOTS: Rule[] = [
   rule({
     id: 'core/use',
-    doc: 'Using a thing on something is undefined unless its nature says (the AI answers) — on a place of the overworld it is out of reach; a bare hand strikes what a blow is aimed at (and any creature), and handles anything else.',
+    doc: 'Using a thing on something is undefined unless its nature says (the AI answers) — on a place of the overworld it is out of reach; the bare body used on anything is a blow (Minecraft\'s fist).',
     on: 'act/use',
     tree: IF(
       { none: 'instrument' },
-      IF(any(param('attack', true), is('target', { type: 'actor/creature' })), DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND })), DO(emit('handle', 'target'))),
+      DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND })),
       IF(is('target', SITE), DO(TOO_FAR), HOLE(log('Nothing happens.', '什么也没有发生。'))),
     ),
   }),
   rule({
     id: 'core/put',
-    doc: 'Putting the host somewhere: an actor is offered it, anything else receives it.',
+    doc: 'Putting the host somewhere (physics: never asked): a person is handed it, anything else that lives does not take what is put on it, anything else receives it.',
     on: 'act/put',
-    tree: IF(is('target', { type: 'actor' }), DO(emit('offered', 'target', undefined, { item: 'host' })), DO(emit('receive', 'target', undefined, { item: 'host' }))),
+    tree: IF(
+      is('target', { type: 'actor/person' }),
+      DO(emit('offered', 'target', undefined, { item: 'host' })),
+      IF(is('target', { type: 'actor' }), DO(log('{target} does not take it.', '{target}不收。')), DO(emit('receive', 'target', undefined, { item: 'host' }))),
+    ),
   }),
   rule({ id: 'core/take', doc: 'Taking the target with the hands: it is taken (and answers how).', on: 'act/take', tree: DO(emit('taken', 'target', { into: { param: 'into' }, quiet: { param: 'quiet' } }, { other: 'actor' })) }),
   rule({ id: 'core/hands', doc: 'A bare hand on the target: it is handled (and answers how).', on: 'act/hands', tree: DO(emit('handle', 'target')) }),
@@ -83,7 +87,7 @@ const ROOTS: Rule[] = [
   }),
   rule({
     id: 'core/taken',
-    doc: 'A portable thing taken moves into the taker\'s hand (or bag, or onto the ground); anything else is undefined.',
+    doc: 'A portable thing taken moves into the taker\'s hand (or bag, or onto the ground); anything else stays where it is (taking is physics: never asked).',
     on: 'impulse/taken',
     tree: IF(
       is('host', { tags: ['portable'] }),
@@ -92,11 +96,13 @@ const ROOTS: Rule[] = [
         DO({ op: 'move', to: 'other', into: 'contents' }),
         IF(param('into', 'tile'), DO({ op: 'move', to: 'other', into: 'tile' }), IF(param('quiet', true), DO({ op: 'move', to: 'other', into: 'hand' }), DO({ op: 'move', to: 'other', into: 'hand' }, log('You take {host}.', '你拿起了{host}。')))),
       ),
-      HOLE(log('That stays where it is.', '这个拿不走。')),
+      DO(log('That stays where it is.', '这个拿不走。')),
     ),
   }),
-  rule({ id: 'core/receive', doc: 'Something put on a thing with no answer of its own: undefined.', on: 'impulse/receive', tree: HOLE(log('There is no room there.', '那里放不下。')) }),
-  rule({ id: 'core/offered', doc: 'Something offered with no answer of its own: undefined.', on: 'impulse/offered', tree: HOLE() }),
+  // putting is physics (never asked): what has room takes the thing, what has none refuses; using a thing on something is where the AI answers
+  rule({ id: 'core/receive', doc: 'Something put on a thing with no answer of its own: there is no room there.', on: 'impulse/receive', tree: DO(log('There is no room there.', '那里放不下。')) }),
+  // what one makes of a thing held out to one (a rope used on a slime, armour put on someone) is one's own nature: undefined unless it says
+  rule({ id: 'core/offered', doc: 'Something held out to one with no answer of its own: undefined (the AI answers).', on: 'impulse/offered', tree: HOLE() }),
   rule({
     id: 'core/restore',
     doc: 'Health or hunger given back; or a night\'s sleep (until it is time to rise, giving back as the room says).',
@@ -224,10 +230,10 @@ const ESSENTIAL: Selector = { type: 'actor', tags: ['essential'] }
 const BODIES: Rule[] = [
   rule({
     id: 'body/wear',
-    doc: 'Something one wears, put on oneself: one puts it on (what was in its slot comes off), or takes it off if it is on (world-model.md §6.8).',
+    doc: 'Something one wears, used on one (one\'s own, or another\'s held out): one puts it on (what was in its slot comes off), or takes it off if it is on (world-model.md §6.8).',
     host: ACTOR,
     on: 'impulse/offered',
-    tree: IF(all({ same: ['host', 'actor'] }, is('item', { tags: ['wearable'] })), DO({ op: 'wear' }), 'inherit'),
+    tree: IF(all(param('wear', true), is('item', { tags: ['wearable'] })), IF({ same: ['host', 'actor'] }, DO({ op: 'wear' }), DO(taken('contents'), { op: 'wear' })), 'inherit'),
   }),
   rule({
     id: 'combat/struck',
@@ -396,10 +402,10 @@ const PEOPLE: Rule[] = [
   }),
   rule({
     id: 'people/accept',
-    doc: 'A person handed a thing takes it and says what they make of it.',
+    doc: 'A person handed a thing takes it and says what they make of it (one put on them is theirs to wear).',
     host: PERSON,
     on: 'impulse/offered',
-    tree: IF({ same: ['host', 'actor'] }, 'inherit', DO(taken('contents'), { op: 'say', text: '@given' })),
+    tree: IF(any({ same: ['host', 'actor'] }, param('wear', true)), 'inherit', DO(taken('contents'), { op: 'say', text: '@given' })),
   }),
   rule({
     id: 'seen/owner-take',
@@ -423,33 +429,49 @@ const USE: Selector[] = []
 void USE
 const useOrPut = ['act/use', 'act/put'] as const
 
+/** Who gets hungry, and so can be fed. */
+const FEEDS: Selector = { type: 'actor', props: { maxHunger: { gt: 0 } } }
+
 const INSTRUMENTS: Rule[] = [
   rule({
+    id: 'use/wear',
+    doc: 'Something one wears, used on someone (oneself, or another): it is put on them (world-model.md §6.8).',
+    host: { tags: ['wearable'] },
+    on: 'act/use',
+    tree: IF(is('target', { type: 'actor' }), DO(emit('offered', 'target', { wear: true }, { item: 'host' })), 'inherit'),
+  }),
+  rule({
     id: 'use/eat',
-    confirm: L('Eat {instrument}?', '要吃掉{instrument}吗？'),
-    doc: 'Food used on oneself feeds hunger (Minecraft): health comes back from being well fed, not from the bite.',
+    doc: 'Food used on oneself is eaten: it feeds hunger (Minecraft: health comes back from being well fed, not from the bite). Used on another who gets hungry, it feeds them; on anything else it is undefined (a wolf offered meat: the AI answers).',
     host: { tags: ['edible'] },
     on: 'act/use',
-    tree: IF({ same: ['actor', 'target'] }, DO(emit('restore', 'actor', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), emit('notify', 'story', { what: 'meal' }), log('You eat {host}.', '你吃掉了{host}。'), { op: 'destroy' })),
+    tree: IF(
+      { same: ['actor', 'target'] },
+      ASK(L('Eat {instrument}?', '要吃掉{instrument}吗？'), emit('restore', 'actor', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), emit('notify', 'story', { what: 'meal' }), log('You eat {host}.', '你吃掉了{host}。'), { op: 'destroy' }),
+      IF(is('target', FEEDS), DO(emit('restore', 'target', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), log('You feed {target} {host}.', '你喂{target}吃了{host}。'), { op: 'destroy' }), 'inherit'),
+    ),
   }),
   rule({
     id: 'use/eat-medicine',
-    confirm: L('Eat {instrument}?', '要吃掉{instrument}吗？'),
-    doc: 'Medicine eaten (a healing herb) heals as well as it feeds.',
+    doc: 'Medicine eaten (a healing herb) heals as well as it feeds — oneself, or another it is given to.',
     host: { tags: ['edible', 'medicinal'] },
     on: 'act/use',
     tree: IF(
       { same: ['actor', 'target'] },
-      DO(emit('restore', 'actor', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), emit('restore', 'actor', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), vfx('heal', 'actor'), log('You eat {host}.', '你吃掉了{host}。'), { op: 'destroy' }),
+      ASK(L('Eat {instrument}?', '要吃掉{instrument}吗？'), emit('restore', 'actor', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), emit('restore', 'actor', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), vfx('heal', 'actor'), log('You eat {host}.', '你吃掉了{host}。'), { op: 'destroy' }),
+      IF(is('target', FEEDS), DO(emit('restore', 'target', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), emit('restore', 'target', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), vfx('heal', 'target'), log('You give {target} {host}.', '你给{target}吃了{host}。'), { op: 'destroy' }), 'inherit'),
     ),
   }),
   rule({
     id: 'use/drink',
-    confirm: L('Drink {instrument}?', '要喝掉{instrument}吗？'),
-    doc: 'A drink used on oneself heals.',
+    doc: 'A drink used on oneself, or on another living thing, heals them.',
     host: { tags: ['drinkable'] },
     on: 'act/use',
-    tree: IF({ same: ['actor', 'target'] }, DO(emit('restore', 'actor', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), vfx('heal', 'actor'), log('You drink {host}.', '你喝下了{host}。'), { op: 'destroy' })),
+    tree: IF(
+      { same: ['actor', 'target'] },
+      ASK(L('Drink {instrument}?', '要喝掉{instrument}吗？'), emit('restore', 'actor', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), vfx('heal', 'actor'), log('You drink {host}.', '你喝下了{host}。'), { op: 'destroy' }),
+      IF(is('target', { type: 'actor' }), DO(emit('restore', 'target', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), vfx('heal', 'target'), log('You give {target} {host}.', '你给{target}喝下了{host}。'), { op: 'destroy' }), 'inherit'),
+    ),
   }),
   rule({
     id: 'use/water',
@@ -1171,10 +1193,10 @@ const JOURNEY: Rule[] = [
   }),
   rule({
     id: 'companion/talk',
-    doc: 'A companion, spoken to (E), says again what it last pointed out.',
+    doc: 'A companion, spoken to (E), tells what the story asks for now and how (else what it last pointed out).',
     host: COMPANION,
     on: 'impulse/handle',
-    tree: DO({ op: 'say', text: '@hint' }),
+    tree: DO({ op: 'say', text: '@guide' }),
   }),
   rule({
     id: 'companion/witness',
@@ -1198,18 +1220,11 @@ const JOURNEY: Rule[] = [
     tree: IF(param('what', 'quest'), DO({ op: 'quests' }), IF(param('what', 'defeat'), DO({ op: 'quests' }), 'inherit')),
   }),
   rule({
-    id: 'companion/guide',
-    doc: 'Take hold of a companion (F): it stays where it is and tells what the story asks for now, and how.',
-    host: COMPANION,
-    on: 'impulse/taken',
-    tree: DO({ op: 'say', text: '@objective' }),
-  }),
-  rule({
     id: 'creature/not-taken',
-    doc: 'People and creatures are not picked up: undefined (the AI may say otherwise), and with no answer the hand comes away empty.',
+    doc: 'People and creatures are not picked up (taking is physics: never asked).',
     host: ACTOR,
     on: 'impulse/taken',
-    tree: HOLE(log('It cannot be picked up.', '这个拿不起来。')),
+    tree: DO(log('It cannot be picked up.', '这个拿不起来。')),
   }),
   rule({
     id: 'waypoint/attune',
@@ -1235,10 +1250,10 @@ const JOURNEY: Rule[] = [
   }),
   rule({
     id: 'fixture/receive',
-    doc: 'Something put on a thing nothing else defines (a grass tuft, a boulder, a statue): undefined — the AI may answer — and with no answer it is set down on that thing\'s tile.',
+    doc: 'Something put on a thing nothing else defines (a grass tuft, a boulder, a statue) is set down on that thing\'s tile (putting is physics: never asked).',
     host: { type: 'fixture' },
     on: 'impulse/receive',
-    tree: IF({ none: 'item' }, 'inherit', HOLE(taken('tile'), log('You set {item} down by {host}.', '你把{item}放在了{host}旁。'))),
+    tree: IF({ none: 'item' }, 'inherit', DO(taken('tile'), log('You set {item} down by {host}.', '你把{item}放在了{host}旁。'))),
   }),
   rule({
     id: 'body/fireproof',
@@ -1249,11 +1264,14 @@ const JOURNEY: Rule[] = [
   }),
   rule({
     id: 'use/drink-fireproof',
-    confirm: L('Drink {instrument}?', '要喝掉{instrument}吗？'),
-    doc: 'The fireproof draught, drunk.',
+    doc: 'The fireproof draught, drunk — by oneself, or by another it is given to.',
     host: { type: 'item/potion/fire_resist' },
     on: 'act/use',
-    tree: IF({ same: ['actor', 'target'] }, DO(emit('coat', 'actor', { substance: 'fireproof' }), { op: 'destroy' }), 'inherit'),
+    tree: IF(
+      { same: ['actor', 'target'] },
+      ASK(L('Drink {instrument}?', '要喝掉{instrument}吗？'), emit('coat', 'actor', { substance: 'fireproof' }), { op: 'destroy' }),
+      IF(is('target', { type: 'actor' }), DO(emit('coat', 'target', { substance: 'fireproof' }), log('You give {target} {host}.', '你给{target}喝下了{host}。'), { op: 'destroy' }), 'inherit'),
+    ),
   }),
 ]
 

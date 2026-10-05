@@ -64,7 +64,8 @@ export const MATERIALS: Record<string, Material> = {
 
 /** What else things are made of (the world's own: bodies, plants, the ground) — never an item's material. */
 const NATURAL: MaterialDef[] = [
-  { id: 'flesh', category: 'flesh', hardness: 0 },
+  // a body: its bare blow breaks what is no harder (plants, wood, slowly) — Minecraft's fist
+  { id: 'flesh', category: 'flesh', hardness: 1 },
   { id: 'plant', category: 'plant', hardness: 0 },
   { id: 'gel', category: 'organic', hardness: 0 },
   { id: 'earth', category: 'soil', hardness: 0 },

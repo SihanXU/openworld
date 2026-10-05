@@ -166,7 +166,8 @@ export function replay(sc: Scenario, ontology: Ontology, lib: RuleLibrary): Repl
   const resolution = eng.resolveEvent(ev)
   try {
     const a = ev.kind.startsWith('act/') && ev.roles.actor && 'e' in ev.roles.actor ? ev.roles.actor.e : undefined
-    if (a) eng.act(ev.kind.slice(4) as Verb, a, ev.roles.target!, { instrument: ev.roles.instrument ?? null, params: ev.params })
+    // a replay of an act the world already took: it reaches as far as it did
+    if (a) eng.act(ev.kind.slice(4) as Verb, a, ev.roles.target!, { instrument: ev.roles.instrument ?? null, params: ev.params, reach: Infinity })
     else eng.queue(ev)
     for (let i = 0; i < (sc.ticks ?? 0); i++) eng.tick()
   } catch (err) {

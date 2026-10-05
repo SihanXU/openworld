@@ -324,7 +324,7 @@ const RESIDENTS: TypeDef[] = [
   { id: 'region/room', name: { en: 'a room', zh: '房间' } },
   // a cell of the overworld, standing for its local map (world-model.md §5.1, §5.6): it covers the
   // cell's block of the overworld; empty hands on it go in (props.map: the map it stands for)
-  { id: 'site', name: { en: 'a place', zh: '地点' }, sprite: 'site', footprint: [3, 3] },
+  { id: 'site', name: { en: 'a place', zh: '地点' }, sprite: 'site', footprint: [3, 3], props: { handsRange: 0 } },
   { id: 'site/wild', name: { en: 'the wild', zh: '荒野' }, sprite: 'site:wild' },
   { id: 'site/place', name: { en: 'a place', zh: '地点' }, sprite: 'site:place' },
   // what one builds (world-model.md §6.6): a thing one carries and sets down — set in a cell it takes
@@ -346,14 +346,15 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/container/woodpile', 'wood pile', '柴堆', ['wooden', 'flammable'], { sprite: 'fixture:firewood', solid: true, props: { capacity: 12, material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/log', count: 2 }] }),
   F('fixture/container/crate', 'crate', '板条箱', ['wooden', 'flammable', 'breakable'], { solid: true, props: { capacity: 6, material: 'wood', maxHp: 1, hp: 1 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
   F('fixture/container/pot', 'clay pot', '陶罐', ['clay', 'fragile', 'breakable'], { solid: true, props: { capacity: 2, material: 'clay', maxHp: 1, hp: 1 } }),
-  F('fixture/container/wardrobe', 'wardrobe', '衣柜', ['wooden', 'flammable'], { solid: true, props: { capacity: 12 } }),
-  F('fixture/container/shelf', 'shelf', '货架', ['wooden', 'flammable'], { solid: true, props: { capacity: 8 } }),
-  F('fixture/container/bookshelf', 'bookshelf', '书架', ['wooden', 'flammable', 'paper'], { solid: true, props: { capacity: 8 } }),
-  F('fixture/container/sack', 'sack', '麻袋', ['cloth', 'flammable'], { solid: false, props: { capacity: 4 } }),
+  F('fixture/container/wardrobe', 'wardrobe', '衣柜', ['wooden', 'flammable'], { solid: true, props: { capacity: 12, material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/plank', count: 4 }] }),
+  F('fixture/container/shelf', 'shelf', '货架', ['wooden', 'flammable'], { solid: true, props: { capacity: 8, material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
+  F('fixture/container/bookshelf', 'bookshelf', '书架', ['wooden', 'flammable', 'paper'], { solid: true, props: { capacity: 8, material: 'wood', maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
+  F('fixture/container/sack', 'sack', '麻袋', ['cloth', 'flammable'], { solid: false, props: { capacity: 4, material: 'cloth', maxHp: 3, hp: 3 }, makeup: [{ type: 'item/material/cloth', count: 1 }] }),
   F('fixture/furniture', 'furniture', '家具', ['wooden', 'flammable'], { solid: true }),
   F('fixture/furniture/table', 'table', '桌子', ['surface']),
   F('fixture/furniture/chair', 'chair', '椅子', [], { solid: false }),
-  F('fixture/furniture/bed', 'bed', '床', ['cloth'], { solid: false }),
+  // one lies on a bed: a hand on it reaches only from on it
+  F('fixture/furniture/bed', 'bed', '床', ['cloth'], { solid: false, props: { handsRange: 0 } }),
   F('fixture/furniture/bench', 'bench', '长椅', ['surface'], { solid: false }),
   F('fixture/furniture/bench/log', 'log bench', '原木长凳', [], { solid: true, footprint: [3, 1], sprite: 'fixture:log_bench' }),
   F('fixture/furniture/rack', 'cooking rack', '炊架', ['surface']),
@@ -373,7 +374,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/water/well', 'well', '水井', []),
   F('fixture/water/fountain', 'fountain', '喷泉', []),
   F('fixture/water/trough', 'trough', '水槽', ['wooden']),
-  F('fixture/sign', 'sign', '告示牌', ['wooden', 'flammable', 'readable'], { solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/stick', count: 1 }, { type: 'item/material/plank', count: 1 }] }),
+  // a sign is read from a step or two off
+  F('fixture/sign', 'sign', '告示牌', ['wooden', 'flammable', 'readable'], { solid: true, props: { material: 'wood', maxHp: 4, hp: 4, handsRange: 2 }, makeup: [{ type: 'item/material/stick', count: 1 }, { type: 'item/material/plank', count: 1 }] }),
   F('fixture/tent', 'tent', '帐篷', ['cloth', 'flammable', 'shelter', 'opaque'], { solid: true, footprint: [3, 3] }),
   F('fixture/sign/noticeboard', 'notice board', '布告栏', ['paper']),
   F('fixture/craft', 'workstation', '工作台', [], { solid: true }),
@@ -452,7 +454,7 @@ export function buildOntology(): Ontology {
     materials: MATERIAL_DEFS,
     qualities: QUALITY_DEFS(),
     efficiency: EFFICIENCY,
-    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5 },
+    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1 },
     // what makes a room what it is: a bed a bedroom (a night there gives everything back), a cooking fire a
     // kitchen, a workbench or forge a workshop, three chests and more a storeroom (world-model.md §5.4)
     roomRoles: [

@@ -131,6 +131,10 @@ export interface WorldParams {
   /** The hour one rises; and how much of what is missing a night's sleep gives back outside a room that says more. */
   riseHour?: number
   rest?: number
+  /** How far a hand or a thing used reaches when the thing does not say (`handsRange` on what is handled, `range` on what is used): cells round, the actor's own included. */
+  reach?: number
+  /** How far one takes and puts things (F, G): cells round, the actor's own included. */
+  carry?: number
 }
 
 /** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */
@@ -803,8 +807,8 @@ export interface WorldState {
  * library: the HUD shows its label before the input is pressed, and pressing runs it.
  */
 export interface Plan {
-  /** The input: E (hands), F (take), left click (use), right click (put). */
-  key: 'hands' | 'take' | 'use' | 'put'
+  /** The input: E (hands), F (take), G (put), left click (use), right click (self: the held thing used on oneself). */
+  key: 'hands' | 'take' | 'put' | 'use' | 'self'
   /** The tile aimed at. */
   at: Pos
   /** A blow or a cast toward `at` (weapons, wands): the act is aimed along the facing. */
@@ -817,6 +821,8 @@ export interface Plan {
   rule?: string
   /** The chain it starts reaches an undefined outcome — the world has never seen this. */
   unknown?: boolean
+  /** It would change something (taking and putting are offered only then: a refusal is no option). */
+  changes?: boolean
   /** Ask first ("Eat the apple?", "Sleep until morning?"). */
   confirm?: Text
   /** Hands on a container: open the transfer panel for it. */

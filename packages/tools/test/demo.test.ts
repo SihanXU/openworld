@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from 'vitest'
 import {
+  textOf,
   EVENT_KINDS,
   FIRE_RADIUS,
   APPEAR_EVERY,
@@ -211,14 +212,17 @@ req('B1', 'using a thing on something its nature says nothing about is undefined
   expect(r[0].request.hole.rule).toBe('core/use')
 })
 
-req('B2', 'putting something on a thing that does not say how it receives it is asked, hosted by the receiver (the axe on the dead tree)', ['item/weapon/blade/axe', 'fixture/nature/dead_tree'], () => {
+req('B2', 'putting is physics, never asked: the axe put on the dead tree is set down at its foot (what one makes of a thing goes by the left click)', ['item/weapon/blade/axe', 'fixture/nature/dead_tree'], () => {
   const f = fresh()
-  hold(f, ofType(f, 'item/weapon/blade/axe'))
+  const axe = ofType(f, 'item/weapon/blade/axe')!
+  hold(f, axe)
   stand(f, ...STAND.tree, 'right')
-  // the default would set it down at the tree's foot; the chooser picks the tree itself
-  f.eng.controls.run(f.eng.controls.plan('put', at(...AT.deadTree), 0)!)
-  // a fixture receiving what nothing defines is a hole of its own (its default: set it down there)
-  expect(asked(f, 'impulse/receive', 'player').some((r) => hostIs(r.event, 'ford.dead_tree') && r.request.hole.rule === 'fixture/receive')).toBe(true)
+  const plan = f.eng.controls.plan('put', at(...AT.deadTree), 0)!
+  expect(plan.target).toEqual({ e: 'ford.dead_tree' })
+  expect(plan.unknown).toBeFalsy()
+  f.eng.controls.run(plan)
+  expect(W(f).get(axe.id)!.place).toMatchObject({ on: 'tile', x: AT.deadTree[0], y: AT.deadTree[1] })
+  expect(asked(f, 'impulse/receive', 'player')).toEqual([])
 })
 
 req('B3', 'a blow on a thing with no answer to it is asked, hosted by the one struck (an axe at the winch)', ['item/weapon/blade/axe', 'fixture/ferry/winch'], () => {
@@ -689,11 +693,13 @@ req('F7', 'save and continue', [], () => {
   expect(g.engine.world.fact('ford.tree')).toBe(1)
 })
 
-req('F8', 'legible: before a press, every input shows what it will do, and the unknown is marked', ['fixture/ferry/raft', 'fixture/ferry/winch'], () => {
+req('F8', 'legible: before a press, every input that reaches shows what it will do (taking what cannot be taken is no option), and the unknown is marked', ['fixture/ferry/raft', 'fixture/ferry/winch'], () => {
   const f = fresh()
   hold(f, ofType(f, 'item/food/bread'))
   stand(f, ...STAND.raft, 'right')
-  for (const key of ['hands', 'take', 'use', 'put'] as Key[]) expect(f.eng.controls.plan(key, at(...AT.raft))?.label).toBeDefined()
+  for (const key of ['hands', 'put', 'use'] as Key[]) expect(f.eng.controls.plan(key, at(...AT.raft))?.label).toBeDefined()
+  expect(f.eng.controls.plan('take', at(...AT.raft))?.target).not.toEqual({ e: 'ford.raft' })
+  expect(textOf(f.eng.controls.plan('self')?.label)).toBe('Eat Bread')
   expect(f.eng.controls.plan('hands', at(...AT.raft))?.unknown).toBe(true)
   stand(f, ...STAND.winch)
   expect(f.eng.controls.plan('use', at(...AT.winch))?.unknown).toBe(true)
@@ -1296,24 +1302,24 @@ req('W17', 'combat by what things are made of: iron strikes harder than wood, fi
   const helmet = author(f, () => w.add({ ...made('item/armor/helmet', 'iron'), id: 'w17.helmet', place: { on: 'inside', holder: 'player' } }))
   stand(f, 20, 14, 'up')
   hold(f, helmet)
-  expect(run(f, 'put', 20, 14).rule).toBe('body/wear')
+  expect(run(f, 'self', 20, 14).rule).toBe('body/wear')
   expect(w.prop(p, 'wear:head')).toBe(helmet.id)
   expect(w.stat(p, 'def')).toBe(2)
   expect(blow(6)).toBe(4)
   // a hat on the same head: the helmet comes off
   const hat = author(f, () => w.add({ ...made('item/clothing/hat', 'cloth'), id: 'w17.hat', place: { on: 'inside', holder: 'player' } }))
   hold(f, hat)
-  run(f, 'put', 20, 14)
+  run(f, 'self', 20, 14)
   expect(w.prop(p, 'wear:head')).toBe(hat.id)
   expect(w.stat(p, 'def')).toBe(0)
   // the helmet again, and again: on, then off
   hold(f, helmet)
-  run(f, 'put', 20, 14)
+  run(f, 'self', 20, 14)
   expect(w.prop(p, 'wear:head')).toBe(helmet.id)
-  run(f, 'put', 20, 14)
+  run(f, 'self', 20, 14)
   expect(w.prop(p, 'wear:head')).toBeUndefined()
   // what is no longer one's own is not worn
-  run(f, 'put', 20, 14)
+  run(f, 'self', 20, 14)
   author(f, () => w.place(w.get(helmet.id)!, { on: 'tile', map: 'ford', x: 21, y: 14 }))
   expect(w.stat(p, 'def')).toBe(0)
   // resistances: the herbalist's draught takes three quarters of fire's harm; a cloak that resists fire, the rest
@@ -1323,7 +1329,7 @@ req('W17', 'combat by what things are made of: iron strikes harder than wood, fi
   expect(blow(8, 'ice', true)).toBe(8)
   const cloak = author(f, () => w.add({ ...made('item/clothing/cloak', 'leather'), id: 'w17.cloak', props: { slot: 'back', resFire: 25 }, place: { on: 'inside', holder: 'player' } }))
   hold(f, cloak)
-  run(f, 'put', 20, 14)
+  run(f, 'self', 20, 14)
   expect(w.stat(p, 'resFire')).toBe(100)
   expect(blow(8, 'fire', true)).toBe(0)
 })
@@ -1368,6 +1374,8 @@ req('W12', 'a second storey: walls, a floor laid over them (held up by them), st
   for (let y = 3; y < 27 && !at; y++) for (let x = 3; x < 40 && !at; x++) if ([0, 1, 2, 3, 4].every((d) => W(f).walkable('ford', x + d, y) && !W(f).placedAt('ford', x + d, y).length && W(f).heightAt('ford', x + d, y) === 0)) at = [x, y]
   const [x, y] = at!
   const build = (type: string, cx: number) => {
+    // one sets a thing down within reach: beside the cell
+    stand(f, cx + 1, y, 'left')
     const thing = author(f, () => W(f).add({ ...madeOf(W(f).onto.data, W(f).onto, type, 'wood'), id: `w12.${type}.${cx}`, place: { on: 'inside', holder: 'player' } }))
     const target = W(f).placedAt('ford', cx, y).find((e) => e.type.startsWith('structure')) ?? W(f).cellTop('ford', cx, y)!
     f.eng.act('put', 'player', { e: target.id }, { instrument: { e: thing.id } })
@@ -1779,12 +1787,12 @@ req('P1', 'the prologue, offline: down from the plateau to the Ford, every beat 
   const until = (n: number, limit = 60) => expect(ticks(f, limit, () => stage() >= n), `prologue ${n} (at ${stage()})`).toBe(true)
   const pip = () => w.get('pip')!
   const carried = (type: string) => [p.held, ...(p.contents ?? [])].map((id) => w.get(id)).find((e) => e?.type === type)
-  /** F on Pip, wherever it perches: what it says. */
+  /** E on Pip, wherever it perches: what it says. */
   const askPip = () => {
     ticks(f, 6)
     const at = w.posOf(pip())!
     w.fx.length = 0
-    run(f, 'take', at.x, at.y)
+    run(f, 'hands', at.x, at.y)
     const said = w.fx.find((x) => x.t === 'say' && x.who === 'pip')
     return said && said.t === 'say' && typeof said.text === 'object' ? (said.text.zh ?? '') : ''
   }
@@ -1807,7 +1815,7 @@ req('P1', 'the prologue, offline: down from the plateau to the Ford, every beat 
   until(4)
   // Pip pointed the statue out the first time it came into view
   expect(w.fact('seen.see_waypoint')).toBeTruthy()
-  // F on Pip: what to do now, and how
+  // E on Pip: what to do now, and how
   expect(askPip()).toContain('做一把石斧')
   // the yard holds a stone axe's worth: a stick, a stone, a tuft of grass; C makes it
   for (const [x, y] of [[6, 13], [12, 14], [9, 14]] as const) {

@@ -37,12 +37,12 @@ describe('the defaults of undefined outcomes', () => {
     expect([actor.held, ...(actor.contents ?? [])]).toContain('held')
   })
 
-  it('the AI is asked first: a modder holding the event keeps the log in hand until it answers', () => {
+  it('putting is physics, never asked: with a modder listening, the log is set down at once', () => {
     const raised: [GameEvent, Resolution][] = []
     const eng = setup('fixture/nature/tuft', 'item/material/log', { raise: (ev, res) => (raised.push([ev, res]), true), tick: () => {} })
     eng.act('put', 'actor', { e: 'target' })
-    expect(raised.map(([, r]) => r.hole?.rule.id)).toEqual(['fixture/receive'])
-    expect(eng.world.get('actor')!.held).toBe('held')
+    expect(raised).toEqual([])
+    expect(eng.world.get('actor')!.held).not.toBe('held')
   })
 
   it('a creature has no use for what is put on it: it stays in hand', () => {

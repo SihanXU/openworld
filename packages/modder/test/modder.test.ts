@@ -27,7 +27,8 @@ function request(host = 'actor/creature/slime/green_slime', item = 'item/tool/ro
   }
   const eng = buildSandbox(sc, onto, new RuleLibrary(BASE))
   const port = new ModPort(eng)
-  eng.act('put', 'actor', { e: 'it' })
+  // the rope held out to it, as a rope used on it does (putting is physics: a creature does not take what is put on it)
+  eng.queue({ kind: 'impulse/offered', host: { e: 'it' }, roles: { actor: { e: 'actor' }, item: { e: 'held' }, source: { e: 'held' } }, params: {}, cause: 'actor', origin: 'player' })
   const rec = port.records[0]
   expect(rec?.request).toMatchObject({ event: { kind: 'impulse/offered', host: { type: host } }, hole: { rule: 'core/offered' } })
   return rec.request
@@ -84,8 +85,8 @@ function bindRule(id = 'patch/rope-binds-creature', host = 'actor/creature', tes
             { key: 'r', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
             { key: 'w', type: testHost, x: 2, y: 1 },
           ],
-          // the player's act: putting the rope on it (the creature is offered it, and answers)
-          event: { kind: 'act/put', actor: 'actor', target: 'w', instrument: 'r' },
+          // the rope held out to it (as a rope used on it does): the creature answers
+          event: { kind: 'impulse/offered', host: 'w', actor: 'actor', item: 'r', source: 'r' },
         },
         expect: [{ key: 'w', hasStatus: 'frozen' }, { key: 'r', exists: true }],
       },
@@ -321,7 +322,7 @@ describe('the Mod port with the modder plugged in', () => {
     const finished = new Promise<void>((r) => (done = r))
     port.provider = { resolve: async (req) => (await modder.resolve({ request: req })).patch }
     port.onChange = () => port.records[0]?.status === 'patched' && done()
-    eng.act('put', 'actor', { e: 'slime' })
+    eng.queue({ kind: 'impulse/offered', host: { e: 'slime' }, roles: { actor: { e: 'actor' }, item: { e: 'rope' }, source: { e: 'rope' } }, params: {}, cause: 'actor', origin: 'player' })
     // while the outcome waits, its participants are held — the one who started the chain too
     expect(port.records[0]).toMatchObject({ status: 'pending', request: { event: { kind: 'impulse/offered' } } })
     expect(eng.world.get('slime')!.frozenBy).toBe(port.records[0].id)
@@ -362,7 +363,7 @@ describe('the service', () => {
 })
 
 describe('the offline script (fixtures/offline.json, for `serve --script`)', () => {
-  it('answers a rope put on or used on a creature, live, and the patch covers the rest of the class', async () => {
+  it('answers a rope held out to or used on a creature, live, and the patch covers the rest of the class', async () => {
     const model = scriptFromFile(fileURLToPath(new URL('../fixtures/offline.json', import.meta.url)))
     for (const first of ['put', 'use'] as const) {
       const { modder } = setup(model, undefined, 'live')
@@ -507,18 +508,17 @@ describe('deterministic repairs', () => {
     const sc: Scenario = {
       entities: [
         { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
-        { key: 'held', type: 'item/material/bone', x: 2, y: 2, heldBy: 'actor' },
         { key: 'it', type: 'fixture/nature/ferns', x: 2, y: 1 },
       ],
       event: {},
     }
     const eng = buildSandbox(sc, onto, new RuleLibrary(BASE))
     const port = new ModPort(eng)
-    eng.act('put', 'actor', { e: 'it' })
+    // a bare blow on it: what cannot break has no answer of its own to a blow (core/strike)
+    eng.act('use', 'actor', { e: 'it' }, { instrument: null, params: { attack: true } })
     const req = port.records[0].request
-    // a fixture's own hole for what is put on it (fixture/receive, #11), under core/receive
-    expect(req.hole.rule).toBe('fixture/receive')
-    const shed = (id: string, host: Rule['host']): Rule => ({ id, host, on: 'impulse/receive', doc: 'Things slide off it.', tree: { do: [{ op: 'emit', impulse: 'taken', to: 'item', params: { into: 'tile' } }, { op: 'vfx', fx: 'leaves' }] } })
+    expect(req.hole.rule).toBe('core/strike')
+    const shed = (id: string, host: Rule['host']): Rule => ({ id, host, on: 'impulse/strike', doc: 'Struck, it is flattened.', tree: { do: [{ op: 'transform', into: 'fixture/nature/tuft' }, { op: 'vfx', fx: 'leaves' }] } })
     const library = new WorldLibrary(onto, BASE)
     expect(library.commit(patchOf(shed('patch/flowers-shed', { type: 'fixture/nature/flowers' }))).ok).toBe(true)
     const d = deriveTests(patchOf(shed('patch/plants-shed', { type: 'fixture/nature', tags: ['plant'] })), req, library.lib, library.fullOntology())

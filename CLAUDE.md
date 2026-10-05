@@ -43,8 +43,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   clock, loading, the input's posture and the author, and in an outcome beyond its host —
   design.md §5.15; `tools/test/writes.test.ts` scans for writes behind them) in `engine.ts`/`world.ts`; the request, one question per hole and class, the
   validator (host-only writes, ties, replay) and the boundaries in `mod.ts` (design.md §5.4–5.14);
-  the player's four
-  inputs (E hands, F take, left click use, right click put), layers, slots and magnet
+  the player's five
+  inputs (E hands, F take, G put, left click use — a bare one is a blow —, right click use on oneself;
+  each as far as its reach: the target's `handsRange`, the world's `carry`, the held thing's `range`,
+  held to by the engine for every actor), layers, slots and magnet
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
   (`controls.ts`), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`), hunger (`hunger.ts`); companions that follow a
   leader (`companion.ts`), waypoint stones (`waypoints.ts`) — docs/prologue.md.
@@ -123,7 +125,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   - Root defaults decide what is asked: deliberate acts and impulses are undefined; contact,
     time and sight mean no change; elements follow physics.
   - Patches only fill holes, never change defined behaviour (they are a layer consulted only at
-    undefined leaves). One question per hole and class. Put places; use applies.
+    undefined leaves). One question per hole and class. Put places; use applies: taking and
+    putting are physics (never asked), using one thing on another is where the AI answers.
   - Behaviour (schedules, temper, behaviour trees) is the game's own logic, not the AI
     interface. An outcome may change its host's script.
   - The player's map is active. Dormant maps are frozen and catch up timers and their inbox
@@ -160,7 +163,7 @@ npm run modder -- serve 8787 --script packages/modder/fixtures/offline.json --da
 npm run curriculum -- 20 # resolve 20 sampled undefined interactions offline (offline profile)
 npm run curriculum -- --n 20 --profile live --by hole --data var/<run>   # live profile, spread over holes; per-step reach
 npm run curriculum:report -- var/<run>   # summarise a run: steps, reviews, revisions, spend
-npm run ford-live        # the eight kinds of hole on the Ford, live (costs model calls)
+npm run ford-live        # the six kinds of hole on the Ford, live (costs model calls)
 npm run eval:objects     # five acts to find a known thing, five to create a new one, live (costs model calls)
 npm run latency -- --n 20 # live-profile latency bench (fresh library each run; costs model calls)
 npm run improve -- --select 8 --confirm 8   # one outer-loop turn (costs model calls)

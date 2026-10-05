@@ -85,10 +85,11 @@
            }
           ],
           "event": {
-           "kind": "act/put",
+           "kind": "impulse/offered",
+           "host": "w",
            "actor": "actor",
-           "target": "w",
-           "instrument": "r"
+           "item": "r",
+           "source": "r"
           }
          },
          "expect": [
