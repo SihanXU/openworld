@@ -48,7 +48,7 @@ let attacking = false
 let aimTile: Tile | undefined
 let panel: string | undefined
 let paused = false
-let buildAim: { id: string; tile: Tile } | undefined
+let buildAim: { id: string; tile: Tile; up?: boolean } | undefined
 let lastMap = ''
 let fetching = new Set<string>()
 let timer: ReturnType<typeof setInterval> | undefined
@@ -63,9 +63,9 @@ const ontology = buildOntology()
 const PUT = 'put:'
 
 /** What the build palette would do at a cell: a placement recipe's plan, or setting a thing down. */
-function buildPreview(eng: Engine, id: string, at: { map: string; x: number; y: number }): PlacementPreview {
+function buildPreview(eng: Engine, id: string, at: { map: string; x: number; y: number }, up = false): PlacementPreview {
   if (!id.startsWith(PUT)) return previewPlacement(eng, eng.world.state.player, PLACEMENT_BY_ID[id], at)
-  const pv = eng.controls.previewPlace(id.slice(PUT.length), { x: at.x, y: at.y })
+  const pv = eng.controls.previewPlace(id.slice(PUT.length), { x: at.x, y: at.y }, up)
   return { id, at, ok: pv.ok, reason: pv.reason, have: [pv.carried] }
 }
 
@@ -382,7 +382,7 @@ function loop(): void {
   maybePrefetch()
   lastTickMs = performance.now() - t0
   post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length } })
-  if (buildAim) post({ t: 'placement', preview: buildPreview(eng, buildAim.id, { map: frame.map, x: buildAim.tile.x, y: buildAim.tile.y }) })
+  if (buildAim) post({ t: 'placement', preview: buildPreview(eng, buildAim.id, { map: frame.map, x: buildAim.tile.x, y: buildAim.tile.y }, buildAim.up) })
   if (eng.lib.version !== lastRecordsVersion || frame.fx.some((f) => f.t === 'undefined' || f.t === 'patched')) {
     if (eng.lib.version !== lastRecordsVersion) (post({ t: 'library', library: eng.lib.toJSON() }), sendArts())
     lastRecordsVersion = eng.lib.version
@@ -479,7 +479,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       }
       case 'buildAim':
-        buildAim = m.id && m.tile && (PLACEMENT_BY_ID[m.id] || m.id.startsWith(PUT)) ? { id: m.id, tile: m.tile } : undefined
+        buildAim = m.id && m.tile && (PLACEMENT_BY_ID[m.id] || m.id.startsWith(PUT)) ? { id: m.id, tile: m.tile, up: m.up } : undefined
         break
       case 'build': {
         if (!game || paused || panel || game.engine.world.state.question || !(PLACEMENT_BY_ID[m.id] || m.id.startsWith(PUT))) break
@@ -489,9 +489,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         const to = { map: at.map, x: m.tile.x, y: m.tile.y }
         // a thing set down (one carried, or made from what is carried first): G's own act
         if (m.id.startsWith(PUT)) {
-          const before = buildPreview(eng, m.id, to)
-          if (!eng.controls.place(m.id.slice(PUT.length), m.tile, m.facing)) eng.world.fx.push({ t: 'log', text: before.reason, tone: 'warn' })
-          post({ t: 'placement', preview: buildPreview(eng, m.id, to) })
+          const before = buildPreview(eng, m.id, to, m.up)
+          if (!eng.controls.place(m.id.slice(PUT.length), m.tile, m.facing, m.up)) eng.world.fx.push({ t: 'log', text: before.reason, tone: 'warn' })
+          post({ t: 'placement', preview: buildPreview(eng, m.id, to, m.up) })
           break
         }
         const result = performPlacement(eng, eng.world.state.player, PLACEMENT_BY_ID[m.id], to)

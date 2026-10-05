@@ -29,6 +29,7 @@ import {
   madeOf,
   travelToWaypoint,
   PROFESSION_LEVEL,
+  CEILING,
   type Engine,
   type Entity,
   type GameEvent,
@@ -108,8 +109,8 @@ function hold(f: Ford, e: Entity | undefined): void {
   expect(W(f).player.held).toBe(e.id)
 }
 const at = (x: number, y: number) => ({ x, y })
-const run = (f: Ford, key: Key, x: number, y: number): Plan => {
-  const plan = f.eng.controls.plan(key, at(x, y))
+const run = (f: Ford, key: Key, x: number, y: number, layer = 0): Plan => {
+  const plan = f.eng.controls.plan(key, at(x, y), layer)
   if (!plan) throw new Error(`${key} at ${x},${y}: no plan`)
   f.eng.controls.run(plan, true)
   return plan
@@ -1195,14 +1196,15 @@ function buildRoom(f: Ford): [number, number] {
   let at: [number, number] | undefined
   for (let y = 4; y < 26 && !at; y++) for (let x = 4; x < 40 && !at; x++) if ([-1, 0, 1].every((dy) => [-1, 0, 1].every((dx) => W(f).walkable('ford', x + dx, y + dy) && !W(f).placedAt('ford', x + dx, y + dy).length && W(f).heightAt('ford', x + dx, y + dy) === 0))) at = [x, y]
   const [x, y] = at!
-  const put = (type: string, cx: number, cy: number) => {
+  const put = (type: string, cx: number, cy: number, ceiling = false) => {
     const thing = author(f, () => W(f).add({ ...madeOf(W(f).onto.data, W(f).onto, type, 'wood'), id: `room.${type}.${cx}.${cy}`, place: { on: 'inside', holder: 'player' } }))
-    const target = W(f).placedAt('ford', cx, cy).find((e) => e.type.startsWith('structure')) ?? W(f).cellTop('ford', cx, cy)!
+    // in the ceiling: the open air a storey up (docs/building.md)
+    const target = ceiling ? W(f).get(W(f).cellRef('ford', cx, cy, 1).e)! : W(f).placedAt('ford', cx, cy).find((e) => e.type.startsWith('structure')) ?? W(f).cellTop('ford', cx, cy)!
     f.eng.act('put', 'player', { e: target.id }, { instrument: { e: thing.id } })
   }
   stand(f, x, y, 'up')
   for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) put('structure/wall', x + dx, y + dy)
-  put('structure/floor', x, y)
+  put('structure/floor', x, y, true)
   return [x, y]
 }
 
@@ -1394,17 +1396,17 @@ req('W18', 'the overworld is what it shows: every cell of it one can stand on is
   expect(f.eng.nameOf({ e: wild.id }, 'zh')).toBe('森林荒野')
 })
 
-req('W12', 'a second storey: walls, a floor laid over them (held up by them), stairs set before its edge, and up one goes; break the wall and the floor comes down, and whoever stood on it falls', [], () => {
+req('W12', 'a second storey: walls, the ceiling laid over them from below (held up by them), stairs set before its edge, and up one goes; break the wall and the floor comes down, and whoever stood on it falls', [], () => {
   const f = fresh()
   // an open stretch of the Ford, five cells across
   let at: [number, number] | undefined
   for (let y = 3; y < 27 && !at; y++) for (let x = 3; x < 40 && !at; x++) if ([0, 1, 2, 3, 4].every((d) => W(f).walkable('ford', x + d, y) && !W(f).placedAt('ford', x + d, y).length && W(f).heightAt('ford', x + d, y) === 0)) at = [x, y]
   const [x, y] = at!
-  const build = (type: string, cx: number) => {
-    // one sets a thing down within reach: beside the cell
+  const build = (type: string, cx: number, ceiling = false) => {
+    // one sets a thing down within reach: beside the cell — on one's storey, or in its ceiling (the open air a storey up)
     stand(f, cx + 1, y, 'left')
     const thing = author(f, () => W(f).add({ ...madeOf(W(f).onto.data, W(f).onto, type, 'wood'), id: `w12.${type}.${cx}`, place: { on: 'inside', holder: 'player' } }))
-    const target = W(f).placedAt('ford', cx, y).find((e) => e.type.startsWith('structure')) ?? W(f).cellTop('ford', cx, y)!
+    const target = ceiling ? W(f).get(W(f).cellRef('ford', cx, y, 1).e)! : W(f).placedAt('ford', cx, y).find((e) => e.type.startsWith('structure')) ?? W(f).cellTop('ford', cx, y)!
     f.eng.act('put', 'player', { e: target.id }, { instrument: { e: thing.id } })
     return W(f).get(thing.id)!
   }
@@ -1412,9 +1414,9 @@ req('W12', 'a second storey: walls, a floor laid over them (held up by them), st
   const wall = build('structure/wall', x)
   expect(wall.place).toMatchObject({ on: 'tile', x, y })
   expect(wall.place.on === 'tile' && wall.place.z).toBeFalsy()
-  // a floor laid over the wall comes to rest above it; one beside it, held up by it (two cells round)
-  const over = build('structure/floor', x)
-  const beside = build('structure/floor', x + 1)
+  // the ceiling laid over the wall rests on it, a storey up; one beside it, held up by it (two cells round)
+  const over = build('structure/floor', x, true)
+  const beside = build('structure/floor', x + 1, true)
   expect(over.place).toMatchObject({ x, y, z: 1 })
   expect(beside.place).toMatchObject({ x: x + 1, y, z: 1 })
   expect(W(f).relationsOf(beside).some((k) => k.startsWith('support|'))).toBe(true)
@@ -1898,15 +1900,16 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs: one comes
   craft('structure/wall', 3)
   craft('structure/door')
   craft('structure/floor')
-  const put = (type: string, x: number, y: number) => {
+  const put = (type: string, x: number, y: number, layer = 0) => {
     grab(type)
-    run(f, 'put', x, y)
+    run(f, 'put', x, y, layer)
     f.eng.tick()
   }
   put('fixture/furniture/bed', hx, hy)
   for (const [x, y] of [[hx, hy - 1], [hx - 1, hy], [hx + 1, hy]] as const) put('structure/wall', x, y)
   put('structure/door', hx, hy + 1)
-  put('structure/floor', hx, hy)
+  // the ceiling over one's head: chosen (the chooser's last entry, as a long press of G offers it)
+  put('structure/floor', hx, hy, CEILING)
   until(7)
   // one's fill of berries before dark (a hungry sleeper wakes in the night)
   for (const [x, y] of TUTORIAL.berries.slice(1)) takeAll(x, y)

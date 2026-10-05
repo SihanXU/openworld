@@ -226,6 +226,9 @@ export class EffectRunner {
       }
       case 'move': {
         if (!host) return
+        // a floor above the ground that something rests on stays (a wall on it, a bed, someone
+        // standing): what is on it is taken first (docs/building.md R5)
+        if (w.bears(host)) return
         const place = this.placeFor(this.ref(ev, eff.to), eff.into ?? 'tile', host.id)
         if (!place) return
         eng.touch({ e: host.id })

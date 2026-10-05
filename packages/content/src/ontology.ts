@@ -149,6 +149,9 @@ export const TERRAINS: TerrainDef[] = [
   T('farmland', '农田', 'farmland', ['ground', 'diggable', 'soil'], { color: '#7a5634' }),
   T('mud', '泥潭', 'mud', ['ground', 'wet-ground'], { color: '#5e4a33' }),
   T('void', '虚空', 'void', [], { solid: true, color: '#000000' }),
+  // the open air of a cell on a storey above the ground where no floor is laid: never on a map, only
+  // reached there to lay a floor in or set a wall on the wall below (docs/building.md §3)
+  T('air', '空中', 'open air', ['air'], { color: '#cfe6f7' }),
   // the overworld (world-model.md §5.1): an ordinary map whose every cell is a local map; each step
   // costs time by its ground (props.cost: road half, rough ground half again); sea, mountains and
   // rivers do not let one pass

@@ -63,7 +63,8 @@ describe('inputs on a storey', () => {
     })
     const aim = { x: 3, y: 2, stack: [{ e: 'floor2' }, { e: 'stick0' }, { e: 'stick1' }] }
     expect(eng.controls.layers({ map: 'sandbox', x: 3, y: 2, z: 1 }, aim.stack).map((r) => r.e)).toEqual(['stick1', 'floor2'])
-    expect(eng.controls.choices('take', aim).map((c) => c.plan!.target.e)).toEqual(['stick1', 'floor2'])
+    // the floor the stick lies on stays until the stick is taken (docs/building.md R5)
+    expect(eng.controls.choices('take', aim).map((c) => c.plan!.target.e)).toEqual(['stick1'])
     expect(eng.controls.plan('take', aim)?.target.e).toBe('stick1')
     expect(eng.controls.aim({ x: 3, y: -10 })?.at).toMatchObject({ x: 3, y: 2, z: 1 })
   })

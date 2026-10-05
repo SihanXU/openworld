@@ -1,5 +1,5 @@
 import type { Dir, Frame, PlacementPreview, PlacementRecipe, Text } from '@lsw/engine'
-import { BUILDINGS, FORM_BY_ID, PLACEMENTS, RECIPES } from '@lsw/content'
+import { BUILDINGS, FORM_BY_ID, PLACEMENTS, RECIPES, buildOntology } from '@lsw/content'
 import type { Tile, ToWorker } from '../protocol.ts'
 import { esc, locale, tx } from './common.ts'
 
@@ -15,6 +15,17 @@ interface Entry {
   /** The type a `put:` entry sets down. */
   put?: string
 }
+
+const ONTO = buildOntology()
+/** The spaces a type takes in its cell (docs/building.md §3): a floor takes the floor; a wall, a door, stairs the volume. */
+const spaces = (type?: string): string[] => {
+  for (let t = type; t; t = t.includes('/') ? t.slice(0, t.lastIndexOf('/')) : undefined) if (ONTO.types[t]?.occupies) return ONTO.types[t].occupies!
+  return []
+}
+/** A floor: laid on one's storey, or (R) in the ceiling over it. */
+const lays = (type?: string) => spaces(type).includes('floor')
+/** A block drawn a storey high (its front in the cell, its top a tile up): a wall, a door, stairs. */
+const block = (type?: string) => !!type?.startsWith('structure/') && spaces(type).includes('volume')
 
 /** A built thing or a fixture, set in a cell as part of a place (the engine's Controls.placeable). */
 const placeable = (type: string) => type.startsWith('structure/') || type.startsWith('fixture/')
@@ -52,7 +63,13 @@ export class BuildingMode {
   dragging = false
   /** The way what is set down faces (R turns it; stairs go up it); none: away from the player. */
   facing?: Dir
+  /** A floor laid in the ceiling over the cell aimed at, not on one's own storey (R turns it). */
+  up = false
+  /** The palette opened or shut (the view shows the ceilings over one's storey while it is open). */
+  onToggle?: (open: boolean) => void
   private arrow = document.createElement('div')
+  /** Under a ceiling's preview: the cell it covers. */
+  private foot = document.createElement('div')
   private lastPlaced = ''
   private panel = document.createElement('section')
   private ghost = document.createElement('div')
@@ -65,7 +82,8 @@ export class BuildingMode {
     this.panel.setAttribute('aria-label', 'Construction and farming')
     this.ghost.className = 'build-ghost hidden'
     this.arrow.className = 'build-arrow'
-    document.body.append(this.panel, this.ghost)
+    this.foot.className = 'build-foot hidden'
+    document.body.append(this.panel, this.ghost, this.foot)
     this.panel.addEventListener('click', (e) => {
       const button = (e.target as HTMLElement).closest<HTMLButtonElement>('button')
       if (!button) return
@@ -76,6 +94,7 @@ export class BuildingMode {
         this.render()
       } else if (button.dataset.recipe) {
         this.selected = this.entries().find((r) => r.id === button.dataset.recipe) ?? this.selected
+        if (!lays(this.selected.put)) this.up = false
         this.preview = undefined
         this.render()
       }
@@ -94,8 +113,13 @@ export class BuildingMode {
     return [...MADE, ...extra, ...BUILDINGS.map(fromRecipe)]
   }
 
-  /** R: the next way round (clockwise), from the way it would face now. */
+  /** R: a floor between one's storey and the ceiling over it; anything else the next way round (clockwise), from the way it would face now. */
   rotate(): void {
+    if (lays(this.selected.put)) {
+      this.up = !this.up
+      this.refreshAim(true)
+      return
+    }
     const ways: Dir[] = ['up', 'right', 'down', 'left']
     this.facing = ways[(ways.indexOf(this.facing ?? this.away()) + 1) % 4]
     this.tick()
@@ -114,8 +138,11 @@ export class BuildingMode {
     this.open = on
     this.dragging = false
     this.facing = undefined
+    this.up = false
     this.panel.classList.toggle('hidden', !on)
     this.ghost.classList.toggle('hidden', !on)
+    this.foot.classList.add('hidden')
+    this.onToggle?.(on)
     document.getElementById('buildBtn')?.classList.toggle('active', on)
     if (on) { this.preview = undefined; this.render(); this.refreshAim(true) }
     else this.send({ t: 'buildAim' })
@@ -153,11 +180,11 @@ export class BuildingMode {
   }
   private refreshAim(force = false): void {
     const tile = this.target()
-    const sig = `${this.selected.id}|${this.frame?.map}|${tile?.x},${tile?.y}`
+    const sig = `${this.selected.id}|${this.frame?.map}|${tile?.x},${tile?.y}|${this.up}`
     if (force || sig !== this.signature) {
       this.signature = sig
       this.preview = undefined
-      this.send({ t: 'buildAim', id: this.selected.id, tile })
+      this.send({ t: 'buildAim', id: this.selected.id, tile, ...(this.up && { up: true }) })
       this.details()
     }
     this.tick()
@@ -167,7 +194,7 @@ export class BuildingMode {
     const at = tile ?? this.target()
     if (!at) return
     this.lastPlaced = `${at.x},${at.y}`
-    this.send({ t: 'build', id: this.selected.id, tile: at, ...(this.facing && { facing: this.facing }) })
+    this.send({ t: 'build', id: this.selected.id, tile: at, ...(this.facing && { facing: this.facing }), ...(this.up && { up: true }) })
   }
   /** The left button: one set down here, and (held) one in each cell it is dragged over. */
   press(tile?: Tile): void {
@@ -183,10 +210,16 @@ export class BuildingMode {
     if (!this.open || !at || !this.frame) return
     const p = this.screen(at.x, at.y)
     const size = 16 * p.scale
+    // where it will be (docs/building.md §5): a block a storey high (its top a tile up), a floor on the
+    // cell, a ceiling a tile up over the cell it covers (outlined)
+    const tall = block(this.selected.put)
+    const up = this.up && lays(this.selected.put)
     this.ghost.style.left = `${p.x}px`
-    this.ghost.style.top = `${p.y}px`
+    this.ghost.style.top = `${p.y - (tall ? size / 2 : up ? size : 0)}px`
     this.ghost.style.width = `${size}px`
-    this.ghost.style.height = `${size}px`
+    this.ghost.style.height = `${tall ? size * 2 : size}px`
+    this.foot.classList.toggle('hidden', !up)
+    if (up) Object.assign(this.foot.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${size}px`, height: `${size}px` })
     // what turns (stairs) shows the way it will face
     const turns = this.selected.put === 'structure/stairs'
     this.arrow.textContent = { up: '↑', right: '→', down: '↓', left: '←' }[this.facing ?? this.away()]
@@ -230,7 +263,11 @@ export class BuildingMode {
     const have = s.put ? carried.filter((it) => it.type === s.put).length : 0
     const counts = !s.put && this.preview?.have ? this.preview.have : s.needs.map(countOf)
     const nameOf = (n: Entry['needs'][number]) => (n.type ? (carried.find((it) => it.type === n.type)?.name ?? n.name) : n.name)
-    const turn = s.put === 'structure/stairs' ? `<p>${zh ? 'R 旋转：楼梯朝箭头方向往上' : 'R turns it: the stairs go up the way the arrow points'}</p>` : ''
+    const turn = s.put === 'structure/stairs'
+      ? `<p>${zh ? 'R 旋转：楼梯朝箭头方向往上' : 'R turns it: the stairs go up the way the arrow points'}</p>`
+      : lays(s.put)
+        ? `<p>${zh ? `R 切换：铺在本层 / 铺成天花板（现在：${this.up ? '天花板' : '本层'}）` : `R switches: on this storey / as the ceiling (now: ${this.up ? 'the ceiling' : 'this storey'})`}</p>`
+        : ''
     const carriedLine = turn + (s.put ? `<p class="${have ? 'enough' : 'missing'}">${zh ? `身上有 ${have} 个` : `${have} carried`}${!have && s.needs.length ? (zh ? ' · 将用材料现做：' : ' · one will be made from:') : ''}</p>` : '')
     const cost = !s.put || !have ? `<div class="build-cost">${s.needs.map((n, i) => `<span class="${counts[i] < n.count ? 'missing' : 'enough'}">${esc(tx(nameOf(n)))} ${counts[i]}/${n.count}${n.consume === false ? (zh ? '（工具）' : ' (tool)') : ''}</span>`).join('')}</div>` : ''
     const html = `<h3>${esc(tx(s.name))}</h3><p>${esc(tx(s.description))}</p>${carriedLine}${cost}<p class="build-status ${this.preview?.ok ? 'enough' : 'missing'}">${esc(tx(this.preview?.reason) || (zh ? '选择邻近的一格' : 'Choose a nearby tile'))}</p>`

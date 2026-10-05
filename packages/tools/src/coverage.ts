@@ -109,7 +109,8 @@ export function targets(onto: Ontology): Target[] {
     if (type === LOCKABLE) place(`${type}#locked`, type, [], ['locked'])
     if (tags.has(LIGHTABLE)) place(`${type}#lit`, type, ['lit'])
   }
-  for (const t of TERRAINS)
+  // the open air is only reached on a storey above the ground (a floor laid in it), never faced on a map
+  for (const t of TERRAINS.filter((t) => !t.tags?.includes('air')))
     out.push({
       id: `tile:${t.id}`,
       scenario: (sc) => {

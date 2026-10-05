@@ -57,6 +57,19 @@ const GENERIC: Record<string, Text> = {
   cast: { en: 'Cast {instrument}', zh: '施放{instrument}' },
 }
 
+/** The chooser's layer for the ceiling over the spot (docs/building.md §5): never a default. */
+export const CEILING = -1
+const CEILING_NAME: Text = { en: 'The ceiling', zh: '天花板' }
+const LAY_CEILING: Text = { en: 'Lay the ceiling', zh: '铺天花板' }
+/** Why a thing cannot be set down there (World.settleWhy), as the palette says it. */
+const REFUSAL: Record<'taken' | 'floored' | 'ground' | 'stairs' | 'unheld', Text> = {
+  taken: { en: 'Something is there already.', zh: '这里已经有东西了。' },
+  floored: { en: 'There is a floor there already.', zh: '这里已经有地板了。' },
+  ground: { en: 'A floor cannot be laid on this ground.', zh: '这种地面上铺不了地板。' },
+  stairs: { en: 'Stairs keep the storey over them open.', zh: '楼梯上方要留空。' },
+  unheld: { en: 'Nothing would hold it up.', zh: '没有东西托得住它。' },
+}
+
 export class Controls {
   /** The magnet is on in a played game (Game turns it on); sandboxes and replays leave items where rules put them. */
   magnetic = false
@@ -170,6 +183,8 @@ export class Controls {
     const aloft = (r: Ref) => 'e' in r && !!w.get(r.e) && w.hasTag(w.get(r.e)!, 'airborne')
     out = [...out.filter((r) => !aloft(r)), ...out.filter(aloft)]
     out.push(...made.map((e) => ({ e: e.id })))
+    // above the ground, a cell with no floor laid is open air: what one sets a floor in (docs/building.md)
+    if (!made.length && storey > 0 && w.get(w.cellRef(at.map, at.x, at.y, storey).e)) out.push(w.cellRef(at.map, at.x, at.y, storey))
     const seen = new Set<string>()
     return out.filter((r) => !seen.has(sig(r)) && !!seen.add(sig(r)))
   }
@@ -213,10 +228,22 @@ export class Controls {
     return this.label(fallback, target, instrument)
   }
 
-  /** The layers an input meets at a spot: oneself is never one (one's own place is what is there). */
-  private targets(at: Pos, stack?: Ref[]): Ref[] {
+  /** The layers an input meets at a spot: oneself is never one (one's own place is what is there); the open air only F and G meet. */
+  private targets(at: Pos, stack?: Ref[], key?: Key): Ref[] {
     const me = this.w.state.player
-    return this.layers(at, stack).filter((r) => r.e !== me)
+    return this.layers(at, stack).filter((r) => r.e !== me && (key === 'put' || key === 'take' || !this.w.isAir(this.w.get(r.e))))
+  }
+
+  /** The spot aimed at itself, on one's own storey (no step back toward oneself). */
+  private spot(aim?: Aim): Pos | undefined {
+    const pos = this.w.posOf(this.w.player)
+    return aim && pos ? { ...pos, x: aim.x, y: aim.y } : undefined
+  }
+
+  /** The ceiling over a spot: the floor of the storey above, laid or open air (docs/building.md §3). */
+  private ceilingOf(at: Pos): Ref {
+    const z = (at.z ?? this.w.posOf(this.w.player)?.z ?? 0) + 1
+    return this.w.cellRef(at.map, at.x, at.y, z)
   }
 
   /** Is the target within the reach of the act (the engine holds every act to it, for anyone)? */
@@ -239,6 +266,12 @@ export class Controls {
     if (key === 'take' || key === 'put') {
       if (key === 'put' && !held) return undefined
       if (!this.reaches(key, target, held)) return undefined
+      // what the rules say is checked against where the thing would rest (docs/building.md R2–R5): set
+      // on a cell or a built thing, it rests on that storey or nowhere; a floor something rests on stays
+      const t = this.entity(target)
+      const there = t && w.posOf(t)
+      if (key === 'put' && heldE && t && there && (w.isTerrain(t) || w.hasTag(t, 'structure')) && w.settleWhy(heldE, there.map, there.x, there.y, there.z ?? 0)) return undefined
+      if (key === 'take' && t && w.bears(t)) return undefined
       const plan = this.make(key, at, key, target, key === 'put' ? held : undefined)
       return plan.changes ? plan : undefined
     }
@@ -282,7 +315,7 @@ export class Controls {
     const me = w.player
     const pos = w.posOf(me)
     if (key === 'self' || (key === 'use' && pos && at.x === pos.x && at.y === pos.y)) return pos ? this.planOn(key === 'use' ? 'self' : key, pos, { e: me.id }) : undefined
-    const ref = this.targets(at, stack)[layer]
+    const ref = this.targets(at, stack, key)[layer]
     return ref ? this.planOn(key, at, ref) : undefined
   }
 
@@ -294,6 +327,9 @@ export class Controls {
   plan(key: Key, aim?: Aim, layer = 0): Plan | undefined {
     const a = this.aim(aim, key)
     if (!a) return undefined
+    // the ceiling, chosen (never a default): a floor laid in it, or taken down — over the spot aimed at
+    // itself (what is on one's own storey there does not matter; the act's reach is the engine's)
+    if (layer === CEILING) return key === 'put' || key === 'take' ? this.planOn(key, this.spot(aim) ?? a.at, this.ceilingOf(this.spot(aim) ?? a.at)) : undefined
     const p = this.planAt(key, a.at, a.stack, layer)
     // E with no spot pointed at (or the pointer beyond reach): the spot in front or toward the
     // pointer — unless what is there has no answer of its own and what one stands on has one (the
@@ -311,9 +347,10 @@ export class Controls {
     const a = this.aim(aim, key)
     if (!a) return []
     if (key === 'self') return [{ layer: 0, name: this.label('{target}', { e: this.w.state.player }), plan: this.planAt(key, a.at, a.stack, 0) }]
-    return this.targets(a.at, a.stack)
-      .map((ref, layer) => ({ layer, name: this.label('{target}', ref), plan: this.planOn(key, a.at, ref) }))
-      .filter((c) => c.plan)
+    const list: { layer: number; name: Text; plan?: Plan }[] = this.targets(a.at, a.stack, key).map((ref, layer) => ({ layer, name: this.label('{target}', ref), plan: this.planOn(key, a.at, ref) }))
+    // last, the ceiling over the spot: a floor laid in it, or taken down (docs/building.md §5)
+    if (key === 'put' || key === 'take') list.push({ layer: CEILING, name: CEILING_NAME, plan: this.plan(key, aim, CEILING) })
+    return list.filter((c) => c.plan)
   }
 
   // ---------------------------------------------------------------- running
@@ -644,52 +681,59 @@ export class Controls {
     return [...this.eng.recipes.values()].find((r) => r.make.type === type)
   }
 
-  /** G with this thing held, at the aim: the put it would be. */
-  private planPut(thing: Id, aim: Aim): Plan | undefined {
+  /** G with this thing held, at the aim (or in the ceiling over it): the put it would be. */
+  private planPut(thing: Id, aim: Aim, up = false): Plan | undefined {
     this.using = thing
     try {
-      return this.plan('put', aim)
+      return this.plan('put', aim, up ? CEILING : 0)
     } finally {
       this.using = undefined
     }
   }
 
   /**
-   * The build palette's preview of setting a type down at the aim: one carried is set down (G's own
-   * act); with none, one is made from what is carried first, if it can be. Never asked: putting is physics.
+   * The build palette's preview of setting a type down at the aim — on one's own storey, or (`up`) in
+   * the ceiling over it: one carried is set down (G's own act); with none, one is made from what is
+   * carried first, if it can be. Never asked: putting is physics. Why not, when it cannot (docs/building.md).
    */
-  previewPlace(type: string, aim: Aim): { ok: boolean; reason: Text; carried: number } {
+  previewPlace(type: string, aim: Aim, up = false): { ok: boolean; reason: Text; carried: number } {
     const carried = this.count(type)
     const thing = this.carriedOf(type)
+    const w = this.w
+    const pos = w.posOf(w.player)
+    const why = (): Text => {
+      const probe = thing ?? ({ id: '~place', type, place: { on: 'none' } } as Entity)
+      const reach = w.onto.data.params?.carry ?? 1
+      if (!pos || Math.max(Math.abs(aim.x - pos.x), Math.abs(aim.y - pos.y)) > reach) return { en: 'Out of reach.', zh: '够不着。' }
+      const r = w.settleWhy(probe, pos.map, aim.x, aim.y, (pos.z ?? 0) + (up ? 1 : 0))
+      return r ? REFUSAL[w.spacesOf(probe).includes('floor') && r === 'taken' ? 'floored' : r] : { en: 'It cannot go there.', zh: '这里放不下。' }
+    }
     if (thing) {
       // the palette sets it down where it is aimed, or not at all (a pointer beyond reach is not moved nearer)
-      const plan = this.planPut(thing.id, aim)
-      return plan && plan.at.x === aim.x && plan.at.y === aim.y ? { ok: true, reason: plan.label, carried } : { ok: false, reason: { en: 'It cannot go there.', zh: '这里放不下。' }, carried }
+      const plan = this.planPut(thing.id, aim, up)
+      return plan && plan.at.x === aim.x && plan.at.y === aim.y ? { ok: true, reason: up ? LAY_CEILING : plan.label, carried } : { ok: false, reason: why(), carried }
     }
     const r = this.recipeFor(type)
     if (!r) return { ok: false, reason: { en: 'You carry none.', zh: '身上没有。' }, carried }
     if (!this.canCraft(r)) return { ok: false, reason: { en: 'You carry none, nor what makes one.', zh: '身上没有，材料也不够做一个。' }, carried }
-    // what one made would go where any thing set down goes: within reach, and to a storey there with
-    // room for it and something to hold it (a wall on a wall, a floor over walls) — asked of the
-    // world with a thing that is not in it
-    const w = this.w
-    const pos = w.posOf(w.player)
+    // what one made would go where any thing set down goes: within reach, on one's storey (or in its
+    // ceiling) with room for it and something to hold it — asked of the world with a thing not in it
     const reach = w.onto.data.params?.carry ?? 1
     const probe = { id: '~place', type, place: { on: 'none' } } as Entity
     const near = !!pos && Math.max(Math.abs(aim.x - pos.x), Math.abs(aim.y - pos.y)) <= reach && !(aim.x === pos.x && aim.y === pos.y && w.onto.resolve(type).solid)
-    const open = !!pos && w.inBounds(pos.map, aim.x, aim.y) && w.settleZ(probe, pos.map, aim.x, aim.y, pos.z ?? 0) !== undefined
-    return near && open ? { ok: true, reason: { en: 'Made from what you carry, then set down', zh: '用身上的材料现做一个，再放下' }, carried } : { ok: false, reason: { en: 'It cannot go there.', zh: '这里放不下。' }, carried }
+    const open = !!pos && w.settleZ(probe, pos.map, aim.x, aim.y, (pos.z ?? 0) + (up ? 1 : 0)) !== undefined
+    return near && open ? { ok: true, reason: up ? LAY_CEILING : { en: 'Made from what you carry, then set down', zh: '用身上的材料现做一个，再放下' }, carried } : { ok: false, reason: why(), carried }
   }
 
-  /** Set a type down at the aim (the build palette): one carried, or one made from what is carried first; facing a way (stairs go up it). */
-  place(type: string, aim: Aim, facing?: Dir): boolean {
-    if (this.eng.busy(this.w.player) || !this.previewPlace(type, aim).ok) return false
+  /** Set a type down at the aim — or (`up`) in the ceiling over it (the build palette): one carried, or one made from what is carried first; facing a way (stairs go up it). */
+  place(type: string, aim: Aim, facing?: Dir, up = false): boolean {
+    if (this.eng.busy(this.w.player) || !this.previewPlace(type, aim, up).ok) return false
     if (!this.carriedOf(type)) {
       const r = this.recipeFor(type)
       if (!r || !this.craft(r)) return false
     }
     const thing = this.carriedOf(type)
-    const plan = thing && this.planPut(thing.id, aim)
+    const plan = thing && this.planPut(thing.id, aim, up)
     if (!plan || plan.at.x !== aim.x || plan.at.y !== aim.y) return false
     this.run(plan, false, facing)
     return true
