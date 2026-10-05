@@ -36,7 +36,7 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   gainXp: 'gainXp {amount} — the host gains experience; enough raises its level (props xp, level, skillPoints)',
   foe: 'foe {} — whoever started the chain (the one who struck) becomes the host\'s foe, attacked on sight',
   open: 'open {} — the host opens or closes (toggles the `open` status)',
-  dropContents: 'dropContents {still?} — the host spills what it holds onto its tile',
+  dropContents: 'dropContents {still?} — the host spills what it holds (its bag and its hand) onto its tile',
   goto: 'goto {anchor, hours, activity?} — the host (a person) leaves its schedule for a named anchor of its map for some hours',
   topic: "topic {id, days?} — the story's only: something happened that people will talk about (default 4 days); it keeps topic.<id> (the day) and topic.<id>.days as its own props. Others notify the story",
   scene: 'scene {id} — the story\'s only: play a scripted scene',
@@ -45,7 +45,7 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   lightning: 'lightning {power} — the world\'s: a bolt seeks what stands tall near the player and emits element lightning to it',
   ashore: 'ashore {} — the host gets out of where it cannot be, to the nearest free tile',
   fallback: 'fallback {} — the story\'s: run the broken invariant\'s authored fallback',
-  emit: 'emit {impulse, to, params?, item?, other?, chance?, filter?} — send an impulse (strike, element, coat, restore, push, taken, receive, offered, handle, notify) to a role, "story", "world", {named: id}, {area: {at?, radius}}, {line: {from?, away, length, over?}} or {map: true}; params are values, Amounts or {typeOf: role} (what kind of thing a role is, kept even after it is gone); filter and chance pick who receives it; the receiver answers for itself',
+  emit: 'emit {impulse, to, params?, item?, other?, chance?, filter?} — send an impulse (strike, element, coat, restore, push, taken, receive, offered, handle, notify) to a role, "story", "world", {named: id}, {area: {at?, radius}}, {line: {from?, away, length, over?}} or {map: true}; params are values, Amounts, {typeOf: role} (what kind of thing a role is, kept even after it is gone) or {idOf: role} (which thing it is); filter and chance pick who receives it; the receiver answers for itself',
   vfx: 'vfx {at?, fx} — play a visual effect (at the host unless at names a role)',
   say: 'say {text, who?} — the host says a line ("@line": one of its own lines for the moment; "@given": its line for the item it was given); text fills {host} {actor} {target} {instrument} {other} {item} and {role.key}',
   log: 'log {text} — a message line ({role} = names, {role.key} = that role\'s prop, {param.key} = an event param)',
@@ -410,7 +410,8 @@ export class EffectRunner {
       case 'dropContents': {
         const p = w.posOf(host)
         if (!host || !p) return
-        for (const id of [...(host.contents ?? [])]) {
+        // what it holds: its bag, and its hand
+        for (const id of [...(host.contents ?? []), ...(host.held ? [host.held] : [])]) {
           const c = w.get(id)
           if (!c) continue
           eng.touch({ e: c.id })
@@ -603,9 +604,11 @@ export class EffectRunner {
   }
 
   /** An emitted param: a value, an Amount, a param passed on as it is (`{param}` alone: a string goes through), or what kind of thing a role is. */
-  param(ev: GameEvent, v: PropValue | Amount | { typeOf: RoleName }): PropValue | undefined {
+  param(ev: GameEvent, v: PropValue | Amount | { typeOf: RoleName } | { idOf: RoleName }): PropValue | undefined {
     if (typeof v !== 'object' || v === null) return v
     if ('typeOf' in v) return this.eng.world.view(this.roleRef(ev, v.typeOf))?.type
+    // which thing a role is (a bed: the place one sleeps is one's home)
+    if ('idOf' in v) return this.roleRef(ev, v.idOf)?.e
     if ('param' in v && v.mul === undefined && v.add === undefined) return ev.params?.[v.param]
     // a role's prop passed on as it is (a word too: a site's map)
     if ('prop' in v && v.mul === undefined && v.add === undefined) return this.eng.world.view(this.roleRef(ev, v.of))?.props[v.prop]

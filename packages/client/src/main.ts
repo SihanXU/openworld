@@ -12,6 +12,7 @@ import { WorldScene } from './render/scene.ts'
 import { kvGet, kvSet } from './storage.ts'
 import { writeSlot, type Slot } from './saves.ts'
 import { Cover } from './ui/cover.ts'
+import { DeathScreen } from './ui/death.ts'
 import { locale, t, tx } from './ui/common.ts'
 import { ModConsole } from './ui/dev.ts'
 import { Hud } from './ui/hud.ts'
@@ -114,6 +115,10 @@ let onChoices: ((key: Key, tile: Tile | undefined, list: { layer: number; name: 
 scene.hooks = {
   onFrame: (f) => {
     lastFrame = f
+    const was = death.open
+    death.onFrame(f)
+    // a hardcore game's one life is spent: its slot keeps the end
+    if (!was && death.open && f.fallen?.difficulty === 'hardcore') send({ t: 'save' })
     hud.onFrame(f)
     menu.onFrame(f)
     tooltip.onFrame(f)
@@ -277,13 +282,13 @@ let startingFrom: SaveData | undefined
 let quietSave = false
 
 const cover = new Cover(WORLD, {
-  start: async (s, data) => {
+  start: async (s, data, difficulty) => {
     slot = s
     startingFrom = data?.save
     quietSave = true
     const library = await kvGet<LibraryData>('library')
     const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
-    send({ t: 'init', base, save: data?.save, library, modder: MODDER })
+    send({ t: 'init', base, save: data?.save, library, modder: MODDER, difficulty })
   },
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
@@ -292,11 +297,18 @@ const cover = new Cover(WORLD, {
 })
 void cover.show()
 
+// the death screen: the world stops; rise again, load a save, or back to the title
+const death = new DeathScreen({
+  rise: (home) => send({ t: 'respawn', home }),
+  load: () => void cover.show('load'),
+  title: () => void cover.show(),
+})
+
 // ------------------------------------------------------------------ time stops while something is open
 
 let pausedNow = false
 function syncPause(): void {
-  const on = menu.anyOpen || hud.dialogOpen || hud.chooserOpen || dev.open || !document.getElementById('intro')!.classList.contains('hidden')
+  const on = menu.anyOpen || hud.dialogOpen || hud.chooserOpen || dev.open || death.open || !document.getElementById('intro')!.classList.contains('hidden')
   if (on && building.open) building.toggle(false)
   if (on !== pausedNow) {
     pausedNow = on

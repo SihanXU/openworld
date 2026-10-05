@@ -5,8 +5,8 @@
   "undefined": 16716
  },
  "byRule": {
-  "bed/sleep": 4,
   "body/fireproof": 3,
+  "body/rise": 8,
   "body/wear": 21,
   "build/dismantle-chest": 2,
   "build/dismantle-crate": 2,
@@ -64,7 +64,6 @@
   "use/water": 536,
   "use/weapon": 228,
   "water/bridge": 1,
-  "waypoint/attune": 4,
   "wood/char": 1,
   "wood/notch": 2,
   "wood/uproot": 1

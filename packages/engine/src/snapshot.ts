@@ -98,6 +98,11 @@ export interface Frame {
   question?: { text: Text }
   /** The world's facts (the story's counts: what the smith has been given…), for the HUD's objective. */
   facts: Record<string, PropValue>
+  /**
+   * The one at the keys has fallen (down): who felled them, and the game's difficulty, which says
+   * what may follow (the death screen: get up where one fell, rise at home, or the end).
+   */
+  fallen?: { by?: Text; difficulty: Difficulty }
   /** What the two keys would do right now (filled by the host, not by snapshot()). */
   keys?: { hands?: KeyView; take?: KeyView; put?: KeyView; use?: KeyView; self?: KeyView }
   /** The open container panel (the host names it): its contents. */
@@ -115,6 +120,32 @@ export interface Frame {
   prompt?: Prompt
   /** Quests: the marks over the people on this map ('!' to give, '?' to take back), and the player's log. */
   quests: { marks: Record<Id, '!' | '?'>; log: QuestView[] }
+}
+
+/** How forgiving a game is of a fall (chosen at a new game): get up where one fell, rise at home leaving what one carried, or one life. */
+export type Difficulty = 'easy' | 'normal' | 'hardcore'
+
+/** The game's difficulty (the story keeps it; a game from before it was chosen is normal). */
+export function difficultyOf(eng: Engine): Difficulty {
+  const d = eng.world.fact('game.difficulty')
+  return d === 'easy' || d === 'hardcore' ? d : 'normal'
+}
+
+/** The one at the keys lies fallen: by whom (the last who struck them, or what they were), and what may follow. */
+function fallen(eng: Engine): Frame['fallen'] {
+  const w = eng.world
+  const p = w.player
+  if (!w.hasStatus({ e: p.id }, 'down')) return undefined
+  const c = p.combat
+  const by = c?.lastHurtBy && w.get(c.lastHurtBy) ? eng.nameOf({ e: c.lastHurtBy }, 'en') : undefined
+  const name = (l: 'en' | 'zh') => (c?.lastHurtBy && w.get(c.lastHurtBy) ? eng.nameOf({ e: c.lastHurtBy }, l) : c?.lastHurtByType ? typeName(eng, c.lastHurtByType, l) : undefined)
+  return { ...(by || c?.lastHurtByType ? { by: { en: name('en') ?? '', zh: name('zh') ?? '' } } : {}), difficulty: difficultyOf(eng) }
+}
+
+/** A type's name in a language. */
+function typeName(eng: Engine, type: string, l: 'en' | 'zh'): string {
+  const n = eng.world.onto.resolve(type).name
+  return typeof n === 'string' ? n : n ? ((l === 'zh' ? n.zh : undefined) ?? n.en) : type.split('/').pop()!
 }
 
 export interface KeyView {
@@ -262,6 +293,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     },
     question: w.state.question ? { text: w.state.question.text } : undefined,
     quests: questsOf(eng, entities),
+    ...(fallen(eng) && { fallen: fallen(eng) }),
     facts: { ...(w.story?.props ?? {}) },
     container: box && {
       id: box.id,

@@ -4,6 +4,7 @@
 // three slots' summary, and writes a slot out to a file or reads one back (saves.ts).
 
 import { OBJECTIVES, PROLOGUE_DONE, PROLOGUE_OBJECTIVES } from '@lsw/content'
+import type { Difficulty } from '@lsw/engine'
 import type { SaveSummary } from '../protocol.ts'
 import { SLOTS, deleteSlot, exportSlot, listSlots, pickSaveFile, writeSlot, type Slot, type SlotData } from '../saves.ts'
 import { $, controlsTable, esc, locale, t, tx } from './common.ts'
@@ -46,14 +47,16 @@ function pines(): string {
 }
 
 export interface CoverHandlers {
-  /** Start a slot: from its save, or a new game in it (any save there is overwritten). */
-  start(slot: Slot, data: SlotData | undefined): void
+  /** Start a slot: from its save, or a new game in it at a difficulty (any save there is overwritten). */
+  start(slot: Slot, data: SlotData | undefined, difficulty?: Difficulty): void
   toggleLocale(): void
 }
 
 export class Cover {
   private slots: (SlotData | undefined)[] = []
   private panel: 'new' | 'load' | 'help' | undefined
+  /** The difficulty a new game starts at (Minecraft's choice): normal unless chosen. */
+  private difficulty: Difficulty = 'normal'
 
   constructor(
     private world: string,
@@ -64,9 +67,9 @@ export class Cover {
     return !$('#intro').classList.contains('hidden')
   }
 
-  async show(): Promise<void> {
+  async show(panel?: 'load'): Promise<void> {
     this.slots = await listSlots(this.world)
-    this.panel = undefined
+    this.panel = panel
     document.getElementById('loading')?.remove()
     $('#intro').classList.remove('hidden')
     this.render()
@@ -86,7 +89,8 @@ export class Cover {
     let best: Slot | undefined
     for (const s of SLOTS) {
       const d = this.slots[s - 1]
-      if (d && (!best || d.savedAt > this.slots[best - 1]!.savedAt)) best = s
+      // a hardcore game that ended is not played on
+      if (d && !d.summary?.ended && (!best || d.savedAt > this.slots[best - 1]!.savedAt)) best = s
     }
     return best
   }
@@ -129,6 +133,7 @@ export class Cover {
   /** "Cloudtop · Day 1 13:00 · Lv 2 · Make a stone axe" */
   private line(s: SaveSummary | undefined): string {
     if (!s) return t('cvOldSave')
+    if (s.ended) return locale.value === 'zh' ? `极限 · 已终结 · ${tx(s.map)} · 第 ${s.day} 天` : `Hardcore · ended · ${tx(s.map)} · day ${s.day}`
     const o = s.prologue < PROLOGUE_DONE ? PROLOGUE_OBJECTIVES[s.prologue] : OBJECTIVES[s.quest]
     const time = `${String(s.hour).padStart(2, '0')}:${String(s.minute).padStart(2, '0')}`
     return [tx(s.map), `${t('cvDay').replace('{n}', String(s.day))} ${time}`, `Lv ${s.level}`, o && tx(o.title)].filter(Boolean).join(' · ')
@@ -140,7 +145,7 @@ export class Cover {
     const when = (iso: string) => new Date(iso).toLocaleString(locale.value === 'zh' ? 'zh-CN' : 'en-GB', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
     const cards = SLOTS.map((s) => {
       const d = this.slots[s - 1]
-      const main = this.panel === 'new' ? `<button class="cv-btn primary" data-act="new" data-slot="${s}">${d ? t('cvOverwrite') : t('cvStartHere')}</button>` : d ? `<button class="cv-btn primary" data-act="load" data-slot="${s}">${t('cvLoadThis')}</button>` : ''
+      const main = this.panel === 'new' ? `<button class="cv-btn primary" data-act="new" data-slot="${s}">${d ? t('cvOverwrite') : t('cvStartHere')}</button>` : d && !d.summary?.ended ? `<button class="cv-btn primary" data-act="load" data-slot="${s}">${t('cvLoadThis')}</button>` : ''
       return `<div class="cv-slot${d ? '' : ' empty'}">
         <div class="cv-sname">${t('cvSlot').replace('{n}', String(s))}</div>
         <div class="cv-sinfo">${d ? `<div>${esc(this.line(d.summary))}</div><div class="muted">${t('cvSavedAt')} ${when(d.savedAt)}</div>` : `<div class="muted">${t('cvEmpty')}</div>`}</div>
@@ -151,23 +156,32 @@ export class Cover {
         </div>
       </div>`
     }).join('')
-    return head + `<div class="cv-slots">${cards}</div><div class="cv-note muted">${t('cvNote')}</div>`
+    // a new game's difficulty (Minecraft's): what a fall costs
+    const zh = locale.value === 'zh'
+    const levels: [Difficulty, string, string][] = [
+      ['easy', zh ? '简单' : 'Easy', zh ? '倒下后原地起身，东西都在' : 'get up where you fell, with everything'],
+      ['normal', zh ? '普通' : 'Normal', zh ? '在落脚处复活，身上的东西留在倒下的地方' : 'respawn at home; what you carried stays where you fell'],
+      ['hardcore', zh ? '极限' : 'Hardcore', zh ? '只有一条命' : 'one life'],
+    ]
+    const pick = this.panel === 'new' ? `<div class="cv-diff">${levels.map(([id, name, note]) => `<button class="cv-btn small${this.difficulty === id ? ' primary' : ''}" data-diff="${id}">${name}<small>${note}</small></button>`).join('')}</div>` : ''
+    return head + pick + `<div class="cv-slots">${cards}</div><div class="cv-note muted">${t('cvNote')}</div>`
   }
 
   private wirePanel(): void {
     $('#cvClose').onclick = () => ((this.panel = undefined), this.render())
+    document.querySelectorAll<HTMLButtonElement>('#intro [data-diff]').forEach((b) => (b.onclick = () => ((this.difficulty = b.dataset.diff as Difficulty), this.render())))
     document.querySelectorAll<HTMLButtonElement>('#intro [data-act]').forEach((b) => {
       const slot = Number(b.dataset.slot) as Slot
       const d = this.slots[slot - 1]
       b.onclick = async () => {
         switch (b.dataset.act) {
           case 'load':
-            if (d) (this.busy(), this.on.start(slot, d))
+            if (d && !d.summary?.ended) (this.busy(), this.on.start(slot, d))
             return
           case 'new':
             if (d && !confirm(t('cvConfirmOverwrite').replace('{n}', String(slot)))) return
             this.busy()
-            return this.on.start(slot, undefined)
+            return this.on.start(slot, undefined, this.difficulty)
           case 'export':
             if (d) exportSlot(this.world, slot, d)
             return

@@ -2,6 +2,7 @@
 
 import {
   signatureOf,
+  difficultyOf,
   Game,
   RuleLibrary,
   buildRequest,
@@ -311,9 +312,13 @@ function sendRecords(): void {
 
 function doSave(): void {
   if (!game) return
-  const save = game.save()
   const w = game.engine.world
   const p = w.player
+  // one lying fallen is not saved (a save to load is from before the fall) — but a hardcore game's end is
+  const fallen = w.hasStatus({ e: p.id }, 'down')
+  const difficulty = difficultyOf(game.engine)
+  if (fallen && difficulty !== 'hardcore') return
+  const save = game.save()
   const cal = w.calendar()
   const here = w.posOf(p)?.map
   const summary: SaveSummary = {
@@ -324,6 +329,8 @@ function doSave(): void {
     level: Math.max(1, w.num(p, 'level', 1)),
     prologue: w.num(p, 'prologue', 10),
     quest: w.num(p, 'quest'),
+    difficulty,
+    ...(fallen && { ended: true }),
   }
   post({ t: 'saved', save, library: game.engine.lib.toJSON(), summary })
 }
@@ -403,7 +410,7 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     game = Game.create(index, ontology, lib)
     // a new game is already the world as it is now: no migration is due (the author's, on creating it)
     const w = game.engine.world
-    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true)))
+    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact('game.difficulty', init.difficulty ?? 'normal')))
   }
   game.worldVersion = index.version
   game.mods.onChange = () => sendRecords()
@@ -563,6 +570,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'save':
         doSave()
         break
+      case 'respawn':
+        game?.engine.respawn(m.home)
+        break
       case 'advance':
         game?.engine.story.advance()
         break
@@ -574,6 +584,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         // into the bag, and onto a slot of it (the bag shows its slots)
         if (m.op === 'give') eng.author(() => (w.create(m.type, { on: 'inside', holder: w.state.player }, m.tags ? { tags: m.tags } : {}), eng.controls.sync()))
         if (m.op === 'hour') w.state.tick = tickAt(w.calendar().day, m.hour)
+        if (m.op === 'hurt') eng.author(() => eng.hurt(w.player, m.amount, undefined, true))
         break
       }
     }

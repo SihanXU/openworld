@@ -264,6 +264,19 @@ or that of an impulse it emits, reaches an undefined leaf, the AI is asked (§5.
 The craft is Stardew Valley's; the systems are the Ford's own (game-design.md §10 lists what
 was cut).
 
+- **Death** (Minecraft's death screen): the one at the keys, felled, lies fallen (`down`, as any
+  essential being) and the world stops on a red veil: "You died!", who felled them (the last who
+  struck them, `combat.lastHurtBy`), and what may follow by the game's **difficulty**, chosen at a
+  new game (the story's fact `game.difficulty`, protected; a game from before is normal):
+  - **easy**: get up where one fell, whole, with everything;
+  - **normal**: respawn at home — the bed last slept in or the waypoint last woken (the actor's
+    `home`, which the bed and the statue tell them), else where the world began — whole, what one
+    carried left where one fell (lying still, to go back for);
+  - **hardcore**: one life: the slot is saved as it ended and can no longer be played.
+  On easy and normal one may instead load a save (a fallen player is not autosaved, so it is from
+  before the fall) or go back to the title. Rising is the story's word and the actor's own rule
+  (`Engine.respawn` → `notify {what: respawn}` and a push home; `body/rise`), not a write.
+
 - **Inventory**
   - 30 slots in three rows of ten; the first row is the toolbar (keys 1–0), and the selected
     slot is what the player holds; there is no separate hand slot.

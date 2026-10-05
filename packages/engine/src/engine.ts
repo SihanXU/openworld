@@ -293,6 +293,33 @@ export class Engine {
     this.run(effects, { kind: 'time/period', host: { e: STORY }, roles, params: {}, origin: 'world' }, label)
   }
 
+  /**
+   * The one at the keys, fallen, rises again (the death screen's choice, after Minecraft): the
+   * story tells them to get up, and they do themselves (their own rule) — where they fell, or
+   * (`home`) at the place they made theirs (the bed they last slept in, the waypoint they last
+   * woke; else where the world began), leaving what they carried where they fell.
+   */
+  respawn(home: boolean): void {
+    const w = this.world
+    const p = w.player
+    if (!w.hasStatus({ e: p.id }, 'down')) return
+    const effects: Effect[] = [{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'respawn', drop: home } }]
+    if (home) {
+      const at = this.homeOf(p)
+      effects.push({ op: 'emit', impulse: 'push', to: 'target', params: { map: at.map, x: at.x, y: at.y } })
+    }
+    this.script(effects, { target: { e: p.id } }, 'respawn')
+  }
+
+  /** Where one rises again: beside the thing one made one's home (its `home` prop), else where the world began. */
+  homeOf(e: Entity): Pos {
+    const w = this.world
+    const home = w.get(typeof e.props?.home === 'string' ? e.props.home : undefined)
+    const at = home && w.posOf(home)
+    if (!at) return w.state.spawn
+    return (w.walkable(at.map, at.x, at.y, e.id) ? at : this.nearestFree(at)) ?? at
+  }
+
   /** Re-run an event whose outcome was undefined and is now defined (a late patch). */
   replay(ev: GameEvent): void {
     this.queue({ ...ev, depth: 0 })

@@ -12,7 +12,7 @@ export { template }
 export interface DevSend {
   patch(id: string | undefined, patch: Patch): void
   /** Development only: give the player a thing, move them, set the hour (to stage an act by hand). */
-  debug(op: { op: 'give'; type: string } | { op: 'teleport'; map?: string; x: number; y: number } | { op: 'hour'; hour: number }): void
+  debug(op: { op: 'give'; type: string } | { op: 'teleport'; map?: string; x: number; y: number } | { op: 'hour'; hour: number } | { op: 'hurt'; amount: number }): void
   dismiss(id: string): void
   removeRule(id: string): void
   spec(): void

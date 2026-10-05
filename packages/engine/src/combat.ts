@@ -208,6 +208,8 @@ export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: E
     return 0
   }
   state.lastHurtTick = w.state.tick
+  state.lastHurtBy = attacker.id
+  state.lastHurtByType = attacker.type
   if (skill(w, e, 'evasive-step') && recentlyMoved(w, e)) damage *= 0.75
   if (skill(w, e, 'defiance') && w.num(e, 'hp') <= w.num(e, 'maxHp', 1) * 0.3) damage *= 0.75
   if (warrior(w, e, 'bulwark')) damage *= warrior(w, e, 'warlord') ? 0.7 : 0.85

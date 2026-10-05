@@ -338,6 +338,16 @@
 .cv-btn.danger { color: #9b2a1a; }
 .cv-btn:disabled { opacity: 0.55; cursor: default; }
 .cv-status { margin-top: 10px; font-size: 14px; color: #fff3d8; min-height: 18px; text-shadow: 0 1px 2px #000; }
+/* the death screen (Minecraft's): a red veil over the stopped world */
+.death { position: absolute; inset: 0; z-index: 60; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(120, 10, 10, 0.45), rgba(40, 0, 0, 0.82)); }
+.death.hidden { display: none; }
+.death-box { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 20px; text-align: center; }
+.death-title { margin: 0; font: 600 52px var(--pixel); color: #fff; text-shadow: 3px 3px 0 #3a0000; letter-spacing: 1px; }
+.death-cause { font: 18px var(--text); color: #ffd7cf; text-shadow: 1px 1px 0 #000; }
+.death-note { font: 15px var(--text); color: #ffe9a8; }
+.death-acts { display: flex; flex-direction: column; gap: 10px; width: min(420px, 86vw); margin-top: 8px; }
+.cv-diff { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 10px; }
+.cv-diff .cv-btn { flex: 1; min-width: 150px; }
 .cv-panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(720px, 94vw); max-height: 86vh; overflow: auto; padding: 12px 14px 14px; z-index: 2; font-family: var(--text); }
 .cv-phead { display: flex; align-items: center; margin-bottom: 10px; font: 700 17px var(--pixel); }
 .cv-phead .x { margin-left: auto; background: var(--paper); color: var(--ink-warm); border: 2px solid var(--wood-dark); }

@@ -41,7 +41,7 @@ export const OBJECTIVES: Record<number, Objective> = {
 }
 
 /** Fact prefixes only the story's rules and scenes may change. */
-export const PROTECTED_FACTS = ['ford.', 'mq.', 'seen.', 'sins.']
+export const PROTECTED_FACTS = ['ford.', 'mq.', 'seen.', 'sins.', 'game.']
 
 const story = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base', note: 'story' } })
 const log = (en: string, zh: string): Effect => ({ op: 'log', text: { en, zh } })

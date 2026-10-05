@@ -1,0 +1,101 @@
+// Death and rising again (after Minecraft): the one at the keys, felled, lies fallen and the frame
+// says so — by whom, and at what difficulty; the death screen's choice is the story telling them to
+// rise, and they do so themselves: where they fell (easy), or at home leaving what they carried
+// where they fell (normal). A bed slept in or a waypoint woken is one's home. Hardcore has one life.
+
+import { describe, expect, it } from 'vitest'
+import { Game, RuleLibrary, difficultyOf, snapshot, textOf, type Engine } from '@lsw/engine'
+import { BASE_RULES, PROLOGUE_DONE, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
+import { AT, buildFord } from '../src/demo/world.ts'
+
+function ford(difficulty?: 'easy' | 'normal' | 'hardcore'): Engine {
+  const { index, chunks } = buildFord()
+  const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+  for (const c of chunks) game.loadChunk(decodeChunk(c))
+  const eng = game.engine
+  const w = eng.world
+  eng.author(() => {
+    ;(w.player.props ??= {}).prologue = PROLOGUE_DONE
+    w.setFact('seen.arrival', true)
+    if (difficulty) w.setFact('game.difficulty', difficulty)
+    eng.teleport(w.player, { map: 'ford', x: AT.spawn[0], y: AT.spawn[1] })
+    w.create('item/food/bread', { on: 'inside', holder: 'player' })
+  })
+  eng.controls.sync()
+  return eng
+}
+
+/** A slime strikes the player down. */
+function fall(eng: Engine): { x: number; y: number } {
+  const w = eng.world
+  const p = w.player
+  const at = w.posOf(p)!
+  const slime = eng.author(() => w.create('actor/creature/slime/green_slime', { on: 'tile', map: 'ford', x: at.x + 1, y: at.y }))
+  eng.author(() => w.setProp(p, 'hp', 1))
+  eng.act('use', slime.id, { e: p.id }, { instrument: null, params: { attack: true, power: 50 } })
+  expect(w.hasStatus({ e: p.id }, 'down')).toBe(true)
+  return { x: at.x, y: at.y }
+}
+
+describe('death and rising again', () => {
+  it('a fall is shown: who felled one, and the difficulty (normal for a game that never chose)', () => {
+    const eng = ford()
+    expect(difficultyOf(eng)).toBe('normal')
+    fall(eng)
+    const f = snapshot(eng)
+    expect(f.fallen?.difficulty).toBe('normal')
+    expect(textOf(f.fallen?.by)).toMatch(/slime/)
+  })
+
+  it('easy: one gets up where one fell, whole, with everything', () => {
+    const eng = ford('easy')
+    const at = fall(eng)
+    const w = eng.world
+    eng.respawn(false)
+    eng.tick()
+    const p = w.player
+    expect(w.hasStatus({ e: p.id }, 'down')).toBe(false)
+    expect(w.num(p, 'hp')).toBe(w.num(p, 'maxHp'))
+    expect(w.posOf(p)).toMatchObject({ map: 'ford', x: at.x, y: at.y })
+    expect(eng.controls.count('item/food/bread')).toBe(1)
+    expect(snapshot(eng).fallen).toBeUndefined()
+  })
+
+  it('normal: one rises at home — the bed last slept in — and what one carried lies where one fell', () => {
+    const eng = ford('normal')
+    const w = eng.world
+    const p = w.player
+    // a bed, slept in: home
+    const here = w.posOf(p)!
+    const bed = eng.author(() => w.create('fixture/furniture/bed', { on: 'tile', map: 'ford', x: here.x, y: here.y }))
+    eng.act('hands', p.id, { e: bed.id }, { instrument: null })
+    eng.tick()
+    expect(w.prop(p, 'home')).toBe(bed.id)
+    // away from it, a fall
+    eng.author(() => eng.teleport(p, { map: 'ford', x: AT.winch[0], y: AT.winch[1] + 2 }))
+    const at = fall(eng)
+    eng.respawn(true)
+    eng.tick()
+    expect(w.hasStatus({ e: p.id }, 'down')).toBe(false)
+    expect(w.num(p, 'hp')).toBe(w.num(p, 'maxHp'))
+    const now = w.posOf(p)!
+    expect(Math.max(Math.abs(now.x - here.x), Math.abs(now.y - here.y))).toBeLessThanOrEqual(1)
+    expect(eng.controls.count('item/food/bread')).toBe(0)
+    const left = w.placedAt('ford', at.x, at.y).filter((e) => e.type === 'item/food/bread')
+    expect(left).toHaveLength(1)
+    expect(left[0].dropped).toBeFalsy()
+  })
+
+  it('a waypoint woken is home too; with no home one rises where the world began', () => {
+    const eng = ford('normal')
+    const w = eng.world
+    const p = w.player
+    expect(eng.homeOf(p)).toEqual(w.state.spawn)
+    const stone = Object.values(w.state.entities).find((e) => e.type === 'fixture/sacred/waypoint' && e.place.on === 'tile')!
+    const s = stone.place as { map: string; x: number; y: number }
+    eng.author(() => eng.teleport(p, { map: s.map, x: s.x, y: s.y + 1 }))
+    eng.act('hands', p.id, { e: stone.id }, { instrument: null })
+    eng.tick()
+    expect(w.prop(p, 'home')).toBe(stone.id)
+  })
+})
