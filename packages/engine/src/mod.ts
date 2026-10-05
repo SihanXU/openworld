@@ -12,7 +12,7 @@ import { STORY, textOf } from './engine.ts'
 import { OntologyIndex, isA, withTerrainTypes } from './ontology.ts'
 import { deriveRecipes } from './recipes.ts'
 import { RuleLibrary, cmp, compareSpec, isDo, isHole, leaves, rolesOf, specOf } from './rules.ts'
-import { REPEAT_TIMES, checkExpectations, endlessYield, replay, scenarioEvent } from './sandbox.ts'
+import { REPEAT_TIMES, buildSandbox, checkExpectations, endlessYield, replay, scenarioEvent } from './sandbox.ts'
 import type { Cmp, Cond, Effect, EmitTo, GameEvent, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tree, TypeDef } from './types.ts'
 import { RECENT_LINES, type View } from './world.ts'
 
@@ -283,7 +283,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
     expectations: [
       '{key, hasStatus} {key, lacksStatus} {key, isType} {key, destroyed:true} {key, exists:true}',
       '{key, propGt:[k,n]} {key, propLt:[k,n]} {tile:[x,y], terrain} {tile:[x,y], hasStatus} {spawned:type}',
-      'Scenario: {terrain?: string[][], entities:[{key,type,x,y,tags?,statuses?,props?,heldBy?,inside?}], event:{kind?, host?, actor?, target?, instrument?, other?, item?, source?, params?}, ticks?} — roles reference entity keys, "tile:x,y" (a cell top) or "tile:x,y:floor|soil|volume" (what takes that space in it); kind defaults to act/use, host to the instrument (or the actor)',
+      'Scenario: {terrain?: string[][], entities:[{key,type,x,y,z?,tags?,statuses?,props?,heldBy?,inside?}], cells?:[{x,y,z?,space?,type?,statuses?,props?}], residents?:{story?:props,world?:props}, event:{kind?, host?, actor?, target?, instrument?, other?, item?, source?, params?}, ticks?} — roles reference entity keys or "tile:x,y[,z][:floor|soil|volume]" (a cell top or a specific space); kind defaults to act/use, host to the instrument (or the actor)',
     ],
     ontology: {
       // without types: the model is shown the request's own types (the brief) and asks for the rest (the router)
@@ -759,27 +759,31 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
   }
   const entities: ScenarioEntity[] = []
   const keyOf = new Map<string, string>()
-  // a kept cell thing's own state (a notched tree, a wet floor): its cell carries it
+  // Terrain rows supply the top; lower spaces and upstairs cells keep their actual type.
   const cells: NonNullable<Scenario['cells']> = []
-  for (let y = 0; y <= 2 * WINDOW; y++)
-    for (let x = 0; x <= 2 * WINDOW; x++) {
-      const top = w.cellTop(center.map, ox + x, oy + y)
-      for (const c of w.entitiesAt(center.map, ox + x, oy + y))
-        if (w.isTerrain(c) && !w.isStatic(c) && (c.statuses || c.props))
-          cells.push({ x, y, ...(c !== top && { space: w.spacesOf(c)[0] }), statuses: c.statuses && Object.keys(c.statuses), props: c.props && { ...c.props } })
-    }
+  const storeys = Math.max(center.z ?? 0, w.onto.data.params?.storeys ?? 4)
+  for (let z = 0; z <= storeys; z++)
+    for (let y = 0; y <= 2 * WINDOW; y++)
+      for (let x = 0; x <= 2 * WINDOW; x++) {
+        const top = w.cellTop(center.map, ox + x, oy + y, z)
+        for (const c of w.entitiesAt(center.map, ox + x, oy + y, z))
+          if (w.isTerrain(c) && (z || c !== top || (!w.isStatic(c) && (c.statuses || c.props))))
+            cells.push({ x, y, ...(z && { z }), space: w.spacesOf(c)[0], ...((z || c !== top) && { type: c.type }), statuses: c.statuses && Object.keys(c.statuses), props: c.props && { ...c.props } })
+      }
   const addEntity = (id: string, key: string) => {
     const e = w.get(id)
     // what makes up a cell comes with the terrain rows
     if (!e || keyOf.has(id) || w.isPlaceless(e) || w.isTerrain(e)) return
     const p = w.posOf(e)
     if (!p) return
+    if (e.place.on === 'hand' || e.place.on === 'inside') addEntity(e.place.holder, `holder_${key}`)
     keyOf.set(id, key)
     const se: ScenarioEntity = {
       key,
       type: e.type,
       x: p.x - ox,
       y: p.y - oy,
+      ...(p.z && { z: p.z }),
       tags: e.tags?.length ? [...e.tags] : undefined,
       statuses: e.statuses ? Object.keys(e.statuses) : undefined,
       props: e.props ? { ...e.props } : undefined,
@@ -800,8 +804,8 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
     if (w.isTerrain(e)) {
       const p = w.posOf(e)
       // the cell's top by its cell alone; what lies under it (the floor under a tree) by its space too
-      const space = w.cellTop(p?.map ?? '', p?.x ?? 0, p?.y ?? 0)?.id === e.id ? undefined : w.spacesOf(e)[0]
-      return p && `tile:${p.x - ox},${p.y - oy}${space ? `:${space}` : ''}`
+      const space = p?.z || w.cellTop(p?.map ?? '', p?.x ?? 0, p?.y ?? 0)?.id !== e.id ? w.spacesOf(e)[0] : undefined
+      return p && `tile:${p.x - ox},${p.y - oy}${p.z ? `,${p.z}` : ''}${space ? `:${space}` : ''}`
     }
     if (w.isPlaceless(e)) return e.id
     // make sure holders come first so held/inside links resolve
@@ -819,11 +823,33 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
   }
   event.host = roleKey(ev.host, 'host') ?? undefined
   let n = 0
-  for (let y = 0; y <= 2 * WINDOW; y++)
-    for (let x = 0; x <= 2 * WINDOW; x++)
-      for (const e of w.entitiesAt(center.map, ox + x, oy + y)) if (!keyOf.has(e.id) && n < 12) addEntity(e.id, `n${++n}`)
+  const carry = (id: string) => {
+    const e = w.get(id)
+    for (const child of [...(e?.contents ?? []), ...(e?.held ? [e.held] : [])]) {
+      if (keyOf.has(child)) continue
+      addEntity(child, `c${++n}`)
+      carry(child)
+    }
+  }
+  // A participant's bag and cover are needed even when the loose-neighbour limit is full.
+  for (const id of [...keyOf.keys()]) {
+    carry(id)
+    const p = w.posOf(w.get(id))!
+    for (let z = (p.z ?? 0) + 1; z <= storeys; z++)
+      for (const e of w.entitiesAt(p.map, p.x, p.y, z)) if (w.spacesOf(e).some((s) => s === 'floor' || s === 'volume')) addEntity(e.id, `roof${++n}`)
+  }
+  n = 0
+  for (let z = 0; z <= storeys; z++)
+    for (let y = 0; y <= 2 * WINDOW; y++)
+      for (let x = 0; x <= 2 * WINDOW; x++)
+        for (const e of w.entitiesAt(center.map, ox + x, oy + y, z)) if (!w.isTerrain(e) && !keyOf.has(e.id) && n < 12) addEntity(e.id, `n${++n}`)
+  const residents: NonNullable<Scenario['residents']> = {}
+  for (const id of ['story', 'world'] as const) {
+    const props = w.get(id)?.props
+    if (props && Object.keys(props).length) residents[id] = { ...props }
+  }
   const player = keyOf.get(w.state.player) ?? '__player'
-  return { terrain, entities, player, event, ...(cells.length && { cells }) }
+  return { terrain, entities, player, event, ...(cells.length && { cells }), ...(Object.keys(residents).length && { residents }) }
 }
 
 // ---------------------------------------------------------------- validation
@@ -1053,8 +1079,8 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       else if (!patchIds.has(rp.resolution.rule!.id)) errors.push(`replay: the triggering event resolved to "${rp.resolution.rule!.id}", not to the patch`)
       errors.push(...rp.errors.map((e) => `replay: ${e}`))
       // the repeat check (world-model.md §8.4): again and again with no time between, it must stop making things
-      const again = replay(ctx.scenario, ctx.ontology, cand)
-      if (again.resolution.defined && endlessYield(again.engine, scenarioEvent(ctx.scenario, again.engine)))
+      const again = buildSandbox(ctx.scenario, ctx.ontology, cand)
+      if (rp.resolution.defined && endlessYield(again, scenarioEvent(ctx.scenario, again), true))
         errors.push(`endless yield: the triggering event, repeated with no time between on a host that is not used up, keeps making things (${REPEAT_TIMES} times). A yield must cost its host — change it (a status that gates the yield and runs out, durability) or use it up`)
       // no person in the scene is hurt or removed by what the world learns by itself
       if (ctx.world)

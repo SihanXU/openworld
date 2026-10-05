@@ -90,12 +90,8 @@ export class World {
   fx: FxEvent[] = []
   /** The last lines logged or said, kept past the drain of `fx` (a request's recent context). */
   recent: Text[] = []
-  /**
-   * The repeat check's luck (world-model.md §8.4): set, every chance in an outcome comes out this
-   * way (a chance condition holds or fails, a chance emit or part of a breakdown is always made),
-   * so a yield that only sometimes comes is seen as the endless one it is. Unset in play.
-   */
-  luck?: boolean
+  /** The repeat check's assignment by chance site (world-model.md §8.4). Unset in play. */
+  luck?: (site: object, part: number) => boolean
   /**
    * The state changes only through its one writer (design.md §5.13, A2). The engine claims it
    * when it is made and lends it to outcomes (the effect runner), the clock (a status running
@@ -239,6 +235,11 @@ export class World {
     return nextRandom(this.state)
   }
 
+  /** Only outcomes with nonzero probability are explored in the repeat check. */
+  chance(site: object, p: number, part = 0): boolean {
+    return this.luck ? (p <= 0 ? false : p >= 1 ? true : this.luck(site, part)) : this.rand() < p
+  }
+
   /** A thing by id: one kept in the state, or a cell thing of a map's static data (a destroyed one is gone). */
   get(id: Id | undefined): Entity | undefined {
     if (!id) return undefined
@@ -355,10 +356,10 @@ export class World {
   }
 
   /** What makes up a cell on top, of the things drawn as its ground: what fills it, else what roots in it, else its floor. */
-  cellTop(map: string, x: number, y: number): Entity | undefined {
+  cellTop(map: string, x: number, y: number, z = 0): Entity | undefined {
     let top: Entity | undefined
     let rank = -1
-    for (const e of this.entitiesAt(map, x, y)) {
+    for (const e of this.entitiesAt(map, x, y, z)) {
       if (!this.isTerrain(e)) continue
       for (const s of this.spacesOf(e)) {
         const r = CELL_RANK[s]

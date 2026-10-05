@@ -76,7 +76,7 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
     const v = ev?.params?.[c.param.key]
     return v !== undefined && cmp(v, c.param.cmp)
   }
-  if ('chance' in c) return world.luck ?? world.rand() < c.chance
+  if ('chance' in c) return world.chance(c, c.chance)
   if ('hour' in c) {
     const h = world.hour()
     return c.hour.from <= c.hour.to ? h >= c.hour.from && h < c.hour.to : h >= c.hour.from || h < c.hour.to
