@@ -155,11 +155,13 @@ export class WorldLibrary {
       regression: [...this.regression, ...(ws?.regression ?? [])].filter((r) => !replaces.includes(r.rule)),
     })
     if (!result.ok) return result
-    const lunch = this.economy(patch, lib)
-    if (lunch) return { ...result, ok: false, errors: [...result.errors, lunch] }
+    // what the patch costs the world (a free lunch refused): its warnings are part of the proof
+    const economy = this.economy(patch, lib)
+    if (economy.error) return { ...result, ok: false, errors: [...result.errors, economy.error], warnings: [...result.warnings, ...economy.warnings] }
+    const proven = { ...result, warnings: [...result.warnings, ...economy.warnings] }
     if (this.proofs.size >= 32) this.proofs.delete(this.proofs.keys().next().value!)
-    this.proofs.set(key, { tests, result: structuredClone(result) })
-    return result
+    this.proofs.set(key, { tests, result: structuredClone(proven) })
+    return proven
   }
 
   private addedTests(patch: Patch, lib: RuleLibrary, proof: { tests: string[][]; result: ValidationResult }): ValidationResult {
@@ -192,23 +194,34 @@ export class WorldLibrary {
    * recipes and breaking down) among the world's, does any mix of them make more than it takes,
    * where none did before? Then it says which steps, and what they make from nothing.
    */
-  private economy(patch: Patch, lib: RuleLibrary): string | undefined {
-    const rules = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule] : []))
+  private economy(patch: Patch, lib: RuleLibrary): { error?: string; warnings: string[] } {
+    const warnings: string[] = []
+    const rules = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [{ ...a.rule, source: { ...a.rule.source, origin: 'patch' as const } }] : []))
     const types = patch.artifacts.flatMap((a) => (a.kind === 'type' ? [a.type] : []))
-    if (!rules.length && !types.length) return undefined
+    if (!rules.length && !types.length) return { warnings }
     const before = this.fullOntology(lib)
     const after: Ontology = { ...before, types: { ...before.types, ...Object.fromEntries(types.map((t) => [t.id, t])) } }
     const known = [...lib.rules.values()]
-    const old = economySteps(before, known, RECOVERY)
-    const all = economySteps(after, [...known, ...rules], RECOVERY)
-    const oldNames = new Set(old.map((s) => s.name))
-    const fresh = all.filter((s) => !oldNames.has(s.name) || types.some((t) => s.name.endsWith(` ${t.id}`)))
-    if (!fresh.length) return undefined
+    // what the world could not model before is not this patch's to report: only what it adds
+    const had: string[] = []
+    const old = economySteps(before, known, RECOVERY, had)
+    const all = economySteps(after, [...known, ...rules], RECOVERY, warnings)
+    const seen = new Set(had)
+    warnings.splice(0, warnings.length, ...warnings.filter((w) => !seen.has(w)))
+    const key = (s: (typeof all)[number]) => JSON.stringify([s.name, [...s.takes].sort(), [...s.gives].sort()])
+    const oldSteps = new Set(old.map(key))
+    const fresh = all.filter((s) => !oldSteps.has(key(s)))
+    if (!fresh.length) return { warnings }
     const pool = connected(all, fresh)
-    const lunch = freeLunch(pool)
-    if (!lunch || freeLunch(pool.filter((s) => oldNames.has(s.name) && !fresh.includes(s)))) return undefined
+    let lunch
+    try {
+      lunch = freeLunch(pool)
+      if (!lunch || freeLunch(connected(old, fresh).filter((s) => oldSteps.has(key(s))))) return { warnings }
+    } catch (e) {
+      return { warnings, error: `economy: cannot verify these conversions: ${String(e)}` }
+    }
     const fmt = (n: number) => (Math.round(n * 100) / 100).toString()
-    return `economy: these conversions together make something from nothing (world-model.md §8.4) — ${lunch.uses.map((u) => `${u.step} ×${fmt(u.times)}`).join(', ')} leave more ${lunch.makes.map((m) => `${m.type} (+${fmt(m.n)})`).join(', ')} than they take. Make the outcome take as much as it gives, or give less.`
+    return { warnings, error: `economy: these conversions together make something from nothing (world-model.md §8.4) — ${lunch.uses.map((u) => `${u.step} ×${fmt(u.times)}`).join(', ')} leave more ${lunch.makes.map((m) => `${m.type} (+${fmt(m.n)})`).join(', ')} than they take. Make the outcome take as much as it gives, or give less.` }
   }
 
   /**

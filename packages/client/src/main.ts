@@ -49,7 +49,7 @@ const menu = new Menu({
   quickMove: (slot) => send({ t: 'quickMove', slot }),
   drop: (slot, all) => send({ t: 'drop', slot, all }),
   organize: () => send({ t: 'organize' }),
-  craft: (id) => send({ t: 'craft', id }),
+  craft: (id, all) => send({ t: 'craft', id, all }),
   learn: (id) => send({ t: 'learn', id }),
   atlas: () => send({ t: 'atlas' }),
   travel: (waypoint) => send({ t: 'travel', waypoint }),
@@ -116,7 +116,9 @@ scene.hooks = {
   onFrame: (f) => {
     lastFrame = f
     const was = death.open
-    death.onFrame(f)
+    // the title or the load panel is over the world (one chose to load a save, or to go back): the
+    // world behind it may still lie fallen, but the death screen is not shown over them
+    if (!cover.open) death.onFrame(f)
     // a hardcore game's one life is spent: its slot keeps the end
     if (!was && death.open && f.fallen?.difficulty === 'hardcore') send({ t: 'save' })
     hud.onFrame(f)
@@ -448,6 +450,8 @@ window.addEventListener('keydown', (e) => {
   }
   if (building.open) {
     if (e.code === 'KeyE' && !e.repeat) building.place()
+    // R: turn what is set down (stairs go up the way it points)
+    if (e.code === 'KeyR' && !e.repeat) building.rotate()
     if (['KeyE', 'KeyF', 'KeyG', 'Space', 'Tab'].includes(e.code)) e.preventDefault()
     return
   }
@@ -510,7 +514,7 @@ gameEl.addEventListener('mousedown', (e) => {
   if (menu.anyOpen || dev.open) return
   const tile = scene.aimAtScreen(e.clientX, e.clientY)
   if (building.open) {
-    if (e.button === 0 && tile) building.place(tile)
+    if (e.button === 0 && tile) building.press(tile)
     if (e.button === 2) building.toggle(false)
     return
   }
@@ -518,6 +522,7 @@ gameEl.addEventListener('mousedown', (e) => {
   if (e.button === 2) press('self', tile)
 })
 window.addEventListener('mouseup', (e) => {
+  if (e.button === 0) building.release()
   if (e.button === 0) release('use')
   if (e.button === 2) release('self')
 })

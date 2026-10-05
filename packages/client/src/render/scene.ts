@@ -4,11 +4,11 @@
 
 import Phaser from 'phaser'
 import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type MapData, type Ref, type Text } from '@lsw/engine'
-import { CATALOG } from '../assets/catalog.ts'
+import { CATALOG, LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/catalog.ts'
 import { GroundAtlas, T, groundTile, hash2 } from '../assets/ground.ts'
 
-/** How much higher a storey is drawn than the one below it (world-model.md §5.2). */
-const STOREY_LIFT = 10
+/** How much higher a storey is drawn than the one below it (world-model.md §5.2): one tile, a wall's height. */
+const STOREY_LIFT = T
 import type { SpriteDef } from '../assets/types.ts'
 import { DIR_COL, actorFrames, assetUrl, fxAnim, preloadCatalog, spriteFrames } from './assets.ts'
 
@@ -41,7 +41,13 @@ interface EView {
   actor?: { key: string; rows: number; cols: number; tint?: number; scale?: number }
   /** The dragon's parts round its head: wings on the head's container, body and tail trailing it in the world. */
   dragon?: { wings: Phaser.GameObjects.Image[]; segments: Phaser.GameObjects.Image[]; trail: { x: number; y: number }[] }
+  /** A built thing's second picture: a wall block's top (one storey up), a raised floor's edge. */
+  top?: Phaser.GameObjects.Image
 }
+
+/** Built things drawn as part of the place (structures.ts art): wall blocks, doors, floors, stairs. */
+const isWallish = (type: string) => type === 'structure/wall' || type.startsWith('structure/door')
+const STAIRS_FRAME: Record<string, number> = { up: 0, right: 1, down: 2, left: 3 }
 
 /** How far apart (px) the dragon's body segments trail, and how many there are (the last is the tail). */
 const DRAGON_GAP = 11
@@ -311,6 +317,21 @@ export class WorldScene extends Phaser.Scene {
     if (f.map !== this.base.id) return
     this.playerId = f.player.id
     this.playerAt = { x: f.player.x, y: f.player.y, z: f.player.z ?? 0 }
+    this.walls.clear()
+    this.floors.clear()
+    for (const e of f.entities) {
+      if (isWallish(e.type)) this.walls.add(`${e.x},${e.y},${e.z ?? 0}`)
+      else if (e.type === 'structure/floor') this.floors.add(`${e.x},${e.y},${e.z ?? 0}`)
+    }
+    // the room the player stands in, and the cells round it (its walls): what is above is not drawn
+    // something laid over the player's head (one stands under a floor): what is above near them fades
+    this.overhead = this.floors.has(`${f.player.x},${f.player.y},${(f.player.z ?? 0) + 1}`) || this.walls.has(`${f.player.x},${f.player.y},${(f.player.z ?? 0) + 1}`)
+    this.underRoof.clear()
+    this.inRoom.clear()
+    for (const [x, y] of f.player.room ?? []) {
+      this.inRoom.add(`${x},${y}`)
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) this.underRoof.add(`${x + dx},${y + dy}`)
+    }
     this.applyTiles(f)
     this.bossWarnings ??= this.add.graphics().setDepth(-20)
     this.bossWarnings.clear()
@@ -395,7 +416,9 @@ export class WorldScene extends Phaser.Scene {
     if (this.base && (tx < 0 || ty < 0 || tx >= this.base.width || ty >= this.base.height)) return
     // the whole of a target that covers more than its cell (a place of the overworld: its block)
     const [rx, ry, rw, rh] = k?.rect ?? [tx, ty, 1, 1]
-    this.focus.lineStyle(1, unknown ? 0xf0b85a : 0xffffff, 0.6).strokeRoundedRect(rx * T + 0.5, ry * T + 0.5, rw * T - 1, rh * T - 1, 2)
+    // on the storey the player stands on
+    const lift = (f.player.z ?? 0) * STOREY_LIFT
+    this.focus.lineStyle(1, unknown ? 0xf0b85a : 0xffffff, 0.6).strokeRoundedRect(rx * T + 0.5, ry * T + 0.5 - lift, rw * T - 1, rh * T - 1, 2)
   }
 
   /**
@@ -417,7 +440,8 @@ export class WorldScene extends Phaser.Scene {
       hits.push({ ref: { e: cellId(this.base.id, x, y, 'volume') }, depth: img.depth })
     }
     hits.sort((a, b) => b.depth - a.depth)
-    return { x: Math.floor(wx / T), y: Math.floor(wy / T), stack: hits.map((h) => h.ref) }
+    // the cell under the point on the storey the player stands on (drawn a storey higher for each)
+    return { x: Math.floor(wx / T), y: Math.floor((wy + (this.playerAt?.z ?? 0) * STOREY_LIFT) / T), stack: hits.map((h) => h.ref) }
   }
 
   /** Is a picture's own (not transparent) pixel at this world point? */
@@ -585,9 +609,75 @@ export class WorldScene extends Phaser.Scene {
     return CATALOG.fixtures[e.sprite] ?? CATALOG.fixtures[`fixture:${e.type.split('/')[1]}`] ?? CATALOG.fixtures['fixture:fixture']
   }
 
+  /** Walls and doors, and floors, of the frame, by `x,y,z`. */
+  private walls = new Set<string>()
+  private floors = new Set<string>()
+  /** The cells of the room the player stands in and round it: the storeys above them are not drawn. */
+  private underRoof = new Set<string>()
+  /** The room's own cells: a wall south of one is cut away (its top faint) so one sees in. */
+  private inRoom = new Set<string>()
+  /** Something is laid over the player's head. */
+  private overhead = false
+
+  /**
+   * A built thing as part of the place (structures.ts): a wall block shows its front in its cell
+   * (where nothing stands south of it on its storey) and its top one storey up (where nothing is
+   * built on it), outlined where no wall is beside it; a door is a block whose front is the door;
+   * a floor laid a storey up has an edge where no floor (nor a wall's top) is beside it; stairs face the way up.
+   */
+  private dressBuilt(v: EView, e: EntitySnap): void {
+    const z = e.z ?? 0
+    const at = (dx: number, dy: number, dz = 0) => `${e.x + dx},${e.y + dy},${z + dz}`
+    const frameOf = (img: string, i: number, w = 16, h = 16) => {
+      const tex = this.textures.get(img)
+      const name = `${img}#${i}`
+      if (!tex.has(name)) tex.add(name, 0, i * w, 0, w, h)
+      return name
+    }
+    const topImage = () => {
+      if (!v.top) {
+        v.top = this.add.image(0, -STOREY_LIFT, LSW_WALL).setOrigin(0.5, 1)
+        v.root.addAt(v.top, v.root.getIndex(v.body) + 1)
+      }
+      return v.top
+    }
+    if (isWallish(e.type)) {
+      const n = this.walls.has(at(0, -1)), east = this.walls.has(at(1, 0)), s = this.walls.has(at(0, 1)), w = this.walls.has(at(-1, 0))
+      // the front: the door's own picture for a door, planks for a wall
+      if (e.type === 'structure/wall') v.body.setTexture(LSW_WALL, frameOf(LSW_WALL, 16 + (east ? 1 : 0) + (w ? 2 : 0)))
+      else {
+        const d = this.fixtureDef(e)?.base
+        if (d) v.body.setTexture(d.img, spriteFrames(this, `ico:${e.sprite}`, d)[0])
+      }
+      v.body.setOrigin(0.5, 1).setScale(1).setVisible(!s || e.type !== 'structure/wall')
+      const top = topImage()
+      top.setTexture(LSW_WALL, frameOf(LSW_WALL, (n ? 1 : 0) + (east ? 2 : 0) + (s ? 4 : 0) + (w ? 8 : 0)))
+      // its top shows unless something is built on it — and is drawn (not hidden over the room one is in)
+      const hiddenAbove = (this.playerAt?.z ?? 0) < z + 1 && this.underRoof.has(`${e.x},${e.y}`)
+      top.setVisible(hiddenAbove || (!this.walls.has(at(0, 0, 1)) && !this.floors.has(at(0, 0, 1))))
+      // the room's south wall, seen from inside, is cut away: its top drawn faint over the floor behind it
+      top.setAlpha(z === (this.playerAt?.z ?? 0) && this.inRoom.has(`${e.x},${e.y - 1}`) ? 0.35 : 1)
+      v.key = 'built'
+      return
+    }
+    if (e.type === 'structure/floor' && z > 0) {
+      const has = (dx: number, dy: number) => this.floors.has(at(dx, dy)) || this.walls.has(at(dx, dy, -1))
+      const top = topImage()
+      top.setPosition(0, 0)
+      top.setTexture(LSW_FLOOR, frameOf(LSW_FLOOR, (has(0, -1) ? 1 : 0) + (has(1, 0) ? 2 : 0) + (has(0, 1) ? 4 : 0) + (has(-1, 0) ? 8 : 0)))
+      v.body.setScale(1)
+      return
+    }
+    if (e.type === 'structure/stairs') {
+      v.body.setTexture(LSW_STAIRS, frameOf(LSW_STAIRS, STAIRS_FRAME[e.facing] ?? 0, 16, 32)).setOrigin(0.5, 1).setScale(1)
+      v.key = 'built'
+    }
+  }
+
   private makeView(e: EntitySnap): EView {
     const t = this.textureFor(e)
-    const root = this.add.container(e.x * T + T / 2, (e.y + 1) * T)
+    // on its storey: drawn a storey higher for each
+    const root = this.add.container(e.x * T + T / 2, (e.y + 1) * T - (e.z ?? 0) * STOREY_LIFT)
     let shadow: Phaser.GameObjects.Ellipse | undefined
     if (e.tags.includes('agent')) {
       const [width, depth] = e.boss?.footprint ?? [1, 1]
@@ -652,6 +742,11 @@ export class WorldScene extends Phaser.Scene {
     if (e.tags.includes('companion')) {
       if (first || !v.flyer || Math.max(Math.abs(prev.x - e.x), Math.abs(prev.y - e.y)) > 6) v.root.setPosition(px, py)
       v.flyer = { x: px, y: py, t: v.flyer?.t ?? this.time.now }
+    } else if (!first && prev.x === e.x && prev.y === e.y && (prev.z ?? 0) !== (e.z ?? 0)) {
+      // up or down a storey in place
+      this.tweens.killTweensOf(v.root)
+      v.root.setPosition(px, py)
+      if (v.walker) v.walker = { x: px, y: py, t: this.time.now }
     } else if (!first && (prev.x !== e.x || prev.y !== e.y)) {
       // one step, straight or diagonal, slides; anything farther jumps
       const far = Math.max(Math.abs(prev.x - e.x), Math.abs(prev.y - e.y)) > 1
@@ -679,7 +774,8 @@ export class WorldScene extends Phaser.Scene {
         }
       }
     }
-    if (!e.tags.includes('agent')) {
+    if (e.type.startsWith('structure/')) this.dressBuilt(v, e)
+    else if (!e.tags.includes('agent')) {
       const t = this.textureFor(e)
       const k = `${t.img}|${t.frame}`
       if (k !== v.key) {
@@ -695,10 +791,14 @@ export class WorldScene extends Phaser.Scene {
     }
     // items lie on top of the fixture sharing their tile (a table, a counter), under actors
     // what lies flat on the ground (moss, leaves, pebbles) is under all that stands
-    v.root.setDepth((!e.tags.includes('agent') && !e.tags.includes('portable')) && this.fixtureDef(e)?.ground ? -45 : (e.z ?? 0) * 4000 + py + (e.tags.includes('agent') ? 2 : (!e.tags.includes('agent') && e.tags.includes('portable') && !e.spaces) ? 1 : 0))
-    // what stands on a storey above the player, near them, fades: one sees under the floor overhead
+    // by the row it stands in, then its storey (a building's upper storey is behind what stands south of it)
+    v.root.setDepth((!e.tags.includes('agent') && !e.tags.includes('portable')) && this.fixtureDef(e)?.ground ? -45 : (e.y + 1) * T + (e.z ?? 0) * 3 + (e.tags.includes('agent') ? 2 : (!e.tags.includes('agent') && e.tags.includes('portable') && !e.spaces) ? 1 : 0))
+    // what stands on a storey above the player: over the room they are in, not drawn (one sees into
+    // it); elsewhere near them, faded (one sees under the floor overhead)
     const me = this.playerAt
-    v.root.setAlpha(me && (e.z ?? 0) > me.z && Math.abs(e.x - me.x) <= 3 && Math.abs(e.y - me.y) <= 3 ? 0.3 : 1)
+    const above = !!me && (e.z ?? 0) > me.z
+    v.root.setVisible(!(above && this.underRoof.has(`${e.x},${e.y}`)))
+    v.root.setAlpha(above && this.overhead && Math.abs(e.x - me!.x) <= 3 && Math.abs(e.y - me!.y) <= 3 ? 0.3 : 1)
     // status overlay + tint
     const top = OVERLAY_OF.find(([s]) => e.statuses.includes(s))
     const want = top?.[1]
@@ -717,7 +817,7 @@ export class WorldScene extends Phaser.Scene {
     else v.body.clearTint()
     // a thing an act waits on shimmers; one who is down lies on the ground
     v.body.setAlpha(e.frozen && !e.tags.includes('agent') ? 0.75 : 1)
-    v.body.setAngle(!e.boss && (e.statuses.includes('down') || e.statuses.includes('out_cold')) ? 90 : 0)
+    v.body.setAngle(!e.boss && (e.statuses.includes('down') || e.statuses.includes('out_cold') || e.statuses.includes('asleep')) ? 90 : 0)
     // held item (small, at the hand)
     if (e.held && e.tags.includes('agent')) {
       const d = CATALOG.items[e.held]
@@ -829,9 +929,11 @@ export class WorldScene extends Phaser.Scene {
     return { x: (v.root.x - cam.worldView.x) * cam.zoom, y: (v.root.y - v.body.displayHeight * 0.6 - cam.worldView.y) * cam.zoom }
   }
 
+  /** A cell's middle on screen, on the storey the player stands on. */
   screenOfTile(x: number, y: number): { x: number; y: number } {
     const cam = this.cameras.main
-    return { x: (x * T + 8 - cam.worldView.x) * cam.zoom, y: (y * T + 8 - cam.worldView.y) * cam.zoom }
+    const lift = (this.playerAt?.z ?? 0) * STOREY_LIFT
+    return { x: (x * T + 8 - cam.worldView.x) * cam.zoom, y: (y * T + 8 - lift - cam.worldView.y) * cam.zoom }
   }
 
   lookOf(id: string): { img: string; frame: string } | undefined {

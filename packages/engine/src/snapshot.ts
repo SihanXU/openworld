@@ -78,6 +78,8 @@ export interface Frame {
     y: number
     /** The storey the player is on (omitted: the ground's). */
     z?: number
+    /** The cells of the room the player stands in, if any: the storeys over it are not drawn. */
+    room?: [number, number][]
     facing: Dir
     hp: number
     maxHp: number
@@ -186,6 +188,15 @@ export function itemInfo(eng: Engine, id: Id): ItemInfo | undefined {
   }
 }
 
+/** The cells of the room a place lies in (a derived region: walls round, a floor over it), if any. */
+function roomCells(eng: Engine, pos: { map: string; x: number; y: number; z?: number }): [number, number][] | undefined {
+  const room = eng.world.regionsAt(pos.map, pos.x, pos.y, pos.z ?? 0).find((r) => r.type === 'region/room')
+  if (!room || room.place.on !== 'area') return undefined
+  const out: [number, number][] = []
+  for (const [x, y, w, h] of room.place.rects) for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) out.push([x + i, y + j])
+  return out
+}
+
 export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
   const w = eng.world
   const p = w.player
@@ -278,6 +289,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       x: pos.x,
       y: pos.y,
       ...(pos.z && { z: pos.z }),
+      ...((room) => room && { room })(roomCells(eng, pos)),
       facing: p.facing ?? 'down',
       hp: w.num(p, 'hp'),
       maxHp: w.num(p, 'maxHp', 1),

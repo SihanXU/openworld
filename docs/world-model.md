@@ -326,8 +326,11 @@ read from what is in them each time, from `Ontology.roomRoles` (data: a bed make
 props the roles give (the largest wins). A bed taken hold of (`bed/sleep`) sends the sleeper
 `restore {which: sleep}`; the new primitive `sleep` gives back the missing health times the best
 `rest` of the regions it lies in (`params.rest` 0.5 elsewhere) and, for the one at the keys, passes
-the time to `params.riseHour` (6) at once (the fast-forward, which harm interrupts: hunger goes on
-through the night, and a starving sleeper wakes, req W10). Not yet: the owners of what is in a room,
+the time to `params.riseHour` (6) at once (the fast-forward, which harm interrupts, req W10). The
+sleeper is `asleep` meanwhile (lying still), and hunger comes four times slower to one asleep
+(`PeriodDef.paceBy`, after Elin, whose sleep advances the date and not the sleeper's turns): a
+night costs about four points of twenty, and only an empty stomach is woken by hunger
+(`tools/test/rest.test.ts`). Not yet: the owners of what is in a room,
 and rooms on the overworld.
 
 As built (2026-10-05): room shapes have a geometry version per map. Keeping a static cell's
@@ -457,6 +460,11 @@ building's needs from the world as it starts and what it yields, without the AI)
 building as moving a carried thing into a cell (furniture and walls carried and set down) — it
 comes with W6, with the walls and floors it is for; the B palette's frames stay meanwhile.
 
+As built (2026-10-05): makeup and recipe ingredient counts are positive safe integers.
+Probabilistic recovery uses the separate `chance` field. Patch validation checks inherited
+makeup too, and crafting refuses an invalid ingredient count before consuming or producing
+anything.
+
 ### 6.5 Stages and harvest
 
 - **Stages** (Elin `GrowSystem`, generalised): a list of stages, each with a duration and
@@ -518,8 +526,25 @@ root of `contact/end on` is the new primitive `fall`; a floor whose last support
 (`build/collapse`, the new condition `rel`) breaks, and what stood on it falls. The relation
 difference reaches every storey of a touched cell and whoever relied on a thing gone. The client
 draws a storey raised, things set in a cell as part of the place, and fades what stands above the
-player near them. Not yet: the overworld's and paths' z, roofs drawn as roofs, and the B palette
-for walls and floors (they are crafted and set down by hand).
+player near them. Not yet: the overworld's and paths' z, and roofs drawn as roofs.
+
+Storeys as built further (2026-10-05, tried with the pack's tiles before it was drawn): a wall
+or a door set on a wall stands on it, so walls stack into a taller wall with no floor between;
+stairs go up one way, the way their setter faced (R in the palette turns them): up from them only
+that way, down onto them only from their top; the inputs meet only what is on the player's own
+storey (Controls.layers). Drawn in 3/4: a storey is one tile higher (a wall's height), things by
+the row they stand in and then their storey; walls and doors are blocks (a front where nothing
+stands south of them, a top a storey up where nothing is built on them) in the project's own art
+(tools/src/art/structures.ts: the pack has walls only as whole houses and stairs only as icons);
+in a room, what is above it is not drawn and its south wall is cut away so one sees in.
+
+The build palette (B) sets things down as G does (2026-10-05): walls, floors, stairs, doors, beds
+and workbenches — one carried, or with none, one made from what is carried first
+(`Controls.previewPlace`, `Controls.place`; the palette never moves a pointer beyond reach
+nearer) — beside the placement recipes (a campfire built from stones and sticks, a chest, sowing).
+Held and dragged, the left button sets one in each cell it passes. A recipe may need a tool
+carried, not used up (`TypeDef.tools`), and make more than one (`TypeDef.yields`): a log splits
+into two planks with an axe at hand, in the crafting panel ("All" splits every log).
 
 ### 6.8 Combat
 
@@ -744,6 +769,17 @@ the simplex against strong duality, Chvátal's degenerate example and Bellman-Fo
 modder/test/economy.test.ts). **A type the AI creates** names `props.material` and a
 makeup (a breakable one may give a rule of its own on `broken` instead), and never a new ground
 (`tile/*`); one with a station is craftable as soon as the patch applies.
+
+As built (2026-10-05): the economy extractor expands type and tag host classes and counts
+non-item hosts that are used up. A consumed host and the known responses to its emitted
+impulses form one conversion, including further emits and their odds. Receive conversions
+stay with their sender's cost. A durable type's break step follows its own `broken` response
+before the makeup fallback. Validation rechecks an existing conversion when a new receiver
+changes it. Dynamic counts or receivers, recursive chains, state-dependent primitive yields
+and paths beyond the extraction bound produce warnings rather than a claim of complete
+coverage. The clock's `grow` primitive is not expanded into free sources. The simplex balances
+the programme's units and checks both its mix and dual certificate against the original
+constraints with relative tolerances. Numerical uncertainty is a validation diagnostic.
 
 ## 9. Holes after the change
 

@@ -92,6 +92,29 @@ describe('a patch that brings a new thing', () => {
     expect(errors(ingot({ id: 'tile/frost_crust', name: { en: 'Frost Crust', zh: '霜壳' } }))).toMatch(/new kind of ground/)
   })
 
+  it('requires positive safe integers for makeup counts, keeping chance separate', () => {
+    for (const count of [0.5, 0, -1, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+      const res = check({ artifacts: [{ kind: 'type', type: ingot({ makeup: [{ type: 'item/material/iron_ore', count }] }) }, { kind: 'rule', rule: smelt() }] })
+      expect(res.errors.join(), String(count)).toMatch(/makeup\[0\]\.count.*positive safe integer/)
+    }
+    expect(check({ artifacts: [{ kind: 'type', type: ingot({ makeup: [{ type: 'item/material/iron_ore', count: 1, chance: 0.5 }] }) }, { kind: 'rule', rule: smelt() }] }).ok).toBe(true)
+  })
+
+  it('refuses invalid recipe counts at execution, and consumes one ingredient for one craft', () => {
+    const scene = structuredClone(scenario)
+    scene.entities.find((e) => e.key === 'held')!.heldBy = undefined
+    scene.entities.find((e) => e.key === 'held')!.inside = 'actor'
+    for (const count of [0.5, 0, -1, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, 1]) {
+      const eng = buildSandbox(scene, onto, lib())
+      eng.world.onto.addType(ingot())
+      eng.recipes.set('test/ingot', { id: 'test/ingot', name: 'Ingot', sprite: ingot().id, needs: [{ type: 'item/material/iron_ore', count }], make: { type: ingot().id }, station: 'hands' })
+      for (let i = 0; i < 3; i++) eng.act('craft', 'actor', { e: 'actor' }, { instrument: null, params: { recipe: 'test/ingot' } })
+      const made = Object.values(eng.world.state.entities).filter((e) => e.type === ingot().id && eng.world.get(e.id))
+      expect(made.length, String(count)).toBe(count === 1 ? 1 : 0)
+      expect(!!eng.world.get('held'), String(count)).toBe(count !== 1)
+    }
+  })
+
   it('is not another name for something the world has', () => {
     const coal = ingot({ id: 'item/material/black_rock', name: { en: 'Coal', zh: '黑石' } })
     expect(check({ artifacts: [{ kind: 'type', type: coal }, { kind: 'rule', rule: smelt(coal.id) }] }).errors.join()).toMatch(/"item\/material\/coal" already is this thing/)
@@ -131,5 +154,37 @@ describe('a patch that brings a new thing', () => {
 
   it('points at what exists when a patch names a type that does not', () => {
     expect(check({ artifacts: [{ kind: 'rule', rule: smelt('item/material/iron') }] }).errors.join()).toMatch(/unknown type "item\/material\/iron" — the closest known types: .*item\/material\/iron_ore/)
+  })
+})
+
+describe('a patch that brings a status', () => {
+  it('cannot redefine a base status or change an already frozen actor', () => {
+    const patch: Patch = { artifacts: [{ kind: 'status', status: { id: 'frozen', duration: 1, immobilize: false } }, { kind: 'rule', rule: smelt('item/material/iron_ore') }] }
+    const eng = buildSandbox({ ...scenario, entities: scenario.entities.map((e) => e.key === 'actor' ? { ...e, statuses: ['frozen'] } : e) }, onto, lib())
+    const port = new ModPort(eng)
+    expect(eng.busy(eng.world.get('actor')!)).toBe(true)
+    const result = port.submit(undefined, patch)
+    expect(result.ok).toBe(false)
+    expect(result.errors.join()).toMatch(/status.*frozen.*different definition/)
+    expect(eng.busy(eng.world.get('actor')!)).toBe(true)
+  })
+
+  it('cannot redefine a shared status or an earlier status in the same patch', () => {
+    const status = { id: 'test_still', duration: 30, immobilize: true }
+    const library = lib()
+    library.addStatus(status)
+    const changed = { ...status, immobilize: false }
+    expect(validatePatch({ artifacts: [{ kind: 'status', status: changed }] }, { ontology: onto, library }).errors.join()).toMatch(/different definition/)
+    expect(check({ artifacts: [{ kind: 'status', status }, { kind: 'status', status: changed }] }).errors.join()).toMatch(/different definition/)
+  })
+
+  it('accepts identical definitions regardless of object key order', () => {
+    const frozen = onto.statuses.frozen
+    const reordered = Object.fromEntries(Object.entries(frozen).reverse()) as typeof frozen
+    const status = { id: 'test_still', props: { speed: 1, def: 2 }, duration: 30 }
+    const library = lib()
+    library.addStatus(status)
+    expect(validatePatch({ artifacts: [{ kind: 'status', status: reordered }, { kind: 'status', status: { duration: 30, props: { def: 2, speed: 1 }, id: status.id } }] }, { ontology: onto, library }).ok).toBe(true)
+    expect(validatePatch({ artifacts: [{ kind: 'status', status }, { kind: 'status', status: structuredClone(status) }] }, { ontology: onto, library: lib() }).ok).toBe(true)
   })
 })
