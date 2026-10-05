@@ -265,7 +265,33 @@ export class World {
     // a room: found, not kept (room.<z>.<x>.<y>.<map>; a map's id may hold dots)
     if (id.startsWith('room.')) return this.roomsOf(id.split('.').slice(4).join('.')).find((r) => r.id === id)
     const c = parseCellId(id)
+    if (c && c.z > 0) return c.space === 'floor' ? this.airAt(c.map, c.x, c.y, c.z) : undefined
     return c && this.staticThing(c.map, c.x, c.y, c.space)
+  }
+
+  /**
+   * The open air of a cell on a storey above the ground where no floor is laid (docs/building.md §3):
+   * what one reaches there to set something in, as the ground is on the ground's storey. Found by its
+   * cell's id, never among the cell's things (it takes no space, holds nothing, is not drawn).
+   */
+  private airAt(map: string, x: number, y: number, z: number): Entity | undefined {
+    const top = this.onto.data.params?.storeys ?? 4
+    if (!this.inBounds(map, x, y) || z > top || this.occupant(map, x, y, 'floor', z)) return undefined
+    const id = cellId(map, x, y, 'floor', z)
+    let e = this.statics.get(id)
+    if (!e || e.place.on !== 'tile' || e.place.z !== z) this.statics.set(id, (e = { id, type: 'tile/air', place: { on: 'tile', map, x, y, z } }))
+    return e
+  }
+
+  /** Is it a floor above the ground that something rests on (a wall, a bed, someone standing)? It stays until that is taken (docs/building.md R5). */
+  bears(e: Entity): boolean {
+    const p = e.place.on === 'tile' ? e.place : undefined
+    return !!p?.z && this.spacesOf(e).includes('floor') && this.entitiesAt(p.map, p.x, p.y, p.z).some((o) => o.id !== e.id)
+  }
+
+  /** Is it the open air of a storey above the ground? */
+  isAir(e: Entity | undefined): boolean {
+    return e?.type === 'tile/air'
   }
 
   /** Is it a thing of a map's static data, not yet kept in the state? */
@@ -630,28 +656,45 @@ export class World {
   }
 
   /**
-   * Where a thing set on a cell comes to rest (building is moving it there, world-model.md §6.6):
-   * the lowest storey from `from` where the spaces it takes are free, and it is held — by a floor
-   * there, or, being a floor itself, by what supports it. Undefined: no room.
+   * Where a thing set on a cell on storey z rests (building is moving it there, docs/building.md):
+   * on that storey or nowhere — it never looks up or down for room. Undefined: no room; why not
+   * (`settleWhy`).
    */
-  settleZ(e: Entity, map: string, x: number, y: number, from = 0): number | undefined {
+  settleZ(e: Entity, map: string, x: number, y: number, z = 0): number | undefined {
+    return this.settleWhy(e, map, x, y, z) ? undefined : z
+  }
+
+  /**
+   * Why a thing cannot rest on storey z of a cell (docs/building.md §4, R2–R4), or nothing if it can:
+   * - `taken`: a space it takes is another's there (a floor laid already, a wall);
+   * - `ground`: a floor laid on the ground covers only ground one can stand on (not water, a tree);
+   * - `stairs`: stairs keep the storey over them open (one climbs through it);
+   * - `unheld`: nothing holds it — a floor above the ground needs walls under it within their reach;
+   *   anything else, a floor there (the ground on the ground's storey), or, a wall or a door, a wall
+   *   or a door under it.
+   */
+  settleWhy(e: Entity, map: string, x: number, y: number, z = 0): 'taken' | 'ground' | 'stairs' | 'unheld' | undefined {
     const top = this.onto.data.params?.storeys ?? 4
+    if (!this.inBounds(map, x, y) || z < 0 || z > top) return 'unheld'
     const mine = this.spacesOf(e)
-    for (let z = from; z <= top; z++) {
-      const here = this.entitiesAt(map, x, y, z).filter((o) => o.id !== e.id)
-      if (here.some((o) => this.clash(mine, this.spacesOf(o)))) continue
-      if (mine.includes('floor')) {
-        // stairs stand on their own floor and keep the storey over them open (one climbs through it)
-        const stairs = (zz: number) => zz >= 0 && this.entitiesAt(map, x, y, zz).some((o) => o.id !== e.id && this.hasTag(o, 'stairs'))
-        if (stairs(z) || stairs(z - 1)) continue
-        if (z === 0 || this.supportersOf({ ...e, place: { on: 'tile', map, x, y, z } }).length) return z
-        continue
+    const here = this.entitiesAt(map, x, y, z).filter((o) => o.id !== e.id)
+    const floor = mine.includes('floor')
+    // the ground's own floor: a floor laid on it covers it, where one can stand on it
+    const ground = (o: Entity) => z === 0 && this.isTerrain(o) && this.spacesOf(o).includes('floor')
+    if (here.some((o) => !(floor && ground(o)) && this.clash(mine, this.spacesOf(o)))) return 'taken'
+    if (floor) {
+      if (z === 0) {
+        const under = here.filter(ground)
+        const standable = under.length > 0 && under.every((o) => !this.hasTag(o, 'solid') && !this.hasTag(o, 'liquid'))
+        return standable && !here.some((o) => this.isTerrain(o) && this.spacesOf(o).includes('volume')) ? undefined : 'ground'
       }
-      if (here.some((o) => this.spacesOf(o).includes('floor'))) return z
-      // a wall (or a door) set on a wall stands on it: walls stack into a taller wall, storey on storey
-      if (z > 0 && (this.hasTag(e, 'wall') || this.hasTag(e, 'door')) && this.entitiesAt(map, x, y, z - 1).some((o) => o.id !== e.id && (this.hasTag(o, 'wall') || this.hasTag(o, 'door')) && this.num(o, 'supports', 0) > 0)) return z
+      if (this.entitiesAt(map, x, y, z - 1).some((o) => o.id !== e.id && this.hasTag(o, 'stairs'))) return 'stairs'
+      return this.supportersOf({ ...e, place: { on: 'tile', map, x, y, z } }).length ? undefined : 'unheld'
     }
-    return undefined
+    if (here.some((o) => this.spacesOf(o).includes('floor'))) return undefined
+    // a wall (or a door) set on a wall stands on it: walls stack into a taller wall, storey on storey
+    if (z > 0 && (this.hasTag(e, 'wall') || this.hasTag(e, 'door')) && this.entitiesAt(map, x, y, z - 1).some((o) => o.id !== e.id && (this.hasTag(o, 'wall') || this.hasTag(o, 'door')) && this.num(o, 'supports', 0) > 0)) return undefined
+    return 'unheld'
   }
 
   /** The ground height of a column, in half levels (0 off the map or where the map says none). */

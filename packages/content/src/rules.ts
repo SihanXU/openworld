@@ -626,6 +626,14 @@ const PLACING: Rule[] = [
     tree: IF({ none: 'item' }, 'inherit', DO(taken('tile'), log('You put down {item}.', '你放下了{item}。'))),
   }),
   rule({
+    id: 'core/receive-air',
+    label: L('Place {instrument}', '放下{instrument}'),
+    doc: 'The open air of a storey above the ground takes what something there would hold up: a floor laid in it, a wall set on the wall below (docs/building.md).',
+    host: { type: 'tile/air' },
+    on: 'impulse/receive',
+    tree: IF({ none: 'item' }, 'inherit', DO(taken('tile'))),
+  }),
+  rule({
     id: 'core/receive-solid',
     doc: 'Solid ground (walls, trees, rock) takes nothing.',
     host: { type: 'tile', tags: ['solid'], notTags: ['liquid'] },

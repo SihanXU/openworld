@@ -27,7 +27,7 @@ export const PROLOGUE_OBJECTIVES: Record<number, Objective> = {
   3: { title: L('Make a stone axe', '做一把石斧'), hint: L('C opens crafting: a stick, a stone and a tuft of grass.', 'C 打开制作：一根树枝、一块石头、一把草。') },
   4: { title: L('Fell a tree and split planks', '砍树，劈出木板'), hint: L('Hold the axe and left click a tree: it falls into logs. Left click a log with the axe: planks.', '拿着斧头左键点树，树倒下变成原木；再用斧头左键点原木，劈成木板。') },
   5: { title: L('Build a campfire and light it', '搭一堆营火并点燃'), hint: L('B opens building: a ring of stones and sticks is a campfire. C makes a torch (a stick and grass); left click the fire with it.', 'B 打开建造：石头和树枝围成营火。C 做一支火把（树枝加草），拿着它左键点营火。') },
-  6: { title: L('Build a house with a bed', '盖一间有床的屋子'), hint: L('C makes walls, a door, a floor and a bed from planks. G sets them down: walls and a door round you, the bed at your feet, a floor over your head.', 'C 用木板做墙、门、地板和床。G 放下：墙和门围住自己，床放在脚下，地板盖在头顶。') },
+  6: { title: L('Build a house with a bed', '盖一间有床的屋子'), hint: L('C makes walls, a door, a floor and a bed from planks. G sets them down: walls and a door round you, the bed at your feet. The floor over your head is the ceiling: hold G and choose The ceiling (or in the build palette, B, R turns a floor into a ceiling).', 'C 用木板做墙、门、地板和床。G 放下：墙和门围住自己，床放在脚下。头顶那块是天花板：长按 G 选“天花板”（或在建造模式 B 里按 R 把地板切换成天花板）。') },
   7: { title: L('Get through the night', '熬过这一夜'), hint: L('Things walk in the dark. Sleep in your bed (E) — not on an empty stomach, or hunger wakes you in the night. At first light we go.', '天黑以后会有东西出来游荡。在床上睡一觉（E）——别空着肚子睡，不然会半夜饿醒。天一亮我们就出发。') },
   [TUTORIAL_DONE]: { title: L('Take the path south', '沿小路往南走'), hint: L('The path out of the clearing runs south, down to the foot of the mountain.', '空地南边的小路通往山脚。') },
   [PROLOGUE_AT_FOOT]: { title: L('Try something the world has never seen', '做一件世界从没见过的事'), hint: L('Use what you hold on the old seal stone, put something on it, strike it — anything. The world learns.', '拿着东西对古老的封印石用一用、放点东西上去、打它一下——什么都行。世界会学习。') },
@@ -73,7 +73,7 @@ export const PROLOGUE_BEATS: StepDef[] = [
     id: 'tut_fire',
     when: at(5, { near: { type: 'fixture/light/campfire', r: 12, status: 'lit' } }),
     props: { prologue: 6 },
-    say: L('Warm! Now a roof over your head: walls and a door round you, a bed at your feet and a floor over it all. C makes them from planks; G sets them down.', '暖和了！现在给自己盖个顶：墙和门围住自己，床放在脚下，再在头顶盖上地板。C 用木板做，G 放下。'),
+    say: L('Warm! Now a roof over your head: walls and a door round you, a bed at your feet and a ceiling over it all. C makes them from planks; G sets them down (hold G for the ceiling).', '暖和了！现在给自己盖个顶：墙和门围住自己，床放在脚下，再在头顶铺上天花板。C 用木板做，G 放下（长按 G 选天花板）。'),
   },
   {
     id: 'tut_house',

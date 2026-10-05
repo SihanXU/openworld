@@ -30,9 +30,10 @@ const stand = (f: F, x: number, y: number, z?: number) =>
   })
 
 /** Set a structure down on a cell, as the player does (building is putting it there). */
-function build(f: F, type: string, x: number, y: number, id: string): Entity {
+function build(f: F, type: string, x: number, y: number, id: string, ceiling = false): Entity {
   const thing = f.eng.author(() => f.w.add({ ...madeOf(f.w.onto.data, f.w.onto, type, 'wood'), id, place: { on: 'inside', holder: 'player' } }))
-  const target = f.w.placedAt('ford', x, y).find((e) => e.type.startsWith('structure')) ?? f.w.cellTop('ford', x, y)!
+  // in the ceiling: the open air a storey up (docs/building.md)
+  const target = ceiling ? f.w.get(f.w.cellRef('ford', x, y, 1).e)! : f.w.placedAt('ford', x, y).find((e) => e.type.startsWith('structure')) ?? f.w.cellTop('ford', x, y)!
   f.eng.act('put', 'player', { e: target.id }, { instrument: { e: thing.id } })
   return f.w.get(thing.id)!
 }
@@ -72,8 +73,8 @@ describe('a solid thing and a body never share a cell', () => {
     const [x, y] = openRow(f, 5)
     stand(f, x + 4, y + 1)
     const wall = build(f, 'structure/wall', x, y, 'st.wall')
-    build(f, 'structure/floor', x, y, 'st.over')
-    build(f, 'structure/floor', x + 1, y, 'st.beside')
+    build(f, 'structure/floor', x, y, 'st.over', true)
+    build(f, 'structure/floor', x + 1, y, 'st.beside', true)
     // a hen under the floor beside the wall, the player on that floor above her
     f.eng.author(() => f.w.create('actor/creature/animal/chicken', { on: 'tile', map: 'ford', x: x + 1, y }, { id: 'st.hen' }))
     stand(f, x + 1, y, 1)
