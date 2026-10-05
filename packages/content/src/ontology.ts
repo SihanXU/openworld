@@ -189,6 +189,8 @@ export const STATUSES: StatusDef[] = [
   { id: 'down', name: { en: 'down', zh: '倒地' }, duration: 300, immobilize: true },
   // out cold (a new game's first moments): lying still a while, then one comes round
   { id: 'out_cold', name: { en: 'out cold', zh: '昏迷' }, duration: 50, immobilize: true },
+  // asleep in a bed: lying still while the night passes, hungry four times slower (the hunger period's paceBy)
+  { id: 'asleep', name: { en: 'asleep', zh: '睡着' }, immobilize: true },
   // a wound that bleeds 1 a second (Hemorrhage), and the rush of Adrenaline (the skills)
   { id: 'bleeding', name: { en: 'bleeding', zh: '流血' }, duration: 40, every: 10 },
   { id: 'adrenaline', name: { en: 'adrenaline', zh: '肾上腺素' }, duration: 50, every: 10 },
@@ -391,7 +393,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/craft/cauldron', 'cauldron', '坩埚', ['metal', 'conductive', 'cookware']),
   F('fixture/craft/loom', 'loom', '织布机', ['wooden', 'flammable']),
   // a station (world-model.md §6.4): what is made at a workbench is made beside one
-  F('fixture/craft/workbench', 'workbench', '工作台', ['wooden', 'flammable', 'surface', 'station:workbench']),
+  // made by hand from planks, carried, and set down where one works (as a bed is)
+  F('fixture/craft/workbench', 'workbench', '工作台', ['wooden', 'flammable', 'surface', 'station:workbench', 'portable'], { makeup: [{ type: 'item/material/plank', count: 4 }], station: 'hands' }),
   F('fixture/sacred', 'sacred place', '圣所', ['stone'], { solid: true }),
   F('fixture/sacred/altar', 'altar', '祭坛', ['holy', 'surface']),
   F('fixture/sacred/statue', 'statue', '雕像', []),
@@ -471,7 +474,7 @@ export function buildOntology(): Ontology {
       { role: 'storeroom', needs: { type: 'fixture/container' }, count: 3 },
     ],
     periods: [
-      { name: 'hunger', every: HUNGER_EVERY, everyProp: 'hungerEvery', host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
+      { name: 'hunger', every: HUNGER_EVERY, everyProp: 'hungerEvery', paceBy: { asleep: 4 }, host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
       { name: 'vitals', every: HUNGER_EFFECT_EVERY, host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
       // what appears by itself: the ground's yield, creatures that come back, the night's walkers (world-model.md §6.9)
       { name: 'appear', every: APPEAR_TICK, host: 'world' },

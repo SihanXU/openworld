@@ -139,7 +139,10 @@ export class Controls {
    */
   layers(at: Pos, stack?: Ref[]): Ref[] {
     const w = this.w
-    const ok = (r: Ref) => w.posOf(w.get(r.e))?.map === at.map
+    // only the storey one stands on: what is above or below is out of the inputs' reach (its ground is
+    // the floor laid there; the cells' own make-up is the ground storey's)
+    const storey = w.posOf(w.player)?.z ?? 0
+    const ok = (r: Ref) => { const p = w.posOf(w.get(r.e)); return p?.map === at.map && (p.z ?? 0) === storey }
     // a cell drawn at the point (a tree's canopy) is named by any of its ids: it is what makes it up on top
     const cellOf = (r: Ref): Ref => {
       const c = !w.get(r.e) && parseCellId(r.e)
@@ -147,18 +150,22 @@ export class Controls {
     }
     const sig = (r: Ref) => r.e
     // what stands there, and what bigger stands beside it and covers it with its base (a tent, a place on the overworld)
-    const es = [...w.entitiesAt(at.map, at.x, at.y), ...w.coveringAt(at.map, at.x, at.y)]
+    const es = [...w.entitiesAt(at.map, at.x, at.y, storey), ...(storey ? [] : w.coveringAt(at.map, at.x, at.y))]
     // in the order they are drawn: bodies over what can be carried, that over what it lies on
+    const built = (e: Entity) => w.hasTag(e, 'structure')
     const bodies = es.filter((e) => w.isAgent(e))
-    const loose = es.filter((e) => !w.isAgent(e) && w.isPortable(e)).reverse()
-    // what stands there, then what makes up the cell, top first: what fills it, roots in it, the floor
+    const loose = es.filter((e) => !w.isAgent(e) && w.isPortable(e) && !built(e)).reverse()
+    // what stands there, then what makes up the cell, top first: what is built there (a wall before
+    // the floor laid there), what fills it, roots in it, the ground
     const cell = (e: Entity) => w.isTerrain(e)
-    const ground = es.filter((e) => !w.isAgent(e) && !w.isPortable(e) && !cell(e))
+    const ground = es.filter((e) => !w.isAgent(e) && !w.isPortable(e) && !cell(e) && !built(e))
+    const structures = es.filter(built).sort((a, b) => Number(w.spacesOf(a).includes('floor')) - Number(w.spacesOf(b).includes('floor')))
     const made = es.filter(cell).sort((a, b) => w.cellRank(b) - w.cellRank(a))
-    const standing: Ref[] = [...bodies, ...loose, ...ground].map((e) => ({ e: e.id }))
+    const standing: Ref[] = [...bodies, ...loose, ...ground, ...structures].map((e) => ({ e: e.id }))
     // the view's cells of this very tile are its make-up, under what stands on it (they come last, below)
     const own = (r: Ref) => { const c = parseCellId(r.e); return !!c && c.map === at.map && c.x === at.x && c.y === at.y }
     let out: Ref[] = stack ? [...stack.filter((r) => !own(r)).map(cellOf).filter(ok), ...standing] : standing
+    if (storey) made.length = 0
     // a bird overhead is the last thing the keys meet (it is drawn on top, but rarely what is meant)
     const aloft = (r: Ref) => 'e' in r && !!w.get(r.e) && w.hasTag(w.get(r.e)!, 'airborne')
     out = [...out.filter((r) => !aloft(r)), ...out.filter(aloft)]
@@ -225,7 +232,8 @@ export class Controls {
   private planOn(key: Key, at: Pos, target: Ref): Plan | undefined {
     const w = this.w
     const p = w.player
-    const held = p.held ? { e: p.held } : undefined
+    // the thing in hand — or the one the build palette sets down from the bag
+    const held = this.using ? { e: this.using } : p.held ? { e: p.held } : undefined
     const heldE = this.entity(held)
     if (key === 'hands') return this.reaches('hands', target) ? this.make(key, at, 'hands', target, undefined) : undefined
     if (key === 'take' || key === 'put') {
@@ -317,12 +325,14 @@ export class Controls {
   }
 
   /** Run a plan: a blow, or the act (unless it must ask first). Returns the container to open, if any. */
-  run(plan: Plan, confirmed = false): { panel?: Id } {
+  run(plan: Plan, confirmed = false, facing?: Dir): { panel?: Id } {
     const eng = this.eng
     const w = this.w
     const p = w.player
     if (eng.busy(p)) return {}
     this.face(plan.at)
+    // the build palette's turn (R): one faces that way setting it down (stairs go up that way)
+    if (facing) p.facing = facing
     if (plan.confirm && !confirmed) {
       w.state.question = { text: plan.confirm, plan }
       return {}
@@ -596,7 +606,9 @@ export class Controls {
   }
 
   canCraft(r: Recipe): boolean {
-    return r.needs.every((n) => this.count(n.type) >= n.count)
+    const p = this.w.player
+    const carried = [p.held, ...(p.contents ?? [])].map((id) => this.w.get(id)).filter((e): e is Entity => !!e && !e.frozenBy)
+    return r.needs.every((n) => this.count(n.type) >= n.count) && (r.tools ?? []).every((tag) => carried.some((e) => this.w.hasTag(e, tag)))
   }
 
   /** The crafting panel: an act of crafting (the recipe's needs are used up, what it makes goes into the bag). */
@@ -608,6 +620,86 @@ export class Controls {
     this.eng.act('craft', p.id, { e: p.id }, { instrument: null, params: { recipe: r.id } })
     this.sync()
     return true
+  }
+
+  // ---------------------------------------------------------------- setting built things down (the build palette)
+
+  /** A carried thing the build palette sets down instead of what is in hand (only while it plans). */
+  private using?: Id
+
+  /** What one sets down in a cell as part of a place: a built thing or a fixture (a wall, a door, a bed, a workbench). */
+  static placeable(type: string): boolean {
+    return type.startsWith('structure/') || type.startsWith('fixture/')
+  }
+
+  /** A carried thing of a type (the hand's last, so what is held stays in hand while there are others). */
+  private carriedOf(type: string): Entity | undefined {
+    const p = this.w.player
+    const all = [...(p.contents ?? []), ...(p.held ? [p.held] : [])].map((id) => this.w.get(id)).filter((e): e is Entity => !!e && e.type === type && !e.frozenBy)
+    return all[0]
+  }
+
+  /** The recipe that makes a type (by hand or at a station), if any. */
+  private recipeFor(type: string): Recipe | undefined {
+    return [...this.eng.recipes.values()].find((r) => r.make.type === type)
+  }
+
+  /** G with this thing held, at the aim: the put it would be. */
+  private planPut(thing: Id, aim: Aim): Plan | undefined {
+    this.using = thing
+    try {
+      return this.plan('put', aim)
+    } finally {
+      this.using = undefined
+    }
+  }
+
+  /**
+   * The build palette's preview of setting a type down at the aim: one carried is set down (G's own
+   * act); with none, one is made from what is carried first, if it can be. Never asked: putting is physics.
+   */
+  previewPlace(type: string, aim: Aim): { ok: boolean; reason: Text; carried: number } {
+    const carried = this.count(type)
+    const thing = this.carriedOf(type)
+    if (thing) {
+      // the palette sets it down where it is aimed, or not at all (a pointer beyond reach is not moved nearer)
+      const plan = this.planPut(thing.id, aim)
+      return plan && plan.at.x === aim.x && plan.at.y === aim.y ? { ok: true, reason: plan.label, carried } : { ok: false, reason: { en: 'It cannot go there.', zh: '这里放不下。' }, carried }
+    }
+    const r = this.recipeFor(type)
+    if (!r) return { ok: false, reason: { en: 'You carry none.', zh: '身上没有。' }, carried }
+    if (!this.canCraft(r)) return { ok: false, reason: { en: 'You carry none, nor what makes one.', zh: '身上没有，材料也不够做一个。' }, carried }
+    // what one made would go where any thing set down goes: within reach, and to a storey there with
+    // room for it and something to hold it (a wall on a wall, a floor over walls) — asked of the
+    // world with a thing that is not in it
+    const w = this.w
+    const pos = w.posOf(w.player)
+    const reach = w.onto.data.params?.carry ?? 1
+    const probe = { id: '~place', type, place: { on: 'none' } } as Entity
+    const near = !!pos && Math.max(Math.abs(aim.x - pos.x), Math.abs(aim.y - pos.y)) <= reach && !(aim.x === pos.x && aim.y === pos.y && w.onto.resolve(type).solid)
+    const open = !!pos && w.inBounds(pos.map, aim.x, aim.y) && w.settleZ(probe, pos.map, aim.x, aim.y, pos.z ?? 0) !== undefined
+    return near && open ? { ok: true, reason: { en: 'Made from what you carry, then set down', zh: '用身上的材料现做一个，再放下' }, carried } : { ok: false, reason: { en: 'It cannot go there.', zh: '这里放不下。' }, carried }
+  }
+
+  /** Set a type down at the aim (the build palette): one carried, or one made from what is carried first; facing a way (stairs go up it). */
+  place(type: string, aim: Aim, facing?: Dir): boolean {
+    if (this.eng.busy(this.w.player) || !this.previewPlace(type, aim).ok) return false
+    if (!this.carriedOf(type)) {
+      const r = this.recipeFor(type)
+      if (!r || !this.craft(r)) return false
+    }
+    const thing = this.carriedOf(type)
+    const plan = thing && this.planPut(thing.id, aim)
+    if (!plan || plan.at.x !== aim.x || plan.at.y !== aim.y) return false
+    this.run(plan, false, facing)
+    return true
+  }
+
+  /** Make it again and again while what it needs is carried (the crafting panel's "all"): how many times. */
+  craftAll(r: Recipe, most = 99): number {
+    let n = 0
+    while (n < most && this.craft(r)) n++
+    return n
   }
 
   // ---------------------------------------------------------------- the magnet

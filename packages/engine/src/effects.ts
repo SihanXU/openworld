@@ -230,6 +230,9 @@ export class EffectRunner {
         eng.touch({ e: host.id })
         w.place(host, place)
         delete host.dropped
+        // stairs set down go up the way the one who set them faced (away from them)
+        const setter = ev.cause ? w.get(ev.cause) : undefined
+        if (place.on === 'tile' && w.hasTag(host, 'stairs') && setter?.facing) host.facing = setter.facing
         eng.touch({ e: host.id })
         return
       }
@@ -319,7 +322,9 @@ export class EffectRunner {
         const missing = w.num(host, 'maxHp', 1) - w.num(host, 'hp', w.num(host, 'maxHp', 1))
         if (missing > 0) eng.setProp(host, 'hp', w.num(host, 'hp') + Math.ceil(missing * Math.min(1, rest)), ev)
         w.fx.push({ t: 'log', text: rest >= 1 ? { en: 'You sleep soundly, and wake rested.', zh: '你睡得很沉，醒来精神饱满。' } : { en: 'You sleep, after a fashion.', zh: '你勉强睡了一觉。' } })
-        if (host.id === w.state.player) eng.sleepUntil(params?.riseHour ?? 6)
+        // the one at the keys sleeps the night through (the clock runs at once), asleep all the while:
+        // lying still, and growing hungry slower (the hunger period's pace, data)
+        if (host.id === w.state.player) w.setStatus({ e: host.id }, 'asleep', w.state.tick + eng.sleepUntil(params?.riseHour ?? 6))
         return
       }
       case 'fall': {
@@ -348,7 +353,7 @@ export class EffectRunner {
         if (at)
           for (const [i, part] of (w.onto.resolve(host.type).makeup ?? []).entries()) {
             // the expected count: whole parts, and the fraction by chance
-            const expect = part.count * (part.chance ?? 1) * rate
+            const expect = (part.count * (part.chance ?? 1) * rate) / (w.onto.resolve(host.type).yields ?? 1)
             const n = Math.floor(expect) + (w.chance(eff, expect - Math.floor(expect), i) ? 1 : 0)
             for (let i = 0; i < n; i++) {
               const made = w.create(part.type, { on: 'tile', map: at.map, x: at.x, y: at.y, ...(at.z && { z: at.z }) }, material && w.onto.resolve(part.type).tags.includes('portable') ? { tags: [material] } : {})
@@ -488,8 +493,14 @@ export class EffectRunner {
       case 'craft': {
         const r = eng.recipes.get(String(ev.params?.recipe ?? ''))
         if (!host || !r) return
+        if (!r.needs.every((n) => Number.isSafeInteger(n.count) && n.count > 0)) return
         const carried = [...(host.contents ?? []), ...(host.held ? [host.held] : [])].map((id) => w.get(id)!).filter(Boolean)
         if (!r.needs.every((n) => carried.filter((e) => e.type === n.type && !e.frozenBy).length >= n.count)) return
+        // the tools it needs, carried (not used up)
+        if (!(r.tools ?? []).every((tag) => carried.some((e) => !e.frozenBy && w.hasTag(e, tag)))) {
+          w.fx.push({ t: 'log', text: { en: 'You need the right tool for that.', zh: '缺少需要的工具。' } })
+          return
+        }
         // a station's recipe is made beside one (a workbench within reach); the hands' anywhere
         if (r.station && r.station !== 'hands') {
           const p = w.posOf(host)
@@ -514,8 +525,9 @@ export class EffectRunner {
         }
         const quality = qualityFor(w.onto.data, w.num(host, 'level', 1), r.level ?? 1)
         const look = r.make.tags || r.make.name ? r.make : madeOf(w.onto.data, w.onto, r.make.type, material, quality)
-        const made = w.create(r.make.type, { on: 'inside', holder: host.id }, structuredClone(look))
+        let made = w.create(r.make.type, { on: 'inside', holder: host.id }, structuredClone(look))
         eng.touch({ e: made.id })
+        for (let i = 1; i < (r.count ?? 1); i++) (made = w.create(r.make.type, { on: 'inside', holder: host.id }, structuredClone(look))), eng.touch({ e: made.id })
         const p = w.posOf(host)
         if (p) w.fx.push({ t: 'pickup', item: made.id, sprite: r.sprite, name: r.name, map: p.map, x: p.x, y: p.y })
         return

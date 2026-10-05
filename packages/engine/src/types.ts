@@ -69,6 +69,10 @@ export interface TypeDef {
   station?: string
   /** The level its recipe asks (default 1): a maker above it makes it finer. */
   craftLevel?: number
+  /** Tools its making needs carried (tags: `tool:axe`), not used up (Elin's tool requirement). */
+  tools?: string[]
+  /** How many one making gives (a log splits into two planks); what one breaks back into is its share of the makeup. */
+  yields?: number
   /**
    * Things bigger than a tile: the base they stand on, [width, depth] in tiles — centred on
    * their own tile, reaching back (north) from it. A solid thing blocks all of it, and only
@@ -288,6 +292,8 @@ export interface PeriodDef {
   host: Selector | 'world' | 'story'
   /** A prop on the host that overrides `every` for it (Iron Stomach's slower hunger: `hungerEvery`). */
   everyProp?: string
+  /** Statuses that slow it for a host that has them: its interval times this (asleep, hunger comes four times slower). */
+  paceBy?: Record<string, number>
 }
 
 export interface FactionDef {
@@ -772,6 +778,10 @@ export interface Recipe {
   /** Where it is made: `hands`, or a station within reach. */
   station?: string
   level?: number
+  /** Tools it needs carried (tags), not used up. */
+  tools?: string[]
+  /** How many one making gives (default 1). */
+  count?: number
 }
 
 export interface Portal {

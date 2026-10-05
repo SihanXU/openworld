@@ -568,8 +568,13 @@ export function alreadyHeld(lib: RuleLibrary, a: Artifact): boolean {
     return same(held, given)
   }
   if (a?.kind === 'type') return lib.types.some((t) => same(t, a.type))
-  if (a?.kind === 'status') return lib.statuses.some((s) => same(s, a.status))
+  if (a?.kind === 'status') return lib.statuses.some((s) => statusDefinition(s) === statusDefinition(a.status))
   return false
+}
+
+/** Object key order is not part of a status's definition. */
+function statusDefinition(s: StatusDef): string {
+  return JSON.stringify(s, (_, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b))) : v)
 }
 
 /** Patches synced from the shared library carry their trigger in their rules' provenance. */
@@ -884,6 +889,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   const onto: Ontology = structuredClone(ctx.ontology)
   for (const t of ctx.library.types) onto.types[t.id] = t
   for (const s of ctx.library.statuses) onto.statuses[s.id] = s
+  const statuses = [...Object.values(ctx.ontology.statuses), ...ctx.library.statuses]
   const rules: Rule[] = []
   for (const [i, a] of patch.artifacts.entries()) {
     const where = `artifact[${i}]`
@@ -897,7 +903,11 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       }
     } else if (a?.kind === 'status') {
       if (!a.status?.id) errors.push(`${where}: status.id required`)
-      else onto.statuses[a.status.id] = a.status
+      else if (statuses.some((s) => s.id === a.status.id && statusDefinition(s) !== statusDefinition(a.status))) errors.push(`${where}: status "${a.status.id}" already exists with a different definition`)
+      else {
+        onto.statuses[a.status.id] = a.status
+        statuses.push(a.status)
+      }
     } else if (a?.kind === 'rule') {
       rules.push(a.rule)
     } else errors.push(`${where}: unknown artifact kind`)
@@ -1298,9 +1308,9 @@ export function newTypeProblems(t: TypeDef, onto: Ontology, patch: Patch): strin
   const ownRule = patch.artifacts.some((a) => a?.kind === 'rule' && a.rule?.host?.type === t.id && a.rule.on === 'threshold/cross')
   if (!r.makeup?.length && !(typeof r.props.maxHp === 'number' && ownRule))
     out.push('a new thing says what it is made of, which is also what it leaves when it breaks: makeup [{type, count, chance?}] of types the world has (or the patch defines)')
-  for (const [i, m] of (t.makeup ?? []).entries()) {
+  for (const [i, m] of (r.makeup ?? []).entries()) {
     if (!m || typeof m.type !== 'string' || !(m.type in onto.types || ownTypes.has(m.type))) out.push(`makeup[${i}]: unknown type "${m?.type}"${m?.type ? closest(m.type, onto) : ''}`)
-    if (!(typeof m?.count === 'number' && m.count > 0)) out.push(`makeup[${i}].count: a number above 0`)
+    if (!(Number.isSafeInteger(m?.count) && m.count > 0)) out.push(`makeup[${i}].count: a positive safe integer`)
   }
   return out
 }
