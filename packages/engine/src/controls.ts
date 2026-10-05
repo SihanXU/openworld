@@ -81,7 +81,6 @@ const LABELS: [string, Text][] = [
   ['farm/harvest', { en: 'Harvest {target}', zh: '收割{target}' }],
   ['farm/pick', { en: 'Pick {target}', zh: '采摘{target}' }],
   ['build/', { en: 'Build', zh: '搭建' }],
-  ['patch/', { en: 'Use {instrument} on {target}', zh: '把{instrument}用在{target}上' }],
 ]
 const GENERIC: Record<string, Text> = {
   use: { en: 'Use {instrument} on {target}', zh: '把{instrument}用在{target}上' },
@@ -210,7 +209,8 @@ export class Controls {
     const root = (id: string) => { const r = this.eng.lib.rules.get(id); return !r || isRoot(r) }
     for (const id of [...rules.filter((x) => !root(x)).reverse(), ...rules.filter(root).reverse()]) {
       const hit = LABELS.find(([k]) => id === k || id.startsWith(k))
-      if (hit) return this.label(hit[1], target, instrument)
+      // a label that names what is held does not fit an act with nothing held (E, F)
+      if (hit && (instrument || !JSON.stringify(hit[1]).includes('{instrument}'))) return this.label(hit[1], target, instrument)
     }
     return this.label(fallback, target, instrument)
   }

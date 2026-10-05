@@ -329,8 +329,16 @@ export class Hud {
       const same = !!k?.hands && !!k?.use && JSON.stringify(k.hands.label) === JSON.stringify(k.use.label)
       $('#keys').innerHTML = k ? line(same ? `E · ${t('lmb')}` : 'E', k.hands) + line('F', k.take) + (same ? '' : line(t('lmb'), k.use)) + line(t('rmb'), k.put) : ''
     }
-    // a quiet strip at the top of the screen, not over the target (the tile itself is outlined in the scene)
-    $('#keys').classList.toggle('hidden', !(k?.hands ?? k?.take ?? k?.use ?? k?.put))
+    // over the target: what each key would do, where it would be done (the tile is outlined in the scene)
+    const at = k?.hands ?? k?.take ?? k?.use ?? k?.put
+    const el = $('#keys')
+    el.classList.toggle('hidden', !at)
+    if (at) {
+      const s = this.screenOfTile(at.x, at.y)
+      // above the tile, or below it when there is no room above
+      const above = s.y - 30 - el.offsetHeight >= 4
+      el.style.transform = above ? `translate(${s.x}px, ${s.y - 30}px) translate(-50%, -100%)` : `translate(${s.x}px, ${s.y + 30}px) translate(-50%, 0)`
+    }
   }
 
   // ---------------------------------------------------------------- the layer chooser (a long press)
