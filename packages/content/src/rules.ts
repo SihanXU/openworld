@@ -787,7 +787,8 @@ const GROUND: Rule[] = [
     doc: 'An axe splits a log into two planks.',
     host: { type: 'item/material/log' },
     on: 'impulse/strike',
-    tree: IF(tag('instrument', 'tool:axe'), DO(log('You split the log into planks.', '你把木头劈成了木板。'), { op: 'transform', into: 'item/material/plank' }, { op: 'spawn', type: 'item/material/plank', at: 'tileOf:host' }, vfx('dust'))),
+    // the two planks pop out (the magnet takes them in), as anything a rule drops
+    tree: IF(tag('instrument', 'tool:axe'), DO(log('You split the log into planks.', '你把木头劈成了木板。'), { op: 'spawn', type: 'item/material/plank', at: 'tileOf:host' }, { op: 'spawn', type: 'item/material/plank', at: 'tileOf:host' }, vfx('dust'), { op: 'destroy' })),
   }),
   rule({
     id: 'farm/till',

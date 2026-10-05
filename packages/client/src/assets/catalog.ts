@@ -34,6 +34,10 @@ const HOLE = TS + 'TilesetHole.png'
 const DESERT = TS + 'TilesetDesert.png'
 const IFLOOR = TS + 'Interior/TilesetInteriorFloor.png'
 const WALLS = TS + 'Interior/TilesetWallSimple.png'
+// the project's own pixel art for what one builds
+export const LSW_WALL = 'lsw/Structures/wall.png'
+export const LSW_FLOOR = 'lsw/Structures/floor.png'
+export const LSW_STAIRS = 'lsw/Structures/stairs.png'
 
 /** Tile-aligned sprite: (c, r) in tiles, w x h tiles, anchor defaults to bottom-centre of the rect. */
 function t(img: string, c: number, r: number, w = 1, h = 1, ax = w * 8, ay = h * 16): SpriteDef {
@@ -428,9 +432,12 @@ export const CATALOG: Catalog = {
     // a place on the overworld: a signpost where it is; the wild shows no mark of its own
     'site:place': { base: t(ELEM, 0, 2) },
     // what one builds, set in its cell: drawn as the wall, the floor, the stairs of the place
-    'structure:wall': { base: t(HOUSE, 11, 5) },
+    // the project's own (tools/src/art/structures.ts): a wall block (its fronts and tops, by
+    // what stands beside it), stairs by the way up, the edge of a floor laid a storey up
+    'structure:wall': { base: t(LSW_WALL, 16, 0) },
     'structure:floor': { base: t(IFLOOR, 12, 1) },
-    'structure:stairs': { base: t(ELEM, 6, 12) },
+    'structure:floor_edge': { base: t(LSW_FLOOR, 0, 0) },
+    'structure:stairs': { base: px(LSW_STAIRS, 0, 0, 16, 32) },
     'structure:door': { base: t(ELEM, 8, 13) },
     // an open door: the doorway's floor
     'structure:door_open': { base: t(IFLOOR, 12, 1) },

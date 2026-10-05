@@ -830,12 +830,15 @@ export class Engine {
     // onto the stairs below from above them; off a floor's edge one falls to the first below
     const z = e.place.z ?? 0
     const floorAt = (zz: number) => !!w.occupant(map, nx, ny, 'floor', zz)
-    const stairsAt = (sx: number, sy: number, zz: number) => w.entitiesAt(map, sx, sy, zz).some((o) => w.hasTag(o, 'stairs'))
+    // stairs go up one way (their facing, north unless set): up from them only that way, down onto them only from their top
+    const BACK: Record<Dir, Dir> = { up: 'down', down: 'up', left: 'right', right: 'left' }
+    const stairsAt = (sx: number, sy: number, zz: number, way: Dir) => w.entitiesAt(map, sx, sy, zz).some((o) => w.hasTag(o, 'stairs') && (o.facing ?? 'up') === way)
+    const climb = stairsAt(x, y, z, dir) && floorAt(z + 1)
     let nz = z
     let drop = 0
-    if (!floorAt(z) || (stairsAt(x, y, z) && floorAt(z + 1))) {
-      if (stairsAt(x, y, z) && floorAt(z + 1)) nz = z + 1
-      else if (z > 0 && stairsAt(nx, ny, z - 1)) nz = z - 1
+    if (!floorAt(z) || climb) {
+      if (climb) nz = z + 1
+      else if (z > 0 && stairsAt(nx, ny, z - 1, BACK[dir])) nz = z - 1
       else if (z > 0 && w.stanceOf(e) !== 'air') {
         nz = z - 1
         while (nz > 0 && !floorAt(nz)) nz--
@@ -902,12 +905,13 @@ export class Engine {
     return true
   }
 
-  /** The one at the keys sleeps until the hour comes round (the clock runs at once, as on a long step). */
-  sleepUntil(hour: number): void {
+  /** The one at the keys sleeps until the hour comes round (the clock runs at once, as on a long step): how long, in ticks. */
+  sleepUntil(hour: number): number {
     const w = this.world
     const now = w.hour()
     const hours = (hour - now + 24) % 24 || 24
     this.fastForward = Math.round(hours * TICKS_PER_HOUR)
+    return this.fastForward
   }
 
   /**
@@ -1226,7 +1230,14 @@ export class Engine {
       for (let i = 0; i < n; i++) {
         this.tick()
         if (w.num(p, 'hp') < hp) {
-          w.fx.push({ t: 'log', text: { en: 'Hurt, you stop on the way.', zh: '你受了伤，停下了脚步。' } })
+          // asleep, one wakes (hunger, or something at one's bed); on the road, one stops
+          const asleep = w.hasStatus({ e: p.id }, 'asleep')
+          if (asleep) this.write(() => w.clearStatus({ e: p.id }, 'asleep'))
+          const starving = w.num(p, 'hunger', 1) <= 0
+          w.fx.push({
+            t: 'log',
+            text: !asleep ? { en: 'Hurt, you stop on the way.', zh: '你受了伤，停下了脚步。' } : starving ? { en: 'Hunger wakes you.', zh: '你被饿醒了。' } : { en: 'Something hurts you awake.', zh: '你被疼醒了。' },
+          })
           break
         }
       }
@@ -1285,10 +1296,17 @@ export class Engine {
           : w
               .entitiesOnMap(active)
               .filter((e) => e.place.on === 'tile' && matchSelector(p.host as import('./types.ts').Selector, w.view({ e: e.id })))
-              .filter((e) => t % Math.max(1, p.everyProp ? w.num(e, p.everyProp, p.every) : p.every) === 0)
+              .filter((e) => t % Math.max(1, (p.everyProp ? w.num(e, p.everyProp, p.every) : p.every) * this.paceOf(p, e)) === 0)
               .map((e) => ({ e: e.id }))
       for (const h of hosts) this.offer({ kind: 'time/period', host: h, roles: {}, params: { name: p.name }, origin: 'world' })
     }
+  }
+
+  /** How much slower a period comes to a host for the statuses it has (asleep: hunger four times slower). */
+  private paceOf(p: { paceBy?: Record<string, number> }, e: Entity): number {
+    let k = 1
+    for (const [s, f] of Object.entries(p.paceBy ?? {})) if (this.world.hasStatus({ e: e.id }, s)) k = Math.max(k, f)
+    return Math.round(k)
   }
 
   /** Contact that lasts: a contact/stay event now and then, for hosts that answer it. */
