@@ -116,7 +116,9 @@ scene.hooks = {
   onFrame: (f) => {
     lastFrame = f
     const was = death.open
-    death.onFrame(f)
+    // the title or the load panel is over the world (one chose to load a save, or to go back): the
+    // world behind it may still lie fallen, but the death screen is not shown over them
+    if (!cover.open) death.onFrame(f)
     // a hardcore game's one life is spent: its slot keeps the end
     if (!was && death.open && f.fallen?.difficulty === 'hardcore') send({ t: 'save' })
     hud.onFrame(f)
