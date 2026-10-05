@@ -180,7 +180,12 @@ for feel, because a fight should not wait for a mouse release or depend on where
    by some input.
 2. **Unshadowed**: an input state (key, selected slot, aim, chosen layer) makes exactly one
    event; no event is reachable only while another is undefined.
-3. **Foreseeable**: before the press, the HUD shows the event it will make.
+3. **Foreseeable**: before the press, the HUD shows the event it will make. What it says is the
+   answering rule's own `label` (or the label of the answer it reaches: food eaten says "Eat
+   {instrument}", given to someone "Feed {instrument} to {target}"; a place of the overworld "Enter
+   {target}"), the receiver's before the act's own; where no rule says, the input's default, marked
+   `?` when the outcome is undefined. A patch carries its own label, so a hole the AI filled says
+   what it now does (the validator warns when an input-reached rule has none).
 
 **The player's event space** (from the engine and the rules): `hands(target)` — a hand on it;
 `take(target)` — picking crops is a take; `put(held, target)` — sowing, storing and giving are
@@ -216,6 +221,9 @@ and the wheel (toolbar), Shift (walk), WASD (move). Dialogue moves on with E or 
 - **Reach is the engine's**, for every actor: an act whose target lies beyond its reach is not done
   (`Engine.inReach`; Gus works from beside the tree as the player does). A system that pulls from
   farther says how far (the magnet, a sin's skill).
+- **E with nothing pointed at** acts on the place in front, unless what is there has no answer
+  of its own and what one stands on has one: the bed one lies on, a place of the overworld (its
+  block of 3×3: standing anywhere on it, facing any way, E enters it; the block is outlined whole).
 - **Oneself is never E's, F's or G's target**: on one's own place they meet what is there (the
   floor, what lies at one's feet, the bed one stands on). The left click on one's own place is on
   oneself.

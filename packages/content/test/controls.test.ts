@@ -92,7 +92,7 @@ describe('the five inputs: one act each', () => {
     const eng = world('item/tool/hoe', [])
     const plan = eng.controls.plan('use')!
     expect(plan.rule).toBe('farm/till')
-    expect(label(plan)).toBe('Till')
+    expect(label(plan)).toBe('Till grass')
     eng.controls.run(plan)
     expect(eng.world.terrainAt('sandbox', 2, 1)).toBe('farmland')
   })
@@ -179,6 +179,20 @@ describe('the five inputs: one act each', () => {
     expect(helm.world.prop(h, 'wear:head')).toBe('held')
     expect(helm.world.get('held')!.place).toMatchObject({ on: 'inside', holder: 'npc.hollis' })
     expect(helm.world.worn(h).map((e) => e.id)).toEqual(['held'])
+  })
+
+  it('what an input does is said by what answers it: food eats or feeds; the unknown says its default with a ?, and a patch says its own once it fills the hole', () => {
+    const eng = world('item/food/apple', [npc(), { key: 'well', type: 'fixture/water/well', x: 1, y: 1 }])
+    eng.author(() => eng.world.setProp(eng.world.get('npc.hollis')!, 'maxHunger', 20))
+    expect(label(eng.controls.plan('self'))).toBe('Eat Apple')
+    expect(label(eng.controls.plan('use'))).toBe('Feed Apple to farmer')
+    const well = eng.controls.plan('use', { x: 1, y: 1 })!
+    expect(well.unknown).toBe(true)
+    expect(label(well)).toBe('Use Apple on well')
+    eng.lib.add({ id: 'patch/apple-wishing-well', host: { type: 'item/food' }, on: 'act/use', label: { en: 'Toss {instrument} into {target}', zh: '把{instrument}扔进{target}' }, tree: { if: { is: { role: 'target', sel: { type: 'fixture/water/well' } } }, then: { do: [{ op: 'destroy' }] } }, source: { origin: 'patch' } })
+    const after = eng.controls.plan('use', { x: 1, y: 1 })!
+    expect(after.unknown).toBeFalsy()
+    expect(label(after)).toBe('Toss Apple into well')
   })
 
   it('the chooser reaches any layer: the ground under a stick, the table under a pile', () => {

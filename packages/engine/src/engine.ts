@@ -307,11 +307,17 @@ export class Engine {
    * A dry run of an event's chain: its rules, whether it reaches an undefined outcome, and whether it
    * changes anything (beyond what is said and shown: a refusal, a look, changes nothing).
    */
-  preview(ev: GameEvent, depth = 3): { defined: boolean; unknown: boolean; changes: boolean; rules: string[]; confirm?: Text; hole?: { ev: GameEvent; res: Resolution } } {
+  preview(
+    ev: GameEvent,
+    depth = 3,
+  ): { defined: boolean; unknown: boolean; changes: boolean; rules: string[]; labels: { text: Text; rule: string }[]; confirm?: Text; hole?: { ev: GameEvent; res: Resolution } } {
     const res = this.resolveEvent(ev)
     const rules = res.rule ? [res.rule.id] : []
     const confirm = res.defined ? ((res.leaf && isDo(res.leaf) && res.leaf.confirm) || res.rule?.confirm) : undefined
-    if (!res.defined || !res.leaf || !isDo(res.leaf)) return { defined: false, unknown: true, changes: false, rules, confirm, hole: res.hole ? { ev, res } : undefined }
+    if (!res.defined || !res.leaf || !isDo(res.leaf)) return { defined: false, unknown: true, changes: false, rules, labels: [], confirm, hole: res.hole ? { ev, res } : undefined }
+    // what this outcome says it does: its leaf's label, else its rule's
+    const own = res.leaf.label ?? res.rule?.label
+    const labels: { text: Text; rule: string }[] = own && res.rule ? [{ text: own, rule: res.rule.id }] : []
     let unknown = false
     // what an emit changes is what its receiver does (followed below), unless it cannot be followed (to the story, an area)
     const followed = (e: Effect) => e.op === 'emit' && typeof e.to === 'string' && e.to !== 'story' && e.to !== 'world' && !e.to.startsWith('tileOf:')
@@ -336,11 +342,12 @@ export class Engine {
         }
         const p = this.preview(child, depth - 1)
         rules.push(...p.rules)
+        labels.push(...p.labels)
         if (p.unknown) unknown = true
         if (p.changes) changes = true
         hole ??= p.hole
       }
-    return { defined: true, unknown, changes, rules, confirm, hole }
+    return { defined: true, unknown, changes, rules, labels, confirm, hole }
   }
 
   // ---------------------------------------------------------------- acts (design.md §5.7)

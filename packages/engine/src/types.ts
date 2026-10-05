@@ -1064,7 +1064,8 @@ export type Effect =
  * `inherit` (the next less specific rule answers), or undefined (the AI answers; its `default`
  * runs while nobody does). An `if` without `else` inherits.
  */
-export type Tree = 'inherit' | { do: Effect[]; confirm?: Text } | { undefined: true; default?: Effect[] } | { if: Cond; then: Tree; else?: Tree }
+/** A leaf's `label` says what an input that ends here does ("Eat {instrument}", "Feed {target}"), over the rule's own. */
+export type Tree = 'inherit' | { do: Effect[]; confirm?: Text; label?: Text } | { undefined: true; default?: Effect[] } | { if: Cond; then: Tree; else?: Tree }
 export type Leaf = Exclude<Tree, { if: Cond }>
 
 export interface RuleTest {
@@ -1142,6 +1143,12 @@ export interface Rule {
   tree: Tree
   /** Ask the player first when their input chooses this rule ("Eat {instrument}?"). */
   confirm?: Text
+  /**
+   * What an input that this rule answers does, as the HUD says it before the press ("Talk to
+   * {target}", "Enter {target}"): {target}, {instrument} and {actor} are named. A leaf's own label
+   * comes first. None: the input's default.
+   */
+  label?: Text
   tests?: RuleTest[]
   source?: Provenance
   /** Human-readable summary. */

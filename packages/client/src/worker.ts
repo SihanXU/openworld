@@ -236,7 +236,16 @@ async function ensureMaps(): Promise<void> {
 function keyViews(): Frame['keys'] {
   const eng = game!.engine
   const c = eng.controls
-  const view = (pl: Plan | undefined): KeyView | undefined => pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y }
+  const w = eng.world
+  // a target whose base covers more than its cell is outlined whole (a place of the overworld: its block)
+  const rect = (pl: Plan): KeyView['rect'] => {
+    const t = w.get(pl.target.e)
+    if (!t || t.place.on !== 'tile') return undefined
+    const [fw, fd] = w.onto.resolve(t.type).footprint
+    if (fw <= 1 && fd <= 1) return undefined
+    return [t.place.x - Math.floor((fw - 1) / 2), t.place.y - fd + 1, fw, fd]
+  }
+  const view = (pl: Plan | undefined): KeyView | undefined => pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(rect(pl) && { rect: rect(pl) }) }
   const out: NonNullable<Frame['keys']> = {}
   for (const k of ['hands', 'take', 'put', 'use'] as Key[]) out[k] = view(c.plan(k, aimTile))
   const p = eng.world.player

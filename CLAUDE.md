@@ -103,7 +103,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 
 ## Rules of thumb
 
-- New behaviour = a rule (data) in `content/src/rules.ts` or a patch. New primitive,
+- New behaviour = a rule (data) in `content/src/rules.ts` or a patch; a rule an input reaches says
+  what the input does there (`label`, on the rule or on one of its answers). New primitive,
   condition or event kind = an engine change (and add it to the ModSpec docs in `effects.ts`/`mod.ts`).
 - Rules address classes (types/tags/statuses), never instances, unless unavoidable.
 - No judgment is "is it the player": who attacks whom (factions + temper + foes), who sees what

@@ -391,7 +391,9 @@ export class WorldScene extends Phaser.Scene {
     const unknown = ks.length > 0 && ks.every((v) => v!.unknown)
     this.focus.clear()
     if (f.scene || !f.keys) return
-    this.focus.lineStyle(1, unknown ? 0xf0b85a : 0xffffff, 0.6).strokeRoundedRect(tx * T + 0.5, ty * T + 0.5, T - 1, T - 1, 2)
+    // the whole of a target that covers more than its cell (a place of the overworld: its block)
+    const [rx, ry, rw, rh] = k?.rect ?? [tx, ty, 1, 1]
+    this.focus.lineStyle(1, unknown ? 0xf0b85a : 0xffffff, 0.6).strokeRoundedRect(rx * T + 0.5, ry * T + 0.5, rw * T - 1, rh * T - 1, 2)
   }
 
   /**
