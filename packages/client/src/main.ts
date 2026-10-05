@@ -282,13 +282,13 @@ let startingFrom: SaveData | undefined
 let quietSave = false
 
 const cover = new Cover(WORLD, {
-  start: async (s, data, difficulty) => {
+  start: async (s, data, game) => {
     slot = s
     startingFrom = data?.save
     quietSave = true
     const library = await kvGet<LibraryData>('library')
     const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
-    send({ t: 'init', base, save: data?.save, library, modder: MODDER, difficulty })
+    send({ t: 'init', base, save: data?.save, library, modder: MODDER, difficulty: game?.difficulty, start: game?.start })
   },
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')

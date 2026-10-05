@@ -10,21 +10,21 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
-import { BOSSES, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, type RawChunk } from '@lsw/content'
+import { BOSSES, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_AT_FOOT, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, type RawChunk } from '@lsw/content'
 import { CATALOG } from '../../../client/src/assets/catalog.ts'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
 import { EAST_ROAD, EMBERFALL, LAIR, MINE, PASS, buildEastRoad, buildEmberfall, buildLair, buildMine, buildPass } from './quest/maps.ts'
 import { QUEST_SCENES } from './quest/scenes.ts'
-import { PAT, PROLOGUE, buildFoot, buildSlope, buildSummit } from './prologue.ts'
+import { PROLOGUE, TUTORIAL, buildFoot, buildTutorial } from './prologue.ts'
 import { BARROW, HOLLOW, buildBarrow, buildHollow } from './hollow.ts'
 import type { PersonDef, Slot } from './person.ts'
 import { buildOverworld, placeCells, siteOf } from './overworld.ts'
 import { PEOPLE } from './people.ts'
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '../../../client/public/world')
-export const VERSION = 'ford-3'
+export const VERSION = 'ford-4'
 export const START_HOUR = 13
 const L = (en: string, zh: string): Text => ({ en, zh })
 const SOLID = new Set(['water', 'deepwater', 'tree', 'pine', 'bush', 'rock', 'wall', 'woodwall', 'burnt_wall', 'roof', 'cave_wall', 'lava', 'charred_tree', 'void'])
@@ -542,19 +542,16 @@ export function buildFord(): FordWorld {
   linkEdge(ember, row(ember, 0, EMBERFALL.north), [0, 1], mine, row(mine, mine.h - 1, MINE.south), [0, -1])
   linkEdge(ember, col(ember, ember.w - 1, EMBERFALL.east), [-1, 0], pass, col(pass, 0, PASS.west), [1, 0])
   linkEdge(pass, row(pass, 0, PASS.north), [0, 1], lair, row(lair, lair.h - 1, LAIR.south), [0, -1])
-  // the prologue north of the Ford (docs/prologue.md): the summit, the slope, the foot, the cliff stair
-  reseed(4250)
-  const summit = buildSummit()
-  reseed(4251)
-  const slope = buildSlope()
+  // the prologue north of the Ford (docs/prologue.md): the foot of the mountain, the cliff stair
   reseed(4252)
   const foot = buildFoot()
-  linkEdge(summit, row(summit, summit.h - 1, PROLOGUE.summitSouth), [0, -1], slope, row(slope, 0, PROLOGUE.slopeNorth), [0, 1])
-  linkEdge(slope, row(slope, slope.h - 1, PROLOGUE.slopeSouth), [0, -1], foot, row(foot, 0, PROLOGUE.footNorth), [0, 1])
+  foot.anchors.arrive = [TUTORIAL.arrive[0], TUTORIAL.arrive[1]]
+  // the tutorial: a plot of its own, linked to nothing
+  const tutorial = buildTutorial()
   linkEdge(foot, row(foot, foot.h - 1, PROLOGUE.footSouth), [0, -1], m, row(m, 0, PROLOGUE.fordNorth), [0, 1])
   // towns and camps are peaceful: nothing comes out of the dark there (nightspawn.ts); everywhere else is a combat zone
-  for (const b of [m, meadow, ember, summit]) b.zone = 'peaceful'
-  const builders = [m, meadow, pasture, forest, hollow, barrow, road, ember, mine, pass, lair, summit, slope, foot]
+  for (const b of [m, meadow, ember]) b.zone = 'peaceful'
+  const builders = [m, meadow, pasture, forest, hollow, barrow, road, ember, mine, pass, lair, foot, tutorial]
   const at = placeMaps(builders, m)
   for (const b of builders)
     for (const [name, [x, y]] of Object.entries(b.anchors)) {
@@ -593,8 +590,12 @@ export function buildFord(): FordWorld {
     name: L('The Ford', '渡口'),
     version: VERSION,
     seed: 4242,
-    // a new game begins on the mountain (docs/prologue.md)
-    start: { map: summit.id, x: PAT.spawn[0], y: PAT.spawn[1] },
+    // the game begins at the foot of the mountain, before the seal stone; with the tutorial (the
+    // cover's choice, and its default), in the clearing first (docs/prologue.md)
+    start: { map: foot.id, x: TUTORIAL.arrive[0], y: TUTORIAL.arrive[1] },
+    begin: { props: { prologue: PROLOGUE_AT_FOOT } },
+    // one comes round in the clearing early in the morning: a long day to get ready for the night
+    starts: { tutorial: { at: { map: tutorial.id, x: TUTORIAL.spawn[0], y: TUTORIAL.spawn[1] }, hour: 7, statuses: { out_cold: 50 } } },
     startHour: START_HOUR,
     maps: [...builders.map((b, i) => metaOf(b, chunks[i])), { id: overworld.map.id, name: overworld.map.name, kind: overworld.map.kind, region: overworld.map.region, width: overworld.map.width, height: overworld.map.height, portals: [], npcs: 0, items: 0 }],
     npcs,

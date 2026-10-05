@@ -226,7 +226,7 @@ on entering a library; the map builder clears the volume under a solid fixture s
   mountains and rivers do not let one pass; fords and bridges do.
 - **Each overworld cell holds a site**, a thing standing for its local map (40 × 30).
   Story places are hand-made (the Ford, Firstlight Village, the pasture, the forest, the
-  foot, the slope, the summit, the east road, Emberfall, the pass…), placed at the offsets the
+  foot, the east road, Emberfall, the pass…), placed at the offsets the
   world map already computes; every other cell is wilderness generated from its terrain.
 - **Maps below**: caves, deep mine levels, the barrow, interiors hang below a local map and are
   reached through portals (D28).
@@ -346,7 +346,7 @@ step up or down of at most half a level is a walk; more up is a cliff (a bump in
 the cell above); more down is a fall of that many levels, which hurts beyond the safe height
 (`params.safeFall` 1, `params.fallDamage` 6 a level) as the faller's own blow (`Engine.fallBy`).
 What flies neither climbs nor falls. Planning (A*) takes only walks and safe drops; ground higher
-than both ends blocks sight. Cloudtop stands two levels above the land below the cut, the gap a
+than both ends blocks sight. The high ground at the Mountain Foot stands two levels above its face of rock, the trail a
 ramp. The renderer draws higher ground lighter, a lip and a rock face with its shadow where it
 drops a level, a ramp's steps, and a durability bar over a struck cell or thing. z for storeys,
 the `fall` primitive (support lost) and reach by height come with W6.

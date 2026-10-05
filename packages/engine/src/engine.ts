@@ -105,6 +105,8 @@ export class Engine {
   private fastForward = 0
   /** Resolution trace of the last dispatched events (for tests and the dev panel). */
   trace: { ev: GameEvent; rule?: string; defined: boolean }[] = []
+  /** How many entries the trace has ever taken (it keeps only the last 300): what came after a mark is the last `traced - mark`. */
+  traced = 0
 
   private q: GameEvent[] = []
   /** Events deferred to the next tick: too deep in their chain, over the budget, or for a held host. */
@@ -251,6 +253,7 @@ export class Engine {
     const res = this.resolveEvent(ev)
     if (this.trace.length > 300) this.trace.shift()
     this.trace.push({ ev, rule: res.rule?.id, defined: res.defined })
+    this.traced++
     if (res.defined && res.leaf && isDo(res.leaf)) this.run(res.leaf.do, ev, res.rule!.id)
     else if (res.hole) {
       this.holes++
@@ -813,7 +816,8 @@ export class Engine {
     const nx = x + dx
     const ny = y + dy
     const isPlayer = e.id === w.state.player
-    const portalHere = w.map(map)?.portals.find((p) => p.x === nx && p.y === ny)
+    // a way the story has not opened yet is only ground
+    const portalHere = w.map(map)?.portals.find((p) => p.x === nx && p.y === ny && (!p.opensWhen || !!w.fact(p.opensWhen)))
     // only the player uses portals by stepping on them; NPCs transfer from the tile beside
     if (portalHere && !isPlayer) return false
     // off the edge of a map that lies on the overworld: out onto its cell there (world-model.md §5.1)

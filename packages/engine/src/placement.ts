@@ -96,9 +96,10 @@ export function performPlacement(eng: Engine, actorId: Id, recipe: PlacementReci
       const named = (ids: string[]) => ids.some((id) => allowed.some((a) => (a.endsWith('/') ? id.startsWith(a) : id === a)))
       const dry = on.preview(event)
       if (!dry.defined || dry.unknown || !named(dry.rules)) return false
-      const mark = on.trace.length
+      // the trace keeps only its last entries: what this act added is counted, not found by position
+      const mark = on.traced
       on.act(verb, actorId, target, { instrument: { e: s.instrument } })
-      if (!named(on.trace.slice(mark).map((t) => t.rule ?? ''))) return false
+      if (!named(on.trace.slice(Math.max(0, on.trace.length - (on.traced - mark))).map((t) => t.rule ?? ''))) return false
       if (recipe.result && s.target === 'tile') work = { e: s.instrument }
     }
     return !recipe.result || on.world.get(work.e)?.type === recipe.result

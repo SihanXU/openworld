@@ -16,6 +16,7 @@ import { astar } from './path.ts'
 import { DIRS } from './types.ts'
 import { cmp } from './rules.ts'
 import { regionId } from './world.ts'
+import { calendarAt, isNight, tickAt } from './calendar.ts'
 import type { Dir, Effect, Entity, Id, Pos, Ref, SceneCmd, StepCond, StepDef, Text } from './types.ts'
 
 const MOVE_STEP_TICKS = 4
@@ -119,17 +120,27 @@ export class Story {
     for (const [k, v] of Object.entries(c.props ?? {})) if (!cmp(lead.props?.[k] ?? 0, v)) return false
     if (c.carrying) {
       const carried = [lead.held, ...(lead.contents ?? [])].map((id) => w.get(id)).filter((x): x is Entity => !!x)
-      if (!carried.some((x) => x.type.startsWith(c.carrying!))) return false
+      for (const type of typeof c.carrying === 'string' ? [c.carrying] : c.carrying) if (!carried.some((x) => x.type.startsWith(type))) return false
     }
+    for (const [s, want] of Object.entries(c.statuses ?? {})) if (w.hasStatus({ e: lead.id }, s) !== want) return false
     if (c.skill) {
       const skills = (lead.tags ?? []).filter((t) => t.startsWith('skill:'))
       if (c.skill === true ? !skills.length : !skills.includes(`skill:${c.skill}`)) return false
     }
     if (c.after && !w.fact(`seen.${c.after}`)) return false
     if (c.near) {
-      const { type, r } = c.near
-      const seen = w.entitiesOnMap(pos.map).some((e) => e.place.on === 'tile' && e.type.startsWith(type) && Math.max(Math.abs(e.place.x - pos.x), Math.abs(e.place.y - pos.y)) <= r)
+      const { type, r, status } = c.near
+      const seen = w.entitiesOnMap(pos.map).some((e) => e.place.on === 'tile' && e.type.startsWith(type) && Math.max(Math.abs(e.place.x - pos.x), Math.abs(e.place.y - pos.y)) <= r && (!status || w.hasStatus({ e: e.id }, status)))
       if (!seen) return false
+    }
+    if (c.room && !w.roomsOf(pos.map).some((r) => w.hasTag(r, `role:${c.room}`))) return false
+    if (c.morningAfter) {
+      const at = w.fact(`seen.${c.morningAfter}`)
+      if (typeof at !== 'number') return false
+      // the night that ends at the first 05:00 after it: the same day's, if it played in the small hours
+      const then = calendarAt(at, w.state.seed)
+      const dawn = tickAt(isNight(then.hour) && then.hour < 12 ? then.day : then.day + 1, 5)
+      if (w.state.tick < dawn) return false
     }
     return true
   }

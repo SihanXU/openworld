@@ -1,37 +1,27 @@
-// The prologue's maps (docs/prologue.md), north of the Ford and stacked down the mountain:
-// Cloudtop (the summit plateau), Pinewind Slope, and the Mountain Foot, whose trail comes out
-// at the top of the Ford's cliff. Each teaches by its shape first: the shelter opens onto
-// berries, the only way off the plateau is a cut with a pine grown across it, slimes sit on the
-// switchbacks, an old seal stone nobody can read stands where the trail levels out.
+// The prologue's map (docs/prologue.md): the Mountain Foot, north of the Ford, where the game
+// proper begins — whether one comes down from the tutorial or skips it. The trail comes down off
+// the high ground by a ramp, levels out where an old seal stone nobody can read stands in a ring
+// of flowers, and runs out of the map's south edge at the top of the Ford's cliff.
 
-import type { AiData, AppearDef } from '@lsw/engine'
 import { MapBuilder, rng } from './builder.ts'
-import { L, GROUND_YIELD, appears, lay } from './kit.ts'
+import { TUTORIAL_OPEN } from '@lsw/content'
+import { L, GROUND_YIELD, appears } from './kit.ts'
 
-/** Edge openings: each map's way in from above and out below (columns), and the Ford's cliff stair. */
+/** Edge openings: the foot's way in from the north (the tutorial's road comes out there), its way out below, the Ford's cliff stair. */
 export const PROLOGUE = {
-  summitSouth: [19, 20, 21],
-  slopeNorth: [19, 20, 21],
-  slopeSouth: [19, 20, 21],
   footNorth: [19, 20, 21],
   footSouth: [17, 18],
   fordNorth: [17, 18],
 } as const
 
-/** Where things are on the mountain (the prologue test reads these). */
+/** Where things are at the foot (the tests read these). */
 export const PAT = {
-  spawn: [10, 5],
-  summitStone: [25, 7],
-  /** the pine grown across the cut, the plateau's only way down */
-  pine: [20, 20],
-  slopeStone: [27, 13],
-  slopeFire: [30, 13],
-  /** the rune-cut seal stone at the foot: nothing in the world defines it */
+  /** the rune-cut seal stone: nothing in the world defines it */
   relic: [20, 12],
   footStone: [24, 20],
+  /** the ramp down off the high ground (two columns wide), from its top */
+  ramp: [20, 3],
 } as const satisfies Record<string, readonly [number, number]>
-
-const SLIME: Omit<AiData, 'home'> = { behaviour: 'melee', temper: 'aggressive', sight: 4, leash: 6 }
 
 /** Pines and rock round a map's edge, open where `open(x, y)` says. */
 function rim(m: MapBuilder, open: (x: number, y: number) => boolean, t: () => string): void {
@@ -45,78 +35,76 @@ function rim(m: MapBuilder, open: (x: number, y: number) => boolean, t: () => st
 
 const gap = (cols: readonly number[], x: number) => cols.includes(x)
 
-// =================================================================== Cloudtop: the summit
-
-export function buildSummit(): MapBuilder {
-  const m = new MapBuilder('summit', L('Cloudtop', '云顶台地'), 'wild', 40, 30, 'grass', 'Village', 'outdoor', 'frostfang')
-  // the plateau's rim: bare rock, the south edge open only where the cut comes out
-  rim(m, (x, y) => y >= m.h - 3 && gap(PROLOGUE.summitSouth, x), () => 'rock')
-  // the high ground is snow, with rock standing out of it and a few pines
-  m.organic(20, 4.5, 17, 4, 'snow', { only: (t) => t === 'grass', rough: 0.3 })
-  m.organic(31, 9, 5, 3, 'snow', { only: (t) => t === 'grass', rough: 0.3 })
-  for (const [x, y] of [[4, 3], [17, 3], [30, 3], [34, 6], [33, 12], [5, 16], [35, 17]] as const) m.set(x, y, 'rock')
-  for (const [x, y] of [[15, 6], [28, 4], [36, 9], [3, 11], [31, 15], [8, 18], [26, 17]] as const) m.set(x, y, 'pine')
-  // the ruined watch shelter you wake in: its walls stand, its door faces the berries
-  m.rect(6, 3, 9, 6, 'woodwall')
-  m.rect(7, 4, 7, 4, 'floor_wood')
-  m.set(10, 8, 'floor_wood')
-  m.regions.shelter = [7, 4, 7, 4]
-  // the yard before the door: berries, and what an axe is made of
-  m.regions.yard = [5, 9, 13, 6]
-  for (const [x, y] of [[8, 11], [12, 12], [14, 10]] as const) m.item('item/food/berries', x, y)
-  for (const [x, y] of [[6, 13], [16, 12]] as const) m.item('item/material/stick', x, y)
-  for (const [x, y] of [[12, 14], [18, 13]] as const) m.item('item/material/stone', x, y)
-  for (const [x, y] of [[9, 14], [15, 14]] as const) m.item('item/material/grass', x, y)
-  // the waypoint statue on the snow
-  m.fixture('fixture/sacred/waypoint', ...PAT.summitStone, { id: 'wp.summit', name: L('Cloudtop', '云顶台地') })
-  // the cut: a wall of rock across the plateau, one gap, and a pine grown into it
-  for (let x = 2; x < m.w - 2; x++) for (const y of [20, 21]) m.set(x, y, x === PAT.pine[0] ? 'grass' : 'rock')
-  m.set(...PAT.pine, 'pine')
-  m.regions.below_cut = [2, 22, m.w - 4, 6]
-  // the plateau stands two levels above the land below the cut, the cut its cliff: a ramp runs
-  // down through the gap (each column half a level lower), and a drop anywhere else hurts
-  m.raise(0, 0, m.w, 22, 4)
-  for (const [y, h] of [[20, 3], [21, 2], [22, 1]] as const) m.raise(PAT.pine[0], y, 1, 1, h)
-  m.path([[10, 9], [13, 13], [18, 16], [20, 19]], 'path', 1)
-  m.path([[20, 22], [20, 25], [20, 29]], 'path', 2)
-  m.anchor('spawn', ...PAT.spawn)
-  m.appear = GROUND_YIELD
-  return m
-}
-
-// =================================================================== Pinewind Slope
-
-export function buildSlope(): MapBuilder {
-  const m = new MapBuilder('slope', L('Pinewind Slope', '松风坡'), 'wild', 40, 30, 'grass', 'Village', 'outdoor', 'frostfang')
-  rim(m, (x, y) => (y < 3 && gap(PROLOGUE.slopeNorth, x)) || (y >= m.h - 3 && gap(PROLOGUE.slopeSouth, x)), () => (rng.chance(0.7) ? 'pine' : 'rock'))
-  // switchbacks: ledges of rock across the slope, each open at one end
-  for (let x = 2; x < 31; x++) m.set(x, 8, 'rock')
-  for (let x = 10; x < m.w - 2; x++) m.set(x, 16, 'rock')
-  for (let x = 2; x < 31; x++) m.set(x, 23, 'rock')
-  m.path([[20, 0], [20, 5], [34, 6], [34, 11], [6, 12], [6, 19], [34, 20], [34, 25], [20, 26], [20, 29]], 'path', 1, { edge: 'dirt', edgeP: 0.2 })
-  // the slimes on the switchbacks (and more come: the slope breeds them)
-  for (const [x, y] of [[16, 11], [25, 13], [28, 19], [13, 20]] as const) m.creature('slime/green_slime', x, y, { ...SLIME })
-  // half way down: a fire someone keeps, and a waypoint statue beside it
-  m.fixture('fixture/light/campfire', ...PAT.slopeFire, { statuses: { lit: -1 } })
-  m.fixture('fixture/sacred/waypoint', ...PAT.slopeStone, { id: 'wp.slope', name: L('Pinewind Slope', '松风坡') })
-  lay(m, 'item/food/berries', 2, [8, 17, 10, 4])
-  const slimes: AppearDef = appears('actor/creature/slime/green_slime', ['grass'], 4, 1200, { ai: { ...SLIME } })
-  m.appear = [...GROUND_YIELD, slimes]
-  return m
-}
-
 // =================================================================== the Mountain Foot
 
 export function buildFoot(): MapBuilder {
   const m = new MapBuilder('foot', L('Mountain Foot', '山脚'), 'wild', 40, 30, 'grass', 'Village', 'outdoor', 'frostfang')
   rim(m, (x, y) => (y < 3 && gap(PROLOGUE.footNorth, x)) || (y >= m.h - 3 && gap(PROLOGUE.footSouth, x)), () => (rng.chance(0.6) ? 'tree' : 'pine'))
+  // the high ground the trail comes down from stands two levels above the rest, its edge a face of
+  // rock: a ramp runs down where the trail does (each row half a level lower), a drop anywhere else hurts
+  const [rx, ry] = PAT.ramp
+  m.raise(0, 0, m.w, ry + 3, 4)
+  for (let x = 2; x < m.w - 2; x++) if (x !== rx && x !== rx + 1) m.set(x, ry + 2, 'rock')
+  for (const [dy, h] of [[1, 3], [2, 2], [3, 1]] as const) m.raise(rx, ry + dy, 2, 1, h)
   // where the trail levels out: a ring of flowers round an old seal stone nobody can read
   m.organic(20, 12, 6, 4, 'flowers', { only: (t) => t === 'grass', rough: 0.25 })
   m.fixture('fixture/sacred/seal_stone', ...PAT.relic)
   m.regions.relic = [14, 7, 13, 10]
   m.fixture('fixture/sacred/waypoint', ...PAT.footStone, { id: 'wp.foot', name: L('Mountain Foot', '山脚') })
+  // a hunter's hut, long left: wooden walls on a wooden floor, its door gone
+  m.rect(4, 12, 6, 5, 'woodwall')
+  m.rect(5, 13, 4, 3, 'floor_wood')
+  m.set(6, 16, 'floor_wood')
   m.path([[20, 0], [20, 7], [24, 12], [21, 17], [18, 22], [17, 29]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
   m.fixture('fixture/sign', 19, 25, { props: { text: 'The Ford ↓' } })
+  // the clearing's own: berries keep turning up, enough to eat one's fill before the night
+  m.appear = [...GROUND_YIELD, appears('item/food/berries', ['grass'], 6)]
+  return m
+}
+
+// =================================================================== the tutorial
+
+/** The tutorial clearing: where a new game begins unless the player skips it (then: the Mountain Foot). */
+export const TUTORIAL = {
+  size: [36, 26],
+  /** where one comes round */
+  spawn: [12, 12],
+  /** the path out, south, two columns wide: open once the story says so */
+  exit: [17, 18],
+  /** where one comes out at the foot (and where a game without the tutorial begins): the top of its trail */
+  arrive: [20, 1],
+  /** what lies about the clearing to begin with */
+  berries: [[11, 10], [14, 11], [13, 14], [9, 11], [15, 13], [12, 16]],
+  sticks: [[8, 13], [16, 9], [9, 16]],
+  stones: [[7, 10], [15, 15], [10, 17], [17, 12]],
+  grass: [[6, 12], [13, 8], [11, 15], [16, 14], [8, 9]],
+  /** the grove on the clearing's east side: the wood a house is made of */
+  grove: [[25, 9], [28, 8], [27, 12], [30, 11], [26, 15], [29, 16], [31, 13]],
+} as const
+
+/**
+ * The tutorial (docs/prologue.md): a clearing ringed by forest where one comes round, finds food,
+ * gathers, makes an axe, cuts wood, lights a fire, builds a house and gets through a night. It lies
+ * on no cell of the overworld and nothing leads back into it: a scene played once. Its one way out,
+ * the path south to the Mountain Foot, opens on the first morning after the house stands. It is a
+ * combat zone: the night's walkers come.
+ */
+export function buildTutorial(): MapBuilder {
+  const [w, h] = TUTORIAL.size
+  const m = new MapBuilder('tutorial', L('The Clearing', '林间空地'), 'wild', w, h, 'grass', 'Village', 'outdoor', 'frostfang')
+  const exit = TUTORIAL.exit as readonly number[]
+  rim(m, (x, y) => y >= h - 3 && exit.includes(x), () => (rng.chance(0.6) ? 'tree' : 'pine'))
+  for (const [x, y] of TUTORIAL.grove) m.set(x, y, 'tree')
+  m.organic(21, 6, 3, 2, 'flowers', { only: (t) => t === 'grass', rough: 0.3 })
+  m.path([[exit[0], 18], [exit[0], h - 1]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
+  for (const [x, y] of TUTORIAL.berries) m.item('item/food/berries', x, y)
+  for (const [x, y] of TUTORIAL.sticks) m.item('item/material/stick', x, y)
+  for (const [x, y] of TUTORIAL.stones) m.item('item/material/stone', x, y)
+  for (const [x, y] of TUTORIAL.grass) m.item('item/material/grass', x, y)
+  m.regions.exit = [exit[0] - 3, h - 5, 8, 5]
+  // the way out: only once the story has opened it
+  for (const [i, x] of exit.entries()) m.portals.push({ x, y: h - 1, to: 'foot', tx: TUTORIAL.arrive[0] + i, ty: TUTORIAL.arrive[1], label: L('Mountain Foot', '山脚'), opensWhen: TUTORIAL_OPEN })
+  m.anchors.spawn = [TUTORIAL.spawn[0], TUTORIAL.spawn[1]]
   m.appear = GROUND_YIELD
   return m
 }

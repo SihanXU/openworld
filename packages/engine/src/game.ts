@@ -23,6 +23,16 @@ export interface MapMeta {
   at?: { x: number; y: number }
 }
 
+/** A place a new game may begin, and what the player is there (the story's stage they begin at). */
+export interface StartDef {
+  at: Pos
+  props?: Record<string, PropValue>
+  /** The hour of day 1 the game begins at here (else the world's). */
+  hour?: number
+  /** Statuses the player begins with, for so many ticks (out cold: one wakes). */
+  statuses?: Record<string, number>
+}
+
 /** The generated world's global index (the per-map chunks are fetched lazily). */
 export interface WorldIndex {
   name: Text
@@ -30,6 +40,10 @@ export interface WorldIndex {
   version: string
   seed: number
   start: Pos
+  /** How the default start begins (its hour, the statuses one begins with). */
+  begin?: Omit<StartDef, 'at'>
+  /** Other places a new game may begin, by name (a tutorial skipped); `start` is the default. */
+  starts?: Record<string, StartDef>
   /** The hour of day 1 a new game begins at (default 06:00). */
   startHour?: number
   maps: MapMeta[]
@@ -75,9 +89,15 @@ export class Game {
     engine.controls.magnetic = true
   }
 
-  static create(index: WorldIndex, ontology: Ontology, library: RuleLibrary): Game {
+  /** A new game, at the world's start or at one of its other starts (`start`, a name in `index.starts`). */
+  static create(index: WorldIndex, ontology: Ontology, library: RuleLibrary, start?: string): Game {
+    const other = start ? index.starts?.[start] : undefined
+    if (start && !other) throw new Error(`no start ${start}`)
+    const from: StartDef = other ?? { at: index.start, ...index.begin }
+    const at = from.at
+    const tick = (((from.hour ?? index.startHour ?? START_HOUR) - START_HOUR + 24) % 24) * TICKS_PER_HOUR
     const state: WorldState = {
-      tick: (((index.startHour ?? START_HOUR) - START_HOUR + 24) % 24) * TICKS_PER_HOUR,
+      tick,
       seed: index.seed,
       rng: index.seed,
       player: index.player.id,
@@ -85,16 +105,19 @@ export class Game {
       maps: {},
       loadedMaps: [],
       counter: 0,
-      spawn: index.start,
+      spawn: at,
     }
     const eng = new Engine(state, ontology, library)
     for (const m of index.maps) eng.graph[m.id] = m.portals
     eng.ensureResidents()
     eng.author(() => {
-      eng.world.add(structuredClone(index.player))
+      const player = structuredClone(index.player)
+      if (from.props) player.props = { ...player.props, ...structuredClone(from.props) }
+      for (const [s, ticks] of Object.entries(from.statuses ?? {})) (player.statuses ??= {})[s] = tick + ticks
+      eng.world.add(player)
       for (const n of index.npcs) addTree(eng, n)
       // companions start beside the start, following the player (companion.ts)
-      for (const c of index.companions ?? []) eng.world.add({ ...structuredClone(c), place: { on: 'tile', map: index.start.map, x: index.start.x - 1, y: index.start.y }, props: { ...c.props, companion: index.player.id } })
+      for (const c of index.companions ?? []) eng.world.add({ ...structuredClone(c), place: { on: 'tile', map: at.map, x: at.x - 1, y: at.y }, props: { ...c.props, companion: index.player.id } })
     })
     loadContent(eng, index)
     return new Game(eng)

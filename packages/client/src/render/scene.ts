@@ -391,6 +391,8 @@ export class WorldScene extends Phaser.Scene {
     const unknown = ks.length > 0 && ks.every((v) => v!.unknown)
     this.focus.clear()
     if (f.scene || !f.keys) return
+    // past the map's edge there is nothing to aim at (an edge that leads nowhere: the tutorial's)
+    if (this.base && (tx < 0 || ty < 0 || tx >= this.base.width || ty >= this.base.height)) return
     // the whole of a target that covers more than its cell (a place of the overworld: its block)
     const [rx, ry, rw, rh] = k?.rect ?? [tx, ty, 1, 1]
     this.focus.lineStyle(1, unknown ? 0xf0b85a : 0xffffff, 0.6).strokeRoundedRect(rx * T + 0.5, ry * T + 0.5, rw * T - 1, rh * T - 1, 2)
@@ -715,7 +717,7 @@ export class WorldScene extends Phaser.Scene {
     else v.body.clearTint()
     // a thing an act waits on shimmers; one who is down lies on the ground
     v.body.setAlpha(e.frozen && !e.tags.includes('agent') ? 0.75 : 1)
-    v.body.setAngle(!e.boss && e.statuses.includes('down') ? 90 : 0)
+    v.body.setAngle(!e.boss && (e.statuses.includes('down') || e.statuses.includes('out_cold')) ? 90 : 0)
     // held item (small, at the hand)
     if (e.held && e.tags.includes('agent')) {
       const d = CATALOG.items[e.held]

@@ -46,9 +46,15 @@ function pines(): string {
   return out
 }
 
+/** How a new game begins: its difficulty, and where (a start of the world's other than its first: the tutorial skipped). */
+export interface NewGame {
+  difficulty: Difficulty
+  start?: string
+}
+
 export interface CoverHandlers {
-  /** Start a slot: from its save, or a new game in it at a difficulty (any save there is overwritten). */
-  start(slot: Slot, data: SlotData | undefined, difficulty?: Difficulty): void
+  /** Start a slot: from its save, or a new game in it (any save there is overwritten). */
+  start(slot: Slot, data: SlotData | undefined, game?: NewGame): void
   toggleLocale(): void
 }
 
@@ -57,6 +63,8 @@ export class Cover {
   private panel: 'new' | 'load' | 'help' | undefined
   /** The difficulty a new game starts at (Minecraft's choice): normal unless chosen. */
   private difficulty: Difficulty = 'normal'
+  /** Whether a new game begins with the tutorial (the world's start `tutorial`; else at its own start, the foot of the mountain). */
+  private tutorial = true
 
   constructor(
     private world: string,
@@ -106,7 +114,7 @@ export class Cover {
         <div class="cv-main">
           <div class="cv-kicker">${zh ? '一个规则即代码的世界' : 'A world whose rules are code'}</div>
           <h1 class="cv-title">OpenWorld</h1>
-          <div class="cv-sub">${zh ? '从云顶台地出发。这个世界从没见过的事，它会学会，并且记住。' : 'Set out from Cloudtop. What the world has never seen, it learns — and remembers.'}</div>
+          <div class="cv-sub">${zh ? '这个世界从没见过的事，它会学会，并且记住。' : 'What the world has never seen, it learns — and remembers.'}</div>
           <div class="cv-menu">
             ${latest ? `<button class="cv-btn primary" id="cvContinue">${t('cvContinue')}<small>${esc(this.line(this.slots[latest - 1]!.summary))}</small></button>` : ''}
             <button class="cv-btn${latest ? '' : ' primary'}" id="cvNew">${t('newGame')}</button>
@@ -164,12 +172,19 @@ export class Cover {
       ['hardcore', zh ? '极限' : 'Hardcore', zh ? '只有一条命' : 'one life'],
     ]
     const pick = this.panel === 'new' ? `<div class="cv-diff">${levels.map(([id, name, note]) => `<button class="cv-btn small${this.difficulty === id ? ' primary' : ''}" data-diff="${id}">${name}<small>${note}</small></button>`).join('')}</div>` : ''
-    return head + pick + `<div class="cv-slots">${cards}</div><div class="cv-note muted">${t('cvNote')}</div>`
+    // the tutorial, or not: then the game begins at the foot of the mountain
+    const ways: [boolean, string, string][] = [
+      [true, zh ? '新手教程' : 'Tutorial', zh ? '从头学起' : 'learn the ropes first'],
+      [false, zh ? '跳过教程' : 'Skip the tutorial', zh ? '直接从山脚开始' : 'begin at the foot of the mountain'],
+    ]
+    const way = this.panel === 'new' ? `<div class="cv-diff">${ways.map(([on, name, note]) => `<button class="cv-btn small${this.tutorial === on ? ' primary' : ''}" data-tutorial="${on}">${name}<small>${note}</small></button>`).join('')}</div>` : ''
+    return head + pick + way + `<div class="cv-slots">${cards}</div><div class="cv-note muted">${t('cvNote')}</div>`
   }
 
   private wirePanel(): void {
     $('#cvClose').onclick = () => ((this.panel = undefined), this.render())
     document.querySelectorAll<HTMLButtonElement>('#intro [data-diff]').forEach((b) => (b.onclick = () => ((this.difficulty = b.dataset.diff as Difficulty), this.render())))
+    document.querySelectorAll<HTMLButtonElement>('#intro [data-tutorial]').forEach((b) => (b.onclick = () => ((this.tutorial = b.dataset.tutorial === 'true'), this.render())))
     document.querySelectorAll<HTMLButtonElement>('#intro [data-act]').forEach((b) => {
       const slot = Number(b.dataset.slot) as Slot
       const d = this.slots[slot - 1]
@@ -181,7 +196,7 @@ export class Cover {
           case 'new':
             if (d && !confirm(t('cvConfirmOverwrite').replace('{n}', String(slot)))) return
             this.busy()
-            return this.on.start(slot, undefined, this.difficulty)
+            return this.on.start(slot, undefined, { difficulty: this.difficulty, ...(this.tutorial && { start: 'tutorial' }) })
           case 'export':
             if (d) exportSlot(this.world, slot, d)
             return

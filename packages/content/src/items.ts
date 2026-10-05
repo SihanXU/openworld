@@ -143,7 +143,7 @@ export const FORMS: Form[] = [
   W('item/tool/broom', 'Broom', '扫帚', 'item:broom', { tags: ['wooden', 'flammable', 'straw'], where: { home: 1.5, inn: 1 } }),
   W('item/tool/lockpick', 'Lockpick', '开锁器', 'item:key', { tags: ['metal', 'lockpick'], where: { shop: 0.3, dungeon: 0.5 } }),
   // light
-  W('item/light/torch', 'Torch', '火把', 'item:torch', { tags: ['fire-source', 'wooden', 'flammable', 'light'], where: { home: 1, shop: 1, dungeon: 2, inn: 0.5, npc: 0.3 } }),
+  W('item/light/torch', 'Torch', '火把', 'item:torch', { tags: ['fire-source', 'wooden', 'flammable', 'light'], where: { home: 1, shop: 1, dungeon: 2, inn: 0.5, npc: 0.3 }, makeup: [{ type: 'item/material/stick', count: 1 }, { type: 'item/material/grass', count: 1 }], station: 'hands' }),
   W('item/light/candle', 'Candle', '蜡烛', 'item:candle', { tags: ['fire-source', 'wax', 'flammable', 'light'], where: { home: 2, temple: 3, library: 2 } }),
   W('item/light/lantern', 'Lantern', '提灯', 'item:lantern', { tags: ['fire-source', 'metal', 'light', 'conductive'], where: { shop: 1, home: 0.5, inn: 1 } }),
   // vessels (explicit empty/filled types so rules can transform between them)

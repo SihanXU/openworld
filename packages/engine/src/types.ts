@@ -554,14 +554,20 @@ export interface StepCond {
   facts?: Record<string, Cmp>
   /** The leader's props (their stage). */
   props?: Record<string, Cmp>
-  /** The leader carries (hand or bag) something of a type starting with this. */
-  carrying?: string
+  /** The leader carries (hand or bag) something of a type starting with this (each of these, for a list). */
+  carrying?: string | string[]
+  /** The leader has (true) or has not (false) these statuses (out cold, down). */
+  statuses?: Record<string, boolean>
   /** The leader has learned a skill: any (true) or this one. */
   skill?: boolean | string
   /** Another step has played. */
   after?: string
-  /** Something of a type starting with this stands within r tiles of the leader (in view). */
-  near?: { type: string; r: number }
+  /** Something of a type starting with this stands within r tiles of the leader (in view), with this status if one is named (a lit fire). */
+  near?: { type: string; r: number; status?: string }
+  /** A room with this role (bedroom, kitchen …) stands on the leader's map. */
+  room?: string
+  /** The first morning (05:00, when the night ends) after another step played has come. */
+  morningAfter?: string
 }
 
 /**
@@ -658,6 +664,8 @@ export interface AiData {
   state?: 'idle' | 'chase' | 'return' | 'flee'
   /** The way around an obstacle it is following, to the goal it was planned for. */
   detour?: { x: number; y: number; path: [number, number][] }
+  /** A goal no way led to (one shut in a house): it does not look for a way there again until then. */
+  noWay?: { x: number; y: number; until: number }
   cooldown?: number
   loot?: string[] // item type ids
   /** Where it roams at night (creatures come out after dark); by day it keeps to `home`. */
@@ -773,6 +781,8 @@ export interface Portal {
   tx: number
   ty: number
   label?: Text
+  /** A story fact that must hold for the way to be open (until then the tile is only ground): a way out the story opens. */
+  opensWhen?: string
 }
 
 export interface WorldState {

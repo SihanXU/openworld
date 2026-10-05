@@ -15,8 +15,8 @@ describe('the companion', () => {
     const eng = game.engine
     const w = eng.world
     const p = w.player
-    // the slope's open middle row, from west to east and back, zig-zagging
-    eng.author(() => eng.teleport(p, { map: 'slope', x: 8, y: 12 }))
+    // the foot's open ground below its high ground, from west to east and back, zig-zagging
+    eng.author(() => eng.teleport(p, { map: 'foot', x: 8, y: 8 }))
     for (let i = 0; i < 10; i++) eng.tick()
     const pip = w.get('pip')!
     let prev = w.posOf(pip)!
@@ -47,7 +47,7 @@ describe('the companion', () => {
     const eng = game.engine
     const w = eng.world
     const p = w.player
-    eng.author(() => eng.teleport(p, { map: 'slope', x: 8, y: 12 }))
+    eng.author(() => eng.teleport(p, { map: 'foot', x: 8, y: 8 }))
     for (let i = 0; i < 20; i++) eng.tick()
     const pip = w.get('pip')!
     // the player strikes the bird it can point at (blows along the facing pass under a flyer)
@@ -60,7 +60,7 @@ describe('the companion', () => {
     expect(w.hasStatus({ e: pip.id }, 'down')).toBe(true)
     // no modder: the request is the Mod port's to make; here it is only recorded and its default (wait) runs
     eng.trace.length = 0
-    eng.author(() => eng.teleport(p, { map: 'slope', x: 14, y: 12 }))
+    eng.author(() => eng.teleport(p, { map: 'foot', x: 14, y: 8 }))
     for (let i = 0; i < 5; i++) eng.tick()
     const stuck = eng.trace.find((t) => t.ev.kind === 'stuck' && 'e' in t.ev.host && t.ev.host.e === pip.id)
     expect(stuck?.defined).toBe(false)
@@ -73,7 +73,7 @@ describe('the companion', () => {
     for (let i = 0; i < 320; i++) eng.tick()
     expect(w.hasStatus({ e: pip.id }, 'down')).toBe(false)
     const back = w.posOf(pip)!
-    expect(Math.max(Math.abs(back.x - 14), Math.abs(back.y - 12))).toBeLessThanOrEqual(3)
+    expect(Math.max(Math.abs(back.x - 14), Math.abs(back.y - 8))).toBeLessThanOrEqual(3)
   })
 })
 

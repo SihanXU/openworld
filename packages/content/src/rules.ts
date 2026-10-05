@@ -1361,6 +1361,20 @@ const JOURNEY: Rule[] = [
 
 const BUILDING: Rule[] = [
   rule({
+    id: 'build/door-open',
+    doc: 'A shut door taken hold of opens: what walks may pass.',
+    host: { type: 'structure/door' },
+    on: 'impulse/handle',
+    tree: AS(L('Open {target}', '打开{target}'), DO({ op: 'transform', into: 'structure/door/open' }, vfx('dust'))),
+  }),
+  rule({
+    id: 'build/door-shut',
+    doc: 'An open door taken hold of shuts.',
+    host: { type: 'structure/door/open' },
+    on: 'impulse/handle',
+    tree: AS(L('Close {target}', '关上{target}'), DO({ op: 'transform', into: 'structure/door' }, vfx('dust'))),
+  }),
+  rule({
     id: 'bed/sleep',
     label: L('Sleep', '睡觉'),
     doc: 'A bed, taken hold of: one lies down and sleeps until it is time to rise (a bed in a bedroom gives a full night\'s rest).',
