@@ -340,6 +340,7 @@ export class WorldScene extends Phaser.Scene {
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) this.underRoof.add(`${x + dx},${y + dy}`)
     }
     this.findSeeThrough(f)
+    this.drawCeilings()
     this.applyTiles(f)
     this.bossWarnings ??= this.add.graphics().setDepth(-20)
     this.bossWarnings.clear()
@@ -625,6 +626,31 @@ export class WorldScene extends Phaser.Scene {
   private underRoof = new Set<string>()
   /** The room's own cells: the wall south of them is see-through (its top not drawn) so one sees in. */
   private inRoom = new Set<string>()
+  /** The build palette is open: the cells of the player's storey with a ceiling over them are tinted (RimWorld's roof overlay). */
+  private ceilingOverlay = false
+  private ceilings?: Phaser.GameObjects.Graphics
+
+  /** Show or hide which cells of the player's storey have a ceiling (docs/building.md §5): seen even in a room, where it is not drawn. */
+  setCeilingOverlay(on: boolean): void {
+    this.ceilingOverlay = on
+    this.drawCeilings()
+  }
+
+  private drawCeilings(): void {
+    if (!this.ready) return
+    this.ceilings ??= this.add.graphics().setDepth(1e5 - 1)
+    this.ceilings.clear()
+    const me = this.playerAt
+    if (!this.ceilingOverlay || !me) return
+    const lift = me.z * STOREY_LIFT
+    for (const k of this.floors) {
+      const [x, y, z] = k.split(',').map(Number)
+      if (z !== me.z + 1) continue
+      this.ceilings.fillStyle(0x9fd4ff, 0.22).fillRect(x * T, y * T - lift, T, T)
+      this.ceilings.lineStyle(1, 0xcfe9ff, 0.5).strokeRect(x * T + 0.5, y * T - lift + 0.5, T - 1, T - 1)
+    }
+  }
+
   /** What is drawn see-through: the whole wall (by `x,y,z`) or the row of floor (by `f:x,y,z`) that hides the player. */
   private seeThrough = new Set<string>()
 

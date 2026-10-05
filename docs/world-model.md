@@ -538,6 +538,15 @@ Storeys as built further (2026-10-05, tried with the pack's tiles before it was 
 or a door set on a wall stands on it, so walls stack into a taller wall with no floor between;
 the inputs meet only what is on the player's own storey (Controls.layers).
 
+What one reaches across storeys, and where a built thing goes (2026-10-05): docs/building.md.
+In short:
+- Each storey builds its own: one reaches its floor, its volume, and its ceiling (the floor of the
+  storey above), and nothing else.
+- The ceiling is reached only when chosen.
+- A thing never searches up or down for room.
+- A floor laid on the ground covers it.
+- The open air above the ground is reached as the ground is.
+
 Blocks and stairs redesigned (2026-10-05, after RPG Maker, Stardew Valley and RimWorld, every case
 drawn first): one projection for everything — a point h storeys up is drawn h tiles above where it
 stands, a storey one tile high as a cell is one tile deep — and drawn by the row, then the storey.

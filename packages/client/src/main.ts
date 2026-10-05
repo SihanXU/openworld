@@ -89,6 +89,7 @@ const hud = new Hud(
 menu.muted = hud.muted
 const minimap = new Minimap(() => menu.toggleMap())
 const building = new BuildingMode(send, (x, y) => ({ ...scene.screenOfTile(x, y), scale: scene.cameras.main.zoom }))
+building.onToggle = (open) => scene.setCeilingOverlay(open)
 function toggleBuilding(): void {
   if (menu.anyOpen || dev.open || hud.dialogOpen || hud.questionShown || hud.chooserOpen || !lastFrame || !document.getElementById('intro')!.classList.contains('hidden')) return
   if (pressing) { clearTimeout(pressing.timer); pressing = undefined }

@@ -23,8 +23,8 @@ export type ToWorker =
   | { t: 'choices'; key: Key; tile?: Tile }
   /** Where the mouse points (for the key labels). */
   | { t: 'aim'; tile?: Tile }
-  | { t: 'buildAim'; id?: string; tile?: Tile }
-  | { t: 'build'; id: string; tile: Tile; /** the palette's turn (R): stairs go up this way */ facing?: Dir }
+  | { t: 'buildAim'; id?: string; tile?: Tile; /** in the ceiling over the tile (a floor, R in the palette) */ up?: boolean }
+  | { t: 'build'; id: string; tile: Tile; /** the palette's turn (R): stairs go up this way */ facing?: Dir; /** the palette's turn (R) for a floor: laid in the ceiling over the tile */ up?: boolean }
   | { t: 'answer'; yes: boolean }
   /** Slots: select (toolbar), cycle (wheel), next row (Tab, Shift+Tab back), swap and quick move (menu), drop (out of the menu), organize. */
   | { t: 'select'; slot: number }

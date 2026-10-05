@@ -1,7 +1,8 @@
 # Building across storeys: what one reaches, and where a thing goes
 
-Proposed 2026-10-05, for discussion; not built yet. Replaces the "lowest storey with room, from
-the one aimed at, upward" rule of `World.settleZ` (world-model.md §5.2, the storeys sections).
+Agreed and built 2026-10-05 (the defaults of §8 taken). It replaces the "lowest storey with room,
+from the one aimed at, upward" rule of `World.settleZ` (world-model.md §5.2, the storeys sections).
+How it is built is in §9.
 
 ## 1. Why
 
@@ -206,3 +207,31 @@ Taking it down is the reverse, step by step. Every step is reachable, and nothin
    way is two palette entries.)
 3. **Floors over water or lava as bridges.** (Default: later.)
 4. **Automatic roofs over rooms** (Elin, RimWorld). (Default: no. Ceilings are laid, as decided.)
+
+## 9. As built
+
+- **The open air** is the terrain `tile/air`. `World.get` resolves a cell's floor id on a storey above the
+  ground to it when no floor is laid there (`World.airAt`). It is never among a cell's things: it takes
+  no space, holds nothing, and is not drawn.
+  - `Controls.layers` adds it as the make-up of such a cell.
+  - Only F and G meet it (`targets`).
+  - Its rule is `core/receive-air`: it takes what is set in it, and where that rests is physics.
+  - The coverage table leaves it out (it is never faced on a map).
+- **Where a thing rests.** `World.settleZ(e, map, x, y, z)` checks one storey; `World.settleWhy` says why not:
+  `taken`, `ground`, `stairs`, `unheld`. The palette's refusals are `REFUSAL` in `controls.ts`.
+- **Reach.** `Engine.inReach` lets a put or a take reach the floor slot of the storey above: a laid floor
+  or the open air.
+- **Choosing the ceiling.** The ceiling is `CEILING` (layer −1) of `Controls.plan` and `choices`: the
+  chooser's last entry, never a default. The build palette's `up`, carried by the `build` and
+  `buildAim` messages, toggles with R for a floor.
+- **The dry run is structural.** A move counts as a change whether or not the thing could rest there, so
+  `Controls.planOn` checks a put on a cell or a built thing against `settleWhy`, and a take against
+  `World.bears`: a floor above the ground that something rests on. The `move` primitive refuses to move
+  a floor that bears anything.
+- **The client:**
+  - the preview at the target slot (a block two tiles high; a ceiling a tile up over a dashed outline);
+  - the palette's ceiling toggle and its line in the details;
+  - `WorldScene.setCeilingOverlay` while the palette is open;
+  - the prologue's house hint tells how to lay the ceiling.
+- **Tests:** `packages/content/test/building.test.ts` ("storeys: what one reaches…"), one test per table
+  of §6, and W10, W12 and the tutorial walkthrough laying the ceiling by choice.
