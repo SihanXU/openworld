@@ -68,8 +68,7 @@ export class BuildingMode {
   /** The palette opened or shut (the view shows the ceilings over one's storey while it is open). */
   onToggle?: (open: boolean) => void
   private arrow = document.createElement('div')
-  /** Under a ceiling's preview: the cell it covers. */
-  private foot = document.createElement('div')
+
   private lastPlaced = ''
   private panel = document.createElement('section')
   private ghost = document.createElement('div')
@@ -82,8 +81,7 @@ export class BuildingMode {
     this.panel.setAttribute('aria-label', 'Construction and farming')
     this.ghost.className = 'build-ghost hidden'
     this.arrow.className = 'build-arrow'
-    this.foot.className = 'build-foot hidden'
-    document.body.append(this.panel, this.ghost, this.foot)
+    document.body.append(this.panel, this.ghost)
     this.panel.addEventListener('click', (e) => {
       const button = (e.target as HTMLElement).closest<HTMLButtonElement>('button')
       if (!button) return
@@ -141,7 +139,6 @@ export class BuildingMode {
     this.up = false
     this.panel.classList.toggle('hidden', !on)
     this.ghost.classList.toggle('hidden', !on)
-    this.foot.classList.add('hidden')
     this.onToggle?.(on)
     document.getElementById('buildBtn')?.classList.toggle('active', on)
     if (on) { this.preview = undefined; this.render(); this.refreshAim(true) }
@@ -211,15 +208,14 @@ export class BuildingMode {
     const p = this.screen(at.x, at.y)
     const size = 16 * p.scale
     // where it will be (docs/building.md §5): a block a storey high (its top a tile up), a floor on the
-    // cell, a ceiling a tile up over the cell it covers (outlined)
+    // cell; a ceiling on the cell it covers, as the ceilings are shown while the palette is open
     const tall = block(this.selected.put)
     const up = this.up && lays(this.selected.put)
     this.ghost.style.left = `${p.x}px`
-    this.ghost.style.top = `${p.y - (tall ? size / 2 : up ? size : 0)}px`
+    this.ghost.style.top = `${p.y - (tall ? size / 2 : 0)}px`
     this.ghost.style.width = `${size}px`
     this.ghost.style.height = `${tall ? size * 2 : size}px`
-    this.foot.classList.toggle('hidden', !up)
-    if (up) Object.assign(this.foot.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${size}px`, height: `${size}px` })
+    this.ghost.classList.toggle('ceiling', up)
     // what turns (stairs) shows the way it will face
     const turns = this.selected.put === 'structure/stairs'
     this.arrow.textContent = { up: '↑', right: '→', down: '↓', left: '←' }[this.facing ?? this.away()]

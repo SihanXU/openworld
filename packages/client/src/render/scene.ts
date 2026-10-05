@@ -332,11 +332,13 @@ export class WorldScene extends Phaser.Scene {
       else if (e.type === 'structure/floor') this.floors.add(`${e.x},${e.y},${e.z ?? 0}`)
       else if (e.type === 'structure/stairs') this.stairs.add(`${e.x},${e.y},${e.z ?? 0}`)
     }
-    // the room the player stands in, and the cells round it (its walls): what is above is not drawn
+    // where the player is under cover — the room they stand in, or any covered stretch walls bound
+    // (no need to be shut in) — and the cells round it (its walls): what is above is not drawn
     this.underRoof.clear()
     this.inRoom.clear()
-    for (const [x, y] of f.player.room ?? []) {
-      this.inRoom.add(`${x},${y}`)
+    for (const k of [...(f.player.room ?? []).map(([x, y]) => `${x},${y}`), ...this.coveredRound(f)]) {
+      this.inRoom.add(k)
+      const [x, y] = k.split(',').map(Number)
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) this.underRoof.add(`${x + dx},${y + dy}`)
     }
     this.findSeeThrough(f)
@@ -626,7 +628,29 @@ export class WorldScene extends Phaser.Scene {
   private underRoof = new Set<string>()
   /** The room's own cells: the wall south of them is see-through (its top not drawn) so one sees in. */
   private inRoom = new Set<string>()
-  /** The build palette is open: the cells of the player's storey with a ceiling over them are tinted (RimWorld's roof overlay). */
+  /**
+   * The covered stretch the player stands in (docs/building.md §5): from their cell, if anything is
+   * built above it, the cells of their storey with something built above them, bounded by walls (and
+   * doors) — a room or not, shut in or not.
+   */
+  private coveredRound(f: Frame): string[] {
+    const me = { x: f.player.x, y: f.player.y, z: f.player.z ?? 0 }
+    const top = me.z + 4
+    const covered = (x: number, y: number) => { for (let z = me.z + 1; z <= top; z++) if (this.floors.has(`${x},${y},${z}`) || this.walls.has(`${x},${y},${z}`)) return true; return false }
+    if (!covered(me.x, me.y)) return []
+    const seen = new Set<string>()
+    const todo: [number, number][] = [[me.x, me.y]]
+    while (todo.length && seen.size < 400) {
+      const [x, y] = todo.pop()!
+      const k = `${x},${y}`
+      if (seen.has(k) || !covered(x, y) || (this.walls.has(`${x},${y},${me.z}`) && k !== `${me.x},${me.y}`)) continue
+      seen.add(k)
+      todo.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1])
+    }
+    return [...seen]
+  }
+
+  /** The build palette is open: what is above the player's storey is not drawn (one builds one's own), and the cells of the storey with a ceiling over them are tinted (RimWorld's roof overlay). */
   private ceilingOverlay = false
   private ceilings?: Phaser.GameObjects.Graphics
 
@@ -670,7 +694,7 @@ export class WorldScene extends Phaser.Scene {
     const mine = (me.y + 1) * T + me.z * 3 + 2
     // drawn after them (in front), drawn at all (not over the room they are in), and over their body
     const over = (x: number, y: number, z: number, y0: number, y1: number) =>
-      (y + 1) * T + z * 3 > mine && !(z > me.z && this.underRoof.has(`${x},${y}`)) && x * T < body.x1 && x * T + T > body.x0 && y0 < body.y1 && y1 > body.y0
+      (y + 1) * T + z * 3 > mine && !(z > me.z && (this.ceilingOverlay || this.underRoof.has(`${x},${y}`))) && x * T < body.x1 && x * T + T > body.x0 && y0 < body.y1 && y1 > body.y0
     const seeds: string[] = []
     for (const k of this.walls) {
       const [x, y, z] = xyz(k)
@@ -739,7 +763,7 @@ export class WorldScene extends Phaser.Scene {
       // drawn where it lies over a cell one stands in (over a wall, a corner's, it hides no one)
       const clear = this.seeThrough.has(at(0, 0))
       // its top shows unless something is built on it — and is drawn (not hidden over the room one is in)
-      const hiddenAbove = (this.playerAt?.z ?? 0) < z + 1 && this.underRoof.has(`${e.x},${e.y}`)
+      const hiddenAbove = (this.playerAt?.z ?? 0) < z + 1 && (this.ceilingOverlay || this.underRoof.has(`${e.x},${e.y}`))
       top.setVisible(!(clear && !n) && (hiddenAbove || (!this.walls.has(at(0, 0, 1)) && !this.floors.has(at(0, 0, 1)))))
       v.fadeFront = clear
       v.key = 'built'
@@ -892,7 +916,7 @@ export class WorldScene extends Phaser.Scene {
     // what stands on a storey above the player over the room they are in is not drawn (one sees into
     // it); elsewhere, what hides them is see-through (findSeeThrough)
     const me = this.playerAt
-    v.root.setVisible(!(!!me && (e.z ?? 0) > me.z && this.underRoof.has(`${e.x},${e.y}`)))
+    v.root.setVisible(!(!!me && (e.z ?? 0) > me.z && (this.ceilingOverlay || this.underRoof.has(`${e.x},${e.y}`))))
     // status overlay + tint
     const top = OVERLAY_OF.find(([s]) => e.statuses.includes(s))
     const want = top?.[1]

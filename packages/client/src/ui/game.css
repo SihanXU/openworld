@@ -28,8 +28,8 @@
 .build-ghost { position: fixed; z-index: 12; pointer-events: none; transform: translate(-50%, -50%); box-sizing: border-box; border: 2px dashed; }
 .build-ghost.valid { border-color: #b4e986; background: #6fbc4738; }
 .build-ghost.invalid { border-color: #ed9276; background: #d3424238; }
-.build-foot { position: fixed; z-index: 12; pointer-events: none; transform: translate(-50%, -50%); box-sizing: border-box; border: 1px dashed #ffffffb0; }
-.build-foot.hidden { display: none; }
+.build-ghost.ceiling.valid { border-color: #bfe3ff; background: #9fd4ff55; }
+.build-ghost.ceiling canvas { display: none; }
 .build-arrow { position: absolute; inset: 0; display: grid; place-items: center; font: 700 14px/1 sans-serif; color: #fff; text-shadow: 0 0 2px #000, 0 0 2px #000; }
 .build-ghost canvas { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); opacity: 0.65; image-rendering: pixelated; }
 #buildBtn.active { outline: 2px solid #eef5a6; }

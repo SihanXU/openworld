@@ -110,11 +110,18 @@ E, use. It is a rule of where one stands, not of who one is.
 - **The preview** shows the thing where it will be:
   - a block as its front and top (two tiles high) at the cell;
   - a floor flat on the cell;
-  - a ceiling one row up, where it will be drawn, with a dashed outline on the cell under it.
+  - a ceiling on the cell it covers, tinted as the ceilings are (below).
+  
+  (Drawing it one row up, where the 3/4 view puts the storey above, was tried first and read as
+  wrong: one clicks a cell and something appears over the one behind it.)
 - **The labels** say which: "Place wall", "Lay floor", "Lay ceiling", "Take down ceiling".
-- **The ceiling overlay.** While the palette is open, the cells of one's storey that have a ceiling
-  are tinted (RimWorld's roof overlay). In a room the ceiling is not drawn, so this is how one sees
-  what is roofed.
+- **The palette shows one's own storey.** While the palette is open, nothing above one's storey is
+  drawn (The Sims' build mode: one edits one level), and the cells of one's storey that have a
+  ceiling are tinted (RimWorld's roof overlay).
+- **Under cover, what is above is not drawn.** This holds wherever one stands with something built
+  over one's cell: over the covered stretch one stands in, bounded by walls, and round it. A room
+  shut in is not needed, so with the door open or a wall missing one still sees in (the ceiling no
+  longer covers the bed, the fire, the stairs). From outside, a house shows its upper storey and roof.
 
 ## 6. The table of cases
 
@@ -229,7 +236,8 @@ Taking it down is the reverse, step by step. Every step is reachable, and nothin
   `World.bears`: a floor above the ground that something rests on. The `move` primitive refuses to move
   a floor that bears anything.
 - **The client:**
-  - the preview at the target slot (a block two tiles high; a ceiling a tile up over a dashed outline);
+  - the preview at the target slot (a block two tiles high; a ceiling on its cell, tinted);
+  - what is above one's storey hidden under cover (`WorldScene.coveredRound`) and while the palette is open;
   - the palette's ceiling toggle and its line in the details;
   - `WorldScene.setCeilingOverlay` while the palette is open;
   - the prologue's house hint tells how to lay the ceiling.
