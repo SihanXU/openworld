@@ -7,7 +7,7 @@ import type { World } from './world.ts'
 import { parseCellId } from './cells.ts'
 import type { Verb } from './types.ts'
 import type { RuleLibrary } from './rules.ts'
-import type { Entity, Expectation, GameEvent, MapData, Ontology, Ref, Scenario, WorldState } from './types.ts'
+import type { Entity, Expectation, GameEvent, MapData, Ontology, Ref, Scenario, Space, WorldState } from './types.ts'
 
 export const SANDBOX_MAP = 'sandbox'
 
@@ -79,19 +79,20 @@ function fill(eng: Engine, sc: Scenario, player: string): void {
     for (const st of s.statuses ?? []) w.setStatus({ e: e.id }, st, -1)
   }
   for (const c of sc.cells ?? []) {
-    const top = w.cellTop(SANDBOX_MAP, c.x, c.y)
+    const top = c.space ? w.occupant(SANDBOX_MAP, c.x, c.y, c.space) : w.cellTop(SANDBOX_MAP, c.x, c.y)
     if (!top) continue
     for (const [k, v] of Object.entries(c.props ?? {})) w.setProp(top, k, v)
     for (const st of c.statuses ?? []) w.setStatus({ e: top.id }, st, -1)
   }
 }
 
-/** A scenario's role: a thing by key, or a cell (`tile:x,y`) — what makes it up on top. */
+/** A scenario's role: a thing by key, or a cell (`tile:x,y`: what makes it up on top; `tile:x,y:space`: what takes that space). */
 function roleRef(w: World, key: string | undefined): Ref | undefined {
   if (!key) return undefined
   if (key.startsWith('tile:')) {
-    const [x, y] = key.slice(5).split(',').map(Number)
-    const top = w.cellTop(SANDBOX_MAP, x, y)
+    const [at, space] = key.slice(5).split(':')
+    const [x, y] = at.split(',').map(Number)
+    const top = space ? w.occupant(SANDBOX_MAP, x, y, space as Space) : w.cellTop(SANDBOX_MAP, x, y)
     return top && { e: top.id }
   }
   return { e: key }
@@ -147,8 +148,18 @@ export function endlessYield(eng: Engine, ev: GameEvent): boolean {
   // being seen). The clock's events wait on time, a threshold on the host changing, broken content
   // is reported once.
   if (!REPEATABLE.some((k) => ev.kind === k || ev.kind.startsWith(k + '/'))) return false
-  const ys = repeatYields(eng, ev)
-  return ys.length === REPEAT_TIMES && !!eng.world.get(ev.host.e) && ys.slice(-REPEAT_TAIL).some((n) => n > 0)
+  // exact, not by luck: a yield that comes one time in twenty is as endless as one that always
+  // comes, so every chance is forced, once each way (a chance that gates the yield, or its absence)
+  const other = new Engine(structuredClone(eng.world.state), eng.world.onto.data, eng.lib)
+  return [eng, other].some((e, i) => {
+    e.world.luck = i === 0
+    try {
+      const ys = repeatYields(e, ev)
+      return ys.length === REPEAT_TIMES && !!e.world.get(ev.host.e) && ys.slice(-REPEAT_TAIL).some((n) => n > 0)
+    } finally {
+      delete e.world.luck
+    }
+  })
 }
 
 /** Replay a scenario's event once (and optional ticks); report effect errors. */

@@ -707,6 +707,17 @@ carries each role's material and makeup. `npm run modder -- library audit [--dat
 stored patches that make something from nothing, for the user to remove (`library remove <id>`);
 nothing is removed automatically. The economy check (consumption graph) and reachability are W4.
 
+As built (2026-10-05, after the W1–W10 review): the repeat check is exact rather than lucky. It
+replays twice, once with every chance coming out yes and once with every chance coming out no
+(`World.luck`: chance conditions, chance emits and the fraction of a breakdown's parts). A
+stick that comes one time in twenty is as endless as one that always comes. A scenario names a
+thing under the top of its cell by its space (`tile:x,y:floor`), so a request about the floor
+under a tree replays on that floor. People yield to each other by a swap that is one step: the
+one pushed makes way first, and the pusher steps in only if it has gone. A cell holds one body
+(`World.fits` no longer lets people pass through people), and a thing that falls onto a body
+comes to rest beside it. Saves keep the migrated cells of maps not yet entered (`legacyTiles`,
+`reseed` in the state).
+
 ## 9. Holes after the change
 
 What remains for the AI is what needs invention:

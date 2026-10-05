@@ -768,6 +768,15 @@ export interface Portal {
   label?: Text
 }
 
+/** A cell of an older save as it was: its terrain and statuses (world-model.md §4.6 migration). */
+export interface LegacyTile {
+  x: number
+  y: number
+  terrain?: string
+  statuses?: Record<string, number>
+  statusBy?: Record<string, Id>
+}
+
 export interface WorldState {
   tick: number
   seed: number
@@ -794,6 +803,13 @@ export interface WorldState {
   dormant?: Record<string, { since: number; inbox: GameEvent[] }>
   /** Each host's relations (contact and containment) when last computed: `how|ref` keys. */
   relations?: Record<string, string[]>
+  /**
+   * An older save's changed cells, by map, not yet made things (its data has not come since the
+   * save was upgraded): kept in the state so a save before the map is entered keeps them.
+   */
+  legacyTiles?: Record<string, LegacyTile[]>
+  /** Maps whose relations an older save kept in another form, not entered since: they start again from where things stand. */
+  reseed?: string[]
 }
 
 // ------------------------------------------------------------------ the player's inputs
@@ -1077,8 +1093,8 @@ export interface Scenario {
   /** Which entity key is the player (default: "actor"). */
   player?: string
   /** What the things on top of some cells carry (statuses, props), at their place in the terrain rows. */
-  cells?: { x: number; y: number; statuses?: string[]; props?: Record<string, PropValue> }[]
-  /** The event to replay. Roles refer to scenario entity keys or `tile:x,y`. */
+  cells?: { x: number; y: number; space?: Space; statuses?: string[]; props?: Record<string, PropValue> }[]
+  /** The event to replay. Roles refer to scenario entity keys, `tile:x,y` (a cell's top) or `tile:x,y:space` (what takes that space in it). */
   event: {
     kind?: EventKind
     host?: string

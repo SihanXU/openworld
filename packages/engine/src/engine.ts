@@ -107,7 +107,8 @@ export class Engine {
   private q: GameEvent[] = []
   /** Events deferred to the next tick: too deep in their chain, over the budget, or for a held host. */
   private later: GameEvent[] = []
-  private bump?: { id: Id; since: number; last: number }
+  /** Who each mover has been pushing into, since when (a swap once it has lasted): by the mover's id. */
+  private bumps = new Map<Id, { id: Id; since: number; last: number }>()
   private cooldowns = new Map<Id, number>()
   private flushing = false
   /** What outcomes touched since the last settle: ref key → ref. */
@@ -158,13 +159,6 @@ export class Engine {
     })
   }
 
-  /**
-   * An older save's tile overrides, by map (game.ts upgrade): its cells as they were, made
-   * things when the map's data comes (not state: nothing else reads them).
-   */
-  readonly legacyTiles = new Map<string, { x: number; y: number; terrain?: string; statuses?: Record<string, number>; statusBy?: Record<string, Id> }[]>()
-  /** Maps whose relations an older save kept in another form: they start again from where things stand. */
-  readonly reseed = new Set<string>()
 
   /**
    * A map's data has come (a new map, or one loaded again with a save). Its authored areas are
@@ -178,8 +172,10 @@ export class Engine {
     const data = w.map(map)
     if (data?.forage && !data.appear) (data.appear = appearFromForage(data)), delete data.forage
     const named = Object.entries(w.map(map)?.regions ?? {}).filter(([name]) => !w.get(regionId(map, name)))
-    const old = this.legacyTiles.get(map) ?? []
-    this.legacyTiles.delete(map)
+    // an older save's changed cells (game.ts upgrade), kept in the state until the map's data comes
+    const s = w.state
+    const old = s.legacyTiles?.[map] ?? []
+    if (s.legacyTiles?.[map]) delete s.legacyTiles[map]
     this.write(() => {
       for (const [name, r] of named) w.add({ id: regionId(map, name), type: 'region', place: { on: 'area', map, rects: [r] } })
       // what is in a stage in the map's data starts its clock (a stump grows back)
@@ -190,7 +186,8 @@ export class Engine {
         if (top) for (const [st, until] of Object.entries(t.statuses ?? {})) w.setStatus({ e: top.id }, st, until, t.statusBy?.[st])
       }
     })
-    const again = this.reseed.delete(map)
+    const again = !!s.reseed?.includes(map)
+    if (again) s.reseed = s.reseed!.filter((m) => m !== map)
     if ((named.length || old.length || again) && w.state.loadedMaps.includes(map)) this.diffMap(map, true)
   }
 
@@ -770,9 +767,13 @@ export class Engine {
       this.offer({ kind: 'bump', host: { e: e.id }, roles: cliff ? { other: { e: cliff.id } } : {}, params: { dir }, cause: ev.cause, origin: ev.origin })
       return false
     }
-    if (!w.fits(e, map, nx, ny, nz)) {
+    // the one who pushed us to make way stands where we step: we take its cell as it takes ours
+    const yielding = ev.params?.swap === true && ev.roles.source && 'e' in ev.roles.source && w.actorAt(map, nx, ny, undefined, nz)?.id === ev.roles.source.e
+    if (!yielding && !w.fits(e, map, nx, ny, nz)) {
       const other = w.actorAt(map, nx, ny, undefined, nz)
-      if (!isPlayer || !other?.npc || this.busy(other) || w.blocked(map, nx, ny, undefined, nz)) {
+      // the player, or a person on their way, pushing on into a person who is free: they swap places
+      // (people yield to each other this way and never stand in one cell, world-model.md §5.2)
+      if (!(isPlayer || e.npc) || !other?.npc || this.busy(other) || w.blocked(map, nx, ny, undefined, nz)) {
         const thing = w.inBounds(map, nx, ny) ? (other ?? w.solidAt(map, nx, ny, undefined, nz)) : undefined
         const other2 = thing ?? w.cellTop(map, nx, ny)
         const ref: Ref | undefined = other2 && { e: other2.id }
@@ -782,12 +783,21 @@ export class Engine {
       }
       // keep pushing into a person (~0.8 s) and you swap places; a single bump just turns you to face them
       const t = w.state.tick
-      const b = this.bump
-      this.bump = b && b.id === other.id && t - b.last <= 4 ? { id: other.id, since: b.since, last: t } : { id: other.id, since: t, last: t }
-      if (t - this.bump.since < 8) return false
-      this.bump = undefined
+      const b = this.bumps.get(e.id)
+      const now = b && b.id === other.id && t - b.last <= 6 ? { id: other.id, since: b.since, last: t } : { id: other.id, since: t, last: t }
+      this.bumps.set(e.id, now)
+      if (t - now.since < 8) return false
+      this.bumps.delete(e.id)
+      // the other makes way first, at once; only if it has left does the pusher step in (one body a cell)
       const back: Dir = dir === 'up' ? 'down' : dir === 'down' ? 'up' : dir === 'left' ? 'right' : 'left'
-      this.queue({ kind: 'impulse/push', host: { e: other.id }, roles: { source: { e: e.id }, actor: { e: e.id } }, params: { dir: back, swap: true }, cause: ev.cause, origin: ev.origin })
+      this.dispatching++
+      try {
+        this.dispatch({ kind: 'impulse/push', host: { e: other.id }, roles: { source: { e: e.id }, actor: { e: e.id } }, params: { dir: back, swap: true }, cause: ev.cause, origin: ev.origin, depth: (ev.depth ?? 0) + 1 })
+      } finally {
+        this.dispatching--
+      }
+      const there = w.posOf(other)
+      if (there && there.map === map && there.x === nx && there.y === ny) return false
     }
     this.touch({ e: e.id })
     w.place(e, { on: 'tile', map, x: nx, y: ny, ...(nz && { z: nz }) })
@@ -908,8 +918,9 @@ export class Engine {
     if (e.id === this.world.state.player && this.world.posOf(e)?.map !== to.map) return this.travel(e, to)
     const w = this.world
     // a flyer goes over what stops walkers (a companion over a wall, a river)
-    const open = w.hasTag(e, 'airborne') ? w.inBounds(to.map, to.x, to.y) : w.walkable(to.map, to.x, to.y, e.id, true)
-    const at = open ? to : (this.nearestFree(to) ?? to)
+    // one body to a cell: where another stands, the nearest free tile (two people bound for one spot)
+    const open = w.hasTag(e, 'airborne') ? w.inBounds(to.map, to.x, to.y) : w.fits(e, to.map, to.x, to.y)
+    const at = open ? to : (this.nearestFree(to, e) ?? to)
     this.touch({ e: e.id })
     w.place(e, { on: 'tile', map: at.map, x: at.x, y: at.y })
     this.touch({ e: e.id })
