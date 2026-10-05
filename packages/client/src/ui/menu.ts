@@ -422,13 +422,14 @@ export class Menu {
 
 /** The crafting panel's items (each recipe's result, each material), keyed `recipe:<id>` / `need:<type>`: for their icons and tooltips. */
 function craftInfos(): ItemInfo[] {
-  const of = (id: string, type: string, extra: { name?: ItemInfo['name']; tags?: string[]; props?: ItemInfo['props'] } = {}): ItemInfo | undefined => {
+  const of = (id: string, type: string, extra: { name?: ItemInfo['name']; tags?: string[]; props?: ItemInfo['props']; sprite?: string } = {}): ItemInfo | undefined => {
     const f = FORM_BY_ID[type]
-    if (!f) return undefined
+    // what is not an item form (a wall, a door, a bed) shows the recipe's own picture
+    if (!f) return extra.sprite && extra.name ? { id, type, sprite: extra.sprite, name: extra.name, tags: [...(extra.tags ?? [])], statuses: [], props: { ...(extra.props ?? {}) } } : undefined
     return { id, type, sprite: f.sprite, name: extra.name ?? { en: f.en, zh: f.zh }, tags: [...(f.tags ?? []), ...(extra.tags ?? [])], statuses: [], props: { ...(f.props ?? {}), ...(extra.props ?? {}) } }
   }
   const needs = [...new Set(RECIPES.flatMap((r) => r.needs.map((n) => n.type)))]
-  return [...RECIPES.map((r) => of(`recipe:${r.id}`, r.make.type, { name: r.name, tags: r.make.tags, props: r.make.props })), ...needs.map((n) => of(`need:${n}`, n))].filter((x): x is ItemInfo => !!x)
+  return [...RECIPES.map((r) => of(`recipe:${r.id}`, r.make.type, { name: r.name, tags: r.make.tags, props: r.make.props, sprite: r.sprite })), ...needs.map((n) => of(`need:${n}`, n))].filter((x): x is ItemInfo => !!x)
 }
 
 function keyOf(it: ItemInfo): string {

@@ -331,13 +331,14 @@ const RESIDENTS: TypeDef[] = [
   { id: 'site/place', name: { en: 'a place', zh: '地点' }, sprite: 'site:place' },
   // what one builds (world-model.md §6.6): a thing one carries and sets down — set in a cell it takes
   // its space there (a wall the volume, a floor the floor, on the storey where it comes to rest), and
-  // can be picked up again; a floor needs holding up (walls hold what is laid over them, two cells round)
+  // can be picked up again; a floor needs holding up (walls hold what is laid over them, two cells round).
+  // Each is named by its form; what it is made of names the rest (planks: a Wooden Wall, 木墙)
   { id: 'structure', name: { en: 'structure', zh: '建筑件' }, tags: ['portable', 'structure', 'wooden', 'flammable'], props: { material: 'wood' } },
-  { id: 'structure/wall', name: { en: 'Wooden Wall', zh: '木墙' }, sprite: 'structure:wall', occupies: ['volume'], solid: true, tags: ['wall', 'opaque'], props: { maxHp: 12, hp: 12, supports: 2 }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
-  { id: 'structure/floor', name: { en: 'Wooden Floor', zh: '木地板' }, sprite: 'structure:floor', occupies: ['floor'], reach: ['ground'], props: { maxHp: 8, hp: 8, needsSupport: true }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
-  { id: 'structure/stairs', name: { en: 'Wooden Stairs', zh: '木楼梯' }, sprite: 'structure:stairs', tags: ['stairs'], props: { maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 3 }], station: 'hands' },
+  { id: 'structure/wall', name: { en: 'Wall', zh: '墙' }, sprite: 'structure:wall', occupies: ['volume'], solid: true, tags: ['wall', 'opaque'], props: { maxHp: 12, hp: 12, supports: 2 }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
+  { id: 'structure/floor', name: { en: 'Floor', zh: '地板' }, sprite: 'structure:floor', occupies: ['floor'], reach: ['ground'], props: { maxHp: 8, hp: 8, needsSupport: true }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
+  { id: 'structure/stairs', name: { en: 'Stairs', zh: '楼梯' }, sprite: 'structure:stairs', tags: ['stairs'], props: { maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 3 }], station: 'hands' },
   // a door: shut it stops what walks, as a wall does; open, one walks through; either way it is a room's edge
-  { id: 'structure/door', name: { en: 'Wooden Door', zh: '木门' }, sprite: 'structure:door', occupies: ['volume'], solid: true, tags: ['door'], props: { maxHp: 10, hp: 10, supports: 2 }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
+  { id: 'structure/door', name: { en: 'Door', zh: '门' }, sprite: 'structure:door', occupies: ['volume'], solid: true, tags: ['door'], props: { maxHp: 10, hp: 10, supports: 2 }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
   { id: 'structure/door/open', name: { en: 'Open Door', zh: '开着的门' }, sprite: 'structure:door_open', solid: false },
 ]
 
