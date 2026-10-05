@@ -259,6 +259,11 @@ the own tile, a second thing in the bag).
 **Undefined behaviour from the inputs**: every input makes an act (§5.7). Where its outcome,
 or that of an impulse it emits, reaches an undefined leaf, the AI is asked (§5.11).
 
+As built (2026-10-05): aiming, keyboard layers, reach, blows, menu drops and magnetic pickup
+keep the actor's storey. A built floor sits below the things on it in the chooser. A blow keeps
+its announced target, including an item in the bag; a chosen target beyond a blocked ray or
+off its line is refused.
+
 ### 5.3 Inventory, chests, pickup, HUD, menus, time
 
 The craft is Stardew Valley's; the systems are the Ford's own (game-design.md §10 lists what
@@ -287,6 +292,9 @@ was cut).
     moves a stack between the toolbar and the rest of the bag, dragging an item out of the menu
     drops it, and a button organizes the bag.
   - Slot order and the selected slot are part of the world state.
+
+  As built (2026-10-05): organizing uses the bag's learned capacity, including Big Pack's
+  fourth row.
 - **Chests**
   - The chest's grid is shown above the inventory's grid.
   - Clicking an item moves it to the other side; right-click moves one.
@@ -1014,6 +1022,11 @@ artifacts. Adding only tests replays the added tests. Commit reuses a proof only
 shared-library context matches exactly; any context change requires full validation. Both
 luck branches of the repeat check remain.
 
+As built (2026-10-05): request scenarios keep the participants' holding closure, the story
+and world props, and storeys. Terrain rows supply each ground cell's top; cell overrides keep
+the actual types and state below it and upstairs. Cover above participants is kept before
+the limit on loose neighbours. Cell roles use `tile:x,y[,z][:space]`.
+
 As built (2026-10-05): a status artifact may repeat an existing definition, but cannot change
 one from the base ontology, shared library or an earlier artifact in the patch. Object key
 order does not change a definition. This keeps ontology additions inside the same boundary
@@ -1390,6 +1403,9 @@ does not hold (iron from smelting, a stick from a stump). So the design works in
   host class, `laneOf`) waits in that lane and is often answered by what the other committed;
   others are designed side by side. Reviews, reflections and escalations run three at a time
   (`concurrency.background`).
+  As built (2026-10-05): before repairing a failed validation, a non-revision request checks
+  whether another lane has already answered its hole and class. If so it returns `covered`
+  without another design call.
 - **A rule writes only its host, so one act can take several holes.** A knife on a haystack is
   answered by the knife (a cut sent to the haystack), and the haystack's answer to a cut is its
   own hole, asked next. `npm run eval:objects` follows an act through up to four holes and judges

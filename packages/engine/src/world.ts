@@ -90,12 +90,8 @@ export class World {
   fx: FxEvent[] = []
   /** The last lines logged or said, kept past the drain of `fx` (a request's recent context). */
   recent: Text[] = []
-  /**
-   * The repeat check's luck (world-model.md §8.4): set, every chance in an outcome comes out this
-   * way (a chance condition holds or fails, a chance emit or part of a breakdown is always made),
-   * so a yield that only sometimes comes is seen as the endless one it is. Unset in play.
-   */
-  luck?: boolean
+  /** The repeat check's assignment by chance site (world-model.md §8.4). Unset in play. */
+  luck?: (site: object, part: number) => boolean
   /**
    * The state changes only through its one writer (design.md §5.13, A2). The engine claims it
    * when it is made and lends it to outcomes (the effect runner), the clock (a status running
@@ -256,6 +252,11 @@ export class World {
     return nextRandom(this.state)
   }
 
+  /** Only outcomes with nonzero probability are explored in the repeat check. */
+  chance(site: object, p: number, part = 0): boolean {
+    return this.luck ? (p <= 0 ? false : p >= 1 ? true : this.luck(site, part)) : this.rand() < p
+  }
+
   /** A thing by id: one kept in the state, or a cell thing of a map's static data (a destroyed one is gone). */
   get(id: Id | undefined): Entity | undefined {
     if (!id) return undefined
@@ -372,11 +373,11 @@ export class World {
   }
 
   /** What makes up a cell on top, of the things drawn as its ground: what fills it, else what roots in it, else its floor. */
-  cellTop(map: string, x: number, y: number): Entity | undefined {
+  cellTop(map: string, x: number, y: number, z = 0): Entity | undefined {
     let top: Entity | undefined
     let rank = -1
-    for (const e of this.entitiesAt(map, x, y)) {
-      if (!this.isTerrain(e)) continue
+    for (const e of this.entitiesAt(map, x, y, z)) {
+      if (!this.isTerrain(e) && !this.spacesOf(e).includes('floor')) continue
       for (const s of this.spacesOf(e)) {
         const r = CELL_RANK[s]
         if (r !== undefined && r > rank) [top, rank] = [e, r]
@@ -386,8 +387,8 @@ export class World {
   }
 
   /** A cell as a reference: what makes it up on top (its floor's id if nothing does: a reference to nothing). */
-  cellRef(map: string, x: number, y: number): Ref {
-    return { e: this.cellTop(map, x, y)?.id ?? cellId(map, x, y, 'floor') }
+  cellRef(map: string, x: number, y: number, z = 0): Ref {
+    return { e: this.cellTop(map, x, y, z)?.id ?? cellId(map, x, y, 'floor', z) }
   }
 
   /** The things of a map's cells that the state keeps (changed, made there, or gone): what differs from its data. */
@@ -700,11 +701,11 @@ export class World {
 
   /**
    * How many cells from a place to a thing (Chebyshev: the eight round are 1): to the nearest cell
-   * its base covers (a tent, a place of the overworld); 0 for what one carries. Off the map: none.
+   * its base covers (a tent, a place of the overworld); 0 for what one carries. Off the map or storey: none.
    */
   distance(from: Pos, e: Entity): number | undefined {
     const p = this.posOf(e)
-    if (!p || p.map !== from.map) return undefined
+    if (!p || p.map !== from.map || (p.z ?? 0) !== (from.z ?? 0)) return undefined
     if (e.place.on !== 'tile') return Math.max(Math.abs(p.x - from.x), Math.abs(p.y - from.y))
     const [fw, fd] = this.onto.resolve(e.type).footprint
     let best = Infinity
@@ -721,7 +722,7 @@ export class World {
     const p = this.posOf(e)
     if (!p) return undefined
     const [dx, dy] = DIRS[dir]
-    return { map: p.map, x: p.x + dx, y: p.y + dy }
+    return { ...p, x: p.x + dx, y: p.y + dy }
   }
 
   // ---------------------------------------------------------------- terrain & tiles
@@ -950,10 +951,10 @@ export class World {
    * A thing that comes to be what it is starts its stage's clock (world-model.md §6.5), unless it
    * is already running (a thing loaded) or the stage's clock is another status, given by what gives it.
    */
-  private startStage(e: Entity): void {
+  private startStage(e: Entity, at = this.state.tick): void {
     const st = this.onto.resolve(e.type).stage
     if (!st?.lasts || st.clock || e.statuses?.stage !== undefined) return
-    this.setStatus({ e: e.id }, 'stage', this.state.tick + st.lasts)
+    this.setStatus({ e: e.id }, 'stage', at + st.lasts)
   }
 
   /** A map's cells whose static things are in a stage start their clocks (kept from then on): a map's stumps grow back too. */
@@ -1018,7 +1019,7 @@ export class World {
   }
 
   /** Change an entity's type, re-indexing the cells it covers (a new type may have another footprint). */
-  transform(e: Entity, type: string): void {
+  transform(e: Entity, type: string, at = this.state.tick): void {
     this.guard('transform', e)
     if (e.place.on === 'tile') this.cellsVersion.set(e.place.map, (this.cellsVersion.get(e.place.map) ?? 0) + 1)
     this.indexRemove(e)
@@ -1026,7 +1027,7 @@ export class World {
     this.indexAdd(e)
     // what it was, it no longer is: a stage begins again from the start (or none)
     if (e.statuses?.stage !== undefined) this.clearStatus({ e: e.id }, 'stage')
-    this.startStage(e)
+    this.startStage(e, at)
   }
 
   destroy(e: Entity): void {

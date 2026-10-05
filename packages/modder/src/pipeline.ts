@@ -363,6 +363,13 @@ export class Modder {
         const attempt: Attempt = { phase, patch, errors: res.errors, warnings: res.warnings, ...(fixes.length ? { fixes } : {}), ...(derived?.length ? { derived } : {}) }
         ep.attempts.push(attempt)
         if (!res.ok) {
+          const meanwhile = eo.revise ? undefined : library.covering(req)
+          if (meanwhile) {
+            ep.outcome = 'covered'
+            ep.rules = [meanwhile.rule]
+            ep.patch = meanwhile.patch
+            break
+          }
           if (repairs++ >= h.repair.maxRounds) break
           retry(repairUser(res.errors, res.warnings), 'repair')
           continue

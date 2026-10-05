@@ -4,7 +4,7 @@
 
 import { Engine, type Resolution } from './engine.ts'
 import type { World } from './world.ts'
-import { parseCellId } from './cells.ts'
+import { cellId, parseCellId, type CellSpace } from './cells.ts'
 import type { Verb } from './types.ts'
 import type { RuleLibrary } from './rules.ts'
 import type { Entity, Expectation, GameEvent, MapData, Ontology, Ref, Scenario, Space, WorldState } from './types.ts'
@@ -56,9 +56,12 @@ export function buildSandbox(sc: Scenario, ontology: Ontology, lib: RuleLibrary)
 function fill(eng: Engine, sc: Scenario, player: string): void {
   const w = eng.world
   if (!sc.entities.some((e) => e.key === player)) w.add({ id: player, type: 'actor/person/player', place: { on: 'none' } })
-  // two passes: holders first, then things inside/held
-  const ordered = [...sc.entities].sort((a, b) => Number(!!(a.heldBy || a.inside)) - Number(!!(b.heldBy || b.inside)))
-  for (const s of ordered) {
+  // holders before their contents, including nested bags
+  const pending = [...sc.entities]
+  while (pending.length) {
+    const i = pending.findIndex((s) => !pending.some((h) => h.key === (s.heldBy ?? s.inside)))
+    if (i < 0) throw new Error('cyclic scenario holding')
+    const [s] = pending.splice(i, 1)
     const e: Entity = {
       id: s.key,
       type: s.type,
@@ -68,7 +71,7 @@ function fill(eng: Engine, sc: Scenario, player: string): void {
         ? { on: 'hand', holder: s.heldBy }
         : s.inside
           ? { on: 'inside', holder: s.inside }
-          : { on: 'tile', map: SANDBOX_MAP, x: s.x, y: s.y },
+          : { on: 'tile', map: SANDBOX_MAP, x: s.x, y: s.y, ...(s.z && { z: s.z }) },
       facing: 'down',
     }
     const r = w.onto.resolve(s.type)
@@ -78,21 +81,27 @@ function fill(eng: Engine, sc: Scenario, player: string): void {
     w.add(e)
     for (const st of s.statuses ?? []) w.setStatus({ e: e.id }, st, -1)
   }
+  for (const [id, props] of Object.entries(sc.residents ?? {}))
+    for (const [k, v] of Object.entries(props)) w.setProp(w.get(id)!, k, v)
   for (const c of sc.cells ?? []) {
-    const top = c.space ? w.occupant(SANDBOX_MAP, c.x, c.y, c.space) : w.cellTop(SANDBOX_MAP, c.x, c.y)
+    let top = c.space ? w.occupant(SANDBOX_MAP, c.x, c.y, c.space, c.z) : w.cellTop(SANDBOX_MAP, c.x, c.y, c.z)
+    if (c.type) {
+      if (top) w.transform(top, c.type)
+      else top = w.add({ id: cellId(SANDBOX_MAP, c.x, c.y, (c.space ?? w.onto.resolve(c.type).occupies?.[0] ?? 'floor') as CellSpace, c.z), type: c.type, place: { on: 'tile', map: SANDBOX_MAP, x: c.x, y: c.y, ...(c.z && { z: c.z }) } })
+    }
     if (!top) continue
     for (const [k, v] of Object.entries(c.props ?? {})) w.setProp(top, k, v)
     for (const st of c.statuses ?? []) w.setStatus({ e: top.id }, st, -1)
   }
 }
 
-/** A scenario's role: a thing by key, or a cell (`tile:x,y`: what makes it up on top; `tile:x,y:space`: what takes that space). */
+/** A scenario's role: a thing by key, or a cell (`tile:x,y[,z][:space]`). */
 function roleRef(w: World, key: string | undefined): Ref | undefined {
   if (!key) return undefined
   if (key.startsWith('tile:')) {
     const [at, space] = key.slice(5).split(':')
-    const [x, y] = at.split(',').map(Number)
-    const top = space ? w.occupant(SANDBOX_MAP, x, y, space as Space) : w.cellTop(SANDBOX_MAP, x, y)
+    const [x, y, z = 0] = at.split(',').map(Number)
+    const top = space ? w.occupant(SANDBOX_MAP, x, y, space as Space, z) : w.cellTop(SANDBOX_MAP, x, y, z)
     return top && { e: top.id }
   }
   return { e: key }
@@ -135,6 +144,9 @@ export function repeatYields(eng: Engine, ev: GameEvent, times = REPEAT_TIMES): 
 /** How often the repeat check replays an event, and how many of the last replays must make nothing. */
 export const REPEAT_TIMES = 12
 export const REPEAT_TAIL = 4
+/** Maximum complete chance assignments explored before refusing an unproven patch. */
+export const REPEAT_ASSIGNMENTS = 64
+export class RepeatLimitError extends Error {}
 /** The events someone can make happen again at will (the rest wait on time or on a change). */
 export const REPEATABLE = ['act', 'impulse', 'contact', 'bump', 'seen']
 
@@ -143,23 +155,36 @@ export const REPEATABLE = ['act', 'impulse', 'contact', 'bump', 'seen']
  * still makes things at the end — something from nothing, as often as one likes. A yield must cost
  * its host: change it (a status that gates the yield and runs out, a stage, durability) or use it up.
  */
-export function endlessYield(eng: Engine, ev: GameEvent): boolean {
+export function endlessYield(eng: Engine, ev: GameEvent, prime = false): boolean {
   // only what someone can do again at will: acts and what they set off (impulses, contact, bumps,
   // being seen). The clock's events wait on time, a threshold on the host changing, broken content
   // is reported once.
   if (!REPEATABLE.some((k) => ev.kind === k || ev.kind.startsWith(k + '/'))) return false
-  // exact, not by luck: a yield that comes one time in twenty is as endless as one that always
-  // comes, so every chance is forced, once each way (a chance that gates the yield, or its absence)
-  const other = new Engine(structuredClone(eng.world.state), eng.world.onto.data, eng.lib)
-  return [eng, other].some((e, i) => {
-    e.world.luck = i === 0
-    try {
-      const ys = repeatYields(e, ev)
-      return ys.length === REPEAT_TIMES && !!e.world.get(ev.host.e) && ys.slice(-REPEAT_TAIL).some((n) => n > 0)
-    } finally {
-      delete e.world.luck
+  // Discover sites as they are reached; each alternative starts from the same world.
+  const pending = [new Map<object, boolean>()]
+  const sites = new Map<object, object[]>()
+  let assignments = 0
+  while (pending.length) {
+    if (assignments++ === REPEAT_ASSIGNMENTS) throw new RepeatLimitError(`repeat check: exceeded ${REPEAT_ASSIGNMENTS} chance assignments; safety could not be established`)
+    const choices = pending.pop()!
+    const e = new Engine(structuredClone(eng.world.state), eng.world.onto.data, eng.lib)
+    e.seedRelations(eng.activeMap)
+    e.world.luck = (site, part) => {
+      let parts = sites.get(site)
+      if (!parts) sites.set(site, (parts = []))
+      const key = parts[part] ??= {}
+      if (!choices.has(key)) {
+        pending.push(new Map(choices).set(key, false))
+        choices.set(key, true)
+      }
+      return choices.get(key)!
     }
-  })
+    // The triggering replay must use the same assignment, before it can gate later yields.
+    if (prime) repeatYields(e, ev, 1)
+    const ys = repeatYields(e, ev)
+    if (ys.length === REPEAT_TIMES && !!e.world.get(ev.host.e) && ys.slice(-REPEAT_TAIL).some((n) => n > 0)) return true
+  }
+  return false
 }
 
 /** Replay a scenario's event once (and optional ticks); report effect errors. */

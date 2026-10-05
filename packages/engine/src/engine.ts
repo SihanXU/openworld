@@ -214,17 +214,21 @@ export class Engine {
   flush(): void {
     if (this.flushing) return
     this.flushing = true
-    let n = 0
     try {
-      while (this.q.length) {
-        if (n++ >= EVENT_BUDGET) {
-          this.later.push(...this.q.splice(0))
-          break
-        }
-        this.dispatch(this.q.shift()!)
-      }
+      this.drain()
     } finally {
       this.flushing = false
+    }
+  }
+
+  private drain(): void {
+    let n = 0
+    while (this.q.length) {
+      if (n++ >= EVENT_BUDGET) {
+        this.later.push(...this.q.splice(0))
+        break
+      }
+      this.dispatch(this.q.shift()!)
     }
   }
 
@@ -1049,7 +1053,7 @@ export class Engine {
     for (let r = 1; r < 6; r++)
       for (let dy = -r; dy <= r; dy++)
         for (let dx = -r; dx <= r; dx++)
-          if (actor ? this.world.fits(actor, p.map, p.x + dx, p.y + dy) : this.world.walkable(p.map, p.x + dx, p.y + dy)) return { map: p.map, x: p.x + dx, y: p.y + dy }
+          if (actor ? this.world.fits(actor, p.map, p.x + dx, p.y + dy, p.z) : this.world.walkable(p.map, p.x + dx, p.y + dy, undefined, false, p.z)) return { ...p, x: p.x + dx, y: p.y + dy }
     return undefined
   }
 
@@ -1081,14 +1085,19 @@ export class Engine {
   private catchUp(map: string): void {
     const w = this.world
     const now = w.state.tick
-    const due: { ref: Ref; status: string; at: number }[] = []
-    for (const key of [...w.statusful]) {
-      const ref = w.keyRef(key)
-      if (w.refPos(ref)?.map !== map) continue
-      for (const [status, exp] of Object.entries(w.statusesOf(ref) ?? {})) if (exp !== NO_EXPIRY && exp <= now) due.push({ ref, status, at: exp })
+    for (let n = 0; n < EVENT_BUDGET; n++) {
+      let due: { ref: Ref; status: string; at: number } | undefined
+      for (const key of w.statusful) {
+        const ref = w.keyRef(key)
+        if (w.refPos(ref)?.map !== map) continue
+        for (const [status, exp] of Object.entries(w.statusesOf(ref) ?? {}))
+          if (exp !== NO_EXPIRY && exp <= now && (!due || exp < due.at)) due = { ref, status, at: exp }
+      }
+      if (!due) break
+      this.expire(due.ref, due.status)
+      // Entry may be inside an outcome: finish the timer's chain before looking for its next clock.
+      this.drain()
     }
-    due.sort((a, b) => a.at - b.at)
-    for (const d of due) this.expire(d.ref, d.status)
   }
 
   // ---------------------------------------------------------------- combat
@@ -1111,6 +1120,8 @@ export class Engine {
     const element = (weapon && (w.prop(weapon, 'element') as string | undefined)) || (w.prop(a, 'element') as string | undefined)
     const start = w.posOf(a)
     if (!start) return
+    const cp = chosen && w.refPos(chosen)
+    if (chosen && (!cp || !this.inReach('use', a, chosen, weapon ? { e: weapon.id } : undefined))) return
     const [dx, dy] = DIRS[a.facing ?? 'down']
     let target: Ref | undefined
     let last: Pos | undefined
@@ -1118,34 +1129,34 @@ export class Engine {
       const x = start.x + dx * i
       const y = start.y + dy * i
       if (!w.inBounds(start.map, x, y)) break
-      last = { map: start.map, x, y }
+      last = { ...start, x, y }
       // a body first, then what stands there and cannot be carried (a blow on the well is a blow on the well)
       // (the ground of a cell is not in the way: a blow goes on to what the cell's top is, where it stops)
-      const victim = w.actorAt(start.map, x, y, a.id) ?? w.entitiesAt(start.map, x, y).find((e) => !w.isAgent(e) && !w.isPortable(e) && !w.isTerrain(e))
+      const victim = w.actorAt(start.map, x, y, a.id, start.z) ?? w.entitiesAt(start.map, x, y, start.z).find((e) => !w.isAgent(e) && !w.isPortable(e) && !w.isTerrain(e))
       if (victim) {
         target = { e: victim.id }
         break
       }
-      if (w.blocked(start.map, x, y) && i > 1) break
+      if (w.blocked(start.map, x, y, undefined, start.z)) break
     }
     if (!target && last) {
-      const top = w.cellTop(last.map, last.x, last.y)
+      const top = w.cellTop(last.map, last.x, last.y, last.z)
       if (top) target = { e: top.id }
     }
     // a melee blow on the layer the player chose; a cast at a tile the player chose lands there when it lies on the bolt's way
-    const cp = chosen && w.refPos(chosen)
-    if (chosen && cp && cp.map === start.map && range <= 1 && Math.max(Math.abs(cp.x - start.x), Math.abs(cp.y - start.y)) <= 1) target = chosen
-    else if (chosen && cp && cp.map === start.map && range > 1 && last) {
+    if (chosen && cp) {
       const d = Math.abs(cp.x - start.x) + Math.abs(cp.y - start.y)
       const onRay = cp.x - start.x === dx * d && cp.y - start.y === dy * d
-      if (onRay && d >= 1 && d <= Math.abs(last.x - start.x) + Math.abs(last.y - start.y)) (target = chosen), (last = cp)
+      if (range <= 1 || d === 0) (target = chosen), (last = cp)
+      else if (onRay && last && d <= Math.abs(last.x - start.x) + Math.abs(last.y - start.y)) (target = chosen), (last = cp)
+      else return
     }
     const base = w.stat(a, 'atk', 1) + (weapon ? w.num(weapon, 'power', 0) : 0)
     if (!target) {
       finishCombatStrike(w, a, undefined, { power: base, critical: false, charged: false, comboHits: 0, bleed: 0, drain: 0 }, 0, range, true)
       return
     }
-    if (range > 1 && last) w.fx.push({ t: 'vfx', fx: `bolt:${element ?? 'none'}:${a.facing}:${Math.abs(last.x - start.x) + Math.abs(last.y - start.y)}`, map: start.map, x: start.x, y: start.y })
+    if (range > 1 && last && (last.x !== start.x || last.y !== start.y)) w.fx.push({ t: 'vfx', fx: `bolt:${element ?? 'none'}:${a.facing}:${Math.abs(last.x - start.x) + Math.abs(last.y - start.y)}`, map: start.map, x: start.x, y: start.y })
     else w.fx.push({ t: 'vfx', fx: `swing:${a.facing}`, map: start.map, x: start.x, y: start.y })
     // the attacker's talents shape the blow (combat.ts): its power, a critical; the act carries it
     const victim = 'e' in target ? w.get(target.e) : undefined
@@ -1158,7 +1169,7 @@ export class Engine {
       for (const s of [1, -1]) {
         const x = start.x + dx + dy * s
         const y = start.y + dy + dx * s
-        const side = w.inBounds(start.map, x, y) ? w.actorAt(start.map, x, y, a.id) : undefined
+        const side = w.inBounds(start.map, x, y) ? w.actorAt(start.map, x, y, a.id, start.z) : undefined
         if (!side || !w.hasTag(side, 'creature') || ('e' in target && target.e === side.id)) continue
         const sideHp = w.num(side, 'hp')
         const sideStrike = combatStrike(w, a, side, base, range, weapon, false)
@@ -1236,9 +1247,10 @@ export class Engine {
   /** A status runs out (the clock clears it): a time/timer event (its actor: who gave it). */
   private expire(ref: Ref, status: string): void {
     const w = this.world
+    const at = w.statusesOf(ref)?.[status] ?? w.state.tick
     const roles = this.givenBy(ref, status)
     this.write(() => w.clearStatus(ref, status))
-    this.offer({ kind: 'time/timer', host: ref, roles, params: { status }, cause: roles.actor && 'e' in roles.actor ? roles.actor.e : undefined, origin: 'world' })
+    this.offer({ kind: 'time/timer', host: ref, roles, params: { status, at }, cause: roles.actor && 'e' in roles.actor ? roles.actor.e : undefined, origin: 'world' })
   }
 
   /** The roles of a status's time events: who gave it, while they are still about. */
