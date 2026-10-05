@@ -713,8 +713,15 @@ that uses up an item or takes one into the host); a mix of steps x_j in [0, 1] t
 fewer and some thing more is a free lunch. That is a linear programme (x = 0 is feasible, so a
 one-phase simplex): a patch is refused when its steps make one that the world's steps alone do not,
 and the refusal names the steps and what they make. With one input and one output per step this
-is currency arbitrage (a positive cycle); several in and out need the LP. The base content has none
-(any length; tools/test/economy.test.ts). **A type the AI creates** names `props.material` and a
+is currency arbitrage (a positive cycle); several in and out need the LP. Chance counts by
+expectation: a branch on `chance` gives its odds' share, a part that breaks off by chance its share
+too, so a lottery that loses on average is no free lunch and one that wins on average is (the
+repeat check, which has no cost to weigh, forces every chance instead). A condition on the state is
+the player's choice, so each way of it is a step of its own. When there is no free lunch, the
+simplex's dual gives the proof: prices, each at least 1, under which no step gives more value than
+it takes. The base content has none, and its prices check (any length; tools/test/economy.test.ts;
+the simplex against strong duality, Chvátal's degenerate example and Bellman-Ford in
+modder/test/economy.test.ts). **A type the AI creates** names `props.material` and a
 makeup (a breakable one may give a rule of its own on `broken` instead), and never a new ground
 (`tile/*`); one with a station is craftable as soon as the patch applies.
 

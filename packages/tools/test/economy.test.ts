@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { OntologyIndex, RuleLibrary, buildSandbox, performPlacement, type Effect, type Rule, type Tree } from '@lsw/engine'
 import { BASE_RULES, BUILDINGS, RECIPES, RECOVERY, STORY_RULES, TERRAINS, WILD_GROUNDS, buildOntology, decodeChunk, wildChunk } from '@lsw/content'
-import { economySteps, freeLunch } from '@lsw/modder'
+import { economySteps, freeLunch, prices } from '@lsw/modder'
 import { buildFord } from '../src/demo/world.ts'
 
 // The economy (world-model.md §6.4, §10.2, D23): what is built and broken back returns no more
@@ -73,6 +73,18 @@ describe('the economy (world-model.md §10.2)', () => {
 
   it('no mix of steps, of any length, makes more of anything than it takes (a linear programme)', () => {
     expect(freeLunch(economySteps(onto, [...lib().rules.values()], RECOVERY))).toBeUndefined()
+  })
+
+  it('and the proof of it: prices (each thing worth at least 1) under which no step gives more value than it takes', () => {
+    const all = economySteps(onto, [...lib().rules.values()], RECOVERY)
+    const p = prices(all)!
+    expect(p).toBeDefined()
+    for (const v of p.values()) expect(v).toBeGreaterThanOrEqual(1 - 1e-9)
+    const value = (m: Map<string, number>) => [...m].reduce((a, [t, n]) => a + n * p.get(t)!, 0)
+    const gaining = all.filter((s) => value(s.gives) > value(s.takes) + 1e-7).map((s) => s.name)
+    expect(gaining).toEqual([])
+    // (the base content's rolls are weighed in: the parts that break off only by chance)
+    expect(all.length).toBeGreaterThan(20)
   })
 
   it('build and break back: each building, broken, returns no more of anything than went into it', () => {
