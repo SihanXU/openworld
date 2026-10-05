@@ -252,7 +252,8 @@ function keyViews(): Frame['keys'] {
   const p = eng.world.player
   const here = eng.world.posOf(p)
   const self = c.plan('self')
-  const atSelf = !!aimTile && !!here && aimTile.x === here.x && aimTile.y === here.y
+  const aimed = aimTile && c.aim(aimTile)?.at
+  const atSelf = !!aimed && !!here && aimed.x === here.x && aimed.y === here.y
   if (self && (atSelf || (p.held && !self.unknown))) out.self = view(self)
   const use = c.plan('use', aimTile)
   // an experiment with something in hand: where its chain reaches an undefined outcome
