@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { buildOntology } from '@lsw/content'
-import type { Ontology, Rule, Tree } from '@lsw/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { RuleLibrary, buildRequest, buildSandbox, scenarioEvent, type Ontology, type Patch, type Rule, type Scenario, type Tree } from '@lsw/engine'
 import { economySteps, freeLunch, prices, ruleSteps, simplexMax, type Step } from '../src/economy.ts'
+import { WorldLibrary } from '../src/library.ts'
 
 // The economy check's linear programme (economy.ts, world-model.md §8): the simplex itself, checked
 // against duality and against Bellman-Ford on arbitrage; and how chance is counted (by expectation).
@@ -47,6 +48,29 @@ describe('the simplex', () => {
   it('says when a programme is unbounded, and refuses a start that is not a vertex', () => {
     expect(() => simplexMax([[1, -1]], [1], [1, 1])).toThrow(/unbounded/)
     expect(() => simplexMax([[1]], [-1], [1])).toThrow(/b must be/)
+    expect(() => simplexMax([], [], [1])).toThrow(/unbounded/)
+    expect(simplexMax([[]], [1], [])).toEqual({ x: [], y: [0], value: 0 })
+  })
+
+  it('keeps the solution and certificate when rows, columns and the objective are scaled', () => {
+    for (const scale of [1e-12, 1e-10, 1, 1e10, 1e12]) {
+      const s = simplexMax([[scale]], [scale], [1])
+      expect(s.x[0]).toBeCloseTo(1, 9)
+      expect(s.value).toBeCloseTo(1, 9)
+      expect(s.y[0] * scale).toBeCloseTo(1, 9)
+      const column = simplexMax([[scale]], [1], [scale])
+      expect(column.x[0] * scale).toBeCloseTo(1, 9)
+      expect(column.value).toBeCloseTo(1, 9)
+      const objective = simplexMax([[1]], [1], [scale])
+      expect(objective.x[0]).toBeCloseTo(1, 9)
+      expect(objective.value / scale).toBeCloseTo(1, 9)
+    }
+    const rows = [1e-12, 1e10, 1e-6], columns = [1e-10, 1e10]
+    const A = [[1, 0], [0, 2], [3, 2]].map((r, i) => r.map((v, j) => v * rows[i] * columns[j]))
+    const s = simplexMax(A, [4, 12, 18].map((v, i) => v * rows[i]), [3, 5].map((v, j) => v * columns[j]))
+    expect(s.x.map((v, j) => v * columns[j])).toEqual(expect.arrayContaining([expect.closeTo(2, 9), expect.closeTo(6, 9)]))
+    expect(s.value).toBeCloseTo(36, 9)
+    expect(s.y.map((v, i) => v * rows[i])).toEqual([0, expect.closeTo(1.5, 9), expect.closeTo(1, 9)])
   })
 
   it('is optimal on 300 random programmes: x and y feasible, and c·x = b·y (strong duality)', () => {
@@ -69,6 +93,30 @@ describe('the simplex', () => {
 })
 
 describe('the free lunch', () => {
+  it('keeps a tiny necessary step in the returned mix', () => {
+    const steps = [S('bulk', [['A', 1e10]], [['B', 1e10]]), S('return', [['B', 1]], [['A', 2]])]
+    const lunch = freeLunch(steps)!
+    expect(lunch).toBeDefined()
+    expect(lunch.uses.map((u) => u.step)).toContain('bulk')
+    for (const type of ['A', 'B']) {
+      const terms = lunch.uses.map((u) => {
+        const s = steps.find((s) => s.name === u.step)!
+        return ((s.gives.get(type) ?? 0) - (s.takes.get(type) ?? 0)) * u.times
+      })
+      expect(terms.reduce((a, n) => a + n, 0)).toBeGreaterThanOrEqual(-1e-9 * terms.reduce((a, n) => a + Math.abs(n), 0))
+    }
+  })
+
+  it('never calls a positive input without a source a free lunch, however small', () => {
+    for (const cost of [1e-12, 1e-10, 1, 1e10]) {
+      const steps = [S('costly', [['A', cost]], [['B', 1]])]
+      expect(freeLunch(steps), String(cost)).toBeUndefined()
+      const p = prices(steps)!
+      expect(p).toBeDefined()
+      expect(cost * p.get('A')!).toBeGreaterThanOrEqual(p.get('B')! * (1 - 1e-9))
+    }
+    expect(freeLunch([S('tiny cycle', [['A', 1e-10]], [['B', 1]]), S('return', [['B', 1]], [['A', 2e-10]])])).toBeDefined()
+  })
   it('agrees with Bellman-Ford on 300 random markets (one thing in, one out: a positive cycle is arbitrage)', () => {
     const r = rng(11)
     const RATES = [0.5, 0.8, 0.9, 1.1, 1.25, 2, 3]
@@ -116,6 +164,114 @@ describe('the free lunch', () => {
     for (const v of p.values()) expect(v).toBeGreaterThanOrEqual(1 - 1e-9)
     const value = (m: Map<string, number>) => [...m].reduce((a, [t, n]) => a + n * p.get(t)!, 0)
     for (const s of steps) expect(value(s.gives)).toBeLessThanOrEqual(value(s.takes) + 1e-9)
+  })
+})
+
+describe('conversions checked when a patch is validated', () => {
+  const onto = buildOntology()
+  const base = [...BASE_RULES, ...STORY_RULES]
+  const FEATHER = 'item/material/feather'
+  const STONE = 'item/material/stone'
+  const POT = 'fixture/container/pot'
+  const scene: Scenario = {
+    entities: [
+      { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+      { key: 'feather', type: FEATHER, x: 2, y: 2, heldBy: 'actor' },
+      { key: 'pot', type: POT, x: 2, y: 1 },
+    ],
+    event: { kind: 'act/use', actor: 'actor', host: 'feather', instrument: 'feather', target: 'pot' },
+  }
+  const rule = (id: string, tree: Tree, host: Rule['host'] = { type: FEATHER }, on = 'act/use'): Rule => ({ id: `test/${id}`, host, on, tree, source: { origin: 'patch' } })
+  const patchOf = (...rules: Rule[]): Patch => ({ artifacts: rules.map((rule) => ({ kind: 'rule', rule })) })
+  const request = (known = base) => {
+    const eng = buildSandbox(scene, onto, new RuleLibrary(known))
+    const ev = scenarioEvent(scene, eng)
+    return buildRequest(eng, ev, eng.resolveEvent(ev), 'test')
+  }
+  const sender = rule('send', { if: { is: { role: 'target', sel: { type: POT } } }, then: { do: [{ op: 'emit', impulse: 'coat', to: 'target', params: { substance: 'fibre' } }, { op: 'destroy' }] }, else: 'inherit' })
+  const receiver = (count: number) => rule('receive', { if: { param: { key: 'substance', cmp: 'fibre' } }, then: { do: [{ op: 'spawn', type: FEATHER, at: 'host', count }] }, else: 'inherit' }, { type: POT }, 'impulse/coat')
+
+  it('reports only what a patch adds that cannot be modelled, not the base library\'s gaps', () => {
+    // a fair conversion: a feather used on the pot leaves a stone in the bag
+    const fair = rule('fair', { if: { is: { role: 'target', sel: { type: POT } } }, then: { do: [{ op: 'destroy' }, { op: 'spawn', type: STONE, at: 'actor', into: 'contents' }] }, else: 'inherit' })
+    const result = new WorldLibrary(onto, base).validate(patchOf(fair), request())
+    expect(result.ok).toBe(true)
+    expect(result.warnings.filter((w) => w.startsWith('economy:'))).toEqual([])
+  })
+
+  it('composes a used-up item with the patched or defined receiver of its emit', () => {
+    for (const defined of [false, true]) {
+      const known = defined ? [...base, { ...receiver(2), source: { origin: 'base' as const } }] : base
+      const patch = defined ? patchOf(sender) : patchOf(sender, receiver(2))
+      const result = new WorldLibrary(onto, known).validate(patch, request(known))
+      expect(result.ok, String(defined)).toBe(false)
+      expect(result.errors.join()).toMatch(/economy.*test\/send/)
+    }
+    expect(new WorldLibrary(onto, base).validate(patchOf(sender, receiver(1)), request()).ok).toBe(true)
+  })
+
+  it('rechecks an existing sender when a new receiver changes its conversion', () => {
+    const library = new WorldLibrary(onto, base)
+    expect(library.commit(patchOf(sender), request()).ok).toBe(true)
+    const result = library.validate(patchOf(receiver(2)))
+    expect(result.ok).toBe(false)
+    expect(result.errors.join()).toMatch(/economy/)
+  })
+
+  it('follows a second emit and weighs its chance without duplicating the input', () => {
+    const send = { ...sender, tree: { if: { all: [{ is: { role: 'target', sel: { type: POT } } }, { is: { role: 'actor', sel: { type: 'actor' } } }] }, then: { do: [{ op: 'emit', impulse: 'coat', to: 'target', params: { substance: 'fibre' } }, { op: 'destroy' }] }, else: 'inherit' } } as Rule
+    for (const chance of [0.5, 1]) {
+      const relay = rule('relay', { if: { param: { key: 'substance', cmp: 'fibre' } }, then: { do: [{ op: 'emit', impulse: 'coat', to: 'actor', params: { substance: 'fibre' }, chance }] }, else: 'inherit' }, { type: POT }, 'impulse/coat')
+      const last = { ...receiver(2), id: 'test/last', host: { type: 'actor' } }
+      const result = new WorldLibrary(onto, base).validate(patchOf(send, relay, last), request())
+      expect(result.ok, String(chance)).toBe(chance === 0.5)
+      if (chance === 1) expect(result.errors.join()).toMatch(/economy.*test\/last/)
+    }
+  })
+
+  it('expands tag and parent-class hosts to the types that can be converted', () => {
+    const forward = rule('forward', { if: { is: { role: 'target', sel: { type: POT } } }, then: { do: [{ op: 'transform', into: 'item/misc/doll' }] }, else: 'inherit' })
+    for (const host of [{ tags: ['toy'] }, { type: 'item/misc', tags: ['toy'] }]) {
+      const reverse = rule('reverse', { if: { is: { role: 'target', sel: { type: 'actor' } } }, then: { do: [{ op: 'transform', into: FEATHER }, { op: 'spawn', type: STONE, at: 'host' }] }, else: 'inherit' }, host)
+      const result = new WorldLibrary(onto, base).validate(patchOf(forward, reverse), request())
+      expect(result.ok).toBe(false)
+      expect(result.errors.join()).toMatch(/economy.*test\/reverse/)
+      expect(ruleSteps(reverse, onto).some((s) => s.takes.has('item/misc/doll'))).toBe(true)
+    }
+  })
+
+  it('counts a new fixture\'s own broken rule and a non-item host that is used up', () => {
+    for (const count of [2, 1]) {
+      const type = { id: 'fixture/container/feather_press', name: { en: 'Feather Press', zh: '羽毛压模' }, props: { material: 'cloth', maxHp: 1, hp: 1 } }
+      const make = rule('make-press', { do: [{ op: 'spawn', type: type.id, at: 'target' }, { op: 'destroy' }] })
+      const unmake = rule('break-press', { if: { param: { key: 'name', cmp: 'broken' } }, then: { do: [{ op: 'spawn', type: FEATHER, at: 'host', count }, { op: 'destroy' }] }, else: 'inherit' }, { type: type.id }, 'threshold/cross')
+      const patch = patchOf(make, unmake)
+      patch.artifacts.unshift({ kind: 'type', type })
+      const result = new WorldLibrary(onto, base).validate(patch, request())
+      expect(result.ok, String(count)).toBe(count === 1)
+      if (count === 2) expect(result.errors.join()).toMatch(/economy.*press/)
+      const steps = economySteps({ ...onto, types: { ...onto.types, [type.id]: type } }, [...base, make, unmake], 0.5)
+      expect(steps.some((s) => s.takes.get(type.id) === 1 && s.gives.get(FEATHER) === count)).toBe(true)
+      const used = { ...unmake, on: 'act/use', tree: { do: [{ op: 'transform' as const, into: FEATHER }] } }
+      expect(ruleSteps(used, { ...onto, types: { ...onto.types, [type.id]: type } })[0]?.takes.get(type.id)).toBe(1)
+    }
+  })
+
+  it('counts the outputs when the broken fixture remains as a spent host', () => {
+    const type = { id: 'fixture/container/feather_press', name: { en: 'Feather Press', zh: '羽毛压模' }, props: { material: 'cloth', maxHp: 1, hp: 1 } }
+    const make = rule('make-press', { do: [{ op: 'spawn', type: type.id, at: 'target' }, { op: 'destroy' }] })
+    const broken = rule('spent-press', { if: { param: { key: 'name', cmp: 'broken' } }, then: { do: [{ op: 'spawn', type: FEATHER, at: 'host', count: 2 }] }, else: 'inherit' }, { type: type.id }, 'threshold/cross')
+    const patch = patchOf(make, broken)
+    patch.artifacts.unshift({ kind: 'type', type })
+    const result = new WorldLibrary(onto, base).validate(patch, request())
+    expect(result.ok).toBe(false)
+    expect(result.errors.join()).toMatch(/economy.*spent-press/)
+  })
+
+  it('reports an output path whose emitted receivers cannot be counted', () => {
+    const spread = rule('spread', { do: [{ op: 'emit', impulse: 'coat', to: { area: { radius: 1 } }, chance: 0.5, params: { substance: 'fibre' } }, { op: 'destroy' }] })
+    const result = new WorldLibrary(onto, base).validate(patchOf(spread, receiver(1)), request())
+    expect(result.warnings.join()).toMatch(/economy.*test\/spread.*not modelled/)
   })
 })
 

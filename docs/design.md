@@ -1008,6 +1008,11 @@ Lifecycle of a patch:
 
 A failure at any step runs the leaf's default; the game never blocks.
 
+As built (2026-10-05): a status artifact may repeat an existing definition, but cannot change
+one from the base ontology, shared library or an earlier artifact in the patch. Object key
+order does not change a definition. This keeps ontology additions inside the same boundary
+as rules that only fill holes.
+
 **One question at a time.** A request is keyed by its hole and its class (the host's type, the
 event kind, the parameters the tree branched on, the other roles' types). While one is open,
 the same key waits for it. Once it is answered, the class never asks again. A late patch still

@@ -452,6 +452,11 @@ building's needs from the world as it starts and what it yields, without the AI)
 building as moving a carried thing into a cell (furniture and walls carried and set down) — it
 comes with W6, with the walls and floors it is for; the B palette's frames stay meanwhile.
 
+As built (2026-10-05): makeup and recipe ingredient counts are positive safe integers.
+Probabilistic recovery uses the separate `chance` field. Patch validation checks inherited
+makeup too, and crafting refuses an invalid ingredient count before consuming or producing
+anything.
+
 ### 6.5 Stages and harvest
 
 - **Stages** (Elin `GrowSystem`, generalised): a list of stages, each with a duration and
@@ -735,6 +740,17 @@ the simplex against strong duality, Chvátal's degenerate example and Bellman-Fo
 modder/test/economy.test.ts). **A type the AI creates** names `props.material` and a
 makeup (a breakable one may give a rule of its own on `broken` instead), and never a new ground
 (`tile/*`); one with a station is craftable as soon as the patch applies.
+
+As built (2026-10-05): the economy extractor expands type and tag host classes and counts
+non-item hosts that are used up. A consumed host and the known responses to its emitted
+impulses form one conversion, including further emits and their odds. Receive conversions
+stay with their sender's cost. A durable type's break step follows its own `broken` response
+before the makeup fallback. Validation rechecks an existing conversion when a new receiver
+changes it. Dynamic counts or receivers, recursive chains, state-dependent primitive yields
+and paths beyond the extraction bound produce warnings rather than a claim of complete
+coverage. The clock's `grow` primitive is not expanded into free sources. The simplex balances
+the programme's units and checks both its mix and dual certificate against the original
+constraints with relative tolerances. Numerical uncertainty is a validation diagnostic.
 
 ## 9. Holes after the change
 
