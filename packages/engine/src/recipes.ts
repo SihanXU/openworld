@@ -22,6 +22,8 @@ export function deriveRecipes(onto: OntologyIndex): Recipe[] {
       make: { type: id },
       station: def.station,
       level: def.craftLevel ?? 1,
+      ...(def.tools?.length && { tools: def.tools }),
+      ...(def.yields && def.yields > 1 && { count: def.yields }),
     })
   }
   return out
@@ -53,7 +55,8 @@ export function gearProps(form: Record<string, PropValue>, m?: MaterialDef, q?: 
 
 export function madeOf(data: Ontology, onto: OntologyIndex, type: string, material?: string, quality?: string): Omit<Entity, 'id' | 'place'> {
   const r = onto.resolve(type)
-  const m = material ? data.materials?.[material] : undefined
+  // a material that is the thing's own (a plank is wood) does not name it again: one kind of plank
+  const m = material && r.props.material !== material ? data.materials?.[material] : undefined
   const q = quality ? data.qualities?.find((x) => x.id === quality) : undefined
   const tags = [...(m ? [`material:${m.id}`, ...(m.tags ?? [])] : []), ...(q?.tag ? [q.tag] : [])]
   const props: Record<string, PropValue> = {}

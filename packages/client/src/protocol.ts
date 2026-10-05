@@ -35,7 +35,7 @@ export type ToWorker =
   | { t: 'drop'; slot: number; all: boolean }
   | { t: 'organize' }
   /** The crafting panel: make a recipe from what is carried. */
-  | { t: 'craft'; id: string }
+  | { t: 'craft'; id: string; /** as many as what is carried makes */ all?: boolean }
   /** The skill tree: spend skill points on a skill. */
   | { t: 'learn'; id: string }
   /** Take up (or change to) a profession at a trainer. */

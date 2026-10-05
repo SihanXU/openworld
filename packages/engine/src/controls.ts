@@ -225,7 +225,8 @@ export class Controls {
   private planOn(key: Key, at: Pos, target: Ref): Plan | undefined {
     const w = this.w
     const p = w.player
-    const held = p.held ? { e: p.held } : undefined
+    // the thing in hand — or the one the build palette sets down from the bag
+    const held = this.using ? { e: this.using } : p.held ? { e: p.held } : undefined
     const heldE = this.entity(held)
     if (key === 'hands') return this.reaches('hands', target) ? this.make(key, at, 'hands', target, undefined) : undefined
     if (key === 'take' || key === 'put') {
@@ -596,7 +597,9 @@ export class Controls {
   }
 
   canCraft(r: Recipe): boolean {
-    return r.needs.every((n) => this.count(n.type) >= n.count)
+    const p = this.w.player
+    const carried = [p.held, ...(p.contents ?? [])].map((id) => this.w.get(id)).filter((e): e is Entity => !!e && !e.frozenBy)
+    return r.needs.every((n) => this.count(n.type) >= n.count) && (r.tools ?? []).every((tag) => carried.some((e) => this.w.hasTag(e, tag)))
   }
 
   /** The crafting panel: an act of crafting (the recipe's needs are used up, what it makes goes into the bag). */
@@ -608,6 +611,83 @@ export class Controls {
     this.eng.act('craft', p.id, { e: p.id }, { instrument: null, params: { recipe: r.id } })
     this.sync()
     return true
+  }
+
+  // ---------------------------------------------------------------- setting built things down (the build palette)
+
+  /** A carried thing the build palette sets down instead of what is in hand (only while it plans). */
+  private using?: Id
+
+  /** What one sets down in a cell as part of a place: a built thing or a fixture (a wall, a door, a bed, a workbench). */
+  static placeable(type: string): boolean {
+    return type.startsWith('structure/') || type.startsWith('fixture/')
+  }
+
+  /** A carried thing of a type (the hand's last, so what is held stays in hand while there are others). */
+  private carriedOf(type: string): Entity | undefined {
+    const p = this.w.player
+    const all = [...(p.contents ?? []), ...(p.held ? [p.held] : [])].map((id) => this.w.get(id)).filter((e): e is Entity => !!e && e.type === type && !e.frozenBy)
+    return all[0]
+  }
+
+  /** The recipe that makes a type (by hand or at a station), if any. */
+  private recipeFor(type: string): Recipe | undefined {
+    return [...this.eng.recipes.values()].find((r) => r.make.type === type)
+  }
+
+  /** G with this thing held, at the aim: the put it would be. */
+  private planPut(thing: Id, aim: Aim): Plan | undefined {
+    this.using = thing
+    try {
+      return this.plan('put', aim)
+    } finally {
+      this.using = undefined
+    }
+  }
+
+  /**
+   * The build palette's preview of setting a type down at the aim: one carried is set down (G's own
+   * act); with none, one is made from what is carried first, if it can be. Never asked: putting is physics.
+   */
+  previewPlace(type: string, aim: Aim): { ok: boolean; reason: Text; carried: number } {
+    const carried = this.count(type)
+    const thing = this.carriedOf(type)
+    if (thing) {
+      // the palette sets it down where it is aimed, or not at all (a pointer beyond reach is not moved nearer)
+      const plan = this.planPut(thing.id, aim)
+      return plan && plan.at.x === aim.x && plan.at.y === aim.y ? { ok: true, reason: plan.label, carried } : { ok: false, reason: { en: 'It cannot go there.', zh: '这里放不下。' }, carried }
+    }
+    const r = this.recipeFor(type)
+    if (!r) return { ok: false, reason: { en: 'You carry none.', zh: '身上没有。' }, carried }
+    if (!this.canCraft(r)) return { ok: false, reason: { en: 'You carry none, nor what makes one.', zh: '身上没有，材料也不够做一个。' }, carried }
+    // what one made would go where any thing set down goes: within reach, on a cell nothing solid fills
+    const w = this.w
+    const pos = w.posOf(w.player)
+    const reach = w.onto.data.params?.carry ?? 1
+    const near = !!pos && Math.max(Math.abs(aim.x - pos.x), Math.abs(aim.y - pos.y)) <= reach && !(aim.x === pos.x && aim.y === pos.y && w.onto.resolve(type).solid)
+    const open = !!pos && w.inBounds(pos.map, aim.x, aim.y) && !w.solidAt(pos.map, aim.x, aim.y)
+    return near && open ? { ok: true, reason: { en: 'Made from what you carry, then set down', zh: '用身上的材料现做一个，再放下' }, carried } : { ok: false, reason: { en: 'It cannot go there.', zh: '这里放不下。' }, carried }
+  }
+
+  /** Set a type down at the aim (the build palette): one carried, or one made from what is carried first. */
+  place(type: string, aim: Aim): boolean {
+    if (this.eng.busy(this.w.player) || !this.previewPlace(type, aim).ok) return false
+    if (!this.carriedOf(type)) {
+      const r = this.recipeFor(type)
+      if (!r || !this.craft(r)) return false
+    }
+    const thing = this.carriedOf(type)
+    const plan = thing && this.planPut(thing.id, aim)
+    if (!plan || plan.at.x !== aim.x || plan.at.y !== aim.y) return false
+    this.run(plan)
+    return true
+  }
+
+  /** Make it again and again while what it needs is carried (the crafting panel's "all"): how many times. */
+  craftAll(r: Recipe, most = 99): number {
+    let n = 0
+    while (n < most && this.craft(r)) n++
+    return n
   }
 
   // ---------------------------------------------------------------- the magnet

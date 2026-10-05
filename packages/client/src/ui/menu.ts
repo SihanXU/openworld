@@ -23,7 +23,7 @@ export interface MenuSend {
   quickMove(slot: number): void
   drop(slot: number, all: boolean): void
   organize(): void
-  craft(id: string): void
+  craft(id: string, all?: boolean): void
   /** The skill tree: spend skill points on a skill. */
   learn(id: string): void
   /** The world map asks for the atlas, and travels to a waypoint stone. */
@@ -298,26 +298,36 @@ export class Menu {
   private craftHtml(f?: Frame): string {
     if (!f) return ''
     const have = (type: string) => f.player.slots.reduce((n, s) => n + (s && s.item.type === type ? s.count : 0), 0)
+    const tool = (tag: string) => f.player.slots.some((s) => s?.item.tags.includes(tag))
     const rows = RECIPES.map((r) => {
-      const ok = r.needs.every((n) => have(n.type) >= n.count)
+      // how many times what is carried makes it (the tools are not used up)
+      const times = (r.tools ?? []).every(tool) ? Math.min(...r.needs.map((n) => Math.floor(have(n.type) / n.count))) : 0
+      const ok = times > 0
       const needs = r.needs
         .map((n) => {
           const h = have(n.type)
           return `<span class="need${h >= n.count ? '' : ' short'}" data-item="need:${n.type}"><span class="icon" data-icon="need:${n.type}"></span>${h}/${n.count}</span>`
         })
-        .join('')
+        .join('') +
+        (r.tools ?? []).map((tag) => {
+          const form = toolForm(tag)
+          return form ? `<span class="need tool${tool(tag) ? '' : ' short'}" data-item="need:${form}" title="${esc(t('toolKept'))}"><span class="icon" data-icon="need:${form}"></span>${tool(tag) ? '✓' : '✗'}</span>` : ''
+        }).join('')
       return `<div class="recipe${ok ? '' : ' off'}">
         <div class="slot" data-item="recipe:${r.id}"><div class="icon" data-icon="recipe:${r.id}"></div></div>
         <div class="rname">${esc(tx(r.name))}${r.station && r.station !== 'hands' ? ` <span class="station">${esc(tx({ en: 'at a ' + r.station, zh: r.station === 'workbench' ? '需在工作台旁' : r.station }))}</span>` : ''}</div>
         <div class="needs">${needs}</div>
-        <button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(t('needMore'))}"`}>${t('craftIt')}</button>
+        <button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(t('needMore'))}"`}>${t('craftIt')}${r.count && r.count > 1 ? ` ×${r.count}` : ''}</button>
+        ${times > 1 ? `<button class="all" data-craft-all="${r.id}" title="${esc(t('craftAllTip'))}">${t('craftAll')} ×${times}</button>` : ''}
       </div>`
     }).join('')
     return `<div class="recipes">${rows}</div>`
   }
 
   private wireCraft(): void {
-    $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-craft]').forEach((b) => (b.onclick = () => this.send.craft(b.dataset.craft!)))
+    // Shift-click makes as many as one can, as the "all" button does
+    $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-craft]').forEach((b) => (b.onclick = (e) => this.send.craft(b.dataset.craft!, e.shiftKey)))
+    $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-craft-all]').forEach((b) => (b.onclick = () => this.send.craft(b.dataset.craftAll!, true)))
   }
 
   // ---------------------------------------------------------------- options
@@ -428,8 +438,13 @@ function craftInfos(): ItemInfo[] {
     if (!f) return extra.sprite && extra.name ? { id, type, sprite: extra.sprite, name: extra.name, tags: [...(extra.tags ?? [])], statuses: [], props: { ...(extra.props ?? {}) } } : undefined
     return { id, type, sprite: f.sprite, name: extra.name ?? { en: f.en, zh: f.zh }, tags: [...(f.tags ?? []), ...(extra.tags ?? [])], statuses: [], props: { ...(f.props ?? {}), ...(extra.props ?? {}) } }
   }
-  const needs = [...new Set(RECIPES.flatMap((r) => r.needs.map((n) => n.type)))]
+  const needs = [...new Set([...RECIPES.flatMap((r) => r.needs.map((n) => n.type)), ...RECIPES.flatMap((r) => (r.tools ?? []).map(toolForm)).filter((x): x is string => !!x)])]
   return [...RECIPES.map((r) => of(`recipe:${r.id}`, r.make.type, { name: r.name, tags: r.make.tags, props: r.make.props, sprite: r.sprite })), ...needs.map((n) => of(`need:${n}`, n))].filter((x): x is ItemInfo => !!x)
+}
+
+/** The item form that stands for a tool tag in the crafting panel (an axe for `tool:axe`). */
+function toolForm(tag: string): string | undefined {
+  return Object.values(FORM_BY_ID).find((f) => f.tags?.includes(tag))?.id
 }
 
 function keyOf(it: ItemInfo): string {

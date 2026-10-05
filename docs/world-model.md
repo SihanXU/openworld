@@ -326,8 +326,11 @@ read from what is in them each time, from `Ontology.roomRoles` (data: a bed make
 props the roles give (the largest wins). A bed taken hold of (`bed/sleep`) sends the sleeper
 `restore {which: sleep}`; the new primitive `sleep` gives back the missing health times the best
 `rest` of the regions it lies in (`params.rest` 0.5 elsewhere) and, for the one at the keys, passes
-the time to `params.riseHour` (6) at once (the fast-forward, which harm interrupts: hunger goes on
-through the night, and a starving sleeper wakes, req W10). Not yet: the owners of what is in a room,
+the time to `params.riseHour` (6) at once (the fast-forward, which harm interrupts, req W10). The
+sleeper is `asleep` meanwhile (lying still), and hunger comes four times slower to one asleep
+(`PeriodDef.paceBy`, after Elin, whose sleep advances the date and not the sleeper's turns): a
+night costs about four points of twenty, and only an empty stomach is woken by hunger
+(`tools/test/rest.test.ts`). Not yet: the owners of what is in a room,
 and rooms on the overworld.
 - **Read-only**: rules may host on rooms and react (`contact in-region`, `threshold gain/lose`
   with the role), never write them.
@@ -513,8 +516,15 @@ root of `contact/end on` is the new primitive `fall`; a floor whose last support
 (`build/collapse`, the new condition `rel`) breaks, and what stood on it falls. The relation
 difference reaches every storey of a touched cell and whoever relied on a thing gone. The client
 draws a storey raised, things set in a cell as part of the place, and fades what stands above the
-player near them. Not yet: the overworld's and paths' z, roofs drawn as roofs, and the B palette
-for walls and floors (they are crafted and set down by hand).
+player near them. Not yet: the overworld's and paths' z, and roofs drawn as roofs.
+
+The build palette (B) sets things down as G does (2026-10-05): walls, floors, stairs, doors, beds
+and workbenches — one carried, or with none, one made from what is carried first
+(`Controls.previewPlace`, `Controls.place`; the palette never moves a pointer beyond reach
+nearer) — beside the placement recipes (a campfire built from stones and sticks, a chest, sowing).
+Held and dragged, the left button sets one in each cell it passes. A recipe may need a tool
+carried, not used up (`TypeDef.tools`), and make more than one (`TypeDef.yields`): a log splits
+into two planks with an axe at hand, in the crafting panel ("All" splits every log).
 
 ### 6.8 Combat
 
