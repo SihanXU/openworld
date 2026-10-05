@@ -10,14 +10,14 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
-import { BOSSES, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, type RawChunk } from '@lsw/content'
+import { BOSSES, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_AT_FOOT, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, type RawChunk } from '@lsw/content'
 import { CATALOG } from '../../../client/src/assets/catalog.ts'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
 import { EAST_ROAD, EMBERFALL, LAIR, MINE, PASS, buildEastRoad, buildEmberfall, buildLair, buildMine, buildPass } from './quest/maps.ts'
 import { QUEST_SCENES } from './quest/scenes.ts'
-import { PAT, PROLOGUE, buildFoot, buildSlope, buildSummit } from './prologue.ts'
+import { PROLOGUE, TUTORIAL, buildFoot, buildSlope, buildSummit, buildTutorial } from './prologue.ts'
 import { BARROW, HOLLOW, buildBarrow, buildHollow } from './hollow.ts'
 import type { PersonDef, Slot } from './person.ts'
 import { buildOverworld, placeCells, siteOf } from './overworld.ts'
@@ -549,12 +549,15 @@ export function buildFord(): FordWorld {
   const slope = buildSlope()
   reseed(4252)
   const foot = buildFoot()
+  foot.anchors.skip = [TUTORIAL.skip[0], TUTORIAL.skip[1]]
+  // the tutorial: a plot of its own, linked to nothing
+  const tutorial = buildTutorial()
   linkEdge(summit, row(summit, summit.h - 1, PROLOGUE.summitSouth), [0, -1], slope, row(slope, 0, PROLOGUE.slopeNorth), [0, 1])
   linkEdge(slope, row(slope, slope.h - 1, PROLOGUE.slopeSouth), [0, -1], foot, row(foot, 0, PROLOGUE.footNorth), [0, 1])
   linkEdge(foot, row(foot, foot.h - 1, PROLOGUE.footSouth), [0, -1], m, row(m, 0, PROLOGUE.fordNorth), [0, 1])
   // towns and camps are peaceful: nothing comes out of the dark there (nightspawn.ts); everywhere else is a combat zone
   for (const b of [m, meadow, ember, summit]) b.zone = 'peaceful'
-  const builders = [m, meadow, pasture, forest, hollow, barrow, road, ember, mine, pass, lair, summit, slope, foot]
+  const builders = [m, meadow, pasture, forest, hollow, barrow, road, ember, mine, pass, lair, summit, slope, foot, tutorial]
   const at = placeMaps(builders, m)
   for (const b of builders)
     for (const [name, [x, y]] of Object.entries(b.anchors)) {
@@ -593,8 +596,10 @@ export function buildFord(): FordWorld {
     name: L('The Ford', '渡口'),
     version: VERSION,
     seed: 4242,
-    // a new game begins on the mountain (docs/prologue.md)
-    start: { map: summit.id, x: PAT.spawn[0], y: PAT.spawn[1] },
+    // a new game begins in the tutorial; one that skips it, at the foot of the mountain before the
+    // seal stone (docs/prologue.md)
+    start: { map: tutorial.id, x: TUTORIAL.spawn[0], y: TUTORIAL.spawn[1] },
+    starts: { skip: { at: { map: foot.id, x: TUTORIAL.skip[0], y: TUTORIAL.skip[1] }, props: { prologue: PROLOGUE_AT_FOOT } } },
     startHour: START_HOUR,
     maps: [...builders.map((b, i) => metaOf(b, chunks[i])), { id: overworld.map.id, name: overworld.map.name, kind: overworld.map.kind, region: overworld.map.region, width: overworld.map.width, height: overworld.map.height, portals: [], npcs: 0, items: 0 }],
     npcs,

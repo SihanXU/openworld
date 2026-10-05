@@ -11,6 +11,9 @@ const L = (en: string, zh: string): Text => ({ en, zh })
 /** The stage at which the prologue is over (the player has reached the Ford). */
 export const PROLOGUE_DONE = 10
 
+/** The stage a game that skips the tutorial begins at: at the foot of the mountain, before the seal stone. */
+export const PROLOGUE_AT_FOOT = 8
+
 export const PROLOGUE_OBJECTIVES: Record<number, Objective> = {
   1: { title: L('Follow Pip', '跟着小啾'), hint: L('WASD or the arrows move you (Shift walks). Out of the shelter.', 'WASD 或方向键移动（按住 Shift 慢走）。先走出小屋。') },
   2: { title: L('Find something to eat', '找点吃的'), hint: L('F picks up what lies in front of you. Hold it (1–0) and left click yourself to eat.', 'F 捡起面前的东西。用 1–0 拿在手上，左键点自己就能吃。') },
@@ -83,12 +86,12 @@ export const PROLOGUE_BEATS: StepDef[] = [
   },
   {
     id: 'relic',
-    when: at(8, { map: 'foot', region: 'relic' }),
+    when: at(PROLOGUE_AT_FOOT, { map: 'foot', region: 'relic' }),
     say: L('Try anything on it: use what you hold, put something on it, strike it. Whatever you do, the world learns.', '对它做点什么吧：用手里的东西、放点东西上去、打它一下。不管你做什么，世界都会学着回应。'),
   },
   {
     id: 'tried',
-    when: at(8, { facts: { 'world.experiments': { gte: 1 } } }),
+    when: at(PROLOGUE_AT_FOOT, { facts: { 'world.experiments': { gte: 1 } } }),
     props: { prologue: 9 },
     say: L('Did you see? The world answers what it has never seen. What it learns is kept in the Threadbook — J. Now, down to the Ford!', '看到了吗？世界会回应它从没见过的事。它学会的都记在织线簿里——按 J。走吧，下山去渡口！'),
   },

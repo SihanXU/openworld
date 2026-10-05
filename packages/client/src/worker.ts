@@ -407,7 +407,7 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     }
     for (const id of game.engine.world.state.loadedMaps) if (id !== here) delete game.engine.world.state.maps[id]
   } else {
-    game = Game.create(index, ontology, lib)
+    game = Game.create(index, ontology, lib, init.start)
     // a new game is already the world as it is now: no migration is due (the author's, on creating it)
     const w = game.engine.world
     game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact('game.difficulty', init.difficulty ?? 'normal')))

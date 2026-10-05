@@ -6,7 +6,7 @@ import type { Aim, Difficulty, Dir, Frame, Key, LibraryData, MapData, ModSpec, P
 export type Tile = Aim
 
 export type ToWorker =
-  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** the modder service, if any */ modder?: string; /** a new game's difficulty */ difficulty?: Difficulty }
+  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** the modder service, if any */ modder?: string; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string }
   /** The one at the keys, fallen, rises again: where they fell, or at home (the death screen). */
   | { t: 'respawn'; home: boolean }
   /** Hold a direction (null: stop); `walk`: Shift, slower than the default run. */

@@ -120,3 +120,26 @@ export function buildFoot(): MapBuilder {
   m.appear = GROUND_YIELD
   return m
 }
+
+// =================================================================== the tutorial
+
+/** The tutorial plot: where a new game begins unless the player skips it (then: the Mountain Foot). */
+export const TUTORIAL = {
+  size: [20, 14],
+  spawn: [10, 7],
+  /** where a game that skips the tutorial begins: the trail coming down onto the foot */
+  skip: [20, 3],
+} as const
+
+/**
+ * The tutorial: an empty plot of grass and nothing else, with no way out — it lies on no cell of
+ * the overworld and has no portal, so its edges are the world's edge. Nothing appears on it and
+ * nothing comes out of its dark.
+ */
+export function buildTutorial(): MapBuilder {
+  const [w, h] = TUTORIAL.size
+  const m = new MapBuilder('tutorial', L('Tutorial', '新手教程'), 'wild', w, h, 'grass', 'Village', 'outdoor', 'frostfang')
+  m.zone = 'peaceful'
+  m.anchors.spawn = [TUTORIAL.spawn[0], TUTORIAL.spawn[1]]
+  return m
+}

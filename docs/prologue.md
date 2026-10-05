@@ -9,6 +9,22 @@ leave until they have what the world below needs; teaching by the shape of the p
 than by text; a companion who points, never lectures; teleport stones that are attuned by
 touch and used from the map.
 
+## The tutorial, or not (2026-10-04)
+
+A new game asks whether to play the tutorial (the cover's new-game panel, beside the difficulty):
+
+- **Tutorial** (the default): the game begins on the tutorial plot (`tutorial`, 20 × 14), a bare
+  plot of grass with nothing on it but the player and Pip. It has no portal and lies on no cell of
+  the overworld, so its edges are the world's edge: there is no way out (yet). Nothing appears on
+  it (no ground yield) and it is peaceful (nothing comes out of the dark). What it teaches, and
+  how it lets one go, is still to be designed.
+- **Skip the tutorial**: the game begins at the Mountain Foot, on the trail coming down from the
+  slope, at the seal stone's stage (`prologue` = `PROLOGUE_AT_FOOT`, 8): the next beat is the stone.
+
+The world's starts are data: `WorldIndex.start` is the default, `WorldIndex.starts` the others by
+name (`skip`: where, and the player's props there); `Game.create(index, …, start)` takes one.
+Test `T1` in `tools/test/demo.test.ts`.
+
 ## The three maps (north of the Ford, stacked)
 
 | Map | Size | What it teaches | Gate to the next |
@@ -85,7 +101,7 @@ player is on the mountain).
 
 ## Tests
 
-- `P1` in `tools/test/demo.test.ts`: the whole prologue, headless and offline (no modder),
+- `P1` in `tools/test/demo.test.ts`: the whole prologue from the summit shelter, headless and offline (no modder),
   through the player's own inputs — every beat in order, Pip following across maps, the
   world map's offsets, travel to an attuned stone — ending on the Ford with the story begun.
 - The Ford's own tests begin where the prologue ends (`prologue` = 10, on the Ford).

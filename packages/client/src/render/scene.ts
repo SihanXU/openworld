@@ -391,6 +391,8 @@ export class WorldScene extends Phaser.Scene {
     const unknown = ks.length > 0 && ks.every((v) => v!.unknown)
     this.focus.clear()
     if (f.scene || !f.keys) return
+    // past the map's edge there is nothing to aim at (an edge that leads nowhere: the tutorial's)
+    if (this.base && (tx < 0 || ty < 0 || tx >= this.base.width || ty >= this.base.height)) return
     // the whole of a target that covers more than its cell (a place of the overworld: its block)
     const [rx, ry, rw, rh] = k?.rect ?? [tx, ty, 1, 1]
     this.focus.lineStyle(1, unknown ? 0xf0b85a : 0xffffff, 0.6).strokeRoundedRect(rx * T + 0.5, ry * T + 0.5, rw * T - 1, rh * T - 1, 2)
