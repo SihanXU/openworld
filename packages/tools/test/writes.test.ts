@@ -183,14 +183,14 @@ describe('the state is things and the clock (world-model.md §3)', () => {
     for (const c of chunks) game.loadChunk(decodeChunk(c))
     const old = structuredClone(game.save())
     const story = old.state.entities.story
-    story.props = { ...(story.props ?? {}), 'beat.wake': 40, 'beat.outside': 90, 'beat.last': 'outside' }
+    story.props = { ...(story.props ?? {}), 'beat.see_waypoint': 40, 'beat.relic': 90, 'beat.last': 'relic' }
     const loaded = Game.load(old, index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
     const w = loaded.engine.world
-    expect(w.fact('seen.wake')).toBe(40)
-    expect(w.fact('seen.outside')).toBe(90)
-    expect(w.fact('step.last')).toBe('outside')
+    expect(w.fact('seen.see_waypoint')).toBe(40)
+    expect(w.fact('seen.relic')).toBe(90)
+    expect(w.fact('step.last')).toBe('relic')
     expect(Object.keys(w.story!.props ?? {}).filter((k) => k.startsWith('beat.'))).toEqual([])
     // what the companion repeats is the latest beat's hint
-    expect(loaded.engine.story.hint()).toEqual(index.steps!.find((d) => d.id === 'outside')!.hint ?? index.steps!.find((d) => d.id === 'outside')!.say)
+    expect(loaded.engine.story.hint()).toEqual(index.steps!.find((d) => d.id === 'relic')!.hint ?? index.steps!.find((d) => d.id === 'relic')!.say)
   })
 })

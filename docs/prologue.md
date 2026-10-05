@@ -18,8 +18,13 @@ A new game asks whether to play the tutorial (the cover's new-game panel, beside
   the overworld, so its edges are the world's edge: there is no way out (yet). Nothing appears on
   it (no ground yield) and it is peaceful (nothing comes out of the dark). What it teaches, and
   how it lets one go, is still to be designed.
-- **Skip the tutorial**: the game begins at the Mountain Foot, on the trail coming down from the
-  slope, at the seal stone's stage (`prologue` = `PROLOGUE_AT_FOOT`, 8): the next beat is the stone.
+- **Skip the tutorial**: the game begins at the Mountain Foot, at the top of the trail coming down
+  off the high ground, at the seal stone's stage (`prologue` = `PROLOGUE_AT_FOOT`): the next beat
+  is the stone.
+
+Cloudtop (`summit`) and Pinewind Slope (`slope`) were deleted (2026-10-04): the tutorial teaches
+what they taught. Their requirements moved: the high ground and its ramp (W8) and a wooden hut
+(W13) to the foot, rock to the hollow and the pass (W2–W4).
 
 The world's starts are data: `WorldIndex.start` is the default, `WorldIndex.starts` the others by
 name (`skip`: where, and the player's props there); `Game.create(index, …, start)` takes one.

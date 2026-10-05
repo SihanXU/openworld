@@ -29,7 +29,7 @@ import {
   type ResolveReply,
   type WorldIndex,
 } from '@lsw/engine'
-import { BASE_RULES, BOSS_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
+import { BASE_RULES, BOSS_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, PROLOGUE_DONE, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
@@ -327,7 +327,7 @@ function doSave(): void {
     hour: Math.floor(cal.hour),
     minute: cal.minute,
     level: Math.max(1, w.num(p, 'level', 1)),
-    prologue: w.num(p, 'prologue', 10),
+    prologue: w.num(p, 'prologue', PROLOGUE_DONE),
     quest: w.num(p, 'quest'),
     difficulty,
     ...(fallen && { ended: true }),

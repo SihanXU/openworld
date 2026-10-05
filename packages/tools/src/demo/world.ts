@@ -17,14 +17,14 @@ import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
 import { EAST_ROAD, EMBERFALL, LAIR, MINE, PASS, buildEastRoad, buildEmberfall, buildLair, buildMine, buildPass } from './quest/maps.ts'
 import { QUEST_SCENES } from './quest/scenes.ts'
-import { PROLOGUE, TUTORIAL, buildFoot, buildSlope, buildSummit, buildTutorial } from './prologue.ts'
+import { PROLOGUE, TUTORIAL, buildFoot, buildTutorial } from './prologue.ts'
 import { BARROW, HOLLOW, buildBarrow, buildHollow } from './hollow.ts'
 import type { PersonDef, Slot } from './person.ts'
 import { buildOverworld, placeCells, siteOf } from './overworld.ts'
 import { PEOPLE } from './people.ts'
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '../../../client/public/world')
-export const VERSION = 'ford-3'
+export const VERSION = 'ford-4'
 export const START_HOUR = 13
 const L = (en: string, zh: string): Text => ({ en, zh })
 const SOLID = new Set(['water', 'deepwater', 'tree', 'pine', 'bush', 'rock', 'wall', 'woodwall', 'burnt_wall', 'roof', 'cave_wall', 'lava', 'charred_tree', 'void'])
@@ -542,22 +542,16 @@ export function buildFord(): FordWorld {
   linkEdge(ember, row(ember, 0, EMBERFALL.north), [0, 1], mine, row(mine, mine.h - 1, MINE.south), [0, -1])
   linkEdge(ember, col(ember, ember.w - 1, EMBERFALL.east), [-1, 0], pass, col(pass, 0, PASS.west), [1, 0])
   linkEdge(pass, row(pass, 0, PASS.north), [0, 1], lair, row(lair, lair.h - 1, LAIR.south), [0, -1])
-  // the prologue north of the Ford (docs/prologue.md): the summit, the slope, the foot, the cliff stair
-  reseed(4250)
-  const summit = buildSummit()
-  reseed(4251)
-  const slope = buildSlope()
+  // the prologue north of the Ford (docs/prologue.md): the foot of the mountain, the cliff stair
   reseed(4252)
   const foot = buildFoot()
   foot.anchors.skip = [TUTORIAL.skip[0], TUTORIAL.skip[1]]
   // the tutorial: a plot of its own, linked to nothing
   const tutorial = buildTutorial()
-  linkEdge(summit, row(summit, summit.h - 1, PROLOGUE.summitSouth), [0, -1], slope, row(slope, 0, PROLOGUE.slopeNorth), [0, 1])
-  linkEdge(slope, row(slope, slope.h - 1, PROLOGUE.slopeSouth), [0, -1], foot, row(foot, 0, PROLOGUE.footNorth), [0, 1])
   linkEdge(foot, row(foot, foot.h - 1, PROLOGUE.footSouth), [0, -1], m, row(m, 0, PROLOGUE.fordNorth), [0, 1])
   // towns and camps are peaceful: nothing comes out of the dark there (nightspawn.ts); everywhere else is a combat zone
-  for (const b of [m, meadow, ember, summit]) b.zone = 'peaceful'
-  const builders = [m, meadow, pasture, forest, hollow, barrow, road, ember, mine, pass, lair, summit, slope, foot, tutorial]
+  for (const b of [m, meadow, ember]) b.zone = 'peaceful'
+  const builders = [m, meadow, pasture, forest, hollow, barrow, road, ember, mine, pass, lair, foot, tutorial]
   const at = placeMaps(builders, m)
   for (const b of builders)
     for (const [name, [x, y]] of Object.entries(b.anchors)) {
