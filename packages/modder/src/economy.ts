@@ -38,10 +38,10 @@ const EPS = 1e-9
 export function economySteps(onto: Ontology, rules: Rule[], recovery: number): Step[] {
   const index = new OntologyIndex(onto)
   const out: Step[] = []
-  for (const r of deriveRecipes(index)) out.push({ name: `recipe ${r.id}`, takes: new Map(r.needs.map((n) => [n.type, n.count])), gives: new Map([[r.make.type, 1]]) })
+  for (const r of deriveRecipes(index)) out.push({ name: `recipe ${r.id}`, takes: sum(r.needs.map((n) => [n.type, n.count])), gives: new Map([[r.make.type, 1]]) })
   for (const id of Object.keys(onto.types)) {
     const r = index.resolve(id)
-    if (typeof r.props.maxHp === 'number' && r.makeup?.length) out.push({ name: `break ${id}`, takes: new Map([[id, 1]]), gives: new Map(r.makeup.map((m) => [m.type, m.count * (m.chance ?? 1) * recovery])) })
+    if (typeof r.props.maxHp === 'number' && r.makeup?.length) out.push({ name: `break ${id}`, takes: new Map([[id, 1]]), gives: sum(r.makeup.map((m) => [m.type, m.count * (m.chance ?? 1) * recovery])) })
   }
   for (const rule of rules) out.push(...ruleSteps(rule, onto))
   return out
@@ -110,6 +110,8 @@ interface Outcome {
 }
 
 const add = (m: Map<string, number>, k: string, n: number) => m.set(k, (m.get(k) ?? 0) + n)
+/** Counts by type, a type named twice summed (a part in a makeup twice, by chance and not). */
+const sum = (pairs: [string, number][]): Map<string, number> => pairs.reduce((m, [k, n]) => add(m, k, n), new Map<string, number>())
 
 /** Two outcomes as one, the first with odds p. */
 function mix(a: Outcome, b: Outcome, p: number, path: string): Outcome {
