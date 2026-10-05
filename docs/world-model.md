@@ -332,6 +332,11 @@ sleeper is `asleep` meanwhile (lying still), and hunger comes four times slower 
 night costs about four points of twenty, and only an empty stomach is woken by hunger
 (`tools/test/rest.test.ts`). Not yet: the owners of what is in a room,
 and rooms on the overworld.
+
+As built (2026-10-05): room shapes have a geometry version per map. Keeping a static cell's
+changed state does not change that version. Each map counts upper-storey floor and volume
+occupants, so an outdoor map without any returns no rooms without flooding. Roles still read
+the room's contents on every query.
 - **Read-only**: rules may host on rooms and react (`contact in-region`, `threshold gain/lose`
   with the role), never write them.
 - Room quality (beauty, cleanliness) is later (D27).
@@ -638,6 +643,10 @@ for the active map (0 of 324 off their day over two days); a dormant map's peopl
 design, so the old count of everyone (87 of 576 from the village) is printed beside it. Not yet:
 needs (hunger, sleep) as goals, idle use of what is near, patrols, per-pair relations from what
 each saw.
+
+As built (2026-10-05): the world indexes companion ids when things are added, destroyed or
+loaded and when their own `companion` prop changes. Dormant companions take their turns in
+the same entity order without a scan of dormant items each tick.
 
 ### 6.11 Durations and fast-forward
 

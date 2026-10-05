@@ -40,8 +40,10 @@ export class Behaviour {
     eng.npcs.begin(active)
     const sc = sceneOf(eng, active)
     const movers = w.entitiesOnMap(active).filter((e) => e.place.on === 'tile' && e.id !== w.state.player && (e.npc || e.ai || e.boss || e.props?.companion !== undefined))
-    for (const e of Object.values(w.state.entities))
+    for (const id of w.companionIds) {
+      const e = w.state.entities[id]
       if (typeof e.props?.companion === 'string' && !(e.place.on === 'tile' && e.place.map === active)) movers.push(e)
+    }
     for (const e of movers) this.turn(e, sc)
   }
 

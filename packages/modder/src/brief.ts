@@ -44,7 +44,7 @@ export function relatedRules(req: ModRequest, lib: RuleLibrary): Rule[] {
   return scored.sort((a, b) => b[0] - a[0]).map(([, r]) => r)
 }
 
-export function briefOf(req: ModRequest, lib: RuleLibrary, onto: Ontology): string {
+export function briefOf(req: ModRequest, lib: RuleLibrary, onto: Ontology, tools = true): string {
   const index = new OntologyIndex(onto)
   const out = ['# Brief (prepared for you: the roles, the hole, and the rules that already speak about them)']
   const ev = req.event
@@ -80,8 +80,8 @@ export function briefOf(req: ModRequest, lib: RuleLibrary, onto: Ontology): stri
   }
   const related = relatedRules(req, lib)
   out.push('', `## Rules about this host or this event (${related.length})`)
-  out.push(...(related.length ? related.slice(0, MAX_RELATED).map(compactRule) : ['(none: this is new ground)']))
-  if (related.length > MAX_RELATED) out.push(`… ${related.length - MAX_RELATED} more (search_rules if you need them)`)
+  out.push(...(related.length ? related.slice(MAX_FULL, MAX_RELATED).map(compactRule) : ['(none: this is new ground)']))
+  if (related.length > MAX_RELATED) out.push(`… ${related.length - MAX_RELATED} more${tools ? ' (search_rules if you need them)' : ''}`)
   const full = related.slice(0, MAX_FULL)
   if (full.length) {
     out.push('', '## The closest ones in full (as examples of the format)')
