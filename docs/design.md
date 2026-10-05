@@ -259,6 +259,11 @@ the own tile, a second thing in the bag).
 **Undefined behaviour from the inputs**: every input makes an act (§5.7). Where its outcome,
 or that of an impulse it emits, reaches an undefined leaf, the AI is asked (§5.11).
 
+As built (2026-10-05): aiming, keyboard layers, reach, blows, menu drops and magnetic pickup
+keep the actor's storey. A built floor sits below the things on it in the chooser. A blow keeps
+its announced target, including an item in the bag; a chosen target beyond a blocked ray or
+off its line is refused.
+
 ### 5.3 Inventory, chests, pickup, HUD, menus, time
 
 The craft is Stardew Valley's; the systems are the Ford's own (game-design.md §10 lists what
@@ -287,6 +292,9 @@ was cut).
     moves a stack between the toolbar and the rest of the bag, dragging an item out of the menu
     drops it, and a button organizes the bag.
   - Slot order and the selected slot are part of the world state.
+
+  As built (2026-10-05): organizing uses the bag's learned capacity, including Big Pack's
+  fourth row.
 - **Chests**
   - The chest's grid is shown above the inventory's grid.
   - Clicking an item moves it to the other side; right-click moves one.
