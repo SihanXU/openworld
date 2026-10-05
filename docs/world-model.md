@@ -696,6 +696,17 @@ all objectives (the quest log and the guide are shown apart).
    rewritten automatically; those that cannot be, and those that fail the repeat check (the
    stick farms), are listed for the user before removal.
 
+As built (2026-10-05, after the W1–W10 review; it refines the W2c note below): the repeat check is exact rather than lucky. It
+replays twice, once with every chance coming out yes and once with every chance coming out no
+(`World.luck`: chance conditions, chance emits and the fraction of a breakdown's parts). A
+stick that comes one time in twenty is as endless as one that always comes. A scenario names a
+thing under the top of its cell by its space (`tile:x,y:floor`), so a request about the floor
+under a tree replays on that floor. People yield to each other by a swap that is one step: the
+one pushed makes way first, and the pusher steps in only if it has gone. A cell holds one body
+(`World.fits` no longer lets people pass through people), and a thing that falls onto a body
+comes to rest beside it. Saves keep the migrated cells of maps not yet entered (`legacyTiles`,
+`reseed` in the state).
+
 As built (W2c): the repeat check is `endlessYield` (engine `sandbox.ts`): the triggering event
 replayed 12 times with no time between; if its host still stands and any of the last 4 replays
 made a thing, the patch is refused. It applies to what someone can repeat at will (acts, impulses,
@@ -706,17 +717,6 @@ player can face); fishing now stirs the water (`stirred`, a status that runs out
 carries each role's material and makeup. `npm run modder -- library audit [--data <dir>]` lists the
 stored patches that make something from nothing, for the user to remove (`library remove <id>`);
 nothing is removed automatically. The economy check (consumption graph) and reachability are W4.
-
-As built (2026-10-05, after the W1–W10 review): the repeat check is exact rather than lucky. It
-replays twice, once with every chance coming out yes and once with every chance coming out no
-(`World.luck`: chance conditions, chance emits and the fraction of a breakdown's parts). A
-stick that comes one time in twenty is as endless as one that always comes. A scenario names a
-thing under the top of its cell by its space (`tile:x,y:floor`), so a request about the floor
-under a tree replays on that floor. People yield to each other by a swap that is one step: the
-one pushed makes way first, and the pusher steps in only if it has gone. A cell holds one body
-(`World.fits` no longer lets people pass through people), and a thing that falls onto a body
-comes to rest beside it. Saves keep the migrated cells of maps not yet entered (`legacyTiles`,
-`reseed` in the state).
 
 ## 9. Holes after the change
 
