@@ -705,7 +705,9 @@ export class WorldScene extends Phaser.Scene {
         const d = this.fixtureDef(e)?.base
         if (d) v.body.setTexture(d.img, spriteFrames(this, `ico:${e.sprite}`, d)[0])
       }
-      v.body.setOrigin(0.5, 1).setScale(1).setVisible(!s || (door && !across))
+      // its front shows where nothing stands south of it — or where what does is see-through (its top
+      // not drawn): the end of a side wall at a room's see-through south wall
+      v.body.setOrigin(0.5, 1).setScale(1).setVisible(!s || this.seeThrough.has(at(0, 1)) || (door && !across))
       const top = topImage()
       top.setTexture(LSW_WALL, frameOf(LSW_WALL, across ? DOOR_ABOVE + (e.type === 'structure/door/open' ? 1 : 0) : (n ? 1 : 0) + (east ? 2 : 0) + (s ? 4 : 0) + (w ? 8 : 0)))
       // the wall that hides the player, all of it, is see-through: its front faint, its top not drawn
