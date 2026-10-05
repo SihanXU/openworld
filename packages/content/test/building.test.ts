@@ -319,3 +319,94 @@ describe('the build palette (B): setting things down', () => {
     expect(c.count('item/weapon/ranged/bow')).toBe(1)
   })
 })
+
+describe('storeys', () => {
+  function meadow(): Engine {
+    const rows = Array.from({ length: 8 }, () => Array(8).fill('grass'))
+    const eng = buildSandbox({ terrain: rows, entities: [{ key: 'actor', type: 'actor/person/player', x: 3, y: 4 }], event: {} }, onto, new RuleLibrary(BASE_RULES))
+    eng.world.get('actor')!.facing = 'up'
+    return eng
+  }
+  const give = (eng: Engine, type: string, n = 1) => eng.author(() => { for (let i = 0; i < n; i++) eng.world.create(type, { on: 'inside', holder: 'actor' }) })
+  const storeys = (eng: Engine, x: number, y: number) => [0, 1, 2, 3].map((z) => eng.world.placedAt(SANDBOX_MAP, x, y, z).filter((e) => e.type.startsWith('structure')).map((e) => e.type.split('/').slice(1).join('/')))
+  const walk = (eng: Engine, dir: 'up' | 'down' | 'left' | 'right') => {
+    eng.movePlayer(dir)
+    for (let i = 0; i < 8; i++) eng.tick()
+    return eng.world.posOf(eng.world.player)!
+  }
+
+  it('a wall set on a wall stands on it: walls stack into a taller wall, storey on storey, with no floor between', () => {
+    const eng = meadow()
+    give(eng, 'structure/wall', 3)
+    eng.controls.sync()
+    for (let i = 0; i < 3; i++) expect(eng.controls.place('structure/wall', { x: 3, y: 3 })).toBe(true)
+    expect(storeys(eng, 3, 3)).toEqual([['wall'], ['wall'], ['wall'], []])
+  })
+
+  it('stairs go up the way their setter faced: up only that way, down only from their top, off their foot on the same storey', () => {
+    const eng = meadow()
+    const w = eng.world
+    // a wall at (3,2) with a floor laid over it: the storey above; stairs set at (3,3) from (3,4), facing north
+    give(eng, 'structure/wall')
+    give(eng, 'structure/floor')
+    give(eng, 'structure/stairs')
+    eng.controls.sync()
+    eng.relocate(w.player, { map: SANDBOX_MAP, x: 3, y: 3 })
+    expect(eng.controls.place('structure/wall', { x: 3, y: 2 })).toBe(true)
+    expect(eng.controls.place('structure/floor', { x: 3, y: 2 })).toBe(true)
+    eng.relocate(w.player, { map: SANDBOX_MAP, x: 3, y: 4 })
+    expect(eng.controls.place('structure/stairs', { x: 3, y: 3 })).toBe(true)
+    const stairs = w.placedAt(SANDBOX_MAP, 3, 3).find((e) => e.type === 'structure/stairs')!
+    expect(stairs.facing).toBe('up')
+    // onto the stairs, then up the way they go: one storey up
+    expect(walk(eng, 'up')).toMatchObject({ x: 3, y: 3 })
+    expect(walk(eng, 'up')).toMatchObject({ x: 3, y: 2, z: 1 })
+    // down: from their top only
+    expect(walk(eng, 'down')).toMatchObject({ x: 3, y: 3 })
+    expect(w.posOf(w.player)!.z ?? 0).toBe(0)
+    // from their side, nothing takes one up: a step east off them stays on the ground
+    expect(walk(eng, 'right')).toMatchObject({ x: 4, y: 3 })
+    expect(w.posOf(w.player)!.z ?? 0).toBe(0)
+    // stairs set facing east (the palette's turn) go up east, not north
+    give(eng, 'structure/stairs')
+    eng.controls.sync()
+    eng.relocate(w.player, { map: SANDBOX_MAP, x: 5, y: 5 })
+    expect(eng.controls.place('structure/stairs', { x: 5, y: 4 }, 'right')).toBe(true)
+    expect(w.placedAt(SANDBOX_MAP, 5, 4).find((e) => e.type === 'structure/stairs')!.facing).toBe('right')
+  })
+
+  it('the inputs meet only the storey one stands on: below the floor overhead, E meets the wall, never the floor laid over it', () => {
+    const eng = meadow()
+    const w = eng.world
+    give(eng, 'structure/wall')
+    give(eng, 'structure/floor')
+    eng.controls.sync()
+    expect(eng.controls.place('structure/wall', { x: 3, y: 3 })).toBe(true)
+    expect(eng.controls.place('structure/floor', { x: 3, y: 3 })).toBe(true)
+    const floor = w.placedAt(SANDBOX_MAP, 3, 3, 1).find((e) => e.type === 'structure/floor')!
+    // the view puts the floor overhead on top of the stack: it is not one of the layers
+    const plan = eng.controls.plan('hands', { x: 3, y: 3, stack: [{ e: floor.id }] })
+    expect(w.get(plan!.target.e)?.type).toBe('structure/wall')
+    expect(eng.controls.choices('hands', { x: 3, y: 3, stack: [{ e: floor.id }] }).map((c) => w.get(c.plan!.target.e)?.type)).not.toContain('structure/floor')
+    // up there, standing on the floor: the floor is one's ground, the cell's own grass below is not
+    eng.author(() => w.place(w.player, { on: 'tile', map: SANDBOX_MAP, x: 3, y: 3, z: 1 }))
+    expect(eng.controls.layers({ map: SANDBOX_MAP, x: 3, y: 3 }).map((r) => w.get(r.e)?.type)).toEqual(['actor/person/player', 'structure/floor'])
+  })
+})
+
+describe('the build palette on built things', () => {
+  it('with none carried, a wall is made and set on a wall, and a floor made and laid over walls', () => {
+    const rows = Array.from({ length: 7 }, () => Array(7).fill('grass'))
+    const eng = buildSandbox({ terrain: rows, entities: [{ key: 'actor', type: 'actor/person/player', x: 3, y: 4 }], event: {} }, onto, new RuleLibrary(BASE_RULES))
+    const w = eng.world
+    eng.author(() => { for (let i = 0; i < 8; i++) w.create('item/material/plank', { on: 'inside', holder: 'actor' }) })
+    eng.controls.sync()
+    expect(eng.controls.place('structure/wall', { x: 3, y: 3 })).toBe(true)
+    expect(eng.controls.previewPlace('structure/wall', { x: 3, y: 3 }).ok).toBe(true)
+    expect(eng.controls.place('structure/wall', { x: 3, y: 3 })).toBe(true)
+    expect(w.placedAt(SANDBOX_MAP, 3, 3, 1).map((e) => e.type)).toEqual(['structure/wall'])
+    expect(eng.controls.place('structure/wall', { x: 2, y: 3 })).toBe(true)
+    expect(eng.controls.place('structure/floor', { x: 2, y: 3 })).toBe(true)
+    expect(w.placedAt(SANDBOX_MAP, 2, 3, 1).map((e) => e.type)).toEqual(['structure/floor'])
+  })
+})

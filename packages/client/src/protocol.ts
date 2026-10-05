@@ -24,7 +24,7 @@ export type ToWorker =
   /** Where the mouse points (for the key labels). */
   | { t: 'aim'; tile?: Tile }
   | { t: 'buildAim'; id?: string; tile?: Tile }
-  | { t: 'build'; id: string; tile: Tile }
+  | { t: 'build'; id: string; tile: Tile; /** the palette's turn (R): stairs go up this way */ facing?: Dir }
   | { t: 'answer'; yes: boolean }
   /** Slots: select (toolbar), cycle (wheel), next row (Tab, Shift+Tab back), swap and quick move (menu), drop (out of the menu), organize. */
   | { t: 'select'; slot: number }

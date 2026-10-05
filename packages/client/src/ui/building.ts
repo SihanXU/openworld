@@ -1,4 +1,4 @@
-import type { Frame, PlacementPreview, PlacementRecipe, Text } from '@lsw/engine'
+import type { Dir, Frame, PlacementPreview, PlacementRecipe, Text } from '@lsw/engine'
 import { BUILDINGS, FORM_BY_ID, PLACEMENTS, RECIPES } from '@lsw/content'
 import type { Tile, ToWorker } from '../protocol.ts'
 import { esc, locale, tx } from './common.ts'
@@ -50,6 +50,9 @@ export class BuildingMode {
   paint?: (sprite: string) => HTMLCanvasElement | undefined
   /** The left button is down: each new cell the pointer enters gets one too. */
   dragging = false
+  /** The way what is set down faces (R turns it; stairs go up it); none: away from the player. */
+  facing?: Dir
+  private arrow = document.createElement('div')
   private lastPlaced = ''
   private panel = document.createElement('section')
   private ghost = document.createElement('div')
@@ -61,6 +64,7 @@ export class BuildingMode {
     this.panel.className = 'build-panel wood hidden'
     this.panel.setAttribute('aria-label', 'Construction and farming')
     this.ghost.className = 'build-ghost hidden'
+    this.arrow.className = 'build-arrow'
     document.body.append(this.panel, this.ghost)
     this.panel.addEventListener('click', (e) => {
       const button = (e.target as HTMLElement).closest<HTMLButtonElement>('button')
@@ -90,9 +94,26 @@ export class BuildingMode {
     return [...MADE, ...extra, ...BUILDINGS.map(fromRecipe)]
   }
 
+  /** R: the next way round (clockwise), from the way it would face now. */
+  rotate(): void {
+    const ways: Dir[] = ['up', 'right', 'down', 'left']
+    this.facing = ways[(ways.indexOf(this.facing ?? this.away()) + 1) % 4]
+    this.tick()
+    this.details()
+  }
+  /** Away from the player toward the cell aimed at (how a thing set down faces unless turned). */
+  private away(): Dir {
+    const p = this.frame?.player
+    const at = this.target()
+    if (!p || !at) return 'up'
+    const dx = at.x - p.x
+    const dy = at.y - p.y
+    return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up'
+  }
   toggle(on = !this.open): void {
     this.open = on
     this.dragging = false
+    this.facing = undefined
     this.panel.classList.toggle('hidden', !on)
     this.ghost.classList.toggle('hidden', !on)
     document.getElementById('buildBtn')?.classList.toggle('active', on)
@@ -146,7 +167,7 @@ export class BuildingMode {
     const at = tile ?? this.target()
     if (!at) return
     this.lastPlaced = `${at.x},${at.y}`
-    this.send({ t: 'build', id: this.selected.id, tile: at })
+    this.send({ t: 'build', id: this.selected.id, tile: at, ...(this.facing && { facing: this.facing }) })
   }
   /** The left button: one set down here, and (held) one in each cell it is dragged over. */
   press(tile?: Tile): void {
@@ -166,6 +187,11 @@ export class BuildingMode {
     this.ghost.style.top = `${p.y}px`
     this.ghost.style.width = `${size}px`
     this.ghost.style.height = `${size}px`
+    // what turns (stairs) shows the way it will face
+    const turns = this.selected.put === 'structure/stairs'
+    this.arrow.textContent = { up: '↑', right: '→', down: '↓', left: '←' }[this.facing ?? this.away()]
+    if (turns && this.arrow.parentElement !== this.ghost) this.ghost.append(this.arrow)
+    if (!turns) this.arrow.remove()
     this.ghost.classList.toggle('valid', !!this.preview?.ok)
     this.ghost.classList.toggle('invalid', !this.preview?.ok)
     const canvas = this.ghost.querySelector('canvas')
@@ -204,7 +230,8 @@ export class BuildingMode {
     const have = s.put ? carried.filter((it) => it.type === s.put).length : 0
     const counts = !s.put && this.preview?.have ? this.preview.have : s.needs.map(countOf)
     const nameOf = (n: Entry['needs'][number]) => (n.type ? (carried.find((it) => it.type === n.type)?.name ?? n.name) : n.name)
-    const carriedLine = s.put ? `<p class="${have ? 'enough' : 'missing'}">${zh ? `身上有 ${have} 个` : `${have} carried`}${!have && s.needs.length ? (zh ? ' · 将用材料现做：' : ' · one will be made from:') : ''}</p>` : ''
+    const turn = s.put === 'structure/stairs' ? `<p>${zh ? 'R 旋转：楼梯朝箭头方向往上' : 'R turns it: the stairs go up the way the arrow points'}</p>` : ''
+    const carriedLine = turn + (s.put ? `<p class="${have ? 'enough' : 'missing'}">${zh ? `身上有 ${have} 个` : `${have} carried`}${!have && s.needs.length ? (zh ? ' · 将用材料现做：' : ' · one will be made from:') : ''}</p>` : '')
     const cost = !s.put || !have ? `<div class="build-cost">${s.needs.map((n, i) => `<span class="${counts[i] < n.count ? 'missing' : 'enough'}">${esc(tx(nameOf(n)))} ${counts[i]}/${n.count}${n.consume === false ? (zh ? '（工具）' : ' (tool)') : ''}</span>`).join('')}</div>` : ''
     const html = `<h3>${esc(tx(s.name))}</h3><p>${esc(tx(s.description))}</p>${carriedLine}${cost}<p class="build-status ${this.preview?.ok ? 'enough' : 'missing'}">${esc(tx(this.preview?.reason) || (zh ? '选择邻近的一格' : 'Choose a nearby tile'))}</p>`
     if (html === this.detailSignature) return

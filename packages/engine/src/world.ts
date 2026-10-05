@@ -620,6 +620,8 @@ export class World {
         continue
       }
       if (here.some((o) => this.spacesOf(o).includes('floor'))) return z
+      // a wall (or a door) set on a wall stands on it: walls stack into a taller wall, storey on storey
+      if (z > 0 && (this.hasTag(e, 'wall') || this.hasTag(e, 'door')) && this.entitiesAt(map, x, y, z - 1).some((o) => o.id !== e.id && (this.hasTag(o, 'wall') || this.hasTag(o, 'door')) && this.num(o, 'supports', 0) > 0)) return z
     }
     return undefined
   }
