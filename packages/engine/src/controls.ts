@@ -74,21 +74,35 @@ export class Controls {
   // ---------------------------------------------------------------- aiming
 
   /**
-  * Where a key acts: the pointed spot when some input can act there (the farthest of them is how
-  * far the pointer reaches); else, for E, F and G (and any input without a pointer), the place in front — the keyboard alone plays.
-  * The right click is always on oneself.
-  */
-  aim(at?: Aim, key?: Key): { at: Pos; stack?: Ref[] } | undefined {
+   * Where a key acts: the pointed spot when some input can act there (the farthest of them is how
+   * far the pointer reaches); a pointer beyond that, the farthest spot toward it that one reaches;
+   * the pointer on one's own picture (it stands over the tile behind), one's own place; without a
+   * pointer, the place in front — the keyboard alone plays. The right click is always on oneself.
+   * `pointed`: the spot is the pointer's own.
+   */
+  aim(at?: Aim, key?: Key): { at: Pos; stack?: Ref[]; pointed?: boolean } | undefined {
     const w = this.w
     const p = w.player
     const pos = w.posOf(p)
     if (!pos) return undefined
     if (key === 'self') return { at: pos }
-    if (at && this.reachable(at)) return { at: { map: pos.map, x: at.x, y: at.y }, stack: at.stack }
-    // a pointed spot no input reaches: the mouse's own input does nothing there
-    if (at && key === 'use') return undefined
-    const front = w.front(p)
-    return front && { at: front }
+    if (!at) {
+      const front = w.front(p)
+      return front && { at: front }
+    }
+    if (at.stack?.[0]?.e === p.id) return { at: pos, pointed: true }
+    if (this.reachable(at)) return { at: { map: pos.map, x: at.x, y: at.y }, stack: at.stack, pointed: true }
+    // beyond every input's reach: step back along the line to the pointer until a spot is reached
+    const dx = at.x - pos.x
+    const dy = at.y - pos.y
+    const n = Math.max(Math.abs(dx), Math.abs(dy))
+    // halves rounded away from oneself, the same on every side
+    const step = (v: number) => Math.sign(v) * Math.round(Math.abs(v))
+    for (let i = n - 1; i >= 1; i--) {
+      const spot = { x: pos.x + step((dx * i) / n), y: pos.y + step((dy * i) / n) }
+      if (this.reachable(spot)) return { at: { map: pos.map, ...spot } }
+    }
+    return { at: pos }
   }
 
   /** Can any input act on the spot (on its top, as a press would)? Oneself's own place always can. */
@@ -142,7 +156,9 @@ export class Controls {
     const ground = es.filter((e) => !w.isAgent(e) && !w.isPortable(e) && !cell(e))
     const made = es.filter(cell).sort((a, b) => w.cellRank(b) - w.cellRank(a))
     const standing: Ref[] = [...bodies, ...loose, ...ground].map((e) => ({ e: e.id }))
-    let out: Ref[] = stack ? [...stack.map(cellOf).filter(ok), ...standing] : standing
+    // the view's cells of this very tile are its make-up, under what stands on it (they come last, below)
+    const own = (r: Ref) => { const c = parseCellId(r.e); return !!c && c.map === at.map && c.x === at.x && c.y === at.y }
+    let out: Ref[] = stack ? [...stack.filter((r) => !own(r)).map(cellOf).filter(ok), ...standing] : standing
     // a bird overhead is the last thing the keys meet (it is drawn on top, but rarely what is meant)
     const aloft = (r: Ref) => 'e' in r && !!w.get(r.e) && w.hasTag(w.get(r.e)!, 'airborne')
     out = [...out.filter((r) => !aloft(r)), ...out.filter(aloft)]
@@ -271,9 +287,10 @@ export class Controls {
     const a = this.aim(aim, key)
     if (!a) return undefined
     const p = this.planAt(key, a.at, a.stack, layer)
-    // E with no spot pointed at: the place in front — unless what is there has no answer of its own
-    // and what one stands on has one (the bed one lies on, a place of the overworld)
-    if (key === 'hands' && layer === 0 && !(aim && this.reachable(aim)) && (!p || p.unknown)) {
+    // E with no spot pointed at (or the pointer beyond reach): the spot in front or toward the
+    // pointer — unless what is there has no answer of its own and what one stands on has one (the
+    // bed one lies on, a place of the overworld)
+    if (key === 'hands' && layer === 0 && !a.pointed && (!p || p.unknown)) {
       const pos = this.w.posOf(this.w.player)
       const own = pos && this.planAt(key, pos, undefined, 0)
       if (own && !own.unknown) return own
