@@ -493,6 +493,7 @@ export class EffectRunner {
       case 'craft': {
         const r = eng.recipes.get(String(ev.params?.recipe ?? ''))
         if (!host || !r) return
+        if (!r.needs.every((n) => Number.isSafeInteger(n.count) && n.count > 0)) return
         const carried = [...(host.contents ?? []), ...(host.held ? [host.held] : [])].map((id) => w.get(id)!).filter(Boolean)
         if (!r.needs.every((n) => carried.filter((e) => e.type === n.type && !e.frozenBy).length >= n.count)) return
         // the tools it needs, carried (not used up)
