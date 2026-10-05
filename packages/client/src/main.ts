@@ -378,9 +378,12 @@ function release(key: Key): void {
   pressing = undefined
   if (!p.long) send({ t: 'key', key, tile: p.tile })
 }
-/** The chooser's list arrived (after a long press): pick a layer, then the input acts on it. */
+/**
+ * The chooser's list arrived (after a long press): pick a layer, then the input acts on it. Time
+ * stood still while it was open: it runs again before the key goes (a key while paused is dropped).
+ */
 onChoices = (key, tile, list) =>
-  hud.showChooser(KEY_NAME[key] === 'L' ? t('lmb') : KEY_NAME[key] === 'R' ? t('rmb') : KEY_NAME[key], tile ?? aimFront(), list, (layer) => send({ t: 'key', key, tile, layer }))
+  hud.showChooser(KEY_NAME[key] === 'L' ? t('lmb') : KEY_NAME[key] === 'R' ? t('rmb') : KEY_NAME[key], tile ?? aimFront(), list, (layer) => (syncPause(), send({ t: 'key', key, tile, layer })))
 
 /** The tile in front of the player (for placing the chooser when the keyboard aims). */
 function aimFront(): Tile {
