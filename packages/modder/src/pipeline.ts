@@ -75,8 +75,14 @@ class Gate {
 
 export class Modder {
   private inflight = new Map<string, Promise<ResolveReply>>()
-  /** Designs, one at a time by default (harness concurrency.design): what one patch adds, the next request sees. */
-  private design = new Gate(() => this.opts.state.harness().concurrency?.design ?? 1)
+  /**
+   * Designs run in parallel (harness concurrency.design at once, live first): each is worked and
+   * validated in its own sandbox, and the commit re-validates against the library as it is then.
+   * Requests whose patches would be written in the same place queue in one lane (laneOf), so the
+   * later one sees what the earlier committed and is often answered by it.
+   */
+  private design = new Gate(() => this.opts.state.harness().concurrency?.design ?? 4)
+  private lanes = new Map<string, Promise<void>>()
   /** Work after the reply: reflections, late reviews, escalations, revisions (harness concurrency.background at once). */
   private jobs: { what: string; job: () => Promise<void> }[] = []
   private running = 0
@@ -206,9 +212,10 @@ export class Modder {
     }
   }
 
-  /** One design at a time (live first); a request that waited is answered by what was committed meanwhile, if it can be. */
+  /** A design in its lane, then in a slot (live first); one that waited is answered by what was committed meanwhile, if it can be. */
   private async episode(req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, eo: EpisodeOptions): Promise<ResolveReply> {
     if (!this.progress.has(sig.key)) this.progress.set(sig.key, { stage: 'queued' })
+    const leave = await this.enterLane(laneOf(req))
     const release = await this.design.acquire(eo.profile === 'live' ? 0 : 1)
     try {
       if (!eo.revise) {
@@ -218,7 +225,22 @@ export class Modder {
       return await this.work(req, ws, sig, eo)
     } finally {
       release()
+      leave()
       this.progress.delete(sig.key)
+    }
+  }
+
+  /** Wait for the designs ahead in this lane; the returned function lets the next one in. */
+  private async enterLane(lane: string): Promise<() => void> {
+    const ahead = this.lanes.get(lane) ?? Promise.resolve()
+    let done!: () => void
+    const mine = new Promise<void>((r) => (done = r))
+    const tail = ahead.then(() => mine)
+    this.lanes.set(lane, tail)
+    await ahead
+    return () => {
+      done()
+      if (this.lanes.get(lane) === tail) this.lanes.delete(lane)
     }
   }
 
@@ -291,7 +313,7 @@ export class Modder {
           creations = ask.create
           at({ stage: 'create', creating: creations.map((c) => c.name) })
           ep.attempts.push({ phase, errors: [], warnings: [], raw: answer.slice(0, 2000) })
-          retry(createUser(creations), 'create')
+          retry(createUser(creations, Object.keys(ctx.ontology.materials ?? {})), 'create')
           continue
         }
         if (ask) {
@@ -657,4 +679,15 @@ function routeOf(j: unknown): { need?: Need[]; create?: Creation[] } | undefined
     ? o.create.filter((c): c is Creation => !!c && typeof (c as Creation).id === 'string' && typeof (c as Creation).name?.en === 'string' && typeof (c as Creation).name?.zh === 'string')
     : []
   return create.length ? { create } : undefined
+}
+
+/**
+ * Where a request's patch is written: its rule belongs to the host, and answers one kind of event.
+ * Patches are usually written for a class (all creatures, every material), so the lane is the
+ * event kind and the host type's first two segments: two requests in one lane would likely write
+ * the same rule, and queue; any others are designed side by side.
+ */
+export function laneOf(req: ModRequest): string {
+  const host = req.event.host?.type.split('/').slice(0, 2).join('/') ?? '-'
+  return `${req.event.kind}|${host}`
 }

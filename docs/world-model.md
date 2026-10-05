@@ -707,6 +707,17 @@ carries each role's material and makeup. `npm run modder -- library audit [--dat
 stored patches that make something from nothing, for the user to remove (`library remove <id>`);
 nothing is removed automatically. The economy check (consumption graph) and reachability are W4.
 
+As built (2026-10-05): **the economy check** runs in the modder's validation (`modder/src/economy.ts`).
+Every conversion is a step (a derived recipe, a thing broken into its makeup, one leaf of a rule
+that uses up an item or takes one into the host); a mix of steps x_j in [0, 1] that leaves no thing
+fewer and some thing more is a free lunch. That is a linear programme (x = 0 is feasible, so a
+one-phase simplex): a patch is refused when its steps make one that the world's steps alone do not,
+and the refusal names the steps and what they make. With one input and one output per step this
+is currency arbitrage (a positive cycle); several in and out need the LP. The base content has none
+(any length; tools/test/economy.test.ts). **A type the AI creates** names `props.material` and a
+makeup (a breakable one may give a rule of its own on `broken` instead), and never a new ground
+(`tile/*`); one with a station is craftable as soon as the patch applies.
+
 ## 9. Holes after the change
 
 What remains for the AI is what needs invention:

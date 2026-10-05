@@ -4,9 +4,9 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { AddressInfo } from 'node:net'
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond } from '@lsw/engine'
+import { ModPort, RuleLibrary, buildSandbox, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
-import { Modder, ScriptedModel, SelfState, WorldLibrary, createModderServer, deriveTests, narrowKinds, parseJson, qualifyTerrains, scriptFromFile, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
+import { Modder, ScriptedModel, SelfState, WorldLibrary, createModderServer, freeLunch, laneOf, deriveTests, narrowKinds, parseJson, qualifyTerrains, scriptFromFile, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
@@ -419,6 +419,40 @@ describe('the OpenAI-compatible adapter', () => {
   })
 })
 
+describe('the economy check', () => {
+  /** A club (the workbench makes one from a log) used on a workbench comes apart into logs. */
+  const unmake = (logs: number): Rule => ({
+    id: 'patch/club-comes-apart',
+    host: { type: 'item/weapon/blunt/club' },
+    on: 'act/use',
+    doc: 'A club worked on a workbench comes apart into logs.',
+    tree: { if: { is: { role: 'target', sel: { type: 'fixture/craft/workbench' } } }, then: { do: [{ op: 'transform', into: 'item/material/log' }, ...(logs > 1 ? [{ op: 'spawn', type: 'item/material/log', at: 'host', count: logs - 1 } as Effect] : [])] } },
+  })
+
+  it('refuses a patch that, with the world\'s own conversions, makes something from nothing — and names them', () => {
+    const { library } = setup()
+    const res = library.validate(patchOf(unmake(2)))
+    expect(res.ok).toBe(false)
+    const msg = res.errors.join()
+    expect(msg).toMatch(/economy/)
+    expect(msg).toMatch(/recipe item\/weapon\/blunt\/club/)
+    expect(msg).toMatch(/rule patch\/club-comes-apart/)
+    expect(msg).toMatch(/leave more item\/material\/(log|plank) \(\+\d/)
+  })
+
+  it('accepts one that gives back what went in', () => {
+    const { library } = setup()
+    expect(library.validate(patchOf(unmake(1))).errors.filter((e) => /economy/.test(e))).toEqual([])
+  })
+
+  it('finds a gain that takes three steps, which no pair of them shows', () => {
+    const S = (name: string, takes: [string, number][], gives: [string, number][]) => ({ name, takes: new Map(takes), gives: new Map(gives) })
+    const lunch = freeLunch([S('a', [['A', 2]], [['B', 3]]), S('b', [['B', 2]], [['C', 3]]), S('c', [['C', 2]], [['A', 3]])])
+    expect(lunch?.uses.map((u) => u.step).sort()).toEqual(['a', 'b', 'c'])
+    expect(freeLunch([S('a', [['A', 1]], [['B', 2]]), S('b', [['B', 2]], [['A', 1]])])).toBeUndefined()
+  })
+})
+
 describe('integrity', () => {
   it('rejects a catch-all that would answer for anything at all', () => {
     const { library } = setup()
@@ -637,7 +671,7 @@ describe('the router: local, then find, then create', () => {
   /** A creature offered rope leaves something behind: the router's answers are scripted by what each call shows. */
   // (once, then not for a while: a yield costs its host — the repeat check, world-model.md §8.4)
   const leaves = (type: string): Rule => ({ id: 'patch/rope-on-creature-leaves', host: { type: 'actor/creature' }, on: 'impulse/offered', doc: `A creature offered rope leaves ${type} behind, and not again for a while.`, tree: { if: { all: [FIBER, { not: { has: { role: 'host', status: 'stirred' } } }] }, then: { do: [{ op: 'spawn', type, at: 'host' }, { op: 'addStatus', status: 'stirred' }, { op: 'log', text: { en: 'Something drops.', zh: '掉下了东西。' } }] } } })
-  const INGOT_TYPE = { id: 'item/material/iron_ingot', name: { en: 'Iron Ingot', zh: '铁锭' }, tags: ['metal'] }
+  const INGOT_TYPE = { id: 'item/material/iron_ingot', name: { en: 'Iron Ingot', zh: '铁锭' }, tags: ['metal'], props: { material: 'iron' }, makeup: [{ type: 'item/material/iron_ore', count: 1 }] }
 
   function router(o: { local: unknown; find?: unknown; create?: unknown; art?: (n: number) => unknown; onArt?: () => void }) {
     const seen: { purpose?: string; system: string; last: string }[] = []
@@ -716,21 +750,40 @@ describe('the router: local, then find, then create', () => {
     expect(t.sprite).toBeUndefined()
   })
 
-  it('designs one patch at a time, so the second request sees what the first committed', async () => {
-    let busy = 0
-    let most = 0
+  /** A scripted designer that counts how many designs run at once. */
+  function overlapping() {
+    const seen = { busy: 0, most: 0, designs: 0 }
     const model = new ScriptedModel(async (messages, opts) => {
       if (opts.purpose !== 'design') return opts.purpose === 'review' ? { verdict: 'ship' } : {}
-      busy++
-      most = Math.max(most, busy)
+      seen.busy++
+      seen.designs++
+      seen.most = Math.max(seen.most, seen.busy)
       await new Promise((r) => setTimeout(r, 20))
-      busy--
+      seen.busy--
       return { patch: patchOf(noTestsRule(messages[1].content.includes('impulse/offered') ? bindRule() : { ...bindRule('patch/rope-used-on-creature'), on: 'act/use', host: { type: 'item/tool/rope' }, tree: { if: { is: { role: 'target', sel: { type: 'actor/creature' } } }, then: { do: [{ op: 'log', text: 'You wave the rope.' }] } } })) }
     })
+    return { model, seen }
+  }
+
+  it('designs side by side when the patches would be written in different places (lanes)', async () => {
+    const { model, seen } = overlapping()
     const { modder } = setup(model, undefined, 'live')
+    expect(laneOf(request())).not.toBe(laneOf(useRequest()))
     const replies = await Promise.all([modder.resolve({ request: request() }), modder.resolve({ request: useRequest() })])
     expect(replies.map((r) => r.outcome)).toEqual(['accepted', 'accepted'])
-    expect(most).toBe(1)
+    expect(seen.most).toBe(2)
+  })
+
+  it('queues requests in one lane, so the later one is answered by what the earlier committed', async () => {
+    const { model, seen } = overlapping()
+    const { modder } = setup(model, undefined, 'live')
+    // a slime and a wolf offered rope: two classes, one lane (impulse/offered on a creature)
+    const wolf = request('actor/creature/beast/wolf')
+    expect(laneOf(wolf)).toBe(laneOf(request()))
+    const replies = await Promise.all([modder.resolve({ request: request() }), modder.resolve({ request: wolf })])
+    expect(replies.map((r) => r.outcome).sort()).toEqual(['accepted', 'covered'])
+    expect(seen.most).toBe(1)
+    expect(seen.designs).toBe(1)
   })
 })
 

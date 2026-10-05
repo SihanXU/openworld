@@ -263,14 +263,18 @@ export function findUser(needs: Need[], candidates: Map<string, string[]>, catal
 }
 
 /** Create: define the new types in the patch, beside the rule that makes them. */
-export function createUser(creations: Creation[]): string {
+export function createUser(creations: Creation[], materials: string[] = []): string {
   return [
     '# Create',
     `The world is making ${creations.length === 1 ? 'a new thing' : 'new things'}: ${creations.map((c) => `${c.id} (${c.name.en} / ${c.name.zh})`).join(', ')}.`,
     'Write the patch with, for each, a type artifact beside your rule(s):',
-    '{"kind": "type", "type": {"id": "<parent>/<snake_case>", "name": {"en": "...", "zh": "..."}, "tags": ["only what it adds to its parent"], "props": {}}}',
+    '{"kind": "type", "type": {"id": "<parent>/<snake_case>", "name": {"en": "...", "zh": "..."}, "tags": ["only what it adds to its parent"], "props": {"material": "<one of the materials>"}, "makeup": [{"type": "<a type the world has>", "count": 1}], "station": "hands | workbench (optional)"}}',
     '- The parent must exist; the new type inherits its tags and its rules, so choose the parent whose behaviour fits (an ingot under item/material, a dish under item/food).',
     '- Its name is what a player would call it, in both languages; it must not be another name for a thing the world has.',
+    `- props.material: what it is made of, one of: ${materials.join(', ') || '(see the ModSpec)'}.`,
+    '- makeup: the things it is made of, by type and count (an iron ingot: one iron ore); it is also what it leaves when broken, so it takes no more than the outcome took to make it.',
+    '- station (optional): "hands" or "workbench" when a player could also make it there from its makeup; leave it out when only your rule makes it (smelting in a forge).',
+    '- A new kind of ground (tile/...) cannot be made; make a thing that lies on the cell instead.',
     '- Do not draw it: an artist draws its icon next.',
     'Answer with ONLY the JSON object {"patch": {"artifacts": [...]}, "summary": "..."}.',
   ].join('\n')

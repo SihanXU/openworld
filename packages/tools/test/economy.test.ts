@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { OntologyIndex, RuleLibrary, buildSandbox, performPlacement, type Effect, type Rule, type Tree } from '@lsw/engine'
 import { BASE_RULES, BUILDINGS, RECIPES, RECOVERY, STORY_RULES, TERRAINS, WILD_GROUNDS, buildOntology, decodeChunk, wildChunk } from '@lsw/content'
+import { economySteps, freeLunch } from '@lsw/modder'
 import { buildFord } from '../src/demo/world.ts'
 
 // The economy (world-model.md §6.4, §10.2, D23): what is built and broken back returns no more
@@ -68,6 +69,10 @@ describe('the economy (world-model.md §10.2)', () => {
         }
       }
     expect(gains).toEqual([])
+  })
+
+  it('no mix of steps, of any length, makes more of anything than it takes (a linear programme)', () => {
+    expect(freeLunch(economySteps(onto, [...lib().rules.values()], RECOVERY))).toBeUndefined()
   })
 
   it('build and break back: each building, broken, returns no more of anything than went into it', () => {
