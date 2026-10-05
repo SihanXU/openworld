@@ -343,36 +343,73 @@ describe('storeys', () => {
     expect(storeys(eng, 3, 3)).toEqual([['wall'], ['wall'], ['wall'], []])
   })
 
-  it('stairs go up the way their setter faced: up only that way, down only from their top, off their foot on the same storey', () => {
+  it('stairs are a block one walks onto, then on the way they go up onto the storey above; back down the same way; onto them from the side too', () => {
     const eng = meadow()
     const w = eng.world
-    // a wall at (3,2) with a floor laid over it: the storey above; stairs set at (3,3) from (3,4), facing north
+    // a platform: a wall at (3,2) with a floor laid over it; stairs before it at (3,3) going up north (set from (3,4))
     give(eng, 'structure/wall')
     give(eng, 'structure/floor')
     give(eng, 'structure/stairs')
     eng.controls.sync()
-    eng.relocate(w.player, { map: SANDBOX_MAP, x: 3, y: 3 })
+    eng.author(() => w.place(w.player, { on: 'tile', map: SANDBOX_MAP, x: 3, y: 3 }))
     expect(eng.controls.place('structure/wall', { x: 3, y: 2 })).toBe(true)
     expect(eng.controls.place('structure/floor', { x: 3, y: 2 })).toBe(true)
-    eng.relocate(w.player, { map: SANDBOX_MAP, x: 3, y: 4 })
+    expect(w.placedAt(SANDBOX_MAP, 3, 2, 1).map((e) => e.type)).toEqual(['structure/floor'])
+    eng.author(() => w.place(w.player, { on: 'tile', map: SANDBOX_MAP, x: 3, y: 4 }))
     expect(eng.controls.place('structure/stairs', { x: 3, y: 3 })).toBe(true)
     const stairs = w.placedAt(SANDBOX_MAP, 3, 3).find((e) => e.type === 'structure/stairs')!
     expect(stairs.facing).toBe('up')
-    // onto the stairs, then up the way they go: one storey up
+    // up: onto the stairs (on their storey), then on north onto the floor a storey up
     expect(walk(eng, 'up')).toMatchObject({ x: 3, y: 3 })
+    expect(w.posOf(w.player)!.z ?? 0).toBe(0)
     expect(walk(eng, 'up')).toMatchObject({ x: 3, y: 2, z: 1 })
-    // down: from their top only
+    // down: back onto the stairs (half a storey: no fall), and off them onto the ground
+    const hp = w.num(w.player, 'hp')
     expect(walk(eng, 'down')).toMatchObject({ x: 3, y: 3 })
     expect(w.posOf(w.player)!.z ?? 0).toBe(0)
-    // from their side, nothing takes one up: a step east off them stays on the ground
-    expect(walk(eng, 'right')).toMatchObject({ x: 4, y: 3 })
+    expect(walk(eng, 'down')).toMatchObject({ x: 3, y: 4 })
+    expect(w.num(w.player, 'hp')).toBe(hp)
+    // from the side one steps onto them, and off the other side; only their way up leads up
+    eng.author(() => w.place(w.player, { on: 'tile', map: SANDBOX_MAP, x: 4, y: 3 }))
+    expect(walk(eng, 'left')).toMatchObject({ x: 3, y: 3 })
+    expect(walk(eng, 'left')).toMatchObject({ x: 2, y: 3 })
     expect(w.posOf(w.player)!.z ?? 0).toBe(0)
-    // stairs set facing east (the palette's turn) go up east, not north
+    // stairs set facing east (the palette's turn) go up east
     give(eng, 'structure/stairs')
     eng.controls.sync()
-    eng.relocate(w.player, { map: SANDBOX_MAP, x: 5, y: 5 })
+    eng.author(() => w.place(w.player, { on: 'tile', map: SANDBOX_MAP, x: 5, y: 5 }))
     expect(eng.controls.place('structure/stairs', { x: 5, y: 4 }, 'right')).toBe(true)
     expect(w.placedAt(SANDBOX_MAP, 5, 4).find((e) => e.type === 'structure/stairs')!.facing).toBe('right')
+  })
+
+  it('stairs in a room going up through a hole in the floor overhead are the room\'s own, and lead to the storey above', () => {
+    const eng = meadow()
+    const w = eng.world
+    // walls round (2..4, 2..4) inside (1..5, 1..5); a floor over it all but the stairs' cell (3,3); stairs going up north
+    eng.author(() => {
+      for (let y = 1; y <= 5; y++) for (let x = 1; x <= 5; x++) if (x === 1 || x === 5 || y === 1 || y === 5) w.create('structure/wall', { on: 'tile', map: SANDBOX_MAP, x, y })
+      for (let y = 1; y <= 5; y++) for (let x = 1; x <= 5; x++) if (!(x === 3 && y === 3)) w.create('structure/floor', { on: 'tile', map: SANDBOX_MAP, x, y, z: 1 })
+      const st = w.create('structure/stairs', { on: 'tile', map: SANDBOX_MAP, x: 3, y: 3 })
+      st.facing = 'up'
+      w.place(w.player, { on: 'tile', map: SANDBOX_MAP, x: 3, y: 4 })
+    })
+    const room = w.roomsOf(SANDBOX_MAP).find((r) => r.place.on === 'area' && !r.place.z)!
+    expect(room).toBeDefined()
+    expect(room.place.on === 'area' && room.place.rects.map(([x, y]) => `${x},${y}`)).toContain('3,3')
+    expect(walk(eng, 'up')).toMatchObject({ x: 3, y: 3 })
+    expect(walk(eng, 'up')).toMatchObject({ x: 3, y: 2, z: 1 })
+    // and back down through the hole
+    expect(walk(eng, 'down')).toMatchObject({ x: 3, y: 3 })
+    expect(w.posOf(w.player)!.z ?? 0).toBe(0)
+    // a floor set on the stairs' cell keeps the storey over them open: it is laid a storey higher, a roof
+    eng.author(() => {
+      for (let y = 1; y <= 5; y++) for (let x = 1; x <= 5; x++) if (x === 1 || x === 5 || y === 1 || y === 5) w.create('structure/wall', { on: 'tile', map: SANDBOX_MAP, x, y, z: 1 })
+      w.place(w.player, { on: 'tile', map: SANDBOX_MAP, x: 3, y: 4 })
+    })
+    give(eng, 'structure/floor')
+    eng.controls.sync()
+    expect(eng.controls.place('structure/floor', { x: 3, y: 3 })).toBe(true)
+    expect(storeys(eng, 3, 3)).toEqual([['stairs'], [], ['floor'], []])
   })
 
   it('the inputs meet only the storey one stands on: below the floor overhead, E meets the wall, never the floor laid over it', () => {

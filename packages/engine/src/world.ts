@@ -433,12 +433,14 @@ export class World {
     const stand = (x: number, y: number, z: number) => this.inBounds(map, x, y) && !!this.occupant(map, x, y, 'floor', z) && !this.solidAt(map, x, y, undefined, z)
     // a door (shut or open) is the room's edge, as a wall is: one comes and goes and the room stays
     const door = (x: number, y: number, z: number) => this.entitiesAt(map, x, y, z).some((e) => this.hasTag(e, 'door'))
+    // stairs going up through a hole in the floor overhead are the room's own: the way to the storey above
+    const roofed = (x: number, y: number, z: number) => this.covered(map, x, y, z) || this.entitiesAt(map, x, y, z).some((e) => this.hasTag(e, 'stairs'))
     for (let z = 0; z <= top; z++) {
       const seen = new Set<number>()
       for (let y0 = 0; y0 < m.height; y0++)
         for (let x0 = 0; x0 < m.width; x0++) {
           const i0 = y0 * m.width + x0
-          if (seen.has(i0) || !stand(x0, y0, z) || door(x0, y0, z) || !this.covered(map, x0, y0, z)) continue
+          if (seen.has(i0) || !stand(x0, y0, z) || door(x0, y0, z) || !roofed(x0, y0, z)) continue
           const cells: [number, number][] = []
           let open = false
           const queue: [number, number][] = [[x0, y0]]
@@ -453,7 +455,7 @@ export class World {
               if (!this.inBounds(map, nx, ny)) { open = true; continue }
               const j = ny * m.width + nx
               if (seen.has(j) || !stand(nx, ny, z) || door(nx, ny, z)) continue
-              if (!this.covered(map, nx, ny, z)) { open = true; continue }
+              if (!roofed(nx, ny, z)) { open = true; continue }
               seen.add(j)
               queue.push([nx, ny])
             }
@@ -639,6 +641,9 @@ export class World {
       const here = this.entitiesAt(map, x, y, z).filter((o) => o.id !== e.id)
       if (here.some((o) => this.clash(mine, this.spacesOf(o)))) continue
       if (mine.includes('floor')) {
+        // stairs stand on their own floor and keep the storey over them open (one climbs through it)
+        const stairs = (zz: number) => zz >= 0 && this.entitiesAt(map, x, y, zz).some((o) => o.id !== e.id && this.hasTag(o, 'stairs'))
+        if (stairs(z) || stairs(z - 1)) continue
         if (z === 0 || this.supportersOf({ ...e, place: { on: 'tile', map, x, y, z } }).length) return z
         continue
       }
