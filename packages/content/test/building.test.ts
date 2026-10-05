@@ -343,34 +343,40 @@ describe('storeys', () => {
     expect(storeys(eng, 3, 3)).toEqual([['wall'], ['wall'], ['wall'], []])
   })
 
-  it('stairs go up the way their setter faced: up only that way, down only from their top, off their foot on the same storey', () => {
+  it("stairs are a storey's front one walks up: into them the way they go up, one comes out on the floor laid over them; off it the other way, down in front of them; not from the side", () => {
     const eng = meadow()
     const w = eng.world
-    // a wall at (3,2) with a floor laid over it: the storey above; stairs set at (3,3) from (3,4), facing north
+    // a wall at (3,2) and stairs at (3,3) going up north (set from (3,4)), a floor laid over both
     give(eng, 'structure/wall')
-    give(eng, 'structure/floor')
+    give(eng, 'structure/floor', 2)
     give(eng, 'structure/stairs')
     eng.controls.sync()
-    eng.relocate(w.player, { map: SANDBOX_MAP, x: 3, y: 3 })
+    eng.author(() => w.place(w.player, { on: 'tile', map: SANDBOX_MAP, x: 3, y: 3 }))
     expect(eng.controls.place('structure/wall', { x: 3, y: 2 })).toBe(true)
-    expect(eng.controls.place('structure/floor', { x: 3, y: 2 })).toBe(true)
-    eng.relocate(w.player, { map: SANDBOX_MAP, x: 3, y: 4 })
+    eng.author(() => w.place(w.player, { on: 'tile', map: SANDBOX_MAP, x: 3, y: 4 }))
     expect(eng.controls.place('structure/stairs', { x: 3, y: 3 })).toBe(true)
     const stairs = w.placedAt(SANDBOX_MAP, 3, 3).find((e) => e.type === 'structure/stairs')!
     expect(stairs.facing).toBe('up')
-    // onto the stairs, then up the way they go: one storey up
-    expect(walk(eng, 'up')).toMatchObject({ x: 3, y: 3 })
+    expect(eng.controls.place('structure/floor', { x: 3, y: 3 })).toBe(true)
+    eng.author(() => w.place(w.player, { on: 'tile', map: SANDBOX_MAP, x: 2, y: 2 }))
+    expect(eng.controls.place('structure/floor', { x: 3, y: 2 })).toBe(true)
+    expect(w.placedAt(SANDBOX_MAP, 3, 3, 1).map((e) => e.type)).toEqual(['structure/floor'])
+    // up: walking north into the stairs, one is on the floor over them, then on along it
+    eng.author(() => w.place(w.player, { on: 'tile', map: SANDBOX_MAP, x: 3, y: 4 }))
+    expect(walk(eng, 'up')).toMatchObject({ x: 3, y: 3, z: 1 })
     expect(walk(eng, 'up')).toMatchObject({ x: 3, y: 2, z: 1 })
-    // down: from their top only
-    expect(walk(eng, 'down')).toMatchObject({ x: 3, y: 3 })
+    // down: back over the stairs, and off them south onto the ground in front
+    expect(walk(eng, 'down')).toMatchObject({ x: 3, y: 3, z: 1 })
+    expect(walk(eng, 'down')).toMatchObject({ x: 3, y: 4 })
     expect(w.posOf(w.player)!.z ?? 0).toBe(0)
-    // from their side, nothing takes one up: a step east off them stays on the ground
-    expect(walk(eng, 'right')).toMatchObject({ x: 4, y: 3 })
+    // from the side they are a wall: one does not walk into them
+    eng.author(() => w.place(w.player, { on: 'tile', map: SANDBOX_MAP, x: 4, y: 3 }))
+    expect(walk(eng, 'left')).toMatchObject({ x: 4, y: 3 })
     expect(w.posOf(w.player)!.z ?? 0).toBe(0)
-    // stairs set facing east (the palette's turn) go up east, not north
+    // stairs set facing east (the palette's turn) go up east
     give(eng, 'structure/stairs')
     eng.controls.sync()
-    eng.relocate(w.player, { map: SANDBOX_MAP, x: 5, y: 5 })
+    eng.author(() => w.place(w.player, { on: 'tile', map: SANDBOX_MAP, x: 5, y: 5 }))
     expect(eng.controls.place('structure/stairs', { x: 5, y: 4 }, 'right')).toBe(true)
     expect(w.placedAt(SANDBOX_MAP, 5, 4).find((e) => e.type === 'structure/stairs')!.facing).toBe('right')
   })

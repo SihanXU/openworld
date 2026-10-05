@@ -1394,7 +1394,7 @@ req('W18', 'the overworld is what it shows: every cell of it one can stand on is
   expect(f.eng.nameOf({ e: wild.id }, 'zh')).toBe('森林荒野')
 })
 
-req('W12', 'a second storey: walls, a floor laid over them (held up by them), stairs, and up one goes; break the wall and the floor comes down, and whoever stood on it falls', [], () => {
+req('W12', 'a second storey: walls, a floor laid over them (held up by them), stairs set in under its edge, and up one goes; break the wall and the floor comes down, and whoever stood on it falls', [], () => {
   const f = fresh()
   // an open stretch of the Ford, five cells across
   let at: [number, number] | undefined
@@ -1418,19 +1418,21 @@ req('W12', 'a second storey: walls, a floor laid over them (held up by them), st
   expect(over.place).toMatchObject({ x, y, z: 1 })
   expect(beside.place).toMatchObject({ x: x + 1, y, z: 1 })
   expect(W(f).relationsOf(beside).some((k) => k.startsWith('support|'))).toBe(true)
-  const stairs = build('structure/stairs', x + 2)
-  expect(stairs.place).toMatchObject({ x: x + 2, y })
-  // up: onto the stairs, and from them onto the floor above
-  stand(f, x + 3, y, 'left')
-  expect(walk(f, 'left')).toMatchObject({ x: x + 2, y })
+  // stairs set in under the floor beside the wall, going up west (set from the east): the storey's front one walks up
+  const stairs = build('structure/stairs', x + 1)
+  expect(stairs.place).toMatchObject({ x: x + 1, y })
+  expect(stairs.facing).toBe('left')
+  // up: walking west into the stairs, one is on the floor over them, then over the wall
+  stand(f, x + 2, y, 'left')
   expect(walk(f, 'left')).toMatchObject({ x: x + 1, y, z: 1 })
+  expect(walk(f, 'left')).toMatchObject({ x, y, z: 1 })
   // the wall broken: the floors come down, and the one standing there with them
   author(f, () => f.eng.hurt(W(f).get(wall.id)!, 99, undefined, true))
   ticks(f, 3)
   expect(W(f).get(wall.id)).toBeUndefined()
   expect(W(f).get(beside.id)).toBeUndefined()
   expect(W(f).get(over.id)).toBeUndefined()
-  expect(W(f).posOf(W(f).player)).toMatchObject({ x: x + 1, y })
+  expect(W(f).posOf(W(f).player)).toMatchObject({ x, y })
   expect(W(f).posOf(W(f).player)!.z).toBeUndefined()
   // what they were made of comes back (and pops out to the magnet)
   expect(W(f).placedAt('ford', x + 1, y).filter((e) => e.type === 'item/material/plank').length + f.eng.controls.count('item/material/plank')).toBeGreaterThan(0)
