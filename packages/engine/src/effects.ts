@@ -319,7 +319,9 @@ export class EffectRunner {
         const missing = w.num(host, 'maxHp', 1) - w.num(host, 'hp', w.num(host, 'maxHp', 1))
         if (missing > 0) eng.setProp(host, 'hp', w.num(host, 'hp') + Math.ceil(missing * Math.min(1, rest)), ev)
         w.fx.push({ t: 'log', text: rest >= 1 ? { en: 'You sleep soundly, and wake rested.', zh: '你睡得很沉，醒来精神饱满。' } : { en: 'You sleep, after a fashion.', zh: '你勉强睡了一觉。' } })
-        if (host.id === w.state.player) eng.sleepUntil(params?.riseHour ?? 6)
+        // the one at the keys sleeps the night through (the clock runs at once), asleep all the while:
+        // lying still, and growing hungry slower (the hunger period's pace, data)
+        if (host.id === w.state.player) w.setStatus({ e: host.id }, 'asleep', w.state.tick + eng.sleepUntil(params?.riseHour ?? 6))
         return
       }
       case 'fall': {

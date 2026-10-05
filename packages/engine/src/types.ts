@@ -288,6 +288,8 @@ export interface PeriodDef {
   host: Selector | 'world' | 'story'
   /** A prop on the host that overrides `every` for it (Iron Stomach's slower hunger: `hungerEvery`). */
   everyProp?: string
+  /** Statuses that slow it for a host that has them: its interval times this (asleep, hunger comes four times slower). */
+  paceBy?: Record<string, number>
 }
 
 export interface FactionDef {

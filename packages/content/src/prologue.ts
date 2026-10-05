@@ -28,7 +28,7 @@ export const PROLOGUE_OBJECTIVES: Record<number, Objective> = {
   4: { title: L('Fell a tree and split planks', '砍树，劈出木板'), hint: L('Hold the axe and left click a tree: it falls into logs. Left click a log with the axe: planks.', '拿着斧头左键点树，树倒下变成原木；再用斧头左键点原木，劈成木板。') },
   5: { title: L('Build a campfire and light it', '搭一堆营火并点燃'), hint: L('B opens building: a ring of stones and sticks is a campfire. C makes a torch (a stick and grass); left click the fire with it.', 'B 打开建造：石头和树枝围成营火。C 做一支火把（树枝加草），拿着它左键点营火。') },
   6: { title: L('Build a house with a bed', '盖一间有床的屋子'), hint: L('C makes walls, a door, a floor and a bed from planks. G sets them down: walls and a door round you, the bed at your feet, a floor over your head.', 'C 用木板做墙、门、地板和床。G 放下：墙和门围住自己，床放在脚下，地板盖在头顶。') },
-  7: { title: L('Get through the night', '熬过这一夜'), hint: L('Things walk in the dark. Eat your fill, then sleep in your bed (E) — a hungry sleeper wakes in the night. At first light we go.', '天黑以后会有东西出来游荡。先吃饱，再上床睡觉（E）——饿着肚子睡会半夜饿醒。天一亮我们就出发。') },
+  7: { title: L('Get through the night', '熬过这一夜'), hint: L('Things walk in the dark. Sleep in your bed (E) — not on an empty stomach, or hunger wakes you in the night. At first light we go.', '天黑以后会有东西出来游荡。在床上睡一觉（E）——别空着肚子睡，不然会半夜饿醒。天一亮我们就出发。') },
   [TUTORIAL_DONE]: { title: L('Take the path south', '沿小路往南走'), hint: L('The path out of the clearing runs south, down to the foot of the mountain.', '空地南边的小路通往山脚。') },
   [PROLOGUE_AT_FOOT]: { title: L('Try something the world has never seen', '做一件世界从没见过的事'), hint: L('Use what you hold on the old seal stone, put something on it, strike it — anything. The world learns.', '拿着东西对古老的封印石用一用、放点东西上去、打它一下——什么都行。世界会学习。') },
   [PROLOGUE_AT_FOOT + 1]: { title: L('Down to the Ford', '下山去渡口'), hint: L('The trail runs south off the mountain. J: the Threadbook keeps what the world has learned.', '小路往南下山。J：织线簿记着世界学会的事。') },
@@ -79,7 +79,7 @@ export const PROLOGUE_BEATS: StepDef[] = [
     id: 'tut_house',
     when: at(6, { room: 'bedroom' }),
     props: { prologue: 7 },
-    say: L('A home of your own! Now we only have to get through the night. Eat your fill before you sleep — the berries keep coming. At first light, we go.', '有家了！现在只要熬过今晚。睡前先吃饱——浆果会一直长出来。天一亮，我们就出发。'),
+    say: L('A home of your own! Now we only have to get through the night. Have a bite before you sleep — the berries keep coming. At first light, we go.', '有家了！现在只要熬过今晚。睡前吃点东西——浆果会一直长出来。天一亮，我们就出发。'),
   },
   {
     id: 'tut_morning',

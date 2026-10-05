@@ -717,7 +717,7 @@ export class WorldScene extends Phaser.Scene {
     else v.body.clearTint()
     // a thing an act waits on shimmers; one who is down lies on the ground
     v.body.setAlpha(e.frozen && !e.tags.includes('agent') ? 0.75 : 1)
-    v.body.setAngle(!e.boss && (e.statuses.includes('down') || e.statuses.includes('out_cold')) ? 90 : 0)
+    v.body.setAngle(!e.boss && (e.statuses.includes('down') || e.statuses.includes('out_cold') || e.statuses.includes('asleep')) ? 90 : 0)
     // held item (small, at the hand)
     if (e.held && e.tags.includes('agent')) {
       const d = CATALOG.items[e.held]
