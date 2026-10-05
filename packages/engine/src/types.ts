@@ -405,6 +405,9 @@ export interface CombatState {
   lastMoveTick?: number
   lastAttackTick?: number
   lastHurtTick?: number
+  /** Who struck it last, and what they were (kept when they are gone): who felled it, when it falls. */
+  lastHurtBy?: Id
+  lastHurtByType?: string
   steps?: number
   comboTarget?: Id
   comboHits?: number
@@ -1048,7 +1051,7 @@ export type Effect =
   | { op: 'craft' }
   | { op: 'lightning'; power: number }
   /** Send an impulse: `item` names the thing it carries (given, put, taken), `other` the role it names as the other side. */
-  | { op: 'emit'; impulse: Impulse; to: EmitTo; params?: Record<string, PropValue | Amount | { typeOf: RoleName }>; item?: RoleName; other?: RoleName; chance?: number; filter?: Selector }
+  | { op: 'emit'; impulse: Impulse; to: EmitTo; params?: Record<string, PropValue | Amount | { typeOf: RoleName } | { idOf: RoleName }>; item?: RoleName; other?: RoleName; chance?: number; filter?: Selector }
   /** Get out of where one cannot be (water closing over the ice): to the nearest free tile. */
   | { op: 'ashore' }
   /** The story's: an invariant's authored fallback (the default of a `broken` outcome). */

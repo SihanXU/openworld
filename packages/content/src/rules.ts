@@ -12,7 +12,7 @@ const L = (en: string, zh: string) => ({ en, zh })
 const log = (en: string, zh: string): Effect => ({ op: 'log', text: L(en, zh) })
 const say = (en: string, zh: string, who?: RoleName): Effect => ({ op: 'say', text: L(en, zh), ...(who && { who }) })
 const vfx = (fx: string, at?: RoleRef): Effect => ({ op: 'vfx', fx, ...(at && { at }) })
-const emit = (impulse: Impulse, to: EmitTo, params?: Record<string, PropValue | Amount | { typeOf: RoleName }>, extra: Partial<Extract<Effect, { op: 'emit' }>> = {}): Effect => ({ op: 'emit', impulse, to, ...(params && { params }), ...extra })
+const emit = (impulse: Impulse, to: EmitTo, params?: Record<string, PropValue | Amount | { typeOf: RoleName } | { idOf: RoleName }>, extra: Partial<Extract<Effect, { op: 'emit' }>> = {}): Effect => ({ op: 'emit', impulse, to, ...(params && { params }), ...extra })
 const add = (status: string, duration?: number): Effect => ({ op: 'addStatus', status, ...(duration && { duration }) })
 const remove = (status: string): Effect => ({ op: 'removeStatus', status })
 const DO = (...effects: Effect[]): Tree => ({ do: effects })
@@ -230,6 +230,21 @@ const ACTOR: Selector = { type: 'actor' }
 const ESSENTIAL: Selector = { type: 'actor', tags: ['essential'] }
 
 const BODIES: Rule[] = [
+  rule({
+    id: 'body/rise',
+    doc: 'One who has fallen, told by the story to rise (the death screen\'s choice): one gets up, whole — leaving what one carried where one fell, when one rises at home. Told of a home (a bed slept in, a waypoint woken), one keeps it.',
+    host: ESSENTIAL,
+    on: 'impulse/notify',
+    tree: IF(
+      param('what', 'respawn'),
+      IF(
+        param('drop', true),
+        DO({ op: 'dropContents', still: true }, remove('down'), { op: 'setProp', key: 'hp', value: 1 }, { op: 'heal', amount: { prop: 'maxHp', of: 'host' } }, log('You rise again. What you carried lies where you fell.', '你重新站了起来。身上的东西留在了倒下的地方。')),
+        DO(remove('down'), { op: 'setProp', key: 'hp', value: 1 }, { op: 'heal', amount: { prop: 'maxHp', of: 'host' } }, log('You get up again.', '你重新站了起来。')),
+      ),
+      IF(param('what', 'home'), DO({ op: 'setProp', key: 'home', value: { param: 'value' } }), 'inherit'),
+    ),
+  }),
   rule({
     id: 'body/wear',
     doc: 'Something one wears, used on one (one\'s own, or another\'s held out): one puts it on (what was in its slot comes off), or takes it off if it is on (world-model.md §6.8).',
@@ -1296,7 +1311,7 @@ const JOURNEY: Rule[] = [
     tree: IF(
       has('host', 'attuned'),
       AS(L('Listen to {target}', '倾听{target}'), DO(log('The statue hums. Open the map (M) to travel to another one.', '雕像嗡嗡作响。打开地图（M）就能传送到别的传送雕像。'))),
-      AS(L('Wake {target}', '唤醒{target}'), DO(add('attuned'), emit('notify', 'story', { what: 'waypoint' }), vfx('heal'), log('The statue wakes under your hand. (M: the map — travel to any statue you have woken.)', '雕像在你手下亮了起来。（M：地图——可以传送到任何唤醒过的传送雕像。）'))),
+      AS(L('Wake {target}', '唤醒{target}'), DO(add('attuned'), emit('notify', 'story', { what: 'waypoint' }), emit('notify', 'actor', { what: 'home', value: { idOf: 'host' } }), vfx('heal'), log('The statue wakes under your hand. (M: the map — travel to any statue you have woken.)', '雕像在你手下亮了起来。（M：地图——可以传送到任何唤醒过的传送雕像。）'))),
     ),
   }),
   rule({
@@ -1351,7 +1366,8 @@ const BUILDING: Rule[] = [
     doc: 'A bed, taken hold of: one lies down and sleeps until it is time to rise (a bed in a bedroom gives a full night\'s rest).',
     host: { type: 'fixture/furniture/bed' },
     on: 'impulse/handle',
-    tree: DO(log('You lie down.', '你躺了下来。'), emit('restore', 'actor', { which: 'sleep' })),
+    // the bed one sleeps in is one's home: one rises there again after a fall
+    tree: DO(log('You lie down.', '你躺了下来。'), emit('notify', 'actor', { what: 'home', value: { idOf: 'host' } }), emit('restore', 'actor', { which: 'sleep' })),
   }),
   rule({
     id: 'build/stack',

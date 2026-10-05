@@ -1,12 +1,14 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { Aim, Dir, Frame, Key, LibraryData, MapData, ModSpec, Patch, PixelArt, PlacementPreview, Rule, SaveData, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@lsw/engine'
+import type { Aim, Difficulty, Dir, Frame, Key, LibraryData, MapData, ModSpec, Patch, PixelArt, PlacementPreview, Rule, SaveData, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@lsw/engine'
 
 /** Where the mouse points: its tile, and what is drawn at the point, top first (the keys act there when it is next to the player). */
 export type Tile = Aim
 
 export type ToWorker =
-  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** the modder service, if any */ modder?: string }
+  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** the modder service, if any */ modder?: string; /** a new game's difficulty */ difficulty?: Difficulty }
+  /** The one at the keys, fallen, rises again: where they fell, or at home (the death screen). */
+  | { t: 'respawn'; home: boolean }
   /** Hold a direction (null: stop); `walk`: Shift, slower than the default run. */
   | { t: 'move'; dir: Dir | null; walk?: boolean }
   /** Q: dash (the skill), the way the player faces. */
@@ -57,6 +59,8 @@ export type ToWorker =
   | { t: 'debug'; op: 'teleport'; map?: string; x: number; y: number }
   | { t: 'debug'; op: 'give'; type: string; tags?: string[] }
   | { t: 'debug'; op: 'hour'; hour: number }
+  /** Harm the one at the keys (as a blow nobody struck): to try a fall and the death screen. */
+  | { t: 'debug'; op: 'hurt'; amount: number }
 
 export interface RecordView {
   id: string
@@ -126,4 +130,7 @@ export interface SaveSummary {
   /** The story's stages (the objective is looked up from them). */
   prologue: number
   quest: number
+  difficulty?: Difficulty
+  /** A hardcore game whose one life is spent: kept as it ended, never played on. */
+  ended?: boolean
 }
