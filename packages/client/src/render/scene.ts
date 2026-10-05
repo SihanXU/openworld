@@ -43,6 +43,8 @@ interface EView {
   dragon?: { wings: Phaser.GameObjects.Image[]; segments: Phaser.GameObjects.Image[]; trail: { x: number; y: number }[] }
   /** A built thing's second picture: a wall block's top (one storey up), a raised floor's edge. */
   top?: Phaser.GameObjects.Image
+  /** A wall's front drawn over the player (a storey above them, in front): see-through. */
+  fadeFront?: boolean
 }
 
 /** Built things drawn as part of the place (structures.ts art): wall blocks, doors, floors, stairs. */
@@ -332,6 +334,7 @@ export class WorldScene extends Phaser.Scene {
       this.inRoom.add(`${x},${y}`)
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) this.underRoof.add(`${x + dx},${y + dy}`)
     }
+    this.findSeeThrough(f)
     this.applyTiles(f)
     this.bossWarnings ??= this.add.graphics().setDepth(-20)
     this.bossWarnings.clear()
@@ -618,6 +621,35 @@ export class WorldScene extends Phaser.Scene {
   private inRoom = new Set<string>()
   /** Something is laid over the player's head. */
   private overhead = false
+  /** Walls (by `x,y,z`) drawn see-through: the whole wall that stands in front of the player and hides them. */
+  private seeThrough = new Set<string>()
+
+  /**
+   * The wall that hides the player, all of it: a wall south of them whose top or front is drawn over
+   * them (or the south wall of the room they are in), then the run of wall it belongs to along that
+   * row on its storey, and what is stacked on it — its fronts and tops all see-through.
+   */
+  private findSeeThrough(f: Frame): void {
+    this.seeThrough.clear()
+    const me = { x: f.player.x, y: f.player.y, z: f.player.z ?? 0 }
+    const rows = [me.y - me.z - 1, me.y - me.z]
+    const seeds: [number, number, number][] = []
+    for (const k of this.walls) {
+      const [x, y, z] = k.split(',').map(Number)
+      if (y <= me.y || z < me.z || Math.abs(x - me.x) > 1) continue
+      // its top is drawn a storey above its front, and each storey one row up
+      if (rows.includes(y - z - 1) || rows.includes(y - z) || (z === me.z && this.inRoom.has(`${x},${y - 1}`))) seeds.push([x, y, z])
+    }
+    const queue = [...seeds]
+    while (queue.length) {
+      const [x, y, z] = queue.pop()!
+      const key = `${x},${y},${z}`
+      if (this.seeThrough.has(key) || !this.walls.has(key)) continue
+      this.seeThrough.add(key)
+      // along its row on its storey, and up what is stacked on it
+      queue.push([x - 1, y, z], [x + 1, y, z], [x, y, z + 1])
+    }
+  }
 
   /**
    * A built thing as part of the place (structures.ts): a wall block shows its front in its cell
@@ -655,8 +687,10 @@ export class WorldScene extends Phaser.Scene {
       // its top shows unless something is built on it — and is drawn (not hidden over the room one is in)
       const hiddenAbove = (this.playerAt?.z ?? 0) < z + 1 && this.underRoof.has(`${e.x},${e.y}`)
       top.setVisible(hiddenAbove || (!this.walls.has(at(0, 0, 1)) && !this.floors.has(at(0, 0, 1))))
-      // the room's south wall, seen from inside, is cut away: its top drawn faint over the floor behind it
-      top.setAlpha(z === (this.playerAt?.z ?? 0) && this.inRoom.has(`${e.x},${e.y - 1}`) ? 0.35 : 1)
+      // the wall that hides the player, all of it, is see-through: its front and its top
+      const seeThrough = this.seeThrough.has(at(0, 0))
+      top.setAlpha(seeThrough ? 0.35 : 1)
+      v.fadeFront = seeThrough
       v.key = 'built'
       return
     }
@@ -669,7 +703,7 @@ export class WorldScene extends Phaser.Scene {
       return
     }
     if (e.type === 'structure/stairs') {
-      v.body.setTexture(LSW_STAIRS, frameOf(LSW_STAIRS, STAIRS_FRAME[e.facing] ?? 0, 16, 32)).setOrigin(0.5, 1).setScale(1)
+      v.body.setTexture(LSW_STAIRS, frameOf(LSW_STAIRS, STAIRS_FRAME[e.facing] ?? 0)).setOrigin(0.5, 1).setScale(1)
       v.key = 'built'
     }
   }
@@ -687,7 +721,7 @@ export class WorldScene extends Phaser.Scene {
     const body = this.add.sprite(0, 0, t.img, t.frame)
     body.setOrigin(t.ax / body.width, t.ay / body.height)
     if (t.actor?.scale) body.setScale(t.actor.scale)
-    if (!e.tags.includes('agent') && e.tags.includes('portable') && !e.spaces) body.setScale(0.8)
+    if (e.type.startsWith('item/') && !e.spaces) body.setScale(0.8)
     // small growth and litter sit a little off the grid, never in rows
     if ((!e.tags.includes('agent') && !e.tags.includes('portable')) && this.fixtureDef(e)?.loose) body.setPosition((hashStr(e.id, 23) % 9) - 4, (hashStr(e.id, 29) % 5) - 2)
     const hp = this.add.graphics()
@@ -816,7 +850,7 @@ export class WorldScene extends Phaser.Scene {
     else if (v.actor?.tint) v.body.setTint(v.actor.tint).setTintMode(Phaser.TintModes.OVERLAY)
     else v.body.clearTint()
     // a thing an act waits on shimmers; one who is down lies on the ground
-    v.body.setAlpha(e.frozen && !e.tags.includes('agent') ? 0.75 : 1)
+    v.body.setAlpha(e.frozen && !e.tags.includes('agent') ? 0.75 : v.fadeFront ? 0.35 : 1)
     v.body.setAngle(!e.boss && (e.statuses.includes('down') || e.statuses.includes('out_cold') || e.statuses.includes('asleep')) ? 90 : 0)
     // held item (small, at the hand)
     if (e.held && e.tags.includes('agent')) {

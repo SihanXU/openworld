@@ -437,7 +437,7 @@ export const CATALOG: Catalog = {
     'structure:wall': { base: t(LSW_WALL, 16, 0) },
     'structure:floor': { base: t(IFLOOR, 12, 1) },
     'structure:floor_edge': { base: t(LSW_FLOOR, 0, 0) },
-    'structure:stairs': { base: px(LSW_STAIRS, 0, 0, 16, 32) },
+    'structure:stairs': { base: t(LSW_STAIRS, 0, 0) },
     'structure:door': { base: t(ELEM, 8, 13) },
     // an open door: the doorway's floor
     'structure:door_open': { base: t(IFLOOR, 12, 1) },

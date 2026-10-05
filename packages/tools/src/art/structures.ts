@@ -10,7 +10,7 @@
 //                        n=1 e=2 s=4 w=8 say there is), then 4 fronts (bits e=1 w=2).
 // Structures/floor.png   16 tiles: the edge of a floor laid a storey up (bits as the tops'), over
 //                        the floor's own picture.
-// Structures/stairs.png  4 frames of 16x32, by the way up: north, east, south, west.
+// Structures/stairs.png  4 tiles, by the way up: north, east, south, west.
 
 import { writePng } from './png.ts'
 
@@ -82,50 +82,52 @@ function floorEdge(c: Canvas, ox: number, oy: number, bits: number): void {
   if (!s) (c.hline(ox, ox + 15, oy + 14, GRAIN), c.hline(ox, ox + 15, oy + 15, INK))
 }
 
-/** Stairs going up the screen (north): eight treads, from the foot of their cell to the floor one storey up. */
+// Stairs are a storey's front one walks up (in the cell a wall would hold the floor's edge from):
+// one tile, four steps of 4. Seen from the south and above (3/4): what faces the viewer darker (a
+// riser, a side), what faces up lighter (a tread).
+
+/** Up to the north: the steps face the viewer, a tread over a riser each, between stringers. */
 function stairsNorth(c: Canvas, ox: number): void {
-  for (let i = 0; i < 8; i++) {
-    const y = 32 - 4 * (i + 1)
-    c.rect(ox + 1, y, ox + 14, y + 2, TOP)
-    c.hline(ox + 1, ox + 14, y, TOP_HI)
-    c.hline(ox + 1, ox + 14, y + 3, FACE_DK)
+  for (let i = 0; i < 4; i++) {
+    const y = 4 * i
+    c.rect(ox + 2, y, ox + 13, y + 1, TOP)
+    c.hline(ox + 2, ox + 13, y, TOP_HI)
+    c.rect(ox + 2, y + 2, ox + 13, y + 3, FACE)
+    c.hline(ox + 2, ox + 13, y + 2, FACE_DK)
   }
-  c.vline(ox, 0, 31, INK)
-  c.vline(ox + 15, 0, 31, INK)
-  c.hline(ox, ox + 15, 31, INK)
-  c.hline(ox, ox + 15, 0, INK)
+  c.rect(ox, 0, ox + 1, 15, FACE_DK)
+  c.rect(ox + 14, 0, ox + 15, 15, FACE_DK)
+  c.vline(ox, 0, 15, INK)
+  c.vline(ox + 15, 0, 15, INK)
+  c.hline(ox, ox + 15, 15, INK)
 }
 
-/** Stairs going up to the east, seen from the side: four steps, each four wide and four higher, one storey in all. */
+/** Up to the east, seen from the side: four steps rising to the right, each a tread over its side. */
 function stairsEast(c: Canvas, ox: number, mirror: boolean): void {
   const X = (x: number) => ox + (mirror ? 15 - x : x)
   for (let i = 0; i < 4; i++) {
-    const x0 = 4 * i
-    const top = 32 - 4 * (i + 1) - 12
-    for (let x = x0; x <= x0 + 3; x++) {
-      c.vline(X(x), top, top + 3, TOP)
-      c.set(X(x), top, TOP_HI)
-      c.vline(X(x), top + 4, 31, FACE)
+    const top = 16 - 4 * (i + 1)
+    for (let x = 4 * i; x < 4 * i + 4; x++) {
+      c.vline(X(x), top, top + 1, TOP)
+      c.vline(X(x), top + 2, 15, FACE)
     }
-    c.vline(X(x0 + 3), top + 4, 31, FACE_DK)
-    c.vline(X(x0), top, 31, i === 0 ? INK : FACE_DK)
-    c.hline(Math.min(X(x0), X(x0 + 3)), Math.max(X(x0), X(x0 + 3)), top, INK)
+    c.hline(Math.min(X(4 * i), X(4 * i + 3)), Math.max(X(4 * i), X(4 * i + 3)), top, INK)
+    c.hline(Math.min(X(4 * i), X(4 * i + 3)), Math.max(X(4 * i), X(4 * i + 3)), top + 2, FACE_DK)
+    c.vline(X(4 * i), top, 15, i ? FACE_DK : INK)
   }
-  c.hline(ox, ox + 15, 31, INK)
-  c.vline(X(15), 32 - 16 - 12, 31, INK)
+  c.vline(X(15), 0, 15, INK)
+  c.hline(ox, ox + 15, 15, INK)
 }
 
-/** Stairs going up away from the viewer's south (seen from behind and above): treads, the far ones darker. */
+/** Up to the south, seen from behind: its back, planked, with the steps' edges along the top. */
 function stairsSouth(c: Canvas, ox: number): void {
-  for (let i = 0; i < 4; i++) {
-    const y = 16 + 4 * i
-    c.rect(ox + 1, y, ox + 14, y + 3, i % 2 ? GRAIN : TOP)
-    c.hline(ox + 1, ox + 14, y, i === 0 ? TOP_HI : GRAIN)
-  }
-  c.vline(ox, 16, 31, INK)
-  c.vline(ox + 15, 16, 31, INK)
-  c.hline(ox, ox + 15, 31, INK)
-  c.hline(ox, ox + 15, 16, INK)
+  c.rect(ox, 0, ox + 15, 15, FACE)
+  for (let i = 0; i < 4; i++) c.hline(ox + 1, ox + 14, 4 * i + 3, FACE_DK)
+  c.rect(ox + 1, 0, ox + 14, 1, TOP)
+  for (const x of [5, 10]) c.vline(ox + x, 2, 14, FACE_LO)
+  c.vline(ox, 0, 15, INK)
+  c.vline(ox + 15, 0, 15, INK)
+  c.hline(ox, ox + 15, 15, INK)
 }
 
 const wall = new Canvas(16 * 20, 16)
@@ -137,7 +139,7 @@ const floor = new Canvas(16 * 16, 16)
 for (let b = 0; b < 16; b++) floorEdge(floor, 16 * b, 0, b)
 writePng('Structures/floor.png', floor.w, floor.h, floor.px)
 
-const stairs = new Canvas(16 * 4, 32)
+const stairs = new Canvas(16 * 4, 16)
 stairsNorth(stairs, 0)
 stairsEast(stairs, 16, false)
 stairsSouth(stairs, 32)

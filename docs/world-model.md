@@ -536,13 +536,16 @@ player near them. Not yet: the overworld's and paths' z, and roofs drawn as roof
 
 Storeys as built further (2026-10-05, tried with the pack's tiles before it was drawn): a wall
 or a door set on a wall stands on it, so walls stack into a taller wall with no floor between;
-stairs go up one way, the way their setter faced (R in the palette turns them): up from them only
-that way, down onto them only from their top; the inputs meet only what is on the player's own
+stairs are a storey's front one walks up, one tile set where a wall would hold a floor's edge, with
+the floor laid over them: walking into them the way they go up (their setter's facing; R in the
+palette turns them), one comes out on that floor; off it the other way, down in front of them; from
+the side they are a wall; the inputs meet only what is on the player's own
 storey (Controls.layers). Drawn in 3/4: a storey is one tile higher (a wall's height), things by
 the row they stand in and then their storey; walls and doors are blocks (a front where nothing
 stands south of them, a top a storey up where nothing is built on them) in the project's own art
 (tools/src/art/structures.ts: the pack has walls only as whole houses and stairs only as icons);
-in a room, what is above it is not drawn and its south wall is cut away so one sees in.
+in a room, what is above it is not drawn; a wall that hides the player is see-through, all of
+it (its run along that row, what is stacked on it, fronts and tops).
 
 The build palette (B) sets things down as G does (2026-10-05): walls, floors, stairs, doors, beds
 and workbenches — one carried, or with none, one made from what is carried first
