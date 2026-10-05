@@ -164,11 +164,15 @@ export class World {
   /** Each map's rooms, as of a count of changes to what takes a cell's spaces. */
   private rooms = new Map<string, { version: number; data: MapData; shapes: { z: number; cells: [number, number][] }[] }>()
   /** Changes to what takes a cell's spaces (a wall built, a floor laid, a tree felled): rooms are found again after one. */
-  private cellsVersion = 0
+  private cellsVersion = new Map<string, number>()
+  /** Upper-storey things that can cover a cell; outdoor maps without any cannot have rooms. */
+  private upperCover = new Map<string, number>()
   /** The static cell things asked for so far: built from the map's data, not state (world-model.md §4.6). */
   private statics = new Map<Id, Entity>()
   /** Things that currently carry statuses, by id. */
   statusful = new Set<string>()
+  /** Things whose own companion prop names a leader, in the state's entity order. */
+  companionIds = new Set<Id>()
 
   constructor(state: WorldState, onto: OntologyIndex) {
     this.state = state
@@ -183,15 +187,28 @@ export class World {
     this.onMap.clear()
     this.areas.clear()
     this.statusful.clear()
+    this.companionIds.clear()
     this.statics.clear()
+    this.rooms.clear()
+    this.cellsVersion.clear()
+    this.upperCover.clear()
     for (const e of Object.values(this.state.entities)) {
       this.indexAdd(e)
       if (e.statuses && Object.keys(e.statuses).length) this.statusful.add(e.id)
+      if (typeof e.props?.companion === 'string') this.companionIds.add(e.id)
     }
   }
 
-  private indexAdd(e: Entity): void {
-    if (e.place.on === 'tile' && this.spacesOf(e).some((s) => s !== 'body')) this.cellsVersion++
+  private geometry(e: Entity, delta: number): void {
+    if (e.place.on !== 'tile') return
+    const spaces = this.spacesOf(e)
+    const map = e.place.map
+    if (spaces.some((s) => s !== 'body')) this.cellsVersion.set(map, (this.cellsVersion.get(map) ?? 0) + 1)
+    if ((e.place.z ?? 0) > 0 && spaces.some((s) => s === 'floor' || s === 'volume')) this.upperCover.set(map, (this.upperCover.get(map) ?? 0) + delta)
+  }
+
+  private indexAdd(e: Entity, geometry = true): void {
+    if (geometry) this.geometry(e, 1)
     if (e.place.on === 'area') {
       let a = this.areas.get(e.place.map)
       if (!a) this.areas.set(e.place.map, (a = new Set()))
@@ -212,7 +229,7 @@ export class World {
   }
 
   private indexRemove(e: Entity): void {
-    if (e.place.on === 'tile' && this.spacesOf(e).some((s) => s !== 'body')) this.cellsVersion++
+    this.geometry(e, -1)
     if (e.place.on === 'area') this.areas.get(e.place.map)?.delete(e.id)
     if (e.place.on !== 'tile') return
     for (const [x, y] of this.occupiedCells(e)) this.onTile.get(cellKey(e.place.map, x, y, e.place.z))?.delete(e.id)
@@ -260,7 +277,7 @@ export class World {
     if (!e || !this.isStatic(e) || !parseCellId(e.id)) return
     this.statics.delete(e.id)
     this.state.entities[e.id] = e
-    this.indexAdd(e)
+    this.indexAdd(e, false)
   }
 
   /** A map's static cell things. */
@@ -402,9 +419,14 @@ export class World {
     const m = this.state.maps[map]
     if (!m) return []
     const hit = this.rooms.get(map)
+    const version = this.cellsVersion.get(map) ?? 0
     // the shapes are kept until a cell's spaces change; the roles are read from what is in them each time
-    if (hit && hit.version === this.cellsVersion && hit.data === m) return hit.shapes.map((r) => this.room(map, r.z, r.cells))
+    if (hit && hit.version === version && hit.data === m) return hit.shapes.map((r) => this.room(map, r.z, r.cells))
     const shapes: { z: number; cells: [number, number][] }[] = []
+    if ((m.light ?? 'outdoor') === 'outdoor' && !this.upperCover.get(map)) {
+      this.rooms.set(map, { version, data: m, shapes })
+      return []
+    }
     const top = this.onto.data.params?.storeys ?? 4
     const limit = this.onto.data.params?.roomSize ?? 256
     const stand = (x: number, y: number, z: number) => this.inBounds(map, x, y) && !!this.occupant(map, x, y, 'floor', z) && !this.solidAt(map, x, y, undefined, z)
@@ -439,7 +461,7 @@ export class World {
           shapes.push({ z, cells })
         }
     }
-    this.rooms.set(map, { version: this.cellsVersion, data: m, shapes })
+    this.rooms.set(map, { version, data: m, shapes })
     return shapes.map((r) => this.room(map, r.z, r.cells))
   }
 
@@ -885,6 +907,16 @@ export class World {
     if (value === undefined) {
       if (e.props) delete e.props[key]
     } else (e.props ??= {})[key] = value
+    if (key === 'companion') this.indexCompanion(e)
+  }
+
+  private indexCompanion(e: Entity): void {
+    if (typeof e.props?.companion !== 'string') this.companionIds.delete(e.id)
+    else if (!this.companionIds.has(e.id)) {
+      this.companionIds.add(e.id)
+      // A prop may be set long after the entity was added; keep the original turn order.
+      this.companionIds = new Set(Object.keys(this.state.entities).filter((id) => this.companionIds.has(id)))
+    }
   }
 
   addTag(e: Entity, tag: string): void {
@@ -904,6 +936,7 @@ export class World {
     // what an outcome makes is its own to shape
     this.scope?.made.add(e.id)
     this.state.entities[e.id] = e
+    this.indexCompanion(e)
     this.indexAdd(e)
     if (e.place.on === 'inside' || e.place.on === 'hand') this.attach(e)
     if (e.statuses && Object.keys(e.statuses).length) this.statusful.add(e.id)
@@ -985,7 +1018,7 @@ export class World {
   /** Change an entity's type, re-indexing the cells it covers (a new type may have another footprint). */
   transform(e: Entity, type: string): void {
     this.guard('transform', e)
-    this.cellsVersion++
+    if (e.place.on === 'tile') this.cellsVersion.set(e.place.map, (this.cellsVersion.get(e.place.map) ?? 0) + 1)
     this.indexRemove(e)
     e.type = type
     this.indexAdd(e)
@@ -1007,6 +1040,7 @@ export class World {
     this.detach(e)
     e.place = { on: 'none' }
     this.statusful.delete(e.id)
+    this.companionIds.delete(e.id)
     // a cell thing of the map's data stays gone: its record keeps the static one from coming back
     if (parseCellId(e.id)) this.state.entities[e.id] = { id: e.id, type: e.type, place: { on: 'none' } }
     else delete this.state.entities[e.id]
@@ -1018,6 +1052,7 @@ export class World {
     if (!parseCellId(e.id)) throw new Error(`${e.id} is not a cell thing of a map's data`)
     this.detach(e)
     this.statusful.delete(e.id)
+    this.companionIds.delete(e.id)
     delete this.state.entities[e.id]
   }
 

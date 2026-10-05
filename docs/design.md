@@ -1008,6 +1008,12 @@ Lifecycle of a patch:
 
 A failure at any step runs the leaf's default; the game never blocks.
 
+As built (2026-10-05): the service keeps bounded validation proofs keyed by the library
+version and the contents of the ontology, workspace, regression set, scenario and candidate
+artifacts. Adding only tests replays the added tests. Commit reuses a proof only when its
+shared-library context matches exactly; any context change requires full validation. Both
+luck branches of the repeat check remain.
+
 **One question at a time.** A request is keyed by its hole and its class (the host's type, the
 event kind, the parameters the tree branched on, the other roles' types). While one is open,
 the same key waits for it. Once it is answered, the class never asks again. A late patch still
@@ -1221,6 +1227,12 @@ checkpoints are produced between benchmark runs.
 | **Tail guard**: providers pinned by measurement (`LSW_MODEL_PROVIDERS`); a hedge request to the next provider after 7 s; a 15 s deadline with one retry | stalls of 20–180 s seen before; OpenRouter's own throughput sort picked the slowest provider |
 | **Review after shipping**: rules that only narrate, or did not generalize, are always reviewed. A "revise" verdict sends the rule to one offline revision, which *replaces* it in the shared library (remove-then-add in the log) | quality without a model turn on the critical path |
 | **Escalation**: a live request that fails is worked again offline in the background | the player gets the fallback now; the world still learns it |
+
+As built (2026-10-05): clean local, find and create routes share the reflection batch. Errors,
+repairs, reviews and quality flags still cause immediate reflection. Working notes follow
+the static ModSpec in the system prompt so its cache prefix stays intact. The brief sends
+its closest rules in full once and the other related rules as summaries; live instructions
+name only tools available to that call.
 
 **Results.** On 20 unseen curriculum interactions with the live profile:
 - 19/19 accepted (one was already covered); the first answer was valid for 17/19;

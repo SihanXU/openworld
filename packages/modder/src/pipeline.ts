@@ -264,7 +264,7 @@ export class Modder {
     const validate = (p: Patch) => library.validate(p, req, ws, replaces)
     const ctx: ToolContext = { library: lib, ontology: library.fullOntology(lib), request: req, state, validate, skillsRead: ep.skillsRead }
     const tools = h.design.toolRounds > 0 ? buildTools(ctx, h.tools) : []
-    // the system prompt is the same for every request and every client (the base ontology), so
+    // the system prefix is the same for every request and every client (the base ontology), so
     // it is served from the provider's prompt cache; what patches added goes in the user turn.
     // The router (one call, no tools: live): the design sees the request's own types and asks for
     // the rest by name; the harness finds them in the catalogue, or has them created.
@@ -277,7 +277,7 @@ export class Modder {
     const added = { types: lib.types.filter((t) => !(t.id in library.ontology.types)), statuses: lib.statuses.filter((s) => !(s.id in library.ontology.statuses)) }
     const messages: ChatMessage[] = [
       { role: 'system', content: designSystem(buildModSpec(library.ontology, undefined, { types: !router }), h, router) },
-      { role: 'user', content: designUser(req, recall, h.design.brief ? briefOf(req, lib, ctx.ontology) : undefined, added) + (eo.revise ? `\n\n${revisionUser(eo.revise.episode.patch!, eo.revise.notes)}` : '') },
+      { role: 'user', content: designUser(req, recall, h.design.brief ? briefOf(req, lib, ctx.ontology, !router) : undefined, added, !router) + (eo.revise ? `\n\n${revisionUser(eo.revise.episode.patch!, eo.revise.notes)}` : '') },
     ]
 
     let repairs = 0
@@ -494,7 +494,7 @@ export class Modder {
         await this.track(`${sig.key}#offline`, this.episode(req, ws, sig, { profile: 'offline', escalatedFrom: ep.id }))
       })
     // what went wrong is reflected on at once; live episodes that went cleanly, a batch at a time
-    const clean = eo.profile === 'live' && !eo.revise && !eo.escalatedFrom && ep.outcome === 'accepted' && ep.attempts.length === 1 && !flags.length
+    const clean = eo.profile === 'live' && !eo.revise && !eo.escalatedFrom && ep.outcome === 'accepted' && !flags.length && ep.attempts.every((a) => !a.errors.length && !a.fixes?.length && !a.review && ['design', 'find', 'create'].includes(a.phase))
     if (clean && (h.reflect.batch ?? 1) > 1) {
       this.clean.push({ ep, sig })
       if (this.clean.length < h.reflect.batch!) return

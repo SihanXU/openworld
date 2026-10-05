@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { Engine, ModPort, RuleLibrary, SANDBOX_MAP, buildSandbox, endlessYield, repeatYields, validatePatch, type Patch, type Ref, type Rule, type Scenario } from '@lsw/engine'
 import { BASE_RULES, FORMS, STORY_RULES, buildOntology } from '@lsw/content'
 import { FRONT, HANDS, ORIGIN, targets, verbsFor } from '../src/coverage.ts'
@@ -87,17 +87,25 @@ describe('no endless yield (world-model.md §8.4)', () => {
       }
       const key = target.scenario(sc)
       const base = buildSandbox(sc, onto, library)
+      const unchanged = JSON.stringify(base.world.state)
+      const preview = vi.spyOn(base, 'preview')
+      let candidates = 0
       HANDS.forEach((hand, i) => {
         for (const verb of verbsFor(hand, target.id)) {
+          candidates++
+          const ref: Ref = key === 'actor' || key === 'target' ? { e: key } : base.world.cellRef(SANDBOX_MAP, FRONT.x, FRONT.y)
+          const ev = base.actEvent(verb, 'actor', ref, hand ? { e: `hand${i - 1}` } : undefined)
+          const p = base.preview(ev)
+          if (!p.defined || p.unknown) continue
           const eng = new Engine(structuredClone(base.world.state), base.world.onto.data, library)
-          const ref: Ref = key === 'actor' || key === 'target' ? { e: key } : eng.world.cellRef(SANDBOX_MAP, FRONT.x, FRONT.y)
-          const ev = eng.actEvent(verb, 'actor', ref, hand ? { e: `hand${i - 1}` } : undefined)
-          if (!eng.preview(ev).defined || eng.preview(ev).unknown) continue
           if (!repeatYields(eng, ev, 1)[0]) continue
           yielding++
           if (endlessYield(eng, ev)) endless.push(`${hand || '(hand)'} ${verb} ${target.id}`)
         }
       })
+      expect(preview.mock.calls.filter((args) => args.length === 1).length).toBe(candidates)
+      expect(JSON.stringify(base.world.state)).toBe(unchanged)
+      preview.mockRestore()
     }
     // (it does reach what yields: felling, mining, harvesting, splitting, fishing …)
     expect(yielding).toBeGreaterThan(20)

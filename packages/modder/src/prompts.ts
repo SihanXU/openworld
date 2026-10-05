@@ -1,6 +1,6 @@
-// Every prompt the modder sends. The design system prompt is the same for every request, every
+// Every prompt the modder sends. The design system prefix is the same for every request, every
 // client and every library version (the ModSpec of the base ontology is its bulk), so providers
-// serve it from their prompt cache; everything per request goes in the user turn, and only what
+// serve it from their prompt cache; working notes follow it. Each request goes in the user turn, and only what
 // the model can use: the brief replaces the rules the request carries, and the scenario (the
 // harness replays it) is left out.
 
@@ -56,10 +56,10 @@ export function designSystem(spec: ModSpec, h: Harness, router = false): string 
     '- If nothing should happen, still define it: {"do": []} (no change) or a short in-world line of feedback is a valid answer.',
     '- Give a rule the player reaches a `label`: what their input does there, as the game shows it before the press ("label": {"en": "Tame {target}", "zh": "驯服{target}"}), naming {target}, {instrument} or {actor}; when its branches do different things, put a label on each {"do"} leaf instead. Without one the player sees a generic line.',
     ...(router ? [ROUTER_RULES] : []),
-    ...(h.addenda.length ? ['', 'Your own working notes:', ...h.addenda.map((a) => `- ${a}`)] : []),
     '',
     '# ModSpec',
     JSON.stringify(spec),
+    ...(h.addenda.length ? ['', 'Your own working notes:', ...h.addenda.map((a) => `- ${a}`)] : []),
   ].join('\n')
 }
 
@@ -75,7 +75,7 @@ export function requestView(req: ModRequest, brief: boolean): Omit<ModRequest, '
   return brief ? { ...rest, context: { ...rest.context, rules: [] } } : rest
 }
 
-export function designUser(req: ModRequest, recall: Recall, brief?: string, added?: { types: TypeDef[]; statuses: StatusDef[] }): string {
+export function designUser(req: ModRequest, recall: Recall, brief?: string, added?: { types: TypeDef[]; statuses: StatusDef[] }, tools = true): string {
   const out = [`# Request ${req.id}`, req.summary, '', '```json', JSON.stringify(requestView(req, !!brief)), '```']
   if (brief) out.push('', brief)
   if (added && (added.types.length || added.statuses.length)) {
@@ -83,11 +83,11 @@ export function designUser(req: ModRequest, recall: Recall, brief?: string, adde
     for (const t of added.types) out.push(`- type ${JSON.stringify({ id: t.id, tags: t.tags ?? [], name: t.name })}`)
     for (const s of added.statuses) out.push(`- status ${JSON.stringify({ id: s.id, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears })}`)
   }
-  out.push('', '# Your skills (read one with read_skill)')
+  out.push('', tools ? '# Your skills (read one with read_skill)' : '# Your skills')
   out.push(...(recall.skills.length ? recall.skills.map((s) => `- ${s.name}: ${s.description} (used ${s.uses}×, ${s.accepted} accepted)`) : ['(none yet)']))
   out.push('', '# Lessons from your past episodes')
   out.push(...(recall.lessons.length ? recall.lessons.map((l) => `- [${l.id}] ${l.text}`) : ['(none yet)']))
-  out.push('', '# Similar past episodes (read one with get_episode)')
+  out.push('', tools ? '# Similar past episodes (read one with get_episode)' : '# Similar past episodes')
   out.push(
     ...(recall.episodes.length
       ? recall.episodes.map((e) => `- ${e.id}: ${e.summary} → ${e.outcome} after ${e.attempts} attempt(s)${e.rules.length ? `; rules ${e.rules.join(', ')}` : ''}`)

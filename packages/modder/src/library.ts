@@ -4,15 +4,18 @@
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
+import { createHash } from 'node:crypto'
 import { RECOVERY } from '@lsw/content'
 import { connected, economySteps, freeLunch } from './economy.ts'
 import {
   RuleLibrary,
   buildModSpec,
+  checkExpectations,
   endlessYield,
   replay,
   scenarioEvent,
   validatePatch,
+  withTerrainTypes,
   type ModRequest,
   type ModSpec,
   type ModWorkspace,
@@ -38,6 +41,7 @@ export class WorldLibrary {
   readonly log: PatchLogEntry[] = []
   /** Triggering scenarios of accepted patches: they must stay answered by later patches. */
   readonly regression: { scenario: Scenario; rule: string }[] = []
+  private proofs = new Map<string, { tests: string[][]; result: ValidationResult }>()
 
   constructor(
     readonly ontology: Ontology,
@@ -130,7 +134,20 @@ export class WorldLibrary {
 
   /** replaces: patch rules this patch takes the place of (a revision), judged as if they were gone. */
   validate(patch: Patch, req?: ModRequest, ws?: ModWorkspace, replaces: string[] = []): ValidationResult {
+    withTerrainTypes(this.ontology)
+    // Public ontology/workspace/regression data can change without a mutator or sequence bump.
+    const artifacts = patch?.artifacts?.map((a) => a?.kind === 'rule' && a.rule ? { ...a, rule: { ...a.rule, tests: undefined } } : a)
+    const key = createHash('sha256').update(JSON.stringify([this.lib.version, [...this.lib.rules.values()], this.lib.types, this.lib.statuses, this.ontology, ws, this.regression, req?.scenario, replaces, artifacts])).digest('hex')
+    const rules = patch?.artifacts?.flatMap((a) => a?.kind === 'rule' && a.rule ? [a.rule] : []) ?? []
+    const tests = rules.map((r) => (r.tests ?? []).map((t) => JSON.stringify(t)))
+    const proof = this.proofs.get(key)
+    if (proof && tests.every((ts, i) => ts.length === proof.tests[i].length && ts.every((t, j) => t === proof.tests[i][j]))) return structuredClone(proof.result)
     const lib = this.workspace(ws, replaces)
+    if (proof && tests.every((ts, i) => proof.tests[i].every((t, j) => t === ts[j]))) {
+      const result = this.addedTests(patch, lib, proof)
+      if (result.ok) this.proofs.set(key, { tests, result: structuredClone(result) })
+      return result
+    }
     const result = validatePatch(patch, {
       ontology: this.ontology,
       library: lib,
@@ -139,7 +156,35 @@ export class WorldLibrary {
     })
     if (!result.ok) return result
     const lunch = this.economy(patch, lib)
-    return lunch ? { ...result, ok: false, errors: [...result.errors, lunch] } : result
+    if (lunch) return { ...result, ok: false, errors: [...result.errors, lunch] }
+    if (this.proofs.size >= 32) this.proofs.delete(this.proofs.keys().next().value!)
+    this.proofs.set(key, { tests, result: structuredClone(result) })
+    return result
+  }
+
+  private addedTests(patch: Patch, lib: RuleLibrary, proof: { tests: string[][]; result: ValidationResult }): ValidationResult {
+    const cand = lib.clone()
+    for (const a of patch.artifacts) {
+      if (a.kind === 'type') cand.types = cand.types.filter((t) => t.id !== a.type.id).concat(a.type)
+      if (a.kind === 'status') cand.statuses = cand.statuses.filter((s) => s.id !== a.status.id).concat(a.status)
+      if (a.kind === 'rule') cand.add({ ...a.rule, source: { origin: 'patch' } })
+    }
+    const result = structuredClone(proof.result)
+    const rules = patch.artifacts.flatMap((a) => a.kind === 'rule' ? [a.rule] : [])
+    for (const [i, r] of rules.entries()) {
+      if (r.tests?.length) result.warnings = result.warnings.filter((w) => w !== `rule[${i}] "${r.id}": no tests`)
+      for (const [j, t] of (r.tests ?? []).entries()) {
+        if (j < proof.tests[i].length) continue
+        try {
+          const rp = replay(t.given, this.ontology, cand)
+          for (const f of [...rp.errors, ...checkExpectations(rp.engine, t.expect ?? [])]) result.errors.push(`test "${t.name ?? `${r.id}#${j}`}": ${f}`)
+        } catch (err) {
+          result.errors.push(`test "${t.name ?? `${r.id}#${j}`}": ${(err as Error).message}`)
+        }
+      }
+    }
+    result.ok = !result.errors.length
+    return result
   }
 
   /**
