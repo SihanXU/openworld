@@ -230,6 +230,9 @@ export class EffectRunner {
         eng.touch({ e: host.id })
         w.place(host, place)
         delete host.dropped
+        // stairs set down go up the way the one who set them faced (away from them)
+        const setter = ev.cause ? w.get(ev.cause) : undefined
+        if (place.on === 'tile' && w.hasTag(host, 'stairs') && setter?.facing) host.facing = setter.facing
         eng.touch({ e: host.id })
         return
       }

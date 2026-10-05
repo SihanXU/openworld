@@ -139,7 +139,10 @@ export class Controls {
    */
   layers(at: Pos, stack?: Ref[]): Ref[] {
     const w = this.w
-    const ok = (r: Ref) => w.posOf(w.get(r.e))?.map === at.map
+    // only the storey one stands on: what is above or below is out of the inputs' reach (its ground is
+    // the floor laid there; the cells' own make-up is the ground storey's)
+    const storey = w.posOf(w.player)?.z ?? 0
+    const ok = (r: Ref) => { const p = w.posOf(w.get(r.e)); return p?.map === at.map && (p.z ?? 0) === storey }
     // a cell drawn at the point (a tree's canopy) is named by any of its ids: it is what makes it up on top
     const cellOf = (r: Ref): Ref => {
       const c = !w.get(r.e) && parseCellId(r.e)
@@ -147,18 +150,22 @@ export class Controls {
     }
     const sig = (r: Ref) => r.e
     // what stands there, and what bigger stands beside it and covers it with its base (a tent, a place on the overworld)
-    const es = [...w.entitiesAt(at.map, at.x, at.y), ...w.coveringAt(at.map, at.x, at.y)]
+    const es = [...w.entitiesAt(at.map, at.x, at.y, storey), ...(storey ? [] : w.coveringAt(at.map, at.x, at.y))]
     // in the order they are drawn: bodies over what can be carried, that over what it lies on
+    const built = (e: Entity) => w.hasTag(e, 'structure')
     const bodies = es.filter((e) => w.isAgent(e))
-    const loose = es.filter((e) => !w.isAgent(e) && w.isPortable(e)).reverse()
-    // what stands there, then what makes up the cell, top first: what fills it, roots in it, the floor
+    const loose = es.filter((e) => !w.isAgent(e) && w.isPortable(e) && !built(e)).reverse()
+    // what stands there, then what makes up the cell, top first: what is built there (a wall before
+    // the floor laid there), what fills it, roots in it, the ground
     const cell = (e: Entity) => w.isTerrain(e)
-    const ground = es.filter((e) => !w.isAgent(e) && !w.isPortable(e) && !cell(e))
+    const ground = es.filter((e) => !w.isAgent(e) && !w.isPortable(e) && !cell(e) && !built(e))
+    const structures = es.filter(built).sort((a, b) => Number(w.spacesOf(a).includes('floor')) - Number(w.spacesOf(b).includes('floor')))
     const made = es.filter(cell).sort((a, b) => w.cellRank(b) - w.cellRank(a))
-    const standing: Ref[] = [...bodies, ...loose, ...ground].map((e) => ({ e: e.id }))
+    const standing: Ref[] = [...bodies, ...loose, ...ground, ...structures].map((e) => ({ e: e.id }))
     // the view's cells of this very tile are its make-up, under what stands on it (they come last, below)
     const own = (r: Ref) => { const c = parseCellId(r.e); return !!c && c.map === at.map && c.x === at.x && c.y === at.y }
     let out: Ref[] = stack ? [...stack.filter((r) => !own(r)).map(cellOf).filter(ok), ...standing] : standing
+    if (storey) made.length = 0
     // a bird overhead is the last thing the keys meet (it is drawn on top, but rarely what is meant)
     const aloft = (r: Ref) => 'e' in r && !!w.get(r.e) && w.hasTag(w.get(r.e)!, 'airborne')
     out = [...out.filter((r) => !aloft(r)), ...out.filter(aloft)]
@@ -318,12 +325,14 @@ export class Controls {
   }
 
   /** Run a plan: a blow, or the act (unless it must ask first). Returns the container to open, if any. */
-  run(plan: Plan, confirmed = false): { panel?: Id } {
+  run(plan: Plan, confirmed = false, facing?: Dir): { panel?: Id } {
     const eng = this.eng
     const w = this.w
     const p = w.player
     if (eng.busy(p)) return {}
     this.face(plan.at)
+    // the build palette's turn (R): one faces that way setting it down (stairs go up that way)
+    if (facing) p.facing = facing
     if (plan.confirm && !confirmed) {
       w.state.question = { text: plan.confirm, plan }
       return {}
@@ -669,8 +678,8 @@ export class Controls {
     return near && open ? { ok: true, reason: { en: 'Made from what you carry, then set down', zh: '用身上的材料现做一个，再放下' }, carried } : { ok: false, reason: { en: 'It cannot go there.', zh: '这里放不下。' }, carried }
   }
 
-  /** Set a type down at the aim (the build palette): one carried, or one made from what is carried first. */
-  place(type: string, aim: Aim): boolean {
+  /** Set a type down at the aim (the build palette): one carried, or one made from what is carried first; facing a way (stairs go up it). */
+  place(type: string, aim: Aim, facing?: Dir): boolean {
     if (this.eng.busy(this.w.player) || !this.previewPlace(type, aim).ok) return false
     if (!this.carriedOf(type)) {
       const r = this.recipeFor(type)
@@ -679,7 +688,7 @@ export class Controls {
     const thing = this.carriedOf(type)
     const plan = thing && this.planPut(thing.id, aim)
     if (!plan || plan.at.x !== aim.x || plan.at.y !== aim.y) return false
-    this.run(plan)
+    this.run(plan, false, facing)
     return true
   }
 

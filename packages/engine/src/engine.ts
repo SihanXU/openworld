@@ -826,12 +826,15 @@ export class Engine {
     // onto the stairs below from above them; off a floor's edge one falls to the first below
     const z = e.place.z ?? 0
     const floorAt = (zz: number) => !!w.occupant(map, nx, ny, 'floor', zz)
-    const stairsAt = (sx: number, sy: number, zz: number) => w.entitiesAt(map, sx, sy, zz).some((o) => w.hasTag(o, 'stairs'))
+    // stairs go up one way (their facing, north unless set): up from them only that way, down onto them only from their top
+    const BACK: Record<Dir, Dir> = { up: 'down', down: 'up', left: 'right', right: 'left' }
+    const stairsAt = (sx: number, sy: number, zz: number, way: Dir) => w.entitiesAt(map, sx, sy, zz).some((o) => w.hasTag(o, 'stairs') && (o.facing ?? 'up') === way)
+    const climb = stairsAt(x, y, z, dir) && floorAt(z + 1)
     let nz = z
     let drop = 0
-    if (!floorAt(z) || (stairsAt(x, y, z) && floorAt(z + 1))) {
-      if (stairsAt(x, y, z) && floorAt(z + 1)) nz = z + 1
-      else if (z > 0 && stairsAt(nx, ny, z - 1)) nz = z - 1
+    if (!floorAt(z) || climb) {
+      if (climb) nz = z + 1
+      else if (z > 0 && stairsAt(nx, ny, z - 1, BACK[dir])) nz = z - 1
       else if (z > 0 && w.stanceOf(e) !== 'air') {
         nz = z - 1
         while (nz > 0 && !floorAt(nz)) nz--
