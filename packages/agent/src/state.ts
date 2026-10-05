@@ -205,7 +205,7 @@ export interface Harness {
   escalate: boolean
   /** a late review asking for changes sends the rule back for one offline revision */
   revise: boolean
-  /** design: episodes worked at once (live requests first); background: reviews, reflections, escalations at once */
+  /** design: episodes worked at once, one per lane (live requests first); background: reviews, reflections, escalations at once */
   concurrency?: { design: number; background: number }
 }
 
@@ -239,7 +239,7 @@ export const DEFAULT_HARNESS: Harness = {
   },
   escalate: true,
   revise: true,
-  concurrency: { design: 1, background: 3 },
+  concurrency: { design: 4, background: 3 },
 }
 
 /** The harness as one profile sees it. */

@@ -1367,9 +1367,12 @@ does not hold (iron from smelting, a stick from a stump). So the design works in
 - **The player waits for a creation.** `GET /progress?id=` says where a request is; once it
   creates, the client holds the act past its time-out (`ModPort.hold`) and the HUD says "The
   world is making something new: <names>".
-- **One design at a time** (`harness.concurrency.design`, live before offline): a request that
-  waited is answered by what was committed meanwhile. Reviews, reflections and escalations run
-  three at a time (`concurrency.background`).
+- **Designs in lanes** (`harness.concurrency.design`, 4 at once, live before offline): each is
+  worked and validated in its own sandbox, and the commit re-validates against the library as it
+  is then. A request whose patch would be written where another's is (the same event kind and
+  host class, `laneOf`) waits in that lane and is often answered by what the other committed;
+  others are designed side by side. Reviews, reflections and escalations run three at a time
+  (`concurrency.background`).
 - **A rule writes only its host, so one act can take several holes.** A knife on a haystack is
   answered by the knife (a cut sent to the haystack), and the haystack's answer to a cut is its
   own hole, asked next. `npm run eval:objects` follows an act through up to four holes and judges

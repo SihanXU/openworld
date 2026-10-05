@@ -4,6 +4,8 @@
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
+import { RECOVERY } from '@lsw/content'
+import { connected, economySteps, freeLunch } from './economy.ts'
 import {
   RuleLibrary,
   buildModSpec,
@@ -128,12 +130,40 @@ export class WorldLibrary {
 
   /** replaces: patch rules this patch takes the place of (a revision), judged as if they were gone. */
   validate(patch: Patch, req?: ModRequest, ws?: ModWorkspace, replaces: string[] = []): ValidationResult {
-    return validatePatch(patch, {
+    const lib = this.workspace(ws, replaces)
+    const result = validatePatch(patch, {
       ontology: this.ontology,
-      library: this.workspace(ws, replaces),
+      library: lib,
       scenario: req?.scenario,
       regression: [...this.regression, ...(ws?.regression ?? [])].filter((r) => !replaces.includes(r.rule)),
     })
+    if (!result.ok) return result
+    const lunch = this.economy(patch, lib)
+    return lunch ? { ...result, ok: false, errors: [...result.errors, lunch] } : result
+  }
+
+  /**
+   * The economy check (economy.ts): with this patch's conversions (its rules, its new types'
+   * recipes and breaking down) among the world's, does any mix of them make more than it takes,
+   * where none did before? Then it says which steps, and what they make from nothing.
+   */
+  private economy(patch: Patch, lib: RuleLibrary): string | undefined {
+    const rules = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule] : []))
+    const types = patch.artifacts.flatMap((a) => (a.kind === 'type' ? [a.type] : []))
+    if (!rules.length && !types.length) return undefined
+    const before = this.fullOntology(lib)
+    const after: Ontology = { ...before, types: { ...before.types, ...Object.fromEntries(types.map((t) => [t.id, t])) } }
+    const known = [...lib.rules.values()]
+    const old = economySteps(before, known, RECOVERY)
+    const all = economySteps(after, [...known, ...rules], RECOVERY)
+    const oldNames = new Set(old.map((s) => s.name))
+    const fresh = all.filter((s) => !oldNames.has(s.name) || types.some((t) => s.name.endsWith(` ${t.id}`)))
+    if (!fresh.length) return undefined
+    const pool = connected(all, fresh)
+    const lunch = freeLunch(pool)
+    if (!lunch || freeLunch(pool.filter((s) => oldNames.has(s.name) && !fresh.includes(s)))) return undefined
+    const fmt = (n: number) => (Math.round(n * 100) / 100).toString()
+    return `economy: these conversions together make something from nothing (world-model.md §8.4) — ${lunch.uses.map((u) => `${u.step} ×${fmt(u.times)}`).join(', ')} leave more ${lunch.makes.map((m) => `${m.type} (+${fmt(m.n)})`).join(', ')} than they take. Make the outcome take as much as it gives, or give less.`
   }
 
   /**

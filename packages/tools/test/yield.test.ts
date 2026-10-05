@@ -60,8 +60,11 @@ describe('no endless yield (world-model.md §8.4)', () => {
     expect(errs({ props: { maxHp: 8, material: 'crystal' } })).toMatch(/makeup/)
     expect(errs({ props: { maxHp: 8, material: 'unobtainium' } })).toMatch(/not a material/)
     expect(errs({ props: { maxHp: 8, material: 'crystal' }, makeup: [{ type: 'item/gem', count: 1 }] })).not.toMatch(/material|makeup/)
-    // one that cannot break (no maxHp) needs neither
-    expect(errs({})).not.toMatch(/material|makeup/)
+    // one that cannot break says so too: every new thing is made of something (world-model.md §8.3), so it
+    // can be crafted, broken and recovered like the world's own
+    expect(errs({})).toMatch(/props\.material/)
+    expect(errs({ props: { material: 'crystal' } })).toMatch(/makeup/)
+    expect(errs({ props: { material: 'crystal' }, makeup: [{ type: 'item/gem', count: 1 }] })).not.toMatch(/material|makeup/)
   })
 
   it('the base library: every act any input makes, on anything the player can face, stops yielding when repeated', () => {

@@ -35,6 +35,8 @@ const ingot = (over: Partial<TypeDef> = {}): TypeDef => ({
   id: 'item/material/iron_ingot',
   name: { en: 'Iron Ingot', zh: '铁锭' },
   tags: ['metal', 'conductive'],
+  props: { material: 'iron' },
+  makeup: [{ type: 'item/material/iron_ore', count: 1 }],
   sprite: 'art:item/material/iron_ingot',
   art: INGOT_ART,
   ...over,
@@ -82,6 +84,14 @@ describe('a patch that brings a new thing', () => {
     expect(errors(ingot({ name: 'Iron Ingot' as never }))).toMatch(/both languages/)
   })
 
+  it('says what it is made of (material and makeup), and is never a new kind of ground', () => {
+    const errors = (t: TypeDef) => check({ artifacts: [{ kind: 'type', type: t }, { kind: 'rule', rule: smelt(t.id) }] }).errors.join('\n')
+    expect(errors(ingot({ props: {} }))).toMatch(/props\.material/)
+    expect(errors(ingot({ makeup: undefined }))).toMatch(/makeup/)
+    expect(errors(ingot({ makeup: [{ type: 'item/material/iron', count: 1 }] }))).toMatch(/makeup\[0\]: unknown type "item\/material\/iron"/)
+    expect(errors(ingot({ id: 'tile/frost_crust', name: { en: 'Frost Crust', zh: '霜壳' } }))).toMatch(/new kind of ground/)
+  })
+
   it('is not another name for something the world has', () => {
     const coal = ingot({ id: 'item/material/black_rock', name: { en: 'Coal', zh: '黑石' } })
     expect(check({ artifacts: [{ kind: 'type', type: coal }, { kind: 'rule', rule: smelt(coal.id) }] }).errors.join()).toMatch(/"item\/material\/coal" already is this thing/)
@@ -108,6 +118,15 @@ describe('a patch that brings a new thing', () => {
     const held = eng.world.get(eng.world.player.held!)!
     expect(held.type).toBe('item/material/iron_ingot')
     expect(eng.world.player.slots![slot]).toBe(eng.controls.key(held))
+  })
+
+  it('can be crafted as soon as it is learned, when it says where it is made', () => {
+    const eng = buildSandbox(scenario, onto, lib())
+    const port = new ModPort(eng)
+    const nail = { id: 'item/material/iron_nail', name: { en: 'Iron Nail', zh: '铁钉' }, props: { material: 'iron' }, makeup: [{ type: 'item/material/iron_ore', count: 1 }], station: 'hands' } as TypeDef
+    expect(eng.recipes.has(nail.id)).toBe(false)
+    port.submit(undefined, { artifacts: [{ kind: 'type', type: nail }, { kind: 'rule', rule: { ...smelt(nail.id), id: 'patch/ore-to-nail' } }] })
+    expect(eng.recipes.get(nail.id)).toMatchObject({ needs: [{ type: 'item/material/iron_ore', count: 1 }], station: 'hands' })
   })
 
   it('points at what exists when a patch names a type that does not', () => {

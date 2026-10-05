@@ -10,6 +10,7 @@ import { PRIMITIVES, RESIDENT_ONLY } from './effects.ts'
 import type { Engine, Resolution, UndefinedSink } from './engine.ts'
 import { STORY, textOf } from './engine.ts'
 import { OntologyIndex, isA, withTerrainTypes } from './ontology.ts'
+import { deriveRecipes } from './recipes.ts'
 import { RuleLibrary, cmp, compareSpec, isDo, isHole, leaves, rolesOf, specOf } from './rules.ts'
 import { REPEAT_TIMES, checkExpectations, endlessYield, replay, scenarioEvent } from './sandbox.ts'
 import type { Cmp, Cond, Effect, EmitTo, GameEvent, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tree, TypeDef } from './types.ts'
@@ -513,6 +514,8 @@ export class ModPort implements UndefinedSink {
         eng.lib.addStatus(a.status, now)
       }
     }
+    // a new thing made at hand or at a station from its makeup can be crafted at once (world-model.md §6.4)
+    if (patch.artifacts.some((a) => a.kind === 'type')) for (const r of deriveRecipes(w.onto)) eng.recipes.set(r.id, r)
     const trigger = rec?.origin ?? patch.trigger ?? a0trigger(patch)
     for (const a of patch.artifacts) {
       if (a.kind !== 'rule') continue
@@ -1242,6 +1245,8 @@ export function closest(id: string, onto: Ontology, n = 4): string {
 export function newTypeProblems(t: TypeDef, onto: Ontology, patch: Patch): string[] {
   const out: string[] = []
   if (t.id in onto.types) out.push('a type of this id exists already: use it instead of defining it')
+  // a cell's ground is drawn and walked as its terrain (world-model.md §4.6): a patch makes things on cells, not new ground
+  if (t.id.startsWith('tile/')) out.push('a patch cannot make a new kind of ground (tile/*): make a thing that lies on the cell instead (a fixture), or turn the cell into a terrain the world has')
   const segs = t.id.split('/')
   if (segs.length < 2 || !segs.every((s) => SEGMENT.test(s))) out.push('ids are lowercase snake_case segments under the kind, e.g. "item/material/iron_ingot"')
   const parent = segs.slice(0, -1).join('/')
@@ -1258,11 +1263,11 @@ export function newTypeProblems(t: TypeDef, onto: Ontology, patch: Patch): strin
   const r = index.resolve(t.id)
   const material = r.props.material
   if (material !== undefined && (typeof material !== 'string' || !onto.materials?.[material])) out.push(`props.material "${String(material)}" is not a material: one of ${Object.keys(onto.materials ?? {}).join(', ')}`)
-  if (typeof r.props.maxHp === 'number') {
-    if (material === undefined) out.push('a thing that can break (props.maxHp) names what it is made of: props.material (one of the materials)')
-    const ownRule = patch.artifacts.some((a) => a?.kind === 'rule' && a.rule?.host?.type === t.id && a.rule.on === 'threshold/cross')
-    if (!r.makeup?.length && !ownRule) out.push('a thing that can break (props.maxHp) says what it leaves: makeup [{type, count, chance?}] (what it is made of), or a rule of its own on threshold/cross "broken"')
-  }
+  // every thing the AI makes is made of something, so it can be crafted, broken and recovered like the world's own (§8.3)
+  if (material === undefined) out.push(`a new thing names what it is made of: props.material (one of ${Object.keys(onto.materials ?? {}).join(', ')})`)
+  const ownRule = patch.artifacts.some((a) => a?.kind === 'rule' && a.rule?.host?.type === t.id && a.rule.on === 'threshold/cross')
+  if (!r.makeup?.length && !(typeof r.props.maxHp === 'number' && ownRule))
+    out.push('a new thing says what it is made of, which is also what it leaves when it breaks: makeup [{type, count, chance?}] of types the world has (or the patch defines)')
   for (const [i, m] of (t.makeup ?? []).entries()) {
     if (!m || typeof m.type !== 'string' || !(m.type in onto.types || ownTypes.has(m.type))) out.push(`makeup[${i}]: unknown type "${m?.type}"${m?.type ? closest(m.type, onto) : ''}`)
     if (!(typeof m?.count === 'number' && m.count > 0)) out.push(`makeup[${i}].count: a number above 0`)
