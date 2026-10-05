@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { AddressInfo } from 'node:net'
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@lsw/engine'
+import { ModPort, RuleLibrary, buildRequest, buildSandbox, scenarioEvent, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
 import { Modder, ScriptedModel, SelfState, WorldLibrary, createModderServer, freeLunch, laneOf, deriveTests, narrowKinds, parseJson, qualifyTerrains, scriptFromFile, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
 
@@ -214,6 +214,44 @@ describe('the modder pipeline', () => {
     const [a, b] = await Promise.all([modder.resolve({ request: request() }), modder.resolve({ request: request() })])
     expect([a.outcome, b.outcome].sort()).toEqual(['accepted', 'covered'])
     expect(calls.design).toBe(2) // one episode: a tool turn and an answer
+  })
+
+  it('returns covered before repairing a tie when another lane has answered the hole', async () => {
+    const req = (type: string, id: string) => {
+      const sc: Scenario = { entities: [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2 }, { key: 'item', type, x: 2, y: 2, heldBy: 'actor' }, { key: 'pot', type: 'fixture/container/pot', x: 2, y: 1 }], event: { kind: 'act/use', host: 'item', actor: 'actor', instrument: 'item', target: 'pot' } }
+      const eng = buildSandbox(sc, onto, new RuleLibrary(BASE))
+      const ev = scenarioEvent(sc, eng)
+      return buildRequest(eng, ev, eng.resolveEvent(ev), id)
+    }
+    const a = req('item/misc/doll', 'broad-request')
+    const b = req('item/material/feather', 'other-request')
+    expect(laneOf(a)).not.toBe(laneOf(b))
+    const drafts = ['patch/broad-a', 'patch/broad-b'].map((id) => patchOf({ id, host: { type: 'item' }, on: 'act/use', tree: { do: [{ op: 'log', text: 'Answered.' }] } }))
+    let goA!: () => void, goB!: () => void, both!: () => void
+    const gates = [new Promise<void>((r) => (goA = r)), new Promise<void>((r) => (goB = r))]
+    const started = new Promise<void>((r) => (both = r))
+    let designs = 0
+    const model = new ScriptedModel(async (_messages, opts) => {
+      if (opts.purpose !== 'design') return {}
+      const n = designs++
+      if (designs === 2) both()
+      await gates[n]
+      return { patch: drafts[Math.min(n, 1)] }
+    })
+    const { modder, state, library } = setup(model)
+    state.setHarness({ ...state.harness(), design: { ...state.harness().design, tests: 'model' }, repair: { maxRounds: 1 }, review: { enabled: false, maxRounds: 0 }, reflect: { enabled: false, skillMinRecurrence: 3 }, escalate: false, revise: false }, 'test: concurrent drafts')
+    const pa = modder.resolve({ request: a }), pb = modder.resolve({ request: b })
+    await started
+    goA()
+    const ra = await pa
+    expect(library.covering(b)?.rule).toBe('patch/broad-a')
+    expect(library.validate(drafts[1], b).errors.join('\n')).toMatch(/ties with/)
+    goB()
+    const rb = await pb
+    await modder.settled()
+    expect([ra.outcome, rb.outcome]).toEqual(['accepted', 'covered'])
+    expect(model.calls).toBe(2)
+    expect(library.log).toHaveLength(1)
   })
 
   it('without a model answers only from the library', async () => {
@@ -482,6 +520,17 @@ describe('integrity', () => {
     const a = bindRule('patch/a')
     const b = { ...bindRule('patch/b'), doc: 'the same class, said again' }
     expect(library.validate(patchOf(a, b), request()).errors.join()).toMatch(/"patch\/a" ties with "patch\/b"/)
+  })
+
+  it('reports an unproven chance assignment bound in the library audit', () => {
+    const { library } = setup()
+    const req = useRequest()
+    const rule: Rule = { id: 'patch/audit-chances', host: { type: 'item/tool/rope' }, on: 'act/use', tree: {
+      if: { all: Array.from({ length: 7 }, () => ({ any: [{ chance: 0.5 }, { chance: 1 }] })) }, then: { do: [] }, else: { do: [] },
+    } }
+    library.lib.add({ ...rule, source: { origin: 'patch' } })
+    library.regression.push({ scenario: req.scenario, rule: rule.id })
+    expect(library.audit()).toEqual([{ rule: rule.id, reason: expect.stringMatching(/repeat check.*64.*safety/) }])
   })
 
   it('commits to the shared log only what stands on the shared library alone', async () => {

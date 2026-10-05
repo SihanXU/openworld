@@ -1053,7 +1053,7 @@ export class Engine {
     for (let r = 1; r < 6; r++)
       for (let dy = -r; dy <= r; dy++)
         for (let dx = -r; dx <= r; dx++)
-          if (actor ? this.world.fits(actor, p.map, p.x + dx, p.y + dy) : this.world.walkable(p.map, p.x + dx, p.y + dy)) return { map: p.map, x: p.x + dx, y: p.y + dy }
+          if (actor ? this.world.fits(actor, p.map, p.x + dx, p.y + dy, p.z) : this.world.walkable(p.map, p.x + dx, p.y + dy, undefined, false, p.z)) return { ...p, x: p.x + dx, y: p.y + dy }
     return undefined
   }
 

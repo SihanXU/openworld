@@ -1122,9 +1122,11 @@ export interface Scenario {
   ticks?: number
   /** Which entity key is the player (default: "actor"). */
   player?: string
-  /** What the things on top of some cells carry (statuses, props), at their place in the terrain rows. */
-  cells?: { x: number; y: number; space?: Space; statuses?: string[]; props?: Record<string, PropValue> }[]
-  /** The event to replay. Roles refer to scenario entity keys, `tile:x,y` (a cell's top) or `tile:x,y:space` (what takes that space in it). */
+  /** Instance props of the story and world, when rules need resident context. */
+  residents?: Partial<Record<'story' | 'world', Record<string, PropValue>>>
+  /** Cell types and state not supplied by the terrain rows, addressed by space and storey. */
+  cells?: { x: number; y: number; z?: number; space?: Space; type?: string; statuses?: string[]; props?: Record<string, PropValue> }[]
+  /** The event to replay. Roles refer to entity keys or `tile:x,y[,z][:space]` (a cell's top or a specific space). */
   event: {
     kind?: EventKind
     host?: string
@@ -1143,6 +1145,7 @@ export interface ScenarioEntity {
   type: string
   x: number
   y: number
+  z?: number
   tags?: string[]
   statuses?: string[]
   props?: Record<string, PropValue>

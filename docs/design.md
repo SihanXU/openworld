@@ -1016,6 +1016,11 @@ Lifecycle of a patch:
 
 A failure at any step runs the leaf's default; the game never blocks.
 
+As built (2026-10-05): request scenarios keep the participants' holding closure, the story
+and world props, and storeys. Terrain rows supply each ground cell's top; cell overrides keep
+the actual types and state below it and upstairs. Cover above participants is kept before
+the limit on loose neighbours. Cell roles use `tile:x,y[,z][:space]`.
+
 As built (2026-10-05): a status artifact may repeat an existing definition, but cannot change
 one from the base ontology, shared library or an earlier artifact in the patch. Object key
 order does not change a definition. This keeps ontology additions inside the same boundary
@@ -1386,6 +1391,9 @@ does not hold (iron from smelting, a stick from a stump). So the design works in
   host class, `laneOf`) waits in that lane and is often answered by what the other committed;
   others are designed side by side. Reviews, reflections and escalations run three at a time
   (`concurrency.background`).
+  As built (2026-10-05): before repairing a failed validation, a non-revision request checks
+  whether another lane has already answered its hole and class. If so it returns `covered`
+  without another design call.
 - **A rule writes only its host, so one act can take several holes.** A knife on a haystack is
   answered by the knife (a cut sent to the haystack), and the haystack's answer to a cut is its
   own hole, asked next. `npm run eval:objects` follows an act through up to four holes and judges

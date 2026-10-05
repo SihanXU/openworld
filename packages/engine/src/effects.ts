@@ -335,14 +335,14 @@ export class EffectRunner {
         const { map, x, y } = host.place
         let z = host.place.z - 1
         while (z > 0 && !w.occupant(map, x, y, 'floor', z)) z--
-        const levels = host.place.z - z
+        const from = host.place.z
         eng.touch({ e: host.id })
         // the cell it lands in may be taken (a hen under the floor, a boulder): it comes down beside it
-        let to = { map, x, y }
-        if (w.clashesAt(map, x, y, z, w.spacesOf(host), host.id).length) to = eng.nearestFree({ map, x, y }, host) ?? to
-        w.place(host, { on: 'tile', ...to, ...(z && to.x === x && to.y === y && { z }) })
+        let to = { map, x, y, z }
+        if (w.clashesAt(map, x, y, z, w.spacesOf(host), host.id).length) to = { ...to, ...eng.nearestFree(to, host) }
+        w.place(host, { on: 'tile', ...to })
         eng.touch({ e: host.id })
-        eng.fallBy(host, levels, ev)
+        eng.fallBy(host, from - to.z, ev)
         return
       }
       case 'breakdown': {
@@ -352,10 +352,10 @@ export class EffectRunner {
         const rate = w.onto.data.params?.recovery ?? 1
         const material = [...(host.tags ?? []), ...w.onto.resolve(host.type).tags].find((t) => t.startsWith('material:'))
         if (at)
-          for (const part of w.onto.resolve(host.type).makeup ?? []) {
+          for (const [i, part] of (w.onto.resolve(host.type).makeup ?? []).entries()) {
             // the expected count: whole parts, and the fraction by chance
             const expect = (part.count * (part.chance ?? 1) * rate) / (w.onto.resolve(host.type).yields ?? 1)
-            const n = w.luck !== undefined ? Math.ceil(expect) : Math.floor(expect) + (w.rand() < expect - Math.floor(expect) ? 1 : 0)
+            const n = Math.floor(expect) + (w.chance(eff, expect - Math.floor(expect), i) ? 1 : 0)
             for (let i = 0; i < n; i++) {
               const made = w.create(part.type, { on: 'tile', map: at.map, x: at.x, y: at.y, ...(at.z && { z: at.z }) }, material && w.onto.resolve(part.type).tags.includes('portable') ? { tags: [material] } : {})
               eng.touch({ e: made.id })
@@ -601,7 +601,7 @@ export class EffectRunner {
     for (const to of this.receivers(eff.to, ev)) {
       const v = w.view(to)
       if (!v || (eff.filter && !matchSelector(eff.filter, v))) continue
-      if (eff.chance !== undefined && w.luck === undefined && w.rand() >= eff.chance) continue
+      if (eff.chance !== undefined && !w.chance(eff, eff.chance)) continue
       eng.queue({
         kind: `impulse/${eff.impulse as Impulse}`,
         host: to,

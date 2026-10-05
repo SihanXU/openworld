@@ -46,6 +46,27 @@ function openRow(f: F, n: number): [number, number] {
 const bodies = (f: F, x: number, y: number) => f.w.entitiesAt('ford', x, y).filter((e) => f.w.spacesOf(e).includes('body')).map((e) => e.id)
 
 describe('a solid thing and a body never share a cell', () => {
+  it.each([3, 4])('a fall from storey %i onto a body lands beside it on storey 2 and hurts by the actual drop', (from) => {
+    const eng = buildSandbox({ terrain: Array.from({ length: 7 }, () => Array(7).fill('grass')), entities: [{ key: 'actor', type: 'actor/person/player', x: 3, y: 3 }], event: {} }, onto, new RuleLibrary(BASE_RULES))
+    const w = eng.world
+    eng.author(() => {
+      for (let z = 0; z < 3; z++) {
+        if (z) w.create('structure/floor', { on: 'tile', map: 'sandbox', x: 2, y: 3, z })
+        w.create('structure/wall', { on: 'tile', map: 'sandbox', x: 2, y: 3, z })
+      }
+      for (const y of [2, 3, 4]) w.create('structure/floor', { on: 'tile', map: 'sandbox', x: 3, y, z: 2 })
+      w.create('structure/floor', { on: 'tile', map: 'sandbox', x: 3, y: 3, z: from }, { id: 'top-floor' })
+      w.place(w.player, { on: 'tile', map: 'sandbox', x: 3, y: 3, z: from })
+      w.create('actor/creature/animal/chicken', { on: 'tile', map: 'sandbox', x: 3, y: 3, z: 2 }, { id: 'landing-hen' })
+    })
+    eng.seedRelations('sandbox')
+    const hp = w.num(w.player, 'hp')
+    eng.damage(w.get('top-floor')!, 100, undefined, true)
+    expect(w.player.place).toMatchObject({ on: 'tile', map: 'sandbox', x: 3, y: 2, z: 2 })
+    expect(w.num(w.player, 'hp')).toBe(hp - Math.max(0, from - 2 - (onto.params?.safeFall ?? 1)) * (onto.params?.fallDamage ?? 6))
+    expect(w.entitiesAt('sandbox', 3, 3, 2).filter((e) => w.spacesOf(e).includes('body')).map((e) => e.id)).toEqual(['landing-hen'])
+  })
+
   it('a floor that comes down drops whoever stood on it beside what is below, not into it', () => {
     const f = fresh()
     const [x, y] = openRow(f, 5)

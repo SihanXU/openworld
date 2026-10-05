@@ -547,6 +547,9 @@ Held and dragged, the left button sets one in each cell it passes. A recipe may 
 carried, not used up (`TypeDef.tools`), and make more than one (`TypeDef.yields`): a log splits
 into two planks with an axe at hand, in the crafting panel ("All" splits every log).
 
+As built (2026-10-05): when a landing cell is occupied, `fall` searches for a free cell on
+the landing storey and retains that storey. Damage uses the actual drop to the chosen landing.
+
 ### 6.8 Combat
 
 - One durability and damage model for all things; material and quality enter attack and
@@ -730,12 +733,14 @@ all objectives (the quest log and the guide are shown apart).
    rewritten automatically; those that cannot be, and those that fail the repeat check (the
    stick farms), are listed for the user before removal.
 
-As built (2026-10-05, after the W1–W10 review; it refines the W2c note below): the repeat check is exact rather than lucky. It
-replays twice, once with every chance coming out yes and once with every chance coming out no
-(`World.luck`: chance conditions, chance emits and the fraction of a breakdown's parts). A
-stick that comes one time in twenty is as endless as one that always comes. A scenario names a
-thing under the top of its cell by its space (`tile:x,y:floor`), so a request about the floor
-under a tree replays on that floor. People yield to each other by a swap that is one step: the
+As built (2026-10-05): the repeat check explores both possible outcomes of each reached
+chance condition, emission and breakdown fraction, with a stable assignment per site across
+replays. It discovers sites depth first and checks at most 64 assignments. An endless yield
+refuses the patch; unexplored assignments at the limit also refuse it with a diagnostic that
+safety could not be established. Chances of zero or one have only their possible outcome.
+The triggering replay uses that assignment too, before the same 12 repeats and 4-event tail.
+A scenario names a thing under the top of its cell by its space (`tile:x,y:floor`), so a request
+about the floor under a tree replays on that floor. People yield to each other by a swap that is one step: the
 one pushed makes way first, and the pusher steps in only if it has gone. A cell holds one body
 (`World.fits` no longer lets people pass through people), and a thing that falls onto a body
 comes to rest beside it. Saves keep the migrated cells of maps not yet entered (`legacyTiles`,

@@ -8,7 +8,9 @@ import { RECOVERY } from '@lsw/content'
 import { connected, economySteps, freeLunch } from './economy.ts'
 import {
   RuleLibrary,
+  RepeatLimitError,
   buildModSpec,
+  buildSandbox,
   endlessYield,
   replay,
   scenarioEvent,
@@ -216,8 +218,10 @@ export class WorldLibrary {
       if (!this.lib.rules.has(reg.rule)) continue
       try {
         const rp = replay(reg.scenario, this.fullOntology(), this.lib)
-        if (rp.resolution.defined && endlessYield(rp.engine, scenarioEvent(reg.scenario, rp.engine))) out.push({ rule: reg.rule, reason: 'endless yield: its event, repeated on an unchanged host, keeps making things' })
-      } catch {
+        const eng = buildSandbox(reg.scenario, this.fullOntology(), this.lib)
+        if (rp.resolution.defined && endlessYield(eng, scenarioEvent(reg.scenario, eng), true)) out.push({ rule: reg.rule, reason: 'endless yield: its event, repeated on an unchanged host, keeps making things' })
+      } catch (err) {
+        if (err instanceof RepeatLimitError) out.push({ rule: reg.rule, reason: err.message })
         /* a scenario no longer buildable (types removed): nothing to judge */
       }
     }
