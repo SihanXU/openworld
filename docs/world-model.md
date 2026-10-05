@@ -518,6 +518,16 @@ difference reaches every storey of a touched cell and whoever relied on a thing 
 draws a storey raised, things set in a cell as part of the place, and fades what stands above the
 player near them. Not yet: the overworld's and paths' z, and roofs drawn as roofs.
 
+Storeys as built further (2026-10-05, tried with the pack's tiles before it was drawn): a wall
+or a door set on a wall stands on it, so walls stack into a taller wall with no floor between;
+stairs go up one way, the way their setter faced (R in the palette turns them): up from them only
+that way, down onto them only from their top; the inputs meet only what is on the player's own
+storey (Controls.layers). Drawn in 3/4: a storey is one tile higher (a wall's height), things by
+the row they stand in and then their storey; walls and doors are blocks (a front where nothing
+stands south of them, a top a storey up where nothing is built on them) in the project's own art
+(tools/src/art/structures.ts: the pack has walls only as whole houses and stairs only as icons);
+in a room, what is above it is not drawn and its south wall is cut away so one sees in.
+
 The build palette (B) sets things down as G does (2026-10-05): walls, floors, stairs, doors, beds
 and workbenches — one carried, or with none, one made from what is carried first
 (`Controls.previewPlace`, `Controls.place`; the palette never moves a pointer beyond reach
