@@ -830,13 +830,13 @@ export class Engine {
     // onto the stairs below from above them; off a floor's edge one falls to the first below
     const z = e.place.z ?? 0
     const floorAt = (zz: number) => !!w.occupant(map, nx, ny, 'floor', zz)
-    // stairs are a storey's front one can walk up (set where a wall would hold a floor's edge), going
-    // up one way (their facing, north unless set): walking into them that way, one comes out on what
-    // is laid over them; walking off that the other way, down in front of them
-    const BACK: Record<Dir, Dir> = { up: 'down', down: 'up', left: 'right', right: 'left' }
-    const stairsAt = (sx: number, sy: number, zz: number, way: Dir) => w.entitiesAt(map, sx, sy, zz).some((o) => w.hasTag(o, 'stairs') && (o.facing ?? 'up') === way)
-    const climb = stairsAt(nx, ny, z, dir) && floorAt(z + 1)
-    const descend = z > 0 && stairsAt(x, y, z - 1, BACK[dir])
+    // stairs are a block a storey high whose top is steps, going up one way (their facing, north
+    // unless set): one walks onto them (from any side: half a storey) and, standing on them, on the
+    // way they go up onto the floor a storey up; from a storey, onto the stairs below, half a storey down
+    const stairsAt = (sx: number, sy: number, zz: number) => w.entitiesAt(map, sx, sy, zz).find((o) => w.hasTag(o, 'stairs'))
+    const on = stairsAt(x, y, z)
+    const climb = !!on && (on.facing ?? 'up') === dir && floorAt(z + 1)
+    const descend = z > 0 && !floorAt(z) && !!stairsAt(nx, ny, z - 1)
     let nz = z
     let drop = 0
     if (climb) nz = z + 1

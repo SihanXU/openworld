@@ -1394,7 +1394,7 @@ req('W18', 'the overworld is what it shows: every cell of it one can stand on is
   expect(f.eng.nameOf({ e: wild.id }, 'zh')).toBe('森林荒野')
 })
 
-req('W12', 'a second storey: walls, a floor laid over them (held up by them), stairs set in under its edge, and up one goes; break the wall and the floor comes down, and whoever stood on it falls', [], () => {
+req('W12', 'a second storey: walls, a floor laid over them (held up by them), stairs set before its edge, and up one goes; break the wall and the floor comes down, and whoever stood on it falls', [], () => {
   const f = fresh()
   // an open stretch of the Ford, five cells across
   let at: [number, number] | undefined
@@ -1418,12 +1418,13 @@ req('W12', 'a second storey: walls, a floor laid over them (held up by them), st
   expect(over.place).toMatchObject({ x, y, z: 1 })
   expect(beside.place).toMatchObject({ x: x + 1, y, z: 1 })
   expect(W(f).relationsOf(beside).some((k) => k.startsWith('support|'))).toBe(true)
-  // stairs set in under the floor beside the wall, going up west (set from the east): the storey's front one walks up
-  const stairs = build('structure/stairs', x + 1)
-  expect(stairs.place).toMatchObject({ x: x + 1, y })
+  // stairs set before the floor's edge, going up west (set from the east): a block one walks onto
+  const stairs = build('structure/stairs', x + 2)
+  expect(stairs.place).toMatchObject({ x: x + 2, y })
   expect(stairs.facing).toBe('left')
-  // up: walking west into the stairs, one is on the floor over them, then over the wall
-  stand(f, x + 2, y, 'left')
+  // up: onto the stairs, then west onto the floor a storey up, then over the wall
+  stand(f, x + 3, y, 'left')
+  expect(walk(f, 'left')).toMatchObject({ x: x + 2, y })
   expect(walk(f, 'left')).toMatchObject({ x: x + 1, y, z: 1 })
   expect(walk(f, 'left')).toMatchObject({ x, y, z: 1 })
   // the wall broken: the floors come down, and the one standing there with them

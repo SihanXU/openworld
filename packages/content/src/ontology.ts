@@ -338,8 +338,9 @@ const RESIDENTS: TypeDef[] = [
   { id: 'structure', name: { en: 'structure', zh: '建筑件' }, tags: ['portable', 'structure', 'wooden', 'flammable'], props: { material: 'wood' } },
   { id: 'structure/wall', name: { en: 'Wall', zh: '墙' }, sprite: 'structure:wall', occupies: ['volume'], solid: true, tags: ['wall', 'opaque'], props: { maxHp: 12, hp: 12, supports: 2 }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
   { id: 'structure/floor', name: { en: 'Floor', zh: '地板' }, sprite: 'structure:floor', occupies: ['floor'], reach: ['ground'], props: { maxHp: 8, hp: 8, needsSupport: true }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
-  // stairs: a storey's front one walks up (in their cell, as a wall would be, under the floor laid over them)
-  { id: 'structure/stairs', name: { en: 'Stairs', zh: '楼梯' }, sprite: 'structure:stairs', occupies: ['volume'], solid: true, tags: ['stairs'], props: { maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 3 }], station: 'hands' },
+  // stairs: a block a storey high whose top is steps, set before what is a storey up: one walks onto
+  // them (half a storey up) and on, the way they go up, onto the storey above; open overhead
+  { id: 'structure/stairs', name: { en: 'Stairs', zh: '楼梯' }, sprite: 'structure:stairs', occupies: ['volume'], tags: ['stairs'], props: { maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 3 }], station: 'hands' },
   // a door: shut it stops what walks, as a wall does; open, one walks through; either way it is a room's edge
   { id: 'structure/door', name: { en: 'Door', zh: '门' }, sprite: 'structure:door', occupies: ['volume'], solid: true, tags: ['door'], props: { maxHp: 10, hp: 10, supports: 2 }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
   { id: 'structure/door/open', name: { en: 'Open Door', zh: '开着的门' }, sprite: 'structure:door_open', solid: false },
