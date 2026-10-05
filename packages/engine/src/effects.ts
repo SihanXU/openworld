@@ -209,7 +209,7 @@ export class EffectRunner {
         // becoming a thing that takes a space of its cell another holds, it gives way: it is gone (rock
         // turning to gravel where there is a floor already), as one destroyed
         const p = host.place.on === 'tile' ? host.place : undefined
-        const taken = p && w.spacesOf({ ...host, type: into }).some((s) => w.entitiesAt(p.map, p.x, p.y).some((o) => o.id !== host.id && w.spacesOf(o).includes(s)))
+        const taken = p && w.spacesOf({ ...host, type: into }).some((s) => w.entitiesAt(p.map, p.x, p.y, p.z ?? 0).some((o) => o.id !== host.id && w.spacesOf(o).includes(s)))
         if (taken) {
           if (w.hasTag(host, 'essential')) return
           eng.touch({ e: host.id }, true)
@@ -331,7 +331,10 @@ export class EffectRunner {
         while (z > 0 && !w.occupant(map, x, y, 'floor', z)) z--
         const levels = host.place.z - z
         eng.touch({ e: host.id })
-        w.place(host, { on: 'tile', map, x, y, ...(z && { z }) })
+        // the cell it lands in may be taken (a hen under the floor, a boulder): it comes down beside it
+        let to = { map, x, y }
+        if (w.clashesAt(map, x, y, z, w.spacesOf(host), host.id).length) to = eng.nearestFree({ map, x, y }, host) ?? to
+        w.place(host, { on: 'tile', ...to, ...(z && to.x === x && to.y === y && { z }) })
         eng.touch({ e: host.id })
         eng.fallBy(host, levels, ev)
         return
@@ -346,9 +349,9 @@ export class EffectRunner {
           for (const part of w.onto.resolve(host.type).makeup ?? []) {
             // the expected count: whole parts, and the fraction by chance
             const expect = part.count * (part.chance ?? 1) * rate
-            const n = Math.floor(expect) + (w.rand() < expect - Math.floor(expect) ? 1 : 0)
+            const n = w.luck !== undefined ? Math.ceil(expect) : Math.floor(expect) + (w.rand() < expect - Math.floor(expect) ? 1 : 0)
             for (let i = 0; i < n; i++) {
-              const made = w.create(part.type, { on: 'tile', map: at.map, x: at.x, y: at.y }, material && w.onto.resolve(part.type).tags.includes('portable') ? { tags: [material] } : {})
+              const made = w.create(part.type, { on: 'tile', map: at.map, x: at.x, y: at.y, ...(at.z && { z: at.z }) }, material && w.onto.resolve(part.type).tags.includes('portable') ? { tags: [material] } : {})
               eng.touch({ e: made.id })
               // it pops out for the magnet, as anything a rule drops (what a body leaves lies still: taken with F)
               if (w.isPortable(made) && !eff.still) made.dropped = true
@@ -358,7 +361,7 @@ export class EffectRunner {
         for (const id of [...(host.contents ?? []), ...(host.held ? [host.held] : [])]) {
           const c = w.get(id)
           if (!c || !at) continue
-          w.place(c, { on: 'tile', map: at.map, x: at.x, y: at.y })
+          w.place(c, { on: 'tile', map: at.map, x: at.x, y: at.y, ...(at.z && { z: at.z }) })
           eng.touch({ e: c.id })
           if (!eff.still) c.dropped = true
         }
@@ -584,7 +587,7 @@ export class EffectRunner {
     for (const to of this.receivers(eff.to, ev)) {
       const v = w.view(to)
       if (!v || (eff.filter && !matchSelector(eff.filter, v))) continue
-      if (eff.chance !== undefined && w.rand() >= eff.chance) continue
+      if (eff.chance !== undefined && w.luck === undefined && w.rand() >= eff.chance) continue
       eng.queue({
         kind: `impulse/${eff.impulse as Impulse}`,
         host: to,

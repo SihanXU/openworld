@@ -35,3 +35,27 @@ describe('a save taken while the modder works', () => {
     expect(loaded.engine.busy(p2)).toBe(false)
   })
 })
+
+describe('an older save (cells as tile overrides, before world-model.md §4.6)', () => {
+  it('keeps the changed cells of a map not entered yet through the next save, and applies them when it is', () => {
+    const { index, chunks } = buildFord()
+    const game = Game.create(index, onto, lib())
+    for (const c of chunks) game.loadChunk(decodeChunk(c))
+    const meadow = game.engine.world.map('meadow')!
+    const i = meadow.terrain.findIndex((t) => t === 'tree')
+    const [x, y] = [i % meadow.width, Math.floor(i / meadow.width)]
+    // a tree felled on the meadow, kept the old way; the player is elsewhere
+    const old = structuredClone(game.save()) as ReturnType<Game['save']> & { state: { tiles?: unknown } }
+    old.state.tiles = { [`meadow:${x}:${y}`]: { terrain: 'stump' } }
+    const first = Game.load(old, index, onto, lib())
+    const here = first.engine.world.posOf(first.engine.world.player)!.map
+    expect(here).not.toBe('meadow')
+    first.loadMapData(decodeChunk(chunks.find((c) => c.map.id === here)!).map)
+    // saved again before the meadow is ever entered
+    const again = Game.load(JSON.parse(JSON.stringify(first.save())), index, onto, lib())
+    again.loadMapData(decodeChunk(chunks.find((c) => c.map.id === 'meadow')!).map)
+    expect(again.engine.world.terrainAt('meadow', x, y)).toBe('stump')
+    expect(again.engine.world.state.legacyTiles?.meadow).toBeUndefined()
+  })
+})
+

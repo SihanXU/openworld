@@ -217,9 +217,7 @@ function upgrade(eng: Engine, index: WorldIndex): void {
   // become the cells' things when each map's data comes, and relations keyed by tile start again
   for (const [k, t] of Object.entries(s.tiles ?? {})) {
     const [map, x, y] = k.split(':')
-    const list = eng.legacyTiles.get(map) ?? []
-    list.push({ x: +x, y: +y, ...t })
-    eng.legacyTiles.set(map, list)
+    ;((s.legacyTiles ??= {})[map] ??= []).push({ x: +x, y: +y, ...t })
   }
   delete s.tiles
   // a beat was a step of its own kind; it is a step of the story's one script now (world-model.md §6.12)
@@ -235,10 +233,10 @@ function upgrade(eng: Engine, index: WorldIndex): void {
     for (const k of ['regrowing', 'rooting', 'laying']) if (bag && k in bag) (bag.stage = bag[k]), delete bag[k]
   }
   for (const e of Object.values(s.entities)) clock(e.statuses)
-  for (const t of eng.legacyTiles.values()) for (const c of t) clock(c.statuses)
+  for (const t of Object.values(s.legacyTiles ?? {})) for (const c of t) clock(c.statuses)
   if (Object.values(s.relations ?? {}).some((ks) => ks.some((k) => k.includes('|t|')))) {
     delete s.relations
-    for (const m of s.loadedMaps) eng.reseed.add(m)
+    s.reseed = [...new Set([...(s.reseed ?? []), ...s.loadedMaps])]
   }
 }
 

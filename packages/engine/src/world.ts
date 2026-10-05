@@ -91,6 +91,12 @@ export class World {
   /** The last lines logged or said, kept past the drain of `fx` (a request's recent context). */
   recent: Text[] = []
   /**
+   * The repeat check's luck (world-model.md §8.4): set, every chance in an outcome comes out this
+   * way (a chance condition holds or fails, a chance emit or part of a breakdown is always made),
+   * so a yield that only sometimes comes is seen as the endless one it is. Unset in play.
+   */
+  luck?: boolean
+  /**
    * The state changes only through its one writer (design.md §5.13, A2). The engine claims it
    * when it is made and lends it to outcomes (the effect runner), the clock (a status running
    * out), loading, and the input's own posture (what is in the hand). No other code holds it, so a
@@ -223,7 +229,8 @@ export class World {
 
   /** Moving a large actor validates its whole body, not just its anchor. */
   fits(e: Entity, map: string, x: number, y: number, z = 0): boolean {
-    return this.occupiedCells(e, x, y).every(([cx, cy]) => this.walkable(map, cx, cy, e.id, !!e.npc, z))
+    // people do not walk through each other: they yield (a swap, engine.stepSelf), so a cell holds one body
+    return this.occupiedCells(e, x, y).every(([cx, cy]) => this.walkable(map, cx, cy, e.id, false, z))
   }
 
   // ---------------------------------------------------------------- basics
@@ -317,6 +324,19 @@ export class World {
     if (r.occupies) return r.occupies
     if (this.isAgent(e)) return this.hasTag(e, 'airborne') ? [] : ['body']
     return r.solid ? ['volume'] : []
+  }
+
+  /**
+   * Can two things share a cell (world-model.md §5.2)? Not when they take the same space, nor a
+   * solid volume and a body: a wall is not set onto a hen, a faller does not land inside a boulder.
+   */
+  clash(a: Space[], b: Space[]): boolean {
+    return a.some((s) => b.some((o) => o === s || (s === 'volume' && o === 'body') || (s === 'body' && o === 'volume')))
+  }
+
+  /** What in a cell a thing taking these spaces would clash with. */
+  clashesAt(map: string, x: number, y: number, z: number, spaces: Space[], ignore?: Id): Entity[] {
+    return this.entitiesAt(map, x, y, z).filter((o) => o.id !== ignore && this.clash(spaces, this.spacesOf(o)))
   }
 
   /** What takes a space of a cell, if anything. */
@@ -594,7 +614,7 @@ export class World {
     const mine = this.spacesOf(e)
     for (let z = from; z <= top; z++) {
       const here = this.entitiesAt(map, x, y, z).filter((o) => o.id !== e.id)
-      if (mine.some((s) => here.some((o) => this.spacesOf(o).includes(s)))) continue
+      if (here.some((o) => this.clash(mine, this.spacesOf(o)))) continue
       if (mine.includes('floor')) {
         if (z === 0 || this.supportersOf({ ...e, place: { on: 'tile', map, x, y, z } }).length) return z
         continue

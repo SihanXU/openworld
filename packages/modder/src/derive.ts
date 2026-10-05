@@ -68,7 +68,8 @@ function effectsOf(sc: Scenario, rule: Rule, lib: RuleLibrary, onto: Ontology): 
     for (const s of had) if (!has.includes(s)) out.push({ key, lacksStatus: s })
   }
   for (const v of Object.values(sc.event)) {
-    if (typeof v !== 'string' || !v.startsWith('tile:')) continue
+    // (a cell's top only: the terrain rows say what is on top; `tile:x,y:space` is what lies under it)
+    if (typeof v !== 'string' || !v.startsWith('tile:') || v.split(':').length > 2) continue
     const [x, y] = v.slice(5).split(',').map(Number)
     const t = w.terrainAt('sandbox', x, y)
     if (t !== sc.terrain?.[y]?.[x]) out.push({ tile: [x, y], terrain: t })
@@ -127,7 +128,8 @@ export function deriveTests(patch: Patch, req: ModRequest, lib: RuleLibrary, ont
       const expect = effectsOf(req.scenario, r, cand.lib, cand.onto)
       if (!expect) return a // not this rule's event: the validator will say so
       const key = hostKey(req.scenario)
-      if (!key) return a
+      // (a thing under a cell's top, `tile:x,y:space`, has no row of its own to swap)
+      if (!key || key.split(':').length > 2) return a
       const tile = key.startsWith('tile:') ? key.slice(5).split(',').map(Number) : undefined
       const ent = tile ? undefined : req.scenario.entities.find((e) => e.key === key)
       if (!tile && !ent) return a // a resident host: one of a kind

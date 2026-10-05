@@ -283,7 +283,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
     expectations: [
       '{key, hasStatus} {key, lacksStatus} {key, isType} {key, destroyed:true} {key, exists:true}',
       '{key, propGt:[k,n]} {key, propLt:[k,n]} {tile:[x,y], terrain} {tile:[x,y], hasStatus} {spawned:type}',
-      'Scenario: {terrain?: string[][], entities:[{key,type,x,y,tags?,statuses?,props?,heldBy?,inside?}], event:{kind?, host?, actor?, target?, instrument?, other?, item?, source?, params?}, ticks?} — roles reference entity keys or "tile:x,y"; kind defaults to act/use, host to the instrument (or the actor)',
+      'Scenario: {terrain?: string[][], entities:[{key,type,x,y,tags?,statuses?,props?,heldBy?,inside?}], event:{kind?, host?, actor?, target?, instrument?, other?, item?, source?, params?}, ticks?} — roles reference entity keys, "tile:x,y" (a cell top) or "tile:x,y:floor|soil|volume" (what takes that space in it); kind defaults to act/use, host to the instrument (or the actor)',
     ],
     ontology: {
       // without types: the model is shown the request's own types (the brief) and asks for the rest (the router)
@@ -764,7 +764,9 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
   for (let y = 0; y <= 2 * WINDOW; y++)
     for (let x = 0; x <= 2 * WINDOW; x++) {
       const top = w.cellTop(center.map, ox + x, oy + y)
-      if (top && !w.isStatic(top) && (top.statuses || top.props)) cells.push({ x, y, statuses: top.statuses && Object.keys(top.statuses), props: top.props && { ...top.props } })
+      for (const c of w.entitiesAt(center.map, ox + x, oy + y))
+        if (w.isTerrain(c) && !w.isStatic(c) && (c.statuses || c.props))
+          cells.push({ x, y, ...(c !== top && { space: w.spacesOf(c)[0] }), statuses: c.statuses && Object.keys(c.statuses), props: c.props && { ...c.props } })
     }
   const addEntity = (id: string, key: string) => {
     const e = w.get(id)
@@ -797,7 +799,9 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
     if (!e) return undefined
     if (w.isTerrain(e)) {
       const p = w.posOf(e)
-      return p && `tile:${p.x - ox},${p.y - oy}`
+      // the cell's top by its cell alone; what lies under it (the floor under a tree) by its space too
+      const space = w.cellTop(p?.map ?? '', p?.x ?? 0, p?.y ?? 0)?.id === e.id ? undefined : w.spacesOf(e)[0]
+      return p && `tile:${p.x - ox},${p.y - oy}${space ? `:${space}` : ''}`
     }
     if (w.isPlaceless(e)) return e.id
     // make sure holders come first so held/inside links resolve

@@ -40,6 +40,14 @@ describe('no endless yield (world-model.md §8.4)', () => {
     expect(res.errors.join('\n')).toMatch(/endless yield/)
   })
 
+  it('and refuses it when the stick comes only by chance: the check forces every chance', () => {
+    const res = validatePatch(patch({ id: 'patch/statue-luck', host: { type: 'fixture/sacred/statue' }, on: 'impulse/strike', tree: { if: { chance: 0.05 }, then: { do: [STICK] }, else: { do: [] } } }), { ontology: onto, library: lib(), scenario: blowOnStatue() })
+    expect(res.errors.join('\n')).toMatch(/endless yield/)
+    // and the other way round: nothing by chance, a stick otherwise
+    const rev = validatePatch(patch({ id: 'patch/statue-unluck', host: { type: 'fixture/sacred/statue' }, on: 'impulse/strike', tree: { if: { chance: 0.95 }, then: { do: [] }, else: { do: [STICK] } } }), { ontology: onto, library: lib(), scenario: blowOnStatue() })
+    expect(rev.errors.join('\n')).toMatch(/endless yield/)
+  })
+
   it('and accepts the same yield when it costs its host: a status that gates it and runs out', () => {
     const res = validatePatch(
       patch({
