@@ -43,13 +43,18 @@ interface EView {
   dragon?: { wings: Phaser.GameObjects.Image[]; segments: Phaser.GameObjects.Image[]; trail: { x: number; y: number }[] }
   /** A built thing's second picture: a wall block's top (one storey up), a raised floor's edge. */
   top?: Phaser.GameObjects.Image
-  /** A wall's front drawn over the player (a storey above them, in front): see-through. */
+  /** A raised floor's thickness, under a south edge nothing holds up (a balcony). */
+  lip?: Phaser.GameObjects.Image
+  /** Part of what hides the player (a wall's front, a floor overhead): see-through. */
   fadeFront?: boolean
 }
 
 /** Built things drawn as part of the place (structures.ts art): wall blocks, doors, floors, stairs. */
 const isWallish = (type: string) => type === 'structure/wall' || type.startsWith('structure/door')
 const STAIRS_FRAME: Record<string, number> = { up: 0, right: 1, down: 2, left: 3 }
+/** structures.ts: wall.png's frames past the 16 tops and 4 fronts — a door in a north-south wall from above, shut and open; floor.png's lip. */
+const DOOR_ABOVE = 20
+const FLOOR_LIP = 16
 
 /** How far apart (px) the dragon's body segments trail, and how many there are (the last is the tail). */
 const DRAGON_GAP = 11
@@ -321,13 +326,13 @@ export class WorldScene extends Phaser.Scene {
     this.playerAt = { x: f.player.x, y: f.player.y, z: f.player.z ?? 0 }
     this.walls.clear()
     this.floors.clear()
+    this.stairs.clear()
     for (const e of f.entities) {
       if (isWallish(e.type)) this.walls.add(`${e.x},${e.y},${e.z ?? 0}`)
       else if (e.type === 'structure/floor') this.floors.add(`${e.x},${e.y},${e.z ?? 0}`)
+      else if (e.type === 'structure/stairs') this.stairs.add(`${e.x},${e.y},${e.z ?? 0}`)
     }
     // the room the player stands in, and the cells round it (its walls): what is above is not drawn
-    // something laid over the player's head (one stands under a floor): what is above near them fades
-    this.overhead = this.floors.has(`${f.player.x},${f.player.y},${(f.player.z ?? 0) + 1}`) || this.walls.has(`${f.player.x},${f.player.y},${(f.player.z ?? 0) + 1}`)
     this.underRoof.clear()
     this.inRoom.clear()
     for (const [x, y] of f.player.room ?? []) {
@@ -612,50 +617,67 @@ export class WorldScene extends Phaser.Scene {
     return CATALOG.fixtures[e.sprite] ?? CATALOG.fixtures[`fixture:${e.type.split('/')[1]}`] ?? CATALOG.fixtures['fixture:fixture']
   }
 
-  /** Walls and doors, and floors, of the frame, by `x,y,z`. */
+  /** Walls and doors, floors, and stairs of the frame, by `x,y,z`. */
   private walls = new Set<string>()
   private floors = new Set<string>()
+  private stairs = new Set<string>()
   /** The cells of the room the player stands in and round it: the storeys above them are not drawn. */
   private underRoof = new Set<string>()
-  /** The room's own cells: a wall south of one is cut away (its top faint) so one sees in. */
+  /** The room's own cells: the wall south of them is see-through (its top not drawn) so one sees in. */
   private inRoom = new Set<string>()
-  /** Something is laid over the player's head. */
-  private overhead = false
-  /** Walls (by `x,y,z`) drawn see-through: the whole wall that stands in front of the player and hides them. */
+  /** What is drawn see-through: the whole wall (by `x,y,z`) or the row of floor (by `f:x,y,z`) that hides the player. */
   private seeThrough = new Set<string>()
 
   /**
-   * The wall that hides the player, all of it: a wall south of them whose top or front is drawn over
-   * them (or the south wall of the room they are in), then the run of wall it belongs to along that
-   * row on its storey, and what is stacked on it — its fronts and tops all see-through.
+   * What hides the player, all of it (after Stardew): a wall or a floor drawn in front of them over
+   * their body — or the wall on the south side of the room they are in, the camera's side — then the
+   * run it belongs to: a wall along its row and up and down what is stacked on it, a floor along its
+   * row. A see-through wall shows its front faint and no top.
    */
   private findSeeThrough(f: Frame): void {
     this.seeThrough.clear()
     const me = { x: f.player.x, y: f.player.y, z: f.player.z ?? 0 }
-    const rows = [me.y - me.z - 1, me.y - me.z]
-    const seeds: [number, number, number][] = []
+    const xyz = (k: string) => k.split(',').map(Number) as [number, number, number]
+    // the player's body as drawn: in their cell, a tile up a storey, half a tile up on stairs
+    const head = (me.y + 1 - me.z) * T - T - (this.stairs.has(`${me.x},${me.y},${me.z}`) ? T / 2 : 0)
+    const body = { x0: me.x * T + 4, x1: me.x * T + 12, y0: head + 4, y1: head + 14 }
+    const mine = (me.y + 1) * T + me.z * 3 + 2
+    // drawn after them (in front), drawn at all (not over the room they are in), and over their body
+    const over = (x: number, y: number, z: number, y0: number, y1: number) =>
+      (y + 1) * T + z * 3 > mine && !(z > me.z && this.underRoof.has(`${x},${y}`)) && x * T < body.x1 && x * T + T > body.x0 && y0 < body.y1 && y1 > body.y0
+    const seeds: string[] = []
     for (const k of this.walls) {
-      const [x, y, z] = k.split(',').map(Number)
-      if (y <= me.y || z < me.z || Math.abs(x - me.x) > 1) continue
-      // its top is drawn a storey above its front, and each storey one row up
-      if (rows.includes(y - z - 1) || rows.includes(y - z) || (z === me.z && this.inRoom.has(`${x},${y - 1}`))) seeds.push([x, y, z])
+      const [x, y, z] = xyz(k)
+      const foot = (y + 1 - z) * T
+      const front = !this.walls.has(`${x},${y + 1},${z}`)
+      const top = !this.walls.has(`${x},${y},${z + 1}`) && !this.floors.has(`${x},${y},${z + 1}`)
+      if ((front && over(x, y, z, foot - T, foot)) || (top && over(x, y, z, foot - 2 * T, foot - T)) || (z === me.z && this.inRoom.has(`${x},${y - 1}`))) seeds.push(k)
     }
-    const queue = [...seeds]
-    while (queue.length) {
-      const [x, y, z] = queue.pop()!
-      const key = `${x},${y},${z}`
-      if (this.seeThrough.has(key) || !this.walls.has(key)) continue
-      this.seeThrough.add(key)
-      // along its row on its storey, and up what is stacked on it
-      queue.push([x - 1, y, z], [x + 1, y, z], [x, y, z + 1])
+    for (const k of this.floors) {
+      const [x, y, z] = xyz(k)
+      const foot = (y + 1 - z) * T
+      if (z > 0 && over(x, y, z, foot - T, foot + 4)) seeds.push(`f:${k}`)
+    }
+    while (seeds.length) {
+      const k = seeds.pop()!
+      if (this.seeThrough.has(k)) continue
+      const floor = k.startsWith('f:')
+      const [x, y, z] = xyz(floor ? k.slice(2) : k)
+      if (!(floor ? this.floors : this.walls).has(`${x},${y},${z}`)) continue
+      this.seeThrough.add(k)
+      const p = floor ? 'f:' : ''
+      seeds.push(`${p}${x - 1},${y},${z}`, `${p}${x + 1},${y},${z}`)
+      if (!floor) seeds.push(`${x},${y},${z + 1}`, `${x},${y},${z - 1}`)
     }
   }
 
   /**
-   * A built thing as part of the place (structures.ts): a wall block shows its front in its cell
-   * (where nothing stands south of it on its storey) and its top one storey up (where nothing is
-   * built on it), outlined where no wall is beside it; a door is a block whose front is the door;
-   * a floor laid a storey up has an edge where no floor (nor a wall's top) is beside it; stairs face the way up.
+   * A built thing as part of the place (structures.ts): a block (a wall, a door) shows its front in
+   * its cell (where nothing stands south of it on its storey) and its top one storey up (where nothing
+   * is built on it), the top a dark cap outlined where no wall is beside it; a door in a wall that runs
+   * east-west is its front, in one that runs north-south its top (seen from above). A floor laid a
+   * storey up has an edge where nothing is beside it, and shows its thickness under a south edge
+   * nothing holds up. Stairs are a block whose top is steps, drawn by the way up.
    */
   private dressBuilt(v: EView, e: EntitySnap): void {
     const z = e.z ?? 0
@@ -675,22 +697,23 @@ export class WorldScene extends Phaser.Scene {
     }
     if (isWallish(e.type)) {
       const n = this.walls.has(at(0, -1)), east = this.walls.has(at(1, 0)), s = this.walls.has(at(0, 1)), w = this.walls.has(at(-1, 0))
-      // the front: the door's own picture for a door, planks for a wall
-      if (e.type === 'structure/wall') v.body.setTexture(LSW_WALL, frameOf(LSW_WALL, 16 + (east ? 1 : 0) + (w ? 2 : 0)))
+      // a door in a wall that runs north-south is seen from above: a wall's front, the door on its top
+      const door = e.type !== 'structure/wall'
+      const across = door && (n || s) && !(east || w)
+      if (!door || across) v.body.setTexture(LSW_WALL, frameOf(LSW_WALL, 16 + (east ? 1 : 0) + (w ? 2 : 0)))
       else {
         const d = this.fixtureDef(e)?.base
         if (d) v.body.setTexture(d.img, spriteFrames(this, `ico:${e.sprite}`, d)[0])
       }
-      v.body.setOrigin(0.5, 1).setScale(1).setVisible(!s || e.type !== 'structure/wall')
+      v.body.setOrigin(0.5, 1).setScale(1).setVisible(!s || (door && !across))
       const top = topImage()
-      top.setTexture(LSW_WALL, frameOf(LSW_WALL, (n ? 1 : 0) + (east ? 2 : 0) + (s ? 4 : 0) + (w ? 8 : 0)))
+      top.setTexture(LSW_WALL, frameOf(LSW_WALL, across ? DOOR_ABOVE + (e.type === 'structure/door/open' ? 1 : 0) : (n ? 1 : 0) + (east ? 2 : 0) + (s ? 4 : 0) + (w ? 8 : 0)))
+      // the wall that hides the player, all of it, is see-through: its front faint, its top not drawn
+      const clear = this.seeThrough.has(at(0, 0))
       // its top shows unless something is built on it — and is drawn (not hidden over the room one is in)
       const hiddenAbove = (this.playerAt?.z ?? 0) < z + 1 && this.underRoof.has(`${e.x},${e.y}`)
-      top.setVisible(hiddenAbove || (!this.walls.has(at(0, 0, 1)) && !this.floors.has(at(0, 0, 1))))
-      // the wall that hides the player, all of it, is see-through: its front and its top
-      const seeThrough = this.seeThrough.has(at(0, 0))
-      top.setAlpha(seeThrough ? 0.35 : 1)
-      v.fadeFront = seeThrough
+      top.setVisible(!clear && (hiddenAbove || (!this.walls.has(at(0, 0, 1)) && !this.floors.has(at(0, 0, 1)))))
+      v.fadeFront = clear
       v.key = 'built'
       return
     }
@@ -700,10 +723,21 @@ export class WorldScene extends Phaser.Scene {
       top.setPosition(0, 0)
       top.setTexture(LSW_FLOOR, frameOf(LSW_FLOOR, (has(0, -1) ? 1 : 0) + (has(1, 0) ? 2 : 0) + (has(0, 1) ? 4 : 0) + (has(-1, 0) ? 8 : 0)))
       v.body.setScale(1)
+      // its thickness, where nothing holds its south edge nor stands under it
+      const lip = !has(0, 1) && !this.walls.has(at(0, 0, -1))
+      if (lip && !v.lip) {
+        v.lip = this.add.image(0, 4, LSW_FLOOR, frameOf(LSW_FLOOR, FLOOR_LIP, 16, 4)).setOrigin(0.5, 1)
+        v.root.add(v.lip)
+      }
+      v.lip?.setVisible(lip)
+      const clear = this.seeThrough.has(`f:${at(0, 0)}`)
+      top.setAlpha(clear ? 0.35 : 1)
+      v.lip?.setAlpha(clear ? 0.35 : 1)
+      v.fadeFront = clear
       return
     }
     if (e.type === 'structure/stairs') {
-      v.body.setTexture(LSW_STAIRS, frameOf(LSW_STAIRS, STAIRS_FRAME[e.facing] ?? 0)).setOrigin(0.5, 1).setScale(1)
+      v.body.setTexture(LSW_STAIRS, frameOf(LSW_STAIRS, STAIRS_FRAME[e.facing] ?? 0, 16, 32)).setOrigin(0.5, 1).setScale(1)
       v.key = 'built'
     }
   }
@@ -711,7 +745,7 @@ export class WorldScene extends Phaser.Scene {
   private makeView(e: EntitySnap): EView {
     const t = this.textureFor(e)
     // on its storey: drawn a storey higher for each
-    const root = this.add.container(e.x * T + T / 2, (e.y + 1) * T - (e.z ?? 0) * STOREY_LIFT)
+    const root = this.add.container(e.x * T + T / 2, (e.y + 1) * T - (e.z ?? 0) * STOREY_LIFT - (e.tags.includes('agent') && this.stairs.has(`${e.x},${e.y},${e.z ?? 0}`) ? STOREY_LIFT / 2 : 0))
     let shadow: Phaser.GameObjects.Ellipse | undefined
     if (e.tags.includes('agent')) {
       const [width, depth] = e.boss?.footprint ?? [1, 1]
@@ -770,8 +804,8 @@ export class WorldScene extends Phaser.Scene {
     const prev = v.snap
     v.snap = e
     const px = e.x * T + T / 2
-    // a storey above the ground's is drawn raised
-    const py = (e.y + 1) * T - (e.z ?? 0) * STOREY_LIFT
+    // a storey above the ground's is drawn raised; one on stairs, half a storey more
+    const py = (e.y + 1) * T - (e.z ?? 0) * STOREY_LIFT - (e.tags.includes('agent') && this.stairs.has(`${e.x},${e.y},${e.z ?? 0}`) ? STOREY_LIFT / 2 : 0)
     // a flyer glides toward where it is (update()); only a long way off does it appear there at once
     if (e.tags.includes('companion')) {
       if (first || !v.flyer || Math.max(Math.abs(prev.x - e.x), Math.abs(prev.y - e.y)) > 6) v.root.setPosition(px, py)
@@ -827,12 +861,10 @@ export class WorldScene extends Phaser.Scene {
     // what lies flat on the ground (moss, leaves, pebbles) is under all that stands
     // by the row it stands in, then its storey (a building's upper storey is behind what stands south of it)
     v.root.setDepth((!e.tags.includes('agent') && !e.tags.includes('portable')) && this.fixtureDef(e)?.ground ? -45 : (e.y + 1) * T + (e.z ?? 0) * 3 + (e.tags.includes('agent') ? 2 : (!e.tags.includes('agent') && e.tags.includes('portable') && !e.spaces) ? 1 : 0))
-    // what stands on a storey above the player: over the room they are in, not drawn (one sees into
-    // it); elsewhere near them, faded (one sees under the floor overhead)
+    // what stands on a storey above the player over the room they are in is not drawn (one sees into
+    // it); elsewhere, what hides them is see-through (findSeeThrough)
     const me = this.playerAt
-    const above = !!me && (e.z ?? 0) > me.z
-    v.root.setVisible(!(above && this.underRoof.has(`${e.x},${e.y}`)))
-    v.root.setAlpha(above && this.overhead && Math.abs(e.x - me!.x) <= 3 && Math.abs(e.y - me!.y) <= 3 ? 0.3 : 1)
+    v.root.setVisible(!(!!me && (e.z ?? 0) > me.z && this.underRoof.has(`${e.x},${e.y}`)))
     // status overlay + tint
     const top = OVERLAY_OF.find(([s]) => e.statuses.includes(s))
     const want = top?.[1]

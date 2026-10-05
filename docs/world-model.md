@@ -536,16 +536,31 @@ player near them. Not yet: the overworld's and paths' z, and roofs drawn as roof
 
 Storeys as built further (2026-10-05, tried with the pack's tiles before it was drawn): a wall
 or a door set on a wall stands on it, so walls stack into a taller wall with no floor between;
-stairs are a storey's front one walks up, one tile set where a wall would hold a floor's edge, with
-the floor laid over them: walking into them the way they go up (their setter's facing; R in the
-palette turns them), one comes out on that floor; off it the other way, down in front of them; from
-the side they are a wall; the inputs meet only what is on the player's own
-storey (Controls.layers). Drawn in 3/4: a storey is one tile higher (a wall's height), things by
-the row they stand in and then their storey; walls and doors are blocks (a front where nothing
-stands south of them, a top a storey up where nothing is built on them) in the project's own art
-(tools/src/art/structures.ts: the pack has walls only as whole houses and stairs only as icons);
-in a room, what is above it is not drawn; a wall that hides the player is see-through, all of
-it (its run along that row, what is stacked on it, fronts and tops).
+the inputs meet only what is on the player's own storey (Controls.layers).
+
+Blocks and stairs redesigned (2026-10-05, after RPG Maker, Stardew Valley and RimWorld, every case
+drawn first): one projection for everything — a point h storeys up is drawn h tiles above where it
+stands, a storey one tile high as a cell is one tile deep — and drawn by the row, then the storey.
+- A block (a wall, a door, stairs) shows its front in its cell (where nothing stands south of it)
+  and its top a tile up (where nothing is built on it). A wall's top is its cap, a dark mass rimmed
+  where no wall is beside it (RPG Maker's ceiling), never mistaken for a floor one walks on. A door
+  in a wall that runs east-west is its front; in one that runs north-south it is seen from above
+  (the sill, the leaf along the wall's line or swung open).
+- A floor laid a storey up lies where the tops of the blocks under it are; under a south edge
+  nothing holds up (a balcony) its thickness shows.
+- Stairs are a block a storey high whose top is steps, set before what is a storey up, going up
+  their setter's facing (R in the palette turns them). One walks onto them from any side (half a
+  storey: drawn half a tile up) and, on them, on the way they go up onto the floor a storey up;
+  from that storey onto them, half a storey down, and off. They keep the storey over them open: a
+  floor set on their cell is laid a storey higher (a roof), and in a room, stairs going up through
+  the hole are the room's own.
+- What hides the player is see-through, all of it (Stardew): a wall or a floor drawn in front of
+  them over their body, and the run it belongs to (a wall's along its row and up and down what is
+  stacked on it, a floor's along its row); a see-through wall shows its front faint and no top. In a
+  room, its south wall (the camera's side) is see-through so, and what is above the room is not
+  drawn (RimWorld, The Sims).
+The art is the project's own (tools/src/art/structures.ts: the pack has walls only as whole houses
+and stairs only as icons).
 
 The build palette (B) sets things down as G does (2026-10-05): walls, floors, stairs, doors, beds
 and workbenches — one carried, or with none, one made from what is carried first
