@@ -157,7 +157,7 @@ Interaction = { verb, actor, target, instrument?, at, time }
 
 The player never chooses among the verbs. The two keys below do, using the rule library.
 
-### 5.2 Player input: four inputs, one verb each
+### 5.2 Player input: five inputs, one act each
 
 **Why not Stardew's contextual Action key.** Stardew's interaction space is closed: each pair
 of (held thing, target) means one thing, a tile holds one thing, and items in the bag do not
@@ -169,9 +169,9 @@ there was unreachable. Checked against the engine's event space, it had five hol
 a bare-hand interaction on the same fixture; a tool on the ground versus using it on oneself;
 layers under a pile; items in the bag as targets; an axe that both chops and strikes).
 
-**The attack key.** Besides the four, **Space** strikes straight ahead with the held weapon (or
+**The attack key.** Besides the five, **Space** strikes straight ahead with the held weapon (or
 a fist): on the press, and again while held, paced by the attack cooldown. It adds no event the
-four cannot make (left click with a weapon makes the same blow, aimed at a spot); it is there
+five cannot make (left click with a weapon makes the same blow, aimed at a spot); it is there
 for feel, because a fight should not wait for a mouse release or depend on where the cursor is.
 
 **Completeness**, the criterion every input design here must meet:
@@ -182,27 +182,43 @@ for feel, because a fight should not wait for a mouse release or depend on where
    event; no event is reachable only while another is undefined.
 3. **Foreseeable**: before the press, the HUD shows the event it will make.
 
-**The player's event space** (from the engine and the rules): `take(target)` — picking crops is
-a take; `put(held, target)` — sowing and giving are puts; `interact(none, target)`;
-`interact(held, target)` — eating is an interaction with oneself; `hit(held or fist, target)`;
-`enter(tile)`. Targets: every layer of a tile within reach (people and creatures, fixtures, the
-items of a pile, the ground), the player, and items in the bag or an open chest.
+**The player's event space** (from the engine and the rules): `hands(target)` — a hand on it;
+`take(target)` — picking crops is a take; `put(held, target)` — sowing, storing and giving are
+puts; `use(held, target)` — eating is a use on oneself; `use(none, target)` — the bare body's
+blow; `enter(tile)`. Targets: every layer of a tile within the act's reach (people and creatures,
+fixtures, the items of a pile, the ground), the player (for use only), and items in the bag or an
+open chest.
 
-**The inputs**, one verb each, as in action RPGs:
+**The inputs**, one act each (Stardew's and Minecraft's split of hands, items and the world):
 
-| Input | Verb | For |
-|---|---|---|
-| **E** | `interact(none, target)` — hands | talk, open, read, push, shake (whatever is held) |
-| **F** | `take(target)` | pick up, pick a crop, take down, take from a table |
-| **Left click** | `interact(held, target)`, or a blow | tools, eating and drinking (click yourself), the player's experiments; weapons strike |
-| **Right click** | `put(held, target)` | place, store, set on a table or fire, sow, give |
+| Input | Act | Reach | For |
+|---|---|---|---|
+| **E** | `hands(target)` | the target's `handsRange` (0: standing on it, a bed; 1, beside it, by default; a sign 2) | talk, open, read, wake, sleep (whatever is held) |
+| **F** | `take(target)` | the world's `carry` (1: the cells round, one's own included) | pick up, pick a crop, take from a table |
+| **G** | `put(held, target)` | `carry` | place, store, set on a table or fire, sow, hand to a person |
+| **Left click** | `use(held, target)`; with nothing held, a blow | the held thing's `range` (1 by default; a spear 2, a bow 6) | tools, weapons, feeding someone, putting armour on someone, the player's experiments; a bare fist hits anything (Minecraft) |
+| **Right click** | `use(held, self)` | oneself | eat, drink, put on, a bare fist on oneself; the same act as a left click on one's own place |
+
+**Taking and putting are the world's physics, never asked**: what can be taken is taken, what has
+room takes what is put on it, a person takes what is handed to them; anything else refuses, and F
+and G are offered only where they would change something. What a thing makes of another is the
+left click's: using something on something is where the AI answers ("put places; use applies").
+A creature does not take what is put on it; a rope *used* on it holds the rope out to it, and what
+it makes of that is its own nature, undefined until the AI says.
 
 Other keys: Esc (menu, and closes anything open), I (inventory), J (journal), M (map), 1–0, -, =
 and the wheel (toolbar), Shift (walk), WASD (move). Dialogue moves on with E or a click.
 
 - **The instrument** is the selected toolbar slot: any carried thing, or an empty slot (none).
-- **The aim**: the point the mouse is on, when its tile is the player's own or one of their 8
-  neighbours, else the tile in front.
+- **The aim**: the point the mouse is on, when some input reaches it (so how far the pointer
+  reaches is the farthest of them, with what is held and what is there); else, for E, F and G, the
+  tile in front. A spot shows only the inputs that reach it: far off, perhaps just the bow's shot.
+- **Reach is the engine's**, for every actor: an act whose target lies beyond its reach is not done
+  (`Engine.inReach`; Gus works from beside the tree as the player does). A system that pulls from
+  farther says how far (the magnet, a sin's skill).
+- **Oneself is never E's, F's or G's target**: on one's own place they meet what is there (the
+  floor, what lies at one's feet, the bed one stands on). The left click on one's own place is on
+  oneself.
 - **The layer**: whatever is drawn at that point, top first — a person, the things lying on a
   table, the table, the canopy of a tree reaching over from behind, the ground last. The view
   alone knows what is drawn where (it tests the pictures' own pixels), so it hands the stack to
@@ -217,19 +233,20 @@ and the wheel (toolbar), Shift (walk), WASD (move). Dialogue moves on with E or 
   the item): use the held thing on it, put the held thing into or onto it, handle it bare-handed.
 - **Blows** (a convention the ModSpec states): pure weapons (blades, clubs, bows, wands) strike
   whatever they are used on except people; tools that are also weapons (the axe) strike living
-  things and work everything else; a bare fist on a creature punches. A weapon used on a person
-  is an interaction, never a blow — no villager is hurt by accident. The events these exclude
-  (a pure weapon's `interact` on a non-person, a tool's `hit` on a non-creature) are not player
-  events.
-- Eating and drinking ask first (yes / no); so does any rule with `confirm`.
+  things and work everything else; the bare body strikes whatever it is used on (a fist wears down
+  plants and wood, slowly; stone is too hard). A weapon used on a person is a use, never a blow — no
+  villager is hurt by accident. A blow from afar flies along a row or a column.
+- Eating and drinking oneself ask first (yes / no); so does any rule with `confirm`. Food, a
+  draught or armour used on another feeds them, doses them, dresses them.
 
 **Proof sketch.** An event is (verb, instrument, target). The key fixes the verb; the slot fixes
 the instrument, and every carried thing (or none) can be selected; the aim, the chooser and the
-context menu reach every target. The three are independent, so their product — the event space
-less the stated conventions — is reachable; and a given input state is one dry run, shown by the
-label. `packages/content/test/controls.test.ts` checks it by enumeration on a scene with the hard
-cases (a pile on a table, a stick on the ground, a person, the own tile, a second thing in the
-bag): every (verb, instrument, target) is produced by some input, and each input by one event.
+context menu reach every target within the act's reach (one's own place for use: the right
+click). The three are independent, so their product — the event space within reach, less the
+stated conventions and the takes and puts that would change nothing — is reachable; and a given
+input state is one dry run, shown by the label. `packages/content/test/controls.test.ts` checks it
+by enumeration on a scene with the hard cases (a pile on a table, a stick on the ground, a person,
+the own tile, a second thing in the bag).
 
 **Undefined behaviour from the inputs**: every input makes an act (§5.7). Where its outcome,
 or that of an impulse it emits, reaches an undefined leaf, the AI is asked (§5.11).
@@ -1211,9 +1228,10 @@ had a real inconsistency: it ignored ink that the player might be carrying.
 
 ### The event model, live (2026-10-02)
 
-`npm run ford-live` plays eight scenarios on the Ford, each reaching one kind of hole through
+`npm run ford-live` plays the scenarios on the Ford, each reaching one kind of hole through
 the game's own path, and lets the live profile answer with Kimi K3 (review, reflection and
-escalation off; a fresh library).
+escalation off; a fresh library). Since inputs v2 (§5.2) taking and putting are physics and no
+longer holes: the tour has six scenarios; the measurements below are from before, with eight.
 
 | Scenario | Event, hole | Patch | Time |
 |---|---|---|---|

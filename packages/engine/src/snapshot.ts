@@ -99,7 +99,7 @@ export interface Frame {
   /** The world's facts (the story's counts: what the smith has been given…), for the HUD's objective. */
   facts: Record<string, PropValue>
   /** What the two keys would do right now (filled by the host, not by snapshot()). */
-  keys?: { hands?: KeyView; take?: KeyView; use?: KeyView; put?: KeyView }
+  keys?: { hands?: KeyView; take?: KeyView; put?: KeyView; use?: KeyView; self?: KeyView }
   /** The open container panel (the host names it): its contents. */
   container?: {
     id: Id

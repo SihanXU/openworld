@@ -345,12 +345,13 @@ const typing = () => {
   return !!a && (a.tagName === 'TEXTAREA' || a.tagName === 'INPUT')
 }
 
-// The four inputs (design.md §5.2): E hands, F take, left click use, right click put. A short
-// press acts on the top of what is drawn where the pointer is; a long press opens the chooser
-// of all of it (people, things, items, the ground, oneself), so every event is reachable.
+// The five inputs (design.md §5.2): E hands, F take, G put, left click use (the held thing, or a
+// bare blow), right click use on oneself. A short press acts on the top of what is drawn where the
+// pointer is; a long press opens the chooser of all of it the input reaches (people, things, items,
+// the ground), so every event is reachable.
 const LONG_MS = 380
-const KEY_OF: Record<string, Key> = { KeyE: 'hands', KeyF: 'take' }
-const KEY_NAME: Record<Key, string> = { hands: 'E', take: 'F', use: 'L', put: 'R' }
+const KEY_OF: Record<string, Key> = { KeyE: 'hands', KeyF: 'take', KeyG: 'put' }
+const KEY_NAME: Record<Key, string> = { hands: 'E', take: 'F', put: 'G', use: 'L', self: 'R' }
 let pressing: { key: Key; tile?: Tile; timer: ReturnType<typeof setTimeout>; long: boolean } | undefined
 
 function press(key: Key, tile: Tile | undefined): void {
@@ -432,7 +433,7 @@ window.addEventListener('keydown', (e) => {
   }
   if (building.open) {
     if (e.code === 'KeyE' && !e.repeat) building.place()
-    if (['KeyE', 'KeyF', 'Space', 'Tab'].includes(e.code)) e.preventDefault()
+    if (['KeyE', 'KeyF', 'KeyG', 'Space', 'Tab'].includes(e.code)) e.preventDefault()
     return
   }
   // Space: the attack key, a blow ahead on the press and again while it is held
@@ -465,7 +466,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden' && slot && !cover.open) send({ t: 'save' })
 })
 
-// ------------------------------------------------------------------ mouse: aim at the pointed tile within two rings; left = use, right = put
+// ------------------------------------------------------------------ mouse: aim at the pointed tile (as far as an input reaches); left = use, right = on oneself
 
 let mouseTile: Tile | undefined
 /** The pointer's screen point while it is over the world. */
@@ -499,11 +500,11 @@ gameEl.addEventListener('mousedown', (e) => {
     return
   }
   if (e.button === 0) press('use', tile)
-  if (e.button === 2) press('put', tile)
+  if (e.button === 2) press('self', tile)
 })
 window.addEventListener('mouseup', (e) => {
   if (e.button === 0) release('use')
-  if (e.button === 2) release('put')
+  if (e.button === 2) release('self')
 })
 window.addEventListener(
   'wheel',

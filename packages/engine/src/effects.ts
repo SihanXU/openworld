@@ -103,6 +103,8 @@ export class EffectRunner {
     if (t === '@hint') return this.eng.story.hint() ?? { en: '…', zh: '……' }
     // what the story asks for now (the companion's guide)
     if (t === '@objective') return this.eng.story.objective() ?? { en: 'Nothing presses now. Go where you like!', zh: '现在没什么急事。想去哪就去哪吧！' }
+    // a guide: what the story asks for now, else the latest beat's line
+    if (t === '@guide') return this.eng.story.objective() ?? this.eng.story.hint() ?? { en: 'Nothing presses now. Go where you like!', zh: '现在没什么急事。想去哪就去哪吧！' }
     if (t === '@line') {
       const lines = who?.npc?.lines
       if (lines?.length) return lines[Math.floor(this.eng.world.rand() * lines.length)]
@@ -294,9 +296,11 @@ export class EffectRunner {
         return
       }
       case 'wear': {
-        // one's own thing, put on oneself: worn in its slot (what was there comes off), or taken off when it is on
+        // one's own thing put on, or one held out to one (it comes to one as one takes it): worn in its slot
+        // (what was there comes off), or taken off when it is on
         const item = ev.roles.item && 'e' in ev.roles.item ? w.get(ev.roles.item.e) : undefined
-        if (!host || !item || (item.place.on !== 'inside' && item.place.on !== 'hand') || item.place.holder !== host.id) return
+        const own = !!item && (item.place.on === 'inside' || item.place.on === 'hand') && item.place.holder === host?.id
+        if (!host || !item || (!own && ev.kind !== 'impulse/offered')) return
         const slot = w.prop(item, 'slot')
         if (typeof slot !== 'string') return
         const key = `wear:${slot}`

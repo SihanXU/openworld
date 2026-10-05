@@ -382,7 +382,7 @@ export class WorldScene extends Phaser.Scene {
 
   /** Outline the tile the inputs aim at: the mouse's own or neighbour tile, or the one in front. */
   private drawFocus(f: Frame): void {
-    const k = f.keys?.hands ?? f.keys?.take ?? f.keys?.use ?? f.keys?.put
+    const k = f.keys?.hands ?? f.keys?.take ?? f.keys?.put ?? f.keys?.use ?? f.keys?.self
     const [dx, dy] = STEP[f.player.facing]
     const tx = k ? k.x : f.player.x + dx
     const ty = k ? k.y : f.player.y + dy

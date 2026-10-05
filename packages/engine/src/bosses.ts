@@ -64,7 +64,10 @@ function release(eng: Engine, e: Entity, skill: BossSkill): void {
   const w = eng.world, b = e.boss!, p = b.pending!
   // its body on the aimed cell: on what makes up the cell there
   const aimed = w.cellTop(p.aim.map, p.aim.x, p.aim.y)
-  if (aimed) eng.act('use', e.id, { e: aimed.id }, { instrument: null, params: { skill: p.skill, ox: p.origin.x, oy: p.origin.y, ax: p.aim.x, ay: p.aim.y, enraged: (b.phase ?? 1) > 1 } })
+  // the skill's pattern reaches where it was aimed, however far that lies
+  const pos = w.posOf(e)
+  const reach = pos && aimed ? w.distance(pos, aimed) : undefined
+  if (aimed) eng.act('use', e.id, { e: aimed.id }, { instrument: null, params: { skill: p.skill, ox: p.origin.x, oy: p.origin.y, ax: p.aim.x, ay: p.aim.y, enraged: (b.phase ?? 1) > 1 }, reach })
   b.actionTick = w.state.tick
   b.actionEnd = w.state.tick + Math.max(6, Math.round(skill.recovery * ((b.phase ?? 1) > 1 ? 0.65 : 1)))
   b.nextAt = b.actionEnd

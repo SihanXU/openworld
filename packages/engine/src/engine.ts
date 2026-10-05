@@ -50,6 +50,8 @@ const EVENT_BUDGET = 600
 /** How deep a chain runs within one tick before the rest is deferred to the next (design.md §5.10). */
 const MAX_DEPTH = 12
 const INVARIANT_EVERY = 30
+/** What only says and shows (a refusal, a look): an outcome of only these changes nothing. */
+const SAID = new Set<string>(['log', 'say', 'vfx', 'emote'])
 /** The resident hosts (design.md §5.5). */
 export const STORY = 'story'
 
@@ -301,12 +303,19 @@ export class Engine {
    * outcomes of the impulses it would send to single roles, a few levels deep. `unknown` when any
    * of them is undefined.
    */
-  preview(ev: GameEvent, depth = 3): { defined: boolean; unknown: boolean; rules: string[]; confirm?: Text; hole?: { ev: GameEvent; res: Resolution } } {
+  /**
+   * A dry run of an event's chain: its rules, whether it reaches an undefined outcome, and whether it
+   * changes anything (beyond what is said and shown: a refusal, a look, changes nothing).
+   */
+  preview(ev: GameEvent, depth = 3): { defined: boolean; unknown: boolean; changes: boolean; rules: string[]; confirm?: Text; hole?: { ev: GameEvent; res: Resolution } } {
     const res = this.resolveEvent(ev)
     const rules = res.rule ? [res.rule.id] : []
     const confirm = res.defined ? ((res.leaf && isDo(res.leaf) && res.leaf.confirm) || res.rule?.confirm) : undefined
-    if (!res.defined || !res.leaf || !isDo(res.leaf)) return { defined: false, unknown: true, rules, confirm, hole: res.hole ? { ev, res } : undefined }
+    if (!res.defined || !res.leaf || !isDo(res.leaf)) return { defined: false, unknown: true, changes: false, rules, confirm, hole: res.hole ? { ev, res } : undefined }
     let unknown = false
+    // what an emit changes is what its receiver does (followed below), unless it cannot be followed (to the story, an area)
+    const followed = (e: Effect) => e.op === 'emit' && typeof e.to === 'string' && e.to !== 'story' && e.to !== 'world' && !e.to.startsWith('tileOf:')
+    let changes = res.leaf.do.some((e) => !SAID.has(e.op) && !followed(e))
     let hole: { ev: GameEvent; res: Resolution } | undefined
     if (depth > 0)
       for (const eff of res.leaf.do) {
@@ -328,9 +337,10 @@ export class Engine {
         const p = this.preview(child, depth - 1)
         rules.push(...p.rules)
         if (p.unknown) unknown = true
+        if (p.changes) changes = true
         hole ??= p.hole
       }
-    return { defined: true, unknown, rules, confirm, hole }
+    return { defined: true, unknown, changes, rules, confirm, hole }
   }
 
   // ---------------------------------------------------------------- acts (design.md §5.7)
@@ -373,12 +383,14 @@ export class Engine {
    * An actor acts: the event is resolved now, and then everyone who can see it sees it. Returns
    * the act's resolution (its outcome may be undefined, or its chain may reach one).
    */
-  act(verb: Verb, actorId: Id, target: Ref, opts: { instrument?: Ref | null; params?: Record<string, PropValue> } = {}): Resolution {
+  act(verb: Verb, actorId: Id, target: Ref, opts: { instrument?: Ref | null; params?: Record<string, PropValue>; reach?: number } = {}): Resolution {
     const w = this.world
     const actor = w.get(actorId)
     if (!actor || this.busy(actor)) return { defined: false }
     // the held item, unless the caller names another (an item from the bag) or none (talking while holding a tool)
     const instrument = opts.instrument === undefined ? (actor.held ? { e: actor.held } : undefined) : (opts.instrument ?? undefined)
+    // nothing is done out of reach, by anyone (a system that pulls from farther says how far: the magnet, a skill)
+    if (!this.inReach(verb, actor, target, instrument, opts.reach)) return { defined: false }
     const frozen = [target, instrument].some((r) => r && 'e' in r && w.get(r.e)?.frozenBy)
     if (frozen) {
       w.fx.push({ t: 'say', who: actorId, text: '…' })
@@ -402,6 +414,34 @@ export class Engine {
     if (verb !== 'move' && verb !== 'craft' && verb !== 'learn') this.see(ev, res.defined && this.holes === holes, owner)
     this.flush()
     return res
+  }
+
+  /**
+   * How far an act reaches (the inputs, world-model.md §5.2): a hand as far as what it handles lets
+   * it (`handsRange`: 0, standing on it — a bed; 1, beside it), a thing used as far as it carries
+   * (`range`: a bow's, a wand's; the bare body's own, a dragon's breath), taking and putting as far
+   * as the world's `carry`; the rest (moving, making, learning) is the actor's own. Undefined: no limit.
+   */
+  reachOf(verb: Verb, actor: Entity, target: Entity | undefined, instrument: Entity | undefined): number | undefined {
+    const w = this.world
+    const p = w.onto.data.params
+    const reach = p?.reach ?? 1
+    if (verb === 'hands') return target ? w.num(target, 'handsRange', reach) : reach
+    if (verb === 'take' || verb === 'put') return p?.carry ?? 1
+    if (verb === 'use') return (instrument ? w.num(instrument, 'range', reach) : w.num(actor, 'range', reach)) + rangeBonus(w, actor, instrument)
+    return undefined
+  }
+
+  /** Is the target within the act's reach of the actor (oneself and what one carries always are)? */
+  inReach(verb: Verb, actor: Entity, target: Ref, instrument: Ref | undefined, reach?: number): boolean {
+    const w = this.world
+    const t = w.get(target.e)
+    if (!t || t.id === actor.id) return true
+    const r = reach ?? this.reachOf(verb, actor, t, instrument && w.get(instrument.e))
+    if (r === undefined) return true
+    const at = w.posOf(actor)
+    const d = at && w.distance(at, t)
+    return d !== undefined && d <= r
   }
 
   /** The verbs of the earlier model (take / put / interact), for tests and tools: interact is use, or hands when nothing is held. */
@@ -1014,7 +1054,7 @@ export class Engine {
     const w = this.world
     const weapon = w.get(a.held)
     // a weapon's reach; without one, the actor's own (a dragon's breath carries); a profession may lengthen it
-    const range = (weapon ? w.num(weapon, 'range', 1) : w.num(a, 'range', 1)) + rangeBonus(w, a, weapon)
+    const range = this.reachOf('use', a, undefined, weapon) ?? 1
     const element = (weapon && (w.prop(weapon, 'element') as string | undefined)) || (w.prop(a, 'element') as string | undefined)
     const start = w.posOf(a)
     if (!start) return

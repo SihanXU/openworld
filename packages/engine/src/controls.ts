@@ -1,19 +1,24 @@
-// The player's controls (design.md §5.2–5.3): four inputs, one verb each, so every act the
-// rule library can answer is reachable (completeness):
-// - E, **hands**: a bare hand on the target (talk, open, read, push, shake);
-// - F, **take**: take (pick up, pick a crop, take down, take from a table);
-// - left click, **use**: the held thing on the target (tools, blows, eating when aimed at oneself,
-//   and the player's experiments);
-// - right click, **put**: the held thing onto or into the target (place, store, sow, give).
+// The player's controls (design.md §5.2–5.3): five inputs, one act each, so every act the rule
+// library can answer is reachable (completeness):
+// - E, **hands**: a hand on the target (talk, open, read, wake, sleep) — as far as the target lets
+//   a hand reach it (its `handsRange`: 0, standing on it, a bed; 1, beside it, by default);
+// - F, **take** and G, **put**: take a thing, put the held thing down, in or on a thing, or hand it
+//   to someone — within the world's `carry` (the cells round); they are the world's physics, never
+//   asked, and offered only where they would change something;
+// - left click, **use**: the held thing on the target — as far as it carries (its `range`); with
+//   nothing held, the bare body: a blow (Minecraft's fist), on anything;
+// - right click, **self**: the held thing used on oneself (as a left click on one's own place).
+// E, F and G never take oneself for their target: on one's own place they meet what is there.
 // An input points at a spot on the map. Whatever is drawn there is a layer of it, top first (a
 // person, a thing on a table, the table, the canopy of a tree behind them, the ground): a press
-// acts on the top one, a long press (the chooser) on any of them. Only the view knows what is
-// drawn where, so it hands the stack over with the aim; without one (the keyboard, a test), the
-// stack is what stands on the tile. Each input makes an act (design.md §5.7); its label is a dry
-// run of the chain the act starts, marked unknown where that chain reaches an undefined outcome.
-// Also here: the inventory's slots (row 1 is the toolbar, the selected slot is what is held),
-// the magnet that pulls dropped items in, crafting, and the yes/no question asked before sleeping
-// or eating (the host stops time while it is open).
+// acts on the top one, a long press (the chooser) on any of them. A spot is within reach when any
+// input can act there; where none can, the keys act on the place in front (the keyboard alone
+// plays). Only the view knows what is drawn where, so it hands the stack over with the aim. Each
+// input makes an act (design.md §5.7) the engine itself holds to its reach, for anyone; its label
+// is a dry run of the chain the act starts, marked unknown where that chain reaches an undefined
+// outcome. Also here: the inventory's slots (row 1 is the toolbar, the selected slot is what is
+// held), the magnet that pulls dropped items in, crafting, and the yes/no question asked before
+// sleeping or eating (the host stops time while it is open).
 
 import { isRoot } from './rules.ts'
 import { parseCellId } from './cells.ts'
@@ -23,7 +28,7 @@ import type { Aim, Dir, Entity, Id, Place, Plan, Pos, PropValue, Recipe, Ref, Sk
 import { cannotLearn, skillsOf } from './progression.ts'
 import { PROFESSION_LEVEL, cannotChoose, type ProfessionDef, type ProfessionRefusal } from './profession.ts'
 
-/** The four inputs (design.md §5.2). */
+/** The five inputs (design.md §5.2). */
 export type Key = Plan['key']
 
 /** Slots per row (the toolbar is row 1) and in all: three rows, Stardew's bag. */
@@ -31,8 +36,6 @@ export const ROW = 10
 export const SLOT_COUNT = 30
 /** Dropped items within this many tiles fly into the bag (Stardew: 128 px, two tiles). */
 export const MAGNET = 2
-/** How far the pointer reaches: the tiles within this many steps of the player (two rings). */
-export const REACH = 2
 
 /** Stardew's line between tools and objects: tools are used, objects are given, placed or eaten. */
 const TOOL_PREFIXES = ['item/weapon/', 'item/tool/', 'item/light/', 'item/vessel/bucket/', 'item/vessel/flask/', 'item/vessel/waterskin/']
@@ -84,8 +87,8 @@ const LABELS: [string, Text][] = [
 ]
 const GENERIC: Record<string, Text> = {
   use: { en: 'Use {instrument} on {target}', zh: '把{instrument}用在{target}上' },
-  bare: { en: 'Touch {target}', zh: '摸摸{target}' },
-  hands: { en: 'Touch {target}', zh: '摸摸{target}' },
+  self: { en: 'Use {instrument} on yourself', zh: '对自己用{instrument}' },
+  hands: { en: 'Interact with {target}', zh: '与{target}互动' },
   put: { en: 'Put {instrument} on {target}', zh: '把{instrument}放到{target}上' },
   take: { en: 'Take {target}', zh: '拿起{target}' },
   attack: { en: 'Strike {target} with {instrument}', zh: '用{instrument}打{target}' },
@@ -110,19 +113,31 @@ export class Controls {
   // ---------------------------------------------------------------- aiming
 
   /**
-   * Where a key acts: exactly the pointed tile when it lies within REACH of the player (two
-   * rings round them), with what is drawn there. Out of reach, the mouse's own inputs (use,
-   * put) do nothing; the keys (E, F) act on the tile in front, so the keyboard alone still plays.
-   */
+  * Where a key acts: the pointed spot when some input can act there (the farthest of them is how
+  * far the pointer reaches); else, for E, F and G (and any input without a pointer), the place in front — the keyboard alone plays.
+  * The right click is always on oneself.
+  */
   aim(at?: Aim, key?: Key): { at: Pos; stack?: Ref[] } | undefined {
     const w = this.w
     const p = w.player
     const pos = w.posOf(p)
     if (!pos) return undefined
-    if (at && Math.max(Math.abs(at.x - pos.x), Math.abs(at.y - pos.y)) <= REACH) return { at: { map: pos.map, x: at.x, y: at.y }, stack: at.stack }
-    if (at && (key === 'use' || key === 'put')) return undefined
+    if (key === 'self') return { at: pos }
+    if (at && this.reachable(at)) return { at: { map: pos.map, x: at.x, y: at.y }, stack: at.stack }
+    // a pointed spot no input reaches: the mouse's own input does nothing there
+    if (at && key === 'use') return undefined
     const front = w.front(p)
     return front && { at: front }
+  }
+
+  /** Can any input act on the spot (on its top, as a press would)? Oneself's own place always can. */
+  reachable(at: Aim): boolean {
+    const w = this.w
+    const pos = w.posOf(w.player)
+    if (!pos) return false
+    if (at.x === pos.x && at.y === pos.y) return true
+    const here: Pos = { map: pos.map, x: at.x, y: at.y }
+    return (['hands', 'take', 'put', 'use'] as Key[]).some((k) => this.planAt(k, here, at.stack, 0))
   }
 
   /** Turn the player toward a tile (the general direction). */
@@ -215,33 +230,55 @@ export class Controls {
     return this.label(fallback, target, instrument)
   }
 
+  /** The layers an input meets at a spot: oneself is never one (one's own place is what is there). */
+  private targets(at: Pos, stack?: Ref[]): Ref[] {
+    const me = this.w.state.player
+    return this.layers(at, stack).filter((r) => r.e !== me)
+  }
+
+  /** Is the target within the reach of the act (the engine holds every act to it, for anyone)? */
+  private reaches(verb: Verb, target: Ref, instrument?: Ref): boolean {
+    return this.eng.inReach(verb, this.w.player, target, instrument)
+  }
+
   /**
    * One key's plan for one layer: the act it makes (the verb is the key's, the instrument the
-   * held thing or none, the target the layer) and what the chain it starts would come to.
+   * held thing or none, the target the layer) and what the chain it starts would come to; none
+   * where the act does not reach, or where taking and putting would change nothing.
    */
   private planOn(key: Key, at: Pos, target: Ref): Plan | undefined {
-    const p = this.w.player
+    const w = this.w
+    const p = w.player
     const held = p.held ? { e: p.held } : undefined
     const heldE = this.entity(held)
-    if (key === 'hands') return this.make(key, at, 'hands', target, undefined)
-    if (key === 'take') return this.make(key, at, 'take', target, undefined)
-    if (key === 'put') return held ? this.make(key, at, 'put', target, held) : undefined
-    // use: the held thing — a blow for weapons on creatures (and pure weapons on anything but
-    // people); a bare fist on a creature; otherwise the held thing used on the target
-    const person = this.isPerson(target)
+    if (key === 'hands') return this.reaches('hands', target) ? this.make(key, at, 'hands', target, undefined) : undefined
+    if (key === 'take' || key === 'put') {
+      if (key === 'put' && !held) return undefined
+      if (!this.reaches(key, target, held)) return undefined
+      const plan = this.make(key, at, key, target, key === 'put' ? held : undefined)
+      return plan.changes ? plan : undefined
+    }
+    // use (and self: use on oneself): the held thing — a blow for weapons on creatures (and pure
+    // weapons on anything but people); with nothing held, the bare body: a blow on anything
+    const reach = this.eng.reachOf('use', p, this.entity(target), heldE) ?? 1
+    const here = w.posOf(p)
+    const there = w.posOf(this.entity(target))
+    // a blow from afar flies along a row or a column (a bolt, an arrow)
+    const aligned = !here || !there || here.x === there.x || here.y === there.y
+    if (!this.reaches('use', target, held)) return undefined
     if (heldE) {
-      const pure = isWeapon(heldE.type) && !this.w.hasTag(heldE, 'tool:axe') && !(heldE.tags ?? []).some((g) => g.startsWith('tool:'))
-      const blow = isWeapon(heldE.type) && !person && (pure || this.isCreature(target))
+      const pure = isWeapon(heldE.type) && !w.hasTag(heldE, 'tool:axe') && !(heldE.tags ?? []).some((g) => g.startsWith('tool:'))
+      const blow = isWeapon(heldE.type) && !this.isPerson(target) && (pure || this.isCreature(target))
+      if (blow && reach > 1 && !aligned) return undefined
       const plan = this.make(key, at, 'use', target, held, blow)
       if (blow) plan.label = this.label(heldE.type.startsWith('item/weapon/magic/') ? GENERIC.cast : GENERIC.attack, target, held)
+      else if (key === 'self' && !plan.rule?.includes('/')) plan.label = this.label(GENERIC.self, target, held)
       return plan
     }
-    if (this.isCreature(target)) {
-      const plan = this.make(key, at, 'use', target, undefined, true)
-      plan.label = this.label(GENERIC.punch, target)
-      return plan
-    }
-    return this.make(key, at, 'hands', target, undefined)
+    if (reach > 1 && !aligned) return undefined
+    const plan = this.make(key, at, 'use', target, undefined, true)
+    plan.label = this.label(GENERIC.punch, target)
+    return plan
   }
 
   /** The rule that answers: the deepest one of the chain that belongs to a host (the receiver's answer, not the root that passed it on). */
@@ -251,13 +288,23 @@ export class Controls {
 
   private make(key: Key, at: Pos, verb: Verb, target: Ref, instrument: Ref | undefined, attack = false): Plan {
     const r = this.dry(verb, target, instrument, attack ? { attack: true } : {})
-    const generic = verb === 'use' ? (instrument ? GENERIC.use : GENERIC.bare) : GENERIC[verb] ?? GENERIC.bare
-    const plan: Plan = { key, at, verb, target, instrument, rule: this.telling(r.rules), label: this.labelFor(r.rules, generic, target, instrument), unknown: r.unknown || undefined }
+    const generic = key === 'self' ? GENERIC.self : GENERIC[verb] ?? GENERIC.use
+    const plan: Plan = { key, at, verb, target, instrument, rule: this.telling(r.rules), label: this.labelFor(r.rules, generic, target, instrument), unknown: r.unknown || undefined, changes: r.changes || r.unknown || undefined }
     if (attack) plan.attack = true
     if (r.confirm && !r.unknown) plan.confirm = this.label(r.confirm, target, instrument)
     const e = this.entity(target)
     if (e && this.w.hasTag(e, 'container') && r.rules.includes('core/open-close')) plan.panel = e.id
     return plan
+  }
+
+  /** A key's plan on a spot: on the layer given (a left click on one's own place is on oneself). */
+  private planAt(key: Key, at: Pos, stack: Ref[] | undefined, layer: number): Plan | undefined {
+    const w = this.w
+    const me = w.player
+    const pos = w.posOf(me)
+    if (key === 'self' || (key === 'use' && pos && at.x === pos.x && at.y === pos.y)) return pos ? this.planOn(key === 'use' ? 'self' : key, pos, { e: me.id }) : undefined
+    const ref = this.targets(at, stack)[layer]
+    return ref ? this.planOn(key, at, ref) : undefined
   }
 
   /**
@@ -267,16 +314,17 @@ export class Controls {
    */
   plan(key: Key, aim?: Aim, layer = 0): Plan | undefined {
     const a = this.aim(aim, key)
-    if (!a) return undefined
-    const ref = this.layers(a.at, a.stack)[layer]
-    return ref ? this.planOn(key, a.at, ref) : undefined
+    return a && this.planAt(key, a.at, a.stack, layer)
   }
 
-  /** The chooser's list: every layer at the aim, with what the key would do there. */
+  /** The chooser's list: every layer at the aim the key reaches, with what it would do there. */
   choices(key: Key, aim?: Aim): { layer: number; name: Text; plan?: Plan }[] {
     const a = this.aim(aim, key)
     if (!a) return []
-    return this.layers(a.at, a.stack).map((ref, layer) => ({ layer, name: this.label('{target}', ref), plan: this.planOn(key, a.at, ref) }))
+    if (key === 'self') return [{ layer: 0, name: this.label('{target}', { e: this.w.state.player }), plan: this.planAt(key, a.at, a.stack, 0) }]
+    return this.targets(a.at, a.stack)
+      .map((ref, layer) => ({ layer, name: this.label('{target}', ref), plan: this.planOn(key, a.at, ref) }))
+      .filter((c) => c.plan)
   }
 
   // ---------------------------------------------------------------- running
@@ -606,7 +654,7 @@ export class Controls {
           }
           const r = w.onto.resolve(e.type)
           w.fx.push({ t: 'pickup', item: e.id, sprite: r.sprite ?? e.type, name: e.name ?? r.name ?? { en: e.type }, map: here.map, x: here.x + dx, y: here.y + dy })
-          this.eng.act('take', p.id, { e: e.id }, { instrument: null, params: { quiet: true, into: 'contents' } })
+          this.eng.act('take', p.id, { e: e.id }, { instrument: null, params: { quiet: true, into: 'contents' }, reach })
           took = true
         }
     if (took) this.sync()

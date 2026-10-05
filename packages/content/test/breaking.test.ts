@@ -40,8 +40,8 @@ function place(type: string, tool?: string): Engine {
     {
       terrain,
       entities: [
-        { key: 'actor', type: 'actor/person/player', x: 2, y: 3, props: { atk: 4 } },
-        ...(tool ? [{ key: 'tool', type: tool, x: 2, y: 3, heldBy: 'actor', tags: ['material:iron'] }] : []),
+        { key: 'actor', type: 'actor/person/player', x: 2, y: 2, props: { atk: 4 } },
+        ...(tool ? [{ key: 'tool', type: tool, x: 2, y: 2, heldBy: 'actor', tags: ['material:iron'] }] : []),
         ...(isTile ? [] : [{ key: 'thing', type, x: 2, y: 1 }]),
       ],
       event: {},

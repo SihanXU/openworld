@@ -143,12 +143,14 @@ describe('woodcutting', () => {
     expect(itemsAt(eng, 2)).toEqual(['item/material/log'])
   })
 
-  it('bare hands on a tree: too hard, and nothing is asked', () => {
+  it("bare hands on a tree (Minecraft's fist): it wears down, slowly; nothing is asked", () => {
     const eng = grove(['grass', 'grass', 'tree', 'grass', 'grass'], undefined)
+    const tree = eng.world.get(eng.world.cellRef('sandbox', 2, 1).e)!
     eng.trace.length = 0
-    eng.act('use', 'actor', eng.world.cellRef('sandbox', 2, 1), { instrument: null, params: { attack: true } })
+    eng.act('use', 'actor', { e: tree.id }, { instrument: null, params: { attack: true } })
     expect(eng.trace.filter((t) => !t.defined)).toEqual([])
-    expect(eng.world.fx.some((f) => f.t === 'log' && (f.text as { en: string }).en === 'Too hard.')).toBe(true)
+    expect(eng.world.fx.some((f) => f.t === 'log' && (f.text as { en: string }).en === 'Too hard.')).toBe(false)
+    expect(eng.world.num(tree, 'hp')).toBeLessThan(eng.world.num(tree, 'maxHp'))
     expect(terrain(eng, 2)).toBe('tree')
   })
 })

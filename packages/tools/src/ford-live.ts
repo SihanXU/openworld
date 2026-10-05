@@ -1,11 +1,12 @@
 // The AI interface on the Ford with a real model (the live profile; review, reflection and
 // escalation off). Each scenario reaches one kind of hole through the game's own path — an
-// undefined act, receive, strike, handle, taken, offered, a person stuck, content broken — and
+// undefined use, a blow on what cannot break, a hand on what does not say, a rope used on a
+// creature, a person stuck, content broken (taking and putting are physics: never asked) — and
 // the modder answers in-process, with a fresh library and self-state. The record, the episode
 // and what the game did with the patch are printed and written to var/live-smoke/. Costs model
 // calls (~$0.05 a scenario with Kimi K3).
 //
-//   npm run ford-live                 # all eight
+//   npm run ford-live                 # all six
 //   npm run ford-live -- "stump"      # the scenarios whose name contains it ("-stump": all but)
 
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
@@ -83,14 +84,6 @@ const SCENARIOS: { name: string; act: (f: Ford) => void }[] = [
     },
   },
   {
-    name: 'the axe put on the dead tree (receive)',
-    act: (f) => {
-      hold(f, ofType(f, 'item/weapon/blade/axe'))
-      stand(f, ...STAND.tree, 'right')
-      run(f, 'put', ...AT.deadTree, 0)
-    },
-  },
-  {
     name: 'the axe on the chopping stump (strike)',
     act: (f) => {
       const stump = ofType(f, 'fixture/nature/stump')
@@ -108,20 +101,13 @@ const SCENARIOS: { name: string; act: (f: Ford) => void }[] = [
     },
   },
   {
-    name: 'taking the winch (taken)',
-    act: (f) => {
-      stand(f, ...STAND.winch)
-      run(f, 'take', ...AT.winch)
-    },
-  },
-  {
-    name: 'the rope given to a fire slime (offered)',
+    name: 'a rope used on a fire slime (use)',
     act: (f) => {
       const slime = W(f).get('ford.fire_slime')!
       stand(f, ...STAND.road, 'right')
       f.eng.author(() => W(f).place(slime, { on: 'tile', map: 'ford', x: STAND.road[0] + 1, y: STAND.road[1] }))
       hold(f, ofType(f, 'item/tool/rope'))
-      run(f, 'put', STAND.road[0] + 1, STAND.road[1])
+      run(f, 'use', STAND.road[0] + 1, STAND.road[1])
     },
   },
   {

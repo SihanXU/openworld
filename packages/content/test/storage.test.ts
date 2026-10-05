@@ -30,17 +30,27 @@ interface Pressed {
   rules: string[]
   holes: string[]
   panel?: string
+  /** The input offered the act (taking and putting are offered only where they change something). */
+  offered: boolean
 }
 
 /** Press a key at the tile in front: the rules the chain resolved to, the holes it reached, the panel it opens. */
 function press(eng: Engine, key: Key): Pressed {
   const plan = eng.controls.plan(key)
   eng.trace.length = 0
-  const { panel } = plan ? eng.controls.run(plan, true) : {}
+  let panel: string | undefined
+  if (plan) panel = eng.controls.run(plan, true).panel
+  // an input that would change nothing is not offered (taking and putting are physics): the act itself, as the world answers it
+  else if (key === 'put' || key === 'take') {
+    const front = eng.world.front(eng.world.player)!
+    const target = eng.controls.layers(front)[0]
+    if (target) eng.act(key, eng.world.state.player, target, { instrument: key === 'put' ? (eng.world.player.held ? { e: eng.world.player.held } : null) : null })
+  }
   return {
     rules: eng.trace.filter((t) => t.defined && t.rule).map((t) => t.rule!),
     holes: eng.trace.filter((t) => !t.defined && t.rule).map((t) => t.rule!),
     panel,
+    offered: !!plan,
   }
 }
 
@@ -76,9 +86,11 @@ describe('surfaces', () => {
     expect(carried(eng)).toContain('cup')
     expect(eng.world.get('cup')!.place.on).not.toBe('tile')
     stow(eng)
-    // taking a table is no rule's: undefined (the AI answers); meanwhile it stays
-    const r = press(eng, 'take')
-    expect(r.holes).toContain('core/taken')
+    // a table stays where it is: taking is physics (never asked), and F does not offer what it cannot do
+    expect(eng.controls.plan('take')).toBeUndefined()
+    const r = eng.act('take', 'actor', { e: 'table' }, { instrument: null })
+    expect(r.defined).toBe(true)
+    expect(eng.trace.some((t) => !t.defined)).toBe(false)
     expect(eng.world.get('table')!.place).toMatchObject({ on: 'tile', x: 2, y: 1 })
     expect(carried(eng)).not.toContain('table')
   })
@@ -137,7 +149,7 @@ describe('containers', () => {
 
   it('refuses when full, and the item stays in hand', () => {
     const eng = play(chestOf(12), 'item/food/apple')
-    expect(press(eng, 'put')).toMatchObject({ rules: expect.arrayContaining(['core/receive-store']), holes: [] })
+    expect(press(eng, 'put')).toMatchObject({ rules: expect.arrayContaining(['core/receive-store']), holes: [], offered: false })
     expect(heldBy(eng)).toBe('held')
     expect(eng.world.get('chest')!.contents).toHaveLength(12)
     const pot = play([{ key: 'pot', type: 'fixture/container/pot', statuses: ['open'] }], 'item/food/apple')
@@ -147,7 +159,7 @@ describe('containers', () => {
 
   it('a closed container takes nothing', () => {
     const eng = play(chestOf(0, []), 'item/food/apple')
-    expect(press(eng, 'put').rules).toContain('core/receive-store')
+    expect(press(eng, 'put')).toMatchObject({ rules: expect.arrayContaining(['core/receive-store']), offered: false })
     expect(heldBy(eng)).toBe('held')
   })
 
@@ -165,7 +177,7 @@ describe('containers', () => {
 describe('the ground', () => {
   it('water refuses what is put in it, but still fills an empty vessel', () => {
     const eng = play([], 'item/food/apple', 'water')
-    expect(press(eng, 'put').rules).toContain('core/receive-water')
+    expect(press(eng, 'put')).toMatchObject({ rules: expect.arrayContaining(['core/receive-water']), offered: false })
     expect(heldBy(eng)).toBe('held')
     const bucket = play([], 'item/vessel/bucket/empty', 'water')
     expect(press(bucket, 'put').rules).toContain('use/fill-put')
@@ -187,7 +199,7 @@ describe('the ground', () => {
 
   it('a wall has no room', () => {
     const eng = play([], 'item/material/stone', 'wall')
-    expect(press(eng, 'put').rules).toContain('core/receive-solid')
+    expect(press(eng, 'put')).toMatchObject({ rules: expect.arrayContaining(['core/receive-solid']), offered: false })
     expect(heldBy(eng)).toBe('held')
   })
 })
