@@ -393,3 +393,20 @@ describe('storeys', () => {
     expect(eng.controls.layers({ map: SANDBOX_MAP, x: 3, y: 3 }).map((r) => w.get(r.e)?.type)).toEqual(['actor/person/player', 'structure/floor'])
   })
 })
+
+describe('the build palette on built things', () => {
+  it('with none carried, a wall is made and set on a wall, and a floor made and laid over walls', () => {
+    const rows = Array.from({ length: 7 }, () => Array(7).fill('grass'))
+    const eng = buildSandbox({ terrain: rows, entities: [{ key: 'actor', type: 'actor/person/player', x: 3, y: 4 }], event: {} }, onto, new RuleLibrary(BASE_RULES))
+    const w = eng.world
+    eng.author(() => { for (let i = 0; i < 8; i++) w.create('item/material/plank', { on: 'inside', holder: 'actor' }) })
+    eng.controls.sync()
+    expect(eng.controls.place('structure/wall', { x: 3, y: 3 })).toBe(true)
+    expect(eng.controls.previewPlace('structure/wall', { x: 3, y: 3 }).ok).toBe(true)
+    expect(eng.controls.place('structure/wall', { x: 3, y: 3 })).toBe(true)
+    expect(w.placedAt(SANDBOX_MAP, 3, 3, 1).map((e) => e.type)).toEqual(['structure/wall'])
+    expect(eng.controls.place('structure/wall', { x: 2, y: 3 })).toBe(true)
+    expect(eng.controls.place('structure/floor', { x: 2, y: 3 })).toBe(true)
+    expect(w.placedAt(SANDBOX_MAP, 2, 3, 1).map((e) => e.type)).toEqual(['structure/floor'])
+  })
+})

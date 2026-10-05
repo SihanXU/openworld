@@ -450,6 +450,8 @@ window.addEventListener('keydown', (e) => {
   }
   if (building.open) {
     if (e.code === 'KeyE' && !e.repeat) building.place()
+    // R: turn what is set down (stairs go up the way it points)
+    if (e.code === 'KeyR' && !e.repeat) building.rotate()
     if (['KeyE', 'KeyF', 'KeyG', 'Space', 'Tab'].includes(e.code)) e.preventDefault()
     return
   }

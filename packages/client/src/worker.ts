@@ -490,7 +490,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         // a thing set down (one carried, or made from what is carried first): G's own act
         if (m.id.startsWith(PUT)) {
           const before = buildPreview(eng, m.id, to)
-          if (!eng.controls.place(m.id.slice(PUT.length), m.tile)) eng.world.fx.push({ t: 'log', text: before.reason, tone: 'warn' })
+          if (!eng.controls.place(m.id.slice(PUT.length), m.tile, m.facing)) eng.world.fx.push({ t: 'log', text: before.reason, tone: 'warn' })
           post({ t: 'placement', preview: buildPreview(eng, m.id, to) })
           break
         }

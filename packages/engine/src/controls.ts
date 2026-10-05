@@ -669,12 +669,15 @@ export class Controls {
     const r = this.recipeFor(type)
     if (!r) return { ok: false, reason: { en: 'You carry none.', zh: '身上没有。' }, carried }
     if (!this.canCraft(r)) return { ok: false, reason: { en: 'You carry none, nor what makes one.', zh: '身上没有，材料也不够做一个。' }, carried }
-    // what one made would go where any thing set down goes: within reach, on a cell nothing solid fills
+    // what one made would go where any thing set down goes: within reach, and to a storey there with
+    // room for it and something to hold it (a wall on a wall, a floor over walls) — asked of the
+    // world with a thing that is not in it
     const w = this.w
     const pos = w.posOf(w.player)
     const reach = w.onto.data.params?.carry ?? 1
+    const probe = { id: '~place', type, place: { on: 'none' } } as Entity
     const near = !!pos && Math.max(Math.abs(aim.x - pos.x), Math.abs(aim.y - pos.y)) <= reach && !(aim.x === pos.x && aim.y === pos.y && w.onto.resolve(type).solid)
-    const open = !!pos && w.inBounds(pos.map, aim.x, aim.y) && !w.solidAt(pos.map, aim.x, aim.y)
+    const open = !!pos && w.inBounds(pos.map, aim.x, aim.y) && w.settleZ(probe, pos.map, aim.x, aim.y, pos.z ?? 0) !== undefined
     return near && open ? { ok: true, reason: { en: 'Made from what you carry, then set down', zh: '用身上的材料现做一个，再放下' }, carried } : { ok: false, reason: { en: 'It cannot go there.', zh: '这里放不下。' }, carried }
   }
 
