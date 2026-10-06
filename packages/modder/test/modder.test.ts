@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import type { AddressInfo } from 'node:net'
 import { Server } from 'node:http'
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildRequest, buildSandbox, scenarioEvent, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@lsw/engine'
+import { ModPort, RuleLibrary, buildRequest, buildSandbox, restoreLibrary, scenarioEvent, validatePatch, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
 import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, narrowKinds, parseJson, qualifyTerrains, scriptFromFile, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
 
@@ -413,7 +413,8 @@ describe('the service', () => {
       const log = await (await fetch(`${base}/patches?since=0`)).json()
       expect(log.seq).toBe(1)
       expect(log.entries[0].rules).toEqual(['patch/rope-binds-creature'])
-      expect(log.entries[0].scenario).toBeUndefined()
+      // each patch comes with the scene it answered: a client replays it there before it takes it
+      expect(log.entries[0].scenario?.event).toMatchObject({ kind: 'impulse/offered' })
       expect((await (await fetch(`${base}/patches?since=1`)).json()).entries).toEqual([])
     } finally {
       server.close()
@@ -787,6 +788,16 @@ describe('the router: local, then find, then create', () => {
     expect(library.lib.types).toEqual([])
   })
 
+  it('goes through the catalogue before creating: a thing the world has under another name is found, not made again', async () => {
+    const { model, seen } = router({ local: { create: [{ id: 'item/material/sticks', name: { en: 'Sticks', zh: '一捆木棍' }, why: 'what it leaves behind' }] }, find: { patch: patchOf(leaves('item/material/stick')) } })
+    const { modder, state, library } = setup(model, undefined, 'live')
+    const reply = await modder.resolve({ request: request() })
+    expect(reply.outcome).toBe('accepted')
+    expect(state.episode(reply.episode!)!.route).toEqual(['local', 'find'])
+    expect(seen.find((c) => c.last.startsWith('# What you asked for'))!.last).toMatch(/"Sticks".*item\/material\/stick/)
+    expect(library.lib.types).toEqual([])
+  })
+
   it('creates what the world does not have, with its picture, and says so while it works', async () => {
     let during: unknown
     const req = request()
@@ -1069,5 +1080,75 @@ describe('the live profile', () => {
     await modder.resolve({ request: request() })
     await modder.settled()
     expect(seen).toContain('changes nothing in the world')
+  })
+})
+
+describe('checks that hold their ground', () => {
+  it('one class key: the client\'s port and the service key every request alike', () => {
+    for (const req of [request(), useRequest(), request('actor/creature/beast/wolf', 'item/tool/rope')]) {
+      const eng = buildSandbox(req.scenario, onto, new RuleLibrary(BASE))
+      const port = new ModPort(eng)
+      const sc = req.scenario
+      if (req.event.kind === 'act/use') eng.act('use', 'actor', { e: 'target' }, { instrument: { e: 'instrument' } })
+      else eng.queue({ kind: 'impulse/offered', host: { e: sc.event.host! }, roles: { actor: { e: 'actor' }, item: { e: sc.event.item! }, source: { e: sc.event.item! } }, params: {}, cause: 'actor', origin: 'player' })
+      const rec = port.records[0]
+      expect(signatureOf(rec.request).key).toBe(rec.signature)
+    }
+  })
+
+  it('a review that gives no verdict is no review: asked again, then recorded as an error, never as "ship"', async () => {
+    const { model, calls } = scripted([patchOf(bindRule())], { review: () => ({ thoughts: 'looks fine to me' }) })
+    const { modder, state } = setup(model)
+    const reply = await modder.resolve({ request: request() })
+    expect(calls.review).toBe(2)
+    expect(state.episode(reply.episode!)!.attempts.at(-1)!.review).toEqual({ verdict: 'error', notes: [] })
+    // and a verdict in capitals is read as what it says
+    const again = scripted([patchOf(bindRule()), patchOf(bindRule('patch/rope-binds-creature-2'))], { review: (n) => (n === 0 ? { verdict: 'REVISE', notes: ['say what happens'] } : { verdict: 'ship', notes: [] }) })
+    const s2 = setup(again.model)
+    await s2.modder.resolve({ request: request() })
+    expect(again.calls.design).toBeGreaterThanOrEqual(2)
+  })
+
+  it('a derived test checks at least that the rule answers, and a number by the way it moved', () => {
+    const req = useRequest()
+    const lib = new RuleLibrary(BASE)
+    // (a class of hosts: the test is derived on another tool)
+    const rule = (id: string, effects: unknown[]): Rule => ({ id, host: { type: 'item/tool' }, on: 'act/use', tree: { if: { is: { role: 'target', sel: { type: 'actor/creature' } } }, then: { do: effects as Effect[] }, else: 'inherit' } })
+    const told = deriveTests(patchOf(rule('patch/rope-says', [{ op: 'log', text: 'You wave the rope.' }])), req, lib, onto)
+    const says = told.patch.artifacts[0].kind === 'rule' ? told.patch.artifacts[0].rule.tests?.[0]?.expect : undefined
+    expect(says).toEqual([{ resolvedBy: 'patch/rope-says' }])
+    expect(told.notes.join()).toMatch(/checks only that the rule answers/)
+    const worn = deriveTests(patchOf(rule('patch/rope-wears', [{ op: 'addProp', key: 'wear', delta: 1 }])), req, lib, onto)
+    const wears = worn.patch.artifacts[0].kind === 'rule' ? worn.patch.artifacts[0].rule.tests?.[0]?.expect : undefined
+    expect(wears).toContainEqual({ resolvedBy: 'patch/rope-wears' })
+    expect(wears?.some((x) => 'propGt' in x && x.propGt[0] === 'wear')).toBe(true)
+  })
+
+  it('a new type that is a thing the world has, by another number or in Chinese, is refused', () => {
+    const stick = onto.types['item/material/stick']
+    const zh = typeof stick.name === 'object' ? stick.name.zh! : ''
+    const type = (id: string, en: string, z: string) => ({ artifacts: [{ kind: 'type' as const, type: { id, name: { en, zh: z }, tags: [], props: { material: 'wood' }, makeup: [{ type: 'item/material/log', count: 1 }] } }] })
+    const errs = (p: Patch) => validatePatch(p, { ontology: onto, library: new RuleLibrary(BASE) }).errors.join()
+    expect(errs(type('item/material/sticks', 'Bundle', '一捆'))).toMatch(/already is this thing/)
+    expect(errs(type('item/material/twig_bundle', 'Twig Bundle', zh))).toMatch(/already is this thing/)
+    expect(errs(type('item/material/twig_bundle', 'Twig Bundle', '一捆细枝'))).not.toMatch(/already is this thing/)
+  })
+
+  it('a patch from the shared library is replayed in the scene it came with: a farm that a bare check would let through is refused', () => {
+    const req = useRequest()
+    const eng = buildSandbox(req.scenario, onto, new RuleLibrary(BASE))
+    const port = new ModPort(eng)
+    const farm = patchOf({ id: 'patch/rope-farm', host: { type: 'item/tool/rope' }, on: 'act/use', label: { en: 'Use {instrument}', zh: '使用{instrument}' }, tree: { if: { is: { role: 'target', sel: { type: 'actor/creature' } } }, then: { do: [{ op: 'spawn', type: 'item/material/stone', at: 'actor', into: 'contents' }] }, else: 'inherit' } })
+    expect(port.submit(undefined, farm, req.scenario).errors.join()).toMatch(/endless yield/)
+  })
+
+  it('a saved library comes back checked: a patch rule that no longer holds is left out', () => {
+    const good: Rule = { ...bindRule(), source: { origin: 'patch' } }
+    const bad: Rule = { id: 'patch/spawns-nothing-known', host: { type: 'item/tool/rope' }, on: 'act/use', tree: { do: [{ op: 'spawn', type: 'item/material/unobtainium', at: 'host' }] }, source: { origin: 'patch' } }
+    const dropped: string[] = []
+    const lib = restoreLibrary(BASE, { rules: [good, bad], types: [], statuses: [], log: [], version: 3 }, onto, [], (id) => dropped.push(id))
+    expect(lib.rules.has(good.id)).toBe(true)
+    expect(lib.rules.has(bad.id)).toBe(false)
+    expect(dropped).toEqual([bad.id])
   })
 })

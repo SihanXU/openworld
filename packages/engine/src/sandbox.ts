@@ -213,10 +213,14 @@ export function replay(sc: Scenario, ontology: Ontology, lib: RuleLibrary): Repl
   return { resolution, engine: eng, errors, hpBefore }
 }
 
-export function checkExpectations(eng: Engine, exps: Expectation[]): string[] {
+export function checkExpectations(eng: Engine, exps: Expectation[], res?: Resolution): string[] {
   const w = eng.world
   const fails: string[] = []
   for (const x of exps) {
+    if ('resolvedBy' in x) {
+      if (res?.rule?.id !== x.resolvedBy) fails.push(`expected ${x.resolvedBy} to answer, ${res?.rule ? `${res.rule.id} did` : 'nothing did'}`)
+      continue
+    }
     if ('spawned' in x) {
       if (!Object.values(w.state.entities).some((e) => e.type === x.spawned || e.type.startsWith(x.spawned + '/')))
         fails.push(`expected a ${x.spawned} to exist`)

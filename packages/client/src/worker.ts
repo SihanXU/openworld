@@ -30,6 +30,7 @@ import {
   type WorldIndex,
   type Engine,
   type PlacementPreview,
+  restoreLibrary,
 } from '@lsw/engine'
 import { BASE_RULES, BOSS_LAYOUT, COMPANION_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, PROLOGUE_DONE, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateCompanion, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
@@ -178,7 +179,7 @@ function maybePrefetch(): void {
   const request = buildRequest(eng, probe.ev, probe.res, `pre-${eng.world.state.tick.toString(36)}`)
   resolveRemote(request)
     .then((patch) => {
-      if (patch && game) game.mods.submit(undefined, patch)
+      if (patch && game) game.mods.submit(undefined, patch, request.scenario)
     })
     .catch(() => undefined)
     .finally(() => (prefetching = false))
@@ -194,7 +195,7 @@ async function syncLibrary(): Promise<void> {
     for (const e of log.entries) {
       if ('remove' in e) {
         if (lib.rules.get(e.remove)?.source?.origin === 'patch') lib.remove(e.remove)
-      } else game.mods.submit(undefined, e.patch)
+      } else game.mods.submit(undefined, e.patch, e.scenario)
     }
     modderSeq = log.seq
     if (lib.version !== before) sendRecords()
@@ -203,16 +204,9 @@ async function syncLibrary(): Promise<void> {
   }
 }
 
-/** Base rules are always fresh from content; patches (and their types/statuses) persist. */
-function libraryFrom(saved?: LibraryData): RuleLibrary {
-  const lib = new RuleLibrary([...BASE_RULES, ...STORY_RULES])
-  if (!saved) return lib
-  for (const t of saved.types ?? []) lib.addType(t, 'restored')
-  for (const s of saved.statuses ?? []) lib.addStatus(s, 'restored')
-  for (const r of saved.rules ?? []) if (r.source?.origin === 'patch' && !lib.rules.has(r.id)) lib.add(r, r.source.at ?? 'restored')
-  lib.log = [...(saved.log ?? [])]
-  lib.version = Math.max(lib.version, saved.version ?? 0)
-  return lib
+/** Base rules are always fresh from content; patches (and their types/statuses) persist, each validated again (engine `restoreLibrary`). */
+function libraryFrom(saved: LibraryData | undefined, protectedFacts: string[] = []): RuleLibrary {
+  return restoreLibrary([...BASE_RULES, ...STORY_RULES], saved, ontology, protectedFacts, (id, why) => console.warn(`[library] a saved patch rule is not restored: ${id}: ${why}`))
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -397,7 +391,7 @@ function loop(): void {
 async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Promise<void> {
   base = init.base
   index = await fetchJson<WorldIndex>('index.json')
-  const lib = libraryFrom(init.library ?? init.save?.library)
+  const lib = libraryFrom(init.library ?? init.save?.library, index.protectedFacts)
   const compatible = init.save?.world === index.version
   if (init.save && !fresh && compatible) {
     game = Game.load(init.save, index, ontology, lib)
