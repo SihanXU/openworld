@@ -7,6 +7,11 @@
 #bossStudio select { display: block; margin-top: 6px; width: 100%; font-size: 12px; }
 #bossStudio button { cursor: pointer; font-size: 11px; }
 #bossStudio button:hover { background: #415457; border-color: #c9a85f; }
+.studio-control { margin: 20px 0; color: #c9a85f; font-size: 11px; }
+.studio-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+#bossStudio .studio-modes button { padding: 8px 4px; min-height: 36px; line-height: 1.5; }
+#bossStudio .studio-modes button[aria-pressed="true"] { color: #172429; background: #e8c575; border-color: #f5dea8; font-weight: 700; }
+#bossStudio .studio-modes button:focus-visible { outline: 2px solid #f5dea8; outline-offset: 2px; }
 .studio-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 #bossInfo { margin-top: 24px; padding-top: 18px; border-top: 1px solid #40514f; font-size: 11px; color: #aebdbc; }
 #skillButtons { display: grid; gap: 8px; margin-top: 15px; }

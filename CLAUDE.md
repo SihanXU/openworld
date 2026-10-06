@@ -2,6 +2,8 @@
 
 A web-playable 2D JRPG world whose state and rules are code; an LLM modder (later)
 patches undefined interactions at runtime. Successor to BardOS (`C:\Users\chica\文字游戏`).
+Story and world: [docs/lore.md](docs/lore.md) (the user's canonical setting: the Five Sufferings, the
+First Night, the five Seal-bearers; every chapter follows it) and [docs/chapter-1.md](docs/chapter-1.md).
 Design: [docs/design.md](docs/design.md); the agreed world model and base gameplay (not yet built,
 steps W1–W10): [docs/world-model.md](docs/world-model.md). Paper draft lives in Notion ("Large Symbolic World").
 
@@ -30,8 +32,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   rule matching/specificity/library (`rules.ts`), effect primitives (`effects.ts`), event
   dispatch + tick + movement + combat (`engine.ts`), one goal system for every actor (`behaviour.ts`:
   goals in each type's order — encounter, threat, follow, schedule, home, idle; the people's goals and
-  their real work in `npc.ts`, the creatures' in `creatures.ts`, the sins' locked telegraphs in
-  `bosses.ts`, docs/seven-sins.md), Mod port: ModSpec / ModRequest / validatePatch / records
+  their real work in `npc.ts`, the creatures' in `creatures.ts`, the bosses' locked telegraphs in
+  `bosses.ts`, docs/bosses.md), Mod port: ModSpec / ModRequest / validatePatch / records
   (`mod.ts`), sandbox replay (`sandbox.ts`), snapshots for rendering (`snapshot.ts`),
   new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
   lines, schedule variants with the thing an activity needs, topics (`people.ts`), the story's one
@@ -53,7 +55,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - `packages/content` — ontology (terrains, statuses, elements, types), item catalogue
   (forms × materials × qualities × elements), crafting recipes (`recipes.ts`), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
   story rules, objectives and invariants (`ford.ts`), the prologue's objectives and beats (`prologue.ts`), the main quest's rules and objectives (`quest.ts`,
-  docs/main-quest.md), the seven sin boss kits, defeat rules and compatibility migration (`bosses.ts`), chunk codec.
+  docs/main-quest.md), the boss kits (three), defeat rules and compatibility migration (`bosses.ts`, `migrateBosses.ts`), chunk codec.
 - `packages/tools` — `art/animals.ts` (the project's own sprites → `client/public/assets/lsw/`), `demo/` (the hand-crafted Ford, Firstlight Village west of it (`meadow`) and the forest south of that, and the main quest's maps and scenes in `quest/` → `public/world/`, each map from its own seed: `builder.ts` the map DSL
   with the tools of composition — curved paths, organic shapes, fences and yards, small things by masks,
   anchors, regions; `world.ts` `buildFord()` — the map, scenes, invariants;
@@ -133,6 +135,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   - The player's map is active. Dormant maps are frozen and catch up timers and their inbox
     when entered. The world, the story and people's records are resident. Events cross maps
     only by address.
+  - **Even with no model connected, design every feature for one.** New behaviour goes
+    through events and rules, never around them in engine code. A deliberate act on
+    something no rule covers stays an undefined leaf (the AI's place to answer). Play without
+    a model is kept by the leaf's default and authored fallbacks, never by closing the hole.
 - Specificity: host first (instance-bound, type depth), then event kind depth. Two equally
   specific rules are rejected by the validator; there is no compose.
 - Game code never writes the state directly and never takes the author's hand (`Engine.author`

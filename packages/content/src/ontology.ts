@@ -5,6 +5,8 @@ import { APPEAR_TICK, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PA
 import { ELEMENT_NAMES, MATERIALS, MATERIAL_DEFS, QUALITIES, QUALITY_DEFS, itemTypes } from './items.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
+import { SKILL_PROFESSIONS } from './skills.ts'
+import { BOON_STATUSES } from './boons.ts'
 
 /** One char per terrain: maps are stored as strings. */
 export const TERRAIN_CHARS: Record<string, string> = {
@@ -297,7 +299,8 @@ const actorTypes: TypeDef[] = [
   P('actor/creature/wisp/storm_wisp', 'storm wisp', '风暴鬼火', { props: { hp: 9, maxHp: 9, atk: 3, speed: 4, element: 'lightning' } }),
   // companions (docs/prologue.md): they follow a leader (props.companion), fly, never block nor fight
   P('actor/companion', 'companion', '同伴', { tags: ['companion', 'living', 'airborne', 'essential'], props: { hp: 10, maxHp: 10, atk: 0, def: 0, speed: 2, sight: 8 } }),
-  P('actor/companion/bird', 'bird', '鸟', { tags: ['bird', 'feathered'], sprite: 'creature:parrot' }),
+  // Pip: a fairy, a small winged girl (the project's own art, tools/src/art/fairy.ts)
+  P('actor/companion/fairy', 'fairy', '精灵', { tags: ['fairy', 'winged'], sprite: 'creature:fairy' }),
   // the meadow's animals: passive, they run when struck, and leave food behind (drop × drops)
   P('actor/creature/animal', 'animal', '动物', { tags: ['animal'] }),
   P('actor/creature/animal/cow', 'cow', '牛', { tags: ['livestock', 'furry'], sprite: 'creature:cow', props: { hp: 10, maxHp: 10, atk: 0, speed: 7, }, makeup: [{ type: 'item/food/meat/raw', count: 4 }] }),
@@ -457,13 +460,15 @@ export function buildOntology(): Ontology {
   for (const t of [...actorTypes, ...fixtureTypes, ...itemTypes(), ...RESIDENTS, ...BOSS_TYPES]) types[t.id] = t
   return {
     types,
-    statuses: Object.fromEntries([...STATUSES, ...BOSS_STATUSES].map((s) => [s.id, s])),
+    statuses: Object.fromEntries([...STATUSES, ...BOSS_STATUSES, ...BOON_STATUSES].map((s) => [s.id, s])),
     // who attacks whom: the wild attacks folk (when a creature's temper says so); folk attack no one
     factions: {
       folk: { name: { en: 'folk', zh: '人们' }, hostile: [] },
       wild: { name: { en: 'the wild', zh: '野物' }, hostile: ['folk'] },
     },
     terrains: Object.fromEntries(TERRAINS.map((t) => [t.id, t])),
+    // the professions' names, for "only a warrior can fight with the sword" (engine/src/profession.ts)
+    professions: Object.fromEntries(SKILL_PROFESSIONS.map((p) => [p.id, { name: p.name }])),
     // the lines whose crossing is an event, and the clocks (design.md §5.7)
     // every thing with durability breaks at none (world-model.md §6.3): a person goes down, a tree falls, rock breaks
     thresholds: [

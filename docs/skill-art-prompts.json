@@ -1,0 +1,374 @@
+{
+  "version": 1,
+  "generator": "built-in imagegen",
+  "intent": "Fill missing skill and profession illustrations without replacing the existing 34 icons.",
+  "promptAssembly": "sharedPrompt + (asset.promptPrefix ?? (asset.id + ' / ' + asset.name + ': ')) + asset.subject",
+  "references": [
+    "packages/client/public/assets/lsw/skills/blade-mastery.png",
+    "packages/client/public/assets/lsw/skills/assassin.png"
+  ],
+  "sharedPrompt": "Use case: stylized-concept\nAsset type: one finished, original, collectible skill illustration for Symbolic World, a handcrafted top-down pixel JRPG.\nInput images: Image 1 (short-blade illustration) and Image 2 (assassin hood) are STYLE REFERENCES ONLY, not edit targets. Retain their chunky square pixel clusters, warm dark-brown silhouette outlines, cream highlights and imperfect handmade character.\nPrimary request: a colorful, fully designed skill icon, not a generic line glyph or flat vector pictogram. Give this specific skill its own recognizable silhouette, tangible fantasy materials and a small story expressed through wear, stitching or copper fittings.\nStyle/medium: illustrated pixel sprite on a roughly 32x32 logical grid. Hard-edged contiguous pixel color blocks, 6-9 restrained colors, one dark outline, 2-3 distinct flat shading tones per main material. No smooth gradients or antialiasing.\nComposition: one compact coherent emblem, centered square, approximately 65% occupancy, readable at 48-64px, generous transparent padding. Only the objects described below. Square canvas.\nVisual identity: warm brown outlines, a restrained ochre/copper handcrafted detail, one asymmetrical highlight; earthy cozy fantasy, not shiny generic mobile-game art.\nBackground: genuinely transparent alpha. No badge, UI frame, environment, typography, numeral, watermark, cast shadow, glow, outline-only art, stock-icon look or geometric line drawing.\nSubject and skill:\n",
+  "export": {
+    "width": 64,
+    "height": 64,
+    "format": "RGBA PNG",
+    "resampling": "nearest-neighbor",
+    "alpha": "preserve",
+    "sourceDirectory": "var/skill-art/sources"
+  },
+  "assets": [
+    {
+      "id": "nimble",
+      "promptPrefix": "Nimble / 灵巧, a dodge talent: ",
+      "name": "灵巧",
+      "branch": "swiftness",
+      "file": "packages/client/public/assets/lsw/skills/nimble.png",
+      "source": "var/skill-art/sources/nimble.png",
+      "subject": "one supple river-teal leather ankle boot balancing lightly on its bent toe, an ivory feather threaded through a small copper ankle buckle, a carefully stitched folded cuff. A nimble poised silhouette, with one small dark-teal afterimage behind the heel. Different from a winged running boot: no attached wings, no leg or person."
+    },
+    {
+      "id": "acrobat",
+      "name": "杂技",
+      "branch": "swiftness",
+      "file": "packages/client/public/assets/lsw/skills/acrobat.png",
+      "source": "var/skill-art/sources/acrobat.png",
+      "subject": "a short ivory acrobat's balancing baton crossed by a looping river-teal silk ankle ribbon, its bent ends trimmed with cream stitches and two tiny copper bells. An agile asymmetrical airborne twist, with a clearly filled fabric silhouette, no person, no circus scene."
+    },
+    {
+      "id": "dash",
+      "name": "冲刺",
+      "branch": "swiftness",
+      "file": "packages/client/public/assets/lsw/skills/dash.png",
+      "source": "var/skill-art/sources/dash.png",
+      "subject": "one low river-teal leather sprinting shoe pointing sharply forward, an ivory reinforced toe and copper lace eyelets, with three stepped broad teal speed afterimages behind it. Compressed forward-lunging silhouette, no wings, no leg or person."
+    },
+    {
+      "id": "slipstream",
+      "name": "疾行",
+      "branch": "swiftness",
+      "file": "packages/client/public/assets/lsw/skills/slipstream.png",
+      "source": "var/skill-art/sources/slipstream.png",
+      "subject": "a long folded river-teal travel scarf streaming from a weathered copper clasp in a tapered S-shaped wake. Cream stitched edges, a dark teal underside and one tiny ivory leaf caught in the trailing fold. Tangible thick fabric swept forward, no person, no arrow."
+    },
+    {
+      "id": "tailwind",
+      "name": "顺风",
+      "branch": "swiftness",
+      "file": "packages/client/public/assets/lsw/skills/tailwind.png",
+      "source": "var/skill-art/sources/tailwind.png",
+      "subject": "a small copper weather vane shaped like a swallow, its cream feathered tail bent forward by two broad river-teal wind curls. The vane sits on a short leather-wrapped spindle; an asymmetrical compact travel charm, not a compass, no lettering."
+    },
+    {
+      "id": "phantom-step",
+      "name": "幻影步",
+      "branch": "swiftness",
+      "file": "packages/client/public/assets/lsw/skills/phantom-step.png",
+      "source": "var/skill-art/sources/phantom-step.png",
+      "subject": "a pair of overlapping ankle boots: a solid stitched teal leather boot in front and a slightly offset pale blue-green ghost-shaped boot behind it. One copper ankle clasp links the silhouette, ghost form built from flat solid pixel patches, no glow, no person or leg."
+    },
+    {
+      "id": "untouchable",
+      "name": "无影",
+      "branch": "swiftness",
+      "file": "packages/client/public/assets/lsw/skills/untouchable.png",
+      "source": "var/skill-art/sources/untouchable.png",
+      "subject": "an empty dark-teal folded hood turning away from an ivory-steel dagger that passes harmlessly through a loose split cloth tail. A copper crescent clasp and cream edge stitches, two detached teal cloth chips suggest vanishing and a counterattack. A powerful readable capstone, no face, no body, no badge."
+    },
+    {
+      "id": "brute",
+      "name": "蛮力",
+      "branch": "damage",
+      "file": "packages/client/public/assets/lsw/skills/brute.png",
+      "source": "var/skill-art/sources/brute.png",
+      "subject": "a massive iron-plated leather fist crushing a small ochre stone into two stout chips. Thick oxblood-red wrist wrapping, three copper knuckle studs and one ivory scuff on the steel. Weight and raw physical strength, no arm or body."
+    },
+    {
+      "id": "precision",
+      "name": "精准",
+      "branch": "damage",
+      "file": "packages/client/public/assets/lsw/skills/precision.png",
+      "source": "var/skill-art/sources/precision.png",
+      "subject": "a weathered copper jeweler's loupe held over a small faceted garnet-red weak-point gem, with one tiny ivory steel blade tip aligned exactly to the gem. Dark brown leather loop, tangible glass and metal, compact precise silhouette, no eye, no lettering or target rings."
+    },
+    {
+      "id": "hemorrhage",
+      "name": "撕裂",
+      "branch": "damage",
+      "file": "packages/client/public/assets/lsw/skills/hemorrhage.png",
+      "source": "var/skill-art/sources/hemorrhage.png",
+      "subject": "a short serrated ivory-steel blade with a thornlike hooked edge, deep brick-red grip and copper ferrule. One stylized garnet-red teardrop rests below the serrations as a symbolic bleed marker. Jagged cutting silhouette, no wound, body, victim or gore."
+    },
+    {
+      "id": "lethal-edge",
+      "name": "致命锋芒",
+      "branch": "damage",
+      "file": "packages/client/public/assets/lsw/skills/lethal-edge.png",
+      "source": "var/skill-art/sources/lethal-edge.png",
+      "subject": "a slim ivory-steel dagger being honed against a small dark whetstone, a crisp cream highlight along its keen cutting edge, oxblood-red grip and one copper guard. One tiny angular sharpening chip. A crafted sharpness emblem, not a long sword."
+    },
+    {
+      "id": "brutal",
+      "name": "残暴",
+      "branch": "damage",
+      "file": "packages/client/public/assets/lsw/skills/brutal.png",
+      "source": "var/skill-art/sources/brutal.png",
+      "subject": "a heavy double-headed iron battle axe with asymmetrical chipped ivory cutting faces, thick oxblood-red cloth around a short oak handle and a stout copper central rivet. Two tiny jagged red impact chips, no victim, skull or blood."
+    },
+    {
+      "id": "first-strike",
+      "name": "先发制人",
+      "branch": "damage",
+      "file": "packages/client/public/assets/lsw/skills/first-strike.png",
+      "source": "var/skill-art/sources/first-strike.png",
+      "subject": "a bright ivory-steel spear tip bursting through a previously intact round brick-red wax seal into two large halves. An ochre cord still attached to the blank seal, one tiny copper impact spark. One decisive opening blow, no letters, target rings, victim or body."
+    },
+    {
+      "id": "momentum",
+      "name": "连击势头",
+      "branch": "damage",
+      "file": "packages/client/public/assets/lsw/skills/momentum.png",
+      "source": "var/skill-art/sources/momentum.png",
+      "subject": "a compact spiked iron flail swinging upward on three progressively rising copper chain links, with an oxblood-red leather grip and a short blocky red motion arc. A readable building rhythm of linked hits, no numerals, no character, no generic slash glyph."
+    },
+    {
+      "id": "berserker",
+      "name": "狂战之魂",
+      "branch": "damage",
+      "file": "packages/client/public/assets/lsw/skills/berserker.png",
+      "source": "var/skill-art/sources/berserker.png",
+      "subject": "a fierce horned iron war mask with small amber eyes, a cracked ruby-red brow gem and two jagged oxblood cloth streamers rising like a mane. Copper repairs and an asymmetrical ivory horn tip, an intense battle-rage capstone, no skull, body, gore or glow."
+    },
+    {
+      "id": "iron-will",
+      "name": "钢铁意志",
+      "branch": "survival",
+      "file": "packages/client/public/assets/lsw/skills/iron-will.png",
+      "source": "var/skill-art/sources/iron-will.png",
+      "subject": "a stout heart-shaped iron reliquary with two copper reinforcing bands, large rivets, an ivory edge scuff and one moss-green cloth tie. A resilient heavy heart, visibly crafted rather than a plain heart glyph, no glow or frame."
+    },
+    {
+      "id": "thick-skin",
+      "name": "厚皮",
+      "branch": "survival",
+      "file": "packages/client/public/assets/lsw/skills/thick-skin.png",
+      "source": "var/skill-art/sources/thick-skin.png",
+      "subject": "a thick layered leather shoulder guard made of three overlapping brown-and-moss-green hide scales. Large copper stitching studs, a rolled cream fur lining and a nicked upper edge. Compact protective armor, no person, no metal shield."
+    },
+    {
+      "id": "fortress",
+      "name": "坚城",
+      "branch": "survival",
+      "file": "packages/client/public/assets/lsw/skills/fortress.png",
+      "source": "var/skill-art/sources/fortress.png",
+      "subject": "a small stout three-towered stone keep with moss-green ivy, an ochre wooden gate and copper gate hinges. Uneven ivory-gray stone blocks and a reinforced broad base, a compact defense emblem rather than an environment scene, no ground or sky."
+    },
+    {
+      "id": "frugal",
+      "name": "节食",
+      "branch": "survival",
+      "file": "packages/client/public/assets/lsw/skills/frugal.png",
+      "source": "var/skill-art/sources/frugal.png",
+      "subject": "a tightly rolled moss-green travel ration cloth holding one half loaf of ochre bread, tied with a copper-brown leather cord and a cream stitched corner. A compact carefully preserved ration bundle, no dish, no character, no lettering."
+    },
+    {
+      "id": "hearty-meals",
+      "name": "饱餐",
+      "branch": "survival",
+      "file": "packages/client/public/assets/lsw/skills/hearty-meals.png",
+      "source": "var/skill-art/sources/hearty-meals.png",
+      "subject": "a sturdy warm-brown wooden bowl of rich stew with one orange carrot wedge, a small ivory potato and two moss-green herb leaves. A copper spoon rests diagonally across the rim and one compact cream steam curl rises above. No table or background."
+    },
+    {
+      "id": "regeneration",
+      "name": "再生",
+      "branch": "survival",
+      "file": "packages/client/public/assets/lsw/skills/regeneration.png",
+      "source": "var/skill-art/sources/regeneration.png",
+      "subject": "a fresh moss-green sprout curling through a weathered copper heart-shaped root knot, three thick cream-veined leaves and one tiny pale new bud. A living repaired charm, warm ivory highlights and dark brown root outlines, no magic glow, pot or soil scene."
+    },
+    {
+      "id": "adrenaline",
+      "name": "肾上腺素",
+      "branch": "survival",
+      "file": "packages/client/public/assets/lsw/skills/adrenaline.png",
+      "source": "var/skill-art/sources/adrenaline.png",
+      "subject": "a small amber glass tonic ampoule held in a moss-green stitched leather harness, a bold ivory lightning-shaped stopper and a copper clasp. Ruby-red liquid in two flat tones, a short green ribbon kicked sideways suggests a sudden burst of energy. No modern syringe or lettering."
+    },
+    {
+      "id": "phoenix",
+      "name": "涅槃",
+      "branch": "survival",
+      "file": "packages/client/public/assets/lsw/skills/phoenix.png",
+      "source": "var/skill-art/sources/phoenix.png",
+      "subject": "a small ivory-and-copper phoenix with lifted asymmetric wings emerging from a split copper eggshell. Warm coral-orange breast, cream feather tips and a tiny moss-green cord around the shell tie it to the survival palette. Bold hopeful rebirth silhouette, no fire background, halo or glow."
+    },
+    {
+      "id": "warrior-arms",
+      "name": "武器训练",
+      "branch": "warrior",
+      "file": "packages/client/public/assets/lsw/skills/warrior-arms.png",
+      "source": "var/skill-art/sources/warrior-arms.png",
+      "subject": "a stout iron training mace crossed behind a short worn oak practice sword. Oxblood-red grip wraps, copper end caps, ivory metal scuffs and a rough stitched hanging strap. A compact tactile melee weapon training emblem, no character."
+    },
+    {
+      "id": "bulwark",
+      "name": "铁壁",
+      "branch": "warrior",
+      "file": "packages/client/public/assets/lsw/skills/bulwark.png",
+      "source": "var/skill-art/sources/bulwark.png",
+      "subject": "a tall broad iron slab shield made from three overlapping vertical plates, with copper bolts and a short oxblood-red leather grip showing at one side. Thick ivory edge bevels, visibly heavy and steadfast, no circular badge, no crest or letters."
+    },
+    {
+      "id": "unbreakable",
+      "name": "不破之身",
+      "branch": "warrior",
+      "file": "packages/client/public/assets/lsw/skills/unbreakable.png",
+      "source": "var/skill-art/sources/unbreakable.png",
+      "subject": "a folded patch of dense ivory-steel chain mail holding a small deep-red heart stone at its center, secured by four stout copper rivets and a brown leather backing. A durable compact armor charm, not a generic heart or shield glyph, no glow."
+    },
+    {
+      "id": "retaliation",
+      "name": "以牙还牙",
+      "branch": "warrior",
+      "file": "packages/client/public/assets/lsw/skills/retaliation.png",
+      "source": "var/skill-art/sources/retaliation.png",
+      "subject": "a hooked ivory-steel counterstrike hammer catching a chipped incoming dagger against its curved rear hook. Short oxblood-red wrapped handle, large copper joint and one sharp ochre impact spark. A distinct reversal of a blow, no hand, body or arrows."
+    },
+    {
+      "id": "rampage",
+      "name": "狂暴",
+      "branch": "warrior",
+      "file": "packages/client/public/assets/lsw/skills/rampage.png",
+      "source": "var/skill-art/sources/rampage.png",
+      "subject": "a boar-shaped forged iron shoulder plate with two ivory tusks and a jagged oxblood-red cloth crest. A copper snout ring, worn dark brown straps and three short red motion chips suggest escalating ferocity. No full animal, body or skull."
+    },
+    {
+      "id": "warlord",
+      "name": "战争领主",
+      "branch": "warrior",
+      "file": "packages/client/public/assets/lsw/skills/warlord.png",
+      "source": "var/skill-art/sources/warlord.png",
+      "subject": "a battered oxblood-red swallowtail battle standard on a short ivory-steel spear, with a small iron shield pinned in front by a copper laurel clasp. Cream stitches, visibly torn fabric and sturdy metal. A commanding final-talent silhouette, no letters, emblem logo, person or scenery."
+    },
+    {
+      "id": "ranger-archery",
+      "name": "箭术",
+      "branch": "ranger",
+      "file": "packages/client/public/assets/lsw/skills/ranger-archery.png",
+      "source": "var/skill-art/sources/ranger-archery.png",
+      "subject": "a curved honey-brown wooden bow with moss-green leather grip and copper limb bindings, an ivory arrow nocked diagonally across the taut brown string. One asymmetrical carved leaf detail, clear arched silhouette, no hand or character."
+    },
+    {
+      "id": "steady-aim",
+      "name": "稳定瞄准",
+      "branch": "ranger",
+      "file": "packages/client/public/assets/lsw/skills/steady-aim.png",
+      "source": "var/skill-art/sources/steady-aim.png",
+      "subject": "one moss-green leather archer's glove firmly holding a small oak bow grip while an ivory arrow rests steadily between the fingers. Cream stitched wrist cuff, copper finger guard and taut short bowstring. A quiet precise solid silhouette, no full bow, arm or person."
+    },
+    {
+      "id": "sniper",
+      "name": "狙击",
+      "branch": "ranger",
+      "file": "packages/client/public/assets/lsw/skills/sniper.png",
+      "source": "var/skill-art/sources/sniper.png",
+      "subject": "a short weathered brass spotting telescope with a deep moss-green leather wrap and one ivory highlight on its dark glass lens. One slender ivory arrow tucked alongside the barrel, dark brown strap curled beneath. A medieval long-range scouting instrument, no rifle, reticle, lettering or scenery."
+    },
+    {
+      "id": "fleet-archer",
+      "name": "游击",
+      "branch": "ranger",
+      "file": "packages/client/public/assets/lsw/skills/fleet-archer.png",
+      "source": "var/skill-art/sources/fleet-archer.png",
+      "subject": "a green leather archer's ankle boot leaning forward, with a short ivory arrow secured along the outside by two copper strap buckles and a forked leaf-green ribbon trailing behind. Cream stitching, worn brown sole, no feather wing, leg or person."
+    },
+    {
+      "id": "quick-draw",
+      "name": "快速拉弓",
+      "branch": "ranger",
+      "file": "packages/client/public/assets/lsw/skills/quick-draw.png",
+      "source": "var/skill-art/sources/quick-draw.png",
+      "subject": "a compact tilted moss-green leather quiver with three ivory arrows springing upward at staggered heights. Ochre feather fletchings, a loose copper-capped drawcord and thick cream stitching. A dynamic tactile rapid-fire emblem, no bow, arm, numerals or abstract lines."
+    },
+    {
+      "id": "hunters-mark",
+      "name": "猎手印记",
+      "branch": "ranger",
+      "file": "packages/client/public/assets/lsw/skills/hunters-mark.png",
+      "source": "var/skill-art/sources/hunters-mark.png",
+      "subject": "a small dark oak target medallion shaped like a stag's head, with two short ivory antlers and an inset garnet-red center struck by one ivory arrow. Moss-green leather tie and copper fixing pin. A distinctive tracking capstone charm, no lettering, numerals or circular UI border."
+    },
+    {
+      "id": "mage-focus",
+      "name": "奥术专注",
+      "branch": "mage",
+      "file": "packages/client/public/assets/lsw/skills/mage-focus.png",
+      "source": "var/skill-art/sources/mage-focus.png",
+      "subject": "a short twisted dark-oak wand tip cradling one faceted violet crystal within three copper prongs. Deep-plum cloth wrapped around the handle and one ivory crystal highlight. Focused arcane instrument, no spell aura, hands, letters or glowing background."
+    },
+    {
+      "id": "elemental-attunement",
+      "name": "元素亲和",
+      "branch": "mage",
+      "file": "packages/client/public/assets/lsw/skills/elemental-attunement.png",
+      "source": "var/skill-art/sources/elemental-attunement.png",
+      "subject": "three small tangible elemental charms joined by a copper knot: an amber flame-shaped stone, an ivory-blue ice crystal and a plum lightning-shaped shard. A dark purple leather binding gathers them into one compact asymmetrical talisman. Flat restrained colors, no particle cloud, ring, letters or glow."
+    },
+    {
+      "id": "spell-echo",
+      "name": "法术回响",
+      "branch": "mage",
+      "file": "packages/client/public/assets/lsw/skills/spell-echo.png",
+      "source": "var/skill-art/sources/spell-echo.png",
+      "subject": "one central faceted indigo crystal on a copper wand socket with two smaller offset pale-violet crystal echoes following its diagonal. A curled plum cloth ribbon physically links the cluster, cream facet highlights. A repeating spell motif, no numerals, star field or luminous halo."
+    },
+    {
+      "id": "mana-shield",
+      "name": "法力护盾",
+      "branch": "mage",
+      "file": "packages/client/public/assets/lsw/skills/mana-shield.png",
+      "source": "var/skill-art/sources/mana-shield.png",
+      "subject": "a shield-shaped piece of violet arcane glass held by three sturdy copper corner clasps, a deep-plum faceted center and one broad ivory edge reflection. Two small indigo ribbon tails from its lower clasp, materially distinct from an iron shield. No UI frame, letters, runic text or glow."
+    },
+    {
+      "id": "arcane-recovery",
+      "name": "奥术汲取",
+      "branch": "mage",
+      "file": "packages/client/public/assets/lsw/skills/arcane-recovery.png",
+      "source": "var/skill-art/sources/arcane-recovery.png",
+      "subject": "a small weathered copper chalice cradling one ruby-pink life crystal, with a curled indigo silk ribbon drawing two small pale-violet droplets inward over its rim. A plum stitched grip and cream rim highlight. A compact recovered-life artifact, no potion bottle, hands or glow."
+    },
+    {
+      "id": "archmage",
+      "name": "大法师",
+      "branch": "mage",
+      "file": "packages/client/public/assets/lsw/skills/archmage.png",
+      "source": "var/skill-art/sources/archmage.png",
+      "subject": "a small open grimoire with thick ivory pages and deep-plum leather covers, topped by an upright violet crystal held in a copper crown-shaped book clasp. One indigo page ribbon curls below and a few square cream page marks imply magic without actual letters. An elaborate but readable final-talent artifact, no text, stars, halo or background."
+    },
+    {
+      "id": "warrior",
+      "name": "战士",
+      "branch": "profession",
+      "file": "packages/client/public/assets/lsw/skills/warrior.png",
+      "source": "var/skill-art/sources/warrior.png",
+      "subject": "one weathered iron warrior's helmet in three-quarter view, a short oxblood-red horsehair crest, stout copper brow rivets and a dark face opening. Asymmetrical ivory steel highlights, no face, body, weapons or heraldic logo. Match the existing assassin hood's head-only scale."
+    },
+    {
+      "id": "ranger",
+      "name": "游侠",
+      "branch": "profession",
+      "file": "packages/client/public/assets/lsw/skills/ranger.png",
+      "source": "var/skill-art/sources/ranger.png",
+      "subject": "one moss-green ranger's hood with a soft brown leather brow band, a short ivory feather held by a copper leaf pin and a dark empty face opening. A folded asymmetrical hem with cream stitching, no visible face, body, bow or background. Match the existing assassin hood's head-only scale."
+    },
+    {
+      "id": "mage",
+      "name": "法师",
+      "branch": "profession",
+      "file": "packages/client/public/assets/lsw/skills/mage.png",
+      "source": "var/skill-art/sources/mage.png",
+      "subject": "one bent deep-plum wizard hat with an indigo underside, a broad weathered copper band and a tiny violet crystal set in an off-center ivory clasp. A stitched asymmetrical curled tip and dark open underside, no face, body, staff or star pattern. Match the existing assassin hood's compact emblem scale."
+    }
+  ]
+}

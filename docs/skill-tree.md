@@ -1,5 +1,40 @@
 # Skill tree and icon brief
 
+## Icon completion (2026-10-04)
+
+All **70 implemented skills** now reference distinct illustrated icons. The library has
+**78 registered 64×64 RGBA PNGs** including profession, branch and navigation artwork.
+This pass adds **41 skill illustrations and three profession entrances** (Warrior,
+Ranger and Mage). The previous 34 PNGs, including the Assassin set, are preserved.
+There are no remaining `placeholder:` references in the skill content.
+
+The new illustrations use **built-in imagegen**, one generation per asset, with the
+existing Short-Blade Training and Assassin icons as style references. Warm brown
+outlines, ivory highlights, copper fittings and worn materials unify the set. Teal
+identifies Swiftness, brick red Damage, moss green Survival, iron/red Warrior,
+forest green Ranger and violet Mage. All nodes remain full-colour when locked.
+
+- Assets: `packages/client/public/assets/lsw/skills/<key>.png`.
+- Exact shared brief, individual subjects and paths: [generation manifest](skill-art-prompts.json).
+- New artwork contact sheet: [44 completed icons](skill-art-complete-preview.png).
+- Local full-resolution sources: `var/skill-art/sources/` (not committed).
+- Export: `packages/tools/src/art/export-skill-icon.swift`, nearest-neighbour sampling
+  with generated alpha preserved; it refuses to overwrite existing artwork.
+- Coverage: `packages/tools/test/skill-art.test.ts` checks every skill/entrance, registry
+  and file parity, distinct decoded images, dimensions, actual transparent padding,
+  visible pixels, prompts and full-colour bitmap rendering. Placeholder exemptions
+  have been removed. No gameplay values or skill prerequisites changed in this pass.
+
+Art verification: all eight focused tests pass, and the client production build includes
+all 78 PNGs unchanged. The 44-icon contact sheet was checked against the preserved style
+references. Recreate it from the repository root with
+`swift packages/tools/src/art/preview-skill-icons.swift`.
+
+## Original tree brief and subsequent extensions
+
+The original tree brief below predates the profession and general-branch expansions.
+Current icon coverage is summarized above; later sections retain their design history.
+
 The tree has two directions and eight branches. Combat has **25 implemented nodes**;
 Life retains four Gathering nodes and three pending, non-purchasable branch entrances.
 
@@ -32,7 +67,7 @@ two, a two-point capstone needing both arms) and a starter weapon handed over th
 profession branch, undoes its grants and gives its points back; shared branches are kept.
 Each professional node declares `profession`; UI filtering and engine-side learning both
 enforce the match, and every talent checks the actor's current profession. The new trees'
-icons are `placeholder:<id>` (the origin emblem) until they are drawn.
+icons and profession entrances received individual illustrations on 2026-10-04.
 
 | Profession | Root | Arm A | Arm B | Capstone (2 points) |
 | --- | --- | --- | --- | --- |
@@ -243,8 +278,8 @@ Subject:
 
 ### Distinct talent illustrations
 
-The twelve additional assets below complete a one-to-one mapping for the **29 current
-skills**. The library contains 34 PNGs including hubs/navigation. Original artwork is
+The twelve additional assets below completed a one-to-one mapping for the **29 skills
+implemented at that stage**. That library contained 34 PNGs including hubs/navigation. Original artwork is
 preserved; only previously duplicated talent references are assigned a new, unique image.
 All files live at `packages/client/public/assets/lsw/skills/<key>.png`, exported as 64×64
 RGBA PNGs with nearest-neighbour sampling so no smooth resampling is introduced.
@@ -256,7 +291,7 @@ New Swiftness art uses teal, Survival moss green, Damage brick red, and Assassin
 These illustrations are not generic line glyphs. Unlearned art retains its colours and
 material detail; neutral/dashed node borders communicate availability.
 
-The current skill illustrations can be reviewed together in [the preview](skill-art-preview.png).
+Those original illustrations can be reviewed together in [the original preview](skill-art-preview.png).
 
 Every call uses this shared prompt verbatim, followed by its subject:
 
@@ -304,8 +339,8 @@ zoom controls, fallback handling and actual transparent pixels in all 34 assets.
 Asked for: swiftness = dodge, movement speed, special movement; damage = attack, critical rate,
 critical damage; survival = max health, defence, hunger, natural regeneration, a way to survive
 the brink. Each branch keeps its first arms and capstone, gains two more arms, and a second
-two-point capstone that needs both of them (the last node of the branch). Icons are
-`placeholder:<id>` until drawn. Tests: `tools/test/general-skills.test.ts`.
+two-point capstone that needs both of them (the last node of the branch). Each added node
+received its own illustrated icon on 2026-10-04. Tests: `tools/test/general-skills.test.ts`.
 
 | Branch | New arm A | New arm B | Capstone (2) |
 | --- | --- | --- | --- |

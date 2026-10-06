@@ -73,9 +73,11 @@ an old rune-cut seal stone in a ring of flowers that nothing in the world define
 on it — the world learns (J: the Threadbook). A waypoint statue stands below it; the trail runs out
 of the map's south edge onto the top of the Ford's cliff.
 
-## The bird
+## The fairy
 
-Pip (`actor/companion/bird`, the pack's red parrot) wakes you and stays with you for the whole
+Pip (`actor/companion/fairy`: a small winged girl, a fairy, in the project's own art —
+`tools/src/art/fairy.ts`, a four-frame wingbeat and a portrait; until 2026-10-05 she was the
+pack's red parrot, and `content/src/migrateCompanion.ts` turns an older save's bird into her) wakes you and stays with you for the whole
 game:
 
 - **Follows** its leader (`props.companion` = the leader's id — data, not "the player"): it
@@ -91,9 +93,9 @@ game:
   near with a status, a room with a role, the first morning after another step) and, when it
   first holds, it plays: the story keeps it (`seen.<id>`, `step.last`) and its facts, tells the
   leader its new stage (`notify` what = `prologue`, which the leader keeps itself: `body/stage`),
-  and the bird says one line in a bubble. Beats are content; the engine only evaluates them
+  and the fairy says one line in a bubble. Beats are content; the engine only evaluates them
   (`engine/src/story.ts`).
-- **E on the bird** repeats the line of the stage you are at (`@hint`).
+- **E on the fairy** repeats the line of the stage you are at (`@hint`).
 
 ## The map system
 

@@ -709,8 +709,8 @@ export const CATALOG: Catalog = {
     // the meadow's animals: the project's own art (tools/src/art/animals.ts), not the pack's
     'creature:cow': { dir: 'lsw/Animal/Cow', sheet: 'SpriteSheet.png', cols: 4, rows: 4 },
     'creature:chicken': { dir: 'lsw/Animal/Chicken', sheet: 'SpriteSheet.png', cols: 4, rows: 4 },
-    // the companion bird: a two-frame flap, no directions
-    'creature:parrot': { dir: 'Actor/Animal/Parrot', sheet: 'SpriteSheetRed.png', faceset: 'FacesetRed.png', cols: 2, rows: 1 },
+    // the companion, Pip the fairy: the project's own art (tools/src/art/fairy.ts), a four-frame wingbeat, no directions
+    'creature:fairy': { dir: 'lsw/Companion/Fairy', sheet: 'SpriteSheet.png', faceset: 'Faceset.png', cols: 4, rows: 1 },
     // Boss sheets are single-row strips: cols = animation frames (62x52 each), no directions.
     'boss:slime': { dir: 'Actor/Boss/GiantSlime', sheet: 'Idle.png', faceset: 'Faceset.png', cols: 5, rows: 1 },
     'boss:cyclops': { dir: 'Actor/Boss/DemonCyclop', sheet: 'Idle.png', faceset: 'Faceset.png', cols: 5, rows: 1 },

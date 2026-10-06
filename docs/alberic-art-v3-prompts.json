@@ -1,0 +1,147 @@
+{
+  "version": 3,
+  "generator": "built-in imagegen",
+  "date": "2026-10-05",
+  "revision": "User correction: overhead 2D projection, not standing portrait.",
+  "identityPrompt": "Use case: stylized-concept\nAsset type: ONE in-game overhead 2D pixel-art boss sprite, not a character illustration, not a poster.\nInput images: Image 1 is COSTUME REFERENCE ONLY; do not copy its low camera angle or tall front-view proportions. Image 2 shows the game's overhead map projection and pixel style. Do not draw that map.\nPrimary request: White Knight Alberic rebuilt specifically for a top-down tile-map RPG. Camera is HIGH ABOVE his head, looking down at 65 degrees toward the ground. Orthographic overhead game projection. Show a large visible TOP PLANE of his great helm and the upward-facing plates of BOTH shoulders, upper back, quiver opening and cape spread ON THE GROUND behind him. His head overlaps the torso; torso overlaps most of the thighs. Legs are foreshortened and only short greaves and tops of boots protrude. Do NOT show an upright full-height human from head to toe. Do NOT show a tall frontal chest or long legs. Not a side-scrolling sprite, not a 3D miniature photo.\nPose: standing, torso and helmet facing diagonally DOWN-RIGHT on the map; camera stays above, head not artificially bowed. Sword held low with point toward the ground in front of him, dark recurved bow held low at the other side. Ragged cape spreads back and left in the map plane.\nIdentity: sealed battered IVORY cylindrical great helm with a dark narrow visor on its short visible front face, dark bronze thorn crown seen as an open oval on the helmet TOP; broad asymmetric ivory-gold pauldrons, dark mail joints, embossed dull-gold cross/trim, worn ivory scarf and torn off-white cape with restrained dark-rust edge, white-fletched back quiver. Tragic exhausted centuries-old guardian, imposing but not chibi or cute.\nArt direction: genuine COARSE HAND-CRAFTED PIXEL ART at 96x96 logical resolution, displayed enlarged with crisp square pixel clusters, 3-4 shade steps per material, warm dark contour, readable generous pale armour shapes and selected gold ornamental marks. Preserve individual design but REMOVE painterly fine hatching, realistic texture noise and smooth gradients. The sprite must fit the overhead ground tiles in Image 2.\nComposition: a compact approximately square silhouette, total height about 1.15 times total width including cape and weapons, centered; no floor, no cast shadow, no perspective base, no horse. Every extremity inside canvas with 12% transparent padding. Truly transparent alpha. No text, labels, layout panels, border or watermark.\nMost important acceptance test: it must clearly look viewed from ABOVE, helmet roof and shoulders dominating, NOT a standing character sheet portrait.",
+  "references": [
+    "白骑士·阿尔贝里克.png",
+    "docs/firstlight-village-preview.png",
+    "docs/boss-art/alberic-v3/identity.png"
+  ],
+  "bodyPrompt": "Use case: stylized-concept\nAsset type: ONE top-down game character animation sprite sheet, EXACTLY 12 frames in a strict FOUR COLUMN by THREE ROW grid.\nImage 1 is the approved OVERHEAD pixel design reference. Preserve its exact character and high camera, not its pose.\nCamera invariant: HIGH OVERHEAD 65-degree orthographic 2D RPG camera. Large visible helmet ROOF, tops of both shoulders and upper back; head overlaps the torso, foreshortened torso overlaps short boots. Body is compact approximately square including spread cape, NOT an upright portrait or side-scroller. The helmet is not merely bowed; the entire body and weapons must have the overhead projection.\nRows are different map facings of this SAME animation:\nTOP ROW = facing DOWN, toward screen bottom; helmet top and its short front visor visible, cloak trails toward screen top.\nMIDDLE ROW = facing RIGHT toward screen right, seen clearly from above; cloak trails left.\nBOTTOM ROW = facing UP toward screen top, seen from BEHIND and ABOVE; show helmet back and top, broad back pauldrons and embroidered cape, NOT a face on the back. Bow/arms extend toward screen top.\nIn each row, columns 1,2,3,4 are the four sequential poses described below. Do not change camera when changing the facing.\nIdentity invariant: worn ivory sealed great helm, visible bronze oval thorn crown on top, ornate broad ivory shoulder plates edged old gold, scarf, dark joint mail, white-feathered quiver, split ragged ivory/gold cape with sparse dark-rust hems, recurved dark-gold bow and gold-crossguard straight sword. No extra head, horse, exposed face, shield, floating weapon or different costume.\nStyle: genuine crisp HAND-DRAWN PIXEL ART, designed for 96-128px game frames; restrained 3-4 shade steps, large readable clusters and strong warm outlines, ivory/gold/bronze palette. No painterly fine hatching, photorealism, vector or chibi.\nFraming invariant: EXACT equal cells, all twelve centered on the same body/foot pivot (50% cell width, 68% cell height). Maintain absolute body size across ALL directions and poses. Do not enlarge crouched or fallen poses. Every cape, bow and sword tip must fit entirely in its OWN cell with at least 10% transparent border. Transparent gutters between ALL rows and columns. No floor, shadow, UI, labels, letters, text, border, watermark, particles from adjacent cells. Genuinely transparent alpha.\nAnimation for each of the three facing rows:\n",
+  "fxPrompt": "Use case: stylized-concept\nAsset type: ONE game VFX animation sprite sheet with exactly SIX sequential frames in THREE equal columns and TWO equal rows, read left-to-right, top-to-bottom. Transparent gutters, no visible grid.\nInput images: Image 1 is the White Knight overhead pixel-art sprite. Use their ivory, tarnished gold, dark bronze thorns and restrained old-rust palette, but draw NO character or costume.\nStyle/medium: richly designed crisp pixel VFX, clear square clusters, ivory light cores, pale gold intermediate clusters, warm charcoal/bronze silhouettes. No blurry bloom, gradient fog, vector icons or neon rainbow.\nComposition: every isolated effect fully inside its own equal square cell, 10% transparent gutters. Keep a fixed effect center and a constant absolute scale across all six frames, allowing late fragments to shrink naturally. Each cell contains only one coherent effect.\nBackground: genuinely transparent alpha; no rectangular ground patches, UI, numbers, captions, text, watermark, characters or scenery.\nCamera: 65-degree HIGH OVERHEAD game camera; see the TOPS of ground effects, not tall side profiles. Foreshorten standing arrows and briars. No lateral portrait projection.\nEffect and six beats:\n",
+  "export": {
+    "directory": "packages/client/public/assets/lsw/Bosses/alberic/v3",
+    "reviewDirectory": "docs/boss-art/alberic-v3",
+    "bodyCell": 128,
+    "bodyColumns": 4,
+    "bodyRows": 21,
+    "bodyAnchorY": 88,
+    "scale": 1.25,
+    "bodySampling": 0.76,
+    "effectSampling": 0.88,
+    "directions": [
+      "down",
+      "right",
+      "up"
+    ],
+    "resampling": "nearest-neighbour, preserve generated alpha; no repainting"
+  },
+  "assets": [
+    {
+      "id": "idle",
+      "name": "Burdened vigil",
+      "kind": "body",
+      "row": 0,
+      "columns": 4,
+      "rows": 3,
+      "frames": 12,
+      "subject": "Column 1: solemn guard, sword point low near feet, bow carried low, helmet and shoulders steady. Column 2: slight exhale and shoulders lower, cape edge sways. Column 3: small inhale, cape changes folds. Column 4: nearly returns to the initial guard. Feet stay planted; subtle real cloth/shoulder motion, no duplicate images.",
+      "source": "var/boss-art/alberic-v3/sources/idle.png"
+    },
+    {
+      "id": "walk",
+      "name": "Armoured advance",
+      "kind": "body",
+      "row": 1,
+      "columns": 4,
+      "rows": 3,
+      "frames": 12,
+      "subject": "Column 1: left foot steps along row's map facing, right leg back, sword low and bow slung. Column 2: right foot passes below the hips, shoulder counter-rotates and cape trails. Column 3: right foot steps forward, left behind. Column 4: opposite passing pose. Heavy alternating gait in place, not standing duplicates. Legs remain SHORT because of overhead foreshortening.",
+      "source": "var/boss-art/alberic-v3/sources/walk.png"
+    },
+    {
+      "id": "thorns",
+      "name": "Crown judgement",
+      "kind": "body",
+      "row": 2,
+      "columns": 4,
+      "rows": 3,
+      "frames": 12,
+      "subject": "Column 1: bow slung, both gauntlets lift sword in front of body. Column 2: raises sword above helmet; from the high overhead camera the blade must be strongly foreshortened, never a huge vertical blade sticking outside the cell. Column 3: drives the sword point down into the ground between the boots, cape flares on the ground plane. Column 4: kneels over planted sword, helmet roof and shoulders visible, cape pools. No spell or ground drawn.",
+      "source": "var/boss-art/alberic-v3/sources/thorns.png"
+    },
+    {
+      "id": "arrow",
+      "name": "Arrow of Conquest",
+      "kind": "body",
+      "row": 3,
+      "columns": 4,
+      "rows": 3,
+      "frames": 12,
+      "subject": "Column 1: sword sheathed, raises recurved bow and nocks arrow along row's MAP FACING. Column 2: FULL DRAW in that direction, string pulled to helmet, cape tenses. Column 3: RELEASE, drawing fingers open and bowstring snaps; tiny ivory release point only, no giant projectile. Column 4: lowers bow in recoil. Overhead foreshortening differs by direction: down arrow points toward bottom, right arrow toward right, back-facing up arrow toward top.",
+      "source": "var/boss-art/alberic-v3/sources/arrow.png"
+    },
+    {
+      "id": "volley",
+      "name": "White-Feather Volley",
+      "kind": "body",
+      "row": 4,
+      "columns": 4,
+      "rows": 3,
+      "frames": 12,
+      "subject": "Column 1: sword sheathed, raises bow toward the SKY, not merely toward screen top. Column 2: draws aimed steeply into the air, as seen from above the bow is foreshortened and raised near/over the helmet. Column 3: releases into the sky, free gauntlet opens; tiny gold-white glint. Column 4: lowers the bow. Keep each row's facing and the overhead camera; show helmet TOP and upper shoulders in every pose.",
+      "source": "var/boss-art/alberic-v3/sources/volley.png"
+    },
+    {
+      "id": "hurt",
+      "name": "Weight of the crown",
+      "kind": "body",
+      "row": 5,
+      "columns": 4,
+      "rows": 3,
+      "frames": 12,
+      "subject": "Column 1: shoulders recoil with weight and helmet tips back slightly, sword low. Column 2: knee buckles, torso dips and gauntlet braces chest. Column 3: rises into planted stance. Column 4: recovers guard. Overhead view remains fixed; no blood or white silhouette replacement; real distinct armour and cape movement.",
+      "source": "var/boss-art/alberic-v3/sources/hurt.png"
+    },
+    {
+      "id": "death",
+      "name": "The crown was never mine",
+      "kind": "body",
+      "sampling": 0.92,
+      "row": 6,
+      "columns": 4,
+      "rows": 3,
+      "frames": 12,
+      "subject": "Column 1: sinks to one knee behind planted sword, free gauntlet reaches thorn crown. Column 2: lifts crown completely OFF helmet, holding it forward in free hand. Column 3: bows and offers crown at arm's length, no duplicate crown on helmet. Column 4: lies still on side, cloak spread across ground, sword and removed crown rest beside open gauntlet. View all from ABOVE. No floor/shadow, gore or bare face. Same body scale, fallen body lies in the map plane, not a tiny side-on body.",
+      "source": "var/boss-art/alberic-v3/sources/death.png"
+    },
+    {
+      "id": "effect-arrow",
+      "name": "Arrow of Conquest",
+      "kind": "fx",
+      "columns": 3,
+      "rows": 2,
+      "frames": 6,
+      "size": 96,
+      "originY": 0.5,
+      "subject": "A long horizontal WHITE-GOLD arrow of conquest oriented strictly LEFT TO RIGHT, with a spear-sharp ivory arrowhead, dark-gold thornlike fletching and separated pale feather streaks. It reads as a narrow holy ballistic beam, not a lightning bolt or fireball. Frame 1: fully lit arrowhead and straight luminous shaft already present across 75% of the cell width, signifying instant impact. Frame 2: strongest ivory shaft, gold feather crescents fan out behind the head. Frame 3: shaft splits into thin parallel white feather streaks. Frame 4: gold-bronze flecks and broken pale trailing feathers peel away. Frame 5: a few ivory quills and golden dust pixels linger. Frame 6: a tiny, visibly designed residual feather trail. No circular explosion, glyph text or giant halo. Effect stays horizontally centered vertically in every cell.",
+      "source": "var/boss-art/alberic-v2/sources/effect-arrow.png"
+    },
+    {
+      "id": "effect-volley",
+      "name": "White-Feather Volley",
+      "kind": "fx",
+      "columns": 3,
+      "rows": 2,
+      "frames": 6,
+      "size": 96,
+      "originY": 0.85,
+      "subject": "Three substantial WHITE-FEATHERED ARROWS landing as one tightly grouped impact: ivory barbed arrowheads, dark bronze shafts, torn white fletching and a little warm dust. Arrows descend diagonally from upper right toward one fixed ground point near 85% cell height. Frame 1: first arrow already touches this ground point with a sharp small ivory star, two others close behind. Frame 2: all three strike in staggered lengths, bright short cream splinters. Frame 3: three shafts embedded and vibrating, compact bronze/ivory impact shards. Frame 4: shafts settle, white feathers detach and curl around them. Frame 5: shafts fade into broken quills and bronze dust. Frame 6: a few pale feathers settle at the same ground point. No drawn ground, blood, person or big magic circle. Narrow cluster suitable for a single marked target tile. IMPORTANT: high OVERHEAD perspective, footprint spread on ground plane; shorten all vertical shafts/branches seen from above.",
+      "source": "var/boss-art/alberic-v3/sources/effect-volley.png"
+    },
+    {
+      "id": "effect-thorns",
+      "name": "Thorns Bend the Knee",
+      "kind": "fx",
+      "columns": 3,
+      "rows": 2,
+      "frames": 6,
+      "size": 64,
+      "originY": 0.85,
+      "subject": "One small erupting CLUSTER OF CROWN-OF-THORNS BRIARS, with twisted near-black bronze roots, sharp ivory-gold barbs and tiny restrained old-rust tips. This is a modular piece repeated along the EXACT edge of a square combat ring, so do NOT draw an entire ring, circle or crown badge. Fixed base at 85% cell height. Frame 1: broken dark-gold splinters and two sharp briar tips erupt from the base, already signalling impact. Frame 2: three twisting hooked branches shoot up and spread slightly, gold-edged barbs visible. Frame 3: full threatening tangled briar cluster at maximum height, asymmetric arched hooks. Frame 4: branches bow and begin to crumble, pale gold thorn tips break off. Frame 5: briars sink and shatter into short dark pieces and ivory splinters. Frame 6: sparse bronze thorn debris at the base. No ground tile, flowers, green leaves, fire, blood or character. IMPORTANT: high OVERHEAD perspective, footprint spread on ground plane; shorten all vertical shafts/branches seen from above.",
+      "source": "var/boss-art/alberic-v3/sources/effect-thorns.png"
+    }
+  ]
+}

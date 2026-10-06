@@ -1,7 +1,7 @@
 // The prologue (docs/prologue.md): the tutorial (stages 1 … TUTORIAL_DONE), then the foot of the mountain and
 // down to the Ford. Its stage is the player's `prologue` prop (PROLOGUE_AT_FOOT at the foot, the
 // stage a game that skips the tutorial begins at; PROLOGUE_DONE once on the Ford); the beats move
-// it on and let Pip, the bird, say one line each; the objectives are what the HUD shows meanwhile.
+// it on and let Pip, the fairy, say one line each; the objectives are what the HUD shows meanwhile.
 // Every beat waits for a state, never for a path: whatever gets the player there counts.
 
 import type { StepCond, StepDef, Text } from '@lsw/engine'
@@ -43,7 +43,7 @@ export const PROLOGUE_BEATS: StepDef[] = [
     id: 'tut_wake',
     when: { map: 'tutorial', statuses: { out_cold: false }, props: { prologue: { lt: 1 } } },
     props: { prologue: 1 },
-    say: L('Chirp! You are awake at last! I am Pip. You must be starving — there are berries on the ground. F picks them up, a right click eats.', '啾！你终于醒啦！我是小啾。你一定饿坏了吧——地上有浆果。按 F 捡起来，右键就能吃。'),
+    say: L('Hey! You are awake at last! I am Pip — a fairy, and from today I go where you go. You must be starving — there are berries on the ground. F picks them up, a right click eats.', '嘿！你终于醒啦！我是小啾，是个精灵，从今天起你去哪儿我就去哪儿。你一定饿坏了吧——地上有浆果。按 F 捡起来，右键就能吃。'),
   },
   {
     id: 'tut_ate',

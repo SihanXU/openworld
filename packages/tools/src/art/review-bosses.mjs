@@ -42,14 +42,14 @@ await call('Runtime.enable'); await call('Network.enable'); await call('Page.ena
 await call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
 await mkdir('docs/boss-review', { recursive: true })
 try {
-  for (const id of ['greed', 'gluttony', 'sloth', 'lust', 'wrath', 'envy', 'pride']) {
+  for (const id of ['lust', 'envy', 'pride']) {
     await call('Page.navigate', { url: `http://127.0.0.1:5184/boss-gallery.html?boss=${id}&shot=warning` })
     await pause(200); await ready(id); await pause(500)
     const status = await evaluate("({name:document.getElementById('sinName').textContent, skills:document.querySelectorAll('#skillButtons button').length, info:document.getElementById('bossInfo').textContent, status:document.getElementById('studioStatus').textContent})")
     if (status.skills !== 3 || status.status.includes('error')) throw new Error(JSON.stringify(status))
     const shot = await call('Page.captureScreenshot', { format: 'png' })
     await writeFile(`docs/boss-review/${id}.png`, Buffer.from(shot.data, 'base64'))
-    if (id === 'greed') await writeFile('docs/seven-sins-gameplay.png', Buffer.from(shot.data, 'base64'))
+    if (id === 'pride') await writeFile('docs/seven-sins-gameplay.png', Buffer.from(shot.data, 'base64'))
     for (const action of ['idle', 'walk', 'attack', 'cast', 'hurt', 'death']) {
       await evaluate(`document.getElementById('modeSelect').value='${action}'; document.getElementById('modeSelect').dispatchEvent(new Event('change'))`)
       await pause(120)
@@ -70,9 +70,9 @@ try {
     }
     await evaluate("document.getElementById('resetFight').click(); document.getElementById('enrageBoss').click()")
     if (!(await evaluate("document.getElementById('sinBoss').classList.contains('awakened')"))) throw new Error('Missing awakened health plate: ' + id)
-    if (id === 'greed') {
+    if (id === 'pride') {
       const shot = await call('Page.captureScreenshot', { format: 'png' })
-      await writeFile('docs/boss-review/greed-awakened.png', Buffer.from(shot.data, 'base64'))
+      await writeFile('docs/boss-review/pride-awakened.png', Buffer.from(shot.data, 'base64'))
     }
     console.log(id, JSON.stringify(status), '6 action modes and awakened health plate rendered')
   }

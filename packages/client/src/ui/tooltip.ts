@@ -4,7 +4,7 @@
 // restores in blue and gold; its traits as purple italic lore; statuses and an owner in red.
 
 import type { Frame, ItemInfo } from '@lsw/engine'
-import { MATERIALS, STATUSES } from '@lsw/content'
+import { MATERIALS, PROFESSION_BY_ID, STATUSES } from '@lsw/content'
 import { esc, locale, tx } from './common.ts'
 
 const L = (en: string, zh: string) => (locale.value === 'zh' ? zh : en)
@@ -71,6 +71,8 @@ export interface TipContext {
   atk: number
   /** A person's name by id (an owner). */
   nameOf: (id: string) => string | undefined
+  /** The player's profession: whether a profession weapon is theirs to fight with. */
+  profession?: string
 }
 
 /** The tooltip's lines for an item. */
@@ -94,6 +96,24 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
     if (range > 1) out.push(line(` ${range} ${L('Reach', '攻击距离')}`, '#00aa00'))
     if (element) out.push(line(` ${L('Element', '元素')}: ${L(element[0], element[1])}`, element[2]))
   }
+  // a weapon's own traits (the legendary arms)
+  const pct = (v: unknown) => (typeof v === 'number' && v > 0 ? Math.round(v * 100) : 0)
+  if (pct(p.critChance)) out.push(line(` +${pct(p.critChance)}% ${L('Critical Chance', '暴击率')}`, '#00aa00'))
+  if (pct(p.attackHaste)) out.push(line(` +${pct(p.attackHaste)}% ${L('Attack Speed', '攻击速度')}`, '#00aa00'))
+  if (typeof p.lifesteal === 'number' && p.lifesteal > 0) out.push(line(` +${p.lifesteal} ${L('Health per hit', '生命/每次命中')}`, '#00aa00'))
+  // worn in the off hand (the arm slot): the shield's defence and block (at most half the blows)
+  if (p.slot === 'arm') {
+    out.push('<div class="gap"></div>', line(L('In the off hand:', '装备在副手时：'), '#aaaaaa'))
+    if (typeof p.def === 'number' && p.def > 0) out.push(line(` +${p.def} ${L('Defence', '防御')}`, '#00aa00'))
+    if (pct(p.block)) out.push(line(` ${Math.min(50, pct(p.block))}% ${L('Block Chance', '格挡率')}`, '#00aa00'))
+  }
+  // whose it is to fight with: a profession's own, or common to all (and no profession's talents)
+  const need = it.tags.find((g) => g.startsWith('profession:'))?.slice(11)
+  if (need) {
+    const role = PROFESSION_BY_ID[need]
+    const name = role ? L(role.name.en, role.name.zh) : need
+    out.push(line(esc(L(`${name} only`, `${name}专属`)), ctx.profession === need ? '#ffaa00' : '#ff5555'))
+  } else if (family === 'weapon') out.push(line(L('Common weapon: no profession talents', '通用武器：不受职业天赋加成'), '#aaaaaa'))
   // what it does
   const abilities = ABILITY.filter(([tag]) => tags.has(tag))
   // food: what it restores, with the hunger bar's drumsticks (Minecraft's AppleSkin)
@@ -152,6 +172,7 @@ export class Tooltip {
     if (f) {
       for (const s of f.player.slots) if (s?.item.id === key) return s.item
       if (f.player.held?.id === key) return f.player.held
+      if (f.player.offhand?.id === key) return f.player.offhand
       const c = f.container?.contents.find((i) => i.id === key)
       if (c) return c
     }

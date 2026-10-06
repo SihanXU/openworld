@@ -9,6 +9,7 @@ import type { LibraryView } from '../protocol.ts'
 import { SkillTree } from './skilltree.ts'
 import { WorldMap } from './worldmap.ts'
 import { ProfessionPanel } from './profession.ts'
+import { BoonPanel } from './boons.ts'
 import { QuestLog } from './questlog.ts'
 import { $, SLOT_KEYS, controlsTable, esc, locale, t, tx } from './common.ts'
 
@@ -23,6 +24,8 @@ export interface MenuSend {
   quickMove(slot: number): void
   drop(slot: number, all: boolean): void
   organize(): void
+  /** The off hand: wear a carried item there (a shield), or take off what is worn (no item). */
+  wear(item?: string): void
   craft(id: string, all?: boolean): void
   /** The skill tree: spend skill points on a skill. */
   learn(id: string): void
@@ -31,6 +34,8 @@ export interface MenuSend {
   travel(waypoint: string): void
   /** Take up (or change to) a profession at a trainer. */
   profession(id: string): void
+  /** The companion carries another of its boons (beside a woken waypoint). */
+  boon(id: string): void
   transfer(from: 'chest' | 'bag', item: string, all: boolean): void
   closePanel(): void
   save(): void
@@ -56,6 +61,7 @@ export class Menu {
   worldmap: WorldMap
   /** The trainer's choice of profession (opened by talking to a trainer). */
   profession: ProfessionPanel
+  boons: BoonPanel
   /** The quest log (L). */
   quests: QuestLog
   /** The inventory slot picked up by a click (placed by the next click). */
@@ -70,6 +76,7 @@ export class Menu {
        <div id="skills" class="sk-page hidden"></div>
        <div id="worldmap" class="sk-page wm-page hidden"></div>
        <div id="profession" class="overlay hidden"></div>
+       <div id="boons" class="overlay hidden"></div>
        <div id="questlog" class="overlay hidden"></div>`,
     )
     this.skills = new SkillTree($('#skills'), (id) => this.send.learn(id), () => this.close())
@@ -77,6 +84,8 @@ export class Menu {
     $('#questlog').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
     this.profession = new ProfessionPanel($('#profession'), (id) => this.send.profession(id), () => this.close())
     $('#profession').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
+    this.boons = new BoonPanel($('#boons'), (id) => this.send.boon(id), () => this.close())
+    $('#boons').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
     this.worldmap = new WorldMap($('#worldmap'), { atlas: () => this.send.atlas(), travel: (id) => (this.send.travel(id), this.close()), close: () => this.close() })
     // a click on the backdrop closes (or, holding a stack, drops it)
     for (const id of ['menu', 'journal', 'chest'])
@@ -100,7 +109,7 @@ export class Menu {
     return !$('#skills').classList.contains('hidden')
   }
   get anyOpen(): boolean {
-    return this.menuOpen || this.journalOpen || this.chestOpen || this.skillsOpen || this.worldmap.open || this.profession.open || this.quests.open
+    return this.menuOpen || this.journalOpen || this.chestOpen || this.skillsOpen || this.worldmap.open || this.profession.open || this.boons.open || this.quests.open
   }
 
   open(tab?: Tab): void {
@@ -142,7 +151,7 @@ export class Menu {
 
   close(): void {
     if (this.chestOpen) this.send.closePanel()
-    for (const id of ['#menu', '#journal', '#chest', '#skills', '#worldmap', '#profession', '#questlog']) $(id).classList.add('hidden')
+    for (const id of ['#menu', '#journal', '#chest', '#skills', '#worldmap', '#profession', '#boons', '#questlog']) $(id).classList.add('hidden')
     this.picked = undefined
   }
 
@@ -156,6 +165,7 @@ export class Menu {
     if (this.journalOpen && this.library && this.library.version !== this.journalLib) this.renderJournal()
     if (this.skillsOpen) this.skills.render(f)
     if (this.profession.open) this.profession.render(f)
+    if (this.boons.open) this.boons.render(f)
     if (this.quests.open) this.quests.render(f)
   }
 
@@ -170,6 +180,13 @@ export class Menu {
   openProfession(): void {
     this.close()
     this.profession.show(this.frame)
+  }
+
+  /** The waypoint's panel: the companion's boons (only once it has one). */
+  openBoons(): void {
+    if (!this.frame?.player.boons?.unlocked.length) return
+    this.close()
+    this.boons.show(this.frame)
   }
 
   // ---------------------------------------------------------------- the skill tree
@@ -202,7 +219,7 @@ export class Menu {
     if (this.tab === 'craft') this.wireCraft()
     if (f) {
       this.liveSig = this.sigOf(f)
-      if (this.tab === 'inventory') this.paintIcons?.(f.player.slots.filter(Boolean).map((s) => s!.item))
+      if (this.tab === 'inventory') this.paintIcons?.([...f.player.slots.filter(Boolean).map((s) => s!.item), ...(f.player.offhand ? [f.player.offhand] : [])])
       if (this.tab === 'craft') {
         const infos = craftInfos()
         for (const it of infos) this.registerTip?.(it.id, it)
@@ -212,7 +229,7 @@ export class Menu {
   }
 
   private sigOf(f: Frame): string {
-    return `${this.tab}|${locale.value}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${this.picked}`
+    return `${this.tab}|${locale.value}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${this.picked}`
   }
 
   // ---------------------------------------------------------------- inventory
@@ -230,11 +247,14 @@ export class Menu {
       .map((r, k) => `<div class="grid-row${k === 0 ? ' toolbar-row' : ''}">${r.join('')}</div>`)
       .join('')
     const zh = locale.value === 'zh'
-    return `<div class="inv">${rows}</div>
+    // the off hand beside the bag: what is worn there (a shield), greyed while it does not work
+    const off = f.player.offhand
+    const offhand = `<div class="inv-offhand"><span class="muted small">${zh ? '副手' : 'Off hand'}</span><div class="slot offhand-slot${off && !off.works ? ' off' : ''}" id="invOffhand" ${off ? `data-item="${off.id}"` : ''}>${off ? `<div class="icon" data-icon="${off.id}"></div>` : '<span class="ghost">🛡</span>'}</div></div>`
+    return `<div class="inv-wrap"><div class="inv">${rows}</div>${offhand}</div>
       <div class="inv-foot">
         <button id="bOrganize">⇅ ${t('organize')}</button>
         <button id="bDrop" ${this.picked === undefined ? 'disabled' : ''}>⤓ ${t('dropHere')}</button>
-        <span class="muted small">${zh ? '点击拿起、再点击交换 · Shift+点击：在快捷栏和背包间移动 · Tab：换一行到快捷栏 · “丢下”放到面前 · 右键：对它用手上的东西、放进去、空手摆弄' : 'Click to pick up, again to swap · Shift+click: between the toolbar and the bag · Tab: the next row to the toolbar · Drop sets it down in front · right click: use or put the held thing on it, or handle it'}</span>
+        <span class="muted small">${zh ? '点击拿起、再点击交换 · Shift+点击：在快捷栏和背包间移动 · Tab：换一行到快捷栏 · “丢下”放到面前 · 拿起盾牌点副手栏装备，点副手栏卸下 · 右键：对它用手上的东西、放进去、空手摆弄' : 'Click to pick up, again to swap · Shift+click: between the toolbar and the bag · Tab: the next row to the toolbar · Drop sets it down in front · pick up a shield and click the off hand to wear it, click it to take it off · right click: use or put the held thing on it, or handle it'}</span>
       </div>
 `
   }
@@ -249,6 +269,16 @@ export class Menu {
       this.picked = undefined
       this.render()
     }
+    // the off hand: a picked-up stack is worn there; a click on what is worn takes it off
+    const off = document.getElementById('invOffhand')
+    if (off)
+      off.onclick = () => {
+        const s = this.picked !== undefined ? slots[this.picked] : null
+        if (s) this.send.wear(s.item.id)
+        else if (f.player.offhand) this.send.wear()
+        this.picked = undefined
+        this.render()
+      }
     $('#menuSheet').querySelectorAll<HTMLElement>('.inv [data-i]').forEach((el) => {
       const i = Number(el.dataset.i)
       el.onclick = (e) => {
@@ -266,7 +296,8 @@ export class Menu {
         e.preventDefault()
         const s = slots[i]
         if (!s) return
-        this.contextMenu(e.clientX, e.clientY, s.item.id, [[t('dropHere'), () => this.send.drop(i, true)]])
+        const wear: [string, () => void][] = s.item.props.slot === 'arm' ? [[locale.value === 'zh' ? '装备到副手' : 'Wear in the off hand', () => this.send.wear(s.item.id)]] : []
+        this.contextMenu(e.clientX, e.clientY, s.item.id, [...wear, [t('dropHere'), () => this.send.drop(i, true)]])
       }
     })
   }

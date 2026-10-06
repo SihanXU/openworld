@@ -10,6 +10,7 @@
 import { DIRS, type Entity } from './types.ts'
 import type { World } from './world.ts'
 import type { Engine } from './engine.ts'
+import { offhandOf, ownWeapon } from './profession.ts'
 
 const skill = (w: World, e: Entity, id: string): boolean => w.hasTag(e, `skill:${id}`)
 const of = (profession: string) => (w: World, e: Entity, id: string): boolean => w.prop(e, 'profession') === profession && skill(w, e, id)
@@ -17,15 +18,19 @@ const assassin = of('assassin')
 const warrior = of('warrior')
 const ranger = of('ranger')
 const mage = of('mage')
-const isRanged = (weapon: Entity | undefined) => !!weapon && weapon.type.startsWith('item/weapon/ranged/')
-const isMagic = (weapon: Entity | undefined) => !!weapon && weapon.type.startsWith('item/weapon/magic/')
-/** A melee weapon: any weapon but bows and spellcasting foci. */
-const isMeleeWeapon = (weapon: Entity | undefined) => !!weapon && weapon.type.startsWith('item/weapon/') && !isRanged(weapon) && !isMagic(weapon)
+const professionIs = (w: World, e: Entity, profession: string): boolean => w.prop(e, 'profession') === profession
+/**
+ * A profession's talents answer only its own weapons (profession.ts): the assassin's dagger, the
+ * warrior's sword, the ranger's bow, the mage's staff. A common weapon (an axe, a mace, a wand)
+ * takes none of them; the shared branches serve every weapon alike.
+ */
+const own = (w: World, a: Entity, weapon: Entity | undefined): weapon is Entity => ownWeapon(w, a, weapon)
 
-/** Reach a profession adds to the held weapon (the ranger's bow, the archmage's focus). */
+/** Reach a profession adds to its own weapon (the ranger's bow, the archmage's staff). */
 export function rangeBonus(w: World, a: Entity, weapon: Entity | undefined): number {
-  if (isRanged(weapon) && ranger(w, a, 'ranger-archery')) return 1
-  if (isMagic(weapon) && mage(w, a, 'archmage')) return 1
+  if (!own(w, a, weapon)) return 0
+  if (ranger(w, a, 'ranger-archery')) return 1
+  if (mage(w, a, 'archmage')) return 1
   return 0
 }
 const recentlyMoved = (w: World, e: Entity): boolean => e.combat?.lastMoveTick !== undefined && w.state.tick - e.combat.lastMoveTick < 6
@@ -47,7 +52,9 @@ export function combatDelay(w: World, e: Entity, base: number, kind: 'move' | 'a
   if (kind === 'move' && ranger(w, e, 'fleet-archer') && (e.combat?.fleetUntil ?? 0) > w.state.tick) haste += 0.2
   if (kind === 'move' && skill(w, e, 'slipstream') && (e.combat?.slipUntil ?? 0) > w.state.tick) haste += 0.3
   if (kind === 'move' && skill(w, e, 'adrenaline') && w.hasStatus({ e: e.id }, 'adrenaline')) haste += 0.3
-  if (kind === 'attack' && ranger(w, e, 'quick-draw') && isRanged(w.get(e.held))) haste += 0.2
+  if (kind === 'attack' && ranger(w, e, 'quick-draw') && own(w, e, w.get(e.held))) haste += 0.2
+  // a weapon's own quickness (a legendary bow)
+  if (kind === 'attack' && w.get(e.held)) haste += Math.max(0, w.num(w.get(e.held)!, 'attackHaste'))
   if (!haste) return Math.max(1, base)
   const state = (e.combat ??= {})
   const key = kind === 'move' ? 'moveCarry' : 'attackCarry'
@@ -73,12 +80,13 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
   const out: Strike = { power: base, critical: false, charged: false, comboHits: 0, bleed: 0, drain: 0 }
   if (!target || !w.isAgent(target) || w.num(target, 'hp') <= 0 || w.hasStatus({ e: target.id }, 'down')) return out
   const melee = range <= 1
-  if (melee && weapon && w.hasTag(weapon, 'blade') && assassin(w, a, 'assassin-training')) out.power += 1
-  // the professions' weapon training: the warrior's melee arms, the ranger's bow, the mage's focus
-  if (melee && isMeleeWeapon(weapon) && warrior(w, a, 'warrior-arms')) out.power += 1
-  if (isRanged(weapon) && ranger(w, a, 'ranger-archery')) out.power += 1
-  if (isMagic(weapon) && mage(w, a, 'mage-focus')) out.power += 1
-  if (isMagic(weapon) && mage(w, a, 'archmage')) out.power += 2
+  // the professions' weapon training, each with its own weapons only: dagger, sword, bow, staff
+  const mine = own(w, a, weapon)
+  if (mine && melee && assassin(w, a, 'assassin-training')) out.power += 1
+  if (mine && melee && warrior(w, a, 'warrior-arms')) out.power += 1
+  if (mine && ranger(w, a, 'ranger-archery')) out.power += 1
+  if (mine && mage(w, a, 'mage-focus')) out.power += 1
+  if (mine && mage(w, a, 'archmage')) out.power += 2
   let bonus = 0
   let marked = false
   // damage, deeper: an unhurt target, a chain of hits, fighting at half health
@@ -91,14 +99,14 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
   if (primary) {
     const state = a.combat
     // warrior: a hit taken readies the next melee blow; defeats build a rampage
-    if (melee && warrior(w, a, 'retaliation') && (state?.retaliateUntil ?? 0) > w.state.tick) {
+    if (mine && melee && warrior(w, a, 'retaliation') && (state?.retaliateUntil ?? 0) > w.state.tick) {
       bonus += 0.4
       // the warlord's answer also mends
       if (warrior(w, a, 'warlord')) out.drain = 2
     }
-    if (melee && warrior(w, a, 'rampage') && (state?.rampageUntil ?? 0) > w.state.tick) bonus += 0.15 * Math.min(3, state?.rampageStacks ?? 0)
+    if (mine && melee && warrior(w, a, 'rampage') && (state?.rampageUntil ?? 0) > w.state.tick) bonus += 0.15 * Math.min(3, state?.rampageStacks ?? 0)
     // ranger: standing still steadies the aim; far targets reward it; every third hit on one target is sure
-    if (isRanged(weapon)) {
+    if (mine && professionIs(w, a, 'ranger')) {
       if (ranger(w, a, 'steady-aim') && w.state.tick - (state?.lastMoveTick ?? -Infinity) >= 10) bonus += 0.3
       const ap = w.posOf(a)
       const tp = w.posOf(target)
@@ -110,8 +118,8 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
       }
     }
     // mage: elements answer the attuned; every fourth spell echoes
-    if (isMagic(weapon)) {
-      if (mage(w, a, 'elemental-attunement') && w.prop(weapon!, 'element')) bonus += 0.25
+    if (mine && professionIs(w, a, 'mage')) {
+      if (mage(w, a, 'elemental-attunement') && w.prop(weapon, 'element')) bonus += 0.25
       if (mage(w, a, 'spell-echo') && ((state?.spellHits ?? 0) + 1) % 4 === 0) marked = true
     }
   }
@@ -122,14 +130,14 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
     const state = a.combat
     if (skill(w, a, 'windrunner') && (state?.steps ?? 0) >= 3) (out.charged = true), (bonus += 0.5)
     const quietSince = Math.max(state?.lastAttackTick ?? -Infinity, state?.lastHurtTick ?? -Infinity)
-    opening = assassin(w, a, 'ambush') && w.state.tick - quietSince >= 40
+    opening = mine && assassin(w, a, 'ambush') && w.state.tick - quietSince >= 40
     if (opening) bonus += 0.5
     const ap = w.posOf(a)
     const tp = w.posOf(target)
     const [dx, dy] = DIRS[target.facing ?? 'down']
-    behind = assassin(w, a, 'backstab') && !!ap && !!tp && ap.map === tp.map && (ap.x - tp.x) * dx + (ap.y - tp.y) * dy < 0
+    behind = mine && assassin(w, a, 'backstab') && !!ap && !!tp && ap.map === tp.map && (ap.x - tp.x) * dx + (ap.y - tp.y) * dy < 0
     if (behind) bonus += 0.4
-    if (assassin(w, a, 'relentless')) {
+    if (mine && assassin(w, a, 'relentless')) {
       const continuing = state?.comboTarget === target.id && state.comboTick !== undefined && w.state.tick - state.comboTick <= 20
       const hits = (continuing ? state.comboHits ?? 0 : 0) + 1
       out.comboHits = hits === 3 ? 0 : hits
@@ -137,7 +145,10 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
     }
   }
   const guaranteed = (primary && melee && assassin(w, a, 'death-dance') && (opening || behind)) || marked
-  const chance = Math.max(0, Math.min(1, w.num(a, 'critChance') + (berserk ? 0.1 : 0)))
+  // a weapon that drinks: its lifesteal is health drawn back when the blow lands
+  if (weapon && w.num(weapon, 'lifesteal') > 0) out.drain += w.num(weapon, 'lifesteal')
+  // a weapon may carry its own edge (a legendary's critChance)
+  const chance = Math.max(0, Math.min(1, w.num(a, 'critChance') + (weapon ? w.num(weapon, 'critChance') : 0) + (berserk ? 0.1 : 0)))
   out.critical = guaranteed || (chance > 0 && w.rand() < chance)
   // a critical: ×1.5 (Deadly Focus ×2), and what critDamage adds (Lethal Edge, Brutal)
   out.power *= (1 + bonus) * (out.critical ? (skill(w, a, 'deadly-focus') ? 2 : 1.5) + Math.max(0, w.num(a, 'critDamage')) : 1)
@@ -153,23 +164,24 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
 export function finishCombatStrike(w: World, a: Entity, target: Entity | undefined, strike: Strike, before: number, range: number, primary: boolean): void {
   const landed = !!target && w.isAgent(target) && before > 0 && w.num(target, 'hp') < before
   const weapon = w.get(a.held)
+  const mine = own(w, a, weapon)
   if (primary && landed) {
     const state = (a.combat ??= {})
     if (skill(w, a, 'momentum')) (state.chain = w.state.tick - (state.chainTick ?? -Infinity) <= 15 ? (state.chain ?? 0) + 1 : 1), (state.chainTick = w.state.tick)
     if (strike.critical && skill(w, a, 'untouchable')) delete state.dodgeTick
-    if (range <= 1 && warrior(w, a, 'retaliation') && (state.retaliateUntil ?? 0) > w.state.tick) delete state.retaliateUntil
-    if (isRanged(weapon)) {
+    if (mine && range <= 1 && warrior(w, a, 'retaliation') && (state.retaliateUntil ?? 0) > w.state.tick) delete state.retaliateUntil
+    if (mine && professionIs(w, a, 'ranger')) {
       if (ranger(w, a, 'hunters-mark')) (state.markTarget = target!.id), (state.markHits = strike.comboHits)
       if (ranger(w, a, 'fleet-archer')) state.fleetUntil = w.state.tick + 15
     }
-    if (isMagic(weapon) && mage(w, a, 'spell-echo')) state.spellHits = (state.spellHits ?? 0) + 1
+    if (mine && mage(w, a, 'spell-echo')) state.spellHits = (state.spellHits ?? 0) + 1
   }
   if (primary) {
     const state = (a.combat ??= {})
     state.lastAttackTick = w.state.tick
     if (landed && range <= 1) {
       if (strike.charged) state.steps = 0
-      if (assassin(w, a, 'relentless')) {
+      if (mine && assassin(w, a, 'relentless')) {
         state.comboTarget = target!.id
         state.comboHits = strike.comboHits
         state.comboTick = w.state.tick
@@ -184,7 +196,7 @@ export function finishCombatStrike(w: World, a: Entity, target: Entity | undefin
   const defeated = !w.get(target.id) || w.num(target, 'hp') <= 0 || w.hasStatus({ e: target.id }, 'down')
   if (!defeated || !w.get(a.id) || w.num(a, 'hp') <= 0 || w.hasStatus({ e: a.id }, 'down')) return
   if (skill(w, a, 'pursuit')) (a.combat ??= {}).pursuitUntil = w.state.tick + 30
-  if (range <= 1 && warrior(w, a, 'rampage')) {
+  if (mine && range <= 1 && warrior(w, a, 'rampage')) {
     const state = (a.combat ??= {})
     state.rampageStacks = (state.rampageUntil ?? 0) > w.state.tick ? Math.min(3, (state.rampageStacks ?? 0) + 1) : 1
     state.rampageUntil = w.state.tick + 50
@@ -207,13 +219,20 @@ export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: E
     w.fx.push({ t: 'say', who: e.id, text: { en: 'Dodged!', zh: '闪避！' } })
     return 0
   }
+  // a shield worn in the off hand turns a blow aside by its block (its defence, like all worn things', is `World.stat`'s)
+  const shield = offhandOf(w, e)
+  const block = shield ? Math.min(0.5, Math.max(0, w.num(shield, 'block'))) : 0
+  if (block > 0 && w.rand() < block) {
+    w.fx.push({ t: 'say', who: e.id, text: { en: 'Blocked!', zh: '格挡！' } })
+    return 0
+  }
   state.lastHurtTick = w.state.tick
   state.lastHurtBy = attacker.id
   state.lastHurtByType = attacker.type
   if (skill(w, e, 'evasive-step') && recentlyMoved(w, e)) damage *= 0.75
   if (skill(w, e, 'defiance') && w.num(e, 'hp') <= w.num(e, 'maxHp', 1) * 0.3) damage *= 0.75
   if (warrior(w, e, 'bulwark')) damage *= warrior(w, e, 'warlord') ? 0.7 : 0.85
-  if (mage(w, e, 'mana-shield') && isMagic(w.get(e.held))) damage *= 0.8
+  if (mage(w, e, 'mana-shield') && own(w, e, w.get(e.held))) damage *= 0.8
   if (warrior(w, e, 'retaliation')) state.retaliateUntil = w.state.tick + 20
   damage = Math.max(1, Math.round(damage))
   const hp = w.num(e, 'hp', 1)

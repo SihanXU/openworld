@@ -82,6 +82,10 @@
 .slot.sel { outline: 3px solid #e0402c; outline-offset: -1px; }
 .slot.picked { opacity: 0.45; }
 .slot.off { opacity: 0.35; }
+.slot .ghost { font-size: 20px; opacity: 0.25; filter: grayscale(1); }
+.barrow { display: flex; gap: 6px; align-items: stretch; }
+.inv-wrap { display: flex; gap: 14px; align-items: flex-start; }
+.inv-offhand { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .slot canvas { width: 32px; height: 32px; image-rendering: pixelated; }
 .slot .key { position: absolute; left: 3px; top: 0; font: 10px var(--pixel); color: #8a6a44; }
 /* something worn (world-model.md §6.8): a small mark in the corner */
@@ -322,8 +326,8 @@
 .cv-cloud.c2 { width: 120px; top: 30%; animation-duration: 95s; animation-delay: -60s; opacity: 0.8; }
 .cv-cloud.c3 { width: 200px; top: 44%; animation-duration: 120s; animation-delay: -30s; opacity: 0.65; }
 @keyframes cvDrift { from { transform: translateX(-260px); } to { transform: translateX(calc(100vw + 260px)); } }
-.cv-pip { position: absolute; width: 48px; height: 48px; background-size: 96px 48px; image-rendering: pixelated; top: 36%; animation: cvFlap 0.28s steps(2) infinite, cvFly 26s linear infinite; }
-@keyframes cvFlap { from { background-position: 0 0; } to { background-position: -96px 0; } }
+.cv-pip { position: absolute; width: 48px; height: 48px; background-size: 192px 48px; image-rendering: pixelated; top: 36%; animation: cvFlap 0.36s steps(4) infinite, cvFly 26s linear infinite; }
+@keyframes cvFlap { from { background-position: 0 0; } to { background-position: -192px 0; } }
 @keyframes cvFly { 0% { left: -60px; transform: translateY(0); } 25% { transform: translateY(-30px); } 50% { transform: translateY(10px); } 75% { transform: translateY(-20px); } 100% { left: calc(100% + 60px); transform: translateY(0); } }
 .cv-main { position: absolute; left: 50%; top: 9%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; text-align: center; width: min(560px, 92vw); }
 .cv-kicker { font-size: 14px; letter-spacing: 0.25em; color: #ffe7b0; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35); }

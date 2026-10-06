@@ -1,5 +1,8 @@
-// The seven sins: authored encounter kits. Six bodies span tiles; Envy is deliberately tiny.
-import type { BossDef, BossSkill, Entity, Pos, Rule, StatusDef, TypeDef } from '@lsw/engine'
+// The authored boss kits (docs/bosses.md): the White Knight Alberic (the First Seal-bearer, Chapter 1's
+// boss), and three kept for later — the Crown Without a King, the Velvet Lure and the Face Thief. All
+// but the Face Thief span tiles. None has a campaign place yet.
+import type { BossDef, BossSkill, Effect, Entity, Pos, Rule, StatusDef, Tree, TypeDef } from '@lsw/engine'
+import { LEGENDARY_ARMS } from './items.ts'
 
 const L = (en: string, zh: string) => ({ en, zh })
 const skill = (sin: string, id: string, en: string, zh: string, shape: BossSkill['shape'], aim: BossSkill['aim'], radius: number, damage: number, windup: number, recovery: number, extra: Partial<BossSkill> = {}): BossSkill => ({
@@ -8,30 +11,18 @@ const skill = (sin: string, id: string, en: string, zh: string, shape: BossSkill
 })
 
 export const BOSSES: BossDef[] = [
-  { id: 'greed', name: L('The Gilt Tollkeeper · Greed', '铸税者 · 贪婪'), footprint: [5, 3], hp: 1400, defense: 2, sight: 11, leash: 12, color: 0xe8b44a, enrageAt: 0.5, skills: [
-    skill('greed', 'stamp', 'Gilded Stamp', '征税重钳', 'cone', 'self', 6, 26, 16, 10, { shift: 'push' }),
-    skill('greed', 'coins', 'Coin Storm', '散财风暴', 'ring', 'self', 6, 22, 20, 12),
-    skill('greed', 'chains', 'Debt Collection', '索债金链', 'cross', 'target', 4, 24, 16, 10, { shift: 'pull' }),
-  ] },
-  { id: 'gluttony', name: L('The Banquet Maw · Gluttony', '饕宴巨口 · 暴食'), footprint: [5, 4], hp: 1800, defense: 2, sight: 11, leash: 12, color: 0xa0c447, enrageAt: 0.5, skills: [
-    skill('gluttony', 'bite', 'Banquet Bite', '宴席巨噬', 'cone', 'self', 6, 34, 20, 12, { heal: 40 }),
-    skill('gluttony', 'soup', 'Cauldron Spill', '酸汤倾泻', 'circle', 'target', 3, 26, 18, 10, { status: 'mired' }),
-    skill('gluttony', 'gulp', 'Empty the Table', '吞尽满席', 'circle', 'self', 7, 30, 24, 14, { shift: 'pull', heal: 30 }),
-  ] },
-  { id: 'sloth', name: L('The Drowsing Monastery · Sloth', '眠钟古寺 · 懒惰'), footprint: [7, 5], hp: 2200, defense: 4, sight: 12, leash: 12, color: 0xad9ad8, enrageAt: 0.45, skills: [
-    skill('sloth', 'stomp', 'Rooted Stomp', '千钧迟踏', 'circle', 'self', 7, 46, 26, 18, { shift: 'push' }),
-    skill('sloth', 'dream', 'Drowsing Chimes', '沉眠钟雾', 'spots', 'target', 5, 30, 20, 16, { status: 'mired' }),
-    skill('sloth', 'shell', 'Monastery Wall', '古寺回响', 'ring', 'self', 8, 40, 28, 18),
+  // the First Seal-bearer (docs/chapter-1.md §4, docs/lore.md §6): the crown has worn his self away; he holds
+  // the far bank as his kingdom. The bow (his volleys and the arrow of conquest) and the sword plunged (thorns
+  // that make the struck kneel). Overhead sprite rework: docs/alberic-art-v3-prompts.json.
+  { id: 'alberic', name: L('The White Knight Alberic · First Seal', '白骑士·阿尔贝里克 · 第一印'), footprint: [3, 2], hp: 1200, defense: 2, sight: 12, leash: 12, color: 0xf2ead2, enrageAt: 0.5, skills: [
+    skill('alberic', 'arrow', 'Arrow of Conquest', '征服之矢', 'line', 'self', 8, 30, 18, 14, { action: 'cast', fxPlacement: 'beam' }),
+    skill('alberic', 'volley', 'White-Feather Volley', '白羽箭雨', 'spots', 'target', 4, 24, 20, 14),
+    skill('alberic', 'thorns', 'Thorns Bend the Knee', '荆冠·屈膝', 'ring', 'self', 4, 34, 22, 14, { status: 'entranced', fxPlacement: 'pattern' }),
   ] },
   { id: 'lust', name: L('The Velvet Lure · Lust', '绯愿兰后 · 色欲'), footprint: [5, 3], hp: 1600, defense: 2, sight: 12, leash: 12, color: 0xe578a7, enrageAt: 0.5, skills: [
     skill('lust', 'petal', 'Velvet Crescent', '绯瓣弧斩', 'cone', 'self', 7, 30, 16, 10),
     skill('lust', 'lure', 'False Promise', '虚愿花印', 'spots', 'target', 4, 24, 18, 10, { shift: 'pull', status: 'entranced' }),
     skill('lust', 'thorns', 'Thorn Covenant', '荆棘誓约', 'cross', 'target', 6, 32, 20, 12, { status: 'mired' }),
-  ] },
-  { id: 'wrath', name: L('The Cinder Executioner · Wrath', '烬炉刑官 · 愤怒'), footprint: [5, 4], hp: 2100, defense: 3, sight: 12, leash: 12, color: 0xf07548, enrageAt: 0.6, skills: [
-    skill('wrath', 'cleave', 'Execution Stroke', '断罪斧落', 'line', 'self', 8, 44, 18, 10, { shift: 'push' }),
-    skill('wrath', 'fissure', 'Furnace Fault', '熔炉裂隙', 'cross', 'target', 6, 32, 20, 12, { element: 'fire' }),
-    skill('wrath', 'rage', 'Ashen Roar', '怒烬震环', 'ring', 'self', 7, 38, 18, 12, { element: 'fire' }),
   ] },
   { id: 'envy', name: L('The Face Thief · Envy', '窃面者 · 嫉妒'), footprint: [1, 1], hp: 1000, defense: 1, sight: 12, leash: 12, color: 0x56d7a0, enrageAt: 0.5, skills: [
     skill('envy', 'daggers', 'Borrowed Blades', '借影双刃', 'cone', 'self', 3, 24, 10, 8),
@@ -55,6 +46,36 @@ export const BOSS_STATUSES: StatusDef[] = [
   { id: 'entranced', name: L('Entranced', '迷眩'), duration: 8, immobilize: true },
 ]
 
+/** The fact a legendary's handing over sets: each exists once in a world. */
+const legendFact = (type: string) => `legend.${type.split('/').pop()}`
+
+/**
+ * What a fallen sin leaves: its reward, and for whoever felled it the first of their profession's
+ * legendary arms (LEGENDARY_ARMS) the world has not yet seen. No profession, or both seen: none.
+ */
+function sinReward(b: BossDef): Tree {
+  const base: Effect[] = [
+    { op: 'setProp', key: 'hp', value: 0 },
+    { op: 'addStatus', status: 'down', duration: 20 },
+    { op: 'emit', impulse: 'notify', to: 'story', params: { what: `sin.${b.id}` } },
+    { op: 'emit', impulse: 'notify', to: 'actor', params: { what: 'defeat', xp: { prop: 'maxHp', of: 'host' } } },
+    { op: 'dropContents', still: true },
+    { op: 'spawn', type: 'item/material/iron_ore', at: 'host', count: 4 },
+    { op: 'log', text: L('Defeated {host}.', '击败了{host}。') },
+  ]
+  const legend = (type: string): Effect[] => [
+    ...base,
+    { op: 'spawn', type, at: 'host' },
+    { op: 'emit', impulse: 'notify', to: 'story', params: { what: legendFact(type) } },
+    { op: 'log', text: L('A legendary weapon falls from {host}!', '{host}掉落了一件传说武器！') },
+  ]
+  return Object.entries(LEGENDARY_ARMS).reduceRight<Tree>((rest, [profession, arms]) => ({
+    if: { is: { role: 'actor', sel: { props: { profession } } } },
+    then: arms.reduceRight<Tree>((next, type) => ({ if: { prop: { role: 'story', key: legendFact(type), cmp: 0, default: 0 } }, then: { do: legend(type) }, else: next }), { do: base }),
+    else: rest,
+  }), { do: base })
+}
+
 /** Rewards happen once, then the death animation has two seconds before removal. */
 export const BOSS_RULES: Rule[] = [
   // a sin at no health goes down for two seconds (its death), leaves its reward, and tells the story
@@ -63,15 +84,7 @@ export const BOSS_RULES: Rule[] = [
     source: { origin: 'base', note: 'story' },
     host: { type: `actor/creature/sin/${b.id}`, notStatus: ['down'] },
     on: 'threshold/cross',
-    tree: { if: { param: { key: 'name', cmp: 'broken' } }, then: { do: [
-      { op: 'setProp', key: 'hp', value: 0 },
-      { op: 'addStatus', status: 'down', duration: 20 },
-      { op: 'emit', impulse: 'notify', to: 'story', params: { what: `sin.${b.id}` } },
-      { op: 'emit', impulse: 'notify', to: 'actor', params: { what: 'defeat', xp: { prop: 'maxHp', of: 'host' } } },
-      { op: 'dropContents', still: true },
-      { op: 'spawn', type: 'item/material/iron_ore', at: 'host', count: b.id === 'greed' ? 2 : 4 },
-      { op: 'log', text: L('Defeated {host}.', '击败了{host}。') },
-    ] }, else: 'inherit' },
+    tree: { if: { param: { key: 'name', cmp: 'broken' } }, then: sinReward(b), else: 'inherit' },
   })),
   { id: 'sins/death-fades', source: { origin: 'base' }, host: { type: 'actor/creature/sin' }, on: 'time/timer', tree: { if: { param: { key: 'status', cmp: 'down' } }, then: { do: [{ op: 'destroy' }] }, else: 'inherit' } },
   {
@@ -97,15 +110,22 @@ export const BOSS_RULES: Rule[] = [
   {
     id: 'sins/story',
     source: { origin: 'base', note: 'story' },
-    doc: 'The story keeps which sins have fallen.',
+    doc: 'The story keeps which sins have fallen, and which legendary arms they have left.',
     host: { type: 'resident/story' },
     on: 'impulse/notify',
-    tree: BOSSES.reduceRight<Rule['tree']>((rest, b) => ({ if: { param: { key: 'what', cmp: `sin.${b.id}` } }, then: { do: [{ op: 'setProp', key: `sins.defeated.${b.id}`, value: 1 }] }, else: rest }), 'inherit'),
+    tree: [
+      ...BOSSES.map((b) => [`sin.${b.id}`, `sins.defeated.${b.id}`]),
+      ...Object.values(LEGENDARY_ARMS).flat().map((type) => [legendFact(type), legendFact(type)]),
+    ].reduceRight<Rule['tree']>((rest, [what, key]) => ({ if: { param: { key: 'what', cmp: what } }, then: { do: [{ op: 'setProp', key, value: 1 }] }, else: rest }), 'inherit'),
   },
 ]
 
-export const FIRST_BOSS = { map: 'eastroad', x: 23, y: 15, id: 'eastroad.sin.greed' } as const
-export const BOSS_LAYOUT = 'content.seven-sins-v2'
+/** Where the Boss Studio and the challenge stage a fight: the East Road's clearing (no campaign boss stands there). */
+export const BOSS_ARENA = { map: 'eastroad', x: 23, y: 15, id: 'arena.boss' } as const
+/** Saves marked with it no longer hold the removed kits' bodies (migrateBosses.ts). */
+export const BOSS_LAYOUT = 'content.bosses-v3'
+/** The kits that were removed (2026-10-04); an older save's bodies of these are cleared on loading. */
+export const REMOVED_BOSSES = ['greed', 'gluttony', 'sloth', 'wrath']
 export function createBoss(id: string, at: Pos, entityId = `sin.${id}`): Entity {
   const b = BOSS_BY_ID[id]
   if (!b) throw new Error(`Unknown boss kit: ${id}`)

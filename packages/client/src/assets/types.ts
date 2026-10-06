@@ -70,6 +70,10 @@ export interface FxDef {
   /** Draw additively (fire, sparks, magic). */
   add?: boolean
   scale?: number
+  /** Ground contact inside a generated effect; default is its center. */
+  originY?: number
+  /** Instantaneous directional beam, stretched over the encounter's locked line at release. */
+  beam?: boolean
 }
 
 export interface Catalog {

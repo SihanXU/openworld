@@ -8,7 +8,8 @@ import type { AiData, Amount, Effect, EmitTo, Entity, GameEvent, Impulse, Place,
 import { GIVEN_LINE, chooseLine, raiseTopic } from './people.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
 import { gainXp, learnSkill } from './progression.ts'
-import { cannotChoose, chooseProfession } from './profession.ts'
+import { BOON_PREFIX, activeBoon, boonsOf, leaderOf, nearAttunedWaypoint } from './boons.ts'
+import { canWield, cannotChoose, chooseProfession, itemProfession } from './profession.ts'
 import { appear } from './appear.ts'
 import { releaseSkill } from './bosses.ts'
 import { WriteError } from './world.ts'
@@ -27,13 +28,14 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   addTag: 'addTag {tag}',
   removeTag: 'removeTag {tag}',
   hurt: 'hurt {amount, element?, pierce?, blow?} — the host loses health, or durability (hp; its defence applies unless pierce); at none, threshold/cross "broken". blow: a strike\'s — times how well the instrument (what struck, else the striker\'s own body) works on the host\'s material (the efficiency table), and nothing if the instrument is softer than it ("too hard")',
-  wear: 'wear — the host (an actor) puts on the thing of its own it is offered (param item, by its slot prop: a helmet on the head), what was in that slot coming off; offered what it wears, it takes it off (world-model.md §6.8)',
+  wear: 'wear — the host (an actor) puts on the thing of its own it is offered (param item, by its slot prop: a helmet on the head), what was in that slot coming off; offered what it wears, it takes it off (world-model.md §6.8); a profession\'s piece (tag profession:<id>, the warrior\'s shield) goes on only for that profession',
   sleep: 'sleep — the host sleeps until it is time to rise (time passes at once for the one at the keys), and wakes with what it was missing given back as its room says (a bedroom: all; elsewhere: half)',
   fall: 'fall — with nothing under it on its storey, the host drops to the first floor below, struck by the drop beyond the safe height (the root of contact/end on)',
   breakdown: 'breakdown — the host breaks into what it is made of (its makeup × the world\'s recovery rate, in its material), what it holds spills out, and it is gone (the root outcome of broken for anything with a makeup)',
   heal: 'heal {amount}',
   feed: 'feed {amount} — the host\'s hunger rises by amount, up to its maxHunger',
-  gainXp: 'gainXp {amount} — the host gains experience; enough raises its level (props xp, level, skillPoints)',
+  gainXp: 'gainXp {amount} — the host gains experience (times 1 + its stat xpRate); enough raises its level (props xp, level, skillPoints)',
+  boon: 'boon — the host (a companion) is given a boon (param unlock: its id; carried at once if it carries none) or carries another it has (param boon), the latter only while its leader stands beside an attuned waypoint; a boon is its status boon_<id>, whose lead:<stat> props add to the leader\'s stats',
   foe: 'foe {} — whoever started the chain (the one who struck) becomes the host\'s foe, attacked on sight',
   open: 'open {} — the host opens or closes (toggles the `open` status)',
   dropContents: 'dropContents {still?} — the host spills what it holds (its bag and its hand) onto its tile',
@@ -312,6 +314,14 @@ export class EffectRunner {
         if (typeof slot !== 'string') return
         const key = `wear:${slot}`
         const on = w.prop(host, key) === item.id
+        // a profession's piece (the warrior's shield) goes on only for its own (profession.ts)
+        if (!on && !canWield(w, host, item)) {
+          const need = itemProfession(w, item)!
+          const name = w.onto.data.professions?.[need]?.name
+          const n = (l: 'en' | 'zh') => (typeof name === 'string' ? name : name ? (l === 'zh' ? name.zh ?? name.en : name.en) : need)
+          w.fx.push({ t: 'log', text: { en: `Only a${/^[aeiou]/i.test(n('en')) ? 'n' : ''} ${n('en')} can wear ${eng.nameOf({ e: item.id }, 'en')}.`, zh: `只有${n('zh')}能装备${eng.nameOf({ e: item.id }, 'zh')}。` }, tone: 'warn' })
+          return
+        }
         if (on) w.setProp(host, key, undefined)
         else eng.setProp(host, key, item.id, ev)
         w.fx.push({ t: 'log', text: on ? { en: `You take off ${eng.nameOf({ e: item.id }, 'en')}.`, zh: `你脱下了${eng.nameOf({ e: item.id }, 'zh')}。` } : { en: `You put on ${eng.nameOf({ e: item.id }, 'en')}.`, zh: `你穿上了${eng.nameOf({ e: item.id }, 'zh')}。` } })
@@ -396,7 +406,8 @@ export class EffectRunner {
       case 'gainXp': {
         // a thing that has a level can learn (any thing with the prop, not only people)
         if (!host || w.prop(host, 'level') === undefined) return
-        const n = Math.round(this.amount(ev, eff.amount))
+        // what raises its rate (a companion's boon: `xpRate` 1 doubles it)
+        const n = Math.round(this.amount(ev, eff.amount) * (1 + Math.max(0, w.stat(host, 'xpRate'))))
         if (n <= 0) return
         const up = gainXp(w, host, n)
         if (host.id !== w.state.player) return
@@ -480,6 +491,36 @@ export class EffectRunner {
       case 'release':
         if (host) releaseSkill(eng, host, ev)
         return
+      case 'boon': {
+        // a companion's boon (boons.ts): given by the story (param unlock), or chosen (param boon)
+        // while its leader stands beside an attuned waypoint; it carries one at a time
+        if (!host) return
+        const give = ev.params?.unlock
+        const pick = ev.params?.boon
+        const carry = (id: string) => {
+          for (const s of Object.keys(host.statuses ?? {})) if (s.startsWith(BOON_PREFIX) && s !== BOON_PREFIX + id) eng.removeStatus({ e: host.id }, s)
+          if (!w.hasStatus({ e: host.id }, BOON_PREFIX + id)) eng.applyStatus({ e: host.id }, BOON_PREFIX + id)
+        }
+        const name = (id: string) => w.onto.status(BOON_PREFIX + id)?.name
+        const said = (t: Text | undefined, l: 'en' | 'zh') => (typeof t === 'string' ? t : t ? (l === 'zh' ? t.zh ?? t.en : t.en) : '')
+        if (typeof give === 'string' && give) {
+          const had = boonsOf(w, host)
+          if (had.includes(give)) return
+          eng.setProp(host, 'boons', [...had, give].join(','), ev)
+          if (!activeBoon(host)) carry(give)
+          w.fx.push({ t: 'log', text: { en: `${eng.nameOf({ e: host.id }, 'en')} takes up a new power: ${said(name(give), 'en')}.`, zh: `${eng.nameOf({ e: host.id }, 'zh')}获得了新的力量：${said(name(give), 'zh')}。` }, tone: 'good' })
+          return
+        }
+        if (typeof pick !== 'string' || !boonsOf(w, host).includes(pick) || activeBoon(host) === pick) return
+        const leader = leaderOf(w, host)
+        if (!leader || !nearAttunedWaypoint(w, leader)) {
+          w.fx.push({ t: 'log', text: { en: 'A power can be changed only beside a woken waypoint statue.', zh: '只有在唤醒过的传送雕像旁才能切换力量。' }, tone: 'warn' })
+          return
+        }
+        carry(pick)
+        w.fx.push({ t: 'log', text: { en: `${eng.nameOf({ e: host.id }, 'en')} now carries ${said(name(pick), 'en')}.`, zh: `${eng.nameOf({ e: host.id }, 'zh')}现在携带着${said(name(pick), 'zh')}。` }, tone: 'good' })
+        return
+      }
       case 'panel': {
         // a panel is the player's: only when the player is the one who spoke
         const a = ev.roles.actor

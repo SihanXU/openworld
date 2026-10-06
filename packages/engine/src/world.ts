@@ -934,16 +934,27 @@ export class World {
     let v = this.num(e, key, dflt)
     for (const id of Object.keys(e.statuses ?? {})) v += this.onto.status(id)?.props?.[key] ?? 0
     for (const w of this.worn(e)) v += this.num(w, key)
+    // what the companions following it give their leader (boons.ts): their statuses' `lead:<key>`
+    const at = this.posOf(e)
+    if (at && e.place.on === 'tile')
+      for (const c of this.entitiesOnMap(at.map)) {
+        if (c.id === e.id || c.props?.companion !== e.id) continue
+        for (const id of Object.keys(c.statuses ?? {})) v += this.onto.status(id)?.props?.[`lead:${key}`] ?? 0
+      }
     return v
   }
 
-  /** What a thing wears: what each of its `wear:<slot>` props names, while it still has it (in its bag or its hand). */
+  /** What a thing wears: what each of its `wear:<slot>` props names, while it still has it (in its bag or its hand) and, a profession's piece, follows that profession. */
   worn(e: Entity): Entity[] {
     const out: Entity[] = []
     for (const [k, id] of Object.entries(e.props ?? {})) {
       if (!k.startsWith('wear:') || typeof id !== 'string') continue
       const w = this.get(id)
-      if (w && (w.place.on === 'inside' || w.place.on === 'hand') && w.place.holder === e.id) out.push(w)
+      if (!w || (w.place.on !== 'inside' && w.place.on !== 'hand') || w.place.holder !== e.id) continue
+      // a profession's piece (the warrior's shield) works only for its own (profession.ts)
+      const need = [...this.onto.resolve(w.type).tags, ...(w.tags ?? [])].find((t) => t.startsWith('profession:'))
+      if (need && need.slice('profession:'.length) !== this.prop(e, 'profession')) continue
+      out.push(w)
     }
     return out
   }

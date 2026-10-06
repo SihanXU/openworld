@@ -117,6 +117,7 @@ describe('the five inputs: one act each', () => {
 
   it('weapons strike (but on a person a blade is not a blow); a bare left click is a blow on anything (Minecraft)', () => {
     const well = world('item/weapon/blade/sword', [{ key: 'well', type: 'fixture/water/well', x: 2, y: 1 }])
+    well.world.player.props!.profession = 'warrior' // the sword is the warrior's
     const port = new ModPort(well)
     const plan = well.controls.plan('use')!
     expect(plan.attack).toBe(true)
@@ -503,6 +504,7 @@ describe('hunger', () => {
 describe('the attack key', () => {
   it('strikes straight ahead with the held weapon; held down, the cooldown paces the blows', () => {
     const eng = world('item/weapon/blade/sword', [{ key: 'slime', type: 'actor/creature/slime/green_slime', x: 2, y: 1, props: { hp: 50, maxHp: 50 } }])
+    eng.world.player.props!.profession = 'warrior' // the sword is the warrior's
     const slime = eng.world.get('slime')!
     eng.controls.strike()
     eng.tick()

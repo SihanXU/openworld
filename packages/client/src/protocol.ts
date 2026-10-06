@@ -34,12 +34,16 @@ export type ToWorker =
   | { t: 'quickMove'; slot: number }
   | { t: 'drop'; slot: number; all: boolean }
   | { t: 'organize' }
+  /** The off hand: wear a carried item there (a shield), or take off what is worn (no item). */
+  | { t: 'wear'; item?: string }
   /** The crafting panel: make a recipe from what is carried. */
   | { t: 'craft'; id: string; /** as many as what is carried makes */ all?: boolean }
   /** The skill tree: spend skill points on a skill. */
   | { t: 'learn'; id: string }
   /** Take up (or change to) a profession at a trainer. */
   | { t: 'profession'; id: string }
+  /** The companion carries another of its boons (only beside a woken waypoint). */
+  | { t: 'boon'; id: string }
   /** The world map: what has been seen of the world (answered by `atlas`). */
   | { t: 'atlas' }
   /** Travel to an attuned waypoint stone (from the world map). */

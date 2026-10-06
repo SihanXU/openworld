@@ -197,6 +197,8 @@ export interface Ontology {
   instanceTags?: string[]
   /** Factions (an actor belongs to those its `faction:<id>` tags name) and whom each is hostile to. */
   factions?: Record<string, FactionDef>
+  /** Professions by id (the `profession` prop, an item's `profession:<id>` tag), for their names. */
+  professions?: Record<string, { name: Text }>
   /** Numeric lines that are events when a prop crosses them (design.md §5.7: threshold). */
   thresholds?: ThresholdDef[]
   /** The materials things are made of, by id. */
@@ -380,6 +382,8 @@ export interface BossSkill {
   damage: number
   element?: string
   fx: string
+  /** Presentation only: exact marked cells, or one beam spanning a locked line. Default: sparse markers. */
+  fxPlacement?: 'pattern' | 'beam'
   action: 'attack' | 'cast'
   status?: string
   heal?: number
@@ -1074,6 +1078,8 @@ export type Effect =
   | { op: 'heal'; amount: Amount }
   | { op: 'feed'; amount: Amount }
   | { op: 'gainXp'; amount: Amount }
+  /** A companion's boon, given (param unlock) or chosen beside an attuned waypoint (param boon): boons.ts. */
+  | { op: 'boon' }
   | { op: 'foe' }
   | { op: 'open' }
   | { op: 'dropContents'; still?: boolean }
@@ -1210,7 +1216,7 @@ export interface Rule {
 // ------------------------------------------------------------------ outputs to the client
 
 export type FxEvent =
-  | { t: 'vfx'; fx: string; map: string; x: number; y: number }
+  | { t: 'vfx'; fx: string; map: string; x: number; y: number; angle?: number; span?: number }
   | { t: 'say'; who: Id; text: Text; mood?: Mood; scene?: boolean }
   | { t: 'emote'; who: Id; mood: Mood }
   | { t: 'fade'; dir: 'out' | 'in' }

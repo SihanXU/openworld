@@ -31,7 +31,7 @@ import {
   type Engine,
   type PlacementPreview,
 } from '@lsw/engine'
-import { BASE_RULES, BOSS_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, PROLOGUE_DONE, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
+import { BASE_RULES, BOSS_LAYOUT, COMPANION_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, PROLOGUE_DONE, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateCompanion, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
@@ -408,9 +408,14 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
       g.engine.author(() => migrateFirstlight(g, index, decodeChunk(ford), decodeChunk(village)))
     }
     if (!game.engine.world.fact(BOSS_LAYOUT)) {
-      const road = game.engine.world.state.loadedMaps.includes('eastroad') ? decodeChunk(await fetchJson<RawChunk>('maps/eastroad.json')) : undefined
       const g = game
-      g.engine.author(() => migrateBosses(g, road))
+      // the removed boss kits' bodies go (the author's, on loading)
+      g.engine.author(() => migrateBosses(g))
+    }
+    if (!game.engine.world.fact(COMPANION_LAYOUT)) {
+      const g = game
+      // the bird became a fairy (the author's, on loading)
+      g.engine.author(() => migrateCompanion(g))
     }
     // re-fetch base terrain for the map we are standing on
     const here = game.engine.world.posOf(game.engine.world.player)?.map
@@ -423,7 +428,7 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     game = Game.create(index, ontology, lib, init.start)
     // a new game is already the world as it is now: no migration is due (the author's, on creating it)
     const w = game.engine.world
-    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact('game.difficulty', init.difficulty ?? 'normal')))
+    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact('game.difficulty', init.difficulty ?? 'normal')))
   }
   game.worldVersion = index.version
   game.mods.onChange = () => sendRecords()
@@ -538,6 +543,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'organize':
         game?.engine.controls.organize()
         break
+      case 'wear':
+        game?.engine.controls.wear(m.item)
+        break
       case 'craft': {
         const r = RECIPE_BY_ID[m.id]
         if (r) m.all ? game?.engine.controls.craftAll(r) : game?.engine.controls.craft(r)
@@ -550,6 +558,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       }
       case 'travel':
         if (game && travelToWaypoint(game.engine, m.waypoint)) void ensureMaps()
+        break
+      case 'boon':
+        game?.engine.controls.chooseBoon(m.id)
         break
       case 'profession':
         game?.engine.controls.takeProfession(PROFESSION_BY_ID[m.id], SKILLS)

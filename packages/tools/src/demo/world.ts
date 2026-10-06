@@ -610,7 +610,7 @@ export function buildFord(): FordWorld {
       // a little hungry: the first thing the mountain teaches is to eat
       props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, quest: 0, prologue: 0, hunger: 12 },
     },
-    companions: [{ id: 'pip', type: 'actor/companion/bird', name: L('Pip', '小啾'), place: { on: 'none' }, facing: 'down' }],
+    companions: [{ id: 'pip', type: 'actor/companion/fairy', name: L('Pip', '小啾'), place: { on: 'none' }, facing: 'down' }],
     quests: VILLAGE_QUESTS,
     // what Pip tells when taken hold of (F): the prologue's step on the mountain, then the main quest's
     guides: [

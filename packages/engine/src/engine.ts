@@ -12,6 +12,7 @@ import { Story } from './story.ts'
 import { deriveRecipes } from './recipes.ts'
 import { Behaviour } from './behaviour.ts'
 import { combatDamage, combatDelay, combatStrike, finishCombatStrike, rangeBonus, recordCombatStep } from './combat.ts'
+import { canWield, itemProfession } from './profession.ts'
 import { Companions } from './companion.ts'
 import { Quests } from './quests.ts'
 import { NpcSim, scheduleAt } from './npc.ts'
@@ -1128,21 +1129,34 @@ export class Engine {
     const w = this.world
     const p = w.player
     if (this.busy(p) || !this.ready('atk:' + p.id)) return
-    this.attack(p, target)
+    if (!this.attack(p, target)) {
+      // another profession's weapon: said once per press, then the key rests a moment
+      const need = itemProfession(w, w.get(p.held)!)!
+      const name = w.onto.data.professions?.[need]?.name
+      const n = (l: 'en' | 'zh') => (typeof name === 'string' ? name : name ? (l === 'zh' ? name.zh ?? name.en : name.en) : need)
+      const what = { e: p.held! }
+      w.fx.push({ t: 'log', text: { en: `Only a${/^[aeiou]/i.test(n('en')) ? 'n' : ''} ${n('en')} can fight with ${this.nameOf(what, 'en')}.`, zh: `只有${n('zh')}会用${this.nameOf(what, 'zh')}战斗。` }, tone: 'warn' })
+      this.setCooldown('atk:' + p.id, 10)
+      return
+    }
     this.setCooldown('atk:' + p.id, combatDelay(w, p, 5, 'attack'))
   }
 
-  /** A blow (or a cast) along the facing: aiming is the input's; what the blow does is the act's outcome. */
-  attack(a: Entity, chosen?: Ref): void {
+  /**
+   * A blow (or a cast) along the facing: aiming is the input's; what the blow does is the act's
+   * outcome. False when it cannot be made: the held weapon belongs to another profession.
+   */
+  attack(a: Entity, chosen?: Ref): boolean {
     const w = this.world
     const weapon = w.get(a.held)
+    if (weapon && !canWield(w, a, weapon)) return false
     // a weapon's reach; without one, the actor's own (a dragon's breath carries); a profession may lengthen it
     const range = this.reachOf('use', a, undefined, weapon) ?? 1
     const element = (weapon && (w.prop(weapon, 'element') as string | undefined)) || (w.prop(a, 'element') as string | undefined)
     const start = w.posOf(a)
-    if (!start) return
+    if (!start) return true
     const cp = chosen && w.refPos(chosen)
-    if (chosen && (!cp || !this.inReach('use', a, chosen, weapon ? { e: weapon.id } : undefined))) return
+    if (chosen && (!cp || !this.inReach('use', a, chosen, weapon ? { e: weapon.id } : undefined))) return true
     const [dx, dy] = DIRS[a.facing ?? 'down']
     let target: Ref | undefined
     let last: Pos | undefined
@@ -1170,12 +1184,12 @@ export class Engine {
       const onRay = cp.x - start.x === dx * d && cp.y - start.y === dy * d
       if (range <= 1 || d === 0) (target = chosen), (last = cp)
       else if (onRay && last && d <= Math.abs(last.x - start.x) + Math.abs(last.y - start.y)) (target = chosen), (last = cp)
-      else return
+      else return true
     }
     const base = w.stat(a, 'atk', 1) + (weapon ? w.num(weapon, 'power', 0) : 0)
     if (!target) {
       finishCombatStrike(w, a, undefined, { power: base, critical: false, charged: false, comboHits: 0, bleed: 0, drain: 0 }, 0, range, true)
-      return
+      return true
     }
     if (range > 1 && last && (last.x !== start.x || last.y !== start.y)) w.fx.push({ t: 'vfx', fx: `bolt:${element ?? 'none'}:${a.facing}:${Math.abs(last.x - start.x) + Math.abs(last.y - start.y)}`, map: start.map, x: start.x, y: start.y })
     else w.fx.push({ t: 'vfx', fx: `swing:${a.facing}`, map: start.map, x: start.x, y: start.y })
@@ -1197,6 +1211,7 @@ export class Engine {
         this.act('use', a.id, { e: side.id }, { params: { attack: true, power: sideStrike.power } })
         finishCombatStrike(w, a, side, sideStrike, sideHp, range, false)
       }
+    return true
   }
 
   /** The `lightning` primitive: a bolt seeks what stands tall near the player (or falls near them). */

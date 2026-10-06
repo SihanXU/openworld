@@ -301,7 +301,7 @@ describe('the Mod port holds up', () => {
   })
 
   it('a thing that changes type takes up the cells of its new footprint', () => {
-    const grow: Rule = { id: 'test/grow', host: { type: 'actor/creature/slime' }, on: 'impulse/handle', tree: { do: [{ op: 'transform', into: 'actor/creature/sin/greed' }] } }
+    const grow: Rule = { id: 'test/grow', host: { type: 'actor/creature/slime' }, on: 'impulse/handle', tree: { do: [{ op: 'transform', into: 'actor/creature/sin/lust' }] } }
     const eng = buildSandbox(
       { terrain: Array.from({ length: 9 }, () => Array(9).fill('grass')), entities: [{ key: 'actor', type: 'actor/person/player', x: 4, y: 5 }, { key: 'c', type: 'actor/creature/slime/green_slime', x: 4, y: 4 }], event: {} },
       onto,
@@ -310,7 +310,7 @@ describe('the Mod port holds up', () => {
     const w = eng.world
     eng.act('hands', 'actor', { e: 'c' }, { instrument: null })
     const c = w.get('c')!
-    expect(c.type).toBe('actor/creature/sin/greed')
+    expect(c.type).toBe('actor/creature/sin/lust')
     const cells = w.occupiedCells(c)
     expect(cells.length).toBeGreaterThan(1)
     for (const [x, y] of cells) expect(w.entitiesAt('sandbox', x, y).map((e) => e.id)).toContain('c')

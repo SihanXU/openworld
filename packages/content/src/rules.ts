@@ -66,7 +66,7 @@ const ROOTS: Rule[] = [
     ),
   }),
   rule({ id: 'core/take', doc: 'Taking the target with the hands: it is taken (and answers how).', on: 'act/take', tree: DO(emit('taken', 'target', { into: { param: 'into' }, quiet: { param: 'quiet' } }, { other: 'actor' })) }),
-  rule({ id: 'core/hands', doc: 'A bare hand on the target: it is handled (and answers how).', on: 'act/hands', tree: DO(emit('handle', 'target')) }),
+  rule({ id: 'core/hands', doc: 'A bare hand on the target: it is handled (and answers how); what the hand asks of it (a companion\'s boon) rides along.', on: 'act/hands', tree: DO(emit('handle', 'target', { boon: { param: 'boon' } })) }),
   rule({ id: 'core/move', doc: 'Moving: one step, or to a place.', on: 'act/move', tree: DO({ op: 'step' }) }),
   rule({ id: 'core/craft', doc: 'Crafting what the recipe makes from what is carried.', on: 'act/craft', tree: DO({ op: 'craft' }) }),
   rule({ id: 'core/learn', doc: 'Learning what the act names: a skill (with skill points), a profession (at a trainer).', on: 'act/learn', tree: DO({ op: 'learn' }) }),
@@ -1291,10 +1291,17 @@ const JOURNEY: Rule[] = [
   rule({
     id: 'companion/talk',
     label: L('Talk to {target}', '和{target}说话'),
-    doc: 'A companion, spoken to (E), tells what the story asks for now and how (else what it last pointed out).',
+    doc: 'A companion, spoken to (E), tells what the story asks for now and how (else what it last pointed out); asked to carry one of its boons (param boon, from the waypoint\'s panel), it takes it up if a woken waypoint is near (boons.ts).',
     host: COMPANION,
     on: 'impulse/handle',
-    tree: DO({ op: 'say', text: '@guide' }),
+    tree: IF({ param: { key: 'boon', cmp: { ne: '' } } }, DO({ op: 'boon' }), DO({ op: 'say', text: '@guide' })),
+  }),
+  rule({
+    id: 'companion/boon',
+    doc: 'A companion told it is given a boon (notify what = boon, param unlock: its id) keeps it, and carries it if it carries none (boons.ts).',
+    host: COMPANION,
+    on: 'impulse/notify',
+    tree: IF(param('what', 'boon'), DO({ op: 'boon' }), 'inherit'),
   }),
   rule({
     id: 'companion/witness',
@@ -1326,12 +1333,12 @@ const JOURNEY: Rule[] = [
   }),
   rule({
     id: 'waypoint/attune',
-    doc: 'A hand on a waypoint statue wakes it (once): it remembers you, and the world map (M) can take you to it. Woken, it hums.',
+    doc: 'A hand on a waypoint statue wakes it (once): it remembers you, and the world map (M) can take you to it. Woken, it hums, and opens the panel where the companion\'s boon is chosen.',
     host: WAYPOINT,
     on: 'impulse/handle',
     tree: IF(
       has('host', 'attuned'),
-      AS(L('Listen to {target}', '倾听{target}'), DO(log('The statue hums. Open the map (M) to travel to another one.', '雕像嗡嗡作响。打开地图（M）就能传送到别的传送雕像。'))),
+      AS(L('Listen to {target}', '倾听{target}'), DO(log('The statue hums. Open the map (M) to travel to another one.', '雕像嗡嗡作响。打开地图（M）就能传送到别的传送雕像。'), { op: 'panel', panel: 'boons' })),
       AS(L('Wake {target}', '唤醒{target}'), DO(add('attuned'), emit('notify', 'story', { what: 'waypoint' }), emit('notify', 'actor', { what: 'home', value: { idOf: 'host' } }), vfx('heal'), log('The statue wakes under your hand. (M: the map — travel to any statue you have woken.)', '雕像在你手下亮了起来。（M：地图——可以传送到任何唤醒过的传送雕像。）'))),
     ),
   }),

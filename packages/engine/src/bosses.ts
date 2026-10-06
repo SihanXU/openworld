@@ -120,7 +120,20 @@ export function releaseSkill(eng: Engine, e: Entity, ev: GameEvent): void {
       }
     }
   }
-  // Distinct generated effects at the impact's center and extremities, not a tile-sized flood.
+  // Optional visual layouts use the same locked pattern. They never change damage or timing.
+  if (skill.fxPlacement === 'pattern') {
+    for (const [x, y] of tiles) w.fx.push({ t: 'vfx', fx: skill.fx, map: at.map, x, y })
+    return
+  }
+  if (skill.fxPlacement === 'beam' && skill.shape === 'line') {
+    const dx = aim.x - origin.x, dy = aim.y - origin.y
+    const vx = Math.abs(dx) >= Math.abs(dy) ? Math.sign(dx) || 1 : 0, vy = vx ? 0 : Math.sign(dy) || 1
+    w.fx.push({ t: 'vfx', fx: skill.fx, map: at.map,
+      x: origin.x + vx * (skill.radius + 1) / 2, y: origin.y + vy * (skill.radius + 1) / 2,
+      angle: Math.atan2(vy, vx) * 180 / Math.PI, span: skill.radius })
+    return
+  }
+  // Legacy layouts keep their sparse impact markers, unchanged.
   const center = skill.aim === 'self' ? origin : aim
   const centers = [center]
   if (skill.shape === 'ring' || skill.shape === 'spots' || skill.shape === 'cross') {

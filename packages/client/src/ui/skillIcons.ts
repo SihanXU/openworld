@@ -10,6 +10,13 @@ export const SKILL_ART_KEYS = [
   'quick-hands', 'battle-tempo', 'evasive-step', 'pursuit', 'windrunner',
   'executioner', 'deadly-focus', 'defiance', 'last-stand', 'blade-mastery',
   'shadow-recovery', 'death-dance',
+  'nimble', 'acrobat', 'dash', 'slipstream', 'tailwind', 'phantom-step', 'untouchable',
+  'brute', 'precision', 'hemorrhage', 'lethal-edge', 'brutal', 'first-strike', 'momentum', 'berserker',
+  'iron-will', 'thick-skin', 'fortress', 'frugal', 'hearty-meals', 'regeneration', 'adrenaline', 'phoenix',
+  'warrior-arms', 'bulwark', 'unbreakable', 'retaliation', 'rampage', 'warlord',
+  'ranger-archery', 'steady-aim', 'sniper', 'fleet-archer', 'quick-draw', 'hunters-mark',
+  'mage-focus', 'elemental-attunement', 'spell-echo', 'mana-shield', 'arcane-recovery', 'archmage',
+  'warrior', 'ranger', 'mage',
 ] as const
 
 const known = new Set<string>(SKILL_ART_KEYS)

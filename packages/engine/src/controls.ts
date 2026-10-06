@@ -26,7 +26,8 @@ import type { Engine } from './engine.ts'
 import type { Writer } from './world.ts'
 import type { Aim, Dir, Entity, Id, Place, Plan, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb } from './types.ts'
 import { cannotLearn, skillsOf } from './progression.ts'
-import { PROFESSION_LEVEL, cannotChoose, type ProfessionDef, type ProfessionRefusal } from './profession.ts'
+import { companionsOf, nearAttunedWaypoint } from './boons.ts'
+import { OFFHAND, PROFESSION_LEVEL, canWield, cannotChoose, itemProfession, type ProfessionDef, type ProfessionRefusal } from './profession.ts'
 
 /** The five inputs (design.md §5.2). */
 export type Key = Plan['key']
@@ -287,10 +288,21 @@ export class Controls {
       const pure = isWeapon(heldE.type) && !w.hasTag(heldE, 'tool:axe') && !(heldE.tags ?? []).some((g) => g.startsWith('tool:'))
       const blow = isWeapon(heldE.type) && !this.isPerson(target) && (pure || this.isCreature(target))
       if (blow && reach > 1 && !aligned) return undefined
-      return this.make(key, at, 'use', target, held, blow, blow ? (heldE.type.startsWith('item/weapon/magic/') ? GENERIC.cast : GENERIC.attack) : undefined)
+      const plan = this.make(key, at, 'use', target, held, blow, blow ? (heldE.type.startsWith('item/weapon/magic/') ? GENERIC.cast : GENERIC.attack) : undefined)
+      // another profession's weapon: its blow is refused, and the label says so (profession.ts)
+      if (blow && !canWield(w, p, heldE)) plan.label = this.onlyFor(heldE, held!)
+      return plan
     }
     if (reach > 1 && !aligned) return undefined
     return this.make(key, at, 'use', target, undefined, true, GENERIC.punch)
+  }
+
+  /** "Only a warrior can fight with the sword": the label of a blow another profession's weapon will not make. */
+  private onlyFor(item: Entity, ref: Ref): Text {
+    const need = itemProfession(this.w, item) ?? ''
+    const name = this.w.onto.data.professions?.[need]?.name
+    const n = typeof name === 'string' ? { en: name, zh: name } : { en: name?.en ?? need, zh: name?.zh ?? name?.en ?? need }
+    return { en: `Only a${/^[aeiou]/i.test(n.en) ? 'n' : ''} ${n.en} can fight with ${this.eng.nameOf(ref, 'en')}`, zh: `只有${n.zh}会用${this.eng.nameOf(ref, 'zh')}` }
   }
 
   /** The rule that answers: the deepest one of the chain that belongs to a host (the receiver's answer, not the root that passed it on). */
@@ -589,6 +601,20 @@ export class Controls {
     this.sync()
   }
 
+  /**
+   * The off hand (the inventory's slot): put a carried thing on oneself — an act, as using it on
+   * oneself is (`use/wear` → `body/wear`: a shield goes on the arm) — or, with no item, take off
+   * what is worn there (offered again, it comes off).
+   */
+  wear(item?: Id): void {
+    const w = this.w
+    const p = w.player
+    const id = item ?? w.prop(p, OFFHAND)
+    if (this.eng.busy(p) || typeof id !== 'string' || !w.get(id)) return
+    this.eng.act('use', p.id, { e: p.id }, { instrument: { e: id } })
+    this.sync()
+  }
+
   /** The bag's slots: three rows, and one more for each `bagRows` (the skill). */
   slotCount(): number {
     return SLOT_COUNT + ROW * Math.max(0, this.w.num(this.w.player, 'bagRows'))
@@ -620,6 +646,23 @@ export class Controls {
     if (had) w.fx.push({ t: 'log', text: { en: 'Your old profession\'s skills are unlearned: spend the points again in the skill tree (K).', zh: '原职业的技能已重置：在技能树（K）里重新加点吧。' } })
     this.sync()
     return undefined
+  }
+
+  /**
+   * Choose the boon the companion carries (the waypoint's panel): an act of the hands on the
+   * companion, which answers it (`companion/talk` → `boon`), only beside an attuned waypoint.
+   */
+  chooseBoon(id: string): boolean {
+    const w = this.w
+    const p = w.player
+    const bird = companionsOf(w, p)[0]
+    if (!bird || this.eng.busy(p)) return false
+    if (!nearAttunedWaypoint(w, p)) {
+      w.fx.push({ t: 'log', text: { en: 'A power can be changed only beside a woken waypoint statue.', zh: '只有在唤醒过的传送雕像旁才能切换力量。' }, tone: 'warn' })
+      return false
+    }
+    this.eng.act('hands', p.id, { e: bird.id }, { instrument: null, params: { boon: id } })
+    return true
   }
 
   /** Spend skill points on a skill: an act of learning it. */

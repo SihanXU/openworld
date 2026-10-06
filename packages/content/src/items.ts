@@ -111,23 +111,36 @@ const W = (id: string, en: string, zh: string, sprite: string, rest: Partial<For
 
 export const FORMS: Form[] = [
   // weapons
-  W('item/weapon/blade/sword', 'Sword', '剑', 'item:sword', { props: { power: 4 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 5, dungeon: 3, shop: 1 } }),
-  W('item/weapon/blade/dagger', 'Dagger', '匕首', 'item:dagger', { props: { power: 2 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 3, dungeon: 2, home: 0.5, npc: 1 } }),
+  // profession weapons (`profession:<id>`, engine/src/profession.ts) fight only for their own:
+  // the assassin's dagger, the warrior's sword and shield, the ranger's bow, the mage's staff
+  W('item/weapon/blade/sword', 'Sword', '剑', 'item:sword', { tags: ['profession:warrior'], props: { power: 4 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 5, dungeon: 3, shop: 1 } }),
+  W('item/weapon/blade/dagger', 'Dagger', '匕首', 'item:dagger', { tags: ['profession:assassin'], props: { power: 2 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 3, dungeon: 2, home: 0.5, npc: 1 } }),
   W('item/weapon/blade/axe', 'Axe', '斧', 'item:axe', { tags: ['tool:axe'], props: { power: 4 }, materials: TOOL_METALS, elemental: true, where: { smithy: 3, farm: 2, wild: 0.5 }, makeup: [{ type: 'item/material/stone', count: 1 }, { type: 'item/material/stick', count: 1 }, { type: 'item/material/grass', count: 1 }], station: 'hands' }),
   // the smith of Emberfall's blade, forged for the dragon (the main quest)
   W('item/weapon/blade/dragonsbane', 'Dragonsbane', '屠龙剑', 'item:sword', { tags: ['dragonsbane', 'quality:legendary'], props: { power: 12 }, where: {} }),
-  W('item/weapon/blade/scimitar', 'Scimitar', '弯刀', 'item:sword', { props: { power: 4 }, materials: WEAPON_METALS, elemental: true, where: { dungeon: 1, smithy: 1 } }),
+  W('item/weapon/blade/scimitar', 'Scimitar', '弯刀', 'item:sword', { tags: ['profession:warrior'], props: { power: 4 }, materials: WEAPON_METALS, elemental: true, where: { dungeon: 1, smithy: 1 } }),
   W('item/weapon/blunt/club', 'Club', '棍棒', 'item:club', { props: { power: 2 }, materials: ['wood', 'bone'], where: { wild: 1, npc: 1, dungeon: 1 }, makeup: [{ type: 'item/material/log', count: 1 }], station: 'workbench' }),
   W('item/weapon/blunt/mace', 'Mace', '钉锤', 'item:mace', { props: { power: 4 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 2, dungeon: 2 } }),
   W('item/weapon/blunt/warhammer', 'Warhammer', '战锤', 'item:hammer', { props: { power: 5 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 1, dungeon: 1 } }),
   W('item/weapon/polearm/spear', 'Spear', '长矛', 'item:spear', { props: { power: 4, range: 2 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 2, dungeon: 1, npc: 0.5 } }),
   W('item/weapon/polearm/halberd', 'Halberd', '戟', 'item:spear', { props: { power: 5, range: 2 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 1, dungeon: 1 } }),
-  W('item/weapon/ranged/bow', 'Bow', '弓', 'item:bow', { props: { power: 3, range: 6 }, materials: ['wood', 'bone'], elemental: true, where: { smithy: 1, wild: 0.3, dungeon: 1 }, makeup: [{ type: 'item/material/stick', count: 2 }, { type: 'item/material/grass', count: 3 }], station: 'workbench', craftLevel: 2 }),
+  W('item/weapon/ranged/bow', 'Bow', '弓', 'item:bow', { tags: ['profession:ranger'], props: { power: 3, range: 6 }, materials: ['wood', 'bone'], elemental: true, where: { smithy: 1, wild: 0.3, dungeon: 1 }, makeup: [{ type: 'item/material/stick', count: 2 }, { type: 'item/material/grass', count: 3 }], station: 'workbench', craftLevel: 2 }),
   W('item/weapon/magic/wand', 'Wand', '魔杖', 'item:wand', { tags: ['arcane'], props: { power: 3, range: 5 }, materials: ['wood', 'crystal', 'bone', 'silver'], elemental: true, where: { library: 3, temple: 1, dungeon: 2, shop: 0.5 } }),
-  W('item/weapon/magic/staff', 'Staff', '法杖', 'item:staff', { tags: ['arcane'], props: { power: 5, range: 4 }, materials: ['wood', 'crystal', 'bone', 'mithril'], elemental: true, where: { library: 1, dungeon: 1 } }),
+  W('item/weapon/magic/staff', 'Staff', '法杖', 'item:staff', { tags: ['arcane', 'profession:mage'], props: { power: 5, range: 4 }, materials: ['wood', 'crystal', 'bone', 'mithril'], elemental: true, where: { library: 1, dungeon: 1 } }),
+  // the professions' legendary arms, two each (LEGENDARY_ARMS): kin of their family, never found
+  // lying about; a fallen sin leaves one for the profession of whoever felled it (bosses.ts)
+  W('item/weapon/blade/dagger/nightfang', 'Nightfang', '夜牙', 'item:dagger', { tags: ['quality:legendary', 'legend'], props: { power: 8, critChance: 0.15 }, where: {} }),
+  W('item/weapon/blade/dagger/mirrorshard', 'Mirrorshard', '镜中刃', 'item:dagger', { tags: ['quality:legendary', 'legend', 'glass'], props: { power: 7, lifesteal: 1 }, where: {} }),
+  W('item/weapon/blade/sword/oathbrand', 'Oathbrand', '誓约之刃', 'item:sword', { tags: ['quality:legendary', 'legend', 'metal', 'conductive', 'holy'], props: { power: 10, lifesteal: 1 }, where: {} }),
+  W('item/weapon/ranged/bow/galestring', 'Galestring', '疾风之弦', 'item:bow', { tags: ['quality:legendary', 'legend', 'element:wind'], props: { power: 8, range: 7, element: 'wind', attackHaste: 0.2 }, where: {} }),
+  W('item/weapon/ranged/bow/starfall', 'Starfall', '坠星', 'item:bow', { tags: ['quality:legendary', 'legend'], props: { power: 10, range: 8, critChance: 0.1 }, where: {} }),
+  W('item/weapon/magic/staff/emberheart', 'Emberheart', '烬心法杖', 'item:staff', { tags: ['quality:legendary', 'legend', 'element:fire'], props: { power: 11, range: 5, element: 'fire' }, where: {} }),
+  W('item/weapon/magic/staff/rimecrown', 'Rimecrown', '霜冠法杖', 'item:staff', { tags: ['quality:legendary', 'legend', 'element:ice', 'crystal'], props: { power: 10, range: 6, element: 'ice', critChance: 0.1 }, where: {} }),
   // armour and clothing: put on oneself, worn in a slot (world-model.md §6.8); armour adds its defence
   W('item/armor/helmet', 'Helmet', '头盔', 'item:helmet', { tags: ['wearable'], props: { def: 1, slot: 'head' }, materials: ['iron', 'steel', 'bronze', 'leather', 'bone'], where: { smithy: 2, dungeon: 1 } }),
-  W('item/armor/shield', 'Shield', '盾牌', 'item:shield', { tags: ['wearable'], props: { def: 2, slot: 'arm' }, materials: ['wood', 'iron', 'steel', 'bronze'], where: { smithy: 2, dungeon: 1 }, makeup: [{ type: 'item/material/plank', count: 3 }, { type: 'item/material/stick', count: 1 }], station: 'workbench' }),
+  W('item/armor/shield', 'Shield', '盾牌', 'item:shield', { tags: ['wearable', 'profession:warrior'], props: { def: 2, slot: 'arm' }, materials: ['wood', 'iron', 'steel', 'bronze'], where: { smithy: 2, dungeon: 1 }, makeup: [{ type: 'item/material/plank', count: 3 }, { type: 'item/material/stick', count: 1 }], station: 'workbench' }),
+  // the warrior's legendary shield: a block turns a blow aside (combat.ts)
+  W('item/armor/shield/unfallen', 'The Unfallen Wall', '不陷之壁', 'item:shield', { tags: ['quality:legendary', 'legend', 'metal', 'conductive'], props: { def: 5, block: 0.15 }, where: {} }),
   W('item/armor/breastplate', 'Breastplate', '胸甲', 'item:armor', { tags: ['wearable'], props: { def: 3, slot: 'body' }, materials: ['iron', 'steel', 'leather', 'mithril'], where: { smithy: 1, dungeon: 0.5 } }),
   W('item/clothing/cloak', 'Cloak', '斗篷', 'item:cloak', { tags: ['wearable'], props: { slot: 'back' }, materials: ['cloth', 'leather', 'silk'], where: { home: 2, shop: 1 } }),
   W('item/clothing/hat', 'Hat', '帽子', 'item:hat', { tags: ['wearable'], props: { slot: 'head' }, materials: ['cloth', 'leather', 'silk'], where: { home: 2, shop: 1, npc: 0.3 } }),
@@ -293,6 +306,14 @@ export function itemTypes(): TypeDef[] {
 }
 
 export const FORM_BY_ID: Record<string, Form> = Object.fromEntries(FORMS.map((f) => [f.id, f]))
+
+/** Each profession's legendary arms, in the order a fallen sin hands them over (bosses.ts). */
+export const LEGENDARY_ARMS: Record<string, string[]> = {
+  assassin: ['item/weapon/blade/dagger/nightfang', 'item/weapon/blade/dagger/mirrorshard'],
+  warrior: ['item/weapon/blade/sword/oathbrand', 'item/armor/shield/unfallen'],
+  ranger: ['item/weapon/ranged/bow/galestring', 'item/weapon/ranged/bow/starfall'],
+  mage: ['item/weapon/magic/staff/emberheart', 'item/weapon/magic/staff/rimecrown'],
+}
 
 /** Instantiate an item: material × quality × element, with a composed bilingual name. */
 export function makeItem(rng: Rng, form: Form, opts: { material?: string; quality?: string; element?: string | null } = {}): Omit<Entity, 'id' | 'place'> {

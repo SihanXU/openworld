@@ -4,7 +4,7 @@
 // witnesses a requirement in tools/test/demo.test.ts.
 
 import type { AiData, AppearDef } from '@lsw/engine'
-import { FIRST_BOSS, createBoss } from '@lsw/content'
+import { BOSS_ARENA } from '@lsw/content'
 import { MapBuilder, rng } from '../builder.ts'
 import { L, GROUND_YIELD, appears, clump, lay } from '../kit.ts'
 
@@ -49,9 +49,8 @@ export function buildEastRoad(): MapBuilder {
   lay(m, 'item/material/stick', 2, [6, 14, 8, 5])
   lay(m, 'item/material/stone', 2, [36, 5, 8, 4])
   m.appear = [...GROUND_YIELD, hunters('actor/creature/beast/wolf', 2, 2400, ['grass'])]
-  // The first sin guards the road after the Ford, with room to circle its broad body.
-  m.organic(FIRST_BOSS.x, FIRST_BOSS.y, 7, 4, 'dirt', { only: (t) => t === 'grass', rough: 0.12 })
-  m.entities.push(createBoss('greed', FIRST_BOSS, FIRST_BOSS.id))
+  // a trodden clearing off the road (the Boss Studio's and the challenge's stage)
+  m.organic(BOSS_ARENA.x, BOSS_ARENA.y, 7, 4, 'dirt', { only: (t) => t === 'grass', rough: 0.12 })
   return m
 }
 

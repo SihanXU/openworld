@@ -49,11 +49,13 @@ const menu = new Menu({
   quickMove: (slot) => send({ t: 'quickMove', slot }),
   drop: (slot, all) => send({ t: 'drop', slot, all }),
   organize: () => send({ t: 'organize' }),
+  wear: (item) => send({ t: 'wear', item }),
   craft: (id, all) => send({ t: 'craft', id, all }),
   learn: (id) => send({ t: 'learn', id }),
   atlas: () => send({ t: 'atlas' }),
   travel: (waypoint) => send({ t: 'travel', waypoint }),
   profession: (id) => send({ t: 'profession', id }),
+  boon: (id) => send({ t: 'boon', id }),
   transfer: (from, item, all) => send({ t: 'transfer', from, item, all }),
   closePanel: () => send({ t: 'closePanel' }),
   save: () => send({ t: 'save' }),
@@ -100,6 +102,7 @@ function toggleBuilding(): void {
 /** Minecraft's tooltip over any item in the toolbar, the bag, a chest or the crafting panel. */
 const tooltip = new Tooltip(() => ({
   atk: Number(lastFrame?.player.props.atk ?? 0),
+  profession: typeof lastFrame?.player.props.profession === 'string' ? lastFrame.player.props.profession : undefined,
   nameOf: (id) => {
     const e = lastFrame?.entities.find((x) => x.id === id)
     return e ? tx(e.name) : undefined
@@ -231,6 +234,8 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       minimap.onFrame(m.frame)
       // a rule opened one of the player's panels (a trainer: the choice of profession)
       if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'profession')) menu.openProfession()
+      // a woken waypoint statue: the companion's boons
+      if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'boons')) menu.openBoons()
       reaim()
       dev.setPerf(m.perf, fps)
       break

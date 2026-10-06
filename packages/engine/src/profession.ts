@@ -2,7 +2,13 @@
 // change it there later. Changing gives back every point spent in the profession branch (the
 // skills of any profession): their tags go, their grants are undone, and the points return to
 // be spent again. Shared branches are kept. The first time an actor takes up a profession, it
-// is handed the profession's starter weapon.
+// is handed the profession's starter weapon (and off-hand piece).
+//
+// Profession weapons: an item type tagged `profession:<id>` (the dagger, the sword and shield, the
+// bow, the staff, and their legendary kin) fights only for an actor of that profession. Anyone may
+// carry, give or store one; another actor's blow with it is refused, and it cannot be worn (the
+// shield in the off hand: the `arm` slot). Every other weapon is common to all and takes no
+// profession's talents.
 
 import type { Entity, SkillDef, Text } from './types.ts'
 import type { World } from './world.ts'
@@ -19,9 +25,42 @@ export interface ProfessionDef {
   icon?: string
   /** Handed over the first time the profession is taken up (an item: type, name, props…). */
   weapon?: Omit<Entity, 'id' | 'place'>
+  /** Handed over with it and worn in the off hand (the warrior's shield). */
+  offhand?: Omit<Entity, 'id' | 'place'>
 }
 
 export type ProfessionRefusal = 'unknown' | 'same' | 'level' | 'trainer'
+
+/** The profession an item fights for (its `profession:<id>` tag), or none: a common item. */
+export function itemProfession(w: World, item: Entity): string | undefined {
+  const tag = [...w.onto.resolve(item.type).tags, ...(item.tags ?? [])].find((t) => t.startsWith('profession:'))
+  return tag?.slice('profession:'.length)
+}
+
+/** The profession an actor follows, if any. */
+export function professionOf(w: World, e: Entity): string | undefined {
+  const p = w.prop(e, 'profession')
+  return typeof p === 'string' && p ? p : undefined
+}
+
+/** May this actor fight with (or wear) this item: a common one, or one of its own profession. */
+export function canWield(w: World, e: Entity, item: Entity): boolean {
+  const need = itemProfession(w, item)
+  return !need || need === professionOf(w, e)
+}
+
+/** The item is its holder's own profession weapon: the only kind a profession's talents answer. */
+export function ownWeapon(w: World, e: Entity, item: Entity | undefined): boolean {
+  return !!item && !!itemProfession(w, item) && itemProfession(w, item) === professionOf(w, e)
+}
+
+/** The off hand: the `arm` slot of what is worn (world-model.md §6.8), where a shield goes. */
+export const OFFHAND = 'wear:arm'
+
+/** What is worn in the off hand and works there (`World.worn`: still carried, and the wearer's to wield). */
+export function offhandOf(w: World, e: Entity): Entity | undefined {
+  return w.worn(e).find((item) => w.prop(item, 'slot') === 'arm')
+}
 
 /** How far a trainer can be (tiles) for the choice to be made. */
 const TRAINER_REACH = 3
@@ -67,10 +106,19 @@ export function refundProfessionSkills(w: World, e: Entity, skills: SkillDef[]):
 export function chooseProfession(w: World, e: Entity, def: ProfessionDef, skills: SkillDef[]): number {
   const refunded = refundProfessionSkills(w, e, skills)
   w.setProp(e, 'profession', def.id)
-  // the starter weapon, once per profession
-  if (def.weapon && !w.prop(e, `kit.${def.id}`)) {
+  // what the old profession wore comes off (it stays in the bag)
+  for (const [key, id] of Object.entries(e.props ?? {})) {
+    const item = key.startsWith('wear:') && typeof id === 'string' ? w.get(id) : undefined
+    if (item && !canWield(w, e, item)) w.setProp(e, key, undefined)
+  }
+  // the starter kit, once per profession; its off-hand piece is worn at once if that slot is free
+  if (!w.prop(e, `kit.${def.id}`) && (def.weapon || def.offhand)) {
     w.setProp(e, `kit.${def.id}`, true)
-    w.create(def.weapon.type, { on: 'inside', holder: e.id }, structuredClone(def.weapon))
+    if (def.weapon) w.create(def.weapon.type, { on: 'inside', holder: e.id }, structuredClone(def.weapon))
+    if (def.offhand) {
+      const piece = w.create(def.offhand.type, { on: 'inside', holder: e.id }, structuredClone(def.offhand))
+      if (!offhandOf(w, e)) w.setProp(e, OFFHAND, piece.id)
+    }
   }
   return refunded
 }

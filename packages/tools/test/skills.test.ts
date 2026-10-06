@@ -201,7 +201,7 @@ describe('the skill tree', () => {
       ])
       if (skilled) learn(eng, 'sweep')
       const full = eng.world.num(eng.world.get('b')!, 'hp')
-      eng.world.author(() => eng.world.add({ id: 'sword', type: 'item/weapon/blade/sword', place: { on: 'hand', holder: 'actor' } }))
+      eng.world.author(() => eng.world.add({ id: 'mace', type: 'item/weapon/blunt/mace', place: { on: 'hand', holder: 'actor' } }))
       eng.attack(eng.world.get('actor')!)
       // hurt, or felled outright
       return ['b', 'c'].filter((id) => { const e = eng.world.get(id); return !e || eng.world.num(e, 'hp') < full }).length
@@ -217,6 +217,8 @@ function duel(skills: string[] = []): Engine {
   // the combat talents below are the assassin's (a profession a trainer gives, docs/skill-tree.md)
   Object.assign(p.props!, { hp: 40, maxHp: 40, atk: 10, def: 0, profession: 'assassin' })
   p.tags = skills.map((s) => `skill:${s}`)
+  // an assassin's talents answer the dagger alone (profession.ts); this one adds no power of its own
+  eng.world.author(() => eng.world.add({ id: 'dagger', type: 'item/weapon/blade/dagger', place: { on: 'hand', holder: 'actor' }, props: { power: 0 } }))
   const foe = eng.world.get('foe')!
   Object.assign(foe.props ??= {}, { hp: 200, maxHp: 200, def: 0 })
   foe.facing = 'down'
@@ -409,13 +411,19 @@ describe('automatic combat talents', () => {
     expect(p.props!.hunger).toBe(15)
   })
 
-  it('assassin training needs a melee blade and becomes inactive when profession changes', () => {
+  it('assassin training needs a dagger, not a common blade, and the dagger fights for no other profession', () => {
     const eng = duel(['assassin-training'])
+    const w = eng.world
+    expect(blow(eng)).toBe(11)
+    // a common blade (the axe) takes no profession talent
+    w.author(() => w.place(w.get('dagger')!, { on: 'inside', holder: 'actor' }))
+    w.author(() => w.add({ id: 'axe', type: 'item/weapon/blade/axe', place: { on: 'hand', holder: 'actor' }, props: { power: 0 } }))
     expect(blow(eng)).toBe(10)
-    eng.world.author(() => eng.world.add({ id: 'dagger', type: 'item/weapon/blade/dagger', place: { on: 'hand', holder: 'actor' } }))
-    expect(blow(eng)).toBe(13)
-    eng.world.player.props!.profession = 'warrior'
-    expect(blow(eng)).toBe(12)
+    // another profession: the dagger's blow is refused
+    w.author(() => w.place(w.get('axe')!, { on: 'inside', holder: 'actor' }))
+    w.author(() => w.place(w.get('dagger')!, { on: 'hand', holder: 'actor' }))
+    w.player.props!.profession = 'warrior'
+    expect(blow(eng)).toBe(0)
   })
 
   it('ambush requires four seconds without attacking or taking combat damage', () => {
@@ -469,7 +477,9 @@ describe('automatic combat talents', () => {
   it('ranged attacks reset melee combos without triggering assassin openers or mobility charges', () => {
     const eng = duel(['ambush', 'backstab', 'relentless', 'windrunner', 'death-dance'])
     eng.world.player.combat = { steps: 3, comboHits: 2, comboTarget: 'foe', comboTick: 0 }
-    eng.world.author(() => eng.world.add({ id: 'bow', type: 'item/weapon/ranged/bow', place: { on: 'hand', holder: 'actor' } }))
+    // a common ranged weapon (the wand; the bow is the ranger's)
+    eng.world.author(() => eng.world.place(eng.world.get('dagger')!, { on: 'inside', holder: 'actor' }))
+    eng.world.author(() => eng.world.add({ id: 'wand', type: 'item/weapon/magic/wand', place: { on: 'hand', holder: 'actor' } }))
     expect(blow(eng)).toBe(13)
     expect(eng.world.player.combat!.comboHits).toBeUndefined()
     expect(eng.world.player.combat!.steps).toBe(3)
@@ -487,7 +497,8 @@ describe('automatic combat talents', () => {
     const ranged = duel(['shadow-recovery'])
     ranged.world.player.props!.hp = 20
     ranged.world.get('foe')!.props!.hp = 1
-    ranged.world.author(() => ranged.world.add({ id: 'bow', type: 'item/weapon/ranged/bow', place: { on: 'hand', holder: 'actor' } }))
+    ranged.world.author(() => ranged.world.place(ranged.world.get('dagger')!, { on: 'inside', holder: 'actor' }))
+    ranged.world.author(() => ranged.world.add({ id: 'wand', type: 'item/weapon/magic/wand', place: { on: 'hand', holder: 'actor' } }))
     blow(ranged)
     expect(ranged.world.player.props!.hp).toBe(20)
   })
@@ -498,6 +509,7 @@ describe('automatic combat talents', () => {
     expect(blow(eng)).toBe(23)
     expect(eng.world.state.rng).toBe(seed)
     eng.world.player.props!.profession = 'warrior'
+    eng.world.author(() => eng.world.place(eng.world.get('dagger')!, { on: 'inside', holder: 'actor' })) // bare hands: the dagger is no warrior's
     eng.world.get('foe')!.facing = 'up'
     eng.world.state.tick = 100
     expect(blow(eng)).toBe(10)
@@ -508,6 +520,8 @@ describe('automatic combat talents', () => {
     const map = eng.world.posOf(eng.world.player)!.map
     const npc = eng.world.author(() => eng.world.add({ id: 'npc', type: 'actor/person', place: { on: 'tile', map, x: 2, y: 1 }, props: { hp: 20, maxHp: 20, profession: 'assassin' }, tags: ['skill:backstab'] }))
     eng.world.player.facing = 'left'
-    expect(combatStrike(eng.world, npc, eng.world.player, 10, 1, undefined, true).power).toBe(14)
+    const dagger = eng.world.author(() => eng.world.add({ id: 'npc.dagger', type: 'item/weapon/blade/dagger', place: { on: 'hand', holder: 'npc' } }))
+    expect(combatStrike(eng.world, npc, eng.world.player, 10, 1, dagger, true).power).toBe(14)
+    expect(combatStrike(eng.world, npc, eng.world.player, 10, 1, undefined, true).power).toBe(10)
   })
 })

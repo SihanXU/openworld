@@ -1537,22 +1537,6 @@ req('F17', 'Firstlight Village is the former meadow: homes, a well, a lit square
   expect(w.get('village.notice')?.props?.text).toContain('FIRSTLIGHT VILLAGE')
 })
 
-req('F18', 'the first original sin sovereign waits on the East Road beyond the Ford bridge', ['actor/creature/sin/greed'], () => {
-  const f = fresh(), w = W(f)
-  const boss = w.get('eastroad.sin.greed')!
-  expect(w.posOf(boss)).toEqual({ map: 'eastroad', x: 23, y: 15 })
-  expect(w.occupiedCells(boss)).toHaveLength(15)
-  expect(w.fits(boss, 'eastroad', 23, 15)).toBe(true)
-  const exit = w.map('ford')!.portals.find((p) => p.to === 'eastroad')!
-  stand(f, exit.x - 1, exit.y, 'right')
-  f.eng.movePlayer('right')
-  expect(w.posOf(w.player)?.map).toBe('eastroad')
-  stand(f, 23, 19, 'up', 'eastroad')
-  ticks(f, 1)
-  expect(boss.boss?.pending?.tiles.length).toBeGreaterThan(0)
-  expect(boss.boss?.kit).toBe('greed')
-})
-
 // ------------------------------------------------------------------ Q. the main quest (docs/main-quest.md)
 
 req('Q1', 'chapter 1, mend the bridge: the old axe fells a tree, splits its logs into planks, three planks span the footbridge, and the far bank ends the chapter', [], () => {
@@ -1642,8 +1626,9 @@ req('Q2', 'chapter 2, the road east: past the far bank the road leads on; the bu
   // the road's dangers
   expect(onMap(f, 'actor/creature/beast/wolf', 'eastroad').length).toBe(2)
   expect(onMap(f, 'actor/creature/beast/boar', 'eastroad').length).toBe(1)
-  // the burned farm: the player sees the claw marks
-  stand(f, 24, 8, 'up', 'eastroad')
+  // the burned farm: the player walks into it and sees the claw marks
+  stand(f, 24, 10, 'up', 'eastroad')
+  expect(ticks(f, 40, () => (f.eng.movePlayer('up'), W(f).posOf(W(f).player)!.y <= 9))).toBe(true)
   expect(ticks(f, 200, () => fact(f, 'mq.farm') === 1 && !W(f).scene)).toBe(true)
   // the road ends at Emberfall: chapter 3 begins
   expect(cross(f, 'eastroad', EAST_ROAD.w - 2, EAST_ROAD.east[1], 'right')).toBe('emberfall')

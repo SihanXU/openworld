@@ -11,6 +11,7 @@ import { GroundAtlas, T, groundTile, hash2 } from '../assets/ground.ts'
 const STOREY_LIFT = T
 import type { SpriteDef } from '../assets/types.ts'
 import { DIR_COL, actorFrames, assetUrl, fxAnim, preloadCatalog, spriteFrames } from './assets.ts'
+import { BossAnimationClock, bossAnimationFrame } from './boss-animation.ts'
 
 export interface SceneHooks {
   onFx(fx: FxEvent, frame: Frame): void
@@ -32,6 +33,7 @@ interface EView {
   key: string
   movingUntil: number
   phase: number
+  bossAnimation?: BossAnimationClock
   /** The quest mark over a person ('!' a quest to give, '?' one to take back). */
   quest?: { mark: string; text: Phaser.GameObjects.Text }
   /** The player: the tile it walks to; drawn chasing it at the walking pace (walk()). */
@@ -863,6 +865,10 @@ export class WorldScene extends Phaser.Scene {
   private updateView(v: EView, e: EntitySnap, first = false): void {
     const prev = v.snap
     v.snap = e
+    if (e.boss?.kit === 'alberic') {
+      v.bossAnimation ??= new BossAnimationClock()
+      v.bossAnimation.receive(e.boss, this.time.now)
+    }
     const px = e.x * T + T / 2
     // a storey above the ground's is drawn raised; one on stairs, half a storey more
     const py = (e.y + 1) * T - (e.z ?? 0) * STOREY_LIFT - (e.tags.includes('agent') && this.stairs.has(`${e.x},${e.y},${e.z ?? 0}`) ? STOREY_LIFT / 2 : 0)
@@ -1022,11 +1028,8 @@ export class WorldScene extends Phaser.Scene {
       if (v.flyer) this.glide(v, time)
       if (v.walker) this.walk(v, time)
       if (v.actor && e.boss) {
-        const { action, progress } = e.boss
-        const row = action === 'idle' ? 0 : action === 'walk' ? 1 : action === 'attack' ? 2 : action === 'cast' ? 3 : 4
-        const col = action === 'death' ? progress < 0.6 ? 2 : 3 : action === 'hurt' ? Math.floor(time / 100) % 2
-          : action === 'idle' || action === 'walk' ? Math.floor((time + v.phase) / (action === 'walk' ? 150 : 260)) % 4
-          : Math.min(3, Math.floor(progress * 4))
+        const animated = v.bossAnimation ? { ...e.boss, progress: v.bossAnimation.progress(time), animationElapsedMs: v.bossAnimation.elapsed(time) } : e.boss
+        const { col, row } = bossAnimationFrame(animated, time, v.phase, e.facing)
         v.body.setFrame(`${v.actor.key}:${col},${row}`).setFlipX(e.facing === 'left')
       } else if (v.actor && v.actor.rows === 1) {
         // single-row strips (bosses): animate across the columns
@@ -1190,6 +1193,7 @@ export class WorldScene extends Phaser.Scene {
     if (!f) return undefined
     const anim = fxAnim(this, name, f, 0)
     const s = this.add.sprite(x, y, f.img).setDepth(opts.depth ?? 1e6)
+    if (f.originY !== undefined) s.setOrigin(0.5, f.originY)
     if (f.scale) s.setScale(f.scale)
     if (f.add) s.setBlendMode(Phaser.BlendModes.ADD)
     if (opts.angle) s.setAngle(opts.angle)
@@ -1248,7 +1252,9 @@ export class WorldScene extends Phaser.Scene {
       }
       // Authored effects may have a namespaced key (sin:greed:stamp); keep the
       // complete key before falling back to the legacy colon-argument convention.
-      const s = this.oneShot(CATALOG.fx[fx.fx] ? fx.fx : kind, x, y)
+      const definition = CATALOG.fx[fx.fx]
+      const s = this.oneShot(definition ? fx.fx : kind, x, y, definition?.beam ? { angle: fx.angle } : {})
+      if (s && definition?.beam && fx.span !== undefined) s.setDisplaySize(fx.span * T, 3 * T)
       if (!s) this.oneShot('poof', x, y, { tint: ELEMENT_COLOR[kind] })
       if (kind === 'explosion') this.cameras.main.shake(160, 0.004)
       const snd = WorldScene.SFX_OF[kind]

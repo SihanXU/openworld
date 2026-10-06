@@ -1,0 +1,340 @@
+{
+  "version": 5,
+  "generator": "built-in imagegen",
+  "intent": "Expand all seven approved overhead actions from twelve to thirty-two genuinely generated poses per facing; preserve combat timing, identity, effects and previous versions.",
+  "bodyPrompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\n",
+  "export": {
+    "directory": "packages/client/public/assets/lsw/Bosses/alberic/v5",
+    "bodyCell": 128,
+    "bodyColumns": 32,
+    "bodyRows": 21,
+    "bodyAnchorY": 88,
+    "bodySampling": 0.86,
+    "effectSampling": 0.86,
+    "directions": [
+      "down",
+      "right",
+      "up"
+    ],
+    "reviewDirectory": "docs/boss-art/alberic-v5",
+    "registrationAtlas": "packages/client/public/assets/lsw/Bosses/alberic/v4/actions.png",
+    "registration": "Fixed scale/translation per action/facing relative to approved v4 rest stance; shared source row/column packing correction; no per-frame resizing or invented poses."
+  },
+  "assets": [
+    {
+      "id": "idle",
+      "name": "Burdened vigil",
+      "row": 0,
+      "kind": "body",
+      "columns": 8,
+      "rows": 4,
+      "frames": 96,
+      "source": "var/boss-art/alberic-v5/sources/idle-down.png",
+      "sheets": [
+        {
+          "source": "var/boss-art/alberic-v5/sources/idle-down.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face DOWN toward screen bottom. Front visor visible; cape behind toward top. Do not rotate away.\nAnimation:\nRESTRAINED IDLE breathing in place. Frames01-08 slowly begin inhaling with minute chest/shoulder rise;09-16 ease into full inhalation;17-24 gently exhale;25-32 ease back to first stance. Feet firmly planted, head and weapons steady. Total helmet displacement <=2 logical pixels at128px; cloth edge sway <=3 pixels. Tiny progressive elbow/cloth changes distinguish all32frames, but never turn or step.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/idle-down.png",
+            "docs/boss-art/alberic-v5/references/idle-down.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v5/sources/idle-right.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face RIGHT toward screen right. Cape trails left. Same overhead three-quarter side as reference, never turn down or up.\nAnimation:\nRESTRAINED IDLE breathing in place. Frames01-08 slowly begin inhaling with minute chest/shoulder rise;09-16 ease into full inhalation;17-24 gently exhale;25-32 ease back to first stance. Feet firmly planted, head and weapons steady. Total helmet displacement <=2 logical pixels at128px; cloth edge sway <=3 pixels. Tiny progressive elbow/cloth changes distinguish all32frames, but never turn or step.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/idle-right.png",
+            "docs/boss-art/alberic-v5/references/idle-right.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v5/sources/idle-up.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face UP toward screen top. See BACK and TOP of helmet and embroidered cape. NO face/visor on the back, never turn toward viewer.\nAnimation:\nRESTRAINED IDLE breathing in place. Frames01-08 slowly begin inhaling with minute chest/shoulder rise;09-16 ease into full inhalation;17-24 gently exhale;25-32 ease back to first stance. Feet firmly planted, head and weapons steady. Total helmet displacement <=2 logical pixels at128px; cloth edge sway <=3 pixels. Tiny progressive elbow/cloth changes distinguish all32frames, but never turn or step.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/idle-up.png",
+            "docs/boss-art/alberic-v5/references/idle-up.png"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "walk",
+      "name": "Armoured advance",
+      "row": 1,
+      "kind": "body",
+      "columns": 8,
+      "rows": 4,
+      "frames": 96,
+      "source": "var/boss-art/alberic-v5/sources/walk-down.png",
+      "sheets": [
+        {
+          "source": "var/boss-art/alberic-v5/sources/walk-down.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face DOWN toward screen bottom. Front visor visible; cape behind toward top. Do not rotate away.\nAnimation:\nONE heavy WALK cycle IN PLACE.01 left heel contact;02-08 progressively load left leg, right heel lifts;09-16 right foot swings through to right heel contact at17;18-24 load right leg as left heel lifts;25-32 left foot passes and swings forward approaching next left contact at01. Smooth small stride, minimal torso bob, steady low weapons, cape trails subtly. No giant steps or whole-body translation.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/walk-down.png",
+            "docs/boss-art/alberic-v5/references/idle-down.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v5/sources/walk-right.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face RIGHT toward screen right. Cape trails left. Same overhead three-quarter side as reference, never turn down or up.\nAnimation:\nONE heavy WALK cycle IN PLACE.01 left heel contact;02-08 progressively load left leg, right heel lifts;09-16 right foot swings through to right heel contact at17;18-24 load right leg as left heel lifts;25-32 left foot passes and swings forward approaching next left contact at01. Smooth small stride, minimal torso bob, steady low weapons, cape trails subtly. No giant steps or whole-body translation.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/walk-right.png",
+            "docs/boss-art/alberic-v5/references/idle-right.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v5/sources/walk-up.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face UP toward screen top. See BACK and TOP of helmet and embroidered cape. NO face/visor on the back, never turn toward viewer.\nAnimation:\nONE heavy WALK cycle IN PLACE.01 left heel contact;02-08 progressively load left leg, right heel lifts;09-16 right foot swings through to right heel contact at17;18-24 load right leg as left heel lifts;25-32 left foot passes and swings forward approaching next left contact at01. Smooth small stride, minimal torso bob, steady low weapons, cape trails subtly. No giant steps or whole-body translation.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/walk-up.png",
+            "docs/boss-art/alberic-v5/references/idle-up.png"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "thorns",
+      "name": "Crown judgement",
+      "row": 2,
+      "kind": "body",
+      "columns": 8,
+      "rows": 4,
+      "frames": 96,
+      "source": "var/boss-art/alberic-v5/sources/thorns-down.png",
+      "sheets": [
+        {
+          "source": "var/boss-art/alberic-v5/sources/thorns-down.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face DOWN toward screen bottom. Front visor visible; cape behind toward top. Do not rotate away.\nAnimation:\nONE SWORD-PLANT spell and recovery.01-04 low guard;05-08 hands gather on sword and begin lifting;09-12 sword rises gradually;13-16 compact raised anticipation, no ground contact yet.17 FIRST ground contact: plant sword between feet;18-20 shallow knee compression;21-24 withdraw and begin straightening;25-28 lower sword;29-32 smoothly restore original guard. Draw fine intermediate hand/elbow positions. Do not loop halfway. Bow slung during plant, no VFX.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/thorns-down.png",
+            "docs/boss-art/alberic-v5/references/idle-down.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v5/sources/thorns-right.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face RIGHT toward screen right. Cape trails left. Same overhead three-quarter side as reference, never turn down or up.\nAnimation:\nONE SWORD-PLANT spell and recovery.01-04 low guard;05-08 hands gather on sword and begin lifting;09-12 sword rises gradually;13-16 compact raised anticipation, no ground contact yet.17 FIRST ground contact: plant sword between feet;18-20 shallow knee compression;21-24 withdraw and begin straightening;25-28 lower sword;29-32 smoothly restore original guard. Draw fine intermediate hand/elbow positions. Do not loop halfway. Bow slung during plant, no VFX.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/thorns-right.png",
+            "docs/boss-art/alberic-v5/references/idle-right.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v5/sources/thorns-up.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face UP toward screen top. See BACK and TOP of helmet and embroidered cape. NO face/visor on the back, never turn toward viewer.\nAnimation:\nONE SWORD-PLANT spell and recovery.01-04 low guard;05-08 hands gather on sword and begin lifting;09-12 sword rises gradually;13-16 compact raised anticipation, no ground contact yet.17 FIRST ground contact: plant sword between feet;18-20 shallow knee compression;21-24 withdraw and begin straightening;25-28 lower sword;29-32 smoothly restore original guard. Draw fine intermediate hand/elbow positions. Do not loop halfway. Bow slung during plant, no VFX.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/thorns-up.png",
+            "docs/boss-art/alberic-v5/references/idle-up.png"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arrow",
+      "name": "Arrow of Conquest",
+      "row": 3,
+      "kind": "body",
+      "columns": 8,
+      "rows": 4,
+      "frames": 96,
+      "source": "var/boss-art/alberic-v5/sources/arrow-down.png",
+      "sheets": [
+        {
+          "source": "var/boss-art/alberic-v5/sources/arrow-down.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face DOWN toward screen bottom. Front visor visible; cape behind toward top. Do not rotate away.\nAnimation:\nONE horizontal aimed BOW SHOT along map facing and recovery.01-04 low ready and nock;05-08 slowly lift bow;09-12 quarter to half draw;13-16 smoothly reach full draw, arrow still on string.17 FIRST RELEASE with opening fingers, no projectile drawn.18-20 small recoil;21-24 settle elbow and begin lowering;25-28 lower bow;29-32 return to matching low ready. Sword remains sheathed; no weapon teleportation, no arrows in flight or effects.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/arrow-down.png",
+            "docs/boss-art/alberic-v5/references/idle-down.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v5/sources/arrow-right.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face RIGHT toward screen right. Cape trails left. Same overhead three-quarter side as reference, never turn down or up.\nAnimation:\nONE horizontal aimed BOW SHOT along map facing and recovery.01-04 low ready and nock;05-08 slowly lift bow;09-12 quarter to half draw;13-16 smoothly reach full draw, arrow still on string.17 FIRST RELEASE with opening fingers, no projectile drawn.18-20 small recoil;21-24 settle elbow and begin lowering;25-28 lower bow;29-32 return to matching low ready. Sword remains sheathed; no weapon teleportation, no arrows in flight or effects.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/arrow-right.png",
+            "docs/boss-art/alberic-v5/references/idle-right.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v5/sources/arrow-up.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face UP toward screen top. See BACK and TOP of helmet and embroidered cape. NO face/visor on the back, never turn toward viewer.\nAnimation:\nONE horizontal aimed BOW SHOT along map facing and recovery.01-04 low ready and nock;05-08 slowly lift bow;09-12 quarter to half draw;13-16 smoothly reach full draw, arrow still on string.17 FIRST RELEASE with opening fingers, no projectile drawn.18-20 small recoil;21-24 settle elbow and begin lowering;25-28 lower bow;29-32 return to matching low ready. Sword remains sheathed; no weapon teleportation, no arrows in flight or effects.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/arrow-up.png",
+            "docs/boss-art/alberic-v5/references/idle-up.png"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "volley",
+      "name": "White-Feather Volley",
+      "row": 4,
+      "kind": "body",
+      "columns": 8,
+      "rows": 4,
+      "frames": 96,
+      "source": "var/boss-art/alberic-v5/sources/volley-down.png",
+      "sheets": [
+        {
+          "source": "var/boss-art/alberic-v5/sources/volley-down.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face DOWN toward screen bottom. Front visor visible; cape behind toward top. Do not rotate away.\nAnimation:\nONE SKYWARD BOW SHOT and recovery.01-04 low guard then begin raising bow;05-08 raise diagonally upward;09-12 tilt skyward with progressive draw;13-16 full skyward draw, arrow stays on string until17.17 FIRST release, no airborne arrow drawn;18-20 tiny recoil;21-24 settle and lower;25-28 bow down;29-32 restore original low guard. Keep map facing fixed, foreshorten raised bow seen from overhead. No rain/particles/projectiles.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/volley-down.png",
+            "docs/boss-art/alberic-v5/references/idle-down.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v5/sources/volley-right.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face RIGHT toward screen right. Cape trails left. Same overhead three-quarter side as reference, never turn down or up.\nAnimation:\nONE SKYWARD BOW SHOT and recovery.01-04 low guard then begin raising bow;05-08 raise diagonally upward;09-12 tilt skyward with progressive draw;13-16 full skyward draw, arrow stays on string until17.17 FIRST release, no airborne arrow drawn;18-20 tiny recoil;21-24 settle and lower;25-28 bow down;29-32 restore original low guard. Keep map facing fixed, foreshorten raised bow seen from overhead. No rain/particles/projectiles.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/volley-right.png",
+            "docs/boss-art/alberic-v5/references/idle-right.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v5/sources/volley-up.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face UP toward screen top. See BACK and TOP of helmet and embroidered cape. NO face/visor on the back, never turn toward viewer.\nAnimation:\nONE SKYWARD BOW SHOT and recovery.01-04 low guard then begin raising bow;05-08 raise diagonally upward;09-12 tilt skyward with progressive draw;13-16 full skyward draw, arrow stays on string until17.17 FIRST release, no airborne arrow drawn;18-20 tiny recoil;21-24 settle and lower;25-28 bow down;29-32 restore original low guard. Keep map facing fixed, foreshorten raised bow seen from overhead. No rain/particles/projectiles.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/volley-up.png",
+            "docs/boss-art/alberic-v5/references/idle-up.png"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hurt",
+      "name": "Weight of the crown",
+      "row": 5,
+      "kind": "body",
+      "columns": 8,
+      "rows": 4,
+      "frames": 96,
+      "source": "var/boss-art/alberic-v5/sources/hurt-down.png",
+      "sheets": [
+        {
+          "source": "var/boss-art/alberic-v5/sources/hurt-down.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face DOWN toward screen bottom. Front visor visible; cape behind toward top. Do not rotate away.\nAnimation:\nONE subtle hit reaction and return.01-04 stable stance into initial chest recoil;05-08 short shoulder compression;09-12 greatest compact recoil;13-16 absorb with slightly bent knees;17-20 begin straightening;21-24 shoulder/arms settle;25-28 almost original guard;29-32 original stance. Torso movement <=4 logical pixels at128px. Feet planted. Smooth continuous small increments, no blood/flash, no dramatic kneel or big backward leap.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/hurt-down.png",
+            "docs/boss-art/alberic-v5/references/idle-down.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v5/sources/hurt-right.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face RIGHT toward screen right. Cape trails left. Same overhead three-quarter side as reference, never turn down or up.\nAnimation:\nONE subtle hit reaction and return.01-04 stable stance into initial chest recoil;05-08 short shoulder compression;09-12 greatest compact recoil;13-16 absorb with slightly bent knees;17-20 begin straightening;21-24 shoulder/arms settle;25-28 almost original guard;29-32 original stance. Torso movement <=4 logical pixels at128px. Feet planted. Smooth continuous small increments, no blood/flash, no dramatic kneel or big backward leap.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/hurt-right.png",
+            "docs/boss-art/alberic-v5/references/idle-right.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v5/sources/hurt-up.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face UP toward screen top. See BACK and TOP of helmet and embroidered cape. NO face/visor on the back, never turn toward viewer.\nAnimation:\nONE subtle hit reaction and return.01-04 stable stance into initial chest recoil;05-08 short shoulder compression;09-12 greatest compact recoil;13-16 absorb with slightly bent knees;17-20 begin straightening;21-24 shoulder/arms settle;25-28 almost original guard;29-32 original stance. Torso movement <=4 logical pixels at128px. Feet planted. Smooth continuous small increments, no blood/flash, no dramatic kneel or big backward leap.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/hurt-up.png",
+            "docs/boss-art/alberic-v5/references/idle-up.png"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "death",
+      "name": "The crown was never mine",
+      "row": 6,
+      "kind": "body",
+      "columns": 8,
+      "rows": 4,
+      "frames": 96,
+      "source": "var/boss-art/alberic-v5/sources/death-down.png",
+      "sheets": [
+        {
+          "source": "var/boss-art/alberic-v5/sources/death-down.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face DOWN toward screen bottom. Front visor visible; cape behind toward top. Do not rotate away.\nAnimation:\nONE NON-LOOPING death sequence.01-04 knees slowly bend while sword supports weight;05-08 settle onto one knee;09-12 free gauntlet reaches crown;13-16 gently lift thorn crown clear of helm (only one crown);17-20 offer removed crown forward and lower toward ground;21-24 bowed torso loses balance;25-28 supporting elbow lowers as body falls sideways;29-32 gradually settle fully prone on side, crown and sword beside open gauntlet. Keep body size fixed, no miniature final body or instant collapse. Final pose32 remains still; never return to standing.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/death-down.png",
+            "docs/boss-art/alberic-v5/references/idle-down.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v5/sources/death-right.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face RIGHT toward screen right. Cape trails left. Same overhead three-quarter side as reference, never turn down or up.\nAnimation:\nONE NON-LOOPING death sequence.01-04 knees slowly bend while sword supports weight;05-08 settle onto one knee;09-12 free gauntlet reaches crown;13-16 gently lift thorn crown clear of helm (only one crown);17-20 offer removed crown forward and lower toward ground;21-24 bowed torso loses balance;25-28 supporting elbow lowers as body falls sideways;29-32 gradually settle fully prone on side, crown and sword beside open gauntlet. Keep body size fixed, no miniature final body or instant collapse. Final pose32 remains still; never return to standing.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/death-right.png",
+            "docs/boss-art/alberic-v5/references/idle-right.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v5/sources/death-up.png",
+          "columns": 8,
+          "rows": 4,
+          "frames": 32,
+          "prompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\nALL32FRAMES face UP toward screen top. See BACK and TOP of helmet and embroidered cape. NO face/visor on the back, never turn toward viewer.\nAnimation:\nONE NON-LOOPING death sequence.01-04 knees slowly bend while sword supports weight;05-08 settle onto one knee;09-12 free gauntlet reaches crown;13-16 gently lift thorn crown clear of helm (only one crown);17-20 offer removed crown forward and lower toward ground;21-24 bowed torso loses balance;25-28 supporting elbow lowers as body falls sideways;29-32 gradually settle fully prone on side, crown and sword beside open gauntlet. Keep body size fixed, no miniature final body or instant collapse. Final pose32 remains still; never return to standing.",
+          "references": [
+            "docs/boss-art/alberic-v5/references/death-up.png",
+            "docs/boss-art/alberic-v5/references/idle-up.png"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -9,7 +9,7 @@ import type { SaveSummary } from '../protocol.ts'
 import { SLOTS, deleteSlot, exportSlot, listSlots, pickSaveFile, writeSlot, type Slot, type SlotData } from '../saves.ts'
 import { $, controlsTable, esc, locale, t, tx } from './common.ts'
 
-const PARROT = `${import.meta.env.BASE_URL}assets/na/Actor/Animal/Parrot/SpriteSheetRed.png`
+const FAIRY = `${import.meta.env.BASE_URL}assets/lsw/Companion/Fairy/SpriteSheet.png`
 
 /** The scene behind the title: ridges in four depths, the plateau with its shelter, pines. */
 const SCENE = `
@@ -110,7 +110,7 @@ export class Cover {
       <div class="cover">
         ${SCENE}
         <div class="cv-cloud c1"></div><div class="cv-cloud c2"></div><div class="cv-cloud c3"></div>
-        <div class="cv-pip" style="background-image:url('${PARROT}')"></div>
+        <div class="cv-pip" style="background-image:url('${FAIRY}')"></div>
         <div class="cv-main">
           <div class="cv-kicker">${zh ? '一个规则即代码的世界' : 'A world whose rules are code'}</div>
           <h1 class="cv-title">OpenWorld</h1>
@@ -119,7 +119,7 @@ export class Cover {
             ${latest ? `<button class="cv-btn primary" id="cvContinue">${t('cvContinue')}<small>${esc(this.line(this.slots[latest - 1]!.summary))}</small></button>` : ''}
             <button class="cv-btn${latest ? '' : ' primary'}" id="cvNew">${t('newGame')}</button>
             <button class="cv-btn" id="cvLoad" ${this.slots.some(Boolean) ? '' : 'disabled'}>${t('cvLoad')}</button>
-            <button class="cv-btn cv-challenge" id="cvChallenge">${zh ? '七罪挑战' : 'Seven Sins Challenge'}<small>${zh ? '选择职业 · 挑战七位领主 · 独立于存档' : 'Choose a profession · Seven bosses · Separate from saves'}</small></button>
+            <button class="cv-btn cv-challenge" id="cvChallenge">${zh ? '首领挑战' : 'Boss Challenge'}<small>${zh ? '选择职业 · 挑战首领 · 独立于存档' : 'Choose a profession · The bosses · Separate from saves'}</small></button>
             <button class="cv-btn" id="cvHelp">${t('controls')}</button>
             <button class="cv-btn small" id="cvLang">${zh ? 'English' : '中文'}</button>
           </div>

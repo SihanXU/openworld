@@ -1,13 +1,15 @@
 // Review harness using the real engine, map, HUD and Phaser renderer. No save/storage calls.
 import Phaser from 'phaser'
-import { Game, RuleLibrary, snapshot, type BossState, type Dir, type Frame, type WorldIndex } from '@lsw/engine'
-import { BASE_RULES, BOSSES, BOSS_BY_ID, FIRST_BOSS, PROFESSION_BY_ID, PROLOGUE_DONE, SKILL_PROFESSIONS, STORY_RULES, buildOntology, createBoss, decodeChunk, type RawChunk } from '@lsw/content'
+import { snapshot, type Game, type Dir, type Frame, type WorldIndex } from '@lsw/engine'
+import { BOSSES, BOSS_BY_ID, BOSS_ARENA, PROFESSION_BY_ID, SKILL_PROFESSIONS, type RawChunk } from '@lsw/content'
 import { WorldScene } from './render/scene.ts'
 import { Hud } from './ui/hud.ts'
 import { esc, locale, tx } from './ui/common.ts'
 import { skillPng } from './ui/skillIcons.ts'
 import { CHALLENGE_LOADOUTS, challengeOutcome, createBossChallenge } from './boss-challenge.ts'
 import { CATALOG } from './assets/catalog.ts'
+import { bossPreviewMode, bossPreviewModes, previewBoss, type BossPreviewMode } from './boss-preview.ts'
+import { createBossStudio } from './boss-studio.ts'
 import './styles.css'
 import './ui/game.css'
 import './boss-gallery.css'
@@ -19,10 +21,12 @@ const params = new URLSearchParams(location.search)
 const challenge = params.get('challenge') === '1'
 let choosing = challenge, finished = false, profession = 'assassin', startedAt = 0
 const victories = new Set<string>()
-const select = $<HTMLSelectElement>('bossSelect'), mode = $<HTMLSelectElement>('modeSelect')
+const select = $<HTMLSelectElement>('bossSelect'), modeControls = $('modeSelect')
+let mode: BossPreviewMode = 'live', modeStartedAt = 0
+const facing = $<HTMLSelectElement>('facingSelect')
 locale.value = 'zh'
 for (const boss of BOSSES) { const option = new Option(tx(boss.name), boss.id); select.add(option) }
-select.value = BOSS_BY_ID[params.get('boss') ?? ''] ? params.get('boss')! : 'greed'
+select.value = BOSS_BY_ID[params.get('boss') ?? ''] ? params.get('boss')! : 'pride'
 const scene = new WorldScene()
 const noop = () => {}
 const hud = new Hud({ select: noop, answer: noop, advance: noop, openMenu: noop, openJournal: noop, toggleInventory: noop, toggleSkills: noop, toggleQuests: noop, toggleBuilding: noop }, (id) => scene.screenOf(id), (x, y) => scene.screenOfTile(x, y))
@@ -42,7 +46,7 @@ let index: WorldIndex, raw: RawChunk
 const keys = new Set<string>()
 const dirOf: Record<string, Dir> = { KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right' }
 let attack = false
-const bossEntity = () => game.engine.world.get(FIRST_BOSS.id)
+const bossEntity = () => game.engine.world.get(BOSS_ARENA.id)
 const clearInput = () => { keys.clear(); attack = false }
 // Local review instrumentation, matching main.ts's development-only scene hook.
 if (import.meta.env.DEV) Object.assign(window, { bossStudio: { scene, advance: (ticks: number) => {
@@ -52,41 +56,57 @@ if (import.meta.env.DEV) Object.assign(window, { bossStudio: { scene, advance: (
 
 function render(): void {
   currentFrame = snapshot(game.engine)
-  // Inspection changes only render snapshots, never the encounter's simulation state.
-  if (mode.value !== 'live') {
-    const b = currentFrame.entities.find((e) => e.id === FIRST_BOSS.id)?.boss
-    if (b) { b.action = mode.value as BossState['action']; b.progress = (performance.now() % 1800) / 1800; delete b.warning }
-  }
+  const previewEntity = currentFrame.entities.find((e) => e.id === BOSS_ARENA.id)
+  if (!challenge && previewEntity?.boss?.kit === 'alberic' && facing.value !== 'auto') previewEntity.facing = facing.value as Dir
+  previewBoss(previewEntity, mode, performance.now() - modeStartedAt)
   scene.applyFrame(currentFrame)
   const b = bossEntity(), state = b?.boss
-  $('studioStatus').textContent = b ? `${state?.pending ? tx(BOSS_BY_ID[select.value].skills[state.pending.skill].name) : state?.action} · Tick ${currentFrame.tick} · HP ${currentFrame.player.hp}` : '领主已击败 · 可重新开始'
+  $('studioStatus').textContent = mode !== 'live'
+    ? `动作预览 · ${bossPreviewModes(select.value).find((m) => m.value === mode)!.label} · 战斗已暂停`
+    : b ? `${state?.pending ? tx(BOSS_BY_ID[select.value].skills[state.pending.skill].name) : state?.action} · Tick ${currentFrame.tick} · HP ${currentFrame.player.hp}` : '领主已击败 · 可重新开始'
   $('studioStatus').dataset.ready = 'true'
+}
+
+function paintModes(): void {
+  modeControls.replaceChildren(...bossPreviewModes(select.value).map(({ value, label }) => {
+    const button = document.createElement('button')
+    button.type = 'button'; button.dataset.mode = value; button.textContent = label
+    button.setAttribute('aria-pressed', String(mode === value))
+    return button
+  }))
+}
+
+function chooseMode(value: string): void {
+  mode = bossPreviewMode(value, select.value)
+  modeStartedAt = performance.now()
+  clearInput()
+  // Keep focused buttons in place; rebuilding them during every tick loses focus/clicks.
+  for (const button of modeControls.querySelectorAll<HTMLButtonElement>('[data-mode]'))
+    button.setAttribute('aria-pressed', String(button.dataset.mode === mode))
+  if (!game) return
+  // Inspection must still work after the real encounter has killed/despawned its actor.
+  const boss = bossEntity()
+  if (mode !== 'live' && (!boss || game.engine.world.num(boss, 'hp') <= 0)) reset()
+  else render()
 }
 
 function reset(): void {
   if (!index || !raw || !ready) return
-  const settings = structuredClone(index)
-  Object.assign(settings, { start: { map: 'eastroad', x: 23, y: 19 }, npcs: [], companions: [], steps: [], quests: [], invariants: [], waypoints: [], startHour: 12 })
-  settings.player.place = { on: 'tile', ...settings.start }
-  settings.player.facing = 'up'
-  settings.player.props = { ...settings.player.props, hp: 200, maxHp: 200, maxHunger: 0, def: 0, atk: 8, prologue: PROLOGUE_DONE }
-  game = challenge ? createBossChallenge(index, raw, profession, select.value) : Game.create(settings, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
-  const chunk = decodeChunk(structuredClone(raw))
-  // Real East Road terrain and scenery, one isolated boss for readable review.
-  chunk.entities = chunk.entities.filter((e) => !e.type.startsWith('actor/creature'))
-  chunk.entities.push(createBoss(select.value, FIRST_BOSS, FIRST_BOSS.id))
-  chunk.map.appear = []
-  if (!challenge) game.loadChunk(chunk)
-  scene.setMap(game.engine.world.map(FIRST_BOSS.map)!)
+  game = challenge ? createBossChallenge(index, raw, profession, select.value) : createBossStudio(index, raw, select.value)
+  scene.setMap(game.engine.world.map(BOSS_ARENA.map)!)
   finished = false; startedAt = game.engine.world.state.tick
   $('challengeResult').classList.add('hidden')
   if (challenge) {
-    mode.value = 'live'; paused = choosing
+    mode = 'live'; paused = choosing
     $('pauseFight').textContent = '暂停'
     $('challengeRole').textContent = `${tx(PROFESSION_BY_ID[profession].name)} · Lv.20 · ${tx(game.engine.world.get(game.engine.world.player.held)?.name ?? '')}`
-    $('challengeCount').textContent = `本次已击败 ${victories.size} / 7`
+    $('challengeCount').textContent = `本次已击败 ${victories.size} / ${BOSSES.length}`
   }
   const boss = BOSS_BY_ID[select.value]
+  $('facingControl').classList.toggle('hidden', challenge || boss.id !== 'alberic')
+  mode = bossPreviewMode(mode, boss.id)
+  modeStartedAt = performance.now()
+  paintModes()
   $('bossInfo').textContent = `${boss.footprint.join(' × ')} 格碰撞体 · ${boss.hp} 生命 · ${boss.defense} 防御`
   $('skillButtons').replaceChildren(...boss.skills.map((s, i) => {
     const button = document.createElement('button')
@@ -99,7 +119,7 @@ function reset(): void {
       delete e.boss!.pending; e.boss!.nextSkill = i; e.boss!.nextAt = 0
       const at = game.engine.world.posOf(e)!
       game.engine.author(() => game.engine.teleport(game.engine.world.player, { ...at, y: at.y + Math.min(4, s.radius) }))
-      mode.value = 'live'; paused = false; $('pauseFight').textContent = '暂停'
+      paused = false; $('pauseFight').textContent = '暂停'; chooseMode('live')
     }
     return button
   }))
@@ -119,25 +139,31 @@ scene.hooks = { onFrame: (f) => hud.onFrame(f), onFx: (fx, f) => hud.onFx(fx, f)
 new Phaser.Game({ type: Phaser.WEBGL, parent: 'game', pixelArt: true, backgroundColor: '#101b20', scale: { mode: Phaser.Scale.RESIZE, width: innerWidth, height: innerHeight }, scene: [scene], input: { keyboard: false } })
 
 select.onchange = () => challenge ? showLobby() : reset()
-mode.onchange = () => { if (game) render() }
+paintModes()
+modeControls.onclick = (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-mode]')
+  if (button) chooseMode(button.dataset.mode!)
+}
+facing.onchange = () => { if (game) render() }
 $('resetFight').onclick = () => { reset(); $('resetFight').blur() }
 $('pauseFight').onclick = () => { if (choosing || finished || !game) return; clearInput(); paused = !paused; $('pauseFight').textContent = paused ? '继续' : '暂停'; $('pauseFight').blur() }
 $('enrageBoss').onclick = () => { const e = bossEntity(); if (e) { (e.props ??= {}).hp = Math.floor(BOSS_BY_ID[select.value].hp * 0.4); game.engine.tick(); render() } }
 window.addEventListener('keydown', (e) => {
   if (choosing || finished || !game) return
-  if (e.code === 'Escape') { e.preventDefault(); $('pauseFight').click(); return }
   if (e.target instanceof HTMLSelectElement || e.target instanceof HTMLButtonElement) return
+  if (e.code === 'Escape') { e.preventDefault(); $('pauseFight').click(); return }
   if (dirOf[e.code]) { e.preventDefault(); keys.add(e.code) }
   if (e.code === 'Space') { e.preventDefault(); attack = true }
 })
 window.addEventListener('keyup', (e) => { keys.delete(e.code); if (e.code === 'Space') attack = false })
+$('game').addEventListener('pointerdown', () => { (document.activeElement as HTMLElement | null)?.blur() })
 window.addEventListener('blur', () => {
   clearInput()
   if (challenge && !choosing && !finished) { paused = true; $('pauseFight').textContent = '继续' }
 })
 setInterval(() => {
   if (!game || !ready) return
-  if (!paused && !choosing && !finished && mode.value === 'live') {
+  if (!paused && !choosing && !finished && mode === 'live') {
     const dir = dirOf[[...keys].at(-1) ?? '']
     if (dir) game.engine.movePlayer(dir)
     if (attack) game.engine.playerAttack()
@@ -147,8 +173,17 @@ setInterval(() => {
       if (outcome) finishChallenge(outcome)
     }
   }
-  render(); hud.tickLabels()
+  if (mode === 'live') render()
+  hud.tickLabels()
 }, 100)
+
+// Inspect every authored pose, including the first sub-tick poses after choosing an action.
+// Only fresh render snapshots advance here; combat remains on the 100 ms timer above.
+function animatePreview(): void {
+  if (game && ready && mode !== 'live') render()
+  requestAnimationFrame(animatePreview)
+}
+requestAnimationFrame(animatePreview)
 
 async function load(): Promise<void> {
   const base = `${import.meta.env.BASE_URL}world/`
@@ -168,8 +203,8 @@ function showLobby(): void {
   $('challengeResult').classList.add('hidden')
   $('challengeLobby').classList.remove('hidden')
   $('challengeLobby').innerHTML = `<div class="challenge-sheet">
-    <div class="studio-kicker">SYMBOLIC WORLD / SEVEN SINS</div><h1 id="challengeTitle">七罪挑战</h1>
-    <p class="challenge-lede">选择你的职业，挑战七位原罪领主。</p>
+    <div class="studio-kicker">SYMBOLIC WORLD / BOSS CHALLENGE</div><h1 id="challengeTitle">首领挑战</h1>
+    <p class="challenge-lede">选择你的职业，挑战首领。</p>
     <p class="challenge-note">独立试炼角色 · 自动装备武器 · 职业天赋全部解锁 · 不影响正式存档</p>
     <fieldset class="challenge-professions"><legend>01 / 选择职业</legend>${SKILL_PROFESSIONS.map((p) => {
       const kit = CHALLENGE_LOADOUTS[p.id]
@@ -177,7 +212,7 @@ function showLobby(): void {
         <div><img src="${skillPng(kit.icon)}" alt=""><b>${esc(tx(p.name))}</b><p>${esc(tx(kit.tip))}</p><small>Lv.20 · ${p.id === 'warrior' ? kit.hp + 14 : kit.hp + 4} 生命 · ${kit.def} 防御</small></div></label>`
     }).join('')}</fieldset>
     <label class="challenge-target">02 / 选择对手<select id="challengeBoss">${BOSSES.map((b) => `<option value="${b.id}" ${b.id === select.value ? 'selected' : ''}>${victories.has(b.id) ? '✓ ' : ''}${esc(tx(b.name))} · ${b.footprint.join('×')} 格</option>`).join('')}</select></label>
-    <div class="challenge-footer"><a href="./">← 返回主页面</a><span>已击败 ${victories.size} / 7</span><button id="startChallenge" class="challenge-primary" disabled>加载战场…</button></div>
+    <div class="challenge-footer"><a href="./">← 返回主页面</a><span>已击败 ${victories.size} / ${BOSSES.length}</span><button id="startChallenge" class="challenge-primary" disabled>加载战场…</button></div>
     <p class="challenge-note">WASD / 方向键移动 · 空格攻击 · 近战贴近敌人，远程沿面向方向射击 · Esc 暂停</p>
   </div>`
   $('startChallenge').onclick = () => {
@@ -195,13 +230,13 @@ function finishChallenge(outcome: 'victory' | 'defeat'): void {
   finished = true; paused = true; clearInput()
   const won = outcome === 'victory'
   if (won) victories.add(select.value)
-  $('challengeCount').textContent = `本次已击败 ${victories.size} / 7`
+  $('challengeCount').textContent = `本次已击败 ${victories.size} / ${BOSSES.length}`
   const seconds = ((game.engine.world.state.tick - startedAt) / 10).toFixed(1)
   const next = BOSSES.find((b) => !victories.has(b.id))
   $('challengeResult').innerHTML = `<div class="challenge-sheet challenge-result"><div class="studio-kicker">${won ? 'VICTORY' : 'TRY AGAIN'}</div>
-    <h1 id="resultTitle">${won ? victories.size === 7 ? '七罪尽破' : '挑战成功' : '挑战失败'}</h1>
+    <h1 id="resultTitle">${won ? victories.size === BOSSES.length ? '首领尽破' : '挑战成功' : '挑战失败'}</h1>
     <p>${esc(tx(PROFESSION_BY_ID[profession].name))} · ${esc(tx(BOSS_BY_ID[select.value].name))} · ${seconds} 秒</p>
-    <p class="challenge-note">${won ? `本次已击败 ${victories.size} / 7 位领主` : '留意地面预警，离开标记格，再抓住收招空隙。'}</p>
+    <p class="challenge-note">${won ? `本次已击败 ${victories.size} / ${BOSSES.length} 位领主` : '留意地面预警，离开标记格，再抓住收招空隙。'}</p>
     <div class="challenge-result-actions"><button id="retryChallenge">再次挑战</button><button id="chooseChallenge">更换职业 / 对手</button>${won && next ? '<button id="nextChallenge" class="challenge-primary">挑战下一位</button>' : ''}</div><a href="./">返回主页面 →</a></div>`
   $('challengeResult').classList.remove('hidden')
   $('retryChallenge').onclick = () => { reset(); (document.activeElement as HTMLElement | null)?.blur() }
@@ -211,10 +246,10 @@ function finishChallenge(outcome: 'victory' | 'defeat'): void {
 
 if (challenge) {
   document.body.classList.add('challenge-mode')
-  document.title = '七罪挑战 · OpenWorld'
-  document.querySelector('#bossStudio h1')!.textContent = '七罪挑战'
+  document.title = '首领挑战 · OpenWorld'
+  document.querySelector('#bossStudio h1')!.textContent = '首领挑战'
   document.querySelector('#bossStudio > p')!.textContent = '独立角色 · 不影响正式存档'
-  document.querySelector('#modeSelect')!.parentElement!.classList.add('hidden')
+  $('modeControl').classList.add('hidden')
   $('enrageBoss').classList.add('hidden')
   const badge = document.createElement('div'); badge.id = 'challengeRole'; $('bossInfo').before(badge)
   const count = document.createElement('div'); count.id = 'challengeCount'; badge.after(count)

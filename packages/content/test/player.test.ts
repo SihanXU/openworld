@@ -12,6 +12,10 @@ function fresh(held?: string): Engine {
     event: {},
   }, onto, new RuleLibrary(BASE_RULES))
   eng.world.player.facing = 'up'
+  // a profession's weapon fights only for its own (engine/src/profession.ts): the player follows it
+  const own: [string, string][] = [['item/weapon/ranged/bow', 'ranger'], ['item/weapon/magic/staff', 'mage'], ['item/weapon/blade/dagger', 'assassin'], ['item/weapon/blade/sword', 'warrior']]
+  const profession = own.find(([t]) => held?.startsWith(t))?.[1]
+  if (profession) (eng.world.player.props ??= {}).profession = profession
   eng.controls.sync()
   return eng
 }

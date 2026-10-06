@@ -6,6 +6,8 @@ import type { Appearance, BossState, Dir, FxEvent, Id, PropValue, SceneState, Te
 import { SLOT_COUNT } from './controls.ts'
 import { parseCellId } from './cells.ts'
 import { skillsOf } from './progression.ts'
+import { OFFHAND, offhandOf } from './profession.ts'
+import { activeBoon, boonsOf, companionsOf, nearAttunedWaypoint } from './boons.ts'
 import type { QuestView } from './quests.ts'
 
 export interface ItemInfo {
@@ -50,7 +52,11 @@ export interface EntitySnap {
     footprint: [number, number]
     enrageAt: number
     action: BossState['action']
+    /** Stable skill id, including recovery; renderer never guesses from localized warning text. */
+    skill?: string
     progress: number
+    /** Time within the current visual phase, separate from normalized combat progress. */
+    animationElapsedMs?: number
     warning?: { name: Text; tiles: [number, number][]; progress: number }
   }
 }
@@ -95,6 +101,10 @@ export interface Frame {
     /** The bag's slots (row 1 is the toolbar): a stack each, or empty. */
     slots: ({ item: ItemInfo; count: number; worn?: boolean } | null)[]
     selected: number
+    /** The boons the companion following the player has been given, the one it carries, and whether a waypoint is near (boons.ts). */
+    boons?: { unlocked: string[]; active?: string; atWaypoint: boolean }
+    /** What is worn in the off hand (a shield), and whether it works there (another profession's does not). */
+    offhand?: ItemInfo & { works: boolean }
   }
   /** A yes/no question waiting for the player (time is stopped). */
   question?: { text: Text }
@@ -236,7 +246,9 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       boss: b && kit ? {
         kit: b.kit, phase: b.phase ?? 1, color: kit.color, footprint: kit.footprint, enrageAt: kit.enrageAt,
         action: w.num(e, 'hp') <= 0 ? 'death' : hurt ? 'hurt' : b.action,
-        progress: w.num(e, 'hp') <= 0 ? Math.min(1, elapsed / 16) : b.pending ? windup * 0.5 : Math.min(1, 0.5 + 0.5 * elapsed / Math.max(1, (b.actionEnd ?? 0) - (b.actionTick ?? 0))),
+        skill: kit.skills[b.pending?.skill ?? ((b.nextSkill ?? 0) + kit.skills.length - 1) % kit.skills.length]?.id,
+        progress: w.num(e, 'hp') <= 0 ? Math.min(1, elapsed / 16) : hurt ? Math.min(1, (w.state.tick - (e.combat?.lastHurtTick ?? w.state.tick)) / 3) : b.pending ? windup * 0.5 : Math.min(1, 0.5 + 0.5 * elapsed / Math.max(1, (b.actionEnd ?? 0) - (b.actionTick ?? 0))),
+        animationElapsedMs: Math.max(0, hurt ? w.state.tick - (e.combat?.lastHurtTick ?? w.state.tick) : elapsed) * 100,
         warning: b.pending ? { name: kit.skills[b.pending.skill].name, tiles: b.pending.tiles, progress: windup } : undefined,
       } : undefined,
     })
@@ -302,6 +314,17 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       inventory: (p.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),
       slots,
       selected: p.selected ?? 0,
+      boons: (() => {
+        const bird = companionsOf(w, p)[0]
+        return bird && { unlocked: boonsOf(w, bird), active: activeBoon(bird), atWaypoint: nearAttunedWaypoint(w, p) }
+      })(),
+      offhand: (() => {
+        // what the off-hand slot names while it is still carried; `works`: and it is the wearer's to wield
+        const id = w.prop(p, OFFHAND)
+        const item = typeof id === 'string' ? w.get(id) : undefined
+        const info = item && (item.place.on === 'inside' || item.place.on === 'hand') && item.place.holder === p.id ? itemInfo(eng, item.id) : undefined
+        return info && { ...info, works: !!offhandOf(w, p) }
+      })(),
     },
     question: w.state.question ? { text: w.state.question.text } : undefined,
     quests: questsOf(eng, entities),

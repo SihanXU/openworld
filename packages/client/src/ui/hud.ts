@@ -74,7 +74,7 @@ export class Hud {
         <div class="sin-crown" aria-hidden="true"><i></i><svg viewBox="0 0 80 34"><path d="M6 8 22 17 28 5 40 18 52 5 58 17 74 8 65 29 15 29Z"/><path d="M17 33H63M40 0V8M0 8H8M72 8H80"/></svg><i></i></div>
         <div class="sin-epithet" id="sinEpithet"></div>
         <div class="sin-title"><span id="sinName"></span></div>
-        <div class="sin-meta"><span id="sinPhase"></span><span class="sin-seals" aria-hidden="true">${Array.from({ length: 7 }, (_, i) => `<i data-seal="${i}"></i>`).join('')}</span><span id="sinHp"></span></div>
+        <div class="sin-meta"><span id="sinPhase"></span><span class="sin-seals" aria-hidden="true">${Array.from({ length: 4 }, (_, i) => `<i data-seal="${i}"></i>`).join('')}</span><span id="sinHp"></span></div>
         <div class="sin-frame"><div class="sin-track" id="sinTrack" role="progressbar" aria-valuemin="0"><div id="sinDamage"></div><div id="sinHealth"></div><div class="sin-grain"></div><i id="sinThreshold" title="Phase II"></i></div></div>
         <div class="sin-cast-row"><span id="sinCast"></span><span id="sinCastState"></span></div>
         <div class="sin-cast-track"><div id="sinCastProgress"></div></div>
@@ -82,7 +82,7 @@ export class Hud {
       <div class="hotbar" id="hotbar">
         <div class="vitals"><div class="hearts" id="hearts"></div><div class="food" id="food"></div></div>
         <div class="xpbar" id="xpBar"><div class="fill" id="xpFill"></div><span class="lv" id="xpLv"></span></div>
-        <div class="toolbar wood" id="toolbar"></div>
+        <div class="barrow"><div class="toolbar wood" id="toolbar"></div><div class="toolbar wood offhand-bar" id="offhandBar"></div></div>
       </div>
       <div class="corner" id="corner">
         <button class="cbtn wood" id="questBtn" title="L"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerQuests.img)}" alt=""><kbd>L</kbd><span class="badge hidden" id="questBadge"></span></button>
@@ -252,9 +252,9 @@ export class Hud {
     panel.classList.toggle('awakened', b.phase > 1)
     panel.classList.toggle('casting', !!b.warning)
     panel.classList.toggle('struck', now - this.bossHitAt < 160)
-    $('#sinEpithet').textContent = zh ? '七  宗  罪  ·  原  罪  领  主' : 'S E V E N   S I N S  /  S O V E R E I G N'
+    $('#sinEpithet').textContent = zh ? '首  领' : 'B O S S'
     $('#sinName').textContent = tx(boss.name)
-    $('#sinPhase').textContent = b.phase > 1 ? zh ? 'Ⅱ / 原罪觉醒' : 'II / AWAKENED' : zh ? 'Ⅰ / 领主降临' : 'I / SOVEREIGN'
+    $('#sinPhase').textContent = b.phase > 1 ? zh ? 'Ⅱ / 觉醒' : 'II / AWAKENED' : zh ? 'Ⅰ / 降临' : 'I / ARRIVED'
     $('#sinHealth').style.width = `${percent}%`
     $('#sinDamage').style.width = `${this.bossTrail}%`
     $('#sinHp').textContent = `${Math.ceil(hp).toLocaleString('en-US')} / ${max.toLocaleString('en-US')}`
@@ -262,7 +262,7 @@ export class Hud {
     $('#sinTrack').setAttribute('aria-valuenow', String(Math.ceil(hp)))
     $('#sinTrack').setAttribute('aria-valuemax', String(max))
     $('#sinThreshold').style.left = `${b.enrageAt * 100}%`
-    const sinIndex = ['greed', 'gluttony', 'sloth', 'lust', 'wrath', 'envy', 'pride'].indexOf(b.kit)
+    const sinIndex = ['alberic', 'lust', 'envy', 'pride'].indexOf(b.kit)
     panel.querySelectorAll('[data-seal]').forEach((e, i) => e.classList.toggle('active', i === sinIndex))
     $('#sinCast').textContent = b.warning ? tx(b.warning.name) : zh ? '观察起手 · 抓住收招空隙' : 'Watch the wind-up · Strike during recovery'
     $('#sinCastState').textContent = b.warning ? zh ? '蓄势 / 离开标记区域' : 'WIND-UP / EVADE' : b.phase > 1 ? zh ? '伤害与攻势强化' : 'EMPOWERED' : ' '
@@ -276,7 +276,8 @@ export class Hud {
     const me = this.screenOf(f.player.id)
     const top = !!me && me.y > window.innerHeight * 0.78 && $('#sinBoss').classList.contains('hidden')
     $('#hotbar').classList.toggle('top', top)
-    const sig = `${f.player.selected}|${row.map((s) => (s ? `${s.item.id}:${s.count}${s.worn ? 'w' : ''}` : '')).join(',')}`
+    const off = f.player.offhand
+    const sig = `${f.player.selected}|${row.map((s) => (s ? `${s.item.id}:${s.count}${s.worn ? 'w' : ''}` : '')).join(',')}|${off?.id}:${off?.works}`
     if (sig === this.barSig) return
     this.barSig = sig
     $('#toolbar').innerHTML = row
@@ -289,7 +290,9 @@ export class Hud {
     $('#toolbar')
       .querySelectorAll<HTMLElement>('[data-slot]')
       .forEach((el) => (el.onclick = () => this.send.select(Number(el.dataset.slot))))
-    this.paintIcons?.(row.filter(Boolean).map((s) => s!.item))
+    // the off hand beside the toolbar (a shield worn there), greyed while it does not work
+    $('#offhandBar').innerHTML = `<div class="slot${off && !off.works ? ' off' : ''}" title="${locale.value === 'zh' ? '副手' : 'Off hand'}"${off ? ` data-item="${off.id}"` : ''}>${off ? `<div class="icon" data-icon="${off.id}"></div>` : '<span class="ghost">🛡</span>'}</div>`
+    this.paintIcons?.([...row.filter(Boolean).map((s) => s!.item), ...(off ? [off] : [])])
   }
 
   private obSig = ''
