@@ -407,12 +407,28 @@ describe('storeys: what one reaches, and where a thing goes (docs/building.md §
     st.facing = 'up'
     expect(why(eng, 'structure/floor', 6, 5, true)).toBe('Stairs keep the storey over them open.')
     // the long press offers the ceiling, last; never a default
-    give(eng, 'structure/floor')
-    eng.controls.sync()
-    eng.author(() => { eng.world.player.held = eng.world.player.contents!.find((id) => eng.world.get(id)?.type === 'structure/floor') })
+    hold(eng, 'structure/floor')
     const list = eng.controls.choices('put', { x: 7, y: 6 })
     expect(list.at(-1)).toMatchObject({ layer: CEILING, name: { en: 'The ceiling' } })
     expect(eng.controls.plan('put', { x: 7, y: 6 })?.target.e).not.toBe(list.at(-1)!.plan!.target.e)
+  })
+
+  it('5 the ceiling chosen is the one drawn at the point (the view says which, as `over`): laid and taken there', () => {
+    const eng = meadow()
+    build(eng, 'structure/wall', 3, 2)
+    hold(eng, 'structure/floor')
+    // the pointer on the row above the player's cell: the ceiling drawn there is the one over (3,4)
+    const aim = { x: 3, y: 3, over: { x: 3, y: 4 } }
+    expect(eng.controls.choices('put', aim).at(-1)).toMatchObject({ layer: CEILING })
+    eng.controls.run(eng.controls.plan('put', aim, CEILING)!)
+    eng.tick()
+    expect(storeys(eng, 3, 4)).toEqual([[], ['floor'], [], []])
+    expect(storeys(eng, 3, 3)).toEqual([[], [], [], []])
+    take(eng, 3, 3, CEILING)
+    expect(storeys(eng, 3, 4)).toEqual([[], ['floor'], [], []])
+    eng.controls.run(eng.controls.plan('take', aim, CEILING)!)
+    eng.tick()
+    expect(storeys(eng, 3, 4)).toEqual([[], [], [], []])
   })
 
   it('6.3 the ceiling is taken down from below only when chosen, and not while something rests on it', () => {
