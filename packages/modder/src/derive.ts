@@ -8,6 +8,7 @@
 import {
   OntologyIndex,
   RuleLibrary,
+  buildSandbox,
   isA,
   isDo,
   leaves,
@@ -52,7 +53,10 @@ function effectsOf(sc: Scenario, rule: Rule, lib: RuleLibrary, onto: Ontology): 
   const rp = replay(sc, onto, lib)
   if (rp.resolution.rule?.id !== rule.id || rp.errors.length) return undefined
   const w = rp.engine.world
-  const out: Expectation[] = []
+  // (what the scene's numbers were before: the type's defaults with the scenario's own)
+  const was = buildSandbox(sc, onto, lib).world
+  // the test checks at least that this rule answers (a rule whose effects no test can see is still tested)
+  const out: Expectation[] = [{ resolvedBy: rule.id }]
   const keys = new Set(Object.values(sc.event).filter((v): v is string => typeof v === 'string' && sc.entities.some((e) => e.key === v)))
   for (const key of keys) {
     const before = sc.entities.find((e) => e.key === key)!
@@ -62,6 +66,15 @@ function effectsOf(sc: Scenario, rule: Rule, lib: RuleLibrary, onto: Ontology): 
       continue
     }
     if (e.type !== before.type) out.push({ key, isType: e.type })
+    // a number that went up or down (hp, charges, a counter): by its direction, which holds for any instance
+    const old = was.get(key)
+    for (const [k, v] of Object.entries(e.props ?? {})) {
+      // (a number it did not have counts from 0, as addProp counts it)
+      const had = old ? was.prop(old, k) : undefined
+      const u = had === undefined ? 0 : had
+      if (typeof v !== 'number' || typeof u !== 'number' || v === u) continue
+      out.push(v > u ? { key, propGt: [k, u] } : { key, propLt: [k, u] })
+    }
     const had = new Set(before.statuses ?? [])
     const has = Object.keys(e.statuses ?? {})
     for (const s of has) if (!had.has(s)) out.push({ key, hasStatus: s })
@@ -156,14 +169,15 @@ export function deriveTests(patch: Patch, req: ModRequest, lib: RuleLibrary, ont
         return a
       }
       const there = effectsOf(sc, r, cand.lib, cand.onto)
-      const same = (x: Expectation) => JSON.stringify(x)
+      // a number is compared by its direction (its start differs per instance), a rule's answer by the rule
+      const same = (x: Expectation) => JSON.stringify('propGt' in x ? { key: x.key, up: x.propGt[0] } : 'propLt' in x ? { key: x.key, down: x.propLt[0] } : x)
       // a transformation names the type it became, which may differ per instance: compare the rest
       const holds = there && expect.filter((x) => !('isType' in x)).every((x) => there.some((y) => same(y) === same(x)))
       if (!holds) {
         notes.push(`${r.id}: did not generalize — with host ${other} it ${there ? 'has other effects' : 'does not answer'}`)
         return a
       }
-      notes.push(`${r.id}: derived a test on host ${other}`)
+      notes.push(`${r.id}: derived a test on host ${other}${there!.length === 1 ? ' (it checks only that the rule answers: its effects are not ones a test can see)' : ''}`)
       return { ...a, rule: { ...r, tests: [{ name: `derived: host ${other}`, given: sc, expect: there! }] } }
     } catch (err) {
       notes.push(`${r.id}: could not derive a test (${(err as Error).message})`)

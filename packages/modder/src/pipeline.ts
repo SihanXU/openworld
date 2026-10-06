@@ -294,6 +294,20 @@ export class Modder {
         let bracketsRepaired = false
         const parsed = parseJson(answer, () => (bracketsRepaired = true))
         const ask = router ? routeOf(parsed) : undefined
+        // create only what the world lacks: a creation asked for at once, whose name is close to
+        // things the catalogue has, goes through find first (the router is local, find, create)
+        if (ask?.create && stage === 'local') {
+          const close = new Map(ask.create.map((c) => [c.name.en, closestTypes(c.name.en || c.id, ctx.ontology, 6, c.name.zh)]))
+          if ([...close.values()].some((ids) => ids.length)) {
+            stage = 'find'
+            ep.route!.push('find')
+            ep.needed = ask.create.map((c) => c.name.en)
+            at({ stage: 'find' })
+            ep.attempts.push({ phase, errors: [], warnings: [], raw: answer.slice(0, 2000) })
+            retry(findUser(ask.create.map((c) => ({ name: c.name.en, why: c.why })), close, catalogueOf(Object.values(ctx.ontology.types))), 'find')
+            continue
+          }
+        }
         if (ask?.need && stage === 'local') {
           // find: what the design needs beyond the request, in the whole catalogue
           stage = 'find'
@@ -308,7 +322,6 @@ export class Modder {
         if (ask?.create && stage !== 'create') {
           // create: the world has no such thing; the player is told, and waits for it
           stage = 'create'
-          if (!ep.route!.includes('find')) ep.route!.push('find')
           ep.route!.push('create')
           creations = ask.create
           at({ stage: 'create', creating: creations.map((c) => c.name) })
@@ -590,17 +603,21 @@ export class Modder {
 
   private async review(model: Model, req: ModRequest, patch: Patch, ctx: ToolContext, h: Harness, flags: string[] = []): Promise<{ verdict: string; notes: string[] }> {
     const outcome = describeOutcome(req.scenario, patch, ctx)
-    const r = await model.chat(
-      [
-        { role: 'system', content: REVIEW_SYSTEM },
-        { role: 'user', content: reviewUser(req, patch, outcome, relatedRules(req, ctx.library), flags) },
-      ],
+    const messages: ChatMessage[] = [
+      { role: 'system', content: REVIEW_SYSTEM },
+      { role: 'user', content: reviewUser(req, patch, outcome, relatedRules(req, ctx.library), flags) },
+    ]
+    // a reply that says no verdict is no review: asked once more, then recorded as an error (never as "ship")
+    for (let attempt = 0; attempt < 2; attempt++) {
       // nobody waits on a review: the cheap providers
-      { json: true, temperature: 0.2, purpose: 'review', reasoning: h.review.reasoning, provider: profileOf(h, 'offline').design.provider },
-    )
-    const j = parseJson(r.content) as { verdict?: unknown; notes?: unknown } | undefined
-    const notes = Array.isArray(j?.notes) ? j!.notes.filter((n): n is string => typeof n === 'string' && !!n.trim()).slice(0, 5) : []
-    return { verdict: j?.verdict === 'revise' ? 'revise' : 'ship', notes }
+      const r = await model.chat(messages, { json: true, temperature: 0.2, purpose: 'review', reasoning: h.review.reasoning, provider: profileOf(h, 'offline').design.provider })
+      const j = parseJson(r.content) as { verdict?: unknown; notes?: unknown } | undefined
+      const verdict = typeof j?.verdict === 'string' ? j.verdict.trim().toLowerCase() : undefined
+      if (verdict !== 'ship' && verdict !== 'revise') continue
+      const notes = Array.isArray(j?.notes) ? j!.notes.filter((n): n is string => typeof n === 'string' && !!n.trim()).slice(0, 5) : []
+      return { verdict, notes }
+    }
+    return { verdict: 'error', notes: [] }
   }
 
   /** The middle loop: what is worth keeping from this episode. */

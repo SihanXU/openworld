@@ -1196,6 +1196,22 @@ client worker ──POST /resolve {request, workspace}──▶ modder ──▶
    revised or dropped, each citing its episodes. It writes or revises a skill once that kind
    of work has recurred.
 
+As built (2026-10-06), checks that hold their ground:
+- **One class key.** The engine's `classKey` (the hole, the kind, the host's type, the other roles'
+  types with `self` for the host, the branching params; residents out) is what both the client's
+  port and the service key by. They used to disagree (the service added the host's statuses).
+- **A review with no verdict is no review.** It is asked once more, then recorded as `error`, never
+  as `ship`; a verdict in capitals reads as what it says.
+- **A derived test always tests.** It asserts that the rule answers (`resolvedBy`, a new
+  expectation), and a number that moved by the way it moved (its start differs per instance).
+- **Create only what the world lacks.** A creation asked for at once, whose name is close to
+  things the catalogue has, goes through find first; the route is recorded as it happened. A new
+  type that is a thing the world has under another number (sticks, stick) or the same Chinese name
+  is refused.
+- **What comes from elsewhere is checked here.** A shared-library patch comes with the scene it
+  answered, and a client replays it there before it takes it (the repeat check included). A saved
+  library's patch rules are validated again as they come back (`restoreLibrary`).
+
 **Client.** The worker probes `?modder=<url>` (default `VITE_MODDER_URL`; in development,
 `localhost:8787`). If the service answers, the worker becomes the port's provider, waits up to
 45 s for a patch (a late patch still applies), and syncs the shared library every 15 s. The

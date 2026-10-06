@@ -1181,6 +1181,7 @@ export type Expectation =
   | { tile: [number, number]; terrain: string }
   | { tile: [number, number]; hasStatus: string }
   | { spawned: string } // some entity of this type now exists
+  | { resolvedBy: string } // the event was answered by this rule (a test that checks the rule answers at all)
 
 export interface Provenance {
   origin: 'base' | 'patch'
