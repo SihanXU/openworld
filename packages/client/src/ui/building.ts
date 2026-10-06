@@ -65,8 +65,8 @@ export class BuildingMode {
   facing?: Dir
   /** A floor laid in the ceiling over the cell aimed at, not on one's own storey (R turns it). */
   up = false
-  /** The palette opened or shut (the view shows the ceilings over one's storey while it is open). */
-  onToggle?: (open: boolean) => void
+  /** The palette opened or shut, or switched to laying ceilings: the view shows one's own storey while it is open, and the ceilings where they are drawn while one lays them. */
+  onView?: (open: boolean, ceilings: boolean) => void
   private arrow = document.createElement('div')
 
   private lastPlaced = ''
@@ -93,6 +93,7 @@ export class BuildingMode {
       } else if (button.dataset.recipe) {
         this.selected = this.entries().find((r) => r.id === button.dataset.recipe) ?? this.selected
         if (!lays(this.selected.put)) this.up = false
+        this.onView?.(this.open, this.ceiling())
         this.preview = undefined
         this.render()
       }
@@ -115,6 +116,7 @@ export class BuildingMode {
   rotate(): void {
     if (lays(this.selected.put)) {
       this.up = !this.up
+      this.onView?.(this.open, this.ceiling())
       this.refreshAim(true)
       return
     }
@@ -139,7 +141,7 @@ export class BuildingMode {
     this.up = false
     this.panel.classList.toggle('hidden', !on)
     this.ghost.classList.toggle('hidden', !on)
-    this.onToggle?.(on)
+    this.onView?.(on, false)
     document.getElementById('buildBtn')?.classList.toggle('active', on)
     if (on) { this.preview = undefined; this.render(); this.refreshAim(true) }
     else this.send({ t: 'buildAim' })
@@ -159,10 +161,11 @@ export class BuildingMode {
     if (!this.open) return
     this.refreshAim()
     // dragging: each new cell gets one too
-    if (this.dragging && tile && `${tile.x},${tile.y}` !== this.lastPlaced) this.place(tile)
+    const at = this.slot(tile)
+    if (this.dragging && tile && at && `${at.x},${at.y}` !== this.lastPlaced) this.place(tile)
   }
   onPreview(p: PlacementPreview): void {
-    const a = this.target()
+    const a = this.slot()
     if (!this.open || p.id !== this.selected.id || p.at.map !== this.frame?.map || p.at.x !== a?.x || p.at.y !== a?.y) return
     this.preview = p
     this.details()
@@ -175,8 +178,22 @@ export class BuildingMode {
     const [dx, dy] = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[p.facing]
     return { x: p.x + dx, y: p.y + dy }
   }
+  /** Laying a floor as the ceiling (R). */
+  private ceiling(): boolean {
+    return this.up && lays(this.selected.put)
+  }
+  /**
+   * The cell built (docs/building.md §5: where one points, it is built and shown): on one's storey, the
+   * cell pointed at; laying the ceiling, the cell whose ceiling is drawn at the pointer (the view's
+   * `over`: a storey up is drawn a tile up), or with no pointer the cell in front.
+   */
+  private slot(t: Tile | undefined = this.aim): Tile | undefined {
+    if (!this.ceiling()) return t ?? this.target()
+    if (t) return { x: t.over?.x ?? t.x, y: t.over?.y ?? t.y + 1 }
+    return this.target()
+  }
   private refreshAim(force = false): void {
-    const tile = this.target()
+    const tile = this.slot()
     const sig = `${this.selected.id}|${this.frame?.map}|${tile?.x},${tile?.y}|${this.up}`
     if (force || sig !== this.signature) {
       this.signature = sig
@@ -188,7 +205,7 @@ export class BuildingMode {
   }
   place(tile?: Tile): void {
     if (!this.open) return
-    const at = tile ?? this.target()
+    const at = this.slot(tile)
     if (!at) return
     this.lastPlaced = `${at.x},${at.y}`
     this.send({ t: 'build', id: this.selected.id, tile: at, ...(this.facing && { facing: this.facing }), ...(this.up && { up: true }) })
@@ -203,16 +220,16 @@ export class BuildingMode {
     this.lastPlaced = ''
   }
   tick(): void {
-    const at = this.target()
+    const at = this.slot()
     if (!this.open || !at || !this.frame) return
     const p = this.screen(at.x, at.y)
     const size = 16 * p.scale
-    // where it will be (docs/building.md §5): a block a storey high (its top a tile up), a floor on the
-    // cell; a ceiling on the cell it covers, as the ceilings are shown while the palette is open
+    // where it will be drawn (docs/building.md §5): a block a storey high (its top a tile up), a floor
+    // on its cell, a ceiling a storey up (a tile up) - under the pointer, as it will be shown
     const tall = block(this.selected.put)
-    const up = this.up && lays(this.selected.put)
+    const up = this.ceiling()
     this.ghost.style.left = `${p.x}px`
-    this.ghost.style.top = `${p.y - (tall ? size / 2 : 0)}px`
+    this.ghost.style.top = `${p.y - (tall ? size / 2 : up ? size : 0)}px`
     this.ghost.style.width = `${size}px`
     this.ghost.style.height = `${tall ? size * 2 : size}px`
     this.ghost.classList.toggle('ceiling', up)

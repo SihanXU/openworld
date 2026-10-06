@@ -452,7 +452,11 @@ export class WorldScene extends Phaser.Scene {
     }
     hits.sort((a, b) => b.depth - a.depth)
     // the cell under the point on the storey the player stands on (drawn a storey higher for each)
-    return { x: Math.floor(wx / T), y: Math.floor((wy + (this.playerAt?.z ?? 0) * STOREY_LIFT) / T), stack: hits.map((h) => h.ref) }
+    // the cell of the player's storey under the point, and the cell whose ceiling (a storey up, drawn a
+    // tile higher) is drawn there (docs/building.md §5)
+    const z = this.playerAt?.z ?? 0
+    const x = Math.floor(wx / T)
+    return { x, y: Math.floor((wy + z * STOREY_LIFT) / T), stack: hits.map((h) => h.ref), over: { x, y: Math.floor((wy + (z + 1) * STOREY_LIFT) / T) } }
   }
 
   /** Is a picture's own (not transparent) pixel at this world point? */
@@ -650,13 +654,16 @@ export class WorldScene extends Phaser.Scene {
     return [...seen]
   }
 
-  /** The build palette is open: what is above the player's storey is not drawn (one builds one's own), and the cells of the storey with a ceiling over them are tinted (RimWorld's roof overlay). */
+  /** The build palette is open: what is above the player's storey is not drawn (one builds one's own storey, The Sims' build mode). */
   private ceilingOverlay = false
+  /** Laying ceilings: the ceilings over the player's storey are tinted where they are drawn (a storey up), never hiding what is under them. */
+  private ceilingTints = false
   private ceilings?: Phaser.GameObjects.Graphics
 
-  /** Show or hide which cells of the player's storey have a ceiling (docs/building.md §5): seen even in a room, where it is not drawn. */
-  setCeilingOverlay(on: boolean): void {
-    this.ceilingOverlay = on
+  /** The build palette's view (docs/building.md §5): open, one's own storey; laying ceilings, the ceilings where they are drawn. */
+  setBuildView(open: boolean, ceilings: boolean): void {
+    this.ceilingOverlay = open
+    this.ceilingTints = open && ceilings
     this.drawCeilings()
   }
 
@@ -665,13 +672,14 @@ export class WorldScene extends Phaser.Scene {
     this.ceilings ??= this.add.graphics().setDepth(1e5 - 1)
     this.ceilings.clear()
     const me = this.playerAt
-    if (!this.ceilingOverlay || !me) return
-    const lift = me.z * STOREY_LIFT
+    if (!this.ceilingTints || !me) return
+    // where each is drawn: a storey above the player's, a tile higher than its cell
+    const lift = (me.z + 1) * STOREY_LIFT
     for (const k of this.floors) {
       const [x, y, z] = k.split(',').map(Number)
       if (z !== me.z + 1) continue
-      this.ceilings.fillStyle(0x9fd4ff, 0.22).fillRect(x * T, y * T - lift, T, T)
-      this.ceilings.lineStyle(1, 0xcfe9ff, 0.5).strokeRect(x * T + 0.5, y * T - lift + 0.5, T - 1, T - 1)
+      this.ceilings.fillStyle(0x9fd4ff, 0.28).fillRect(x * T, y * T - lift, T, T)
+      this.ceilings.lineStyle(1, 0xcfe9ff, 0.6).strokeRect(x * T + 0.5, y * T - lift + 0.5, T - 1, T - 1)
     }
   }
 
