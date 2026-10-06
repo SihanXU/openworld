@@ -103,7 +103,8 @@ describe('the skill tree', () => {
     p.props!.hungerEvery = 150
     const loaded = Game.load(structuredClone(game.save()), index, onto)
     expect(loaded.engine.world.player.props!.profession).toBeUndefined()
-    expect(loaded.engine.world.player.props!.hungerEvery).toBe(450)
+    // the early absolute 150 is Iron Stomach's 450 on the old pace, 720 on today's (480 + 240)
+    expect(loaded.engine.world.player.props!.hungerEvery).toBe(720)
     expect(loaded.engine.world.player.tags).toEqual(p.tags)
     loaded.engine.world.player.props!.profession = 'warrior'
     expect(Game.load(structuredClone(loaded.save()), index, onto).engine.world.player.props!.profession).toBe('warrior')
@@ -393,18 +394,19 @@ describe('automatic combat talents', () => {
     const eng = duel()
     const p = eng.world.player
     learn(eng, 'second-wind')
-    expect(p.props!.hungerEvery).toBe(450)
-    p.props!.hunger = 10
+    expect(p.props!.hungerEvery).toBe(720)
+    // fed (over six tenths), where hunger falls at its base pace
+    p.props!.hunger = 16
     p.props!.hp = 10
     eng.world.state.tick = 79
     eng.tick() // the clock reaches 80: the body's periods come
     expect(p.props!.hp).toBe(11)
-    eng.world.state.tick = 299
-    eng.tick() // the clock reaches 300: the body's periods come
-    expect(p.props!.hunger).toBe(10)
-    eng.world.state.tick = 449
-    eng.tick() // the clock reaches 450: the body's periods come
-    expect(p.props!.hunger).toBe(9)
+    eng.world.state.tick = 479
+    eng.tick() // the clock reaches 480 (the base pace): nothing for an iron stomach
+    expect(p.props!.hunger).toBe(16)
+    eng.world.state.tick = 719
+    eng.tick() // the clock reaches 720: its pace
+    expect(p.props!.hunger).toBe(15)
   })
 
   it('assassin training needs a melee blade and becomes inactive when profession changes', () => {

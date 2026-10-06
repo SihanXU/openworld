@@ -114,6 +114,11 @@ export class Engine {
   /** Who each mover has been pushing into, since when (a swap once it has lasted): by the mover's id. */
   private bumps = new Map<Id, { id: Id; since: number; last: number }>()
   private cooldowns = new Map<Id, number>()
+  /**
+   * How far a period on a host's own pace has come toward its next (`period|id` → done, 0..1, as of
+   * tick `at`): the ticks gone by since, over its interval as its pace is now.
+   */
+  private progress = new Map<string, { done: number; at: number }>()
   private flushing = false
   /** What outcomes touched since the last settle: ref key → ref. */
   private touched = new Map<string, Ref>()
@@ -617,7 +622,10 @@ export class Engine {
     if (w.clearStatus(ref, status)) this.offer({ kind: 'threshold/lose', host: ref, roles: {}, params: { status } })
   }
 
-  /** Set a prop; crossing a declared line downward is a threshold/cross event (design.md §5.7). */
+  /**
+   * Set a prop; crossing a declared line is a threshold/cross event (design.md §5.7): downward (to a
+   * value, or under a share of another prop), and for a line crossed both ways, upward again (`way: up`).
+   */
   setProp(e: Entity, key: string, value: PropValue, by?: GameEvent): void {
     const w = this.world
     const before = w.num(e, key, Number.NaN)
@@ -625,10 +633,16 @@ export class Engine {
     if (typeof value !== 'number') return
     for (const t of w.onto.data.thresholds ?? []) {
       if (t.prop !== key) continue
+      const line = t.lte ?? (t.below ? w.num(e, t.below.prop, Number.NaN) * t.below.mul : Number.NaN)
+      if (Number.isNaN(line)) continue
+      const under = (v: number) => (t.lte !== undefined ? v <= line : v < line)
+      const down = under(value) && !under(before)
+      const up = !!t.both && !Number.isNaN(before) && under(before) && !under(value)
+      if (!down && !up) continue
       // the one whose act brought it there (the last blow) is the event's actor, and what they struck with its instrument
       const actor = by?.roles.actor ?? (by?.cause ? { e: by.cause } : undefined)
       const instrument = actor ? by?.roles.instrument : undefined
-      if (value <= t.lte && !(before <= t.lte)) this.queue({ kind: 'threshold/cross', host: { e: e.id }, roles: { ...(actor && { actor }), ...(instrument && { instrument }) }, params: { name: t.name, prop: key }, cause: by?.cause, origin: by?.origin })
+      this.queue({ kind: 'threshold/cross', host: { e: e.id }, roles: { ...(actor && { actor }), ...(instrument && { instrument }) }, params: { name: t.name, prop: key, ...(up && { way: 'up' }) }, cause: by?.cause, origin: by?.origin })
     }
   }
 
@@ -1295,25 +1309,39 @@ export class Engine {
     const w = this.world
     const t = w.state.tick
     for (const p of w.onto.data.periods ?? []) {
-      // a host may keep its own pace (everyProp): the period comes to it on its own interval
-      if (!p.everyProp && t % p.every !== 0) continue
+      // a host may keep its own pace (everyProp, paceBy): the period comes on as its pace is each tick
+      // (hunger: hungry, or asleep, slower), what it has come carried over a change of pace — never at
+      // once on a change, never a stretch at the old pace after it; the first on the clock's own beat
+      const own = !!p.everyProp || !!p.paceBy
+      if (!own && t % p.every !== 0) continue
+      const comes = (e: Entity): boolean => {
+        const every = Math.max(1, Math.round((p.everyProp ? w.num(e, p.everyProp, p.every) : p.every) * this.paceOf(p, e)))
+        const k = `${p.name}|${e.id}`
+        // first seen: as far as the clock's own beat has come; then the ticks gone by (a jump of the
+        // clock, a step on the overworld, counts too: one a tick until it has caught up)
+        const was = this.progress.get(k) ?? { done: (((t - 1) % every) + every) % every / every, at: t - 1 }
+        const done = was.done + (t - was.at) / every
+        if (done < 1 - 1e-9) return (this.progress.set(k, { done, at: t }), false)
+        this.progress.set(k, { done: Math.max(0, done - 1), at: t })
+        return true
+      }
       const hosts: Ref[] =
         p.host === 'world' || p.host === 'story'
           ? [{ e: p.host }]
           : w
               .entitiesOnMap(active)
               .filter((e) => e.place.on === 'tile' && matchSelector(p.host as import('./types.ts').Selector, w.view({ e: e.id })))
-              .filter((e) => t % Math.max(1, (p.everyProp ? w.num(e, p.everyProp, p.every) : p.every) * this.paceOf(p, e)) === 0)
+              .filter((e) => (own ? comes(e) : true))
               .map((e) => ({ e: e.id }))
       for (const h of hosts) this.offer({ kind: 'time/period', host: h, roles: {}, params: { name: p.name }, origin: 'world' })
     }
   }
 
-  /** How much slower a period comes to a host for the statuses it has (asleep: hunger four times slower). */
+  /** How much slower a period comes to a host for the statuses it has, each one's factor in turn (asleep: hunger four times slower; hungry as well: slower still). */
   private paceOf(p: { paceBy?: Record<string, number> }, e: Entity): number {
     let k = 1
-    for (const [s, f] of Object.entries(p.paceBy ?? {})) if (this.world.hasStatus({ e: e.id }, s)) k = Math.max(k, f)
-    return Math.round(k)
+    for (const [s, f] of Object.entries(p.paceBy ?? {})) if (this.world.hasStatus({ e: e.id }, s)) k *= f
+    return k
   }
 
   /** Contact that lasts: a contact/stay event now and then, for hosts that answer it. */

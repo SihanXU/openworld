@@ -46,15 +46,27 @@ describe('a night in bed', () => {
     expect(eng.busy(p)).toBe(false)
   })
 
-  it('an empty stomach: hunger wakes one in the night, hurt by a point, and one can get up', () => {
+  it('a low stomach sleeps the night through (hungry, the bar falls slowly, and slower asleep)', () => {
     const { eng, bed } = bedtime(2)
     const w = eng.world
     const p = w.player
     eng.act('hands', p.id, { e: bed }, { instrument: null })
+    eng.tick()
+    expect(Math.floor(w.hour())).toBe(6)
+    expect(w.num(p, 'hunger')).toBeGreaterThan(0)
+    expect(w.num(p, 'hp')).toBe(w.num(p, 'maxHp'))
+  })
+
+  it('an empty stomach: hunger wakes one in the night, hurt by a point, and one can get up', () => {
+    const { eng, bed } = bedtime(0)
+    const w = eng.world
+    const p = w.player
+    const lay = w.state.tick
+    eng.act('hands', p.id, { e: bed }, { instrument: null })
     w.fx.length = 0
     eng.tick()
-    // in the small hours, before the morning
-    expect(w.state.tick).toBeGreaterThan(tickAt(1, 21.5))
+    // in the night, before the morning
+    expect(w.state.tick).toBeGreaterThan(lay)
     expect(w.state.tick).toBeLessThan(tickAt(2, 6))
     expect(w.num(p, 'hp')).toBe(w.num(p, 'maxHp') - 1)
     expect(w.fx.some((f) => f.t === 'log' && textOf(f.text) === 'Hunger wakes you.')).toBe(true)

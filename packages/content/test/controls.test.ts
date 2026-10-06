@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, ModPort, RuleLibrary, buildSandbox, textOf, type Engine, type Key, type Plan, type Ref, type ScenarioEntity, type Verb } from '@lsw/engine'
+import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_PACE, ModPort, TICKS_PER_HOUR, RuleLibrary, buildSandbox, textOf, type Engine, type Key, type Plan, type Ref, type ScenarioEntity, type Verb } from '@lsw/engine'
 import { cellId } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
@@ -441,6 +441,62 @@ describe('hunger', () => {
     tickTo(eng.world.state.tick + HUNGER_EFFECT_EVERY * 10)
     expect(p.props!.hp).toBe(1)
     expect(eng.world.hasStatus({ e: p.id }, 'down')).toBe(false)
+  })
+
+  it('falls in two paces: fed, full to six tenths in a meal\'s span; then hungry, a point every six game hours (days to empty); asleep and hungry slower by both', () => {
+    const eng = world(undefined, [])
+    const w = eng.world
+    const p = w.player
+    const hungry = () => w.hasStatus({ e: p.id }, 'hungry')
+    /** Ticks until the next point falls. */
+    const nextDrop = (most: number) => {
+      const from = w.num(p, 'hunger')
+      const t0 = w.state.tick
+      while (w.num(p, 'hunger') === from && w.state.tick - t0 < most) eng.tick()
+      return w.state.tick - t0
+    }
+    expect(w.num(p, 'hunger')).toBe(20)
+    // fed: a point every HUNGER_EVERY (48 game minutes): from full to twelve (six tenths) in under seven game hours
+    nextDrop(HUNGER_EVERY)
+    expect(nextDrop(HUNGER_EVERY * 2)).toBe(HUNGER_EVERY)
+    while (w.num(p, 'hunger') > 12) nextDrop(HUNGER_EVERY * 2)
+    expect(hungry()).toBe(false)
+    expect((8 * HUNGER_EVERY) / TICKS_PER_HOUR).toBeLessThan(7)
+    // under six tenths: hungry, and the bar falls HUNGRY_PACE times slower — a point every six game hours
+    nextDrop(HUNGER_EVERY * 2)
+    expect(w.num(p, 'hunger')).toBe(11)
+    eng.tick()
+    expect(hungry()).toBe(true)
+    nextDrop(HUNGER_EVERY * HUNGRY_PACE * 2)
+    expect(nextDrop(HUNGER_EVERY * HUNGRY_PACE * 2)).toBe(HUNGER_EVERY * HUNGRY_PACE)
+    expect((HUNGER_EVERY * HUNGRY_PACE) / TICKS_PER_HOUR).toBe(6)
+    // full to empty, a meal skipped and then none: about three days
+    const days = (8 * HUNGER_EVERY + 12 * HUNGER_EVERY * HUNGRY_PACE) / (24 * TICKS_PER_HOUR)
+    expect(days).toBeGreaterThan(2.5)
+    expect(days).toBeLessThan(4)
+    // asleep and hungry: both slow it (the paces multiply)
+    eng.author(() => eng.applyStatus({ e: p.id }, 'asleep'))
+    nextDrop(HUNGER_EVERY * HUNGRY_PACE * 4 * 2)
+    expect(nextDrop(HUNGER_EVERY * HUNGRY_PACE * 4 * 2)).toBe(HUNGER_EVERY * HUNGRY_PACE * 4)
+    eng.author(() => eng.removeStatus({ e: p.id }, 'asleep'))
+    // a meal over the line: hungry no more, and the bar falls at the fed pace again
+    eng.author(() => eng.setProp(p, 'hunger', 18))
+    eng.tick()
+    expect(hungry()).toBe(false)
+    // what the slow pace had come carries over: the next point within a fed interval, and the fed pace after
+    expect(nextDrop(HUNGER_EVERY * 2)).toBeLessThanOrEqual(HUNGER_EVERY)
+    expect(nextDrop(HUNGER_EVERY * 2)).toBe(HUNGER_EVERY)
+  })
+
+  it('one under the line without the status (a save from before it) is made hungry at the next point', () => {
+    const eng = world(undefined, [])
+    const w = eng.world
+    const p = w.player
+    // as a save from before the line held it: under it, no status (nothing crossed)
+    p.props!.hunger = 6
+    expect(w.hasStatus({ e: p.id }, 'hungry')).toBe(false)
+    while (w.num(p, 'hunger') === 6) eng.tick()
+    expect(w.hasStatus({ e: p.id }, 'hungry')).toBe(true)
   })
 })
 

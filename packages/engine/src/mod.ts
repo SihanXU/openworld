@@ -201,7 +201,7 @@ const EVENTS: Record<string, string> = {
   'time/period': 'a clock ticked for the host: param status (every 0.5 s while it has that status, or at the pace the status sets; actor: who gave it) or name (a declared period: hunger, vitals, appear, weather, storm, dawn).',
   'time/timer': 'a status ran out on the host (params status, at: its scheduled deadline; actor: who gave it).',
   'threshold/gain|lose': 'the host gained or lost a status (param status).',
-  'threshold/cross': 'a prop of the host came to a declared line (param name: broken at hp 0 — for every thing with durability: a person goes down, a tree falls, a rock breaks into its makeup — starving at hunger 0; param prop).',
+  'threshold/cross': 'a prop of the host came to a declared line (param name: broken at hp 0 — for every thing with durability: a person goes down, a tree falls, a rock breaks into its makeup; hungry under six tenths of maxHunger, and back over it with param way "up" — the host gains or loses the status hungry, and hunger falls slowly while it lasts; param prop).',
   seen: 'the host (an actor) saw someone act: roles actor (the doer), target, instrument; params act (the verb), owner (mine | another | nobody: whose the target was before), defined (the world had an answer for the act and all it set going).',
   stuck: 'the host cannot go on with what it does (param activity): the day of a person — target is what it needs (gone, or not as it must be), or the spot they cannot reach; a companion that cannot follow (activity follow) — target is its leader.',
   broken: 'the story: content it must keep playable broke (param invariant; target the person it belongs to). The default is the invariant\'s fallback.',

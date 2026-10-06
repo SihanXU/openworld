@@ -43,7 +43,9 @@ icons are `placeholder:<id>` (the origin emblem) until they are drawn.
 All twelve original ids remain valid. Already learned nodes keep their grants even when
 prerequisites change; no points are refunded or grants reapplied. Saves without a profession
 acquire the world's initial one; explicit values are preserved. Iron Stomach's legacy
-150-tick interval is migrated to 450 (base 300 + 150), fixing accelerated hunger.
+150-tick interval is migrated to 450 (base 300 + 150), fixing accelerated hunger. Since 2026-10-06 hunger
+falls in two paces (base 480 ticks fed, 7.5 times slower once hungry, under six tenths); intervals kept
+on the old scale (300, 450, 600) are scaled to it (480, 720, 960).
 
 Branch configuration is in `packages/content/src/skills.ts`. Layout is calculated per
 direction in `packages/client/src/ui/skillLayout.ts`; the page supports dragging, wheel zoom
@@ -100,7 +102,7 @@ Vitality
 | Toughness / 坚韧 | Defence +1. |
 | Hardy / 强健 | Max health +6, filling the added capacity. |
 | Defiance / 绝境韧性 | At ≤30% health before a hit, direct combat damage taken −25%. |
-| Iron Stomach / 耐饿 | Hunger drain interval +150 ticks: 450 instead of the base 300, one-third slower drain. |
+| Iron Stomach / 耐饿 | Hunger drain interval +240 ticks: 720 instead of the base 480, one-third slower drain (both paces). |
 | Second Wind / 自愈 | Food-based healing starts at 50% food instead of 90%; existing cadence remains 8 s. |
 | Last Stand / 不屈意志 | Survive a lethal direct combat hit at 1 health; cooldown 30 s, saved on the actor. |
 
