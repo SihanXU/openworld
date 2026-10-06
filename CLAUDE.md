@@ -80,8 +80,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - `packages/modder` — the modder service (design.md §13, rsi.md). It may depend on content;
   the engine never depends on it. Parts:
   - `model.ts`: a model interface — OpenAI-compatible, or scripted for tests and offline.
-  - `pipeline.ts`: comprehend → recall → design (tools) → verify/repair → review → commit →
-    record → reflect. Live designs are routed (design.md §13, the router): local (the request's
+  - `pipeline.ts`: comprehend → recall → design (tools) → verify/repair → audit → review → commit →
+    record → reflect. The auditor (`audit.ts`) plays against a patch in the sandbox; only what it
+    reproduces there, with the patch and not without it, counts. Live designs are routed (design.md §13, the router): local (the request's
     own types) → find (the catalogue) → create (a new type with its 16x16 picture as data).
   - `tools.ts`: the design tools.
   - `library.ts`: the shared library as an append-only patch log.

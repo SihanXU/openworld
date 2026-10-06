@@ -21,15 +21,16 @@ import { narrowKinds, normalizePatch, qualifyTerrains } from './fixes.ts'
 import type { WorldLibrary } from './library.ts'
 import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@lsw/agent'
 import { materializeWorld } from './repo.ts'
-import { ART_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, artUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, type Creation, type Need } from './prompts.ts'
+import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, type Creation, type Need } from './prompts.ts'
 import { coarseTerms, signatureOf, type Signature } from './signature.ts'
-import { profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@lsw/agent'
+import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@lsw/agent'
 
 /** An episode of the patch pipeline: the request is the world's, the result a Patch. */
 export type WorldEpisode = AgentEpisode<ModRequest, Patch>
 type Episode = WorldEpisode
 type Attempt = AgentAttempt<Patch>
 import { buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
+import { audit, type AuditResult } from './audit.ts'
 
 export interface ModderOptions {
   library: WorldLibrary
@@ -374,6 +375,17 @@ export class Modder {
           retry(repairUser(res.errors, res.warnings), 'repair')
           continue
         }
+        // the auditor, before shipping: what it breaks in the sandbox goes back to the designer
+        if (auditOf(h).enabled && auditOf(h).blocking) {
+          const found = await this.audit(model, req, patch, ctx, h)
+          attempt.audit = { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length }
+          if (found.confirmed.length) {
+            attempt.errors = auditNotes(found.confirmed)
+            if (repairs++ >= h.repair.maxRounds) break
+            retry(auditRepairUser(attempt.errors), 'audit')
+            continue
+          }
+        }
         if (h.review.enabled && h.review.blocking !== false && reviews < h.review.maxRounds) {
           attempt.review = await this.review(model, req, patch, ctx, h, flagsOf(patch, derived))
           if (attempt.review.verdict === 'revise' && attempt.review.notes.length) {
@@ -447,7 +459,10 @@ export class Modder {
       if (eo.revise) ep.revises = eo.revise.episode.id
       const { patch, problems } = repo.collect()
       ep.patch = undefined
-      if (run.submitted && patch && !problems.length) this.commit(ep, { ...patch, author: 'modder' }, req, replaces)
+      // the auditor, before shipping: a patch it breaks in the sandbox is not committed
+      const found = run.submitted && patch && !problems.length && auditOf(h).enabled && auditOf(h).blocking ? await this.audit(new Meter(this.opts.model!), req, patch, { library: lib, ontology: library.fullOntology(lib) }, h) : undefined
+      if (found?.confirmed.length) ep.attempts.push({ phase: 'audit', patch, errors: auditNotes(found.confirmed), warnings: [], audit: { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length } })
+      else if (run.submitted && patch && !problems.length) this.commit(ep, { ...patch, author: 'modder' }, req, replaces)
       else if (problems.length) ep.attempts.push({ phase: 'repair', errors: problems, warnings: [] })
       if (ep.outcome !== 'accepted') ep.outcome = 'failed'
       state.recordEpisode(ep)
@@ -493,6 +508,18 @@ export class Modder {
         const v = await this.review(model, req, ep.patch!, ctx, h, flags)
         this.opts.state.note('review', { episode: ep.id, rules: ep.rules, flags, ...v, usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
         if (v.verdict === 'revise' && v.notes.length && h.revise) await this.episode(req, ws, sig, { profile: 'offline', revise: { episode: ep, notes: v.notes } })
+      })
+    // the auditor, after shipping: what it breaks in the sandbox leaves the library at once (clients drop
+    // it on their next sync), and goes back for a revision
+    if (ep.outcome === 'accepted' && !eo.revise && auditOf(h).enabled && !auditOf(h).blocking && ep.patch)
+      this.later(`audit ${ep.id}`, async () => {
+        const model = new Meter(this.opts.model!)
+        const found = await this.audit(model, req, ep.patch!, ctx, h)
+        this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, confirmed: found.confirmed.map(({ evidence: _, ...f }) => f), unconfirmed: found.unconfirmed.map((u) => `${u.finding.title}: ${u.why}`), usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
+        if (!found.confirmed.length) return
+        for (const id of ep.rules) this.opts.library.remove(id, this.now())
+        this.log(`${ep.id} audit: ${found.confirmed.map((f) => `${f.kind}: ${f.title}`).join('; ')} → removed ${ep.rules.join(', ')}`)
+        if (h.revise) await this.episode(req, ws, sig, { profile: 'offline', revise: { episode: ep, notes: auditNotes(found.confirmed) } })
       })
     // a live request that failed is worked again with the offline profile: the world still learns it
     if (ep.outcome === 'failed' && eo.profile === 'live' && h.escalate && !this.inflight.has(`${sig.key}#offline`))
@@ -586,6 +613,18 @@ export class Modder {
     const r = await model.chat(messages, { ...call, json: true })
     messages.push({ role: 'assistant', content: r.content })
     return r.content
+  }
+
+  /** The auditor on a patch (audit.ts): only what it broke in the sandbox, with the patch and not without it. */
+  private async audit(model: Model, req: ModRequest, patch: Patch, ctx: Pick<ToolContext, 'library' | 'ontology'>, h: Harness): Promise<AuditResult> {
+    const a = auditOf(h)
+    try {
+      return await audit(model, AUDIT_SYSTEM, auditUser(req, patch, describeOutcome(req.scenario, patch, ctx)), req, ctx.ontology, ctx.library, patch, { rounds: a.rounds, reasoning: a.reasoning, provider: profileOf(h, 'offline').design.provider })
+    } catch (err) {
+      // an auditor that fails finds nothing: the deterministic checks already passed
+      this.log(`audit failed: ${(err as Error).message}`)
+      return { confirmed: [], unconfirmed: [] }
+    }
   }
 
   private async review(model: Model, req: ModRequest, patch: Patch, ctx: ToolContext, h: Harness, flags: string[] = []): Promise<{ verdict: string; notes: string[] }> {

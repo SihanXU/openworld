@@ -1214,6 +1214,19 @@ client worker ──POST /resolve {request, workspace}──▶ modder ──▶
    revised or dropped, each citing its episodes. It writes or revises a skill once that kind
    of work has recurred.
 
+As built (2026-10-06), **the auditor** (`modder/src/audit.ts`), between verify and review: an
+agent plays against the patch the way a player out to break the game would. It looks for farms,
+cheap roads to rare things (a rope that becomes Dragonsbane passes the validator and the LP: one
+for one), softlocks, harm, and runaway chains. It has the sandbox, not an opinion. Its tools are
+`look` (the scene) and `run` (play acts, ticks and repeats in a copy of the scene, with the patch
+and without it), and each finding is a setup, steps and claims (counts, props, statuses, a thing
+gone or become another, an event count). The code judges: a finding counts only when the sandbox
+shows it with the patch and not without it, so the model searches and never decides. The offline
+profile audits before shipping, and what is broken goes back to the designer with the evidence. The
+live profile audits after shipping, and what is broken leaves the shared library at once and goes
+to one offline revision. An auditor that fails finds nothing. Harness `audit {enabled, blocking,
+rounds, reasoning}`.
+
 **Client.** The worker probes `?modder=<url>` (default `VITE_MODDER_URL`; in development,
 `localhost:8787`). If the service answers, the worker becomes the port's provider, waits up to
 45 s for a patch (a late patch still applies), and syncs the shared library every 15 s. The
