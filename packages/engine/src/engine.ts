@@ -19,7 +19,7 @@ import { NpcSim, scheduleAt } from './npc.ts'
 import { scheduleFor } from './people.ts'
 import { OntologyIndex } from './ontology.ts'
 import { appearFromForage } from './appear.ts'
-import { RuleLibrary, evalCond, isDo, matchSelector, rolesOf, type Resolution } from './rules.ts'
+import { RuleLibrary, evalCond, isDo, isPatch, matchSelector, rolesOf, type Resolution } from './rules.ts'
 import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb, WorldState } from './types.ts'
 import type { ProfessionDef } from './profession.ts'
 import { DIRS, FIRE_RADIUS } from './types.ts'
@@ -50,6 +50,12 @@ const STAY_EVERY = 5
 const EVENT_BUDGET = 600
 /** How deep a chain runs within one tick before the rest is deferred to the next (design.md §5.10). */
 const MAX_DEPTH = 12
+/** Events one chain may still run once it has had to wait for a later tick (design.md A7: every chain ends). */
+const CHAIN_BUDGET = 2000
+/** Events waiting for the next tick at most: past it, what comes is dropped. */
+const LATER_MAX = 4 * EVENT_BUDGET
+/** How many times a learned rule may fail at runtime before it is set aside. */
+const FAULTS = 3
 const INVARIANT_EVERY = 30
 /** What only says and shows (a refusal, a look): an outcome of only these changes nothing. */
 const SAID = new Set<string>(['log', 'say', 'vfx', 'emote'])
@@ -204,8 +210,15 @@ export class Engine {
   // ---------------------------------------------------------------- events
 
   queue(ev: GameEvent): void {
+    // what an outcome sets off (an emit, a threshold, a contact, a status) is its chain's, a step deeper
+    const now = this.outcomes[this.outcomes.length - 1]
+    if (now) {
+      ev.chain ??= now.ev.chain
+      ev.depth ??= (now.ev.depth ?? 0) + 1
+      ev.by ??= now.rule
+    }
     if ((ev.depth ?? 0) > MAX_DEPTH) {
-      this.later.push({ ...ev, depth: 0 })
+      this.defer({ ...ev, depth: 0 })
       return
     }
     this.q.push(ev)
@@ -231,17 +244,61 @@ export class Engine {
     let n = 0
     while (this.q.length) {
       if (n++ >= EVENT_BUDGET) {
-        this.later.push(...this.q.splice(0))
+        for (const ev of this.q.splice(0)) this.defer(ev)
         break
       }
       this.dispatch(this.q.shift()!)
     }
   }
 
+  /**
+   * An event for the next tick. A chain that has to wait is counted from then on, and ends at its
+   * budget; the queue itself is bounded. What is dropped is charged to the rule that made it.
+   */
+  private defer(ev: GameEvent): void {
+    if (this.later.length >= LATER_MAX) {
+      this.fault(ev.by, 'more events waiting than the world holds', true)
+      return
+    }
+    if (ev.chain !== undefined && !this.chains.has(ev.chain)) this.chains.set(ev.chain, { n: 0, since: this.world.state.tick })
+    this.later.push(ev)
+  }
+
+  /** Whether an event's chain may still run (one that never waited runs within its flush's budget). */
+  private within(ev: GameEvent): boolean {
+    ev.chain ??= this.nextChain++
+    const c = this.chains.get(ev.chain)
+    if (!c || ++c.n <= CHAIN_BUDGET) return true
+    if (c.n === CHAIN_BUDGET + 1) {
+      this.fault(ev.by, `a chain of events that does not end (${CHAIN_BUDGET} after it had to wait)`, true)
+      this.world.fx.push({ t: 'log', text: `a chain of events was stopped after ${CHAIN_BUDGET} more (${ev.kind}, made by ${ev.by ?? 'the world'})`, tone: 'warn' })
+    }
+    return false
+  }
+
+  /**
+   * A learned rule failed at runtime (an effect refused, a chain that would not end): counted, and
+   * past FAULTS, or at once when it ran away, set aside for good: its hole is open again (the
+   * leaf's default). Base rules are the author's: the tests catch theirs. True for a learned rule.
+   */
+  fault(ruleId: string | undefined, reason: string, severe = false): boolean {
+    const rule = ruleId ? this.lib.rules.get(ruleId) : undefined
+    if (!rule || !isPatch(rule)) return false
+    const n = (this.faults.get(rule.id) ?? 0) + 1
+    this.faults.set(rule.id, n)
+    const set = (this.world.state.quarantine ??= {})
+    if ((severe || n >= FAULTS) && !set[rule.id]) {
+      set[rule.id] = { tick: this.world.state.tick, reason }
+      this.world.fx.push({ t: 'log', text: `learned rule ${rule.id} is set aside: ${reason}`, tone: 'warn' })
+    }
+    return true
+  }
+
   /** Resolve one event and run its outcome (design.md §5.6). */
   dispatch(ev: GameEvent): Resolution {
     const w = this.world
     ev.tick = w.state.tick
+    if (!this.within(ev)) return { defined: false }
     const host = 'e' in ev.host ? w.get(ev.host.e) : undefined
     if ('e' in ev.host && (!host || host.place.on === 'none')) return { defined: false }
     // a thing on a dormant map receives it when the player comes (design.md §5.12); people and residents at once
@@ -254,7 +311,7 @@ export class Engine {
     }
     // a thing held while its own outcome is worked out takes the event after
     if (host?.frozenBy && !ev.kind.startsWith('act/')) {
-      this.later.push(ev)
+      this.defer(ev)
       return { defined: false }
     }
     const res = this.resolveEvent(ev)
@@ -284,14 +341,33 @@ export class Engine {
     return this.flushing || this.dispatching > 0
   }
   private dispatching = 0
+  /** The outcomes running now, innermost last: what they set off joins their chain, one step deeper. */
+  private outcomes: { ev: GameEvent; rule: string }[] = []
+  /** Chains that had to wait for a later tick, and how many events they have run since. */
+  private chains = new Map<number, { n: number; since: number }>()
+  private nextChain = 1
+  /** Runtime failures of learned rules this session (the set-aside ones are kept in the state). */
+  private faults = new Map<string, number>()
   /** Undefined outcomes reached so far (an act's seers learn whether anything in its chain was). */
   private holes = 0
 
-  /** Run an outcome's effects, then settle the relations they changed. */
+  /** Run an outcome's effects, then settle the relations they changed (what they set off joins its chain). */
   run(effects: Effect[], ev: GameEvent, ruleId: string): void {
     if (!effects.length) return
-    this.write(() => this.effects.run(effects, ev, ruleId), ev.host)
-    this.settle()
+    this.outcomes.push({ ev, rule: ruleId })
+    try {
+      this.write(() => this.effects.run(effects, ev, ruleId), ev.host)
+      this.settle()
+    } finally {
+      this.outcomes.pop()
+    }
+  }
+
+  /** Is the outcome running now a learned rule's (the guards hold those to more)? */
+  get learning(): boolean {
+    const now = this.outcomes[this.outcomes.length - 1]
+    const rule = now && this.lib.rules.get(now.rule)
+    return !!rule && isPatch(rule)
   }
 
   /**
@@ -991,6 +1067,7 @@ export class Engine {
     const rel: [number, number] = p ? [Math.min(1, Math.max(0, (p.x - bx + 0.5) / size)), Math.min(1, Math.max(0, (p.y - by + 0.5) / size))] : [0.5, 0.5]
     const tile: [number, number] = [Math.min(size - 1, Math.floor(rel[0] * size)), Math.min(size - 1, Math.floor(rel[1] * size))]
     const entry: Entry = { rel, tile, size }
+    this.mapKnown(map)
     if (!w.map(map)) {
       this.pendingTransition = { map, x: -1, y: -1, entry }
       return
@@ -1023,6 +1100,7 @@ export class Engine {
 
   /** The `step` primitive's travel: the host goes to a place (the nearest free tile there), across maps if need be. */
   placeSelf(e: Entity, to: Pos): void {
+    this.mapKnown(to.map)
     if (e.id === this.world.state.player && this.world.posOf(e)?.map !== to.map) return this.travel(e, to)
     const w = this.world
     // a flyer goes over what stops walkers (a companion over a wall, a river)
@@ -1047,11 +1125,23 @@ export class Engine {
   }
 
   travel(e: Entity, to: Pos): void {
+    this.mapKnown(to.map)
     if (!this.world.map(to.map)) {
       this.pendingTransition = to
       return
     }
     this.teleport(e, to)
+  }
+
+  /**
+   * A map one can go to: loaded, in the portal graph, or a wild one a site on the overworld names
+   * (made as one goes). Any other (a learned rule's push to "nowhere") is refused before anyone moves.
+   */
+  private mapKnown(map: string): void {
+    const w = this.world
+    if (w.map(map) || map in this.graph) return
+    if (Object.values(w.state.entities).some((e) => e.type.startsWith('site') && e.props?.map === map)) return
+    throw new Error(`there is no map "${map}"`)
   }
 
   teleport(e: Entity, to: Pos): void {
@@ -1247,6 +1337,8 @@ export class Engine {
       const deferred = this.later.splice(0)
       for (const ev of deferred) this.queue({ ...ev, depth: 0 })
     }
+    // a waiting chain is forgotten a minute after it began (it has ended, or it was stopped)
+    if (s.tick % 60 === 0) for (const [id, c] of this.chains) if (s.tick - c.since > 600) this.chains.delete(id)
     this.statusTick(active)
     this.periodTick(active)
     this.stayTick(active)
