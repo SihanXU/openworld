@@ -15,6 +15,9 @@ import { releaseSkill } from './bosses.ts'
 import { WriteError } from './world.ts'
 import { madeOf, qualityFor } from './recipes.ts'
 
+/** How many things one effect makes at once at most, unless the world says (`params.spawnMax`). */
+const SPAWN_MAX = 64
+
 export const PRIMITIVES: Record<Effect['op'], string> = {
   spawn: 'spawn {type, at: role ref, into?: tile|contents|hand, count?, still?} — create new things at a role\'s place (its tile, contents or hand); type may be "@prop:<role>.<key>" (a crop\'s yieldType); count may read a prop or a param; items on the ground pop out for the magnet unless still (then they are taken with F)',
   destroy: 'destroy {} — the host is gone (with what it holds); the essential (people) never are: they go down instead',
@@ -90,14 +93,25 @@ export class EffectRunner {
   }
 
   amount(ev: GameEvent, a: Amount): number {
-    if (typeof a === 'number') return a
-    if ('param' in a) {
+    let n: number
+    if (typeof a === 'number') n = a
+    else if ('param' in a) {
       const v = ev.params?.[a.param]
-      return (typeof v === 'number' ? v : 0) * (a.mul ?? 1) + (a.add ?? 0)
+      n = (typeof v === 'number' ? v : 0) * (a.mul ?? 1) + (a.add ?? 0)
+    } else {
+      const v = this.eng.world.view(this.roleRef(ev, a.of))?.props[a.prop]
+      n = (typeof v === 'number' ? v : 0) * (a.mul ?? 1) + (a.add ?? 0)
     }
-    const v = this.eng.world.view(this.roleRef(ev, a.of))
-    const base = Number(v?.props[a.prop] ?? 0)
-    return base * (a.mul ?? 1) + (a.add ?? 0)
+    // a number the world can hold: no NaN (a prop that is a word), no Infinity (an overflow)
+    if (!Number.isFinite(n)) throw new Error(`an amount that is not a finite number (${JSON.stringify(a)})`)
+    return n
+  }
+
+  /** How many things one effect may make at once (a guard: the most the content makes is a few). */
+  private most(n: number, what: string): number {
+    const most = this.eng.world.onto.data.params?.spawnMax ?? SPAWN_MAX
+    if (n > most) throw new Error(`${what} of ${n}: more than ${most} at once`)
+    return n
   }
 
   private text(ev: GameEvent, who: Entity | undefined, t: Text): Text {
@@ -154,6 +168,10 @@ export class EffectRunner {
           // a write outside an outcome or beyond its host is the engine's bug, not the rule's: it is not swallowed
           if (err instanceof WriteError) throw err
           this.eng.world.fx.push({ t: 'log', text: `rule ${ruleId}: ${(err as Error).message}`, tone: 'warn' })
+          // a learned rule's outcome stops at its first refused effect, and the rule is charged for it;
+          // a base rule refused what a learned rule sent it (a push to nowhere): the sender is charged
+          if (this.eng.fault(ruleId, (err as Error).message)) return
+          this.eng.fault(ev.by, (err as Error).message)
         }
       }
     } finally {
@@ -172,7 +190,7 @@ export class EffectRunner {
         if (!type) return
         const at = this.ref(ev, eff.at)
         const into = eff.into ?? 'tile'
-        const n = eff.count === undefined ? 1 : Math.max(0, Math.floor(this.amount(ev, eff.count)))
+        const n = this.most(eff.count === undefined ? 1 : Math.max(0, Math.floor(this.amount(ev, eff.count))), 'a spawn')
         for (let i = 0; i < n; i++) {
           let place = this.placeFor(at, into)
           if (!place) continue
@@ -208,6 +226,10 @@ export class EffectRunner {
         // `@prop:key` reads the target type from the host's own prop (e.g. emptyType)
         const into = eff.into.startsWith('@prop:') ? String(w.prop(host, eff.into.slice(6)) ?? '') : eff.into
         if (!into || !w.onto.hasType(into)) return
+        // what cannot be lost (a person the story needs, the one at the keys) may change, into
+        // anything that can still act, and stays essential as what it becomes (a hen, a frog)
+        const essential = w.hasTag(host, 'essential')
+        if (essential && !w.onto.resolve(into).tags.includes('agent')) throw new Error(`${host.id} cannot become a thing that cannot act (${into})`)
         // becoming a thing that takes a space of its cell another holds, it gives way: it is gone (rock
         // turning to gravel where there is a floor already), as one destroyed
         const p = host.place.on === 'tile' ? host.place : undefined
@@ -220,6 +242,7 @@ export class EffectRunner {
         }
         const at = ev.kind === 'time/timer' && typeof ev.params?.at === 'number' ? ev.params.at : w.state.tick
         w.transform(host, into, at)
+        if (essential && !w.hasTag(host, 'essential')) w.addTag(host, 'essential')
         delete host.name
         // a thing become another is whole as what it is now (a felled tree's stump, a regrown tree)
         if (host.props?.hp !== undefined && w.onto.resolve(into).props.maxHp !== undefined) w.setProp(host, 'hp', undefined)
@@ -367,8 +390,8 @@ export class EffectRunner {
         if (at)
           for (const [i, part] of (w.onto.resolve(host.type).makeup ?? []).entries()) {
             // the expected count: whole parts, and the fraction by chance
-            const expect = (part.count * (part.chance ?? 1) * rate) / (w.onto.resolve(host.type).yields ?? 1)
-            const n = Math.floor(expect) + (w.chance(eff, expect - Math.floor(expect), i) ? 1 : 0)
+            const expect = (part.count * (part.chance ?? 1) * rate) / Math.max(1, w.onto.resolve(host.type).yields ?? 1)
+            const n = this.most(Math.floor(expect) + (w.chance(eff, expect - Math.floor(expect), i) ? 1 : 0), 'a breakdown')
             for (let i = 0; i < n; i++) {
               const made = w.create(part.type, { on: 'tile', map: at.map, x: at.x, y: at.y, ...(at.z && { z: at.z }) }, material && w.onto.resolve(part.type).tags.includes('portable') ? { tags: [material] } : {})
               eng.touch({ e: made.id })
@@ -392,6 +415,8 @@ export class EffectRunner {
         if (!host) return
         // whole points: a tenth of a body mends at least one
         const n = Math.ceil(this.amount(ev, eff.amount))
+        // harm is a blow (hurt): it passes defence and the line where one goes down; a heal never takes
+        if (n < 0) throw new Error(`a heal of ${n}`)
         eng.setProp(host, 'hp', Math.min(w.num(host, 'maxHp', 1), w.num(host, 'hp') + n), ev)
         w.fx.push({ t: 'damage', who: host.id, amount: -n })
         return

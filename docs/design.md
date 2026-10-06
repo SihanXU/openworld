@@ -652,7 +652,25 @@ undefined behaviour is exactly reaching an undefined leaf.
 | relation difference | after every outcome and on entering a map |
 | playable without an AI | the story's critical path has no undefined leaf: the three routes, dry-run with the AI off |
 | the inputs are complete | already proven (§5.2) |
-| deterministic, and every chain ends | replay; the depth bound |
+| deterministic, and every chain ends | replay; the depth bound; the runtime guards below |
+
+As built (2026-10-06), the runtime guards: what the validator checked beforehand, the engine holds
+to while learned rules run (`tools/test/guards.test.ts`).
+- **Every chain ends.** What an outcome sets off (an emit, a threshold, a contact, a status) joins its
+  chain one step deeper, not only emits. A chain that has to wait for a later tick may run 2,000 more
+  events, and no more; at most 2,400 events wait for the next tick. What is dropped is charged to the
+  rule whose outcome made it.
+- **Numbers stay finite.** An amount that is not a finite number (a prop that is a word, an overflow)
+  is refused, and so is a prop written as NaN or Infinity. One effect makes at most `params.spawnMax`
+  things (64; the content makes at most 8); a heal never takes; levels come at most a hundred at a time.
+- **Things stay where a thing can be.** A place is a whole cell inside its map, or a holder that is
+  there and is not the thing nor inside it. One goes only to a map that is loaded, in the portal
+  graph, or named by a site. An essential thing may become anything that can act (a spell that
+  turns one into a hen), and stays essential as it; never a thing that cannot act.
+- **A rule that keeps failing is set aside.** A learned rule's outcome stops at its first refused
+  effect; when a base rule refuses what a learned rule sent it, the sender is charged. After three
+  failures, or at once for a chain that would not end, the rule goes into the state's `quarantine`
+  (kept in saves): it answers no more, and its hole is open again.
 
 **The twelve sources of the previous model**, all covered:
 

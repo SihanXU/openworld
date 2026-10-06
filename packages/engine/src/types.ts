@@ -122,6 +122,8 @@ export interface QualityDef {
 export interface WorldParams {
   /** The share of its makeup a thing leaves when it breaks (D9). */
   recovery: number
+  /** How many things one effect may make at once (a runtime guard; default 64). */
+  spawnMax?: number
   /** A drop of this many levels or less does no harm (world-model.md §5.5). */
   safeFall: number
   /** The harm of each level fallen beyond the safe height. */
@@ -838,6 +840,8 @@ export interface WorldState {
   spawn: Pos
   /** The engine's record of the broken invariants it has already reported (not world state: the detector's memory). */
   reported?: string[]
+  /** Learned rules set aside for misbehaving at runtime (the engine's guards): their holes are open again. */
+  quarantine?: Record<string, { tick: number; reason: string }>
   /** A yes/no question waiting for the player (Action: "Eat the apple?"); time stops while it is open. */
   question?: { text: Text; plan: Plan }
   /** Maps the player is not on: frozen since a tick, with the events addressed to them (design.md §5.12). */
@@ -963,6 +967,10 @@ export interface GameEvent {
   /** How many events led to this one within the chain. */
   depth?: number
   tick?: number
+  /** The chain it belongs to (engine-assigned): the event that began it, through every outcome it set off. */
+  chain?: number
+  /** The rule whose outcome made it (engine-assigned): what the guards charge when a chain runs away. */
+  by?: string
 }
 
 // ------------------------------------------------------------------ rules (design.md §5.6, §6)
