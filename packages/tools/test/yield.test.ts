@@ -189,3 +189,48 @@ describe('no endless yield (world-model.md §8.4)', () => {
     expect(endless).toEqual([])
   }, 300_000)
 })
+
+describe('the repeat check, exact (world-model.md §8.4)', () => {
+  const statue = { type: 'fixture/sacred/statue' }
+  const validate = (rule: Omit<Rule, 'source'>) => validatePatch(patch(rule), { ontology: onto, library: lib(), scenario: blowOnStatue() }).errors.join('\n')
+  /** A blow on the statue chips off a stick while fewer than `n` have been taken. */
+  const chips = (n: number): Omit<Rule, 'source'> => ({
+    id: `patch/statue-chips-${n}`,
+    host: statue,
+    on: 'impulse/strike',
+    tree: { if: { prop: { role: 'host', key: 'chipped', default: 0, cmp: { lt: n } } }, then: { do: [STICK, { op: 'addProp', key: 'chipped', delta: 1 }] }, else: { do: [] } },
+  })
+
+  it('a store that runs out passes: twenty sticks and no more (it used to be refused after twelve)', () => {
+    expect(validate(chips(20))).not.toMatch(/endless yield/)
+  })
+
+  it('a store too big to give at once is refused: it must come back over time', () => {
+    expect(validate(chips(100))).toMatch(/endless yield: .*65 things from 65 replays/)
+  })
+
+  it('a cycle is named: the replays that come back to where they began, and what they make each time round', () => {
+    expect(validate({ id: 'patch/statue-sticks', host: statue, on: 'impulse/strike', tree: { do: [STICK] } })).toMatch(/every 1 replay\(s\) come back to where they began and make 1 thing/)
+    // a host that turns into another and back, a stick each way: a round of two
+    const flip = (from: string, into: string): Rule => ({ id: `patch/flip-${from.split('/').at(-1)}`, host: { type: from }, on: 'impulse/strike', tree: { do: [STICK, { op: 'transform', into }] }, source: { origin: 'patch' } })
+    const both: Patch = { artifacts: [{ kind: 'rule', rule: flip('fixture/sacred/statue', 'fixture/sacred/altar') }, { kind: 'rule', rule: flip('fixture/sacred/altar', 'fixture/sacred/statue') }] }
+    const errs = validatePatch(both, { ontology: onto, library: lib(), scenario: blowOnStatue() }).errors.join('\n')
+    expect(errs).toMatch(/every 2 replay\(s\) come back to where they began and make 2 thing/)
+  })
+})
+
+describe('every chain ends (design.md A7), proven on the scene', () => {
+  it('an answer that sets itself off again is refused before it ships, with the round', () => {
+    // a blow on the statue strikes the statue again: nothing runs out
+    const errs = validatePatch(patch({ id: 'patch/statue-echo', host: { type: 'fixture/sacred/statue' }, on: 'impulse/strike', tree: { do: [{ op: 'emit', impulse: 'strike', to: 'host' }] } }), { ontology: onto, library: lib(), scenario: blowOnStatue() }).errors.join('\n')
+    expect(errs).toMatch(/chain: the triggering event sets off events that never end: it sets off the same event on the same world again: impulse\/strike on fixture\/sacred\/statue → impulse\/strike on fixture\/sacred\/statue/)
+  })
+
+  it('a chain that ends passes, and one gated by something that runs out ends', () => {
+    const gated = validatePatch(
+      patch({ id: 'patch/statue-rings', host: { type: 'fixture/sacred/statue' }, on: 'impulse/strike', tree: { if: { prop: { role: 'host', key: 'rung', default: 0, cmp: { lt: 3 } } }, then: { do: [{ op: 'addProp', key: 'rung', delta: 1 }, { op: 'emit', impulse: 'strike', to: 'host' }] }, else: { do: [] } } }),
+      { ontology: onto, library: lib(), scenario: blowOnStatue() },
+    )
+    expect(gated.errors.join('\n')).not.toMatch(/chain:/)
+  })
+})

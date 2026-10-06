@@ -791,6 +791,20 @@ one pushed makes way first, and the pusher steps in only if it has gone. A cell 
 comes to rest beside it. Saves keep the migrated cells of maps not yet entered (`legacyTiles`,
 `reseed` in the state).
 
+As built (2026-10-06): the repeat check is **exact**, not sampled (`yieldCycle`, `whyEndless`). After each
+replay it keeps the state of the event's participants (type, props, statuses, tags, place; what
+they hold aside). When a state comes back, the replays between are a cycle that can go round for
+ever: endless if it made anything, and the refusal names the cycle ("every 2 replays come back to
+where they began and make 2 things"). When the host is used up, or the replays settle making
+nothing, it ends. A store that keeps giving without coming back (charges counting down) passes
+while it gives at most 64 (`YIELD_MOST`); a bigger one must come back over time. So a bush picked
+twenty times passes (it was refused after twelve), and a thing that turns into another and back,
+a stick each way, is caught. It still runs under every outcome of the chances reached. Beside it,
+**every chain ends** is proven on the scene (`chainLoop`, design.md A7): the event and all it sets
+off are followed through the ticks they wait, and an event that sets off, by way of its own
+outcomes, the same event on the same world again is a loop. The refusal is the round, parent to
+child; a chain still going after 50 ticks or 1,500 events is refused too.
+
 As built (W2c): the repeat check is `endlessYield` (engine `sandbox.ts`): the triggering event
 replayed 12 times with no time between; if its host still stands and any of the last 4 replays
 made a thing, the patch is refused. It applies to what someone can repeat at will (acts, impulses,
