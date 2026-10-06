@@ -6,7 +6,7 @@
 import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Text, type WorldIndex } from '@lsw/engine'
 import { OBJECTIVES, PROLOGUE_DONE, PROLOGUE_OBJECTIVES } from '@lsw/content'
 import { CATALOG } from '../assets/catalog.ts'
-import { assetUrl } from '../render/assets.ts'
+import { assetUrl, cssAssetUrl } from '../render/assets.ts'
 import { $, MOOD_GLYPH, SLOT_KEYS, controlsTable, esc, locale, t, tx } from './common.ts'
 
 export interface HudSend {
@@ -97,8 +97,8 @@ export class Hud {
       <div class="dialog hidden" id="dialog"><div class="face" id="dFace"></div><div class="dtext"><div class="dname" id="dName"></div><div class="dline" id="dLine"></div><div class="dchoices hidden" id="dChoices"></div></div><div class="dmore" id="dMore">▼</div></div>
       <div class="fade hidden" id="fade"><div id="fadeText"></div></div>
       <div class="card hidden" id="card"><div class="card-text" id="cardText"></div><div class="dmore">▼</div></div>`
-    $('#hotbar').style.setProperty('--heart', `url("${assetUrl('Ui/Receptacle/Heart.png')}")`)
-    $('#hotbar').style.setProperty('--drum', `url("${assetUrl(CATALOG.ui.drumstick.img)}")`)
+    $('#hotbar').style.setProperty('--heart', cssAssetUrl('Ui/Receptacle/Heart.png'))
+    $('#hotbar').style.setProperty('--drum', cssAssetUrl(CATALOG.ui.drumstick.img))
     $('#jbtn').onclick = () => this.send.openJournal()
     $('#mbtn').onclick = () => this.send.openMenu()
     $('#bagBtn').onclick = () => this.send.toggleInventory()

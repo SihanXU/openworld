@@ -8,6 +8,10 @@ import type { ActorDef, Catalog, FxDef, SpriteDef } from '../assets/types.ts'
 /** Pack files live under assets/na/ (copied by tools/copyAssets.ts); the project's own art under assets/lsw/ (paths starting `lsw/`). */
 export const assetUrl = (path: string) => encodeURI(`${import.meta.env.BASE_URL}assets/${path.startsWith('lsw/') ? path : `na/${path}`}`)
 
+/** A pack file as a CSS url() for a custom property. Absolute: a relative url() in a variable resolves against the
+ *  stylesheet that uses it, which a build puts under assets/ (BASE_URL is './'), so it would point at assets/assets/. */
+export const cssAssetUrl = (path: string) => `url("${new URL(assetUrl(path), document.baseURI).href}")`
+
 /** Every image path the catalogue references (loaded up front; the pack subset is small). */
 export function imagePaths(c: Catalog): string[] {
   const s = new Set<string>()

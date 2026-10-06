@@ -7,7 +7,7 @@ import Phaser from 'phaser'
 import type { Dir, Frame, ItemInfo, Key, LibraryData, SaveData, Text } from '@lsw/engine'
 import { CATALOG } from './assets/catalog.ts'
 import type { FromWorker, Tile, ToWorker } from './protocol.ts'
-import { assetUrl, registerArt } from './render/assets.ts'
+import { cssAssetUrl, registerArt } from './render/assets.ts'
 import { WorldScene } from './render/scene.ts'
 import { kvGet, kvSet } from './storage.ts'
 import { writeSlot, type Slot } from './saves.ts'
@@ -106,7 +106,7 @@ const tooltip = new Tooltip(() => ({
   },
 }))
 menu.registerTip = (key, info) => tooltip.register(key, info)
-document.documentElement.style.setProperty('--drum-icon', `url("${assetUrl(CATALOG.ui.drumstick.img)}")`)
+document.documentElement.style.setProperty('--drum-icon', cssAssetUrl(CATALOG.ui.drumstick.img))
 hud.threadDoc = (rule) => menu.library?.patches.find((r) => r.id === rule)?.doc
 
 /** The latest frame (for aiming the chooser), and the chooser's handler (set below). */
