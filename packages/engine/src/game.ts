@@ -2,6 +2,7 @@
 
 import { START_HOUR, TICKS_PER_HOUR, type WeatherSpan } from './calendar.ts'
 import { Engine, type MapChunk } from './engine.ts'
+import { HUNGER_EVERY } from './hunger.ts'
 import { ModPort } from './mod.ts'
 import { RuleLibrary, type LibraryData } from './rules.ts'
 import type { Guide } from './story.ts'
@@ -188,6 +189,10 @@ function upgrade(eng: Engine, index: WorldIndex): void {
   for (const e of Object.values(s.entities)) {
     // Early Iron Stomach saves used its delta as an absolute interval (faster, not slower).
     if (e.tags?.includes('skill:iron-stomach') && e.props?.hungerEvery === 150) w.setProp(e, 'hungerEvery', 450)
+    // Hunger's base pace was a point every 300 ticks (now HUNGER_EVERY): a skill's kept interval on
+    // the old scale (300, 450, 600) is scaled to the new one.
+    const every = e.props?.hungerEvery
+    if (every === 300 || every === 450 || every === 600) w.setProp(e, 'hungerEvery', Math.round((every * HUNGER_EVERY) / 300))
     // the night-born were marked by a prop before they had a tag
     if (e.props?.nightborn) (w.setProp(e, 'nightborn', undefined), w.addTag(e, 'nightborn'))
     // A save taken while an outcome was being worked out holds its participants, but the request

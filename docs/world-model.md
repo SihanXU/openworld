@@ -333,6 +333,15 @@ night costs about four points of twenty, and only an empty stomach is woken by h
 (`tools/test/rest.test.ts`). Not yet: the owners of what is in a room,
 and rooms on the overworld.
 
+Hunger in two paces (2026-10-06, hunger.ts): fed, a point every 48 game minutes, full to six tenths
+between meals (a meal, 8, fills it again); under six tenths one is `hungry` (the threshold line
+`hungry`, `ThresholdDef.below` a share of another prop and `both` ways, rule `body/hungry`) and the
+hunger period comes 7.5 times slower, so full to empty takes about three days. The paces of `paceBy`
+multiply (asleep and hungry). A period on a host's own pace (`everyProp`, `paceBy`) comes on by its
+progress (`Engine.progress`): the ticks gone by over its interval as the pace is now, carried over a
+change of pace, so a change never brings the next one at once (on the clock's beat it fired at once
+when a slower pace's multiple happened to be near); a jump of the clock catches up.
+
 As built (2026-10-05): room shapes have a geometry version per map. Keeping a static cell's
 changed state does not change that version. Each map counts upper-storey floor and volume
 occupants, so an outdoor map without any returns no rooms without flooding. Roles still read

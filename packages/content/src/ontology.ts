@@ -1,7 +1,7 @@
 // Base ontology: terrains, statuses, elements, visual effects and the type tree
 // for actors and fixtures. Item types come from the catalogue in items.ts.
 
-import { APPEAR_TICK, HUNGER_EFFECT_EVERY, HUNGER_EVERY, type Cond, type Ontology, type StageDef, type StatusDef, type TerrainDef, type TypeDef } from '@lsw/engine'
+import { APPEAR_TICK, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE, type Cond, type Ontology, type StageDef, type StatusDef, type TerrainDef, type TypeDef } from '@lsw/engine'
 import { ELEMENT_NAMES, MATERIALS, MATERIAL_DEFS, QUALITIES, QUALITY_DEFS, itemTypes } from './items.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
@@ -194,6 +194,8 @@ export const STATUSES: StatusDef[] = [
   { id: 'out_cold', name: { en: 'out cold', zh: '昏迷' }, duration: 50, immobilize: true },
   // asleep in a bed: lying still while the night passes, hungry four times slower (the hunger period's paceBy)
   { id: 'asleep', name: { en: 'asleep', zh: '睡着' }, immobilize: true },
+  // under six tenths of a full food bar: hunger falls slowly now (a body goes days without food)
+  { id: 'hungry', name: { en: 'hungry', zh: '饿了' } },
   // a wound that bleeds 1 a second (Hemorrhage), and the rush of Adrenaline (the skills)
   { id: 'bleeding', name: { en: 'bleeding', zh: '流血' }, duration: 40, every: 10 },
   { id: 'adrenaline', name: { en: 'adrenaline', zh: '肾上腺素' }, duration: 50, every: 10 },
@@ -464,7 +466,11 @@ export function buildOntology(): Ontology {
     terrains: Object.fromEntries(TERRAINS.map((t) => [t.id, t])),
     // the lines whose crossing is an event, and the clocks (design.md §5.7)
     // every thing with durability breaks at none (world-model.md §6.3): a person goes down, a tree falls, rock breaks
-    thresholds: [{ name: 'broken', prop: 'hp', lte: 0 }],
+    thresholds: [
+      { name: 'broken', prop: 'hp', lte: 0 },
+      // under six tenths of a full bar one is hungry; fed over it again, not (body/hungry)
+      { name: 'hungry', prop: 'hunger', below: { prop: 'maxHunger', mul: HUNGRY_BELOW }, both: true },
+    ],
     // what things are made of, and how well each instrument works on each (world-model.md §4.5, §6.1)
     materials: MATERIAL_DEFS,
     qualities: QUALITY_DEFS(),
@@ -479,7 +485,8 @@ export function buildOntology(): Ontology {
       { role: 'storeroom', needs: { type: 'fixture/container' }, count: 3 },
     ],
     periods: [
-      { name: 'hunger', every: HUNGER_EVERY, everyProp: 'hungerEvery', paceBy: { asleep: 4 }, host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
+      // fed it falls fast, between meals; hungry (under six tenths) slowly, over days; asleep slower still
+      { name: 'hunger', every: HUNGER_EVERY, everyProp: 'hungerEvery', paceBy: { asleep: 4, hungry: HUNGRY_PACE }, host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
       { name: 'vitals', every: HUNGER_EFFECT_EVERY, host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
       // what appears by itself: the ground's yield, creatures that come back, the night's walkers (world-model.md §6.9)
       { name: 'appear', every: APPEAR_TICK, host: 'world' },

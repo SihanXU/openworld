@@ -5,7 +5,7 @@
 // contact, time and sight are no change, elements follow physics. Anything these rules leave
 // undefined is the Mod port's.
 
-import { type Amount, type Cond, type Effect, type Text, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@lsw/engine'
+import { HUNGRY_BELOW, type Amount, type Cond, type Effect, type Text, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@lsw/engine'
 
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
 const L = (en: string, zh: string) => ({ en, zh })
@@ -369,13 +369,25 @@ const BODIES: Rule[] = [
     tree: IF(param('status', 'adrenaline'), DO({ op: 'heal', amount: 1 }), 'inherit'),
   }),
   rule({
+    id: 'body/hungry',
+    doc: 'Under six tenths of a full food bar one is hungry (hunger falls slowly then: a body goes days without food); fed over it again, one is not.',
+    host: { type: 'actor', props: { maxHunger: { gt: 0 } } },
+    on: 'threshold/cross',
+    tree: IF(param('name', 'hungry'), IF(param('way', 'up'), DO({ op: 'removeStatus', status: 'hungry' }), DO({ op: 'addStatus', status: 'hungry' })), 'inherit'),
+  }),
+  rule({
     id: 'body/hunger',
-    doc: 'Hunger (Minecraft\'s food bar): it drains; well fed (90 % and up) the body heals, starving (0) it loses health, but never the last point.',
+    doc: 'Hunger (Minecraft\'s food bar): it drains — fast while fed, slowly once hungry; well fed (90 % and up) the body heals, starving (0) it loses health, but never the last point.',
     host: { type: 'actor', props: { maxHunger: { gt: 0 } }, notStatus: ['down'] },
     on: 'time/period',
     tree: IF(
       param('name', 'hunger'),
-      DO({ op: 'addProp', key: 'hunger', delta: -1, min: 0 }),
+      // under the line without the status (a save from before it, a thing made hungry): it is put right
+      IF(
+        all({ prop: { role: 'host', key: 'hunger', bounds: { lt: { prop: 'maxHunger', of: 'host', mul: HUNGRY_BELOW } } } }, not(has('host', 'hungry'))),
+        DO({ op: 'addProp', key: 'hunger', delta: -1, min: 0 }, { op: 'addStatus', status: 'hungry' }),
+        DO({ op: 'addProp', key: 'hunger', delta: -1, min: 0 }),
+      ),
       IF(
         param('name', 'vitals'),
         IF(

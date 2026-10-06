@@ -277,11 +277,15 @@ export interface AppearDef {
 }
 
 export interface ThresholdDef {
-  /** The event's `name` param ("broken", "starving"). */
+  /** The event's `name` param ("broken", "hungry"). */
   name: string
   prop: string
   /** Crossed when the value comes to this or below. */
-  lte: number
+  lte?: number
+  /** Or crossed when it comes under this share of another prop of the thing (hungry: under 60 % of maxHunger). */
+  below?: { prop: string; mul: number }
+  /** Crossed back as well: the value rises over the line again (the event's param `way` is `up`). */
+  both?: boolean
 }
 
 export interface PeriodDef {

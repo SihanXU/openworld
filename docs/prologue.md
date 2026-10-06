@@ -52,8 +52,10 @@ The way out opens on the first morning after the house stands, not at the first 
 who does nothing is not let out the next day. What the steps need, and where:
 
 - Coming round: `StartDef.statuses` (`out_cold`, immobilizing, drawn lying).
-- Food: berries (food 2 each); hunger falls 2 an hour and a hungry sleeper wakes in the night, so
-  Pip says to eat one's fill before sleeping.
+- Food: berries (food 2 each). Hunger falls in two paces (hunger.ts): fed, a point every 48 game
+  minutes, full to six tenths between meals; under six tenths one is hungry and it falls a point
+  every six hours (full to empty in about three days); asleep, four times slower. A starving
+  sleeper wakes in the night, so Pip says to eat one's fill before sleeping.
 - Making: the stone axe, the torch (a stick and grass), walls, a door, a floor and a bed (planks;
   the bed also grass), all by hand (C); the campfire from the building panel (B) or by putting
   stones and sticks together; an axe on a log splits it into planks.
