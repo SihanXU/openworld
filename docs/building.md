@@ -99,7 +99,15 @@ E, use. It is a rule of where one stands, not of who one is.
 
 ## 5. Aim, choice and preview
 
-- **The aim** is always a cell on one's own storey: the pointer maps to the plane one stands on, as now.
+- **Where one points, it is built and shown** (the user's rule). The pointer is mapped onto the plane
+  of the storey being built:
+  - building on one's own storey: the plane one stands on (as before);
+  - laying the ceiling: the plane a storey up. The cell built is the one whose ceiling is drawn under
+    the pointer, the view's `over` (`Aim.over`, as `stack` is the view's).
+
+  A storey up is drawn a tile up, so `over` is the cell south of the one pointed at on one's own plane.
+  The preview, the thing built, and the roof seen from outside all stand at the same spot under the
+  pointer.
 - **Choosing the ceiling:**
   - In the build palette, R toggles a floor entry between *floor* and *ceiling*, as it turns
     stairs, and dragging lays a row of either.
@@ -107,14 +115,24 @@ E, use. It is a rule of where one stands, not of who one is.
   - G alone lays a floor in F(z).
   - Taking the ceiling is in the long-press list only (*take down the ceiling*). It is never the
     default of F.
-- **The preview** shows the thing where it will be:
-  - a block as its front and top (two tiles high) at the cell;
-  - a floor flat on the cell;
-  - a ceiling one row up, where it will be drawn, with a dashed outline on the cell under it.
+- **The preview** shows the thing where it will be drawn:
+  - a block as its front and top (two tiles high) at its cell;
+  - a floor flat on its cell;
+  - a ceiling a storey up: under the pointer.
+
+  Two tries were wrong, and are recorded here:
+  - The ceiling was taken over the cell pointed at, and drawn a row up from it: one clicked a cell and
+    the ceiling appeared over the one behind it.
+  - The preview was then drawn on the cell pointed at while the ceiling still appeared a row up.
 - **The labels** say which: "Place wall", "Lay floor", "Lay ceiling", "Take down ceiling".
-- **The ceiling overlay.** While the palette is open, the cells of one's storey that have a ceiling
-  are tinted (RimWorld's roof overlay). In a room the ceiling is not drawn, so this is how one sees
-  what is roofed.
+- **The palette shows one's own storey.** While the palette is open, nothing above one's storey is
+  drawn (The Sims' build mode: one edits one level). While one lays ceilings, those over one's storey
+  are tinted, translucent, where they are drawn (RimWorld's roof overlay), so they never hide what is
+  under them.
+- **Under cover, what is above is not drawn.** This holds wherever one stands with something built
+  over one's cell: over the covered stretch one stands in, bounded by walls, and round it. A room
+  shut in is not needed, so with the door open or a wall missing one still sees in (the ceiling no
+  longer covers the bed, the fire, the stairs). From outside, a house shows its upper storey and roof.
 
 ## 6. The table of cases
 
@@ -222,16 +240,19 @@ Taking it down is the reverse, step by step. Every step is reachable, and nothin
 - **Reach.** `Engine.inReach` lets a put or a take reach the floor slot of the storey above: a laid floor
   or the open air.
 - **Choosing the ceiling.** The ceiling is `CEILING` (layer −1) of `Controls.plan` and `choices`: the
-  chooser's last entry, never a default. The build palette's `up`, carried by the `build` and
-  `buildAim` messages, toggles with R for a floor.
+  chooser's last entry, never a default. It is the ceiling of `Aim.over` (the cell whose ceiling is
+  drawn at the pointer, from `WorldScene.aimAtScreen`), else of the cell aimed at. The build palette's
+  `up`, carried by the `build` and `buildAim` messages, toggles with R for a floor; it sends the
+  `over` cell as the tile.
 - **The dry run is structural.** A move counts as a change whether or not the thing could rest there, so
   `Controls.planOn` checks a put on a cell or a built thing against `settleWhy`, and a take against
   `World.bears`: a floor above the ground that something rests on. The `move` primitive refuses to move
   a floor that bears anything.
 - **The client:**
-  - the preview at the target slot (a block two tiles high; a ceiling a tile up over a dashed outline);
+  - the preview where the thing will be drawn (a block two tiles high; a ceiling under the pointer);
+  - what is above one's storey hidden under cover (`WorldScene.coveredRound`) and while the palette is open;
   - the palette's ceiling toggle and its line in the details;
-  - `WorldScene.setCeilingOverlay` while the palette is open;
+  - `WorldScene.setBuildView` while the palette is open (one's own storey; the ceilings tinted where they are drawn while one lays them);
   - the prologue's house hint tells how to lay the ceiling.
 - **Tests:** `packages/content/test/building.test.ts` ("storeys: what one reaches…"), one test per table
   of §6, and W10, W12 and the tutorial walkthrough laying the ceiling by choice.

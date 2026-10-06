@@ -235,7 +235,7 @@ export class Controls {
   }
 
   /** The spot aimed at itself, on one's own storey (no step back toward oneself). */
-  private spot(aim?: Aim): Pos | undefined {
+  private spot(aim?: { x: number; y: number }): Pos | undefined {
     const pos = this.w.posOf(this.w.player)
     return aim && pos ? { ...pos, x: aim.x, y: aim.y } : undefined
   }
@@ -327,9 +327,13 @@ export class Controls {
   plan(key: Key, aim?: Aim, layer = 0): Plan | undefined {
     const a = this.aim(aim, key)
     if (!a) return undefined
-    // the ceiling, chosen (never a default): a floor laid in it, or taken down — over the spot aimed at
-    // itself (what is on one's own storey there does not matter; the act's reach is the engine's)
-    if (layer === CEILING) return key === 'put' || key === 'take' ? this.planOn(key, this.spot(aim) ?? a.at, this.ceilingOf(this.spot(aim) ?? a.at)) : undefined
+    // the ceiling, chosen (never a default): a floor laid in it, or taken down — the one drawn at the
+    // point (the view's `over`), else over the spot aimed at itself (what is on one's own storey there
+    // does not matter; the act's reach is the engine's)
+    if (layer === CEILING) {
+      const at = this.spot(aim && (aim.over ?? aim)) ?? a.at
+      return key === 'put' || key === 'take' ? this.planOn(key, at, this.ceilingOf(at)) : undefined
+    }
     const p = this.planAt(key, a.at, a.stack, layer)
     // E with no spot pointed at (or the pointer beyond reach): the spot in front or toward the
     // pointer — unless what is there has no answer of its own and what one stands on has one (the

@@ -686,6 +686,12 @@ export interface Aim {
   x: number
   y: number
   stack?: Ref[]
+  /**
+   * The cell whose ceiling (the floor of the storey above) is drawn at the point: the view's to say,
+   * as `stack` is (a storey up is drawn a tile up). The ceiling, chosen, is laid or taken there
+   * (docs/building.md §5); without it, over the cell aimed at.
+   */
+  over?: { x: number; y: number }
 }
 
 export interface MapData {
