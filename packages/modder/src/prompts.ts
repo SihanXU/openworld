@@ -139,6 +139,41 @@ The rule was written because an event reached an outcome no rule defined (a play
 - the lines read right when a name slot is the player ("you"): no "{actor} holds", no "{target}'s".
 Respond with JSON only: {"verdict": "ship" | "revise", "notes": ["..."]}. Default to "ship"; "revise" only for a real problem, with concrete notes.`
 
+export const AUDIT_SYSTEM = `You audit a rule a modder just wrote for a 2D JRPG world, as a player out to break the game. The rule is valid code and passed the deterministic checks; your job is what they cannot see.
+Look for what a player would call an exploit or a bug, caused by this patch:
+- farm: something made again and again for nothing, or for far less than it is worth;
+- value: a cheap road to a rare or strong thing (a stick that becomes a legendary sword);
+- softlock: the player, or someone the story needs, can no longer act, move, or go on;
+- harm: someone hurt, taken or destroyed who should not be;
+- runaway: a chain of events that never settles, or a number that grows without end.
+What the patch is plainly meant to do is not a finding; nor is anything the world already did without it.
+You have tools: look (the scene) and run (play steps in a copy of the scene, with the patch and without it). Prove each finding: run it, then report it with the setup, the steps and the claims that must hold at the end.
+Answer with JSON only: {"findings": [{"title": "...", "kind": "farm|value|softlock|harm|runaway|other", "setup": [...], "steps": [...], "expect": [claims]}]}; {"findings": []} when you found nothing.
+Claims: {"count": {"type", "in"?: key, "atLeast": n}}, {"prop": {"key", "name", "atLeast"?: n, "atMost"?: n}}, {"status": {"key", "has"}}, {"gone": key}, {"is": {"key", "type"}}, {"events": {"atLeast": n}}.
+A finding counts only if the sandbox shows it with the patch and not without it.`
+
+export function auditUser(req: ModRequest, patch: Patch, outcome: string): string {
+  return [
+    `# What happened (${req.origin === 'player' ? "the player's act" : 'the world by itself'})\n${req.summary}`,
+    `event: ${req.event.kind} ${JSON.stringify(req.event.params)}; the scene's keys: ${req.scenario.entities.map((e) => `${e.key} (${e.type})`).join(', ')}`,
+    '',
+    '# The patch',
+    ...patch.artifacts.map((a) => JSON.stringify(a.kind === 'rule' ? { rule: { id: a.rule.id, host: a.rule.host, on: a.rule.on, tree: a.rule.tree } } : a.kind === 'type' ? { type: { ...a.type, art: undefined } } : a)),
+    '',
+    '# What happens now when it happens',
+    outcome,
+  ].join('\n')
+}
+
+/** Confirmed findings, sent back to the designer (or to a revision). */
+export function auditNotes(findings: { title: string; kind: string; evidence: string }[]): string[] {
+  return findings.map((f) => `${f.kind}: ${f.title}\n${f.evidence}`)
+}
+
+export function auditRepairUser(notes: string[]): string {
+  return ['An auditor broke the patch in the sandbox (shown with the patch and not without it):', ...notes.map((n) => `- ${n}`), '', 'Change the patch so this cannot happen (make it cost something, run out, or give less), and answer with the complete JSON object, same format.'].join('\n')
+}
+
 export function reviewUser(req: ModRequest, patch: Patch, outcome: string, neighbours: Rule[], flags: string[] = []): string {
   const rules = patch.artifacts.filter((a) => a.kind === 'rule').map((a) => (a.kind === 'rule' ? a.rule : undefined)!)
   const ent = (r: string, e?: { name: string; type: string; tags: string[]; statuses: string[] }) => (e ? `${r}: ${e.name} (${e.type}) tags=${e.tags.join(',')} statuses=${e.statuses.join(',')}` : `${r}: none`)

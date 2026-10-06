@@ -7,7 +7,7 @@ import { Server } from 'node:http'
 import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildRequest, buildSandbox, scenarioEvent, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
-import { Modder, ScriptedModel, SelfState, WorldLibrary, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, narrowKinds, parseJson, qualifyTerrains, scriptFromFile, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
+import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, narrowKinds, parseJson, qualifyTerrains, scriptFromFile, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
@@ -151,8 +151,8 @@ function scripted(drafts: (Patch | string)[], over: Partial<Record<'review' | 'r
 function setup(model?: Model, dir = mkdtempSync(join(tmpdir(), 'lsw-modder-')), profile: 'live' | 'offline' = 'offline') {
   const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
   const state = SelfState.open(join(dir, 'modder-state'))
-  // these tests drive the patch pipeline (json); the repo-form agent has its own tests
-  state.setHarness({ ...state.harness(), offline: { ...state.harness().offline, design: { ...state.harness().offline.design, mode: 'json' } } }, 'test: json pipeline offline')
+  // these tests drive the patch pipeline (json); the repo-form agent has its own tests; the auditor too (audit.test.ts)
+  state.setHarness({ ...state.harness(), audit: { ...auditOf(state.harness()), enabled: false }, offline: { ...state.harness().offline, design: { ...state.harness().offline.design, mode: 'json' } } }, 'test: json pipeline offline')
   const modder = new Modder({ library, state, model, profile })
   return { dir, library, state, modder }
 }
@@ -575,7 +575,9 @@ describe('integrity', () => {
     // the service's base rules have learned what the client's have not
     const newer: Rule = { ...bindRule('creature/offered-rope'), source: { origin: 'base' } }
     const library = new WorldLibrary(onto, [...BASE, newer], join(dir, 'library.jsonl'))
-    const modder = new Modder({ library, state: SelfState.open(join(dir, 'modder-state')), model })
+    const state = SelfState.open(join(dir, 'modder-state'))
+    state.setHarness({ ...state.harness(), audit: { ...auditOf(state.harness()), enabled: false } }, 'test: no auditor')
+    const modder = new Modder({ library, state, model })
     const reply = await modder.resolve({ request: request() })
     expect(reply).toMatchObject({ patch: null, outcome: 'failed' })
     expect(reply.diagnostics?.join()).toMatch(/creature\/offered-rope/)
