@@ -573,7 +573,9 @@ At the Ford:
   - At the time-out the leaf's default runs. A patch that comes later replays the event if
     it still applies.
 - **Before the press.** Aiming dry-runs the act through the events it emits. Reaching a hole
-  marks the label `?` and starts the request early (prefetch).
+  marks the label `?`. Starting the request early (prefetch) is off by default (`?prefetch=1`):
+  in play it committed patches to the shared library for acts the player never made, and a failed
+  one escalated to an offline run (2026-10-07).
 - **Boundaries.**
   - Only the story's own rules write its protected facts (`ford.`, `seen.`, `invalid.`).
   - An `essential` actor goes down and is never destroyed.

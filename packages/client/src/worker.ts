@@ -83,11 +83,11 @@ let modderOnline = false
 
 // Prefetch: the action prompt knows an interaction is undefined before E is pressed. Pointing at
 // one spot with something in hand for a second and a half starts the request, so the patch is often
-// there first. Each costs a model call: moving the pointer starts the wait over, a session makes few,
-// and `?prefetch=0` makes none.
+// there first. Off unless the page asks (`?prefetch=1`): what it learns is committed to the shared
+// library for acts the player never made, and each costs model calls (a failed one escalates).
 const PREFETCH_DWELL_TICKS = 15
 const PREFETCH_CAP = 12
-let prefetchOn = true // the page's ?prefetch=0 turns it off (init)
+let prefetchOn = false // the page's ?prefetch=1 turns it on (init)
 let probe: { key: string; spot: string; ev: GameEvent; res: Resolution; ticks: number } | undefined
 const prefetched = new Set<string>()
 let prefetching = false

@@ -347,7 +347,7 @@ const cover = new Cover(WORLD, {
     quietSave = true
     const library = await kvGet<LibraryData>('library')
     const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
-    send({ t: 'init', base, save: data?.save, library, modder: MODDER, prefetch: PARAMS.get('prefetch') !== '0', difficulty: game?.difficulty, start: game?.start })
+    send({ t: 'init', base, save: data?.save, library, modder: MODDER, prefetch: PARAMS.get('prefetch') === '1', difficulty: game?.difficulty, start: game?.start })
   },
   tutorial: async () => {
     // its own run: nothing is saved, and the story's main line is not reached from it
