@@ -32,8 +32,8 @@ export const OBJECTIVES: Record<number, Objective> = {
   1: {
     title: L('Mend the bridge', '修好断桥'),
     hint: L(
-      'The White Knight tore three planks out of the footbridge by the marsh. An axe fells a tree (two swings) and splits a log into planks; right click lays a plank on the water. Any other way across counts too: E handles things, F takes, left click uses what you hold, right click puts it.',
-      '白骑士拆走了沼泽边小桥上的三块木板。斧头能砍倒树（砍两下），也能把木头劈成木板；右键把木板铺到水上。别的过河办法也算：E 空手摆弄，F 拿取，左键用手里的东西，右键放下或交出。',
+      'The White Knight tore three planks out of the footbridge by the marsh. An axe fells a tree (two swings) and splits a log into planks; G lays a plank on the water. Any other way across counts too: E handles things, F takes, G puts or hands over, left click uses what you hold, right click uses it on yourself.',
+      '白骑士拆走了沼泽边小桥上的三块木板。斧头能砍倒树（砍两下），也能把木头劈成木板；G 把木板铺到水上。别的过河办法也算：E 空手摆弄，F 拿取，G 放下或交出，左键用手里的东西，右键对自己用。',
     ),
   },
   2: {

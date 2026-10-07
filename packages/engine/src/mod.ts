@@ -154,6 +154,8 @@ export interface UndefinedRecord {
   origin: 'player' | 'world'
   /** A reply from the provider is still on its way (it may arrive after the default ran). */
   awaiting?: boolean
+  /** The player would not wait (the default ran at their word): a late answer is learned, never replayed. */
+  declined?: boolean
   patch?: Patch
   diagnostics?: string[]
   rules?: string[]
@@ -507,10 +509,11 @@ export class ModPort implements UndefinedSink {
   }
 
   /** Nobody answered in time (or the answer failed): the default runs; a later patch still applies. */
-  fallback(id: string): void {
+  fallback(id: string, declined = false): void {
     const r = this.get(id)
     if (!r || r.status !== 'pending') return
     r.status = 'fallback'
+    if (declined) r.declined = true
     this.unfreeze(id)
     this.eng.run(r.request.hole.default, r.event, r.request.hole.rule)
     this.syncBag()
@@ -587,7 +590,9 @@ export class ModPort implements UndefinedSink {
   /** A record's question is answered: the held let go, and the event replays if it still stands. */
   private settled(rec: UndefinedRecord, patch: Patch, ruleIds: string[]): void {
     const eng = this.eng
-    const wasOpen = rec.status !== 'patched'
+    // a late answer completes the act it was asked for (after a time-out), unless the player
+    // declined to wait: they have moved on, and what they gave up does not happen behind them
+    const wasOpen = rec.status !== 'patched' && !rec.declined
     rec.patch = patch
     rec.rules = ruleIds
     rec.status = 'patched'

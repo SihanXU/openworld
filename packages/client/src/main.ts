@@ -32,7 +32,8 @@ const scene = new WorldScene()
 const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
 const send = (m: ToWorker) => worker.postMessage(m)
 // dev-only hook for scripted testing from the console
-if (import.meta.env.DEV) (window as unknown as { lsw: unknown }).lsw = { send, scene }
+// development: lsw.god() toggles the player's invulnerability (lsw.god(true) / lsw.god(false)); ?god=1 turns it on at start
+if (import.meta.env.DEV) (window as unknown as { lsw: unknown }).lsw = { send, scene, god: (on?: boolean) => send({ t: 'debug', op: 'god', on }) }
 document.documentElement.lang = locale.value === 'zh' ? 'zh-CN' : 'en'
 
 const dev = new ModConsole({
@@ -127,7 +128,14 @@ const tooltip = new Tooltip(() => ({
 }))
 menu.registerTip = (key, info) => tooltip.register(key, info)
 document.documentElement.style.setProperty('--drum-icon', cssAssetUrl(CATALOG.ui.drumstick.img))
-hud.threadDoc = (rule) => menu.library?.patches.find((r) => r.id === rule)?.doc
+// what a new thread is called in the player's language: its doc is the model's English (the
+// Threadbook's), so in Chinese its label says it, when it names no one ("拔草"), else nothing more
+hud.threadDoc = (rule) => {
+  const r = menu.library?.patches.find((x) => x.id === rule)
+  if (!r || locale.value !== 'zh') return r?.doc
+  const l = r.label && tx(r.label)
+  return l && !l.includes('{') ? l : undefined
+}
 
 /** The latest frame (for aiming the chooser), and the chooser's handler (set below). */
 let lastFrame: Frame | undefined
@@ -136,8 +144,6 @@ let onChoices: ((key: Key, tile: Tile | undefined, list: { layer: number; name: 
 scene.hooks = {
   onFrame: (f) => {
     lastFrame = f
-    if (f.player.hp < lastHp) hurtAt = performance.now()
-    lastHp = f.player.hp
     const was = death.open
     // the title or the load panel is over the world (one chose to load a save, or to go back): the
     // world behind it may still lie fallen, but the death screen is not shown over them
@@ -242,9 +248,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       if (startingFrom && !m.resumed) hud.message(t('cvIncompatible'), 'warn')
       // the slot is filled at once (a new game) or refreshed (a loaded one)
       send({ t: 'save' })
+      if (import.meta.env.DEV && PARAMS.get('god') === '1') send({ t: 'debug', op: 'god', on: true })
       break
     case 'map':
-      autosave()
       hud.setMapName(m.map.name)
       scene.setMap(m.map)
       minimap.setMap(m.map)
@@ -263,6 +269,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
         void cover.show()
         break
       }
+      hud.setLearning(m.learning)
       if (building.open) m.frame.keys = undefined
       scene.applyFrame(m.frame)
       minimap.onFrame(m.frame)
@@ -288,8 +295,8 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     case 'saved':
       if (slot) void writeSlot(WORLD, slot, { save: m.save, summary: m.summary, savedAt: m.save.savedAt })
       void kvSet('library', m.library)
-      // the tutorial on its own keeps no save
-      if (!cover.open && !quietSave) hud.message(slot ? t('savedSlot').replace('{n}', String(slot)) : locale.value === 'zh' ? '教程不保存进度。' : 'The tutorial keeps no save.', slot ? 'good' : undefined)
+      // the tutorial on its own keeps no save; an automatic save says nothing
+      if (!cover.open && !quietSave && !m.auto) hud.message(slot ? t('savedSlot').replace('{n}', String(slot)) : locale.value === 'zh' ? '教程不保存进度。' : 'The tutorial keeps no save.', slot ? 'good' : undefined)
       quietSave = false
       break
     case 'library':
@@ -468,6 +475,8 @@ window.addEventListener('keydown', (e) => {
   if (!document.getElementById('intro')!.classList.contains('hidden')) return
   // the death screen and the title take no keys: their buttons are what may follow (no journal over them)
   if (death.open || cover.open) return
+  // the world waits on the player's act: Esc does not wait (the act's default now)
+  if (hud.learning && e.code === 'Escape') return void (e.preventDefault(), send({ t: 'skipLearning' }))
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') shift = true
   // the layer chooser: a number picks, Esc closes
   if (hud.chooserOpen) {
@@ -559,24 +568,10 @@ window.addEventListener('keyup', (e) => {
 })
 window.addEventListener('blur', () => stopMoving())
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden' && slot && !cover.open) send({ t: 'save' })
+  // the tab going to the background saves, said to no one (it comes and goes with every switch)
+  if (document.visibilityState === 'hidden' && slot && !cover.open) (quietSave = true), send({ t: 'save' })
 })
-// a quiet autosave each minute and on every new map: a closed or crashed tab (or a reload in
-// development) loses at most a minute, not everything since the last sleep. Only when it is safe:
-// hurt a moment ago, or with something hostile near, the save to load after a fall would be the
-// fight one lost (loaded, one would fall again)
-let hurtAt = -Infinity
-let lastHp = Infinity
-const DANGER_MS = 15_000
-const DANGER_TILES = 8
-const inDanger = (f: Frame | undefined): boolean =>
-  !!f && (performance.now() - hurtAt < DANGER_MS || f.entities.some((e) => e.hostile && Math.max(Math.abs(e.x - f.player.x), Math.abs(e.y - f.player.y)) <= DANGER_TILES))
-const autosave = (): void => {
-  if (!slot || cover.open || death.open || inDanger(lastFrame)) return
-  quietSave = true
-  send({ t: 'save' })
-}
-setInterval(autosave, 60_000)
+
 
 // ------------------------------------------------------------------ mouse: aim at the pointed tile (as far as an input reaches); left = use, right = on oneself
 

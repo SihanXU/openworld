@@ -258,6 +258,10 @@ function keyViews(): Frame['keys'] {
     return [t.place.x - Math.floor((fw - 1) / 2), t.place.y - fd + 1, fw, fd]
   }
   const view = (pl: Plan | undefined): KeyView | undefined => pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(rect(pl) && { rect: rect(pl) }) }
+  // standing still, one turns to the spot beside one that the pointer is on (the input's own posture):
+  // a person one points at sees one face them, and waits (npc.ts, attended)
+  const stand = w.posOf(w.player)
+  if (!moveDir && stand && aimTile && Math.abs(aimTile.x - stand.x) + Math.abs(aimTile.y - stand.y) === 1) c.face({ ...stand, x: aimTile.x, y: aimTile.y })
   const out: NonNullable<Frame['keys']> = {}
   for (const k of ['hands', 'take', 'put', 'use'] as Key[]) {
     const pl = c.plan(k, aimTile)
@@ -329,7 +333,22 @@ function sendRecords(): void {
   post({ t: 'records', records, library: libraryView() })
 }
 
-function doSave(): void {
+let lastHp = Infinity
+let hurtTick = -Infinity
+const DANGER_TICKS = 150
+const DANGER_TILES = 8
+function inDanger(): boolean {
+  if (!game) return false
+  const eng = game.engine
+  const w = eng.world
+  const p = w.player
+  const at = w.posOf(p)
+  if (!at || w.state.tick - hurtTick < DANGER_TICKS) return !!at
+  return w.entitiesOnMap(at.map).some((e) => e.ai && e.place.on === 'tile' && Math.max(Math.abs(e.place.x - at.x), Math.abs(e.place.y - at.y)) <= DANGER_TILES && eng.hostileTo(e, p))
+}
+
+/** Save the game; `auto`: the world's own (the minute's, on arriving, as the story moves), said to no one. */
+function doSave(auto = false): void {
   if (!game) return
   const w = game.engine.world
   const p = w.player
@@ -351,7 +370,7 @@ function doSave(): void {
     difficulty,
     ...(fallen && { ended: true }),
   }
-  post({ t: 'saved', save, library: game.engine.lib.toJSON(), summary })
+  post({ t: 'saved', save, library: game.engine.lib.toJSON(), summary, auto })
 }
 
 /** How long the world stands still for the player's own question, in real seconds: an answer, a thing being made. */
@@ -400,16 +419,23 @@ function loop(): void {
   lastTickMs = performance.now() - t0
   // the codex: what the player carries and who and what is near (the reader's record, beside the state)
   if (w.state.tick % 5 === 0) game.codex.record(w)
-  post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length }, codex: game.codex.version })
+  const learning = asking && asked ? { seconds: Math.floor((t0 - asked.since) / 1000), limit: (asking.deadline === Number.POSITIVE_INFINITY ? MAKE_MS : ASK_MS) / 1000 } : undefined
+  post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length }, codex: game.codex.version, learning })
   if (buildAim) post({ t: 'placement', preview: buildPreview(eng, buildAim.id, { map: frame.map, x: buildAim.tile.x, y: buildAim.tile.y }, buildAim.up) })
   if (eng.lib.version !== lastRecordsVersion || frame.fx.some((f) => f.t === 'undefined' || f.t === 'patched')) {
     if (eng.lib.version !== lastRecordsVersion) (post({ t: 'library', library: eng.lib.toJSON() }), sendArts())
     lastRecordsVersion = eng.lib.version
     sendRecords()
   }
-  if (++saveEvery >= 600) {
+  // the minute's save (and the one on arriving, or as the story moves) waits while one is in danger:
+  // hurt a moment ago, or with something hostile near, the save loaded after a fall would be the
+  // fight one lost (loaded, one would fall again)
+  const hp = w.num(w.player, 'hp')
+  if (hp < lastHp) hurtTick = w.state.tick
+  lastHp = hp
+  if (++saveEvery >= 600 && !inDanger()) {
     saveEvery = 0
-    doSave()
+    doSave(true)
   }
 }
 
@@ -640,6 +666,12 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'advance':
         game?.engine.story.advance()
         break
+      case 'skipLearning': {
+        // the player will not wait: the act's default now, the question answered later if it comes
+        const a = game?.mods.asking
+        if (a) game!.mods.fallback(a.id, true)
+        break
+      }
       case 'debug': {
         if (!game) break
         const eng = game.engine
@@ -649,6 +681,13 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (m.op === 'give') eng.author(() => (w.create(m.type, { on: 'inside', holder: w.state.player }, m.tags ? { tags: m.tags } : {}), eng.controls.sync()))
         if (m.op === 'hour') w.state.tick = tickAt(w.calendar().day, m.hour)
         if (m.op === 'hurt') eng.author(() => eng.hurt(w.player, m.amount, undefined, true))
+        // development: the player takes no harm (toggled), and is made whole
+        if (m.op === 'god') eng.author(() => {
+          const on = m.on ?? w.prop(w.player, 'invulnerable') !== true
+          w.setProp(w.player, 'invulnerable', on || undefined)
+          if (on) w.setProp(w.player, 'hp', w.num(w.player, 'maxHp', 1))
+          w.fx.push({ t: 'log', text: on ? { en: 'Invulnerable (dev).', zh: '无敌已开启（开发）。' } : { en: 'Invulnerable off.', zh: '无敌已关闭。' }, tone: 'good' })
+        })
         break
       }
     }

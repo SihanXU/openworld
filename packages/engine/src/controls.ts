@@ -337,8 +337,18 @@ export class Controls {
     const me = w.player
     const pos = w.posOf(me)
     if (key === 'self' || (key === 'use' && pos && at.x === pos.x && at.y === pos.y)) return pos ? this.planOn(key === 'use' ? 'self' : key, pos, { e: me.id }) : undefined
-    const ref = this.targets(at, stack, key)[layer]
-    return ref ? this.planOn(key, at, ref) : undefined
+    const list = this.targets(at, stack, key)
+    const ref = list[layer]
+    const plan = ref ? this.planOn(key, at, ref) : undefined
+    // a flyer over the spot the key has nothing to do with is not in the way: the key goes on to
+    // what is under it (G sets the wall down where the fairy hovers; E still talks to the fairy)
+    const e = ref && this.w.get(ref.e)
+    if (plan || layer !== 0 || !e || !this.w.hasTag(e, 'airborne')) return plan
+    for (const r of list.slice(1)) {
+      const under = this.planOn(key, at, r)
+      if (under) return under
+    }
+    return undefined
   }
 
   /**
