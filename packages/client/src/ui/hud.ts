@@ -347,7 +347,11 @@ export class Hud {
         const r = b.el.getBoundingClientRect()
         return r.left < s.x + w / 2 && r.right > s.x - w / 2 && r.top < s.y - 30 && r.bottom > top
       })
-      const above = top >= 4 && !said
+      // nor over the one acting: the player just above the target (facing down) would be hidden by it
+      const me = this.screenOfTile(f.player.x, f.player.y)
+      const tile = Math.abs(this.screenOfTile(f.player.x + 1, f.player.y).x - me.x)
+      const covers = me.y < s.y && Math.abs(me.x - s.x) < w / 2 + tile / 2 && me.y + tile / 2 > top
+      const above = top >= 4 && !said && !covers
       el.style.transform = above ? `translate(${s.x}px, ${s.y - 30}px) translate(-50%, -100%)` : `translate(${s.x}px, ${s.y + 30}px) translate(-50%, 0)`
     }
   }
@@ -584,7 +588,9 @@ export class Hud {
         // no one to ask: in development say so plainly, once a session (npm run dev starts the modder too)
         if (import.meta.env.DEV && !this.warnedNoModder) {
           this.warnedNoModder = true
-          return void this.message(`⚠ ${t('noModder')} — ${fx.summary}`, 'warn')
+          // what was not learned is the model's English: the console's, not the player's log
+          console.info(`[lsw] not learned (no modder): ${fx.summary}`)
+          return void this.message(`⚠ ${t('noModder')}`, 'warn')
         }
         return
       case 'patched': {
@@ -628,7 +634,9 @@ export class Hud {
     return el
   }
 
+  private mapName?: Text
   setMapName(name: Text): void {
+    this.mapName = name
     const el = $('#mapname')
     el.textContent = tx(name)
     el.classList.remove('show')
@@ -702,6 +710,7 @@ export class Hud {
   /** Re-render everything that carries words (the language changed). */
   relabel(): void {
     this.clockSig = this.obSig = this.keySig = this.barSig = ''
+    if (this.mapName) $('#mapname').textContent = tx(this.mapName)
     if (this.frame) this.onFrame(this.frame)
   }
 }

@@ -44,6 +44,15 @@ describe('the frame', () => {
   })
 })
 
+describe('the inputs', () => {
+  it('what lies on a cart comes before the cart, however small it is drawn (F takes the wand, not nothing)', () => {
+    const eng = meadow([{ key: 'cart', type: 'fixture/furniture/cart', x: 3, y: 2 }, { key: 'wand', type: 'item/weapon/magic/wand', x: 3, y: 2 }])
+    // the view: the pointer meets only the cart's big sprite, beside the wand's small one
+    expect(eng.controls.layers({ map: 'sandbox', x: 3, y: 2 }, [{ e: 'cart' }])[0]).toEqual({ e: 'wand' })
+    expect(eng.controls.plan('take', { x: 3, y: 2, stack: [{ e: 'cart' }] })?.target).toEqual({ e: 'wand' })
+  })
+})
+
 describe('the world', () => {
   it('a companion struck by the one it follows is hurt as by any blow, and says so: it is no silent target', () => {
     const eng = meadow([{ key: 'axe', type: 'item/weapon/blade/axe', x: 3, y: 3 }])
@@ -64,6 +73,41 @@ describe('the world', () => {
     eng.queue({ kind: 'impulse/strike', host: { e: 'pip' }, roles: { actor: { e: 'other' }, source: { e: 'other' } }, params: { power: 2 }, origin: 'world' })
     expect(w.num(pip, 'hp')).toBeLessThan(before)
     expect(w.fx.some((f) => f.t === 'say' && f.who === 'pip')).toBe(false)
+  })
+
+  it('a thing that reaches the bag without an input (a scene gives bread) takes a slot', () => {
+    const eng = meadow()
+    const w = eng.world
+    eng.author(() => w.create('item/food/bread', { on: 'inside', holder: 'actor' }, { id: 'loaf' }))
+    expect((w.player.slots ?? []).filter(Boolean)).toEqual([])
+    eng.tick()
+    expect((w.player.slots ?? []).filter(Boolean)).toHaveLength(1)
+    expect(snapshot(eng).player.slots.filter(Boolean)).toHaveLength(1)
+  })
+
+  it('a key acts on whom its label named: a merchant who stepped off the spot still gets the bread', () => {
+    const eng = meadow([{ key: 'loaf', type: 'item/food/bread', x: 3, y: 3 }, { key: 'tobin', type: 'actor/person/villager', x: 3, y: 2 }])
+    const w = eng.world
+    eng.author(() => w.place(w.get('loaf')!, { on: 'hand', holder: 'actor' }))
+    const shown = eng.controls.plan('put', { x: 3, y: 2 })!.target
+    expect(shown).toEqual({ e: 'tobin' })
+    // he walks on before the key is pressed
+    eng.author(() => w.place(w.get('tobin')!, { on: 'tile', map: 'sandbox', x: 4, y: 3 }))
+    expect(eng.controls.plan('put', { x: 3, y: 2 })?.target).not.toEqual({ e: 'tobin' })
+    expect(eng.controls.planFor('put', { x: 3, y: 2 }, 0, shown)?.target).toEqual({ e: 'tobin' })
+    // out of reach, the key does what is under the pointer now
+    eng.author(() => w.place(w.get('tobin')!, { on: 'tile', map: 'sandbox', x: 6, y: 6 }))
+    expect(eng.controls.planFor('put', { x: 3, y: 2 }, 0, shown)?.target).not.toEqual({ e: 'tobin' })
+  })
+
+  it('health stops at nothing: a blow far past it fells, and leaves no debt', () => {
+    const eng = meadow([{ key: 'slime', type: 'actor/creature/slime/green_slime', x: 3, y: 2 }])
+    const slime = eng.world.get('slime')!
+    eng.queue({ kind: 'impulse/strike', host: { e: 'slime' }, roles: { actor: { e: 'actor' }, source: { e: 'actor' } }, params: { power: 999 }, origin: 'world' })
+    expect(eng.world.get('slime') ? eng.world.num(slime, 'hp') : 0).toBe(0)
+    const me = eng.world.player
+    eng.queue({ kind: 'impulse/strike', host: { e: me.id }, roles: { actor: { e: 'slime' }, source: { e: 'slime' } }, params: { power: 999 }, origin: 'world' })
+    expect(eng.world.num(me, 'hp')).toBe(0)
   })
 
   it('a made thing is not named twice by its material (a 木桶 of wood stays a 木桶)', () => {

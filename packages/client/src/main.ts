@@ -223,6 +223,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       send({ t: 'save' })
       break
     case 'map':
+      autosave()
       hud.setMapName(m.map.name)
       scene.setMap(m.map)
       minimap.setMap(m.map)
@@ -300,7 +301,7 @@ const cover = new Cover(WORLD, {
     quietSave = true
     const library = await kvGet<LibraryData>('library')
     const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
-    send({ t: 'init', base, save: data?.save, library, modder: MODDER, difficulty: game?.difficulty, start: game?.start })
+    send({ t: 'init', base, save: data?.save, library, modder: MODDER, prefetch: PARAMS.get('prefetch') !== '0', difficulty: game?.difficulty, start: game?.start })
   },
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
@@ -495,6 +496,14 @@ window.addEventListener('blur', () => stopMoving())
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden' && slot && !cover.open) send({ t: 'save' })
 })
+// a quiet autosave each minute and on every new map: a closed or crashed tab (or a reload in
+// development) loses at most a minute, not everything since the last sleep
+const autosave = (): void => {
+  if (!slot || cover.open || death.open) return
+  quietSave = true
+  send({ t: 'save' })
+}
+setInterval(autosave, 60_000)
 
 // ------------------------------------------------------------------ mouse: aim at the pointed tile (as far as an input reaches); left = use, right = on oneself
 

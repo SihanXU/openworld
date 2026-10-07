@@ -769,7 +769,8 @@ export class Engine {
     if (dmg <= 0) return
     w.fx.push({ t: 'damage', who: e.id, amount: dmg, element })
     // what has durability starts whole: its hp is its maxHp until it is struck
-    let hp = w.num(e, 'hp', w.num(e, 'maxHp', 1)) - dmg
+    // health stops at nothing: a blow past it is a blow that fells, not a debt (thresholds read lte 0)
+    let hp = Math.max(0, w.num(e, 'hp', w.num(e, 'maxHp', 1)) - dmg)
     // Phoenix (the skill): once a day, any lethal damage leaves 30% health and a moment untouchable
     if (hp <= 0 && w.hasTag(e, 'skill:phoenix') && w.prop(e, 'phoenixDay') !== w.calendar().day) {
       hp = Math.max(1, Math.ceil(w.num(e, 'maxHp', 1) * 0.3))
@@ -1349,6 +1350,7 @@ export class Engine {
     this.invariantTick()
     this.story.tick()
     this.flush()
+    this.controls.keep()
     // a long step's time passes now, all at once; harm stops it (world-model.md §6.11)
     if (this.fastForward > 0) {
       const n = this.fastForward
