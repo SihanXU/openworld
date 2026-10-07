@@ -6,7 +6,7 @@
 //   npm run dev -- --backend openrouter | claude-code | none   [--fast: claude-code's fast mode]
 //   (or LSW_MODEL_BACKEND and LSW_CLAUDE_FAST=1 in the environment / .env)
 
-import { spawn, type ChildProcess } from 'node:child_process'
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { createInterface } from 'node:readline/promises'
 
@@ -77,4 +77,8 @@ else {
   const fast = process.argv.includes('--fast') ? { LSW_CLAUDE_FAST: '1' } : {}
   run('modder', ['exec', '--', 'tsx', 'watch', 'packages/modder/src/cli.ts', 'serve', String(PORT)], { ...process.env, LSW_MODEL_BACKEND: await chooseBackend(), ...fast })
 }
+// the world the client serves is built from the content: built again first, so a content change is never
+// played on a stale world (a new start the old world lacks fails the game at its first frame)
+const built = spawnSync('npm', ['run', 'gen:world', '--silent'], { stdio: 'inherit', shell: true })
+if (built.status !== 0) console.log('[dev] the world could not be built: the client serves the last one')
 run('client', ['run', 'dev', '-w', '@lsw/client'])

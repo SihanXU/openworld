@@ -232,7 +232,14 @@ export class Controls {
   /** The layers an input meets at a spot: oneself is never one (one's own place is what is there); the open air only F and G meet. */
   private targets(at: Pos, stack?: Ref[], key?: Key): Ref[] {
     const me = this.w.state.player
-    return this.layers(at, stack).filter((r) => r.e !== me && (key === 'put' || key === 'take' || !this.w.isAir(this.w.get(r.e))))
+    const all = this.layers(at, stack).filter((r) => r.e !== me && (key === 'put' || key === 'take' || !this.w.isAir(this.w.get(r.e))))
+    // what another cell draws over the point but stands beyond the key's reach (a farther tree's
+    // crown over the tree beside one) is not what the key meets: the next layer is. What stands on
+    // the spot itself stays, reached or not (a bed pointed at from beside it is not its floor).
+    if (!key || key === 'self') return all
+    const held = this.w.player.held
+    const elsewhere = (r: Ref) => { const p = this.w.refPos(r); return !!p && (p.x !== at.x || p.y !== at.y) }
+    return all.filter((r) => !elsewhere(r) || this.reaches(key, r, key === 'use' && held ? { e: held } : undefined))
   }
 
   /** The spot aimed at itself, on one's own storey (no step back toward oneself). */

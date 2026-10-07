@@ -271,7 +271,7 @@ export class Engine {
     if (!c || ++c.n <= CHAIN_BUDGET) return true
     if (c.n === CHAIN_BUDGET + 1) {
       this.fault(ev.by, `a chain of events that does not end (${CHAIN_BUDGET} after it had to wait)`, true)
-      this.world.fx.push({ t: 'log', text: `a chain of events was stopped after ${CHAIN_BUDGET} more (${ev.kind}, made by ${ev.by ?? 'the world'})`, tone: 'warn' })
+      this.world.fx.push({ t: 'log', text: `a chain of events was stopped after ${CHAIN_BUDGET} more (${ev.kind}, made by ${ev.by ?? 'the world'})`, tone: 'dev' })
     }
     return false
   }
@@ -289,7 +289,7 @@ export class Engine {
     const set = (this.world.state.quarantine ??= {})
     if ((severe || n >= FAULTS) && !set[rule.id]) {
       set[rule.id] = { tick: this.world.state.tick, reason }
-      this.world.fx.push({ t: 'log', text: `learned rule ${rule.id} is set aside: ${reason}`, tone: 'warn' })
+      this.world.fx.push({ t: 'log', text: `learned rule ${rule.id} is set aside: ${reason}`, tone: 'dev' })
     }
     return true
   }

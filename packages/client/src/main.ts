@@ -275,7 +275,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       break
     case 'error':
       console.error(m.message)
-      if (import.meta.env.DEV) hud.message(m.message.split('\n')[0], 'warn')
+      // a slot that could not start leaves the cover up: it says why, instead of loading for ever
+      if (!document.getElementById('intro')!.classList.contains('hidden')) cover.failed(m.message.split('\n')[0].replace(/^Error: /, ''))
+      else if (import.meta.env.DEV) hud.message(m.message.split('\n')[0], 'warn')
       break
   }
 }

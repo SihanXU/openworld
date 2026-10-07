@@ -545,7 +545,7 @@ export class ModPort implements UndefinedSink {
         this.unfreeze(rec.id)
         eng.run(rec.request.hole.default, rec.event, rec.request.hole.rule)
       }
-      w.fx.push({ t: 'log', text: `patch rejected: ${res.errors[0]}`, tone: 'warn' })
+      w.fx.push({ t: 'log', text: `patch rejected: ${res.errors[0]}`, tone: 'dev' })
       this.onChange?.()
       return res
     }

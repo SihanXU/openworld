@@ -1231,7 +1231,8 @@ export type FxEvent =
   | { t: 'fade'; dir: 'out' | 'in' }
   | { t: 'card'; text: Text }
   | { t: 'strike'; map: string; x: number; y: number }
-  | { t: 'log'; text: Text; tone?: 'info' | 'warn' | 'ai' | 'good' | 'bad' }
+  /** dev: for the developer (a rejected patch, a rule set aside): the console's, never a player's toast. */
+  | { t: 'log'; text: Text; tone?: 'info' | 'warn' | 'ai' | 'good' | 'bad' | 'dev' }
   | { t: 'damage'; who: Id; amount: number; element?: string }
   | { t: 'undefined'; request: string; summary: string; /** someone (a provider) is working it out */ asked?: boolean }
   | { t: 'patched'; request: string; rule: string }

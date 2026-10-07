@@ -96,6 +96,8 @@ export interface Frame {
     props: Record<string, PropValue>
     /** The skills learned (the skill tree). */
     skills: string[]
+    /** The stations within reach (a workbench beside one): which station recipes can be made now. */
+    stations: string[]
     held?: ItemInfo
     inventory: ItemInfo[]
     /** The bag's slots (row 1 is the toolbar): a stack each, or empty. */
@@ -310,6 +312,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       statuses: Object.keys(p.statuses ?? {}),
       props: { ...w.onto.resolve(p.type).props, ...(p.props ?? {}) },
       skills: skillsOf(p),
+      stations: [...w.stationsNear(p)],
       held: p.held ? itemInfo(eng, p.held) : undefined,
       inventory: (p.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),
       slots,

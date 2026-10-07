@@ -1091,6 +1091,18 @@ export class World {
     }
   }
 
+  /** The stations within reach of a thing (the cells round it): what its station recipes can be made at. */
+  stationsNear(e: Entity): Set<string> {
+    const out = new Set<string>()
+    const p = this.posOf(e)
+    if (!p) return out
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++)
+        for (const o of [...this.entitiesAt(p.map, p.x + dx, p.y + dy), ...this.coveringAt(p.map, p.x + dx, p.y + dy)])
+          for (const t of [...(o.tags ?? []), ...this.onto.resolve(o.type).tags]) if (t.startsWith('station:')) out.add(t.slice(8))
+    return out
+  }
+
   /** Drain the output buffer (the host, once a frame), keeping its last lines in `recent`. */
   drainFx(): FxEvent[] {
     const fx = this.fx

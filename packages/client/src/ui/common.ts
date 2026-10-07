@@ -53,6 +53,7 @@ const STRINGS: Record<string, [string, string]> = {
   cvContinue: ['Continue', '继续游戏'],
   cvLoad: ['Load game', '读取存档'],
   cvLoading: ['Loading…', '载入中……'],
+  cvFailed: ['The world could not start:', '世界没能开始：'],
   cvPickNew: ['New game — choose a slot', '新游戏——选择存档位'],
   cvPickLoad: ['Load game', '读取存档'],
   cvSlot: ['Slot {n}', '存档 {n}'],

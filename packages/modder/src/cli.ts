@@ -5,6 +5,7 @@
 //   export [label]            print the self-state as one document (now, or a snapshot)
 //   library                   list the patch rules in the shared library
 //   library remove <rule-id>  roll a patch rule back
+//   library prune             roll back the patches the validator no longer takes (serve does it at start)
 // Data: --data <dir> or $LSW_DATA (default <repo>/var). Model: LSW_MODEL_URL + LSW_MODEL_KEY +
 // LSW_MODEL (OpenAI-compatible), --backend claude-code (claude -p; LSW_CLAUDE_MODEL, LSW_CLAUDE_EFFORT;
 // --fast for fast mode), --backend none, or --script <file> / LSW_MODEL_SCRIPT (scripted, no network). See modelFromEnv.
@@ -37,8 +38,11 @@ const { library, state } = modder.opts
 switch (cmd) {
   case 'serve': {
     const port = Number(args[0] ?? process.env.LSW_PORT ?? 8787)
+    // what the validator no longer takes leaves the library before any client can sync it
+    const pruned = library.prune()
     createModderServer(modder).listen(port, () => {
       console.log(`modder on http://localhost:${port}  model: ${modder.model?.name ?? '(none: answers from the shared library only)'}`)
+      for (const p of pruned) console.log(`library: rolled back ${p.rules.join(', ')}: ${p.reason}`)
       console.log(`library: ${library.patchRules().length} patch rules (seq ${library.seq}) · self-state: ${state.dir}`)
     })
     break
@@ -62,6 +66,13 @@ switch (cmd) {
       const bad = library.audit()
       for (const b of bad) console.log(`${b.rule}  ${b.reason}`)
       console.log(`${library.patchRules().length} patch rules, ${library.regression.length} with the event that asked for them: ` + (bad.length ? `${bad.length} to review (npm run modder -- library remove <id>)` : 'none makes something from nothing'))
+      break
+    }
+    if (args[0] === 'prune') {
+      // the patches the validator, as it is now, no longer takes: rolled back (serve does this at start)
+      const gone = library.prune()
+      for (const p of gone) console.log(`rolled back ${p.rules.join(', ')}: ${p.reason}`)
+      console.log(gone.length ? `${gone.length} patch(es) rolled back` : 'every patch still holds')
       break
     }
     if (args[0] === 'remove') {

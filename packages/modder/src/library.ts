@@ -278,6 +278,33 @@ export class WorldLibrary {
     return out
   }
 
+  /**
+   * The patches the validator, as it is now, no longer takes (it grew stricter; the content came to
+   * answer their hole itself): each live patch, in the log's order, judged in the scene it answered
+   * against the library without it, and rolled back when it fails. Every client would refuse them on
+   * sync, one rejection each; the library holds only what holds. Returns what was rolled back, and why.
+   */
+  prune(now = new Date()): { rules: string[]; reason: string }[] {
+    const out: { rules: string[]; reason: string }[] = []
+    for (const e of [...this.log]) {
+      if ('remove' in e) continue
+      const live = e.rules.filter((id) => this.lib.rules.get(id)?.source?.origin === 'patch')
+      if (!live.length) continue
+      const req = e.scenario ? ({ scenario: e.scenario, origin: e.patch.trigger ?? 'player' } as ModRequest) : undefined
+      let res: ValidationResult
+      try {
+        // judged against the library without this entry: its rules and the types it brought both
+        res = this.fork((o) => o !== e).validate(e.patch, req)
+      } catch (err) {
+        res = { ok: false, errors: [(err as Error).message], warnings: [], overrides: [] }
+      }
+      if (res.ok) continue
+      for (const id of live) this.remove(id, now)
+      out.push({ rules: live, reason: res.errors[0] ?? 'no longer valid' })
+    }
+    return out
+  }
+
   /** Roll a patch rule back (the log keeps both the addition and the removal). */
   remove(ruleId: string, now = new Date()): boolean {
     if (this.lib.rules.get(ruleId)?.source?.origin !== 'patch') return false

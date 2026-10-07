@@ -332,7 +332,9 @@ export class Menu {
     const tool = (tag: string) => f.player.slots.some((s) => s?.item.tags.includes(tag))
     const rows = RECIPES.map((r) => {
       // how many times what is carried makes it (the tools are not used up)
-      const times = (r.tools ?? []).every(tool) ? Math.min(...r.needs.map((n) => Math.floor(have(n.type) / n.count))) : 0
+      // (a station's recipe is made beside one: away from it, nothing is made however much is carried)
+      const here = !r.station || r.station === 'hands' || f.player.stations.includes(r.station)
+      const times = here && (r.tools ?? []).every(tool) ? Math.min(...r.needs.map((n) => Math.floor(have(n.type) / n.count))) : 0
       const ok = times > 0
       const needs = r.needs
         .map((n) => {
@@ -346,9 +348,9 @@ export class Menu {
         }).join('')
       return `<div class="recipe${ok ? '' : ' off'}">
         <div class="slot" data-item="recipe:${r.id}"><div class="icon" data-icon="recipe:${r.id}"></div></div>
-        <div class="rname">${esc(tx(r.name))}${r.station && r.station !== 'hands' ? ` <span class="station">${esc(tx({ en: 'at a ' + r.station, zh: r.station === 'workbench' ? '需在工作台旁' : r.station }))}</span>` : ''}</div>
+        <div class="rname">${esc(tx(r.name))}${r.station && r.station !== 'hands' ? ` <span class="station${here ? '' : ' short'}">${esc(tx({ en: 'at a ' + r.station, zh: r.station === 'workbench' ? '需在工作台旁' : r.station }))}</span>` : ''}</div>
         <div class="needs">${needs}</div>
-        <button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(t('needMore'))}"`}>${t('craftIt')}${r.count && r.count > 1 ? ` ×${r.count}` : ''}</button>
+        <button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(here ? t('needMore') : tx({ en: `Stand beside a ${r.station}`, zh: r.station === 'workbench' ? '站到工作台旁边' : r.station! }))}"`}>${t('craftIt')}${r.count && r.count > 1 ? ` ×${r.count}` : ''}</button>
         ${times > 1 ? `<button class="all" data-craft-all="${r.id}" title="${esc(t('craftAllTip'))}">${t('craftAll')} ×${times}</button>` : ''}
       </div>`
     }).join('')

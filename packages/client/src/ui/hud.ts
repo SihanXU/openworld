@@ -339,8 +339,15 @@ export class Hud {
     el.classList.toggle('hidden', !at)
     if (at) {
       const s = this.screenOfTile(at.x, at.y)
-      // above the tile, or below it when there is no room above
-      const above = s.y - 30 - el.offsetHeight >= 4
+      // above the tile, or below it when there is no room above, or when someone's speech is there
+      // (a companion's line beside the target would cover what the keys would do)
+      const w = el.offsetWidth
+      const top = s.y - 30 - el.offsetHeight
+      const said = [...this.bubbles.values()].some((b) => {
+        const r = b.el.getBoundingClientRect()
+        return r.left < s.x + w / 2 && r.right > s.x - w / 2 && r.top < s.y - 30 && r.bottom > top
+      })
+      const above = top >= 4 && !said
       el.style.transform = above ? `translate(${s.x}px, ${s.y - 30}px) translate(-50%, -100%)` : `translate(${s.x}px, ${s.y + 30}px) translate(-50%, 0)`
     }
   }
@@ -546,6 +553,8 @@ export class Hud {
   onFx(fx: FxEvent, frame?: Frame): void {
     switch (fx.t) {
       case 'log':
+        // the developer's lines (a patch the validator refused, a rule set aside) go to the console
+        if (fx.tone === 'dev') return void console.info(`[world] ${tx(fx.text)}`)
         return void this.message(tx(fx.text), fx.tone)
       case 'say': {
         const text = tx(fx.text)
