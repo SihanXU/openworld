@@ -167,7 +167,7 @@ export class EffectRunner {
         } catch (err) {
           // a write outside an outcome or beyond its host is the engine's bug, not the rule's: it is not swallowed
           if (err instanceof WriteError) throw err
-          this.eng.world.fx.push({ t: 'log', text: `rule ${ruleId}: ${(err as Error).message}`, tone: 'warn' })
+          this.eng.world.fx.push({ t: 'log', text: `rule ${ruleId}: ${(err as Error).message}`, tone: 'dev' })
           // a learned rule's outcome stops at its first refused effect, and the rule is charged for it;
           // a base rule refused what a learned rule sent it (a push to nowhere): the sender is charged
           if (this.eng.fault(ruleId, (err as Error).message)) return
@@ -573,11 +573,7 @@ export class EffectRunner {
         }
         // a station's recipe is made beside one (a workbench within reach); the hands' anywhere
         if (r.station && r.station !== 'hands') {
-          const p = w.posOf(host)
-          let near = false
-          for (let dy = -1; dy <= 1 && p && !near; dy++)
-            for (let dx = -1; dx <= 1 && !near; dx++) near = [...w.entitiesAt(p.map, p.x + dx, p.y + dy), ...w.coveringAt(p.map, p.x + dx, p.y + dy)].some((e) => w.hasTag(e, `station:${r.station}`))
-          if (!near) {
+          if (!w.stationsNear(host).has(r.station)) {
             w.fx.push({ t: 'log', text: { en: `That is made at a ${r.station}.`, zh: `这要在${r.station === 'workbench' ? '工作台' : r.station}旁边做。` } })
             return
           }

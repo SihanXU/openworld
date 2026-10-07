@@ -62,13 +62,20 @@ const FLOOR_LIP = 16
 const DRAGON_GAP = 11
 const DRAGON_SEGMENTS = 5
 
-const OVERLAY_OF: [string, string][] = [
-  ['burning', 'ovl:burning'],
-  ['frozen', 'ovl:frozen'],
-  ['electrified', 'ovl:electrified'],
+/**
+ * The pictures statuses draw over a thing, by the overlay their data names (the engine's OVERLAYS),
+ * most telling first: any status that names one shows it, a learned one too.
+ */
+const OVERLAY_FX: [string, string][] = [
+  ['fire', 'ovl:burning'],
+  ['ice', 'ovl:frozen'],
+  ['spark', 'ovl:electrified'],
   ['wet', 'ovl:wet'],
-  ['oiled', 'ovl:oiled'],
+  ['oil', 'ovl:oiled'],
+  ['flame', 'ovl:lit'],
 ]
+/** A cell carries its statuses by name only: the overlay each of the base statuses names (ontology.ts). */
+const CELL_OVERLAY: Record<string, string> = { burning: 'fire', frozen: 'ice', electrified: 'spark', wet: 'wet', oiled: 'oil', lit: 'flame' }
 // The engine's DIRS, kept here so the main thread does not bundle the engine.
 const STEP: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }
 
@@ -511,8 +518,9 @@ export class WorldScene extends Phaser.Scene {
       cur?.sprites.forEach((s) => s.destroy())
       const [x, y] = k.split(',').map(Number)
       const sprites: Phaser.GameObjects.GameObject[] = []
-      for (const [st, ov] of OVERLAY_OF) {
-        if (!list.includes(st)) continue
+      for (const [o, ov] of OVERLAY_FX) {
+        const st = list.find((s) => CELL_OVERLAY[s] === o)
+        if (!st) continue
         const s = this.overlaySprite(ov, x * T + T / 2, (y + 1) * T)
         if (s) {
           s.setDepth((y + 1) * T + (st === 'burning' ? 3 : -30)).setAlpha(st === 'wet' ? 0.7 : 1)
@@ -932,7 +940,8 @@ export class WorldScene extends Phaser.Scene {
     const me = this.playerAt
     v.root.setVisible(!(!!me && (e.z ?? 0) > me.z && (this.ceilingOverlay || this.underRoof.has(`${e.x},${e.y}`))))
     // status overlay + tint
-    const top = OVERLAY_OF.find(([s]) => e.statuses.includes(s))
+    // (a thing with a lit picture of its own, a brazier, shows that, not a flame over it)
+    const top = OVERLAY_FX.find(([o]) => e.overlays?.includes(o) && !(o === 'flame' && CATALOG.fixtures[e.sprite]?.lit))
     const want = top?.[1]
     if (want !== v.overlayName) {
       v.overlay?.destroy()
@@ -972,7 +981,9 @@ export class WorldScene extends Phaser.Scene {
       const w = 14
       const top2 = -v.body.displayHeight - 3
       v.hp.fillStyle(0x000000, 0.6).fillRect(-w / 2, top2, w, 2)
-      v.hp.fillStyle(e.hostile ? 0xe04848 : e.tags.includes('agent') ? 0x6ad06a : 0xd8b060, 1).fillRect(-w / 2, top2, Math.max(1, (w * e.hp) / e.maxHp), 2)
+      // red: would attack you; green: a person or a companion; amber: anything else (a creature at peace, a thing)
+      const friend = e.tags.includes('person') || e.tags.includes('companion')
+      v.hp.fillStyle(e.hostile ? 0xe04848 : friend ? 0x6ad06a : 0xd8b060, 1).fillRect(-w / 2, top2, Math.max(1, (w * e.hp) / e.maxHp), 2)
     }
   }
 

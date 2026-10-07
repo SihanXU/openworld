@@ -87,6 +87,12 @@ export class Cover {
     $('#intro').classList.add('hidden')
   }
 
+  /** The game behind could not start the chosen slot: say why, and give the buttons back. */
+  failed(why: string): void {
+    $('#intro').querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.disabled = false))
+    $('#intro').querySelector('.cv-status')!.textContent = `${t('cvFailed')} ${why}`
+  }
+
   /** The game behind is loading the chosen slot. */
   busy(): void {
     $('#intro').querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.disabled = true))

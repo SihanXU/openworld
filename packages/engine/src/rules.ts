@@ -58,6 +58,10 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
     const [a, b] = c.same.map((r) => roles[r])
     return !!a && !!b && sameRef(a, b)
   }
+  if ('leads' in c) {
+    const [leader, follower] = c.leads.map((r) => roles[r])
+    return !!leader && !!follower && 'e' in leader.ref && follower.props.companion === leader.ref.e
+  }
   if ('has' in c) {
     const v = roles[c.has.role]
     if (!v) return false

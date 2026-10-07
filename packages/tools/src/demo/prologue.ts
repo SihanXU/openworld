@@ -50,7 +50,7 @@ export function buildFoot(): MapBuilder {
   m.organic(20, 12, 6, 4, 'flowers', { only: (t) => t === 'grass', rough: 0.25 })
   m.fixture('fixture/sacred/seal_stone', ...PAT.relic)
   m.regions.relic = [14, 7, 13, 10]
-  m.fixture('fixture/sacred/waypoint', ...PAT.footStone, { id: 'wp.foot', name: L('Mountain Foot', '山脚') })
+  m.fixture('fixture/sacred/waypoint', ...PAT.footStone, { id: 'wp.foot', name: L('Mountain Foot statue', '山脚传送雕像') })
   // a hunter's hut, long left: wooden walls on a wooden floor, its door gone
   m.rect(4, 12, 6, 5, 'woodwall')
   m.rect(5, 13, 4, 3, 'floor_wood')

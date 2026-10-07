@@ -67,6 +67,7 @@ const menu = new Menu({
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
     hud.relabel()
+    minimap.relabel()
   },
   toggleSound: () => hud.toggleSound(),
   devConsole: () => dev.toggle(true),
@@ -119,10 +120,14 @@ let onChoices: ((key: Key, tile: Tile | undefined, list: { layer: number; name: 
 scene.hooks = {
   onFrame: (f) => {
     lastFrame = f
+    if (f.player.hp < lastHp) hurtAt = performance.now()
+    lastHp = f.player.hp
     const was = death.open
     // the title or the load panel is over the world (one chose to load a save, or to go back): the
     // world behind it may still lie fallen, but the death screen is not shown over them
+    // (the cover opens a moment after the choice: a frame meanwhile may have shown it again)
     if (!cover.open) death.onFrame(f)
+    else if (death.open) death.hide()
     // a hardcore game's one life is spent: its slot keeps the end
     if (!was && death.open && f.fallen?.difficulty === 'hardcore') send({ t: 'save' })
     hud.onFrame(f)
@@ -161,7 +166,8 @@ menu.facesetOf = faceset
 
 const paintIcons = (items: ItemInfo[]) => {
   for (const it of items) {
-    const d = it.sprite.startsWith('art:') && scene.textures.exists(it.sprite) ? { img: it.sprite, x: 0, y: 0, w: 16, h: 16 } : CATALOG.items[it.sprite]
+    // an item's own icon, else (a thing that is built: a workbench, a bed) the picture it stands as
+    const d = it.sprite.startsWith('art:') && scene.textures.exists(it.sprite) ? { img: it.sprite, x: 0, y: 0, w: 16, h: 16 } : (CATALOG.items[it.sprite] ?? CATALOG.fixtures[it.sprite]?.base)
     if (!d) continue
     const c = crop(d.img, d.x, d.y, d.w, d.h)
     if (!c) continue
@@ -221,6 +227,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       send({ t: 'save' })
       break
     case 'map':
+      autosave()
       hud.setMapName(m.map.name)
       scene.setMap(m.map)
       minimap.setMap(m.map)
@@ -275,7 +282,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       break
     case 'error':
       console.error(m.message)
-      if (import.meta.env.DEV) hud.message(m.message.split('\n')[0], 'warn')
+      // a slot that could not start leaves the cover up: it says why, instead of loading for ever
+      if (!document.getElementById('intro')!.classList.contains('hidden')) cover.failed(m.message.split('\n')[0].replace(/^Error: /, ''))
+      else if (import.meta.env.DEV) hud.message(m.message.split('\n')[0], 'warn')
       break
   }
 }
@@ -296,11 +305,12 @@ const cover = new Cover(WORLD, {
     quietSave = true
     const library = await kvGet<LibraryData>('library')
     const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
-    send({ t: 'init', base, save: data?.save, library, modder: MODDER, difficulty: game?.difficulty, start: game?.start })
+    send({ t: 'init', base, save: data?.save, library, modder: MODDER, prefetch: PARAMS.get('prefetch') !== '0', difficulty: game?.difficulty, start: game?.start })
   },
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
     hud.relabel()
+    minimap.relabel()
   },
 })
 void cover.show()
@@ -407,6 +417,8 @@ window.addEventListener('keydown', (e) => {
     return
   }
   if (!document.getElementById('intro')!.classList.contains('hidden')) return
+  // the death screen and the title take no keys: their buttons are what may follow (no journal over them)
+  if (death.open || cover.open) return
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') shift = true
   // the layer chooser: a number picks, Esc closes
   if (hud.chooserOpen) {
@@ -490,6 +502,22 @@ window.addEventListener('blur', () => stopMoving())
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden' && slot && !cover.open) send({ t: 'save' })
 })
+// a quiet autosave each minute and on every new map: a closed or crashed tab (or a reload in
+// development) loses at most a minute, not everything since the last sleep. Only when it is safe:
+// hurt a moment ago, or with something hostile near, the save to load after a fall would be the
+// fight one lost (loaded, one would fall again)
+let hurtAt = -Infinity
+let lastHp = Infinity
+const DANGER_MS = 15_000
+const DANGER_TILES = 8
+const inDanger = (f: Frame | undefined): boolean =>
+  !!f && (performance.now() - hurtAt < DANGER_MS || f.entities.some((e) => e.hostile && Math.max(Math.abs(e.x - f.player.x), Math.abs(e.y - f.player.y)) <= DANGER_TILES))
+const autosave = (): void => {
+  if (!slot || cover.open || death.open || inDanger(lastFrame)) return
+  quietSave = true
+  send({ t: 'save' })
+}
+setInterval(autosave, 60_000)
 
 // ------------------------------------------------------------------ mouse: aim at the pointed tile (as far as an input reaches); left = use, right = on oneself
 

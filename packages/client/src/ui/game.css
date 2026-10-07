@@ -200,7 +200,7 @@
 .recipe .rname { font-weight: 600; }
 .recipe .needs { display: flex; gap: 10px; }
 .recipe .need { display: inline-flex; align-items: center; gap: 2px; font-size: 13px; }
-.recipe .need.short { color: #b0322a; }
+.recipe .need.short, .recipe .station.short { color: #b0322a; }
 .recipe .need .icon canvas { width: 24px; height: 24px; image-rendering: pixelated; }
 .recipe button { background: var(--paper-dark); color: var(--ink-warm); border: 2px solid var(--wood-dark); }
 .recipe button:disabled { opacity: 0.45; cursor: default; }

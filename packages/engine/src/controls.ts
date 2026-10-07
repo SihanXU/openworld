@@ -179,7 +179,10 @@ export class Controls {
     const standing: Ref[] = [...bodies, ...loose, ...ground, ...structures].map((e) => ({ e: e.id }))
     // the view's cells of this very tile are its make-up, under what stands on it (they come last, below)
     const own = (r: Ref) => { const e = w.get(r.e); const c = parseCellId(r.e) ?? (e && cell(e) ? w.posOf(e) : undefined); return !!c && c.map === at.map && c.x === at.x && c.y === at.y && (c.z ?? 0) === storey }
-    let out: Ref[] = stack ? [...stack.filter((r) => !own(r)).map(cellOf).filter(ok), ...standing] : standing
+    // and what lies on a thing comes before the thing, however small it is drawn: the pointer on a cart
+    // beside the wand laid on it meets the wand (the cart is next, as the ground is under the stone)
+    const under = new Set(bodies.length || loose.length ? [...ground, ...structures].map((e) => e.id) : [])
+    let out: Ref[] = stack ? [...stack.filter((r) => !own(r) && !under.has(r.e)).map(cellOf).filter(ok), ...standing] : standing
     // a bird overhead is the last thing the keys meet (it is drawn on top, but rarely what is meant)
     const aloft = (r: Ref) => 'e' in r && !!w.get(r.e) && w.hasTag(w.get(r.e)!, 'airborne')
     out = [...out.filter((r) => !aloft(r)), ...out.filter(aloft)]
@@ -232,7 +235,14 @@ export class Controls {
   /** The layers an input meets at a spot: oneself is never one (one's own place is what is there); the open air only F and G meet. */
   private targets(at: Pos, stack?: Ref[], key?: Key): Ref[] {
     const me = this.w.state.player
-    return this.layers(at, stack).filter((r) => r.e !== me && (key === 'put' || key === 'take' || !this.w.isAir(this.w.get(r.e))))
+    const all = this.layers(at, stack).filter((r) => r.e !== me && (key === 'put' || key === 'take' || !this.w.isAir(this.w.get(r.e))))
+    // what another cell draws over the point but stands beyond the key's reach (a farther tree's
+    // crown over the tree beside one) is not what the key meets: the next layer is. What stands on
+    // the spot itself stays, reached or not (a bed pointed at from beside it is not its floor).
+    if (!key || key === 'self') return all
+    const held = this.w.player.held
+    const elsewhere = (r: Ref) => { const p = this.w.refPos(r); return !!p && (p.x !== at.x || p.y !== at.y) }
+    return all.filter((r) => !elsewhere(r) || this.reaches(key, r, key === 'use' && held ? { e: held } : undefined))
   }
 
   /** The spot aimed at itself, on one's own storey (no step back toward oneself). */
@@ -358,6 +368,19 @@ export class Controls {
     return p
   }
 
+  /**
+   * The plan for a key pressed while its label named `shown`: one who walked off the spot since (a
+   * person on their round, a creature) stays the target while the key still reaches them. What the
+   * label said is what happens; a bread offered to the merchant is not set down where he stood.
+   */
+  planFor(key: Key, aim: Aim | undefined, layer = 0, shown?: Ref): Plan | undefined {
+    const p = this.plan(key, aim, layer)
+    if (!shown || !('e' in shown) || (p && 'e' in p.target && p.target.e === shown.e)) return p
+    const e = this.w.get(shown.e)
+    const at = e && this.w.isAgent(e) && e.id !== this.w.state.player ? this.w.posOf(e) : undefined
+    return (at && this.planOn(key, at, shown)) || p
+  }
+
   /** The chooser's list: every layer at the aim the key reaches, with what it would do there. */
   choices(key: Key, aim?: Aim): { layer: number; name: Text; plan?: Plan }[] {
     const a = this.aim(aim, key)
@@ -450,6 +473,19 @@ export class Controls {
   sync(): void {
     this.hand(() => this.syncSlots())
     this.eng.settle()
+    this.bagSig = this.bagNow()
+  }
+
+  private bagSig = ''
+  private bagNow(): string {
+    const p = this.w.state.player ? this.w.get(this.w.state.player) : undefined
+    return p ? `${(p.contents ?? []).join(',')}|${p.held ?? ''}` : ''
+  }
+
+  /** What reached the bag without an input (a scene's gift, a reward, a trade someone else began) takes its slot (each tick). */
+  keep(): void {
+    const now = this.bagNow()
+    if (now && now !== this.bagSig) this.sync()
   }
 
   private syncSlots(): void {

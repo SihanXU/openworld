@@ -33,6 +33,8 @@ export interface EntitySnap {
   spaces?: string[]
   facing: Dir
   statuses: string[]
+  /** What its statuses draw over it (their `overlay`, OVERLAYS), in the order it has them. */
+  overlays?: string[]
   tags: string[]
   name: Text
   hp?: number
@@ -96,6 +98,8 @@ export interface Frame {
     props: Record<string, PropValue>
     /** The skills learned (the skill tree). */
     skills: string[]
+    /** The stations within reach (a workbench beside one): which station recipes can be made now. */
+    stations: string[]
     held?: ItemInfo
     inventory: ItemInfo[]
     /** The bag's slots (row 1 is the toolbar): a stack each, or empty. */
@@ -231,13 +235,16 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       ...(w.spacesOf(e).some((s) => s !== 'body') && { spaces: w.spacesOf(e) }),
       facing: e.facing ?? 'down',
       statuses: Object.keys(e.statuses ?? {}),
+      ...((o) => o.length && { overlays: o })(Object.keys(e.statuses ?? {}).flatMap((s) => w.onto.status(s)?.overlay ?? [])),
       tags: [...r.tags, ...(e.tags ?? [])],
       name: e.name ?? r.name ?? e.type.split('/').pop()!,
       hp: w.prop(e, 'maxHp') !== undefined ? w.num(e, 'hp') : undefined,
       maxHp: w.prop(e, 'maxHp') !== undefined ? w.num(e, 'maxHp', 1) : undefined,
       appearance: e.npc?.appearance ?? (e.id === w.state.player ? PLAYER_LOOK : e.npc ? PLAYER_LOOK : undefined),
       look: e.look ?? e.npc?.look,
-      hostile: e.ai ? e.ai.state === 'chase' : undefined,
+      // whether it would set on the one at the keys (its factions, temper, foes): not whether it is chasing
+      // this moment (a bat that wheels away is no friend)
+      hostile: e.ai ? eng.hostileTo(e, w.player) : undefined,
       frozen: !!e.frozenBy,
       element: (w.prop(e, 'element') as string | undefined) ?? undefined,
       open: !!e.statuses?.open,
@@ -310,6 +317,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       statuses: Object.keys(p.statuses ?? {}),
       props: { ...w.onto.resolve(p.type).props, ...(p.props ?? {}) },
       skills: skillsOf(p),
+      stations: [...w.stationsNear(p)],
       held: p.held ? itemInfo(eng, p.held) : undefined,
       inventory: (p.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),
       slots,
