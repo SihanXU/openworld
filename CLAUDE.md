@@ -67,7 +67,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   form × every target × every act through the rule library and the impulses it sends, counting
   the holes; the numbers in `docs/roadmap.md` §1).
 - `packages/client` — `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
-  `render/scene.ts` renders snapshots with the Ninja Adventure pack; `assets/catalog.ts` maps
+  `render/scene.ts` renders snapshots with the Ninja Adventure pack (`render/depth.ts` the draw order); `assets/catalog.ts` maps
   content keys to sprites; `assets/ground.ts` autotiles; `ui/` the Stardew-style UI (`hud.ts` clock, bars,
   toolbar, key labels, dialogue; `menu.ts` menu tabs, journal, chest panel; `worldmap.ts` the world map (M) and the minimap; `dev.ts` the Mod Console, dev only); the worker uses the modder service when one answers
   (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it.

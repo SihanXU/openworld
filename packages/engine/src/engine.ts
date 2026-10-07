@@ -747,6 +747,8 @@ export class Engine {
   hurt(e: Entity, amount: number, element?: string, pierce?: boolean, by?: GameEvent, blow = false): void {
     const w = this.world
     if (w.hasStatus({ e: e.id }, 'down')) return
+    // what is invulnerable takes no harm (a development switch any actor may carry: `invulnerable`)
+    if (w.prop(e, 'invulnerable') === true) return
     // what has no durability cannot be harmed (world-model.md §4.2: without maxHp, it cannot break)
     if (w.prop(e, 'maxHp') === undefined) return
     if (blow) {

@@ -19,6 +19,9 @@ import type { Ref, WorkDef } from './types.ts'
 import { DIRS, FIRE_RADIUS } from './types.ts'
 import type { Dir, Entity, Id, Pos, ScheduleEntry } from './types.ts'
 
+/** How many of its turns a person holds its round for one who faces it (a few seconds). */
+const ATTEND_TURNS = 12
+
 interface Runtime {
   path?: [number, number][]
   goal?: string // `${map}:${x}:${y}` the path leads to
@@ -28,6 +31,8 @@ interface Runtime {
   unreachable?: number
   /** someone stood in the way: the next path goes around people */
   around?: boolean
+  /** turns held for one who stands beside them and faces them */
+  attended?: number
   /** running from a threat (their alarm is shown once per flight) */
   fleeing?: boolean
   /** what they are working on, and the act that does it */
@@ -154,6 +159,23 @@ export class NpcSim {
       }
     }
     this.rt.clear()
+  }
+
+  /**
+   * One who stands beside a person and faces them, with no round of their own to keep (a traveller,
+   * a companion), is attended to: the person holds their round a few turns — a gift handed over, a
+   * word, is not a chase. Never for long, and never for another on a round (two would hold each other).
+   */
+  attended(e: Entity): boolean {
+    if (!e.npc) return false
+    const rt = this.runtime(e)
+    const w = this.eng.world
+    const at = w.posOf(e)
+    const facing = at && (Object.entries(DIRS) as [Dir, [number, number]][]).some(([, [dx, dy]]) =>
+      w.entitiesAt(at.map, at.x - dx, at.y - dy, at.z).some((o) => o.id !== e.id && w.isAgent(o) && !o.npc && !o.ai && DIRS[o.facing ?? 'down'][0] === dx && DIRS[o.facing ?? 'down'][1] === dy))
+    if (!facing) return void (rt.attended = 0), false
+    rt.attended = (rt.attended ?? 0) + 1
+    return rt.attended <= ATTEND_TURNS
   }
 
   private runtime(e: Entity): Runtime {

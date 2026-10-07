@@ -6,6 +6,7 @@ import type { Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, MapData,
 export type Tile = Aim
 
 export type ToWorker =
+  | { t: 'skipLearning' }
   | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** the modder service, if any */ modder?: string; /** false: no prefetch (?prefetch=0) */ prefetch?: boolean; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string }
   /** The one at the keys, fallen, rises again: where they fell, or at home (the death screen). */
   | { t: 'respawn'; home: boolean }
@@ -73,6 +74,7 @@ export type ToWorker =
   | { t: 'debug'; op: 'summon'; kit: string; map: string; x: number; y: number; from: [number, number] }
   /** Harm the one at the keys (as a blow nobody struck): to try a fall and the death screen. */
   | { t: 'debug'; op: 'hurt'; amount: number }
+  | { t: 'debug'; op: 'god'; on?: boolean }
 
 export interface RecordView {
   id: string
@@ -96,11 +98,11 @@ export type FromWorker =
   | { t: 'placement'; preview: PlacementPreview }
   | { t: 'ready'; stats: WorldIndex['stats']; name: WorldIndex['name']; resumed: boolean }
   | { t: 'map'; map: MapData }
-  | { t: 'frame'; frame: Frame; perf: { tickMs: number; entities: number; loaded: number }; /** the codex's version: something new was met */ codex: number }
+  | { t: 'frame'; frame: Frame; perf: { tickMs: number; entities: number; loaded: number }; /** the codex's version: something new was met */ codex: number; /** the world waits for the outcome of the player's act: for how long so far, and at most */ learning?: { seconds: number; limit: number } }
   | { t: 'records'; records: RecordView[]; library: LibraryView }
   | { t: 'spec'; spec: ModSpec }
   | { t: 'validation'; id?: string; result: ValidationResult }
-  | { t: 'saved'; save: SaveData; library: LibraryData; summary: SaveSummary }
+  | { t: 'saved'; save: SaveData; library: LibraryData; summary: SaveSummary; /** the world's own save (no toast: on the overworld one comes with every block) */ auto?: boolean }
   /** The library changed (a patch was accepted or removed): keep it at once, not at the next save. */
   | { t: 'library'; library: LibraryData }
   | { t: 'loading'; what: string }
