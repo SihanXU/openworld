@@ -103,6 +103,8 @@
 /* the map name as it fades in */
 .mapname { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); font: 600 30px var(--pixel); color: #fff8e6; text-shadow: 0 2px 0 #000, 0 0 12px rgba(0,0,0,0.6); opacity: 0; pointer-events: none !important; white-space: nowrap; }
 .mapname.show { animation: mapname 3s ease; }
+.learning { position: absolute; left: 50%; top: 34%; transform: translateX(-50%); padding: 8px 16px; border-radius: 6px; background: rgba(20, 16, 40, 0.82); color: #f3e9ff; font: 600 16px var(--pixel); box-shadow: 0 0 0 2px #b9a4ff55; pointer-events: none; white-space: nowrap; animation: learnpulse 1.6s ease-in-out infinite; }
+@keyframes learnpulse { 50% { box-shadow: 0 0 0 2px #b9a4ffcc; } }
 @keyframes mapname { 0% { opacity: 0; } 15% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
 
 /* the two keys' labels over the target */

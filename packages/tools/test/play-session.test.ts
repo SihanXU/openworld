@@ -4,7 +4,9 @@
 
 import { describe, expect, it } from 'vitest'
 import { ModPort, OVERLAYS, OntologyIndex, RuleLibrary, buildSandbox, madeOf, snapshot, validatePatch, type Engine } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
+import { Game, DIRS, tickAt, type Dir } from '@lsw/engine'
+import { buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()
 const lib = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
@@ -50,6 +52,57 @@ describe('the inputs', () => {
     // the view: the pointer meets only the cart's big sprite, beside the wand's small one
     expect(eng.controls.layers({ map: 'sandbox', x: 3, y: 2 }, [{ e: 'cart' }])[0]).toEqual({ e: 'wand' })
     expect(eng.controls.plan('take', { x: 3, y: 2, stack: [{ e: 'cart' }] })?.target).toEqual({ e: 'wand' })
+  })
+})
+
+describe('the inputs, the fairy', () => {
+  it('G sets the wall down where the fairy hovers (a flyer the key has nothing to do with is not in the way); E still talks to it', () => {
+    const eng = meadow([{ key: 'wall', type: 'item/structure/wall', x: 3, y: 3 }])
+    const w = eng.world
+    eng.author(() => {
+      w.place(w.get('wall')!, { on: 'hand', holder: 'actor' })
+      w.create('actor/companion/fairy', { on: 'tile', map: 'sandbox', x: 4, y: 3 }, { id: 'pip', props: { companion: 'actor' } })
+    })
+    const put = eng.controls.plan('put', { x: 4, y: 3, stack: [{ e: 'pip' }] })
+    expect(put?.target).not.toEqual({ e: 'pip' })
+    expect(put?.verb).toBe('put')
+    expect(eng.controls.plan('hands', { x: 4, y: 3, stack: [{ e: 'pip' }] })?.target).toEqual({ e: 'pip' })
+  })
+})
+
+describe('the people', () => {
+  it('a person on their round holds it a few turns for one who stands beside them and faces them (a gift is not a chase), then goes on', () => {
+    const { index, chunks } = buildFord()
+    const at = (faced: boolean) => {
+      const game = Game.create(index, onto, lib())
+      for (const c of chunks) game.loadChunk(decodeChunk(c))
+      const eng = game.engine
+      const w = eng.world
+      eng.author(() => eng.travel(w.player, { map: 'meadow', x: 2, y: 2 }))
+      w.state.tick = tickAt(1, 15)
+      for (let i = 0; i < 5; i++) eng.tick()
+      // someone on the move about the village
+      const tobin = w.get('npc.tobin')!
+      const p0 = w.posOf(tobin)!
+      if (faced) {
+        // stand beside him, facing him (the free side)
+        const side = (Object.entries(DIRS) as [Dir, [number, number]][]).find(([, [dx, dy]]) => !w.blocked(p0.map, p0.x - dx, p0.y - dy))!
+        eng.author(() => {
+          eng.travel(w.player, { map: p0.map, x: p0.x - side[1][0], y: p0.y - side[1][1] })
+          w.player.facing = side[0]
+        })
+      }
+      const trail: string[] = []
+      for (let i = 0; i < 600; i++) (eng.tick(), trail.push(`${w.posOf(tobin)!.x},${w.posOf(tobin)!.y}`))
+      return { p0: `${p0.x},${p0.y}`, trail }
+    }
+    const alone = at(false)
+    const faced = at(true)
+    // left alone he steps off at some moment; faced, he is still there then, and goes on later
+    const first = alone.trail.findIndex((p) => p !== alone.p0)
+    expect(first).toBeGreaterThanOrEqual(0)
+    expect(faced.trail[first]).toBe(faced.p0)
+    expect(faced.trail.some((p) => p !== faced.p0)).toBe(true)
   })
 })
 
@@ -126,5 +179,20 @@ describe('the world', () => {
     expect(port.asking?.origin).toBe('player')
     port.fallback(port.asking!.id)
     expect(port.asking).toBeUndefined()
+  })
+
+  it('a late answer completes an act that timed out, but not one the player declined to wait for (they moved on)', () => {
+    const answer = { artifacts: [{ kind: 'rule' as const, rule: { id: 'patch/rope-mark', host: { type: 'item/tool/rope' }, on: 'act/use' as const, tree: { do: [{ op: 'addTag' as const, tag: 'marked' }] } } }] }
+    for (const declined of [false, true]) {
+      const eng = meadow([{ key: 'rope', type: 'item/tool/rope', x: 3, y: 3 }, { key: 'slime', type: 'actor/creature/slime/green_slime', x: 3, y: 2 }])
+      eng.author(() => eng.world.place(eng.world.get('rope')!, { on: 'hand', holder: 'actor' }))
+      const port = new ModPort(eng)
+      port.provider = { resolve: () => new Promise(() => undefined) }
+      eng.act('use', 'actor', { e: 'slime' })
+      const id = port.asking!.id
+      port.fallback(id, declined)
+      expect(port.submit(id, answer).errors).toEqual([])
+      expect(eng.world.get('rope')!.tags?.includes('marked') ?? false).toBe(!declined)
+    }
   })
 })

@@ -92,6 +92,7 @@ export class Hud {
       </div>
       <div class="msgs" id="msgs"></div>
       <div class="mapname" id="mapname"></div>
+      <div class="learning hidden" id="learning"></div>
       <div class="keys" id="keys"></div>
       <div class="chooser hidden" id="chooser"></div>
       <div class="dialog hidden" id="dialog"><div class="face" id="dFace"></div><div class="dtext"><div class="dname" id="dName"></div><div class="dline" id="dLine"></div><div class="dchoices hidden" id="dChoices"></div></div><div class="dmore" id="dMore">▼</div></div>
@@ -632,6 +633,19 @@ export class Hud {
     setTimeout(() => el.classList.add('fade'), 5000)
     setTimeout(() => el.remove(), 6000)
     return el
+  }
+
+  /** The world waits on the player's act (the model is working out its outcome): said plainly, mid-screen. */
+  learning = false
+  setLearning(l: { seconds: number; limit: number } | undefined): void {
+    const el = $('#learning')
+    this.learning = !!l
+    el.classList.toggle('hidden', !l)
+    if (!l) return
+    const zh = locale.value === 'zh'
+    el.textContent = zh
+      ? `✦ 世界正在学习这件事…… ${l.seconds} 秒（最多 ${l.limit} 秒）· Esc 不等了`
+      : `✦ The world is working this out… ${l.seconds}s (at most ${l.limit}s) · Esc: don't wait`
   }
 
   private mapName?: Text
