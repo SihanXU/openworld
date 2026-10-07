@@ -84,6 +84,14 @@
 .barrow { display: flex; gap: 6px; align-items: stretch; }
 .inv-wrap { display: flex; gap: 14px; align-items: flex-start; }
 .inv-offhand { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+/* what is worn: a paper doll of the body's ten slots and the off hand, beside the bag */
+.inv-equip { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 8px; background: var(--paper-dark); border: 2px solid var(--wood-dark); border-radius: 6px; }
+.eq-grid { display: grid; grid-template-columns: repeat(3, auto); gap: 4px 6px; }
+.eq-cell { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.eq-gap { width: 1px; }
+.eq-name { font-size: 10px; color: var(--ink-warm); opacity: 0.75; }
+.eq-slot .ghost { opacity: 0.35; font-size: 15px; }
+.eq-slot.off { filter: grayscale(1); opacity: 0.6; }
 .slot canvas { width: 32px; height: 32px; image-rendering: pixelated; }
 .slot .key { position: absolute; left: 3px; top: 0; font: 10px var(--pixel); color: #8a6a44; }
 /* something worn (world-model.md §6.8): a small mark in the corner */

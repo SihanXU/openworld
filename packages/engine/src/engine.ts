@@ -793,6 +793,10 @@ export class Engine {
     // struck), and health drawn back to them — a restore they answer for themselves
     const bleed = by?.params?.bleed
     if (typeof bleed === 'number' && bleed > 0 && w.get(e.id)) this.applyStatus({ e: e.id }, 'bleeding', bleed, attacker?.id)
+    // a relic's affliction (kneeling, burning, frozen): the struck takes it as its own status
+    const afflict = by?.params?.afflict
+    const afflictFor = by?.params?.afflictFor
+    if (typeof afflict === 'string' && typeof afflictFor === 'number' && afflictFor > 0 && w.get(e.id) && w.num(e, 'hp') > 0) this.applyStatus({ e: e.id }, afflict, afflictFor, attacker?.id)
     const drain = by?.params?.drain
     if (typeof drain === 'number' && drain > 0 && attacker && attacker.id !== e.id)
       this.queue({ kind: 'impulse/restore', host: { e: attacker.id }, roles: { source: { e: e.id }, actor: { e: attacker.id } }, params: { which: 'hp', amount: drain }, cause: by?.cause, origin: by?.origin, depth: (by?.depth ?? 0) + 1 })
@@ -1300,7 +1304,7 @@ export class Engine {
     const victim = 'e' in target ? w.get(target.e) : undefined
     const before = victim ? w.num(victim, 'hp') : 0
     const strike = combatStrike(w, a, victim, base, range, weapon, true)
-    this.act('use', a.id, target, { params: { attack: true, power: strike.power, ...(strike.critical && { critical: true }), ...(strike.bleed && { bleed: strike.bleed }), ...(strike.drain && { drain: strike.drain }) } })
+    this.act('use', a.id, target, { params: { attack: true, power: strike.power, ...(strike.critical && { critical: true }), ...(strike.bleed && { bleed: strike.bleed }), ...(strike.drain && { drain: strike.drain }), ...(strike.afflict && { afflict: strike.afflict.status, afflictFor: strike.afflict.ticks }) } })
     finishCombatStrike(w, a, victim, strike, before, range, true)
     // a sweep (the skill): a melee blow also lands on the creatures on either side of the tile ahead
     if (range <= 1 && w.hasTag(a, 'skill:sweep'))

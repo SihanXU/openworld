@@ -671,15 +671,23 @@ export class Controls {
   }
 
   /**
-   * The off hand (the inventory's slot): put a carried thing on oneself — an act, as using it on
-   * oneself is (`use/wear` → `body/wear`: a shield goes on the arm) — or, with no item, take off
-   * what is worn there (offered again, it comes off).
+   * What is worn (the inventory's equipment): put a carried thing on oneself — an act, as using it on
+   * oneself is (`use/wear` → `body/wear`: a helmet on the head, a shield on the arm) — or take it off
+   * (offered again, it comes off); with no item, what is worn in the off hand. `putOn`: from the bag, so a
+   * stack whose first is already worn puts on another of it (the second of two rings), never takes one off.
    */
-  wear(item?: Id): void {
+  wear(item?: Id, putOn = false): void {
     const w = this.w
     const p = w.player
-    const id = item ?? w.prop(p, OFFHAND)
+    let id = item ?? w.prop(p, OFFHAND)
     if (this.eng.busy(p) || typeof id !== 'string' || !w.get(id)) return
+    if (putOn && w.worn(p).some((e) => e.id === id)) {
+      const first = w.get(id)!
+      const worn = new Set(w.worn(p).map((e) => e.id))
+      const other = this.carried().get(this.key(first))?.find((e) => !worn.has(e.id))
+      if (!other) return
+      id = other.id
+    }
     this.eng.act('use', p.id, { e: p.id }, { instrument: { e: id } })
     this.sync()
   }

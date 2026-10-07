@@ -38,6 +38,8 @@ export interface PrefabDef {
   grid: string[]
   /** Terrain id the solid cells get in the engine (default 'wall'). */
   terrain?: string
+  /** Drawn as ground (under whoever stands on it: a pool one wades into), not as a wall in front of them. */
+  ground?: boolean
 }
 
 /** Sheets with the pack's standard actor layout. */

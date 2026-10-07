@@ -111,6 +111,8 @@ export interface Frame {
     boons?: { unlocked: string[]; active?: string; atWaypoint: boolean }
     /** What is worn in the off hand (a shield), and whether it works there (another profession's does not). */
     offhand?: ItemInfo & { works: boolean }
+    /** What is worn, by slot (`head`, `body`, `ring`, `ring.2` …: the `wear:` props, the off hand's too), while it is still carried. */
+    worn: Record<string, ItemInfo>
   }
   /** A yes/no question waiting for the player (time is stopped). */
   question?: { text: Text }
@@ -389,6 +391,11 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
         const info = item && (item.place.on === 'inside' || item.place.on === 'hand') && item.place.holder === p.id ? itemInfo(eng, item.id) : undefined
         return info && { ...info, works: !!offhandOf(w, p) }
       })(),
+      worn: Object.fromEntries(Object.entries(p.props ?? {}).flatMap(([k, id]) => {
+        const item = k.startsWith('wear:') && typeof id === 'string' ? w.get(id) : undefined
+        const info = item && (item.place.on === 'inside' || item.place.on === 'hand') && item.place.holder === p.id ? itemInfo(eng, item.id) : undefined
+        return info ? [[k.slice(5), info]] : []
+      })),
     },
     question: w.state.question ? { text: w.state.question.text } : undefined,
     quests: questsOf(eng, entities),

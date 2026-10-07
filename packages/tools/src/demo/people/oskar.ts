@@ -13,7 +13,7 @@ export const oskar: PersonDef = {
   ties: {},
   schedules: {
     default: [
-      [0, 24, 'barrow:cell.oskar', 'wait to be found'],
+      [0, 24, 'ossuary:cell.oskar', 'wait to be found'],
     ],
     'fact:rescue.oskar': [
       [21, 7, 'meadow:oskar.home', 'sleep'],

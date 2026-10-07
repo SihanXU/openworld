@@ -30,7 +30,8 @@ export function itemOf(spec: ItemSpec): Omit<Entity, 'id' | 'place'> {
   const s = typeof spec === 'string' ? { form: spec } : spec
   const form = FORM_BY_ID[s.form]
   if (!form) throw new Error(`unknown item form ${s.form}`)
-  const it = makeItem(rng, form, { material: s.material, quality: s.quality ?? 'common', element: s.element === undefined ? null : s.element })
+  // a piece the author gives its own props keeps to them (a named Vowbound piece's trait is its own)
+  const it = makeItem(rng, form, { material: s.material, quality: s.quality ?? 'common', element: s.element === undefined ? null : s.element, trait: !s.props })
   if (s.name) it.name = s.name
   if (s.tags) it.tags = [...(it.tags ?? []), ...s.tags]
   if (s.props) it.props = { ...(it.props ?? {}), ...s.props }

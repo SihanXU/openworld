@@ -3,6 +3,7 @@ import { Game, RuleLibrary } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, WILD_GROUNDS, buildOntology, decodeChunk, wildChunk } from '@lsw/content'
 import { buildFord } from '../src/demo/world.ts'
 import { BLOCK, OVERWORLD } from '../src/demo/overworld.ts'
+import { UNDER_BARROW } from '../src/demo/hollow.ts'
 
 // The overworld's checks (world-model.md §10.2): every map's edges lead to its cell; a map's
 // barriers are mirrored there (parts it keeps apart, the overworld keeps apart); a wilderness is
@@ -55,9 +56,9 @@ describe('the overworld (world-model.md §5.1, §10.2)', () => {
     expect(split).toEqual([])
   })
 
-  it('every map but the overworld (and the tutorial, which lies nowhere) lies on a cell of land, and that cell holds the site that leads into it', () => {
+  it('every map but the overworld (and the tutorial, which lies nowhere, the floors under the barrow, reached by its stairs, and the Held Ground, carried in a thorn) lies on a cell of land, and that cell holds the site that leads into it', () => {
     const w = world()
-    for (const id of w.state.loadedMaps.filter((m) => m !== OVERWORLD && m !== 'tutorial' && m !== 'offstage')) {
+    for (const id of w.state.loadedMaps.filter((m) => m !== OVERWORLD && m !== 'tutorial' && m !== 'offstage' && m !== 'haven' && w.map(m)!.kind !== 'interior' && !(UNDER_BARROW as readonly string[]).includes(m))) {
       const s = w.map(id)!.site!
       const site = w.entitiesAt(OVERWORLD, s.x + 1, s.y + BLOCK - 1).find((e) => e.props?.map === id)
       expect([id, !!site]).toEqual([id, true])

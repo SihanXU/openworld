@@ -287,6 +287,77 @@ Open: how Severin uses the dawn flame (marked [proposal]); Alberic's balance for
 | 2.5 | Bring the Crown home | back in the village: *return* plays (`ch1.end`), the chapter's card |
 | 2.9 | Chapter 2: the road to Emberfall | entering Emberfall (stage 3, as before) |
 
+**The main line never breaks** (2026-10-07; `CH1_QUESTS`, `VILLAGE_QUESTS`, engine `quests.ts`: `auto`,
+`self`, `skipWhen`). One main quest is always under way, each taken on by itself as the last ends:
+
+| Main quest | From | Goals (states) | Done |
+|---|---|---|---|
+| *Down from the Mountain* (`descent`) | a new game | the shrine stone (Mountain Foot), the Ford, Firstlight | by itself; or once in the village |
+| *Lost in the Barrow* (`rescue`, Rowan) | the welcome in Firstlight | the barrow mouth (through the grassland, the forest, the hollow), Lina (barrow), Oskar (ossuary), the warden (sanctum) | handed in to Rowan |
+| *The First Seal* (`first_seal`) | the rescue handed in | the night of thanks, the letter, across the river, **the White Knight** | by itself |
+| *The Crown of Thorns* (`crown_home`) | the knight's fall | the Crown home (`ch1.end`) | by itself |
+
+Whatever comes before the knight is done once he falls (`skipWhen: sins.defeated.alberic`): a player who
+goes straight for him finds the rescue (and its outcome: the foragers home), the First Seal and Ilse's road
+behind them, and the night of the flame, the tale and the letter no longer play (demo P5). Ilse's *Pilgrim's
+Road* is a side quest now; the far bank moves the stage on from the letter (0.7).
+
+**The barrow, three floors down** (`tools/src/demo/hollow.ts`): the Old Barrow (Lina's cell; a stair in the
+east cell), the **Ossuary of the Thorn** (`ossuary`: the Order's dead in named niches — one carved for Fennick,
+empty and swept —, the roll of the Order on its altar ending with Alberic, Oskar's cell, skeletons and a
+ghost) and the **Warden's Sanctum** (`sanctum`: the warden — Tomas, the Commander's brother — guarding the
+altar where Alberic's vow is cut: "I WILL HOLD UNTIL I AM RELIEVED", an ash thumbprint under it). The floors
+are reached by stairs and lie under the barrow's overworld cell. Eleven maps lead to the knight: Cloudtop,
+the Mountain Foot, the Ford, Firstlight, the grassland, the forest, Thornwood Hollow, the barrow, the
+ossuary, the sanctum and the East Road.
+
+**Gear and its tiers** (2026-10-07; content `items.ts` QUALITIES, demo C6). Six tiers: Crude 粗制, Common,
+Fine 精良, Masterwork 大师, and two the story names — **Vowbound 遗誓** (purple: what those bound by a vow left
+behind, the Order of the Thorn's dead, the pilgrim before you; found, never made) and, highest, **Stigmatic 圣痕**
+(crimson-gold: it bears one of Astra's five wounds; only the Seal-bearers carry it, never rolled, and each piece
+asks something back — the id stays `legendary`; the professions' legendary arms the Seal-bearers drop are
+Stigmatic). The tooltip names the two story tiers and what a piece gives where it is worn (a cost in red).
+
+**Effects** (2026-10-07; engine `combat.ts`, `World.stat`; content `RELICS`, `VOW_TRAITS`; tests
+`equipment.test.ts`). A Vowbound piece keeps a trait of its vow beyond its numbers — dodge, lifesteal, critical
+chance, movement speed, *standing your ground* (`holdFast`: less harm while one has not stepped this second), or
+a bonus only at night (`night:<stat>`); a rolled one takes one of these, the story's own name theirs (Odo's
+pauldrons hold fast, Maren's ring drinks, Tomas's belt guards by night, the scallop quickens the stride,
+Fennick's helm dodges). Every Stigmatic piece carries a power of its own, one of each in the world (`relic`):
+
+| Piece | Power |
+|---|---|
+| Crown of Thorns | *None Cross That Do Not Kneel*: 20% of blows force the struck to kneel (1 s, `knelt`) |
+| Nightfang | *Tooth of the Night*: +25% critical chance at night |
+| Mirrorshard | *Stolen Face*: a critical draws back 3 more health |
+| Oathbrand | *Oath Kept*: below 30% health, lifesteal ×3 |
+| Galestring | *Running Wind*: each hit, +30% movement speed for 2 s |
+| Starfall | *Falling Star*: every fifth hit is a critical |
+| Emberheart | *Heart of Embers*: 25% of hits set the struck burning |
+| Rimecrown | *Crown of Rime*: 20% of hits freeze the struck a moment |
+| The Unfallen Wall | *Unfallen*: once a minute, a felling blow is turned aside |
+| Dragonsbane | *Dragonslayer*: double damage against dragons and whelps |
+
+What a blow does to the struck (kneeling, burning, frozen) travels with it (`afflict`, as bleeding does) and the
+struck takes it as its own status.
+
+| Where | Piece | Tier |
+|---|---|---|
+| *Down from the Mountain* | Traveller's Boots | Common |
+| Cloudtop, the shelter | Watchman's Cloak | Fine |
+| Mountain Foot, the hunter's hut | Hunter's Gloves | Common |
+| Thornwood Hollow, the thickets | Thornproof Boots | Fine |
+| The barrow, by Lina's cell | Rusted Helm of the Thorn | Crude |
+| The ossuary, Odo's and Maren's niches | Brother Odo's Pauldrons, Sister Maren's Ring | Vowbound |
+| The sanctum, the warden falls | Tomas's Belt of Vigil | Vowbound |
+| *Lost in the Barrow* (Rowan) | Rowan's Old Hauberk | Fine |
+| The forest camp | the Pilgrim's Scallop (neck) | Vowbound |
+| *Pell's Drawings* / *The Ninth Nail* / *Edda's Ring* / *Night on the Grassland* | Chalk-dusted Cloak / Joss's Tool Belt / Edda's Work Gloves / Brin's Bone Ring | Fine |
+| *The Watchman's Log* (Nessa) / *The Pilgrim's Road* (Ilse) | Star-glass Earring / Amulet of the Five Wounds | Masterwork |
+| *The Old Templar* (Fennick) | Fennick's Squire Helm | Vowbound |
+| The East Road, a kneeling stone; the kingdom | A Kneeling Pilgrim's Earring; Gauntlets of the White Host | Fine; Masterwork |
+| The White Knight | the Crown of Thorns (head: +4 defence, +2 attack, −50% experience: it wears the self away) | Stigmatic |
+
 **Story before the knight** (2026-10-06; `CHAPTER1_STORY` in `tools/src/demo/quest/chapter1.ts`, proved by
 demo C4): each place and step has its scene.
 
@@ -306,16 +377,30 @@ demo C4): each place and step has its scene.
 | `edda_barn` | the barn | Edda: the knight took all that shone; the grey man pulled her out |
 | `severin_warning` | the road before the thorns, after the letter | the grey man tries to turn the pilgrim back: the seals hold Astra, the First Night wears his face; to Pip: "You of all of them should know… No. You would not remember." No fight |
 | `statue_rest` (a beat) | the statue before the thorns | Pip: rest here; it is colder past the thorns than at the shrine stone |
+| `watch_log` | Cloudtop, beside the shelter's table | the Church's sunset watch: years of earlier sunsets nobody read; the last page, a light asleep in the snow that asked how old it was (Pip does not remember) |
+| `pasture_first` (a beat) | first onto the grassland | the herd keeps to the north, away from the trees |
+| `kneeling_herd` | the grassland at dusk (17–20) | the cows kneel, all facing east; Brin: since the bridge went; the dead come up at night |
+| `forest_quiet` (a beat) | first into the forest | no birds |
+| `pilgrim_camp` | the forest's south-east clearing | the cold camp of the pilgrim before you: the same proclamation, thirty-one years old, another name; his scallop by the cairn |
+| `pilgrim_ghost` | the camp after dark | a pale shape kneels: "I knelt to him. Do not kneel." |
+| `hollow_first`, `barrow_mouth` (beats) | Thornwood Hollow; the barrow mouth | the dead below sleep badly; the carved stones of the Order of the Thorn (Fennick: the warden was one of Alberic's brothers) |
+| `far_bank_early` (a beat) | the far bank before stage 1 | across early: `ford.crossed`, but the stage waits for the pilgrim's road (`far_bank` needs stage 1) |
+| `ossuary_enter`, `niches` (beats) | the ossuary; its hall of niches | a whole order of knights buried together, not sleeping; Fennick's empty niche, swept |
+| `oskar_cell` | Oskar's cell in the ossuary | he went down looking for a way out; the roll's last name; the warden walks below like a guard on a wall |
+| `sanctum_enter` (a beat) | the sanctum | the warden guards an altar: it thinks it still has a post |
 | `kingdom` | inside the ring | "None cross that do not kneel. Another pilgrim. They always send another." |
 | `crown`, `return` | after the knight | as above |
 
 **Quests**: main *The Pilgrim's Road* (Ilse); side *Pell's Drawings* (four chalk drawings: the shrine
 stone at the Mountain Foot, the barrow door, the footbridge, the flame), *The Measure of Days* (Nessa:
 three waypoint statues woken), *The Old Templar* (Fennick: three of the dead), *The Ninth Nail* (Joss) and
-*Edda's Ring* (both in the knight's kingdom). With the village's own (stew, Mia's ring, the hollow,
-firewood) the chapter has eleven before the knight.
+*Edda's Ring* (both in the knight's kingdom), and (2026-10-07) *The Watchman's Log* (Nessa: read the log
+on Cloudtop), *Night on the Grassland* (Brin, the herder: three of the dead on the grassland) and *The
+Pilgrim Before* (Ilse, once the forest camp is found: Brother Cassian's scallop). With the village's own
+(stew, Mia's ring, the hollow, firewood) the chapter has fourteen before the knight; every map before
+the knight carries some of the story (demo C5).
 
-**People**: Ilse, Joss, Pell, Nessa, Fennick in the village; Edda in the burned farm's barn (in the village
+**People**: Ilse, Joss, Pell, Nessa, Fennick in the village; Brin, the herder, on the grassland by day; Edda in the burned farm's barn (in the village
 after the knight); Severin and the Church courier wait on `offstage` (a plot linked to nothing) and the
 scenes place them. Hesper, Rowan, Holt, Tobin, Lina, Oskar and Marta have new lines.
 
@@ -329,3 +414,49 @@ the road to Emberfall shut until he falls (`Portal.opensWhen`).
 `night`, the frame's `night` for the screen); a scene's `tell` (a notice to someone: the fairy's boon); a
 boss body's `skillScale`; a written thing's `text_zh`; a quest's talk goal comes before the person's own
 errand (`quests.ts`); `light/told` (a light the story tells to go out or burn answers itself).
+
+## 12. The Held Ground (built 2026-10-07)
+
+When the White Knight falls, one thorn of his crown stays green where he fell: the **Oath-Thorn** (`item/relic/oath_thorn`,
+Vowbound; the step `oath_thorn`, which also reaches a save whose knight fell before it existed). Used on oneself
+(right click) it takes one into **the Held Ground** (誓守之地, map `haven`) and, used there, back where one stood
+(engine primitive `pocket`: the host keeps `pocket.return`; content `body/stage` answers the notice). It lies nowhere
+on the overworld.
+
+The Held Ground is the player's camp: a peaceful field round **the planted sword** (Alberic's longsword, point down),
+his tent and post, a chest, tilled earth to sow, a cow and two hens, a pond — build, farm and keep animals there as
+anywhere. It is ringed by **three rings of mist** (`fixture/nature/mist`, each with its `ring`): beyond the first a
+grove and stones, beyond the second a meadow and water, beyond the third boundary stones and iron in the rock.
+
+**Alberic, freed of the crown, is its steward** (`npc.alberic`; human form `lsw/Characters/Alberic`, the pack's Master
+recoloured by `tools/src/art/alberic-human.swift`: white hair, the knight's steel, the Order's gold, the thorns' scar on
+his brow). He keeps his vow turned round — "You relieved me. So I hold for you now." He does not remember names and asks
+yours; he remembers a squire he cannot see. His errands widen the ground (`haven1`–`haven3`: logs and stones; planks and
+iron; planks, stones and gold). Each sets the story's `haven.size`; every bank of mist looks now and then (the `mist`
+period) whether the ground has grown past its ring, and lifts (`haven/mist-lifts`). Demo H1 plays it.
+
+An older save is given the people the world has since added (engine `upgrade`), so the steward is in it too.
+
+## 13. Firstlight's own country: the vigil (built 2026-10-07)
+
+Between the rescue and the night of thanks the main line is **The Vigil** (`vigil`, Sister Ilse; taken on by itself
+once the rescue is handed in, done when the knight has fallen): Firstlight keeps a vigil at its flame for those who
+come home, and Ilse needs **lamp oil** from the cellar under Tam's mill, **dawnbloom** from Dawn Hill, and **the old
+bell** rung in the Chapel of the First Dawn. Handed in (the Cloak of the Dawn Vigil, Masterwork), `ch1.vigil` is set:
+the tale and the night of the flame wait for it; then *The First Seal* (demo V1).
+
+Four maps (`tools/src/demo/quest/vigil.ts`), through two new gaps in Firstlight's woods:
+
+| Map | Reached | What is there |
+|---|---|---|
+| **Millbrook** (水车磨坊, `mill`) | Firstlight's west edge | the brook and its footbridge, the mill (a longhouse), a thin wheat field, Tam the miller (`npc.tam`: the wheel turns slower every week) |
+| **The Mill Cellar** (`millcellar`) | the mill's door | barrels and crates, the two flasks of vigil oil, slimes and a spider come in from the night |
+| **Dawn Hill** (晨光丘, `dawnhill`) | Firstlight's north edge | the hill two levels up, the Dawnstone ("HERE THE SUN ROSE AGAIN"), dawnbloom facing east, wolves, a waypoint statue |
+| **Chapel of the First Dawn** (初晓礼拜堂, `chapel`) | the temple's door on the hilltop | the cold first hearth where the Firstlight was kindled, the bell rope in the tower's corner (`chapel_bell`) |
+
+Waypoint statues now also stand on Dawn Hill and by the barrow mouth in Thornwood Hollow (`wp.dawnhill`,
+`wp.hollow`). Fifteen maps lead to the knight.
+
+**Gear on the ground** shows as one bundle (`item:loot`, tools `art/gear.ts`): what it is shows only once it is
+picked up. More errands pay in gear: Marta's Kitchen Sash, Mia's Ribbon Earring, Militia Pauldrons (Holt), the
+Surveyor's Ring (Nessa), Cassian's Prayer Cord (Ilse, Vowbound).

@@ -33,7 +33,7 @@ import {
   type PlacementPreview,
   restoreLibrary,
 } from '@lsw/engine'
-import { BASE_RULES, BOSS_LAYOUT, COMPANION_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, PROLOGUE_DONE, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateCompanion, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
+import { BASE_RULES, BOSS_LAYOUT, createBoss, COMPANION_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, PROLOGUE_DONE, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateCompanion, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
@@ -58,6 +58,8 @@ let lastTickMs = 0
 let lastRecordsVersion = -1
 let saveEvery = 0
 let lastQuest: unknown
+/** The dev console's summon: a boss to set down once its map is the one the player stands on (loaded). */
+let summon: { kit: string; map: string; x: number; y: number } | undefined
 
 const ontology = buildOntology()
 
@@ -378,6 +380,21 @@ function loop(): void {
   }
   if (game.neededMaps().length) void ensureMaps()
   const w = eng.world
+  if (summon && w.posOf(w.player)?.map === summon.map && w.state.maps[summon.map]) {
+    const s = summon
+    summon = undefined
+    // the campaign's knight as Chapter 1 sets him (tools quest/chapter1.ts), on the nearest open tile of his field
+    // clear of any boss still standing there (their bodies are large)
+    const bosses = w.entitiesOnMap(s.map).filter((e) => e.boss && w.num(e, 'hp') > 0).map((e) => w.posOf(e)!)
+    const clear = (x: number, y: number) => w.walkable(s.map, x, y) && bosses.every((b) => Math.max(Math.abs(b.x - x), Math.abs(b.y - y)) >= 4)
+    const at = [[0, 0], [0, -4], [-5, 0], [0, 4], [5, 0], [-5, -4], [-5, 4]].map(([dx, dy]) => ({ x: s.x + dx, y: s.y + dy })).find((p) => clear(p.x, p.y)) ?? { x: s.x, y: s.y }
+    eng.author(() => {
+      const knight = createBoss(s.kit, { map: s.map, ...at }, `${s.map}.${s.kit}.${w.state.tick}`)
+      if (s.kit === 'alberic') knight.props = { hp: 300, maxHp: 300, def: 1, atk: 5, skillScale: 0.4 }
+      w.add(knight)
+    })
+    w.fx.push({ t: 'log', text: { en: 'The White Knight stands in his field again.', zh: '白骑士再次站在了他的田野上。' }, tone: 'warn' })
+  }
   const pos = w.posOf(w.player)
   if (!pos || !w.state.maps[pos.map]) return
   if (pos.map !== lastMap) {
@@ -573,7 +590,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         game?.engine.controls.organize()
         break
       case 'wear':
-        game?.engine.controls.wear(m.item)
+        game?.engine.controls.wear(m.item, m.putOn)
         break
       case 'craft': {
         const r = RECIPE_BY_ID[m.id]
@@ -649,6 +666,11 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (m.op === 'give') eng.author(() => (w.create(m.type, { on: 'inside', holder: w.state.player }, m.tags ? { tags: m.tags } : {}), eng.controls.sync()))
         if (m.op === 'hour') w.state.tick = tickAt(w.calendar().day, m.hour)
         if (m.op === 'hurt') eng.author(() => eng.hurt(w.player, m.amount, undefined, true))
+        // a boss again (the dev's hand): to its map first; it is set down once that map is loaded (`loop`)
+        if (m.op === 'summon') {
+          summon = { kit: m.kit, map: m.map, x: m.x, y: m.y }
+          if (w.posOf(w.player)?.map !== m.map) eng.author(() => eng.travel(w.player, { map: m.map, x: m.from[0], y: m.from[1] }))
+        }
         break
       }
     }

@@ -32,8 +32,8 @@ const any = (...c: Cond[]): Cond => ({ any: c })
 const taken = (into: 'hand' | 'contents' | 'tile'): Effect => emit('taken', 'item', { into }, { other: 'host' })
 const POWER: Amount = { param: 'power' }
 const ELEMENT = { param: 'element' }
-/** What a blow carries beyond its power, passed on to the strike (combat.ts): a bleed it opens, health it draws back. */
-const WOUND = { bleed: { param: 'bleed' }, drain: { param: 'drain' } }
+/** What a blow carries beyond its power, passed on to the strike (combat.ts): a bleed it opens, health it draws back, a relic's affliction. */
+const WOUND = { bleed: { param: 'bleed' }, drain: { param: 'drain' }, afflict: { param: 'afflict' }, afflictFor: { param: 'afflictFor' } }
 /** What burning takes from a thing with durability (nothing from one without: it cannot break). */
 const WEAR: Effect = { op: 'hurt', amount: 1, element: 'fire', pierce: true }
 const spread = (chance: number): Effect => emit('element', { area: { radius: 1 } }, { element: 'fire', power: 1 }, { chance, filter: { tags: ['flammable'], notStatus: ['wet', 'burning', 'frozen'] } })
@@ -107,9 +107,9 @@ const ROOTS: Rule[] = [
   rule({ id: 'core/offered', doc: 'Something held out to one with no answer of its own: undefined (the AI answers).', on: 'impulse/offered', tree: HOLE() }),
   rule({
     id: 'core/restore',
-    doc: 'Health or hunger given back; or a night\'s sleep (until it is time to rise, giving back as the room says).',
+    doc: 'Health or hunger given back; or a night\'s sleep (until it is time to rise, giving back as the room says); a warm spring\'s mending (health, and one is soaking while it goes on).',
     on: 'impulse/restore',
-    tree: IF(param('which', 'sleep'), DO({ op: 'sleep' }), IF(param('which', 'hunger'), DO({ op: 'feed', amount: { param: 'amount' } }), DO({ op: 'heal', amount: { param: 'amount' } }))),
+    tree: IF(param('which', 'sleep'), DO({ op: 'sleep' }), IF(param('which', 'spring'), DO({ op: 'heal', amount: { param: 'amount' } }, add('soaking')), IF(param('which', 'hunger'), DO({ op: 'feed', amount: { param: 'amount' } }), DO({ op: 'heal', amount: { param: 'amount' } })))),
   }),
   rule({ id: 'core/notify', doc: 'News: noted, nothing changes, unless the host says.', on: 'impulse/notify', tree: NOTHING }),
   rule({
@@ -416,14 +416,17 @@ const BODIES: Rule[] = [
   }),
   rule({
     id: 'body/stage',
-    doc: 'The story tells a person where it stands (the player\'s stage): they keep it.',
+    doc: 'The story tells a person where it stands (the player\'s stage): they keep it. Told to step into a pocket place (what = pocket: the Oath-Thorn\'s Held Ground), they go — or, in it, come back out.',
     host: PERSON,
     on: 'impulse/notify',
     tree: IF(
+      param('what', 'pocket'),
+      DO({ op: 'pocket' }),
+      IF(
       param('what', 'quest'),
       DO({ op: 'setProp', key: 'quest', value: { param: 'value' } }),
       IF(param('what', 'prologue'), DO({ op: 'setProp', key: 'prologue', value: { param: 'value' } }), 'inherit'),
-    ),
+    )),
   }),
 ]
 
@@ -954,6 +957,18 @@ const FIRE: Rule[] = [
   }),
 
 
+  ...(['contact/begin', 'contact/stay'] as const).map((on) =>
+    rule({
+      id: on === 'contact/begin' ? 'spring/soak' : 'spring/soak-on',
+      doc: 'A warm spring mends whoever sits in it: a little health as they step in (a splash), and more for as long as they stay.',
+      host: { type: 'tile', tags: ['spring'] },
+      on,
+      tree: IF(
+        all(param('how', 'under'), is('other', { type: 'actor' })),
+        on === 'contact/begin' ? DO(emit('restore', 'other', { which: 'spring', amount: 1 }), vfx('splash', 'other')) : DO(emit('restore', 'other', { which: 'spring', amount: 1 })),
+      ),
+    }),
+  ),
   ...(['contact/begin', 'contact/stay'] as const).map((on) =>
     rule({
       id: on === 'contact/begin' ? 'lava/burn' : 'lava/burn-on',

@@ -12,18 +12,23 @@ export const VILLAGE_QUESTS: QuestDef[] = [
     id: 'rescue',
     kind: 'main',
     title: L('Lost in the Barrow', '古墓里的失踪者'),
-    summary: L('Lina and Oskar sheltered from the storm in the Old Barrow, south past the forest and Thornwood Hollow, and the dead shut them in. Find them, put down the warden, and come back to Rowan.', '莉娜和奥斯卡为了躲风暴进了古墓（森林以南，过了荆棘谷），被亡灵困在里面。找到他们，打倒古墓守卫，再回来找罗万。'),
+    summary: L('Lina and Oskar sheltered from the storm in the Old Barrow, south past the grassland, the forest and Thornwood Hollow, and the dead shut them in. The barrow goes down three floors. Find them both, put down the warden in the deepest, and come back to Rowan.', '莉娜和奥斯卡为了躲风暴进了古墓（往南过了草原、森林和荆棘谷），被亡灵困在里面。古墓往下有三层。找到他们两个，打倒最深处的守墓者，再回来找罗万。'),
     giver: 'npc.rowan',
+    // the main line carries on from the welcome with no word needed; once the knight has fallen it is behind you
+    auto: true,
+    requires: { facts: { 'seen.village_arrival': { ne: 0 } } },
+    skipWhen: { 'sins.defeated.alberic': { ne: 0 } },
     offer: L('You came down the mountain? Then you can fight. Two of ours, Lina and Oskar, went into the old barrow past the hollow when the storm broke. The dead keep it. Bring them home.', '你是从山上下来的？那你能打。我们有两个人——莉娜和奥斯卡——风暴来时躲进了荆棘谷那头的古墓。那里有亡灵把守。把他们带回家吧。'),
     waiting: L('South, past the grassland and the forest, through the hollow. The barrow mouth is between two standing stones.', '往南，过了草原和森林，穿过荆棘谷。古墓入口在两块立石中间。'),
     done: L('Both home, and the warden down. Firstlight owes you. Tonight, after dark, the whole village gives thanks at the flame — stay for it.', '两个人都回来了，守卫也倒了。初原村欠你一份情。今晚天黑以后，全村会在圣火前感恩——留下来吧。'),
     goals: [
+      { id: 'mouth', kind: 'fact', fact: 'seen.barrow_mouth', count: 1, label: L('Through the grassland and the forest to the barrow mouth in Thornwood Hollow', '穿过草原和森林，到荆棘谷的古墓入口') },
       { id: 'lina', kind: 'talk', npc: 'npc.lina', line: L('You came! The way out is clear? Then I am going home — tell Rowan I am all right.', '你来了！出去的路通了？那我回家了——跟罗万说我没事。'), label: L('Find Lina', '找到莉娜') },
-      { id: 'oskar', kind: 'talk', npc: 'npc.oskar', line: L('About time. I will follow the girl home. Mind the warden.', '可算来了。我跟着那丫头回家。小心那个守卫。'), label: L('Find Oskar', '找到奥斯卡') },
-      { id: 'warden', kind: 'defeat', type: 'actor/creature/undead/warden', count: 1, label: L('Put down the barrow warden', '打倒古墓守卫') },
+      { id: 'oskar', kind: 'talk', npc: 'npc.oskar', line: L('About time. I will follow the girl home. The warden is below — the bottom of the stair. Mind it.', '可算来了。我跟着那丫头回家。守墓者在下面——楼梯最底下。小心它。'), label: L('Find Oskar in the ossuary, the second floor', '在第二层骸骨堂找到奥斯卡') },
+      { id: 'warden', kind: 'defeat', type: 'actor/creature/undead/warden', count: 1, label: L('Put down the warden in the sanctum, the deepest floor', '在最深处的圣所打倒守墓者') },
     ],
     // the foragers go home once found (their schedules follow these facts); that night, the flame (docs/chapter-1.md)
-    reward: { xp: 60, items: [{ type: 'item/food/bread', count: 2 }], facts: { 'rescue.lina': 1, 'rescue.oskar': 1, 'village.rescued': 1 }, props: { quest: 0.5 } },
+    reward: { xp: 60, items: [{ type: 'item/food/bread', count: 2 }, { type: 'item/armor/breastplate', count: 1, name: L("Rowan's Old Hauberk", '罗万的旧锁甲'), tags: ['quality:fine'], props: { slot: 'body', def: 4 } }], facts: { 'rescue.lina': 1, 'rescue.oskar': 1, 'village.rescued': 1 }, props: { quest: 0.5 } },
   },
   // ------------------------------------------------------------------ side
   {
@@ -39,7 +44,7 @@ export const VILLAGE_QUESTS: QuestDef[] = [
       { id: 'beef', kind: 'carry', type: 'item/food/meat/raw', count: 3, consume: true, label: L('Raw beef', '生牛肉') },
       { id: 'eggs', kind: 'carry', type: 'item/food/egg/raw', count: 2, consume: true, label: L('Eggs', '鸡蛋') },
     ],
-    reward: { xp: 25, items: [{ type: 'item/food/bread', count: 3 }] },
+    reward: { xp: 25, items: [{ type: 'item/food/bread', count: 3 }, { type: 'item/clothing/belt', count: 1, name: L("Marta's Kitchen Sash", '玛尔塔的围腰'), tags: ['quality:fine'], props: { slot: 'waist', def: 1 } }] },
   },
   {
     id: 'ring',
@@ -51,7 +56,7 @@ export const VILLAGE_QUESTS: QuestDef[] = [
     waiting: L('East side of the hollow, where the thorns are thickest. It is silver.', '荆棘谷东边，荆棘最密的地方。是银的。'),
     done: L("You found it! Gran's ring! Here, this is my best stone. It's lucky. Mostly.", '你找到了！奶奶的戒指！给，这是我最好的石头，会带来好运的。大概吧。'),
     goals: [{ id: 'ring', kind: 'carry', type: 'item/valuable/ring', count: 1, consume: true, label: L("Mia's ring", '米娅的戒指') }],
-    reward: { xp: 30, items: [{ type: 'item/material/stone', count: 1 }] },
+    reward: { xp: 30, items: [{ type: 'item/material/stone', count: 1 }, { type: 'item/valuable/earring', count: 1, name: L("Mia's Ribbon Earring", '米娅的缎带耳环'), tags: ['quality:fine'], props: { slot: 'ear', xpRate: 0.1 } }] },
   },
   {
     id: 'thorns',
@@ -64,7 +69,7 @@ export const VILLAGE_QUESTS: QuestDef[] = [
     waiting: L('Six. Slimes, spiders, wolves, whatever moves in the hollow.', '六只。史莱姆、蜘蛛、狼，荆棘谷里会动的都算。'),
     done: L('Quieter already. Take this — a guard with a spare arm is a guard who listens.', '已经安静多了。拿着这个——有备用武器的卫兵才听得进话。'),
     goals: [{ id: 'kills', kind: 'defeat', type: 'actor/creature', map: 'hollow', count: 6, label: L('Creatures felled in the hollow', '在荆棘谷打倒的怪物') }],
-    reward: { xp: 40, items: [{ type: 'item/weapon/polearm/spear', count: 1 }] },
+    reward: { xp: 40, items: [{ type: 'item/weapon/polearm/spear', count: 1 }, { type: 'item/armor/pauldrons', count: 1, name: L("Militia Pauldrons", '民兵护肩'), tags: ['quality:fine'], props: { slot: 'shoulders', def: 2 } }] },
   },
   // ------------------------------------------------------------------ repeat (daily)
   {

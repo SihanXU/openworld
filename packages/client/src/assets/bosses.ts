@@ -14,8 +14,6 @@ export const SIN_FX: Record<string, FxDef> = Object.fromEntries(Object.entries(S
 
 // Versioned assets preserve the previous hand-drawn atlas and avoid stale browser caches.
 export const ALBERIC_ATLAS_COLUMNS = 32
-export const ALBERIC_FPS = 20
-export const ALBERIC_FRAME_MS = 1000 / ALBERIC_FPS
 // Atlas columns, not copies or new drawings. The three skill clips split before column 16.
 export const ALBERIC_CLIPS = {
   idle: [0, 4, 8, 12, 16, 20, 24, 28],
@@ -26,6 +24,10 @@ export const ALBERIC_CLIPS = {
   hurt: [0, 4, 8, 12, 16, 21, 26, 31],
   death: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 31],
 } as const
+/** Each clip's own pace (frames per second): a slow breath at rest, a stride walking, quicker blows. One
+ * rate for all (20) made the eight-pose idle loop in 0.4 s: the knight twitched. */
+export const ALBERIC_CLIP_FPS: Record<keyof typeof ALBERIC_CLIPS, number> = { idle: 8, walk: 12, thorns: 12, arrow: 12, volley: 12, hurt: 16, death: 10 }
+export const albericFrameMs = (clip: keyof typeof ALBERIC_CLIPS): number => 1000 / ALBERIC_CLIP_FPS[clip]
 const ALBERIC_DIR = 'lsw/Bosses/alberic/v3' // Existing effects are unchanged.
 SIN_ACTORS['boss:sin:alberic'] = { dir: 'lsw/Bosses/alberic/v5', sheet: 'actions.png', cols: ALBERIC_ATLAS_COLUMNS, rows: 21, anchorY: 88, scale: 1.25 }
 SIN_FX['sin:alberic:arrow'] = { img: `${ALBERIC_DIR}/effect-arrow.png`, fw: 96, fh: 96, frames: 6, fps: 12, beam: true }

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { EntitySnap } from '@lsw/engine'
 import { bossPreviewMode, bossPreviewModes, previewBoss } from '../../client/src/boss-preview.ts'
 import { bossAnimationFrame } from '../../client/src/render/boss-animation.ts'
-import { ALBERIC_CLIPS } from '../../client/src/assets/bosses.ts'
+import { ALBERIC_CLIPS, albericFrameMs } from '../../client/src/assets/bosses.ts'
 
 const entity = (kit = 'alberic'): EntitySnap => ({
   id: 'test.boss', type: 'actor/creature/sin/alberic', sprite: 'boss:sin:alberic', x: 10, y: 10,
@@ -19,7 +19,8 @@ describe('Boss Studio direct action controls', () => {
       .toEqual(['live', 'idle', 'walk', 'attack', 'cast', 'volley', 'hurt', 'death'])
     expect(bossPreviewModes('alberic').filter((m) => m.value !== 'live').map((m) => m.label.match(/(\d+) 帧/)![1]))
       .toEqual(['8', '10', '12', '12', '12', '8', '12'])
-    expect(bossPreviewModes('alberic').filter((m) => m.value !== 'live').every((m) => m.label.endsWith('20 FPS'))).toBe(true)
+    expect(bossPreviewModes('alberic').filter((m) => m.value !== 'live').map((m) => m.label.match(/(\d+) FPS/)![1]))
+      .toEqual(['8', '12', '12', '12', '12', '16', '10'])
     const html = readFileSync(new URL('../../client/boss-gallery.html', import.meta.url), 'utf8')
     expect(html).toContain('id="modeSelect" class="studio-modes" role="group"')
     expect(html).not.toContain('<select id="modeSelect"')
@@ -53,13 +54,14 @@ describe('Boss Studio direct action controls', () => {
 
   it('restarts one-shot animations from their first frame instead of the wall-clock remainder', () => {
     const e = entity()
-    previewBoss(e, 'death', 400)
+    // death at 10 fps: the eighth pose after 800 ms; the arrow at 12 fps: its release half after 500 ms
+    previewBoss(e, 'death', 800)
     expect(bossAnimationFrame(e.boss!, 0).col).toBe(24)
     previewBoss(e, 'cast', 0)
     expect(bossAnimationFrame(e.boss!, 0)).toEqual({ row: 3, col: 0 })
-    previewBoss(e, 'cast', 300)
+    previewBoss(e, 'cast', 500)
     expect(bossAnimationFrame(e.boss!, 0)).toEqual({ row: 3, col: 16 })
-    previewBoss(e, 'cast', 600)
+    previewBoss(e, 'cast', 1000)
     expect(bossAnimationFrame(e.boss!, 0)).toEqual({ row: 3, col: 0 })
     previewBoss(e, 'death', 30000)
     expect(bossAnimationFrame(e.boss!, 0)).toEqual({ row: 6, col: 31 })
@@ -73,9 +75,11 @@ describe('Boss Studio direct action controls', () => {
   })
 
   it.each([['idle', 'idle'], ['walk', 'walk'], ['attack', 'thorns'], ['cast', 'arrow'], ['volley', 'volley'], ['hurt', 'hurt'], ['death', 'death']] as const)(
-    'shows the %s clip at 20 fps independently of display refresh rate', (mode, id) => {
+    'shows the %s clip at its own pace independently of display refresh rate', (mode, id) => {
       const e = entity(), frames = new Set<number>()
-      const clip = ALBERIC_CLIPS[id], duration = clip.length * 50
+      const ms = albericFrameMs(id), clip = ALBERIC_CLIPS[id], duration = clip.length * ms
+      // loops run on the screen's clock; one-shots on the preview's own time
+      const at = (t: number) => (id === 'idle' || id === 'walk' ? t : 99999)
       for (let i = 0; i * 1000 / 60 < duration; i++) {
         const time = i * 1000 / 60
         previewBoss(e, mode, time)
@@ -83,10 +87,10 @@ describe('Boss Studio direct action controls', () => {
       }
       expect([...frames]).toEqual(clip)
       for (let i = 0; i < clip.length; i++) {
-        previewBoss(e, mode, i * 50)
-        expect(bossAnimationFrame(e.boss!, 99999).col).toBe(clip[i])
-        previewBoss(e, mode, i * 50 + 49)
-        expect(bossAnimationFrame(e.boss!, 99999).col).toBe(clip[i])
+        previewBoss(e, mode, i * ms + 1)
+        expect(bossAnimationFrame(e.boss!, at(i * ms + 1)).col).toBe(clip[i])
+        previewBoss(e, mode, (i + 1) * ms - 1)
+        expect(bossAnimationFrame(e.boss!, at((i + 1) * ms - 1)).col).toBe(clip[i])
       }
     })
 })

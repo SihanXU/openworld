@@ -33,6 +33,8 @@ const GROUND: Record<string, string> = {
   pass: 'ow_hills',
   lair: 'ow_hills',
   summit: 'ow_snow',
+  mill: 'ow_plain',
+  dawnhill: 'ow_hills',
   foot: 'ow_hills',
 }
 

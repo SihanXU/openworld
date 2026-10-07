@@ -15,6 +15,8 @@
 //
 // A quest is `available` when its requirements hold and it is not active (a repeatable one: not
 // handed in today), `ready` when every goal is met, and handed in to its giver (or `turnIn`).
+// The story's own pass, now and then (`advance`): a quest the story has gone past is done (`skipWhen`), an
+// `auto` one available is taken on, a `self` one ready completes — so a main line never waits on a word.
 // E on a person who has something for you does it: hand in what is ready, else meet a talk goal
 // (a quest under way sent you to them), else take on what is offered, else they just talk. People with a quest to give show "!",
 // with one to take back "?".
@@ -45,6 +47,15 @@ export interface QuestDef {
   /** Who takes it back (default: the giver). */
   turnIn?: Id
   requires?: { facts?: Record<string, Cmp>; quests?: string[]; level?: number }
+  /** Taken on by itself as soon as it is available (a main line that carries on with no word from anyone). */
+  auto?: boolean
+  /** Complete by itself once every goal is met, with no handing in (its giver need not be spoken to). */
+  self?: boolean
+  /**
+   * The story has gone past it: when these facts hold it is done, whatever its goals (its reward's
+   * facts are set, nothing is paid) — the player who skips ahead finds the road behind them closed.
+   */
+  skipWhen?: Record<string, Cmp>
   /** Said by the giver when the quest is taken on. */
   offer: Text
   /** Said by the giver when spoken to before it is done. */
@@ -52,7 +63,8 @@ export interface QuestDef {
   /** Said when it is handed in. */
   done: Text
   goals: QuestGoal[]
-  reward?: { xp?: number; items?: { type: string; count: number }[]; facts?: Record<string, PropValue>; props?: Record<string, PropValue> }
+  /** What it pays; an item may be a named piece (its own name, tags such as its quality, props such as its defence). */
+  reward?: { xp?: number; items?: { type: string; count: number; name?: Text; tags?: string[]; props?: Record<string, PropValue> }[]; facts?: Record<string, PropValue>; props?: Record<string, PropValue> }
 }
 
 export type QuestStatus = 'locked' | 'available' | 'active' | 'ready' | 'done'
@@ -162,6 +174,8 @@ export class Quests {
    */
   settle(ev: GameEvent): void {
     const w = this.w
+    // the story's own pass (no notice: the story looking at its quests)
+    if (!ev.params?.what) return this.advance(ev)
     const who = ev.roles.actor && 'e' in ev.roles.actor ? w.get(ev.roles.actor.e) : undefined
     if (!who) return
     if (ev.params?.what === 'defeat') return this.defeat(who, String(ev.params.type ?? ''))
@@ -188,13 +202,53 @@ export class Quests {
     // take on what is offered
     for (const q of this.defs)
       if (q.giver === npc && this.status(q, who) === 'available') {
-        w.setFact(`q.${q.id}`, 'active')
-        w.setFact(`q.${q.id}.by`, who.id)
-        for (const g of q.goals) if (g.kind === 'defeat' || g.kind === 'talk') w.setFact(`q.${q.id}.${g.id}`, 0)
+        this.take(q, who)
         say(q.offer)
-        w.fx.push({ t: 'log', text: { en: `Quest taken: ${txt(q.title, 'en')}`, zh: `接受任务：${txt(q.title, 'zh')}` }, tone: 'good' })
         return
       }
+  }
+
+  /** The story's facts: a quest taken on by `who`. */
+  private take(q: QuestDef, who: Entity): void {
+    const w = this.w
+    w.setFact(`q.${q.id}`, 'active')
+    w.setFact(`q.${q.id}.by`, who.id)
+    for (const g of q.goals) if (g.kind === 'defeat' || g.kind === 'talk') w.setFact(`q.${q.id}.${g.id}`, 0)
+    w.fx.push({ t: 'log', text: { en: `Quest taken: ${txt(q.title, 'en')}`, zh: `接受任务：${txt(q.title, 'zh')}` }, tone: 'good' })
+  }
+
+  /** Has the story gone past a quest (its `skipWhen` holds)? */
+  private passed(q: QuestDef): boolean {
+    const w = this.w
+    return !!q.skipWhen && Object.entries(q.skipWhen).every(([k, c]) => cmp(w.fact(k) ?? 0, c))
+  }
+
+  /** Is there anything for the story's own pass to do? (Read only: the story looks before it acts.) */
+  due(): boolean {
+    for (const q of this.defs) {
+      const s = this.status(q)
+      if (s !== 'done' && this.passed(q)) return true
+      if ((q.auto && s === 'available') || (q.self && s === 'ready')) return true
+    }
+    return false
+  }
+
+  /** The story's own pass (an outcome of the story): past quests are done, `auto` ones taken on, `self` ones completed. */
+  private advance(ev: GameEvent): void {
+    const w = this.w
+    const who = w.player
+    for (const q of this.defs) {
+      const s = this.status(q, who)
+      if (s === 'done') continue
+      if (this.passed(q)) {
+        w.setFact(`q.${q.id}`, 'done')
+        for (const [k, v] of Object.entries(q.reward?.facts ?? {})) w.setFact(k, v)
+        w.fx.push({ t: 'log', text: { en: `Quest complete: ${txt(q.title, 'en')}`, zh: `完成任务：${txt(q.title, 'zh')}` }, tone: 'good' })
+        continue
+      }
+      if (q.auto && s === 'available') this.take(q, who)
+      else if (q.self && s === 'ready') this.complete(q, this.taker(q) ?? who, q.turnIn ?? q.giver, ev)
+    }
   }
 
   /** The story's outcome: the facts change; the rest is sent (the giver takes, the taker is told) or spawned. */
@@ -217,7 +271,7 @@ export class Quests {
     // what it pays is spawned into their bag
     for (const it of r?.items ?? [])
       for (let i = 0; i < it.count; i++) {
-        const made = w.create(it.type, { on: 'inside', holder: who.id })
+        const made = w.create(it.type, { on: 'inside', holder: who.id }, { ...(it.name && { name: it.name }), ...(it.tags && { tags: [...it.tags] }), ...(it.props && { props: { ...it.props } }) })
         eng.touch({ e: made.id })
       }
     w.fx.push({ t: 'log', text: { en: `Quest complete: ${txt(q.title, 'en')}`, zh: `完成任务：${txt(q.title, 'zh')}` }, tone: 'good' })

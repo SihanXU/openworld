@@ -141,6 +141,8 @@ export interface WorldParams {
   reach?: number
   /** How far one takes and puts things (F, G): cells round, the actor's own included. */
   carry?: number
+  /** How many of a body's wearing slots there are of a kind, where more than one (two hands, two rings): `wear:ring`, `wear:ring.2`. */
+  slotCount?: Record<string, number>
 }
 
 /** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */
@@ -150,7 +152,7 @@ export type Space = 'floor' | 'soil' | 'volume' | 'body'
  * The pictures a status may draw over what has it (the client's vocabulary): a status the content or a
  * patch defines picks one, and whatever it is, it shows.
  */
-export const OVERLAYS = ['fire', 'flame', 'ice', 'spark', 'wet', 'oil'] as const
+export const OVERLAYS = ['fire', 'flame', 'ice', 'spark', 'wet', 'oil', 'mend'] as const
 
 export interface StatusDef {
   id: string
@@ -462,6 +464,10 @@ export interface CombatState {
   chainTick?: number
   /** Survival: Adrenaline — when it last came (once a minute; the rush itself is a status). */
   adrenalineTick?: number
+  /** Relics (a Stigmatic piece's power): Starfall's hits toward the fifth, the gale's speed until, the Unfallen Wall's last turned blow. */
+  starHits?: number
+  galeUntil?: number
+  unfallenTick?: number
 }
 
 export interface ScheduleEntry {
@@ -1139,6 +1145,8 @@ export type Effect =
   | { op: 'gainXp'; amount: Amount }
   /** A companion's boon, given (param unlock) or chosen beside an attuned waypoint (param boon): boons.ts. */
   | { op: 'boon' }
+  /** Into a pocket place (param map, x, y), remembering where one stood; in it already, back out there. */
+  | { op: 'pocket' }
   | { op: 'foe' }
   | { op: 'open' }
   | { op: 'dropContents'; still?: boolean }

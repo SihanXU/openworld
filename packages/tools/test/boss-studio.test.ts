@@ -6,7 +6,7 @@ import { createBossChallenge } from '../../client/src/boss-challenge.ts'
 import { previewBoss } from '../../client/src/boss-preview.ts'
 import { WorldScene } from '../../client/src/render/scene.ts'
 import { BossAnimationClock } from '../../client/src/render/boss-animation.ts'
-import { ALBERIC_CLIPS } from '../../client/src/assets/bosses.ts'
+import { ALBERIC_CLIPS, albericFrameMs } from '../../client/src/assets/bosses.ts'
 import { buildFord } from '../src/demo/world.ts'
 
 // Exercise the actual scene frame-selection branches, with only Phaser's browser base mocked.
@@ -60,7 +60,7 @@ describe('Boss Studio actions reach the rendered sprite', () => {
     game.engine.tick()
     const e = snapshot(game.engine).entities.find((e) => e.id === BOSS_ARENA.id)!
     expect(e.boss!.warning).toBeDefined()
-    const before = JSON.stringify(e), clip = ALBERIC_CLIPS[id], duration = clip.length * 50
+    const before = JSON.stringify(e), clip = ALBERIC_CLIPS[id], ms = albericFrameMs(id), duration = clip.length * ms
     const clock = new BossAnimationClock()
     clock.receive(e.boss!, 0)
     const elapsed = vi.spyOn(clock, 'elapsed'), progress = vi.spyOn(clock, 'progress')
@@ -71,8 +71,8 @@ describe('Boss Studio actions reach the rendered sprite', () => {
       // A stale combat sample and a delayed first render must not skip the first pose.
       expect(frame(10000)).toBe(`cre:boss:sin:alberic:0,${row + base}`)
       for (let i = 0; i < clip.length; i++) {
-        for (const within of [0, 49])
-          expect(frame(10000 + i * 50 + within)).toBe(`cre:boss:sin:alberic:${clip[i]},${row + base}`)
+        for (const within of [0.5, ms - 0.5])
+          expect(frame(10000 + i * ms + within)).toBe(`cre:boss:sin:alberic:${clip[i]},${row + base}`)
       }
       expect(frame(10000 + duration)).toBe(`cre:boss:sin:alberic:${mode === 'death' ? 31 : 0},${row + base}`)
       expect(frame(10000 + duration * 50)).toBe(`cre:boss:sin:alberic:${mode === 'death' ? 31 : 0},${row + base}`)
@@ -96,17 +96,18 @@ describe('Boss Studio actions reach the rendered sprite', () => {
     scene.setBossPreview(e.id, 'walk')
     expect(frame(1000)).toBe('cre:boss:sin:alberic:0,1')
     e.facing = 'up'
-    expect(frame(1250)).toBe('cre:boss:sin:alberic:16,15')
+    // the walk at 12 fps: 250 ms in, its fourth pose
+    expect(frame(1250)).toBe('cre:boss:sin:alberic:10,15')
   })
 
   it.each([[0, 'arrow', 3], [1, 'volley', 4], [2, 'thorns', 2]] as const)(
-    'plays real skill %s at 20 fps, holds its tell, then restarts recovery at the hit', (skill, id, row) => {
+    'plays real skill %s at its pace, holds its tell, then restarts recovery at the hit', (skill, id, row) => {
       const game = createBossStudio(index, raw, 'alberic')
       const w = game.engine.world, boss = w.get(BOSS_ARENA.id)!
       boss.boss!.nextSkill = skill
       game.engine.tick()
       const windup = boss.boss!.pending!.releaseAt - w.state.tick
-      const clock = new BossAnimationClock(), clip = ALBERIC_CLIPS[id]
+      const clock = new BossAnimationClock(), clip = ALBERIC_CLIPS[id], ms = albericFrameMs(id)
       for (let tick = 0; tick < windup; tick++) {
         if (tick) game.engine.tick()
         const e = snapshot(game.engine).entities.find((entity) => entity.id === boss.id)!
@@ -117,7 +118,7 @@ describe('Boss Studio actions reach the rendered sprite', () => {
         for (const subframe of [0, 49, 50, 99]) {
           const time = tick * 100 + subframe
           expect(renderedFrame(e, time, clock)).toBe(
-            `cre:boss:sin:alberic:${clip[Math.min(5, Math.floor(time / 50))]},${row}`)
+            `cre:boss:sin:alberic:${clip[Math.min(5, Math.floor(time / ms))]},${row}`)
         }
       }
       game.engine.tick()
@@ -127,7 +128,7 @@ describe('Boss Studio actions reach the rendered sprite', () => {
       expect(e.boss!.animationElapsedMs).toBe(0)
       clock.receive(e.boss!, windup * 100)
       expect(renderedFrame(e, windup * 100, clock)).toBe(`cre:boss:sin:alberic:16,${row}`)
-      expect(renderedFrame(e, windup * 100 + 50, clock)).toBe(`cre:boss:sin:alberic:19,${row}`)
+      expect(renderedFrame(e, windup * 100 + Math.ceil(ms), clock)).toBe(`cre:boss:sin:alberic:19,${row}`)
     })
 
   it('draws sub-tick intermediate poses on the real scene update path', () => {
@@ -138,10 +139,11 @@ describe('Boss Studio actions reach the rendered sprite', () => {
     clock.receive(e.boss!, 0)
     previewBoss(e, 'hurt', 100)
     clock.receive(e.boss!, 100)
-    expect(renderedFrame(e, 100, clock)).toBe('cre:boss:sin:alberic:8,5')
-    expect(renderedFrame(e, 149, clock)).toBe('cre:boss:sin:alberic:8,5')
-    expect(renderedFrame(e, 150, clock)).toBe('cre:boss:sin:alberic:12,5')
-    expect(e.boss!.progress).toBe(0.25)
+    // hurt at 16 fps: a pose every 62.5 ms, drawn between the 10 Hz snapshots
+    expect(renderedFrame(e, 100, clock)).toBe('cre:boss:sin:alberic:4,5')
+    expect(renderedFrame(e, 124, clock)).toBe('cre:boss:sin:alberic:4,5')
+    expect(renderedFrame(e, 125, clock)).toBe('cre:boss:sin:alberic:8,5')
+    expect(e.boss!.progress).toBe(0.2)
   })
 
   it('switches from a real pending cast to every selected action despite an old world index', () => {
@@ -163,8 +165,8 @@ describe('Boss Studio actions reach the rendered sprite', () => {
         expect(e.boss!.warning).toBeUndefined()
         if (mode === 'idle') {
           expect(ALBERIC_CLIPS.idle.map((_, i) => {
-            previewBoss(e, mode, i * 50)
-            return renderedFrame(e, i * 50)
+            previewBoss(e, mode, i * albericFrameMs('idle'))
+            return renderedFrame(e, i * albericFrameMs('idle'))
           })).toEqual(ALBERIC_CLIPS.idle.map((col) => `cre:boss:sin:alberic:${col},${base}`))
         }
       }

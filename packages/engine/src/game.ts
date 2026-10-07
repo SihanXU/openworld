@@ -207,6 +207,8 @@ function upgrade(eng: Engine, index: WorldIndex): void {
     // itself is not saved: nobody will answer it, so they are let go (as after a time-out).
     delete e.frozenBy
   }
+  // the people the world has now that an older save has not met yet (a steward who came later): as a new game has them
+  for (const n of index.npcs) if (!w.get(n.id)) addTree(eng, n)
   // what was the world's before it was the story's or the traveller's own: facts, the latest beat,
   // the maps seen, the reported invariants (the detector's own record), topics, memories, the scene
   for (const [k, v] of Object.entries(s.facts ?? {})) {

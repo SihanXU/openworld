@@ -33,11 +33,26 @@ export function rangeBonus(w: World, a: Entity, weapon: Entity | undefined): num
   if (mage(w, a, 'archmage')) return 1
   return 0
 }
+/**
+ * The unique powers of what one holds and wears: a Stigmatic piece's `relic` (content items.ts RELICS) — each
+ * one of its kind in the world, each answered here as a talent is.
+ */
+export function relicsOf(w: World, e: Entity): Set<string> {
+  const out = new Set<string>()
+  const held = w.get(e.held)
+  for (const it of [...(held ? [held] : []), ...w.worn(e)]) {
+    const r = w.prop(it, 'relic')
+    if (typeof r === 'string') out.add(r)
+  }
+  return out
+}
+
 const recentlyMoved = (w: World, e: Entity): boolean => e.combat?.lastMoveTick !== undefined && w.state.tick - e.combat.lastMoveTick < 6
 
 /** Successful steps, not failed bumps/turning/teleports, charge mobility talents. */
 export function recordCombatStep(w: World, e: Entity): void {
-  if (!skill(w, e, 'battle-tempo') && !skill(w, e, 'evasive-step') && !skill(w, e, 'windrunner') && !skill(w, e, 'steady-aim')) return
+  // standing one's ground counts too (worn `holdFast`: a Vowbound piece), so the step is kept for anyone who moves
+  if (!skill(w, e, 'battle-tempo') && !skill(w, e, 'evasive-step') && !skill(w, e, 'windrunner') && !skill(w, e, 'steady-aim') && !(w.stat(e, 'holdFast') > 0)) return
   const state = (e.combat ??= {})
   state.lastMoveTick = w.state.tick
   if (skill(w, e, 'windrunner')) state.steps = Math.min(3, (state.steps ?? 0) + 1)
@@ -46,7 +61,9 @@ export function recordCombatStep(w: World, e: Entity): void {
 /** Carry fractional ticks across actions so small haste bonuses really affect a 10 Hz world. */
 export function combatDelay(w: World, e: Entity, base: number, kind: 'move' | 'attack'): number {
   if (kind === 'move') for (const id of Object.keys(e.statuses ?? {})) base *= w.onto.status(id)?.moveDelay ?? 1
-  let haste = Math.max(0, w.num(e, kind === 'move' ? 'moveHaste' : 'attackHaste'))
+  // its own and what it wears (a Vowbound scallop's stride)
+  let haste = Math.max(0, w.stat(e, kind === 'move' ? 'moveHaste' : 'attackHaste'))
+  if (kind === 'move' && (e.combat?.galeUntil ?? 0) > w.state.tick) haste += 0.3
   if (kind === 'move' && skill(w, e, 'pursuit') && (e.combat?.pursuitUntil ?? 0) > w.state.tick) haste += 0.25
   if (kind === 'attack' && skill(w, e, 'battle-tempo') && recentlyMoved(w, e)) haste += 0.1
   if (kind === 'move' && ranger(w, e, 'fleet-archer') && (e.combat?.fleetUntil ?? 0) > w.state.tick) haste += 0.2
@@ -73,6 +90,8 @@ export interface Strike {
   bleed: number
   /** Health the striker draws back if the blow lands (the Warlord's answer). */
   drain: number
+  /** A status the struck takes if the blow lands, for so many ticks (a relic's: kneeling, burning, frozen). */
+  afflict?: { status: string; ticks: number }
 }
 
 /** Contextual bonuses are additive, then the critical multiplier applies before defence. */
@@ -144,14 +163,27 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
       if (hits === 3) bonus += 0.6
     }
   }
-  const guaranteed = (primary && melee && assassin(w, a, 'death-dance') && (opening || behind)) || marked
-  // a weapon that drinks: its lifesteal is health drawn back when the blow lands
+  const relics = relicsOf(w, a)
+  // Dragonsbane: what it was forged for
+  if (relics.has('dragonsbane') && /\/(dragon|whelp)$/.test(target.type)) bonus += 1
+  // Starfall: every fifth hit falls true
+  const guaranteed = (primary && melee && assassin(w, a, 'death-dance') && (opening || behind)) || marked || (primary && relics.has('starfall') && (a.combat?.starHits ?? 0) >= 4)
+  // a weapon that drinks: its lifesteal is health drawn back when the blow lands; and what is worn that drinks (a Vowbound ring)
   if (weapon && w.num(weapon, 'lifesteal') > 0) out.drain += w.num(weapon, 'lifesteal')
-  // a weapon may carry its own edge (a legendary's critChance)
-  const chance = Math.max(0, Math.min(1, w.num(a, 'critChance') + (weapon ? w.num(weapon, 'critChance') : 0) + (berserk ? 0.1 : 0)))
+  out.drain += Math.max(0, w.stat(a, 'lifesteal'))
+  // a weapon may carry its own edge (a legendary's critChance); what is worn may too; Nightfang at night
+  const night = relics.has('nightfang') && w.isNight() ? 0.25 : 0
+  const chance = Math.max(0, Math.min(1, w.stat(a, 'critChance') + (weapon ? w.num(weapon, 'critChance') : 0) + (berserk ? 0.1 : 0) + night))
   out.critical = guaranteed || (chance > 0 && w.rand() < chance)
   // a critical: ×1.5 (Deadly Focus ×2), and what critDamage adds (Lethal Edge, Brutal)
-  out.power *= (1 + bonus) * (out.critical ? (skill(w, a, 'deadly-focus') ? 2 : 1.5) + Math.max(0, w.num(a, 'critDamage')) : 1)
+  out.power *= (1 + bonus) * (out.critical ? (skill(w, a, 'deadly-focus') ? 2 : 1.5) + Math.max(0, w.stat(a, 'critDamage')) : 1)
+  // the relics' own: the Mirrorshard steals with a critical, the Oathbrand drinks deep near the end; the
+  // Crown makes the struck kneel, the Emberheart sets them burning, the Rimecrown freezes them
+  if (relics.has('mirrorshard') && out.critical) out.drain += 3
+  if (relics.has('oathbrand') && w.num(a, 'hp') <= w.num(a, 'maxHp', 1) * 0.3) out.drain *= 3
+  if (relics.has('crown') && w.rand() < 0.2) out.afflict = { status: 'knelt', ticks: 10 }
+  else if (relics.has('emberheart') && w.rand() < 0.25) out.afflict = { status: 'burning', ticks: 30 }
+  else if (relics.has('rimecrown') && w.rand() < 0.2) out.afflict = { status: 'frozen', ticks: 10 }
   // a critical opens a wound that bleeds 1 a second for 4 seconds (Hemorrhage)
   if (primary && out.critical && skill(w, a, 'hemorrhage')) out.bleed = 40
   return out
@@ -175,6 +207,10 @@ export function finishCombatStrike(w: World, a: Entity, target: Entity | undefin
       if (ranger(w, a, 'fleet-archer')) state.fleetUntil = w.state.tick + 15
     }
     if (mine && mage(w, a, 'spell-echo')) state.spellHits = (state.spellHits ?? 0) + 1
+    // relics that remember one's hits: Starfall counts to five, Galestring lends the wind's speed
+    const relics = relicsOf(w, a)
+    if (relics.has('starfall')) state.starHits = strike.critical && (state.starHits ?? 0) >= 4 ? 0 : (state.starHits ?? 0) + 1
+    if (relics.has('galestring')) state.galeUntil = w.state.tick + 20
   }
   if (primary) {
     const state = (a.combat ??= {})
@@ -212,8 +248,8 @@ export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: E
   const state = (e.combat ??= {})
   // untouchable for a moment (Phantom Step after a dash, Phoenix after a fall)
   if ((state.guardUntil ?? 0) > w.state.tick) return 0
-  // a dodge: the blow misses entirely (no roll at all for those without dodge)
-  const dodge = Math.min(0.5, Math.max(0, w.num(e, 'dodge')))
+  // a dodge: the blow misses entirely (no roll at all for those without dodge); what is worn may lend it
+  const dodge = Math.min(0.5, Math.max(0, w.stat(e, 'dodge')))
   if (dodge > 0 && w.rand() < dodge) {
     state.dodgeTick = w.state.tick
     w.fx.push({ t: 'say', who: e.id, text: { en: 'Dodged!', zh: '闪避！' } })
@@ -233,6 +269,9 @@ export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: E
   if (skill(w, e, 'defiance') && w.num(e, 'hp') <= w.num(e, 'maxHp', 1) * 0.3) damage *= 0.75
   if (warrior(w, e, 'bulwark')) damage *= warrior(w, e, 'warlord') ? 0.7 : 0.85
   if (mage(w, e, 'mana-shield') && own(w, e, w.get(e.held))) damage *= 0.8
+  // holding one's ground (a Vowbound piece's `holdFast`): less taken while one has not stepped this second
+  const hold = Math.min(0.5, Math.max(0, w.stat(e, 'holdFast')))
+  if (hold > 0 && w.state.tick - (state.lastMoveTick ?? -Infinity) >= 10) damage *= 1 - hold
   if (warrior(w, e, 'retaliation')) state.retaliateUntil = w.state.tick + 20
   damage = Math.max(1, Math.round(damage))
   const hp = w.num(e, 'hp', 1)
@@ -242,6 +281,12 @@ export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: E
     // the rush: faster, and mending a little each second (content: body/adrenaline)
     eng.applyStatus({ e: e.id }, 'adrenaline', 50)
     w.fx.push({ t: 'log', text: { en: 'Adrenaline!', zh: '肾上腺素！' }, tone: 'good' })
+  }
+  // the Unfallen Wall: once a minute, a blow that would fell its bearer is turned aside
+  if (hp > 0 && damage >= hp && relicsOf(w, e).has('unfallen') && w.state.tick - (state.unfallenTick ?? -Infinity) >= 600) {
+    state.unfallenTick = w.state.tick
+    w.fx.push({ t: 'say', who: e.id, text: { en: 'Unfallen!', zh: '不陷！' } })
+    return 0
   }
   if (skill(w, e, 'last-stand') && hp > 0 && damage >= hp && w.state.tick - (state.lastStandTick ?? -Infinity) >= 300) {
     state.lastStandTick = w.state.tick

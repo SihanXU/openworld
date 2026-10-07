@@ -4,7 +4,9 @@
 // The quests and objectives are content (content/src/chapter1.ts).
 
 import type { Entity, StepDef } from '@lsw/engine'
-import { ALBERIC_ID, CH1, createBoss } from '@lsw/content'
+import { ALBERIC_ID, CH1, HAVEN, createBoss } from '@lsw/content'
+
+const HAVEN_MAP = HAVEN.map
 import { L } from '../kit.ts'
 import { MapBuilder } from '../builder.ts'
 
@@ -15,6 +17,10 @@ export const CH1_AT = {
   village: { shrine: [23, 16] as const, statue: [24, 14] as const, drawing: [20, 16] as const, statueStone: [14, 13] as const, severin: [26, 17] as const, courier: [24, 18] as const },
   ford: { stone: [17, 13] as const, drawing: [27, 21] as const, briars: [[29, 21], [35, 21]] as const },
   foot: { drawing: [22, 13] as const },
+  summit: { log: [13, 4] as const },
+  pasture: { watch: [20, 12] as const },
+  forest: { camp: [31, 25] as const },
+  hollow: { stones: [[24, 25], [30, 25]] as const },
   barrow: { drawing: [14, 2] as const, loaf: [7, 20] as const },
   road: {
     knight: [40, 15] as const,
@@ -82,6 +88,8 @@ export function chapter1Ford(m: MapBuilder): void {
 
 /** The Mountain Foot: Pell's drawing beside the shrine stone. */
 export function chapter1Foot(m: MapBuilder): void {
+  // the hunter's hut, long left: his gloves still on the floor
+  m.item({ form: 'item/clothing/gloves', material: 'leather', name: L("Hunter's Gloves", '猎人的手套') }, ...spot(m, 6, 14))
   drawing(m, 'stone', ...CH1_AT.foot.drawing, 'The shrine stone, five marks on it, the first scribbled over in black. A grey figure with its hand on it.', '那块路碑，上面五道痕，第一道被涂成了黑色。一个灰色的人把手按在上面。')
 }
 
@@ -115,6 +123,9 @@ export function chapter1EastRoad(m: MapBuilder): void {
   // kneeling stones: those who came before and would not kneel (docs/chapter-1.md §6)
   for (const [x, y] of [[36, 16], [38, 17], [43, 17], [45, 15], [35, 9]] as const)
     m.fixture('fixture/sacred/gravestone', ...spot(m, x, y), { name: L('A kneeling stone', '跪石'), props: { text: 'A stone carved as a pilgrim kneeling. No name. A scallop shell, the pilgrim\'s mark, worn almost away.', text_zh: '一块雕成朝圣者跪姿的石头。没有名字。朝圣者的扇贝徽记几乎被磨平了。' } })
+  // by a kneeling stone, what a pilgrim before you wore; in the ring, the gauntlets of one of the knight's own
+  m.item({ form: 'item/valuable/earring', material: 'silver', quality: 'fine', name: L("A Kneeling Pilgrim's Earring", '跪石旁的朝圣耳环'), props: { xpRate: 0.1 } }, ...spot(m, 37, 16))
+  m.item({ form: 'item/clothing/gloves', material: 'leather', quality: 'masterwork', name: L('Gauntlets of the White Host', '白骑士扈从的护手'), props: { def: 2, atk: 1 } }, ...spot(m, 43, 11))
   // what he took: the bridge's ninth nail, a farmer's wedding band
   m.item({ form: 'item/misc/ninth_nail' }, ...spot(m, ...a.nail))
   m.item({ form: 'item/valuable/band', material: 'gold' }, ...spot(m, ...a.band))
@@ -127,11 +138,70 @@ export function chapter1EastRoad(m: MapBuilder): void {
   for (const p of m.portals) if (p.to === 'emberfall') p.opensWhen = CH1.knight
 }
 
+/** Cloudtop: the Church's sunset watch, its logbook on the table (E reads it). */
+export function chapter1Summit(m: MapBuilder): void {
+  const [x, y] = CH1_AT.summit.log
+  m.fixture('fixture/furniture/table', x, y, {
+    id: 'summit.log',
+    name: L("The watchman's log", '守夜人的日志'),
+    tags: ['readable'],
+    props: {
+      text: 'SUNSET, CLOUDTOP WATCH. Year 401: 19:42 at midsummer. Year 405: 19:31. Year 409: 19:12 — I have checked the glass twice. Year 411: the reports go down the mountain and nothing comes back. Last page: Found a small light asleep in the snow by the cairn, warm as a coal. It woke and asked me how old it was. I did not know what to tell it.',
+      text_zh: '云顶观日哨·日落记录。第401年：仲夏19:42。第405年：19:31。第409年：19:12——我把沙漏查了两遍。第411年：报告送下山，再没有回音。最后一页：在石堆旁的雪里发现一点睡着的光，暖得像炭火。它醒了，问我它多大了。我不知道该怎么回答。',
+    },
+  })
+  // the watchman's cloak, left on its peg: he went down the mountain without it
+  m.item({ form: 'item/clothing/cloak', material: 'cloth', quality: 'fine', name: L("Watchman's Cloak", '守夜人的斗篷'), props: { def: 1 } }, ...spot(m, 8, 5))
+}
+
+/** The grassland: Brin's place by the herd, and the ground where the herd kneels at dusk. */
+export function chapter1Pasture(m: MapBuilder): void {
+  const a = CH1_AT.pasture
+  m.fixture('fixture/furniture/bench/log', ...spot(m, a.watch[0] + 1, a.watch[1]), { name: L("Brin's bench", '布琳的长凳') })
+  anchor(m, 'herd.watch', ...a.watch)
+  m.regions.herd = [6, 6, 28, 18]
+}
+
+/** The forest: the cold camp of the pilgrim before you, deep in the south-east clearing. */
+export function chapter1Forest(m: MapBuilder): void {
+  const [cx, cy] = CH1_AT.forest.camp
+  m.regions.camp = [cx - 4, cy - 3, 8, 6]
+  m.fixture('fixture/tent', ...spot(m, cx + 1, cy - 1), { name: L('A rotted tent', '朽烂的帐篷') })
+  m.fixture('fixture/light/campfire', ...spot(m, cx - 1, cy), { name: L('A cold fire ring', '冷掉的火圈') })
+  m.fixture('fixture/sign/noticeboard', ...spot(m, cx - 2, cy - 1), {
+    name: L('A proclamation nailed to a tree', '钉在树上的朝圣令'),
+    props: {
+      text: 'BY ORDER OF THE HOLY CITY. The Seal-bearers weaken. Let the pilgrimage be called. Brother Cassian of Firstlight is named pilgrim. — In the 380th year of the Five. (The paper is grey with age. The words are the ones the courier read to you.)',
+      text_zh: '奉圣城之命：持印者渐衰，当发朝圣令。初原村卡西安修士被点名为朝圣者。——五苦纪元第380年。（纸已经旧得发灰。上面的话，和信使给你念的一模一样。）',
+    },
+  })
+  m.fixture('fixture/sacred/gravestone', ...spot(m, cx + 2, cy + 1), {
+    name: L('A cairn of stones', '一堆石冢'),
+    props: { text: 'Stones piled over something long. A pilgrim\'s staff leans on it, its tip worn flat by many miles. No name.', text_zh: '石头堆在一个长长的东西上。一根朝圣杖靠在上面，杖尖被许多里路磨平了。没有名字。' },
+  })
+  m.item({ form: 'item/valuable/scallop' }, ...spot(m, cx, cy + 1))
+}
+
+/** Thornwood Hollow: the carved stones at the barrow mouth (the Order of the Thorn buried its own below). */
+export function chapter1Hollow(m: MapBuilder): void {
+  m.regions.mouth = [22, 22, 11, 6]
+  // a waypoint statue by the barrow mouth: the far end of the rescue's road, and of the barrow's three floors
+  statue(m, 'wp.hollow', 23, 21, 'Thornwood Hollow', '荆棘谷')
+  // in the thickest thorns, boots someone gave up on
+  m.item({ form: 'item/clothing/boots', material: 'leather', quality: 'fine', name: L('Thornproof Boots', '防刺长靴'), props: { def: 2 } }, ...spot(m, 22, 9))
+  for (const [x, y] of CH1_AT.hollow.stones)
+    m.fixture('fixture/sacred/gravestone', ...spot(m, x, y), {
+      name: L('A carved standing stone', '刻纹立石'),
+      props: { text: 'Worn carving: a knight with a crown of thorns, and before him a line of small figures, kneeling. Beneath: THE ORDER OF THE THORN HOLDS.', text_zh: '磨损的刻纹：一个戴荆棘冠的骑士，面前跪着一排小小的人影。下方刻着：荆棘骑士团守护于此。' },
+    })
+}
+
 /** Where the scenes' own people wait out of sight: a plot linked to nothing (as the tutorial is). */
 export function buildOffstage(): MapBuilder {
   const m = new MapBuilder('offstage', L('Elsewhere', '别处'), 'wild', 8, 6, 'grass', 'field', 'outdoor', 'frostfang')
   m.anchor('severin.hide', 2, 2)
   m.anchor('courier.hide', 5, 3)
+  m.anchor('alberic.hide', 6, 1)
   m.zone = 'peaceful'
   return m
 }
@@ -159,23 +229,26 @@ export const CHAPTER1_STORY: StepDef[] = [
     script: [
       say('npc.lina', 'You came! Listen — it wasn\'t the dead that shut us in. A man in grey pulled the inner door to, from outside. Then he pushed bread under it.', '你来了！听我说——把我们关在这里的不是那些死人。是一个灰衣人，从外面把里面那道门拉上了。然后他从门缝下塞进来一块面包。'),
       say('npc.lina', 'It has a mark on it. Ash. Like a thumb pressed in.', '面包上有个印子。是灰。像是用拇指按上去的。'),
+      say('npc.lina', 'Oskar went down the stair in the east cell to find another way out. He didn\'t come back. It goes deeper than the barrow — much deeper.', '奥斯卡顺着东边那间牢房里的楼梯下去找别的出路，再也没回来。下面比古墓深得多——深得多。', 'sad'),
       say('pip', 'The dead in here won\'t sleep. They try to lie down and they can\'t. Like a bed that\'s too cold.', '这里的死人睡不着。它们想躺下，可是躺不下去。就像一张太冷的床。', 'sad'),
     ],
   },
   {
     // The warden falls, and says the one thing it remembers.
     id: 'warden_falls',
-    when: { map: 'barrow', facts: { 'q.rescue.warden': { gte: 1 } } },
+    when: { map: 'sanctum', facts: { 'q.rescue.warden': { gte: 1 } } },
     script: [
       say('player', '(As the warden comes apart, its jaw moves. Something like a voice comes out of it.)', '（守墓者散架的时候，它的下颚动了动。发出了某种像是声音的东西。）'),
       say('player', '("The night... is coming back. I could not... lie down.")', '（"夜……在回来。我……躺不下。"）', 'surprised'),
       say('pip', 'Did it just— the dead don\'t talk. Do they? Do they?', '它刚才是不是——死人不会说话的。对吧？对吧？', 'surprised'),
+      say('player', '(Behind where it stood, words cut into the altar: "I WILL HOLD UNTIL I AM RELIEVED. — ALBERIC." Under them, pressed into the soot, a thumbprint of ash.)', '（在它原先站着的地方后面，祭坛上刻着字："我将坚守，直到有人来接替我。——阿尔贝里克。"字下面的烟灰里，按着一个灰色的拇指印。）'),
+      say('pip', 'Alberic. That\'s the White Knight Hesper talks about. He swore to hold... and nobody ever came to relieve him.', '阿尔贝里克。就是赫斯珀说的那个白骑士。他发誓要坚守……却再也没有人来接替他。', 'sad'),
     ],
   },
   {
     // Dusk after the rescue: Sister Ilse tells the village the tale of the First Night and the Five.
     id: 'tale',
-    when: { map: 'meadow', hour: { from: 17, to: 21 }, facts: { 'village.rescued': 1, [CH1.flameStolen]: 0 } },
+    when: { map: 'meadow', hour: { from: 17, to: 21 }, facts: { 'village.rescued': 1, 'ch1.vigil': 1, [CH1.flameStolen]: 0, [CH1.knight]: 0 } },
     script: [
       say('npc.pell', 'Sister Ilse, tell the one about the sun going out. Please. The pilgrim hasn\'t heard it.', '伊尔丝修女，讲那个太阳熄灭的故事吧。求你了。朝圣者还没听过呢。'),
       say('npc.ilse', 'Long ago the days grew short, and shorter, until the sun did not rise at all. Crops died. Beasts went wrong. The dead would not lie down. That was the First Night.', '很久以前，白昼越来越短，再越来越短，直到太阳再也没有升起。庄稼死了。野兽变了样。死人不肯安息。那就是初夜。'),
@@ -254,6 +327,132 @@ export const CHAPTER1_STORY: StepDef[] = [
     ],
   },
   {
+    // Cloudtop: the watchman's log on the table — the sunsets coming early for years, and a light in the snow.
+    id: 'watch_log',
+    when: { map: 'summit', near: { type: 'fixture/furniture/table', r: 1 } },
+    script: [
+      say('player', '(A logbook lies open on the table, its pages stiff with cold. Columns of sunset times, year after year — each a little earlier than the last.)', '（桌上摊着一本日志，纸页冻得发硬。一栏栏日落时间，一年接一年——每一个都比上一个早一点。）'),
+      say('player', '(The last page: "Found a small light asleep in the snow by the cairn, warm as a coal. It woke and asked me how old it was.")', '（最后一页："在石堆旁的雪里发现一点睡着的光，暖得像炭火。它醒了，问我它多大了。"）'),
+      { emote: 'pip', mood: 'surprised' },
+      say('pip', 'A light in the snow? Huh. ...I don\'t remember any snow. I remember waking up and you being there. That\'s all.', '雪里的光？嗯……我不记得什么雪。我只记得醒过来，然后你就在那儿了。就这些。', 'shy'),
+      say('pip', 'Somebody sat up here counting sunsets for years and nobody came to read it. That\'s the saddest book I ever saw.', '有人在这儿坐了好多年，一天天数日落，却没有一个人来读。这是我见过最伤心的一本书。', 'sad'),
+    ],
+  },
+  {
+    // The grassland, first time: the herd keeps to the north, away from the trees.
+    id: 'pasture_first',
+    when: { map: 'pasture' },
+    say: L('The cows are all bunched up at the north end, away from the trees. Animals know things. What do they know?', '牛都挤在北边，离树林远远的。动物是知道些什么的。它们知道什么呢？'),
+  },
+  {
+    // Dusk on the grassland: the whole herd kneels, facing east, toward the knight's kingdom.
+    id: 'kneeling_herd',
+    when: { map: 'pasture', hour: { from: 17, to: 20 } },
+    script: [
+      say('player', '(The light goes amber. One by one the cows fold their front legs and go down on their knees — every one of them facing east.)', '（天光转成琥珀色。牛一头接一头屈下前腿，跪了下去——全都朝着东边。）'),
+      say('npc.brin', 'Every dusk. Since the bridge went. My gran never saw a cow kneel in her life.', '每天黄昏都这样。从桥断了以后就开始了。我奶奶活了一辈子都没见过牛下跪。'),
+      say('pip', 'East is the Ford... and past the Ford, the road. Whatever is down that road, they\'re kneeling to it.', '东边是渡口……过了渡口，就是那条大路。不管那条路上有什么，它们都在向它下跪。', 'surprised'),
+      say('npc.brin', 'And after dark, the dead come up out of the trees. Three cows this month. If you have a strong arm, come and find me.', '天黑以后，死人就从树林里爬上来。这个月已经丢了三头牛。你要是有把子力气，来找我。'),
+    ],
+  },
+  {
+    // The forest, first time: no birds.
+    id: 'forest_quiet',
+    when: { map: 'forest' },
+    say: L('Listen. ...No birds. Not one. A forest this big should be loud in the afternoon.', '你听。……没有鸟叫。一只都没有。这么大的森林，下午本该热热闹闹的。'),
+  },
+  {
+    // Deep in the forest: the cold camp of the pilgrim before you, the same proclamation nailed to a tree.
+    id: 'pilgrim_camp',
+    when: { map: 'forest', region: 'camp' },
+    script: [
+      say('player', '(A camp nobody has used in a very long time: a tent gone to rags, a ring of cold stones, a cairn with a pilgrim\'s staff leaning on it.)', '（一处很久很久没人用过的营地：帐篷烂成了布条，一圈冷掉的石头，一座石冢，上面靠着一根朝圣杖。）'),
+      say('pip', 'There\'s a paper on that tree. It says... "the Seal-bearers weaken. Let the pilgrimage be called." That\'s YOUR letter. Word for word.', '那棵树上钉着一张纸。上面写着……"持印者渐衰，当发朝圣令。"这是你的那封信。一字不差。', 'surprised'),
+      say('pip', 'Except it\'s old. Really old. And the name on it isn\'t yours.', '只不过它很旧了。真的很旧。而且上面的名字不是你。', 'sad'),
+      say('player', '(Something glints by the cairn: a scallop shell on a cord. The pilgrim\'s mark. Sister Ilse would know whose it was.)', '（石冢旁有东西在闪：一枚穿着绳子的扇贝壳。朝圣者的标记。伊尔丝修女会知道它是谁的。）'),
+    ],
+  },
+  {
+    // The camp after dark: a pale shape kneels at the cold fire, and says one thing.
+    id: 'pilgrim_ghost',
+    when: { map: 'forest', region: 'camp', hour: { from: 20, to: 4 }, after: 'pilgrim_camp' },
+    script: [
+      say('player', '(By the cold fire ring a pale shape is kneeling, head bowed, as if it has been kneeling for a long time.)', '（冷掉的火圈旁跪着一个苍白的影子，低着头，像是已经跪了很久很久。）'),
+      say('player', '("I knelt," it says, without looking up. "I knelt to him. Do not kneel.")', '（"我跪下了，"它说，没有抬头。"我向他跪下了。别跪。"）', 'surprised'),
+      { emote: 'pip', mood: 'surprised' },
+      say('pip', 'It\'s gone. It was right THERE. ...Can we go now? Please?', '它不见了。刚才明明就在那儿。……我们能走了吗？求你了？', 'sad'),
+    ],
+  },
+  {
+    // Thornwood Hollow, first time: the dead below sleep badly.
+    id: 'hollow_first',
+    when: { map: 'hollow' },
+    say: L('Down there, past the thorns — the dead are sleeping badly. I can feel it from here, like a draught under a door.', '下面，荆棘那边——那里的死人睡得很不安稳。我在这儿都能感觉到，像门缝底下灌进来的冷风。'),
+  },
+  {
+    // The barrow mouth: the carved stones of the Order of the Thorn.
+    id: 'barrow_mouth',
+    when: { map: 'hollow', region: 'mouth' },
+    say: L('Look at the carving on those stones: a knight with a crown of thorns, and people kneeling in front of him. Somebody important is buried down there. Fennick might know who.', '你看那些石头上的刻纹：一个戴荆棘冠的骑士，前面跪着一排人。下面埋着很重要的人。芬尼克也许知道是谁。'),
+  },
+  {
+    // Millbrook, first time: the wheel turning slow.
+    id: 'mill_first',
+    when: { map: 'mill' },
+    say: L('Listen to that wheel — it keeps stopping, like it\'s tired. Tam says something got into his cellar. That\'s where the lamp oil is.', '听那水车——转一会儿就停，像是累了。塔姆说有东西钻进了他的地窖。灯油就在那下面。'),
+  },
+  {
+    // The cellar: the oil, and what moved in after dark.
+    id: 'cellar_first',
+    when: { map: 'millcellar' },
+    say: L('Slimes in the cellar — the night things come further in every week. The oil flasks are on the shelves at the back.', '地窖里有史莱姆——夜里的东西一周比一周往里钻。油瓶在最里面的架子上。'),
+  },
+  {
+    // Dawn Hill, first time: where the sun rose again.
+    id: 'hill_first',
+    when: { map: 'dawnhill' },
+    say: L('This is where they say the sun came back, after the First Night. The flowers up here still face east, every one of them. Those must be the dawnbloom.', '据说初夜之后，太阳就是在这里重新升起的。这里的花全都朝着东边，一朵不落。那些一定就是晨光花了。'),
+  },
+  {
+    // The Chapel of the First Dawn: the bell rung, as it was the morning the sun came back.
+    id: 'chapel_bell',
+    when: { map: 'chapel', region: 'belfry' },
+    script: [
+      say('player', '(You take the old rope in both hands and pull. Far above, the bell swings once, twice — and its voice rolls down the hill toward Firstlight.)', '（你双手握住那根旧绳，用力一拉。高处的钟摆了一下，两下——钟声顺着山坡一路滚向初原村。）'),
+      { emote: 'pip', mood: 'surprised' },
+      say('pip', 'They\'ll hear that in the village. ...It sounds like morning. Even though it isn\'t.', '村里一定听得见。……听起来像早晨。虽然现在并不是。', 'happy'),
+      say('pip', 'The hearth here is where the Firstlight was lit. From the sun itself, Ilse says. It\'s so cold now. Like it\'s been waiting.', '伊尔丝说，初火就是在这座火坛里点燃的，用的是太阳本身的光。现在它好冷。像是一直在等着什么。', 'sad'),
+    ],
+  },
+  {
+    // The second floor: the Order of the Thorn buried its own here.
+    id: 'ossuary_enter',
+    when: { map: 'ossuary' },
+    say: L('Bones in every wall, and every one of them has a name over it. Knights. A whole order of knights, all down here together. ...They\'re not sleeping either.', '每面墙里都是骨头，每一具上面都刻着名字。是骑士。一整个骑士团，全都埋在这下面。……他们也没在睡。'),
+  },
+  {
+    // The niches: one is carved and empty, and someone keeps it swept.
+    id: 'niches',
+    when: { map: 'ossuary', region: 'niches' },
+    say: L('This niche has a name but nobody in it. "Fennick, squire to the Commander." Fennick — the old man on the bench in the village? And it\'s swept clean. Who comes down here to sweep a grave?', '这个墓龛刻着名字，里面却是空的。"芬尼克，骑士长的侍从。"芬尼克——就是村里长凳上那个老人？而且扫得干干净净。谁会到这下面来扫一座墓？'),
+  },
+  {
+    // Oskar in the ossuary's cell: the stair, the roll, the warden below.
+    id: 'oskar_cell',
+    when: { map: 'ossuary', region: 'oskar_cell' },
+    script: [
+      say('npc.oskar', 'Took your time. I came down looking for another way out and the dead herded me in here like a sheep.', '你可真够慢的。我下来找别的出路，结果被那些死人像赶羊一样赶进了这里。'),
+      say('npc.oskar', 'Read the roll on the altar, back there? Forty knights of some Order of the Thorn. The last name is cut deeper than the rest.', '后面祭坛上那份名册你看了吗？四十来个什么荆棘骑士团的骑士。最后一个名字比别的刻得都深。'),
+      say('npc.oskar', 'The thing that keeps this place is further down — the bottom of that stair in the north-east. I heard it walking all night. Back and forth. Like a guard on a wall.', '看守这地方的东西在更下面——东北角那道楼梯的最底下。我听了一整夜它走路的声音。来来回回。就像城墙上的守卫。'),
+    ],
+  },
+  {
+    // The third floor: the warden's sanctum.
+    id: 'sanctum_enter',
+    when: { map: 'sanctum' },
+    say: L('It\'s standing guard in front of an altar. Not attacking — guarding. Whatever it was, it still thinks it has a post to keep.', '它守在一座祭坛前面。不是在攻击——是在站岗。不管它生前是什么，它还以为自己有一个岗要守。'),
+  },
+  {
     // The statue before the thorns: a breath before the knight.
     id: 'statue_rest',
     when: { map: 'eastroad', near: { type: 'fixture/sacred/waypoint', r: 3 }, after: 'severin_warning' },
@@ -261,11 +460,45 @@ export const CHAPTER1_STORY: StepDef[] = [
   },
 ]
 
+/** The Held Ground (docs/chapter-1.md §12): the Oath-Thorn after the knight, his welcome there, the ground widening. */
+export const HAVEN_STORY: StepDef[] = [
+  {
+    // After the crown: one thorn of it is still green where he fell, and warm (a save from before has it the next time it plays)
+    id: 'oath_thorn',
+    when: { facts: { [CH1.knight]: { ne: 0 }, 'haven.token': 0 } },
+    script: [
+      say('player', '(Among the thorns where the knight fell, one is still green. It is warm, and it hums, very faintly, like a door left open.)', '（骑士倒下的荆棘丛里，有一根还是绿的。它是温热的，还在很轻很轻地嗡鸣，像一扇没关严的门。）'),
+      { give: 'item/relic/oath_thorn' },
+      { fact: 'haven.token', value: 1 },
+      say('pip', 'It wants to be used. On you, I think — hold it and right click yourself. I can hear a field on the other side of it. And... somebody waiting.', '它想被用一下。对你用，我觉得——拿着它右键点你自己。我能听见它另一边有一片田野。还有……有人在等。', 'surprised'),
+    ],
+  },
+  {
+    // The first time in the Held Ground: the knight, unhelmed, keeps it.
+    id: 'haven_first',
+    when: { map: HAVEN_MAP },
+    script: [
+      { place: 'npc.alberic', map: HAVEN_MAP, x: HAVEN.heart[0] + 1, y: HAVEN.heart[1] + 1 },
+      say('npc.alberic', 'You came. ...You are the one who took the crown off me. I could not see your face then. I can now.', '你来了。……你就是替我摘下冠冕的人。那时候我看不清你的脸。现在能看清了。'),
+      say('npc.alberic', 'I swore I would hold until I was relieved. You relieved me. So I hold for you now — this ground, as far as the mist. It is yours: build, sow, keep beasts.', '我发过誓，要坚守到有人来接替我。你接替了我。所以现在换我为你坚守——这片土地，一直到迷雾那里。它是你的了：盖房、播种、养牲口都行。'),
+      say('npc.alberic', 'Bring me what a wider ground needs, and I will push the mist back. ...And tell me your name. I would like to keep one, this time.', '把扩建所需的东西带给我，我就把迷雾推远。……还有，告诉我你的名字。这一次，我想记住一个名字。', 'sad'),
+      say('pip', 'He looks so different without the helmet. Kind. ...Tired, but kind.', '他不戴头盔，看起来完全不一样了。很和善。……很累，但很和善。', 'shy'),
+      { fact: 'haven.met', value: 1 },
+    ],
+  },
+  ...([1, 2, 3] as const).map((n): StepDef => ({
+    id: `haven_grow_${n}`,
+    when: { map: HAVEN_MAP, facts: { 'haven.size': { gte: n } } },
+    say: L(['', 'The mist pulled back! There\'s a grove out there, and stones.', 'Further again — a meadow, and water. It\'s getting to be a real place.', 'All of it now. Boundary stones at the edges... and iron in the rocks.'][n], ['', '迷雾退开了！那边有一片树林，还有石头。', '又远了一圈——一片草地，还有水。这里越来越像个真正的家了。', '全都打开了。边上有界石……岩石里还有铁。'][n]),
+  })),
+]
+
 export const CHAPTER1_SCENES: StepDef[] = [
   {
     // The night of the flame: the village gives thanks for the rescue; the grey man takes the Firstlight.
     id: 'night_flame',
-    when: { map: 'meadow', hour: { from: 21, to: 24 }, facts: { 'village.rescued': 1 } },
+    // (not once the knight has fallen: a player who went straight for him finds the night already past)
+    when: { map: 'meadow', hour: { from: 21, to: 24 }, facts: { 'village.rescued': 1, 'ch1.vigil': 1, [CH1.knight]: 0 } },
     script: [
       say('npc.rowan', 'Lina and Oskar are home. Firstlight gives thanks — to the flame that kept us, and to the one who walked into the barrow for us.', '莉娜和奥斯卡回家了。初原村在此感恩——感谢守护我们的圣火，也感谢那位为我们走进古墓的人。'),
       say('npc.ilse', 'Suffering is not God\'s abandonment. It is the proof the debt is being paid. ...Go to your beds. The flame keeps the night.', '苦难并非神的遗弃。苦难，是灾厄得以被偿还的证明。……回去睡吧。圣火会守着夜晚。'),
@@ -289,7 +522,7 @@ export const CHAPTER1_SCENES: StepDef[] = [
   {
     // The letter: at dawn a courier of the Holy City brings the proclamation of the pilgrimage.
     id: 'letter',
-    when: { map: 'meadow', morningAfter: 'night_flame' },
+    when: { map: 'meadow', morningAfter: 'night_flame', facts: { [CH1.knight]: 0 } },
     script: [
       { place: 'npc.courier', map: 'meadow', x: v.courier[0], y: v.courier[1] },
       say('npc.courier', 'By order of the Holy City: the Seal-bearers fail. The Long Night returns. Let the pilgrimage be called.', '奉圣城之命：持印者正在衰败。极夜正在回归。朝圣就此发起。'),

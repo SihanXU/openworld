@@ -935,7 +935,9 @@ export class World {
   stat(e: Entity, key: string, dflt = 0): number {
     let v = this.num(e, key, dflt)
     for (const id of Object.keys(e.statuses ?? {})) v += this.onto.status(id)?.props?.[key] ?? 0
-    for (const w of this.worn(e)) v += this.num(w, key)
+    // what it wears: each piece's number, and at night what a piece gives only then (`night:<key>`: a vigil's belt)
+    const night = this.isNight()
+    for (const w of this.worn(e)) v += this.num(w, key) + (night ? this.num(w, `night:${key}`) : 0)
     // what the companions following it give their leader (boons.ts): their statuses' `lead:<key>`
     const at = this.posOf(e)
     if (at && e.place.on === 'tile')
@@ -944,6 +946,12 @@ export class World {
         for (const id of Object.keys(c.statuses ?? {})) v += this.onto.status(id)?.props?.[`lead:${key}`] ?? 0
       }
     return v
+  }
+
+  /** The props a slot of this kind is kept in: `wear:<slot>`, and `wear:<slot>.2` … where the world gives more than one (params.slotCount). */
+  wearKeys(slot: string): string[] {
+    const n = Math.max(1, this.onto.data.params?.slotCount?.[slot] ?? 1)
+    return Array.from({ length: n }, (_, i) => (i ? `wear:${slot}.${i + 1}` : `wear:${slot}`))
   }
 
   /** What a thing wears: what each of its `wear:<slot>` props names, while it still has it (in its bag or its hand) and, a profession's piece, follows that profession. */

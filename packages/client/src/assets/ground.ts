@@ -168,7 +168,7 @@ export class GroundAtlas {
 
 /** Terrains drawn with another terrain's tiles (ice = frozen-looking water). */
 // the overworld's grounds are drawn as the local ones they stand for
-const ALIAS: Record<string, string> = { ice: 'water', dirt: 'path', ow_sea: 'deepwater', ow_river: 'water', ow_road: 'path', ow_plain: 'grass', ow_forest: 'grass', ow_hills: 'drygrass', ow_mountain: 'grass', ow_snow: 'snow' }
+const ALIAS: Record<string, string> = { ice: 'water', spring: 'grass', dirt: 'path', ow_sea: 'deepwater', ow_river: 'water', ow_road: 'path', ow_plain: 'grass', ow_forest: 'grass', ow_hills: 'drygrass', ow_mountain: 'grass', ow_snow: 'snow' }
 /** Tints composited over a terrain's tiles. */
 const TINT: Record<string, string> = {
   drygrass: 'rgba(214,190,90,0.30)',

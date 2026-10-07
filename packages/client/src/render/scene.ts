@@ -75,6 +75,7 @@ const OVERLAY_FX: [string, string][] = [
   ['wet', 'ovl:wet'],
   ['oil', 'ovl:oiled'],
   ['flame', 'ovl:lit'],
+  ['mend', 'ovl:mend'],
 ]
 /** A cell carries its statuses by name only: the overlay each of the base statuses names (ontology.ts). */
 const CELL_OVERLAY: Record<string, string> = { burning: 'fire', frozen: 'ice', electrified: 'spark', wet: 'wet', oiled: 'oil', lit: 'flame' }
@@ -120,6 +121,8 @@ export class WorldScene extends Phaser.Scene {
   private ready = false
   private pending: { map?: MapData; frames: Frame[] } = { frames: [] }
   private following?: Phaser.GameObjects.Container
+  /** A boss fight under way: the camera holds still over the arena, zoomed out, until it ends. */
+  private bossCam?: { id: string; x: number; y: number }
   private focus?: Phaser.GameObjects.Graphics
   private bossWarnings?: Phaser.GameObjects.Graphics
   private bossPreview?: { id: string; mode: Exclude<BossPreviewMode, 'live'>; startedAt?: number }
@@ -177,13 +180,20 @@ export class WorldScene extends Phaser.Scene {
     return Math.max(2, Math.min(4, Math.floor(Math.min(h / (T * 13), w / (T * 20)))))
   }
 
-  private fitBounds(): void {
+  /** How far out the camera draws back for a boss fight: the arena whole (about 40 × 24 tiles), always further than the normal view. */
+  private bossZoom(): number {
+    const h = this.scale.height || window.innerHeight
+    const w = this.scale.width || window.innerWidth
+    return Math.min(this.fitZoom() - 0.5, Math.max(1, Math.floor(Math.min(h / (T * 24), w / (T * 40)) * 4) / 4))
+  }
+
+  private fitBounds(zoom = this.cameras.main.zoom): void {
     if (!this.base) return
     const cam = this.cameras.main
     const mw = this.base.width * T
     const mh = this.base.height * T
-    const vw = cam.width / cam.zoom
-    const vh = cam.height / cam.zoom
+    const vw = cam.width / zoom
+    const vh = cam.height / zoom
     const bw = Math.max(mw, vw)
     const bh = Math.max(mh, vh)
     cam.setBounds(-(bw - mw) / 2, -(bh - mh) / 2, bw, bh)
@@ -219,6 +229,7 @@ export class WorldScene extends Phaser.Scene {
     this.objects.clear()
     this.overrides.clear()
     this.following = undefined
+    this.bossCam = undefined
     this.focus?.destroy()
     this.focus = undefined
     this.layer?.destroy()
@@ -241,6 +252,11 @@ export class WorldScene extends Phaser.Scene {
         this.placeObject(x, y)
         const t = map.terrain[y * map.width + x]
         if ((t === 'grass' || t === 'flowers') && hash2(x, y, 7) % 100 < (t === 'flowers' ? 70 : 9)) this.decal(x, y, t)
+        // a warm spring steams: a wisp over most of its cells, always rising
+        if (t === 'spring' && hash2(x, y, 11) % 3 !== 0) {
+          const s = this.overlaySprite('ovl:steam', x * T + 4 + (hash2(x, y, 12) % 8), (y + 1) * T - 2)
+          if (s) this.statics.push(s.setDepth((y + 1) * T + 4).setScale(1.6).setTint(0xf4fbff))
+        }
       }
     for (const s of map.stamps ?? []) this.stamp(s.key, s.x, s.y)
     for (const r of map.rooms ?? []) this.roomFrame(r.style, r.x, r.y, r.w, r.h)
@@ -296,8 +312,17 @@ export class WorldScene extends Phaser.Scene {
     if (!tex.has(name)) tex.add(name, 0, p.x, p.y, p.tw * T, p.th * T)
     let lastSolid = 0
     p.grid.forEach((row, j) => /[#D]/.test(row) && (lastSolid = j))
-    const img = this.add.image(x * T, y * T, p.img, name).setOrigin(0, 0).setDepth((y + lastSolid + 1) * T - 2)
+    const img = this.add.image(x * T, y * T, p.img, name).setOrigin(0, 0).setDepth(p.ground ? -40 : (y + lastSolid + 1) * T - 2)
     this.statics.push(img)
+    // the healing spring says what it is: a heart bobbing over its middle
+    if (key === 'spring') {
+      const h = CATALOG.ui.iconHeart
+      const htex = this.textures.get(h.img)
+      if (!htex.has('spring:heart')) htex.add('spring:heart', 0, h.x, h.y, h.w, h.h)
+      const heart = this.add.image((x + p.tw / 2) * T, y * T - 2, h.img, 'spring:heart').setDepth(1e6 - 1)
+      this.tweens.add({ targets: heart, y: y * T - 8, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
+      this.statics.push(heart)
+    }
   }
 
   private roomFrame(style: string, x: number, y: number, w: number, h: number): void {
@@ -376,25 +401,11 @@ export class WorldScene extends Phaser.Scene {
     for (const [id, v] of this.views) if (!seen.has(id)) (this.destroyView(v), this.views.delete(id))
     this.drawQuestMarks(f)
     const me = this.views.get(this.playerId)
-    if (me && this.following !== me.root) {
+    this.frameBossFight(f, me)
+    if (me && !this.bossCam && this.following !== me.root) {
       this.following = me.root
       this.cameras.main.startFollow(me.root, true, 0.2, 0.2)
     }
-    // Frame the crown and the player's dodge floor together, reserving the encounter
-    // plate and toolbar. Scale belongs to the actor, not to the camera.
-    const sovereign = f.entities.find((e) => e.boss && (e.hp ?? 0) > 0 && Math.max(Math.abs(e.x - f.player.x), Math.abs(e.y - f.player.y)) <= 12)
-    const view = sovereign && this.views.get(sovereign.id)
-    let zoom = this.fitZoom(), offset = 0
-    if (me && view) {
-      const top = Math.min(me.root.y - T, view.root.y - view.body.displayHeight * 0.9)
-      const bottom = Math.max(me.root.y, view.root.y)
-      const span = Math.max(bottom - top, view.body.displayHeight * 0.9 + T)
-      const compact = this.scale.height <= 800
-      zoom = Math.min(zoom, Math.max(1.5, Math.floor((this.scale.height - (compact ? 240 : 300)) / span * 4) / 4))
-      offset = me.root.y - ((top + bottom) / 2 - (compact ? 20 : 40) / zoom)
-    }
-    if (this.cameras.main.zoom !== zoom) { this.cameras.main.setZoom(zoom); this.fitBounds() }
-    this.cameras.main.setFollowOffset(0, offset)
     // Tall silhouettes may overhang walkable cells behind their actual collision base.
     // Keep a backstabbing player and ground warnings legible through that overhang.
     if (me) for (const v of this.views.values()) if (v.snap.boss) {
@@ -626,8 +637,11 @@ export class WorldScene extends Phaser.Scene {
         return { img: d.img, frame, ax: d.ax, ay: d.ay }
       }
     }
-    const d = CATALOG.items[e.sprite] ?? CATALOG.items['item:bag'] ?? Object.values(CATALOG.items)[0]
-    const [frame] = spriteFrames(this, `ico:${e.sprite}`, d)
+    // gear lying on the ground is a bundle, all alike: what it is shows once it is picked up (its own icon in the bag)
+    const gear = e.tags.includes('wearable') || e.type.startsWith('item/weapon') || e.type.startsWith('item/armor')
+    const key = gear ? 'item:loot' : e.sprite
+    const d = CATALOG.items[key] ?? CATALOG.items['item:bag'] ?? Object.values(CATALOG.items)[0]
+    const [frame] = spriteFrames(this, `ico:${key}`, d)
     return { img: d.img, frame, ax: d.w / 2, ay: d.h - 2 }
   }
 
@@ -1062,6 +1076,8 @@ export class WorldScene extends Phaser.Scene {
       if (v.walker) this.walk(v, time)
       if (v.actor && e.boss) {
         let animated = e.boss
+        // a preview plays on its own timeline (a loop starts at its first pose); the game on the screen's clock
+        let clock = time, offset = v.phase
         const preview = this.bossPreview
         if (preview?.id === e.id) {
           // Start on the first rendered pose, even if rebuilding the view delayed the click.
@@ -1069,10 +1085,12 @@ export class WorldScene extends Phaser.Scene {
           const entity = { ...e, boss: { ...e.boss } }
           previewBoss(entity, preview.mode, time - preview.startedAt)
           animated = entity.boss
+          clock = time - preview.startedAt
+          offset = 0
         } else if (v.bossAnimation) {
           animated = { ...e.boss, progress: v.bossAnimation.progress(time), animationElapsedMs: v.bossAnimation.elapsed(time) }
         }
-        const { col, row } = bossAnimationFrame(animated, time, v.phase, e.facing)
+        const { col, row } = bossAnimationFrame(animated, clock, offset, e.facing)
         v.body.setFrame(`${v.actor.key}:${col},${row}`).setFlipX(e.facing === 'left')
       } else if (v.actor && v.actor.rows === 1) {
         // single-row strips (bosses): animate across the columns
@@ -1092,6 +1110,45 @@ export class WorldScene extends Phaser.Scene {
     }
     for (const t of this.tileFx.values())
       for (const s of t.sprites) if (s instanceof Phaser.GameObjects.Image && s.texture.key === 'glow') s.setAlpha(this.darkness * 1.2)
+  }
+
+  /**
+   * A boss fight's camera: once a living boss is fighting (telegraphing, striking, hurt — not idling) near
+   * the player, the camera stops following, draws back and holds over the arena where it began; it
+   * returns to the player when the boss falls or the player leaves the fight far behind. The boss's music
+   * plays meanwhile.
+   */
+  private frameBossFight(f: Frame, me: EView | undefined): void {
+    const cam = this.cameras.main
+    const near = (e: EntitySnap, r: number) => Math.max(Math.abs(e.x - f.player.x), Math.abs(e.y - f.player.y)) <= r
+    const alive = (e: EntitySnap) => !!e.boss && (e.hp ?? 0) > 0 && e.boss.action !== 'death'
+    if (this.bossCam) {
+      const boss = f.entities.find((e) => e.id === this.bossCam!.id)
+      if (boss && alive(boss) && near(boss, 18)) return
+      // the fight is over: back to the player, at the usual distance, and the map's own music
+      this.bossCam = undefined
+      this.playMusic(this.base?.music)
+      const zoom = this.fitZoom()
+      this.fitBounds(zoom)
+      cam.zoomTo(zoom, 450, 'Sine.easeInOut')
+      if (me) (this.following = me.root), cam.startFollow(me.root, true, 0.08, 0.08)
+      return
+    }
+    const boss = f.entities.find((e) => alive(e) && near(e, 12) && (e.boss!.action !== 'idle' || !!e.boss!.warning))
+    const view = boss && this.views.get(boss.id)
+    if (!boss || !view || !me) return
+    // hold over the middle of the boss and the player as the fight begins, a little above the boss's feet
+    const x = (view.root.x + me.root.x) / 2
+    const y = (view.root.y - view.body.displayHeight * 0.3 + me.root.y) / 2
+    this.bossCam = { id: boss.id, x, y }
+    this.following = undefined
+    cam.stopFollow()
+    cam.setFollowOffset(0, 0)
+    const zoom = this.bossZoom()
+    this.fitBounds(zoom)
+    cam.zoomTo(zoom, 600, 'Sine.easeInOut')
+    cam.pan(x, y, 600, 'Sine.easeInOut')
+    this.playMusic('boss')
   }
 
   screenOf(id: string): { x: number; y: number } | undefined {

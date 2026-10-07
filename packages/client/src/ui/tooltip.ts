@@ -4,13 +4,23 @@
 // restores in blue and gold; its traits as purple italic lore; statuses and an owner in red.
 
 import type { Frame, ItemInfo } from '@lsw/engine'
-import { MATERIALS, PROFESSION_BY_ID, STATUSES } from '@lsw/content'
+import { MATERIALS, PROFESSION_BY_ID, RELICS, STATUSES } from '@lsw/content'
 import { esc, locale, tx } from './common.ts'
 
 const L = (en: string, zh: string) => (locale.value === 'zh' ? zh : en)
 
 /** Minecraft's rarity colours, by quality. */
-const QUALITY_COLOR: Record<string, string> = { crude: '#aaaaaa', fine: '#ffff55', masterwork: '#55ffff', legendary: '#ff55ff' }
+const QUALITY_COLOR: Record<string, string> = { crude: '#aaaaaa', fine: '#ffff55', masterwork: '#55ffff', vowed: '#c77dff', legendary: '#ff7a59' }
+/** The two tiers the story names (content items.ts QUALITIES): what each is, under the name. */
+const TIER: Record<string, [en: string, zh: string]> = {
+  vowed: ['Vowbound — left by one who swore a vow. It still remembers.', '遗誓——立誓之人留下的东西。它还记得那个誓言。'],
+  legendary: ['Stigmatic — it bears one of the First Martyr\'s five wounds. Suffering brings one nearer to God.', '圣痕——它带着初殉者五道伤痕中的一道。苦难使人接近神。'],
+}
+/** A worn slot's name (the body's ten, world-model.md §6.8). */
+const SLOT: Record<string, [string, string]> = {
+  head: ['head', '头'], body: ['body', '躯干'], feet: ['feet', '脚'], hands: ['hands', '手'], waist: ['waist', '腰'],
+  shoulders: ['shoulders', '肩'], neck: ['neck', '颈'], ring: ['finger', '手指'], ear: ['ear', '耳'],
+}
 const ELEMENT: Record<string, [string, string, string]> = {
   fire: ['Fire', '火', '#ff5555'],
   water: ['Water', '水', '#5555ff'],
@@ -84,6 +94,7 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   // the name, in its rarity's colour
   const quality = it.tags.find((g) => g.startsWith('quality:'))?.slice(8)
   out.push(line(esc(tx(it.name)), QUALITY_COLOR[quality ?? ''] ?? '#ffffff', 'name'))
+  if (quality && TIER[quality]) out.push(line(esc(L(...TIER[quality])), QUALITY_COLOR[quality], 'lore'))
   const family = it.type.split('/')[1]
   if (KIND[family]) out.push(line(L(...KIND[family]), '#aaaaaa'))
   // when held: the blow it makes (Minecraft's attributes, dark green)
@@ -106,6 +117,36 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
     out.push('<div class="gap"></div>', line(L('In the off hand:', '装备在副手时：'), '#aaaaaa'))
     if (typeof p.def === 'number' && p.def > 0) out.push(line(` +${p.def} ${L('Defence', '防御')}`, '#00aa00'))
     if (pct(p.block)) out.push(line(` ${Math.min(50, pct(p.block))}% ${L('Block Chance', '格挡率')}`, '#00aa00'))
+  }
+  // worn anywhere else on the body: what it gives (a cost in red: the Stigmatic ask something back)
+  if (typeof p.slot === 'string' && SLOT[p.slot]) {
+    const stat = (v: unknown, en: string, zh: string, pctOf = false) => {
+      if (typeof v !== 'number' || !v) return
+      const n = pctOf ? Math.round(v * 100) : v
+      out.push(line(` ${n > 0 ? '+' : ''}${n}${pctOf ? '%' : ''} ${L(en, zh)}`, n > 0 ? '#00aa00' : '#ff5555'))
+    }
+    out.push('<div class="gap"></div>', line(L(`When worn (${SLOT[p.slot][0]}):`, `穿戴在${SLOT[p.slot][1]}时：`), '#aaaaaa'))
+    stat(p.def, 'Defence', '防御')
+    stat(p.atk, 'Attack', '攻击')
+    stat(p.xpRate, 'Experience', '经验', true)
+  }
+  // the traits a Vowbound piece keeps of its vow (and any piece that has them), wherever it is worn or held
+  const trait = (v: unknown, en: string, zh: string) => typeof v === 'number' && v > 0 && out.push(line(` ${L(en, zh)}`, '#c77dff'))
+  const pctv = (v: unknown) => Math.round(Number(v) * 100)
+  if (typeof p.slot === 'string' && p.slot !== 'arm') {
+    trait(p.critChance, `+${pctv(p.critChance)}% Critical Chance`, `暴击率 +${pctv(p.critChance)}%`)
+    trait(p.lifesteal, `+${p.lifesteal} Health per hit`, `每次命中吸取 ${p.lifesteal} 点生命`)
+  }
+  trait(p.dodge, `+${pctv(p.dodge)}% Dodge`, `闪避 +${pctv(p.dodge)}%`)
+  trait(p.moveHaste, `+${pctv(p.moveHaste)}% Movement Speed`, `移动速度 +${pctv(p.moveHaste)}%`)
+  if (typeof p.holdFast === 'number' && p.holdFast > 0) out.push(line(` ${L(`Standing your ground: ${pctv(p.holdFast)}% less damage while still`, `坚守：站定不动时受到的伤害 -${pctv(p.holdFast)}%`)}`, '#c77dff', 'lore'))
+  trait(p['night:def'], `+${p['night:def']} Defence at night`, `入夜后防御 +${p['night:def']}`)
+  trait(p['night:atk'], `+${p['night:atk']} Attack at night`, `入夜后攻击 +${p['night:atk']}`)
+  // a Stigmatic piece's power: one of its kind in the world
+  const relic = typeof p.relic === 'string' ? RELICS[p.relic] : undefined
+  if (relic) {
+    out.push('<div class="gap"></div>', line(`✦ ${esc(L(relic.en, relic.zh))} · ${L('Unique', '唯一')}`, QUALITY_COLOR.legendary))
+    out.push(line(esc(L(relic.text.en, relic.text.zh)), '#ffb199', 'lore'))
   }
   // whose it is to fight with: a profession's own, or common to all (and no profession's talents)
   const need = it.tags.find((g) => g.startsWith('profession:'))?.slice(11)
