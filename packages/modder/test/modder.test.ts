@@ -157,6 +157,25 @@ function setup(model?: Model, dir = mkdtempSync(join(tmpdir(), 'lsw-modder-')), 
   return { dir, library, state, modder }
 }
 
+describe('a backend out of quota', () => {
+  it('is no lesson and no reason to work the request again: nothing follows, and no call goes out for a while', async () => {
+    let calls = 0
+    const model: Model = { name: 'claude-code:quota', chat: async () => (calls++, Promise.reject(new Error("claude-code: You've hit your session limit · resets 12:30am"))) }
+    const { modder, state } = setup(model, undefined, 'live')
+    const first = await modder.resolve({ request: request() })
+    expect(first.outcome).toBe('failed')
+    await modder.settled()
+    const after = calls
+    // no escalation, no reflection: the failure was the backend's
+    expect([...state.journalOf('reflect'), ...state.journalOf('lesson.add')]).toEqual([])
+    // and the next request gets no call at all
+    const second = await modder.resolve({ request: request('actor/creature/beast/wolf') })
+    expect(second.outcome).toBe('unavailable')
+    await modder.settled()
+    expect(calls).toBe(after)
+  })
+})
+
 describe('the modder pipeline', () => {
   it('designs with tools, validates, commits to the shared library and records the episode', async () => {
     const { model, calls } = scripted([patchOf(bindRule())])

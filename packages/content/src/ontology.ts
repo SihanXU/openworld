@@ -173,6 +173,9 @@ export const STATUSES: StatusDef[] = [
   // water a line was cast into: nothing bites there until it settles
   { id: 'stirred', name: { en: 'stirred up', zh: '搅浑' }, duration: 100 },
   { id: 'frozen', name: { en: 'frozen', zh: '冰冻' }, duration: 40, clears: ['burning', 'wet'], immobilize: true, overlay: 'ice' },
+  // frozen a moment ago: it does not freeze again until this wears off (in the rain, a wet thing struck
+  // by ice again and again was held frozen through a whole fight)
+  { id: 'thawed', name: { en: 'thawing', zh: '刚解冻' }, duration: 80 },
   { id: 'electrified', name: { en: 'electrified', zh: '感电' }, duration: 8, immobilize: true, overlay: 'spark' },
   { id: 'oiled', name: { en: 'oiled', zh: '油污' }, duration: 900, overlay: 'oil' },
   { id: 'lit', name: { en: 'lit', zh: '点燃' }, overlay: 'flame' },
@@ -509,6 +512,8 @@ export function buildOntology(): Ontology {
       { name: 'storm', every: 300, host: 'world' },
       // the night's walkers crumble at dawn (their own)
       { name: 'dawn', every: 5, host: { type: 'actor', tags: ['nightborn'] } },
+      // the dragon's whelps, their mother slain, scatter into the dark (quest.ts, mq/whelps-scatter)
+      { name: 'orphaned', every: 5, host: { type: 'actor/creature/whelp' } },
     ],
     // what appears on any map its `where` fits, besides each map's own: after dark, out in the wild,
     // the dead and the bats, a few at a time, six to ten cells off (out of sight where they come)

@@ -494,6 +494,8 @@ window.addEventListener('keydown', (e) => {
     if (e.code === 'Escape') return hud.answer(false)
     return
   }
+  // a person's line open: F and G put it away and act (a turn-in's thanks does not hold up the next one)
+  if (hud.dialogOpen && !menu.anyOpen && (e.code === 'KeyF' || e.code === 'KeyG') && hud.dismissLine()) syncPause()
   // an open dialogue: E (or Esc) moves it on — unless a menu lies over it (Esc closes that first)
   if (hud.dialogOpen && !menu.anyOpen && (e.code === 'KeyE' || e.code === 'Escape')) {
     e.preventDefault()

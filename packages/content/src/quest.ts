@@ -142,6 +142,13 @@ export const QUEST_RULES: Rule[] = [
   }),
   // ---------------------------------------------------------------- the dragon
   story({
+    id: 'mq/whelps-scatter',
+    doc: 'Once the dragon is slain, its whelps lose heart and scatter into the dark, one by one: the victory is not followed by a fight one can no longer win the story for.',
+    host: { type: 'actor/creature/whelp' },
+    on: 'time/period',
+    tree: IF(all({ param: { key: 'name', cmp: 'orphaned' } }, fact('mq.dragon', 1), { chance: 0.3 }), DO({ op: 'vfx', fx: 'poof', at: 'tileOf:host' }, log('A whelp shrieks and flees into the dark.', '一只幼龙尖叫着逃进了黑暗。'), { op: 'destroy' }), 'inherit'),
+  }),
+  story({
     id: 'mq/dragon-whelps',
     doc: 'Struck again once below half, the dragon shrieks and its whelps pour out of the dark (once); every blow still wounds it.',
     host: { type: DRAGON },

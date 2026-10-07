@@ -2197,7 +2197,7 @@ req('P3', 'the village main quest, before the bridge: Rowan (!) asks you to brin
   // the two foragers, and the warden
   expect(w.posOf(w.get('npc.lina')!)?.map).toBe('barrow')
   expect(talkTo(f, 'npc.lina')).toContain('我回家了')
-  expect(talkTo(f, 'npc.oskar')).toContain('小心那个守卫')
+  expect(talkTo(f, 'npc.oskar')).toContain('那个守卫要是还在')
   expect(f.eng.quests.status(f.eng.quests.defs.find((q) => q.id === 'rescue')!)).toBe('active')
   fell(f, w.get('barrow.warden')!)
   expect(markOf(f, 'npc.rowan')).toBe('?')

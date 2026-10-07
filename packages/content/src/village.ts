@@ -19,7 +19,7 @@ export const VILLAGE_QUESTS: QuestDef[] = [
     done: L('Both home, and the warden down. Firstlight owes you. Tonight, after dark, the whole village gives thanks at the flame — stay for it.', '两个人都回来了，守卫也倒了。初原村欠你一份情。今晚天黑以后，全村会在圣火前感恩——留下来吧。'),
     goals: [
       { id: 'lina', kind: 'talk', npc: 'npc.lina', line: L('You came! The way out is clear? Then I am going home — tell Rowan I am all right.', '你来了！出去的路通了？那我回家了——跟罗万说我没事。'), label: L('Find Lina', '找到莉娜') },
-      { id: 'oskar', kind: 'talk', npc: 'npc.oskar', line: L('About time. I will follow the girl home. Mind the warden.', '可算来了。我跟着那丫头回家。小心那个守卫。'), label: L('Find Oskar', '找到奥斯卡') },
+      { id: 'oskar', kind: 'talk', npc: 'npc.oskar', line: L('About time. I will follow the girl home. If the warden still walks, mind it.', '可算来了。我跟着那丫头回家。那个守卫要是还在，你小心点。'), label: L('Find Oskar', '找到奥斯卡') },
       { id: 'warden', kind: 'defeat', type: 'actor/creature/undead/warden', count: 1, label: L('Put down the barrow warden', '打倒古墓守卫') },
     ],
     // the foragers go home once found (their schedules follow these facts); that night, the flame (docs/chapter-1.md)

@@ -149,9 +149,16 @@ const FORD_RULES: Rule[] = [
     on: 'seen',
     tree: {
       if: { all: [{ param: { key: 'act', cmp: 'take' } }, { param: { key: 'owner', cmp: 'mine' } }, is('target', { type: WAND }), fact('ford.charm', 1)] },
-      then: { do: [say('That one is yours now. Mind the cold: it bites the hand that holds it.', '那根现在是你的了。小心寒气，它咬拿着它的手。')] },
+      then: { do: [say('That one is yours now. Mind the cold: it bites the hand that holds it.', '那根现在是你的了。小心寒气，它咬拿着它的手。'), { op: 'emit', impulse: 'notify', to: 'target', params: { what: 'yours' } }] },
       else: 'inherit',
     },
+  }),
+  story({
+    id: 'ford/wand-given',
+    doc: 'The wand the peddler gave away is no longer his: told so, it is nobody\'s (and so the one who holds it may keep it, and no one cries thief).',
+    host: { type: WAND },
+    on: 'impulse/notify',
+    tree: { if: { param: { key: 'what', cmp: 'yours' } }, then: { do: [{ op: 'setProp', key: 'owner', value: '' }] }, else: 'inherit' },
   }),
   // ---------------------------------------------------------------- the story keeps its own facts
   story({
