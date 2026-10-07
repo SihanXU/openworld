@@ -9,7 +9,7 @@
 //   npm run ford-live                 # all six
 //   npm run ford-live -- "stump"      # the scenarios whose name contains it ("-stump": all but)
 
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Game, RuleLibrary, TICKS_PER_HOUR, tickAt, type Engine, type Entity, type Key, type UndefinedRecord } from '@lsw/engine'
@@ -23,7 +23,7 @@ if (!model) throw new Error('no model')
 const modder = openModder({ data: mkdtempSync(join(tmpdir(), 'lsw-live-')), model })
 const { state } = modder.opts
 const h = state.harness()
-state.setHarness({ ...h, review: { ...h.review, enabled: false }, reflect: { ...h.reflect, enabled: false }, escalate: false }, 'live smoke')
+state.setHarness({ ...h, review: { ...h.review, enabled: false }, reflect: { ...h.reflect, enabled: false }, escalate: false, revise: false }, 'live smoke')
 const onto = buildOntology()
 
 interface Ford {
@@ -186,5 +186,16 @@ for (const sc of SCENARIOS) {
 mkdirSync('var/live-smoke', { recursive: true })
 const file = `var/live-smoke/${new Date().toISOString().replace(/[:.]/g, '-')}.json`
 writeFileSync(file, JSON.stringify(out, null, 1))
-const cost = state.episodes().reduce((s, e) => s + ((state.episode(e.id) as WorldEpisode | undefined)?.usage.cost ?? 0), 0)
+let cost = state.episodes().reduce((s, e) => s + ((state.episode(e.id) as WorldEpisode | undefined)?.usage.cost ?? 0), 0)
+// the auditor works after shipping: wait for it, then say what it found (and what it could not show)
+await modder.settled()
+const journal = join(state.dir, 'journal.jsonl')
+const audits = existsSync(journal) ? readFileSync(journal, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((j) => j.kind === 'audit') : []
+console.log(`\n## the auditor (${audits.length} audit(s))`)
+for (const a of audits) {
+  console.log(`  ${a.episode} ${a.rules.join(', ')}: ${a.confirmed.length ? `BROKEN — ${a.confirmed.map((f: { kind: string; title: string }) => `${f.kind}: ${f.title}`).join('; ')} → removed` : 'nothing confirmed'}; ${a.usage.calls} call(s), $${(a.usage.cost ?? 0).toFixed(4)}`)
+  for (const u of a.unconfirmed) console.log(`    not shown: ${u}`)
+  cost += a.usage.cost ?? 0
+}
+writeFileSync(file.replace(/\.json$/, '.audits.json'), JSON.stringify(audits, null, 1))
 console.log(`\nwritten ${file}; total cost $${cost.toFixed(3)}`)

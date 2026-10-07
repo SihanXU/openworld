@@ -67,9 +67,12 @@ export class WorldLibrary {
     return this.log.length ? this.log[this.log.length - 1].seq : 0
   }
 
-  /** The log as clients see it (without the server-side regression scenarios). */
+  /**
+   * The log as clients see it, each patch with the scene it answered: a client replays it there
+   * (the sandbox checks, the repeat check) before it takes the patch, as for its own requests.
+   */
   since(seq: number): PatchLogEntry[] {
-    return this.log.filter((e) => e.seq > seq).map((e) => ('scenario' in e ? { ...e, scenario: undefined } : e))
+    return this.log.filter((e) => e.seq > seq)
   }
 
   /** Rules added by patches and still in force. */
@@ -181,7 +184,7 @@ export class WorldLibrary {
         if (j < proof.tests[i].length) continue
         try {
           const rp = replay(t.given, this.ontology, cand)
-          for (const f of [...rp.errors, ...checkExpectations(rp.engine, t.expect ?? [])]) result.errors.push(`test "${t.name ?? `${r.id}#${j}`}": ${f}`)
+          for (const f of [...rp.errors, ...checkExpectations(rp.engine, t.expect ?? [], rp.resolution)]) result.errors.push(`test "${t.name ?? `${r.id}#${j}`}": ${f}`)
         } catch (err) {
           result.errors.push(`test "${t.name ?? `${r.id}#${j}`}": ${(err as Error).message}`)
         }

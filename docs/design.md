@@ -545,7 +545,23 @@ At the Ford:
 
   Rule 4 makes refinement monotone: the AI never changes defined behaviour. An authored
   outcome that is wrong is fixed by a person, or by offline review.
-- **One question at a time.** A hole is asked once per class: while a request is open, the
+- As built (2026-10-06), checks that hold their ground:
+- **One class key.** The engine's `classKey` (the hole, the kind, the host's type, the other roles'
+  types with `self` for the host, the branching params; residents out) is what both the client's
+  port and the service key by. They used to disagree (the service added the host's statuses).
+- **A review with no verdict is no review.** It is asked once more, then recorded as `error`, never
+  as `ship`; a verdict in capitals reads as what it says.
+- **A derived test always tests.** It asserts that the rule answers (`resolvedBy`, a new
+  expectation), and a number that moved by the way it moved (its start differs per instance).
+- **Create only what the world lacks.** A creation asked for at once, whose name is close to
+  things the catalogue has, goes through find first; the route is recorded as it happened. A new
+  type that is a thing the world has under another number (sticks, stick) or the same Chinese name
+  is refused.
+- **What comes from elsewhere is checked here.** A shared-library patch comes with the scene it
+  answered, and a client replays it there before it takes it (the repeat check included). A saved
+  library's patch rules are validated again as they come back (`restoreLibrary`).
+
+**One question at a time.** A hole is asked once per class: while a request is open, the
   same hole and class wait for it, and once it is answered the class never asks again. The
   number of calls is bounded by the (hole, class) pairs that are actually reached, not by how
   often events happen.
@@ -1213,6 +1229,19 @@ client worker ──POST /resolve {request, workspace}──▶ modder ──▶
 8. **Reflect** — after replying, the model distils lessons, which are added, supported,
    revised or dropped, each citing its episodes. It writes or revises a skill once that kind
    of work has recurred.
+
+As built (2026-10-06), **the auditor** (`modder/src/audit.ts`), between verify and review: an
+agent plays against the patch the way a player out to break the game would. It looks for farms,
+cheap roads to rare things (a rope that becomes Dragonsbane passes the validator and the LP: one
+for one), softlocks, harm, and runaway chains. It has the sandbox, not an opinion. Its tools are
+`look` (the scene) and `run` (play acts, ticks and repeats in a copy of the scene, with the patch
+and without it), and each finding is a setup, steps and claims (counts, props, statuses, a thing
+gone or become another, an event count). The code judges: a finding counts only when the sandbox
+shows it with the patch and not without it, so the model searches and never decides. The offline
+profile audits before shipping, and what is broken goes back to the designer with the evidence. The
+live profile audits after shipping, and what is broken leaves the shared library at once and goes
+to one offline revision. An auditor that fails finds nothing. Harness `audit {enabled, blocking,
+rounds, reasoning}`.
 
 **Client.** The worker probes `?modder=<url>` (default `VITE_MODDER_URL`; in development,
 `localhost:8787`). If the service answers, the worker becomes the port's provider, waits up to
