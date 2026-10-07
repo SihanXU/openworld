@@ -31,7 +31,8 @@ const scene = new WorldScene()
 const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
 const send = (m: ToWorker) => worker.postMessage(m)
 // dev-only hook for scripted testing from the console
-if (import.meta.env.DEV) (window as unknown as { lsw: unknown }).lsw = { send, scene }
+// development: lsw.god() toggles the player's invulnerability (lsw.god(true) / lsw.god(false)); ?god=1 turns it on at start
+if (import.meta.env.DEV) (window as unknown as { lsw: unknown }).lsw = { send, scene, god: (on?: boolean) => send({ t: 'debug', op: 'god', on }) }
 document.documentElement.lang = locale.value === 'zh' ? 'zh-CN' : 'en'
 
 const dev = new ModConsole({
@@ -230,6 +231,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       if (startingFrom && !m.resumed) hud.message(t('cvIncompatible'), 'warn')
       // the slot is filled at once (a new game) or refreshed (a loaded one)
       send({ t: 'save' })
+      if (import.meta.env.DEV && PARAMS.get('god') === '1') send({ t: 'debug', op: 'god', on: true })
       break
     case 'map':
       hud.setMapName(m.map.name)
@@ -264,7 +266,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     case 'saved':
       if (slot) void writeSlot(WORLD, slot, { save: m.save, summary: m.summary, savedAt: m.save.savedAt })
       void kvSet('library', m.library)
-      if (!cover.open && !quietSave) hud.message(t('savedSlot').replace('{n}', String(slot ?? '')), 'good')
+      if (!cover.open && !quietSave && !m.auto) hud.message(t('savedSlot').replace('{n}', String(slot ?? '')), 'good')
       quietSave = false
       break
     case 'library':
@@ -507,7 +509,8 @@ window.addEventListener('keyup', (e) => {
 })
 window.addEventListener('blur', () => stopMoving())
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden' && slot && !cover.open) send({ t: 'save' })
+  // the tab going to the background saves, said to no one (it comes and goes with every switch)
+  if (document.visibilityState === 'hidden' && slot && !cover.open) (quietSave = true), send({ t: 'save' })
 })
 
 

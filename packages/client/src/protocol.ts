@@ -66,6 +66,7 @@ export type ToWorker =
   | { t: 'debug'; op: 'hour'; hour: number }
   /** Harm the one at the keys (as a blow nobody struck): to try a fall and the death screen. */
   | { t: 'debug'; op: 'hurt'; amount: number }
+  | { t: 'debug'; op: 'god'; on?: boolean }
 
 export interface RecordView {
   id: string
@@ -93,7 +94,7 @@ export type FromWorker =
   | { t: 'records'; records: RecordView[]; library: LibraryView }
   | { t: 'spec'; spec: ModSpec }
   | { t: 'validation'; id?: string; result: ValidationResult }
-  | { t: 'saved'; save: SaveData; library: LibraryData; summary: SaveSummary }
+  | { t: 'saved'; save: SaveData; library: LibraryData; summary: SaveSummary; /** the world's own save (no toast: on the overworld one comes with every block) */ auto?: boolean }
   /** The library changed (a patch was accepted or removed): keep it at once, not at the next save. */
   | { t: 'library'; library: LibraryData }
   | { t: 'loading'; what: string }

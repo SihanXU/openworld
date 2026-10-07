@@ -343,7 +343,8 @@ function inDanger(): boolean {
   return w.entitiesOnMap(at.map).some((e) => e.ai && e.place.on === 'tile' && Math.max(Math.abs(e.place.x - at.x), Math.abs(e.place.y - at.y)) <= DANGER_TILES && eng.hostileTo(e, p))
 }
 
-function doSave(): void {
+/** Save the game; `auto`: the world's own (the minute's, on arriving, as the story moves), said to no one. */
+function doSave(auto = false): void {
   if (!game) return
   const w = game.engine.world
   const p = w.player
@@ -365,7 +366,7 @@ function doSave(): void {
     difficulty,
     ...(fallen && { ended: true }),
   }
-  post({ t: 'saved', save, library: game.engine.lib.toJSON(), summary })
+  post({ t: 'saved', save, library: game.engine.lib.toJSON(), summary, auto })
 }
 
 /** How long the world stands still for the player's own question, in real seconds: an answer, a thing being made. */
@@ -428,7 +429,7 @@ function loop(): void {
   lastHp = hp
   if (++saveEvery >= 600 && !inDanger()) {
     saveEvery = 0
-    doSave()
+    doSave(true)
   }
 }
 
@@ -663,6 +664,13 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (m.op === 'give') eng.author(() => (w.create(m.type, { on: 'inside', holder: w.state.player }, m.tags ? { tags: m.tags } : {}), eng.controls.sync()))
         if (m.op === 'hour') w.state.tick = tickAt(w.calendar().day, m.hour)
         if (m.op === 'hurt') eng.author(() => eng.hurt(w.player, m.amount, undefined, true))
+        // development: the player takes no harm (toggled), and is made whole
+        if (m.op === 'god') eng.author(() => {
+          const on = m.on ?? w.prop(w.player, 'invulnerable') !== true
+          w.setProp(w.player, 'invulnerable', on || undefined)
+          if (on) w.setProp(w.player, 'hp', w.num(w.player, 'maxHp', 1))
+          w.fx.push({ t: 'log', text: on ? { en: 'Invulnerable (dev).', zh: '无敌已开启（开发）。' } : { en: 'Invulnerable off.', zh: '无敌已关闭。' }, tone: 'good' })
+        })
         break
       }
     }
