@@ -236,7 +236,7 @@ export const FORMS: Form[] = [
   // potions
   W('item/potion/healing', 'Healing Potion', '治疗药水', 'item:potion_red', { tags: ['drinkable', 'glass', 'fragile', 'magical'], props: { heal: 15 }, where: { temple: 1, shop: 1, dungeon: 1.5 } }),
   W('item/potion/antidote', 'Antidote', '解毒剂', 'item:potion_green', { tags: ['drinkable', 'glass', 'fragile', 'magical'], props: { heal: 4 }, where: { temple: 1, shop: 0.5 } }),
-  W('item/potion/fire_resist', 'Fireproof Draught', '抗火药剂', 'item:potion_orange', { tags: ['drinkable', 'glass', 'fragile', 'magical'], props: { heal: 2 }, where: { library: 0.5, shop: 0.3 } }),
+  W('item/potion/fire_resist', 'Fireproof Draught', '防火药剂', 'item:potion_orange', { tags: ['drinkable', 'glass', 'fragile', 'magical'], props: { heal: 2 }, where: { library: 0.5, shop: 0.3 } }),
   W('item/potion/mystery', 'Murky Potion', '浑浊药水', 'item:potion_purple', { tags: ['drinkable', 'glass', 'fragile', 'magical', 'unknown'], where: { dungeon: 1, library: 0.5 } }),
   // materials
   W('item/material/log', 'Log', '木头', 'item:log', { tags: ['wooden', 'flammable', 'fuel'], props: { material: 'wood' }, where: { wild: 1, farm: 1, home: 0.5 } }),

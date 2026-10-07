@@ -156,7 +156,7 @@ const ROOTS: Rule[] = [
         ),
         IF(
           param('element', 'ice'),
-          IF(has('host', 'burning'), DO(remove('burning'), vfx('steam')), IF(has('host', 'wet'), DO(add('frozen'), vfx('frost')), NOTHING)),
+          IF(has('host', 'burning'), DO(remove('burning'), vfx('steam')), IF(all(has('host', 'wet'), not(has('host', 'thawed'))), DO(add('frozen'), add('thawed'), vfx('frost')), NOTHING)),
           IF(
             param('element', 'lightning'),
             IF(
@@ -1458,10 +1458,10 @@ const BUILDING: Rule[] = [
   }),
   rule({
     id: 'build/collapse',
-    doc: 'A floor that loses what held it up (the wall under it broken) and has nothing else to hold it comes down: it breaks, and what stood on it falls.',
+    doc: 'A floor that loses what held it up (the wall under it broken) and has nothing else to hold it comes down: it breaks, and what stood on it falls. One taken down into a bag or a hand has not lost its footing: it was carried off.',
     host: { props: { needsSupport: true } },
     on: 'contact/end',
-    tree: IF(all(param('how', 'support'), not({ rel: { role: 'host', how: 'support' } })), DO(vfx('dust', 'tileOf:host'), log('{host} comes down.', '{host}塌了下来。'), { op: 'setProp', key: 'hp', value: 0 }), 'inherit'),
+    tree: IF(all(param('how', 'support'), not({ rel: { role: 'host', how: 'support' } }), not({ rel: { role: 'host', how: 'in' } }), not({ rel: { role: 'host', how: 'held' } })), DO(vfx('dust', 'tileOf:host'), log('{host} comes down.', '{host}塌了下来。'), { op: 'setProp', key: 'hp', value: 0 }), 'inherit'),
   }),
 ]
 

@@ -24,7 +24,7 @@ export const VILLAGE_QUESTS: QuestDef[] = [
     goals: [
       { id: 'mouth', kind: 'fact', fact: 'seen.barrow_mouth', count: 1, label: L('Through the grassland and the forest to the barrow mouth in Thornwood Hollow', '穿过草原和森林，到荆棘谷的古墓入口') },
       { id: 'lina', kind: 'talk', npc: 'npc.lina', line: L('You came! The way out is clear? Then I am going home — tell Rowan I am all right.', '你来了！出去的路通了？那我回家了——跟罗万说我没事。'), label: L('Find Lina', '找到莉娜') },
-      { id: 'oskar', kind: 'talk', npc: 'npc.oskar', line: L('About time. I will follow the girl home. The warden is below — the bottom of the stair. Mind it.', '可算来了。我跟着那丫头回家。守墓者在下面——楼梯最底下。小心它。'), label: L('Find Oskar in the ossuary, the second floor', '在第二层骸骨堂找到奥斯卡') },
+      { id: 'oskar', kind: 'talk', npc: 'npc.oskar', line: L('About time. I will follow the girl home. The warden keeps the bottom of the stair — if it still walks, mind it.', '可算来了。我跟着那丫头回家。守墓者在下面——楼梯最底下。它要是还在，你小心点。'), label: L('Find Oskar in the ossuary, the second floor', '在第二层骸骨堂找到奥斯卡') },
       { id: 'warden', kind: 'defeat', type: 'actor/creature/undead/warden', count: 1, label: L('Put down the warden in the sanctum, the deepest floor', '在最深处的圣所打倒守墓者') },
     ],
     // the foragers go home once found (their schedules follow these facts); that night, the flame (docs/chapter-1.md)

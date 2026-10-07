@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import { ModPort, OVERLAYS, OntologyIndex, RuleLibrary, buildSandbox, madeOf, snapshot, validatePatch, type Engine } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
-import { Game, DIRS, tickAt, type Dir } from '@lsw/engine'
+import { CEILING, Game, DIRS, tickAt, type Dir } from '@lsw/engine'
 import { buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()
@@ -105,6 +105,86 @@ describe('the people', () => {
     expect(first).toBeGreaterThanOrEqual(0)
     expect(faced.trail[first]).toBe(faced.p0)
     expect(faced.trail.some((p) => p !== faced.p0)).toBe(true)
+  })
+})
+
+describe('after the story playthrough', () => {
+  const sand = (entities: { key: string; type: string; x: number; y: number; props?: Record<string, unknown> }[]) => {
+    const eng = buildSandbox({ terrain: Array.from({ length: 9 }, () => Array(9).fill('grass')), entities: [{ key: 'actor', type: 'actor/person/player', x: 4, y: 4 }, ...entities] as never, event: {} }, onto, lib())
+    eng.controls.sync()
+    return eng
+  }
+
+  it('a ceiling taken down comes into the hand whole: carried off is not a floor that lost its footing', () => {
+    // as built in the tutorial: three walls and a door round one, the ceiling (by the pointer) over the door
+    const eng = sand([{ key: 'w1', type: 'structure/wall', x: 3, y: 4 }, { key: 'w2', type: 'structure/wall', x: 5, y: 4 }, { key: 'w3', type: 'structure/wall', x: 4, y: 3 }, { key: 'door', type: 'structure/door', x: 4, y: 5 }, { key: 'fl', type: 'structure/floor', x: 4, y: 5 }])
+    const w = eng.world
+    // laid as the player lays it: held, G, the ceiling
+    eng.author(() => w.place(w.get('fl')!, { on: 'hand', holder: 'actor' }))
+    eng.controls.sync()
+    eng.controls.run(eng.controls.plan('put', { x: 4, y: 5 }, CEILING)!, true)
+    for (let i = 0; i < 3; i++) eng.tick()
+    expect(w.get('fl')?.place).toMatchObject({ on: 'tile', z: 1 })
+    eng.controls.run(eng.controls.plan('take', { x: 4, y: 5 }, CEILING)!, true)
+    for (let i = 0; i < 5; i++) eng.tick()
+    expect(w.get('fl')?.place).toMatchObject({ on: 'hand', holder: 'actor' })
+    // (a floor whose wall is broken under it still comes down: demo.test W12)
+  })
+
+  it('a wet thing struck by ice again and again freezes once, then fights back (it is thawing)', () => {
+    const eng = sand([{ key: 'm', type: 'actor/creature/undead/warden', x: 4, y: 3 }, { key: 'wand', type: 'item/weapon/magic/wand', x: 4, y: 4, props: { element: 'ice' } }])
+    const w = eng.world
+    eng.author(() => {
+      w.place(w.get('wand')!, { on: 'hand', holder: 'actor' })
+      w.player.facing = 'up'
+      w.get('m')!.ai = { behaviour: 'melee', temper: 'aggressive', sight: 6, home: { map: 'sandbox', x: 4, y: 3 }, state: 'chase' } as never
+    })
+    const hp = w.num(w.player, 'hp')
+    let frozen = 0
+    for (let t = 0; t < 400 && w.get('m'); t++) {
+      eng.author(() => w.setStatus({ e: 'm' }, 'wet', 20))
+      if (t % 6 === 0) eng.controls.strike()
+      eng.tick()
+      if (w.get('m') && w.hasStatus({ e: 'm' }, 'frozen')) frozen++
+    }
+    expect(frozen).toBeLessThanOrEqual(45)
+    expect(w.num(w.player, 'hp')).toBeLessThan(hp)
+  })
+
+  it('the wand the peddler gave is nobody\'s once he says so: taken in his sight, no one cries thief', () => {
+    const { index, chunks } = buildFord()
+    const game = Game.create(index, onto, lib())
+    for (const c of chunks) game.loadChunk(decodeChunk(c))
+    const eng = game.engine
+    const w = eng.world
+    eng.author(() => eng.travel(w.player, { map: 'meadow', x: 2, y: 2 }))
+    w.state.tick = tickAt(1, 15)
+    // the village's arrival scene plays through first
+    for (let i = 0; i < 600 && (w.scene || i < 5); i++) (eng.tick(), w.scene && eng.story.advance())
+    const tobin = w.get('npc.tobin')!
+    const t = w.posOf(tobin)!
+    eng.author(() => {
+      w.story!.props = { ...w.story!.props, 'ford.charm': 1 }
+      eng.travel(w.player, { map: t.map, x: t.x + 1, y: t.y })
+      w.place(w.get('tobin.wand')!, { on: 'tile', map: t.map, x: t.x + 1, y: t.y + 1 })
+    })
+    expect(w.prop(w.get('tobin.wand')!, 'owner')).toBe('npc.tobin')
+    w.fx.length = 0
+    eng.controls.sync()
+    const pl = eng.controls.plan('take', { x: t.x + 1, y: t.y + 1 })
+    eng.controls.run(pl!, true)
+    expect(w.fx.some((f) => f.t === 'say' && f.who === 'npc.tobin' && JSON.stringify(f.text).includes('那根现在是你的了'))).toBe(true)
+    expect(w.prop(w.get('tobin.wand')!, 'owner')).toBe('')
+  })
+
+  it("once the dragon is slain its whelps scatter into the dark; while it lives they stay", () => {
+    for (const slain of [false, true]) {
+      const eng = sand([{ key: 'a', type: 'actor/creature/whelp', x: 1, y: 1 }, { key: 'b', type: 'actor/creature/whelp', x: 7, y: 7 }])
+      const w = eng.world
+      if (slain) eng.author(() => (w.story!.props = { ...w.story!.props, 'mq.dragon': 1 }))
+      for (let i = 0; i < 300; i++) eng.tick()
+      expect(Object.values(w.state.entities).filter((e) => e.type === 'actor/creature/whelp').length).toBe(slain ? 0 : 2)
+    }
   })
 })
 

@@ -466,6 +466,18 @@ export class Hud {
   }
 
   /** E (or a click) on an open dialog: the first press finishes the typing, the next moves on. */
+  /**
+   * A person's line (not a scene's, not a card, not a question) is put away at once: the next act
+   * does not wait for it (handing the smith five ores is five G presses, not ten keys).
+   */
+  dismissLine(): boolean {
+    if (this.questionOpen || this.cardOpen || this.sceneDialog || $('#dialog').classList.contains('hidden')) return false
+    clearInterval(this.typer)
+    this.typedAll = true
+    $('#dialog').classList.add('hidden')
+    return true
+  }
+
   advanceDialog(): void {
     if (this.questionOpen) return
     if (this.cardOpen) {

@@ -25,6 +25,11 @@ import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYS
 import { coarseTerms, signatureOf, type Signature } from './signature.ts'
 import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@lsw/agent'
 
+/** A backend that is out of quota or throttling says so in its error (claude-code's session limit, an HTTP 429, a provider's quota). */
+const BACKEND_DOWN = /session limit|usage limit|rate.?limit|quota|\b429\b|overloaded|insufficient_quota/i
+/** How long the service makes no calls after the backend said it is out (a request meanwhile gets `unavailable`). */
+const BACKEND_PAUSE_MS = 5 * 60_000
+
 /** An episode of the patch pipeline: the request is the world's, the result a Patch. */
 export type WorldEpisode = AgentEpisode<ModRequest, Patch>
 type Episode = WorldEpisode
@@ -165,8 +170,14 @@ export class Modder {
     const base = this.opts.library.answeredByBase(req)
     if (base) return { patch: null, outcome: 'failed', diagnostics: [`answered by the base rule "${base}" here: the client's base rules are older than the service's`] }
     if (!this.opts.model) return { patch: null, outcome: 'unavailable' }
+    // the backend said it is out of quota (or throttling): no calls until the pause is over
+    if (Date.now() < this.downUntil) return { patch: null, outcome: 'unavailable', diagnostics: [`model unavailable: ${this.downWhy}`] }
     return this.track(sig.key, this.episode(req, body.workspace, sig, { profile }))
   }
+
+  /** When the backend may be called again after it said it is out of quota, and what it said. */
+  private downUntil = 0
+  private downWhy = ''
 
   private async track(key: string, p: Promise<ResolveReply>): Promise<ResolveReply> {
     this.inflight.set(key, p)
@@ -511,6 +522,14 @@ export class Modder {
 
   /** What follows an episode once the player has their answer. */
   private afterwards(ep: Episode, req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, h: Harness, ctx: ToolContext, eo: EpisodeOptions): void {
+    // a failure that is the backend's (out of quota, throttled) is no lesson and no reason to work the
+    // request again: nothing follows, and no call goes out for a while
+    if (ep.outcome === 'failed' && BACKEND_DOWN.test(ep.error ?? '')) {
+      this.downUntil = Date.now() + BACKEND_PAUSE_MS
+      this.downWhy = ep.error!
+      this.log(`model unavailable (${ep.error}): no calls for ${BACKEND_PAUSE_MS / 60000} min`)
+      return
+    }
     const shipped = ep.attempts.at(-1)
     const flags = ep.patch ? flagsOf(ep.patch, shipped?.derived) : []
     // a review after the fact: for a rule that narrates only or did not generalize (and for every
