@@ -451,7 +451,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/build/stakes', 'stakes', '木桩', ['wooden', 'flammable']),
   F('fixture/build/post', 'sign post', '牌子立柱', ['wooden', 'flammable']),
   F('fixture/build/ring', 'stone ring', '石圈', ['stone']),
-  F('fixture/dummy', 'training dummy', '训练假人', ['wooden', 'flammable', 'straw'], { solid: true }),
+  // a training dummy: knocked down it stands up again (train/dummy), for practising blows (the tutorial's)
+  F('fixture/dummy', 'training dummy', '训练假人', ['wooden', 'flammable', 'straw'], { solid: true, props: { material: 'wood', maxHp: 12, hp: 12 } }),
   F('fixture/scarecrow', 'scarecrow', '稻草人', ['straw', 'cloth', 'wooden', 'flammable'], { solid: true }),
 ]
 

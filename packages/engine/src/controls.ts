@@ -24,7 +24,7 @@ import { isRoot } from './rules.ts'
 import { parseCellId } from './cells.ts'
 import type { Engine } from './engine.ts'
 import type { Writer } from './world.ts'
-import type { Aim, Dir, Entity, Id, Place, Plan, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb } from './types.ts'
+import type { Aim, Dir, Entity, Id, LessonInput, Place, Plan, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb } from './types.ts'
 import { cannotLearn, skillsOf } from './progression.ts'
 import { companionsOf, nearAttunedWaypoint } from './boons.ts'
 import { OFFHAND, PROFESSION_LEVEL, canWield, cannotChoose, itemProfession, type ProfessionDef, type ProfessionRefusal } from './profession.ts'
@@ -394,9 +394,34 @@ export class Controls {
 
   // ---------------------------------------------------------------- running
 
+  /** Answering a question: its plan passed the lesson's gate when it was asked. */
+  private answering = false
+  /** When a refusal was last shown (the key shakes once, not every tick a key is held). */
+  private refused = -Infinity
+
+  /**
+   * May the keys do this now (docs/prologue.md, the drills)? A lesson at hand that names what works
+   * lets nothing else; making and setting down only what it names (`only`), and that only where it
+   * names (`cells`). A refusal is shown (the key shakes, the companion repeats the lesson). It is the
+   * keys' own concern: which actor they move is never asked.
+   */
+  allows(input: LessonInput, what?: { type?: string; at?: { x: number; y: number } }): boolean {
+    const l = this.eng.story.lesson()?.def
+    if (!l?.allow) return true
+    let ok = l.allow.includes(input)
+    const named = !!what?.type && !!l.only?.includes(what.type)
+    if (ok && l.only && what?.type && (input === 'craft' || input === 'build' || input === 'put')) ok = named
+    if (ok && named && l.cells && what?.at) ok = l.cells.some(([x, y]) => x === what.at!.x && y === what.at!.y)
+    if (!ok && this.w.state.tick - this.refused >= 5) {
+      this.refused = this.w.state.tick
+      this.w.fx.push({ t: 'lesson', blocked: input })
+    }
+    return ok
+  }
+
   /** The attack key: a blow in the facing direction (the engine's cooldown paces a held key). */
   strike(): void {
-    if (this.eng.busy(this.w.player)) return
+    if (this.eng.busy(this.w.player) || !this.allows('use')) return
     this.eng.playerAttack()
   }
 
@@ -405,6 +430,8 @@ export class Controls {
     const eng = this.eng
     const w = this.w
     const p = w.player
+    // a lesson at hand: only what it teaches (setting a thing down, only that thing, only where it says)
+    if (!this.answering && !this.allows(plan.key, plan.key === 'put' ? { type: this.entity(plan.instrument)?.type, at: plan.at } : undefined)) return {}
     if (eng.busy(p)) return {}
     this.face(plan.at)
     // the build palette's turn (R): one faces that way setting it down (stairs go up that way)
@@ -430,7 +457,13 @@ export class Controls {
     const q = this.w.state.question
     if (!q) return
     delete this.w.state.question
-    if (yes) this.run(q.plan, true)
+    // what was asked was let through the lesson's gate when it was asked
+    this.answering = true
+    try {
+      if (yes) this.run(q.plan, true)
+    } finally {
+      this.answering = false
+    }
   }
 
   /** The inventory's context menu: a key's act on an item in the bag (or in an open chest). */
@@ -544,7 +577,7 @@ export class Controls {
 
   select(i: number): void {
     const p = this.w.player
-    if (i < 0 || i >= ROW || this.eng.busy(p)) return
+    if (i < 0 || i >= ROW || this.eng.busy(p) || !this.allows('select')) return
     this.stow()
     p.selected = i
     this.sync()
@@ -733,6 +766,12 @@ export class Controls {
 
   /** The crafting panel: an act of crafting (the recipe's needs are used up, what it makes goes into the bag). */
   craft(r: Recipe): boolean {
+    // the crafting panel (C): a lesson at hand may let it make only what it teaches
+    return this.allows('craft', { type: r.make.type }) && this.makeOne(r)
+  }
+
+  /** Make it from what is carried (the panel's, and the palette's when none is carried). */
+  private makeOne(r: Recipe): boolean {
     const p = this.w.player
     if (this.eng.busy(p) || !this.canCraft(r)) return false
     this.stow()
@@ -810,10 +849,11 @@ export class Controls {
 
   /** Set a type down at the aim — or (`up`) in the ceiling over it (the build palette): one carried, or one made from what is carried first; facing a way (stairs go up it). */
   place(type: string, aim: Aim, facing?: Dir, up = false): boolean {
-    if (this.eng.busy(this.w.player) || !this.previewPlace(type, aim, up).ok) return false
+    if (this.eng.busy(this.w.player) || !this.previewPlace(type, aim, up).ok || !this.allows('build', { type, at: aim })) return false
     if (!this.carriedOf(type)) {
       const r = this.recipeFor(type)
-      if (!r || !this.craft(r)) return false
+      // made on the spot to be set down: the palette's own (a lesson that lets it set one down lets it make one)
+      if (!r || !this.makeOne(r)) return false
     }
     const thing = this.carriedOf(type)
     const plan = thing && this.planPut(thing.id, aim, up)
