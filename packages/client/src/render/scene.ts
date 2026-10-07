@@ -637,8 +637,9 @@ export class WorldScene extends Phaser.Scene {
         return { img, frame: `${a.key}:${col},0`, ax: fw / 2, ay: a.def.anchorY ?? fh, actor: { key: a.key, rows: a.def.rows, cols: a.def.cols, tint: a.def.tint, scale: a.def.scale } }
       }
     }
-    // a thing set in its cell (a built wall, a laid floor) is drawn as part of the place
-    if (!e.tags.includes('agent') && (!e.tags.includes('portable') || e.spaces)) {
+    // a thing set in its cell (a built wall, a laid floor) is drawn as part of the place; a fixture
+    // one can carry (a bed) is drawn as itself once set down, not as its icon in the bag
+    if (!e.tags.includes('agent') && (!e.tags.includes('portable') || e.spaces || e.type.startsWith('fixture/'))) {
       const f = this.fixtureDef(e)
       if (f) {
         // a look of its own among the type's variants, kept for its life
