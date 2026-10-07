@@ -127,7 +127,7 @@ export function scenarioEvent(sc: Scenario, eng: Engine): GameEvent {
  * What one event makes, replayed again and again with no time between (world-model.md §8.4):
  * the things each replay made (cell things changing are not things made), while its host stands.
  */
-export function repeatYields(eng: Engine, ev: GameEvent, times = REPEAT_TIMES): number[] {
+export function repeatYields(eng: Engine, ev: GameEvent, times = 12): number[] {
   const w = eng.world
   const out: number[] = []
   for (let i = 0; i < times && w.get(ev.host.e); i++) {
@@ -141,26 +141,75 @@ export function repeatYields(eng: Engine, ev: GameEvent, times = REPEAT_TIMES): 
   return out
 }
 
-/** How often the repeat check replays an event, and how many of the last replays must make nothing. */
-export const REPEAT_TIMES = 12
-export const REPEAT_TAIL = 4
+/** How often the repeat check replays an event before it gives its verdict (it ends sooner when the scene comes back to a state it was in). */
+export const REPEAT_TIMES = 128
+/** The most a host may give with no time between: a bigger store must come back over time (a stage, a status that runs out). */
+export const YIELD_MOST = 64
 /** Maximum complete chance assignments explored before refusing an unproven patch. */
 export const REPEAT_ASSIGNMENTS = 64
 export class RepeatLimitError extends Error {}
 /** The events someone can make happen again at will (the rest wait on time or on a change). */
 export const REPEATABLE = ['act', 'impulse', 'contact', 'bump', 'seen']
 
+/** JSON with its keys in order: two equal states read the same however they were written. */
+function stable(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stable).join(',')}]`
+  if (v && typeof v === 'object') return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${stable((v as Record<string, unknown>)[k])}`).join(',')}}`
+  return JSON.stringify(v) ?? 'null'
+}
+
+/** The state of the event's participants (host and roles; what they hold aside): where the repeat check looks for a cycle. */
+function participants(eng: Engine, ev: GameEvent): string {
+  const w = eng.world
+  const ids = [...new Set([ev.host, ...Object.values(ev.roles)].flatMap((r) => (r && 'e' in r ? [r.e] : [])))]
+  return stable(
+    ids.map((id) => {
+      const e = w.get(id)
+      if (!e) return [id, 'gone']
+      const p = e.place
+      const at = p.on === 'tile' ? [p.map, p.x, p.y, p.z ?? 0] : p.on === 'inside' || p.on === 'hand' ? [p.on, p.holder] : [p.on]
+      return [id, e.type, e.props ?? {}, e.statuses ?? {}, [...(e.tags ?? [])].sort(), at]
+    }),
+  )
+}
+
 /**
- * An endless yield (D23): replayed with no time between, on a host that is not used up, the event
- * still makes things at the end — something from nothing, as often as one likes. A yield must cost
- * its host: change it (a status that gates the yield and runs out, a stage, durability) or use it up.
+ * The repeat check on one engine (world-model.md §8.4), exact rather than sampled: the event is
+ * replayed with no time between, and the state of its participants is kept after each replay.
+ * When a state comes back, the replays between are a cycle that can go round for ever: endless if
+ * it made anything. When the host is used up, or the replays make nothing more, it ends. A store
+ * that keeps giving without coming back (charges counting down) may give at most YIELD_MOST.
+ * Returns why it is endless (the certificate), or nothing.
  */
-export function endlessYield(eng: Engine, ev: GameEvent, prime = false): boolean {
-  // only what someone can do again at will: acts and what they set off (impulses, contact, bumps,
-  // being seen). The clock's events wait on time, a threshold on the host changing, broken content
-  // is reported once.
-  if (!REPEATABLE.some((k) => ev.kind === k || ev.kind.startsWith(k + '/'))) return false
-  // Discover sites as they are reached; each alternative starts from the same world.
+export function yieldCycle(eng: Engine, ev: GameEvent): string | undefined {
+  const seen = new Map<string, number>()
+  const made: number[] = []
+  let total = 0
+  for (let i = 0; i <= REPEAT_TIMES; i++) {
+    if (!eng.world.get(ev.host.e)) return undefined
+    const k = participants(eng, ev)
+    const back = seen.get(k)
+    if (back !== undefined) {
+      const round = made.slice(back).reduce((a, n) => a + n, 0)
+      return round > 0 ? `after replay ${back}, every ${i - back} replay(s) come back to where they began and make ${round} thing(s) each time round` : undefined
+    }
+    seen.set(k, i)
+    if (i === REPEAT_TIMES) break
+    const n = repeatYields(eng, ev, 1)[0] ?? 0
+    made.push(n)
+    total += n
+    if (total > YIELD_MOST) return `${total} things from ${i + 1} replays with no time between (at most ${YIELD_MOST}: a bigger store must come back over time)`
+  }
+  // (no state came back: it ends if it has stopped making things)
+  return made.slice(-4).some((n) => n > 0) ? `still making things after ${REPEAT_TIMES} replays` : undefined
+}
+
+/**
+ * For every assignment of the chance sites the run reaches (each chance condition, chance emit and
+ * breakdown fraction its own outcome, kept across the replays; depth first, at most
+ * REPEAT_ASSIGNMENTS), a fresh copy of the engine with that luck: the first finding `run` makes.
+ */
+export function underEveryChance<T>(eng: Engine, run: (e: Engine) => T | undefined): T | undefined {
   const pending = [new Map<object, boolean>()]
   const sites = new Map<object, object[]>()
   let assignments = 0
@@ -172,19 +221,92 @@ export function endlessYield(eng: Engine, ev: GameEvent, prime = false): boolean
     e.world.luck = (site, part) => {
       let parts = sites.get(site)
       if (!parts) sites.set(site, (parts = []))
-      const key = parts[part] ??= {}
+      const key = (parts[part] ??= {})
       if (!choices.has(key)) {
         pending.push(new Map(choices).set(key, false))
         choices.set(key, true)
       }
       return choices.get(key)!
     }
-    // The triggering replay must use the same assignment, before it can gate later yields.
-    if (prime) repeatYields(e, ev, 1)
-    const ys = repeatYields(e, ev)
-    if (ys.length === REPEAT_TIMES && !!e.world.get(ev.host.e) && ys.slice(-REPEAT_TAIL).some((n) => n > 0)) return true
+    const found = run(e)
+    if (found !== undefined) return found
   }
-  return false
+  return undefined
+}
+
+/**
+ * Why an event is an endless yield (D23), or nothing: under any outcome of its chances, the repeat
+ * check finds a cycle that makes things, or more than a host may give at once. A yield must cost
+ * its host: change it (a status that gates the yield and runs out, a stage, durability) or use it up.
+ */
+export function whyEndless(eng: Engine, ev: GameEvent, prime = false): string | undefined {
+  // only what someone can do again at will: acts and what they set off (impulses, contact, bumps,
+  // being seen). The clock's events wait on time, a threshold on the host changing, broken content
+  // is reported once.
+  if (!REPEATABLE.some((k) => ev.kind === k || ev.kind.startsWith(k + '/'))) return undefined
+  return underEveryChance(eng, (e) => {
+    // the triggering replay uses the same assignment, before it can gate later yields
+    if (prime) repeatYields(e, ev, 1)
+    return yieldCycle(e, ev)
+  })
+}
+
+export function endlessYield(eng: Engine, ev: GameEvent, prime = false): boolean {
+  return whyEndless(eng, ev, prime) !== undefined
+}
+
+/** How long the termination check follows a chain: ticks, and events. */
+export const CHAIN_TICKS = 50
+export const CHAIN_EVENTS = 1500
+
+/**
+ * Every chain ends (design.md A7), proven on the scene: the event and all it sets off, through the
+ * ticks it has to wait, until nothing of its chain is left. An event that sets off, by way of its
+ * own outcomes, the same event on the same world again is a loop that never ends (the certificate
+ * is the round, parent to child); a chain still going past the bounds is refused too. Returns why
+ * it does not end, or nothing.
+ */
+export function chainLoop(eng: Engine, ev: GameEvent): string | undefined {
+  const w = eng.world
+  const ROOT = -1
+  let next = 0
+  let dispatched = 0
+  /** each event's parent, its key when dispatched (what it is and the world it met), its label */
+  const parent = new Map<number, number | undefined>()
+  const keyOf = new Map<number, string>()
+  const labelOf = new Map<number, string>()
+  let loop: string | undefined
+  eng.onQueue = (x, from) => {
+    if (x.chain !== ROOT || x.seq !== undefined) return
+    x.seq = ++next
+    parent.set(x.seq, from?.seq)
+  }
+  eng.onDispatch = (x) => {
+    if (x.chain !== ROOT || x.seq === undefined || loop) return
+    dispatched++
+    const key = `${x.kind}|${stable(x.host)}|${stable(x.params ?? {})}|${stable(w.state.entities)}`
+    keyOf.set(x.seq, key)
+    labelOf.set(x.seq, `${x.kind} on ${'e' in x.host ? (w.get(x.host.e)?.type ?? x.host.e) : '?'}`)
+    const round: string[] = [labelOf.get(x.seq)!]
+    for (let a = parent.get(x.seq); a !== undefined; a = parent.get(a)) {
+      round.unshift(labelOf.get(a) ?? '?')
+      if (keyOf.get(a) === key) {
+        loop = `it sets off the same event on the same world again: ${round.join(' → ')}`
+        return
+      }
+    }
+  }
+  try {
+    eng.queue({ ...structuredClone(ev), depth: 0, chain: ROOT, seq: undefined })
+    eng.flush()
+    for (let t = 0; t < CHAIN_TICKS && !loop && dispatched <= CHAIN_EVENTS && eng.waiting(ROOT); t++) eng.tick()
+  } finally {
+    eng.onQueue = undefined
+    eng.onDispatch = undefined
+  }
+  if (loop) return loop
+  if (dispatched > CHAIN_EVENTS || eng.waiting(ROOT)) return `it sets off ${dispatched} events and is still going after ${CHAIN_TICKS} ticks`
+  return undefined
 }
 
 /** Replay a scenario's event once (and optional ticks); report effect errors. */
@@ -213,10 +335,14 @@ export function replay(sc: Scenario, ontology: Ontology, lib: RuleLibrary): Repl
   return { resolution, engine: eng, errors, hpBefore }
 }
 
-export function checkExpectations(eng: Engine, exps: Expectation[]): string[] {
+export function checkExpectations(eng: Engine, exps: Expectation[], res?: Resolution): string[] {
   const w = eng.world
   const fails: string[] = []
   for (const x of exps) {
+    if ('resolvedBy' in x) {
+      if (res?.rule?.id !== x.resolvedBy) fails.push(`expected ${x.resolvedBy} to answer, ${res?.rule ? `${res.rule.id} did` : 'nothing did'}`)
+      continue
+    }
     if ('spawned' in x) {
       if (!Object.values(w.state.entities).some((e) => e.type === x.spawned || e.type.startsWith(x.spawned + '/')))
         fails.push(`expected a ${x.spawned} to exist`)

@@ -24,12 +24,14 @@ import {
   type Key,
   type KeyView,
   type Plan,
+  type Ref,
   type Resolution,
   type ResolveBody,
   type ResolveReply,
   type WorldIndex,
   type Engine,
   type PlacementPreview,
+  restoreLibrary,
 } from '@lsw/engine'
 import { BASE_RULES, BOSS_LAYOUT, COMPANION_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, PROLOGUE_DONE, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateCompanion, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
@@ -79,11 +81,14 @@ let modderSeq = 0
 let syncTimer: ReturnType<typeof setInterval> | undefined
 let modderOnline = false
 
-// Prefetch: the action prompt knows an interaction is undefined before E is pressed. Facing it
-// with something in hand for half a second starts the request, so the patch is often there first.
-const PREFETCH_DWELL_TICKS = 5
-const PREFETCH_CAP = 40 // per session: a prefetch costs a model call
-let probe: { key: string; ev: GameEvent; res: Resolution; ticks: number } | undefined
+// Prefetch: the action prompt knows an interaction is undefined before E is pressed. Pointing at
+// one spot with something in hand for a second and a half starts the request, so the patch is often
+// there first. Each costs a model call: moving the pointer starts the wait over, a session makes few,
+// and `?prefetch=0` makes none.
+const PREFETCH_DWELL_TICKS = 15
+const PREFETCH_CAP = 12
+let prefetchOn = true // the page's ?prefetch=0 turns it off (init)
+let probe: { key: string; spot: string; ev: GameEvent; res: Resolution; ticks: number } | undefined
 const prefetched = new Set<string>()
 let prefetching = false
 
@@ -161,11 +166,12 @@ function sendArts(): void {
   post({ t: 'art', arts })
 }
 
-function noteProbe(hole: { ev: GameEvent; res: Resolution } | undefined): void {
-  if (!hole) return void (probe = undefined)
-  // one prefetch per hole and class (as the Mod port asks), not per tile or item
+function noteProbe(hole: { ev: GameEvent; res: Resolution } | undefined, spot: string): void {
+  if (!hole || !prefetchOn) return void (probe = undefined)
+  // one prefetch per hole and class (as the Mod port asks), not per tile or item; the wait is the
+  // pointer resting on one spot, not sweeping over things of one class
   const key = signatureOf(game!.engine, hole.ev, hole.res)
-  probe = probe?.key === key ? { ...probe, ...hole } : { key, ...hole, ticks: 0 }
+  probe = probe?.key === key && probe.spot === spot ? { ...probe, ...hole } : { key, spot, ...hole, ticks: 0 }
 }
 
 /** Ask the modder ahead of time; its patch goes through this engine's validator like any other. */
@@ -178,7 +184,7 @@ function maybePrefetch(): void {
   const request = buildRequest(eng, probe.ev, probe.res, `pre-${eng.world.state.tick.toString(36)}`)
   resolveRemote(request)
     .then((patch) => {
-      if (patch && game) game.mods.submit(undefined, patch)
+      if (patch && game) game.mods.submit(undefined, patch, request.scenario)
     })
     .catch(() => undefined)
     .finally(() => (prefetching = false))
@@ -194,7 +200,7 @@ async function syncLibrary(): Promise<void> {
     for (const e of log.entries) {
       if ('remove' in e) {
         if (lib.rules.get(e.remove)?.source?.origin === 'patch') lib.remove(e.remove)
-      } else game.mods.submit(undefined, e.patch)
+      } else game.mods.submit(undefined, e.patch, e.scenario)
     }
     modderSeq = log.seq
     if (lib.version !== before) sendRecords()
@@ -203,16 +209,9 @@ async function syncLibrary(): Promise<void> {
   }
 }
 
-/** Base rules are always fresh from content; patches (and their types/statuses) persist. */
-function libraryFrom(saved?: LibraryData): RuleLibrary {
-  const lib = new RuleLibrary([...BASE_RULES, ...STORY_RULES])
-  if (!saved) return lib
-  for (const t of saved.types ?? []) lib.addType(t, 'restored')
-  for (const s of saved.statuses ?? []) lib.addStatus(s, 'restored')
-  for (const r of saved.rules ?? []) if (r.source?.origin === 'patch' && !lib.rules.has(r.id)) lib.add(r, r.source.at ?? 'restored')
-  lib.log = [...(saved.log ?? [])]
-  lib.version = Math.max(lib.version, saved.version ?? 0)
-  return lib
+/** Base rules are always fresh from content; patches (and their types/statuses) persist, each validated again (engine `restoreLibrary`). */
+function libraryFrom(saved: LibraryData | undefined, protectedFacts: string[] = []): RuleLibrary {
+  return restoreLibrary([...BASE_RULES, ...STORY_RULES], saved, ontology, protectedFacts, (id, why) => console.warn(`[library] a saved patch rule is not restored: ${id}: ${why}`))
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -260,7 +259,11 @@ function keyViews(): Frame['keys'] {
   }
   const view = (pl: Plan | undefined): KeyView | undefined => pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(rect(pl) && { rect: rect(pl) }) }
   const out: NonNullable<Frame['keys']> = {}
-  for (const k of ['hands', 'take', 'put', 'use'] as Key[]) out[k] = view(c.plan(k, aimTile))
+  for (const k of ['hands', 'take', 'put', 'use'] as Key[]) {
+    const pl = c.plan(k, aimTile)
+    shownTarget[k] = pl?.target
+    out[k] = view(pl)
+  }
   const p = eng.world.player
   const here = eng.world.posOf(p)
   const self = c.plan('self')
@@ -269,9 +272,12 @@ function keyViews(): Frame['keys'] {
   if (self && (atSelf || (p.held && !self.unknown))) out.self = view(self)
   const use = c.plan('use', aimTile)
   // an experiment with something in hand: where its chain reaches an undefined outcome
-  noteProbe(use?.unknown && use.instrument && use.verb ? eng.preview(eng.actEvent(use.verb, p.id, use.target, use.instrument)).hole : undefined)
+  noteProbe(use?.unknown && use.instrument && use.verb ? eng.preview(eng.actEvent(use.verb, p.id, use.target, use.instrument)).hole : undefined, use ? `${use.at.x},${use.at.y}` : '')
   return out
 }
+
+/** What each key's label last named: the target a key pressed now acts on, if it still reaches it. */
+const shownTarget: Partial<Record<Key, Ref>> = {}
 
 /** Terrain of maps no longer in memory (the world map draws every visited one), fetched once. */
 const terrainCache = new Map<string, string[]>()
@@ -348,12 +354,23 @@ function doSave(): void {
   post({ t: 'saved', save, library: game.engine.lib.toJSON(), summary })
 }
 
+/** How long the world stands still for the player's own question, in real seconds: an answer, a thing being made. */
+const ASK_MS = 20_000
+const MAKE_MS = 120_000
+let asked: { id: string; since: number } | undefined
+
 function loop(): void {
   if (!game) return
   const t0 = performance.now()
   const eng = game.engine
+  // the player's act waits for the world to learn its outcome: the world pauses with it (nothing
+  // walks up to a player who cannot move), for so long, then the hole's default runs and it goes on
+  const asking = game.mods.asking
+  if (asking && asked?.id !== asking.id) asked = { id: asking.id, since: t0 }
+  if (!asking) asked = undefined
+  else if (t0 - asked!.since > (asking.deadline === Number.POSITIVE_INFINITY ? MAKE_MS : ASK_MS)) game.mods.fallback(asking.id)
   // time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player)
-  const stopped = paused || !!eng.world.state.question || !!panel
+  const stopped = paused || !!eng.world.state.question || !!panel || !!game.mods.asking
   if (!stopped) {
     if (moveDir) eng.movePlayer(moveDir, walk)
     if (attacking) eng.controls.strike()
@@ -398,8 +415,9 @@ function loop(): void {
 
 async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Promise<void> {
   base = init.base
+  if (init.prefetch !== undefined) prefetchOn = init.prefetch
   index = await fetchJson<WorldIndex>('index.json')
-  const lib = libraryFrom(init.library ?? init.save?.library)
+  const lib = libraryFrom(init.library ?? init.save?.library, index.protectedFacts)
   const compatible = init.save?.world === index.version
   if (init.save && !fresh && compatible) {
     game = Game.load(init.save, index, ontology, lib)
@@ -479,12 +497,19 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'key': {
         if (!game || paused || panel || game.engine.world.state.question) break
         const c = game.engine.controls
-        const plan = c.plan(m.key, m.tile, m.layer)
+        // the target the key's label named (one who walked a step off since stays it)
+        const plan = c.planFor(m.key, m.tile, m.layer, m.layer ? undefined : shownTarget[m.key])
         if (!plan) break
         const out = c.run(plan)
         if (out.panel) panel = out.panel
         break
       }
+      case 'ui':
+        if (game) game.engine.story.ui(m.what)
+        break
+      case 'lessonSkip':
+        if (game) game.engine.story.skipLesson()
+        break
       case 'buildAim':
         buildAim = m.id && m.tile && (PLACEMENT_BY_ID[m.id] || m.id.startsWith(PUT)) ? { id: m.id, tile: m.tile, up: m.up } : undefined
         break
@@ -501,6 +526,8 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
           post({ t: 'placement', preview: buildPreview(eng, m.id, to, m.up) })
           break
         }
+        // a lesson at hand may let the palette set down only what it teaches (docs/prologue.md, the drills)
+        if (!eng.controls.allows('build', { type: m.id, at: m.tile })) break
         const result = performPlacement(eng, eng.world.state.player, PLACEMENT_BY_ID[m.id], to)
         if (!result.ok) eng.world.fx.push({ t: 'log', text: result.reason, tone: 'warn' })
         post({ t: 'placement', preview: result })

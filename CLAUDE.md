@@ -38,7 +38,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
   lines, schedule variants with the thing an activity needs, topics (`people.ts`), the story's one
   script (`story.ts`, world-model.md §6.12: steps with triggers — a scene takes control, a beat does
-  not — that write only the story and send pushes and notices; guides and hints); the state is things and the
+  not — that write only the story and send pushes and notices; guides and hints; a guide's lessons,
+  the tutorial's drills that lock the keys they do not teach, `Controls.allows` — docs/prologue.md); the state is things and the
   clock (world-model.md §3): facts and topics are the story's props, memories each person's,
   a map's named areas are `region` things (`in-region`); invariants live in the engine; events, relations (contact from the relation difference),
   active/dormant maps and the writer (`World.grant`: the mutators throw outside an outcome, the
@@ -81,8 +82,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - `packages/modder` — the modder service (design.md §13, rsi.md). It may depend on content;
   the engine never depends on it. Parts:
   - `model.ts`: a model interface — OpenAI-compatible, or scripted for tests and offline.
-  - `pipeline.ts`: comprehend → recall → design (tools) → verify/repair → review → commit →
-    record → reflect. Live designs are routed (design.md §13, the router): local (the request's
+  - `pipeline.ts`: comprehend → recall → design (tools) → verify/repair → audit → review → commit →
+    record → reflect. The auditor (`audit.ts`) plays against a patch in the sandbox; only what it
+    reproduces there, with the patch and not without it, counts. Live designs are routed (design.md §13, the router): local (the request's
     own types) → find (the catalogue) → create (a new type with its 16x16 picture as data).
   - `tools.ts`: the design tools.
   - `library.ts`: the shared library as an append-only patch log.

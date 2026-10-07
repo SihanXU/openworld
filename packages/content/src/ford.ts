@@ -7,7 +7,7 @@
 // `quest` prop: the story's rules keep the facts (others notify it), and the world's own patches
 // may not touch them (design.md §5.11).
 
-import type { Cond, Effect, Invariant, RoleName, Rule, Selector, Text } from '@lsw/engine'
+import type { Cond, Effect, Invariant, Lesson, RoleName, Rule, Selector, Text } from '@lsw/engine'
 import { QUEST_OBJECTIVES, QUEST_RULES } from './quest.ts'
 import { BOSS_RULES } from './bosses.ts'
 import { CH1_OBJECTIVES, CH1_RULES } from './chapter1.ts'
@@ -20,6 +20,8 @@ export interface Objective {
   title: Text
   hint: Text
   progress?: { fact: string; need: number; label: Text }[]
+  /** The stage's lessons, in order (docs/prologue.md, the drills). */
+  lessons?: Lesson[]
 }
 
 export const OBJECTIVES: Record<number, Objective> = {

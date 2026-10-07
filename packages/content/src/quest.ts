@@ -220,7 +220,11 @@ export const QUEST_RULES: Rule[] = [
     tree: IF(
       what('waypoint'),
       DO({ op: 'addProp', key: 'waypoints.attuned', delta: 1 }),
-      IF(what('meal'), DO({ op: 'addProp', key: 'prologue.meals', delta: 1 }), IF(what('experiment'), DO({ op: 'addProp', key: 'world.experiments', delta: 1 }))),
+      IF(
+        what('meal'),
+        DO({ op: 'addProp', key: 'prologue.meals', delta: 1 }),
+        IF(what('experiment'), DO({ op: 'addProp', key: 'world.experiments', delta: 1 }), IF(what('dummy'), DO({ op: 'addProp', key: 'tutorial.dummy', delta: 1 }))),
+      ),
     ),
   }),
 ]

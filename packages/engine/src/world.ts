@@ -165,6 +165,8 @@ export class World {
   private upperCover = new Map<string, number>()
   /** The static cell things asked for so far: built from the map's data, not state (world-model.md §4.6). */
   private statics = new Map<Id, Entity>()
+  /** What is being destroyed now (its contents first). */
+  private destroying = new Set<Id>()
   /** Things that currently carry statuses, by id. */
   statusful = new Set<string>()
   /** Things whose own companion prop names a leader, in the state's entity order. */
@@ -966,6 +968,8 @@ export class World {
   /** A thing's own prop changes (the engine's `setProp` adds the threshold events). */
   setProp(e: Entity, key: string, value: PropValue | undefined): void {
     this.guard('setProp', e)
+    // a number the world can hold: NaN would make a thing that cannot be felled, Infinity one that cannot be counted
+    if (typeof value === 'number' && !Number.isFinite(value)) throw new Error(`${e.id}.${key}: ${value} is not a finite number`)
     if (value === undefined) {
       if (e.props) delete e.props[key]
     } else (e.props ??= {})[key] = value
@@ -1062,10 +1066,41 @@ export class World {
   /** Move an entity to a new place, keeping all indices and holder links consistent. */
   place(e: Entity, to: Place): void {
     this.guard('place', e)
+    this.placeable(e, to)
     this.detach(e)
     e.place = to
     if (to.on === 'tile') this.indexAdd(e)
     else this.attach(e)
+  }
+
+  /**
+   * Where a thing can be: a whole cell inside the map (when the map is known here), or in a holder
+   * that is there and is not the thing itself, nor anything inside it.
+   */
+  private placeable(e: Entity, to: Place): void {
+    if (to.on === 'tile') {
+      if (![to.x, to.y, to.z ?? 0].every(Number.isInteger)) throw new Error(`${e.id}: no cell at ${to.x},${to.y}${to.z ? `,${to.z}` : ''}`)
+      if (this.map(to.map) && !this.inBounds(to.map, to.x, to.y)) throw new Error(`${e.id}: ${to.x},${to.y} lies outside ${to.map}`)
+    } else if (to.on === 'inside' || to.on === 'hand') {
+      let h = this.get(to.holder)
+      if (!h) throw new Error(`${e.id}: no holder ${to.holder}`)
+      for (let i = 0; h; i++) {
+        if (h.id === e.id || i > 64) throw new Error(`${e.id} cannot go inside itself`)
+        h = h.place.on === 'inside' || h.place.on === 'hand' ? this.get(h.place.holder) : undefined
+      }
+    }
+  }
+
+  /** The stations within reach of a thing (the cells round it): what its station recipes can be made at. */
+  stationsNear(e: Entity): Set<string> {
+    const out = new Set<string>()
+    const p = this.posOf(e)
+    if (!p) return out
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++)
+        for (const o of [...this.entitiesAt(p.map, p.x + dx, p.y + dy), ...this.coveringAt(p.map, p.x + dx, p.y + dy)])
+          for (const t of [...(o.tags ?? []), ...this.onto.resolve(o.type).tags]) if (t.startsWith('station:')) out.add(t.slice(8))
+    return out
   }
 
   /** Drain the output buffer (the host, once a frame), keeping its last lines in `recent`. */
@@ -1091,13 +1126,20 @@ export class World {
 
   destroy(e: Entity): void {
     this.guard('destroy', e)
-    for (const c of [...(e.contents ?? [])]) {
-      const child = this.get(c)
-      if (child) this.destroy(child)
-    }
-    if (e.held) {
-      const h = this.get(e.held)
-      if (h) this.destroy(h)
+    // (once: a holder loop an old save may carry would otherwise go round for ever)
+    if (this.destroying.has(e.id)) return
+    this.destroying.add(e.id)
+    try {
+      for (const c of [...(e.contents ?? [])]) {
+        const child = this.get(c)
+        if (child) this.destroy(child)
+      }
+      if (e.held) {
+        const h = this.get(e.held)
+        if (h) this.destroy(h)
+      }
+    } finally {
+      this.destroying.delete(e.id)
     }
     this.detach(e)
     e.place = { on: 'none' }

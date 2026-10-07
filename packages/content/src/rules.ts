@@ -369,6 +369,14 @@ const BODIES: Rule[] = [
     tree: IF(param('status', 'adrenaline'), DO({ op: 'heal', amount: 1 }), 'inherit'),
   }),
   rule({
+    id: 'train/dummy',
+    label: L('Strike {target}', '打{target}'),
+    doc: 'A training dummy knocked down (no health left) stands up again, whole, and the story hears of it (the tutorial\'s blow lesson waits on it).',
+    host: { type: 'fixture/dummy' },
+    on: 'threshold/cross',
+    tree: IF(param('name', 'broken'), DO(vfx('poof', 'tileOf:host'), { op: 'heal', amount: 99 }, emit('notify', 'story', { what: 'dummy' }), log('{host} topples, and rocks upright again.', '{host}被打倒了，又晃晃悠悠地立了起来。')), 'inherit'),
+  }),
+  rule({
     id: 'body/hungry',
     doc: 'Under six tenths of a full food bar one is hungry (hunger falls slowly then: a body goes days without food); fed over it again, one is not.',
     host: { type: 'actor', props: { maxHunger: { gt: 0 } } },
@@ -1302,6 +1310,13 @@ const JOURNEY: Rule[] = [
     host: { type: 'fixture/light' },
     on: 'impulse/notify',
     tree: IF(all(param('what', 'status'), param('remove', 'lit')), DO(remove('lit')), IF(all(param('what', 'status'), param('add', 'lit')), DO(add('lit')), 'inherit')),
+  }),
+  rule({
+    id: 'companion/struck',
+    doc: 'A companion struck by the one it follows takes the blow as any blow, and says so: it is no silent target. A blow from anyone else is a blow.',
+    host: COMPANION,
+    on: 'impulse/strike',
+    tree: IF({ leads: ['actor', 'host'] }, DO({ op: 'hurt', amount: POWER, blow: true }, { op: 'emote', mood: 'surprised' }, { op: 'say', text: L('Ow! It is me — watch where you swing!', '哎哟！是我呀——看着点再挥！') }), 'inherit'),
   }),
   rule({
     id: 'companion/boon',

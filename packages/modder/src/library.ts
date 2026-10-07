@@ -13,7 +13,7 @@ import {
   buildModSpec,
   buildSandbox,
   checkExpectations,
-  endlessYield,
+  whyEndless,
   replay,
   scenarioEvent,
   validatePatch,
@@ -67,9 +67,12 @@ export class WorldLibrary {
     return this.log.length ? this.log[this.log.length - 1].seq : 0
   }
 
-  /** The log as clients see it (without the server-side regression scenarios). */
+  /**
+   * The log as clients see it, each patch with the scene it answered: a client replays it there
+   * (the sandbox checks, the repeat check) before it takes the patch, as for its own requests.
+   */
   since(seq: number): PatchLogEntry[] {
-    return this.log.filter((e) => e.seq > seq).map((e) => ('scenario' in e ? { ...e, scenario: undefined } : e))
+    return this.log.filter((e) => e.seq > seq)
   }
 
   /** Rules added by patches and still in force. */
@@ -181,7 +184,7 @@ export class WorldLibrary {
         if (j < proof.tests[i].length) continue
         try {
           const rp = replay(t.given, this.ontology, cand)
-          for (const f of [...rp.errors, ...checkExpectations(rp.engine, t.expect ?? [])]) result.errors.push(`test "${t.name ?? `${r.id}#${j}`}": ${f}`)
+          for (const f of [...rp.errors, ...checkExpectations(rp.engine, t.expect ?? [], rp.resolution)]) result.errors.push(`test "${t.name ?? `${r.id}#${j}`}": ${f}`)
         } catch (err) {
           result.errors.push(`test "${t.name ?? `${r.id}#${j}`}": ${(err as Error).message}`)
         }
@@ -266,11 +269,42 @@ export class WorldLibrary {
       try {
         const rp = replay(reg.scenario, this.fullOntology(), this.lib)
         const eng = buildSandbox(reg.scenario, this.fullOntology(), this.lib)
-        if (rp.resolution.defined && endlessYield(eng, scenarioEvent(reg.scenario, eng), true)) out.push({ rule: reg.rule, reason: 'endless yield: its event, repeated on an unchanged host, keeps making things' })
+        const why = rp.resolution.defined ? whyEndless(eng, scenarioEvent(reg.scenario, eng), true) : undefined
+        if (why) out.push({ rule: reg.rule, reason: `endless yield: ${why}` })
       } catch (err) {
         if (err instanceof RepeatLimitError) out.push({ rule: reg.rule, reason: err.message })
         /* a scenario no longer buildable (types removed): nothing to judge */
       }
+    }
+    return out
+  }
+
+  /**
+   * The patches the validator, as it is now, no longer takes (it grew stricter; the content came to
+   * answer their hole itself): each live patch, in the log's order, judged in the scene it answered
+   * against what came before it and still holds, and rolled back when it fails. Every client would refuse them on
+   * sync, one rejection each; the library holds only what holds. Returns what was rolled back, and why.
+   */
+  prune(now = new Date()): { rules: string[]; reason: string }[] {
+    const out: { rules: string[]; reason: string }[] = []
+    const gone = new Set<number>()
+    for (const e of [...this.log]) {
+      if ('remove' in e) continue
+      const live = e.rules.filter((id) => this.lib.rules.get(id)?.source?.origin === 'patch')
+      if (!live.length) continue
+      const req = e.scenario ? ({ scenario: e.scenario, origin: e.patch.trigger ?? 'player' } as ModRequest) : undefined
+      let res: ValidationResult
+      try {
+        // judged as it was taken: against what came before it and still holds (its own rules and
+        // the types it brought are not there yet; what came after was judged with it in place)
+        res = this.fork((o) => o.seq < e.seq && !gone.has(o.seq)).validate(e.patch, req)
+      } catch (err) {
+        res = { ok: false, errors: [(err as Error).message], warnings: [], overrides: [] }
+      }
+      if (res.ok) continue
+      gone.add(e.seq)
+      for (const id of live) this.remove(id, now)
+      out.push({ rules: live, reason: res.errors[0] ?? 'no longer valid' })
     }
     return out
   }

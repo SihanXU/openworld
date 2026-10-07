@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, buildSandbox, type Engine, type Key } from '@lsw/engine'
+import { RuleLibrary, buildSandbox, cellId, type Engine, type Key } from '@lsw/engine'
 import { BASE_RULES, FORMS, SKILLS, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
@@ -223,5 +223,24 @@ describe('ranged blows', () => {
     eng.controls.run(plan)
     expect(strikes(eng)).toEqual([])
     expect(eng.world.num(eng.world.get('hen')!, 'hp')).toBe(100)
+  })
+})
+
+describe('a canopy over the tree in front', () => {
+  it("the tree beside you is the one an axe meets, though a farther tree's canopy is drawn over it", () => {
+    // a tree beside the player (2,3) and one behind it (1,4) whose crown is drawn over the first
+    const eng = buildSandbox({
+      terrain: Array.from({ length: 7 }, (_, y) => Array.from({ length: 7 }, (_, x) => ((x === 2 && y === 3) || (x === 1 && y === 4) ? 'tree' : 'grass'))),
+      entities: [{ key: 'actor', type: 'actor/person/player', x: 3, y: 3 }, { key: 'held', type: 'item/weapon/blade/axe', x: 3, y: 3, heldBy: 'actor' }],
+      event: {},
+    }, onto, new RuleLibrary(BASE_RULES))
+    eng.world.player.facing = 'left'
+    eng.controls.sync()
+    // what the view draws at the point, top first: the farther tree's crown, then the tree there
+    const stack = [{ e: cellId('sandbox', 1, 4, 'volume') }, { e: cellId('sandbox', 2, 3, 'volume') }]
+    const plan = eng.controls.plan('use', { x: 2, y: 3, stack })
+    expect(plan?.at).toMatchObject({ x: 2, y: 3 })
+    expect(eng.world.get(plan!.target.e)?.type).toBe('tile/tree')
+    expect(eng.world.posOf(eng.world.get(plan!.target.e))).toMatchObject({ x: 2, y: 3 })
   })
 })

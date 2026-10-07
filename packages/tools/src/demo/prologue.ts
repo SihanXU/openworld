@@ -5,7 +5,7 @@
 // flowers, and runs out of the map's south edge at the top of the Ford's cliff.
 
 import { MapBuilder, rng } from './builder.ts'
-import { TUTORIAL_OPEN } from '@lsw/content'
+import { TUTORIAL_DUMMY, TUTORIAL_OPEN } from '@lsw/content'
 import { L, GROUND_YIELD, appears } from './kit.ts'
 
 /** Edge openings: the foot's way in from the north (the tutorial's road comes out there), its way out below, the Ford's cliff stair. */
@@ -91,7 +91,7 @@ export function buildFoot(): MapBuilder {
   m.organic(20, 12, 6, 4, 'flowers', { only: (t) => t === 'grass', rough: 0.25 })
   m.fixture('fixture/sacred/seal_stone', ...PAT.relic)
   m.regions.relic = [14, 7, 13, 10]
-  m.fixture('fixture/sacred/waypoint', ...PAT.footStone, { id: 'wp.foot', name: L('Mountain Foot', '山脚') })
+  m.fixture('fixture/sacred/waypoint', ...PAT.footStone, { id: 'wp.foot', name: L('Mountain Foot statue', '山脚传送雕像') })
   // a hunter's hut, long left: wooden walls on a wooden floor, its door gone
   m.rect(4, 12, 6, 5, 'woodwall')
   m.rect(5, 13, 4, 3, 'floor_wood')
@@ -142,6 +142,8 @@ export function buildTutorial(): MapBuilder {
   for (const [x, y] of TUTORIAL.sticks) m.item('item/material/stick', x, y)
   for (const [x, y] of TUTORIAL.stones) m.item('item/material/stone', x, y)
   for (const [x, y] of TUTORIAL.grass) m.item('item/material/grass', x, y)
+  // a training dummy beside where the house goes: the tutorial's blow lesson (it stands up again)
+  m.fixture('fixture/dummy', TUTORIAL_DUMMY[0], TUTORIAL_DUMMY[1])
   m.regions.exit = [exit[0] - 3, h - 5, 8, 5]
   // the way out: only once the story has opened it
   for (const [i, x] of exit.entries()) m.portals.push({ x, y: h - 1, to: 'foot', tx: TUTORIAL.arrive[0] + i, ty: TUTORIAL.arrive[1], label: L('Mountain Foot', '山脚'), opensWhen: TUTORIAL_OPEN })

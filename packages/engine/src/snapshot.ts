@@ -2,7 +2,7 @@
 
 import { nightHours, type Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
-import type { Appearance, BossState, Dir, FxEvent, Id, PropValue, SceneState, Text } from './types.ts'
+import type { Appearance, BossState, Dir, FxEvent, Id, LessonInput, PropValue, SceneState, Text } from './types.ts'
 import { SLOT_COUNT } from './controls.ts'
 import { parseCellId } from './cells.ts'
 import { skillsOf } from './progression.ts'
@@ -33,6 +33,8 @@ export interface EntitySnap {
   spaces?: string[]
   facing: Dir
   statuses: string[]
+  /** What its statuses draw over it (their `overlay`, OVERLAYS), in the order it has them. */
+  overlays?: string[]
   tags: string[]
   name: Text
   hp?: number
@@ -98,6 +100,8 @@ export interface Frame {
     props: Record<string, PropValue>
     /** The skills learned (the skill tree). */
     skills: string[]
+    /** The stations within reach (a workbench beside one): which station recipes can be made now. */
+    stations: string[]
     held?: ItemInfo
     inventory: ItemInfo[]
     /** The bag's slots (row 1 is the toolbar): a stack each, or empty. */
@@ -134,10 +138,63 @@ export interface Frame {
   prompt?: Prompt
   /** Quests: the marks over the people on this map ('!' to give, '?' to take back), and the player's log. */
   quests: { marks: Record<Id, '!' | '?'>; log: QuestView[] }
+  /** The lesson at hand (docs/prologue.md, the drills): what to spotlight, the key to draw, what the keys may do. */
+  lesson?: LessonView
+}
+
+/** A lesson as the view shows it: its focus resolved to a thing, a cell, cells or a panel's part. */
+export interface LessonView {
+  id: string
+  key?: string
+  /** The inputs that work (none: all). */
+  allow?: LessonInput[]
+  only?: string[]
+  focus?: { id?: Id; tile?: [number, number]; cells?: [number, number][]; ui?: string }
+  /** Which of its stage's lessons it is, and how many there are. */
+  index: number
+  total: number
 }
 
 /** How forgiving a game is of a fall (chosen at a new game): get up where one fell, rise at home leaving what one carried, or one life. */
 export type Difficulty = 'easy' | 'normal' | 'hardcore'
+
+/**
+ * The lesson at hand, as the view shows it (docs/prologue.md, the drills): its focus resolved — the
+ * nearest thing of a type on the player's map (with a status), the nearest cell of a terrain, the
+ * player, a spot, cells (an outline), or a panel's part the view finds itself.
+ */
+function lessonView(eng: Engine): LessonView | undefined {
+  const at = eng.story.lesson()
+  if (!at) return undefined
+  const w = eng.world
+  const { def } = at
+  const p = w.player
+  const pos = w.posOf(p)
+  const f = def.focus
+  let focus: LessonView['focus']
+  if (f && pos) {
+    const d = (x: number, y: number) => Math.max(Math.abs(x - pos.x), Math.abs(y - pos.y))
+    if (f.self) focus = { id: p.id }
+    else if (f.type) {
+      const near = w
+        .entitiesOnMap(pos.map)
+        .filter((e) => e.place.on === 'tile' && e.id !== p.id && e.type.startsWith(f.type!) && (!f.status || w.hasStatus({ e: e.id }, f.status)))
+        .sort((a, b) => (a.place.on === 'tile' && b.place.on === 'tile' ? d(a.place.x, a.place.y) - d(b.place.x, b.place.y) : 0))[0]
+      if (near) focus = { id: near.id }
+    } else if (f.terrain) {
+      let best: [number, number] | undefined
+      const [ox, oy] = f.from ?? [pos.x, pos.y]
+      const from = (x: number, y: number) => Math.max(Math.abs(x - ox), Math.abs(y - oy))
+      for (let r = 0; r <= 24 && !best; r++)
+        for (let y = oy - r; y <= oy + r && !best; y++)
+          for (let x = ox - r; x <= ox + r && !best; x++) if (from(x, y) === r && w.terrainAt(pos.map, x, y) === f.terrain) best = [x, y]
+      if (best) focus = { tile: best }
+    } else if (f.spot) focus = { tile: f.spot }
+    if (f.cells) focus = { ...focus, cells: f.cells }
+    if (f.ui) focus = { ...focus, ui: f.ui }
+  }
+  return { id: def.id, key: def.key, ...(def.allow && { allow: def.allow }), ...(def.only && { only: def.only }), ...(focus && { focus }), index: at.index, total: at.total }
+}
 
 /** The game's difficulty (the story keeps it; a game from before it was chosen is normal). */
 export function difficultyOf(eng: Engine): Difficulty {
@@ -233,13 +290,16 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       ...(w.spacesOf(e).some((s) => s !== 'body') && { spaces: w.spacesOf(e) }),
       facing: e.facing ?? 'down',
       statuses: Object.keys(e.statuses ?? {}),
+      ...((o) => o.length && { overlays: o })(Object.keys(e.statuses ?? {}).flatMap((s) => w.onto.status(s)?.overlay ?? [])),
       tags: [...r.tags, ...(e.tags ?? [])],
       name: e.name ?? r.name ?? e.type.split('/').pop()!,
       hp: w.prop(e, 'maxHp') !== undefined ? w.num(e, 'hp') : undefined,
       maxHp: w.prop(e, 'maxHp') !== undefined ? w.num(e, 'maxHp', 1) : undefined,
       appearance: e.npc?.appearance ?? (e.id === w.state.player ? PLAYER_LOOK : e.npc ? PLAYER_LOOK : undefined),
       look: e.look ?? e.npc?.look,
-      hostile: e.ai ? e.ai.state === 'chase' : undefined,
+      // whether it would set on the one at the keys (its factions, temper, foes): not whether it is chasing
+      // this moment (a bat that wheels away is no friend)
+      hostile: e.ai ? eng.hostileTo(e, w.player) : undefined,
       frozen: !!e.frozenBy,
       element: (w.prop(e, 'element') as string | undefined) ?? undefined,
       open: !!e.statuses?.open,
@@ -313,6 +373,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       statuses: Object.keys(p.statuses ?? {}),
       props: { ...w.onto.resolve(p.type).props, ...(p.props ?? {}) },
       skills: skillsOf(p),
+      stations: [...w.stationsNear(p)],
       held: p.held ? itemInfo(eng, p.held) : undefined,
       inventory: (p.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),
       slots,
@@ -333,6 +394,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     quests: questsOf(eng, entities),
     ...(fallen(eng) && { fallen: fallen(eng) }),
     facts: { ...(w.story?.props ?? {}) },
+    ...((lesson) => lesson && { lesson })(lessonView(eng)),
     container: box && {
       id: box.id,
       name: box.name ?? w.onto.resolve(box.type).name ?? box.type.split('/').pop()!,

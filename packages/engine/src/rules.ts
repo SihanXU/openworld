@@ -58,6 +58,10 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
     const [a, b] = c.same.map((r) => roles[r])
     return !!a && !!b && sameRef(a, b)
   }
+  if ('leads' in c) {
+    const [leader, follower] = c.leads.map((r) => roles[r])
+    return !!leader && !!follower && 'e' in leader.ref && follower.props.companion === leader.ref.e
+  }
   if ('has' in c) {
     const v = roles[c.has.role]
     if (!v) return false
@@ -443,7 +447,8 @@ export class RuleLibrary {
     if (!base) return { defined: false }
     if (!isHole(base.leaf)) return { defined: true, rule: base.rule, leaf: base.leaf }
     const hole = { rule: base.rule, path: base.path, default: base.leaf.default ?? [] }
-    const patch = this.chain(this.candidates(ev.kind, roles.host, true), roles, world, ev)
+    // (a learned rule set aside at runtime answers no more: its hole is open again)
+    const patch = this.chain(this.candidates(ev.kind, roles.host, true).filter((r) => !world.state.quarantine?.[r.id]), roles, world, ev)
     if (patch && isDo(patch.leaf)) return { defined: true, rule: patch.rule, leaf: patch.leaf, hole }
     return { defined: false, rule: base.rule, leaf: base.leaf, hole }
   }

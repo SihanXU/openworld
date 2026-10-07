@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildModSpec, buildSandbox, type ModRequest, type Rule, type Scenario } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
-import { Modder, ScriptedModel, SelfState, WorldLibrary, collectPatch, dockerAvailable, materializeWorld, type ChatMessage } from '../src/index.ts'
+import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, collectPatch, dockerAvailable, materializeWorld, type ChatMessage } from '../src/index.ts'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
@@ -84,6 +84,7 @@ function setup(model?: ScriptedModel) {
   const dir = mkdtempSync(join(tmpdir(), 'lsw-repo-modder-'))
   const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
   const state = SelfState.open(join(dir, 'modder-state'))
+  state.setHarness({ ...state.harness(), audit: { ...auditOf(state.harness()), enabled: false } }, 'test: no auditor')
   return { library, state, modder: new Modder({ library, state, model, profile: 'offline' }) }
 }
 

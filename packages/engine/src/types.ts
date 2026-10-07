@@ -122,6 +122,8 @@ export interface QualityDef {
 export interface WorldParams {
   /** The share of its makeup a thing leaves when it breaks (D9). */
   recovery: number
+  /** How many things one effect may make at once (a runtime guard; default 64). */
+  spawnMax?: number
   /** A drop of this many levels or less does no harm (world-model.md §5.5). */
   safeFall: number
   /** The harm of each level fallen beyond the safe height. */
@@ -144,6 +146,12 @@ export interface WorldParams {
 /** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */
 export type Space = 'floor' | 'soil' | 'volume' | 'body'
 
+/**
+ * The pictures a status may draw over what has it (the client's vocabulary): a status the content or a
+ * patch defines picks one, and whatever it is, it shows.
+ */
+export const OVERLAYS = ['fire', 'flame', 'ice', 'spark', 'wet', 'oil'] as const
+
 export interface StatusDef {
   id: string
   name?: Text
@@ -159,7 +167,7 @@ export interface StatusDef {
   moveDelay?: number
   /** Ticks between the status's time/period events (default 5): a bleed pulses once a second. */
   every?: number
-  /** Render hint for the client overlay. */
+  /** What the client draws over a thing that has it: one of OVERLAYS (an unknown one draws nothing). */
   overlay?: string
   /** What it adds to its holder's stats while held (world-model.md §6.8): fireproof's resistance to fire. */
   props?: Record<string, number>
@@ -578,12 +586,49 @@ export interface StepCond {
   skill?: boolean | string
   /** Another step has played. */
   after?: string
-  /** Something of a type starting with this stands within r tiles of the leader (in view), with this status if one is named (a lit fire). */
-  near?: { type: string; r: number; status?: string }
+  /** Something of a type starting with this stands within r tiles of the leader (in view), with this status if one is named (a lit fire); `exact`: of that type itself (a shut door, not an open one). */
+  near?: { type: string; r: number; status?: string; exact?: boolean }
+  /** The leader holds (in hand) something of a type starting with this. */
+  holding?: string
+  /** The leader stands within r tiles of this spot (of their map). */
+  spot?: { x: number; y: number; r?: number }
+  /** At least `count` (1) things of a type starting with this stand on these cells of the leader's map. */
+  on?: { type: string; cells: [number, number][]; count?: number }
   /** A room with this role (bedroom, kitchen …) stands on the leader's map. */
   room?: string
   /** The first morning (05:00, when the night ends) after another step played has come. */
   morningAfter?: string
+}
+
+/**
+ * What a lesson lets the keys do (docs/prologue.md, the drills): moving, the five inputs, choosing
+ * a toolbar slot, making (C), setting a thing down from the build palette (B) and its turn (R), and
+ * the panels (the bag, the map). The input's own concern: which actor the keys move is not asked.
+ */
+export type LessonInput = 'move' | 'hands' | 'take' | 'put' | 'use' | 'self' | 'select' | 'craft' | 'build' | 'rotate' | 'bag' | 'map' | 'chooser'
+
+/**
+ * One lesson of a guide's stage (docs/prologue.md, the drills): it teaches one thing by the deed — what
+ * is shown (a thing spotlit, the key drawn over it), what the keys may do meanwhile, and the state that
+ * ends it. A guide's stage holds its lessons in order; the one at hand is the first not yet done (the
+ * story keeps `lesson.<id>`).
+ */
+export interface Lesson {
+  id: string
+  /** The companion's one short line as it begins. */
+  say?: Text
+  /** The key drawn over the focus ('F', 'LMB', 'RMB', 'E', 'C', 'B', 'R', '1', 'WASD', 'Tab', 'M', 'hold G'). */
+  key?: string
+  /** What is spotlit: the nearest thing of a type (with a status), the nearest cell of a terrain (nearest to `from`, else to the leader: the grove's trees, not the forest's rim), the leader, a spot, cells (an outline), or a panel's part (`ui`). */
+  focus?: { type?: string; status?: string; terrain?: string; from?: [number, number]; self?: boolean; spot?: [number, number]; cells?: [number, number][]; ui?: string }
+  /** While it lasts, only these inputs work (the rest do nothing; the key shakes). None: every input works. */
+  allow?: LessonInput[]
+  /** Making and setting down: only these (a recipe's or a type's id, a placement recipe's id). */
+  only?: string[]
+  /** Setting down what `only` names: only on these cells. */
+  cells?: [number, number][]
+  /** Done when this holds (state, never path). */
+  done: StepCond
 }
 
 /**
@@ -842,6 +887,8 @@ export interface WorldState {
   spawn: Pos
   /** The engine's record of the broken invariants it has already reported (not world state: the detector's memory). */
   reported?: string[]
+  /** Learned rules set aside for misbehaving at runtime (the engine's guards): their holes are open again. */
+  quarantine?: Record<string, { tick: number; reason: string }>
   /** A yes/no question waiting for the player (Action: "Eat the apple?"); time stops while it is open. */
   question?: { text: Text; plan: Plan }
   /** Maps the player is not on: frozen since a tick, with the events addressed to them (design.md §5.12). */
@@ -967,6 +1014,12 @@ export interface GameEvent {
   /** How many events led to this one within the chain. */
   depth?: number
   tick?: number
+  /** The chain it belongs to (engine-assigned): the event that began it, through every outcome it set off. */
+  chain?: number
+  /** The rule whose outcome made it (engine-assigned): what the guards charge when a chain runs away. */
+  by?: string
+  /** A number the termination check gives it, kept by its copies (one waiting for a later tick). */
+  seq?: number
 }
 
 // ------------------------------------------------------------------ rules (design.md §5.6, §6)
@@ -1015,6 +1068,8 @@ export type Cond =
   | { none: RoleName }
   /** Two roles are the same thing (food used on oneself). */
   | { same: [RoleName, RoleName] }
+  /** The first role leads the second: the second follows it (a companion's own `companion` prop names it). */
+  | { leads: [RoleName, RoleName] }
   | { has: { role: RoleName; status?: string; tag?: string } }
   /** A role's prop compared to a value, or bounded by other numbers. A missing prop is false. */
   /** `default` is read when the prop is missing (a fact the story has not set reads 0 with `default: 0`). */
@@ -1185,6 +1240,7 @@ export type Expectation =
   | { tile: [number, number]; terrain: string }
   | { tile: [number, number]; hasStatus: string }
   | { spawned: string } // some entity of this type now exists
+  | { resolvedBy: string } // the event was answered by this rule (a test that checks the rule answers at all)
 
 export interface Provenance {
   origin: 'base' | 'patch'
@@ -1226,7 +1282,8 @@ export type FxEvent =
   | { t: 'fade'; dir: 'out' | 'in' }
   | { t: 'card'; text: Text }
   | { t: 'strike'; map: string; x: number; y: number }
-  | { t: 'log'; text: Text; tone?: 'info' | 'warn' | 'ai' | 'good' | 'bad' }
+  /** dev: for the developer (a rejected patch, a rule set aside): the console's, never a player's toast. */
+  | { t: 'log'; text: Text; tone?: 'info' | 'warn' | 'ai' | 'good' | 'bad' | 'dev' }
   | { t: 'damage'; who: Id; amount: number; element?: string }
   | { t: 'undefined'; request: string; summary: string; /** someone (a provider) is working it out */ asked?: boolean }
   | { t: 'patched'; request: string; rule: string }
@@ -1237,3 +1294,5 @@ export type FxEvent =
   | { t: 'levelup'; level: number }
   /** A rule opened one of the player's panels ('profession'). */
   | { t: 'panel'; panel: string; by?: Id }
+  /** A lesson (docs/prologue.md, the drills): done (its id), or an input it does not allow tried (the key shakes). */
+  | { t: 'lesson'; done?: string; blocked?: LessonInput }

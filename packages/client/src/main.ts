@@ -17,6 +17,7 @@ import { locale, t, tx } from './ui/common.ts'
 import { ModConsole } from './ui/dev.ts'
 import { Hud } from './ui/hud.ts'
 import { BuildingMode } from './ui/building.ts'
+import { LessonGuide } from './ui/lesson.ts'
 import { Menu } from './ui/menu.ts'
 import { Tooltip } from './ui/tooltip.ts'
 import { Minimap } from './ui/worldmap.ts'
@@ -67,6 +68,7 @@ const menu = new Menu({
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
     hud.relabel()
+    minimap.relabel()
   },
   toggleSound: () => hud.toggleSound(),
   devConsole: () => dev.toggle(true),
@@ -79,8 +81,8 @@ const hud = new Hud(
     answer: (yes) => send({ t: 'answer', yes }),
     advance: () => send({ t: 'advance' }),
     openJournal: () => (menu.openJournal(), hud.seenJournal(), (codexSeen = -1)),
-    toggleInventory: () => menu.toggle('inventory'),
-    toggleCraft: () => menu.toggle('craft'),
+    toggleInventory: () => openPanel('bag', () => menu.toggle('inventory')),
+    toggleCraft: () => openPanel('craft', () => menu.toggle('craft')),
     toggleOptions: () => menu.toggle('options'),
     toggleSkills: () => menu.toggleSkills(),
     toggleQuests: () => menu.toggleQuests(),
@@ -90,14 +92,28 @@ const hud = new Hud(
   (x, y) => scene.screenOfTile(x, y),
 )
 menu.muted = hud.muted
-const minimap = new Minimap(() => menu.toggleMap())
+const minimap = new Minimap(() => openPanel('map', () => menu.toggleMap()))
+/** The tutorial's lessons (docs/prologue.md, the drills): the spotlight, the key to press, the tick. */
+const lessons = new LessonGuide({ of: (id) => scene.screenOf(id), ofTile: (x, y) => scene.screenOfTile(x, y), cells: (c) => scene.setLessonCells(c) })
+/**
+ * Open a panel the player asked for (the bag, crafting, the map): unless a lesson at hand locks it;
+ * opened, the story hears of it (a lesson may wait on it). Closing is never locked.
+ */
+function openPanel(what: 'bag' | 'craft' | 'map', open: () => void): void {
+  if (!menu.anyOpen && !lessons.allows(what)) return
+  const was = menu.anyOpen
+  open()
+  if (!was && menu.anyOpen) send({ t: 'ui', what })
+}
 const building = new BuildingMode(send, (x, y) => ({ ...scene.screenOfTile(x, y), scale: scene.cameras.main.zoom }))
 building.onView = (open, ceilings) => scene.setBuildView(open, ceilings)
 function toggleBuilding(): void {
   if (menu.anyOpen || dev.open || hud.dialogOpen || hud.questionShown || hud.chooserOpen || !lastFrame || !document.getElementById('intro')!.classList.contains('hidden')) return
+  if (!building.open && !lessons.allows('build')) return
   if (pressing) { clearTimeout(pressing.timer); pressing = undefined }
   setAttack(false)
   building.toggle()
+  if (building.open) send({ t: 'ui', what: 'build' })
 }
 
 /** Minecraft's tooltip over any item in the toolbar, the bag, a chest or the crafting panel. */
@@ -120,10 +136,14 @@ let onChoices: ((key: Key, tile: Tile | undefined, list: { layer: number; name: 
 scene.hooks = {
   onFrame: (f) => {
     lastFrame = f
+    if (f.player.hp < lastHp) hurtAt = performance.now()
+    lastHp = f.player.hp
     const was = death.open
     // the title or the load panel is over the world (one chose to load a save, or to go back): the
     // world behind it may still lie fallen, but the death screen is not shown over them
+    // (the cover opens a moment after the choice: a frame meanwhile may have shown it again)
     if (!cover.open) death.onFrame(f)
+    else if (death.open) death.hide()
     // a hardcore game's one life is spent: its slot keeps the end
     if (!was && death.open && f.fallen?.difficulty === 'hardcore') send({ t: 'save' })
     hud.onFrame(f)
@@ -131,10 +151,11 @@ scene.hooks = {
     tooltip.onFrame(f)
     dev.onFrame(f)
     building.onFrame(f)
+    lessons.onFrame(f)
     if (import.meta.env.DEV) (window as unknown as { lsw: { frame?: unknown } }).lsw.frame = f
     syncPause()
   },
-  onFx: (fx, f) => hud.onFx(fx, f),
+  onFx: (fx, f) => (hud.onFx(fx, f), lessons.onFx(fx)),
   onReady: () => scene.setMuted(hud.muted),
 }
 hud.onSound = (m) => scene.setMuted(m)
@@ -162,7 +183,8 @@ menu.facesetOf = faceset
 
 const paintIcons = (items: ItemInfo[]) => {
   for (const it of items) {
-    const d = it.sprite.startsWith('art:') && scene.textures.exists(it.sprite) ? { img: it.sprite, x: 0, y: 0, w: 16, h: 16 } : CATALOG.items[it.sprite]
+    // an item's own icon, else (a thing that is built: a workbench, a bed) the picture it stands as
+    const d = it.sprite.startsWith('art:') && scene.textures.exists(it.sprite) ? { img: it.sprite, x: 0, y: 0, w: 16, h: 16 } : (CATALOG.items[it.sprite] ?? CATALOG.fixtures[it.sprite]?.base)
     if (!d) continue
     const c = crop(d.img, d.x, d.y, d.w, d.h)
     if (!c) continue
@@ -222,6 +244,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       send({ t: 'save' })
       break
     case 'map':
+      autosave()
       hud.setMapName(m.map.name)
       scene.setMap(m.map)
       minimap.setMap(m.map)
@@ -289,7 +312,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       break
     case 'error':
       console.error(m.message)
-      if (import.meta.env.DEV) hud.message(m.message.split('\n')[0], 'warn')
+      // a slot that could not start leaves the cover up: it says why, instead of loading for ever
+      if (!document.getElementById('intro')!.classList.contains('hidden')) cover.failed(m.message.split('\n')[0].replace(/^Error: /, ''))
+      else if (import.meta.env.DEV) hud.message(m.message.split('\n')[0], 'warn')
       break
   }
 }
@@ -315,7 +340,7 @@ const cover = new Cover(WORLD, {
     quietSave = true
     const library = await kvGet<LibraryData>('library')
     const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
-    send({ t: 'init', base, save: data?.save, library, modder: MODDER, difficulty: game?.difficulty, start: game?.start })
+    send({ t: 'init', base, save: data?.save, library, modder: MODDER, prefetch: PARAMS.get('prefetch') !== '0', difficulty: game?.difficulty, start: game?.start })
   },
   tutorial: async () => {
     // its own run: nothing is saved, and the story's main line is not reached from it
@@ -330,6 +355,7 @@ const cover = new Cover(WORLD, {
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
     hud.relabel()
+    minimap.relabel()
   },
 })
 void cover.show()
@@ -420,7 +446,11 @@ function release(key: Key): void {
  * stood still while it was open: it runs again before the key goes (a key while paused is dropped).
  */
 onChoices = (key, tile, list) =>
-  hud.showChooser(KEY_NAME[key] === 'L' ? t('lmb') : KEY_NAME[key] === 'R' ? t('rmb') : KEY_NAME[key], tile ?? aimFront(), list, (layer) => (syncPause(), send({ t: 'key', key, tile, layer })))
+  hud.showChooser(KEY_NAME[key] === 'L' ? t('lmb') : KEY_NAME[key] === 'R' ? t('rmb') : KEY_NAME[key], tile ?? aimFront(), list, (layer) => (syncPause(), send({ t: 'ui', what: 'chooser' }), send({ t: 'key', key, tile, layer })))
+
+/** Esc held this long skips the lesson at hand (docs/prologue.md, the drills). */
+const ESC_SKIP_MS = 2000
+let escHold: ReturnType<typeof setTimeout> | undefined
 
 /** The tile in front of the player (for placing the chooser when the keyboard aims). */
 function aimFront(): Tile {
@@ -436,6 +466,8 @@ window.addEventListener('keydown', (e) => {
     return
   }
   if (!document.getElementById('intro')!.classList.contains('hidden')) return
+  // the death screen and the title take no keys: their buttons are what may follow (no journal over them)
+  if (death.open || cover.open) return
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') shift = true
   // the layer chooser: a number picks, Esc closes
   if (hud.chooserOpen) {
@@ -466,12 +498,17 @@ window.addEventListener('keydown', (e) => {
     if (building.open) return building.toggle(false)
     if (dev.open) return dev.toggle(false)
     if (menu.anyOpen) return menu.close()
+    // a lesson at hand: held two seconds, Esc skips it; a short press still opens the menu (on release)
+    if (lessons.active) {
+      if (!e.repeat && !escHold) escHold = setTimeout(() => ((escHold = undefined), send({ t: 'lessonSkip' })), ESC_SKIP_MS)
+      return
+    }
     return menu.open('options')
   }
-  if (e.code === 'KeyI') return menu.toggle('inventory')
-  if (e.code === 'KeyC') return menu.toggle('craft')
+  if (e.code === 'KeyI') return openPanel('bag', () => menu.toggle('inventory'))
+  if (e.code === 'KeyC') return openPanel('craft', () => menu.toggle('craft'))
   if (e.code === 'KeyK') return menu.toggleSkills()
-  if (e.code === 'KeyM') return menu.toggleMap()
+  if (e.code === 'KeyM') return openPanel('map', () => menu.toggleMap())
   if (e.code === 'KeyL') return menu.toggleQuests()
   if (e.code === 'KeyQ' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'dash' })
   if (e.code === 'KeyJ') return menu.journalOpen ? menu.close() : (menu.openJournal(), hud.seenJournal(), (codexSeen = -1))
@@ -501,6 +538,11 @@ window.addEventListener('keydown', (e) => {
   if (slot >= 0) send({ t: 'select', slot })
 })
 window.addEventListener('keyup', (e) => {
+  if (e.code === 'Escape') {
+    // released before the lesson was skipped: a short press, the menu
+    if (escHold) (clearTimeout(escHold), (escHold = undefined), menu.open('options'))
+    return
+  }
   if (e.code === 'Space') return setAttack(false)
   const key = KEY_OF[e.code]
   if (key) return release(key)
@@ -519,6 +561,22 @@ window.addEventListener('blur', () => stopMoving())
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden' && slot && !cover.open) send({ t: 'save' })
 })
+// a quiet autosave each minute and on every new map: a closed or crashed tab (or a reload in
+// development) loses at most a minute, not everything since the last sleep. Only when it is safe:
+// hurt a moment ago, or with something hostile near, the save to load after a fall would be the
+// fight one lost (loaded, one would fall again)
+let hurtAt = -Infinity
+let lastHp = Infinity
+const DANGER_MS = 15_000
+const DANGER_TILES = 8
+const inDanger = (f: Frame | undefined): boolean =>
+  !!f && (performance.now() - hurtAt < DANGER_MS || f.entities.some((e) => e.hostile && Math.max(Math.abs(e.x - f.player.x), Math.abs(e.y - f.player.y)) <= DANGER_TILES))
+const autosave = (): void => {
+  if (!slot || cover.open || death.open || inDanger(lastFrame)) return
+  quietSave = true
+  send({ t: 'save' })
+}
+setInterval(autosave, 60_000)
 
 // ------------------------------------------------------------------ mouse: aim at the pointed tile (as far as an input reaches); left = use, right = on oneself
 

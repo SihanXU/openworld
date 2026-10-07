@@ -545,7 +545,23 @@ At the Ford:
 
   Rule 4 makes refinement monotone: the AI never changes defined behaviour. An authored
   outcome that is wrong is fixed by a person, or by offline review.
-- **One question at a time.** A hole is asked once per class: while a request is open, the
+- As built (2026-10-06), checks that hold their ground:
+- **One class key.** The engine's `classKey` (the hole, the kind, the host's type, the other roles'
+  types with `self` for the host, the branching params; residents out) is what both the client's
+  port and the service key by. They used to disagree (the service added the host's statuses).
+- **A review with no verdict is no review.** It is asked once more, then recorded as `error`, never
+  as `ship`; a verdict in capitals reads as what it says.
+- **A derived test always tests.** It asserts that the rule answers (`resolvedBy`, a new
+  expectation), and a number that moved by the way it moved (its start differs per instance).
+- **Create only what the world lacks.** A creation asked for at once, whose name is close to
+  things the catalogue has, goes through find first; the route is recorded as it happened. A new
+  type that is a thing the world has under another number (sticks, stick) or the same Chinese name
+  is refused.
+- **What comes from elsewhere is checked here.** A shared-library patch comes with the scene it
+  answered, and a client replays it there before it takes it (the repeat check included). A saved
+  library's patch rules are validated again as they come back (`restoreLibrary`).
+
+**One question at a time.** A hole is asked once per class: while a request is open, the
   same hole and class wait for it, and once it is answered the class never asks again. The
   number of calls is bounded by the (hole, class) pairs that are actually reached, not by how
   often events happen.
@@ -566,6 +582,28 @@ At the Ford:
   started the chain (you, or the world), and the first time the player sees one there is a
   light cue ("The world pauses…"). People may talk about it: a patch may notify the story of a
   topic.
+
+As built (2026-10-07), after a play session: **the world pauses while the player's own act waits.**
+Before, only the event's participants were held (the player among them), and everything else went
+on: at night, a held player stood for the model's ten seconds among monsters that kept striking.
+Now the host stops the world's clock while a request the player's act raised is pending
+(`ModPort.asking`), as it does for a menu, and times the wait in real seconds: 20 for an answer,
+120 while new things are made; then the hole's default runs and the world goes on. Questions the
+world raises by itself (a fire reaching what nothing defines) do not stop it. **Statuses draw what
+their data names**: a status's `overlay` is one of a closed set the client can draw (`OVERLAYS`:
+fire, flame, ice, spark, wet, oil), the frame carries each thing's overlays, and a status a patch
+defines picks from the same set (the validator refuses any other). A thing with its own lit picture
+(a brazier) shows that instead of a flame. **The shared library holds only what holds**: at start the
+service judges every live patch, in the log's order, against what came before it, and rolls back
+what the validator, as it is now, no longer takes (`modder library prune`). Clients used to refuse
+each such patch on every load. The developer's lines (a refused patch, a rule set aside) are a
+`dev` tone: the console's, never a player's toast. **A key does what its label said**: pressed a
+moment after the label named someone who has since stepped off the spot, it still acts on them
+while it reaches them (`Controls.planFor`), and what lies on a thing comes before the thing however
+small it is drawn. A thing that reaches the bag without an input (a scene's gift) takes its slot
+each tick (`Controls.keep`). The client saves quietly each minute and on each new map, but not in
+danger (hurt in the last 15 s, or something hostile within 8 tiles): the save loaded after a fall
+is never the fight that was lost.
 
 ### 5.12 Space and time: active, dormant, resident
 
@@ -652,7 +690,25 @@ undefined behaviour is exactly reaching an undefined leaf.
 | relation difference | after every outcome and on entering a map |
 | playable without an AI | the story's critical path has no undefined leaf: the three routes, dry-run with the AI off |
 | the inputs are complete | already proven (§5.2) |
-| deterministic, and every chain ends | replay; the depth bound |
+| deterministic, and every chain ends | replay; the depth bound; the termination check on the request's scene (`chainLoop`: a patch whose event sets itself off again is refused with the round); the runtime guards below |
+
+As built (2026-10-06), the runtime guards: what the validator checked beforehand, the engine holds
+to while learned rules run (`tools/test/guards.test.ts`).
+- **Every chain ends.** What an outcome sets off (an emit, a threshold, a contact, a status) joins its
+  chain one step deeper, not only emits. A chain that has to wait for a later tick may run 2,000 more
+  events, and no more; at most 2,400 events wait for the next tick. What is dropped is charged to the
+  rule whose outcome made it.
+- **Numbers stay finite.** An amount that is not a finite number (a prop that is a word, an overflow)
+  is refused, and so is a prop written as NaN or Infinity. One effect makes at most `params.spawnMax`
+  things (64; the content makes at most 8); a heal never takes; levels come at most a hundred at a time.
+- **Things stay where a thing can be.** A place is a whole cell inside its map, or a holder that is
+  there and is not the thing nor inside it. One goes only to a map that is loaded, in the portal
+  graph, or named by a site. An essential thing may become anything that can act (a spell that
+  turns one into a hen), and stays essential as it; never a thing that cannot act.
+- **A rule that keeps failing is set aside.** A learned rule's outcome stops at its first refused
+  effect; when a base rule refuses what a learned rule sent it, the sender is charged. After three
+  failures, or at once for a chain that would not end, the rule goes into the state's `quarantine`
+  (kept in saves): it answers no more, and its hole is open again.
 
 **The twelve sources of the previous model**, all covered:
 
@@ -1195,6 +1251,19 @@ client worker ──POST /resolve {request, workspace}──▶ modder ──▶
 8. **Reflect** — after replying, the model distils lessons, which are added, supported,
    revised or dropped, each citing its episodes. It writes or revises a skill once that kind
    of work has recurred.
+
+As built (2026-10-06), **the auditor** (`modder/src/audit.ts`), between verify and review: an
+agent plays against the patch the way a player out to break the game would. It looks for farms,
+cheap roads to rare things (a rope that becomes Dragonsbane passes the validator and the LP: one
+for one), softlocks, harm, and runaway chains. It has the sandbox, not an opinion. Its tools are
+`look` (the scene) and `run` (play acts, ticks and repeats in a copy of the scene, with the patch
+and without it), and each finding is a setup, steps and claims (counts, props, statuses, a thing
+gone or become another, an event count). The code judges: a finding counts only when the sandbox
+shows it with the patch and not without it, so the model searches and never decides. The offline
+profile audits before shipping, and what is broken goes back to the designer with the evidence. The
+live profile audits after shipping, and what is broken leaves the shared library at once and goes
+to one offline revision. An auditor that fails finds nothing. Harness `audit {enabled, blocking,
+rounds, reasoning}`.
 
 **Client.** The worker probes `?modder=<url>` (default `VITE_MODDER_URL`; in development,
 `localhost:8787`). If the service answers, the worker becomes the port's provider, waits up to

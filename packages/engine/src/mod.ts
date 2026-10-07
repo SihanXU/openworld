@@ -5,14 +5,14 @@
 //   the base outcome is undefined → the held event replays.
 // The engine is the trust boundary: patches are untrusted data until validated.
 
-import { EVENT_KINDS } from './types.ts'
+import { EVENT_KINDS, OVERLAYS } from './types.ts'
 import { PRIMITIVES, RESIDENT_ONLY } from './effects.ts'
 import type { Engine, Resolution, UndefinedSink } from './engine.ts'
 import { STORY, textOf } from './engine.ts'
 import { OntologyIndex, isA, withTerrainTypes } from './ontology.ts'
 import { deriveRecipes } from './recipes.ts'
-import { RuleLibrary, cmp, compareSpec, isDo, isHole, leaves, rolesOf, specOf } from './rules.ts'
-import { REPEAT_TIMES, buildSandbox, checkExpectations, endlessYield, replay, scenarioEvent } from './sandbox.ts'
+import { RuleLibrary, cmp, compareSpec, isDo, isHole, leaves, rolesOf, specOf, type LibraryData } from './rules.ts'
+import { buildSandbox, chainLoop, checkExpectations, replay, scenarioEvent, whyEndless } from './sandbox.ts'
 import type { Cmp, Cond, Effect, EmitTo, GameEvent, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tree, TypeDef } from './types.ts'
 import { RECENT_LINES, type View } from './world.ts'
 
@@ -175,7 +175,7 @@ const AUTHORING_RULES = [
   'Write the CLASS, not the instance: select the host by the most general type/tags/statuses that make the outcome plausible. Never use `id` unless the behaviour truly belongs to one unique thing.',
   'Name the host: a rule with an empty host is a root rule and is not allowed in a patch.',
   'Conditions narrow the cases (the other role\'s tags, a param like element or how). Cases you do not want to answer: leave them to `inherit` (an `if` without `else` inherits).',
-  'Use only the listed event kinds, impulses, primitives, statuses, terrains, types and vfx. If you need a new type or status, add a `type`/`status` artifact to the same patch.',
+  `Use only the listed event kinds, impulses, primitives, statuses, terrains, types and vfx. If you need a new type or status, add a \`type\`/\`status\` artifact to the same patch; a status draws over what has it with \`overlay\`: one of ${OVERLAYS.join(', ')}.`,
   'Every rule should carry at least one test (a small scenario + expectations). The triggering event is replayed automatically.',
   'Combat talents are evaluated by the engine for any actor carrying skill:<id>. Actor props profession, moveHaste, attackHaste and critChance control eligibility/cadence/critical chance. Attack hit.power already includes offensive talents; do not apply them again in a hit rule. Direct combat damage reductions and Last Stand are handled by damage. Timed talent state lives in Entity.combat and is saved.',
   'Give the player feedback: a `vfx` and/or a `say`/`log` line, so the outcome is visible.',
@@ -264,6 +264,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       '{is:{role, sel: Selector}} — a role is filled and matches (roles: host, actor, target, instrument, other, item, source)',
       '{none: role} — a role is empty (an empty hand)',
       '{same:[roleA, roleB]} — the same thing (food used on oneself: same [actor, target])',
+      '{leads:[roleA, roleB]} — roleA leads roleB: roleB is its companion (a blow from the one it follows: leads [actor, host])',
       '{has:{role, status?, tag?}}',
       "{prop:{role, key, cmp?, bounds?, default?}} — role may also be story or world (anyone may read them; the story's facts are its props: {prop:{role:'story', key:'mq.ore', cmp:{gte:5}, default:0}}); default is read when the prop is missing. bounds: {eq|gt|gte|lt|lte: number | {prop, of: role, mul?} | {param, mul?}}",
       '{param:{key, cmp}} — an event parameter (element, how, edge, verb, status, name, …)',
@@ -282,7 +283,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
     primitives: { _shape: 'Each effect is ONE flat object naming its op: {"op": "spawn", "type": "item/tool/rope", "at": "target"} — never {"spawn": {…}}. Below, `name {args}` lists the fields beside op.', ...PRIMITIVES, _roles: 'RoleRef = host | actor | target | instrument | other | item | source | tileOf:<role>', _amount: 'Amount = number | {param, mul?, add?} | {prop, of: role, mul?, add?}' },
     expectations: [
       '{key, hasStatus} {key, lacksStatus} {key, isType} {key, destroyed:true} {key, exists:true}',
-      '{key, propGt:[k,n]} {key, propLt:[k,n]} {tile:[x,y], terrain} {tile:[x,y], hasStatus} {spawned:type}',
+      '{key, propGt:[k,n]} {key, propLt:[k,n]} {tile:[x,y], terrain} {tile:[x,y], hasStatus} {spawned:type} {resolvedBy:ruleId} (the event was answered by that rule)',
       'Scenario: {terrain?: string[][], entities:[{key,type,x,y,z?,tags?,statuses?,props?,heldBy?,inside?}], cells?:[{x,y,z?,space?,type?,statuses?,props?}], residents?:{story?:props,world?:props}, event:{kind?, host?, actor?, target?, instrument?, other?, item?, source?, params?}, ticks?} — roles reference entity keys or "tile:x,y[,z][:floor|soil|volume]" (a cell top or a specific space); kind defaults to act/use, host to the instrument (or the actor)',
     ],
     ontology: {
@@ -303,7 +304,54 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
 const WINDOW = 3 // tiles around the host in the scenario (7x7)
 const TIMEOUT_TICKS = 100 // 10 s: then the default (the record stays patchable)
 
-/** The class of an event, instances aside: the hole, the kind, the host's type, the branching params, the other roles' types. */
+/**
+ * A library as a save kept it: the base rules fresh from content, then the patches' types and
+ * statuses, then each patch rule validated again as it comes back (a save is a file: what it holds
+ * is checked like anything sent). A rule that no longer holds is left out and reported.
+ */
+export function restoreLibrary(base: Rule[], saved: LibraryData | undefined, ontology: Ontology, protectedFacts: string[] = [], dropped?: (id: string, why: string) => void): RuleLibrary {
+  const lib = new RuleLibrary(base)
+  if (!saved) return lib
+  for (const t of saved.types ?? []) lib.addType(t, 'restored')
+  for (const s of saved.statuses ?? []) lib.addStatus(s, 'restored')
+  for (const r of saved.rules ?? []) {
+    if (r.source?.origin !== 'patch' || lib.rules.has(r.id)) continue
+    const res = validatePatch({ artifacts: [{ kind: 'rule', rule: r }] }, { ontology, library: lib, world: r.source.trigger === 'world', protectedFacts })
+    if (res.ok) lib.add(r, r.source.at ?? 'restored')
+    else dropped?.(r.id, res.errors[0])
+  }
+  lib.log = [...(saved.log ?? [])]
+  lib.version = Math.max(lib.version, saved.version ?? 0)
+  return lib
+}
+
+/** The params whose value branches an outcome: they are part of an outcome's class. */
+export const BRANCHING_PARAMS = ['verb', 'element', 'edge', 'how', 'status', 'name', 'act', 'owner', 'activity', 'invariant', 'what', 'substance', 'which', 'into']
+
+/** A hole as a key: its rule, and the branch that reached it. */
+export const holeKey = (rule: string, path: string[]): string => `${rule}${path.length ? '#' + path.join('&') : ''}`
+
+/**
+ * The class of an undefined outcome, instances aside (one question per hole and class): the hole,
+ * the kind, the host's type, the other roles' types (`self` when it is the host), the branching
+ * params. The one definition: the client's port and the modder service both key by it.
+ */
+export function classKey(c: { hole: string; kind: string; host: string; roles: [string, string][]; params?: Record<string, unknown> }): string {
+  // (the actor and the source are who did it, not what it is; the residents are in every event)
+  const roles = c.roles
+    .filter(([k, t]) => k !== 'actor' && k !== 'source' && !t.startsWith('resident'))
+    .map(([k, t]) => `${k}=${t}`)
+    .sort()
+    .join(',')
+  const params = Object.entries(c.params ?? {})
+    .filter(([k]) => BRANCHING_PARAMS.includes(k))
+    .map(([k, v]) => `${k}=${v}`)
+    .sort()
+    .join(',')
+  return `${c.hole}|${c.kind}|${c.host}|${roles}|${params}`
+}
+
+/** The class of an event, instances aside (classKey). */
 export function signatureOf(eng: Engine, ev: GameEvent, res?: Resolution): string {
   const w = eng.world
   const kind = (r: Ref | undefined): string => {
@@ -313,18 +361,13 @@ export function signatureOf(eng: Engine, ev: GameEvent, res?: Resolution): strin
     return e.type
   }
   const same = (r: Ref | undefined) => !!r && 'e' in r && 'e' in ev.host && r.e === ev.host.e
-  const roles = Object.entries(ev.roles)
-    .filter(([k]) => k !== 'actor' && k !== 'source')
-    .map(([k, r]) => `${k}=${same(r) ? 'self' : kind(r)}`)
-    .sort()
-    .join(',')
-  const params = Object.entries(ev.params ?? {})
-    .filter(([k]) => ['verb', 'element', 'edge', 'how', 'status', 'name', 'act', 'owner', 'activity', 'invariant', 'what', 'substance', 'which', 'into'].includes(k))
-    .map(([k, v]) => `${k}=${v}`)
-    .sort()
-    .join(',')
-  const hole = res?.hole ? `${res.hole.rule.id}${res.hole.path.length ? '#' + res.hole.path.join('&') : ''}` : '?'
-  return `${hole}|${ev.kind}|${kind(ev.host)}|${roles}|${params}`
+  return classKey({
+    hole: res?.hole ? holeKey(res.hole.rule.id, res.hole.path) : '?',
+    kind: ev.kind,
+    host: kind(ev.host),
+    roles: Object.entries(ev.roles).map(([k, r]) => [k, same(r) ? 'self' : kind(r)]),
+    params: ev.params,
+  })
 }
 
 /** Asks of one question that may go unanswered (no reply) before it is given up for the session. */
@@ -429,6 +472,15 @@ export class ModPort implements UndefinedSink {
   }
 
   /**
+   * The player's own act waiting for its answer, if one is: the host stops the world's clock while
+   * it waits ("the world pauses"), so nothing walks up to a player who cannot move. The world's own
+   * questions do not stop it. The host times the wait in its own seconds (the clock stands still).
+   */
+  get asking(): UndefinedRecord | undefined {
+    return this.records.find((r) => r.status === 'pending' && r.origin === 'player')
+  }
+
+  /**
    * The modder is making things the world does not have yet: the outcome waits for them, past the
    * time-out, until the patch comes (or the asking fails, which runs the default as ever).
    */
@@ -466,7 +518,11 @@ export class ModPort implements UndefinedSink {
   }
 
   /** Validate and apply a patch for a request (or, with id undefined, a free-standing patch). */
-  submit(id: string | undefined, patch: Patch): ValidationResult {
+  /**
+   * Validate a patch and take it. A patch for a request of this port is checked in that request's
+   * scene; one from elsewhere (the shared library, a prefetch) in the scene it came with.
+   */
+  submit(id: string | undefined, patch: Patch, scenario?: Scenario): ValidationResult {
     const eng = this.eng
     const w = eng.world
     const rec = id ? this.get(id) : undefined
@@ -482,7 +538,7 @@ export class ModPort implements UndefinedSink {
     const res = validatePatch(patch, {
       ontology: w.onto.data,
       library: eng.lib,
-      scenario: rec?.request.scenario,
+      scenario: rec?.request.scenario ?? scenario,
       regression: this.regression,
       world: (rec?.origin ?? patch.trigger) === 'world',
       protectedFacts: eng.protectedFacts,
@@ -499,7 +555,7 @@ export class ModPort implements UndefinedSink {
         this.unfreeze(rec.id)
         eng.run(rec.request.hole.default, rec.event, rec.request.hole.rule)
       }
-      w.fx.push({ t: 'log', text: `patch rejected: ${res.errors[0]}`, tone: 'warn' })
+      w.fx.push({ t: 'log', text: `patch rejected: ${res.errors[0]}`, tone: 'dev' })
       this.onChange?.()
       return res
     }
@@ -903,6 +959,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       }
     } else if (a?.kind === 'status') {
       if (!a.status?.id) errors.push(`${where}: status.id required`)
+      else if (a.status.overlay !== undefined && !(OVERLAYS as readonly string[]).includes(a.status.overlay)) errors.push(`${where}: overlay "${a.status.overlay}" is not one the world can draw: one of ${OVERLAYS.join(', ')}`)
       else if (statuses.some((s) => s.id === a.status.id && statusDefinition(s) !== statusDefinition(a.status))) errors.push(`${where}: status "${a.status.id}" already exists with a different definition`)
       else {
         onto.statuses[a.status.id] = a.status
@@ -942,6 +999,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ('makeup' in c) return role(c.makeup, `${where}.makeup`)
     if ('rel' in c) return role(c.rel.role, `${where}.rel.role`)
     if ('same' in c) return c.same.forEach((r, i) => role(r, `${where}.same[${i}]`))
+    if ('leads' in c) return c.leads.forEach((r, i) => role(r, `${where}.leads[${i}]`))
     if ('has' in c) {
       role(c.has.role, `${where}.has.role`)
       if (c.has.status && !(c.has.status in onto.statuses)) errors.push(`${where}: unknown status "${c.has.status}"`)
@@ -1088,10 +1146,14 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       if (!rp.resolution.defined) errors.push('replay: the triggering event is still undefined under the patch')
       else if (!patchIds.has(rp.resolution.rule!.id)) errors.push(`replay: the triggering event resolved to "${rp.resolution.rule!.id}", not to the patch`)
       errors.push(...rp.errors.map((e) => `replay: ${e}`))
+      // every chain ends (design.md A7): the event and all it sets off, followed to the end on the scene
+      const once = buildSandbox(ctx.scenario, ctx.ontology, cand)
+      const loop = rp.resolution.defined ? chainLoop(once, scenarioEvent(ctx.scenario, once)) : undefined
+      if (loop) errors.push(`chain: the triggering event sets off events that never end: ${loop}. An answer that sets itself off again needs something that runs out (a status that gates it, a prop, the host used up)`)
       // the repeat check (world-model.md §8.4): again and again with no time between, it must stop making things
       const again = buildSandbox(ctx.scenario, ctx.ontology, cand)
-      if (rp.resolution.defined && endlessYield(again, scenarioEvent(ctx.scenario, again), true))
-        errors.push(`endless yield: the triggering event, repeated with no time between on a host that is not used up, keeps making things (${REPEAT_TIMES} times). A yield must cost its host — change it (a status that gates the yield and runs out, durability) or use it up`)
+      const endless = rp.resolution.defined && !loop ? whyEndless(again, scenarioEvent(ctx.scenario, again), true) : undefined
+      if (endless) errors.push(`endless yield: the triggering event, repeated with no time between, keeps making things: ${endless}. A yield must cost its host — change it (a status that gates the yield and runs out, durability) or use it up`)
       // no person in the scene is hurt or removed by what the world learns by itself
       if (ctx.world)
         for (const se of ctx.scenario.entities) {
@@ -1109,7 +1171,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     for (const [i, t] of (r.tests ?? []).entries()) {
       try {
         const rp = replay(t.given, ctx.ontology, cand)
-        const fails = [...rp.errors, ...checkExpectations(rp.engine, t.expect ?? [])]
+        const fails = [...rp.errors, ...checkExpectations(rp.engine, t.expect ?? [], rp.resolution)]
         for (const f of fails) errors.push(`test "${t.name ?? `${r.id}#${i}`}": ${f}`)
       } catch (err) {
         errors.push(`test "${t.name ?? `${r.id}#${i}`}": ${(err as Error).message}`)
@@ -1257,14 +1319,26 @@ export { isDo, isHole, STORY }
 
 const SEGMENT = /^[a-z0-9]+(_[a-z0-9]+)*$/
 const HEX = /^#[0-9a-fA-F]{6}$/
-const words = (id: string) => id.toLowerCase().split(/[/_\s-]+/).filter(Boolean)
+/** A word as its singular (berries: berry, boxes: box, ingots: ingot): names that differ only by number name one thing. */
+const singular = (w: string) => (w.length > 4 && w.endsWith('ies') ? w.slice(0, -3) + 'y' : w.length > 4 && /(x|z|ch|sh|ss)es$/.test(w) ? w.slice(0, -2) : w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w)
+const words = (id: string) => id.toLowerCase().split(/[/_\s-]+/).filter(Boolean).map(singular)
 const enName = (t: TypeDef) => (typeof t.name === 'string' ? t.name : t.name?.en ?? '').trim().toLowerCase()
+const zhName = (t: TypeDef) => (typeof t.name === 'object' && t.name ? t.name.zh ?? '' : '').trim()
+/** A name as one thing: its words, singular, in order (Iron Ingots, iron_ingot: iron ingot). */
+const nameKey = (s: string) => words(s).join(' ')
 
-/** The types whose id or English name shares the most words with `name` (an id or a plain name), best first. */
-export function closestTypes(name: string, onto: Ontology, n = 6): string[] {
+/**
+ * The types whose id or English name shares the most words with `name` (an id or a plain name),
+ * best first; the same thing by name (in either language, either number) comes first of all.
+ */
+export function closestTypes(name: string, onto: Ontology, n = 6, zh?: string): string[] {
   const want = new Set(words(name))
+  const whole = nameKey(name)
   return Object.values(onto.types)
-    .map((t) => [new Set([...words(t.id), ...words(enName(t))].filter((w) => want.has(w))).size, t.id] as const)
+    .map((t) => {
+      const same = nameKey(enName(t)) === whole || nameKey(t.id.split('/').at(-1)!) === whole || (!!zh?.trim() && zhName(t) === zh.trim())
+      return [(same ? 100 : 0) + new Set([...words(t.id), ...words(enName(t))].filter((w) => want.has(w))).size, t.id] as const
+    })
     .filter(([s]) => s > 0)
     .sort((a, b) => b[0] - a[0] || a[1].length - b[1].length)
     .slice(0, n)
@@ -1295,7 +1369,10 @@ export function newTypeProblems(t: TypeDef, onto: Ontology, patch: Patch): strin
   const name = t.name
   if (!name || typeof name === 'string' || !name.en?.trim() || !name.zh?.trim()) out.push('a new type needs a name in both languages: {"en": "...", "zh": "..."}')
   const leaf = segs.at(-1)!
-  const same = Object.values(onto.types).find((o) => o.id !== t.id && (o.id.split('/').at(-1) === leaf || (enName(t) && enName(o) === enName(t))))
+  // the same thing under another name: the same leaf or English name (either number), or the same Chinese name
+  const same = Object.values(onto.types).find(
+    (o) => o.id !== t.id && (nameKey(o.id.split('/').at(-1)!) === nameKey(leaf) || (!!enName(t) && nameKey(enName(o)) === nameKey(enName(t))) || (!!zhName(t) && zhName(o) === zhName(t))),
+  )
   if (same) out.push(`"${same.id}" already is this thing (same name): use it, or name what is different about the new one`)
   if (t.art) out.push(...artProblems(t.art))
   // what it is made of and how it breaks (world-model.md §8.3), read through what it inherits

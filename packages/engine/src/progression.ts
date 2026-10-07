@@ -15,7 +15,8 @@ export function gainXp(w: World, e: Entity, amount: number): number {
   let level = Math.max(1, Number(e.props?.level ?? 1))
   let xp = Number(e.props?.xp ?? 0) + Math.max(0, Math.round(amount))
   let gained = 0
-  while (xp >= xpToNext(level)) {
+  // (bounded: a level per hundred is far past any the world has, and a huge xp must not hang the clock)
+  while (xp >= xpToNext(level) && gained < 100) {
     xp -= xpToNext(level)
     level++
     gained++
