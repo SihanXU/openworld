@@ -670,6 +670,19 @@ export class WorldScene extends Phaser.Scene {
   private ceilingTints = false
   private ceilings?: Phaser.GameObjects.Graphics
 
+  /** The lesson's outline on the ground (docs/prologue.md, the drills: where the first wall goes), on the player's storey. */
+  private lessonCells?: Phaser.GameObjects.Graphics
+  setLessonCells(cells?: [number, number][]): void {
+    if (!this.ready) return
+    this.lessonCells ??= this.add.graphics().setDepth(1e5 - 2)
+    this.lessonCells.clear()
+    const lift = (this.playerAt?.z ?? 0) * STOREY_LIFT
+    for (const [x, y] of cells ?? []) {
+      this.lessonCells.fillStyle(0xffe08a, 0.22).fillRect(x * T + 1, y * T + 1 - lift, T - 2, T - 2)
+      this.lessonCells.lineStyle(1, 0xffe08a, 0.95).strokeRect(x * T + 1.5, y * T + 1.5 - lift, T - 3, T - 3)
+    }
+  }
+
   /** The build palette's view (docs/building.md §5): open, one's own storey; laying ceilings, the ceilings where they are drawn. */
   setBuildView(open: boolean, ceilings: boolean): void {
     this.ceilingOverlay = open

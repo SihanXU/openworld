@@ -369,6 +369,14 @@ const BODIES: Rule[] = [
     tree: IF(param('status', 'adrenaline'), DO({ op: 'heal', amount: 1 }), 'inherit'),
   }),
   rule({
+    id: 'train/dummy',
+    label: L('Strike {target}', '打{target}'),
+    doc: 'A training dummy knocked down (no health left) stands up again, whole, and the story hears of it (the tutorial\'s blow lesson waits on it).',
+    host: { type: 'fixture/dummy' },
+    on: 'threshold/cross',
+    tree: IF(param('name', 'broken'), DO(vfx('poof', 'tileOf:host'), { op: 'heal', amount: 99 }, emit('notify', 'story', { what: 'dummy' }), log('{host} topples, and rocks upright again.', '{host}被打倒了，又晃晃悠悠地立了起来。')), 'inherit'),
+  }),
+  rule({
     id: 'body/hungry',
     doc: 'Under six tenths of a full food bar one is hungry (hunger falls slowly then: a body goes days without food); fed over it again, one is not.',
     host: { type: 'actor', props: { maxHunger: { gt: 0 } } },

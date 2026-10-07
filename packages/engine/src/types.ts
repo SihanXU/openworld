@@ -584,12 +584,49 @@ export interface StepCond {
   skill?: boolean | string
   /** Another step has played. */
   after?: string
-  /** Something of a type starting with this stands within r tiles of the leader (in view), with this status if one is named (a lit fire). */
-  near?: { type: string; r: number; status?: string }
+  /** Something of a type starting with this stands within r tiles of the leader (in view), with this status if one is named (a lit fire); `exact`: of that type itself (a shut door, not an open one). */
+  near?: { type: string; r: number; status?: string; exact?: boolean }
+  /** The leader holds (in hand) something of a type starting with this. */
+  holding?: string
+  /** The leader stands within r tiles of this spot (of their map). */
+  spot?: { x: number; y: number; r?: number }
+  /** At least `count` (1) things of a type starting with this stand on these cells of the leader's map. */
+  on?: { type: string; cells: [number, number][]; count?: number }
   /** A room with this role (bedroom, kitchen …) stands on the leader's map. */
   room?: string
   /** The first morning (05:00, when the night ends) after another step played has come. */
   morningAfter?: string
+}
+
+/**
+ * What a lesson lets the keys do (docs/prologue.md, the drills): moving, the five inputs, choosing
+ * a toolbar slot, making (C), setting a thing down from the build palette (B) and its turn (R), and
+ * the panels (the bag, the map). The input's own concern: which actor the keys move is not asked.
+ */
+export type LessonInput = 'move' | 'hands' | 'take' | 'put' | 'use' | 'self' | 'select' | 'craft' | 'build' | 'rotate' | 'bag' | 'map' | 'chooser'
+
+/**
+ * One lesson of a guide's stage (docs/prologue.md, the drills): it teaches one thing by the deed — what
+ * is shown (a thing spotlit, the key drawn over it), what the keys may do meanwhile, and the state that
+ * ends it. A guide's stage holds its lessons in order; the one at hand is the first not yet done (the
+ * story keeps `lesson.<id>`).
+ */
+export interface Lesson {
+  id: string
+  /** The companion's one short line as it begins. */
+  say?: Text
+  /** The key drawn over the focus ('F', 'LMB', 'RMB', 'E', 'C', 'B', 'R', '1', 'WASD', 'Tab', 'M', 'hold G'). */
+  key?: string
+  /** What is spotlit: the nearest thing of a type (with a status), the nearest cell of a terrain (nearest to `from`, else to the leader: the grove's trees, not the forest's rim), the leader, a spot, cells (an outline), or a panel's part (`ui`). */
+  focus?: { type?: string; status?: string; terrain?: string; from?: [number, number]; self?: boolean; spot?: [number, number]; cells?: [number, number][]; ui?: string }
+  /** While it lasts, only these inputs work (the rest do nothing; the key shakes). None: every input works. */
+  allow?: LessonInput[]
+  /** Making and setting down: only these (a recipe's or a type's id, a placement recipe's id). */
+  only?: string[]
+  /** Setting down what `only` names: only on these cells. */
+  cells?: [number, number][]
+  /** Done when this holds (state, never path). */
+  done: StepCond
 }
 
 /**
@@ -1253,3 +1290,5 @@ export type FxEvent =
   | { t: 'levelup'; level: number }
   /** A rule opened one of the player's panels ('profession'). */
   | { t: 'panel'; panel: string; by?: Id }
+  /** A lesson (docs/prologue.md, the drills): done (its id), or an input it does not allow tried (the key shakes). */
+  | { t: 'lesson'; done?: string; blocked?: LessonInput }

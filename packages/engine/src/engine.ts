@@ -1126,6 +1126,8 @@ export class Engine {
   /** Player movement request (held direction); respects speed. `walk` (Shift) is slower than the default run. */
   movePlayer(dir: Dir, walk = false): boolean {
     const p = this.world.player
+    // a lesson at hand that does not let the keys move (docs/prologue.md, the drills)
+    if (!this.controls.allows('move')) return false
     if (!this.ready(p.id) || this.pendingTransition) {
       if (!this.busy(p)) p.facing = dir
       return false

@@ -17,6 +17,7 @@ import { locale, t, tx } from './ui/common.ts'
 import { ModConsole } from './ui/dev.ts'
 import { Hud } from './ui/hud.ts'
 import { BuildingMode } from './ui/building.ts'
+import { LessonGuide } from './ui/lesson.ts'
 import { Menu, type Tab } from './ui/menu.ts'
 import { Tooltip } from './ui/tooltip.ts'
 import { Minimap } from './ui/worldmap.ts'
@@ -81,7 +82,7 @@ const hud = new Hud(
     advance: () => send({ t: 'advance' }),
     openMenu: (tab) => menu.open(tab as Tab | undefined),
     openJournal: () => (menu.openJournal(), hud.seenJournal()),
-    toggleInventory: () => menu.toggle('inventory'),
+    toggleInventory: () => openPanel('bag', () => menu.toggle('inventory')),
     toggleSkills: () => menu.toggleSkills(),
     toggleQuests: () => menu.toggleQuests(),
     toggleBuilding: () => toggleBuilding(),
@@ -90,14 +91,28 @@ const hud = new Hud(
   (x, y) => scene.screenOfTile(x, y),
 )
 menu.muted = hud.muted
-const minimap = new Minimap(() => menu.toggleMap())
+const minimap = new Minimap(() => openPanel('map', () => menu.toggleMap()))
+/** The tutorial's lessons (docs/prologue.md, the drills): the spotlight, the key to press, the tick. */
+const lessons = new LessonGuide({ of: (id) => scene.screenOf(id), ofTile: (x, y) => scene.screenOfTile(x, y), cells: (c) => scene.setLessonCells(c) })
+/**
+ * Open a panel the player asked for (the bag, crafting, the map): unless a lesson at hand locks it;
+ * opened, the story hears of it (a lesson may wait on it). Closing is never locked.
+ */
+function openPanel(what: 'bag' | 'craft' | 'map', open: () => void): void {
+  if (!menu.anyOpen && !lessons.allows(what)) return
+  const was = menu.anyOpen
+  open()
+  if (!was && menu.anyOpen) send({ t: 'ui', what })
+}
 const building = new BuildingMode(send, (x, y) => ({ ...scene.screenOfTile(x, y), scale: scene.cameras.main.zoom }))
 building.onView = (open, ceilings) => scene.setBuildView(open, ceilings)
 function toggleBuilding(): void {
   if (menu.anyOpen || dev.open || hud.dialogOpen || hud.questionShown || hud.chooserOpen || !lastFrame || !document.getElementById('intro')!.classList.contains('hidden')) return
+  if (!building.open && !lessons.allows('build')) return
   if (pressing) { clearTimeout(pressing.timer); pressing = undefined }
   setAttack(false)
   building.toggle()
+  if (building.open) send({ t: 'ui', what: 'build' })
 }
 
 /** Minecraft's tooltip over any item in the toolbar, the bag, a chest or the crafting panel. */
@@ -135,10 +150,11 @@ scene.hooks = {
     tooltip.onFrame(f)
     dev.onFrame(f)
     building.onFrame(f)
+    lessons.onFrame(f)
     if (import.meta.env.DEV) (window as unknown as { lsw: { frame?: unknown } }).lsw.frame = f
     syncPause()
   },
-  onFx: (fx, f) => hud.onFx(fx, f),
+  onFx: (fx, f) => (hud.onFx(fx, f), lessons.onFx(fx)),
   onReady: () => scene.setMuted(hud.muted),
 }
 hud.onSound = (m) => scene.setMuted(m)
@@ -401,7 +417,11 @@ function release(key: Key): void {
  * stood still while it was open: it runs again before the key goes (a key while paused is dropped).
  */
 onChoices = (key, tile, list) =>
-  hud.showChooser(KEY_NAME[key] === 'L' ? t('lmb') : KEY_NAME[key] === 'R' ? t('rmb') : KEY_NAME[key], tile ?? aimFront(), list, (layer) => (syncPause(), send({ t: 'key', key, tile, layer })))
+  hud.showChooser(KEY_NAME[key] === 'L' ? t('lmb') : KEY_NAME[key] === 'R' ? t('rmb') : KEY_NAME[key], tile ?? aimFront(), list, (layer) => (syncPause(), send({ t: 'ui', what: 'chooser' }), send({ t: 'key', key, tile, layer })))
+
+/** Esc held this long skips the lesson at hand (docs/prologue.md, the drills). */
+const ESC_SKIP_MS = 2000
+let escHold: ReturnType<typeof setTimeout> | undefined
 
 /** The tile in front of the player (for placing the chooser when the keyboard aims). */
 function aimFront(): Tile {
@@ -449,12 +469,17 @@ window.addEventListener('keydown', (e) => {
     if (building.open) return building.toggle(false)
     if (dev.open) return dev.toggle(false)
     if (menu.anyOpen) return menu.close()
+    // a lesson at hand: held two seconds, Esc skips it; a short press still opens the menu (on release)
+    if (lessons.active) {
+      if (!e.repeat && !escHold) escHold = setTimeout(() => ((escHold = undefined), send({ t: 'lessonSkip' })), ESC_SKIP_MS)
+      return
+    }
     return menu.open('options')
   }
-  if (e.code === 'KeyI') return menu.toggle('inventory')
-  if (e.code === 'KeyC') return menu.toggle('craft')
+  if (e.code === 'KeyI') return openPanel('bag', () => menu.toggle('inventory'))
+  if (e.code === 'KeyC') return openPanel('craft', () => menu.toggle('craft'))
   if (e.code === 'KeyK') return menu.toggleSkills()
-  if (e.code === 'KeyM') return menu.toggleMap()
+  if (e.code === 'KeyM') return openPanel('map', () => menu.toggleMap())
   if (e.code === 'KeyL') return menu.toggleQuests()
   if (e.code === 'KeyQ' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'dash' })
   if (e.code === 'KeyJ') return menu.journalOpen ? menu.close() : (menu.openJournal(), hud.seenJournal())
@@ -484,6 +509,11 @@ window.addEventListener('keydown', (e) => {
   if (slot >= 0) send({ t: 'select', slot })
 })
 window.addEventListener('keyup', (e) => {
+  if (e.code === 'Escape') {
+    // released before the lesson was skipped: a short press, the menu
+    if (escHold) (clearTimeout(escHold), (escHold = undefined), menu.open('options'))
+    return
+  }
   if (e.code === 'Space') return setAttack(false)
   const key = KEY_OF[e.code]
   if (key) return release(key)

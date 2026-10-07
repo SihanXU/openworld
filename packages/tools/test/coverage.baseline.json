@@ -1,8 +1,8 @@
 {
  "totals": {
-  "specific": 13162,
-  "generic": 10268,
-  "undefined": 17323
+  "specific": 13184,
+  "generic": 10269,
+  "undefined": 17300
  },
  "byRule": {
   "body/fireproof": 3,
@@ -27,7 +27,7 @@
   "core/read": 8,
   "core/receive-lava": 133,
   "core/take": 142,
-  "core/use": 38,
+  "core/use": 39,
   "creature/not-taken": 2,
   "element/actor": 10,
   "element/burn-away": 231,
@@ -46,7 +46,7 @@
   "farm/water": 56,
   "fixture/receive": 9625,
   "people/talk": 4,
-  "use/blade": 297,
+  "use/blade": 305,
   "use/cook": 15,
   "use/drink": 15,
   "use/eat": 20,
@@ -54,16 +54,16 @@
   "use/fill": 15,
   "use/fill-put": 15,
   "use/fire": 592,
-  "use/hammer": 38,
-  "use/hoe": 38,
+  "use/hammer": 39,
+  "use/hoe": 39,
   "use/oil": 294,
-  "use/pickaxe": 38,
+  "use/pickaxe": 39,
   "use/rope": 30,
-  "use/shovel": 37,
-  "use/sickle": 38,
-  "use/spell": 372,
+  "use/shovel": 38,
+  "use/sickle": 39,
+  "use/spell": 374,
   "use/water": 536,
-  "use/weapon": 415,
+  "use/weapon": 422,
   "water/bridge": 1,
   "wood/char": 1,
   "wood/notch": 2,
@@ -71,94 +71,94 @@
  },
  "byHole": {
   "core/handle": 510,
-  "core/strike": 2513,
+  "core/strike": 2490,
   "core/use": 14300
  },
  "byHand": {
   "(empty hand)": {
    "specific": 36,
-   "generic": 180,
-   "undefined": 238
+   "generic": 181,
+   "undefined": 237
   },
   "item/weapon/blade/sword": {
-   "specific": 114,
+   "specific": 115,
    "generic": 76,
-   "undefined": 113
+   "undefined": 112
   },
   "item/weapon/blade/dagger": {
-   "specific": 114,
+   "specific": 115,
    "generic": 76,
-   "undefined": 113
+   "undefined": 112
   },
   "item/weapon/blade/axe": {
-   "specific": 117,
+   "specific": 118,
    "generic": 76,
-   "undefined": 110
+   "undefined": 109
   },
   "item/weapon/blade/dragonsbane": {
-   "specific": 114,
+   "specific": 115,
    "generic": 76,
-   "undefined": 113
+   "undefined": 112
   },
   "item/weapon/blade/scimitar": {
-   "specific": 114,
+   "specific": 115,
    "generic": 76,
-   "undefined": 113
+   "undefined": 112
   },
   "item/weapon/blunt/club": {
-   "specific": 114,
+   "specific": 115,
    "generic": 76,
-   "undefined": 113
+   "undefined": 112
   },
   "item/weapon/blunt/mace": {
-   "specific": 114,
+   "specific": 115,
    "generic": 76,
-   "undefined": 113
+   "undefined": 112
   },
   "item/weapon/blunt/warhammer": {
-   "specific": 114,
+   "specific": 115,
    "generic": 76,
-   "undefined": 113
+   "undefined": 112
   },
   "item/weapon/polearm/spear": {
-   "specific": 114,
+   "specific": 115,
    "generic": 76,
-   "undefined": 113
+   "undefined": 112
   },
   "item/weapon/polearm/halberd": {
-   "specific": 114,
+   "specific": 115,
    "generic": 76,
-   "undefined": 113
+   "undefined": 112
   },
   "item/weapon/ranged/bow": {
-   "specific": 114,
+   "specific": 115,
    "generic": 76,
-   "undefined": 113
+   "undefined": 112
   },
   "item/weapon/magic/wand": {
-   "specific": 114,
+   "specific": 115,
    "generic": 76,
-   "undefined": 113
+   "undefined": 112
   },
   "item/weapon/magic/staff": {
-   "specific": 114,
+   "specific": 115,
    "generic": 76,
-   "undefined": 113
+   "undefined": 112
   },
   "item/weapon/blade/dagger/nightfang": {
-   "specific": 114,
+   "specific": 115,
    "generic": 76,
-   "undefined": 113
+   "undefined": 112
   },
   "item/weapon/blade/dagger/mirrorshard": {
-   "specific": 114,
+   "specific": 115,
    "generic": 76,
-   "undefined": 113
+   "undefined": 112
   },
   "item/weapon/blade/sword/oathbrand": {
-   "specific": 114,
+   "specific": 115,
    "generic": 76,
-   "undefined": 113
+   "undefined": 112
   },
   "item/weapon/ranged/bow/galestring": {
    "specific": 225,
@@ -166,9 +166,9 @@
    "undefined": 2
   },
   "item/weapon/ranged/bow/starfall": {
-   "specific": 114,
+   "specific": 115,
    "generic": 76,
-   "undefined": 113
+   "undefined": 112
   },
   "item/weapon/magic/staff/emberheart": {
    "specific": 225,
@@ -221,24 +221,24 @@
    "undefined": 149
   },
   "item/tool/pickaxe": {
-   "specific": 115,
+   "specific": 116,
    "generic": 76,
-   "undefined": 112
+   "undefined": 111
   },
   "item/tool/shovel": {
-   "specific": 136,
+   "specific": 137,
    "generic": 76,
-   "undefined": 91
+   "undefined": 90
   },
   "item/tool/hoe": {
-   "specific": 119,
+   "specific": 120,
    "generic": 76,
-   "undefined": 108
+   "undefined": 107
   },
   "item/tool/sickle": {
-   "specific": 121,
+   "specific": 122,
    "generic": 76,
-   "undefined": 106
+   "undefined": 105
   },
   "item/tool/fishing_rod": {
    "specific": 104,
@@ -246,9 +246,9 @@
    "undefined": 123
   },
   "item/tool/smith_hammer": {
-   "specific": 116,
+   "specific": 117,
    "generic": 76,
-   "undefined": 111
+   "undefined": 110
   },
   "item/tool/knife": {
    "specific": 75,
@@ -1258,9 +1258,9 @@
    "undefined": 120
   },
   "fixture/dummy": {
-   "specific": 147,
-   "generic": 1,
-   "undefined": 121
+   "specific": 169,
+   "generic": 2,
+   "undefined": 98
   },
   "fixture/scarecrow": {
    "specific": 147,
