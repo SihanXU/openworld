@@ -248,6 +248,10 @@ Taking it down is the reverse, step by step. Every step is reachable, and nothin
   `Controls.planOn` checks a put on a cell or a built thing against `settleWhy`, and a take against
   `World.bears`: a floor above the ground that something rests on. The `move` primitive refuses to move
   a floor that bears anything.
+- **The build palette's buildings** (a chest, a campfire, a crate, a fence, a sign: `placement.ts`) go up
+  on one's own storey, on open ground or on a floor laid there (the first material stacks on it,
+  `build/stack`), where the result could rest (`settleWhy`). A laid floor and a flyer over the cell are
+  not in the way; anything else standing or lying there is.
 - **The client:**
   - the preview where the thing will be drawn (a block two tiles high; a ceiling under the pointer);
   - what is above one's storey hidden under cover (`WorldScene.coveredRound`) and while the palette is open;
@@ -261,6 +265,7 @@ Taking it down is the reverse, step by step. Every step is reachable, and nothin
       (a floor and what stood on it used to tie, and the order of making decided);
     - a body on the move is ordered by where it is drawn, within a row of its cell;
     - one flying over a building is over its roof;
+    - a fixture one can carry (a bed) is drawn as itself once set down, not as its icon in the bag;
     - what stands in front of the player and over them (a tree's crown, a lamppost) fades (`WorldScene.fadeOver`),
       as built walls and floors do (`findSeeThrough`).
 - **Tests:** `packages/content/test/building.test.ts` ("storeys: what one reaches…"), one test per table

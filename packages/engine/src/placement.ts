@@ -2,7 +2,7 @@
 // by an existing interaction rule. A sandbox rehearsal prevents partial spending.
 import { Engine } from './engine.ts'
 import { matchSelector } from './rules.ts'
-import type { Id, Pos, Ref, Selector, Text, Verb } from './types.ts'
+import type { Entity, Id, Pos, Ref, Selector, Text, Verb } from './types.ts'
 
 export interface PlacementNeed {
   match: Selector
@@ -55,16 +55,22 @@ function plan(eng: Engine, actorId: Id, recipe: PlacementRecipe, at: Pos) {
   if (!Number.isInteger(at.x) || !Number.isInteger(at.y) || !w.inBounds(at.map, at.x, at.y)) return fail('Outside the map.', '目标在地图外。')
   if (actor.place.map !== at.map || Math.max(Math.abs(actor.place.x - at.x), Math.abs(actor.place.y - at.y)) > 1)
     return fail('Move next to the target.', '请走到目标格旁边。')
-  const es = w.entitiesAt(at.map, at.x, at.y)
-  // what stands or lies there (not what makes up the cell)
-  if (recipe.empty && es.some((e) => !w.isTerrain(e) && (recipe.empty === 'all' || !w.isAgent(e)))) return fail('This tile is occupied.', '这格有东西，无法放置。')
+  // one builds on one's own storey (upstairs, on the floor one stands on)
+  const z = at.z ?? actor.place.z ?? 0
+  const es = w.entitiesAt(at.map, at.x, at.y, z)
+  // a floor laid there is part of the cell, as the ground is: one builds on it
+  const laid = (e: Entity) => !w.isTerrain(e) && w.spacesOf(e).length > 0 && w.spacesOf(e).every((s) => s === 'floor')
+  // what stands or lies there (not what makes up the cell, nor one flying over it)
+  if (recipe.empty && es.some((e) => !w.isTerrain(e) && !laid(e) && !w.hasTag(e, 'airborne') && (recipe.empty === 'all' || !w.isAgent(e)))) return fail('This tile is occupied.', '这格有东西，无法放置。')
   if (recipe.excludeTerrain?.includes(w.terrainAt(at.map, at.x, at.y))) return fail('Already prepared.', '这格已经是耕地了。')
   // the cell is what makes it up on top; an entity is what else stands there
-  const top = w.cellTop(at.map, at.x, at.y)
+  const top = w.cellTop(at.map, at.x, at.y, z)
   const tile: Ref | undefined = top && { e: top.id }
   const entity = es.find((e) => !w.isTerrain(e) && !e.frozenBy && matchSelector(recipe.site, w.view({ e: e.id })))
+  // what is built stands where the site says, or on a floor laid there, where it could rest (physics)
+  const built = recipe.result && top && laid(top) && !w.settleWhy({ id: '~place', type: recipe.result, place: { on: 'none' } } as Entity, at.map, at.x, at.y, z)
   const target: Ref | undefined = recipe.target !== 'tile' && entity ? { e: entity.id }
-    : recipe.target !== 'entity' && tile && matchSelector(recipe.site, w.view(tile)) ? tile : undefined
+    : recipe.target !== 'entity' && tile && (matchSelector(recipe.site, w.view(tile)) || built) ? tile : undefined
   if (!target) return fail('Not a suitable target.', '目标不适合此操作。')
   const missing = recipe.needs.findIndex((n, i) => pools[i].length < n.count)
   if (missing >= 0) return fail('Missing materials or tool.', '背包中缺少材料或工具。')
@@ -85,7 +91,7 @@ export function performPlacement(eng: Engine, actorId: Id, recipe: PlacementReci
     let work = p.target!
     for (const s of steps) {
       if (!s.instrument) return false
-      const top = on.world.cellTop(at.map, at.x, at.y)
+      const top = on.world.cellTop(at.map, at.x, at.y, at.z ?? on.world.posOf(on.world.get(actorId)!)?.z ?? 0)
       const target: Ref | undefined = s.target === 'tile' ? top && { e: top.id } : work
       if (!target) return false
       // the earlier `interact` is `use` with something in hand (design.md §5.14)
