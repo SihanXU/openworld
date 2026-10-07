@@ -23,6 +23,10 @@ export type ToWorker =
   | { t: 'choices'; key: Key; tile?: Tile }
   /** Where the mouse points (for the key labels). */
   | { t: 'aim'; tile?: Tile }
+  /** A panel opened (the bag, crafting, the build palette, the map) or a choice made from the chooser: the story notes it, for a lesson that waits on it. */
+  | { t: 'ui'; what: string }
+  /** Esc held: the lesson at hand is skipped. */
+  | { t: 'lessonSkip' }
   | { t: 'buildAim'; id?: string; tile?: Tile; /** in the ceiling over the tile (a floor, R in the palette) */ up?: boolean }
   | { t: 'build'; id: string; tile: Tile; /** the palette's turn (R): stairs go up this way */ facing?: Dir; /** the palette's turn (R) for a floor: laid in the ceiling over the tile */ up?: boolean }
   | { t: 'answer'; yes: boolean }

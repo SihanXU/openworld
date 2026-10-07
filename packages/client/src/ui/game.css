@@ -447,3 +447,16 @@
 @media (max-width: 760px) { .sin-boss { top: 110px; width: 90vw; padding-inline: 22px; } .sin-title { font-size: 18px; letter-spacing: 1px; } .sin-seals { display: none; } .sin-epithet { letter-spacing: 1px; font-size: 8px; } .sin-track { height: 18px; } .sin-cast-row { font-size: 10px; } #sinCastState { font-size: 8px; } }
 @media (prefers-reduced-motion: reduce) { #sinHealth, #sinDamage, #sinCastProgress { transition: none; } }
 @media (max-height: 800px) { .sin-boss { top: 10px; padding-bottom: 8px; } .sin-crown, .sin-crown svg { height: 20px; } .sin-epithet { font-size: 8px; line-height: 12px; } .sin-title { font-size: 22px; line-height: 1.3; margin-bottom: 3px; } .sin-meta { padding-bottom: 4px; } .sin-track { height: 18px; } .sin-cast-row { margin-top: 8px; } }
+
+/* the tutorial's lessons (ui/lesson.ts): the dim round what is taught, the key over it, the tick when done */
+.lesson-dim { position: fixed; inset: 0; z-index: 44; pointer-events: none; }
+.lesson-key { position: fixed; z-index: 46; transform: translate(-50%, -100%); pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 2px; animation: lesson-bob 1s ease-in-out infinite; }
+.lesson-key b { background: var(--paper); color: var(--ink-warm); border: 2px solid var(--wood-dark); border-radius: 6px; padding: 2px 9px; font: 700 15px var(--pixel); box-shadow: 0 2px 0 #0006; white-space: nowrap; }
+.lesson-key span { font: 600 10px var(--pixel); color: #fbe9c4; text-shadow: 0 1px 0 #000, 1px 0 0 #000; }
+.lesson-key.shake { animation: lesson-shake 0.35s; }
+@keyframes lesson-bob { 50% { margin-top: -5px; } }
+@keyframes lesson-shake { 20%, 60% { margin-left: -7px; } 40%, 80% { margin-left: 7px; } }
+.lesson-done { position: fixed; left: 50%; top: 24%; z-index: 46; pointer-events: none; font: 700 46px var(--pixel); color: #8cff3a; text-shadow: 2px 2px 0 #000, -1px -1px 0 #000; transform: translate(-50%, -50%); }
+.lesson-done.pop { animation: lesson-pop 0.9s ease-out forwards; }
+@keyframes lesson-pop { 0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; } 25% { transform: translate(-50%, -50%) scale(1.25); opacity: 1; } 100% { transform: translate(-50%, -90%) scale(1); opacity: 0; } }
+.lesson-dim.hidden, .lesson-key.hidden, .lesson-done.hidden { display: none; }

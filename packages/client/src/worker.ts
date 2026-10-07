@@ -502,6 +502,12 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (out.panel) panel = out.panel
         break
       }
+      case 'ui':
+        if (game) game.engine.story.ui(m.what)
+        break
+      case 'lessonSkip':
+        if (game) game.engine.story.skipLesson()
+        break
       case 'buildAim':
         buildAim = m.id && m.tile && (PLACEMENT_BY_ID[m.id] || m.id.startsWith(PUT)) ? { id: m.id, tile: m.tile, up: m.up } : undefined
         break
@@ -518,6 +524,8 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
           post({ t: 'placement', preview: buildPreview(eng, m.id, to, m.up) })
           break
         }
+        // a lesson at hand may let the palette set down only what it teaches (docs/prologue.md, the drills)
+        if (!eng.controls.allows('build', { type: m.id, at: m.tile })) break
         const result = performPlacement(eng, eng.world.state.player, PLACEMENT_BY_ID[m.id], to)
         if (!result.ok) eng.world.fx.push({ t: 'log', text: result.reason, tone: 'warn' })
         post({ t: 'placement', preview: result })
