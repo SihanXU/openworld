@@ -146,6 +146,7 @@ const STRINGS: Record<string, [string, string]> = {
   world: ['the world', '世界'],
   wovenBy: ['woven by', '织者'],
   objective: ['Objective', '目标'],
+  questsActive: ['Under way (L)', '进行中的任务（L）'],
   done: ['Done', '已完成'],
   lmb: ['L-click', '左键'],
   rmb: ['R-click', '右键'],

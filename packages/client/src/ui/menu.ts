@@ -397,9 +397,19 @@ export class Menu {
     $('#journalSheet').innerHTML = `
       <div class="jhead"><b>${t('journal')}</b><button class="x" id="jClose">✕</button></div>
       ${now && tx(now.title) ? `<div class="jnow"><div class="small muted">${t('objective')}</div><div class="jtitle">${esc(tx(now.title))}</div><div class="jhint">${esc(tx(now.hint))}</div></div>` : ''}
+      ${this.activeQuestsHtml()}
       ${past.length ? `<div class="small muted">${t('done')}</div><ul class="jpast">${past.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
       <div class="small muted">${t('threads')}</div>${this.threadsHtml()}`
     $('#jClose').onclick = () => this.close()
+  }
+
+  /** The tasks taken on and not yet handed in (the quest log's, L): what to do next, beside the objective. */
+  private activeQuestsHtml(): string {
+    const q = (this.frame?.quests.log ?? []).filter((x) => x.status === 'active' || x.status === 'ready')
+    if (!q.length) return ''
+    return `<div class="small muted">${t('questsActive')}</div>${q
+      .map((x) => `<div class="jnow"><div class="jtitle">${esc(tx(x.title))}</div><div class="jhint">${esc(tx(x.summary))}</div>${x.goals.map((g) => `<div class="jhint">${g.have >= g.need ? '✓' : '·'} ${esc(tx(g.label))}${g.need > 1 ? ` ${Math.min(g.have, g.need)}/${g.need}` : ''}</div>`).join('')}</div>`)
+      .join('')}`
   }
 
   /** Every thread the world has learned, newest first, and whose act taught it (design.md §5.11, legibility). */

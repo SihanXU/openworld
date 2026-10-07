@@ -597,7 +597,13 @@ defines picks from the same set (the validator refuses any other). A thing with 
 service judges every live patch, in the log's order, against what came before it, and rolls back
 what the validator, as it is now, no longer takes (`modder library prune`). Clients used to refuse
 each such patch on every load. The developer's lines (a refused patch, a rule set aside) are a
-`dev` tone: the console's, never a player's toast.
+`dev` tone: the console's, never a player's toast. **A key does what its label said**: pressed a
+moment after the label named someone who has since stepped off the spot, it still acts on them
+while it reaches them (`Controls.planFor`), and what lies on a thing comes before the thing however
+small it is drawn. A thing that reaches the bag without an input (a scene's gift) takes its slot
+each tick (`Controls.keep`). The client saves quietly each minute and on each new map, but not in
+danger (hurt in the last 15 s, or something hostile within 8 tiles): the save loaded after a fall
+is never the fight that was lost.
 
 ### 5.12 Space and time: active, dormant, resident
 

@@ -120,10 +120,14 @@ let onChoices: ((key: Key, tile: Tile | undefined, list: { layer: number; name: 
 scene.hooks = {
   onFrame: (f) => {
     lastFrame = f
+    if (f.player.hp < lastHp) hurtAt = performance.now()
+    lastHp = f.player.hp
     const was = death.open
     // the title or the load panel is over the world (one chose to load a save, or to go back): the
     // world behind it may still lie fallen, but the death screen is not shown over them
+    // (the cover opens a moment after the choice: a frame meanwhile may have shown it again)
     if (!cover.open) death.onFrame(f)
+    else if (death.open) death.hide()
     // a hardcore game's one life is spent: its slot keeps the end
     if (!was && death.open && f.fallen?.difficulty === 'hardcore') send({ t: 'save' })
     hud.onFrame(f)
@@ -413,6 +417,8 @@ window.addEventListener('keydown', (e) => {
     return
   }
   if (!document.getElementById('intro')!.classList.contains('hidden')) return
+  // the death screen and the title take no keys: their buttons are what may follow (no journal over them)
+  if (death.open || cover.open) return
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') shift = true
   // the layer chooser: a number picks, Esc closes
   if (hud.chooserOpen) {
@@ -497,9 +503,17 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden' && slot && !cover.open) send({ t: 'save' })
 })
 // a quiet autosave each minute and on every new map: a closed or crashed tab (or a reload in
-// development) loses at most a minute, not everything since the last sleep
+// development) loses at most a minute, not everything since the last sleep. Only when it is safe:
+// hurt a moment ago, or with something hostile near, the save to load after a fall would be the
+// fight one lost (loaded, one would fall again)
+let hurtAt = -Infinity
+let lastHp = Infinity
+const DANGER_MS = 15_000
+const DANGER_TILES = 8
+const inDanger = (f: Frame | undefined): boolean =>
+  !!f && (performance.now() - hurtAt < DANGER_MS || f.entities.some((e) => e.hostile && Math.max(Math.abs(e.x - f.player.x), Math.abs(e.y - f.player.y)) <= DANGER_TILES))
 const autosave = (): void => {
-  if (!slot || cover.open || death.open) return
+  if (!slot || cover.open || death.open || inDanger(lastFrame)) return
   quietSave = true
   send({ t: 'save' })
 }
