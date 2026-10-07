@@ -67,6 +67,7 @@ const menu = new Menu({
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
     hud.relabel()
+    minimap.relabel()
   },
   toggleSound: () => hud.toggleSound(),
   devConsole: () => dev.toggle(true),
@@ -161,7 +162,8 @@ menu.facesetOf = faceset
 
 const paintIcons = (items: ItemInfo[]) => {
   for (const it of items) {
-    const d = it.sprite.startsWith('art:') && scene.textures.exists(it.sprite) ? { img: it.sprite, x: 0, y: 0, w: 16, h: 16 } : CATALOG.items[it.sprite]
+    // an item's own icon, else (a thing that is built: a workbench, a bed) the picture it stands as
+    const d = it.sprite.startsWith('art:') && scene.textures.exists(it.sprite) ? { img: it.sprite, x: 0, y: 0, w: 16, h: 16 } : (CATALOG.items[it.sprite] ?? CATALOG.fixtures[it.sprite]?.base)
     if (!d) continue
     const c = crop(d.img, d.x, d.y, d.w, d.h)
     if (!c) continue
@@ -303,6 +305,7 @@ const cover = new Cover(WORLD, {
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
     hud.relabel()
+    minimap.relabel()
   },
 })
 void cover.show()

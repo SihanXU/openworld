@@ -342,12 +342,23 @@ function doSave(): void {
   post({ t: 'saved', save, library: game.engine.lib.toJSON(), summary })
 }
 
+/** How long the world stands still for the player's own question, in real seconds: an answer, a thing being made. */
+const ASK_MS = 20_000
+const MAKE_MS = 120_000
+let asked: { id: string; since: number } | undefined
+
 function loop(): void {
   if (!game) return
   const t0 = performance.now()
   const eng = game.engine
+  // the player's act waits for the world to learn its outcome: the world pauses with it (nothing
+  // walks up to a player who cannot move), for so long, then the hole's default runs and it goes on
+  const asking = game.mods.asking
+  if (asking && asked?.id !== asking.id) asked = { id: asking.id, since: t0 }
+  if (!asking) asked = undefined
+  else if (t0 - asked!.since > (asking.deadline === Number.POSITIVE_INFINITY ? MAKE_MS : ASK_MS)) game.mods.fallback(asking.id)
   // time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player)
-  const stopped = paused || !!eng.world.state.question || !!panel
+  const stopped = paused || !!eng.world.state.question || !!panel || !!game.mods.asking
   if (!stopped) {
     if (moveDir) eng.movePlayer(moveDir, walk)
     if (attacking) eng.controls.strike()

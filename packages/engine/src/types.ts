@@ -146,6 +146,12 @@ export interface WorldParams {
 /** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */
 export type Space = 'floor' | 'soil' | 'volume' | 'body'
 
+/**
+ * The pictures a status may draw over what has it (the client's vocabulary): a status the content or a
+ * patch defines picks one, and whatever it is, it shows.
+ */
+export const OVERLAYS = ['fire', 'flame', 'ice', 'spark', 'wet', 'oil'] as const
+
 export interface StatusDef {
   id: string
   name?: Text
@@ -161,7 +167,7 @@ export interface StatusDef {
   moveDelay?: number
   /** Ticks between the status's time/period events (default 5): a bleed pulses once a second. */
   every?: number
-  /** Render hint for the client overlay. */
+  /** What the client draws over a thing that has it: one of OVERLAYS (an unknown one draws nothing). */
   overlay?: string
   /** What it adds to its holder's stats while held (world-model.md §6.8): fireproof's resistance to fire. */
   props?: Record<string, number>
@@ -1019,6 +1025,8 @@ export type Cond =
   | { none: RoleName }
   /** Two roles are the same thing (food used on oneself). */
   | { same: [RoleName, RoleName] }
+  /** The first role leads the second: the second follows it (a companion's own `companion` prop names it). */
+  | { leads: [RoleName, RoleName] }
   | { has: { role: RoleName; status?: string; tag?: string } }
   /** A role's prop compared to a value, or bounded by other numbers. A missing prop is false. */
   /** `default` is read when the prop is missing (a fact the story has not set reads 0 with `default: 0`). */

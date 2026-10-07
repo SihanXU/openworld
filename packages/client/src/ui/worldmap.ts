@@ -178,7 +178,12 @@ export class Minimap {
     // peaceful or combat (monsters come out at night there)
     const zone = m.zone ?? 'combat'
     $('#mmZone').className = `mm-zone ${zone}`
-    $('#mmZone').textContent = t(zone === 'peaceful' ? 'zonePeaceful' : 'zoneCombat')
+    this.relabel()
+  }
+
+  /** The zone's words in the language now chosen (they are set again when it changes). */
+  relabel(): void {
+    $('#mmZone').textContent = t((this.map?.zone ?? 'combat') === 'peaceful' ? 'zonePeaceful' : 'zoneCombat')
   }
 
   onFrame(f: Frame): void {

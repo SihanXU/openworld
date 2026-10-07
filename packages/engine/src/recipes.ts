@@ -63,8 +63,10 @@ export function madeOf(data: Ontology, onto: OntologyIndex, type: string, materi
   Object.assign(props, gearProps(r.props, m, q))
   const base = r.name ?? { en: type.split('/').pop()!, zh: type.split('/').pop()! }
   const say = (x: Text | undefined, l: 'en' | 'zh') => (x === undefined ? '' : typeof x === 'string' ? x : (x[l] ?? x.en))
-  const en = [say(q?.name, 'en'), say(m?.name, 'en'), say(base, 'en')].filter(Boolean).join(' ')
-  const zh = [say(q?.name, 'zh'), say(m?.name, 'zh'), say(base, 'zh')].filter(Boolean).join('')
+  // nor when its name already begins with it (a 木桶 of wood is not a 木木桶)
+  const of = (l: 'en' | 'zh') => { const mn = say(m?.name, l); return mn && say(base, l).toLowerCase().startsWith(mn.toLowerCase()) ? '' : mn }
+  const en = [say(q?.name, 'en'), of('en'), say(base, 'en')].filter(Boolean).join(' ')
+  const zh = [say(q?.name, 'zh'), of('zh'), say(base, 'zh')].filter(Boolean).join('')
   const named = !!(m?.name || say(q?.name, 'en'))
   return { type, ...(named && { name: { en, zh } as Text }), ...(tags.length && { tags }), ...(Object.keys(props).length && { props }) }
 }

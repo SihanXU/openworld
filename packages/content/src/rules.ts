@@ -1297,6 +1297,13 @@ const JOURNEY: Rule[] = [
     tree: IF({ param: { key: 'boon', cmp: { ne: '' } } }, DO({ op: 'boon' }), DO({ op: 'say', text: '@guide' })),
   }),
   rule({
+    id: 'companion/struck',
+    doc: 'A companion struck by the one it follows takes the blow as any blow, and says so: it is no silent target. A blow from anyone else is a blow.',
+    host: COMPANION,
+    on: 'impulse/strike',
+    tree: IF({ leads: ['actor', 'host'] }, DO({ op: 'hurt', amount: POWER, blow: true }, { op: 'emote', mood: 'surprised' }, { op: 'say', text: L('Ow! It is me — watch where you swing!', '哎哟！是我呀——看着点再挥！') }), 'inherit'),
+  }),
+  rule({
     id: 'companion/boon',
     doc: 'A companion told it is given a boon (notify what = boon, param unlock: its id) keeps it, and carries it if it carries none (boons.ts).',
     host: COMPANION,

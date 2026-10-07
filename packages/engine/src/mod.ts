@@ -5,7 +5,7 @@
 //   the base outcome is undefined → the held event replays.
 // The engine is the trust boundary: patches are untrusted data until validated.
 
-import { EVENT_KINDS } from './types.ts'
+import { EVENT_KINDS, OVERLAYS } from './types.ts'
 import { PRIMITIVES, RESIDENT_ONLY } from './effects.ts'
 import type { Engine, Resolution, UndefinedSink } from './engine.ts'
 import { STORY, textOf } from './engine.ts'
@@ -175,7 +175,7 @@ const AUTHORING_RULES = [
   'Write the CLASS, not the instance: select the host by the most general type/tags/statuses that make the outcome plausible. Never use `id` unless the behaviour truly belongs to one unique thing.',
   'Name the host: a rule with an empty host is a root rule and is not allowed in a patch.',
   'Conditions narrow the cases (the other role\'s tags, a param like element or how). Cases you do not want to answer: leave them to `inherit` (an `if` without `else` inherits).',
-  'Use only the listed event kinds, impulses, primitives, statuses, terrains, types and vfx. If you need a new type or status, add a `type`/`status` artifact to the same patch.',
+  `Use only the listed event kinds, impulses, primitives, statuses, terrains, types and vfx. If you need a new type or status, add a \`type\`/\`status\` artifact to the same patch; a status draws over what has it with \`overlay\`: one of ${OVERLAYS.join(', ')}.`,
   'Every rule should carry at least one test (a small scenario + expectations). The triggering event is replayed automatically.',
   'Combat talents are evaluated by the engine for any actor carrying skill:<id>. Actor props profession, moveHaste, attackHaste and critChance control eligibility/cadence/critical chance. Attack hit.power already includes offensive talents; do not apply them again in a hit rule. Direct combat damage reductions and Last Stand are handled by damage. Timed talent state lives in Entity.combat and is saved.',
   'Give the player feedback: a `vfx` and/or a `say`/`log` line, so the outcome is visible.',
@@ -264,6 +264,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       '{is:{role, sel: Selector}} — a role is filled and matches (roles: host, actor, target, instrument, other, item, source)',
       '{none: role} — a role is empty (an empty hand)',
       '{same:[roleA, roleB]} — the same thing (food used on oneself: same [actor, target])',
+      '{leads:[roleA, roleB]} — roleA leads roleB: roleB is its companion (a blow from the one it follows: leads [actor, host])',
       '{has:{role, status?, tag?}}',
       "{prop:{role, key, cmp?, bounds?, default?}} — role may also be story or world (anyone may read them; the story's facts are its props: {prop:{role:'story', key:'mq.ore', cmp:{gte:5}, default:0}}); default is read when the prop is missing. bounds: {eq|gt|gte|lt|lte: number | {prop, of: role, mul?} | {param, mul?}}",
       '{param:{key, cmp}} — an event parameter (element, how, edge, verb, status, name, …)',
@@ -468,6 +469,15 @@ export class ModPort implements UndefinedSink {
   tick(): void {
     const t = this.eng.world.state.tick
     for (const r of this.records) if (r.status === 'pending' && t >= r.deadline) this.fallback(r.id)
+  }
+
+  /**
+   * The player's own act waiting for its answer, if one is: the host stops the world's clock while
+   * it waits ("the world pauses"), so nothing walks up to a player who cannot move. The world's own
+   * questions do not stop it. The host times the wait in its own seconds (the clock stands still).
+   */
+  get asking(): UndefinedRecord | undefined {
+    return this.records.find((r) => r.status === 'pending' && r.origin === 'player')
   }
 
   /**
@@ -949,6 +959,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       }
     } else if (a?.kind === 'status') {
       if (!a.status?.id) errors.push(`${where}: status.id required`)
+      else if (a.status.overlay !== undefined && !(OVERLAYS as readonly string[]).includes(a.status.overlay)) errors.push(`${where}: overlay "${a.status.overlay}" is not one the world can draw: one of ${OVERLAYS.join(', ')}`)
       else if (statuses.some((s) => s.id === a.status.id && statusDefinition(s) !== statusDefinition(a.status))) errors.push(`${where}: status "${a.status.id}" already exists with a different definition`)
       else {
         onto.statuses[a.status.id] = a.status
@@ -988,6 +999,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ('makeup' in c) return role(c.makeup, `${where}.makeup`)
     if ('rel' in c) return role(c.rel.role, `${where}.rel.role`)
     if ('same' in c) return c.same.forEach((r, i) => role(r, `${where}.same[${i}]`))
+    if ('leads' in c) return c.leads.forEach((r, i) => role(r, `${where}.leads[${i}]`))
     if ('has' in c) {
       role(c.has.role, `${where}.has.role`)
       if (c.has.status && !(c.has.status in onto.statuses)) errors.push(`${where}: unknown status "${c.has.status}"`)

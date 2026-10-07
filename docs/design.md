@@ -583,6 +583,22 @@ At the Ford:
   light cue ("The world pauses…"). People may talk about it: a patch may notify the story of a
   topic.
 
+As built (2026-10-07), after a play session: **the world pauses while the player's own act waits.**
+Before, only the event's participants were held (the player among them), and everything else went
+on: at night, a held player stood for the model's ten seconds among monsters that kept striking.
+Now the host stops the world's clock while a request the player's act raised is pending
+(`ModPort.asking`), as it does for a menu, and times the wait in real seconds: 20 for an answer,
+120 while new things are made; then the hole's default runs and the world goes on. Questions the
+world raises by itself (a fire reaching what nothing defines) do not stop it. **Statuses draw what
+their data names**: a status's `overlay` is one of a closed set the client can draw (`OVERLAYS`:
+fire, flame, ice, spark, wet, oil), the frame carries each thing's overlays, and a status a patch
+defines picks from the same set (the validator refuses any other). A thing with its own lit picture
+(a brazier) shows that instead of a flame. **The shared library holds only what holds**: at start the
+service judges every live patch, in the log's order, against what came before it, and rolls back
+what the validator, as it is now, no longer takes (`modder library prune`). Clients used to refuse
+each such patch on every load. The developer's lines (a refused patch, a rule set aside) are a
+`dev` tone: the console's, never a player's toast.
+
 ### 5.12 Space and time: active, dormant, resident
 
 **What other games do.**
