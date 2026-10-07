@@ -22,14 +22,14 @@ const challenge = params.get('challenge') === '1'
 let choosing = challenge, finished = false, profession = 'assassin', startedAt = 0
 const victories = new Set<string>()
 const select = $<HTMLSelectElement>('bossSelect'), modeControls = $('modeSelect')
-let mode: BossPreviewMode = 'live', modeStartedAt = 0
+let mode: BossPreviewMode = 'live'
 const facing = $<HTMLSelectElement>('facingSelect')
 locale.value = 'zh'
 for (const boss of BOSSES) { const option = new Option(tx(boss.name), boss.id); select.add(option) }
 select.value = BOSS_BY_ID[params.get('boss') ?? ''] ? params.get('boss')! : 'pride'
 const scene = new WorldScene()
 const noop = () => {}
-const hud = new Hud({ select: noop, answer: noop, advance: noop, openMenu: noop, openJournal: noop, toggleInventory: noop, toggleSkills: noop, toggleQuests: noop, toggleBuilding: noop }, (id) => scene.screenOf(id), (x, y) => scene.screenOfTile(x, y))
+const hud = new Hud({ select: noop, answer: noop, advance: noop, openJournal: noop, toggleInventory: noop, toggleCraft: noop, toggleOptions: noop, toggleSkills: noop, toggleQuests: noop, toggleBuilding: noop }, (id) => scene.screenOf(id), (x, y) => scene.screenOfTile(x, y))
 hud.paintIcons = (items) => {
   for (const item of items) {
     const d = CATALOG.items[item.sprite]
@@ -58,7 +58,8 @@ function render(): void {
   currentFrame = snapshot(game.engine)
   const previewEntity = currentFrame.entities.find((e) => e.id === BOSS_ARENA.id)
   if (!challenge && previewEntity?.boss?.kit === 'alberic' && facing.value !== 'auto') previewEntity.facing = facing.value as Dir
-  previewBoss(previewEntity, mode, performance.now() - modeStartedAt)
+  // Clear combat warnings in the displayed snapshot. The scene advances the isolated clip.
+  previewBoss(previewEntity, mode, 0)
   scene.applyFrame(currentFrame)
   const b = bossEntity(), state = b?.boss
   $('studioStatus').textContent = mode !== 'live'
@@ -78,7 +79,6 @@ function paintModes(): void {
 
 function chooseMode(value: string): void {
   mode = bossPreviewMode(value, select.value)
-  modeStartedAt = performance.now()
   clearInput()
   // Keep focused buttons in place; rebuilding them during every tick loses focus/clicks.
   for (const button of modeControls.querySelectorAll<HTMLButtonElement>('[data-mode]'))
@@ -87,7 +87,7 @@ function chooseMode(value: string): void {
   // Inspection must still work after the real encounter has killed/despawned its actor.
   const boss = bossEntity()
   if (mode !== 'live' && (!boss || game.engine.world.num(boss, 'hp') <= 0)) reset()
-  else render()
+  else { scene.setBossPreview(BOSS_ARENA.id, mode); render() }
 }
 
 function reset(): void {
@@ -105,7 +105,7 @@ function reset(): void {
   const boss = BOSS_BY_ID[select.value]
   $('facingControl').classList.toggle('hidden', challenge || boss.id !== 'alberic')
   mode = bossPreviewMode(mode, boss.id)
-  modeStartedAt = performance.now()
+  scene.setBossPreview(BOSS_ARENA.id, mode)
   paintModes()
   $('bossInfo').textContent = `${boss.footprint.join(' × ')} 格碰撞体 · ${boss.hp} 生命 · ${boss.defense} 防御`
   $('skillButtons').replaceChildren(...boss.skills.map((s, i) => {
@@ -176,14 +176,6 @@ setInterval(() => {
   if (mode === 'live') render()
   hud.tickLabels()
 }, 100)
-
-// Inspect every authored pose, including the first sub-tick poses after choosing an action.
-// Only fresh render snapshots advance here; combat remains on the 100 ms timer above.
-function animatePreview(): void {
-  if (game && ready && mode !== 'live') render()
-  requestAnimationFrame(animatePreview)
-}
-requestAnimationFrame(animatePreview)
 
 async function load(): Promise<void> {
   const base = `${import.meta.env.BASE_URL}world/`

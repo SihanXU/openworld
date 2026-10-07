@@ -40,6 +40,8 @@ export function appear(eng: Engine, what?: AppearDef): void {
 function now(eng: Engine, a: AppearDef): boolean {
   const w = eng.world
   if (a.weather && !a.weather.includes(w.calendar().weather)) return false
+  // at night: however long the story's night has grown
+  if (a.night) return w.isNight()
   if (!a.hours) return true
   const h = w.hour() % 24
   const [from, to] = a.hours

@@ -244,6 +244,16 @@ export const FORMS: Form[] = [
   W('item/document/scroll', 'Scroll', '卷轴', 'item:scroll', { tags: ['paper', 'flammable', 'readable', 'arcane'], elemental: true, where: { library: 3, temple: 1, dungeon: 1 } }),
   W('item/document/letter', 'Letter', '信件', 'item:letter', { tags: ['paper', 'flammable', 'readable'], where: { home: 1, npc: 0.3 } }),
   W('item/document/map', 'Map', '地图', 'item:map', { tags: ['paper', 'flammable', 'readable'], where: { library: 1, shop: 0.5, dungeon: 0.3 } }),
+  // Chapter 1 (docs/chapter-1.md): the Holy City's proclamation of the pilgrimage, the old almanac from before the First Night
+  W('item/document/proclamation', 'Proclamation of the Pilgrimage', '朝圣令', 'item:letter', { tags: ['paper', 'flammable', 'readable', 'holy'], where: {} }),
+  W('item/document/almanac', 'Almanac of the First Night', '初夜历书', 'item:book', { tags: ['paper', 'flammable', 'readable', 'ancient'], where: {} }),
+  // the first of the five instruments of the Five Sufferings (docs/lore.md §4): the Crown of Thorns
+  W('item/relic/crown_of_thorns', 'Crown of Thorns', '荆棘冠', 'item:crown_of_thorns', { tags: ['holy', 'relic', 'sharp', 'thorny'], where: {} }),
+  // what the grey man gave a child: an ember of a dawn flame, warm at night (its uses left to the world)
+  W('item/misc/warm_ember', 'Warm Ember', '温暖的余烬', 'item:warm_ember', { tags: ['warm', 'light', 'holy'], where: {} }),
+  // the bridge's missing nail, pulled straight; a farmer's wedding band
+  W('item/misc/ninth_nail', 'The Ninth Nail', '第九根钉子', 'item:ninth_nail', { tags: ['metal', 'iron', 'conductive', 'sharp'], where: {} }),
+  W('item/valuable/band', 'Wedding Band', '婚戒', 'item:ring', { tags: ['metal', 'precious'], where: {} }),
   // keys
   W('item/key', 'Key', '钥匙', 'item:key', { tags: ['key', 'metal'], materials: ['iron', 'bronze', 'silver', 'gold'], where: { home: 0.3, dungeon: 0.5, npc: 0.2 } }),
   // misc
@@ -289,6 +299,8 @@ export function itemTypes(): TypeDef[] {
     { id: 'item/material', tags: ['material'] },
     { id: 'item/seed', name: { en: 'Seeds', zh: '种子' }, tags: ['seed', 'plant'] },
     { id: 'item/valuable', tags: ['valuable'] },
+    // the five instruments of the Five Sufferings (docs/lore.md §4)
+    { id: 'item/relic', name: { en: 'relic', zh: '圣物' }, tags: ['relic', 'holy'] },
     { id: 'item/document', tags: ['document'] },
     { id: 'item/misc', tags: [] },
   ]

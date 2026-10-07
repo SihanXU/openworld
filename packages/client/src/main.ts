@@ -17,7 +17,7 @@ import { locale, t, tx } from './ui/common.ts'
 import { ModConsole } from './ui/dev.ts'
 import { Hud } from './ui/hud.ts'
 import { BuildingMode } from './ui/building.ts'
-import { Menu, type Tab } from './ui/menu.ts'
+import { Menu } from './ui/menu.ts'
 import { Tooltip } from './ui/tooltip.ts'
 import { Minimap } from './ui/worldmap.ts'
 import './styles.css'
@@ -78,9 +78,10 @@ const hud = new Hud(
     select: (slot) => send({ t: 'select', slot }),
     answer: (yes) => send({ t: 'answer', yes }),
     advance: () => send({ t: 'advance' }),
-    openMenu: (tab) => menu.open(tab as Tab | undefined),
-    openJournal: () => (menu.openJournal(), hud.seenJournal()),
+    openJournal: () => (menu.openJournal(), hud.seenJournal(), (codexSeen = -1)),
     toggleInventory: () => menu.toggle('inventory'),
+    toggleCraft: () => menu.toggle('craft'),
+    toggleOptions: () => menu.toggle('options'),
     toggleSkills: () => menu.toggleSkills(),
     toggleQuests: () => menu.toggleQuests(),
     toggleBuilding: () => toggleBuilding(),
@@ -228,7 +229,17 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     case 'atlas':
       menu.worldmap.onAtlas(m.atlas)
       break
+    case 'codex':
+      menu.onCodex(m.codex)
+      break
     case 'frame':
+      // the tutorial on its own ends where its way out leads: back to the title
+      if (tutorialRun && m.frame.map !== 'tutorial' && !cover.open) {
+        tutorialRun = false
+        hud.message(locale.value === 'zh' ? '教程完成！从标题页开始新游戏，进入主线。' : 'Tutorial complete! Start a new game from the title for the story.', 'good')
+        void cover.show()
+        break
+      }
       if (building.open) m.frame.keys = undefined
       scene.applyFrame(m.frame)
       minimap.onFrame(m.frame)
@@ -238,6 +249,8 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'boons')) menu.openBoons()
       reaim()
       dev.setPerf(m.perf, fps)
+      // the open codex follows what is met
+      if (menu.journalOpen && m.codex !== codexSeen) ((codexSeen = m.codex), send({ t: 'codex' }))
       break
     case 'records':
       dev.setRecords(m.records, m.library)
@@ -252,7 +265,8 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     case 'saved':
       if (slot) void writeSlot(WORLD, slot, { save: m.save, summary: m.summary, savedAt: m.save.savedAt })
       void kvSet('library', m.library)
-      if (!cover.open && !quietSave) hud.message(t('savedSlot').replace('{n}', String(slot ?? '')), 'good')
+      // the tutorial on its own keeps no save
+      if (!cover.open && !quietSave) hud.message(slot ? t('savedSlot').replace('{n}', String(slot)) : locale.value === 'zh' ? '教程不保存进度。' : 'The tutorial keeps no save.', slot ? 'good' : undefined)
       quietSave = false
       break
     case 'library':
@@ -288,15 +302,30 @@ let slot: Slot | undefined
 let startingFrom: SaveData | undefined
 /** The save right after loading is not announced. */
 let quietSave = false
+/** The tutorial played on its own (from the title): no slot, and walking out of the clearing ends it. */
+let tutorialRun = false
+/** The codex version the open codex shows (-1: ask again on opening). */
+let codexSeen = -1
 
 const cover = new Cover(WORLD, {
   start: async (s, data, game) => {
     slot = s
+    tutorialRun = false
     startingFrom = data?.save
     quietSave = true
     const library = await kvGet<LibraryData>('library')
     const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
     send({ t: 'init', base, save: data?.save, library, modder: MODDER, difficulty: game?.difficulty, start: game?.start })
+  },
+  tutorial: async () => {
+    // its own run: nothing is saved, and the story's main line is not reached from it
+    slot = undefined
+    tutorialRun = true
+    startingFrom = undefined
+    quietSave = true
+    const library = await kvGet<LibraryData>('library')
+    const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
+    send({ t: 'init', base, library, modder: MODDER, start: 'tutorial' })
   },
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
@@ -445,7 +474,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyM') return menu.toggleMap()
   if (e.code === 'KeyL') return menu.toggleQuests()
   if (e.code === 'KeyQ' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'dash' })
-  if (e.code === 'KeyJ') return menu.journalOpen ? menu.close() : (menu.openJournal(), hud.seenJournal())
+  if (e.code === 'KeyJ') return menu.journalOpen ? menu.close() : (menu.openJournal(), hud.seenJournal(), (codexSeen = -1))
   if (menu.anyOpen || dev.open) return
   const dir = KEY_DIR[e.code]
   if (dir) {

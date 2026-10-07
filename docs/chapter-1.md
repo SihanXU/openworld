@@ -1,13 +1,8 @@
 # Chapter 1: The First Seal (第一印 · 荆棘冠)
 
-Status: **agreed** (2026-10-05, [lore.md](lore.md) and its agreed additions), being built: the
-boss's art and kit are done (§4); the people, scenes and stages are next. Kept from earlier decisions: the Firstlight is not recovered and
-Severin escapes; the player never fights him; each chapter ends with its boss, and Pip takes up
-part of its power (a boon; the first doubles experience); names stay. New: the boss is the **First
-Seal-bearer, the White Knight Alberic** (白骑士·阿尔贝里克), and the prize is the first instrument,
-**the Crown of Thorns** (荆棘冠). Agreed 2026-10-05: Severin believes from the start that Astra is
-the monster (§5); Pip is the failed second vessel (§3b); the nights really lengthen. Built so far:
-Pip's boons (§8), Alberic (§4). Not built yet: the people, scenes and stages.
+Status: **built** (2026-10-05, [lore.md](lore.md) and its agreed additions). Playable from the barrow
+quest to the chapter's card; proved offline by `tools/test/demo.test.ts` C1 (the whole chapter), C2 (the
+errands) and C3 (the longer nights). §11 lists what was built and where.
 
 Marked **[proposal]**: what this design adds beyond lore.md and the user's decisions, open to change.
 
@@ -276,3 +271,61 @@ and memory lost; the nights really lengthen; Alberic is built (art, kit, effects
 wait until Chapter 1 is done.
 
 Open: how Severin uses the dawn flame (marked [proposal]); Alberic's balance for a Chapter 1 player.
+
+## 11. As built (2026-10-05)
+
+**Stages** (the player's `quest` prop; objectives in `content/src/chapter1.ts`):
+
+| `quest` | Objective | Ends when |
+|---|---|---|
+| 0 | Help Firstlight Village (Rowan: the barrow) | the quest is handed in (`village.rescued`) |
+| 0.5 | A night of thanks | night in the village: *night_flame* plays (`ch1.flame_stolen`) |
+| 0.6 | The morning after | the first morning after, in the village: *letter* plays (`ch1.letter`) |
+| 0.7 | The pilgrim's road (Ilse) | *The Pilgrim's Road* handed in: Fennick, Joss, Hesper spoken to |
+| 1 | Mend the bridge | the far bank (any way across) |
+| 2 | The White Knight's road | Alberic falls (`sins.defeated.alberic`): *crown* plays (`ch1.crown`, `night.shift` 1) |
+| 2.5 | Bring the Crown home | back in the village: *return* plays (`ch1.end`), the chapter's card |
+| 2.9 | Chapter 2: the road to Emberfall | entering Emberfall (stage 3, as before) |
+
+**Story before the knight** (2026-10-06; `CHAPTER1_STORY` in `tools/src/demo/quest/chapter1.ts`, proved by
+demo C4): each place and step has its scene.
+
+| Scene | Where, when | What happens |
+|---|---|---|
+| `village_arrival` | first into Firstlight | Ilse at the flame, Pell wants to draw Pip, Rowan asks for help |
+| `barrow_cells` | Lina's cell in the barrow | the grey man shut the inner door and left bread with an ash mark; Pip: the dead cannot lie down |
+| `warden_falls` | the warden down | its last words: "The night is coming back. I could not lie down." |
+| `tale` | the village at dusk, after the rescue, before the theft | Ilse tells the First Night and the Five; at the spear, Pip shivers |
+| `night_flame` | the village at night | the grey man takes the Firstlight |
+| `ford_night` | the Ford, before the letter | the river's ice already gone; a lantern far off east |
+| `letter` | the morning after | the courier, the proclamation |
+| `fennick_memory` | after Fennick is asked | Alberic knelt to children; one morning he asked Fennick's name |
+| `hesper_stumps` | after Hesper is asked | thorns in the stumps; Aldo's bridge |
+| `road_east` (a beat) | first onto the East Road | Pip: the sun is lower than it should be; thorns planted along the road |
+| `burned_farm` | the farmstead | the dragon's claw marks (Chapter 2's hook) |
+| `edda_barn` | the barn | Edda: the knight took all that shone; the grey man pulled her out |
+| `severin_warning` | the road before the thorns, after the letter | the grey man tries to turn the pilgrim back: the seals hold Astra, the First Night wears his face; to Pip: "You of all of them should know… No. You would not remember." No fight |
+| `statue_rest` (a beat) | the statue before the thorns | Pip: rest here; it is colder past the thorns than at the shrine stone |
+| `kingdom` | inside the ring | "None cross that do not kneel. Another pilgrim. They always send another." |
+| `crown`, `return` | after the knight | as above |
+
+**Quests**: main *The Pilgrim's Road* (Ilse); side *Pell's Drawings* (four chalk drawings: the shrine
+stone at the Mountain Foot, the barrow door, the footbridge, the flame), *The Measure of Days* (Nessa:
+three waypoint statues woken), *The Old Templar* (Fennick: three of the dead), *The Ninth Nail* (Joss) and
+*Edda's Ring* (both in the knight's kingdom). With the village's own (stew, Mia's ring, the hollow,
+firewood) the chapter has eleven before the knight.
+
+**People**: Ilse, Joss, Pell, Nessa, Fennick in the village; Edda in the burned farm's barn (in the village
+after the knight); Severin and the Church courier wait on `offstage` (a plot linked to nothing) and the
+scenes place them. Hesper, Rowan, Holt, Tobin, Lina, Oskar and Marta have new lines.
+
+**The world**: Astra's altar beside the flame; waypoint statues in the village, at the Ford and on the
+East Road before the kingdom (Pip's power is chosen beside one); the kingdom of thorns (a ring of briars,
+kneeling stones, the ninth nail and the band); Alberic in it, softer than in the Boss Challenge (300
+health, armour 1, plain blow 5, skills ×0.4: a dodging level-5 player of any profession wins in 20–40 s);
+the road to Emberfall shut until he falls (`Portal.opensWhen`).
+
+**Engine pieces**: the night's length (`calendar.ts` `nightHours`, `World.isNight`, appearances with
+`night`, the frame's `night` for the screen); a scene's `tell` (a notice to someone: the fairy's boon); a
+boss body's `skillScale`; a written thing's `text_zh`; a quest's talk goal comes before the person's own
+errand (`quests.ts`); `light/told` (a light the story tells to go out or burn answers itself).

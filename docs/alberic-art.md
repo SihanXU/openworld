@@ -80,8 +80,11 @@ In live combat the first six skill poses play at 20 fps, then hold full anticipa
 the authoritative release. The remaining six start at the hit and hold the recovered stance
 if needed. The animation never shortens a telegraph, fires early, or changes damage, cooldown,
 collision or corpse lifetime. Death plays once and holds until the existing despawn.
-Studio previews still update render snapshots through requestAnimationFrame; all seven clips
-use the same 20 fps selection, while the live encounter stays on its original timer.
+Studio previews run directly inside the scene's render update, bypassing the combat snapshot
+extrapolator. Clicking a mode starts at its first rendered pose; all seven clips use the same
+20 fps selection. There is no second requestAnimationFrame loop rebuilding the world and HUD
+on every pose. Facing changes keep the clip running, clicking the same action restarts it,
+and returning to live mode clears the override and resumes authoritative combat snapshots.
 
 `packages/client/public/assets/lsw/Bosses/alberic/v5/`:
 

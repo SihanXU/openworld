@@ -5,7 +5,7 @@
 // containment, diffed after every outcome), sight, and the active, dormant and resident parts of
 // the world. Pure, deterministic, no AI.
 
-import { TICKS_PER_HOUR, TICKS_PER_MINUTE, isNight } from './calendar.ts'
+import { TICKS_PER_HOUR, TICKS_PER_MINUTE } from './calendar.ts'
 import { EffectRunner } from './effects.ts'
 import { Controls } from './controls.ts'
 import { Story } from './story.ts'
@@ -511,7 +511,7 @@ export class Engine {
   sightOf(e: Entity, at: Pos): number {
     const w = this.world
     const s = w.num(e, 'sight', 0)
-    if (!s || !isNight(w.hour()) || w.hasTag(e, 'nightsight')) return s
+    if (!s || !w.isNight() || w.hasTag(e, 'nightsight')) return s
     const lit = this.fires(at.map).some((f) => Math.max(Math.abs(f.x - at.x), Math.abs(f.y - at.y)) <= FIRE_RADIUS + 1)
     return lit ? s : Math.ceil(s / 2)
   }
@@ -581,7 +581,7 @@ export class Engine {
     if (!a.ai || a.id === b.id || !w.isAgent(b) || b.place.on !== 'tile' || w.hasStatus({ e: b.id }, 'down')) return false
     if (a.ai.foes?.includes(b.id)) return true
     const t = a.ai.temper
-    if (t === 'wary' || (t === 'nocturnal' && !isNight(w.hour()))) return false
+    if (t === 'wary' || (t === 'nocturnal' && !w.isNight())) return false
     const factions = w.onto.data.factions ?? {}
     const theirs = this.factionsOf(b)
     return this.factionsOf(a).some((f) => (factions[f]?.hostile ?? []).some((h) => theirs.includes(h)))

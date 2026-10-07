@@ -51,11 +51,12 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   held to by the engine for every actor), layers, slots and magnet
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
   (`controls.ts`), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`), hunger (`hunger.ts`); companions that follow a
-  leader (`companion.ts`), waypoint stones (`waypoints.ts`) — docs/prologue.md.
+  leader (`companion.ts`), waypoint stones (`waypoints.ts`) — docs/prologue.md; the codex (`codex.ts`: every item kind, person and creature kind, the ones the player carried or saw marked — the reader's record beside the state, saved with the game; its entries `content/src/codex.ts`, its panel J).
 - `packages/content` — ontology (terrains, statuses, elements, types), item catalogue
   (forms × materials × qualities × elements), crafting recipes (`recipes.ts`), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
   story rules, objectives and invariants (`ford.ts`), the prologue's objectives and beats (`prologue.ts`), the main quest's rules and objectives (`quest.ts`,
-  docs/main-quest.md), the boss kits (three), defeat rules and compatibility migration (`bosses.ts`, `migrateBosses.ts`), chunk codec.
+  docs/main-quest.md), Chapter 1's quests, objectives and rules (`chapter1.ts`; its maps and scenes in
+  `tools/src/demo/quest/chapter1.ts`, docs/chapter-1.md), the fairy's boons (`boons.ts`), the boss kits (four: the White Knight and three for later), defeat rules and compatibility migration (`bosses.ts`, `migrateBosses.ts`), chunk codec.
 - `packages/tools` — `art/animals.ts` (the project's own sprites → `client/public/assets/lsw/`), `demo/` (the hand-crafted Ford, Firstlight Village west of it (`meadow`) and the forest south of that, and the main quest's maps and scenes in `quest/` → `public/world/`, each map from its own seed: `builder.ts` the map DSL
   with the tools of composition — curved paths, organic shapes, fences and yards, small things by masks,
   anchors, regions; `world.ts` `buildFord()` — the map, scenes, invariants;

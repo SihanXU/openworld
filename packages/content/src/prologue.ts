@@ -101,6 +101,12 @@ export const PROLOGUE_BEATS: StepDef[] = [
     say: L('The foot of the mountain! See the old stone in the flowers down there?', '到山脚了！看见下面花丛里那块古老的石头了吗？'),
   },
   {
+    // a new game: one comes round on Cloudtop (the tutorial run has its own line)
+    id: 'summit_wake',
+    when: at(PROLOGUE_AT_FOOT, { map: 'summit', facts: { [TUTORIAL_OPEN]: 0 } }),
+    say: L("You're awake! I'm Pip, a fairy — from today I go where you go. This is Cloudtop, the plateau at the top of the mountain. The only way down is the cut in the rocks to the south; below it lies the Mountain Foot, and further down, the Ford.", '你醒啦！我是小啾，是个精灵，从今天起你去哪儿我就去哪儿。这里是云顶台地，山顶上的高台。下山只有南边岩壁上的那道豁口；下面是山脚，再往下就是渡口。'),
+  },
+  {
     // the first waypoint statue in view, whenever that is
     id: 'see_waypoint',
     when: { near: { type: 'fixture/sacred/waypoint', r: 6 }, props: { prologue: { gte: 1 } } },
@@ -109,11 +115,12 @@ export const PROLOGUE_BEATS: StepDef[] = [
   {
     id: 'relic',
     when: at(PROLOGUE_AT_FOOT, { map: 'foot', region: 'relic' }),
-    say: L('Try anything on it: use what you hold, put something on it, strike it. Whatever you do, the world learns.', '对它做点什么吧：用手里的东西、放点东西上去、打它一下。不管你做什么，世界都会学着回应。'),
+    say: L("It's colder near it. Five marks, and the first one is cracked... I don't like it. I don't know why I don't like it. — Try anything on it: use what you hold, put something on it, strike it. Whatever you do, the world learns.", '它旁边好冷。五道痕，第一道裂开了……我不喜欢它。我也不知道为什么不喜欢。——对它做点什么吧：用手里的东西、放点东西上去、打它一下。不管你做什么，世界都会学着回应。'),
   },
   {
     id: 'tried',
-    when: at(PROLOGUE_AT_FOOT, { facts: { 'world.experiments': { gte: 1 } } }),
+    // after the stone was seen: an experiment anywhere before it is not the stone's lesson
+    when: at(PROLOGUE_AT_FOOT, { after: 'relic', facts: { 'world.experiments': { gte: 1 } } }),
     props: { prologue: PROLOGUE_AT_FOOT + 1 },
     say: L('Did you see? The world answers what it has never seen. What it learns is kept in the Threadbook — J. Now, down to the Ford!', '看到了吗？世界会回应它从没见过的事。它学会的都记在织线簿里——按 J。走吧，下山去渡口！'),
   },

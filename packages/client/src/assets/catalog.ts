@@ -454,6 +454,12 @@ export const CATALOG: Catalog = {
     'fixture:altar': { base: px(HOUSE, 48, 240, 32, 32, 16, 32) },
     'fixture:statue': { base: t(HOUSE, 5, 15, 2, 2) },
     'fixture:gravestone': { base: t(ELEM, 4, 2) },
+    // Chapter 1's own (tools/src/art/chapter1.ts): Pell's chalk drawings, the knight's briars
+    'fixture:chalk_stone': { base: px('lsw/Fixtures/Chalk.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:chalk_door': { base: px('lsw/Fixtures/Chalk.png', 16, 0, 16, 16, 8, 15), ground: true },
+    'fixture:chalk_bridge': { base: px('lsw/Fixtures/Chalk.png', 32, 0, 16, 16, 8, 15), ground: true },
+    'fixture:chalk_man': { base: px('lsw/Fixtures/Chalk.png', 48, 0, 16, 16, 8, 15), ground: true },
+    'fixture:briar': { base: px('lsw/Fixtures/Briar.png', 0, 0, 16, 16, 8, 15) },
     'fixture:seal_stone': { base: t(DUNGEON, 3, 2), lit: t(DUNGEON, 5, 2) },
     // the waypoint stone is a statue: it glows once woken (scene.ts lights what is attuned)
     'fixture:waypoint': { base: t(HOUSE, 7, 15, 1, 2) },
@@ -621,6 +627,9 @@ export const CATALOG: Catalog = {
     'item:book': icon('Items/Object/Book.png', 16, 16),
     'item:scroll': icon('Items/Scroll/ScrollEmpty.png', 16, 16),
     'item:letter': icon('Items/Other/Letter.png', 12, 9),
+    'item:crown_of_thorns': icon('lsw/Items/CrownOfThorns.png', 16, 16),
+    'item:warm_ember': icon('lsw/Items/WarmEmber.png', 16, 16),
+    'item:ninth_nail': icon('lsw/Items/NinthNail.png', 16, 16),
     'item:map': t(HOUSE, 15, 18),
     // Dome on a handle (TilesetHouse (29,16)) — reads as a hand bell.
     'item:bell': t(HOUSE, 29, 16),
@@ -782,6 +791,9 @@ export const CATALOG: Catalog = {
     cornerBuild: ui('Items/Tool/Hammer.png', 16, 16),
     cornerBag: ui('Items/Object/Bag.png', 16, 16),
     cornerSkills: ui('lsw/Ui/Star.png', 16, 16),
+    cornerJournal: ui('Items/Object/Book.png', 16, 16),
+    cornerCraft: ui('Items/Tool/Anvil.png', 16, 16),
+    cornerOptions: ui('lsw/Ui/Gear.png', 16, 16),
     // the dragon of Cinder Peak, in parts (scene.ts composes them round its head): a wing, two body segments, the tail
     dragonWing: ui('Actor/Boss/DragonGreen/Wing.png', 57, 57),
     dragonBody1: ui('Actor/Boss/DragonGreen/Body1.png', 31, 27),
@@ -844,3 +856,4 @@ Object.assign(CATALOG.ui, {
   emoteHeart: CATALOG.ui.emote27,
   emoteDots: CATALOG.ui.emote20,
 })
+

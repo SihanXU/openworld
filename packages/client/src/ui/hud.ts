@@ -13,9 +13,10 @@ export interface HudSend {
   select(slot: number): void
   answer(yes: boolean): void
   advance(): void
-  openMenu(tab?: string): void
   openJournal(): void
   toggleInventory(): void
+  toggleCraft(): void
+  toggleOptions(): void
   toggleSkills(): void
   toggleBuilding(): void
   toggleQuests(): void
@@ -66,8 +67,6 @@ export class Hud {
         <div class="cb-date" id="cbDate"></div>
         <div class="cb-mid"><div class="dial" id="dial"><div class="hand" id="dialHand"></div></div><span class="cb-icons" id="cbIcons"></span></div>
         <div class="cb-time" id="cbTime"></div>
-        <button class="jbtn" id="jbtn" title="F">!</button>
-        <button class="mbtn" id="mbtn" title="Esc">☰</button>
       </div>
       <div class="objective" id="objective"><div class="ob-title" id="obTitle"></div><div class="ob-progress" id="obProgress"></div></div>
       <div class="sin-boss hidden" id="sinBoss">
@@ -89,6 +88,9 @@ export class Hud {
         <button class="cbtn wood" id="buildBtn" title="B"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerBuild.img)}" alt=""><kbd>B</kbd></button>
         <button class="cbtn wood" id="bagBtn" title="I"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerBag.img)}" alt=""><kbd>I</kbd></button>
         <button class="cbtn wood" id="skillBtn" title="K"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerSkills.img)}" alt=""><kbd>K</kbd><span class="badge hidden" id="skillBadge"></span></button>
+        <button class="cbtn wood" id="jbtn" title="J"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerJournal.img)}" alt=""><kbd>J</kbd></button>
+        <button class="cbtn wood" id="craftBtn" title="C"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerCraft.img)}" alt=""><kbd>C</kbd></button>
+        <button class="cbtn wood" id="optionsBtn" title="Esc"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerOptions.img)}" alt=""><kbd>Esc</kbd></button>
       </div>
       <div class="msgs" id="msgs"></div>
       <div class="mapname" id="mapname"></div>
@@ -100,8 +102,9 @@ export class Hud {
     $('#hotbar').style.setProperty('--heart', cssAssetUrl('Ui/Receptacle/Heart.png'))
     $('#hotbar').style.setProperty('--drum', cssAssetUrl(CATALOG.ui.drumstick.img))
     $('#jbtn').onclick = () => this.send.openJournal()
-    $('#mbtn').onclick = () => this.send.openMenu()
     $('#bagBtn').onclick = () => this.send.toggleInventory()
+    $('#craftBtn').onclick = () => this.send.toggleCraft()
+    $('#optionsBtn').onclick = () => this.send.toggleOptions()
     $('#buildBtn').onclick = () => this.send.toggleBuilding()
     $('#skillBtn').onclick = () => this.send.toggleSkills()
     $('#questBtn').onclick = () => this.send.toggleQuests()
@@ -232,6 +235,9 @@ export class Hud {
     $('#skillBadge').textContent = String(points)
     $('#skillBadge').classList.toggle('hidden', points <= 0)
     $('#bagBtn').title = `${t('inventory')} (I)`
+    $('#craftBtn').title = `${t('craft')} (C)`
+    $('#optionsBtn').title = `${t('options')} (Esc)`
+    $('#jbtn').title = `${t('codex')} (J)`
     $('#skillBtn').title = `${t('skills')} (K)${points ? ` · ${t('skillPoints')} ${points}` : ''}`
     $('#xpBar').title = `${t('level')} ${level} · ${t('xp')} ${xp} / ${need}${points ? ` · ${t('skillPoints')} ${points}` : ''}`
   }

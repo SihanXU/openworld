@@ -5,6 +5,7 @@
 import Phaser from 'phaser'
 import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type MapData, type Ref, type Text } from '@lsw/engine'
 import { CATALOG, LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/catalog.ts'
+import { personLook } from '../assets/looks.ts'
 import { GroundAtlas, T, groundTile, hash2 } from '../assets/ground.ts'
 
 /** How much higher a storey is drawn than the one below it (world-model.md §5.2): one tile, a wall's height. */
@@ -12,6 +13,7 @@ const STOREY_LIFT = T
 import type { SpriteDef } from '../assets/types.ts'
 import { DIR_COL, actorFrames, assetUrl, fxAnim, preloadCatalog, spriteFrames } from './assets.ts'
 import { BossAnimationClock, bossAnimationFrame } from './boss-animation.ts'
+import { previewBoss, type BossPreviewMode } from '../boss-preview.ts'
 
 export interface SceneHooks {
   onFx(fx: FxEvent, frame: Frame): void
@@ -113,6 +115,7 @@ export class WorldScene extends Phaser.Scene {
   private following?: Phaser.GameObjects.Container
   private focus?: Phaser.GameObjects.Graphics
   private bossWarnings?: Phaser.GameObjects.Graphics
+  private bossPreview?: { id: string; mode: Exclude<BossPreviewMode, 'live'>; startedAt?: number }
   private darkness = 0
   private music?: Phaser.Sound.BaseSound
   private musicKey?: string
@@ -584,9 +587,7 @@ export class WorldScene extends Phaser.Scene {
 
   private actorDef(e: EntitySnap): { key: string; def: (typeof CATALOG.characters)[string] } | undefined {
     if (e.appearance || e.look) {
-      const role = e.type.split('/').pop()!
-      const look = e.look ?? CATALOG.roles[role]?.[hash2(e.id.length, e.id.charCodeAt(e.id.length - 1)) % (CATALOG.roles[role]?.length || 1)]
-      const key = look && CATALOG.characters[look] ? look : (CATALOG.roles.villager?.[0] ?? Object.keys(CATALOG.characters)[0])
+      const key = personLook(e.id, e.type, e.look)
       return { key: `char:${key}`, def: CATALOG.characters[key] }
     }
     const variant = e.element ?? e.type.split('/').pop()!
@@ -1021,6 +1022,14 @@ export class WorldScene extends Phaser.Scene {
     v.body.y = -4 - Math.sin((time + v.phase) / 210) * 1.5
   }
 
+  /** Studio-only playback uses the render clock, never the combat snapshot extrapolator. */
+  setBossPreview(id: string, mode: BossPreviewMode): void {
+    // Returning to combat starts from its next authoritative snapshot, not a preview sample.
+    const previous = this.bossPreview && this.views.get(this.bossPreview.id)
+    if (previous) previous.bossAnimation = undefined
+    this.bossPreview = mode === 'live' ? undefined : { id, mode }
+  }
+
   update(time: number): void {
     this.drawWeather(time)
     for (const v of this.views.values()) {
@@ -1028,7 +1037,17 @@ export class WorldScene extends Phaser.Scene {
       if (v.flyer) this.glide(v, time)
       if (v.walker) this.walk(v, time)
       if (v.actor && e.boss) {
-        const animated = v.bossAnimation ? { ...e.boss, progress: v.bossAnimation.progress(time), animationElapsedMs: v.bossAnimation.elapsed(time) } : e.boss
+        let animated = e.boss
+        const preview = this.bossPreview
+        if (preview?.id === e.id) {
+          // Start on the first rendered pose, even if rebuilding the view delayed the click.
+          preview.startedAt ??= time
+          const entity = { ...e, boss: { ...e.boss } }
+          previewBoss(entity, preview.mode, time - preview.startedAt)
+          animated = entity.boss
+        } else if (v.bossAnimation) {
+          animated = { ...e.boss, progress: v.bossAnimation.progress(time), animationElapsedMs: v.bossAnimation.elapsed(time) }
+        }
         const { col, row } = bossAnimationFrame(animated, time, v.phase, e.facing)
         v.body.setFrame(`${v.actor.key}:${col},${row}`).setFlipX(e.facing === 'left')
       } else if (v.actor && v.actor.rows === 1) {
@@ -1084,10 +1103,12 @@ export class WorldScene extends Phaser.Scene {
   private updateNight(f: Frame): void {
     const light = this.base?.light ?? 'outdoor'
     const h = f.hour
+    // dusk and dawn move as the story's night lengthens (the frame's night)
+    const { dusk, dawn } = f.night ?? { dusk: 21, dawn: 5 }
     let d = 0
-    if (h >= 21 || h < 4.5) d = 0.6
-    else if (h >= 18) d = ((h - 18) / 3) * 0.6
-    else if (h < 7) d = ((7 - h) / 2.5) * 0.6
+    if (h >= dusk || h < dawn - 0.5) d = 0.6
+    else if (h >= dusk - 3) d = ((h - (dusk - 3)) / 3) * 0.6
+    else if (h < dawn + 2) d = ((dawn + 2 - h) / 2.5) * 0.6
     if (light === 'dark') d = 0.55
     if (light === 'indoor') d *= 0.4
     // a grey day is a little darker

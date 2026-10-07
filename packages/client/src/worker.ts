@@ -381,7 +381,9 @@ function loop(): void {
   frame.keys = stopped || eng.busy(w.player) ? undefined : keyViews()
   maybePrefetch()
   lastTickMs = performance.now() - t0
-  post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length } })
+  // the codex: what the player carries and who and what is near (the reader's record, beside the state)
+  if (w.state.tick % 5 === 0) game.codex.record(w)
+  post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length }, codex: game.codex.version })
   if (buildAim) post({ t: 'placement', preview: buildPreview(eng, buildAim.id, { map: frame.map, x: buildAim.tile.x, y: buildAim.tile.y }, buildAim.up) })
   if (eng.lib.version !== lastRecordsVersion || frame.fx.some((f) => f.t === 'undefined' || f.t === 'patched')) {
     if (eng.lib.version !== lastRecordsVersion) (post({ t: 'library', library: eng.lib.toJSON() }), sendArts())
@@ -556,6 +558,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (a) post({ t: 'atlas', atlas: a })
         break
       }
+      case 'codex':
+        if (game && index) post({ t: 'codex', codex: game.codex.view(game.engine.world, index) })
+        break
       case 'travel':
         if (game && travelToWaypoint(game.engine, m.waypoint)) void ensureMaps()
         break

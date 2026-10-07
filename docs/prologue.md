@@ -11,13 +11,18 @@ can live in the world (Elin's start site, Minecraft's first night); teaching by 
 place rather than by text; a companion who points, never lectures (Elin's Nerun, Valheim's Hugin);
 teleport stones that are attuned by touch and used from the map.
 
-## The tutorial, or not
+## The tutorial, apart from the story
 
-A new game asks whether to play the tutorial (the cover's new-game panel, beside the difficulty):
 
-- **Tutorial** (the default): the game begins in the Clearing, out cold.
-- **Skip the tutorial**: the game begins at the Mountain Foot, at the top of the trail coming down
-  off the high ground, at the seal stone's stage (`prologue` = `PROLOGUE_AT_FOOT`).
+- **A new game** begins on **Cloudtop** (云顶台地, the map `summit`, restored 2026-10-06), in its
+  ruined watch shelter (`PAT.spawn`, the world's start, `prologue` = `PROLOGUE_AT_FOOT`), straight into
+  the story. Pip's first line (`summit_wake`) names the place and points to the cut in the south
+  rim, Cloudtop's only way down; the trail comes out on the Mountain Foot's north edge. Cloudtop
+  is peaceful, with berries, sticks, stones and grass before the shelter and a waypoint statue
+  (`wp.summit`). Pip's "the world answers" beat waits until the seal stone was seen (`after: 'relic'`).
+- **The tutorial is its own** (the title screen's *Tutorial* button): it begins in the Clearing, out cold,
+  writes no save slot, and walking out of the Clearing ends it and returns to the title.
+- (Before 2026-10-06: the tutorial was the default start.)
 
 The world's starts are data. `WorldIndex.start` (+ `begin`: its hour, props and statuses) is the
 game without the tutorial, at the foot; `WorldIndex.starts.tutorial` is the clearing (07:00, the

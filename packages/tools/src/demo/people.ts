@@ -15,5 +15,14 @@ import { holt } from './people/holt.ts'
 import { gus } from './people/gus.ts'
 import { lina } from './people/lina.ts'
 import { oskar } from './people/oskar.ts'
+import { ilse } from './people/ilse.ts'
+import { joss } from './people/joss.ts'
+import { pell } from './people/pell.ts'
+import { nessa } from './people/nessa.ts'
+import { fennick } from './people/fennick.ts'
+import { edda } from './people/edda.ts'
+import { severin } from './people/severin.ts'
+import { courier } from './people/courier.ts'
 
-export const PEOPLE: PersonDef[] = [hesper, tobin, mara, garrick, wren, bram, rowan, marta, mia, holt, gus, lina, oskar]
+// Chapter 1's (docs/chapter-1.md): the village's six, and the two the scenes bring on
+export const PEOPLE: PersonDef[] = [hesper, tobin, mara, garrick, wren, bram, rowan, marta, mia, holt, gus, lina, oskar, ilse, joss, pell, nessa, fennick, edda, severin, courier]

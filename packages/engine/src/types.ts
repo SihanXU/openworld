@@ -268,6 +268,8 @@ export interface AppearDef {
   ring?: [number, number]
   /** When: hours [from, to) (past midnight when from > to), and weathers. */
   hours?: [number, number]
+  /** When: at night, however long the story's night has grown (World.isNight; instead of hours). */
+  night?: boolean
   weather?: string[]
   /** Which maps (for the world's own): by the map's zone and light. */
   where?: { zone?: 'peaceful' | 'combat'; light?: 'outdoor' | 'indoor' | 'dark' }
@@ -640,6 +642,8 @@ export type SceneCmd =
   | { status: Id; add?: string; remove?: string }
   /** set a prop on the player (the story's stage) */
   | { prop: string; value: PropValue }
+  /** tell someone something (a notice they answer themselves: the fairy given a boon) */
+  | { tell: Id; params: Record<string, PropValue> }
   /** a full-screen card (the ending), advanced like a line */
   | { card: Text }
 

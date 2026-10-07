@@ -20,5 +20,6 @@ export const marta: PersonDef = {
   lines: [
     line('default', 'A pot with nothing in it is just a hat for the fire.', '锅里没东西，就只是给火戴的帽子。'),
     line('hour:evening', "Sit, eat. It isn't much, but it's hot.", '坐下吃吧。东西不多，但是热乎。'),
+    line('default', 'Pell and his grey man. Stories, stories. He got that from his father, who went east and did not write.', '佩尔和他的灰衣人。故事，全是故事。他这毛病是跟他爹学的——他爹往东去了，再没来过信。'),
   ],
 }

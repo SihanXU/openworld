@@ -15,8 +15,8 @@
 //
 // A quest is `available` when its requirements hold and it is not active (a repeatable one: not
 // handed in today), `ready` when every goal is met, and handed in to its giver (or `turnIn`).
-// E on a person who has something for you does it: hand in what is ready, else take on what is
-// offered, else meet a talk goal, else they just talk. People with a quest to give show "!",
+// E on a person who has something for you does it: hand in what is ready, else meet a talk goal
+// (a quest under way sent you to them), else take on what is offered, else they just talk. People with a quest to give show "!",
 // with one to take back "?".
 
 import type { Engine } from './engine.ts'
@@ -157,8 +157,8 @@ export class Quests {
 
   /**
    * The story's `quests` primitive (its outcome, on a notice): a word between a giver (the
-   * source) and the one who spoke (the actor) — hand in what is ready, else take on what is
-   * offered, else meet a talk goal; or a defeat (the actor felled a thing of type `param type`).
+   * source) and the one who spoke (the actor) — hand in what is ready, else meet a talk goal,
+   * else take on what is offered; or a defeat (the actor felled a thing of type `param type`).
    */
   settle(ev: GameEvent): void {
     const w = this.w
@@ -175,6 +175,16 @@ export class Quests {
         say(q.done)
         return
       }
+    // a talk goal: someone a quest under way sent them to (before their own errand)
+    for (const q of this.defs) {
+      if (this.status(q, who) !== 'active') continue
+      for (const g of q.goals)
+        if (g.kind === 'talk' && g.npc === npc && !w.fact(`q.${q.id}.${g.id}`)) {
+          w.setFact(`q.${q.id}.${g.id}`, 1)
+          say(g.line)
+          return
+        }
+    }
     // take on what is offered
     for (const q of this.defs)
       if (q.giver === npc && this.status(q, who) === 'available') {
@@ -185,16 +195,6 @@ export class Quests {
         w.fx.push({ t: 'log', text: { en: `Quest taken: ${txt(q.title, 'en')}`, zh: `接受任务：${txt(q.title, 'zh')}` }, tone: 'good' })
         return
       }
-    // a talk goal: someone the quest sent them to
-    for (const q of this.defs) {
-      if (this.status(q, who) !== 'active') continue
-      for (const g of q.goals)
-        if (g.kind === 'talk' && g.npc === npc && !w.fact(`q.${q.id}.${g.id}`)) {
-          w.setFact(`q.${q.id}.${g.id}`, 1)
-          say(g.line)
-          return
-        }
-    }
   }
 
   /** The story's outcome: the facts change; the rest is sent (the giver takes, the taker is told) or spawned. */

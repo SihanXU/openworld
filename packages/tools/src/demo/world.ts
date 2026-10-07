@@ -10,18 +10,19 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
-import { BOSSES, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_AT_FOOT, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, type RawChunk } from '@lsw/content'
+import { BOSSES, CH1_QUESTS, codexEntries, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_AT_FOOT, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, type RawChunk } from '@lsw/content'
 import { CATALOG } from '../../../client/src/assets/catalog.ts'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
 import { EAST_ROAD, EMBERFALL, LAIR, MINE, PASS, buildEastRoad, buildEmberfall, buildLair, buildMine, buildPass } from './quest/maps.ts'
 import { QUEST_SCENES } from './quest/scenes.ts'
-import { PROLOGUE, TUTORIAL, buildFoot, buildTutorial } from './prologue.ts'
+import { PAT, PROLOGUE, TUTORIAL, buildFoot, buildSummit, buildTutorial } from './prologue.ts'
 import { BARROW, HOLLOW, buildBarrow, buildHollow } from './hollow.ts'
 import type { PersonDef, Slot } from './person.ts'
 import { buildOverworld, placeCells, siteOf } from './overworld.ts'
 import { PEOPLE } from './people.ts'
+import { CHAPTER1_SCENES, CHAPTER1_STORY, buildOffstage, chapter1Barrow, chapter1EastRoad, chapter1Foot, chapter1Ford, chapter1Village } from './quest/chapter1.ts'
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '../../../client/public/world')
 export const VERSION = 'ford-4'
@@ -447,13 +448,13 @@ const scenes: StepDef[] = [
       { face: 'npc.hesper', dir: 'up' },
       { face: 'player', dir: 'down' },
       { wait: 10 },
-      say('npc.hesper', 'Someone off the mountain? Nobody has come down that stair since the storm — and the storm was a bad one.', '有人从山上下来了？风暴以后就没人走过那道石阶——那场风暴可真够大的。'),
-      say('npc.hesper', 'The storm took the ferry rope, and the middle of the footbridge down by the marsh with it. Nobody crosses until one of them is mended.', '风暴扯断了渡绳，连沼泽边那座小桥的中间一段也冲走了。修好一样之前，谁也过不去。'),
+      say('npc.hesper', 'Someone off the mountain? Nobody has come down that stair since the storm — and the evenings come sooner every week.', '有人从山上下来了？风暴以后就没人走过那道石阶——而且天黑得一周比一周早。'),
+      say('npc.hesper', 'The storm took the ferry rope. The footbridge it did not take: a rider did. All in white, a crown of thorns grown through his helm. He pulled the planks out with his hands and laid the nails on my pier like a toll paid.', '风暴扯断了渡绳。可那座小桥不是风暴冲走的：是一个骑手拆的。浑身雪白，荆棘冠长进了他的头盔。他用手把木板拔出来，把钉子摆在我的码头上，像是付了过路费。'),
       say('npc.hesper', 'Three planks would span the bridge. There is an old axe by the stump; the woods have trees.', '三块木板就能把桥接上。树桩边有把旧斧头，林子里有的是树。'),
       say('npc.hesper', 'West of here is Firstlight Village. Tobin keeps his cart there now — a meal might buy you something useful.', '西边是初原村。托宾现在把货车停在那里——拿顿饭说不定能换点有用的东西。'),
       say('npc.hesper', 'A small place. Good soil, a well, and a roof when the weather turns.', '村子不大。有能种东西的地，有井，变天了也有屋檐能躲。'),
       // before the bridge, the village (docs/quests.md): its rescue opens the bridge chapter (quest 1)
-      say('npc.hesper', 'But the storm hit them harder than us — two of theirs are lost, they say. Rowan, their elder, is asking anyone who can fight. The bridge will keep; go to them first.', '不过风暴对他们的打击比我们还重——听说有两个人失踪了。他们的长老罗万在找能打的人。桥可以等，先去帮他们吧。'),
+      say('npc.hesper', 'But they have it worse than us — two of theirs are lost, they say. Rowan, their elder, is asking anyone who can fight. The bridge will keep; go to them first.', '不过风暴对他们的打击比我们还重——听说有两个人失踪了。他们的长老罗万在找能打的人。桥可以等，先去帮他们吧。'),
       { give: 'item/food/bread' },
       say('player', '(Still in your pack: the end of a travel loaf.)', '（行囊里还剩半块路上吃的面包。）'),
       { fact: 'village.sent', value: 1 },
@@ -481,15 +482,9 @@ const scenes: StepDef[] = [
       { fact: 'ford.crossed', value: 1 },
       { prop: 'quest', value: 2 },
       { wait: 10 },
-      say('npc.hesper', 'Go on, then. The road runs east to Emberfall. They say there is smoke over the hills again — if you find what makes it, come back and tell me.', '那就走吧。这条路往东通到余烬镇。听说山那边又在冒烟了——要是你找到了冒烟的东西，回来告诉我。'),
+      say('npc.hesper', 'Go on, then. The rider went east along the road, past the burned farm. If you find him — mind his bow.', '那就走吧。那个骑手沿着大路往东去了，过了烧毁的农庄。要是你找到他——当心他的弓。'),
       say('npc.hesper', 'If you need supplies before the road, Firstlight Village is still just west of here.', '上路前若还缺东西，初原村就在渡口西边。'),
       { topic: 'crossed', days: 30 },
-      {
-        card: L(
-          'CHAPTER ONE · THE BRIDGE\n\nYou crossed.\nThe road runs east, to Emberfall —\nand smoke hangs over the hills beyond it.',
-          '第一章 · 断桥\n\n你过了河。\n大路往东，通向余烬镇——\n镇子那边的山上，烟还没散。',
-        ),
-      },
     ],
   },
 ]
@@ -542,16 +537,26 @@ export function buildFord(): FordWorld {
   linkEdge(ember, row(ember, 0, EMBERFALL.north), [0, 1], mine, row(mine, mine.h - 1, MINE.south), [0, -1])
   linkEdge(ember, col(ember, ember.w - 1, EMBERFALL.east), [-1, 0], pass, col(pass, 0, PASS.west), [1, 0])
   linkEdge(pass, row(pass, 0, PASS.north), [0, 1], lair, row(lair, lair.h - 1, LAIR.south), [0, -1])
-  // the prologue north of the Ford (docs/prologue.md): the foot of the mountain, the cliff stair
+  // the prologue north of the Ford (docs/prologue.md): Cloudtop, the foot of the mountain, the cliff stair
+  reseed(4250)
+  const summit = buildSummit()
   reseed(4252)
   const foot = buildFoot()
   foot.anchors.arrive = [TUTORIAL.arrive[0], TUTORIAL.arrive[1]]
   // the tutorial: a plot of its own, linked to nothing
   const tutorial = buildTutorial()
+  linkEdge(summit, row(summit, summit.h - 1, PROLOGUE.summitSouth), [0, -1], foot, row(foot, 0, PROLOGUE.footNorth), [0, 1])
   linkEdge(foot, row(foot, foot.h - 1, PROLOGUE.footSouth), [0, -1], m, row(m, 0, PROLOGUE.fordNorth), [0, 1])
   // towns and camps are peaceful: nothing comes out of the dark there (nightspawn.ts); everywhere else is a combat zone
-  for (const b of [m, meadow, ember]) b.zone = 'peaceful'
-  const builders = [m, meadow, pasture, forest, hollow, barrow, road, ember, mine, pass, lair, foot, tutorial]
+  for (const b of [m, meadow, ember, summit]) b.zone = 'peaceful'
+  // Chapter 1 (docs/chapter-1.md): the shrine, the drawings, the statues, the knight's kingdom; the scenes' own people wait offstage
+  chapter1Ford(m)
+  chapter1Village(meadow)
+  chapter1Foot(foot)
+  chapter1Barrow(barrow)
+  chapter1EastRoad(road)
+  const offstage = buildOffstage()
+  const builders = [m, meadow, pasture, forest, hollow, barrow, road, ember, mine, pass, lair, summit, foot, tutorial, offstage]
   const at = placeMaps(builders, m)
   for (const b of builders)
     for (const [name, [x, y]] of Object.entries(b.anchors)) {
@@ -590,9 +595,9 @@ export function buildFord(): FordWorld {
     name: L('The Ford', '渡口'),
     version: VERSION,
     seed: 4242,
-    // the game begins at the foot of the mountain, before the seal stone; with the tutorial (the
-    // cover's choice, and its default), in the clearing first (docs/prologue.md)
-    start: { map: foot.id, x: TUTORIAL.arrive[0], y: TUTORIAL.arrive[1] },
+    // a new game begins on Cloudtop, the summit plateau, in its ruined shelter; the tutorial is a
+    // mode of its own (docs/prologue.md)
+    start: { map: summit.id, x: PAT.spawn[0], y: PAT.spawn[1] },
     begin: { props: { prologue: PROLOGUE_AT_FOOT } },
     // one comes round in the clearing early in the morning: a long day to get ready for the night
     starts: { tutorial: { at: { map: tutorial.id, x: TUTORIAL.spawn[0], y: TUTORIAL.spawn[1] }, hour: 7, statuses: { out_cold: 50 } } },
@@ -600,18 +605,19 @@ export function buildFord(): FordWorld {
     maps: [...builders.map((b, i) => metaOf(b, chunks[i])), { id: overworld.map.id, name: overworld.map.name, kind: overworld.map.kind, region: overworld.map.region, width: overworld.map.width, height: overworld.map.height, portals: [], npcs: 0, items: 0 }],
     npcs,
     bosses: BOSSES,
+    codex: codexEntries(),
     player: {
       id: 'player',
       type: 'actor/person/player',
       name: L('You', '你'),
       place: { on: 'none' },
-      facing: 'up',
+      facing: 'down',
       look: CATALOG.roles.player?.[0] ?? 'NinjaMasked',
       // a little hungry: the first thing the mountain teaches is to eat
       props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, quest: 0, prologue: 0, hunger: 12 },
     },
     companions: [{ id: 'pip', type: 'actor/companion/fairy', name: L('Pip', '小啾'), place: { on: 'none' }, facing: 'down' }],
-    quests: VILLAGE_QUESTS,
+    quests: [...VILLAGE_QUESTS, ...CH1_QUESTS],
     // what Pip tells when taken hold of (F): the prologue's step on the mountain, then the main quest's
     guides: [
       { prop: 'prologue', until: PROLOGUE_DONE, start: PROLOGUE_DONE, stages: PROLOGUE_OBJECTIVES },
@@ -620,7 +626,7 @@ export function buildFord(): FordWorld {
     waypoints: chunks.flatMap((c) => c.entities.filter((e) => e.type === 'fixture/sacred/waypoint').map((e) => ({ id: e.id, map: c.map.id, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: e.name ?? L('Waypoint', '传送雕像') }))),
     stats: { maps: builders.length, npcs: npcs.length, creatures, items, itemKinds: kinds.size, fixtures },
     // the story's one script (world-model.md §6.12): the tutorial's beats, then the scenes
-    steps: [...PROLOGUE_BEATS, ...scenes, ...QUEST_SCENES],
+    steps: [...PROLOGUE_BEATS, ...scenes, ...CHAPTER1_STORY, ...CHAPTER1_SCENES, ...QUEST_SCENES],
     invariants: INVARIANTS,
     protectedFacts: PROTECTED_FACTS,
     weather: [

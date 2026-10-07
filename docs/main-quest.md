@@ -1,5 +1,9 @@
 # Main quest: from the broken bridge to the dragon
 
+> 2026-10-05: stages 0–2 are now **Chapter 1, the First Seal** ([chapter-1.md](chapter-1.md)): the bridge was
+> taken by the White Knight, the road east is his kingdom, and Emberfall opens after he falls. The chapters
+> below from Emberfall on are unchanged for now; the story's setting is [lore.md](lore.md).
+
 Status: **built** (2026-10-02): all seven chapters are playable and each is proved by a demo
 requirement (Q1–Q6 in `tools/test/demo.test.ts`). Still to do: a single headless run of the
 whole quest in order, and play-testing the length (estimated 50–60 minutes). About an hour of play, in seven chapters, from mending

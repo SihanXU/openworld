@@ -46,10 +46,8 @@
 .dial .hand { position: absolute; left: 50%; bottom: 0; width: 2px; height: 20px; margin-left: -1px; background: var(--ink-warm); transform-origin: bottom center; }
 .cb-icons { font-size: 18px; display: flex; gap: 6px; }
 .cb-time { font-size: 18px; background: var(--paper); border: 2px solid var(--wood-dark); border-radius: 4px; padding: 0 6px; }
-.clockbox .jbtn, .clockbox .mbtn { position: absolute; bottom: -16px; width: 30px; height: 30px; padding: 0; border-radius: 6px; background: var(--paper); border: 2px solid var(--wood-dark); color: var(--ink-warm); font-weight: 600; font-size: 16px; }
-.clockbox .jbtn { left: 10px; }
-.clockbox .mbtn { right: 10px; }
-.jbtn.flash { animation: jflash 0.8s infinite; background: #ffd55a; }
+/* a new objective: the journal's corner button flashes (Stardew's "!") */
+.cbtn.flash { animation: jflash 0.8s infinite; background: #ffd55a; }
 @keyframes jflash { 50% { transform: scale(1.15); } }
 .dot { position: absolute; right: -4px; top: -4px; width: 9px; height: 9px; border-radius: 50%; background: #e04848; border: 1px solid #fff; }
 
@@ -162,6 +160,7 @@
 .tabs-row { display: flex; gap: 4px; margin-bottom: 8px; border-bottom: 2px solid var(--wood-dark); padding-bottom: 6px; flex-wrap: wrap; }
 .tabs-row .tab { background: var(--paper-dark); color: var(--ink-warm); border: 2px solid var(--wood-dark); font: 600 13px var(--pixel); padding: 4px 10px; }
 .tabs-row .tab.on { background: var(--paper); transform: translateY(-2px); }
+.tabs-row .sheet-title { align-self: center; font: 600 15px var(--pixel); color: var(--ink-warm); padding: 2px 4px; }
 .tabs-row .x, .jhead .x { margin-left: auto; background: var(--paper); color: var(--ink-warm); border: 2px solid var(--wood-dark); }
 .tab-body { background: var(--paper); border: 2px solid var(--wood-dark); border-radius: 6px; padding: 10px; min-height: 280px; color: var(--ink-warm); }
 .inv { display: flex; flex-direction: column; gap: 3px; align-items: center; }
@@ -173,6 +172,21 @@
 .tip { position: fixed; transform: translate(-50%, -100%); background: var(--ink-warm); color: #fbe9c4; padding: 3px 8px; border-radius: 5px; font-size: 12px; pointer-events: none; z-index: 60; white-space: nowrap; }
 .chest-grid { margin-bottom: 4px; }
 .bag-grid { margin-top: 6px; }
+.cx-tabs { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
+.cx-tab { background: var(--paper-dark); color: var(--ink-warm); border: 2px solid var(--wood-dark); font: 600 13px var(--pixel); padding: 4px 10px; }
+.cx-tab.on { background: var(--paper); transform: translateY(-2px); }
+.cx-tab small { opacity: 0.7; font-weight: 400; }
+.cx-body { max-height: min(60vh, 520px); overflow-y: auto; padding-right: 4px; }
+.cx-group { font: 600 13px var(--pixel); color: var(--ink-warm); margin: 10px 0 4px; }
+.cx-group small { opacity: 0.6; font-weight: 400; }
+.cx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.cx-card { background: var(--paper-dark); border: 2px solid var(--wood-dark); border-radius: 6px; padding: 6px 4px; text-align: center; color: var(--ink-warm); }
+.cx-pic { height: 40px; display: grid; place-items: center; }
+.cx-pic canvas { max-width: 40px; max-height: 40px; width: auto; height: 40px; image-rendering: pixelated; }
+.cx-card.unknown .cx-pic canvas { filter: brightness(0); opacity: 0.35; }
+.cx-card.unknown .cx-name { opacity: 0.5; }
+.cx-name { font-size: 12px; line-height: 1.2; margin-top: 4px; word-break: break-word; }
+.cx-sub { font-size: 10px; opacity: 0.75; margin-top: 2px; }
 .jhead { display: flex; align-items: center; gap: 10px; font: 600 18px var(--pixel); margin-bottom: 8px; }
 .jnow { background: var(--paper-dark); border-radius: 6px; padding: 8px 10px; margin-bottom: 10px; }
 .jtitle { font: 600 17px var(--pixel); color: #8a3b12; }
@@ -219,14 +233,15 @@
 .ob-progress .done { color: #9fe07a; }
 
 /* bottom right: the bag and the skill tree */
-.corner { position: absolute; right: 14px; bottom: 14px; display: flex; gap: 8px; }
+/* the corner's buttons: at most four to a row, further ones on a second row below, right-aligned */
+.corner { position: absolute; right: 14px; bottom: 14px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; max-width: calc(4 * 50px + 3 * 8px); }
 .cbtn { position: relative; width: 50px; height: 50px; padding: 0; display: grid; place-items: center; cursor: pointer; }
 /* (its own background: the global button:hover would wash the wood out) */
 .cbtn:hover { background: linear-gradient(#f3c47e, #dca65e); transform: translateY(-1px); }
 .cbtn .cb-icon { width: 32px; height: 32px; image-rendering: pixelated; filter: drop-shadow(1px 1px 0 rgba(58, 36, 20, 0.35)); pointer-events: none; }
 .cbtn kbd { position: absolute; left: 3px; bottom: 1px; font: 600 10px var(--pixel); color: var(--ink-warm); opacity: 0.75; background: none; border: 0; padding: 0; }
 .cbtn .badge { position: absolute; right: -6px; top: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #e04848; color: #fff; border: 2px solid #fff; font: 700 11px/14px var(--pixel); animation: jflash 1.2s infinite; }
-@media (max-width: 720px) { .corner { right: 8px; bottom: 74px; flex-direction: column; } .cbtn { width: 40px; height: 40px; } .cbtn .cb-icon { width: 24px; height: 24px; } }
+@media (max-width: 720px) { .corner { right: 8px; bottom: 74px; flex-direction: column; flex-wrap: wrap-reverse; max-width: none; max-height: calc(4 * 40px + 3 * 8px); } .cbtn { width: 40px; height: 40px; } .cbtn .cb-icon { width: 24px; height: 24px; } }
 
 /* the skill tree page: a field to drag and zoom, the start in the middle */
 .sk-page { position: fixed; inset: 0; z-index: 40; background:

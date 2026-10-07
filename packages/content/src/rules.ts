@@ -1297,6 +1297,13 @@ const JOURNEY: Rule[] = [
     tree: IF({ param: { key: 'boon', cmp: { ne: '' } } }, DO({ op: 'boon' }), DO({ op: 'say', text: '@guide' })),
   }),
   rule({
+    id: 'light/told',
+    doc: 'A light the story tells to go out or to burn (notify what = status, remove or add lit: a scene\'s `status`) answers itself: a flame taken, a lamp lit for a feast.',
+    host: { type: 'fixture/light' },
+    on: 'impulse/notify',
+    tree: IF(all(param('what', 'status'), param('remove', 'lit')), DO(remove('lit')), IF(all(param('what', 'status'), param('add', 'lit')), DO(add('lit')), 'inherit')),
+  }),
+  rule({
     id: 'companion/boon',
     doc: 'A companion told it is given a boon (notify what = boon, param unlock: its id) keeps it, and carries it if it carries none (boons.ts).',
     host: COMPANION,

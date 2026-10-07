@@ -294,6 +294,8 @@ export class Story {
     } else if ('prop' in c) {
       // the story tells the player where the story stands; the player's own rule keeps it
       this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: c.prop, value: c.value } }], { e: w.state.player })
+    } else if ('tell' in c) {
+      this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: c.params }], { e: c.tell })
     } else if ('status' in c) {
       if (c.add) this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'status', add: c.add } }], { e: c.status })
       if (c.remove) this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'status', remove: c.remove } }], { e: c.status })

@@ -1,6 +1,6 @@
 // Render-agnostic frame snapshots for the client (sent from the engine Worker each tick).
 
-import type { Calendar } from './calendar.ts'
+import { nightHours, type Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
 import type { Appearance, BossState, Dir, FxEvent, Id, PropValue, SceneState, Text } from './types.ts'
 import { SLOT_COUNT } from './controls.ts'
@@ -74,6 +74,8 @@ export interface TileSnap {
 export interface Frame {
   tick: number
   hour: number
+  /** When night falls and ends now (clock hours): later dawns and earlier dusks as the story's night lengthens. */
+  night: { dusk: number; dawn: number }
   calendar: Calendar
   /** A scene is playing: the player watches; `advance` moves past what is said. */
   scene?: { id: string; waiting?: 'advance' | 'move'; line?: SceneState['line'] }
@@ -293,6 +295,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
   return {
     tick: w.state.tick,
     hour: w.hour(),
+    night: nightHours(w.nightShift()),
     calendar: w.calendar(),
     scene: sc ? { id: sc.id, waiting: sc.waiting, line: sc.line } : undefined,
     map,

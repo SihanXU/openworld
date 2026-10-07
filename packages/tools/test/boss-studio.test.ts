@@ -19,14 +19,20 @@ const factories = [
   { name: 'challenge', create: (settings: typeof index, map: typeof raw, boss: string) => createBossChallenge(settings, map, 'assassin', boss) },
 ]
 
-function renderedFrame(entity: EntitySnap, time = 0, bossAnimation?: BossAnimationClock): string {
+function renderedScene(entity: EntitySnap, bossAnimation?: BossAnimationClock) {
   const body = { setFrame: vi.fn().mockReturnThis(), setFlipX: vi.fn().mockReturnThis() }
   const scene = new WorldScene()
   Object.assign(scene, { drawWeather: vi.fn(), views: new Map([[entity.id, {
     snap: entity, body, actor: { key: 'cre:boss:sin:alberic', rows: 21, cols: 32 }, phase: 0, movingUntil: 0, bossAnimation,
   }]]) })
-  scene.update(time)
-  return body.setFrame.mock.calls.at(-1)![0] as string
+  return { scene, frame: (time: number) => {
+    scene.update(time)
+    return body.setFrame.mock.calls.at(-1)![0] as string
+  } }
+}
+
+function renderedFrame(entity: EntitySnap, time = 0, bossAnimation?: BossAnimationClock): string {
+  return renderedScene(entity, bossAnimation).frame(time)
 }
 
 describe.each(factories)('$name bootstrap with outdated generated world data', ({ create }) => {
@@ -46,6 +52,53 @@ describe.each(factories)('$name bootstrap with outdated generated world data', (
 })
 
 describe('Boss Studio actions reach the rendered sprite', () => {
+  it.each([
+    ['idle', 'idle', 0], ['walk', 'walk', 1], ['attack', 'thorns', 2], ['cast', 'arrow', 3],
+    ['volley', 'volley', 4], ['hurt', 'hurt', 5], ['death', 'death', 6],
+  ] as const)('renders the isolated %s clip without combat extrapolation or repeated snapshots', (mode, id, row) => {
+    const game = createBossStudio(index, raw, 'alberic')
+    game.engine.tick()
+    const e = snapshot(game.engine).entities.find((e) => e.id === BOSS_ARENA.id)!
+    expect(e.boss!.warning).toBeDefined()
+    const before = JSON.stringify(e), clip = ALBERIC_CLIPS[id], duration = clip.length * 50
+    const clock = new BossAnimationClock()
+    clock.receive(e.boss!, 0)
+    const elapsed = vi.spyOn(clock, 'elapsed'), progress = vi.spyOn(clock, 'progress')
+    const { scene, frame } = renderedScene(e, clock)
+    for (const [facing, base] of [['down', 0], ['right', 7], ['up', 14], ['left', 7]] as const) {
+      e.facing = facing
+      scene.setBossPreview(e.id, mode)
+      // A stale combat sample and a delayed first render must not skip the first pose.
+      expect(frame(10000)).toBe(`cre:boss:sin:alberic:0,${row + base}`)
+      for (let i = 0; i < clip.length; i++) {
+        for (const within of [0, 49])
+          expect(frame(10000 + i * 50 + within)).toBe(`cre:boss:sin:alberic:${clip[i]},${row + base}`)
+      }
+      expect(frame(10000 + duration)).toBe(`cre:boss:sin:alberic:${mode === 'death' ? 31 : 0},${row + base}`)
+      expect(frame(10000 + duration * 50)).toBe(`cre:boss:sin:alberic:${mode === 'death' ? 31 : 0},${row + base}`)
+      // Clicking the selected action again restarts a held death as well as a loop.
+      scene.setBossPreview(e.id, mode)
+      expect(frame(99999)).toBe(`cre:boss:sin:alberic:0,${row + base}`)
+    }
+    e.facing = 'down'
+    expect(elapsed).not.toHaveBeenCalled()
+    expect(progress).not.toHaveBeenCalled()
+    expect(JSON.stringify(e)).toBe(before)
+    scene.setBossPreview(e.id, 'live')
+    // The untouched encounter is still winding up its arrow, not the selected preview action.
+    expect(frame(99999)).toBe('cre:boss:sin:alberic:0,3')
+  })
+
+  it('keeps a preview on its render timeline when changing facing', () => {
+    const game = createBossStudio(index, raw, 'alberic')
+    const e = snapshot(game.engine).entities.find((e) => e.id === BOSS_ARENA.id)!
+    const { scene, frame } = renderedScene(e)
+    scene.setBossPreview(e.id, 'walk')
+    expect(frame(1000)).toBe('cre:boss:sin:alberic:0,1')
+    e.facing = 'up'
+    expect(frame(1250)).toBe('cre:boss:sin:alberic:16,15')
+  })
+
   it.each([[0, 'arrow', 3], [1, 'volley', 4], [2, 'thorns', 2]] as const)(
     'plays real skill %s at 20 fps, holds its tell, then restarts recovery at the hit', (skill, id, row) => {
       const game = createBossStudio(index, raw, 'alberic')

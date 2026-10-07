@@ -1,6 +1,6 @@
 // World: the mutable state plus derived indices (not serialized) for fast spatial queries.
 
-import { calendarAt, type Calendar, type WeatherSpan } from './calendar.ts'
+import { calendarAt, type Calendar, type WeatherSpan, isNight } from './calendar.ts'
 import { CELL_SPACES, cellId, parseCellId, splitLayers, type CellSpace, type Layers } from './cells.ts'
 import { OntologyIndex } from './ontology.ts'
 import { nextRandom } from './rng.ts'
@@ -1181,6 +1181,17 @@ export class World {
   /** The clock, 0 … 24 (calendar.ts: day 1 begins at 06:00, a game minute is 7 ticks). */
   hour(): number {
     return calendarAt(this.state.tick, this.state.seed).hour
+  }
+
+  /** How much longer the night is than at the start (hours): the story's `night.shift` (docs/chapter-1.md). */
+  nightShift(): number {
+    const v = this.fact('night.shift')
+    return typeof v === 'number' ? v : 0
+  }
+
+  /** Is it night now (its dusk earlier and its dawn later as the story's night lengthens)? */
+  isNight(): boolean {
+    return isNight(this.hour(), this.nightShift())
   }
 
   calendar(): Calendar {
