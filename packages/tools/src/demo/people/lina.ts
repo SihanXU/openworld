@@ -23,5 +23,6 @@ export const lina: PersonDef = {
   lines: [
     line('default', "Thank you for coming. I'd almost stopped counting the days.", '谢谢你来找我。我都快不数日子了。'),
     line('fact:rescue.lina', "I still dream of that barrow. But the herbs don't tend themselves.", '我还会梦见那座古墓。可草药不会自己长好。'),
+    line('fact:rescue.lina', 'Someone shut the inner door on us. A grey man. But he left bread by the door with an ash mark on it. I don\'t understand.', '有人从外面把里面那道门关上了。是个灰衣人。可他在门边留了面包，上面有个灰印。我想不明白。'),
   ],
 }

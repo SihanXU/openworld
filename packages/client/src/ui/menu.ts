@@ -1,10 +1,13 @@
-// The game menu (Esc), the journal (J) and the chest panel — design.md §5.3: a menu with two
-// tabs (Inventory, Options); the journal holds the objective and the Threadbook (every thread
-// the world has learned, and whose act taught it); the chest's grid above the bag, a click
-// moving a stack to the other side.
+// The game's panels (each opened by its own button bottom right, or its key: the bag, crafting,
+// options), the codex (J: every item, person and creature, the ones met shown, and the Threadbook —
+// every thread the world has learned, and whose act taught it) and the chest panel: the chest's
+// grid above the bag, a click moving a stack to the other side.
 
-import type { Frame, ItemInfo, Key, Rule } from '@lsw/engine'
-import { FORM_BY_ID, OBJECTIVES, RECIPES } from '@lsw/content'
+import type { CodexEntry, CodexView, Frame, ItemInfo, Key, Rule } from '@lsw/engine'
+import { FORM_BY_ID, RECIPES } from '@lsw/content'
+import { CATALOG } from '../assets/catalog.ts'
+import { personLook } from '../assets/looks.ts'
+import { assetUrl } from '../render/assets.ts'
 import type { LibraryView } from '../protocol.ts'
 import { SkillTree } from './skilltree.ts'
 import { WorldMap } from './worldmap.ts'
@@ -14,9 +17,65 @@ import { QuestLog } from './questlog.ts'
 import { $, SLOT_KEYS, controlsTable, esc, locale, t, tx } from './common.ts'
 
 export type Tab = 'inventory' | 'craft' | 'options'
-const TABS: Tab[] = ['inventory', 'craft', 'options']
 const ICONS: Record<Tab, string> = { inventory: '🎒', craft: '🔨', options: '⚙' }
 const ROW = SLOT_KEYS.length
+
+type CodexTab = 'items' | 'people' | 'creatures' | 'threads'
+const CODEX_TABS: CodexTab[] = ['items', 'people', 'creatures', 'threads']
+const CODEX_LABEL: Record<CodexTab, string> = { items: 'cxItems', people: 'cxPeople', creatures: 'cxCreatures', threads: 'threads' }
+const GROUPS: Record<string, [string, string]> = {
+  weapon: ['Weapons', '武器'], armor: ['Armour', '护甲'], clothing: ['Clothing', '衣物'], tool: ['Tools', '工具'], light: ['Lights', '照明'],
+  vessel: ['Vessels', '容器'], food: ['Food', '食物'], potion: ['Potions', '药水'], material: ['Materials', '材料'], seed: ['Seeds', '种子'],
+  gem: ['Gems', '宝石'], valuable: ['Valuables', '珍宝'], relic: ['Relics', '圣物'], document: ['Documents', '文书'], key: ['Keys', '钥匙'], misc: ['Odds and ends', '杂物'],
+}
+const groupName = (g: string) => (GROUPS[g] ? GROUPS[g][locale.value === 'zh' ? 1 : 0] : g)
+/** A creature's picture: its kind's own art (`creature:slime:fire_slime`), else its family's. */
+const actorKey = (e: CodexEntry) => {
+  const leaf = e.id.split('/').pop()
+  return e.sprite && CATALOG.creatures[`${e.sprite}:${leaf}`] ? `${e.sprite}:${leaf}` : (e.sprite ?? '')
+}
+
+const images = new Map<string, Promise<HTMLImageElement>>()
+const image = (url: string) => {
+  let p = images.get(url)
+  if (!p) {
+    p = new Promise((ok, no) => {
+      const img = new Image()
+      img.onload = () => ok(img)
+      img.onerror = no
+      img.src = url
+    })
+    images.set(url, p)
+  }
+  return p
+}
+/** Draw a cell of a picture into a slot (pixelated, from the image file: no game texture needed). */
+function paintCell(el: HTMLElement, path: string, cell: (img: HTMLImageElement) => [number, number, number, number]): void {
+  image(assetUrl(path)).then((img) => {
+    const [x, y, w, h] = cell(img)
+    const c = document.createElement('canvas')
+    c.width = w
+    c.height = h
+    const g = c.getContext('2d')!
+    g.imageSmoothingEnabled = false
+    g.drawImage(img, x, y, w, h, 0, 0, w, h)
+    el.replaceChildren(c)
+  }, () => {})
+}
+/** The codex's pictures: items from their sprite, people and creatures by their sheet's first frame. */
+function paintCodex(root: HTMLElement): void {
+  root.querySelectorAll<HTMLElement>('[data-cx-item]').forEach((el) => {
+    const d = CATALOG.items[el.dataset.cxItem!]
+    if (d) paintCell(el, d.img, () => [d.x, d.y, d.w, d.h])
+  })
+  const actor = (el: HTMLElement, a: { dir: string; sheet: string; faceset?: string; cols: number; rows: number } | undefined) => {
+    if (!a) return
+    // the sheet's first frame (facing down): a portrait's square background would make a poor shadow
+    paintCell(el, `${a.dir}/${a.sheet}`, (img) => [0, 0, Math.floor(img.width / a.cols), Math.floor(img.height / a.rows)])
+  }
+  root.querySelectorAll<HTMLElement>('[data-cx-look]').forEach((el) => actor(el, CATALOG.characters[el.dataset.cxLook!]))
+  root.querySelectorAll<HTMLElement>('[data-cx-actor]').forEach((el) => actor(el, CATALOG.creatures[el.dataset.cxActor!]))
+}
 
 export interface MenuSend {
   swap(a: number, b: number): void
@@ -56,6 +115,8 @@ export class Menu {
   registerTip?: (key: string, info: ItemInfo) => void
   facesetOf?: (id: string) => HTMLCanvasElement | undefined
   private frame?: Frame
+  private codex?: CodexView
+  private codexTab: CodexTab = 'items'
   private skills: SkillTree
   /** The world map (M), main.ts hands it the atlas. */
   worldmap: WorldMap
@@ -206,13 +267,13 @@ export class Menu {
   render(): void {
     const f = this.frame
     this.liveSig = ''
-    const head = `<div class="tabs-row">${TABS.map((k) => `<button class="tab${k === this.tab ? ' on' : ''}" data-tab="${k}" title="${t(k)}">${ICONS[k]} <span>${t(k)}</span></button>`).join('')}<button class="x" id="menuClose">✕</button></div>`
+    // each panel is its own (its button bottom right, or its key): a title, no tabs to switch between
+    const head = `<div class="tabs-row"><b class="sheet-title">${ICONS[this.tab]} ${t(this.tab)}</b><button class="x" id="menuClose">✕</button></div>`
     let body = ''
     if (this.tab === 'inventory') body = this.inventoryHtml(f)
     if (this.tab === 'craft') body = this.craftHtml(f)
     if (this.tab === 'options') body = this.optionsHtml()
     $('#menuSheet').innerHTML = head + `<div class="tab-body">${body}</div>`
-    $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => (b.onclick = () => this.open(b.dataset.tab as Tab)))
     $('#menuClose').onclick = () => this.close()
     if (this.tab === 'inventory') this.wireInventory(f)
     if (this.tab === 'options') this.wireOptions()
@@ -386,30 +447,41 @@ export class Menu {
   // ---------------------------------------------------------------- the journal: the objective and the Threadbook
 
   private journalLib = -1
+  /** The codex (J, or its book bottom right): every item, person and creature, the met ones shown; and the Threadbook. */
   renderJournal(): void {
-    const f = this.frame
-    const stage = Number(f?.player.props.quest ?? -1)
-    const now = OBJECTIVES[stage]
-    const past = Object.entries(OBJECTIVES)
-      .filter(([k]) => Number(k) > 0 && Number(k) < stage)
-      .map(([, o]) => tx(o.title))
     this.journalLib = this.library?.version ?? -1
+    const v = this.codex
+    const count = (l?: CodexEntry[]) => (l ? `${l.filter((e) => e.known).length}/${l.length}` : '')
+    const tabs = CODEX_TABS.map((k) => `<button class="cx-tab${k === this.codexTab ? ' on' : ''}" data-cx="${k}">${t(CODEX_LABEL[k])}${k === 'threads' ? '' : ` <small>${count(v?.[k])}</small>`}</button>`).join('')
+    const body = this.codexTab === 'threads' ? this.threadsHtml() : v ? this.codexGrid(v[this.codexTab]) : `<div class="muted pad">…</div>`
     $('#journalSheet').innerHTML = `
-      <div class="jhead"><b>${t('journal')}</b><button class="x" id="jClose">✕</button></div>
-      ${now && tx(now.title) ? `<div class="jnow"><div class="small muted">${t('objective')}</div><div class="jtitle">${esc(tx(now.title))}</div><div class="jhint">${esc(tx(now.hint))}</div></div>` : ''}
-      ${this.activeQuestsHtml()}
-      ${past.length ? `<div class="small muted">${t('done')}</div><ul class="jpast">${past.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
-      <div class="small muted">${t('threads')}</div>${this.threadsHtml()}`
+      <div class="jhead"><b>${t('codex')}</b><button class="x" id="jClose">✕</button></div>
+      <div class="cx-tabs">${tabs}</div>
+      <div class="cx-body">${body}</div>`
     $('#jClose').onclick = () => this.close()
+    $('#journalSheet').querySelectorAll<HTMLButtonElement>('[data-cx]').forEach((b) => (b.onclick = () => ((this.codexTab = b.dataset.cx as CodexTab), this.renderJournal())))
+    paintCodex($('#journalSheet'))
   }
 
-  /** The tasks taken on and not yet handed in (the quest log's, L): what to do next, beside the objective. */
-  private activeQuestsHtml(): string {
-    const q = (this.frame?.quests.log ?? []).filter((x) => x.status === 'active' || x.status === 'ready')
-    if (!q.length) return ''
-    return `<div class="small muted">${t('questsActive')}</div>${q
-      .map((x) => `<div class="jnow"><div class="jtitle">${esc(tx(x.title))}</div><div class="jhint">${esc(tx(x.summary))}</div>${x.goals.map((g) => `<div class="jhint">${g.have >= g.need ? '✓' : '·'} ${esc(tx(g.label))}${g.need > 1 ? ` ${Math.min(g.have, g.need)}/${g.need}` : ''}</div>`).join('')}</div>`)
-      .join('')}`
+  /** The worker's codex arrived (on opening, and whenever something new is met while open). */
+  onCodex(view: CodexView): void {
+    this.codex = view
+    if (this.journalOpen) this.renderJournal()
+  }
+
+  /** One kind's entries as cards, items under their kinds; a thing not met yet is a shadow and ???. */
+  private codexGrid(list: CodexEntry[]): string {
+    const card = (e: CodexEntry) => {
+      const person = !e.group && !e.stats && !e.sprite?.startsWith('creature:')
+      const pic = person ? `data-cx-look="${esc(personLook(e.id, e.type ?? '', e.look))}"` : e.group ? `data-cx-item="${esc(e.sprite ?? '')}"` : `data-cx-actor="${esc(actorKey(e))}"`
+      const name = e.known ? esc(tx(e.name)) : '???'
+      const extra = !e.known ? '' : e.stats ? `<div class="cx-sub">❤ ${e.stats.hp} · ⚔ ${e.stats.atk} · 🛡 ${e.stats.def}</div>` : e.where ? `<div class="cx-sub">${esc(tx(e.where))}</div>` : ''
+      return `<div class="cx-card${e.known ? '' : ' unknown'}" title="${name}"><div class="cx-pic" ${pic}></div><div class="cx-name">${name}</div>${extra}</div>`
+    }
+    if (!list.some((e) => e.group)) return `<div class="cx-grid">${list.map(card).join('')}</div>`
+    const groups = new Map<string, CodexEntry[]>()
+    for (const e of list) groups.set(e.group!, [...(groups.get(e.group!) ?? []), e])
+    return [...groups].map(([g, es]) => `<div class="cx-group">${esc(groupName(g))} <small>${es.filter((e) => e.known).length}/${es.length}</small></div><div class="cx-grid">${es.map(card).join('')}</div>`).join('')
   }
 
   /** Every thread the world has learned, newest first, and whose act taught it (design.md §5.11, legibility). */

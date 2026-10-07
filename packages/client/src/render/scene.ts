@@ -5,13 +5,16 @@
 import Phaser from 'phaser'
 import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type MapData, type Ref, type Text } from '@lsw/engine'
 import { CATALOG, LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/catalog.ts'
+import { personLook } from '../assets/looks.ts'
 import { GroundAtlas, T, groundTile, hash2 } from '../assets/ground.ts'
+import { depthOf, footOf } from './depth.ts'
 
 /** How much higher a storey is drawn than the one below it (world-model.md §5.2): one tile, a wall's height. */
 const STOREY_LIFT = T
 import type { SpriteDef } from '../assets/types.ts'
 import { DIR_COL, actorFrames, assetUrl, fxAnim, preloadCatalog, spriteFrames } from './assets.ts'
 import { BossAnimationClock, bossAnimationFrame } from './boss-animation.ts'
+import { previewBoss, type BossPreviewMode } from '../boss-preview.ts'
 
 export interface SceneHooks {
   onFx(fx: FxEvent, frame: Frame): void
@@ -49,6 +52,8 @@ interface EView {
   lip?: Phaser.GameObjects.Image
   /** Part of what hides the player (a wall's front, a floor overhead): see-through. */
   fadeFront?: boolean
+  /** Standing in front of the player and over them (a statue, a dead tree): faded (fadeOver). */
+  over?: boolean
 }
 
 /** Built things drawn as part of the place (structures.ts art): wall blocks, doors, floors, stairs. */
@@ -100,11 +105,15 @@ export class WorldScene extends Phaser.Scene {
   private base?: MapData
   private overrides = new Map<string, string>() // "x,y" -> terrain
   private statics: Phaser.GameObjects.GameObject[] = []
+  /** The cells a building's picture covers ("x,y"), with the depth it is drawn at: what flies over them is drawn over it. */
+  private roofs = new Map<string, number>()
   /** Where the player stands (and on which storey): what is above them near them fades. */
   private playerAt?: { x: number; y: number; z: number }
   /** The durability bars over struck cells. */
   private tileBars?: Phaser.GameObjects.Graphics
   private objects = new Map<string, Phaser.GameObjects.Image>() // terrain objects by "x,y"
+  /** The terrain objects faded because they stand over the player (fadeOver). */
+  private faded = new Set<Phaser.GameObjects.Image>()
   private views = new Map<string, EView>()
   private tileFx = new Map<string, { sprites: Phaser.GameObjects.GameObject[]; sig: string }>()
   private night!: Phaser.GameObjects.Rectangle
@@ -120,6 +129,7 @@ export class WorldScene extends Phaser.Scene {
   private following?: Phaser.GameObjects.Container
   private focus?: Phaser.GameObjects.Graphics
   private bossWarnings?: Phaser.GameObjects.Graphics
+  private bossPreview?: { id: string; mode: Exclude<BossPreviewMode, 'live'>; startedAt?: number }
   private darkness = 0
   private music?: Phaser.Sound.BaseSound
   private musicKey?: string
@@ -212,6 +222,7 @@ export class WorldScene extends Phaser.Scene {
     this.tileFx.clear()
     for (const o of this.statics) o.destroy()
     this.statics = []
+    this.roofs.clear()
     for (const o of this.objects.values()) o.destroy()
     this.objects.clear()
     this.overrides.clear()
@@ -293,8 +304,10 @@ export class WorldScene extends Phaser.Scene {
     if (!tex.has(name)) tex.add(name, 0, p.x, p.y, p.tw * T, p.th * T)
     let lastSolid = 0
     p.grid.forEach((row, j) => /[#D]/.test(row) && (lastSolid = j))
-    const img = this.add.image(x * T, y * T, p.img, name).setOrigin(0, 0).setDepth((y + lastSolid + 1) * T - 2)
+    const depth = (y + lastSolid + 1) * T - 2
+    const img = this.add.image(x * T, y * T, p.img, name).setOrigin(0, 0).setDepth(depth)
     this.statics.push(img)
+    for (let j = 0; j <= lastSolid; j++) for (let i = 0; i < p.tw; i++) this.roofs.set(`${x + i},${y + j}`, depth)
   }
 
   private roomFrame(style: string, x: number, y: number, w: number, h: number): void {
@@ -592,9 +605,7 @@ export class WorldScene extends Phaser.Scene {
 
   private actorDef(e: EntitySnap): { key: string; def: (typeof CATALOG.characters)[string] } | undefined {
     if (e.appearance || e.look) {
-      const role = e.type.split('/').pop()!
-      const look = e.look ?? CATALOG.roles[role]?.[hash2(e.id.length, e.id.charCodeAt(e.id.length - 1)) % (CATALOG.roles[role]?.length || 1)]
-      const key = look && CATALOG.characters[look] ? look : (CATALOG.roles.villager?.[0] ?? Object.keys(CATALOG.characters)[0])
+      const key = personLook(e.id, e.type, e.look)
       return { key: `char:${key}`, def: CATALOG.characters[key] }
     }
     const variant = e.element ?? e.type.split('/').pop()!
@@ -669,6 +680,19 @@ export class WorldScene extends Phaser.Scene {
   /** Laying ceilings: the ceilings over the player's storey are tinted where they are drawn (a storey up), never hiding what is under them. */
   private ceilingTints = false
   private ceilings?: Phaser.GameObjects.Graphics
+
+  /** The lesson's outline on the ground (docs/prologue.md, the drills: where the first wall goes), on the player's storey. */
+  private lessonCells?: Phaser.GameObjects.Graphics
+  setLessonCells(cells?: [number, number][]): void {
+    if (!this.ready) return
+    this.lessonCells ??= this.add.graphics().setDepth(1e5 - 2)
+    this.lessonCells.clear()
+    const lift = (this.playerAt?.z ?? 0) * STOREY_LIFT
+    for (const [x, y] of cells ?? []) {
+      this.lessonCells.fillStyle(0xffe08a, 0.22).fillRect(x * T + 1, y * T + 1 - lift, T - 2, T - 2)
+      this.lessonCells.lineStyle(1, 0xffe08a, 0.95).strokeRect(x * T + 1.5, y * T + 1.5 - lift, T - 3, T - 3)
+    }
+  }
 
   /** The build palette's view (docs/building.md §5): open, one's own storey; laying ceilings, the ceilings where they are drawn. */
   setBuildView(open: boolean, ceilings: boolean): void {
@@ -812,10 +836,20 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  /** The draw order of a thing (depth.ts); `foot` is where it stands now (a walker between two cells). */
+  private depthOf(e: EntitySnap, foot?: number): number {
+    return depthOf(e, { ground: this.fixtureDef(e)?.ground, roof: this.roofs.get(`${e.x},${e.y}`), foot })
+  }
+
+  /** How much higher than its storey a thing is drawn: one standing on stairs, half a storey. */
+  private liftOf(e: EntitySnap): number {
+    return e.tags.includes('agent') && this.stairs.has(`${e.x},${e.y},${e.z ?? 0}`) ? STOREY_LIFT / 2 : 0
+  }
+
   private makeView(e: EntitySnap): EView {
     const t = this.textureFor(e)
     // on its storey: drawn a storey higher for each
-    const root = this.add.container(e.x * T + T / 2, (e.y + 1) * T - (e.z ?? 0) * STOREY_LIFT - (e.tags.includes('agent') && this.stairs.has(`${e.x},${e.y},${e.z ?? 0}`) ? STOREY_LIFT / 2 : 0))
+    const root = this.add.container(e.x * T + T / 2, (e.y + 1) * T - (e.z ?? 0) * STOREY_LIFT - this.liftOf(e))
     let shadow: Phaser.GameObjects.Ellipse | undefined
     if (e.tags.includes('agent')) {
       const [width, depth] = e.boss?.footprint ?? [1, 1]
@@ -879,7 +913,7 @@ export class WorldScene extends Phaser.Scene {
     }
     const px = e.x * T + T / 2
     // a storey above the ground's is drawn raised; one on stairs, half a storey more
-    const py = (e.y + 1) * T - (e.z ?? 0) * STOREY_LIFT - (e.tags.includes('agent') && this.stairs.has(`${e.x},${e.y},${e.z ?? 0}`) ? STOREY_LIFT / 2 : 0)
+    const py = (e.y + 1) * T - (e.z ?? 0) * STOREY_LIFT - this.liftOf(e)
     // a flyer glides toward where it is (update()); only a long way off does it appear there at once
     if (e.tags.includes('companion')) {
       if (first || !v.flyer || Math.max(Math.abs(prev.x - e.x), Math.abs(prev.y - e.y)) > 6) v.root.setPosition(px, py)
@@ -931,10 +965,7 @@ export class WorldScene extends Phaser.Scene {
       v.body.setTexture(t.img, t.frame)
       v.body.setScale(t.actor?.scale ?? 1)
     }
-    // items lie on top of the fixture sharing their tile (a table, a counter), under actors
-    // what lies flat on the ground (moss, leaves, pebbles) is under all that stands
-    // by the row it stands in, then its storey (a building's upper storey is behind what stands south of it)
-    v.root.setDepth((!e.tags.includes('agent') && !e.tags.includes('portable')) && this.fixtureDef(e)?.ground ? -45 : (e.y + 1) * T + (e.z ?? 0) * 3 + (e.tags.includes('agent') ? 2 : (!e.tags.includes('agent') && e.tags.includes('portable') && !e.spaces) ? 1 : 0))
+    v.root.setDepth(this.depthOf(e))
     // what stands on a storey above the player over the room they are in is not drawn (one sees into
     // it); elsewhere, what hides them is see-through (findSeeThrough)
     const me = this.playerAt
@@ -957,7 +988,7 @@ export class WorldScene extends Phaser.Scene {
     else if (v.actor?.tint) v.body.setTint(v.actor.tint).setTintMode(Phaser.TintModes.OVERLAY)
     else v.body.clearTint()
     // a thing an act waits on shimmers; one who is down lies on the ground
-    v.body.setAlpha(e.frozen && !e.tags.includes('agent') ? 0.75 : v.fadeFront ? 0.35 : 1)
+    v.body.setAlpha(this.alphaOf(v))
     v.body.setAngle(!e.boss && (e.statuses.includes('down') || e.statuses.includes('out_cold') || e.statuses.includes('asleep')) ? 90 : 0)
     // held item (small, at the hand)
     if (e.held && e.tags.includes('agent')) {
@@ -984,6 +1015,41 @@ export class WorldScene extends Phaser.Scene {
       // red: would attack you; green: a person or a companion; amber: anything else (a creature at peace, a thing)
       const friend = e.tags.includes('person') || e.tags.includes('companion')
       v.hp.fillStyle(e.hostile ? 0xe04848 : friend ? 0x6ad06a : 0xd8b060, 1).fillRect(-w / 2, top2, Math.max(1, (w * e.hp) / e.maxHp), 2)
+    }
+  }
+
+  /** How opaque a thing's picture is: shimmering while an act waits on it, faded where it hides the player. */
+  private alphaOf(v: EView): number {
+    return v.snap.frozen && !v.snap.tags.includes('agent') ? 0.75 : v.fadeFront ? 0.35 : v.over ? 0.45 : 1
+  }
+
+  /**
+   * What stands in front of the player and over them fades, so they are never lost behind it: a
+   * tree's crown, a tall statue or a dead tree (Stardew's trees; built walls and floors have their
+   * own see-through, findSeeThrough). Checked every frame, as the player's picture moves.
+   */
+  private fadeOver(): void {
+    const me = this.views.get(this.playerId)
+    const faded = new Set<Phaser.GameObjects.Image>()
+    const px = me?.root.x ?? 0
+    const py = (me?.root.y ?? 0) - T / 2
+    const mine = me?.root.depth ?? 0
+    const near = (x: number, y: number) => !!me && Math.abs(x - me.snap.x) <= 2 && y - me.snap.y >= 0 && y - me.snap.y <= 3
+    const hides = (o: Phaser.GameObjects.Image) => o.visible && o.depth > mine && o.getBounds().contains(px, py)
+    if (me?.root.visible) {
+      for (let dy = 0; dy <= 3; dy++)
+        for (let dx = -2; dx <= 2; dx++) {
+          const o = this.objects.get(`${me.snap.x + dx},${me.snap.y + dy}`)
+          if (o && hides(o)) faded.add(o)
+        }
+    }
+    for (const o of this.faded) if (!faded.has(o) && o.active) o.setAlpha(1)
+    for (const o of faded) o.setAlpha(0.45)
+    this.faded = faded
+    for (const v of this.views.values()) {
+      const e = v.snap
+      const over = !!me && v !== me && !e.tags.includes('agent') && !e.type.startsWith('structure/') && near(e.x, e.y) && v.body.displayHeight > T && v.root.depth > mine && v.body.getBounds().contains(px, py)
+      if (over !== !!v.over) (v.over = over), v.body.setAlpha(this.alphaOf(v))
     }
   }
 
@@ -1032,14 +1098,35 @@ export class WorldScene extends Phaser.Scene {
     v.body.y = -4 - Math.sin((time + v.phase) / 210) * 1.5
   }
 
+  /** Studio-only playback uses the render clock, never the combat snapshot extrapolator. */
+  setBossPreview(id: string, mode: BossPreviewMode): void {
+    // Returning to combat starts from its next authoritative snapshot, not a preview sample.
+    const previous = this.bossPreview && this.views.get(this.bossPreview.id)
+    if (previous) previous.bossAnimation = undefined
+    this.bossPreview = mode === 'live' ? undefined : { id, mode }
+  }
+
   update(time: number): void {
     this.drawWeather(time)
+    this.fadeOver()
     for (const v of this.views.values()) {
       const e = v.snap
       if (v.flyer) this.glide(v, time)
       if (v.walker) this.walk(v, time)
+      // a body between two cells is ordered by where it is drawn now (depth.ts footOf)
+      if (e.tags.includes('agent') && !e.boss) v.root.setDepth(this.depthOf(e, footOf(e.y, v.root.y + (e.z ?? 0) * STOREY_LIFT + this.liftOf(e))))
       if (v.actor && e.boss) {
-        const animated = v.bossAnimation ? { ...e.boss, progress: v.bossAnimation.progress(time), animationElapsedMs: v.bossAnimation.elapsed(time) } : e.boss
+        let animated = e.boss
+        const preview = this.bossPreview
+        if (preview?.id === e.id) {
+          // Start on the first rendered pose, even if rebuilding the view delayed the click.
+          preview.startedAt ??= time
+          const entity = { ...e, boss: { ...e.boss } }
+          previewBoss(entity, preview.mode, time - preview.startedAt)
+          animated = entity.boss
+        } else if (v.bossAnimation) {
+          animated = { ...e.boss, progress: v.bossAnimation.progress(time), animationElapsedMs: v.bossAnimation.elapsed(time) }
+        }
         const { col, row } = bossAnimationFrame(animated, time, v.phase, e.facing)
         v.body.setFrame(`${v.actor.key}:${col},${row}`).setFlipX(e.facing === 'left')
       } else if (v.actor && v.actor.rows === 1) {
@@ -1095,10 +1182,12 @@ export class WorldScene extends Phaser.Scene {
   private updateNight(f: Frame): void {
     const light = this.base?.light ?? 'outdoor'
     const h = f.hour
+    // dusk and dawn move as the story's night lengthens (the frame's night)
+    const { dusk, dawn } = f.night ?? { dusk: 21, dawn: 5 }
     let d = 0
-    if (h >= 21 || h < 4.5) d = 0.6
-    else if (h >= 18) d = ((h - 18) / 3) * 0.6
-    else if (h < 7) d = ((7 - h) / 2.5) * 0.6
+    if (h >= dusk || h < dawn - 0.5) d = 0.6
+    else if (h >= dusk - 3) d = ((h - (dusk - 3)) / 3) * 0.6
+    else if (h < dawn + 2) d = ((dawn + 2 - h) / 2.5) * 0.6
     if (light === 'dark') d = 0.55
     if (light === 'indoor') d *= 0.4
     // a grey day is a little darker

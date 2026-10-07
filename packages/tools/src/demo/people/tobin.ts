@@ -35,6 +35,8 @@ export const tobin: PersonDef = {
     line('default', 'That blue wand? Frost from the tip. Freezes a puddle solid. A river, I would not know — never tried.', '那根蓝魔杖？杖尖冒寒气，能把水洼冻得结结实实。河嘛，我不知道——没试过。'),
     line('default', "Hesper says I owe her a fare. I say the river owes us both. She doesn't laugh.", '赫斯珀说我欠她一趟船钱。我说是河欠我们俩的。她不笑。'),
     line('default', 'Oil, a flask of it. Burns hot and slick. Useful, if you are careful. I am not careful.', '灯油，一瓶。烧得又旺又滑。小心点用很有用。我就不小心。'),
+    line('default', 'I sold a frost charm to a man in grey last winter. Paid in old coin — no king on it. Never seen coin like it. Kept one for luck.', '去年冬天我卖了个寒霜护符给一个穿灰衣服的人。他用旧钱币付的——上面没有国王。我从没见过那样的钱。留了一枚图个吉利。'),
+    line('fact:ch1.flame_stolen', 'The man in grey? The frost charm! That is how he crossed — oh, Hesper will never forgive me for that one.', '那个灰衣人？寒霜护符！他就是靠那个过的河——哦，赫斯珀永远不会原谅我这件事了。', { mood: 'surprised' }),
     line('hour:evening', "The village fire is warm. Better than sleeping by the hollow at the Ford, with one eye open.", '村里的火暖和。总比睡在渡口洞边、还得睁一只眼强。'),
     line('hour:night', "Shh. Did you hear that? … Probably nothing. Probably.", '嘘。你听见了吗？……大概没什么。大概。', { mood: 'surprised' }),
     line('weather:storm', "Not under the tree! Never under the tree in a storm. My uncle — well. Never mind my uncle.", '别站树底下！打雷的时候千万别站树底下。我叔叔他——算了，别提我叔叔了。', { mood: 'surprised' }),

@@ -1,6 +1,6 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { Aim, Difficulty, Dir, Frame, Key, LibraryData, MapData, ModSpec, Patch, PixelArt, PlacementPreview, Rule, SaveData, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@lsw/engine'
+import type { Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, MapData, ModSpec, Patch, PixelArt, PlacementPreview, Rule, SaveData, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@lsw/engine'
 
 /** Where the mouse points: its tile, and what is drawn at the point, top first (the keys act there when it is next to the player). */
 export type Tile = Aim
@@ -24,6 +24,10 @@ export type ToWorker =
   | { t: 'choices'; key: Key; tile?: Tile }
   /** Where the mouse points (for the key labels). */
   | { t: 'aim'; tile?: Tile }
+  /** A panel opened (the bag, crafting, the build palette, the map) or a choice made from the chooser: the story notes it, for a lesson that waits on it. */
+  | { t: 'ui'; what: string }
+  /** Esc held: the lesson at hand is skipped. */
+  | { t: 'lessonSkip' }
   | { t: 'buildAim'; id?: string; tile?: Tile; /** in the ceiling over the tile (a floor, R in the palette) */ up?: boolean }
   | { t: 'build'; id: string; tile: Tile; /** the palette's turn (R): stairs go up this way */ facing?: Dir; /** the palette's turn (R) for a floor: laid in the ceiling over the tile */ up?: boolean }
   | { t: 'answer'; yes: boolean }
@@ -47,6 +51,8 @@ export type ToWorker =
   | { t: 'boon'; id: string }
   /** The world map: what has been seen of the world (answered by `atlas`). */
   | { t: 'atlas' }
+  /** The codex: every entry, the met ones marked (answered by `codex`). */
+  | { t: 'codex' }
   /** Travel to an attuned waypoint stone (from the world map). */
   | { t: 'travel'; waypoint: string }
   /** The chest panel. */
@@ -90,7 +96,7 @@ export type FromWorker =
   | { t: 'placement'; preview: PlacementPreview }
   | { t: 'ready'; stats: WorldIndex['stats']; name: WorldIndex['name']; resumed: boolean }
   | { t: 'map'; map: MapData }
-  | { t: 'frame'; frame: Frame; perf: { tickMs: number; entities: number; loaded: number }; /** the world waits for the outcome of the player's act: for how long so far, and at most */ learning?: { seconds: number; limit: number } }
+  | { t: 'frame'; frame: Frame; perf: { tickMs: number; entities: number; loaded: number }; /** the codex's version: something new was met */ codex: number; /** the world waits for the outcome of the player's act: for how long so far, and at most */ learning?: { seconds: number; limit: number } }
   | { t: 'records'; records: RecordView[]; library: LibraryView }
   | { t: 'spec'; spec: ModSpec }
   | { t: 'validation'; id?: string; result: ValidationResult }
@@ -108,6 +114,7 @@ export type FromWorker =
   | { t: 'error'; message: string }
   /** The world map's data: the visited maps where they lie, their terrain, the waypoint stones. */
   | { t: 'atlas'; atlas: Atlas }
+  | { t: 'codex'; codex: CodexView }
 
 export interface AtlasMap {
   id: string

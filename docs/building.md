@@ -253,6 +253,15 @@ Taking it down is the reverse, step by step. Every step is reachable, and nothin
   - what is above one's storey hidden under cover (`WorldScene.coveredRound`) and while the palette is open;
   - the palette's ceiling toggle and its line in the details;
   - `WorldScene.setBuildView` while the palette is open (one's own storey; the ceilings tinted where they are drawn while one lays them);
-  - the prologue's house hint tells how to lay the ceiling.
+  - the prologue's house hint tells how to lay the ceiling;
+  - **the draw order** (`render/depth.ts`, tested in `packages/client/test/depth.test.ts`):
+    - by the row a thing stands in, then its storey, then what it is in its cell: the slab, a built block
+      or a fixture, what lies loose on it, a body;
+    - a floor laid on the ground is part of the ground, under all that stands whatever was made first
+      (a floor and what stood on it used to tie, and the order of making decided);
+    - a body on the move is ordered by where it is drawn, within a row of its cell;
+    - one flying over a building is over its roof;
+    - what stands in front of the player and over them (a tree's crown, a lamppost) fades (`WorldScene.fadeOver`),
+      as built walls and floors do (`findSeeThrough`).
 - **Tests:** `packages/content/test/building.test.ts` ("storeys: what one reaches…"), one test per table
   of §6, and W10, W12 and the tutorial walkthrough laying the ceiling by choice.

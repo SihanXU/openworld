@@ -409,9 +409,18 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/sacred/altar', 'altar', '祭坛', ['holy', 'surface']),
   F('fixture/sacred/statue', 'statue', '雕像', []),
   F('fixture/sacred/gravestone', 'gravestone', '墓碑', ['readable']),
-  F('fixture/sacred/seal_stone', 'seal stone', '封印石', ['ancient', 'runic']),
+  // a wayside shrine of the Five Sufferings: five carved wounds, the first cracked and weeping black (docs/chapter-1.md)
+  F('fixture/sacred/seal_stone', 'five-wound shrine stone', '五伤路碑', ['ancient', 'runic', 'holy']),
   F('fixture/sacred/waypoint', 'waypoint statue', '传送雕像', ['ancient', 'runic', 'waypoint']),
+  // Pell's chalk drawings (docs/chapter-1.md §7): flat on the ground, read with a hand; each where the grey man was
+  F('fixture/chalk', 'chalk drawing', '粉笔画', ['readable', 'chalk'], { solid: false, props: { handsRange: 1 } }),
+  F('fixture/chalk/stone', 'chalk drawing of a stone', '画着石碑的粉笔画', [], { sprite: 'fixture:chalk_stone' }),
+  F('fixture/chalk/door', 'chalk drawing of a door', '画着门的粉笔画', [], { sprite: 'fixture:chalk_door' }),
+  F('fixture/chalk/bridge', 'chalk drawing of a bridge', '画着桥的粉笔画', [], { sprite: 'fixture:chalk_bridge' }),
+  F('fixture/chalk/man', 'chalk drawing of a grey man', '画着灰衣人的粉笔画', [], { sprite: 'fixture:chalk_man' }),
   F('fixture/nature', 'natural feature', '自然物', [], { solid: true }),
+  // briars: the White Knight's thorns, a hedge that stands where he set it (docs/chapter-1.md §4)
+  F('fixture/nature/briar', 'briar', '荆棘丛', ['plant', 'sharp', 'thorny', 'flammable'], { props: { material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/stick', count: 1 }] }),
   F('fixture/nature/boulder', 'boulder', '巨石', ['stone', 'rock', 'mineable'], { props: { material: 'stone', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/stone', count: 8 }] }),
   // the old mine's veins: a pickaxe breaks them like a boulder, into the ore they hold
   F('fixture/nature/vein', 'ore vein', '矿脉', ['stone', 'rock', 'mineable', 'vein'], { props: { material: 'ore', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/stone', count: 2 }] }),
@@ -451,7 +460,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/build/stakes', 'stakes', '木桩', ['wooden', 'flammable']),
   F('fixture/build/post', 'sign post', '牌子立柱', ['wooden', 'flammable']),
   F('fixture/build/ring', 'stone ring', '石圈', ['stone']),
-  F('fixture/dummy', 'training dummy', '训练假人', ['wooden', 'flammable', 'straw'], { solid: true }),
+  // a training dummy: knocked down it stands up again (train/dummy), for practising blows (the tutorial's)
+  F('fixture/dummy', 'training dummy', '训练假人', ['wooden', 'flammable', 'straw'], { solid: true, props: { material: 'wood', maxHp: 12, hp: 12 } }),
   F('fixture/scarecrow', 'scarecrow', '稻草人', ['straw', 'cloth', 'wooden', 'flammable'], { solid: true }),
 ]
 
@@ -506,7 +516,7 @@ export function buildOntology(): Ontology {
       {
         types: { 'actor/creature/undead/zombie': 0.6, 'actor/creature/beast/bat': 0.4 },
         where: { zone: 'combat', light: 'outdoor' },
-        hours: [21, 5],
+        night: true,
         ring: [6, 10],
         max: NIGHT_CAP,
         every: NIGHT_EVERY,

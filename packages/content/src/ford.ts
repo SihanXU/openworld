@@ -7,9 +7,10 @@
 // `quest` prop: the story's rules keep the facts (others notify it), and the world's own patches
 // may not touch them (design.md §5.11).
 
-import type { Cond, Effect, Invariant, RoleName, Rule, Selector, Text } from '@lsw/engine'
+import type { Cond, Effect, Invariant, Lesson, RoleName, Rule, Selector, Text } from '@lsw/engine'
 import { QUEST_OBJECTIVES, QUEST_RULES } from './quest.ts'
 import { BOSS_RULES } from './bosses.ts'
+import { CH1_OBJECTIVES, CH1_RULES } from './chapter1.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 
@@ -19,6 +20,8 @@ export interface Objective {
   title: Text
   hint: Text
   progress?: { fact: string; need: number; label: Text }[]
+  /** The stage's lessons, in order (docs/prologue.md, the drills). */
+  lessons?: Lesson[]
 }
 
 export const OBJECTIVES: Record<number, Objective> = {
@@ -29,8 +32,8 @@ export const OBJECTIVES: Record<number, Objective> = {
   1: {
     title: L('Mend the bridge', '修好断桥'),
     hint: L(
-      'The storm tore three planks out of the footbridge by the marsh. An axe fells a tree (two swings) and splits a log into planks; G lays a plank on the water. Any other way across counts too: E handles things, F takes, G puts or hands over, left click uses what you hold, right click uses it on yourself.',
-      '风暴冲走了沼泽边小桥上的三块木板。斧头能砍倒树（砍两下），也能把木头劈成木板；G 把木板铺到水上。别的过河办法也算：E 空手摆弄，F 拿取，G 放下或交出，左键用手里的东西，右键对自己用。',
+      'The White Knight tore three planks out of the footbridge by the marsh. An axe fells a tree (two swings) and splits a log into planks; G lays a plank on the water. Any other way across counts too: E handles things, F takes, G puts or hands over, left click uses what you hold, right click uses it on yourself.',
+      '白骑士拆走了沼泽边小桥上的三块木板。斧头能砍倒树（砍两下），也能把木头劈成木板；G 把木板铺到水上。别的过河办法也算：E 空手摆弄，F 拿取，G 放下或交出，左键用手里的东西，右键对自己用。',
     ),
   },
   2: {
@@ -38,10 +41,12 @@ export const OBJECTIVES: Record<number, Objective> = {
     hint: L('Follow the road east to Emberfall. Smoke hangs over the hills beyond it.', '沿着大路往东走到余烬镇。镇子那边的山上冒着烟。'),
   },
   ...QUEST_OBJECTIVES,
+  // Chapter 1's stages between and after these (docs/chapter-1.md), its road east the White Knight's
+  ...CH1_OBJECTIVES,
 }
 
 /** Fact prefixes only the story's rules and scenes may change. */
-export const PROTECTED_FACTS = ['ford.', 'mq.', 'seen.', 'sins.', 'game.']
+export const PROTECTED_FACTS = ['ford.', 'mq.', 'seen.', 'sins.', 'game.', 'ch1.', 'night.', 'legend.']
 
 const story = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base', note: 'story' } })
 const log = (en: string, zh: string): Effect => ({ op: 'log', text: { en, zh } })
@@ -171,7 +176,7 @@ const FORD_RULES: Rule[] = [
 ]
 
 /** The story's rules: the Ford's, then the main quest's (quest.ts). */
-export const STORY_RULES: Rule[] = [...FORD_RULES, ...QUEST_RULES, ...BOSS_RULES]
+export const STORY_RULES: Rule[] = [...FORD_RULES, ...QUEST_RULES, ...BOSS_RULES, ...CH1_RULES]
 
 const RIVER_CROSSED: Effect = { op: 'scene', id: 'ferry' }
 /** The story speaks through the person the content belongs to. */

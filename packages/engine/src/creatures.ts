@@ -7,7 +7,6 @@
 // burning thing, nor chases anyone who stands by one. Attacks are ordinary acts, so every
 // elemental reaction is a rule.
 
-import { isNight } from './calendar.ts'
 import type { Engine } from './engine.ts'
 import { combatDelay } from './combat.ts'
 import { astar } from './path.ts'
@@ -30,7 +29,7 @@ export interface Scene {
 
 export function sceneOf(eng: Engine, active: string): Scene {
   const w = eng.world
-  return { active, actors: w.entitiesOnMap(active).filter((e) => e.place.on === 'tile' && w.isAgent(e)), night: isNight(w.hour()) }
+  return { active, actors: w.entitiesOnMap(active).filter((e) => e.place.on === 'tile' && w.isAgent(e)), night: w.isNight() }
 }
 
 /** Where a thing that fears fire may not go (a fire's reach). */

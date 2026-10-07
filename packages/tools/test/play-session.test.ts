@@ -80,7 +80,9 @@ describe('the people', () => {
       const w = eng.world
       eng.author(() => eng.travel(w.player, { map: 'meadow', x: 2, y: 2 }))
       w.state.tick = tickAt(1, 15)
-      for (let i = 0; i < 5; i++) eng.tick()
+      // a scene the story plays (an arrival) holds the world until it is read on
+      const tick = () => (w.scene?.waiting === 'advance' && eng.story.advance(), eng.tick())
+      for (let i = 0; i < 5; i++) tick()
       // someone on the move about the village
       const tobin = w.get('npc.tobin')!
       const p0 = w.posOf(tobin)!
@@ -93,7 +95,7 @@ describe('the people', () => {
         })
       }
       const trail: string[] = []
-      for (let i = 0; i < 600; i++) (eng.tick(), trail.push(`${w.posOf(tobin)!.x},${w.posOf(tobin)!.y}`))
+      for (let i = 0; i < 600; i++) (tick(), trail.push(`${w.posOf(tobin)!.x},${w.posOf(tobin)!.y}`))
       return { p0: `${p0.x},${p0.y}`, trail }
     }
     const alone = at(false)

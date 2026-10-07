@@ -46,7 +46,7 @@ function pines(): string {
   return out
 }
 
-/** How a new game begins: its difficulty, and where (a start of the world's other than its first: the tutorial skipped). */
+/** How a new game begins: its difficulty, and where (a start of the world's other than its own: the tutorial, played on its own from the title). */
 export interface NewGame {
   difficulty: Difficulty
   start?: string
@@ -55,6 +55,8 @@ export interface NewGame {
 export interface CoverHandlers {
   /** Start a slot: from its save, or a new game in it (any save there is overwritten). */
   start(slot: Slot, data: SlotData | undefined, game?: NewGame): void
+  /** The tutorial, on its own: no slot is written, and walking out of it ends it (back to the title). */
+  tutorial(): void
   toggleLocale(): void
 }
 
@@ -63,8 +65,6 @@ export class Cover {
   private panel: 'new' | 'load' | 'help' | undefined
   /** The difficulty a new game starts at (Minecraft's choice): normal unless chosen. */
   private difficulty: Difficulty = 'normal'
-  /** Whether a new game begins with the tutorial (the world's start `tutorial`; else at its own start, the foot of the mountain). */
-  private tutorial = true
 
   constructor(
     private world: string,
@@ -125,6 +125,7 @@ export class Cover {
             ${latest ? `<button class="cv-btn primary" id="cvContinue">${t('cvContinue')}<small>${esc(this.line(this.slots[latest - 1]!.summary))}</small></button>` : ''}
             <button class="cv-btn${latest ? '' : ' primary'}" id="cvNew">${t('newGame')}</button>
             <button class="cv-btn" id="cvLoad" ${this.slots.some(Boolean) ? '' : 'disabled'}>${t('cvLoad')}</button>
+            <button class="cv-btn" id="cvTutorial">${zh ? '新手教程' : 'Tutorial'}<small>${zh ? '从零学起 · 独立于主线和存档' : 'Learn the ropes · Separate from the story and saves'}</small></button>
             <button class="cv-btn cv-challenge" id="cvChallenge">${zh ? '首领挑战' : 'Boss Challenge'}<small>${zh ? '选择职业 · 挑战首领 · 独立于存档' : 'Choose a profession · The bosses · Separate from saves'}</small></button>
             <button class="cv-btn" id="cvHelp">${t('controls')}</button>
             <button class="cv-btn small" id="cvLang">${zh ? 'English' : '中文'}</button>
@@ -139,6 +140,7 @@ export class Cover {
     $('#cvNew').onclick = () => ((this.panel = 'new'), this.render())
     $('#cvLoad').onclick = () => ((this.panel = 'load'), this.render())
     $('#cvHelp').onclick = () => ((this.panel = 'help'), this.render())
+    $('#cvTutorial').onclick = () => (this.busy(), this.on.tutorial())
     $('#cvChallenge').onclick = () => location.assign(`${import.meta.env.BASE_URL}boss-gallery.html?challenge=1`)
     $('#cvLang').onclick = () => (this.on.toggleLocale(), this.render())
     if (this.panel) this.wirePanel()
@@ -178,19 +180,13 @@ export class Cover {
       ['hardcore', zh ? '极限' : 'Hardcore', zh ? '只有一条命' : 'one life'],
     ]
     const pick = this.panel === 'new' ? `<div class="cv-diff">${levels.map(([id, name, note]) => `<button class="cv-btn small${this.difficulty === id ? ' primary' : ''}" data-diff="${id}">${name}<small>${note}</small></button>`).join('')}</div>` : ''
-    // the tutorial, or not: then the game begins at the foot of the mountain
-    const ways: [boolean, string, string][] = [
-      [true, zh ? '新手教程' : 'Tutorial', zh ? '从头学起' : 'learn the ropes first'],
-      [false, zh ? '跳过教程' : 'Skip the tutorial', zh ? '直接从山脚开始' : 'begin at the foot of the mountain'],
-    ]
-    const way = this.panel === 'new' ? `<div class="cv-diff">${ways.map(([on, name, note]) => `<button class="cv-btn small${this.tutorial === on ? ' primary' : ''}" data-tutorial="${on}">${name}<small>${note}</small></button>`).join('')}</div>` : ''
-    return head + pick + way + `<div class="cv-slots">${cards}</div><div class="cv-note muted">${t('cvNote')}</div>`
+    // a new game begins on the plateau, at the foot of the mountain: the tutorial is its own, from the title
+    return head + pick + `<div class="cv-slots">${cards}</div><div class="cv-note muted">${t('cvNote')}</div>`
   }
 
   private wirePanel(): void {
     $('#cvClose').onclick = () => ((this.panel = undefined), this.render())
     document.querySelectorAll<HTMLButtonElement>('#intro [data-diff]').forEach((b) => (b.onclick = () => ((this.difficulty = b.dataset.diff as Difficulty), this.render())))
-    document.querySelectorAll<HTMLButtonElement>('#intro [data-tutorial]').forEach((b) => (b.onclick = () => ((this.tutorial = b.dataset.tutorial === 'true'), this.render())))
     document.querySelectorAll<HTMLButtonElement>('#intro [data-act]').forEach((b) => {
       const slot = Number(b.dataset.slot) as Slot
       const d = this.slots[slot - 1]
@@ -202,7 +198,7 @@ export class Cover {
           case 'new':
             if (d && !confirm(t('cvConfirmOverwrite').replace('{n}', String(slot)))) return
             this.busy()
-            return this.on.start(slot, undefined, { difficulty: this.difficulty, ...(this.tutorial && { start: 'tutorial' }) })
+            return this.on.start(slot, undefined, { difficulty: this.difficulty })
           case 'export':
             if (d) exportSlot(this.world, slot, d)
             return

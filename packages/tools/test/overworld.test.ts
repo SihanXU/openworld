@@ -57,7 +57,7 @@ describe('the overworld (world-model.md §5.1, §10.2)', () => {
 
   it('every map but the overworld (and the tutorial, which lies nowhere) lies on a cell of land, and that cell holds the site that leads into it', () => {
     const w = world()
-    for (const id of w.state.loadedMaps.filter((m) => m !== OVERWORLD && m !== 'tutorial')) {
+    for (const id of w.state.loadedMaps.filter((m) => m !== OVERWORLD && m !== 'tutorial' && m !== 'offstage')) {
       const s = w.map(id)!.site!
       const site = w.entitiesAt(OVERWORLD, s.x + 1, s.y + BLOCK - 1).find((e) => e.props?.map === id)
       expect([id, !!site]).toEqual([id, true])

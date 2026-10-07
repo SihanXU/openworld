@@ -17,12 +17,14 @@ import { DIRS } from './types.ts'
 import { cmp } from './rules.ts'
 import { regionId } from './world.ts'
 import { calendarAt, isNight, tickAt } from './calendar.ts'
-import type { Dir, Effect, Entity, Id, Pos, Ref, SceneCmd, StepCond, StepDef, Text } from './types.ts'
+import type { Dir, Effect, Entity, Id, Lesson, Pos, Ref, SceneCmd, StepCond, StepDef, Text } from './types.ts'
 
 const MOVE_STEP_TICKS = 4
 const MOVE_TIMEOUT = 900
 /** How often (ticks) the steps without a region are looked at. */
 const CHECK_EVERY = 3
+/** A lesson's line waits this long (ticks) after the companion last spoke, so a beat's line is read first. */
+const LESSON_AFTER_SAY = 30
 
 /**
  * What the story asks for now, for a companion to tell (E on it): the first guide whose stage
@@ -36,7 +38,7 @@ export interface Guide {
   until?: number
   /** The prop's value when the leader has none yet. */
   start?: number
-  stages: Record<number, { title: Text; hint: Text; progress?: { fact: string; need: number; label: Text }[] }>
+  stages: Record<number, { title: Text; hint: Text; progress?: { fact: string; need: number; label: Text }[]; lessons?: Lesson[] }>
 }
 
 export class Story {
@@ -44,6 +46,8 @@ export class Story {
   guides: Guide[] = []
   /** The player entered a region, or a step played: the steps with a region are looked at on the next tick (an event, not a poll). */
   private arrived = false
+  /** When the companion last spoke for the story (a beat's line): a lesson's line waits for it to be read. */
+  private said = -Infinity
 
   constructor(private eng: Engine) {}
 
@@ -85,7 +89,7 @@ export class Story {
     ]
     this.eng.script(effects, { target: { e: lead.id } }, `step/${d.id}`)
     const bird = this.eng.companions.of(lead.id)[0]
-    if (d.say && bird) w.fx.push({ t: 'say', who: bird.id, text: d.say })
+    if (d.say && bird) (w.fx.push({ t: 'say', who: bird.id, text: d.say }), (this.said = w.state.tick))
     if (d.script) w.scene = { id: d.id, step: 0 }
     // what has a region may begin now that the story moved
     this.arrived = true
@@ -123,14 +127,22 @@ export class Story {
       for (const type of typeof c.carrying === 'string' ? [c.carrying] : c.carrying) if (!carried.some((x) => x.type.startsWith(type))) return false
     }
     for (const [s, want] of Object.entries(c.statuses ?? {})) if (w.hasStatus({ e: lead.id }, s) !== want) return false
+    if (c.holding && !w.get(lead.held)?.type.startsWith(c.holding)) return false
+    if (c.spot && Math.max(Math.abs(pos.x - c.spot.x), Math.abs(pos.y - c.spot.y)) > (c.spot.r ?? 1)) return false
+    if (c.on) {
+      const { type, cells, count = 1 } = c.on
+      let n = 0
+      for (const [x, y] of cells) n += w.placedAt(pos.map, x, y).filter((e) => e.type.startsWith(type)).length
+      if (n < count) return false
+    }
     if (c.skill) {
       const skills = (lead.tags ?? []).filter((t) => t.startsWith('skill:'))
       if (c.skill === true ? !skills.length : !skills.includes(`skill:${c.skill}`)) return false
     }
     if (c.after && !w.fact(`seen.${c.after}`)) return false
     if (c.near) {
-      const { type, r, status } = c.near
-      const seen = w.entitiesOnMap(pos.map).some((e) => e.place.on === 'tile' && e.type.startsWith(type) && Math.max(Math.abs(e.place.x - pos.x), Math.abs(e.place.y - pos.y)) <= r && (!status || w.hasStatus({ e: e.id }, status)))
+      const { type, r, status, exact } = c.near
+      const seen = w.entitiesOnMap(pos.map).some((e) => e.place.on === 'tile' && (exact ? e.type === type : e.type.startsWith(type)) && Math.max(Math.abs(e.place.x - pos.x), Math.abs(e.place.y - pos.y)) <= r && (!status || w.hasStatus({ e: e.id }, status)))
       if (!seen) return false
     }
     if (c.room && !w.roomsOf(pos.map).some((r) => w.hasTag(r, `role:${c.room}`))) return false
@@ -179,6 +191,7 @@ export class Story {
             this.play(d)
             break
           }
+      if (now) this.lessonTick()
       return
     }
     for (let guard = 0; guard < 50; guard++) {
@@ -208,6 +221,55 @@ export class Story {
       this.run(cmd)
       if (!w.scene?.waiting && w.scene?.until === undefined && w.scene) w.scene.step++
     }
+  }
+
+  // ---------------------------------------------------------------- lessons (docs/prologue.md, the drills)
+
+  /** The lesson at hand: the first of the leader's stage's lessons the story has not marked done (`lesson.<id>`); none while a scene plays. */
+  lesson(): { def: Lesson; index: number; total: number } | undefined {
+    const w = this.eng.world
+    if (w.scene) return undefined
+    const lead = this.leader()
+    for (const g of this.guides) {
+      const v = Number(lead.props?.[g.prop] ?? g.start ?? 0)
+      if (g.until !== undefined && v >= g.until) continue
+      const list = g.stages[v]?.lessons ?? []
+      const i = list.findIndex((l) => !w.fact(`lesson.${l.id}`))
+      return i < 0 ? undefined : { def: list[i], index: i, total: list.length }
+    }
+    return undefined
+  }
+
+  /** The lesson at hand begins (its line, once the companion's last is read) and ends when its state holds. */
+  private lessonTick(): void {
+    const at = this.lesson()
+    if (!at) return
+    const w = this.eng.world
+    const { def } = at
+    if (!w.fact(`lesson.${def.id}.begun`)) {
+      if (w.state.tick - this.said < LESSON_AFTER_SAY) return
+      this.story([{ op: 'setProp', key: `lesson.${def.id}.begun`, value: w.state.tick }])
+      const bird = this.eng.companions.of(this.leader().id)[0]
+      if (def.say && bird) (w.fx.push({ t: 'say', who: bird.id, text: def.say }), (this.said = w.state.tick))
+    }
+    if (this.met(def.done)) this.finish(def.id)
+  }
+
+  /** A lesson is done: the story keeps it, and the view shows it (a tick). */
+  private finish(id: string): void {
+    this.story([{ op: 'setProp', key: `lesson.${id}`, value: this.eng.world.state.tick }])
+    this.eng.world.fx.push({ t: 'lesson', done: id })
+  }
+
+  /** The player skips the lesson at hand (Esc held): it is done, and what it locked works again. */
+  skipLesson(): void {
+    const at = this.lesson()
+    if (at) this.finish(at.def.id)
+  }
+
+  /** The player opened a panel (the bag, the map, the build palette) or chose from the chooser: the story notes it (`ui.<what>`), for a lesson that waits on it. */
+  ui(what: string): void {
+    this.story([{ op: 'setProp', key: `ui.${what}`, value: this.eng.world.state.tick }])
   }
 
   // ---------------------------------------------------------------- objectives
@@ -294,6 +356,8 @@ export class Story {
     } else if ('prop' in c) {
       // the story tells the player where the story stands; the player's own rule keeps it
       this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: c.prop, value: c.value } }], { e: w.state.player })
+    } else if ('tell' in c) {
+      this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: c.params }], { e: c.tell })
     } else if ('status' in c) {
       if (c.add) this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'status', add: c.add } }], { e: c.status })
       if (c.remove) this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'status', remove: c.remove } }], { e: c.status })

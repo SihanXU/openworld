@@ -25,11 +25,14 @@ import {
   xpToNext,
   astar,
   performPlacement,
+  snapshot,
   regionId,
   madeOf,
   travelToWaypoint,
   PROFESSION_LEVEL,
   CEILING,
+  activeBoon,
+  boonsOf,
   type Engine,
   type Entity,
   type GameEvent,
@@ -39,7 +42,7 @@ import {
   type Ref,
   type World,
 } from '@lsw/engine'
-import { BASE_RULES, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, PROLOGUE_AT_FOOT, PROLOGUE_DONE, TUTORIAL_DONE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILLS, STORY_RULES, VEGETABLE_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@lsw/content'
+import { ALBERIC_ID, BOSS_BY_ID, DRAWINGS, OBJECTIVES, BASE_RULES, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, PROLOGUE_AT_FOOT, PROLOGUE_DONE, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILLS, STORY_RULES, VEGETABLE_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@lsw/content'
 import { BLOCK, OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
 import { DRAGON_AT, EAST_ROAD, EMBERFALL, PASS } from '../src/demo/quest/maps.ts'
@@ -80,6 +83,8 @@ function fresh(opts: { arrival?: boolean; ai?: boolean } = {}): Ford {
   if (!opts.arrival)
     author(f, () => {
       eng.world.author(() => eng.world.setFact('seen.arrival', true))
+      // and the village's welcome (docs/chapter-1.md §6): the chapter's own requirement plays it
+      eng.world.author(() => eng.world.setFact('seen.village_arrival', true))
       ;(eng.world.player.props ??= {}).quest = 1
       eng.world.author(() => eng.world.create('item/food/bread', { on: 'inside', holder: 'player' }))
       eng.controls.sync()
@@ -474,7 +479,7 @@ req('D2', 'every layer a target can be: a person, a creature, a fixture, a loose
 
 // ------------------------------------------------------------------ F. what a game needs at the least
 
-req('F1', 'the goal is a state: the far bank ends the story, however the player got there', ['region:far_bank'], () => {
+req('F1', 'the goal is a state: the far bank ends the bridge stage, however the player got there', ['region:far_bank'], () => {
   const f = fresh()
   // set down on the landing, then a step on it: arriving is an outcome (the author's hand makes no contact)
   stand(f, ...AT.farLanding, 'right')
@@ -489,7 +494,8 @@ req('F1', 'the goal is a state: the far bank ends the story, however the player 
     }),
   ).toBe(true)
   expect(far(f)).toBe(true)
-  expect(cards.length).toBe(1)
+  // the chapter goes on past the bridge (docs/chapter-1.md): no card here
+  expect(cards.length).toBe(0)
 })
 
 req('F1b', 'a story step begins on entering an authored region: the far bank is a thing, entering it is contact (in-region), and its scene starts on the next tick, not at a poll', ['region:far_bank'], () => {
@@ -1064,7 +1070,7 @@ function reach(f: Ford, x: number, y: number): Set<string> {
 
 req('W4', 'every map but the tutorial lies on the overworld, and its edges are open: mined through the rock at the pass\'s north edge, one walks out onto its cell there', ['site/place'], () => {
   const f = fresh()
-  for (const m of W(f).state.loadedMaps.filter((id) => id !== OVERWORLD && id !== 'tutorial')) {
+  for (const m of W(f).state.loadedMaps.filter((id) => id !== OVERWORLD && id !== 'tutorial' && id !== 'offstage')) {
     const site = W(f).map(m)!.site!
     expect([m, site.map]).toEqual([m, OVERWORLD])
     expect([m, W(f).entitiesAt(OVERWORLD, site.x + 1, site.y + BLOCK - 1).some((e) => e.type === 'site/place' && e.props?.map === m)]).toEqual([m, true])
@@ -1620,7 +1626,7 @@ const give = (f: Ford, type: string, n: number) => {
   f.eng.controls.sync()
 }
 
-req('Q2', 'chapter 2, the road east: past the far bank the road leads on; the burned farm shows the dragon\'s mark; wolves and a boar on the road; it ends at Emberfall', ['actor/creature/beast/wolf', 'actor/creature/beast/boar'], () => {
+req('Q2', 'the road east: past the far bank the road leads on; the burned farm shows the dragon\'s mark; wolves and a boar on the road; it ends at Emberfall, once the White Knight has fallen', ['actor/creature/beast/wolf', 'actor/creature/beast/boar'], () => {
   const f = fresh()
   expect(cross(f, 'ford', W(f).map('ford')!.width - 2, EAST_ROAD.fordEast[1], 'right')).toBe('eastroad')
   // the road's dangers
@@ -1630,7 +1636,9 @@ req('Q2', 'chapter 2, the road east: past the far bank the road leads on; the bu
   stand(f, 24, 10, 'up', 'eastroad')
   expect(ticks(f, 40, () => (f.eng.movePlayer('up'), W(f).posOf(W(f).player)!.y <= 9))).toBe(true)
   expect(ticks(f, 200, () => fact(f, 'mq.farm') === 1 && !W(f).scene)).toBe(true)
-  // the road ends at Emberfall: chapter 3 begins
+  // the road ends at Emberfall — once the White Knight has fallen (docs/chapter-1.md): until then the way is shut
+  expect(cross(f, 'eastroad', EAST_ROAD.w - 2, EAST_ROAD.east[1], 'right')).toBe('eastroad')
+  author(f, () => (W(f).setFact('sins.defeated.alberic', 1), W(f).setFact('seen.crown', 1)))
   expect(cross(f, 'eastroad', EAST_ROAD.w - 2, EAST_ROAD.east[1], 'right')).toBe('emberfall')
   expect(ticks(f, 200, () => quest(f) === 3 && !W(f).scene)).toBe(true)
 })
@@ -1790,8 +1798,8 @@ req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem
   expect(W(f).num(p, 'level')).toBeGreaterThan(1)
 })
 
-req('T1', 'the tutorial, offline and through the player\'s own inputs: one comes round in a clearing, eats, gathers, makes an axe, fells a tree and splits planks, lights a fire, builds a house with a bed and gets through a night while the dead walk; the way out opens only on the first morning after the house, and nothing leads back', [
-  'item/food/berries', 'item/material/stick', 'item/material/stone', 'item/material/grass',
+req('T1', 'the tutorial, offline and through the player\'s own inputs, lesson by lesson (each one thing, the keys it does not teach locked in the first ones): one comes round in a clearing, walks, eats, opens the bag, gathers, makes an axe, fells a tree and splits planks, lights a fire, builds a house on the outline with a door, a bed and a ceiling, knocks the training dummy down and gets through a night while the dead walk; the way out opens only on the first morning after the house, and nothing leads back', [
+  'item/food/berries', 'item/material/stick', 'item/material/stone', 'item/material/grass', 'fixture/dummy',
 ], () => {
   const { index, chunks } = buildFord()
   const game = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]), 'tutorial')
@@ -1800,11 +1808,23 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs: one comes
   const w = W(f)
   const p = w.player
   const c = f.eng.controls
+  const story = f.eng.story
   const T = 'tutorial'
   const stage = () => w.num(p, 'prologue')
   const until = (n: number, limit = 60) => expect(ticks(f, limit, () => stage() >= n), `stage ${n} (at ${stage()})`).toBe(true)
+  const lesson = () => story.lesson()?.def.id
+  /** The lesson at hand comes to be this one (the one before it done). */
+  const now = (id: string, limit = 60) => expect(ticks(f, limit, () => lesson() === id), `lesson ${id} (at ${lesson()})`).toBe(true)
+  /** A lesson is done when its state holds (looked at every few ticks). */
+  const done = (id: string, limit = 30) => expect(ticks(f, limit, () => !!w.fact(`lesson.${id}`)), `lesson ${id} done (at ${lesson()})`).toBe(true)
   const carried = (type: string) => [p.held, ...(p.contents ?? [])].map((id) => w.get(id)).find((e) => e?.type === type)
   const count = (type: string) => c.count(type)
+  /** An input the lesson does not teach: nothing happens, and the key shakes. */
+  const refused = (act: () => unknown) => {
+    w.fx.length = 0
+    act()
+    expect(w.fx.some((x) => x.t === 'lesson' && !!x.blocked), 'the lesson refuses it').toBe(true)
+  }
   /** F on whatever lies at a spot, from beside it, until nothing more is taken there. */
   const takeAll = (x: number, y: number) => {
     stand(f, x, y + 1, 'up', T)
@@ -1815,19 +1835,30 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs: one comes
       f.eng.tick()
     }
   }
-  /** The toolbar holds a stack: one of its kind comes to hand. */
+  /** The toolbar holds a stack: one of its kind comes to hand (the lesson's key: its number). */
   const grab = (type: string) => {
     c.select(p.slots!.indexOf(c.key(carried(type)!)))
     expect(w.get(p.held)?.type).toBe(type)
   }
   const craft = (type: string, n = 1) => { for (let i = 0; i < n; i++) expect(c.craft(RECIPE_BY_ID[type]), `craft ${type}`).toBe(true) }
-  // the morning of day 1: one lies out cold, then comes round, and Pip speaks
+  const eat = () => {
+    c.run(c.plan('self')!, true)
+    if (w.state.question) c.answer(true)
+    f.eng.tick()
+  }
+
+  // ---- stage 1: out cold, then one comes round, and Pip speaks
   expect(w.posOf(p)).toMatchObject({ map: T, x: TUTORIAL.spawn[0], y: TUTORIAL.spawn[1] })
   expect(Math.floor(w.hour())).toBe(7)
   expect(w.hasStatus({ e: p.id }, 'out_cold')).toBe(true)
   expect(stage()).toBe(0)
   until(1, 80)
-  expect(w.hasStatus({ e: p.id }, 'out_cold')).toBe(false)
+  // the first lesson: walking, and nothing else (F does nothing)
+  now('move')
+  const [bx, by] = TUTORIAL.berries[0]
+  stand(f, bx, by + 1, 'up', T)
+  refused(() => c.run(c.plan('take', at(bx, by))!, true))
+  expect(carried('item/food/berries')).toBeUndefined()
   // the way out is shut: down the path to the edge, one only stands on it (and Pip says not yet)
   const [ex] = TUTORIAL.exit
   const h = TUTORIAL.size[1]
@@ -1835,75 +1866,128 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs: one comes
   for (let i = 0; i < 4; i++) walk(f, 'down')
   expect(w.posOf(p)).toMatchObject({ map: T, x: ex, y: h - 1 })
   expect(w.fact('seen.tut_too_soon')).toBeTruthy()
-  // food: F takes the berries, a right click eats them
-  const [bx, by] = TUTORIAL.berries[0]
+  // to the spot Pip shows
+  stand(f, 14, 12, 'right', T)
+  walk(f, 'right')
+  done('move')
+  // F: the berries
+  now('take')
   takeAll(bx, by)
-  hold(f, carried('item/food/berries'))
-  c.run(c.plan('self')!, true)
-  if (w.state.question) c.answer(true)
+  done('take')
+  // the number of their slot: in hand
+  now('hold')
+  grab('item/food/berries')
+  done('hold')
+  // a right click: eaten
+  now('eat')
+  eat()
   until(2)
-  // what lies about: sticks, stones, grass
+
+  // ---- stage 2: the bag (the view tells the story it was opened), then a stick, a stone, grass
+  now('bag')
+  const [kx, ky] = TUTORIAL.sticks[0]
+  stand(f, kx, ky + 1, 'up', T)
+  refused(() => c.run(c.plan('take', at(kx, ky))!, true))
+  story.ui('bag')
+  done('bag')
   for (const [x, y] of [...TUTORIAL.sticks, ...TUTORIAL.stones, ...TUTORIAL.grass]) takeAll(x, y)
   until(3)
-  // C: a stone axe
+
+  // ---- stage 3: C, and only the axe is made
+  now('craft')
+  expect(c.craft(RECIPE_BY_ID['item/light/torch'])).toBe(false)
   craft('item/weapon/blade/axe')
   until(4)
-  // the grove: three trees felled, their logs split into planks where they lie, the planks taken
-  hold(f, carried('item/weapon/blade/axe'))
+
+  // ---- stage 4: the axe in hand; the grove's trees felled, their logs split, the planks taken
+  now('hold-axe')
+  grab('item/weapon/blade/axe')
+  done('hold-axe')
+  // the grove: three trees felled (the logs fly to the bag), then C splits every log into planks (the axe at hand)
+  now('chop')
   for (const [x, y] of TUTORIAL.grove.slice(0, 3)) {
     const [sx, sy, d] = beside(f, x, y, T)
     stand(f, sx, sy, d, T)
     for (let i = 0; i < 4 && w.terrainAt(T, x, y) === 'tree'; i++) run(f, 'use', x, y)
     expect(w.terrainAt(T, x, y)).not.toBe('tree')
-    // the logs lie in a pile with a stick: what is on top is taken (F) until the axe meets a log
-    for (let i = 0; i < 12 && w.placedAt(T, x, y).some((e) => e.type === 'item/material/log'); i++) {
-      const top = w.get(c.plan('use', at(x, y))!.target.e)
-      if (top?.type === 'item/material/log') run(f, 'use', x, y)
-      else run(f, 'take', x, y)
-    }
-    for (let i = 0; i < 30 && w.placedAt(T, x, y).some((e) => e.type === 'item/material/plank' || e.type === 'item/material/stick'); i++) {
-      const plan = c.plan('take', at(x, y))
-      if (!plan) break
-      c.run(plan, true)
-      f.eng.tick()
-    }
+    ticks(f, 6)
   }
+  done('chop')
+  now('split')
+  expect(c.craft(RECIPE_BY_ID['structure/wall'])).toBe(false)
+  c.craftAll(RECIPE_BY_ID['item/material/plank'])
   expect(count('item/material/plank')).toBeGreaterThanOrEqual(12)
   until(5)
-  // B: a ring of stones and sticks is a campfire; C: a torch, and the fire lit with it
+
+  // ---- stage 5: B, a ring of stones and sticks is a campfire; C, a torch, and the fire lit with it
+  now('campfire')
   const fire = { map: T, x: 14, y: 18 }
   stand(f, fire.x, fire.y - 1, 'down', T)
+  expect(c.allows('build', { type: 'campfire' })).toBe(true)
   expect(performPlacement(f.eng, 'player', PLACEMENT_BY_ID.campfire, fire).ok).toBe(true)
+  done('campfire')
+  // what the locks before kept one from gathering: the rest of the grass (a torch and a bed need it)
+  now('torch')
+  for (const [x, y] of TUTORIAL.grass) takeAll(x, y)
   craft('item/light/torch')
   hold(f, carried('item/light/torch'))
+  stand(f, fire.x, fire.y - 1, 'down', T)
   run(f, 'use', fire.x, fire.y)
   until(6)
-  // a house round oneself: the bed at one's feet, walls and a door round, a floor over it all
-  const [hx, hy] = [20, 12]
+
+  // ---- stage 6: the house. The first wall on the outline (off it, refused), then the rest round,
+  // a door, the bed at one's feet, and the ceiling (chosen: the chooser's last entry)
+  now('wall')
+  const [hx, hy] = TUTORIAL_HOUSE.bed
   stand(f, hx, hy, 'down', T)
-  craft('fixture/furniture/bed')
   craft('structure/wall', 3)
-  craft('structure/door')
-  craft('structure/floor')
   const put = (type: string, x: number, y: number, layer = 0) => {
     grab(type)
     run(f, 'put', x, y, layer)
     f.eng.tick()
   }
+  grab('structure/wall')
+  refused(() => c.run(c.plan('put', at(hx + 1, hy + 1))!))
+  expect(w.placedAt(T, hx + 1, hy + 1).some((e) => e.type === 'structure/wall')).toBe(false)
+  for (const [x, y] of TUTORIAL_HOUSE.walls) put('structure/wall', x, y)
+  done('wall')
+  craft('fixture/furniture/bed')
+  craft('structure/door')
+  craft('structure/floor')
+  put('structure/door', TUTORIAL_HOUSE.door[0], TUTORIAL_HOUSE.door[1])
+  done('door')
   put('fixture/furniture/bed', hx, hy)
-  for (const [x, y] of [[hx, hy - 1], [hx - 1, hy], [hx + 1, hy]] as const) put('structure/wall', x, y)
-  put('structure/door', hx, hy + 1)
-  // the ceiling over one's head: chosen (the chooser's last entry, as a long press of G offers it)
+  done('bed')
   put('structure/floor', hx, hy, CEILING)
   until(7)
-  // one's fill of berries before dark (a hungry sleeper wakes in the night)
+
+  // ---- stage 7: hold E on the bed (the chooser; the view tells the story), the dummy knocked down
+  // (only blows), the door shut, then one's fill of berries and the night
+  now('chooser')
+  expect(c.choices('hands', at(hx, hy)).length).toBeGreaterThan(0)
+  story.ui('chooser')
+  done('chooser')
+  now('dummy')
+  const dummy = w.entitiesOnMap(T).find((e) => e.type === 'fixture/dummy')!
+  expect(w.posOf(dummy)).toMatchObject({ x: TUTORIAL_DUMMY[0], y: TUTORIAL_DUMMY[1] })
+  stand(f, TUTORIAL_DUMMY[0] - 1, TUTORIAL_DUMMY[1], 'right', T)
+  refused(() => c.run(c.plan('take', at(TUTORIAL_DUMMY[0], TUTORIAL_DUMMY[1] - 1)) ?? c.plan('hands', at(TUTORIAL_DUMMY[0], TUTORIAL_DUMMY[1]))!))
+  grab('item/weapon/blade/axe')
+  for (let i = 0; i < 12 && !w.fact('tutorial.dummy'); i++) {
+    run(f, 'use', TUTORIAL_DUMMY[0], TUTORIAL_DUMMY[1])
+    ticks(f, 8)
+  }
+  done('dummy')
+  // it stands again, whole
+  expect(w.get(dummy.id)).toBeDefined()
+  expect(w.num(dummy, 'hp')).toBe(w.num(dummy, 'maxHp'))
+  // the door was shut as it was set down
+  done('shut')
   for (const [x, y] of TUTORIAL.berries.slice(1)) takeAll(x, y)
   stand(f, hx, hy, 'down', T)
   for (let i = 0; i < 12 && carried('item/food/berries') && w.num(p, 'hunger') < w.num(p, 'maxHunger'); i++) {
     grab('item/food/berries')
-    c.run(c.plan('self')!, true)
-    if (w.state.question) c.answer(true)
-    f.eng.tick()
+    eat()
   }
   // the day goes by (the test's hand on the clock) and the night comes: the dead walk the clearing,
   // and an hour of it the shut door keeps them out
@@ -1915,6 +1999,7 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs: one comes
   expect(w.num(p, 'hp')).toBe(hp)
   // E on the bed at one's feet: one sleeps the night through, and the first morning after the house comes
   expect(stage()).toBe(7)
+  now('sleep')
   const sleep = c.plan('hands', at(hx, hy))!
   expect(sleep.target).toEqual({ e: w.placedAt(T, hx, hy).find((e) => e.type === 'fixture/furniture/bed')!.id })
   c.run(sleep, true)
@@ -1922,8 +2007,13 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs: one comes
   // the first morning after the house: day 2, at first light
   expect(w.calendar().day).toBe(2)
   expect(w.fact(TUTORIAL_OPEN)).toBeTruthy()
-  // out of the door and down the path: the way out leads to the foot of the mountain
-  run(f, 'hands', hx, hy + 1)
+
+  // ---- stage 8: M, the world map; then out of the door and down the path to the foot of the mountain
+  now('map')
+  story.ui('map')
+  done('map')
+  expect(story.lesson()).toBeUndefined()
+  run(f, 'hands', TUTORIAL_HOUSE.door[0], TUTORIAL_HOUSE.door[1])
   stand(f, ex, h - 2, 'down', T)
   walk(f, 'down')
   ticks(f, 10)
@@ -1936,19 +2026,42 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs: one comes
   expect(w.map(T)!.site).toBeUndefined()
 })
 
-req('T2', "a game without the tutorial begins at the foot of the mountain, at the seal stone's stage, the bird beside", [], () => {
+req('T3', 'a lesson of the tutorial can be skipped (Esc held): it is done, and what it locked works again; a game without the tutorial has no lessons', [], () => {
+  const { index, chunks } = buildFord()
+  const game = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]), 'tutorial')
+  for (const c of chunks) game.loadChunk(decodeChunk(c))
+  const f: Ford = { game, eng: game.engine, events: [], made: [] }
+  const w = W(f)
+  expect(ticks(f, 80, () => w.num(w.player, 'prologue') >= 1)).toBe(true)
+  expect(ticks(f, 60, () => f.eng.story.lesson()?.def.id === 'move')).toBe(true)
+  expect(f.eng.controls.allows('take')).toBe(false)
+  f.eng.story.skipLesson()
+  expect(w.fact('lesson.move')).toBeTruthy()
+  expect(f.eng.story.lesson()?.def.id).toBe('take')
+  expect(f.eng.controls.allows('take')).toBe(true)
+  // the view sees the lesson at hand: its key, what works, and its focus (the nearest berries)
+  const view = snapshot(f.eng).lesson!
+  expect(view).toMatchObject({ id: 'take', key: 'F', allow: ['move', 'take'], index: 1 })
+  expect(w.get(view.focus!.id!)?.type).toBe('item/food/berries')
+  // no tutorial, no lessons
+  const plain = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+  expect(plain.engine.story.lesson()).toBeUndefined()
+  expect(plain.engine.controls.allows('take')).toBe(true)
+})
+
+req('T2', "a game without the tutorial begins on Cloudtop, above the foot of the mountain, at the seal stone's stage, the fairy beside", [], () => {
   const { index, chunks } = buildFord()
   const game = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
   for (const c of chunks) game.loadChunk(decodeChunk(c))
   const s: Ford = { game, eng: game.engine, events: [], made: [] }
   const sw = W(s)
-  expect(sw.posOf(sw.player)).toMatchObject({ map: 'foot', x: TUTORIAL.arrive[0], y: TUTORIAL.arrive[1] })
+  expect(sw.posOf(sw.player)).toMatchObject({ map: 'summit', x: PAT.spawn[0], y: PAT.spawn[1] })
   expect(sw.num(sw.player, 'prologue')).toBe(PROLOGUE_AT_FOOT)
   expect(sw.hasStatus({ e: sw.player.id }, 'out_cold')).toBe(false)
-  expect(sw.posOf(sw.get('pip')!)?.map).toBe('foot')
+  expect(sw.posOf(sw.get('pip')!)?.map).toBe('summit')
 })
 
-req('P1', "the prologue's end, offline: from the foot of the mountain (as a game without the tutorial begins) to the Ford, every beat reached through the player's inputs, Pip at your side, the waypoint stone on the world map", [
+req('P1', "the prologue's end, offline: from Cloudtop (where a new game begins) down the cut, by the foot of the mountain to the Ford, every beat reached through the player's inputs, Pip at your side, the waypoint stone on the world map", [
   'fixture/sacred/waypoint', 'fixture/sacred/seal_stone',
 ], () => {
   const { index, chunks } = buildFord()
@@ -1970,6 +2083,12 @@ req('P1', "the prologue's end, offline: from the foot of the mountain (as a game
     const said = w.fx.find((x) => x.t === 'say' && x.who === 'pip')
     return said && said.t === 'say' && typeof said.text === 'object' ? (said.text.zh ?? '') : ''
   }
+  // the game begins on Cloudtop: down through the gap in the cut, and the trail leads off it onto the foot
+  expect(w.posOf(p)?.map).toBe('summit')
+  ticks(f, 10)
+  expect(w.fact('seen.summit_wake')).toBeTruthy()
+  stand(f, PAT.cut[0], PAT.cut[1] - 1, 'down', 'summit')
+  for (let i = 0; i < 12 && w.posOf(p)?.map === 'summit'; i++) walk(f, 'down')
   expect(w.posOf(p)?.map).toBe('foot')
   expect(stage()).toBe(PROLOGUE_AT_FOOT)
   expect(askPip()).toContain('世界从没见过')
@@ -2003,7 +2122,7 @@ req('P1', "the prologue's end, offline: from the foot of the mountain (as a game
   const at = new Map(index.maps.map((m) => [m.id, m.at]))
   expect(at.get('ford')).toEqual({ x: 0, y: 0 })
   expect(at.get('foot')!.y).toBe(-30)
-  expect(index.waypoints!.map((x) => x.id)).toEqual(['wp.foot'])
+  expect(index.waypoints!.map((x) => x.id).sort()).toEqual(['wp.eastroad', 'wp.foot', 'wp.ford', 'wp.summit', 'wp.village'])
   expect(travelToWaypoint(f.eng, 'wp.foot')).toBe(true)
   expect(w.posOf(p)).toMatchObject({ map: 'foot', x: PAT.footStone[0], y: PAT.footStone[1] + 1 })
 })
@@ -2083,9 +2202,10 @@ req('P3', 'the village main quest, before the bridge: Rowan (!) asks you to brin
   fell(f, w.get('barrow.warden')!)
   expect(markOf(f, 'npc.rowan')).toBe('?')
   const xp = w.num(w.player, 'xp') + 20 * (w.num(w.player, 'level', 1) - 1)
-  expect(talkTo(f, 'npc.rowan')).toContain('赫斯珀需要木板')
+  expect(talkTo(f, 'npc.rowan')).toContain('在圣火前感恩')
   expect(w.fact('q.rescue')).toBe('done')
-  expect(w.num(w.player, 'quest')).toBe(1)
+  // that night, the flame (docs/chapter-1.md): stage 0.5
+  expect(w.num(w.player, 'quest')).toBe(0.5)
   expect(w.fact('rescue.lina')).toBe(1)
   expect(w.num(w.player, 'xp') + 20 * (w.num(w.player, 'level', 1) - 1)).toBeGreaterThan(xp)
   expect(f.eng.quests.log()).toEqual([])
@@ -2151,6 +2271,192 @@ req('P4', 'the villagers\' errands: three side quests (stew, a lost ring, cleari
   setHour(f, 3, 6)
   ticks(f, 60)
   expect(born('pasture')).toEqual([])
+})
+
+// =================================================================== Chapter 1, the First Seal (docs/chapter-1.md)
+
+/** A hand (E) on a thing from the tile below it. */
+function touch(f: Ford, id: string): void {
+  const w = W(f)
+  const at = w.posOf(w.get(id)!)!
+  f.eng.author(() => f.eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 }))
+  w.player.facing = 'up'
+  f.eng.interact('interact', 'player', { e: id }, { instrument: null })
+}
+
+req('C1', 'Chapter 1, offline: the night of the flame (the grey man takes it), the letter, the pilgrim\'s road (Fennick, Joss, Hesper), the knight\'s kingdom and the White Knight, the Crown and the fairy\'s first power, the grey man again, a longer night, and home', [
+  'npc.ilse', 'npc.severin', 'npc.courier', 'npc.fennick', 'npc.joss', 'npc.nessa', 'actor/creature/sin/alberic', 'region:kingdom', 'fixture/nature/briar', 'fixture/sacred/gravestone', 'fixture/sacred/altar',
+], () => {
+  const f = fresh()
+  const w = W(f)
+  const c = f.eng.controls
+  const quest = () => w.num(w.player, 'quest')
+  // the barrow done (P3): that night, the village gives thanks
+  author(f, () => { w.player.props!.quest = 0.5; w.setFact('village.rescued', 1); w.setFact('q.rescue', 'done') })
+  expect(OBJECTIVES[0.5].title).toBeDefined()
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow', x: 20, y: 14 }))
+  expect(w.hasStatus({ e: 'village.campfire' }, 'lit')).toBe(true)
+  setHour(f, 1, 21.5)
+  expect(ticks(f, 900, () => w.fact('ch1.flame_stolen') === 1 && !w.scene)).toBe(true)
+  // the Firstlight gone; the grey man gone with it, to where no one can follow yet
+  expect(w.hasStatus({ e: 'village.campfire' }, 'lit')).toBe(false)
+  expect(w.posOf(w.get('npc.severin')!)?.map).toBe('offstage')
+  expect(quest()).toBe(0.6)
+  // dawn: the Church's courier, the proclamation; the courier gone again
+  setHour(f, 2, 6)
+  expect(ticks(f, 900, () => w.fact('ch1.letter') === 1 && !w.scene)).toBe(true)
+  expect(c.count('item/document/proclamation')).toBe(1)
+  expect(w.posOf(w.get('npc.courier')!)?.map).toBe('offstage')
+  expect(quest()).toBe(0.7)
+  // Sister Ilse: the pilgrim's road — Fennick on the knight, Joss on the bridge, Hesper on what she saw
+  expect(markOf(f, 'npc.ilse')).toBe('!')
+  talkTo(f, 'npc.ilse')
+  expect(talkTo(f, 'npc.fennick')).toContain('荆棘')
+  talkTo(f, 'npc.joss')
+  expect(talkTo(f, 'npc.hesper')).toContain('荆棘冠')
+  expect(markOf(f, 'npc.ilse')).toBe('?')
+  talkTo(f, 'npc.ilse')
+  expect(w.fact('q.pilgrim')).toBe('done')
+  expect(quest()).toBe(1)
+  // the bridge is Q1's; past the far bank, the White Knight's road (stage 2)
+  author(f, () => { w.setFact('ford.crossed', 1); w.player.props!.quest = 2 })
+  // into the ring of thorns: the knight speaks once
+  stand(f, 32, 11, 'right', 'eastroad')
+  expect(ticks(f, 60, () => (f.eng.movePlayer('right'), !!w.fact('seen.kingdom')))).toBe(true)
+  ticks(f, 200, () => !w.scene)
+  // the First Seal-bearer: softer here than in the Boss Challenge
+  const knight = w.get(ALBERIC_ID)!
+  expect(knight.boss?.kit).toBe('alberic')
+  expect(w.num(knight, 'maxHp')).toBeLessThan(BOSS_BY_ID.alberic.hp)
+  expect(w.num(knight, 'skillScale')).toBeLessThan(1)
+  // the way to Emberfall shut while he stands
+  expect(w.map('eastroad')!.portals.filter((p) => p.to === 'emberfall').every((p) => p.opensWhen === 'sins.defeated.alberic')).toBe(true)
+  f.eng.damage(knight, 10000, undefined, true, { e: 'player' })
+  expect(w.fact('sins.defeated.alberic')).toBe(1)
+  // the Crown, the fairy's first power, the grey man, a longer night
+  expect(ticks(f, 1200, () => w.fact('ch1.crown') === 1 && !w.scene)).toBe(true)
+  expect(c.count('item/relic/crown_of_thorns')).toBe(1)
+  const pip = w.get('pip')!
+  expect(boonsOf(w, pip)).toEqual(['xp'])
+  expect(activeBoon(pip)).toBe('xp')
+  expect(w.stat(w.player, 'xpRate')).toBe(1)
+  expect(w.posOf(w.get('npc.severin')!)?.map).toBe('offstage')
+  expect(w.fact('night.shift')).toBe(1)
+  setHour(f, 3, 20.5)
+  expect(w.isNight()).toBe(true)
+  expect(quest()).toBe(2.5)
+  // home: the village, Nessa's four minutes, the chapter's card
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow', x: 20, y: 14 }))
+  const cards: unknown[] = []
+  expect(ticks(f, 900, () => { cards.push(...w.fx.filter((x) => x.t === 'card')); w.fx = []; return w.fact('ch1.end') === 1 && !w.scene })).toBe(true)
+  expect(cards.length).toBe(1)
+  expect(quest()).toBe(2.9)
+})
+
+req('C2', "Chapter 1's errands: Pell's drawings (four, where the grey man was), Nessa's measure of days (three statues), Fennick's old templar (three of the dead), Joss's ninth nail and Edda's ring (both in the knight's kingdom)", [
+  'npc.pell', 'npc.edda', 'fixture/chalk/stone', 'fixture/chalk/door', 'fixture/chalk/bridge', 'fixture/chalk/man', 'item/misc/ninth_nail', 'item/valuable/band', 'item/food/bread',
+], () => {
+  const f = fresh()
+  const w = W(f)
+  const c = f.eng.controls
+  // Pell's drawings: each read with a hand
+  expect(markOf(f, 'npc.pell')).toBe('!')
+  talkTo(f, 'npc.pell')
+  for (const d of DRAWINGS) {
+    touch(f, `ch1.drawing.${d}`)
+    expect(w.fact(`ch1.drawing.${d}`)).toBe(1)
+  }
+  expect(markOf(f, 'npc.pell')).toBe('?')
+  talkTo(f, 'npc.pell')
+  expect([w.fact('q.drawings'), c.count('item/misc/warm_ember')]).toEqual(['done', 1])
+  // the marked loaf the grey man left in the barrow
+  expect(Object.values(w.state.entities).some((e) => e.type === 'item/food/bread' && typeof e.name === 'object' && e.name.zh === '印着灰痕的面包')).toBe(true)
+  // Nessa's measure: three statues woken
+  talkTo(f, 'npc.nessa')
+  for (const id of ['wp.village', 'wp.ford', 'wp.eastroad']) touch(f, id)
+  expect(w.fact('waypoints.attuned')).toBe(3)
+  talkTo(f, 'npc.nessa')
+  expect([w.fact('q.measure'), c.count('item/document/almanac')]).toEqual(['done', 1])
+  // after the letter: Fennick's night, Joss's nail
+  author(f, () => w.setFact('ch1.letter', 1))
+  talkTo(f, 'npc.fennick')
+  for (let i = 0; i < 3; i++) fell(f, author(f, () => w.create('actor/creature/undead/zombie', { on: 'tile', map: 'pasture', x: 20, y: 12 })))
+  talkTo(f, 'npc.fennick')
+  expect([w.fact('q.templar'), c.count('item/armor/helmet')]).toEqual(['done', 1])
+  talkTo(f, 'npc.joss')
+  talkTo(f, 'npc.edda')
+  for (const type of ['item/misc/ninth_nail', 'item/valuable/band']) {
+    const it = Object.values(w.state.entities).find((e) => e.type === type)!
+    const at = w.posOf(it)!
+    expect(at.map).toBe('eastroad')
+    stand(f, at.x, at.y + 1, 'up', 'eastroad')
+    run(f, 'take', at.x, at.y)
+    expect(c.count(type)).toBe(1)
+  }
+  talkTo(f, 'npc.joss')
+  talkTo(f, 'npc.edda')
+  expect([w.fact('q.nail'), w.fact('q.band'), c.count('item/tool/smith_hammer')]).toEqual(['done', 'done', 1])
+})
+
+req('C4', "Chapter 1's story before the knight: the village's welcome, Lina's shut door, the warden's last words, the tale of the First Night (the fairy shivers at the spear), the Ford the night of the theft, Fennick's memory, Hesper's stumps, the road east, Edda in the barn, the grey man's warning, a rest at the statue", [], () => {
+  const f = fresh()
+  const w = W(f)
+  const played = (id: string) => !!w.fact(`seen.${id}`)
+  const waitFor = (id: string) => expect(ticks(f, 900, () => played(id) && !w.scene)).toBe(true)
+  const go = (map: string, x: number, y: number) => f.eng.author(() => f.eng.teleport(w.player, { map, x, y }))
+  /** Step in from outside a region, as a player walks: entering it is what the story hears. */
+  const stepInto = (map: string, x: number, y: number, dir: Entity['facing'], id: string) => {
+    stand(f, x, y, dir, map)
+    expect(ticks(f, 60, () => (f.eng.movePlayer(dir!), played(id)))).toBe(true)
+    ticks(f, 900, () => !w.scene)
+  }
+  // the village's welcome (the fixture skips it; here it plays)
+  author(f, () => w.setFact('seen.village_arrival', 0))
+  go('meadow', 20, 14)
+  waitFor('village_arrival')
+  // the barrow: Lina's cell, then the warden's last words
+  stepInto('barrow', 10, 17, 'left', 'barrow_cells')
+  author(f, () => w.setFact('q.rescue.warden', 1))
+  waitFor('warden_falls')
+  // dusk after the rescue: the tale, at the flame
+  author(f, () => w.setFact('village.rescued', 1))
+  go('meadow', 20, 14)
+  setHour(f, 2, 18)
+  waitFor('tale')
+  expect(w.fact('ch1.tale')).toBe(1)
+  // the night of the theft, at the Ford
+  author(f, () => w.setFact('ch1.flame_stolen', 1))
+  go('ford', AT.spawn[0], AT.spawn[1])
+  waitFor('ford_night')
+  // the pilgrim's road: Fennick's memory in the village, Hesper's stumps at the Ford
+  author(f, () => (w.setFact('ch1.letter', 1), w.setFact('q.pilgrim.fennick', 1), w.setFact('q.pilgrim.hesper', 1)))
+  go('meadow', 20, 14)
+  waitFor('fennick_memory')
+  go('ford', AT.spawn[0], AT.spawn[1])
+  waitFor('hesper_stumps')
+  // over the river: the road east, Edda in the barn, the grey man before the thorns, the statue
+  author(f, () => (w.setFact('ford.crossed', 1), w.setFact('seen.burned_farm', 1)))
+  go('eastroad', 6, 12)
+  waitFor('road_east')
+  stepInto('eastroad', 21, 11, 'up', 'edda_barn')
+  stepInto('eastroad', 26, 12, 'right', 'severin_warning')
+  expect(w.fact('ch1.warned')).toBe(1)
+  expect(w.posOf(w.get('npc.severin')!)?.map).toBe('offstage')
+  const statue = w.posOf(w.get('wp.eastroad')!)!
+  go('eastroad', statue.x, statue.y + 1)
+  expect(ticks(f, 60, () => played('statue_rest'))).toBe(true)
+})
+
+req('C3', 'the nights lengthen as the seals fall: an hour earlier and half an hour later per seal (the story\'s night.shift), for the creatures and for the screen', [], () => {
+  const f = fresh()
+  const w = W(f)
+  setHour(f, 2, 20.5)
+  expect(w.isNight()).toBe(false)
+  author(f, () => w.setFact('night.shift', 1))
+  expect(w.isNight()).toBe(true)
+  setHour(f, 3, 5.25)
+  expect(w.isNight()).toBe(true)
+  expect(snapshot(f.eng).night).toEqual({ dusk: 20, dawn: 5.5 })
 })
 
 describe('the Ford is complete', () => {
@@ -2253,7 +2559,7 @@ describe('the event model is complete (design.md §5.13)', () => {
 describe('the Ford is minimal', () => {
   it('every placed thing, person and fixed piece of the world witnesses some requirement', () => {
     const { index, chunks } = buildFord()
-    const placed = new Set<string>([...chunks.flatMap((c) => c.entities.map((e) => e.type)), ...index.npcs.map((n) => n.id), 'weather:storm', 'region:far_bank'])
+    const placed = new Set<string>([...chunks.flatMap((c) => c.entities.map((e) => e.type)), ...index.npcs.map((n) => n.id), 'weather:storm', 'region:far_bank', 'region:kingdom'])
     const witnessed = new Set(R.flatMap((r) => r.by))
     const idle = [...placed].filter((p) => !witnessed.has(p))
     expect(idle).toEqual([])

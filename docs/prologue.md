@@ -11,13 +11,18 @@ can live in the world (Elin's start site, Minecraft's first night); teaching by 
 place rather than by text; a companion who points, never lectures (Elin's Nerun, Valheim's Hugin);
 teleport stones that are attuned by touch and used from the map.
 
-## The tutorial, or not
+## The tutorial, apart from the story
 
-A new game asks whether to play the tutorial (the cover's new-game panel, beside the difficulty):
 
-- **Tutorial** (the default): the game begins in the Clearing, out cold.
-- **Skip the tutorial**: the game begins at the Mountain Foot, at the top of the trail coming down
-  off the high ground, at the seal stone's stage (`prologue` = `PROLOGUE_AT_FOOT`).
+- **A new game** begins on **Cloudtop** (云顶台地, the map `summit`, restored 2026-10-06), in its
+  ruined watch shelter (`PAT.spawn`, the world's start, `prologue` = `PROLOGUE_AT_FOOT`), straight into
+  the story. Pip's first line (`summit_wake`) names the place and points to the cut in the south
+  rim, Cloudtop's only way down; the trail comes out on the Mountain Foot's north edge. Cloudtop
+  is peaceful, with berries, sticks, stones and grass before the shelter and a waypoint statue
+  (`wp.summit`). Pip's "the world answers" beat waits until the seal stone was seen (`after: 'relic'`).
+- **The tutorial is its own** (the title screen's *Tutorial* button): it begins in the Clearing, out cold,
+  writes no save slot, and walking out of the Clearing ends it and returns to the title.
+- (Before 2026-10-06: the tutorial was the default start.)
 
 The world's starts are data. `WorldIndex.start` (+ `begin`: its hour, props and statuses) is the
 game without the tutorial, at the foot; `WorldIndex.starts.tutorial` is the clearing (07:00, the
@@ -64,6 +69,66 @@ who does nothing is not let out the next day. What the steps need, and where:
 - The night: the world's night walkers (zombies and bats, combat zones out of doors, 21–5). Shut
   in, they cannot reach one; looking for a way to someone shut in, a creature waits three
   seconds between searches (`AiData.noWay`).
+
+## The lessons (the drills, 2026-10-07)
+
+The tutorial teaches by the deed, not by text (after the user: "强迫玩家做什么 action"). Craft taken,
+not content:
+- **Minecraft's tutorial hints**: one key at a time, gone when it is done.
+- **Celeste and Hollow Knight**: the key drawn at the thing.
+- **The first battles of Pokémon and Fire Emblem**: only the taught command works.
+- **Mobile tutorials**: the spotlight, with the rest of the screen dimmed.
+- **Zelda's Great Plateau**: the ground learned before one is let out.
+- **Hades' training dummy**: blows practised on a target that cannot strike back.
+
+Each stage of the table above holds its lessons in order (`TUTORIAL_LESSONS` in `content/src/prologue.ts`,
+on the stage's objective; the engine's `Lesson`).
+
+**A lesson:**
+- **One short line.** Pip says it as the lesson begins, after any beat's line has been read.
+- **A focus**, resolved by the view each frame:
+  - the nearest thing of a type;
+  - the nearest cell of a terrain, nearest to a spot (the grove, not the forest's rim);
+  - the player, or a spot;
+  - an outline of cells, drawn on the ground (`WorldScene.setLessonCells`);
+  - a panel's part: the bag and build buttons, a recipe row (scrolled into view), a palette entry, a toolbar slot.
+- **The key** to press, drawn over the focus.
+- **Optionally a lock**: only the inputs it teaches work, the screen dims round the focus, and a refused
+  key shakes. `only` and `cells` narrow making and setting down: only the axe, and only walls on the outline.
+- **Done** when a state holds: the story's conditions, plus `holding`, `spot`, `on` (things on cells)
+  and `near.exact`.
+
+The lesson at hand is the first of the stage's the story has not marked done (`lesson.<id>`). It is
+`Story.lesson()`, and the frame's `lesson` (`LessonView`).
+
+**The locks.** The engine holds the locks for the world's inputs (`Controls.allows`, consulted by
+moving, the five keys, the toolbar, making, setting down, and the palette's placements in the worker).
+The view holds them for its own panels (the bag, crafting, the build palette, the map). Opening a panel
+or choosing from the chooser is told to the story (`ui` → `ui.<what>`), so a lesson can wait on it.
+
+**Never stuck.**
+- A lock never keeps one from what the lesson itself needs: the campfire lesson lets one gather, and the
+  wall lesson lets one cut wood.
+- Esc held two seconds skips the lesson at hand (`Story.skipLesson`); a short press still opens the menu.
+- The tutorial itself can be skipped at a new game.
+
+| Stage | Lessons (locked ones marked *) |
+|---|---|
+| 1 | walk to the spot (WASD)*, F the berries*, their slot in hand*, right click eats* |
+| 2 | I opens the bag*, a stick, a stone, grass (F) |
+| 3 | C, the stone axe (only it can be made)* |
+| 4 | the axe in hand*, a tree in the grove (left click)*, C splits the logs into planks (only planks)* |
+| 5 | B, the campfire (only it; gathering allowed)*, C a torch, the fire lit (left click) |
+| 6 | B, the first wall on the outline*, a door, a bed, the ceiling (R on the floor) |
+| 7 | hold E on the bed (the chooser), the training dummy knocked down (left click)*, the door shut (E), sleep (E) |
+| 8 | M, the world map |
+
+**The training dummy** (`fixture/dummy`, 12 health, beside the house) is knocked down and rocks upright
+again (`train/dummy`). The story counts it (`tutorial.dummy`).
+
+**Tests:**
+- `T1` walks every lesson through the inputs, and checks that the locks refuse what they lock.
+- `T3`: skipping a lesson, and the view of the one at hand.
 
 ## The Mountain Foot (`foot`, 40 × 30)
 

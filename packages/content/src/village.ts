@@ -16,14 +16,14 @@ export const VILLAGE_QUESTS: QuestDef[] = [
     giver: 'npc.rowan',
     offer: L('You came down the mountain? Then you can fight. Two of ours, Lina and Oskar, went into the old barrow past the hollow when the storm broke. The dead keep it. Bring them home.', '你是从山上下来的？那你能打。我们有两个人——莉娜和奥斯卡——风暴来时躲进了荆棘谷那头的古墓。那里有亡灵把守。把他们带回家吧。'),
     waiting: L('South, past the grassland and the forest, through the hollow. The barrow mouth is between two standing stones.', '往南，过了草原和森林，穿过荆棘谷。古墓入口在两块立石中间。'),
-    done: L('Both home, and the warden down. Firstlight owes you. Hesper at the Ford needs planks for her bridge — go, with our thanks, and this.', '两个人都回来了，守卫也倒了。初原村欠你一份情。渡口的赫斯珀需要木板修桥——去吧，带上我们的谢意，还有这个。'),
+    done: L('Both home, and the warden down. Firstlight owes you. Tonight, after dark, the whole village gives thanks at the flame — stay for it.', '两个人都回来了，守卫也倒了。初原村欠你一份情。今晚天黑以后，全村会在圣火前感恩——留下来吧。'),
     goals: [
       { id: 'lina', kind: 'talk', npc: 'npc.lina', line: L('You came! The way out is clear? Then I am going home — tell Rowan I am all right.', '你来了！出去的路通了？那我回家了——跟罗万说我没事。'), label: L('Find Lina', '找到莉娜') },
       { id: 'oskar', kind: 'talk', npc: 'npc.oskar', line: L('About time. I will follow the girl home. Mind the warden.', '可算来了。我跟着那丫头回家。小心那个守卫。'), label: L('Find Oskar', '找到奥斯卡') },
       { id: 'warden', kind: 'defeat', type: 'actor/creature/undead/warden', count: 1, label: L('Put down the barrow warden', '打倒古墓守卫') },
     ],
-    // the foragers go home once found (their schedules follow these facts); the bridge chapter opens
-    reward: { xp: 60, items: [{ type: 'item/food/bread', count: 2 }], facts: { 'rescue.lina': 1, 'rescue.oskar': 1, 'village.rescued': 1 }, props: { quest: 1 } },
+    // the foragers go home once found (their schedules follow these facts); that night, the flame (docs/chapter-1.md)
+    reward: { xp: 60, items: [{ type: 'item/food/bread', count: 2 }], facts: { 'rescue.lina': 1, 'rescue.oskar': 1, 'village.rescued': 1 }, props: { quest: 0.5 } },
   },
   // ------------------------------------------------------------------ side
   {

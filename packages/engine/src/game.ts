@@ -4,6 +4,7 @@ import { START_HOUR, TICKS_PER_HOUR, type WeatherSpan } from './calendar.ts'
 import { Engine, type MapChunk } from './engine.ts'
 import { HUNGER_EVERY } from './hunger.ts'
 import { ModPort } from './mod.ts'
+import { Codex, type CodexData } from './codex.ts'
 import { RuleLibrary, type LibraryData } from './rules.ts'
 import type { Guide } from './story.ts'
 import type { QuestDef } from './quests.ts'
@@ -69,6 +70,8 @@ export interface WorldIndex {
   /** The teleport stones (fixture/waypoint ids), for the world map. */
   waypoints?: { id: Id; map: string; x: number; y: number; name: Text }[]
   bosses?: BossDef[]
+  /** The codex's entries (codex.ts): the kinds of item and of creature it lists; its people are `companions` and `npcs`. */
+  codex?: { items: string[]; creatures: string[] }
 }
 
 export interface SaveData {
@@ -77,12 +80,15 @@ export interface SaveData {
   state: WorldState
   library: LibraryData
   savedAt: string
+  /** What the player has come to know (codex.ts): the reader's record, beside the state. */
+  codex?: CodexData
 }
 
 export class Game {
   engine: Engine
   mods: ModPort
   worldVersion?: string
+  codex = new Codex()
 
   constructor(engine: Engine) {
     this.engine = engine
@@ -132,13 +138,15 @@ export class Game {
     loadContent(eng, index)
     // loading is the author's: an older save is brought up to the world as it is now
     eng.author(() => upgrade(eng, index))
-    return new Game(eng)
+    const game = new Game(eng)
+    game.codex = Codex.from(save.codex)
+    return game
   }
 
   /** Map terrain is static content and is re-fetched on load, so it is left out of saves. */
   save(): SaveData {
     const state = { ...this.engine.world.state, maps: {} }
-    return { version: 1, world: this.worldVersion, state, library: this.engine.lib.toJSON(), savedAt: new Date().toISOString() }
+    return { version: 1, world: this.worldVersion, state, library: this.engine.lib.toJSON(), savedAt: new Date().toISOString(), codex: this.codex.toJSON() }
   }
 
   /** Needed chunk ids: the start map on a new game, or the map a pending transition waits for. */

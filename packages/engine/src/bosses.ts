@@ -97,7 +97,8 @@ export function releaseSkill(eng: Engine, e: Entity, ev: GameEvent): void {
     eng.queue({ kind, host: { e: to.id }, roles: { source: { e: e.id }, actor: { e: e.id } }, params, cause: e.id, origin: ev.origin, depth: (ev.depth ?? 0) + 1 })
   for (const target of victims) {
     // the blow is a strike the target answers for itself (design.md §5.8)
-    send('impulse/strike', target, { power: Math.round(skill.damage * (q.enraged ? 1.35 : 1)), edge: 'blunt', ...(skill.element && { element: skill.element }) })
+    // an encounter placed for an early chapter strikes softer (its `skillScale`, data on the body)
+    send('impulse/strike', target, { power: Math.round(skill.damage * (q.enraged ? 1.35 : 1) * w.num(e, 'skillScale', 1)), edge: 'blunt', ...(skill.element && { element: skill.element }) })
     if (skill.shift) {
       const t = w.posOf(target)!
       const dx = Math.sign(origin.x - t.x), dy = Math.sign(origin.y - t.y)

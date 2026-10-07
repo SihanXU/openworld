@@ -125,7 +125,9 @@ export class EffectRunner {
       const lines = who?.npc?.lines
       if (lines?.length) return lines[Math.floor(this.eng.world.rand() * lines.length)]
       const own = who && this.eng.world.prop(who, 'text')
-      if (typeof own === 'string') return own
+      // a written thing in both languages: its `text` and its `text_zh`
+      const zh = who && this.eng.world.prop(who, 'text_zh')
+      if (typeof own === 'string') return typeof zh === 'string' ? { en: own, zh } : own
       return { en: '…', zh: '……' }
     }
     if (typeof t === 'string' && t.includes('{')) return this.fill(ev, t)

@@ -15,6 +15,8 @@ in the village, and three side quests of our own design.
   hand-in when `consume`), **talk** to someone (they say a line), a **fact** reaching a value.
 - State lives in the story's facts: `q.<id>` = active / done, `q.<id>.by` who took it on,
   `q.<id>.<goal>` counts, `q.<id>.day` for a repeatable quest (it comes back the next day).
+- Chapter 1 adds a main quest and five errands (docs/chapter-1.md §11). On a word, a quest under way
+  that sent you to this person is met before their own errand is offered (2026-10-05).
 - Every change is an outcome (design.md §5.13): E on a person runs the person's `quest` effect;
   if there is business between them and the speaker (something to hand in, to take on, a talk
   goal) it tells the story (`notify` what = quest), else it says the giver's "waiting" line or

@@ -1,5 +1,5 @@
 // The project's own HUD icons where the pack has none (16x16, the pack's look): the skill tree's
-// star on the corner button. Written as PNGs to public/assets/lsw/Ui/.
+// star and the options' gear on the corner buttons. Written as PNGs to public/assets/lsw/Ui/.
 //
 //   npx tsx packages/tools/src/art/hud.ts
 
@@ -27,4 +27,27 @@ const STAR = [
 const GOLD = { H: '#fff1a0', Y: '#f6c232', O: '#c9801f', W: '#ffffff', k: '#4a2a10' }
 
 writeIcon('Ui/Star.png', STAR, GOLD)
+
+// ---------------------------------------------------------------- the options: an iron gear, lit from the top left
+const GEAR = [
+  '................',
+  '......kkkk......',
+  '...kk.kHHk.kk...',
+  '..kHHkkHHkkHHk..',
+  '..kHHHHHHHHHSk..',
+  '...kHHHkkHHSk...',
+  '.kkkHHk..kSSkkk.',
+  '.kHHHk....kSSSk.',
+  '.kHHSk....kSSSk.',
+  '.kkkSSk..kSSkkk.',
+  '...kSSSkkSSSk...',
+  '..kSSSSSSSSSSk..',
+  '..kSSkkSSkkSSk..',
+  '...kk.kSSk.kk...',
+  '......kkkk......',
+  '................',
+]
+const IRON = { H: '#d8dde4', S: '#8a93a0', k: '#2e2a33' }
+
+writeIcon('Ui/Gear.png', GEAR, IRON)
 console.log('hud icons written')
