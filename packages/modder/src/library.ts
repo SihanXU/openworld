@@ -13,7 +13,7 @@ import {
   buildModSpec,
   buildSandbox,
   checkExpectations,
-  endlessYield,
+  whyEndless,
   replay,
   scenarioEvent,
   validatePatch,
@@ -269,7 +269,8 @@ export class WorldLibrary {
       try {
         const rp = replay(reg.scenario, this.fullOntology(), this.lib)
         const eng = buildSandbox(reg.scenario, this.fullOntology(), this.lib)
-        if (rp.resolution.defined && endlessYield(eng, scenarioEvent(reg.scenario, eng), true)) out.push({ rule: reg.rule, reason: 'endless yield: its event, repeated on an unchanged host, keeps making things' })
+        const why = rp.resolution.defined ? whyEndless(eng, scenarioEvent(reg.scenario, eng), true) : undefined
+        if (why) out.push({ rule: reg.rule, reason: `endless yield: ${why}` })
       } catch (err) {
         if (err instanceof RepeatLimitError) out.push({ rule: reg.rule, reason: err.message })
         /* a scenario no longer buildable (types removed): nothing to judge */

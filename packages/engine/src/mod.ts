@@ -12,7 +12,7 @@ import { STORY, textOf } from './engine.ts'
 import { OntologyIndex, isA, withTerrainTypes } from './ontology.ts'
 import { deriveRecipes } from './recipes.ts'
 import { RuleLibrary, cmp, compareSpec, isDo, isHole, leaves, rolesOf, specOf, type LibraryData } from './rules.ts'
-import { REPEAT_TIMES, buildSandbox, checkExpectations, endlessYield, replay, scenarioEvent } from './sandbox.ts'
+import { buildSandbox, chainLoop, checkExpectations, replay, scenarioEvent, whyEndless } from './sandbox.ts'
 import type { Cmp, Cond, Effect, EmitTo, GameEvent, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tree, TypeDef } from './types.ts'
 import { RECENT_LINES, type View } from './world.ts'
 
@@ -1134,10 +1134,14 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       if (!rp.resolution.defined) errors.push('replay: the triggering event is still undefined under the patch')
       else if (!patchIds.has(rp.resolution.rule!.id)) errors.push(`replay: the triggering event resolved to "${rp.resolution.rule!.id}", not to the patch`)
       errors.push(...rp.errors.map((e) => `replay: ${e}`))
+      // every chain ends (design.md A7): the event and all it sets off, followed to the end on the scene
+      const once = buildSandbox(ctx.scenario, ctx.ontology, cand)
+      const loop = rp.resolution.defined ? chainLoop(once, scenarioEvent(ctx.scenario, once)) : undefined
+      if (loop) errors.push(`chain: the triggering event sets off events that never end: ${loop}. An answer that sets itself off again needs something that runs out (a status that gates it, a prop, the host used up)`)
       // the repeat check (world-model.md §8.4): again and again with no time between, it must stop making things
       const again = buildSandbox(ctx.scenario, ctx.ontology, cand)
-      if (rp.resolution.defined && endlessYield(again, scenarioEvent(ctx.scenario, again), true))
-        errors.push(`endless yield: the triggering event, repeated with no time between on a host that is not used up, keeps making things (${REPEAT_TIMES} times). A yield must cost its host — change it (a status that gates the yield and runs out, durability) or use it up`)
+      const endless = rp.resolution.defined && !loop ? whyEndless(again, scenarioEvent(ctx.scenario, again), true) : undefined
+      if (endless) errors.push(`endless yield: the triggering event, repeated with no time between, keeps making things: ${endless}. A yield must cost its host — change it (a status that gates the yield and runs out, durability) or use it up`)
       // no person in the scene is hurt or removed by what the world learns by itself
       if (ctx.world)
         for (const se of ctx.scenario.entities) {
