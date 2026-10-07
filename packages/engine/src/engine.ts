@@ -217,6 +217,7 @@ export class Engine {
       ev.depth ??= (now.ev.depth ?? 0) + 1
       ev.by ??= now.rule
     }
+    this.onQueue?.(ev, now?.ev)
     if ((ev.depth ?? 0) > MAX_DEPTH) {
       this.defer({ ...ev, depth: 0 })
       return
@@ -299,6 +300,7 @@ export class Engine {
     const w = this.world
     ev.tick = w.state.tick
     if (!this.within(ev)) return { defined: false }
+    this.onDispatch?.(ev)
     const host = 'e' in ev.host ? w.get(ev.host.e) : undefined
     if ('e' in ev.host && (!host || host.place.on === 'none')) return { defined: false }
     // a thing on a dormant map receives it when the player comes (design.md §5.12); people and residents at once
@@ -348,6 +350,14 @@ export class Engine {
   private nextChain = 1
   /** Runtime failures of learned rules this session (the set-aside ones are kept in the state). */
   private faults = new Map<string, number>()
+  /** Watch every event as it is queued (with the event whose outcome made it) and dispatched: the termination check's; unset in play. */
+  onQueue?: (ev: GameEvent, parent: GameEvent | undefined) => void
+  onDispatch?: (ev: GameEvent) => void
+
+  /** Does any event of this chain still wait (for this flush, or for a later tick)? */
+  waiting(chain: number): boolean {
+    return this.q.some((e) => e.chain === chain) || this.later.some((e) => e.chain === chain)
+  }
   /** Undefined outcomes reached so far (an act's seers learn whether anything in its chain was). */
   private holes = 0
 

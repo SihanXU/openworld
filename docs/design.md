@@ -690,7 +690,7 @@ undefined behaviour is exactly reaching an undefined leaf.
 | relation difference | after every outcome and on entering a map |
 | playable without an AI | the story's critical path has no undefined leaf: the three routes, dry-run with the AI off |
 | the inputs are complete | already proven (§5.2) |
-| deterministic, and every chain ends | replay; the depth bound; the runtime guards below |
+| deterministic, and every chain ends | replay; the depth bound; the termination check on the request's scene (`chainLoop`: a patch whose event sets itself off again is refused with the round); the runtime guards below |
 
 As built (2026-10-06), the runtime guards: what the validator checked beforehand, the engine holds
 to while learned rules run (`tools/test/guards.test.ts`).

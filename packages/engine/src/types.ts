@@ -977,6 +977,8 @@ export interface GameEvent {
   chain?: number
   /** The rule whose outcome made it (engine-assigned): what the guards charge when a chain runs away. */
   by?: string
+  /** A number the termination check gives it, kept by its copies (one waiting for a later tick). */
+  seq?: number
 }
 
 // ------------------------------------------------------------------ rules (design.md §5.6, §6)
