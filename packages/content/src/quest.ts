@@ -17,8 +17,8 @@ export const QUEST_OBJECTIVES: Record<number, { title: Text; hint: Text; progres
   4: {
     title: L('Arm for the dragon', '为屠龙做准备'),
     hint: L(
-      'Garrick the smith will forge a blade for 5 iron ore and 3 coal — the old mine north of the village has the veins (a pickaxe breaks them; the richest lie past the cyclops). Wren the herbalist will brew a fireproof draught for 3 fireweed (the meadow) and 3 frostcap (the forest). Give them what they ask (right click), then talk to them (E).',
-      '铁匠加里克要 5 块铁矿石和 3 块煤来锻一把剑——镇北的旧矿坑里有矿脉（用镐敲开）。草药师雷恩要 3 株火焰草（草原）和 3 朵霜盖菇（森林）来熬防火药剂。把东西交给他们（右键），再和他们说话（E）。',
+      'Garrick the smith will forge a blade for 5 iron ore and 3 coal — the old mine north of the village has the veins (a pickaxe breaks them; the richest lie past the cyclops). Wren the herbalist will brew a fireproof draught for 3 fireweed (Firstlight Village) and 3 frostcap (the forest). Hand them what they ask (G), then talk to them (E).',
+      '铁匠加里克要 5 块铁矿石和 3 块煤来锻一把剑——镇北的旧矿坑里有矿脉（用镐敲开）。草药师雷恩要 3 株火焰草（初原村）和 3 朵霜盖菇（森林）来熬防火药剂。把东西交给他们（G），再和他们说话（E）。',
     ),
     progress: [
       { fact: 'mq.ore', need: 5, label: L('Iron ore', '铁矿石') },

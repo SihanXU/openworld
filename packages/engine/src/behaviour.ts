@@ -56,6 +56,8 @@ export class Behaviour {
     const scripted = !!w.scene && !!e.npc
     for (const g of this.goalsOf(e)) {
       if (PACED.has(g) && (!ready || scripted)) continue
+      // a person's own round (not a threat) waits a moment for one who faces them (npc.ts, attended)
+      if (g !== 'threat' && PACED.has(g) && eng.npcs.attended(e)) return
       if (this.run(g, e, sc)) return
     }
   }

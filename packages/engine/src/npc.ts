@@ -166,7 +166,9 @@ export class NpcSim {
    * a companion), is attended to: the person holds their round a few turns — a gift handed over, a
    * word, is not a chase. Never for long, and never for another on a round (two would hold each other).
    */
-  private attended(e: Entity, rt: Runtime): boolean {
+  attended(e: Entity): boolean {
+    if (!e.npc) return false
+    const rt = this.runtime(e)
     const w = this.eng.world
     const at = w.posOf(e)
     const facing = at && (Object.entries(DIRS) as [Dir, [number, number]][]).some(([, [dx, dy]]) =>
@@ -303,7 +305,6 @@ export class NpcSim {
     const rt = this.runtime(e)
     const s = scheduleAt(scheduleFor(this.eng, e), w.hour())
     if (!s) return false
-    if (this.attended(e, rt)) return true
     const { x, y } = e.place
     // where to head: the work about the anchor, the anchor here, or the portal toward the anchor's map
     let gx = s.x

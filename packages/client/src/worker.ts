@@ -258,6 +258,10 @@ function keyViews(): Frame['keys'] {
     return [t.place.x - Math.floor((fw - 1) / 2), t.place.y - fd + 1, fw, fd]
   }
   const view = (pl: Plan | undefined): KeyView | undefined => pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(rect(pl) && { rect: rect(pl) }) }
+  // standing still, one turns to the spot beside one that the pointer is on (the input's own posture):
+  // a person one points at sees one face them, and waits (npc.ts, attended)
+  const stand = w.posOf(w.player)
+  if (!moveDir && stand && aimTile && Math.abs(aimTile.x - stand.x) + Math.abs(aimTile.y - stand.y) === 1) c.face({ ...stand, x: aimTile.x, y: aimTile.y })
   const out: NonNullable<Frame['keys']> = {}
   for (const k of ['hands', 'take', 'put', 'use'] as Key[]) {
     const pl = c.plan(k, aimTile)
