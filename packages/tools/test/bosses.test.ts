@@ -267,14 +267,14 @@ describe('Alberic visual timing and locked effects', () => {
     expect(snapshot(eng).entities.find((e) => e.id === boss.id)!.boss!.skill).toBe('arrow')
   })
 
-  it('plays the twelve-pose death at 20 fps and holds it until the original despawn tick', () => {
+  it('plays the twelve-pose death at 10 fps and holds it until the original despawn tick', () => {
     const { eng, w, boss, player, ticks } = arena('alberic')
     ticks(1)
     eng.damage(boss, 10000, undefined, true, { e: player.id })
     ticks(1)
     const pose = () => bossAnimationFrame(snapshot(eng).entities.find((e) => e.id === boss.id)!.boss!, 0)
     expect(pose()).toEqual({ row: 6, col: 0 })
-    for (const col of [24, 31, 31]) { ticks(4); expect(pose()).toEqual({ row: 6, col }) }
+    for (const col of [12, 24, 31]) { ticks(4); expect(pose()).toEqual({ row: 6, col }) }
     ticks(4)
     expect(pose()).toEqual({ row: 6, col: 31 })
     ticks(4)

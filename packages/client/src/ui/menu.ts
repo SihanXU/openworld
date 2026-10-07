@@ -20,6 +20,14 @@ export type Tab = 'inventory' | 'craft' | 'options'
 const ICONS: Record<Tab, string> = { inventory: '🎒', craft: '🔨', options: '⚙' }
 const ROW = SLOT_KEYS.length
 
+/** The body's slots as the bag shows them (a paper doll, three across), by the `wear:` key; the off hand last. */
+const EQUIP: [key: string, en: string, zh: string, ghost: string][][] = [
+  [['ear', 'Earring', '耳环', '◦'], ['head', 'Head', '头', '⛑'], ['neck', 'Necklace', '项链', '◇']],
+  [['shoulders', 'Shoulders', '肩', '⌒'], ['body', 'Armour', '护甲', '▣'], ['hands', 'Hands', '手', '✋']],
+  [['ring', 'Ring', '戒指', '○'], ['waist', 'Belt', '腰带', '═'], ['ring.2', 'Ring', '戒指', '○']],
+  [['', '', '', ''], ['feet', 'Feet', '脚', '▁'], ['arm', 'Off hand', '副手', '🛡']],
+]
+
 type CodexTab = 'items' | 'people' | 'creatures' | 'threads'
 const CODEX_TABS: CodexTab[] = ['items', 'people', 'creatures', 'threads']
 const CODEX_LABEL: Record<CodexTab, string> = { items: 'cxItems', people: 'cxPeople', creatures: 'cxCreatures', threads: 'threads' }
@@ -83,8 +91,8 @@ export interface MenuSend {
   quickMove(slot: number): void
   drop(slot: number, all: boolean): void
   organize(): void
-  /** The off hand: wear a carried item there (a shield), or take off what is worn (no item). */
-  wear(item?: string): void
+  /** What is worn: put a carried item on (in its own slot) or take it off; `putOn` from the bag (another of a stack). */
+  wear(item?: string, putOn?: boolean): void
   craft(id: string, all?: boolean): void
   /** The skill tree: spend skill points on a skill. */
   learn(id: string): void
@@ -280,7 +288,7 @@ export class Menu {
     if (this.tab === 'craft') this.wireCraft()
     if (f) {
       this.liveSig = this.sigOf(f)
-      if (this.tab === 'inventory') this.paintIcons?.([...f.player.slots.filter(Boolean).map((s) => s!.item), ...(f.player.offhand ? [f.player.offhand] : [])])
+      if (this.tab === 'inventory') this.paintIcons?.([...f.player.slots.filter(Boolean).map((s) => s!.item), ...Object.values(f.player.worn ?? {})])
       if (this.tab === 'craft') {
         const infos = craftInfos()
         for (const it of infos) this.registerTip?.(it.id, it)
@@ -290,7 +298,7 @@ export class Menu {
   }
 
   private sigOf(f: Frame): string {
-    return `${this.tab}|${locale.value}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${this.picked}`
+    return `${this.tab}|${locale.value}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${this.picked}`
   }
 
   // ---------------------------------------------------------------- inventory
@@ -308,14 +316,22 @@ export class Menu {
       .map((r, k) => `<div class="grid-row${k === 0 ? ' toolbar-row' : ''}">${r.join('')}</div>`)
       .join('')
     const zh = locale.value === 'zh'
-    // the off hand beside the bag: what is worn there (a shield), greyed while it does not work
+    // what is worn beside the bag (world-model.md §6.8): ten slots of the body and the off hand, as a paper doll;
+    // the off hand greyed while what is there does not work (another profession's shield)
+    const worn = f.player.worn ?? {}
     const off = f.player.offhand
-    const offhand = `<div class="inv-offhand"><span class="muted small">${zh ? '副手' : 'Off hand'}</span><div class="slot offhand-slot${off && !off.works ? ' off' : ''}" id="invOffhand" ${off ? `data-item="${off.id}"` : ''}>${off ? `<div class="icon" data-icon="${off.id}"></div>` : '<span class="ghost">🛡</span>'}</div></div>`
-    return `<div class="inv-wrap"><div class="inv">${rows}</div>${offhand}</div>
+    const doll = EQUIP.map((row) => row.map(([key, en, zh2, ghost]) => {
+      if (!key) return '<div class="eq-gap"></div>'
+      const it = worn[key]
+      const dim = key === 'arm' && off && !off.works ? ' off' : ''
+      return `<div class="eq-cell"><div class="slot eq-slot${dim}" data-wear="${key}" title="${zh ? zh2 : en}${it ? ` · ${esc(tx(it.name))}` : ''}" ${it ? `data-item="${it.id}"` : ''}>${it ? `<div class="icon" data-icon="${it.id}"></div>` : `<span class="ghost">${ghost}</span>`}</div><span class="eq-name">${zh ? zh2 : en}</span></div>`
+    }).join('')).join('')
+    const equip = `<div class="inv-equip"><span class="muted small">${zh ? '装备' : 'Equipment'}</span><div class="eq-grid">${doll}</div></div>`
+    return `<div class="inv-wrap"><div class="inv">${rows}</div>${equip}</div>
       <div class="inv-foot">
         <button id="bOrganize">⇅ ${t('organize')}</button>
         <button id="bDrop" ${this.picked === undefined ? 'disabled' : ''}>⤓ ${t('dropHere')}</button>
-        <span class="muted small">${zh ? '点击拿起、再点击交换 · Shift+点击：在快捷栏和背包间移动 · Tab：换一行到快捷栏 · “丢下”放到面前 · 拿起盾牌点副手栏装备，点副手栏卸下 · 右键：对它用手上的东西、放进去、空手摆弄' : 'Click to pick up, again to swap · Shift+click: between the toolbar and the bag · Tab: the next row to the toolbar · Drop sets it down in front · pick up a shield and click the off hand to wear it, click it to take it off · right click: use or put the held thing on it, or handle it'}</span>
+        <span class="muted small">${zh ? '点击拿起、再点击交换 · Shift+点击：在快捷栏和背包间移动 · Tab：换一行到快捷栏 · “丢下”放到面前 · 拿起装备点右边的装备栏穿上（右键也可以），点装备栏卸下 · 右键：对它用手上的东西、放进去、空手摆弄' : 'Click to pick up, again to swap · Shift+click: between the toolbar and the bag · Tab: the next row to the toolbar · Drop sets it down in front · pick up something wearable and click the equipment beside the bag to put it on (or right click it), click a worn piece to take it off · right click: use or put the held thing on it, or handle it'}</span>
       </div>
 `
   }
@@ -330,16 +346,17 @@ export class Menu {
       this.picked = undefined
       this.render()
     }
-    // the off hand: a picked-up stack is worn there; a click on what is worn takes it off
-    const off = document.getElementById('invOffhand')
-    if (off)
-      off.onclick = () => {
+    // the equipment: a picked-up wearable is put on (in its own slot); a click on what is worn takes it off
+    $('#menuSheet').querySelectorAll<HTMLElement>('[data-wear]').forEach((el) => {
+      el.onclick = () => {
         const s = this.picked !== undefined ? slots[this.picked] : null
-        if (s) this.send.wear(s.item.id)
-        else if (f.player.offhand) this.send.wear()
+        const it = f.player.worn?.[el.dataset.wear!]
+        if (s && s.item.props.slot) this.send.wear(s.item.id, true)
+        else if (!s && it) this.send.wear(it.id)
         this.picked = undefined
         this.render()
       }
+    })
     $('#menuSheet').querySelectorAll<HTMLElement>('.inv [data-i]').forEach((el) => {
       const i = Number(el.dataset.i)
       el.onclick = (e) => {
@@ -357,7 +374,10 @@ export class Menu {
         e.preventDefault()
         const s = slots[i]
         if (!s) return
-        const wear: [string, () => void][] = s.item.props.slot === 'arm' ? [[locale.value === 'zh' ? '装备到副手' : 'Wear in the off hand', () => this.send.wear(s.item.id)]] : []
+        const zh = locale.value === 'zh'
+        // a worn piece alone in its slot comes off; otherwise one (another of the stack) goes on
+        const off = !!s.worn && s.count === 1
+        const wear: [string, () => void][] = !s.item.props.slot ? [] : [[off ? (zh ? '卸下' : 'Take off') : s.item.props.slot === 'arm' ? (zh ? '装备到副手' : 'Wear in the off hand') : (zh ? '装备' : 'Wear'), () => this.send.wear(s.item.id, !off)]]
         this.contextMenu(e.clientX, e.clientY, s.item.id, [...wear, [t('dropHere'), () => this.send.drop(i, true)]])
       }
     })

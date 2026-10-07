@@ -31,6 +31,13 @@ in the village, and three side quests of our own design.
   side / repeatable, with goal counts; the button's badge counts quests under way, red when
   one can be handed in).
 
+**Quests that move on by themselves** (2026-10-07): `auto` — taken on as soon as available, with no word from
+the giver; `self` — complete once every goal is met, with no handing in; `skipWhen` — facts that mean the
+story has gone past it: it is done (its reward's facts set, nothing paid). The story looks now and then
+(`Quests.due`, read only) and, when something is due, settles it as its own outcome (`quests` with no
+notice → `advance`). Chapter 1's main line is built from these, so it never waits on a word
+(docs/chapter-1.md §11).
+
 ## The story's order
 
 The Ford's arrival now ends with Hesper sending you to Firstlight Village first

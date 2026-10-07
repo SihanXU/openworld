@@ -114,6 +114,8 @@ function charDef(name: string): ActorDef {
   }
 }
 const characters: Record<string, ActorDef> = Object.fromEntries(CHAR_NAMES.map((n) => [n, charDef(n)]))
+// Alberic's human form, the steward of the Held Ground (tools/src/art/alberic-human.swift: the pack's Master, recoloured)
+characters.AlbericHuman = { dir: 'lsw/Characters/Alberic', sheet: 'SpriteSheet.png', faceset: 'Faceset.png', cols: 4, rows: 7 }
 
 /** 4-direction monster sheet (64x64: cols = down/up/left/right, rows = 4 walk frames). */
 function mon(folder: string, sheet = 'SpriteSheet.png', tint?: number): ActorDef {
@@ -363,6 +365,8 @@ export const CATALOG: Catalog = {
     // Desert lion-head wall fountain (2x3) and a square water basin (2x2).
     fountain_lion: pf(DESERT, 0, 6, ['##', '##', '##']),
     pool: pf(DESERT, 8, 7, ['##', '##'], 'water'),
+    // Firstlight's warm spring: the desert sheet's pale pool (3x3), its cells the spring one wades into
+    spring: { ...pf(DESERT, 17, 7, ['###', '###', '###'], 'spring'), ground: true },
   },
 
   // -------------------------------------------------------------------------------------------
@@ -460,6 +464,8 @@ export const CATALOG: Catalog = {
     'fixture:chalk_bridge': { base: px('lsw/Fixtures/Chalk.png', 32, 0, 16, 16, 8, 15), ground: true },
     'fixture:chalk_man': { base: px('lsw/Fixtures/Chalk.png', 48, 0, 16, 16, 8, 15), ground: true },
     'fixture:briar': { base: px('lsw/Fixtures/Briar.png', 0, 0, 16, 16, 8, 15) },
+    // the Held Ground's edge (tools/src/art/haven.ts)
+    'fixture:mist': { base: px('lsw/Fixtures/Mist.png', 0, 0, 16, 16, 8, 15) },
     'fixture:seal_stone': { base: t(DUNGEON, 3, 2), lit: t(DUNGEON, 5, 2) },
     // the waypoint stone is a statue: it glows once woken (scene.ts lights what is attuned)
     'fixture:waypoint': { base: t(HOUSE, 7, 15, 1, 2) },
@@ -628,6 +634,13 @@ export const CATALOG: Catalog = {
     'item:scroll': icon('Items/Scroll/ScrollEmpty.png', 16, 16),
     'item:letter': icon('Items/Other/Letter.png', 12, 9),
     'item:crown_of_thorns': icon('lsw/Items/CrownOfThorns.png', 16, 16),
+    // the project's own (tools/src/art/gear.ts): what the pack has no picture of
+    'item:pauldrons': icon('lsw/Items/Pauldrons.png', 16, 16),
+    'item:belt': icon('lsw/Items/Belt.png', 16, 16),
+    'item:earring': icon('lsw/Items/Earring.png', 16, 16),
+    'item:oath_thorn': icon('lsw/Items/OathThorn.png', 16, 16),
+    // gear on the ground, before it is picked up (scene.ts): a wrapped bundle with a glint
+    'item:loot': icon('lsw/Items/Loot.png', 16, 16),
     'item:warm_ember': icon('lsw/Items/WarmEmber.png', 16, 16),
     'item:ninth_nail': icon('lsw/Items/NinthNail.png', 16, 16),
     'item:map': t(HOUSE, 15, 18),
@@ -760,6 +773,9 @@ export const CATALOG: Catalog = {
     'ovl:electrified': fx('Particle/Spark.png', 10, 8, 7, 14, { add: true }),
     'ovl:oiled': fx('Magic/Aura/SpriteSheet.png', 25, 24, 5, 8),
     'ovl:lit': fx('Particle/Fire.png', 8, 12, 4, 10, { add: true }),
+    // the project's own (tools/src/art/spring.ts): green crosses rising round what mends; steam over a warm spring
+    'ovl:mend': { img: 'lsw/Fx/Mend.png', fw: 16, fh: 16, frames: 4, fps: 6, scale: 1.4 },
+    'ovl:steam': { img: 'lsw/Fx/Steam.png', fw: 16, fh: 16, frames: 4, fps: 4 },
   },
 
   ui: {
@@ -813,6 +829,8 @@ export const CATALOG: Catalog = {
     interior: MUS + '5 - Peaceful.ogg',
     cave: MUS + '2 - The Cave.ogg',
     battle: MUS + '17 - Fight.ogg',
+    // a boss fight: the grand one, while the camera holds over the arena (scene.ts frameBossFight)
+    boss: MUS + '24 - Final Area.ogg',
     shop: MUS + '20 - Good Time.ogg',
     temple: MUS + '12 - Temple.ogg',
     dungeon: MUS + '21 - Dungeon.ogg',

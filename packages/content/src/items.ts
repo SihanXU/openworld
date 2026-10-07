@@ -87,13 +87,46 @@ export const QUALITY_DEFS = (): QualityDef[] =>
   QUALITIES.map((q) => ({ id: q.id, tag: q.id === 'common' ? undefined : `quality:${q.id}`, name: q.en ? { en: q.en, zh: q.zh } : undefined, factor: q.factor, from: QUALITY_FROM[q.id] }))
 const QUALITY_FROM: Record<string, number | undefined> = { crude: -99, common: 0, fine: 3, masterwork: 6 }
 
+/**
+ * The tiers of a made thing (docs/chapter-1.md, docs/lore.md). The two above the maker's reach are the story's
+ * own: **Vowbound** (遗誓) — what those bound by a vow left behind (the Order of the Thorn, the pilgrims before
+ * you); found, never made — and, highest, **Stigmatic** (圣痕) — what bears one of Astra's five wounds: only the
+ * Seal-bearers carry it, and each piece asks something back (its id stays `legendary`, which saves and rules name).
+ */
 export const QUALITIES = [
   // a quality's factor on power and defence (Elin's rarity: crude 120/150, superior 120/100, legendary 120/80)
   { id: 'crude', en: 'Crude', zh: '粗制', factor: 0.8, value: 0.5, w: 3 },
   { id: 'common', en: '', zh: '', factor: 1, value: 1, w: 8 },
   { id: 'fine', en: 'Fine', zh: '精良', factor: 1.25, value: 1.8, w: 3 },
   { id: 'masterwork', en: 'Masterwork', zh: '大师', factor: 1.5, value: 3.5, w: 1 },
-  { id: 'legendary', en: 'Legendary', zh: '传说', factor: 2, value: 9, w: 0.15 },
+  { id: 'vowed', en: 'Vowbound', zh: '遗誓', factor: 1.75, value: 6, w: 0.1 },
+  // never rolled: a Seal-bearer's alone
+  { id: 'legendary', en: 'Stigmatic', zh: '圣痕', factor: 2, value: 9, w: 0 },
+]
+
+/**
+ * The Stigmatic pieces' powers (engine combat.ts `relicsOf`): one of each in the world, each its own. What the
+ * tooltip names and tells.
+ */
+export const RELICS: Record<string, { en: string; zh: string; text: { en: string; zh: string } }> = {
+  crown: { en: 'None Cross That Do Not Kneel', zh: '不跪者不得过', text: { en: 'Your blows have a 20% chance to force the struck to their knees (1 second, unable to move).', zh: '你的攻击有 20% 几率令目标跪地（1 秒内无法移动）。' } },
+  nightfang: { en: 'Tooth of the Night', zh: '夜之牙', text: { en: '+25% critical chance at night.', zh: '入夜后暴击率 +25%。' } },
+  mirrorshard: { en: 'Stolen Face', zh: '窃面', text: { en: 'A critical hit draws back 3 more health.', zh: '暴击时额外吸取 3 点生命。' } },
+  oathbrand: { en: 'Oath Kept', zh: '守誓', text: { en: 'Below 30% health, the health it draws back is tripled.', zh: '生命低于 30% 时，吸取的生命变为三倍。' } },
+  galestring: { en: 'Running Wind', zh: '逐风', text: { en: 'Each hit: +30% movement speed for 2 seconds.', zh: '每次命中：2 秒内移动速度 +30%。' } },
+  starfall: { en: 'Falling Star', zh: '坠星', text: { en: 'Every fifth hit is a critical.', zh: '每第五次命中必定暴击。' } },
+  emberheart: { en: 'Heart of Embers', zh: '余烬之心', text: { en: 'Hits have a 25% chance to set the struck burning.', zh: '命中有 25% 几率点燃目标。' } },
+  rimecrown: { en: 'Crown of Rime', zh: '霜冕', text: { en: 'Hits have a 20% chance to freeze the struck for a moment.', zh: '命中有 20% 几率令目标短暂冰冻。' } },
+  unfallen: { en: 'Unfallen', zh: '不陷', text: { en: 'Once a minute, a blow that would fell you is turned aside.', zh: '每分钟一次：将致命一击完全挡下。' } },
+  dragonsbane: { en: 'Dragonslayer', zh: '屠龙', text: { en: 'Double damage against dragons and their whelps.', zh: '对巨龙与幼龙造成双倍伤害。' } },
+}
+
+/**
+ * What a Vowbound piece keeps of the vow it was made under: a trait beyond its numbers, read from what is worn
+ * or held (engine World.stat, combat.ts): a rolled one takes one of these; the story's own name theirs.
+ */
+export const VOW_TRAITS: Record<string, number>[] = [
+  { critChance: 0.05 }, { dodge: 0.06 }, { lifesteal: 1 }, { moveHaste: 0.1 }, { holdFast: 0.15 }, { 'night:def': 2 }, { 'night:atk': 1 },
 ]
 
 export const ELEMENT_NAMES: Record<string, { en: string; zh: string }> = {
@@ -117,7 +150,7 @@ export const FORMS: Form[] = [
   W('item/weapon/blade/dagger', 'Dagger', '匕首', 'item:dagger', { tags: ['profession:assassin'], props: { power: 2 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 3, dungeon: 2, home: 0.5, npc: 1 } }),
   W('item/weapon/blade/axe', 'Axe', '斧', 'item:axe', { tags: ['tool:axe'], props: { power: 4 }, materials: TOOL_METALS, elemental: true, where: { smithy: 3, farm: 2, wild: 0.5 }, makeup: [{ type: 'item/material/stone', count: 1 }, { type: 'item/material/stick', count: 1 }, { type: 'item/material/grass', count: 1 }], station: 'hands' }),
   // the smith of Emberfall's blade, forged for the dragon (the main quest)
-  W('item/weapon/blade/dragonsbane', 'Dragonsbane', '屠龙剑', 'item:sword', { tags: ['dragonsbane', 'quality:legendary'], props: { power: 12 }, where: {} }),
+  W('item/weapon/blade/dragonsbane', 'Dragonsbane', '屠龙剑', 'item:sword', { tags: ['dragonsbane', 'quality:legendary'], props: { relic: 'dragonsbane', power: 12 }, where: {} }),
   W('item/weapon/blade/scimitar', 'Scimitar', '弯刀', 'item:sword', { tags: ['profession:warrior'], props: { power: 4 }, materials: WEAPON_METALS, elemental: true, where: { dungeon: 1, smithy: 1 } }),
   W('item/weapon/blunt/club', 'Club', '棍棒', 'item:club', { props: { power: 2 }, materials: ['wood', 'bone'], where: { wild: 1, npc: 1, dungeon: 1 }, makeup: [{ type: 'item/material/log', count: 1 }], station: 'workbench' }),
   W('item/weapon/blunt/mace', 'Mace', '钉锤', 'item:mace', { props: { power: 4 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 2, dungeon: 2 } }),
@@ -129,20 +162,23 @@ export const FORMS: Form[] = [
   W('item/weapon/magic/staff', 'Staff', '法杖', 'item:staff', { tags: ['arcane', 'profession:mage'], props: { power: 5, range: 4 }, materials: ['wood', 'crystal', 'bone', 'mithril'], elemental: true, where: { library: 1, dungeon: 1 } }),
   // the professions' legendary arms, two each (LEGENDARY_ARMS): kin of their family, never found
   // lying about; a fallen sin leaves one for the profession of whoever felled it (bosses.ts)
-  W('item/weapon/blade/dagger/nightfang', 'Nightfang', '夜牙', 'item:dagger', { tags: ['quality:legendary', 'legend'], props: { power: 8, critChance: 0.15 }, where: {} }),
-  W('item/weapon/blade/dagger/mirrorshard', 'Mirrorshard', '镜中刃', 'item:dagger', { tags: ['quality:legendary', 'legend', 'glass'], props: { power: 7, lifesteal: 1 }, where: {} }),
-  W('item/weapon/blade/sword/oathbrand', 'Oathbrand', '誓约之刃', 'item:sword', { tags: ['quality:legendary', 'legend', 'metal', 'conductive', 'holy'], props: { power: 10, lifesteal: 1 }, where: {} }),
-  W('item/weapon/ranged/bow/galestring', 'Galestring', '疾风之弦', 'item:bow', { tags: ['quality:legendary', 'legend', 'element:wind'], props: { power: 8, range: 7, element: 'wind', attackHaste: 0.2 }, where: {} }),
-  W('item/weapon/ranged/bow/starfall', 'Starfall', '坠星', 'item:bow', { tags: ['quality:legendary', 'legend'], props: { power: 10, range: 8, critChance: 0.1 }, where: {} }),
-  W('item/weapon/magic/staff/emberheart', 'Emberheart', '烬心法杖', 'item:staff', { tags: ['quality:legendary', 'legend', 'element:fire'], props: { power: 11, range: 5, element: 'fire' }, where: {} }),
-  W('item/weapon/magic/staff/rimecrown', 'Rimecrown', '霜冠法杖', 'item:staff', { tags: ['quality:legendary', 'legend', 'element:ice', 'crystal'], props: { power: 10, range: 6, element: 'ice', critChance: 0.1 }, where: {} }),
+  W('item/weapon/blade/dagger/nightfang', 'Nightfang', '夜牙', 'item:dagger', { tags: ['quality:legendary', 'legend'], props: { relic: 'nightfang', power: 8, critChance: 0.15 }, where: {} }),
+  W('item/weapon/blade/dagger/mirrorshard', 'Mirrorshard', '镜中刃', 'item:dagger', { tags: ['quality:legendary', 'legend', 'glass'], props: { relic: 'mirrorshard', power: 7, lifesteal: 1 }, where: {} }),
+  W('item/weapon/blade/sword/oathbrand', 'Oathbrand', '誓约之刃', 'item:sword', { tags: ['quality:legendary', 'legend', 'metal', 'conductive', 'holy'], props: { relic: 'oathbrand', power: 10, lifesteal: 1 }, where: {} }),
+  W('item/weapon/ranged/bow/galestring', 'Galestring', '疾风之弦', 'item:bow', { tags: ['quality:legendary', 'legend', 'element:wind'], props: { relic: 'galestring', power: 8, range: 7, element: 'wind', attackHaste: 0.2 }, where: {} }),
+  W('item/weapon/ranged/bow/starfall', 'Starfall', '坠星', 'item:bow', { tags: ['quality:legendary', 'legend'], props: { relic: 'starfall', power: 10, range: 8, critChance: 0.1 }, where: {} }),
+  W('item/weapon/magic/staff/emberheart', 'Emberheart', '烬心法杖', 'item:staff', { tags: ['quality:legendary', 'legend', 'element:fire'], props: { relic: 'emberheart', power: 11, range: 5, element: 'fire' }, where: {} }),
+  W('item/weapon/magic/staff/rimecrown', 'Rimecrown', '霜冠法杖', 'item:staff', { tags: ['quality:legendary', 'legend', 'element:ice', 'crystal'], props: { relic: 'rimecrown', power: 10, range: 6, element: 'ice', critChance: 0.1 }, where: {} }),
   // armour and clothing: put on oneself, worn in a slot (world-model.md §6.8); armour adds its defence
   W('item/armor/helmet', 'Helmet', '头盔', 'item:helmet', { tags: ['wearable'], props: { def: 1, slot: 'head' }, materials: ['iron', 'steel', 'bronze', 'leather', 'bone'], where: { smithy: 2, dungeon: 1 } }),
   W('item/armor/shield', 'Shield', '盾牌', 'item:shield', { tags: ['wearable', 'profession:warrior'], props: { def: 2, slot: 'arm' }, materials: ['wood', 'iron', 'steel', 'bronze'], where: { smithy: 2, dungeon: 1 }, makeup: [{ type: 'item/material/plank', count: 3 }, { type: 'item/material/stick', count: 1 }], station: 'workbench' }),
   // the warrior's legendary shield: a block turns a blow aside (combat.ts)
-  W('item/armor/shield/unfallen', 'The Unfallen Wall', '不陷之壁', 'item:shield', { tags: ['quality:legendary', 'legend', 'metal', 'conductive'], props: { def: 5, block: 0.15 }, where: {} }),
+  W('item/armor/shield/unfallen', 'The Unfallen Wall', '不陷之壁', 'item:shield', { tags: ['quality:legendary', 'legend', 'metal', 'conductive'], props: { relic: 'unfallen', def: 5, block: 0.15 }, where: {} }),
   W('item/armor/breastplate', 'Breastplate', '胸甲', 'item:armor', { tags: ['wearable'], props: { def: 3, slot: 'body' }, materials: ['iron', 'steel', 'leather', 'mithril'], where: { smithy: 1, dungeon: 0.5 } }),
-  W('item/clothing/cloak', 'Cloak', '斗篷', 'item:cloak', { tags: ['wearable'], props: { slot: 'back' }, materials: ['cloth', 'leather', 'silk'], where: { home: 2, shop: 1 } }),
+  // the body's ten slots (docs/world-model.md §6.8): head, body, feet, hands, waist, shoulders, neck, two rings, ear
+  W('item/armor/pauldrons', 'Pauldrons', '护肩', 'item:pauldrons', { tags: ['wearable'], props: { def: 1, slot: 'shoulders' }, materials: ['iron', 'steel', 'leather', 'bronze'], where: { smithy: 1, dungeon: 0.5 } }),
+  W('item/clothing/cloak', 'Cloak', '斗篷', 'item:cloak', { tags: ['wearable'], props: { slot: 'shoulders' }, materials: ['cloth', 'leather', 'silk'], where: { home: 2, shop: 1 } }),
+  W('item/clothing/belt', 'Belt', '腰带', 'item:belt', { tags: ['wearable'], props: { def: 1, slot: 'waist' }, materials: ['leather', 'cloth'], where: { home: 1, shop: 1, smithy: 0.5 } }),
   W('item/clothing/hat', 'Hat', '帽子', 'item:hat', { tags: ['wearable'], props: { slot: 'head' }, materials: ['cloth', 'leather', 'silk'], where: { home: 2, shop: 1, npc: 0.3 } }),
   W('item/clothing/boots', 'Boots', '靴子', 'item:boots', { tags: ['wearable'], props: { slot: 'feet' }, materials: ['leather', 'cloth'], where: { home: 2, shop: 1 } }),
   W('item/clothing/gloves', 'Gloves', '手套', 'item:gloves', { tags: ['wearable'], props: { slot: 'hands' }, materials: ['leather', 'cloth', 'silk'], where: { home: 1, shop: 1, smithy: 1 } }),
@@ -234,8 +270,9 @@ export const FORMS: Form[] = [
   // gems & valuables
   W('item/gem', 'Gem', '宝石', 'item:gem', { tags: ['gem', 'precious', 'crystal'], elemental: true, where: { dungeon: 2, shop: 0.3 } }),
   W('item/valuable/coin_pouch', 'Coin Pouch', '钱袋', 'item:coins', { tags: ['money', 'leather'], props: { value: 20 }, where: { home: 1, npc: 1, dungeon: 1 } }),
-  W('item/valuable/ring', 'Ring', '戒指', 'item:ring', { materials: ['silver', 'gold', 'iron', 'bone', 'mithril'], elemental: true, where: { home: 0.5, dungeon: 1, npc: 0.3 } }),
-  W('item/valuable/amulet', 'Amulet', '护符', 'item:amulet', { materials: ['silver', 'gold', 'bone', 'crystal'], elemental: true, where: { temple: 1, dungeon: 1 } }),
+  W('item/valuable/ring', 'Ring', '戒指', 'item:ring', { tags: ['wearable'], props: { atk: 1, slot: 'ring' }, materials: ['silver', 'gold', 'iron', 'bone', 'mithril'], elemental: true, where: { home: 0.5, dungeon: 1, npc: 0.3 } }),
+  W('item/valuable/amulet', 'Amulet', '护符', 'item:amulet', { tags: ['wearable'], props: { def: 1, slot: 'neck' }, materials: ['silver', 'gold', 'bone', 'crystal'], elemental: true, where: { temple: 1, dungeon: 1 } }),
+  W('item/valuable/earring', 'Earring', '耳环', 'item:earring', { tags: ['wearable'], props: { xpRate: 0.1, slot: 'ear' }, materials: ['silver', 'gold', 'bone', 'crystal'], where: { home: 0.5, shop: 0.5, dungeon: 0.5 } }),
   W('item/valuable/goblet', 'Goblet', '高脚杯', 'item:goblet', { materials: ['silver', 'gold'], where: { temple: 1, dungeon: 0.5 } }),
   W('item/valuable/crown', 'Circlet', '头冠', 'item:crown', { materials: ['silver', 'gold', 'ringsteel'], where: { dungeon: 0.2 } }),
   W('item/valuable/ancient_ring_shard', 'Ring Shard', '环冠碎片', 'item:shard', { tags: ['ancient', 'runic', 'arcane', 'metal'], where: { dungeon: 0.4 } }),
@@ -248,12 +285,17 @@ export const FORMS: Form[] = [
   W('item/document/proclamation', 'Proclamation of the Pilgrimage', '朝圣令', 'item:letter', { tags: ['paper', 'flammable', 'readable', 'holy'], where: {} }),
   W('item/document/almanac', 'Almanac of the First Night', '初夜历书', 'item:book', { tags: ['paper', 'flammable', 'readable', 'ancient'], where: {} }),
   // the first of the five instruments of the Five Sufferings (docs/lore.md §4): the Crown of Thorns
-  W('item/relic/crown_of_thorns', 'Crown of Thorns', '荆棘冠', 'item:crown_of_thorns', { tags: ['holy', 'relic', 'sharp', 'thorny'], where: {} }),
+  // Stigmatic: worn, it wears the self away as it wore Alberic's (lore.md §4) — strength, and experience slow to come
+  W('item/relic/crown_of_thorns', 'Crown of Thorns', '荆棘冠', 'item:crown_of_thorns', { tags: ['holy', 'relic', 'sharp', 'thorny', 'wearable', 'quality:legendary', 'wound:crown'], props: { slot: 'head', def: 4, atk: 2, xpRate: -0.5, relic: 'crown' }, where: {} }),
   // what the grey man gave a child: an ember of a dawn flame, warm at night (its uses left to the world)
   W('item/misc/warm_ember', 'Warm Ember', '温暖的余烬', 'item:warm_ember', { tags: ['warm', 'light', 'holy'], where: {} }),
   // the bridge's missing nail, pulled straight; a farmer's wedding band
   W('item/misc/ninth_nail', 'The Ninth Nail', '第九根钉子', 'item:ninth_nail', { tags: ['metal', 'iron', 'conductive', 'sharp'], where: {} }),
-  W('item/valuable/band', 'Wedding Band', '婚戒', 'item:ring', { tags: ['metal', 'precious'], where: {} }),
+  W('item/valuable/band', 'Wedding Band', '婚戒', 'item:ring', { tags: ['metal', 'precious', 'wearable'], props: { slot: 'ring' }, where: {} }),
+  // the pilgrim before you: a scallop shell on a cord, the pilgrim's mark, found at his cold camp in the forest
+  // the White Knight's last gift: one thorn of his crown, still green, that opens the ground he holds for you (haven.ts)
+  W('item/relic/oath_thorn', 'The Oath-Thorn', '誓约之棘', 'item:oath_thorn', { tags: ['holy', 'relic', 'keepsake', 'quality:vowed'], where: {} }),
+  W('item/valuable/scallop', "Pilgrim's Scallop", '朝圣者的扇贝', 'item:amulet', { tags: ['holy', 'keepsake', 'wearable', 'quality:vowed'], props: { slot: 'neck', def: 1, xpRate: 0.1, moveHaste: 0.15 }, where: {} }),
   // keys
   W('item/key', 'Key', '钥匙', 'item:key', { tags: ['key', 'metal'], materials: ['iron', 'bronze', 'silver', 'gold'], where: { home: 0.3, dungeon: 0.5, npc: 0.2 } }),
   // misc
@@ -328,7 +370,8 @@ export const LEGENDARY_ARMS: Record<string, string[]> = {
 }
 
 /** Instantiate an item: material × quality × element, with a composed bilingual name. */
-export function makeItem(rng: Rng, form: Form, opts: { material?: string; quality?: string; element?: string | null } = {}): Omit<Entity, 'id' | 'place'> {
+/** `trait`: whether a Vowbound piece rolls its vow's trait (a named piece says its own). */
+export function makeItem(rng: Rng, form: Form, opts: { material?: string; quality?: string; element?: string | null; trait?: boolean } = {}): Omit<Entity, 'id' | 'place'> {
   const tags: string[] = []
   const props: Record<string, PropValue> = {}
   let en = form.en
@@ -341,7 +384,8 @@ export function makeItem(rng: Rng, form: Form, opts: { material?: string; qualit
     zh = `${m.zh}${zh}`
   }
   let quality: string | undefined
-  const isGear = form.id.startsWith('item/weapon') || form.id.startsWith('item/armor') || form.id.startsWith('item/tool') || form.id.startsWith('item/valuable')
+  // gear has a tier: what is wielded, worn (armour and clothing alike) or treasured
+  const isGear = form.id.startsWith('item/weapon') || form.id.startsWith('item/armor') || form.id.startsWith('item/clothing') || form.id.startsWith('item/tool') || form.id.startsWith('item/valuable')
   if (isGear) {
     const q = opts.quality ? QUALITIES.find((x) => x.id === opts.quality)! : weighted(rng, QUALITIES)
     if (q.id !== 'common') {
@@ -353,6 +397,8 @@ export function makeItem(rng: Rng, form: Form, opts: { material?: string; qualit
   }
   // what the material and the quality make of its power and defence (world-model.md §6.8)
   Object.assign(props, gearProps(form.props ?? {}, matId ? MATERIAL_DEFS[matId] : undefined, QUALITY_DEFS().find((x) => x.id === quality)))
+  // a Vowbound piece keeps something of its vow beyond its numbers
+  if (quality === 'vowed' && opts.trait !== false) Object.assign(props, rng.pick(VOW_TRAITS))
   const el = opts.element === null ? undefined : (opts.element ?? (form.elemental && rng.chance(0.28) ? rng.pick(Object.keys(ELEMENT_NAMES)) : undefined))
   if (el && form.elemental) {
     tags.push(`element:${el}`)

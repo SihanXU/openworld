@@ -192,6 +192,8 @@ export class Story {
             break
           }
       if (now) this.lessonTick()
+      // the quests that move on by themselves (quests.ts advance): the story's own outcome
+      if (now && eng.quests.due()) eng.script([{ op: 'quests' }], {}, 'quests')
       return
     }
     for (let guard = 0; guard < 50; guard++) {

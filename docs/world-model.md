@@ -620,6 +620,14 @@ raw chicken) and spills what it carried (the cyclops's hoard of ore); the `drop`
 are gone. Req 17. Element side effects stay rules (`element/actor`). Not yet: shields that block,
 armour that wears out, what a worn thing looks like on its wearer.
 
+The body's slots (2026-10-07): **head** (helmet, hat), **body** (breastplate), **feet** (boots), **hands**
+(gloves), **waist** (belt), **shoulders** (pauldrons, cloak), **neck** (amulet), **ring** ×2 (rings, a wedding
+band), **ear** (earring), and the off hand (**arm**: the warrior's shield). A kind of slot there are more of is
+data (`params.slotCount`: `ring: 2` → `wear:ring`, `wear:ring.2`; a ring goes on the first free, else the
+first). Rings add `atk` 1, an amulet `def` 1, an earring `xpRate` 0.1, a belt and pauldrons `def` 1. The frame
+carries what is worn by slot (`player.worn`); the bag shows it as a paper doll beside the grid
+(`tools/test/equipment.test.ts`).
+
 As built (2026-10-05): a ranged blow checks blocking from the first cell ahead, on the shooter's
 storey. An adjacent wall stops the ray and receives an unaimed blow through its own rules.
 

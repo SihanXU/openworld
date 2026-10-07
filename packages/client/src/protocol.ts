@@ -40,7 +40,7 @@ export type ToWorker =
   | { t: 'drop'; slot: number; all: boolean }
   | { t: 'organize' }
   /** The off hand: wear a carried item there (a shield), or take off what is worn (no item). */
-  | { t: 'wear'; item?: string }
+  | { t: 'wear'; item?: string; /** from the bag: put on (another of a stack), never take off */ putOn?: boolean }
   /** The crafting panel: make a recipe from what is carried. */
   | { t: 'craft'; id: string; /** as many as what is carried makes */ all?: boolean }
   /** The skill tree: spend skill points on a skill. */
@@ -70,6 +70,8 @@ export type ToWorker =
   | { t: 'debug'; op: 'teleport'; map?: string; x: number; y: number }
   | { t: 'debug'; op: 'give'; type: string; tags?: string[] }
   | { t: 'debug'; op: 'hour'; hour: number }
+  /** A boss set down again on its map (the dev's hand): the player goes there first (`from`), it stands at x, y. */
+  | { t: 'debug'; op: 'summon'; kit: string; map: string; x: number; y: number; from: [number, number] }
   /** Harm the one at the keys (as a blow nobody struck): to try a fall and the death screen. */
   | { t: 'debug'; op: 'hurt'; amount: number }
   | { t: 'debug'; op: 'god'; on?: boolean }

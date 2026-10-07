@@ -1,5 +1,5 @@
 import type { Dir, EntitySnap } from '@lsw/engine'
-import { ALBERIC_CLIPS, ALBERIC_FRAME_MS } from '../assets/bosses.ts'
+import { ALBERIC_CLIPS, albericFrameMs } from '../assets/bosses.ts'
 
 /** Pure atlas selection: wind-up is [0,.5), release/recovery [.5,1], never an early shot. */
 export function bossAnimationFrame(boss: NonNullable<EntitySnap['boss']>, time: number, offset = 0, facing: Dir = 'down'): { col: number; row: number } {
@@ -11,19 +11,21 @@ export function bossAnimationFrame(boss: NonNullable<EntitySnap['boss']>, time: 
     const id = action === 'idle' || action === 'walk' || action === 'hurt' || action === 'death'
       ? action : row === 4 ? 'volley' : row === 3 ? 'arrow' : 'thorns'
     const clip = ALBERIC_CLIPS[id]
+    const frameMs = albericFrameMs(id)
     const elapsed = Number.isFinite(boss.animationElapsedMs) ? Math.max(0, boss.animationElapsedMs!) : undefined
     let pose: number
     if (action === 'idle' || action === 'walk') {
-      pose = Math.floor((elapsed ?? Math.max(0, time + offset)) / ALBERIC_FRAME_MS) % clip.length
+      // loops run on the screen's clock: the simulation's 10 Hz steps (and a lagging tick) would make them stutter
+      pose = Math.floor(Math.max(0, time + offset) / frameMs) % clip.length
     } else if (action === 'attack' || action === 'cast') {
-      // Play the anticipation at 20 fps, then hold the drawn weapon until the engine
+      // Play the anticipation at the clip's pace, then hold the drawn weapon until the engine
       // releases. Recovery starts at the actual hit, never by looping through a timer.
       const windingUp = !!boss.warning || progress < 0.5, half = clip.length / 2
       const step = elapsed === undefined ? Math.floor((windingUp ? progress : progress - 0.5) * clip.length)
-        : Math.floor(elapsed / ALBERIC_FRAME_MS)
+        : Math.floor(elapsed / frameMs)
       pose = (windingUp ? 0 : half) + Math.min(half - 1, Math.max(0, step))
     } else {
-      pose = Math.min(clip.length - 1, Math.floor(elapsed === undefined ? progress * clip.length : elapsed / ALBERIC_FRAME_MS))
+      pose = Math.min(clip.length - 1, Math.floor(elapsed === undefined ? progress * clip.length : elapsed / frameMs))
     }
     const col = clip[pose]!
     // Three genuinely drawn overhead directions; left mirrors right, never the front/back.

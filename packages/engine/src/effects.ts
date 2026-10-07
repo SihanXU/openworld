@@ -31,13 +31,14 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   addTag: 'addTag {tag}',
   removeTag: 'removeTag {tag}',
   hurt: 'hurt {amount, element?, pierce?, blow?} — the host loses health, or durability (hp; its defence applies unless pierce); at none, threshold/cross "broken". blow: a strike\'s — times how well the instrument (what struck, else the striker\'s own body) works on the host\'s material (the efficiency table), and nothing if the instrument is softer than it ("too hard")',
-  wear: 'wear — the host (an actor) puts on the thing of its own it is offered (param item, by its slot prop: a helmet on the head), what was in that slot coming off; offered what it wears, it takes it off (world-model.md §6.8); a profession\'s piece (tag profession:<id>, the warrior\'s shield) goes on only for that profession',
+  wear: 'wear — the host (an actor) puts on the thing of its own it is offered (param item, by its slot prop: a helmet on the head; of a slot there are more of, as two rings, the first free), what was in that slot coming off; offered what it wears, it takes it off (world-model.md §6.8); a profession\'s piece (tag profession:<id>, the warrior\'s shield) goes on only for that profession',
   sleep: 'sleep — the host sleeps until it is time to rise (time passes at once for the one at the keys), and wakes with what it was missing given back as its room says (a bedroom: all; elsewhere: half)',
   fall: 'fall — with nothing under it on its storey, the host drops to the first floor below, struck by the drop beyond the safe height (the root of contact/end on)',
   breakdown: 'breakdown — the host breaks into what it is made of (its makeup × the world\'s recovery rate, in its material), what it holds spills out, and it is gone (the root outcome of broken for anything with a makeup)',
   heal: 'heal {amount}',
   feed: 'feed {amount} — the host\'s hunger rises by amount, up to its maxHunger',
   gainXp: 'gainXp {amount} — the host gains experience (times 1 + its stat xpRate); enough raises its level (props xp, level, skillPoints)',
+  pocket: 'pocket — the host (an actor) steps into a pocket place (param map, x, y: a place one carries, the Held Ground) and remembers where it stood (its prop pocket.return); in that place already, it steps back out where it was',
   boon: 'boon — the host (a companion) is given a boon (param unlock: its id; carried at once if it carries none) or carries another it has (param boon), the latter only while its leader stands beside an attuned waypoint; a boon is its status boon_<id>, whose lead:<stat> props add to the leader\'s stats',
   foe: 'foe {} — whoever started the chain (the one who struck) becomes the host\'s foe, attacked on sight',
   open: 'open {} — the host opens or closes (toggles the `open` status)',
@@ -56,7 +57,7 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   log: 'log {text} — a message line ({role} = names, {role.key} = that role\'s prop, {param.key} = an event param)',
   emote: 'emote {mood: neutral|happy|sad|angry|surprised|shy} — an emote bubble over the host',
   quest: 'quest {} — the host (a person) is spoken to about quests: business with the speaker (a quest to hand in, to take on, a talk goal) is told to the story; else the host says how a quest goes, or its line (quests.ts)',
-  quests: "quests {} — the story's: a quest's business it is told of is settled (notify what = quest: between the source, a giver, and the actor; what = defeat: the actor felled a thing of param type) — its facts change, the giver takes what was brought, the taker is told its reward",
+  quests: "quests {} — the story's: a quest's business it is told of is settled (notify what = quest: between the source, a giver, and the actor; what = defeat: the actor felled a thing of param type) — its facts change, the giver takes what was brought, the taker is told its reward; with no notice (the story's own pass), quests it has gone past are done, auto ones taken on, self ones completed",
   learn: 'learn {} — the host learns what its act names: param skill (spending its skill points) or param profession (at a trainer; a change gives back the profession branch)',
   appear: "appear {what?} — the world's: what appears by itself on the active map now (the map's own appearances and the world's that fit it, each at its pace, hours and weather, up to its max), or only the appearance given (world-model.md §6.9)",
   release: "release {} — the host's encounter skill lands on the cells its act telegraphed (params skill, ox, oy, ax, ay): a strike to each foe there, a push or pull and a coat as the skill says; the host heals or blinks itself",
@@ -337,8 +338,11 @@ export class EffectRunner {
         if (!host || !item || (!own && ev.kind !== 'impulse/offered')) return
         const slot = w.prop(item, 'slot')
         if (typeof slot !== 'string') return
-        const key = `wear:${slot}`
-        const on = w.prop(host, key) === item.id
+        // a slot of a kind there are more of (two rings): the one it is in, else the first free, else the first
+        const keys = w.wearKeys(slot)
+        const worn = keys.find((k) => w.prop(host, k) === item.id)
+        const key = worn ?? keys.find((k) => { const id = w.prop(host, k); const it = typeof id === 'string' ? w.get(id) : undefined; return !it || !((it.place.on === 'inside' || it.place.on === 'hand') && it.place.holder === host.id) }) ?? keys[0]
+        const on = !!worn
         // a profession's piece (the warrior's shield) goes on only for its own (profession.ts)
         if (!on && !canWield(w, host, item)) {
           const need = itemProfession(w, item)!
@@ -419,8 +423,11 @@ export class EffectRunner {
         const n = Math.ceil(this.amount(ev, eff.amount))
         // harm is a blow (hurt): it passes defence and the line where one goes down; a heal never takes
         if (n < 0) throw new Error(`a heal of ${n}`)
-        eng.setProp(host, 'hp', Math.min(w.num(host, 'maxHp', 1), w.num(host, 'hp') + n), ev)
-        w.fx.push({ t: 'damage', who: host.id, amount: -n })
+        const before = w.num(host, 'hp')
+        eng.setProp(host, 'hp', Math.min(w.num(host, 'maxHp', 1), before + n), ev)
+        // what it mended, shown (nothing to show at full health)
+        const gained = w.num(host, 'hp') - before
+        if (gained > 0) w.fx.push({ t: 'damage', who: host.id, amount: -gained })
         return
       }
       case 'feed': {
@@ -518,6 +525,24 @@ export class EffectRunner {
       case 'release':
         if (host) releaseSkill(eng, host, ev)
         return
+      case 'pocket': {
+        // the host's own: where it stands, kept on itself; then it goes (its companions follow as they do)
+        if (!host) return
+        const map = String(ev.params?.map ?? '')
+        const at = w.posOf(host)
+        if (!map || !at) return
+        const back = w.prop(host, 'pocket.return')
+        if (at.map === map) {
+          const [m, x, y] = typeof back === 'string' ? back.split(',') : []
+          if (!m) return
+          w.setProp(host, 'pocket.return', undefined)
+          eng.travel(host, { map: m, x: Number(x), y: Number(y) })
+        } else {
+          w.setProp(host, 'pocket.return', `${at.map},${at.x},${at.y}`)
+          eng.travel(host, { map, x: Number(ev.params?.x ?? 0), y: Number(ev.params?.y ?? 0) })
+        }
+        return
+      }
       case 'boon': {
         // a companion's boon (boons.ts): given by the story (param unlock), or chosen (param boon)
         // while its leader stands beside an attuned waypoint; it carries one at a time

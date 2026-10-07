@@ -10,7 +10,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
-import { BOSSES, CH1_QUESTS, codexEntries, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_AT_FOOT, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, type RawChunk } from '@lsw/content'
+import { BOSSES, CH1_QUESTS, HAVEN_QUESTS, codexEntries, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_AT_FOOT, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, type RawChunk } from '@lsw/content'
 import { CATALOG } from '../../../client/src/assets/catalog.ts'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
@@ -18,11 +18,13 @@ import { plantGarden } from './garden.ts'
 import { EAST_ROAD, EMBERFALL, LAIR, MINE, PASS, buildEastRoad, buildEmberfall, buildLair, buildMine, buildPass } from './quest/maps.ts'
 import { QUEST_SCENES } from './quest/scenes.ts'
 import { PAT, PROLOGUE, TUTORIAL, buildFoot, buildSummit, buildTutorial } from './prologue.ts'
-import { BARROW, HOLLOW, buildBarrow, buildHollow } from './hollow.ts'
+import { BARROW, HOLLOW, buildBarrow, buildHollow, buildOssuary, buildSanctum } from './hollow.ts'
 import type { PersonDef, Slot } from './person.ts'
 import { buildOverworld, placeCells, siteOf } from './overworld.ts'
 import { PEOPLE } from './people.ts'
-import { CHAPTER1_SCENES, CHAPTER1_STORY, buildOffstage, chapter1Barrow, chapter1EastRoad, chapter1Foot, chapter1Ford, chapter1Village } from './quest/chapter1.ts'
+import { buildHaven } from './quest/haven.ts'
+import { VIGIL, buildChapel, buildDawnHill, buildMillCellar, buildMillbrook } from './quest/vigil.ts'
+import { CHAPTER1_SCENES, CHAPTER1_STORY, HAVEN_STORY, buildOffstage, chapter1Barrow, chapter1EastRoad, chapter1Foot, chapter1Ford, chapter1Forest, chapter1Hollow, chapter1Pasture, chapter1Summit, chapter1Village } from './quest/chapter1.ts'
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '../../../client/public/world')
 export const VERSION = 'ford-4'
@@ -289,6 +291,13 @@ function buildMeadow(): MapBuilder {
   m.anchor('oskar.home', 29, 9)
   // a pond where the animals drink
   m.organic(16, 22, 2.6, 1.7, 'water', { only: (t) => t === 'grass' })
+  // the warm spring west of it (its pool drawn over grass): sit in it and it mends you
+  const [sx, sy] = FIRSTLIGHT.spring
+  for (let y = sy - 2; y <= sy + 2; y++) for (let x = sx - 2; x <= sx + 2; x++) if (m.get(x, y) === 'tree' || m.get(x, y) === 'pine') m.set(x, y, 'grass')
+  m.scenery('spring', sx - 1, sy - 1)
+  // the ground round it, where Pip points it out
+  m.regions.spring = [sx - 4, sy - 3, 9, 7]
+  m.fixture('fixture/sign', sx - 2, sy - 2, { props: { text: 'Warm spring — sit a while, and it mends you.', text_zh: '温泉——泡一会儿，伤就好了。' } })
   // small things: flowers and tufts in the open, leaves under the trees
   const tree = (t: string) => t === 'tree' || t === 'pine'
   m.sprinkle('fixture/nature/flowers', 0.06, (x, y, t) => t === 'grass' && !m.near(x, y, tree, 2))
@@ -438,7 +447,23 @@ function person(p: PersonDef, at: (name: string) => Pos): Entity {
 
 const say = (who: string, en: string, zh: string, mood?: 'neutral' | 'happy' | 'sad' | 'angry' | 'surprised' | 'shy') => ({ say: who, text: L(en, zh), ...(mood && { mood }) })
 
+/** Firstlight's own beats: Pip points out the healing spring the first time one comes near it. */
+const FIRSTLIGHT_BEATS: StepDef[] = [
+  {
+    id: 'see_spring',
+    when: { map: FIRSTLIGHT.map, region: 'spring' },
+    say: L('Look, steam! That is a healing spring — sit in it and your wounds close. Come back here whenever you are hurt.', '看，冒着热气！那是疗伤温泉——泡进去伤口就会慢慢愈合。受伤了就回来泡一泡吧。'),
+  },
+]
+
 const scenes: StepDef[] = [
+  {
+    // Across before the village has called you on the road: the far bank is reached, the road waits.
+    id: 'far_bank_early',
+    when: { map: 'ford', region: 'far_bank', props: { quest: { lt: 0.7 } } },
+    facts: { 'ford.crossed': 1 },
+    say: L('We made it across! ...But the village still needs us, and nobody has told us what is down that road yet. Let\'s not go far.', '我们过来了！……不过村里还需要我们，也还没人告诉我们那条路上有什么。先别走太远。'),
+  },
   {
     // The afternoon after the storm: you come down the cliff stair from the mountain (docs/prologue.md).
     id: 'arrival',
@@ -477,7 +502,8 @@ const scenes: StepDef[] = [
   {
     // The goal is a state: however you got here, the far bank ends the first chapter.
     id: 'far_bank',
-    when: { map: 'ford', region: 'far_bank' },
+    // once the pilgrimage is called (stage 0.7: the letter); across before that, `far_bank_early`
+    when: { map: 'ford', region: 'far_bank', props: { quest: { gte: 0.7 } } },
     script: [
       { fact: 'ford.crossed', value: 1 },
       { prop: 'quest', value: 2 },
@@ -504,6 +530,22 @@ export function buildFord(): FordWorld {
   reseed(4243)
   const meadow = buildMeadow()
   linkEdge(m, WEST_GAP.map((y) => [0, y]), [1, 0], meadow, WEST_GAP.map((y) => [meadow.w - 1, y]), [-1, 0])
+  // Firstlight's own country (docs/chapter-1.md §13): Millbrook west of it, Dawn Hill north; their cellar and chapel
+  reseed(4270)
+  const mill = buildMillbrook()
+  const millcellar = buildMillCellar()
+  mill.linkInterior('mill', millcellar)
+  reseed(4271)
+  const dawnhill = buildDawnHill()
+  const chapel = buildChapel()
+  dawnhill.linkInterior('chapel', chapel)
+  // the village's woods opened where the new ways go, a path to each
+  for (const y of VIGIL.villageWest) for (let x = 0; x < 4; x++) meadow.set(x, y, 'path')
+  for (const x of VIGIL.villageNorth) for (let y = 0; y < 3; y++) meadow.set(x, y, 'path')
+  meadow.path([[3, 18], [7, 18], [11, 17]], 'path', 1)
+  meadow.path([[25, 2], [24, 5], [21, 9]], 'path', 1)
+  linkEdge(meadow, VIGIL.villageWest.map((y) => [0, y]), [1, 0], mill, VIGIL.millEast.map((y) => [mill.w - 1, y]), [-1, 0])
+  linkEdge(meadow, VIGIL.villageNorth.map((x) => [x, 0]), [0, 1], dawnhill, VIGIL.hillSouth.map((x) => [x, dawnhill.h - 1]), [0, -1])
   // the forest south of the meadow
   // the grassland south of the village (its cows and hens), and the forest south of that
   reseed(4253)
@@ -517,6 +559,8 @@ export function buildFord(): FordWorld {
   const hollow = buildHollow()
   reseed(4255)
   const barrow = buildBarrow()
+  const ossuary = buildOssuary()
+  const sanctum = buildSanctum()
   linkEdge(forest, HOLLOW.forestSouth.map((x) => [x, forest.h - 1]), [0, -1], hollow, HOLLOW.north.map((x) => [x, 0]), [0, 1])
   linkEdge(hollow, HOLLOW.south.map((x) => [x, hollow.h - 1]), [0, -1], barrow, BARROW.north.map((x) => [x, 0]), [0, 1])
   // the main quest east of the Ford (docs/main-quest.md): the road, Emberfall, its mine, the pass, the lair
@@ -553,10 +597,16 @@ export function buildFord(): FordWorld {
   chapter1Ford(m)
   chapter1Village(meadow)
   chapter1Foot(foot)
+  chapter1Summit(summit)
+  chapter1Pasture(pasture)
+  chapter1Forest(forest)
+  chapter1Hollow(hollow)
   chapter1Barrow(barrow)
   chapter1EastRoad(road)
   const offstage = buildOffstage()
-  const builders = [m, meadow, pasture, forest, hollow, barrow, road, ember, mine, pass, lair, summit, foot, tutorial, offstage]
+  // the Held Ground the Oath-Thorn opens (docs/chapter-1.md §12): linked to nothing
+  const haven = buildHaven()
+  const builders = [m, meadow, pasture, forest, hollow, barrow, ossuary, sanctum, mill, millcellar, dawnhill, chapel, road, ember, mine, pass, lair, summit, foot, tutorial, offstage, haven]
   const at = placeMaps(builders, m)
   for (const b of builders)
     for (const [name, [x, y]] of Object.entries(b.anchors)) {
@@ -617,7 +667,7 @@ export function buildFord(): FordWorld {
       props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, quest: 0, prologue: 0, hunger: 12 },
     },
     companions: [{ id: 'pip', type: 'actor/companion/fairy', name: L('Pip', '小啾'), place: { on: 'none' }, facing: 'down' }],
-    quests: [...VILLAGE_QUESTS, ...CH1_QUESTS],
+    quests: [...VILLAGE_QUESTS, ...CH1_QUESTS, ...HAVEN_QUESTS],
     // what Pip tells when taken hold of (F): the prologue's step on the mountain, then the main quest's
     guides: [
       { prop: 'prologue', until: PROLOGUE_DONE, start: PROLOGUE_DONE, stages: PROLOGUE_OBJECTIVES },
@@ -626,7 +676,7 @@ export function buildFord(): FordWorld {
     waypoints: chunks.flatMap((c) => c.entities.filter((e) => e.type === 'fixture/sacred/waypoint').map((e) => ({ id: e.id, map: c.map.id, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: e.name ?? L('Waypoint', '传送雕像') }))),
     stats: { maps: builders.length, npcs: npcs.length, creatures, items, itemKinds: kinds.size, fixtures },
     // the story's one script (world-model.md §6.12): the tutorial's beats, then the scenes
-    steps: [...PROLOGUE_BEATS, ...scenes, ...CHAPTER1_STORY, ...CHAPTER1_SCENES, ...QUEST_SCENES],
+    steps: [...PROLOGUE_BEATS, ...FIRSTLIGHT_BEATS, ...scenes, ...CHAPTER1_STORY, ...CHAPTER1_SCENES, ...HAVEN_STORY, ...QUEST_SCENES],
     invariants: INVARIANTS,
     protectedFacts: PROTECTED_FACTS,
     weather: [

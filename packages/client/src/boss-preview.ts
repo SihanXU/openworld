@@ -1,5 +1,5 @@
 import type { EntitySnap } from '@lsw/engine'
-import { ALBERIC_CLIPS, ALBERIC_FPS, ALBERIC_FRAME_MS } from './assets/bosses.ts'
+import { ALBERIC_CLIPS, ALBERIC_CLIP_FPS, albericFrameMs } from './assets/bosses.ts'
 
 export type BossPreviewMode = 'live' | 'idle' | 'walk' | 'attack' | 'cast' | 'volley' | 'hurt' | 'death'
 
@@ -7,7 +7,7 @@ export type BossPreviewMode = 'live' | 'idle' | 'walk' | 'attack' | 'cast' | 'vo
 export function bossPreviewModes(kit: string): { value: BossPreviewMode; label: string }[] {
   const alberic = kit === 'alberic'
   const frames = (clip: keyof typeof ALBERIC_CLIPS, legacy = 4) =>
-    alberic ? `${ALBERIC_CLIPS[clip].length} 帧 · ${ALBERIC_FPS} FPS` : `${legacy} 帧`
+    alberic ? `${ALBERIC_CLIPS[clip].length} 帧 · ${ALBERIC_CLIP_FPS[clip]} FPS` : `${legacy} 帧`
   return [
     { value: 'live', label: '实战 · 完整循环' },
     { value: 'idle', label: `待机 · ${frames('idle')}` },
@@ -31,7 +31,7 @@ export function previewBoss(entity: EntitySnap | undefined, mode: BossPreviewMod
   boss.action = mode === 'volley' ? 'cast' : mode
   if (boss.kit === 'alberic') boss.skill = mode === 'volley' ? 'volley' : mode === 'cast' ? 'arrow' : 'thorns'
   const clip = mode === 'attack' ? 'thorns' : mode === 'cast' ? 'arrow' : mode
-  const duration = boss.kit === 'alberic' ? ALBERIC_CLIPS[clip].length * ALBERIC_FRAME_MS : 1800
+  const duration = boss.kit === 'alberic' ? ALBERIC_CLIPS[clip].length * albericFrameMs(clip) : 1800
   const elapsed = Math.max(0, elapsedMs)
   // A death preview stays on the fallen pose; clicking it again restarts from frame one.
   boss.progress = mode === 'death' ? Math.min(1, elapsed / duration) : elapsed % duration / duration

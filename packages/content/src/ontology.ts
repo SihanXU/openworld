@@ -54,6 +54,7 @@ export const TERRAIN_CHARS: Record<string, string> = {
   B: 'bridge',
   m: 'farmland',
   M: 'mud',
+  h: 'spring',
   V: 'void',
 }
 export const CHAR_OF: Record<string, string> = Object.fromEntries(Object.entries(TERRAIN_CHARS).map(([c, t]) => [t, c]))
@@ -150,6 +151,8 @@ export const TERRAINS: TerrainDef[] = [
   T('bridge', '木桥', 'wooden bridge', ['wooden', 'flammable', 'road'], { color: '#a07a4a' }),
   T('farmland', '农田', 'farmland', ['ground', 'diggable', 'soil'], { color: '#7a5634' }),
   T('mud', '泥潭', 'mud', ['ground', 'wet-ground'], { color: '#5e4a33' }),
+  // a warm spring, shallow enough to wade into and sit in: soaking mends (content rules.ts, spring/soak)
+  T('spring', '疗伤温泉', 'healing spring', ['spring', 'warm'], { color: '#5fb8d6' }),
   T('void', '虚空', 'void', [], { solid: true, color: '#000000' }),
   // the open air of a cell on a storey above the ground where no floor is laid: never on a map, only
   // reached there to lay a floor in or set a wall on the wall below (docs/building.md §3)
@@ -170,6 +173,8 @@ export const TERRAINS: TerrainDef[] = [
 export const STATUSES: StatusDef[] = [
   { id: 'burning', name: { en: 'burning', zh: '燃烧' }, duration: 45, clears: ['frozen'], overlay: 'fire' },
   { id: 'wet', name: { en: 'wet', zh: '潮湿' }, duration: 400, clears: ['burning'], overlay: 'wet' },
+  // sitting in a warm spring: it mends (the spring's rules give it back while one stays), green crosses rising
+  { id: 'soaking', name: { en: 'soaking', zh: '泡温泉' }, duration: 8, clears: ['burning', 'frozen'], overlay: 'mend' },
   // water a line was cast into: nothing bites there until it settles
   { id: 'stirred', name: { en: 'stirred up', zh: '搅浑' }, duration: 100 },
   { id: 'frozen', name: { en: 'frozen', zh: '冰冻' }, duration: 40, clears: ['burning', 'wet'], immobilize: true, overlay: 'ice' },
@@ -203,6 +208,8 @@ export const STATUSES: StatusDef[] = [
   { id: 'hungry', name: { en: 'hungry', zh: '饿了' } },
   // a wound that bleeds 1 a second (Hemorrhage), and the rush of Adrenaline (the skills)
   { id: 'bleeding', name: { en: 'bleeding', zh: '流血' }, duration: 40, every: 10 },
+  // forced to one's knees (the Crown of Thorns' power: none cross that do not kneel)
+  { id: 'knelt', name: { en: 'kneeling', zh: '跪地' }, duration: 10, immobilize: true },
   { id: 'adrenaline', name: { en: 'adrenaline', zh: '肾上腺素' }, duration: 50, every: 10 },
 ]
 
@@ -423,6 +430,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/chalk/man', 'chalk drawing of a grey man', '画着灰衣人的粉笔画', [], { sprite: 'fixture:chalk_man' }),
   F('fixture/nature', 'natural feature', '自然物', [], { solid: true }),
   // briars: the White Knight's thorns, a hedge that stands where he set it (docs/chapter-1.md §4)
+  // a bank of mist at the Held Ground's edge (haven.ts): it holds the ground in until the steward widens it
+  F('fixture/nature/mist', 'bank of mist', '雾墙', ['mist'], { solid: true }),
   F('fixture/nature/briar', 'briar', '荆棘丛', ['plant', 'sharp', 'thorny', 'flammable'], { props: { material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/stick', count: 1 }] }),
   F('fixture/nature/boulder', 'boulder', '巨石', ['stone', 'rock', 'mineable'], { props: { material: 'stone', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/stone', count: 8 }] }),
   // the old mine's veins: a pickaxe breaks them like a boulder, into the ore they hold
@@ -493,7 +502,7 @@ export function buildOntology(): Ontology {
     materials: MATERIAL_DEFS,
     qualities: QUALITY_DEFS(),
     efficiency: EFFICIENCY,
-    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1 },
+    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1, slotCount: { ring: 2 } },
     // what makes a room what it is: a bed a bedroom (a night there gives everything back), a cooking fire a
     // kitchen, a workbench or forge a workshop, three chests and more a storeroom (world-model.md §5.4)
     roomRoles: [
@@ -509,6 +518,8 @@ export function buildOntology(): Ontology {
       // what appears by itself: the ground's yield, creatures that come back, the night's walkers (world-model.md §6.9)
       { name: 'appear', every: APPEAR_TICK, host: 'world' },
       { name: 'weather', every: 60, host: 'world' },
+      // the Held Ground's mist looks now and then whether the ground has grown past it (haven.ts)
+      { name: 'mist', every: 30, host: { type: 'fixture/nature/mist' } },
       { name: 'storm', every: 300, host: 'world' },
       // the night's walkers crumble at dawn (their own)
       { name: 'dawn', every: 5, host: { type: 'actor', tags: ['nightborn'] } },

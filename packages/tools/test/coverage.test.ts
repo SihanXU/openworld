@@ -71,5 +71,5 @@ describe('nothing put down is lost', () => {
       }
     }
     expect(lost).toEqual([])
-  })
+  }, 90_000) // a sweep of every item form × target: under a full parallel run it outlasts the default
 })

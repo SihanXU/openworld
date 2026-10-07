@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import type { EntitySnap } from '@lsw/engine'
 import { BossAnimationClock, bossAnimationFrame } from '../../client/src/render/boss-animation.ts'
-import { ALBERIC_CLIPS, ALBERIC_FPS, ALBERIC_FRAME_MS } from '../../client/src/assets/bosses.ts'
+import { ALBERIC_CLIPS, ALBERIC_CLIP_FPS, albericFrameMs } from '../../client/src/assets/bosses.ts'
 
 const boss = (progress: number): NonNullable<EntitySnap['boss']> => ({
   kit: 'alberic', phase: 1, action: 'cast', skill: 'arrow', progress,
   color: 0xf2ead2, footprint: [3, 2], enrageAt: 0.5,
 })
 
-describe('curated boss clips at 20 fps between simulation ticks', () => {
+describe('curated boss clips, each at its own pace, between simulation ticks', () => {
   it('uses 8–12 distinct source poses per clip without changing the source atlas', () => {
-    expect(ALBERIC_FPS).toBe(20)
-    expect(ALBERIC_FRAME_MS).toBe(50)
+    // a slow breath at rest, a stride walking, quicker blows (one rate of 20 made the idle twitch)
+    expect(ALBERIC_CLIP_FPS).toEqual({ idle: 8, walk: 12, thorns: 12, arrow: 12, volley: 12, hurt: 16, death: 10 })
+    expect(albericFrameMs('idle')).toBe(125)
     expect(Object.values(ALBERIC_CLIPS).map((clip) => clip.length)).toEqual([8, 10, 12, 12, 12, 8, 12])
     for (const clip of Object.values(ALBERIC_CLIPS)) {
       expect(new Set(clip).size).toBe(clip.length)
@@ -23,14 +24,14 @@ describe('curated boss clips at 20 fps between simulation ticks', () => {
     }
   })
 
-  it('advances every 50 ms from the first tick without changing the snapshot', () => {
+  it('advances at the clip\'s pace (hurt: 16 fps, 62.5 ms) from the first tick without changing the snapshot', () => {
     const clock = new BossAnimationClock(), first = { ...boss(0), action: 'hurt' as const, animationElapsedMs: 0 }
     clock.receive(first, 0)
     const frame = (time: number) => bossAnimationFrame({ ...first, animationElapsedMs: clock.elapsed(time) }, time).col
-    expect([0, 49, 50, 99, 100].map(frame)).toEqual([0, 0, 4, 4, 8])
+    expect([0, 62, 63, 100].map(frame)).toEqual([0, 0, 4, 4])
     const next = { ...first, progress: 1 / 3, animationElapsedMs: 100 }
     clock.receive(next, 100)
-    expect([100, 149, 150, 199, 200].map(frame)).toEqual([8, 8, 12, 12, 16])
+    expect([100, 124, 125, 187, 188].map(frame)).toEqual([4, 4, 8, 8, 12])
     expect(next).toMatchObject({ progress: 1 / 3, animationElapsedMs: 100 })
   })
 
@@ -42,7 +43,8 @@ describe('curated boss clips at 20 fps between simulation ticks', () => {
     expect(bossAnimationFrame({ ...boss(0.49), warning, animationElapsedMs: clock.elapsed(500) }, 500).col).toBe(15)
     clock.receive({ ...boss(0.5), animationElapsedMs: 0 }, 600)
     const frame = (time: number) => bossAnimationFrame({ ...boss(0.5), animationElapsedMs: clock.elapsed(time) }, time).col
-    expect([600, 649, 650, 700].map(frame)).toEqual([16, 16, 19, 22])
+    // arrow: 12 fps, a pose every 83 ms
+    expect([600, 683, 684, 700].map(frame)).toEqual([16, 16, 19, 19])
     expect(bossAnimationFrame({ ...boss(1), animationElapsedMs: 5000 }, 5000).col).toBe(31)
   })
 
@@ -73,10 +75,12 @@ describe('curated boss clips at 20 fps between simulation ticks', () => {
     expect(clock.progress(9000)).toBe(1)
   })
 
-  it('plays the complete idle/walk clips at 20 fps at different display refresh rates', () => {
+  it('plays the complete idle/walk clips at their pace on the screen\'s clock, at different display refresh rates, whatever the simulation\'s phase time', () => {
     for (const action of ['idle', 'walk'] as const) {
-      const clip = ALBERIC_CLIPS[action], cycleMs = clip.length * 50
-      expect(clip.map((_, i) => bossAnimationFrame({ ...boss(0), action }, i * 50).col)).toEqual(clip)
+      const ms = albericFrameMs(action), clip = ALBERIC_CLIPS[action], cycleMs = clip.length * ms
+      expect(clip.map((_, i) => bossAnimationFrame({ ...boss(0), action }, i * ms + 1).col)).toEqual(clip)
+      // a lagging tick's phase time does not hold or jump the loop
+      expect(bossAnimationFrame({ ...boss(0), action, animationElapsedMs: 9999 }, ms + 1).col).toBe(clip[1])
       expect(bossAnimationFrame({ ...boss(0), action }, cycleMs).col).toBe(0)
       for (const refreshRate of [20, 60, 144]) {
         const visible = new Set(Array.from({ length: Math.ceil(cycleMs * refreshRate / 1000) },

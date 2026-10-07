@@ -12,7 +12,7 @@ export { template }
 export interface DevSend {
   patch(id: string | undefined, patch: Patch): void
   /** Development only: give the player a thing, move them, set the hour (to stage an act by hand). */
-  debug(op: { op: 'give'; type: string } | { op: 'teleport'; map?: string; x: number; y: number } | { op: 'hour'; hour: number } | { op: 'hurt'; amount: number }): void
+  debug(op: { op: 'give'; type: string } | { op: 'teleport'; map?: string; x: number; y: number } | { op: 'hour'; hour: number } | { op: 'hurt'; amount: number } | { op: 'summon'; kit: string; map: string; x: number; y: number; from: [number, number] }): void
   dismiss(id: string): void
   removeRule(id: string): void
   spec(): void
@@ -212,6 +212,7 @@ export class ModConsole {
           <datalist id="dTypes">${(this.spec?.ontology.types ?? []).filter((t) => t.id === 'item' || t.id.startsWith('item/')).map((t) => `<option value="${esc(t.id)}">`).join('')}</datalist>
           <div class="row"><input id="dMap" placeholder="map (blank: this one)" spellcheck="false"><input id="dX" type="number" placeholder="x"><input id="dY" type="number" placeholder="y"><button id="bGo">Teleport</button></div>
           <div class="row"><button id="bForge">Emberfall, by the lit forge</button><input id="dHour" type="number" min="0" max="23" placeholder="hour"><button id="bHour">Set hour</button></div>
+          <div class="row"><button id="bKnight">召唤白骑士 · Summon the White Knight (East Road)</button></div>
         </div>
         <div id="worldStats"></div>
       </div>`
@@ -219,6 +220,7 @@ export class ModConsole {
       body.querySelector<HTMLButtonElement>('#bGive')!.onclick = () => val('dGive') && this.send.debug({ op: 'give', type: val('dGive') })
       body.querySelector<HTMLButtonElement>('#bGo')!.onclick = () => this.send.debug({ op: 'teleport', map: val('dMap') || undefined, x: Number(val('dX')), y: Number(val('dY')) })
       body.querySelector<HTMLButtonElement>('#bForge')!.onclick = () => this.send.debug({ op: 'teleport', map: 'emberfall', x: 31, y: 8 })
+      body.querySelector<HTMLButtonElement>('#bKnight')!.onclick = () => this.send.debug({ op: 'summon', kit: 'alberic', map: 'eastroad', x: 40, y: 15, from: [30, 12] })
       body.querySelector<HTMLButtonElement>('#bHour')!.onclick = () => val('dHour') && this.send.debug({ op: 'hour', hour: Number(val('dHour')) })
       if (!this.spec) this.send.spec()
     }
