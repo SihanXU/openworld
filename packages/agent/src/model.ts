@@ -228,9 +228,20 @@ export interface ClaudeCodeConfig {
  * session's own tools are switched off.
  *
  * Caching: Claude Code caches the prompt's prefix (with a one-hour lifetime), and a fresh
- * process reads what an earlier one wrote. So the system prompt is passed exactly as the caller
- * built it, from a file (it outgrows an argument's size limit as the content grows), and what
- * varies per call (the tool protocol, "reply with JSON") goes after the transcript.
+ * process reads what an earlier one wrote. A cached prefix ends at a block boundary: Claude Code
+ * marks the system prompt and the last content block of the last message, and the API looks for
+ * an earlier entry only at block boundaries (up to about 20 blocks back from a mark).
+ * - The system prompt is passed exactly as the caller built it, from a file (it outgrows an
+ *   argument's size limit as the content grows): every call with the same system prompt reads it
+ *   from the cache, whatever the call asks.
+ * - A call with tools is a step of a conversation (the agent loop: up to 40 steps on a transcript
+ *   that grows to tens of thousands of tokens; the design and the auditor with their tools). It
+ *   goes as stream-json: one user message with one text block per turn, the tool protocol first
+ *   (fixed for the conversation). The next step's message is this one with blocks appended, so its
+ *   prefix up to this step's last block is read from the cache, and only the new turns are written.
+ *   (One text block whose end changed every step, as before, matched nothing past the system prompt.)
+ * - Any other call (the live design, reviews, reflections: one call each) is plain text, with
+ *   "reply with JSON" after the transcript.
  */
 export class ClaudeCodeModel implements Model {
   readonly name: string
@@ -240,23 +251,28 @@ export class ClaudeCodeModel implements Model {
 
   async chat(messages: ChatMessage[], opts: ChatOptions = {}): Promise<ModelReply> {
     const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n')
-    const tail = opts.tools?.length ? toolProtocol(opts.tools) : opts.json ? 'Reply with one JSON object and nothing else.' : ''
-    const prompt = [...messages.filter((m) => m.role !== 'system').map(transcriptLine), ...(tail ? [`[instructions]\n${tail}`] : [])].join('\n\n')
+    const turns = messages.filter((m) => m.role !== 'system').map(transcriptLine)
+    // a step of a tool conversation: one block per turn, so the next step only appends (the class comment)
+    const stream = !!opts.tools?.length
+    const tail = opts.json ? 'Reply with one JSON object and nothing else.' : ''
+    const prompt = stream ? conversationInput(opts.tools!, turns) : [...turns, ...(tail ? [`[instructions]\n${tail}`] : [])].join('\n\n')
     const dir = mkdtempSync(join(tmpdir(), 'lsw-claude-'))
     const systemFile = join(dir, 'system.txt')
     writeFileSync(systemFile, system)
     const args = [
-      '-p', '--model', this.cfg.model, '--effort', this.cfg.effort ?? 'low', '--output-format', 'json',
+      '-p', '--model', this.cfg.model, '--effort', this.cfg.effort ?? 'low', '--output-format', stream ? 'stream-json' : 'json',
       '--tools', '', '--setting-sources', '', '--strict-mcp-config', '--disable-slash-commands', '--no-session-persistence',
       '--system-prompt-file', systemFile,
       ...(this.cfg.fast ? ['--settings', JSON.stringify({ fastMode: true })] : []),
+      // stream-json input needs stream-json output, and that needs --verbose in print mode
+      ...(stream ? ['--input-format', 'stream-json', '--verbose'] : []),
     ]
     const timeout = opts.deadlineMs ?? this.cfg.timeoutMs ?? 180_000
     let last: unknown
     try {
       for (let i = 0; i <= (opts.retries ?? 0); i++) {
         try {
-          return this.reply(await runClaude(this.cfg.bin ?? 'claude', args, prompt, timeout), !!opts.tools?.length)
+          return this.reply(await runClaude(this.cfg.bin ?? 'claude', args, prompt, timeout, stream), stream)
         } catch (err) {
           last = err
         }
@@ -330,7 +346,17 @@ export function commandFor(bin: string, args: string[]): { file: string; args: s
   return { file: bin, args, shell: false }
 }
 
-function runClaude(bin: string, args: string[], stdin: string, timeoutMs: number): Promise<{ data: ClaudeResult; ms: number }> {
+/** Print mode's answer: one JSON object (json), or the `result` line of a stream of them (stream-json). */
+function resultOf(out: string, stream: boolean): ClaudeResult {
+  if (!stream) return JSON.parse(out) as ClaudeResult
+  for (const line of out.trim().split('\n').reverse()) {
+    const j = JSON.parse(line) as ClaudeResult & { type?: string }
+    if (j.type === 'result') return j
+  }
+  throw new Error('no result in the stream')
+}
+
+function runClaude(bin: string, args: string[], stdin: string, timeoutMs: number, stream = false): Promise<{ data: ClaudeResult; ms: number }> {
   return new Promise((resolve, reject) => {
     const t0 = Date.now()
     // outside the repo, so the session picks up no project instructions
@@ -348,7 +374,7 @@ function runClaude(bin: string, args: string[], stdin: string, timeoutMs: number
     child.on('close', (code) => {
       clearTimeout(timer)
       try {
-        resolve({ data: JSON.parse(out) as ClaudeResult, ms: Date.now() - t0 })
+        resolve({ data: resultOf(out, stream), ms: Date.now() - t0 })
       } catch {
         reject(new Error(`claude-code: exit ${code} ${(err || out).slice(0, 300)}`))
       }
@@ -362,6 +388,15 @@ function transcriptLine(m: ChatMessage): string {
   if (m.role === 'assistant')
     return `[assistant]\n${m.content}${m.toolCalls?.length ? `\n${JSON.stringify({ tool_calls: m.toolCalls.map((c) => ({ id: c.id, name: c.name, args: c.args })) })}` : ''}`
   return `[${m.role}]\n${m.content}`
+}
+
+/**
+ * A tool conversation as stream-json input: one user message whose blocks are the tool protocol,
+ * then one per turn. Blocks are never merged, so a step's blocks are the last step's and its new turns.
+ */
+function conversationInput(tools: ToolSpec[], turns: string[]): string {
+  const content = [`[instructions]\n${toolProtocol(tools)}`, ...turns].map((text) => ({ type: 'text', text }))
+  return `${JSON.stringify({ type: 'user', message: { role: 'user', content }, parent_tool_use_id: null, session_id: '' })}\n`
 }
 
 function toolProtocol(tools: ToolSpec[]): string {

@@ -3,16 +3,23 @@ import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ClaudeCodeModel, commandFor, modelFromEnv } from '../src/index.ts'
+import { ClaudeCodeModel, commandFor, modelFromEnv, type ChatMessage } from '../src/index.ts'
+
+interface FakeCall {
+  args: string[]
+  stdin: string
+  system: string
+}
 
 /**
  * A stand-in for `claude -p`: it answers by what its system prompt and stdin say, as print mode's
- * JSON, and logs the system prompt it was given (one line per call) beside itself.
+ * JSON (or, given stream-json input, as a stream ending in a result line, which needs --verbose as
+ * the real one does), and logs each call's arguments, stdin and system prompt beside itself.
  */
-function fakeClaude(): { bin: string; systems: () => string[] } {
+function fakeClaude(): { bin: string; calls: () => FakeCall[]; systems: () => string[] } {
   const dir = mkdtempSync(join(tmpdir(), 'fake-claude-'))
   const bin = join(dir, 'claude')
-  const log = join(dir, 'systems.jsonl')
+  const log = join(dir, 'calls.jsonl')
   writeFileSync(log, '')
   writeFileSync(
     bin,
@@ -20,21 +27,38 @@ function fakeClaude(): { bin: string; systems: () => string[] } {
 const fs = require('fs')
 const args = process.argv.slice(2)
 const arg = (k) => args[args.indexOf(k) + 1]
+const stream = arg('--input-format') === 'stream-json'
+if (stream && (arg('--output-format') !== 'stream-json' || !args.includes('--verbose'))) {
+  console.error('Error: --input-format=stream-json requires output-format=stream-json (and --verbose)')
+  process.exit(1)
+}
 let stdin = ''
 process.stdin.on('data', (c) => (stdin += c))
 process.stdin.on('end', () => {
   const system = fs.readFileSync(arg('--system-prompt-file'), 'utf8')
-  fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(system) + '\\n')
+  fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({ args, stdin, system }) + '\\n')
+  const text = stream ? stdin.trim().split('\\n').map((l) => JSON.parse(l).message.content.map((b) => b.text).join('\\n\\n')).join('\\n\\n') : stdin
+  const say = (o) => (stream ? console.log(JSON.stringify({ type: 'system', subtype: 'init' }) + '\\n' + JSON.stringify({ type: 'result', ...o })) : console.log(JSON.stringify(o)))
   let result
-  if (stdin.includes('FAIL')) return console.log(JSON.stringify({ is_error: true, result: 'Failed to authenticate' }))
-  if (stdin.includes('## Tools') && !stdin.includes('[tool result: ')) result = JSON.stringify({ tool_calls: [{ name: 'get_rule', args: { id: 'core/use' } }] })
-  else result = JSON.stringify({ model: arg('--model'), effort: arg('--effort'), tools: arg('--tools'), sawResult: stdin.includes('[tool result: get_rule'), json: stdin.includes('one JSON object') })
-  console.log(JSON.stringify({ is_error: false, result, total_cost_usd: 0.01, usage: { input_tokens: 10, cache_read_input_tokens: 90, output_tokens: 5, output_tokens_details: { thinking_tokens: 2 } } }))
+  if (text.includes('FAIL')) return say({ is_error: true, result: 'Failed to authenticate' })
+  if (text.includes('## Tools') && !text.includes('[tool result: ')) result = JSON.stringify({ tool_calls: [{ name: 'get_rule', args: { id: 'core/use' } }] })
+  else result = JSON.stringify({ model: arg('--model'), effort: arg('--effort'), tools: arg('--tools'), sawResult: text.includes('[tool result: get_rule'), json: text.includes('one JSON object') })
+  say({ is_error: false, result, total_cost_usd: 0.01, usage: { input_tokens: 10, cache_read_input_tokens: 90, output_tokens: 5, output_tokens_details: { thinking_tokens: 2 } } })
 })
 `,
   )
   chmodSync(bin, 0o755)
-  return { bin, systems: () => readFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l) as string) }
+  const calls = () => readFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l) as FakeCall)
+  return { bin, calls, systems: () => calls().map((c) => c.system) }
+}
+
+/** The blocks of a stream-json call's one user message. */
+function blocksOf(c: FakeCall): string[] {
+  const lines = c.stdin.trim().split('\n')
+  expect(lines).toHaveLength(1)
+  const m = JSON.parse(lines[0]) as { type: string; message: { role: string; content: { type: string; text: string }[] } }
+  expect(m).toMatchObject({ type: 'user', message: { role: 'user' } })
+  return m.message.content.map((b) => b.text)
 }
 
 const tools = [{ name: 'get_rule', description: 'a rule by id', parameters: { type: 'object', properties: { id: { type: 'string' } } } }]
@@ -78,10 +102,48 @@ describe('the Claude Code backend (claude -p)', () => {
     expect(systems()).toEqual([big, big, big])
   })
 
+  it('a tool conversation goes as one message of one block per turn, the protocol first: each step only appends (the cached prefix)', async () => {
+    const { bin, calls } = fakeClaude()
+    const m = new ClaudeCodeModel({ model: 'claude-opus-5-5', bin })
+    const messages: ChatMessage[] = [{ role: 'system', content: 'ModSpec '.repeat(1000) }, { role: 'user', content: 'design' }]
+    // three steps of the agent loop: each answers with a tool call, whose result is appended
+    for (let step = 0; step < 3; step++) {
+      const r = await m.chat(messages, { tools })
+      const c = r.toolCalls[0] ?? { id: `c${step}`, name: 'get_rule', args: { id: 'core/use' } }
+      messages.push({ role: 'assistant', content: r.content, toolCalls: [c] }, { role: 'tool', toolCallId: c.id, name: c.name, content: `{"id":"core/use","step":${step}}` })
+    }
+    const steps = calls()
+    expect(steps).toHaveLength(3)
+    for (const c of steps) {
+      expect(c.args.join(' ')).toContain('--output-format stream-json')
+      expect(c.args.join(' ')).toContain('--input-format stream-json')
+      expect(c.args).toContain('--verbose')
+      expect(c.args).toContain('--no-session-persistence')
+      expect(c.system).toBe(steps[0].system)
+    }
+    const blocks = steps.map(blocksOf)
+    expect(blocks[0][0]).toMatch(/^\[instructions\]\n## Tools/)
+    expect(blocks[0]).toEqual([blocks[0][0], '[user]\ndesign'])
+    // each step is the last one's blocks and the new turns (the assistant's call, its result)
+    for (let i = 1; i < blocks.length; i++) {
+      expect(blocks[i].slice(0, blocks[i - 1].length)).toEqual(blocks[i - 1])
+      expect(blocks[i]).toHaveLength(blocks[i - 1].length + 2)
+      expect(blocks[i].at(-1)).toMatch(/^\[tool result: get_rule #/)
+    }
+    // a call without tools (the live design, a review, the last call of a tool budget) goes as before:
+    // plain text, "reply with JSON" last
+    await m.chat([{ role: 'system', content: 'sys' }, { role: 'user', content: 'design' }], { json: true })
+    const c = calls()[3]
+    expect(c.args).not.toContain('--input-format')
+    expect(c.args.join(' ')).toContain('--output-format json')
+    expect(c.stdin).toBe('[user]\ndesign\n\n[instructions]\nReply with one JSON object and nothing else.')
+  })
+
   it('a failed session is an error (the modder falls back), not an answer', async () => {
     const { bin } = fakeClaude()
     const m = new ClaudeCodeModel({ model: 'claude-opus-5-5', bin })
     await expect(m.chat([{ role: 'user', content: 'FAIL' }])).rejects.toThrow(/Failed to authenticate/)
+    await expect(m.chat([{ role: 'user', content: 'FAIL' }], { tools })).rejects.toThrow(/Failed to authenticate/)
   })
 
   it('a session that exits before reading its input is an error, not a crash (EPIPE)', async () => {
