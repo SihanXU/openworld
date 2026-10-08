@@ -17,6 +17,9 @@ export const DIRS: Record<Dir, [number, number]> = {
   right: [1, 0],
 }
 
+/** The way back: the opposite of a direction. */
+export const OPPOSITE: Record<Dir, Dir> = { up: 'down', down: 'up', left: 'right', right: 'left' }
+
 // ------------------------------------------------------------------ ontology
 
 /**

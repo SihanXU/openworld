@@ -527,7 +527,7 @@ describe('storeys: what one reaches, and where a thing goes (docs/building.md §
     expect(storeys(eng, 3, 3)).toEqual([['wall'], ['wall'], [], []])
   })
 
-  it("stairs are a block one walks onto, then on the way they go up onto the storey above; back down the same way; onto them from the side too", () => {
+  it("stairs are a block one walks onto, then on the way they go up onto the storey above; back down the same way; onto them from the side too, never from behind", () => {
     const eng = meadow()
     const w = eng.world
     // a platform: a wall at (3,2) with the ceiling laid over it; stairs before it at (3,3) going up north (set from (3,4))
@@ -567,7 +567,18 @@ describe('storeys: what one reaches, and where a thing goes (docs/building.md §
     eng.controls.sync()
     stand(eng, 5, 5)
     expect(eng.controls.place('structure/stairs', { x: 6, y: 5 }, 'right')).toBe(true)
-    expect(w.placedAt(SANDBOX_MAP, 6, 5).find((e) => e.type === 'structure/stairs')!.facing).toBe('right')
+    const east = w.placedAt(SANDBOX_MAP, 6, 5).find((e) => e.type === 'structure/stairs')!
+    expect(east.facing).toBe('right')
+    // their back is their high end, a storey of block: from the ground behind them one bumps into it
+    stand(eng, 7, 5)
+    expect(walk(eng, 'left')).toMatchObject({ x: 7, y: 5 })
+    // and with no floor over the cell behind, one does not walk off their top onto the ground there
+    stand(eng, 5, 5)
+    expect(walk(eng, 'right')).toMatchObject({ x: 6, y: 5 })
+    expect(walk(eng, 'right')).toMatchObject({ x: 6, y: 5 })
+    expect(w.posOf(w.player)!.z ?? 0).toBe(0)
+    // the front and the sides still lead on and off
+    expect(walk(eng, 'down')).toMatchObject({ x: 6, y: 6 })
   })
 
   it("stairs in a room going up through a hole in the floor overhead are the room's own, lead to the storey above, and the stairwell's roof is laid from upstairs", () => {
