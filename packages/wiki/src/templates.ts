@@ -711,7 +711,8 @@ export function navbox(ctx: Ctx, name: string): string {
       rows.push(['', titled(members)])
     }
   }
-  return `<table class="navbox"><tr><th colspan="2" class="nb-title">${ctx.link(name === '居民' ? '居民' : name === '物品' ? '物品' : name === '怪物' ? '怪物' : name === '地点' ? '地点' : name === '任务' ? '任务' : name)}</th></tr>${rows.map(([h, v]) => `<tr>${h ? `<th>${h}</th><td>` : '<td colspan="2">'}${v}</td></tr>`).join('')}</table>`
+  const head = ctx.pages.has(name) ? ctx.link(name) : esc(name)
+  return `<table class="navbox"><tr><th colspan="2" class="nb-title">${head}</th></tr>${rows.map(([h, v]) => `<tr>${h ? `<th>${h}</th><td>` : '<td colspan="2">'}${v}</td></tr>`).join('')}</table>`
 }
 
 // ------------------------------------------------------------------------------------------ the dispatcher
