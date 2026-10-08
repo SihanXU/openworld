@@ -103,6 +103,9 @@ function generatedBody(g: Game, e: Ent): string {
   return skeleton(e, TYPE_OF_KIND[e.kind]).replace(/^---[\s\S]*?---\n/, '').replace(/\*\*[^*]+\*\*是……/, lead ?? '') + '\n{{小作品}}\n'
 }
 
+/** A page's text without its code (examples of templates in the help pages are not uses of them). */
+export const scanText = (body: string) => body.replace(/^```[^\n]*\n[\s\S]*?\n```\s*$/gm, '').replace(/`[^`\n]+`/g, '')
+
 const STATUS_BANNER: Record<string, string> = { 规划中: '{{规划中}}', 待设计: '{{待设计}}' }
 
 export function buildSite(opts: { ref?: string } = {}): Built {
@@ -143,7 +146,7 @@ export function buildSite(opts: { ref?: string } = {}): Built {
     if (pages.has(title)) { errors.push(`${rel}：标题「${title}」和 ${pages.get(title)!.file} 重复`); continue }
     pages.set(title, {
       title, type, ent, dir, file: rel, front, body, status: front.状态 ?? '已实现', categories: front.分类, aliases: front.别名, summary: front.摘要,
-      navboxes: new Set(), stub: /\{\{\s*小作品\s*\}\}/.test(body), html: '', headings: [], out: [], errors: fe.map((x) => `${rel}：${x}`), updated: updated.get(rel),
+      navboxes: new Set(), stub: /\{\{\s*小作品\s*\}\}/.test(scanText(body)), html: '', headings: [], out: [], errors: fe.map((x) => `${rel}：${x}`), updated: updated.get(rel),
     })
   }
 
@@ -169,7 +172,7 @@ export function buildSite(opts: { ref?: string } = {}): Built {
   const resolve = (t: string): string | undefined => (pages.has(t) ? t : alias.get(t) ?? (SPECIAL.includes(t) || t.startsWith('分类：') ? t : undefined))
 
   // navbox membership (a hand navbox lists the pages that carry it)
-  for (const p of pages.values()) for (const m of p.body.matchAll(/\{\{\s*导航框\s*\|\s*([^}|]+?)\s*\}\}/g)) p.navboxes.add(m[1])
+  for (const p of pages.values()) for (const m of scanText(p.body).matchAll(/\{\{\s*导航框\s*\|\s*([^}|]+?)\s*\}\}/g)) p.navboxes.add(m[1])
 
   // default categories
   for (const p of pages.values()) {
@@ -225,7 +228,7 @@ export function buildSite(opts: { ref?: string } = {}): Built {
       },
     }
     const hooks = { template: (call: any) => runTemplate(ctx, call), link: (t: string, x?: string) => ctx.link(t, x) }
-    const banner = STATUS_BANNER[p.status] && !p.body.includes(STATUS_BANNER[p.status]) ? STATUS_BANNER[p.status] + '\n\n' : ''
+    const banner = STATUS_BANNER[p.status] && !scanText(p.body).includes(STATUS_BANNER[p.status]) ? STATUS_BANNER[p.status] + '\n\n' : ''
     const r = render(banner + p.body, hooks)
     p.html = r.html
     p.headings = r.headings
@@ -245,7 +248,7 @@ export function buildSite(opts: { ref?: string } = {}): Built {
         person: ['信息框', '日程表', '对话'], companion: ['信息框'], item: ['信息框', '来源', '用途'], fixture: ['信息框', '来源'], structure: ['信息框', '来源'],
         creature: ['信息框', '出没', '掉落'], boss: ['信息框', '首领技能'], map: ['信息框', '地图', '相连地点'], quest: ['信息框', '任务目标', '任务奖励'],
       }
-      for (const t of need[p.ent.kind] ?? []) if (!new RegExp(`\\{\\{\\s*${t}\\s*[|}]`).test(p.body)) p.errors.push(`${p.file}：${TYPE_OF_KIND[p.ent.kind]}页面要包含 {{${t}}}`)
+      for (const t of need[p.ent.kind] ?? []) if (!new RegExp(`\\{\\{\\s*${t}\\s*[|}]`).test(scanText(p.body))) p.errors.push(`${p.file}：${TYPE_OF_KIND[p.ent.kind]}页面要包含 {{${t}}}`)
     }
   }
   const coverage = completeness(game, conf, pages, resolve, errors, warnings)
@@ -263,11 +266,11 @@ function completeness(g: Game, conf: SiteConf, pages: Map<string, Page>, resolve
     rows.push(`<tr class="${ok ? 'ok' : 'bad'}"><td>${esc(what)}</td><td>${page ? `<a href="${linkHref(page)}">${esc(page)}</a>` : '—'}</td><td>${ok ? '✓' : '✗'}</td><td>${esc(note)}</td></tr>`)
     if (!ok) errors.push(`完备性：${what}${page ? `（应在「${page}」）` : ''}没有页面${note ? `：${note}` : ''}`)
   }
-  const body = (t: string) => pages.get(resolve(t) ?? '')?.body ?? ''
+  const body = (t: string) => scanText(pages.get(resolve(t) ?? '')?.body ?? '')
   for (const [k, t] of Object.entries(conf.系统.按键)) check(`按键 ${k}`, t, !!resolve(t))
   for (const [k, t] of Object.entries(conf.系统.面板)) check(`面板 ${k}`, t, !!resolve(t))
   for (const t of conf.系统.规则) check(`系统 ${t}`, t, !!resolve(t) && !pages.get(resolve(t)!)!.stub, resolve(t) ? (pages.get(resolve(t)!)!.stub ? '还是小作品' : '') : '')
-  const allBodies = [...pages.values()].map((p) => p.body).join('\n')
+  const allBodies = [...pages.values()].map((p) => scanText(p.body)).join('\n')
   for (const b of g.branches) check(`技能分支 ${b.name.zh}`, '技能', allBodies.includes(`{{技能树|${b.name.zh}}}`) || allBodies.includes(`{{技能树|${b.id}}}`), '要有 {{技能树|…}}')
   for (const p of g.professions) check(`职业 ${p.name.zh}`, p.name.zh, !!resolve(p.name.zh))
   for (const t of ['配方表', '建造表', '状态表', '地形表', '材质表', '品质表', '食物表', '作物表', '首领表', '怪物表', '居民表', '地点表', '传送雕像表', '夜行生物表', '恩赐表', '职业表', '房间用途表', '效率表', '传说武器表', '圣痕之力表']) check(`数据表 {{${t}}}`, undefined, allBodies.includes(`{{${t}`), '要在某个页面上出现')
