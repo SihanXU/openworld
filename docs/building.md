@@ -248,6 +248,11 @@ Taking it down is the reverse, step by step. Every step is reachable, and nothin
   `Controls.planOn` checks a put on a cell or a built thing against `settleWhy`, and a take against
   `World.bears`: a floor above the ground that something rests on. The `move` primitive refuses to move
   a floor that bears anything.
+- **What turns** (2026-10-08): the tag `turns` (stairs, stakes, a fence). Set down (the `move` effect)
+  or become (the `transform` effect) where it lies, it faces the way the one who made it faced: its front
+  toward them (stairs go up away from them, a fence runs across their way). By hand one faces the cell
+  one builds; the palette's R turns the builder (`performPlacement`'s `facing`, `Controls.place`). A
+  fence facing east or west is drawn across (the catalogue's `across`); the ghosts show the arrow.
 - **The back of stairs** (2026-10-08) is their high end, a storey of block: on their storey one bumps
   into it from the cell behind and does not walk off their top into that cell (`Engine.stepSelf`).
   Stairs that hide the player fade, as a statue does (`WorldScene.fadeOver`).

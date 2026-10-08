@@ -108,7 +108,7 @@ export interface Catalog {
    * Fixtures by sprite key. `variants`: looks picked per thing (by its id); `ground`: drawn flat
    * on the ground, under whatever stands there; `loose`: set a little off the grid, never in rows.
    */
-  fixtures: Record<string, { base: SpriteDef; open?: SpriteDef; lit?: SpriteDef; variants?: SpriteDef[]; ground?: boolean; loose?: boolean }>
+  fixtures: Record<string, { base: SpriteDef; open?: SpriteDef; lit?: SpriteDef; variants?: SpriteDef[]; ground?: boolean; loose?: boolean; /** its picture turned east or west (a fence running north-south) */ across?: SpriteDef }>
   /** Item sprite keys used by the ontology ('item:sword', …) -> 16x16 icon. */
   items: Record<string, SpriteDef>
   /** Character looks for NPCs and the player: key -> sheet. */

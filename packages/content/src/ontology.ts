@@ -370,7 +370,7 @@ const RESIDENTS: TypeDef[] = [
   { id: 'structure/floor', name: { en: 'Floor', zh: '地板' }, sprite: 'structure:floor', occupies: ['floor'], reach: ['ground'], props: { maxHp: 8, hp: 8, needsSupport: true }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
   // stairs: a block a storey high whose top is steps, set before what is a storey up: one walks onto
   // them (half a storey up) and on, the way they go up, onto the storey above; open overhead
-  { id: 'structure/stairs', name: { en: 'Stairs', zh: '楼梯' }, sprite: 'structure:stairs', occupies: ['volume'], tags: ['stairs'], props: { maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 3 }], station: 'hands' },
+  { id: 'structure/stairs', name: { en: 'Stairs', zh: '楼梯' }, sprite: 'structure:stairs', occupies: ['volume'], tags: ['stairs', 'turns'], props: { maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 3 }], station: 'hands' },
   // a door: shut it stops what walks, as a wall does; open, one walks through; either way it is a room's edge
   { id: 'structure/door', name: { en: 'Door', zh: '门' }, sprite: 'structure:door', occupies: ['volume'], solid: true, tags: ['door', 'opaque'], props: { maxHp: 10, hp: 10, supports: 2 }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
   { id: 'structure/door/open', name: { en: 'Open Door', zh: '开着的门' }, sprite: 'structure:door_open', solid: false },
@@ -473,7 +473,7 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/ferry', 'ferry', '渡船', ['wooden', 'flammable'], { solid: true }),
   F('fixture/ferry/winch', 'ferry winch', '渡口绞盘', ['mechanism']),
   F('fixture/ferry/raft', 'ferry raft', '渡筏', ['surface']),
-  F('fixture/fence', 'fence', '栅栏', ['wooden', 'flammable'], { solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/stick', count: 2 }] }),
+  F('fixture/fence', 'fence', '栅栏', ['wooden', 'flammable', 'turns'], { solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/stick', count: 2 }] }),
   F('fixture/crop', 'crop', '作物', ['crop', 'plant'], { solid: false, props: { yield: 2 } }),
   ...crop('wheat', 'wheat', '麦子', 'item/material/wheat', ['young wheat', '青麦'], ['ripe wheat', '熟麦'], ['dry', 'flammable']),
   ...crop('herb', 'herb', '草药', 'item/material/herb', ['herb plant', '草药苗'], ['ripe herbs', '成熟的草药']),
@@ -485,7 +485,7 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/crop/oak/sapling', 'oak sapling', '橡树苗', ['sapling'], { sprite: 'fixture:oak_sapling', stage: GROWS_INTO_TREE }),
   F('fixture/build', 'unfinished work', '半成品', ['unfinished'], { solid: true }),
   F('fixture/build/frame', 'wooden frame', '木框架', ['wooden', 'flammable']),
-  F('fixture/build/stakes', 'stakes', '木桩', ['wooden', 'flammable']),
+  F('fixture/build/stakes', 'stakes', '木桩', ['wooden', 'flammable', 'turns']),
   F('fixture/build/post', 'sign post', '牌子立柱', ['wooden', 'flammable']),
   F('fixture/build/ring', 'stone ring', '石圈', ['stone']),
   // a training dummy: knocked down it stands up again (train/dummy), for practising blows (the tutorial's)

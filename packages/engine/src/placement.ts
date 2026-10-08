@@ -2,7 +2,7 @@
 // by an existing interaction rule. A sandbox rehearsal prevents partial spending.
 import { Engine } from './engine.ts'
 import { matchSelector } from './rules.ts'
-import type { Entity, Id, Pos, Ref, Selector, Text, Verb } from './types.ts'
+import type { Dir, Entity, Id, Pos, Ref, Selector, Text, Verb } from './types.ts'
 
 export interface PlacementNeed {
   match: Selector
@@ -81,14 +81,24 @@ export function previewPlacement(eng: Engine, actorId: Id, recipe: PlacementReci
   return plan(eng, actorId, recipe, at).preview
 }
 
-/** Works for any actor, with only their own bag/hand; no special player privilege. */
-export function performPlacement(eng: Engine, actorId: Id, recipe: PlacementRecipe, at: Pos): PlacementPreview {
+/**
+ * Works for any actor, with only their own bag/hand; no special player privilege. The builder turns
+ * to the cell (or the way given: the palette's R), and what turns (a fence) faces that way.
+ */
+export function performPlacement(eng: Engine, actorId: Id, recipe: PlacementRecipe, at: Pos, facing?: Dir): PlacementPreview {
   const p = plan(eng, actorId, recipe, at)
   if (!p.preview.ok || !p.target) return p.preview
+  const from = eng.world.posOf(eng.world.get(actorId))
+  const dx = at.x - (from?.x ?? at.x)
+  const dy = at.y - (from?.y ?? at.y)
+  const turn: Dir | undefined = facing ?? (dx || dy ? (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up') : undefined)
   const offsets = recipe.needs.map(() => 0)
   const steps = recipe.steps.map((s) => ({ ...s, instrument: p.pools[s.need][recipe.needs[s.need].consume ? offsets[s.need]++ : 0] }))
   const run = (on: Engine): boolean => {
     let work = p.target!
+    // the builder's own posture: turned to what they build
+    const builder = on.world.get(actorId)
+    if (builder && turn) builder.facing = turn
     for (const s of steps) {
       if (!s.instrument) return false
       const top = on.world.cellTop(at.map, at.x, at.y, at.z ?? on.world.posOf(on.world.get(actorId)!)?.z ?? 0)

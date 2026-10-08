@@ -577,7 +577,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         }
         // a lesson at hand may let the palette set down only what it teaches (docs/prologue.md, the drills)
         if (!eng.controls.allows('build', { type: m.id, at: m.tile })) break
-        const result = performPlacement(eng, eng.world.state.player, PLACEMENT_BY_ID[m.id], to)
+        const result = performPlacement(eng, eng.world.state.player, PLACEMENT_BY_ID[m.id], to, m.facing)
         if (!result.ok) eng.world.fx.push({ t: 'log', text: result.reason, tone: 'warn' })
         post({ t: 'placement', preview: result })
         break

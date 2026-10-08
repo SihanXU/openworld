@@ -692,8 +692,10 @@ export class WorldScene extends Phaser.Scene {
       if (f) {
         // a look of its own among the type's variants, kept for its life
         const v = f.variants?.length ? hashStr(e.id) % f.variants.length : -1
-        const d = ((e.statuses.includes('lit') || e.statuses.includes('attuned')) && f.lit) || (e.open && f.open) || (v >= 0 ? f.variants![v] : f.base)
-        const [frame] = spriteFrames(this, `fix:${e.sprite}:${d === f.lit ? 'lit' : d === f.open ? 'open' : v >= 0 ? `v${v}` : 'base'}`, d)
+        // a thing that turns, turned east or west, shows its picture across (a fence running north-south)
+        const across = (e.facing === 'left' || e.facing === 'right') && f.across
+        const d = ((e.statuses.includes('lit') || e.statuses.includes('attuned')) && f.lit) || (e.open && f.open) || across || (v >= 0 ? f.variants![v] : f.base)
+        const [frame] = spriteFrames(this, `fix:${e.sprite}:${d === f.lit ? 'lit' : d === f.open ? 'open' : d === across ? 'across' : v >= 0 ? `v${v}` : 'base'}`, d)
         return { img: d.img, frame, ax: d.ax, ay: d.ay }
       }
     }

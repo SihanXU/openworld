@@ -246,6 +246,10 @@ export class EffectRunner {
         const at = ev.kind === 'time/timer' && typeof ev.params?.at === 'number' ? ev.params.at : w.state.tick
         w.transform(host, into, at)
         if (essential && !w.hasTag(host, 'essential')) w.addTag(host, 'essential')
+        // become a thing that turns (stakes, a fence) where it lies, it faces the way the one who made
+        // it faced, as one set down does (its front toward them); one that turned already keeps its way
+        const maker = ev.cause ? w.get(ev.cause) : undefined
+        if (p && !host.facing && w.hasTag(host, 'turns') && maker?.facing) host.facing = maker.facing
         delete host.name
         // a thing become another is whole as what it is now (a felled tree's stump, a regrown tree)
         if (host.props?.hp !== undefined && w.onto.resolve(into).props.maxHp !== undefined) w.setProp(host, 'hp', undefined)
@@ -262,9 +266,10 @@ export class EffectRunner {
         eng.touch({ e: host.id })
         w.place(host, place)
         delete host.dropped
-        // stairs set down go up the way the one who set them faced (away from them)
+        // a thing that turns (stairs, a fence) set down faces the way the one who set it faced: its
+        // front toward them (stairs go up away from them; a fence runs across their way)
         const setter = ev.cause ? w.get(ev.cause) : undefined
-        if (place.on === 'tile' && w.hasTag(host, 'stairs') && setter?.facing) host.facing = setter.facing
+        if (place.on === 'tile' && w.hasTag(host, 'turns') && setter?.facing) host.facing = setter.facing
         eng.touch({ e: host.id })
         return
       }
