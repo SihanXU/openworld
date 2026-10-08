@@ -72,6 +72,15 @@
         "var/offline"
       ],
       "port": 8787
+    },
+    {
+      "name": "wiki",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "wiki"
+      ],
+      "port": 5180
     }
   ]
 }
