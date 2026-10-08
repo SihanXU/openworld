@@ -157,6 +157,21 @@ function setup(model?: Model, dir = mkdtempSync(join(tmpdir(), 'lsw-modder-')), 
   return { dir, library, state, modder }
 }
 
+describe('a backend signed out', () => {
+  it('an expired sign-in is the backend\'s failure too: no escalation, no reflection, no calls for a while', async () => {
+    let calls = 0
+    const model: Model = { name: 'claude-code:signed-out', chat: async () => (calls++, Promise.reject(new Error('claude-code: Failed to authenticate: OAuth session expired and could not be refreshed'))) }
+    const { modder, state } = setup(model, undefined, 'live')
+    expect((await modder.resolve({ request: request() })).outcome).toBe('failed')
+    await modder.settled()
+    const after = calls
+    expect([...state.journalOf('reflect'), ...state.journalOf('lesson.add')]).toEqual([])
+    expect((await modder.resolve({ request: request('actor/creature/beast/wolf') })).outcome).toBe('unavailable')
+    await modder.settled()
+    expect(calls).toBe(after)
+  })
+})
+
 describe('a backend out of quota', () => {
   it('is no lesson and no reason to work the request again: nothing follows, and no call goes out for a while', async () => {
     let calls = 0

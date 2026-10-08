@@ -25,8 +25,11 @@ import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYS
 import { coarseTerms, signatureOf, type Signature } from './signature.ts'
 import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@lsw/agent'
 
-/** A backend that is out of quota or throttling says so in its error (claude-code's session limit, an HTTP 429, a provider's quota). */
-const BACKEND_DOWN = /session limit|usage limit|rate.?limit|quota|\b429\b|overloaded|insufficient_quota/i
+/**
+ * A backend that cannot answer says so in its error: out of quota or throttling (claude-code's session
+ * limit, an HTTP 429, a provider's quota), or not signed in (an expired OAuth session, a 401/403, a bad key).
+ */
+const BACKEND_DOWN = /session limit|usage limit|rate.?limit|quota|\b429\b|overloaded|insufficient_quota|authenticat|oauth|unauthori[sz]ed|\b401\b|\b403\b|invalid.?api.?key|not logged in/i
 /** How long the service makes no calls after the backend said it is out (a request meanwhile gets `unavailable`). */
 const BACKEND_PAUSE_MS = 5 * 60_000
 
