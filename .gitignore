@@ -5,3 +5,6 @@ packages/client/public/world/
 /assets/
 /var/
 .env
+packages/wiki/out/
+packages/wiki/out.tmp/
+packages/wiki/out.old/

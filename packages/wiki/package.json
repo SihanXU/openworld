@@ -1,0 +1,1 @@
+{ "name": "@lsw/wiki", "private": true, "type": "module", "main": "src/build.ts", "dependencies": { "marked": "^18.1.0" } }
