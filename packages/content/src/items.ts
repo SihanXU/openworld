@@ -237,7 +237,7 @@ export const FORMS: Form[] = [
   // potions
   W('item/potion/healing', 'Healing Potion', '治疗药水', 'item:potion_red', { tags: ['drinkable', 'glass', 'fragile', 'magical'], props: { heal: 15 }, where: { temple: 1, shop: 1, dungeon: 1.5 } }),
   W('item/potion/antidote', 'Antidote', '解毒剂', 'item:potion_green', { tags: ['drinkable', 'glass', 'fragile', 'magical'], props: { heal: 4 }, where: { temple: 1, shop: 0.5 } }),
-  W('item/potion/fire_resist', 'Fireproof Draught', '防火药剂', 'item:potion_orange', { tags: ['drinkable', 'glass', 'fragile', 'magical'], props: { heal: 2 }, where: { library: 0.5, shop: 0.3 } }),
+  W('item/potion/fire_resist', 'Fireproof Draught', '防火药剂', 'item:potion_orange', { tags: ['drinkable', 'glass', 'fragile', 'magical'], where: { library: 0.5, shop: 0.3 } }),
   W('item/potion/mystery', 'Murky Potion', '浑浊药水', 'item:potion_purple', { tags: ['drinkable', 'glass', 'fragile', 'magical', 'unknown'], where: { dungeon: 1, library: 0.5 } }),
   // materials
   W('item/material/log', 'Log', '木头', 'item:log', { tags: ['wooden', 'flammable', 'fuel'], props: { material: 'wood' }, where: { wild: 1, farm: 1, home: 0.5 } }),
@@ -252,7 +252,7 @@ export const FORMS: Form[] = [
   W('item/material/herb', 'Herb', '草药', 'item:herb', { tags: ['plant', 'flammable', 'medicinal', 'edible'], props: { heal: 3, food: 1 }, where: { wild: 3, temple: 1, farm: 0.5 } }),
   W('item/material/fireweed', 'Fireweed', '火焰草', 'item:herb_red', { tags: ['plant', 'flammable', 'fiery', 'reagent'], where: { wild: 1, library: 0.5 } }),
   W('item/material/frostcap', 'Frostcap', '霜盖菇', 'item:mushroom_blue', { tags: ['fungus', 'icy', 'reagent'], where: { wild: 0.8, dungeon: 0.5 } }),
-  W('item/material/feather', 'Feather', '羽毛', 'item:feather', { tags: ['light', 'flammable'], where: { wild: 1, farm: 1 } }),
+  W('item/material/feather', 'Feather', '羽毛', 'item:feather', { tags: ['lightweight', 'flammable'], where: { wild: 1, farm: 1 } }),
   W('item/material/bone', 'Bone', '骨头', 'item:bone', { tags: ['bone'], where: { dungeon: 3, wild: 0.5 } }),
   W('item/material/cloth', 'Bolt of Cloth', '布匹', 'item:cloth', { tags: ['cloth', 'flammable'], where: { shop: 2, home: 0.5 } }),
   W('item/material/leather', 'Leather Hide', '皮革', 'item:leather', { tags: ['leather', 'flammable'], where: { shop: 1, farm: 0.5 } }),
@@ -275,15 +275,15 @@ export const FORMS: Form[] = [
   W('item/material/feed', 'Animal Feed', '饲料', 'item:feed', { tags: ['feed', 'flammable', 'dry'], where: { farm: 1 } }),
   W('item/misc/bait', 'Bait', '鱼饵', 'item:bait', { tags: ['bait'], props: { casts: 5 }, where: { shop: 0.5 } }),
   W('item/misc/crate_hen', 'Crated Hen', '装箱的母鸡', 'item:crate', { tags: ['animal-crate', 'wooden'], props: { animalType: 'actor/creature/animal/chicken' }, where: {} }),
-  W('item/misc/crate_calf', 'Crated Calf', '装箱的小牛', 'item:crate', { tags: ['animal-crate', 'wooden'], props: { animalType: 'actor/creature/animal/cow' }, where: {} }),
-  W('item/vessel/bucket/milk', 'Bucket of Milk', '一桶牛奶', 'item:milk', { tags: ['liquid', 'drinkable'], props: { food: 4, heal: 3 }, where: {} }),
+  W('item/misc/crate_calf', 'Crated Calf', '装箱的小牛', 'item:crate', { tags: ['animal-crate', 'wooden'], props: { animalType: 'actor/creature/animal/calf' }, where: {} }),
+  W('item/vessel/bucket/milk', 'Bucket of Milk', '一桶牛奶', 'item:milk', { tags: ['liquid', 'drinkable'], props: { food: 4, heal: 3, emptyType: 'item/vessel/bucket/empty' }, where: {} }),
   // what else bites (homestead.ts FISH): by the hour, the weather, the water — after Stardew's
   W('item/food/fish/sunfish', 'Sunfish', '太阳鱼', 'item:sunfish', { tags: ['edible', 'raw', 'cookable'], props: { heal: 2, food: 2, cookedType: 'item/food/fish/cooked' }, where: {} }),
   W('item/food/fish/perch', 'Perch', '河鲈', 'item:perch', { tags: ['edible', 'raw', 'cookable'], props: { heal: 2, food: 3, cookedType: 'item/food/fish/cooked' }, where: {} }),
   W('item/food/fish/catfish', 'Catfish', '鲶鱼', 'item:catfish', { tags: ['edible', 'raw', 'cookable'], props: { heal: 3, food: 4, cookedType: 'item/food/fish/cooked' }, where: {} }),
   W('item/food/fish/eel', 'Eel', '鳗鱼', 'item:eel', { tags: ['edible', 'raw', 'cookable'], props: { heal: 3, food: 4, cookedType: 'item/food/fish/cooked' }, where: {} }),
   W('item/food/fish/pike', 'Pike', '狗鱼', 'item:pike', { tags: ['edible', 'raw', 'cookable'], props: { heal: 3, food: 4, cookedType: 'item/food/fish/cooked' }, where: {} }),
-  W('item/food/fish/dawnscale', 'Dawnscale', '晨鳞鱼', 'item:dawnscale', { tags: ['edible', 'raw', 'cookable', 'precious', 'holy'], props: { heal: 8, food: 6, cookedType: 'item/food/fish/cooked' }, where: {} }),
+  W('item/food/fish/dawnscale', 'Dawnscale', '晨鳞鱼', 'item:dawnscale', { tags: ['edible', 'raw', 'cookable', 'precious', 'holy'], props: { heal: 6, food: 4, cookedType: 'item/food/fish/cooked' }, where: {} }),
   W('item/food/fish/carp', 'Golden Carp', '金鳞鲤', 'item:carp', { tags: ['edible', 'raw', 'cookable', 'precious'], props: { heal: 4, food: 4, cookedType: 'item/food/fish/cooked' }, where: {} }),
   W('item/misc/old_boot', 'Soggy Boot', '泡烂的靴子', 'item:boots', { tags: ['leather', 'junk', 'wet'], where: {} }),
   // gems & valuables
@@ -293,7 +293,7 @@ export const FORMS: Form[] = [
   W('item/valuable/amulet', 'Amulet', '护符', 'item:amulet', { tags: ['wearable'], props: { def: 1, slot: 'neck' }, materials: ['silver', 'gold', 'bone', 'crystal'], elemental: true, where: { temple: 1, dungeon: 1 } }),
   W('item/valuable/earring', 'Earring', '耳环', 'item:earring', { tags: ['wearable'], props: { xpRate: 0.1, slot: 'ear' }, materials: ['silver', 'gold', 'bone', 'crystal'], where: { home: 0.5, shop: 0.5, dungeon: 0.5 } }),
   W('item/valuable/goblet', 'Goblet', '高脚杯', 'item:goblet', { materials: ['silver', 'gold'], where: { temple: 1, dungeon: 0.5 } }),
-  W('item/valuable/crown', 'Circlet', '头冠', 'item:crown', { materials: ['silver', 'gold', 'ringsteel'], where: { dungeon: 0.2 } }),
+  W('item/valuable/crown', 'Circlet', '头冠', 'item:crown', { tags: ['wearable'], props: { def: 1, slot: 'head' }, materials: ['silver', 'gold', 'ringsteel'], where: { dungeon: 0.2 } }),
   W('item/valuable/ancient_ring_shard', 'Ring Shard', '环冠碎片', 'item:shard', { tags: ['ancient', 'runic', 'arcane', 'metal'], where: { dungeon: 0.4 } }),
   // documents
   W('item/document/book', 'Book', '书', 'item:book', { tags: ['paper', 'flammable', 'readable'], where: { library: 5, home: 1, temple: 1 } }),
@@ -301,10 +301,17 @@ export const FORMS: Form[] = [
   W('item/document/letter', 'Letter', '信件', 'item:letter', { tags: ['paper', 'flammable', 'readable'], where: { home: 1, npc: 0.3 } }),
   W('item/document/map', 'Map', '地图', 'item:map', { tags: ['paper', 'flammable', 'readable'], where: { library: 1, shop: 0.5, dungeon: 0.3 } }),
   // Chapter 1 (docs/chapter-1.md): the Holy City's proclamation of the pilgrimage, the old almanac from before the First Night
-  W('item/document/proclamation', 'Proclamation of the Pilgrimage', '朝圣令', 'item:letter', { tags: ['paper', 'flammable', 'readable', 'holy'], where: {} }),
+  W('item/document/proclamation', 'Proclamation of the Pilgrimage', '朝圣令', 'item:letter', { tags: ['paper', 'flammable', 'readable', 'holy'], props: {
+    text: 'By the Church of the Five Sufferings, to every parish and every road: the Seal-bearers can no longer carry what Astra laid upon them. Dusk comes earlier, dawn later; should the five Seals fail, the Long Night falls a second time. The pilgrimage is called. Let the pilgrim seek out the five Seal-bearers, bring back the five instruments, and come to the Holy City for the Rite of the Five Sufferings. Named to this road: the one who came down from the mountain with a fairy. — Sealed in the Holy City.',
+    text_zh: '五苦圣教，致各教区、各条道路：五位持印者已无法继续承担阿斯特拉留下的五苦。黄昏一日早过一日，黎明一日迟过一日；五印若尽衰，第二次极夜终将降临。今召朝圣。朝圣者当寻访五位持印者，取回五件圣刑之器，前往圣城，重行五苦大礼。受命踏上此路者：从山上下来、身边跟着一只妖精的人。——圣城用印',
+  }, where: {} }),
   // a skill book: read (used on oneself), it teaches the active skill its `teaches` names (rules.ts use/read-skillbook; skills.ts skillBook)
   W('item/document/skillbook', 'Skill Book', '技能书', 'item:book', { tags: ['paper', 'flammable', 'skillbook'], where: {} }),
-  W('item/document/almanac', 'Almanac of the First Night', '初夜历书', 'item:book', { tags: ['paper', 'flammable', 'readable', 'ancient'], where: {} }),
+  W('item/document/almanac', 'Almanac of the First Night', '初夜历书', 'item:book', { tags: ['paper', 'flammable', 'readable', 'ancient'], props: {
+    // its last pages: a hand that begs someone to stop him (docs/chapter-1.md, Nessa; lore.md §9's first misreading)
+    text: 'Sunset after sunset in a neat column, each a little earlier than the last. On the last pages the hand changes — hurried, pressed so hard the pen has torn the paper: "No sun today. None today. He says he will take it all. Whoever reads this — stop him." After that, nothing.',
+    text_zh: '一行行工整的日落时刻，每一行都比上一行早一点。最后几页，字迹变了——仓促，用力得笔尖划破了纸：「今天没有太阳。今天也没有。他说他会把一切都担下来。读到这里的人——阻止他。」再往后，什么也没有。',
+  }, where: {} }),
   // the first of the five instruments of the Five Sufferings (docs/lore.md §4): the Crown of Thorns
   // Stigmatic: worn, it wears the self away as it wore Alberic's (lore.md §4) — strength, and experience slow to come
   W('item/relic/crown_of_thorns', 'Crown of Thorns', '荆棘冠', 'item:crown_of_thorns', { tags: ['holy', 'relic', 'sharp', 'thorny', 'wearable', 'quality:legendary', 'wound:crown'], props: { slot: 'head', def: 4, atk: 2, xpRate: -0.5, relic: 'crown' }, where: {} }),
@@ -329,11 +336,11 @@ export const FORMS: Form[] = [
   W('item/misc/doll', 'Rag Doll', '布偶', 'item:doll', { tags: ['cloth', 'flammable', 'toy'], where: { home: 1 } }),
   W('item/misc/mirror', 'Hand Mirror', '手镜', 'item:mirror', { tags: ['glass', 'fragile', 'reflective'], where: { home: 0.5, shop: 0.3 } }),
   W('item/misc/skull', 'Skull', '头骨', 'item:skull', { tags: ['bone', 'macabre'], where: { dungeon: 1.5 } }),
-  W('item/misc/feather_quill', 'Quill', '羽毛笔', 'item:quill', { tags: ['light', 'flammable', 'writing'], where: { library: 2, home: 0.3 } }),
+  W('item/misc/feather_quill', 'Quill', '羽毛笔', 'item:quill', { tags: ['lightweight', 'flammable', 'writing'], where: { library: 2, home: 0.3 } }),
   W('item/misc/ink', 'Ink Pot', '墨水瓶', 'item:ink', { tags: ['glass', 'fragile', 'liquid', 'dye'], where: { library: 2 } }),
   W('item/misc/soap', 'Soap', '肥皂', 'item:soap', { tags: ['slippery', 'cleaning'], where: { home: 0.5, inn: 0.5 } }),
-  W('item/misc/firework', 'Firecracker', '爆竹', 'item:firework', { tags: ['explosive', 'flammable', 'paper'], where: { shop: 0.3 } }),
-  W('item/misc/bomb', 'Blackpowder Bomb', '黑火药炸弹', 'item:bomb', { tags: ['explosive', 'flammable', 'heavy'], where: { dungeon: 0.4 } }),
+  W('item/misc/firework', 'Firecracker', '爆竹', 'item:firework', { tags: ['explosive', 'flammable', 'paper'], props: { blast: 1 }, where: { shop: 0.3 } }),
+  W('item/misc/bomb', 'Blackpowder Bomb', '黑火药炸弹', 'item:bomb', { tags: ['explosive', 'flammable', 'heavy'], props: { blast: 8 }, where: { dungeon: 0.4 } }),
   W('item/misc/snowball', 'Snowball', '雪球', 'item:snowball', { tags: ['icy', 'cold', 'water', 'fragile'], where: {} }),
 ]
 

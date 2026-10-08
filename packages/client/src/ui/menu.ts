@@ -3,8 +3,8 @@
 // every thread the world has learned, and whose act taught it) and the chest panel: the chest's
 // grid above the bag, a click moving a stack to the other side.
 
-import type { CodexEntry, CodexView, Frame, ItemInfo, Key, Rule } from '@lsw/engine'
-import { COIN, FORM_BY_ID, RECIPES } from '@lsw/content'
+import type { CodexEntry, CodexView, Frame, ItemInfo, Key, Rule, Text, Tree } from '@lsw/engine'
+import { COIN, FORM_BY_ID, RECIPES, stationName } from '@lsw/content'
 import { CATALOG } from '../assets/catalog.ts'
 import { personLook } from '../assets/looks.ts'
 import { assetUrl } from '../render/assets.ts'
@@ -32,6 +32,15 @@ const EQUIP: [key: string, en: string, zh: string, ghost: string][][] = [
 ]
 
 type CodexTab = 'items' | 'people' | 'creatures' | 'threads'
+
+/** What a thread does, in the player's language: its label (on the rule or on its first answer), its roles named plainly. */
+function threadLabel(r: Rule): string | undefined {
+  const find = (n: Tree | undefined): Text | undefined =>
+    !n || n === 'inherit' ? undefined : 'do' in n ? n.label : 'if' in n ? find(n.then) ?? find(n.else) : undefined
+  const l = r.label ?? find(r.tree)
+  if (!l) return undefined
+  return tx(l).replace(/{instrument}/g, t('roleInstrument')).replace(/{target}/g, t('roleTarget')).replace(/{[a-z]+}/g, '…')
+}
 const CODEX_TABS: CodexTab[] = ['items', 'people', 'creatures', 'threads']
 const CODEX_LABEL: Record<CodexTab, string> = { items: 'cxItems', people: 'cxPeople', creatures: 'cxCreatures', threads: 'threads' }
 const GROUPS: Record<string, [string, string]> = {
@@ -468,9 +477,9 @@ export class Menu {
         }).join('')
       return `<div class="recipe${ok ? '' : ' off'}">
         <div class="slot" data-item="recipe:${r.id}"><div class="icon" data-icon="recipe:${r.id}"></div></div>
-        <div class="rname">${esc(tx(r.name))}${r.station && r.station !== 'hands' && !shelf ? ` <span class="station${here ? '' : ' short'}">${esc(tx({ en: 'at a ' + r.station, zh: r.station === 'workbench' ? '需在工作台旁' : r.station }))}</span>` : ''}</div>
+        <div class="rname">${esc(tx(r.name))}${r.station && r.station !== 'hands' && !shelf ? ` <span class="station${here ? '' : ' short'}">${esc(tx({ en: `at a ${stationName(r.station).en}`, zh: `需在${stationName(r.station).zh}旁` }))}</span>` : ''}</div>
         <div class="needs">${needs}</div>
-        <button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(here ? t('needMore') : tx({ en: `Stand beside a ${r.station}`, zh: r.station === 'workbench' ? '站到工作台旁边' : r.station! }))}"`}>${verb}${shelf === 'sell' ? ` → ${r.count}` : r.count && r.count > 1 ? ` ×${r.count}` : ''}</button>
+        <button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(here ? t('needMore') : tx({ en: `Stand beside a ${stationName(r.station!).en}`, zh: `站到${stationName(r.station!).zh}旁边` }))}"`}>${verb}${shelf === 'sell' ? ` → ${r.count}` : r.count && r.count > 1 ? ` ×${r.count}` : ''}</button>
         ${times > 1 ? `<button class="all" data-craft-all="${r.id}" title="${esc(t('craftAllTip'))}">${t('craftAll')} ×${times}</button>` : ''}
       </div>`
     }).join('')
@@ -543,14 +552,23 @@ export class Menu {
     return [...groups].map(([g, es]) => `<div class="cx-group">${esc(groupName(g))} <small>${es.filter((e) => e.known).length}/${es.length}</small></div><div class="cx-grid">${es.map(card).join('')}</div>`).join('')
   }
 
-  /** Every thread the world has learned, newest first, and whose act taught it (design.md §5.11, legibility). */
+  /**
+   * Every thread the world has learned, newest first, and whose act taught it (design.md §5.11,
+   * legibility): one's own request, the world's, or a thread synced from the shared library (no
+   * request of this game's). The doc is the model's English; in Chinese the thread's label says
+   * what it does (its roles named plainly), the doc beneath it.
+   */
   private threadsHtml(): string {
     const threads = [...(this.library?.patches ?? [])].reverse()
     if (!threads.length) return `<div class="muted pad">${t('noThreads')}</div>`
+    const zh = locale.value === 'zh'
     return `<div class="threads">${threads
       .map((r: Rule) => {
-        const by = r.source?.trigger === 'world' ? t('world') : t('you')
-        return `<div class="thread"><div>${esc(r.doc ?? r.id.replace(/^patch\//, '').replace(/-/g, ' '))}</div><div class="muted small">${t('wovenBy')}: ${by}${r.source?.at ? ` · ${esc(r.source.at.slice(0, 10))}` : ''}</div></div>`
+        const by = r.source?.trigger === 'world' ? t('world') : r.source?.request ? t('you') : t('shared')
+        const doc = r.doc ?? r.id.replace(/^patch\//, '').replace(/-/g, ' ')
+        const label = zh ? threadLabel(r) : undefined
+        const what = label ? `<div>${esc(label)}</div><div class="muted small">${esc(doc)}</div>` : `<div>${esc(doc)}</div>`
+        return `<div class="thread">${what}<div class="muted small">${t('wovenBy')}: ${by}${r.source?.at ? ` · ${esc(r.source.at.slice(0, 10))}` : ''}</div></div>`
       })
       .join('')}</div>`
   }

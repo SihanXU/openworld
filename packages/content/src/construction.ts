@@ -45,7 +45,7 @@ export const FARMING: PlacementRecipe[] = [
     needs: [tool('empty-vessel', 'Empty Vessel', '空容器', 'item:bucket')], steps: [hit(0, 'use/fill')] },
   { id: 'harvest', category: 'farming', name: text('Harvest', '收割'), sprite: 'item:sickle',
     description: text('Sickle harvest returns produce and seeds. Tomatoes regrow.', '用镰刀收成熟作物，获得食物与种子；番茄会再生。'), target: 'entity', site: { tags: ['crop', 'ripe'] },
-    needs: [tool('tool:sickle', 'Sickle', '镰刀', 'item:sickle')], steps: [hit(0, ['farm/harvest', 'farm/harvest-perennial'])] },
+    needs: [tool('tool:sickle', 'Sickle', '镰刀', 'item:sickle')], steps: [hit(0, 'farm/harvest')] },
 ]
 export const PLACEMENTS = [...BUILDINGS, ...FARMING]
 export const PLACEMENT_BY_ID: Record<string, PlacementRecipe> = Object.fromEntries(PLACEMENTS.map((r) => [r.id, r]))

@@ -258,7 +258,7 @@ export const CH1_QUESTS: QuestDef[] = [
     waiting: L('A plain band. It\'s all I have of him.', '一枚普通的戒指。这是他留给我的全部。'),
     done: L('...Thank you. I\'ll wear it now. I was keeping it on the gate so he could find his way home.', '……谢谢你。我现在就戴上。之前我把它挂在门上，是想让他能找到回家的路。'),
     goals: [{ id: 'band', kind: 'carry', type: 'item/valuable/band', count: 1, consume: true, label: L('The wedding band', '婚戒') }],
-    reward: { xp: 30, items: [{ type: 'item/food/egg', count: 2 }, { type: 'item/food/bread', count: 1 }, gear('item/clothing/gloves', 'hands', "Edda's Work Gloves", '艾达的干活手套', 'fine', { def: 1 })] },
+    reward: { xp: 30, items: [{ type: 'item/food/egg/raw', count: 2 }, { type: 'item/food/bread', count: 1 }, gear('item/clothing/gloves', 'hands', "Edda's Work Gloves", '艾达的干活手套', 'fine', { def: 1 })] },
   },
 ]
 

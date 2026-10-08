@@ -487,7 +487,7 @@ describe('automatic combat talents', () => {
     expect(eng.world.player.combat!.steps).toBe(3)
   })
 
-  it('shadow recovery heals only on melee creature defeat, capped at max health', () => {
+  it('shadow recovery heals only on a creature defeated with a dagger, capped at max health', () => {
     const eng = duel(['shadow-recovery'])
     const p = eng.world.player
     p.props!.hp = 39
@@ -503,6 +503,14 @@ describe('automatic combat talents', () => {
     ranged.world.author(() => ranged.world.add({ id: 'wand', type: 'item/weapon/magic/wand', place: { on: 'hand', holder: 'actor' } }))
     blow(ranged)
     expect(ranged.world.player.props!.hp).toBe(20)
+    // a melee blow with another's weapon (the warrior's sword) is no assassin's
+    const sword = duel(['shadow-recovery'])
+    sword.world.player.props!.hp = 20
+    sword.world.get('foe')!.props!.hp = 1
+    sword.world.author(() => sword.world.place(sword.world.get('dagger')!, { on: 'inside', holder: 'actor' }))
+    sword.world.author(() => sword.world.add({ id: 'sword', type: 'item/weapon/blade/sword', place: { on: 'hand', holder: 'actor' } }))
+    blow(sword)
+    expect(sword.world.player.props!.hp).toBe(20)
   })
 
   it('guaranteed criticals do not spend randomness and all assassin talents deactivate with the profession', () => {

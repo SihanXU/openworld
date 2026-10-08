@@ -32,6 +32,8 @@ interface EView {
   overlayName?: string
   held?: Phaser.GameObjects.Image
   hp: Phaser.GameObjects.Graphics
+  /** What shows over its head (the health bar, the quest mark, a trainer's sign): drawn over the world, following the body. */
+  head: Phaser.GameObjects.Container
   glow?: Phaser.GameObjects.Image
   key: string
   movingUntil: number
@@ -64,6 +66,8 @@ const STAIRS_FRAME: Record<string, number> = { up: 0, right: 1, down: 2, left: 3
 /** structures.ts: wall.png's frames past the 16 tops and 4 fronts — a door in a north-south wall from above, shut and open; floor.png's lip. */
 const DOOR_ABOVE = 20
 const FLOOR_LIP = 16
+/** What is drawn over heads (health bars, quest marks): over the world, under the lessons' cells and the ceilings. */
+const OVERHEAD = 1e5 - 3
 
 /** How far apart (px) the dragon's body segments trail, and how many there are (the last is the tail). */
 const DRAGON_GAP = 11
@@ -246,6 +250,7 @@ export class WorldScene extends Phaser.Scene {
     this.roofs.clear()
     for (const o of this.objects.values()) o.destroy()
     this.objects.clear()
+    this.covered.clear()
     this.overrides.clear()
     this.following = undefined
     this.bossCam = undefined
@@ -404,6 +409,14 @@ export class WorldScene extends Phaser.Scene {
       else if (e.type === 'structure/floor') this.floors.add(`${e.x},${e.y},${e.z ?? 0}`)
       else if (e.type === 'structure/stairs') this.stairs.add(`${e.x},${e.y},${e.z ?? 0}`)
     }
+    // a floor laid on the ground covers what grew there (flowers, clover, tall grass)
+    for (const k of this.covered) if (!this.floors.has(`${k},0`)) (this.objects.get(k)?.setVisible(true), this.covered.delete(k))
+    for (const k of this.floors) {
+      if (!k.endsWith(',0')) continue
+      const cell = k.slice(0, -2)
+      const o = this.objects.get(cell)
+      if (o?.visible) (o.setVisible(false), this.covered.add(cell))
+    }
     // where the player is under cover — the room they stand in, or any covered stretch walls bound
     // (no need to be shut in) — and the cells round it (its walls): what is above is not drawn
     this.underRoof.clear()
@@ -460,11 +473,11 @@ export class WorldScene extends Phaser.Scene {
     const marks = f.quests?.marks ?? {}
     for (const [id, v] of this.views) {
       const mark = marks[id]
-      if (v.quest && v.quest.mark !== mark) (v.quest.text.destroy(), (v.quest = undefined))
+      if (v.quest && v.quest.mark !== mark) (this.tweens.killTweensOf(v.quest.text), v.quest.text.destroy(), (v.quest = undefined))
       if (!mark || v.quest) continue
       const text = this.add.text(0, -T * 1.45, mark, { fontFamily: 'Pixelify Sans, monospace', fontSize: '20px', color: '#ffd23f', stroke: '#3a2414', strokeThickness: 4, fontStyle: 'bold' }).setOrigin(0.5, 1).setResolution(2)
       text.setScale(0.5)
-      v.root.add(text)
+      v.head.add(text)
       this.tweens.add({ targets: text, y: -T * 1.45 - 2, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
       v.quest = { mark, text }
     }
@@ -474,7 +487,7 @@ export class WorldScene extends Phaser.Scene {
       if (show && !v.role) {
         const icon = CATALOG.ui.trainerMark
         v.role = this.add.image(0, -T * 1.35, icon.img).setOrigin(0.5, 1).setScale(0.5)
-        v.root.add(v.role)
+        v.head.add(v.role)
         this.tweens.add({ targets: v.role, y: -T * 1.35 - 2, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
       }
       v.role?.setVisible(show)
@@ -699,6 +712,8 @@ export class WorldScene extends Phaser.Scene {
   /** Walls and doors, floors, and stairs of the frame, by `x,y,z`. */
   private walls = new Set<string>()
   private floors = new Set<string>()
+  /** Ground cells whose growth (flowers, tall grass) a floor laid on them hides. */
+  private covered = new Set<string>()
   private stairs = new Set<string>()
   /** The cells of the room the player stands in and round it: the storeys above them are not drawn. */
   private underRoof = new Set<string>()
@@ -914,8 +929,10 @@ export class WorldScene extends Phaser.Scene {
     // small growth and litter sit a little off the grid, never in rows
     if ((!e.tags.includes('agent') && !e.tags.includes('portable')) && this.fixtureDef(e)?.loose) body.setPosition((hashStr(e.id, 23) % 9) - 4, (hashStr(e.id, 29) % 5) - 2)
     const hp = this.add.graphics()
-    root.add([body, hp])
-    const v: EView = { snap: e, root, body, shadow, hp, key: `${t.img}|${t.frame}`, movingUntil: 0, phase: Math.random() * 1000, actor: t.actor }
+    root.add(body)
+    // over the head, over everything in the world (a tree in front does not hide a quest mark), under the roofs' ceilings
+    const head = this.add.container(root.x, root.y, [hp]).setDepth(OVERHEAD)
+    const v: EView = { snap: e, root, body, shadow, hp, head, key: `${t.img}|${t.frame}`, movingUntil: 0, phase: Math.random() * 1000, actor: t.actor }
     if (e.sprite === 'boss:dragon') v.dragon = this.dragonParts(root, body)
     this.updateView(v, e, true)
     return v
@@ -1107,6 +1124,8 @@ export class WorldScene extends Phaser.Scene {
   private destroyView(v: EView): void {
     this.tweens.killTweensOf(v.root)
     if (v.role) this.tweens.killTweensOf(v.role)
+    if (v.quest) this.tweens.killTweensOf(v.quest.text)
+    v.head.destroy()
     v.glow?.destroy()
     for (const s of v.dragon?.segments ?? []) s.destroy()
     v.root.destroy()
@@ -1166,6 +1185,7 @@ export class WorldScene extends Phaser.Scene {
       const e = v.snap
       if (v.flyer) this.glide(v, time)
       if (v.walker) this.walk(v, time)
+      v.head?.setPosition(v.root.x, v.root.y).setVisible(v.root.visible).setAlpha(v.root.alpha)
       // a body between two cells is ordered by where it is drawn now (depth.ts footOf)
       if (e.tags.includes('agent') && !e.boss) v.root.setDepth(this.depthOf(e, footOf(e.y, v.root.y + (e.z ?? 0) * STOREY_LIFT + this.liftOf(e))))
       if (v.actor && e.boss) {

@@ -195,7 +195,9 @@ export class Hud {
     if (sig === this.clockSig) return
     this.clockSig = sig
     $('#cbDate').textContent = zh ? `第 ${c.day} 天` : `Day ${c.day}`
-    const night = f.hour < 6 || f.hour >= 19
+    // the moon from sunset (two hours before the night's dusk) to an hour after its dawn: 19–6 at first, earlier as the night grows
+    const { dusk, dawn } = f.night
+    const night = f.hour < dawn + 1 || f.hour >= dusk - 2
     const weather = { sun: night ? '☾' : '☀', cloud: '☁', rain: '☂', storm: '⚡', fog: '≋' }[c.weather] ?? '☀'
     $('#cbIcons').innerHTML = `<span title="${esc(t(`weather.${c.weather}`))}">${weather}</span>`
     $('#cbTime').textContent = time

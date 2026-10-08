@@ -21,7 +21,7 @@ export const wren: PersonDef = {
   },
   lines: [
     line('greeting:first', 'Oh! A traveller. Wren — herbs, salves, the occasional explosion. Mind the cauldron.', '哦！一位旅人。我叫雷恩——草药、药膏，偶尔炸个锅。小心别碰到锅。', { once: true }),
-    line('default', 'Fireweed grows in open meadow; frostcap in the shade of the forest. Two of each, and I can brew against fire.', '火焰草长在开阔的草原上，霜盖菇长在森林的阴凉处。各两份，我就能熬出防火的药。'),
+    line('default', 'Fireweed grows in open meadow; frostcap in the shade of the forest. Three of each, and I can brew against fire.', '火焰草长在开阔的草原上，霜盖菇长在森林的阴凉处。各三份，我就能熬出防火的药。'),
     line('default', 'The books say dragons call their young when they are hurt. The books do not say what to do about it.', '书上说，龙受了伤会召唤幼龙。书上没说该怎么办。'),
     line('fact:mq.draught', 'One at the lair\'s mouth, one when the first wears thin. And come back.', '巢穴门口喝一瓶，第一瓶快没效了再喝第二瓶。还有——要回来。', { once: true }),
     line('given', 'For my shelves? Thank you!', '给我的架子添货？谢谢！'),

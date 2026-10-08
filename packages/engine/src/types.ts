@@ -1130,6 +1130,8 @@ export type Cond =
   | { param: { key: string; cmp: Cmp } }
   | { chance: number }
   | { hour: { from: number; to: number } }
+  /** It is night (true) or day (false), however long the story's night has grown (World.isNight). */
+  | { night: boolean }
   /** How many entities (matching `match`) are in a role's contents, or on its tile besides itself. */
   | { count: { role: RoleName; in: 'contents' | 'tile'; match?: Selector; cmp: Bounds } }
   /** Something that happened is still fresh. */

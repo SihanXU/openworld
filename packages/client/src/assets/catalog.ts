@@ -474,6 +474,7 @@ export const CATALOG: Catalog = {
     // the old mine's veins: a grey rock flecked with ore, a dark one for coal
     'fixture:vein_iron': { base: t(NATURE, 4, 14) },
     'fixture:vein_coal': { base: t(NATURE, 6, 15) },
+    'fixture:vein_gold': { base: t(NATURE, 5, 14) },
     'fixture:haystack': { base: px(ELEM, 192, 64, 16, 32, 8, 31) },
     'fixture:logpile': { base: px(HOUSE, 496, 256, 32, 16, 16, 16) },
     // No static mushroom art: first frame of the (red-capped) Mushroom monster.

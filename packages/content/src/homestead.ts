@@ -5,7 +5,7 @@
 // the rod). The coin is the Thornmark, the Held Ground's own. Buying and selling are made at the stall as anything is
 // made at a station: what one gives is used up, what one gets comes into one's bag (engine `craft`).
 
-import type { Effect, Recipe, Rule, Text } from '@lsw/engine'
+import { TICKS_PER_DAY, type Effect, type Recipe, type Rule, type Text } from '@lsw/engine'
 import { FORM_BY_ID } from './items.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 
@@ -14,7 +14,7 @@ const L = (en: string, zh: string): Text => ({ en, zh })
 /** The Held Ground's coin. */
 export const COIN = 'item/misc/thornmark'
 /** How long a beast fed stays fed, and a cow milked stays milked (a game day). */
-export const FED_FOR = 2400
+export const FED_FOR = TICKS_PER_DAY
 
 /** Base rules (content rules.ts BASE_RULES): what the things are, wherever they are. */
 const story = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
@@ -51,13 +51,14 @@ const sell = (type: string, price: number): Recipe => ({
 })
 
 export const SHOP_RECIPES: Recipe[] = [
-  // farming: seeds, fertilizer, an acorn
+  // farming: seeds, fertilizer, an acorn, a shovel (to lift a plant or a stump)
   buy('farm', 'item/seed/wheat', 5, 5),
   ...VEGETABLE_CROPS.map((c) => buy('farm', `item/seed/${c.id}`, SEED[c.id]?.[0] ?? 5, SEED[c.id]?.[1] ?? 8)),
   buy('farm', 'item/seed/berry', 3, 10),
   buy('farm', 'item/seed/herb', 3, 8),
   buy('farm', 'item/material/fertilizer', 3, 10),
   buy('farm', 'item/seed/acorn', 1, 4),
+  buy('farm', 'item/tool/shovel', 1, 15),
   // ranching: feed, a bucket for milking, beasts in crates
   buy('ranch', 'item/material/feed', 5, 6),
   buy('ranch', 'item/vessel/bucket/empty', 1, 8),

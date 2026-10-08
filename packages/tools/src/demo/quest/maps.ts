@@ -39,9 +39,9 @@ export function buildEastRoad(): MapBuilder {
   m.organic(24, 6, 6, 3, 'ash', { only: grassy, rough: 0.25 })
   m.scenery('house_wood', 22, 3)
   for (const [x, y] of [[19, 5], [28, 4], [29, 7], [20, 8]] as const) m.set(x, y, 'charred_tree')
-  m.fixture('fixture/nature/haystack', 26, 7, { statuses: { burning: -1 } })
+  m.fixture('fixture/nature/haystack', 26, 7, { statuses: { lit: -1 } })
   m.regions = { farmstead: [17, 2, 15, 8] }
-  m.fixture('fixture/sign', 4, 10, { props: { text: 'Emberfall →' } })
+  m.fixture('fixture/sign', 4, 10, { props: { text: 'Emberfall →', text_zh: '余烬镇 →' } })
   // the road's dangers: a pair of wolves, a boar in the brush
   m.creature('beast/wolf', 33, 15, { sight: 5 })
   m.creature('beast/wolf', 36, 17, { sight: 5 })
@@ -72,7 +72,7 @@ export function buildEmberfall(): MapBuilder {
   // the square: cobbles round the well
   m.organic(20, 14, 4.6, 3, 'cobble', { only: (t) => t === 'grass' || t === 'path' })
   m.fixture('fixture/water/well', 20, 14)
-  m.fixture('fixture/sign/noticeboard', 17, 12, { props: { text: 'DRAGON SEEN OVER CINDER PEAK. KEEP THE BUCKETS FULL.' } })
+  m.fixture('fixture/sign/noticeboard', 17, 12, { props: { text: 'DRAGON SEEN OVER CINDER PEAK. KEEP THE BUCKETS FULL.', text_zh: '烬峰上空有龙出没。水桶要一直盛满。' } })
   for (const [x, y] of [[16, 17], [24, 11]] as const) m.fixture('fixture/light/lamppost', x, y, { statuses: { lit: -1 } })
   // houses round the square; some roofs new thatch, the dragon's last visit
   m.scenery('house_orange', 6, 6)
@@ -124,6 +124,8 @@ export function buildMine(): MapBuilder {
   // veins in the galleries, coal and iron; the richest iron in the deep chamber
   for (const [x, y] of [[6, 8], [10, 10], [33, 11], [12, 20]] as const) m.fixture('fixture/nature/vein/coal', x, y)
   for (const [x, y] of [[31, 14], [9, 8], [18, 4], [22, 4]] as const) m.fixture('fixture/nature/vein/iron', x, y)
+  // and gold, only there (the Held Ground's last widening asks for it)
+  for (const [x, y] of [[17, 6], [23, 6]] as const) m.fixture('fixture/nature/vein/gold', x, y)
   // braziers along the shaft (a dark mine), an old pickaxe at the mouth
   for (const [x, y] of [[18, 26], [22, 20], [18, 13], [22, 7]] as const) m.fixture('fixture/light/brazier', x, y, { statuses: { lit: -1 } })
   m.item({ form: 'item/tool/pickaxe', material: 'iron', name: L('Old Pickaxe', '旧镐') }, 21, 27)
@@ -138,6 +140,7 @@ export function buildMine(): MapBuilder {
   m.appear = [
     appears('fixture/nature/vein/iron', ['cave_floor'], 4, 1800),
     appears('fixture/nature/vein/coal', ['cave_floor'], 4, 1800),
+    appears('fixture/nature/vein/gold', ['cave_floor'], 2, 3600),
     hunters('actor/creature/spider', 3, 1500, ['cave_floor']),
     hunters('actor/creature/beast/bat', 2, 1800, ['cave_floor']),
   ]

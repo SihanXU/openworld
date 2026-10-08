@@ -209,7 +209,9 @@ export function groundTile(atlas: GroundAtlas, catalog: Catalog, terrainAt: (x: 
   const t = terrainAt(x, y)
   const key = ALIAS[t] ?? t
   const tint = TINT[t]
-  const under = UNDER[t] ? fullTile(() => {}, catalog, UNDER[t]) : undefined
+  // an alias draws as its terrain, over that terrain's underlay (the overworld's snowfield is snow over grass)
+  const below = UNDER[t] ?? UNDER[key]
+  const under = below ? fullTile(() => {}, catalog, below) : undefined
   const h = hash2(x, y)
   const b = catalog.blobs[key]
   if (b) {

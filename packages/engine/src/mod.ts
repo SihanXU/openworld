@@ -272,6 +272,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       '{param:{key, cmp}} — an event parameter (element, how, edge, verb, status, name, …)',
       '{chance:p}',
       '{hour:{from,to}}',
+      "{night: true|false} — it is night (or day), as long as the story's night has grown (it lengthens as the seals fall)",
       "{count:{role, in: contents|tile, match?: Selector, cmp: Bounds}} — how many things are in a role's contents (or on its tile besides itself)",
       '{topic:id} — something that happened is still fresh',
       '{weather:[sun|cloud|rain|storm|fog]} — the weather now',
@@ -1025,7 +1026,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       for (const b of Object.keys(k.cmp ?? {})) if (!BOUNDS.has(b)) errors.push(`${where}.count.cmp.${b}: a bound is eq|gt|gte|lt|lte`)
       return
     }
-    if ('param' in c || 'chance' in c || 'hour' in c || 'topic' in c || 'weather' in c || 'outdoors' in c) return
+    if ('param' in c || 'chance' in c || 'hour' in c || 'night' in c || 'topic' in c || 'weather' in c || 'outdoors' in c) return
     if ('exists' in c) return void checkSel(c.exists, `${where}.exists`)
     errors.push(`${where}: unknown condition`)
   }

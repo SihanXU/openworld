@@ -1,7 +1,7 @@
 // Base ontology: terrains, statuses, elements, visual effects and the type tree
 // for actors and fixtures. Item types come from the catalogue in items.ts.
 
-import { APPEAR_TICK, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE, type Cond, type Ontology, type StageDef, type StatusDef, type TerrainDef, type TypeDef } from '@lsw/engine'
+import { APPEAR_TICK, TICKS_PER_DAY, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE, type Cond, type Ontology, type StageDef, type StatusDef, type TerrainDef, type TypeDef } from '@lsw/engine'
 import { ELEMENT_NAMES, MATERIALS, MATERIAL_DEFS, QUALITIES, QUALITY_DEFS, itemTypes } from './items.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
@@ -86,7 +86,7 @@ const CLEAR: Cond = { count: { role: 'host', in: 'tile', match: { type: 'actor' 
 export const TREE_GROWS = 28800
 const GROWS_INTO_TREE: StageDef = { into: 'tile/tree', lasts: TREE_GROWS, needs: { all: [LIGHT, CLEAR] }, wait: 600, fx: 'leaves' }
 /** A calf or a chick grows up in two game days. */
-const GROWS_UP = 4800
+const GROWS_UP = 2 * TICKS_PER_DAY
 /** A hen lays an egg every three game hours. */
 export const LAYS_EVERY = 1800
 
@@ -211,10 +211,10 @@ export const STATUSES: StatusDef[] = [
   // a wound that bleeds 1 a second (Hemorrhage), and the rush of Adrenaline (the skills)
   { id: 'bleeding', name: { en: 'bleeding', zh: '流血' }, duration: 40, every: 10 },
   // a beast fed for the day, a cow milked for the day (homestead.ts)
-  { id: 'fed', name: { en: 'fed', zh: '吃饱了' }, duration: 2400 },
-  { id: 'milked', name: { en: 'milked', zh: '挤过奶' }, duration: 2400 },
+  { id: 'fed', name: { en: 'fed', zh: '吃饱了' }, duration: TICKS_PER_DAY },
+  { id: 'milked', name: { en: 'milked', zh: '挤过奶' }, duration: TICKS_PER_DAY },
   // a beast that has borne young rests a day before it can again
-  { id: 'bred', name: { en: 'bred', zh: '刚生过崽' }, duration: 2400 },
+  { id: 'bred', name: { en: 'bred', zh: '刚生过崽' }, duration: TICKS_PER_DAY },
   // forced to one's knees (the Crown of Thorns' power: none cross that do not kneel)
   { id: 'knelt', name: { en: 'kneeling', zh: '跪地' }, duration: 10, immobilize: true },
   { id: 'adrenaline', name: { en: 'adrenaline', zh: '肾上腺素' }, duration: 50, every: 10 },
@@ -308,20 +308,20 @@ const actorTypes: TypeDef[] = [
   // the Old Barrow's keeper (docs/quests.md)
   P('actor/creature/undead/warden', 'barrow warden', '古墓守卫', { tags: ['bone', 'boss'], props: { hp: 45, maxHp: 45, atk: 5, def: 1, speed: 8 } }),
   P('actor/creature/undead/skeleton', 'skeleton', '骷髅', { tags: ['bone'], props: { hp: 16, maxHp: 16, atk: 4, def: 1, speed: 6 } }),
-  P('actor/creature/undead/ghost', 'ghost', '幽灵', { sprite: 'creature:ghost', tags: ['spectral'], props: { hp: 12, maxHp: 12, atk: 3, speed: 5, element: 'ice', stance: 'air' } }),
+  P('actor/creature/undead/ghost', 'ghost', '幽灵', { sprite: 'creature:ghost', tags: ['spectral'], props: { hp: 12, maxHp: 12, atk: 3, speed: 5, element: 'ice', stance: 'air', range: 4 } }),
   P('actor/creature/golem', 'golem', '魔像', { tags: ['construct'], sprite: 'creature:golem' }),
   P('actor/creature/golem/stone_golem', 'stone golem', '石魔像', { tags: ['stone'], props: { hp: 30, maxHp: 30, atk: 6, def: 3, speed: 9, element: 'earth' } }),
   P('actor/creature/golem/ice_golem', 'ice golem', '冰魔像', { tags: ['icy'], props: { hp: 28, maxHp: 28, atk: 5, def: 2, speed: 9, element: 'ice' } }),
   P('actor/creature/imp', 'imp', '小恶魔', { tags: ['demon', 'fiery'], sprite: 'creature:imp' }),
-  P('actor/creature/imp/fire_imp', 'fire imp', '火焰小鬼', { props: { hp: 12, maxHp: 12, atk: 3, speed: 5, element: 'fire' } }),
+  P('actor/creature/imp/fire_imp', 'fire imp', '火焰小鬼', { props: { hp: 12, maxHp: 12, atk: 3, speed: 5, element: 'fire', range: 4 } }),
   P('actor/creature/wisp', 'wisp', '鬼火', { tags: ['spectral', 'charged'], sprite: 'creature:wisp', props: { stance: 'air' } }),
-  P('actor/creature/wisp/storm_wisp', 'storm wisp', '风暴鬼火', { props: { hp: 9, maxHp: 9, atk: 3, speed: 4, element: 'lightning' } }),
+  P('actor/creature/wisp/storm_wisp', 'storm wisp', '风暴鬼火', { props: { hp: 9, maxHp: 9, atk: 3, speed: 4, element: 'lightning', range: 4 } }),
   // companions (docs/prologue.md): they follow a leader (props.companion), fly, never block nor fight
   P('actor/companion', 'companion', '同伴', { tags: ['companion', 'living', 'airborne', 'essential'], props: { hp: 10, maxHp: 10, atk: 0, def: 0, speed: 2, sight: 8 } }),
   // Pip: a fairy, a small winged girl (the project's own art, tools/src/art/fairy.ts)
   P('actor/companion/fairy', 'fairy', '精灵', { tags: ['fairy', 'winged'], sprite: 'creature:fairy' }),
   // the meadow's animals: passive, they run when struck, and leave food behind (drop × drops)
-  P('actor/creature/animal', 'animal', '动物', { tags: ['animal'] }),
+  P('actor/creature/animal', 'animal', '动物', { tags: ['animal'], props: { behaviour: 'passive', temper: 'wary', sight: 4 } }),
   P('actor/creature/animal/cow', 'cow', '牛', { tags: ['livestock', 'furry'], sprite: 'creature:cow', props: { hp: 10, maxHp: 10, atk: 0, speed: 7, babyType: 'actor/creature/animal/calf' }, makeup: [{ type: 'item/food/meat/raw', count: 4 }] }),
   P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', stage: { lasts: LAYS_EVERY, yields: [{ type: 'item/food/egg/raw' }] }, props: { hp: 4, maxHp: 4, atk: 0, speed: 5, babyType: 'actor/creature/animal/chick' }, makeup: [{ type: 'item/food/chicken/raw', count: 2 }] }),
   // the young of a pair fed together (homestead.ts, Minecraft's breeding): they grow up in two days
@@ -372,7 +372,7 @@ const RESIDENTS: TypeDef[] = [
   // them (half a storey up) and on, the way they go up, onto the storey above; open overhead
   { id: 'structure/stairs', name: { en: 'Stairs', zh: '楼梯' }, sprite: 'structure:stairs', occupies: ['volume'], tags: ['stairs'], props: { maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 3 }], station: 'hands' },
   // a door: shut it stops what walks, as a wall does; open, one walks through; either way it is a room's edge
-  { id: 'structure/door', name: { en: 'Door', zh: '门' }, sprite: 'structure:door', occupies: ['volume'], solid: true, tags: ['door'], props: { maxHp: 10, hp: 10, supports: 2 }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
+  { id: 'structure/door', name: { en: 'Door', zh: '门' }, sprite: 'structure:door', occupies: ['volume'], solid: true, tags: ['door', 'opaque'], props: { maxHp: 10, hp: 10, supports: 2 }, makeup: [{ type: 'item/material/plank', count: 2 }], station: 'hands' },
   { id: 'structure/door/open', name: { en: 'Open Door', zh: '开着的门' }, sprite: 'structure:door_open', solid: false },
 ]
 
@@ -408,7 +408,7 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/furniture/cart/flowers', 'flower cart', '花车', ['plant', 'flower'], { sprite: 'fixture:flower_cart' }),
   F('fixture/light', 'light', '灯', []),
   F('fixture/light/campfire', 'campfire', '篝火', ['lightable', 'cookware'], { solid: true, props: { material: 'stone', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/stone', count: 2 }, { type: 'item/material/stick', count: 2 }] }),
-  F('fixture/light/brazier', 'brazier', '火盆', ['lightable', 'metal', 'conductive'], { solid: true }),
+  F('fixture/light/brazier', 'brazier', '火盆', ['lightable', 'metal', 'conductive', 'cookware'], { solid: true }),
   F('fixture/light/lamppost', 'lamp post', '路灯', ['lightable', 'metal', 'conductive'], { solid: true }),
   F('fixture/light/candles', 'candles', '烛台', ['lightable'], { solid: true }),
   F('fixture/light/lantern', 'lantern post', '灯笼柱', ['lightable', 'wooden', 'flammable'], { solid: true }),
@@ -424,7 +424,7 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/craft', 'workstation', '工作台', [], { solid: true }),
   F('fixture/craft/anvil', 'anvil', '铁砧', ['metal', 'conductive', 'surface']),
   F('fixture/craft/forge', 'forge', '熔炉', ['stone', 'lightable', 'cookware']),
-  F('fixture/craft/cauldron', 'cauldron', '坩埚', ['metal', 'conductive', 'cookware']),
+  F('fixture/craft/cauldron', 'cauldron', '坩埚', ['metal', 'conductive', 'lightable', 'cookware']),
   F('fixture/craft/loom', 'loom', '织布机', ['wooden', 'flammable']),
   // a station (world-model.md §6.4): what is made at a workbench is made beside one
   // made by hand from planks, carried, and set down where one works (as a bed is)
@@ -452,6 +452,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/nature/vein', 'ore vein', '矿脉', ['stone', 'rock', 'mineable', 'vein'], { props: { material: 'ore', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/stone', count: 2 }] }),
   F('fixture/nature/vein/iron', 'iron vein', '铁矿脉', [], { sprite: 'fixture:vein_iron', makeup: [{ type: 'item/material/iron_ore', count: 4 }] }),
   F('fixture/nature/vein/coal', 'coal seam', '煤层', [], { sprite: 'fixture:vein_coal', makeup: [{ type: 'item/material/coal', count: 4 }] }),
+  // the deep chamber's gold (the Old Mine): what the Held Ground's boundary stones are paid in (haven.ts, widening III)
+  F('fixture/nature/vein/gold', 'gold vein', '金矿脉', [], { sprite: 'fixture:vein_gold', makeup: [{ type: 'item/material/gold_ore', count: 4 }] }),
   F('fixture/nature/haystack', 'haystack', '干草垛', ['plant', 'flammable', 'dry']),
   F('fixture/nature/logpile', 'log pile', '柴堆', ['wooden', 'flammable']),
   F('fixture/nature/logpile/stack', 'firewood', '柴垛', [], { sprite: 'fixture:firewood' }),
@@ -567,4 +569,10 @@ export function buildOntology(): Ontology {
       ]),
     ],
   }
+}
+
+/** What a station is called (for the crafting panel): the first kind of thing that is one (`station:<id>`). */
+export function stationName(station: string): { en: string; zh: string } {
+  const n = fixtureTypes.find((t) => t.tags?.includes(`station:${station}`))?.name
+  return typeof n === 'object' ? { en: n.en, zh: n.zh ?? n.en } : { en: n ?? station, zh: n ?? station }
 }

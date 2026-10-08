@@ -137,6 +137,16 @@ describe('a season', () => {
     expect(press(eng, 'use', 'item/tool/shovel')).toEqual(expect.arrayContaining(['use/shovel', 'farm/dig-up']))
     expect(at(eng, 0)).toEqual(['item/seed/herb'])
   })
+
+  it('ash and the stall\'s fertilizer each say what was worked into the soil', () => {
+    for (const [type, zh] of [['item/material/ash', '灰烬'], ['item/material/fertilizer', '肥料']] as const) {
+      const eng = farm(1, { 0: 'fixture/crop/wheat/young' })
+      eng.world.fx.length = 0
+      press(eng, 'use', type)
+      expect(eng.world.hasStatus({ e: 'c0' }, 'fertilized'), type).toBe(true)
+      expect(eng.world.fx.some((f) => f.t === 'log' && JSON.stringify(f.text).includes(zh)), type).toBe(true)
+    }
+  })
 })
 
 describe('fire and trees', () => {

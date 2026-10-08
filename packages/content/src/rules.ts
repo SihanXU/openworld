@@ -148,8 +148,9 @@ const ROOTS: Rule[] = [
             has('host', 'frozen'),
             DO(remove('frozen'), add('wet'), vfx('steam')),
             IF(
-              all(tag('host', 'lightable'), not(has('host', 'lit'))),
-              DO(add('lit'), vfx('fire_burst')),
+              tag('host', 'lightable'),
+              // a lightable thing takes fire as its flame (a lantern post alight does not catch as well)
+              IF(not(has('host', 'lit')), DO(add('lit'), vfx('fire_burst')), NOTHING),
               IF(all(tag('host', 'flammable'), not(has('host', 'burning'))), DO(add('burning'), vfx('fire_burst')), NOTHING),
             ),
           ),
@@ -362,16 +363,16 @@ const BODIES: Rule[] = [
   }),
   rule({
     id: 'combat/learn',
-    doc: 'Whoever defeated a foe gains experience as much as its full health (and is rewarded with experience when a quest is handed in). A mage felling a foe with a focus mends 3 (Arcane Recovery); an assassin felling one up close mends a tenth of their health (Shadow Recovery).',
+    doc: 'Whoever defeated a foe gains experience as much as its full health (and is rewarded with experience when a quest is handed in). A mage felling a foe with a staff mends 3 (Arcane Recovery); an assassin felling one with a dagger mends a tenth of their health (Shadow Recovery): a profession\'s talents answer its own weapons only (profession.ts).',
     host: ACTOR,
     on: 'impulse/notify',
     tree: IF(
       param('what', 'defeat'),
       IF(
-        all(tag('host', 'skill:arcane-recovery'), is('instrument', { type: 'item/weapon/magic' })),
+        all(tag('host', 'skill:arcane-recovery'), is('instrument', { tags: ['profession:mage'] })),
         DO({ op: 'gainXp', amount: { param: 'xp' } }, { op: 'heal', amount: 3 }),
         IF(
-          all(tag('host', 'skill:shadow-recovery'), not(is('instrument', { type: 'item/weapon/magic' })), not(is('instrument', { type: 'item/weapon/ranged' }))),
+          all(tag('host', 'skill:shadow-recovery'), is('instrument', { tags: ['profession:assassin'] })),
           DO({ op: 'gainXp', amount: { param: 'xp' } }, { op: 'heal', amount: { prop: 'maxHp', of: 'host', mul: 0.1 } }),
           DO({ op: 'gainXp', amount: { param: 'xp' } }),
         ),
@@ -457,7 +458,8 @@ const BODIES: Rule[] = [
       DO({ op: 'heal', amount: { param: 'amount' } }, vfx('heal')),
       IF(
       param('what', 'quest'),
-      DO({ op: 'setProp', key: 'quest', value: { param: 'value' } }),
+      // a stage only goes forward (a quest handed in late tells an earlier one: the pilgrim's road after the river)
+      IF({ prop: { role: 'host', key: 'quest', bounds: { lt: { param: 'value' } }, default: -1 } }, DO({ op: 'setProp', key: 'quest', value: { param: 'value' } }), DO()),
       IF(param('what', 'prologue'), DO({ op: 'setProp', key: 'prologue', value: { param: 'value' } }), 'inherit'),
     )))),
   }),
@@ -521,6 +523,14 @@ const TOOL_LABELS: Record<string, Text> = {
 
 const INSTRUMENTS: Rule[] = [
   rule({
+    id: 'use/read',
+    label: L('Read {instrument}', '阅读{instrument}'),
+    doc: 'A document with something written in it (its text, text_zh), used on oneself, is read; one with nothing written is the world\'s to answer.',
+    host: { type: 'item/document', tags: ['readable'] },
+    on: 'act/use',
+    tree: IF(all({ same: ['actor', 'target'] }, { prop: { role: 'host', key: 'text' } }), DO({ op: 'log', text: '@line' }), 'inherit'),
+  }),
+  rule({
     id: 'use/read-skillbook',
     label: L('Read {instrument}', '阅读{instrument}'),
     doc: 'A skill book used on oneself is read: one is told the skill it teaches (its `teaches`), and learns it from the book (body/stage, what = read).',
@@ -575,6 +585,17 @@ const INSTRUMENTS: Rule[] = [
     ),
   }),
   rule({
+    id: 'use/drink-vessel',
+    doc: 'A drink carried in a vessel (a bucket of milk), drunk by oneself or given to another: it heals and feeds them, and the vessel is left empty.',
+    host: { type: 'item/vessel', tags: ['drinkable'] },
+    on: 'act/use',
+    tree: IF(
+      { same: ['actor', 'target'] },
+      AS(L('Drink {instrument}', '喝掉{instrument}'), ASK(L('Drink {instrument}?', '要喝掉{instrument}吗？'), emit('restore', 'actor', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), emit('restore', 'actor', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), vfx('heal', 'actor'), log('You drink {host}.', '你喝下了{host}。'), { op: 'transform', into: '@prop:emptyType' })),
+      IF(is('target', FEEDS), AS(L('Give {instrument} to {target} to drink', '给{target}喝{instrument}'), DO(emit('restore', 'target', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), emit('restore', 'target', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), vfx('heal', 'target'), log('You give {target} {host}.', '你给{target}喝下了{host}。'), { op: 'transform', into: '@prop:emptyType' })), 'inherit'),
+    ),
+  }),
+  rule({
     id: 'use/water',
     doc: 'Water poured on something (or drunk, if it is oneself): water reaches it, and the vessel is empty. Putting a vessel down only sets it down.',
     host: { tags: ['liquid:water'] },
@@ -625,6 +646,13 @@ const INSTRUMENTS: Rule[] = [
     host: { type: 'item/weapon/blade' },
     on: 'act/use',
     tree: IF(is('target', PERSON), 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'cut', ...WOUND }))),
+  }),
+  rule({
+    id: 'use/polearm',
+    doc: 'A spear or a halberd used on something (not a person) strikes it with a point.',
+    host: { type: 'item/weapon/polearm' },
+    on: 'act/use',
+    tree: IF(is('target', PERSON), 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'pierce', ...WOUND }))),
   }),
   rule({
     id: 'use/weapon',
@@ -756,11 +784,11 @@ const PLACING: Rule[] = [
   rule({
     id: 'element/burn-away',
     label: L('Put {instrument} into the fire', '把{instrument}丢进火里'),
-    doc: 'A lit fire takes what is fed to it: the flammable burn there; raw food is held to it.',
+    doc: 'A lit fire takes what is fed to it: the flammable burn there; raw food set on a fire made for cooking (cookware) is held to it, as use/cook holds it there.',
     host: { tags: ['lightable'], status: ['lit'] },
     on: 'impulse/receive',
     tree: IF(
-      is('item', { tags: ['cookable', 'raw'] }),
+      all(is('item', { tags: ['cookable', 'raw'] }), tag('host', 'cookware')),
       DO(emit('element', 'item', { element: 'fire', power: 1 })),
       IF(is('item', { tags: ['flammable'] }), DO(taken('tile'), emit('element', 'item', { element: 'fire', power: 3 }), log('{item} goes into the fire.', '{item}被丢进了火里。')), 'inherit'),
     ),
@@ -976,6 +1004,7 @@ const FIRE: Rule[] = [
       ['fire/spread-dry', { type: 'tile', tags: ['flammable', 'dry'], status: ['burning'] }, 0.3],
       ['fire/spread-thing', { type: 'fixture', tags: ['flammable'], status: ['burning'] }, 0.1],
       ['fire/spread-dry-thing', { type: 'fixture', tags: ['flammable', 'dry'], status: ['burning'] }, 0.3],
+      ['fire/spread-structure', { type: 'structure', tags: ['flammable'], status: ['burning'] }, 0.1],
     ] as [string, Selector, number][]
   ).map(([id, host, chance]) =>
     rule({
@@ -1031,6 +1060,29 @@ const FIRE: Rule[] = [
     host: { type: 'fixture', tags: ['flammable'] },
     on: 'time/timer',
     tree: IF(param('status', 'burning'), DO({ op: 'dropContents' }, { op: 'spawn', type: 'item/material/ash', at: 'tileOf:host' }, vfx('smoke', 'tileOf:host'), { op: 'destroy' })),
+  }),
+  rule({
+    id: 'fire/burnt-structure',
+    doc: 'A wooden wall, floor, door or stair that burns down to nothing (fire/wear) is ash, not its planks; a short fire only scorches it.',
+    host: { type: 'structure', tags: ['flammable'] },
+    on: 'threshold/cross',
+    tree: IF(all(param('name', 'broken'), has('host', 'burning')), DO({ op: 'spawn', type: 'item/material/ash', at: 'tileOf:host' }, vfx('smoke', 'tileOf:host'), { op: 'destroy' }), 'inherit'),
+  }),
+  rule({
+    id: 'fire/explode',
+    doc: 'Something explosive that catches fire goes off: a blow as strong as its blast to everything round it, fire to what burns there, and it is gone.',
+    host: { type: 'item', tags: ['explosive'] },
+    on: 'threshold/gain',
+    tree: IF(
+      param('status', 'burning'),
+      DO(
+        emit('strike', { area: { radius: 1 } }, { power: { prop: 'blast', of: 'host' }, element: 'fire', edge: 'blunt' }),
+        emit('element', { area: { radius: 1 } }, { element: 'fire', power: 2 }, { filter: { tags: ['flammable'], notStatus: ['wet', 'burning'] } }),
+        vfx('explosion', 'tileOf:host'),
+        { op: 'destroy' },
+      ),
+      'inherit',
+    ),
   }),
   rule({
     id: 'fire/burn-out-item',
@@ -1301,7 +1353,7 @@ const FARM: Rule[] = [
       doc: 'Fertilizer (the stall\'s) worked into a growing crop\'s soil is used up.',
       host: { type: 'item/material/fertilizer' },
       on,
-      tree: IF(is('target', { ...GROWING, notStatus: ['fertilized'] }), DO(emit('coat', 'target', { substance: 'ash' }), { op: 'destroy' })),
+      tree: IF(is('target', { ...GROWING, notStatus: ['fertilized'] }), DO(emit('coat', 'target', { substance: 'fertilizer' }), { op: 'destroy' })),
     }),
   ),
   rule({
@@ -1310,7 +1362,15 @@ const FARM: Rule[] = [
     doc: 'Ash (or fertilizer) on a growing crop: one more of the crop at harvest.',
     host: GROWING,
     on: 'impulse/coat',
-    tree: IF(all(param('substance', 'ash'), not(has('host', 'fertilized'))), DO(add('fertilized'), { op: 'addProp', key: 'yield', delta: 1 }, vfx('sparkle'), log('You work ash into the soil.', '你把灰烬翻进了土里。')), 'inherit'),
+    tree: IF(
+      all(any(param('substance', 'ash'), param('substance', 'fertilizer')), not(has('host', 'fertilized'))),
+      IF(
+        param('substance', 'ash'),
+        DO(add('fertilized'), { op: 'addProp', key: 'yield', delta: 1 }, vfx('sparkle'), log('You work ash into the soil.', '你把灰烬翻进了土里。')),
+        DO(add('fertilized'), { op: 'addProp', key: 'yield', delta: 1 }, vfx('sparkle'), log('You work fertilizer into the soil.', '你把肥料翻进了土里。')),
+      ),
+      'inherit',
+    ),
   }),
   rule({
     id: 'farm/harvest',
@@ -1427,7 +1487,7 @@ const JOURNEY: Rule[] = [
     doc: 'The night-born crumble away in daylight, a few at a time.',
     host: { type: 'actor', tags: ['nightborn'] },
     on: 'time/period',
-    tree: IF(all(param('name', 'dawn'), { hour: { from: 5, to: 21 } }, { chance: 0.5 }), DO(vfx('poof', 'tileOf:host'), { op: 'destroy' }), 'inherit'),
+    tree: IF(all(param('name', 'dawn'), { night: false }, { chance: 0.5 }), DO(vfx('poof', 'tileOf:host'), { op: 'destroy' }), 'inherit'),
   }),
   rule({
     id: 'story/quests',

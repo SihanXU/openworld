@@ -2,6 +2,7 @@
 // a table here is the game's own numbers, never a copy that can go stale.
 
 import { gearProps, type Entity, type QuestDef, type Text } from '@lsw/engine'
+import { BASE_RULES } from '@lsw/content'
 import {
   EFFICIENCY, ELEMENT_NAMES, ELEMENTS, LEGENDARY_ARMS, MATERIALS, QUALITIES, RELICS, VOW_TRAITS, isAccessory, zh,
   type BossEnt, type CreatureEnt, type Ent, type Game, type ItemEnt, type MapEnt, type PersonEnt, type QuestEnt, type Sprite,
@@ -80,6 +81,18 @@ export function typeLink(ctx: Ctx, type: string, opts: { icon?: number; count?: 
 const mapLink = (ctx: Ctx, id?: string) => (id ? (ctx.g.mapOf(id) ? entLink(ctx, ctx.g.mapOf(id), { icon: 0 }) : esc(id)) : '—')
 const personLink = (ctx: Ctx, id?: string) => entLink(ctx, ctx.g.byId.get(id ?? '')) || esc(id ?? '')
 
+// ------------------------------------------------------------------------------------------ the stall (content homestead.ts)
+
+/** The stall's shelves as its panel names them (client ui/menu.ts SHELVES). */
+const SHELF: Record<string, string> = { farm: '农业', ranch: '牧业', fish: '渔业', sell: '出售' }
+/** What the stall sells of a thing: its offers (count for price). */
+const offersOf = (g: Game, type: string) => g.shop.filter((r) => r.group !== 'sell' && String((r.make as any).type) === type)
+/** What the stall pays for one of a thing. */
+const buysBack = (g: Game, type: string) => g.shop.find((r) => r.group === 'sell' && r.needs[0]?.type === type)
+const priceOf = (r: { needs: { type: string; count: number }[] }) => r.needs[0]?.count ?? 0
+/** So many of the stall's coin, its icon linked. */
+const coins = (ctx: Ctx, n: number) => `${n} ${entLink(ctx, ctx.g.byId.get(ctx.g.coin))}`
+
 /** The entity a name or an id points to (for {{物品|…}} and friends). */
 function find(ctx: Ctx, key: string, kinds: string[]): Ent | undefined {
   const k = key.trim()
@@ -117,8 +130,16 @@ interface Indices {
   given: Map<string, { person: PersonEnt; text: string }[]>
   personQuests: Map<string, QuestEnt[]>
   mapPeople: Map<string, Set<string>>
+  /** type → the base rules whose outcome brings one into being (a spawn, or a transform into it), by rule id */
+  ruleMade: Map<string, string[]>
 }
 let IDX: Indices | undefined
+
+/** Ways of getting a thing that only a rule's outcome gives (no makeup, recipe or map says so), as the pages name them. */
+const RULE_WAYS: Record<string, { way: string; page: string; text: string }> = {
+  'core/fish': { way: '钓鱼', page: '钓鱼', text: '用鱼竿在水里钓到' },
+  'home/milk': { way: '挤奶', page: '动物', text: '拿空木桶给吃饱的牛挤奶' },
+}
 let IDX_FOR: Game | undefined
 
 function idx(g: Game): Indices {
@@ -170,7 +191,16 @@ function idx(g: Game): Indices {
     for (const slots of Object.values(p.def?.schedules ?? {})) for (const s of slots) maps.add(s[2].split(':')[0])
     for (const m of maps) { if (!mapPeople.has(m)) mapPeople.set(m, new Set()); mapPeople.get(m)!.add(p.id) }
   }
-  IDX = { madeFrom, reward, ingredient, tool, questNeeds, appearOn, carried, yields, given, personQuests, mapPeople }
+  const ruleMade = new Map<string, string[]>()
+  const walk = (n: any, rule: string): void => {
+    if (!n || typeof n !== 'object') return
+    if (Array.isArray(n)) return n.forEach((x) => walk(x, rule))
+    const made = n.op === 'spawn' ? n.type : n.op === 'transform' ? n.into : undefined
+    if (typeof made === 'string' && !made.startsWith('@') && !(ruleMade.get(made) ?? []).includes(rule)) push(ruleMade, made, rule)
+    for (const v of Object.values(n)) walk(v, rule)
+  }
+  for (const r of BASE_RULES) walk(r.tree, r.id)
+  IDX = { madeFrom, reward, ingredient, tool, questNeeds, appearOn, carried, yields, given, personQuests, mapPeople, ruleMade }
   IDX_FOR = g
   return IDX
 }
@@ -178,6 +208,12 @@ function idx(g: Game): Indices {
 const matchesPrefix = (type: string, prefix: string) => type === prefix || type.startsWith(prefix + '/')
 
 // ------------------------------------------------------------------------------------------ item facts
+
+/**
+ * Whether a thing's food number feeds whoever takes it, as the base rules have it: what is eaten (use/eat: edible),
+ * and a drink carried in a vessel (use/drink-vessel: a bucket of milk). Other drinks only heal (use/drink).
+ */
+const feeds = (e: ItemEnt): boolean => typeof e.props.food === 'number' && (e.tags.includes('edible') || (e.tags.includes('drinkable') && e.id.startsWith('item/vessel/')))
 
 function itemStats(ctx: Ctx, e: ItemEnt): [string, string][] {
   const p = e.props
@@ -187,8 +223,8 @@ function itemStats(ctx: Ctx, e: ItemEnt): [string, string][] {
   if (typeof p.def === 'number') rows.push(['防御', String(p.def)])
   if (typeof p.atk === 'number' && p.slot) rows.push(['攻击加成', `+${p.atk}`])
   if (p.slot) rows.push(['穿戴部位', T(ctx, '装备栏', String(p.slot))])
-  if (typeof p.food === 'number') rows.push(['饱食度', `+${p.food}`])
-  if (typeof p.heal === 'number' && (e.tags.includes('drink') || e.tags.includes('medicinal') || e.id.startsWith('item/potion'))) rows.push(['生命', `+${p.heal + 1}`])
+  if (feeds(e)) rows.push(['饱食度', `+${p.food}`])
+  if (typeof p.heal === 'number' && (e.tags.includes('drinkable') || e.tags.includes('medicinal') || e.id.startsWith('item/potion'))) rows.push(['生命', `+${p.heal + 1}`])
   if (typeof p.capacity === 'number') rows.push(['容量', `${p.capacity} 格`])
   if (typeof p.maxHp === 'number') rows.push(['耐久', String(p.maxHp)])
   if (typeof p.critChance === 'number') rows.push(['暴击率', `+${Math.round(p.critChance * 100)}%`])
@@ -222,6 +258,10 @@ function itemInfobox(ctx: Ctx, e: ItemEnt): string {
   const make = e.recipe ? `${e.recipe.station === 'hands' || !e.recipe.station ? '手工' : '工作台旁'}（${ctx.link('制作')}）` : e.placement ? ctx.link('建造', '建造模式') : ''
   if (make) rows.push(['制作', make])
   if (e.makeup.length) rows.push(['构成', e.makeup.map((m) => typeLink(ctx, m.type, { count: m.count })).join(' ')])
+  const offers = offersOf(ctx.g, e.id)
+  if (offers.length) rows.push([ctx.link('货摊', '货摊卖'), offers.map((r) => `${coins(ctx, priceOf(r))} / ${r.count ?? 1} 个`).join('<br>')])
+  const back = buysBack(ctx.g, e.id)
+  if (back) rows.push([ctx.link('货摊', '货摊收'), `每个 ${coins(ctx, back.count ?? 1)}`])
   rows.push(['英文名', esc(e.en)])
   rows.push(['编号', `<code>${esc(e.id)}</code>`])
   return infobox(ctx, e.zh, fit(e.sprite, 64), rows)
@@ -349,6 +389,18 @@ function whereCreature(ctx: Ctx, type: string): string[] {
   return [...maps].filter((m) => ctx.g.mapOf(m))
 }
 
+/** How a creature comes about besides being placed or appearing: born to a pair fed (its parents' `babyType`), grown from young (their stage), let out of a crate (an item's `animalType`). */
+function bornOf(ctx: Ctx, type: string): { li: string[]; short: string[] } {
+  const li: string[] = []
+  const short = new Set<string>()
+  for (const t of Object.values(ctx.g.types)) {
+    if (t.props?.babyType === type) { li.push(`<li>${ctx.link('动物', '繁殖')}：两只吃饱的${typeLink(ctx, t.id)}挨在一起时生下</li>`); short.add('繁殖') }
+    if ((t.stage as any)?.into === type && t.id.startsWith('actor/')) { li.push(`<li>由${typeLink(ctx, t.id)}长大（${ctx.g.values['幼崽长大']?.value ?? '?'} 个游戏小时）</li>`); short.add('长大') }
+  }
+  for (const it of ctx.g.items) if (it.props.animalType === type) { li.push(`<li>把${entLink(ctx, it)}放到地上，里面的动物走出来</li>`); short.add('装箱') }
+  return { li, short: [...short] }
+}
+
 function sources(ctx: Ctx, e: ItemEnt): string {
   const I = idx(ctx.g)
   const out: string[] = []
@@ -369,6 +421,9 @@ function sources(ctx: Ctx, e: ItemEnt): string {
   if (appear.length) out.push(`<li>地面会自己长出（${ctx.link('采集')}）：${appear.map((a) => `${mapLink(ctx, a.map)}（最多 ${a.max}）`).join('、')}</li>`)
   const reward = I.reward.get(e.id) ?? []
   if (reward.length) out.push(`<li>任务奖励：${reward.map((q) => entLink(ctx, q, { icon: 0 })).join('、')}</li>`)
+  for (const id of I.ruleMade.get(e.id) ?? []) if (RULE_WAYS[id]) out.push(`<li>${ctx.link(RULE_WAYS[id].page, RULE_WAYS[id].way)}：${esc(RULE_WAYS[id].text)}</li>`)
+  for (const r of offersOf(ctx.g, e.id)) out.push(`<li>在${ctx.link('货摊')}买（${SHELF[r.group ?? ''] ?? r.group}）：${coins(ctx, priceOf(r))}买 ${r.count ?? 1} 个</li>`)
+  if (e.id === ctx.g.coin) out.push(`<li>把东西卖给${ctx.link('货摊')}：${ctx.g.shop.filter((r) => r.group === 'sell').map((r) => typeLink(ctx, r.needs[0].type)).join('、')}（见${ctx.link('金钱')}）</li>`)
   if (!out.length) out.push(`<li>游戏里目前没有固定的获得方式。</li>`)
   return `<ul class="facts">${out.join('')}</ul>`
 }
@@ -388,9 +443,12 @@ function uses(ctx: Ctx, e: ItemEnt): string {
   if (toolUses.length) out.push(`<li>作为工具（带着即可，不消耗）：${[...new Set(toolUses)].map(recipe).join('、')}</li>`)
   const needs = [...I.questNeeds].filter(([t]) => matchesPrefix(e.id, t)).flatMap(([, q]) => q)
   if (needs.length) out.push(`<li>任务需要：${[...new Set(needs)].map((q) => entLink(ctx, q, { icon: 0 })).join('、')}</li>`)
-  if (typeof e.props.food === 'number') out.push(`<li>吃下（拿在手上，右键点自己）：${ctx.link('饱食度')} +${e.props.food}</li>`)
+  if (feeds(e)) out.push(`<li>${e.tags.includes('edible') ? '吃下' : '喝下'}（拿在手上，右键点自己）：${ctx.link('饱食度')} +${e.props.food}</li>`)
   const given = [...I.given].filter(([t]) => matchesPrefix(e.id, t)).flatMap(([, v]) => v)
   for (const g of given) out.push(`<li>交给${entLink(ctx, g.person)}（{{键|G}}）：「${esc(g.text)}」</li>`.replace('{{键|G}}', '<kbd>G</kbd>'))
+  const back = buysBack(ctx.g, e.id)
+  if (back) out.push(`<li>卖给${ctx.link('货摊')}：每个 ${coins(ctx, back.count ?? 1)}</li>`)
+  if (e.id === ctx.g.coin) out.push(`<li>在${ctx.link('货摊')}买东西：${ctx.g.shop.filter((r) => r.group !== 'sell').map((r) => typeLink(ctx, String((r.make as any).type))).join('、')}（见${ctx.link('金钱')}）</li>`)
   if (!out.length) return `<p class="empty">游戏数据里没有记录它的固定用途。拿着它对别的东西按左键，世界可能会学会新的用法（见[[世界会学]]）。</p>`.replace('[[世界会学]]', ctx.link('世界会学'))
   return `<ul class="facts">${out.join('')}</ul>`
 }
@@ -593,6 +651,9 @@ function howToGet(ctx: Ctx, e: ItemEnt): string {
   if ((I.appearOn.get(e.id) ?? []).length) ways.push('地面产出')
   if ((I.reward.get(e.id) ?? []).length) ways.push('任务奖励')
   if ((I.carried.get(e.id) ?? []).length) ways.push('别人带着')
+  for (const id of I.ruleMade.get(e.id) ?? []) if (RULE_WAYS[id]) ways.push(RULE_WAYS[id].way)
+  if (offersOf(ctx.g, e.id).length) ways.push('货摊')
+  if (e.id === ctx.g.coin) ways.push('卖东西')
   return ways.join('、') || '<span class="muted">目前拿不到</span>'
 }
 
@@ -601,13 +662,24 @@ function lists(ctx: Ctx, name: string, args: string[]): string | undefined {
   switch (name) {
     case '物品表': return itemTable(ctx, args[0] ?? '全部')
     case '居民表': return table(['', '名字', '身份', '年龄', '住在', '任务'], g.people.map((p) => [fit(p.face, 40, 'face'), ctx.link(p.title, p.zh), esc(p.roleZh), p.age ? String(p.age) : '—', p.home ? mapLink(ctx, p.home) : p.kind === 'companion' ? '跟着玩家' : '只在剧情中', String((idx(g).personQuests.get(p.id) ?? []).length || '—')]), 'wikitable sortable')
-    case '怪物表': return table(['', '名字', '类别', '生命', '攻击', '防御', '元素', '出没'], g.creatures.map((c) => [fit(c.sprite, 32), ctx.link(c.title, c.zh), esc(c.group), String(c.props.maxHp ?? '—'), String(c.props.atk ?? '—'), String(c.props.def ?? 0), c.props.element ? T(ctx, '元素', String(c.props.element)) : '—', join(whereCreature(ctx, c.id).map((m) => mapLink(ctx, m))) === '—' ? '<span class="muted">游戏里目前不会出现</span>' : join(whereCreature(ctx, c.id).map((m) => mapLink(ctx, m)))]), 'wikitable sortable')
+    case '怪物表': return table(['', '名字', '类别', '生命', '攻击', '防御', '元素', '出没'], g.creatures.map((c) => [fit(c.sprite, 32), ctx.link(c.title, c.zh), esc(c.group), String(c.props.maxHp ?? '—'), String(c.props.atk ?? '—'), String(c.props.def ?? 0), c.props.element ? T(ctx, '元素', String(c.props.element)) : '—', join([...whereCreature(ctx, c.id).map((m) => mapLink(ctx, m)), ...bornOf(ctx, c.id).short]) === '—' ? '<span class="muted">游戏里目前不会出现</span>' : join([...whereCreature(ctx, c.id).map((m) => mapLink(ctx, m)), ...bornOf(ctx, c.id).short])]), 'wikitable sortable')
     case '首领表': return table(['', '名字', '印', '生命（挑战）', '技能', '在哪里打'], g.bosses.map((b) => { const c = campaign(ctx, b); return [fit(b.sprite, 48), ctx.link(b.title, b.zh), esc(b.seal ?? ''), String(b.def.hp), b.def.skills.map((s) => esc(zh(s.name))).join('、'), c ? `${mapLink(ctx, c.map)}、${ctx.link('首领挑战')}` : ctx.link('首领挑战')] }))
     case '地点表': return table(['名称', '类型', '大小', '区域', '相连'], g.maps.map((m) => [ctx.link(m.title, m.zh), esc(T(ctx, '地图类型', m.map.kind)), `${m.map.width}×${m.map.height}`, m.map.zone ? esc(T(ctx, '区域', m.map.zone)) : '战斗区域', join([...new Set((m.map.portals ?? []).map((p: any) => p.to))].map((t) => mapLink(ctx, t as string)))]), 'wikitable sortable')
     case '任务表': {
       const kind = ({ 主线: 'main', 支线: 'side', 重复: 'repeat' } as Record<string, string>)[args[0] ?? ''] ?? ''
       const qs = g.quests.filter((q) => !kind || q.def.kind === kind)
       return table(['任务', '委托人', '目标', '奖励'], qs.map((q) => [ctx.link(q.title, q.zh), personLink(ctx, q.def.giver), q.def.goals.map((x) => esc(zh(x.label))).join('<br>'), [q.def.reward?.xp ? `经验 +${q.def.reward.xp}` : '', ...(q.def.reward?.items ?? []).map((it) => rewardItem(ctx, it))].filter(Boolean).join('<br>') || '—']))
+    }
+    case '货摊表': {
+      // the stall's shelves (content homestead.ts): one shelf, the three that sell (买), what it buys back (出售), or all
+      const want = args[0]?.trim() ?? ''
+      const groups = want === '买' ? ['farm', 'ranch', 'fish'] : want ? Object.keys(SHELF).filter((k) => SHELF[k] === want) : Object.keys(SHELF)
+      if (!groups.length) { ctx.error(`{{货摊表|${want}}}：没有这一栏（农业、牧业、渔业、出售、买）`); return '' }
+      const buy = g.shop.filter((r) => r.group !== 'sell' && groups.includes(r.group ?? ''))
+      const sell = g.shop.filter((r) => r.group === 'sell' && groups.includes('sell'))
+      const thing = (type: string) => { const e = g.entOfType(type); return [fit(e?.sprite, 32), typeLink(ctx, type, { icon: 0 })] }
+      return (buy.length ? table(['', '东西', '货架', '一次买', '价格', '每个约'], buy.map((r) => [...thing(String((r.make as any).type)), SHELF[r.group ?? ''], `${r.count ?? 1} 个`, coins(ctx, priceOf(r)), `${+(priceOf(r) / (r.count ?? 1)).toFixed(1)}`]), 'wikitable sortable') : '')
+        + (sell.length ? table(['', '东西', '卖一个得'], sell.map((r) => [...thing(r.needs[0].type), coins(ctx, r.count ?? 1)]), 'wikitable sortable') : '')
     }
     case '配方表': return table(['', '名称', '材料', '工具（不消耗）', '地点', '等级', '产量'], g.recipes.map((r) => { const e = g.entOfType(String((r.make as any).type)); return [fit(e?.sprite, 32), e ? ctx.link(e.title, e.zh) : esc(zh(r.name)), r.needs.map((n) => typeLink(ctx, n.type, { count: n.count })).join(' '), join((r.tools ?? []).map(toolName)), !r.station || r.station === 'hands' ? '手工' : ctx.link('工作台'), String(r.level ?? 1), `×${r.count ?? 1}`] }), 'wikitable sortable')
     case '建造表': return table(['', '名称', '分页', '需要', '说明'], g.placements.map((p) => { const e = p.result ? g.entOfType(String(p.result)) : undefined; return [fit(e?.sprite ?? (p.sprite.startsWith('item:') ? g.items.find((i) => i.form?.sprite === p.sprite)?.sprite : undefined), 32), e ? ctx.link(e.title, zh(p.name)) : esc(zh(p.name)), p.category === 'building' ? '建筑' : '种植', p.needs.map((n) => `${esc(zh(n.name))}×${n.count}${n.consume ? '' : '（工具）'}`).join('、'), esc(zh(p.description))] }))
@@ -620,7 +692,7 @@ function lists(ctx: Ctx, name: string, args: string[]): string | undefined {
       if (!branch && !prof) { ctx.error(`{{技能树|${key}}}：没有这个分支或职业`); return '' }
       if (!list.length) return `<p class="empty">这个分支还没有技能（游戏里显示「技能待设计」）。</p>`
       const nameOf = (id: string) => zh(g.skills.find((s) => s.id === id)?.name) || id
-      return table(['', '技能', '前置', '点数', '类型', '效果'], list.map((s) => [fit(iconOf(s.icon), 40), `<b id="技能-${escapeAttr(zh(s.name))}">${esc(zh(s.name))}</b>`, join((s.requires ?? []).map(nameOf)), String(s.cost ?? 1), s.ability ? '能力' : '加成', esc(zh(s.doc))]))
+      return table(['', '技能', '前置', '点数', '类型', '效果'], list.map((s) => [fit(iconOf(s.icon), 40), `<b id="技能-${escapeAttr(zh(s.name))}">${esc(zh(s.name))}</b>`, join((s.requires ?? []).map(nameOf)), String(s.cost ?? 1), s.active ? '主动' : s.ability ? '能力' : '加成', esc(zh(s.doc))]))
     }
     case '职业表': return table(['', '职业', '说明', '起始装备'], g.professions.map((p) => [fit(iconOf(p.icon), 40), ctx.link(p.name.zh), esc(zh(p.doc)), join([p.weapon, (p as any).offhand].filter(Boolean).map((w: any) => `${typeLink(ctx, w.type)}（${esc(zh(w.name))}）`))]))
     case '恩赐表': return table(['恩赐', '效果', '来源'], g.boons.map((b: any) => [`<b>${esc(zh(b.name))}</b>`, esc(zh(b.doc ?? b.text ?? b.description) || JSON.stringify(b.lead ?? {})), b.from ? esc(String(b.from)) : ctx.link('白骑士·阿尔贝里克')]))
@@ -633,9 +705,13 @@ function lists(ctx: Ctx, name: string, args: string[]): string | undefined {
     case '装备栏表': return table(['部位', '可穿戴'], Object.entries(ctx.tr['装备栏'] ?? {}).map(([slot, name]) => [esc(name), join(g.items.filter((e) => e.props.slot === slot).map((e) => entLink(ctx, e)), ' ')]))
     case '作物表': {
       const crops = g.fixtures.filter((f) => f.group === '作物' && f.id.split('/').length === 3)
-      return table(['', '作物', '产物', '种子', '收获后'], crops.map((c) => [fit(c.sprite, 32), ctx.link(c.title, c.zh), c.props.yieldType ? typeLink(ctx, String(c.props.yieldType)) : '—', c.props.seedType ? typeLink(ctx, String(c.props.seedType)) : '—', c.props.regrowType ? '重新长回幼株' : c.type.tags?.includes('perennial') ? '重新长回' : '没了']))
+      // what the produce feeds, and the stall's prices: its seeds (count for price) and one of the produce bought back
+      const food = (t?: string) => { const e = t ? g.byId.get(t) as ItemEnt | undefined : undefined; return e && feeds(e) ? `+${e.props.food}` : '—' }
+      const seedPrice = (t?: string) => (t ? offersOf(g, t).map((r) => `${priceOf(r)} / ${r.count ?? 1} 个`).join('<br>') : '') || '—'
+      const sellPrice = (t?: string) => { const r = t ? buysBack(g, t) : undefined; return r ? String(r.count ?? 1) : '—' }
+      return table(['', '作物', '产物', '饱食度', '种子', '收获后', `种子价（${ctx.link(g.typeName(g.coin))}）`, '产物卖价'], crops.map((c) => [fit(c.sprite, 32), ctx.link(c.title, c.zh), c.props.yieldType ? typeLink(ctx, String(c.props.yieldType)) : '—', food(c.props.yieldType), c.props.seedType ? typeLink(ctx, String(c.props.seedType)) : '—', c.props.regrowType ? '重新长回幼株' : c.type.tags?.includes('perennial') ? '重新长回' : '没了', seedPrice(c.props.seedType), sellPrice(c.props.yieldType)]), 'wikitable sortable')
     }
-    case '食物表': return table(['', '食物', '饱食度', '获得'], g.items.filter((e) => typeof e.props.food === 'number').sort((a, b) => b.props.food - a.props.food).map((e) => [fit(e.sprite, 32), ctx.link(e.title, e.zh), `+${e.props.food}`, howToGet(ctx, e)]), 'wikitable sortable')
+    case '食物表': return table(['', '食物', '饱食度', '获得'], g.items.filter(feeds).sort((a, b) => b.props.food - a.props.food).map((e) => [fit(e.sprite, 32), ctx.link(e.title, e.zh), `+${e.props.food}`, howToGet(ctx, e)]), 'wikitable sortable')
     case '传送雕像表': return table(['传送雕像', '所在地点'], g.waypoints.map((w) => [`◆ ${esc(zh(w.name))}`, mapLink(ctx, w.map)]))
     case '配乐表': return table(['地点', '音乐'], g.maps.map((m) => [mapLink(ctx, m.id), m.map.music ? esc(`${T(ctx, '音乐', String(m.map.music).toLowerCase())}（${m.map.music}）`) : '—']))
     case '效率表': {
@@ -721,7 +797,7 @@ const BLOCK = new Set([
   '信息框', '引言', '小作品', '规划中', '待设计', '开发者', '主条目', '另见', '导航框', '日程表', '对话', '人际关系', '相关任务', '肖像', '来源', '用途', '配方', '变体',
   '出没', '掉落', '首领技能', '地图', '相连地点', '居民', '生物', '物品分布', '任务目标', '任务奖励', '任务对话', '物品表', '居民表', '怪物表', '首领表', '地点表', '任务表',
   '配方表', '建造表', '技能树', '职业表', '恩赐表', '状态表', '元素表', '地形表', '材质表', '品质表', '装备栏表', '作物表', '食物表', '传送雕像表', '配乐表', '效率表',
-  '房间用途表', '夜行生物表', '传说武器表', '圣痕之力表', '遗誓特质表', '版本历史', '数值表', '门户', '原文', '图', '剧透',
+  '房间用途表', '夜行生物表', '传说武器表', '圣痕之力表', '遗誓特质表', '货摊表', '版本历史', '数值表', '门户', '原文', '图', '剧透',
 ])
 
 export function runTemplate(ctx: Ctx, call: TemplateCall): { html: string; block: boolean } {
@@ -797,7 +873,8 @@ export function runTemplate(ctx: Ctx, call: TemplateCall): { html: string; block
       if (!x) return out('')
       if (x.kind === 'boss') { const c = campaign(ctx, x as BossEnt); return out(`<ul class="facts">${c ? `<li>战役：${mapLink(ctx, c.map)}</li>` : ''}<li>${ctx.link('首领挑战')}</li></ul>`) }
       const ws = whereCreature(ctx, x.id)
-      return out(ws.length ? `<ul class="facts">${ws.map((m) => { const n = ctx.g.placed.get(x.id)?.get(m); const a = (idx(ctx.g).appearOn.get(x.id) ?? []).find((y) => y.map === m); return `<li>${mapLink(ctx, m)}${n ? `：开局 ${n} 只` : ''}${a ? `${n ? '，' : '：'}会重新出现（最多 ${a.max} 只，每 ${secs(a.every)} 一次）` : ''}</li>` }).join('')}${(ctx.g.ontology.appear ?? []).some((a: any) => a.types[x.id]) ? `<li>${ctx.link('夜行生物')}：战斗区域的室外地图，入夜后</li>` : ''}</ul>` : `<p class="empty">游戏里目前不会出现。</p>`)
+      const born = bornOf(ctx, x.id).li.join('')
+      return out(ws.length || born ? `<ul class="facts">${ws.map((m) => { const n = ctx.g.placed.get(x.id)?.get(m); const a = (idx(ctx.g).appearOn.get(x.id) ?? []).find((y) => y.map === m); return `<li>${mapLink(ctx, m)}${n ? `：开局 ${n} 只` : ''}${a ? `${n ? '，' : '：'}会重新出现（最多 ${a.max} 只，每 ${secs(a.every)} 一次）` : ''}</li>` }).join('')}${(ctx.g.ontology.appear ?? []).some((a: any) => a.types[x.id]) ? `<li>${ctx.link('夜行生物')}：战斗区域的室外地图，入夜后</li>` : ''}${born}</ul>` : `<p class="empty">游戏里目前不会出现。</p>`)
     }
     case '掉落': {
       const x = need(['creature', 'boss'])

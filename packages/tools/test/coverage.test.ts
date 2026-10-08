@@ -65,6 +65,8 @@ describe('nothing put down is lost', () => {
         eng.trace.length = 0
         const put = eng.act('put', 'actor', ref, { instrument: { e: 'held' } })
         if (eng.trace.some((t) => t.rule && consumes(t.rule))) continue
+        // something explosive put into a fire goes off (fire/explode): used up by its nature
+        if (eng.trace.some((t) => t.rule === 'fire/explode')) continue
         if (actor.held === 'held') continue
         eng.act('take', 'actor', { e: 'held' }, { instrument: null })
         if (actor.held !== 'held' && !actor.contents?.includes('held')) lost.push(`${form.id} → ${target.id} (${put.rule?.id ?? 'undefined'})`)

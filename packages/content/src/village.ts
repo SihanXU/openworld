@@ -55,7 +55,7 @@ export const VILLAGE_QUESTS: QuestDef[] = [
     offer: L("Promise you won't tell Mum? I went to the hollow — just to look — and Gran's ring fell in the thorns on the east side. Could you find it?", '你保证不告诉妈妈？我去了荆棘谷——就看了一眼——奶奶的戒指掉进东边的荆棘丛里了。你能帮我找回来吗？'),
     waiting: L('East side of the hollow, where the thorns are thickest. It is silver.', '荆棘谷东边，荆棘最密的地方。是银的。'),
     done: L("You found it! Gran's ring! Here, this is my best stone. It's lucky. Mostly.", '你找到了！奶奶的戒指！给，这是我最好的石头，会带来好运的。大概吧。'),
-    goals: [{ id: 'ring', kind: 'carry', type: 'item/valuable/ring', count: 1, consume: true, label: L("Mia's ring", '米娅的戒指') }],
+    goals: [{ id: 'ring', kind: 'carry', type: 'item/valuable/ring', tags: ['keepsake'], count: 1, consume: true, label: L("Mia's ring", '米娅的戒指') }],
     reward: { xp: 30, items: [{ type: 'item/material/stone', count: 1 }, { type: 'item/valuable/earring', count: 1, name: L("Mia's Ribbon Earring", '米娅的缎带耳环'), tags: ['quality:fine'], props: { slot: 'ear', xpRate: 0.1 } }] },
   },
   {

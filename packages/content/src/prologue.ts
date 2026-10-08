@@ -82,7 +82,7 @@ export const TUTORIAL_LESSONS: Record<number, Lesson[]> = {
 
 export const PROLOGUE_OBJECTIVES: Record<number, Objective> = {
   1: { title: L('Find something to eat', '找点吃的'), hint: L('WASD moves you. F picks up what you point at; hold it (1–0) and right click to eat it.', 'WASD 移动。F 捡起鼠标指着的东西；用 1–0 拿在手上，右键吃掉。') },
-  2: { title: L('Gather sticks, stones and grass', '收集树枝、石头和草'), hint: L('They lie about the clearing, and more turn up. F picks them up; Tab shows the bag.', '空地上到处都有，而且会不断长出来。F 捡起来；Tab 打开背包。') },
+  2: { title: L('Gather sticks, stones and grass', '收集树枝、石头和草'), hint: L('They lie about the clearing, and more turn up. F picks them up; I opens the bag.', '空地上到处都有，而且会不断长出来。F 捡起来；I 打开背包。') },
   3: { title: L('Make a stone axe', '做一把石斧'), hint: L('C opens crafting: a stick, a stone and a tuft of grass.', 'C 打开制作：一根树枝、一块石头、一把草。') },
   4: { title: L('Fell a tree and split planks', '砍树，劈出木板'), hint: L('Hold the axe and left click a tree: it falls into logs. Left click a log with the axe: planks.', '拿着斧头左键点树，树倒下变成原木；再用斧头左键点原木，劈成木板。') },
   5: { title: L('Build a campfire and light it', '搭一堆营火并点燃'), hint: L('B opens building: a ring of stones and sticks is a campfire. C makes a torch (a stick and grass); left click the fire with it.', 'B 打开建造：石头和树枝围成营火。C 做一支火把（树枝加草），拿着它左键点营火。') },

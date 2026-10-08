@@ -623,7 +623,8 @@ export class Engine {
       if (tags.some((t) => OPAQUE_TERRAIN.includes(t))) return false
       // ground higher than both ends stands in the way (world-model.md §5.5: height blocks sight)
       if (w.heightAt(map, x, y) > Math.max(w.heightAt(map, a.x, a.y), w.heightAt(map, b.x, b.y)) + 1) return false
-      if (w.entitiesAt(map, x, y).some((o) => w.hasTag(o, 'opaque') || w.hasTag(o, 'tall'))) return false
+      // an opaque thing hides what is behind it while it stands solid (a door shut; open, it is a gap)
+      if (w.entitiesAt(map, x, y).some((o) => (w.hasTag(o, 'opaque') && w.onto.resolve(o.type).solid) || w.hasTag(o, 'tall'))) return false
     }
     return true
   }
