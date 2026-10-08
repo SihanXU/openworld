@@ -212,7 +212,7 @@ function qualityName(id?: string): string {
 // ------------------------------------------------------------------------------------------ infoboxes
 
 function infobox(ctx: Ctx, title: string, image: string, rows: [string, string][], caption = ''): string {
-  return `<aside class="infobox"><div class="ib-title">${esc(title)}</div>${image ? `<div class="ib-image">${image}</div>` : ''}${caption ? `<div class="ib-caption">${caption}</div>` : ''}<table>${rows.filter(([, v]) => v !== '' && v != null).map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('')}</table></aside>`
+  return `<aside class="infobox"><div class="ib-title">${esc(title)}</div>${image ? `<div class="ib-image">${image}</div>` : ''}${caption ? `<div class="ib-caption">${caption}</div>` : ''}<table class="ib">${rows.filter(([, v]) => v !== '' && v != null).map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('')}</table></aside>`
 }
 
 function itemInfobox(ctx: Ctx, e: ItemEnt): string {
@@ -235,7 +235,6 @@ function personInfobox(ctx: Ctx, p: PersonEnt): string {
     ['住在', p.home ? mapLink(ctx, p.home) : p.kind === 'companion' ? '跟着玩家' : '只在剧情中出场'],
   ]
   if (d) rows.push(['性格', Object.values(d.temperament).map((v) => esc(T(ctx, '性格', v))).join('、')])
-  if (d && Object.keys(d.ties).length) rows.push(['关系', Object.entries(d.ties).map(([id, rel]) => `${personLink(ctx, id)}（${esc(T(ctx, '关系', rel))}）`).join('<br>')])
   const qs = idx(ctx.g).personQuests.get(p.id) ?? []
   if (qs.length) rows.push(['任务', qs.map((q) => entLink(ctx, q, { icon: 0 })).join('<br>')])
   rows.push(['英文名', esc(p.en)])
@@ -453,7 +452,7 @@ function dialogue(ctx: Ctx, p: PersonEnt): string {
 function ties(ctx: Ctx, p: PersonEnt): string {
   const own = Object.entries(p.def?.ties ?? {}).map(([id, rel]) => `<li>${personLink(ctx, id)}：${esc(T(ctx, '关系', rel))}</li>`)
   const back = ctx.g.people.filter((o) => o.def?.ties[p.id]).map((o) => `<li>${personLink(ctx, o.id)} 眼中：${esc(T(ctx, '关系', o.def!.ties[p.id]))}</li>`)
-  return own.length || back.length ? `<ul class="facts">${[...own, ...back].join('')}</ul>` : `<p class="empty">游戏数据里没有记录。</p>`
+  return own.length || back.length ? `<details class="spoiler"><summary>人物数据里记的关系<span class="spoiler-hint">（可能剧透，点开查看）</span></summary><div class="spoiler-body"><ul class="facts">${[...own, ...back].join('')}</ul></div></details>` : `<p class="empty">游戏数据里没有记录。</p>`
 }
 
 function bossSkills(ctx: Ctx, b: BossEnt): string {
@@ -473,12 +472,12 @@ function mapView(ctx: Ctx, m: MapEnt): string {
   const pins: string[] = []
   const pin = (x: number, y: number, html: string, title: string, cls: string) =>
     pins.push(`<span class="pin ${cls}" style="left:${((x + 0.5) / W) * 100}%;top:${((y + 0.5) / H) * 100}%" title="${escapeAttr(title)}">${html}</span>`)
-  for (const p of ctx.g.people) if (p.entity.place.on === 'tile' && p.entity.place.map === m.id) pin(p.entity.place.x, p.entity.place.y, fit(p.face, 18, 'face'), p.zh, 'person')
+  for (const p of ctx.g.people) if (p.entity.place.on === 'tile' && p.entity.place.map === m.id) pin(p.entity.place.x, p.entity.place.y, `<a href="${linkHref(p.title)}"></a>`, p.zh, 'person hot')
   for (const e of m.entities) {
     if (e.place.on !== 'tile') continue
     if (e.type.startsWith('actor/creature/')) {
       const c = ctx.g.entOfType(e.type)
-      if (c) pin(e.place.x, e.place.y, fit(c.sprite, 16), c.zh, 'creature')
+      if (c) pin(e.place.x, e.place.y, `<a href="${linkHref(c.title)}"></a>`, c.zh, 'creature hot')
     } else if (e.type === 'fixture/sacred/waypoint') pin(e.place.x, e.place.y, '◆', '传送雕像', 'waypoint')
   }
   const seen = new Set<string>()
@@ -487,7 +486,7 @@ function mapView(ctx: Ctx, m: MapEnt): string {
     seen.add(p.to)
     pin(p.x, p.y, '➜', `通往${zh(p.label) || p.to}`, 'portal')
   }
-  return `<figure class="mapview"><div class="mapbox" style="aspect-ratio:${W}/${H}"><img src="/wiki/_/maps/${m.id}.png" alt="${escapeAttr(m.zh)}地形图">${pins.join('')}</div><figcaption>${esc(m.zh)}的地形（${W} × ${H} 格）。头像是人物开局时的位置，小图是生物，◆ 是传送雕像，➜ 是出口。</figcaption></figure>`
+  return `<figure class="mapview"><div class="mapbox" style="aspect-ratio:${W}/${H}"><img src="/wiki/_/maps/${m.id}.png" alt="${escapeAttr(m.zh)}地形图">${pins.join('')}</div><figcaption>${esc(m.zh)}（${W} × ${H} 格），世界开始时的样子。人物和生物画在开局的位置，鼠标移上去显示名字、点击打开页面；◆ 是传送雕像，➜ 是出口。</figcaption></figure>`
 }
 
 function mapPeople(ctx: Ctx, m: MapEnt): string {
@@ -742,7 +741,7 @@ export function runTemplate(ctx: Ctx, call: TemplateCall): { html: string; block
       if (!x) { ctx.error(`{{物品|${args[0]}}}：游戏里没有这个物品`); return out(esc(args[0] ?? '')) }
       return out(entLink(ctx, x, { count: Number(args[1]) || undefined, text: x.zh === args[0]?.trim() || x.title === args[0]?.trim() ? undefined : args[0]?.trim() }))
     }
-    case '人物': { const x = find(ctx, args[0] ?? '', ['person', 'companion']); if (!x) ctx.error(`{{人物|${args[0]}}}：没有这个人`); return out(x ? entLink(ctx, x) : esc(args[0] ?? '')) }
+    case '人物': { const x = find(ctx, args[0] ?? '', ['person', 'companion']) ?? find(ctx, args[0] ?? '', ['boss']); if (!x) ctx.error(`{{人物|${args[0]}}}：没有这个人`); return out(x ? entLink(ctx, x) : esc(args[0] ?? '')) }
     case '怪物': { const x = find(ctx, args[0] ?? '', ['creature', 'boss']); if (!x) ctx.error(`{{怪物|${args[0]}}}：没有这种怪物`); return out(x ? entLink(ctx, x) : esc(args[0] ?? '')) }
     case '地点': { const x = find(ctx, args[0] ?? '', ['map']); if (!x) ctx.error(`{{地点|${args[0]}}}：没有这个地点`); return out(x ? entLink(ctx, x, { icon: 0 }) : esc(args[0] ?? '')) }
     case '状态': {

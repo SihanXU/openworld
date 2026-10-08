@@ -131,9 +131,10 @@ export function buildSite(opts: { ref?: string } = {}): Built {
     let ent: Ent | undefined
     if (front.对象) {
       ent = game.byId.get(front.对象)
-      if (!ent) errors.push(`${rel}：对象「${front.对象}」在游戏里不存在`)
-      else if (bound.has(ent.id)) errors.push(`${rel}：对象「${front.对象}」已经有另一个页面`)
-      else bound.add(ent.id)
+      const known = game.professions.some((p) => p.id === front.对象) || game.branches.some((b) => b.id === front.对象)
+      if (!ent && !known) errors.push(`${rel}：对象「${front.对象}」在游戏里不存在`)
+      else if (ent && bound.has(ent.id)) errors.push(`${rel}：对象「${front.对象}」已经有另一个页面`)
+      else if (ent) bound.add(ent.id)
     }
     const type = front.类型 ?? (ent ? TYPE_OF_KIND[ent.kind] : '系统')
     if (!TYPES.has(type)) errors.push(`${rel}：类型「${type}」不认识`)
@@ -239,7 +240,7 @@ export function buildSite(opts: { ref?: string } = {}): Built {
       const target = pages.get(l.title)
       if (target && !target.headings.some((h) => h.id === slug(l.anchor!)) && !target.html.includes(`id="${escapeAttr(slug(l.anchor!))}"`) && !target.html.includes(`id="${escapeAttr(l.anchor!)}"`)) p.errors.push(`${p.file ?? p.title}：[[${l.title}#${l.anchor}]] 链到的小节不存在`)
     }
-    if (p.ent && p.file) {
+    if (p.ent && p.file && p.type === TYPE_OF_KIND[p.ent.kind]) {
       const need: Record<string, string[]> = {
         person: ['信息框', '日程表', '对话'], companion: ['信息框'], item: ['信息框', '来源', '用途'], fixture: ['信息框', '来源'], structure: ['信息框', '来源'],
         creature: ['信息框', '出没', '掉落'], boss: ['信息框', '首领技能'], map: ['信息框', '地图', '相连地点'], quest: ['信息框', '任务目标', '任务奖励'],

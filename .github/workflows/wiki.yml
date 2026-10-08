@@ -1,0 +1,23 @@
+# The wiki (wiki/, packages/wiki) is built from the game's own data: every change to either is checked
+# here. The check fails on broken links or templates, and when something in the game has no page
+# (the wiki's 特殊：完备性). The server rebuilds the site itself once a change reaches main.
+name: wiki
+on:
+  pull_request:
+    paths: ['wiki/**', 'packages/**', 'package.json', 'package-lock.json', '.github/workflows/wiki.yml']
+  push:
+    branches: [main]
+    paths: ['wiki/**', 'packages/**', 'package.json', 'package-lock.json', '.github/workflows/wiki.yml']
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run wiki:check

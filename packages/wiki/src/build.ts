@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { TERRAIN_CHARS } from '@lsw/content'
 import { decodePng, encodePng, shrink } from './png.ts'
 import { pageHtml } from './layout.ts'
+import { renderMap } from './render-map.ts'
 import { plain } from './markup.ts'
 import { ROOT, WIKI, buildSite, pageSummary, type Built } from './site.ts'
 
@@ -50,7 +51,12 @@ export function writeSite(b: Built, out: string): void {
   }
   const home = b.pages.get('首页')
   if (home) writeFileSync(join(out, 'index.html'), pageHtml(b, home))
-  for (const m of b.game.maps) writeFileSync(join(out, '_', 'maps', `${m.id}.png`), mapPng(b, m.map))
+  // each map as the game draws it; its ground colours if that fails
+  for (const m of b.game.maps) {
+    let png: Buffer
+    try { png = renderMap(b.game, m.id).png } catch (e) { console.warn(`地图 ${m.id} 画不出来，改用地形色：${(e as Error).message}`); png = mapPng(b, m.map) }
+    writeFileSync(join(out, '_', 'maps', `${m.id}.png`), png)
+  }
   // the team's images (wiki/images), and the setting's illustrations kept at the repo root, scaled for the web
   const img = join(out, '_', 'img')
   mkdirSync(img, { recursive: true })

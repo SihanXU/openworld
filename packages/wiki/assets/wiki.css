@@ -141,9 +141,9 @@ kbd {
 .wikitable th { background: var(--gold-soft); text-align: left; white-space: nowrap; }
 .wikitable th.sort-asc::after { content: " ▲"; } .wikitable th.sort-desc::after { content: " ▼"; }
 .sortable th { cursor: pointer; }
-.body table:not(.navbox):not(.wikitable) { border-collapse: collapse; margin: 6px 0 14px; display: block; overflow-x: auto; }
-.body table:not(.navbox):not(.wikitable):not(.infobox table) th, .body table:not(.navbox):not(.wikitable) td { border: 1px solid var(--line-strong); padding: 5px 9px; }
-.body table:not(.navbox):not(.wikitable) th { background: var(--gold-soft); }
+.body table:not(.navbox):not(.wikitable):not(.ib) { border-collapse: collapse; margin: 6px 0 14px; display: block; overflow-x: auto; }
+.body table:not(.navbox):not(.wikitable):not(.ib) th, .body table:not(.navbox):not(.wikitable):not(.ib) td { border: 1px solid var(--line-strong); padding: 5px 9px; }
+.body table:not(.navbox):not(.wikitable):not(.ib) th { background: var(--gold-soft); }
 .coverage tr.ok td:nth-child(3) { color: var(--ok); } .coverage tr.bad td { color: var(--bad); } .coverage tr.part td:nth-child(4) { color: var(--part); }
 
 /* navbox */
@@ -201,9 +201,14 @@ blockquote.line { display: flex; gap: 10px; align-items: center; margin: 0 0 6px
 
 /* maps */
 .mapview { margin: 4px 0 14px; }
-.mapbox { position: relative; width: 100%; max-width: 560px; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; }
+.mapbox { position: relative; width: 100%; max-width: 768px; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; }
 .mapbox img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.body h2 + .mapview, .mapview { clear: both; }
 .pin { position: absolute; transform: translate(-50%, -60%); line-height: 1; font-size: 13px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.5)); }
+.pin.hot { width: 3.2%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; }
+.pin.hot a { display: block; width: 100%; height: 100%; border-radius: 50%; }
+.pin.hot:hover { outline: 2px solid var(--gold); background: rgba(255, 220, 120, 0.25); }
+.pin.hot:hover::after { content: attr(title); position: absolute; left: 50%; bottom: 110%; transform: translateX(-50%); white-space: nowrap; background: var(--head-bg); color: var(--head-ink); padding: 2px 8px; border-radius: 4px; font-size: 12px; }
 .pin.waypoint { color: #3fd6e0; font-size: 16px; }
 .pin.portal { color: #fff; font-weight: 700; text-shadow: 0 0 3px #000; }
 .mapview figcaption { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
