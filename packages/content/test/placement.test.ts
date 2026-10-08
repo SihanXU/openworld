@@ -84,6 +84,17 @@ describe('rule-driven construction', () => {
     kit(f, 'crate')
     expect(place(f, 'crate').ok).toBe(false)
   })
+  it('a fence faces the way the builder faces it (across their way), or the way the palette turned it (R)', () => {
+    const e = fresh()
+    kit(e, 'fence')
+    // the builder stands south of the cell: the fence runs east-west across their way, its front to them
+    expect(place(e, 'fence').ok).toBe(true)
+    expect(e.world.placedAt(at.map, at.x, at.y).find((x) => x.type === 'fixture/fence')?.facing).toBe('up')
+    const f = fresh()
+    kit(f, 'fence')
+    expect(performPlacement(f, 'actor', PLACEMENT_BY_ID.fence, at, 'right').ok).toBe(true)
+    expect(f.world.placedAt(at.map, at.x, at.y).find((x) => x.type === 'fixture/fence')?.facing).toBe('right')
+  })
   it('rehearses every step before spending if the library no longer permits a finish', () => {
     const e = fresh()
     kit(e, 'chest')

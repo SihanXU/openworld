@@ -14,6 +14,8 @@ interface Entry {
   needs: { name: Text; count: number; type?: string; match?: PlacementRecipe['needs'][number]['match']; consume?: boolean }[]
   /** The type a `put:` entry sets down. */
   put?: string
+  /** The type a recipe builds (a fence). */
+  result?: string
 }
 
 const ONTO = buildOntology()
@@ -24,6 +26,11 @@ const spaces = (type?: string): string[] => {
 }
 /** A floor: laid on one's storey, or (R) in the ceiling over it. */
 const lays = (type?: string) => spaces(type).includes('floor')
+/** A thing that turns (stairs, a fence): it is set down facing a way (R turns it; by hand, away from one). */
+const turns = (type?: string): boolean => {
+  for (let t = type; t; t = t.includes('/') ? t.slice(0, t.lastIndexOf('/')) : undefined) if (ONTO.types[t]?.tags?.includes('turns')) return true
+  return false
+}
 /** A block drawn a storey high (its front in the cell, its top a tile up): a wall, a door, stairs. */
 const block = (type?: string) => !!type?.startsWith('structure/') && spaces(type).includes('volume')
 
@@ -31,7 +38,7 @@ const block = (type?: string) => !!type?.startsWith('structure/') && spaces(type
 const placeable = (type: string) => type.startsWith('structure/') || type.startsWith('fixture/')
 const PUT_HELP: Text = { en: 'Set down one you carry (as G does); with none, one is made from what you carry first.', zh: '放下身上带着的一个（和 G 一样）；身上没有时，先用身上的材料现做一个。' }
 
-const fromRecipe = (r: PlacementRecipe): Entry => ({ id: r.id, category: r.category, name: r.name, description: r.description, sprite: r.sprite, needs: r.needs.map((n) => ({ name: n.name, count: n.count, match: n.match, consume: n.consume })) })
+const fromRecipe = (r: PlacementRecipe): Entry => ({ id: r.id, category: r.category, name: r.name, description: r.description, sprite: r.sprite, result: r.result, needs: r.needs.map((n) => ({ name: n.name, count: n.count, match: n.match, consume: n.consume })) })
 
 /** The things one makes and sets down (walls, floors, doors, beds, a workbench): from the recipes that make them. */
 const MADE: Entry[] = RECIPES.filter((r) => placeable(r.make.type)).map((r) => ({
@@ -58,7 +65,7 @@ export class BuildingMode {
   frame?: Frame
   preview?: PlacementPreview
   aim?: Tile
-  paint?: (sprite: string) => HTMLCanvasElement | undefined
+  paint?: (sprite: string, across?: boolean) => HTMLCanvasElement | undefined
   /** The left button is down: each new cell the pointer enters gets one too. */
   dragging = false
   /** The way what is set down faces (R turns it; stairs go up it); none: away from the player. */
@@ -222,18 +229,14 @@ export class BuildingMode {
   tick(): void {
     const at = this.slot()
     if (!this.open || !at || !this.frame) return
+    const type = this.selected.put ?? this.selected.result
+    this.showTurn(turns(type) ? this.facing ?? this.away() : undefined, type, this.selected.sprite)
     this.drawGhost(at, this.selected.put, this.ceiling())
-    // what turns (stairs) shows the way it will face
-    const turns = this.selected.put === 'structure/stairs'
-    this.arrow.textContent = { up: '↑', right: '→', down: '↓', left: '←' }[this.facing ?? this.away()]
-    if (turns && this.arrow.parentElement !== this.ghost) this.ghost.append(this.arrow)
-    if (!turns) this.arrow.remove()
     this.ghost.classList.toggle('valid', !!this.preview?.ok)
     this.ghost.classList.toggle('invalid', !this.preview?.ok)
   }
 
   /** The thing in hand the left click sets down (it builds, outside the palette): its ghost where it will be drawn. */
-  private handSprite = ''
   hand(up: boolean): void {
     if (this.open) return
     const k = this.frame?.keys?.use
@@ -241,16 +244,34 @@ export class BuildingMode {
     const on = !!k?.sets && !!held && placeable(held.type)
     this.ghost.classList.toggle('hidden', !on)
     if (!on || !k || !held) return
-    if (held.sprite !== this.handSprite) {
-      this.handSprite = held.sprite
-      this.ghost.replaceChildren()
-      const art = this.paint?.(held.sprite)
-      if (art) this.ghost.append(art)
-    }
-    this.arrow.remove()
+    // by hand, what turns faces away from one (its front toward one): the way one faces it
+    const p = this.frame?.player
+    const dx = k.x - (p?.x ?? k.x)
+    const dy = k.y - (p?.y ?? k.y)
+    this.showTurn(turns(held.type) && (dx || dy) ? (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up') : undefined, held.type, held.sprite)
     this.drawGhost({ x: k.x, y: k.y }, held.type, up && lays(held.type))
     this.ghost.classList.add('valid')
     this.ghost.classList.remove('invalid')
+  }
+
+  /** The ghost's picture: the thing's, across when it faces east or west (a fence running north-south). */
+  private artSig = ''
+  private setArt(sprite: string, across = false): void {
+    const sig = `${sprite}|${across}`
+    if (sig === this.artSig) return
+    this.artSig = sig
+    this.ghost.replaceChildren()
+    const art = this.paint?.(sprite, across)
+    if (art) this.ghost.append(art)
+  }
+
+  /** The way what turns will face: the arrow (stairs go up it), and a fence's picture across when it faces east or west. */
+  private showTurn(way: Dir | undefined, type: string | undefined, sprite: string): void {
+    this.setArt(sprite, !!way && (way === 'left' || way === 'right') && !block(type))
+    if (way) {
+      this.arrow.textContent = { up: '↑', right: '→', down: '↓', left: '←' }[way]
+      if (this.arrow.parentElement !== this.ghost) this.ghost.append(this.arrow)
+    } else this.arrow.remove()
   }
 
   /**
@@ -285,10 +306,8 @@ export class BuildingMode {
       const c = this.paint?.(el.dataset.sprite!)
       if (c) el.append(c)
     })
-    this.ghost.replaceChildren()
-    this.handSprite = ''
-    const art = this.paint?.(this.selected.sprite)
-    if (art) this.ghost.append(art)
+    this.artSig = ''
+    this.setArt(this.selected.sprite)
     this.detailSignature = ''
     this.details()
   }

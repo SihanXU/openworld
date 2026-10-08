@@ -224,8 +224,9 @@ const paintIcons = (items: ItemInfo[]) => {
 }
 hud.paintIcons = paintIcons
 menu.paintIcons = paintIcons
-building.paint = (sprite) => {
-  const d = CATALOG.fixtures[sprite]?.base ?? CATALOG.items[sprite]
+building.paint = (sprite, across) => {
+  const f = CATALOG.fixtures[sprite]
+  const d = (across && f?.across) || f?.base || CATALOG.items[sprite]
   return d ? crop(d.img, d.x, d.y, d.w, d.h) : undefined
 }
 

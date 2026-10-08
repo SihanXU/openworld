@@ -488,7 +488,7 @@ export const CATALOG: Catalog = {
     'fixture:winch': { base: t(ELEM, 11, 2, 1, 2) },
     'fixture:ferry': { base: px(WATER, 416, 0, 32, 16, 16, 13) },
     'fixture:raft': { base: px(WATER, 416, 0, 32, 16, 16, 13) },
-    'fixture:fence': { base: t(HOUSE, 11, 7) },
+    'fixture:fence': { base: t(HOUSE, 11, 7), across: t(HOUSE, 11, 6) },
     'fixture:dummy': { base: t(ELEM, 15, 0) },
     // Crops (farming). The pack has no crop sheet: sprouts are ground details, young plants are
     // small nature tufts/bushes, ripe wheat is the camp tileset's golden sheaf, ripe berries the

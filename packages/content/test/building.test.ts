@@ -437,6 +437,11 @@ describe('storeys: what one reaches, and where a thing goes (docs/building.md §
     expect(eng.controls.choices('use', { x: 3, y: 3 }).at(-1)).toMatchObject({ layer: CEILING })
     use(3, 3, CEILING)
     expect(storeys(eng, 3, 3)).toEqual([['wall'], ['floor'], [], []])
+    // what turns faces away from the one who sets it by hand (its front to them): stairs set from the east go up west
+    stand(eng, 6, 3)
+    hold(eng, 'structure/stairs')
+    use(5, 3)
+    expect(eng.world.placedAt(SANDBOX_MAP, 5, 3).find((e) => e.type === 'structure/stairs')?.facing).toBe('left')
     // in the water, or anything else held: what it makes of that is the world's to learn (an experiment)
     stand(eng, 4, 4)
     hold(eng, 'structure/wall')
