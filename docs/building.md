@@ -248,6 +248,9 @@ Taking it down is the reverse, step by step. Every step is reachable, and nothin
   `Controls.planOn` checks a put on a cell or a built thing against `settleWhy`, and a take against
   `World.bears`: a floor above the ground that something rests on. The `move` primitive refuses to move
   a floor that bears anything.
+- **The back of stairs** (2026-10-08) is their high end, a storey of block: on their storey one bumps
+  into it from the cell behind and does not walk off their top into that cell (`Engine.stepSelf`).
+  Stairs that hide the player fade, as a statue does (`WorldScene.fadeOver`).
 - **The left click builds** (2026-10-08, after the user: G is the put that drops a thing, building
   belongs on the mouse as in every building game). A built thing or a fixture in hand, used on open
   ground, a floor or what is built there, is set down there: the rules `use/set-structure` and

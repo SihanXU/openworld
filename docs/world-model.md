@@ -567,8 +567,10 @@ stands, a storey one tile high as a cell is one tile deep — and drawn by the r
 - A floor laid a storey up lies where the tops of the blocks under it are; under a south edge
   nothing holds up (a balcony) its thickness shows.
 - Stairs are a block a storey high whose top is steps, set before what is a storey up, going up
-  their setter's facing (R in the palette turns them). One walks onto them from any side (half a
-  storey: drawn half a tile up) and, on them, on the way they go up onto the floor a storey up;
+  their setter's facing (R in the palette turns them). One walks onto them from the front or a side
+  (half a storey: drawn half a tile up), never from behind (their high end is a storey of block, and
+  one does not walk off it onto the ground behind either), and, on them, on the way they go up onto
+  the floor a storey up;
   from that storey onto them, half a storey down, and off. They keep the storey over them open: a
   floor set on their cell is laid a storey higher (a roof), and in a room, stairs going up through
   the hole are the room's own.

@@ -23,7 +23,7 @@ import { appearFromForage } from './appear.ts'
 import { RuleLibrary, evalCond, isDo, isPatch, matchSelector, rolesOf, type Resolution } from './rules.ts'
 import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb, WorldState } from './types.ts'
 import type { ProfessionDef } from './profession.ts'
-import { DIRS, FIRE_RADIUS } from './types.ts'
+import { DIRS, FIRE_RADIUS, OPPOSITE } from './types.ts'
 import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type Writer } from './world.ts'
 
 export type { Resolution } from './rules.ts'
@@ -945,7 +945,7 @@ export class Engine {
     const z = e.place.z ?? 0
     const floorAt = (zz: number) => !!w.occupant(map, nx, ny, 'floor', zz)
     // stairs are a block a storey high whose top is steps, going up one way (their facing, north
-    // unless set): one walks onto them (from any side: half a storey) and, standing on them, on the
+    // unless set): one walks onto them (from the front or a side: half a storey) and, standing on them, on the
     // way they go up onto the floor a storey up; from a storey, onto the stairs below, half a storey down
     const stairsAt = (sx: number, sy: number, zz: number) => w.entitiesAt(map, sx, sy, zz).find((o) => w.hasTag(o, 'stairs'))
     const on = stairsAt(x, y, z)
@@ -961,6 +961,15 @@ export class Engine {
         while (nz > 0 && !floorAt(nz)) nz--
         drop = z - nz
       }
+    }
+    // the back of built stairs is their high end, a storey of block: on their own storey one neither
+    // steps onto them from behind nor walks off their top into the cell behind (one goes up onto a floor
+    // there). A map's own way down (stairs_down, a way to another floor) has no back.
+    const fromBehind = (st: Entity | undefined, d: Dir) => !!st && !w.isTerrain(st) && OPPOSITE[st.facing ?? 'up'] === d
+    const behind = !climb && !descend && nz === z ? (fromBehind(stairsAt(nx, ny, z), dir) ? stairsAt(nx, ny, z) : on && !w.isTerrain(on) && (on.facing ?? 'up') === dir ? on : undefined) : undefined
+    if (behind && w.stanceOf(e) !== 'air') {
+      this.offer({ kind: 'bump', host: { e: e.id }, roles: { other: { e: behind.id } }, params: { dir }, cause: ev.cause, origin: ev.origin })
+      return false
     }
     // a cliff cannot be climbed: one bumps into it (what makes up the cell above)
     const over = z === 0 && nz === 0 ? w.stepOver(e, map, x, y, nx, ny) : ({ walk: true } as const)
@@ -991,7 +1000,7 @@ export class Engine {
       if (t - now.since < 8) return false
       this.bumps.delete(e.id)
       // the other makes way first, at once; only if it has left does the pusher step in (one body a cell)
-      const back: Dir = dir === 'up' ? 'down' : dir === 'down' ? 'up' : dir === 'left' ? 'right' : 'left'
+      const back = OPPOSITE[dir]
       this.dispatching++
       try {
         this.dispatch({ kind: 'impulse/push', host: { e: other.id }, roles: { source: { e: e.id }, actor: { e: e.id } }, params: { dir: back, swap: true }, cause: ev.cause, origin: ev.origin, depth: (ev.depth ?? 0) + 1 })

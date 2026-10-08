@@ -1093,7 +1093,7 @@ export class WorldScene extends Phaser.Scene {
 
   /**
    * What stands in front of the player and over them fades, so they are never lost behind it: a
-   * tree's crown, a tall statue or a dead tree (Stardew's trees; built walls and floors have their
+   * tree's crown, a tall statue, a dead tree, stairs (Stardew's trees; built walls and floors have their
    * own see-through, findSeeThrough). Checked every frame, as the player's picture moves.
    */
   private fadeOver(): void {
@@ -1116,7 +1116,8 @@ export class WorldScene extends Phaser.Scene {
     this.faded = faded
     for (const v of this.views.values()) {
       const e = v.snap
-      const over = !!me && v !== me && !e.tags.includes('agent') && !e.type.startsWith('structure/') && near(e.x, e.y) && v.body.displayHeight > T && v.root.depth > mine && v.body.getBounds().contains(px, py)
+      // (built walls and floors have their own see-through; stairs, a storey-high block drawn two tiles up, fade as a statue does)
+      const over = !!me && v !== me && !e.tags.includes('agent') && (!e.type.startsWith('structure/') || e.type === 'structure/stairs') && near(e.x, e.y) && v.body.displayHeight > T && v.root.depth > mine && v.body.getBounds().contains(px, py)
       if (over !== !!v.over) (v.over = over), v.body.setAlpha(this.alphaOf(v))
     }
   }

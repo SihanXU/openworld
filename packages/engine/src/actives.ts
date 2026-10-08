@@ -9,7 +9,7 @@
 import type { Engine } from './engine.ts'
 import { combatStrike, finishCombatStrike } from './combat.ts'
 import { professionOf, weaponOf } from './profession.ts'
-import { DIRS, type ActiveDef, type Dir, type Entity, type Pos, type SkillDef } from './types.ts'
+import { DIRS, OPPOSITE, type ActiveDef, type Dir, type Entity, type Pos, type SkillDef } from './types.ts'
 
 /** How many slots the skill bar has. */
 export const SKILLBAR_SLOTS = 6
@@ -80,7 +80,6 @@ export function castLeft(eng: Engine, e: Entity, id: string): number {
 
 const at = (e: Entity): Pos | undefined => (e.place.on === 'tile' ? { map: e.place.map, x: e.place.x, y: e.place.y, z: e.place.z } : undefined)
 const dist = (a: Pos, b: Pos) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y))
-const BACK: Record<Dir, Dir> = { up: 'down', down: 'up', left: 'right', right: 'left' }
 
 /** What a cast strikes: a living thing that stands, not oneself, nor one's own companion — what one would fight. */
 function foe(eng: Engine, a: Entity, v: Entity | undefined): v is Entity {
@@ -249,7 +248,7 @@ const CAST: Record<ActiveDef['kind'], (eng: Engine, a: Entity, def: ActiveDef) =
     for (const v of near) {
       const q = at(v)!
       // behind it (the way it does not face), else any side it leaves open
-      const behind = DIRS[BACK[v.facing ?? 'down']]
+      const behind = DIRS[OPPOSITE[v.facing ?? 'down']]
       const sides = [behind, ...Object.values(DIRS).filter((d) => d !== behind)]
       const spot = sides.map(([dx, dy]) => ({ x: q.x + dx, y: q.y + dy })).find((c) => (c.x !== p.x || c.y !== p.y) && w.walkable(p.map, c.x, c.y, a.id))
       if (!spot) continue
@@ -346,7 +345,7 @@ const CAST: Record<ActiveDef['kind'], (eng: Engine, a: Entity, def: ActiveDef) =
   'leap-shot': (eng, a, def) => {
     const dir = a.facing ?? 'down'
     // back the way one faces from, as far as the ground allows; one keeps facing the foe
-    const back = landing(eng, a, BACK[dir], def.count ?? 2, false)
+    const back = landing(eng, a, OPPOSITE[dir], def.count ?? 2, false)
     if (back) (leap(eng, a, back), (a.facing = dir))
     const now = at(a)!
     const line = ray(eng, a, now, dir, reach(eng, a, def))
