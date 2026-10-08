@@ -1,6 +1,6 @@
 # White Knight Alberic — overhead visual remake
 
-2026-10-05. The user's five root-level concept images and the setting (`assets/concept/five-sufferings-setting.md`)
+2026-10-05. The user's five concept images (`assets/concept/seal1–5-*.png`) and the setting (`assets/concept/five-sufferings-setting.md`)
 define the design. Alberic's own image is the costume authority: a sealed ivory great helm,
 bronze thorn crown, battered ivory/gold plate, ragged white vestments, white-fletched quiver,
 recurved bow and longsword. His death offers the crown; he is a burdened guardian, not a demon.

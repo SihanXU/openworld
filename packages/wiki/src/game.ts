@@ -259,7 +259,9 @@ export function loadGame(): Game {
     // a crop is one page with its stages; the stages are not pages
     if (parts[1] === 'crop' && parts.length > 3) return false
     if (parts[1] === 'crop' && parts.length === 3) return true
-    return !hasChildren(id) || placed.has(id) || !!types[id].makeup
+    // a parent that is a thing of its own, not one of the groups (its own picture: the market stall, the trading stall under it) is a page too
+    const thing = !FIXTURE_GROUPS.some(([g]) => g === id) && !!CATALOG.fixtures[types[id].sprite ?? '']
+    return !hasChildren(id) || placed.has(id) || !!types[id].makeup || thing
   })
   const fixtures: ItemEnt[] = fixtureIds.map((id) => {
     const t = types[id]

@@ -57,17 +57,18 @@ export function writeSite(b: Built, out: string): void {
     try { png = renderMap(b.game, m.id).png } catch (e) { console.warn(`地图 ${m.id} 画不出来，改用地形色：${(e as Error).message}`); png = mapPng(b, m.map) }
     writeFileSync(join(out, '_', 'maps', `${m.id}.png`), png)
   }
-  // the team's images (wiki/images), and the setting's illustrations kept at the repo root, scaled for the web
+  // the team's images (wiki/images), and the setting's illustrations (assets/concept), scaled for the web
   const img = join(out, '_', 'img')
   mkdirSync(img, { recursive: true })
   if (existsSync(join(WIKI, 'images'))) cpSync(join(WIKI, 'images'), img, { recursive: true })
-  for (const f of readdirSync(ROOT).filter((f) => f.endsWith('.png'))) {
+  const CONCEPT = join(ROOT, 'assets', 'concept')
+  for (const f of existsSync(CONCEPT) ? readdirSync(CONCEPT).filter((f) => f.endsWith('.png')) : []) {
     const target = join(img, f)
     if (existsSync(target)) continue
     try {
-      const im = shrink(decodePng(readFileSync(join(ROOT, f))), 640)
+      const im = shrink(decodePng(readFileSync(join(CONCEPT, f))), 640)
       writeFileSync(target, encodePng(im.w, im.h, im.rgba))
-    } catch { cpSync(join(ROOT, f), target) }
+    } catch { cpSync(join(CONCEPT, f), target) }
   }
   for (const f of ['wiki.css', 'wiki.js']) cpSync(join(HERE, '..', 'assets', f), join(out, '_', f))
   const index = [...b.pages.values()].filter((p) => !p.title.startsWith('分类：') && p.title !== '特殊：随机页面' && p.title !== '特殊：搜索').map((p) => ({
