@@ -3,8 +3,8 @@
 // status overlays, VFX and day/night. It only renders engine snapshots.
 
 import Phaser from 'phaser'
-import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type MapData, type Ref, type Text } from '@lsw/engine'
-import { CATALOG, LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/catalog.ts'
+import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type MapData, type Mood, type Ref, type Text } from '@lsw/engine'
+import { CATALOG, LSW_FLOOR, LSW_STAIRS, LSW_WALL, faceFrame } from '../assets/catalog.ts'
 import { personLook } from '../assets/looks.ts'
 import { GroundAtlas, T, groundTile, hash2 } from '../assets/ground.ts'
 import { depthOf, footOf } from './depth.ts'
@@ -1288,12 +1288,12 @@ export class WorldScene extends Phaser.Scene {
     return { img: v.body.texture.key, frame: `${v.actor.key}:0,0` }
   }
 
-  facesetOf(id: string): string | undefined {
+  /** An actor's portrait for a mood (the plain faceset when its face has no such mood). */
+  faceOf(id: string, mood?: Mood): ReturnType<typeof faceFrame> {
     const v = this.views.get(id)
     if (!v?.actor) return undefined
     const key = v.actor.key.split(':').slice(1).join(':')
-    const def = v.actor.key.startsWith('char:') ? CATALOG.characters[key] : CATALOG.creatures[key]
-    return def?.faceset ? `${def.dir}/${def.faceset}` : undefined
+    return faceFrame(v.actor.key.startsWith('char:') ? CATALOG.characters[key] : CATALOG.creatures[key], mood)
   }
 
   // ---------------------------------------------------------------- light & sound

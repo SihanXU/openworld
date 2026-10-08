@@ -3,6 +3,8 @@
 // ("assets/ninja-adventure/Ninja Adventure - Asset Pack/"); the copy script mirrors every
 // referenced file to packages/client/public/assets/na/<same path>.
 
+import type { Mood } from '@lsw/engine'
+
 /** A rectangle in an image, in pixels, plus the anchor that sits on the entity's tile. */
 export interface SpriteDef {
   img: string
@@ -50,6 +52,8 @@ export interface ActorDef {
   sheet: string
   /** 38x38 portrait, if the pack has one. */
   faceset?: string
+  /** The portrait's moods (tools/src/art/faces.ts): a strip of the faceset and then each of `moods`. */
+  faces?: { strip: string; moods: Mood[] }
   /** Columns = directions down, up, left, right; rows = frames. Character sheets: rows 0-3 walk, 4 attack, 5 jump?, 6 special — document what you find. */
   cols: number
   rows: number

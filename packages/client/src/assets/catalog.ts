@@ -10,7 +10,9 @@
 //   trunk / base / feet at (ax, ay) and overhang upwards (and sideways, for 2-3 tile wide art).
 // - UI SpriteDefs use (0, 0) (top-left) — they are screen-space pieces.
 
+import type { Mood } from '@lsw/engine'
 import type { ActorDef, Catalog, FxDef, PrefabDef, SpriteDef } from './types.ts'
+import FACES from './faces.json'
 import { CROP_FIXTURES, CROP_ITEMS } from './crops.ts'
 import { SIN_ACTORS, SIN_FX } from './bosses.ts'
 
@@ -900,3 +902,15 @@ Object.assign(CATALOG.ui, {
   emoteDots: CATALOG.ui.emote20,
 })
 
+// the portraits' moods, drawn by tools/src/art/faces.ts (npm run art:faces) for every faceset it can read
+for (const a of [...Object.values(CATALOG.characters), ...Object.values(CATALOG.creatures)]) {
+  const f = a.faceset ? (FACES as Record<string, ActorDef['faces']>)[`${a.dir}/${a.faceset}`] : undefined
+  if (f) a.faces = f
+}
+
+/** The portrait for a line's mood: that frame of the face's strip, or the plain faceset (one frame) when it has no such mood. */
+export function faceFrame(a: ActorDef | undefined, mood?: Mood): { img: string; frame: number; frames: number } | undefined {
+  if (!a?.faceset) return undefined
+  const i = mood && a.faces ? a.faces.moods.indexOf(mood) : -1
+  return i >= 0 ? { img: a.faces!.strip, frame: i + 1, frames: a.faces!.moods.length + 1 } : { img: `${a.dir}/${a.faceset}`, frame: 0, frames: 1 }
+}

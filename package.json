@@ -12,6 +12,7 @@
     "gen:world": "tsx packages/tools/src/demo/world.ts",
     "check:world": "tsx packages/tools/src/demo/check.ts",
     "assets": "tsx packages/tools/src/copyAssets.ts",
+    "art:faces": "tsx packages/tools/src/art/faces.ts",
     "coverage": "tsx packages/tools/src/coverage.ts",
     "modder": "tsx packages/modder/src/cli.ts",
     "agent": "tsx packages/agent/src/cli.ts",
