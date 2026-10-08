@@ -26,8 +26,9 @@ import type { Engine } from './engine.ts'
 import type { Writer } from './world.ts'
 import type { Aim, Dir, Entity, Id, LessonInput, Place, Plan, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb } from './types.ts'
 import { cannotLearn, skillsOf } from './progression.ts'
+import { SKILLBAR_SLOTS, cannotCast, castSkill, knownActives } from './actives.ts'
 import { companionsOf, nearAttunedWaypoint } from './boons.ts'
-import { OFFHAND, PROFESSION_LEVEL, canWield, cannotChoose, itemProfession, type ProfessionDef, type ProfessionRefusal } from './profession.ts'
+import { OFFHAND, PROFESSION_LEVEL, canWield, cannotChoose, itemProfession, weaponOf, type ProfessionDef, type ProfessionRefusal } from './profession.ts'
 
 /** The five inputs (design.md §5.2). */
 export type Key = Plan['key']
@@ -287,13 +288,15 @@ export class Controls {
       return plan.changes ? plan : undefined
     }
     // use (and self: use on oneself): the held thing — a blow for weapons on creatures (and pure
-    // weapons on anything but people); with nothing held, the bare body: a blow on anything
-    const reach = this.eng.reachOf('use', p, this.entity(target), heldE) ?? 1
+    // weapons on anything but people); with nothing held, a blow on anything: with the weapon kept in
+    // the main hand, else the bare body
+    const main = heldE ? undefined : weaponOf(w, p)
+    const reach = this.eng.reachOf('use', p, this.entity(target), heldE ?? main) ?? 1
     const here = w.posOf(p)
     const there = w.posOf(this.entity(target))
     // a blow from afar flies along a row or a column (a bolt, an arrow)
     const aligned = !here || !there || here.x === there.x || here.y === there.y
-    if (!this.reaches('use', target, held)) return undefined
+    if (!this.reaches('use', target, held ?? (main && { e: main.id }))) return undefined
     if (heldE) {
       const pure = isWeapon(heldE.type) && !w.hasTag(heldE, 'tool:axe') && !(heldE.tags ?? []).some((g) => g.startsWith('tool:'))
       const blow = isWeapon(heldE.type) && !this.isPerson(target) && (pure || this.isCreature(target))
@@ -304,6 +307,11 @@ export class Controls {
       return plan
     }
     if (reach > 1 && !aligned) return undefined
+    if (main) {
+      const plan = this.make(key, at, 'use', target, { e: main.id }, true, main.type.startsWith('item/weapon/magic/') ? GENERIC.cast : GENERIC.attack)
+      if (!canWield(w, p, main)) plan.label = this.onlyFor(main, { e: main.id })
+      return plan
+    }
     return this.make(key, at, 'use', target, undefined, true, GENERIC.punch)
   }
 
@@ -752,6 +760,48 @@ export class Controls {
     return true
   }
 
+  // ---------------------------------------------------------------- the skill bar
+
+  /** The skill bar's six slots: the active skill set in each, by id. */
+  skillbar(): (string | null)[] {
+    const bar = this.w.player.skillbar ?? []
+    return Array.from({ length: SKILLBAR_SLOTS }, (_, i) => bar[i] ?? null)
+  }
+
+  /**
+   * Set an active skill one has learned in a slot of the skill bar (the input's own posture, as the selected
+   * toolbar slot is): from another slot it moves (what was there takes its old place); null empties the slot.
+   */
+  setSkill(slot: number, id: string | null): boolean {
+    const p = this.w.player
+    if (slot < 0 || slot >= SKILLBAR_SLOTS) return false
+    // any active skill one has: learned in the tree or from a book, or lent by what one wears
+    if (id && !knownActives(this.eng, p).some((k) => k.id === id)) return false
+    const bar = this.skillbar()
+    const from = id ? bar.indexOf(id) : -1
+    if (from >= 0) bar[from] = bar[slot]
+    bar[slot] = id
+    p.skillbar = bar
+    return true
+  }
+
+  /** Cast the skill in a slot of the skill bar (Shift+1–6); a cast that cannot be made says why (once a press). */
+  cast(slot: number): boolean {
+    const w = this.w
+    const p = w.player
+    const id = this.skillbar()[slot]
+    if (!id || !this.allows('use')) return false
+    const def = this.eng.skills.get(id)
+    const why = cannotCast(this.eng, p, def)
+    if (why === 'profession') w.fx.push({ t: 'log', text: { en: 'That skill belongs to another profession.', zh: '这是别的职业的技能。' }, tone: 'warn' })
+    if (why === 'unlearned') w.fx.push({ t: 'log', text: { en: 'You no longer have that skill (what lent it is not worn).', zh: '你现在没有这个技能了（带来它的装备没有穿着）。' }, tone: 'warn' })
+    if (why) return false
+    const done = castSkill(this.eng, p, id)
+    if (!done) w.fx.push({ t: 'log', text: { en: 'Nothing to use it on.', zh: '附近没有可以施放的目标。' }, tone: 'warn' })
+    this.sync()
+    return done
+  }
+
   /** Spend skill points on a skill: an act of learning it. */
   learn(def: SkillDef): boolean {
     const w = this.w
@@ -763,6 +813,9 @@ export class Controls {
     if (!skillsOf(p).includes(def.id)) return false
     const n = typeof def.name === 'string' ? { en: def.name } : def.name
     w.fx.push({ t: 'log', text: { en: `Learned ${n.en}.`, zh: `学会了${n.zh ?? n.en}。` }, tone: 'good' })
+    // an active skill goes in the skill bar's first empty slot
+    const free = this.skillbar().indexOf(null)
+    if (def.active && free >= 0) this.setSkill(free, def.id)
     this.sync()
     return true
   }

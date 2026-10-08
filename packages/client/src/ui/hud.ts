@@ -8,6 +8,7 @@ import { OBJECTIVES, PROLOGUE_DONE, PROLOGUE_OBJECTIVES } from '@lsw/content'
 import { CATALOG } from '../assets/catalog.ts'
 import { assetUrl, cssAssetUrl } from '../render/assets.ts'
 import { $, MOOD_GLYPH, SLOT_KEYS, controlsTable, esc, locale, t, tx } from './common.ts'
+import { skillPng } from './skillIcons.ts'
 
 export interface HudSend {
   select(slot: number): void
@@ -20,6 +21,7 @@ export interface HudSend {
   toggleSkills(): void
   toggleBuilding(): void
   toggleQuests(): void
+  toggleSkillPanel(): void
 }
 
 export class Hud {
@@ -90,6 +92,7 @@ export class Hud {
         <button class="cbtn wood" id="skillBtn" title="K"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerSkills.img)}" alt=""><kbd>K</kbd><span class="badge hidden" id="skillBadge"></span></button>
         <button class="cbtn wood" id="jbtn" title="J"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerJournal.img)}" alt=""><kbd>J</kbd></button>
         <button class="cbtn wood" id="craftBtn" title="C"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerCraft.img)}" alt=""><kbd>C</kbd></button>
+        <button class="cbtn wood" id="skPanelBtn" title="U"><img class="cb-icon" src="${skillPng('whirlwind')}" alt=""><kbd>U</kbd></button>
         <button class="cbtn wood" id="optionsBtn" title="Esc"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerOptions.img)}" alt=""><kbd>Esc</kbd></button>
       </div>
       <div class="msgs" id="msgs"></div>
@@ -109,6 +112,7 @@ export class Hud {
     $('#buildBtn').onclick = () => this.send.toggleBuilding()
     $('#skillBtn').onclick = () => this.send.toggleSkills()
     $('#questBtn').onclick = () => this.send.toggleQuests()
+    $('#skPanelBtn').onclick = () => this.send.toggleSkillPanel()
     $('#dialog').onclick = (e) => {
       if ((e.target as HTMLElement).closest('[data-yes]')) return
       this.advanceDialog()

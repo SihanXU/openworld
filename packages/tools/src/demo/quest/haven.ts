@@ -25,7 +25,9 @@ export function buildHaven(): MapBuilder {
       if (d > HAVEN.rings[0] + 1.5 && d < HAVEN.rings[1] - 1 && (x * 7 + y * 13) % 9 === 0) m.set(x, y, 'tree')
       if (d > HAVEN.rings[1] + 1.5 && d < HAVEN.rings[2] - 1 && (x * 5 + y * 3) % 7 === 0) m.set(x, y, 'flowers')
     }
-  m.organic(hx + 14, hy - 3, 2.6, 1.8, 'water', { only: (t) => t === 'grass' || t === 'flowers' })
+  m.organic(hx + 14, hy - 3, 3.2, 2.2, 'water', { only: (t) => t === 'grass' || t === 'flowers' })
+  // its middle is deep: pike bite there (homestead.ts)
+  m.organic(hx + 14, hy - 3, 1.4, 0.9, 'deepwater', { only: (t) => t === 'water' })
   for (const [x, y] of [[hx - 19, hy - 8], [hx + 19, hy + 7], [hx - 17, hy + 12]] as const) m.fixture('fixture/nature/vein/iron', x, y)
   for (const [x, y] of [[hx - 18, hy], [hx + 18, hy], [hx, hy - 17], [hx, hy + 16]] as const) m.fixture('fixture/sacred/gravestone', x, y, { name: L('A boundary stone', '界石'), props: { text: 'A boundary stone, its carving worn: a thorn ring, and inside it, nothing kneeling.', text_zh: '一块界石，刻纹已经磨损：一圈荆棘，圈里没有任何下跪的身影。' } })
   // the heart: the knight's sword, planted point down, where the ground begins
@@ -45,7 +47,13 @@ export function buildHaven(): MapBuilder {
   // a pen: a cow and two hens to start a herd with
   for (const [x, y] of [[hx + 4, hy + 4], [hx + 6, hy + 3]] as const) m.creature('animal/chicken', x, y, { ...GRAZER })
   m.creature('animal/cow', hx + 5, hy + 5, { ...GRAZER })
-  m.organic(hx, hy - 6, 1.6, 1.1, 'water', { only: (t) => t === 'grass' })
+  // the fish pond (homestead.ts): cast a line in it (a rod is made at hand; bait from the stall makes them bite);
+  // fish shadows glide in the water now and then, to say so
+  m.fish = true
+  m.organic(hx + 1, hy - 6, 3.2, 1.6, 'water', { only: (t) => t === 'grass' })
+  m.fixture('fixture/sign', hx - 3, hy - 6, { props: { text: 'FISH POND — a rod is made from two sticks and two grass. Bait from the stall.', text_zh: '鱼塘——两根树枝加两把草就能做鱼竿。鱼饵在货摊买。' } })
+  // Alberic's stall: three shelves (farming, ranching, fishing) and what it buys back (homestead.ts)
+  m.fixture('fixture/furniture/stall/trade', hx + 3, hy + 1, { id: 'haven.stall', name: L("Alberic's stall", '阿尔贝里克的货摊') })
   // the rings of mist: each a bank all round, lifting when the ground is widened past it (its `ring`)
   m.regions.held = [hx - 8, hy - 7, 17, 15]
   for (const [i, r] of HAVEN.rings.entries())

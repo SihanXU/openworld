@@ -186,6 +186,7 @@ export function encounter(eng: Engine, e: Entity, active: string): boolean {
   }
   faceToward(e, pos, at)
   if (e.ai) e.ai.state = 'chase'
+  ;(target.combat ??= {}).fightTick = w.state.tick
   const skillIndex = b.nextSkill ?? 0, skill = kit.skills[skillIndex]
   const reach = skill.aim === 'self' ? skill.radius : kit.sight
   if (Math.max(Math.abs(at.x-pos.x), Math.abs(at.y-pos.y)) > reach) {

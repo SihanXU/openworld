@@ -10,7 +10,7 @@
 import { DIRS, type Entity } from './types.ts'
 import type { World } from './world.ts'
 import type { Engine } from './engine.ts'
-import { offhandOf, ownWeapon } from './profession.ts'
+import { offhandOf, ownWeapon, weaponOf } from './profession.ts'
 
 const skill = (w: World, e: Entity, id: string): boolean => w.hasTag(e, `skill:${id}`)
 const of = (profession: string) => (w: World, e: Entity, id: string): boolean => w.prop(e, 'profession') === profession && skill(w, e, id)
@@ -40,7 +40,9 @@ export function rangeBonus(w: World, a: Entity, weapon: Entity | undefined): num
 export function relicsOf(w: World, e: Entity): Set<string> {
   const out = new Set<string>()
   const held = w.get(e.held)
-  for (const it of [...(held ? [held] : []), ...w.worn(e)]) {
+  const weapon = weaponOf(w, e)
+  // what is held, the weapon one fights with, and what is worn — a weapon kept in the main hand only while it is the one fought with
+  for (const it of [...(held ? [held] : []), ...(weapon ? [weapon] : []), ...w.worn(e).filter((it) => w.prop(it, 'slot') !== 'weapon')]) {
     const r = w.prop(it, 'relic')
     if (typeof r === 'string') out.add(r)
   }
@@ -69,9 +71,12 @@ export function combatDelay(w: World, e: Entity, base: number, kind: 'move' | 'a
   if (kind === 'move' && ranger(w, e, 'fleet-archer') && (e.combat?.fleetUntil ?? 0) > w.state.tick) haste += 0.2
   if (kind === 'move' && skill(w, e, 'slipstream') && (e.combat?.slipUntil ?? 0) > w.state.tick) haste += 0.3
   if (kind === 'move' && skill(w, e, 'adrenaline') && w.hasStatus({ e: e.id }, 'adrenaline')) haste += 0.3
-  if (kind === 'attack' && ranger(w, e, 'quick-draw') && own(w, e, w.get(e.held))) haste += 0.2
+  // Gale Step (actives.ts)
+  if (kind === 'move' && (e.combat?.hasteUntil ?? 0) > w.state.tick) haste += 0.5
+  if (kind === 'attack' && ranger(w, e, 'quick-draw') && own(w, e, weaponOf(w, e))) haste += 0.2
   // a weapon's own quickness (a legendary bow)
-  if (kind === 'attack' && w.get(e.held)) haste += Math.max(0, w.num(w.get(e.held)!, 'attackHaste'))
+  const fought = kind === 'attack' ? weaponOf(w, e) : undefined
+  if (fought) haste += Math.max(0, w.num(fought, 'attackHaste'))
   if (!haste) return Math.max(1, base)
   const state = (e.combat ??= {})
   const key = kind === 'move' ? 'moveCarry' : 'attackCarry'
@@ -113,6 +118,8 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
   if (primary && skill(w, a, 'momentum') && w.state.tick - (a.combat?.chainTick ?? -Infinity) <= 15) bonus += 0.05 * Math.min(5, a.combat?.chain ?? 0)
   const berserk = skill(w, a, 'berserker') && w.num(a, 'hp') <= w.num(a, 'maxHp', 1) * 0.5
   if (berserk) bonus += 0.25
+  // a War Cry's strength while it lasts (actives.ts)
+  if ((a.combat?.rallyUntil ?? 0) > w.state.tick) bonus += 0.25
   // swiftness: a blow dodged readies a sure critical
   if (primary && skill(w, a, 'untouchable') && w.state.tick - (a.combat?.dodgeTick ?? -Infinity) <= 20) marked = true
   if (primary) {
@@ -186,6 +193,11 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
   else if (relics.has('rimecrown') && w.rand() < 0.2) out.afflict = { status: 'frozen', ticks: 10 }
   // a critical opens a wound that bleeds 1 a second for 4 seconds (Hemorrhage)
   if (primary && out.critical && skill(w, a, 'hemorrhage')) out.bleed = 40
+  // an envenomed edge (actives.ts): so many more blows open a bleed
+  if ((a.combat?.envenomHits ?? 0) > 0) {
+    out.bleed = Math.max(out.bleed, 40)
+    a.combat!.envenomHits! -= 1
+  }
   return out
 }
 
@@ -195,7 +207,7 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
  */
 export function finishCombatStrike(w: World, a: Entity, target: Entity | undefined, strike: Strike, before: number, range: number, primary: boolean): void {
   const landed = !!target && w.isAgent(target) && before > 0 && w.num(target, 'hp') < before
-  const weapon = w.get(a.held)
+  const weapon = weaponOf(w, a)
   const mine = own(w, a, weapon)
   if (primary && landed) {
     const state = (a.combat ??= {})
@@ -215,6 +227,7 @@ export function finishCombatStrike(w: World, a: Entity, target: Entity | undefin
   if (primary) {
     const state = (a.combat ??= {})
     state.lastAttackTick = w.state.tick
+    if (target && w.isAgent(target)) state.fightTick = w.state.tick
     if (landed && range <= 1) {
       if (strike.charged) state.steps = 0
       if (mine && assassin(w, a, 'relentless')) {
@@ -263,12 +276,15 @@ export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: E
     return 0
   }
   state.lastHurtTick = w.state.tick
+  state.fightTick = w.state.tick
+  // a War Cry's guard while it lasts (actives.ts)
+  if ((state.rallyUntil ?? 0) > w.state.tick) damage *= 0.7
   state.lastHurtBy = attacker.id
   state.lastHurtByType = attacker.type
   if (skill(w, e, 'evasive-step') && recentlyMoved(w, e)) damage *= 0.75
   if (skill(w, e, 'defiance') && w.num(e, 'hp') <= w.num(e, 'maxHp', 1) * 0.3) damage *= 0.75
   if (warrior(w, e, 'bulwark')) damage *= warrior(w, e, 'warlord') ? 0.7 : 0.85
-  if (mage(w, e, 'mana-shield') && own(w, e, w.get(e.held))) damage *= 0.8
+  if (mage(w, e, 'mana-shield') && own(w, e, weaponOf(w, e))) damage *= 0.8
   // holding one's ground (a Vowbound piece's `holdFast`): less taken while one has not stepped this second
   const hold = Math.min(0.5, Math.max(0, w.stat(e, 'holdFast')))
   if (hold > 0 && w.state.tick - (state.lastMoveTick ?? -Infinity) >= 10) damage *= 1 - hold

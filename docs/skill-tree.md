@@ -368,3 +368,43 @@ mends 1 a second). Arcane and Shadow Recovery are the striker's own rule on the 
 opens are the actor's memory of its own blows (`Entity.combat`), written only by itself.
 Learning a skill and taking up a profession are acts (`learn`, design.md §5.14): the skill tree
 and the trainer's panel make them, the actor's outcome spends the points and grants.
+
+## Active skills and the skill bar (2026-10-08)
+
+The talents above stay automatic. Beside them, twenty **active skills** are cast by hand and then rest
+(`SkillDef.active`, engine `actives.ts`; content `ACTIVE_SKILLS` in `skills.ts`): everyone's four — two blows
+(Whirlwind 旋风斩 after Sweep, Cleave 重劈 after Strength), a quickness (Gale Step 疾风步 after Light Footed;
+the Dash stays on Q apart) and a mending (Mend 疗伤 after Regeneration) — and four for each profession, two
+after its first talent and two after those:
+
+| Profession | Active skills |
+| --- | --- |
+| Assassin | Shadow Strike 影袭, Envenom 淬毒 → Smoke Bomb 烟雾弹, Flurry 千刃 |
+| Warrior | Shield Bash 盾击, Charge 冲锋 → War Cry 战吼, Earthsplitter 裂地 |
+| Ranger | Multishot 多重箭, Leap Shot 后跃射击 → Piercing Arrow 穿透箭, Arrow Rain 箭雨 |
+| Mage | Fireball 火球, Frost Nova 冰霜新星 → Chain Lightning 闪电链, Blink 闪现 |
+
+A cast is the game's own logic made of ordinary acts, as the Dash is: its blows are acts of using the weapon
+(the caster's atk and weapon power times the skill's `power`, through `combatStrike` as side blows, so criticals
+apply but primary combos do not), carrying what the skill leaves (`afflict`: stunned, frozen; `element`); its
+movements are moves; what it leaves on the caster (Gale Step's speed, a War Cry's guard and strength, a Smoke
+Bomb's veil, Envenom's poisoned blows, an Arrow Rain's volleys) is combat bookkeeping on `Entity.combat`; a
+mending is told to the caster, who answers it (content `body/stage`, what = mend). Cooldowns rest on the engine's
+cooldown table (`skill:<id>:<actor>`), as the Dash's do.
+
+**The skill bar** (client `ui/skillbar.ts`, bottom left): six slots, `Entity.skillbar`, cast with **Shift+1–6**
+or a click, after Dungeon Fighter's — square bevelled frames, the key in the corner, a dark sweep and the
+seconds while a skill rests, a flash when it is ready. A learned active skill goes in the first empty slot;
+over the skill tree, hovering a learned one and pressing Shift+1–6 sets it there; slots are dragged to swap
+and right-clicked to empty. The twenty icons are drawn by code (`tools/src/art/skill-actives.ts`), not by the
+image generator the other icons came from. Proved by `tools/test/actives.test.ts`.
+
+**Where active skills come from** (engine `knownActives`): the skill tree; a **skill book** (`item/document/skillbook`,
+its `teaches` prop; content `skillBook(id)` makes one) read by using it on oneself — no points and no skills before
+it, only its profession; the book is used up (`use/read-skillbook` → `body/stage` what = read → `learn {book}`;
+the learner keeps `skillFrom:<id>` = book); and **what one wears** — any piece with a `skill` prop lends that skill
+while worn, whoever wears it (no profession asked). A lent skill left in a slot when its piece comes off shows as not
+had and is not cast. **The skill panel** (U, or its button bottom right; client `ui/skillpanel.ts`) lists every active
+skill one has with its source, above the skill bar's six slots: a skill goes in a slot by dragging its card there,
+or by a click on it and then on the slot; a right click empties a slot. A skill's blows are struck with a weapon
+only — never with whatever else the hand holds.

@@ -937,7 +937,8 @@ export class World {
     for (const id of Object.keys(e.statuses ?? {})) v += this.onto.status(id)?.props?.[key] ?? 0
     // what it wears: each piece's number, and at night what a piece gives only then (`night:<key>`: a vigil's belt)
     const night = this.isNight()
-    for (const w of this.worn(e)) v += this.num(w, key) + (night ? this.num(w, `night:${key}`) : 0)
+    // (a weapon kept in the main hand counts only when it is fought with: combat.ts reads it as the weapon)
+    for (const w of this.worn(e)) if (this.prop(w, 'slot') !== 'weapon') v += this.num(w, key) + (night ? this.num(w, `night:${key}`) : 0)
     // what the companions following it give their leader (boons.ts): their statuses' `lead:<key>`
     const at = this.posOf(e)
     if (at && e.place.on === 'tile')

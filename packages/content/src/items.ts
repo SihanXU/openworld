@@ -187,7 +187,8 @@ export const FORMS: Form[] = [
   W('item/tool/shovel', 'Shovel', '铲子', 'item:shovel', { tags: ['tool:shovel'], props: { power: 2 }, materials: TOOL_METALS, where: { farm: 2, smithy: 1, home: 0.5 } }),
   W('item/tool/hoe', 'Hoe', '锄头', 'item:hoe', { tags: ['tool:hoe'], props: { power: 2 }, materials: TOOL_METALS, where: { farm: 3 }, makeup: [{ type: 'item/material/stone', count: 2 }, { type: 'item/material/stick', count: 2 }, { type: 'item/material/grass', count: 1 }], station: 'hands' }),
   W('item/tool/sickle', 'Sickle', '镰刀', 'item:sickle', { tags: ['tool:sickle', 'sharp'], props: { power: 2 }, materials: TOOL_METALS, where: { farm: 2 }, makeup: [{ type: 'item/material/stone', count: 2 }, { type: 'item/material/stick', count: 1 }, { type: 'item/material/grass', count: 1 }], station: 'hands' }),
-  W('item/tool/fishing_rod', 'Fishing Rod', '鱼竿', 'item:rod', { tags: ['tool:fishing', 'wooden', 'flammable'], where: { home: 0.5, shop: 0.5, npc: 0.3 } }),
+  // made at hand from two sticks and a line of grass (the crafting panel); bait put on it is kept on it (`bait`, homestead.ts)
+  W('item/tool/fishing_rod', 'Fishing Rod', '鱼竿', 'item:rod', { tags: ['tool:fishing', 'wooden', 'flammable'], props: { range: 3 }, where: { home: 0.5, shop: 0.5, npc: 0.3 }, makeup: [{ type: 'item/material/stick', count: 2 }, { type: 'item/material/grass', count: 2 }], station: 'hands' }),
   W('item/tool/smith_hammer', 'Smith Hammer', '锻锤', 'item:hammer', { tags: ['tool:hammer'], props: { power: 3 }, materials: TOOL_METALS, where: { smithy: 3, farm: 1, home: 0.5 }, makeup: [{ type: 'item/material/stone', count: 2 }, { type: 'item/material/stick', count: 1 }], station: 'hands' }),
   W('item/tool/knife', 'Knife', '小刀', 'item:dagger', { tags: ['tool:knife', 'sharp'], materials: TOOL_METALS, where: { home: 2, inn: 2, farm: 1 } }),
   W('item/tool/rope', 'Rope', '绳索', 'item:rope', { tags: ['flammable', 'fiber'], where: { home: 1, shop: 2, farm: 1, dungeon: 0.5 } }),
@@ -266,7 +267,25 @@ export const FORMS: Form[] = [
     tags: ['plantable'], props: { cropType: `fixture/crop/${c.id}/sprout` }, where: { farm: 2, shop: 0.5 },
   })),
   W('item/seed/acorn', 'Acorn', '橡子', 'item:acorn', { tags: ['acorn'], props: { cropType: 'fixture/crop/oak/sapling' }, where: { wild: 0.5 } }),
-  W('item/material/wheat', 'Wheat', '麦子', 'item:wheat', { tags: ['plant', 'flammable', 'dry'], where: { farm: 3 } }),
+  // wheat is feed too (Minecraft's: a cow or a hen fed wheat, homestead.ts)
+  W('item/material/wheat', 'Wheat', '麦子', 'item:wheat', { tags: ['plant', 'flammable', 'dry', 'feed'], where: { farm: 3 } }),
+  // the homestead (docs/homestead.md): the Held Ground's coin, and what its stall sells and buys
+  W('item/misc/thornmark', 'Thornmark', '银荆币', 'item:thornmark', { tags: ['currency', 'metal', 'precious'], where: {} }),
+  W('item/material/fertilizer', 'Fertilizer', '肥料', 'item:fertilizer', { tags: ['fertilizer'], where: { farm: 1 } }),
+  W('item/material/feed', 'Animal Feed', '饲料', 'item:feed', { tags: ['feed', 'flammable', 'dry'], where: { farm: 1 } }),
+  W('item/misc/bait', 'Bait', '鱼饵', 'item:bait', { tags: ['bait'], props: { casts: 5 }, where: { shop: 0.5 } }),
+  W('item/misc/crate_hen', 'Crated Hen', '装箱的母鸡', 'item:crate', { tags: ['animal-crate', 'wooden'], props: { animalType: 'actor/creature/animal/chicken' }, where: {} }),
+  W('item/misc/crate_calf', 'Crated Calf', '装箱的小牛', 'item:crate', { tags: ['animal-crate', 'wooden'], props: { animalType: 'actor/creature/animal/cow' }, where: {} }),
+  W('item/vessel/bucket/milk', 'Bucket of Milk', '一桶牛奶', 'item:milk', { tags: ['liquid', 'drinkable'], props: { food: 4, heal: 3 }, where: {} }),
+  // what else bites (homestead.ts FISH): by the hour, the weather, the water — after Stardew's
+  W('item/food/fish/sunfish', 'Sunfish', '太阳鱼', 'item:sunfish', { tags: ['edible', 'raw', 'cookable'], props: { heal: 2, food: 2, cookedType: 'item/food/fish/cooked' }, where: {} }),
+  W('item/food/fish/perch', 'Perch', '河鲈', 'item:perch', { tags: ['edible', 'raw', 'cookable'], props: { heal: 2, food: 3, cookedType: 'item/food/fish/cooked' }, where: {} }),
+  W('item/food/fish/catfish', 'Catfish', '鲶鱼', 'item:catfish', { tags: ['edible', 'raw', 'cookable'], props: { heal: 3, food: 4, cookedType: 'item/food/fish/cooked' }, where: {} }),
+  W('item/food/fish/eel', 'Eel', '鳗鱼', 'item:eel', { tags: ['edible', 'raw', 'cookable'], props: { heal: 3, food: 4, cookedType: 'item/food/fish/cooked' }, where: {} }),
+  W('item/food/fish/pike', 'Pike', '狗鱼', 'item:pike', { tags: ['edible', 'raw', 'cookable'], props: { heal: 3, food: 4, cookedType: 'item/food/fish/cooked' }, where: {} }),
+  W('item/food/fish/dawnscale', 'Dawnscale', '晨鳞鱼', 'item:dawnscale', { tags: ['edible', 'raw', 'cookable', 'precious', 'holy'], props: { heal: 8, food: 6, cookedType: 'item/food/fish/cooked' }, where: {} }),
+  W('item/food/fish/carp', 'Golden Carp', '金鳞鲤', 'item:carp', { tags: ['edible', 'raw', 'cookable', 'precious'], props: { heal: 4, food: 4, cookedType: 'item/food/fish/cooked' }, where: {} }),
+  W('item/misc/old_boot', 'Soggy Boot', '泡烂的靴子', 'item:boots', { tags: ['leather', 'junk', 'wet'], where: {} }),
   // gems & valuables
   W('item/gem', 'Gem', '宝石', 'item:gem', { tags: ['gem', 'precious', 'crystal'], elemental: true, where: { dungeon: 2, shop: 0.3 } }),
   W('item/valuable/coin_pouch', 'Coin Pouch', '钱袋', 'item:coins', { tags: ['money', 'leather'], props: { value: 20 }, where: { home: 1, npc: 1, dungeon: 1 } }),
@@ -283,6 +302,8 @@ export const FORMS: Form[] = [
   W('item/document/map', 'Map', '地图', 'item:map', { tags: ['paper', 'flammable', 'readable'], where: { library: 1, shop: 0.5, dungeon: 0.3 } }),
   // Chapter 1 (docs/chapter-1.md): the Holy City's proclamation of the pilgrimage, the old almanac from before the First Night
   W('item/document/proclamation', 'Proclamation of the Pilgrimage', '朝圣令', 'item:letter', { tags: ['paper', 'flammable', 'readable', 'holy'], where: {} }),
+  // a skill book: read (used on oneself), it teaches the active skill its `teaches` names (rules.ts use/read-skillbook; skills.ts skillBook)
+  W('item/document/skillbook', 'Skill Book', '技能书', 'item:book', { tags: ['paper', 'flammable', 'skillbook'], where: {} }),
   W('item/document/almanac', 'Almanac of the First Night', '初夜历书', 'item:book', { tags: ['paper', 'flammable', 'readable', 'ancient'], where: {} }),
   // the first of the five instruments of the Five Sufferings (docs/lore.md §4): the Crown of Thorns
   // Stigmatic: worn, it wears the self away as it wore Alberic's (lore.md §4) — strength, and experience slow to come
@@ -294,7 +315,9 @@ export const FORMS: Form[] = [
   W('item/valuable/band', 'Wedding Band', '婚戒', 'item:ring', { tags: ['metal', 'precious', 'wearable'], props: { slot: 'ring' }, where: {} }),
   // the pilgrim before you: a scallop shell on a cord, the pilgrim's mark, found at his cold camp in the forest
   // the White Knight's last gift: one thorn of his crown, still green, that opens the ground he holds for you (haven.ts)
-  W('item/relic/oath_thorn', 'The Oath-Thorn', '誓约之棘', 'item:oath_thorn', { tags: ['holy', 'relic', 'keepsake', 'quality:vowed'], where: {} }),
+  W('item/relic/oath_thorn', 'The Oath-Thorn', '誓约之棘', 'item:oath_thorn', { tags: ['holy', 'relic', 'keepsake', 'bound', 'important', 'quality:vowed'], where: {} }),
+  // what one carried, left where one fell (rules.ts body/rise): opened (a hand on it, or taken), all of it comes back
+  W('item/misc/bundle', 'Lost Belongings', '遗落的包裹', 'item:bundle', { tags: ['belongings'], where: {} }),
   W('item/valuable/scallop', "Pilgrim's Scallop", '朝圣者的扇贝', 'item:amulet', { tags: ['holy', 'keepsake', 'wearable', 'quality:vowed'], props: { slot: 'neck', def: 1, xpRate: 0.1, moveHaste: 0.15 }, where: {} }),
   // keys
   W('item/key', 'Key', '钥匙', 'item:key', { tags: ['key', 'metal'], materials: ['iron', 'bronze', 'silver', 'gold'], where: { home: 0.3, dungeon: 0.5, npc: 0.2 } }),
@@ -318,11 +341,13 @@ export const FORMS: Form[] = [
 export function itemTypes(): TypeDef[] {
   const roots: TypeDef[] = [
     { id: 'item', name: { en: 'item', zh: '物品' }, tags: ['portable'] },
-    { id: 'item/weapon', name: { en: 'weapon', zh: '武器' }, tags: ['weapon'] },
+    // a weapon is kept in the main hand (worn: `wear:weapon`), so the hand may hold something else and it still strikes
+    { id: 'item/weapon', name: { en: 'weapon', zh: '武器' }, tags: ['weapon', 'wearable'], props: { slot: 'weapon' } },
     { id: 'item/weapon/blade', tags: ['sharp', 'blade'] },
     { id: 'item/weapon/blunt', tags: ['blunt'] },
     { id: 'item/weapon/polearm', tags: ['sharp', 'long'] },
-    { id: 'item/weapon/ranged', tags: ['ranged'] },
+    // what it looses, drawn in flight (the client's missile:<name>): an arrow, not a bolt of its element
+    { id: 'item/weapon/ranged', tags: ['ranged'], props: { missile: 'arrow' } },
     { id: 'item/weapon/magic', tags: ['magical', 'focus'] },
     { id: 'item/armor', tags: ['armor', 'wearable'] },
     { id: 'item/clothing', tags: ['wearable', 'clothing'] },

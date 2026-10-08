@@ -27,10 +27,18 @@ export const HAVEN_RULES: Rule[] = [
   story({
     id: 'haven/oath-thorn',
     label: L('Enter the Held Ground', '进入誓守之地'),
-    doc: 'The Oath-Thorn used on oneself: one steps into the Held Ground (or, in it, back out where one stood) — told so, one goes oneself.',
+    doc: 'The Oath-Thorn used on oneself: one steps into the Held Ground (or, in it, back out where one stood) — told so, one goes oneself. Not in the middle of a fight: the thorn does not open while something is after one, nor take the fight in with one.',
     host: { type: 'item/relic/oath_thorn' },
     on: 'act/use',
-    tree: { if: { same: ['actor', 'target'] }, then: { do: [{ op: 'emit', impulse: 'notify', to: 'actor', params: { what: 'pocket', map: HAVEN.map, x: HAVEN.arrive[0], y: HAVEN.arrive[1] } }], label: L('Enter / leave the Held Ground', '进入 / 离开誓守之地') }, else: 'inherit' },
+    tree: {
+      if: { same: ['actor', 'target'] },
+      then: {
+        if: { fighting: 'actor' },
+        then: { do: [{ op: 'say', text: L('Not now — not with a fight on me.', '现在不行——还在战斗中。'), who: 'actor' }], label: L('Enter / leave the Held Ground', '进入 / 离开誓守之地') },
+        else: { do: [{ op: 'emit', impulse: 'notify', to: 'actor', params: { what: 'pocket', map: HAVEN.map, x: HAVEN.arrive[0], y: HAVEN.arrive[1] } }], label: L('Enter / leave the Held Ground', '进入 / 离开誓守之地') },
+      },
+      else: 'inherit',
+    },
   }),
   story({
     id: 'haven/mist-lifts',
@@ -53,7 +61,7 @@ const widen = (n: 1 | 2 | 3, needs: [string, number, Text][], offer: Text, done:
   waiting: L('Bring what I asked, and I will hold more ground for you.', '把我要的东西带来，我就为你守住更多的土地。'),
   done,
   goals: needs.map(([type, count, label], i) => ({ id: `n${i}`, kind: 'carry' as const, type, count, consume: true, label })),
-  reward: { xp: 30 * n, facts: { 'haven.size': n } },
+  reward: { xp: 30 * n, items: [{ type: 'item/misc/thornmark', count: 20 * n }], facts: { 'haven.size': n } },
 })
 
 export const HAVEN_QUESTS: QuestDef[] = [

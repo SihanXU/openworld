@@ -137,14 +137,24 @@ describe('the economy (world-model.md §10.2)', () => {
     const stations = new Set([...present].flatMap((t) => index.resolve(t).tags.filter((x) => x.startsWith('station:')).map((x) => x.slice(8))))
     stations.add('hands')
     // what breaks gives its makeup; what a rule on a present thing spawns, it gives
+    // (a spawn or a transform naming the host's own prop — a crop's yieldType, a seed's cropType — is read from the type)
+    const named = (type: string, ref: string): string[] => {
+      if (!ref.startsWith('@prop:')) return [ref]
+      const v = index.resolve(type).props[ref.slice(6).replace(/^host\./, '')]
+      return typeof v === 'string' ? [v] : []
+    }
     const spawnsOf = (type: string) =>
       (BASE_RULES as Rule[]).filter((r) => r.host && (!r.host.type || type === r.host.type || type.startsWith(r.host.type + '/')) && (r.host.tags ?? []).every((t) => index.resolve(type).tags.includes(t))).flatMap((r) =>
-        effectsOf(r.tree).flatMap((e) => (e.op === 'spawn' && !e.type.startsWith('@') ? [e.type] : e.op === 'transform' && !e.into.startsWith('@') ? [e.into] : [])),
+        effectsOf(r.tree).flatMap((e) => (e.op === 'spawn' ? named(type, e.type) : e.op === 'transform' ? named(type, e.into) : [])),
       )
     for (let round = 0; round < 8; round++) {
       for (const t of [...present, ...have]) {
         for (const m of index.resolve(t).makeup ?? []) if (typeof index.resolve(t).props.maxHp === 'number') have.add(m.type)
         for (const s of spawnsOf(t)) (s.startsWith('item/') ? have : present).add(s)
+        // what a present thing's stage yields as it turns (a hen lays), and what it turns into (a sprout grows)
+        for (const y of index.resolve(t).stage?.yields ?? []) have.add(y.type)
+        const into = index.resolve(t).stage?.into
+        if (into) (into.startsWith('item/') ? have : present).add(into)
       }
       for (const r of RECIPES) if (stations.has(r.station ?? 'hands') && r.needs.every((n) => have.has(n.type))) have.add(r.make.type)
     }

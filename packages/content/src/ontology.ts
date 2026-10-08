@@ -85,6 +85,8 @@ const CLEAR: Cond = { count: { role: 'host', in: 'tile', match: { type: 'actor' 
 /** Two game days for a felled tree's stump, or a sapling, to grow into a tree; an hour more while something stops it. */
 export const TREE_GROWS = 28800
 const GROWS_INTO_TREE: StageDef = { into: 'tile/tree', lasts: TREE_GROWS, needs: { all: [LIGHT, CLEAR] }, wait: 600, fx: 'leaves' }
+/** A calf or a chick grows up in two game days. */
+const GROWS_UP = 4800
 /** A hen lays an egg every three game hours. */
 export const LAYS_EVERY = 1800
 
@@ -208,9 +210,16 @@ export const STATUSES: StatusDef[] = [
   { id: 'hungry', name: { en: 'hungry', zh: '饿了' } },
   // a wound that bleeds 1 a second (Hemorrhage), and the rush of Adrenaline (the skills)
   { id: 'bleeding', name: { en: 'bleeding', zh: '流血' }, duration: 40, every: 10 },
+  // a beast fed for the day, a cow milked for the day (homestead.ts)
+  { id: 'fed', name: { en: 'fed', zh: '吃饱了' }, duration: 2400 },
+  { id: 'milked', name: { en: 'milked', zh: '挤过奶' }, duration: 2400 },
+  // a beast that has borne young rests a day before it can again
+  { id: 'bred', name: { en: 'bred', zh: '刚生过崽' }, duration: 2400 },
   // forced to one's knees (the Crown of Thorns' power: none cross that do not kneel)
   { id: 'knelt', name: { en: 'kneeling', zh: '跪地' }, duration: 10, immobilize: true },
   { id: 'adrenaline', name: { en: 'adrenaline', zh: '肾上腺素' }, duration: 50, every: 10 },
+  // knocked senseless a moment (a Shield Bash, a Charge, actives.ts): it cannot move or strike
+  { id: 'stunned', name: { en: 'stunned', zh: '眩晕' }, duration: 15, immobilize: true },
 ]
 
 export const ELEMENTS = ['fire', 'water', 'ice', 'lightning', 'wind', 'earth']
@@ -313,8 +322,11 @@ const actorTypes: TypeDef[] = [
   P('actor/companion/fairy', 'fairy', '精灵', { tags: ['fairy', 'winged'], sprite: 'creature:fairy' }),
   // the meadow's animals: passive, they run when struck, and leave food behind (drop × drops)
   P('actor/creature/animal', 'animal', '动物', { tags: ['animal'] }),
-  P('actor/creature/animal/cow', 'cow', '牛', { tags: ['livestock', 'furry'], sprite: 'creature:cow', props: { hp: 10, maxHp: 10, atk: 0, speed: 7, }, makeup: [{ type: 'item/food/meat/raw', count: 4 }] }),
-  P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', stage: { lasts: LAYS_EVERY, yields: [{ type: 'item/food/egg/raw' }] }, props: { hp: 4, maxHp: 4, atk: 0, speed: 5, }, makeup: [{ type: 'item/food/chicken/raw', count: 2 }] }),
+  P('actor/creature/animal/cow', 'cow', '牛', { tags: ['livestock', 'furry'], sprite: 'creature:cow', props: { hp: 10, maxHp: 10, atk: 0, speed: 7, babyType: 'actor/creature/animal/calf' }, makeup: [{ type: 'item/food/meat/raw', count: 4 }] }),
+  P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', stage: { lasts: LAYS_EVERY, yields: [{ type: 'item/food/egg/raw' }] }, props: { hp: 4, maxHp: 4, atk: 0, speed: 5, babyType: 'actor/creature/animal/chick' }, makeup: [{ type: 'item/food/chicken/raw', count: 2 }] }),
+  // the young of a pair fed together (homestead.ts, Minecraft's breeding): they grow up in two days
+  P('actor/creature/animal/calf', 'calf', '小牛', { tags: ['livestock', 'furry', 'young'], sprite: 'creature:calf', stage: { lasts: GROWS_UP, into: 'actor/creature/animal/cow' }, props: { hp: 5, maxHp: 5, atk: 0, speed: 6 }, makeup: [{ type: 'item/food/meat/raw', count: 1 }] }),
+  P('actor/creature/animal/chick', 'chick', '小鸡', { tags: ['bird', 'feathered', 'young'], sprite: 'creature:chick', stage: { lasts: GROWS_UP, into: 'actor/creature/animal/chicken' }, props: { hp: 2, maxHp: 2, atk: 0, speed: 4 }, makeup: [{ type: 'item/material/feather', count: 1 }] }),
   // the main quest's monsters (docs/main-quest.md)
   P('actor/creature/spider', 'cave spider', '洞穴蜘蛛', { tags: ['spider', 'venomous'], sprite: 'creature:spider', props: { hp: 8, maxHp: 8, atk: 3, speed: 4 } }),
   P('actor/creature/cyclops', 'cyclops', '独眼巨人', { tags: ['boss', 'large'], sprite: 'boss:cyclops', props: { hp: 60, maxHp: 60, atk: 6, def: 2, speed: 9 } }),
@@ -389,6 +401,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/furniture/rack', 'cooking rack', '炊架', ['surface']),
   F('fixture/furniture/counter', 'counter', '柜台', ['surface']),
   F('fixture/furniture/stall', 'market stall', '市集摊位', ['cloth', 'surface']),
+  // a stall that trades (homestead.ts): its shelves are made at it as at a station
+  F('fixture/furniture/stall/trade', 'trading stall', '货摊', ['cloth', 'surface', 'stall', 'station:stall'], { sprite: 'fixture:stall' }),
   F('fixture/furniture/washing_line', 'washing line', '晾衣绳', ['cloth', 'flammable']),
   F('fixture/furniture/cart', 'handcart', '手推车', ['surface']),
   F('fixture/furniture/cart/flowers', 'flower cart', '花车', ['plant', 'flower'], { sprite: 'fixture:flower_cart' }),

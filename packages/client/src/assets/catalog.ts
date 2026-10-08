@@ -535,7 +535,8 @@ export const CATALOG: Catalog = {
     'item:mace': icon('Items/Weapons/Hammer/Sprite.png', 9, 16),
     'item:hammer': icon('Items/Tool/Hammer.png', 16, 16),
     'item:spear': icon('Items/Weapons/Lance2/Sprite.png', 7, 21),
-    'item:bow': icon('Items/Weapons/Bow/Sprite.png', 15, 7),
+    // the project's own (tools/src/art/gear.ts): the pack's bow is its in-hand arc, which reads as a bowl
+    'item:bow': icon('lsw/Items/Bow.png', 16, 16),
     'item:wand': icon('Items/Weapons/MagicWand/SpriteInHand.png', 5, 10),
     'item:staff': icon('Items/Weapons/MagicWand/Sprite.png', 5, 18),
     // Armour pieces only exist as 24x24 skill icons (with their coloured badge background).
@@ -641,6 +642,22 @@ export const CATALOG: Catalog = {
     'item:oath_thorn': icon('lsw/Items/OathThorn.png', 16, 16),
     // gear on the ground, before it is picked up (scene.ts): a wrapped bundle with a glint
     'item:loot': icon('lsw/Items/Loot.png', 16, 16),
+    // one's belongings, bundled where one fell (content body/rise)
+    'item:bundle': icon('Items/Object/Bag.png', 16, 16),
+    // the homestead (tools/src/art/homestead.ts; bait is the pack's shrimp)
+    'item:thornmark': icon('lsw/Items/Thornmark.png', 16, 16),
+    'item:fertilizer': icon('lsw/Items/Fertilizer.png', 16, 16),
+    'item:feed': icon('lsw/Items/Feed.png', 16, 16),
+    'item:crate': icon('lsw/Items/Crate.png', 16, 16),
+    'item:milk': icon('lsw/Items/Milk.png', 16, 16),
+    'item:carp': icon('lsw/Items/Carp.png', 16, 16),
+    'item:sunfish': icon('lsw/Items/Sunfish.png', 16, 16),
+    'item:perch': icon('lsw/Items/Perch.png', 16, 16),
+    'item:catfish': icon('lsw/Items/Catfish.png', 16, 16),
+    'item:eel': icon('lsw/Items/Eel.png', 16, 16),
+    'item:pike': icon('lsw/Items/Pike.png', 16, 16),
+    'item:dawnscale': icon('lsw/Items/Dawnscale.png', 16, 16),
+    'item:bait': icon('Items/Food/Shrimp.png', 16, 16),
     'item:warm_ember': icon('lsw/Items/WarmEmber.png', 16, 16),
     'item:ninth_nail': icon('lsw/Items/NinthNail.png', 16, 16),
     'item:map': t(HOUSE, 15, 18),
@@ -731,6 +748,9 @@ export const CATALOG: Catalog = {
     // the meadow's animals: the project's own art (tools/src/art/animals.ts), not the pack's
     'creature:cow': { dir: 'lsw/Animal/Cow', sheet: 'SpriteSheet.png', cols: 4, rows: 4 },
     'creature:chicken': { dir: 'lsw/Animal/Chicken', sheet: 'SpriteSheet.png', cols: 4, rows: 4 },
+    // the young (homestead.ts): their parents, smaller
+    'creature:calf': { dir: 'lsw/Animal/Cow', sheet: 'SpriteSheet.png', cols: 4, rows: 4, scale: 0.7 },
+    'creature:chick': { dir: 'lsw/Animal/Chicken', sheet: 'SpriteSheet.png', cols: 4, rows: 4, scale: 0.65 },
     // the companion, Pip the fairy: the project's own art (tools/src/art/fairy.ts), a four-frame wingbeat, no directions
     'creature:fairy': { dir: 'lsw/Companion/Fairy', sheet: 'SpriteSheet.png', faceset: 'Faceset.png', cols: 4, rows: 1 },
     // Boss sheets are single-row strips: cols = animation frames (62x52 each), no directions.
@@ -766,6 +786,8 @@ export const CATALOG: Catalog = {
     'bolt:wind': fx('Magic/Spirit/SpriteSheetBlue.png', 32, 32, 5, 12),
     'bolt:earth': fx('Projectile/SpriteSheetRock.png', 16, 16, 4, 10),
     'bolt:none': fx('Projectile/ShurikenMagic.png', 16, 16, 2, 12),
+    // what a weapon looses instead of a bolt (its `missile` prop): a bow's arrow, head to the right
+    'missile:arrow': fx('Projectile/Arrow.png', 13, 5, 1, 1),
     // Status overlays (loop). Particle/Fire has 12 shrinking flames; the first 5 loop as a flicker.
     'ovl:burning': fx('Particle/Fire.png', 8, 12, 5, 10, { add: true, scale: 1.5 }),
     'ovl:wet': fx('Particle/Rain.png', 8, 8, 3, 6),
@@ -810,6 +832,8 @@ export const CATALOG: Catalog = {
     cornerJournal: ui('Items/Object/Book.png', 16, 16),
     cornerCraft: ui('Items/Tool/Anvil.png', 16, 16),
     cornerOptions: ui('lsw/Ui/Gear.png', 16, 16),
+    // over a profession trainer's head (scene.ts): crossed blades
+    trainerMark: ui('Ui/Skill Icon/Items & Weapon/Guard.png', 24, 24),
     // the dragon of Cinder Peak, in parts (scene.ts composes them round its head): a wing, two body segments, the tail
     dragonWing: ui('Actor/Boss/DragonGreen/Wing.png', 57, 57),
     dragonBody1: ui('Actor/Boss/DragonGreen/Body1.png', 31, 27),

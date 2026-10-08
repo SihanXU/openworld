@@ -4,7 +4,7 @@
 // grid above the bag, a click moving a stack to the other side.
 
 import type { CodexEntry, CodexView, Frame, ItemInfo, Key, Rule } from '@lsw/engine'
-import { FORM_BY_ID, RECIPES } from '@lsw/content'
+import { COIN, FORM_BY_ID, RECIPES } from '@lsw/content'
 import { CATALOG } from '../assets/catalog.ts'
 import { personLook } from '../assets/looks.ts'
 import { assetUrl } from '../render/assets.ts'
@@ -14,18 +14,21 @@ import { WorldMap } from './worldmap.ts'
 import { ProfessionPanel } from './profession.ts'
 import { BoonPanel } from './boons.ts'
 import { QuestLog } from './questlog.ts'
+import { SkillPanel } from './skillpanel.ts'
 import { $, SLOT_KEYS, controlsTable, esc, locale, t, tx } from './common.ts'
 
-export type Tab = 'inventory' | 'craft' | 'options'
-const ICONS: Record<Tab, string> = { inventory: '🎒', craft: '🔨', options: '⚙' }
+export type Tab = 'inventory' | 'craft' | 'options' | 'shop'
+const ICONS: Record<Tab, string> = { inventory: '🎒', craft: '🔨', options: '⚙', shop: '🏪' }
+/** The stall's shelves (homestead.ts), and what it buys back. */
+const SHELVES: [group: string, en: string, zh: string][] = [['farm', 'Farming', '农业'], ['ranch', 'Ranching', '牧业'], ['fish', 'Fishing', '渔业'], ['sell', 'Sell', '出售']]
 const ROW = SLOT_KEYS.length
 
-/** The body's slots as the bag shows them (a paper doll, three across), by the `wear:` key; the off hand last. */
+/** The body's slots as the bag shows them (a paper doll, three across), by the `wear:` key; the two hands last (the main hand: the weapon kept ready). */
 const EQUIP: [key: string, en: string, zh: string, ghost: string][][] = [
   [['ear', 'Earring', '耳环', '◦'], ['head', 'Head', '头', '⛑'], ['neck', 'Necklace', '项链', '◇']],
   [['shoulders', 'Shoulders', '肩', '⌒'], ['body', 'Armour', '护甲', '▣'], ['hands', 'Hands', '手', '✋']],
   [['ring', 'Ring', '戒指', '○'], ['waist', 'Belt', '腰带', '═'], ['ring.2', 'Ring', '戒指', '○']],
-  [['', '', '', ''], ['feet', 'Feet', '脚', '▁'], ['arm', 'Off hand', '副手', '🛡']],
+  [['weapon', 'Main hand', '主手', '⚔'], ['feet', 'Feet', '脚', '▁'], ['arm', 'Off hand', '副手', '🛡']],
 ]
 
 type CodexTab = 'items' | 'people' | 'creatures' | 'threads'
@@ -96,6 +99,8 @@ export interface MenuSend {
   craft(id: string, all?: boolean): void
   /** The skill tree: spend skill points on a skill. */
   learn(id: string): void
+  /** The skill bar: set an active skill in a slot (null: empty it). */
+  setSkill(slot: number, id: string | null): void
   /** The world map asks for the atlas, and travels to a waypoint stone. */
   atlas(): void
   travel(waypoint: string): void
@@ -123,6 +128,8 @@ export class Menu {
   registerTip?: (key: string, info: ItemInfo) => void
   facesetOf?: (id: string) => HTMLCanvasElement | undefined
   private frame?: Frame
+  /** The stall's shelf shown (homestead.ts). */
+  private shelf = 'farm'
   private codex?: CodexView
   private codexTab: CodexTab = 'items'
   private skills: SkillTree
@@ -133,6 +140,7 @@ export class Menu {
   boons: BoonPanel
   /** The quest log (L). */
   quests: QuestLog
+  skillPanel: SkillPanel
   /** The inventory slot picked up by a click (placed by the next click). */
   private picked?: number
 
@@ -146,11 +154,14 @@ export class Menu {
        <div id="worldmap" class="sk-page wm-page hidden"></div>
        <div id="profession" class="overlay hidden"></div>
        <div id="boons" class="overlay hidden"></div>
-       <div id="questlog" class="overlay hidden"></div>`,
+       <div id="questlog" class="overlay hidden"></div>
+       <div id="skillpanel" class="overlay hidden"></div>`,
     )
     this.skills = new SkillTree($('#skills'), (id) => this.send.learn(id), () => this.close())
     this.quests = new QuestLog($('#questlog'), () => this.close())
     $('#questlog').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
+    this.skillPanel = new SkillPanel($('#skillpanel'), (slot, id) => this.send.setSkill(slot, id), () => this.close())
+    $('#skillpanel').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
     this.profession = new ProfessionPanel($('#profession'), (id) => this.send.profession(id), () => this.close())
     $('#profession').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
     this.boons = new BoonPanel($('#boons'), (id) => this.send.boon(id), () => this.close())
@@ -174,11 +185,16 @@ export class Menu {
   get chestOpen(): boolean {
     return !$('#chest').classList.contains('hidden')
   }
+  /** The skill tree's node under the pointer (Shift+1–6 sets an active one in the skill bar). */
+  hoveredSkill(): string | undefined {
+    return this.skills.hovered
+  }
+
   get skillsOpen(): boolean {
     return !$('#skills').classList.contains('hidden')
   }
   get anyOpen(): boolean {
-    return this.menuOpen || this.journalOpen || this.chestOpen || this.skillsOpen || this.worldmap.open || this.profession.open || this.boons.open || this.quests.open
+    return this.menuOpen || this.journalOpen || this.chestOpen || this.skillsOpen || this.worldmap.open || this.profession.open || this.boons.open || this.quests.open || this.skillPanel.open
   }
 
   open(tab?: Tab): void {
@@ -220,7 +236,7 @@ export class Menu {
 
   close(): void {
     if (this.chestOpen) this.send.closePanel()
-    for (const id of ['#menu', '#journal', '#chest', '#skills', '#worldmap', '#profession', '#boons', '#questlog']) $(id).classList.add('hidden')
+    for (const id of ['#menu', '#journal', '#chest', '#skills', '#worldmap', '#profession', '#boons', '#questlog', '#skillpanel']) $(id).classList.add('hidden')
     this.picked = undefined
   }
 
@@ -236,6 +252,14 @@ export class Menu {
     if (this.profession.open) this.profession.render(f)
     if (this.boons.open) this.boons.render(f)
     if (this.quests.open) this.quests.render(f)
+    if (this.skillPanel.open) this.skillPanel.render(f)
+  }
+
+  /** The skill panel (U, or its button): every active skill one has, and the skill bar's slots. */
+  toggleSkillPanel(): void {
+    if (this.skillPanel.open) return this.close()
+    this.close()
+    this.skillPanel.show(this.frame)
   }
 
   /** The quest log (L, or its button). */
@@ -280,16 +304,18 @@ export class Menu {
     let body = ''
     if (this.tab === 'inventory') body = this.inventoryHtml(f)
     if (this.tab === 'craft') body = this.craftHtml(f)
+    if (this.tab === 'shop') body = this.shopHtml(f)
     if (this.tab === 'options') body = this.optionsHtml()
     $('#menuSheet').innerHTML = head + `<div class="tab-body">${body}</div>`
     $('#menuClose').onclick = () => this.close()
     if (this.tab === 'inventory') this.wireInventory(f)
     if (this.tab === 'options') this.wireOptions()
-    if (this.tab === 'craft') this.wireCraft()
+    if (this.tab === 'craft' || this.tab === 'shop') this.wireCraft()
+    if (this.tab === 'shop') $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-shelf]').forEach((b) => (b.onclick = () => ((this.shelf = b.dataset.shelf!), this.render())))
     if (f) {
       this.liveSig = this.sigOf(f)
       if (this.tab === 'inventory') this.paintIcons?.([...f.player.slots.filter(Boolean).map((s) => s!.item), ...Object.values(f.player.worn ?? {})])
-      if (this.tab === 'craft') {
+      if (this.tab === 'craft' || this.tab === 'shop') {
         const infos = craftInfos()
         for (const it of infos) this.registerTip?.(it.id, it)
         this.paintIcons?.(infos)
@@ -377,7 +403,7 @@ export class Menu {
         const zh = locale.value === 'zh'
         // a worn piece alone in its slot comes off; otherwise one (another of the stack) goes on
         const off = !!s.worn && s.count === 1
-        const wear: [string, () => void][] = !s.item.props.slot ? [] : [[off ? (zh ? '卸下' : 'Take off') : s.item.props.slot === 'arm' ? (zh ? '装备到副手' : 'Wear in the off hand') : (zh ? '装备' : 'Wear'), () => this.send.wear(s.item.id, !off)]]
+        const wear: [string, () => void][] = !s.item.props.slot ? [] : [[off ? (zh ? '卸下' : 'Take off') : s.item.props.slot === 'arm' ? (zh ? '装备到副手' : 'Wear in the off hand') : s.item.props.slot === 'weapon' ? (zh ? '装备到主手' : 'Ready in the main hand') : (zh ? '装备' : 'Wear'), () => this.send.wear(s.item.id, !off)]]
         this.contextMenu(e.clientX, e.clientY, s.item.id, [...wear, [t('dropHere'), () => this.send.drop(i, true)]])
       }
     })
@@ -407,11 +433,24 @@ export class Menu {
   // ---------------------------------------------------------------- crafting
 
   /** Don't Starve's panel: each recipe, what it needs against what is carried, and a button that makes it. */
-  private craftHtml(f?: Frame): string {
+  /** The stall (homestead.ts): its shelves as tabs, one's coin, and the shelf's offers made as recipes are. */
+  private shopHtml(f?: Frame): string {
+    if (!f) return ''
+    const zh = locale.value === 'zh'
+    const coins = f.player.slots.reduce((n, s) => n + (s && s.item.type === COIN ? s.count : 0), 0)
+    const tabs = SHELVES.map(([g, en, zh2]) => `<button class="cx-tab${g === this.shelf ? ' on' : ''}" data-shelf="${g}">${zh ? zh2 : en}</button>`).join('')
+    const away = !f.player.stations.includes('stall') ? `<div class="muted small">${zh ? '站到货摊旁边才能交易。' : 'Stand beside the stall to trade.'}</div>` : ''
+    return `<div class="shop-head"><div class="cx-tabs">${tabs}</div><span class="coins"><span class="icon" data-icon="need:${COIN}"></span>${coins}</span></div>${away}${this.craftHtml(f, this.shelf)}`
+  }
+
+  private craftHtml(f?: Frame, shelf?: string): string {
     if (!f) return ''
     const have = (type: string) => f.player.slots.reduce((n, s) => n + (s && s.item.type === type ? s.count : 0), 0)
     const tool = (tag: string) => f.player.slots.some((s) => s?.item.tags.includes(tag))
-    const rows = RECIPES.map((r) => {
+    // the crafting panel shows what is made; the stall's offers are the stall's (its own tab)
+    const list = shelf ? RECIPES.filter((r) => r.station === 'stall' && r.group === shelf) : RECIPES.filter((r) => r.station !== 'stall')
+    const verb = shelf === 'sell' ? (locale.value === 'zh' ? '出售' : 'Sell') : shelf ? (locale.value === 'zh' ? '购买' : 'Buy') : t('craftIt')
+    const rows = list.map((r) => {
       // how many times what is carried makes it (the tools are not used up)
       // (a station's recipe is made beside one: away from it, nothing is made however much is carried)
       const here = !r.station || r.station === 'hands' || f.player.stations.includes(r.station)
@@ -429,9 +468,9 @@ export class Menu {
         }).join('')
       return `<div class="recipe${ok ? '' : ' off'}">
         <div class="slot" data-item="recipe:${r.id}"><div class="icon" data-icon="recipe:${r.id}"></div></div>
-        <div class="rname">${esc(tx(r.name))}${r.station && r.station !== 'hands' ? ` <span class="station${here ? '' : ' short'}">${esc(tx({ en: 'at a ' + r.station, zh: r.station === 'workbench' ? '需在工作台旁' : r.station }))}</span>` : ''}</div>
+        <div class="rname">${esc(tx(r.name))}${r.station && r.station !== 'hands' && !shelf ? ` <span class="station${here ? '' : ' short'}">${esc(tx({ en: 'at a ' + r.station, zh: r.station === 'workbench' ? '需在工作台旁' : r.station }))}</span>` : ''}</div>
         <div class="needs">${needs}</div>
-        <button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(here ? t('needMore') : tx({ en: `Stand beside a ${r.station}`, zh: r.station === 'workbench' ? '站到工作台旁边' : r.station! }))}"`}>${t('craftIt')}${r.count && r.count > 1 ? ` ×${r.count}` : ''}</button>
+        <button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(here ? t('needMore') : tx({ en: `Stand beside a ${r.station}`, zh: r.station === 'workbench' ? '站到工作台旁边' : r.station! }))}"`}>${verb}${shelf === 'sell' ? ` → ${r.count}` : r.count && r.count > 1 ? ` ×${r.count}` : ''}</button>
         ${times > 1 ? `<button class="all" data-craft-all="${r.id}" title="${esc(t('craftAllTip'))}">${t('craftAll')} ×${times}</button>` : ''}
       </div>`
     }).join('')

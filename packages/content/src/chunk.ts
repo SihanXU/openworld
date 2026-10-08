@@ -18,6 +18,7 @@ export interface RawMap {
   rooms?: MapData['rooms']
   music?: string
   light?: MapData['light']
+  fish?: boolean
   anchors?: MapData['anchors']
   regions?: MapData['regions']
   appear?: MapData['appear']
@@ -50,6 +51,7 @@ export function decodeMap(m: RawMap): MapData {
     rooms: m.rooms,
     music: m.music,
     light: m.light,
+    fish: m.fish,
     anchors: m.anchors,
     regions: m.regions,
     appear: m.appear ?? appearFromForage(m as unknown as MapData),

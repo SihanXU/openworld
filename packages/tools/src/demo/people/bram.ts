@@ -1,7 +1,8 @@
 // Bram, the old drillmaster of Firstlight Village. He trained the road wardens before the
 // storms came, and now trains whoever walks down from the mountain and lasts long enough to
 // be worth it (level 5). Blade, mace, bow or wand: he sets you on one, and lets you change
-// your mind — at the cost of starting that road again.
+// your mind — at the cost of starting that road again. He keeps the yard day and night and
+// never leaves his spot, a mark over his head, so he is easy to find.
 
 import { line, type PersonDef } from '../person.ts'
 
@@ -13,12 +14,11 @@ export const bram: PersonDef = {
   age: 61,
   temperament: { personality: 'stern', manner: 'plain', social: 'reserved', outlook: 'wary' },
   ties: { 'npc.tobin': 'the peddler who talks through his drills' },
+  // he keeps the drill yard day and night, standing where anyone can find him (tag stationary)
   schedules: {
-    default: [
-      [22, 6, 'meadow:drill.bed', 'sleep'],
-      [6, 22, 'meadow:drill.yard', 'drill the yard'],
-    ],
+    default: [[0, 24, 'meadow:drill.yard', 'keep the drill yard']],
   },
+  tags: ['stationary'],
   lines: [
     line('greeting:first', 'Off the mountain, are you. Come back when you have a few fights in you — level five — and I will set you on a road: blade, mace, bow or wand.', '从山上下来的？等你打过几场像样的仗——五级——再来找我，我给你指条路：短刃、重锤、弓，还是法杖。', { once: true }),
     line('default', 'Pick a road and walk it. Change your mind if you must — but you start that road again from the first step.', '选一条路，就走下去。真要改也行——只是新路得从头走起。'),

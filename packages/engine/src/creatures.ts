@@ -59,7 +59,8 @@ export function fight(eng: Engine, e: Entity, sc: Scene): boolean {
   let target: Entity | undefined
   let best = Infinity
   for (const o of sc.actors) {
-    if (o.place.on !== 'tile' || !eng.hostileTo(e, o)) continue
+    // one veiled in smoke (a Smoke Bomb, actives.ts) is not seen
+    if (o.place.on !== 'tile' || !eng.hostileTo(e, o) || (o.combat?.veilUntil ?? 0) > eng.world.state.tick) continue
     const d = Math.abs(o.place.x - x) + Math.abs(o.place.y - y)
     if (d <= ai.sight && d < best && safe(o.place.x, o.place.y)) (target = o), (best = d)
   }
@@ -71,6 +72,8 @@ export function fight(eng: Engine, e: Entity, sc: Scene): boolean {
     return true
   }
   ai.state = 'chase'
+  // the one it comes after is fighting now, struck or not
+  ;(target.combat ??= {}).fightTick = w.state.tick
   const dx = target.place.x - x
   const dy = target.place.y - y
   const face: Dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up'

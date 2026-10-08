@@ -279,6 +279,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       '{outdoors:true} — the host is out under the sky',
       "{makeup: role} — the role's type says what it is made of (its makeup: what it leaves when it breaks)",
       "{rel: {role, how}} — the role has that relation now: on (stands on something), support (something holds it up), in-region …",
+      '{fighting: role} — the role is fighting: it struck at an actor, was struck by one, or a hostile one came after it, in the last five seconds',
     ],
     events: EVENTS,
     impulses: IMPULSES,
@@ -1003,6 +1004,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ('none' in c) return role(c.none, `${where}.none`)
     if ('makeup' in c) return role(c.makeup, `${where}.makeup`)
     if ('rel' in c) return role(c.rel.role, `${where}.rel.role`)
+    if ('fighting' in c) return role(c.fighting, `${where}.fighting`)
     if ('same' in c) return c.same.forEach((r, i) => role(r, `${where}.same[${i}]`))
     if ('leads' in c) return c.leads.forEach((r, i) => role(r, `${where}.leads[${i}]`))
     if ('has' in c) {
@@ -1051,6 +1053,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     for (const k of ['at', 'to'] as const) if (k in any && typeof any[k] === 'string' && e.op !== 'emit' && !ROLE_REFS.has(any[k] as string)) errors.push(`${where}.${k}: role ref must be one of ${[...ROLE_REFS].join('|')}`)
     if (RESIDENT_ONLY.has(e.op) && !resident) errors.push(`${where}: ${e.op} is the story's and the world's only — notify the story instead`)
     if (e.op === 'spawn' && !/^@prop:(host|actor|target|instrument|other|item|source)\.\w+$/.test(e.type) && !(e.type in onto.types)) errors.push(`${where}: unknown type "${e.type}"${closest(e.type, onto)}`)
+    if (e.op === 'dropContents' && e.bundle && !(e.bundle in onto.types)) errors.push(`${where}: unknown type "${e.bundle}"${closest(e.bundle, onto)}`)
     if (e.op === 'transform' && !e.into.startsWith('@prop:') && !(e.into in onto.types)) errors.push(`${where}: unknown type "${e.into}"${closest(e.into, onto)}`)
     if ((e.op === 'addStatus' || e.op === 'removeStatus') && !(e.status in onto.statuses)) errors.push(`${where}: unknown status "${e.status}"`)
     if (e.op === 'vfx' && !onto.vfx.includes(e.fx)) errors.push(`${where}: unknown vfx "${e.fx}"`)

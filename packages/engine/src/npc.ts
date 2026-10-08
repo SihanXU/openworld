@@ -191,7 +191,8 @@ export class NpcSim {
   flee(e: Entity, active: string): boolean {
     const eng = this.eng
     const w = eng.world
-    if (!e.npc || e.place.on !== 'tile') return false
+    // one who keeps their post (tag stationary: a trainer) stands their ground
+    if (!e.npc || e.place.on !== 'tile' || w.hasTag(e, 'stationary')) return false
     const rt = this.runtime(e)
     const { x, y } = e.place
     let threat: Entity | undefined
@@ -334,8 +335,8 @@ export class NpcSim {
     if (dist <= 1) {
       rt.unreachable = 0
       if (s.uses) this.checkNeed(e, s)
-      // at the anchor: idle, occasionally mill about
-      if (w.rand() < 0.02) {
+      // at the anchor: idle, occasionally mill about — unless one keeps one's post (tag stationary)
+      if (!w.hasTag(e, 'stationary') && w.rand() < 0.02) {
         const dirs: Dir[] = ['up', 'down', 'left', 'right']
         const d = dirs[Math.floor(w.rand() * 4)]
         eng.step(e, d)
