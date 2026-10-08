@@ -182,6 +182,9 @@
 .tip { position: fixed; transform: translate(-50%, -100%); background: var(--ink-warm); color: #fbe9c4; padding: 3px 8px; border-radius: 5px; font-size: 12px; pointer-events: none; z-index: 60; white-space: nowrap; }
 .chest-grid { margin-bottom: 4px; }
 .bag-grid { margin-top: 6px; }
+.shop-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.shop-head .coins { display: flex; align-items: center; gap: 4px; font: 600 14px var(--pixel); color: var(--ink-warm); }
+.shop-head .coins .icon { width: 20px; height: 20px; }
 .cx-tabs { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
 .cx-tab { background: var(--paper-dark); color: var(--ink-warm); border: 2px solid var(--wood-dark); font: 600 13px var(--pixel); padding: 4px 10px; }
 .cx-tab.on { background: var(--paper); transform: translateY(-2px); }
@@ -485,3 +488,44 @@
 .lesson-done.pop { animation: lesson-pop 0.9s ease-out forwards; }
 @keyframes lesson-pop { 0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; } 25% { transform: translate(-50%, -50%) scale(1.25); opacity: 1; } 100% { transform: translate(-50%, -90%) scale(1); opacity: 0; } }
 .lesson-dim.hidden, .lesson-key.hidden, .lesson-done.hidden { display: none; }
+
+/* the skill bar (ui/skillbar.ts): six square slots bottom left, Dungeon Fighter's way — a bevelled steel frame,
+   the key in the corner, a dark sweep and the seconds while a skill rests, a flash when it is ready */
+.skillbar { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 4px; padding: 5px; border-radius: 4px;
+  background: linear-gradient(#2b2a33, #16151c); border: 2px solid #0a0a0e; box-shadow: inset 0 1px 0 #4a4858, 0 2px 6px rgba(0,0,0,.5); }
+.sb-slot { position: relative; width: 40px; height: 40px; border-radius: 3px; cursor: pointer; overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, #2d3442, #11141b); border: 2px solid; border-color: #8a7a52 #4a3f26 #3a301c #7a6a44;
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 6px rgba(0,0,0,.8); }
+.sb-slot.empty { cursor: default; border-color: #3a3a44 #23232a #1c1c22 #34343e; background: #121218; }
+.sb-slot:not(.empty):hover { border-color: #f2d27a #9a7d3c #7a6230 #e2c26a; }
+.sb-icon { position: absolute; inset: 2px; width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none; }
+.sb-cd { position: absolute; inset: 0; pointer-events: none; }
+.sb-sec { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none;
+  font: 700 13px var(--pixel); color: #fff; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000; }
+.sb-slot kbd { position: absolute; left: 1px; top: 0; font: 600 9px var(--pixel); color: #ffe9a8; pointer-events: none;
+  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000; }
+.sb-slot.empty kbd { color: #6a6a78; }
+.sb-slot.cooling .sb-icon { filter: saturate(.55); }
+.sb-slot.ready-flash::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: rgba(255, 244, 196, .85); animation: sb-flash .35s ease-out forwards; }
+@keyframes sb-flash { from { opacity: 1; } to { opacity: 0; } }
+
+/* the skill panel (ui/skillpanel.ts) */
+.sp-sheet { width: min(680px, 96vw); }
+.sp-bar { display: flex; gap: 8px; justify-content: center; padding: 8px; margin-bottom: 6px; border-radius: 6px; background: linear-gradient(#2b2a33, #16151c); border: 2px solid #0a0a0e; }
+.sp-slot { position: relative; width: 52px; height: 52px; border-radius: 4px; background: radial-gradient(circle at 50% 40%, #2d3442, #11141b); border: 2px solid; border-color: #8a7a52 #4a3f26 #3a301c #7a6a44; cursor: pointer; }
+.sp-slot.empty { border-color: #3a3a44 #23232a #1c1c22 #34343e; background: #121218; }
+.sp-slot.target { box-shadow: 0 0 0 2px #ffd55a; }
+.sp-slot img { position: absolute; inset: 2px; width: 44px; height: 44px; image-rendering: pixelated; }
+.sp-slot kbd, .sb-slot.lost kbd { position: absolute; left: 2px; top: 0; font: 600 10px var(--pixel); color: #ffe9a8; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000; background: none; border: 0; padding: 0; }
+.sp-slot.lost img, .sb-slot.lost .sb-icon { filter: grayscale(1) brightness(.5); }
+.sp-hint { font-size: 12px; color: #6b4a2a; margin: 4px 2px 8px; }
+.sp-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 52vh; overflow: auto; }
+@media (max-width: 620px) { .sp-list { grid-template-columns: 1fr; } }
+.sp-card { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border-radius: 6px; background: var(--paper-dark); border: 2px solid var(--wood-dark); cursor: grab; }
+.sp-card.picked { border-color: #ffb43a; box-shadow: 0 0 0 2px #ffd55a; }
+.sp-icon { width: 40px; height: 40px; image-rendering: pixelated; flex: none; }
+.sp-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.sp-src { font: 700 10px var(--pixel); padding: 1px 6px; border-radius: 4px; color: #fff; }
+.sp-src.tree { background: #4f7a3c; } .sp-src.book { background: #3b6fa8; } .sp-src.gear { background: #a8642c; }
+.sp-in { font: 700 10px var(--pixel); color: #6b4a2a; }
+.sp-doc { font-size: 11px; color: #5a3f22; margin-top: 2px; }

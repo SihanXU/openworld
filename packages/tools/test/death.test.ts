@@ -1,7 +1,9 @@
 // Death and rising again (after Minecraft): the one at the keys, felled, lies fallen and the frame
 // says so — by whom, and at what difficulty; the death screen's choice is the story telling them to
 // rise, and they do so themselves: where they fell (easy), or at home leaving what they carried
-// where they fell (normal). A bed slept in or a waypoint woken is one's home. Hardcore has one life.
+// bundled where they fell (normal) — but not what they wear, the weapon in their hand, nor what is
+// important; a hand on the bundle gives it all back. A bed slept in or a waypoint woken is one's
+// home. Hardcore has one life.
 
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, difficultyOf, snapshot, textOf, type Engine } from '@lsw/engine'
@@ -61,7 +63,7 @@ describe('death and rising again', () => {
     expect(snapshot(eng).fallen).toBeUndefined()
   })
 
-  it('normal: one rises at home — the bed last slept in — and what one carried lies where one fell', () => {
+  it('normal: one rises at home — the bed last slept in — and what one carried lies bundled where one fell', () => {
     const eng = ford('normal')
     const w = eng.world
     const p = w.player
@@ -81,9 +83,55 @@ describe('death and rising again', () => {
     const now = w.posOf(p)!
     expect(Math.max(Math.abs(now.x - here.x), Math.abs(now.y - here.y))).toBeLessThanOrEqual(1)
     expect(eng.controls.count('item/food/bread')).toBe(0)
-    const left = w.placedAt('ford', at.x, at.y).filter((e) => e.type === 'item/food/bread')
-    expect(left).toHaveLength(1)
-    expect(left[0].dropped).toBeFalsy()
+    const bundles = w.placedAt('ford', at.x, at.y).filter((e) => e.type === 'item/misc/bundle')
+    expect(bundles).toHaveLength(1)
+    expect(bundles[0].contents?.map((id) => w.get(id)?.type)).toEqual(['item/food/bread'])
+    expect(bundles[0].dropped).toBeFalsy()
+  })
+
+  it('normal: what one wears, the weapon in one\'s hand and what is important stay with one; a hand on the bundle gives back the rest', () => {
+    const eng = ford('normal')
+    const w = eng.world
+    const p = w.player
+    const [helmet, club, spare, thorn] = eng.author(() => {
+      const helmet = w.create('item/armor/helmet', { on: 'inside', holder: 'player' })
+      w.setProp(p, 'wear:head', helmet.id)
+      return [helmet, w.create('item/weapon/blunt/club', { on: 'inside', holder: 'player' }), w.create('item/weapon/blunt/club', { on: 'inside', holder: 'player' }), w.create('item/relic/oath_thorn', { on: 'inside', holder: 'player' })]
+    })
+    eng.controls.sync()
+    // the club in the hand (its stack's slot)
+    for (let i = 0; i < 10 && w.get(w.player.held)?.type !== 'item/weapon/blunt/club'; i++) eng.controls.select(i)
+    const inHand = w.player.held!
+    expect(w.get(inHand)?.type).toBe('item/weapon/blunt/club')
+    const at = fall(eng)
+    eng.respawn(true)
+    eng.tick()
+    const mine = (id: string) => { const e = w.get(id)!; return (e.place.on === 'inside' || e.place.on === 'hand') && e.place.holder === p.id }
+    expect([mine(helmet.id), mine(inHand), mine(thorn.id)]).toEqual([true, true, true])
+    expect(w.prop(p, 'wear:head')).toBe(helmet.id)
+    const other = inHand === club.id ? spare : club
+    const bundle = w.placedAt('ford', at.x, at.y).find((e) => e.type === 'item/misc/bundle')!
+    expect(bundle.contents?.map((id) => w.get(id)?.type).sort()).toEqual(['item/food/bread', 'item/weapon/blunt/club'])
+    expect(mine(other.id)).toBe(false)
+    // back where one fell, a hand on the bundle: all of it comes back, and the bundle is gone
+    eng.author(() => eng.teleport(p, { map: 'ford', x: at.x, y: at.y + 1 }))
+    eng.act('hands', p.id, { e: bundle.id }, { instrument: null })
+    eng.tick()
+    expect([w.get(bundle.id), mine(other.id), eng.controls.count('item/food/bread')]).toEqual([undefined, true, 1])
+  })
+
+  it('a bundle taken (F) opens as by a hand: all of it comes back', () => {
+    const eng = ford('normal')
+    const w = eng.world
+    const p = w.player
+    const at = fall(eng)
+    eng.respawn(true)
+    eng.tick()
+    const bundle = w.placedAt('ford', at.x, at.y).find((e) => e.type === 'item/misc/bundle')!
+    eng.author(() => eng.teleport(p, { map: 'ford', x: at.x, y: at.y + 1 }))
+    eng.act('take', p.id, { e: bundle.id }, { instrument: null })
+    eng.tick()
+    expect([w.get(bundle.id), eng.controls.count('item/food/bread'), eng.controls.count('item/misc/bundle')]).toEqual([undefined, 1, 0])
   })
 
   it('a waypoint woken is home too; with no home one rises where the world began', () => {

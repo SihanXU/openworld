@@ -7,7 +7,7 @@ import { evalCond, matchSelector, rolesOf } from './rules.ts'
 import type { AiData, Amount, Effect, EmitTo, Entity, GameEvent, Impulse, Place, Pos, PropValue, Ref, RoleName, RoleRef, Text } from './types.ts'
 import { GIVEN_LINE, chooseLine, raiseTopic } from './people.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
-import { gainXp, learnSkill } from './progression.ts'
+import { cannotRead, gainXp, learnSkill, readSkill } from './progression.ts'
 import { BOON_PREFIX, activeBoon, boonsOf, leaderOf, nearAttunedWaypoint } from './boons.ts'
 import { canWield, cannotChoose, chooseProfession, itemProfession } from './profession.ts'
 import { appear } from './appear.ts'
@@ -42,7 +42,7 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   boon: 'boon — the host (a companion) is given a boon (param unlock: its id; carried at once if it carries none) or carries another it has (param boon), the latter only while its leader stands beside an attuned waypoint; a boon is its status boon_<id>, whose lead:<stat> props add to the leader\'s stats',
   foe: 'foe {} — whoever started the chain (the one who struck) becomes the host\'s foe, attacked on sight',
   open: 'open {} — the host opens or closes (toggles the `open` status)',
-  dropContents: 'dropContents {still?} — the host spills what it holds (its bag and its hand) onto its tile',
+  dropContents: 'dropContents {still?, to?, keepWorn?, keep?, bundle?} — the host spills what it holds (its bag and its hand) onto its tile, or into a role\'s bag (to: a bundle opened); keepWorn: what it wears and the weapon in its hand stay with it; keep: so do things with any of these tags (important); bundle: what is spilled is packed into a new thing of that type on its tile',
   goto: 'goto {anchor, hours, activity?} — the host (a person) leaves its schedule for a named anchor of its map for some hours',
   topic: "topic {id, days?} — the story's only: something happened that people will talk about (default 4 days); it keeps topic.<id> (the day) and topic.<id>.days as its own props. Others notify the story",
   scene: 'scene {id} — the story\'s only: play a scripted scene',
@@ -58,7 +58,7 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   emote: 'emote {mood: neutral|happy|sad|angry|surprised|shy} — an emote bubble over the host',
   quest: 'quest {} — the host (a person) is spoken to about quests: business with the speaker (a quest to hand in, to take on, a talk goal) is told to the story; else the host says how a quest goes, or its line (quests.ts)',
   quests: "quests {} — the story's: a quest's business it is told of is settled (notify what = quest: between the source, a giver, and the actor; what = defeat: the actor felled a thing of param type) — its facts change, the giver takes what was brought, the taker is told its reward; with no notice (the story's own pass), quests it has gone past are done, auto ones taken on, self ones completed",
-  learn: 'learn {} — the host learns what its act names: param skill (spending its skill points) or param profession (at a trainer; a change gives back the profession branch)',
+  learn: 'learn {book?} — book: from the book it holds (the event\'s item: its param skill), no points and no skills before it, the book used up; else the host learns what its act names: param skill (spending its skill points) or param profession (at a trainer; a change gives back the profession branch)',
   appear: "appear {what?} — the world's: what appears by itself on the active map now (the map's own appearances and the world's that fit it, each at its pace, hours and weather, up to its max), or only the appearance given (world-model.md §6.9)",
   release: "release {} — the host's encounter skill lands on the cells its act telegraphed (params skill, ox, oy, ax, ay): a strike to each foe there, a push or pull and a coat as the skill says; the host heals or blinks itself",
   panel: "panel {panel} — the host (a trainer) opens one of the player's panels when the player spoke to it: 'profession'",
@@ -467,15 +467,26 @@ export class EffectRunner {
       case 'dropContents': {
         const p = w.posOf(host)
         if (!host || !p) return
-        // what it holds: its bag, and its hand
-        for (const id of [...(host.contents ?? []), ...(host.held ? [host.held] : [])]) {
-          const c = w.get(id)
-          if (!c) continue
+        // what it holds: its bag, and its hand — but what it keeps (what it wears, the weapon in its hand, the tags kept)
+        const worn = new Set(eff.keepWorn ? w.worn(host).map((e) => e.id) : [])
+        if (eff.keepWorn && host.held && w.hasTag(w.get(host.held)!, 'weapon')) worn.add(host.held)
+        const spilled = [...(host.contents ?? []), ...(host.held ? [host.held] : [])]
+          .map((id) => w.get(id))
+          .filter((c): c is Entity => !!c && !worn.has(c.id) && !(eff.keep ?? []).some((t) => w.hasTag(c, t)))
+        // into a role's bag (a bundle opened by whoever opens it), else onto the tile, packed in a bundle when it says so
+        const to = eff.to ? this.ref(ev, eff.to) : undefined
+        const into = to && 'e' in to ? w.get(to.e) : undefined
+        if (eff.to && !into) return
+        const pack = !into && eff.bundle && spilled.length ? w.create(eff.bundle, { on: 'tile', map: p.map, x: p.x, y: p.y }) : undefined
+        if (pack) eng.touch({ e: pack.id })
+        for (const c of spilled) {
           eng.touch({ e: c.id })
-          w.place(c, { on: 'tile', map: p.map, x: p.x, y: p.y })
+          w.place(c, into ? { on: 'inside', holder: into.id } : pack ? { on: 'inside', holder: pack.id } : { on: 'tile', map: p.map, x: p.x, y: p.y })
           eng.touch({ e: c.id })
-          if (!eff.still) c.dropped = true
+          if (into || pack) delete c.dropped
+          else if (!eff.still) c.dropped = true
         }
+        if (into) eng.touch({ e: into.id })
         return
       }
       case 'goto': {
@@ -508,6 +519,21 @@ export class EffectRunner {
         // the host's own: its tags, props and points; a profession's starter weapon is made in its bag
         if (!host) return
         const skill = eng.skills.get(String(ev.params?.skill ?? ''))
+        // from a book in one's hands (the event's item): read, it is learned and the book is used up; else it says why
+        if (eff.book) {
+          const book = ev.roles.item && 'e' in ev.roles.item ? w.get(ev.roles.item.e) : undefined
+          if (!skill || !book) return
+          const why = cannotRead(host, skill, w.prop(host, 'profession'))
+          const name = (l: 'en' | 'zh') => (typeof skill.name === 'string' ? skill.name : l === 'zh' ? skill.name.zh ?? skill.name.en : skill.name.en)
+          if (why) {
+            w.fx.push({ t: 'log', text: why === 'learned' ? { en: `You know ${name('en')} already.`, zh: `你已经会${name('zh')}了。` } : { en: 'This book is for another profession.', zh: '这本书是别的职业的。' }, tone: 'warn' })
+            return
+          }
+          readSkill(w, host, skill)
+          w.fx.push({ t: 'log', text: { en: `You read the book and learn ${name('en')}.`, zh: `你读完了技能书，学会了${name('zh')}。` }, tone: 'good' })
+          if ((book.place.on === 'inside' || book.place.on === 'hand') && book.place.holder === host.id) (eng.touch({ e: book.id }), w.destroy(book))
+          return
+        }
         if (skill) {
           learnSkill(w, host, skill)
           return

@@ -19,7 +19,7 @@ const TIER: Record<string, [en: string, zh: string]> = {
 /** A worn slot's name (the body's ten, world-model.md §6.8). */
 const SLOT: Record<string, [string, string]> = {
   head: ['head', '头'], body: ['body', '躯干'], feet: ['feet', '脚'], hands: ['hands', '手'], waist: ['waist', '腰'],
-  shoulders: ['shoulders', '肩'], neck: ['neck', '颈'], ring: ['finger', '手指'], ear: ['ear', '耳'],
+  shoulders: ['shoulders', '肩'], neck: ['neck', '颈'], ring: ['finger', '手指'], ear: ['ear', '耳'], weapon: ['main hand', '主手'], arm: ['off hand', '副手'],
 }
 const ELEMENT: Record<string, [string, string, string]> = {
   fire: ['Fire', '火', '#ff5555'],

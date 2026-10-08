@@ -5,6 +5,7 @@
 // contact, time and sight are no change, elements follow physics. Anything these rules leave
 // undefined is the Mod port's.
 
+import { HOMESTEAD_RULES } from './homestead.ts'
 import { HUNGRY_BELOW, type Amount, type Cond, type Effect, type Text, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@lsw/engine'
 
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
@@ -64,6 +65,13 @@ const ROOTS: Rule[] = [
       AS(L('Give {instrument} to {target}', '把{instrument}交给{target}'), DO(emit('offered', 'target', undefined, { item: 'host' }))),
       IF(is('target', { type: 'actor' }), DO(log('{target} does not take it.', '{target}不收。')), DO(emit('receive', 'target', undefined, { item: 'host' }))),
     ),
+  }),
+  rule({
+    id: 'core/put-bound',
+    doc: 'A bound thing (the Oath-Thorn: the way into a place one carries) does not leave its bearer\'s hand for another\'s; put anywhere else, it is put as anything is.',
+    host: { tags: ['bound'] },
+    on: 'act/put',
+    tree: IF(is('target', { type: 'actor/person' }), DO(say('This stays with me.', '这个得留在我身上。', 'actor')), 'inherit'),
   }),
   rule({ id: 'core/take', doc: 'Taking the target with the hands: it is taken (and answers how).', on: 'act/take', tree: DO(emit('taken', 'target', { into: { param: 'into' }, quiet: { param: 'quiet' } }, { other: 'actor' })) }),
   rule({ id: 'core/hands', doc: 'A bare hand on the target: it is handled (and answers how); what the hand asks of it (a companion\'s boon) rides along.', on: 'act/hands', tree: DO(emit('handle', 'target', { boon: { param: 'boon' } })) }),
@@ -228,22 +236,39 @@ const ROOTS: Rule[] = [
 const PERSON: Selector = { type: 'actor/person' }
 const ACTOR: Selector = { type: 'actor' }
 const ESSENTIAL: Selector = { type: 'actor', tags: ['essential'] }
+/** What one carried, bundled where one fell (body/rise). */
+const BUNDLE = 'item/misc/bundle'
 
 const BODIES: Rule[] = [
   rule({
     id: 'body/rise',
-    doc: 'One who has fallen, told by the story to rise (the death screen\'s choice): one gets up, whole — leaving what one carried where one fell, when one rises at home. Told of a home (a bed slept in, a waypoint woken), one keeps it.',
+    doc: 'One who has fallen, told by the story to rise (the death screen\'s choice): one gets up, whole — leaving what one carried bundled where one fell, when one rises at home (but what one wears, the weapon in one\'s hand and what is important stay with one). Told of a home (a bed slept in, a waypoint woken), one keeps it.',
     host: ESSENTIAL,
     on: 'impulse/notify',
     tree: IF(
       param('what', 'respawn'),
       IF(
         param('drop', true),
-        DO({ op: 'dropContents', still: true }, remove('down'), { op: 'setProp', key: 'hp', value: 1 }, { op: 'heal', amount: { prop: 'maxHp', of: 'host' } }, log('You rise again. What you carried lies where you fell.', '你重新站了起来。身上的东西留在了倒下的地方。')),
+        DO({ op: 'dropContents', keepWorn: true, keep: ['important'], bundle: BUNDLE }, remove('down'), { op: 'setProp', key: 'hp', value: 1 }, { op: 'heal', amount: { prop: 'maxHp', of: 'host' } }, log('You rise again. What you carried lies bundled where you fell; what you wore and what matters most are still with you.', '你重新站了起来。身上的东西打成一包留在了倒下的地方；穿戴的装备和重要物品还在身上。')),
         DO(remove('down'), { op: 'setProp', key: 'hp', value: 1 }, { op: 'heal', amount: { prop: 'maxHp', of: 'host' } }, log('You get up again.', '你重新站了起来。')),
       ),
       IF(param('what', 'home'), DO({ op: 'setProp', key: 'home', value: { param: 'value' } }), 'inherit'),
     ),
+  }),
+  rule({
+    id: 'body/belongings',
+    label: L('Gather {target}', '收回{target}'),
+    doc: 'One\'s belongings, bundled where one fell: a hand on the bundle, or taking it, and all of it comes back to whoever opens it; the bundle is gone.',
+    host: { type: BUNDLE },
+    on: 'impulse/handle',
+    tree: DO({ op: 'dropContents', to: 'actor' }, log('You gather up your belongings.', '你收回了自己的东西。'), { op: 'destroy' }),
+  }),
+  rule({
+    id: 'body/belongings-taken',
+    doc: 'One\'s belongings, bundled where one fell, taken (F): opened as by a hand — all of it comes back to the taker; the bundle is gone. An empty one is taken as anything is.',
+    host: { type: BUNDLE },
+    on: 'impulse/taken',
+    tree: IF({ count: { role: 'host', in: 'contents', cmp: { gt: 0 } } }, DO({ op: 'dropContents', to: 'other' }, log('You gather up your belongings.', '你收回了自己的东西。'), { op: 'destroy' }), 'inherit'),
   }),
   rule({
     id: 'body/wear',
@@ -416,17 +441,25 @@ const BODIES: Rule[] = [
   }),
   rule({
     id: 'body/stage',
-    doc: 'The story tells a person where it stands (the player\'s stage): they keep it. Told to step into a pocket place (what = pocket: the Oath-Thorn\'s Held Ground), they go — or, in it, come back out.',
+    doc: 'The story tells a person where it stands (the player\'s stage): they keep it. Told to step into a pocket place (what = pocket: the Oath-Thorn\'s Held Ground), they go — or, in it, come back out. Told to mend (what = mend: the Mend skill), they mend by as much.',
     host: PERSON,
     on: 'impulse/notify',
     tree: IF(
       param('what', 'pocket'),
       DO({ op: 'pocket' }),
       IF(
+      // told of a skill book read (use/read-skillbook): one learns from it, and it is used up — or one says why not
+      param('what', 'read'),
+      DO({ op: 'learn', book: true }),
+      IF(
+      // told to mend (the Mend skill, actives.ts): one mends by as much
+      param('what', 'mend'),
+      DO({ op: 'heal', amount: { param: 'amount' } }, vfx('heal')),
+      IF(
       param('what', 'quest'),
       DO({ op: 'setProp', key: 'quest', value: { param: 'value' } }),
       IF(param('what', 'prologue'), DO({ op: 'setProp', key: 'prologue', value: { param: 'value' } }), 'inherit'),
-    )),
+    )))),
   }),
 ]
 
@@ -488,15 +521,25 @@ const TOOL_LABELS: Record<string, Text> = {
 
 const INSTRUMENTS: Rule[] = [
   rule({
+    id: 'use/read-skillbook',
+    label: L('Read {instrument}', '阅读{instrument}'),
+    doc: 'A skill book used on oneself is read: one is told the skill it teaches (its `teaches`), and learns it from the book (body/stage, what = read).',
+    host: { type: 'item/document/skillbook' },
+    on: 'act/use',
+    tree: IF({ same: ['actor', 'target'] }, DO(emit('notify', 'actor', { what: 'read', skill: { prop: 'teaches', of: 'host' } }, { item: 'host' })), 'inherit'),
+  }),
+  rule({
     id: 'use/wear',
     doc: 'Something one wears, used on someone (oneself, or another): it is put on them (world-model.md §6.8).',
     host: { tags: ['wearable'] },
     on: 'act/use',
-    tree: IF(
+    // (a blow is never a dressing: a helmet swung at a slime is a blow, as anything swung is)
+    tree: IF(param('attack', true), 'inherit', IF(
       { same: ['actor', 'target'] },
       AS(L('Put on {instrument}', '穿上{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' }))),
-      IF(is('target', { type: 'actor' }), AS(L('Put {instrument} on {target}', '给{target}穿上{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' }))), 'inherit'),
-    ),
+      // (a weapon is not put on another: used on them, it is what it is — a blow, or what its own rules say)
+      IF(all(is('target', { type: 'actor' }), not(tag('host', 'weapon'))), AS(L('Put {instrument} on {target}', '给{target}穿上{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' }))), 'inherit'),
+    )),
   }),
   rule({
     id: 'use/eat',
@@ -832,7 +875,7 @@ const GROUND: Rule[] = [
   rule({
     id: 'core/fish',
     label: L('Fish in {target}', '在{target}里钓鱼'),
-    doc: 'A line cast into water: sometimes something bites; a cast stirs the water, and nothing bites there until it settles (a yield waits on time, world-model.md D23).',
+    doc: 'A line cast into water: sometimes something bites — twice as often on a baited hook (a baited cast is spent: the rod is told); what bites is mostly a fish, now and then a golden carp, or an old boot. A cast stirs the water, and nothing bites there until it settles (a yield waits on time, world-model.md D23).',
     host: { type: 'tile', tags: ['water'] },
     on: 'impulse/handle',
     tree: IF(
@@ -840,7 +883,11 @@ const GROUND: Rule[] = [
       IF(
         has('host', 'stirred'),
         DO(vfx('splash'), log('The water is stirred up. Let it settle.', '水被搅浑了，等它静下来。')),
-        IF({ chance: 0.35 }, DO(add('stirred'), { op: 'spawn', type: 'item/food/fish/raw', at: 'actor', into: 'contents' }, vfx('splash'), log('A tug — you reel in a fish!', '一沉——你拉上来一条鱼！')), DO(add('stirred'), vfx('splash'), log('The float bobs. Nothing bites — yet.', '浮漂晃了晃。还没咬钩。'))),
+        IF(
+          { prop: { role: 'instrument', key: 'bait', cmp: { gt: 0 } } },
+          IF({ chance: 0.7 }, CATCH(true), DO(add('stirred'), emit('notify', 'instrument', { what: 'cast' }), vfx('splash'), log('The bait is taken clean. Nothing.', '鱼饵被啃光了。什么也没钓到。'))),
+          IF({ chance: 0.35 }, CATCH(false), DO(add('stirred'), vfx('splash'), log('The float bobs. Nothing bites — yet.', '浮漂晃了晃。还没咬钩。'))),
+        ),
       ),
     ),
   }),
@@ -1190,6 +1237,24 @@ const picked: Effect[] = [
 /** A perennial goes back to its young stage, its fertilizer spent. */
 const regrow: Effect[] = [{ op: 'transform', into: '@prop:regrowType' }, remove('fertilized'), { op: 'setProp', key: 'yield', value: 2 }]
 
+/**
+ * What bites (core/fish), after Stardew's waters: at first light, rarely, a Dawnscale; now and then a golden carp or a
+ * soggy boot; in rain a catfish; at night an eel; in deep water a pike; by day a sunfish; else a perch or a fish.
+ * A baited cast is spent (the rod is told).
+ */
+function CATCH(baited: boolean): Tree {
+  const caught = (type: string, en: string, zh: string): Tree => DO(add('stirred'), { op: 'spawn', type, at: 'actor', into: 'contents' }, ...(baited ? [emit('notify', 'instrument', { what: 'cast' })] : []), vfx('splash'), log(en, zh))
+  return IF(all({ hour: { from: 5, to: 8 } }, { chance: 0.03 }), caught('item/food/fish/dawnscale', 'The line glows as it comes up — a Dawnscale, scales like the first morning!', '鱼线出水时在发光——是晨鳞鱼，鳞片像第一个清晨！'),
+    IF({ chance: 0.06 }, caught('item/food/fish/carp', 'Gold flashes in the water — a golden carp!', '水里闪过一道金光——是金鳞鲤！'),
+      IF({ chance: 0.08 }, caught('item/misc/old_boot', 'Something heavy... an old boot.', '沉甸甸的……是一只旧靴子。'),
+        IF(all({ weather: ['rain', 'storm'] }, { chance: 0.4 }), caught('item/food/fish/catfish', 'A whiskered head out of the rain — a catfish!', '雨里钻出一个长胡子的脑袋——是鲶鱼！'),
+          IF(all({ hour: { from: 20, to: 5 } }, { chance: 0.45 }), caught('item/food/fish/eel', 'It writhes on the line in the dark — an eel!', '黑暗里它在鱼线上扭动——是鳗鱼！'),
+            IF(all(is('host', { type: 'tile/deepwater' }), { chance: 0.45 }), caught('item/food/fish/pike', 'Long and toothy, from the deep — a pike!', '又长又多牙，从深水里来——是狗鱼！'),
+              IF(all({ hour: { from: 6, to: 19 } }, { chance: 0.45 }), caught('item/food/fish/sunfish', 'A bright little sunfish!', '一条亮闪闪的太阳鱼！'),
+                IF({ chance: 0.45 }, caught('item/food/fish/perch', 'A striped perch!', '一条带条纹的河鲈！'),
+                  caught('item/food/fish/raw', 'A tug — you reel in a fish!', '一沉——你拉上来一条鱼！')))))))))
+}
+
 const FARM: Rule[] = [
   ...useOrPut.map((on) =>
     rule({
@@ -1229,10 +1294,20 @@ const FARM: Rule[] = [
       tree: IF(is('target', { ...GROWING, notStatus: ['fertilized'] }), DO(emit('coat', 'target', { substance: 'ash' }), { op: 'destroy' })),
     }),
   ),
+  ...useOrPut.map((on) =>
+    rule({
+      id: `farm/fertilizer${on === 'act/put' ? '-put' : ''}`,
+      label: L('Fertilize {target}', '给{target}施肥'),
+      doc: 'Fertilizer (the stall\'s) worked into a growing crop\'s soil is used up.',
+      host: { type: 'item/material/fertilizer' },
+      on,
+      tree: IF(is('target', { ...GROWING, notStatus: ['fertilized'] }), DO(emit('coat', 'target', { substance: 'ash' }), { op: 'destroy' })),
+    }),
+  ),
   rule({
     id: 'farm/fertilize',
     label: L('Fertilize {target}', '给{target}施肥'),
-    doc: 'Ash on a growing crop: one more of the crop at harvest.',
+    doc: 'Ash (or fertilizer) on a growing crop: one more of the crop at harvest.',
     host: GROWING,
     on: 'impulse/coat',
     tree: IF(all(param('substance', 'ash'), not(has('host', 'fertilized'))), DO(add('fertilized'), { op: 'addProp', key: 'yield', delta: 1 }, vfx('sparkle'), log('You work ash into the soil.', '你把灰烬翻进了土里。')), 'inherit'),
@@ -1484,4 +1559,4 @@ const SITES: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...BUILDING]
+export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...BUILDING, ...HOMESTEAD_RULES]

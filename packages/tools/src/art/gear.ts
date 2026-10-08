@@ -1,5 +1,6 @@
-// Worn gear the pack has no icon for (16x16, its look), drawn by code: pauldrons, a belt, an earring; and the bundle
-// any gear shows as while it lies on the ground (its own icon only once picked up).
+// Worn gear the pack has no icon for (16x16, its look), drawn by code: pauldrons, a belt, an earring; a bow (the pack's
+// is its in-hand sprite, a flat arc that reads as a bowl); and the bundle any gear shows as while it lies on the ground
+// (its own icon only once picked up).
 //
 //   npx tsx packages/tools/src/art/gear.ts
 
@@ -15,6 +16,8 @@ const PAL: Palette = {
   G: [236, 196, 84, 255],
   g: [255, 236, 150, 255],
   B: [90, 170, 230, 255],
+  w: [236, 232, 220, 255],
+  R: [204, 64, 64, 255],
 }
 
 // pauldrons: two curved plates over the shoulders, a strap between
@@ -49,6 +52,34 @@ earring.ellipse(8, 12, 1.6, 2, 'B')
 earring.set(7, 11, 's')
 earring.outline('k')
 writeAtlas('Items/Earring.png', [[earring]], PAL)
+
+// a bow: a recurved limb on the diagonal, a gold grip, an arrow nocked across it (red fletching, a steel head); the
+// string is drawn after the outline, so it stays a fine line
+const bow = new Raster(16, 16)
+const limb = (t: number): [number, number] => {
+  // a curve from the upper tip (13,2) to the lower (2,13), bowed out toward the upper left
+  const [a, c, b] = [[13, 2], [2.5, 2.5], [2, 13]]
+  return [0, 1].map((i) => (1 - t) ** 2 * a[i] + 2 * (1 - t) * t * c[i] + t ** 2 * b[i]) as [number, number]
+}
+for (let t = 0; t <= 1; t += 0.02) {
+  const [x, y] = limb(t)
+  bow.set(Math.round(x), Math.round(y), 'l')
+  bow.set(Math.round(x) + 1, Math.round(y), 'L')
+}
+// the tips curl back (recurve)
+bow.set(14, 2, 'L')
+bow.set(2, 14, 'L')
+// the grip, wrapped in gold
+for (const [x, y] of [[5, 5], [6, 5], [5, 6], [6, 6]] as const) bow.set(x, y, 'G')
+bow.set(5, 5, 'g')
+// the arrow: shaft from the string to past the grip, head at the upper left, fletching at the string
+bow.line(4, 4, 11, 11, 'l')
+for (const [x, y] of [[2, 2], [3, 2], [2, 3], [3, 3]] as const) bow.set(x, y, 'S')
+bow.set(2, 2, 's')
+for (const [x, y] of [[11, 12], [12, 11], [12, 12]] as const) bow.set(x, y, 'R')
+bow.outline('k')
+for (let i = 0; i <= 10; i++) if (!['R', 'l', 'L', 'G'].includes(bow.get(13 - i, 3 + i) ?? '')) bow.set(13 - i, 3 + i, 'w')
+writeAtlas('Items/Bow.png', [[bow]], PAL)
 
 // gear on the ground: a cloth bundle tied with a cord, a glint of what is inside
 const loot = new Raster(16, 16)

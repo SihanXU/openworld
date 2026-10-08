@@ -54,6 +54,8 @@ export class MapBuilder {
   appear: AppearDef[] = []
   /** Peaceful (towns, camps) or combat (night brings monsters): MapData.zone. */
   zone: 'peaceful' | 'combat' = 'combat'
+  /** Fish shadows show in its water now and then (MapData.fish): a stocked pond. */
+  fish = false
   /** Where the map lies on the overworld (MapData.site): its open edges lead there. */
   site?: MapData['site']
   /** Ground heights in half levels (MapData.heights): a level is two, a ramp is a column between. */
@@ -423,6 +425,7 @@ export class MapBuilder {
         appear: this.appear.length ? this.appear : undefined,
         music: this.music,
         light: this.light,
+        fish: this.fish || undefined,
         zone: this.zone,
         site: this.site,
       },

@@ -207,8 +207,21 @@ function upgrade(eng: Engine, index: WorldIndex): void {
     // itself is not saved: nobody will answer it, so they are let go (as after a time-out).
     delete e.frozenBy
   }
-  // the people the world has now that an older save has not met yet (a steward who came later): as a new game has them
-  for (const n of index.npcs) if (!w.get(n.id)) addTree(eng, n)
+  // the people the world has now that an older save has not met yet (a steward who came later): as a new game has them;
+  // the ones it has met keep their own record, but where their days take them and what they are is the world's to say
+  // (a trainer who now keeps his spot: his schedule, and the tags the world has added since — none taken away)
+  for (const n of index.npcs) {
+    const e = w.get(n.id)
+    if (!e) {
+      addTree(eng, n)
+      continue
+    }
+    if (e.npc && n.npc) {
+      e.npc.schedule = structuredClone(n.npc.schedule)
+      if (e.npc.person && n.npc.person?.schedules) e.npc.person.schedules = structuredClone(n.npc.person.schedules)
+    }
+    for (const t of n.tags ?? []) if (!e.tags?.includes(t)) w.addTag(e, t)
+  }
   // what was the world's before it was the story's or the traveller's own: facts, the latest beat,
   // the maps seen, the reported invariants (the detector's own record), topics, memories, the scene
   for (const [k, v] of Object.entries(s.facts ?? {})) {

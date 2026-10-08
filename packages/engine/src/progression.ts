@@ -49,6 +49,26 @@ export function cannotLearn(e: Entity, def: SkillDef, profession = e.props?.prof
   return undefined
 }
 
+/** Why a skill book cannot be read: known already, or another profession's (a book asks no points and no skills before it). */
+export function cannotRead(e: Entity, def: SkillDef, profession = e.props?.profession): LearnRefusal | undefined {
+  if (new Set(skillsOf(e)).has(def.id)) return 'learned'
+  if (def.profession && def.profession !== profession) return 'profession'
+  return undefined
+}
+
+/** Learn a skill from a book (in its own outcome): its grants and its tag, no points; it remembers it came from a book. */
+export function readSkill(w: World, e: Entity, def: SkillDef): boolean {
+  if (cannotRead(e, def, w.prop(e, 'profession'))) return false
+  for (const [key, delta] of Object.entries(def.grant ?? {})) {
+    w.setProp(e, key, w.num(e, key, key === 'hungerEvery' ? HUNGER_EVERY : 0) + delta)
+    if (key === 'maxHp') w.setProp(e, 'hp', w.num(e, 'hp') + delta)
+    if (key === 'maxHunger') w.setProp(e, 'hunger', w.num(e, 'hunger', w.num(e, 'maxHunger')) + delta)
+  }
+  w.addTag(e, skillTag(def.id))
+  w.setProp(e, `skillFrom:${def.id}`, 'book')
+  return true
+}
+
 /** Learn a skill (in its own outcome: an act of learning): spend its points, add its grants, leave its tag. False if it cannot be learned. */
 export function learnSkill(w: World, e: Entity, def: SkillDef): boolean {
   if (cannotLearn(e, def, w.prop(e, 'profession'))) return false

@@ -17,6 +17,12 @@ export const SKILL_ART_KEYS = [
   'ranger-archery', 'steady-aim', 'sniper', 'fleet-archer', 'quick-draw', 'hunters-mark',
   'mage-focus', 'elemental-attunement', 'spell-echo', 'mana-shield', 'arcane-recovery', 'archmage',
   'warrior', 'ranger', 'mage',
+  // the active skills (tools/src/art/skill-actives.ts)
+  'whirlwind', 'cleave', 'gale-step', 'mend',
+  'shadow-strike', 'envenom', 'smoke-bomb', 'flurry',
+  'shield-bash', 'charge', 'war-cry', 'earthsplitter',
+  'multishot', 'leap-shot', 'piercing-arrow', 'arrow-rain',
+  'fireball', 'frost-nova', 'chain-lightning', 'blink',
 ] as const
 
 const known = new Set<string>(SKILL_ART_KEYS)

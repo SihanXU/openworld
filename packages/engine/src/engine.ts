@@ -11,8 +11,9 @@ import { Controls } from './controls.ts'
 import { Story } from './story.ts'
 import { deriveRecipes } from './recipes.ts'
 import { Behaviour } from './behaviour.ts'
+import { rainTick } from './actives.ts'
 import { combatDamage, combatDelay, combatStrike, finishCombatStrike, rangeBonus, recordCombatStep } from './combat.ts'
-import { canWield, itemProfession } from './profession.ts'
+import { canWield, itemProfession, weaponOf } from './profession.ts'
 import { Companions } from './companion.ts'
 import { Quests } from './quests.ts'
 import { NpcSim, scheduleAt } from './npc.ts'
@@ -1240,10 +1241,11 @@ export class Engine {
     if (this.busy(p) || !this.ready('atk:' + p.id)) return
     if (!this.attack(p, target)) {
       // another profession's weapon: said once per press, then the key rests a moment
-      const need = itemProfession(w, w.get(p.held)!)!
+      const weapon = weaponOf(w, p)!
+      const need = itemProfession(w, weapon)!
       const name = w.onto.data.professions?.[need]?.name
       const n = (l: 'en' | 'zh') => (typeof name === 'string' ? name : name ? (l === 'zh' ? name.zh ?? name.en : name.en) : need)
-      const what = { e: p.held! }
+      const what = { e: weapon.id }
       w.fx.push({ t: 'log', text: { en: `Only a${/^[aeiou]/i.test(n('en')) ? 'n' : ''} ${n('en')} can fight with ${this.nameOf(what, 'en')}.`, zh: `只有${n('zh')}会用${this.nameOf(what, 'zh')}战斗。` }, tone: 'warn' })
       this.setCooldown('atk:' + p.id, 10)
       return
@@ -1257,7 +1259,8 @@ export class Engine {
    */
   attack(a: Entity, chosen?: Ref): boolean {
     const w = this.world
-    const weapon = w.get(a.held)
+    // the weapon in the hand, else the one kept in the main hand (a torch held, the sword still strikes)
+    const weapon = weaponOf(w, a)
     if (weapon && !canWield(w, a, weapon)) return false
     // a weapon's reach; without one, the actor's own (a dragon's breath carries); a profession may lengthen it
     const range = this.reachOf('use', a, undefined, weapon) ?? 1
@@ -1300,13 +1303,15 @@ export class Engine {
       finishCombatStrike(w, a, undefined, { power: base, critical: false, charged: false, comboHits: 0, bleed: 0, drain: 0 }, 0, range, true)
       return true
     }
-    if (range > 1 && last && (last.x !== start.x || last.y !== start.y)) w.fx.push({ t: 'vfx', fx: `bolt:${element ?? 'none'}:${a.facing}:${Math.abs(last.x - start.x) + Math.abs(last.y - start.y)}`, map: start.map, x: start.x, y: start.y })
+    // a blow from afar flies: a bolt of its element, or what the weapon looses (its `missile`: a bow's arrow)
+    const missile = weapon && w.prop(weapon, 'missile')
+    if (range > 1 && last && (last.x !== start.x || last.y !== start.y)) w.fx.push({ t: 'vfx', fx: `bolt:${element ?? 'none'}:${a.facing}:${Math.abs(last.x - start.x) + Math.abs(last.y - start.y)}${typeof missile === 'string' ? `:${missile}` : ''}`, map: start.map, x: start.x, y: start.y })
     else w.fx.push({ t: 'vfx', fx: `swing:${a.facing}`, map: start.map, x: start.x, y: start.y })
     // the attacker's talents shape the blow (combat.ts): its power, a critical; the act carries it
     const victim = 'e' in target ? w.get(target.e) : undefined
     const before = victim ? w.num(victim, 'hp') : 0
     const strike = combatStrike(w, a, victim, base, range, weapon, true)
-    this.act('use', a.id, target, { params: { attack: true, power: strike.power, ...(strike.critical && { critical: true }), ...(strike.bleed && { bleed: strike.bleed }), ...(strike.drain && { drain: strike.drain }), ...(strike.afflict && { afflict: strike.afflict.status, afflictFor: strike.afflict.ticks }) } })
+    this.act('use', a.id, target, { instrument: weapon ? { e: weapon.id } : null, params: { attack: true, power: strike.power, ...(strike.critical && { critical: true }), ...(strike.bleed && { bleed: strike.bleed }), ...(strike.drain && { drain: strike.drain }), ...(strike.afflict && { afflict: strike.afflict.status, afflictFor: strike.afflict.ticks }) } })
     finishCombatStrike(w, a, victim, strike, before, range, true)
     // a sweep (the skill): a melee blow also lands on the creatures on either side of the tile ahead
     if (range <= 1 && w.hasTag(a, 'skill:sweep'))
@@ -1317,7 +1322,7 @@ export class Engine {
         if (!side || !w.hasTag(side, 'creature') || ('e' in target && target.e === side.id)) continue
         const sideHp = w.num(side, 'hp')
         const sideStrike = combatStrike(w, a, side, base, range, weapon, false)
-        this.act('use', a.id, { e: side.id }, { params: { attack: true, power: sideStrike.power } })
+        this.act('use', a.id, { e: side.id }, { instrument: weapon ? { e: weapon.id } : null, params: { attack: true, power: sideStrike.power } })
         finishCombatStrike(w, a, side, sideStrike, sideHp, range, false)
       }
     return true
@@ -1359,6 +1364,8 @@ export class Engine {
     // a waiting chain is forgotten a minute after it began (it has ended, or it was stopped)
     if (s.tick % 60 === 0) for (const [id, c] of this.chains) if (s.tick - c.since > 600) this.chains.delete(id)
     this.statusTick(active)
+    // what a cast leaves falling (an Arrow Rain's volleys, actives.ts)
+    rainTick(this, active)
     this.periodTick(active)
     this.stayTick(active)
     // everyone's behaviour, one goal system (world-model.md §6.10): their moves and blows are acts

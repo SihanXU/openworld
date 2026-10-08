@@ -39,6 +39,8 @@ interface EView {
   bossAnimation?: BossAnimationClock
   /** The quest mark over a person ('!' a quest to give, '?' one to take back). */
   quest?: { mark: string; text: Phaser.GameObjects.Text }
+  /** What it is, over its head while no quest mark is: a profession trainer's crossed blades. */
+  role?: Phaser.GameObjects.Image
   /** The player: the tile it walks to; drawn chasing it at the walking pace (walk()). */
   walker?: { x: number; y: number; t: number }
   /** A flyer (a companion): where it heads; it is drawn gliding there, not stepped tile by tile. */
@@ -87,6 +89,8 @@ const STEP: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [
 
 /** Terrain objects and decor groups that grow loose: drawn a few pixels off the tile grid. */
 const LOOSE = new Set(['drygrass', 'flowers', 'bush'])
+/** The ground a stocked pond's fish shadows swim in. */
+const FISH_WATER = new Set(['water', 'deepwater'])
 const TINT_OF: Record<string, number> ={ frozen: 0xbfe9ff, burning: 0xffc9a0, wet: 0xc8dcff, electrified: 0xfff6a0, oiled: 0xb9b29a }
 const ELEMENT_COLOR: Record<string, number> = { fire: 0xff7a1a, ice: 0x9fe8ff, lightning: 0xfff27a, water: 0x4aa0ff, wind: 0xe8fff4, earth: 0xb08850, none: 0xffffff }
 
@@ -117,6 +121,10 @@ export class WorldScene extends Phaser.Scene {
   private faded = new Set<Phaser.GameObjects.Image>()
   private views = new Map<string, EView>()
   private tileFx = new Map<string, { sprites: Phaser.GameObjects.GameObject[]; sig: string }>()
+  /** A stocked pond's water cells (MapData.fish), the fish shadows gliding in it now, and when the next one shows. */
+  private fishWater: [x: number, y: number, open: boolean][] = []
+  private fishShadows = new Set<Phaser.GameObjects.Image>()
+  private nextFish = 0
   private night!: Phaser.GameObjects.Rectangle
   // weather (outdoors): rain streaks, fog, the flash of a strike
   private rainG?: Phaser.GameObjects.Graphics
@@ -165,6 +173,7 @@ export class WorldScene extends Phaser.Scene {
     this.atlas = new GroundAtlas(CATALOG, images)
     this.textures.addCanvas(this.groundKey, this.atlas.canvas)
     this.makeGlowTexture()
+    this.makeFishTexture()
     this.cameras.main.setZoom(this.fitZoom()).setRoundPixels(true).setBackgroundColor('#0b0d12')
     this.scale.on('resize', () => {
       this.cameras.main.setZoom(this.fitZoom())
@@ -230,6 +239,8 @@ export class WorldScene extends Phaser.Scene {
     this.views.clear()
     for (const t of this.tileFx.values()) t.sprites.forEach((s) => s.destroy())
     this.tileFx.clear()
+    for (const f of this.fishShadows) (this.tweens.killTweensOf(f), f.destroy())
+    this.fishShadows.clear()
     for (const o of this.statics) o.destroy()
     this.statics = []
     this.roofs.clear()
@@ -243,6 +254,19 @@ export class WorldScene extends Phaser.Scene {
     this.layer?.destroy()
     this.tilemap?.destroy()
     this.base = map
+    this.fishWater = []
+    if (map.fish) {
+      const water = (x: number, y: number) => x >= 0 && y >= 0 && x < map.width && y < map.height && FISH_WATER.has(map.terrain[y * map.width + x])
+      // away from the shore: water on all four sides, so no shore edge is drawn across the cell (open: water on the
+      // diagonals too, so no shore corner either); a pond too small for that, anywhere in it
+      const cells: [number, number, boolean][] = []
+      for (let y = 0; y < map.height; y++)
+        for (let x = 0; x < map.width; x++)
+          if (water(x, y) && water(x - 1, y) && water(x + 1, y) && water(x, y - 1) && water(x, y + 1))
+            cells.push([x, y, water(x - 1, y - 1) && water(x + 1, y - 1) && water(x - 1, y + 1) && water(x + 1, y + 1)])
+      if (!cells.length) for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) if (water(x, y)) cells.push([x, y, false])
+      this.fishWater = cells
+    }
     const data: number[][] = []
     for (let y = 0; y < map.height; y++) {
       const row: number[] = []
@@ -443,6 +467,17 @@ export class WorldScene extends Phaser.Scene {
       v.root.add(text)
       this.tweens.add({ targets: text, y: -T * 1.45 - 2, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
       v.quest = { mark, text }
+    }
+    // a profession trainer is marked over the head (the quest mark, when there is one, comes first)
+    for (const v of this.views.values()) {
+      const show = v.snap.tags.includes('trainer') && !v.quest
+      if (show && !v.role) {
+        const icon = CATALOG.ui.trainerMark
+        v.role = this.add.image(0, -T * 1.35, icon.img).setOrigin(0.5, 1).setScale(0.5)
+        v.root.add(v.role)
+        this.tweens.add({ targets: v.role, y: -T * 1.35 - 2, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
+      }
+      v.role?.setVisible(show)
     }
   }
 
@@ -1071,6 +1106,7 @@ export class WorldScene extends Phaser.Scene {
 
   private destroyView(v: EView): void {
     this.tweens.killTweensOf(v.root)
+    if (v.role) this.tweens.killTweensOf(v.role)
     v.glow?.destroy()
     for (const s of v.dragon?.segments ?? []) s.destroy()
     v.root.destroy()
@@ -1124,6 +1160,7 @@ export class WorldScene extends Phaser.Scene {
 
   update(time: number): void {
     this.drawWeather(time)
+    this.swimFish(time)
     this.fadeOver()
     for (const v of this.views.values()) {
       const e = v.snap
@@ -1333,6 +1370,44 @@ export class WorldScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- vfx
 
+  /** Now and then a fish shadow shows for a moment in a stocked pond (MapData.fish), still, wholly inside one water cell — not where a cast has stirred it. */
+  private swimFish(time: number): void {
+    if (!this.fishWater.length || time < this.nextFish) return
+    this.nextFish = time + 1800 + Math.random() * 3200
+    if (this.fishShadows.size >= 3) return
+    const fishable = (x: number, y: number) => FISH_WATER.has(this.terrainAt(x, y)) && !this.tileFx.get(`${x},${y}`)?.sig.split('|').includes('stirred')
+    let cell: [number, number, boolean] | undefined
+    for (let i = 0; i < 6 && !cell; i++) {
+      const c = this.fishWater[Math.floor(Math.random() * this.fishWater.length)]
+      if (fishable(c[0], c[1])) cell = c
+    }
+    if (!cell) return
+    const [x, y, open] = cell
+    // the shadow (12 × 5) is kept inside its cell: in open water its centre strays at most 2 px across and 4 px up or
+    // down; by a shore corner it sits in the middle, clear of the corner
+    const jx = open ? Math.round(Math.random() * 4 - 2) : 0
+    const jy = open ? Math.round(Math.random() * 8 - 4) : 0
+    const fish = this.add.image(x * T + T / 2 + jx, y * T + T / 2 + jy, 'fishShadow')
+    fish.setDepth(-90).setAlpha(0).setFlipX(Math.random() < 0.5)
+    this.fishShadows.add(fish)
+    const show = 900 + Math.random() * 900
+    this.tweens.add({ targets: fish, alpha: 0.38, duration: 350 })
+    this.tweens.add({ targets: fish, alpha: 0, delay: 350 + show, duration: 450, onComplete: () => (this.fishShadows.delete(fish), fish.destroy()) })
+  }
+
+  /** A fish's shadow, head to the left: a dark body and a forked tail. */
+  private makeFishTexture(): void {
+    if (this.textures.exists('fishShadow')) return
+    const rows = ['...####.....', '.#########.#', '###########.', '.#########.#', '...####.....']
+    const c = document.createElement('canvas')
+    c.width = rows[0].length
+    c.height = rows.length
+    const g = c.getContext('2d')!
+    g.fillStyle = '#08142a'
+    rows.forEach((r, y) => [...r].forEach((ch, x) => ch === '#' && g.fillRect(x, y, 1, 1)))
+    this.textures.addCanvas('fishShadow', c)
+  }
+
   private makeGlowTexture(): void {
     if (this.textures.exists('glow')) return
     const c = document.createElement('canvas')
@@ -1389,7 +1464,7 @@ export class WorldScene extends Phaser.Scene {
     if (fx.t === 'vfx') {
       const x = fx.x * T + 8
       const y = fx.y * T + 8
-      const [kind, a, b, c] = fx.fx.split(':')
+      const [kind, a, b, c, d] = fx.fx.split(':')
       if (kind === 'swing') {
         const [dx, dy] = dirVec(a)
         this.oneShot('slash', x + dx * 10, y + dy * 10, { angle: (Math.atan2(dy, dx) * 180) / Math.PI })
@@ -1398,13 +1473,16 @@ export class WorldScene extends Phaser.Scene {
       if (kind === 'bolt') {
         const [dx, dy] = dirVec(b)
         const len = Number(c) || 1
-        const f = CATALOG.fx[`bolt:${a}`] ?? CATALOG.fx['bolt:none']
-        this.sfx('cast', 0.35)
+        // what the weapon looses (d: an arrow, tinted by its element), else a bolt of the element
+        const key = d && CATALOG.fx[`missile:${d}`] ? `missile:${d}` : `bolt:${a}`
+        const f = CATALOG.fx[key] ?? CATALOG.fx['bolt:none']
+        this.sfx(key.startsWith('missile:') ? 'attack' : 'cast', 0.35)
         if (!f) return
-        const anim = fxAnim(this, `bolt:${a}`, f, -1)
+        const anim = fxAnim(this, key, f, -1)
         const p = this.add.sprite(x, y, f.img).setDepth(1e6).setAngle((Math.atan2(dy, dx) * 180) / Math.PI)
         if (f.add) p.setBlendMode(Phaser.BlendModes.ADD)
         if (f.scale) p.setScale(f.scale)
+        if (key.startsWith('missile:') && a !== 'none' && ELEMENT_COLOR[a]) p.setTint(ELEMENT_COLOR[a])
         p.play(anim)
         this.tweens.add({ targets: p, x: x + dx * len * T, y: y + dy * len * T, duration: 45 * len + 40, onComplete: () => p.destroy() })
         return

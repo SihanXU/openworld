@@ -12,6 +12,7 @@ import {
   textOf,
   EVENT_KINDS,
   FIRE_RADIUS,
+  FIGHT_TICKS,
   APPEAR_EVERY,
   Game,
   RuleLibrary,
@@ -42,7 +43,7 @@ import {
   type Ref,
   type World,
 } from '@lsw/engine'
-import { ALBERIC_ID, BOSS_BY_ID, DRAWINGS, HAVEN, OBJECTIVES, BASE_RULES, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, PROLOGUE_AT_FOOT, PROLOGUE_DONE, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILLS, STORY_RULES, VEGETABLE_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@lsw/content'
+import { ALBERIC_ID, BOSS_BY_ID, DRAWINGS, HAVEN, OBJECTIVES, BASE_RULES, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, PROLOGUE_AT_FOOT, PROLOGUE_DONE, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@lsw/content'
 import { BLOCK, OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
 import { CH1_AT } from '../src/demo/quest/chapter1.ts'
@@ -1503,7 +1504,7 @@ req('W13', 'a burning wooden wall (the hunter\'s hut at the foot) loses durabili
 // ------------------------------------------------------------------ the village, the garden, the East Road
 
 req('F16', 'an original vegetable garden and its usable construction/farming kit', [
-  ...VEGETABLE_CROPS.flatMap((c) => [...CROP_STAGES.map((s) => `fixture/crop/${c.id}/${s}`), `item/seed/${c.id}`]),
+  ...GARDEN_CROPS.flatMap((c) => [...CROP_STAGES.map((s) => `fixture/crop/${c.id}/${s}`), `item/seed/${c.id}`]),
   'fixture/container/crate', 'item/tool/hoe', 'item/tool/sickle', 'item/tool/smith_hammer', 'item/vessel/bucket/water',
   'item/material/plank', 'item/material/stick', 'item/material/stone',
 ], () => {
@@ -1512,7 +1513,7 @@ req('F16', 'an original vegetable garden and its usable construction/farming kit
   const kit = w.get('ford.garden.supplies')!
   expect(kit.contents).toHaveLength(24)
   expect(kit.contents!.length).toBeLessThanOrEqual(w.num(kit, 'capacity'))
-  for (const c of VEGETABLE_CROPS) for (const s of CROP_STAGES) expect(w.get(`ford.garden.${c.id}.${s}`)?.type).toBe(`fixture/crop/${c.id}/${s}`)
+  for (const c of GARDEN_CROPS) for (const s of CROP_STAGES) expect(w.get(`ford.garden.${c.id}.${s}`)?.type).toBe(`fixture/crop/${c.id}/${s}`)
   stand(f, GARDEN.supplies[0], GARDEN.supplies[1] + 1, 'up', GARDEN.map)
   expect(f.eng.interact('interact', 'player', { e: kit.id }, { instrument: null }).defined).toBe(true)
   expect(w.hasStatus({ e: kit.id }, 'open')).toBe(true)
@@ -2161,12 +2162,19 @@ req('P1', "the prologue's end, offline: from Cloudtop (where a new game begins) 
   expect(w.posOf(p)).toMatchObject({ map: 'foot', x: PAT.footStone[0], y: PAT.footStone[1] + 1 })
 })
 
-req('P2', 'a profession trainer in Firstlight Village: spoken to, he offers the choice; at level 5 a profession is taken up, its weapon handed over, and a change gives its points back', ['npc.bram'], () => {
+req('P2', 'a profession trainer in Firstlight Village: he keeps his spot in the drill yard, day and night; spoken to, he offers the choice; at level 5 a profession is taken up, its weapon handed over, and a change gives its points back', ['npc.bram'], () => {
   const f = fresh()
   const w = W(f)
   const bram = w.get('npc.bram')!
+  // the village is the map one is on: he stands where he stands, and does not mill about
+  const yard = w.map('meadow')!.anchors!['drill.yard']
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow', x: yard[0], y: yard[1] + 3 }))
+  ticks(f, 900)
   const at = w.posOf(bram)!
   expect(at.map).toBe('meadow')
+  expect(Math.max(Math.abs(at.x - yard[0]), Math.abs(at.y - yard[1]))).toBeLessThanOrEqual(1)
+  ticks(f, 900)
+  expect(w.posOf(bram)).toEqual(at)
   f.eng.author(() => f.eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 }))
   w.fx.length = 0
   f.eng.interact('interact', 'player', { e: bram.id }, { instrument: null })
@@ -2585,6 +2593,11 @@ req('H1', "the Held Ground: once the knight falls, a thorn of his crown is the O
   const c = f.eng.controls
   const played = (id: string) => !!w.fact(`seen.${id}`)
   const waitFor = (id: string) => expect([id, ticks(f, 900, () => played(id) && !w.scene)]).toEqual([id, true])
+  // somewhere open on the Ford, with room for a foe at one's left
+  const open = (x: number, y: number) => w.walkable('ford', x, y) && !w.placedAt('ford', x, y).length
+  let spot: [number, number] | undefined
+  for (let y = 4; y < 26 && !spot; y++) for (let x = 4; x < 40 && !spot; x++) if (open(x, y) && open(x - 1, y)) spot = [x, y]
+  stand(f, spot![0], spot![1], 'up')
   const from = { ...w.posOf(w.player)! }
   // the knight has fallen: the thorn that stayed green
   author(f, () => w.setFact('sins.defeated.alberic', 1))
@@ -2593,6 +2606,14 @@ req('H1', "the Held Ground: once the knight falls, a thorn of his crown is the O
   expect(thorn.place).toMatchObject({ on: 'inside', holder: 'player' })
   // used on oneself: into the Held Ground; the steward is there
   const useThorn = () => (f.eng.act('use', 'player', { e: 'player' }, { instrument: { e: thorn.id } }), ticks(f, 3))
+  // not in the middle of a fight: struck just now, the thorn stays shut; a while after, it opens
+  const foe = author(f, () => w.create('actor/creature/undead/zombie', { on: 'tile', map: from.map, x: from.x - 1, y: from.y }))
+  foe.facing = 'right'
+  f.eng.attack(foe, { e: 'player' })
+  useThorn()
+  expect(w.posOf(w.player)).toMatchObject({ map: from.map, x: from.x, y: from.y })
+  author(f, () => w.destroy(foe))
+  ticks(f, FIGHT_TICKS)
   useThorn()
   expect(w.posOf(w.player)).toMatchObject({ map: 'haven', x: HAVEN.arrive[0], y: HAVEN.arrive[1] })
   waitFor('haven_first')
@@ -2615,6 +2636,12 @@ req('H1', "the Held Ground: once the knight falls, a thorn of his crown is the O
     return seen.size
   }
   const small = reachable()
+  // the thorn is bound: handed to the steward, it stays with its bearer (else there is no way out)
+  const by = w.posOf(w.get('npc.alberic')!)!
+  stand(f, by.x, by.y + 1, 'up', 'haven')
+  f.eng.act('put', 'player', { e: 'npc.alberic' }, { instrument: { e: thorn.id } })
+  ticks(f, 3)
+  expect(w.get(thorn.id)?.place).toMatchObject({ on: 'inside', holder: 'player' })
   // Alberic's first errand: ten logs, ten stones; handed in, the ground widens and the first ring lifts
   talkTo(f, 'npc.alberic')
   expect(w.fact('q.haven1')).toBe('active')
@@ -2683,6 +2710,177 @@ req('V1', "Firstlight's vigil (the main line between the rescue and the night of
   expect([w.fact('q.vigil'), w.fact('ch1.vigil')]).toEqual(['done', 1])
   ticks(f, 20)
   expect(f.eng.quests.log().map((x) => x.id)).toContain('first_seal')
+})
+
+req('H2', "the homestead: Alberic's stall sells seeds, fertilizer, feed, beasts in crates and bait for Thornmarks and buys back what one grows, raises and catches; a fed cow gives milk to a bucket once a day; a crated hen set down walks out; a rod made at hand, baited, fishes the pond", [
+  'fixture/furniture/stall/trade',
+], () => {
+  const f = fresh()
+  const w = W(f)
+  const c = f.eng.controls
+  const recipe = (id: string) => RECIPE_BY_ID[id]
+  const coins = () => c.count('item/misc/thornmark')
+  const mine = (type: string) => Object.values(w.state.entities).find((e) => e.type === type && (e.place.on === 'inside' || e.place.on === 'hand') && e.place.holder === 'player')!
+  /** Hold one of a kind (a stack's first comes to hand). */
+  const grip = (type: string) => {
+    c.sync()
+    c.select(w.player.slots!.indexOf(c.key(mine(type))))
+    expect(w.get(w.player.held!)?.type).toBe(type)
+  }
+  author(f, () => { for (let i = 0; i < 200; i++) w.create('item/misc/thornmark', { on: 'inside', holder: 'player' }) })
+  c.sync()
+  // at the stall: wheat seeds and fertilizer bought (away from it, nothing)
+  const stall = w.get('haven.stall')!
+  const sp = w.posOf(stall)!
+  stand(f, sp.x, sp.y + 1, 'up', 'haven')
+  expect(f.eng.world.stationsNear(w.player).has('stall')).toBe(true)
+  expect(c.craft(recipe('shop/buy/seed-wheat'))).toBe(true)
+  expect(c.craft(recipe('shop/buy/material-fertilizer'))).toBe(true)
+  expect([c.count('item/seed/wheat'), c.count('item/material/fertilizer'), coins()]).toEqual([5, 3, 185])
+  // what one grows is bought back
+  author(f, () => w.create('item/material/wheat', { on: 'inside', holder: 'player' }))
+  c.sync()
+  expect(c.craft(recipe('shop/sell/material-wheat'))).toBe(true)
+  expect([c.count('item/material/wheat'), coins()]).toEqual([0, 188])
+  // a seed sown on the tilled earth; fertilizer worked into it: one more at harvest
+  const soil = Object.values(w.state.entities).find(() => false)
+  void soil
+  const [fx, fy] = [HAVEN.heart[0] - 6, HAVEN.heart[1] + 3]
+  expect(w.terrainAt('haven', fx, fy)).toBe('farmland')
+  stand(f, fx, fy + 1, 'up', 'haven')
+  grip('item/seed/wheat')
+  run(f, 'use', fx, fy)
+  const crop = w.placedAt('haven', fx, fy).find((e) => e.type.startsWith('fixture/crop/wheat'))!
+  expect(crop).toBeDefined()
+  grip('item/material/fertilizer')
+  run(f, 'use', fx, fy)
+  expect(w.hasStatus({ e: crop.id }, 'fertilized')).toBe(true)
+  // the cow: unfed, no milk; fed (the stall's feed), milked once into a bucket; not twice the same day
+  const cow = Object.values(w.state.entities).find((e) => e.type === 'actor/creature/animal/cow' && w.posOf(e)?.map === 'haven')!
+  stand(f, sp.x, sp.y + 1, 'up', 'haven')
+  expect(c.craft(recipe('shop/buy/material-feed'))).toBe(true)
+  expect(c.craft(recipe('shop/buy/vessel-bucket-empty'))).toBe(true)
+  expect([c.count('item/material/feed'), c.count('item/vessel/bucket/empty')]).toEqual([5, 1])
+  const cp = w.posOf(cow)!
+  const beside = () => author(f, () => w.place(cow, { on: 'tile', map: 'haven', x: w.posOf(w.player)!.x, y: w.posOf(w.player)!.y - 1 }))
+  stand(f, cp.x, cp.y + 1, 'up', 'haven')
+  beside()
+  grip('item/vessel/bucket/empty')
+  run(f, 'use', w.posOf(cow)!.x, w.posOf(cow)!.y)
+  expect(c.count('item/vessel/bucket/milk')).toBe(0)
+  grip('item/material/feed')
+  run(f, 'use', w.posOf(cow)!.x, w.posOf(cow)!.y)
+  expect(w.hasStatus({ e: cow.id }, 'fed')).toBe(true)
+  grip('item/vessel/bucket/empty')
+  run(f, 'use', w.posOf(cow)!.x, w.posOf(cow)!.y)
+  expect([c.count('item/vessel/bucket/milk'), w.hasStatus({ e: cow.id }, 'milked')]).toEqual([1, true])
+  // a crated hen set down walks out
+  stand(f, sp.x, sp.y + 1, 'up', 'haven')
+  expect(c.craft(recipe('shop/buy/misc-crate_hen'))).toBe(true)
+  const hens = () => Object.values(w.state.entities).filter((e) => e.type === 'actor/creature/animal/chicken' && w.posOf(e)?.map === 'haven').length
+  const before = hens()
+  stand(f, HAVEN.arrive[0], HAVEN.arrive[1], 'down', 'haven')
+  grip('item/misc/crate_hen')
+  run(f, 'put', HAVEN.arrive[0], HAVEN.arrive[1] + 1)
+  expect(hens()).toBe(before + 1)
+  // a rod made at hand (two sticks, two grass), baited from the stall, fishes the pond
+  author(f, () => { for (let i = 0; i < 2; i++) (w.create('item/material/stick', { on: 'inside', holder: 'player' }), w.create('item/material/grass', { on: 'inside', holder: 'player' })) })
+  c.sync()
+  expect(c.craft(RECIPES.find((r) => r.make.type === 'item/tool/fishing_rod' && r.station === 'hands')!)).toBe(true)
+  stand(f, sp.x, sp.y + 1, 'up', 'haven')
+  expect(c.craft(recipe('shop/buy/misc-bait'))).toBe(true)
+  const rod = mine('item/tool/fishing_rod')
+  grip('item/misc/bait')
+  f.eng.act('use', 'player', { e: rod.id }, { instrument: { e: w.player.held! } })
+  expect(w.num(rod, 'bait')).toBe(5)
+  const pond = (() => { for (let y = 0; y < 40; y++) for (let x = 0; x < 48; x++) if (w.terrainAt('haven', x, y) === 'water' && Math.abs(x - HAVEN.heart[0]) < 6 && y < HAVEN.heart[1]) return [x, y] as const })()!
+  grip('item/tool/fishing_rod')
+  let caught = 0
+  for (let i = 0; i < 30 && caught === 0; i++) {
+    author(f, () => w.place(w.player, { on: 'tile', map: 'haven', x: pond[0], y: pond[1] + 1 }))
+    const tile = w.cellTop('haven', pond[0], pond[1])!
+    author(f, () => { delete tile.statuses?.stirred })
+    f.eng.act('hands', 'player', { e: tile.id }, { instrument: { e: rod.id } })
+    caught = c.count('item/food/fish/raw') + c.count('item/food/fish/carp') + c.count('item/misc/old_boot')
+  }
+  expect(caught).toBeGreaterThan(0)
+  expect(w.num(rod, 'bait')).toBeLessThan(5)
+})
+
+req('H3', "the homestead, further: Stardew's crops (ten more, five bearing again) from the stall; fish by the hour and the water (eels at night, sunfish by day, pike in the deep); two beasts fed side by side breed (Minecraft's), the young grow up, the parents rest a day", [], () => {
+  const f = fresh()
+  const w = W(f)
+  const c = f.eng.controls
+  // ten more crops, each with its seed on the stall and its produce bought back
+  for (const id of ['parsnip', 'potato', 'radish', 'cauliflower', 'melon', 'corn', 'blueberry', 'strawberry', 'pepper', 'eggplant']) {
+    expect([id, !!RECIPE_BY_ID[`shop/buy/seed-${id}`], !!RECIPE_BY_ID[`shop/sell/food-${id}`]]).toEqual([id, true, true])
+    for (const s of CROP_STAGES) expect([id, s, !!buildOntology().types[`fixture/crop/${id}/${s}`]]).toEqual([id, s, true])
+  }
+  expect(buildOntology().types['fixture/crop/blueberry'].tags).toContain('perennial')
+  // a melon sown on the Held Ground's earth, watered three times, ripens
+  const [fx, fy] = [HAVEN.heart[0] - 5, HAVEN.heart[1] + 3]
+  author(f, () => w.create('item/seed/melon', { on: 'inside', holder: 'player' }))
+  c.sync()
+  stand(f, fx, fy + 1, 'up', 'haven')
+  c.select(w.player.slots!.indexOf(c.key(Object.values(w.state.entities).find((e) => e.type === 'item/seed/melon')!)))
+  run(f, 'use', fx, fy)
+  for (let i = 0; i < 3; i++) {
+    const crop = w.placedAt('haven', fx, fy).find((e) => e.type.startsWith('fixture/crop/melon'))!
+    if (crop.type.endsWith('/ripe')) break
+    f.eng.author(() => f.eng.applyStatus({ e: crop.id }, 'watered', 1))
+    ticks(f, 5)
+  }
+  expect(w.placedAt('haven', fx, fy).find((e) => e.type.startsWith('fixture/crop/melon'))?.type).toBe('fixture/crop/melon/ripe')
+  // fish by the hour and the water
+  const rod = author(f, () => w.create('item/tool/fishing_rod', { on: 'inside', holder: 'player' }))
+  c.sync()
+  c.select(w.player.slots!.indexOf(c.key(rod)))
+  const catches = (x: number, y: number, hour: number, n: number) => {
+    const got = new Set<string>()
+    for (let i = 0; i < n; i++) {
+      setHour(f, w.calendar().day, hour)
+      const tile = w.cellTop('haven', x, y)!
+      author(f, () => { delete tile.statuses?.stirred })
+      const before = new Set(Object.keys(w.state.entities))
+      // a cast: the rod used on the water (left click), as far as the rod reaches
+      f.eng.act('use', 'player', { e: tile.id }, { instrument: { e: rod.id } })
+      for (const id of Object.keys(w.state.entities)) if (!before.has(id)) got.add(w.state.entities[id].type)
+    }
+    return got
+  }
+  const water = (t: string) => { for (let y = 0; y < 40; y++) for (let x = 0; x < 48; x++) if (w.terrainAt('haven', x, y) === t) return [x, y] as const }
+  const [px, py] = water('water')!
+  stand(f, px, py + 1, 'up', 'haven')
+  expect(catches(px, py, 22, 80).has('item/food/fish/eel')).toBe(true)
+  expect(catches(px, py, 12, 80).has('item/food/fish/sunfish')).toBe(true)
+  const [dx, dy] = water('deepwater')!
+  // on the bank, as near the deep middle as one can stand (a rod casts three cells)
+  const bank = (() => { for (let r = 1; r <= 3; r++) for (let y = dy - r; y <= dy + r; y++) for (let x = dx - r; x <= dx + r; x++) if (w.walkable('haven', x, y)) return [x, y] as const })()!
+  stand(f, bank[0], bank[1], 'up', 'haven')
+  expect(catches(dx, dy, 12, 80).has('item/food/fish/pike')).toBe(true)
+  // breeding: two cows fed side by side; a calf; it grows into a cow; the parents rest
+  const cows = () => Object.values(w.state.entities).filter((e) => e.type === 'actor/creature/animal/cow' && w.posOf(e)?.map === 'haven')
+  const calves = () => Object.values(w.state.entities).filter((e) => e.type === 'actor/creature/animal/calf' && w.posOf(e)?.map === 'haven')
+  const [a] = cows()
+  const ap = w.posOf(a)!
+  const b = author(f, () => w.create('actor/creature/animal/cow', { on: 'tile', map: 'haven', x: ap.x + 1, y: ap.y }))
+  author(f, () => w.place(b, { on: 'tile', map: 'haven', x: ap.x + 1, y: ap.y }))
+  const feed = (cow: Entity) => f.eng.dispatch({ kind: 'impulse/notify', host: { e: cow.id }, roles: {}, params: { what: 'fed' }, origin: 'world' })
+  feed(a)
+  expect(calves().length).toBe(0)
+  feed(b)
+  ticks(f, 3)
+  expect(calves().length).toBe(1)
+  expect(w.hasStatus({ e: a.id }, 'bred') || w.hasStatus({ e: b.id }, 'bred')).toBe(true)
+  // the same pair fed again the same day: no second calf
+  feed(a)
+  feed(b)
+  ticks(f, 3)
+  expect(calves().length).toBe(1)
+  const calf = calves()[0]
+  const n = cows().length
+  ticks(f, 4900)
+  expect([w.get(calf.id)?.type, cows().length]).toEqual(['actor/creature/animal/cow', n + 1])
 })
 
 req('C4', "Chapter 1's story before the knight: the village's welcome, Lina's shut door, the warden's last words, the tale of the First Night (the fairy shivers at the spear), the Ford the night of the theft, Fennick's memory, Hesper's stumps, the road east, Edda in the barn, the grey man's warning, a rest at the statue", [], () => {

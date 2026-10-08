@@ -3,7 +3,7 @@
 // Existing ids/grants remain save-compatible. Combat talents are automatic: moving, attacking
 // and defeating creatures trigger them without introducing another input/hotbar.
 
-import { Rng, type ProfessionDef, type SkillDef } from '@lsw/engine'
+import { Rng, type Entity, type ProfessionDef, type SkillDef } from '@lsw/engine'
 import { FORM_BY_ID, makeItem } from './items.ts'
 
 export const SKILL_DIRECTIONS = [
@@ -127,6 +127,47 @@ export const SKILLS: SkillDef[] = [
   { id: 'big-pack', branch: 'gathering', icon: 'pack', requires: ['woodcutter'], grant: { bagRows: 1 }, name: { en: 'Big Pack', zh: '大背包' }, doc: { en: 'One more row in the bag.', zh: '背包多一行。' } },
   { id: 'firemaker', branch: 'gathering', icon: 'flame', requires: ['big-pack'], ability: true, name: { en: 'Firemaker', zh: '钻木取火' }, doc: { en: 'Light a campfire, brazier or candles with a plain stick.', zh: '用一根普通树枝就能点燃营火、火盆或蜡烛。' } },
 ]
+
+// the active skills (engine/src/actives.ts): cast from the skill bar (Shift+1–6), then they rest. Everyone's four — two
+// blows, a quickness, a mending — and four for each profession. Cooldowns in ticks (10 a second).
+const ACTIVE = (id: string, branch: string, requires: string[], active: SkillDef['active'], en: string, zh: string, docEn: string, docZh: string, profession?: string): SkillDef =>
+  ({ id, branch, icon: id, requires, ability: true, active, ...(profession && { profession }), name: { en, zh }, doc: { en: `${docEn} Cooldown ${active!.cooldown / 10} s.`, zh: `${docZh}冷却 ${active!.cooldown / 10} 秒。` } })
+
+export const ACTIVE_SKILLS: SkillDef[] = [
+  ACTIVE('whirlwind', 'damage', ['sweep'], { kind: 'whirlwind', cooldown: 80, power: 1.2 }, 'Whirlwind', '旋风斩', 'Spin: strike every foe on the eight cells around you (×1.2).', '原地旋转，攻击周围 8 格的所有敌人（1.2 倍伤害）。'),
+  ACTIVE('cleave', 'damage', ['strength'], { kind: 'cleave', cooldown: 60, power: 2.5 }, 'Cleave', '重劈', 'One heavy blow on the cell ahead (×2.5).', '对前方一格重重劈下（2.5 倍伤害）。'),
+  ACTIVE('gale-step', 'swiftness', ['light-footed'], { kind: 'haste', cooldown: 200, ticks: 50 }, 'Gale Step', '疾风步', 'Movement speed +50% for 5 seconds.', '5 秒内移动速度 +50%。'),
+  ACTIVE('mend', 'survival', ['regeneration'], { kind: 'mend', cooldown: 300, power: 0.3 }, 'Mend', '疗伤', 'Restore 30% of your max health at once.', '立即恢复 30% 生命上限的生命。'),
+
+  ACTIVE('shadow-strike', 'profession', ['assassin-training'], { kind: 'shadow-strike', cooldown: 100, power: 1.5, range: 4 }, 'Shadow Strike', '影袭', 'Step out of the shadows behind the nearest foe within 4 cells and strike (×1.5; Backstab applies).', '闪到 4 格内最近敌人的背后并攻击（1.5 倍伤害，可触发背刺）。', 'assassin'),
+  ACTIVE('envenom', 'profession', ['assassin-training'], { kind: 'envenom', cooldown: 200, count: 5 }, 'Envenom', '淬毒', 'Your next 5 blows each open a bleed (1 a second for 4 seconds).', '接下来 5 次攻击都会让目标流血（4 秒内每秒 1 点）。', 'assassin'),
+  ACTIVE('smoke-bomb', 'profession', ['shadow-strike'], { kind: 'veil', cooldown: 250, ticks: 30 }, 'Smoke Bomb', '烟雾弹', 'For 3 seconds no creature can see you to attack you.', '3 秒内怪物看不见你，不会攻击你。', 'assassin'),
+  ACTIVE('flurry', 'profession', ['envenom'], { kind: 'flurry', cooldown: 80, power: 0.6, count: 4 }, 'Flurry', '千刃', 'Four quick stabs on the cell ahead (×0.6 each).', '对前方一格快速连刺 4 次（每次 0.6 倍伤害）。', 'assassin'),
+
+  ACTIVE('shield-bash', 'profession', ['warrior-arms'], { kind: 'bash', cooldown: 100, power: 1, afflict: 'stunned', ticks: 15 }, 'Shield Bash', '盾击', 'Strike the cell ahead and stun it for 1.5 seconds.', '攻击前方一格并使其眩晕 1.5 秒。', 'warrior'),
+  ACTIVE('charge', 'profession', ['warrior-arms'], { kind: 'charge', cooldown: 120, power: 1.5, range: 3, afflict: 'stunned', ticks: 5 }, 'Charge', '冲锋', 'Rush up to 3 cells ahead into the first foe and strike it (×1.5, a moment\'s stun).', '向前冲锋最多 3 格，撞上第一个敌人并攻击（1.5 倍伤害，短暂眩晕）。', 'warrior'),
+  ACTIVE('war-cry', 'profession', ['shield-bash'], { kind: 'rally', cooldown: 250, ticks: 50 }, 'War Cry', '战吼', 'For 5 seconds: damage dealt +25%, combat damage taken −30%.', '5 秒内造成的伤害 +25%，受到的战斗伤害 −30%。', 'warrior'),
+  ACTIVE('earthsplitter', 'profession', ['charge'], { kind: 'quake', cooldown: 120, power: 1.3, afflict: 'stunned', ticks: 8 }, 'Earthsplitter', '裂地', 'Slam the ground: every foe on the 3×3 two cells ahead is struck (×1.3) and staggered.', '重击地面：前方两格处 3×3 范围内的敌人受到攻击（1.3 倍伤害）并被震晕片刻。', 'warrior'),
+
+  ACTIVE('multishot', 'profession', ['ranger-archery'], { kind: 'multishot', range: 6, cooldown: 80, power: 0.8 }, 'Multishot', '多重箭', 'Three arrows side by side, each striking the first foe in its line (×0.8).', '并排射出 3 支箭，各自命中所在直线上的第一个敌人（0.8 倍伤害）。', 'ranger'),
+  ACTIVE('leap-shot', 'profession', ['ranger-archery'], { kind: 'leap-shot', range: 6, cooldown: 100, power: 1.2, count: 2 }, 'Leap Shot', '后跃射击', 'Leap 2 cells back and loose an arrow ahead (×1.2).', '向后跃 2 格，同时向前射出一箭（1.2 倍伤害）。', 'ranger'),
+  ACTIVE('piercing-arrow', 'profession', ['multishot'], { kind: 'pierce', range: 6, cooldown: 100, power: 1.3 }, 'Piercing Arrow', '穿透箭', 'An arrow through every foe in its line, up to the first wall (×1.3).', '一箭贯穿直线上的所有敌人，直到墙壁（1.3 倍伤害）。', 'ranger'),
+  ACTIVE('arrow-rain', 'profession', ['leap-shot'], { kind: 'rain', range: 6, cooldown: 200, power: 0.6, count: 3 }, 'Arrow Rain', '箭雨', 'Arrows fall on the 3×3 around the first foe ahead, once a second for 3 seconds (×0.6 each).', '在前方第一个敌人周围 3×3 范围落下箭雨，每秒一轮，持续 3 秒（每轮 0.6 倍伤害）。', 'ranger'),
+
+  ACTIVE('fireball', 'profession', ['mage-focus'], { kind: 'fireball', range: 5, cooldown: 60, power: 1.5, element: 'fire' }, 'Fireball', '火球', 'A ball of fire that bursts on the first thing ahead, striking the 3×3 around it (×1.5, fire).', '发射火球，在前方第一个目标处爆炸，波及周围 3×3（1.5 倍火焰伤害）。', 'mage'),
+  ACTIVE('frost-nova', 'profession', ['mage-focus'], { kind: 'nova', cooldown: 150, power: 0.5, range: 2, element: 'ice', afflict: 'frozen', ticks: 20 }, 'Frost Nova', '冰霜新星', 'Every foe within 2 cells is struck by ice (×0.5) and frozen for 2 seconds.', '周围 2 格内的敌人受到冰霜伤害（0.5 倍）并被冻结 2 秒。', 'mage'),
+  ACTIVE('chain-lightning', 'profession', ['fireball'], { kind: 'chain', range: 5, cooldown: 100, power: 1.2, count: 3, element: 'lightning' }, 'Chain Lightning', '闪电链', 'Lightning strikes the first foe ahead and leaps on to 2 more nearby (×1.2 each).', '闪电击中前方第一个敌人，再跳向附近的另外 2 个（每次 1.2 倍伤害）。', 'mage'),
+  ACTIVE('blink', 'profession', ['frost-nova'], { kind: 'blink', cooldown: 120, range: 4 }, 'Blink', '闪现', 'Vanish and reappear up to 4 cells ahead, through creatures but not walls.', '瞬移到前方最多 4 格处，可穿过生物，不能穿墙。', 'mage'),
+]
+
+SKILLS.push(...ACTIVE_SKILLS)
+
+/** A skill book that teaches one active skill (read: used on oneself), named for it: for loot, shops and quests to hand out. */
+export const skillBook = (id: string): Omit<Entity, 'id' | 'place'> => {
+  const def = ACTIVE_SKILLS.find((s) => s.id === id)!
+  const n = typeof def.name === 'string' ? { en: def.name, zh: def.name } : def.name
+  return { type: 'item/document/skillbook', name: { en: `Skill Book: ${n.en}`, zh: `技能书·${n.zh ?? n.en}` }, props: { teaches: id } }
+}
 
 export const SKILL_BY_ID: Record<string, SkillDef> = Object.fromEntries(SKILLS.map((s) => [s.id, s]))
 

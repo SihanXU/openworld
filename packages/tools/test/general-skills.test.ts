@@ -32,9 +32,9 @@ const at = (eng: Engine, e: Entity) => eng.world.posOf(e)!
 const struck = (eng: Engine, e: Entity, n: number, by: Entity, pierce: boolean) => eng.author(() => combatDamage(eng, e, n, by, pierce))
 
 describe('the general branches', () => {
-  it('each holds a second capstone that needs both new arms, costs two points, and ends the branch', () => {
+  it('each holds a second capstone that needs both new arms, costs two points, and ends the branch (its talents; the active skills apart)', () => {
     for (const [branch, cap] of [['swiftness', 'untouchable'], ['damage', 'berserker'], ['survival', 'phoenix']] as const) {
-      const own = SKILLS.filter((s) => s.branch === branch)
+      const own = SKILLS.filter((s) => s.branch === branch && !s.active)
       expect(own.at(-1)!.id).toBe(cap)
       expect(own.at(-1)!.cost).toBe(2)
       expect(own.at(-1)!.requires).toHaveLength(2)

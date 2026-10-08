@@ -483,6 +483,8 @@ export const HAVEN_STORY: StepDef[] = [
       say('npc.alberic', 'I swore I would hold until I was relieved. You relieved me. So I hold for you now — this ground, as far as the mist. It is yours: build, sow, keep beasts.', '我发过誓，要坚守到有人来接替我。你接替了我。所以现在换我为你坚守——这片土地，一直到迷雾那里。它是你的了：盖房、播种、养牲口都行。'),
       say('npc.alberic', 'Bring me what a wider ground needs, and I will push the mist back. ...And tell me your name. I would like to keep one, this time.', '把扩建所需的东西带给我，我就把迷雾推远。……还有，告诉我你的名字。这一次，我想记住一个名字。', 'sad'),
       say('pip', 'He looks so different without the helmet. Kind. ...Tired, but kind.', '他不戴头盔，看起来完全不一样了。很和善。……很累，但很和善。', 'shy'),
+      say('npc.alberic', 'Here — the coin of this ground. My stall keeps seeds, feed and bait; it buys back what you grow, raise and catch. The pond is full of fish.', '给——这是这片土地的钱币。我的货摊卖种子、饲料和鱼饵，也收你种的、养的、钓的东西。池塘里鱼可多了。'),
+      { give: 'item/misc/thornmark', count: 30 },
       { fact: 'haven.met', value: 1 },
     ],
   },

@@ -352,7 +352,7 @@ export class Story {
     } else if ('topic' in c) {
       this.story([{ op: 'topic', id: c.topic, days: c.days }])
     } else if ('give' in c) {
-      this.story([{ op: 'spawn', type: c.give, at: 'target', into: 'contents', still: true }], { e: w.state.player })
+      this.story([{ op: 'spawn', type: c.give, at: 'target', into: 'contents', still: true, ...(c.count && { count: c.count }) }], { e: w.state.player })
     } else if ('warp' in c) {
       this.send(w.player, { map: c.warp, x: c.x, y: c.y })
     } else if ('prop' in c) {

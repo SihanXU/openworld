@@ -377,6 +377,8 @@ export interface Entity {
   dropped?: boolean
   /** The player: inventory slots (design.md §5.3), each the stack key of what it holds; row 1 is the toolbar. */
   slots?: (string | null)[]
+  /** The skill bar (the one at the keys): the active skills set in its six slots (Shift+1–6), by id. */
+  skillbar?: (string | null)[]
   /** The player: the selected slot (what is held). */
   selected?: number
   /** Render hint: a character look key from the client's asset catalogue. */
@@ -427,7 +429,12 @@ export interface BossState {
   pending?: { skill: number; target: Id; origin: Pos; aim: Pos; tiles: [number, number][]; releaseAt: number }
 }
 
+/** How long one counts as fighting after the last blow, either way, or the last hostile one that came after it (ticks: five seconds). */
+export const FIGHT_TICKS = 50
+
 export interface CombatState {
+  /** When it last fought: struck at an actor, was struck by one, or was chased by a hostile one (the `fighting` condition). */
+  fightTick?: number
   lastMoveTick?: number
   lastAttackTick?: number
   lastHurtTick?: number
@@ -468,6 +475,14 @@ export interface CombatState {
   starHits?: number
   galeUntil?: number
   unfallenTick?: number
+  /** Active skills (actives.ts): Gale Step's speed, a War Cry's guard and strength, a Smoke Bomb's veil — until these ticks. */
+  hasteUntil?: number
+  rallyUntil?: number
+  veilUntil?: number
+  /** Envenom: so many more blows open a bleed. */
+  envenomHits?: number
+  /** Arrow Rain: volleys still to fall on a 3×3 around (x, y), the next at tick `next`. */
+  rain?: { map: string; x: number; y: number; next: number; left: number; power: number }
 }
 
 export interface ScheduleEntry {
@@ -687,7 +702,7 @@ export type SceneCmd =
   | { place: Id; map: string; x: number; y: number }
   | { fact: string; value: PropValue }
   | { topic: string; days?: number }
-  | { give: string }
+  | { give: string; count?: number }
   | { warp: string; x: number; y: number }
   /** add or remove a status on an entity (the Hearth goes out: remove 'lit') */
   | { status: Id; add?: string; remove?: string }
@@ -785,6 +800,8 @@ export interface MapData {
   rooms?: { style: string; x: number; y: number; w: number; h: number }[]
   music?: string
   light?: 'outdoor' | 'indoor' | 'dark'
+  /** Fish shadows glide in its water now and then: the water is worth a line (a stocked pond). */
+  fish?: boolean
   /** Named spots ('square.well') for schedules, scenes and authors. */
   anchors?: Record<string, [number, number]>
   /** Named areas [x, y, w, h] ('far_bank') for scenes and goals. */
@@ -834,6 +851,33 @@ export interface SkillDef {
   ability?: boolean
   /** The client's round icon for it (ui/skillIcons.ts). */
   icon?: string
+  /** An active skill: cast from the skill bar (Shift+1–6), then it rests (actives.ts). */
+  active?: ActiveDef
+}
+
+/**
+ * What an active skill does when cast (engine/src/actives.ts implements each kind; content sets the numbers).
+ * `power` multiplies the caster's blow (its atk and its weapon's power); `ticks` is how long what it leaves lasts.
+ */
+export interface ActiveDef {
+  kind:
+    | 'whirlwind' | 'cleave' | 'haste' | 'mend'
+    | 'shadow-strike' | 'envenom' | 'veil' | 'flurry'
+    | 'bash' | 'charge' | 'rally' | 'quake'
+    | 'multishot' | 'leap-shot' | 'pierce' | 'rain'
+    | 'fireball' | 'nova' | 'chain' | 'blink'
+  /** Ticks before it can be cast again (10 a second). */
+  cooldown: number
+  power?: number
+  /** Tiles it reaches (a dash's length, a search's radius; a shot's or a bolt's at least, the weapon's when farther). */
+  range?: number
+  /** How long what it leaves lasts (a status, a buff), in ticks; how many (hits, volleys, targets) for counts. */
+  ticks?: number
+  count?: number
+  /** A status a blow of it leaves (stunned, frozen). */
+  afflict?: string
+  /** The element its blows carry (fire, ice, lightning). */
+  element?: string
 }
 
 /** A recipe for the crafting panel: the carried items it uses up, and the item it makes. */
@@ -851,6 +895,8 @@ export interface Recipe {
   tools?: string[]
   /** How many one making gives (default 1). */
   count?: number
+  /** A stall's shelf it is sold on (`farm`, `ranch`, `fish`), or `sell`: what the stall buys (the homestead). */
+  group?: string
 }
 
 export interface Portal {
@@ -1098,6 +1144,8 @@ export type Cond =
   | { makeup: RoleName }
   /** A role has a relation now (world-model.md §7): `on`, `support`, `in-region` … */
   | { rel: { role: RoleName; how: string } }
+  /** A role is fighting: it struck at an actor, was struck by one, or was chased by a hostile one, in the last FIGHT_TICKS. */
+  | { fighting: RoleName }
 
 /** A role, or the cell under it (`tileOf:`: the thing that makes up that cell on top — what fills it, roots in it, or the floor). */
 export type RoleRef = RoleName | 'tileOf:host' | 'tileOf:actor' | 'tileOf:target' | 'tileOf:instrument' | 'tileOf:other' | 'tileOf:item' | 'tileOf:source'
@@ -1149,7 +1197,12 @@ export type Effect =
   | { op: 'pocket' }
   | { op: 'foe' }
   | { op: 'open' }
-  | { op: 'dropContents'; still?: boolean }
+  /**
+   * The host spills what it holds onto its tile — or into a role's bag (`to`: a bundle opened). `keepWorn`: what it wears,
+   * and the weapon in its hand, stay with it; `keep`: so do things with any of these tags (`important`). `bundle`: what
+   * is spilled is packed into a new thing of this type on the tile (nothing spilled, none is made).
+   */
+  | { op: 'dropContents'; still?: boolean; to?: RoleRef; keepWorn?: boolean; keep?: string[]; bundle?: string }
   | { op: 'goto'; anchor: string; hours: number; activity?: string }
   | { op: 'topic'; id: string; days?: number }
   /** The host (a person) is spoken to about quests: its business with the speaker goes to the story; else it says its line. */
@@ -1161,7 +1214,8 @@ export type Effect =
   /** The host's stage clock ran out (param status): it becomes what its stage says next (world-model.md §6.5). */
   | { op: 'grow' }
   /** The host learns: the skill (param skill) or the profession (param profession) its act names. */
-  | { op: 'learn' }
+  /** `book`: from a book the host holds (the event's item): no points, no skills before it — only its profession; the book is used up. */
+  | { op: 'learn'; book?: boolean }
   /** The host's encounter skill lands on the cells its act telegraphed (bosses.ts). */
   | { op: 'release' }
   /** Open one of the player's panels (the profession trainer's: 'profession'). */

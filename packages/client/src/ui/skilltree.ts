@@ -9,6 +9,7 @@ import { SKILLS, SKILL_DIRECTIONS, SKILL_BRANCHES, SKILL_BY_ID, branchesForProfe
 import { $, esc, locale, t, tx } from './common.ts'
 import { bindSkillArt, skillArt } from './skillIcons.ts'
 import { layoutBranches, layoutSkills } from './skillLayout.ts'
+import { skillbarHint } from './skillbar.ts'
 
 export { layoutSkills } from './skillLayout.ts'
 
@@ -21,6 +22,8 @@ export class SkillTree {
   private frame?: Frame
   private drag?: { id: number; x: number; y: number; px: number; py: number; moved: boolean }
   private suppressClick = false
+  /** The skill node under the pointer (the skill bar's Shift+1–6 sets it). */
+  hovered?: string
   private direction: SkillDirection = 'combat'
   private profession = ''
   private layout = layoutSkills()
@@ -199,8 +202,8 @@ export class SkillTree {
     bindSkillArt(world)
     bindSkillArt($('#skDirections'))
     world.querySelectorAll<HTMLButtonElement>('.sk-node').forEach((b) => {
-      b.onpointerenter = () => !this.drag?.moved && this.showTip(b)
-      b.onpointerleave = () => this.hideTip()
+      b.onpointerenter = () => ((this.hovered = b.dataset.skill), !this.drag?.moved && this.showTip(b))
+      b.onpointerleave = () => ((this.hovered = undefined), this.hideTip())
       b.onfocus = () => this.showTip(b)
       b.onblur = () => this.hideTip()
       b.onclick = () => {
@@ -240,7 +243,7 @@ export class SkillTree {
           : t('noPoints')
     const branch = branchesForProfession(this.profession).find((b) => b.id === s.branch)!
     const direction = SKILL_DIRECTIONS.find((d) => d.id === branch.direction)!
-    return `<span class="sk-path">${esc(tx(direction.name))} / ${s.profession ? `${t('skillProfession')} · ` : ''}${esc(tx(branch.name))}</span><b>${esc(tx(s.name))}</b>${s.ability ? `<span class="sk-tag">${t('ability')}</span>` : ''}<span class="sk-doc">${esc(tx(s.doc))}</span><span class="sk-foot">${esc(foot)}</span>`
+    return `<span class="sk-path">${esc(tx(direction.name))} / ${s.profession ? `${t('skillProfession')} · ` : ''}${esc(tx(branch.name))}</span><b>${esc(tx(s.name))}</b>${s.active ? `<span class="sk-tag">${locale.value === 'zh' ? '主动技能' : 'Active'}</span>` : s.ability ? `<span class="sk-tag">${t('ability')}</span>` : ''}<span class="sk-doc">${esc(tx(s.doc))}</span><span class="sk-foot">${esc(foot)}</span>${s.active && have.has(s.id) ? `<span class="sk-foot">${skillbarHint(locale.value === 'zh')}</span>` : ''}`
   }
 
   private showTip(b: HTMLElement): void {

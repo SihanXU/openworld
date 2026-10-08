@@ -45,6 +45,9 @@ export type ToWorker =
   | { t: 'craft'; id: string; /** as many as what is carried makes */ all?: boolean }
   /** The skill tree: spend skill points on a skill. */
   | { t: 'learn'; id: string }
+  /** The skill bar: cast the skill in a slot (Shift+1–6), or set one there (null: empty it). */
+  | { t: 'cast'; slot: number }
+  | { t: 'setSkill'; slot: number; id: string | null }
   /** Take up (or change to) a profession at a trainer. */
   | { t: 'profession'; id: string }
   /** The companion carries another of its boons (only beside a woken waypoint). */

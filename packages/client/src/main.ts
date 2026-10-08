@@ -19,6 +19,7 @@ import { Hud } from './ui/hud.ts'
 import { BuildingMode } from './ui/building.ts'
 import { LessonGuide } from './ui/lesson.ts'
 import { Menu } from './ui/menu.ts'
+import { SkillBar } from './ui/skillbar.ts'
 import { Tooltip } from './ui/tooltip.ts'
 import { Minimap } from './ui/worldmap.ts'
 import './styles.css'
@@ -54,6 +55,7 @@ const menu = new Menu({
   wear: (item, putOn) => send({ t: 'wear', item, putOn }),
   craft: (id, all) => send({ t: 'craft', id, all }),
   learn: (id) => send({ t: 'learn', id }),
+  setSkill: (slot, id) => send({ t: 'setSkill', slot, id }),
   atlas: () => send({ t: 'atlas' }),
   travel: (waypoint) => send({ t: 'travel', waypoint }),
   profession: (id) => send({ t: 'profession', id }),
@@ -87,12 +89,15 @@ const hud = new Hud(
     toggleOptions: () => menu.toggle('options'),
     toggleSkills: () => menu.toggleSkills(),
     toggleQuests: () => menu.toggleQuests(),
+    toggleSkillPanel: () => menu.toggleSkillPanel(),
     toggleBuilding: () => toggleBuilding(),
   },
   (id) => scene.screenOf(id),
   (x, y) => scene.screenOfTile(x, y),
 )
 menu.muted = hud.muted
+/** The skill bar, bottom left (Shift+1–6). */
+const skillbar = new SkillBar({ cast: (slot) => send({ t: 'cast', slot }), set: (slot, id) => send({ t: 'setSkill', slot, id }) })
 const minimap = new Minimap(() => openPanel('map', () => menu.toggleMap()))
 /** The tutorial's lessons (docs/prologue.md, the drills): the spotlight, the key to press, the tick. */
 const lessons = new LessonGuide({ of: (id) => scene.screenOf(id), ofTile: (x, y) => scene.screenOfTile(x, y), cells: (c) => scene.setLessonCells(c) })
@@ -153,6 +158,7 @@ scene.hooks = {
     // a hardcore game's one life is spent: its slot keeps the end
     if (!was && death.open && f.fallen?.difficulty === 'hardcore') send({ t: 'save' })
     hud.onFrame(f)
+    skillbar.onFrame(f)
     menu.onFrame(f)
     tooltip.onFrame(f)
     dev.onFrame(f)
@@ -277,6 +283,8 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'profession')) menu.openProfession()
       // a woken waypoint statue: the companion's boons
       if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'boons')) menu.openBoons()
+      // the Held Ground's stall: its shelves (homestead.ts)
+      if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'shop')) menu.open('shop')
       reaim()
       dev.setPerf(m.perf, fps)
       // the open codex follows what is met
@@ -521,8 +529,20 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyK') return menu.toggleSkills()
   if (e.code === 'KeyM') return openPanel('map', () => menu.toggleMap())
   if (e.code === 'KeyL') return menu.toggleQuests()
+  if (e.code === 'KeyU') return menu.toggleSkillPanel()
   if (e.code === 'KeyQ' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'dash' })
   if (e.code === 'KeyJ') return menu.journalOpen ? menu.close() : (menu.openJournal(), hud.seenJournal(), (codexSeen = -1))
+  // Shift+1–6: the skill bar — over the skill tree, set the active skill under the pointer in that slot; else cast it
+  const bar = e.shiftKey && !e.repeat ? SLOT_CODES.indexOf(e.code) : -1
+  if (bar >= 0 && bar < 6) {
+    e.preventDefault()
+    if (menu.skillsOpen) {
+      const id = menu.hoveredSkill()
+      if (id) send({ t: 'setSkill', slot: bar, id })
+      return
+    }
+    if (!menu.anyOpen && !dev.open) return send({ t: 'cast', slot: bar })
+  }
   if (menu.anyOpen || dev.open) return
   const dir = KEY_DIR[e.code]
   if (dir) {

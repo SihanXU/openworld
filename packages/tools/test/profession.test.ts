@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Game, OFFHAND, PROFESSION_LEVEL, RuleLibrary, canWield, combatDamage, combatStrike, offhandOf, rangeBonus, snapshot, type Engine, type Entity, type MapData } from '@lsw/engine'
+import { Game, MAINHAND, OFFHAND, PROFESSION_LEVEL, RuleLibrary, canWield, combatDamage, combatDelay, combatStrike, offhandOf, rangeBonus, snapshot, weaponOf, type Engine, type Entity, type MapData } from '@lsw/engine'
 import { BASE_RULES, LEGENDARY_ARMS, PROFESSION_BY_ID, PROLOGUE_DONE, SKILLS, SKILL_BY_ID, SKILL_PROFESSIONS, STORY_RULES, buildOntology, createBoss, decodeChunk } from '@lsw/content'
 import { buildFord } from '../src/demo/world.ts'
 
@@ -29,6 +29,23 @@ const learnAll = (eng: Engine, ids: string[]) => ids.forEach((id) => expect(eng.
 const weapon = (eng: Engine, type: string, props: Record<string, number | string> = {}) => eng.author(() => eng.world.create(type, { on: 'hand', holder: eng.world.state.player }, { props: { power: 3, ...props } }))
 
 describe('professions', () => {
+
+  it('an older save\'s Bram, who still kept a bed and milled about, keeps his spot when it is loaded (the world says his days and what he is)', () => {
+    const { index, chunks } = buildFord()
+    const onto = buildOntology()
+    const lib = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
+    const game = Game.create(index, onto, lib())
+    for (const c of chunks) game.loadChunk(decodeChunk(c))
+    const saved = structuredClone(game.save())
+    // as a save from before: no tag, a night in bed
+    const old = saved.state.entities['npc.bram']
+    old.tags = (old.tags ?? []).filter((t) => t !== 'stationary')
+    old.npc!.schedule = [{ from: 22, to: 6, map: 'meadow', anchor: 'drill.bed', activity: 'sleep' } as never, ...old.npc!.schedule]
+    const loaded = Game.load(saved, index, onto, lib())
+    const bram = loaded.engine.world.get('npc.bram')!
+    expect(bram.tags).toContain('stationary')
+    expect(bram.npc!.schedule).toEqual(index.npcs.find((n) => n.id === 'npc.bram')!.npc!.schedule)
+  })
   it('none at the start: no profession skill can be learned', () => {
     const eng = world()
     const p = eng.world.player
@@ -37,10 +54,11 @@ describe('professions', () => {
     for (const prof of SKILL_PROFESSIONS) expect(eng.controls.learn(SKILLS.find((s) => s.profession === prof.id && !s.requires?.length)!)).toBe(false)
   })
 
-  it('every profession has a six-skill tree and a starter weapon', () => {
+  it('every profession has a six-talent tree, four active skills and a starter weapon', () => {
     for (const id of ['assassin', 'warrior', 'ranger', 'mage']) {
       expect(PROFESSION_BY_ID[id]?.weapon, id).toBeDefined()
-      expect(SKILLS.filter((s) => s.profession === id), id).toHaveLength(6)
+      expect(SKILLS.filter((s) => s.profession === id && !s.active), id).toHaveLength(6)
+      expect(SKILLS.filter((s) => s.profession === id && s.active), id).toHaveLength(4)
     }
   })
 
@@ -214,6 +232,73 @@ describe('profession weapons', () => {
     eng.author(() => w.create('item/weapon/ranged/bow', { on: 'hand', holder: p.id }, { props: { power: 3, range: 6 } }))
     expect(eng.attack(p, { e: slime.id })).toBe(true)
     expect(w.num(slime, 'hp')).toBeLessThan(50)
+  })
+
+  it('a bow looses an arrow (its missile: drawn as one in flight); a wand a bolt of its element', () => {
+    const eng = world()
+    const w = eng.world
+    const p = w.player
+    atBram(eng, 9)
+    eng.controls.takeProfession(PROFESSION_BY_ID.ranger, SKILLS)
+    // an open row in the village: the player, two empty cells, a slime
+    const open = (x: number, y: number) => w.walkable('meadow', x, y) && !w.placedAt('meadow', x, y).length
+    let at: [number, number] | undefined
+    for (let y = 2; y < 30 && !at; y++) for (let x = 2; x < 36 && !at; x++) if ([0, 1, 2, 3].every((i) => open(x + i, y))) at = [x, y]
+    eng.author(() => eng.teleport(p, { map: 'meadow', x: at![0], y: at![1] }))
+    p.facing = 'right'
+    const slime = eng.author(() => w.create('actor/creature/slime/green_slime', { on: 'tile', map: 'meadow', x: at![0] + 3, y: at![1] }, { props: { hp: 50, maxHp: 50 } }))
+    eng.author(() => { if (p.held) w.place(w.get(p.held)!, { on: 'inside', holder: p.id }) })
+    eng.author(() => w.create('item/weapon/ranged/bow', { on: 'hand', holder: p.id }, { props: { power: 3, range: 6 } }))
+    w.fx = []
+    expect(eng.attack(p, { e: slime.id })).toBe(true)
+    expect(w.fx.find((f) => f.t === 'vfx' && f.fx.startsWith('bolt:'))).toMatchObject({ fx: 'bolt:none:right:3:arrow' })
+    // a wand (anyone's): no missile of its own, the bolt of its element
+    eng.author(() => { if (p.held) w.place(w.get(p.held)!, { on: 'inside', holder: p.id }) })
+    eng.author(() => w.create('item/weapon/magic/wand', { on: 'hand', holder: p.id }, { props: { power: 3, range: 5, element: 'fire' } }))
+    eng.setCooldown('atk:player', 0)
+    w.fx = []
+    expect(eng.attack(p, { e: slime.id })).toBe(true)
+    expect(w.fx.find((f) => f.t === 'vfx' && f.fx.startsWith('bolt:'))).toMatchObject({ fx: 'bolt:fire:right:3' })
+  })
+
+  it('the main hand: a weapon readied there strikes while the hand holds something else; an empty hand strikes with it; its numbers count once', () => {
+    const eng = world()
+    const w = eng.world
+    const p = w.player
+    atBram(eng, 9)
+    eng.controls.takeProfession(PROFESSION_BY_ID.warrior, SKILLS)
+    // whatever the trainer handed over goes back to the bag; a sword readied in the main hand (the bag's Wear)
+    eng.author(() => { if (p.held) w.place(w.get(p.held)!, { on: 'inside', holder: p.id }) })
+    const sword = eng.author(() => w.create('item/weapon/blade/sword', { on: 'inside', holder: p.id }, { props: { power: 9 } }))
+    const bread = eng.author(() => w.create('item/food/bread', { on: 'inside', holder: p.id }))
+    eng.controls.sync()
+    eng.controls.wear(sword.id, true)
+    expect(w.prop(p, MAINHAND)).toBe(sword.id)
+    // the hand takes up the bread: the sword is still the one fought with
+    eng.author(() => w.place(bread, { on: 'hand', holder: p.id }))
+    expect([w.get(p.held)?.type, weaponOf(w, p)?.id]).toEqual(['item/food/bread', sword.id])
+    const pos = w.posOf(p)!
+    p.facing = 'right'
+    const slime = eng.author(() => w.create('actor/creature/slime/green_slime', { on: 'tile', map: pos.map, x: pos.x + 1, y: pos.y }, { props: { hp: 80, maxHp: 80 } }))
+    const mark = eng.traced
+    expect(eng.attack(p, { e: slime.id })).toBe(true)
+    // the blow is the sword's: its power, and the act's instrument is the sword, not the bread
+    expect(w.num(slime, 'hp')).toBeLessThanOrEqual(80 - 9)
+    const blow = eng.trace.slice(-(eng.traced - mark)).find((t) => t.ev.kind === 'act/use' && t.ev.params?.attack)
+    expect(blow?.ev.roles.instrument).toEqual({ e: sword.id })
+    expect(w.get(bread.id)?.place).toMatchObject({ on: 'hand', holder: p.id })
+    // an empty hand: a click on the slime is a blow with the sword (so its label says)
+    eng.author(() => w.place(bread, { on: 'inside', holder: p.id }))
+    const plan = eng.controls.plan('use', { x: pos.x + 1, y: pos.y })
+    expect([plan?.attack, typeof plan?.label === 'string' ? plan.label : plan?.label.zh]).toEqual([true, '用剑打绿史莱姆'])
+    // a weapon's own numbers count when it is fought with, not again for being worn (Galestring's haste)
+    const legend = eng.author(() => w.create('item/weapon/ranged/bow/galestring', { on: 'inside', holder: p.id }))
+    const bare = combatDelay(w, p, 100, 'attack')
+    eng.author(() => w.setProp(p, 'profession', 'ranger'))
+    eng.controls.wear(legend.id, true)
+    expect(w.prop(p, MAINHAND)).toBe(legend.id)
+    expect(w.stat(p, 'attackHaste')).toBe(0)
+    expect(combatDelay(w, p, 100, 'attack')).toBeLessThan(bare)
   })
 
   it('the off hand (the arm slot): only a warrior wears a shield; it blocks, and a profession change takes it off', () => {

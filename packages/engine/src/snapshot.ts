@@ -6,7 +6,8 @@ import type { Appearance, BossState, Dir, FxEvent, Id, LessonInput, PropValue, S
 import { SLOT_COUNT } from './controls.ts'
 import { parseCellId } from './cells.ts'
 import { skillsOf } from './progression.ts'
-import { OFFHAND, offhandOf } from './profession.ts'
+import { OFFHAND, offhandOf, weaponOf } from './profession.ts'
+import { castLeft, knownActives, type KnownActive } from './actives.ts'
 import { activeBoon, boonsOf, companionsOf, nearAttunedWaypoint } from './boons.ts'
 import type { QuestView } from './quests.ts'
 
@@ -103,6 +104,10 @@ export interface Frame {
     /** The stations within reach (a workbench beside one): which station recipes can be made now. */
     stations: string[]
     held?: ItemInfo
+    /** The skill bar's six slots (Shift+1–6): the active skill in each, ticks of its cooldown left and in all. */
+    skillbar: ({ id: string; left: number; cooldown: number; /** one has it now (what lent it is still worn) */ usable: boolean } | null)[]
+    /** Every active skill one has now, and where it comes from (the skill panel). */
+    actives: KnownActive[]
     inventory: ItemInfo[]
     /** The bag's slots (row 1 is the toolbar): a stack each, or empty. */
     slots: ({ item: ItemInfo; count: number; worn?: boolean } | null)[]
@@ -277,7 +282,8 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
   for (const e of w.entitiesOnMap(map)) {
     if (e.place.on !== 'tile') continue
     const r = w.onto.resolve(e.type)
-    const held = e.held ? w.get(e.held) : undefined
+    // in the hand: what it holds, else the weapon it keeps in the main hand
+    const held = e.held ? w.get(e.held) : weaponOf(w, e)
     const b = e.boss, kit = b && eng.bossKits[b.kit]
     const elapsed = w.state.tick - (b?.actionTick ?? w.state.tick)
     const windup = b?.pending ? Math.min(1, elapsed / Math.max(1, b.pending.releaseAt - (b.actionTick ?? 0))) : 0
@@ -377,6 +383,10 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       skills: skillsOf(p),
       stations: [...w.stationsNear(p)],
       held: p.held ? itemInfo(eng, p.held) : undefined,
+      ...((known) => ({
+        skillbar: eng.controls.skillbar().map((id) => (id ? { id, left: castLeft(eng, p, id), cooldown: eng.skills.get(id)?.active?.cooldown ?? 0, usable: known.some((k) => k.id === id) } : null)),
+        actives: known,
+      }))(knownActives(eng, p)),
       inventory: (p.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),
       slots,
       selected: p.selected ?? 0,

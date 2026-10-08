@@ -34,6 +34,7 @@ export const tx = (t: Text | undefined) => textOf(t, locale.value)
 const STRINGS: Record<string, [string, string]> = {
   inventory: ['Inventory', '背包'],
   craft: ['Craft', '制作'],
+  shop: ['The Stall', '货摊'],
   craftIt: ['Craft', '制作'],
   needMore: ['Not enough materials', '材料不够'],
   craftAll: ['All', '全部'],
@@ -74,7 +75,7 @@ const STRINGS: Record<string, [string, string]> = {
   cvBadFile: ['That file is not an OpenWorld save.', '这个文件不是 OpenWorld 的存档。'],
   cvIncompatible: ['That save is from another version of the world: a new game began in its slot.', '这个存档来自另一个版本的世界，已在该存档位开始新游戏。'],
   cvNote: ['Saves live in this browser (it autosaves as you play). Export one to keep it as a file, or to carry it to another browser.', '存档保存在这个浏览器里（游戏中会自动保存）。导出可以存成文件，或带到别的浏览器。'],
-  skillNoProfession: ['No profession yet. At level 5, the trainer at the Ford camp sets you on one: assassin, warrior, ranger or mage.', '还没有职业。到 5 级后，去渡口营地找职业导师选择：刺客、战士、游侠或法师。'],
+  skillNoProfession: ['No profession yet. At level 5, Bram the trainer sets you on one in the drill yard of Firstlight Village (crossed blades over his head): assassin, warrior, ranger or mage.', '还没有职业。到 5 级后，去初原村操练场找职业导师布拉姆（头顶有交叉双剑标记）选择：刺客、战士、游侠或法师。'],
   profTitle: ['Choose a profession', '选择职业'],
   profCurrent: ['Your profession', '当前职业'],
   profChoose: ['Choose', '选择'],

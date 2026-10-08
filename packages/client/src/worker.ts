@@ -494,6 +494,8 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact('game.difficulty', init.difficulty ?? 'normal')))
   }
   game.worldVersion = index.version
+  // every skill the tree has, so a skill set in the bar can be cast from a loaded game (actives.ts)
+  for (const s of SKILLS) game.engine.skills.set(s.id, s)
   game.mods.onChange = () => sendRecords()
   lastMap = ''
   await ensureMaps()
@@ -645,6 +647,12 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (s) game?.engine.controls.learn(s)
         break
       }
+      case 'cast':
+        if (game && !paused && !panel && !game.engine.world.state.question) game.engine.controls.cast(m.slot)
+        break
+      case 'setSkill':
+        game?.engine.controls.setSkill(m.slot, m.id)
+        break
       case 'transfer':
         if (game && panel) game.engine.controls.transfer(panel, m.from, m.item, m.all)
         break

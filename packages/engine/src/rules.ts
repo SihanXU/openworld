@@ -5,6 +5,7 @@
 // never changes what is defined.
 
 import { isA, typeDepth } from './ontology.ts'
+import { FIGHT_TICKS } from './types.ts'
 import type { Bounds, Cmp, Cond, GameEvent, Leaf, Operand, PropValue, Reader, RoleName, Rule, Selector, StatusDef, Tree, TypeDef } from './types.ts'
 import type { View, World } from './world.ts'
 
@@ -109,6 +110,10 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
     if (p) return !world.covered(p.map, p.x, p.y, p.z)
     const map = world.posOf(world.player)?.map
     return !!map && (world.map(map)?.light ?? 'outdoor') === 'outdoor'
+  }
+  if ('fighting' in c) {
+    const e = roles[c.fighting]?.entity
+    return !!e && world.state.tick - (e.combat?.fightTick ?? -Infinity) < FIGHT_TICKS
   }
   return false
 }

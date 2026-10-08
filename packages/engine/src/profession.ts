@@ -54,6 +54,19 @@ export function ownWeapon(w: World, e: Entity, item: Entity | undefined): boolea
   return !!item && !!itemProfession(w, item) && itemProfession(w, item) === professionOf(w, e)
 }
 
+/** The main hand: the `weapon` slot of what is worn, where a weapon is kept ready while the hand holds something else. */
+export const MAINHAND = 'wear:weapon'
+
+/**
+ * What one fights with: a weapon in one's hand, else the one worn in the main hand (`World.worn`: still carried, one's
+ * own to wield), else whatever the hand holds (a torch swung).
+ */
+export function weaponOf(w: World, e: Entity): Entity | undefined {
+  const held = w.get(e.held)
+  if (held && w.hasTag(held, 'weapon')) return held
+  return w.worn(e).find((it) => w.prop(it, 'slot') === 'weapon') ?? held
+}
+
 /** The off hand: the `arm` slot of what is worn (world-model.md §6.8), where a shield goes. */
 export const OFFHAND = 'wear:arm'
 

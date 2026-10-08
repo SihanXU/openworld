@@ -1,6 +1,6 @@
 // A small kitchen garden in Firstlight Village. Fixed placement after scenery
 // preserves the rest of the map's seeded composition. The final row is bare for sowing.
-import { CROP_STAGES, FIRSTLIGHT, VEGETABLE_CROPS } from '@lsw/content'
+import { CROP_STAGES, FIRSTLIGHT, GARDEN_CROPS } from '@lsw/content'
 import { MapBuilder, type ItemSpec } from './builder.ts'
 
 export const GARDEN = FIRSTLIGHT.garden
@@ -11,11 +11,11 @@ export function plantGarden(m: MapBuilder): void {
     && e.place.x >= GARDEN.x && e.place.x < GARDEN.x + GARDEN.width
     && e.place.y >= GARDEN.y && e.place.y < GARDEN.y + GARDEN.height))
   m.rect(GARDEN.x, GARDEN.y, GARDEN.width, GARDEN.height, 'farmland')
-  VEGETABLE_CROPS.forEach((c, column) => {
+  GARDEN_CROPS.forEach((c, column) => {
     CROP_STAGES.forEach((stage, row) => m.fixture(`fixture/crop/${c.id}/${stage}`,
       GARDEN.x + column, GARDEN.y + row, { id: `ford.garden.${c.id}.${stage}` }))
   })
-  const seeds: ItemSpec[] = VEGETABLE_CROPS.flatMap((c) => Array<string>(2).fill(`item/seed/${c.id}`))
+  const seeds: ItemSpec[] = GARDEN_CROPS.flatMap((c) => Array<string>(2).fill(`item/seed/${c.id}`))
   m.fixture('fixture/container/crate', ...GARDEN.supplies, {
     id: 'ford.garden.supplies', name: { en: 'Garden Supplies', zh: '菜圃工具箱' }, props: { capacity: 24 },
   }, [...seeds, 'item/tool/hoe', 'item/tool/sickle', 'item/vessel/bucket/water', 'item/tool/smith_hammer',
