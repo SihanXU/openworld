@@ -54,7 +54,7 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   emit: 'emit {impulse, to, params?, item?, other?, chance?, filter?} — send an impulse (strike, element, coat, restore, push, taken, receive, offered, handle, notify) to a role, "story", "world", {named: id}, {area: {at?, radius}}, {line: {from?, away, length, over?}} or {map: true}; params are values, Amounts, {typeOf: role} (what kind of thing a role is, kept even after it is gone) or {idOf: role} (which thing it is); filter and chance pick who receives it; the receiver answers for itself',
   vfx: 'vfx {at?, fx} — play a visual effect (at the host unless at names a role)',
   say: 'say {text, who?} — the host says a line ("@line": one of its own lines for the moment; "@given": its line for the item it was given); text fills {host} {actor} {target} {instrument} {other} {item} and {role.key}',
-  log: 'log {text} — a message line ({role} = names, {role.key} = that role\'s prop, {param.key} = an event param)',
+  log: 'log {text} — a message line ({role} = names, {role.key} = that role\'s prop, {param.key} = an event param; "@line": what the host has written on it, its text and text_zh)',
   emote: 'emote {mood: neutral|happy|sad|angry|surprised|shy} — an emote bubble over the host',
   quest: 'quest {} — the host (a person) is spoken to about quests: business with the speaker (a quest to hand in, to take on, a talk goal) is told to the story; else the host says how a quest goes, or its line (quests.ts)',
   quests: "quests {} — the story's: a quest's business it is told of is settled (notify what = quest: between the source, a giver, and the actor; what = defeat: the actor felled a thing of param type) — its facts change, the giver takes what was brought, the taker is told its reward; with no notice (the story's own pass), quests it has gone past are done, auto ones taken on, self ones completed",
@@ -627,7 +627,11 @@ export class EffectRunner {
         // a station's recipe is made beside one (a workbench within reach); the hands' anywhere
         if (r.station && r.station !== 'hands') {
           if (!w.stationsNear(host).has(r.station)) {
-            w.fx.push({ t: 'log', text: { en: `That is made at a ${r.station}.`, zh: `这要在${r.station === 'workbench' ? '工作台' : r.station}旁边做。` } })
+            // named as the world names it: the first kind of thing that is such a station (a stall's: "trading stall")
+            const named = Object.values(w.onto.data.types).find((t) => t.tags?.includes(`station:${r.station}`))?.name
+            const en = (typeof named === 'string' ? named : named?.en) ?? r.station
+            const zh = (typeof named === 'object' && named.zh) || (r.station === 'workbench' ? '工作台' : en)
+            w.fx.push({ t: 'log', text: { en: `That is made at a ${en}.`, zh: `这要在${zh}旁边做。` } })
             return
           }
         }
@@ -697,7 +701,8 @@ export class EffectRunner {
         return
       }
       case 'log':
-        w.fx.push({ t: 'log', text: this.text(ev, undefined, eff.text) })
+        // "@line" reads what the host has written on it (a document read in hand)
+        w.fx.push({ t: 'log', text: this.text(ev, eff.text === '@line' ? host : undefined, eff.text) })
         return
       case 'emote':
         if (host) w.fx.push({ t: 'emote', who: host.id, mood: eff.mood })

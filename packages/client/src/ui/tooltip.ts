@@ -58,7 +58,7 @@ const ABILITY: [string, string, string][] = [
   ['fire-source', 'Sets things alight', '能点燃东西'],
   ['cookable', 'Can be cooked over a fire', '可以用火烤熟'],
   ['plantable', 'Can be planted', '可以种下'],
-  ['fuel', 'Burns as fuel', '可以当燃料'],
+  ['explosive', 'Goes off when it catches fire', '着火就会炸开'],
 ]
 /** Traits worth knowing (purple italic, Minecraft's lore). */
 const TRAIT: Record<string, [string, string]> = {

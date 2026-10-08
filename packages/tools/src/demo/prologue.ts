@@ -45,7 +45,7 @@ const gap = (cols: readonly number[], x: number) => cols.includes(x)
 // =================================================================== Cloudtop: the summit
 
 export function buildSummit(): MapBuilder {
-  const m = new MapBuilder('summit', L('Cloudtop', '云顶台地'), 'wild', 40, 30, 'grass', 'Village', 'outdoor', 'frostfang')
+  const m = new MapBuilder('summit', L('Cloudtop', '云顶台地'), 'wild', 40, 30, 'grass', 'field', 'outdoor', 'frostfang')
   // the plateau's rim: bare rock, the south edge open only where the trail goes down
   rim(m, (x, y) => y >= m.h - 3 && gap(PROLOGUE.summitSouth, x), () => 'rock')
   // the high ground is snow, with rock standing out of it and a few pines
@@ -79,7 +79,7 @@ export function buildSummit(): MapBuilder {
 // =================================================================== the Mountain Foot
 
 export function buildFoot(): MapBuilder {
-  const m = new MapBuilder('foot', L('Mountain Foot', '山脚'), 'wild', 40, 30, 'grass', 'Village', 'outdoor', 'frostfang')
+  const m = new MapBuilder('foot', L('Mountain Foot', '山脚'), 'wild', 40, 30, 'grass', 'field', 'outdoor', 'frostfang')
   rim(m, (x, y) => (y < 3 && gap(PROLOGUE.footNorth, x)) || (y >= m.h - 3 && gap(PROLOGUE.footSouth, x)), () => (rng.chance(0.6) ? 'tree' : 'pine'))
   // the high ground the trail comes down from stands two levels above the rest, its edge a face of
   // rock: a ramp runs down where the trail does (each row half a level lower), a drop anywhere else hurts
@@ -97,9 +97,8 @@ export function buildFoot(): MapBuilder {
   m.rect(5, 13, 4, 3, 'floor_wood')
   m.set(6, 16, 'floor_wood')
   m.path([[20, 0], [20, 7], [24, 12], [21, 17], [18, 22], [17, 29]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
-  m.fixture('fixture/sign', 19, 25, { props: { text: 'The Ford ↓' } })
-  // the clearing's own: berries keep turning up, enough to eat one's fill before the night
-  m.appear = [...GROUND_YIELD, appears('item/food/berries', ['grass'], 6)]
+  m.fixture('fixture/sign', 19, 25, { props: { text: 'The Ford ↓', text_zh: '渡口 ↓' } })
+  m.appear = GROUND_YIELD
   return m
 }
 
@@ -132,7 +131,7 @@ export const TUTORIAL = {
  */
 export function buildTutorial(): MapBuilder {
   const [w, h] = TUTORIAL.size
-  const m = new MapBuilder('tutorial', L('The Clearing', '林间空地'), 'wild', w, h, 'grass', 'Village', 'outdoor', 'frostfang')
+  const m = new MapBuilder('tutorial', L('The Clearing', '林间空地'), 'wild', w, h, 'grass', 'forest', 'outdoor', 'frostfang')
   const exit = TUTORIAL.exit as readonly number[]
   rim(m, (x, y) => y >= h - 3 && exit.includes(x), () => (rng.chance(0.6) ? 'tree' : 'pine'))
   for (const [x, y] of TUTORIAL.grove) m.set(x, y, 'tree')
@@ -148,6 +147,7 @@ export function buildTutorial(): MapBuilder {
   // the way out: only once the story has opened it
   for (const [i, x] of exit.entries()) m.portals.push({ x, y: h - 1, to: 'foot', tx: TUTORIAL.arrive[0] + i, ty: TUTORIAL.arrive[1], label: L('Mountain Foot', '山脚'), opensWhen: TUTORIAL_OPEN })
   m.anchors.spawn = [TUTORIAL.spawn[0], TUTORIAL.spawn[1]]
-  m.appear = GROUND_YIELD
+  // the clearing's own: berries keep turning up, enough to eat one's fill before the night
+  m.appear = [...GROUND_YIELD, appears('item/food/berries', ['grass'], 6)]
   return m
 }

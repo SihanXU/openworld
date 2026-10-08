@@ -83,7 +83,7 @@ function partsWorld(chunks: RawChunk[]): World {
  * `site` set), `cells` where each lies (relative to the Ford's cell).
  */
 export function buildOverworld(chunks: RawChunk[], cells: Map<string, { x: number; y: number }>): RawChunk {
-  const m = new MapBuilder(OVERWORLD, L('The Frostfang Coast', '霜牙海岸'), 'overworld', CELLS.w * BLOCK, CELLS.h * BLOCK, 'ow_sea', 'Village', 'outdoor', 'frostfang')
+  const m = new MapBuilder(OVERWORLD, L('The Frostfang Coast', '霜牙海岸'), 'overworld', CELLS.w * BLOCK, CELLS.h * BLOCK, 'ow_sea', 'field', 'outdoor', 'frostfang')
   m.zone = 'peaceful'
   const handmade = new Map<string, string>()
   for (const [id, c] of cells) handmade.set(`${FORD_CELL.x + c.x},${FORD_CELL.y + c.y}`, id)

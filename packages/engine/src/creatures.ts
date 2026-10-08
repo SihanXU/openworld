@@ -78,7 +78,8 @@ export function fight(eng: Engine, e: Entity, sc: Scene): boolean {
   const dy = target.place.y - y
   const face: Dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up'
   const aligned = dx === 0 || dy === 0
-  if (best === 1 || (ai.behaviour === 'ranged' && aligned && best <= 5)) {
+  // a ranged one strikes in a line from as far as its own reach (its `range`), never from beyond it
+  if (best === 1 || (ai.behaviour === 'ranged' && aligned && best <= Math.max(1, w.num(e, 'range', 1)))) {
     e.facing = face
     if (eng.ready('atk:' + e.id)) {
       eng.attack(e, { e: target.id })

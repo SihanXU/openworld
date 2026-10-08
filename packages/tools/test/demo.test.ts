@@ -1752,6 +1752,28 @@ req('Q4', 'chapter 4, the old mine: a pickaxe breaks iron and coal from the vein
   expect(c.count('item/weapon/blade/dragonsbane')).toBe(1)
 })
 
+req('Q4g', "the old mine's deep chamber holds the only gold: a pickaxe breaks a gold vein for gold ore, what the Held Ground's last widening asks", ['fixture/nature/vein/gold'], () => {
+  const f = fresh()
+  const c = f.eng.controls
+  author(f, () => W(f).setFact('mq.council', 1))
+  expect(cross(f, 'emberfall', EMBERFALL.north[1], 1, 'up')).toBe('mine')
+  const veins = onMap(f, 'fixture/nature/vein/gold', 'mine')
+  expect(veins.length).toBeGreaterThanOrEqual(2)
+  hold(f, onMap(f, 'item/tool/pickaxe', 'mine')[0])
+  for (const v of veins.slice(0, 2)) {
+    const vp = W(f).posOf(v)!
+    const [x, y, d] = beside(f, vp.x, vp.y, 'mine')
+    stand(f, x, y, d, 'mine')
+    for (let i = 0; i < 2; i++) run(f, 'use', vp.x, vp.y)
+    expect(W(f).get(v.id)).toBeUndefined()
+    ticks(f, 3)
+  }
+  // two veins give what the widening asks (three), and only the mine has them
+  expect(c.count('item/material/gold_ore')).toBeGreaterThanOrEqual(3)
+  const { chunks } = buildFord()
+  expect(chunks.filter((ch) => ch.entities.some((e) => e.type === 'fixture/nature/vein/gold')).map((ch) => ch.map.id)).toEqual(['mine'])
+})
+
 req('Q5', 'chapter 5, fire and frost: fireweed grows in the meadow and frostcap in the forest; the herbalist brews two fireproof draughts; one drunk, fire does a quarter of its harm; armed and fireproof, the village sends you up the pass', ['npc.wren', 'item/material/fireweed', 'item/material/frostcap'], () => {
   const f = fresh()
   const c = f.eng.controls
@@ -2879,8 +2901,24 @@ req('H3', "the homestead, further: Stardew's crops (ten more, five bearing again
   expect(calves().length).toBe(1)
   const calf = calves()[0]
   const n = cows().length
-  ticks(f, 4900)
+  // two days on (its stage's clock run down): grown
+  author(f, () => f.eng.applyStatus({ e: calf.id }, 'stage', 5))
+  ticks(f, 20)
   expect([w.get(calf.id)?.type, cows().length]).toEqual(['actor/creature/animal/cow', n + 1])
+})
+
+req('C0', "a quest met in full just as the story goes past it is completed, and pays: down the mountain, the village reached, the traveller's boots", [], () => {
+  const f = fresh()
+  const w = W(f)
+  const boots = () => [w.player.held, ...(w.player.contents ?? [])].some((id) => !!id && !!w.get(id)?.type.startsWith('item/clothing/boots'))
+  expect(boots()).toBe(false)
+  author(f, () => { w.setFact('q.descent', 'active'); w.setFact('seen.relic', 1); w.setFact('seen.ford', 1); w.setFact('seen.village_arrival', 0) })
+  ticks(f, 3)
+  expect(w.fact('q.descent')).toBe('active')
+  // the last step is the very fact the story passes the quest by
+  author(f, () => w.setFact('seen.village_arrival', 1))
+  expect(ticks(f, 30, () => w.fact('q.descent') === 'done')).toBe(true)
+  expect(boots()).toBe(true)
 })
 
 req('C4', "Chapter 1's story before the knight: the village's welcome, Lina's shut door, the warden's last words, the tale of the First Night (the fairy shivers at the spear), the Ford the night of the theft, Fennick's memory, Hesper's stumps, the road east, Edda in the barn, the grey man's warning, a rest at the statue", [], () => {

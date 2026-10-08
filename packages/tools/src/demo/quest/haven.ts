@@ -11,7 +11,7 @@ import { L, GROUND_YIELD } from '../kit.ts'
 const GRAZER: Omit<AiData, 'home'> = { behaviour: 'passive', temper: 'wary', sight: 4, leash: 4 }
 
 export function buildHaven(): MapBuilder {
-  const m = new MapBuilder(HAVEN.map, L('The Held Ground', '誓守之地'), 'village', HAVEN.w, HAVEN.h, 'grass', 'Village', 'outdoor', 'frostfang')
+  const m = new MapBuilder(HAVEN.map, L('The Held Ground', '誓守之地'), 'village', HAVEN.w, HAVEN.h, 'grass', 'village', 'outdoor', 'frostfang')
   m.zone = 'peaceful'
   const [hx, hy] = HAVEN.heart
   const dist = (x: number, y: number) => Math.hypot(x - hx, (y - hy) * 1.15)
@@ -53,7 +53,8 @@ export function buildHaven(): MapBuilder {
   m.organic(hx + 1, hy - 6, 3.2, 1.6, 'water', { only: (t) => t === 'grass' })
   m.fixture('fixture/sign', hx - 3, hy - 6, { props: { text: 'FISH POND — a rod is made from two sticks and two grass. Bait from the stall.', text_zh: '鱼塘——两根树枝加两把草就能做鱼竿。鱼饵在货摊买。' } })
   // Alberic's stall: three shelves (farming, ranching, fishing) and what it buys back (homestead.ts)
-  m.fixture('fixture/furniture/stall/trade', hx + 3, hy + 1, { id: 'haven.stall', name: L("Alberic's stall", '阿尔贝里克的货摊') })
+  // the Held Ground's only trade: fire does not take it (gone, it would be gone for good)
+  m.fixture('fixture/furniture/stall/trade', hx + 3, hy + 1, { id: 'haven.stall', name: L("Alberic's stall", '阿尔贝里克的货摊'), statuses: { fireproof: -1 } })
   // the rings of mist: each a bank all round, lifting when the ground is widened past it (its `ring`)
   m.regions.held = [hx - 8, hy - 7, 17, 15]
   for (const [i, r] of HAVEN.rings.entries())

@@ -125,7 +125,7 @@ tree a thing sits.
 | Where is it? | place, and the kind | place only: in a cell, inside something, in a hand, nowhere (the story, the world), gone |
 | What may share its cell? | terrain vs entity, actor vs airborne vs NPC | the spaces it occupies (`occupies`, §5.2) and the exclusivity rule |
 | Does it block movement? | kind actor, terrain `solid` | `occupies` `volume` or `body` |
-| Does it block sight? | kind fixture + `opaque`/`tall`, terrain tags | `opaque` |
+| Does it block sight? | kind fixture + `opaque`/`tall`, terrain tags | `opaque` while solid (a shut door; an open one is a gap), `tall` |
 | Can one stand on it? | kind fixture + `reach` | `occupies` `floor`, and `reach` (stance) |
 | Can it be carried? | kind item | `portable` |
 | Can it hold things? | container tags | `capacity` |

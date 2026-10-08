@@ -238,6 +238,22 @@ describe('acts and the impulses they send', () => {
     expect(p).toMatchObject({ defined: true, unknown: true, rules: ['core/hands', 'core/handle'] })
     expect(p.hole?.res.hole?.rule.id).toBe('core/handle')
   })
+
+  it('a document with something written in it is read in hand; one with nothing written is the world\'s to answer', () => {
+    const read = (type: string) =>
+      replay({ entities: [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2 }, { key: 'doc', type, x: 2, y: 2, heldBy: 'actor' }], event: { kind: 'act/use', actor: 'actor', target: 'actor', instrument: 'doc' } }, onto, lib())
+    const almanac = read('item/document/almanac')
+    expect(almanac.resolution.rule?.id).toBe('use/read')
+    expect(almanac.engine.world.fx.some((f) => f.t === 'log' && JSON.stringify(f.text).includes('stop him'))).toBe(true)
+    expect(read('item/document/book').resolution.defined).toBe(false)
+  })
+
+  it('a shut door hides what is behind it; an open one is a gap', () => {
+    for (const [type, seen] of [['structure/door', false], ['structure/door/open', true]] as const) {
+      const eng = sandbox({ terrain: field(['.....', '.....', '.....']), entities: [{ key: 'actor', type: 'actor/person/player', x: 0, y: 1 }, { key: 'door', type, x: 2, y: 1 }], event: {} })
+      expect(eng.lineOfSight('sandbox', { map: 'sandbox', x: 0, y: 1 }, { map: 'sandbox', x: 4, y: 1 }), type).toBe(seen)
+    }
+  })
 })
 
 describe('fire and elements', () => {
@@ -311,6 +327,67 @@ describe('fire and elements', () => {
       const rp = replay(fire(key, 'fire', 4, [{ key: 'actor', type: 'actor/person/player', x: 2, y: 4 }, { key, type, x: 2, y: 2, statuses: ['oiled'] }]), onto, lib())
       expect(rp.engine.world.fx.some((f) => f.t === 'vfx' && f.fx === 'explosion'), key).toBe(true)
       expect(rp.engine.world.hasStatus({ e: key }, 'oiled'), key).toBe(false)
+    }
+  })
+
+  it('a wooden wall burns as any wooden thing: it reaches its neighbours, and one that burns down is ash, not planks', () => {
+    const eng = sandbox({
+      terrain: field(['.....', '.....', '.....']),
+      entities: [
+        { key: 'actor', type: 'actor/person/player', x: 0, y: 2 },
+        { key: 'wall', type: 'structure/wall', x: 2, y: 1, statuses: ['burning'], props: { hp: 1 } },
+      ],
+      event: {},
+    })
+    const rules = chain(eng, () => {
+      for (let i = 0; i < 200 && eng.world.get('wall'); i++) eng.tick()
+    })
+    expect(rules).toContain('fire/spread-structure')
+    expect(rules).toContain('fire/burnt-structure')
+    expect(eng.world.get('wall')).toBeUndefined()
+    expect(eng.world.placedAt('sandbox', 2, 1).some((e) => e.type === 'item/material/ash')).toBe(true)
+    expect(eng.world.placedAt('sandbox', 2, 1).some((e) => e.type === 'item/material/plank')).toBe(false)
+  })
+
+  it('something explosive that catches fire goes off: what is round it is struck, and it is gone', () => {
+    const rp = replay(
+      fire('bomb', 'fire', 2, [
+        { key: 'actor', type: 'actor/person/player', x: 0, y: 4 },
+        { key: 'bomb', type: 'item/misc/bomb', x: 2, y: 2 },
+        { key: 'slime', type: 'actor/creature/slime/green_slime', x: 3, y: 2 },
+      ], field(['.....', '.....', '.....', '.....', '.....'])),
+      onto,
+      lib(),
+    )
+    const w = rp.engine.world
+    expect(w.get('bomb')).toBeUndefined()
+    expect(w.fx.some((f) => f.t === 'vfx' && f.fx === 'explosion')).toBe(true)
+    const slime = w.get('slime')
+    expect(!slime || w.num(slime, 'hp') < 9).toBe(true)
+  })
+
+  it('a lit lantern post takes more fire as its flame and does not catch; a cauldron gone out is lit again', () => {
+    const post = replay(fire('post', 'fire', 2, [{ key: 'actor', type: 'actor/person/player', x: 2, y: 4 }, { key: 'post', type: 'fixture/light/lantern', x: 2, y: 2, statuses: ['lit'] }]), onto, lib())
+    expect(post.engine.world.hasStatus({ e: 'post' }, 'burning')).toBe(false)
+    expect(post.engine.world.hasStatus({ e: 'post' }, 'lit')).toBe(true)
+    const pot = replay(fire('pot', 'fire', 2, [{ key: 'actor', type: 'actor/person/player', x: 2, y: 4 }, { key: 'pot', type: 'fixture/craft/cauldron', x: 2, y: 2 }]), onto, lib())
+    expect(pot.engine.world.hasStatus({ e: 'pot' }, 'lit')).toBe(true)
+  })
+
+  it('raw food set on a fire made for cooking cooks, as held over it does; set on a lamp it does not', () => {
+    for (const [type, cooks] of [['fixture/craft/cauldron', true], ['fixture/light/brazier', true], ['fixture/light/lamppost', false]] as const) {
+      const sc = (verb: 'use' | 'put'): Scenario => ({
+        entities: [
+          { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+          { key: 'fish', type: 'item/food/fish/raw', x: 2, y: 2, heldBy: 'actor' },
+          { key: 'fire', type, x: 2, y: 1, statuses: ['lit'] },
+        ],
+        event: { kind: `act/${verb}`, actor: 'actor', target: 'fire', instrument: 'fish' },
+      })
+      for (const verb of ['use', 'put'] as const) {
+        const rp = replay(sc(verb), onto, lib())
+        expect(rp.engine.world.get('fish')?.type === 'item/food/fish/cooked', `${verb} on ${type}`).toBe(cooks)
+      }
     }
   })
 })

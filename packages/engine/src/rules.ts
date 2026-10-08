@@ -86,6 +86,7 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
     const h = world.hour()
     return c.hour.from <= c.hour.to ? h >= c.hour.from && h < c.hour.to : h >= c.hour.from || h < c.hour.to
   }
+  if ('night' in c) return world.isNight() === c.night
   if ('count' in c) {
     const v = roles[c.count.role]
     return !!v && within(countAt(v, c.count.in, c.count.match, world), c.count.cmp, roles, ev)

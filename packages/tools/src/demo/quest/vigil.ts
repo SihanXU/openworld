@@ -34,7 +34,7 @@ function rim(m: MapBuilder, open: (x: number, y: number) => boolean): void {
 // =================================================================== Millbrook
 
 export function buildMillbrook(): MapBuilder {
-  const m = new MapBuilder('mill', L('Millbrook', '水车磨坊'), 'village', 40, 30, 'grass', 'Village', 'outdoor', 'frostfang')
+  const m = new MapBuilder('mill', L('Millbrook', '水车磨坊'), 'village', 40, 30, 'grass', 'village', 'outdoor', 'frostfang')
   m.zone = 'peaceful'
   rim(m, (x, y) => x >= m.w - 3 && (VIGIL.millEast as readonly number[]).includes(y))
   // the brook, north to south, a footbridge over it; the mill on its east bank

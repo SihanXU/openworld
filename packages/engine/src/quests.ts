@@ -30,8 +30,8 @@ export type QuestKind = 'main' | 'side' | 'repeat'
 export type QuestGoal =
   /** Fell creatures of a type (a prefix), optionally on one map. */
   | { id: string; kind: 'defeat'; type: string; map?: string; count: number; label: Text }
-  /** Have things of a type on you when you hand in (taken by the giver if `consume`). */
-  | { id: string; kind: 'carry'; type: string; count: number; consume?: boolean; label: Text }
+  /** Have things of a type (and, if given, with these tags) on you when you hand in (taken by the giver if `consume`). */
+  | { id: string; kind: 'carry'; type: string; tags?: string[]; count: number; consume?: boolean; label: Text }
   /** Speak to someone (E) while the quest is active: they say `line`. */
   | { id: string; kind: 'talk'; npc: Id; line: Text; label: Text }
   /** A world fact reaches a value. */
@@ -92,8 +92,9 @@ export class Quests {
     return this.eng.world
   }
 
-  private carried(type: string, by: Entity = this.w.player): Entity[] {
-    return [by.held, ...(by.contents ?? [])].map((id) => this.w.get(id)).filter((e): e is Entity => !!e && e.type.startsWith(type) && !e.frozenBy)
+  private carried(type: string, by: Entity = this.w.player, tags: string[] = []): Entity[] {
+    return [by.held, ...(by.contents ?? [])].map((id) => this.w.get(id))
+      .filter((e): e is Entity => !!e && e.type.startsWith(type) && !e.frozenBy && tags.every((t) => this.w.hasTag(e, t)))
   }
 
   /** Who took a quest on (the player, for a save from before it was kept). */
@@ -110,7 +111,7 @@ export class Quests {
         return { have: Math.min(g.count, Number(w.fact(`q.${q.id}.${g.id}`) ?? 0)), need: g.count }
       case 'carry': {
         const t = this.taker(q)
-        return { have: Math.min(g.count, t ? this.carried(g.type, t).length : 0), need: g.count }
+        return { have: Math.min(g.count, t ? this.carried(g.type, t, g.tags).length : 0), need: g.count }
       }
       case 'talk':
         return { have: w.fact(`q.${q.id}.${g.id}`) ? 1 : 0, need: 1 }
@@ -240,6 +241,11 @@ export class Quests {
     for (const q of this.defs) {
       const s = this.status(q, who)
       if (s === 'done') continue
+      // met in full as the story goes past it (its last goal is where the story now stands): it is completed, and pays
+      if (s === 'ready' && this.passed(q)) {
+        this.complete(q, this.taker(q) ?? who, q.turnIn ?? q.giver, ev)
+        continue
+      }
       if (this.passed(q)) {
         w.setFact(`q.${q.id}`, 'done')
         for (const [k, v] of Object.entries(q.reward?.facts ?? {})) w.setFact(k, v)
@@ -260,7 +266,7 @@ export class Quests {
       eng.queue({ kind, host: { e: to }, roles, params, cause: ev.cause, origin: ev.origin, depth })
     // what was to be brought is taken by the giver (each thing moves itself into their bag)
     for (const g of q.goals)
-      if (g.kind === 'carry' && g.consume) for (const e of this.carried(g.type, who).slice(0, g.count)) send('impulse/taken', e.id, { into: 'contents', quiet: true }, { other: { e: npc }, actor: { e: npc } })
+      if (g.kind === 'carry' && g.consume) for (const e of this.carried(g.type, who, g.tags).slice(0, g.count)) send('impulse/taken', e.id, { into: 'contents', quiet: true }, { other: { e: npc }, actor: { e: npc } })
     w.setFact(`q.${q.id}`, 'done')
     if (q.kind === 'repeat') w.setFact(`q.${q.id}.day`, w.calendar().day)
     const r = q.reward

@@ -8,7 +8,7 @@ import {
   type BossDef, type Entity, type PlacementRecipe, type QuestDef, type Recipe, type SkillDef, type StatusDef, type TerrainDef, type Text, type TypeDef,
 } from '@lsw/engine'
 import {
-  BOONS, BOSSES, EFFICIENCY, ELEMENT_NAMES, ELEMENTS, FALL_DAMAGE, FORMS, LAYS_EVERY, LEGENDARY_ARMS, MATERIALS, NIGHT_CAP, NIGHT_EVERY, PLACEMENTS,
+  BOONS, BOSSES, COIN, EFFICIENCY, ELEMENT_NAMES, ELEMENTS, FALL_DAMAGE, FED_FOR, FORMS, LAYS_EVERY, LEGENDARY_ARMS, MATERIALS, NIGHT_CAP, NIGHT_EVERY, PLACEMENTS,
   QUALITIES, RECIPES, RECOVERY, RELICS, ROOM_SIZE, SAFE_FALL, SKILL_BRANCHES, SKILL_DIRECTIONS, SKILL_PROFESSIONS, SKILLS, STOREYS, TERRAIN_CHARS,
   TERRAINS, TREE_GROWS, VOW_TRAITS, buildOntology, type Form,
 } from '@lsw/content'
@@ -162,7 +162,12 @@ export interface Game {
   bosses: BossEnt[]
   maps: MapEnt[]
   quests: QuestEnt[]
+  /** What is made (the crafting panel, a workbench): not the stall's trade. */
   recipes: Recipe[]
+  /** The Held Ground's stall (content homestead.ts): its offers (groups farm, ranch, fish) and what it buys back (group sell). */
+  shop: Recipe[]
+  /** The stall's coin. */
+  coin: string
   placements: PlacementRecipe[]
   skills: SkillDef[]
   branches: typeof SKILL_BRANCHES
@@ -235,7 +240,10 @@ export function loadGame(): Game {
   }
 
   // ---- items (the catalogue's forms), fixtures, structures
-  const recipeOf = new Map(RECIPES.map((r) => [String((r.make as any).type), r]))
+  // buying and selling are made at the stall as recipes are (content homestead.ts), but they are trade, not making
+  const MADE = RECIPES.filter((r) => r.station !== 'stall')
+  const SHOP = RECIPES.filter((r) => r.station === 'stall')
+  const recipeOf = new Map(MADE.map((r) => [String((r.make as any).type), r]))
   const placementOf = new Map(PLACEMENTS.filter((p) => p.result).map((p) => [String(p.result), p]))
   const items: ItemEnt[] = FORMS.map((f) => {
     const t = types[f.id]
@@ -431,12 +439,16 @@ export function loadGame(): Game {
     交互距离: v(ontology.params?.reach ?? 1, '默认的 E 交互距离（格）', 'content/src/ontology.ts params.reach'),
     拿放距离: v(ontology.params?.carry ?? 1, 'F 拿、G 放的距离（格）', 'content/src/ontology.ts params.carry'),
     休息系数: v(ontology.params?.rest ?? 0.5, '不在卧室睡觉时恢复损失生命的比例', 'content/src/ontology.ts params.rest'),
+    喂饱时长: v(FED_FOR / TICKS_PER_HOUR, '喂过饲料的动物「吃饱了」持续几个游戏小时；「挤过奶」「刚生过崽」也持续这么久', 'content/src/homestead.ts FED_FOR'),
+    幼崽长大: v(Number((types['actor/creature/animal/calf']?.stage as any)?.lasts ?? 0) / TICKS_PER_HOUR, '小牛、小鸡长成牛、鸡要几个游戏小时', 'content/src/ontology.ts GROWS_UP'),
+    鱼饵次数: v(FORMS.find((f) => f.id === 'item/misc/bait')?.props?.casts ?? 5, '一份鱼饵挂到鱼竿上能用几竿', 'content/src/items.ts item/misc/bait'),
+    鱼竿距离: v(FORMS.find((f) => f.id === 'item/tool/fishing_rod')?.props?.range ?? 1, '鱼竿能甩到几格远（格）', 'content/src/items.ts item/tool/fishing_rod'),
     首领二阶段: v(`${Math.round((BOSSES[0]?.enrageAt ?? 0.5) * 100)}%`, '首领生命降到这个比例进入第二阶段', 'content/src/bosses.ts enrageAt'),
   }
 
   const g: Game = {
     version: index.version, ontology, types, items, fixtures, structures, people, creatures, bosses, maps, quests,
-    recipes: RECIPES, placements: PLACEMENTS, skills: SKILLS, branches: SKILL_BRANCHES, directions: SKILL_DIRECTIONS, professions: SKILL_PROFESSIONS,
+    recipes: MADE, shop: SHOP, coin: COIN, placements: PLACEMENTS, skills: SKILLS, branches: SKILL_BRANCHES, directions: SKILL_DIRECTIONS, professions: SKILL_PROFESSIONS,
     boons: BOONS, statuses: Object.values(ontology.statuses), terrains: TERRAINS, waypoints: index.waypoints ?? [],
     byId, byTitle, byName, values, index, chunks, placed,
     mapOf: (id) => maps.find((m) => m.id === id),

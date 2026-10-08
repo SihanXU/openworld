@@ -17,7 +17,7 @@ export function plantGarden(m: MapBuilder): void {
   })
   const seeds: ItemSpec[] = GARDEN_CROPS.flatMap((c) => Array<string>(2).fill(`item/seed/${c.id}`))
   m.fixture('fixture/container/crate', ...GARDEN.supplies, {
-    id: 'ford.garden.supplies', name: { en: 'Garden Supplies', zh: '菜圃工具箱' }, props: { capacity: 24 },
+    id: 'ford.garden.supplies', name: { en: 'Garden Supplies', zh: '菜圃工具箱' }, props: { capacity: 24, maxHp: 12, hp: 12 },
   }, [...seeds, 'item/tool/hoe', 'item/tool/sickle', 'item/vessel/bucket/water', 'item/tool/smith_hammer',
     ...Array<string>(4).fill('item/material/plank'), ...Array<string>(4).fill('item/material/stick'), ...Array<string>(4).fill('item/material/stone')])
   // Stable stock IDs cannot collide with a previously visited meadow's generated items.

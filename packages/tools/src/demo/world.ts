@@ -95,7 +95,7 @@ export const STAND = {
 } as const satisfies Record<string, readonly [number, number]>
 
 function buildMap(): MapBuilder {
-  const m = new MapBuilder('ford', L('The Ford', '渡口'), 'wild', 48, 30, 'grass', 'Village', 'outdoor', 'frostfang')
+  const m = new MapBuilder('ford', L('The Ford', '渡口'), 'wild', 48, 30, 'grass', 'field', 'outdoor', 'frostfang')
   const grass = (t: string) => t === 'grass'
   // ------------------------------------------------------------ the river: a pool at the landing, narrows at the dead tree
   for (let y = 0; y < m.h; y++) for (let x = NEAR[y]; x <= FAR[y]; x++) m.set(x, y, 'water')
@@ -162,7 +162,7 @@ function buildMap(): MapBuilder {
   for (const [x, y] of [[20, 5], [21, 4], [17, 9]] as const) m.fixture('fixture/nature/boulder', x, y)
   clump(m, 22, 8, 1.2, 0.7)
   // where the road east leaves the far bank, a signpost to nowhere yet
-  m.fixture('fixture/sign', 40, 14, { props: { text: '→ Emberfall' } })
+  m.fixture('fixture/sign', 40, 14, { props: { text: '→ Emberfall', text_zh: '→ 余烬镇' } })
   m.fixture('fixture/nature/haystack', ...AT.haystack)
   // the landing: the post the ferry line ran from, the boat on the water, a bucket, a coil of old line
   m.fixture('fixture/ferry/winch', ...AT.winch, { id: 'ford.winch', statuses: { broken: -1 } })
@@ -232,7 +232,7 @@ const GRAZER: Omit<AiData, 'home'> = { behaviour: 'passive', temper: 'wary', sig
 
 /** A starting village in a ring of woods, with homes, a shared square, pasture and a garden. */
 function buildMeadow(): MapBuilder {
-  const m = new MapBuilder(FIRSTLIGHT.map, FIRSTLIGHT.name, 'village', 40, 30, 'grass', 'Village', 'outdoor', 'frostfang')
+  const m = new MapBuilder(FIRSTLIGHT.map, FIRSTLIGHT.name, 'village', 40, 30, 'grass', 'village', 'outdoor', 'frostfang')
   const open = (y: number) => WEST_GAP.includes(y)
   // the woods all round, two to four deep, the east side open where the road comes in
   for (let y = 0; y < m.h; y++)
@@ -259,7 +259,7 @@ function buildMeadow(): MapBuilder {
   m.fixture('fixture/furniture/bench/log', 20, 19, { id: 'village.bench' })
   // the woodworker's bench by the wood pile: what is made at a workbench is made here (world-model.md §6.4)
   m.fixture('fixture/craft/workbench', 11, 18, { id: 'village.workbench' })
-  m.fixture('fixture/sign/noticeboard', 17, 14, { id: 'village.notice', props: { text: 'FIRSTLIGHT VILLAGE — Every journey begins with a first step. East: The Ford. South: The Forest.' } })
+  m.fixture('fixture/sign/noticeboard', 17, 14, { id: 'village.notice', props: { text: 'FIRSTLIGHT VILLAGE — Every journey begins with a first step. East: The Ford. West: Millbrook. North: Dawn Hill. South: the grassland, and the forest beyond.', text_zh: '初原村——每段旅程都从第一步开始。东：渡口。西：水车磨坊。北：晨光丘。南：草原，再往南是森林。' } })
   for (const [x, y] of [[25, 13], [12, 16]] as const) m.fixture('fixture/light/lamppost', x, y, { id: `village.lamp.${x}`, statuses: { lit: -1 } })
   // Tobin and his stock move together. Stable IDs keep saved trades and inventories intact.
   m.fixture('fixture/furniture/cart', ...FIRSTLIGHT.cart, { id: 'ford.cart', props: { owner: 'npc.tobin' } })
@@ -322,7 +322,7 @@ export const PASTURE_GAP = SOUTH_GAP
 
 /** Open grassland in a ring of woods (Minecraft's plains): the cows and hens, and more of them in time. */
 function buildPasture(): MapBuilder {
-  const m = new MapBuilder('pasture', L('The Grassland', '草原'), 'wild', 40, 30, 'grass', 'Village', 'outdoor', 'frostfang')
+  const m = new MapBuilder('pasture', L('The Grassland', '草原'), 'wild', 40, 30, 'grass', 'field', 'outdoor', 'frostfang')
   const gap = (x: number) => (PASTURE_GAP as readonly number[]).includes(x)
   // woods round the edge, thinner than the village's, open north (from the village) and south (to the forest)
   for (let y = 0; y < m.h; y++)
@@ -360,7 +360,7 @@ function buildPasture(): MapBuilder {
 
 /** Dense woods to fell (wood/notch, wood/fell: two swings of an axe; a stump grows back in two days), a trail and clearings through them. */
 function buildForest(): MapBuilder {
-  const m = new MapBuilder('forest', L('The Forest', '森林'), 'wild', 40, 30, 'grass', 'Village', 'outdoor', 'frostfang')
+  const m = new MapBuilder('forest', L('The Forest', '森林'), 'wild', 40, 30, 'grass', 'forest', 'outdoor', 'frostfang')
   const tree = () => (rng.chance(0.3) ? 'pine' : 'tree')
   // the woods close all round, the north open where the meadow's trail comes in
   for (let y = 0; y < m.h; y++)
