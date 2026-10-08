@@ -521,7 +521,24 @@ const TOOL_LABELS: Record<string, Text> = {
   'tool:fishing': L('Cast into {target}', '往{target}里甩竿'),
 }
 
+/**
+ * Where a thing set down by hand goes: open ground, the open air of a storey (a floor laid in it),
+ * or what is built there (a floor laid on it, a wall stacked on a wall) — the cell takes it as G's put.
+ */
+const SET_ON: Cond = any(is('target', { type: 'tile', notTags: ['solid', 'liquid'] }), is('target', { type: 'structure' }))
+
 const INSTRUMENTS: Rule[] = [
+  // the left click builds (Terraria, Minecraft's place): a built thing or a fixture used on where it can go is set down there
+  ...(['structure', 'fixture'] as const).map((type) =>
+    rule({
+      id: `use/set-${type}`,
+      label: L('Set {instrument} down', '放下{instrument}'),
+      doc: `A ${type === 'structure' ? 'built thing (a wall, a floor, a door, stairs)' : 'fixture (a bed, a workbench)'} used on open ground, a floor or what is built there is set down there, as G sets it (the cell answers: it takes it or refuses). Used on anything else, or swung as a blow, it is what its nature says.`,
+      host: { type },
+      on: 'act/use',
+      tree: IF(all(not(param('attack', true)), SET_ON), DO(emit('receive', 'target', undefined, { item: 'host' })), 'inherit'),
+    }),
+  ),
   rule({
     id: 'use/read',
     label: L('Read {instrument}', '阅读{instrument}'),

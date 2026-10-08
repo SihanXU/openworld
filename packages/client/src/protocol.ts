@@ -17,7 +17,8 @@ export type ToWorker =
   /** Space: strike ahead with the held weapon (or a fist), again and again while it is held. */
   | { t: 'attack'; on: boolean }
   /** One of the four inputs (design.md §5.2): E hands, F take, left click use, right click put; on a chosen layer of the tile. */
-  | { t: 'key'; key: Key; tile?: Tile; layer?: number }
+  | { t: 'key'; key: Key; tile?: Tile; layer?: number; /** the left button dragged over a new cell: only if it sets something down */ drag?: boolean }
+  | { t: 'handUp'; up: boolean }
   /** The same on an item in the bag or in the open chest (the inventory's context menu). */
   | { t: 'keyOnItem'; key: Key; item: string }
   /** The layer chooser (a long press): what each layer of the tile would give. */

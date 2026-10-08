@@ -4,7 +4,7 @@
 // inventory, J journal, M map.
 
 import Phaser from 'phaser'
-import type { Dir, Frame, ItemInfo, Key, LibraryData, SaveData, Text } from '@lsw/engine'
+import { CEILING, type Dir, type Frame, type ItemInfo, type Key, type LibraryData, type SaveData, type Text } from '@lsw/engine'
 import { CATALOG } from './assets/catalog.ts'
 import type { FromWorker, Tile, ToWorker } from './protocol.ts'
 import { cssAssetUrl, registerArt } from './render/assets.ts'
@@ -112,7 +112,11 @@ function openPanel(what: 'bag' | 'craft' | 'map', open: () => void): void {
   if (!was && menu.anyOpen) send({ t: 'ui', what })
 }
 const building = new BuildingMode(send, (x, y) => ({ ...scene.screenOfTile(x, y), scale: scene.cameras.main.zoom }))
-building.onView = (open, ceilings) => scene.setBuildView(open, ceilings)
+// the palette opened or shut: the left click's ceiling (R by hand) is let go, the palette has its own
+building.onView = (open, ceilings) => {
+  if (handUp) ((handUp = false), send({ t: 'handUp', up: false }))
+  scene.setBuildView(open, ceilings)
+}
 function toggleBuilding(): void {
   if (menu.anyOpen || dev.open || hud.dialogOpen || hud.questionShown || hud.chooserOpen || !lastFrame || !document.getElementById('intro')!.classList.contains('hidden')) return
   if (!building.open && !lessons.allows('build')) return
@@ -276,6 +280,8 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
         break
       }
       hud.setLearning(m.learning)
+      // the ceiling (R) is for a floor in hand: another thing taken in hand lays on one's storey again
+      if (handUp && !laysInHand(m.frame)) setHandUp(false)
       if (building.open) m.frame.keys = undefined
       scene.applyFrame(m.frame)
       minimap.onFrame(m.frame)
@@ -558,6 +564,8 @@ window.addEventListener('keydown', (e) => {
     if (['KeyE', 'KeyF', 'KeyG', 'Space', 'Tab'].includes(e.code)) e.preventDefault()
     return
   }
+  // R with a floor in hand: the left click lays it in the ceiling (as the palette's R), and back
+  if (e.code === 'KeyR' && !e.repeat && laysInHand(lastFrame)) return void setHandUp(!handUp)
   // Space: the attack key, a blow ahead on the press and again while it is held
   if (e.code === 'Space') return void (e.preventDefault(), setAttack(true))
   if (e.repeat) return
@@ -608,6 +616,28 @@ function reaim(): void {
   if (aimSig(a) === aimSig(mouseTile)) return
   mouseTile = a
   send({ t: 'aim', tile: a })
+  // building by hand, the left button held: each new cell the pointer enters gets one too
+  if (handDrag && a) {
+    const cell = handCell(a)
+    if (cell !== handDrag) ((handDrag = cell), send({ t: 'key', key: 'use', tile: a, drag: true, ...(handUp && { layer: CEILING }) }))
+  }
+}
+
+// ------------------------------------------------------------------ building by hand: the left click sets a built thing down (docs/building.md)
+
+/** The left button is down on a cell where what is held is set down: the cell last built (`x,y`), so a drag builds a row. */
+let handDrag: string | undefined
+/** The left click lays the floor in hand in the ceiling (R), not on one's storey. */
+let handUp = false
+/** A floor is in hand (R lays it in the ceiling instead). */
+const laysInHand = (f?: Frame) => f?.player.held?.type === 'structure/floor'
+/** The cell a click builds in: laying the ceiling, the one whose ceiling is drawn at the pointer. */
+const handCell = (a: Tile) => (handUp ? `${a.over?.x ?? a.x},${a.over?.y ?? a.y + 1}` : `${a.x},${a.y}`)
+function setHandUp(up: boolean): void {
+  handUp = up
+  send({ t: 'handUp', up })
+  // laying the ceiling, one sees one's own storey and the ceilings where they are drawn (as in the palette)
+  if (!building.open) scene.setBuildView(up, up)
 }
 const gameEl = document.getElementById('game')!
 window.addEventListener('mousemove', (e) => {
@@ -628,11 +658,17 @@ gameEl.addEventListener('mousedown', (e) => {
     if (e.button === 2) building.toggle(false)
     return
   }
+  // what is held sets down here (it builds): at once, and again in each cell dragged over (no chooser on a long press)
+  if (e.button === 0 && tile && lastFrame?.keys?.use?.sets) {
+    handDrag = handCell(tile)
+    return send({ t: 'key', key: 'use', tile, ...(handUp && { layer: CEILING }) })
+  }
   if (e.button === 0) press('use', tile)
   if (e.button === 2) press('self', tile)
 })
 window.addEventListener('mouseup', (e) => {
   if (e.button === 0) building.release()
+  if (e.button === 0) handDrag = undefined
   if (e.button === 0) release('use')
   if (e.button === 2) release('self')
 })
@@ -657,6 +693,7 @@ function raf(now: number) {
   }
   hud.tickLabels()
   building.tick()
+  building.hand(handUp)
   requestAnimationFrame(raf)
 }
 requestAnimationFrame(raf)

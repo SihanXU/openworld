@@ -236,7 +236,9 @@ export class Controls {
   /** The layers an input meets at a spot: oneself is never one (one's own place is what is there); the open air only F and G meet. */
   private targets(at: Pos, stack?: Ref[], key?: Key): Ref[] {
     const me = this.w.state.player
-    const all = this.layers(at, stack).filter((r) => r.e !== me && (key === 'put' || key === 'take' || !this.w.isAir(this.w.get(r.e))))
+    // the open air only F and G meet, and the left click with a built thing in hand (it builds there)
+    const air = key === 'put' || key === 'take' || (key === 'use' && this.buildsInHand())
+    const all = this.layers(at, stack).filter((r) => r.e !== me && (air || !this.w.isAir(this.w.get(r.e))))
     // what another cell draws over the point but stands beyond the key's reach (a farther tree's
     // crown over the tree beside one) is not what the key meets: the next layer is. What stands on
     // the spot itself stays, reached or not (a bed pointed at from beside it is not its floor).
@@ -333,6 +335,8 @@ export class Controls {
     const generic = fallback ?? (key === 'self' ? GENERIC.self : GENERIC[verb] ?? GENERIC.use)
     const plan: Plan = { key, at, verb, target, instrument, rule: this.telling(r.rules), label: this.labelFor(r.labels, generic, target, instrument), unknown: r.unknown || undefined, changes: r.changes || r.unknown || undefined }
     if (attack) plan.attack = true
+    // what answers is a cell taking what is held: it is set down there
+    if (!r.unknown && plan.rule && this.eng.lib.rules.get(plan.rule)?.on === 'impulse/receive') plan.sets = true
     if (r.confirm && !r.unknown) plan.confirm = this.label(r.confirm, target, instrument)
     const e = this.entity(target)
     if (e && this.w.hasTag(e, 'container') && r.rules.includes('core/open-close')) plan.panel = e.id
@@ -372,7 +376,7 @@ export class Controls {
     // does not matter; the act's reach is the engine's)
     if (layer === CEILING) {
       const at = this.spot(aim && (aim.over ?? aim)) ?? a.at
-      return key === 'put' || key === 'take' ? this.planOn(key, at, this.ceilingOf(at)) : undefined
+      return key === 'put' || key === 'take' || (key === 'use' && this.buildsInHand()) ? this.planOn(key, at, this.ceilingOf(at)) : undefined
     }
     const p = this.planAt(key, a.at, a.stack, layer)
     // E with no spot pointed at (or the pointer beyond reach): the spot in front or toward the
@@ -406,7 +410,7 @@ export class Controls {
     if (key === 'self') return [{ layer: 0, name: this.label('{target}', { e: this.w.state.player }), plan: this.planAt(key, a.at, a.stack, 0) }]
     const list: { layer: number; name: Text; plan?: Plan }[] = this.targets(a.at, a.stack, key).map((ref, layer) => ({ layer, name: this.label('{target}', ref), plan: this.planOn(key, a.at, ref) }))
     // last, the ceiling over the spot: a floor laid in it, or taken down (docs/building.md §5)
-    if (key === 'put' || key === 'take') list.push({ layer: CEILING, name: CEILING_NAME, plan: this.plan(key, aim, CEILING) })
+    if (key === 'put' || key === 'take' || (key === 'use' && this.buildsInHand())) list.push({ layer: CEILING, name: CEILING_NAME, plan: this.plan(key, aim, CEILING) })
     return list.filter((c) => c.plan)
   }
 
@@ -428,7 +432,7 @@ export class Controls {
     if (!l?.allow) return true
     let ok = l.allow.includes(input)
     const named = !!what?.type && !!l.only?.includes(what.type)
-    if (ok && l.only && what?.type && (input === 'craft' || input === 'build' || input === 'put')) ok = named
+    if (ok && l.only && what?.type && (input === 'craft' || input === 'build' || input === 'put' || input === 'use')) ok = named
     if (ok && named && l.cells && what?.at) ok = l.cells.some(([x, y]) => x === what.at!.x && y === what.at!.y)
     if (!ok && this.w.state.tick - this.refused >= 5) {
       this.refused = this.w.state.tick
@@ -449,7 +453,7 @@ export class Controls {
     const w = this.w
     const p = w.player
     // a lesson at hand: only what it teaches (setting a thing down, only that thing, only where it says)
-    if (!this.answering && !this.allows(plan.key, plan.key === 'put' ? { type: this.entity(plan.instrument)?.type, at: plan.at } : undefined)) return {}
+    if (!this.answering && !this.allows(plan.key, plan.key === 'put' || plan.sets ? { type: this.entity(plan.instrument)?.type, at: plan.at } : undefined)) return {}
     if (eng.busy(p)) return {}
     this.face(plan.at)
     // the build palette's turn (R): one faces that way setting it down (stairs go up that way)
@@ -860,6 +864,12 @@ export class Controls {
   /** What one sets down in a cell as part of a place: a built thing or a fixture (a wall, a door, a bed, a workbench). */
   static placeable(type: string): boolean {
     return type.startsWith('structure/') || type.startsWith('fixture/')
+  }
+
+  /** What is in hand is set down by the left click (it builds): it meets the open air and the ceiling, as G does. */
+  private buildsInHand(): boolean {
+    const held = this.w.get(this.w.player.held)
+    return !!held && Controls.placeable(held.type)
   }
 
   /** A carried thing of a type (the hand's last, so what is held stays in hand while there are others). */

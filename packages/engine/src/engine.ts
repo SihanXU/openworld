@@ -572,9 +572,9 @@ export class Engine {
     if (r === undefined) return true
     const at = w.posOf(actor)
     // one reaches one's own storey, and over it its ceiling — the floor of the storey above, laid or
-    // open — to set a floor in or take one out (docs/building.md R1)
+    // open — to set a floor in (G, or the left click that builds) or take one out (docs/building.md R1)
     const there = w.posOf(t)
-    const ceiling = !!at && !!there && (verb === 'put' || verb === 'take') && (there.z ?? 0) === (at.z ?? 0) + 1 && (w.isAir(t) || w.spacesOf(t).includes('floor'))
+    const ceiling = !!at && !!there && (verb === 'put' || verb === 'take' || verb === 'use') && (there.z ?? 0) === (at.z ?? 0) + 1 && (w.isAir(t) || w.spacesOf(t).includes('floor'))
     const d = at && w.distance(ceiling ? { ...at, z: there!.z } : at, t)
     return d !== undefined && d <= r
   }
