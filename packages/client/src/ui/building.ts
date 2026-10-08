@@ -222,17 +222,7 @@ export class BuildingMode {
   tick(): void {
     const at = this.slot()
     if (!this.open || !at || !this.frame) return
-    const p = this.screen(at.x, at.y)
-    const size = 16 * p.scale
-    // where it will be drawn (docs/building.md §5): a block a storey high (its top a tile up), a floor
-    // on its cell, a ceiling a storey up (a tile up) - under the pointer, as it will be shown
-    const tall = block(this.selected.put)
-    const up = this.ceiling()
-    this.ghost.style.left = `${p.x}px`
-    this.ghost.style.top = `${p.y - (tall ? size / 2 : up ? size : 0)}px`
-    this.ghost.style.width = `${size}px`
-    this.ghost.style.height = `${tall ? size * 2 : size}px`
-    this.ghost.classList.toggle('ceiling', up)
+    this.drawGhost(at, this.selected.put, this.ceiling())
     // what turns (stairs) shows the way it will face
     const turns = this.selected.put === 'structure/stairs'
     this.arrow.textContent = { up: '↑', right: '→', down: '↓', left: '←' }[this.facing ?? this.away()]
@@ -240,6 +230,42 @@ export class BuildingMode {
     if (!turns) this.arrow.remove()
     this.ghost.classList.toggle('valid', !!this.preview?.ok)
     this.ghost.classList.toggle('invalid', !this.preview?.ok)
+  }
+
+  /** The thing in hand the left click sets down (it builds, outside the palette): its ghost where it will be drawn. */
+  private handSprite = ''
+  hand(up: boolean): void {
+    if (this.open) return
+    const k = this.frame?.keys?.use
+    const held = this.frame?.player.held
+    const on = !!k?.sets && !!held && placeable(held.type)
+    this.ghost.classList.toggle('hidden', !on)
+    if (!on || !k || !held) return
+    if (held.sprite !== this.handSprite) {
+      this.handSprite = held.sprite
+      this.ghost.replaceChildren()
+      const art = this.paint?.(held.sprite)
+      if (art) this.ghost.append(art)
+    }
+    this.arrow.remove()
+    this.drawGhost({ x: k.x, y: k.y }, held.type, up && lays(held.type))
+    this.ghost.classList.add('valid')
+    this.ghost.classList.remove('invalid')
+  }
+
+  /**
+   * The ghost over the cell built, where it will be drawn (docs/building.md §5): a block a storey high
+   * (its top a tile up), a floor on its cell, a ceiling a storey up (a tile up) - as it will be shown.
+   */
+  private drawGhost(at: Tile, type: string | undefined, up: boolean): void {
+    const p = this.screen(at.x, at.y)
+    const size = 16 * p.scale
+    const tall = block(type)
+    this.ghost.style.left = `${p.x}px`
+    this.ghost.style.top = `${p.y - (tall ? size / 2 : up ? size : 0)}px`
+    this.ghost.style.width = `${size}px`
+    this.ghost.style.height = `${tall ? size * 2 : size}px`
+    this.ghost.classList.toggle('ceiling', up)
     const canvas = this.ghost.querySelector('canvas')
     if (canvas) {
       canvas.style.width = `${canvas.width * p.scale}px`
@@ -260,6 +286,7 @@ export class BuildingMode {
       if (c) el.append(c)
     })
     this.ghost.replaceChildren()
+    this.handSprite = ''
     const art = this.paint?.(this.selected.sprite)
     if (art) this.ghost.append(art)
     this.detailSignature = ''

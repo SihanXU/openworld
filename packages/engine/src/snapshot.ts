@@ -232,6 +232,8 @@ export interface KeyView {
   unknown?: boolean
   /** It will ask first. */
   confirm?: boolean
+  /** It sets what is held down there (it builds): the left button held and dragged sets one in each cell. */
+  sets?: boolean
   x: number
   y: number
   /** The target's base when it covers more than its cell (a place of the overworld, a tent): x, y, width, height. */

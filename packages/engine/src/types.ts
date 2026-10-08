@@ -983,6 +983,8 @@ export interface Plan {
   confirm?: Text
   /** Hands on a container: open the transfer panel for it. */
   panel?: Id
+  /** It sets what is held down where it is aimed (the cell takes it): G, or the left click with a built thing (it builds). */
+  sets?: boolean
 }
 
 // ------------------------------------------------------------------ events (design.md §5.7)

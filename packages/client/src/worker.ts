@@ -32,6 +32,7 @@ import {
   type Engine,
   type PlacementPreview,
   restoreLibrary,
+  CEILING,
 } from '@lsw/engine'
 import { BASE_RULES, BOSS_LAYOUT, createBoss, COMPANION_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, PROLOGUE_DONE, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateCompanion, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
@@ -48,6 +49,8 @@ let walk = false
 let attacking = false
 /** Where the mouse points, the open chest panel, and whether time is stopped (a menu or a dialogue is open). */
 let aimTile: Tile | undefined
+/** The left click lays what is held in the ceiling (R with a floor in hand), not on one's storey. */
+let handUp = false
 let panel: string | undefined
 let paused = false
 let buildAim: { id: string; tile: Tile; up?: boolean } | undefined
@@ -259,14 +262,14 @@ function keyViews(): Frame['keys'] {
     if (fw <= 1 && fd <= 1) return undefined
     return [t.place.x - Math.floor((fw - 1) / 2), t.place.y - fd + 1, fw, fd]
   }
-  const view = (pl: Plan | undefined): KeyView | undefined => pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(rect(pl) && { rect: rect(pl) }) }
+  const view = (pl: Plan | undefined): KeyView | undefined => pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(pl.sets && { sets: true }), ...(rect(pl) && { rect: rect(pl) }) }
   // standing still, one turns to the spot beside one that the pointer is on (the input's own posture):
   // a person one points at sees one face them, and waits (npc.ts, attended)
   const stand = w.posOf(w.player)
   if (!moveDir && stand && aimTile && Math.abs(aimTile.x - stand.x) + Math.abs(aimTile.y - stand.y) === 1) c.face({ ...stand, x: aimTile.x, y: aimTile.y })
   const out: NonNullable<Frame['keys']> = {}
   for (const k of ['hands', 'take', 'put', 'use'] as Key[]) {
-    const pl = c.plan(k, aimTile)
+    const pl = c.plan(k, aimTile, k === 'use' && handUp ? CEILING : 0)
     shownTarget[k] = pl?.target
     out[k] = view(pl)
   }
@@ -544,7 +547,8 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         const c = game.engine.controls
         // the target the key's label named (one who walked a step off since stays it)
         const plan = c.planFor(m.key, m.tile, m.layer, m.layer ? undefined : shownTarget[m.key])
-        if (!plan) break
+        // dragged over a cell, the left button only sets things down (never an experiment on what it passes)
+        if (!plan || (m.drag && !plan.sets)) break
         const out = c.run(plan)
         if (out.panel) panel = out.panel
         break
@@ -590,6 +594,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         post({ t: 'choices', key: m.key, tile: m.tile, list })
         break
       }
+      case 'handUp':
+        handUp = m.up
+        break
       case 'aim':
         aimTile = m.tile
         break

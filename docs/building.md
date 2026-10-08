@@ -248,6 +248,19 @@ Taking it down is the reverse, step by step. Every step is reachable, and nothin
   `Controls.planOn` checks a put on a cell or a built thing against `settleWhy`, and a take against
   `World.bears`: a floor above the ground that something rests on. The `move` primitive refuses to move
   a floor that bears anything.
+- **The left click builds** (2026-10-08, after the user: G is the put that drops a thing, building
+  belongs on the mouse as in every building game). A built thing or a fixture in hand, used on open
+  ground, a floor or what is built there, is set down there: the rules `use/set-structure` and
+  `use/set-fixture` (hosted by what is held) hand it to the cell, which takes it as it takes G's put
+  (`core/receive-ground`, `build/stack`, `core/receive-air`), so the physics is the same. Anywhere else
+  (the water, a tree, a person), or swung as a blow, it stays what its nature says: an experiment.
+  - The plan says it sets (`Plan.sets`, the frame's `KeyView.sets`: the answer is a cell taking it). The
+    left button then acts on the press (no chooser on a long press) and, held and dragged, in each new
+    cell, only where it sets (the worker's `drag`).
+  - R with a floor in hand lays it in the ceiling (`CEILING` for the use, the reach over one's head
+    as G's); the view shows one's storey and the ceilings while it is on, as the palette does.
+  - The thing in hand has its ghost where it will be drawn (`BuildingMode.hand`).
+  - A lesson's `only` and `cells` narrow it as they narrow G.
 - **The build palette's buildings** (a chest, a campfire, a crate, a fence, a sign: `placement.ts`) go up
   on one's own storey, on open ground or on a floor laid there (the first material stacks on it,
   `build/stack`), where the result could rest (`settleWhy`). A laid floor and a flyer over the cell are
