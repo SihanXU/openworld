@@ -329,7 +329,7 @@ function addSpecialPages(b: Built, resolve: (t: string) => string | undefined, r
   for (const p of all) { if (!groups.has(p.type)) groups.set(p.type, []); groups.get(p.type)!.push(p) }
   add('特殊：所有页面', `本站共 ${all.length} 页。\n\n${[...groups].map(([t, ps]) => `## ${t}（${ps.length}）\n\n${ps.map((p) => `[[${p.title}]]`).join(' · ')}`).join('\n\n')}\n`, '所有页面')
   add('特殊：数值', `\`{{数值|名字}}\` 能用的数值。它们在构建时从游戏代码里读出来，代码改了，这里和所有用到它们的页面一起变。\n\n{{数值表}}\n`, '代码里的数值')
-  add('特殊：完备性', `维基要包含游戏的全部内容。每次构建都会检查下表；有一项不满足，构建就会失败，网站保持上一个版本。\n\n<div class="coverage-box">${b.coverage}</div>\n\n## 构建时的错误\n\n${b.errors.length ? b.errors.map((e) => `- ${escapeHtml(e)}`).join('\n') : '没有。'}\n\n## 提醒\n\n${b.warnings.length ? b.warnings.map((e) => `- ${escapeHtml(e)}`).join('\n') : '没有。'}\n\n## 缺译名\n\n游戏数据里只有英文的词，在 \`wiki/译名.json\` 里补上中文：\n\n${[...b.missingTr].map(([s, ks]) => `- ${s}：${[...ks].map((k) => `\`${k}\``).join('、')}`).join('\n') || '没有。'}\n`, '完备性检查')
+  add('特殊：完备性', `维基要包含游戏的全部内容。每次构建都会检查下表：有一项不满足，仓库的自动检查（合并请求上的 wiki 检查）就不通过；网站照常更新，缺的项目在这里标红。链接、模板写错则会让服务器保留上一个版本。\n\n<div class="coverage-box">${b.coverage}</div>\n\n## 构建时的错误\n\n${b.errors.length ? b.errors.map((e) => `- ${escapeHtml(e)}`).join('\n') : '没有。'}\n\n## 提醒\n\n${b.warnings.length ? b.warnings.map((e) => `- ${escapeHtml(e)}`).join('\n') : '没有。'}\n\n## 缺译名\n\n游戏数据里只有英文的词，在 \`wiki/译名.json\` 里补上中文：\n\n${[...b.missingTr].map(([s, ks]) => `- ${s}：${[...ks].map((k) => `\`${k}\``).join('、')}`).join('\n') || '没有。'}\n`, '完备性检查')
   add('特殊：随机页面', `<p id="random-go">正在跳转……</p>`, '随机打开一页')
   add('特殊：搜索', `<div id="search-results"></div>`, '搜索')
   // category pages

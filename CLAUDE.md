@@ -71,6 +71,12 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   content keys to sprites; `assets/ground.ts` autotiles; `ui/` the Stardew-style UI (`hud.ts` clock, bars,
   toolbar, key labels, dialogue; `menu.ts` menu tabs, journal, chest panel; `worldmap.ts` the world map (M) and the minimap; `dev.ts` the Mod Console, dev only); the worker uses the modder service when one answers
   (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it.
+- `packages/wiki` — the game's Chinese wiki (Stardew-wiki-shaped encyclopedia and design proposal): sources
+  `wiki/pages/**.md` ([[links]], {{templates}}; format in 帮助/格式手册), `wiki/site.json` (nav, portal, the systems the
+  completeness check requires), `wiki/译名.json`; the generator reads the game (`@lsw/content`, `buildFord()`, people,
+  the client CATALOG; `render-map.ts` draws maps as the client does). Every item, fixture, person, creature, boss, map
+  and quest gets a page; `npm run wiki:check` fails on broken links/templates or a thing/system without a page (CI
+  `.github/workflows/wiki.yml`). A change to game content that adds a thing or system needs its wiki page.
 - `packages/agent` — the SWE-style agent and its self-state, task-agnostic (no engine, no content):
   `model.ts` (OpenAI-compatible / scripted), `state.ts` (memory, skills + scripts, harness, hooks,
   journal, snapshots, ablations), `env.ts` (local / docker), `tools.ts`, `loop.ts` (the agent loop),
@@ -168,6 +174,7 @@ npm test                 # vitest (engine + base rules + Mod port)
 npm run typecheck
 npm run coverage         # interaction coverage + refresh its test baseline
 npm run build            # gen:world + static build → packages/client/dist
+npm run wiki             # the wiki on http://localhost:5180/wiki/ (wiki:check, wiki:build)
 npm run modder -- serve  # modder service on :8787 (model from LSW_MODEL_URL/KEY/MODEL; data in var/)
 npm run modder -- serve 8787 --script packages/modder/fixtures/offline.json --data var/offline
 npm run curriculum -- 20 # resolve 20 sampled undefined interactions offline (offline profile)

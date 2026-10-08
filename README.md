@@ -71,6 +71,21 @@ npm run agent -- swe --instances instances.jsonl --state var/modder-state --out 
 npm run improve -- --select 8 --confirm 8   # one turn of the outer loop
 ```
 
+## Wiki
+
+The game's Chinese wiki (and design proposal), in the shape of the Stardew Valley wiki: a page for
+every system, control, item, fixture, person, creature, boss, place and quest, plus the setting.
+Pages are Markdown files in `wiki/pages/` that anyone on the team can edit on GitHub; tables,
+infoboxes, schedules, dialogue and maps are generated from the game's own data at build time.
+How to edit: `wiki/pages/帮助/编辑入门.md`. Live at `http://35.239.4.44:5175/wiki/`, rebuilt a minute
+after a change reaches main.
+
+```bash
+npm run wiki          # http://localhost:5180/wiki/, rebuilt when wiki/ changes
+npm run wiki:check    # links, templates, and completeness (every thing and system has a page)
+npm run wiki:build    # the static site in packages/wiki/out
+```
+
 ## Art & audio
 
 [Ninja Adventure asset pack](https://pixel-boy.itch.io/ninja-adventure-asset-pack) by
