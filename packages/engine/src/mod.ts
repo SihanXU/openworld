@@ -190,6 +190,7 @@ const AUTHORING_RULES = [
   'Things with durability (props.maxHp) already lose it to blows and fire, and break into their makeup: a blow on a tree, rock or a wall is defined. A new type that can break names props.material and what it leaves (makeup [{type, count}] or a rule of its own on threshold/cross "broken").',
   'An act hosted by an instrument that consumes or changes it says so: `destroy` or `transform` the host.',
   'Outcomes the world started by itself (origin "world") happen without the player asking: keep them small and legible, never harm a person, never touch the story\'s facts, and let people react with say/emote, a notice to the story (a topic), or goto.',
+  'A topic a patch raises (notify the story, what "topic", value <id>) is news of its own: a new snake_case id. The story\'s own topics (the crown, the slain dragon, ...) are raised by the story when they happen; a patch raising one is refused.',
 ]
 
 const EVENTS: Record<string, string> = {
@@ -311,6 +312,11 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
 
 const WINDOW = 3 // tiles around the host in the scenario (7x7)
 const TIMEOUT_TICKS = 100 // 10 s: then the default (the record stays patchable)
+
+/** Is a story fact protected: a listed prefix ending in "." (`ford.`), or a listed key itself and what hangs from it (`topic.crown`, `topic.crown.days`). */
+function isProtected(key: string, list: string[] = []): boolean {
+  return list.some((p) => key === p || key.startsWith(p.endsWith('.') ? p : `${p}.`))
+}
 
 /**
  * A library as a save kept it: the base rules fresh from content, then the patches' types and
@@ -1102,11 +1108,15 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       if (typeof e.to === 'object' && ('area' in e.to || 'map' in e.to) && (e.chance === undefined || e.chance >= 1)) warnings.push(`${where}: an emission to an area with chance 1 can cascade`)
       checkSel(e.filter, `${where}.filter`)
     }
+    // the story's own news is told by the story when it happens: a patch raises only topics of its own
+    // (a notice to the story, or the story's own `topic`), never one the story raises (its protected `topic.<id>`)
+    const raised = e.op === 'topic' ? e.id : e.op === 'emit' && e.impulse === 'notify' && e.params?.what === 'topic' ? e.params?.value : undefined
+    if (typeof raised === 'string' && isProtected(`topic.${raised}`, ctx.protectedFacts)) errors.push(`${where}: the story raises the topic "${raised}" itself when it happens; a patch may raise a topic of its own (a new id)`)
     // the boundaries of what the world does by itself
     if (ctx.world) {
       // the story's facts are its props: a world event's patch on the story may not change its protected ones
       const fact = (e.op === 'setProp' || e.op === 'addProp') && resident ? e.key : undefined
-      if (fact && (ctx.protectedFacts ?? []).some((p) => fact.startsWith(p))) errors.push(`${where}: a world event may not change the story's fact "${fact}"`)
+      if (fact && isProtected(fact, ctx.protectedFacts)) errors.push(`${where}: a world event may not change the story's fact "${fact}"`)
       if (e.op === 'setProp' && e.key === 'quest') errors.push(`${where}: a world event may not change the story's stage`)
     }
   }

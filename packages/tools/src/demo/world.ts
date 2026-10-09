@@ -9,8 +9,8 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
-import { BOSSES, CH1_QUESTS, HAVEN_QUESTS, codexEntries, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_AT_FOOT, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, PLAYER_LOOK, generateLook, type RawChunk } from '@lsw/content'
+import { storyTopics, tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
+import { BOSSES, CH1_QUESTS, HAVEN_QUESTS, codexEntries, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_AT_FOOT, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, STORY_RULES, PLAYER_LOOK, generateLook, type RawChunk } from '@lsw/content'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
@@ -649,6 +649,8 @@ export function buildFord(): FordWorld {
     else if (e.type.startsWith('actor/creature')) creatures++
   }
   const metaOf = (b: MapBuilder, c: RawChunk): MapMeta => ({ id: b.id, name: b.name, kind: b.kind, region: b.region, width: b.w, height: b.h, portals: b.portals, npcs: npcs.filter((n) => n.place.on === 'tile' && n.place.map === b.id).length, items: c.entities.filter((e) => e.type.startsWith('item/')).length, at: at.get(b.id) })
+  // the story's one script (world-model.md §6.12): the tutorial's beats, then the scenes
+  const steps = [...PROLOGUE_BEATS, ...FIRSTLIGHT_BEATS, ...scenes, ...CHAPTER1_STORY, ...CHAPTER1_SCENES, ...HAVEN_STORY, ...QUEST_SCENES]
   const index: WorldIndex = {
     name: L('The Ford', '渡口'),
     version: VERSION,
@@ -684,10 +686,10 @@ export function buildFord(): FordWorld {
     ],
     waypoints: chunks.flatMap((c) => c.entities.filter((e) => e.type === 'fixture/sacred/waypoint').map((e) => ({ id: e.id, map: c.map.id, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: e.name ?? L('Waypoint', '传送雕像') }))),
     stats: { maps: builders.length, npcs: npcs.length, creatures, items, itemKinds: kinds.size, fixtures },
-    // the story's one script (world-model.md §6.12): the tutorial's beats, then the scenes
-    steps: [...PROLOGUE_BEATS, ...FIRSTLIGHT_BEATS, ...scenes, ...CHAPTER1_STORY, ...CHAPTER1_SCENES, ...HAVEN_STORY, ...QUEST_SCENES],
+    steps,
     invariants: INVARIANTS,
-    protectedFacts: PROTECTED_FACTS,
+    // the story's facts, and the topics it raises itself (its news: no patch raises one)
+    protectedFacts: [...PROTECTED_FACTS, ...storyTopics(steps, STORY_RULES).map((t) => `topic.${t}`)],
     weather: [
       { day: 1, from: 0, to: 17, weather: 'cloud' },
       { day: 1, from: 17, to: 20, weather: 'storm' },

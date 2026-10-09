@@ -578,6 +578,9 @@ At the Ford:
   one escalated to an offline run (2026-10-07).
 - **Boundaries.**
   - Only the story's own rules write its protected facts (`ford.`, `seen.`, `invalid.`).
+  - Only the story raises its own topics (the ones its steps and rules raise, protected as
+    `topic.<id>`): a patch, the player's or the world's, may raise a topic of its own, never the
+    story's news before it happens.
   - An `essential` actor goes down and is never destroyed.
   - Emitted spread stays within the event's map and below certainty.
 - **Legibility.** Every learned thread enters the Threadbook with its cause and with who
