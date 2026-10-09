@@ -337,6 +337,8 @@ export function ruleHash(r: Rule): string {
   }
   return (h >>> 0).toString(16).padStart(8, '0')
 }
+/** The kinds a soft hole may be (design.md §5.16): using one thing on another, and what one thing does to another. */
+const SOFT_KINDS = /^(act\/use|impulse\/)/
 /** A root rule: it names no host class (it answers for anything). */
 export const isRoot = (r: Rule) => !r.host || Object.keys(r.host).length === 0
 
@@ -531,7 +533,9 @@ export class RuleLibrary {
     const patch = this.chain(learned.filter(isCellRule), roles, world, ev)
     if (patch && isDo(patch.leaf)) return { defined: true, rule: patch.rule, leaf: patch.leaf }
     const res: Resolution = { defined: true, rule: base.rule, leaf: base.leaf }
-    if (host && isDo(base.leaf) && this.askable(ev.kind) && !this.learned(ev.kind, host.type)) res.soft = { rule: base.rule, path: base.path, default: base.leaf.do }
+    // a soft hole: a class's rule answered a use or an impulse the world asks about. A root's own
+    // answer is physics, not something inherited (a person pushed steps), and so is a threshold
+    if (host && isDo(base.leaf) && !isRoot(base.rule) && SOFT_KINDS.test(ev.kind) && this.askable(ev.kind) && !this.learned(ev.kind, host.type)) res.soft = { rule: base.rule, path: base.path, default: base.leaf.do }
     return res
   }
 

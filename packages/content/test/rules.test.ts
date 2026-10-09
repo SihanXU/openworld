@@ -695,6 +695,22 @@ describe('the Mod port', () => {
     expect(eng.lib.stale()).toEqual([{ rule: 'patch/axe-use', from: 'use/blade', why: 'changed' }])
   })
 
+  it('physics is not inherited: a root\'s own answer (a person pushed steps) and a threshold are no soft holes', () => {
+    const eng = sandbox({
+      entities: [
+        { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+        { key: 'farmer', type: 'actor/person/farmer', x: 2, y: 1 },
+      ],
+      event: {},
+    })
+    const push: GameEvent = { kind: 'impulse/push', host: { e: 'farmer' }, roles: { actor: { e: 'actor' } }, params: { dir: 'up' } }
+    expect(eng.resolveEvent(push)).toMatchObject({ defined: true, rule: { id: 'core/push' } })
+    expect(eng.resolveEvent(push).soft).toBeUndefined()
+    const hungry: GameEvent = { kind: 'threshold/cross', host: { e: 'actor' }, roles: {}, params: { name: 'hungry', prop: 'hunger' } }
+    expect(eng.resolveEvent(hungry).defined).toBe(true)
+    expect(eng.resolveEvent(hungry).soft).toBeUndefined()
+  })
+
   it('a person struck in an event the world started is not asked about: what the world learns never harms a person', () => {
     const eng = sandbox({
       entities: [
