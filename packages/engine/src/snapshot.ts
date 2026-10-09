@@ -305,7 +305,8 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       name: e.name ?? r.name ?? e.type.split('/').pop()!,
       hp: w.prop(e, 'maxHp') !== undefined ? w.num(e, 'hp') : undefined,
       maxHp: w.prop(e, 'maxHp') !== undefined ? w.num(e, 'maxHp', 1) : undefined,
-      look: e.look,
+      // as it is seen: its own look with what it wears on it (docs/looks.md)
+      look: w.seenLook(e),
       // whether it would set on the one at the keys (its factions, temper, foes): not whether it is chasing
       // this moment (a bat that wheels away is no friend)
       hostile: e.ai ? eng.hostileTo(e, w.player) : undefined,

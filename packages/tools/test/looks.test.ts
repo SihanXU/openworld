@@ -8,6 +8,7 @@ import { LOOK_BODIES, LOOK_COLORS, LOOK_PARTS, LOOK_SLOTS, LOOK_TABLE, PLAYER_LO
 import { Game, LOOK_TAG, RuleLibrary, lookCode, lookProblems, lookTags, restyled, validatePatch, type Look, type Rule } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, decodeChunk } from '@lsw/content'
 import { BEARDS, FACES, GLASSES, HAIRS, HATS, MARKS, OUTFITS } from '../../client/src/assets/figure/pixparts.ts'
+import { WEARS } from '../../client/src/assets/figure/pixwear.ts'
 import { FH, FW, composeSprite } from '../../client/src/assets/figure/sprite.ts'
 import { gradient, ramp3, rgbOf } from '../../client/src/assets/figure/color.ts'
 import { PEOPLE } from '../src/demo/people.ts'
@@ -35,13 +36,13 @@ describe('the look table', () => {
   })
 
   it('draws every part on the map: each one a sprite part has grids for the facings it shows', () => {
-    const table: Record<string, Record<string, unknown>> = { face: FACES, hair: HAIRS, beard: BEARDS, hat: HATS, glasses: GLASSES, mark: MARKS, outfit: OUTFITS }
+    const table: Record<string, Record<string, unknown>> = { face: FACES, hair: HAIRS, beard: BEARDS, hat: HATS, glasses: GLASSES, mark: MARKS, outfit: OUTFITS, armour: WEARS, cloak: WEARS }
     for (const [id, p] of Object.entries(LOOK_PARTS)) {
       if (p.slot === 'age') continue // lines are too small to read at sixteen pixels: the portrait shows them
       expect(table[p.slot]?.[id], `${id} has no map grids`).toBeDefined()
     }
     // and nothing is drawn that the table does not know
-    for (const t of Object.values(table)) for (const id of Object.keys(t)) expect(LOOK_PARTS[id], `${id} drawn but not in the table`).toBeDefined()
+    for (const t of new Set(Object.values(table))) for (const id of Object.keys(t)) expect(LOOK_PARTS[id], `${id} drawn but not in the table`).toBeDefined()
   })
 })
 
@@ -177,5 +178,45 @@ describe('restyle: a look changes as an outcome of its bearer (the event model)'
     expect(check({ op: 'restyle', parts: { hair: 'hair.mohawk' } })).toMatch(/unknown look part "hair.mohawk"/)
     expect(check({ op: 'restyle', parts: { hat: 'hair.bob' } })).toMatch(/hair.bob is a hair, not a hat/)
     expect(check({ op: 'restyle', colors: { hair: 'chartreuse' } })).toMatch(/unknown colour "chartreuse"/)
+  })
+})
+
+describe('what is worn shows on the look as seen (an item\'s look)', () => {
+  it('an iron breastplate and a helmet put on: the snapshot\'s look, its tags, its words and its sprite follow; the own look is kept', async () => {
+    const { snapshot } = await import('@lsw/engine')
+    const { index, chunks } = buildFord()
+    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    for (const c of chunks) game.loadChunk(decodeChunk(c))
+    const eng = game.engine
+    const w = eng.world
+    const p = w.player
+    const own = structuredClone(p.look) as Look
+    const before = composeSprite(own)
+    eng.author(() => {
+      w.create('item/armor/breastplate', { on: 'inside', holder: p.id }, { id: 'lk.plate', tags: ['material:iron'] })
+      w.create('item/armor/helmet', { on: 'inside', holder: p.id }, { id: 'lk.helm', tags: ['material:bronze'] })
+    })
+    for (const id of ['lk.plate', 'lk.helm']) (eng.controls.sync(), eng.controls.wear(id), eng.tick())
+    expect(w.prop(p, 'wear:body')).toBe('lk.plate')
+    const seen = snapshot(eng).entities.find((e) => e.id === p.id)!.look as Look
+    expect(seen.parts.armour).toBe('armour.plate')
+    expect(seen.parts.hat).toBe('hat.helm')
+    expect(seen.colors['armour.1']).toBe(LOOK_TABLE.materials!.iron)
+    expect(seen.colors['hat.1']).toBe(LOOK_TABLE.materials!.bronze)
+    expect(p.look).toEqual(own)
+    expect(w.hasTag(p, 'look:armoured')).toBe(true)
+    expect(w.hasTag(p, 'look:helmeted')).toBe(true)
+    expect(Buffer.from(composeSprite(seen)).equals(Buffer.from(before))).toBe(false)
+    // taken off again: the look as seen is the own one
+    for (const id of ['lk.plate', 'lk.helm']) (eng.controls.sync(), eng.controls.wear(id), eng.tick())
+    expect(snapshot(eng).entities.find((e) => e.id === p.id)!.look).toEqual(own)
+    expect(w.hasTag(p, 'look:armoured')).toBe(false)
+  })
+
+  it('every item worn as a look part names a part the table has, in a slot only worn things fill or a hat', () => {
+    const onto = buildOntology()
+    const worn = Object.values(onto.types).filter((t) => typeof t.props?.look === 'string')
+    expect(worn.length).toBeGreaterThanOrEqual(7)
+    for (const t of worn) expect(LOOK_PARTS[t.props.look as string], t.id).toBeDefined()
   })
 })

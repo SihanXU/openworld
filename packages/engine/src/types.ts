@@ -784,6 +784,8 @@ export interface LookTable {
   bodies: Record<string, LookBodyDef>
   parts: Record<string, LookPartDef>
   colors: Record<string, LookColorDef>
+  /** The colour a worn thing shows in, by its material (an iron helmet is iron-grey): `#rrggbb` or a colour id. */
+  materials?: Record<string, string>
 }
 
 export interface AiData {

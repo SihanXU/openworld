@@ -48,7 +48,7 @@ interface Look {                       // engine/src/types.ts
    right mirrored; a dark outline goes round the figure last. Grids: `pixparts.ts`, `pixhair.ts`, `pixhead.ts`,
    `pixoutfit.ts`. Composed on demand into a canvas texture named by the look's code (`figure/index.ts`).
 2. **Portrait** (`figure/portrait.ts`): a 768x768 half-body bust composed from layers in a fixed stack
-   (`hairBack, body, outfit, face, age, mark, beard, glasses, hair, hat`). A layer is its paint and its
+   (`hairBack, body, outfit, armour, cloak, face, age, mark, beard, glasses, hair, hat`). A layer is its paint and its
    value map (value, zone, coverage); zone k is repainted through the gradient of its colour key. A face part has a
    layer per mood. The dialogue box shows it standing at its left (`ui/hud.ts`, `game.css .dialog.bust`); the
    codex shows the sprite; the wiki both (`wiki/src/looks.ts`).
@@ -90,12 +90,16 @@ the map and in the portrait is the same colour by construction.
   role brings its clothes.
 - A person with no look (one a rule or the modder makes) is drawn from a look generated from its id, never as a
   slime (`crowdLook`).
+- What is worn shows (`wornLook`, `World.seenLook`): an item type says the part it is worn as (its `look` prop:
+  the helmet `hat.helm`, the breastplate `armour.plate`, the cloak `cloak.cloak`, pauldrons `cloak.pauldrons`, the
+  hat, the circlet, the crown of thorns), painted in its material's colour (`LookTable.materials`). The snapshot,
+  the look's tags (`look:armoured`) and the modder's words are the look as seen; the bearer's own look is kept.
+  Those parts are `gen.worn`: never drawn by chance, never offered in the creator.
 - Loading: a save's people take the world's look unless theirs is `own`; a player who made a look keeps it; a
   sheet's key from before looks gets the world's.
 
 ## 6. Not yet
 
-- Worn equipment drawn on the body (`wornLook`: a worn form per slot, coloured by its material).
 - Status overlays on the portrait (wet, sooted, burning).
 - Unique figures: Pip, the Seal-bearers' portraits.
 - A bigger library (more hair, outfits per role and region, more faces), kin resemblance, regional palettes.

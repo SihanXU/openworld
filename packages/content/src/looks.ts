@@ -9,11 +9,14 @@
 
 import type { Look, LookBodyDef, LookColorDef, LookPartDef, LookTable, Text } from '@lsw/engine'
 import { LOOK_TAG, lookColor, lookTags } from '@lsw/engine'
+import { MATERIALS } from './items.ts'
 
 const T = (en: string, zh: string): Text => ({ en, zh })
 
 /** The slots of a look, in the order the words are said. */
-export const LOOK_SLOTS = ['hair', 'face', 'beard', 'age', 'mark', 'glasses', 'hat', 'outfit'] as const
+export const LOOK_SLOTS = ['hair', 'face', 'beard', 'age', 'mark', 'glasses', 'hat', 'cloak', 'armour', 'outfit'] as const
+/** Slots only what is worn fills (a breastplate, a cloak): the creator and the generator leave them to the things. */
+export const WORN_SLOTS = new Set(['armour', 'cloak'])
 export type LookSlot = (typeof LOOK_SLOTS)[number]
 
 export const LOOK_BODIES: Record<string, LookBodyDef> = {
@@ -98,6 +101,8 @@ export interface LookGen {
   only?: boolean
   /** The colours its own keys are picked from (`1` → colour ids). */
   colors?: Record<string, string[]>
+  /** Only a worn thing brings it (an item's `look`: a circlet, a breastplate): never chosen, by chance or by hand. */
+  worn?: boolean
 }
 
 export interface LookPart extends LookPartDef {
@@ -152,8 +157,15 @@ export const LOOK_PARTS: Record<string, LookPart> = {
   'hat.straw': { slot: 'hat', name: T('straw hat', '草帽'), bodies: ADULTS, colors: { 1: 'ochre' }, tags: [LOOK_TAG + 'hatted'], say: T('a straw hat', '一顶草帽'), gen: { roles: ['farmer', 'herder', 'fisher'], only: true, colors: { 1: ['ochre', 'mustard', 'linen'] } } },
   'hat.kerchief': { slot: 'hat', name: T('headscarf', '头巾'), bodies: ['woman'], colors: { 1: 'russet' }, say: T('a {c} headscarf', '{c}色头巾'), gen: { sex: 'female', ages: [35, 99], roles: ['farmer', 'elder', 'innkeeper', 'ferrykeeper', 'villager'], colors: { 1: CLOTH_PLAIN } } },
   'hat.hood': { slot: 'hat', name: T('hood', '兜帽'), bodies: ADULTS, colors: { 1: 'charcoal' }, tags: [LOOK_TAG + 'hooded'], say: T('a {c} hood', '{c}色兜帽'), gen: { roles: ['stranger', 'traveler', 'hunter'], only: true, colors: { 1: ['charcoal', 'slate', 'umber', 'forest'] } } },
-  'hat.helm': { slot: 'hat', name: T('helmet', '头盔'), bodies: ['man'], colors: { 1: 'iron' }, tags: [LOOK_TAG + 'helmeted'], say: T('an {c} helmet', '{c}头盔'), gen: { roles: ['guard', 'soldier'], only: true, colors: { 1: ['iron', 'steel'] } } },
+  'hat.helm': { slot: 'hat', name: T('helmet', '头盔'), bodies: ADULTS, colors: { 1: 'iron' }, tags: [LOOK_TAG + 'helmeted'], say: T('an {c} helmet', '{c}头盔'), gen: { roles: ['guard', 'soldier'], only: true, colors: { 1: ['iron', 'steel'] } } },
   'hat.cap': { slot: 'hat', name: T('cap', '便帽'), bodies: ADULTS, colors: { 1: 'umber', 2: 'darkleather' }, tags: [LOOK_TAG + 'hatted'], say: T('a {c} cap', '{c}色便帽'), gen: { roles: ['miller', 'peddler', 'sailor', 'villager'], colors: { 1: CLOTH_PLAIN } } },
+
+  // what is only worn (an item's `look`, docs/looks.md §5): never drawn by chance
+  'hat.circlet': { slot: 'hat', name: T('circlet', '头冠'), bodies: ADULTS, colors: { 1: 'gold' }, tags: [LOOK_TAG + 'crowned'], say: T('a {c} circlet', '{c}头冠'), gen: { w: 0, worn: true } },
+  'hat.thorns': { slot: 'hat', name: T('crown of thorns', '荆棘冠'), bodies: ADULTS, colors: { 1: 'bronze' }, tags: [LOOK_TAG + 'crowned', LOOK_TAG + 'thorn-crowned'], say: T('a crown of thorns', '一顶荆棘冠'), gen: { w: 0, worn: true } },
+  'armour.plate': { slot: 'armour', name: T('breastplate', '胸甲'), bodies: ADULTS, colors: { 1: 'iron' }, tags: [LOOK_TAG + 'armoured'], say: T('an {c} breastplate', '{c}胸甲'), gen: { w: 0, worn: true } },
+  'cloak.cloak': { slot: 'cloak', name: T('cloak', '斗篷'), bodies: ADULTS, colors: { 1: 'undyed' }, tags: [LOOK_TAG + 'cloaked'], say: T('a {c} cloak', '{c}色斗篷'), gen: { w: 0, worn: true } },
+  'cloak.pauldrons': { slot: 'cloak', name: T('pauldrons', '护肩'), bodies: ADULTS, colors: { 1: 'iron' }, tags: [LOOK_TAG + 'armoured'], say: T('{c} pauldrons', '{c}护肩'), gen: { w: 0, worn: true } },
 
   // ---------------------------------------------------------------- outfits (1: main cloth, 2: second cloth, 3: leather or metal)
   'outfit.dress': { slot: 'outfit', name: T('village dress', '村妇长裙'), bodies: ['woman'], colors: { 1: 'woad', 2: 'linen' }, say: T('a {c} dress', '{c}色长裙'), gen: { roles: ['villager', 'elder'], colors: { 1: [...CLOTH_PLAIN, ...CLOTH_DYED], 2: ['linen', 'ivory', 'undyed'] } } },
@@ -181,6 +193,8 @@ export const LOOK_TABLE: LookTable = {
   bodies: LOOK_BODIES,
   parts: LOOK_PARTS,
   colors: LOOK_COLORS,
+  // a worn thing shows in its material's own colour
+  materials: Object.fromEntries(Object.values(MATERIALS).map((m) => [m.id, m.color])),
 }
 
 // ================================================================== the generator

@@ -57,6 +57,26 @@ export function restyled(look: Look, change: { body?: string; parts?: Record<str
   return { body: change.body ?? look.body, parts, colors, own: true }
 }
 
+/**
+ * A look with what its bearer wears on it (docs/looks.md §5): each worn thing that says the part it is worn as
+ * (its type's `look` prop) takes that part's slot, painted in its material's colour (the table's `materials`) — an
+ * iron helmet is the helm, iron-grey. The bearer's own look is unchanged; this is what is seen.
+ */
+export function wornLook(look: Look, worn: { part: string; material?: string }[], table: LookTable): Look {
+  if (!worn.length) return look
+  const parts = { ...look.parts }
+  const colors = { ...look.colors }
+  for (const w of worn) {
+    const p = table.parts[w.part]
+    if (!p || (p.bodies && !p.bodies.includes(look.body))) continue
+    parts[p.slot] = w.part
+    const c = w.material && table.materials?.[w.material]
+    if (c) colors[`${p.slot}.1`] = c
+    else delete colors[`${p.slot}.1`]
+  }
+  return { ...look, parts, colors }
+}
+
 /** A short code of a look (the client's key for its pictures): the same look, the same code. */
 export function lookCode(look: Look): string {
   const kv = (o: Record<string, string>) => Object.keys(o).sort().map((k) => `${k}=${o[k]}`).join(',')

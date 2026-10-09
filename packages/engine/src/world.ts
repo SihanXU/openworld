@@ -1,6 +1,6 @@
 // World: the mutable state plus derived indices (not serialized) for fast spatial queries.
 
-import { LOOK_TAG, lookProblems, lookTags } from './looks.ts'
+import { LOOK_TAG, lookProblems, lookTags, wornLook } from './looks.ts'
 import { calendarAt, type Calendar, type WeatherSpan, isNight } from './calendar.ts'
 import { CELL_SPACES, cellId, parseCellId, splitLayers, type CellSpace, type Layers } from './cells.ts'
 import { OntologyIndex } from './ontology.ts'
@@ -986,16 +986,38 @@ export class World {
     e.look = look
   }
 
-  private lookTags = new WeakMap<Look, string[]>()
+  private lookTags = new WeakMap<Look, { key: string; tags: string[] }>()
 
-  /** The tags a thing's look gives it (docs/looks.md): derived from the look and the world's table, never kept. */
+  /** What a thing is seen to look like (docs/looks.md): its own look with what it wears on it (`wornLook`). */
+  seenLook(e: Entity): string | Look | undefined {
+    const look = e.look
+    const table = this.onto.data.looks
+    if (!look || typeof look === 'string' || !table) return look
+    const worn = this.wornParts(e)
+    return worn.length ? wornLook(look, worn, table) : look
+  }
+
+  /** What a thing wears that shows on its look: each worn thing's part (its `look` prop) and material. */
+  private wornParts(e: Entity): { part: string; material?: string }[] {
+    if (!e.props || !Object.keys(e.props).some((k) => k.startsWith('wear:'))) return []
+    const out: { part: string; material?: string }[] = []
+    for (const w of this.worn(e)) {
+      const part = this.prop(w, 'look')
+      if (typeof part === 'string') out.push({ part, material: this.materialOf(w)?.id })
+    }
+    return out
+  }
+
+  /** The tags a thing's look gives it (docs/looks.md): derived from the look as seen and the world's table, never kept. */
   lookTagsOf(e: Entity): string[] {
     const look = e.look
     const table = this.onto.data.looks
     if (!look || typeof look === 'string' || !table) return []
+    const worn = this.wornParts(e)
+    const key = worn.map((w) => `${w.part}:${w.material ?? ''}`).join(',')
     let t = this.lookTags.get(look)
-    if (!t) this.lookTags.set(look, (t = lookTags(look, table)))
-    return t
+    if (!t || t.key !== key) this.lookTags.set(look, (t = { key, tags: lookTags(worn.length ? wornLook(look, worn, table) : look, table) }))
+    return t.tags
   }
 
   /** A thing's own prop changes (the engine's `setProp` adds the threshold events). */

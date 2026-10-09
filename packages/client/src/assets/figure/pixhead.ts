@@ -60,6 +60,20 @@ export const HATS: Record<string, HeadPart> = {
       side: cover(3, ['....xCCCCx......', '..xCCccccCCx....', '.xCCccccCCCCx...', '.xCCCCCCCCCCCx..', '.xCCCCCCCCCCCCx.', '.xxxxxxxxxxxxxx.', '.xCCCCC.........', '.xCCCCx.........', '..xxxx..........']),
     },
   },
+  'hat.circlet': {
+    front: {
+      down: at(5, ['................', '...xCCCcCCCCx...', '....xxxxxxxx....']),
+      up: at(5, ['................', '...xCCCCCCCCx...', '....xxxxxxxx....']),
+      side: at(5, ['................', '....xCCCcCCCx...', '.....xxxxxxx....']),
+    },
+  },
+  'hat.thorns': {
+    front: {
+      down: at(3, ['....x.x..x.x....', '...xCxCxxCxCx...', '...CcCCxCCcCC...', '....xx.xx.xx....']),
+      up: at(3, ['....x.x..x.x....', '...xCxCxxCxCx...', '...CCCCxCCCCC...', '....xx.xx.xx....']),
+      side: at(3, ['.....x.x.x......', '....xCxCxCx.....', '....CcCCxCCC....', '.....xx.xx......']),
+    },
+  },
   'hat.cap': {
     front: {
       down: at(3, ['......CCCC......', '....CCccccCC....', '...CCccCCCCCC...', '..CCCCCCCCCCCC..', '..xxxxxxxxxxxx..', '..yyyyyyyyyyyy..']),

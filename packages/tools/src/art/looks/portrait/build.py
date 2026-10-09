@@ -225,10 +225,10 @@ class Builder:
                 e = self.emit(pid, body, mood, z, ["hair"], rgb, a, a > 0.01)
                 if e:
                     layers.append(e)
-        elif slot == "outfit":
+        elif slot in ("outfit", "armour", "cloak"):
             reg &= np.arange(SIZE)[:, None] > neck - 40
             rgb, alpha = matte(img, self.bg, reg, fig)
-            e = self.emit(pid, body, mood, "outfit", [".1", ".2", ".3", "skin"], rgb, alpha, alpha > 0.01)
+            e = self.emit(pid, body, mood, slot, [".1", ".2", ".3", "skin"], rgb, alpha, alpha > 0.01)
             if e:
                 layers.append(e)
         else:

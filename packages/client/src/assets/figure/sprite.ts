@@ -9,7 +9,8 @@
 
 import type { Look } from '@lsw/engine'
 import { keyRgb, ramp3, type RGB } from './color.ts'
-import { BEARDS, FACES, GLASSES, HAIRS, HATS, MARKS, OUTFITS, type Facing, type Grid, type HeadPart } from './pixparts.ts'
+import { BEARDS, FACES, GLASSES, HAIRS, HATS, MARKS, OUTFITS, type Facing, type Grid, type HeadPart, type OutfitPix } from './pixparts.ts'
+import { WEARS } from './pixwear.ts'
 
 export const FW = 16
 export const FH = 32
@@ -300,19 +301,26 @@ export function composeSprite(look: Look): Uint8Array {
           if (reg) put(x, y, reg[0] === 'skin' ? tone('skin', reg[1]) : tone(reg[0], reg[1]))
         }),
       )
-      // what the outfit draws over it
-      const over = outfit.over?.[facing] ?? (facing === 'up' ? outfit.over?.down : undefined)
-      const og = over && (typeof over[0] === 'string' ? (over as Grid) : (over as Grid[])[row])
-      og?.forEach((line, y) =>
-        [...line].forEach((ch, x) => {
-          if (ch === '.') return
-          if (ch === '-') return put(x, y, null)
-          const ink = INK[ch]
-          if (ink) return put(x, y, ink)
-          const l = PART_LETTERS[ch] ?? SKIN_REGIONS[ch]
-          if (l) put(x, y, tone(l[0].startsWith('.') ? 'outfit' + l[0] : l[0], l[1]))
-        }),
-      )
+      // what the outfit draws over it, then what is worn over the outfit (a breastplate, a cloak)
+      const overOf = (pix: OutfitPix, slot: string) => {
+        const over = pix.over?.[facing] ?? (facing === 'up' ? pix.over?.down : undefined)
+        const og = over && (typeof over[0] === 'string' ? (over as Grid) : (over as Grid[])[row])
+        og?.forEach((line, y) =>
+          [...line].forEach((ch, x) => {
+            if (ch === '.') return
+            if (ch === '-') return put(x, y, null)
+            const ink = INK[ch]
+            if (ink) return put(x, y, ink)
+            const l = PART_LETTERS[ch] ?? SKIN_REGIONS[ch]
+            if (l) put(x, y, tone(l[0].startsWith('.') ? slot + l[0] : l[0], l[1]))
+          }),
+        )
+      }
+      overOf(outfit, 'outfit')
+      for (const slot of ['armour', 'cloak']) {
+        const w = WEARS[look.parts[slot] ?? '']
+        if (w) overOf(w, slot)
+      }
       // the head's parts, front
       if (facing !== 'up') for (const h of heads) if (h.slot === 'face' || h.slot === 'mark') drawHead(h.part.front?.[facing], h.slot)
       for (const h of heads) if (h.slot !== 'face' && h.slot !== 'mark') drawHead(h.part.front?.[facing], h.slot)

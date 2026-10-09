@@ -62,12 +62,20 @@ BEARDS = {
     "beard.moustache": "a neat moustache, no beard",
     "beard.stubble": "short stubble on the jaw, chin and upper lip",
 }
+# what is only worn (an item's look, docs/looks.md §5): over whatever the person wears
+WORN = {
+    "armour.plate": "a plain metal breastplate over the chest, the metal pure red",
+    "cloak.cloak": "a cloak fastened at the throat and hanging from the shoulders, the cloth pure red",
+    "cloak.pauldrons": "a pair of metal pauldrons on the shoulders, the metal pure red",
+}
 HATS = {
     "hat.straw": "a wide-brimmed straw hat, the straw pure red",
     "hat.kerchief": "a cloth headscarf covering the head and tied under the chin, the cloth pure red",
     "hat.hood": "a loose cloth hood up over the head, framing the face, the cloth pure red",
     "hat.helm": "a simple round iron helmet with cheek guards, the metal pure red",
     "hat.cap": "a soft cloth cap with a short brim, the cloth pure red, the brim pure green",
+    "hat.circlet": "a thin metal circlet around the head, the metal pure red",
+    "hat.thorns": "a crown of thorny branches around the head, the thorns pure red",
 }
 OTHER = {
     "age.lined": "Make the face look about seventy years old: fine wrinkles around the eyes, smile lines beside the mouth, a few lines on the forehead and slightly sagging cheeks",
@@ -131,6 +139,10 @@ def jobs() -> list[dict]:
         add(f"parts/{pid}.png", "lib/base-man.png", f"Give him {d}, {GREY_HAIR}. " + KEEP, 450 + i)
     for i, (pid, d) in enumerate(OTHER.items()):
         add(f"parts/{pid}.png", "lib/base-woman.png", f"{d}. " + KEEP, 470 + i)
+    for i, (pid, d) in enumerate(WORN.items()):
+        for b in ("woman", "man"):
+            who = {"woman": "her", "man": "him"}[b]
+            add(f"parts/{pid}@{b}.png", f"lib/base-{b}.png", f"Put on {who} {d}. Change nothing else. " + KEEP, 480 + i)
     # moods last: a face is complete without them (the neutral one stands in)
     for i, pid in enumerate([*FACES, "face.child"]):
         for k, (mood, d) in enumerate(MOODS.items()):

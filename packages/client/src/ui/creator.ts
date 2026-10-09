@@ -3,7 +3,7 @@
 // use for it. The new-game panel makes the player's look with it; the dev page (looks.html) makes anyone's and
 // copies the record for a person's file.
 
-import { LOOK_BODIES, LOOK_COLORS, LOOK_PARTS, LOOK_SLOTS, describeLook, generateLook } from '@lsw/content'
+import { LOOK_BODIES, LOOK_COLORS, LOOK_PARTS, LOOK_SLOTS, WORN_SLOTS, describeLook, generateLook } from '@lsw/content'
 import type { Look, Mood } from '@lsw/engine'
 import { FH, FW, composeSprite } from '../assets/figure/sprite.ts'
 import { portraitOf, preparePortrait } from '../assets/figure/index.ts'
@@ -22,7 +22,7 @@ const COLOUR_ROWS: [string, string[], string, string][] = [
 ]
 const SLOT_NAMES: Record<string, [string, string]> = {
   hair: ['Hair', '发型'], face: ['Face', '五官'], beard: ['Beard', '胡子'], age: ['Age', '年纪'], mark: ['Mark', '印记'],
-  glasses: ['Glasses', '眼镜'], hat: ['Hat', '帽子'], outfit: ['Outfit', '服装'],
+  glasses: ['Glasses', '眼镜'], hat: ['Hat', '帽子'], cloak: ['Cloak', '披挂'], armour: ['Armour', '甲胄'], outfit: ['Outfit', '服装'],
 }
 const MOODS: Mood[] = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy']
 
@@ -50,7 +50,8 @@ export class Creator {
 
   /** The parts a slot may take for the current body. */
   private options(slot: string): (string | null)[] {
-    const ids = Object.entries(LOOK_PARTS).filter(([, p]) => p.slot === slot && (!p.bodies || p.bodies.includes(this.look.body))).map(([id]) => id)
+    // (a part only worn things show — a circlet — is not offered: it comes with the thing)
+    const ids = Object.entries(LOOK_PARTS).filter(([, p]) => p.slot === slot && !p.gen?.worn && (!p.bodies || p.bodies.includes(this.look.body))).map(([id]) => id)
     return OPTIONAL.has(slot) ? [null, ...ids] : ids
   }
 
@@ -91,7 +92,8 @@ export class Creator {
   private render(): void {
     const zh = this.zh()
     const words = describeLook(this.look)
-    const rows = LOOK_SLOTS.filter((s) => s !== 'age')
+    // (what only worn things fill — a breastplate, a cloak — is the things', not the creator's)
+    const rows = LOOK_SLOTS.filter((s) => s !== 'age' && !WORN_SLOTS.has(s))
       .filter((s) => this.options(s).filter(Boolean).length)
       .map((slot) => {
         const id = this.look.parts[slot]

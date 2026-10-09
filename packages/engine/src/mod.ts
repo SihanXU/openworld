@@ -14,7 +14,7 @@ import { OntologyIndex, isA, withTerrainTypes } from './ontology.ts'
 import { deriveRecipes } from './recipes.ts'
 import { RuleLibrary, cmp, compareSpec, isDo, isHole, leaves, rolesOf, specOf, type LibraryData } from './rules.ts'
 import { buildSandbox, chainLoop, checkExpectations, replay, scenarioEvent, whyEndless } from './sandbox.ts'
-import type { Cmp, Cond, Effect, EmitTo, GameEvent, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tree, TypeDef } from './types.ts'
+import type { Cmp, Cond, Effect, EmitTo, GameEvent, Look, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tree, TypeDef } from './types.ts'
 import { RECENT_LINES, type View } from './world.ts'
 
 // ---------------------------------------------------------------- contract
@@ -710,7 +710,7 @@ function info(eng: Engine, role: string, v: View | undefined, origin?: { x: numb
     props: v.props,
     material: v.entity && w.materialOf(v.entity),
     makeup: w.onto.resolve(v.type).makeup,
-    look: typeof v.entity?.look === 'object' && w.onto.data.looks ? lookWords(v.entity.look, w.onto.data.looks) : undefined,
+    look: v.entity && typeof v.entity.look === 'object' && w.onto.data.looks ? lookWords(w.seenLook(v.entity) as Look, w.onto.data.looks) : undefined,
     at: p && origin ? [p.x - origin.x, p.y - origin.y] : undefined,
   }
 }

@@ -43,7 +43,7 @@ export interface PortraitManifest {
 }
 
 /** The stack, back to front. */
-export const LAYER_Z = ['hairBack', 'body', 'outfit', 'face', 'age', 'mark', 'beard', 'glasses', 'hair', 'hat'] as const
+export const LAYER_Z = ['hairBack', 'body', 'outfit', 'armour', 'cloak', 'face', 'age', 'mark', 'beard', 'glasses', 'hair', 'hat'] as const
 
 /** A decoded layer: the paint and the value map, both RGBA of the layer's box. */
 export interface LayerPixels {
