@@ -4,7 +4,7 @@
 // inventory, J journal, M map.
 
 import Phaser from 'phaser'
-import { CEILING, type Dir, type Frame, type ItemInfo, type Key, type LibraryData, type SaveData, type Text } from '@lsw/engine'
+import { CEILING, type Dir, type Frame, type ItemInfo, type Key, type LibraryData, type Mood, type SaveData, type Text } from '@lsw/engine'
 import { CATALOG } from './assets/catalog.ts'
 import type { FromWorker, Tile, ToWorker } from './protocol.ts'
 import { cssAssetUrl, registerArt } from './render/assets.ts'
@@ -188,11 +188,12 @@ function crop(img: string, x: number, y: number, w: number, h: number): HTMLCanv
   g.drawImage(src, x, y, w, h, 0, 0, w, h)
   return c
 }
-const faceset = (id: string) => {
-  const path = scene.facesetOf(id)
-  if (!path || !scene.textures.exists(path)) return undefined
-  const src = scene.textures.get(path).getSourceImage() as HTMLImageElement
-  return crop(path, 0, 0, src.width, src.height)
+const faceset = (id: string, mood?: Mood) => {
+  const f = scene.faceOf(id, mood)
+  if (!f || !scene.textures.exists(f.img)) return undefined
+  const src = scene.textures.get(f.img).getSourceImage() as HTMLImageElement
+  const w = src.width / f.frames
+  return crop(f.img, f.frame * w, 0, w, src.height)
 }
 hud.facesetOf = faceset
 menu.facesetOf = faceset

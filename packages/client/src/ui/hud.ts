@@ -3,7 +3,7 @@
 // messages bottom left, the map name as it fades in, the two keys' labels over the target, the
 // dialogue box and the yes/no question, speech bubbles and floating numbers.
 
-import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Text, type WorldIndex } from '@lsw/engine'
+import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Mood, type Text, type WorldIndex } from '@lsw/engine'
 import { OBJECTIVES, PROLOGUE_DONE, PROLOGUE_OBJECTIVES } from '@lsw/content'
 import { CATALOG } from '../assets/catalog.ts'
 import { assetUrl, cssAssetUrl } from '../render/assets.ts'
@@ -38,7 +38,8 @@ export class Hud {
   onSound?: (muted: boolean) => void
   /** Set by main.ts: paints item icons (from Phaser textures) into [data-icon] slots. */
   paintIcons?: (items: ItemInfo[]) => void
-  facesetOf?: (id: string) => HTMLCanvasElement | undefined
+  /** A portrait, for a line's mood when the face has one. */
+  facesetOf?: (id: string, mood?: Mood) => HTMLCanvasElement | undefined
   /** Set by main.ts: the threads' docs, for the "a new thread is woven" message. */
   threadDoc?: (rule: string) => string | undefined
   modderOnline = false
@@ -423,6 +424,9 @@ export class Hud {
   private sceneDialog = false
   /** Who the open dialog belongs to while their name is still unknown (not yet in a frame). */
   private dialogUnnamed?: string
+  /** Whose line is open, and its mood (the portrait). */
+  private dialogWho?: string
+  private dialogMood?: Mood
   private questionOpen = false
 
   get dialogOpen(): boolean {
@@ -442,19 +446,26 @@ export class Hud {
     return this.questionOpen
   }
 
-  openDialog(who: string, name: string, text: string, scene = false): void {
+  openDialog(who: string, name: string, text: string, scene = false, mood?: Mood): void {
     this.sceneDialog = scene
     this.dialogUnnamed = name ? undefined : who
-    const face = $('#dFace')
-    face.replaceChildren()
-    const c = this.facesetOf?.(who)
-    if (c) face.appendChild(c)
-    face.classList.toggle('hidden', !c)
+    this.dialogWho = who
+    this.showFace(who, mood)
     $('#dName').textContent = name
     $('#dChoices').classList.add('hidden')
     $('#dMore').classList.remove('hidden')
     this.type(text)
     $('#dialog').classList.remove('hidden')
+  }
+
+  /** The open line's portrait, for its speaker's mood. */
+  private showFace(who: string, mood?: Mood): void {
+    this.dialogMood = mood
+    const face = $('#dFace')
+    face.replaceChildren()
+    const c = this.facesetOf?.(who, mood)
+    if (c) face.appendChild(c)
+    face.classList.toggle('hidden', !c)
   }
 
   private type(text: string): void {
@@ -517,8 +528,7 @@ export class Hud {
       const who = f.entities.find((e) => e.id === this.dialogUnnamed)
       if (who) {
         $('#dName').textContent = tx(who.name)
-        const c = this.facesetOf?.(who.id)
-        if (c) ($('#dFace').replaceChildren(c), $('#dFace').classList.remove('hidden'))
+        this.showFace(who.id, this.dialogMood)
         this.dialogUnnamed = undefined
       }
     } else if (!this.sceneDialog && f.scene?.waiting === 'advance' && f.scene.line) {
@@ -526,7 +536,7 @@ export class Hud {
       const l = f.scene.line
       if (l.card) return this.openCard(tx(l.text))
       const who = f.entities.find((e) => e.id === l.who)
-      this.openDialog(l.who, who ? tx(who.name) : '', tx(l.text), true)
+      this.openDialog(l.who, who ? tx(who.name) : '', tx(l.text), true, l.mood)
     }
   }
 
@@ -590,12 +600,14 @@ export class Hud {
         const who = frame?.entities.find((e) => e.id === fx.who)
         const p = frame?.player
         if (fx.mood && fx.mood !== 'neutral') this.bubble(fx.who, MOOD_GLYPH[fx.mood])
-        if (fx.scene) return this.openDialog(fx.who, who ? tx(who.name) : '', text, true)
+        if (fx.scene) return this.openDialog(fx.who, who ? tx(who.name) : '', text, true, fx.mood)
         const near = who && p && who.id !== p.id && Math.abs(who.x - p.x) + Math.abs(who.y - p.y) <= 2 && (who.look || who.appearance)
-        if (near) return this.openDialog(fx.who, tx(who.name), text)
+        if (near) return this.openDialog(fx.who, tx(who.name), text, false, fx.mood)
         return this.bubble(fx.who, text)
       }
       case 'emote':
+        // the speaker of the open line shows it on their face too
+        if (fx.who === this.dialogWho && !$('#dialog').classList.contains('hidden') && !this.questionOpen) this.showFace(fx.who, fx.mood)
         return this.bubble(fx.who, MOOD_GLYPH[fx.mood])
       case 'card':
         return this.openCard(tx(fx.text))

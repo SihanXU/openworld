@@ -27,6 +27,7 @@ export function imagePaths(c: Catalog): string[] {
   for (const a of [...Object.values(c.characters), ...Object.values(c.creatures)]) {
     s.add(`${a.dir}/${a.sheet}`)
     if (a.faceset) s.add(`${a.dir}/${a.faceset}`)
+    if (a.faces) s.add(a.faces.strip)
   }
   for (const f of Object.values(c.fx)) s.add(f.img)
   for (const u of Object.values(c.ui)) sd(u)
