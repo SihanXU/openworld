@@ -77,8 +77,49 @@ export async function preparePortrait(look: Look, mood?: Mood): Promise<boolean>
   return true
 }
 
-/** The portrait of a look in a mood, if its layers are here (else undefined, and they are fetched for next time). */
-export function portraitOf(look: Look, mood?: Mood): HTMLCanvasElement | undefined {
+/**
+ * What a status shows on the portrait (the overlays the map draws on the sprite, statuses' `overlay`): a wash of
+ * colour over the figure and where it sits — wet from the top, fire from below, ice and oil all over.
+ */
+const WASH: Record<string, { color: string; from: 'top' | 'bottom' | 'all'; alpha: number; mode: GlobalCompositeOperation }> = {
+  wet: { color: '#5a8fd8', from: 'top', alpha: 0.32, mode: 'source-atop' },
+  fire: { color: '#ff7a1a', from: 'bottom', alpha: 0.45, mode: 'source-atop' },
+  flame: { color: '#ffb340', from: 'bottom', alpha: 0.25, mode: 'source-atop' },
+  ice: { color: '#bfe6ff', from: 'all', alpha: 0.42, mode: 'source-atop' },
+  spark: { color: '#fff07a', from: 'all', alpha: 0.28, mode: 'source-atop' },
+  oil: { color: '#2a2230', from: 'bottom', alpha: 0.35, mode: 'source-atop' },
+  mend: { color: '#9cf2a8', from: 'bottom', alpha: 0.22, mode: 'source-atop' },
+}
+
+function washed(bust: HTMLCanvasElement, overlays: string[]): HTMLCanvasElement {
+  const c = document.createElement('canvas')
+  c.width = bust.width
+  c.height = bust.height
+  const g = c.getContext('2d')!
+  g.drawImage(bust, 0, 0)
+  for (const o of overlays) {
+    const w = WASH[o]
+    if (!w) continue
+    const grad = g.createLinearGradient(0, w.from === 'bottom' ? c.height : 0, 0, w.from === 'bottom' ? 0 : c.height)
+    grad.addColorStop(0, w.color)
+    grad.addColorStop(w.from === 'all' ? 1 : 0.7, w.from === 'all' ? w.color : 'transparent')
+    g.globalCompositeOperation = w.mode
+    g.globalAlpha = w.alpha
+    g.fillStyle = grad
+    g.fillRect(0, 0, c.width, c.height)
+  }
+  g.globalAlpha = 1
+  g.globalCompositeOperation = 'source-over'
+  return c
+}
+
+/** The portrait of a look in a mood (with what its statuses show), if its layers are here (else undefined, and they are fetched for next time). */
+export function portraitOf(look: Look, mood?: Mood, overlays: string[] = []): HTMLCanvasElement | undefined {
+  const bust = bustOf(look, mood)
+  return bust && overlays.some((o) => WASH[o]) ? washed(bust, overlays) : bust
+}
+
+function bustOf(look: Look, mood?: Mood): HTMLCanvasElement | undefined {
   const key = `${figureId(look)}|${mood ?? 'neutral'}`
   const done = busts.get(key)
   if (done) return done

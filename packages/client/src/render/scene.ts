@@ -1307,7 +1307,8 @@ export class WorldScene extends Phaser.Scene {
   portraitOf(id: string, mood?: Mood): HTMLCanvasElement | undefined {
     const e = this.views.get(id)?.snap
     const look = e && this.lookRecord(e)
-    return look ? portraitOf(look, mood) : undefined
+    // with what its statuses show (wet, burning, frozen…), as the sprite on the map shows them
+    return look ? portraitOf(look, mood, e.overlays) : undefined
   }
 
   /** An actor's portrait for a mood (the plain faceset when its face has no such mood). */

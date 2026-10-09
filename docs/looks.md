@@ -50,7 +50,8 @@ interface Look {                       // engine/src/types.ts
 2. **Portrait** (`figure/portrait.ts`): a 768x768 half-body bust composed from layers in a fixed stack
    (`hairBack, body, outfit, armour, cloak, face, age, mark, beard, glasses, hair, hat`). A layer is its paint and its
    value map (value, zone, coverage); zone k is repainted through the gradient of its colour key. A face part has a
-   layer per mood. The dialogue box shows it standing at its left (`ui/hud.ts`, `game.css .dialog.bust`); the
+   layer per mood; what the speaker's statuses show on the map (wet, burning, frozen, oiled…) washes over it
+   (`figure/index.ts` WASH). The dialogue box shows it standing at its left (`ui/hud.ts`, `game.css .dialog.bust`); the
    codex shows the sprite; the wiki both (`wiki/src/looks.ts`).
 3. **Tags and words**: `lookTags` (engine) derives `look:*` tags from the parts and colours — never stored, read
    by `World.view` and `hasTag`, so rules can address "the hooded"; `lookWords` (engine) gives the modder's
@@ -100,7 +101,6 @@ the map and in the portrait is the same colour by construction.
 
 ## 6. Not yet
 
-- Status overlays on the portrait (wet, sooted, burning).
 - Unique figures: Pip, the Seal-bearers' portraits.
 - A bigger library (more hair, outfits per role and region, more faces), kin resemblance, regional palettes.
 - A style LoRA for a house style, once the art direction settles.
