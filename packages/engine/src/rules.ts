@@ -480,9 +480,9 @@ export class RuleLibrary {
     return a
   }
 
-  /** Has this type learned its own rule for this kind (a copy of what it inherited, Rule.from)? */
-  learned(kind: string, type: string): boolean {
-    return (this.layer.get(kind.split('/')[0]) ?? []).some((r) => r.on === kind && isCellRule(r) && r.host!.type === type && !!r.from)
+  /** Has this type learned its own copy of an inherited rule for this kind (Rule.from), or of any? */
+  learned(kind: string, type: string, from?: string): boolean {
+    return (this.layer.get(kind.split('/')[0]) ?? []).some((r) => r.on === kind && isCellRule(r) && r.host!.type === type && !!r.from && (from === undefined || r.from.rule === from))
   }
 
   /** Learned copies whose original changed or is gone since they were copied (design.md §5.16). */
@@ -528,14 +528,16 @@ export class RuleLibrary {
       if (patch && isDo(patch.leaf)) return { defined: true, rule: patch.rule, leaf: patch.leaf, hole }
       return { defined: false, rule: base.rule, leaf: base.leaf, hole }
     }
-    // inherited from a broader class: the type's own learned rules come first (older patches,
-    // which named classes, answer only at holes as they always did)
-    const patch = this.chain(learned.filter(isCellRule), roles, world, ev)
+    // inherited from a broader class: the type's own copies of that rule come first. Only copies of
+    // the rule that decided: what the type learned elsewhere (a hole it filled, a copy of another
+    // rule) never takes over a case it was not asked about. Older patches, which named classes,
+    // answer only at holes as they always did.
+    const patch = this.chain(learned.filter((r) => isCellRule(r) && r.from?.rule === base.rule.id), roles, world, ev)
     if (patch && isDo(patch.leaf)) return { defined: true, rule: patch.rule, leaf: patch.leaf }
     const res: Resolution = { defined: true, rule: base.rule, leaf: base.leaf }
     // a soft hole: a class's rule answered a use or an impulse the world asks about. A root's own
     // answer is physics, not something inherited (a person pushed steps), and so is a threshold
-    if (host && isDo(base.leaf) && !isRoot(base.rule) && SOFT_KINDS.test(ev.kind) && this.askable(ev.kind) && !this.learned(ev.kind, host.type)) res.soft = { rule: base.rule, path: base.path, default: base.leaf.do }
+    if (host && isDo(base.leaf) && !isRoot(base.rule) && SOFT_KINDS.test(ev.kind) && this.askable(ev.kind) && !this.learned(ev.kind, host.type, base.rule.id)) res.soft = { rule: base.rule, path: base.path, default: base.leaf.do }
     return res
   }
 

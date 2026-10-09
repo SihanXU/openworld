@@ -43,8 +43,8 @@ export function signatureOf(req: ModRequest): Signature {
   ]
   // the class, as the client's port keys it (the engine's classKey: one definition)
   const self = (e: EntityInfo | undefined) => !!e?.id && e.id === ev.host?.id
-  // (a soft hole is one question per type and kind: what this type does instead of what it inherited)
-  const key = req.hole.soft ? cellSignature(ev.host?.type ?? '-', ev.kind) : classKey({ hole: holeKey(req.hole.rule, req.hole.path), kind: ev.kind, host: ev.host?.type ?? '-', roles: Object.entries(ev.roles).map(([k, e]) => [k, self(e) ? 'self' : e?.type ?? '-']), params: ev.params })
+  // (a soft hole is one question per type, kind and inherited rule: what this type does instead)
+  const key = req.hole.soft ? cellSignature(ev.host?.type ?? '-', ev.kind, req.hole.rule) : classKey({ hole: holeKey(req.hole.rule, req.hole.path), kind: ev.kind, host: ev.host?.type ?? '-', roles: Object.entries(ev.roles).map(([k, e]) => [k, self(e) ? 'self' : e?.type ?? '-']), params: ev.params })
   return { key, terms: [...new Set(terms)] }
 }
 

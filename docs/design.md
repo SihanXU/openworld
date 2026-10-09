@@ -872,7 +872,7 @@ the template the AI copies from.
 |---|---|---|
 | a rule written for the host's own type (or the instance) | not consulted | the base, as authored |
 | an undefined leaf (a hole) | tried in the order learned | the first that does something, else the hole |
-| a rule the type inherited from a broader class | tried in the order learned | the first that does something, else the inherited answer |
+| a rule the type inherited from a broader class | its copies of that rule (`from`), in the order learned | the first that does something, else the inherited answer |
 
 The last row is the new case. When the cell has no learned copy yet, the kind is a use or an
 impulse the world asks about (its most specific root rule has an undefined leaf; never taking,
@@ -885,7 +885,12 @@ now answered by the type's own rule. With no modder (or one that answers holes o
 person in an event the world started: what the world learns never harms a person (§5.11), and a
 person's inherited answer to a beast's bite harms, so no answer could pass. The request
 carries `hole.soft` and the inherited rule as the hole; the answer starts from a copy of that rule
-and changes what this type does differently. It is asked once per cell. A failure or a time-out
+and changes what this type does differently. It is asked once per type, kind and inherited rule:
+each rule a type inherits is a seam of its own. A rule the type learned elsewhere (a hole it
+filled, a copy of another rule) never takes over a case it was not asked about. In play, an axe
+that had learned how to strike a person, at a hole, began to strike its wielder when used on
+oneself, where it had inherited wearing (`use/wear`); copies are now consulted only where the rule
+they copied decides. A failure or a time-out
 runs the inheritance and writes nothing, so the cell is asked again in a later session.
 
 **What this removes.**

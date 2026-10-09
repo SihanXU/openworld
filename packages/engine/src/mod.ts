@@ -361,8 +361,8 @@ export function classKey(c: { hole: string; kind: string; host: string; roles: [
   return `${c.hole}|${c.kind}|${c.host}|${roles}|${params}`
 }
 
-/** A cell (design.md §5.16): one type, one event kind. A soft hole is asked once per cell. */
-export const cellSignature = (type: string, kind: string): string => `cell|${type}|${kind}`
+/** A soft hole's question (design.md §5.16): one type, one event kind, the rule it inherited there. Asked once each. */
+export const cellSignature = (type: string, kind: string, from: string): string => `cell|${type}|${kind}|${from}`
 
 /**
  * A soft hole's answer remembers the rule it was copied from (Rule.from), so a change to that rule
@@ -431,7 +431,7 @@ export class ModPort implements UndefinedSink {
     const eng = this.eng
     const w = eng.world
     const host = soft && 'e' in ev.host ? w.get(ev.host.e) : undefined
-    const signature = soft ? cellSignature(host?.type ?? '?', ev.kind) : signatureOf(eng, ev, res)
+    const signature = soft ? cellSignature(host?.type ?? '?', ev.kind, res.hole?.rule.id ?? '?') : signatureOf(eng, ev, res)
     const origin: 'player' | 'world' = ev.origin === 'player' ? 'player' : 'world'
     if (this.records.some((r) => r.signature === signature && (r.status === 'pending' || r.awaiting)) || this.failed.has(signature)) {
       if (origin === 'player' && ev.kind.startsWith('act/')) w.fx.push({ t: 'log', text: attemptLine(eng, ev) })

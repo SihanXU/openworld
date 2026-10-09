@@ -15,6 +15,7 @@ import {
   kindCovers,
   leaves,
   replay,
+  ruleHash,
   specOf,
   validatePatch,
   type Engine,
@@ -732,6 +733,32 @@ describe('the Mod port', () => {
     // the player's own chain is asked as ever
     eng.queue(bite('player'))
     expect(port.records.map((r) => r.request.hole)).toMatchObject([{ rule: 'combat/struck', soft: true }])
+  })
+
+  it('a learned rule takes over only the inherited rule it copied: what the type learned elsewhere never answers a case it was not asked about', () => {
+    const sc: Scenario = {
+      entities: [
+        { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+        { key: 'axe', type: 'item/weapon/blade/axe', x: 2, y: 2, heldBy: 'actor' },
+        { key: 'farmer', type: 'actor/person/farmer', x: 2, y: 1 },
+        { key: 'hay', type: 'fixture/nature/haystack', x: 3, y: 2 },
+      ],
+      event: {},
+    }
+    const l = lib()
+    // learned at a hole (the axe used on a person) and as the blade's copy (on the haystack)
+    l.add({ id: 'patch/axe-on-person', host: { type: 'item/weapon/blade/axe' }, on: 'act/use', cell: true, tree: { if: { is: { role: 'target', sel: { type: 'actor/person' } } }, then: { do: [{ op: 'log', text: 'You swing at them.' }] }, else: 'inherit' }, source: { origin: 'patch' } })
+    l.add({ id: 'patch/axe-copy', host: { type: 'item/weapon/blade/axe' }, on: 'act/use', cell: true, from: { rule: 'use/blade', hash: ruleHash(l.rules.get('use/blade')!) }, tree: { do: [{ op: 'log', text: 'Chop.' }] }, source: { origin: 'patch' } })
+    const eng = sandbox(sc, l)
+    const on = (target: string) => eng.resolveEvent(eng.actEvent('use', 'actor', { e: target }, { e: 'axe' }))
+    // the axe on the farmer: a hole it filled
+    expect(on('farmer').rule?.id).toBe('patch/axe-on-person')
+    // on the haystack, the blade's answer: its copy of the blade
+    expect(on('hay').rule?.id).toBe('patch/axe-copy')
+    // on oneself, what it inherits there is wearing it (use/wear): neither takes that over, and it is a question of its own
+    const self = on('actor')
+    expect(self.rule?.id).toBe('use/wear')
+    expect(self.soft?.rule.id).toBe('use/wear')
   })
 
   it('a soft hole whose asking fails runs what it inherited, and writes nothing', async () => {
