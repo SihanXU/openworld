@@ -1659,11 +1659,11 @@ const CREATURE: Selector = { type: 'actor/creature' }
 const GENERAL: Rule[] = [
   rule({
     id: 'creature/offered',
-    doc: 'A creature held out a thing: something fibrous lashes it down (the rope goes onto it); something edible it snaps up; anything else is its own kind\'s to answer (undefined at the root).',
+    doc: 'A creature held out a thing: something fibrous lashes it down (the rope goes onto it); something edible it snaps up; anything else, and anything offered a boss, is its own kind\'s to answer (undefined at the root).',
     host: CREATURE,
     on: 'impulse/offered',
     tree: IF(
-      { same: ['host', 'actor'] },
+      any({ same: ['host', 'actor'] }, tag('host', 'boss')),
       'inherit',
       IF(
         all(tag('item', 'fiber'), not(has('host', 'frozen'))),

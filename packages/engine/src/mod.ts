@@ -144,7 +144,7 @@ export interface ModProgress {
 
 /** One entry of the shared library's append-only patch log (GET /patches?since=seq). */
 export type PatchLogEntry =
-  | { seq: number; at: string; patch: Patch; rules: string[]; request?: string; /** the triggering event (kept server-side as regression) */ scenario?: Scenario }
+  | { seq: number; at: string; patch: Patch; rules: string[]; request?: string; /** the scene that asked (clients replay it before taking the patch) */ scenario?: Scenario; /** a revision: the learned rules it took the place of (removed just before it) */ replaces?: string[] }
   | { seq: number; at: string; remove: string }
 
 export type RecordStatus = 'pending' | 'patched' | 'fallback' | 'rejected'
@@ -328,6 +328,11 @@ export function restoreLibrary(base: Rule[], saved: LibraryData | undefined, ont
     const res = validatePatch({ artifacts: [{ kind: 'rule', rule: r }] }, { ontology, library: lib, world: r.source.trigger === 'world', protectedFacts })
     if (res.ok) lib.add(r, r.source.at ?? 'restored')
     else dropped?.(r.id, res.errors[0])
+  }
+  // what grew below a rule that was not restored has no place either
+  for (const s of lib.stale()) {
+    lib.remove(s.id, 'restored')
+    dropped?.(s.id, s.why)
   }
   lib.log = [...(saved.log ?? [])]
   lib.version = Math.max(lib.version, saved.version ?? 0)
@@ -516,7 +521,7 @@ export class ModPort implements UndefinedSink {
    * Validate a patch and take it. A patch for a request of this port is checked in that request's
    * scene; one from elsewhere (the shared library, a prefetch) in the scene it came with.
    */
-  submit(id: string | undefined, patch: Patch, scenario?: Scenario): ValidationResult {
+  submit(id: string | undefined, patch: Patch, scenario?: Scenario, replaces: string[] = []): ValidationResult {
     const eng = this.eng
     const w = eng.world
     const rec = id ? this.get(id) : undefined
@@ -530,7 +535,7 @@ export class ModPort implements UndefinedSink {
     }
     if (fresh.length !== patch.artifacts.length) patch = { ...patch, artifacts: fresh }
     // an answer to this port's own question is placed where the question was asked (design.md §5.16)
-    if (rec) patch = placePatch(patch, rec.request).patch
+    if (rec) patch = placePatch(patch, rec.request, { ontology: w.onto.data, library: eng.lib }).patch
     const res = validatePatch(patch, {
       ontology: w.onto.data,
       library: eng.lib,
@@ -571,7 +576,7 @@ export class ModPort implements UndefinedSink {
     for (const a of patch.artifacts) {
       if (a.kind !== 'rule') continue
       const rule: Rule = { ...a.rule, source: { origin: 'patch', request: id, author: patch.author ?? 'manual', at: now, note: patch.note, trigger } }
-      eng.lib.add(rule, now)
+      eng.lib.add(rule, now, replaces.find((old) => !eng.lib.rules.has(old)))
       ruleIds.push(rule.id)
     }
     if (rec) this.settled(rec, patch, ruleIds)
@@ -616,11 +621,25 @@ export class ModPort implements UndefinedSink {
  * them on every rule of the draft, and turn an `inherit` leaf (the old way to leave a case open)
  * into an open leaf. Each change is recorded as a fix.
  */
-export function placePatch(patch: Patch, req: ModRequest): { patch: Patch; fixes: string[] } {
+export function placePatch(patch: Patch, req: ModRequest, now?: { ontology: Ontology; library: RuleLibrary }): { patch: Patch; fixes: string[] } {
   const fixes: string[] = []
   const type = req.event.host?.type
-  const hole = holeKey(req.hole.rule, req.hole.path)
-  const at = req.hole.at ?? []
+  // the place as the library is now, not as it was when the question was asked: another answer may
+  // have grown the tree since (then the open leaf moved), or taken the case (then nothing is placed)
+  let hole = holeKey(req.hole.rule, req.hole.path)
+  let at = req.hole.at ?? []
+  if (now) {
+    try {
+      const res = replay(req.scenario, now.ontology, withArtifacts(now.library, patch, false)).resolution
+      if (!res.defined && res.hole) {
+        const fresh = { hole: holeKey(res.hole.rule.id, res.hole.path), at: res.open?.path ?? [] }
+        if (fresh.hole !== hole || JSON.stringify(fresh.at) !== JSON.stringify(at)) fixes.push(`placed where the event falls undefined now (the tree grew since the question was asked)`)
+        ;({ hole, at } = fresh)
+      }
+    } catch {
+      /* an unbuildable scene: placed as asked, and the validator says why */
+    }
+  }
   const open = (t: Tree, id: string): Tree => {
     if (t === 'inherit') {
       fixes.push(`"${id}": an inherit leaf left open ({"undefined": true}) — a learned rule never inherits`)
@@ -1148,6 +1167,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     }
     if ('undefined' in t) {
       if ((t as { default?: unknown }).default !== undefined) errors.push(`${where}: an open leaf has no default of its own — the hole's default runs there`)
+      if ('do' in t) errors.push(`${where}: a leaf is open ({"undefined": true}) or an answer ({do}), never both`)
       return
     }
     if (!('do' in t) || !Array.isArray(t.do)) return void errors.push(`${where}: a leaf is {do: Effect[]}`)
@@ -1191,6 +1211,14 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   // (the rules of this patch take their places one after another: a second at the same leaf is refused)
   const placing = withArtifacts(ctx.library, patch, false)
   const fits = (r: Rule, where: string): void => {
+    const [baseId, ...rest] = r.hole!.split('#')
+    const base = ctx.library.rules.get(baseId)
+    const path = rest.length ? rest.join('#').split('&') : []
+    if (!base || base.source?.origin === 'patch') errors.push(`${where}.hole: no base rule "${baseId}"`)
+    else {
+      const leaf = locate(base.tree, path)
+      if (!leaf || !isHole(leaf.leaf)) errors.push(`${where}.hole: "${r.hole}" is not an open leaf of "${baseId}"${leaf ? ' (that leaf is defined)' : ' (no such branch)'}`)
+    }
     const tree = placing.tree(patchKey(r.host!.type!, r.on, r.hole!))
     const at = r.at ?? []
     if (!tree && at.length) errors.push(`${where}.at: ${r.host!.type} has no tree at this hole yet — the first answer has no path`)

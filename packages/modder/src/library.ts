@@ -234,7 +234,7 @@ export class WorldLibrary {
     // a revision: the old rules leave the log first, so every client sees remove-then-add
     for (const id of replaces) if (this.lib.rules.get(id)?.source?.origin === 'patch') this.remove(id, now)
     const rules = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : []))
-    const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), patch, rules, request: req?.id, scenario: req?.scenario }
+    const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), patch, rules, request: req?.id, scenario: req?.scenario, ...(replaces.length && { replaces }) }
     this.apply(entry)
     this.persist(entry)
     return { ok: true, result, rules, seq: entry.seq }
@@ -324,7 +324,7 @@ export class WorldLibrary {
     }
     for (const a of e.patch.artifacts) {
       if (a.kind !== 'rule') continue
-      this.lib.add({ ...a.rule, source: { origin: 'patch', request: e.request, author: e.patch.author ?? 'modder', at: e.at, note: e.patch.note, trigger: e.patch.trigger } }, e.at)
+      this.lib.add({ ...a.rule, source: { origin: 'patch', request: e.request, author: e.patch.author ?? 'modder', at: e.at, note: e.patch.note, trigger: e.patch.trigger } }, e.at, (e.replaces ?? []).find((old) => !this.lib.rules.has(old)))
     }
     // the scene that asked, kept with the patch's first rule
     const first = e.rules.find((id) => !!this.lib.rules.get(id)?.host)

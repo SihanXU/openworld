@@ -189,7 +189,18 @@ describe('conversions checked when a patch is validated', () => {
   /** The hole the scene's event falls into: a learned rule names it (design.md §5.16). */
   const USE_HOLE = (({ hole }) => holeKey(hole.rule, hole.path))(request())
   /** The base hole a rule of another kind fills (its own tree at that key: nothing there yet). */
-  const HOLES: Record<string, string> = { 'act/use': USE_HOLE, 'impulse/coat': 'core/coat', 'threshold/cross': 'core/break' }
+  /** A base rule's first open leaf, as a hole key (the path of branches `walk` would record to it). */
+  const openLeafOf = (id: string): string => {
+    const base = [...BASE_RULES, ...STORY_RULES].find((r) => r.id === id)!
+    const find = (t: Tree, path: string[]): string[] | undefined => {
+      if (typeof t === 'string') return undefined
+      if ('undefined' in t) return path
+      if (!('if' in t)) return undefined
+      return find(t.then, [...path, JSON.stringify(t.if)]) ?? find(t.else ?? 'inherit', [...path, '!' + JSON.stringify(t.if)])
+    }
+    return holeKey(id, find(base.tree, [])!)
+  }
+  const HOLES: Record<string, string> = { 'act/use': USE_HOLE, 'impulse/coat': openLeafOf('core/coat'), 'threshold/cross': openLeafOf('core/break') }
   const OPEN: Tree = { undefined: true }
   const rule = (id: string, tree: Tree, host: Rule['host'] = { type: FEATHER }, on = 'act/use'): Rule => ({ id: `test/${id}`, host, on, hole: HOLES[on], tree, source: { origin: 'patch' } })
   const patchOf = (...rules: Rule[]): Patch => ({ artifacts: rules.map((rule) => ({ kind: 'rule', rule })) })

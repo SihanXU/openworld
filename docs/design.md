@@ -935,6 +935,26 @@ change with tests, merged by a person) and which then makes the learned trees un
 but never consulted; `library prune` lists and rolls back what the validator no longer takes, and
 `restoreLibrary` drops it from a save with the reason.
 
+**Found in review (the same day), and held to:**
+
+- A leaf that says `undefined` and carries `do` at once is open: the validator refuses it, and the
+  engine reads such a leaf as open whatever it carries.
+- A question's place is read off the scene **as the library is now**, not as it was when the
+  question was asked: another answer may have grown the tree since (the open leaf moved) or taken
+  the case (then nothing is placed, and the request is covered). `placePatch` does this in the
+  pipeline, the repo mode and the port, so a stale request is still answered.
+- A learned rule set aside at run time (`fault`, `quarantine`) leaves the library: its leaf is open
+  again for the validator's replays as for the game.
+- A rule's `hole` must be an open leaf of a base rule that exists. So a base rule whose branches
+  change makes the learned rules below it fail validation on restore, sync and prune, with the
+  reason, instead of silently never being consulted; what grew below a rule that is not restored
+  is dropped with it (`restoreLibrary`, `stale()`).
+- A revision takes its predecessor's place in the tree (the log entry says what it `replaces`;
+  `RuleLibrary.add(rule, at, inPlaceOf)`), so the answers that grew below the old one keep their
+  place where their paths still fit.
+- A boss is not lashed down by a handful of grass: `creature/offered` leaves bosses to their own
+  kind's answer.
+
 **The base's general cases (the same day).** With generalization moved to the base, the base
 took the class-level answers the curriculum had been learning one patch at a time
 (`rules.ts` GENERAL): a thing used on a creature is held out to it, as §5.2 says (`core/use`);

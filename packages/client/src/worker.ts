@@ -206,7 +206,7 @@ async function syncLibrary(): Promise<void> {
     for (const e of log.entries) {
       if ('remove' in e) {
         if (lib.rules.get(e.remove)?.source?.origin === 'patch') lib.remove(e.remove)
-      } else game.mods.submit(undefined, e.patch, e.scenario)
+      } else game.mods.submit(undefined, e.patch, e.scenario, e.replaces)
     }
     modderSeq = log.seq
     if (lib.version !== before) sendRecords()

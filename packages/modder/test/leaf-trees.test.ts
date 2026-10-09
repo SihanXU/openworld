@@ -3,7 +3,7 @@
 // answer set aside at runtime opens its leaves again; the request says where the next answer goes.
 
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, compose, holeKey, locate, patchKey, placePatch, validatePatch, type Cond, type Patch, type Rule, type Scenario } from '@lsw/engine'
+import { ModPort, RuleLibrary, buildSandbox, compose, holeKey, locate, patchKey, placePatch, restoreLibrary, validatePatch, type Cond, type Patch, type Rule, type Scenario } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
 import { WorldLibrary } from '../src/index.ts'
 
@@ -116,5 +116,80 @@ describe('one tree per (type, kind, hole)', () => {
     expect(library.covering(ask(TREE).req)?.rule).toBe('patch/stone-tree')
     expect(library.covering(ask(HIVE).req)).toBeUndefined()
     expect(library.asked).toHaveLength(1)
+  })
+
+  it('a leaf cannot be open and an answer at once; at run time such a leaf is open', () => {
+    const { req, eng, port } = ask(TREE)
+    const both = placePatch({ artifacts: [{ kind: 'rule', rule: { id: 'patch/both', host: { type: 'x' }, on: 'x', label: 'x', tree: { undefined: true, do: [{ op: 'nosuchop' } as never] } } }] }, req).patch
+    expect(validatePatch(both, { ontology: onto, library: eng.lib, scenario: req.scenario }).errors.join()).toMatch(/never both/)
+    // slipped in by hand: the engine reads it as open, so nothing it carries runs
+    eng.lib.add({ ...(both.artifacts[0] as { rule: Rule }).rule, source: { origin: 'patch' } })
+    const res = eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'it' }, { e: 'held' }))
+    expect(res.defined).toBe(false)
+    expect(port.records).toHaveLength(1)
+  })
+
+  it('a question asked before the tree grew is still placed: where the event falls undefined now', () => {
+    const first = ask(TREE)
+    const stale = ask(HIVE) // asked while the stone's tree was empty: at []
+    expect(stale.req.hole.at).toEqual([])
+    const a = placePatch(rule('patch/a', { if: is(TREE), then: { do: [] }, else: { undefined: true } }), first.req).patch
+    expect(first.port.submit(first.req.id, a).ok).toBe(true)
+    // the library grew under the second question: its answer goes to the open leaf, not to the root
+    const b = placePatch(rule('patch/b', { do: [{ op: 'log', text: 'b' }] }), stale.req, { ontology: onto, library: first.eng.lib })
+    expect(b.fixes.join()).toMatch(/placed where the event falls undefined now/)
+    expect((b.patch.artifacts[0] as { rule: Rule }).rule.at).toEqual(['!' + JSON.stringify(is(TREE))])
+    const v = validatePatch(b.patch, { ontology: onto, library: first.eng.lib, scenario: stale.req.scenario })
+    expect(v.errors).toEqual([])
+  })
+
+  it('a rule naming a hole that is not an open leaf of a base rule is refused', () => {
+    const { req, eng } = ask(TREE)
+    const r = (placePatch(rule('patch/x', { do: [] }), req).patch.artifacts[0] as { rule: Rule }).rule
+    const bad = (hole: string) => validatePatch({ artifacts: [{ kind: 'rule', rule: { ...r, hole } }] }, { ontology: onto, library: eng.lib }).errors.join()
+    expect(bad('core/nothing-of-the-kind')).toMatch(/no base rule/)
+    expect(bad('core/use')).toMatch(/not an open leaf/) // the root of act/use branches before its hole
+    expect(bad('use/eat')).toMatch(/not an open leaf/)
+  })
+
+  it('a learned rule set aside at run time leaves the library, and its leaf takes a new answer', () => {
+    const { req, eng, port } = ask(TREE)
+    expect(port.submit(req.id, placePatch(rule('patch/a', { do: [{ op: 'log', text: 'a' }] }), req).patch).ok).toBe(true)
+    expect(eng.fault('patch/a', 'it ran away', true)).toBe(true)
+    expect(eng.lib.rules.has('patch/a')).toBe(false)
+    expect(eng.world.state.quarantine?.['patch/a']).toBeDefined()
+    const again = ask(TREE, eng.lib.clone())
+    expect(again.res.defined).toBe(false)
+    expect(again.port.submit(again.req.id, placePatch(rule('patch/b', { do: [] }), again.req).patch).ok).toBe(true)
+  })
+
+  it('a revision takes its predecessor\'s place, so what grew below it stays', () => {
+    const lib = new RuleLibrary(BASE)
+    const h = holeKey(ask(TREE).req.hole.rule, ask(TREE).req.hole.path)
+    const no = ['!' + JSON.stringify(is(TREE))]
+    const root = (id: string): Rule => ({ id, host: { type: STONE }, on: 'act/use', hole: h, at: [], tree: { if: is(TREE), then: { do: [] }, else: { undefined: true } }, source: { origin: 'patch' } })
+    lib.add(root('r1'))
+    lib.add({ id: 's', host: { type: STONE }, on: 'act/use', hole: h, at: no, tree: { do: [{ op: 'log', text: 's' }] }, source: { origin: 'patch' } })
+    lib.remove('r1')
+    expect(lib.stale().map((x) => x.id)).toEqual(['s'])
+    lib.add(root('r2'), undefined, 'r1')
+    expect(lib.stale()).toEqual([])
+    expect(locate(lib.tree(patchKey(STONE, 'act/use', h))!, no)?.leaf).toEqual({ do: [{ op: 'log', text: 's' }] })
+    // a save restored without the root drops what grew below it, and says so
+    const dropped: string[] = []
+    const back = restoreLibrary(BASE, { ...lib.toJSON(), rules: lib.toJSON().rules.filter((r) => r.id !== 'r2') }, onto, [], (id, why) => dropped.push(`${id}: ${why}`))
+    expect(back.rules.has('s')).toBe(false)
+    expect(dropped.join()).toMatch(/^s: /)
+  })
+
+  it('a boss offered a handful of grass is not lashed down', () => {
+    const scene = (target: string): Scenario => ({ entities: [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2 }, { key: 'held', type: 'item/material/grass', x: 2, y: 2, heldBy: 'actor' }, { key: 'it', type: target, x: 2, y: 1 }], event: {} })
+    const king = buildSandbox(scene('actor/creature/slime/king_slime'), onto, new RuleLibrary(BASE))
+    new ModPort(king)
+    king.act('use', 'actor', { e: 'it' })
+    expect(king.world.hasStatus({ e: 'it' }, 'frozen')).toBe(false)
+    const green = buildSandbox(scene('actor/creature/slime/green_slime'), onto, new RuleLibrary(BASE))
+    green.act('use', 'actor', { e: 'it' })
+    expect(green.world.hasStatus({ e: 'it' }, 'frozen')).toBe(true)
   })
 })

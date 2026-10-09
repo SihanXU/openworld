@@ -150,7 +150,7 @@ function issueOf(req: ModRequest, revise?: { rules: Rule[]; notes: string[] }): 
     '',
     revise
       ? `This outcome is already answered by the rule(s) below, written quickly while the player waited. A reviewer asked for changes:\n${revise.notes.map((n) => `- ${n}`).join('\n')}\n\nReplace them: edit their files under rules/patch/ (or delete them and add new ones). Current rules: ${revise.rules.map((r) => `\`rules/${r.id}.json\``).join(', ')}.`
-      : 'Define it: add the rule(s) that answer this CLASS of event for this CLASS of host under `rules/patch/` (one JSON rule `{id, host, on, tree, doc}` per file; ids start with `patch/`; new types go in `types/`, new statuses in `statuses/`). A rule writes only its host; it affects others by emitting impulses. Follow `MODSPEC.md` and the conventions of the existing rules.',
+      : 'Define it: add the rule that answers this event for this host TYPE under `rules/patch/` (one JSON rule `{id, host, on, tree, doc}` per file; ids start with `patch/`; host is exactly {type: <the host\'s type>} and on the exact event kind, as the issue says; the harness sets the rule\'s place (hole, at) when it takes the patch; a case you do not answer ends in {"undefined": true}, never "inherit"; new types go in `types/`, new statuses in `statuses/`). A rule writes only its host; it affects others by emitting impulses. Follow `MODSPEC.md` and the conventions of the existing rules.',
     '',
     'Done means `node validate.mjs` passes: your rule is valid, the event resolves to it, its tests pass and nothing that worked before breaks. Do not change existing files outside rules/patch/.',
   ].join('\n')

@@ -289,6 +289,8 @@ export class Engine {
     const set = (this.world.state.quarantine ??= {})
     if ((severe || n >= FAULTS) && !set[rule.id]) {
       set[rule.id] = { tick: this.world.state.tick, reason }
+      // it leaves the library: its leaf is open again, for the validator's replays as for the game
+      this.lib.remove(rule.id)
       this.world.fx.push({ t: 'log', text: `learned rule ${rule.id} is set aside: ${reason}`, tone: 'dev' })
     }
     return true

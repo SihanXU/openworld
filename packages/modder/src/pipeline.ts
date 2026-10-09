@@ -409,7 +409,7 @@ export class Modder {
         const qualified = qualifyTerrains(patch, ctx.ontology)
         if (qualified.fixes.length) ((patch = qualified.patch), fixes.push(...qualified.fixes))
         // the rule's place is the request's, never the model's (design.md §5.16)
-        const put = placePatch(patch, req)
+        const put = placePatch(patch, req, { ontology: ctx.ontology, library: lib })
         patch = put.patch
         fixes.push(...put.fixes)
         let res = validate(patch)
@@ -526,7 +526,10 @@ export class Modder {
       ep.profile = eo.profile
       if (eo.escalatedFrom) ep.escalatedFrom = eo.escalatedFrom
       if (eo.revise) ep.revises = eo.revise.episode.id
-      const { patch, problems } = repo.collect()
+      const collected = repo.collect()
+      const problems = collected.problems
+      // the rule's place is the request's, as the library is now (design.md §5.16)
+      const patch = collected.patch ? placePatch(collected.patch, req, { ontology: library.fullOntology(lib), library: lib }).patch : collected.patch
       ep.patch = undefined
       // the auditor, before shipping: a patch it breaks in the sandbox is not committed (nor one it
       // could not audit because the backend went out)

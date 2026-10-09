@@ -442,6 +442,8 @@ export class RuleLibrary {
   private byKey = new Map<string, Rule[]>()
   private trees = new Map<string, Composed>()
   private order = new Map<string, number>()
+  /** Where removed learned rules stood (a revision takes its predecessor's place, so what grew below it stays). */
+  private retired = new Map<string, { order: number; key: string | undefined }>()
   private added = 0
   readonly rules = new Map<string, Rule>()
   /** Types and statuses introduced by patches (base ontology lives in content). */
@@ -458,13 +460,14 @@ export class RuleLibrary {
     }
   }
 
-  private put(r: Rule): void {
+  private put(r: Rule, inPlaceOf?: string): void {
     selectByType(r)
     factsOnTheStory(r)
     cellsAsThings(r)
     this.rules.set(r.id, r)
     this.specs.set(r.id, specOf(r))
-    this.order.set(r.id, this.added++)
+    const old = inPlaceOf ? this.retired.get(inPlaceOf) : undefined
+    this.order.set(r.id, old && old.key === keyOf(r) ? old.order : this.added++)
     if (isPatch(r)) this.rebuildTree(keyOf(r))
     else this.rebuild(r.on.split('/')[0])
   }
@@ -492,8 +495,9 @@ export class RuleLibrary {
     return this.specs.get(id)
   }
 
-  add(rule: Rule, now = new Date().toISOString()): void {
-    this.put(rule)
+  /** inPlaceOf: a learned rule this one replaces (a revision): it takes that rule's place in its tree. */
+  add(rule: Rule, now = new Date().toISOString(), inPlaceOf?: string): void {
+    this.put(rule, inPlaceOf)
     this.version += 1
     this.log.push({ version: this.version, action: 'add', ruleId: rule.id, rule, at: now })
   }
@@ -515,6 +519,7 @@ export class RuleLibrary {
     if (!r) return false
     this.rules.delete(id)
     this.specs.delete(id)
+    this.retired.set(id, { order: this.order.get(id)!, key: keyOf(r) })
     this.order.delete(id)
     if (isPatch(r)) this.rebuildTree(keyOf(r))
     else this.rebuild(r.on.split('/')[0])
@@ -577,8 +582,9 @@ export class RuleLibrary {
     const { leaf, path } = walk(composed.tree, roles, world, ev)
     const id = typeof leaf === 'object' ? composed.owner.get(leaf) : undefined
     const rule = id ? this.rules.get(id) : undefined
-    // (a learned answer set aside at runtime answers no more: its leaf is open again)
-    if (rule && isDo(leaf) && !world.state.quarantine?.[rule.id]) return { defined: true, rule, leaf, hole }
+    // (a leaf that says undefined is open, whatever else it carries; a learned answer set aside at
+    // runtime answers no more: its leaf is open again)
+    if (rule && isDo(leaf) && !isHole(leaf) && !world.state.quarantine?.[rule.id]) return { defined: true, rule, leaf, hole }
     return { defined: false, rule: base.rule, leaf: base.leaf, hole, open: { key, path } }
   }
 
