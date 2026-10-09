@@ -25,10 +25,10 @@ KEYS = "Use flat solid key colours: the main fabric pure red, the second fabric 
 
 ADULT_HAIR = {
     "hair.long": "long straight hair with straight-cut bangs over the forehead, falling over her shoulders down to her chest",
-    "hair.short": "short neat hair, parted at the side, ears showing, a short fringe",
+    "hair.short": "a short men's haircut: short at the back and the sides with the ears showing, a little longer on top, a short fringe",
     "hair.messy": "short tousled messy spiky hair with a messy fringe",
     "hair.swept": "short hair combed back from the forehead, the forehead bare",
-    "hair.cropped": "very short close-cropped hair, almost shaved, following the shape of the skull",
+    "hair.cropped": "a very short crew cut: an even, smooth, solid layer of short hair following the shape of the skull, the forehead and ears showing",
     "hair.thin": "an old man's balding head: the top of the head bald and shiny, short hair left only on the sides and the back of the head above the ears",
     "hair.tied": "long hair pulled back and tied low at the nape, a few loose strands framing the face, the forehead mostly bare",
     "hair.bob": "a chin-length bob with straight bangs",

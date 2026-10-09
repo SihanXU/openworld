@@ -25,6 +25,8 @@ from extract import SIZE, background, changed, figure, load, luminance, matte  #
 OUT_SIZE = SIZE
 HEADS = {"man": "woman", "boy": "girl"}
 MOODS = ["happy", "sad", "angry", "surprised", "shy"]
+# hats under which the hair goes: the hair shows only below their lower edge
+COVERING = {"hat.straw", "hat.kerchief", "hat.hood", "hat.helm", "hat.cap"}
 
 
 def hsv(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -87,6 +89,8 @@ def nearest_fill(zones: np.ndarray, holes: np.ndarray) -> np.ndarray:
 def save(out_dir: str, rel: str, rgb: np.ndarray, alpha: np.ndarray, zones: np.ndarray, value: np.ndarray) -> dict | None:
     """Write a layer at the game's size, cropped to what it covers: its paint and its value map. Its manifest entry."""
     a8 = (np.clip(alpha, 0, 1) * 255).astype(np.uint8)
+    # the paint is read only where no colour key repaints a pixel (zone 0): elsewhere it is left blank, which packs small
+    rgb = np.where((zones > 0)[..., None], 0, rgb)
     paint = Image.fromarray(np.dstack([np.clip(rgb, 0, 255).astype(np.uint8), a8]), "RGBA").resize((OUT_SIZE, OUT_SIZE), Image.LANCZOS)
     va = Image.fromarray(np.dstack([np.clip(value, 0, 255).astype(np.uint8), a8]), "LA").resize((OUT_SIZE, OUT_SIZE), Image.LANCZOS)
     zi = Image.fromarray((zones * 40).astype(np.uint8), "L").resize((OUT_SIZE, OUT_SIZE), Image.NEAREST)
@@ -195,7 +199,14 @@ class Builder:
         return zones, value
 
     def emit(self, pid: str, body: str, mood: str | None, z: str, keys: list[str], rgb, alpha, region) -> dict | None:
-        zones, value = self.zones_of(rgb, region & (alpha > 0.01), keys)
+        if keys == ["skin"]:
+            # a mark or the lines of age is skin, whatever colour the model drew it in: a scar a darker skin, not red paint
+            reg = region & (alpha > 0.01)
+            zones = reg.astype(np.int32)
+            # a little darker than the skin round it, never its darkest line
+            value = np.where(reg, 150 + (self.skin(ndi.gaussian_filter(luminance(rgb), 0.8)) - 150) * 0.45, 0)
+        else:
+            zones, value = self.zones_of(rgb, region & (alpha > 0.01), keys)
         tag = f".{mood}" if mood else ""
         e = save(self.out, f"{pid}/{body}.{z}{tag}", rgb, alpha, zones, value)
         return {**e, "z": z, "zones": keys} if e else None
@@ -204,6 +215,8 @@ class Builder:
         if not layers:
             return
         entry = self.manifest["parts"].setdefault(pid, {}).setdefault(body, {"layers": []})
+        if pid in COVERING:
+            entry["covers"] = True
         if mood:
             entry.setdefault("moods", {})[mood] = layers
         else:
@@ -233,7 +246,15 @@ class Builder:
                 layers.append(e)
         else:
             z, keys = {"hat": ("hat", [".1", ".2"]), "beard": ("beard", ["hair"]), "age": ("age", ["skin"]), "mark": ("mark", ["skin"]), "glasses": ("glasses", [".1"])}[slot]
+            if slot in ("age", "mark"):
+                # on the head only; age's lines are what the edit darkened (the face's own shape stays the base's)
+                reg &= np.arange(SIZE)[:, None] < neck
+            if slot == "age":
+                reg &= luminance(img) < luminance(base) - 14
             rgb, alpha = matte(img, self.bg, reg, fig)
+            if slot in ("age", "mark"):
+                # laid lightly: a line of age, an old scar, not paint
+                alpha = ndi.gaussian_filter(alpha, 0.7) * (0.6 if slot == "age" else 0.7)
             e = self.emit(pid, body, mood, z, keys, rgb, alpha, alpha > 0.01)
             if e:
                 layers.append(e)

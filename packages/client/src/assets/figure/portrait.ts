@@ -28,6 +28,8 @@ export interface PortraitLayer {
 export interface PortraitPart {
   layers: PortraitLayer[]
   moods?: Partial<Record<Mood, PortraitLayer[]>>
+  /** A hat the hair goes under: the hair shows only below its lower edge. */
+  covers?: boolean
 }
 
 /** What the art pipeline wrote (public/assets/lsw/Looks/portrait/manifest.json). */
@@ -43,7 +45,7 @@ export interface PortraitManifest {
 }
 
 /** The stack, back to front. */
-export const LAYER_Z = ['hairBack', 'body', 'outfit', 'armour', 'cloak', 'face', 'age', 'mark', 'beard', 'glasses', 'hair', 'hat'] as const
+export const LAYER_Z = ['hairBack', 'body', 'outfit', 'armour', 'cloak', 'age', 'face', 'mark', 'beard', 'glasses', 'hair', 'hat'] as const
 
 /** A decoded layer: the paint and the value map, both RGBA of the layer's box. */
 export interface LayerPixels {
@@ -52,8 +54,8 @@ export interface LayerPixels {
 }
 
 /** The slots a look's parts are drawn from, in the manifest's terms: the body, then its parts. */
-function partsOf(m: PortraitManifest, look: Look, mood: Mood | undefined): { slot: string; layers: PortraitLayer[] }[] {
-  const out: { slot: string; layers: PortraitLayer[] }[] = []
+function partsOf(m: PortraitManifest, look: Look, mood: Mood | undefined): { slot: string; layers: PortraitLayer[]; covers?: boolean }[] {
+  const out: { slot: string; layers: PortraitLayer[]; covers?: boolean }[] = []
   const body = m.bodies[look.body]
   if (body) out.push({ slot: 'body', layers: body.layers })
   const head = m.heads[look.body] ?? look.body
@@ -61,7 +63,7 @@ function partsOf(m: PortraitManifest, look: Look, mood: Mood | undefined): { slo
     const per = m.parts[id]
     const p = per?.[look.body] ?? per?.[head] ?? per?.['*']
     if (!p) continue
-    out.push({ slot, layers: (mood && mood !== 'neutral' && p.moods?.[mood]) || p.layers })
+    out.push({ slot, layers: (mood && mood !== 'neutral' && p.moods?.[mood]) || p.layers, covers: p.covers })
   }
   return out
 }
@@ -80,7 +82,20 @@ export function composePortrait(m: PortraitManifest, look: Look, mood: Mood | un
     if (!grads.has(key)) grads.set(key, gradient(keyRgb(look, key)))
     return grads.get(key)!
   }
-  const stack = partsOf(m, look, mood).flatMap(({ slot, layers }) => layers.map((l) => ({ slot, l })))
+  const parts = partsOf(m, look, mood)
+  // a covering hat: per column, the lowest row it covers; the hair above it there is under the hat
+  const under = new Int32Array(S).fill(-1)
+  for (const l of parts.find((p) => p.covers)?.layers ?? []) {
+    const px = get(l.file)
+    if (!px) continue
+    for (let x = 0; x < l.w; x++)
+      for (let y = l.h - 1; y >= 0; y--)
+        if (px.value[(y * l.w + x) * 4 + 3] > 128) {
+          under[l.x + x] = Math.max(under[l.x + x], l.y + y)
+          break
+        }
+  }
+  const stack = parts.flatMap(({ slot, layers }) => layers.map((l) => ({ slot, l })))
   stack.sort((a, b) => LAYER_Z.indexOf(a.l.z as (typeof LAYER_Z)[number]) - LAYER_Z.indexOf(b.l.z as (typeof LAYER_Z)[number]))
   for (const { slot, l } of stack) {
     const px = get(l.file)
@@ -92,6 +107,7 @@ export function composePortrait(m: PortraitManifest, look: Look, mood: Mood | un
       for (let x = 0; x < l.w; x++) {
         const ox = l.x + x
         if (ox < 0 || ox >= S) continue
+        if (slot === 'hair' && oy < under[ox]) continue
         const i = (y * l.w + x) * 4
         const a = px.value[i + 3] / 255
         if (a <= 0) continue

@@ -48,7 +48,7 @@ interface Look {                       // engine/src/types.ts
    right mirrored; a dark outline goes round the figure last. Grids: `pixparts.ts`, `pixhair.ts`, `pixhead.ts`,
    `pixoutfit.ts`. Composed on demand into a canvas texture named by the look's code (`figure/index.ts`).
 2. **Portrait** (`figure/portrait.ts`): a 768x768 half-body bust composed from layers in a fixed stack
-   (`hairBack, body, outfit, armour, cloak, face, age, mark, beard, glasses, hair, hat`). A layer is its paint and its
+   (`hairBack, body, outfit, armour, cloak, age, face, mark, beard, glasses, hair, hat`; the hair goes under a covering hat). A layer is its paint and its
    value map (value, zone, coverage); zone k is repainted through the gradient of its colour key. A face part has a
    layer per mood; what the speaker's statuses show on the map (wet, burning, frozen, oiled…) washes over it
    (`figure/index.ts` WASH). The dialogue box shows it standing at its left (`ui/hud.ts`, `game.css .dialog.bust`); the
@@ -99,7 +99,14 @@ the map and in the portrait is the same colour by construction.
 - Loading: a save's people take the world's look unless theirs is `own`; a player who made a look keeps it; a
   sheet's key from before looks gets the world's.
 
-## 6. Not yet
+## 6. Where it stands (2026-10-09)
+
+The first library: 4 bodies, 6 faces x 6 moods, 15 hairstyles, 3 beards, age lines, 2 marks, round glasses,
+7 hats, 20 outfits (25 drawings over the bodies they fit), 3 worn pieces for both adult bodies — 98 pictures,
+cut into 18 MB of layers. `docs/figures/looks-review.png` is everyone as the game draws them,
+`looks-worn.png` what is worn, `looks-dialogue.jpg` the dialogue box in play.
+
+## 7. Not yet
 
 - Unique figures: Pip, the Seal-bearers' portraits.
 - A bigger library (more hair, outfits per role and region, more faces), kin resemblance, regional palettes.

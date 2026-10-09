@@ -217,6 +217,6 @@ describe('what is worn shows on the look as seen (an item\'s look)', () => {
     const onto = buildOntology()
     const worn = Object.values(onto.types).filter((t) => typeof t.props?.look === 'string')
     expect(worn.length).toBeGreaterThanOrEqual(7)
-    for (const t of worn) expect(LOOK_PARTS[t.props.look as string], t.id).toBeDefined()
+    for (const t of worn) expect(LOOK_PARTS[t.props?.look as string], t.id).toBeDefined()
   })
 })
