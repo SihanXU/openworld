@@ -1,95 +1,137 @@
-// Pure layout for one direction of the skill tree. Branch hubs exist even before their
-// skills are designed; learning starts at a branch's first skill, not at its hub.
+// Pure layout for one direction of the skill tree: the start in the middle and its four branches growing out from it,
+// left, right, up and down. Each branch is laid out as the tiered talent trees of action RPGs are (Diablo II's skill
+// tabs, World of Warcraft's classic talent grid): a panel of its own, its hub nearest the start and its skills in rows
+// outward by how deep they lie, so what one needs before a skill is always the row before it. Within a branch the columns are a tidy tree's: each leaf a column of its own, a skill
+// centred over the skills that grow from it, a capstone that joins two arms between them. Branch hubs exist even
+// before their skills are designed; learning starts at a branch's first skill, not at its hub.
 
 import type { SkillDef } from '@lsw/engine'
 import { SKILLS, SKILL_BRANCHES, type SkillDirection } from '@lsw/content'
 
-const BRANCH_RADIUS = 170
-const SKILL_RADIUS = 300
-const STEP = 110
-const SWAY = 4
-/** The least distance between two icons on one ring of a branch. */
-const GAP = 76
+/** Across one column of a branch, and down one row. */
+export const COL = 124
+export const ROW = 140
+/** How far a side branch's hub stands from the start, and a branch panel's margin. */
+const HUB_OUT = 190
+const PAD = 64
 
 export interface Placed {
   x: number
   y: number
-  angle: number
 }
 
-const polar = (radius: number, angle: number): Placed => {
-  const rad = (angle * Math.PI) / 180
-  return { x: radius * Math.cos(rad), y: radius * Math.sin(rad), angle }
+/** A branch's panel: its frame, behind its hub and skills. */
+export interface Panel {
+  x: number
+  y: number
+  w: number
+  h: number
 }
 
-export function layoutBranches(direction: SkillDirection): Map<string, Placed> {
+export interface TreeLayout {
+  hubs: Map<string, Placed>
+  nodes: Map<string, Placed>
+  panels: Map<string, Panel>
+  /** Which way each branch grows. */
+  ways: Map<string, Way>
+}
+
+/** How deep a skill lies in its branch: its first skills 0, the next row 1, a skill after two the row below the deeper. */
+function depths(own: SkillDef[]): Map<string, number> {
+  const byId = new Map(own.map((s) => [s.id, s]))
+  const out = new Map<string, number>()
+  const of = (s: SkillDef): number => {
+    if (!out.has(s.id)) {
+      const ps = (s.requires ?? []).map((id) => byId.get(id)).filter((p): p is SkillDef => !!p)
+      out.set(s.id, ps.length ? Math.max(...ps.map(of)) + 1 : 0)
+    }
+    return out.get(s.id)!
+  }
+  own.forEach(of)
+  return out
+}
+
+/** The columns of one branch (a tidy tree; a capstone moved between its parents where the row is free there). */
+function columns(own: SkillDef[], depth: Map<string, number>): Map<string, number> {
+  const ids = new Set(own.map((s) => s.id))
+  const parent = (s: SkillDef) => (s.requires ?? []).find((r) => ids.has(r))
+  const kids = new Map<string, SkillDef[]>()
+  for (const s of own) {
+    const key = parent(s) ?? ''
+    kids.set(key, [...(kids.get(key) ?? []), s])
+  }
+  const col = new Map<string, number>()
+  let next = 0
+  const place = (s: SkillDef): number => {
+    const cs = kids.get(s.id) ?? []
+    if (!cs.length) col.set(s.id, next++)
+    else {
+      const placed = cs.map(place)
+      col.set(s.id, (placed[0] + placed[placed.length - 1]) / 2)
+    }
+    return col.get(s.id)!
+  }
+  for (const root of kids.get('') ?? []) place(root)
+  // a skill after two (a capstone): between them, unless another stands there in its row
+  for (const s of own) {
+    const ps = (s.requires ?? []).filter((r) => ids.has(r))
+    if (ps.length < 2) continue
+    const mid = ps.reduce((n, p) => n + col.get(p)!, 0) / ps.length
+    const crowded = own.some((o) => o.id !== s.id && depth.get(o.id) === depth.get(s.id) && Math.abs(col.get(o.id)! - mid) < 0.95)
+    if (!crowded) col.set(s.id, mid)
+  }
+  return col
+}
+
+/** Which way a branch grows from the start: the narrow two left and right, near it; the wide two up and down, beyond them. */
+export type Way = 'left' | 'right' | 'up' | 'down'
+const WAYS: Way[] = ['left', 'right', 'up', 'down']
+
+/** One direction of the tree laid out: the start in the middle, its four branches growing out from it like a cross. */
+export function layoutTree(skills: SkillDef[] = SKILLS, direction: SkillDirection = 'combat', profession = ''): TreeLayout {
   const branches = SKILL_BRANCHES.filter((b) => b.direction === direction)
-  return new Map(branches.map((b, i) => [b.id, polar(BRANCH_RADIUS, -90 + (i * 360) / branches.length)]))
+  const allowed = skills.filter((s) => !s.profession || s.profession === profession)
+  const per = branches.map((b, i) => {
+    const own = allowed.filter((s) => s.branch === b.id)
+    const depth = depths(own)
+    const col = columns(own, depth)
+    const cols = [...col.values()]
+    const min = cols.length ? Math.min(...cols) : 0
+    const span = cols.length ? Math.max(...cols) - min : 0
+    const rows = own.length ? Math.max(...depth.values()) + 1 : 0
+    return { b, own, depth, col, min, span, rows, way: WAYS[i % 4] }
+  })
+  // how far out a branch's hub stands: left and right near the start; up and down past the side branches' panels
+  const half = (p: (typeof per)[number]) => (Math.max(1, p.span) * COL) / 2 + PAD
+  const side = Math.max(0, ...per.filter((p) => p.way === 'left' || p.way === 'right').map(half))
+  const out = (way: Way) => (way === 'left' || way === 'right' ? HUB_OUT : Math.max(HUB_OUT, side + 90))
+  const hubs = new Map<string, Placed>()
+  const nodes = new Map<string, Placed>()
+  const panels = new Map<string, Panel>()
+  const ways = new Map<string, Way>()
+  for (const p of per) {
+    // in the branch's own frame: `across` along its rows, `along` out from the start; then turned its way
+    const turn = (across: number, along: number): Placed =>
+      p.way === 'up' ? { x: across, y: -along } : p.way === 'down' ? { x: across, y: along } : p.way === 'left' ? { x: -along, y: across } : { x: along, y: across }
+    const d = out(p.way)
+    const across = (c: number) => (c - p.min - p.span / 2) * COL
+    for (const s of p.own) nodes.set(s.id, turn(across(p.col.get(s.id)!), d + ROW * (p.depth.get(s.id)! + 1)))
+    // the hub straight behind its first skills (their middle), so the line into the branch runs straight
+    const roots = p.own.filter((s) => p.depth.get(s.id) === 0).map((s) => across(p.col.get(s.id)!))
+    hubs.set(p.b.id, turn(roots.length ? (Math.min(...roots) + Math.max(...roots)) / 2 : 0, d))
+    // its panel: from just before the hub to past the last row, as wide as its columns
+    const a = turn(-half(p), d - 62)
+    const b2 = turn(half(p), d + ROW * Math.max(1, p.rows) + 70)
+    panels.set(p.b.id, { x: Math.min(a.x, b2.x), y: Math.min(a.y, b2.y), w: Math.abs(a.x - b2.x), h: Math.abs(a.y - b2.y) })
+    ways.set(p.b.id, p.way)
+  }
+  return { hubs, nodes, panels, ways }
+}
+
+export function layoutBranches(direction: SkillDirection, skills: SkillDef[] = SKILLS, profession = ''): Map<string, Placed> {
+  return layoutTree(skills, direction, profession).hubs
 }
 
 export function layoutSkills(skills: SkillDef[] = SKILLS, direction: SkillDirection = 'combat', profession = ''): Map<string, Placed> {
-  const branches = layoutBranches(direction)
-  const allowed = skills.filter((s) => !s.profession || s.profession === profession)
-  const kids = new Map<string, SkillDef[]>()
-  for (const s of allowed) {
-    const key = `${s.branch}|${s.requires?.[0] ?? ''}`
-    kids.set(key, [...(kids.get(key) ?? []), s])
-  }
-  const children = (s: SkillDef) => kids.get(`${s.branch}|${s.id}`) ?? []
-  const leaves = (s: SkillDef): number => children(s).reduce((n, c) => n + leaves(c), 0) || 1
-  const out = new Map<string, Placed>()
-  const spread = (list: SkillDef[], a0: number, a1: number, depth: number) => {
-    const total = list.reduce((n, s) => n + leaves(s), 0)
-    let angle = a0
-    for (const s of list) {
-      const width = ((a1 - a0) * leaves(s)) / total
-      const sway = list.length === 1 && depth > 0 ? (depth % 2 ? -SWAY : SWAY) : 0
-      out.set(s.id, polar(SKILL_RADIUS + STEP * depth, angle + width / 2 + sway))
-      spread(children(s), angle, angle + width, depth + 1)
-      angle += width
-    }
-  }
-  const sector = 360 / Math.max(1, branches.size)
-  for (const [id, hub] of branches) {
-    spread(kids.get(`${id}|`) ?? [], hub.angle - sector * 0.4, hub.angle + sector * 0.4, 0)
-  }
-  // A capstone joins both arms: place it beyond every prerequisite, between their angles.
-  const byId = new Map(allowed.map((s) => [s.id, s]))
-  const depths = new Map<string, number>()
-  const depthOf = (s: SkillDef): number => {
-    if (!depths.has(s.id)) depths.set(s.id, (s.requires?.length ? Math.max(...s.requires.map((id) => depthOf(byId.get(id)!))) + 1 : 0))
-    return depths.get(s.id)!
-  }
-  for (const s of allowed.filter((s) => out.has(s.id))) {
-    const parents = (s.requires ?? []).map((id) => out.get(id)!)
-    const angle = parents.length > 1 ? parents.reduce((n, p) => n + p.angle, 0) / parents.length : out.get(s.id)!.angle
-    out.set(s.id, polar(SKILL_RADIUS + STEP * depthOf(s), angle))
-  }
-  // A deep branch (a profession's twenty-odd nodes) crowds its rings: on each ring of a branch, neighbours too close
-  // are eased apart along it until they stand GAP apart, each keeping its order and staying near its parents.
-  const rings = new Map<string, SkillDef[]>()
-  for (const s of allowed.filter((s) => out.has(s.id))) {
-    const key = `${s.branch}|${depthOf(s)}`
-    rings.set(key, [...(rings.get(key) ?? []), s])
-  }
-  for (const [key, ring] of rings) {
-    if (ring.length < 2) continue
-    const radius = SKILL_RADIUS + STEP * Number(key.split('|')[1])
-    const min = (GAP / radius) * (180 / Math.PI)
-    const angles = ring.map((s) => out.get(s.id)!.angle).sort((a, b) => a - b)
-    const order = [...ring].sort((a, b) => out.get(a.id)!.angle - out.get(b.id)!.angle)
-    for (let pass = 0; pass < 60; pass++) {
-      let moved = false
-      for (let i = 0; i + 1 < angles.length; i++) {
-        const short = min - (angles[i + 1] - angles[i])
-        if (short <= 0.01) continue
-        angles[i] -= short / 2
-        angles[i + 1] += short / 2
-        moved = true
-      }
-      if (!moved) break
-    }
-    order.forEach((s, i) => out.set(s.id, polar(radius, angles[i])))
-  }
-  return out
+  return layoutTree(skills, direction, profession).nodes
 }

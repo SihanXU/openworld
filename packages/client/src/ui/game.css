@@ -529,3 +529,17 @@
 .sp-src.tree { background: #4f7a3c; } .sp-src.book { background: #3b6fa8; } .sp-src.gear { background: #a8642c; }
 .sp-in { font: 700 10px var(--pixel); color: #6b4a2a; }
 .sp-doc { font-size: 11px; color: #5a3f22; margin-top: 2px; }
+
+/* the skill tree's branch panels (skillLayout.ts): a column each, behind its hub and skills, after the talent tabs of
+   Diablo II and World of Warcraft — a soft frame in the branch's colour */
+.sk-panel { position: absolute; border-radius: 14px; border: 2px solid var(--c); background: linear-gradient(180deg, color-mix(in srgb, var(--c) 16%, transparent), color-mix(in srgb, var(--c) 5%, transparent)); opacity: 0.85; pointer-events: none; box-shadow: inset 0 0 0 4px rgba(255, 248, 230, 0.35); }
+.sk-line { stroke-linejoin: round; }
+/* a hub's name (and the start's) beside it, not under it where the trunk runs down */
+.sk-node.hub .sk-node-name, .sk-node.origin .sk-node-name { top: 50%; left: calc(100% + 12px); transform: translateY(-50%); min-width: 0; text-align: left; }
+/* the branch tabs under the directions (skilltree.ts): the whole tree, or one branch closed in on */
+.sk-branches { position: absolute; top: 140px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 2; }
+.sk-tab { display: flex; align-items: center; gap: 6px; padding: 4px 12px 4px 6px; border-radius: 8px; border: 2px solid var(--c, var(--wood-dark)); background: #f6ecd4; font: 700 13px var(--pixel); color: var(--c, var(--ink-warm)); cursor: pointer; }
+.sk-tab[data-focus=""] { padding-left: 12px; }
+.sk-tab.selected { background: var(--c-soft, #ffe6a8); box-shadow: inset 0 -3px 0 var(--c, var(--wood-dark)); }
+.sk-tab-icon { width: 22px; height: 22px; display: grid; place-items: center; }
+.sk-tab-icon .sk-art, .sk-tab-icon img { width: 22px; height: 22px; }
