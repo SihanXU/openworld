@@ -11,7 +11,7 @@ import type { Engine, Resolution, UndefinedSink } from './engine.ts'
 import { STORY, textOf } from './engine.ts'
 import { OntologyIndex, isA, withTerrainTypes } from './ontology.ts'
 import { deriveRecipes } from './recipes.ts'
-import { RuleLibrary, asCells, cmp, compareSpec, isDo, isHole, leaves, rolesOf, ruleHash, specOf, type LibraryData } from './rules.ts'
+import { RuleLibrary, asCells, cmp, compareSpec, isDo, isHole, isPatch, isRoot, leafAt, leaves, rolesOf, ruleHash, specOf, type LibraryData } from './rules.ts'
 import { buildSandbox, chainLoop, checkExpectations, replay, scenarioEvent, whyEndless } from './sandbox.ts'
 import type { Cmp, Cond, Effect, EmitTo, GameEvent, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tree, TypeDef } from './types.ts'
 import { RECENT_LINES, type View } from './world.ts'
@@ -181,7 +181,7 @@ const AUTHORING_RULES = [
   'You answer ONE undefined outcome: an event reached an undefined leaf (request.hole). Write a rule that gives that outcome — your rule is consulted only where the world says "undefined", so it can never change what is already defined.',
   'A rule belongs to a HOST: the thing whose nature it describes. Write what the host does when the event happens to it. Read anything (conditions on any role), but WRITE ONLY THE HOST: every effect acts on the host, spawns new things, or presents. To affect anything else, `emit` an impulse to it — the receiver answers for itself (lava does not hurt people; lava emits element fire to what stands on it, and a person, taking fire, loses health).',
   'A learned rule is ONE TYPE\'s and ONE EVENT KIND\'s (a cell): host exactly {type: "<the host\'s own type>"} — no tags, statuses, props or id in the host — and `on` exactly the kind asked. It holds for every instance of that type and for no other type (a subtype asks for its own). Conditions on the host (its tags, statuses, props) go in the tree.',
-  'When request.hole.soft is set, the host already answers this event as it inherited it (request.hole.rule, shown in context.rules): write this type\'s OWN rule for the kind. Start from a copy of that rule\'s tree — keep what still holds for this type — and change or add only what this type does differently. A leaf you leave as `inherit` falls back to what it inherited.',
+  'Your rule takes the place of the one outcome the event reached in its host type\'s rules (request.hole: the rule that gave it, and the branches taken to it): a hole, or, when request.hole.soft is set, what the type inherited there from a class. It answers only there; every other case keeps what the type\'s rules already say. Branch on the event (the target, the element, the edge) as you need; a leaf you write as `inherit` keeps the outcome that was there.',
   'Conditions narrow the cases (the other role\'s tags, a param like element or how). Cases you do not want to answer: leave them to `inherit` (an `if` without `else` inherits).',
   `Use only the listed event kinds, impulses, primitives, statuses, terrains, types and vfx. If you need a new type or status, add a \`type\`/\`status\` artifact to the same patch; a status draws over what has it with \`overlay\`: one of ${OVERLAYS.join(', ')}.`,
   'Every rule should carry at least one test (a small scenario + expectations). The triggering event is replayed automatically.',
@@ -361,18 +361,26 @@ export function classKey(c: { hole: string; kind: string; host: string; roles: [
   return `${c.hole}|${c.kind}|${c.host}|${roles}|${params}`
 }
 
-/** A soft hole's question (design.md §5.16): one type, one event kind, the rule it inherited there. Asked once each. */
-export const cellSignature = (type: string, kind: string, from: string): string => `cell|${type}|${kind}|${from}`
+/** A soft hole's question (design.md §5.16): one leaf of one type's tree for one kind. Asked once each. */
+export const cellSignature = (type: string, kind: string, leaf: string): string => `cell|${type}|${kind}|${leaf}`
 
 /**
- * A soft hole's answer remembers the rule it was copied from (Rule.from), so a change to that rule
- * shows which copies are stale. Set here, not by the model: the request names the rule.
+ * An answer takes the place it was asked about (design.md §5.16): the rule for the host's type and
+ * the event's kind replaces the leaf the event reached (`at`, the request's path), and remembers
+ * whose leaf that was (`from`, with its hash: a change to that rule shows the answer is to be looked
+ * at again). Set here, not by the model: the request names both.
  */
-export function copiedFrom(patch: Patch, lib: RuleLibrary, req: ModRequest): Patch {
+export function placed(patch: Patch, lib: RuleLibrary, req: ModRequest): Patch {
   const o = lib.rules.get(req.hole.rule)
-  if (!o || !req.hole.soft || !Array.isArray(patch?.artifacts)) return patch
-  const from = { rule: o.id, hash: ruleHash(o) }
-  return { ...patch, artifacts: patch.artifacts.map((a) => (a?.kind === 'rule' && a.rule && a.rule.on === req.event.kind && a.rule.host?.type === req.event.host?.type ? { ...a, rule: { ...a.rule, from } } : a)) }
+  if (!Array.isArray(patch?.artifacts)) return patch
+  return {
+    ...patch,
+    artifacts: patch.artifacts.map((a) =>
+      a?.kind === 'rule' && a.rule && a.rule.on === req.event.kind && a.rule.host?.type === req.event.host?.type && Object.keys(a.rule.host ?? {}).length === 1 && !a.rule.at
+        ? { ...a, rule: { ...a.rule, at: [...req.hole.path], ...(o ? { from: { rule: o.id, hash: ruleHash(o) } } : {}) } }
+        : a,
+    ),
+  }
 }
 
 /** The class of an event, instances aside (classKey). */
@@ -431,7 +439,7 @@ export class ModPort implements UndefinedSink {
     const eng = this.eng
     const w = eng.world
     const host = soft && 'e' in ev.host ? w.get(ev.host.e) : undefined
-    const signature = soft ? cellSignature(host?.type ?? '?', ev.kind, res.hole?.rule.id ?? '?') : signatureOf(eng, ev, res)
+    const signature = soft ? cellSignature(host?.type ?? '?', ev.kind, holeKey(res.hole?.rule.id ?? '?', res.hole?.path ?? [])) : signatureOf(eng, ev, res)
     const origin: 'player' | 'world' = ev.origin === 'player' ? 'player' : 'world'
     if (this.records.some((r) => r.signature === signature && (r.status === 'pending' || r.awaiting)) || this.failed.has(signature)) {
       if (origin === 'player' && ev.kind.startsWith('act/')) w.fx.push({ t: 'log', text: attemptLine(eng, ev) })
@@ -564,7 +572,7 @@ export class ModPort implements UndefinedSink {
       return res
     }
     if (fresh.length !== patch.artifacts.length) patch = { ...patch, artifacts: fresh }
-    if (rec?.soft) patch = copiedFrom(patch, eng.lib, rec.request)
+    if (rec) patch = placed(patch, eng.lib, rec.request)
     // (what comes back from a save or the shared log carries its own mark: one cell's, or a class's from before)
     if (!earlier) patch = asCells(patch)
     const res = validatePatch(patch, {
@@ -1169,6 +1177,13 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     // an input that ends here says what it does: without a label the HUD shows the input's default
     if (r.tree !== undefined && /^(act|impulse)/.test(String(r.on)) && r.label === undefined && !labelled(r.tree)) warnings.push(`${where}: no label — the input that reaches it shows its default description`)
     if (r.tree !== undefined && leaves(r.tree).every((l) => l === 'inherit')) errors.push(`${where}: every leaf inherits — the rule answers nothing`)
+    // a placed rule replaces a leaf it may replace: a hole, or what its type inherited from a class (design.md §5.16)
+    if (r.at !== undefined && !ctx.earlier && r.host?.type && typeof r.on === 'string') {
+      const leaf = Array.isArray(r.at) ? leafAt(ctx.library.treeOf(r.on, r.host.type), r.at) : undefined
+      const by = leaf && typeof leaf === 'object' ? ctx.library.rules.get((leaf as { from?: string }).from ?? '') : undefined
+      if (!leaf || leaf === 'inherit') errors.push(`${where}.at: the outcome it is to replace is not in ${r.host.type}'s tree for ${r.on}`)
+      else if (!isHole(leaf) && (!by || isPatch(by) || isRoot(by) || by.host?.type === r.host.type || !!by.host?.id)) errors.push(`${where}.at: a learned rule replaces a hole, or what its type inherited from a class — never what the type's own rule, a root (physics) or an earlier answer says`)
+    }
     if (!r.tests?.length) warnings.push(`${where}: no tests`)
   }
   if (errors.length) return { ok: false, errors, warnings }

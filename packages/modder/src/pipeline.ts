@@ -14,7 +14,7 @@
 // Two profiles of one harness (state.ts): LIVE while a player waits, OFFLINE for everything
 // nobody waits on — curriculum, a failed live request worked again, a revision after review.
 
-import { artProblems, buildModSpec, closestTypes, copiedFrom, type ModProgress, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef } from '@lsw/engine'
+import { artProblems, buildModSpec, closestTypes, placed, type ModProgress, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef } from '@lsw/engine'
 import { briefOf, relatedRules } from './brief.ts'
 import { changesNothing, deriveTests } from './derive.ts'
 import { normalizePatch, qualifyTerrains, toCell } from './fixes.ts'
@@ -411,7 +411,7 @@ export class Modder {
         // a rule written for a class becomes the host type's own (design.md §5.16), with what it copied noted
         const cell = toCell(patch, req)
         if (cell.fixes.length) ((patch = cell.patch), fixes.push(...cell.fixes))
-        patch = copiedFrom(patch, lib, req)
+        patch = placed(patch, lib, req)
         let res = validate(patch)
         // the generalization test, written by the harness (only for a draft that already holds)
         let derived: string[] | undefined

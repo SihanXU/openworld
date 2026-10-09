@@ -852,7 +852,7 @@ opens) are its own: written only by its own behaviour and outcomes, never read b
 events name them, so a bleed or a fire one set fells in their name. A status may keep its own
 pace (`every`): it pulses counted back from its end, the last pulse as it ends.
 
-### 5.16 Learned rules are one type's (2026-10-09)
+### 5.16 One tree per type; learned rules are one type's (2026-10-09)
 
 A patch used to name a class (`{type: "item/weapon"}`, `{tags: ["edible"]}`) and was consulted only
 at holes. Two problems followed. A type that inherited a defined answer could never get its own: a
@@ -861,61 +861,63 @@ out roasted. And patches shadowed one another by specificity, so every new patch
 against the scenes earlier ones answered (the regression set), which the client recorded after the
 act and so mostly in the wrong state.
 
-**Cells.** A learned rule belongs to one type and one event kind: host exactly `{type}`, `on`
-exactly the kind. It answers for that type and no other (a subtype is a cell of its own). Base
-rules still name classes; inheritance is how a type answers before it has learned anything, and
-the template the AI copies from.
+**One tree per type.** Rules are written for classes, as before, and `inherit` means "what the less
+specific rules say here". That is the author's shorthand only. For each type and kind the library
+compiles every rule that names the type or a class it belongs to, most specific first, into one tree
+(`RuleLibrary.treeOf`, built when first needed and cached):
 
-**Resolution**, after the base chain decides:
+- each `inherit` becomes the less specific rules' tree, so a child's tree holds everything its
+  parents answer, and a parent is a subset of its child;
+- what a rule's host requires beyond the type (tags, statuses, props, an instance) becomes a
+  condition on the host;
+- each leaf keeps the rule it came from (`from`).
 
-| The base decided with | Learned rules of the cell | Result |
-|---|---|---|
-| a rule written for the host's own type (or the instance) | not consulted | the base, as authored |
-| an undefined leaf (a hole) | tried in the order learned | the first that does something, else the hole |
-| a rule the type inherited from a broader class | its copies of that rule (`from`), in the order learned | the first that does something, else the inherited answer |
+An event walks its host type's tree once. Nothing is copied into storage: the authored rules stay as
+written, and the compiled tree shares their parts. Over every item form used on every target (the
+coverage sweep, more than 50,000 resolutions) it answers exactly as the chain of rules did
+(`tools/test/compiled.test.ts`).
 
-The last row is the new case. When the cell has no learned copy yet, the kind is a use or an
-impulse the world asks about (its most specific root rule has an undefined leaf; never taking,
-putting, contact, time, thresholds or sight), and the deciding rule is a class's (a root's own
-answer is physics: a person pushed steps), the answer is a **soft hole**. With a modder connected it is a
-question like a hole's: its participants are held, the player's own act pauses the world (§5.11),
-and the inherited outcome is the default at the time-out; a patch that comes replays the event,
-now answered by the type's own rule. With no modder (or one that answers holes only,
-`ModProvider.soft: false`) it runs as inherited at once and nothing is recorded. So too for a
-person in an event the world started: what the world learns never harms a person (§5.11), and a
-person's inherited answer to a beast's bite harms, so no answer could pass. The request
-carries `hole.soft` and the inherited rule as the hole; the answer starts from a copy of that rule
-and changes what this type does differently. It is asked once per type, kind and inherited rule:
-each rule a type inherits is a seam of its own. A rule the type learned elsewhere (a hole it
-filled, a copy of another rule) never takes over a case it was not asked about. In play, an axe
-that had learned how to strike a person, at a hole, began to strike its wielder when used on
-oneself, where it had inherited wearing (`use/wear`); copies are now consulted only where the rule
-they copied decides. A failure or a time-out
-runs the inheritance and writes nothing, so the cell is asked again in a later session.
+**Learned rules take one leaf.** A learned rule belongs to one type and one kind (host exactly
+`{type}`, `on` exactly the kind) and to one place in that type's tree (`at`, the path the event that
+asked took). Its tree replaces the leaf there, and an `inherit` in it keeps the leaf. It answers only
+where it was asked: every other case keeps what the type's rules say. The validator lets it take a
+hole, or a leaf the type inherited from a class's rule; never a leaf of the type's own rule, of a
+root (physics), or of an earlier answer. The place is set from the request, never by the model.
+
+In play, an earlier cut let a learned rule answer anywhere its conditions matched: an axe taught at a
+hole how it is used on a person ("target is a person: swing") began to strike its wielder when used
+on oneself, where its parents say it is worn (`use/wear`). Placed at its leaf, it cannot.
+
+**Soft holes.** A leaf the type inherited from a class's rule, for a use or an impulse the world asks
+about (the kind's root has an undefined leaf; never taking, putting, contact, time, thresholds or
+sight), is a soft hole. A root's own answer is physics and is never one (a person pushed steps). With
+a modder connected it is a question like a hole's: its participants are held, the player's own act
+pauses the world (§5.11), and the inherited outcome is the default at the time-out; a patch that
+comes replays the event, now answered by the type's own leaf. With no modder (or one that answers
+holes only, `ModProvider.soft: false`) it runs as inherited at once and nothing is recorded; so too
+for a person in an event the world started, since what the world learns never harms a person and a
+person's inherited answer to a beast's bite harms. It is asked once per leaf. A failure or a time-out
+runs the inheritance and writes nothing, so it is asked again in a later session.
 
 **What this removes.**
 
-- *Ties.* Two learned rules of one cell are tried in the order learned, so a later one answers only
-  where earlier ones inherit. No two rules can be equally specific.
-- *The regression set.* A new rule cannot shadow an earlier one: it can only be added to its cell,
-  after what is there. The client's ring of recent acts and the service's regression replay are
-  gone; the service keeps the scene each patch answered for the audit. A rule's own tests are the
-  scene that asked and what it did there (derived), and they guard the cell from then on.
-- *Generalization tests* over sibling types: a cell has no siblings.
+- *Ties.* Two learned rules never compete: each has its own place, and a later one placed in an
+  earlier one's tree goes where that tree's path leads.
+- *The regression set.* A learned rule cannot change what an earlier one answers. The client's ring
+  of recent acts and the service's regression replay are gone; the service keeps the scene each patch
+  answered for the audit. A rule's own tests are the scene that asked and what it did there.
+- *Generalization tests* over sibling types: a learned rule has no siblings.
 
-**Stale copies.** A copy remembers the rule it began from and that rule's hash (`Rule.from`). When
-the base rule changes, `RuleLibrary.stale()` lists the copies made from the old one.
+**When the rules change.** The compiled tree is rebuilt, and each learned rule is placed again by its
+path. One whose path is gone, or whose replaced leaf's rule changed (`from`, with its hash), is
+listed by `RuleLibrary.stale()`.
 
-**Older patches.** A patch taken before cells keeps the class it named and is still consulted only
-at holes. The mark is `Rule.cell`, set when a patch is taken (never by its author); saves and the
-shared log pass older patches through the validator with `earlier`, which accepts a class host.
+**Older patches.** A patch taken before this keeps the class it named and is consulted only at holes,
+as it always was. The mark is `Rule.cell`, set when a patch is taken; saves and the shared log pass
+older patches through the validator with `earlier`, which accepts a class host.
 
-**Cost.** Each cell reached for the first time is one question, and a pause while it is asked.
-Over every item form used on every target (the coverage sweep) 244 cells are soft: 122 `act/use`,
-61 `impulse/strike`, 37 `impulse/coat`, 21 `impulse/handle`, 3 `impulse/offered`. Two game days
-with nobody at the keys reach none. (Counting a root's own answer and thresholds as soft, as the
-first cut did, doubled that: a person pushed by a scene and the player growing hungry paused the
-world to be asked.)
+**Cost.** Each soft leaf reached for the first time is one question, and a pause while it is asked.
+In live play with the claude-code backend each pause took 7–18 s.
 
 Sources:
 

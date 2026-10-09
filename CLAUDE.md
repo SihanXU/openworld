@@ -137,14 +137,17 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
     where a stance meets a reach (a flyer never touches lava).
   - Root defaults decide what is asked: deliberate acts and impulses are undefined; contact,
     time and sight mean no change; elements follow physics.
-  - A learned rule (a patch) belongs to one type and one event kind, a cell (design.md §5.16).
-    It never changes what a rule written for the host's own type defines; it is consulted at
-    holes and where the type only inherited its answer from a broader class. A type answering
-    only by inheritance on a kind the world asks about is a soft hole: with a modder it waits like
-    a hole for the type's own rule (a copy of the inherited one to start from), the inherited
-    outcome its default; with none it runs as inherited. One
-    question per hole and class (per cell for a soft hole). Put places; use applies: taking and
-    putting are physics (never asked), using one thing on another is where the AI answers.
+  - One tree per type (design.md §5.16): the library compiles every rule naming a type or its
+    classes, most specific first, into one tree per type and kind (`inherit` is the author's
+    shorthand for "the parents' answer here"; a parent is a subset of its child). An event walks
+    its host type's tree once.
+  - A learned rule (a patch) belongs to one type and one kind and takes one leaf of that tree: the
+    one the event that asked reached (`at`), a hole or what the type inherited from a class's rule
+    (a soft hole). It answers only there; never what the type's own rule, a root (physics) or an
+    earlier answer says. A soft hole waits like a hole when a modder can answer, the inherited
+    outcome its default; with none it runs as inherited. One question per hole and class (per leaf
+    for a soft hole). Put places; use applies: taking and putting are physics (never asked), using
+    one thing on another is where the AI answers.
   - Behaviour (schedules, temper, behaviour trees) is the game's own logic, not the AI
     interface. An outcome may change its host's script.
   - The player's map is active. Dormant maps are frozen and catch up timers and their inbox
@@ -154,9 +157,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
     through events and rules, never around them in engine code. A deliberate act on
     something no rule covers stays an undefined leaf (the AI's place to answer). Play without
     a model is kept by the leaf's default and authored fallbacks, never by closing the hole.
-- Specificity (base rules): host first (instance-bound, type depth), then event kind depth. Two
-  equally specific base rules are rejected by the validator; there is no compose. Learned rules of
-  one cell are tried in the order they were learned (no ties, no regression set).
+- Specificity (base rules): host first (instance-bound, type depth), then event kind depth: the
+  order a type's tree is compiled in. Two equally specific base rules are rejected by the
+  validator; there is no compose. Learned rules have a place, not a rank (no ties, no regression
+  set).
 - Game code never writes the state directly and never takes the author's hand (`Engine.author`
   is for tests, world building, loading, migrations and the dev console). A system that changes
   the world does it as events: behaviour makes acts, the clock makes periods and timers, a

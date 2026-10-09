@@ -1248,7 +1248,12 @@ export type Effect =
  * runs while nobody does). An `if` without `else` inherits.
  */
 /** A leaf's `label` says what an input that ends here does ("Eat {instrument}", "Feed {target}"), over the rule's own. */
-export type Tree = 'inherit' | { do: Effect[]; confirm?: Text; label?: Text } | { undefined: true; default?: Effect[] } | { if: Cond; then: Tree; else?: Tree }
+/**
+ * A condition tree. `inherit` is the author's shorthand for "the less specific rules' answer here":
+ * the library compiles each type's rules for a kind into one tree with no `inherit` left
+ * (design.md §5.16), and a leaf there says which rule it came from (`from`).
+ */
+export type Tree = 'inherit' | { do: Effect[]; confirm?: Text; label?: Text; from?: string } | { undefined: true; default?: Effect[]; from?: string } | { if: Cond; then: Tree; else?: Tree }
 export type Leaf = Exclude<Tree, { if: Cond }>
 
 export interface RuleTest {
@@ -1349,6 +1354,12 @@ export interface Rule {
    * answering for the class they named.
    */
   cell?: true
+  /**
+   * Where a learned rule sits in its type's compiled tree (design.md §5.16): the path to the leaf
+   * the event that asked reached (a hole, or what the type inherited from a class). The rule's tree
+   * replaces that leaf; an `inherit` in it keeps the leaf. Set from the request, never by its author.
+   */
+  at?: string[]
   /** Human-readable summary. */
   doc?: string
 }

@@ -15,7 +15,6 @@ import {
   kindCovers,
   leaves,
   replay,
-  ruleHash,
   specOf,
   validatePatch,
   type Engine,
@@ -693,7 +692,8 @@ describe('the Mod port', () => {
     const blade = eng.lib.rules.get('use/blade')!
     eng.lib.remove('use/blade')
     eng.lib.add({ ...blade, doc: 'changed', tree: { do: [] } })
-    expect(eng.lib.stale()).toEqual([{ rule: 'patch/axe-use', from: 'use/blade', why: 'changed' }])
+    // (its place is gone: the blade's tree it was placed in has no such branch now)
+    expect(eng.lib.stale()).toEqual([{ rule: 'patch/axe-use', from: 'use/blade', why: 'unplaced' }])
   })
 
   it('physics is not inherited: a root\'s own answer (a person pushed steps) and a threshold are no soft holes', () => {
@@ -735,7 +735,7 @@ describe('the Mod port', () => {
     expect(port.records.map((r) => r.request.hole)).toMatchObject([{ rule: 'combat/struck', soft: true }])
   })
 
-  it('a learned rule takes over only the inherited rule it copied: what the type learned elsewhere never answers a case it was not asked about', () => {
+  it('a learned rule replaces only the leaf it was asked about: the type\'s tree keeps every other answer its parents give', () => {
     const sc: Scenario = {
       entities: [
         { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
@@ -746,19 +746,23 @@ describe('the Mod port', () => {
       event: {},
     }
     const l = lib()
-    // learned at a hole (the axe used on a person) and as the blade's copy (on the haystack)
-    l.add({ id: 'patch/axe-on-person', host: { type: 'item/weapon/blade/axe' }, on: 'act/use', cell: true, tree: { if: { is: { role: 'target', sel: { type: 'actor/person' } } }, then: { do: [{ op: 'log', text: 'You swing at them.' }] }, else: 'inherit' }, source: { origin: 'patch' } })
-    l.add({ id: 'patch/axe-copy', host: { type: 'item/weapon/blade/axe' }, on: 'act/use', cell: true, from: { rule: 'use/blade', hash: ruleHash(l.rules.get('use/blade')!) }, tree: { do: [{ op: 'log', text: 'Chop.' }] }, source: { origin: 'patch' } })
     const eng = sandbox(sc, l)
     const on = (target: string) => eng.resolveEvent(eng.actEvent('use', 'actor', { e: target }, { e: 'axe' }))
-    // the axe on the farmer: a hole it filled
+    // the axe's one tree: the blade's strike (inherited), the hole for a person, wearing it on oneself
+    const hay = on('hay'), farmer = on('farmer'), self = on('actor')
+    expect([hay.rule?.id, farmer.hole?.rule.id, self.rule?.id]).toEqual(['use/blade', 'core/use', 'use/wear'])
+    // learned at the hole (the axe used on a person) and at the blade's leaf (on the haystack), each in its place
+    const wide: Tree = { if: { is: { role: 'target', sel: { type: 'actor/person' } } }, then: { do: [{ op: 'log', text: 'You swing at them.' }] }, else: 'inherit' }
+    l.add({ id: 'patch/axe-on-person', host: { type: 'item/weapon/blade/axe' }, on: 'act/use', cell: true, at: farmer.hole!.path, tree: wide, source: { origin: 'patch' } })
+    l.add({ id: 'patch/axe-on-hay', host: { type: 'item/weapon/blade/axe' }, on: 'act/use', cell: true, at: hay.soft!.path, tree: { do: [{ op: 'log', text: 'Chop.' }] }, source: { origin: 'patch' } })
     expect(on('farmer').rule?.id).toBe('patch/axe-on-person')
-    // on the haystack, the blade's answer: its copy of the blade
-    expect(on('hay').rule?.id).toBe('patch/axe-copy')
-    // on oneself, what it inherits there is wearing it (use/wear): neither takes that over, and it is a question of its own
-    const self = on('actor')
-    expect(self.rule?.id).toBe('use/wear')
-    expect(self.soft?.rule.id).toBe('use/wear')
+    expect(on('hay').rule?.id).toBe('patch/axe-on-hay')
+    // on oneself, the wearing its parents give stands: the rule learned for a person, wide as it is, sits where it was asked
+    expect(on('actor').rule?.id).toBe('use/wear')
+    expect(on('actor').soft?.rule.id).toBe('use/wear')
+    // a place a rule may not take: what the type's parents' physics (the root) or an earlier answer says
+    const bad = validatePatch({ artifacts: [{ kind: 'rule', rule: { id: 'patch/axe-again', host: { type: 'item/weapon/blade/axe' }, on: 'act/use', at: hay.soft!.path, tree: { do: [] } } }] }, { ontology: onto, library: l })
+    expect(bad.errors.join()).toMatch(/is not in|never what/)
   })
 
   it('a soft hole whose asking fails runs what it inherited, and writes nothing', async () => {
