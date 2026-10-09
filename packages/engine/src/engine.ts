@@ -1074,8 +1074,10 @@ export class Engine {
     if (!yielding && !w.fits(e, map, nx, ny, nz)) {
       const other = w.actorAt(map, nx, ny, undefined, nz)
       // the player, or a person on their way, pushing on into a person who is free: they swap places
-      // (people yield to each other this way and never stand in one cell, world-model.md §5.2)
-      if (!(isPlayer || e.npc) || !other?.npc || this.busy(other) || w.blocked(map, nx, ny, undefined, nz)) {
+      // (people yield to each other this way and never stand in one cell, world-model.md §5.2); one
+      // holding still for the one who faces them keeps its place against another on its way (it goes round:
+      // two would push each other out of it in turn)
+      if (!(isPlayer || e.npc) || !other?.npc || this.busy(other) || (!isPlayer && this.npcs.holding(other)) || w.blocked(map, nx, ny, undefined, nz)) {
         const thing = w.inBounds(map, nx, ny) ? (other ?? w.solidAt(map, nx, ny, undefined, nz)) : undefined
         const other2 = thing ?? w.cellTop(map, nx, ny)
         const ref: Ref | undefined = other2 && { e: other2.id }
