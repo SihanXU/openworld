@@ -504,14 +504,24 @@ export class Controls {
     return JSON.stringify([e.type, e.name ?? null, [...(e.tags ?? [])].sort(), Object.keys(e.statuses ?? {}).sort()])
   }
 
-  /** Every item the player carries (bag and hand), by stack key. */
-  private carried(): Map<string, Entity[]> {
+  /** What the player wears (its `wear:` props), whether or not it works for them now: it is on them, not in the bag. */
+  wornIds(): Set<string> {
+    const p = this.w.player
+    return new Set(Object.entries(p.props ?? {}).flatMap(([k, id]) => (k.startsWith('wear:') && typeof id === 'string' ? [id] : [])))
+  }
+
+  /**
+   * Every item the player carries (bag and hand), by stack key. `bag`: only what takes a bag slot — what is worn is on
+   * the body (the equipment's own slots), not in the bag (nor in the hand: syncSlots lets go of it).
+   */
+  carried(bag = false): Map<string, Entity[]> {
     const w = this.w
     const p = w.player
+    const worn = bag ? this.wornIds() : undefined
     const by = new Map<string, Entity[]>()
     for (const id of [...(p.contents ?? []), ...(p.held ? [p.held] : [])]) {
       const e = w.get(id)
-      if (!e) continue
+      if (!e || worn?.has(id)) continue
       const k = this.key(e)
       const s = by.get(k)
       if (s) s.push(e)
@@ -549,7 +559,9 @@ export class Controls {
     const slots = (p.slots ??= Array(this.slotCount()).fill(null))
     while (slots.length < this.slotCount()) slots.push(null)
     p.selected ??= 0
-    const by = this.carried()
+    // what is worn is on the body: the hand lets go of it, and it takes no bag slot
+    if (p.held && this.wornIds().has(p.held)) this.posture(w.get(p.held)!, { on: 'inside', holder: p.id })
+    const by = this.carried(true)
     const held = w.get(p.held)
     if (held) {
       const hk = this.key(held)
@@ -577,7 +589,7 @@ export class Controls {
     const inHand = w.get(p.held)
     if (inHand && (!want || this.key(inHand) !== want)) this.posture(inHand, { on: 'inside', holder: p.id })
     if (want && !w.get(p.held)) {
-      const next = (this.carried().get(want) ?? [])[0]
+      const next = (this.carried(true).get(want) ?? [])[0]
       if (next && !next.frozenBy) this.posture(next, { on: 'hand', holder: p.id })
     }
   }
@@ -667,7 +679,7 @@ export class Controls {
     if (!k || !here) return
     const front = w.front(p)
     const to = front && w.inBounds(front.map, front.x, front.y) && !w.blocked(front.map, front.x, front.y, undefined, front.z) ? front : here
-    const items = this.carried().get(k) ?? []
+    const items = this.carried(true).get(k) ?? []
     // put on the cell: on what is on top of it there
     const onto = w.cellTop(to.map, to.x, to.y, to.z)
     if (!onto) return
@@ -684,7 +696,7 @@ export class Controls {
     const it = w.get(item)
     if (!box || !it || !w.hasStatus({ e: box.id }, 'open')) return
     const k = this.key(it)
-    const pool = from === 'chest' ? (box.contents ?? []).map((id) => w.get(id)!).filter((e) => e && this.key(e) === k) : this.carried().get(k) ?? []
+    const pool = from === 'chest' ? (box.contents ?? []).map((id) => w.get(id)!).filter((e) => e && this.key(e) === k) : this.carried(true).get(k) ?? []
     for (const e of all ? pool : pool.slice(0, 1)) {
       if (from === 'chest') eng.act('take', p.id, { e: e.id }, { instrument: null })
       else eng.act('put', p.id, { e: box.id }, { instrument: { e: e.id } })
@@ -959,7 +971,7 @@ export class Controls {
     const p = w.player
     const here = w.posOf(p)
     if (!this.magnetic || !here || this.eng.busy(p)) return
-    const by = this.carried()
+    const by = this.carried(true)
     let free = (p.slots ?? []).filter((s) => !s).length
     let took = false
     // a longer reach (the skill) adds `magnet` tiles

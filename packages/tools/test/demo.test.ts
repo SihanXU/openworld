@@ -1387,13 +1387,16 @@ req('W17', 'combat by what things are made of: iron strikes harder than wood, fi
   run(f, 'self', 20, 14)
   expect(w.prop(p, 'wear:head')).toBe(hat.id)
   expect(w.stat(p, 'def')).toBe(0)
-  // the helmet again, and again: on, then off
+  // the helmet again: on — and off the body, it leaves the hand (what is worn is on the body, not in the bag or the
+  // hand); taken off from the equipment, it is back in the bag
   hold(f, helmet)
   run(f, 'self', 20, 14)
   expect(w.prop(p, 'wear:head')).toBe(helmet.id)
-  run(f, 'self', 20, 14)
+  expect(p.held).not.toBe(helmet.id)
+  f.eng.controls.wear(helmet.id)
   expect(w.prop(p, 'wear:head')).toBeUndefined()
   // what is no longer one's own is not worn
+  hold(f, helmet)
   run(f, 'self', 20, 14)
   author(f, () => w.place(w.get(helmet.id)!, { on: 'tile', map: 'ford', x: 21, y: 14 }))
   expect(w.stat(p, 'def')).toBe(0)

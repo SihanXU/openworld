@@ -343,11 +343,12 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
   const panel = opts.panel ? w.get(opts.panel) : undefined
   const box = panel && w.hasStatus({ e: panel.id }, 'open') ? panel : undefined
   const capacity = box && w.prop(box, 'capacity')
-  // the bag's slots: each the stack of carried items with that key
+  // the bag's slots: each the stack of carried items with that key — what is worn is on the body, not in the bag
   const carried = new Map<string, Id[]>()
+  const onBody = eng.controls.wornIds()
   for (const id of [...(p.held ? [p.held] : []), ...(p.contents ?? [])]) {
     const e = w.get(id)
-    if (!e) continue
+    if (!e || onBody.has(id)) continue
     const k = eng.controls.key(e)
     carried.set(k, [...(carried.get(k) ?? []), id])
   }

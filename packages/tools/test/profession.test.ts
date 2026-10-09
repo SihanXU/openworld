@@ -267,6 +267,30 @@ describe('profession weapons', () => {
     expect(w.fx.find((f) => f.t === 'vfx' && f.fx.startsWith('bolt:'))).toMatchObject({ fx: 'bolt:fire:right:3' })
   })
 
+  it('what is worn is on the body, not in the bag: putting it on frees its bag slot, taking it off takes one again; of two alike, the one not worn stays in the bag', () => {
+    const eng = world()
+    const w = eng.world
+    const p = w.player
+    const filled = () => snapshot(eng).player.slots.filter(Boolean).length
+    const helmet = eng.author(() => w.create('item/armor/helmet', { on: 'inside', holder: p.id }, { props: { def: 1 } }))
+    eng.controls.sync()
+    const before = filled()
+    eng.controls.wear(helmet.id, true)
+    expect(w.prop(p, 'wear:head')).toBe(helmet.id)
+    expect(filled()).toBe(before - 1)
+    expect(snapshot(eng).player.worn.head?.id).toBe(helmet.id)
+    eng.controls.wear(helmet.id)
+    expect(w.prop(p, 'wear:head')).toBeUndefined()
+    expect(filled()).toBe(before)
+    // two rings alike: one worn, the other still a stack of one in the bag
+    const [a, b] = eng.author(() => [0, 1].map(() => w.create('item/valuable/ring', { on: 'inside', holder: p.id }, { tags: ['material:gold'] })))
+    eng.controls.sync()
+    eng.controls.wear(a.id, true)
+    const ring = snapshot(eng).player.slots.find((s) => s?.item.type === 'item/valuable/ring')
+    expect([ring?.count, ring?.worn]).toEqual([1, undefined])
+    void b
+  })
+
   it('the main hand: a weapon readied there strikes while the hand holds something else; an empty hand strikes with it; its numbers count once', () => {
     const eng = world()
     const w = eng.world
@@ -303,6 +327,9 @@ describe('profession weapons', () => {
     eng.author(() => w.setProp(p, 'profession', 'ranger'))
     eng.controls.wear(legend.id, true)
     expect(w.prop(p, MAINHAND)).toBe(legend.id)
+    // (the sword it replaced is back in the bag; the hand is left empty, so the bow in the main hand is the one fought with)
+    eng.controls.select(p.slots!.findIndex((k) => !k))
+    expect(w.get(p.held)).toBeUndefined()
     expect(w.stat(p, 'attackHaste')).toBe(0)
     expect(combatDelay(w, p, 100, 'attack')).toBeLessThan(bare)
   })
