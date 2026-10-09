@@ -12,3 +12,4 @@ packages/client/public/world/
 packages/wiki/out/
 packages/wiki/out.tmp/
 packages/wiki/out.old/
+__pycache__/

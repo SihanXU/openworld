@@ -22,7 +22,7 @@ describe('isolated profession boss challenges', () => {
     const weapon = w.get(p.held)!
     expect(weapon.type).toBe(SKILL_PROFESSIONS.find((p) => p.id === id)!.weapon!.type)
     expect(weapon.place).toEqual({ on: 'hand', holder: p.id })
-    expect(CATALOG.characters[p.look!]).toBeDefined()
+    expect(CATALOG.characters[p.look as string]).toBeDefined()
     if (id === 'mage') expect(w.prop(weapon, 'element')).toBe('fire')
     // Each real loadout can hurt a multi-cell body through the normal attack path.
     const boss = w.get(BOSS_ARENA.id)!

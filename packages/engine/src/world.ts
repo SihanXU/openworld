@@ -1,5 +1,6 @@
 // World: the mutable state plus derived indices (not serialized) for fast spatial queries.
 
+import { LOOK_TAG, lookProblems, lookTags } from './looks.ts'
 import { calendarAt, type Calendar, type WeatherSpan, isNight } from './calendar.ts'
 import { CELL_SPACES, cellId, parseCellId, splitLayers, type CellSpace, type Layers } from './cells.ts'
 import { OntologyIndex } from './ontology.ts'
@@ -9,6 +10,7 @@ import type {
   Entity,
   FxEvent,
   Id,
+  Look,
   MapData,
   Place,
   Pos,
@@ -908,6 +910,7 @@ export class World {
     const r = this.onto.resolve(e.type)
     const tags = new Set(r.tags)
     for (const t of e.tags ?? []) tags.add(t)
+    for (const t of this.lookTagsOf(e)) tags.add(t)
     return {
       ref,
       type: e.type,
@@ -971,7 +974,28 @@ export class World {
   }
 
   hasTag(e: Entity, tag: string): boolean {
-    return (e.tags?.includes(tag) ?? false) || this.onto.resolve(e.type).tags.includes(tag)
+    return (e.tags?.includes(tag) ?? false) || this.onto.resolve(e.type).tags.includes(tag) || (tag.startsWith(LOOK_TAG) && this.lookTagsOf(e).includes(tag))
+  }
+
+  /** A thing's look changes (the `restyle` primitive): a valid look of the world's table, inside its outcome. */
+  setLook(e: Entity, look: Look): void {
+    this.guard('setLook', e)
+    const table = this.onto.data.looks
+    const wrong = table ? lookProblems(look, table) : []
+    if (wrong.length) throw new Error(`${e.id}: ${wrong.join('; ')}`)
+    e.look = look
+  }
+
+  private lookTags = new WeakMap<Look, string[]>()
+
+  /** The tags a thing's look gives it (docs/looks.md): derived from the look and the world's table, never kept. */
+  lookTagsOf(e: Entity): string[] {
+    const look = e.look
+    const table = this.onto.data.looks
+    if (!look || typeof look === 'string' || !table) return []
+    let t = this.lookTags.get(look)
+    if (!t) this.lookTags.set(look, (t = lookTags(look, table)))
+    return t
   }
 
   /** A thing's own prop changes (the engine's `setProp` adds the threshold events). */

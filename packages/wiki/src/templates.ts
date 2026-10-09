@@ -49,7 +49,7 @@ const T = (ctx: Ctx, section: string, key: string): string => {
 export function spr(s: Sprite | undefined, scale = 2, cls = ''): string {
   if (!s) return ''
   const k = scale
-  return `<span class="spr ${cls}" style="width:${s.w * k}px;height:${s.h * k}px;background-image:url('${s.url}');background-position:-${s.x * k}px -${s.y * k}px;background-size:${s.iw * k}px ${s.ih * k}px"></span>`
+  return `<span class="spr ${cls}${s.smooth ? ' smooth' : ''}" style="width:${s.w * k}px;height:${s.h * k}px;background-image:url('${s.url}');background-position:-${s.x * k}px -${s.y * k}px;background-size:${s.iw * k}px ${s.ih * k}px"></span>`
 }
 /** Fit a sprite into a box of `box` pixels (whole multiples where possible). */
 export function fit(s: Sprite | undefined, box: number, cls = ''): string {
@@ -863,6 +863,17 @@ export function runTemplate(ctx: Ctx, call: TemplateCall): { html: string; block
     case '对话': { const p = need(['person', 'companion']); return out(p ? dialogue(ctx, p as PersonEnt) : '') }
     case '人际关系': { const p = need(['person', 'companion']); return out(p ? ties(ctx, p as PersonEnt) : '') }
     case '相关任务': { const p = need(['person', 'companion']); const qs = p ? idx(ctx.g).personQuests.get(p.id) ?? [] : []; return out(qs.length ? `<ul class="facts">${qs.map((q) => `<li>${entLink(ctx, q, { icon: 0 })}（${({ main: '主线', side: '支线', repeat: '重复' } as Record<string, string>)[q.def.kind]}${q.def.giver === p!.id ? '，委托人' : ''}）</li>`).join('')}</ul>` : `<p class="empty">没有和这个人有关的任务。</p>`) }
+    case '外观部件': {
+      // every part of the look table (docs/looks.md), by slot: a sample portrait and sprite, its words, whom it fits, its tags
+      const SLOT_ZH: Record<string, string> = { hair: '发型', face: '五官', beard: '胡子', age: '年纪', mark: '印记', glasses: '眼镜', hat: '帽子', outfit: '服装' }
+      const BODY_ZH: Record<string, string> = { woman: '女人', man: '男人', girl: '女孩', boy: '男孩' }
+      const slot = args[0]
+      const parts = ctx.g.lookParts.filter((l) => !slot || l.slot === slot || SLOT_ZH[l.slot] === slot)
+      return out(table(['', '部件', '槽位', '适合', '标签', '说法'], parts.map((l) => [
+        `${fit(l.face, 72, 'face')}${fit(l.body, 48)}`, esc(zh(l.name)), esc(SLOT_ZH[l.slot] ?? l.slot), esc(l.bodies.map((b) => BODY_ZH[b] ?? b).join('、')),
+        l.tags.length ? l.tags.map((t) => `<code>${esc(t)}</code>`).join(' ') : '—', esc(zh(l.say).replace('{c}', '某')),
+      ]), 'wikitable sortable'))
+    }
     case '肖像': { const p = need(['person', 'companion']) as PersonEnt | undefined; return out(p ? `<div class="portraits">${fit(p.face, 128, 'face')}${fit(p.body, 96)}</div>` : '') }
     case '来源': { const x = need(['item', 'fixture', 'structure']); return out(x ? sources(ctx, x as ItemEnt) : '') }
     case '用途': { const x = need(['item', 'fixture', 'structure']); return out(x ? uses(ctx, x as ItemEnt) : '') }

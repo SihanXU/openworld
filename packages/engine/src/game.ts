@@ -189,9 +189,10 @@ function upgrade(eng: Engine, index: WorldIndex): void {
     weather?: unknown
     tiles?: Record<string, { terrain?: string; statuses?: Record<string, number>; statusBy?: Record<Id, Id> }>
   }
-  // how the player looks is the world's to say, not the save's (a save from before a new look gets it)
+  // how the player looks: their own once they have made one (a look record); a save from before looks were made
+  // of parts (a sheet's key) takes the world's
   const p = w.get(s.player)
-  if (p && index.player.look) p.look = index.player.look
+  if (p && index.player.look && typeof p.look !== 'object') p.look = structuredClone(index.player.look)
   // Old saves acquire the world's initial profession; an explicit profession is never replaced.
   if (p && p.props?.profession === undefined && index.player.props?.profession !== undefined) w.setProp(p, 'profession', index.player.props.profession)
   for (const e of Object.values(s.entities)) {
@@ -216,6 +217,10 @@ function upgrade(eng: Engine, index: WorldIndex): void {
       addTree(eng, n)
       continue
     }
+    // how they look is the world's to say, unless the world changed it (a restyle: `own`); a sheet's key kept
+    // from before looks were made of parts is the world's look now
+    delete (e.npc as { look?: unknown } | undefined)?.look
+    if (n.look && (typeof e.look !== 'object' || !e.look.own)) e.look = structuredClone(n.look)
     if (e.npc && n.npc) {
       e.npc.schedule = structuredClone(n.npc.schedule)
       if (e.npc.person && n.npc.person?.schedules) e.npc.person.schedules = structuredClone(n.npc.person.schedules)

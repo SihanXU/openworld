@@ -2,7 +2,7 @@
 
 import { nightHours, type Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
-import type { Appearance, BossState, Dir, FxEvent, Id, LessonInput, PropValue, SceneState, Text } from './types.ts'
+import type { BossState, Look, Dir, FxEvent, Id, LessonInput, PropValue, SceneState, Text } from './types.ts'
 import { SLOT_COUNT } from './controls.ts'
 import { parseCellId } from './cells.ts'
 import { skillsOf } from './progression.ts'
@@ -40,8 +40,8 @@ export interface EntitySnap {
   name: Text
   hp?: number
   maxHp?: number
-  appearance?: Appearance
-  look?: string
+  /** How it looks (docs/looks.md): a look record its sprite and portrait are drawn from, or a whole drawn sheet's key. */
+  look?: string | Look
   hostile?: boolean
   frozen?: boolean
   element?: string
@@ -305,8 +305,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       name: e.name ?? r.name ?? e.type.split('/').pop()!,
       hp: w.prop(e, 'maxHp') !== undefined ? w.num(e, 'hp') : undefined,
       maxHp: w.prop(e, 'maxHp') !== undefined ? w.num(e, 'maxHp', 1) : undefined,
-      appearance: e.npc?.appearance ?? (e.id === w.state.player ? PLAYER_LOOK : e.npc ? PLAYER_LOOK : undefined),
-      look: e.look ?? e.npc?.look,
+      look: e.look,
       // whether it would set on the one at the keys (its factions, temper, foes): not whether it is chasing
       // this moment (a bat that wheels away is no friend)
       hostile: e.ai ? eng.hostileTo(e, w.player) : undefined,
@@ -427,7 +426,6 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
   }
 }
 
-export const PLAYER_LOOK: Appearance = { skin: 1, hair: 2, hairStyle: 0, top: 0, bottom: 1 }
 
 /** The marks over the people in view, and the player's quest log. */
 function questsOf(eng: Engine, entities: EntitySnap[]): Frame['quests'] {
