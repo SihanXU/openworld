@@ -791,6 +791,8 @@ export const CATALOG: Catalog = {
     'bolt:none': fx('Projectile/ShurikenMagic.png', 16, 16, 2, 12),
     // what a weapon looses instead of a bolt (its `missile` prop): a bow's arrow, head to the right
     'missile:arrow': fx('Projectile/Arrow.png', 13, 5, 1, 1),
+    // a thrown knife (Throwing Knives): the pack's kunai, point to the right
+    'missile:knife': fx('Projectile/Kunai.png', 14, 5, 1, 1),
     // Status overlays (loop). Particle/Fire has 12 shrinking flames; the first 5 loop as a flicker.
     'ovl:burning': fx('Particle/Fire.png', 8, 12, 5, 10, { add: true, scale: 1.5 }),
     'ovl:wet': fx('Particle/Rain.png', 8, 8, 3, 6),

@@ -54,11 +54,17 @@ describe('professions', () => {
     for (const prof of SKILL_PROFESSIONS) expect(eng.controls.learn(SKILLS.find((s) => s.profession === prof.id && !s.requires?.length)!)).toBe(false)
   })
 
-  it('every profession has a six-talent tree, four active skills and a starter weapon', () => {
+  it('every profession has a tree of at least twenty: talents, seven active skills (one an ultimate), enhancements, a capstone; and a starter weapon', () => {
     for (const id of ['assassin', 'warrior', 'ranger', 'mage']) {
+      const own = SKILLS.filter((s) => s.profession === id)
       expect(PROFESSION_BY_ID[id]?.weapon, id).toBeDefined()
-      expect(SKILLS.filter((s) => s.profession === id && !s.active), id).toHaveLength(6)
-      expect(SKILLS.filter((s) => s.profession === id && s.active), id).toHaveLength(4)
+      expect(own.length, id).toBeGreaterThanOrEqual(20)
+      expect(own.filter((s) => s.active), id).toHaveLength(7)
+      expect(own.filter((s) => s.modifies), id).toHaveLength(5)
+      // two ultimates: an active and a capstone talent, two points each, joining two arms
+      expect(own.filter((s) => (s.cost ?? 1) === 2 && (s.requires?.length ?? 0) === 2).length, id).toBeGreaterThanOrEqual(3)
+      // what an enhancement strengthens is the profession's own active skill
+      for (const m of own.filter((s) => s.modifies)) expect(SKILLS.find((s) => s.id === m.modifies!.skill)?.profession, m.id).toBe(id)
     }
   })
 

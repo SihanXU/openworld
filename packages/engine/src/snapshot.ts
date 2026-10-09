@@ -7,7 +7,7 @@ import { SLOT_COUNT } from './controls.ts'
 import { parseCellId } from './cells.ts'
 import { skillsOf } from './progression.ts'
 import { OFFHAND, offhandOf, weaponOf } from './profession.ts'
-import { castLeft, knownActives, type KnownActive } from './actives.ts'
+import { castCooldown, castLeft, knownActives, type KnownActive } from './actives.ts'
 import { activeBoon, boonsOf, companionsOf, nearAttunedWaypoint } from './boons.ts'
 import type { QuestView } from './quests.ts'
 
@@ -386,7 +386,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       stations: [...w.stationsNear(p)],
       held: p.held ? itemInfo(eng, p.held) : undefined,
       ...((known) => ({
-        skillbar: eng.controls.skillbar().map((id) => (id ? { id, left: castLeft(eng, p, id), cooldown: eng.skills.get(id)?.active?.cooldown ?? 0, usable: known.some((k) => k.id === id) } : null)),
+        skillbar: eng.controls.skillbar().map((id) => (id ? { id, left: castLeft(eng, p, id), cooldown: castCooldown(eng, p, id), usable: known.some((k) => k.id === id) } : null)),
         actives: known,
       }))(knownActives(eng, p)),
       inventory: (p.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),

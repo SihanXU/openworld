@@ -3,8 +3,8 @@
 // profession's skill is not cast. Every one of the twenty does what it says on a field of slimes.
 
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, castLeft, knownActives, combatDamage, combatDelay, combatStrike, snapshot, textOf, type Engine, type Entity, type MapData } from '@lsw/engine'
-import { ACTIVE_SKILLS, BASE_RULES, PROLOGUE_DONE, SKILLS, SKILL_BY_ID, STORY_RULES, buildOntology, decodeChunk, skillBook } from '@lsw/content'
+import { Game, RuleLibrary, TICKS_PER_HOUR, castCooldown, castLeft, effectiveActive, knownActives, combatDamage, combatDelay, combatStrike, snapshot, textOf, type Engine, type Entity, type MapData } from '@lsw/engine'
+import { BASE_RULES, PROLOGUE_DONE, SKILLS, SKILL_BY_ID, STORY_RULES, buildOntology, decodeChunk, skillBook } from '@lsw/content'
 import { buildFord } from '../src/demo/world.ts'
 
 /** An open field of grass (an arena, as the boss tests have), the player in its middle facing right, every skill known to the engine. */
@@ -164,13 +164,62 @@ describe('each active skill does what it says', () => {
       slime(eng, x + 2, y)
       return () => expect(eng.world.posOf(p)).toMatchObject({ x: x + 4, y })
     },
+    // the professions, deeper
+    'throwing-knives': (eng, _p, x, y) => {
+      const s = slime(eng, x + 4, y)
+      return () => expect(hurt(eng, s)).toBe(true)
+    },
+    'fan-of-knives': (eng, _p, x, y) => {
+      const ring = [slime(eng, x + 1, y + 1), slime(eng, x - 1, y)]
+      return () => expect(ring.every((s) => hurt(eng, s) && eng.world.hasStatus({ e: s.id }, 'bleeding'))).toBe(true)
+    },
+    'vanishing-strikes': (eng, _p, x, y) => {
+      const three = [slime(eng, x + 2, y), slime(eng, x, y + 3), slime(eng, x - 3, y)]
+      return () => expect(three.every((s) => hurt(eng, s))).toBe(true)
+    },
+    'wide-slash': (eng, _p, x, y) => {
+      const row = [slime(eng, x + 1, y - 1), slime(eng, x + 1, y), slime(eng, x + 1, y + 1)]
+      return () => expect(row.every((s) => hurt(eng, s))).toBe(true)
+    },
+    'iron-guard': (eng, p) => () => expect(p.combat?.ironUntil).toBeGreaterThan(eng.world.state.tick),
+    'heaven-splitter': (eng, _p, x, y) => {
+      const hit = [slime(eng, x + 2, y), slime(eng, x + 5, y + 1)]
+      return () => expect(hit.every((s) => hurt(eng, s) && eng.world.hasStatus({ e: s.id }, 'stunned'))).toBe(true)
+    },
+    'concussive-shot': (eng, _p, x, y) => {
+      const s = slime(eng, x + 4, y)
+      return () => expect([hurt(eng, s), eng.world.hasStatus({ e: s.id }, 'stunned')]).toEqual([true, true])
+    },
+    'hawk-eye': (eng, p) => () => expect(p.combat?.aimUntil).toBeGreaterThan(eng.world.state.tick),
+    'arrow-storm': (eng, _p, x, y) => {
+      // through the first in a line to the one behind it, and on the lines two aside
+      const hit = [slime(eng, x + 2, y), slime(eng, x + 4, y), slime(eng, x + 3, y + 2)]
+      return () => expect(hit.every((s) => hurt(eng, s))).toBe(true)
+    },
+    'frost-bolt': (eng, _p, x, y) => {
+      const s = slime(eng, x + 3, y)
+      return () => expect([hurt(eng, s), eng.world.hasStatus({ e: s.id }, 'frozen')]).toEqual([true, true])
+    },
+    thunderstorm: (eng, _p, x, y) => {
+      const s = slime(eng, x + 3, y)
+      const t = slime(eng, x + 3, y + 1)
+      return () => {
+        for (let i = 0; i < 25; i++) eng.tick()
+        expect([hurt(eng, s), hurt(eng, t)]).toEqual([true, true])
+      }
+    },
+    meteor: (eng, _p, x, y) => {
+      const hit = [slime(eng, x + 3, y), slime(eng, x + 5, y + 2)]
+      return () => expect(hit.every((s) => hurt(eng, s))).toBe(true)
+    },
   }
 
-  it('there is a case for every one of the twenty', () => {
-    expect(ACTIVE_SKILLS.map((s) => s.id).sort()).toEqual(Object.keys(CASES).sort())
+  const ALL = SKILLS.filter((s) => s.active)
+  it('there is a case for every active skill', () => {
+    expect(ALL.map((s) => s.id).sort()).toEqual(Object.keys(CASES).sort())
   })
 
-  for (const def of ACTIVE_SKILLS)
+  for (const def of ALL)
     it(`${def.id} (${textOf(def.name, 'zh')})`, () => {
       const { eng, p, x, y } = field()
       // a weapon that reaches: a bow for the ranger, a staff for the mage; else the bare hand
@@ -261,5 +310,164 @@ describe('where active skills come from: the tree, a book, what one wears', () =
     for (let i = 0; i < 70; i++) eng.tick()
     expect(snapshot(eng).player.skillbar[0]).toMatchObject({ id: 'fireball', usable: false })
     expect(eng.controls.cast(0)).toBe(false)
+  })
+})
+
+describe('the professions, deeper: enhancements and talents', () => {
+  /** The player knows these skills (and their profession). */
+  const learn = (eng: Engine, ...ids: string[]) =>
+    eng.author(() => {
+      for (const id of ids) {
+        const def = SKILL_BY_ID[id]
+        if (def.profession) eng.world.setProp(eng.world.player, 'profession', def.profession)
+        eng.world.addTag(eng.world.player, `skill:${id}`)
+      }
+    })
+  const rest = (eng: Engine, n: number) => { for (let i = 0; i < n; i++) eng.tick() }
+
+  it('an enhancement adds its numbers to the skill it strengthens; Mana Surge shortens every cooldown', () => {
+    const { eng, p } = field()
+    learn(eng, 'shadow-strike')
+    const base = effectiveActive(eng, p, SKILL_BY_ID['shadow-strike'])
+    learn(eng, 'shadow-mastery')
+    const strong = effectiveActive(eng, p, SKILL_BY_ID['shadow-strike'])
+    expect([strong.cooldown, strong.range]).toEqual([base.cooldown - 30, base.range! + 2])
+    expect(castCooldown(eng, p, 'shadow-strike')).toBe(strong.cooldown)
+    learn(eng, 'fireball')
+    const before = castCooldown(eng, p, 'fireball')
+    learn(eng, 'mana-surge')
+    eng.author(() => eng.world.setProp(p, 'cdr', 0.1))
+    expect(castCooldown(eng, p, 'fireball')).toBe(Math.round(before * 0.9))
+  })
+
+  it('Elemental Master: every third cast does not rest; Marksman: a cast that hits brings the others nearer', () => {
+    const { eng, p, x, y } = field()
+    learn(eng, 'blink', 'elemental-master')
+    expect(eng.controls.setSkill(0, 'blink')).toBe(true)
+    for (let i = 0; i < 3; i++) {
+      eng.author(() => eng.teleport(p, { map: 'arena', x: 5, y }))
+      p.facing = 'right'
+      expect(eng.controls.cast(0)).toBe(true)
+      if (i < 2) rest(eng, castLeft(eng, p, 'blink'))
+    }
+    expect(castLeft(eng, p, 'blink')).toBe(0)
+    const r = field()
+    learn(r.eng, 'multishot', 'leap-shot', 'marksman')
+    r.eng.author(() => r.eng.world.create('item/weapon/ranged/bow', { on: 'hand', holder: r.p.id }, { props: { power: 3, range: 6 } }))
+    r.eng.controls.setSkill(0, 'leap-shot')
+    r.eng.controls.setSkill(1, 'multishot')
+    r.eng.controls.cast(0)
+    const left = castLeft(r.eng, r.p, 'leap-shot')
+    slime(r.eng, r.x + 3, r.y)
+    r.p.facing = 'right'
+    expect(r.eng.controls.cast(1)).toBe(true)
+    expect(castLeft(r.eng, r.p, 'leap-shot')).toBe(left - 5)
+    void x
+  })
+
+  it('a defeat answered: Master Assassin readies Shadow Strike; Undying Spirit hastens every skill, Bloodthirst mends', () => {
+    /** Fell a weak slime beside the player with a blow. */
+    const fell = (eng: Engine, p: Entity) => {
+      const at = eng.world.posOf(p)!
+      const weak = eng.author(() => eng.world.create('actor/creature/slime/green_slime', { on: 'tile', map: 'arena', x: at.x + 1, y: at.y }, { props: { hp: 1, maxHp: 1 } }))
+      p.facing = 'right'
+      eng.setCooldown('atk:player', 0)
+      expect(eng.attack(p, { e: weak.id })).toBe(true)
+      eng.tick()
+      expect(eng.world.get(weak.id) === undefined || eng.world.num(weak, 'hp') <= 0).toBe(true)
+    }
+    // the assassin
+    const a = field()
+    learn(a.eng, 'shadow-strike', 'master-assassin')
+    a.eng.controls.setSkill(0, 'shadow-strike')
+    slime(a.eng, a.x + 3, a.y)
+    expect(a.eng.controls.cast(0)).toBe(true)
+    expect(castLeft(a.eng, a.p, 'shadow-strike')).toBeGreaterThan(0)
+    a.eng.author(() => a.eng.teleport(a.p, { map: 'arena', x: 5, y: 5 }))
+    fell(a.eng, a.p)
+    expect(castLeft(a.eng, a.p, 'shadow-strike')).toBe(0)
+    // the warrior
+    const b = field()
+    learn(b.eng, 'whirlwind', 'undying-spirit', 'bloodthirst')
+    b.eng.controls.setSkill(0, 'whirlwind')
+    b.eng.controls.cast(0)
+    const whirl = castLeft(b.eng, b.p, 'whirlwind')
+    b.eng.author(() => b.eng.world.setProp(b.p, 'hp', 10))
+    fell(b.eng, b.p)
+    expect(castLeft(b.eng, b.p, 'whirlwind')).toBeLessThanOrEqual(whirl - 10)
+    expect(b.eng.world.num(b.p, 'hp')).toBeGreaterThan(10)
+  })
+
+  it('the talents that shape a blow: Venom Mastery, Nightstalker; Nimble Blade dodges; Fortitude shrugs off a stun', () => {
+    const { eng, p, x, y } = field()
+    const w = eng.world
+    const s = slime(eng, x + 1, y)
+    const strike = (weapon: Entity) => combatStrike(w, p, s, 10, 1, weapon, false).power
+    // the assassin's dagger on a bleeding slime
+    learn(eng, 'assassin-training')
+    const dagger = eng.author(() => w.create('item/weapon/blade/dagger', { on: 'hand', holder: p.id }, { props: { power: 2 } }))
+    eng.author(() => eng.applyStatus({ e: s.id }, 'bleeding', 40))
+    const plain = strike(dagger)
+    learn(eng, 'venom-mastery')
+    expect(strike(dagger)).toBeGreaterThan(plain)
+    // Nightstalker: the same blow, by night
+    const day = strike(dagger)
+    learn(eng, 'nightstalker')
+    expect(strike(dagger)).toBe(day)
+    eng.author(() => { while (!w.isNight()) w.state.tick += TICKS_PER_HOUR })
+    expect(strike(dagger)).toBeGreaterThan(day)
+    // Nimble Blade: blows miss now and then, with the dagger in hand
+    learn(eng, 'nimble-blade')
+    let missed = 0
+    for (let i = 0; i < 400; i++) if (eng.author(() => combatDamage(eng, p, 5, s, false)) === 0) missed++
+    expect(missed).toBeGreaterThan(10)
+    // Fortitude: a stun holds half as long
+    eng.author(() => w.setProp(p, 'hp', 500))
+    learn(eng, 'fortitude')
+    eng.author(() => w.setProp(p, 'profession', 'warrior'))
+    s.facing = 'left'
+    eng.act('use', s.id, { e: p.id }, { instrument: null, params: { attack: true, power: 1, afflict: 'stunned', afflictFor: 20 } })
+    expect(Object.values(p.statuses ?? {}).length).toBeGreaterThan(0)
+    expect((p.statuses?.stunned ?? 0) - w.state.tick).toBeLessThanOrEqual(10)
+  })
+
+  it('Deadly Shot: a bow\'s criticals cut deeper; Elementalist: a staff with an element strikes harder', () => {
+    const { eng, p, x, y } = field()
+    const w = eng.world
+    const s = slime(eng, x + 3, y)
+    learn(eng, 'ranger-archery')
+    const bow = eng.author(() => w.create('item/weapon/ranged/bow', { on: 'hand', holder: p.id }, { props: { power: 3, range: 6 } }))
+    eng.author(() => w.setProp(p, 'critChance', 1))
+    const crit = combatStrike(w, p, s, 10, 3, bow, false)
+    expect(crit.critical).toBe(true)
+    learn(eng, 'deadly-shot')
+    expect(combatStrike(w, p, s, 10, 3, bow, false).power).toBeGreaterThan(crit.power)
+    eng.author(() => w.setProp(p, 'critChance', 0))
+    const m = field()
+    learn(m.eng, 'mage-focus')
+    const staff = m.eng.author(() => m.eng.world.create('item/weapon/magic/staff', { on: 'hand', holder: m.p.id }, { props: { power: 3, range: 4, element: 'fire' } }))
+    const t = slime(m.eng, m.x + 3, m.y)
+    const plain = combatStrike(m.eng.world, m.p, t, 10, 3, staff, false).power
+    learn(m.eng, 'elementalist')
+    expect(combatStrike(m.eng.world, m.p, t, 10, 3, staff, false).power).toBeGreaterThan(plain)
+  })
+
+  it('Iron Guard: blows much lighter, steps slower; Hawk Eye: a bow reaches farther', () => {
+    const { eng, p, x, y } = field()
+    const w = eng.world
+    const s = slime(eng, x + 1, y)
+    const taken = eng.author(() => combatDamage(eng, p, 20, s, false))
+    const step = combatDelay(w, p, 100, 'move')
+    learn(eng, 'iron-guard')
+    eng.controls.setSkill(0, 'iron-guard')
+    eng.controls.cast(0)
+    expect(eng.author(() => combatDamage(eng, p, 20, s, false))).toBeLessThan(taken)
+    expect(combatDelay(w, p, 100, 'move')).toBeGreaterThan(step)
+    const bow = eng.author(() => w.create('item/weapon/ranged/bow', { on: 'hand', holder: p.id }, { props: { power: 3, range: 6 } }))
+    const far = eng.reachOf('use', p, undefined, bow)!
+    learn(eng, 'hawk-eye')
+    eng.controls.setSkill(1, 'hawk-eye')
+    eng.controls.cast(1)
+    expect(eng.reachOf('use', p, undefined, bow)).toBe(far + 3)
   })
 })

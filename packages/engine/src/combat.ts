@@ -28,10 +28,12 @@ const own = (w: World, a: Entity, weapon: Entity | undefined): weapon is Entity 
 
 /** Reach a profession adds to its own weapon (the ranger's bow, the archmage's staff). */
 export function rangeBonus(w: World, a: Entity, weapon: Entity | undefined): number {
-  if (!own(w, a, weapon)) return 0
-  if (ranger(w, a, 'ranger-archery')) return 1
-  if (mage(w, a, 'archmage')) return 1
-  return 0
+  // Hawk Eye (actives.ts): a weapon that shoots reaches farther while it lasts
+  const aim = (a.combat?.aimUntil ?? 0) > w.state.tick && !!weapon && w.num(weapon, 'range', 1) > 1 ? 3 : 0
+  if (!own(w, a, weapon)) return aim
+  if (ranger(w, a, 'ranger-archery')) return 1 + aim
+  if (mage(w, a, 'archmage')) return 1 + aim
+  return aim
 }
 /**
  * The unique powers of what one holds and wears: a Stigmatic piece's `relic` (content items.ts RELICS) — each
@@ -63,6 +65,8 @@ export function recordCombatStep(w: World, e: Entity): void {
 /** Carry fractional ticks across actions so small haste bonuses really affect a 10 Hz world. */
 export function combatDelay(w: World, e: Entity, base: number, kind: 'move' | 'attack'): number {
   if (kind === 'move') for (const id of Object.keys(e.statuses ?? {})) base *= w.onto.status(id)?.moveDelay ?? 1
+  // braced behind an Iron Guard (actives.ts): slower on one's feet
+  if (kind === 'move' && (e.combat?.ironUntil ?? 0) > w.state.tick) base *= 1.5
   // its own and what it wears (a Vowbound scallop's stride)
   let haste = Math.max(0, w.stat(e, kind === 'move' ? 'moveHaste' : 'attackHaste'))
   if (kind === 'move' && (e.combat?.galeUntil ?? 0) > w.state.tick) haste += 0.3
@@ -120,6 +124,11 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
   if (berserk) bonus += 0.25
   // a War Cry's strength while it lasts (actives.ts)
   if ((a.combat?.rallyUntil ?? 0) > w.state.tick) bonus += 0.25
+  // the assassin, deeper: a bleeding mark (Venom Mastery), the night (Nightstalker) — with the dagger
+  if (mine && assassin(w, a, 'venom-mastery') && w.hasStatus({ e: target.id }, 'bleeding')) bonus += 0.2
+  if (mine && assassin(w, a, 'nightstalker') && w.isNight()) bonus += 0.15
+  // the mage: what carries an element strikes harder (Elementalist)
+  if (mine && mage(w, a, 'elementalist') && weapon && w.prop(weapon, 'element')) bonus += 0.15
   // swiftness: a blow dodged readies a sure critical
   if (primary && skill(w, a, 'untouchable') && w.state.tick - (a.combat?.dodgeTick ?? -Infinity) <= 20) marked = true
   if (primary) {
@@ -180,10 +189,14 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
   out.drain += Math.max(0, w.stat(a, 'lifesteal'))
   // a weapon may carry its own edge (a legendary's critChance); what is worn may too; Nightfang at night
   const night = relics.has('nightfang') && w.isNight() ? 0.25 : 0
-  const chance = Math.max(0, Math.min(1, w.stat(a, 'critChance') + (weapon ? w.num(weapon, 'critChance') : 0) + (berserk ? 0.1 : 0) + night))
+  // Hawk Eye's keen sight (actives.ts)
+  const aimed = (a.combat?.aimUntil ?? 0) > w.state.tick ? 0.2 : 0
+  const chance = Math.max(0, Math.min(1, w.stat(a, 'critChance') + (weapon ? w.num(weapon, 'critChance') : 0) + (berserk ? 0.1 : 0) + night + aimed))
   out.critical = guaranteed || (chance > 0 && w.rand() < chance)
   // a critical: ×1.5 (Deadly Focus ×2), and what critDamage adds (Lethal Edge, Brutal)
-  out.power *= (1 + bonus) * (out.critical ? (skill(w, a, 'deadly-focus') ? 2 : 1.5) + Math.max(0, w.stat(a, 'critDamage')) : 1)
+  // Deadly Shot: the ranger's bow's criticals cut deeper
+  const deadly = mine && ranger(w, a, 'deadly-shot') ? 0.25 : 0
+  out.power *= (1 + bonus) * (out.critical ? (skill(w, a, 'deadly-focus') ? 2 : 1.5) + Math.max(0, w.stat(a, 'critDamage')) + deadly : 1)
   // the relics' own: the Mirrorshard steals with a critical, the Oathbrand drinks deep near the end; the
   // Crown makes the struck kneel, the Emberheart sets them burning, the Rimecrown freezes them
   if (relics.has('mirrorshard') && out.critical) out.drain += 3
@@ -244,6 +257,8 @@ export function finishCombatStrike(w: World, a: Entity, target: Entity | undefin
   if (!landed || !target || !w.hasTag(target, 'creature')) return
   const defeated = !w.get(target.id) || w.num(target, 'hp') <= 0 || w.hasStatus({ e: target.id }, 'down')
   if (!defeated || !w.get(a.id) || w.num(a, 'hp') <= 0 || w.hasStatus({ e: a.id }, 'down')) return
+  // a defeat counted: the talents that answer one (actives.ts onDefeat) see it go up
+  ;(a.combat ??= {}).defeats = (a.combat.defeats ?? 0) + 1
   if (skill(w, a, 'pursuit')) (a.combat ??= {}).pursuitUntil = w.state.tick + 30
   if (mine && range <= 1 && warrior(w, a, 'rampage')) {
     const state = (a.combat ??= {})
@@ -262,7 +277,10 @@ export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: E
   // untouchable for a moment (Phantom Step after a dash, Phoenix after a fall)
   if ((state.guardUntil ?? 0) > w.state.tick) return 0
   // a dodge: the blow misses entirely (no roll at all for those without dodge); what is worn may lend it
-  const dodge = Math.min(0.5, Math.max(0, w.stat(e, 'dodge')))
+  // with one's own dagger (Nimble Blade) or bow (Windwalker), a little more
+  const held = weaponOf(w, e)
+  const nimble = (assassin(w, e, 'nimble-blade') && own(w, e, held) ? 0.08 : 0) + (ranger(w, e, 'windwalker') && own(w, e, held) ? 0.05 : 0)
+  const dodge = Math.min(0.5, Math.max(0, w.stat(e, 'dodge') + nimble))
   if (dodge > 0 && w.rand() < dodge) {
     state.dodgeTick = w.state.tick
     w.fx.push({ t: 'say', who: e.id, text: { en: 'Dodged!', zh: '闪避！' } })
@@ -270,15 +288,17 @@ export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: E
   }
   // a shield worn in the off hand turns a blow aside by its block (its defence, like all worn things', is `World.stat`'s)
   const shield = offhandOf(w, e)
-  const block = shield ? Math.min(0.5, Math.max(0, w.num(shield, 'block'))) : 0
+  // (a Shield Wall: the warrior's shield turns a twentieth more)
+  const block = shield ? Math.min(0.5, Math.max(0, w.num(shield, 'block') + (warrior(w, e, 'shield-wall') ? 0.05 : 0))) : 0
   if (block > 0 && w.rand() < block) {
     w.fx.push({ t: 'say', who: e.id, text: { en: 'Blocked!', zh: '格挡！' } })
     return 0
   }
   state.lastHurtTick = w.state.tick
   state.fightTick = w.state.tick
-  // a War Cry's guard while it lasts (actives.ts)
+  // a War Cry's guard, an Iron Guard's (actives.ts)
   if ((state.rallyUntil ?? 0) > w.state.tick) damage *= 0.7
+  if ((state.ironUntil ?? 0) > w.state.tick) damage *= 0.4
   state.lastHurtBy = attacker.id
   state.lastHurtByType = attacker.type
   if (skill(w, e, 'evasive-step') && recentlyMoved(w, e)) damage *= 0.75

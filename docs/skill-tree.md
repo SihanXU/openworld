@@ -408,3 +408,30 @@ had and is not cast. **The skill panel** (U, or its button bottom right; client 
 skill one has with its source, above the skill bar's six slots: a skill goes in a slot by dragging its card there,
 or by a click on it and then on the slot; a right click empties a slot. A skill's blows are struck with a weapon
 only — never with whatever else the hand holds.
+
+## The professions, deeper (2026-10-09)
+
+Each profession's tree grows to **22 nodes** (`PROFESSION_DEEPER` in `skills.ts`): three more active skills (the last
+an ultimate, two points, joining two arms), five **enhancements** — talents that add their numbers to one active
+skill when it is cast (`SkillDef.modifies`, engine `effectiveActive`: cooldown, power, range, count, ticks, radius;
+pure data, no engine code each) — three talents of its own, and a capstone talent (two points).
+
+| Profession | New active skills | Enhancements | Talents | Capstone |
+| --- | --- | --- | --- | --- |
+| Assassin | Throwing Knives, Fan of Knives, **Vanishing Strikes** | Shadow Strike, Envenom, Smoke Bomb, Flurry, Fan of Knives | Venom Mastery, Nightstalker, Nimble Blade | Master Assassin |
+| Warrior | Wide Slash, Iron Guard, **Heaven Splitter** | Shield Bash, Charge, War Cry, Earthsplitter, Wide Slash | Shield Wall, Bloodthirst, Fortitude | Undying Spirit |
+| Ranger | Concussive Shot, Hawk Eye, **Arrow Storm** | Multishot, Leap Shot, Piercing Arrow, Arrow Rain, Concussive Shot | Light Gear, Deadly Shot, Windwalker | Marksman |
+| Mage | Frost Bolt, Thunderstorm, **Meteor** | Fireball, Frost Nova, Chain Lightning, Blink, Frost Bolt | Mana Surge, Elementalist, Arcane Barrier | Elemental Master |
+
+New kinds in `actives.ts`: `shot` (one missile on the first foe in line), `arc` (the three cells ahead), `guard`
+(Iron Guard: blows ×0.4, steps slower), `aim` (Hawk Eye: a shooting weapon +3 reach, +20% critical), `slam` (a
+`range`-deep, three-wide blow); `multishot` takes `count` and `through`, `fireball` a `radius`, `shadow-strike` a
+`count`, `rain` an element. The talents that answer a defeat (Master Assassin, Bloodthirst, Undying Spirit) run in
+`onDefeat` when a blow — a cast's or an ordinary attack's — raises the striker's `combat.defeats`; `cdr` (Mana
+Surge) shortens every cooldown, at most by half.
+
+Balance: the Boss Challenge learns every node, and the White Knight's "ignoring every warning" test sat within
+about a tenth of the knight's health of a warrior's win — a warrior's +10 max health turned it. So Fortitude halves
+the control effects a blow leaves instead (stun, freeze, kneeling), and Shield Wall adds +5% block with a shield.
+The ring layout eases crowded neighbours apart on each ring (`skillLayout.ts`, GAP 76) so twenty-two nodes fit.
+Icons: `tools/src/art/skill-professions-a.ts` (assassin, warrior) and `-b.ts` (ranger, mage), drawn by code.

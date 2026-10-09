@@ -23,6 +23,15 @@ export const SKILL_ART_KEYS = [
   'shield-bash', 'charge', 'war-cry', 'earthsplitter',
   'multishot', 'leap-shot', 'piercing-arrow', 'arrow-rain',
   'fireball', 'frost-nova', 'chain-lightning', 'blink',
+  // the professions, deeper (tools/src/art/skill-professions-a.ts, -b.ts)
+  'throwing-knives', 'fan-of-knives', 'vanishing-strikes', 'shadow-mastery', 'potent-venom', 'lingering-smoke',
+  'flurry-plus', 'fan-plus', 'venom-mastery', 'nightstalker', 'nimble-blade', 'master-assassin',
+  'wide-slash', 'iron-guard', 'heaven-splitter', 'bash-plus', 'charge-plus', 'war-cry-plus',
+  'quake-plus', 'slash-plus', 'shield-wall', 'bloodthirst', 'fortitude', 'undying-spirit',
+  'concussive-shot', 'hawk-eye', 'arrow-storm', 'multishot-plus', 'leap-plus', 'pierce-plus',
+  'rain-plus', 'concussive-plus', 'light-gear', 'deadly-shot', 'windwalker', 'marksman',
+  'frost-bolt', 'thunderstorm', 'meteor', 'fireball-plus', 'nova-plus', 'chain-plus',
+  'blink-plus', 'frost-bolt-plus', 'mana-surge', 'elementalist', 'arcane-barrier', 'elemental-master',
 ] as const
 
 const known = new Set<string>(SKILL_ART_KEYS)

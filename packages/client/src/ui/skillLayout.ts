@@ -8,6 +8,8 @@ const BRANCH_RADIUS = 170
 const SKILL_RADIUS = 300
 const STEP = 110
 const SWAY = 4
+/** The least distance between two icons on one ring of a branch. */
+const GAP = 76
 
 export interface Placed {
   x: number
@@ -62,6 +64,32 @@ export function layoutSkills(skills: SkillDef[] = SKILLS, direction: SkillDirect
     const parents = (s.requires ?? []).map((id) => out.get(id)!)
     const angle = parents.length > 1 ? parents.reduce((n, p) => n + p.angle, 0) / parents.length : out.get(s.id)!.angle
     out.set(s.id, polar(SKILL_RADIUS + STEP * depthOf(s), angle))
+  }
+  // A deep branch (a profession's twenty-odd nodes) crowds its rings: on each ring of a branch, neighbours too close
+  // are eased apart along it until they stand GAP apart, each keeping its order and staying near its parents.
+  const rings = new Map<string, SkillDef[]>()
+  for (const s of allowed.filter((s) => out.has(s.id))) {
+    const key = `${s.branch}|${depthOf(s)}`
+    rings.set(key, [...(rings.get(key) ?? []), s])
+  }
+  for (const [key, ring] of rings) {
+    if (ring.length < 2) continue
+    const radius = SKILL_RADIUS + STEP * Number(key.split('|')[1])
+    const min = (GAP / radius) * (180 / Math.PI)
+    const angles = ring.map((s) => out.get(s.id)!.angle).sort((a, b) => a - b)
+    const order = [...ring].sort((a, b) => out.get(a.id)!.angle - out.get(b.id)!.angle)
+    for (let pass = 0; pass < 60; pass++) {
+      let moved = false
+      for (let i = 0; i + 1 < angles.length; i++) {
+        const short = min - (angles[i + 1] - angles[i])
+        if (short <= 0.01) continue
+        angles[i] -= short / 2
+        angles[i + 1] += short / 2
+        moved = true
+      }
+      if (!moved) break
+    }
+    order.forEach((s, i) => out.set(s.id, polar(radius, angles[i])))
   }
   return out
 }

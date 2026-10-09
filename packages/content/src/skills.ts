@@ -160,7 +160,76 @@ export const ACTIVE_SKILLS: SkillDef[] = [
   ACTIVE('blink', 'profession', ['frost-nova'], { kind: 'blink', cooldown: 120, range: 4 }, 'Blink', '闪现', 'Vanish and reappear up to 4 cells ahead, through creatures but not walls.', '瞬移到前方最多 4 格处，可穿过生物，不能穿墙。', 'mage'),
 ]
 
-SKILLS.push(...ACTIVE_SKILLS)
+
+// the professions, deeper (docs/skill-tree.md): each grows to twenty-two nodes — three more active skills (the last an
+// ultimate, two points), five that strengthen its active skills (Dungeon Fighter's enhancements: SkillDef.modifies),
+// three talents of its own, and a capstone (two points) that answers what the tree has become.
+/** A talent that strengthens one active skill (its numbers added when it is cast: actives.ts effectiveActive). */
+const MOD = (id: string, profession: string, requires: string[], modifies: NonNullable<SkillDef['modifies']>, en: string, zh: string, docEn: string, docZh: string): SkillDef =>
+  ({ id, branch: 'profession', profession, icon: id, requires, modifies, name: { en, zh }, doc: { en: docEn, zh: docZh } })
+/** A talent of the profession's own (a number it grants, or an ability the engine answers). */
+const TALENT = (id: string, profession: string, requires: string[], en: string, zh: string, docEn: string, docZh: string, extra: Partial<SkillDef> = {}): SkillDef =>
+  ({ id, branch: 'profession', profession, icon: id, requires, ...(extra.grant ? {} : { ability: true }), ...extra, name: { en, zh }, doc: { en: docEn, zh: docZh } })
+
+export const PROFESSION_DEEPER: SkillDef[] = [
+  // the assassin: shadow, venom, the knife
+  ACTIVE('throwing-knives', 'profession', ['backstab'], { kind: 'shot', missile: 'knife', cooldown: 50, power: 1, range: 5 }, 'Throwing Knives', '飞刀', 'Throw a knife at the first foe ahead, up to 5 cells (×1.0).', '向前掷出飞刀，命中 5 格内第一个敌人（1.0 倍伤害）。', 'assassin'),
+  ACTIVE('fan-of-knives', 'profession', ['flurry'], { kind: 'whirlwind', cooldown: 100, power: 0.8, bleed: 40 }, 'Fan of Knives', '回旋刃', 'Blades spin out to every foe on the eight cells around you (×0.8), and they bleed.', '刀刃向四周旋出，攻击周围 8 格的敌人（0.8 倍伤害）并使其流血。', 'assassin'),
+  { ...ACTIVE('vanishing-strikes', 'profession', ['shadow-mastery', 'fan-of-knives'], { kind: 'shadow-strike', cooldown: 250, power: 1.5, range: 5, count: 3 }, 'Vanishing Strikes', '绝影', 'Ultimate: step behind up to 3 foes within 5 cells, one after another, striking each (×1.5).', '终极：依次闪到 5 格内至多 3 个敌人背后，各攻击一次（1.5 倍伤害）。', 'assassin'), cost: 2 },
+  MOD('shadow-mastery', 'assassin', ['shadow-strike'], { skill: 'shadow-strike', cooldown: -30, range: 2 }, 'Shadow Strike: Mastery', '影袭·精通', 'Shadow Strike: cooldown −3 s, reach +2 cells.', '影袭：冷却 −3 秒，距离 +2 格。'),
+  MOD('potent-venom', 'assassin', ['envenom'], { skill: 'envenom', count: 3 }, 'Envenom: Potent', '淬毒·剧毒', 'Envenom: 3 more poisoned blows.', '淬毒：淬毒次数 +3。'),
+  MOD('lingering-smoke', 'assassin', ['smoke-bomb'], { skill: 'smoke-bomb', ticks: 20 }, 'Smoke Bomb: Lingering', '烟雾弹·延时', 'Smoke Bomb: lasts 2 s longer.', '烟雾弹：持续 +2 秒。'),
+  MOD('flurry-plus', 'assassin', ['flurry'], { skill: 'flurry', count: 2 }, 'Flurry: Unending', '千刃·极', 'Flurry: 2 more stabs.', '千刃：连刺 +2 次。'),
+  MOD('fan-plus', 'assassin', ['fan-of-knives'], { skill: 'fan-of-knives', power: 0.3 }, 'Fan of Knives: Keen', '回旋刃·锋利', 'Fan of Knives: power +0.3.', '回旋刃：伤害倍率 +0.3。'),
+  TALENT('venom-mastery', 'assassin', ['potent-venom'], 'Venom Mastery', '毒刃精通', 'With a dagger: +20% damage to a bleeding target.', '持匕首攻击流血中的目标时伤害 +20%。'),
+  TALENT('nightstalker', 'assassin', ['lingering-smoke'], 'Nightstalker', '夜行者', 'With a dagger: +15% damage at night.', '持匕首在夜晚造成的伤害 +15%。'),
+  TALENT('nimble-blade', 'assassin', ['ambush'], 'Nimble Blade', '敏捷', 'With a dagger in hand: dodge +8%.', '手持匕首时闪避 +8%。'),
+  TALENT('master-assassin', 'assassin', ['death-dance', 'vanishing-strikes'], 'Master Assassin', '暗杀大师', 'Capstone: whenever you fell a creature, Shadow Strike is ready again at once.', '终极天赋：每击倒一个生物，影袭的冷却立即刷新。', { cost: 2 }),
+
+  // the warrior: the blade, the shield, the fury
+  ACTIVE('wide-slash', 'profession', ['retaliation'], { kind: 'arc', cooldown: 60, power: 1.3 }, 'Wide Slash', '横劈', 'One sweep across the three cells ahead (×1.3).', '一刀横扫前方 3 格（1.3 倍伤害）。', 'warrior'),
+  ACTIVE('iron-guard', 'profession', ['bulwark'], { kind: 'guard', cooldown: 200, ticks: 30 }, 'Iron Guard', '坚盾', 'For 3 seconds: combat damage taken −60%, but you move slower.', '3 秒内受到的战斗伤害 −60%，但移动变慢。', 'warrior'),
+  { ...ACTIVE('heaven-splitter', 'profession', ['quake-plus', 'slash-plus'], { kind: 'slam', cooldown: 300, power: 2.5, range: 5, afflict: 'stunned', ticks: 15 }, 'Heaven Splitter', '天崩斩', 'Ultimate: one great blow down the 5×3 cells ahead (×2.5), stunning what it strikes.', '终极：向前方 5×3 范围劈下巨剑（2.5 倍伤害），并使其眩晕。', 'warrior'), cost: 2 },
+  MOD('bash-plus', 'warrior', ['shield-bash'], { skill: 'shield-bash', ticks: 10 }, 'Shield Bash: Concussion', '盾击·重震', 'Shield Bash: stun +1 s.', '盾击：眩晕 +1 秒。'),
+  MOD('charge-plus', 'warrior', ['charge'], { skill: 'charge', range: 2 }, 'Charge: Long Run', '冲锋·远', 'Charge: 2 cells farther.', '冲锋：距离 +2 格。'),
+  MOD('war-cry-plus', 'warrior', ['war-cry'], { skill: 'war-cry', ticks: 30 }, 'War Cry: Rousing', '战吼·激昂', 'War Cry: lasts 3 s longer.', '战吼：持续 +3 秒。'),
+  MOD('quake-plus', 'warrior', ['earthsplitter'], { skill: 'earthsplitter', power: 0.4 }, 'Earthsplitter: Aftershock', '裂地·余震', 'Earthsplitter: power +0.4.', '裂地：伤害倍率 +0.4。'),
+  MOD('slash-plus', 'warrior', ['wide-slash'], { skill: 'wide-slash', power: 0.4 }, 'Wide Slash: Honed', '横劈·锋', 'Wide Slash: power +0.4.', '横劈：伤害倍率 +0.4。'),
+  TALENT('shield-wall', 'warrior', ['iron-guard'], 'Shield Wall', '盾墙', 'With a shield worn: block chance +5%.', '佩戴盾牌时格挡率 +5%。'),
+  TALENT('bloodthirst', 'warrior', ['rampage'], 'Bloodthirst', '嗜血', 'Whenever you fell a creature: mend 5% of your max health.', '每击倒一个生物，恢复 5% 生命上限的生命。'),
+  TALENT('fortitude', 'warrior', ['unbreakable'], 'Fortitude', '坚毅', 'What a blow leaves to hold you still (a stun, a freeze, kneeling) lasts half as long.', '被攻击附带的控制效果（眩晕、冰冻、跪地）持续时间减半。'),
+  TALENT('undying-spirit', 'warrior', ['warlord', 'heaven-splitter'], 'Undying Spirit', '不灭战魂', 'Capstone: whenever you fell a creature, every skill comes 1 s nearer to ready.', '终极天赋：每击倒一个生物，所有技能的冷却 −1 秒。', { cost: 2 }),
+
+  // the ranger: the shot, the eye, the storm
+  ACTIVE('concussive-shot', 'profession', ['steady-aim'], { kind: 'shot', missile: 'arrow', cooldown: 80, power: 1, range: 6, afflict: 'stunned', ticks: 10 }, 'Concussive Shot', '震荡箭', 'An arrow that stuns the first foe in its line for 1 s (×1.0).', '射出一箭，命中直线上第一个敌人并使其眩晕 1 秒（1.0 倍伤害）。', 'ranger'),
+  ACTIVE('hawk-eye', 'profession', ['fleet-archer'], { kind: 'aim', cooldown: 250, ticks: 50 }, 'Hawk Eye', '鹰眼', 'For 5 seconds: a shooting weapon reaches 3 cells farther, critical chance +20%.', '5 秒内射击武器射程 +3 格，暴击率 +20%。', 'ranger'),
+  { ...ACTIVE('arrow-storm', 'profession', ['multishot-plus', 'rain-plus'], { kind: 'multishot', cooldown: 300, power: 1.2, range: 6, count: 5, through: true }, 'Arrow Storm', '万箭齐发', 'Ultimate: five arrows side by side, each through every foe in its line (×1.2).', '终极：并排射出 5 支箭，每支都贯穿所在直线上的所有敌人（1.2 倍伤害）。', 'ranger'), cost: 2 },
+  MOD('multishot-plus', 'ranger', ['multishot'], { skill: 'multishot', count: 2 }, 'Multishot: Five', '多重箭·五连', 'Multishot: 2 more arrows.', '多重箭：箭数 +2。'),
+  MOD('leap-plus', 'ranger', ['leap-shot'], { skill: 'leap-shot', count: 1, cooldown: -20 }, 'Leap Shot: Far Leap', '后跃射击·远', 'Leap Shot: 1 cell farther back, cooldown −2 s.', '后跃射击：后跳 +1 格，冷却 −2 秒。'),
+  MOD('pierce-plus', 'ranger', ['piercing-arrow'], { skill: 'piercing-arrow', power: 0.5 }, 'Piercing Arrow: Armour Breaker', '穿透箭·破甲', 'Piercing Arrow: power +0.5.', '穿透箭：伤害倍率 +0.5。'),
+  MOD('rain-plus', 'ranger', ['arrow-rain'], { skill: 'arrow-rain', count: 2 }, 'Arrow Rain: Downpour', '箭雨·延续', 'Arrow Rain: 2 more volleys.', '箭雨：轮数 +2。'),
+  MOD('concussive-plus', 'ranger', ['concussive-shot'], { skill: 'concussive-shot', ticks: 10 }, 'Concussive Shot: Heavy', '震荡箭·重', 'Concussive Shot: stun +1 s.', '震荡箭：眩晕 +1 秒。'),
+  TALENT('light-gear', 'ranger', ['hawk-eye'], 'Light Gear', '轻装', 'Movement speed +10%.', '移动速度 +10%。', { grant: { moveHaste: 0.1 } }),
+  TALENT('deadly-shot', 'ranger', ['sniper'], 'Deadly Shot', '致命射击', 'With a bow: critical damage +25%.', '持弓时暴击伤害 +25%。'),
+  TALENT('windwalker', 'ranger', ['quick-draw'], 'Windwalker', '风行', 'With a bow in hand: dodge +5%.', '手持弓时闪避 +5%。'),
+  TALENT('marksman', 'ranger', ['hunters-mark', 'arrow-storm'], 'Marksman', '神射手', 'Capstone: each cast that hits brings your other skills 0.5 s nearer to ready.', '终极天赋：每次技能命中，其他技能的冷却 −0.5 秒。', { cost: 2 }),
+
+  // the mage: frost, storm, fire
+  ACTIVE('frost-bolt', 'profession', ['elemental-attunement'], { kind: 'shot', element: 'ice', cooldown: 50, power: 1.2, range: 5, afflict: 'frozen', ticks: 10 }, 'Frost Bolt', '寒冰箭', 'A bolt of ice at the first foe ahead (×1.2, ice), freezing it for 1 s.', '向前射出寒冰箭，命中第一个敌人（1.2 倍冰霜伤害）并冻结 1 秒。', 'mage'),
+  ACTIVE('thunderstorm', 'profession', ['chain-lightning'], { kind: 'rain', element: 'lightning', cooldown: 200, power: 0.7, range: 5, count: 3 }, 'Thunderstorm', '雷暴', 'Lightning falls on the 3×3 around the first foe ahead, once a second for 3 seconds (×0.7 each).', '在前方第一个敌人周围 3×3 降下落雷，每秒一轮，持续 3 秒（每轮 0.7 倍雷电伤害）。', 'mage'),
+  { ...ACTIVE('meteor', 'profession', ['fireball-plus', 'nova-plus'], { kind: 'fireball', element: 'fire', cooldown: 350, power: 3, range: 5, radius: 2 }, 'Meteor', '陨石术', 'Ultimate: a meteor on the first thing ahead, burning the 5×5 around it (×3.0, fire).', '终极：召唤陨石砸向前方第一个目标，焚烧周围 5×5（3.0 倍火焰伤害）。', 'mage'), cost: 2 },
+  MOD('fireball-plus', 'mage', ['fireball'], { skill: 'fireball', power: 0.5 }, 'Fireball: Inferno', '火球·炎爆', 'Fireball: power +0.5.', '火球：伤害倍率 +0.5。'),
+  MOD('nova-plus', 'mage', ['frost-nova'], { skill: 'frost-nova', range: 1 }, 'Frost Nova: Spreading', '冰霜新星·扩散', 'Frost Nova: radius +1 cell.', '冰霜新星：半径 +1 格。'),
+  MOD('chain-plus', 'mage', ['chain-lightning'], { skill: 'chain-lightning', count: 2 }, 'Chain Lightning: Forked', '闪电链·连锁', 'Chain Lightning: 2 more targets.', '闪电链：目标数 +2。'),
+  MOD('blink-plus', 'mage', ['blink'], { skill: 'blink', range: 2, cooldown: -30 }, 'Blink: Far', '闪现·远', 'Blink: 2 cells farther, cooldown −3 s.', '闪现：距离 +2 格，冷却 −3 秒。'),
+  MOD('frost-bolt-plus', 'mage', ['frost-bolt'], { skill: 'frost-bolt', ticks: 10 }, 'Frost Bolt: Biting', '寒冰箭·刺骨', 'Frost Bolt: frozen 1 s longer.', '寒冰箭：冻结 +1 秒。'),
+  TALENT('mana-surge', 'mage', ['mana-shield'], 'Mana Surge', '法力涌动', 'Every skill\'s cooldown −10%.', '所有技能冷却 −10%。', { grant: { cdr: 0.1 } }),
+  TALENT('elementalist', 'mage', ['frost-bolt'], 'Elementalist', '元素专精', 'What carries an element strikes 15% harder (a staff with one, an element\'s spell).', '带元素的攻击伤害 +15%（带元素的法杖、元素法术）。'),
+  TALENT('arcane-barrier', 'mage', ['arcane-recovery'], 'Arcane Barrier', '奥术屏障', 'Max health +10.', '生命上限 +10。', { grant: { maxHp: 10 } }),
+  TALENT('elemental-master', 'mage', ['archmage', 'meteor'], 'Elemental Master', '元素大师', 'Capstone: every third skill you cast does not rest.', '终极天赋：每第 3 次施放的技能不进入冷却。', { cost: 2 }),
+]
+
+SKILLS.push(...ACTIVE_SKILLS, ...PROFESSION_DEEPER)
 
 /** A skill book that teaches one active skill (read: used on oneself), named for it: for loot, shops and quests to hand out. */
 export const skillBook = (id: string): Omit<Entity, 'id' | 'place'> => {

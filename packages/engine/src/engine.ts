@@ -11,7 +11,7 @@ import { Controls } from './controls.ts'
 import { Story } from './story.ts'
 import { deriveRecipes } from './recipes.ts'
 import { Behaviour } from './behaviour.ts'
-import { rainTick } from './actives.ts'
+import { onDefeat, rainTick } from './actives.ts'
 import { combatDamage, combatDelay, combatStrike, finishCombatStrike, rangeBonus, recordCombatStep } from './combat.ts'
 import { canWield, itemProfession, weaponOf } from './profession.ts'
 import { Companions } from './companion.ts'
@@ -800,7 +800,9 @@ export class Engine {
     // a relic's affliction (kneeling, burning, frozen): the struck takes it as its own status
     const afflict = by?.params?.afflict
     const afflictFor = by?.params?.afflictFor
-    if (typeof afflict === 'string' && typeof afflictFor === 'number' && afflictFor > 0 && w.get(e.id) && w.num(e, 'hp') > 0) this.applyStatus({ e: e.id }, afflict, afflictFor, attacker?.id)
+    // (Fortitude: what holds one still — a stun, a freeze, kneeling — holds half as long)
+    const held = typeof afflict === 'string' && !!w.onto.status(afflict)?.immobilize && w.hasTag(e, 'skill:fortitude')
+    if (typeof afflict === 'string' && typeof afflictFor === 'number' && afflictFor > 0 && w.get(e.id) && w.num(e, 'hp') > 0) this.applyStatus({ e: e.id }, afflict, held ? Math.max(1, Math.round(afflictFor / 2)) : afflictFor, attacker?.id)
     const drain = by?.params?.drain
     if (typeof drain === 'number' && drain > 0 && attacker && attacker.id !== e.id)
       this.queue({ kind: 'impulse/restore', host: { e: attacker.id }, roles: { source: { e: e.id }, actor: { e: attacker.id } }, params: { which: 'hp', amount: drain }, cause: by?.cause, origin: by?.origin, depth: (by?.depth ?? 0) + 1 })
@@ -1321,6 +1323,8 @@ export class Engine {
     const victim = 'e' in target ? w.get(target.e) : undefined
     const before = victim ? w.num(victim, 'hp') : 0
     const strike = combatStrike(w, a, victim, base, range, weapon, true)
+    // a defeat is answered by the striker's talents (actives.ts onDefeat): counted before, compared after
+    const defeats = a.combat?.defeats ?? 0
     this.act('use', a.id, target, { instrument: weapon ? { e: weapon.id } : null, params: { attack: true, power: strike.power, ...(strike.critical && { critical: true }), ...(strike.bleed && { bleed: strike.bleed }), ...(strike.drain && { drain: strike.drain }), ...(strike.afflict && { afflict: strike.afflict.status, afflictFor: strike.afflict.ticks }) } })
     finishCombatStrike(w, a, victim, strike, before, range, true)
     // a sweep (the skill): a melee blow also lands on the creatures on either side of the tile ahead
@@ -1335,6 +1339,7 @@ export class Engine {
         this.act('use', a.id, { e: side.id }, { instrument: weapon ? { e: weapon.id } : null, params: { attack: true, power: sideStrike.power } })
         finishCombatStrike(w, a, side, sideStrike, sideHp, range, false)
       }
+    if ((a.combat?.defeats ?? 0) > defeats) onDefeat(this, a)
     return true
   }
 

@@ -57,9 +57,10 @@ describe('the skill tree', () => {
       }
     }
     const combat = skillsForProfession('assassin').filter((s) => layoutBranches('combat').has(s.branch))
-    // 48 talents, and the active skills: everyone's four and the profession's four (actives.ts)
-    expect(combat.filter((s) => !s.active)).toHaveLength(48)
-    expect(combat.filter((s) => s.active)).toHaveLength(8)
+    // the shared talents and the assassin's tree: the active skills are everyone's four and the profession's seven (actives.ts)
+    expect(combat.filter((s) => !s.active && !s.profession)).toHaveLength(42)
+    expect(combat.filter((s) => s.profession)).toHaveLength(22)
+    expect(combat.filter((s) => s.active)).toHaveLength(11)
     for (const b of layoutBranches('combat').keys()) expect(combat.some((s) => s.branch === b && (s.requires?.length ?? 0) > 1 && s.cost === 2)).toBe(true)
   })
 
