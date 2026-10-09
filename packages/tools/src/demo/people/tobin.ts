@@ -17,6 +17,11 @@ export const tobin: PersonDef = {
   age: 34,
   temperament: { personality: 'chatty', manner: 'polite', social: 'outgoing', outlook: 'hopeful' },
   ties: { 'npc.hesper': 'the ferrykeeper he owes a fare' },
+  // a peddler sells his oddments, and asks no questions about what he is sold (a fence); he tells the watch nothing
+  trade: { stock: [['item/vessel/flask/oil', 2], ['item/clothing/hood', 1], ['item/tool/lockpick', 2], ['item/misc/firework', 1]], fence: true },
+  purse: 40,
+  honesty: 0.5,
+  lawful: false,
   schedules: {
     default: [
       [22, 6, 'meadow:cart.bed', 'sleep'],

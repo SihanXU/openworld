@@ -689,6 +689,12 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private textureFor(e: EntitySnap): { img: string; frame: string; ax: number; ay: number; actor?: EView['actor'] } {
+    // a body (docs/npc-sandbox.md §2.8): the one it was, as they looked, lying where they fell
+    if (e.tags.includes('body') && e.look && typeof e.look === 'object') {
+      const a = figureDef(this, e.look)
+      const { img, fw, fh } = actorFrames(this, a.key, a.def)
+      return { img, frame: `${a.key}:0,0`, ax: fw / 2, ay: a.def.anchorY ?? fh }
+    }
     // a thing the world learned, with a picture of its own
     if (!e.tags.includes('agent') && e.sprite?.startsWith('art:') && this.textures.exists(e.sprite)) return { img: e.sprite, frame: '__BASE', ax: 8, ay: 14 }
     if (e.tags.includes('agent')) {
@@ -1069,12 +1075,14 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     const tintStatus = e.statuses.find((s) => TINT_OF[s])
-    if (tintStatus) v.body.setTint(TINT_OF[tintStatus]).setTintMode(Phaser.TintModes.MULTIPLY)
+    // a body is grey (docs/npc-sandbox.md §2.8)
+    if (e.tags.includes('body')) v.body.setTint(0x8a8a8a).setTintMode(Phaser.TintModes.MULTIPLY)
+    else if (tintStatus) v.body.setTint(TINT_OF[tintStatus]).setTintMode(Phaser.TintModes.MULTIPLY)
     else if (v.actor?.tint) v.body.setTint(v.actor.tint).setTintMode(Phaser.TintModes.OVERLAY)
     else v.body.clearTint()
     // a thing an act waits on shimmers; one who is down lies on the ground
     v.body.setAlpha(this.alphaOf(v))
-    v.body.setAngle(!e.boss && (e.statuses.includes('down') || e.statuses.includes('out_cold') || e.statuses.includes('asleep')) ? 90 : 0)
+    v.body.setAngle(!e.boss && (e.statuses.includes('down') || e.statuses.includes('out_cold') || e.statuses.includes('asleep') || e.statuses.includes('jailed') || e.tags.includes('body')) ? 90 : 0)
     // held item (small, at the hand)
     if (e.held && e.tags.includes('agent')) {
       const d = CATALOG.items[e.held]

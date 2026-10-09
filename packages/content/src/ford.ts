@@ -96,7 +96,7 @@ const FORD_RULES: Rule[] = [
     doc: 'With the line mended, the ferrykeeper takes you across.',
     host: { type: 'actor/person/ferrykeeper' },
     on: 'impulse/handle',
-    tree: { if: { all: [fact('ford.winch', 1), fact('ford.crossed', 0), is('actor', { type: 'actor/person' }), { none: 'instrument' }] }, then: { do: [notify('ferry')] }, else: 'inherit' },
+    tree: { if: { all: [fact('ford.winch', 1), fact('ford.crossed', 0), is('actor', { type: 'actor/person' }), { none: 'instrument' }, { not: { param: { key: 'say', cmp: { ne: '' } } } }] }, then: { do: [notify('ferry')] }, else: 'inherit' },
   }),
   // ---------------------------------------------------------------- the dead tree
   story({
@@ -136,6 +136,7 @@ const FORD_RULES: Rule[] = [
         do: [
           { op: 'emit', impulse: 'taken', to: 'item', params: { into: 'contents' }, other: 'host' },
           notify('charm'),
+          { op: 'emit', impulse: 'notify', to: { named: 'tobin.wand' }, params: { what: 'yours' } },
           say('Bless you. The wand on my cart — the blue one — it is yours. Frost from the tip, if you point it right.', '谢天谢地。我车上那根魔杖——蓝的那根——归你了。指准了，杖尖会冒寒气。'),
           { op: 'emote', mood: 'happy' },
         ],

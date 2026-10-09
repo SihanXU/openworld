@@ -8,6 +8,7 @@ import { VEGETABLE_CROPS } from './crops.ts'
 import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
 import { SKILL_PROFESSIONS } from './skills.ts'
 import { BOON_STATUSES } from './boons.ts'
+import { DEEDS, LAWS, SOCIAL, SOCIAL_STATUSES, SOCIAL_TYPES, TALK } from './social.ts'
 
 /** One char per terrain: maps are stored as strings. */
 export const TERRAIN_CHARS: Record<string, string> = {
@@ -281,12 +282,14 @@ export const PERSON_ROLES: [string, string, string][] = [
 const actorTypes: TypeDef[] = [
   // an agent acts by itself, with a body that takes its cells (world-model.md §4.2)
   P('actor', 'creature', '生物', { tags: ['agent'], props: { level: 1, material: 'flesh' } }),
+  // people are mortal (docs/npc-sandbox.md §2.8): those the story needs carry `essential` themselves (they go
+  // down instead); a person grows hungry slower than the traveller, perceives, and has a conscience (and fights back when struck only if it says so: `fights`)
   P('actor/person', 'person', '人', {
-    tags: ['person', 'living', 'talkable', 'faction:folk', 'essential'],
-    props: { hp: 20, maxHp: 20, atk: 1, def: 0, speed: 2, sight: 7 },
+    tags: ['person', 'living', 'talkable', 'faction:folk'],
+    props: { hp: 20, maxHp: 20, atk: 1, def: 0, speed: 2, sight: 7, perception: 10, hunger: 20, maxHunger: 20, hungerEvery: 960, honesty: 1, bodyType: 'fixture/remains/body' },
     sprite: 'person',
   }),
-  P('actor/person/player', 'you', '你', { props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, hunger: 20, maxHunger: 20 } }),
+  P('actor/person/player', 'you', '你', { tags: ['essential'], props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, hunger: 20, maxHunger: 20, hungerEvery: 480 } }),
   ...PERSON_ROLES.map(([id, en, zh]) => P(`actor/person/${id}`, en, zh)),
   // the profession trainer (engine/src/profession.ts): a profession is chosen within reach of one
   P('actor/person/trainer', 'profession trainer', '职业导师', { tags: ['trainer'] }),
@@ -496,10 +499,15 @@ const fixtureTypes: TypeDef[] = [
 
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}
-  for (const t of [...actorTypes, ...fixtureTypes, ...itemTypes(), ...RESIDENTS, ...BOSS_TYPES]) types[t.id] = t
+  for (const t of [...actorTypes, ...fixtureTypes, ...itemTypes(), ...RESIDENTS, ...BOSS_TYPES, ...SOCIAL_TYPES]) types[t.id] = t
   return {
     types,
-    statuses: Object.fromEntries([...STATUSES, ...BOSS_STATUSES, ...BOON_STATUSES].map((s) => [s.id, s])),
+    statuses: Object.fromEntries([...STATUSES, ...BOSS_STATUSES, ...BOON_STATUSES, ...SOCIAL_STATUSES].map((s) => [s.id, s])),
+    // the people's social life (docs/npc-sandbox.md): deeds and their fines, the watches, the numbers, the talk panel's verbs
+    deeds: DEEDS,
+    laws: LAWS,
+    social: SOCIAL,
+    talk: TALK,
     // who attacks whom: the wild attacks folk (when a creature's temper says so); folk attack no one
     factions: {
       folk: { name: { en: 'folk', zh: '人们' }, hostile: [] },
@@ -540,6 +548,8 @@ export function buildOntology(): Ontology {
       // the Held Ground's mist looks now and then whether the ground has grown past it (haven.ts)
       { name: 'mist', every: 30, host: { type: 'fixture/nature/mist' } },
       { name: 'storm', every: 300, host: 'world' },
+      // each morning one has one's purse again, and a merchant its stock (people/morning)
+      { name: 'morning', every: TICKS_PER_DAY, host: { type: 'actor/person' } },
       // the night's walkers crumble at dawn (their own)
       { name: 'dawn', every: 5, host: { type: 'actor', tags: ['nightborn'] } },
       // the dragon's whelps, their mother slain, scatter into the dark (quest.ts, mq/whelps-scatter)

@@ -62,6 +62,17 @@ export type ToWorker =
   /** The chest panel. */
   | { t: 'transfer'; from: 'chest' | 'bag'; item: string; all: boolean }
   | { t: 'closePanel' }
+  /** X and V (docs/npc-sandbox.md): draw one's weapon, walk soft — the input's own posture, toggled. */
+  | { t: 'toggle'; what: 'drawn' | 'sneaking' }
+  /** The talk panel: a verb said to the one the talk is with (and its choice); the talk closed. */
+  | { t: 'talk'; verb: string; choice?: string }
+  | { t: 'closeTalk' }
+  /** The trade panel: one of the merchant's goods bought, or a thing sold to it; the panel closed. */
+  | { t: 'trade'; item: string; buy: boolean }
+  | { t: 'closeTrade' }
+  /** A person's pockets: a thing taken from them, or one slipped in; the panel closed. */
+  | { t: 'pocket'; item: string; take: boolean }
+  | { t: 'closePockets' }
   /** Time stops while a menu, a dialogue or a question is open. */
   | { t: 'pause'; on: boolean }
   | { t: 'patch'; id?: string; patch: Patch }
