@@ -880,7 +880,9 @@ putting, contact, time or sight), the answer is a **soft hole**. With a modder c
 question like a hole's: its participants are held, the player's own act pauses the world (§5.11),
 and the inherited outcome is the default at the time-out; a patch that comes replays the event,
 now answered by the type's own rule. With no modder (or one that answers holes only,
-`ModProvider.soft: false`) it runs as inherited at once and nothing is recorded. The request
+`ModProvider.soft: false`) it runs as inherited at once and nothing is recorded. So too for a
+person in an event the world started: what the world learns never harms a person (§5.11), and a
+person's inherited answer to a beast's bite harms, so no answer could pass. The request
 carries `hole.soft` and the inherited rule as the hole; the answer starts from a copy of that rule
 and changes what this type does differently. It is asked once per cell. A failure or a time-out
 runs the inheritance and writes nothing, so the cell is asked again in a later session.

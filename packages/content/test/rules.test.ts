@@ -695,6 +695,29 @@ describe('the Mod port', () => {
     expect(eng.lib.stale()).toEqual([{ rule: 'patch/axe-use', from: 'use/blade', why: 'changed' }])
   })
 
+  it('a person struck in an event the world started is not asked about: what the world learns never harms a person', () => {
+    const eng = sandbox({
+      entities: [
+        { key: 'farmer', type: 'actor/person/farmer', x: 2, y: 1 },
+        { key: 'wolf', type: 'actor/creature/beast/wolf', x: 2, y: 2 },
+      ],
+      player: '__player',
+      event: {},
+    })
+    const port = new ModPort(eng)
+    port.provider = working
+    const bite = (origin: 'world' | 'player'): GameEvent => ({ kind: 'impulse/strike', host: { e: 'farmer' }, roles: { actor: { e: 'wolf' }, source: { e: 'wolf' } }, params: { power: 1, edge: 'pierce' }, origin })
+    expect(eng.resolveEvent(bite('world')).soft).toBeDefined()
+    const hp = eng.world.num(eng.world.get('farmer')!, 'hp')
+    eng.queue(bite('world'))
+    // it ran as inherited (combat/struck), with nothing asked and nobody held
+    expect(port.records).toEqual([])
+    expect(eng.world.num(eng.world.get('farmer')!, 'hp')).toBeLessThan(hp)
+    // the player's own chain is asked as ever
+    eng.queue(bite('player'))
+    expect(port.records.map((r) => r.request.hole)).toMatchObject([{ rule: 'combat/struck', soft: true }])
+  })
+
   it('a soft hole whose asking fails runs what it inherited, and writes nothing', async () => {
     const eng = sandbox({
       entities: [

@@ -518,10 +518,15 @@ export class ModPort implements UndefinedSink {
    * A soft hole (design.md §5.16): the host's type answers this kind only as it inherited it. With
    * someone to ask, it is a question like a hole's (one per type and kind): its participants are
    * held, and the inherited outcome is its default. With no one, it runs as inherited and nothing
-   * is recorded. A failure keeps the inheritance and writes nothing.
+   * is recorded; so too for a person in an event the world started. A failure keeps the
+   * inheritance and writes nothing.
    */
   learn(ev: GameEvent, res: Resolution): boolean {
     if (!this.provider || this.provider.soft === false || !res.soft) return false
+    // what the world learns by itself never harms a person (§5.11), and a person's inherited answer
+    // to a world event (a beast's bite: combat/struck) harms: no answer could pass, so none is asked
+    const host = 'e' in ev.host ? this.eng.world.get(ev.host.e) : undefined
+    if (ev.origin !== 'player' && host && isA(host.type, 'actor/person')) return false
     return this.raise(ev, { defined: false, rule: res.soft.rule, leaf: res.leaf, hole: res.soft }, true)
   }
 
