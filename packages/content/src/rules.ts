@@ -75,7 +75,7 @@ const ROOTS: Rule[] = [
     tree: IF(is('target', { type: 'actor/person' }), DO(say('This stays with me.', '这个得留在我身上。', 'actor')), 'inherit'),
   }),
   rule({ id: 'core/take', doc: 'Taking the target with the hands: it is taken (and answers how).', on: 'act/take', tree: DO(emit('taken', 'target', { into: { param: 'into' }, quiet: { param: 'quiet' } }, { other: 'actor' })) }),
-  rule({ id: 'core/hands', doc: 'A bare hand on the target: it is handled (and answers how); what the hand asks of it rides along — a companion\'s boon, what is said to a person (a talk verb, its choice, the thing it is about).', on: 'act/hands', tree: DO(emit('handle', 'target', { boon: { param: 'boon' }, say: { param: 'say' }, choice: { param: 'choice' }, item: { param: 'item' } })) }),
+  rule({ id: 'core/hands', doc: 'A bare hand on the target: it is handled (and answers how); what the hand asks of it rides along — a companion\'s boon, what is said to a person (a talk verb, its choice, the thing it is about; the offer or topic of a quest, docs/quests.md).', on: 'act/hands', tree: DO(emit('handle', 'target', { boon: { param: 'boon' }, say: { param: 'say' }, choice: { param: 'choice' }, item: { param: 'item' }, quest: { param: 'quest' }, topic: { param: 'topic' } })) }),
   rule({ id: 'core/move', doc: 'Moving: one step, or to a place.', on: 'act/move', tree: DO({ op: 'step' }) }),
   rule({ id: 'core/craft', doc: 'Crafting what the recipe makes from what is carried.', on: 'act/craft', tree: DO({ op: 'craft' }) }),
   rule({ id: 'core/learn', doc: 'Learning what the act names: a skill (with skill points), a profession (at a trainer).', on: 'act/learn', tree: DO({ op: 'learn' }) }),
@@ -347,7 +347,6 @@ const BODIES: Rule[] = [
         DO(
           emit('notify', 'actor', { what: 'defeat', xp: { prop: 'maxHp', of: 'host' } }),
           // the story hears what fell, and to whom (quests count it)
-          emit('notify', 'story', { what: 'defeat', type: { typeOf: 'host' } }),
           vfx('poof', 'tileOf:host'),
           log('{host} is defeated.', '{host}被打倒了。'),
           { op: 'breakdown', still: true },
@@ -457,12 +456,8 @@ const BODIES: Rule[] = [
       // told to mend (the Mend skill, actives.ts): one mends by as much
       param('what', 'mend'),
       DO({ op: 'heal', amount: { param: 'amount' } }, vfx('heal')),
-      IF(
-      param('what', 'quest'),
-      // a stage only goes forward (a quest handed in late tells an earlier one: the pilgrim's road after the river)
-      IF({ prop: { role: 'host', key: 'quest', bounds: { lt: { param: 'value' } }, default: -1 } }, DO({ op: 'setProp', key: 'quest', value: { param: 'value' } }), DO()),
-      IF(param('what', 'prologue'), DO({ op: 'setProp', key: 'prologue', value: { param: 'value' } }), PERSON_NEWS('inherit')),
-    )))),
+      PERSON_NEWS('inherit'),
+    ))),
   }),
 ]
 
@@ -480,8 +475,8 @@ const PEOPLE: Rule[] = [
       'inherit',
       IF(
         { owns: ['host', 'item'] },
-        AS(L('Give {instrument} back to {target}', '把{instrument}还给{target}'), DO(taken('contents'), { op: 'settle' }, { op: 'regard', delta: 5 }, say('…Thank you for bringing it back.', '……谢谢你把它还回来。'))),
-        DO(taken('contents'), { op: 'regard', delta: { prop: 'value', of: 'item', mul: 0.3, add: 2 } }, { op: 'say', text: '@given' }),
+        AS(L('Give {instrument} back to {target}', '把{instrument}还给{target}'), DO(taken('contents'), { op: 'settle' }, { op: 'regard', delta: 5 }, say('…Thank you for bringing it back.', '……谢谢你把它还回来。'), { op: 'news', kind: 'give' })),
+        DO(taken('contents'), { op: 'regard', delta: { prop: 'value', of: 'item', mul: 0.3, add: 2 } }, { op: 'say', text: '@given' }, { op: 'news', kind: 'give' }),
       ),
     ),
   }),
@@ -1522,12 +1517,49 @@ const JOURNEY: Rule[] = [
     on: 'time/period',
     tree: IF(all(param('name', 'dawn'), { night: false }, { chance: 0.5 }), DO(vfx('poof', 'tileOf:host'), { op: 'destroy' }), 'inherit'),
   }),
+  // ---------------------------------------------------------------- quests (docs/quests.md)
   rule({
     id: 'story/quests',
-    doc: 'The story settles a quest\'s business it is told of: a word between a giver and the one who spoke to them, a defeat (quests.ts).',
+    doc: 'The story is told an offer was taken on (what = accept, param quest: the actor took it from the source, its giver): the quest begins. Told facts to keep (what = facts: a quest\'s reward), it keeps them.',
     host: { type: 'resident/story' },
     on: 'impulse/notify',
-    tree: IF(param('what', 'quest'), DO({ op: 'quests' }), IF(param('what', 'defeat'), DO({ op: 'quests' }), 'inherit')),
+    tree: IF(param('what', 'accept'), DO({ op: 'startQuest' }), IF(param('what', 'facts'), DO({ op: 'facts' }), 'inherit')),
+  }),
+  rule({
+    id: 'story/manager',
+    doc: 'The Story Manager: the story sees the world\'s news (a step played, a fact kept, a quest over, a place entered, the evening, a theft, the hungry): the quests that begin on it begin, the radiant offers on it are made (docs/quests.md §2.3).',
+    host: { type: 'resident/story' },
+    on: 'seen',
+    tree: DO({ op: 'begin' }),
+  }),
+  rule({
+    id: 'quest/news',
+    doc: 'A quest sees news it listens for (who its taker spoke to, what was felled or is gone, what the taker holds and where they are, the story\'s facts, the other quests): it moves on as its triggers say.',
+    host: { type: 'resident/quest' },
+    on: 'seen',
+    tree: DO({ op: 'advance' }),
+  }),
+  rule({
+    id: 'quest/notify',
+    doc: 'A quest told to reach a stage (what = stage, param n: a scene\'s, a rule\'s), to be taken on (accept: by the actor), turned down (decline), or that it failed (fail): it answers itself.',
+    host: { type: 'resident/quest' },
+    on: 'impulse/notify',
+    tree: IF(param('what', 'stage'), DO({ op: 'stage', n: { param: 'n' } }), IF(param('what', 'accept'), DO({ op: 'accept' }), IF(param('what', 'decline'), DO({ op: 'decline' }), IF(param('what', 'fail'), DO({ op: 'failQuest' }), 'inherit')))),
+  }),
+  rule({
+    id: 'quest/due',
+    doc: 'A quest\'s time runs out (its status due): an offer is withdrawn, a quest under way fails.',
+    host: { type: 'resident/quest' },
+    on: 'time/timer',
+    tree: IF(param('status', 'due'), DO({ op: 'failQuest' }), 'inherit'),
+  }),
+  rule({
+    id: 'board/read',
+    label: L('Look at {target}', '看看{target}'),
+    doc: 'The commission board (docs/quests.md §3): read with a hand, it shows the favours people want done (its panel); asked to take one on (say quest), the quest named is taken on.',
+    host: { type: 'fixture/sign/questboard' },
+    on: 'impulse/handle',
+    tree: IF(param('say', 'quest'), DO({ op: 'quest' }), DO({ op: 'panel', panel: 'board' })),
   }),
   rule({
     id: 'creature/not-taken',

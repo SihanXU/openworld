@@ -6,6 +6,7 @@ import { line, type PersonDef } from '../person.ts'
 export const nessa: PersonDef = {
   id: 'npc.nessa',
   role: 'scholar',
+  essential: true,
   name: { en: 'Nessa Quill', zh: '奈莎·奎尔' },
   gender: 'female',
   look: { parts: { hair: 'hair.bob', face: 'face.keen', outfit: 'outfit.coat', glasses: 'glasses.round', hat: null }, colors: { hair: 'raven', eyes: 'violet', skin: 'porcelain', 'outfit.1': 'indigo' } },

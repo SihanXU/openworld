@@ -6,6 +6,7 @@ import { line, type PersonDef } from '../person.ts'
 export const courier: PersonDef = {
   id: 'npc.courier',
   role: 'priest',
+  essential: true,
   name: { en: 'Church Courier', zh: '圣教信使' },
   gender: 'male',
   look: { parts: { hair: 'hair.swept', face: 'face.keen', outfit: 'outfit.vestment', beard: null, hat: null }, colors: { hair: 'honey', eyes: 'sky', skin: 'fair', 'outfit.1': 'ivory', 'outfit.2': 'indigo' } },

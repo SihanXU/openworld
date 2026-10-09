@@ -133,7 +133,7 @@ balance for a Chapter 1 player come with the chapter.
 
 ## 6. The chapter, beat by beat
 
-Quest stages are the player's `quest` prop and the story's props (quests.md, main-quest.md).
+Quest stages are the quests' own (docs/quests.md, 2026-10-09: `rescue`, `vigil`, `first_seal`, `crown_home`), answering the story's facts below.
 New stages are marked **new**.
 
 | # | Where | Beat | Goal (a state) | Clue planted |
@@ -274,7 +274,7 @@ Open: how Severin uses the dawn flame (marked [proposal]); Alberic's balance for
 
 ## 11. As built (2026-10-05)
 
-**Stages** (the player's `quest` prop; objectives in `content/src/chapter1.ts`):
+**Stages** (as first built, the player's `quest` prop; since 2026-10-09 the quests' stages in `content/src/quests/main.ts` — 0.5 is `vigil`, 0.6 `first_seal` 20, 0.7 its 30, 2 its 40, 2.5 `crown_home`, 2.9 `dragon_road`):
 
 | `quest` | Objective | Ends when |
 |---|---|---|

@@ -6,7 +6,7 @@
 import type { EntitySnap, Frame, MapData } from '@lsw/engine'
 import { buildOntology } from '@lsw/content'
 import type { Atlas } from '../protocol.ts'
-import { $, esc, t, tx } from './common.ts'
+import { $, esc, prefs, t, tx } from './common.ts'
 
 const TERRAIN = buildOntology().terrains
 const colorOf = (id: string) => TERRAIN[id]?.color ?? '#000'
@@ -155,6 +155,12 @@ export class WorldMap {
       }
       world.appendChild(b)
     }
+    // the tracked quest's markers (docs/quests.md §2.5), where its open objectives point
+    if (prefs.get('markers'))
+      for (const q of a.targets ?? []) {
+        const m = at.get(q.map)
+        if (m) world.insertAdjacentHTML('beforeend', `<span class="wm-quest" title="${esc(tx(q.text))}" style="left:${(m.at.x + q.x + 0.5) * PX}px;top:${(m.at.y + q.y + 0.5) * PX}px">★</span>`)
+      }
     const here = at.get(a.here.map)
     if (here) world.insertAdjacentHTML('beforeend', `<span class="wm-you" style="left:${(here.at.x + a.here.x + 0.5) * PX}px;top:${(here.at.y + a.here.y + 0.5) * PX}px"></span>`)
     this.centerOnPlayer()
@@ -210,6 +216,22 @@ export class Minimap {
       const c = dotColor(e)
       if (c) dot(e, c, scale + 1)
     }
+    // the tracked quest's markers on this map (docs/quests.md §2.5)
+    if (prefs.get('markers'))
+      for (const q of f.quests?.targets ?? []) {
+        if (q.map !== m.id) continue
+        g.fillStyle = '#ffd23f'
+        g.strokeStyle = '#3a2414'
+        const r = scale + 3
+        g.beginPath()
+        g.moveTo(q.x * scale + scale / 2, q.y * scale + scale / 2 - r)
+        g.lineTo(q.x * scale + scale / 2 + r, q.y * scale + scale / 2)
+        g.lineTo(q.x * scale + scale / 2, q.y * scale + scale / 2 + r)
+        g.lineTo(q.x * scale + scale / 2 - r, q.y * scale + scale / 2)
+        g.closePath()
+        g.fill()
+        g.stroke()
+      }
     dot(f.player, '#ffffff', scale + 2)
     g.strokeStyle = '#000'
     g.lineWidth = 1

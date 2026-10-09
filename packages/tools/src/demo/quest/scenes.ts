@@ -23,7 +23,6 @@ export const QUEST_SCENES: StepDef[] = [
     when: { map: 'emberfall', region: 'gate' },
     script: [
       say('player', '(Emberfall. Half its roofs are new thatch; the rest are still black.)', '（余烬镇。一半的屋顶是新铺的茅草，另一半还是黑的。）'),
-      { prop: 'quest', value: 3 },
     ],
   },
   {
@@ -40,7 +39,6 @@ export const QUEST_SCENES: StepDef[] = [
       { give: 'item/food/bread' },
       { give: 'item/food/bread' },
       { fact: 'mq.council', value: 1 },
-      { prop: 'quest', value: 4 },
     ],
   },
   {
@@ -49,7 +47,6 @@ export const QUEST_SCENES: StepDef[] = [
     when: { map: 'emberfall', facts: { 'mq.blade': 1, 'mq.draught': 1 } },
     script: [
       say('player', '(Dragonsbane at my side, the draughts in my pack. The pass east of the village climbs to Cinder Peak.)', '（屠龙剑在身侧，药剂在行囊里。镇东的山道一直通到烬峰。）'),
-      { prop: 'quest', value: 5 },
     ],
   },
   {
@@ -58,7 +55,6 @@ export const QUEST_SCENES: StepDef[] = [
     when: { map: 'lair', region: 'mouth' },
     script: [
       say('player', '(Heat, and the smell of scorched stone. Something vast breathes in the dark.)', '（一股热浪，还有烧焦石头的气味。有个庞然大物在黑暗里呼吸。）', 'surprised'),
-      { prop: 'quest', value: 6 },
     ],
   },
   {
@@ -69,7 +65,6 @@ export const QUEST_SCENES: StepDef[] = [
     script: [
       { wait: 20 },
       say('player', '(It is over. The fire in the lair is going out.)', '（结束了。巢穴里的火正在熄灭。）'),
-      { prop: 'quest', value: 7 },
       { topic: 'dragon_slain', days: 60 },
       {
         card: L(

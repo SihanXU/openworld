@@ -61,6 +61,8 @@ const menu = new Menu({
   atlas: () => send({ t: 'atlas' }),
   travel: (waypoint) => send({ t: 'travel', waypoint }),
   profession: (id) => send({ t: 'profession', id }),
+  track: (id) => send({ t: 'track', id }),
+  board: (who, ref) => send({ t: 'board', who, ref }),
   boon: (id) => send({ t: 'boon', id }),
   transfer: (from, item, all) => send({ t: 'transfer', from, item, all }),
   closePanel: () => send({ t: 'closePanel' }),
@@ -90,7 +92,7 @@ const hud = new Hud(
     toggleCraft: () => openPanel('craft', () => menu.toggle('craft')),
     toggleOptions: () => menu.toggle('options'),
     toggleSkills: () => menu.toggleSkills(),
-    toggleQuests: () => menu.toggleQuests(),
+    toggleQuests: () => (menu.toggleQuests(), document.getElementById('questBtn')?.classList.remove('flash')),
     toggleSkillPanel: () => menu.toggleSkillPanel(),
     toggleBuilding: () => toggleBuilding(),
     talk: (verb) => send({ t: 'talk', verb }),
@@ -314,6 +316,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       people.onFrame(m.frame)
       // a rule opened one of the player's panels (a trainer: the choice of profession)
       if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'profession')) menu.openProfession()
+      // the commission board read (docs/quests.md §3): the favours on offer
+      const board = m.frame.fx.find((x) => x.t === 'panel' && x.panel === 'board')
+      if (board && board.t === 'panel' && board.by) menu.openBoard(board.by)
       // a woken waypoint statue: the companion's boons
       if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'boons')) menu.openBoons()
       // the Held Ground's stall: its shelves (homestead.ts)
@@ -588,7 +593,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyC') return openPanel('craft', () => menu.toggle('craft'))
   if (e.code === 'KeyK') return menu.toggleSkills()
   if (e.code === 'KeyM') return openPanel('map', () => menu.toggleMap())
-  if (e.code === 'KeyL') return menu.toggleQuests()
+  if (e.code === 'KeyL') return void (menu.toggleQuests(), document.getElementById('questBtn')?.classList.remove('flash'))
   if (e.code === 'KeyU') return menu.toggleSkillPanel()
   if (e.code === 'KeyQ' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'dash' })
   // X: draw one's weapon (a blow on a person is meant), or put it away; V: walk soft (docs/npc-sandbox.md)

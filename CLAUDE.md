@@ -38,8 +38,12 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
   lines, schedule variants with the thing an activity needs, topics (`people.ts`), the story's one
   script (`story.ts`, world-model.md §6.12: steps with triggers — a scene takes control, a beat does
-  not — that write only the story and send pushes and notices; guides and hints; a guide's lessons,
-  the tutorial's drills that lock the keys they do not teach, `Controls.allows` — docs/prologue.md); the state is things and the
+  not — that write only the story and send pushes and notices; steps wait on quests' stages and objectives; hints; the lessons
+  of a quest's stage, the tutorial's drills that lock the keys they do not teach, `Controls.allows` — docs/prologue.md); the quests
+  (`quests.ts`, docs/quests.md: Bethesda's model — a quest under way is a resident thing whose props are its state; aliases filled
+  as it begins (essential people, kept things as derived tags), objectives, stages; it sees news the engine makes after every
+  outcome and answers with its own rules, others notify it; the story is the Story Manager: auto starts, radiant offers; offers
+  and topics in the talk panel, the journal, tracking, markers); the state is things and the
   clock (world-model.md §3): facts and topics are the story's props, memories each person's,
   a map's named areas are `region` things (`in-region`); invariants live in the engine; events, relations (contact from the relation difference),
   active/dormant maps and the writer (`World.grant`: the mutators throw outside an outcome, the
@@ -59,8 +63,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   `follow` for people); the inputs X (draw) and V (sneak) are statuses the input keeps.
 - `packages/content` — ontology (terrains, statuses, elements, types), item catalogue
   (forms × materials × qualities × elements), crafting recipes (`recipes.ts`), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
-  story rules, objectives and invariants (`ford.ts`), the prologue's objectives and beats (`prologue.ts`), the main quest's rules and objectives (`quest.ts`,
-  docs/main-quest.md), Chapter 1's quests, objectives and rules (`chapter1.ts`; its maps and scenes in
+  story rules and invariants (`ford.ts`), the prologue's beats and lessons (`prologue.ts`), the main quest's rules (`quest.ts`,
+  docs/main-quest.md), the quests (`quests/`: the main line, the people's errands through `errand()`, the radiant favours; docs/quests.md),
+  Chapter 1's facts and rules (`chapter1.ts`; its maps and scenes in
   `tools/src/demo/quest/chapter1.ts`, docs/chapter-1.md), the fairy's boons (`boons.ts`), the boss kits (four: the White Knight and three for later), defeat rules and compatibility migration (`bosses.ts`, `migrateBosses.ts`), the look table and its generator (`looks.ts`: bodies, parts, colours, `generateLook` seeded by a person's id, `describeLook`), the people's social rules and numbers (`social.ts`: deeds and fines, the watches, talk verbs, the people's rules), chunk codec.
 - `packages/tools` — `art/animals.ts` (the project's own sprites → `client/public/assets/lsw/`), `demo/` (the hand-crafted Ford, Firstlight Village west of it (`meadow`) and the forest south of that, and the main quest's maps and scenes in `quest/` → `public/world/`, each map from its own seed: `builder.ts` the map DSL
   with the tools of composition — curved paths, organic shapes, fences and yards, small things by masks,

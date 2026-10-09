@@ -6,6 +6,7 @@ import { line, type PersonDef } from '../person.ts'
 export const fennick: PersonDef = {
   id: 'npc.fennick',
   role: 'guard',
+  essential: true,
   name: { en: 'Fennick', zh: '芬尼克' },
   gender: 'male',
   look: { parts: { hair: 'hair.swept', face: 'face.soft', outfit: 'outfit.plate', beard: 'beard.moustache', hat: null }, colors: { hair: 'snow', eyes: 'sky', skin: 'fair', 'outfit.1': 'ivory', 'outfit.2': 'gold', 'outfit.3': 'steel' } },

@@ -1163,7 +1163,6 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       // the story's facts are its props: a world event's patch on the story may not change its protected ones
       const fact = (e.op === 'setProp' || e.op === 'addProp') && resident ? e.key : undefined
       if (fact && isProtected(fact, ctx.protectedFacts)) errors.push(`${where}: a world event may not change the story's fact "${fact}"`)
-      if (e.op === 'setProp' && e.key === 'quest') errors.push(`${where}: a world event may not change the story's stage`)
     }
   }
   /** A label is Text naming only the roles an input has: {target}, {instrument}, {actor}. */
@@ -1207,6 +1206,9 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     else checkSel(r.host, `${where}.host`)
     if ('when' in (r as object) || 'do' in (r as object)) errors.push(`${where}: this is the earlier rule shape (when/do); write {host, on, tree}`)
     const resident = !!r.host?.type && isA(r.host.type, 'resident')
+    // a quest answers only its own rules (docs/quests.md §2: no patch hosts one, none writes one)
+    if (r.host?.type && isA(r.host.type, 'resident/quest')) errors.push(`${where}.host: a quest is the content's; a patch may not host a rule on one — notify the story, or the people the quest names`)
+    if (r.host?.type === 'resident') errors.push(`${where}.host: name the resident (resident/story, resident/world)`)
     if (r.tree === undefined) errors.push(`${where}: tree required`)
     else checkTree(r.tree, `${where}.tree`, resident, r.host)
     if (r.label !== undefined) checkLabel(r.label, `${where}.label`)

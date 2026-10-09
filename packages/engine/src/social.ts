@@ -375,6 +375,10 @@ export class Social {
       this.changeRegard(seer, doer.id, -this.share(seer, against) * def.weight)
     }
     if (def.violent) this.frighten(seer, doer.id)
+    // a thing of theirs taken by someone they know, not the one at the keys: news for the quests (a favour to get it back)
+    const victim = this.victim(against, seer)
+    if (known && thing && doer.id !== w.state.player && (def.id === 'theft' || def.id === 'pickpocket') && (victim === 'me' || victim === 'ours'))
+      eng.quests.news({ kind: 'deed', actor: doer.id, target: seer.id, item: thing.id, topic: def.id })
     return mem
   }
 
@@ -546,6 +550,8 @@ export class Social {
   buys(merchant: Entity, thing: Entity, seller: Entity): boolean {
     const w = this.w
     if (!w.hasTag(merchant, 'merchant') || this.isCoin(thing) || thing.frozenBy) return false
+    // what a quest under way keeps (docs/quests.md: an alias's `keep`) is not for sale
+    if (w.hasTag(thing, 'quest-item')) return false
     if (w.hasTag(thing, 'important') || w.hasTag(thing, 'bound') || w.hasTag(thing, 'relic')) return false
     if (w.worn(seller).some((x) => x.id === thing.id)) return false
     if (this.owns(merchant, thing) && !this.owns(seller, thing)) return false
@@ -688,11 +694,26 @@ export class Social {
     const fits = (v: TalkVerb) => !!v.arrest === arrest && evalCond(v.when, roles, w)
     const saved = w.state.rng
     try {
-      return (w.onto.data.talk ?? []).filter(fits).map((v) => ({ id: v.id, label: fill(v.label), ...(v.choices && { choices: v.choices.filter((c) => evalCond(c.when, roles, w)).map((c) => ({ id: c.id, label: fill(c.label) })) }) }))
+      // the quests' first (docs/quests.md §2.4): their offers to take on or turn down, the topics of those under way
+      const quests: TalkOption[] = arrest ? [] : this.questVerbs(person, speaker)
+      return [...quests, ...(w.onto.data.talk ?? []).filter(fits).map((v) => ({ id: v.id, label: fill(v.label), ...(v.choices && { choices: v.choices.filter((c) => evalCond(c.when, roles, w)).map((c) => ({ id: c.id, label: fill(c.label) })) }) }))]
     } finally {
       // offering a verb rolls nothing
       w.state.rng = saved
     }
+  }
+
+  /** A person's quest verbs for a speaker: `quest:<ref>:accept|decline` for each offer, `quest:<ref>:<topic>` for each topic. */
+  questVerbs(person: Entity, speaker: Entity): TalkOption[] {
+    const q = this.eng.quests
+    const name = (t: Text, l: 'en' | 'zh') => (typeof t === 'string' ? t : (l === 'zh' ? t.zh : undefined) ?? t.en)
+    const out: TalkOption[] = []
+    for (const o of q.offers(person.id, speaker)) {
+      out.push({ id: `quest:${o.ref}:accept`, label: { en: `Accept: ${name(o.title, 'en')}`, zh: `接受「${name(o.title, 'zh')}」` } })
+      out.push({ id: `quest:${o.ref}:decline`, label: { en: `Not now (${name(o.title, 'en')})`, zh: `拒绝「${name(o.title, 'zh')}」` } })
+    }
+    for (const t of q.topics(person.id, speaker)) out.push({ id: `quest:${t.ref}:${t.topic}`, label: t.label })
+    return out
   }
 
   /** The one the talk is with, as the panel shows them: their regard word, what they hold against the speaker, what the speaker owes here, the verbs. */

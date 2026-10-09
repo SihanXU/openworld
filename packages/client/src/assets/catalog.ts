@@ -449,6 +449,7 @@ export const CATALOG: Catalog = {
     'structure:door_open': { base: t(IFLOOR, 12, 1) },
     'site:wild': { base: t(DETAIL, 3, 2) },
     'fixture:noticeboard': { base: t(ELEM, 1, 2) },
+    'fixture:questboard': { base: t(ELEM, 1, 2) },
     'fixture:craft': { base: t(HOUSE, 29, 15) },
     'fixture:anvil': { base: t(HOUSE, 29, 15) },
     'fixture:forge': { base: px(HOUSE, 496, 192, 32, 48, 16, 46) },

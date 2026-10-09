@@ -8,6 +8,7 @@ const FORGE = { uses: 'emberfall.forge', need: { status: ['lit'] } }
 export const garrick: PersonDef = {
   id: 'npc.garrick',
   role: 'smith',
+  essential: true,
   name: { en: 'Garrick', zh: '加里克' },
   gender: 'male',
   look: { parts: { hair: 'hair.cropped', face: 'face.stern', outfit: 'outfit.apron', beard: 'beard.full', mark: 'mark.scar', hat: null }, colors: { hair: 'black', eyes: 'bark', skin: 'tan' } },

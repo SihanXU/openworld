@@ -47,6 +47,12 @@ export interface PersonDef {
   lawful?: boolean
   /** One who follows anyone who asks (a hireling), regard or not. */
   hireling?: boolean
+  /**
+   * One the story needs (docs/npc-sandbox.md §2.8, docs/quests.md §2.6): they go down instead of dying — whoever
+   * speaks in its scenes, gives its quests or is named by them, and the trainer; a quest under way adds the
+   * people it names for as long as it runs (its aliases' `essential`). The rest are mortal.
+   */
+  essential?: boolean
   /** Props they begin with beyond their type's (one who comes in hungry). */
   props?: Record<string, PropValue>
 }

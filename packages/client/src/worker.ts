@@ -37,7 +37,7 @@ import {
   CEILING,
   TICKS_PER_HOUR,
 } from '@lsw/engine'
-import { BASE_RULES, BOSS_LAYOUT, createBoss, COMPANION_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, PROLOGUE_DONE, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateCompanion, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
+import { BASE_RULES, BOSS_LAYOUT, createBoss, COMPANION_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateCompanion, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
@@ -67,7 +67,6 @@ let timer: ReturnType<typeof setInterval> | undefined
 let lastTickMs = 0
 let lastRecordsVersion = -1
 let saveEvery = 0
-let lastQuest: unknown
 /** The dev console's summon: a boss to set down once its map is the one the player stands on (loaded). */
 let summon: { kit: string; map: string; x: number; y: number } | undefined
 
@@ -323,13 +322,14 @@ async function atlas(): Promise<Atlas | undefined> {
     }
     maps.push({ id: m.id, name: m.name, at: m.at, width: m.width, height: m.height, terrain })
   }
+  const targets = game.engine.quests.targets().map((x) => ({ map: x.map, x: x.x, y: x.y, text: x.text }))
   const named = new Map((index.waypoints ?? []).map((x) => [x.id, x.name]))
   const stones = waypoints(game.engine).map(({ e, attuned }) => ({ id: e.id, map: (e.place as { map: string }).map, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: named.get(e.id) ?? e.name ?? { en: 'Waypoint', zh: '传送雕像' }, attuned }))
   const pos = w.posOf(w.player)!
   // a place off the world's layout (the tutorial's clearing) with nothing else seen yet: it is the map, alone
   const here = index.maps.find((m) => m.id === pos.map)
   if (!maps.length && here && w.state.maps[here.id]) maps.push({ id: here.id, name: here.name, at: { x: 0, y: 0 }, width: here.width, height: here.height, terrain: w.state.maps[here.id]!.terrain })
-  return { maps, waypoints: stones, here: { map: pos.map, x: pos.x, y: pos.y } }
+  return { targets, maps, waypoints: stones, here: { map: pos.map, x: pos.x, y: pos.y } }
 }
 
 function libraryView(): LibraryView {
@@ -387,8 +387,10 @@ function doSave(auto = false): void {
     hour: Math.floor(cal.hour),
     minute: cal.minute,
     level: Math.max(1, w.num(p, 'level', 1)),
-    prologue: w.num(p, 'prologue', PROLOGUE_DONE),
-    quest: w.num(p, 'quest'),
+    ...(() => {
+      const s = game.engine.quests.summary()
+      return { ...(s.title && { quest: s.title }), ...(s.objective && { objective: s.objective }) }
+    })(),
     difficulty,
     ...(fallen && { ended: true }),
   }
@@ -452,12 +454,8 @@ function loop(): void {
     post({ t: 'map', map: w.state.maps[pos.map] })
     if (!first) saveEvery = 599 // save right after arriving somewhere new
   }
-  // save as soon as the story moves on
-  const quest = w.player.props?.quest
-  if (quest !== lastQuest) {
-    if (lastQuest !== undefined) saveEvery = 599
-    lastQuest = quest
-  }
+  // save as soon as the story moves on (a quest reached a stage)
+  if (w.fx.some((x) => x.t === 'quest')) saveEvery = 599
   // (what the tick itself opened: a guard stopping the one at the keys)
   peopleOpened(eng)
   const frame = snapshot(eng, { panel })
@@ -712,6 +710,12 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (m.verb !== 'bye') game.engine.controls.talk(with_.who, m.verb, m.choice)
         break
       }
+      case 'track':
+        game?.engine.controls.track(m.id)
+        break
+      case 'board':
+        game?.engine.controls.board(m.who, m.ref)
+        break
       case 'closeTalk':
         // walking away from a guard who stopped one is resisting
         if (game && talk?.arrest) game.engine.controls.talk(talk.who, 'resist')

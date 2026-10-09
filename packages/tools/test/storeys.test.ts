@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, buildSandbox, buildScenario, madeOf, scenarioEvent, TICKS_PER_HOUR, type Entity, type Engine, type GameEvent, type World } from '@lsw/engine'
-import { BASE_RULES, PROLOGUE_DONE, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
+import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
 import { AT, buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()
@@ -18,7 +18,7 @@ function fresh(): F {
   const game = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
   for (const c of chunks) game.loadChunk(decodeChunk(c))
   const eng = game.engine
-  eng.author(() => ((eng.world.player.props ??= {}).prologue = PROLOGUE_DONE))
+  eng.author(() => eng.quests.put('descent', 'done'))
   eng.author(() => eng.teleport(eng.world.player, { map: 'ford', x: AT.spawn[0], y: AT.spawn[1] }))
   return { eng, w: eng.world }
 }

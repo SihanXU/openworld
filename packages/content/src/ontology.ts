@@ -207,6 +207,8 @@ export const STATUSES: StatusDef[] = [
   { id: 'broken', name: { en: 'broken', zh: '坏了' } },
   // at no health the essential (people, the player) collapse for a while instead of dying
   { id: 'down', name: { en: 'down', zh: '倒地' }, duration: 300, immobilize: true },
+  // a quest's deadline (docs/quests.md): when it runs out, an offer is withdrawn and a quest under way fails
+  { id: 'due', name: { en: 'due', zh: '期限' } },
   // out cold (a new game's first moments): lying still a while, then one comes round
   { id: 'out_cold', name: { en: 'out cold', zh: '昏迷' }, duration: 50, immobilize: true },
   // asleep in a bed: lying still while the night passes, hungry four times slower (the hunger period's paceBy)
@@ -359,6 +361,8 @@ const RESIDENTS: TypeDef[] = [
   { id: 'resident', name: { en: 'the world', zh: '世界' } },
   { id: 'resident/world', name: { en: 'the world', zh: '世界' } },
   { id: 'resident/story', name: { en: 'the story', zh: '故事' } },
+  // a quest under way (docs/quests.md): a resident thing whose props are its state, answering only its own rules
+  { id: 'resident/quest', name: { en: 'quest', zh: '任务' } },
   // a map's named area (world-model.md §5.4): entering and leaving it is the relation in-region
   { id: 'region', name: { en: 'an area', zh: '区域' } },
   // a room: found where cells are covered and walled all round (derived, read-only, world-model.md §5.4)
@@ -428,6 +432,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/sign', 'sign', '告示牌', ['wooden', 'flammable', 'readable'], { solid: true, props: { material: 'wood', maxHp: 4, hp: 4, handsRange: 2 }, makeup: [{ type: 'item/material/stick', count: 1 }, { type: 'item/material/plank', count: 1 }] }),
   F('fixture/tent', 'tent', '帐篷', ['cloth', 'flammable', 'shelter', 'opaque'], { solid: true, footprint: [3, 3] }),
   F('fixture/sign/noticeboard', 'notice board', '布告栏', ['paper']),
+  // the village's board of favours (docs/quests.md §3): what people want done, to take on
+  F('fixture/sign/questboard', 'commission board', '委托板', ['paper']),
   F('fixture/craft', 'workstation', '工作台', [], { solid: true }),
   F('fixture/craft/anvil', 'anvil', '铁砧', ['metal', 'conductive', 'surface']),
   F('fixture/craft/forge', 'forge', '熔炉', ['stone', 'lightable', 'cookware']),

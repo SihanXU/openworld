@@ -6,6 +6,7 @@ import { line, type PersonDef } from '../person.ts'
 export const marta: PersonDef = {
   id: 'npc.marta',
   role: 'innkeeper',
+  essential: true,
   name: { en: 'Marta', zh: '玛尔塔' },
   gender: 'female',
   look: { parts: { hair: 'hair.bun', face: 'face.soft', outfit: 'outfit.workdress', hat: null }, colors: { hair: 'chestnut', eyes: 'hazel', skin: 'warm', 'outfit.1': 'madder', 'outfit.2': 'linen' } },

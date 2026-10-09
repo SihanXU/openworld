@@ -66,6 +66,9 @@ export type ToWorker =
   | { t: 'toggle'; what: 'drawn' | 'sneaking' }
   /** The talk panel: a verb said to the one the talk is with (and its choice); the talk closed. */
   | { t: 'talk'; verb: string; choice?: string }
+  /** The journal: the quest followed (docs/quests.md §2.5); the commission board: a favour taken on. */
+  | { t: 'track'; id?: string }
+  | { t: 'board'; who: string; ref: string }
   | { t: 'closeTalk' }
   /** The trade panel: one of the merchant's goods bought, or a thing sold to it; the panel closed. */
   | { t: 'trade'; item: string; buy: boolean }
@@ -150,6 +153,8 @@ export interface Atlas {
   maps: AtlasMap[]
   waypoints: { id: string; map: string; x: number; y: number; name: Text; attuned: boolean }[]
   here: { map: string; x: number; y: number }
+  /** Where the tracked quest's open objectives point (docs/quests.md §2.5): its markers on the world map. */
+  targets?: { map: string; x: number; y: number; text: Text }[]
 }
 
 /** What a save slot shows without loading it: where, when, how far. */
@@ -159,9 +164,9 @@ export interface SaveSummary {
   hour: number
   minute: number
   level: number
-  /** The story's stages (the objective is looked up from them). */
-  prologue: number
-  quest: number
+  /** The quest followed, and its first open objective (docs/quests.md). */
+  quest?: Text
+  objective?: Text
   difficulty?: Difficulty
   /** A hardcore game whose one life is spent: kept as it ended, never played on. */
   ended?: boolean

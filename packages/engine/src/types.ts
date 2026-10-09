@@ -721,8 +721,12 @@ export interface StepCond {
   weather?: string[]
   /** The story's facts. */
   facts?: Record<string, Cmp>
-  /** The leader's props (their stage). */
+  /** The leader's props. */
   props?: Record<string, Cmp>
+  /** Quests' stages (0 before one begins; a quest over keeps the stage it ended at): docs/quests.md. */
+  quest?: Record<string, Cmp>
+  /** Quests' objectives done (`quest.objective`: the warden down, Fennick heard). */
+  objectives?: string[]
   /** The leader carries (hand or bag) something of a type starting with this (each of these, for a list). */
   carrying?: string | string[]
   /** The leader has (true) or has not (false) these statuses (out cold, down). */
@@ -792,8 +796,6 @@ export interface StepDef {
   script?: SceneCmd[]
   /** The story's facts it sets. */
   facts?: Record<string, PropValue>
-  /** The leader's stage: the story tells them (`notify` what = key, value), and they keep it. */
-  props?: Record<string, PropValue>
   /** Said by the leader's companion, in a bubble, when it plays. */
   say?: Text
   /** What the companion says when spoken to while this is the latest beat (default: `say`). */
@@ -830,8 +832,8 @@ export type SceneCmd =
   | { warp: string; x: number; y: number }
   /** add or remove a status on an entity (the Hearth goes out: remove 'lit') */
   | { status: Id; add?: string; remove?: string }
-  /** set a prop on the player (the story's stage) */
-  | { prop: string; value: PropValue }
+  /** tell a quest to reach a stage (its own rule answers: docs/quests.md) */
+  | { stage: string; n: number }
   /** tell someone something (a notice they answer themselves: the fairy given a boon) */
   | { tell: Id; params: Record<string, PropValue> }
   /** a full-screen card (the ending), advanced like a line */
@@ -1418,10 +1420,30 @@ export type Effect =
   | { op: 'dropContents'; still?: boolean; to?: RoleRef; keepWorn?: boolean; keep?: string[]; bundle?: string }
   | { op: 'goto'; anchor: string; hours: number; activity?: string }
   | { op: 'topic'; id: string; days?: number }
-  /** The host (a person) is spoken to about quests: its business with the speaker goes to the story; else it says its line. */
+  /**
+   * The host (a person, a notice board) is spoken to about quests (docs/quests.md §2.4): a quest under way that the
+   * word moves on sees it; else the host says its offer (accept or decline in the talk panel), its quest's waiting
+   * line, or its own. Asked with `say: quest` (a talk verb), the offer named (param quest) is accepted or declined,
+   * or the quest's topic (param topic) is told to it.
+   */
   | { op: 'quest' }
-  /** The story's: a quest's business (a word with its giver, a defeat) is settled (quests.ts). */
-  | { op: 'quests' }
+  /** A quest's (docs/quests.md): it sees news, and moves on — counts, objectives, the next stage whose trigger holds. */
+  | { op: 'advance' }
+  /** A quest's: it reaches a stage (a notice's SetStage), and looks again. */
+  | { op: 'stage'; n: Amount }
+  /** A quest's: an offer is taken on by the event's actor; or turned down (a radiant one is withdrawn). */
+  | { op: 'accept' }
+  | { op: 'decline' }
+  /** A quest's: past its deadline, or told so — an offer withdrawn, a quest under way failed. */
+  | { op: 'failQuest' }
+  /** The story's (the Story Manager): it sees news — the quests that begin on it begin, the radiant offers are made. */
+  | { op: 'begin' }
+  /** The story's or a quest's: a quest begins (`offer`: is offered), its aliases filled; param `quest` names it when `id` does not. */
+  | { op: 'startQuest'; id?: string; offer?: boolean }
+  /** The story's: the facts it is told (params `fact.<key>`) it keeps. */
+  | { op: 'facts' }
+  /** News for the quests (docs/quests.md §2.3): what this event is (its actor, host, item) — a gift handed over. */
+  | { op: 'news'; kind: 'give' | 'deed' | 'hungry' }
   /** The world's: what appears by itself on the active map now (its own and the world's appearances), or the one given. */
   | { op: 'appear'; what?: AppearDef }
   /** The host's stage clock ran out (param status): it becomes what its stage says next (world-model.md §6.5). */
@@ -1621,3 +1643,5 @@ export type FxEvent =
   | { t: 'talk'; who: Id; arrest?: boolean }
   /** A lesson (docs/prologue.md, the drills): done (its id), or an input it does not allow tried (the key shakes). */
   | { t: 'lesson'; done?: string; blocked?: LessonInput }
+  /** A quest reached a stage (docs/quests.md): its state after (the journal flashes; a save is made). */
+  | { t: 'quest'; id: Id; stage: number; state: string }

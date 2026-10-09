@@ -47,19 +47,8 @@ export function storyTopics(steps: StepDef[], rules: Rule[]): string[] {
   return [...out]
 }
 
-export interface Guide {
-  /** The leader's prop that holds the stage ('prologue', 'quest'). */
-  prop: string
-  /** The guide applies while the stage is below this (the prologue's end). */
-  until?: number
-  /** The prop's value when the leader has none yet. */
-  start?: number
-  stages: Record<number, { title: Text; hint: Text; progress?: { fact: string; need: number; label: Text }[]; lessons?: Lesson[] }>
-}
-
 export class Story {
   readonly defs = new Map<string, StepDef>()
-  guides: Guide[] = []
   /** The player entered a region, or a step played: the steps with a region are looked at on the next tick (an event, not a poll). */
   private arrived = false
   /** When the companion last spoke for the story (a beat's line): a lesson's line waits for it to be read. */
@@ -67,10 +56,9 @@ export class Story {
 
   constructor(private eng: Engine) {}
 
-  load(steps: StepDef[] = [], guides: Guide[] = []): void {
+  load(steps: StepDef[] = []): void {
     this.defs.clear()
     for (const d of steps) this.defs.set(d.id, d)
-    this.guides = guides
   }
 
   get running(): boolean {
@@ -91,7 +79,7 @@ export class Story {
     return true
   }
 
-  /** A step plays: the story keeps it, sets its facts, tells the leader their stage, the companion says its line; one with a script takes control. */
+  /** A step plays: the story keeps it and sets its facts, the companion says its line, the quests hear of it; one with a script takes control. */
   private play(d: StepDef): void {
     const w = this.eng.world
     const lead = this.leader()
@@ -101,9 +89,9 @@ export class Story {
       // the latest beat: what the companion repeats when spoken to
       ...(d.script ? [] : [{ op: 'setProp', key: 'step.last', value: d.id } as Effect]),
       ...Object.entries(d.facts ?? {}).map(([key, value]): Effect => ({ op: 'setProp', key, value })),
-      ...Object.entries(d.props ?? {}).map(([what, value]): Effect => ({ op: 'emit', impulse: 'notify', to: 'target', params: { what, value } })),
     ]
     this.eng.script(effects, { target: { e: lead.id } }, `step/${d.id}`)
+    this.eng.quests.news({ kind: 'step', key: d.id })
     const bird = this.eng.companions.of(lead.id)[0]
     if (d.say && bird) (w.fx.push({ t: 'say', who: bird.id, text: d.say }), (this.said = w.state.tick))
     if (d.script) w.scene = { id: d.id, step: 0 }
@@ -138,6 +126,8 @@ export class Story {
     if (c.weather && !c.weather.includes(cal.weather)) return false
     for (const [k, v] of Object.entries(c.facts ?? {})) if (!cmp(w.fact(k) ?? 0, v)) return false
     for (const [k, v] of Object.entries(c.props ?? {})) if (!cmp(lead.props?.[k] ?? 0, v)) return false
+    for (const [id, v] of Object.entries(c.quest ?? {})) if (!cmp(this.eng.quests.stage(id), v)) return false
+    for (const o of c.objectives ?? []) if (!this.eng.quests.done(o)) return false
     if (c.carrying) {
       const carried = [lead.held, ...(lead.contents ?? [])].map((id) => w.get(id)).filter((x): x is Entity => !!x)
       for (const type of typeof c.carrying === 'string' ? [c.carrying] : c.carrying) if (!carried.some((x) => x.type.startsWith(type))) return false
@@ -208,8 +198,6 @@ export class Story {
             break
           }
       if (now) this.lessonTick()
-      // the quests that move on by themselves (quests.ts advance): the story's own outcome
-      if (now && eng.quests.due()) eng.script([{ op: 'quests' }], {}, 'quests')
       return
     }
     for (let guard = 0; guard < 50; guard++) {
@@ -243,19 +231,13 @@ export class Story {
 
   // ---------------------------------------------------------------- lessons (docs/prologue.md, the drills)
 
-  /** The lesson at hand: the first of the leader's stage's lessons the story has not marked done (`lesson.<id>`); none while a scene plays. */
+  /** The lesson at hand: the first of the current quest stage's lessons the story has not marked done (`lesson.<id>`); none while a scene plays. */
   lesson(): { def: Lesson; index: number; total: number } | undefined {
     const w = this.eng.world
     if (w.scene) return undefined
-    const lead = this.leader()
-    for (const g of this.guides) {
-      const v = Number(lead.props?.[g.prop] ?? g.start ?? 0)
-      if (g.until !== undefined && v >= g.until) continue
-      const list = g.stages[v]?.lessons ?? []
-      const i = list.findIndex((l) => !w.fact(`lesson.${l.id}`))
-      return i < 0 ? undefined : { def: list[i], index: i, total: list.length }
-    }
-    return undefined
+    const list = this.eng.quests.lessons()
+    const i = list.findIndex((l) => !w.fact(`lesson.${l.id}`))
+    return i < 0 ? undefined : { def: list[i], index: i, total: list.length }
   }
 
   /** The lesson at hand begins (its line, once the companion's last is read) and ends when its state holds. */
@@ -292,25 +274,9 @@ export class Story {
 
   // ---------------------------------------------------------------- objectives
 
-  /** The objective now, as a companion says it: "Mend the bridge — three planks … (planks 1/3)". */
+  /** The objective now, as a companion says it: the tracked quest's open objectives and its stage's hint (docs/quests.md §2.5). */
   objective(): Text | undefined {
-    const w = this.eng.world
-    const lead = this.leader()
-    for (const g of this.guides) {
-      const v = Number(lead.props?.[g.prop] ?? g.start ?? 0)
-      if (g.until !== undefined && v >= g.until) continue
-      const o = g.stages[v]
-      // within this guide's span but between its stages (the first moments): nothing to tell yet
-      if (!o) return undefined
-      const text = (l: 'en' | 'zh') => {
-        const pick = (t: Text) => (typeof t === 'string' ? t : (l === 'zh' ? t.zh : undefined) ?? t.en)
-        const counts = (o.progress ?? []).map((p) => `${pick(p.label)} ${Math.min(p.need, Number(w.fact(p.fact) ?? 0))}/${p.need}`)
-        const head = l === 'zh' ? `现在要：${pick(o.title)}。` : `Now: ${pick(o.title)}.`
-        return [head, pick(o.hint), counts.length ? (l === 'zh' ? `（${counts.join('，')}）` : `(${counts.join(', ')})`) : ''].filter(Boolean).join(' ')
-      }
-      return { en: text('en'), zh: text('zh') }
-    }
-    return undefined
+    return this.eng.quests.objective()
   }
 
   /** The line a companion repeats when spoken to: the latest beat's hint. */
@@ -371,9 +337,9 @@ export class Story {
       this.story([{ op: 'spawn', type: c.give, at: 'target', into: 'contents', still: true, ...(c.count && { count: c.count }) }], { e: w.state.player })
     } else if ('warp' in c) {
       this.send(w.player, { map: c.warp, x: c.x, y: c.y })
-    } else if ('prop' in c) {
-      // the story tells the player where the story stands; the player's own rule keeps it
-      this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: c.prop, value: c.value } }], { e: w.state.player })
+    } else if ('stage' in c) {
+      // the story tells a quest to reach a stage; the quest's own rule answers (docs/quests.md)
+      this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'stage', n: c.n } }], { e: `quest.${c.stage}` })
     } else if ('tell' in c) {
       this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: c.params }], { e: c.tell })
     } else if ('status' in c) {

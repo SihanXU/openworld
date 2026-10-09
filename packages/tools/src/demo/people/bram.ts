@@ -9,6 +9,7 @@ import { line, type PersonDef } from '../person.ts'
 export const bram: PersonDef = {
   id: 'npc.bram',
   role: 'trainer',
+  essential: true,
   name: { en: 'Bram', zh: '布拉姆' },
   gender: 'male',
   look: { parts: { hair: 'hair.thin', face: 'face.stern', outfit: 'outfit.gi', beard: 'beard.moustache', hat: null }, colors: { hair: 'steelgrey', eyes: 'storm', skin: 'warm', 'outfit.1': 'undyed', 'outfit.2': 'umber' } },

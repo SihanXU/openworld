@@ -100,9 +100,9 @@ describe('base library', () => {
     }
     // the same validator patches go through: known kinds, impulses, primitives, statuses, types, vfx;
     // effects write only their host (no `of`). Only the base may answer for anything (a root rule)
-    // and leave an outcome undefined (a hole the AI fills).
+    // and leave an outcome undefined (a hole the AI fills), and only the base hosts a quest's rules (docs/quests.md).
     const res = validatePatch({ artifacts: [...BASE_RULES, ...STORY_RULES].map((r) => ({ kind: 'rule' as const, rule: r })) }, { ontology: onto, library: new RuleLibrary() })
-    expect(res.errors.filter((e) => !e.includes('name the host') && !e.includes('may not leave an outcome undefined'))).toEqual([])
+    expect(res.errors.filter((e) => !e.includes('name the host') && !e.includes('may not leave an outcome undefined') && !e.includes('a quest is the content'))).toEqual([])
   })
 
   it('the root is total: every kind reaches a root rule, and no root rule inherits', () => {

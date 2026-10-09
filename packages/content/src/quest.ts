@@ -1,47 +1,11 @@
 // The main quest past the Ford (docs/main-quest.md): Emberfall, the old mine, fire and frost,
 // Cinder Pass and the dragon. Its state is facts under `mq.` (protected like the Ford's: only
-// these rules and the scenes change them) and the player's `quest` prop. Each stage's goal is a
-// state; the rules here are the turn-ins and rewards the people of Emberfall make, and the
-// dragon's phases.
+// these rules and the scenes change them), and the `emberfall` quest (quests/main.ts) answers them.
+// The rules here are the turn-ins and rewards the people of Emberfall make, and the dragon's phases.
 
 import type { Cond, Effect, Rule, Text, Tree } from '@lsw/engine'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
-
-/** Objectives for the stages after the Ford's (the Ford's are 0–2, in ford.ts). */
-export const QUEST_OBJECTIVES: Record<number, { title: Text; hint: Text; progress?: { fact: string; need: number; label: Text }[] }> = {
-  3: {
-    title: L('Emberfall', '余烬镇'),
-    hint: L('Find Mara, the elder of Emberfall. She will know what burns the hills.', '找到余烬镇的长老玛拉。她会知道是什么在烧山。'),
-  },
-  4: {
-    title: L('Arm for the dragon', '为屠龙做准备'),
-    hint: L(
-      'Garrick the smith will forge a blade for 5 iron ore and 3 coal — the old mine north of the village has the veins (a pickaxe breaks them; the richest lie past the cyclops). Wren the herbalist will brew a fireproof draught for 3 fireweed (Firstlight Village) and 3 frostcap (the forest). Hand them what they ask (G), then talk to them (E).',
-      '铁匠加里克要 5 块铁矿石和 3 块煤来锻一把剑——镇北的旧矿坑里有矿脉（用镐敲开）。草药师雷恩要 3 株火焰草（初原村）和 3 朵霜盖菇（森林）来熬防火药剂。把东西交给他们（G），再和他们说话（E）。',
-    ),
-    progress: [
-      { fact: 'mq.ore', need: 5, label: L('Iron ore', '铁矿石') },
-      { fact: 'mq.coal', need: 3, label: L('Coal', '煤') },
-      { fact: 'mq.fireweed', need: 3, label: L('Fireweed', '火焰草') },
-      { fact: 'mq.frostcap', need: 3, label: L('Frostcap', '霜盖菇') },
-      { fact: 'mq.blade', need: 1, label: L('Dragonsbane', '屠龙剑') },
-      { fact: 'mq.draught', need: 1, label: L('Fireproof draught', '防火药剂') },
-    ],
-  },
-  5: {
-    title: L('Cinder Pass', '烬岭山道'),
-    hint: L('Climb the pass east of Emberfall to the dragon\'s lair. Drink the fireproof draught before you go in.', '翻过余烬镇东边的山道，去魔龙的巢穴。进去之前喝下防火药剂。'),
-  },
-  6: {
-    title: L('The dragon of Cinder Peak', '烬峰魔龙'),
-    hint: L('Defeat the dragon. Space strikes; keep out of its line of fire, and mind its whelps.', '打倒魔龙。空格键攻击；别站在它喷火的直线上，小心它的幼龙。'),
-  },
-  7: {
-    title: L('The end', '终章'),
-    hint: L('The dragon is dead. Emberfall can sleep. What you taught the world is in the Threadbook (J).', '魔龙死了，余烬镇可以安睡了。你教会这个世界的事都记在织线簿里（J）。'),
-  },
-}
 
 const story = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base', note: 'story' } })
 const say = (en: string, zh: string): Effect => ({ op: 'say', text: { en, zh } })
@@ -228,7 +192,7 @@ export const QUEST_RULES: Rule[] = [
       what('waypoint'),
       DO({ op: 'addProp', key: 'waypoints.attuned', delta: 1 }),
       IF(
-        all(what('meal'), { prop: { role: 'actor', key: 'prologue' } }),
+        what('meal'),
         DO({ op: 'addProp', key: 'prologue.meals', delta: 1 }),
         IF(what('experiment'), DO({ op: 'addProp', key: 'world.experiments', delta: 1 }), IF(what('dummy'), DO({ op: 'addProp', key: 'tutorial.dummy', delta: 1 }))),
       ),

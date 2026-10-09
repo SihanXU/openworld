@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, difficultyOf, snapshot, textOf, type Engine } from '@lsw/engine'
-import { BASE_RULES, PROLOGUE_DONE, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
+import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
 import { AT, buildFord } from '../src/demo/world.ts'
 
 function ford(difficulty?: 'easy' | 'normal' | 'hardcore'): Engine {
@@ -17,7 +17,7 @@ function ford(difficulty?: 'easy' | 'normal' | 'hardcore'): Engine {
   const eng = game.engine
   const w = eng.world
   eng.author(() => {
-    ;(w.player.props ??= {}).prologue = PROLOGUE_DONE
+    eng.quests.put('descent', 'done')
     w.setFact('seen.arrival', true)
     if (difficulty) w.setFact('game.difficulty', difficulty)
     eng.teleport(w.player, { map: 'ford', x: AT.spawn[0], y: AT.spawn[1] })

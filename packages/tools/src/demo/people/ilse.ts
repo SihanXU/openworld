@@ -6,6 +6,7 @@ import { line, type PersonDef } from '../person.ts'
 export const ilse: PersonDef = {
   id: 'npc.ilse',
   role: 'priest',
+  essential: true,
   name: { en: 'Sister Ilse', zh: '伊尔丝修女' },
   gender: 'female',
   look: { parts: { face: 'face.soft', outfit: 'outfit.vestment', hat: 'hat.hood' }, colors: { hair: 'steelgrey', eyes: 'storm', skin: 'fair', 'outfit.1': 'ivory', 'outfit.2': 'madder', 'hat.1': 'ivory' } },
