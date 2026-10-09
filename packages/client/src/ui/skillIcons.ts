@@ -32,6 +32,17 @@ export const SKILL_ART_KEYS = [
   'rain-plus', 'concussive-plus', 'light-gear', 'deadly-shot', 'windwalker', 'marksman',
   'frost-bolt', 'thunderstorm', 'meteor', 'fireball-plus', 'nova-plus', 'chain-plus',
   'blink-plus', 'frost-bolt-plus', 'mana-surge', 'elementalist', 'arcane-barrier', 'elemental-master',
+  // the life branches (tools/src/art/skill-life-*.ts)
+  'sharp-axe', 'carpenter', 'forester', 'timber-master', 'prospector', 'heavy-pick', 'stonecutter', 'gem-finder',
+  'deep-vein', 'forager', 'herbalist', 'angler', 'bait-saver', 'lucky-catch', 'deep-fisher', 'master-angler',
+  'farmer', 'green-fingers', 'wide-hoe', 'bountiful', 'seed-merchant', 'perennial-keeper', 'fruit-farmer', 'berry-farmer',
+  'irrigation', 'sprinkler', 'composter', 'rich-soil', 'grain-farmer', 'root-farmer', 'gourd-farmer', 'herb-gardener',
+  'seed-saver', 'market-gardener', 'golden-harvest', 'master-farmer', 'herdsman', 'milker', 'egg-collector', 'breeder',
+  'butcher', 'beekeeper', 'cheesemaker', 'dairy-master', 'coop-keeper', 'hen-whisperer', 'quick-breeder', 'stockman',
+  'feed-maker', 'tanner', 'leatherworker', 'plucker', 'apiarist', 'royal-jelly', 'rancher', 'master-rancher',
+  'apprentice-smith', 'forge-builder', 'efficient-smelting', 'weaponsmith', 'armorsmith', 'fine-craft', 'steelworking', 'goldsmith',
+  'jeweler', 'ore-merchant', 'tool-smith', 'keen-edge', 'heavy-arms', 'master-weaponsmith', 'plate-work', 'reinforced',
+  'master-armorsmith', 'masterwork', 'legendary-smith', 'grandmaster-smith',
 ] as const
 
 const known = new Set<string>(SKILL_ART_KEYS)

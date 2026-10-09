@@ -621,6 +621,8 @@ export class EffectRunner {
       case 'craft': {
         const r = eng.recipes.get(String(ev.params?.recipe ?? ''))
         if (!host || !r) return
+        // a recipe a skill teaches is made only by one who knows it
+        if (r.skill && !w.hasTag(host, `skill:${r.skill}`)) return
         if (!r.needs.every((n) => Number.isSafeInteger(n.count) && n.count > 0)) return
         const carried = [...(host.contents ?? []), ...(host.held ? [host.held] : [])].map((id) => w.get(id)!).filter(Boolean)
         if (!r.needs.every((n) => carried.filter((e) => e.type === n.type && !e.frozenBy).length >= n.count)) return
@@ -651,11 +653,25 @@ export class EffectRunner {
             w.destroy(e)
           }
         }
-        const quality = qualityFor(w.onto.data, w.num(host, 'level', 1), r.level ?? 1)
-        const look = r.make.tags || r.make.name ? r.make : madeOf(w.onto.data, w.onto, r.make.type, material, quality)
+        // the quality a maker reaches: their level, and what they know of the station's craft (`craft:<station>`), against
+        // the recipe's; a smith's masterwork or legend now and then lifts it (`<station>:masterwork`, `<station>:vowed`)
+        const station = r.station ?? 'hands'
+        let quality = qualityFor(w.onto.data, w.num(host, 'level', 1) + w.stat(host, `craft:${station}`), r.level ?? 1)
+        const tiers = ['crude', 'common', 'fine', 'masterwork']
+        if (w.stat(host, `${station}:vowed`) > 0 && w.rand() < w.stat(host, `${station}:vowed`)) quality = 'vowed'
+        else if (quality && tiers.includes(quality) && w.stat(host, `${station}:masterwork`) > 0 && w.rand() < w.stat(host, `${station}:masterwork`)) quality = tiers[Math.min(tiers.length - 1, tiers.indexOf(quality) + 1)]
+        const look = structuredClone(r.make.tags || r.make.name ? r.make : madeOf(w.onto.data, w.onto, r.make.type, material, quality))
+        // what the maker's hand adds to what it makes there (a weaponsmith's edge: `<station>:power`, `:def`, `:critChance`)
+        for (const key of ['power', 'def', 'critChance'] as const) {
+          const add = w.stat(host, `${station}:${key}`)
+          const base = look.props?.[key] ?? w.onto.resolve(r.make.type).props[key]
+          if (add && typeof base === 'number') look.props = { ...look.props, [key]: Math.round((base + add) * 100) / 100 }
+        }
+        // how many: the recipe's, times what the maker's stat for it adds (a smelter's, a seller's)
+        const count = Math.max(1, Math.round((r.count ?? 1) * (1 + (r.bonus ? Math.max(0, w.stat(host, r.bonus)) : 0))))
         let made = w.create(r.make.type, { on: 'inside', holder: host.id }, structuredClone(look))
         eng.touch({ e: made.id })
-        for (let i = 1; i < (r.count ?? 1); i++) (made = w.create(r.make.type, { on: 'inside', holder: host.id }, structuredClone(look))), eng.touch({ e: made.id })
+        for (let i = 1; i < count; i++) (made = w.create(r.make.type, { on: 'inside', holder: host.id }, structuredClone(look))), eng.touch({ e: made.id })
         const p = w.posOf(host)
         if (p) w.fx.push({ t: 'pickup', item: made.id, sprite: r.sprite, name: r.name, map: p.map, x: p.x, y: p.y })
         return

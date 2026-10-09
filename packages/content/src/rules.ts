@@ -6,6 +6,7 @@
 // undefined is the Mod port's.
 
 import { HOMESTEAD_RULES } from './homestead.ts'
+import { LIFE_RULES } from './life.ts'
 import { HUNGRY_BELOW, type Amount, type Cond, type Effect, type Text, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@lsw/engine'
 
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
@@ -586,7 +587,12 @@ const INSTRUMENTS: Rule[] = [
     on: 'act/use',
     tree: IF(
       { same: ['actor', 'target'] },
-      AS(L('Eat {instrument}', '吃掉{instrument}'), ASK(L('Eat {instrument}?', '要吃掉{instrument}吗？'), emit('restore', 'actor', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), emit('restore', 'actor', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), vfx('heal', 'actor'), log('You eat {host}.', '你吃掉了{host}。'), { op: 'destroy' })),
+      // (a Herbalist draws twice the good from it: life.ts)
+      IF(
+        tag('actor', 'skill:herbalist'),
+        AS(L('Eat {instrument}', '吃掉{instrument}'), ASK(L('Eat {instrument}?', '要吃掉{instrument}吗？'), emit('restore', 'actor', { which: 'hp', amount: { prop: 'heal', of: 'host', mul: 2, add: 2 } }), emit('restore', 'actor', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), vfx('heal', 'actor'), log('You eat {host}, and know what it is good for.', '你吃下{host}，你很清楚它的药效。'), { op: 'destroy' })),
+        AS(L('Eat {instrument}', '吃掉{instrument}'), ASK(L('Eat {instrument}?', '要吃掉{instrument}吗？'), emit('restore', 'actor', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), emit('restore', 'actor', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), vfx('heal', 'actor'), log('You eat {host}.', '你吃掉了{host}。'), { op: 'destroy' })),
+      ),
       IF(is('target', FEEDS), AS(L('Give {instrument} to {target}', '给{target}吃{instrument}'), DO(emit('restore', 'target', { which: 'hp', amount: { prop: 'heal', of: 'host', add: 1 } }), emit('restore', 'target', { which: 'hunger', amount: { prop: 'food', of: 'host' } }), vfx('heal', 'target'), log('You give {target} {host}.', '你给{target}吃了{host}。'), { op: 'destroy' })), 'inherit'),
     ),
   }),
@@ -700,7 +706,12 @@ const INSTRUMENTS: Rule[] = [
       doc: `A ${t.slice(5)} works what it is used on: a blow with a ${edge} edge.`,
       host: { tags: [t] },
       on: 'act/use',
-      tree: IF(any({ same: ['actor', 'target'] }, is('target', PERSON)), 'inherit', DO(emit('strike', 'target', { power: POWER, edge, ...WOUND }))),
+      tree: IF(
+        any({ same: ['actor', 'target'] }, is('target', PERSON)),
+        'inherit',
+        // (a Heavy Pick strikes half again as hard: life.ts)
+        t === 'tool:pickaxe' ? IF(tag('actor', 'skill:heavy-pick'), DO(emit('strike', 'target', { power: { param: 'power', mul: 1.5 }, edge, ...WOUND })), DO(emit('strike', 'target', { power: POWER, edge, ...WOUND }))) : DO(emit('strike', 'target', { power: POWER, edge, ...WOUND })),
+      ),
     }),
   ),
   ...(['key', 'writing', 'tool:fishing'] as const).map((t) =>
@@ -850,7 +861,8 @@ const PLACING: Rule[] = [
 
 const LIVING_TREE: Selector = { type: 'tile', tags: ['tree', 'flammable'] }
 const STUMP: Selector = { type: 'tile/stump' }
-const FELL: Effect[] = [remove('notched'), { op: 'transform', into: 'tile/stump' }, { op: 'spawn', type: 'item/material/log', at: 'host', count: 2 }, { op: 'spawn', type: 'item/material/stick', at: 'host' }, vfx('leaves'), log('Timber!', '树倒了！')]
+// (two logs and a stick — more by what the feller's skills grant: Timber Master, Forester; content life.ts)
+const FELL: Effect[] = [remove('notched'), { op: 'transform', into: 'tile/stump' }, { op: 'spawn', type: 'item/material/log', at: 'host', count: { prop: 'fellLogs', of: 'actor', add: 2 } }, { op: 'spawn', type: 'item/material/stick', at: 'host', count: { prop: 'fellSticks', of: 'actor', add: 1 } }, { op: 'spawn', type: 'item/seed/acorn', at: 'host', count: { prop: 'fellAcorns', of: 'actor' } }, vfx('leaves'), log('Timber!', '树倒了！')]
 
 const GROUND: Rule[] = [
   rule({
@@ -859,7 +871,8 @@ const GROUND: Rule[] = [
     doc: 'An axe on a living tree bites into it: it loses durability (as any blow) and shows a notch, which heals if the tree is left alone.',
     host: LIVING_TREE,
     on: 'impulse/strike',
-    tree: IF(tag('instrument', 'tool:axe'), DO({ op: 'hurt', amount: POWER, blow: true }, add('notched'), vfx('leaves'), log('The axe bites into {host}.', '斧头砍进了{host}。')), 'inherit'),
+    // (a Sharp Axe bites half again as deep: life.ts)
+    tree: IF(tag('instrument', 'tool:axe'), IF(tag('actor', 'skill:sharp-axe'), DO({ op: 'hurt', amount: { param: 'power', mul: 1.5 }, blow: true }, add('notched'), vfx('leaves'), log('The axe bites deep into {host}.', '斧头深深砍进了{host}。')), DO({ op: 'hurt', amount: POWER, blow: true }, add('notched'), vfx('leaves'), log('The axe bites into {host}.', '斧头砍进了{host}。'))), 'inherit'),
   }),
   rule({
     id: 'wood/heal',
@@ -907,7 +920,8 @@ const GROUND: Rule[] = [
     host: { type: 'item/material/log' },
     on: 'impulse/strike',
     // the two planks pop out (the magnet takes them in), as anything a rule drops
-    tree: IF(tag('instrument', 'tool:axe'), DO(log('You split the log into planks.', '你把木头劈成了木板。'), { op: 'spawn', type: 'item/material/plank', at: 'tileOf:host' }, { op: 'spawn', type: 'item/material/plank', at: 'tileOf:host' }, vfx('dust'), { op: 'destroy' })),
+    // (a Carpenter gets more: life.ts)
+    tree: IF(tag('instrument', 'tool:axe'), DO(log('You split the log into planks.', '你把木头劈成了木板。'), { op: 'spawn', type: 'item/material/plank', at: 'tileOf:host', count: { prop: 'splitPlanks', of: 'actor', add: 2 } }, vfx('dust'), { op: 'destroy' })),
   }),
   rule({
     id: 'farm/till',
@@ -915,7 +929,8 @@ const GROUND: Rule[] = [
     doc: 'A hoe turns diggable ground into farmland.',
     host: { type: 'tile', tags: ['diggable'] },
     on: 'impulse/strike',
-    tree: IF(tag('instrument', 'tool:hoe'), DO({ op: 'transform', into: 'tile/farmland' }, vfx('dust'))),
+    // (a Wide Hoe tills the diggable ground around too: life.ts farm/tilled)
+    tree: IF(tag('instrument', 'tool:hoe'), IF(tag('actor', 'skill:wide-hoe'), DO({ op: 'transform', into: 'tile/farmland' }, vfx('dust'), emit('notify', { area: { radius: 1 } }, { what: 'till' }, { filter: { type: 'tile', tags: ['diggable'] } })), DO({ op: 'transform', into: 'tile/farmland' }, vfx('dust')))),
   }),
   rule({
     id: 'core/fish',
@@ -928,10 +943,19 @@ const GROUND: Rule[] = [
       IF(
         has('host', 'stirred'),
         DO(vfx('splash'), log('The water is stirred up. Let it settle.', '水被搅浑了，等它静下来。')),
+        // (an Angler's bite more often; a Bait Saver keeps the bait half the times it is taken clean: life.ts)
         IF(
           { prop: { role: 'instrument', key: 'bait', cmp: { gt: 0 } } },
-          IF({ chance: 0.7 }, CATCH(true), DO(add('stirred'), emit('notify', 'instrument', { what: 'cast' }), vfx('splash'), log('The bait is taken clean. Nothing.', '鱼饵被啃光了。什么也没钓到。'))),
-          IF({ chance: 0.35 }, CATCH(false), DO(add('stirred'), vfx('splash'), log('The float bobs. Nothing bites — yet.', '浮漂晃了晃。还没咬钩。'))),
+          IF(
+            any({ chance: 0.7 }, all(tag('actor', 'skill:angler'), { chance: 0.5 })),
+            CATCH(true),
+            IF(
+              all(tag('actor', 'skill:bait-saver'), { chance: 0.5 }),
+              DO(add('stirred'), vfx('splash'), log('Nothing bites — but the bait is still on the hook.', '没有咬钩——但鱼饵还挂在钩上。')),
+              DO(add('stirred'), emit('notify', 'instrument', { what: 'cast' }), vfx('splash'), log('The bait is taken clean. Nothing.', '鱼饵被啃光了。什么也没钓到。')),
+            ),
+          ),
+          IF(any({ chance: 0.35 }, all(tag('actor', 'skill:angler'), { chance: 0.23 })), CATCH(false), DO(add('stirred'), vfx('splash'), log('The float bobs. Nothing bites — yet.', '浮漂晃了晃。还没咬钩。'))),
         ),
       ),
     ),
@@ -1295,12 +1319,8 @@ const BUILD: Rule[] = [
 const CROP: Selector = { type: 'fixture', tags: ['crop'] }
 const GROWING: Selector = { type: 'fixture', tags: ['crop', 'growing'] }
 const NOTHING_GROWS: Cond = { count: { role: 'target', in: 'tile', match: { tags: ['crop'] }, cmp: { eq: 0 } } }
-const harvested: Effect[] = [
-  { op: 'spawn', type: '@prop:host.yieldType', at: 'tileOf:host', count: { prop: 'yield', of: 'host' } },
-  { op: 'spawn', type: '@prop:host.seedType', at: 'tileOf:host', count: 2 },
-]
 const picked: Effect[] = [
-  { op: 'spawn', type: '@prop:host.yieldType', at: 'other', into: 'hand' },
+  { op: 'spawn', type: '@prop:host.yieldType', at: 'other', into: 'hand', count: { prop: 'pick', of: 'actor', add: 1 } },
   { op: 'spawn', type: '@prop:host.seedType', at: 'tileOf:host' },
 ]
 /** A perennial goes back to its young stage, its fertilizer spent. */
@@ -1312,17 +1332,63 @@ const regrow: Effect[] = [{ op: 'transform', into: '@prop:regrowType' }, remove(
  * A baited cast is spent (the rod is told).
  */
 function CATCH(baited: boolean): Tree {
-  const caught = (type: string, en: string, zh: string): Tree => DO(add('stirred'), { op: 'spawn', type, at: 'actor', into: 'contents' }, ...(baited ? [emit('notify', 'instrument', { what: 'cast' })] : []), vfx('splash'), log(en, zh))
-  return IF(all({ hour: { from: 5, to: 8 } }, { chance: 0.03 }), caught('item/food/fish/dawnscale', 'The line glows as it comes up — a Dawnscale, scales like the first morning!', '鱼线出水时在发光——是晨鳞鱼，鳞片像第一个清晨！'),
-    IF({ chance: 0.06 }, caught('item/food/fish/carp', 'Gold flashes in the water — a golden carp!', '水里闪过一道金光——是金鳞鲤！'),
+  // (a Master Angler brings up a fish more with every catch; a Lucky Catch finds the rare ones twice as often; a Deep
+  // Fisher finds pike in any water: life.ts)
+  const caught = (type: string, en: string, zh: string): Tree => DO(add('stirred'), { op: 'spawn', type, at: 'actor', into: 'contents' }, { op: 'spawn', type: 'item/food/fish/raw', at: 'actor', into: 'contents', count: { prop: 'fishExtra', of: 'actor' } }, ...(baited ? [emit('notify', 'instrument', { what: 'cast' })] : []), vfx('splash'), log(en, zh))
+  const lucky = (p: number): Cond => any({ chance: p }, all(tag('actor', 'skill:lucky-catch'), { chance: p }))
+  return IF(all({ hour: { from: 5, to: 8 } }, lucky(0.03)), caught('item/food/fish/dawnscale', 'The line glows as it comes up — a Dawnscale, scales like the first morning!', '鱼线出水时在发光——是晨鳞鱼，鳞片像第一个清晨！'),
+    IF(lucky(0.06), caught('item/food/fish/carp', 'Gold flashes in the water — a golden carp!', '水里闪过一道金光——是金鳞鲤！'),
       IF({ chance: 0.08 }, caught('item/misc/old_boot', 'Something heavy... an old boot.', '沉甸甸的……是一只旧靴子。'),
         IF(all({ weather: ['rain', 'storm'] }, { chance: 0.4 }), caught('item/food/fish/catfish', 'A whiskered head out of the rain — a catfish!', '雨里钻出一个长胡子的脑袋——是鲶鱼！'),
           IF(all({ hour: { from: 20, to: 5 } }, { chance: 0.45 }), caught('item/food/fish/eel', 'It writhes on the line in the dark — an eel!', '黑暗里它在鱼线上扭动——是鳗鱼！'),
-            IF(all(is('host', { type: 'tile/deepwater' }), { chance: 0.45 }), caught('item/food/fish/pike', 'Long and toothy, from the deep — a pike!', '又长又多牙，从深水里来——是狗鱼！'),
+            IF(all(any(is('host', { type: 'tile/deepwater' }), tag('actor', 'skill:deep-fisher')), { chance: 0.45 }), caught('item/food/fish/pike', 'Long and toothy, from the deep — a pike!', '又长又多牙，从深水里来——是狗鱼！'),
               IF(all({ hour: { from: 6, to: 19 } }, { chance: 0.45 }), caught('item/food/fish/sunfish', 'A bright little sunfish!', '一条亮闪闪的太阳鱼！'),
                 IF({ chance: 0.45 }, caught('item/food/fish/perch', 'A striped perch!', '一条带条纹的河鲈！'),
                   caught('item/food/fish/raw', 'A tug — you reel in a fish!', '一沉——你拉上来一条鱼！')))))))))
 }
+
+/** A crop watered: its status (twice as long for Irrigation), and the crops around told (a Sprinkler's). */
+function WATER(): Tree {
+  const around = emit('notify', { area: { radius: 1 } }, { what: 'water' }, { filter: { ...GROWING, notStatus: ['watered'] } })
+  const watered = (long: boolean, wide: boolean) => DO(add('watered', long ? 2400 : undefined), ...(wide ? [around] : []), vfx('splash'), log('You water {host}.', '你给{host}浇了水。'))
+  const wide = (long: boolean) => IF(tag('actor', 'skill:sprinkler'), watered(long, true), watered(long, false))
+  return IF(tag('actor', 'skill:irrigation'), wide(true), wide(false))
+}
+
+/**
+ * Harvesting a ripe crop with a sickle (farm/harvest, and one rule for each kind of crop: a farmer who knows that kind
+ * gets more of it): its yield, more for Bountiful (harvest) and the kind's skill (`harvest:<kind>`), and seeds (more for
+ * Farmer); a Golden Harvest now and then twice over; a perennial grows back — keeping its fertilizer and yield for a
+ * Perennial Keeper (content life.ts).
+ */
+function HARVEST(kind?: string): Tree {
+  const yieldOf: Effect[] = [
+    { op: 'spawn', type: '@prop:host.yieldType', at: 'tileOf:host', count: { prop: 'yield', of: 'host' } },
+    { op: 'spawn', type: '@prop:host.yieldType', at: 'tileOf:host', count: { prop: 'harvest', of: 'actor' } },
+    ...(kind ? [{ op: 'spawn', type: '@prop:host.yieldType', at: 'tileOf:host', count: { prop: `harvest:${kind}`, of: 'actor' } } as Effect] : []),
+    { op: 'spawn', type: '@prop:host.seedType', at: 'tileOf:host', count: { prop: 'seeds', of: 'actor', add: 2 } },
+  ]
+  const twice: Effect[] = [{ op: 'spawn', type: '@prop:host.yieldType', at: 'tileOf:host', count: { prop: 'yield', of: 'host' } }, log('A golden harvest — twice over!', '金色丰收——收成翻倍！')]
+  const after = (golden: boolean): Tree =>
+    IF(
+      tag('host', 'perennial'),
+      IF(tag('actor', 'skill:perennial-keeper'), DO(...yieldOf, ...(golden ? twice : []), log('You harvest {host}.', '你收割了{host}。'), { op: 'transform', into: '@prop:regrowType' }, vfx('leaves')), DO(...yieldOf, ...(golden ? twice : []), log('You harvest {host}.', '你收割了{host}。'), ...regrow, vfx('leaves'))),
+      DO(...yieldOf, ...(golden ? twice : []), log('You harvest {host}.', '你收割了{host}。'), vfx('leaves', 'tileOf:host'), { op: 'destroy' }),
+    )
+  return IF(all(tag('actor', 'skill:golden-harvest'), { chance: 0.15 }), after(true), after(false))
+}
+/** The harvest of whatever kind the crop is (one rule, farm/harvest: the kind decides which farmer's skill adds more). */
+function HARVEST_ANY(): Tree {
+  const kinds = (i: number): Tree => (i < CROP_KINDS.length ? IF(tag('host', `crop:${CROP_KINDS[i]}`), HARVEST(CROP_KINDS[i]), kinds(i + 1)) : HARVEST())
+  return IF(tag('instrument', 'tool:sickle'), kinds(0))
+}
+/** Picking a ripe crop by hand: one (two for Green Fingers) and a seed; a perennial grows back (as harvesting). */
+function PICK(): Tree {
+  const keep = (perennial: boolean): Tree => (perennial ? IF(tag('actor', 'skill:perennial-keeper'), DO(...picked, log('You pick {host}.', '你摘下了{host}。'), { op: 'transform', into: '@prop:regrowType' }, vfx('leaves')), DO(...picked, log('You pick {host}.', '你摘下了{host}。'), ...regrow, vfx('leaves'))) : DO(...picked, log('You pick {host}.', '你摘下了{host}。'), vfx('leaves', 'tileOf:host'), { op: 'destroy' }))
+  return IF(tag('host', 'perennial'), keep(true), keep(false))
+}
+/** The kinds of crop a farmer may know best (life.ts; ontology.ts crop:<kind>). */
+const CROP_KINDS = ['grain', 'herb', 'berry', 'root', 'gourd', 'fruit'] as const
 
 const FARM: Rule[] = [
   ...useOrPut.map((on) =>
@@ -1351,7 +1417,8 @@ const FARM: Rule[] = [
     doc: 'Water on a growing crop waters it (two hours later it grows a stage).',
     host: GROWING,
     on: 'impulse/element',
-    tree: IF(all(param('element', 'water'), not(has('host', 'watered'))), DO(add('watered'), vfx('splash'), log('You water {host}.', '你给{host}浇了水。')), 'inherit'),
+    // (Irrigation: the water stays twice as long; a Sprinkler waters the growing crops around too: life.ts farm/watered)
+    tree: IF(all(param('element', 'water'), not(has('host', 'watered'))), WATER(), 'inherit'),
   }),
   ...useOrPut.map((on) =>
     rule({
@@ -1383,8 +1450,9 @@ const FARM: Rule[] = [
       all(any(param('substance', 'ash'), param('substance', 'fertilizer')), not(has('host', 'fertilized'))),
       IF(
         param('substance', 'ash'),
-        DO(add('fertilized'), { op: 'addProp', key: 'yield', delta: 1 }, vfx('sparkle'), log('You work ash into the soil.', '你把灰烬翻进了土里。')),
-        DO(add('fertilized'), { op: 'addProp', key: 'yield', delta: 1 }, vfx('sparkle'), log('You work fertilizer into the soil.', '你把肥料翻进了土里。')),
+        // (Rich Soil: one more again: life.ts)
+        DO(add('fertilized'), { op: 'addProp', key: 'yield', delta: { prop: 'fertilize', of: 'actor', add: 1 } }, vfx('sparkle'), log('You work ash into the soil.', '你把灰烬翻进了土里。')),
+        DO(add('fertilized'), { op: 'addProp', key: 'yield', delta: { prop: 'fertilize', of: 'actor', add: 1 } }, vfx('sparkle'), log('You work fertilizer into the soil.', '你把肥料翻进了土里。')),
       ),
       'inherit',
     ),
@@ -1392,10 +1460,10 @@ const FARM: Rule[] = [
   rule({
     id: 'farm/harvest',
     label: L('Harvest {target}', '收割{target}'),
-    doc: 'A sickle harvests a ripe crop: its yield and two seeds (a perennial grows back).',
+    doc: 'A sickle harvests a ripe crop: its yield and two seeds (a perennial grows back); more by the harvester\'s skills — Bountiful, Farmer, the skill of the crop\'s kind (crop:<kind>), Golden Harvest, Perennial Keeper (life.ts).',
     host: { type: 'fixture', tags: ['crop', 'ripe'] },
     on: 'impulse/strike',
-    tree: IF(tag('instrument', 'tool:sickle'), IF(tag('host', 'perennial'), DO(...harvested, log('You harvest {host}.', '你收割了{host}。'), ...regrow, vfx('leaves')), DO(...harvested, log('You harvest {host}.', '你收割了{host}。'), vfx('leaves', 'tileOf:host'), { op: 'destroy' }))),
+    tree: HARVEST_ANY(),
   }),
   rule({
     id: 'farm/pick',
@@ -1403,7 +1471,7 @@ const FARM: Rule[] = [
     doc: 'Picking a ripe crop by hand: one of the crop and one seed (a perennial grows back).',
     host: { type: 'fixture', tags: ['crop', 'ripe'] },
     on: 'impulse/taken',
-    tree: IF(tag('host', 'perennial'), DO(...picked, log('You pick {host}.', '你摘下了{host}。'), ...regrow, vfx('leaves')), DO(...picked, log('You pick {host}.', '你摘下了{host}。'), vfx('leaves', 'tileOf:host'), { op: 'destroy' })),
+    tree: PICK(),
   }),
   rule({
     id: 'farm/dig-up',
@@ -1411,7 +1479,8 @@ const FARM: Rule[] = [
     doc: 'A shovel lifts a plant and gives back its seed.',
     host: CROP,
     on: 'impulse/strike',
-    tree: IF(tag('instrument', 'tool:shovel'), DO(log('You dig up {host}.', '你挖出了{host}。'), { op: 'transform', into: '@prop:seedType' }, vfx('dust'))),
+    // (a Seed Saver gets two seeds more: life.ts)
+    tree: IF(tag('instrument', 'tool:shovel'), DO(log('You dig up {host}.', '你挖出了{host}。'), { op: 'spawn', type: '@prop:host.seedType', at: 'tileOf:host', count: { prop: 'digSeeds', of: 'actor' } }, { op: 'transform', into: '@prop:seedType' }, vfx('dust'))),
   }),
 ]
 
@@ -1636,4 +1705,4 @@ const SITES: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...BUILDING, ...HOMESTEAD_RULES]
+export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...BUILDING, ...HOMESTEAD_RULES, ...LIFE_RULES]

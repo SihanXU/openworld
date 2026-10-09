@@ -252,6 +252,8 @@ export const FORMS: Form[] = [
   W('item/material/herb', 'Herb', '草药', 'item:herb', { tags: ['plant', 'flammable', 'medicinal', 'edible'], props: { heal: 3, food: 1 }, where: { wild: 3, temple: 1, farm: 0.5 } }),
   W('item/material/fireweed', 'Fireweed', '火焰草', 'item:herb_red', { tags: ['plant', 'flammable', 'fiery', 'reagent'], where: { wild: 1, library: 0.5 } }),
   W('item/material/frostcap', 'Frostcap', '霜盖菇', 'item:mushroom_blue', { tags: ['fungus', 'icy', 'reagent'], where: { wild: 0.8, dungeon: 0.5 } }),
+  // an ingot: smelted at a forge from ore (life.ts), its metal its material; worked on an anvil into gear
+  W('item/material/ingot', 'Ingot', '锭', 'item:ingot', { tags: ['metal', 'conductive'], materials: ['iron', 'steel', 'gold'], where: {} }),
   W('item/material/feather', 'Feather', '羽毛', 'item:feather', { tags: ['lightweight', 'flammable'], where: { wild: 1, farm: 1 } }),
   W('item/material/bone', 'Bone', '骨头', 'item:bone', { tags: ['bone'], where: { dungeon: 3, wild: 0.5 } }),
   W('item/material/cloth', 'Bolt of Cloth', '布匹', 'item:cloth', { tags: ['cloth', 'flammable'], where: { shop: 2, home: 0.5 } }),

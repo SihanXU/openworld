@@ -4,7 +4,7 @@
 // grid above the bag, a click moving a stack to the other side.
 
 import type { CodexEntry, CodexView, Frame, ItemInfo, Key, Rule, Text, Tree } from '@lsw/engine'
-import { COIN, FORM_BY_ID, RECIPES, stationName } from '@lsw/content'
+import { COIN, FORM_BY_ID, RECIPES, SKILL_BY_ID, stationName } from '@lsw/content'
 import { CATALOG } from '../assets/catalog.ts'
 import { personLook } from '../assets/looks.ts'
 import { assetUrl } from '../render/assets.ts'
@@ -463,7 +463,9 @@ export class Menu {
       // how many times what is carried makes it (the tools are not used up)
       // (a station's recipe is made beside one: away from it, nothing is made however much is carried)
       const here = !r.station || r.station === 'hands' || f.player.stations.includes(r.station)
-      const times = here && (r.tools ?? []).every(tool) ? Math.min(...r.needs.map((n) => Math.floor(have(n.type) / n.count))) : 0
+      // (a recipe a skill teaches: known only once it is learned)
+      const knows = !r.skill || f.player.skills.includes(r.skill)
+      const times = knows && here && (r.tools ?? []).every(tool) ? Math.min(...r.needs.map((n) => Math.floor(have(n.type) / n.count))) : 0
       const ok = times > 0
       const needs = r.needs
         .map((n) => {
@@ -477,7 +479,7 @@ export class Menu {
         }).join('')
       return `<div class="recipe${ok ? '' : ' off'}">
         <div class="slot" data-item="recipe:${r.id}"><div class="icon" data-icon="recipe:${r.id}"></div></div>
-        <div class="rname">${esc(tx(r.name))}${r.station && r.station !== 'hands' && !shelf ? ` <span class="station${here ? '' : ' short'}">${esc(tx({ en: `at a ${stationName(r.station).en}`, zh: `需在${stationName(r.station).zh}旁` }))}</span>` : ''}</div>
+        <div class="rname">${esc(tx(r.name))}${r.station && r.station !== 'hands' && !shelf ? ` <span class="station${here ? '' : ' short'}">${esc(tx({ en: `at a ${stationName(r.station).en}`, zh: `需在${stationName(r.station).zh}旁` }))}</span>` : ''}${r.skill ? ` <span class="station${knows ? '' : ' short'}">${esc(tx({ en: `skill: ${tx(SKILL_BY_ID[r.skill]?.name)}`, zh: `需学会${tx(SKILL_BY_ID[r.skill]?.name)}` }))}</span>` : ''}</div>
         <div class="needs">${needs}</div>
         <button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(here ? t('needMore') : tx({ en: `Stand beside a ${stationName(r.station!).en}`, zh: `站到${stationName(r.station!).zh}旁边` }))}"`}>${verb}${shelf === 'sell' ? ` → ${r.count}` : r.count && r.count > 1 ? ` ×${r.count}` : ''}</button>
         ${times > 1 ? `<button class="all" data-craft-all="${r.id}" title="${esc(t('craftAllTip'))}">${t('craftAll')} ×${times}</button>` : ''}

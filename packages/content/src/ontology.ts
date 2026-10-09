@@ -179,6 +179,8 @@ export const STATUSES: StatusDef[] = [
   { id: 'soaking', name: { en: 'soaking', zh: '泡温泉' }, duration: 8, clears: ['burning', 'frozen'], overlay: 'mend' },
   // water a line was cast into: nothing bites there until it settles
   { id: 'stirred', name: { en: 'stirred up', zh: '搅浑' }, duration: 100 },
+  // a mushroom ring picked, reeds cut, a hive's honey taken: none again until it grows back (life.ts)
+  { id: 'picked', name: { en: 'picked', zh: '已采' }, duration: 14400 },
   { id: 'frozen', name: { en: 'frozen', zh: '冰冻' }, duration: 40, clears: ['burning', 'wet'], immobilize: true, overlay: 'ice' },
   // frozen a moment ago: it does not freeze again until this wears off (in the rain, a wet thing struck
   // by ice again and again was held frozen through a whole fight)
@@ -322,8 +324,8 @@ const actorTypes: TypeDef[] = [
   P('actor/companion/fairy', 'fairy', '精灵', { tags: ['fairy', 'winged'], sprite: 'creature:fairy' }),
   // the meadow's animals: passive, they run when struck, and leave food behind (drop × drops)
   P('actor/creature/animal', 'animal', '动物', { tags: ['animal'], props: { behaviour: 'passive', temper: 'wary', sight: 4 } }),
-  P('actor/creature/animal/cow', 'cow', '牛', { tags: ['livestock', 'furry'], sprite: 'creature:cow', props: { hp: 10, maxHp: 10, atk: 0, speed: 7, babyType: 'actor/creature/animal/calf' }, makeup: [{ type: 'item/food/meat/raw', count: 4 }] }),
-  P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', stage: { lasts: LAYS_EVERY, yields: [{ type: 'item/food/egg/raw' }] }, props: { hp: 4, maxHp: 4, atk: 0, speed: 5, babyType: 'actor/creature/animal/chick' }, makeup: [{ type: 'item/food/chicken/raw', count: 2 }] }),
+  P('actor/creature/animal/cow', 'cow', '牛', { tags: ['livestock', 'furry'], sprite: 'creature:cow', props: { hp: 10, maxHp: 10, atk: 0, speed: 7, babyType: 'actor/creature/animal/calf', meat: 'item/food/meat/raw', hide: 'item/material/leather' }, makeup: [{ type: 'item/food/meat/raw', count: 4 }] }),
+  P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', stage: { lasts: LAYS_EVERY, yields: [{ type: 'item/food/egg/raw' }] }, props: { hp: 4, maxHp: 4, atk: 0, speed: 5, babyType: 'actor/creature/animal/chick', meat: 'item/food/chicken/raw', hide: 'item/material/feather' }, makeup: [{ type: 'item/food/chicken/raw', count: 2 }] }),
   // the young of a pair fed together (homestead.ts, Minecraft's breeding): they grow up in two days
   P('actor/creature/animal/calf', 'calf', '小牛', { tags: ['livestock', 'furry', 'young'], sprite: 'creature:calf', stage: { lasts: GROWS_UP, into: 'actor/creature/animal/cow' }, props: { hp: 5, maxHp: 5, atk: 0, speed: 6 }, makeup: [{ type: 'item/food/meat/raw', count: 1 }] }),
   P('actor/creature/animal/chick', 'chick', '小鸡', { tags: ['bird', 'feathered', 'young'], sprite: 'creature:chick', stage: { lasts: GROWS_UP, into: 'actor/creature/animal/chicken' }, props: { hp: 2, maxHp: 2, atk: 0, speed: 4 }, makeup: [{ type: 'item/material/feather', count: 1 }] }),
@@ -334,6 +336,14 @@ const actorTypes: TypeDef[] = [
   P('actor/creature/dragon', 'the dragon of Cinder Peak', '烬峰魔龙', { tags: ['boss', 'large', 'fiery', 'dragon'], sprite: 'boss:dragon', props: { hp: 700, maxHp: 700, atk: 7, def: 3, speed: 8, element: 'fire', range: 4 } }),
   P('actor/creature/crab', 'giant crab', '巨蟹', { tags: ['shelled', 'watery'], sprite: 'creature:crab', props: { hp: 20, maxHp: 20, atk: 4, def: 3, speed: 7 } }),
 ]
+
+/** What kind of crop each vegetable is (a farmer's specialty: life.ts). */
+const CROP_KIND: Record<string, string> = {
+  carrot: 'root', turnip: 'root', parsnip: 'root', potato: 'root', radish: 'root',
+  pumpkin: 'gourd', melon: 'gourd', cauliflower: 'gourd',
+  blueberry: 'berry', strawberry: 'berry',
+  tomato: 'fruit', corn: 'fruit', pepper: 'fruit', eggplant: 'fruit',
+}
 
 /** A crop: sprout → young → ripe, siblings under one plant that names its yield and seed. */
 function crop(id: string, en: string, zh: string, yieldType: string, young: [string, string], ripe: [string, string], ripeTags: string[] = [], tags: string[] = []): TypeDef[] {
@@ -422,8 +432,12 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/tent', 'tent', '帐篷', ['cloth', 'flammable', 'shelter', 'opaque'], { solid: true, footprint: [3, 3] }),
   F('fixture/sign/noticeboard', 'notice board', '布告栏', ['paper']),
   F('fixture/craft', 'workstation', '工作台', [], { solid: true }),
-  F('fixture/craft/anvil', 'anvil', '铁砧', ['metal', 'conductive', 'surface']),
-  F('fixture/craft/forge', 'forge', '熔炉', ['stone', 'lightable', 'cookware']),
+  // the smith's stations (content life.ts): ore smelted at a forge, ingots worked on an anvil; a smith who has learned to
+  // build them (Forge Builder) can raise the portable kind at home
+  F('fixture/craft/anvil', 'anvil', '铁砧', ['metal', 'conductive', 'surface', 'station:anvil']),
+  F('fixture/craft/anvil/smith', 'smith\'s anvil', '铁匠砧', ['portable'], { sprite: 'fixture:anvil' }),
+  F('fixture/craft/forge', 'forge', '熔炉', ['stone', 'lightable', 'cookware', 'station:forge']),
+  F('fixture/craft/forge/smith', 'smith\'s forge', '铁匠炉', ['portable'], { sprite: 'fixture:forge' }),
   F('fixture/craft/cauldron', 'cauldron', '坩埚', ['metal', 'conductive', 'lightable', 'cookware']),
   F('fixture/craft/loom', 'loom', '织布机', ['wooden', 'flammable']),
   // a station (world-model.md §6.4): what is made at a workbench is made beside one
@@ -450,10 +464,11 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/nature/boulder', 'boulder', '巨石', ['stone', 'rock', 'mineable'], { props: { material: 'stone', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/stone', count: 8 }] }),
   // the old mine's veins: a pickaxe breaks them like a boulder, into the ore they hold
   F('fixture/nature/vein', 'ore vein', '矿脉', ['stone', 'rock', 'mineable', 'vein'], { props: { material: 'ore', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/stone', count: 2 }] }),
-  F('fixture/nature/vein/iron', 'iron vein', '铁矿脉', [], { sprite: 'fixture:vein_iron', makeup: [{ type: 'item/material/iron_ore', count: 4 }] }),
-  F('fixture/nature/vein/coal', 'coal seam', '煤层', [], { sprite: 'fixture:vein_coal', makeup: [{ type: 'item/material/coal', count: 4 }] }),
+  // `ore`: what a prospector gets more of (life.ts mine/vein)
+  F('fixture/nature/vein/iron', 'iron vein', '铁矿脉', [], { sprite: 'fixture:vein_iron', props: { ore: 'item/material/iron_ore' }, makeup: [{ type: 'item/material/iron_ore', count: 4 }] }),
+  F('fixture/nature/vein/coal', 'coal seam', '煤层', [], { sprite: 'fixture:vein_coal', props: { ore: 'item/material/coal' }, makeup: [{ type: 'item/material/coal', count: 4 }] }),
   // the deep chamber's gold (the Old Mine): what the Held Ground's boundary stones are paid in (haven.ts, widening III)
-  F('fixture/nature/vein/gold', 'gold vein', '金矿脉', [], { sprite: 'fixture:vein_gold', makeup: [{ type: 'item/material/gold_ore', count: 4 }] }),
+  F('fixture/nature/vein/gold', 'gold vein', '金矿脉', [], { sprite: 'fixture:vein_gold', props: { ore: 'item/material/gold_ore' }, makeup: [{ type: 'item/material/gold_ore', count: 4 }] }),
   F('fixture/nature/haystack', 'haystack', '干草垛', ['plant', 'flammable', 'dry']),
   F('fixture/nature/logpile', 'log pile', '柴堆', ['wooden', 'flammable']),
   F('fixture/nature/logpile/stack', 'firewood', '柴垛', [], { sprite: 'fixture:firewood' }),
@@ -468,6 +483,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/nature/moss', 'moss', '苔藓', ['plant'], { solid: false }),
   F('fixture/nature/mushroom_ring', 'mushroom ring', '蘑菇圈', ['plant', 'fungus'], { solid: false }),
   F('fixture/nature/beehive', 'beehive', '蜂巢', ['wooden', 'flammable', 'bees']),
+  // a bee box one builds (Apiarist, life.ts): honey as a wild hive gives it
+  F('fixture/nature/beehive/box', 'bee box', '蜂箱', ['portable'], { sprite: 'fixture:beehive' }),
   F('fixture/nature/dead_tree', 'dead tree', '枯树', ['wooden', 'flammable', 'dry', 'tall', 'tree'], { props: { cuts: 0 } }),
   F('fixture/nature/burrow', 'slime burrow', '史莱姆洞', ['stone', 'cave'], { solid: true, footprint: [3, 3] }),
   F('fixture/ferry', 'ferry', '渡船', ['wooden', 'flammable'], { solid: true }),
@@ -475,12 +492,13 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/ferry/raft', 'ferry raft', '渡筏', ['surface']),
   F('fixture/fence', 'fence', '栅栏', ['wooden', 'flammable', 'turns'], { solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/stick', count: 2 }] }),
   F('fixture/crop', 'crop', '作物', ['crop', 'plant'], { solid: false, props: { yield: 2 } }),
-  ...crop('wheat', 'wheat', '麦子', 'item/material/wheat', ['young wheat', '青麦'], ['ripe wheat', '熟麦'], ['dry', 'flammable']),
-  ...crop('herb', 'herb', '草药', 'item/material/herb', ['herb plant', '草药苗'], ['ripe herbs', '成熟的草药']),
-  ...crop('berry', 'berry bush', '浆果丛', 'item/food/berries', ['berry bush', '浆果丛'], ['berry bush in fruit', '结果的浆果丛'], [], ['perennial']),
+  // each crop is of a kind (`crop:<kind>`): what a farmer who knows that kind gets more of (content life.ts)
+  ...crop('wheat', 'wheat', '麦子', 'item/material/wheat', ['young wheat', '青麦'], ['ripe wheat', '熟麦'], ['dry', 'flammable'], ['crop:grain']),
+  ...crop('herb', 'herb', '草药', 'item/material/herb', ['herb plant', '草药苗'], ['ripe herbs', '成熟的草药'], [], ['crop:herb']),
+  ...crop('berry', 'berry bush', '浆果丛', 'item/food/berries', ['berry bush', '浆果丛'], ['berry bush in fruit', '结果的浆果丛'], [], ['perennial', 'crop:berry']),
   ...VEGETABLE_CROPS.flatMap((c) => crop(c.id, c.en.toLowerCase(), c.zh, `item/food/${c.id}`,
     [`young ${c.en.toLowerCase()}`, `${c.zh}幼株`], [`ripe ${c.en.toLowerCase()}`, `成熟的${c.zh}`],
-    [], c.perennial ? ['perennial'] : [])),
+    [], [...(c.perennial ? ['perennial'] : []), `crop:${CROP_KIND[c.id] ?? 'fruit'}`])),
   F('fixture/crop/oak', 'oak', '橡树', [], { props: { seedType: 'item/seed/acorn' } }),
   F('fixture/crop/oak/sapling', 'oak sapling', '橡树苗', ['sapling'], { sprite: 'fixture:oak_sapling', stage: GROWS_INTO_TREE }),
   F('fixture/build', 'unfinished work', '半成品', ['unfinished'], { solid: true }),

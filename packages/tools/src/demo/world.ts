@@ -398,6 +398,15 @@ function buildForest(): MapBuilder {
   // the way on south, to Thornwood Hollow (docs/quests.md): opened last, so every draw above stays as it was
   for (let y = m.h - 4; y < m.h; y++) for (const x of HOLLOW.forestSouth) m.set(x, y, 'grass')
   m.path([[12, 23], [13, 26], [13, 29]], 'path', 1)
+  // what the forest gives a forager and a beekeeper (content life.ts): mushroom rings in the shade, wild hives among the
+  // trees — set last, at the first open grass of their patch, so every draw above stays as it was
+  const spots = (n: number, [rx, ry, rw, rh]: [number, number, number, number]): [number, number][] => {
+    const out: [number, number][] = []
+    for (let y = ry; y < ry + rh && out.length < n; y += 2) for (let x = rx; x < rx + rw && out.length < n; x += 3) if (m.get(x, y) === 'grass' && m.free(x, y)) out.push([x, y])
+    return out
+  }
+  for (const [x, y] of spots(3, [6, 14, 14, 10])) m.fixture('fixture/nature/mushroom_ring', x, y)
+  for (const [x, y] of spots(2, [22, 6, 14, 12])) m.fixture('fixture/nature/beehive', x, y)
   return m
 }
 

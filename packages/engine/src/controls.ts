@@ -836,6 +836,7 @@ export class Controls {
   canCraft(r: Recipe): boolean {
     const p = this.w.player
     const carried = [p.held, ...(p.contents ?? [])].map((id) => this.w.get(id)).filter((e): e is Entity => !!e && !e.frozenBy)
+    if (r.skill && !this.w.hasTag(p, `skill:${r.skill}`)) return false
     return r.needs.every((n) => this.count(n.type) >= n.count) && (r.tools ?? []).every((tag) => carried.some((e) => this.w.hasTag(e, tag)))
   }
 

@@ -920,6 +920,10 @@ export interface Recipe {
   count?: number
   /** A stall's shelf it is sold on (`farm`, `ranch`, `fish`), or `sell`: what the stall buys (the homestead). */
   group?: string
+  /** A skill its maker must know (a recipe a skill teaches: steel, jewellery). */
+  skill?: string
+  /** A stat of the maker's that makes it give more: so many times more (a smelter's `smelt`, a farmer's `sell:farm`). */
+  bonus?: string
 }
 
 export interface Portal {

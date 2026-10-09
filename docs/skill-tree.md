@@ -435,3 +435,22 @@ about a tenth of the knight's health of a warrior's win — a warrior's +10 max 
 the control effects a blow leaves instead (stun, freeze, kneeling), and Shield Wall adds +5% block with a shield.
 The ring layout eases crowded neighbours apart on each ring (`skillLayout.ts`, GAP 76) so twenty-two nodes fit.
 Icons: `tools/src/art/skill-professions-a.ts` (assassin, warrior) and `-b.ts` (ranger, mage), drawn by code.
+
+## The life branches, deeper (2026-10-09)
+
+Gathering, agriculture, husbandry and smithing grow to **twenty nodes each** (`content/src/life.ts` `LIFE_SKILLS`),
+with the content they work on that the world lacked: the smith's craft (ore smelted to ingots at a forge — iron for
+anyone, gold and steel taught — and ingots worked on an anvil with a smith's hammer into weapons, armour, metal tools
+and jewellery: `LIFE_RECIPES`; portable forge and anvil for a Forge Builder), mushroom rings and wild beehives in the
+forest (picked once a day: status `picked`; bees sting one who does not keep them), cheese from milk over a lit fire,
+feed from wheat, compost, leather gear, a bee box, and what the stall buys of it all.
+
+How a life skill works, in three idioms: a number it grants that a rule reads as an Amount (`fellLogs`, `mineOre`,
+`harvest`, `harvest:<kind>` by the crop's `crop:<kind>` tag, `seeds`, `feedEggs`, `cheese`, `honey`, `butcher` …); its
+tag a rule branches on (`skill:sharp-axe`, `skill:wide-hoe`, `skill:herdsman` …); or a recipe it teaches
+(`Recipe.skill`). Crafting reads the maker's stats: `craft:<station>` lifts the quality level, `<station>:power|def|
+critChance` adds to what is made, `<station>:masterwork` and `:vowed` are chances of a better quality, and
+`Recipe.bonus` multiplies how many (`smelt`, `feedMaking`, `sell:farm`, `sell:ranch`, `sell:smith`, `buy:farm`).
+Harvesting stays one rule (`farm/harvest`: the farming palette checks it) that branches on the crop's kind.
+Proved by `content/test/life.test.ts` and demo L1 (the forest's rings and hives). Icons:
+`tools/src/art/skill-life-*.ts`.

@@ -802,6 +802,36 @@ const COW = 'actor/creature/animal/cow'
 const HEN = 'actor/creature/animal/chicken'
 const onMeadow = (f: Ford, type: string) => Object.values(W(f).state.entities).filter((e) => e.type === type && e.place.on === 'tile' && e.place.map === 'pasture')
 
+req('L1', 'the forest gives what a forager and a beekeeper take (content life.ts): a mushroom ring picked by hand gives mushrooms and is bare until it grows again; a wild hive gives honey once a day — and stings one who does not keep bees, never a beekeeper, who takes more', ['fixture/nature/mushroom_ring', 'fixture/nature/beehive'], () => {
+  const f = fresh()
+  const w = W(f)
+  const c = f.eng.controls
+  const on = (type: string) => Object.values(w.state.entities).filter((e) => e.type === type && w.posOf(e)?.map === 'forest').map((e) => ({ e, at: w.posOf(e)! }))
+  const rings = on('fixture/nature/mushroom_ring')
+  const hives = on('fixture/nature/beehive')
+  expect([rings.length, hives.length]).toEqual([3, 2])
+  // a ring: mushrooms; picked, bare
+  const ring = rings[0]
+  stand(f, ring.at.x, ring.at.y + 1, 'up', 'forest')
+  run(f, 'hands', ring.at.x, ring.at.y)
+  expect(c.count('item/food/mushroom/raw')).toBe(1)
+  run(f, 'hands', ring.at.x, ring.at.y)
+  expect(c.count('item/food/mushroom/raw')).toBe(1)
+  // a hive: honey, and the bees sting one who does not keep them
+  author(f, () => w.setProp(w.player, 'hp', 20))
+  stand(f, hives[0].at.x, hives[0].at.y + 1, 'up', 'forest')
+  run(f, 'hands', hives[0].at.x, hives[0].at.y)
+  ticks(f, 3)
+  expect(c.count('item/food/honey')).toBe(1)
+  expect(w.num(w.player, 'hp')).toBeLessThan(20)
+  // a beekeeper: no sting, and more honey
+  author(f, () => (w.addTag(w.player, 'skill:beekeeper'), w.setProp(w.player, 'honey', 1), w.setProp(w.player, 'hp', 20)))
+  stand(f, hives[1].at.x, hives[1].at.y + 1, 'up', 'forest')
+  run(f, 'hands', hives[1].at.x, hives[1].at.y)
+  ticks(f, 3)
+  expect([c.count('item/food/honey'), w.num(w.player, 'hp')]).toEqual([3, 20])
+})
+
 req('F14', 'west of the Ford the village, and south of it the grassland (Minecraft): cows and hens that run when struck and come back slowly; meat from both, eggs from hens; each food feeds its own amount', [COW, HEN], () => {
   const f = fresh()
   const p = W(f).player

@@ -643,6 +643,8 @@ export const CATALOG: Catalog = {
     'item:belt': icon('lsw/Items/Belt.png', 16, 16),
     'item:earring': icon('lsw/Items/Earring.png', 16, 16),
     'item:oath_thorn': icon('lsw/Items/OathThorn.png', 16, 16),
+    // an ingot (life.ts): the project's own (tools/src/art/skill-life-smithing.ts)
+    'item:ingot': icon('lsw/Items/Ingot.png', 16, 16),
     // gear on the ground, before it is picked up (scene.ts): a wrapped bundle with a glint
     'item:loot': icon('lsw/Items/Loot.png', 16, 16),
     // one's belongings, bundled where one fell (content body/rise)

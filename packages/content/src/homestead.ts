@@ -5,7 +5,7 @@
 // the rod). The coin is the Thornmark, the Held Ground's own. Buying and selling are made at the stall as anything is
 // made at a station: what one gives is used up, what one gets comes into one's bag (engine `craft`).
 
-import { TICKS_PER_DAY, type Effect, type Recipe, type Rule, type Text } from '@lsw/engine'
+import { TICKS_PER_DAY, type Cond, type Effect, type Recipe, type Rule, type Text, type Tree } from '@lsw/engine'
 import { FORM_BY_ID } from './items.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 
@@ -39,15 +39,15 @@ const CROP_PRICE: Record<string, number> = {
 /** What it pays for one of a fish (the rarer, the dearer: the Dawnscale bites only at first light). */
 const FISH_PRICE: Record<string, number> = { sunfish: 6, perch: 8, catfish: 20, eel: 18, pike: 16, carp: 30, dawnscale: 80 }
 
-/** A shelf's offer: `count` of a thing for `price` Thornmarks. */
+/** A shelf's offer: `count` of a thing for `price` Thornmarks (seeds: more for a Seed Merchant, life.ts). */
 const buy = (group: string, type: string, count: number, price: number): Recipe => ({
   id: `shop/buy/${type.split('/').slice(1).join('-')}`, group, name: nameOf(type), sprite: spriteOf(type),
-  needs: [{ type: COIN, count: price }], make: { type }, station: 'stall', count,
+  needs: [{ type: COIN, count: price }], make: { type }, station: 'stall', count, ...(type.startsWith('item/seed/') && { bonus: 'buy:farm' }),
 })
-/** What the stall buys back: one of a thing for `price` Thornmarks. */
-const sell = (type: string, price: number): Recipe => ({
+/** What the stall buys back: one of a thing for `price` Thornmarks (more for a Market Gardener's crops, a Rancher's goods: life.ts). */
+const sell = (type: string, price: number, bonus?: string): Recipe => ({
   id: `shop/sell/${type.split('/').slice(1).join('-')}`, group: 'sell', name: nameOf(type), sprite: spriteOf(type),
-  needs: [{ type, count: 1 }], make: { type: COIN }, station: 'stall', count: price,
+  needs: [{ type, count: 1 }], make: { type: COIN }, station: 'stall', count: price, ...(bonus && { bonus }),
 })
 
 export const SHOP_RECIPES: Recipe[] = [
@@ -68,20 +68,33 @@ export const SHOP_RECIPES: Recipe[] = [
   buy('fish', 'item/misc/bait', 5, 5),
   buy('fish', 'item/tool/fishing_rod', 1, 25),
   // what the stall buys back
-  sell('item/material/wheat', 3),
-  ...VEGETABLE_CROPS.map((c) => sell(`item/food/${c.id}`, CROP_PRICE[c.id] ?? 4)),
-  sell('item/food/berries', 1),
-  sell('item/material/herb', 3),
-  sell('item/food/egg/raw', 4),
-  sell('item/vessel/bucket/milk', 12),
+  sell('item/material/wheat', 3, 'sell:farm'),
+  ...VEGETABLE_CROPS.map((c) => sell(`item/food/${c.id}`, CROP_PRICE[c.id] ?? 4, 'sell:farm')),
+  sell('item/food/berries', 1, 'sell:farm'),
+  sell('item/material/herb', 3, 'sell:farm'),
+  sell('item/food/egg/raw', 4, 'sell:ranch'),
+  sell('item/vessel/bucket/milk', 12, 'sell:ranch'),
   sell('item/food/fish/raw', 6),
   ...Object.entries(FISH_PRICE).map(([id, price]) => sell(`item/food/fish/${id}`, price)),
   sell('item/misc/old_boot', 1),
 ]
 
 const ANIMAL = { type: 'actor/creature/animal' }
-/** What a beast fed does: fed for a day, and glad of it. */
-const FED: Effect[] = [{ op: 'addStatus', status: 'fed', duration: FED_FOR }, { op: 'emote', mood: 'happy' }, { op: 'log', text: L('{host} eats happily.', '{host}吃得很开心。') }]
+/** What a beast fed does: fed for a day (two, fed by a Herdsman: life.ts), and glad of it. */
+const fedFor = (days: number): Effect[] => [{ op: 'addStatus', status: 'fed', duration: FED_FOR * days }, { op: 'emote', mood: 'happy' }, { op: 'log', text: L('{host} eats happily.', '{host}吃得很开心。') }]
+const FED = fedFor(1)
+const tagged = (id: string): Cond => ({ has: { role: 'actor', tag: `skill:${id}` } })
+/** Fed: for a day, or two for a Herdsman; with what else the feeding brings (a hen's egg, the call to a mate). */
+const fed = (...extra: Effect[]): Tree => ({ if: tagged('herdsman'), then: { do: [...fedFor(2), ...extra] }, else: { do: [...FED, ...extra] } })
+/** A hen fed by an Egg Collector lays at once (feedEggs); a Hen Whisperer's now and then hatches a chick. */
+const henFed = (...extra: Effect[]): Tree => {
+  const eggs: Effect = { op: 'spawn', type: 'item/food/egg/raw', at: 'tileOf:host', count: { prop: 'feedEggs', of: 'actor' }, still: true }
+  return { if: { all: [tagged('hen-whisperer'), { chance: 0.15 }] }, then: fed(eggs, { op: 'spawn', type: '@prop:host.babyType', at: 'tileOf:host' }, ...extra), else: fed(eggs, ...extra) }
+}
+/** Milked: for a day, half a day for a Milker's cow. */
+const MILKED: Tree = { if: tagged('milker'), then: { do: [{ op: 'addStatus', status: 'milked', duration: FED_FOR / 2 }] }, else: { do: [{ op: 'addStatus', status: 'milked', duration: FED_FOR }] } }
+/** Resting from young: a day, half a day when it was a Quick Breeder's feeding. */
+const rest = (...extra: Effect[]): Tree => ({ if: tagged('quick-breeder'), then: { do: [{ op: 'addStatus', status: 'bred', duration: FED_FOR / 2 }, ...extra] }, else: { do: [{ op: 'addStatus', status: 'bred', duration: FED_FOR }, ...extra] } })
 
 export const HOMESTEAD_RULES: Rule[] = [
   story({
@@ -98,7 +111,16 @@ export const HOMESTEAD_RULES: Rule[] = [
     doc: 'Feed given to a beast: it is told it is fed (and answers itself); the feed is eaten.',
     host: { tags: ['feed'] },
     on,
-    tree: { if: { is: { role: 'target', sel: ANIMAL } }, then: { do: [{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'fed' } }, { op: 'destroy' }] }, else: 'inherit' },
+    // (a Stockman's feeding feeds the hungry beasts around too: life.ts)
+    tree: {
+      if: { is: { role: 'target', sel: ANIMAL } },
+      then: {
+        if: tagged('stockman'),
+        then: { do: [{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'fed' } }, { op: 'emit', impulse: 'notify', to: { area: { radius: 2 } }, params: { what: 'fed' }, filter: { ...ANIMAL, notStatus: ['fed'] } }, { op: 'destroy' }] },
+        else: { do: [{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'fed' } }, { op: 'destroy' }] },
+      },
+      else: 'inherit',
+    },
   })),
   story({
     id: 'home/fed',
@@ -107,8 +129,8 @@ export const HOMESTEAD_RULES: Rule[] = [
     on: 'impulse/notify',
     tree: {
       if: { param: { key: 'what', cmp: 'fed' } },
-      then: { do: FED },
-      else: { if: { param: { key: 'what', cmp: 'milked' } }, then: { do: [{ op: 'addStatus', status: 'milked', duration: FED_FOR }] }, else: 'inherit' },
+      then: fed(),
+      else: { if: { param: { key: 'what', cmp: 'milked' } }, then: MILKED, else: 'inherit' },
     },
   }),
   // breeding (Minecraft's): a cow or a hen fed calls to the fed of its kind close by; one not resting from young answers
@@ -118,18 +140,23 @@ export const HOMESTEAD_RULES: Rule[] = [
     doc: `A ${kind} fed (not resting from young) calls to the fed ${kind}s beside it; one that hears the call (fed, not resting) bears its young beside it, and both rest a day (the caller is told); told it is milked, a cow is milked for the day.`,
     host: { type: `actor/creature/animal/${kind}` },
     on: 'impulse/notify',
+    // (the feeder's skills shape it, life.ts: a Herdsman's feeding lasts, an Egg Collector's hen lays, a Breeder's beasts
+    // bear twins, a Quick Breeder's rest less, a Milker's cow is milked again sooner)
     tree: {
       if: { param: { key: 'what', cmp: 'fed' } },
       // one resting from young does not call
-      then: { if: { has: { role: 'host', status: 'bred' } }, then: { do: FED }, else: { do: [...FED, { op: 'emit', impulse: 'notify', to: { area: { radius: 3 } }, params: { what: 'mate' }, filter: { type: `actor/creature/animal/${kind}`, status: ['fed'], notStatus: ['bred'] } }] } },
+      then: { if: { has: { role: 'host', status: 'bred' } }, then: kind === 'chicken' ? henFed() : fed(), else: (kind === 'chicken' ? henFed : fed)({ op: 'emit', impulse: 'notify', to: { area: { radius: 3 } }, params: { what: 'mate' }, filter: { type: `actor/creature/animal/${kind}`, status: ['fed'], notStatus: ['bred'] } }) },
       else: {
-        // the call heard: the young born beside it, and the caller told so (both rest a day)
+        // the call heard: the young born beside it (twins, now and then, for a Breeder), and the caller told so (both rest)
         if: { all: [{ param: { key: 'what', cmp: 'mate' } }, { has: { role: 'host', status: 'fed' } }, { not: { has: { role: 'host', status: 'bred' } } }] },
-        then: { do: [{ op: 'spawn', type: '@prop:host.babyType', at: 'tileOf:host' }, { op: 'addStatus', status: 'bred', duration: FED_FOR }, { op: 'emit', impulse: 'notify', to: 'source', params: { what: 'rested' } }, { op: 'emote', mood: 'happy' }, { op: 'vfx', fx: 'sparkle' }, { op: 'log', text: L(kind === 'cow' ? 'A calf is born!' : 'A chick hatches!', kind === 'cow' ? '一头小牛出生了！' : '一只小鸡孵出来了！') }] },
+        then: (() => {
+          const born = (n: number): Tree => rest({ op: 'spawn', type: '@prop:host.babyType', at: 'tileOf:host', count: n }, { op: 'emit', impulse: 'notify', to: 'source', params: { what: 'rested' } }, { op: 'emote', mood: 'happy' }, { op: 'vfx', fx: 'sparkle' }, { op: 'log', text: n > 1 ? L(kind === 'cow' ? 'Twin calves are born!' : 'Two chicks hatch!', kind === 'cow' ? '一对双胞胎小牛出生了！' : '孵出了两只小鸡！') : L(kind === 'cow' ? 'A calf is born!' : 'A chick hatches!', kind === 'cow' ? '一头小牛出生了！' : '一只小鸡孵出来了！') })
+          return { if: { all: [tagged('breeder'), { chance: 0.3 }] }, then: born(2), else: born(1) } as Tree
+        })(),
         else: {
           if: { param: { key: 'what', cmp: 'rested' } },
-          then: { do: [{ op: 'addStatus', status: 'bred', duration: FED_FOR }] },
-          else: { if: { param: { key: 'what', cmp: 'milked' } }, then: { do: [{ op: 'addStatus', status: 'milked', duration: FED_FOR }] }, else: 'inherit' },
+          then: rest(),
+          else: { if: { param: { key: 'what', cmp: 'milked' } }, then: MILKED, else: 'inherit' },
         },
       },
     },

@@ -5,6 +5,7 @@
 
 import { Rng, type Entity, type ProfessionDef, type SkillDef } from '@lsw/engine'
 import { FORM_BY_ID, makeItem } from './items.ts'
+import { LIFE_SKILLS } from './life.ts'
 
 export const SKILL_DIRECTIONS = [
   { id: 'combat', icon: 'sword', name: { en: 'Combat', zh: '战斗' } },
@@ -229,7 +230,7 @@ export const PROFESSION_DEEPER: SkillDef[] = [
   TALENT('elemental-master', 'mage', ['archmage', 'meteor'], 'Elemental Master', '元素大师', 'Capstone: every third skill you cast does not rest.', '终极天赋：每第 3 次施放的技能不进入冷却。', { cost: 2 }),
 ]
 
-SKILLS.push(...ACTIVE_SKILLS, ...PROFESSION_DEEPER)
+SKILLS.push(...ACTIVE_SKILLS, ...PROFESSION_DEEPER, ...LIFE_SKILLS)
 
 /** A skill book that teaches one active skill (read: used on oneself), named for it: for loot, shops and quests to hand out. */
 export const skillBook = (id: string): Omit<Entity, 'id' | 'place'> => {
