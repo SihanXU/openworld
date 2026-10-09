@@ -4,7 +4,7 @@
 // game like the library. Which entries there are is the world's content (`WorldIndex.codex`, the
 // people of `npcs` and `companions`); the codex only marks the ones met.
 
-import type { Entity, Id, PropValue, Text } from './types.ts'
+import type { Entity, Id, Look, PropValue, Text } from './types.ts'
 import type { World } from './world.ts'
 import type { WorldIndex } from './game.ts'
 
@@ -23,8 +23,8 @@ export interface CodexEntry {
   name: Text
   /** Render key (an item's or a creature's sprite). */
   sprite?: string
-  /** A person's look (their portrait) and type (their role picks a look when they have none). */
-  look?: string
+  /** A person's look (their sprite and portrait, docs/looks.md) and type. */
+  look?: string | Look
   type?: string
   known: boolean
   /** An item's kind (`weapon`, `food` … the second step of its type). */

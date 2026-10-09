@@ -3,10 +3,11 @@
 // every thread the world has learned, and whose act taught it) and the chest panel: the chest's
 // grid above the bag, a click moving a stack to the other side.
 
-import type { CodexEntry, CodexView, Frame, ItemInfo, Key, Rule, Text, Tree } from '@lsw/engine'
+import type { CodexEntry, CodexView, Frame, ItemInfo, Key, Look, Rule, Text, Tree } from '@lsw/engine'
 import { COIN, FORM_BY_ID, RECIPES, stationName } from '@lsw/content'
 import { CATALOG } from '../assets/catalog.ts'
 import { personLook } from '../assets/looks.ts'
+import { FH, FW, composeSprite } from '../assets/figure/sprite.ts'
 import { assetUrl } from '../render/assets.ts'
 import type { LibraryView } from '../protocol.ts'
 import { SkillTree } from './skilltree.ts'
@@ -94,6 +95,18 @@ function paintCodex(root: HTMLElement): void {
     paintCell(el, `${a.dir}/${a.sheet}`, (img) => [0, 0, Math.floor(img.width / a.cols), Math.floor(img.height / a.rows)])
   }
   root.querySelectorAll<HTMLElement>('[data-cx-look]').forEach((el) => actor(el, CATALOG.characters[el.dataset.cxLook!]))
+  // a look made of parts (docs/looks.md): its sprite standing, facing down
+  root.querySelectorAll<HTMLElement>('[data-cx-fig]').forEach((el) => {
+    const px = composeSprite(JSON.parse(el.dataset.cxFig!) as Look)
+    const c = document.createElement('canvas')
+    c.width = FW
+    c.height = FH
+    const img = new ImageData(FW, FH)
+    for (let y = 0; y < FH; y++) img.data.set(px.subarray(y * FW * 4 * 4, y * FW * 4 * 4 + FW * 4), y * FW * 4)
+    c.getContext('2d')!.putImageData(img, 0, 0)
+    c.classList.add('fig')
+    el.replaceChildren(c)
+  })
   root.querySelectorAll<HTMLElement>('[data-cx-actor]').forEach((el) => actor(el, CATALOG.creatures[el.dataset.cxActor!]))
 }
 
@@ -541,7 +554,7 @@ export class Menu {
   private codexGrid(list: CodexEntry[]): string {
     const card = (e: CodexEntry) => {
       const person = !e.group && !e.stats && !e.sprite?.startsWith('creature:')
-      const pic = person ? `data-cx-look="${esc(personLook(e.id, e.type ?? '', e.look))}"` : e.group ? `data-cx-item="${esc(e.sprite ?? '')}"` : `data-cx-actor="${esc(actorKey(e))}"`
+      const pic = person && typeof e.look === 'object' ? `data-cx-fig="${esc(JSON.stringify(e.look))}"` : person ? `data-cx-look="${esc(personLook(e.id, e.type ?? '', typeof e.look === 'string' ? e.look : undefined))}"` : e.group ? `data-cx-item="${esc(e.sprite ?? '')}"` : `data-cx-actor="${esc(actorKey(e))}"`
       const name = e.known ? esc(tx(e.name)) : '???'
       const extra = !e.known ? '' : e.stats ? `<div class="cx-sub">❤ ${e.stats.hp} · ⚔ ${e.stats.atk} · 🛡 ${e.stats.def}</div>` : e.where ? `<div class="cx-sub">${esc(tx(e.where))}</div>` : ''
       return `<div class="cx-card${e.known ? '' : ' unknown'}" title="${name}"><div class="cx-pic" ${pic}></div><div class="cx-name">${name}</div>${extra}</div>`

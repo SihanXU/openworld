@@ -10,8 +10,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
-import { BOSSES, CH1_QUESTS, HAVEN_QUESTS, codexEntries, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_AT_FOOT, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, type RawChunk } from '@lsw/content'
-import { CATALOG } from '../../../client/src/assets/catalog.ts'
+import { BOSSES, CH1_QUESTS, HAVEN_QUESTS, codexEntries, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_AT_FOOT, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, PLAYER_LOOK, generateLook, type RawChunk } from '@lsw/content'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
@@ -433,10 +432,11 @@ function person(p: PersonDef, at: (name: string) => Pos): Entity {
     ...(p.tags && { tags: p.tags }),
     // what they carry (addTree puts it in their bag)
     ...(p.items && { _items: p.items.map((spec, i) => ({ id: `${p.id}.item${i}`, ...itemOf(spec), place: { on: 'inside' as const, holder: p.id } })) }),
+    // how they look: what the author chose, the rest drawn from their id (docs/looks.md)
+    look: generateLook(p.id, { sex: p.gender, age: p.age, role: p.role }, p.look),
     npc: {
       role: p.role,
       schedule,
-      look: p.look,
       lines: p.lines.filter((l) => l.key === 'default').map((l) => l.text),
       faction: 'ford',
       person: { temperament: p.temperament, ties: p.ties, lines: p.lines, schedules },
@@ -670,7 +670,8 @@ export function buildFord(): FordWorld {
       name: L('You', '你'),
       place: { on: 'none' },
       facing: 'down',
-      look: CATALOG.roles.player?.[0] ?? 'NinjaMasked',
+      // the look a new game starts from (the new-game panel lets one make one's own)
+      look: PLAYER_LOOK,
       // a little hungry: the first thing the mountain teaches is to eat
       props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, quest: 0, prologue: 0, hunger: 12 },
     },

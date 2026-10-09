@@ -9,7 +9,7 @@
 
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { OntologyIndex, type Dir, type Entity } from '@lsw/engine'
+import { OntologyIndex, type Dir, type Entity, type Look } from '@lsw/engine'
 import { TERRAIN_CHARS } from '@lsw/content'
 import { CATALOG, LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../../client/src/assets/catalog.ts'
 import { T, groundTile, hash2, type GroundAtlas } from '../../client/src/assets/ground.ts'
@@ -19,6 +19,8 @@ import { bossAnimationFrame } from '../../client/src/render/boss-animation.ts'
 import { depthOf } from '../../client/src/render/depth.ts'
 import type { Game } from './game.ts'
 import { decodePng, encodePng, type Image } from './png.ts'
+import { FH, FW, composeSprite } from '../../client/src/assets/figure/sprite.ts'
+import { crowdLook, figureId } from '../../client/src/assets/figure/ids.ts'
 
 // ------------------------------------------------------------------------------------------ images
 
@@ -246,7 +248,7 @@ interface Snap {
   statuses: string[]
   overlays: string[]
   tags: string[]
-  look?: string
+  look?: string | Look
   person: boolean
   element?: string
   open: boolean
@@ -295,7 +297,7 @@ function snapOf(g: Game, model: Model, e: Entity): Snap | undefined {
     statuses,
     overlays: statuses.flatMap((s) => g.ontology.statuses[s]?.overlay ?? []),
     tags,
-    look: e.look ?? e.npc?.look,
+    look: e.look,
     person: !!e.npc,
     element: typeof element === 'string' ? element : undefined,
     open: !!e.statuses?.open,
@@ -308,7 +310,7 @@ const fixtureDef = (e: Snap) => CATALOG.fixtures[e.sprite] ?? CATALOG.fixtures[`
 
 /** scene.ts actorDef: a person's character sheet, or a creature's (by its element or kind). */
 function actorDef(e: Snap): ActorDef | undefined {
-  if (e.person || e.look) return CATALOG.characters[personLook(e.id, e.type, e.look)]
+  if (typeof e.look === 'string') return CATALOG.characters[personLook(e.id, e.type, e.look)]
   const variant = e.element ?? e.type.split('/').pop()!
   const key = CATALOG.creatures[`${e.sprite}:${variant}`] ? `${e.sprite}:${variant}` : CATALOG.creatures[e.sprite] ? e.sprite : 'creature:slime'
   return CATALOG.creatures[key]
@@ -327,7 +329,18 @@ interface Body {
   tint?: number
 }
 
+/** A look's map sheet (docs/looks.md), composed as the game composes it. */
+function figureImage(look: Look): Image {
+  const key = `fig/${figureId(look)}`
+  let img = images.get(key)
+  if (!img) images.set(key, (img = { w: FW * 4, h: FH * 4, rgba: composeSprite(look) }))
+  return img
+}
+
 function bodyOf(e: Snap): Body | undefined {
+  // a person drawn from a look (their own, or one drawn from their id): the sheet's standing frame facing their way
+  const look = typeof e.look === 'object' ? e.look : !e.look && e.person ? crowdLook(e.id, e.type) : undefined
+  if (e.tags.includes('agent') && look) return { img: figureImage(look), rect: [(DIR_COL[e.facing] ?? 0) * FW, 0, FW, FH], ox: FW / 2, oy: 30 }
   if (e.tags.includes('agent')) {
     const a = actorDef(e)
     const img = a && image(`${a.dir}/${a.sheet}`)

@@ -3,9 +3,10 @@
 // status overlays, VFX and day/night. It only renders engine snapshots.
 
 import Phaser from 'phaser'
-import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type MapData, type Mood, type Ref, type Text } from '@lsw/engine'
+import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type Look, type MapData, type Mood, type Ref, type Text } from '@lsw/engine'
 import { CATALOG, LSW_FLOOR, LSW_STAIRS, LSW_WALL, faceFrame } from '../assets/catalog.ts'
 import { personLook } from '../assets/looks.ts'
+import { crowdLook, figureDef, figureId, portraitOf, preparePortrait } from '../assets/figure/index.ts'
 import { GroundAtlas, T, groundTile, hash2 } from '../assets/ground.ts'
 import { depthOf, footOf } from './depth.ts'
 
@@ -663,8 +664,21 @@ export class WorldScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- entities
 
+  /** The look record an actor is drawn from: its own, or (a person no one gave one) one drawn from its id. */
+  private lookRecord(e: EntitySnap): Look | undefined {
+    if (e.look && typeof e.look === 'object') return e.look
+    if (!e.look && e.tags.includes('person')) return crowdLook(e.id, e.type)
+    return undefined
+  }
+
   private actorDef(e: EntitySnap): { key: string; def: (typeof CATALOG.characters)[string] } | undefined {
-    if (e.appearance || e.look) {
+    const look = this.lookRecord(e)
+    if (look) {
+      // its portrait is fetched as it comes onto the map, ready for the dialogue box
+      void preparePortrait(look)
+      return figureDef(this, look)
+    }
+    if (typeof e.look === 'string') {
       const key = personLook(e.id, e.type, e.look)
       return { key: `char:${key}`, def: CATALOG.characters[key] }
     }
@@ -1014,7 +1028,7 @@ export class WorldScene extends Phaser.Scene {
           v.walker = { x: px, y: py, t: v.walker?.t ?? now }
           v.movingUntil = now + this.stepAvg
         } else {
-          const dur = e.tags.includes('companion') ? 110 : e.tags.includes('agent') && (e.look || e.appearance) ? 380 : 330
+          const dur = e.tags.includes('companion') ? 110 : e.tags.includes('agent') && (e.look || e.tags.includes('person')) ? 380 : 330
           this.tweens.add({ targets: v.root, x: px, y: py, duration: dur, ease: 'Linear' })
           v.movingUntil = this.time.now + dur
         }
@@ -1029,7 +1043,8 @@ export class WorldScene extends Phaser.Scene {
         v.body.setTexture(t.img, t.frame)
         v.body.setOrigin(t.ax / v.body.width, t.ay / v.body.height)
       }
-    } else if (!v.actor || (prev.type !== e.type && !first)) {
+    } else if (!v.actor || (prev.type !== e.type && !first) || (typeof e.look === 'object' && v.actor.key !== `fig:${figureId(e.look)}`)) {
+      // (a look changed in the world — a restyle — is a new sheet)
       const t = this.textureFor(e)
       v.actor = t.actor
       v.body.setTexture(t.img, t.frame)
@@ -1218,7 +1233,7 @@ export class WorldScene extends Phaser.Scene {
         const walkRows = Math.min(4, v.actor.rows)
         // working something out (an act the world is learning): busy hands in place, a little bob
         const working = e.frozen && !e.statuses.includes('down')
-        const row = moving ? Math.floor((time + v.phase) / 130) % walkRows : working ? Math.floor(time / 110) % walkRows : e.look || e.appearance ? 0 : Math.floor((time + v.phase) / 260) % walkRows
+        const row = moving ? Math.floor((time + v.phase) / 130) % walkRows : working ? Math.floor(time / 110) % walkRows : e.look || e.tags.includes('person') ? 0 : Math.floor((time + v.phase) / 260) % walkRows
         v.body.setFrame(`${v.actor.key}:${col},${row}`)
         v.body.y = working ? -Math.abs(Math.sin(time / 95)) * 1.5 : 0
       }
@@ -1286,6 +1301,14 @@ export class WorldScene extends Phaser.Scene {
     const v = this.views.get(id)
     if (!v?.actor) return undefined
     return { img: v.body.texture.key, frame: `${v.actor.key}:0,0` }
+  }
+
+  /** A look's portrait for a mood (docs/looks.md), when the actor is drawn from a look and its layers are here. */
+  portraitOf(id: string, mood?: Mood): HTMLCanvasElement | undefined {
+    const e = this.views.get(id)?.snap
+    const look = e && this.lookRecord(e)
+    // with what its statuses show (wet, burning, frozen…), as the sprite on the map shows them
+    return look ? portraitOf(look, mood, e.overlays) : undefined
   }
 
   /** An actor's portrait for a mood (the plain faceset when its face has no such mood). */

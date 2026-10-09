@@ -14,6 +14,7 @@ import { appear } from './appear.ts'
 import { releaseSkill } from './bosses.ts'
 import { WriteError } from './world.ts'
 import { madeOf, qualityFor } from './recipes.ts'
+import { restyled } from './looks.ts'
 
 /** How many things one effect makes at once at most, unless the world says (`params.spawnMax`). */
 const SPAWN_MAX = 64
@@ -56,6 +57,7 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   say: 'say {text, who?} — the host says a line ("@line": one of its own lines for the moment; "@given": its line for the item it was given); text fills {host} {actor} {target} {instrument} {other} {item} and {role.key}',
   log: 'log {text} — a message line ({role} = names, {role.key} = that role\'s prop, {param.key} = an event param; "@line": what the host has written on it, its text and text_zh)',
   emote: 'emote {mood: neutral|happy|sad|angry|surprised|shy} — an emote bubble over the host',
+  restyle: 'restyle {parts?, colors?} — the host\'s look changes (docs/looks.md): a part per slot of the world\'s look table (hair: "hair.bob"; null empties the slot), a colour per key (hair, skin, eyes, <slot>.<n>; a colour id or #rrggbb); its map sprite, its portrait and its look:* tags follow, and the change is its own from then on',
   quest: 'quest {} — the host (a person) is spoken to about quests: business with the speaker (a quest to hand in, to take on, a talk goal) is told to the story; else the host says how a quest goes, or its line (quests.ts)',
   quests: "quests {} — the story's: a quest's business it is told of is settled (notify what = quest: between the source, a giver, and the actor; what = defeat: the actor felled a thing of param type) — its facts change, the giver takes what was brought, the taker is told its reward; with no notice (the story's own pass), quests it has gone past are done, auto ones taken on, self ones completed",
   learn: 'learn {book?} — book: from the book it holds (the event\'s item: its param skill), no points and no skills before it, the book used up; else the host learns what its act names: param skill (spending its skill points) or param profession (at a trainer; a change gives back the profession branch)',
@@ -726,6 +728,9 @@ export class EffectRunner {
         return
       case 'emote':
         if (host) w.fx.push({ t: 'emote', who: host.id, mood: eff.mood })
+        return
+      case 'restyle':
+        if (host && typeof host.look === 'object') w.setLook(host, restyled(host.look, { parts: eff.parts, colors: eff.colors }))
         return
     }
   }

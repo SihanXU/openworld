@@ -238,6 +238,8 @@ export interface Ontology {
   appear?: AppearDef[]
   /** The order goals are tried in for a thing whose type does not say (world-model.md §6.10). */
   goals?: string[]
+  /** The looks bodies are drawn from (docs/looks.md): bodies, parts, colours. */
+  looks?: LookTable
 }
 
 /**
@@ -360,7 +362,7 @@ export interface Entity {
   contents?: Id[]
   /** Actors: the held item. */
   held?: Id
-  /** NPCs: schedule + appearance + role. */
+  /** NPCs: schedule + role. */
   npc?: NpcData
   /** Creatures: combat behaviour. */
   ai?: AiData
@@ -384,8 +386,12 @@ export interface Entity {
   skillbar?: (string | null)[]
   /** The player: the selected slot (what is held). */
   selected?: number
-  /** Render hint: a character look key from the client's asset catalogue. */
-  look?: string
+  /**
+   * How an actor looks: a look record (its body, a part per slot and a colour per colour key; the map
+   * sprite, the portrait and the look's tags and words are all drawn from it, docs/looks.md), or the key of
+   * a whole drawn sheet in the client's catalogue (a figure no parts make: a skeleton, a statue).
+   */
+  look?: string | Look
 }
 
 export interface BossSkill {
@@ -522,9 +528,6 @@ export interface NpcData {
   role: string
   home?: Pos
   schedule: ScheduleEntry[]
-  appearance?: Appearance
-  /** Character look key (asset catalogue); preferred over `appearance` when present. */
-  look?: string
   lines?: Text[]
   faction?: string
   /** A person's record (docs/game-design.md §5); crowd NPCs may have none. */
@@ -727,12 +730,62 @@ export interface SceneState {
   line?: { who: Id; text: Text; mood?: Mood; card?: boolean }
 }
 
-export interface Appearance {
-  skin: number // index into palettes; the art layer owns the actual colors
-  hair: number
-  hairStyle: number
-  top: number
-  bottom: number
+/**
+ * A look (docs/looks.md): what a body is drawn from — the one record its map sprite, its portrait and its
+ * look's tags and words all come from, so they cannot disagree. Parts and colours are the ontology's
+ * (`Ontology.looks`); their pictures are the client's.
+ */
+export interface Look {
+  /** The body (`LookTable.bodies`): its frame on the map and its bust in the portrait. */
+  body: string
+  /** A part per slot (`LookTable.parts`; the slot is the part's own): hair, face, outfit, hat, beard, mark, glasses… */
+  parts: Record<string, string>
+  /**
+   * A colour per colour key: `skin`, `hair`, `eyes`, and a part's own as `<slot>.<n>` (`outfit.1`); a colour of
+   * `LookTable.colors` by id, or `#rrggbb`. A key no colour is given for takes the part's default.
+   */
+  colors: Record<string, string>
+  /** Changed in the world (`restyle`): the world's own design of this person no longer replaces it on load. */
+  own?: boolean
+}
+
+/** A body a look may have: its sex and age as a body shows them, and what it says of its bearer. */
+export interface LookBodyDef {
+  name: Text
+  sex: 'female' | 'male'
+  age: 'child' | 'adult'
+  tags?: string[]
+}
+
+/** A part of a look: the slot it fills, the bodies it fits, the colour keys it is painted in, and its tags. */
+export interface LookPartDef {
+  slot: string
+  name: Text
+  /** The bodies it is drawn for (omitted: every body). */
+  bodies?: string[]
+  /** Its own colour keys' defaults (`1` → a colour id) and the shared keys it uses (`hair`, `skin`, `eyes`). */
+  colors?: Record<string, string>
+  uses?: ('skin' | 'hair' | 'eyes')[]
+  tags?: string[]
+}
+
+/** A named colour: what it is called, and the tags it gives the key it colours (silver hair → `look:grey-haired`). */
+export interface LookColorDef {
+  hex: string
+  name: Text
+  /** Families it is offered for: hair, skin, eyes, cloth, metal. */
+  for: string[]
+  tags?: Record<string, string[]>
+}
+
+/** The looks a world knows (Ontology.looks): bodies, parts and colours; the engine checks a look against it and derives its tags. */
+export interface LookTable {
+  slots: string[]
+  bodies: Record<string, LookBodyDef>
+  parts: Record<string, LookPartDef>
+  colors: Record<string, LookColorDef>
+  /** The colour a worn thing shows in, by its material (an iron helmet is iron-grey): `#rrggbb` or a colour id. */
+  materials?: Record<string, string>
 }
 
 export interface AiData {
@@ -1243,6 +1296,7 @@ export type Effect =
   | { op: 'say'; text: Text; who?: RoleName }
   | { op: 'log'; text: Text }
   | { op: 'emote'; mood: Mood }
+  | { op: 'restyle'; parts?: Record<string, string | null>; colors?: Record<string, string | null> }
 
 /**
  * A rule's outcome: a condition tree whose leaves are effects (an empty list: no change),

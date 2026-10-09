@@ -5,18 +5,19 @@
 import {
   APPEAR_EVERY, BOON_REACH, CODEX_SIGHT, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE, MAGNET, PROFESSION_LEVEL,
   ROW, SLOT_COUNT, TICKS_PER_HOUR, TICKS_PER_MINUTE, nightHours,
-  type BossDef, type Entity, type PlacementRecipe, type QuestDef, type Recipe, type SkillDef, type StatusDef, type TerrainDef, type Text, type TypeDef,
+  type BossDef, type Entity, type Look, type PlacementRecipe, type QuestDef, type Recipe, type SkillDef, type StatusDef, type TerrainDef, type Text, type TypeDef,
 } from '@lsw/engine'
 import {
   BOONS, BOSSES, COIN, EFFICIENCY, ELEMENT_NAMES, ELEMENTS, FALL_DAMAGE, FED_FOR, FORMS, LAYS_EVERY, LEGENDARY_ARMS, MATERIALS, NIGHT_CAP, NIGHT_EVERY, PLACEMENTS,
   QUALITIES, RECIPES, RECOVERY, RELICS, ROOM_SIZE, SAFE_FALL, SKILL_BRANCHES, SKILL_DIRECTIONS, SKILL_PROFESSIONS, SKILLS, STOREYS, TERRAIN_CHARS,
-  TERRAINS, TREE_GROWS, VOW_TRAITS, buildOntology, type Form,
+  TERRAINS, TREE_GROWS, VOW_TRAITS, buildOntology, type Form, LOOK_BODIES, LOOK_PARTS,
 } from '@lsw/content'
 import { buildFord } from '../../tools/src/demo/world.ts'
 import { PEOPLE } from '../../tools/src/demo/people.ts'
 import type { PersonDef } from '../../tools/src/demo/person.ts'
 import { CATALOG } from '../../client/src/assets/catalog.ts'
 import { pngSize } from './png.ts'
+import { FACE_PX, lookUrls } from './looks.ts'
 
 export const zh = (t?: Text | string): string => (t == null ? '' : typeof t === 'string' ? t : t.zh || t.en)
 export const enOf = (t?: Text | string): string => (t == null ? '' : typeof t === 'string' ? t : t.en)
@@ -24,7 +25,7 @@ export const enOf = (t?: Text | string): string => (t == null ? '' : typeof t ==
 // ------------------------------------------------------------------------------------------ sprites
 
 /** A picture on the page: a rectangle of an image the game itself serves (/assets/…). */
-export interface Sprite { url: string; x: number; y: number; w: number; h: number; iw: number; ih: number }
+export interface Sprite { url: string; x: number; y: number; w: number; h: number; iw: number; ih: number; /** drawn smooth (a painted portrait), not as pixels */ smooth?: boolean }
 
 const ASSETS = new URL('../../client/public/assets/', import.meta.url)
 const assetPath = (img: string) => (img.startsWith('lsw/') ? img : `na/${img}`)
@@ -117,7 +118,8 @@ export interface PersonEnt extends Ent {
   role: string
   roleZh: string
   age?: number
-  look?: string
+  /** How they look (docs/looks.md): a look record (the game composes both pictures from it), or a drawn sheet's key. */
+  look?: string | Look
   face?: Sprite
   body?: Sprite
   /** Where they are when the world begins. */
@@ -190,8 +192,37 @@ export interface Game {
   placed: Map<string, Map<string, number>>
   /** Where a map's place on the world map is. */
   mapOf: (id: string) => MapEnt | undefined
+  /** The look parts (docs/looks.md), each with a sample look that wears it and its two pictures. */
+  lookParts: LookPartEnt[]
   typeName: (type: string) => string
   entOfType: (type: string) => Ent | undefined
+}
+
+/** A look part on the wiki: what it is, and a sample look that wears it (its portrait and sprite). */
+export interface LookPartEnt {
+  id: string
+  slot: string
+  name: Text
+  say: Text
+  tags: string[]
+  bodies: string[]
+  sample: Look
+  face: Sprite
+  body: Sprite
+}
+
+/** A sample look for a part: the part on a plain body (the first it is drawn for), in plain colours. */
+function sampleLook(id: string): Look {
+  const p = LOOK_PARTS[id]
+  const body = p.bodies?.[0] ?? 'woman'
+  const child = LOOK_BODIES[body]?.age === 'child'
+  const parts: Record<string, string> = {
+    face: child ? 'face.child' : 'face.soft',
+    outfit: { woman: 'outfit.dress', man: 'outfit.tunic', girl: 'outfit.pinafore', boy: 'outfit.smock' }[body] ?? 'outfit.dress',
+  }
+  if (p.slot !== 'hair' && p.slot !== 'hat') parts.hair = child ? 'hair.childbob' : body === 'man' ? 'hair.short' : 'hair.bob'
+  parts[p.slot] = id
+  return { body, parts, colors: { skin: 'light', hair: 'chestnut', eyes: 'hazel' } }
 }
 
 // item groups: the codex's (the game's own grouping, client ui/menu.ts GROUPS)
@@ -302,11 +333,15 @@ export function loadGame(): Game {
   const people: PersonEnt[] = index.npcs.map((e: Entity) => {
     const def = defOf.get(e.id)
     const role = String((e as any).npc?.role ?? def?.role ?? e.type.split('/').pop())
-    const look = def?.look ?? (e as any).look
+    const look = (e as Entity).look
+    // a look record: its portrait and sprite, composed by the game's code when the site is written (build.ts)
+    const urls = typeof look === 'object' ? lookUrls(look) : undefined
+    const face = urls ? { url: urls.face, x: 0, y: 0, w: FACE_PX, h: FACE_PX, iw: FACE_PX, ih: FACE_PX, smooth: true } : faceSprite(look as string | undefined)
+    const body = urls ? { url: urls.body, x: 0, y: 0, w: 16, h: 32, iw: 16, ih: 32 } : bodySprite(look as string | undefined)
     return {
       kind: 'person', id: e.id, zh: zh(e.name), en: (enOf(e.name) || e.id), title: zh(e.name), group: e.place.on === 'tile' ? e.place.map : 'offstage',
       def, entity: e, role, roleZh: roleZh(role), age: def?.age ?? (Number(e.props?.age ?? 0) || undefined), look,
-      face: faceSprite(look), body: bodySprite(look), sprite: faceSprite(look), home: e.place.on === 'tile' ? e.place.map : undefined,
+      face, body, sprite: face, home: e.place.on === 'tile' ? e.place.map : undefined,
     } satisfies PersonEnt
   })
   for (const c of index.companions ?? []) {
@@ -452,6 +487,15 @@ export function loadGame(): Game {
     boons: BOONS, statuses: Object.values(ontology.statuses), terrains: TERRAINS, waypoints: index.waypoints ?? [],
     byId, byTitle, byName, values, index, chunks, placed,
     mapOf: (id) => maps.find((m) => m.id === id),
+    lookParts: Object.entries(LOOK_PARTS).map(([id, p]) => {
+      const sample = sampleLook(id)
+      const urls = lookUrls(sample)
+      return {
+        id, slot: p.slot, name: p.name, say: p.say, tags: p.tags ?? [], bodies: p.bodies ?? Object.keys(LOOK_BODIES), sample,
+        face: { url: urls.face, x: 0, y: 0, w: FACE_PX, h: FACE_PX, iw: FACE_PX, ih: FACE_PX, smooth: true },
+        body: { url: urls.body, x: 0, y: 0, w: 16, h: 32, iw: 16, ih: 32 },
+      }
+    }),
     typeName, entOfType,
   }
   return g

@@ -459,13 +459,18 @@ export class Hud {
   }
 
   /** The open line's portrait, for its speaker's mood. */
-  private showFace(who: string, mood?: Mood): void {
+  private showFace(who: string, mood?: Mood, tries = 0): void {
     this.dialogMood = mood
     const face = $('#dFace')
     face.replaceChildren()
     const c = this.facesetOf?.(who, mood)
     if (c) face.appendChild(c)
     face.classList.toggle('hidden', !c)
+    // a look's portrait is a bust beside the box (docs/looks.md); while its layers are still coming, look again
+    const bust = !!c?.dataset.bust
+    face.classList.toggle('bust', bust)
+    $('#dialog').classList.toggle('bust', bust)
+    if (!bust && tries < 8) setTimeout(() => this.dialogWho === who && this.dialogMood === mood && !$('#dialog').classList.contains('hidden') && this.showFace(who, mood, tries + 1), 250)
   }
 
   private type(text: string): void {
@@ -601,7 +606,7 @@ export class Hud {
         const p = frame?.player
         if (fx.mood && fx.mood !== 'neutral') this.bubble(fx.who, MOOD_GLYPH[fx.mood])
         if (fx.scene) return this.openDialog(fx.who, who ? tx(who.name) : '', text, true, fx.mood)
-        const near = who && p && who.id !== p.id && Math.abs(who.x - p.x) + Math.abs(who.y - p.y) <= 2 && (who.look || who.appearance)
+        const near = who && p && who.id !== p.id && Math.abs(who.x - p.x) + Math.abs(who.y - p.y) <= 2 && (who.look || who.tags.includes('person'))
         if (near) return this.openDialog(fx.who, tx(who.name), text, false, fx.mood)
         return this.bubble(fx.who, text)
       }

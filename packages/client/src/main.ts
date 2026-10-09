@@ -190,6 +190,18 @@ function crop(img: string, x: number, y: number, w: number, h: number): HTMLCanv
   return c
 }
 const faceset = (id: string, mood?: Mood) => {
+  // a look's portrait, the anime bust (docs/looks.md); while its layers are still coming, the sprite's head
+  const bust = scene.portraitOf(id, mood)
+  if (bust) {
+    const c = document.createElement('canvas')
+    c.width = bust.width
+    c.height = bust.height
+    c.getContext('2d')!.drawImage(bust, 0, 0)
+    c.dataset.bust = '1'
+    return c
+  }
+  const look = scene.lookOf(id)
+  if (look?.img.startsWith('fig/')) return crop(look.img, 0, 4, 16, 16)
   const f = scene.faceOf(id, mood)
   if (!f || !scene.textures.exists(f.img)) return undefined
   const src = scene.textures.get(f.img).getSourceImage() as HTMLImageElement
@@ -382,7 +394,7 @@ const cover = new Cover(WORLD, {
     quietSave = true
     const library = await kvGet<LibraryData>('library')
     const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
-    send({ t: 'init', base, save: data?.save, library, librarySeq: await librarySeq(), modder: MODDER, prefetch: PARAMS.get('prefetch') === '1', difficulty: game?.difficulty, start: game?.start })
+    send({ t: 'init', base, save: data?.save, library, librarySeq: await librarySeq(), modder: MODDER, prefetch: PARAMS.get('prefetch') === '1', difficulty: game?.difficulty, start: game?.start, look: game?.look })
   },
   tutorial: async () => {
     // its own run: nothing is saved, and the story's main line is not reached from it

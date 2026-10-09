@@ -13,7 +13,7 @@
 //   npm run art:faces -- --sheet <dir>      (also review pages: each face's strip and its features marked)
 
 import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
+import { join, relative, resolve, sep } from 'node:path'
 import type { Mood } from '@lsw/engine'
 import { OUT, png, readPng, writePng } from './png.ts'
 
@@ -425,7 +425,7 @@ export function facesets(): string[] {
       const p = join(dir, n)
       if (statSync(p).isDirectory()) {
         if (p !== resolve(OUT, 'Faces')) walk(p)
-      } else if (/^Faceset\d*\.png$/.test(n)) found.push(p.startsWith(NA + '/') ? relative(NA, p) : relative(ASSETS, p))
+      } else if (/^Faceset\d*\.png$/.test(n)) found.push((p.startsWith(NA + sep) || p.startsWith(NA + '/') ? relative(NA, p) : relative(ASSETS, p)).split(sep).join('/'))
     }
   }
   walk(join(NA, 'Actor'))

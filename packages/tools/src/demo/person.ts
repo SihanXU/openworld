@@ -3,6 +3,7 @@
 // `npc.person` (PersonData) for the engine.
 
 import type { LineDef, Mood, Selector, Text, WorkDef } from '@lsw/engine'
+import type { LookPins } from '@lsw/content'
 import type { ItemSpec } from './builder.ts'
 
 /**
@@ -17,8 +18,10 @@ export interface PersonDef {
   id: string
   role: string
   name: Text
-  /** Character look key (client catalog.characters). */
-  look: string
+  /** Their sex as their body shows it (docs/looks.md): the looks generator weighs parts by it. */
+  gender: 'female' | 'male'
+  /** What the author chose of their look (docs/looks.md): a body, parts and colours; the rest is drawn from their id. */
+  look?: LookPins
   age: number
   temperament: { personality: string; manner: 'polite' | 'plain' | 'rough'; social: 'outgoing' | 'reserved'; outlook: 'hopeful' | 'wary' }
   /** npc id → relation, from this person's side. */
