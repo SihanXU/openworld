@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, buildSandbox, buildScenario, scenarioEvent, validatePatch, type GameEvent, type Rule } from '@lsw/engine'
+import { RuleLibrary, buildSandbox, buildScenario, holeKey, scenarioEvent, validatePatch, type GameEvent, type Rule } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
 
 const onto = buildOntology()
@@ -43,12 +43,14 @@ describe('a request replays the state its rules read', () => {
       eng.world.setProp(eng.world.get('story')!, 'learned', true)
       eng.world.setProp(eng.world.get('world')!, 'ready', true)
     })
-    const rule: Rule = { id: 'patch/bag-and-residents', host: { type: 'item/material/feather' }, on: 'act/use', tree: {
+    // the feather's own answer at the hole the act falls into (design.md §5.16)
+    const open = eng.resolveEvent(use)
+    const rule: Rule = { id: 'patch/bag-and-residents', host: { type: 'item/material/feather' }, on: 'act/use', hole: holeKey(open.hole!.rule.id, open.hole!.path), at: open.open!.path, tree: {
       if: { all: [
         { count: { role: 'actor', in: 'contents', match: { type: 'item/material/stone' }, cmp: { gte: 1 } } },
         { prop: { role: 'story', key: 'learned', cmp: true } },
         { prop: { role: 'world', key: 'ready', cmp: true } },
-      ] }, then: { do: [{ op: 'log', text: 'Recognized.' }] }, else: 'inherit',
+      ] }, then: { do: [{ op: 'log', text: 'Recognized.' }] }, else: { undefined: true },
     } }
     const sc = buildScenario(eng, use)
     eng.lib.add({ ...rule, source: { origin: 'patch' } })

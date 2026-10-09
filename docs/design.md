@@ -414,7 +414,8 @@ lists where it fell short).
   - Walk its tree to a leaf. `inherit` goes up a level.
   - The root type `thing` has a rule for every root event kind, and none of them inherits, so
     every event reaches a leaf.
-  - The validator rejects two rules that are equally specific.
+  - The validator rejects two base rules that are equally specific; learned rules have places,
+    not ranks (§5.16).
 - **One outcome per event.** There are no composed rules. Further consequences are further
   events: an act that someone sees is also a `seen` event, with the seer as its host.
 
@@ -535,13 +536,13 @@ At the Ford:
   - it sits on a host type and an event kind of the AI's choosing;
   - its conditions name classes, not instances;
   - every case it does not match inherits.
-- **Validation**, in addition to §8's schema, ontology, sandbox replay, tests and regression:
+- **Validation**, in addition to §8's schema, ontology, sandbox replay and tests:
   1. it writes only its host;
   2. it emits only known kinds;
-  3. it addresses classes;
-  4. **it only fills holes**: every case it matches resolved to an undefined leaf before.
-     Conditions are conjunctions over types, tags, statuses and numeric ranges, so whether
-     the patch's region lies inside the hole's region can be decided.
+  3. it is one type's, placed at one open leaf of that type's tree for the hole (§5.16);
+  4. **it only fills holes**: by construction, since the learned tree is consulted only where
+     the base rules reach an undefined leaf, and a learned rule has no undefined leaf of its own
+     that it could close for others.
 
   Rule 4 makes refinement monotone: the AI never changes defined behaviour. An authored
   outcome that is wrong is fixed by a person, or by offline review.
@@ -882,6 +883,73 @@ Sources:
   examine/trigger, ambient arrival, opening), `demo/loom/docs/quests.md` (the stage
   invariant).
 
+### 5.16 Learned rules take one leaf (2026-10-09)
+
+Agreed with the user, and built. A patch used to name a class (`{type: "item/weapon"}`,
+`{tags: ["edible"]}`) and join a layer of learned rules ranked by specificity. Three things
+followed from the ranking: two learned rules could tie (the validator refused the later one, and
+the modder learnt to add tags to win the ranking); a later, more specific one could shadow an
+earlier one, so every patch was replayed against the scenes earlier ones answered (the regression
+set); and once a broad patch filled a hole, nothing more specific was ever asked about any
+instance of its class. A second observation: none of this guarded anything. What the base rules
+define is resolved before the learned layer is consulted at all; a learned rule may not have an
+undefined leaf; `inherit` ran on to the next learned rule. So no patch could ever make a defined
+outcome undefined, and the regression replay could only ever report a shadowing it then allowed.
+
+**Now a learned rule is one type's, placed at one leaf.**
+
+- Its host is exactly `{type: T}`, the type of the event's host instance; its `on` is the exact
+  event kind; `hole` names the base hole it fills (`holeKey`: the base rule and the branch that
+  reached it); `at` is the path in the type's tree for that hole to the open leaf it replaces
+  (empty for the first answer). The four are set from the request by the harness (`placePatch`),
+  never by the model, which writes the tree.
+- For each (type, kind, hole) the library keeps **one tree**, composed from its answers in the
+  order they were learned: the first answer is the tree; each later one replaces the open leaf at
+  its `at`. A leaf keeps the answer it came from, so the rule that decided an event is known, and
+  an answer set aside at runtime (`quarantine`) leaves its leaves open again.
+- A learned rule never writes `inherit`. A case it does not answer ends in `{"undefined": true}`:
+  it stays open, and is asked later; the base hole's default runs there meanwhile. An `if` needs
+  an `else`.
+- Resolution: the base chain as before; at a hole, the host type's own tree for that hole;
+  `Resolution.open` says where an answer would go (the key and the path), and the request carries
+  it (`hole.at`). The class key includes it: one question per open leaf and class.
+
+**What this removes.** Ties, the regression set (the client's ring of recent acts, the service's
+FIFO, the validator's step 7), `overrides`, `narrowKinds`, and the sibling generalization test (a
+learned rule has no siblings; its derived test is the scene that asked). The validator's checks
+on a learned rule are: schema, ontology, locality and the world-event boundaries; its place (with
+the scene that asked: the host's type, the kind, the hole and the open leaf it reaches; without
+one: a first answer, or an open leaf of the library's tree); the sandbox replay of the triggering
+event (it resolves to this rule); the repeat check; its own tests. Monotonicity over the base is
+by construction, not by test.
+
+**What it costs.** Generalization moves out of the learned layer: a class-wide answer ("natural
+fixtures hold nothing put on them", which once answered 1,638 cells) is now one answer per type
+reached, and sibling types are answered independently and may disagree. That is the intended
+division: the live layer answers one type at one leaf and never interacts with another answer;
+what holds for a class belongs in the base rules, which the offline loop may propose (a repo
+change with tests, merged by a person) and which then makes the learned trees under it stale
+(`RuleLibrary.stale()` lists answers whose leaf is gone or already answered).
+
+**Older patches.** A learned rule without a place (a class host, no `hole`) is kept in a library
+but never consulted; `library prune` lists and rolls back what the validator no longer takes, and
+`restoreLibrary` drops it from a save with the reason.
+
+**The base's general cases (the same day).** With generalization moved to the base, the base
+took the class-level answers the curriculum had been learning one patch at a time
+(`rules.ts` GENERAL): a thing used on a creature is held out to it, as §5.2 says (`core/use`);
+a creature lashed down by anything fibrous and fed by anything edible, else its own kind's to
+answer (`creature/offered`, still a hole at the root); a wild creature snapping at a bare hand,
+animals left to their own rules (`creature/handle`); a cell only touched by a bare hand, but a
+place of the overworld entered (`tile/handle`); a lit fire drying and thawing who warms their
+hands at it (`fire/warm-hands`); ore smelted in a lit forge into its bar (`smelt/ore`, the ore's
+`smelts`; iron and gold ingots are forms now); a down companion waiting (`companion/stuck`); and
+anything swung as a blow striking. What §5.2 calls the player's experiments — a thing used on the
+ground, on an item, on a person, on oneself, on a fixture with no purpose — stays undefined on
+purpose: that is where the AI's answers are interesting, and it is most of the 27,213 `core/use`
+holes left. The planner no longer lets the ground's "touched" take E away from an unanswered
+thing in front (`controls.ts`: what one stands on wins only with an answer that does something).
+
 ## 6. Rule system
 
 The shape below is the event model's (§5.6), agreed 2026-10-02 and built (§5.14).
@@ -1066,16 +1134,16 @@ Lifecycle of a patch:
    4. **writes only its host**;
    5. **fills only holes**: by construction — patches are consulted only where the base rules
       reach an undefined leaf (§5.14), and the replay must resolve to the patch;
-   6. no tie with an existing rule;
-   7. **sandbox replay** of the triggering event, of the patch's own `tests`, and of the
-      regression set, on a copy of the state.
+   6. its place: one type, the exact kind, the hole and the open leaf the scene reaches (§5.16);
+   7. **sandbox replay** of the triggering event and of the patch's own `tests`, on a copy of
+      the state; the repeat check.
 5. **Apply.** The rule enters the library; the held event is replayed and now reaches it.
 6. **Persist** (§9).
 
 A failure at any step runs the leaf's default; the game never blocks.
 
 As built (2026-10-05): the service keeps bounded validation proofs keyed by the library
-version and the contents of the ontology, workspace, regression set, scenario and candidate
+version and the contents of the ontology, workspace, scenario and candidate
 artifacts. Adding only tests replays the added tests. Commit reuses a proof only when its
 shared-library context matches exactly; any context change requires full validation. Both
 luck branches of the repeat check remain.

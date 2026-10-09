@@ -19,7 +19,7 @@ import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { DockerEnv, LocalEnv, SANDBOX_LIMITS, chooseIsolation, hostUser, sandboxImage, sh, type AgentTask, type Env, type Isolation } from '@lsw/agent'
-import type { EntityInfo, LibraryData, ModRequest, ModSpec, Ontology, Patch, Rule, RuleLibrary, Scenario, StatusDef, TypeDef } from '@lsw/engine'
+import type { EntityInfo, LibraryData, ModRequest, ModSpec, Ontology, Patch, Rule, RuleLibrary, StatusDef, TypeDef } from '@lsw/engine'
 
 const VALIDATE_CLI = fileURLToPath(new URL('./validate-cli.ts', import.meta.url))
 const REPO = fileURLToPath(new URL('../../..', import.meta.url))
@@ -59,7 +59,6 @@ export interface WorldRepoState {
   library: LibraryData
   /** patch rules this task may replace (a revision) */
   replaces: string[]
-  regression: { scenario: Scenario; rule: string }[]
 }
 
 export interface WorldRepo {
@@ -157,7 +156,7 @@ function issueOf(req: ModRequest, revise?: { rules: Rule[]; notes: string[] }): 
   ].join('\n')
 }
 
-export async function materializeWorld(o: { request: ModRequest; library: RuleLibrary; ontology: Ontology; spec: ModSpec; regression?: { scenario: Scenario; rule: string }[]; revise?: { rules: string[]; notes: string[] }; isolation?: Isolation }): Promise<WorldRepo> {
+export async function materializeWorld(o: { request: ModRequest; library: RuleLibrary; ontology: Ontology; spec: ModSpec; revise?: { rules: string[]; notes: string[] }; isolation?: Isolation }): Promise<WorldRepo> {
   const iso = o.isolation ?? (await worldIsolation())
   const dir = mkdtempSync(join(tmpdir(), 'lsw-world-'))
   const lib = o.library
@@ -184,7 +183,7 @@ export async function materializeWorld(o: { request: ModRequest; library: RuleLi
     'validate.mjs',
     `// the tests of this repository: the engine's validator on the rules under rules/patch/\nimport { spawnSync } from 'node:child_process'\nconst r = spawnSync(process.execPath, ${JSON.stringify([asSeen(TSX, iso), asSeen(VALIDATE_CLI, iso), '.'])}, { stdio: 'inherit' })\nprocess.exit(r.status ?? 1)\n`,
   )
-  const state: WorldRepoState = { request: o.request, library: lib.toJSON(), replaces: o.revise?.rules ?? [], regression: o.regression ?? [] }
+  const state: WorldRepoState = { request: o.request, library: lib.toJSON(), replaces: o.revise?.rules ?? [] }
   write(dir, '.lsw/state.json', JSON.stringify(state))
   const manifest = Object.fromEntries(DIRS.flatMap((d) => files(dir, d)).map((f) => [f, hash(readFileSync(join(dir, f), 'utf8'))]))
   write(dir, '.lsw/manifest.json', JSON.stringify(manifest))

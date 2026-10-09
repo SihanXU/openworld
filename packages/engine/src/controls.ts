@@ -380,12 +380,12 @@ export class Controls {
     }
     const p = this.planAt(key, a.at, a.stack, layer)
     // E with no spot pointed at (or the pointer beyond reach): the spot in front or toward the
-    // pointer — unless what is there has no answer of its own and what one stands on has one (the
-    // bed one lies on, a place of the overworld)
+    // pointer — unless what is there has no answer of its own and what one stands on has one that
+    // does something (the bed one lies on, a place of the overworld; not the ground's "touched")
     if (key === 'hands' && layer === 0 && !a.pointed && (!p || p.unknown)) {
       const pos = this.w.posOf(this.w.player)
       const own = pos && this.planAt(key, pos, undefined, 0)
-      if (own && !own.unknown) return own
+      if (own && !own.unknown && own.changes) return own
     }
     return p
   }

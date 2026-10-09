@@ -5,7 +5,7 @@
 // on, far past the checks' own bounds.
 
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, scenarioEvent, validatePatch, type Effect, type Engine, type GameEvent, type Patch, type Rule, type Scenario, type Tree } from '@lsw/engine'
+import { ModPort, RuleLibrary, buildSandbox, holeKey, scenarioEvent, validatePatch, type Effect, type Engine, type GameEvent, type Patch, type Rule, type Scenario, type Tree } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
 import { WorldLibrary } from '@lsw/modder'
 import { mkdtempSync, writeFileSync } from 'node:fs'
@@ -18,8 +18,8 @@ const STATUE = 'fixture/sacred/statue'
 const ALTAR = 'fixture/sacred/altar'
 const STICK: Effect = { op: 'spawn', type: 'item/material/stick', at: 'host' }
 
-/** A blow with an axe on a statue (which cannot break): the hole `impulse/strike` on the statue. */
-function blowOnStatue(): Scenario {
+/** A blow with an axe on a statue (which cannot break): the hole `impulse/strike` on the statue, and its key. */
+function blowOnStatue(): { scenario: Scenario; hole: string } {
   const eng = buildSandbox(
     {
       terrain: Array.from({ length: 5 }, () => Array(5).fill('grass')),
@@ -35,11 +35,13 @@ function blowOnStatue(): Scenario {
   )
   const port = new ModPort(eng)
   eng.act('use', 'actor', { e: 'statue' })
-  return port.records.find((r) => r.event.kind === 'impulse/strike')!.request.scenario
+  const req = port.records.find((r) => r.event.kind === 'impulse/strike')!.request
+  return { scenario: req.scenario, hole: holeKey(req.hole.rule, req.hole.path) }
 }
-const SCENE = blowOnStatue()
+const { scenario: SCENE, hole: STRIKE_HOLE } = blowOnStatue()
 
-const rule = (id: string, host: string, tree: Tree): Rule => ({ id, host: { type: host }, on: 'impulse/strike', tree, source: { origin: 'patch' } })
+/** A learned answer to the blow: the type's own at the statue's hole (an altar struck falls into the same one). */
+const rule = (id: string, host: string, tree: Tree): Rule => ({ id, host: { type: host }, on: 'impulse/strike', hole: STRIKE_HOLE, tree, source: { origin: 'patch' } })
 
 /** The family: a gate (none, a counter, a status, a status that runs out) around effects. */
 function family(): { name: string; patch: Patch }[] {

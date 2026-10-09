@@ -127,7 +127,7 @@ async function resolveRemote(request: ModRequest): Promise<Patch | null> {
   const lib = game!.engine.lib
   const body: ResolveBody = {
     request,
-    workspace: { patches: { rules: lib.patches(), types: lib.types, statuses: lib.statuses }, regression: game!.mods.regression },
+    workspace: { patches: { rules: lib.patches(), types: lib.types, statuses: lib.statuses } },
   }
   const watching = watchProgress(request.id)
   try {

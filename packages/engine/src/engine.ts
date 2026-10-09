@@ -36,8 +36,6 @@ export interface UndefinedSink {
    */
   raise(ev: GameEvent, res: Resolution): boolean
   tick(): void
-  /** Called with every defined act the player made, e.g. to build a regression set. */
-  observe?(ev: GameEvent, rule: string): void
 }
 
 export interface MapChunk {
@@ -540,7 +538,6 @@ export class Engine {
       this.dispatching--
     }
     this.flush()
-    if (res.defined && res.rule && ev.origin === 'player') this.undefinedSink?.observe?.(ev, res.rule.id)
     // what the seers see: the act, and whether the world had an answer for all it set going
     if (verb !== 'move' && verb !== 'craft' && verb !== 'learn') this.see(ev, res.defined && this.holes === holes, owner)
     this.flush()

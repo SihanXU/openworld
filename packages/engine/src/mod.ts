@@ -12,7 +12,7 @@ import type { Engine, Resolution, UndefinedSink } from './engine.ts'
 import { STORY, textOf } from './engine.ts'
 import { OntologyIndex, isA, withTerrainTypes } from './ontology.ts'
 import { deriveRecipes } from './recipes.ts'
-import { RuleLibrary, cmp, compareSpec, isDo, isHole, leaves, rolesOf, specOf, type LibraryData } from './rules.ts'
+import { RuleLibrary, cmp, compareSpec, holeKey, isDo, isHole, leaves, locate, patchKey, rolesOf, specOf, type LibraryData } from './rules.ts'
 import { buildSandbox, chainLoop, checkExpectations, replay, scenarioEvent, whyEndless } from './sandbox.ts'
 import type { Cmp, Cond, Effect, EmitTo, GameEvent, Look, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tree, TypeDef } from './types.ts'
 import { RECENT_LINES, type View } from './world.ts'
@@ -57,8 +57,13 @@ export interface ModRequest {
   origin: 'player' | 'world'
   /** The event whose outcome is undefined: its kind, its parameters, its host and its other roles. */
   event: { kind: string; params: Record<string, unknown>; host?: EntityInfo; roles: Partial<Record<RoleName, EntityInfo>>; detail?: string }
-  /** Where the base outcome is undefined: the rule, the branches taken to reach it, and its default (what happens while nobody answers). */
-  hole: { rule: string; path: string[]; default: Effect[] }
+  /**
+   * Where the outcome is undefined: the base rule, the branches taken to reach its undefined leaf,
+   * its default (what happens while nobody answers), and `at`: the path in the host type's own tree
+   * for this hole to the undefined leaf the event fell into (empty: the type has no tree here yet).
+   * The answer is placed there (design.md §5.16).
+   */
+  hole: { rule: string; path: string[]; default: Effect[]; at: string[] }
   context: {
     map: { id: string; name: string; kind: string; region?: string }
     /** Named spots of the map (for `goto`). */
@@ -104,10 +109,9 @@ export interface ModProvider {
 
 // ---------------------------------------------------------------- the wire (client ↔ modder service)
 
-/** What the client knows that the service may not: its local patches and recent defined acts. */
+/** What the client knows that the service may not: its local patches. */
 export interface ModWorkspace {
   patches?: { rules: Rule[]; types?: TypeDef[]; statuses?: StatusDef[] }
-  regression?: { scenario: Scenario; rule: string }[]
 }
 
 /** POST /resolve */
@@ -168,18 +172,16 @@ export interface ValidationResult {
   ok: boolean
   errors: string[]
   warnings: string[]
-  /** Earlier patches the new one now shadows for some events (informational). */
-  overrides: string[]
 }
 
 // ---------------------------------------------------------------- the ModSpec
 
 const AUTHORING_RULES = [
-  'You answer ONE undefined outcome: an event reached an undefined leaf (request.hole). Write a rule that gives that outcome — your rule is consulted only where the world says "undefined", so it can never change what is already defined.',
+  'You answer ONE undefined outcome: an event reached an undefined leaf (request.hole). Write the rule that gives that outcome — your rule is consulted only where the world says "undefined", so it can never change what is already defined.',
+  'Your rule is the host TYPE\'s own (design.md §5.16): host {type: <the host\'s exact type>}, on <the exact event kind>, hole and at as the request gives them (the harness sets these four; do not invent them). It is placed at the open leaf the event fell into, in that type\'s own tree for that hole, and answers nowhere else.',
   'A rule belongs to a HOST: the thing whose nature it describes. Write what the host does when the event happens to it. Read anything (conditions on any role), but WRITE ONLY THE HOST: every effect acts on the host, spawns new things, or presents. To affect anything else, `emit` an impulse to it — the receiver answers for itself (lava does not hurt people; lava emits element fire to what stands on it, and a person, taking fire, loses health).',
-  'Write the CLASS, not the instance: select the host by the most general type/tags/statuses that make the outcome plausible. Never use `id` unless the behaviour truly belongs to one unique thing.',
-  'Name the host: a rule with an empty host is a root rule and is not allowed in a patch.',
-  'Conditions narrow the cases (the other role\'s tags, a param like element or how). Cases you do not want to answer: leave them to `inherit` (an `if` without `else` inherits).',
+  'Write for every instance of the type (its materials, qualities, elements and statuses are tags and props: branch on them in the tree when they matter). Never use `id`.',
+  'Conditions narrow the cases (the target\'s type or tags, a param like element or how). A case you do not answer ends in {"undefined": true}: it stays open and is asked later; a learned rule never writes `inherit`. An `if` needs an `else`.',
   `Use only the listed event kinds, impulses, primitives, statuses, terrains, types and vfx. If you need a new type or status, add a \`type\`/\`status\` artifact to the same patch; a status draws over what has it with \`overlay\`: one of ${OVERLAYS.join(', ')}.`,
   'Every rule should carry at least one test (a small scenario + expectations). The triggering event is replayed automatically.',
   'Combat talents are evaluated by the engine for any actor carrying skill:<id>. Actor props profession, moveHaste, attackHaste and critChance control eligibility/cadence/critical chance. Attack hit.power already includes offensive talents; do not apply them again in a hit rule. Direct combat damage reductions and Last Stand are handled by damage. Timed talent state lives in Entity.combat and is saved.',
@@ -238,11 +240,12 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
   return {
     version: 'lsw-modspec/2',
     summary:
-      'Author RULES for a 2D JRPG world whose mechanics are data. Every happening is an event with one outcome. A rule belongs to a HOST type and answers one event kind (or a branch of kinds) with a condition tree whose leaves are effects, `inherit` or undefined. You are called because an event reached an undefined leaf (request.hole): write the host rule that gives it an outcome. Effects write only the host; to affect others, emit impulses (strike, element, coat, restore, push, taken, receive, offered, handle, notify), which their receivers answer.',
+      'Author RULES for a 2D JRPG world whose mechanics are data. Every happening is an event with one outcome. A rule belongs to a HOST type and answers one event kind with a condition tree whose leaves are effects or open ({"undefined": true}). You are called because an event reached an undefined leaf (request.hole): write the host type\'s own rule that gives it an outcome. The harness places it (host, on, hole, at: from the request); you write its tree. Effects write only the host; to affect others, emit impulses (strike, element, coat, restore, push, taken, receive, offered, handle, notify), which their receivers answer.',
     rule: {
       id: 'unique string, e.g. "patch/slime-wets-in-rain"',
-      host: 'Selector: the class of thing whose nature this is (required in a patch)',
-      on: `an event kind or a branch: ${[...EVENT_KINDS].join(' | ')} — or a prefix such as "impulse" or "contact"`,
+      host: '{type: <the exact type of the event\'s host>} — a learned rule is one type\'s; what narrows the case (the host\'s tags, statuses, props) goes in the tree (set by the harness)',
+      on: `the exact event kind: ${[...EVENT_KINDS].join(' | ')} (set by the harness)`,
+      hole: 'the base hole this rule fills, and at: the path to the open leaf it replaces in the type\'s tree for that hole (both set by the harness from the request)',
       tree: 'the outcome: a Tree (see `tree`)',
       confirm: 'optional Text: ask the player first when their input chooses this rule ("Eat {instrument}?")',
       label: 'Text, for a rule an input reaches (act/*, impulse/*): what the input does, as the HUD shows it before the press — {en, zh}, naming {target}, {instrument}, {actor} ("Feed {instrument} to {target}" / "给{target}吃{instrument}"); a leaf may carry its own. Without it the input shows its default.',
@@ -251,9 +254,8 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
     },
     tree: {
       leaf: '{do: Effect[], label?: Text} — the outcome; an empty list means no change (a definition); label: what an input ending here does, over the rule\'s',
-      inherit: '"inherit" — not this rule\'s case: the next, less specific rule answers',
-      branch: '{if: Cond, then: Tree, else?: Tree} — else defaults to "inherit"',
-      note: 'patches may not contain undefined leaves',
+      open: '{"undefined": true} — not answered here: the case stays open (the hole\'s default runs) and is asked later',
+      branch: '{if: Cond, then: Tree, else: Tree} — a learned rule gives every if an else, and never writes "inherit" (base rules use it to defer to a less specific rule)',
     },
     selector: {
       type: 'is-a match on the slash-path type hierarchy (prefix): everything is one tree of things — actor (agents, with bodies), item (portable), fixture, tile/<terrain>, resident/story, resident/world. There are no kinds.',
@@ -335,9 +337,6 @@ export function restoreLibrary(base: Rule[], saved: LibraryData | undefined, ont
 /** The params whose value branches an outcome: they are part of an outcome's class. */
 export const BRANCHING_PARAMS = ['verb', 'element', 'edge', 'how', 'status', 'name', 'act', 'owner', 'activity', 'invariant', 'what', 'substance', 'which', 'into']
 
-/** A hole as a key: its rule, and the branch that reached it. */
-export const holeKey = (rule: string, path: string[]): string => `${rule}${path.length ? '#' + path.join('&') : ''}`
-
 /**
  * The class of an undefined outcome, instances aside (one question per hole and class): the hole,
  * the kind, the host's type, the other roles' types (`self` when it is the host), the branching
@@ -369,7 +368,7 @@ export function signatureOf(eng: Engine, ev: GameEvent, res?: Resolution): strin
   }
   const same = (r: Ref | undefined) => !!r && 'e' in r && 'e' in ev.host && r.e === ev.host.e
   return classKey({
-    hole: res?.hole ? holeKey(res.hole.rule.id, res.hole.path) : '?',
+    hole: (res?.hole ? holeKey(res.hole.rule.id, res.hole.path) : '?') + (res?.open?.path.length ? '@' + res.open.path.join('&') : ''),
     kind: ev.kind,
     host: kind(ev.host),
     roles: Object.entries(ev.roles).map(([k, r]) => [k, same(r) ? 'self' : kind(r)]),
@@ -383,8 +382,6 @@ const MAX_UNREACHABLE = 3
 export class ModPort implements UndefinedSink {
   provider?: ModProvider
   records: UndefinedRecord[] = []
-  /** Scenarios of recently *defined* acts: regression set for new patches. */
-  regression: { scenario: Scenario; rule: string }[] = []
   onChange?: () => void
   /** How long an outcome waits for a patch before the default runs (a late patch still applies). */
   timeoutTicks = TIMEOUT_TICKS
@@ -498,17 +495,6 @@ export class ModPort implements UndefinedSink {
     return true
   }
 
-  observe(ev: GameEvent, rule: string): void {
-    if (!ev.kind.startsWith('act/') || ev.kind === 'act/move') return
-    try {
-      const sc = buildScenario(this.eng, ev)
-      this.regression.push({ scenario: sc, rule })
-      if (this.regression.length > 40) this.regression.shift()
-    } catch {
-      /* best effort */
-    }
-  }
-
   private unfreeze(id: string): void {
     for (const e of Object.values(this.eng.world.state.entities)) if (e.frozenBy === id) delete e.frozenBy
   }
@@ -538,16 +524,17 @@ export class ModPort implements UndefinedSink {
     // twice, e.g. by sync and by reply) are skipped; the rest is validated as usual.
     const fresh = patch.artifacts?.filter((a) => !alreadyHeld(eng.lib, a)) ?? []
     if (Array.isArray(patch.artifacts) && patch.artifacts.length && !fresh.length) {
-      const res: ValidationResult = { ok: true, errors: [], warnings: ['already in the library'], overrides: [] }
+      const res: ValidationResult = { ok: true, errors: [], warnings: ['already in the library'] }
       if (rec && rec.status !== 'patched') this.settled(rec, patch, patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : [])))
       return res
     }
     if (fresh.length !== patch.artifacts.length) patch = { ...patch, artifacts: fresh }
+    // an answer to this port's own question is placed where the question was asked (design.md §5.16)
+    if (rec) patch = placePatch(patch, rec.request).patch
     const res = validatePatch(patch, {
       ontology: w.onto.data,
       library: eng.lib,
       scenario: rec?.request.scenario ?? scenario,
-      regression: this.regression,
       world: (rec?.origin ?? patch.trigger) === 'world',
       protectedFacts: eng.protectedFacts,
     })
@@ -621,6 +608,55 @@ export class ModPort implements UndefinedSink {
     if (r) this.failed.add(r.signature)
     this.fallback(id)
   }
+}
+
+/**
+ * A learned rule's place is the request's, never the model's (design.md §5.16): its host is the
+ * event's host type, its kind the event's, its hole and `at` where the event fell undefined. Set
+ * them on every rule of the draft, and turn an `inherit` leaf (the old way to leave a case open)
+ * into an open leaf. Each change is recorded as a fix.
+ */
+export function placePatch(patch: Patch, req: ModRequest): { patch: Patch; fixes: string[] } {
+  const fixes: string[] = []
+  const type = req.event.host?.type
+  const hole = holeKey(req.hole.rule, req.hole.path)
+  const at = req.hole.at ?? []
+  const open = (t: Tree, id: string): Tree => {
+    if (t === 'inherit') {
+      fixes.push(`"${id}": an inherit leaf left open ({"undefined": true}) — a learned rule never inherits`)
+      return { undefined: true }
+    }
+    if (!t || typeof t !== 'object' || !('if' in t)) return t
+    return { if: t.if, then: open(t.then, id), else: open(t.else === undefined ? 'inherit' : t.else, id) }
+  }
+  const rules = patch.artifacts.filter((a) => a.kind === 'rule' && a.rule)
+  // the answer to this request: the one rule, or one written for its kind or its host (another
+  // rule beside it answers another thing's reply, and keeps its own place as written)
+  const answers = (r: Rule): boolean => rules.length === 1 || r.on === req.event.kind || (!!type && r.host?.type === type)
+  const artifacts = patch.artifacts.map((a) => {
+    if (a.kind !== 'rule' || !a.rule) return a
+    const r = a.rule
+    const next: Rule = { ...r, tree: open(r.tree, r.id) }
+    if (!answers(r)) return { kind: 'rule' as const, rule: next }
+    if (type && (r.host?.type !== type || Object.keys(r.host ?? {}).length !== 1)) {
+      fixes.push(`"${r.id}": host set to {type: "${type}"} (was ${JSON.stringify(r.host ?? null)})`)
+      next.host = { type }
+    }
+    if (r.on !== req.event.kind) {
+      fixes.push(`"${r.id}": on set to ${req.event.kind} (was ${r.on})`)
+      next.on = req.event.kind
+    }
+    if (r.hole !== hole) {
+      if (r.hole !== undefined) fixes.push(`"${r.id}": hole set from the request`)
+      next.hole = hole
+    }
+    if (r.at === undefined || JSON.stringify(r.at) !== JSON.stringify(at)) {
+      if (r.at !== undefined) fixes.push(`"${r.id}": at set from the request`)
+      next.at = at
+    }
+    return { kind: 'rule' as const, rule: next }
+  })
+  return { patch: { ...patch, artifacts }, fixes }
 }
 
 /** Does the library already hold this artifact, identically (provenance aside)? */
@@ -780,7 +816,7 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
     summary: summarize(eng, ev),
     origin: ev.origin === 'player' ? 'player' : 'world',
     event: { kind: ev.kind, params: { ...(ev.params ?? {}) }, host: info(eng, 'host', hostView, center), roles: infos, detail: detailOf(eng, ev) },
-    hole: { rule: res.hole?.rule.id ?? '?', path: res.hole?.path ?? [], default: res.hole?.default ?? [] },
+    hole: { rule: res.hole?.rule.id ?? '?', path: res.hole?.path ?? [], default: res.hole?.default ?? [], at: res.open?.path ?? [] },
     context: {
       map: { id: mapData.id, name: textOf(mapData.name), kind: mapData.kind, region: mapData.region },
       anchors: Object.keys(mapData.anchors ?? {}),
@@ -789,7 +825,7 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
       tiles,
       tileStatuses,
       recent,
-      rules: [...eng.lib.candidates(ev.kind, hostView), ...eng.lib.candidates(ev.kind, hostView, true)].slice(0, 8),
+      rules: [...eng.lib.candidates(ev.kind, hostView), ...eng.lib.learned(hostView?.type, ev.kind)].slice(0, 8),
     },
     scenario: buildScenario(eng, ev),
   }
@@ -936,8 +972,8 @@ const ROLE_REFS = new Set([...ROLE_NAMES, ...[...ROLE_NAMES].map((r) => `tileOf:
 interface ValidateCtx {
   ontology: Ontology
   library: RuleLibrary
+  /** The scene that asked: the answer must be placed where it fell undefined there, and must answer it. */
   scenario?: Scenario
-  regression?: { scenario: Scenario; rule: string }[]
   /** The patch answers an event the world started by itself: the boundaries apply. */
   world?: boolean
   /** Fact-key prefixes only the story may change. */
@@ -948,9 +984,8 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   withTerrainTypes(ctx.ontology)
   const errors: string[] = []
   const warnings: string[] = []
-  const overrides: string[] = []
   if (!patch || !Array.isArray(patch.artifacts) || !patch.artifacts.length) {
-    return { ok: false, errors: ['patch.artifacts must be a non-empty array'], warnings, overrides }
+    return { ok: false, errors: ['patch.artifacts must be a non-empty array'], warnings }
   }
   // candidate ontology (+ patch types/statuses)
   const onto: Ontology = structuredClone(ctx.ontology)
@@ -1103,15 +1138,18 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   /** Does a tree say what it does anywhere (a leaf's label)? */
   const labelled = (t: Tree): boolean => (t === 'inherit' || !t || typeof t !== 'object' ? false : 'if' in t ? labelled(t.then) || (t.else !== undefined && labelled(t.else)) : 'do' in t ? t.label !== undefined : false)
   const checkTree = (t: Tree, where: string, resident: boolean, host: Selector | undefined) => {
-    if (t === 'inherit') return
-    if (!t || typeof t !== 'object') return void errors.push(`${where}: a tree is "inherit", {do}, or {if, then, else?}`)
+    if (t === 'inherit') return void errors.push(`${where}: a learned rule never inherits — answer the case ({do}), or leave it open ({"undefined": true}) for a later answer`)
+    if (!t || typeof t !== 'object') return void errors.push(`${where}: a tree is {do}, {"undefined": true}, or {if, then, else}`)
     if ('if' in t) {
       checkCond(t.if, `${where}.if`)
       checkTree(t.then, `${where}.then`, resident, host)
-      if (t.else !== undefined) checkTree(t.else, `${where}.else`, resident, host)
+      checkTree(t.else === undefined ? 'inherit' : t.else, `${where}.else`, resident, host)
       return
     }
-    if ('undefined' in t) return void errors.push(`${where}: a patch may not leave an outcome undefined`)
+    if ('undefined' in t) {
+      if ((t as { default?: unknown }).default !== undefined) errors.push(`${where}: an open leaf has no default of its own — the hole's default runs there`)
+      return
+    }
     if (!('do' in t) || !Array.isArray(t.do)) return void errors.push(`${where}: a leaf is {do: Effect[]}`)
     if (t.label !== undefined) checkLabel(t.label, `${where}.label`)
     t.do.forEach((e, j) => checkEffect(e, `${where}.do[${j}]`, resident))
@@ -1130,9 +1168,11 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (ids.has(r.id)) errors.push(`${where}: duplicate id in patch`)
     ids.add(r.id)
     if (ctx.library.rules.has(r.id)) errors.push(`${where}: id already exists in the library`)
-    if (typeof r.on !== 'string' || !KIND_PREFIXES.has(r.on)) errors.push(`${where}: on must be an event kind or a branch (${[...EVENT_KINDS].join('|')})`)
-    if (!r.host || typeof r.host !== 'object' || !Object.keys(r.host).length) errors.push(`${where}: name the host — a patch answers for a class of thing, never for anything at all`)
+    if (typeof r.on !== 'string' || !EVENT_KINDS.includes(r.on as never)) errors.push(`${where}: on must be the exact event kind (${[...EVENT_KINDS].join('|')})${typeof r.on === 'string' && KIND_PREFIXES.has(r.on) ? ' — a learned rule answers one kind, not a branch' : ''}`)
+    if (!r.host || typeof r.host !== 'object' || !r.host.type || Object.keys(r.host).length !== 1) errors.push(`${where}: host must be exactly {type: <the host's own type>} — a learned rule is one type's; what narrows it (tags, statuses, props) goes in its tree`)
     else checkSel(r.host, `${where}.host`)
+    if (typeof r.hole !== 'string' || !r.hole) errors.push(`${where}: hole required — the base hole this rule fills (the harness sets it from the request)`)
+    if (r.at !== undefined && !(Array.isArray(r.at) && r.at.every((x) => typeof x === 'string'))) errors.push(`${where}: at must be a path (a list of branches) when given`)
     if ('when' in (r as object) || 'do' in (r as object)) errors.push(`${where}: this is the earlier rule shape (when/do); write {host, on, tree}`)
     const resident = !!r.host?.type && isA(r.host.type, 'resident')
     if (r.tree === undefined) errors.push(`${where}: tree required`)
@@ -1140,27 +1180,59 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (r.label !== undefined) checkLabel(r.label, `${where}.label`)
     // an input that ends here says what it does: without a label the HUD shows the input's default
     if (r.tree !== undefined && /^(act|impulse)/.test(String(r.on)) && r.label === undefined && !labelled(r.tree)) warnings.push(`${where}: no label — the input that reaches it shows its default description`)
-    if (r.tree !== undefined && leaves(r.tree).every((l) => l === 'inherit')) errors.push(`${where}: every leaf inherits — the rule answers nothing`)
+    if (r.tree !== undefined && !leaves(r.tree).some(isDo)) errors.push(`${where}: no leaf answers — the rule leaves everything open`)
     if (!r.tests?.length) warnings.push(`${where}: no tests`)
   }
-  if (errors.length) return { ok: false, errors, warnings, overrides }
+  if (errors.length) return { ok: false, errors, warnings }
 
-  // 4. no two patches tie (one event could reach both at equal specificity), the rules of this
-  //    patch among themselves included
-  rules.forEach((r, i) => {
-    for (const other of [...ctx.library.patches(), ...rules.slice(i + 1)]) {
-      if (rulesTie(r, other, onto)) errors.push(`rule "${r.id}" ties with "${other.id}" (same kind, same specificity, an event both could answer) — make it more specific or name a different host`)
+  // 4. each rule's place (design.md §5.16): its host type's tree for its hole, at an open leaf. With
+  //    the scene that asked, one rule must be placed where the event fell undefined there; the rest
+  //    (and every rule, without a scene) must fit the library: a first answer, or an open leaf.
+  // (the rules of this patch take their places one after another: a second at the same leaf is refused)
+  const placing = withArtifacts(ctx.library, patch, false)
+  const fits = (r: Rule, where: string): void => {
+    const tree = placing.tree(patchKey(r.host!.type!, r.on, r.hole!))
+    const at = r.at ?? []
+    if (!tree && at.length) errors.push(`${where}.at: ${r.host!.type} has no tree at this hole yet — the first answer has no path`)
+    if (!tree) return
+    const spot = locate(tree, at)
+    if (!spot) errors.push(`${where}.at: the path leads nowhere in ${r.host!.type}'s tree at this hole`)
+    else if (!isHole(spot.leaf)) errors.push(`${where}.at: that leaf is already answered`)
+  }
+  let answer: Rule | undefined
+  if (ctx.scenario) {
+    try {
+      const rp = replay(ctx.scenario, ctx.ontology, withArtifacts(ctx.library, patch, false))
+      const res = rp.resolution
+      const ev = scenarioEvent(ctx.scenario, rp.engine)
+      const type = rp.engine.world.get(ev.host.e)?.type
+      if (res.defined) errors.push(`the triggering event is already defined by "${res.rule!.id}" — there is nothing to answer`)
+      else if (!res.hole) errors.push('the triggering event reaches no rule at all')
+      else {
+        const want = { type, on: ev.kind, hole: holeKey(res.hole.rule.id, res.hole.path), at: res.open?.path ?? [] }
+        const same = (r: Rule) => (!type || r.host!.type === type) && r.on === want.on && r.hole === want.hole && JSON.stringify(r.at ?? []) === JSON.stringify(want.at)
+        answer = rules.find(same)
+        if (!answer) {
+          const r = rules.length === 1 ? rules[0] : rules.find((x) => x.host!.type === type && x.on === want.on) ?? rules[0]
+          const where = `rule "${r.id}"`
+          if (type && r.host!.type !== type) errors.push(`${where}.host: the host of the triggering event is a ${type}, not a ${r.host!.type}`)
+          if (r.on !== want.on) errors.push(`${where}.on: the triggering event is ${want.on}, not ${r.on}`)
+          if (r.hole !== want.hole) errors.push(`${where}.hole: the triggering event falls undefined at "${want.hole}", not "${r.hole}"`)
+          if (JSON.stringify(r.at ?? []) !== JSON.stringify(want.at)) errors.push(`${where}.at: the open leaf the triggering event reaches is at [${want.at.join(' › ')}], not [${(r.at ?? []).join(' › ')}]`)
+        }
+      }
+    } catch (err) {
+      errors.push(`replay: ${(err as Error).message}`)
     }
-  })
-  if (errors.length) return { ok: false, errors, warnings, overrides }
+  }
+  for (const r of rules) {
+    if (r !== answer) fits(r, `rule "${r.id}"`)
+    if (!errors.length) placing.add({ ...r, source: { origin: 'patch' } })
+  }
+  if (errors.length) return { ok: false, errors, warnings }
 
   // candidate library
-  const cand = ctx.library.clone()
-  for (const a of patch.artifacts) {
-    if (a.kind === 'type') cand.types = cand.types.filter((t) => t.id !== a.type.id).concat(a.type)
-    if (a.kind === 'status') cand.statuses = cand.statuses.filter((t) => t.id !== a.status.id).concat(a.status)
-  }
-  for (const r of rules) cand.add({ ...r, source: { origin: 'patch' } })
+  const cand = withArtifacts(ctx.library, patch, true)
   const patchIds = new Set(rules.map((r) => r.id))
 
   // 5. sandbox replay of the triggering event: it now resolves to the patch
@@ -1201,19 +1273,23 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
         errors.push(`test "${t.name ?? `${r.id}#${i}`}": ${(err as Error).message}`)
       }
     }
-  // 7. regression: what was defined stays defined (base outcomes cannot change — patches only fill holes —
-  // but a more specific patch may now answer where an earlier patch did)
-  for (const reg of ctx.regression ?? []) {
-    try {
-      const rp = replay(reg.scenario, ctx.ontology, cand)
-      if (!rp.resolution.defined) errors.push(`regression: an act resolved by "${reg.rule}" became undefined`)
-      else if (rp.resolution.rule!.id !== reg.rule && patchIds.has(rp.resolution.rule!.id)) overrides.push(`${reg.rule} → ${rp.resolution.rule!.id}`)
-    } catch {
-      /* scenario no longer buildable (e.g. removed types) — ignore */
-    }
-  }
-  return { ok: errors.length === 0, errors, warnings, overrides }
+  return { ok: errors.length === 0, errors, warnings }
 }
+
+/** The library with a patch's types and statuses (and, when asked, its rules) added, as a copy. */
+function withArtifacts(lib: RuleLibrary, patch: Patch, rules: boolean): RuleLibrary {
+  const cand = lib.clone()
+  for (const a of patch.artifacts) {
+    if (a.kind === 'type') cand.types = cand.types.filter((t) => t.id !== a.type.id).concat(a.type)
+    if (a.kind === 'status') cand.statuses = cand.statuses.filter((t) => t.id !== a.status.id).concat(a.status)
+  }
+  if (rules) for (const a of patch.artifacts) if (a.kind === 'rule') cand.add({ ...a.rule, source: { origin: 'patch' } })
+  return cand
+}
+
+// ---------------------------------------------------------------- the base library's own check
+// Base rules still rank by specificity (learned rules have places instead), so two equally specific
+// base rules that one event could reach would be an authoring error: the content tests sweep for it.
 
 /** Could one thing be the host of both rules? Contradictory constraints rule it out, and so does the ontology. */
 export function hostsOverlap(x: Selector, y: Selector, onto?: Ontology): boolean {

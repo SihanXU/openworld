@@ -73,7 +73,7 @@ export class ModConsole {
   showValidation(id: string | undefined, r: ValidationResult): void {
     const el = document.querySelector('#valOut')
     const html = r.ok
-      ? `<div class="ok">✓ ${locale.value === 'zh' ? '校验通过并已应用' : 'validated and applied'}${r.overrides.length ? ` · overrides: ${esc(r.overrides.join(', '))}` : ''}</div>`
+      ? `<div class="ok">✓ ${locale.value === 'zh' ? '校验通过并已应用' : 'validated and applied'}</div>`
       : `<div class="err">${r.errors.map((e) => `✗ ${esc(e)}`).join('<br>')}</div>`
     const warn = r.warnings.length ? `<div class="warn">${r.warnings.map((w) => `! ${esc(w)}`).join('<br>')}</div>` : ''
     if (el) el.innerHTML = html + warn

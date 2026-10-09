@@ -1,15 +1,15 @@
 // The Mod Console's starting-point patch, kept apart from the DOM so it can be checked headlessly.
 
-import type { Patch } from '@lsw/engine'
+import { holeKey, type Patch } from '@lsw/engine'
 import type { RecordView } from '../protocol.ts'
 
-/** A starting-point patch for a record: a rule for the host's class, a visible outcome, and the triggering case as a test. */
+/** A starting-point patch for a record: the host type's own rule at its place, a visible outcome, and the triggering case as a test. */
 export function template(r: RecordView): Patch {
   const req = r.request
   const ev = req.event
   const host = ev.host
   const leaf = (t?: { type: string }) => (t ? t.type.split('/').pop()! : 'thing')
-  const hostType = !host ? undefined : host.type.startsWith('tile/') ? host.type : host.typeChain.length > 1 ? host.typeChain[host.typeChain.length - 2] : host.type
+  const hostType = host?.type
   // the host as the scenario names it (its role's key); a tile or a resident has no entity to expect
   const sc = req.scenario.event
   const hostKey = sc.host ?? sc.instrument ?? sc.actor ?? sc.target
@@ -24,6 +24,8 @@ export function template(r: RecordView): Patch {
           id: `patch/${leaf(host)}-${ev.kind.replace('/', '-')}`,
           host: { type: hostType ?? 'fixture' },
           on: ev.kind,
+          hole: holeKey(req.hole.rule, req.hole.path),
+          at: req.hole.at ?? [],
           doc: 'TODO: one-line description',
           label: { en: 'TODO: what the input does to {target}', zh: 'TODO：对{target}做什么' },
           tree: { do: [{ op: 'vfx', fx: 'sparkle' }, { op: 'log', text: { en: 'TODO: what happens', zh: 'TODO：发生了什么' } }] },

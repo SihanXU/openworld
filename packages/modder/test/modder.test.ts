@@ -5,9 +5,9 @@ import { fileURLToPath } from 'node:url'
 import type { AddressInfo } from 'node:net'
 import { Server } from 'node:http'
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildRequest, buildSandbox, restoreLibrary, scenarioEvent, validatePatch, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@lsw/engine'
+import { ModPort, RuleLibrary, buildSandbox, holeKey, patchKey, placePatch, restoreLibrary, validatePatch, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
-import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, narrowKinds, parseJson, qualifyTerrains, scriptFromFile, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
+import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, parseJson, qualifyTerrains, scriptFromFile, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
@@ -33,11 +33,12 @@ it('reports a listen error immediately', async () => {
 })
 
 /**
- * A real ModRequest: the player puts a rope on a creature. The act is defined (the creature is
- * offered the rope), but no rule says how a creature takes being offered one: the hole is
- * `core/offered`, the event `impulse/offered`, hosted by the creature, with the rope as its item.
+ * A real ModRequest: the player holds a stone out to a creature. The act is defined (the creature is
+ * offered the stone), and the creature's own nature answers only a fibrous or an edible thing
+ * (`creature/offered`): a stone inherits to the root, the hole `core/offered`, the event
+ * `impulse/offered`, hosted by the creature, with the stone as its item.
  */
-function request(host = 'actor/creature/slime/green_slime', item = 'item/tool/rope'): ModRequest {
+function request(host = 'actor/creature/slime/green_slime', item = 'item/material/stone'): ModRequest {
   const sc: Scenario = {
     entities: [
       { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
@@ -48,19 +49,19 @@ function request(host = 'actor/creature/slime/green_slime', item = 'item/tool/ro
   }
   const eng = buildSandbox(sc, onto, new RuleLibrary(BASE))
   const port = new ModPort(eng)
-  // the rope held out to it, as a rope used on it does (putting is physics: a creature does not take what is put on it)
+  // the stone held out to it, as a stone used on it does (putting is physics: a creature does not take what is put on it)
   eng.queue({ kind: 'impulse/offered', host: { e: 'it' }, roles: { actor: { e: 'actor' }, item: { e: 'held' }, source: { e: 'held' } }, params: {}, cause: 'actor', origin: 'player' })
   const rec = port.records[0]
   expect(rec?.request).toMatchObject({ event: { kind: 'impulse/offered', host: { type: host } }, hole: { rule: 'core/offered' } })
   return rec.request
 }
 
-/** The other input: the rope USED on the creature, a hole in the rope's own nature (`core/use`). */
-function useRequest(host = 'actor/creature/slime/green_slime'): ModRequest {
+/** The other input: the stone USED on a dead tree (a creature would be offered it), a hole in the stone's own nature (`core/use`). */
+function useRequest(host = 'fixture/nature/dead_tree'): ModRequest {
   const sc: Scenario = {
     entities: [
       { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
-      { key: 'held', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
+      { key: 'held', type: 'item/material/stone', x: 2, y: 2, heldBy: 'actor' },
       { key: 'it', type: host, x: 2, y: 1 },
     ],
     event: {},
@@ -69,44 +70,56 @@ function useRequest(host = 'actor/creature/slime/green_slime'): ModRequest {
   const port = new ModPort(eng)
   expect(eng.act('use', 'actor', { e: 'it' }).defined).toBe(false)
   const rec = port.records[0]
-  expect(rec.request).toMatchObject({ event: { kind: 'act/use', host: { type: 'item/tool/rope' } }, hole: { rule: 'core/use' } })
+  expect(rec.request).toMatchObject({ event: { kind: 'act/use', host: { type: 'item/material/stone' } }, hole: { rule: 'core/use' } })
   return rec.request
 }
 
-const FIBER: Cond = { is: { role: 'item', sel: { tags: ['fiber'] } } }
+const STONY: Cond = { is: { role: 'item', sel: { tags: ['stone'] } } }
+const SLIME = 'actor/creature/slime/green_slime'
 
-/** The creature's nature when offered something fibrous: it is lashed down, and the rope goes onto it. */
+/** The hole a request fell into, as a learned rule names it. */
+const holeOf = (req: ModRequest): string => holeKey(req.hole.rule, req.hole.path)
+
+/** A patch placed where a request fell undefined (host, on, hole, at from the request), as the pipeline places every draft. */
+const placed = (patch: Patch, req: ModRequest): Patch => placePatch(patch, req).patch
+
+/**
+ * The creature's nature when offered something stony: it is weighed down, and the stone goes into
+ * it. Anything else stays open (a learned rule never inherits: the case is asked later).
+ */
 function bindTree(): Tree {
   return {
-    if: FIBER,
+    if: STONY,
     then: {
       do: [
         { op: 'addStatus', status: 'frozen', duration: 30 },
         { op: 'emit', impulse: 'taken', to: 'item', params: { into: 'contents' }, other: 'host' },
         { op: 'vfx', fx: 'dust' },
-        { op: 'log', text: { en: 'You lash {host} down with {item}.', zh: '你用{item}捆住了{host}。' } },
+        { op: 'log', text: { en: 'You weigh {host} down with {item}.', zh: '你用{item}压住了{host}。' } },
       ],
     },
+    else: { undefined: true },
   }
 }
 
-function bindRule(id = 'patch/rope-binds-creature', host = 'actor/creature', testHost = 'actor/creature/beast/wolf'): Rule {
+/** A learned rule is one type's own (design.md §5.16): the green slime's by default, tested on another green slime. */
+function bindRule(id = 'patch/stone-stills-creature', host = SLIME, testHost = host): Rule {
   return {
     id,
-    host: { type: host, notStatus: ['frozen'] },
+    host: { type: host },
     on: 'impulse/offered',
-    doc: 'A creature offered a rope is lashed down with it for a while.',
+    doc: 'A creature offered a stone is weighed down by it for a while.',
     tree: bindTree(),
     tests: [
       {
-        name: 'another creature',
+        name: 'another of its kind',
         given: {
           entities: [
             { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
-            { key: 'r', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
+            { key: 'r', type: 'item/material/stone', x: 2, y: 2, heldBy: 'actor' },
             { key: 'w', type: testHost, x: 2, y: 1 },
           ],
-          // the rope held out to it (as a rope used on it does): the creature answers
+          // the stone held out to it (as a stone used on it does): the creature answers
           event: { kind: 'impulse/offered', host: 'w', actor: 'actor', item: 'r', source: 'r' },
         },
         expect: [{ key: 'w', hasStatus: 'frozen' }, { key: 'r', exists: true }],
@@ -115,7 +128,7 @@ function bindRule(id = 'patch/rope-binds-creature', host = 'actor/creature', tes
   }
 }
 
-const patchOf = (...rules: Rule[]): Patch => ({ note: 'rope binds', artifacts: rules.map((rule) => ({ kind: 'rule' as const, rule })) })
+const patchOf = (...rules: Rule[]): Patch => ({ note: 'stone stills', artifacts: rules.map((rule) => ({ kind: 'rule' as const, rule })) })
 
 interface Calls {
   design: number
@@ -138,11 +151,11 @@ function scripted(drafts: (Patch | string)[], over: Partial<Record<'review' | 'r
       const n = calls.review++
       return over.review?.(n, messages) ?? { verdict: 'ship', notes: [] }
     }
-    if (opts.purpose === 'reflect') return over.reflect?.(calls.reflect, messages) ?? { lessons: { add: [{ text: 'Select a rope-like item by its fiber tag, not its type.', terms: ['kind:impulse/offered', 'item#fiber'] }] }, skill: null }
+    if (opts.purpose === 'reflect') return over.reflect?.(calls.reflect, messages) ?? { lessons: { add: [{ text: 'Select a stone-like item by its stone tag, not its type.', terms: ['kind:impulse/offered', 'item#stone'] }] }, skill: null }
     calls.design++
-    if (last.role === 'user') return { content: '', toolCalls: [{ id: `c${calls.design}`, name: 'search_rules', args: { on: 'impulse/offered', tag: 'fiber' } }] }
+    if (last.role === 'user') return { content: '', toolCalls: [{ id: `c${calls.design}`, name: 'search_rules', args: { on: 'impulse/offered', tag: 'stone' } }] }
     const d = drafts[Math.min(next++, drafts.length - 1)]
-    return typeof d === 'string' ? d : { patch: d, summary: 'rope binds creatures' }
+    return typeof d === 'string' ? d : { patch: d, summary: 'stone stills creatures' }
   }
   return { model: new ScriptedModel(script), calls }
 }
@@ -211,7 +224,7 @@ describe('a backend that goes out while work is queued', () => {
           throw new Error(QUOTA)
         }
         // the first request is answered; the second gets no patch (a failure that is not the backend's)
-        return designs++ === 0 ? { content: JSON.stringify({ patch: patchOf(bindRule()), summary: 'rope binds' }), toolCalls: [] } : { content: 'no idea', toolCalls: [] }
+        return designs++ === 0 ? { content: JSON.stringify({ patch: patchOf(bindRule()), summary: 'stone stills' }), toolCalls: [] } : { content: 'no idea', toolCalls: [] }
       },
     }
     const { modder, state } = setup(model, undefined, 'live')
@@ -228,7 +241,7 @@ describe('a backend that goes out while work is queued', () => {
     // the two requests' episodes, and no escalation's
     expect(state.episodes().map((e) => e.outcome)).toEqual(['accepted', 'failed'])
     expect(state.journalOf('reflect')).toEqual([])
-    expect((await modder.resolve({ request: useRequest('actor/creature/beast/wolf') })).outcome).toBe('unavailable')
+    expect((await modder.resolve({ request: useRequest('fixture/nature/beehive') })).outcome).toBe('unavailable')
     expect(calls).toBe(before)
   })
 
@@ -264,14 +277,14 @@ describe('the modder pipeline', () => {
     const { modder, library, state, dir } = setup(model)
     const reply = await modder.resolve({ request: request() })
     expect(reply.outcome).toBe('accepted')
-    expect(reply.patch?.artifacts[0]).toMatchObject({ kind: 'rule', rule: { id: 'patch/rope-binds-creature' } })
-    expect(library.lib.rules.get('patch/rope-binds-creature')?.source?.author).toBe('modder')
+    expect(reply.patch?.artifacts[0]).toMatchObject({ kind: 'rule', rule: { id: 'patch/stone-stills-creature' } })
+    expect(library.lib.rules.get('patch/stone-stills-creature')?.source?.author).toBe('modder')
     expect(calls.review).toBe(1)
 
     // the log is append-only and rebuilds the same library
     const again = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
-    expect(again.lib.rules.has('patch/rope-binds-creature')).toBe(true)
-    expect(again.regression).toHaveLength(1)
+    expect(again.lib.rules.has('patch/stone-stills-creature')).toBe(true)
+    expect(again.asked).toHaveLength(1)
 
     const ep = state.episode(reply.episode!)!
     expect(ep.outcome).toBe('accepted')
@@ -283,13 +296,13 @@ describe('the modder pipeline', () => {
     const lessons = state.lessons()
     expect(lessons).toHaveLength(1)
     expect(lessons[0].episodes).toEqual([ep.id])
-    expect(readFileSync(join(state.dir, 'memory/lessons.md'), 'utf8')).toContain('fiber tag')
+    expect(readFileSync(join(state.dir, 'memory/lessons.md'), 'utf8')).toContain('stone tag')
     expect(readFileSync(join(state.dir, 'journal.jsonl'), 'utf8')).toMatch(/"kind":"lesson.add"/)
   })
 
   it('feeds the validator\'s diagnostics back and repairs', async () => {
     const bad = bindRule()
-    bad.tree = { if: FIBER, then: { do: [{ op: 'addStatus', status: 'hogtied' }] } }
+    bad.tree = { if: STONY, then: { do: [{ op: 'addStatus', status: 'hogtied' }] } }
     const { model, calls } = scripted([patchOf(bad), patchOf(bindRule())])
     const { modder, state } = setup(model)
     const reply = await modder.resolve({ request: request() })
@@ -304,7 +317,7 @@ describe('the modder pipeline', () => {
 
   it('gives up after the harness\'s repair budget, leaving the library untouched', async () => {
     const bad = bindRule()
-    bad.tree = { if: FIBER, then: { do: [{ op: 'addStatus', status: 'hogtied' }] } }
+    bad.tree = { if: STONY, then: { do: [{ op: 'addStatus', status: 'hogtied' }] } }
     const { model } = scripted([patchOf(bad)])
     const { modder, library, state } = setup(model)
     state.setHarness({ ...state.harness(), offline: { ...state.harness().offline, repair: { maxRounds: 1 } } }, 'test: one repair round')
@@ -323,9 +336,10 @@ describe('the modder pipeline', () => {
     const { modder, state } = setup(model)
     await modder.resolve({ request: request() })
     const before = calls.design
-    const reply = await modder.resolve({ request: request('actor/creature/slime/frost_slime') })
+    // the same type at the same hole again (another green slime): the learned rule is its type's own
+    const reply = await modder.resolve({ request: request() })
     expect(reply.outcome).toBe('covered')
-    expect(reply.patch?.artifacts[0]).toMatchObject({ rule: { id: 'patch/rope-binds-creature' } })
+    expect(reply.patch?.artifacts[0]).toMatchObject({ rule: { id: 'patch/stone-stills-creature' } })
     expect(calls.design).toBe(before)
     expect(state.stats()).toMatchObject({ episodes: 2, covered: 1, accepted: 1 })
   })
@@ -338,57 +352,21 @@ describe('the modder pipeline', () => {
     expect(calls.design).toBe(2) // one episode: a tool turn and an answer
   })
 
-  it('returns covered before repairing a tie when another lane has answered the hole', async () => {
-    const req = (type: string, id: string) => {
-      const sc: Scenario = { entities: [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2 }, { key: 'item', type, x: 2, y: 2, heldBy: 'actor' }, { key: 'pot', type: 'fixture/container/pot', x: 2, y: 1 }], event: { kind: 'act/use', host: 'item', actor: 'actor', instrument: 'item', target: 'pot' } }
-      const eng = buildSandbox(sc, onto, new RuleLibrary(BASE))
-      const ev = scenarioEvent(sc, eng)
-      return buildRequest(eng, ev, eng.resolveEvent(ev), id)
-    }
-    const a = req('item/misc/doll', 'broad-request')
-    const b = req('item/material/feather', 'other-request')
-    expect(laneOf(a)).not.toBe(laneOf(b))
-    const drafts = ['patch/broad-a', 'patch/broad-b'].map((id) => patchOf({ id, host: { type: 'item' }, on: 'act/use', tree: { do: [{ op: 'log', text: 'Answered.' }] } }))
-    let goA!: () => void, goB!: () => void, both!: () => void
-    const gates = [new Promise<void>((r) => (goA = r)), new Promise<void>((r) => (goB = r))]
-    const started = new Promise<void>((r) => (both = r))
-    let designs = 0
-    const model = new ScriptedModel(async (_messages, opts) => {
-      if (opts.purpose !== 'design') return {}
-      const n = designs++
-      if (designs === 2) both()
-      await gates[n]
-      return { patch: drafts[Math.min(n, 1)] }
-    })
-    const { modder, state, library } = setup(model)
-    state.setHarness({ ...state.harness(), design: { ...state.harness().design, tests: 'model' }, repair: { maxRounds: 1 }, review: { enabled: false, maxRounds: 0 }, reflect: { enabled: false, skillMinRecurrence: 3 }, escalate: false, revise: false }, 'test: concurrent drafts')
-    const pa = modder.resolve({ request: a }), pb = modder.resolve({ request: b })
-    await started
-    goA()
-    const ra = await pa
-    expect(library.covering(b)?.rule).toBe('patch/broad-a')
-    expect(library.validate(drafts[1], b).errors.join('\n')).toMatch(/ties with/)
-    goB()
-    const rb = await pb
-    await modder.settled()
-    expect([ra.outcome, rb.outcome]).toEqual(['accepted', 'covered'])
-    expect(model.calls).toBe(2)
-    expect(library.log).toHaveLength(1)
-  })
-
   it('without a model answers only from the library', async () => {
     const { model } = scripted([patchOf(bindRule())])
     const first = setup(model)
     await first.modder.resolve({ request: request() })
     const offline = setup(undefined, first.dir)
-    expect((await offline.modder.resolve({ request: request('actor/creature/slime/fire_slime') })).outcome).toBe('covered')
-    expect((await offline.modder.resolve({ request: request('actor/creature/slime/fire_slime', 'item/tool/shovel') })).outcome).toBe('unavailable')
+    expect((await offline.modder.resolve({ request: request() })).outcome).toBe('covered')
+    // the open case of the learned tree (not fibrous), and another type's hole: nothing answers them
+    expect((await offline.modder.resolve({ request: request(SLIME, 'item/tool/shovel') })).outcome).toBe('unavailable')
+    expect((await offline.modder.resolve({ request: request('actor/creature/slime/fire_slime') })).outcome).toBe('unavailable')
   })
 
   it('revises after a reviewer\'s notes', async () => {
-    const narrow = bindRule('patch/rope-binds-slime', 'actor/creature/slime/green_slime', 'actor/creature/slime/green_slime')
+    const narrow = bindRule('patch/stone-stills-slime')
     const { model, calls } = scripted([patchOf(narrow), patchOf(bindRule())], {
-      review: (n) => (n === 0 ? { verdict: 'revise', notes: ['Too narrow: any creature can be tied up.'] } : { verdict: 'ship', notes: [] }),
+      review: (n) => (n === 0 ? { verdict: 'revise', notes: ['Say what the stone does: it should go into the creature.'] } : { verdict: 'ship', notes: [] }),
     })
     const { modder, state, library } = setup(model)
     const reply = await modder.resolve({ request: request() })
@@ -399,12 +377,12 @@ describe('the modder pipeline', () => {
       ['review', undefined],
     ])
     expect(calls.review).toBe(1) // the harness allows one review round: the revision ships unreviewed
-    expect(library.lib.rules.has('patch/rope-binds-creature')).toBe(true)
-    expect(library.lib.rules.has('patch/rope-binds-slime')).toBe(false)
+    expect(library.lib.rules.has('patch/stone-stills-creature')).toBe(true)
+    expect(library.lib.rules.has('patch/stone-stills-slime')).toBe(false)
   })
 
   it('writes a skill once work recurs, offers it, and books its outcomes', async () => {
-    const skill = { name: 'Bind with fiber', description: 'Tying things up with rope-like items.', triggers: ['item#fiber'], body: '1. Host the rule on the creature class; select the item by the fiber tag.\n2. Freeze the host for a while; take the rope onto it (emit taken to the item).' }
+    const skill = { name: 'Still with stone', description: 'Weighing things down with stone-like items.', triggers: ['item#stone'], body: '1. Host the rule on the creature\'s own type; select the item by the stone tag.\n2. Freeze the host for a while; take the stone into it (emit taken to the item).' }
     let reads = 0
     const calls = { design: 0 }
     const model = new ScriptedModel((messages, opts) => {
@@ -413,13 +391,10 @@ describe('the modder pipeline', () => {
       if (opts.purpose === 'reflect') return { lessons: {}, skill }
       calls.design++
       const user = messages.find((m, i) => i > 0 && m.role === 'user')!.content
-      if (last.role === 'user' && user.includes('- bind-with-fiber:')) return { content: '', toolCalls: [{ id: `r${++reads}`, name: 'read_skill', args: { name: 'bind-with-fiber' } }] }
-      // write the rule for the host's family (slimes, beasts) or, failing that, its own type
+      if (last.role === 'user' && user.includes('- still-with-stone:')) return { content: '', toolCalls: [{ id: `r${++reads}`, name: 'read_skill', args: { name: 'still-with-stone' } }] }
+      // write the rule for the host's own type (a learned rule is one type's)
       const type = /"host":\{"role":"host"[^}]*?"type":"([^"]+)"/.exec(user)![1]
-      const family = type.split('/').slice(0, 3).join('/')
-      const cls = family === 'actor/creature/slime' || family === 'actor/creature/beast' ? family : type
-      const other = cls === type ? type : cls === 'actor/creature/slime' ? 'actor/creature/slime/frost_slime' : 'actor/creature/beast/frost_wolf'
-      return { patch: patchOf(bindRule(`patch/rope-binds-${cls.split('/').pop()}`, cls, other)) }
+      return { patch: patchOf(bindRule(`patch/stone-stills-${type.split('/').pop()}`, type)) }
     })
     const { modder, state } = setup(model)
     state.setHarness({ ...state.harness(), reflect: { enabled: true, skillMinRecurrence: 1 } }, 'test: skills after one similar episode')
@@ -430,18 +405,18 @@ describe('the modder pipeline', () => {
 
     await modder.resolve({ request: request('actor/creature/beast/wolf') })
     await modder.settled()
-    expect(state.skills().map((s) => s.name)).toEqual(['bind-with-fiber'])
-    expect(readFileSync(join(state.dir, 'skills/bind-with-fiber/SKILL.md'), 'utf8')).toMatch(/^---\nname: bind-with-fiber/)
+    expect(state.skills().map((s) => s.name)).toEqual(['still-with-stone'])
+    expect(readFileSync(join(state.dir, 'skills/still-with-stone/SKILL.md'), 'utf8')).toMatch(/^---\nname: still-with-stone/)
 
-    const third = await modder.resolve({ request: request('actor/creature/beast/boar', 'item/tool/rope') })
-    // the beast rule covers the boar; a new class then: another kind of creature, the same rope
+    const third = await modder.resolve({ request: request('actor/creature/beast/wolf', 'item/material/stone') })
+    // the wolf's rule covers the next wolf; a new type then: another kind of creature, the same stone
     expect(third.outcome).toBe('covered')
     const golem = Object.keys(onto.types).find((t) => t.startsWith('actor/creature/') && !t.startsWith('actor/creature/slime') && !t.startsWith('actor/creature/beast') && !Object.keys(onto.types).some((o) => o.startsWith(t + '/')))!
     const r4 = await modder.resolve({ request: request(golem) })
-    expect(state.episode(r4.episode!)!.skillsRead).toEqual(['bind-with-fiber'])
-    expect(state.skill('bind-with-fiber')).toMatchObject({ uses: 1, accepted: 1 })
+    expect(state.episode(r4.episode!)!.skillsRead).toEqual(['still-with-stone'])
+    expect(state.skill('still-with-stone')).toMatchObject({ uses: 1, accepted: 1 })
     await modder.settled()
-    expect(state.skill('bind-with-fiber')!.version).toBe(2) // revised by name after use
+    expect(state.skill('still-with-stone')!.version).toBe(2) // revised by name after use
   })
 
   it('snapshots the self-state and renders it as one transferable document', async () => {
@@ -452,7 +427,7 @@ describe('the modder pipeline', () => {
     const to = state.snapshot('checkpoint-1')
     expect(existsSync(join(to, 'memory/lessons.json'))).toBe(true)
     expect(JSON.parse(readFileSync(join(to, 'meta.json'), 'utf8')).stats.accepted).toBe(1)
-    expect(readFileSync(join(to, 'SELF.md'), 'utf8')).toContain('fiber tag')
+    expect(readFileSync(join(to, 'SELF.md'), 'utf8')).toContain('stone tag')
     expect(() => state.snapshot('checkpoint-1')).toThrow(/exists/)
   })
 
@@ -460,7 +435,7 @@ describe('the modder pipeline', () => {
     expect(signatureOf(request()).key).toBe(signatureOf(request()).key)
     expect(signatureOf(request()).key).not.toBe(signatureOf(request('actor/creature/beast/wolf')).key)
     expect(signatureOf(request()).key).not.toBe(signatureOf(request(undefined, 'item/tool/shovel')).key)
-    expect(signatureOf(request()).terms).toEqual(expect.arrayContaining(['kind:impulse/offered', 'hole:core/offered', 'host:actor/creature/slime', 'item#fiber']))
+    expect(signatureOf(request()).terms).toEqual(expect.arrayContaining(['kind:impulse/offered', 'hole:core/offered', 'host:actor/creature/slime', 'item#stone']))
   })
 })
 
@@ -471,7 +446,7 @@ describe('the Mod port with the modder plugged in', () => {
     const sc: Scenario = {
       entities: [
         { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
-        { key: 'rope', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
+        { key: 'stone', type: 'item/material/stone', x: 2, y: 2, heldBy: 'actor' },
         { key: 'slime', type: 'actor/creature/slime/green_slime', x: 2, y: 1 },
       ],
       event: {},
@@ -482,14 +457,14 @@ describe('the Mod port with the modder plugged in', () => {
     const finished = new Promise<void>((r) => (done = r))
     port.provider = { resolve: async (req) => (await modder.resolve({ request: req })).patch }
     port.onChange = () => port.records[0]?.status === 'patched' && done()
-    eng.queue({ kind: 'impulse/offered', host: { e: 'slime' }, roles: { actor: { e: 'actor' }, item: { e: 'rope' }, source: { e: 'rope' } }, params: {}, cause: 'actor', origin: 'player' })
+    eng.queue({ kind: 'impulse/offered', host: { e: 'slime' }, roles: { actor: { e: 'actor' }, item: { e: 'stone' }, source: { e: 'stone' } }, params: {}, cause: 'actor', origin: 'player' })
     // while the outcome waits, its participants are held — the one who started the chain too
     expect(port.records[0]).toMatchObject({ status: 'pending', request: { event: { kind: 'impulse/offered' } } })
     expect(eng.world.get('slime')!.frozenBy).toBe(port.records[0].id)
     expect(eng.world.get('actor')!.frozenBy).toBe(port.records[0].id)
     await finished
     expect(eng.world.hasStatus({ e: 'slime' }, 'frozen')).toBe(true)
-    expect(eng.world.get('rope')?.place).toEqual({ on: 'inside', holder: 'slime' })
+    expect(eng.world.get('stone')?.place).toEqual({ on: 'inside', holder: 'slime' })
     expect(eng.world.get('actor')!.frozenBy).toBeUndefined()
 
     // the same shared patch arriving again (sync after reply) is a no-op
@@ -513,7 +488,7 @@ describe('the service', () => {
       expect(reply.outcome).toBe('accepted')
       const log = await (await fetch(`${base}/patches?since=0`)).json()
       expect(log.seq).toBe(1)
-      expect(log.entries[0].rules).toEqual(['patch/rope-binds-creature'])
+      expect(log.entries[0].rules).toEqual(['patch/stone-stills-creature'])
       // each patch comes with the scene it answered: a client replays it there before it takes it
       expect(log.entries[0].scenario?.event).toMatchObject({ kind: 'impulse/offered' })
       expect((await (await fetch(`${base}/patches?since=1`)).json()).entries).toEqual([])
@@ -524,15 +499,19 @@ describe('the service', () => {
 })
 
 describe('the offline script (fixtures/offline.json, for `serve --script`)', () => {
-  it('answers a rope held out to or used on a creature, live, and the patch covers the rest of the class', async () => {
+  it('answers a stone held out to a creature and a stone used on a dead tree, live, each at its own hole; the same event again is covered', async () => {
     const model = scriptFromFile(fileURLToPath(new URL('../fixtures/offline.json', import.meta.url)))
+    const ids = (p: Patch | null | undefined) => p?.artifacts.map((a) => (a.kind === 'rule' ? a.rule.id : a.kind))
     for (const first of ['put', 'use'] as const) {
       const { modder } = setup(model, undefined, 'live')
       const reply = await modder.resolve({ request: first === 'put' ? request() : useRequest() })
       expect(reply.outcome).toBe('accepted')
-      expect(reply.patch?.artifacts.map((a) => (a.kind === 'rule' ? a.rule.id : a.kind))).toEqual(['patch/fiber-binds-creature', 'patch/fiber-lashes-creature'])
-      expect((await modder.resolve({ request: first === 'put' ? useRequest() : request() })).outcome).toBe('covered')
-      expect((await modder.resolve({ request: request('actor/creature/beast/wolf') })).outcome).toBe('covered')
+      expect(ids(reply.patch)).toEqual([first === 'put' ? 'patch/stone-weighs-creature' : 'patch/stone-knocks-dead-tree'])
+      // the other input falls into another hole (the stone's, or the creature's): its own answer
+      const other = await modder.resolve({ request: first === 'put' ? useRequest() : request() })
+      expect(other.outcome).toBe('accepted')
+      expect(ids(other.patch)).toEqual([first === 'put' ? 'patch/stone-knocks-dead-tree' : 'patch/stone-weighs-creature'])
+      expect((await modder.resolve({ request: first === 'put' ? request() : useRequest() })).outcome).toBe('covered')
       await modder.settled()
     }
   })
@@ -552,7 +531,7 @@ describe('the OpenAI-compatible adapter', () => {
         const text = (m: { content?: string }) => m.content ?? ''
         let message: Record<string, unknown>
         if (!body.tools) message = { content: text(body.messages[0]).includes('review') ? '{"verdict":"ship"}' : '{"lessons":{}}' }
-        else if (last.role === 'user') message = { content: null, tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'get_type', arguments: '{"id":"item/tool/rope"}' } }] }
+        else if (last.role === 'user') message = { content: null, tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'get_type', arguments: '{"id":"item/material/stone"}' } }] }
         else message = { content: '```json\n' + JSON.stringify({ patch: patchOf(bindRule()) }) + '\n```' }
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ choices: [{ message }], usage: { prompt_tokens: 100, completion_tokens: 20, cost: 0.0005 } }))
@@ -570,7 +549,7 @@ describe('the OpenAI-compatible adapter', () => {
       const second = bodies[1].messages as { role: string; tool_call_id?: string; content: string }[]
       expect(second.at(-2)).toMatchObject({ role: 'assistant' })
       expect(second.at(-1)).toMatchObject({ role: 'tool', tool_call_id: 'call_1' })
-      expect(second.at(-1)!.content).toContain('fiber')
+      expect(second.at(-1)!.content).toContain('stone')
       const ep = state.episode(reply.episode!)!
       expect(ep.model).toBe('mock-1')
       expect(ep.usage).toMatchObject({ calls: 3, input: 300, output: 60 })
@@ -587,8 +566,9 @@ describe('the economy check', () => {
     id: 'patch/club-comes-apart',
     host: { type: 'item/weapon/blunt/club' },
     on: 'act/use',
+    hole: holeOf(useRequest()), // the hole a tool used on something falls into (a placed rule names its hole)
     doc: 'A club worked on a workbench comes apart into logs.',
-    tree: { if: { is: { role: 'target', sel: { type: 'fixture/craft/workbench' } } }, then: { do: [{ op: 'transform', into: 'item/material/log' }, ...(logs > 1 ? [{ op: 'spawn', type: 'item/material/log', at: 'host', count: logs - 1 } as Effect] : [])] } },
+    tree: { if: { is: { role: 'target', sel: { type: 'fixture/craft/workbench' } } }, then: { do: [{ op: 'transform', into: 'item/material/log' }, ...(logs > 1 ? [{ op: 'spawn', type: 'item/material/log', at: 'host', count: logs - 1 } as Effect] : [])] }, else: { undefined: true } },
   })
 
   it('refuses a patch that, with the world\'s own conversions, makes something from nothing — and names them', () => {
@@ -616,54 +596,76 @@ describe('the economy check', () => {
 })
 
 describe('integrity', () => {
-  it('rejects a catch-all that would answer for anything at all', () => {
+  it('rejects a catch-all that would answer for anything at all, and a class: a learned rule is one type\'s own', () => {
     const { library } = setup()
-    const catchAll: Rule = { id: 'patch/offered-nothing', on: 'impulse/offered', tree: { do: [{ op: 'log', text: 'Nothing happens.' }] } }
-    expect(library.validate(patchOf(catchAll), request()).errors.join()).toMatch(/name the host/)
-    // naming what the rule is about is enough
-    const scoped: Rule = { ...catchAll, id: 'patch/creature-offered-nothing', host: { type: 'actor/creature' } }
-    expect(library.validate(patchOf(scoped), request()).errors.join()).not.toMatch(/name the host/)
+    const req = request()
+    const catchAll: Rule = { id: 'patch/offered-nothing', on: 'impulse/offered', hole: holeOf(req), tree: { do: [{ op: 'log', text: 'Nothing happens.' }] } }
+    expect(library.validate(patchOf(catchAll), req).errors.join()).toMatch(/host must be exactly \{type/)
+    // the class the host belongs to is not its place either
+    const cls: Rule = { ...catchAll, id: 'patch/creature-offered-nothing', host: { type: 'actor/creature' } }
+    expect(library.validate(patchOf(cls), req).errors.join()).toMatch(/the host of the triggering event is a actor\/creature\/slime\/green_slime, not a actor\/creature/)
+    // the host's own type is
+    const own: Rule = { ...catchAll, id: 'patch/green-slime-offered-nothing', host: { type: SLIME } }
+    expect(library.validate(patchOf(own), req).ok).toBe(true)
   })
 
-  it('holds a patch to the event model: host-only effects, no holes, not the earlier shape', () => {
+  it('holds a patch to the event model: host-only effects, open cases but never inherit, not the earlier shape, the event that asked', () => {
     const { library } = setup()
-    const of = { ...bindRule(), tree: { if: FIBER, then: { do: [{ op: 'addStatus', of: 'item', status: 'wet' }] } } } as unknown as Rule
-    expect(library.validate(patchOf(of), request()).errors.join()).toMatch(/effects act on the host only/)
-    const hole: Rule = { ...bindRule(), tree: { if: FIBER, then: { undefined: true } } }
-    expect(library.validate(patchOf(hole), request()).errors.join()).toMatch(/may not leave an outcome undefined/)
-    const old = { id: 'patch/rope-binds', on: 'interaction', when: { verb: ['interact'] }, do: [{ op: 'addStatus', of: 'target', status: 'frozen' }] } as unknown as Rule
-    expect(library.validate(patchOf(old), request()).errors.join()).toMatch(/earlier rule shape/)
+    const req = request()
+    const of = { ...bindRule(), tree: { if: STONY, then: { do: [{ op: 'addStatus', of: 'item', status: 'wet' }] }, else: { undefined: true } } } as unknown as Rule
+    expect(library.validate(placed(patchOf(of), req), req).errors.join()).toMatch(/effects act on the host only/)
+    // a case the rule does not answer stays open ({"undefined": true}); `inherit` is the base rules' word
+    const inherits: Rule = { ...bindRule(), hole: holeOf(req), tree: { if: STONY, then: { do: [{ op: 'vfx', fx: 'dust' }] }, else: 'inherit' } }
+    expect(library.validate(patchOf(inherits), req).errors.join()).toMatch(/never inherits/)
+    expect(library.validate(placed(patchOf(bindRule()), req), req).ok).toBe(true)
+    // an open leaf answers nothing: a rule with no {do} leaf is no rule
+    const open: Rule = { ...bindRule(), hole: holeOf(req), tree: { if: STONY, then: { undefined: true }, else: { undefined: true } } }
+    expect(library.validate(patchOf(open), req).errors.join()).toMatch(/no leaf answers/)
+    const old = { id: 'patch/stone-stills', on: 'interaction', when: { verb: ['interact'] }, do: [{ op: 'addStatus', of: 'target', status: 'frozen' }] } as unknown as Rule
+    expect(library.validate(patchOf(old), req).errors.join()).toMatch(/earlier rule shape/)
     // a rule that does not answer the event that asked is no answer
-    const elsewhere: Rule = { ...bindRule(), on: 'impulse/handle' }
-    expect(library.validate(patchOf(elsewhere), request()).errors.join()).toMatch(/still undefined/)
+    const elsewhere: Rule = { ...bindRule(), hole: holeOf(req), on: 'impulse/handle' }
+    expect(library.validate(patchOf(elsewhere), req).errors.join()).toMatch(/the triggering event is impulse\/offered, not impulse\/handle/)
+    const otherHole: Rule = { ...bindRule(), hole: 'core/handle' }
+    expect(library.validate(patchOf(otherHole), req).errors.join()).toMatch(/falls undefined at "core\/offered", not "core\/handle"/)
   })
 
-  it('refuses two rules of one patch that tie with each other, as it would across patches', () => {
+  it('refuses a second answer at a leaf already answered, and takes one at the open leaf of the first', () => {
     const { library } = setup()
-    const a = bindRule('patch/a')
-    const b = { ...bindRule('patch/b'), doc: 'the same class, said again' }
-    expect(library.validate(patchOf(a, b), request()).errors.join()).toMatch(/"patch\/a" ties with "patch\/b"/)
+    const req = request()
+    const a = placed(patchOf(bindRule('patch/a')), req)
+    expect(library.commit(a, req).ok).toBe(true)
+    // the type's tree at this hole is the first answer; a later answer replaces one of its open leaves
+    const key = patchKey(SLIME, 'impulse/offered', holeOf(req))
+    expect(library.lib.tree(key)).toEqual(bindTree())
+    expect(laneOf(req)).toBe(key)
+    const b = (at: string[]): Patch => patchOf({ ...bindRule('patch/b'), hole: holeOf(req), at, doc: 'the same case, said again', tests: undefined })
+    expect(library.validate(b([JSON.stringify(STONY)])).errors.join()).toMatch(/already answered/)
+    expect(library.validate(b([])).errors.join()).toMatch(/leads nowhere/)
+    expect(library.validate(b([`!${JSON.stringify(STONY)}`])).ok).toBe(true)
+    // the scene that asked is answered now: there is nothing left to answer there
+    expect(library.validate(b([`!${JSON.stringify(STONY)}`]), req).errors.join()).toMatch(/already defined by "patch\/a"/)
   })
 
   it('reports an unproven chance assignment bound in the library audit', () => {
     const { library } = setup()
     const req = useRequest()
-    const rule: Rule = { id: 'patch/audit-chances', host: { type: 'item/tool/rope' }, on: 'act/use', tree: {
+    const rule: Rule = { id: 'patch/audit-chances', host: { type: 'item/material/stone' }, on: 'act/use', hole: holeOf(req), tree: {
       if: { all: Array.from({ length: 7 }, () => ({ any: [{ chance: 0.5 }, { chance: 1 }] })) }, then: { do: [] }, else: { do: [] },
     } }
     library.lib.add({ ...rule, source: { origin: 'patch' } })
-    library.regression.push({ scenario: req.scenario, rule: rule.id })
+    library.asked.push({ scenario: req.scenario, rule: rule.id })
     expect(library.audit()).toEqual([{ rule: rule.id, reason: expect.stringMatching(/repeat check.*64.*safety/) }])
   })
 
   it('commits to the shared log only what stands on the shared library alone', async () => {
-    const glow: Rule = { ...bindRule('patch/rope-glows'), tree: { if: FIBER, then: { do: [{ op: 'addStatus', status: 'glowing', duration: 30 }] } }, tests: [] }
+    const glow: Rule = { ...bindRule('patch/stone-glows'), tree: { if: STONY, then: { do: [{ op: 'addStatus', status: 'glowing', duration: 30 }] }, else: { undefined: true } }, tests: [] }
     const status = { id: 'glowing', duration: 30 }
     // the first draft leans on a status only this client has (a local patch of its own); the repair carries it
     const { model, calls } = scripted([patchOf(glow), { artifacts: [{ kind: 'status', status }, { kind: 'rule', rule: glow }] }])
     const { modder, library } = setup(model)
     const ws = { patches: { rules: [], statuses: [status] } }
-    expect(library.validate(patchOf(glow), request(), ws).ok).toBe(true)
+    expect(library.validate(placed(patchOf(glow), request()), request(), ws).ok).toBe(true)
     const reply = await modder.resolve({ request: request(), workspace: ws })
     expect(reply.outcome).toBe('accepted')
     expect(calls.log.some((c) => c.messages.some((m) => m.role !== 'system' && /glowing/.test(m.content) && /unknown status/.test(m.content)))).toBe(true)
@@ -675,14 +677,14 @@ describe('integrity', () => {
     const { model, calls } = scripted([patchOf(bindRule())])
     const dir = mkdtempSync(join(tmpdir(), 'lsw-modder-'))
     // the service's base rules have learned what the client's have not
-    const newer: Rule = { ...bindRule('creature/offered-rope'), source: { origin: 'base' } }
+    const newer: Rule = { ...bindRule('creature/offered-stone'), source: { origin: 'base' } }
     const library = new WorldLibrary(onto, [...BASE, newer], join(dir, 'library.jsonl'))
     const state = SelfState.open(join(dir, 'modder-state'))
     state.setHarness({ ...state.harness(), audit: { ...auditOf(state.harness()), enabled: false } }, 'test: no auditor')
     const modder = new Modder({ library, state, model })
     const reply = await modder.resolve({ request: request() })
     expect(reply).toMatchObject({ patch: null, outcome: 'failed' })
-    expect(reply.diagnostics?.join()).toMatch(/creature\/offered-rope/)
+    expect(reply.diagnostics?.join()).toMatch(/creature\/offered-stone/)
     expect(calls.design).toBe(0)
   })
 })
@@ -692,7 +694,7 @@ describe('deterministic repairs', () => {
     const rule = bindRule()
     const { tree: _t, ...bare } = rule
     // a rule written in the flat form: its condition and effects beside the rule, not in a tree
-    const flat = { ...bare, if: FIBER, do: (bindTree() as { then: { do: unknown[] } }).then.do }
+    const flat = { ...bare, if: STONY, do: (bindTree() as { then: { do: unknown[] } }).then.do }
     // effects keyed by their op ({"addStatus": {"status": …}}), as a live model wrote them
     const tree = bindTree() as { if: unknown; then: { do: { op: string }[] } }
     const keyed = { ...rule, tree: { ...tree, then: { do: tree.then.do.map(({ op, ...args }) => ({ [op]: args })) } } }
@@ -706,32 +708,8 @@ describe('deterministic repairs', () => {
       expect(ep.attempts).toHaveLength(1)
       expect(ep.attempts[0].fixes?.length).toBeGreaterThan(0)
       expect(calls.design).toBe(2) // the tool turn and the answer: no repair round
-      expect(library.lib.rules.get('patch/rope-binds-creature')!.tree).toEqual(bindTree())
+      expect(library.lib.rules.get('patch/stone-stills-creature')!.tree).toEqual(bindTree())
     }
-  })
-
-  it('derives the test on an instance its rule answers, not on one a more specific patch already answers', () => {
-    // 2026-10-03: a rule for every plant was flagged "did not generalize" because the sibling it
-    // was tried on (flowers) had its own, more specific patch
-    const sc: Scenario = {
-      entities: [
-        { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
-        { key: 'it', type: 'fixture/nature/ferns', x: 2, y: 1 },
-      ],
-      event: {},
-    }
-    const eng = buildSandbox(sc, onto, new RuleLibrary(BASE))
-    const port = new ModPort(eng)
-    // a bare blow on it: what cannot break has no answer of its own to a blow (core/strike)
-    eng.act('use', 'actor', { e: 'it' }, { instrument: null, params: { attack: true } })
-    const req = port.records[0].request
-    expect(req.hole.rule).toBe('core/strike')
-    const shed = (id: string, host: Rule['host']): Rule => ({ id, host, on: 'impulse/strike', doc: 'Struck, it is flattened.', tree: { do: [{ op: 'transform', into: 'fixture/nature/tuft' }, { op: 'vfx', fx: 'leaves' }] } })
-    const library = new WorldLibrary(onto, BASE)
-    expect(library.commit(patchOf(shed('patch/flowers-shed', { type: 'fixture/nature/flowers' }))).ok).toBe(true)
-    const d = deriveTests(patchOf(shed('patch/plants-shed', { type: 'fixture/nature', tags: ['plant'] })), req, library.lib, library.fullOntology())
-    expect(d.notes.join()).toMatch(/derived a test on host/)
-    expect(d.notes.join()).not.toMatch(/flowers|did not generalize/)
   })
 
   it('reads a bare terrain id as its tile type, in the host and in conditions', () => {
@@ -760,23 +738,28 @@ describe('deterministic repairs', () => {
     expect(parseJson('{"patch": {"artifacts": [{"id": "patch/x", "tree": {"if": {"is": {"role": "target"}}, "then": {"do": [{"op": "vfx"}')).toBeUndefined()
   })
 
-  it('narrows a rule to the kind that was asked when its broader branch is what ties', async () => {
-    const p = patchOf({ ...bindRule(), on: 'impulse' })
-    const res = { ok: false, errors: ['rule "patch/rope-binds-creature" ties with "patch/creature-shrugs" (same kind, same specificity, overlapping hosts) — make it more specific or name a different host'], warnings: [], overrides: [] }
-    const n = narrowKinds(p, request(), res)!
-    expect(n.fixes[0]).toMatch(/narrowed/)
-    expect((n.patch.artifacts[0] as { rule: Rule }).rule.on).toBe('impulse/offered')
-    expect(narrowKinds(p, request(), { ...res, errors: ['unknown status "x"'] })).toBeUndefined()
+  it('places a rule written for a class, a branch of kinds or with inherit where the request fell undefined, without another model turn', async () => {
+    const req = request()
+    // the old way: the creature class, the whole impulse branch, the other cases left to inherit
+    const p = patchOf({ ...bindRule(), host: { type: 'actor/creature', notStatus: ['frozen'] }, on: 'impulse', tree: { if: STONY, then: (bindTree() as { then: Tree }).then } })
+    const { patch, fixes } = placePatch(p, req)
+    const r = (patch.artifacts[0] as { rule: Rule }).rule
+    expect(r).toMatchObject({ host: { type: SLIME }, on: 'impulse/offered', hole: 'core/offered', at: [] })
+    expect(r.tree).toEqual(bindTree())
+    expect(fixes.join('\n')).toMatch(/host set to \{type: "actor\/creature\/slime\/green_slime"\} \(was \{"type":"actor\/creature","notStatus":\["frozen"\]\}\)/)
+    expect(fixes.join('\n')).toMatch(/on set to impulse\/offered \(was impulse\)/)
+    expect(fixes.join('\n')).toMatch(/inherit leaf left open/)
+    // a rule already in its place is left alone
+    expect(placePatch(patch, req).fixes).toEqual([])
 
-    // in the pipeline: an earlier patch answers the whole impulse branch for the same class
+    // in the pipeline: placed, validated and committed in the type's own tree
     const { model, calls } = scripted([p])
     const { modder, state, library } = setup(model)
-    const shrug: Rule = { id: 'patch/creature-shrugs', host: { type: 'actor/creature', notStatus: ['frozen'] }, on: 'impulse', doc: 'Wind ruffles a creature.', tree: { if: { param: { key: 'element', cmp: 'wind' } }, then: { do: [{ op: 'vfx', fx: 'dust' }] } } }
-    expect(library.commit(patchOf(shrug)).ok).toBe(true)
-    const reply = await modder.resolve({ request: request() })
+    const reply = await modder.resolve({ request: req })
     expect(reply.outcome).toBe('accepted')
-    expect(state.episode(reply.episode!)!.attempts[0].fixes?.join()).toMatch(/narrowed "patch\/rope-binds-creature" from impulse to impulse\/offered/)
-    expect(library.lib.rules.get('patch/rope-binds-creature')!.on).toBe('impulse/offered')
+    expect(state.episode(reply.episode!)!.attempts[0].fixes?.join()).toMatch(/on set to impulse\/offered/)
+    expect(library.lib.rules.get('patch/stone-stills-creature')).toMatchObject({ host: { type: SLIME }, on: 'impulse/offered', hole: 'core/offered' })
+    expect(library.lib.tree(laneOf(req))).toEqual(bindTree())
     expect(calls.design).toBe(2) // no repair round
   })
 })
@@ -842,10 +825,10 @@ describe('the router: local, then find, then create', () => {
     grid: ['................', '................', '................', '....kkkkkkkkk...', '...kaaeaaaaaak..', '..kaeaaaaaaabk..', '.kaaaaaaaaabbck.', 'kbbbbbbbbbbbcck.', 'kbbbbbbbbbbccdk.', 'kbccbbbbbbbccdk.', 'kcccccccccccddk.', 'kccccccccccddk..', '.kkkkkkkkkkkkk..', '................', '................', '................'],
     palette: { k: '#141b1b', e: '#eef2f0', a: '#b9c1c6', b: '#8a949c', c: '#5e6870', d: '#3e464e' },
   }
-  /** A creature offered rope leaves something behind: the router's answers are scripted by what each call shows. */
+  /** A creature offered a stone leaves something behind: the router's answers are scripted by what each call shows. */
   // (once, then not for a while: a yield costs its host — the repeat check, world-model.md §8.4)
-  const leaves = (type: string): Rule => ({ id: 'patch/rope-on-creature-leaves', host: { type: 'actor/creature' }, on: 'impulse/offered', doc: `A creature offered rope leaves ${type} behind, and not again for a while.`, tree: { if: { all: [FIBER, { not: { has: { role: 'host', status: 'stirred' } } }] }, then: { do: [{ op: 'spawn', type, at: 'host' }, { op: 'addStatus', status: 'stirred' }, { op: 'log', text: { en: 'Something drops.', zh: '掉下了东西。' } }] } } })
-  const INGOT_TYPE = { id: 'item/material/iron_ingot', name: { en: 'Iron Ingot', zh: '铁锭' }, tags: ['metal'], props: { material: 'iron' }, makeup: [{ type: 'item/material/iron_ore', count: 1 }] }
+  const leaves = (type: string): Rule => ({ id: 'patch/stone-on-creature-leaves', host: { type: 'actor/creature' }, on: 'impulse/offered', doc: `A creature offered a stone leaves ${type} behind, and not again for a while.`, tree: { if: { all: [STONY, { not: { has: { role: 'host', status: 'stirred' } } }] }, then: { do: [{ op: 'spawn', type, at: 'host' }, { op: 'addStatus', status: 'stirred' }, { op: 'log', text: { en: 'Something drops.', zh: '掉下了东西。' } }] } } })
+  const INGOT_TYPE = { id: 'item/material/steel_ingot', name: { en: 'Steel Ingot', zh: '钢锭' }, tags: ['metal'], props: { material: 'iron' }, makeup: [{ type: 'item/material/iron_ore', count: 1 }] }
 
   function router(o: { local: unknown; find?: unknown; create?: unknown; art?: (n: number) => unknown; onArt?: () => void }) {
     const seen: { purpose?: string; system: string; last: string }[] = []
@@ -903,33 +886,33 @@ describe('the router: local, then find, then create', () => {
     let during: unknown
     const req = request()
     const { model } = router({
-      local: { need: [{ name: 'iron ingot' }] },
-      find: { create: [{ id: 'item/material/iron_ingot', name: { en: 'Iron Ingot', zh: '铁锭' }, why: 'smelted iron' }] },
-      create: { patch: { artifacts: [{ kind: 'type', type: INGOT_TYPE }, { kind: 'rule', rule: leaves('item/material/iron_ingot') }] } },
+      local: { need: [{ name: 'steel ingot' }] },
+      find: { create: [{ id: 'item/material/steel_ingot', name: { en: 'Steel Ingot', zh: '钢锭' }, why: 'smelted steel' }] },
+      create: { patch: { artifacts: [{ kind: 'type', type: INGOT_TYPE }, { kind: 'rule', rule: leaves('item/material/steel_ingot') }] } },
       onArt: () => (during = modder.progressOf(req.id)),
     })
     const { modder, state, library } = setup(model, undefined, 'live')
     const reply = await modder.resolve({ request: req })
     expect(reply.outcome).toBe('accepted')
-    expect(during).toEqual({ stage: 'art', creating: [{ en: 'Iron Ingot', zh: '铁锭' }] })
+    expect(during).toEqual({ stage: 'art', creating: [{ en: 'Steel Ingot', zh: '钢锭' }] })
     expect(modder.progressOf(req.id)).toBeUndefined()
-    expect(state.episode(reply.episode!)).toMatchObject({ route: ['local', 'find', 'create'], created: ['item/material/iron_ingot'] })
-    const t = library.lib.types.find((x) => x.id === 'item/material/iron_ingot')!
-    expect(t).toMatchObject({ sprite: 'art:item/material/iron_ingot', art: INGOT_ART })
+    expect(state.episode(reply.episode!)).toMatchObject({ route: ['local', 'find', 'create'], created: ['item/material/steel_ingot'] })
+    const t = library.lib.types.find((x) => x.id === 'item/material/steel_ingot')!
+    expect(t).toMatchObject({ sprite: 'art:item/material/steel_ingot', art: INGOT_ART })
     // every client gets the new thing with the rule that makes it
-    expect(library.since(0).at(-1)).toMatchObject({ patch: { artifacts: [{ kind: 'type', type: { id: 'item/material/iron_ingot' } }, { kind: 'rule' }] } })
+    expect(library.since(0).at(-1)).toMatchObject({ patch: { artifacts: [{ kind: 'type', type: { id: 'item/material/steel_ingot' } }, { kind: 'rule' }] } })
   })
 
   it('still creates the thing when its picture cannot be drawn: it shows its parent\'s', async () => {
     const { model } = router({
-      local: { need: [{ name: 'iron ingot' }] },
-      find: { create: [{ id: 'item/material/iron_ingot', name: { en: 'Iron Ingot', zh: '铁锭' } }] },
-      create: { patch: { artifacts: [{ kind: 'type', type: INGOT_TYPE }, { kind: 'rule', rule: leaves('item/material/iron_ingot') }] } },
+      local: { need: [{ name: 'steel ingot' }] },
+      find: { create: [{ id: 'item/material/steel_ingot', name: { en: 'Steel Ingot', zh: '钢锭' } }] },
+      create: { patch: { artifacts: [{ kind: 'type', type: INGOT_TYPE }, { kind: 'rule', rule: leaves('item/material/steel_ingot') }] } },
       art: () => ({ grid: ['k'], palette: { k: '#000000' } }),
     })
     const { modder, library } = setup(model, undefined, 'live')
     expect((await modder.resolve({ request: request() })).outcome).toBe('accepted')
-    const t = library.lib.types.find((x) => x.id === 'item/material/iron_ingot')!
+    const t = library.lib.types.find((x) => x.id === 'item/material/steel_ingot')!
     expect(t.art).toBeUndefined()
     expect(t.sprite).toBeUndefined()
   })
@@ -944,7 +927,7 @@ describe('the router: local, then find, then create', () => {
       seen.most = Math.max(seen.most, seen.busy)
       await new Promise((r) => setTimeout(r, 20))
       seen.busy--
-      return { patch: patchOf(noTestsRule(messages[1].content.includes('impulse/offered') ? bindRule() : { ...bindRule('patch/rope-used-on-creature'), on: 'act/use', host: { type: 'item/tool/rope' }, tree: { if: { is: { role: 'target', sel: { type: 'actor/creature' } } }, then: { do: [{ op: 'log', text: 'You wave the rope.' }] } } })) }
+      return { patch: patchOf(noTestsRule(messages[1].content.includes('impulse/offered') ? bindRule() : { ...bindRule('patch/stone-used-on-dead-tree'), on: 'act/use', host: { type: 'item/material/stone' }, tree: { if: { is: { role: 'target', sel: { type: 'fixture/nature/dead_tree' } } }, then: { do: [{ op: 'log', text: 'You knock the stone on it.' }] } } })) }
     })
     return { model, seen }
   }
@@ -961,10 +944,12 @@ describe('the router: local, then find, then create', () => {
   it('queues requests in one lane, so the later one is answered by what the earlier committed', async () => {
     const { model, seen } = overlapping()
     const { modder } = setup(model, undefined, 'live')
-    // a slime and a wolf offered rope: two classes, one lane (impulse/offered on a creature)
-    const wolf = request('actor/creature/beast/wolf')
-    expect(laneOf(wolf)).toBe(laneOf(request()))
-    const replies = await Promise.all([modder.resolve({ request: request() }), modder.resolve({ request: wolf })])
+    // two green slimes offered a stone: one tree (the type's, at this hole), so one lane; a wolf's is another
+    const again = request()
+    expect(laneOf(again)).toBe(laneOf(request()))
+    expect(laneOf(again)).toBe(`${SLIME}|impulse/offered|core/offered`)
+    expect(laneOf(request('actor/creature/beast/wolf'))).not.toBe(laneOf(again))
+    const replies = await Promise.all([modder.resolve({ request: request() }), modder.resolve({ request: again })])
     expect(replies.map((r) => r.outcome).sort()).toEqual(['accepted', 'covered'])
     expect(seen.most).toBe(1)
     expect(seen.designs).toBe(1)
@@ -1027,7 +1012,7 @@ describe('the live profile', () => {
       if (opts.tools?.length || messages.some((m) => m.role === 'tool')) {
         n.offline++
         const last = messages[messages.length - 1]
-        return last.role === 'user' ? { content: '', toolCalls: [{ id: 'x', name: 'get_type', args: { id: 'item/tool/rope' } }] } : (o.offline!(n.offline, messages) as object)
+        return last.role === 'user' ? { content: '', toolCalls: [{ id: 'x', name: 'get_type', args: { id: 'item/material/stone' } }] } : (o.offline!(n.offline, messages) as object)
       }
       return o.live(n.live++) as object
     })
@@ -1035,7 +1020,7 @@ describe('the live profile', () => {
   }
   const noTests = (r: Rule): Rule => ({ ...r, tests: undefined })
 
-  it('answers in one call without tools and writes the generalization test itself', async () => {
+  it('answers in one call without tools; the harness keeps the scene that asked as the rule\'s test', async () => {
     const { model, n } = liveModel({ live: () => ({ patch: patchOf(noTests(bindRule())) }) })
     const { modder, state, library } = setup(model, undefined, 'live')
     const reply = await modder.resolve({ request: request() })
@@ -1043,12 +1028,12 @@ describe('the live profile', () => {
     const ep = state.episode(reply.episode!)!
     expect(ep.usage.calls).toBe(1)
     expect(ep.profile).toBe('live')
-    expect(ep.attempts[0].derived?.join()).toMatch(/derived a test on host/)
-    const tests = library.lib.rules.get('patch/rope-binds-creature')!.tests!
-    // the harness swapped the HOST for another instance of its class, from another branch of it
-    expect(tests[0].name).toMatch(/^derived: host actor\/creature\//)
+    expect(ep.attempts[0].derived?.join()).toMatch(/derived a test from the scene that asked/)
+    const tests = library.lib.rules.get('patch/stone-stills-creature')!.tests!
+    // the scene that asked, with what the rule did there (a learned rule is one type's: no sibling to try it on)
+    expect(tests[0].name).toBe('derived: the scene that asked')
     expect(tests[0].given.event).toMatchObject({ kind: 'impulse/offered', host: 'host' })
-    expect(tests[0].given.entities.find((e) => e.key === 'host')!.type).not.toMatch(/^actor\/creature\/slime/)
+    expect(tests[0].given.entities.find((e) => e.key === 'host')!.type).toBe(SLIME)
     expect(tests[0].expect).toContainEqual({ key: 'host', hasStatus: 'frozen' })
     await modder.settled()
     // nothing flagged in it (it changes the world, and generalized): no review after the fact
@@ -1075,10 +1060,10 @@ describe('the live profile', () => {
     let batch = ''
     const { model, n } = liveModel({
       live: (i) => {
-        const [cls, , sibling] = classes[i]
-        return { patch: patchOf(noTests(bindRule(`patch/rope-binds-${cls}`, `actor/creature/${cls}`, `actor/creature/${cls}/${sibling}`))) }
+        const [cls, host] = classes[i]
+        return { patch: patchOf(noTests(bindRule(`patch/stone-stills-${cls}`, `actor/creature/${cls}/${host}`))) }
       },
-      reflect: (_i, m) => ((batch = m[1].content), { lessons: { add: [{ text: 'Bind by the fiber tag.', terms: [] }] } }),
+      reflect: (_i, m) => ((batch = m[1].content), { lessons: { add: [{ text: 'Still by the stone tag.', terms: [] }] } }),
     })
     const { modder, state } = setup(model, undefined, 'live')
     expect(state.harness().reflect.batch).toBe(4)
@@ -1091,7 +1076,7 @@ describe('the live profile', () => {
       expect(n.reflect).toBe(i < 3 ? 0 : 1)
     }
     expect(batch).toContain('# 4 episodes, each accepted at its first answer')
-    expect(state.lessons().find((l) => l.text === 'Bind by the fiber tag.')!.episodes).toEqual(ids)
+    expect(state.lessons().find((l) => l.text === 'Still by the stone tag.')!.episodes).toEqual(ids)
   })
 
   it.each(['find', 'create'] as const)('batches four clean %s routes into one reflection', async (route) => {
@@ -1104,10 +1089,10 @@ describe('the live profile', () => {
       const cls = classes[index][0]
       const type = { id: `item/material/${cls}_ingot`, name: { en: `${cls} Ingot`, zh: `${cls}锭` }, props: { material: 'iron' }, makeup: [{ type: 'item/material/iron_ore', count: 1 }] }
       const last = messages.at(-1)!.content
-      if (last.startsWith('# Request')) return { need: [{ name: 'iron ingot' }] }
+      if (last.startsWith('# Request')) return { need: [{ name: 'steel ingot' }] }
       if (route === 'create' && last.startsWith('# What you asked for')) return { create: [{ ...type, why: 'a new ingot' }] }
+      const patch = patchOf(noTests(bindRule(`patch/route-${cls}`, `actor/creature/${cls}/${classes[index][1]}`)))
       index++
-      const patch = patchOf(noTests(bindRule(`patch/route-${cls}`, `actor/creature/${cls}`)))
       if (route === 'create') patch.artifacts.unshift({ kind: 'type', type })
       return { patch }
     })
@@ -1146,16 +1131,16 @@ describe('the live profile', () => {
     expect(reply.outcome).toBe('failed') // the player gets the fallback now
     expect(n.live).toBe(2) // one answer and one repair, the live budget
     await modder.settled()
-    expect(library.lib.rules.has('patch/rope-binds-creature')).toBe(true) // ...and the world learns it anyway
+    expect(library.lib.rules.has('patch/stone-stills-creature')).toBe(true) // ...and the world learns it anyway
     const escalated = state.episodes().map((e) => state.episode(e.id)!).find((e) => e.escalatedFrom === reply.episode)!
     expect(escalated).toMatchObject({ profile: 'offline', outcome: 'accepted' })
   })
 
   it('revises a shipped rule when the late reviewer asks, replacing it in the shared library', async () => {
-    const narrow = noTests(bindRule('patch/rope-binds-slime', 'actor/creature/slime', 'actor/creature/slime/frost_slime'))
+    const narrow = noTests(bindRule('patch/stone-stills-slime'))
     const { model } = liveModel({
       live: () => ({ patch: patchOf(narrow) }),
-      review: (i) => (i === 0 ? { verdict: 'revise', notes: ['Any creature can be tied up, not just slimes.'] } : { verdict: 'ship' }),
+      review: (i) => (i === 0 ? { verdict: 'revise', notes: ['Say what the stone does: it should go into the creature.'] } : { verdict: 'ship' }),
       offline: (_i, messages) => {
         expect(messages[1].content).toContain('# Revision')
         return { patch: patchOf(bindRule()) }
@@ -1164,17 +1149,17 @@ describe('the live profile', () => {
     const { modder, state, library } = setup(model, undefined, 'live')
     state.setHarness({ ...state.harness(), review: { ...state.harness().review, unflagged: true } }, 'test: review everything')
     const first = await modder.resolve({ request: request() })
-    expect(library.lib.rules.has('patch/rope-binds-slime')).toBe(true)
+    expect(library.lib.rules.has('patch/stone-stills-slime')).toBe(true)
     await modder.settled()
-    expect(library.lib.rules.has('patch/rope-binds-slime')).toBe(false)
-    expect(library.lib.rules.has('patch/rope-binds-creature')).toBe(true)
-    expect(library.since(0).map((e) => ('remove' in e ? `-${e.remove}` : `+${e.rules.join()}`))).toEqual(['+patch/rope-binds-slime', '-patch/rope-binds-slime', '+patch/rope-binds-creature'])
+    expect(library.lib.rules.has('patch/stone-stills-slime')).toBe(false)
+    expect(library.lib.rules.has('patch/stone-stills-creature')).toBe(true)
+    expect(library.since(0).map((e) => ('remove' in e ? `-${e.remove}` : `+${e.rules.join()}`))).toEqual(['+patch/stone-stills-slime', '-patch/stone-stills-slime', '+patch/stone-stills-creature'])
     const rev = state.episodes().map((e) => state.episode(e.id)!).find((e) => e.revises === first.episode)!
     expect(rev.outcome).toBe('accepted')
   })
 
   it('flags a rule that changes nothing for the reviewer', async () => {
-    const flavour: Rule = { id: 'patch/rope-on-creature-nothing', host: { type: 'actor/creature' }, on: 'impulse/offered', doc: 'Nothing.', tree: { if: FIBER, then: { do: [{ op: 'log', text: 'You wave the rope about.' }] } } }
+    const flavour: Rule = { id: 'patch/stone-on-creature-nothing', host: { type: 'actor/creature' }, on: 'impulse/offered', doc: 'Nothing.', tree: { if: STONY, then: { do: [{ op: 'log', text: 'You knock the stone about.' }] } } }
     let seen = ''
     const { model } = liveModel({ live: () => ({ patch: patchOf(flavour) }), review: (_i, m) => ((seen = m[1].content), { verdict: 'ship' }) })
     const { modder } = setup(model, undefined, 'live')
@@ -1186,7 +1171,7 @@ describe('the live profile', () => {
 
 describe('checks that hold their ground', () => {
   it('one class key: the client\'s port and the service key every request alike', () => {
-    for (const req of [request(), useRequest(), request('actor/creature/beast/wolf', 'item/tool/rope')]) {
+    for (const req of [request(), useRequest(), request('actor/creature/beast/wolf', 'item/material/stone')]) {
       const eng = buildSandbox(req.scenario, onto, new RuleLibrary(BASE))
       const port = new ModPort(eng)
       const sc = req.scenario
@@ -1204,7 +1189,7 @@ describe('checks that hold their ground', () => {
     expect(calls.review).toBe(2)
     expect(state.episode(reply.episode!)!.attempts.at(-1)!.review).toEqual({ verdict: 'error', notes: [] })
     // and a verdict in capitals is read as what it says
-    const again = scripted([patchOf(bindRule()), patchOf(bindRule('patch/rope-binds-creature-2'))], { review: (n) => (n === 0 ? { verdict: 'REVISE', notes: ['say what happens'] } : { verdict: 'ship', notes: [] }) })
+    const again = scripted([patchOf(bindRule()), patchOf(bindRule('patch/stone-stills-creature-2'))], { review: (n) => (n === 0 ? { verdict: 'REVISE', notes: ['say what happens'] } : { verdict: 'ship', notes: [] }) })
     const s2 = setup(again.model)
     await s2.modder.resolve({ request: request() })
     expect(again.calls.design).toBeGreaterThanOrEqual(2)
@@ -1213,15 +1198,15 @@ describe('checks that hold their ground', () => {
   it('a derived test checks at least that the rule answers, and a number by the way it moved', () => {
     const req = useRequest()
     const lib = new RuleLibrary(BASE)
-    // (a class of hosts: the test is derived on another tool)
-    const rule = (id: string, effects: unknown[]): Rule => ({ id, host: { type: 'item/tool' }, on: 'act/use', tree: { if: { is: { role: 'target', sel: { type: 'actor/creature' } } }, then: { do: effects as Effect[] }, else: 'inherit' } })
-    const told = deriveTests(patchOf(rule('patch/rope-says', [{ op: 'log', text: 'You wave the rope.' }])), req, lib, onto)
+    // (the rule as the pipeline places it: the stone's own, at the hole the use fell into)
+    const rule = (id: string, effects: unknown[]): Patch => placed(patchOf({ id, host: { type: 'item/material/stone' }, on: 'act/use', tree: { if: { is: { role: 'target', sel: { type: 'fixture/nature/dead_tree' } } }, then: { do: effects as Effect[] }, else: { undefined: true } } }), req)
+    const told = deriveTests(rule('patch/stone-says', [{ op: 'log', text: 'You knock the stone on it.' }]), req, lib, onto)
     const says = told.patch.artifacts[0].kind === 'rule' ? told.patch.artifacts[0].rule.tests?.[0]?.expect : undefined
-    expect(says).toEqual([{ resolvedBy: 'patch/rope-says' }])
+    expect(says).toEqual([{ resolvedBy: 'patch/stone-says' }])
     expect(told.notes.join()).toMatch(/checks only that the rule answers/)
-    const worn = deriveTests(patchOf(rule('patch/rope-wears', [{ op: 'addProp', key: 'wear', delta: 1 }])), req, lib, onto)
+    const worn = deriveTests(rule('patch/stone-wears', [{ op: 'addProp', key: 'wear', delta: 1 }]), req, lib, onto)
     const wears = worn.patch.artifacts[0].kind === 'rule' ? worn.patch.artifacts[0].rule.tests?.[0]?.expect : undefined
-    expect(wears).toContainEqual({ resolvedBy: 'patch/rope-wears' })
+    expect(wears).toContainEqual({ resolvedBy: 'patch/stone-wears' })
     expect(wears?.some((x) => 'propGt' in x && x.propGt[0] === 'wear')).toBe(true)
   })
 
@@ -1239,13 +1224,14 @@ describe('checks that hold their ground', () => {
     const req = useRequest()
     const eng = buildSandbox(req.scenario, onto, new RuleLibrary(BASE))
     const port = new ModPort(eng)
-    const farm = patchOf({ id: 'patch/rope-farm', host: { type: 'item/tool/rope' }, on: 'act/use', label: { en: 'Use {instrument}', zh: '使用{instrument}' }, tree: { if: { is: { role: 'target', sel: { type: 'actor/creature' } } }, then: { do: [{ op: 'spawn', type: 'item/material/stone', at: 'actor', into: 'contents' }] }, else: 'inherit' } })
+    // (a shared patch arrives placed: the service placed it where its own request fell undefined)
+    const farm = placed(patchOf({ id: 'patch/stone-farm', host: { type: 'item/material/stone' }, on: 'act/use', label: { en: 'Use {instrument}', zh: '使用{instrument}' }, tree: { if: { is: { role: 'target', sel: { type: 'fixture/nature/dead_tree' } } }, then: { do: [{ op: 'spawn', type: 'item/material/stone', at: 'actor', into: 'contents' }] }, else: { undefined: true } } }), req)
     expect(port.submit(undefined, farm, req.scenario).errors.join()).toMatch(/endless yield/)
   })
 
   it('a saved library comes back checked: a patch rule that no longer holds is left out', () => {
-    const good: Rule = { ...bindRule(), source: { origin: 'patch' } }
-    const bad: Rule = { id: 'patch/spawns-nothing-known', host: { type: 'item/tool/rope' }, on: 'act/use', tree: { do: [{ op: 'spawn', type: 'item/material/unobtainium', at: 'host' }] }, source: { origin: 'patch' } }
+    const good: Rule = { ...(placed(patchOf(bindRule()), request()).artifacts[0] as { rule: Rule }).rule, source: { origin: 'patch' } }
+    const bad: Rule = { id: 'patch/spawns-nothing-known', host: { type: 'item/material/stone' }, on: 'act/use', hole: holeOf(useRequest()), tree: { do: [{ op: 'spawn', type: 'item/material/unobtainium', at: 'host' }] }, source: { origin: 'patch' } }
     const dropped: string[] = []
     const lib = restoreLibrary(BASE, { rules: [good, bad], types: [], statuses: [], log: [], version: 3 }, onto, [], (id) => dropped.push(id))
     expect(lib.rules.has(good.id)).toBe(true)

@@ -10,6 +10,7 @@ import {
   buildSandbox,
   checkExpectations,
   compareSpec,
+  holeKey,
   hostsOverlap,
   isRoot,
   kindCovers,
@@ -44,6 +45,12 @@ const chain = (eng: Engine, f: () => void): (string | undefined)[] => {
   eng.trace = []
   f()
   return eng.trace.map((t) => t.rule)
+}
+/** The key of the base hole an event falls into (design.md §5.16): where a learned answer is placed. */
+const holeOf = (eng: Engine, ev: Parameters<Engine['resolveEvent']>[0]): string => {
+  const res = eng.resolveEvent(ev)
+  if (!res.hole) throw new Error(`${ev.kind} is defined by ${res.rule?.id}`)
+  return holeKey(res.hole.rule.id, res.hole.path)
 }
 
 /**
@@ -102,7 +109,9 @@ describe('base library', () => {
     // effects write only their host (no `of`). Only the base may answer for anything (a root rule)
     // and leave an outcome undefined (a hole the AI fills).
     const res = validatePatch({ artifacts: [...BASE_RULES, ...STORY_RULES].map((r) => ({ kind: 'rule' as const, rule: r })) }, { ontology: onto, library: new RuleLibrary() })
-    expect(res.errors.filter((e) => !e.includes('name the host') && !e.includes('may not leave an outcome undefined'))).toEqual([])
+    // ...and only a learned rule has a place (design.md §5.16): one exact type, one kind, a hole, no inherit.
+    const placement = /host must be exactly|hole required|exact event kind|never inherits|no leaf answers|no default of its own/
+    expect(res.errors.filter((e) => !placement.test(e))).toEqual([])
   })
 
   it('the root is total: every kind reaches a root rule, and no root rule inherits', () => {
@@ -214,10 +223,10 @@ describe('acts and the impulses they send', () => {
       {
         entities: [
           { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
-          { key: 'rope', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
-          { key: 'slime', type: 'actor/creature/slime/green_slime', x: 2, y: 1 },
+          { key: 'stone', type: 'item/material/stone', x: 2, y: 2, heldBy: 'actor' },
+          { key: 'tree', type: 'fixture/nature/dead_tree', x: 2, y: 1 },
         ],
-        event: { kind: 'act/use', actor: 'actor', target: 'slime', instrument: 'rope' },
+        event: { kind: 'act/use', actor: 'actor', target: 'tree', instrument: 'stone' },
       },
       onto,
       lib(),
@@ -393,47 +402,61 @@ describe('fire and elements', () => {
 })
 
 describe('the Mod port', () => {
-  const ropeScenario = (): Scenario => ({
+  // A stone used on a dead tree: nothing in the base says what that does (a rope on a creature is
+  // the base's now: it is held out to it, and a creature is lashed down by anything fibrous).
+  const stoneScenario = (): Scenario => ({
     entities: [
       { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
-      { key: 'rope', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
-      { key: 'slime', type: 'actor/creature/slime/green_slime', x: 2, y: 1 },
+      { key: 'stone', type: 'item/material/stone', x: 2, y: 2, heldBy: 'actor' },
+      { key: 'tree', type: 'fixture/nature/dead_tree', x: 2, y: 1 },
     ],
     event: {},
   })
-  /** The rope's nature (it binds and is used up) and the creature's (bound, it is held fast): each writes only itself. */
-  const ropePatch = (): Patch => ({
+  const stoneOnTree = (eng: Engine) => eng.act('use', 'actor', { e: 'tree' })
+  /** The hole the stone on the dead tree falls into (core/use, the branch for an instrument on no site, no creature). */
+  const USE_HOLE = (() => {
+    const eng = sandbox(stoneScenario())
+    return holeOf(eng, eng.actEvent('use', 'actor', { e: 'tree' }, { e: 'stone' }))
+  })()
+  /**
+   * The stone's nature (driven into dead wood, it wedges and is spent) and the dead tree's (wedged, it
+   * is notched): each writes only itself, and each is one type's own answer at one hole (design.md §5.16).
+   */
+  const stonePatch = (): Patch => ({
     author: 'test',
     artifacts: [
       {
         kind: 'rule',
         rule: {
-          id: 'patch/rope-binds-creature',
-          host: { tags: ['fiber'], type: 'item' },
+          id: 'patch/stone-wedges-dead-tree',
+          host: { type: 'item/material/stone' },
           on: 'act/use',
+          hole: USE_HOLE,
+          at: [],
           tree: {
-            if: { is: { role: 'target', sel: { type: 'actor/creature', notStatus: ['frozen'] } } },
+            if: { is: { role: 'target', sel: { type: 'fixture/nature/dead_tree', notStatus: ['notched'] } } },
             then: {
               do: [
-                { op: 'emit', impulse: 'handle', to: 'target', params: { how: 'bind' } },
+                { op: 'emit', impulse: 'handle', to: 'target', params: { how: 'wedge' } },
                 { op: 'vfx', at: 'target', fx: 'dust' },
-                { op: 'log', text: { en: 'You lash {target} down with {host}.', zh: '你用{host}捆住了{target}。' } },
+                { op: 'log', text: { en: 'You drive {host} into {target}.', zh: '你把{host}砸进了{target}。' } },
                 { op: 'destroy' },
               ],
             },
+            else: { undefined: true },
           },
           tests: [
             {
-              name: 'rope binds a wolf',
+              name: 'a stone wedges a dead tree',
               given: {
                 entities: [
                   { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
-                  { key: 'r', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
-                  { key: 'w', type: 'actor/creature/beast/wolf', x: 2, y: 1 },
+                  { key: 'r', type: 'item/material/stone', x: 2, y: 2, heldBy: 'actor' },
+                  { key: 's', type: 'fixture/nature/dead_tree', x: 2, y: 1 },
                 ],
-                event: { kind: 'act/use', actor: 'actor', target: 'w', instrument: 'r' },
+                event: { kind: 'act/use', actor: 'actor', target: 's', instrument: 'r' },
               },
-              expect: [{ key: 'w', hasStatus: 'frozen' }, { key: 'r', destroyed: true }],
+              expect: [{ key: 's', hasStatus: 'notched' }, { key: 'r', destroyed: true }],
             },
           ],
         },
@@ -441,81 +464,82 @@ describe('the Mod port', () => {
       {
         kind: 'rule',
         rule: {
-          id: 'patch/creature-bound',
-          host: { type: 'actor/creature' },
+          id: 'patch/dead-tree-wedged',
+          host: { type: 'fixture/nature/dead_tree' },
           on: 'impulse/handle',
-          tree: { if: { param: { key: 'how', cmp: 'bind' } }, then: { do: [{ op: 'addStatus', status: 'frozen', duration: 30 }] } },
+          hole: 'core/handle',
+          at: [],
+          tree: { if: { param: { key: 'how', cmp: 'wedge' } }, then: { do: [{ op: 'addStatus', status: 'notched', duration: 30 }] }, else: { undefined: true } },
         },
       },
     ],
   })
-  const ropeOnSlime = (eng: Engine) => eng.act('use', 'actor', { e: 'slime' })
 
   it('raises an undefined outcome, holds its participants, and applies a valid patch', () => {
-    const eng = sandbox(ropeScenario())
+    const eng = sandbox(stoneScenario())
     const port = new ModPort(eng)
     port.provider = working
-    const res = ropeOnSlime(eng)
+    const res = stoneOnTree(eng)
     expect(res.defined).toBe(false)
     expect(port.records).toHaveLength(1)
     const rec = port.records[0]
     expect(rec.status).toBe('pending')
     expect(rec.origin).toBe('player')
-    // the host (the rope), the target and the one who acted all wait for the outcome
-    for (const id of ['rope', 'slime', 'actor']) expect(eng.world.get(id)!.frozenBy, id).toBe(rec.id)
+    // the host (the stone), the target and the one who acted all wait for the outcome
+    for (const id of ['stone', 'tree', 'actor']) expect(eng.world.get(id)!.frozenBy, id).toBe(rec.id)
     expect(rec.request.event.kind).toBe('act/use')
-    expect(rec.request.event.host?.tags).toContain('fiber')
+    expect(rec.request.event.host?.tags).toContain('stone')
     expect(rec.request.hole.rule).toBe('core/use')
     // the spec is self-describing
     const spec = port.spec()
     expect(spec.primitives.emit).toBeTruthy()
     expect(spec.impulses.strike).toBeTruthy()
-    expect(spec.ontology.statuses.map((s) => s.id)).toContain('frozen')
+    expect(spec.ontology.statuses.map((s) => s.id)).toContain('notched')
 
-    const v = port.submit(rec.id, ropePatch())
+    const v = port.submit(rec.id, stonePatch())
     expect(v.errors).toEqual([])
     expect(v.ok).toBe(true)
     expect(rec.status).toBe('patched')
-    expect(eng.lib.rules.get('patch/rope-binds-creature')?.source?.origin).toBe('patch')
-    // replayed: the slime is now bound (its own answer to the rope) and the rope used up
-    expect(eng.world.hasStatus({ e: 'slime' }, 'frozen')).toBe(true)
-    expect(eng.world.get('rope')).toBeUndefined()
-    expect(eng.world.get('slime')!.frozenBy).toBeUndefined()
+    expect(eng.lib.rules.get('patch/stone-wedges-dead-tree')?.source?.origin).toBe('patch')
+    // replayed: the tree is now notched (its own answer to the stone) and the stone spent
+    expect(eng.world.hasStatus({ e: 'tree' }, 'notched')).toBe(true)
+    expect(eng.world.get('stone')).toBeUndefined()
+    expect(eng.world.get('tree')!.frozenBy).toBeUndefined()
     expect(eng.world.get('actor')!.frozenBy).toBeUndefined()
   })
 
   it('runs the default after the time-out and still accepts a late patch', () => {
-    const eng = sandbox(ropeScenario())
+    const eng = sandbox(stoneScenario())
     const port = new ModPort(eng)
     port.provider = working
-    ropeOnSlime(eng)
+    stoneOnTree(eng)
     for (let i = 0; i < 120; i++) eng.tick()
     expect(port.records[0].status).toBe('fallback')
     expect(eng.world.fx.some((f) => f.t === 'log' && typeof f.text === 'object' && f.text.en === 'Nothing happens.')).toBe(true)
-    expect(eng.world.get('slime')?.frozenBy).toBeUndefined()
-    expect(port.submit(port.records[0].id, ropePatch()).ok).toBe(true)
-    expect(eng.lib.rules.has('patch/rope-binds-creature')).toBe(true)
+    expect(eng.world.get('tree')?.frozenBy).toBeUndefined()
+    expect(port.submit(port.records[0].id, stonePatch()).ok).toBe(true)
+    expect(eng.lib.rules.has('patch/stone-wedges-dead-tree')).toBe(true)
   })
 
   it('asks about one hole and class once at a time, and a question that failed not again this session', async () => {
     const two = (): Scenario => ({
-      ...ropeScenario(),
+      ...stoneScenario(),
       entities: [
-        ...ropeScenario().entities,
+        ...stoneScenario().entities,
         { key: 'other', type: 'actor/person/farmer', x: 4, y: 2 },
-        { key: 'rope2', type: 'item/tool/rope', x: 4, y: 2, heldBy: 'other' },
-        { key: 'slime2', type: 'actor/creature/slime/green_slime', x: 4, y: 1 },
+        { key: 'stone2', type: 'item/material/stone', x: 4, y: 2, heldBy: 'other' },
+        { key: 'tree2', type: 'fixture/nature/dead_tree', x: 4, y: 1 },
       ],
     })
     const eng = sandbox(two())
     const port = new ModPort(eng)
     port.provider = working
-    ropeOnSlime(eng)
-    // while the question is open, the same hole and class (another rope, another slime) wait for it:
+    stoneOnTree(eng)
+    // while the question is open, the same hole and class (another stone, another dead tree) wait for it:
     // nothing more is asked, nothing more is held, and the default runs for the second
-    expect(eng.act('use', 'other', { e: 'slime2' }).defined).toBe(false)
+    expect(eng.act('use', 'other', { e: 'tree2' }).defined).toBe(false)
     expect(port.records).toHaveLength(1)
-    expect(eng.world.get('slime2')!.frozenBy).toBeUndefined()
+    expect(eng.world.get('tree2')!.frozenBy).toBeUndefined()
 
     // a provider that cannot answer: the default runs, and the class is not asked again
     const eng2 = sandbox(two())
@@ -527,32 +551,32 @@ describe('the Mod port', () => {
         return null
       },
     }
-    ropeOnSlime(eng2)
+    stoneOnTree(eng2)
     await Promise.resolve()
     await Promise.resolve()
     expect(port2.records[0].status).toBe('fallback')
     expect(eng2.world.get('actor')!.frozenBy).toBeUndefined()
-    eng2.act('use', 'other', { e: 'slime2' })
-    ropeOnSlime(eng2)
+    eng2.act('use', 'other', { e: 'tree2' })
+    stoneOnTree(eng2)
     expect(port2.records).toHaveLength(1)
     expect(calls).toBe(1)
     // a late patch still teaches the world
-    expect(port2.submit(port2.records[0].id, ropePatch()).ok).toBe(true)
+    expect(port2.submit(port2.records[0].id, stonePatch()).ok).toBe(true)
     expect(port2.records[0].status).toBe('patched')
-    expect(eng2.lib.rules.has('patch/rope-binds-creature')).toBe(true)
+    expect(eng2.lib.rules.has('patch/stone-wedges-dead-tree')).toBe(true)
   })
 
   it('a dismissed question is not asked again', () => {
-    const eng = sandbox(ropeScenario())
+    const eng = sandbox(stoneScenario())
     const port = new ModPort(eng)
-    ropeOnSlime(eng)
+    stoneOnTree(eng)
     port.dismiss(port.records[0].id)
-    ropeOnSlime(eng)
+    stoneOnTree(eng)
     expect(port.records).toHaveLength(1)
   })
 
-  it('rejects unknown statuses, failing tests, and patches that tie with patches', () => {
-    const base = ropePatch()
+  it('rejects unknown statuses, failing tests, and a second answer at a leaf already answered', () => {
+    const base = stonePatch()
     const bad1 = structuredClone(base)
     ;(bad1.artifacts[1] as { rule: Rule }).rule.tree = { do: [{ op: 'addStatus', status: 'hogtied' }] }
     const r1 = validatePatch(bad1, { ontology: onto, library: lib() })
@@ -563,53 +587,64 @@ describe('the Mod port', () => {
     ;(bad2.artifacts[1] as { rule: Rule }).rule.tree = { do: [{ op: 'vfx', fx: 'dust' }] }
     const r2 = validatePatch(bad2, { ontology: onto, library: lib() })
     expect(r2.ok).toBe(false)
-    expect(r2.errors.join()).toMatch(/lacks status frozen/)
+    expect(r2.errors.join()).toMatch(/lacks status notched/)
 
+    // the dead tree's answer to being handled is already in: there is no second answer at that leaf
     const l = lib()
-    l.add({ id: 'patch/slime-hands', host: { type: 'actor/creature' }, on: 'impulse/handle', tree: { do: [{ op: 'vfx', fx: 'dust' }] }, source: { origin: 'patch' } })
+    l.add({ id: 'patch/dead-tree-hands', host: { type: 'fixture/nature/dead_tree' }, on: 'impulse/handle', hole: 'core/handle', tree: { do: [{ op: 'vfx', fx: 'dust' }] }, source: { origin: 'patch' } })
     const r3 = validatePatch(base, { ontology: onto, library: l })
-    expect(r3.errors.join()).toMatch(/rule "patch\/creature-bound" ties with "patch\/slime-hands"/)
+    expect(r3.errors.join()).toMatch(/rule "patch\/dead-tree-wedged".at: that leaf is already answered/)
+    // and a path below a leaf needs a tree to stand in
+    const r4 = validatePatch({ artifacts: [{ kind: 'rule', rule: { ...(base.artifacts[1] as { rule: Rule }).rule, at: ['x'] } }] }, { ontology: onto, library: lib() })
+    expect(r4.errors.join()).toMatch(/has no tree at this hole yet/)
   })
 
-  it('a patch names its host, writes only it, and leaves nothing undefined', () => {
-    const one = (rule: object) => validatePatch({ artifacts: [{ kind: 'rule', rule: rule as Rule }] }, { ontology: onto, library: lib() }).errors.join()
-    expect(one({ id: 'patch/a', on: 'act/use', tree: { do: [{ op: 'vfx', fx: 'dust' }] } })).toMatch(/name the host/)
-    expect(one({ id: 'patch/b', host: { tags: ['fiber'] }, on: 'act/use', tree: { do: [{ op: 'addStatus', of: 'target', status: 'frozen' }] } })).toMatch(/no "of"/)
-    expect(one({ id: 'patch/c', host: { tags: ['fiber'] }, on: 'act/use', tree: { undefined: true } })).toMatch(/may not leave an outcome undefined/)
-    expect(one({ id: 'patch/d', host: { tags: ['fiber'] }, on: 'interaction', tree: { do: [] } })).toMatch(/on must be an event kind/)
-    expect(one({ id: 'patch/e', host: { tags: ['fiber'] }, on: 'act/use', tree: { do: [{ op: 'emit', impulse: 'bind', to: 'target' }] } })).toMatch(/unknown impulse "bind"/)
+  it('a patch is one type\'s own at one hole, writes only it, answers one kind, and never inherits', () => {
+    const one = (rule: object) => validatePatch({ artifacts: [{ kind: 'rule', rule: { host: { type: 'item/material/stone' }, on: 'act/use', hole: USE_HOLE, ...rule } as Rule }] }, { ontology: onto, library: lib() }).errors.join()
+    expect(one({ id: 'patch/a', host: undefined, tree: { do: [{ op: 'vfx', fx: 'dust' }] } })).toMatch(/host must be exactly \{type:/)
+    expect(one({ id: 'patch/a2', host: { type: 'item', tags: ['stone'] }, tree: { do: [{ op: 'vfx', fx: 'dust' }] } })).toMatch(/host must be exactly \{type:/)
+    expect(one({ id: 'patch/b', tree: { do: [{ op: 'addStatus', of: 'target', status: 'frozen' }] } })).toMatch(/no "of"/)
+    expect(one({ id: 'patch/c', tree: { if: { none: 'target' }, then: { do: [] }, else: 'inherit' } })).toMatch(/never inherits/)
+    expect(one({ id: 'patch/c2', tree: { if: { none: 'target' }, then: { do: [] } } })).toMatch(/never inherits/)
+    expect(one({ id: 'patch/c3', tree: { undefined: true } })).toMatch(/no leaf answers/)
+    expect(one({ id: 'patch/d', on: 'interaction', tree: { do: [] } })).toMatch(/on must be the exact event kind/)
+    expect(one({ id: 'patch/d2', on: 'act', tree: { do: [] } })).toMatch(/one kind, not a branch/)
+    expect(one({ id: 'patch/d3', hole: undefined, tree: { do: [] } })).toMatch(/hole required/)
+    expect(one({ id: 'patch/e', tree: { do: [{ op: 'emit', impulse: 'bind', to: 'target' }] } })).toMatch(/unknown impulse "bind"/)
   })
 
   it('rejects a patch whose rule does not answer the triggering event', () => {
-    const eng = sandbox(ropeScenario())
+    const eng = sandbox(stoneScenario())
     const port = new ModPort(eng)
-    ropeOnSlime(eng)
-    const p = ropePatch()
-    ;(p.artifacts[0] as { rule: Rule }).rule.tree = { if: { is: { role: 'target', sel: { type: 'actor/creature/beast' } } }, then: { do: [{ op: 'destroy' }] } }
+    stoneOnTree(eng)
+    const p = stonePatch()
+    ;(p.artifacts[0] as { rule: Rule }).rule.tree = { if: { is: { role: 'target', sel: { type: 'fixture/nature/beehive' } } }, then: { do: [{ op: 'destroy' }] } }
     const v = port.submit(port.records[0].id, p)
     expect(v.ok).toBe(false)
     expect(v.errors.join()).toMatch(/still undefined/)
   })
 
   it('patches only fill holes: a patch on a defined outcome is never consulted', () => {
-    const l = lib()
-    l.add({ id: 'patch/apple-explodes', host: { type: 'item/food/apple' }, on: 'act/use', tree: { do: [{ op: 'vfx', fx: 'explosion' }] }, source: { origin: 'patch' } })
-    const eng = sandbox(
-      {
-        entities: [
-          { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
-          { key: 'apple', type: 'item/food/apple', x: 2, y: 2, heldBy: 'actor' },
-          { key: 'well', type: 'fixture/water/well', x: 2, y: 1 },
-        ],
-        event: {},
-      },
-      l,
-    )
+    const eng = sandbox({
+      entities: [
+        { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+        { key: 'apple', type: 'item/food/apple', x: 2, y: 2, heldBy: 'actor' },
+        { key: 'well', type: 'fixture/water/well', x: 2, y: 1 },
+      ],
+      event: {},
+    })
+    const onWell = eng.actEvent('use', 'actor', { e: 'well' }, { e: 'apple' })
+    expect(eng.resolveEvent(onWell)).toMatchObject({ defined: false, open: { path: [] } })
+    eng.lib.add({ id: 'patch/apple-explodes', host: { type: 'item/food/apple' }, on: 'act/use', hole: holeOf(eng, onWell), tree: { do: [{ op: 'vfx', fx: 'explosion' }] }, source: { origin: 'patch' } })
     // eaten (defined by the base): the patch is not asked
     expect(eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'actor' }, { e: 'apple' })).rule?.id).toBe('use/eat')
     // on the well (a hole): the patch answers
-    const r = eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'well' }, { e: 'apple' }))
+    const r = eng.resolveEvent(onWell)
     expect(r).toMatchObject({ defined: true, rule: { id: 'patch/apple-explodes' }, hole: { rule: { id: 'core/use' } } })
+    // the apple's own: a loaf on the well is another type's hole, still open
+    eng.author(() => eng.world.create('item/food/bread', { on: 'tile', map: 'sandbox', x: 2, y: 2 }))
+    const loaf = Object.values(eng.world.state.entities).find((e) => e.type === 'item/food/bread')!
+    expect(eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'well' }, { e: loaf.id })).defined).toBe(false)
   })
 })
 
@@ -633,7 +668,7 @@ describe('determinism & persistence', () => {
 
   it('round-trips the rule library through JSON', () => {
     const l = lib()
-    l.add({ id: 'patch/x', host: { type: 'actor/creature' }, on: 'impulse/taken', tree: { do: [{ op: 'log', text: 'x' }] }, source: { origin: 'patch' } })
+    l.add({ id: 'patch/x', host: { type: 'actor/creature/slime/green_slime' }, on: 'impulse/handle', hole: 'core/handle', tree: { do: [{ op: 'log', text: 'x' }] }, source: { origin: 'patch' } })
     const back = RuleLibrary.fromJSON(JSON.parse(JSON.stringify(l.toJSON())))
     expect(back.rules.size).toBe(l.rules.size)
     expect(back.patches().map((r) => r.id)).toEqual(['patch/x'])

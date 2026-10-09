@@ -3,7 +3,7 @@
 // what it is put on, which answers for itself; taking emits `taken` to the thing taken.
 
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, buildSandbox, validatePatch, type Bounds, type Engine, type Key, type Rule, type Scenario, type ScenarioEntity } from '@lsw/engine'
+import { RuleLibrary, buildSandbox, validatePatch, type Bounds, type Cond, type Engine, type Key, type Rule, type Scenario, type ScenarioEntity, type Tree } from '@lsw/engine'
 import { BASE_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
@@ -231,9 +231,11 @@ describe('the count condition', () => {
 
   it('is validated like any other condition', () => {
     const lib = new RuleLibrary(BASE_RULES)
-    const ok = validatePatch({ artifacts: [{ kind: 'rule', rule: rule({ gte: { prop: 'capacity', of: 'host' } }) }] }, { ontology: onto, library: lib })
+    // as a learned rule: the table's own, at the hole a handled fixture reaches (core/handle), its other case open
+    const learned = (cmp: object): Rule => ({ ...rule(cmp), host: { type: 'fixture/furniture/table' }, hole: 'core/handle', at: [], tree: { ...(rule(cmp).tree as { if: Cond; then: Tree }), else: { undefined: true } } })
+    const ok = validatePatch({ artifacts: [{ kind: 'rule', rule: learned({ gte: { prop: 'capacity', of: 'host' } }) }] }, { ontology: onto, library: lib })
     expect(ok.errors).toEqual([])
-    const bad = validatePatch({ artifacts: [{ kind: 'rule', rule: rule({ most: 3 }) }] }, { ontology: onto, library: lib })
+    const bad = validatePatch({ artifacts: [{ kind: 'rule', rule: learned({ most: 3 }) }] }, { ontology: onto, library: lib })
     expect(bad.errors.some((e) => e.includes('count.cmp.most'))).toBe(true)
   })
 })

@@ -13,51 +13,55 @@ const BASE = [...BASE_RULES, ...STORY_RULES]
 const REPO = fileURLToPath(new URL('../../..', import.meta.url))
 const DOCKER = await dockerAvailable()
 
-/** The player puts a rope on a creature: the creature is offered it, and nothing says how it takes that. */
+/** The player holds a stone out to a creature: the creature is offered it, and its nature (fibrous, edible) says nothing about a stone. */
 function request(host = 'actor/creature/slime/green_slime'): ModRequest {
   const sc: Scenario = {
     entities: [
       { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
-      { key: 'held', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
+      { key: 'held', type: 'item/material/stone', x: 2, y: 2, heldBy: 'actor' },
       { key: 'it', type: host, x: 2, y: 1 },
     ],
     event: {},
   }
   const eng = buildSandbox(sc, onto, new RuleLibrary(BASE))
   const port = new ModPort(eng)
-  // the rope held out to it, as a rope used on it does
+  // the stone held out to it, as a stone used on it does
   eng.queue({ kind: 'impulse/offered', host: { e: 'it' }, roles: { actor: { e: 'actor' }, item: { e: 'held' }, source: { e: 'held' } }, params: {}, cause: 'actor', origin: 'player' })
   return port.records[0].request
 }
 
+/** The green slime's own answer (design.md §5.16): placed at the hole the request names; what narrows it is in its tree. */
 const RULE: Rule = {
-  id: 'patch/rope-binds-creature',
-  host: { type: 'actor/creature', notStatus: ['frozen'] },
+  id: 'patch/stone-stills-creature',
+  host: { type: 'actor/creature/slime/green_slime' },
   on: 'impulse/offered',
-  doc: 'A creature offered a rope is lashed down with it for a while.',
+  hole: 'core/offered',
+  at: [],
+  doc: 'A green slime offered a stone is weighed down by it for a while.',
   tree: {
-    if: { is: { role: 'item', sel: { tags: ['fiber'] } } },
+    if: { all: [{ is: { role: 'item', sel: { tags: ['stone'] } } }, { not: { has: { role: 'host', status: 'frozen' } } }] },
     then: {
       do: [
         { op: 'addStatus', status: 'frozen', duration: 30 },
         { op: 'emit', impulse: 'taken', to: 'item', params: { into: 'contents' }, other: 'host' },
         { op: 'vfx', fx: 'dust' },
-        { op: 'log', text: { en: 'You lash {host} down with {item}.', zh: '你用{item}捆住了{host}。' } },
+        { op: 'log', text: { en: 'You weigh {host} down with {item}.', zh: '你用{item}压住了{host}。' } },
       ],
     },
+    else: { undefined: true },
   },
   tests: [
     {
-      name: 'a wolf too',
+      name: 'another slime, another stone',
       given: {
         entities: [
           { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
-          { key: 'r', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
-          { key: 'w', type: 'actor/creature/beast/wolf', x: 2, y: 1 },
+          { key: 'r', type: 'item/material/stone', x: 2, y: 2, heldBy: 'actor' },
+          { key: 's', type: 'actor/creature/slime/green_slime', x: 2, y: 1 },
         ],
-        event: { kind: 'impulse/offered', host: 'w', actor: 'actor', item: 'r', source: 'r' },
+        event: { kind: 'impulse/offered', host: 's', actor: 'actor', item: 'r', source: 'r' },
       },
-      expect: [{ key: 'w', hasStatus: 'frozen' }],
+      expect: [{ key: 's', hasStatus: 'frozen' }],
     },
   ],
 }
@@ -75,7 +79,7 @@ function worldEngineer(rule: Rule = RULE) {
     if (!done.includes('read_file')) return call('read_file', { path: 'ISSUE.md' })
     if (!done.includes('write_file')) return call('write_file', { path: `rules/${rule.id}.json`, content: JSON.stringify(rule, null, 2) })
     if (!done.includes('run_tests')) return call('run_tests', {})
-    return call('submit', { summary: 'rope binds creatures' })
+    return call('submit', { summary: 'stone stills creatures' })
   })
   return { model, tests: () => lastTests }
 }
@@ -93,7 +97,7 @@ describe('a world task as a repository', () => {
     const lib = new RuleLibrary(BASE)
     const repo = await materializeWorld({ request: request(), library: lib, ontology: onto, spec: buildModSpec(onto, lib), isolation: 'none' })
     try {
-      expect(readFileSync(join(repo.dir, 'ISSUE.md'), 'utf8')).toContain('# Undefined outcome: green slime is sent offered (the thing: Rope)')
+      expect(readFileSync(join(repo.dir, 'ISSUE.md'), 'utf8')).toContain('# Undefined outcome: green slime is sent offered (the thing: Stone)')
       const issue = readFileSync(join(repo.dir, 'ISSUE.md'), 'utf8')
       expect(issue).toContain('- event: `impulse/offered`')
       expect(issue).toMatch(/- host \(the rule you write is its nature\): green slime — `actor\/creature\/slime\/green_slime`/)
@@ -102,7 +106,7 @@ describe('a world task as a repository', () => {
       expect(JSON.parse(readFileSync(join(repo.dir, 'request.json'), 'utf8'))).toMatchObject({ event: { kind: 'impulse/offered' }, hole: { rule: 'core/offered' } })
       expect(readFileSync(join(repo.dir, 'MODSPEC.md'), 'utf8')).toMatch(/## Effect primitives/)
       expect(collectPatch(repo.dir)).toEqual({ patch: undefined, problems: [] })
-      writeFileSync(join(repo.dir, 'rules/patch/rope-binds-creature.json'), JSON.stringify(RULE))
+      writeFileSync(join(repo.dir, 'rules/patch/stone-stills-creature.json'), JSON.stringify(RULE))
       writeFileSync(join(repo.dir, 'rules/core/offered.json'), '{}')
       const c = collectPatch(repo.dir)
       expect(c.patch?.artifacts).toHaveLength(1)
@@ -129,10 +133,10 @@ describe('a world task as a repository', () => {
         }
       })()
       expect(fail).toMatch(/FAILED: 0 artifact\(s\)/)
-      writeFileSync(join(repo.dir, 'rules/patch/rope-binds-creature.json'), JSON.stringify(RULE))
+      writeFileSync(join(repo.dir, 'rules/patch/stone-stills-creature.json'), JSON.stringify(RULE))
       const ok = execSync('node validate.mjs', { cwd: repo.dir, encoding: 'utf8', stdio: 'pipe' })
       expect(ok).toMatch(/PASSED: 1 artifact/)
-      expect(ok).toMatch(/resolved by patch\/rope-binds-creature/)
+      expect(ok).toMatch(/resolved by patch\/stone-stills-creature/)
     } finally {
       await repo.dispose()
     }
@@ -156,7 +160,7 @@ describe('a world task as a repository', () => {
       expect(readFileSync(join(repo.dir, 'rules/patch/probe.txt'), 'utf8').trim()).toBe('ok')
       const fail = await env.exec(repo.task.tests!.command, { timeoutMs: 180_000 })
       expect(fail.stdout).toMatch(/FAILED/)
-      writeFileSync(join(repo.dir, 'rules/patch/rope-binds-creature.json'), JSON.stringify(RULE))
+      writeFileSync(join(repo.dir, 'rules/patch/stone-stills-creature.json'), JSON.stringify(RULE))
       const ok = await env.exec(repo.task.tests!.command, { timeoutMs: 180_000 })
       expect(ok.stdout).toMatch(/PASSED: 1 artifact/)
     } finally {
@@ -189,15 +193,15 @@ describe('a world task as a repository', () => {
     const reply = await modder.resolve({ request: request() }, 'offline')
     expect(tests()).toMatch(/PASSED/)
     expect(reply.outcome).toBe('accepted')
-    expect(library.lib.rules.get('patch/rope-binds-creature')?.source?.author).toBe('modder')
+    expect(library.lib.rules.get('patch/stone-stills-creature')?.source?.author).toBe('modder')
     const ep = state.episode(reply.episode!)!
-    expect(ep).toMatchObject({ kind: 'world-repo', outcome: 'accepted', rules: ['patch/rope-binds-creature'] })
+    expect(ep).toMatchObject({ kind: 'world-repo', outcome: 'accepted', rules: ['patch/stone-stills-creature'] })
     expect(ep.tools.map((t) => t.name)).toEqual(['read_file', 'write_file', 'run_tests', 'submit'])
     // replays for the outer loop see the world before this answer
     await modder.settled()
     const task = await modder.taskSource().replay(ep)
     expect(task).toBeTruthy()
-    expect(existsSync(join(task!.env.root, 'rules/patch/rope-binds-creature.json'))).toBe(false)
+    expect(existsSync(join(task!.env.root, 'rules/patch/stone-stills-creature.json'))).toBe(false)
     await modder.taskSource().cleanup?.(task!)
   })
 })

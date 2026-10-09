@@ -65,7 +65,7 @@ switch (cmd) {
       // the patches that make something from nothing: listed, for you to remove (library remove <id>)
       const bad = library.audit()
       for (const b of bad) console.log(`${b.rule}  ${b.reason}`)
-      console.log(`${library.patchRules().length} patch rules, ${library.regression.length} with the event that asked for them: ` + (bad.length ? `${bad.length} to review (npm run modder -- library remove <id>)` : 'none makes something from nothing'))
+      console.log(`${library.patchRules().length} patch rules, ${library.asked.length} with the event that asked for them: ` + (bad.length ? `${bad.length} to review (npm run modder -- library remove <id>)` : 'none makes something from nothing'))
       break
     }
     if (args[0] === 'prune') {

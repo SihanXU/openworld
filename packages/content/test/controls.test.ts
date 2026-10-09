@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_PACE, ModPort, TICKS_PER_HOUR, RuleLibrary, buildSandbox, textOf, type Engine, type Key, type Plan, type Ref, type ScenarioEntity, type Verb } from '@lsw/engine'
+import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_PACE, ModPort, TICKS_PER_HOUR, RuleLibrary, buildSandbox, holeKey, textOf, type Engine, type Key, type Plan, type Ref, type ScenarioEntity, type Verb } from '@lsw/engine'
 import { cellId } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
@@ -220,7 +220,9 @@ describe('the five inputs: one act each', () => {
     const well = eng.controls.plan('use', { x: 1, y: 1 })!
     expect(well.unknown).toBe(true)
     expect(label(well)).toBe('Use Apple on well')
-    eng.lib.add({ id: 'patch/apple-wishing-well', host: { type: 'item/food' }, on: 'act/use', label: { en: 'Toss {instrument} into {target}', zh: '把{instrument}扔进{target}' }, tree: { if: { is: { role: 'target', sel: { type: 'fixture/water/well' } } }, then: { do: [{ op: 'destroy' }] } }, source: { origin: 'patch' } })
+    // the apple's own answer at the hole the well reaches (design.md §5.16)
+    const onWell = eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'well' }, { e: 'held' }))
+    eng.lib.add({ id: 'patch/apple-wishing-well', host: { type: 'item/food/apple' }, on: 'act/use', hole: holeKey(onWell.hole!.rule.id, onWell.hole!.path), at: onWell.open!.path, label: { en: 'Toss {instrument} into {target}', zh: '把{instrument}扔进{target}' }, tree: { if: { is: { role: 'target', sel: { type: 'fixture/water/well' } } }, then: { do: [{ op: 'destroy' }] }, else: { undefined: true } }, source: { origin: 'patch' } })
     const after = eng.controls.plan('use', { x: 1, y: 1 })!
     expect(after.unknown).toBeFalsy()
     expect(label(after)).toBe('Toss Apple into well')
