@@ -1264,7 +1264,8 @@ gone or become another, an event count). The code judges: a finding counts only 
 shows it with the patch and not without it, so the model searches and never decides. The offline
 profile audits before shipping, and what is broken goes back to the designer with the evidence. The
 live profile audits after shipping, and what is broken leaves the shared library at once and goes
-to one offline revision. An auditor that fails finds nothing. Harness `audit {enabled, blocking,
+to one offline revision. An auditor that fails finds nothing; the journal's audit entry keeps its
+`error`, so a failed audit is never counted as a clean one. Harness `audit {enabled, blocking,
 rounds, reasoning}`.
 
 **Client.** The worker probes `?modder=<url>` (default `VITE_MODDER_URL`; in development,
@@ -1472,8 +1473,9 @@ does not hold (iron from smelting, a stick from a stump). So the design works in
   worked and validated in its own sandbox, and the commit re-validates against the library as it
   is then. A request whose patch would be written where another's is (the same event kind and
   host class, `laneOf`) waits in that lane and is often answered by what the other committed;
-  others are designed side by side. Reviews, reflections and escalations run three at a time
-  (`concurrency.background`).
+  others are designed side by side. A revision takes no lane: a player's request never waits
+  behind one (seen live: 20 s behind a 107 s revision, past the act's time-out). Reviews,
+  reflections and escalations run three at a time (`concurrency.background`).
   As built (2026-10-05): before repairing a failed validation, a non-revision request checks
   whether another lane has already answered its hole and class. If so it returns `covered`
   without another design call.

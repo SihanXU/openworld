@@ -152,6 +152,11 @@ export class Quests {
       .map(({ q, status }) => ({ id: q.id, kind: q.kind, title: q.title, summary: q.summary, status, giver: q.giver, goals: q.goals.map((g) => ({ label: g.label, ...this.progress(q, g) })) }))
   }
 
+  /** The quests the player has finished, by title (the log's last part: what one has done, at the finale too). */
+  done(): Pick<QuestView, 'id' | 'kind' | 'title'>[] {
+    return this.defs.filter((q) => this.w.fact(`q.${q.id}`) === 'done').map((q) => ({ id: q.id, kind: q.kind, title: q.title }))
+  }
+
   /**
    * What a person spoken to has with the speaker: something to hand in, to take on, a talk goal
    * (the story settles these), or only a word on how it goes. Read only: the person's own rule.

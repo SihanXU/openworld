@@ -89,6 +89,9 @@ const GROWS_INTO_TREE: StageDef = { into: 'tile/tree', lasts: TREE_GROWS, needs:
 const GROWS_UP = 2 * TICKS_PER_DAY
 /** A hen lays an egg every three game hours. */
 export const LAYS_EVERY = 1800
+/** A hen does not lay while this many eggs lie about her map: uncollected, they would pile up without end. */
+export const EGGS_LIE = 12
+const LAYS: StageDef = { lasts: LAYS_EVERY, yields: [{ type: 'item/food/egg/raw' }], needs: { count: { role: 'host', in: 'map', match: { type: 'item/food/egg' }, cmp: { lt: EGGS_LIE } } } }
 
 /** How many night-born walk a map at once, and how often (ticks) another may come (world-model.md §6.9). */
 export const NIGHT_CAP = 4
@@ -323,7 +326,7 @@ const actorTypes: TypeDef[] = [
   // the meadow's animals: passive, they run when struck, and leave food behind (drop × drops)
   P('actor/creature/animal', 'animal', '动物', { tags: ['animal'], props: { behaviour: 'passive', temper: 'wary', sight: 4 } }),
   P('actor/creature/animal/cow', 'cow', '牛', { tags: ['livestock', 'furry'], sprite: 'creature:cow', props: { hp: 10, maxHp: 10, atk: 0, speed: 7, babyType: 'actor/creature/animal/calf' }, makeup: [{ type: 'item/food/meat/raw', count: 4 }] }),
-  P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', stage: { lasts: LAYS_EVERY, yields: [{ type: 'item/food/egg/raw' }] }, props: { hp: 4, maxHp: 4, atk: 0, speed: 5, babyType: 'actor/creature/animal/chick' }, makeup: [{ type: 'item/food/chicken/raw', count: 2 }] }),
+  P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', stage: LAYS, props: { hp: 4, maxHp: 4, atk: 0, speed: 5, babyType: 'actor/creature/animal/chick' }, makeup: [{ type: 'item/food/chicken/raw', count: 2 }] }),
   // the young of a pair fed together (homestead.ts, Minecraft's breeding): they grow up in two days
   P('actor/creature/animal/calf', 'calf', '小牛', { tags: ['livestock', 'furry', 'young'], sprite: 'creature:calf', stage: { lasts: GROWS_UP, into: 'actor/creature/animal/cow' }, props: { hp: 5, maxHp: 5, atk: 0, speed: 6 }, makeup: [{ type: 'item/food/meat/raw', count: 1 }] }),
   P('actor/creature/animal/chick', 'chick', '小鸡', { tags: ['bird', 'feathered', 'young'], sprite: 'creature:chick', stage: { lasts: GROWS_UP, into: 'actor/creature/animal/chicken' }, props: { hp: 2, maxHp: 2, atk: 0, speed: 4 }, makeup: [{ type: 'item/material/feather', count: 1 }] }),
@@ -407,7 +410,7 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/furniture/cart', 'handcart', '手推车', ['surface']),
   F('fixture/furniture/cart/flowers', 'flower cart', '花车', ['plant', 'flower'], { sprite: 'fixture:flower_cart' }),
   F('fixture/light', 'light', '灯', []),
-  F('fixture/light/campfire', 'campfire', '篝火', ['lightable', 'cookware'], { solid: true, props: { material: 'stone', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/stone', count: 2 }, { type: 'item/material/stick', count: 2 }] }),
+  F('fixture/light/campfire', 'campfire', '营火', ['lightable', 'cookware'], { solid: true, props: { material: 'stone', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/stone', count: 2 }, { type: 'item/material/stick', count: 2 }] }),
   F('fixture/light/brazier', 'brazier', '火盆', ['lightable', 'metal', 'conductive', 'cookware'], { solid: true }),
   F('fixture/light/lamppost', 'lamp post', '路灯', ['lightable', 'metal', 'conductive'], { solid: true }),
   F('fixture/light/candles', 'candles', '烛台', ['lightable'], { solid: true }),

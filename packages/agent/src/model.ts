@@ -409,7 +409,11 @@ function toolProtocol(tools: ToolSpec[]): string {
 }
 
 function toolCallsOf(text: string): ToolCall[] {
-  const j = parseJson(text) as { tool_calls?: { name?: unknown; args?: unknown }[] } | undefined
+  let j = parseJson(text) as { tool_calls?: { name?: unknown; args?: unknown }[] } | undefined
+  // the protocol asks for the object alone, but a model may say a sentence first, braces and all:
+  // the call is the object that begins at "tool_calls"
+  const at = text.search(/\{\s*"tool_calls"\s*:/)
+  if (!Array.isArray(j?.tool_calls) && at > 0) j = parseJson(text.slice(at)) as typeof j
   if (!j || !Array.isArray(j.tool_calls)) return []
   return j.tool_calls
     .filter((c) => typeof c?.name === 'string')

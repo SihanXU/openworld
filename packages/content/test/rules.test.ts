@@ -312,6 +312,16 @@ describe('fire and elements', () => {
     expect(rp.errors).toEqual([])
   })
 
+  it('one frost cast freezes its cell and some beside it, not the whole river', () => {
+    const river = field(Array.from({ length: 9 }, () => '~~~~~~~~~'))
+    const rp = replay({ ...fire('tile:4,4', 'ice', 2, [{ key: 'actor', type: 'actor/person/player', x: 4, y: 4, props: {} }], river), ticks: 30 }, onto, lib())
+    const w = rp.engine.world
+    const ice: [number, number][] = []
+    for (let y = 0; y < 9; y++) for (let x = 0; x < 9; x++) if (w.terrainAt('sandbox', x, y) === 'ice') ice.push([x, y])
+    expect(ice).toContainEqual([4, 4])
+    for (const [x, y] of ice) expect(Math.max(Math.abs(x - 4), Math.abs(y - 4)), `${x},${y}`).toBeLessThanOrEqual(1)
+  })
+
   it('ice turns water into walkable ice', () => {
     const rp = replay(fire('tile:2,2', 'ice', 3, [{ key: 'actor', type: 'actor/person/player', x: 2, y: 3 }], field(['.....', '.~~~.', '.~~~.', '.....'])), onto, lib())
     expect(rp.resolution.rule?.id).toBe('element/freeze-water')
@@ -495,6 +505,22 @@ describe('the Mod port', () => {
     expect(eng.world.get('slime')?.frozenBy).toBeUndefined()
     expect(port.submit(port.records[0].id, ropePatch()).ok).toBe(true)
     expect(eng.lib.rules.has('patch/rope-binds-creature')).toBe(true)
+  })
+
+  it('credits a shared patch to this game\'s own request (a revision of its answer), and only that', () => {
+    const eng = sandbox(ropeScenario())
+    const port = new ModPort(eng)
+    port.provider = working
+    ropeOnSlime(eng)
+    const mine = port.records[0].id
+    for (let i = 0; i < 120; i++) eng.tick()
+    const scene = port.records[0].request.scenario
+    expect(port.submit(undefined, ropePatch(), scene, mine).errors).toEqual([])
+    expect(eng.lib.rules.get('patch/rope-binds-creature')!.source).toMatchObject({ request: mine })
+    const eng2 = sandbox(ropeScenario())
+    const port2 = new ModPort(eng2)
+    expect(port2.submit(undefined, ropePatch(), scene, 'req-of-another-game').errors).toEqual([])
+    expect(eng2.lib.rules.get('patch/rope-binds-creature')!.source?.request).toBeUndefined()
   })
 
   it('asks about one hole and class once at a time, and a question that failed not again this session', async () => {
@@ -692,5 +718,16 @@ describe('text', () => {
     expect(eng.world.get('rope')).toBeUndefined()
     const line = eng.world.fx.find((f) => f.t === 'log' && typeof f.text === 'object' && f.text.en.startsWith('The '))
     expect(line && line.t === 'log' && typeof line.text === 'object' && line.text.en).toBe('The green slime eats the Rope.')
+  })
+})
+
+describe('a test whose given is not a scenario', () => {
+  it('is told what a scenario is, not met with a crash deep inside', () => {
+    expect(() => buildSandbox({ from: 'request' } as unknown as Scenario, onto, lib())).toThrow(/not a scenario.*entities/)
+    const rule: Rule = { id: 'patch/test-shape', host: { type: 'item/material/stone' }, on: 'act/use', tree: { do: [{ op: 'log', text: { en: 'Clack.', zh: '咔。' } }] }, tests: [{ given: { from: 'request' } as unknown as Scenario, expect: [] }] }
+    const res = validatePatch({ author: 'test', artifacts: [{ kind: 'rule', rule }] }, { ontology: onto, library: lib() })
+    const said = res.errors.join('\n')
+    expect(said).toMatch(/not a scenario/)
+    expect(said).not.toMatch(/Cannot read properties/)
   })
 })

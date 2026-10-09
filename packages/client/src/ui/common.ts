@@ -94,6 +94,8 @@ const STRINGS: Record<string, [string, string]> = {
   qReady: ['Ready to hand in', '可以交付'],
   qNone: ['None', '暂无'],
   qEmpty: ['No quests taken on. Look for a yellow "!" over someone\'s head, and press E.', '还没有接任务。找头顶有黄色"！"的人，按 E 接受。'],
+  qIdle: ['Nothing under way. Look for a yellow "!" over someone\'s head for more.', '没有进行中的任务。头顶有黄色"！"的人还有事相托。'],
+  qDone: ['Done', '已完成'],
   zonePeaceful: ['Peaceful zone', '和平区域'],
   zoneCombat: ['Combat zone · monsters at night', '战斗区域 · 夜间有怪物'],
   worldMap: ['World map', '世界地图'],

@@ -5,7 +5,7 @@
 import type { Engine } from './engine.ts'
 import { evalCond, matchSelector, rolesOf } from './rules.ts'
 import type { AiData, Amount, Effect, EmitTo, Entity, GameEvent, Impulse, Place, Pos, PropValue, Ref, RoleName, RoleRef, Text } from './types.ts'
-import { GIVEN_LINE, chooseLine, raiseTopic } from './people.ts'
+import { GIVEN_LINE, chooseLine, memoryOf, raiseTopic } from './people.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
 import { cannotRead, gainXp, learnSkill, readSkill } from './progression.ts'
 import { BOON_PREFIX, activeBoon, boonsOf, leaderOf, nearAttunedWaypoint } from './boons.ts'
@@ -250,7 +250,13 @@ export class EffectRunner {
         // it faced, as one set down does (its front toward them); one that turned already keeps its way
         const maker = ev.cause ? w.get(ev.cause) : undefined
         if (p && !host.facing && w.hasTag(host, 'turns') && maker?.facing) host.facing = maker.facing
-        delete host.name
+        // its name was its old form's: what it is made of and how well stay in the new one's (a master
+        // bucket filled is a master bucket of water); a name that said neither goes
+        const quality = (w.onto.data.qualities ?? []).find((q) => q.tag && w.hasTag(host, q.tag))
+        const material = (host.tags ?? []).find((t) => t.startsWith('material:'))?.slice('material:'.length)
+        const renamed = madeOf(w.onto.data, w.onto, into, material, quality?.id).name
+        if (renamed) host.name = renamed
+        else delete host.name
         // a thing become another is whole as what it is now (a felled tree's stump, a regrown tree)
         if (host.props?.hp !== undefined && w.onto.resolve(into).props.maxHp !== undefined) w.setProp(host, 'hp', undefined)
         eng.touch({ e: host.id })
@@ -358,7 +364,10 @@ export class EffectRunner {
         }
         if (on) w.setProp(host, key, undefined)
         else eng.setProp(host, key, item.id, ev)
-        w.fx.push({ t: 'log', text: on ? { en: `You take off ${eng.nameOf({ e: item.id }, 'en')}.`, zh: `你脱下了${eng.nameOf({ e: item.id }, 'zh')}。` } : { en: `You put on ${eng.nameOf({ e: item.id }, 'en')}.`, zh: `你穿上了${eng.nameOf({ e: item.id }, 'zh')}。` } })
+        // a weapon is taken up and put away, not put on
+        const weapon = w.hasTag(item, 'weapon')
+        const nm = (l: 'en' | 'zh') => eng.nameOf({ e: item.id }, l)
+        w.fx.push({ t: 'log', text: on ? (weapon ? { en: `You put ${nm('en')} away.`, zh: `你收起了${nm('zh')}。` } : { en: `You take off ${nm('en')}.`, zh: `你脱下了${nm('zh')}。` }) : weapon ? { en: `You take up ${nm('en')}.`, zh: `你装备了${nm('zh')}。` } : { en: `You put on ${nm('en')}.`, zh: `你穿上了${nm('zh')}。` } })
         return
       }
       case 'sleep': {
@@ -398,13 +407,17 @@ export class EffectRunner {
         const at = w.posOf(host)
         const rate = w.onto.data.params?.recovery ?? 1
         const material = [...(host.tags ?? []), ...w.onto.resolve(host.type).tags].find((t) => t.startsWith('material:'))
+        // what it leaves keeps its storey only where a floor other than itself is there to hold it (a
+        // floor that broke leaves nothing to lie on): else it lands on the first floor below
+        let z = at?.z ?? 0
+        while (at && z > 0 && !w.entitiesAt(at.map, at.x, at.y, z).some((o) => o.id !== host.id && w.spacesOf(o).includes('floor'))) z--
         if (at)
           for (const [i, part] of (w.onto.resolve(host.type).makeup ?? []).entries()) {
             // the expected count: whole parts, and the fraction by chance
             const expect = (part.count * (part.chance ?? 1) * rate) / Math.max(1, w.onto.resolve(host.type).yields ?? 1)
             const n = this.most(Math.floor(expect) + (w.chance(eff, expect - Math.floor(expect), i) ? 1 : 0), 'a breakdown')
             for (let i = 0; i < n; i++) {
-              const made = w.create(part.type, { on: 'tile', map: at.map, x: at.x, y: at.y, ...(at.z && { z: at.z }) }, material && w.onto.resolve(part.type).tags.includes('portable') ? { tags: [material] } : {})
+              const made = w.create(part.type, { on: 'tile', map: at.map, x: at.x, y: at.y, ...(z && { z }) }, material && w.onto.resolve(part.type).tags.includes('portable') ? { tags: [material] } : {})
               eng.touch({ e: made.id })
               // it pops out for the magnet, as anything a rule drops (what a body leaves lies still: taken with F)
               if (w.isPortable(made) && !eff.still) made.dropped = true
@@ -414,7 +427,7 @@ export class EffectRunner {
         for (const id of [...(host.contents ?? []), ...(host.held ? [host.held] : [])]) {
           const c = w.get(id)
           if (!c || !at) continue
-          w.place(c, { on: 'tile', map: at.map, x: at.x, y: at.y, ...(at.z && { z: at.z }) })
+          w.place(c, { on: 'tile', map: at.map, x: at.x, y: at.y, ...(z && { z }) })
           eng.touch({ e: c.id })
           if (!eff.still) c.dropped = true
         }
@@ -515,6 +528,8 @@ export class EffectRunner {
         if (business === 'story')
           eng.queue({ kind: 'impulse/notify', host: { e: 'story' }, roles: { actor: a, source: ev.host }, params: { what: 'quest' }, cause: ev.cause, origin: ev.origin, depth: (ev.depth ?? 0) + 1 })
         else this.apply({ op: 'say', text: business ?? '@line' }, ev)
+        // business talked over is a meeting too: their first-meeting line is not kept for after it
+        if (business && host?.npc) { const mem = memoryOf(host); mem.talked ??= w.calendar().day }
         return
       }
       case 'quests':

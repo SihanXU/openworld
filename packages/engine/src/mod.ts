@@ -273,12 +273,13 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       '{chance:p}',
       '{hour:{from,to}}',
       "{night: true|false} — it is night (or day), as long as the story's night has grown (it lengthens as the seals fall)",
-      "{count:{role, in: contents|tile, match?: Selector, cmp: Bounds}} — how many things are in a role's contents (or on its tile besides itself)",
+      "{count:{role, in: contents|tile|map, match?: Selector, cmp: Bounds}} — how many things are in a role's contents (or on its tile besides itself, or lie anywhere on its map besides itself)",
       '{topic:id} — something that happened is still fresh',
       '{weather:[sun|cloud|rain|storm|fog]} — the weather now',
       '{exists: Selector} — something matching it exists anywhere in the world',
       '{outdoors:true} — the host is out under the sky',
       "{makeup: role} — the role's type says what it is made of (its makeup: what it leaves when it breaks)",
+      "{worn: role} — the role's thing is worn (or wielded) by the one who carries it",
       "{rel: {role, how}} — the role has that relation now: on (stands on something), support (something holds it up), in-region …",
       '{fighting: role} — the role is fighting: it struck at an actor, was struck by one, or a hostile one came after it, in the last five seconds',
     ],
@@ -535,9 +536,11 @@ export class ModPort implements UndefinedSink {
   /** Validate and apply a patch for a request (or, with id undefined, a free-standing patch). */
   /**
    * Validate a patch and take it. A patch for a request of this port is checked in that request's
-   * scene; one from elsewhere (the shared library, a prefetch) in the scene it came with.
+   * scene; one from elsewhere (the shared library, a prefetch) in the scene it came with. `answers`:
+   * the request a shared patch was made for; one of this port's own (a revision of its answer) is
+   * credited to it.
    */
-  submit(id: string | undefined, patch: Patch, scenario?: Scenario): ValidationResult {
+  submit(id: string | undefined, patch: Patch, scenario?: Scenario, answers?: string): ValidationResult {
     const eng = this.eng
     const w = eng.world
     const rec = id ? this.get(id) : undefined
@@ -590,7 +593,9 @@ export class ModPort implements UndefinedSink {
     const trigger = rec?.origin ?? patch.trigger ?? a0trigger(patch)
     for (const a of patch.artifacts) {
       if (a.kind !== 'rule') continue
-      const rule: Rule = { ...a.rule, source: { origin: 'patch', request: id, author: patch.author ?? 'manual', at: now, note: patch.note, trigger } }
+      // a shared patch that answers a request of this game's (a revision of one's own) is credited to it
+      const request = id ?? (answers && this.get(answers) ? answers : undefined)
+      const rule: Rule = { ...a.rule, source: { origin: 'patch', request, author: patch.author ?? 'manual', at: now, note: patch.note, trigger } }
       eng.lib.add(rule, now)
       ruleIds.push(rule.id)
     }
@@ -1014,6 +1019,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     }
     if ('none' in c) return role(c.none, `${where}.none`)
     if ('makeup' in c) return role(c.makeup, `${where}.makeup`)
+    if ('worn' in c) return role(c.worn, `${where}.worn`)
     if ('rel' in c) return role(c.rel.role, `${where}.rel.role`)
     if ('fighting' in c) return role(c.fighting, `${where}.fighting`)
     if ('same' in c) return c.same.forEach((r, i) => role(r, `${where}.same[${i}]`))
@@ -1030,7 +1036,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ('count' in c) {
       const k = c.count
       role(k.role, `${where}.count.role`)
-      if (k.in !== 'contents' && k.in !== 'tile') errors.push(`${where}.count.in must be contents|tile`)
+      if (k.in !== 'contents' && k.in !== 'tile' && k.in !== 'map') errors.push(`${where}.count.in must be contents|tile|map`)
       checkSel(k.match, `${where}.count.match`)
       if (!Object.keys(k.cmp ?? {}).length) errors.push(`${where}.count.cmp needs a bound`)
       for (const b of Object.keys(k.cmp ?? {})) if (!BOUNDS.has(b)) errors.push(`${where}.count.cmp.${b}: a bound is eq|gt|gte|lt|lte`)

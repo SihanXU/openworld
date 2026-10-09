@@ -1138,7 +1138,7 @@ export type Cond =
   /** It is night (true) or day (false), however long the story's night has grown (World.isNight). */
   | { night: boolean }
   /** How many entities (matching `match`) are in a role's contents, or on its tile besides itself. */
-  | { count: { role: RoleName; in: 'contents' | 'tile'; match?: Selector; cmp: Bounds } }
+  | { count: { role: RoleName; in: 'contents' | 'tile' | 'map'; match?: Selector; cmp: Bounds } }
   /** Something that happened is still fresh. */
   | { topic: string }
   /** The weather now. */
@@ -1149,6 +1149,8 @@ export type Cond =
   | { outdoors: true }
   /** A role's type says what it is made of (it has a makeup). */
   | { makeup: RoleName }
+  /** The role's thing is worn by the one who carries it (in one of its slot's keys). */
+  | { worn: RoleName }
   /** A role has a relation now (world-model.md §7): `on`, `support`, `in-region` … */
   | { rel: { role: RoleName; how: string } }
   /** A role is fighting: it struck at an actor, was struck by one, or was chased by a hostile one, in the last FIGHT_TICKS. */

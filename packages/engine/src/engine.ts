@@ -116,6 +116,11 @@ export class Engine {
   pendingTransition?: { map: string; x: number; y: number; entry?: Entry }
   /** Ticks to run at once at the end of this tick: a long step (the overworld) passing (world-model.md §6.11). */
   private fastForward = 0
+  /**
+   * At most this many ticks of a long step pass in one tick (the worker sets it: the screen keeps up,
+   * the clock is seen to run and one lies asleep all the while); unset, they pass at once.
+   */
+  fastForwardChunk?: number
   /** Resolution trace of the last dispatched events (for tests and the dev panel). */
   trace: { ev: GameEvent; rule?: string; defined: boolean }[] = []
   /** How many entries the trace has ever taken (it keeps only the last 300): what came after a mark is the last `traced - mark`. */
@@ -1395,13 +1400,16 @@ export class Engine {
     this.controls.keep()
     // a long step's time passes now, all at once; harm stops it (world-model.md §6.11)
     if (this.fastForward > 0) {
-      const n = this.fastForward
+      const total = this.fastForward
+      const n = Math.min(total, this.fastForwardChunk ?? total)
       this.fastForward = 0
       const p = this.world.player
       const hp = w.num(p, 'hp')
+      let stopped = false
       for (let i = 0; i < n; i++) {
         this.tick()
         if (w.num(p, 'hp') < hp) {
+          stopped = true
           // asleep, one wakes (hunger, or something at one's bed); on the road, one stops
           const asleep = w.hasStatus({ e: p.id }, 'asleep')
           if (asleep) this.write(() => w.clearStatus({ e: p.id }, 'asleep'))
@@ -1413,6 +1421,8 @@ export class Engine {
           break
         }
       }
+      // what is left passes in the next ticks, unless harm stopped it (or another long step began)
+      if (!stopped && this.fastForward === 0) this.fastForward = total - n
     }
   }
 

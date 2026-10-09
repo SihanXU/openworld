@@ -71,10 +71,13 @@ describe('a solid thing and a body never share a cell', () => {
   it('a floor that comes down drops whoever stood on it beside what is below, not into it', () => {
     const f = fresh()
     const [x, y] = openRow(f, 5)
-    stand(f, x + 4, y + 1)
+    // building reaches the next cell only: stand by each one as it goes up
+    stand(f, x, y + 1)
     const wall = build(f, 'structure/wall', x, y, 'st.wall')
-    build(f, 'structure/floor', x, y, 'st.over', true)
-    build(f, 'structure/floor', x + 1, y, 'st.beside', true)
+    const over = build(f, 'structure/floor', x, y, 'st.over', true)
+    stand(f, x + 1, y + 1)
+    const beside = build(f, 'structure/floor', x + 1, y, 'st.beside', true)
+    expect([wall.place, over.place, beside.place]).toMatchObject([{ on: 'tile', x, y }, { on: 'tile', x, y, z: 1 }, { on: 'tile', x: x + 1, y, z: 1 }])
     // a hen under the floor beside the wall, the player on that floor above her
     f.eng.author(() => f.w.create('actor/creature/animal/chicken', { on: 'tile', map: 'ford', x: x + 1, y }, { id: 'st.hen' }))
     stand(f, x + 1, y, 1)
@@ -83,6 +86,25 @@ describe('a solid thing and a body never share a cell', () => {
     const p = f.w.player.place
     expect(p.on === 'tile' && !p.z).toBe(true)
     expect(bodies(f, x + 1, y)).toEqual(['st.hen'])
+  })
+
+  it('a floor that comes down leaves its planks on the ground below, not hanging where it was', () => {
+    const f = fresh()
+    const [x, y] = openRow(f, 5)
+    stand(f, x, y + 1)
+    const wall = build(f, 'structure/wall', x, y, 'st.wall')
+    stand(f, x + 1, y + 1)
+    const floor = build(f, 'structure/floor', x + 1, y, 'st.beside', true)
+    expect(wall.place).toMatchObject({ on: 'tile', x, y })
+    expect(floor.place).toMatchObject({ on: 'tile', x: x + 1, y, z: 1 })
+    // far enough that the magnet does not take what falls
+    stand(f, x + 4, y + 4)
+    f.eng.author(() => f.eng.hurt(f.w.get(wall.id)!, 99, undefined, true))
+    for (let i = 0; i < 3; i++) f.eng.tick()
+    expect(f.w.get('st.beside')).toBeUndefined()
+    const planks = (z: number) => [x, x + 1].flatMap((cx) => f.w.entitiesAt('ford', cx, y, z)).filter((e) => e.type === 'item/material/plank')
+    expect(planks(1)).toEqual([])
+    expect(planks(0).length).toBeGreaterThan(0)
   })
 
   it('a wall is not set down on a hen, nor on the cell its builder stands in', () => {

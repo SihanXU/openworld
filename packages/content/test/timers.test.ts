@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { RuleLibrary, buildSandbox, type Engine, type Ontology } from '@lsw/engine'
-import { BASE_RULES, buildOntology } from '../src/index.ts'
+import { BASE_RULES, EGGS_LIE, LAYS_EVERY, buildOntology } from '../src/index.ts'
 
 function fresh(onto: Ontology = buildOntology()): Engine {
   const eng = buildSandbox({
@@ -30,6 +30,29 @@ describe('dormant stage timers', () => {
     }
     const active = run(false)
     expect(active).toEqual({ eggs: 3, next: 7200, tick: 5401 })
+    expect(run(true)).toEqual(active)
+  })
+
+  it('a hen stops laying while a dozen eggs lie about her map, active or dormant, and lays again once they are taken', () => {
+    const run = (away: boolean) => {
+      const eng = fresh()
+      const w = eng.world
+      const hen = eng.author(() => w.create('actor/creature/animal/chicken', { on: 'tile', map: 'sandbox', x: 1, y: 1 }))
+      const eggs = () => Object.values(w.state.entities).filter((e) => e.type === 'item/food/egg/raw' && e.place.on === 'tile')
+      const pass = (ticks: number) => {
+        if (away) travel(eng, 'away')
+        for (let i = 0; i < ticks; i++) (eng.tick(), w.drainFx())
+        if (away) travel(eng, 'sandbox')
+      }
+      pass(LAYS_EVERY * (EGGS_LIE + 3) + 1)
+      const piled = eggs().length
+      eng.author(() => eggs().forEach((e) => w.destroy(e)))
+      pass(LAYS_EVERY * 2 + 1)
+      return { piled, after: eggs().length, alive: !!w.get(hen.id) }
+    }
+    const active = run(false)
+    expect(active).toEqual({ piled: EGGS_LIE, after: expect.any(Number), alive: true })
+    expect(active.after).toBeGreaterThan(0)
     expect(run(true)).toEqual(active)
   })
 

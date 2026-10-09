@@ -22,6 +22,7 @@ import { Menu } from './ui/menu.ts'
 import { SkillBar } from './ui/skillbar.ts'
 import { Tooltip } from './ui/tooltip.ts'
 import { Minimap } from './ui/worldmap.ts'
+import { AfterSave } from './afterSave.ts'
 import './styles.css'
 import './ui/game.css'
 
@@ -63,10 +64,10 @@ const menu = new Menu({
   transfer: (from, item, all) => send({ t: 'transfer', from, item, all }),
   closePanel: () => send({ t: 'closePanel' }),
   save: () => send({ t: 'save' }),
-  // back to the cover: the game is saved to its slot first
+  // back to the cover: the game is saved to its slot first, and the cover reads the slot once it is written
   newGame: () => {
+    afterSave.then(() => void cover.show())
     send({ t: 'save' })
-    void cover.show()
   },
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
@@ -309,14 +310,19 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       dev.showValidation(m.id, m.result)
       break
     case 'saved':
-      if (slot) void writeSlot(WORLD, slot, { save: m.save, summary: m.summary, savedAt: m.save.savedAt })
-      void kvSet('library', m.library)
+      void (slot ? writeSlot(WORLD, slot, { save: m.save, summary: m.summary, savedAt: m.save.savedAt }) : Promise.resolve()).then(() => afterSave.written())
+      void kvSet('library', m.library).then(storeSeq)
       // the tutorial on its own keeps no save; an automatic save says nothing
       if (!cover.open && !quietSave && !m.auto) hud.message(slot ? t('savedSlot').replace('{n}', String(slot)) : locale.value === 'zh' ? '教程不保存进度。' : 'The tutorial keeps no save.', slot ? 'good' : undefined)
       quietSave = false
       break
     case 'library':
-      void kvSet('library', m.library)
+      void kvSet('library', m.library).then(storeSeq)
+      break
+    case 'synced':
+      // a position is only worth the library it was reached with: stored after it, if it changed
+      syncedTo = { url: m.url, seq: m.seq }
+      if (!m.changed) void storeSeq()
       break
     case 'modder':
       dev.setModder(m)
@@ -346,6 +352,19 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
 
 /** The slot being played (autosaves and the menu's Save write to it). */
 let slot: Slot | undefined
+/** What waits for the save being written (back to the title). */
+const afterSave = new AfterSave()
+/** How far the stored library has synced this modder's shared log (another service's position is no use). */
+let syncedTo: { url: string; seq: number } | undefined
+async function storeSeq(): Promise<void> {
+  const s = syncedTo
+  syncedTo = undefined
+  if (s) await kvSet('librarySeq', s)
+}
+async function librarySeq(): Promise<number | undefined> {
+  const s = await kvGet<{ url: string; seq: number }>('librarySeq')
+  return s && MODDER && s.url === MODDER.replace(/\/+$/, '') ? s.seq : undefined
+}
 /** The save the slot started from (undefined: a new game). */
 let startingFrom: SaveData | undefined
 /** The save right after loading is not announced. */
@@ -363,7 +382,7 @@ const cover = new Cover(WORLD, {
     quietSave = true
     const library = await kvGet<LibraryData>('library')
     const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
-    send({ t: 'init', base, save: data?.save, library, modder: MODDER, prefetch: PARAMS.get('prefetch') === '1', difficulty: game?.difficulty, start: game?.start })
+    send({ t: 'init', base, save: data?.save, library, librarySeq: await librarySeq(), modder: MODDER, prefetch: PARAMS.get('prefetch') === '1', difficulty: game?.difficulty, start: game?.start })
   },
   tutorial: async () => {
     // its own run: nothing is saved, and the story's main line is not reached from it
@@ -373,7 +392,7 @@ const cover = new Cover(WORLD, {
     quietSave = true
     const library = await kvGet<LibraryData>('library')
     const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
-    send({ t: 'init', base, library, modder: MODDER, start: 'tutorial' })
+    send({ t: 'init', base, library, librarySeq: await librarySeq(), modder: MODDER, start: 'tutorial' })
   },
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')

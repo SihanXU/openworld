@@ -267,12 +267,13 @@ function buildMeadow(): MapBuilder {
   m.item({ form: 'item/vessel/flask/oil', props: { owner: 'npc.tobin' } }, ...FIRSTLIGHT.cart).id = 'tobin.oil'
   m.anchor('cart', 30, 16)
   m.anchor('cart.bed', 31, 16)
+  // each household its own cell (people of one home share it; two homes on one cell crowded a lawn at night)
   m.anchor('market.shelter', 29, 9)
   m.anchor('square.well', 20, 14)
   m.anchor('square.warm', 23, 17)
   // the drill yard by the north-east cottage: Bram, the profession trainer (docs/skill-tree.md)
   m.anchor('drill.yard', 33, 11)
-  m.anchor('drill.bed', 29, 9)
+  m.anchor('drill.bed', 33, 10)
   // the villagers who give quests (docs/quests.md), and where the rescued foragers live
   m.anchor('elder.porch', 20, 9)
   m.anchor('elder.home', 20, 8)
@@ -280,15 +281,15 @@ function buildMeadow(): MapBuilder {
   m.anchor('cook.home', 9, 9)
   m.anchor('pond.edge', 19, 21)
   m.anchor('guard.post', 25, 25)
-  m.anchor('guard.home', 29, 9)
+  m.anchor('guard.home', 27, 9)
   m.anchor('wood.pile', 9, 18)
   // the wood pile Gus stacks his logs on (world-model.md §6.10: work is real)
   m.fixture('fixture/container/woodpile', 9, 19, { id: 'village.woodpile', statuses: { open: -1 } })
   m.anchor('wood.home', 8, 16)
   m.anchor('lina.garden', 13, 18)
-  m.anchor('lina.home', 9, 9)
+  m.anchor('lina.home', 12, 9)
   m.anchor('oskar.bench', 17, 19)
-  m.anchor('oskar.home', 29, 9)
+  m.anchor('oskar.home', 31, 9)
   // a pond where the animals drink
   m.organic(16, 22, 2.6, 1.7, 'water', { only: (t) => t === 'grass' })
   // the warm spring west of it (its pool drawn over grass): sit in it and it mends you
@@ -502,8 +503,9 @@ const scenes: StepDef[] = [
   {
     // The goal is a state: however you got here, the far bank ends the first chapter.
     id: 'far_bank',
-    // once the pilgrimage is called (stage 0.7: the letter); across before that, `far_bank_early`
-    when: { map: 'ford', region: 'far_bank', props: { quest: { gte: 0.7 } } },
+    // once the pilgrimage is called (stage 0.7: the letter); across before that, `far_bank_early`; and only
+    // while it is still chapter one's hook (past stage 2 the road is long taken: `far_bank_late`)
+    when: { map: 'ford', region: 'far_bank', props: { quest: { gte: 0.7, lt: 2 } } },
     script: [
       { fact: 'ford.crossed', value: 1 },
       { prop: 'quest', value: 2 },
@@ -512,6 +514,12 @@ const scenes: StepDef[] = [
       say('npc.hesper', 'If you need supplies before the road, Firstlight Village is still just west of here.', '上路前若还缺东西，初原村就在渡口西边。'),
       { topic: 'crossed', days: 30 },
     ],
+  },
+  {
+    // across for the first time when the story is long past its first chapter: the river is crossed, said nothing of
+    id: 'far_bank_late',
+    when: { map: 'ford', region: 'far_bank', props: { quest: { gte: 2 } } },
+    facts: { 'ford.crossed': 1 },
   },
 ]
 

@@ -30,6 +30,9 @@ export const tobin: PersonDef = {
     ],
   },
   lines: [
+    // the news the story spreads (its topics), said once while fresh
+    line('topic:dragon_slain', "Emberfall is open again, they say, now the dragon is down. Good roads, good trade. I will drink to you, when someone else pays.", "听说龙一倒，余烬镇又通了。路好走，买卖就好做。我敬你一杯——等有人请客的时候。"),
+    line('topic:crossed', "You crossed the Ford! Then the road east is yours to try. Bring me back something strange.", "你过了渡口！那东边的路就归你闯了。回来时给我带点稀奇东西。"),
     line('greeting:first', "Welcome to Firstlight Village! Tobin, of the eastern road. Charms, oils, oddments — the ferry is still broken, so I brought the cart here. You wouldn't have anything to eat?", '欢迎来初原村！我叫托宾，跑东边那条路的。护符、灯油、杂货——渡船还没修好，我就把货车搬来了。你身上没带点吃的吧？', { mood: 'surprised', once: true }),
     line('default', "I'd trade the whole cart for a hot meal. Well — not the whole cart. Most of it.", '为了一顿热饭，我愿意拿整车货来换。嗯——也不是整车。大半车吧。'),
     line('default', 'That blue wand? Frost from the tip. Freezes a puddle solid. A river, I would not know — never tried.', '那根蓝魔杖？杖尖冒寒气，能把水洼冻得结结实实。河嘛，我不知道——没试过。'),
