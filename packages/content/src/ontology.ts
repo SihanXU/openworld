@@ -2,6 +2,7 @@
 // for actors and fixtures. Item types come from the catalogue in items.ts.
 
 import { APPEAR_TICK, TICKS_PER_DAY, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE, type Cond, type Ontology, type StageDef, type StatusDef, type TerrainDef, type TypeDef } from '@lsw/engine'
+import { LOOK_TABLE } from './looks.ts'
 import { ELEMENT_NAMES, MATERIALS, MATERIAL_DEFS, QUALITIES, QUALITY_DEFS, itemTypes } from './items.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
@@ -505,6 +506,8 @@ export function buildOntology(): Ontology {
       wild: { name: { en: 'the wild', zh: '野物' }, hostile: ['folk'] },
     },
     terrains: Object.fromEntries(TERRAINS.map((t) => [t.id, t])),
+    // the looks bodies are drawn from: bodies, parts, colours (docs/looks.md)
+    looks: LOOK_TABLE,
     // the professions' names, for "only a warrior can fight with the sword" (engine/src/profession.ts)
     professions: Object.fromEntries(SKILL_PROFESSIONS.map((p) => [p.id, { name: p.name }])),
     // the lines whose crossing is an event, and the clocks (design.md §5.7)

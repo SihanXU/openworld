@@ -136,6 +136,11 @@
   background: var(--paper); color: var(--ink-warm); border: 4px solid var(--wood-dark); border-radius: 10px; box-shadow: 0 0 0 2px var(--wood-edge), 0 10px 30px rgba(0,0,0,0.5); padding: 12px 16px; cursor: pointer; }
 .dialog .face { flex: 0 0 84px; height: 84px; border: 3px solid var(--wood-dark); border-radius: 6px; background: var(--paper-dark); display: grid; place-items: center; }
 .dialog .face canvas { width: 84px; height: 84px; image-rendering: pixelated; }
+/* a look's portrait: the anime bust standing at the box's left, over its edge (docs/looks.md) */
+.dialog.bust { padding-left: 214px; min-height: 132px; }
+.dialog .face.bust { position: absolute; left: -36px; bottom: -4px; width: 248px; height: 248px; border: none; background: none; pointer-events: none;
+  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 22px); mask-image: linear-gradient(to top, transparent 0, #000 22px); }
+.dialog .face.bust canvas { width: 248px; height: 248px; image-rendering: auto; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35)); }
 .dialog .dtext { flex: 1; }
 .dialog .dname { font: 600 17px var(--pixel); color: #8a3b12; margin-bottom: 4px; }
 .dialog .dline { font-size: 17px; line-height: 1.5; min-height: 50px; }
@@ -529,3 +534,29 @@
 .sp-src.tree { background: #4f7a3c; } .sp-src.book { background: #3b6fa8; } .sp-src.gear { background: #a8642c; }
 .sp-in { font: 700 10px var(--pixel); color: #6b4a2a; }
 .sp-doc { font-size: 11px; color: #5a3f22; margin-top: 2px; }
+
+/* the character creator (ui/creator.ts, docs/looks.md): the portrait and the walking sprite beside the choices */
+.cv-sub { font: 600 15px var(--pixel); margin: 6px 0 4px; }
+.creator { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 10px; }
+.cr-preview { flex: 0 0 220px; display: grid; grid-template-columns: 1fr; justify-items: center; gap: 4px; position: relative; }
+.cr-bust { width: 220px; height: 220px; border-radius: 8px; background: radial-gradient(circle at 50% 35%, #fff6e2, #e8d6b4); }
+.cr-sprite { position: absolute; right: 2px; top: 150px; width: 32px; height: 64px; image-rendering: pixelated; }
+.cr-moods { display: flex; gap: 2px; }
+.cr-mood { background: none; border: 1px solid transparent; border-radius: 4px; padding: 0 2px; font-size: 15px; cursor: pointer; }
+.cr-mood.on { border-color: var(--wood-dark); background: #ffd55a55; }
+.cr-words { font-size: 12px; line-height: 1.35; color: var(--ink-warm); text-align: center; }
+.cr-controls { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cr-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cr-label { flex: 0 0 64px; font-size: 13px; color: #8a3b12; }
+.cr-val { min-width: 120px; text-align: center; font-size: 13px; }
+.cr-sws { display: flex; flex-wrap: wrap; gap: 3px; flex: 1; }
+.cr-sw { width: 16px; height: 16px; border: 1px solid rgba(0,0,0,0.35); border-radius: 3px; padding: 0; cursor: pointer; }
+.cr-sw.on { outline: 2px solid #ffd55a; outline-offset: 1px; }
+@media (max-width: 640px) { .creator { flex-direction: column; align-items: center; } }
+/* the look maker page (looks.html) */
+body.looks-page { background: #2b3550; color: var(--ink-warm); overflow: auto; }
+.lk-main { max-width: 860px; margin: 20px auto; padding: 0 16px; }
+.lk-main header { color: #f4ead6; }
+.lk-bar { display: flex; gap: 10px; align-items: center; margin: 8px 0; color: #f4ead6; }
+.lk-panel { position: static; transform: none; width: auto; max-height: none; background: var(--paper); border: 4px solid var(--wood-dark); border-radius: 10px; }
+#lkCode { white-space: pre-wrap; background: #1d2338; color: #cfe3ff; padding: 10px; border-radius: 6px; font-size: 12px; }

@@ -2,7 +2,7 @@
 // for what it (or the project's illustrated art) wrote: 8-bit RGBA, not interlaced, any row filter.
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { deflateSync, inflateSync } from 'node:zlib'
 
@@ -57,7 +57,7 @@ export function writeIcon(path: string, grid: string[], palette: Record<string, 
 
 /** Read an 8-bit RGBA PNG (public/assets/lsw/<path>, or an absolute path): its size and pixels. */
 export function readPng(path: string): { w: number; h: number; rgba: Uint8Array } {
-  const d = readFileSync(path.startsWith('/') ? path : join(OUT, path))
+  const d = readFileSync(isAbsolute(path) ? path : join(OUT, path))
   let i = 8
   let w = 0
   let h = 0

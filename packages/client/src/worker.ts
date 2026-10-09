@@ -1,6 +1,7 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
 import {
+  lookProblems,
   signatureOf,
   difficultyOf,
   Game,
@@ -495,6 +496,8 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     // a new game is already the world as it is now: no migration is due (the author's, on creating it)
     const w = game.engine.world
     game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact('game.difficulty', init.difficulty ?? 'normal')))
+    // the traveller the player made (docs/looks.md): a look the world's table knows, else the world's own
+    if (init.look && ontology.looks && !lookProblems(init.look, ontology.looks).length) game.engine.author(() => (w.player.look = structuredClone(init.look)))
   }
   game.worldVersion = index.version
   // every skill the tree has, so a skill set in the bar can be cast from a loaded game (actives.ts)

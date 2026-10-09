@@ -3,8 +3,9 @@
 // slot, a new game in a slot, load a slot, controls, language. The slot panel shows each of the
 // three slots' summary, and writes a slot out to a file or reads one back (saves.ts).
 
-import { OBJECTIVES, PROLOGUE_DONE, PROLOGUE_OBJECTIVES } from '@lsw/content'
-import type { Difficulty } from '@lsw/engine'
+import { OBJECTIVES, PLAYER_LOOK, PROLOGUE_DONE, PROLOGUE_OBJECTIVES } from '@lsw/content'
+import type { Difficulty, Look } from '@lsw/engine'
+import { Creator } from './creator.ts'
 import type { SaveSummary } from '../protocol.ts'
 import { SLOTS, deleteSlot, exportSlot, listSlots, pickSaveFile, writeSlot, type Slot, type SlotData } from '../saves.ts'
 import { $, controlsTable, esc, locale, t, tx } from './common.ts'
@@ -50,6 +51,8 @@ function pines(): string {
 export interface NewGame {
   difficulty: Difficulty
   start?: string
+  /** How the player looks (docs/looks.md): made in the new-game panel. */
+  look?: Look
 }
 
 export interface CoverHandlers {
@@ -179,12 +182,21 @@ export class Cover {
       ['normal', zh ? '普通' : 'Normal', zh ? '在落脚处复活，身上的东西留在倒下的地方' : 'respawn at home; what you carried stays where you fell'],
       ['hardcore', zh ? '极限' : 'Hardcore', zh ? '只有一条命' : 'one life'],
     ]
+    // a new game's traveller: their look, made here (docs/looks.md)
+    const maker = this.panel === 'new' ? `<div class="cv-sub">${zh ? '你的样子' : 'Your look'}</div><div id="cvCreator"></div>` : ''
     const pick = this.panel === 'new' ? `<div class="cv-diff">${levels.map(([id, name, note]) => `<button class="cv-btn small${this.difficulty === id ? ' primary' : ''}" data-diff="${id}">${name}<small>${note}</small></button>`).join('')}</div>` : ''
     // a new game begins on the plateau, at the foot of the mountain: the tutorial is its own, from the title
-    return head + pick + `<div class="cv-slots">${cards}</div><div class="cv-note muted">${t('cvNote')}</div>`
+    return head + maker + pick + `<div class="cv-slots">${cards}</div><div class="cv-note muted">${t('cvNote')}</div>`
   }
 
+  /** The look a new game's traveller is made with (the new-game panel's creator). */
+  private look: Look = PLAYER_LOOK
+  private creator?: Creator
+
   private wirePanel(): void {
+    this.creator?.dispose()
+    const maker = document.getElementById('cvCreator')
+    this.creator = maker ? new Creator(maker, this.look, (look) => (this.look = look)) : undefined
     $('#cvClose').onclick = () => ((this.panel = undefined), this.render())
     document.querySelectorAll<HTMLButtonElement>('#intro [data-diff]').forEach((b) => (b.onclick = () => ((this.difficulty = b.dataset.diff as Difficulty), this.render())))
     document.querySelectorAll<HTMLButtonElement>('#intro [data-act]').forEach((b) => {
@@ -198,7 +210,7 @@ export class Cover {
           case 'new':
             if (d && !confirm(t('cvConfirmOverwrite').replace('{n}', String(slot)))) return
             this.busy()
-            return this.on.start(slot, undefined, { difficulty: this.difficulty })
+            return this.on.start(slot, undefined, { difficulty: this.difficulty, look: this.look })
           case 'export':
             if (d) exportSlot(this.world, slot, d)
             return

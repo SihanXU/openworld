@@ -115,6 +115,8 @@ kbd {
 .spr { display: inline-block; vertical-align: middle; background-repeat: no-repeat; image-rendering: pixelated; flex: none; }
 .spr.inline { margin-right: 3px; vertical-align: -0.35em; }
 .spr.face { border-radius: 4px; }
+/* a look's portrait (docs/looks.md): painted, drawn smooth */
+.spr.smooth { image-rendering: auto; }
 .spr-ph { display: inline-block; width: 32px; height: 32px; }
 .ent { white-space: nowrap; }
 .count { color: var(--muted); font-size: 0.88em; margin-left: 2px; }

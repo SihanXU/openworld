@@ -5,6 +5,7 @@
 //   the base outcome is undefined → the held event replays.
 // The engine is the trust boundary: patches are untrusted data until validated.
 
+import { lookWords } from './looks.ts'
 import { EVENT_KINDS, OVERLAYS } from './types.ts'
 import { PRIMITIVES, RESIDENT_ONLY } from './effects.ts'
 import type { Engine, Resolution, UndefinedSink } from './engine.ts'
@@ -13,7 +14,7 @@ import { OntologyIndex, isA, withTerrainTypes } from './ontology.ts'
 import { deriveRecipes } from './recipes.ts'
 import { RuleLibrary, cmp, compareSpec, isDo, isHole, leaves, rolesOf, specOf, type LibraryData } from './rules.ts'
 import { buildSandbox, chainLoop, checkExpectations, replay, scenarioEvent, whyEndless } from './sandbox.ts'
-import type { Cmp, Cond, Effect, EmitTo, GameEvent, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tree, TypeDef } from './types.ts'
+import type { Cmp, Cond, Effect, EmitTo, GameEvent, Look, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tree, TypeDef } from './types.ts'
 import { RECENT_LINES, type View } from './world.ts'
 
 // ---------------------------------------------------------------- contract
@@ -43,6 +44,8 @@ export interface EntityInfo {
   /** What it is made of (its material's category and hardness), and what it leaves when it breaks (world-model.md §8.1). */
   material?: { id: string; category: string; hardness: number }
   makeup?: { type: string; count: number; chance?: number }[]
+  /** How it looks, in words (a person's look, docs/looks.md): its body and each part in its colour. */
+  look?: string
   /** Offset from the host's tile. */
   at?: [number, number]
 }
@@ -707,6 +710,7 @@ function info(eng: Engine, role: string, v: View | undefined, origin?: { x: numb
     props: v.props,
     material: v.entity && w.materialOf(v.entity),
     makeup: w.onto.resolve(v.type).makeup,
+    look: v.entity && typeof v.entity.look === 'object' && w.onto.data.looks ? lookWords(w.seenLook(v.entity) as Look, w.onto.data.looks) : undefined,
     at: p && origin ? [p.x - origin.x, p.y - origin.y] : undefined,
   }
 }
@@ -1061,6 +1065,17 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (e.op === 'hurt' && e.element && !ctx.ontology.elements.includes(e.element)) errors.push(`${where}: unknown element "${e.element}"`)
     if (e.op === 'goto' && !(e.hours > 0 && e.hours <= 12)) errors.push(`${where}: goto hours must be in (0, 12]`)
     if (e.op === 'emote' && !['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'].includes(e.mood)) errors.push(`${where}: unknown mood "${e.mood}"`)
+    if (e.op === 'restyle') {
+      // a look's parts and colours are the world's look table's (docs/looks.md): a part in its own slot, a known colour
+      const table = ctx.ontology.looks
+      for (const [slot, id] of Object.entries(e.parts ?? {})) {
+        if (id === null) continue
+        const p = table?.parts[id]
+        if (!p) errors.push(`${where}: unknown look part "${id}"`)
+        else if (p.slot !== slot) errors.push(`${where}: ${id} is a ${p.slot}, not a ${slot}`)
+      }
+      for (const [key, c] of Object.entries(e.colors ?? {})) if (c !== null && !/^#[0-9a-f]{6}$/i.test(c) && !table?.colors[c]) errors.push(`${where}: unknown colour "${c}" for ${key}`)
+    }
     if (e.op === 'emit') {
       if (!IMPULSE_KINDS.has(e.impulse)) errors.push(`${where}: unknown impulse "${e.impulse}"`)
       checkTo(e.to, `${where}.to`)

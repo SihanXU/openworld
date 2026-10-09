@@ -170,16 +170,16 @@ export const FORMS: Form[] = [
   W('item/weapon/magic/staff/emberheart', 'Emberheart', '烬心法杖', 'item:staff', { tags: ['quality:legendary', 'legend', 'element:fire'], props: { relic: 'emberheart', power: 11, range: 5, element: 'fire' }, where: {} }),
   W('item/weapon/magic/staff/rimecrown', 'Rimecrown', '霜冠法杖', 'item:staff', { tags: ['quality:legendary', 'legend', 'element:ice', 'crystal'], props: { relic: 'rimecrown', power: 10, range: 6, element: 'ice', critChance: 0.1 }, where: {} }),
   // armour and clothing: put on oneself, worn in a slot (world-model.md §6.8); armour adds its defence
-  W('item/armor/helmet', 'Helmet', '头盔', 'item:helmet', { tags: ['wearable'], props: { def: 1, slot: 'head' }, materials: ['iron', 'steel', 'bronze', 'leather', 'bone'], where: { smithy: 2, dungeon: 1 } }),
+  W('item/armor/helmet', 'Helmet', '头盔', 'item:helmet', { tags: ['wearable'], props: { def: 1, slot: 'head', look: 'hat.helm' }, materials: ['iron', 'steel', 'bronze', 'leather', 'bone'], where: { smithy: 2, dungeon: 1 } }),
   W('item/armor/shield', 'Shield', '盾牌', 'item:shield', { tags: ['wearable', 'profession:warrior'], props: { def: 2, slot: 'arm' }, materials: ['wood', 'iron', 'steel', 'bronze'], where: { smithy: 2, dungeon: 1 }, makeup: [{ type: 'item/material/plank', count: 3 }, { type: 'item/material/stick', count: 1 }], station: 'workbench' }),
   // the warrior's legendary shield: a block turns a blow aside (combat.ts)
   W('item/armor/shield/unfallen', 'The Unfallen Wall', '不陷之壁', 'item:shield', { tags: ['quality:legendary', 'legend', 'metal', 'conductive'], props: { relic: 'unfallen', def: 5, block: 0.15 }, where: {} }),
-  W('item/armor/breastplate', 'Breastplate', '胸甲', 'item:armor', { tags: ['wearable'], props: { def: 3, slot: 'body' }, materials: ['iron', 'steel', 'leather', 'mithril'], where: { smithy: 1, dungeon: 0.5 } }),
+  W('item/armor/breastplate', 'Breastplate', '胸甲', 'item:armor', { tags: ['wearable'], props: { def: 3, slot: 'body', look: 'armour.plate' }, materials: ['iron', 'steel', 'leather', 'mithril'], where: { smithy: 1, dungeon: 0.5 } }),
   // the body's ten slots (docs/world-model.md §6.8): head, body, feet, hands, waist, shoulders, neck, two rings, ear
-  W('item/armor/pauldrons', 'Pauldrons', '护肩', 'item:pauldrons', { tags: ['wearable'], props: { def: 1, slot: 'shoulders' }, materials: ['iron', 'steel', 'leather', 'bronze'], where: { smithy: 1, dungeon: 0.5 } }),
-  W('item/clothing/cloak', 'Cloak', '斗篷', 'item:cloak', { tags: ['wearable'], props: { slot: 'shoulders' }, materials: ['cloth', 'leather', 'silk'], where: { home: 2, shop: 1 } }),
+  W('item/armor/pauldrons', 'Pauldrons', '护肩', 'item:pauldrons', { tags: ['wearable'], props: { def: 1, slot: 'shoulders', look: 'cloak.pauldrons' }, materials: ['iron', 'steel', 'leather', 'bronze'], where: { smithy: 1, dungeon: 0.5 } }),
+  W('item/clothing/cloak', 'Cloak', '斗篷', 'item:cloak', { tags: ['wearable'], props: { slot: 'shoulders', look: 'cloak.cloak' }, materials: ['cloth', 'leather', 'silk'], where: { home: 2, shop: 1 } }),
   W('item/clothing/belt', 'Belt', '腰带', 'item:belt', { tags: ['wearable'], props: { def: 1, slot: 'waist' }, materials: ['leather', 'cloth'], where: { home: 1, shop: 1, smithy: 0.5 } }),
-  W('item/clothing/hat', 'Hat', '帽子', 'item:hat', { tags: ['wearable'], props: { slot: 'head' }, materials: ['cloth', 'leather', 'silk'], where: { home: 2, shop: 1, npc: 0.3 } }),
+  W('item/clothing/hat', 'Hat', '帽子', 'item:hat', { tags: ['wearable'], props: { slot: 'head', look: 'hat.cap' }, materials: ['cloth', 'leather', 'silk'], where: { home: 2, shop: 1, npc: 0.3 } }),
   W('item/clothing/boots', 'Boots', '靴子', 'item:boots', { tags: ['wearable'], props: { slot: 'feet' }, materials: ['leather', 'cloth'], where: { home: 2, shop: 1 } }),
   W('item/clothing/gloves', 'Gloves', '手套', 'item:gloves', { tags: ['wearable'], props: { slot: 'hands' }, materials: ['leather', 'cloth', 'silk'], where: { home: 1, shop: 1, smithy: 1 } }),
   // tools
@@ -293,7 +293,7 @@ export const FORMS: Form[] = [
   W('item/valuable/amulet', 'Amulet', '护符', 'item:amulet', { tags: ['wearable'], props: { def: 1, slot: 'neck' }, materials: ['silver', 'gold', 'bone', 'crystal'], elemental: true, where: { temple: 1, dungeon: 1 } }),
   W('item/valuable/earring', 'Earring', '耳环', 'item:earring', { tags: ['wearable'], props: { xpRate: 0.1, slot: 'ear' }, materials: ['silver', 'gold', 'bone', 'crystal'], where: { home: 0.5, shop: 0.5, dungeon: 0.5 } }),
   W('item/valuable/goblet', 'Goblet', '高脚杯', 'item:goblet', { materials: ['silver', 'gold'], where: { temple: 1, dungeon: 0.5 } }),
-  W('item/valuable/crown', 'Circlet', '头冠', 'item:crown', { tags: ['wearable'], props: { def: 1, slot: 'head' }, materials: ['silver', 'gold', 'ringsteel'], where: { dungeon: 0.2 } }),
+  W('item/valuable/crown', 'Circlet', '头冠', 'item:crown', { tags: ['wearable'], props: { def: 1, slot: 'head', look: 'hat.circlet' }, materials: ['silver', 'gold', 'ringsteel'], where: { dungeon: 0.2 } }),
   W('item/valuable/ancient_ring_shard', 'Ring Shard', '环冠碎片', 'item:shard', { tags: ['ancient', 'runic', 'arcane', 'metal'], where: { dungeon: 0.4 } }),
   // documents
   W('item/document/book', 'Book', '书', 'item:book', { tags: ['paper', 'flammable', 'readable'], where: { library: 5, home: 1, temple: 1 } }),
@@ -314,7 +314,7 @@ export const FORMS: Form[] = [
   }, where: {} }),
   // the first of the five instruments of the Five Sufferings (docs/lore.md §4): the Crown of Thorns
   // Stigmatic: worn, it wears the self away as it wore Alberic's (lore.md §4) — strength, and experience slow to come
-  W('item/relic/crown_of_thorns', 'Crown of Thorns', '荆棘冠', 'item:crown_of_thorns', { tags: ['holy', 'relic', 'sharp', 'thorny', 'wearable', 'quality:legendary', 'wound:crown'], props: { slot: 'head', def: 4, atk: 2, xpRate: -0.5, relic: 'crown' }, where: {} }),
+  W('item/relic/crown_of_thorns', 'Crown of Thorns', '荆棘冠', 'item:crown_of_thorns', { tags: ['holy', 'relic', 'sharp', 'thorny', 'wearable', 'quality:legendary', 'wound:crown'], props: { slot: 'head', look: 'hat.thorns', def: 4, atk: 2, xpRate: -0.5, relic: 'crown' }, where: {} }),
   // what the grey man gave a child: an ember of a dawn flame, warm at night (its uses left to the world)
   W('item/misc/warm_ember', 'Warm Ember', '温暖的余烬', 'item:warm_ember', { tags: ['warm', 'light', 'holy'], where: {} }),
   // the bridge's missing nail, pulled straight; a farmer's wedding band
