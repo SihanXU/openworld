@@ -157,6 +157,21 @@ function setup(model?: Model, dir = mkdtempSync(join(tmpdir(), 'lsw-modder-')), 
   return { dir, library, state, modder }
 }
 
+describe('a backend signed out', () => {
+  it('an expired sign-in is the backend\'s failure too: no escalation, no reflection, no calls for a while', async () => {
+    let calls = 0
+    const model: Model = { name: 'claude-code:signed-out', chat: async () => (calls++, Promise.reject(new Error('claude-code: Failed to authenticate: OAuth session expired and could not be refreshed'))) }
+    const { modder, state } = setup(model, undefined, 'live')
+    expect((await modder.resolve({ request: request() })).outcome).toBe('failed')
+    await modder.settled()
+    const after = calls
+    expect([...state.journalOf('reflect'), ...state.journalOf('lesson.add')]).toEqual([])
+    expect((await modder.resolve({ request: request('actor/creature/beast/wolf') })).outcome).toBe('unavailable')
+    await modder.settled()
+    expect(calls).toBe(after)
+  })
+})
+
 describe('a backend out of quota', () => {
   it('is no lesson and no reason to work the request again: nothing follows, and no call goes out for a while', async () => {
     let calls = 0
@@ -173,6 +188,73 @@ describe('a backend out of quota', () => {
     expect(second.outcome).toBe('unavailable')
     await modder.settled()
     expect(calls).toBe(after)
+  })
+})
+
+describe('a backend that goes out while work is queued', () => {
+  it('work queued before it went out (an escalation, a reflection) is dropped, not run against it', async () => {
+    const QUOTA = "claude-code: You've hit your session limit · resets 12:30am"
+    let release!: () => void
+    const held = new Promise<void>((r) => (release = r))
+    let out = false
+    let designs = 0
+    let calls = 0
+    const model: Model = {
+      name: 'claude-code:quota-later',
+      chat: async (_messages, opts) => {
+        calls++
+        if (out) throw new Error(QUOTA)
+        // the first reflection is the one that finds the backend out, after the next request has queued its work
+        if (opts?.purpose === 'reflect') {
+          await held
+          out = true
+          throw new Error(QUOTA)
+        }
+        // the first request is answered; the second gets no patch (a failure that is not the backend's)
+        return designs++ === 0 ? { content: JSON.stringify({ patch: patchOf(bindRule()), summary: 'rope binds' }), toolCalls: [] } : { content: 'no idea', toolCalls: [] }
+      },
+    }
+    const { modder, state } = setup(model, undefined, 'live')
+    const h = state.harness()
+    state.setHarness({ ...h, review: { ...h.review, enabled: false }, reflect: { ...h.reflect, batch: 1 }, concurrency: { design: 4, background: 1 } }, 'test: one background job at a time')
+    expect((await modder.resolve({ request: request() })).outcome).toBe('accepted')
+    // its reflection runs (and waits on the backend); the next failure queues an escalation and a reflection behind it
+    expect((await modder.resolve({ request: useRequest() })).outcome).toBe('failed')
+    // (the reflection that finds it out is already counted)
+    const before = calls
+    release()
+    await modder.settled()
+    expect(calls).toBe(before)
+    // the two requests' episodes, and no escalation's
+    expect(state.episodes().map((e) => e.outcome)).toEqual(['accepted', 'failed'])
+    expect(state.journalOf('reflect')).toEqual([])
+    expect((await modder.resolve({ request: useRequest('actor/creature/beast/wolf') })).outcome).toBe('unavailable')
+    expect(calls).toBe(before)
+  })
+
+  it('a repo episode that fails on a quota error pauses the calls and is not reflected on', { timeout: 120_000 }, async () => {
+    let calls = 0
+    const model: Model = { name: 'claude-code:quota', chat: async () => (calls++, Promise.reject(new Error("claude-code: You've hit your session limit · resets 12:30am"))) }
+    const dir = mkdtempSync(join(tmpdir(), 'lsw-modder-'))
+    const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
+    const state = SelfState.open(join(dir, 'modder-state'))
+    state.setHarness({ ...state.harness(), audit: { ...auditOf(state.harness()), enabled: false } }, 'test: the repo agent, no auditor')
+    expect(state.harness().offline.design?.mode).toBe('repo')
+    const modder = new Modder({ library, state, model, profile: 'offline' })
+    const saved = process.env.LSW_ISOLATION
+    process.env.LSW_ISOLATION = 'none'
+    try {
+      expect((await modder.resolve({ request: request() })).outcome).toBe('failed')
+      await modder.settled()
+      expect(calls).toBe(1)
+      expect(state.journalOf('reflect')).toEqual([])
+      expect((await modder.resolve({ request: request('actor/creature/beast/wolf') })).outcome).toBe('unavailable')
+      await modder.settled()
+      expect(calls).toBe(1)
+    } finally {
+      if (saved === undefined) delete process.env.LSW_ISOLATION
+      else process.env.LSW_ISOLATION = saved
+    }
   })
 })
 

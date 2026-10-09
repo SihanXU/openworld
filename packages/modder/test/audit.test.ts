@@ -37,8 +37,10 @@ const onCreature = (id: string, effects: unknown[]): Patch => ({
 })
 /** Valid, one for one, and a cheap road to the rarest blade in the world. */
 const bane = onCreature('patch/rope-bane', [{ op: 'transform', into: BANE }, { op: 'log', text: { en: 'The rope hardens into a blade.', zh: '绳子硬化成了一把剑。' } }])
-/** The same act, harmless: the slime only sniffs it. */
+/** The same act, harmless: the slime only sniffs it (narration only: nothing for the auditor to break). */
 const sniff = onCreature('patch/rope-sniff', [{ op: 'log', text: { en: '{target} sniffs {instrument}.', zh: '{target}嗅了嗅{instrument}。' } }])
+/** Harmless too, though it changes something: the slime slobbers on the rope. */
+const slobber = onCreature('patch/rope-slobber', [{ op: 'addStatus', status: 'wet', duration: 10 }, { op: 'log', text: { en: '{target} slobbers on {instrument}.', zh: '{target}把{instrument}弄湿了。' } }])
 const becomesBane: Finding = { title: 'a rope becomes Dragonsbane', kind: 'value', steps: [{ act: 'use', target: 'target', instrument: 'instrument' }], expect: [{ is: { key: 'instrument', type: BANE } }] }
 
 describe('confirm: the sandbox judges a finding', () => {
@@ -97,7 +99,7 @@ function setup(model: ScriptedModel, profile: 'live' | 'offline') {
   const state = SelfState.open(join(dir, 'modder-state'))
   const h = state.harness()
   state.setHarness({ ...h, audit: { ...auditOf(h), rounds: 2 }, review: { ...h.review, enabled: false }, reflect: { ...h.reflect, enabled: false }, escalate: false, revise: false, offline: { ...h.offline, design: { ...h.offline.design, mode: 'json' } } }, 'test: the auditor alone')
-  return { library, modder: new Modder({ library, state, model, profile }) }
+  return { library, state, modder: new Modder({ library, state, model, profile }) }
 }
 
 describe('the auditor in the pipeline', () => {
@@ -112,11 +114,23 @@ describe('the auditor in the pipeline', () => {
   })
 
   it('live: a claim the sandbox does not bear out changes nothing', async () => {
-    const { model } = scripted([sniff], [becomesBane])
+    const { model, calls } = scripted([slobber], [becomesBane])
     const { library, modder } = setup(model, 'live')
     expect((await modder.resolve({ request: useRequest() })).outcome).toBe('accepted')
     await modder.settled()
+    expect(calls.auditTools).toBe(1)
+    expect(library.lib.rules.has('patch/rope-slobber')).toBe(true)
+  })
+
+  it('live: a patch that only narrates is not audited (no call), and the journal says why', async () => {
+    const { model, calls } = scripted([sniff], [becomesBane])
+    const { library, state, modder } = setup(model, 'live')
+    const reply = await modder.resolve({ request: useRequest() })
+    expect(reply.outcome).toBe('accepted')
+    await modder.settled()
+    expect(calls.audit).toBe(0)
     expect(library.lib.rules.has('patch/rope-sniff')).toBe(true)
+    expect(state.journalOf('audit')).toMatchObject([{ episode: reply.episode, rules: ['patch/rope-sniff'], skipped: 'narrates only', usage: { calls: 0 } }])
   })
 
   it('offline: a draft the auditor breaks goes back with the evidence; the next one ships', async () => {
@@ -125,6 +139,8 @@ describe('the auditor in the pipeline', () => {
     const reply = await modder.resolve({ request: useRequest() })
     expect(reply.outcome).toBe('accepted')
     expect(calls.design).toBe(2)
+    // the second draft only narrates: it is not audited again
+    expect(calls.auditTools).toBe(1)
     expect(library.lib.rules.has('patch/rope-bane')).toBe(false)
     expect(library.lib.rules.has('patch/rope-sniff')).toBe(true)
   })

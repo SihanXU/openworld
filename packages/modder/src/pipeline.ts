@@ -25,8 +25,11 @@ import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYS
 import { coarseTerms, signatureOf, type Signature } from './signature.ts'
 import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@lsw/agent'
 
-/** A backend that is out of quota or throttling says so in its error (claude-code's session limit, an HTTP 429, a provider's quota). */
-const BACKEND_DOWN = /session limit|usage limit|rate.?limit|quota|\b429\b|overloaded|insufficient_quota/i
+/**
+ * A backend that cannot answer says so in its error: out of quota or throttling (claude-code's session
+ * limit, an HTTP 429, a provider's quota), or not signed in (an expired OAuth session, a 401/403, a bad key).
+ */
+const BACKEND_DOWN = /session limit|usage limit|rate.?limit|quota|\b429\b|overloaded|insufficient_quota|authenticat|oauth|unauthori[sz]ed|\b401\b|\b403\b|invalid.?api.?key|not logged in/i
 /** How long the service makes no calls after the backend said it is out (a request meanwhile gets `unavailable`). */
 const BACKEND_PAUSE_MS = 5 * 60_000
 
@@ -99,10 +102,49 @@ export class Modder {
   /** Live episodes that went cleanly, waiting to be reflected on together (harness reflect.batch). */
   private clean: { ep: Episode; sig: Signature }[] = []
 
-  constructor(readonly opts: ModderOptions) {}
+  /**
+   * The model behind one check, for every call the modder makes (designs, audits, reviews,
+   * reflections, the repo agent): none goes out while the backend is out, and an error that says
+   * it is out starts the pause.
+   */
+  private backend?: Model
+
+  constructor(readonly opts: ModderOptions) {
+    const inner = opts.model
+    if (inner)
+      this.backend = {
+        name: inner.name,
+        chat: async (messages, o) => {
+          const why = this.down()
+          if (why) throw new Error(`model unavailable: ${why}`)
+          try {
+            return await inner.chat(messages, o)
+          } catch (err) {
+            this.pause((err as Error).message)
+            throw err
+          }
+        },
+      }
+  }
 
   get model(): Model | undefined {
     return this.opts.model
+  }
+
+  /** When the backend may be called again after it said it is out, and what it said. */
+  private downUntil = 0
+  private downWhy = ''
+
+  /** What the backend said while it is out (no calls until the pause is over); undefined when it may be called. */
+  private down(): string | undefined {
+    return Date.now() < this.downUntil ? this.downWhy : undefined
+  }
+
+  private pause(error: string): void {
+    if (!BACKEND_DOWN.test(error)) return
+    this.downUntil = Date.now() + BACKEND_PAUSE_MS
+    this.downWhy = error
+    this.log(`model unavailable (${error}): no calls for ${BACKEND_PAUSE_MS / 60000} min`)
   }
 
   private now(): Date {
@@ -128,6 +170,12 @@ export class Modder {
     const limit = this.opts.state.harness().concurrency?.background ?? 3
     while (this.running < limit && this.jobs.length) {
       const { what, job } = this.jobs.shift()!
+      // work queued before the backend went out is dropped, not run against it
+      const why = this.down()
+      if (why) {
+        this.log(`${what}: skipped, model unavailable (${why})`)
+        continue
+      }
       this.running++
       job()
         .catch((err) => this.log(`${what}: ${(err as Error).message}`))
@@ -170,14 +218,11 @@ export class Modder {
     const base = this.opts.library.answeredByBase(req)
     if (base) return { patch: null, outcome: 'failed', diagnostics: [`answered by the base rule "${base}" here: the client's base rules are older than the service's`] }
     if (!this.opts.model) return { patch: null, outcome: 'unavailable' }
-    // the backend said it is out of quota (or throttling): no calls until the pause is over
-    if (Date.now() < this.downUntil) return { patch: null, outcome: 'unavailable', diagnostics: [`model unavailable: ${this.downWhy}`] }
+    // the backend said it is out (of quota, or signed out): no calls until the pause is over
+    const why = this.down()
+    if (why) return { patch: null, outcome: 'unavailable', diagnostics: [`model unavailable: ${why}`] }
     return this.track(sig.key, this.episode(req, body.workspace, sig, { profile }))
   }
-
-  /** When the backend may be called again after it said it is out of quota, and what it said. */
-  private downUntil = 0
-  private downWhy = ''
 
   private async track(key: string, p: Promise<ResolveReply>): Promise<ResolveReply> {
     this.inflight.set(key, p)
@@ -257,11 +302,14 @@ export class Modder {
   }
 
   private async work(req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, eo: EpisodeOptions): Promise<ResolveReply> {
+    // an escalation or a revision that waited its turn while the backend went out: not worked against it
+    const why = this.down()
+    if (why) return { patch: null, outcome: 'unavailable', diagnostics: [`model unavailable: ${why}`] }
     const t0 = Date.now()
     const { state, library } = this.opts
     const h = profileOf(state.harness(), eo.profile)
     if (h.design.mode === 'repo') return this.repoEpisode(req, ws, sig, eo, h)
-    const model = new Meter(this.opts.model!)
+    const model = new Meter(this.backend!)
     const ep = this.blank(state.newEpisodeId(), req, sig, h)
     ep.profile = eo.profile
     if (eo.escalatedFrom) ep.escalatedFrom = eo.escalatedFrom
@@ -400,7 +448,7 @@ export class Modder {
           continue
         }
         // the auditor, before shipping: what it breaks in the sandbox goes back to the designer
-        if (auditOf(h).enabled && auditOf(h).blocking) {
+        if (auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch)) {
           const found = await this.audit(model, req, patch, ctx, h)
           attempt.audit = { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length }
           if (found.confirmed.length) {
@@ -473,7 +521,7 @@ export class Modder {
       revise: eo.revise ? { rules: replaces, notes: eo.revise.notes } : undefined,
     })
     try {
-      const run = await runAgent({ ...repo.task, terms: sig.terms }, { model: this.opts.model!, state, harness: h, record: false, log: this.opts.log })
+      const run = await runAgent({ ...repo.task, terms: sig.terms }, { model: this.backend!, state, harness: h, record: false, log: this.opts.log })
       const ep = run.episode as unknown as Episode
       ep.request = req
       ep.summary = req.summary
@@ -483,16 +531,21 @@ export class Modder {
       if (eo.revise) ep.revises = eo.revise.episode.id
       const { patch, problems } = repo.collect()
       ep.patch = undefined
-      // the auditor, before shipping: a patch it breaks in the sandbox is not committed
-      const found = run.submitted && patch && !problems.length && auditOf(h).enabled && auditOf(h).blocking ? await this.audit(new Meter(this.opts.model!), req, patch, { library: lib, ontology: library.fullOntology(lib) }, h) : undefined
+      // the auditor, before shipping: a patch it breaks in the sandbox is not committed (nor one it
+      // could not audit because the backend went out)
+      let found: AuditResult | undefined
+      let unaudited = false
+      if (run.submitted && patch && !problems.length && auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch))
+        found = await this.audit(new Meter(this.backend!), req, patch, { library: lib, ontology: library.fullOntology(lib) }, h).catch((err: Error) => ((ep.error = err.message), (unaudited = true), undefined))
       if (found?.confirmed.length) ep.attempts.push({ phase: 'audit', patch, errors: auditNotes(found.confirmed), warnings: [], audit: { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length } })
-      else if (run.submitted && patch && !problems.length) this.commit(ep, { ...patch, author: 'modder' }, req, replaces)
+      else if (run.submitted && patch && !problems.length && !unaudited) this.commit(ep, { ...patch, author: 'modder' }, req, replaces)
       else if (problems.length) ep.attempts.push({ phase: 'repair', errors: problems, warnings: [] })
       if (ep.outcome !== 'accepted') ep.outcome = 'failed'
       state.recordEpisode(ep)
       state.noteSkillUse(ep.skillsRead, ep.outcome, ep.id)
       this.log(`${ep.id} ${eo.profile} repo${eo.revise ? ' revision' : eo.escalatedFrom ? ' escalation' : ''} ${ep.outcome} in ${ep.usage.calls} steps, ${ep.ms} ms: ${req.summary}${ep.rules.length ? ` → ${ep.rules.join(', ')}` : ''}${ep.error ? ` (${ep.error})` : ''}`)
-      this.later(`reflect ${ep.id}`, () => reflectAgent(ep as never, { model: this.opts.model!, state, harness: h }))
+      // a failure that is the backend's is no lesson (afterwards() says why)
+      if (!(ep.outcome === 'failed' && BACKEND_DOWN.test(ep.error ?? ''))) this.later(`reflect ${ep.id}`, () => reflectAgent(ep as never, { model: this.backend!, state, harness: h }))
       const last = ep.attempts.at(-1)
       return { patch: ep.outcome === 'accepted' ? (ep.patch ?? null) : null, outcome: ep.outcome, episode: ep.id, diagnostics: ep.outcome === 'failed' ? [...(last?.errors ?? []), ...(ep.error ? [ep.error] : [])] : undefined }
     } finally {
@@ -522,30 +575,28 @@ export class Modder {
 
   /** What follows an episode once the player has their answer. */
   private afterwards(ep: Episode, req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, h: Harness, ctx: ToolContext, eo: EpisodeOptions): void {
-    // a failure that is the backend's (out of quota, throttled) is no lesson and no reason to work the
-    // request again: nothing follows, and no call goes out for a while
-    if (ep.outcome === 'failed' && BACKEND_DOWN.test(ep.error ?? '')) {
-      this.downUntil = Date.now() + BACKEND_PAUSE_MS
-      this.downWhy = ep.error!
-      this.log(`model unavailable (${ep.error}): no calls for ${BACKEND_PAUSE_MS / 60000} min`)
-      return
-    }
+    // a failure that is the backend's (out of quota, throttled, signed out) is no lesson and no reason to
+    // work the request again: nothing follows (the backend's guard has paused the calls)
+    if (ep.outcome === 'failed' && BACKEND_DOWN.test(ep.error ?? '')) return
     const shipped = ep.attempts.at(-1)
     const flags = ep.patch ? flagsOf(ep.patch, shipped?.derived) : []
     // a review after the fact: for a rule that narrates only or did not generalize (and for every
     // live rule when the harness says review.unflagged)
     if (ep.outcome === 'accepted' && !eo.revise && h.review.enabled && (flags.length || (h.review.blocking === false && h.review.unflagged)) && !shipped?.review)
       this.later(`review ${ep.id}`, async () => {
-        const model = new Meter(this.opts.model!)
+        const model = new Meter(this.backend!)
         const v = await this.review(model, req, ep.patch!, ctx, h, flags)
         this.opts.state.note('review', { episode: ep.id, rules: ep.rules, flags, ...v, usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
         if (v.verdict === 'revise' && v.notes.length && h.revise) await this.episode(req, ws, sig, { profile: 'offline', revise: { episode: ep, notes: v.notes } })
       })
     // the auditor, after shipping: what it breaks in the sandbox leaves the library at once (clients drop
-    // it on their next sync), and goes back for a revision
-    if (ep.outcome === 'accepted' && !eo.revise && auditOf(h).enabled && !auditOf(h).blocking && ep.patch)
+    // it on their next sync), and goes back for a revision. A patch that only narrates has nothing to
+    // break: no call, and the journal says why
+    const auditing = ep.outcome === 'accepted' && !eo.revise && auditOf(h).enabled && !auditOf(h).blocking && ep.patch
+    if (auditing && narratesOnly(ep.patch!)) this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, skipped: NARRATES_ONLY, confirmed: [], unconfirmed: [], usage: { calls: 0, input: 0, output: 0, cost: 0 } })
+    else if (auditing)
       this.later(`audit ${ep.id}`, async () => {
-        const model = new Meter(this.opts.model!)
+        const model = new Meter(this.backend!)
         const found = await this.audit(model, req, ep.patch!, ctx, h)
         this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, confirmed: found.confirmed.map(({ evidence: _, ...f }) => f), unconfirmed: found.unconfirmed.map((u) => `${u.finding.title}: ${u.why}`), usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
         if (!found.confirmed.length) return
@@ -653,7 +704,9 @@ export class Modder {
     try {
       return await audit(model, AUDIT_SYSTEM, auditUser(req, patch, describeOutcome(req.scenario, patch, ctx)), req, ctx.ontology, ctx.library, patch, { rounds: a.rounds, reasoning: a.reasoning, provider: profileOf(h, 'offline').design.provider })
     } catch (err) {
-      // an auditor that fails finds nothing: the deterministic checks already passed
+      // an auditor that fails finds nothing: the deterministic checks already passed. A backend that is
+      // out is no audit: that is the caller's to handle (not shipped unaudited before shipping)
+      if (this.down()) throw err
       this.log(`audit failed: ${(err as Error).message}`)
       return { confirmed: [], unconfirmed: [] }
     }
@@ -684,8 +737,8 @@ export class Modder {
     const { state } = this.opts
     const h = state.harness()
     const done = items.filter((i) => i.ep.outcome !== 'covered')
-    if (!h.reflect.enabled || !this.opts.model || !done.length) return
-    const model = new Meter(this.opts.model)
+    if (!h.reflect.enabled || !this.backend || !done.length) return
+    const model = new Meter(this.backend)
     const last = done[done.length - 1]
     const ids = done.map((i) => i.ep.id)
     const coarse = [...new Set(done.flatMap((i) => coarseTerms(i.sig)))]
@@ -712,6 +765,13 @@ export class Modder {
     }
     state.note('reflect', { episode: done.length === 1 ? last.ep.id : ids, lessons: touched, skill, usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
   }
+}
+
+const NARRATES_ONLY = 'narrates only'
+
+/** A patch of rules that only narrate (changesNothing) has nothing the auditor could break: it adds no thing and changes none. */
+function narratesOnly(patch: Patch): boolean {
+  return patch.artifacts.every((a) => a.kind === 'rule' && changesNothing(a.rule))
 }
 
 /** What the reviewer should look at first: rules that change nothing, rules that did not generalize. */

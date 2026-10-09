@@ -11,6 +11,7 @@ import {
   buildSandbox,
   isA,
   isDo,
+  isHole,
   leaves,
   matchSelector,
   replay,
@@ -26,9 +27,9 @@ import {
 
 const NARRATION = new Set(['vfx', 'say', 'log', 'emote'])
 
-/** A rule that only narrates (log, say, vfx, emote) and changes nothing in the world. */
+/** A rule that only narrates (log, say, vfx, emote) and changes nothing in the world (a hole's default included). */
 export function changesNothing(r: Rule): boolean {
-  return leaves(r.tree).every((l) => !isDo(l) || l.do.every((e) => NARRATION.has(e.op)))
+  return leaves(r.tree).every((l) => (isDo(l) ? l.do : isHole(l) ? (l.default ?? []) : []).every((e) => NARRATION.has(e.op)))
 }
 
 function candidate(patch: Patch, lib: RuleLibrary, onto: Ontology): { lib: RuleLibrary; onto: Ontology } {
