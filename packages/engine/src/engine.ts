@@ -37,10 +37,12 @@ export interface UndefinedSink {
   raise(ev: GameEvent, res: Resolution): boolean
   tick(): void
   /**
-   * A soft hole (design.md §5.16): the outcome ran as the host's type inherited it, and the type
-   * has no rule of its own for this kind yet. Nothing waits: someone may work one out meanwhile.
+   * A soft hole (design.md §5.16): the host's type answers this kind only as it inherited it. True
+   * when it is held while someone works out the type's own rule (the inherited outcome then runs
+   * at the time-out); false when the inherited outcome should run now (no one to ask, already
+   * asked, given up).
    */
-  learn?(ev: GameEvent, res: Resolution): void
+  learn?(ev: GameEvent, res: Resolution): boolean
 }
 
 export interface MapChunk {
@@ -325,9 +327,9 @@ export class Engine {
     this.trace.push({ ev, rule: res.rule?.id, defined: res.defined })
     this.traced++
     if (res.defined && res.leaf && isDo(res.leaf)) {
-      // (asked before it runs: the question's scene is the world as the event found it)
-      if (res.soft) this.undefinedSink?.learn?.(ev, res)
-      this.run(res.leaf.do, ev, res.rule!.id)
+      // a soft hole waits like a hole when someone can answer; with no one, it runs as inherited
+      const held = !!res.soft && (this.undefinedSink?.learn?.(ev, res) ?? false)
+      if (!held) this.run(res.leaf.do, ev, res.rule!.id)
     } else if (res.hole) {
       this.holes++
       const held = this.undefinedSink?.raise(ev, res) ?? false

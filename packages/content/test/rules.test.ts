@@ -624,7 +624,7 @@ describe('the Mod port', () => {
     expect(r).toMatchObject({ defined: true, rule: { id: 'patch/apple-wishes' }, hole: { rule: { id: 'core/use' } } })
   })
 
-  it('a type that answers only as it inherited is a soft hole: the outcome runs, and its own rule is learned in the background', async () => {
+  it('a type that answers only as it inherited is a soft hole: with someone to ask it waits for its own rule; with no one it runs as inherited', async () => {
     // an axe has no rule of its own for being used: it strikes as every blade does (use/blade)
     const sc = (): Scenario => ({
       entities: [
@@ -636,41 +636,35 @@ describe('the Mod port', () => {
     })
     const eng = sandbox(sc())
     const ev = eng.actEvent('use', 'actor', { e: 'hay' }, { e: 'axe' })
-    const res = eng.resolveEvent(ev)
-    expect(res).toMatchObject({ defined: true, rule: { id: 'use/blade' }, soft: { rule: { id: 'use/blade' } } })
+    expect(eng.resolveEvent(ev)).toMatchObject({ defined: true, rule: { id: 'use/blade' }, soft: { rule: { id: 'use/blade' } } })
     // only kinds the world asks about (their root leaves something undefined): taking is physics
     expect(eng.lib.askable('act/use')).toBe(true)
     expect(eng.lib.askable('act/take')).toBe(false)
     expect(eng.lib.askable('contact/begin')).toBe(false)
 
+    // with no one to ask (or one who answers holes only), it runs as inherited, and nothing is recorded
+    for (const provider of [undefined, { ...working, soft: false }]) {
+      const quiet = sandbox(sc())
+      const port = new ModPort(quiet)
+      port.provider = provider
+      expect(chain(quiet, () => quiet.act('use', 'actor', { e: 'hay' }))[0]).toBe('use/blade')
+      expect(port.records.filter((r) => r.soft)).toEqual([])
+    }
+
+    // with someone to ask, it is a question: once per type and kind, the participants held, the world paused
     const asked: string[] = []
     let answer!: (p: Patch | null) => void
     const port = new ModPort(eng)
-    port.provider = {
-      resolve: (req) => {
-        asked.push(req.hole.soft ? `soft ${req.event.host?.type} ${req.event.kind} ${req.hole.rule}` : 'hard')
-        return new Promise((r) => {
-          if (req.hole.soft) answer = r
-        })
-      },
-    }
-    eng.act('use', 'actor', { e: 'hay' })
-    // the blade's blow ran; the haystack's answer to it is a hole of its own (a question the world waits on)
-    expect(asked).toEqual(['soft item/weapon/blade/axe act/use use/blade', 'hard'])
-    const soft = port.records.find((r) => r.soft)!
-    const hard = port.records.find((r) => !r.soft)!
-    expect(hard.request.event.kind).toBe('impulse/strike')
-    expect(soft.request.hole).toMatchObject({ rule: 'use/blade', soft: true })
+    port.provider = { resolve: (req) => (asked.push(`${req.hole.soft ? 'soft' : 'hard'} ${req.event.host?.type} ${req.event.kind} ${req.hole.rule}`), new Promise((r) => (answer = r))) }
+    expect(chain(eng, () => eng.act('use', 'actor', { e: 'hay' }))).toEqual(['use/blade'])
+    expect(asked).toEqual(['soft item/weapon/blade/axe act/use use/blade'])
+    const soft = port.records[0]
+    expect(soft).toMatchObject({ soft: true, status: 'pending', request: { hole: { rule: 'use/blade', soft: true, default: [{ op: 'emit', impulse: 'strike' }] } } })
     expect(soft.request.context.rules[0].id).toBe('use/blade')
-    // nothing waits on the soft one: nobody is held by it, and it does not stop the world's clock
-    expect(Object.values(eng.world.state.entities).some((e) => e.frozenBy === soft.id)).toBe(false)
-    expect(port.asking?.id).toBe(hard.id)
-    port.dismiss(hard.id)
-    // asked once per type and kind, whatever the target
-    eng.act('use', 'actor', { e: 'hay' })
-    expect(asked.filter((a) => a.startsWith('soft'))).toHaveLength(1)
+    for (const id of ['axe', 'hay', 'actor']) expect(eng.world.get(id)!.frozenBy, id).toBe(soft.id)
+    expect(port.asking?.id).toBe(soft.id)
 
-    // the axe's own rule: a copy of the blade's, and one thing more (it splits hay into grass)
+    // the axe's own rule: a copy of the blade's, and one thing more (straw flies from hay)
     const own: Rule = {
       id: 'patch/axe-use',
       host: { type: 'item/weapon/blade/axe' },
@@ -681,11 +675,15 @@ describe('the Mod port', () => {
     await Promise.resolve()
     await Promise.resolve()
     expect(soft.status).toBe('patched')
-    const learned = eng.lib.rules.get('patch/axe-use')!
-    expect(learned).toMatchObject({ cell: true, from: { rule: 'use/blade' } })
-    // learned: no longer soft; its own rule answers the haystack, and what it left inherits the blade's
-    expect(eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'hay' }, { e: 'axe' }))).toMatchObject({ rule: { id: 'patch/axe-use' } })
-    expect(eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'hay' }, { e: 'axe' })).soft).toBeUndefined()
+    expect(eng.world.get('axe')!.frozenBy).toBeUndefined()
+    // the held act replays and its own rule answers it
+    eng.tick()
+    expect(eng.trace.some((t) => t.rule === 'patch/axe-use')).toBe(true)
+    expect(eng.lib.rules.get('patch/axe-use')).toMatchObject({ cell: true, from: { rule: 'use/blade' } })
+    // learned: no longer soft; what it left inherits the blade's
+    const now = eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'hay' }, { e: 'axe' }))
+    expect(now).toMatchObject({ rule: { id: 'patch/axe-use' } })
+    expect(now.soft).toBeUndefined()
     expect(eng.lib.learned('act/use', 'item/weapon/blade/axe')).toBe(true)
     // another blade (a sword) still asks for its own
     expect(eng.lib.learned('act/use', 'item/weapon/blade/sword')).toBe(false)
@@ -697,7 +695,7 @@ describe('the Mod port', () => {
     expect(eng.lib.stale()).toEqual([{ rule: 'patch/axe-use', from: 'use/blade', why: 'changed' }])
   })
 
-  it('a soft hole whose asking fails keeps what it inherited, and writes nothing', async () => {
+  it('a soft hole whose asking fails runs what it inherited, and writes nothing', async () => {
     const eng = sandbox({
       entities: [
         { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
@@ -710,8 +708,14 @@ describe('the Mod port', () => {
     port.provider = { resolve: async () => null }
     const before = eng.lib.patches().length
     eng.act('use', 'actor', { e: 'chicken' })
-    await Promise.resolve()
-    await Promise.resolve()
+    // held while it is asked (the axe's use, then the chicken's taking the blow: each a soft hole)
+    expect(eng.world.get('chicken')).toBeDefined()
+    for (let i = 0; i < 4; i++) {
+      await Promise.resolve()
+      await Promise.resolve()
+      eng.tick()
+    }
+    expect(port.records.filter((r) => r.soft).map((r) => r.request.event.kind).slice(0, 2)).toEqual(['act/use', 'impulse/strike'])
     // the blow landed as every blade's does; nothing was learned
     expect(eng.world.get('chicken')).toBeUndefined()
     expect(port.records.filter((r) => r.soft).every((r) => r.status === 'fallback')).toBe(true)

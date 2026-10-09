@@ -876,13 +876,14 @@ the template the AI copies from.
 
 The last row is the new case. When the cell has no learned copy yet and the kind is one the world
 asks about (its most specific root rule has an undefined leaf: using, impulses; never taking,
-putting, contact, time or sight), the answer is a **soft hole**: the inherited outcome runs at
-once, nothing is held, the world's clock does not stop, and the AI is asked in the background
-what this type does instead. The request carries `hole.soft` and the inherited rule as the hole;
-the answer starts from a copy of that rule and changes what this type does differently. It is
-asked once per cell. A failure or a time-out keeps the inheritance and writes nothing, so the cell
-is asked again in a later session. The first event is never replayed: from the next one on, the
-type's own rule answers.
+putting, contact, time or sight), the answer is a **soft hole**. With a modder connected it is a
+question like a hole's: its participants are held, the player's own act pauses the world (§5.11),
+and the inherited outcome is the default at the time-out; a patch that comes replays the event,
+now answered by the type's own rule. With no modder (or one that answers holes only,
+`ModProvider.soft: false`) it runs as inherited at once and nothing is recorded. The request
+carries `hole.soft` and the inherited rule as the hole; the answer starts from a copy of that rule
+and changes what this type does differently. It is asked once per cell. A failure or a time-out
+runs the inheritance and writes nothing, so the cell is asked again in a later session.
 
 **What this removes.**
 
@@ -901,7 +902,7 @@ the base rule changes, `RuleLibrary.stale()` lists the copies made from the old 
 at holes. The mark is `Rule.cell`, set when a patch is taken (never by its author); saves and the
 shared log pass older patches through the validator with `earlier`, which accepts a class host.
 
-**Cost.** Each cell reached for the first time is one question. Over every item form used on every
+**Cost.** Each cell reached for the first time is one question, and a pause while it is asked. Over every item form used on every
 target (the coverage sweep) 488 cells are soft: 172 `impulse/strike`, 169 `impulse/coat`, 123
 `act/use`, 21 `impulse/handle`, 3 `impulse/offered`. Two game days with nobody at the keys reach
 none.

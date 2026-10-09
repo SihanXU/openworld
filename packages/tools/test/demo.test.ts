@@ -65,12 +65,16 @@ interface Ford {
   made: GameEvent[]
 }
 
-/** A fresh Ford. `ai: false` plays it with no modder at all; otherwise a modder that never answers (the tests answer by hand, or the time-out does). */
-function fresh(opts: { arrival?: boolean; ai?: boolean } = {}): Ford {
+/**
+ * A fresh Ford. `ai: false` plays it with no modder at all; otherwise a modder that never answers
+ * (the tests answer by hand, or the time-out does). It answers holes only unless `soft`: a type
+ * answering only as it inherited then waits for its own rule too (design.md §5.16).
+ */
+function fresh(opts: { arrival?: boolean; ai?: boolean; soft?: boolean } = {}): Ford {
   const { index, chunks } = buildFord()
   const game = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
   for (const c of chunks) game.loadChunk(decodeChunk(c))
-  if (opts.ai !== false) game.mods.provider = { resolve: () => new Promise<null>(() => {}) }
+  if (opts.ai !== false) game.mods.provider = { resolve: () => new Promise<null>(() => {}), soft: opts.soft ?? false }
   const eng = game.engine
   const events: GameEvent[] = []
   const made: GameEvent[] = []

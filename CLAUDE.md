@@ -140,8 +140,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   - A learned rule (a patch) belongs to one type and one event kind, a cell (design.md §5.16).
     It never changes what a rule written for the host's own type defines; it is consulted at
     holes and where the type only inherited its answer from a broader class. A type answering
-    only by inheritance on a kind the world asks about is a soft hole: the inherited outcome runs,
-    and the AI is asked in the background for the type's own rule, starting from a copy. One
+    only by inheritance on a kind the world asks about is a soft hole: with a modder it waits like
+    a hole for the type's own rule (a copy of the inherited one to start from), the inherited
+    outcome its default; with none it runs as inherited. One
     question per hole and class (per cell for a soft hole). Put places; use applies: taking and
     putting are physics (never asked), using one thing on another is where the AI answers.
   - Behaviour (schedules, temper, behaviour trees) is the game's own logic, not the AI

@@ -102,6 +102,8 @@ export interface ModSpec {
 
 export interface ModProvider {
   resolve(req: ModRequest, spec: ModSpec): Promise<Patch | null>
+  /** false: it answers holes only; a soft hole (design.md §5.16) runs as inherited, as with no one to ask. */
+  soft?: boolean
 }
 
 // ---------------------------------------------------------------- the wire (client ↔ modder service)
@@ -160,7 +162,7 @@ export interface UndefinedRecord {
   awaiting?: boolean
   /** The player would not wait (the default ran at their word): a late answer is learned, never replayed. */
   declined?: boolean
-  /** A soft hole: the inherited outcome already ran; nothing waits and nothing is replayed. */
+  /** A soft hole: the question is the type's own rule for the kind; its default is what it inherited. */
   soft?: boolean
   patch?: Patch
   diagnostics?: string[]
@@ -425,16 +427,17 @@ export class ModPort implements UndefinedSink {
    * stays open to a patch. Otherwise the event's participants — and the actor who started the
    * chain — are held, and the default runs at the time-out if no patch has come.
    */
-  raise(ev: GameEvent, res: Resolution): boolean {
+  raise(ev: GameEvent, res: Resolution, soft = false): boolean {
     const eng = this.eng
     const w = eng.world
-    const signature = signatureOf(eng, ev, res)
+    const host = soft && 'e' in ev.host ? w.get(ev.host.e) : undefined
+    const signature = soft ? cellSignature(host?.type ?? '?', ev.kind) : signatureOf(eng, ev, res)
     const origin: 'player' | 'world' = ev.origin === 'player' ? 'player' : 'world'
     if (this.records.some((r) => r.signature === signature && (r.status === 'pending' || r.awaiting)) || this.failed.has(signature)) {
       if (origin === 'player' && ev.kind.startsWith('act/')) w.fx.push({ t: 'log', text: attemptLine(eng, ev) })
       return false
     }
-    const rec = this.open(ev, res, signature, origin)
+    const rec = this.open(ev, res, signature, origin, soft)
     // say at once what is being tried (never what comes of it: that is the patch's to decide)
     w.fx.push({ t: 'log', text: origin === 'player' ? attemptLine(eng, ev) : worldLine(eng, ev), tone: origin === 'player' ? undefined : 'ai' })
     w.fx.push({ t: 'undefined', request: rec.id, summary: rec.request.summary, asked: !!this.provider })
@@ -457,7 +460,7 @@ export class ModPort implements UndefinedSink {
     const w = this.eng.world
     const id = `req-${w.state.seed.toString(36)}-${(++this.seq).toString(36)}-${w.state.tick.toString(36)}`
     const request = buildRequest(this.eng, ev, res, id, soft)
-    const rec: UndefinedRecord = { id, tick: w.state.tick, status: 'pending', request, event: ev, deadline: soft ? Number.POSITIVE_INFINITY : w.state.tick + this.timeoutTicks, signature, origin, ...(soft ? { soft: true } : {}) }
+    const rec: UndefinedRecord = { id, tick: w.state.tick, status: 'pending', request, event: ev, deadline: w.state.tick + this.timeoutTicks, signature, origin, ...(soft ? { soft: true } : {}) }
     this.records.push(rec)
     return rec
   }
@@ -497,7 +500,7 @@ export class ModPort implements UndefinedSink {
    * questions do not stop it. The host times the wait in its own seconds (the clock stands still).
    */
   get asking(): UndefinedRecord | undefined {
-    return this.records.find((r) => r.status === 'pending' && r.origin === 'player' && !r.soft)
+    return this.records.find((r) => r.status === 'pending' && r.origin === 'player')
   }
 
   /**
@@ -512,22 +515,14 @@ export class ModPort implements UndefinedSink {
   }
 
   /**
-   * A soft hole (design.md §5.16): the host's type ran what it inherited, and has no rule of its
-   * own for this kind yet. One question per type and kind; nothing is held, nothing waits, and a
-   * failure leaves the inheritance in place (it is asked again next session).
+   * A soft hole (design.md §5.16): the host's type answers this kind only as it inherited it. With
+   * someone to ask, it is a question like a hole's (one per type and kind): its participants are
+   * held, and the inherited outcome is its default. With no one, it runs as inherited and nothing
+   * is recorded. A failure keeps the inheritance and writes nothing.
    */
-  learn(ev: GameEvent, res: Resolution): void {
-    if (!this.provider || !res.soft) return
-    const w = this.eng.world
-    const host = 'e' in ev.host ? w.get(ev.host.e) : undefined
-    if (!host) return
-    const signature = cellSignature(host.type, ev.kind)
-    if (this.failed.has(signature) || this.records.some((r) => r.signature === signature && r.status !== 'fallback')) return
-    const origin: 'player' | 'world' = ev.origin === 'player' ? 'player' : 'world'
-    const rec = this.open(ev, { defined: false, rule: res.soft.rule, leaf: res.leaf, hole: res.soft }, signature, origin, true)
-    w.fx.push({ t: 'log', text: { en: `learning how ${host.type} answers ${ev.kind} (now as ${res.soft.rule.id})`, zh: `正在学习 ${host.type} 对 ${ev.kind} 的反应（目前按 ${res.soft.rule.id}）` }, tone: 'dev' })
-    this.onChange?.()
-    this.ask(rec)
+  learn(ev: GameEvent, res: Resolution): boolean {
+    if (!this.provider || this.provider.soft === false || !res.soft) return false
+    return this.raise(ev, { defined: false, rule: res.soft.rule, leaf: res.leaf, hole: res.soft }, true)
   }
 
   private unfreeze(id: string): void {
@@ -541,8 +536,6 @@ export class ModPort implements UndefinedSink {
     r.status = 'fallback'
     if (declined) r.declined = true
     this.unfreeze(id)
-    // (a soft hole's inherited outcome ran when it happened)
-    if (r.soft) return void this.onChange?.()
     this.eng.run(r.request.hole.default, r.event, r.request.hole.rule)
     this.syncBag()
     this.onChange?.()
@@ -587,7 +580,7 @@ export class ModPort implements UndefinedSink {
       if (rec && wasPending) {
         rec.status = 'rejected'
         this.unfreeze(rec.id)
-        if (!rec.soft) eng.run(rec.request.hole.default, rec.event, rec.request.hole.rule)
+        eng.run(rec.request.hole.default, rec.event, rec.request.hole.rule)
       }
       w.fx.push({ t: 'log', text: `patch rejected: ${res.errors[0]}`, tone: 'dev' })
       this.onChange?.()
@@ -623,7 +616,7 @@ export class ModPort implements UndefinedSink {
     const eng = this.eng
     // a late answer completes the act it was asked for (after a time-out), unless the player
     // declined to wait: they have moved on, and what they gave up does not happen behind them
-    const wasOpen = rec.status !== 'patched' && !rec.declined && !rec.soft
+    const wasOpen = rec.status !== 'patched' && !rec.declined
     rec.patch = patch
     rec.rules = ruleIds
     rec.status = 'patched'
