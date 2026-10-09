@@ -495,15 +495,25 @@ export class ModPort implements UndefinedSink {
     return true
   }
 
-  observe(ev: GameEvent, rule: string): void {
-    if (!ev.kind.startsWith('act/') || ev.kind === 'act/move') return
+  /** The scene of a player's act before it happens (moves aside): what the regression set keeps. */
+  scene(ev: GameEvent): Scenario | undefined {
+    if (!ev.kind.startsWith('act/') || ev.kind === 'act/move') return undefined
     try {
-      const sc = buildScenario(this.eng, ev)
-      this.regression.push({ scenario: sc, rule })
-      if (this.regression.length > 40) this.regression.shift()
+      return buildScenario(this.eng, ev)
     } catch {
-      /* best effort */
+      return undefined // best effort
     }
+  }
+
+  /**
+   * A defined act of the player's, with its scene as the act found it: the regression set. (Taken
+   * after the act, the scene had lost what the act used up or changed — a bread eaten, a log split —
+   * so it replayed as undefined, and every patch after it was refused.)
+   */
+  observe(ev: GameEvent, rule: string, scene?: Scenario): void {
+    if (!scene) return
+    this.regression.push({ scenario: scene, rule })
+    if (this.regression.length > 40) this.regression.shift()
   }
 
   private unfreeze(id: string): void {

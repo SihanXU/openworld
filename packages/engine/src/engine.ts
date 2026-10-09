@@ -21,7 +21,7 @@ import { scheduleFor } from './people.ts'
 import { OntologyIndex } from './ontology.ts'
 import { appearFromForage } from './appear.ts'
 import { RuleLibrary, evalCond, isDo, isPatch, matchSelector, rolesOf, type Resolution } from './rules.ts'
-import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb, WorldState } from './types.ts'
+import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, Scenario, SkillDef, Text, Verb, WorldState } from './types.ts'
 import type { ProfessionDef } from './profession.ts'
 import { DIRS, FIRE_RADIUS, OPPOSITE } from './types.ts'
 import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type Writer } from './world.ts'
@@ -36,8 +36,13 @@ export interface UndefinedSink {
    */
   raise(ev: GameEvent, res: Resolution): boolean
   tick(): void
-  /** Called with every defined act the player made, e.g. to build a regression set. */
-  observe?(ev: GameEvent, rule: string): void
+  /**
+   * The scene of an act the player is about to make, taken before it happens (what a regression
+   * set replays: the world as the act found it, not as it left it).
+   */
+  scene?(ev: GameEvent): Scenario | undefined
+  /** Called with every defined act the player made and its scene before it, e.g. to build a regression set. */
+  observe?(ev: GameEvent, rule: string, scene?: Scenario): void
 }
 
 export interface MapChunk {
@@ -532,6 +537,8 @@ export class Engine {
     const thing = 'e' in target ? w.get(target.e) : undefined
     const owner = thing ? this.ownerOf(thing) : undefined
     const holes = this.holes
+    // (the scene as the act finds it: after it, what it used up or changed is gone from it)
+    const scene = ev.origin === 'player' ? this.undefinedSink?.scene?.(ev) : undefined
     this.dispatching++
     let res: Resolution
     try {
@@ -540,7 +547,7 @@ export class Engine {
       this.dispatching--
     }
     this.flush()
-    if (res.defined && res.rule && ev.origin === 'player') this.undefinedSink?.observe?.(ev, res.rule.id)
+    if (res.defined && res.rule && ev.origin === 'player') this.undefinedSink?.observe?.(ev, res.rule.id, scene)
     // what the seers see: the act, and whether the world had an answer for all it set going
     if (verb !== 'move' && verb !== 'craft' && verb !== 'learn') this.see(ev, res.defined && this.holes === holes, owner)
     this.flush()
