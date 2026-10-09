@@ -10,6 +10,7 @@ import { connected, economySteps, freeLunch } from './economy.ts'
 import {
   RuleLibrary,
   RepeatLimitError,
+  asCells,
   buildModSpec,
   buildSandbox,
   checkExpectations,
@@ -29,7 +30,7 @@ import {
   type ValidationResult,
 } from '@lsw/engine'
 
-const REGRESSION_CAP = 300
+const ASKED_CAP = 300
 
 export interface CommitResult {
   ok: boolean
@@ -41,8 +42,8 @@ export interface CommitResult {
 export class WorldLibrary {
   readonly lib: RuleLibrary
   readonly log: PatchLogEntry[] = []
-  /** Triggering scenarios of accepted patches: they must stay answered by later patches. */
-  readonly regression: { scenario: Scenario; rule: string }[] = []
+  /** The scene each accepted patch answered (the event that asked for it): the audit plays them again. */
+  readonly asked: { scenario: Scenario; rule: string }[] = []
   private proofs = new Map<string, { tests: string[][]; result: ValidationResult }>()
 
   constructor(
@@ -127,10 +128,14 @@ export class WorldLibrary {
     return rule && this.lib.rules.get(rule)?.source?.origin !== 'patch' ? rule : undefined
   }
 
-  /** The rule that answers the request's event in the shared library, if any. */
+  /**
+   * The rule that answers the request's event in the shared library, if any. A soft hole is
+   * answered only by the type's own rule: what it inherits is what it asks about.
+   */
   private answering(req: ModRequest): string | undefined {
     try {
       const rp = replay(req.scenario, this.fullOntology(), this.lib)
+      if (req.hole.soft && rp.resolution.soft) return undefined
       return rp.resolution.defined ? rp.resolution.rule?.id : undefined
     } catch {
       return undefined
@@ -138,11 +143,11 @@ export class WorldLibrary {
   }
 
   /** replaces: patch rules this patch takes the place of (a revision), judged as if they were gone. */
-  validate(patch: Patch, req?: ModRequest, ws?: ModWorkspace, replaces: string[] = []): ValidationResult {
+  validate(patch: Patch, req?: ModRequest, ws?: ModWorkspace, replaces: string[] = [], earlier = false): ValidationResult {
     withTerrainTypes(this.ontology)
-    // Public ontology/workspace/regression data can change without a mutator or sequence bump.
+    // Public ontology/workspace data can change without a mutator or sequence bump.
     const artifacts = patch?.artifacts?.map((a) => a?.kind === 'rule' && a.rule ? { ...a, rule: { ...a.rule, tests: undefined } } : a)
-    const key = createHash('sha256').update(JSON.stringify([this.lib.version, [...this.lib.rules.values()], this.lib.types, this.lib.statuses, this.ontology, ws, this.regression, req?.scenario, replaces, artifacts])).digest('hex')
+    const key = createHash('sha256').update(JSON.stringify([this.lib.version, [...this.lib.rules.values()], this.lib.types, this.lib.statuses, this.ontology, ws, req?.scenario, replaces, earlier, artifacts])).digest('hex')
     const rules = patch?.artifacts?.flatMap((a) => a?.kind === 'rule' && a.rule ? [a.rule] : []) ?? []
     const tests = rules.map((r) => (r.tests ?? []).map((t) => JSON.stringify(t)))
     const proof = this.proofs.get(key)
@@ -157,7 +162,7 @@ export class WorldLibrary {
       ontology: this.ontology,
       library: lib,
       scenario: req?.scenario,
-      regression: [...this.regression, ...(ws?.regression ?? [])].filter((r) => !replaces.includes(r.rule)),
+      earlier,
     })
     if (!result.ok) return result
     // what the patch costs the world (a free lunch refused): its warnings are part of the proof
@@ -174,7 +179,7 @@ export class WorldLibrary {
     for (const a of patch.artifacts) {
       if (a.kind === 'type') cand.types = cand.types.filter((t) => t.id !== a.type.id).concat(a.type)
       if (a.kind === 'status') cand.statuses = cand.statuses.filter((s) => s.id !== a.status.id).concat(a.status)
-      if (a.kind === 'rule') cand.add({ ...a.rule, source: { origin: 'patch' } })
+      if (a.kind === 'rule') cand.add({ ...a.rule, cell: true, source: { origin: 'patch' } })
     }
     const result = structuredClone(proof.result)
     const rules = patch.artifacts.flatMap((a) => a.kind === 'rule' ? [a.rule] : [])
@@ -238,6 +243,8 @@ export class WorldLibrary {
   commit(patch: Patch, req?: ModRequest, now = new Date(), replaces: string[] = []): CommitResult {
     const result = this.validate(patch, req, undefined, replaces)
     if (!result.ok) return { ok: false, result, rules: [] }
+    // taken as one cell's each (design.md §5.16): the log says so to every client
+    patch = asCells(patch)
     // a revision: the old rules leave the log first, so every client sees remove-then-add
     for (const id of replaces) if (this.lib.rules.get(id)?.source?.origin === 'patch') this.remove(id, now)
     const rules = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : []))
@@ -264,7 +271,7 @@ export class WorldLibrary {
    */
   audit(): { rule: string; reason: string }[] {
     const out: { rule: string; reason: string }[] = []
-    for (const reg of this.regression) {
+    for (const reg of this.asked) {
       if (!this.lib.rules.has(reg.rule)) continue
       try {
         const rp = replay(reg.scenario, this.fullOntology(), this.lib)
@@ -297,9 +304,10 @@ export class WorldLibrary {
       try {
         // judged as it was taken: against what came before it and still holds (its own rules and
         // the types it brought are not there yet; what came after was judged with it in place)
-        res = this.fork((o) => o.seq < e.seq && !gone.has(o.seq)).validate(e.patch, req)
+        // (a patch taken before learned rules were one type's keeps the class it named)
+        res = this.fork((o) => o.seq < e.seq && !gone.has(o.seq)).validate(e.patch, req, undefined, [], true)
       } catch (err) {
-        res = { ok: false, errors: [(err as Error).message], warnings: [], overrides: [] }
+        res = { ok: false, errors: [(err as Error).message], warnings: [] }
       }
       if (res.ok) continue
       gone.add(e.seq)
@@ -322,7 +330,7 @@ export class WorldLibrary {
     this.log.push(e)
     if ('remove' in e) {
       this.lib.remove(e.remove, e.at)
-      for (let i = this.regression.length - 1; i >= 0; i--) if (this.regression[i].rule === e.remove) this.regression.splice(i, 1)
+      for (let i = this.asked.length - 1; i >= 0; i--) if (this.asked[i].rule === e.remove) this.asked.splice(i, 1)
       return
     }
     for (const a of e.patch.artifacts) {
@@ -333,12 +341,12 @@ export class WorldLibrary {
       if (a.kind !== 'rule') continue
       this.lib.add({ ...a.rule, source: { origin: 'patch', request: e.request, author: e.patch.author ?? 'modder', at: e.at, note: e.patch.note, trigger: e.patch.trigger } }, e.at)
     }
-    // the event that asked for the patch must stay answered (by it, or by something more specific)
+    // the scene the patch answered, for the audit
     const first = e.rules.find((id) => !!this.lib.rules.get(id)?.host)
     const sc = e.scenario ?? firstTestScenario(e.patch)
     if (first && sc) {
-      this.regression.push({ scenario: sc, rule: first })
-      if (this.regression.length > REGRESSION_CAP) this.regression.shift()
+      this.asked.push({ scenario: sc, rule: first })
+      if (this.asked.length > ASKED_CAP) this.asked.shift()
     }
   }
 

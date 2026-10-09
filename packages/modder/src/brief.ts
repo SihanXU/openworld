@@ -50,7 +50,11 @@ export function briefOf(req: ModRequest, lib: RuleLibrary, onto: Ontology, tools
   const ev = req.event
   if (req.origin === 'world') out.push(`- the world did this by itself (${ev.kind}): no player asked. Keep it small and legible; never harm a person; never touch the story's facts.`)
   out.push(`- event: ${ev.kind}${Object.keys(ev.params).length ? ` ${JSON.stringify(ev.params)}` : ''}`)
-  out.push(`- undefined at: ${req.hole.rule}${req.hole.path.length ? ` (branches ${req.hole.path.join(' → ')})` : ''}; while nobody answers: ${req.hole.default.length ? JSON.stringify(req.hole.default) : 'nothing happens'}`)
+  if (req.hole.soft) {
+    const from = lib.rules.get(req.hole.rule)
+    out.push(`- inherited: ${ev.host?.type ?? 'the host'} has no rule of its own for ${ev.kind}; it answers as ${req.hole.rule}${from?.host ? ` (written for ${JSON.stringify(from.host)})` : ''}, which did: ${JSON.stringify(req.hole.default)}`)
+    if (from) out.push(`- start from a copy of ${req.hole.rule}: ${JSON.stringify({ host: { type: ev.host?.type }, on: ev.kind, tree: from.tree, ...(from.label ? { label: from.label } : {}) })}`)
+  } else out.push(`- undefined at: ${req.hole.rule}${req.hole.path.length ? ` (branches ${req.hole.path.join(' → ')})` : ''}; while nobody answers: ${req.hole.default.length ? JSON.stringify(req.hole.default) : 'nothing happens'}`)
   if (ev.detail) out.push(`- detail: ${ev.detail}`)
   if (ev.kind === 'stuck' || ev.kind === 'broken') out.push(`- anchors on this map (for goto): ${req.context.anchors?.join(', ') || '—'}`)
   const line = (role: string, e: EntityInfo) => {

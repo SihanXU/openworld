@@ -24,7 +24,7 @@ export const ROUTER_RULES = [
 
 export function designSystem(spec: ModSpec, h: Harness, router = false): string {
   return [
-    'You are the modder of a 2D JRPG world whose mechanics are data. Every happening is an event with one outcome, given by the rules of its host. When an event reaches an outcome the rules leave undefined (request.hole), you are called to write the missing rule(s) as a patch: a rule for the host\'s class that answers that event. The engine validates every patch (schema, ontology, ties at equal specificity, a sandbox replay of the event, your tests, regression) before it applies it. Once applied, a rule holds for every instance of the class you wrote, so you are writing the physics of the world, not a one-off answer.',
+    'You are the modder of a 2D JRPG world whose mechanics are data. Every happening is an event with one outcome, given by the rules of its host. When an event reaches an outcome the rules leave undefined (request.hole), or the host\'s type answers it only as it inherited it from a broader class (request.hole.soft), you are called to write the host type\'s own rule for that event kind as a patch: host exactly {type: <the host\'s type>}, `on` exactly the event\'s kind. With hole.soft, start from a copy of the inherited rule (request.hole.rule) and change what this type does differently. The engine validates every patch (schema, ontology, a sandbox replay of the event, your tests) before it applies it. Once applied, a rule holds for every instance of that type, so you are writing the physics of the world, not a one-off answer.',
     '',
     'How to work:',
     ...(h.design.toolRounds > 0
@@ -33,14 +33,14 @@ export function designSystem(spec: ModSpec, h: Harness, router = false): string 
           h.design.brief
             ? '2. The brief lists the roles\' types and the rules that already speak about this host or this event. Use your tools only for what it lacks. If one of your skills fits, read it.'
             : '2. Investigate with your tools: search_rules for neighbouring rules (same kind, the host\'s type, the other roles\' tags) and get_type for what the roles really are. If one of your skills fits, read it.',
-          '3. Decide what a player would find plausible and satisfying here, consistent with the rules that exist. Then write it for the widest class of things that keeps it plausible.',
+          '3. Decide what a player would find plausible and satisfying here, consistent with the rules that exist. Write it for the host\'s type, and for every case of this event kind it should answer (other targets, elements, edges): the type has one rule for the kind.',
           h.design.brief
             ? '4. Answer as soon as you are confident: the engine validates your answer and sends back exact diagnostics if anything is wrong. dry_run only when unsure.'
-            : '4. dry_run the draft. Fix everything it reports. dry_run it again on a scenario with another instance of the class to check that it generalizes.',
+            : '4. dry_run the draft. Fix everything it reports. dry_run it again on a scenario with another case it should answer (another target, another element) to check it.',
         ]
       : [
           '1. Read the request and the brief: the host and the roles, where the outcome was undefined, and the rules that already speak about this host or event (the conventions in force).',
-          '2. Decide what a player would find plausible and satisfying here, consistent with those rules. Write it for the widest class of things that keeps it plausible.',
+          '2. Decide what a player would find plausible and satisfying here, consistent with those rules. Write it for the host\'s type, and for every case of this event kind it should answer: the type has one rule for the kind.',
           '3. Answer directly — there are no tools. The engine validates your answer and sends back exact diagnostics if anything is wrong.',
         ]),
     `${h.design.toolRounds > 0 ? 5 : 4}. Answer with ONLY one JSON object: {"patch": {"artifacts": [...], "note": "<what the rule does, one line>"}, "summary": "<one line for your records>"}`,
@@ -48,9 +48,9 @@ export function designSystem(spec: ModSpec, h: Harness, router = false): string 
     'Requirements:',
     '- Rule ids start with "patch/" and must be new.',
     h.design.tests === 'harness'
-      ? '- Every rule has a one-line `doc` and player-visible feedback (vfx and/or log/say). Do not write tests: the harness replays your rule on another instance of its class and keeps that as its test.'
-      : '- Every rule has a one-line `doc`, player-visible feedback (vfx and/or log/say), and at least one test whose scenario uses ANOTHER instance of the host class than the triggering one (the triggering event is replayed automatically).',
-    '- Prefer outcomes that change something (a status, a transformation, an item). A rule that only narrates is right only when nothing happening is clearly the most plausible outcome, and then its class must stay narrow.',
+      ? '- Every rule has a one-line `doc` and player-visible feedback (vfx and/or log/say). Do not write tests: the harness replays your rule in the scene that asked and keeps that as its test.'
+      : '- Every rule has a one-line `doc`, player-visible feedback (vfx and/or log/say), and at least one test of another case the rule answers (another target, element or edge; the triggering event is replayed automatically).',
+    '- Prefer outcomes that change something (a status, a transformation, an item). A rule that only narrates is right only when nothing happening is clearly the most plausible outcome, and then its conditions must stay narrow.',
     '- Nothing for nothing: if the outcome makes something (a stick shaken from a tree, food), let it cost or run out — use the instrument up, or change or spend the host (a status that clears with time, a prop that counts down) — so it is not a faucet pressed forever.',
     '- Your rule writes only its host; to affect anything else, emit an impulse to it and its receiver answers. Player-facing text is {"en": "...", "zh": "..."}; {host}, {actor}, {target}, {instrument}, {item} insert names.',
     '- If nothing should happen, still define it: {"do": []} (no change) or a short in-world line of feedback is a valid answer.',

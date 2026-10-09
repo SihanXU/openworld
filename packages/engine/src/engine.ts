@@ -36,8 +36,11 @@ export interface UndefinedSink {
    */
   raise(ev: GameEvent, res: Resolution): boolean
   tick(): void
-  /** Called with every defined act the player made, e.g. to build a regression set. */
-  observe?(ev: GameEvent, rule: string): void
+  /**
+   * A soft hole (design.md §5.16): the outcome ran as the host's type inherited it, and the type
+   * has no rule of its own for this kind yet. Nothing waits: someone may work one out meanwhile.
+   */
+  learn?(ev: GameEvent, res: Resolution): void
 }
 
 export interface MapChunk {
@@ -321,8 +324,11 @@ export class Engine {
     if (this.trace.length > 300) this.trace.shift()
     this.trace.push({ ev, rule: res.rule?.id, defined: res.defined })
     this.traced++
-    if (res.defined && res.leaf && isDo(res.leaf)) this.run(res.leaf.do, ev, res.rule!.id)
-    else if (res.hole) {
+    if (res.defined && res.leaf && isDo(res.leaf)) {
+      // (asked before it runs: the question's scene is the world as the event found it)
+      if (res.soft) this.undefinedSink?.learn?.(ev, res)
+      this.run(res.leaf.do, ev, res.rule!.id)
+    } else if (res.hole) {
       this.holes++
       const held = this.undefinedSink?.raise(ev, res) ?? false
       if (!held) this.run(res.hole.default, ev, res.hole.rule.id)
@@ -540,7 +546,6 @@ export class Engine {
       this.dispatching--
     }
     this.flush()
-    if (res.defined && res.rule && ev.origin === 'player') this.undefinedSink?.observe?.(ev, res.rule.id)
     // what the seers see: the act, and whether the world had an answer for all it set going
     if (verb !== 'move' && verb !== 'craft' && verb !== 'learn') this.see(ev, res.defined && this.holes === holes, owner)
     this.flush()

@@ -43,7 +43,7 @@ function stock(eng: Engine): Map<string, number> {
 
 async function resolve(request: ModRequest): Promise<{ patch: Patch | null; outcome: string; ms: number }> {
   const t0 = Date.now()
-  const res = await fetch(`${URL}/resolve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ request, workspace: { patches: { rules: [], types: [], statuses: [] }, regression: [] } }) })
+  const res = await fetch(`${URL}/resolve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ request, workspace: { patches: { rules: [], types: [], statuses: [] } } }) })
   const body = (await res.json()) as { patch?: Patch | null; outcome?: string }
   return { patch: body.patch ?? null, outcome: body.outcome ?? String(res.status), ms: Date.now() - t0 }
 }

@@ -131,7 +131,8 @@ const ticks = (f: Ford, n: number, until?: () => boolean) => {
   return !!until?.()
 }
 const setHour = (f: Ford, day: number, hour: number) => (W(f).state.tick = tickAt(day, hour))
-const records = (f: Ford) => f.game.mods.records
+/** The questions the world waits on (a soft hole is learned in the background: nothing waits, design.md §5.16). */
+const records = (f: Ford) => f.game.mods.records.filter((r) => !r.soft)
 const asked = (f: Ford, kind: string, origin: 'player' | 'world') => records(f).filter((r) => r.event.kind === kind && r.origin === origin)
 const isE = (ref: Ref | undefined, id: string | undefined) => !!ref && 'e' in ref && ref.e === id
 const hostIs = (ev: GameEvent, id: string | undefined) => isE(ev.host, id)
@@ -383,7 +384,7 @@ req('E2', "the world's own requests are learned as the world's: the Threadbook s
         rule: {
           id: 'patch/sigh-at-the-fire',
           doc: 'A person kept from their task sighs and waits.',
-          host: { type: 'actor/person' },
+          host: { type: rec.request.event.host!.type },
           on: 'stuck',
           tree: { do: [{ op: 'emote', mood: 'sad' }, { op: 'say', text: { en: 'Not now, then.', zh: '那就等等吧。' } }] },
           tests: [],

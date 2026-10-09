@@ -3,7 +3,7 @@
 // the latency bench, every malformed first answer had a correct rule inside the wrong wrapper.
 // Each fix is recorded on the attempt, so the episode shows what was changed and why.
 
-import { PRIMITIVES, selectByType, type Artifact, type Cond, type Effect, type ModRequest, type Ontology, type Patch, type Rule, type Selector, type Tree, type ValidationResult } from '@lsw/engine'
+import { PRIMITIVES, selectByType, type Artifact, type Cond, type Effect, type EntityInfo, type ModRequest, type Ontology, type Patch, type Rule, type Selector, type Tree } from '@lsw/engine'
 
 const looksLikeRule = (x: Record<string, unknown>) => typeof x.on === 'string' && (!!x.tree || Array.isArray(x.do))
 
@@ -88,21 +88,47 @@ function flatEffects(t: Tree, id: string, fixes: string[]): Tree {
 }
 
 /**
- * A rule that answers a broader kind than the one asked (`impulse` for `impulse/strike`) and so
- * ties with another patch there: narrow it to the requested kind. Returns the narrowed patch, or
- * undefined when that is not the problem.
+ * A learned rule is one type's and one kind's (design.md §5.16). A draft that names a class
+ * (`{type: "actor/creature", tags: ["sharp"]}`) for the host, or for another of the request's
+ * roles (a target that answers the impulse the host sends it), or a branch of the kind tree
+ * (`impulse` for `impulse/strike`) for the host's kind, is narrowed to that thing's own type;
+ * what else its selector required becomes a condition on the host, so the rule still means what
+ * it said. A rule for something the request does not show is left for the validator to report.
  */
-export function narrowKinds(patch: Patch, req: ModRequest, res: ValidationResult): { patch: Patch; fixes: string[] } | undefined {
-  if (!res.errors.some((e) => e.includes(' ties with '))) return undefined
-  const kind = req.event.kind
+export function toCell(patch: Patch, req: ModRequest): { patch: Patch; fixes: string[] } {
   const fixes: string[] = []
+  const kind = req.event.kind
+  if (!Array.isArray(patch?.artifacts)) return { patch, fixes }
+  const fits = (s: Selector, e: EntityInfo) => {
+    const chain = new Set(e.typeChain?.length ? e.typeChain : [e.type])
+    return (
+      (!s.type || s.type === e.type || chain.has(s.type) || e.type.startsWith(s.type + '/')) &&
+      (s.tags ?? []).every((t) => e.tags.includes(t)) &&
+      (s.notTags ?? []).every((t) => !e.tags.includes(t)) &&
+      (s.status ?? []).every((t) => e.statuses.includes(t)) &&
+      (s.notStatus ?? []).every((t) => !e.statuses.includes(t)) &&
+      (!s.id || s.id === e.id)
+    )
+  }
+  const others = Object.values(req.event.roles).filter((e): e is EntityInfo => !!e?.type && e.id !== req.event.host?.id)
   const artifacts = patch.artifacts.map((a) => {
-    if (a.kind !== 'rule' || a.rule.on === kind || !kind.startsWith(a.rule.on + '/')) return a
-    if (!res.errors.some((e) => e.includes(`"${a.rule.id}"`))) return a
-    fixes.push(`narrowed "${a.rule.id}" from ${a.rule.on} to ${kind}`)
-    return { kind: 'rule' as const, rule: { ...a.rule, on: kind } }
+    if (a?.kind !== 'rule' || !a.rule || typeof a.rule.on !== 'string') return a
+    const r = a.rule
+    const sel: Selector = r.host ?? {}
+    if (sel.type && Object.keys(sel).length === 1 && (r.on !== kind || sel.type === req.event.host?.type)) return a
+    // the host, for the kind asked (or a branch of it); else another role, for an impulse it is sent
+    const host = req.event.host
+    const asked = !!host?.type && (r.on === kind || kind.startsWith(r.on + '/')) && fits(sel, host)
+    const role = asked ? undefined : r.on.startsWith('impulse/') ? others.find((e) => fits(sel, e)) : undefined
+    const e = asked ? host : role
+    if (!e) return a
+    const on = asked ? kind : r.on
+    const { type: _t, id: _i, ...rest } = sel
+    const tree: Tree = Object.keys(rest).length ? { if: { is: { role: 'host', sel: rest } }, then: r.tree, else: 'inherit' } : r.tree
+    fixes.push(`"${r.id}" is ${e.type}'s own for ${on} (it named ${JSON.stringify(sel)} on ${r.on})`)
+    return { kind: 'rule' as const, rule: { ...r, on, host: { type: e.type }, tree } }
   })
-  return fixes.length ? { patch: { ...patch, artifacts }, fixes } : undefined
+  return { patch: fixes.length ? { ...patch, artifacts } : patch, fixes }
 }
 
 /**

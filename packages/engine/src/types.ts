@@ -1338,6 +1338,17 @@ export interface Rule {
   label?: Text
   tests?: RuleTest[]
   source?: Provenance
+  /**
+   * A learned rule that began as a copy of the rule its type inherited (design.md §5.16): that
+   * rule's id and its hash when it was copied. A hash that no longer matches marks the copy stale.
+   */
+  from?: { rule: string; hash: string }
+  /**
+   * A learned rule of one cell (design.md §5.16): it answers for exactly its host's type. Set when
+   * a patch is taken, never by its author; patches taken before there were cells lack it and keep
+   * answering for the class they named.
+   */
+  cell?: true
   /** Human-readable summary. */
   doc?: string
 }

@@ -126,7 +126,7 @@ async function resolveRemote(request: ModRequest): Promise<Patch | null> {
   const lib = game!.engine.lib
   const body: ResolveBody = {
     request,
-    workspace: { patches: { rules: lib.patches(), types: lib.types, statuses: lib.statuses }, regression: game!.mods.regression },
+    workspace: { patches: { rules: lib.patches(), types: lib.types, statuses: lib.statuses } },
   }
   const watching = watchProgress(request.id)
   try {
@@ -205,7 +205,7 @@ async function syncLibrary(): Promise<void> {
     for (const e of log.entries) {
       if ('remove' in e) {
         if (lib.rules.get(e.remove)?.source?.origin === 'patch') lib.remove(e.remove)
-      } else game.mods.submit(undefined, e.patch, e.scenario)
+      } else game.mods.submit(undefined, e.patch, e.scenario, true)
     }
     modderSeq = log.seq
     if (lib.version !== before) sendRecords()

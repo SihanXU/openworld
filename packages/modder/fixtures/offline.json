@@ -11,23 +11,32 @@
       "rule": {
        "id": "patch/fiber-binds-creature",
        "host": {
-        "type": "actor/creature",
-        "notStatus": [
-         "frozen"
-        ]
+        "type": "actor/creature/slime/green_slime"
        },
        "on": "impulse/offered",
-       "doc": "A creature offered a rope (anything fibrous) is lashed down with it for a while.",
+       "doc": "A green slime offered a rope (anything fibrous) is lashed down with it for a while.",
        "tree": {
         "if": {
-         "is": {
-          "role": "item",
-          "sel": {
-           "tags": [
-            "fiber"
-           ]
+         "all": [
+          {
+           "is": {
+            "role": "item",
+            "sel": {
+             "tags": [
+              "fiber"
+             ]
+            }
+           }
+          },
+          {
+           "not": {
+            "has": {
+             "role": "host",
+             "status": "frozen"
+            }
+           }
           }
-         }
+         ]
         },
         "then": {
          "do": [
@@ -61,7 +70,7 @@
        },
        "tests": [
         {
-         "name": "a rope put on a wolf binds it too",
+         "name": "a rope put on another green slime binds it too",
          "given": {
           "entities": [
            {
@@ -79,7 +88,7 @@
            },
            {
             "key": "w",
-            "type": "actor/creature/beast/wolf",
+            "type": "actor/creature/slime/green_slime",
             "x": 2,
             "y": 1
            }
@@ -107,9 +116,7 @@
       "rule": {
        "id": "patch/fiber-lashes-creature",
        "host": {
-        "tags": [
-         "fiber"
-        ]
+        "type": "item/tool/rope"
        },
        "on": "act/use",
        "doc": "Using a rope (anything fibrous) on a creature lashes it: the creature is offered the rope, and answers.",
@@ -135,7 +142,7 @@
        },
        "tests": [
         {
-         "name": "a rope used on a wolf binds it",
+         "name": "a rope used on another green slime binds it",
          "given": {
           "entities": [
            {
@@ -153,7 +160,7 @@
            },
            {
             "key": "w",
-            "type": "actor/creature/beast/wolf",
+            "type": "actor/creature/slime/green_slime",
             "x": 2,
             "y": 1
            }

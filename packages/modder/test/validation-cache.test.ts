@@ -49,16 +49,15 @@ describe('validation proofs', () => {
     expect(library.validate(patch, req).errors).toEqual(validatePatch(patch, { ontology, library: library.workspace(), scenario: req.scenario }).errors)
   })
 
-  it.each(['library', 'ontology', 'regression', 'scenario', 'workspace', 'artifacts', 'status', 'type', 'replaces'] as const)('invalidates on %s changes', (change) => {
+  it.each(['library', 'ontology', 'scenario', 'workspace', 'artifacts', 'status', 'type', 'replaces'] as const)('invalidates on %s changes', (change) => {
     const { library, patch, req, ontology } = fresh()
     let ws: ModWorkspace | undefined
     let replaces: string[] = []
     expect(library.validate(patch, req).ok).toBe(true)
     if (change === 'library') library.lib.add({ id: 'patch/other', host: { type: 'item/material/stick' }, on: 'act/use', tree: { do: [] }, source: { origin: 'patch' } })
     if (change === 'ontology') ontology.types['item/tool/rope'].props = { used: false }
-    if (change === 'regression') library.regression.push({ scenario: structuredClone(req.scenario), rule: 'old' })
     if (change === 'scenario') req.scenario.entities[0].props = { test: 1 }
-    if (change === 'workspace') ws = { patches: { types: [], statuses: [], rules: [] }, regression: [] }
+    if (change === 'workspace') ws = { patches: { types: [], statuses: [], rules: [] } }
     if (change === 'artifacts' && patch.artifacts[0].kind === 'rule') patch.artifacts[0].rule.doc = 'Changed content'
     if (change === 'status') library.lib.addStatus({ id: 'cache-status', duration: 1 })
     if (change === 'type') library.lib.addType({ id: 'item/cache' })

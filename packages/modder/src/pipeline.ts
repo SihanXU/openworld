@@ -14,10 +14,10 @@
 // Two profiles of one harness (state.ts): LIVE while a player waits, OFFLINE for everything
 // nobody waits on — curriculum, a failed live request worked again, a revision after review.
 
-import { artProblems, buildModSpec, closestTypes, type ModProgress, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef } from '@lsw/engine'
+import { artProblems, buildModSpec, closestTypes, copiedFrom, type ModProgress, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef } from '@lsw/engine'
 import { briefOf, relatedRules } from './brief.ts'
 import { changesNothing, deriveTests } from './derive.ts'
-import { narrowKinds, normalizePatch, qualifyTerrains } from './fixes.ts'
+import { normalizePatch, qualifyTerrains, toCell } from './fixes.ts'
 import type { WorldLibrary } from './library.ts'
 import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@lsw/agent'
 import { materializeWorld } from './repo.ts'
@@ -408,13 +408,11 @@ export class Modder {
         let patch: Patch = { ...draft, author: 'modder' }
         const qualified = qualifyTerrains(patch, ctx.ontology)
         if (qualified.fixes.length) ((patch = qualified.patch), fixes.push(...qualified.fixes))
+        // a rule written for a class becomes the host type's own (design.md §5.16), with what it copied noted
+        const cell = toCell(patch, req)
+        if (cell.fixes.length) ((patch = cell.patch), fixes.push(...cell.fixes))
+        patch = copiedFrom(patch, lib, req)
         let res = validate(patch)
-        // mechanical conflicts are fixed here, not with another model turn
-        const narrowed = res.ok ? undefined : narrowKinds(patch, req, res)
-        if (narrowed) {
-          const again = validate(narrowed.patch)
-          if (again.ok || again.errors.length < res.errors.length) ((patch = narrowed.patch), (res = again), fixes.push(...narrowed.fixes))
-        }
         // the generalization test, written by the harness (only for a draft that already holds)
         let derived: string[] | undefined
         if (res.ok && h.design.tests === 'harness') {
@@ -517,7 +515,6 @@ export class Modder {
       library: lib,
       ontology: library.fullOntology(lib),
       spec: buildModSpec(library.ontology, lib),
-      regression: [...library.regression, ...(ws?.regression ?? [])].filter((r) => !replaces.includes(r.rule)),
       revise: eo.revise ? { rules: replaces, notes: eo.revise.notes } : undefined,
     })
     try {
@@ -565,7 +562,7 @@ export class Modder {
         if (!req?.scenario) return undefined
         const before = this.opts.library.fork((e) => !('patch' in e && e.request === req.id))
         if (before.covering(req)) return undefined // something else answers it now: no test of the harness
-        const repo = await materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), spec: buildModSpec(before.ontology, before.lib), regression: before.regression })
+        const repo = await materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), spec: buildModSpec(before.ontology, before.lib) })
         // the task carries its own release: its workspace and its container go with it, whoever cleans up
         return { ...repo.task, terms: ep.terms, dispose: repo.dispose }
       },

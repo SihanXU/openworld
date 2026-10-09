@@ -32,7 +32,7 @@ text we can read, version, ablate and roll back.
 | Property | Where it comes from |
 |---|---|
 | An endless stream of **real** coding tasks | every undefined interaction a player reaches is a task; the coverage sweep enumerates the untouched space as a curriculum; some need engine code (§3.3) |
-| A **free, executable verifier** | `validatePatch` (schema, ontology, conflicts, sandbox replay, the patch's tests, regression), and the engine's vitest suite: objective feedback, no human grading |
+| A **free, executable verifier** | `validatePatch` (schema, ontology, one type's cell, sandbox replay, the patch's tests), and the engine's vitest suite: objective feedback, no human grading |
 | **Difficulty that rises by itself** | the larger the library, the more a new rule can conflict with and the deeper the chains it joins; more requests need a new primitive, which is engine work |
 | **Credit assignment** | every rule carries provenance; every self-state change is tied to the episodes and the replays that justified it |
 

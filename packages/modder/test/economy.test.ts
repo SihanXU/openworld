@@ -233,7 +233,8 @@ describe('conversions checked when a patch is validated', () => {
     const forward = rule('forward', { if: { is: { role: 'target', sel: { type: POT } } }, then: { do: [{ op: 'transform', into: 'item/misc/doll' }] }, else: 'inherit' })
     for (const host of [{ tags: ['toy'] }, { type: 'item/misc', tags: ['toy'] }]) {
       const reverse = rule('reverse', { if: { is: { role: 'target', sel: { type: 'actor' } } }, then: { do: [{ op: 'transform', into: FEATHER }, { op: 'spawn', type: STONE, at: 'host' }] }, else: 'inherit' }, host)
-      const result = new WorldLibrary(onto, base).validate(patchOf(forward, reverse), request())
+      // (a class host: a patch taken before learned rules were one type's, as the shared log still holds them)
+      const result = new WorldLibrary(onto, base).validate(patchOf(forward, reverse), request(), undefined, [], true)
       expect(result.ok).toBe(false)
       expect(result.errors.join()).toMatch(/economy.*test\/reverse/)
       expect(ruleSteps(reverse, onto).some((s) => s.takes.has('item/misc/doll'))).toBe(true)

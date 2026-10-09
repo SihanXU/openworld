@@ -18,6 +18,7 @@ import {
   specOf,
   validatePatch,
   type Engine,
+  type GameEvent,
   type Patch,
   type Cond,
   type Rule,
@@ -101,7 +102,8 @@ describe('base library', () => {
     // the same validator patches go through: known kinds, impulses, primitives, statuses, types, vfx;
     // effects write only their host (no `of`). Only the base may answer for anything (a root rule)
     // and leave an outcome undefined (a hole the AI fills).
-    const res = validatePatch({ artifacts: [...BASE_RULES, ...STORY_RULES].map((r) => ({ kind: 'rule' as const, rule: r })) }, { ontology: onto, library: new RuleLibrary() })
+    // (a base rule names a class, as the patches before cells did: design.md §5.16)
+    const res = validatePatch({ artifacts: [...BASE_RULES, ...STORY_RULES].map((r) => ({ kind: 'rule' as const, rule: r })) }, { ontology: onto, library: new RuleLibrary(), earlier: true })
     expect(res.errors.filter((e) => !e.includes('name the host') && !e.includes('may not leave an outcome undefined'))).toEqual([])
   })
 
@@ -409,7 +411,7 @@ describe('the Mod port', () => {
         kind: 'rule',
         rule: {
           id: 'patch/rope-binds-creature',
-          host: { tags: ['fiber'], type: 'item' },
+          host: { type: 'item/tool/rope' },
           on: 'act/use',
           tree: {
             if: { is: { role: 'target', sel: { type: 'actor/creature', notStatus: ['frozen'] } } },
@@ -424,12 +426,12 @@ describe('the Mod port', () => {
           },
           tests: [
             {
-              name: 'rope binds a wolf',
+              name: 'rope binds another green slime',
               given: {
                 entities: [
                   { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
                   { key: 'r', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
-                  { key: 'w', type: 'actor/creature/beast/wolf', x: 2, y: 1 },
+                  { key: 'w', type: 'actor/creature/slime/green_slime', x: 2, y: 1 },
                 ],
                 event: { kind: 'act/use', actor: 'actor', target: 'w', instrument: 'r' },
               },
@@ -442,7 +444,7 @@ describe('the Mod port', () => {
         kind: 'rule',
         rule: {
           id: 'patch/creature-bound',
-          host: { type: 'actor/creature' },
+          host: { type: 'actor/creature/slime/green_slime' },
           on: 'impulse/handle',
           tree: { if: { param: { key: 'how', cmp: 'bind' } }, then: { do: [{ op: 'addStatus', status: 'frozen', duration: 30 }] } },
         },
@@ -551,7 +553,7 @@ describe('the Mod port', () => {
     expect(port.records).toHaveLength(1)
   })
 
-  it('rejects unknown statuses, failing tests, and patches that tie with patches', () => {
+  it('rejects unknown statuses and failing tests; a later rule of a cell answers only where the earlier inherits', () => {
     const base = ropePatch()
     const bad1 = structuredClone(base)
     ;(bad1.artifacts[1] as { rule: Rule }).rule.tree = { do: [{ op: 'addStatus', status: 'hogtied' }] }
@@ -565,19 +567,25 @@ describe('the Mod port', () => {
     expect(r2.ok).toBe(false)
     expect(r2.errors.join()).toMatch(/lacks status frozen/)
 
+    // no ties: the slime's earlier rule answers every handle, so the later one is never reached
     const l = lib()
-    l.add({ id: 'patch/slime-hands', host: { type: 'actor/creature' }, on: 'impulse/handle', tree: { do: [{ op: 'vfx', fx: 'dust' }] }, source: { origin: 'patch' } })
+    l.add({ id: 'patch/slime-hands', host: { type: 'actor/creature/slime/green_slime' }, on: 'impulse/handle', cell: true, tree: { do: [{ op: 'vfx', fx: 'dust' }] }, source: { origin: 'patch' } })
     const r3 = validatePatch(base, { ontology: onto, library: l })
-    expect(r3.errors.join()).toMatch(/rule "patch\/creature-bound" ties with "patch\/slime-hands"/)
+    expect(r3.errors.join()).toMatch(/lacks status frozen/)
   })
 
   it('a patch names its host, writes only it, and leaves nothing undefined', () => {
     const one = (rule: object) => validatePatch({ artifacts: [{ kind: 'rule', rule: rule as Rule }] }, { ontology: onto, library: lib() }).errors.join()
-    expect(one({ id: 'patch/a', on: 'act/use', tree: { do: [{ op: 'vfx', fx: 'dust' }] } })).toMatch(/name the host/)
-    expect(one({ id: 'patch/b', host: { tags: ['fiber'] }, on: 'act/use', tree: { do: [{ op: 'addStatus', of: 'target', status: 'frozen' }] } })).toMatch(/no "of"/)
-    expect(one({ id: 'patch/c', host: { tags: ['fiber'] }, on: 'act/use', tree: { undefined: true } })).toMatch(/may not leave an outcome undefined/)
-    expect(one({ id: 'patch/d', host: { tags: ['fiber'] }, on: 'interaction', tree: { do: [] } })).toMatch(/on must be an event kind/)
-    expect(one({ id: 'patch/e', host: { tags: ['fiber'] }, on: 'act/use', tree: { do: [{ op: 'emit', impulse: 'bind', to: 'target' }] } })).toMatch(/unknown impulse "bind"/)
+    const rope = { type: 'item/tool/rope' }
+    expect(one({ id: 'patch/a', on: 'act/use', tree: { do: [{ op: 'vfx', fx: 'dust' }] } })).toMatch(/name the host's type/)
+    expect(one({ id: 'patch/b', host: rope, on: 'act/use', tree: { do: [{ op: 'addStatus', of: 'target', status: 'frozen' }] } })).toMatch(/no "of"/)
+    expect(one({ id: 'patch/c', host: rope, on: 'act/use', tree: { undefined: true } })).toMatch(/may not leave an outcome undefined/)
+    expect(one({ id: 'patch/d', host: rope, on: 'interaction', tree: { do: [] } })).toMatch(/on must be one event kind/)
+    expect(one({ id: 'patch/e', host: rope, on: 'act/use', tree: { do: [{ op: 'emit', impulse: 'bind', to: 'target' }] } })).toMatch(/unknown impulse "bind"/)
+    // one type's cell, one kind: no class, no branch of kinds (design.md §5.16)
+    expect(one({ id: 'patch/f', host: { tags: ['fiber'] }, on: 'act/use', tree: { do: [] } })).toMatch(/name the host's type/)
+    expect(one({ id: 'patch/g', host: { type: 'item/tool/rope', tags: ['fiber'] }, on: 'act/use', tree: { do: [] } })).toMatch(/only \{type\}.*put tags in the tree/)
+    expect(one({ id: 'patch/h', host: rope, on: 'act', tree: { do: [] } })).toMatch(/on must be one event kind/)
   })
 
   it('rejects a patch whose rule does not answer the triggering event', () => {
@@ -591,25 +599,132 @@ describe('the Mod port', () => {
     expect(v.errors.join()).toMatch(/still undefined/)
   })
 
-  it('patches only fill holes: a patch on a defined outcome is never consulted', () => {
+  it('a learned rule never changes what the host type\'s own rule defines; it fills holes', () => {
     const l = lib()
-    l.add({ id: 'patch/apple-explodes', host: { type: 'item/food/apple' }, on: 'act/use', tree: { do: [{ op: 'vfx', fx: 'explosion' }] }, source: { origin: 'patch' } })
+    // a log has its own rule for an axe's blow (wood/split): a learned one for logs is never asked there
+    l.add({ id: 'patch/log-sings', host: { type: 'item/material/log' }, on: 'impulse/strike', cell: true, tree: { do: [{ op: 'vfx', fx: 'sparkle' }] }, source: { origin: 'patch' } })
+    l.add({ id: 'patch/apple-wishes', host: { type: 'item/food/apple' }, on: 'act/use', cell: true, tree: { if: { is: { role: 'target', sel: { type: 'fixture/water/well' } } }, then: { do: [{ op: 'vfx', fx: 'sparkle' }] }, else: 'inherit' }, source: { origin: 'patch' } })
     const eng = sandbox(
       {
         entities: [
           { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
-          { key: 'apple', type: 'item/food/apple', x: 2, y: 2, heldBy: 'actor' },
-          { key: 'well', type: 'fixture/water/well', x: 2, y: 1 },
+          { key: 'axe', type: 'item/weapon/blade/axe', x: 2, y: 2, heldBy: 'actor' },
+          { key: 'log', type: 'item/material/log', x: 2, y: 1 },
+          { key: 'apple', type: 'item/food/apple', x: 1, y: 2 },
+          { key: 'well', type: 'fixture/water/well', x: 3, y: 2 },
         ],
         event: {},
       },
       l,
     )
-    // eaten (defined by the base): the patch is not asked
-    expect(eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'actor' }, { e: 'apple' })).rule?.id).toBe('use/eat')
-    // on the well (a hole): the patch answers
+    const blow: GameEvent = { kind: 'impulse/strike', host: { e: 'log' }, roles: { actor: { e: 'actor' }, instrument: { e: 'axe' }, source: { e: 'axe' } }, params: { power: 4, edge: 'cut' } }
+    expect(eng.resolveEvent(blow).rule?.id).toBe('wood/split')
+    // on the well (a hole): the apple's learned rule answers
     const r = eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'well' }, { e: 'apple' }))
-    expect(r).toMatchObject({ defined: true, rule: { id: 'patch/apple-explodes' }, hole: { rule: { id: 'core/use' } } })
+    expect(r).toMatchObject({ defined: true, rule: { id: 'patch/apple-wishes' }, hole: { rule: { id: 'core/use' } } })
+  })
+
+  it('a type that answers only as it inherited is a soft hole: the outcome runs, and its own rule is learned in the background', async () => {
+    // an axe has no rule of its own for being used: it strikes as every blade does (use/blade)
+    const sc = (): Scenario => ({
+      entities: [
+        { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+        { key: 'axe', type: 'item/weapon/blade/axe', x: 2, y: 2, heldBy: 'actor' },
+        { key: 'hay', type: 'fixture/nature/haystack', x: 2, y: 1 },
+      ],
+      event: {},
+    })
+    const eng = sandbox(sc())
+    const ev = eng.actEvent('use', 'actor', { e: 'hay' }, { e: 'axe' })
+    const res = eng.resolveEvent(ev)
+    expect(res).toMatchObject({ defined: true, rule: { id: 'use/blade' }, soft: { rule: { id: 'use/blade' } } })
+    // only kinds the world asks about (their root leaves something undefined): taking is physics
+    expect(eng.lib.askable('act/use')).toBe(true)
+    expect(eng.lib.askable('act/take')).toBe(false)
+    expect(eng.lib.askable('contact/begin')).toBe(false)
+
+    const asked: string[] = []
+    let answer!: (p: Patch | null) => void
+    const port = new ModPort(eng)
+    port.provider = {
+      resolve: (req) => {
+        asked.push(req.hole.soft ? `soft ${req.event.host?.type} ${req.event.kind} ${req.hole.rule}` : 'hard')
+        return new Promise((r) => {
+          if (req.hole.soft) answer = r
+        })
+      },
+    }
+    eng.act('use', 'actor', { e: 'hay' })
+    // the blade's blow ran; the haystack's answer to it is a hole of its own (a question the world waits on)
+    expect(asked).toEqual(['soft item/weapon/blade/axe act/use use/blade', 'hard'])
+    const soft = port.records.find((r) => r.soft)!
+    const hard = port.records.find((r) => !r.soft)!
+    expect(hard.request.event.kind).toBe('impulse/strike')
+    expect(soft.request.hole).toMatchObject({ rule: 'use/blade', soft: true })
+    expect(soft.request.context.rules[0].id).toBe('use/blade')
+    // nothing waits on the soft one: nobody is held by it, and it does not stop the world's clock
+    expect(Object.values(eng.world.state.entities).some((e) => e.frozenBy === soft.id)).toBe(false)
+    expect(port.asking?.id).toBe(hard.id)
+    port.dismiss(hard.id)
+    // asked once per type and kind, whatever the target
+    eng.act('use', 'actor', { e: 'hay' })
+    expect(asked.filter((a) => a.startsWith('soft'))).toHaveLength(1)
+
+    // the axe's own rule: a copy of the blade's, and one thing more (it splits hay into grass)
+    const own: Rule = {
+      id: 'patch/axe-use',
+      host: { type: 'item/weapon/blade/axe' },
+      on: 'act/use',
+      tree: { if: { is: { role: 'target', sel: { type: 'fixture/nature/haystack' } } }, then: { do: [{ op: 'vfx', fx: 'leaves' }, { op: 'log', text: 'Straw flies.' }] }, else: 'inherit' },
+    }
+    answer({ artifacts: [{ kind: 'rule', rule: own }] })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(soft.status).toBe('patched')
+    const learned = eng.lib.rules.get('patch/axe-use')!
+    expect(learned).toMatchObject({ cell: true, from: { rule: 'use/blade' } })
+    // learned: no longer soft; its own rule answers the haystack, and what it left inherits the blade's
+    expect(eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'hay' }, { e: 'axe' }))).toMatchObject({ rule: { id: 'patch/axe-use' } })
+    expect(eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'hay' }, { e: 'axe' })).soft).toBeUndefined()
+    expect(eng.lib.learned('act/use', 'item/weapon/blade/axe')).toBe(true)
+    // another blade (a sword) still asks for its own
+    expect(eng.lib.learned('act/use', 'item/weapon/blade/sword')).toBe(false)
+    // a copy whose original changed is stale
+    expect(eng.lib.stale()).toEqual([])
+    const blade = eng.lib.rules.get('use/blade')!
+    eng.lib.remove('use/blade')
+    eng.lib.add({ ...blade, doc: 'changed', tree: { do: [] } })
+    expect(eng.lib.stale()).toEqual([{ rule: 'patch/axe-use', from: 'use/blade', why: 'changed' }])
+  })
+
+  it('a soft hole whose asking fails keeps what it inherited, and writes nothing', async () => {
+    const eng = sandbox({
+      entities: [
+        { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+        { key: 'axe', type: 'item/weapon/blade/axe', x: 2, y: 2, heldBy: 'actor' },
+        { key: 'chicken', type: 'actor/creature/animal/chicken', x: 2, y: 1 },
+      ],
+      event: {},
+    })
+    const port = new ModPort(eng)
+    port.provider = { resolve: async () => null }
+    const before = eng.lib.patches().length
+    eng.act('use', 'actor', { e: 'chicken' })
+    await Promise.resolve()
+    await Promise.resolve()
+    // the blow landed as every blade's does; nothing was learned
+    expect(eng.world.get('chicken')).toBeUndefined()
+    expect(port.records.filter((r) => r.soft).every((r) => r.status === 'fallback')).toBe(true)
+    expect(eng.lib.patches()).toHaveLength(before)
+  })
+
+  it('patches taken before learned rules were one type\'s keep the class they named', () => {
+    const l = lib()
+    l.add({ id: 'patch/food-in-well', host: { type: 'item/food' }, on: 'act/use', tree: { if: { is: { role: 'target', sel: { type: 'fixture/water/well' } } }, then: { do: [{ op: 'vfx', fx: 'splash' }] } }, source: { origin: 'patch' } })
+    const eng = sandbox({ entities: [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2 }, { key: 'apple', type: 'item/food/apple', x: 2, y: 2, heldBy: 'actor' }, { key: 'well', type: 'fixture/water/well', x: 2, y: 1 }], event: {} }, l)
+    expect(eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'well' }, { e: 'apple' })).rule?.id).toBe('patch/food-in-well')
+    // and, as before, only at holes: eating is the base's
+    expect(eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'actor' }, { e: 'apple' })).rule?.id).toBe('use/eat')
   })
 })
 

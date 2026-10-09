@@ -231,9 +231,11 @@ describe('the count condition', () => {
 
   it('is validated like any other condition', () => {
     const lib = new RuleLibrary(BASE_RULES)
-    const ok = validatePatch({ artifacts: [{ kind: 'rule', rule: rule({ gte: { prop: 'capacity', of: 'host' } }) }] }, { ontology: onto, library: lib })
+    // (a learned rule is one type's: the table's)
+    const cell = (cmp: object): Rule => ({ ...rule(cmp), host: { type: 'fixture/furniture/table' } })
+    const ok = validatePatch({ artifacts: [{ kind: 'rule', rule: cell({ gte: { prop: 'capacity', of: 'host' } }) }] }, { ontology: onto, library: lib })
     expect(ok.errors).toEqual([])
-    const bad = validatePatch({ artifacts: [{ kind: 'rule', rule: rule({ most: 3 }) }] }, { ontology: onto, library: lib })
+    const bad = validatePatch({ artifacts: [{ kind: 'rule', rule: cell({ most: 3 }) }] }, { ontology: onto, library: lib })
     expect(bad.errors.some((e) => e.includes('count.cmp.most'))).toBe(true)
   })
 })

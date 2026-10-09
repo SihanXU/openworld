@@ -3,7 +3,7 @@
 // Memory is retrieved by these terms (no embeddings: deterministic, inspectable), and the key
 // groups requests that are the same class of undefined outcome.
 
-import { BRANCHING_PARAMS, classKey, holeKey, type EntityInfo, type ModRequest } from '@lsw/engine'
+import { BRANCHING_PARAMS, cellSignature, classKey, holeKey, type EntityInfo, type ModRequest } from '@lsw/engine'
 
 export interface Signature {
   /** hole | kind | host type | other roles' types | branching params: the class of the outcome (the engine's classKey). */
@@ -35,6 +35,7 @@ export function signatureOf(req: ModRequest): Signature {
   const terms = [
     ...ev.kind.split('/').map((_, i, a) => `kind:${a.slice(0, i + 1).join('/')}`),
     `hole:${req.hole.rule}`,
+    ...(req.hole.soft ? ['soft'] : []),
     ...params.map((p) => `param:${p}`),
     ...roleTerms('host', ev.host),
     ...Object.entries(ev.roles).flatMap(([k, e]) => roleTerms(k, e)),
@@ -42,7 +43,8 @@ export function signatureOf(req: ModRequest): Signature {
   ]
   // the class, as the client's port keys it (the engine's classKey: one definition)
   const self = (e: EntityInfo | undefined) => !!e?.id && e.id === ev.host?.id
-  const key = classKey({ hole: holeKey(req.hole.rule, req.hole.path), kind: ev.kind, host: ev.host?.type ?? '-', roles: Object.entries(ev.roles).map(([k, e]) => [k, self(e) ? 'self' : e?.type ?? '-']), params: ev.params })
+  // (a soft hole is one question per type and kind: what this type does instead of what it inherited)
+  const key = req.hole.soft ? cellSignature(ev.host?.type ?? '-', ev.kind) : classKey({ hole: holeKey(req.hole.rule, req.hole.path), kind: ev.kind, host: ev.host?.type ?? '-', roles: Object.entries(ev.roles).map(([k, e]) => [k, self(e) ? 'self' : e?.type ?? '-']), params: ev.params })
   return { key, terms: [...new Set(terms)] }
 }
 

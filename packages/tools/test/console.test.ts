@@ -28,9 +28,11 @@ describe('the Mod Console template', () => {
     press('use', 'item/food/bread', STAND.winch, AT.winch)
     press('use', 'item/weapon/blade/axe', STAND.winch, AT.winch)
     press('hands', undefined, STAND.raft, AT.raft, 'right')
-    const kinds = game.mods.records.map((r) => r.request.event.kind)
+    // (what a type answers only as it inherited is learned in the background: not the console's)
+    const asked = game.mods.records.filter((r) => !r.soft)
+    const kinds = asked.map((r) => r.request.event.kind)
     expect(kinds).toEqual(['act/use', 'impulse/strike', 'impulse/handle'])
-    for (const r of game.mods.records) {
+    for (const r of asked) {
       const patch = template({ id: r.id, request: r.request, status: r.status } as Parameters<typeof template>[0])
       const res = validatePatch(patch, { ontology: onto, library: lib, scenario: r.request.scenario })
       expect([r.request.event.kind, res.errors]).toEqual([r.request.event.kind, []])

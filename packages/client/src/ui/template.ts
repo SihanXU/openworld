@@ -9,7 +9,8 @@ export function template(r: RecordView): Patch {
   const ev = req.event
   const host = ev.host
   const leaf = (t?: { type: string }) => (t ? t.type.split('/').pop()! : 'thing')
-  const hostType = !host ? undefined : host.type.startsWith('tile/') ? host.type : host.typeChain.length > 1 ? host.typeChain[host.typeChain.length - 2] : host.type
+  // a learned rule is one type's (design.md §5.16)
+  const hostType = host?.type
   // the host as the scenario names it (its role's key); a tile or a resident has no entity to expect
   const sc = req.scenario.event
   const hostKey = sc.host ?? sc.instrument ?? sc.actor ?? sc.target

@@ -342,7 +342,7 @@ describe('the boundaries of the world\'s own patches (design.md §5.11)', () => 
     player: '__player',
     event: { kind: 'stuck', host: 'w', target: 'thing', params: { activity: 'mind the cart' } },
   }
-  const rule = (id: string, effects: Effect[]): Rule => ({ id, host: { type: 'actor/person' }, on: 'stuck', tree: { do: effects }, tests: [] })
+  const rule = (id: string, effects: Effect[]): Rule => ({ id, host: { type: 'actor/person/peddler' }, on: 'stuck', tree: { do: effects }, tests: [] })
   const check = (r: Rule, world = true) => validatePatch({ artifacts: [{ kind: 'rule', rule: r }] }, { ontology: onto, library: lib(), scenario: stuck, world, protectedFacts: ['ford.'] })
 
   it('a person may react — a line, an emote, a topic for the story, a detour', () => {

@@ -1,8 +1,9 @@
 // Rules as host natures (design.md §5.6): matching, specificity, the condition tree, and the
 // versioned rule library. Resolution is the same for every event: the most specific base rule
-// whose host and kind fit is walked to a leaf; `inherit` goes up a level; an undefined leaf
-// consults the patch layer — patch rules are only ever reached there, so the AI fills holes and
-// never changes what is defined.
+// whose host and kind fit is walked to a leaf; `inherit` goes up a level. A learned rule belongs
+// to one type and one event kind, a cell (design.md §5.16): it is consulted where the base leaves
+// the outcome undefined, and where the base answer was only inherited from a broader class;
+// never where a rule written for the host's own type decides, so the AI never changes that.
 
 import { isA, typeDepth } from './ontology.ts'
 import { FIGHT_TICKS } from './types.ts'
@@ -318,6 +319,24 @@ export function compareSpec(a: Spec, b: Spec): number {
 }
 
 export const isPatch = (r: Rule) => r.source?.origin === 'patch'
+/** A learned rule of one cell: it answers for exactly one type (design.md §5.16). Older patches named classes. */
+export const isCellRule = (r: Rule) => r.cell === true && !!r.host?.type && Object.keys(r.host).length === 1
+/** A patch's rules as taken (design.md §5.16): each one cell's. */
+export const asCells = <P extends { artifacts: { kind: string }[] }>(patch: P): P =>
+  ({ ...patch, artifacts: patch.artifacts.map((a) => (a.kind === 'rule' && 'rule' in a ? { ...a, rule: { ...(a.rule as Rule), cell: true as const } } : a)) })
+/** Was the rule written for this very host (its type, or the instance), not inherited from a broader class? */
+export const isOwn = (r: Rule, host: View): boolean => !!r.host && ((!!r.host.id && r.host.id === host.id) || (!!r.host.type && r.host.type === host.type))
+
+/** A short stable hash of what a rule does (host, kind, tree): a copy remembers it (Rule.from). */
+export function ruleHash(r: Rule): string {
+  const s = JSON.stringify([r.host ?? {}, r.on, r.tree])
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return (h >>> 0).toString(16).padStart(8, '0')
+}
 /** A root rule: it names no host class (it answers for anything). */
 export const isRoot = (r: Rule) => !r.host || Object.keys(r.host).length === 0
 
@@ -331,6 +350,12 @@ export interface Resolution {
   leaf?: Leaf
   /** The base rule and path where the outcome was undefined (filled or not). */
   hole?: { rule: Rule; path: string[]; default: import('./types.ts').Effect[] }
+  /**
+   * A soft hole (design.md §5.16): defined, but only by a rule the host's type inherited, and the
+   * type has learned no rule of its own for this kind yet. The outcome runs as inherited; the AI
+   * may be asked, meanwhile, what this type does instead.
+   */
+  soft?: { rule: Rule; path: string[]; default: import('./types.ts').Effect[] }
 }
 
 // ---------------------------------------------------------------- library
@@ -362,6 +387,7 @@ export class RuleLibrary {
   private base = new Map<string, Rule[]>()
   private layer = new Map<string, Rule[]>()
   private specs = new Map<string, Spec>()
+  private asks = new Map<string, boolean>()
   readonly rules = new Map<string, Rule>()
   /** Types and statuses introduced by patches (base ontology lives in content). */
   types: TypeDef[] = []
@@ -390,7 +416,9 @@ export class RuleLibrary {
     const all = [...this.rules.values()].filter((r) => r.on.split('/')[0] === root)
     const order = (a: Rule, b: Rule) => compareSpec(this.specs.get(b.id)!, this.specs.get(a.id)!)
     this.base.set(root, all.filter((r) => !isPatch(r)).sort(order))
-    this.layer.set(root, all.filter(isPatch).sort(order))
+    // learned rules in the order they were learned: a later one answers only where earlier ones inherit
+    this.layer.set(root, all.filter(isPatch))
+    this.asks.clear()
   }
 
   spec(id: string): Spec | undefined {
@@ -426,10 +454,45 @@ export class RuleLibrary {
     return true
   }
 
-  /** The rules of a layer whose kind covers this one and whose host fits, most specific first. */
+  /**
+   * The rules of a layer whose kind covers this one and whose host fits: the base most specific
+   * first; the learned in the order they were learned, a cell's rule fitting its type exactly.
+   */
   candidates(kind: string, host: View | undefined, patches = false): Rule[] {
     const list = (patches ? this.layer : this.base).get(kind.split('/')[0]) ?? []
-    return list.filter((r) => kindCovers(r.on, kind) && matchSelector(r.host, host))
+    return list.filter((r) => kindCovers(r.on, kind) && (patches && isCellRule(r) ? !!host && host.type === r.host!.type : matchSelector(r.host, host)))
+  }
+
+  /**
+   * Is this kind one the world asks about (root defaults decide what is asked, design.md §5.6)?
+   * True when its most specific root rule leaves some outcome undefined: using, impulses; not
+   * physics (taking, putting), contact, time or sight.
+   */
+  askable(kind: string): boolean {
+    let a = this.asks.get(kind)
+    if (a === undefined) {
+      const root = (this.base.get(kind.split('/')[0]) ?? []).find((r) => isRoot(r) && kindCovers(r.on, kind))
+      a = !!root && leaves(root.tree).some(isHole)
+      this.asks.set(kind, a)
+    }
+    return a
+  }
+
+  /** Has this type learned its own rule for this kind (a copy of what it inherited, Rule.from)? */
+  learned(kind: string, type: string): boolean {
+    return (this.layer.get(kind.split('/')[0]) ?? []).some((r) => r.on === kind && isCellRule(r) && r.host!.type === type && !!r.from)
+  }
+
+  /** Learned copies whose original changed or is gone since they were copied (design.md §5.16). */
+  stale(): { rule: string; from: string; why: 'changed' | 'gone' }[] {
+    const out: { rule: string; from: string; why: 'changed' | 'gone' }[] = []
+    for (const r of this.patches()) {
+      if (!r.from) continue
+      const o = this.rules.get(r.from.rule)
+      if (!o) out.push({ rule: r.id, from: r.from.rule, why: 'gone' })
+      else if (ruleHash(o) !== r.from.hash) out.push({ rule: r.id, from: r.from.rule, why: 'changed' })
+    }
+    return out
   }
 
   /** Every rule a kind could reach (both layers), for the ModSpec's context and the dev panel. */
@@ -449,14 +512,27 @@ export class RuleLibrary {
 
   /** Resolve an event's outcome (design.md §5.6). Conditions may consume randomness: callers dry-running restore it. */
   resolve(ev: GameEvent, roles: Roles, world: World): Resolution {
-    const base = this.chain(this.candidates(ev.kind, roles.host), roles, world, ev)
+    const host = roles.host
+    const base = this.chain(this.candidates(ev.kind, host), roles, world, ev)
     if (!base) return { defined: false }
-    if (!isHole(base.leaf)) return { defined: true, rule: base.rule, leaf: base.leaf }
-    const hole = { rule: base.rule, path: base.path, default: base.leaf.default ?? [] }
+    // what a rule written for the host's own type (or the instance) defines, no learned rule changes
+    const own = !!host && isOwn(base.rule, host)
+    if (own && !isHole(base.leaf)) return { defined: true, rule: base.rule, leaf: base.leaf }
     // (a learned rule set aside at runtime answers no more: its hole is open again)
-    const patch = this.chain(this.candidates(ev.kind, roles.host, true).filter((r) => !world.state.quarantine?.[r.id]), roles, world, ev)
-    if (patch && isDo(patch.leaf)) return { defined: true, rule: patch.rule, leaf: patch.leaf, hole }
-    return { defined: false, rule: base.rule, leaf: base.leaf, hole }
+    const learned = this.candidates(ev.kind, host, true).filter((r) => !world.state.quarantine?.[r.id])
+    if (isHole(base.leaf)) {
+      const hole = { rule: base.rule, path: base.path, default: base.leaf.default ?? [] }
+      const patch = this.chain(learned, roles, world, ev)
+      if (patch && isDo(patch.leaf)) return { defined: true, rule: patch.rule, leaf: patch.leaf, hole }
+      return { defined: false, rule: base.rule, leaf: base.leaf, hole }
+    }
+    // inherited from a broader class: the type's own learned rules come first (older patches,
+    // which named classes, answer only at holes as they always did)
+    const patch = this.chain(learned.filter(isCellRule), roles, world, ev)
+    if (patch && isDo(patch.leaf)) return { defined: true, rule: patch.rule, leaf: patch.leaf }
+    const res: Resolution = { defined: true, rule: base.rule, leaf: base.leaf }
+    if (host && isDo(base.leaf) && this.askable(ev.kind) && !this.learned(ev.kind, host.type)) res.soft = { rule: base.rule, path: base.path, default: base.leaf.do }
+    return res
   }
 
   /**

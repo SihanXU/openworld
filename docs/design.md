@@ -414,7 +414,9 @@ lists where it fell short).
   - Walk its tree to a leaf. `inherit` goes up a level.
   - The root type `thing` has a rule for every root event kind, and none of them inherits, so
     every event reaches a leaf.
-  - The validator rejects two rules that are equally specific.
+  - The validator rejects two base rules that are equally specific. Learned rules are not ordered
+    this way: each belongs to one type and one kind, and they are tried in the order they were
+    learned (§5.16).
 - **One outcome per event.** There are no composed rules. Further consequences are further
   events: an act that someone sees is also a `seen` event, with the seer as its host.
 
@@ -531,11 +533,11 @@ At the Ford:
   - the path already taken through the condition tree;
   - the participants and their neighbourhood (the 7×7 scenario of §8);
   - the ModSpec.
-- **The patch** is a rule:
-  - it sits on a host type and an event kind of the AI's choosing;
+- **The patch** is a rule (as built since 2026-10-09, §5.16):
+  - it sits on the host's own type and the event's kind, a cell;
   - its conditions name classes, not instances;
   - every case it does not match inherits.
-- **Validation**, in addition to §8's schema, ontology, sandbox replay, tests and regression:
+- **Validation**, in addition to §8's schema, ontology, sandbox replay and tests:
   1. it writes only its host;
   2. it emits only known kinds;
   3. it addresses classes;
@@ -850,6 +852,60 @@ opens) are its own: written only by its own behaviour and outcomes, never read b
 events name them, so a bleed or a fire one set fells in their name. A status may keep its own
 pace (`every`): it pulses counted back from its end, the last pulse as it ends.
 
+### 5.16 Learned rules are one type's (2026-10-09)
+
+A patch used to name a class (`{type: "item/weapon"}`, `{tags: ["edible"]}`) and was consulted only
+at holes. Two problems followed. A type that inherited a defined answer could never get its own: a
+fire axe struck a chicken as every blade does, and the AI was never asked whether the chicken comes
+out roasted. And patches shadowed one another by specificity, so every new patch had to be replayed
+against the scenes earlier ones answered (the regression set), which the client recorded after the
+act and so mostly in the wrong state.
+
+**Cells.** A learned rule belongs to one type and one event kind: host exactly `{type}`, `on`
+exactly the kind. It answers for that type and no other (a subtype is a cell of its own). Base
+rules still name classes; inheritance is how a type answers before it has learned anything, and
+the template the AI copies from.
+
+**Resolution**, after the base chain decides:
+
+| The base decided with | Learned rules of the cell | Result |
+|---|---|---|
+| a rule written for the host's own type (or the instance) | not consulted | the base, as authored |
+| an undefined leaf (a hole) | tried in the order learned | the first that does something, else the hole |
+| a rule the type inherited from a broader class | tried in the order learned | the first that does something, else the inherited answer |
+
+The last row is the new case. When the cell has no learned copy yet and the kind is one the world
+asks about (its most specific root rule has an undefined leaf: using, impulses; never taking,
+putting, contact, time or sight), the answer is a **soft hole**: the inherited outcome runs at
+once, nothing is held, the world's clock does not stop, and the AI is asked in the background
+what this type does instead. The request carries `hole.soft` and the inherited rule as the hole;
+the answer starts from a copy of that rule and changes what this type does differently. It is
+asked once per cell. A failure or a time-out keeps the inheritance and writes nothing, so the cell
+is asked again in a later session. The first event is never replayed: from the next one on, the
+type's own rule answers.
+
+**What this removes.**
+
+- *Ties.* Two learned rules of one cell are tried in the order learned, so a later one answers only
+  where earlier ones inherit. No two rules can be equally specific.
+- *The regression set.* A new rule cannot shadow an earlier one: it can only be added to its cell,
+  after what is there. The client's ring of recent acts and the service's regression replay are
+  gone; the service keeps the scene each patch answered for the audit. A rule's own tests are the
+  scene that asked and what it did there (derived), and they guard the cell from then on.
+- *Generalization tests* over sibling types: a cell has no siblings.
+
+**Stale copies.** A copy remembers the rule it began from and that rule's hash (`Rule.from`). When
+the base rule changes, `RuleLibrary.stale()` lists the copies made from the old one.
+
+**Older patches.** A patch taken before cells keeps the class it named and is still consulted only
+at holes. The mark is `Rule.cell`, set when a patch is taken (never by its author); saves and the
+shared log pass older patches through the validator with `earlier`, which accepts a class host.
+
+**Cost.** Each cell reached for the first time is one question. Over every item form used on every
+target (the coverage sweep) 488 cells are soft: 172 `impulse/strike`, 169 `impulse/coat`, 123
+`act/use`, 21 `impulse/handle`, 3 `impulse/offered`. Two game days with nobody at the keys reach
+none.
+
 Sources:
 
 - Stardew Valley:
@@ -1064,18 +1120,18 @@ Lifecycle of a patch:
    2. ontology (types, tags, kinds and assets exist);
    3. effect types;
    4. **writes only its host**;
-   5. **fills only holes**: by construction — patches are consulted only where the base rules
-      reach an undefined leaf (§5.14), and the replay must resolve to the patch;
-   6. no tie with an existing rule;
-   7. **sandbox replay** of the triggering event, of the patch's own `tests`, and of the
-      regression set, on a copy of the state.
+   5. **one type's cell** (§5.16): host exactly `{type}`, `on` exactly the kind; it never
+      changes what the host type's own rule defines, by construction, and the replay must
+      resolve to the patch;
+   6. **sandbox replay** of the triggering event and of the patch's own `tests`, on a copy of
+      the state. (Until 2026-10-09 also: no tie with an existing rule, and a regression set.)
 5. **Apply.** The rule enters the library; the held event is replayed and now reaches it.
 6. **Persist** (§9).
 
 A failure at any step runs the leaf's default; the game never blocks.
 
 As built (2026-10-05): the service keeps bounded validation proofs keyed by the library
-version and the contents of the ontology, workspace, regression set, scenario and candidate
+version and the contents of the ontology, workspace, scenario and candidate
 artifacts. Adding only tests replays the added tests. Commit reuses a proof only when its
 shared-library context matches exactly; any context change requires full validation. Both
 luck branches of the repeat check remain.

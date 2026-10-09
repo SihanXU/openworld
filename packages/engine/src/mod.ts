@@ -11,7 +11,7 @@ import type { Engine, Resolution, UndefinedSink } from './engine.ts'
 import { STORY, textOf } from './engine.ts'
 import { OntologyIndex, isA, withTerrainTypes } from './ontology.ts'
 import { deriveRecipes } from './recipes.ts'
-import { RuleLibrary, cmp, compareSpec, isDo, isHole, leaves, rolesOf, specOf, type LibraryData } from './rules.ts'
+import { RuleLibrary, asCells, cmp, compareSpec, isDo, isHole, leaves, rolesOf, ruleHash, specOf, type LibraryData } from './rules.ts'
 import { buildSandbox, chainLoop, checkExpectations, replay, scenarioEvent, whyEndless } from './sandbox.ts'
 import type { Cmp, Cond, Effect, EmitTo, GameEvent, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tree, TypeDef } from './types.ts'
 import { RECENT_LINES, type View } from './world.ts'
@@ -54,8 +54,13 @@ export interface ModRequest {
   origin: 'player' | 'world'
   /** The event whose outcome is undefined: its kind, its parameters, its host and its other roles. */
   event: { kind: string; params: Record<string, unknown>; host?: EntityInfo; roles: Partial<Record<RoleName, EntityInfo>>; detail?: string }
-  /** Where the base outcome is undefined: the rule, the branches taken to reach it, and its default (what happens while nobody answers). */
-  hole: { rule: string; path: string[]; default: Effect[] }
+  /**
+   * Where the base outcome is undefined: the rule, the branches taken to reach it, and its default
+   * (what happens while nobody answers). `soft`: the outcome is defined, but only by `rule`, which
+   * the host's type inherited; the answer is this type's own rule for the kind, starting from a
+   * copy of that one (design.md §5.16).
+   */
+  hole: { rule: string; path: string[]; default: Effect[]; soft?: true }
   context: {
     map: { id: string; name: string; kind: string; region?: string }
     /** Named spots of the map (for `goto`). */
@@ -104,7 +109,6 @@ export interface ModProvider {
 /** What the client knows that the service may not: its local patches and recent defined acts. */
 export interface ModWorkspace {
   patches?: { rules: Rule[]; types?: TypeDef[]; statuses?: StatusDef[] }
-  regression?: { scenario: Scenario; rule: string }[]
 }
 
 /** POST /resolve */
@@ -156,6 +160,8 @@ export interface UndefinedRecord {
   awaiting?: boolean
   /** The player would not wait (the default ran at their word): a late answer is learned, never replayed. */
   declined?: boolean
+  /** A soft hole: the inherited outcome already ran; nothing waits and nothing is replayed. */
+  soft?: boolean
   patch?: Patch
   diagnostics?: string[]
   rules?: string[]
@@ -165,8 +171,6 @@ export interface ValidationResult {
   ok: boolean
   errors: string[]
   warnings: string[]
-  /** Earlier patches the new one now shadows for some events (informational). */
-  overrides: string[]
 }
 
 // ---------------------------------------------------------------- the ModSpec
@@ -174,8 +178,8 @@ export interface ValidationResult {
 const AUTHORING_RULES = [
   'You answer ONE undefined outcome: an event reached an undefined leaf (request.hole). Write a rule that gives that outcome — your rule is consulted only where the world says "undefined", so it can never change what is already defined.',
   'A rule belongs to a HOST: the thing whose nature it describes. Write what the host does when the event happens to it. Read anything (conditions on any role), but WRITE ONLY THE HOST: every effect acts on the host, spawns new things, or presents. To affect anything else, `emit` an impulse to it — the receiver answers for itself (lava does not hurt people; lava emits element fire to what stands on it, and a person, taking fire, loses health).',
-  'Write the CLASS, not the instance: select the host by the most general type/tags/statuses that make the outcome plausible. Never use `id` unless the behaviour truly belongs to one unique thing.',
-  'Name the host: a rule with an empty host is a root rule and is not allowed in a patch.',
+  'A learned rule is ONE TYPE\'s and ONE EVENT KIND\'s (a cell): host exactly {type: "<the host\'s own type>"} — no tags, statuses, props or id in the host — and `on` exactly the kind asked. It holds for every instance of that type and for no other type (a subtype asks for its own). Conditions on the host (its tags, statuses, props) go in the tree.',
+  'When request.hole.soft is set, the host already answers this event as it inherited it (request.hole.rule, shown in context.rules): write this type\'s OWN rule for the kind. Start from a copy of that rule\'s tree — keep what still holds for this type — and change or add only what this type does differently. A leaf you leave as `inherit` falls back to what it inherited.',
   'Conditions narrow the cases (the other role\'s tags, a param like element or how). Cases you do not want to answer: leave them to `inherit` (an `if` without `else` inherits).',
   `Use only the listed event kinds, impulses, primitives, statuses, terrains, types and vfx. If you need a new type or status, add a \`type\`/\`status\` artifact to the same patch; a status draws over what has it with \`overlay\`: one of ${OVERLAYS.join(', ')}.`,
   'Every rule should carry at least one test (a small scenario + expectations). The triggering event is replayed automatically.',
@@ -320,7 +324,7 @@ export function restoreLibrary(base: Rule[], saved: LibraryData | undefined, ont
   for (const s of saved.statuses ?? []) lib.addStatus(s, 'restored')
   for (const r of saved.rules ?? []) {
     if (r.source?.origin !== 'patch' || lib.rules.has(r.id)) continue
-    const res = validatePatch({ artifacts: [{ kind: 'rule', rule: r }] }, { ontology, library: lib, world: r.source.trigger === 'world', protectedFacts })
+    const res = validatePatch({ artifacts: [{ kind: 'rule', rule: r }] }, { ontology, library: lib, world: r.source.trigger === 'world', protectedFacts, earlier: true })
     if (res.ok) lib.add(r, r.source.at ?? 'restored')
     else dropped?.(r.id, res.errors[0])
   }
@@ -355,6 +359,20 @@ export function classKey(c: { hole: string; kind: string; host: string; roles: [
   return `${c.hole}|${c.kind}|${c.host}|${roles}|${params}`
 }
 
+/** A cell (design.md §5.16): one type, one event kind. A soft hole is asked once per cell. */
+export const cellSignature = (type: string, kind: string): string => `cell|${type}|${kind}`
+
+/**
+ * A soft hole's answer remembers the rule it was copied from (Rule.from), so a change to that rule
+ * shows which copies are stale. Set here, not by the model: the request names the rule.
+ */
+export function copiedFrom(patch: Patch, lib: RuleLibrary, req: ModRequest): Patch {
+  const o = lib.rules.get(req.hole.rule)
+  if (!o || !req.hole.soft || !Array.isArray(patch?.artifacts)) return patch
+  const from = { rule: o.id, hash: ruleHash(o) }
+  return { ...patch, artifacts: patch.artifacts.map((a) => (a?.kind === 'rule' && a.rule && a.rule.on === req.event.kind && a.rule.host?.type === req.event.host?.type ? { ...a, rule: { ...a.rule, from } } : a)) }
+}
+
 /** The class of an event, instances aside (classKey). */
 export function signatureOf(eng: Engine, ev: GameEvent, res?: Resolution): string {
   const w = eng.world
@@ -380,8 +398,6 @@ const MAX_UNREACHABLE = 3
 export class ModPort implements UndefinedSink {
   provider?: ModProvider
   records: UndefinedRecord[] = []
-  /** Scenarios of recently *defined* acts: regression set for new patches. */
-  regression: { scenario: Scenario; rule: string }[] = []
   onChange?: () => void
   /** How long an outcome waits for a patch before the default runs (a late patch still applies). */
   timeoutTicks = TIMEOUT_TICKS
@@ -437,11 +453,11 @@ export class ModPort implements UndefinedSink {
     return true
   }
 
-  private open(ev: GameEvent, res: Resolution, signature: string, origin: 'player' | 'world'): UndefinedRecord {
+  private open(ev: GameEvent, res: Resolution, signature: string, origin: 'player' | 'world', soft = false): UndefinedRecord {
     const w = this.eng.world
     const id = `req-${w.state.seed.toString(36)}-${(++this.seq).toString(36)}-${w.state.tick.toString(36)}`
-    const request = buildRequest(this.eng, ev, res, id)
-    const rec: UndefinedRecord = { id, tick: w.state.tick, status: 'pending', request, event: ev, deadline: w.state.tick + this.timeoutTicks, signature, origin }
+    const request = buildRequest(this.eng, ev, res, id, soft)
+    const rec: UndefinedRecord = { id, tick: w.state.tick, status: 'pending', request, event: ev, deadline: soft ? Number.POSITIVE_INFINITY : w.state.tick + this.timeoutTicks, signature, origin, ...(soft ? { soft: true } : {}) }
     this.records.push(rec)
     return rec
   }
@@ -481,7 +497,7 @@ export class ModPort implements UndefinedSink {
    * questions do not stop it. The host times the wait in its own seconds (the clock stands still).
    */
   get asking(): UndefinedRecord | undefined {
-    return this.records.find((r) => r.status === 'pending' && r.origin === 'player')
+    return this.records.find((r) => r.status === 'pending' && r.origin === 'player' && !r.soft)
   }
 
   /**
@@ -495,15 +511,23 @@ export class ModPort implements UndefinedSink {
     return true
   }
 
-  observe(ev: GameEvent, rule: string): void {
-    if (!ev.kind.startsWith('act/') || ev.kind === 'act/move') return
-    try {
-      const sc = buildScenario(this.eng, ev)
-      this.regression.push({ scenario: sc, rule })
-      if (this.regression.length > 40) this.regression.shift()
-    } catch {
-      /* best effort */
-    }
+  /**
+   * A soft hole (design.md §5.16): the host's type ran what it inherited, and has no rule of its
+   * own for this kind yet. One question per type and kind; nothing is held, nothing waits, and a
+   * failure leaves the inheritance in place (it is asked again next session).
+   */
+  learn(ev: GameEvent, res: Resolution): void {
+    if (!this.provider || !res.soft) return
+    const w = this.eng.world
+    const host = 'e' in ev.host ? w.get(ev.host.e) : undefined
+    if (!host) return
+    const signature = cellSignature(host.type, ev.kind)
+    if (this.failed.has(signature) || this.records.some((r) => r.signature === signature && r.status !== 'fallback')) return
+    const origin: 'player' | 'world' = ev.origin === 'player' ? 'player' : 'world'
+    const rec = this.open(ev, { defined: false, rule: res.soft.rule, leaf: res.leaf, hole: res.soft }, signature, origin, true)
+    w.fx.push({ t: 'log', text: { en: `learning how ${host.type} answers ${ev.kind} (now as ${res.soft.rule.id})`, zh: `正在学习 ${host.type} 对 ${ev.kind} 的反应（目前按 ${res.soft.rule.id}）` }, tone: 'dev' })
+    this.onChange?.()
+    this.ask(rec)
   }
 
   private unfreeze(id: string): void {
@@ -517,6 +541,8 @@ export class ModPort implements UndefinedSink {
     r.status = 'fallback'
     if (declined) r.declined = true
     this.unfreeze(id)
+    // (a soft hole's inherited outcome ran when it happened)
+    if (r.soft) return void this.onChange?.()
     this.eng.run(r.request.hole.default, r.event, r.request.hole.rule)
     this.syncBag()
     this.onChange?.()
@@ -527,7 +553,7 @@ export class ModPort implements UndefinedSink {
    * Validate a patch and take it. A patch for a request of this port is checked in that request's
    * scene; one from elsewhere (the shared library, a prefetch) in the scene it came with.
    */
-  submit(id: string | undefined, patch: Patch, scenario?: Scenario): ValidationResult {
+  submit(id: string | undefined, patch: Patch, scenario?: Scenario, earlier = false): ValidationResult {
     const eng = this.eng
     const w = eng.world
     const rec = id ? this.get(id) : undefined
@@ -535,18 +561,21 @@ export class ModPort implements UndefinedSink {
     // twice, e.g. by sync and by reply) are skipped; the rest is validated as usual.
     const fresh = patch.artifacts?.filter((a) => !alreadyHeld(eng.lib, a)) ?? []
     if (Array.isArray(patch.artifacts) && patch.artifacts.length && !fresh.length) {
-      const res: ValidationResult = { ok: true, errors: [], warnings: ['already in the library'], overrides: [] }
+      const res: ValidationResult = { ok: true, errors: [], warnings: ['already in the library'] }
       if (rec && rec.status !== 'patched') this.settled(rec, patch, patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : [])))
       return res
     }
     if (fresh.length !== patch.artifacts.length) patch = { ...patch, artifacts: fresh }
+    if (rec?.soft) patch = copiedFrom(patch, eng.lib, rec.request)
+    // (what comes back from a save or the shared log carries its own mark: one cell's, or a class's from before)
+    if (!earlier) patch = asCells(patch)
     const res = validatePatch(patch, {
       ontology: w.onto.data,
       library: eng.lib,
       scenario: rec?.request.scenario ?? scenario,
-      regression: this.regression,
       world: (rec?.origin ?? patch.trigger) === 'world',
       protectedFacts: eng.protectedFacts,
+      earlier,
     })
     if (rec) {
       rec.patch = patch
@@ -558,7 +587,7 @@ export class ModPort implements UndefinedSink {
       if (rec && wasPending) {
         rec.status = 'rejected'
         this.unfreeze(rec.id)
-        eng.run(rec.request.hole.default, rec.event, rec.request.hole.rule)
+        if (!rec.soft) eng.run(rec.request.hole.default, rec.event, rec.request.hole.rule)
       }
       w.fx.push({ t: 'log', text: `patch rejected: ${res.errors[0]}`, tone: 'dev' })
       this.onChange?.()
@@ -594,7 +623,7 @@ export class ModPort implements UndefinedSink {
     const eng = this.eng
     // a late answer completes the act it was asked for (after a time-out), unless the player
     // declined to wait: they have moved on, and what they gave up does not happen behind them
-    const wasOpen = rec.status !== 'patched' && !rec.declined
+    const wasOpen = rec.status !== 'patched' && !rec.declined && !rec.soft
     rec.patch = patch
     rec.rules = ruleIds
     rec.status = 'patched'
@@ -626,8 +655,8 @@ export function alreadyHeld(lib: RuleLibrary, a: Artifact): boolean {
   if (a?.kind === 'rule') {
     const r = lib.rules.get(a.rule?.id)
     if (!r) return false
-    const { source: _s, ...held } = r
-    const { source: _t, ...given } = a.rule
+    const { source: _s, cell: _c, ...held } = r
+    const { source: _t, cell: _d, ...given } = a.rule
     return same(held, given)
   }
   if (a?.kind === 'type') return lib.types.some((t) => same(t, a.type))
@@ -737,7 +766,7 @@ export function summarize(eng: Engine, ev: GameEvent): string {
   return `${ev.kind} → ${n(ev.host)}`
 }
 
-export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: string): ModRequest {
+export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: string, soft = false): ModRequest {
   const w = eng.world
   const roles = rolesOf(ev, w)
   const center = w.refPos(ev.host) ?? w.refPos(ev.roles.target) ?? w.refPos(ev.roles.actor) ?? w.posOf(w.player)!
@@ -776,7 +805,7 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
     summary: summarize(eng, ev),
     origin: ev.origin === 'player' ? 'player' : 'world',
     event: { kind: ev.kind, params: { ...(ev.params ?? {}) }, host: info(eng, 'host', hostView, center), roles: infos, detail: detailOf(eng, ev) },
-    hole: { rule: res.hole?.rule.id ?? '?', path: res.hole?.path ?? [], default: res.hole?.default ?? [] },
+    hole: { rule: res.hole?.rule.id ?? '?', path: res.hole?.path ?? [], default: res.hole?.default ?? [], ...(soft ? { soft: true as const } : {}) },
     context: {
       map: { id: mapData.id, name: textOf(mapData.name), kind: mapData.kind, region: mapData.region },
       anchors: Object.keys(mapData.anchors ?? {}),
@@ -785,7 +814,8 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
       tiles,
       tileStatuses,
       recent,
-      rules: [...eng.lib.candidates(ev.kind, hostView), ...eng.lib.candidates(ev.kind, hostView, true)].slice(0, 8),
+      // (a soft hole's answer starts from the rule it inherited: that one is always among them)
+      rules: [...new Set([...(soft && res.hole ? [res.hole.rule] : []), ...eng.lib.candidates(ev.kind, hostView), ...eng.lib.candidates(ev.kind, hostView, true)])].slice(0, 8),
     },
     scenario: buildScenario(eng, ev),
   }
@@ -924,6 +954,7 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
 
 const OPS = new Set(Object.keys(PRIMITIVES))
 const IMPULSE_KINDS = new Set(['strike', 'element', 'coat', 'restore', 'push', 'taken', 'receive', 'offered', 'handle', 'notify'])
+const KINDS = new Set<string>(EVENT_KINDS)
 const KIND_PREFIXES = new Set<string>(EVENT_KINDS.flatMap((k) => k.split('/').map((_, i, a) => a.slice(0, i + 1).join('/'))))
 const BOUNDS = new Set(['eq', 'gt', 'gte', 'lt', 'lte'])
 const ROLE_NAMES = new Set(['host', 'actor', 'target', 'instrument', 'other', 'item', 'source'])
@@ -933,20 +964,23 @@ interface ValidateCtx {
   ontology: Ontology
   library: RuleLibrary
   scenario?: Scenario
-  regression?: { scenario: Scenario; rule: string }[]
   /** The patch answers an event the world started by itself: the boundaries apply. */
   world?: boolean
   /** Fact-key prefixes only the story may change. */
   protectedFacts?: string[]
+  /**
+   * A patch accepted before learned rules were one type's (design.md §5.16), coming back from a
+   * save or the shared log: its host may still name a class, and its kind a branch.
+   */
+  earlier?: boolean
 }
 
 export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult {
   withTerrainTypes(ctx.ontology)
   const errors: string[] = []
   const warnings: string[] = []
-  const overrides: string[] = []
-  if (!patch || !Array.isArray(patch.artifacts) || !patch.artifacts.length) {
-    return { ok: false, errors: ['patch.artifacts must be a non-empty array'], warnings, overrides }
+    if (!patch || !Array.isArray(patch.artifacts) || !patch.artifacts.length) {
+    return { ok: false, errors: ['patch.artifacts must be a non-empty array'], warnings }
   }
   // candidate ontology (+ patch types/statuses)
   const onto: Ontology = structuredClone(ctx.ontology)
@@ -1115,9 +1149,20 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (ids.has(r.id)) errors.push(`${where}: duplicate id in patch`)
     ids.add(r.id)
     if (ctx.library.rules.has(r.id)) errors.push(`${where}: id already exists in the library`)
-    if (typeof r.on !== 'string' || !KIND_PREFIXES.has(r.on)) errors.push(`${where}: on must be an event kind or a branch (${[...EVENT_KINDS].join('|')})`)
-    if (!r.host || typeof r.host !== 'object' || !Object.keys(r.host).length) errors.push(`${where}: name the host — a patch answers for a class of thing, never for anything at all`)
-    else checkSel(r.host, `${where}.host`)
+    // a learned rule is one cell's: one type, one event kind (design.md §5.16)
+    if (ctx.earlier) {
+      if (typeof r.on !== 'string' || !KIND_PREFIXES.has(r.on)) errors.push(`${where}: on must be an event kind or a branch (${[...EVENT_KINDS].join('|')})`)
+      if (!r.host || typeof r.host !== 'object' || !Object.keys(r.host).length) errors.push(`${where}: name the host — a patch answers for a class of thing, never for anything at all`)
+      else checkSel(r.host, `${where}.host`)
+    } else {
+    if (typeof r.on !== 'string' || !KINDS.has(r.on)) errors.push(`${where}: on must be one event kind, the one asked about (${[...EVENT_KINDS].join('|')})`)
+    if (!r.host || typeof r.host !== 'object' || !r.host.type) errors.push(`${where}: name the host's type — a learned rule is one type's: host {type: "<the host's own type>"}`)
+    else {
+      const extra = Object.keys(r.host).filter((k) => k !== 'type')
+      if (extra.length) errors.push(`${where}.host: only {type} — a learned rule is one type's; put ${extra.join(', ')} in the tree as a condition on the host ({is: {role: "host", sel: …}})`)
+      checkSel(r.host, `${where}.host`)
+    }
+    }
     if ('when' in (r as object) || 'do' in (r as object)) errors.push(`${where}: this is the earlier rule shape (when/do); write {host, on, tree}`)
     const resident = !!r.host?.type && isA(r.host.type, 'resident')
     if (r.tree === undefined) errors.push(`${where}: tree required`)
@@ -1128,16 +1173,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (r.tree !== undefined && leaves(r.tree).every((l) => l === 'inherit')) errors.push(`${where}: every leaf inherits — the rule answers nothing`)
     if (!r.tests?.length) warnings.push(`${where}: no tests`)
   }
-  if (errors.length) return { ok: false, errors, warnings, overrides }
-
-  // 4. no two patches tie (one event could reach both at equal specificity), the rules of this
-  //    patch among themselves included
-  rules.forEach((r, i) => {
-    for (const other of [...ctx.library.patches(), ...rules.slice(i + 1)]) {
-      if (rulesTie(r, other, onto)) errors.push(`rule "${r.id}" ties with "${other.id}" (same kind, same specificity, an event both could answer) — make it more specific or name a different host`)
-    }
-  })
-  if (errors.length) return { ok: false, errors, warnings, overrides }
+  if (errors.length) return { ok: false, errors, warnings }
 
   // candidate library
   const cand = ctx.library.clone()
@@ -1145,7 +1181,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (a.kind === 'type') cand.types = cand.types.filter((t) => t.id !== a.type.id).concat(a.type)
     if (a.kind === 'status') cand.statuses = cand.statuses.filter((t) => t.id !== a.status.id).concat(a.status)
   }
-  for (const r of rules) cand.add({ ...r, source: { origin: 'patch' } })
+  for (const r of rules) cand.add({ ...r, ...(ctx.earlier ? {} : { cell: true as const }), source: { origin: 'patch' } })
   const patchIds = new Set(rules.map((r) => r.id))
 
   // 5. sandbox replay of the triggering event: it now resolves to the patch
@@ -1186,18 +1222,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
         errors.push(`test "${t.name ?? `${r.id}#${i}`}": ${(err as Error).message}`)
       }
     }
-  // 7. regression: what was defined stays defined (base outcomes cannot change — patches only fill holes —
-  // but a more specific patch may now answer where an earlier patch did)
-  for (const reg of ctx.regression ?? []) {
-    try {
-      const rp = replay(reg.scenario, ctx.ontology, cand)
-      if (!rp.resolution.defined) errors.push(`regression: an act resolved by "${reg.rule}" became undefined`)
-      else if (rp.resolution.rule!.id !== reg.rule && patchIds.has(rp.resolution.rule!.id)) overrides.push(`${reg.rule} → ${rp.resolution.rule!.id}`)
-    } catch {
-      /* scenario no longer buildable (e.g. removed types) — ignore */
-    }
-  }
-  return { ok: errors.length === 0, errors, warnings, overrides }
+  return { ok: errors.length === 0, errors, warnings }
 }
 
 /** Could one thing be the host of both rules? Contradictory constraints rule it out, and so does the ontology. */

@@ -32,9 +32,9 @@ function request(host = 'actor/creature/slime/green_slime'): ModRequest {
 
 const RULE: Rule = {
   id: 'patch/rope-binds-creature',
-  host: { type: 'actor/creature', notStatus: ['frozen'] },
+  host: { type: 'actor/creature/slime/green_slime' },
   on: 'impulse/offered',
-  doc: 'A creature offered a rope is lashed down with it for a while.',
+  doc: 'A green slime offered a rope is lashed down with it for a while.',
   tree: {
     if: { is: { role: 'item', sel: { tags: ['fiber'] } } },
     then: {
@@ -48,12 +48,12 @@ const RULE: Rule = {
   },
   tests: [
     {
-      name: 'a wolf too',
+      name: 'another green slime too',
       given: {
         entities: [
           { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
           { key: 'r', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
-          { key: 'w', type: 'actor/creature/beast/wolf', x: 2, y: 1 },
+          { key: 'w', type: 'actor/creature/slime/green_slime', x: 2, y: 1 },
         ],
         event: { kind: 'impulse/offered', host: 'w', actor: 'actor', item: 'r', source: 'r' },
       },
