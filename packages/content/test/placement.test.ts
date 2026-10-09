@@ -166,3 +166,11 @@ describe('vegetable garden', () => {
     expect(e.world.get(bucket.id)!.type).toBe('item/vessel/bucket/empty')
   })
 })
+
+describe('one name for one thing', () => {
+  it.each(BUILDINGS)('the building panel calls $id what it builds is called (营火, not 篝火 in the labels)', (r) => {
+    const onto = buildOntology()
+    const made = onto.types[r.result!]?.name
+    expect(textOf(r.name, 'zh')).toBe(textOf(made, 'zh'))
+  })
+})

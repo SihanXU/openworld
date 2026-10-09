@@ -35,6 +35,7 @@ import {
   type PlacementPreview,
   restoreLibrary,
   CEILING,
+  TICKS_PER_HOUR,
 } from '@lsw/engine'
 import { BASE_RULES, BOSS_LAYOUT, createBoss, COMPANION_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, PROLOGUE_DONE, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateCompanion, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
@@ -104,10 +105,11 @@ const prefetched = new Set<string>()
 let prefetching = false
 
 /** Probe the service; if it answers, undefined interactions go to it and the shared library syncs from it. */
-async function connectModder(url: string): Promise<void> {
+async function connectModder(url: string, since = 0): Promise<void> {
   if (syncTimer) clearInterval(syncTimer)
   modderUrl = url.replace(/\/+$/, '')
-  modderSeq = 0
+  // the library restored has the log up to `since` in it already: only what came after is new
+  modderSeq = since
   if (!modderUrl || !game) return
   try {
     const health = (await (await fetch(`${modderUrl}/health`, { signal: AbortSignal.timeout(2500) })).json()) as { model?: string | null }
@@ -206,13 +208,19 @@ async function syncLibrary(): Promise<void> {
   if (!game || !modderUrl) return
   try {
     const log = (await (await fetch(`${modderUrl}/patches?since=${modderSeq}`, { signal: AbortSignal.timeout(5000) })).json()) as { seq: number; entries: PatchLogEntry[] }
+    // a log shorter than where we were is another log (the service started anew): sync it from the start
+    if (log.seq < modderSeq) {
+      modderSeq = 0
+      return syncLibrary()
+    }
     const lib = game.engine.lib
     const before = lib.version
     for (const e of log.entries) {
       if ('remove' in e) {
         if (lib.rules.get(e.remove)?.source?.origin === 'patch') lib.remove(e.remove)
-      } else game.mods.submit(undefined, e.patch, e.scenario)
+      } else game.mods.submit(undefined, e.patch, e.scenario, e.request)
     }
+    if (log.seq !== modderSeq) post({ t: 'synced', url: modderUrl, seq: log.seq, changed: lib.version !== before })
     modderSeq = log.seq
     if (lib.version !== before) sendRecords()
   } catch {
@@ -318,6 +326,9 @@ async function atlas(): Promise<Atlas | undefined> {
   const named = new Map((index.waypoints ?? []).map((x) => [x.id, x.name]))
   const stones = waypoints(game.engine).map(({ e, attuned }) => ({ id: e.id, map: (e.place as { map: string }).map, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: named.get(e.id) ?? e.name ?? { en: 'Waypoint', zh: '传送雕像' }, attuned }))
   const pos = w.posOf(w.player)!
+  // a place off the world's layout (the tutorial's clearing) with nothing else seen yet: it is the map, alone
+  const here = index.maps.find((m) => m.id === pos.map)
+  if (!maps.length && here && w.state.maps[here.id]) maps.push({ id: here.id, name: here.name, at: { x: 0, y: 0 }, width: here.width, height: here.height, terrain: w.state.maps[here.id]!.terrain })
   return { maps, waypoints: stones, here: { map: pos.map, x: pos.x, y: pos.y } }
 }
 
@@ -522,6 +533,8 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     if (init.look && ontology.looks && !lookProblems(init.look, ontology.looks).length) game.engine.author(() => (w.player.look = structuredClone(init.look)))
   }
   game.worldVersion = index.version
+  // a night's sleep (a long step) passes a game hour a tick: the screen keeps up, and one lies asleep all the while
+  game.engine.fastForwardChunk = TICKS_PER_HOUR
   // every skill the tree has, so a skill set in the bar can be cast from a loaded game (actives.ts)
   for (const s of SKILLS) game.engine.skills.set(s.id, s)
   game.mods.onChange = () => sendRecords()
@@ -531,7 +544,7 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   artSent.clear()
   sendArts()
   sendRecords()
-  void connectModder(init.modder ?? modderUrl)
+  void connectModder(init.modder ?? modderUrl, init.library ? init.librarySeq : 0)
   if (timer) clearInterval(timer)
   timer = setInterval(() => {
     try {
@@ -764,7 +777,12 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (m.op === 'teleport') eng.author(() => eng.travel(w.player, { map: m.map ?? w.posOf(w.player)!.map, x: m.x, y: m.y }))
         // into the bag, and onto a slot of it (the bag shows its slots)
         if (m.op === 'give') eng.author(() => (w.create(m.type, { on: 'inside', holder: w.state.player }, m.tags ? { tags: m.tags } : {}), eng.controls.sync()))
-        if (m.op === 'hour') w.state.tick = tickAt(w.calendar().day, m.hour)
+        // the hour only goes forward (the next time it comes round): cooldowns and timers are ticks, and a clock
+        // put back left them in the future (one could not move, nor strike, until it caught up)
+        if (m.op === 'hour') {
+          const today = tickAt(w.calendar().day, m.hour)
+          w.state.tick = today >= w.state.tick ? today : tickAt(w.calendar().day + 1, m.hour)
+        }
         if (m.op === 'hurt') eng.author(() => eng.hurt(w.player, m.amount, undefined, true))
         // a boss again (the dev's hand): to its map first; it is set down once that map is loaded (`loop`)
         if (m.op === 'summon') {

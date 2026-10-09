@@ -82,7 +82,7 @@ export function buildDawnHill(): MapBuilder {
   // the stone where the first dawn was seen, and dawnbloom where it fell
   m.fixture('fixture/sacred/seal_stone', ...VIGIL.stone, { name: L('The Dawnstone', '晨光石'), tags: ['readable'], props: { text: 'Cut deep, and old: HERE THE SUN ROSE AGAIN. Below, newer: five small wounds, and a flame.', text_zh: '刻得很深，也很古老：太阳在此重新升起。下面是较新的刻痕：五道小伤痕，和一团火。' } })
   for (const [x, y] of VIGIL.bloom) m.item({ form: 'item/material/herb', name: L('Dawnbloom', '晨光花') }, x, y)
-  m.fixture('fixture/sacred/waypoint', 17, 9, { id: 'wp.dawnhill', name: L('Dawn Hill', '晨光丘') })
+  m.fixture('fixture/sacred/waypoint', 17, 9, { id: 'wp.dawnhill', name: L('Dawn Hill statue', '晨光丘传送雕像') })
   for (const [x, y] of [[8, 20], [32, 18]] as const) m.creature('beast/wolf', x, y, HUNT(5))
   m.appear = [...GROUND_YIELD, appears('item/material/herb', ['flowers', 'grass'], 3, 1200)]
   return m

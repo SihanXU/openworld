@@ -23,6 +23,8 @@ export const ilse: PersonDef = {
     ],
   },
   lines: [
+    // the news the story spreads (its topics), said once while fresh
+    line('topic:crown', "We set the crown under the altar. Nessa says it hums at night. I tell her it is the wind.", "我们把荆棘冠放在祭坛底下了。奈莎说它夜里会嗡嗡响。我告诉她那是风。"),
     line('greeting:first', 'Welcome to Firstlight, traveller. The flame you see was lit from the first dawn after the First Night. We keep it company.', '欢迎来到初原村，旅人。你看到的这团火，取自初夜之后的第一道晨光。我们陪着它。'),
     line('default', 'Suffering is not God\'s abandonment. It is the proof the debt is being paid. That is what the Five teach.', '苦难并非神的遗弃。苦难，是灾厄得以被偿还的证明。五苦是这样教导的。'),
     line('default', 'The flame is older than the houses. The houses were built to keep it company.', '火比房子还老。房子是为了陪它才盖起来的。'),

@@ -24,7 +24,8 @@ export const bram: PersonDef = {
   },
   tags: ['stationary'],
   lines: [
-    line('greeting:first', 'Off the mountain, are you. Come back when you have a few fights in you — level five — and I will set you on a road: dagger, sword and shield, bow or staff.', '从山上下来的？等你打过几场像样的仗——五级——再来找我，我给你指条路：匕首、剑盾、弓，还是法杖。', { once: true }),
+    // said once, at whatever level one first comes by: the road opens at level five
+    line('greeting:first', 'Off the mountain, are you. Once you have a few fights in you — level five — I set people on a road: dagger, sword and shield, bow or staff. Pick when you are ready.', '从山上下来的？打过几场像样的仗、到了五级，我就给人指条路：匕首、剑盾、弓，还是法杖。准备好了就选。', { once: true }),
     line('default', 'Pick a road and walk it. Change your mind if you must — but you start that road again from the first step.', '选一条路，就走下去。真要改也行——只是新路得从头走起。'),
     line('default', 'A dagger from behind. A sword and a shield from the front. An arrow from afar. A spell from wherever you stand. Which are you?', '匕首从背后，剑盾从正面，箭从远处，法术从你站着的地方。你是哪一种？'),
     line('default', 'Tobin talks through every drill. I have stopped telling him.', '托宾每次操练都在旁边说个不停。我已经懒得说他了。'),

@@ -14,10 +14,10 @@
 import type { Engine } from './engine.ts'
 import { astar } from './path.ts'
 import { DIRS } from './types.ts'
-import { cmp } from './rules.ts'
+import { cmp, isDo, isHole, leaves } from './rules.ts'
 import { regionId } from './world.ts'
 import { calendarAt, isNight, tickAt } from './calendar.ts'
-import type { Dir, Effect, Entity, Id, Lesson, Pos, Ref, SceneCmd, StepCond, StepDef, Text } from './types.ts'
+import type { Dir, Effect, Entity, Id, Lesson, Pos, Ref, Rule, SceneCmd, StepCond, StepDef, Text } from './types.ts'
 
 const MOVE_STEP_TICKS = 4
 const MOVE_TIMEOUT = 900
@@ -31,6 +31,22 @@ const LESSON_AFTER_SAY = 30
  * prop the leader is still within, and that stage's objective — its title, how to go about it,
  * and the counts it waits on.
  */
+/**
+ * The topics the story raises itself: its steps' `topic` commands and its own rules' `topic` effects
+ * (named, not passed in a param). They are its news, told when it happens; a patch may not raise
+ * one (mod.ts, through the protected facts `topic.<id>`), only a topic of its own.
+ */
+export function storyTopics(steps: StepDef[], rules: Rule[]): string[] {
+  const out = new Set<string>()
+  for (const d of steps) for (const c of d.script ?? []) if ('topic' in c) out.add(c.topic)
+  for (const r of rules)
+    for (const l of leaves(r.tree)) {
+      const effects = isDo(l) ? l.do : isHole(l) ? (l.default ?? []) : []
+      for (const e of effects) if (e.op === 'topic' && !e.id.startsWith('@')) out.add(e.id)
+    }
+  return [...out]
+}
+
 export interface Guide {
   /** The leader's prop that holds the stage ('prologue', 'quest'). */
   prop: string

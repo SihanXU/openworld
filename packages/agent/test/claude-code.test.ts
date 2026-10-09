@@ -41,7 +41,9 @@ process.stdin.on('end', () => {
   const say = (o) => (stream ? console.log(JSON.stringify({ type: 'system', subtype: 'init' }) + '\\n' + JSON.stringify({ type: 'result', ...o })) : console.log(JSON.stringify(o)))
   let result
   if (text.includes('FAIL')) return say({ is_error: true, result: 'Failed to authenticate' })
-  if (text.includes('## Tools') && !text.includes('[tool result: ')) result = JSON.stringify({ tool_calls: [{ name: 'get_rule', args: { id: 'core/use' } }] })
+  // a sentence first, with braces of its own, then the call (seen live: the protocol asks for the object alone)
+  if (text.includes('PROSE') && text.includes('## Tools') && !text.includes('[tool result: ')) result = 'The { "from": "request" } form does not build here; I will read the rule.\\n' + JSON.stringify({ tool_calls: [{ name: 'get_rule', args: { id: 'core/use' } }] })
+  else if (text.includes('## Tools') && !text.includes('[tool result: ')) result = JSON.stringify({ tool_calls: [{ name: 'get_rule', args: { id: 'core/use' } }] })
   else result = JSON.stringify({ model: arg('--model'), effort: arg('--effort'), tools: arg('--tools'), sawResult: text.includes('[tool result: get_rule'), json: text.includes('one JSON object') })
   say({ is_error: false, result, total_cost_usd: 0.01, usage: { input_tokens: 10, cache_read_input_tokens: 90, output_tokens: 5, output_tokens_details: { thinking_tokens: 2 } } })
 })
@@ -90,6 +92,14 @@ describe('the Claude Code backend (claude -p)', () => {
     )
     expect(second.toolCalls).toEqual([])
     expect(JSON.parse(second.content).sawResult).toBe(true)
+  })
+
+  it('finds the tool call after a sentence that has braces of its own', async () => {
+    const { bin } = fakeClaude()
+    const m = new ClaudeCodeModel({ model: 'claude-opus-5-5', bin })
+    const r = await m.chat([{ role: 'system', content: 'sys' }, { role: 'user', content: 'design PROSE' }], { tools })
+    expect(r.toolCalls).toMatchObject([{ name: 'get_rule', args: { id: 'core/use' } }])
+    expect(r.content).toBe('')
   })
 
   it('keeps the system prompt byte for byte as given, whatever the call asks (the cached prefix), and passes it in a file', async () => {

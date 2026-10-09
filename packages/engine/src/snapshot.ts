@@ -159,7 +159,7 @@ export interface Frame {
   /** What the player's E / F keys would do right now (filled by the host, not by snapshot()). */
   prompt?: Prompt
   /** Quests: the marks over the people on this map ('!' to give, '?' to take back), and the player's log. */
-  quests: { marks: Record<Id, '!' | '?'>; log: QuestView[] }
+  quests: { marks: Record<Id, '!' | '?'>; log: QuestView[]; done?: Pick<QuestView, 'id' | 'kind' | 'title'>[] }
   /** The lesson at hand (docs/prologue.md, the drills): what to spotlight, the key to draw, what the keys may do. */
   lesson?: LessonView
 }
@@ -525,5 +525,5 @@ function questsOf(eng: Engine, entities: EntitySnap[]): Frame['quests'] {
       const m = eng.quests.mark(e.id)
       if (m) marks[e.id] = m
     }
-  return { marks, log: eng.quests.log() }
+  return { marks, log: eng.quests.log(), done: eng.quests.done() }
 }

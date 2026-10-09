@@ -561,7 +561,12 @@ const INSTRUMENTS: Rule[] = [
     // (a blow is never a dressing: a helmet swung at a slime is a blow, as anything swung is)
     tree: IF(param('attack', true), 'inherit', IF(
       { same: ['actor', 'target'] },
-      AS(L('Put on {instrument}', '穿上{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' }))),
+      // on oneself: put on, or taken off when it is on (a weapon taken up, or put away)
+      IF(
+        { worn: 'host' },
+        IF(tag('host', 'weapon'), AS(L('Put away {instrument}', '收起{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' }))), AS(L('Take off {instrument}', '脱下{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' })))),
+        IF(tag('host', 'weapon'), AS(L('Wield {instrument}', '装备{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' }))), AS(L('Put on {instrument}', '穿上{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' })))),
+      ),
       // (a weapon is not put on another: used on them, it is what it is — a blow, or what its own rules say)
       IF(all(is('target', { type: 'actor' }), not(tag('host', 'weapon'))), AS(L('Put {instrument} on {target}', '给{target}穿上{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' }))), 'inherit'),
     )),
@@ -941,10 +946,19 @@ const GROUND: Rule[] = [
   rule({
     id: 'element/freeze-water',
     label: L('Freeze {target}', '冻住{target}'),
-    doc: 'Ice turns water into walkable ice, spreading a little; that ice thaws in time.',
+    doc: 'Ice turns water into walkable ice, spreading a little (the cast\'s own cell spreads to those beside it, and no further); that ice thaws in time.',
     host: { type: 'tile/water' },
     on: 'impulse/element',
-    tree: IF(param('element', 'ice'), DO({ op: 'transform', into: 'tile/ice' }, add('chilled'), emit('element', { area: { radius: 1 } }, { element: 'ice', power: 1 }, { chance: 0.7, filter: { type: 'tile/water' } }), vfx('frost')), 'inherit'),
+    // only a strong frost (a cast, power 2 and up) spreads, and what it spreads is weak: one cast is a few cells, not a river
+    tree: IF(
+      param('element', 'ice'),
+      IF(
+        { param: { key: 'power', cmp: { gte: 2 } } },
+        DO({ op: 'transform', into: 'tile/ice' }, add('chilled'), emit('element', { area: { radius: 1 } }, { element: 'ice', power: 1 }, { chance: 0.7, filter: { type: 'tile/water' } }), vfx('frost')),
+        DO({ op: 'transform', into: 'tile/ice' }, add('chilled'), vfx('frost')),
+      ),
+      'inherit',
+    ),
   }),
   rule({
     id: 'element/thaw-ice',
@@ -1249,7 +1263,7 @@ const BUILD: Rule[] = [
     on: 'impulse/receive',
     tree: IF(
       param('what', 'stick'),
-      IF({ prop: { role: 'host', key: 'sticks', cmp: 0 } }, DO({ op: 'setProp', key: 'sticks', value: 1 }, log('One more stick.', '再加一根树枝。')), DO({ op: 'transform', into: 'fixture/light/campfire' }, vfx('dust'), log('A campfire, ready to light.', '篝火搭好了，可以点了。'))),
+      IF({ prop: { role: 'host', key: 'sticks', cmp: 0 } }, DO({ op: 'setProp', key: 'sticks', value: 1 }, log('One more stick.', '再加一根树枝。')), DO({ op: 'transform', into: 'fixture/light/campfire' }, vfx('dust'), log('A campfire, ready to light.', '营火搭好了，可以点了。'))),
       'inherit',
     ),
   }),

@@ -35,6 +35,8 @@ export const gus: PersonDef = {
     ],
   },
   lines: [
+    // the news the story spreads (its topics), said once while fresh
+    line('topic:flame_stolen', "The fire is out at the shrine. Mine is not. I will keep it so.", "神龛那边的火灭了。我这儿的没灭。我会让它一直烧着。"),
     line('default', 'Every day the fire eats. Every day I feed it. My back has opinions about this.', '火天天都要吃，我天天都得喂。我的腰对此很有意见。'),
   ],
 }

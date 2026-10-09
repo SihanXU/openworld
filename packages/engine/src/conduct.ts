@@ -65,6 +65,8 @@ export class Conduct {
     const { map, x, y } = e.place
     const rt = this.runtime(e)
     const goal = `${map}:${gx}:${gy}`
+    // a path that no longer starts beside them (they were made to step aside) is planned again
+    if (rt.path?.length && Math.abs(rt.path[0][0] - x) + Math.abs(rt.path[0][1] - y) !== 1) rt.path = undefined
     if (rt.goal !== goal || !rt.path?.length) {
       const m = w.map(map)
       if (!m) return false

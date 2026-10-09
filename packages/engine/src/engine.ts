@@ -23,7 +23,7 @@ import { appearFromForage } from './appear.ts'
 import { Social, lawId } from './social.ts'
 import { Conduct } from './conduct.ts'
 import { RuleLibrary, evalCond, isDo, isPatch, matchSelector, rolesOf, type Resolution } from './rules.ts'
-import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb, WorldState } from './types.ts'
+import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, Scenario, SkillDef, Text, Verb, WorldState } from './types.ts'
 import type { ProfessionDef } from './profession.ts'
 import { DIRS, FIRE_RADIUS, OPPOSITE } from './types.ts'
 import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type Writer } from './world.ts'
@@ -38,8 +38,13 @@ export interface UndefinedSink {
    */
   raise(ev: GameEvent, res: Resolution): boolean
   tick(): void
-  /** Called with every defined act the player made, e.g. to build a regression set. */
-  observe?(ev: GameEvent, rule: string): void
+  /**
+   * The scene of an act the player is about to make, taken before it happens (what a regression
+   * set replays: the world as the act found it, not as it left it).
+   */
+  scene?(ev: GameEvent): Scenario | undefined
+  /** Called with every defined act the player made and its scene before it, e.g. to build a regression set. */
+  observe?(ev: GameEvent, rule: string, scene?: Scenario): void
 }
 
 export interface MapChunk {
@@ -130,6 +135,11 @@ export class Engine {
   pendingTransition?: { map: string; x: number; y: number; entry?: Entry }
   /** Ticks to run at once at the end of this tick: a long step (the overworld) passing (world-model.md §6.11). */
   private fastForward = 0
+  /**
+   * At most this many ticks of a long step pass in one tick (the worker sets it: the screen keeps up,
+   * the clock is seen to run and one lies asleep all the while); unset, they pass at once.
+   */
+  fastForwardChunk?: number
   /** Resolution trace of the last dispatched events (for tests and the dev panel). */
   trace: { ev: GameEvent; rule?: string; defined: boolean }[] = []
   /** How many entries the trace has ever taken (it keeps only the last 300): what came after a mark is the last `traced - mark`. */
@@ -555,6 +565,8 @@ export class Engine {
     // what the act is, before it is resolved (a thing taken from her chest is hers until it is taken)
     const before = this.before(ev)
     const holes = this.holes
+    // (the scene as the act finds it: after it, what it used up or changed is gone from it)
+    const scene = ev.origin === 'player' ? this.undefinedSink?.scene?.(ev) : undefined
     this.dispatching++
     let res: Resolution
     try {
@@ -563,7 +575,7 @@ export class Engine {
       this.dispatching--
     }
     this.flush()
-    if (res.defined && res.rule && ev.origin === 'player') this.undefinedSink?.observe?.(ev, res.rule.id)
+    if (res.defined && res.rule && ev.origin === 'player') this.undefinedSink?.observe?.(ev, res.rule.id, scene)
     // what the seers see: the act, and whether the world had an answer for all it set going
     if (verb !== 'move' && verb !== 'craft' && verb !== 'learn') this.see(ev, res.defined && this.holes === holes, before)
     this.flush()
@@ -1062,8 +1074,10 @@ export class Engine {
     if (!yielding && !w.fits(e, map, nx, ny, nz)) {
       const other = w.actorAt(map, nx, ny, undefined, nz)
       // the player, or a person on their way, pushing on into a person who is free: they swap places
-      // (people yield to each other this way and never stand in one cell, world-model.md §5.2)
-      if (!(isPlayer || e.npc) || !other?.npc || this.busy(other) || w.blocked(map, nx, ny, undefined, nz)) {
+      // (people yield to each other this way and never stand in one cell, world-model.md §5.2); one
+      // holding still for the one who faces them keeps its place against another on its way (it goes round:
+      // two would push each other out of it in turn)
+      if (!(isPlayer || e.npc) || !other?.npc || this.busy(other) || (!isPlayer && this.npcs.holding(other)) || w.blocked(map, nx, ny, undefined, nz)) {
         const thing = w.inBounds(map, nx, ny) ? (other ?? w.solidAt(map, nx, ny, undefined, nz)) : undefined
         const other2 = thing ?? w.cellTop(map, nx, ny)
         const ref: Ref | undefined = other2 && { e: other2.id }
@@ -1478,15 +1492,18 @@ export class Engine {
     this.controls.keep()
     // a long step's time passes now, all at once; harm stops it (world-model.md §6.11)
     if (this.fastForward > 0) {
-      const n = this.fastForward
+      const total = this.fastForward
+      const n = Math.min(total, this.fastForwardChunk ?? total)
       this.fastForward = 0
       const p = this.world.player
       const hp = w.num(p, 'hp')
+      let stopped = false
       // what was said and shown while the time went by was not seen (one slept, walked, sat in the cells)
       const heard = w.fx.length
       for (let i = 0; i < n; i++) {
         this.tick()
         if (w.num(p, 'hp') < hp) {
+          stopped = true
           // asleep, one wakes (hunger, or something at one's bed); on the road, one stops
           const asleep = w.hasStatus({ e: p.id }, 'asleep')
           if (asleep) this.write(() => w.clearStatus({ e: p.id }, 'asleep'))
@@ -1499,6 +1516,8 @@ export class Engine {
         }
       }
       w.fx = [...w.fx.slice(0, heard), ...w.fx.slice(heard).filter((f) => f.t !== 'say' && f.t !== 'emote')]
+      // what is left passes in the next ticks, unless harm stopped it (or another long step began)
+      if (!stopped && this.fastForward === 0) this.fastForward = total - n
     }
   }
 

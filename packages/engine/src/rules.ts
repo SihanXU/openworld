@@ -101,6 +101,12 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
     const e = roles[c.rel.role]?.entity
     return !!e && world.relationsOf(e).some((k) => k.startsWith(`${c.rel.how}|`))
   }
+  if ('worn' in c) {
+    const e = roles[c.worn]?.entity
+    const holder = e && (e.place.on === 'inside' || e.place.on === 'hand') ? world.get(e.place.holder) : undefined
+    const slot = e && world.prop(e, 'slot')
+    return !!e && !!holder && typeof slot === 'string' && world.wearKeys(slot).some((k) => world.prop(holder, k) === e.id)
+  }
   if ('makeup' in c) {
     const v = roles[c.makeup]
     return !!v && !!world.onto.resolve(v.type).makeup?.length
@@ -169,12 +175,13 @@ export function sameRef(a: View, b: View): boolean {
 }
 
 /** Things in a role's contents, or lying on its tile besides the role itself (not the ground there), that match a selector. */
-export function countAt(v: View, where: 'contents' | 'tile', match: Selector | undefined, world: World): number {
+export function countAt(v: View, where: 'contents' | 'tile' | 'map', match: Selector | undefined, world: World): number {
   let ids: Iterable<string>
   if (where === 'contents') ids = v.entity?.contents ?? []
   else {
     const p = world.refPos(v.ref)
-    ids = p ? world.placedAt(p.map, p.x, p.y).map((e) => e.id) : []
+    // its cell, or everything lying on its map (in the open: not what is carried or held)
+    ids = !p ? [] : where === 'map' ? world.entitiesOnMap(p.map).filter((e) => e.place.on === 'tile').map((e) => e.id) : world.placedAt(p.map, p.x, p.y).map((e) => e.id)
   }
   let n = 0
   for (const id of ids) if (id !== v.id && matchSelector(match, world.view({ e: id }))) n++

@@ -3,7 +3,7 @@
 // most of it, an empty one is woken by hunger in the small hours, and gets up again.
 
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, textOf, tickAt, type Engine } from '@lsw/engine'
+import { Game, RuleLibrary, TICKS_PER_HOUR, textOf, tickAt, type Engine } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
 import { buildFord } from '../src/demo/world.ts'
 
@@ -43,6 +43,26 @@ describe('a night in bed', () => {
     // eight and a half hours: awake that is 17 points of hunger, asleep about four
     expect(20 - w.num(p, 'hunger')).toBeLessThanOrEqual(5)
     expect(w.num(p, 'hp')).toBe(w.num(p, 'maxHp'))
+    expect(eng.busy(p)).toBe(false)
+  })
+
+  it('passed a game hour a tick (the worker), the night is seen to pass: asleep and busy all the while, one night only', () => {
+    const { eng, bed } = bedtime(20)
+    const w = eng.world
+    const p = w.player
+    eng.fastForwardChunk = TICKS_PER_HOUR
+    const day = w.calendar().day
+    eng.act('hands', p.id, { e: bed }, { instrument: null })
+    eng.tick()
+    // an hour on, still in bed: the keys do nothing (a second press on the bed must not sleep another day)
+    expect(w.hasStatus({ e: p.id }, 'asleep')).toBe(true)
+    expect(eng.busy(p)).toBe(true)
+    expect(w.hour()).toBeLessThan(23.6)
+    let ticks = 0
+    while (w.hasStatus({ e: p.id }, 'asleep') && ticks++ < 30) eng.tick()
+    expect(ticks).toBeGreaterThan(5)
+    expect(w.calendar().day).toBe(day + 1)
+    expect(Math.floor(w.hour())).toBe(6)
     expect(eng.busy(p)).toBe(false)
   })
 

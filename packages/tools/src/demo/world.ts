@@ -9,7 +9,7 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
+import { storyTopics, tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
 import { BOSSES, CH1_QUESTS, HAVEN_QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_AT_FOOT, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, PLAYER_LOOK, generateLook, type RawChunk } from '@lsw/content'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
@@ -266,12 +266,13 @@ function buildMeadow(): MapBuilder {
   m.item({ form: 'item/vessel/flask/oil', props: { owner: 'npc.tobin' } }, ...FIRSTLIGHT.cart).id = 'tobin.oil'
   m.anchor('cart', 30, 16)
   m.anchor('cart.bed', 31, 16)
+  // each household its own cell (people of one home share it; two homes on one cell crowded a lawn at night)
   m.anchor('market.shelter', 29, 9)
   m.anchor('square.well', 20, 14)
   m.anchor('square.warm', 23, 17)
   // the drill yard by the north-east cottage: Bram, the profession trainer (docs/skill-tree.md)
   m.anchor('drill.yard', 33, 11)
-  m.anchor('drill.bed', 29, 9)
+  m.anchor('drill.bed', 33, 10)
   // the villagers who give quests (docs/quests.md), and where the rescued foragers live
   m.anchor('elder.porch', 20, 9)
   m.anchor('elder.home', 20, 8)
@@ -279,18 +280,18 @@ function buildMeadow(): MapBuilder {
   m.anchor('cook.home', 9, 9)
   m.anchor('pond.edge', 19, 21)
   m.anchor('guard.post', 25, 25)
-  m.anchor('guard.home', 29, 9)
+  m.anchor('guard.home', 27, 9)
   m.anchor('wood.pile', 9, 18)
   // the wood pile Gus stacks his logs on (world-model.md §6.10: work is real)
   m.fixture('fixture/container/woodpile', 9, 19, { id: 'village.woodpile', statuses: { open: -1 } })
   m.anchor('wood.home', 8, 16)
   m.anchor('lina.garden', 13, 18)
-  m.anchor('lina.home', 9, 9)
+  m.anchor('lina.home', 12, 9)
   m.anchor('oskar.bench', 17, 19)
-  m.anchor('oskar.home', 29, 9)
+  m.anchor('oskar.home', 31, 9)
   // the village keeps the law (docs/npc-sandbox.md §2.7): its watch, and the cells behind the watch house
   m.law = 'firstlight'
-  m.anchor('cells', 31, 9)
+  m.anchor('cells', 30, 4)
   // Cass's loom by the square; where Vigo sleeps rough
   m.anchor('cass.loom', 15, 14)
   m.anchor('vigo.camp', 34, 15)
@@ -528,8 +529,9 @@ const scenes: StepDef[] = [
   {
     // The goal is a state: however you got here, the far bank ends the first chapter.
     id: 'far_bank',
-    // once the pilgrimage is called (stage 0.7: the letter); across before that, `far_bank_early`
-    when: { map: 'ford', region: 'far_bank', props: { quest: { gte: 0.7 } } },
+    // once the pilgrimage is called (stage 0.7: the letter); across before that, `far_bank_early`; and only
+    // while it is still chapter one's hook (past stage 2 the road is long taken: `far_bank_late`)
+    when: { map: 'ford', region: 'far_bank', props: { quest: { gte: 0.7, lt: 2 } } },
     script: [
       { fact: 'ford.crossed', value: 1 },
       { prop: 'quest', value: 2 },
@@ -538,6 +540,12 @@ const scenes: StepDef[] = [
       say('npc.hesper', 'If you need supplies before the road, Firstlight Village is still just west of here.', '上路前若还缺东西，初原村就在渡口西边。'),
       { topic: 'crossed', days: 30 },
     ],
+  },
+  {
+    // across for the first time when the story is long past its first chapter: the river is crossed, said nothing of
+    id: 'far_bank_late',
+    when: { map: 'ford', region: 'far_bank', props: { quest: { gte: 2 } } },
+    facts: { 'ford.crossed': 1 },
   },
 ]
 
@@ -686,6 +694,8 @@ export function buildFord(): FordWorld {
     else if (e.type.startsWith('actor/creature')) creatures++
   }
   const metaOf = (b: MapBuilder, c: RawChunk): MapMeta => ({ id: b.id, name: b.name, kind: b.kind, region: b.region, width: b.w, height: b.h, portals: b.portals, npcs: npcs.filter((n) => n.place.on === 'tile' && n.place.map === b.id).length, items: c.entities.filter((e) => e.type.startsWith('item/')).length, at: at.get(b.id) })
+  // the story's one script (world-model.md §6.12): the tutorial's beats, then the scenes
+  const steps = [...PROLOGUE_BEATS, ...FIRSTLIGHT_BEATS, ...scenes, ...CHAPTER1_STORY, ...CHAPTER1_SCENES, ...HAVEN_STORY, ...QUEST_SCENES]
   const index: WorldIndex = {
     name: L('The Ford', '渡口'),
     version: VERSION,
@@ -721,10 +731,10 @@ export function buildFord(): FordWorld {
     ],
     waypoints: chunks.flatMap((c) => c.entities.filter((e) => e.type === 'fixture/sacred/waypoint').map((e) => ({ id: e.id, map: c.map.id, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: e.name ?? L('Waypoint', '传送雕像') }))),
     stats: { maps: builders.length, npcs: npcs.length, creatures, items, itemKinds: kinds.size, fixtures },
-    // the story's one script (world-model.md §6.12): the tutorial's beats, then the scenes
-    steps: [...PROLOGUE_BEATS, ...FIRSTLIGHT_BEATS, ...scenes, ...CHAPTER1_STORY, ...CHAPTER1_SCENES, ...HAVEN_STORY, ...QUEST_SCENES],
+    steps,
     invariants: INVARIANTS,
-    protectedFacts: PROTECTED_FACTS,
+    // the story's facts, and the topics it raises itself (its news: no patch raises one)
+    protectedFacts: [...PROTECTED_FACTS, ...storyTopics(steps, STORY_RULES).map((t) => `topic.${t}`)],
     weather: [
       { day: 1, from: 0, to: 17, weather: 'cloud' },
       { day: 1, from: 17, to: 20, weather: 'storm' },

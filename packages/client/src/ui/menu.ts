@@ -268,7 +268,7 @@ export class Menu {
     if (f.container && !this.chestOpen) ($('#chest').classList.remove('hidden'), (this.chestSig = ''))
     if (!f.container && this.chestOpen) $('#chest').classList.add('hidden')
     if (this.chestOpen) this.renderChest(f)
-    if (this.menuOpen && (this.tab === 'inventory' || this.tab === 'craft')) this.renderLive()
+    if (this.menuOpen && (this.tab === 'inventory' || this.tab === 'craft' || this.tab === 'shop')) this.renderLive()
     if (this.journalOpen && this.library && this.library.version !== this.journalLib) this.renderJournal()
     if (this.skillsOpen) this.skills.render(f)
     if (this.profession.open) this.profession.render(f)
@@ -346,7 +346,7 @@ export class Menu {
   }
 
   private sigOf(f: Frame): string {
-    return `${this.tab}|${locale.value}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${this.picked}`
+    return `${this.tab}|${locale.value}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${f.player.stations.join()}|${this.picked}`
   }
 
   // ---------------------------------------------------------------- inventory

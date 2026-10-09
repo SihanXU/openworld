@@ -55,7 +55,8 @@ function drawing(m: MapBuilder, which: string, x: number, y: number, en: string,
 }
 
 /** A waypoint statue: the map remembers it, and beside it the fairy's power is chosen. */
-const statue = (m: MapBuilder, id: string, x: number, y: number, en: string, zh: string) => m.fixture('fixture/sacred/waypoint', ...spot(m, x, y), { id, name: L(en, zh) })
+/** A waypoint statue, named as one (the Mountain Foot's is): "the Ford statue", not "the Ford", in what the keys say. */
+const statue = (m: MapBuilder, id: string, x: number, y: number, en: string, zh: string) => m.fixture('fixture/sacred/waypoint', ...spot(m, x, y), { id, name: L(`${en} statue`, `${zh}传送雕像`) })
 
 /** Firstlight: the flame beside Astra's altar, a waypoint statue on the square, the people's places. */
 export function chapter1Village(m: MapBuilder): void {

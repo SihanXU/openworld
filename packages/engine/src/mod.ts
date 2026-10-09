@@ -195,6 +195,7 @@ const AUTHORING_RULES = [
   'Things with durability (props.maxHp) already lose it to blows and fire, and break into their makeup: a blow on a tree, rock or a wall is defined. A new type that can break names props.material and what it leaves (makeup [{type, count}] or a rule of its own on threshold/cross "broken").',
   'An act hosted by an instrument that consumes or changes it says so: `destroy` or `transform` the host.',
   'Outcomes the world started by itself (origin "world") happen without the player asking: keep them small and legible, never harm a person, never touch the story\'s facts, and let people react with say/emote, a notice to the story (a topic), or goto.',
+  'A topic a patch raises (notify the story, what "topic", value <id>) is news of its own: a new snake_case id. The story\'s own topics (the crown, the slain dragon, ...) are raised by the story when they happen; a patch raising one is refused.',
 ]
 
 const EVENTS: Record<string, string> = {
@@ -281,12 +282,13 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       '{chance:p}',
       '{hour:{from,to}}',
       "{night: true|false} — it is night (or day), as long as the story's night has grown (it lengthens as the seals fall)",
-      "{count:{role, in: contents|tile, match?: Selector, cmp: Bounds}} — how many things are in a role's contents (or on its tile besides itself)",
+      "{count:{role, in: contents|tile|map, match?: Selector, cmp: Bounds}} — how many things are in a role's contents (or on its tile besides itself, or lie anywhere on its map besides itself)",
       '{topic:id} — something that happened is still fresh',
       '{weather:[sun|cloud|rain|storm|fog]} — the weather now',
       '{exists: Selector} — something matching it exists anywhere in the world',
       '{outdoors:true} — the host is out under the sky',
       "{makeup: role} — the role's type says what it is made of (its makeup: what it leaves when it breaks)",
+      "{worn: role} — the role's thing is worn (or wielded) by the one who carries it",
       "{rel: {role, how}} — the role has that relation now: on (stands on something), support (something holds it up), in-region …",
       '{fighting: role} — the role is fighting: it struck at an actor, was struck by one, or a hostile one came after it, in the last five seconds',
       '{regard: {of: role, toward: role, cmp}} — what one person thinks of another (−100..100, its regard: talk, gifts and help raise it, deeds lower it)',
@@ -325,6 +327,11 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
 
 const WINDOW = 3 // tiles around the host in the scenario (7x7)
 const TIMEOUT_TICKS = 100 // 10 s: then the default (the record stays patchable)
+
+/** Is a story fact protected: a listed prefix ending in "." (`ford.`), or a listed key itself and what hangs from it (`topic.crown`, `topic.crown.days`). */
+function isProtected(key: string, list: string[] = []): boolean {
+  return list.some((p) => key === p || key.startsWith(p.endsWith('.') ? p : `${p}.`))
+}
 
 /**
  * A library as a save kept it: the base rules fresh from content, then the patches' types and
@@ -513,15 +520,25 @@ export class ModPort implements UndefinedSink {
     return true
   }
 
-  observe(ev: GameEvent, rule: string): void {
-    if (!ev.kind.startsWith('act/') || ev.kind === 'act/move') return
+  /** The scene of a player's act before it happens (moves aside): what the regression set keeps. */
+  scene(ev: GameEvent): Scenario | undefined {
+    if (!ev.kind.startsWith('act/') || ev.kind === 'act/move') return undefined
     try {
-      const sc = buildScenario(this.eng, ev)
-      this.regression.push({ scenario: sc, rule })
-      if (this.regression.length > 40) this.regression.shift()
+      return buildScenario(this.eng, ev)
     } catch {
-      /* best effort */
+      return undefined // best effort
     }
+  }
+
+  /**
+   * A defined act of the player's, with its scene as the act found it: the regression set. (Taken
+   * after the act, the scene had lost what the act used up or changed — a bread eaten, a log split —
+   * so it replayed as undefined, and every patch after it was refused.)
+   */
+  observe(ev: GameEvent, rule: string, scene?: Scenario): void {
+    if (!scene) return
+    this.regression.push({ scenario: scene, rule })
+    if (this.regression.length > 40) this.regression.shift()
   }
 
   private unfreeze(id: string): void {
@@ -543,9 +560,11 @@ export class ModPort implements UndefinedSink {
   /** Validate and apply a patch for a request (or, with id undefined, a free-standing patch). */
   /**
    * Validate a patch and take it. A patch for a request of this port is checked in that request's
-   * scene; one from elsewhere (the shared library, a prefetch) in the scene it came with.
+   * scene; one from elsewhere (the shared library, a prefetch) in the scene it came with. `answers`:
+   * the request a shared patch was made for; one of this port's own (a revision of its answer) is
+   * credited to it.
    */
-  submit(id: string | undefined, patch: Patch, scenario?: Scenario): ValidationResult {
+  submit(id: string | undefined, patch: Patch, scenario?: Scenario, answers?: string): ValidationResult {
     const eng = this.eng
     const w = eng.world
     const rec = id ? this.get(id) : undefined
@@ -598,7 +617,9 @@ export class ModPort implements UndefinedSink {
     const trigger = rec?.origin ?? patch.trigger ?? a0trigger(patch)
     for (const a of patch.artifacts) {
       if (a.kind !== 'rule') continue
-      const rule: Rule = { ...a.rule, source: { origin: 'patch', request: id, author: patch.author ?? 'manual', at: now, note: patch.note, trigger } }
+      // a shared patch that answers a request of this game's (a revision of one's own) is credited to it
+      const request = id ?? (answers && this.get(answers) ? answers : undefined)
+      const rule: Rule = { ...a.rule, source: { origin: 'patch', request, author: patch.author ?? 'manual', at: now, note: patch.note, trigger } }
       eng.lib.add(rule, now)
       ruleIds.push(rule.id)
     }
@@ -1040,6 +1061,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     }
     if ('none' in c) return role(c.none, `${where}.none`)
     if ('makeup' in c) return role(c.makeup, `${where}.makeup`)
+    if ('worn' in c) return role(c.worn, `${where}.worn`)
     if ('rel' in c) return role(c.rel.role, `${where}.rel.role`)
     if ('fighting' in c) return role(c.fighting, `${where}.fighting`)
     if ('regard' in c) return (role(c.regard.of, `${where}.regard.of`), role(c.regard.toward, `${where}.regard.toward`))
@@ -1066,7 +1088,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ('count' in c) {
       const k = c.count
       role(k.role, `${where}.count.role`)
-      if (k.in !== 'contents' && k.in !== 'tile') errors.push(`${where}.count.in must be contents|tile`)
+      if (k.in !== 'contents' && k.in !== 'tile' && k.in !== 'map') errors.push(`${where}.count.in must be contents|tile|map`)
       checkSel(k.match, `${where}.count.match`)
       if (!Object.keys(k.cmp ?? {}).length) errors.push(`${where}.count.cmp needs a bound`)
       for (const b of Object.keys(k.cmp ?? {})) if (!BOUNDS.has(b)) errors.push(`${where}.count.cmp.${b}: a bound is eq|gt|gte|lt|lte`)
@@ -1132,11 +1154,15 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       if (typeof e.to === 'object' && ('area' in e.to || 'map' in e.to) && (e.chance === undefined || e.chance >= 1)) warnings.push(`${where}: an emission to an area with chance 1 can cascade`)
       checkSel(e.filter, `${where}.filter`)
     }
+    // the story's own news is told by the story when it happens: a patch raises only topics of its own
+    // (a notice to the story, or the story's own `topic`), never one the story raises (its protected `topic.<id>`)
+    const raised = e.op === 'topic' ? e.id : e.op === 'emit' && e.impulse === 'notify' && e.params?.what === 'topic' ? e.params?.value : undefined
+    if (typeof raised === 'string' && isProtected(`topic.${raised}`, ctx.protectedFacts)) errors.push(`${where}: the story raises the topic "${raised}" itself when it happens; a patch may raise a topic of its own (a new id)`)
     // the boundaries of what the world does by itself
     if (ctx.world) {
       // the story's facts are its props: a world event's patch on the story may not change its protected ones
       const fact = (e.op === 'setProp' || e.op === 'addProp') && resident ? e.key : undefined
-      if (fact && (ctx.protectedFacts ?? []).some((p) => fact.startsWith(p))) errors.push(`${where}: a world event may not change the story's fact "${fact}"`)
+      if (fact && isProtected(fact, ctx.protectedFacts)) errors.push(`${where}: a world event may not change the story's fact "${fact}"`)
       if (e.op === 'setProp' && e.key === 'quest') errors.push(`${where}: a world event may not change the story's stage`)
     }
   }

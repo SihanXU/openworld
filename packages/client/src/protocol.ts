@@ -7,7 +7,7 @@ export type Tile = Aim
 
 export type ToWorker =
   | { t: 'skipLearning' }
-  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** the modder service, if any */ modder?: string; /** true: prefetch undefined acts the pointer rests on (?prefetch=1; off by default) */ prefetch?: boolean; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look }
+  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any */ modder?: string; /** true: prefetch undefined acts the pointer rests on (?prefetch=1; off by default) */ prefetch?: boolean; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look }
   /** The one at the keys, fallen, rises again: where they fell, or at home (the death screen). */
   | { t: 'respawn'; home: boolean }
   /** Hold a direction (null: stop); `walk`: Shift, slower than the default run. */
@@ -110,6 +110,8 @@ export interface LibraryView {
 }
 
 export type FromWorker =
+  /** The shared log synced this far from this service: the next load goes on from here. */
+  | { t: 'synced'; url: string; seq: number; /** the library changed: the position is stored with it, not before it */ changed: boolean }
   | { t: 'placement'; preview: PlacementPreview }
   | { t: 'ready'; stats: WorldIndex['stats']; name: WorldIndex['name']; resumed: boolean }
   | { t: 'map'; map: MapData }

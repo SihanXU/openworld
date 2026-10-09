@@ -23,6 +23,8 @@ export const edda: PersonDef = {
     ],
   },
   lines: [
+    // the news the story spreads (its topics), said once while fresh
+    line('topic:crown', "The crown is in the village now. I went to look at it. Only thorns. I thought it would look like more.", "荆棘冠现在在村里了。我去看过。就是一圈荆棘。我还以为它会更像样些。"),
     line('greeting:first', 'Stay back! ...You\'re not one of them. Sorry. I don\'t see many living faces out here any more.', '别过来！……你不是那些东西。抱歉。这一带我很久没见过活人的脸了。'),
     line('default', 'The days got too short for the wheat. Then the night things came for what was left. The house is all I kept.', '白天短得麦子都长不成。后来夜里的东西把剩下的也夺走了。我只保住了这栋房子。'),
     line('default', 'There\'s a knight up the road, in white. He took my husband\'s ring off the gatepost. Took everything that shone.', '路那头有个白衣骑士。他从门柱上取走了我丈夫的戒指。凡是会发光的东西他都拿走了。'),
