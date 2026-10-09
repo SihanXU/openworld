@@ -168,8 +168,11 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
     eng.trace = []
     eng.act('take', 'actor', { e: 'oil' }, { instrument: null })
     const seen = eng.trace.filter((t) => t.ev.kind === 'seen')
-    expect(seen.find((t) => 'e' in t.ev.host && t.ev.host.e === 'hesper')).toMatchObject({ rule: 'seen/owner-take', defined: true, ev: { params: { act: 'take', owner: 'mine' } } })
-    expect(seen.find((t) => 'e' in t.ev.host && t.ev.host.e === 'tobin')).toMatchObject({ rule: 'core/seen', defined: true, ev: { params: { owner: 'another' } } })
+    expect(seen.find((t) => 'e' in t.ev.host && t.ev.host.e === 'hesper')).toMatchObject({ rule: 'people/see', defined: true, ev: { params: { act: 'take', owner: 'mine' } } })
+    expect(seen.find((t) => 'e' in t.ev.host && t.ev.host.e === 'tobin')).toMatchObject({ rule: 'people/see', defined: true, ev: { params: { owner: 'another' } } })
+    // both took it in: a theft, against her (docs/npc-sandbox.md)
+    expect(eng.world.get('hesper')!.npc!.memory?.deeds?.[0]).toMatchObject({ deed: 'theft', against: 'hesper' })
+    expect(eng.world.get('tobin')!.npc!.memory?.deeds?.[0]).toMatchObject({ deed: 'theft', against: 'hesper' })
     expect(eng.world.topicFresh('theft')).toBe(true)
     expect(port.records).toHaveLength(0)
   })
@@ -180,7 +183,8 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
     eng.trace = []
     eng.act('take', 'actor', { e: 'stone' }, { instrument: null })
     const byHesper = () => eng.trace.filter((t) => t.ev.kind === 'seen' && 'e' in t.ev.host && t.ev.host.e === 'hesper')
-    expect(byHesper().map((t) => [t.ev.params?.owner, t.rule])).toEqual([['nobody', 'core/seen']])
+    expect(byHesper().map((t) => [t.ev.params?.owner, t.rule])).toEqual([['nobody', 'people/see']])
+    expect(eng.world.get('hesper')!.npc!.memory?.deeds ?? []).toEqual([])
     eng.world.get('hesper')!.npc!.schedule = [{ from: 0, to: 24, map: 'sandbox', x: 4, y: 4, activity: 'sleep' }]
     eng.trace = []
     eng.act('take', 'actor', { e: 'oil' }, { instrument: null })

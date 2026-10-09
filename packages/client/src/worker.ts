@@ -9,6 +9,7 @@ import {
   buildRequest,
   tickAt,
   snapshot,
+  peopleViews,
   previewPlacement,
   travelToWaypoint,
   dash,
@@ -54,6 +55,10 @@ let aimTile: Tile | undefined
 /** The left click lays what is held in the ceiling (R with a floor in hand), not on one's storey. */
 let handUp = false
 let panel: string | undefined
+/** The people's panels open (docs/npc-sandbox.md): the talk with someone (a guard's arrest), a merchant's trade, a person's pockets. */
+let talk: { who: string; arrest?: boolean } | undefined
+let trade: string | undefined
+let pockets: string | undefined
 let paused = false
 let buildAim: { id: string; tile: Tile; up?: boolean } | undefined
 let lastMap = ''
@@ -271,7 +276,7 @@ function keyViews(): Frame['keys'] {
     if (fw <= 1 && fd <= 1) return undefined
     return [t.place.x - Math.floor((fw - 1) / 2), t.place.y - fd + 1, fw, fd]
   }
-  const view = (pl: Plan | undefined): KeyView | undefined => pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(pl.sets && { sets: true }), ...(rect(pl) && { rect: rect(pl) }) }
+  const view = (pl: Plan | undefined): KeyView | undefined => pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(pl.sets && { sets: true }), ...(pl.steal && { steal: true }), ...(rect(pl) && { rect: rect(pl) }) }
   // standing still, one turns to the spot beside one that the pointer is on (the input's own posture):
   // a person one points at sees one face them, and waits (npc.ts, attended)
   const stand = w.posOf(w.player)
@@ -395,6 +400,15 @@ const ASK_MS = 20_000
 const MAKE_MS = 120_000
 let asked: { id: string; since: number } | undefined
 
+/** The people's panels a rule opened (the talk, a trade, a person's pockets), seen before the frame drains what was shown. */
+function peopleOpened(eng: Engine): void {
+  for (const x of eng.world.fx) {
+    if (x.t === 'talk') talk = { who: x.who, ...(x.arrest && { arrest: true }) }
+    if (x.t === 'panel' && x.panel === 'trade' && x.by) (trade = x.by), (talk = undefined)
+    if (x.t === 'panel' && x.panel === 'pockets' && x.by) pockets = x.by
+  }
+}
+
 function loop(): void {
   if (!game) return
   const t0 = performance.now()
@@ -405,8 +419,9 @@ function loop(): void {
   if (asking && asked?.id !== asking.id) asked = { id: asking.id, since: t0 }
   if (!asking) asked = undefined
   else if (t0 - asked!.since > (asking.deadline === Number.POSITIVE_INFINITY ? MAKE_MS : ASK_MS)) game.mods.fallback(asking.id)
+  peopleOpened(eng)
   // time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player)
-  const stopped = paused || !!eng.world.state.question || !!panel || !!game.mods.asking
+  const stopped = paused || !!eng.world.state.question || !!panel || !!game.mods.asking || !!talk || !!trade || !!pockets
   if (!stopped) {
     if (moveDir) eng.movePlayer(moveDir, walk)
     if (attacking) eng.controls.strike()
@@ -443,8 +458,15 @@ function loop(): void {
     if (lastQuest !== undefined) saveEvery = 599
     lastQuest = quest
   }
+  // (what the tick itself opened: a guard stopping the one at the keys)
+  peopleOpened(eng)
   const frame = snapshot(eng, { panel })
   if (panel && !frame.container) panel = undefined // closed by the world (it burned, a rule shut it)
+  // the people's panels: closed when the one they are with is gone (dead, away)
+  Object.assign(frame, peopleViews(eng, { talk, trade, pockets }))
+  if (talk && !frame.talk) talk = undefined
+  if (trade && !frame.trade) trade = undefined
+  if (pockets && !frame.pockets) pockets = undefined
   // no labels while the player cannot act (working out an act, down, in a scene)
   frame.keys = stopped || eng.busy(w.player) ? undefined : keyViews()
   maybePrefetch()
@@ -678,6 +700,34 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'transfer':
         if (game && panel) game.engine.controls.transfer(panel, m.from, m.item, m.all)
+        break
+      case 'toggle':
+        game?.engine.controls.toggle(m.what)
+        break
+      case 'talk': {
+        if (!game || !talk) break
+        const with_ = talk
+        // a guard's choices end the arrest; goodbye ends the talk
+        if (with_.arrest || m.verb === 'bye') talk = undefined
+        if (m.verb !== 'bye') game.engine.controls.talk(with_.who, m.verb, m.choice)
+        break
+      }
+      case 'closeTalk':
+        // walking away from a guard who stopped one is resisting
+        if (game && talk?.arrest) game.engine.controls.talk(talk.who, 'resist')
+        talk = undefined
+        break
+      case 'trade':
+        if (game && trade) game.engine.controls.trade(trade, m.item, m.buy)
+        break
+      case 'closeTrade':
+        trade = undefined
+        break
+      case 'pocket':
+        if (game && pockets) game.engine.controls.pocket(pockets, m.item, m.take)
+        break
+      case 'closePockets':
+        pockets = undefined
         break
       case 'closePanel': {
         if (game && panel && game.engine.world.hasStatus({ e: panel }, 'open')) game.engine.interact('interact', game.engine.world.state.player, { e: panel }, { instrument: null })

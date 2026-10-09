@@ -460,6 +460,10 @@ export const CATALOG: Catalog = {
     'fixture:altar': { base: px(HOUSE, 48, 240, 32, 32, 16, 32) },
     'fixture:statue': { base: t(HOUSE, 5, 15, 2, 2) },
     'fixture:gravestone': { base: t(ELEM, 4, 2) },
+    // what a person leaves (docs/npc-sandbox.md §2.8): a body is drawn from its look, lying (scene.ts); bones, a skull
+    'fixture:body': { base: t(DETAIL, 13, 0) },
+    'fixture:bones': { base: t(DETAIL, 13, 0) },
+    'fixture:remains': { base: t(DETAIL, 13, 0) },
     // Chapter 1's own (tools/src/art/chapter1.ts): Pell's chalk drawings, the knight's briars
     'fixture:chalk_stone': { base: px('lsw/Fixtures/Chalk.png', 0, 0, 16, 16, 8, 15), ground: true },
     'fixture:chalk_door': { base: px('lsw/Fixtures/Chalk.png', 16, 0, 16, 16, 8, 15), ground: true },

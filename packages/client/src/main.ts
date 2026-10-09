@@ -19,6 +19,7 @@ import { Hud } from './ui/hud.ts'
 import { BuildingMode } from './ui/building.ts'
 import { LessonGuide } from './ui/lesson.ts'
 import { Menu } from './ui/menu.ts'
+import { PeoplePanels } from './ui/people.ts'
 import { SkillBar } from './ui/skillbar.ts'
 import { Tooltip } from './ui/tooltip.ts'
 import { Minimap } from './ui/worldmap.ts'
@@ -92,11 +93,20 @@ const hud = new Hud(
     toggleQuests: () => menu.toggleQuests(),
     toggleSkillPanel: () => menu.toggleSkillPanel(),
     toggleBuilding: () => toggleBuilding(),
+    talk: (verb) => send({ t: 'talk', verb }),
+    closeTalk: () => send({ t: 'closeTalk' }),
   },
   (id) => scene.screenOf(id),
   (x, y) => scene.screenOfTile(x, y),
 )
 menu.muted = hud.muted
+/** A merchant's trade and a person's pockets (docs/npc-sandbox.md §2.10). */
+const people = new PeoplePanels({
+  trade: (item, buy) => send({ t: 'trade', item, buy }),
+  closeTrade: () => send({ t: 'closeTrade' }),
+  pocket: (item, take) => send({ t: 'pocket', item, take }),
+  closePockets: () => send({ t: 'closePockets' }),
+})
 /** The skill bar, bottom left (Shift+1–6). */
 const skillbar = new SkillBar({ cast: (slot) => send({ t: 'cast', slot }), set: (slot, id) => send({ t: 'setSkill', slot, id }) })
 const minimap = new Minimap(() => openPanel('map', () => menu.toggleMap()))
@@ -238,6 +248,7 @@ const paintIcons = (items: ItemInfo[]) => {
 }
 hud.paintIcons = paintIcons
 menu.paintIcons = paintIcons
+people.paintIcons = paintIcons
 building.paint = (sprite, across) => {
   const f = CATALOG.fixtures[sprite]
   const d = (across && f?.across) || f?.base || CATALOG.items[sprite]
@@ -300,6 +311,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       if (building.open) m.frame.keys = undefined
       scene.applyFrame(m.frame)
       minimap.onFrame(m.frame)
+      people.onFrame(m.frame)
       // a rule opened one of the player's panels (a trainer: the choice of profession)
       if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'profession')) menu.openProfession()
       // a woken waypoint statue: the companion's boons
@@ -541,6 +553,15 @@ window.addEventListener('keydown', (e) => {
     if (e.code === 'Escape') return hud.answer(false)
     return
   }
+  // a talk open (docs/npc-sandbox.md §2.9): a number says that verb; Esc says goodbye (a guard's arrest must be answered)
+  if (hud.talkOpen && !menu.anyOpen) {
+    const n = Number(e.key)
+    if (n >= 1 && n <= 9) return void (e.preventDefault(), hud.sayNth(n))
+    if (e.code === 'Escape') return void (e.preventDefault(), hud.arrestOpen || send({ t: 'closeTalk' }))
+  }
+  // a merchant's trade or a person's pockets: Esc closes it
+  if (people.open && e.code === 'Escape') return void (e.preventDefault(), people.close())
+  if (people.open) return
   // a person's line open: F and G put it away and act (a turn-in's thanks does not hold up the next one)
   if (hud.dialogOpen && !menu.anyOpen && (e.code === 'KeyF' || e.code === 'KeyG') && hud.dismissLine()) syncPause()
   // an open dialogue: E (or Esc) moves it on — unless a menu lies over it (Esc closes that first)
@@ -570,6 +591,9 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyL') return menu.toggleQuests()
   if (e.code === 'KeyU') return menu.toggleSkillPanel()
   if (e.code === 'KeyQ' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'dash' })
+  // X: draw one's weapon (a blow on a person is meant), or put it away; V: walk soft (docs/npc-sandbox.md)
+  if (e.code === 'KeyX' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'toggle', what: 'drawn' })
+  if (e.code === 'KeyV' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'toggle', what: 'sneaking' })
   if (e.code === 'KeyJ') return menu.journalOpen ? menu.close() : (menu.openJournal(), hud.seenJournal(), (codexSeen = -1))
   // Shift+1–6: the skill bar — over the skill tree, set the active skill under the pointer in that slot; else cast it
   const bar = e.shiftKey && !e.repeat ? SLOT_CODES.indexOf(e.code) : -1

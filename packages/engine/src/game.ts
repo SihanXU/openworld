@@ -226,6 +226,9 @@ function upgrade(eng: Engine, index: WorldIndex): void {
       if (e.npc.person && n.npc.person?.schedules) e.npc.person.schedules = structuredClone(n.npc.person.schedules)
     }
     for (const t of n.tags ?? []) if (!e.tags?.includes(t)) w.addTag(e, t)
+    // and what the world has said of them since (their household, stance, the watch they keep, their trade):
+    // what they never had, they have now; what they have, they keep
+    for (const [k, v] of Object.entries(n.props ?? {})) if (e.props?.[k] === undefined) w.setProp(e, k, v)
   }
   // what was the world's before it was the story's or the traveller's own: facts, the latest beat,
   // the maps seen, the reported invariants (the detector's own record), topics, memories, the scene

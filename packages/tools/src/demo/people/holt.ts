@@ -12,6 +12,10 @@ export const holt: PersonDef = {
   age: 38,
   temperament: { personality: 'dutiful', manner: 'plain', social: 'reserved', outlook: 'wary' },
   ties: {},
+  // he keeps the village's watch (docs/npc-sandbox.md §2.7): he stops the wanted, and fights back
+  watch: 'firstlight',
+  fights: true,
+  purse: 15,
   schedules: {
     default: [
       [23, 6, 'meadow:guard.home', 'sleep'],

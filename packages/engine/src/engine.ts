@@ -20,6 +20,8 @@ import { NpcSim, scheduleAt } from './npc.ts'
 import { scheduleFor } from './people.ts'
 import { OntologyIndex } from './ontology.ts'
 import { appearFromForage } from './appear.ts'
+import { Social, lawId } from './social.ts'
+import { Conduct } from './conduct.ts'
 import { RuleLibrary, evalCond, isDo, isPatch, matchSelector, rolesOf, type Resolution } from './rules.ts'
 import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, Scenario, SkillDef, Text, Verb, WorldState } from './types.ts'
 import type { ProfessionDef } from './profession.ts'
@@ -76,6 +78,19 @@ export interface Entry {
 }
 export const WORLD_HOST = 'world'
 
+/** What an act is, taken before it is resolved (the seers' judgement reads it, docs/npc-sandbox.md §2.2). */
+interface Before {
+  at?: Pos
+  thing?: Id
+  whose?: string
+  theirs?: boolean
+  from?: 'person' | 'container' | 'ground'
+  person?: boolean
+  hp?: number
+  worn?: boolean
+  value?: number
+}
+
 const OPAQUE_TERRAIN = ['wall', 'tree', 'rock', 'roof']
 
 export class Engine {
@@ -91,6 +106,10 @@ export class Engine {
   npcs: NpcSim
   /** Everyone's goals (behaviour.ts). */
   behaviour: Behaviour
+  /** The people's social life: whose things are, deeds, memory, regard, gossip, the law, prices (social.ts). */
+  social: Social
+  /** The people's social goals and needs: the law, a debt, fear, hunger, following (conduct.ts). */
+  conduct: Conduct
   /** The story's script: its steps, scenes and beats (story.ts). */
   story: Story
   /** The player's inputs, slots and magnet (design.md §5.2–5.3). */
@@ -150,6 +169,9 @@ export class Engine {
     this.world.author = (f) => this.write(f)
     this.lib = lib
     this.effects = new EffectRunner(this)
+    this.social = new Social(this)
+    this.world.social = this.social
+    this.conduct = new Conduct(this)
     this.npcs = new NpcSim(this)
     this.behaviour = new Behaviour(this)
     this.story = new Story(this)
@@ -177,12 +199,14 @@ export class Engine {
     return this.world.posOf(this.world.player)?.map ?? this.world.state.spawn.map
   }
 
-  /** The world and the story exist (design.md §5.5): made on a new game, and for older saves. */
+  /** The world, the story and the watches exist (design.md §5.5, docs/npc-sandbox.md §2.7): made on a new game, and for older saves. */
   ensureResidents(): void {
     const w = this.world
     this.write(() => {
       if (!w.get(WORLD_HOST)) w.add({ id: WORLD_HOST, type: 'resident/world', place: { on: 'resident' } })
       if (!w.get(STORY)) w.add({ id: STORY, type: 'resident/story', place: { on: 'resident' } })
+      for (const law of Object.values(w.onto.data.laws ?? {}))
+        if (!w.get(lawId(law.id)) && w.onto.hasType('resident/watch')) w.add({ id: lawId(law.id), type: 'resident/watch', name: law.name, place: { on: 'resident' } })
     })
   }
 
@@ -204,7 +228,7 @@ export class Engine {
     const old = s.legacyTiles?.[map] ?? []
     if (s.legacyTiles?.[map]) delete s.legacyTiles[map]
     this.write(() => {
-      for (const [name, r] of named) w.add({ id: regionId(map, name), type: 'region', place: { on: 'area', map, rects: [r] } })
+      for (const [name, r] of named) w.add({ id: regionId(map, name), type: 'region', place: { on: 'area', map, rects: [r] }, ...(w.map(map)?.regionProps?.[name] && { props: structuredClone(w.map(map)!.regionProps![name]) }) })
       // what is in a stage in the map's data starts its clock (a stump grows back)
       w.startStages(map)
       for (const t of old) {
@@ -427,9 +451,17 @@ export class Engine {
     return (w.walkable(at.map, at.x, at.y, e.id) ? at : this.nearestFree(at)) ?? at
   }
 
-  /** Re-run an event whose outcome was undefined and is now defined (a late patch). */
+  /**
+   * Re-run an event whose outcome was undefined and is now defined (a late patch). An act answered so is seen
+   * again, as it comes to be (docs/npc-sandbox.md §2.12: what it does to a person is a deed like any other).
+   */
   replay(ev: GameEvent): void {
+    if (!ev.kind.startsWith('act/') || ev.kind === 'act/move') return this.queue({ ...ev, depth: 0 })
+    const before = this.before(ev)
     this.queue({ ...ev, depth: 0 })
+    this.flush()
+    this.see(ev, true, before)
+    this.flush()
   }
 
   /**
@@ -486,17 +518,9 @@ export class Engine {
 
   // ---------------------------------------------------------------- acts (design.md §5.7)
 
-  /** Whose a thing is: its own `owner` prop ('' = nobody's), or the owner of the container it lies in. */
-  ownerOf(e: Entity): Id | undefined {
-    const w = this.world
-    const own = w.prop(e, 'owner')
-    if (typeof own === 'string') return own || undefined
-    if (e.place.on === 'inside') {
-      const holder = w.get(e.place.holder)
-      const h = holder && w.prop(holder, 'owner')
-      if (typeof h === 'string' && h) return h
-    }
-    return undefined
+  /** Whose a thing is (social.ts): its own `owner` prop ('' = nobody's), what holds it, the region it lies in. */
+  ownerOf(e: Entity): string | undefined {
+    return this.social.ownerOf(e)
   }
 
   /** The act event an actor's verb makes: hosted by the instrument, or by the actor's own hands. */
@@ -538,9 +562,8 @@ export class Engine {
       return { defined: false }
     }
     const ev = this.actEvent(verb, actorId, target, instrument, opts.params)
-    // whose the thing was, before the act (a thing taken from her chest is hers until it is taken)
-    const thing = 'e' in target ? w.get(target.e) : undefined
-    const owner = thing ? this.ownerOf(thing) : undefined
+    // what the act is, before it is resolved (a thing taken from her chest is hers until it is taken)
+    const before = this.before(ev)
     const holes = this.holes
     // (the scene as the act finds it: after it, what it used up or changed is gone from it)
     const scene = ev.origin === 'player' ? this.undefinedSink?.scene?.(ev) : undefined
@@ -554,7 +577,7 @@ export class Engine {
     this.flush()
     if (res.defined && res.rule && ev.origin === 'player') this.undefinedSink?.observe?.(ev, res.rule.id, scene)
     // what the seers see: the act, and whether the world had an answer for all it set going
-    if (verb !== 'move' && verb !== 'craft' && verb !== 'learn') this.see(ev, res.defined && this.holes === holes, owner)
+    if (verb !== 'move' && verb !== 'craft' && verb !== 'learn') this.see(ev, res.defined && this.holes === holes, before)
     this.flush()
     return res
   }
@@ -641,23 +664,79 @@ export class Engine {
     return true
   }
 
-  /** Everyone who can see an act sees it, once it is resolved: a `seen` event each (if it could matter to them). */
-  private see(ev: GameEvent, defined: boolean, owner: Id | undefined): void {
+  /**
+   * What an act is, as those who see it will judge it (docs/npc-sandbox.md §2.2), taken before it is resolved:
+   * whose the thing acted on was, where it was (on someone, in a container, on the ground), whether it was a
+   * person, its health, its worth, and whether it was the doer's own.
+   */
+  private before(ev: GameEvent): Before {
     const w = this.world
-    const doer = ev.roles.actor && 'e' in ev.roles.actor ? w.get(ev.roles.actor.e) : undefined
-    const at = w.posOf(doer)
+    const doer = ev.roles.actor ? w.get(ev.roles.actor.e) : undefined
+    const thing = ev.roles.target ? w.get(ev.roles.target.e) : undefined
+    if (!doer || !thing || thing.id === doer.id) return { at: w.posOf(doer) }
+    const whose = this.social.ownerOf(thing)
+    const holder = thing.place.on === 'inside' || thing.place.on === 'hand' ? w.get(thing.place.holder) : undefined
+    const person = w.isAgent(thing) && w.hasTag(thing, 'person')
+    return {
+      at: w.posOf(doer),
+      thing: thing.id,
+      ...(whose && { whose, theirs: this.social.relation(whose, doer) === 'another' }),
+      from: holder ? (w.isAgent(holder) ? 'person' : 'container') : thing.place.on === 'tile' ? 'ground' : undefined,
+      person,
+      hp: w.prop(thing, 'maxHp') !== undefined ? w.num(thing, 'hp', w.num(thing, 'maxHp', 1)) : undefined,
+      worn: !!holder && w.worn(holder).some((x) => x.id === thing.id),
+      value: person ? undefined : this.social.value(thing),
+    }
+  }
+
+  /**
+   * Everyone who can see an act sees it, once it is resolved: a `seen` event each (if it could matter to them),
+   * with what it was (docs/npc-sandbox.md §2.2) — whose the thing was to them, the victim as they stand to it,
+   * the harm done, a death. One sneaking is seen only by some (social.ts `notices`), a hand in a pocket the same.
+   */
+  private see(ev: GameEvent, defined: boolean, b: Before): void {
+    const w = this.world
+    const doer = ev.roles.actor ? w.get(ev.roles.actor.e) : undefined
+    const at = b.at ?? w.posOf(doer)
     if (!doer || !at) return
+    // what the act did: the harm, a death
+    const t = b.thing ? w.get(b.thing) : undefined
+    const gone = !t || t.place.on === 'none' || (b.person && !w.isAgent(t))
+    const harm = b.hp !== undefined ? Math.max(0, b.hp - (gone ? 0 : w.num(t!, 'hp', w.num(t!, 'maxHp', 1)))) : 0
+    const killed = !!b.person && gone
+    const element = ev.params?.element
+    const facts: Record<string, PropValue> = {
+      act: String(ev.params?.verb ?? ''),
+      defined,
+      map: at.map,
+      x: at.x,
+      y: at.y,
+      ...(b.whose && { whose: b.whose }),
+      ...(b.theirs && { theirs: true }),
+      ...(b.from && { from: b.from }),
+      ...(b.person && { person: true }),
+      ...(b.worn && { worn: true }),
+      ...(harm > 0 && { harm }),
+      ...(killed && { killed: true }),
+      ...(b.value !== undefined && { value: b.value }),
+      ...(typeof element === 'string' && element && { element }),
+      ...(ev.params?.attack === true && { attack: true }),
+    }
     for (const e of w.entitiesOnMap(at.map)) {
       // a seer is anything with sight of its own
       if (e.id === doer.id || e.place.on !== 'tile' || !(w.num(e, 'sight') > 0) || this.asleep(e) || this.busy(e)) continue
       const p = e.place
-      if (Math.max(Math.abs(p.x - at.x), Math.abs(p.y - at.y)) > this.sightOf(e, p)) continue
+      const d = Math.max(Math.abs(p.x - at.x), Math.abs(p.y - at.y))
+      const sight = this.sightOf(e, p)
+      if (d > sight) continue
       if (!this.lineOfSight(at.map, p, at)) continue
+      if (!this.social.notices(e, doer, { from: b.from, whose: b.whose, worn: b.worn }, d, sight)) continue
+      const rel = this.social.relation(b.whose, e)
       this.offer({
         kind: 'seen',
         host: { e: e.id },
         roles: { actor: ev.roles.actor, target: ev.roles.target, instrument: ev.roles.instrument },
-        params: { act: String(ev.params?.verb ?? ''), owner: !owner ? 'nobody' : owner === e.id ? 'mine' : 'another', defined },
+        params: { ...facts, owner: rel === 'mine' || rel === 'ours' ? rel : rel === 'another' ? 'another' : 'nobody', victim: this.social.victim(b.person ? b.thing : b.whose, e) },
         cause: ev.cause,
         origin: ev.origin,
       })
@@ -1043,6 +1122,11 @@ export class Engine {
     return true
   }
 
+  /** Time passes at once for the one at the keys (hours in the cells), as on a long step: it runs at the end of this tick. */
+  passTime(ticks: number): void {
+    this.fastForward = Math.max(this.fastForward, Math.max(0, Math.round(ticks)))
+  }
+
   /** The one at the keys sleeps until the hour comes round (the clock runs at once, as on a long step): how long, in ticks. */
   sleepUntil(hour: number): number {
     const w = this.world
@@ -1231,6 +1315,8 @@ export class Engine {
       for (const ev of rec.inbox.sort((a, b) => (a.tick ?? 0) - (b.tick ?? 0))) this.queue({ ...ev, depth: 0 })
     }
     this.npcs.onEnterMap(map, from)
+    // those who follow the one at the keys come with them (docs/npc-sandbox.md: following)
+    this.conduct.bringFollowers(map)
     this.diffMap(map, false)
     this.flush()
   }
@@ -1392,6 +1478,10 @@ export class Engine {
     this.stayTick(active)
     // everyone's behaviour, one goal system (world-model.md §6.10): their moves and blows are acts
     this.behaviour.tick(active)
+    // the people look about them and talk among themselves (docs/npc-sandbox.md §2.3, §2.5): events, their answers their own
+    const sp = this.social.params
+    if (s.tick % Math.max(1, sp.perceiveEvery) === 0) this.social.perceive(active)
+    if (s.tick % Math.max(1, sp.gossipEvery) === 0) this.social.gossip(active)
     this.undefinedSink?.tick()
     this.controls.magnet()
     this.invariantTick()
@@ -1406,6 +1496,8 @@ export class Engine {
       const p = this.world.player
       const hp = w.num(p, 'hp')
       let stopped = false
+      // what was said and shown while the time went by was not seen (one slept, walked, sat in the cells)
+      const heard = w.fx.length
       for (let i = 0; i < n; i++) {
         this.tick()
         if (w.num(p, 'hp') < hp) {
@@ -1421,6 +1513,7 @@ export class Engine {
           break
         }
       }
+      w.fx = [...w.fx.slice(0, heard), ...w.fx.slice(heard).filter((f) => f.t !== 'say' && f.t !== 'emote')]
       // what is left passes in the next ticks, unless harm stopped it (or another long step began)
       if (!stopped && this.fastForward === 0) this.fastForward = total - n
     }

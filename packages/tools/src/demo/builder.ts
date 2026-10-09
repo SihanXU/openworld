@@ -50,6 +50,10 @@ export class MapBuilder {
   anchors: Record<string, [number, number]> = {}
   /** Named areas [x, y, w, h] (the goal's far bank). */
   regions: Record<string, [number, number, number, number]> = {}
+  /** What a named area is beyond its cells (MapData.regionProps): whose it is, whether it is private. */
+  regionProps: Record<string, Record<string, PropValue>> = {}
+  /** The watch that keeps the law here (MapData.law, docs/npc-sandbox.md §2.7). */
+  law?: string
   /** What appears on the map by itself: the ground's yield, creatures that come back (MapData.appear). */
   appear: AppearDef[] = []
   /** Peaceful (towns, camps) or combat (night brings monsters): MapData.zone. */
@@ -422,6 +426,8 @@ export class MapBuilder {
         rooms: this.rooms,
         anchors: Object.keys(this.anchors).length ? this.anchors : undefined,
         regions: Object.keys(this.regions).length ? this.regions : undefined,
+        regionProps: Object.keys(this.regionProps).length ? this.regionProps : undefined,
+        law: this.law,
         appear: this.appear.length ? this.appear : undefined,
         music: this.music,
         light: this.light,

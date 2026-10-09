@@ -98,7 +98,7 @@ export const QUEST_RULES: Rule[] = [
     doc: 'The elder tells of the dragon and what it will take (once).',
     host: { type: ELDER },
     on: 'impulse/handle',
-    tree: IF(all(fact('mq.council', 0), { none: 'instrument' }), DO(notify('council'))),
+    tree: IF(all(fact('mq.council', 0), { none: 'instrument' }, { not: { param: { key: 'say', cmp: { ne: '' } } } }), DO(notify('council'))),
   }),
   // ---------------------------------------------------------------- the smith: ore and coal, a blade
   turnIn('smith-ore', ASKS.ore, ['Good iron. Five ore and three coal, and you will have your blade.', '好铁。五块矿石、三块煤，你的剑就有了。'], ['That is iron enough. Coal, now — if you have not brought it.', '铁够了。现在要煤——如果你还没带来的话。']),
@@ -110,7 +110,7 @@ export const QUEST_RULES: Rule[] = [
     host: { type: SMITH },
     on: 'impulse/handle',
     tree: IF(
-      all(fact('mq.ore', { gte: ASKS.ore.need }), fact('mq.coal', { gte: ASKS.coal.need }), fact('mq.blade', 0)),
+      all(fact('mq.ore', { gte: ASKS.ore.need }), fact('mq.coal', { gte: ASKS.coal.need }), fact('mq.blade', 0), { not: { param: { key: 'say', cmp: { ne: '' } } } }),
       DO(
         { op: 'spawn', type: BLADE, at: 'actor', into: 'contents' },
         notify('blade'),
@@ -130,7 +130,7 @@ export const QUEST_RULES: Rule[] = [
     host: { type: HERBALIST },
     on: 'impulse/handle',
     tree: IF(
-      all(fact('mq.fireweed', { gte: ASKS.fireweed.need }), fact('mq.frostcap', { gte: ASKS.frostcap.need }), fact('mq.draught', 0)),
+      all(fact('mq.fireweed', { gte: ASKS.fireweed.need }), fact('mq.frostcap', { gte: ASKS.frostcap.need }), fact('mq.draught', 0), { not: { param: { key: 'say', cmp: { ne: '' } } } }),
       DO(
         { op: 'spawn', type: DRAUGHT, at: 'actor', into: 'contents', count: 2 },
         notify('draught'),
@@ -228,7 +228,7 @@ export const QUEST_RULES: Rule[] = [
       what('waypoint'),
       DO({ op: 'addProp', key: 'waypoints.attuned', delta: 1 }),
       IF(
-        what('meal'),
+        all(what('meal'), { prop: { role: 'actor', key: 'prologue' } }),
         DO({ op: 'addProp', key: 'prologue.meals', delta: 1 }),
         IF(what('experiment'), DO({ op: 'addProp', key: 'world.experiments', delta: 1 }), IF(what('dummy'), DO({ op: 'addProp', key: 'tutorial.dummy', delta: 1 }))),
       ),

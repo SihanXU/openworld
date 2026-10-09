@@ -2,7 +2,7 @@
 // world.ts resolves anchors to map positions and turns each record into an NPC entity with
 // `npc.person` (PersonData) for the engine.
 
-import type { LineDef, Mood, Selector, Text, WorkDef } from '@lsw/engine'
+import type { LineDef, Mood, PropValue, Selector, Text, WorkDef } from '@lsw/engine'
 import type { LookPins } from '@lsw/content'
 import type { ItemSpec } from './builder.ts'
 
@@ -33,6 +33,22 @@ export interface PersonDef {
   items?: ItemSpec[]
   /** What the person is, beyond their role (the woodcutter's skill). */
   tags?: string[]
+  // their social life (docs/npc-sandbox.md)
+  /** Struck, they fight back (a guard, a smith); else they flee (the default). */
+  fights?: boolean
+  /** The watch they keep (its law id): they stop the wanted, and see deeds for the watch. */
+  watch?: string
+  /** A merchant: what they sell (made up each morning: a type and how many), and whether they take what is not the seller's (a fence). */
+  trade?: { stock: [string, number][]; fence?: boolean }
+  /** Coin carried, made up each morning (a day's wage); default by role. */
+  purse?: number
+  /** Their conscience, 0..1 (default 1): the hungry with no coin and little conscience take a meal; and whether they tell the watch what they see (default true). */
+  honesty?: number
+  lawful?: boolean
+  /** One who follows anyone who asks (a hireling), regard or not. */
+  hireling?: boolean
+  /** Props they begin with beyond their type's (one who comes in hungry). */
+  props?: Record<string, PropValue>
 }
 
 /** A line: key, English, Chinese, and options (mood, once). */

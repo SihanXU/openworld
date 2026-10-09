@@ -46,6 +46,11 @@ export interface EntityInfo {
   makeup?: { type: string; count: number; chance?: number }[]
   /** How it looks, in words (a person's look, docs/looks.md): its body and each part in its colour. */
   look?: string
+  /**
+   * A person (docs/npc-sandbox.md §2.12): their role, temperament and ties, their household, whether they fight, what they
+   * think of the one who acted (regard, −100..100) and what they know of them (deeds, in words).
+   */
+  person?: { role: string; temperament?: Record<string, string>; ties?: Record<string, string>; household?: string; fights?: boolean; regard?: number; knows?: string[] }
   /** Offset from the host's tile. */
   at?: [number, number]
 }
@@ -208,7 +213,7 @@ const EVENTS: Record<string, string> = {
   'time/timer': 'a status ran out on the host (params status, at: its scheduled deadline; actor: who gave it).',
   'threshold/gain|lose': 'the host gained or lost a status (param status).',
   'threshold/cross': 'a prop of the host came to a declared line (param name: broken at hp 0 — for every thing with durability: a person goes down, a tree falls, a rock breaks into its makeup; hungry under six tenths of maxHunger, and back over it with param way "up" — the host gains or loses the status hungry, and hunger falls slowly while it lasts; param prop).',
-  seen: 'the host (an actor) saw someone act: roles actor (the doer), target, instrument; params act (the verb), owner (mine | another | nobody: whose the target was before), defined (the world had an answer for the act and all it set going).',
+  seen: 'the host (an actor) saw someone act: roles actor (the doer), target, instrument; params act (the verb, or presence: someone seen where they are), owner (mine | ours | another | nobody: whose the target was before, to the seer), victim (me | ours | kin | other | none: whose the deed was against, to the seer), whose (the owner\'s id), theirs (the doer did not own it), from (person | container | ground), person (the target was a person), harm, killed, value, map, x, y, defined (the world had an answer for the act and all it set going); on a presence: trespass, suspect (a stranger the seer remembers doing something), drawn (a blade out), wanted (the bounty), meet (a face close in the light). The {deed} condition reads which deed it is (docs/npc-sandbox.md).',
   stuck: 'the host cannot go on with what it does (param activity): the day of a person — target is what it needs (gone, or not as it must be), or the spot they cannot reach; a companion that cannot follow (activity follow) — target is its leader.',
   broken: 'the story: content it must keep playable broke (param invariant; target the person it belongs to). The default is the invariant\'s fallback.',
 }
@@ -222,8 +227,8 @@ const IMPULSES: Record<string, string> = {
   taken: 'the host (a thing) is being taken: other = the taker (or receiver); param into (hand | contents | tile). Its root moves it there.',
   receive: 'something is put on or into the host: item = the thing. The host decides: take it (emit taken to the item with into) or refuse.',
   offered: 'the host (an actor) is handed a thing: item = the thing; accept (emit taken with into contents) or decline.',
-  handle: 'a bare hand on the host: open, read, talk, push, shake — the host says',
-  notify: 'news for the host: params what (a key) and value — a topic for the story, the player\'s stage, a defeat for the one who struck.',
+  handle: 'a bare hand on the host: open, read, talk, push, shake — the host says; param say (a talk verb: ask, trade, follow, persuade, bribe, intimidate, apologise, pay, jail, resist, buy with param item …) when one speaks to it, and a say no rule knows is the host\'s to answer',
+  notify: 'news for the host: params what (a key) and value — a topic for the story, the player\'s stage, a defeat for the one who struck; for people: pay (amount, to the source), give (the item, to the source), surrender, jail (map, x, y, hours), news (deeds), chat, calm; for a watch: report (actor, amount, key), pardon.',
 }
 
 /**
@@ -286,6 +291,16 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       "{worn: role} — the role's thing is worn (or wielded) by the one who carries it",
       "{rel: {role, how}} — the role has that relation now: on (stands on something), support (something holds it up), in-region …",
       '{fighting: role} — the role is fighting: it struck at an actor, was struck by one, or a hostile one came after it, in the last five seconds',
+      '{regard: {of: role, toward: role, cmp}} — what one person thinks of another (−100..100, its regard: talk, gifts and help raise it, deeds lower it)',
+      '{grudge: {of: role, toward: role, deed?}} — one holds an unsettled deed against another (done to them, their household or kin): any, or one kind (theft, assault …)',
+      '{owns: [roleA, roleB]} — roleA owns roleB (its own or its household\'s)',
+      '{knows: [roleA, roleB]} — roleA knows roleB by sight',
+      '{remembers: role} — the role keeps a record of its own (a person whose day is its own): what it sees, it remembers',
+      '{deed: true | id} — the seen event holds a deed (theft, pickpocket, assault, murder, vandalism, arson, trespass)',
+      '{sway: {of: role, by: role, how: persuade|intimidate, bonus?}} — a roll of roleB swaying roleA',
+      '{bounty: {role, cmp}} — what the role owes the watch of where the host is',
+      '{canPay: {role, mul?}} — the role carries coin enough for its bounty here (times mul)',
+      '{unpardonable: role} — the role\'s bounty here is past what the watch pardons',
     ],
     events: EVENTS,
     impulses: IMPULSES,
@@ -715,11 +730,21 @@ function stillValid(eng: Engine, ev: GameEvent): boolean {
 
 // ---------------------------------------------------------------- building requests
 
-function info(eng: Engine, role: string, v: View | undefined, origin?: { x: number; y: number }): EntityInfo | undefined {
+function info(eng: Engine, role: string, v: View | undefined, origin?: { x: number; y: number }, toward?: Ref): EntityInfo | undefined {
   if (!v) return undefined
   const w = eng.world
   const p = w.refPos(v.ref)
   const chain = w.onto.resolve(v.type).chain
+  const e = v.entity
+  const other = toward && toward.e !== v.ref.e ? toward.e : undefined
+  const person = e?.npc && {
+    role: e.npc.role,
+    ...(e.npc.person?.temperament && { temperament: e.npc.person.temperament as Record<string, string> }),
+    ...(e.npc.person?.ties && { ties: Object.fromEntries(Object.entries(e.npc.person.ties).map(([id, t]) => [eng.nameOf({ e: id }), t])) }),
+    ...(typeof w.prop(e, 'household') === 'string' && { household: String(w.prop(e, 'household')) }),
+    ...(w.prop(e, 'fights') === true && { fights: true }),
+    ...(other && { regard: eng.social.regard(e, other), knows: (e.npc.memory?.deeds ?? []).filter((d) => d.by === other).slice(-4).map((d) => eng.social.deedWords(d, 'en')) }),
+  }
   return {
     role,
     id: v.id,
@@ -732,6 +757,7 @@ function info(eng: Engine, role: string, v: View | undefined, origin?: { x: numb
     material: v.entity && w.materialOf(v.entity),
     makeup: w.onto.resolve(v.type).makeup,
     look: v.entity && typeof v.entity.look === 'object' && w.onto.data.looks ? lookWords(w.seenLook(v.entity) as Look, w.onto.data.looks) : undefined,
+    ...(person && { person }),
     at: p && origin ? [p.x - origin.x, p.y - origin.y] : undefined,
   }
 }
@@ -795,12 +821,14 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
   const recent = [...w.recent, ...w.fx.flatMap((f) => (f.t === 'log' || f.t === 'say' ? [f.text] : []))].slice(-RECENT_LINES).map((t) => textOf(t))
   const hostView = roles.host
   const infos: Partial<Record<RoleName, EntityInfo>> = {}
-  for (const [k, v] of Object.entries(roles)) if (k !== 'host' && v) infos[k as RoleName] = info(eng, k, v, center)
+  // a person in the event is told with what they think of the one who acted (docs/npc-sandbox.md §2.12)
+  const doer = ev.roles.actor ?? (ev.cause ? { e: ev.cause } : undefined)
+  for (const [k, v] of Object.entries(roles)) if (k !== 'host' && v) infos[k as RoleName] = info(eng, k, v, center, doer)
   return {
     id,
     summary: summarize(eng, ev),
     origin: ev.origin === 'player' ? 'player' : 'world',
-    event: { kind: ev.kind, params: { ...(ev.params ?? {}) }, host: info(eng, 'host', hostView, center), roles: infos, detail: detailOf(eng, ev) },
+    event: { kind: ev.kind, params: { ...(ev.params ?? {}) }, host: info(eng, 'host', hostView, center, doer), roles: infos, detail: detailOf(eng, ev) },
     hole: { rule: res.hole?.rule.id ?? '?', path: res.hole?.path ?? [], default: res.hole?.default ?? [] },
     context: {
       map: { id: mapData.id, name: textOf(mapData.name), kind: mapData.kind, region: mapData.region },
@@ -824,7 +852,11 @@ function detailOf(eng: Engine, ev: GameEvent): string | undefined {
     const inv = eng.invariants.find((i) => i.id === ev.params?.invariant)
     return inv ? textOf(inv.text) : undefined
   }
-  if (ev.kind === 'seen') return `${n(ev.host)} saw ${n(ev.roles.actor)} ${ev.params?.act} ${n(ev.roles.target)} (${ev.params?.owner === 'mine' ? 'it is theirs' : ev.params?.owner === 'another' ? "it is someone else's" : "it is nobody's"})`
+  if (ev.kind === 'seen') {
+    const deed = eng.social.deedIn(ev)
+    const whose = ev.params?.owner === 'mine' || ev.params?.owner === 'ours' ? 'it is theirs' : ev.params?.owner === 'another' ? "it is someone else's" : "it is nobody's"
+    return `${n(ev.host)} saw ${n(ev.roles.actor)} ${ev.params?.act} ${n(ev.roles.target)} (${whose})${deed ? `: a ${textOf(deed.name)}` : ''}`
+  }
   if (ev.kind === 'stuck') {
     const p = 'e' in ev.host ? w.get(ev.host.e) : undefined
     const s = p?.npc?.person?.schedules?.flatMap((v) => v.entries).find((x) => x.activity === ev.params?.activity)
@@ -1032,6 +1064,16 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ('worn' in c) return role(c.worn, `${where}.worn`)
     if ('rel' in c) return role(c.rel.role, `${where}.rel.role`)
     if ('fighting' in c) return role(c.fighting, `${where}.fighting`)
+    if ('regard' in c) return (role(c.regard.of, `${where}.regard.of`), role(c.regard.toward, `${where}.regard.toward`))
+    if ('grudge' in c) return (role(c.grudge.of, `${where}.grudge.of`), role(c.grudge.toward, `${where}.grudge.toward`))
+    if ('owns' in c) return c.owns.forEach((r, i) => role(r, `${where}.owns[${i}]`))
+    if ('knows' in c) return c.knows.forEach((r, i) => role(r, `${where}.knows[${i}]`))
+    if ('remembers' in c) return role(c.remembers, `${where}.remembers`)
+    if ('sway' in c) return (role(c.sway.of, `${where}.sway.of`), role(c.sway.by, `${where}.sway.by`), c.sway.how !== 'persuade' && c.sway.how !== 'intimidate' ? void errors.push(`${where}.sway.how must be persuade|intimidate`) : undefined)
+    if ('bounty' in c) return role(c.bounty.role, `${where}.bounty.role`)
+    if ('canPay' in c) return role(c.canPay.role, `${where}.canPay.role`)
+    if ('unpardonable' in c) return role(c.unpardonable, `${where}.unpardonable`)
+    if ('deed' in c) return c.deed === true || ctx.ontology.deeds?.some((d) => d.id === c.deed) ? undefined : void errors.push(`${where}: unknown deed "${String(c.deed)}"`)
     if ('same' in c) return c.same.forEach((r, i) => role(r, `${where}.same[${i}]`))
     if ('leads' in c) return c.leads.forEach((r, i) => role(r, `${where}.leads[${i}]`))
     if ('has' in c) {
@@ -1058,10 +1100,14 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   }
   const checkTo = (to: EmitTo, where: string) => {
     if (typeof to === 'string') {
-      if (to !== 'story' && to !== 'world' && !ROLE_REFS.has(to)) errors.push(`${where}: unknown receiver "${to}"`)
+      if (to !== 'story' && to !== 'world' && to !== 'watch' && !ROLE_REFS.has(to)) errors.push(`${where}: unknown receiver "${to}"`)
       return
     }
     if ('named' in to || 'map' in to) return
+    if ('around' in to) {
+      if (!(to.around >= 1 && to.around <= 12)) errors.push(`${where}: around must be 1–12`)
+      return
+    }
     if ('area' in to) {
       if (!(to.area.radius >= 1 && to.area.radius <= 3)) errors.push(`${where}: area radius must be 1–3`)
       return
@@ -1143,7 +1189,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     t.do.forEach((e, j) => checkEffect(e, `${where}.do[${j}]`, resident))
     // a world event's people are never harmed by what it learns
     if (ctx.world && host && (host.type ? isA(host.type, 'actor/person') || isA('actor/person', host.type) : !host.type))
-      for (const [j, e] of t.do.entries()) if (e.op === 'hurt' || e.op === 'destroy') errors.push(`${where}.do[${j}]: a world event may not harm a person (${e.op})`)
+      for (const [j, e] of t.do.entries()) if (e.op === 'hurt' || e.op === 'destroy' || e.op === 'die' || e.op === 'jail') errors.push(`${where}.do[${j}]: a world event may not harm a person (${e.op})`)
   }
   const ids = new Set<string>()
   for (const [i, r] of rules.entries()) {

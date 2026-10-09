@@ -90,6 +90,7 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 | W9 | Behaviour: one goal system, real work (done 2026-10-04) | W3 | 26,189 / 38,329 (68.3%) | 39 of 125 forms, 23 of 87 fixture types |
 | W10 | The story's script (done 2026-10-04) | W1 | 26,189 / 38,329 (68.3%) | 39 of 125 forms, 23 of 87 fixture types |
 | Inputs v2 | Five inputs with reach (E, F, G, left click, right click on oneself); taking and putting are physics (done 2026-10-04) | W10 | 16,716 / 38,329 (43.6%) | 39 of 125 forms, 23 of 87 fixture types |
+| NPC | The people as playable as The Elder Scrolls': ownership, deeds and witnesses, recognition, memory and regard, gossip, the watch and bounties, arrest, death and bodies, talk, trade, pockets, followers, needs ([npc-sandbox.md](npc-sandbox.md), done 2026-10-09) | Inputs v2, looks | 31,687 / 71,381 (44.4%) | 0 of 182 forms, 23 of 126 fixture types |
 
 Inputs v2 (design.md §5.2) moved taking and putting out of the AI's questions by design: what is
 taken or put down, what refuses it, and a creature not taking what is put on it are the world's

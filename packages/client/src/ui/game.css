@@ -563,3 +563,35 @@ body.looks-page { background: #2b3550; color: var(--ink-warm); overflow: auto; }
 .lk-bar { display: flex; gap: 10px; align-items: center; margin: 8px 0; color: #f4ead6; }
 .lk-panel { position: static; transform: none; width: auto; max-height: none; background: var(--paper); border: 4px solid var(--wood-dark); border-radius: 10px; }
 #lkCode { white-space: pre-wrap; background: #1d2338; color: #cfe3ff; padding: 10px; border-radius: 6px; font-size: 12px; }
+
+/* the people (docs/npc-sandbox.md): the talk's verbs, regard, the social status line, the trade and pockets panels */
+.dchoices.talk { flex-wrap: wrap; gap: 6px; }
+.dchoices.talk button { min-width: 0; font: 600 13px var(--pixel); padding: 3px 8px; }
+.dchoices.talk button kbd { font-size: 10px; margin-right: 2px; }
+.dname .regard { font: 600 11px var(--pixel); padding: 1px 6px; border-radius: 8px; background: var(--paper-dark); color: var(--ink-warm); vertical-align: middle; }
+.dname .regard.r-hostile, .dname .regard.r-敌视 { background: #b0322a; color: #fbe9c4; }
+.dname .regard.r-cold, .dname .regard.r-冷淡 { background: #7d8db0; color: #fbe9c4; }
+.dname .regard.r-friendly, .dname .regard.r-友好 { background: #8bbf6a; }
+.dname .regard.r-close, .dname .regard.r-亲近 { background: #e8a14c; }
+.dname .grudge { font: 400 12px var(--pixel); color: #b0322a; margin-left: 4px; }
+.kl.steal { color: #ff8a7a; }
+.social-status { position: absolute; left: 14px; top: 180px; display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none; font: 600 12px var(--pixel); }
+.social-status .ss { padding: 2px 8px; border-radius: 8px; background: rgba(32, 20, 10, 0.6); color: #fbe9c4; text-shadow: 0 1px 0 #000; }
+.social-status .ss.wanted { background: rgba(160, 30, 24, 0.8); }
+.social-status .ss.drawn { background: rgba(120, 60, 20, 0.75); }
+.social-status .ss.sneak { background: rgba(40, 50, 80, 0.75); }
+.people-sheet { width: min(720px, 96vw); background: var(--paper); color: var(--ink-warm); border: 3px solid var(--wood-dark); border-radius: 8px; }
+.pp-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font: 600 16px var(--pixel); }
+.pp-head .x { margin-left: auto; background: var(--paper-dark); color: var(--ink-warm); border: 2px solid var(--wood-dark); }
+.pp-head .muted { font: 400 12px var(--pixel); }
+.pp-purse { font: 400 13px var(--pixel); }
+.pp-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pp-title { font: 600 13px var(--pixel); margin-bottom: 4px; border-bottom: 2px solid var(--paper-dark); }
+.pp-row { display: grid; grid-template-columns: 30px 1fr auto auto; align-items: center; gap: 6px; padding: 2px 0; }
+.pp-row .icon canvas { width: 24px; height: 24px; image-rendering: pixelated; }
+.pp-row button { background: var(--paper-dark); color: var(--ink-warm); border: 2px solid var(--wood-dark); font: 600 12px var(--pixel); padding: 2px 8px; }
+.pp-row button:disabled { opacity: 0.45; cursor: default; }
+.pp-row.worn { opacity: 0.8; }
+.pp-steal, .pp-worn { font: 400 10px var(--pixel); color: #b0322a; }
+.pp-price { font: 600 12px var(--pixel); color: #8a6a12; }
+@media (max-width: 720px) { .pp-cols { grid-template-columns: 1fr; } }

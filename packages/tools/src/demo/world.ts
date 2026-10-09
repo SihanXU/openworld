@@ -10,7 +10,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { storyTopics, tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
-import { BOSSES, CH1_QUESTS, HAVEN_QUESTS, codexEntries, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_AT_FOOT, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, STORY_RULES, PLAYER_LOOK, generateLook, type RawChunk } from '@lsw/content'
+import { BOSSES, CH1_QUESTS, HAVEN_QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_AT_FOOT, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, PLAYER_LOOK, generateLook, type RawChunk } from '@lsw/content'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
@@ -20,7 +20,7 @@ import { PAT, PROLOGUE, TUTORIAL, buildFoot, buildSummit, buildTutorial } from '
 import { BARROW, HOLLOW, buildBarrow, buildHollow, buildOssuary, buildSanctum } from './hollow.ts'
 import type { PersonDef, Slot } from './person.ts'
 import { buildOverworld, placeCells, siteOf } from './overworld.ts'
-import { PEOPLE } from './people.ts'
+import { HOUSEHOLDS, PEOPLE, householdOf } from './people.ts'
 import { buildHaven } from './quest/haven.ts'
 import { VIGIL, buildChapel, buildDawnHill, buildMillCellar, buildMillbrook } from './quest/vigil.ts'
 import { CHAPTER1_SCENES, CHAPTER1_STORY, HAVEN_STORY, buildOffstage, chapter1Barrow, chapter1EastRoad, chapter1Foot, chapter1Ford, chapter1Forest, chapter1Hollow, chapter1Pasture, chapter1Summit, chapter1Village } from './quest/chapter1.ts'
@@ -289,6 +289,12 @@ function buildMeadow(): MapBuilder {
   m.anchor('lina.home', 12, 9)
   m.anchor('oskar.bench', 17, 19)
   m.anchor('oskar.home', 31, 9)
+  // the village keeps the law (docs/npc-sandbox.md §2.7): its watch, and the cells behind the watch house
+  m.law = 'firstlight'
+  m.anchor('cells', 30, 4)
+  // Cass's loom by the square; where Vigo sleeps rough
+  m.anchor('cass.loom', 15, 14)
+  m.anchor('vigo.camp', 34, 15)
   // a pond where the animals drink
   m.organic(16, 22, 2.6, 1.7, 'water', { only: (t) => t === 'grass' })
   // the warm spring west of it (its pool drawn over grass): sit in it and it mends you
@@ -422,16 +428,36 @@ function person(p: PersonDef, at: (name: string) => Pos): Entity {
   const schedules: ScheduleVariant[] = Object.entries(p.schedules).map(([key, list]) => ({ key, entries: slots(p, key, list, at) }))
   const hourIn = (s: ScheduleEntry, h: number) => (s.from <= s.to ? h >= s.from && h < s.to : h >= s.from || h < s.to)
   const first = schedule.find((s) => hourIn(s, START_HOUR)) ?? schedule[0]
+  // their social life (docs/npc-sandbox.md): their house, whether they fight, the watch they keep, their trade and coin
+  const household = householdOf(p.id)
+  const purse = p.purse ?? (p.role === 'child' ? 2 : 10)
+  const stock = p.trade?.stock ?? []
+  const tags = [...(p.tags ?? []), ...(p.watch ? ['watchman'] : []), ...(p.trade ? ['merchant'] : []), ...(p.trade?.fence ? ['fence'] : []), ...(p.hireling ? ['hireling'] : [])]
+  const carried = [
+    ...(p.items ?? []).map((spec, i) => ({ id: `${p.id}.item${i}`, ...itemOf(spec) })),
+    ...stock.flatMap(([form, n], i) => Array.from({ length: n }, (_, j) => ({ id: `${p.id}.stock${i}.${j}`, ...itemOf(form) }))),
+    ...Array.from({ length: purse }, (_, i) => ({ id: `${p.id}.coin${i}`, type: SOCIAL_COIN })),
+  ].map((e) => ({ ...e, place: { on: 'inside' as const, holder: p.id } }))
   return {
     id: p.id,
     type: `actor/person/${p.role}`,
     name: p.name,
     place: { on: 'tile', map: first.map, x: first.x, y: first.y },
     facing: 'down',
-    props: { age: p.age },
-    ...(p.tags && { tags: p.tags }),
-    // what they carry (addTree puts it in their bag)
-    ...(p.items && { _items: p.items.map((spec, i) => ({ id: `${p.id}.item${i}`, ...itemOf(spec), place: { on: 'inside' as const, holder: p.id } })) }),
+    props: {
+      age: p.age,
+      purse,
+      ...(household && { household }),
+      ...(p.fights && { fights: true }),
+      ...(p.watch && { watch: p.watch }),
+      ...(stock.length && { stock: stock.map(([form, n]) => `${form}*${n}`).join('|') }),
+      ...(p.honesty !== undefined && { honesty: p.honesty }),
+      ...(p.lawful === false && { lawful: false }),
+      ...p.props,
+    },
+    ...(tags.length && { tags }),
+    // what they carry (addTree puts it in their bag): their things, their goods, their coin
+    ...(carried.length && { _items: carried }),
     // how they look: what the author chose, the rest drawn from their id (docs/looks.md)
     look: generateLook(p.id, { sex: p.gender, age: p.age, role: p.role }, p.look),
     npc: {
@@ -630,6 +656,25 @@ export function buildFord(): FordWorld {
     return { map: b.id, x: a[0], y: a[1] }
   }
   const npcs = PEOPLE.map((p) => person(p, anchorAt))
+  // a household's doorstep is theirs (docs/npc-sandbox.md §2.1): found where its first sleeps — unless others
+  // sleep there too (a door that is a shelter as well is nobody's)
+  const bedOf = (p: PersonDef) => p.schedules.default.find((s) => s[3] === 'sleep')?.[2]
+  for (const [h, ids] of Object.entries(HOUSEHOLDS)) {
+    const p = PEOPLE.find((x) => x.id === ids[0])
+    const bed = p && bedOf(p)
+    if (!bed) continue
+    const a = anchorAt(bed)
+    const shared = PEOPLE.some((o) => !ids.includes(o.id) && bedOf(o) && ((b) => b.map === a.map && b.y === a.y && Math.abs(b.x - a.x) <= 1)(anchorAt(bedOf(o)!)))
+    if (shared) continue
+    const b = builders.find((x) => x.id === a.map)!
+    b.regions[`home.${h}`] = [a.x - 1, a.y, 3, 1]
+    b.regionProps[`home.${h}`] = { owner: `household:${h}` }
+  }
+  // the people the story needs go down instead of dying (docs/npc-sandbox.md §2.8): those its quests, scenes,
+  // invariants and rules name (by id, or by the kind of person a story rule is about), and the trainer the
+  // professions are chosen at; the rest are mortal
+  const told = JSON.stringify([VILLAGE_QUESTS, CH1_QUESTS, HAVEN_QUESTS, INVARIANTS, STORY_RULES, PROLOGUE_BEATS, FIRSTLIGHT_BEATS, scenes, CHAPTER1_STORY, CHAPTER1_SCENES, HAVEN_STORY, QUEST_SCENES])
+  for (const n of npcs) if (told.includes(`"${n.id}"`) || told.includes(`"${n.type}"`) || n.type === 'actor/person/trainer') n.tags = [...(n.tags ?? []), 'essential']
   // the overworld (world-model.md §5.1): each map on its cell, the rest of the continent wild
   const cells = placeCells(builders, m)
   for (const b of builders) {

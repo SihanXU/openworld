@@ -14,6 +14,10 @@ export const garrick: PersonDef = {
   age: 46,
   temperament: { personality: 'gruff', manner: 'rough', social: 'reserved', outlook: 'hopeful' },
   ties: { 'npc.mara': 'the elder who pays for his coal' },
+  // he sells what he makes, and a smith struck strikes back
+  fights: true,
+  trade: { stock: [['item/tool/pickaxe', 1], ['item/tool/hoe', 1], ['item/weapon/blade/dagger', 1]] },
+  purse: 60,
   schedules: {
     default: [
       [21, 6, 'emberfall:smith.home', 'sleep'],

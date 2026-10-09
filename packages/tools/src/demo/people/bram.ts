@@ -15,6 +15,9 @@ export const bram: PersonDef = {
   age: 61,
   temperament: { personality: 'stern', manner: 'plain', social: 'reserved', outlook: 'wary' },
   ties: { 'npc.tobin': 'the peddler who talks through his drills' },
+  // a trainer struck strikes back
+  fights: true,
+  purse: 20,
   // he keeps the drill yard day and night, standing where anyone can find him (tag stationary)
   schedules: {
     default: [[0, 24, 'meadow:drill.yard', 'keep the drill yard']],
