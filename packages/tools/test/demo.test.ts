@@ -313,11 +313,13 @@ req('B11', 'an act is seen by those who can see it: the owner of what was taken 
   // the cart is in Firstlight Village; the ferrykeeper is visiting, a bystander
   author(f, () => W(f).place(W(f).get('npc.hesper')!, { on: 'tile', map: FIRSTLIGHT.map, x: 29, y: 16 }))
   stand(f, ...STAND.cart, 'left', FIRSTLIGHT.map)
-  const oil = ofType(f, 'item/vessel/flask/oil')!
+  const oil = W(f).get('tobin.oil')!
   run(f, 'take', ...AT.cart)
   expect(W(f).player.held === oil.id || W(f).player.contents?.includes(oil.id)).toBe(true)
   const seen = f.eng.trace.filter((t) => t.ev.kind === 'seen' && t.ev.params?.act === 'take')
-  expect(seen.some((t) => hostIs(t.ev, 'npc.tobin') && t.ev.params?.owner === 'mine' && t.rule === 'seen/owner-take')).toBe(true)
+  expect(seen.some((t) => hostIs(t.ev, 'npc.tobin') && t.ev.params?.owner === 'mine' && t.rule === 'people/see')).toBe(true)
+  // he takes it in as a theft against him (docs/npc-sandbox.md)
+  expect(W(f).get('npc.tobin')!.npc?.memory?.deeds?.[0]).toMatchObject({ deed: 'theft', against: 'npc.tobin' })
   expect(seen.some((t) => hostIs(t.ev, 'npc.hesper') && t.ev.params?.owner === 'another' && t.defined)).toBe(true)
 })
 
@@ -2988,6 +2990,103 @@ req('C3', 'the nights lengthen as the seals fall: an hour earlier and half an ho
   setHour(f, 3, 5.25)
   expect(w.isNight()).toBe(true)
   expect(snapshot(f.eng).night).toEqual({ dusk: 20, dawn: 5.5 })
+})
+
+// ------------------------------------------------------------------ N. the people's social life (docs/npc-sandbox.md)
+
+/** A person set down where a requirement wants them, facing a way. */
+const placeNpc = (f: Ford, id: string, x: number, y: number, facing: Entity['facing'] = 'down', map: string = FIRSTLIGHT.map) =>
+  author(f, () => {
+    const e = W(f).get(id)!
+    W(f).place(e, { on: 'tile', map, x, y })
+    e.facing = facing
+  })
+/** Everyone but these sent offstage (the scene is the requirement's), the hour begun. */
+const onlyNpcs = (f: Ford, keep: string[]) => {
+  author(f, () => {
+    for (const e of Object.values(W(f).state.entities)) if (e.npc && !keep.includes(e.id) && e.place.on === 'tile') W(f).place(e, { on: 'tile', map: 'offstage', x: 1, y: 1 })
+  })
+  f.eng.npcs.begin(FIRSTLIGHT.map)
+}
+const bountyOf = (f: Ford, who = 'player') => f.eng.social.bounty('firstlight', who)
+
+req('N1', "a deed seen is a deed known: a loaf of Marta's taken in the square before her and Holt — she cries out, Holt charges the bounty; he comes to the one he wants and stops them, and paid, the bounty is cleared and the loaf goes back", ['npc.marta', 'npc.holt'], () => {
+  const f = fresh()
+  onlyNpcs(f, ['npc.marta', 'npc.holt'])
+  stand(f, 20, 15, 'up', FIRSTLIGHT.map)
+  placeNpc(f, 'npc.marta', 21, 15, 'left')
+  placeNpc(f, 'npc.holt', 22, 16, 'left')
+  const loaf = author(f, () => W(f).create('item/food/bread', { on: 'tile', map: FIRSTLIGHT.map, x: 20, y: 14 }, { props: { owner: 'npc.marta' } }))
+  const plan = run(f, 'take', 20, 14)
+  expect(plan.steal).toBe(true)
+  expect(W(f).get('npc.marta')!.npc?.memory?.deeds?.[0]).toMatchObject({ deed: 'theft', by: 'player', against: 'npc.marta' })
+  expect(bountyOf(f)).toBe(5)
+  author(f, () => { for (let i = 0; i < 10; i++) W(f).create('item/misc/thornmark', { on: 'inside', holder: 'player' }) })
+  stand(f, 20, 12, 'down', FIRSTLIGHT.map)
+  expect(ticks(f, 400, () => f.eng.world.fx.some((x) => x.t === 'talk' && x.arrest === true) || !!snapshot(f.eng).fx.find((x) => x.t === 'talk' && x.arrest))).toBe(true)
+  f.eng.controls.talk('npc.holt', 'pay')
+  expect(bountyOf(f)).toBe(0)
+  expect(W(f).get(loaf.id)!.place).toEqual({ on: 'inside', holder: 'npc.marta' })
+})
+
+req('N2', 'people are mortal unless the story needs them: Cass, struck down with a blade drawn, becomes her body — a container of what she carried, her household\'s — and the murder is past what the watch forgives', ['npc.cass', 'npc.fennick'], () => {
+  const f = fresh()
+  onlyNpcs(f, ['npc.cass', 'npc.fennick'])
+  stand(f, 20, 15, 'up', FIRSTLIGHT.map)
+  placeNpc(f, 'npc.cass', 20, 14, 'down')
+  placeNpc(f, 'npc.fennick', 21, 16, 'left')
+  author(f, () => f.eng.social.meet(W(f).get('npc.fennick')!, 'player'))
+  expect(W(f).hasTag(W(f).get('npc.cass')!, 'essential')).toBe(false)
+  expect(W(f).hasTag(W(f).get('npc.marta')!, 'essential')).toBe(true)
+  hold(f, author(f, () => W(f).create('item/weapon/blunt/club', { on: 'inside', holder: 'player' })))
+  // undrawn, a blade on a person is the AI's to say; drawn (X), a blow
+  expect(f.eng.controls.plan('use', at(20, 14))?.unknown).toBe(true)
+  f.eng.controls.toggle('drawn', true)
+  author(f, () => W(f).setProp(W(f).get('npc.cass')!, 'hp', 1))
+  run(f, 'use', 20, 14)
+  const body = W(f).get('npc.cass')!
+  expect(body.type).toBe('fixture/remains/body')
+  expect(W(f).prop(body, 'owner')).toBe('household:wood')
+  expect(bountyOf(f)).toBe(1000)
+  expect(f.eng.social.talkView(W(f).get('npc.fennick')!, W(f).player, true).verbs.map((v) => v.id)).not.toContain('bribe')
+})
+
+req('N3', 'the people have needs of their own, and anyone may be wanted: Vigo, hungry with no coin and little conscience, takes a loaf of Marta\'s, is seen, and the watch takes him to the cells; asked, he walks with anyone (a hireling)', ['npc.vigo'], () => {
+  const f = fresh()
+  onlyNpcs(f, ['npc.vigo', 'npc.holt', 'npc.marta'])
+  stand(f, 30, 25, 'up', FIRSTLIGHT.map)
+  placeNpc(f, 'npc.vigo', 20, 15, 'up')
+  placeNpc(f, 'npc.holt', 22, 15, 'left')
+  placeNpc(f, 'npc.marta', 18, 15, 'right')
+  author(f, () => W(f).setStatus({ e: 'npc.vigo' }, 'hungry', -1))
+  author(f, () => W(f).create('item/food/bread', { on: 'tile', map: FIRSTLIGHT.map, x: 20, y: 14 }, { props: { owner: 'npc.marta' } }))
+  expect(ticks(f, 200, () => bountyOf(f, 'npc.vigo') > 0)).toBe(true)
+  expect(ticks(f, 600, () => W(f).hasStatus({ e: 'npc.vigo' }, 'jailed'))).toBe(true)
+  expect(bountyOf(f, 'npc.vigo')).toBe(0)
+  author(f, () => W(f).clearStatus({ e: 'npc.vigo' }, 'jailed'))
+  const v = W(f).posOf(W(f).get('npc.vigo')!)!
+  stand(f, v.x, v.y + 1, 'up', v.map)
+  f.eng.controls.talk('npc.vigo', 'follow')
+  expect(W(f).prop(W(f).get('npc.vigo')!, 'follow')).toBe('player')
+})
+
+req('N4', 'trade: a merchant sells at its price and pays for what is yours; a peddler who is a fence buys what is not, for less; the talk names what each thinks of you', ['npc.tobin'], () => {
+  const f = fresh()
+  onlyNpcs(f, ['npc.marta', 'npc.tobin'])
+  stand(f, 20, 15, 'up', FIRSTLIGHT.map)
+  placeNpc(f, 'npc.marta', 20, 14, 'down')
+  author(f, () => { for (let i = 0; i < 20; i++) W(f).create('item/misc/thornmark', { on: 'inside', holder: 'player' }) })
+  const bread = f.eng.social.stock(W(f).get('npc.marta')!).find((e) => e.type === 'item/food/bread')!
+  f.eng.controls.trade('npc.marta', bread.id, true)
+  expect(W(f).get(bread.id)!.place).toMatchObject({ holder: 'player' })
+  const ring = author(f, () => W(f).create('item/valuable/ring', { on: 'inside', holder: 'player' }, { props: { owner: 'npc.edda' } }))
+  f.eng.controls.trade('npc.marta', ring.id, false)
+  expect(W(f).get(ring.id)!.place).toMatchObject({ holder: 'player' })
+  placeNpc(f, 'npc.marta', 5, 25)
+  placeNpc(f, 'npc.tobin', 20, 14, 'down')
+  f.eng.controls.trade('npc.tobin', ring.id, false)
+  expect(W(f).get(ring.id)!.place).toEqual({ on: 'inside', holder: 'npc.tobin' })
+  expect(f.eng.social.talkView(W(f).get('npc.tobin')!, W(f).player).regard).toEqual({ en: 'neutral', zh: '一般' })
 })
 
 describe('the Ford is complete', () => {

@@ -12,6 +12,9 @@ export const marta: PersonDef = {
   age: 44,
   temperament: { personality: 'warm', manner: 'plain', social: 'outgoing', outlook: 'hopeful' },
   ties: {},
+  // the village's meals are hers to sell (the hungry come to her)
+  trade: { stock: [['item/food/bread', 6]] },
+  purse: 30,
   schedules: {
     default: [
       [22, 6, 'meadow:cook.home', 'sleep'],

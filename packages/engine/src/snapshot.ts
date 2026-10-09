@@ -10,6 +10,7 @@ import { OFFHAND, offhandOf, weaponOf } from './profession.ts'
 import { castLeft, knownActives, type KnownActive } from './actives.ts'
 import { activeBoon, boonsOf, companionsOf, nearAttunedWaypoint } from './boons.ts'
 import type { QuestView } from './quests.ts'
+import type { TalkOption } from './social.ts'
 
 export interface ItemInfo {
   id: Id
@@ -20,6 +21,10 @@ export interface ItemInfo {
   statuses: string[]
   /** Its props, the type's under the instance's own (power, range, heal, food, element, owner…): what a tooltip tells. */
   props: Record<string, PropValue>
+  /** It is another's than the one at the keys (taking it is a theft, docs/npc-sandbox.md §2.1). */
+  steal?: boolean
+  /** Its worth (the world's prices start from it). */
+  value?: number
 }
 
 export interface EntitySnap {
@@ -118,6 +123,10 @@ export interface Frame {
     offhand?: ItemInfo & { works: boolean }
     /** What is worn, by slot (`head`, `body`, `ring`, `ring.2` …: the `wear:` props, the off hand's too), while it is still carried. */
     worn: Record<string, ItemInfo>
+    /** What one owes the watch of the map one is on, and its name (docs/npc-sandbox.md §2.7). */
+    wanted?: { bounty: number; by: Text }
+    /** The coin one carries. */
+    purse: number
   }
   /** A yes/no question waiting for the player (time is stopped). */
   question?: { text: Text }
@@ -137,6 +146,12 @@ export interface Frame {
     capacity?: number
     contents: ItemInfo[]
   }
+  /** The talk the one at the keys has open with a person (docs/npc-sandbox.md §2.9): who, what they think, the verbs that fit. */
+  talk?: TalkView
+  /** The trade panel open with a merchant (§2.10): its goods at its prices, what it would pay for what one carries, the purses. */
+  trade?: TradeView
+  /** A person's pockets open to a sneaking hand (§2.10): what they carry. */
+  pockets?: { id: Id; name: Text; contents: (ItemInfo & { worn?: boolean })[] }
   entities: EntitySnap[]
   tiles: TileSnap[]
   fx: FxEvent[]
@@ -147,6 +162,34 @@ export interface Frame {
   quests: { marks: Record<Id, '!' | '?'>; log: QuestView[] }
   /** The lesson at hand (docs/prologue.md, the drills): what to spotlight, the key to draw, what the keys may do. */
   lesson?: LessonView
+}
+
+/** A talk with a person, as the panel shows it. */
+export interface TalkView {
+  who: Id
+  name: Text
+  /** What they think of the one at the keys, in a word (hostile … close). */
+  regard: Text
+  /** What they hold against them, in words. */
+  grudge?: Text
+  /** What the one at the keys owes the watch here. */
+  bounty?: number
+  /** A guard has stopped them: only the watch's choices. */
+  arrest?: boolean
+  verbs: TalkOption[]
+}
+
+/** A merchant's goods and offers, as the trade panel shows them. */
+export interface TradeView {
+  who: Id
+  name: Text
+  /** What it sells, and for how much to the one at the keys. */
+  goods: { item: ItemInfo; price: number }[]
+  /** What the one at the keys carries that it would buy, and for how much. */
+  offers: { item: ItemInfo; price: number }[]
+  /** The coin each side carries. */
+  purse: number
+  theirs: number
 }
 
 /** A lesson as the view shows it: its focus resolved to a thing, a cell, cells or a panel's part. */
@@ -234,6 +277,8 @@ export interface KeyView {
   confirm?: boolean
   /** It sets what is held down there (it builds): the left button held and dragged sets one in each cell. */
   sets?: boolean
+  /** It takes what is another's (a theft, docs/npc-sandbox.md). */
+  steal?: boolean
   x: number
   y: number
   /** The target's base when it covers more than its cell (a place of the overworld, a tent): x, y, width, height. */
@@ -255,6 +300,7 @@ export function itemInfo(eng: Engine, id: Id): ItemInfo | undefined {
   const e = w.get(id)
   if (!e) return undefined
   const r = w.onto.resolve(e.type)
+  const steal = eng.social.isAnothers(e, w.player)
   return {
     id,
     type: e.type,
@@ -263,7 +309,44 @@ export function itemInfo(eng: Engine, id: Id): ItemInfo | undefined {
     tags: [...r.tags, ...(e.tags ?? [])],
     statuses: Object.keys(e.statuses ?? {}),
     props: { ...r.props, ...(e.props ?? {}) },
+    ...(steal && { steal }),
+    value: eng.social.value(e),
   }
+}
+
+/** The views of the people's panels the host has open (docs/npc-sandbox.md): a talk, a trade, a person's pockets. */
+export function peopleViews(eng: Engine, open: { talk?: { who: Id; arrest?: boolean }; trade?: Id; pockets?: Id }): Pick<Frame, 'talk' | 'trade' | 'pockets'> {
+  const w = eng.world
+  const p = w.player
+  const s = eng.social
+  const out: Pick<Frame, 'talk' | 'trade' | 'pockets'> = {}
+  const talkTo = open.talk && w.get(open.talk.who)
+  if (talkTo?.npc) out.talk = { name: talkTo.name ?? w.onto.resolve(talkTo.type).name ?? talkTo.id, ...s.talkView(talkTo, p, open.talk!.arrest) }
+  const m = open.trade ? w.get(open.trade) : undefined
+  if (m?.npc) {
+    const carried = [...(p.contents ?? []), ...(p.held ? [p.held] : [])].map((id) => w.get(id)).filter((e): e is NonNullable<typeof e> => !!e)
+    out.trade = {
+      who: m.id,
+      name: m.name ?? w.onto.resolve(m.type).name ?? m.id,
+      goods: s.stock(m).map((e) => ({ item: itemInfo(eng, e.id)!, price: s.priceToBuy(e, m, p) })),
+      offers: carried.filter((e) => s.buys(m, e, p)).map((e) => ({ item: itemInfo(eng, e.id)!, price: s.priceToSell(e, p, m) })),
+      purse: s.purse(p),
+      theirs: s.purse(m),
+    }
+  }
+  const who = open.pockets ? w.get(open.pockets) : undefined
+  if (who?.npc) {
+    const worn = new Set(w.worn(who).map((e) => e.id))
+    out.pockets = {
+      id: who.id,
+      name: who.name ?? w.onto.resolve(who.type).name ?? who.id,
+      contents: [...(who.contents ?? []), ...(who.held ? [who.held] : [])].flatMap((id) => {
+        const info = itemInfo(eng, id)
+        return info ? [{ ...info, ...(worn.has(id) && { worn: true }) }] : []
+      }),
+    }
+  }
+  return out
 }
 
 /** The cells of the room a place lies in (a derived region: walls round, a floor over it), if any. */
@@ -408,6 +491,11 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
         const info = item && (item.place.on === 'inside' || item.place.on === 'hand') && item.place.holder === p.id ? itemInfo(eng, item.id) : undefined
         return info ? [[k.slice(5), info]] : []
       })),
+      ...((law) => {
+        const bounty = law ? eng.social.bounty(law.id, p.id) : 0
+        return bounty > 0 && law ? { wanted: { bounty, by: law.name } } : {}
+      })(eng.social.lawHere(p)),
+      purse: eng.social.purse(p),
     },
     question: w.state.question ? { text: w.state.question.text } : undefined,
     quests: questsOf(eng, entities),

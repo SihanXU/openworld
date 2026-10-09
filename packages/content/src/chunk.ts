@@ -21,6 +21,8 @@ export interface RawMap {
   fish?: boolean
   anchors?: MapData['anchors']
   regions?: MapData['regions']
+  regionProps?: MapData['regionProps']
+  law?: MapData['law']
   appear?: MapData['appear']
   /** An older chunk's `appear` (one type each). */
   forage?: MapData['forage']
@@ -54,6 +56,8 @@ export function decodeMap(m: RawMap): MapData {
     fish: m.fish,
     anchors: m.anchors,
     regions: m.regions,
+    ...(m.regionProps && { regionProps: m.regionProps }),
+    ...(m.law && { law: m.law }),
     appear: m.appear ?? appearFromForage(m as unknown as MapData),
     zone: m.zone,
     scale: m.scale,

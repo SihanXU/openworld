@@ -12,6 +12,10 @@ export const fennick: PersonDef = {
   age: 62,
   temperament: { personality: 'weary', manner: 'rough', social: 'reserved', outlook: 'wary' },
   ties: { 'npc.severin': 'knew him' },
+  // an old templar who still keeps the watch with Holt, and still fights
+  watch: 'firstlight',
+  fights: true,
+  purse: 12,
   schedules: {
     default: [
       [22, 7, 'meadow:guard.home', 'sleep'],

@@ -37,7 +37,11 @@
     "hold": "守着",
     "keep the held ground": "守护誓守之地",
     "keep out of sight": "藏起行踪",
-    "ride the roads": "奔走在路上"
+    "ride the roads": "奔走在路上",
+    "weave": "织布",
+    "sit by the fire": "围着火坐",
+    "loiter by the well": "在井边闲晃",
+    "mend his boots": "补靴子"
   },
   "性格": {
     "stubborn": "固执",
@@ -65,7 +69,8 @@
     "weary": "疲惫",
     "steadfast": "坚定",
     "grim": "阴郁",
-    "formal": "拘礼"
+    "formal": "拘礼",
+    "kind": "善良"
   },
   "关系": {
     "owes her last autumn's fare": "欠她去年秋天的船钱",
@@ -81,7 +86,9 @@
     "aunt": "姨妈",
     "knew him": "认识他",
     "squire": "侍从",
-    "raised by her": "被她养大"
+    "raised by her": "被她养大",
+    "husband": "丈夫",
+    "friend": "朋友"
   },
   "条件": {
     "default": "平时",
@@ -122,7 +129,8 @@
     "fact:q.templar": "老骑士的任务之后",
     "fact:seen.village_arrival": "到达初原村之后",
     "fact:seen.pilgrim_camp": "见过朝圣者营地之后",
-    "fact:haven.met": "见过誓守之地的守地人之后"
+    "fact:haven.met": "见过誓守之地的守地人之后",
+    "topic:death": "有人死了"
   },
   "地图类型": {
     "wild": "野外",
