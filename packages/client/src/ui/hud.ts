@@ -4,10 +4,9 @@
 // dialogue box and the yes/no question, speech bubbles and floating numbers.
 
 import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Mood, type Text, type WorldIndex } from '@lsw/engine'
-import { OBJECTIVES, PROLOGUE_DONE, PROLOGUE_OBJECTIVES } from '@lsw/content'
 import { CATALOG } from '../assets/catalog.ts'
 import { assetUrl, cssAssetUrl } from '../render/assets.ts'
-import { $, MOOD_GLYPH, SLOT_KEYS, controlsTable, esc, locale, t, tx } from './common.ts'
+import { $, MOOD_GLYPH, SLOT_KEYS, controlsTable, esc, locale, prefs, t, tx } from './common.ts'
 import { skillPng } from './skillIcons.ts'
 
 export interface HudSend {
@@ -159,12 +158,12 @@ export class Hud {
   // ---------------------------------------------------------------- per frame
 
   onFrame(f: Frame): void {
-    // the quest button's badge: quests ready to hand in, else how many are under way
-    const log = f.quests?.log ?? []
-    const ready = log.filter((q) => q.status === 'ready').length
-    $('#questBadge').textContent = String(ready || log.length)
-    $('#questBadge').classList.toggle('hidden', !log.length)
-    $('#questBadge').classList.toggle('calm', !ready)
+    // the quest button's badge: how many quests are under way (red while someone waits for a word: a '?' in view)
+    const under = (f.quests?.journal ?? []).filter((q) => q.state === 'active').length
+    const waits = Object.values(f.quests?.marks ?? {}).includes('?')
+    $('#questBadge').textContent = String(under)
+    $('#questBadge').classList.toggle('hidden', !under)
+    $('#questBadge').classList.toggle('calm', !waits)
     this.frame = f
     this.renderClock(f)
     this.renderBars(f)
@@ -316,23 +315,25 @@ export class Hud {
   }
 
   private obSig = ''
+  /**
+   * The tracker (docs/quests.md §2.5), top right under the clock: the quest followed, its open objectives with their
+   * counts, and the map one is on when it is elsewhere. A quest reaching a stage flashes the journal's button.
+   */
   private renderObjective(f: Frame): void {
-    // on the mountain, the prologue's objective (docs/prologue.md); then the main quest's
-    const prologue = Number(f.player.props.prologue ?? PROLOGUE_DONE)
-    const stage = prologue < PROLOGUE_DONE ? `p${prologue}` : Number(f.player.props.quest ?? -1)
-    const o = typeof stage === 'string' ? PROLOGUE_OBJECTIVES[prologue] : OBJECTIVES[stage]
-    // the objective's counters (what the smith and the herbalist have been given), live
-    const counts = (o?.progress ?? []).map((p) => [p, Math.min(p.need, Number(f.facts[p.fact] ?? 0))] as const)
-    const sig = `${locale.value}|${counts.map(([, n]) => n).join(',')}|${stage}`
+    const q = f.quests?.journal.find((x) => x.id === f.quests.tracked)
+    const open = (q?.objectives ?? []).filter((o) => o.state === 'open')
+    const sig = `${locale.value}|${prefs.get('tracker')}|${q?.id}|${JSON.stringify(open)}`
+    const moved = f.fx.some((x) => x.t === 'quest')
+    if (moved) $('#questBtn').classList.add('flash')
     if (sig === this.obSig) return
-    const changed = this.obSig !== '' && !this.obSig.endsWith(`|${stage}`)
     this.obSig = sig
-    $('#objective').classList.toggle('hidden', !o || !tx(o.title))
-    if (!o) return
-    $('#obTitle').textContent = tx(o.title)
-    $('#obProgress').innerHTML = counts.map(([p, n]) => `<div class="${n >= p.need ? 'done' : ''}">${n >= p.need ? '✓' : '·'} ${esc(tx(p.label))}${p.need > 1 ? ` ${n}/${p.need}` : ''}</div>`).join('')
-    // a new objective: the journal button flashes (Stardew's "!")
-    if (changed) $('#jbtn').classList.add('flash')
+    $('#objective').classList.toggle('hidden', !q || !prefs.get('tracker'))
+    if (!q) return
+    $('#obTitle').textContent = tx(q.title)
+    $('#obProgress').innerHTML = open
+      .slice(0, 4)
+      .map((o) => `<div>· ${esc(tx(o.text))}${o.need ? ` ${o.have}/${o.need}` : ''}${o.where ? ` <em>→ ${esc(tx(o.where))}</em>` : ''}</div>`)
+      .join('')
   }
 
   /** Called when the journal opens. */

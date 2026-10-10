@@ -89,9 +89,21 @@ const STRINGS: Record<string, [string, string]> = {
   qTitle: ['Quests', '任务'],
   q_main: ['Main', '主线'],
   q_side: ['Side', '支线'],
-  q_repeat: ['Repeatable', '重复'],
-  qActive: ['Under way', '进行中'],
-  qReady: ['Ready to hand in', '可以交付'],
+  q_favor: ['Favour', '委托'],
+  qTab_active: ['Under way', '进行中'],
+  qTab_done: ['Done', '已完成'],
+  qTab_failed: ['Failed', '失败'],
+  qTrack: ['Track', '追踪'],
+  qTracked: ['Tracked', '追踪中'],
+  qFailed: ['Failed', '失败'],
+  qFrom: ['From', '委托人'],
+  qLog: ['Journal', '日志'],
+  qOptional: ['optional', '可选'],
+  qBoard: ['Commission board', '委托板'],
+  qBoardEmpty: ['Nobody wants anything done just now. Come back later.', '眼下没人有事相托。过些时候再来看看。'],
+  qTake: ['Take it on', '接下'],
+  optMarkers: ['Quest markers (map and screen edge)', '任务标记（地图和屏幕边缘）'],
+  optTracker: ['Quest tracker', '任务追踪栏'],
   qNone: ['None', '暂无'],
   qEmpty: ['No quests taken on. Look for a yellow "!" over someone\'s head, and press E.', '还没有接任务。找头顶有黄色"！"的人，按 E 接受。'],
   qIdle: ['Nothing under way. Look for a yellow "!" over someone\'s head for more.', '没有进行中的任务。头顶有黄色"！"的人还有事相托。'],
@@ -166,6 +178,24 @@ const STRINGS: Record<string, [string, string]> = {
   handsOn: ['Handle it', '空手摆弄它'],
   moveOne: ['Move one', '移一个'],
   confirmNew: ['Start a new game? (the threads the world learned are kept)', '开始新游戏？（世界学会的线会保留）'],
+}
+
+/** The player's view preferences (docs/quests.md §2.5): kept in this browser, read with care (it may be blocked). */
+export const prefs = {
+  get(k: 'markers' | 'tracker'): boolean {
+    try {
+      return localStorage.getItem(`lsw.${k}`) !== 'off'
+    } catch {
+      return true
+    }
+  },
+  set(k: 'markers' | 'tracker', on: boolean): void {
+    try {
+      localStorage.setItem(`lsw.${k}`, on ? 'on' : 'off')
+    } catch {
+      /* a blocked store: the choice lasts this page only */
+    }
+  },
 }
 
 export function t(k: string): string {

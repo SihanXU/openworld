@@ -3,51 +3,21 @@
 // the chapter ends when the player stands on the far bank, however they got there. The ways are
 // taught by the place itself (the footbridge mended with three planks, ice on the river, the dead
 // tree felled across it, the ferry mended and asked for); anything else the world learns that
-// carries the player over counts the same. Story state is facts (`ford.*`) and the player's
-// `quest` prop: the story's rules keep the facts (others notify it), and the world's own patches
+// carries the player over counts the same. Story state is facts (`ford.*`), and the main line's quest
+// (`first_seal`, docs/quests.md) answers them: the story's rules keep the facts (others notify it), and the world's own patches
 // may not touch them (design.md §5.11).
 
-import type { Cond, Effect, Invariant, Lesson, RoleName, Rule, Selector, Text } from '@lsw/engine'
-import { QUEST_OBJECTIVES, QUEST_RULES } from './quest.ts'
+import type { Cond, Effect, Invariant, RoleName, Rule, Selector, Text } from '@lsw/engine'
+import { QUEST_RULES } from './quest.ts'
 import { BOSS_RULES } from './bosses.ts'
-import { CH1_OBJECTIVES, CH1_RULES } from './chapter1.ts'
+import { CH1_RULES } from './chapter1.ts'
 import { HAVEN_RULES } from './haven.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 
-/** Objective shown in the HUD for each value of the player's `quest` prop. */
-/** An objective: its title and hint, and counters the HUD shows under it (a fact against what is needed). */
-export interface Objective {
-  title: Text
-  hint: Text
-  progress?: { fact: string; need: number; label: Text }[]
-  /** The stage's lessons, in order (docs/prologue.md, the drills). */
-  lessons?: Lesson[]
-}
-
-export const OBJECTIVES: Record<number, Objective> = {
-  0: {
-    title: L('Help Firstlight Village', '去初原村帮忙'),
-    hint: L('Firstlight Village is west of the Ford. Rowan, its elder, is looking for anyone who can fight: a yellow "!" over a head means someone has a task for you (E to take it on).', '初原村在渡口西边。村里的长老罗万在找能打的人：头顶有黄色"！"的人有任务给你（按 E 接受）。'),
-  },
-  1: {
-    title: L('Mend the bridge', '修好断桥'),
-    hint: L(
-      'The White Knight tore three planks out of the footbridge by the marsh. An axe fells a tree (two swings) and splits a log into planks; G lays a plank on the water. Any other way across counts too: E handles things, F takes, G puts or hands over, left click uses what you hold, right click uses it on yourself.',
-      '白骑士拆走了沼泽边小桥上的三块木板。斧头能砍倒树（砍两下），也能把木头劈成木板；G 把木板铺到水上。别的过河办法也算：E 空手摆弄，F 拿取，G 放下或交出，左键用手里的东西，右键对自己用。',
-    ),
-  },
-  2: {
-    title: L('The road east', '往东的路'),
-    hint: L('Follow the road east to Emberfall. Smoke hangs over the hills beyond it.', '沿着大路往东走到余烬镇。镇子那边的山上冒着烟。'),
-  },
-  ...QUEST_OBJECTIVES,
-  // Chapter 1's stages between and after these (docs/chapter-1.md), its road east the White Knight's
-  ...CH1_OBJECTIVES,
-}
 
 /** Fact prefixes only the story's rules and scenes may change. */
-export const PROTECTED_FACTS = ['ford.', 'mq.', 'seen.', 'sins.', 'game.', 'ch1.', 'night.', 'legend.']
+export const PROTECTED_FACTS = ['ford.', 'mq.', 'seen.', 'sins.', 'game.', 'ch1.', 'night.', 'legend.', 'rescue.', 'village.', 'haven.', 'waypoints.', 'lesson.', 'step.']
 
 const story = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base', note: 'story' } })
 const log = (en: string, zh: string): Effect => ({ op: 'log', text: { en, zh } })

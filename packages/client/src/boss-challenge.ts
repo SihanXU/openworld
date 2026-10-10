@@ -1,6 +1,6 @@
 // A fresh, disposable game per challenge. No persistence and no campaign/trainer changes.
 import { Game, OFFHAND, RuleLibrary, learnSkill, type Text, type WorldIndex } from '@lsw/engine'
-import { BASE_RULES, BOSSES, BOSS_BY_ID, BOSS_ARENA, PROFESSION_BY_ID, PROLOGUE_DONE, SKILLS, STORY_RULES, buildOntology, createBoss, decodeChunk, type RawChunk } from '@lsw/content'
+import { BASE_RULES, BOSSES, BOSS_BY_ID, BOSS_ARENA, PROFESSION_BY_ID, SKILLS, STORY_RULES, buildOntology, createBoss, decodeChunk, type RawChunk } from '@lsw/content'
 
 export const CHALLENGE_LOADOUTS: Record<string, { hp: number; atk: number; def: number; icon: string; tip: Text }> = {
   assassin: { hp: 110, atk: 5, def: 1, icon: 'assassin', tip: { en: 'Iron dagger · openers, backstabs and three-hit finishers.', zh: '铁匕首 · 绕后背刺，抓住先手，三连击收尾。' } },
@@ -18,7 +18,7 @@ export function createBossChallenge(index: WorldIndex, raw: RawChunk, profession
   Object.assign(settings, { start: { map: BOSS_ARENA.map, x: 23, y: 17 }, npcs: [], companions: [], steps: [], quests: [], invariants: [], waypoints: [], startHour: 12 })
   const looks: Record<string, string> = { assassin: 'NinjaDark', warrior: 'Knight', ranger: 'Hunter', mage: 'SorcererOrange' }
   settings.player = { id: 'player', type: 'actor/person/player', look: looks[profession], facing: 'up', place: { on: 'tile', ...settings.start },
-    props: { hp: loadout.hp, maxHp: loadout.hp, atk: loadout.atk, def: loadout.def, profession, level: 20, xp: 0, maxHunger: 0, prologue: PROLOGUE_DONE, skillPoints: 100 } }
+    props: { hp: loadout.hp, maxHp: loadout.hp, atk: loadout.atk, def: loadout.def, profession, level: 20, xp: 0, maxHunger: 0, skillPoints: 100 } }
   const game = Game.create(settings, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
   const chunk = decodeChunk(structuredClone(raw))
   chunk.entities = chunk.entities.filter((e) => !e.type.startsWith('actor/'))

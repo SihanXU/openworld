@@ -6,6 +6,7 @@ import { line, type PersonDef } from '../person.ts'
 export const mia: PersonDef = {
   id: 'npc.mia',
   role: 'villager',
+  essential: true,
   name: { en: 'Mia', zh: '米娅' },
   gender: 'female',
   look: { parts: { hair: 'hair.pigtails', face: 'face.child', outfit: 'outfit.pinafore', mark: 'mark.freckles' }, colors: { hair: 'honey', eyes: 'sky', skin: 'light', 'outfit.1': 'rose' } },

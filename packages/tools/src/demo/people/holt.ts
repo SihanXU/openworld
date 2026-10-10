@@ -6,6 +6,7 @@ import { line, type PersonDef } from '../person.ts'
 export const holt: PersonDef = {
   id: 'npc.holt',
   role: 'guard',
+  essential: true,
   name: { en: 'Holt', zh: '霍尔特' },
   gender: 'male',
   look: { parts: { hair: 'hair.short', face: 'face.keen', outfit: 'outfit.gambeson', hat: null, beard: null }, colors: { hair: 'umber', eyes: 'storm', skin: 'light', 'outfit.1': 'madder' } },

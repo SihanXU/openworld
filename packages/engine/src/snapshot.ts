@@ -9,7 +9,7 @@ import { skillsOf } from './progression.ts'
 import { OFFHAND, offhandOf, weaponOf } from './profession.ts'
 import { castLeft, knownActives, type KnownActive } from './actives.ts'
 import { activeBoon, boonsOf, companionsOf, nearAttunedWaypoint } from './boons.ts'
-import type { QuestView } from './quests.ts'
+import type { JournalQuest, QuestOffer, QuestTarget } from './quests.ts'
 import type { TalkOption } from './social.ts'
 
 export interface ItemInfo {
@@ -158,8 +158,12 @@ export interface Frame {
   pendingMap?: string
   /** What the player's E / F keys would do right now (filled by the host, not by snapshot()). */
   prompt?: Prompt
-  /** Quests: the marks over the people on this map ('!' to give, '?' to take back), and the player's log. */
-  quests: { marks: Record<Id, '!' | '?'>; log: QuestView[]; done?: Pick<QuestView, 'id' | 'kind' | 'title'>[] }
+  /**
+   * Quests (docs/quests.md §2.5): the marks over the people in view ('!' an offer, '?' someone to speak to), the
+   * journal (every quest taken on, its objectives and its log), the tracked quest and where its open objectives
+   * point (the markers), and the radiant offers (the notice board).
+   */
+  quests: { marks: Record<Id, '!' | '?'>; journal: JournalQuest[]; tracked?: Id; targets: QuestTarget[]; board: QuestOffer[] }
   /** The lesson at hand (docs/prologue.md, the drills): what to spotlight, the key to draw, what the keys may do. */
   lesson?: LessonView
 }
@@ -516,7 +520,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
 }
 
 
-/** The marks over the people in view, and the player's quest log. */
+/** The marks over the people in view, the journal, the tracked quest's markers, the notice board's offers. */
 function questsOf(eng: Engine, entities: EntitySnap[]): Frame['quests'] {
   const marks: Record<Id, '!' | '?'> = {}
   if (eng.quests.defs.length)
@@ -525,5 +529,6 @@ function questsOf(eng: Engine, entities: EntitySnap[]): Frame['quests'] {
       const m = eng.quests.mark(e.id)
       if (m) marks[e.id] = m
     }
-  return { marks, log: eng.quests.log(), done: eng.quests.done() }
+  const tracked = eng.quests.tracked()?.id
+  return { marks, journal: eng.quests.journal(), ...(tracked && { tracked }), targets: eng.quests.targets(), board: eng.quests.board() }
 }

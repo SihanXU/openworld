@@ -8,6 +8,7 @@ const CAULDRON = { uses: 'emberfall.cauldron', need: { status: ['lit'] } }
 export const wren: PersonDef = {
   id: 'npc.wren',
   role: 'herbalist',
+  essential: true,
   name: { en: 'Wren', zh: '雷恩' },
   gender: 'female',
   look: { parts: { hair: 'hair.wavy', face: 'face.bright', outfit: 'outfit.robe', hat: null, glasses: null }, colors: { hair: 'auburn', eyes: 'leaf', skin: 'fair', 'outfit.1': 'forest' } },

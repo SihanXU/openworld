@@ -1,7 +1,7 @@
 // The templates (wiki/pages/帮助/格式手册.md lists them all). Every data template reads the game model:
 // a table here is the game's own numbers, never a copy that can go stale.
 
-import { gearProps, type Entity, type QuestDef, type Text } from '@lsw/engine'
+import { gearProps, type Entity, type QuestDef, type QuestReward, type QuestTrigger, type Text } from '@lsw/engine'
 import { BASE_RULES } from '@lsw/content'
 import {
   EFFICIENCY, ELEMENT_NAMES, ELEMENTS, LEGENDARY_ARMS, MATERIALS, QUALITIES, RELICS, VOW_TRAITS, isAccessory, zh,
@@ -152,9 +152,9 @@ function idx(g: Game): Indices {
   const questNeeds = new Map<string, QuestEnt[]>()
   const personQuests = new Map<string, QuestEnt[]>()
   for (const q of g.quests) {
-    for (const it of q.def.reward?.items ?? []) push(reward, it.type, q)
-    for (const goal of q.def.goals) if (goal.kind === 'carry') push(questNeeds, goal.type, q)
-    const who = new Set([q.def.giver, q.def.turnIn, ...q.def.goals.map((x) => (x.kind === 'talk' ? x.npc : undefined))].filter(Boolean) as string[])
+    for (const it of questRewards(q.def).items ?? []) push(reward, it.type, q)
+    for (const o of q.def.objectives ?? []) if (o.count && 'carry' in o.count && typeof o.count.carry === 'object' && o.count.carry.type) push(questNeeds, o.count.carry.type, q)
+    const who = new Set(Object.values(q.def.aliases ?? {}).map((a) => a.id).filter((id): id is string => !!id && id.startsWith('npc.')))
     for (const w of who) push(personQuests, w, q)
   }
   const ingredient = new Map<string, string[]>()
@@ -343,29 +343,96 @@ function mapInfobox(ctx: Ctx, m: MapEnt): string {
   return infobox(ctx, m.zh, `<img class="map-thumb" src="/wiki/_/maps/${m.id}.png" alt="${escapeAttr(m.zh)}的地形图">`, rows)
 }
 
+/** What a quest pays (docs/quests.md): the reward of the stage that completes it (its first). */
+function questRewards(d: QuestDef): QuestReward {
+  return d.stages.find((s) => s.complete && s.reward)?.reward ?? {}
+}
+
+/** Who gives a quest: the alias who offers it, else its `giver` (a fixed person), if any. */
+function questGiver(d: QuestDef): string | undefined {
+  const name = 'offer' in d.start ? d.start.offer : 'giver'
+  return d.aliases?.[name]?.id
+}
+
+const KIND_ZH: Record<string, string> = { main: '主线', side: '支线', favor: '委托' }
+const NEWS_ZH: Record<string, string> = { hungry: '有人饿着肚子又没钱买吃的', deed: '有人当着失主的面拿走了东西', morning: '每天早上', night: '每天傍晚', begin: '新游戏开始' }
+
+/** A quest's trigger, in words (what has to be so). */
+/** A quest's alias in words (docs/quests.md §2.2): a fixed person or thing by its link, a place by its map's, a thing the quest
+ *  makes by its name, a role filled as the quest begins (radiant) by the word for it (译名.json 任务词, `alias:<name>`). */
+function aliasWords(ctx: Ctx, d: QuestDef | undefined, a: string, html = true, depth = 0): string {
+  const x = d?.aliases?.[a]
+  const word = (t: string) => (html ? esc(t) : t)
+  if (!x) return word(a)
+  if (x.id) { const e = ctx.g.byId.get(x.id); return html ? personLink(ctx, x.id) : e?.zh ?? x.id }
+  if (x.place) { const m = x.place.split(':')[0]; return html ? mapLink(ctx, m) : ctx.g.mapOf(m)?.zh ?? m }
+  if (x.make?.name && depth < 2) return word(fill(ctx, d, x.make.name, depth + 1))
+  if (x.make) return html ? typeLink(ctx, x.make.type, { icon: 0 }) : ctx.g.entOfType(x.make.type)?.zh ?? x.make.type
+  return word(`〈${T(ctx, '任务词', `alias:${a}`)}〉`)
+}
+
+/** A quest's words, its aliases named (plain text, to be escaped). */
+function fill(ctx: Ctx, d: QuestDef | undefined, t: Text | undefined, depth = 0): string {
+  return zh(t).replace(/\{(\w+)\}/g, (_, a: string) => aliasWords(ctx, d, a, false, depth))
+}
+
+/** A class a trigger or a count names: its kind's link, else the words for its tags. */
+function selectorWords(ctx: Ctx, d: QuestDef | undefined, x: string | { type?: string; tags?: string[] }, count = 1): string {
+  if (typeof x === 'string') return aliasWords(ctx, d, x)
+  if (x.type) return typeLink(ctx, x.type, { icon: 0, count: count > 1 ? count : undefined })
+  const tags = (x.tags ?? []).map((t) => esc(T(ctx, '任务词', `tag:${t}`))).join('、') || '要的东西'
+  return count > 1 ? `${count} 个${tags}` : tags
+}
+
+/** What a stage or an objective waits for, in words (docs/quests.md §2.4). */
+function triggerWords(ctx: Ctx, t: QuestTrigger | undefined, d?: QuestDef): string {
+  if (!t) return '—'
+  if ('all' in t) return t.all.map((x) => triggerWords(ctx, x, d)).join('，并且')
+  if ('any' in t) return t.any.map((x) => triggerWords(ctx, x, d)).join('，或者')
+  if ('not' in t) return `不再是「${triggerWords(ctx, t.not, d)}」`
+  if ('done' in t) return `完成${entLink(ctx, ctx.g.byId.get(t.done), { icon: 0 }) || esc(t.done)}`
+  if ('quest' in t) return Object.keys(t.quest).map((id) => `${entLink(ctx, ctx.g.byId.get(id), { icon: 0 }) || esc(id)}进行到一定阶段`).join('，')
+  if ('fact' in t) return Object.keys(t.fact).map((f) => esc(T(ctx, '条件', `fact:${f}`))).join('，')
+  if ('step' in t) return esc(T(ctx, '条件', `fact:seen.${t.step}`))
+  if ('enter' in t) return `来到${mapLink(ctx, t.enter.split(':')[0])}`
+  if ('talk' in t) {
+    const topic = t.topic ? d?.topics?.find((x) => x.id === t.topic) : undefined
+    return `和${aliasWords(ctx, d, t.talk)}说话${topic ? `，说「${esc(zh(topic.label))}」` : ''}`
+  }
+  if ('carry' in t) return `身上带着${selectorWords(ctx, d, t.carry, t.count ?? 1)}`
+  if ('give' in t) return `把${selectorWords(ctx, d, t.give)}交给${aliasWords(ctx, d, t.to)}（<kbd>G</kbd>）`
+  if ('kill' in t) return `打倒${selectorWords(ctx, d, t.kill)}${t.map ? `（${mapLink(ctx, t.map)}）` : ''}`
+  if ('gone' in t) return `${aliasWords(ctx, d, t.gone)}死去或毁掉`
+  if ('objectives' in t) {
+    const names = t.objectives === 'all' ? '全部目标' : t.objectives.map((id) => `「${esc(fill(ctx, d, d?.objectives?.find((o) => o.id === id)?.text) || id)}」`).join('、')
+    return `${names}完成`
+  }
+  return '剧情推进到这一步'
+}
+
 function questInfobox(ctx: Ctx, q: QuestEnt): string {
   const d = q.def
-  const req = d.requires ?? {}
-  const reqs = [
-    ...(req.quests ?? []).map((id) => entLink(ctx, ctx.g.byId.get(id), { icon: 0 })),
-    req.level ? `等级 ${req.level}` : '',
-    ...Object.keys(req.facts ?? {}).map((f) => esc(T(ctx, '条件', `fact:${f}`))),
-  ].filter(Boolean)
+  const giver = questGiver(d)
+  const r = questRewards(d)
+  const s = d.start
+  const take = 'auto' in s ? '自动开始' : 'news' in s ? `随机委托（${esc(NEWS_ZH[s.news] ?? s.news)}时出现，委托板上也有）` : 'offer' in s ? `找${personLink(ctx, giver)}（<kbd>E</kbd>，在对话里接受）` : '由剧情开始'
+  const reqs = 'auto' in s ? triggerWords(ctx, s.auto, d) : 'offer' in s && !('news' in s) ? [s.level ? `等级 ${s.level}` : '', s.when ? triggerWords(ctx, s.when, d) : ''].filter(Boolean).join('，') || '—' : '—'
   const rows: [string, string][] = [
-    ['类型', ctx.link('任务', ({ main: '主线', side: '支线', repeat: '重复' } as Record<string, string>)[d.kind] ?? d.kind)],
-    ['委托人', personLink(ctx, d.giver)],
-    ['交付给', d.turnIn ? personLink(ctx, d.turnIn) : d.self ? '自动完成' : personLink(ctx, d.giver)],
-    ['接取', d.auto ? '自动接取' : `找${personLink(ctx, d.giver)}（{{键|E}}）`.replace('{{键|E}}', '<kbd>E</kbd>')],
-    ['前置', join(reqs)],
-    ['经验', d.reward?.xp ? `+${d.reward.xp}` : '—'],
-    ['奖励', join((d.reward?.items ?? []).map((it) => rewardItem(ctx, it)), '<br>')],
+    ['类型', ctx.link('任务', KIND_ZH[d.kind] ?? d.kind)],
+    ['委托人', giver ? personLink(ctx, giver) : '—'],
+    ['接取', take],
+    ['前置', reqs],
+    ...(d.deadline ? [['期限', `${d.deadline} 小时`] as [string, string]] : []),
+    ...(d.repeat ? [['重复', d.repeat === 'daily' ? '每天一次' : '可以再接'] as [string, string]] : []),
+    ['经验', r.xp ? `+${r.xp}` : '—'],
+    ['奖励', join((r.items ?? []).map((it) => rewardItem(ctx, it)), '<br>')],
     ['英文名', esc(q.en)],
     ['编号', `<code>${esc(d.id)}</code>`],
   ]
   return infobox(ctx, q.zh, '', rows)
 }
 
-function rewardItem(ctx: Ctx, it: NonNullable<QuestDef['reward']>['items'] extends (infer X)[] | undefined ? X : never): string {
+function rewardItem(ctx: Ctx, it: NonNullable<QuestReward['items']>[number]): string {
   const base = typeLink(ctx, it.type, { count: it.count })
   if (!it.name) return base
   const q = it.tags?.find((t) => t.startsWith('quality:'))?.slice(8)
@@ -592,17 +659,28 @@ function mapLinks(ctx: Ctx, m: MapEnt): string {
 }
 
 function questGoals(ctx: Ctx, q: QuestEnt): string {
-  return `<ol class="goals">${q.def.goals.map((g) => {
-    const detail = g.kind === 'defeat' ? `打倒 ${typeLink(ctx, g.type, { count: g.count })}${g.map ? `（${mapLink(ctx, g.map)}）` : ''}`
-      : g.kind === 'carry' ? `带着 ${typeLink(ctx, g.type, { count: g.count })}${g.consume ? '（交付时收走）' : ''}`
-        : g.kind === 'talk' ? `和${personLink(ctx, g.npc)}说话`
-          : '剧情推进到这一步'
-    return `<li><b>${esc(zh(g.label))}</b><br><small>${detail}</small></li>`
+  const d = q.def
+  return `<ol class="goals">${(d.objectives ?? []).map((o) => {
+    const c = o.count
+    const detail = c && 'kill' in c ? `打倒 ${selectorWords(ctx, d, c.kill, o.need ?? 1)}${c.map ? `（${mapLink(ctx, c.map)}）` : ''}`
+      : c && 'carry' in c ? `带着 ${selectorWords(ctx, d, c.carry, o.need ?? 1)}`
+        : c && 'fact' in c ? `${esc(T(ctx, '条件', `fact:${c.fact}`))}达到 ${o.need ?? 1}`
+          : o.talk && typeof o.target === 'string' && !o.on ? `和${aliasWords(ctx, d, o.target)}说话`
+            : o.on ? triggerWords(ctx, o.on, d)
+              : '剧情推进到这一步'
+    return `<li><b>${esc(fill(ctx, d, o.text))}</b>${o.optional ? '（可选）' : ''}<br><small>${detail}</small></li>`
   }).join('')}</ol>`
 }
 
+/** The quest's stages, as the journal logs them (docs/quests.md §2.5): each line in order, how it ends. */
+function questStages(ctx: Ctx, q: QuestEnt): string {
+  const d = q.def
+  const rows = d.stages.filter((s) => s.log).map((s) => [String(s.n), esc(fill(ctx, d, s.log)), s.on ? triggerWords(ctx, s.on, d) : '任务开始', s.complete ? '完成' : s.failed ? '失败' : ''])
+  return rows.length ? table(['阶段', '日志', '什么时候', ''], rows) : `<p class="empty">这个任务没有日志。</p>`
+}
+
 function questReward(ctx: Ctx, q: QuestEnt): string {
-  const r = q.def.reward
+  const r = questRewards(q.def)
   const out: string[] = []
   if (r?.xp) out.push(`<li>经验 +${r.xp}（${ctx.link('等级与经验')}）</li>`)
   for (const it of r?.items ?? []) out.push(`<li>${rewardItem(ctx, it)}</li>`)
@@ -610,10 +688,14 @@ function questReward(ctx: Ctx, q: QuestEnt): string {
 }
 
 function questTalk(ctx: Ctx, q: QuestEnt): string {
-  const giver = ctx.g.byId.get(q.def.giver) as PersonEnt | undefined
-  const line = (label: string, t?: Text, who = giver) => (t && zh(t) ? `<div class="dlg"><div class="dlg-key">${label}</div><blockquote class="line">${fit(who?.face, 32, 'face')}<span>「${esc(zh(t))}」</span></blockquote></div>` : '')
-  const talks = q.def.goals.filter((g) => g.kind === 'talk').map((g: any) => line(`和${zh(ctx.g.byId.get(g.npc)?.zh)}说话时`, g.line, ctx.g.byId.get(g.npc) as PersonEnt))
-  const parts = [line('接任务时', q.def.offer), line('还没完成时', q.def.waiting), ...talks, line('交付时', q.def.done)].filter(Boolean)
+  const d = q.def
+  const giverId = questGiver(d)
+  const giver = ctx.g.byId.get(giverId ?? '') as PersonEnt | undefined
+  const person = (alias?: string) => (ctx.g.byId.get(d.aliases?.[alias ?? '']?.id ?? '') as PersonEnt | undefined) ?? giver
+  const line = (label: string, t?: Text, who = giver) => (t && zh(t) ? `<div class="dlg"><div class="dlg-key">${label}</div><blockquote class="line">${fit(who?.face, 32, 'face')}<span>「${esc(fill(ctx, d, t))}」</span></blockquote></div>` : '')
+  const talks = (d.objectives ?? []).filter((o) => o.say).map((o) => { const a = typeof o.target === 'string' ? o.target : undefined; return line(`和${a ? fill(ctx, d, `{${a}}`) : zh(giver?.zh ?? '')}说话时`, o.say, person(a)) })
+  const stages = d.stages.filter((s) => s.say).map((s) => line(s.complete ? '交付时' : `第 ${s.n} 阶段`, s.say, person(s.by)))
+  const parts = [line('提出委托时', d.offer), line('接受时', d.accepted), line('拒绝时', d.declined), line('还没完成时', d.waiting), ...talks, ...stages].filter(Boolean)
   return parts.join('') || `<p class="empty">这个任务没有对话。</p>`
 }
 
@@ -666,9 +748,9 @@ function lists(ctx: Ctx, name: string, args: string[]): string | undefined {
     case '首领表': return table(['', '名字', '印', '生命（挑战）', '技能', '在哪里打'], g.bosses.map((b) => { const c = campaign(ctx, b); return [fit(b.sprite, 48), ctx.link(b.title, b.zh), esc(b.seal ?? ''), String(b.def.hp), b.def.skills.map((s) => esc(zh(s.name))).join('、'), c ? `${mapLink(ctx, c.map)}、${ctx.link('首领挑战')}` : ctx.link('首领挑战')] }))
     case '地点表': return table(['名称', '类型', '大小', '区域', '相连'], g.maps.map((m) => [ctx.link(m.title, m.zh), esc(T(ctx, '地图类型', m.map.kind)), `${m.map.width}×${m.map.height}`, m.map.zone ? esc(T(ctx, '区域', m.map.zone)) : '战斗区域', join([...new Set((m.map.portals ?? []).map((p: any) => p.to))].map((t) => mapLink(ctx, t as string)))]), 'wikitable sortable')
     case '任务表': {
-      const kind = ({ 主线: 'main', 支线: 'side', 重复: 'repeat' } as Record<string, string>)[args[0] ?? ''] ?? ''
+      const kind = ({ 主线: 'main', 支线: 'side', 委托: 'favor' } as Record<string, string>)[args[0] ?? ''] ?? ''
       const qs = g.quests.filter((q) => !kind || q.def.kind === kind)
-      return table(['任务', '委托人', '目标', '奖励'], qs.map((q) => [ctx.link(q.title, q.zh), personLink(ctx, q.def.giver), q.def.goals.map((x) => esc(zh(x.label))).join('<br>'), [q.def.reward?.xp ? `经验 +${q.def.reward.xp}` : '', ...(q.def.reward?.items ?? []).map((it) => rewardItem(ctx, it))].filter(Boolean).join('<br>') || '—']))
+      return table(['任务', '委托人', '目标', '奖励'], qs.map((q) => { const r = questRewards(q.def); const giver = questGiver(q.def); return [ctx.link(q.title, q.zh), giver ? personLink(ctx, giver) : 'news' in q.def.start ? '随机' : '—', (q.def.objectives ?? []).filter((o) => o.id !== 'back').map((x) => esc(zh(x.text))).join('<br>'), [r.xp ? `经验 +${r.xp}` : '', ...(r.items ?? []).map((it) => rewardItem(ctx, it))].filter(Boolean).join('<br>') || '—'] }))
     }
     case '货摊表': {
       // the stall's shelves (content homestead.ts): one shelf, the three that sell (买), what it buys back (出售), or all
@@ -776,7 +858,7 @@ export function navbox(ctx: Ctx, name: string): string {
       break
     }
     case '任务': {
-      for (const [k, z] of [['main', '主线'], ['side', '支线'], ['repeat', '重复']]) rows.push([z, links(g.quests.filter((q) => q.def.kind === k))])
+      for (const [k, z] of [['main', '主线'], ['side', '支线'], ['favor', '委托']]) rows.push([z, links(g.quests.filter((q) => q.def.kind === k))])
       if (ctx.pages.has('主线流程')) rows.push(['攻略', ctx.link('主线流程')])
       break
     }
@@ -795,7 +877,7 @@ export function navbox(ctx: Ctx, name: string): string {
 
 const BLOCK = new Set([
   '信息框', '引言', '小作品', '规划中', '待设计', '开发者', '主条目', '另见', '导航框', '日程表', '对话', '人际关系', '相关任务', '肖像', '来源', '用途', '配方', '变体',
-  '出没', '掉落', '首领技能', '地图', '相连地点', '居民', '生物', '物品分布', '任务目标', '任务奖励', '任务对话', '物品表', '居民表', '怪物表', '首领表', '地点表', '任务表',
+  '出没', '掉落', '首领技能', '地图', '相连地点', '居民', '生物', '物品分布', '任务目标', '任务奖励', '任务对话', '任务阶段', '物品表', '居民表', '怪物表', '首领表', '地点表', '任务表',
   '配方表', '建造表', '技能树', '职业表', '恩赐表', '状态表', '元素表', '地形表', '材质表', '品质表', '装备栏表', '作物表', '食物表', '传送雕像表', '配乐表', '效率表',
   '房间用途表', '夜行生物表', '传说武器表', '圣痕之力表', '遗誓特质表', '货摊表', '版本历史', '数值表', '门户', '原文', '图', '剧透',
 ])
@@ -862,7 +944,7 @@ export function runTemplate(ctx: Ctx, call: TemplateCall): { html: string; block
     case '日程表': { const p = need(['person', 'companion']); return out(p ? schedule(ctx, p as PersonEnt) : '') }
     case '对话': { const p = need(['person', 'companion']); return out(p ? dialogue(ctx, p as PersonEnt) : '') }
     case '人际关系': { const p = need(['person', 'companion']); return out(p ? ties(ctx, p as PersonEnt) : '') }
-    case '相关任务': { const p = need(['person', 'companion']); const qs = p ? idx(ctx.g).personQuests.get(p.id) ?? [] : []; return out(qs.length ? `<ul class="facts">${qs.map((q) => `<li>${entLink(ctx, q, { icon: 0 })}（${({ main: '主线', side: '支线', repeat: '重复' } as Record<string, string>)[q.def.kind]}${q.def.giver === p!.id ? '，委托人' : ''}）</li>`).join('')}</ul>` : `<p class="empty">没有和这个人有关的任务。</p>`) }
+    case '相关任务': { const p = need(['person', 'companion']); const qs = p ? idx(ctx.g).personQuests.get(p.id) ?? [] : []; return out(qs.length ? `<ul class="facts">${qs.map((q) => `<li>${entLink(ctx, q, { icon: 0 })}（${KIND_ZH[q.def.kind] ?? q.def.kind}${questGiver(q.def) === p!.id ? '，委托人' : ''}）</li>`).join('')}</ul>` : `<p class="empty">没有和这个人有关的任务。</p>`) }
     case '外观部件': {
       // every part of the look table (docs/looks.md), by slot: a sample portrait and sprite, its words, whom it fits, its tags
       const SLOT_ZH: Record<string, string> = { hair: '发型', face: '五官', beard: '胡子', age: '年纪', mark: '印记', glasses: '眼镜', hat: '帽子', cloak: '披挂', armour: '甲胄', outfit: '服装' }
@@ -911,6 +993,7 @@ export function runTemplate(ctx: Ctx, call: TemplateCall): { html: string; block
     case '任务目标': { const x = need(['quest']); return out(x ? questGoals(ctx, x as QuestEnt) : '') }
     case '任务奖励': { const x = need(['quest']); return out(x ? questReward(ctx, x as QuestEnt) : '') }
     case '任务对话': { const x = need(['quest']); return out(x ? questTalk(ctx, x as QuestEnt) : '') }
+    case '任务阶段': { const x = need(['quest']); return out(x ? questStages(ctx, x as QuestEnt) : '') }
     case '剧透': ctx.error('{{剧透|…}} 和 {{/剧透}} 要各自单独占一行'); return out('')
   }
   const l = lists(ctx, name, args)

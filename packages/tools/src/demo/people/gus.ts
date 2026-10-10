@@ -19,6 +19,7 @@ const STACK: WorkDef[] = [{ verb: 'put', target: { type: 'fixture/container/wood
 export const gus: PersonDef = {
   id: 'npc.gus',
   role: 'farmer',
+  essential: true,
   name: { en: 'Gus', zh: '格斯' },
   gender: 'male',
   look: { parts: { hair: 'hair.short', face: 'face.weary', outfit: 'outfit.workshirt', beard: 'beard.stubble', hat: 'hat.straw' }, colors: { hair: 'steelgrey', eyes: 'bark', skin: 'tan', 'outfit.1': 'linen', 'outfit.2': 'umber' } },

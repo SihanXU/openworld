@@ -6,6 +6,7 @@ import { line, type PersonDef } from '../person.ts'
 export const oskar: PersonDef = {
   id: 'npc.oskar',
   role: 'villager',
+  essential: true,
   name: { en: 'Oskar', zh: '奥斯卡' },
   gender: 'male',
   look: { parts: { hair: 'hair.thin', face: 'face.weary', outfit: 'outfit.tunic', beard: 'beard.full', hat: null }, colors: { hair: 'snow', eyes: 'hazel', skin: 'warm', 'outfit.1': 'moss', 'outfit.2': 'umber' } },

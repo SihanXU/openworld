@@ -264,12 +264,12 @@ export class Conduct {
         eng.setCooldown(e.id, 20)
         return true
       }
-      return this.go(e, seller.who.place.x, seller.who.place.y) || this.giveUp(rt)
+      return this.go(e, seller.who.place.x, seller.who.place.y) || this.giveUp(rt, e)
     }
     // none to buy with: the loose of conscience, or the starving, take one lying about or put away
     const honest = w.num(e, 'honesty', 1)
     const starving = w.num(e, 'hunger', 1) <= 0
-    if (honest >= 0.5 && !starving) return this.giveUp(rt)
+    if (honest >= 0.5 && !starving) return this.giveUp(rt, e)
     const at = e.place
     let take: Entity | undefined
     near = Infinity
@@ -286,7 +286,7 @@ export class Conduct {
           if (pick) (take = pick), (near = d)
         }
       }
-    if (!take) return this.giveUp(rt)
+    if (!take) return this.giveUp(rt, e)
     const tp = w.posOf(take)!
     if (near <= 1) {
       this.face(e, tp)
@@ -294,11 +294,13 @@ export class Conduct {
       eng.setCooldown(e.id, 20)
       return true
     }
-    return this.go(e, tp.x, tp.y) || this.giveUp(rt)
+    return this.go(e, tp.x, tp.y) || this.giveUp(rt, e)
   }
 
-  private giveUp(rt: Runtime): boolean {
+  private giveUp(rt: Runtime, e: Entity): boolean {
     rt.meal = this.eng.world.state.tick + MEAL_AGAIN
+    // hungry with no coin and nothing found: news for the quests (a favour: bring them something to eat)
+    if (this.eng.social.purse(e) === 0) this.eng.quests.news({ kind: 'hungry', target: e.id })
     return false
   }
 

@@ -15,7 +15,7 @@ Ford, the survival loop (bag, foraging, crafting, hunger, levels), the meadow an
 - **The goal of each chapter is a state, not a path** (as the Ford's crossing already is): the
   objective says what must be true (the far bank reached, the sword forged, the dragon down);
   any way the world allows, or learns, counts.
-- **Story state is facts and the player's `quest` prop**, changed only by story rules and
+- **Story state is facts** (and, since 2026-10-09, the `dragon_road` quest that answers them, docs/quests.md), changed only by story rules and
   scenes; world patches may not touch them (design.md §5.8; `PROTECTED_FACTS`).
 - **Behaviour is rules.** Turn-ins, rewards, boss phases and summons are story rules on
   `interaction`, `hit`, `defeat` and `expire`. An engine change only where no rule can do it

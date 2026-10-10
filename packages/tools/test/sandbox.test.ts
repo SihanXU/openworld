@@ -35,8 +35,7 @@ function fresh(): S {
   eng.author(() => {
     eng.world.setFact('seen.arrival', true)
     eng.world.setFact('seen.village_arrival', true)
-    ;(eng.world.player.props ??= {}).prologue = 999
-    ;(eng.world.player.props ??= {}).quest = 1
+    eng.quests.put('descent', 'done')
     eng.teleport(eng.world.player, { map: MAP, x: 20, y: 15 })
   })
   // the hour has begun (those whose day leads here have come): the scene the tests set stays theirs

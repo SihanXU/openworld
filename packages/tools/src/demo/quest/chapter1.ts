@@ -237,7 +237,7 @@ export const CHAPTER1_STORY: StepDef[] = [
   {
     // The warden falls, and says the one thing it remembers.
     id: 'warden_falls',
-    when: { map: 'sanctum', facts: { 'q.rescue.warden': { gte: 1 } } },
+    when: { map: 'sanctum', objectives: ['rescue.warden'] },
     script: [
       say('player', '(As the warden comes apart, its jaw moves. Something like a voice comes out of it.)', '（守墓者散架的时候，它的下颚动了动。发出了某种像是声音的东西。）'),
       say('player', '("The night... is coming back. I could not... lie down.")', '（"夜……在回来。我……躺不下。"）', 'surprised'),
@@ -276,7 +276,7 @@ export const CHAPTER1_STORY: StepDef[] = [
   {
     // Fennick, after you have asked him about the knight: what Alberic was.
     id: 'fennick_memory',
-    when: { map: 'meadow', facts: { 'q.pilgrim.fennick': 1 } },
+    when: { map: 'meadow', objectives: ['pilgrim.fennick'] },
     script: [
       say('npc.fennick', 'I carried his lance for six years. He used to stop the whole column to kneel down and talk to children. Knights don\'t do that. He did.', '我给他扛了六年长枪。他会让整支队伍停下来，就为了单膝跪下和孩子们说话。骑士是不会那样做的。他会。'),
       say('npc.fennick', 'Then they gave him the crown. A little more of him went every year. One morning he looked at me and asked my name.', '后来他们把那顶冠交给了他。他每年都少一点自己。有天早上，他看着我，问我叫什么名字。'),
@@ -286,7 +286,7 @@ export const CHAPTER1_STORY: StepDef[] = [
   {
     // Hesper, after you have asked her what she saw: the stumps, and Aldo's bridge.
     id: 'hesper_stumps',
-    when: { map: 'ford', facts: { 'q.pilgrim.hesper': 1 } },
+    when: { map: 'ford', objectives: ['pilgrim.hesper'] },
     script: [
       say('npc.hesper', 'Look at the stumps by the bridge. He drove thorns into the wood where the planks were. Like a man marking what is his.', '你看桥边那些桩子。他把荆棘钉进了原来铺木板的地方。像是在给自己的东西做记号。'),
       say('npc.hesper', 'Aldo and Joss built that bridge the year before the river took Aldo. Every board I walk on, he cut.', '那座桥是阿尔多和乔斯在河水带走阿尔多的前一年造的。我踩过的每一块木板，都是他亲手锯的。'),
@@ -519,7 +519,6 @@ export const CHAPTER1_SCENES: StepDef[] = [
       say('npc.holt', 'Gone east — over the river. Over the river! He froze it under his feet and walked across.', '往东跑了——过了河。过了河！他让河水在脚下结冰，就那么走过去了。'),
       { fact: CH1.flameStolen, value: 1 },
       { topic: 'flame_stolen', days: 30 },
-      { prop: 'quest', value: 0.6 },
     ],
   },
   {
@@ -536,7 +535,6 @@ export const CHAPTER1_SCENES: StepDef[] = [
       say('npc.ilse', 'The flame is gone and the Church calls you in the same night. I do not believe in coincidence, pilgrim. Come to me when you are ready.', '圣火被夺走的同一夜，教会就召唤了你。我不相信巧合，朝圣者。准备好了就来找我。'),
       { place: 'npc.courier', map: 'offstage', x: 5, y: 3 },
       { fact: CH1.letter, value: 1 },
-      { prop: 'quest', value: 0.7 },
     ],
   },
   {
@@ -575,7 +573,6 @@ export const CHAPTER1_SCENES: StepDef[] = [
       // the first seal down: the night is an hour longer from now on (calendar.ts nightHours)
       { fact: 'night.shift', value: 1 },
       { topic: 'crown', days: 30 },
-      { prop: 'quest', value: 2.5 },
     ],
   },
   {
@@ -587,7 +584,6 @@ export const CHAPTER1_SCENES: StepDef[] = [
       say('npc.ilse', 'He always did carry things that were too heavy for him.', '他从小就总是背着对他来说太重的东西。', 'sad'),
       say('npc.nessa', 'Four minutes. The sun set four minutes early tonight. I am sure it means nothing.', '四分钟。今晚太阳早落了四分钟。我相信这什么都不代表。'),
       { fact: CH1.end, value: 1 },
-      { prop: 'quest', value: 2.9 },
       {
         card: L(
           'CHAPTER ONE · THE FIRST SEAL\n\nThe White Knight knelt, and gave up the Crown.\nThe grey man took the light east.\nAnd the night came a little sooner.',

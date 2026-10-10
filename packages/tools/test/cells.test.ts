@@ -86,7 +86,7 @@ describe('cells are things (world-model.md §4.6)', () => {
       eng.tick()
     }
     expect(check()).toEqual([])
-  })
+  }, 90_000) // two days on every map: under a full parallel run it outlasts the default
 
   it('a save keeps only the cells that changed', () => {
     const { game, eng, w } = ford()

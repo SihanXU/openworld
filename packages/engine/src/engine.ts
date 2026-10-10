@@ -131,6 +131,8 @@ export class Engine {
   quests: Quests
   /** Portal graph of every map (loaded or not): map -> outgoing portals. */
   graph: Record<string, { to: string; x: number; y: number; tx: number; ty: number }[]> = {}
+  /** Every map's name and size, from the world's index (a quest's marker on a map not loaded yet, docs/quests.md). */
+  maps: Record<string, { name: Text; width: number; height: number }> = {}
   /** Set when the player walked into a portal whose map isn't loaded yet. */
   pendingTransition?: { map: string; x: number; y: number; entry?: Entry }
   /** Ticks to run at once at the end of this tick: a long step (the overworld) passing (world-model.md §6.11). */
@@ -177,6 +179,13 @@ export class Engine {
     this.story = new Story(this)
     this.companions = new Companions(this)
     this.quests = new Quests(this)
+    this.world.watch = {
+      fact: (key) => this.quests.news({ kind: 'fact', key }),
+      gone: (id) => {
+        if (this.quests.aliased(id)) this.quests.news({ kind: 'gone', target: id })
+      },
+      tags: (id) => this.quests.tagsOf(id),
+    }
     this.controls = new Controls(this, this.write)
     // what can be made: every type with a station and a makeup (world-model.md §6.4)
     for (const r of deriveRecipes(onto)) this.recipes.set(r.id, r)
@@ -406,6 +415,8 @@ export class Engine {
     } finally {
       this.outcomes.pop()
     }
+    // what the outcome made news of, the quests hear (docs/quests.md §2.3)
+    if (!this.outcomes.length) this.quests.flush()
   }
 
   /** Is the outcome running now a learned rule's (the guards hold those to more)? */
@@ -823,6 +834,8 @@ export class Engine {
       const actor = by?.roles.actor ?? (by?.cause ? { e: by.cause } : undefined)
       const instrument = actor ? by?.roles.instrument : undefined
       this.queue({ kind: 'threshold/cross', host: { e: e.id }, roles: { ...(actor && { actor }), ...(instrument && { instrument }) }, params: { name: t.name, prop: key, ...(up && { way: 'up' }) }, cause: by?.cause, origin: by?.origin })
+      // a thing brought down is news for the quests (docs/quests.md §2.3)
+      if (t.name === 'broken' && !up) this.quests.news({ kind: 'kill', target: e.id, actor: actor && 'e' in actor ? actor.e : undefined, type: e.type, tags: [...(w.view({ e: e.id })?.tags ?? [])], map: w.posOf(e)?.map })
     }
   }
 
@@ -961,7 +974,14 @@ export class Engine {
     if (w.view(a)) this.offer({ kind, host: a, roles: { other: b }, params: { how } })
     if (w.view(b)) this.offer({ kind, host: b, roles: { other: a }, params: { how: REVERSE[how] ?? how } })
     // the story's script hears who enters a region (its triggers are events, not polls)
-    if (how === 'in-region' && kind === 'contact/begin') this.story.entered(a)
+    if (how === 'in-region' && kind === 'contact/begin') {
+      this.story.entered(a)
+      // and the quests: the taker comes into an area (docs/quests.md §2.3)
+      const r = w.get(b.e)
+      if ('e' in a && a.e === w.state.player && r?.place.on === 'area') this.quests.news({ kind: 'enter', actor: a.e, key: `${r.place.map}:${b.e.slice(`region.${r.place.map}.`.length)}` })
+    }
+    // what the player holds changed (a thing in their bag or hand, or gone from it)
+    if ((how === 'in' || how === 'held') && 'e' in b && b.e === w.state.player) this.quests.news({ kind: 'carry', actor: b.e, item: 'e' in a ? a.e : undefined })
   }
 
   /** A map's relations as they stand, as its start (no events): a map loaded, a sandbox built. */
@@ -1312,6 +1332,7 @@ export class Engine {
     const rec = dormant[map]
     delete dormant[map]
     w.fx.push({ t: 'mapChanged', map })
+    this.quests.news({ kind: 'enter', actor: w.state.player, key: map })
     if (rec) {
       this.catchUp(map)
       for (const ev of rec.inbox.sort((a, b) => (a.tick ?? 0) - (b.tick ?? 0))) this.queue({ ...ev, depth: 0 })
@@ -1488,6 +1509,8 @@ export class Engine {
     this.controls.magnet()
     this.invariantTick()
     this.story.tick()
+    this.quests.tick()
+    this.quests.flush()
     this.flush()
     this.controls.keep()
     // a long step's time passes now, all at once; harm stops it (world-model.md §6.11)
@@ -1542,7 +1565,10 @@ export class Engine {
     for (const key of [...w.statusful]) {
       const ref = w.keyRef(key)
       const pos = w.refPos(ref)
-      if (!pos || pos.map !== active) continue
+      // a resident's clock runs wherever the one at the keys is (a quest's deadline, docs/quests.md)
+      const host = 'e' in ref ? w.get(ref.e) : undefined
+      const resident = !pos && !!host && w.isPlaceless(host)
+      if (!resident && (!pos || pos.map !== active)) continue
       const bag = w.statusesOf(ref)
       if (!bag) continue
       for (const [status, exp] of Object.entries(bag)) {

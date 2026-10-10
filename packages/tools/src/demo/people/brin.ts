@@ -7,6 +7,7 @@ import { line, type PersonDef } from '../person.ts'
 export const brin: PersonDef = {
   id: 'npc.brin',
   role: 'herder',
+  essential: true,
   name: { en: 'Brin', zh: '布琳' },
   gender: 'female',
   look: { parts: { hair: 'hair.ponytail', face: 'face.bright', outfit: 'outfit.workdress', hat: 'hat.straw', mark: 'mark.freckles' }, colors: { hair: 'honey', eyes: 'leaf', skin: 'light', 'outfit.1': 'ochre' } },

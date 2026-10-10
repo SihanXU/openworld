@@ -7,6 +7,7 @@ import { line, type PersonDef } from '../person.ts'
 export const edda: PersonDef = {
   id: 'npc.edda',
   role: 'farmer',
+  essential: true,
   name: { en: 'Edda', zh: '艾达' },
   gender: 'female',
   look: { parts: { hair: 'hair.ponytail', face: 'face.weary', outfit: 'outfit.workdress', hat: 'hat.kerchief' }, colors: { hair: 'umber', eyes: 'bark', skin: 'tan', 'outfit.1': 'moss', 'hat.1': 'russet' } },

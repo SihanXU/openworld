@@ -4,7 +4,7 @@
 
 import type { Engine } from './engine.ts'
 import { evalCond, matchSelector, rolesOf } from './rules.ts'
-import type { AiData, Amount, Effect, EmitTo, Entity, GameEvent, Impulse, Place, Pos, PropValue, Ref, RoleName, RoleRef, Text } from './types.ts'
+import type { AiData, Amount, Effect, EmitTo, Entity, GameEvent, Id, Impulse, Place, Pos, PropValue, Ref, RoleName, RoleRef, Text } from './types.ts'
 import { GIVEN_LINE, chooseLine, memoryOf, raiseTopic } from './people.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
 import { cannotRead, gainXp, learnSkill, readSkill } from './progression.ts'
@@ -59,8 +59,16 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   log: 'log {text} — a message line ({role} = names, {role.key} = that role\'s prop, {param.key} = an event param; "@line": what the host has written on it, its text and text_zh)',
   emote: 'emote {mood: neutral|happy|sad|angry|surprised|shy} — an emote bubble over the host',
   restyle: 'restyle {parts?, colors?} — the host\'s look changes (docs/looks.md): a part per slot of the world\'s look table (hair: "hair.bob"; null empties the slot), a colour per key (hair, skin, eyes, <slot>.<n>; a colour id or #rrggbb); its map sprite, its portrait and its look:* tags follow, and the change is its own from then on',
-  quest: 'quest {} — the host (a person) is spoken to about quests: business with the speaker (a quest to hand in, to take on, a talk goal) is told to the story; else the host says how a quest goes, or its line (quests.ts)',
-  quests: "quests {} — the story's: a quest's business it is told of is settled (notify what = quest: between the source, a giver, and the actor; what = defeat: the actor felled a thing of param type) — its facts change, the giver takes what was brought, the taker is told its reward; with no notice (the story's own pass), quests it has gone past are done, auto ones taken on, self ones completed",
+  quest: 'quest {} — the host (a person, a notice board) is spoken to about quests (docs/quests.md §2.4): a quest under way that the word moves on (a hand-in, someone it sent you to) sees it; else the host says its offer (accept or decline in the talk panel), the waiting line of its quest, or its own line. Asked with param say = quest: param topic accept / decline takes on or turns down the offer named by param quest, any other topic is told to that quest',
+  advance: "advance {} — a quest's: it sees news (a seen event, param news) and moves on: kills it counts, objectives its triggers mark done, the next stage whose trigger holds (and again, while one holds)",
+  stage: "stage {n} — a quest's: it reaches stage n (a notice's SetStage), its journal line, objectives, hand-overs, reward, lines and effects, and looks again",
+  accept: "accept {} — a quest's: an offer is taken on by the event's actor (its first stage)",
+  decline: "decline {} — a quest's: an offer is turned down (a radiant one is withdrawn)",
+  failQuest: "failQuest {} — a quest's: past its deadline or told so: an offer is withdrawn, a quest under way reaches its failing stage",
+  begin: "begin {} — the story's (the Story Manager): it sees news; the quests that begin on it (auto, their trigger holding) begin, the radiant offers on it (their chance, cap and aliases) are made",
+  startQuest: "startQuest {id?, offer?} — the story's or a quest's: the quest named (or param quest) begins for the event's actor (offer: is offered), its aliases filled, else it does not",
+  facts: "facts {} — the story's: it keeps the facts it is told (params fact.<key>)",
+  news: 'news {kind} — tells the quests what this event is (docs/quests.md §2.3): give (the actor handed the item to the host), deed, hungry',
   learn: 'learn {book?} — book: from the book it holds (the event\'s item: its param skill), no points and no skills before it, the book used up; else the host learns what its act names: param skill (spending its skill points) or param profession (at a trainer; a change gives back the profession branch)',
   appear: "appear {what?} — the world's: what appears by itself on the active map now (the map's own appearances and the world's that fit it, each at its pace, hours and weather, up to its max), or only the appearance given (world-model.md §6.9)",
   release: "release {} — the host's encounter skill lands on the cells its act telegraphed (params skill, ox, oy, ax, ay): a strike to each foe there, a push or pull and a coat as the skill says; the host heals or blinks itself",
@@ -91,7 +99,9 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
 }
 
 /** Primitives only the story's and the world's rules may use. */
-export const RESIDENT_ONLY = new Set<Effect['op']>(['topic', 'scene', 'lightning', 'fallback', 'quests', 'appear'])
+export const RESIDENT_ONLY = new Set<Effect['op']>(['topic', 'scene', 'lightning', 'fallback', 'appear', 'begin', 'startQuest', 'facts', 'advance', 'stage', 'accept', 'decline', 'failQuest'])
+/** Primitives only a quest's own rules may use (docs/quests.md: a quest writes only itself). */
+export const QUEST_ONLY = new Set<Effect['op']>(['advance', 'stage', 'accept', 'decline', 'failQuest'])
 
 export class EffectRunner {
   constructor(private eng: Engine) {}
@@ -213,6 +223,7 @@ export class EffectRunner {
     const w = eng.world
     const host = this.hostEntity(ev)
     if (RESIDENT_ONLY.has(eff.op) && (!host || !w.isPlaceless(host))) throw new Error(`${eff.op} is the story's and the world's only`)
+    if (QUEST_ONLY.has(eff.op) && host?.type !== 'resident/quest') throw new Error(`${eff.op} is a quest's only`)
     switch (eff.op) {
       case 'spawn': {
         const type = this.typeOf(ev, eff.type)
@@ -559,20 +570,73 @@ export class EffectRunner {
         return
       }
       case 'quest': {
-        // the host is spoken to; the one speaking is the act's actor (quests.ts): the story settles their business
+        // the host is spoken to about quests (docs/quests.md §2.4); the one speaking is the act's actor
         const a = ev.roles.actor
         const who = a && 'e' in a ? w.get(a.e) : undefined
-        const business = host && who ? eng.quests.business(host.id, who) : undefined
-        if (business === 'story')
-          eng.queue({ kind: 'impulse/notify', host: { e: 'story' }, roles: { actor: a, source: ev.host }, params: { what: 'quest' }, cause: ev.cause, origin: ev.origin, depth: (ev.depth ?? 0) + 1 })
-        else this.apply({ op: 'say', text: business ?? '@line' }, ev)
+        if (!host || !who) return
+        const depth = (ev.depth ?? 0) + 1
+        const tell = (to: Id, params: Record<string, PropValue>, kind: GameEvent['kind'] = 'impulse/notify') => eng.queue({ kind, host: { e: to }, roles: { actor: { e: who.id }, source: ev.host }, params, cause: ev.cause, origin: ev.origin, depth })
+        const ref = typeof ev.params?.quest === 'string' && ev.params.quest ? ev.params.quest : undefined
+        const topic = typeof ev.params?.topic === 'string' ? ev.params.topic : undefined
+        if (ev.params?.say === 'quest' && ref && topic) {
+          const q = w.get(ref)
+          const d = q ? eng.quests.defOf(q) : eng.quests.def(ref)
+          if (topic === 'accept' || topic === 'decline') {
+            // an offer taken on or turned down: a radiant one is the quest's to answer, an authored one the story begins
+            if (topic === 'accept') q ? tell(q.id, { what: 'accept' }) : d && tell('story', { what: 'accept', quest: d.id })
+            else if (q) tell(q.id, { what: 'decline' })
+            const line = topic === 'accept' ? d?.accepted : d?.declined
+            if (line && host.npc) this.apply({ op: 'say', text: q ? eng.quests.fill(q, line) : line }, ev)
+            return
+          }
+          // a topic of the quest's, told to it (it says what it says)
+          if (q) eng.queue({ kind: 'seen', host: { e: q.id }, roles: { actor: { e: who.id }, target: { e: host.id } }, params: { news: 'talk', by: who.id, of: host.id, topic }, cause: ev.cause, origin: 'world', depth })
+          return
+        }
+        const b = eng.quests.business(host.id, who)
+        if (b.quest) eng.queue({ kind: 'seen', host: { e: b.quest.id }, roles: { actor: { e: who.id }, target: { e: host.id } }, params: { news: 'talk', by: who.id, of: host.id }, cause: ev.cause, origin: 'world', depth })
+        else if (host.npc) {
+          const offer = b.offers[0] && eng.quests.offerLine(b.offers[0].ref)
+          this.apply({ op: 'say', text: offer ?? b.waiting ?? '@line' }, ev)
+        }
         // business talked over is a meeting too: their first-meeting line is not kept for after it
-        if (business && host?.npc) { const mem = memoryOf(host); mem.talked ??= w.calendar().day }
+        if ((b.quest || b.offers.length || b.waiting) && host.npc) { const mem = memoryOf(host); mem.talked ??= w.calendar().day }
         return
       }
-      case 'quests':
-        eng.quests.settle(ev)
+      case 'advance':
+        eng.quests.advance(ev)
         return
+      case 'stage':
+        eng.quests.setStage(ev, Math.floor(this.amount(ev, eff.n)))
+        return
+      case 'accept':
+        eng.quests.accept(ev)
+        return
+      case 'decline':
+        eng.quests.decline(ev)
+        return
+      case 'failQuest':
+        eng.quests.fail(ev)
+        return
+      case 'begin':
+        eng.quests.begin(ev)
+        return
+      case 'startQuest': {
+        const d = eng.quests.def(eff.id ?? String(ev.params?.quest ?? ''))
+        const a = ev.roles.actor
+        if (d) eng.quests.start(d, ev, { taker: a && 'e' in a ? a.e : w.state.player, offer: eff.offer, ...(ev.roles.source && 'e' in ev.roles.source && { giver: ev.roles.source.e }) })
+        return
+      }
+      case 'facts':
+        if (!host) return
+        for (const [k, v] of Object.entries(ev.params ?? {})) if (k.startsWith('fact.')) w.setProp(host, k.slice(5), v)
+        return
+      case 'news': {
+        const r = (role: keyof GameEvent['roles']) => { const x = ev.roles[role]; return x && 'e' in x ? x.e : undefined }
+        if (eff.kind === 'give') eng.quests.news({ kind: 'give', actor: r('actor'), target: host?.id, item: r('item') })
+        else eng.quests.news({ kind: eff.kind, actor: r('actor'), target: host?.id, item: r('item') })
+        return
+      }
       case 'learn': {
         // the host's own: its tags, props and points; a profession's starter weapon is made in its bag
         if (!host) return
@@ -896,6 +960,8 @@ export class EffectRunner {
         w.setStatus(ev.host, 'open', NO_EXPIRY)
         eng.touch(ev.host)
         eng.npcs.invalidate()
+        // one a quest names is gone (docs/quests.md §2.3)
+        if (eng.quests.aliased(host.id)) eng.quests.news({ kind: 'gone', target: host.id })
         return
       }
       case 'pay': {

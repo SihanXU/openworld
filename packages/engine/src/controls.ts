@@ -743,8 +743,22 @@ export class Controls {
   talk(who: Id, verb: string, choice?: string): void {
     const p = this.w.player
     if (this.eng.busy(p) && !this.w.hasStatus({ e: p.id }, 'jailed')) return
-    this.eng.act('hands', p.id, { e: who }, { instrument: null, params: { say: verb, ...(choice && { choice }) } })
+    // a quest's verb (docs/quests.md §2.4): `quest:<ref>:<topic>` — an offer taken on or turned down, a topic told
+    const q = /^quest:(.+):([^:]+)$/.exec(verb)
+    const params: Record<string, PropValue> = q ? { say: 'quest', quest: q[1], topic: q[2] } : { say: verb, ...(choice && { choice }) }
+    this.eng.act('hands', p.id, { e: who }, { instrument: null, params })
     this.sync()
+  }
+
+  /** The notice board (or anyone): a radiant offer on it taken on — the board is spoken to with it (docs/quests.md §3). */
+  board(who: Id, ref: string): void {
+    this.talk(who, `quest:${ref}:accept`)
+  }
+
+  /** The journal: the quest the player follows (its markers, the tracker, the companion's word) — the input's own choice. */
+  track(id: Id | undefined): void {
+    const w = this.w
+    this.hand(() => w.setProp(w.player, 'track', id))
   }
 
   /** The trade panel: ask a merchant for one of its goods (it sells it, the buyer pays), or offer it a thing (it buys it). */

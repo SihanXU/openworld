@@ -51,9 +51,11 @@
 @keyframes jflash { 50% { transform: scale(1.15); } }
 .dot { position: absolute; right: -4px; top: -4px; width: 9px; height: 9px; border-radius: 50%; background: #e04848; border: 1px solid #fff; }
 
-/* the objective, top left (one line) */
-/* the objective's line is not shown on screen (the journal, J, and Pip carry it); the minimap has its corner */
-.objective { display: none !important; position: absolute; left: 14px; top: 14px; max-width: 340px; padding: 6px 12px; background: rgba(32, 20, 10, 0.55); border-radius: 8px; color: #fbe9c4; font: 600 14px var(--pixel); text-shadow: 0 1px 0 #000; pointer-events: none !important; }
+/* the tracker (docs/quests.md §2.5): the quest followed and its open objectives, top right under the clock */
+.objective { position: absolute; right: 14px; top: 132px; width: 220px; padding: 6px 10px; background: rgba(32, 20, 10, 0.55); border-radius: 8px; color: #fbe9c4; font: 600 13px var(--pixel); text-shadow: 0 1px 0 #000; pointer-events: none !important; }
+.objective .ob-title { color: #ffd55a; margin-bottom: 2px; }
+.objective .ob-progress div { font-weight: 500; font-size: 12px; line-height: 1.35; }
+.objective .ob-progress em { color: #c9b48a; font-style: normal; }
 
 /* the hotbar, Minecraft's way: hearts left and hunger right above the experience bar, the toolbar beneath */
 .hotbar { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
@@ -342,6 +344,12 @@
 .wm-stone span { position: absolute; left: 50%; top: 22px; transform: translateX(-50%); font: 600 11px var(--pixel); color: #cfeff5; white-space: nowrap; text-shadow: 0 1px 0 #000; pointer-events: none; }
 .wm-stone.attuned { background: radial-gradient(circle, #fff, #5ff0ff 60%); border-color: #0f6a7a; cursor: pointer; box-shadow: 0 0 10px #5ff0ff; }
 .wm-stone.attuned:hover { transform: scale(1.25); }
+.wm-quest { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; font: 700 16px var(--pixel); line-height: 18px; text-align: center; color: #ffd23f; text-shadow: 0 0 2px #3a2414, 0 1px 0 #3a2414; pointer-events: auto; }
+/* the tracked quest's markers at the screen's edge (docs/quests.md §2.5) */
+.quest-arrows { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
+.quest-arrows .qa { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; display: flex; align-items: center; justify-content: center; }
+.quest-arrows .qa i { display: block; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 14px solid #ffd23f; filter: drop-shadow(0 0 1px #3a2414) drop-shadow(0 1px 0 #3a2414); }
+.quest-arrows .qa.on i { border: 0; width: 10px; height: 10px; background: #ffd23f; transform: rotate(45deg); box-shadow: 0 0 0 2px #3a2414; }
 .wm-you { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #fff; border: 3px solid #e04848; animation: skReady 1.4s infinite; pointer-events: none; }
 /* the minimap, under the clock */
 .minimap { position: absolute; left: 14px; top: 14px; padding: 4px; line-height: 0; cursor: pointer; }
@@ -443,6 +451,33 @@
 .ql-goals { margin: 4px 0 0; padding-left: 4px; list-style: none; font-size: 13px; }
 .ql-goals li.done { color: #3f6b1a; }
 .ql-goals span { font-weight: 600; }
+/* the journal (docs/quests.md §2.5): three tabs, the quests on the left, the one open on the right */
+.ql-sheet { width: min(760px, 96vw); }
+.ql-tabs { display: flex; gap: 6px; margin: 4px 0 8px; }
+.ql-tab { font: 600 13px var(--pixel); padding: 4px 12px; border-radius: 6px; border: 2px solid var(--wood-dark); background: var(--paper-dark); color: var(--ink-warm); cursor: pointer; }
+.ql-tab.on { background: #ffd55a; }
+.ql-tab small { opacity: 0.7; }
+.ql-body { display: grid; grid-template-columns: minmax(150px, 34%) 1fr; gap: 10px; max-height: min(62vh, 520px); }
+.ql-list { overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.ql-row { text-align: left; font: 600 13px var(--pixel); padding: 6px 8px; border-radius: 6px; border: 2px solid transparent; background: var(--paper-dark); color: var(--ink-warm); cursor: pointer; display: flex; gap: 6px; align-items: center; }
+.ql-row.on { border-color: var(--wood-dark); background: #fff4cf; }
+.ql-row .ql-tag { font-size: 10px; padding: 1px 5px; }
+.ql-star { color: #d08a12; }
+.ql-detail { overflow-y: auto; }
+.ql-tag.favor { background: #8a5cb0; }
+.ql-quest.favor { border-left-color: #8a5cb0; }
+.ql-track { font: 600 12px var(--pixel); padding: 2px 8px; border-radius: 6px; border: 2px solid var(--wood-dark); background: var(--paper); color: var(--ink-warm); cursor: pointer; white-space: nowrap; }
+.ql-track.on { background: #ffd55a; }
+.ql-state.done { color: #3f6b1a; } .ql-state.failed { color: #b8321e; }
+.ql-from { font-size: 12px; color: #6b5536; }
+.ql-goals li.failed { color: #9a8a6a; text-decoration: line-through; }
+.ql-goals em { font-style: normal; font-size: 11px; color: #8a6a44; }
+.ql-goals em.ql-where { color: #3b82a8; }
+.ql-logh { font: 700 12px var(--pixel); margin: 8px 0 2px; color: #6b4a2a; }
+.ql-log { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.5; color: #4a3520; }
+.ql-board { max-height: min(62vh, 520px); overflow-y: auto; }
+.ql-take { font: 600 12px var(--pixel); padding: 2px 10px; border-radius: 6px; border: 2px solid var(--wood-dark); background: #ffd55a; cursor: pointer; }
+@media (max-width: 640px) { .ql-body { grid-template-columns: 1fr; } }
 /* the zone, under the minimap */
 .mm-zone { position: absolute; left: 4px; right: 4px; bottom: -20px; text-align: center; font: 600 11px/16px var(--pixel); color: #fff; border-radius: 4px; pointer-events: none; }
 .mm-zone.peaceful { background: rgba(63, 120, 40, 0.85); } .mm-zone.combat { background: rgba(160, 50, 30, 0.85); }

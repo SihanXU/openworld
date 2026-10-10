@@ -7,6 +7,7 @@ import { line, type PersonDef } from '../person.ts'
 export const severin: PersonDef = {
   id: 'npc.severin',
   role: 'stranger',
+  essential: true,
   name: { en: 'The Grey Man', zh: '灰衣人' },
   gender: 'male',
   look: { parts: { face: 'face.keen', outfit: 'outfit.cloak', hat: 'hat.hood', beard: 'beard.stubble', hair: 'hair.short' }, colors: { hair: 'steelgrey', eyes: 'storm', skin: 'light', 'outfit.1': 'charcoal', 'outfit.2': 'slate', 'hat.1': 'charcoal' } },

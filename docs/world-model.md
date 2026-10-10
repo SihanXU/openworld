@@ -728,6 +728,13 @@ objectives with a giver. An older save's `beat.<id>` facts become `seen.<id>`, `
 `step.last`. The prologue and the quests play as before (P1, P3, P4, Q1–Q5). Not yet: one view of
 all objectives (the quest log and the guide are shown apart).
 
+**2026-10-09, the quests (docs/quests.md).** The view is one now: the guides and the player's
+`quest`/`prologue` stages are gone; the main line, the people's errands and the radiant favours are
+quests — resident things with stages, objectives and aliases, which see news the engine makes after
+every outcome and answer with their own rules (the story is the Story Manager). Steps wait on quests
+(`quest`, `objectives` in a step's trigger); a quest's stage carries the tutorial's lessons; the
+companion tells the tracked quest's objectives.
+
 ## 7. The event model, extended
 
 - **References**: `{e: id}` only; derived ids for things in cell spaces (§4.6).

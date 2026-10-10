@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, tickAt, type Entity } from '@lsw/engine'
-import { BASE_RULES, FIRSTLIGHT, FIRSTLIGHT_LAYOUT, PROLOGUE_DONE, STORY_RULES, buildOntology, decodeChunk, migrateFirstlight } from '@lsw/content'
+import { BASE_RULES, FIRSTLIGHT, FIRSTLIGHT_LAYOUT, STORY_RULES, buildOntology, decodeChunk, migrateFirstlight } from '@lsw/content'
 import { buildFord } from '../src/demo/world.ts'
 
 const garden = (e: Entity) => e.id.startsWith('ford.garden.') || (e.place.on === 'inside' && e.place.holder === 'ford.garden.supplies')
@@ -32,7 +32,8 @@ function legacy(visited = true, fordVisited = true) {
   tobin.npc!.person!.schedules = [{ key: 'default', entries: structuredClone(tobin.npc!.schedule) }]
   w.state.tick = tickAt(1, 13)
   w.author(() => w.place(w.player, { on: 'tile', map: 'ford', x: 14, y: 17 }))
-  Object.assign(w.player.props!, { prologue: PROLOGUE_DONE, quest: 4, xp: 42 })
+  // (a mark of progress the migration must keep: any prop of the player's)
+  Object.assign(w.player.props!, { quest: 4, xp: 42 })
   w.author(() => w.setFact('seen.arrival', true))
   w.author(() => w.setFact('mq.smith', 3))
   const resume = () => Game.load(structuredClone(game.save()), index, buildOntology(), lib())

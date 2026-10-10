@@ -11,6 +11,7 @@ const FIRE = { uses: 'village.campfire', need: { status: ['lit'] } }
 export const tobin: PersonDef = {
   id: 'npc.tobin',
   role: 'peddler',
+  essential: true,
   name: { en: 'Tobin', zh: '托宾' },
   gender: 'male',
   look: { parts: { hair: 'hair.messy', face: 'face.bright', outfit: 'outfit.travel', hat: 'hat.cap', beard: null }, colors: { hair: 'chestnut', eyes: 'amber', skin: 'warm', 'outfit.1': 'russet', 'hat.1': 'mustard' } },

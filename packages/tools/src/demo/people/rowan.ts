@@ -6,6 +6,7 @@ import { line, type PersonDef } from '../person.ts'
 export const rowan: PersonDef = {
   id: 'npc.rowan',
   role: 'villager',
+  essential: true,
   name: { en: 'Rowan', zh: '罗万' },
   gender: 'male',
   look: { parts: { hair: 'hair.swept', face: 'face.weary', outfit: 'outfit.tunic', beard: 'beard.full', hat: null }, colors: { hair: 'silver', eyes: 'hazel', skin: 'light', 'outfit.1': 'umber', 'outfit.2': 'slate' } },

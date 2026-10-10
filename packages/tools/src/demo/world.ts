@@ -10,7 +10,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { storyTopics, tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
-import { BOSSES, CH1_QUESTS, HAVEN_QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, INVARIANTS, OBJECTIVES, VILLAGE_QUESTS, PROLOGUE_AT_FOOT, PROLOGUE_BEATS, PROLOGUE_DONE, PROLOGUE_OBJECTIVES, PROTECTED_FACTS, PLAYER_LOOK, generateLook, type RawChunk } from '@lsw/content'
+import { BOSSES, QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, generateLook, type RawChunk } from '@lsw/content'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
@@ -259,6 +259,8 @@ function buildMeadow(): MapBuilder {
   // the woodworker's bench by the wood pile: what is made at a workbench is made here (world-model.md §6.4)
   m.fixture('fixture/craft/workbench', 11, 18, { id: 'village.workbench' })
   m.fixture('fixture/sign/noticeboard', 17, 14, { id: 'village.notice', props: { text: 'FIRSTLIGHT VILLAGE — Every journey begins with a first step. East: The Ford. West: Millbrook. North: Dawn Hill. South: the grassland, and the forest beyond.', text_zh: '初原村——每段旅程都从第一步开始。东：渡口。西：水车磨坊。北：晨光丘。南：草原，再往南是森林。' } })
+  // the commission board beside it (docs/quests.md §3): the favours people want done, to take on
+  m.fixture('fixture/sign/questboard', 16, 14, { id: 'village.board' })
   for (const [x, y] of [[25, 13], [12, 16]] as const) m.fixture('fixture/light/lamppost', x, y, { id: `village.lamp.${x}`, statuses: { lit: -1 } })
   // Tobin and his stock move together. Stable IDs keep saved trades and inventories intact.
   m.fixture('fixture/furniture/cart', ...FIRSTLIGHT.cart, { id: 'ford.cart', props: { owner: 'npc.tobin' } })
@@ -432,7 +434,7 @@ function person(p: PersonDef, at: (name: string) => Pos): Entity {
   const household = householdOf(p.id)
   const purse = p.purse ?? (p.role === 'child' ? 2 : 10)
   const stock = p.trade?.stock ?? []
-  const tags = [...(p.tags ?? []), ...(p.watch ? ['watchman'] : []), ...(p.trade ? ['merchant'] : []), ...(p.trade?.fence ? ['fence'] : []), ...(p.hireling ? ['hireling'] : [])]
+  const tags = [...(p.tags ?? []), ...(p.watch ? ['watchman'] : []), ...(p.trade ? ['merchant'] : []), ...(p.trade?.fence ? ['fence'] : []), ...(p.hireling ? ['hireling'] : []), ...(p.essential ? ['essential'] : [])]
   const carried = [
     ...(p.items ?? []).map((spec, i) => ({ id: `${p.id}.item${i}`, ...itemOf(spec) })),
     ...stock.flatMap(([form, n], i) => Array.from({ length: n }, (_, j) => ({ id: `${p.id}.stock${i}.${j}`, ...itemOf(form) }))),
@@ -487,7 +489,7 @@ const scenes: StepDef[] = [
   {
     // Across before the village has called you on the road: the far bank is reached, the road waits.
     id: 'far_bank_early',
-    when: { map: 'ford', region: 'far_bank', props: { quest: { lt: 0.7 } } },
+    when: { map: 'ford', region: 'far_bank', quest: { first_seal: { lt: 30 } } },
     facts: { 'ford.crossed': 1 },
     say: L('We made it across! ...But the village still needs us, and nobody has told us what is down that road yet. Let\'s not go far.', '我们过来了！……不过村里还需要我们，也还没人告诉我们那条路上有什么。先别走太远。'),
   },
@@ -529,12 +531,11 @@ const scenes: StepDef[] = [
   {
     // The goal is a state: however you got here, the far bank ends the first chapter.
     id: 'far_bank',
-    // once the pilgrimage is called (stage 0.7: the letter); across before that, `far_bank_early`; and only
-    // while it is still chapter one's hook (past stage 2 the road is long taken: `far_bank_late`)
-    when: { map: 'ford', region: 'far_bank', props: { quest: { gte: 0.7, lt: 2 } } },
+    // once the pilgrimage is called (the First Seal's stage 30: the letter); across before that, `far_bank_early`;
+    // and only while it is still chapter one's hook (past the river the road is long taken: `far_bank_late`)
+    when: { map: 'ford', region: 'far_bank', quest: { first_seal: { gte: 30, lt: 40 } } },
     script: [
       { fact: 'ford.crossed', value: 1 },
-      { prop: 'quest', value: 2 },
       { wait: 10 },
       say('npc.hesper', 'Go on, then. The rider went east along the road, past the burned farm. If you find him — mind his bow.', '那就走吧。那个骑手沿着大路往东去了，过了烧毁的农庄。要是你找到他——当心他的弓。'),
       say('npc.hesper', 'If you need supplies before the road, Firstlight Village is still just west of here.', '上路前若还缺东西，初原村就在渡口西边。'),
@@ -544,7 +545,7 @@ const scenes: StepDef[] = [
   {
     // across for the first time when the story is long past its first chapter: the river is crossed, said nothing of
     id: 'far_bank_late',
-    when: { map: 'ford', region: 'far_bank', props: { quest: { gte: 2 } } },
+    when: { map: 'ford', region: 'far_bank', quest: { first_seal: { gte: 40 } } },
     facts: { 'ford.crossed': 1 },
   },
 ]
@@ -670,11 +671,6 @@ export function buildFord(): FordWorld {
     b.regions[`home.${h}`] = [a.x - 1, a.y, 3, 1]
     b.regionProps[`home.${h}`] = { owner: `household:${h}` }
   }
-  // the people the story needs go down instead of dying (docs/npc-sandbox.md §2.8): those its quests, scenes,
-  // invariants and rules name (by id, or by the kind of person a story rule is about), and the trainer the
-  // professions are chosen at; the rest are mortal
-  const told = JSON.stringify([VILLAGE_QUESTS, CH1_QUESTS, HAVEN_QUESTS, INVARIANTS, STORY_RULES, PROLOGUE_BEATS, FIRSTLIGHT_BEATS, scenes, CHAPTER1_STORY, CHAPTER1_SCENES, HAVEN_STORY, QUEST_SCENES])
-  for (const n of npcs) if (told.includes(`"${n.id}"`) || told.includes(`"${n.type}"`) || n.type === 'actor/person/trainer') n.tags = [...(n.tags ?? []), 'essential']
   // the overworld (world-model.md §5.1): each map on its cell, the rest of the continent wild
   const cells = placeCells(builders, m)
   for (const b of builders) {
@@ -703,7 +699,6 @@ export function buildFord(): FordWorld {
     // a new game begins on Cloudtop, the summit plateau, in its ruined shelter; the tutorial is a
     // mode of its own (docs/prologue.md)
     start: { map: summit.id, x: PAT.spawn[0], y: PAT.spawn[1] },
-    begin: { props: { prologue: PROLOGUE_AT_FOOT } },
     // one comes round in the clearing early in the morning: a long day to get ready for the night
     starts: { tutorial: { at: { map: tutorial.id, x: TUTORIAL.spawn[0], y: TUTORIAL.spawn[1] }, hour: 7, statuses: { out_cold: 50 } } },
     startHour: START_HOUR,
@@ -720,15 +715,11 @@ export function buildFord(): FordWorld {
       // the look a new game starts from (the new-game panel lets one make one's own)
       look: PLAYER_LOOK,
       // a little hungry: the first thing the mountain teaches is to eat
-      props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, quest: 0, prologue: 0, hunger: 12 },
+      props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, hunger: 12 },
     },
     companions: [{ id: 'pip', type: 'actor/companion/fairy', name: L('Pip', '小啾'), place: { on: 'none' }, facing: 'down' }],
-    quests: [...VILLAGE_QUESTS, ...CH1_QUESTS, ...HAVEN_QUESTS],
-    // what Pip tells when taken hold of (F): the prologue's step on the mountain, then the main quest's
-    guides: [
-      { prop: 'prologue', until: PROLOGUE_DONE, start: PROLOGUE_DONE, stages: PROLOGUE_OBJECTIVES },
-      { prop: 'quest', stages: OBJECTIVES },
-    ],
+    // the quests (docs/quests.md): the main line, what the people ask, the radiant favours
+    quests: QUESTS,
     waypoints: chunks.flatMap((c) => c.entities.filter((e) => e.type === 'fixture/sacred/waypoint').map((e) => ({ id: e.id, map: c.map.id, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: e.name ?? L('Waypoint', '传送雕像') }))),
     stats: { maps: builders.length, npcs: npcs.length, creatures, items, itemKinds: kinds.size, fixtures },
     steps,

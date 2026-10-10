@@ -6,6 +6,7 @@ import { line, type PersonDef } from '../person.ts'
 export const lina: PersonDef = {
   id: 'npc.lina',
   role: 'villager',
+  essential: true,
   name: { en: 'Lina', zh: '莉娜' },
   gender: 'female',
   look: { parts: { hair: 'hair.braid', face: 'face.soft', outfit: 'outfit.dress', hat: null, mark: null }, colors: { hair: 'chestnut', eyes: 'leaf', skin: 'fair', 'outfit.1': 'moss' } },

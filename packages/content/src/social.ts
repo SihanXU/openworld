@@ -221,6 +221,8 @@ const TALK_TREE: Tree = IF(
         // spoken to: what fits the moment (a quest, a line), and the talk opens
         [not(param('say', { ne: '' })), DO({ op: 'quest' }, { op: 'talk' })],
         [says('ask'), DO({ op: 'talk' }, { op: 'tell', to: 'actor' })],
+        // a quest's verb (docs/quests.md §2.4): an offer taken on or turned down, a topic of a quest under way
+        [says('quest'), DO({ op: 'quest' })],
         [
           says('follow'),
           IF(
@@ -333,6 +335,8 @@ const MERCHANT_TREE: Tree = IF(
 /** What a person is told (impulse/notify), beside what body/stage keeps (rules.ts folds these in there). */
 export const PERSON_NEWS = (rest: Tree): Tree =>
   IF(what('pay'), DO({ op: 'pay', amount: { param: 'amount' }, to: 'source' }),
+  // a quest's reward (docs/quests.md): what one makes of the one who did it (the actor)
+  IF(what('regard'), DO({ op: 'regard', delta: { param: 'delta' } }),
   IF(what('give'), DO({ op: 'give', to: 'source' }),
   IF(what('surrender'), DO({ op: 'surrender' }),
   IF(what('jail'), DO({ op: 'jail' }),
@@ -341,7 +345,7 @@ export const PERSON_NEWS = (rest: Tree): Tree =>
   IF(what('calm'), DO({ op: 'calm' }),
   // a cry for help: one who fights (a guard, the smith) takes the attacker as its foe; the rest keep away from them
   IF(what('help'), IF(any({ prop: { role: 'host', key: 'fights', cmp: true } }, tag('host', 'watchman')), DO({ op: 'foe' }), DO({ op: 'fear' })),
-  rest))))))))
+  rest)))))))))
 
 export const SOCIAL_RULES: Rule[] = [
   rule({
