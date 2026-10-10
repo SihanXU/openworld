@@ -1,7 +1,7 @@
 // The main quest's scenes (docs/main-quest.md): the burned farm on the road, the arrival in
 // Emberfall, the elder's council, the village's send-off, the lair's mouth and the victory.
 
-import type { StepDef } from '@lsw/engine'
+import type { StepDef } from '@openworld/engine'
 import { L } from '../kit.ts'
 
 const say = (who: string, en: string, zh: string, mood?: 'neutral' | 'happy' | 'sad' | 'angry' | 'surprised' | 'shy') => ({ say: who, text: L(en, zh), ...(mood && { mood }) })

@@ -3,8 +3,8 @@
 // three rings of mist, each lifting when the steward widens the ground. Beyond each ring there is more: a grove and
 // stones, then a meadow and water, then the old boundary stones and iron in the rock. It lies nowhere on the overworld.
 
-import { HAVEN } from '@lsw/content'
-import type { AiData } from '@lsw/engine'
+import { HAVEN } from '@openworld-game/content'
+import type { AiData } from '@openworld/engine'
 import { MapBuilder } from '../builder.ts'
 import { L, GROUND_YIELD } from '../kit.ts'
 

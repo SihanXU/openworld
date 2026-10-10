@@ -2,7 +2,7 @@
 // undefined events as they happen, shows each ModRequest, and lets a person write a patch that
 // goes through the same validate → apply → persist path as the modder's.
 
-import type { Frame, ModSpec, Patch, Rule, ValidationResult, WorldIndex } from '@lsw/engine'
+import type { Frame, ModSpec, Patch, Rule, ValidationResult, WorldIndex } from '@openworld/engine'
 import type { LibraryView, RecordView } from '../protocol.ts'
 import { $, esc, locale } from './common.ts'
 import { template } from './template.ts'

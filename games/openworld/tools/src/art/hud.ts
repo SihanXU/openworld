@@ -1,7 +1,7 @@
 // The project's own HUD icons where the pack has none (16x16, the pack's look): the skill tree's
 // star and the options' gear on the corner buttons. Written as PNGs to public/assets/lsw/Ui/.
 //
-//   npx tsx packages/tools/src/art/hud.ts
+//   npx tsx games/openworld/tools/src/art/hud.ts
 
 import { writeIcon } from './png.ts'
 

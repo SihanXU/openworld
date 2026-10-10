@@ -6,16 +6,16 @@ import {
   APPEAR_EVERY, BOON_REACH, CODEX_SIGHT, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE, MAGNET, PROFESSION_LEVEL,
   ROW, SLOT_COUNT, TICKS_PER_HOUR, TICKS_PER_MINUTE, nightHours,
   type BossDef, type Entity, type Look, type PlacementRecipe, type QuestDef, type Recipe, type SkillDef, type StatusDef, type TerrainDef, type Text, type TypeDef,
-} from '@lsw/engine'
+} from '@openworld/engine'
 import {
   BOONS, BOSSES, COIN, EFFICIENCY, ELEMENT_NAMES, ELEMENTS, FALL_DAMAGE, FED_FOR, FORMS, LAYS_EVERY, LEGENDARY_ARMS, MATERIALS, NIGHT_CAP, NIGHT_EVERY, PLACEMENTS,
   QUALITIES, RECIPES, RECOVERY, RELICS, ROOM_SIZE, SAFE_FALL, SKILL_BRANCHES, SKILL_DIRECTIONS, SKILL_PROFESSIONS, SKILLS, STOREYS, TERRAIN_CHARS,
   TERRAINS, TREE_GROWS, VOW_TRAITS, buildOntology, type Form, LOOK_BODIES, LOOK_PARTS,
-} from '@lsw/content'
+} from '@openworld-game/content'
 import { buildFord } from '../../tools/src/demo/world.ts'
 import { PEOPLE } from '../../tools/src/demo/people.ts'
 import type { PersonDef } from '../../tools/src/demo/person.ts'
-import { CATALOG } from '../../client/src/assets/catalog.ts'
+import { CATALOG } from '@openworld/runtime/src/assets/catalog.ts'
 import { pngSize } from './png.ts'
 import { FACE_PX, lookUrls } from './looks.ts'
 
@@ -27,7 +27,7 @@ export const enOf = (t?: Text | string): string => (t == null ? '' : typeof t ==
 /** A picture on the page: a rectangle of an image the game itself serves (/assets/…). */
 export interface Sprite { url: string; x: number; y: number; w: number; h: number; iw: number; ih: number; /** drawn smooth (a painted portrait), not as pixels */ smooth?: boolean }
 
-const ASSETS = new URL('../../client/public/assets/', import.meta.url)
+const ASSETS = new URL('../../public/assets/', import.meta.url)
 const assetPath = (img: string) => (img.startsWith('lsw/') ? img : `na/${img}`)
 const sizes = new Map<string, [number, number]>()
 function sizeOf(img: string): [number, number] {

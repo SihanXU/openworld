@@ -5,7 +5,7 @@
 // brought him (his errands, quests/side.ts): each widening sets the story's `haven.size`, and the banks of mist of that ring lift
 // by themselves (each looks now and then whether the ground has grown past it).
 
-import type { Rule, Text } from '@lsw/engine'
+import type { Rule, Text } from '@openworld/engine'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 

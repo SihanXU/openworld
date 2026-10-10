@@ -5,7 +5,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { createHash } from 'node:crypto'
-import { RECOVERY } from '@lsw/content'
+import { RECOVERY } from '@openworld-game/content'
 import { connected, economySteps, freeLunch } from './economy.ts'
 import {
   RuleLibrary,
@@ -27,7 +27,7 @@ import {
   type Rule,
   type Scenario,
   type ValidationResult,
-} from '@lsw/engine'
+} from '@openworld/engine'
 
 export interface CommitResult {
   ok: boolean

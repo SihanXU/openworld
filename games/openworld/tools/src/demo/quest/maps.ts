@@ -3,8 +3,8 @@
 // Each is built from its own seed (world.ts), linked edge to edge, and every placed thing
 // witnesses a requirement in tools/test/demo.test.ts.
 
-import type { AiData, AppearDef } from '@lsw/engine'
-import { BOSS_ARENA } from '@lsw/content'
+import type { AiData, AppearDef } from '@openworld/engine'
+import { BOSS_ARENA } from '@openworld-game/content'
 import { MapBuilder, rng } from '../builder.ts'
 import { L, GROUND_YIELD, appears, clump, lay } from '../kit.ts'
 

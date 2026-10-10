@@ -3,8 +3,8 @@
 // profession's skill is not cast. Every one of the twenty does what it says on a field of slimes.
 
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, castLeft, knownActives, combatDamage, combatDelay, combatStrike, snapshot, textOf, type Engine, type Entity, type MapData } from '@lsw/engine'
-import { ACTIVE_SKILLS, BASE_RULES, SKILLS, SKILL_BY_ID, STORY_RULES, buildOntology, decodeChunk, skillBook } from '@lsw/content'
+import { Game, RuleLibrary, castLeft, knownActives, combatDamage, combatDelay, combatStrike, snapshot, textOf, type Engine, type Entity, type MapData } from '@openworld/engine'
+import { ACTIVE_SKILLS, BASE_RULES, SKILLS, SKILL_BY_ID, STORY_RULES, buildOntology, decodeChunk, skillBook } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 /** An open field of grass (an arena, as the boss tests have), the player in its middle facing right, every skill known to the engine. */

@@ -1,9 +1,9 @@
 // The asset catalogue contract: how the renderer finds every sprite in the Ninja Adventure
 // pack (CC0, by Pixel-boy & AAA). Paths are relative to the pack root
 // ("assets/ninja-adventure/Ninja Adventure - Asset Pack/"); the copy script mirrors every
-// referenced file to packages/client/public/assets/na/<same path>.
+// referenced file to games/openworld/public/assets/na/<same path>.
 
-import type { Mood } from '@lsw/engine'
+import type { Mood } from '@openworld/engine'
 
 /** A rectangle in an image, in pixels, plus the anchor that sits on the entity's tile. */
 export interface SpriteDef {

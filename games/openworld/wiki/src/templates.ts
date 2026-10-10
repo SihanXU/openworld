@@ -1,8 +1,8 @@
 // The templates (wiki/pages/帮助/格式手册.md lists them all). Every data template reads the game model:
 // a table here is the game's own numbers, never a copy that can go stale.
 
-import { gearProps, type Entity, type QuestDef, type QuestReward, type QuestTrigger, type Text } from '@lsw/engine'
-import { BASE_RULES } from '@lsw/content'
+import { gearProps, type Entity, type QuestDef, type QuestReward, type QuestTrigger, type Text } from '@openworld/engine'
+import { BASE_RULES } from '@openworld-game/content'
 import {
   EFFICIENCY, ELEMENT_NAMES, ELEMENTS, LEGENDARY_ARMS, MATERIALS, QUALITIES, RELICS, VOW_TRAITS, isAccessory, zh,
   type BossEnt, type CreatureEnt, type Ent, type Game, type ItemEnt, type MapEnt, type PersonEnt, type QuestEnt, type Sprite,

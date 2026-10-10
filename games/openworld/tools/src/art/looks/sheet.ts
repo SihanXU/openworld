@@ -1,11 +1,11 @@
 // A review sheet of looks' map sprites (docs/looks.md §4): every facing and walk frame, enlarged, on the
 // ground's green — what the art pipeline and the reviewer look at.
 //
-//   npx tsx packages/tools/src/art/looks/sheet.ts <out.png> [scale]
+//   npx tsx games/openworld/tools/src/art/looks/sheet.ts <out.png> [scale]
 
 import { readFileSync, writeFileSync } from 'node:fs'
-import type { Look } from '@lsw/engine'
-import { FH, FW, composeSprite } from '../../../../client/src/assets/figure/sprite.ts'
+import type { Look } from '@openworld/engine'
+import { FH, FW, composeSprite } from '@openworld/runtime/src/assets/figure/sprite.ts'
 import { png } from '../png.ts'
 
 export function spriteSheet(looks: Look[], scale = 6): { w: number; h: number; rgba: Uint8Array } {

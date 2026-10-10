@@ -3,7 +3,7 @@
 // give the same map, so only what changed there is kept (D20). Its edges are open: whichever way
 // one walks out, one is back on the overworld (§5.1).
 
-import { APPEAR_EVERY, Rng, type AiData, type Entity, type MapChunk, type MapData, type Text, type World } from '@lsw/engine'
+import { APPEAR_EVERY, Rng, type AiData, type Entity, type MapChunk, type MapData, type Text, type World } from '@openworld/engine'
 
 export const WILD_W = 40
 export const WILD_H = 30

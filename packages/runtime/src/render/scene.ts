@@ -3,7 +3,7 @@
 // status overlays, VFX and day/night. It only renders engine snapshots.
 
 import Phaser from 'phaser'
-import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type Look, type MapData, type Mood, type Ref, type Text } from '@lsw/engine'
+import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type Look, type MapData, type Mood, type Ref, type Text } from '@openworld/engine'
 import { CATALOG, LSW_FLOOR, LSW_STAIRS, LSW_WALL, faceFrame } from '../assets/catalog.ts'
 import { personLook } from '../assets/looks.ts'
 import { crowdLook, figureDef, figureId, portraitOf, preparePortrait } from '../assets/figure/index.ts'

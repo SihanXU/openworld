@@ -2,7 +2,7 @@
 // place reached, and pays on hand-in — written as what it asks, made into a quest with aliases, objectives and
 // stages (begun, all of it done, handed in; and, if the story goes past it first, closed).
 
-import type { AliasDef, ObjectiveDef, PropValue, QuestDef, QuestReward, QuestStage, QuestTrigger, Selector, Text } from '@lsw/engine'
+import type { AliasDef, ObjectiveDef, PropValue, QuestDef, QuestReward, QuestStage, QuestTrigger, Selector, Text } from '@openworld/engine'
 
 export const L = (en: string, zh: string): Text => ({ en, zh })
 

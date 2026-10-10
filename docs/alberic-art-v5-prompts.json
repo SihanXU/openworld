@@ -4,7 +4,7 @@
   "intent": "Expand all seven approved overhead actions from twelve to thirty-two genuinely generated poses per facing; preserve combat timing, identity, effects and previous versions.",
   "bodyPrompt": "Use case: identity-preserve.\nAsset type: production TOP-DOWN pixel RPG sprite animation sheet.\nInput Image 1: existing twelve animation poses to expand. Input Image 2: approved idle stance/costume reference. Preserve this exact character, palette, scale, overhead camera and map facing. Change ONLY temporal pose density.\nOUTPUT: EXACTLY 32 genuinely different successive poses in an EIGHT-COLUMN by FOUR-ROW grid, preferably 2048x1024. Row1=frames01-08, row2=09-16, row3=17-24, row4=25-32. One continuous action, not four repetitions. Equal square cells with no external margin. Full silhouette centered at the same hip/ground pivot (50%,68%) in each cell, constant absolute body size. At least 12% transparent padding on every side of each sprite.\nStyle: crisp hand-crafted pixel clusters matching reference, ivory great helm with dark visor, gold/bronze thorn crown, battered ivory-gold plate, dark joints, ragged ivory cape with rust hem, white quiver, recurved bow and straight sword. Do not redesign armor or introduce a face.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: helmet roof/top planes visible, foreshortened body and boots, cape on map plane. NOT eye-level portrait or side-scroller.\n32 poses use SMALL coherent in-between movements. Keep torso registered; no whole-character sliding, rescaling, random turning, flickering costume or huge cape motion. Seamless loop back to first pose except death. No cloned/repeated identical frames.\nGenuinely transparent background and alpha between every sprite. No floor, cast shadow, effects, arrows in flight, numbers, letters, grid lines, captions or watermark.\n",
   "export": {
-    "directory": "packages/client/public/assets/lsw/Bosses/alberic/v5",
+    "directory": "games/openworld/public/assets/lsw/Bosses/alberic/v5",
     "bodyCell": 128,
     "bodyColumns": 32,
     "bodyRows": 21,
@@ -17,7 +17,7 @@
       "up"
     ],
     "reviewDirectory": "docs/boss-art/alberic-v5",
-    "registrationAtlas": "packages/client/public/assets/lsw/Bosses/alberic/v4/actions.png",
+    "registrationAtlas": "games/openworld/public/assets/lsw/Bosses/alberic/v4/actions.png",
     "registration": "Fixed scale/translation per action/facing relative to approved v4 rest stance; shared source row/column packing correction; no per-frame resizing or invented poses."
   },
   "assets": [

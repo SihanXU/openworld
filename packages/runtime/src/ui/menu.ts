@@ -3,8 +3,8 @@
 // every thread the world has learned, and whose act taught it) and the chest panel: the chest's
 // grid above the bag, a click moving a stack to the other side.
 
-import type { CodexEntry, CodexView, Frame, ItemInfo, Key, Look, Rule, Text, Tree } from '@lsw/engine'
-import { COIN, FORM_BY_ID, RECIPES, stationName } from '@lsw/content'
+import type { CodexEntry, CodexView, Frame, ItemInfo, Key, Look, Rule, Text, Tree } from '@openworld/engine'
+import { COIN, FORM_BY_ID, RECIPES, stationName } from '@openworld-game/content'
 import { CATALOG } from '../assets/catalog.ts'
 import { personLook } from '../assets/looks.ts'
 import { FH, FW, composeSprite } from '../assets/figure/sprite.ts'

@@ -4,8 +4,8 @@
 // real demo world through the player's own inputs (and the people's own goals), in strict mode.
 
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, TICKS_PER_HOUR, bountyKey, buildRequest, lawId, tickAt, type Engine, type Entity, type FxEvent, type Look } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, SOCIAL_COIN, buildOntology, decodeChunk } from '@lsw/content'
+import { Game, RuleLibrary, TICKS_PER_HOUR, bountyKey, buildRequest, lawId, tickAt, type Engine, type Entity, type FxEvent, type Look } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, SOCIAL_COIN, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()

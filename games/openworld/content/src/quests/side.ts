@@ -2,7 +2,7 @@
 // 1's side quests, the Held Ground's widenings and Gus's daily wood — each an errand (kit.ts): offered by its giver,
 // accepted or declined in the talk panel, handed back to them.
 
-import type { QuestDef } from '@lsw/engine'
+import type { QuestDef } from '@openworld/engine'
 import { L, errand, gear } from './kit.ts'
 import { CH1, DRAWINGS } from '../chapter1.ts'
 import { PAST_KNIGHT } from './main.ts'

@@ -4,8 +4,8 @@
 // barrier between (the Ford: the west bank, the river, the far bank); the river and a mountain
 // range carry the Ford's barrier across the continent, so only the Ford crosses it (D22).
 
-import { OntologyIndex, World, type Entity, type MapData, type Text, type WorldState } from '@lsw/engine'
-import { TERRAINS, buildOntology, decodeMap, wildId, type RawChunk } from '@lsw/content'
+import { OntologyIndex, World, type Entity, type MapData, type Text, type WorldState } from '@openworld/engine'
+import { TERRAINS, buildOntology, decodeMap, wildId, type RawChunk } from '@openworld-game/content'
 import { MapBuilder, rng } from './builder.ts'
 import { L } from './kit.ts'
 

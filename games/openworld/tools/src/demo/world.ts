@@ -4,13 +4,13 @@
 // bank is the goal. `buildFord()` is pure (the completeness test builds the world in memory);
 // run as a script it writes the default web world.
 //
-//   npx tsx packages/tools/src/demo/world.ts
+//   npx tsx games/openworld/tools/src/demo/world.ts
 
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { storyTopics, tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@lsw/engine'
-import { BOSSES, QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, generateLook, type RawChunk } from '@lsw/content'
+import { storyTopics, tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@openworld/engine'
+import { BOSSES, QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, generateLook, type RawChunk } from '@openworld-game/content'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
@@ -25,7 +25,7 @@ import { buildHaven } from './quest/haven.ts'
 import { VIGIL, buildChapel, buildDawnHill, buildMillCellar, buildMillbrook } from './quest/vigil.ts'
 import { CHAPTER1_SCENES, CHAPTER1_STORY, HAVEN_STORY, buildOffstage, chapter1Barrow, chapter1EastRoad, chapter1Foot, chapter1Ford, chapter1Forest, chapter1Hollow, chapter1Pasture, chapter1Summit, chapter1Village } from './quest/chapter1.ts'
 
-const OUT = join(dirname(fileURLToPath(import.meta.url)), '../../../client/public/world')
+const OUT = join(dirname(fileURLToPath(import.meta.url)), '../../../public/world')
 export const VERSION = 'ford-4'
 export const START_HOUR = 13
 const L = (en: string, zh: string): Text => ({ en, zh })

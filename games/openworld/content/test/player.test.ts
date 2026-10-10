@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, buildSandbox, cellId, type Engine, type Key } from '@lsw/engine'
+import { RuleLibrary, buildSandbox, cellId, type Engine, type Key } from '@openworld/engine'
 import { BASE_RULES, FORMS, SKILLS, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()

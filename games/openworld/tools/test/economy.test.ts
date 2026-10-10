@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { OntologyIndex, RuleLibrary, buildSandbox, performPlacement, type Effect, type Rule, type Tree } from '@lsw/engine'
-import { BASE_RULES, BUILDINGS, RECIPES, RECOVERY, STORY_RULES, TERRAINS, WILD_GROUNDS, buildOntology, decodeChunk, wildChunk } from '@lsw/content'
-import { economySteps, freeLunch, prices } from '@lsw/modder'
+import { OntologyIndex, RuleLibrary, buildSandbox, performPlacement, type Effect, type Rule, type Tree } from '@openworld/engine'
+import { BASE_RULES, BUILDINGS, RECIPES, RECOVERY, STORY_RULES, TERRAINS, WILD_GROUNDS, buildOntology, decodeChunk, wildChunk } from '@openworld-game/content'
+import { economySteps, freeLunch, prices } from '@openworld/modder'
 import { buildFord } from '../src/demo/world.ts'
 
 // The economy (world-model.md §6.4, §10.2, D23): what is built and broken back returns no more

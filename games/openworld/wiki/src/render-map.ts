@@ -1,4 +1,4 @@
-// A map as the game draws it (packages/client/src/render/scene.ts), drawn in Node for the wiki's location
+// A map as the game draws it (packages/runtime/src/render/scene.ts), drawn in Node for the wiki's location
 // pages: the autotiled ground and its heights, the grass's decals, the terrain's objects (trees, rocks…),
 // prefab stamps and room frames, fixtures and built things, what lies on the ground, and the people and
 // creatures where the world begins, in the client's draw order (render/depth.ts). The ground's tiles are
@@ -9,22 +9,22 @@
 
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { OntologyIndex, type Dir, type Entity, type Look } from '@lsw/engine'
-import { TERRAIN_CHARS } from '@lsw/content'
-import { CATALOG, LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../../client/src/assets/catalog.ts'
-import { T, groundTile, hash2, type GroundAtlas } from '../../client/src/assets/ground.ts'
-import { personLook } from '../../client/src/assets/looks.ts'
-import type { ActorDef, SpriteDef } from '../../client/src/assets/types.ts'
-import { bossAnimationFrame } from '../../client/src/render/boss-animation.ts'
-import { depthOf } from '../../client/src/render/depth.ts'
+import { OntologyIndex, type Dir, type Entity, type Look } from '@openworld/engine'
+import { TERRAIN_CHARS } from '@openworld-game/content'
+import { CATALOG, LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '@openworld/runtime/src/assets/catalog.ts'
+import { T, groundTile, hash2, type GroundAtlas } from '@openworld/runtime/src/assets/ground.ts'
+import { personLook } from '@openworld/runtime/src/assets/looks.ts'
+import type { ActorDef, SpriteDef } from '@openworld/runtime/src/assets/types.ts'
+import { bossAnimationFrame } from '@openworld/runtime/src/render/boss-animation.ts'
+import { depthOf } from '@openworld/runtime/src/render/depth.ts'
 import type { Game } from './game.ts'
 import { decodePng, encodePng, type Image } from './png.ts'
-import { FH, FW, composeSprite } from '../../client/src/assets/figure/sprite.ts'
-import { crowdLook, figureId } from '../../client/src/assets/figure/ids.ts'
+import { FH, FW, composeSprite } from '@openworld/runtime/src/assets/figure/sprite.ts'
+import { crowdLook, figureId } from '@openworld/runtime/src/assets/figure/ids.ts'
 
 // ------------------------------------------------------------------------------------------ images
 
-const ASSETS = fileURLToPath(new URL('../../client/public/assets/', import.meta.url))
+const ASSETS = fileURLToPath(new URL('../../public/assets/', import.meta.url))
 const images = new Map<string, Image | null>()
 
 /** A catalogue image (a pack path, or the project's own under `lsw/`), decoded once. */

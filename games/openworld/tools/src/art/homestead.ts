@@ -1,7 +1,7 @@
 // The homestead's own icons (16x16, the pack's look), drawn by code: the Thornmark coin, a sack of fertilizer, a sack
 // of feed, an animal crate, a bucket of milk, a golden carp. (Bait is the pack's shrimp.)
 //
-//   npx tsx packages/tools/src/art/homestead.ts
+//   npx tsx games/openworld/tools/src/art/homestead.ts
 
 import { Raster, writeAtlas, type Palette } from './raster.ts'
 

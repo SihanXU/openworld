@@ -3,7 +3,7 @@
 // with the one who asks (a yellow "!", the notice board) until taken on, turned down, or their time runs out.
 // Generic kinds of favour, never another game's content; each fills its aliases from the news or the village.
 
-import type { QuestDef } from '@lsw/engine'
+import type { QuestDef } from '@openworld/engine'
 import { L } from './kit.ts'
 import { SOCIAL_COIN } from '../social.ts'
 

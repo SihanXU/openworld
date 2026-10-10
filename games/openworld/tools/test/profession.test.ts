@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { Game, MAINHAND, OFFHAND, PROFESSION_LEVEL, RuleLibrary, canWield, combatDamage, combatDelay, combatStrike, offhandOf, rangeBonus, snapshot, weaponOf, type Engine, type Entity, type MapData } from '@lsw/engine'
-import { BASE_RULES, LEGENDARY_ARMS, PROFESSION_BY_ID, SKILLS, SKILL_BY_ID, SKILL_PROFESSIONS, STORY_RULES, buildOntology, createBoss, decodeChunk } from '@lsw/content'
+import { Game, MAINHAND, OFFHAND, PROFESSION_LEVEL, RuleLibrary, canWield, combatDamage, combatDelay, combatStrike, offhandOf, rangeBonus, snapshot, weaponOf, type Engine, type Entity, type MapData } from '@openworld/engine'
+import { BASE_RULES, LEGENDARY_ARMS, PROFESSION_BY_ID, SKILLS, SKILL_BY_ID, SKILL_PROFESSIONS, STORY_RULES, buildOntology, createBoss, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 // Professions (docs/skill-tree.md): none at the start; Bram in Firstlight Village sets you on one

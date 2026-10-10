@@ -6,8 +6,8 @@
 // home. Hardcore has one life.
 
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, difficultyOf, snapshot, textOf, type Engine } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
+import { Game, RuleLibrary, difficultyOf, snapshot, textOf, type Engine } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { AT, buildFord } from '../src/demo/world.ts'
 
 function ford(difficulty?: 'easy' | 'normal' | 'hardcore'): Engine {

@@ -7,7 +7,7 @@
 // On easy and normal one may instead load a save (the slot is not saved while one lies fallen, so
 // its save is from before the fall) or go back to the title.
 
-import type { Frame } from '@lsw/engine'
+import type { Frame } from '@openworld/engine'
 import { esc, locale, tx } from './common.ts'
 
 export interface DeathHandlers {

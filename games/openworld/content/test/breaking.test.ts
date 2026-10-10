@@ -3,7 +3,7 @@
 // a rule of its own, or going down (the essential). Nothing breakable is left to the AI's guess.
 
 import { describe, expect, it } from 'vitest'
-import { OntologyIndex, RuleLibrary, buildSandbox, type Engine, type GameEvent } from '@lsw/engine'
+import { OntologyIndex, RuleLibrary, buildSandbox, type Engine, type GameEvent } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()

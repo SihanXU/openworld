@@ -4,7 +4,7 @@
 // one is tracked (★: the tracker, the markers, Pip). The commission board (docs/quests.md §3) opens here too:
 // the favours on offer, to take on.
 
-import type { Frame, JournalQuest, QuestOffer } from '@lsw/engine'
+import type { Frame, JournalQuest, QuestOffer } from '@openworld/engine'
 import { $, esc, t, tx } from './common.ts'
 
 type Tab = 'active' | 'done' | 'failed'

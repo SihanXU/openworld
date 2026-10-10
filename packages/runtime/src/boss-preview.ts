@@ -1,4 +1,4 @@
-import type { EntitySnap } from '@lsw/engine'
+import type { EntitySnap } from '@openworld/engine'
 import { ALBERIC_CLIPS, ALBERIC_CLIP_FPS, albericFrameMs } from './assets/bosses.ts'
 
 export type BossPreviewMode = 'live' | 'idle' | 'walk' | 'attack' | 'cast' | 'volley' | 'hurt' | 'death'

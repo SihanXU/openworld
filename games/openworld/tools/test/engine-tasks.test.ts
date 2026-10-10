@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ScriptedModel, SelfState, runAgent } from '@lsw/agent'
+import { ScriptedModel, SelfState, runAgent } from '@openworld/agent'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

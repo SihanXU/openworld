@@ -3,10 +3,10 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { inflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
-import { SKILLS, SKILL_BRANCHES, SKILL_DIRECTIONS, SKILL_PROFESSIONS } from '@lsw/content'
-import { SKILL_ART_KEYS, skillArt, skillPng } from '../../client/src/ui/skillIcons.ts'
+import { SKILLS, SKILL_BRANCHES, SKILL_DIRECTIONS, SKILL_PROFESSIONS } from '@openworld-game/content'
+import { SKILL_ART_KEYS, skillArt, skillPng } from '@openworld/runtime/src/ui/skillIcons.ts'
 
-const directory = new URL('../../client/public/assets/lsw/skills/', import.meta.url)
+const directory = new URL('../../public/assets/lsw/skills/', import.meta.url)
 
 // Decode our non-interlaced RGBA8 PNGs so an alpha-channel header alone cannot
 // disguise an opaque background. ImageIO may use any of the five row filters.
@@ -90,7 +90,7 @@ describe('original skill illustrations', () => {
   })
 
   it('records a distinct built-in generation brief for each added skill or profession image', () => {
-    const manifest = JSON.parse(readFileSync(new URL('../../../docs/skill-art-prompts.json', import.meta.url), 'utf8')) as {
+    const manifest = JSON.parse(readFileSync(new URL('../../../../docs/skill-art-prompts.json', import.meta.url), 'utf8')) as {
       generator: string
       assets: { id: string; file: string; subject: string }[]
     }
@@ -100,7 +100,7 @@ describe('original skill illustrations', () => {
     for (const asset of manifest.assets) {
       expect([...SKILLS, ...SKILL_PROFESSIONS].some((item) => item.icon === asset.id), asset.id).toBe(true)
       expect(SKILL_ART_KEYS).toContain(asset.id)
-      expect(asset.file).toBe(`packages/client/public/assets/lsw/skills/${asset.id}.png`)
+      expect(asset.file).toBe(`games/openworld/public/assets/lsw/skills/${asset.id}.png`)
       expect(asset.subject.length).toBeGreaterThan(80)
     }
   })
@@ -117,7 +117,7 @@ describe('original skill illustrations', () => {
   })
 
   it('does not wash out the illustrations to indicate locked/waiting nodes', () => {
-    const css = readFileSync(fileURLToPath(new URL('../../client/src/ui/game.css', import.meta.url)), 'utf8')
+    const css = readFileSync(fileURLToPath(new URL('../../../../packages/runtime/src/ui/game.css', import.meta.url)), 'utf8')
     expect(css).not.toMatch(/\.sk-node\.(?:locked|waiting)[^{]*\{[^}]*grayscale/)
     expect(css).not.toContain('.sk-art.no-png svg')
   })

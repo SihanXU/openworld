@@ -4,7 +4,7 @@
 // - Fixtures/Briar.png: a 16x16 hedge of thorns (the White Knight's kingdom; the bridge's stumps);
 // - Items/CrownOfThorns.png, Items/WarmEmber.png, Items/NinthNail.png: 16x16 item icons.
 //
-//   npx tsx packages/tools/src/art/chapter1.ts
+//   npx tsx games/openworld/tools/src/art/chapter1.ts
 
 import { Raster, writeAtlas, type Palette } from './raster.ts'
 

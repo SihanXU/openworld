@@ -7,7 +7,7 @@
 // block (a wall, a door, stairs) shows its front in its own cell and its top one tile up; a floor
 // laid a storey up lies where the tops of the blocks under it are.
 //
-//   npx tsx packages/tools/src/art/structures.ts
+//   npx tsx games/openworld/tools/src/art/structures.ts
 //
 // Structures/wall.png    22 tiles: 16 tops (a wall's cap, a dark mass one never mistakes for a
 //                        floor, as RPG Maker's ceiling; rimmed on each side with no wall beside it:

@@ -1,17 +1,17 @@
 // Copies every Ninja Adventure file referenced by the asset catalogue from the unzipped pack
-// (assets/ninja-adventure/Ninja Adventure - Asset Pack/) to packages/client/public/assets/na/,
+// (assets/ninja-adventure/Ninja Adventure - Asset Pack/) to games/openworld/public/assets/na/,
 // keeping the same relative paths. Stale copies are removed first.
 //
-//   npx tsx packages/tools/src/copyAssets.ts
+//   npx tsx games/openworld/tools/src/copyAssets.ts
 
 import { copyFileSync, existsSync, mkdirSync, rmSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { CATALOG } from '../../client/src/assets/catalog.ts'
+import { CATALOG } from '@openworld/runtime/src/assets/catalog.ts'
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
 const PACK = join(ROOT, 'assets', 'ninja-adventure', 'Ninja Adventure - Asset Pack')
-const OUT = join(ROOT, 'packages', 'client', 'public', 'assets', 'na')
+const OUT = join(ROOT, 'games', 'openworld', 'public', 'assets', 'na')
 
 /** Every pack-relative file path the catalogue references. */
 export function catalogPaths(): string[] {

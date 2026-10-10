@@ -2,7 +2,7 @@
 // - Fixtures/Mist.png: a bank of mist, soft and pale, three frames' worth of swirl in one;
 // - Items/OathThorn.png: one thorn of the White Knight's crown, still green, on a gold cord.
 //
-//   npx tsx packages/tools/src/art/haven.ts
+//   npx tsx games/openworld/tools/src/art/haven.ts
 
 import { Raster, writeAtlas, type Palette } from './raster.ts'
 

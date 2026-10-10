@@ -1,6 +1,6 @@
 // Original illustrated crop sprites. Fixtures sit on one tile and can overhang upward;
 // icons use the game's 16px inventory grid. Source atlases and prompts live in docs/crops.md.
-import { CROP_STAGES, VEGETABLE_CROPS } from '@lsw/content'
+import { CROP_STAGES, VEGETABLE_CROPS } from '@openworld-game/content'
 import type { Catalog, SpriteDef } from './types.ts'
 
 function sprite(id: string, part: string): SpriteDef {

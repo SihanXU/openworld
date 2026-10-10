@@ -4,7 +4,7 @@
 // inventory, J journal, M map.
 
 import Phaser from 'phaser'
-import { CEILING, type Dir, type Frame, type ItemInfo, type Key, type LibraryData, type Mood, type SaveData, type Text } from '@lsw/engine'
+import { CEILING, type Dir, type Frame, type ItemInfo, type Key, type LibraryData, type Mood, type SaveData, type Text } from '@openworld/engine'
 import { CATALOG } from './assets/catalog.ts'
 import type { FromWorker, Tile, ToWorker } from './protocol.ts'
 import { cssAssetUrl, registerArt } from './render/assets.ts'

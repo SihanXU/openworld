@@ -1,4 +1,4 @@
-// npx tsx packages/wiki/src/render-map-check.ts [scale]
+// npx tsx games/openworld/wiki/src/render-map-check.ts [scale]
 // Draws every map of the game (render-map.ts) into <tmp>/openworld-maps/<id>.png, with each one's size and
 // time; exits 1 if any fails.
 

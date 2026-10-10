@@ -3,12 +3,12 @@
 // his green collar the Order's gold, and on the portrait the scar the thorns left across his brow.
 // Recolours pixels only: the pack's drawing is kept.
 //
-//   swift packages/tools/src/art/alberic-human.swift
+//   swift games/openworld/tools/src/art/alberic-human.swift
 
 import AppKit
 
 let pack = "assets/ninja-adventure/Ninja Adventure - Asset Pack/Actor/Character/Master"
-let out = "packages/client/public/assets/lsw/Characters/Alberic"
+let out = "games/openworld/public/assets/lsw/Characters/Alberic"
 
 func load(_ path: String) -> NSBitmapImageRep {
   let data = try! Data(contentsOf: URL(fileURLWithPath: path))

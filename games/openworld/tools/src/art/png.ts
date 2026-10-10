@@ -6,7 +6,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { deflateSync, inflateSync } from 'node:zlib'
 
-export const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../client/public/assets/lsw')
+export const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../public/assets/lsw')
 
 function crc32(buf: Uint8Array): number {
   let c = ~0

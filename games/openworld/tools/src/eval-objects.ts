@@ -15,9 +15,9 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ModPort, RuleLibrary, buildSandbox, type Patch, type PixelArt, type Rule, type TypeDef } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
-import { modelFromEnv, openModder, type WorldEpisode } from '@lsw/modder'
+import { ModPort, RuleLibrary, buildSandbox, type Patch, type PixelArt, type Rule, type TypeDef } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
+import { modelFromEnv, openModder, type WorldEpisode } from '@openworld/modder'
 import { png } from './art/png.ts'
 
 interface Case {
@@ -42,7 +42,7 @@ const CASES: Case[] = [
   { name: 'berries in a lit cauldron: jam', held: 'item/food/berries', target: 'fixture/craft/cauldron', statuses: ['lit'] },
 ]
 
-const REPO = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
+const REPO = resolve(fileURLToPath(new URL('../../../..', import.meta.url)))
 openModder({ data: mkdtempSync(join(tmpdir(), 'lsw-warm-')), model: null }) // loads .env
 const model = modelFromEnv()
 if (!model) throw new Error('no model: set LSW_MODEL_BACKEND (claude-code) or the OpenRouter key')

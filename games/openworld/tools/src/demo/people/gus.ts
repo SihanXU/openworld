@@ -3,7 +3,7 @@
 // them. His back is not what it was, and the fire wants feeding every day. His day is real work
 // (world-model.md §6.10): his own acts, the rules answering them, the stumps growing back.
 
-import type { WorkDef } from '@lsw/engine'
+import type { WorkDef } from '@openworld/engine'
 import { line, type PersonDef } from '../person.ts'
 
 const LOG = { type: 'item/material/log' }

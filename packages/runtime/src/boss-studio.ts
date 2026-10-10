@@ -1,6 +1,6 @@
 // Disposable review encounter. Kept separate from the page so its real bootstrap is testable.
-import { Game, RuleLibrary, type WorldIndex } from '@lsw/engine'
-import { BASE_RULES, BOSSES, BOSS_BY_ID, BOSS_ARENA, STORY_RULES, buildOntology, createBoss, decodeChunk, type RawChunk } from '@lsw/content'
+import { Game, RuleLibrary, type WorldIndex } from '@openworld/engine'
+import { BASE_RULES, BOSSES, BOSS_BY_ID, BOSS_ARENA, STORY_RULES, buildOntology, createBoss, decodeChunk, type RawChunk } from '@openworld-game/content'
 
 export function createBossStudio(index: WorldIndex, raw: RawChunk, bossId: string): Game {
   if (!BOSS_BY_ID[bossId]) throw new Error('Unknown studio boss')

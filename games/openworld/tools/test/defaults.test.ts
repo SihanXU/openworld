@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { Engine, RuleLibrary, buildSandbox, type GameEvent, type Resolution, type Scenario, type UndefinedSink } from '@lsw/engine'
-import { BASE_RULES, buildOntology } from '@lsw/content'
+import { Engine, RuleLibrary, buildSandbox, type GameEvent, type Resolution, type Scenario, type UndefinedSink } from '@openworld/engine'
+import { BASE_RULES, buildOntology } from '@openworld-game/content'
 import { FRONT, ORIGIN } from '../src/coverage.ts'
 
 // What happens when the world has no answer (design.md §5.9, the leaf's default): putting a thing

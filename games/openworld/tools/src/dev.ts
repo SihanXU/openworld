@@ -81,4 +81,4 @@ else {
 // played on a stale world (a new start the old world lacks fails the game at its first frame)
 const built = spawnSync('npm', ['run', 'gen:world', '--silent'], { stdio: 'inherit', shell: true })
 if (built.status !== 0) console.log('[dev] the world could not be built: the client serves the last one')
-run('client', ['run', 'dev', '-w', '@lsw/client'])
+run('client', ['run', 'dev', '-w', '@openworld/runtime'])

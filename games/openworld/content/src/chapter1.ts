@@ -5,7 +5,7 @@
 // the villagers' errands. The story's facts are `ch1.*`; `night.shift` is how much longer the night has grown
 // (calendar.ts).
 
-import type { Rule } from '@lsw/engine'
+import type { Rule } from '@openworld/engine'
 
 /** The story's facts of the chapter. */
 export const CH1 = {

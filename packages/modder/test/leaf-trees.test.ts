@@ -3,8 +3,8 @@
 // answer set aside at runtime opens its leaves again; the request says where the next answer goes.
 
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, compose, holeKey, locate, patchKey, placePatch, restoreLibrary, validatePatch, type Cond, type Patch, type Rule, type Scenario } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { ModPort, RuleLibrary, buildSandbox, compose, holeKey, locate, patchKey, placePatch, restoreLibrary, validatePatch, type Cond, type Patch, type Rule, type Scenario } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { WorldLibrary } from '../src/index.ts'
 
 const onto = buildOntology()

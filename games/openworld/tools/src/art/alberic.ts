@@ -8,7 +8,7 @@
 //   out; he lies still, the crown beside him). Facing right; the renderer mirrors him.
 // - effect-arrow.png, effect-volley.png, effect-thorns.png: four 64x64 frames each.
 //
-//   npx tsx packages/tools/src/art/alberic.ts
+//   npx tsx games/openworld/tools/src/art/alberic.ts
 
 import { Raster, writeAtlas, type Palette } from './raster.ts'
 

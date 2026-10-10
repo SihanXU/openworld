@@ -1,6 +1,6 @@
 // The quests (docs/quests.md): the main line, what the people ask, the radiant favours.
 
-import type { QuestDef } from '@lsw/engine'
+import type { QuestDef } from '@openworld/engine'
 import { MAIN_QUESTS } from './main.ts'
 import { SIDE_QUESTS } from './side.ts'
 import { FAVORS } from './favors.ts'

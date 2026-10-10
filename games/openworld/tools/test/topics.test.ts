@@ -3,8 +3,8 @@
 // topics of its own (design.md §5, legibility).
 
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, storyTopics, validatePatch, type Effect, type Patch } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { RuleLibrary, storyTopics, validatePatch, type Effect, type Patch } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 const { index } = buildFord()

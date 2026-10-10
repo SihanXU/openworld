@@ -1,6 +1,6 @@
 """Cut the drawn parts into the game's portrait layers and write the manifest (docs/looks.md §4).
 
-    python -I build.py <work dir> <out dir>     (out: packages/client/public/assets/lsw/Looks/portrait)
+    python -I build.py <work dir> <out dir>     (out: games/openworld/public/assets/lsw/Looks/portrait)
 
 Reads <work>/lib/base-<body>.png and <work>/parts/<part>[@<body>][~<mood>].png (parts.py), writes per layer a
 paint and a value map (extract.py) at the game's size, and manifest.json (client/src/assets/figure/portrait.ts).

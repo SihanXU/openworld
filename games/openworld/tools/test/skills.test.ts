@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { Engine, Game, RuleLibrary, buildSandbox, cannotLearn, combatDelay, combatStrike, snapshot, type Ref, type Scenario } from '@lsw/engine'
-import { BASE_RULES, SKILLS, SKILL_DIRECTIONS, SKILL_BRANCHES, SKILL_BY_ID, skillsForProfession, branchesForProfession, buildOntology } from '@lsw/content'
-import { layoutBranches, layoutSkills } from '../../client/src/ui/skillLayout.ts'
+import { Engine, Game, RuleLibrary, buildSandbox, cannotLearn, combatDelay, combatStrike, snapshot, type Ref, type Scenario } from '@openworld/engine'
+import { BASE_RULES, SKILLS, SKILL_DIRECTIONS, SKILL_BRANCHES, SKILL_BY_ID, skillsForProfession, branchesForProfession, buildOntology } from '@openworld-game/content'
+import { layoutBranches, layoutSkills } from '@openworld/runtime/src/ui/skillLayout.ts'
 import { buildFord } from '../src/demo/world.ts'
 import { FRONT, ORIGIN } from '../src/coverage.ts'
 

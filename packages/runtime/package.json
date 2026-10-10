@@ -1,5 +1,5 @@
 {
-  "name": "@lsw/client",
+  "name": "@openworld/runtime",
   "private": true,
   "type": "module",
   "scripts": {

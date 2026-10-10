@@ -3,7 +3,7 @@
 // answers for itself; a tool's blow (`strike`) finishes it or takes it apart.
 
 import { describe, expect, it } from 'vitest'
-import { CEILING, RuleLibrary, SANDBOX_MAP, buildSandbox, textOf, type Engine, type Key } from '@lsw/engine'
+import { CEILING, RuleLibrary, SANDBOX_MAP, buildSandbox, textOf, type Engine, type Key } from '@openworld/engine'
 import { BASE_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()

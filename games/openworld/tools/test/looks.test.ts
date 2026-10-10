@@ -4,13 +4,13 @@
 // it draws.
 
 import { describe, expect, it } from 'vitest'
-import { LOOK_BODIES, LOOK_COLORS, LOOK_PARTS, LOOK_SLOTS, LOOK_TABLE, PLAYER_LOOK, buildOntology, describeLook, generateLook, tagsOfLook } from '@lsw/content'
-import { Game, LOOK_TAG, RuleLibrary, lookCode, lookProblems, lookTags, restyled, validatePatch, type Look, type Rule } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, decodeChunk } from '@lsw/content'
-import { BEARDS, FACES, GLASSES, HAIRS, HATS, MARKS, OUTFITS } from '../../client/src/assets/figure/pixparts.ts'
-import { WEARS } from '../../client/src/assets/figure/pixwear.ts'
-import { FH, FW, composeSprite } from '../../client/src/assets/figure/sprite.ts'
-import { gradient, ramp3, rgbOf } from '../../client/src/assets/figure/color.ts'
+import { LOOK_BODIES, LOOK_COLORS, LOOK_PARTS, LOOK_SLOTS, LOOK_TABLE, PLAYER_LOOK, buildOntology, describeLook, generateLook, tagsOfLook } from '@openworld-game/content'
+import { Game, LOOK_TAG, RuleLibrary, lookCode, lookProblems, lookTags, restyled, validatePatch, type Look, type Rule } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, decodeChunk } from '@openworld-game/content'
+import { BEARDS, FACES, GLASSES, HAIRS, HATS, MARKS, OUTFITS } from '@openworld/runtime/src/assets/figure/pixparts.ts'
+import { WEARS } from '@openworld/runtime/src/assets/figure/pixwear.ts'
+import { FH, FW, composeSprite } from '@openworld/runtime/src/assets/figure/sprite.ts'
+import { gradient, ramp3, rgbOf } from '@openworld/runtime/src/assets/figure/color.ts'
 import { PEOPLE } from '../src/demo/people.ts'
 import { buildFord } from '../src/demo/world.ts'
 
@@ -183,7 +183,7 @@ describe('restyle: a look changes as an outcome of its bearer (the event model)'
 
 describe('what is worn shows on the look as seen (an item\'s look)', () => {
   it('an iron breastplate and a helmet put on: the snapshot\'s look, its tags, its words and its sprite follow; the own look is kept', async () => {
-    const { snapshot } = await import('@lsw/engine')
+    const { snapshot } = await import('@openworld/engine')
     const { index, chunks } = buildFord()
     const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
     for (const c of chunks) game.loadChunk(decodeChunk(c))

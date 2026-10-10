@@ -2,7 +2,7 @@
 // chicken (sheets in the pack's layout: 16x16 frames, columns down/up/left/right, rows the walk).
 // Drawn from character grids, written as PNGs to public/assets/lsw/ (the food icons: food.ts).
 //
-//   npx tsx packages/tools/src/art/animals.ts
+//   npx tsx games/openworld/tools/src/art/animals.ts
 
 import { OUT, writePng } from './png.ts'
 

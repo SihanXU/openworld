@@ -1,6 +1,6 @@
 // The Mod Console's starting-point patch, kept apart from the DOM so it can be checked headlessly.
 
-import { holeKey, type Patch } from '@lsw/engine'
+import { holeKey, type Patch } from '@openworld/engine'
 import type { RecordView } from '../protocol.ts'
 
 /** A starting-point patch for a record: the host type's own rule at its place, a visible outcome, and the triggering case as a test. */

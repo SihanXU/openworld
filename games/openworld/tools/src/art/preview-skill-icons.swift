@@ -1,5 +1,5 @@
 // A review contact sheet of existing PNGs; this does not create or repaint artwork.
-// Run from the repository root: swift packages/tools/src/art/preview-skill-icons.swift
+// Run from the repository root: swift games/openworld/tools/src/art/preview-skill-icons.swift
 import AppKit
 import Foundation
 

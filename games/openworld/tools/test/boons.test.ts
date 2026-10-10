@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, activeBoon, boonsOf, snapshot, type Engine } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
+import { Game, RuleLibrary, activeBoon, boonsOf, snapshot, type Engine } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 // The companion's boons (docs/chapter-1.md §6, engine/src/boons.ts): given by the story, carried
@@ -93,14 +93,14 @@ describe('the companion\'s boons', () => {
 describe('Pip, the fairy', () => {
   it('is a fairy companion drawn from the project\'s own art; an older save\'s bird becomes her', async () => {
     const { readFileSync } = await import('node:fs')
-    const { COMPANION_LAYOUT, migrateCompanion } = await import('@lsw/content')
+    const { COMPANION_LAYOUT, migrateCompanion } = await import('@openworld-game/content')
     const eng = world()
     const w = eng.world
     const pip = w.get('pip')!
     expect(pip.type).toBe('actor/companion/fairy')
     expect(w.hasTag(pip, 'airborne')).toBe(true)
     for (const [file, width, height] of [['SpriteSheet.png', 64, 16], ['Faceset.png', 38, 38]] as const) {
-      const bytes = readFileSync(new URL(`../../client/public/assets/lsw/Companion/Fairy/${file}`, import.meta.url))
+      const bytes = readFileSync(new URL(`../../public/assets/lsw/Companion/Fairy/${file}`, import.meta.url))
       expect([bytes.readUInt32BE(16), bytes.readUInt32BE(20), bytes[25]]).toEqual([width, height, 6])
     }
     // an older save: Pip as a bird, with a boon already given

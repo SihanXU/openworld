@@ -3,7 +3,7 @@
 // messages bottom left, the map name as it fades in, the two keys' labels over the target, the
 // dialogue box and the yes/no question, speech bubbles and floating numbers.
 
-import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Mood, type Text, type WorldIndex } from '@lsw/engine'
+import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Mood, type Text, type WorldIndex } from '@openworld/engine'
 import { CATALOG } from '../assets/catalog.ts'
 import { assetUrl, cssAssetUrl } from '../render/assets.ts'
 import { $, MOOD_GLYPH, SLOT_KEYS, controlsTable, esc, locale, prefs, t, tx } from './common.ts'

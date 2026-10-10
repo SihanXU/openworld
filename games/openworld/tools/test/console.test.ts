@@ -1,10 +1,10 @@
-// The Mod Console's template (packages/client/src/ui/template.ts) is where a person starts a patch
+// The Mod Console's template (packages/runtime/src/ui/template.ts) is where a person starts a patch
 // by hand: for every kind of hole the Ford reaches, it must already be a valid patch.
 
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, validatePatch, type Key } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
-import { template } from '../../client/src/ui/template.ts'
+import { Game, RuleLibrary, validatePatch, type Key } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
+import { template } from '@openworld/runtime/src/ui/template.ts'
 import { AT, STAND, buildFord } from '../src/demo/world.ts'
 
 describe('the Mod Console template', () => {

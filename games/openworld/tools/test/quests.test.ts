@@ -4,8 +4,8 @@
 // that no patch hosts a quest.
 
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, tickAt, validatePatch, type Engine, type QuestDef } from '@lsw/engine'
-import { BASE_RULES, CH1, QUESTS, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
+import { Game, RuleLibrary, tickAt, validatePatch, type Engine, type QuestDef } from '@openworld/engine'
+import { BASE_RULES, CH1, QUESTS, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()

@@ -3,8 +3,8 @@
 // cannot be lost is not lost, and a rule that keeps failing is set aside (its hole open again).
 
 import { describe, expect, it } from 'vitest'
-import { Engine, RuleLibrary, SANDBOX_MAP, buildSandbox, gainXp, holeKey, type GameEvent, type Rule, type Scenario, type Tree } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { Engine, RuleLibrary, SANDBOX_MAP, buildSandbox, gainXp, holeKey, type GameEvent, type Rule, type Scenario, type Tree } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 
 const onto = buildOntology()
 const FEATHER = 'item/material/feather'

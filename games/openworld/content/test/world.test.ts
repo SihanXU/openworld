@@ -24,7 +24,7 @@ import {
   type PersonData,
   type Rule,
   type Scenario,
-} from '@lsw/engine'
+} from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()

@@ -7,8 +7,8 @@
 // is how the generator (`generateLook`) weighs it for a person. Its pictures are the client's
 // (client/src/assets/looks/: the portrait layers, the map sprite's grids).
 
-import type { Look, LookBodyDef, LookColorDef, LookPartDef, LookTable, Text } from '@lsw/engine'
-import { LOOK_TAG, lookColor, lookTags } from '@lsw/engine'
+import type { Look, LookBodyDef, LookColorDef, LookPartDef, LookTable, Text } from '@openworld/engine'
+import { LOOK_TAG, lookColor, lookTags } from '@openworld/engine'
 import { MATERIALS } from './items.ts'
 
 const T = (en: string, zh: string): Text => ({ en, zh })

@@ -4,8 +4,8 @@
 // slot; a slot is emptied with a right click. What a piece lends leaves with the piece: still in a slot, it shows
 // as not had (engine actives.ts knownActives).
 
-import type { Frame, KnownActive } from '@lsw/engine'
-import { SKILL_BY_ID } from '@lsw/content'
+import type { Frame, KnownActive } from '@openworld/engine'
+import { SKILL_BY_ID } from '@openworld-game/content'
 import { $, esc, locale, tx } from './common.ts'
 import { skillPng } from './skillIcons.ts'
 import { SKILLBAR_KEYS } from './skillbar.ts'

@@ -252,7 +252,7 @@ the instrument, and every carried thing (or none) can be selected; the aim, the 
 context menu reach every target within the act's reach (one's own place for use: the right
 click). The three are independent, so their product — the event space within reach, less the
 stated conventions and the takes and puts that would change nothing — is reachable; and a given
-input state is one dry run, shown by the label. `packages/content/test/controls.test.ts` checks it
+input state is one dry run, shown by the label. `games/openworld/content/test/controls.test.ts` checks it
 by enumeration on a scene with the hard cases (a pile on a table, a stick on the ground, a person,
 the own tile, a second thing in the bag).
 
@@ -1288,18 +1288,18 @@ Notes from verification that changed the design:
 Direction from the user: build a small but refined demo first, then scale. The default world is
 hand-crafted; the generated 460-map world was removed on 2026-10-02.
 
-- **Art**: the Ninja Adventure pack (CC0). `packages/client/src/assets/catalog.ts` maps every
+- **Art**: the Ninja Adventure pack (CC0). `packages/runtime/src/assets/catalog.ts` maps every
   terrain, fixture, item, creature, character look, VFX, UI piece, music and sound to the pack;
   a preview page (`/src/assets/preview.html`) shows all of it.
-- **Renderer** (`packages/client/src/render/`): 47-tile blob autotiling (table `BLOB47`) into a
+- **Renderer** (`packages/runtime/src/render/`): 47-tile blob autotiling (table `BLOB47`) into a
   runtime ground atlas; terrain objects (trees, rocks, tall grass…) that follow terrain state
   (burnt → charred, chopped → stump); prefab buildings stamped by the map author with correct
   occlusion; nine-slice room walls; 4-direction animated actors; status overlays, projectiles,
   day/night light, music per map and sound effects.
-- **World** (`packages/tools/src/demo/`): an authoring DSL (terrain painting, prefabs, rooms,
+- **World** (`games/openworld/tools/src/demo/`): an authoring DSL (terrain painting, prefabs, rooms,
   fixtures, items, creatures, portals). First Hearthvale (15 maps, 12 villagers), replaced on
   2026-10-02 by **the Ford** — one map, two people, minimal and complete (game-design.md).
-- **Story as data** (`packages/content/src/ford.ts`): objectives keyed by a player prop, rules
+- **Story as data** (`games/openworld/content/src/ford.ts`): objectives keyed by a player prop, rules
   on classes (the ferrykeeper, the peddler, the dead tree), and invariants that keep it winnable.
 - **UI**: JRPG dialogue box with portraits, objective panel, and an action prompt that shows
   what E/F will do — including "the world has never seen this" for undefined interactions.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, tickAt, type Entity } from '@lsw/engine'
-import { BASE_RULES, FIRSTLIGHT, FIRSTLIGHT_LAYOUT, STORY_RULES, buildOntology, decodeChunk, migrateFirstlight } from '@lsw/content'
+import { Game, RuleLibrary, tickAt, type Entity } from '@openworld/engine'
+import { BASE_RULES, FIRSTLIGHT, FIRSTLIGHT_LAYOUT, STORY_RULES, buildOntology, decodeChunk, migrateFirstlight } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 const garden = (e: Entity) => e.id.startsWith('ford.garden.') || (e.place.on === 'inside' && e.place.holder === 'ford.garden.supplies')

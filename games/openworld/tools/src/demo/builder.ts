@@ -5,11 +5,11 @@
 // no picture without a thing, and no wall without one: what the map shows and what blocks are
 // terrain or entities (a big thing blocks its type's footprint, and only while it stands).
 
-import type { AiData, Entity, AppearDef, MapData, Portal, PropValue, Text } from '@lsw/engine'
-import { CHAR_OF, FORM_BY_ID, buildOntology, makeItem, type RawChunk } from '@lsw/content'
-import { OntologyIndex, Rng, baseCovers, splitLayers } from '@lsw/engine'
-import type { PrefabDef } from '../../../client/src/assets/types.ts'
-import { CATALOG } from '../../../client/src/assets/catalog.ts'
+import type { AiData, Entity, AppearDef, MapData, Portal, PropValue, Text } from '@openworld/engine'
+import { CHAR_OF, FORM_BY_ID, buildOntology, makeItem, type RawChunk } from '@openworld-game/content'
+import { OntologyIndex, Rng, baseCovers, splitLayers } from '@openworld/engine'
+import type { PrefabDef } from '@openworld/runtime/src/assets/types.ts'
+import { CATALOG } from '@openworld/runtime/src/assets/catalog.ts'
 
 /** The builders' randomness. Re-seeded for each map (`reseed`), so a map comes out the same however many were built before it. */
 export let rng = new Rng(4242)

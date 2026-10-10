@@ -3,8 +3,8 @@
 //
 //   npm run improve -- [--select 8] [--confirm 8] [--margin 0.1]
 
-import { improve } from '@lsw/agent'
-import { openModder } from '@lsw/modder'
+import { improve } from '@openworld/agent'
+import { openModder } from '@openworld/modder'
 import { engineSource } from './engine-tasks.ts'
 
 const argv = process.argv.slice(2)

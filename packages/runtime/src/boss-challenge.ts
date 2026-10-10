@@ -1,6 +1,6 @@
 // A fresh, disposable game per challenge. No persistence and no campaign/trainer changes.
-import { Game, OFFHAND, RuleLibrary, learnSkill, type Text, type WorldIndex } from '@lsw/engine'
-import { BASE_RULES, BOSSES, BOSS_BY_ID, BOSS_ARENA, PROFESSION_BY_ID, SKILLS, STORY_RULES, buildOntology, createBoss, decodeChunk, type RawChunk } from '@lsw/content'
+import { Game, OFFHAND, RuleLibrary, learnSkill, type Text, type WorldIndex } from '@openworld/engine'
+import { BASE_RULES, BOSSES, BOSS_BY_ID, BOSS_ARENA, PROFESSION_BY_ID, SKILLS, STORY_RULES, buildOntology, createBoss, decodeChunk, type RawChunk } from '@openworld-game/content'
 
 export const CHALLENGE_LOADOUTS: Record<string, { hp: number; atk: number; def: number; icon: string; tip: Text }> = {
   assassin: { hp: 110, atk: 5, def: 1, icon: 'assassin', tip: { en: 'Iron dagger · openers, backstabs and three-hit finishers.', zh: '铁匕首 · 绕后背刺，抓住先手，三连击收尾。' } },

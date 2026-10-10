@@ -2,7 +2,7 @@
 // is its in-hand sprite, a flat arc that reads as a bowl); and the bundle any gear shows as while it lies on the ground
 // (its own icon only once picked up).
 //
-//   npx tsx packages/tools/src/art/gear.ts
+//   npx tsx games/openworld/tools/src/art/gear.ts
 
 import { Raster, writeAtlas, type Palette } from './raster.ts'
 

@@ -1,7 +1,7 @@
 // Base ontology: terrains, statuses, elements, visual effects and the type tree
 // for actors and fixtures. Item types come from the catalogue in items.ts.
 
-import { APPEAR_TICK, TICKS_PER_DAY, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE, type Cond, type Ontology, type StageDef, type StatusDef, type TerrainDef, type TypeDef } from '@lsw/engine'
+import { APPEAR_TICK, TICKS_PER_DAY, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE, type Cond, type Ontology, type StageDef, type StatusDef, type TerrainDef, type TypeDef } from '@openworld/engine'
 import { LOOK_TABLE } from './looks.ts'
 import { ELEMENT_NAMES, MATERIALS, MATERIAL_DEFS, QUALITIES, QUALITY_DEFS, itemTypes } from './items.ts'
 import { VEGETABLE_CROPS } from './crops.ts'

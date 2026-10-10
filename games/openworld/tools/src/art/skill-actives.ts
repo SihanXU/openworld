@@ -2,7 +2,7 @@
 // code in the look of the illustrated skill art: one bold emblem on a clear ground, a dark outline round it, three or
 // four tones a colour, a few bright accents; what flies off it (wind, sparks, smoke) is left without an outline.
 //
-//   npx tsx packages/tools/src/art/skill-actives.ts
+//   npx tsx games/openworld/tools/src/art/skill-actives.ts
 
 import { Raster, writeAtlas, type Palette } from './raster.ts'
 

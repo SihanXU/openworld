@@ -7,7 +7,7 @@
 // (`first_seal`, docs/quests.md) answers them: the story's rules keep the facts (others notify it), and the world's own patches
 // may not touch them (design.md §5.11).
 
-import type { Cond, Effect, Invariant, RoleName, Rule, Selector, Text } from '@lsw/engine'
+import type { Cond, Effect, Invariant, RoleName, Rule, Selector, Text } from '@openworld/engine'
 import { QUEST_RULES } from './quest.ts'
 import { BOSS_RULES } from './bosses.ts'
 import { CH1_RULES } from './chapter1.ts'

@@ -1,8 +1,8 @@
 // The look maker (looks.html, dev): every person of the world in the character creator — their look as the game
 // draws it, changed by hand, and copied as the pins for their file (tools/src/demo/people/<id>.ts).
 
-import type { Look, WorldIndex } from '@lsw/engine'
-import { PLAYER_LOOK } from '@lsw/content'
+import type { Look, WorldIndex } from '@openworld/engine'
+import { PLAYER_LOOK } from '@openworld-game/content'
 import { Creator } from './ui/creator.ts'
 import { tx } from './ui/common.ts'
 import './styles.css'

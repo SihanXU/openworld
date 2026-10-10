@@ -37,7 +37,7 @@
       "runtimeArgs": [
         "vite",
         "preview",
-        "packages/client",
+        "packages/runtime",
         "--port",
         "4173",
         "--strictPort"

@@ -1,7 +1,7 @@
 // Authored-content migration for the boss kits, kept outside the generic engine: an older save is
 // brought up to the world as it is now. It is the author's, run on loading (the caller holds the
 // author's hand: `engine.author`), never game code.
-import type { Game } from '@lsw/engine'
+import type { Game } from '@openworld/engine'
 import { BOSS_LAYOUT, REMOVED_BOSSES } from './bosses.ts'
 
 /** Clear the bodies of removed kits (the East Road's Gilt Tollkeeper of older saves): their types are gone. */

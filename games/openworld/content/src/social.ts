@@ -4,7 +4,7 @@
 // The engine holds the mechanisms (social.ts, conduct.ts, the primitives); every judgement here is a rule of a
 // host, reading anything and writing only itself.
 
-import { TICKS_PER_DAY, type Cond, type DeedDef, type Effect, type EmitTo, type LawDef, type PropValue, type Rule, type Selector, type SocialParams, type StatusDef, type TalkVerb, type Text, type Tree, type TypeDef } from '@lsw/engine'
+import { TICKS_PER_DAY, type Cond, type DeedDef, type Effect, type EmitTo, type LawDef, type PropValue, type Rule, type Selector, type SocialParams, type StatusDef, type TalkVerb, type Text, type Tree, type TypeDef } from '@openworld/engine'
 import { COIN } from './homestead.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })

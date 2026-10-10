@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url'
 import type { AddressInfo } from 'node:net'
 import { Server } from 'node:http'
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, holeKey, patchKey, placePatch, restoreLibrary, validatePatch, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { ModPort, RuleLibrary, buildSandbox, holeKey, patchKey, placePatch, restoreLibrary, validatePatch, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, parseJson, qualifyTerrains, scriptFromFile, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
 
 const onto = buildOntology()
@@ -539,7 +539,7 @@ describe('the OpenAI-compatible adapter', () => {
     }).listen(0)
     await listening(server)
     try {
-      const { OpenAICompatModel } = await import('@lsw/agent')
+      const { OpenAICompatModel } = await import('@openworld/agent')
       const model = new OpenAICompatModel({ baseUrl: `http://localhost:${(server.address() as AddressInfo).port}/v1`, apiKey: 'test', model: 'mock-1' })
       const { modder, state } = setup(model)
       const reply = await modder.resolve({ request: request() })
@@ -779,7 +779,7 @@ describe('the tail guard', () => {
       })
     }).listen(0)
     await listening(server)
-    const { OpenAICompatModel } = await import('@lsw/agent')
+    const { OpenAICompatModel } = await import('@openworld/agent')
     const model = new OpenAICompatModel({ baseUrl: `http://localhost:${(server.address() as AddressInfo).port}/v1`, apiKey: 't', model: 'm', extraBody: { provider: { order: ['a', 'b'] } } })
     return { model, bodies, close: () => (server.closeAllConnections(), server.close()) }
   }

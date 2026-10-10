@@ -3,9 +3,9 @@
 // made thing is not named twice, and the world waits while the player's own act waits.
 
 import { describe, expect, it } from 'vitest'
-import { ModPort, OVERLAYS, OntologyIndex, RuleLibrary, buildSandbox, madeOf, snapshot, validatePatch, type Engine } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
-import { CEILING, Game, DIRS, tickAt, type Dir } from '@lsw/engine'
+import { ModPort, OVERLAYS, OntologyIndex, RuleLibrary, buildSandbox, madeOf, snapshot, validatePatch, type Engine } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
+import { CEILING, Game, DIRS, tickAt, type Dir } from '@openworld/engine'
 import { buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()

@@ -2,14 +2,14 @@
 // composed by the client's own code from the manifest and the layers the pipeline cut — what a reviewer (and the
 // pipeline's next round) looks at.
 //
-//   npx tsx packages/tools/src/art/looks/review.ts <out.png> [mood]
+//   npx tsx games/openworld/tools/src/art/looks/review.ts <out.png> [mood]
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { Look, Mood } from '@lsw/engine'
-import { PLAYER_LOOK, generateLook } from '@lsw/content'
-import { composePortrait, type LayerPixels, type PortraitManifest } from '../../../../client/src/assets/figure/portrait.ts'
-import { FH, FW, composeSprite } from '../../../../client/src/assets/figure/sprite.ts'
+import type { Look, Mood } from '@openworld/engine'
+import { PLAYER_LOOK, generateLook } from '@openworld-game/content'
+import { composePortrait, type LayerPixels, type PortraitManifest } from '@openworld/runtime/src/assets/figure/portrait.ts'
+import { FH, FW, composeSprite } from '@openworld/runtime/src/assets/figure/sprite.ts'
 import { PEOPLE } from '../../demo/people.ts'
 import { OUT, png, readPng } from '../png.ts'
 

@@ -14,7 +14,7 @@
 
 import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
-import type { Mood } from '@lsw/engine'
+import type { Mood } from '@openworld/engine'
 import { OUT, png, readPng, writePng } from './png.ts'
 
 export const FACE_MOODS: readonly Mood[] = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy']

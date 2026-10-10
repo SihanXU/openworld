@@ -4,7 +4,7 @@ Status: **proposed** (2026-09-30).
 
 Scope: make the world that already exists respond to the player, and add simple gameplay
 loops on top of it — storage, woodcutting, building, farming and their neighbours. Almost
-all of it is base rules in `packages/content/src/rules.ts` and new types in the ontology;
+all of it is base rules in `games/openworld/content/src/rules.ts` and new types in the ontology;
 the engine and client changes it needs are small and are listed in §5.
 
 ## 1. Baseline
@@ -121,7 +121,7 @@ new target, so the share undefined rises although nothing was lost.
 
 ### M0 — Coverage report
 
-Land the sweep behind §1 as `packages/tools/src/coverage.ts`: the matrix, the list of forms
+Land the sweep behind §1 as `games/openworld/tools/src/coverage.ts`: the matrix, the list of forms
 and fixture types without a purpose, and the three counts. It is the progress meter for
 everything below and runs with the tests: `npm test` fails if any form or target answers fewer
 combinations, or any form or fixture type loses its purpose, than the committed baseline.
@@ -434,7 +434,7 @@ rule.
 | C4 | Container panel in the HUD | M1 |
 
 Every engine change is added to the ModSpec docs in the same commit, and each milestone's
-rules come with tests beside the existing ones in `packages/content/test`.
+rules come with tests beside the existing ones in `games/openworld/content/test`.
 
 ## 6. Choices to confirm
 

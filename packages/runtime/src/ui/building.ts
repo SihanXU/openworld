@@ -1,5 +1,5 @@
-import type { Dir, Frame, PlacementPreview, PlacementRecipe, Text } from '@lsw/engine'
-import { BUILDINGS, FORM_BY_ID, PLACEMENTS, RECIPES, buildOntology } from '@lsw/content'
+import type { Dir, Frame, PlacementPreview, PlacementRecipe, Text } from '@openworld/engine'
+import { BUILDINGS, FORM_BY_ID, PLACEMENTS, RECIPES, buildOntology } from '@openworld-game/content'
 import type { Tile, ToWorker } from '../protocol.ts'
 import { esc, locale, tx } from './common.ts'
 

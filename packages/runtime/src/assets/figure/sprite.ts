@@ -7,7 +7,7 @@
 // the head's parts (hair, eyes, beard, hat, glasses) are drawn once per facing and follow the head as it bobs.
 // Left is right mirrored. A dark outline is drawn round the whole figure last, in the pack's manner.
 
-import type { Look } from '@lsw/engine'
+import type { Look } from '@openworld/engine'
 import { keyRgb, ramp3, type RGB } from './color.ts'
 import { BEARDS, FACES, GLASSES, HAIRS, HATS, MARKS, OUTFITS, type Facing, type Grid, type HeadPart, type OutfitPix } from './pixparts.ts'
 import { WEARS } from './pixwear.ts'

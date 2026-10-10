@@ -2,8 +2,8 @@
 // share a cell, whether one is set down there or comes down onto the other.
 
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, buildSandbox, buildScenario, madeOf, scenarioEvent, TICKS_PER_HOUR, type Entity, type Engine, type GameEvent, type World } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
+import { Game, RuleLibrary, buildSandbox, buildScenario, madeOf, scenarioEvent, TICKS_PER_HOUR, type Entity, type Engine, type GameEvent, type World } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { AT, buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()

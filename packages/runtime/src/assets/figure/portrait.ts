@@ -7,7 +7,7 @@
 // colours) and its value map (R the shading value, G 40 × its zone, A coverage). Zone 0 keeps the paint; zone k
 // is the layer's k-th colour key, repainted through that colour's gradient (color.ts).
 
-import type { Look, Mood } from '@lsw/engine'
+import type { Look, Mood } from '@openworld/engine'
 import { gradient, keyRgb } from './color.ts'
 
 /** A layer of a part's portrait: where it sits on the canvas, what it is drawn over and the keys its zones paint. */

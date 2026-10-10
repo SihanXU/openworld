@@ -12,9 +12,9 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Game, RuleLibrary, TICKS_PER_HOUR, tickAt, type Engine, type Entity, type Key, type UndefinedRecord } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
-import { modelFromEnv, openModder, type WorldEpisode } from '@lsw/modder'
+import { Game, RuleLibrary, TICKS_PER_HOUR, tickAt, type Engine, type Entity, type Key, type UndefinedRecord } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
+import { modelFromEnv, openModder, type WorldEpisode } from '@openworld/modder'
 import { AT, STAND, buildFord } from './demo/world.ts'
 
 openModder({ data: mkdtempSync(join(tmpdir(), 'lsw-warm-')), model: null }) // loads .env

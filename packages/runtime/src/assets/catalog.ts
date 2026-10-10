@@ -1,7 +1,7 @@
 // The asset catalogue: every sprite, tile, sound and effect the renderer takes from the Ninja
 // Adventure pack (CC0, by Pixel-boy & AAA). Paths are relative to the pack root; the copy
-// script (packages/tools/src/copyAssets.ts) mirrors every referenced file to
-// packages/client/public/assets/na/<same path>. Rects were measured with PIL (tight bounding
+// script (games/openworld/tools/src/copyAssets.ts) mirrors every referenced file to
+// games/openworld/public/assets/na/<same path>. Rects were measured with PIL (tight bounding
 // boxes of opaque pixels) and checked visually in src/assets/preview.html.
 //
 // Conventions used throughout:
@@ -10,7 +10,7 @@
 //   trunk / base / feet at (ax, ay) and overhang upwards (and sideways, for 2-3 tile wide art).
 // - UI SpriteDefs use (0, 0) (top-left) — they are screen-space pieces.
 
-import type { Mood } from '@lsw/engine'
+import type { Mood } from '@openworld/engine'
 import type { ActorDef, Catalog, FxDef, PrefabDef, SpriteDef } from './types.ts'
 import FACES from './faces.json'
 import { CROP_FIXTURES, CROP_ITEMS } from './crops.ts'

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, buildModSpec, buildSandbox, checkExpectations, type Expectation } from '@lsw/engine'
+import { RuleLibrary, buildModSpec, buildSandbox, checkExpectations, type Expectation } from '@openworld/engine'
 import { BASE_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()

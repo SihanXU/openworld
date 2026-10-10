@@ -3,7 +3,7 @@
 // (engine/src/boons.ts). Each boon is a status of the fairy (`boon_<id>`) whose `lead:<stat>`
 // props add to the leader's stats. Five, one per seal; the first (the Crown of Thorns) is given at the end of Chapter 1.
 
-import type { StatusDef, Text } from '@lsw/engine'
+import type { StatusDef, Text } from '@openworld/engine'
 
 const L = (en: string, zh: string) => ({ en, zh })
 

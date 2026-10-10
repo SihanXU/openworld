@@ -4,7 +4,7 @@
 // Order of the Thorn (Oskar's cell, the Order's roll), and the Warden's Sanctum (the warden, Alberic's vow).
 // All are combat zones; the barrow's floors are dark.
 
-import type { AiData, AppearDef } from '@lsw/engine'
+import type { AiData, AppearDef } from '@openworld/engine'
 import { MapBuilder, rng } from './builder.ts'
 import { L, GROUND_YIELD, appears, lay } from './kit.ts'
 

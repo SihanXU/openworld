@@ -1,8 +1,8 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { Engine, RuleLibrary, World } from '@lsw/engine'
-import { BASE_RULES, buildOntology } from '@lsw/content'
+import { Engine, RuleLibrary, World } from '@openworld/engine'
+import { BASE_RULES, buildOntology } from '@openworld-game/content'
 
 // Only outcomes and the clock change the state (design.md §5.13, A2), and an outcome writes only
 // its host (A3). The world's mutators hold both checks at run time: they throw unless the one
@@ -12,8 +12,10 @@ import { BASE_RULES, buildOntology } from '@lsw/content'
 // and that no game code changes the state behind the mutators' back (a prop, a tag, a fact set by
 // hand).
 
-const ROOT = join(import.meta.dirname, '..', '..')
-const GAME = ['engine/src', 'content/src']
+const ROOT = join(import.meta.dirname, '..', '..', '..', '..')
+const GAME = ['packages/engine/src', 'games/openworld/content/src']
+/** The client's code: the runtime and the game's own pages. */
+const CLIENT = ['packages/runtime/src']
 
 function sources(): { file: string; lines: string[] }[] {
   const out: { file: string; lines: string[] }[] = []
@@ -42,9 +44,9 @@ const WRITES: RegExp[] = [
  * outcome) write; loading and building write as the author (Game, the sandbox) and so do the
  * content's migrations of older saves.
  */
-const MAY_WRITE = ['engine/src/world.ts', 'engine/src/effects.ts', 'engine/src/game.ts', 'engine/src/sandbox.ts', 'content/src/migrateFirstlight.ts', 'content/src/migrateBosses.ts']
-const MAY_AUTHOR = ['engine/src/engine.ts', 'engine/src/game.ts', 'engine/src/sandbox.ts']
-const MAY_GRANT = ['engine/src/engine.ts', 'engine/src/world.ts']
+const MAY_WRITE = ['packages/engine/src/world.ts', 'packages/engine/src/effects.ts', 'packages/engine/src/game.ts', 'packages/engine/src/sandbox.ts', 'games/openworld/content/src/migrateFirstlight.ts', 'games/openworld/content/src/migrateBosses.ts']
+const MAY_AUTHOR = ['packages/engine/src/engine.ts', 'packages/engine/src/game.ts', 'packages/engine/src/sandbox.ts']
+const MAY_GRANT = ['packages/engine/src/engine.ts', 'packages/engine/src/world.ts']
 
 const code = (l: string) => l.replace(/\/\/.*$/, '').trim()
 
@@ -66,18 +68,20 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
     // a call of a world mutator or an engine move outside an author block
     const CALL = /\b(w|world|engine\.world|eng\.world|game\.engine\.world)\.(setFact|setStatus|clearStatus|setProp|addTag|removeTag|setTerrain|place|add|create|destroy|transform)\(|\b(eng|engine|game\.engine)\.(teleport|travel|applyStatus|removeStatus|hurt)\(/
     const found: string[] = []
-    const dir = join(ROOT, 'client/src')
-    const files = readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('.ts'))
-    for (const f of files) {
-      let depth = 0
-      readFileSync(join(dir, f), 'utf8')
-        .split(/\r?\n/)
-        .forEach((l, i) => {
-          const c = code(l)
-          const opens = /author\(\(\) => \{/.test(c)
-          if (depth === 0 && !opens && !c.includes('author(') && CALL.test(c)) found.push(`client/src/${f}:${i + 1}: ${c.slice(0, 120)}`)
-          if (opens || depth > 0) depth += (c.match(/\{/g) ?? []).length - (c.match(/\}/g) ?? []).length
-        })
+    for (const src of CLIENT) {
+      const dir = join(ROOT, src)
+      const files = readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('.ts'))
+      for (const f of files) {
+        let depth = 0
+        readFileSync(join(dir, f), 'utf8')
+          .split(/\r?\n/)
+          .forEach((l, i) => {
+            const c = code(l)
+            const opens = /author\(\(\) => \{/.test(c)
+            if (depth === 0 && !opens && !c.includes('author(') && CALL.test(c)) found.push(`${src}/${f}:${i + 1}: ${c.slice(0, 120)}`)
+            if (opens || depth > 0) depth += (c.match(/\{/g) ?? []).length - (c.match(/\}/g) ?? []).length
+          })
+      }
     }
     expect(found).toEqual([])
   })
@@ -155,8 +159,8 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
 
 describe('the state is things and the clock (world-model.md §3)', () => {
   it('a played and saved Ford keeps nothing outside its things but the clock and the engine records', async () => {
-    const { Game } = await import('@lsw/engine')
-    const { STORY_RULES, decodeChunk } = await import('@lsw/content')
+    const { Game } = await import('@openworld/engine')
+    const { STORY_RULES, decodeChunk } = await import('@openworld-game/content')
     const { buildFord } = await import('../src/demo/world.ts')
     const { index, chunks } = buildFord()
     const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
@@ -175,8 +179,8 @@ describe('the state is things and the clock (world-model.md §3)', () => {
   })
 
   it("an older save's beats are steps of the story's one script: their records are seen.<id>, the latest step.last (world-model.md §6.12)", async () => {
-    const { Game } = await import('@lsw/engine')
-    const { STORY_RULES, decodeChunk } = await import('@lsw/content')
+    const { Game } = await import('@openworld/engine')
+    const { STORY_RULES, decodeChunk } = await import('@openworld-game/content')
     const { buildFord } = await import('../src/demo/world.ts')
     const { index, chunks } = buildFord()
     const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))

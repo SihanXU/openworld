@@ -18,8 +18,8 @@ import { tmpdir } from 'node:os'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
-import { DockerEnv, LocalEnv, SANDBOX_LIMITS, chooseIsolation, hostUser, sandboxImage, sh, type AgentTask, type Env, type Isolation } from '@lsw/agent'
-import type { EntityInfo, LibraryData, ModRequest, ModSpec, Ontology, Patch, Rule, RuleLibrary, StatusDef, TypeDef } from '@lsw/engine'
+import { DockerEnv, LocalEnv, SANDBOX_LIMITS, chooseIsolation, hostUser, sandboxImage, sh, type AgentTask, type Env, type Isolation } from '@openworld/agent'
+import type { EntityInfo, LibraryData, ModRequest, ModSpec, Ontology, Patch, Rule, RuleLibrary, StatusDef, TypeDef } from '@openworld/engine'
 
 const VALIDATE_CLI = fileURLToPath(new URL('./validate-cli.ts', import.meta.url))
 const REPO = fileURLToPath(new URL('../../..', import.meta.url))
@@ -48,7 +48,7 @@ async function worldEnv(dir: string, iso: Isolation): Promise<Env> {
     image: await sandboxImage(),
     root: dir,
     mount: '/work',
-    mounts: [ro('packages'), ro('node_modules'), ro('package.json'), ro('tsconfig.base.json')],
+    mounts: [ro('packages'), ro('games'), ro('node_modules'), ro('package.json'), ro('tsconfig.base.json')],
     user: hostUser(),
     limits: SANDBOX_LIMITS,
   })

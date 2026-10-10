@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, WILD_GROUNDS, buildOntology, decodeChunk, wildChunk } from '@lsw/content'
+import { Game, RuleLibrary } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, WILD_GROUNDS, buildOntology, decodeChunk, wildChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 import { BLOCK, OVERWORLD } from '../src/demo/overworld.ts'
 import { UNDER_BARROW } from '../src/demo/hollow.ts'

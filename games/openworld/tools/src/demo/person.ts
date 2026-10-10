@@ -2,8 +2,8 @@
 // world.ts resolves anchors to map positions and turns each record into an NPC entity with
 // `npc.person` (PersonData) for the engine.
 
-import type { LineDef, Mood, PropValue, Selector, Text, WorkDef } from '@lsw/engine'
-import type { LookPins } from '@lsw/content'
+import type { LineDef, Mood, PropValue, Selector, Text, WorkDef } from '@openworld/engine'
+import type { LookPins } from '@openworld-game/content'
 import type { ItemSpec } from './builder.ts'
 
 /**

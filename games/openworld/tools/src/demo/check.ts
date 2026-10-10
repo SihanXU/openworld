@@ -3,10 +3,10 @@
 // for it; a dormant map is frozen, its people placed by their schedules when it is entered (D21) — prints what the world did by
 // itself (the storm, the night, the requests it would have asked), and a few lines to read.
 //
-//   npx tsx packages/tools/src/demo/check.ts
+//   npx tsx games/openworld/tools/src/demo/check.ts
 
-import { Game, RuleLibrary, TICKS_PER_HOUR, chooseLine, scheduleAt, scheduleFor } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
+import { Game, RuleLibrary, TICKS_PER_HOUR, chooseLine, scheduleAt, scheduleFor } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from './world.ts'
 
 const { index, chunks } = buildFord()

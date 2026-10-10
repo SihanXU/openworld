@@ -1,7 +1,7 @@
 // Shared tools of map composition for the demo's maps (the Ford, the meadow, the forest, and
 // the main quest's maps under quest/).
 
-import { APPEAR_EVERY, type AppearDef, type Text } from '@lsw/engine'
+import { APPEAR_EVERY, type AppearDef, type Text } from '@openworld/engine'
 import { MapBuilder, rng } from './builder.ts'
 
 export const L = (en: string, zh: string): Text => ({ en, zh })

@@ -1,6 +1,6 @@
 node_modules/
 dist/
-packages/client/public/world/
+games/openworld/public/world/
 *.log
 # the asset pack (assets/ninja-adventure) stays local; the concept material in assets/concept is kept
 /assets/*
@@ -9,7 +9,7 @@ packages/client/public/world/
 .DS_Store
 /var/
 .env
-packages/wiki/out/
-packages/wiki/out.tmp/
-packages/wiki/out.old/
+games/openworld/wiki/out/
+games/openworld/wiki/out.tmp/
+games/openworld/wiki/out.old/
 __pycache__/

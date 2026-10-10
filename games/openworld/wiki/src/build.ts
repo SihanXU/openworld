@@ -1,11 +1,11 @@
 // npm run wiki:build -- [--out <dir>] [--ref <branch>] [--strict]
-// Builds the whole wiki into a directory served at /wiki (default packages/wiki/out). With --strict a
+// Builds the whole wiki into a directory served at /wiki (default games/openworld/wiki/out). With --strict a
 // build with errors writes nothing and exits 1, so a server keeps the last good version.
 
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { TERRAIN_CHARS } from '@lsw/content'
+import { TERRAIN_CHARS } from '@openworld-game/content'
 import { decodePng, encodePng, shrink } from './png.ts'
 import { lookPngs, lookUrls } from './looks.ts'
 import { pageHtml } from './layout.ts'
@@ -90,7 +90,7 @@ export function writeSite(b: Built, out: string): void {
 function main(): void {
   const args = process.argv.slice(2)
   const opt = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined }
-  const out = opt('--out') ?? join(ROOT, 'packages', 'wiki', 'out')
+  const out = opt('--out') ?? join(ROOT, 'games', 'openworld', 'wiki', 'out')
   const strict = args.includes('--strict')
   const check = args.includes('--check')
   const t0 = Date.now()

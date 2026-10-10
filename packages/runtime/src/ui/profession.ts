@@ -3,9 +3,9 @@
 // profession gives back every point of the profession branch (engine/src/profession.ts), so
 // the panel says so and asks first.
 
-import type { Frame } from '@lsw/engine'
-import { PROFESSION_LEVEL } from '@lsw/engine'
-import { SKILLS, SKILL_PROFESSIONS } from '@lsw/content'
+import type { Frame } from '@openworld/engine'
+import { PROFESSION_LEVEL } from '@openworld/engine'
+import { SKILLS, SKILL_PROFESSIONS } from '@openworld-game/content'
 import { $, esc, t, tx } from './common.ts'
 import { skillArt } from './skillIcons.ts'
 

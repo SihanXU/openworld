@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { EntitySnap } from '@lsw/engine'
-import { BossAnimationClock, bossAnimationFrame } from '../../client/src/render/boss-animation.ts'
-import { ALBERIC_CLIPS, ALBERIC_CLIP_FPS, albericFrameMs } from '../../client/src/assets/bosses.ts'
+import type { EntitySnap } from '@openworld/engine'
+import { BossAnimationClock, bossAnimationFrame } from '@openworld/runtime/src/render/boss-animation.ts'
+import { ALBERIC_CLIPS, ALBERIC_CLIP_FPS, albericFrameMs } from '@openworld/runtime/src/assets/bosses.ts'
 
 const boss = (progress: number): NonNullable<EntitySnap['boss']> => ({
   kit: 'alberic', phase: 1, action: 'cast', skill: 'arrow', progress,

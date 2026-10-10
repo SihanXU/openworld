@@ -5,7 +5,7 @@
 // the rod). The coin is the Thornmark, the Held Ground's own. Buying and selling are made at the stall as anything is
 // made at a station: what one gives is used up, what one gets comes into one's bag (engine `craft`).
 
-import { TICKS_PER_DAY, type Effect, type Recipe, type Rule, type Text } from '@lsw/engine'
+import { TICKS_PER_DAY, type Effect, type Recipe, type Rule, type Text } from '@openworld/engine'
 import { FORM_BY_ID } from './items.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 

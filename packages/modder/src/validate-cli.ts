@@ -5,8 +5,8 @@
 
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { RuleLibrary, validatePatch } from '@lsw/engine'
-import { buildOntology } from '@lsw/content'
+import { RuleLibrary, validatePatch } from '@openworld/engine'
+import { buildOntology } from '@openworld-game/content'
 import { collectPatch, type WorldRepoState } from './repo.ts'
 import { describeOutcome } from './tools.ts'
 

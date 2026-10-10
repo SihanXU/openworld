@@ -3,7 +3,7 @@
 // Memory is retrieved by these terms (no embeddings: deterministic, inspectable), and the key
 // groups requests that are the same class of undefined outcome.
 
-import { BRANCHING_PARAMS, classKey, holeKey, type EntityInfo, type ModRequest } from '@lsw/engine'
+import { BRANCHING_PARAMS, classKey, holeKey, type EntityInfo, type ModRequest } from '@openworld/engine'
 
 export interface Signature {
   /** hole | kind | host type | other roles' types | branching params: the class of the outcome (the engine's classKey). */
@@ -58,4 +58,4 @@ export function coarseTerms(sig: Signature): string[] {
   })
 }
 
-export { similarity } from '@lsw/agent'
+export { similarity } from '@openworld/agent'

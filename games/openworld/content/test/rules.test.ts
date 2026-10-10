@@ -26,7 +26,7 @@ import {
   type ScenarioEntity,
   type Selector,
   type Tree,
-} from '@lsw/engine'
+} from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()

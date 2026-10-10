@@ -2,8 +2,8 @@
 // taken up, the one it carries, and the choice of another — only beside a woken statue
 // (engine/src/boons.ts). Five slots, the ones not yet found shown as sealed.
 
-import type { Frame } from '@lsw/engine'
-import { BOON_BY_ID } from '@lsw/content'
+import type { Frame } from '@openworld/engine'
+import { BOON_BY_ID } from '@openworld-game/content'
 import { $, esc, locale, tx } from './common.ts'
 
 /** How many boons the journey holds (the slots shown). */

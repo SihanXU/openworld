@@ -2,7 +2,7 @@
 // on demand and kept by the look's code, so a crowd of thousands costs only the looks on the map now.
 
 import Phaser from 'phaser'
-import type { Look, Mood } from '@lsw/engine'
+import type { Look, Mood } from '@openworld/engine'
 import { figureId } from './ids.ts'
 import type { ActorDef } from '../types.ts'
 import { FH, FW, composeSprite } from './sprite.ts'

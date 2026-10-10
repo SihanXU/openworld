@@ -6,7 +6,7 @@ overhead frames in three directions, a 3x2 body). Besides him, three authored en
 **the Velvet Lure** (绯愿兰后) and **the Face Thief** (窃面者). The earlier "seven sins" setting is
 withdrawn with the four other kits (the Gilt Tollkeeper, the Banquet Maw, the Drowsing Monastery,
 the Cinder Executioner): their code, lore and gallery entries are gone; their art stays in
-`packages/client/public/assets/lsw/Bosses/` for later use. None of the three has a campaign place
+`games/openworld/public/assets/lsw/Bosses/` for later use. None of the three has a campaign place
 yet; the story's bosses are being redesigned (docs/chapter-1.md). The internal ids (`pride`,
 `lust`, `envy`, types `actor/creature/sin/<id>`) are unchanged.
 
@@ -99,7 +99,7 @@ Generated with the built-in image tool; prompts in `seven-sins-prompts.json` (al
 prompts are kept with their art). Each directory `public/assets/lsw/Bosses/<id>/` holds
 `source.png` and `effects-source.png` (originals), `actions.png` (runtime 4 × 5 atlas: idle,
 walk, attack, cast, hurt + collapse; 96 px frames, the Face Thief 32 px) and three
-`effect-<skill>.png` strips (4 frames of 64 px). `swift packages/tools/src/art/export-bosses.swift`
+`effect-<skill>.png` strips (4 frames of 64 px). `swift games/openworld/tools/src/art/export-bosses.swift`
 crops and aligns them without repainting.
 
 ## Verification

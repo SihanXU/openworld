@@ -3,7 +3,7 @@
 // a bow at a workbench). The crafting panel shows them; the engine derives the same from its own
 // types (a patch's new type included).
 
-import { OntologyIndex, deriveRecipes, type Recipe } from '@lsw/engine'
+import { OntologyIndex, deriveRecipes, type Recipe } from '@openworld/engine'
 import { buildOntology } from './ontology.ts'
 import { SHOP_RECIPES } from './homestead.ts'
 

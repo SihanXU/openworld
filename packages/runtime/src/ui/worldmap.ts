@@ -3,8 +3,8 @@
 // there with a click), dragged and zoomed like the skill tree — and the minimap, the current
 // map always on screen under the clock.
 
-import type { EntitySnap, Frame, MapData } from '@lsw/engine'
-import { buildOntology } from '@lsw/content'
+import type { EntitySnap, Frame, MapData } from '@openworld/engine'
+import { buildOntology } from '@openworld-game/content'
 import type { Atlas } from '../protocol.ts'
 import { $, esc, prefs, t, tx } from './common.ts'
 

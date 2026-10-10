@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { CELL_SPACES, Game, RuleLibrary, TICKS_PER_HOUR, cellId, parseCellId, type Space } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
+import { CELL_SPACES, Game, RuleLibrary, TICKS_PER_HOUR, cellId, parseCellId, type Space } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 // A cell is made of things (world-model.md §4.6, §5.2): its floor, what roots in its soil, what

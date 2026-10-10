@@ -1,10 +1,10 @@
 // A person's look on the wiki (docs/looks.md): the anime portrait and the map sprite, composed by the game's own
 // code from the same record the game draws them from, written next to the site's pages.
 
-import type { Look } from '@lsw/engine'
-import { composePortrait } from '../../client/src/assets/figure/portrait.ts'
-import { FH, FW, composeSprite } from '../../client/src/assets/figure/sprite.ts'
-import { figureId } from '../../client/src/assets/figure/ids.ts'
+import type { Look } from '@openworld/engine'
+import { composePortrait } from '@openworld/runtime/src/assets/figure/portrait.ts'
+import { FH, FW, composeSprite } from '@openworld/runtime/src/assets/figure/sprite.ts'
+import { figureId } from '@openworld/runtime/src/assets/figure/ids.ts'
 import { layerFromDisk, loadManifest } from '../../tools/src/art/looks/review.ts'
 import { encodePng, shrink } from './png.ts'
 

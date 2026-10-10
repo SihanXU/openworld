@@ -3,8 +3,8 @@
 // slot, a new game in a slot, load a slot, controls, language. The slot panel shows each of the
 // three slots' summary, and writes a slot out to a file or reads one back (saves.ts).
 
-import { PLAYER_LOOK } from '@lsw/content'
-import type { Difficulty, Look } from '@lsw/engine'
+import { PLAYER_LOOK } from '@openworld-game/content'
+import type { Difficulty, Look } from '@openworld/engine'
 import { Creator } from './creator.ts'
 import type { SaveSummary } from '../protocol.ts'
 import { SLOTS, deleteSlot, exportSlot, listSlots, pickSaveFile, writeSlot, type Slot, type SlotData } from '../saves.ts'

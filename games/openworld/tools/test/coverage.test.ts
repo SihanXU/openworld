@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { Engine, RuleLibrary, SANDBOX_MAP, buildSandbox, isDo, leaves, type Ref, type Scenario } from '@lsw/engine'
-import { BASE_RULES, FORMS, buildOntology } from '@lsw/content'
+import { Engine, RuleLibrary, SANDBOX_MAP, buildSandbox, isDo, leaves, type Ref, type Scenario } from '@openworld/engine'
+import { BASE_RULES, FORMS, buildOntology } from '@openworld-game/content'
 import { BASELINE, FRONT, GENERIC_RULES, ORIGIN, OUTCOMES, sweep, targets, type Baseline, type Tally } from '../src/coverage.ts'
 
 const saved = JSON.parse(readFileSync(BASELINE, 'utf8')) as Baseline

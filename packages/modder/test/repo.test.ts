@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildModSpec, buildSandbox, type ModRequest, type Rule, type Scenario } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { ModPort, RuleLibrary, buildModSpec, buildSandbox, type ModRequest, type Rule, type Scenario } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, collectPatch, dockerAvailable, materializeWorld, type ChatMessage } from '../src/index.ts'
 
 const onto = buildOntology()

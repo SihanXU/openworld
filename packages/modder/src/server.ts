@@ -6,7 +6,7 @@
 //   GET  /progress?id=r   where request r is (queued, local, find, create, art; {} when not here)
 
 import { createServer, type IncomingMessage, type Server } from 'node:http'
-import type { ResolveBody } from '@lsw/engine'
+import type { ResolveBody } from '@openworld/engine'
 import type { Modder } from './pipeline.ts'
 
 export interface ServerOptions {

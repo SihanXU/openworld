@@ -61,13 +61,13 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   their look or remembered by it, each person's memory and per-pair regard, gossip, the watches' ledgers, prices, the talk panel) and
   `conduct.ts` (the goals `social` — a guard stops the wanted, an owner asks back —, `need` — the hungry eat, buy or steal —, and
   `follow` for people); the inputs X (draw) and V (sneak) are statuses the input keeps.
-- `packages/content` — ontology (terrains, statuses, elements, types), item catalogue
+- `games/openworld/content` — ontology (terrains, statuses, elements, types), item catalogue
   (forms × materials × qualities × elements), crafting recipes (`recipes.ts`), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
   story rules and invariants (`ford.ts`), the prologue's beats and lessons (`prologue.ts`), the main quest's rules (`quest.ts`,
   docs/main-quest.md), the quests (`quests/`: the main line, the people's errands through `errand()`, the radiant favours; docs/quests.md),
   Chapter 1's facts and rules (`chapter1.ts`; its maps and scenes in
   `tools/src/demo/quest/chapter1.ts`, docs/chapter-1.md), the fairy's boons (`boons.ts`), the boss kits (four: the White Knight and three for later), defeat rules and compatibility migration (`bosses.ts`, `migrateBosses.ts`), the look table and its generator (`looks.ts`: bodies, parts, colours, `generateLook` seeded by a person's id, `describeLook`), the people's social rules and numbers (`social.ts`: deeds and fines, the watches, talk verbs, the people's rules), chunk codec.
-- `packages/tools` — `art/animals.ts` (the project's own sprites → `client/public/assets/lsw/`), `demo/` (the hand-crafted Ford, Firstlight Village west of it (`meadow`) and the forest south of that, and the main quest's maps and scenes in `quest/` → `public/world/`, each map from its own seed: `builder.ts` the map DSL
+- `games/openworld/tools` — `art/animals.ts` (the project's own sprites → `client/public/assets/lsw/`), `demo/` (the hand-crafted Ford, Firstlight Village west of it (`meadow`) and the forest south of that, and the main quest's maps and scenes in `quest/` → `public/world/`, each map from its own seed: `builder.ts` the map DSL
   with the tools of composition — curved paths, organic shapes, fences and yards, small things by masks,
   anchors, regions; `world.ts` `buildFord()` — the map, scenes, invariants;
   `people/*.ts` one record per person (`person.ts`: a gender and the look pins the author chose; whether they fight, keep a watch, trade, their purse and honesty), `people.ts` `HOUSEHOLDS`; `check.ts` a headless two-day playtest;
@@ -75,16 +75,16 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   `copyAssets.ts` (catalogue subset of the pack → `public/assets/na/`), `coverage.ts` (every item
   form × every target × every act through the rule library and the impulses it sends, counting
   the holes; the numbers in `docs/roadmap.md` §1).
-- `packages/client` — `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
+- `packages/runtime` — `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
   `render/scene.ts` renders snapshots with the Ninja Adventure pack (`render/depth.ts` the draw order); `assets/figure/` draws looks
   (docs/looks.md): the 16x32 map sprite from code grids, the anime portrait from the cut layers in
   `public/assets/lsw/Looks/portrait`, both repainted from the look's colours; `ui/creator.ts` the new game's character creator; `assets/catalog.ts` maps
   content keys to sprites; `assets/ground.ts` autotiles; `ui/` the Stardew-style UI (`hud.ts` clock, bars,
   toolbar, key labels, dialogue; `menu.ts` menu tabs, journal, chest panel; `people.ts` the trade and pockets panels (the talk panel is the dialogue's, `hud.ts`); `worldmap.ts` the world map (M) and the minimap; `dev.ts` the Mod Console, dev only); the worker uses the modder service when one answers
   (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it.
-- `packages/wiki` — the game's Chinese wiki (Stardew-wiki-shaped encyclopedia and design proposal): sources
+- `games/openworld/wiki` — the game's Chinese wiki (Stardew-wiki-shaped encyclopedia and design proposal): sources
   `wiki/pages/**.md` ([[links]], {{templates}}; format in 帮助/格式手册), `wiki/site.json` (nav, portal, the systems the
-  completeness check requires), `wiki/译名.json`; the generator reads the game (`@lsw/content`, `buildFord()`, people,
+  completeness check requires), `wiki/译名.json`; the generator reads the game (`@openworld-game/content`, `buildFord()`, people,
   the client CATALOG; `render-map.ts` draws maps as the client does). Every item, fixture, person, creature, boss, map
   and quest gets a page; `npm run wiki:check` fails on broken links/templates or a thing/system without a page (CI
   `.github/workflows/wiki.yml`). A change to game content that adds a thing or system needs its wiki page.
@@ -187,11 +187,11 @@ npm run dev -- --backend claude-code   # the modder through claude -p (Opus 5.5,
 npm test                 # vitest (engine + base rules + Mod port)
 npm run typecheck
 npm run coverage         # interaction coverage + refresh its test baseline
-npm run build            # gen:world + static build → packages/client/dist
+npm run build            # gen:world + static build → packages/runtime/dist
 npm run wiki             # the wiki on http://localhost:5180/wiki/ (wiki:check, wiki:build)
-npx tsx packages/tools/src/art/looks/review.ts out.png [mood]   # everyone's portrait and sprite (docs/looks.md)
+npx tsx games/openworld/tools/src/art/looks/review.ts out.png [mood]   # everyone's portrait and sprite (docs/looks.md)
 # portrait parts: a local ComfyUI with Qwen-Image-Edit (tools/src/art/looks/portrait/setup.md), then
-#   python -I parts.py <work> && python -I batch.py <work>/jobs.json && python -I build.py <work> packages/client/public/assets/lsw/Looks/portrait
+#   python -I parts.py <work> && python -I batch.py <work>/jobs.json && python -I build.py <work> games/openworld/public/assets/lsw/Looks/portrait
 npm run modder -- serve  # modder service on :8787 (model from LSW_MODEL_URL/KEY/MODEL; data in var/)
 npm run modder -- serve 8787 --script packages/modder/fixtures/offline.json --data var/offline
 npm run curriculum -- 20 # resolve 20 sampled undefined interactions offline (offline profile)

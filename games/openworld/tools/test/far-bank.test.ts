@@ -1,8 +1,8 @@
 // The far bank of the Ford is chapter one's hook only while the story is in chapter one.
 
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, tickAt } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
+import { Game, RuleLibrary, tickAt } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { FAR_BANK, buildFord } from '../src/demo/world.ts'
 
 /** Across the river with the main line where the test wants it: in chapter one after the letter, or at the finale. */

@@ -5,7 +5,7 @@
 // flowers, and runs out of the map's south edge at the top of the Ford's cliff.
 
 import { MapBuilder, rng } from './builder.ts'
-import { TUTORIAL_DUMMY, TUTORIAL_OPEN } from '@lsw/content'
+import { TUTORIAL_DUMMY, TUTORIAL_OPEN } from '@openworld-game/content'
 import { L, GROUND_YIELD, appears } from './kit.ts'
 
 /** Edge openings: the foot's way in from the north (the tutorial's road comes out there), its way out below, the Ford's cliff stair. */

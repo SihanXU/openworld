@@ -4,7 +4,7 @@
 // undefined outcome.
 
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, buildSandbox, type Engine, type Scenario } from '@lsw/engine'
+import { RuleLibrary, buildSandbox, type Engine, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()

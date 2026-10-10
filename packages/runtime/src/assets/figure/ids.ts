@@ -1,7 +1,7 @@
 // A look's names (docs/looks.md): pure, for the game, the wiki and the review sheets alike.
 
-import { generateLook } from '@lsw/content'
-import { lookCode, type Look } from '@lsw/engine'
+import { generateLook } from '@openworld-game/content'
+import { lookCode, type Look } from '@openworld/engine'
 
 /** A short name for a look (its textures'): the same look, the same name. */
 export function figureId(look: Look): string {

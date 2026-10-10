@@ -5,7 +5,7 @@
 // setting down); the panels (the bag, crafting, the build palette, the map) are this view's to open,
 // so it asks the lesson here and tells the story when one is opened (a lesson may wait on it).
 
-import type { Frame, FxEvent, LessonInput, LessonView } from '@lsw/engine'
+import type { Frame, FxEvent, LessonInput, LessonView } from '@openworld/engine'
 import { locale } from './common.ts'
 
 /** How a key is named on screen. */

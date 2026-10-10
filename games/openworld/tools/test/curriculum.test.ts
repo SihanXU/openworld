@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary } from '@lsw/engine'
-import { BASE_RULES, buildOntology } from '@lsw/content'
+import { RuleLibrary } from '@openworld/engine'
+import { BASE_RULES, buildOntology } from '@openworld-game/content'
 import { sweep } from '../src/coverage.ts'
 import { cellRequest, pick } from '../src/curriculum.ts'
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { skillsOf } from '@lsw/engine'
-import { BOSSES, BOSS_BY_ID, BOSS_ARENA, SKILLS, SKILL_PROFESSIONS } from '@lsw/content'
-import { CHALLENGE_LOADOUTS, challengeOutcome, createBossChallenge } from '../../client/src/boss-challenge.ts'
-import { CATALOG } from '../../client/src/assets/catalog.ts'
+import { skillsOf } from '@openworld/engine'
+import { BOSSES, BOSS_BY_ID, BOSS_ARENA, SKILLS, SKILL_PROFESSIONS } from '@openworld-game/content'
+import { CHALLENGE_LOADOUTS, challengeOutcome, createBossChallenge } from '@openworld/runtime/src/boss-challenge.ts'
+import { CATALOG } from '@openworld/runtime/src/assets/catalog.ts'
 import { buildFord } from '../src/demo/world.ts'
 
 const { index, chunks } = buildFord()

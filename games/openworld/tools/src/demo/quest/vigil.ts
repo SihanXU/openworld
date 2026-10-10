@@ -3,7 +3,7 @@
 // the north (where the first dawn after the First Night was seen: dawnbloom on its slopes, the ruined Chapel of the
 // First Dawn on its top, and the bell that was rung that morning).
 
-import type { AiData } from '@lsw/engine'
+import type { AiData } from '@openworld/engine'
 import { MapBuilder, rng } from '../builder.ts'
 import { L, GROUND_YIELD, appears } from '../kit.ts'
 

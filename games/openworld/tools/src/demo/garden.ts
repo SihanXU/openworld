@@ -1,6 +1,6 @@
 // A small kitchen garden in Firstlight Village. Fixed placement after scenery
 // preserves the rest of the map's seeded composition. The final row is bare for sowing.
-import { CROP_STAGES, FIRSTLIGHT, GARDEN_CROPS } from '@lsw/content'
+import { CROP_STAGES, FIRSTLIGHT, GARDEN_CROPS } from '@openworld-game/content'
 import { MapBuilder, type ItemSpec } from './builder.ts'
 
 export const GARDEN = FIRSTLIGHT.garden

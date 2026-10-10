@@ -5,7 +5,7 @@
 //   she is small, about eleven pixels of the sixteen, and faces the viewer (the renderer mirrors her);
 // - Faceset.png: a 38x38 portrait for her lines (a 19x19 grid, doubled).
 //
-//   npx tsx packages/tools/src/art/fairy.ts
+//   npx tsx games/openworld/tools/src/art/fairy.ts
 
 import { OUT, writePng } from './png.ts'
 

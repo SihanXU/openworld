@@ -3,7 +3,7 @@
 // what it is put on, which answers for itself; taking emits `taken` to the thing taken.
 
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, buildSandbox, validatePatch, type Bounds, type Cond, type Engine, type Key, type Rule, type Scenario, type ScenarioEntity, type Tree } from '@lsw/engine'
+import { RuleLibrary, buildSandbox, validatePatch, type Bounds, type Cond, type Engine, type Key, type Rule, type Scenario, type ScenarioEntity, type Tree } from '@openworld/engine'
 import { BASE_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()

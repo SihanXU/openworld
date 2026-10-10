@@ -1,5 +1,5 @@
 // Authored-content migration, kept outside the generic engine. No inventory or quest reset.
-import { scheduleAt, scheduleFor, type Entity, type Game, type MapChunk, type WorldIndex } from '@lsw/engine'
+import { scheduleAt, scheduleFor, type Entity, type Game, type MapChunk, type WorldIndex } from '@openworld/engine'
 import { FIRSTLIGHT, FIRSTLIGHT_LAYOUT } from './firstlight.ts'
 
 const gardenEntity = (e: Entity) => e.id.startsWith('ford.garden.') || (e.place.on === 'inside' && e.place.holder === 'ford.garden.supplies')

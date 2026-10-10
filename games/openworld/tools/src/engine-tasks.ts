@@ -13,12 +13,17 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync,
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { DockerEnv, LocalEnv, SANDBOX_LIMITS, SelfState, applyPreset, chooseIsolation, hostUser, modelFromEnv, runAgent, sandboxImage, type AgentTask, type Env, type Isolation, type Preset, type TaskSource } from '@lsw/agent'
+import { DockerEnv, LocalEnv, SANDBOX_LIMITS, SelfState, applyPreset, chooseIsolation, hostUser, modelFromEnv, runAgent, sandboxImage, type AgentTask, type Env, type Isolation, type Preset, type TaskSource } from '@openworld/agent'
 
-export const REPO = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
-const TASKS = join(REPO, 'packages/tools/tasks/engine')
-const PACKAGES = ['engine', 'content']
-const HIDDEN = 'packages/content/test/hidden.test.ts'
+export const REPO = resolve(fileURLToPath(new URL('../../../..', import.meta.url)))
+const TASKS = join(REPO, 'games/openworld/tools/tasks/engine')
+/** what the workspace copies, at the same paths as here, and the names they are imported by */
+const PACKAGES = [
+  { dir: 'packages/engine', name: '@openworld/engine' },
+  { dir: 'games/openworld/content', name: '@openworld-game/content' },
+]
+const SCOPES = new Set(PACKAGES.map((p) => p.name.split('/')[0]))
+const HIDDEN = 'games/openworld/content/test/hidden.test.ts'
 
 export interface EngineTaskDef {
   id: string
@@ -39,8 +44,8 @@ export function engineWorkspace(): { dir: string; dispose: () => void } {
   for (const f of ['package.json', 'tsconfig.base.json', 'vitest.config.ts']) copyFileSync(join(REPO, f), join(dir, f))
   // the workspace list names only what is there
   const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
-  writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'lsw-engine-task', private: true, type: 'module', workspaces: PACKAGES.map((p) => `packages/${p}`), scripts: { test: 'vitest run' }, devDependencies: pkg.devDependencies }, null, 2))
-  for (const p of PACKAGES) cpSync(join(REPO, 'packages', p), join(dir, 'packages', p), { recursive: true, filter: (s) => !s.includes('node_modules') })
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'lsw-engine-task', private: true, type: 'module', workspaces: PACKAGES.map((p) => p.dir), scripts: { test: 'vitest run' }, devDependencies: pkg.devDependencies }, null, 2))
+  for (const p of PACKAGES) cpSync(join(REPO, p.dir), join(dir, p.dir), { recursive: true, filter: (s) => !s.includes('node_modules') })
   // LF everywhere: a Windows checkout has CRLF, and an agent writing whole files with LF would turn its diff into a rewrite
   const lf = (d: string): void => {
     for (const n of readdirSync(d, { withFileTypes: true })) {
@@ -49,13 +54,13 @@ export function engineWorkspace(): { dir: string; dispose: () => void } {
       else if (/\.(ts|json|md|mjs|js)$/.test(n.name)) writeFileSync(p, readFileSync(p, 'utf8').replace(/\r\n/g, '\n'))
     }
   }
-  lf(join(dir, 'packages'))
+  for (const top of new Set(PACKAGES.map((p) => p.dir.split('/')[0]))) lf(join(dir, top))
   // dependencies: links into the real node_modules, except our own packages, which point at the copies
-  mkdirSync(join(dir, 'node_modules', '@lsw'), { recursive: true })
+  for (const scope of SCOPES) mkdirSync(join(dir, 'node_modules', scope), { recursive: true })
   // (not the tools' caches: each workspace keeps its own, and a container sees the host's read-only)
   const CACHES = new Set(['.vite', '.vite-temp', '.cache'])
-  for (const n of readdirSync(join(REPO, 'node_modules'))) if (n !== '@lsw' && !CACHES.has(n)) symlinkSync(join(REPO, 'node_modules', n), join(dir, 'node_modules', n), 'junction')
-  for (const p of PACKAGES) symlinkSync(join(dir, 'packages', p), join(dir, 'node_modules', '@lsw', p), 'junction')
+  for (const n of readdirSync(join(REPO, 'node_modules'))) if (!SCOPES.has(n) && !CACHES.has(n)) symlinkSync(join(REPO, 'node_modules', n), join(dir, 'node_modules', n), 'junction')
+  for (const p of PACKAGES) symlinkSync(join(dir, p.dir), join(dir, 'node_modules', p.name), 'junction')
   writeFileSync(join(dir, '.gitignore'), 'node_modules/\n')
   execSync('git init -q && git config core.autocrlf false && git add -A && git -c user.email=lsw@local -c user.name=lsw commit -qm base', { cwd: dir })
   return { dir, dispose: () => rmSync(dir, { recursive: true, force: true }) }
@@ -71,7 +76,7 @@ export async function engineTask(def: EngineTaskDef, o: { isolation?: Isolation;
   const iso = o.isolation ?? (await chooseIsolation())
   if (iso === 'none' && !o.localRun) return undefined
   const ws = engineWorkspace()
-  const tests = 'npx vitest run packages/engine packages/content'
+  const tests = 'npx vitest run packages/engine games/openworld/content'
   let env: Env
   try {
     env =
@@ -95,7 +100,7 @@ export async function engineTask(def: EngineTaskDef, o: { isolation?: Isolation;
       localRun: iso === 'none' && o.localRun,
       tests: { command: tests, timeoutMs: 300_000 },
       request: { id: def.id },
-      notes: 'This repository is the engine (packages/engine) and content (packages/content) of a rule-based game world. The tests are vitest; content tests exercise the engine through the base rule library.',
+      notes: 'This repository is the engine (packages/engine) and content (games/openworld/content) of a rule-based game world. The tests are vitest; content tests exercise the engine through the base rule library.',
       // fail-to-pass: the hidden test must pass, and so must everything that passed before
       verdict: async (env) => {
         const target = join(ws.dir, HIDDEN)

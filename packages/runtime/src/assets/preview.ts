@@ -1,5 +1,5 @@
 // Standalone visual check of everything in CATALOG (served by Vite at /src/assets/preview.html,
-// images from /assets/na/… — run `npx tsx packages/tools/src/copyAssets.ts` first).
+// images from /assets/na/… — run `npx tsx games/openworld/tools/src/copyAssets.ts` first).
 // Everything is drawn with plain 2D canvases at 3x so the catalogue can be verified without
 // the game renderer.
 

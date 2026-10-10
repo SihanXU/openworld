@@ -1,8 +1,8 @@
 # Original crop art
 
-Saved assets: `packages/client/public/assets/lsw/Crops/<crop>/`. Each of carrot, turnip, tomato and pumpkin has `sprout.png`, `young.png`, `ripe.png` (16 × 24), `produce.png` and `seeds.png` (16 × 16), and its full generated `atlas.png`. Existing skill and legacy crop art is untouched.
+Saved assets: `games/openworld/public/assets/lsw/Crops/<crop>/`. Each of carrot, turnip, tomato and pumpkin has `sprout.png`, `young.png`, `ripe.png` (16 × 24), `produce.png` and `seeds.png` (16 × 16), and its full generated `atlas.png`. Existing skill and legacy crop art is untouched.
 
-Mode: built-in imagegen, four original family-atlas calls and four targeted transparency-cleanup calls. Style reference: `packages/client/public/assets/lsw/skills/farming.png`. Technical export uses tight visible-alpha bounds and nearest-neighbour resampling, preserves generated colors and alpha, aligns plant roots at the tile base and limits each stage's size separately. Tomato's first row crosses the nominal half-height: its extraction divider is 600px; other atlases use 512px.
+Mode: built-in imagegen, four original family-atlas calls and four targeted transparency-cleanup calls. Style reference: `games/openworld/public/assets/lsw/skills/farming.png`. Technical export uses tight visible-alpha bounds and nearest-neighbour resampling, preserves generated colors and alpha, aligns plant roots at the tile base and limits each stage's size separately. Tomato's first row crosses the nominal half-height: its extraction divider is 600px; other atlases use 512px.
 
 [Native sprite / palette preview](crop-art-preview.png). All twenty sprites were loaded
 and alpha-checked in an isolated browser verification page using the real placement

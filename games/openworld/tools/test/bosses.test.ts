@@ -1,14 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, bossPattern, combatDelay, encounter, snapshot, type Engine, type MapData } from '@lsw/engine'
+import { Game, RuleLibrary, bossPattern, combatDelay, encounter, snapshot, type Engine, type MapData } from '@openworld/engine'
 
 /** The encounter goal of every sin on a map, alone (world-model.md §6.10): what the bosses do this tick. */
 const stepBosses = (eng: Engine, map: string) => {
   for (const e of eng.world.entitiesOnMap(map)) encounter(eng, e, map)
 }
-import { BASE_RULES, BOSSES, BOSS_BY_ID, BOSS_LAYOUT, STORY_RULES, buildOntology, createBoss, migrateBosses } from '@lsw/content'
-import { SIN_ACTORS, SIN_FX } from '../../client/src/assets/bosses.ts'
-import { bossAnimationFrame } from '../../client/src/render/boss-animation.ts'
+import { BASE_RULES, BOSSES, BOSS_BY_ID, BOSS_LAYOUT, STORY_RULES, buildOntology, createBoss, migrateBosses } from '@openworld-game/content'
+import { SIN_ACTORS, SIN_FX } from '@openworld/runtime/src/assets/bosses.ts'
+import { bossAnimationFrame } from '@openworld/runtime/src/render/boss-animation.ts'
 import { buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()
@@ -294,7 +294,7 @@ describe('boss encounter assets and compatibility', () => {
         return [fx.img, fx.fw * fx.frames, fx.fh]
       })] as [string, number, number][]
       for (const [path, width, height] of files) {
-        const bytes = readFileSync(new URL(`../../client/public/assets/${path}`, import.meta.url))
+        const bytes = readFileSync(new URL(`../../public/assets/${path}`, import.meta.url))
         expect(bytes.readUInt32BE(16), path).toBe(width)
         expect(bytes.readUInt32BE(20), path).toBe(height)
         expect(bytes[25], path).toBe(6)

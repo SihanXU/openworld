@@ -1,7 +1,7 @@
 // Authored-content migration for the companion: Pip was a bird and is a fairy now (2026-10-05).
 // An older save's companion is brought up to the world as it is now. It is the author's, run on
 // loading (the caller holds the author's hand: `engine.author`), never game code.
-import type { Game } from '@lsw/engine'
+import type { Game } from '@openworld/engine'
 
 /** Saves marked with it hold the fairy. */
 export const COMPANION_LAYOUT = 'content.fairy-v1'

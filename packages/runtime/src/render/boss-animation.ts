@@ -1,4 +1,4 @@
-import type { Dir, EntitySnap } from '@lsw/engine'
+import type { Dir, EntitySnap } from '@openworld/engine'
 import { ALBERIC_CLIPS, albericFrameMs } from '../assets/bosses.ts'
 
 /** Pure atlas selection: wind-up is [0,.5), release/recovery [.5,1], never an early shot. */

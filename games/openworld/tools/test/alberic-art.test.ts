@@ -2,13 +2,13 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { inflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
-import type { Dir, EntitySnap } from '@lsw/engine'
-import { SIN_ACTORS, SIN_FX } from '../../client/src/assets/bosses.ts'
-import { bossAnimationFrame } from '../../client/src/render/boss-animation.ts'
+import type { Dir, EntitySnap } from '@openworld/engine'
+import { SIN_ACTORS, SIN_FX } from '@openworld/runtime/src/assets/bosses.ts'
+import { bossAnimationFrame } from '@openworld/runtime/src/render/boss-animation.ts'
 
 // Decode actual pixels, not just PNG headers: reject opaque backgrounds, duplicates and clipping.
 function decode(path: string) {
-  const bytes = readFileSync(new URL(`../../client/public/assets/${path}`, import.meta.url))
+  const bytes = readFileSync(new URL(`../../public/assets/${path}`, import.meta.url))
   expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
   expect([bytes[24], bytes[25], bytes[28]]).toEqual([8, 6, 0])
   const w = bytes.readUInt32BE(16), h = bytes.readUInt32BE(20), chunks: Buffer[] = []
@@ -114,19 +114,19 @@ describe('Alberic overhead art', () => {
   })
 
   it('records the overhead camera, directions and real per-action generation prompts', () => {
-    const manifest = JSON.parse(readFileSync(new URL('../../../docs/alberic-art-v3-prompts.json', import.meta.url), 'utf8'))
+    const manifest = JSON.parse(readFileSync(new URL('../../../../docs/alberic-art-v3-prompts.json', import.meta.url), 'utf8'))
     expect(manifest.generator).toBe('built-in imagegen')
     expect(manifest.bodyPrompt).toContain('HIGH OVERHEAD')
     expect(manifest.export.directions).toEqual(['down', 'right', 'up'])
     expect(manifest.assets.filter((a: { kind: string }) => a.kind === 'body')).toHaveLength(7)
     expect(manifest.export.bodyRows * manifest.export.bodyColumns).toBe(84)
-    const dense = JSON.parse(readFileSync(new URL('../../../docs/alberic-art-v4-prompts.json', import.meta.url), 'utf8'))
+    const dense = JSON.parse(readFileSync(new URL('../../../../docs/alberic-art-v4-prompts.json', import.meta.url), 'utf8'))
     expect(dense.generator).toBe('built-in imagegen')
     expect(dense.export.bodyRows * dense.export.bodyColumns).toBe(252)
     expect(dense.assets).toHaveLength(7)
     expect(dense.assets.every((a: { frames: number }) => a.frames === 36)).toBe(true)
     expect(dense.singleDirectionPrompt).toContain('HIGH OVERHEAD')
-    const smooth = JSON.parse(readFileSync(new URL('../../../docs/alberic-art-v5-prompts.json', import.meta.url), 'utf8'))
+    const smooth = JSON.parse(readFileSync(new URL('../../../../docs/alberic-art-v5-prompts.json', import.meta.url), 'utf8'))
     expect(smooth.generator).toBe('built-in imagegen')
     expect(smooth.export.bodyRows * smooth.export.bodyColumns).toBe(672)
     expect(smooth.bodyPrompt).toContain('HIGH OVERHEAD')

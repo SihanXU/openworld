@@ -12,7 +12,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { changesNothing, modelFromEnv, openModder, type ChatOptions, type WorldEpisode } from '@lsw/modder'
+import { changesNothing, modelFromEnv, openModder, type ChatOptions, type WorldEpisode } from '@openworld/modder'
 import { sweep } from './coverage.ts'
 import { cellRequest, pick } from './curriculum.ts'
 

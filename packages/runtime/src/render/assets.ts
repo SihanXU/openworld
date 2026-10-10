@@ -1,7 +1,7 @@
 // Loading and slicing the Ninja Adventure pack at runtime from the catalogue.
 
 import Phaser from 'phaser'
-import type { PixelArt } from '@lsw/engine'
+import type { PixelArt } from '@openworld/engine'
 import type { ActorDef, Catalog, FxDef, SpriteDef } from '../assets/types.ts'
 
 // encodeURI, not encodeURIComponent: folders like "Hit & Impact" must keep a raw '&' for Vite.

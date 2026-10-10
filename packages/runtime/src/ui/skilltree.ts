@@ -4,8 +4,8 @@
 // leaves they carry — so the tree can grow without the page changing. What a node does shows
 // on hover; a click learns it when it is ready.
 
-import type { Frame, SkillDef } from '@lsw/engine'
-import { SKILLS, SKILL_DIRECTIONS, SKILL_BRANCHES, SKILL_BY_ID, branchesForProfession, skillsForProfession, type SkillDirection } from '@lsw/content'
+import type { Frame, SkillDef } from '@openworld/engine'
+import { SKILLS, SKILL_DIRECTIONS, SKILL_BRANCHES, SKILL_BY_ID, branchesForProfession, skillsForProfession, type SkillDirection } from '@openworld-game/content'
 import { $, esc, locale, t, tx } from './common.ts'
 import { bindSkillArt, skillArt } from './skillIcons.ts'
 import { layoutBranches, layoutSkills } from './skillLayout.ts'

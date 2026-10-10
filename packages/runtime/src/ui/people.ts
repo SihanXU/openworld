@@ -3,7 +3,7 @@
 // and what one carries, to slip in. Each choice is an act the world answers (the worker's `trade` and
 // `pocket`); the panels show what the frame says now.
 
-import type { Frame, ItemInfo } from '@lsw/engine'
+import type { Frame, ItemInfo } from '@openworld/engine'
 import { $, esc, locale, tx } from './common.ts'
 
 export interface PeopleSend {

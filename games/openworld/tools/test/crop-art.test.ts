@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { CROP_STAGES, GARDEN_CROPS, PLACEMENTS, VEGETABLE_CROPS, buildOntology } from '@lsw/content'
-import { CATALOG } from '../../client/src/assets/catalog.ts'
+import { CROP_STAGES, GARDEN_CROPS, PLACEMENTS, VEGETABLE_CROPS, buildOntology } from '@openworld-game/content'
+import { CATALOG } from '@openworld/runtime/src/assets/catalog.ts'
 
 describe('original crop sprites', () => {
   it('registers all three growth stages and both inventory sprites per crop', () => {
@@ -17,7 +17,7 @@ describe('original crop sprites', () => {
   })
   it('ships five native-resolution RGBA sprites per crop, plus the four illustrated crops\' original atlases', () => {
     for (const c of VEGETABLE_CROPS) for (const part of [...CROP_STAGES, 'produce', 'seeds', ...(GARDEN_CROPS.includes(c) ? ['atlas'] : [])]) {
-      const bytes = readFileSync(new URL(`../../client/public/assets/lsw/Crops/${c.id}/${part}.png`, import.meta.url))
+      const bytes = readFileSync(new URL(`../../public/assets/lsw/Crops/${c.id}/${part}.png`, import.meta.url))
       expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
       if (part !== 'atlas') {
         expect(bytes.readUInt32BE(16)).toBe(16)

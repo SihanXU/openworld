@@ -1,10 +1,10 @@
 // Red-team the modder for endless yield: acts on resources whose outcome is undefined are sent to a
 // live modder; each answer is applied in a sandbox, and the act repeated twenty times. A case is
 // flagged when what lies about grows (by count, or by the sum of the values the economy gives each
-// type) with nothing spent. Usage: npx tsx packages/tools/src/redteam-yield.ts [modder url]
+// type) with nothing spent. Usage: npx tsx games/openworld/tools/src/redteam-yield.ts [modder url]
 
-import { ModPort, RuleLibrary, buildSandbox, type Engine, type Patch, type ModRequest } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { ModPort, RuleLibrary, buildSandbox, type Engine, type Patch, type ModRequest } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 
 const URL = process.argv[2] ?? 'http://localhost:8788'
 const onto = buildOntology()

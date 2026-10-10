@@ -1,7 +1,7 @@
 // Review harness using the real engine, map, HUD and Phaser renderer. No save/storage calls.
 import Phaser from 'phaser'
-import { snapshot, type Game, type Dir, type Frame, type WorldIndex } from '@lsw/engine'
-import { BOSSES, BOSS_BY_ID, BOSS_ARENA, PROFESSION_BY_ID, SKILL_PROFESSIONS, type RawChunk } from '@lsw/content'
+import { snapshot, type Game, type Dir, type Frame, type WorldIndex } from '@openworld/engine'
+import { BOSSES, BOSS_BY_ID, BOSS_ARENA, PROFESSION_BY_ID, SKILL_PROFESSIONS, type RawChunk } from '@openworld-game/content'
 import { WorldScene } from './render/scene.ts'
 import { Hud } from './ui/hud.ts'
 import { esc, locale, tx } from './ui/common.ts'

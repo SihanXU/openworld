@@ -59,7 +59,7 @@ func frames(_ im: CGImage, rows: Int) -> [CGImage] {
 let preview=context(1120,840)
 preview.setFillColor(CGColor(red:0.08,green:0.12,blue:0.14,alpha:1));preview.fill(CGRect(x:0,y:0,width:1120,height:840))
 for (i, asset) in assets.enumerated() {
-  let id=asset["id"]!, dir=root.appendingPathComponent("packages/client/public/assets/lsw/Bosses/\(id)")
+  let id=asset["id"]!, dir=root.appendingPathComponent("games/openworld/public/assets/lsw/Bosses/\(id)")
   try FileManager.default.createDirectory(at:dir,withIntermediateDirectories:true)
   for (key,name) in [("source","source.png"),("effects","effects-source.png")] {
     let destination=dir.appendingPathComponent(name)

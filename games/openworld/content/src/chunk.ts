@@ -1,6 +1,6 @@
 // On-disk map chunk format: terrain as one char per tile (see TERRAIN_CHARS).
 
-import { appearFromForage, type Entity, type MapChunk, type MapData, type Portal, type Text } from '@lsw/engine'
+import { appearFromForage, type Entity, type MapChunk, type MapData, type Portal, type Text } from '@openworld/engine'
 import { TERRAIN_CHARS } from './ontology.ts'
 
 export interface RawMap {

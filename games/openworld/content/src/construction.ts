@@ -1,4 +1,4 @@
-import type { PlacementNeed, PlacementRecipe, Text } from '@lsw/engine'
+import type { PlacementNeed, PlacementRecipe, Text } from '@openworld/engine'
 import { VEGETABLE_CROPS } from './crops.ts'
 
 const text = (en: string, zh: string): Text => ({ en, zh })

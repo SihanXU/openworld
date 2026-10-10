@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, type Dir } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
+import { Game, RuleLibrary, type Dir } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 // Pip keeps up (docs/prologue.md): however the player runs — straight or diagonally, changing
@@ -81,7 +81,7 @@ describe('the companion', () => {
 
 describe('waypoint statues', () => {
   it('look like nothing else: no other sprite in the catalogue draws the waypoint statue', async () => {
-    const { CATALOG } = await import('../../client/src/assets/catalog.ts')
+    const { CATALOG } = await import('@openworld/runtime/src/assets/catalog.ts')
     const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
     const art = CATALOG.fixtures['fixture:waypoint'].base
     const others = Object.entries(CATALOG.fixtures).filter(([k, f]) => k !== 'fixture:waypoint' && [f.base, f.open, f.lit, ...(f.variants ?? [])].some((d) => d && same(d, art)))

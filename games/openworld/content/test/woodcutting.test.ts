@@ -3,7 +3,7 @@
 // counts the blows and falls; the stump grows back on its own timer.
 
 import { describe, expect, it } from 'vitest'
-import { OntologyIndex, RuleLibrary, buildSandbox, type Engine, type Key, type Ref } from '@lsw/engine'
+import { OntologyIndex, RuleLibrary, buildSandbox, type Engine, type Key, type Ref } from '@openworld/engine'
 import { BASE_RULES, RECIPE_BY_ID, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()

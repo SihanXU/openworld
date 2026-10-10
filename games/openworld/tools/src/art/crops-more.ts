@@ -2,7 +2,7 @@
 // sprout and the young plant of an illustrated crop of its habit (leafy: the carrot's; sprawling: the pumpkin's;
 // climbing: the tomato's), and draws its own produce — on the ripe plant, on the seed sack, and as the produce icon.
 //
-//   npx tsx packages/tools/src/art/crops-more.ts
+//   npx tsx games/openworld/tools/src/art/crops-more.ts
 
 import { readPng, writePng } from './png.ts'
 

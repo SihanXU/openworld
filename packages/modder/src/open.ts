@@ -4,11 +4,11 @@
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { WorldLibrary } from './library.ts'
-import { modelFromEnv, type Model } from '@lsw/agent'
+import { modelFromEnv, type Model } from '@openworld/agent'
 import { Modder } from './pipeline.ts'
-import { SelfState } from '@lsw/agent'
+import { SelfState } from '@openworld/agent'
 
 export const REPO = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { Engine, ModPort, RuleLibrary, SANDBOX_MAP, buildSandbox, endlessYield, holeKey, repeatYields, scenarioEvent, validatePatch, type ModRequest, type Patch, type Ref, type Rule, type Scenario } from '@lsw/engine'
-import { BASE_RULES, FORMS, STORY_RULES, buildOntology } from '@lsw/content'
+import { Engine, ModPort, RuleLibrary, SANDBOX_MAP, buildSandbox, endlessYield, holeKey, repeatYields, scenarioEvent, validatePatch, type ModRequest, type Patch, type Ref, type Rule, type Scenario } from '@openworld/engine'
+import { BASE_RULES, FORMS, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { FRONT, HANDS, ORIGIN, targets, verbsFor } from '../src/coverage.ts'
 
 // No endless yield (world-model.md §8.4, §10.2, D23): an event repeated with no time between, on a

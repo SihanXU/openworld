@@ -2,7 +2,7 @@
 // highlight): raw beef and the cooked steak, the chicken leg raw and roast, the egg raw and
 // boiled. Written as PNGs to public/assets/lsw/Items/.
 //
-//   npx tsx packages/tools/src/art/food.ts
+//   npx tsx games/openworld/tools/src/art/food.ts
 
 import { writeIcon } from './png.ts'
 

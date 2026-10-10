@@ -2,7 +2,7 @@
 // material × quality × element, carried as tags and props, so type-level rules address
 // whole classes while the world still holds tens of thousands of distinct items.
 
-import { gearProps, type Entity, type MaterialDef, type PropValue, type QualityDef, type Rng, type TypeDef } from '@lsw/engine'
+import { gearProps, type Entity, type MaterialDef, type PropValue, type QualityDef, type Rng, type TypeDef } from '@openworld/engine'
 import { VEGETABLE_CROPS } from './crops.ts'
 
 export interface Form {

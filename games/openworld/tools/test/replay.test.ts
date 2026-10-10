@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, buildSandbox, buildScenario, holeKey, scenarioEvent, validatePatch, type GameEvent, type Rule } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { RuleLibrary, buildSandbox, buildScenario, holeKey, scenarioEvent, validatePatch, type GameEvent, type Rule } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 
 const onto = buildOntology()
 const lib = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])

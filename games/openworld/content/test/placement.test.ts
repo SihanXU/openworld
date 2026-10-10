@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, buildSandbox, performPlacement, previewPlacement, textOf, type Engine } from '@lsw/engine'
+import { RuleLibrary, buildSandbox, performPlacement, previewPlacement, textOf, type Engine } from '@openworld/engine'
 import { BASE_RULES, BUILDINGS, PLACEMENT_BY_ID, VEGETABLE_CROPS, buildOntology } from '../src/index.ts'
 
 const at = { map: 'sandbox', x: 2, y: 1 }

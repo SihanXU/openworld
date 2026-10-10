@@ -3,7 +3,7 @@
 // a state of the world — a step of the story played, a fact the story keeps, a place reached — never on a path:
 // the scenes and rules change the facts, and the quests answer.
 
-import type { QuestDef, QuestStage, QuestTrigger, Text } from '@lsw/engine'
+import type { QuestDef, QuestStage, QuestTrigger, Text } from '@openworld/engine'
 import { L, gear } from './kit.ts'
 import { TUTORIAL_LESSONS, TUTORIAL_DONE } from '../prologue.ts'
 import { ALBERIC_ID, CH1 } from '../chapter1.ts'

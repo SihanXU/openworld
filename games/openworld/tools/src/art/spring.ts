@@ -2,7 +2,7 @@
 // - Fx/Steam.png: a wisp of steam rising and thinning, four frames, looped over the spring;
 // - Fx/Mend.png: green crosses rising round whoever is mending (the `mend` overlay), four frames.
 //
-//   npx tsx packages/tools/src/art/spring.ts
+//   npx tsx games/openworld/tools/src/art/spring.ts
 
 import { Raster, writeAtlas, type Palette } from './raster.ts'
 

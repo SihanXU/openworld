@@ -3,8 +3,8 @@
 // most of it, an empty one is woken by hunger in the small hours, and gets up again.
 
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, TICKS_PER_HOUR, textOf, tickAt, type Engine } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
+import { Game, RuleLibrary, TICKS_PER_HOUR, textOf, tickAt, type Engine } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 /** The tutorial's clearing, a bedroom round the player at (20, 12), the hunger given, half past nine at night. */

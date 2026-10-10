@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { Game, Rng, RuleLibrary, combatDamage, combatStrike, finishCombatStrike, snapshot, tickAt } from '@lsw/engine'
-import { BASE_RULES, FORM_BY_ID, RELICS, STORY_RULES, VOW_TRAITS, buildOntology, decodeChunk, makeItem } from '@lsw/content'
+import { Game, Rng, RuleLibrary, combatDamage, combatStrike, finishCombatStrike, snapshot, tickAt } from '@openworld/engine'
+import { BASE_RULES, FORM_BY_ID, RELICS, STORY_RULES, VOW_TRAITS, buildOntology, decodeChunk, makeItem } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 // The body's ten slots (world-model.md §6.8): head, body, feet, hands, waist, shoulders, neck, two rings,

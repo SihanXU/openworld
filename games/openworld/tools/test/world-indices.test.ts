@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { Engine, RuleLibrary, buildSandbox } from '@lsw/engine'
-import { buildOntology } from '@lsw/content'
+import { Engine, RuleLibrary, buildSandbox } from '@openworld/engine'
+import { buildOntology } from '@openworld-game/content'
 
 function fresh() {
   return buildSandbox({ terrain: Array.from({ length: 3 }, () => Array(3).fill('grass')), entities: [], event: {} }, buildOntology(), new RuleLibrary([]))

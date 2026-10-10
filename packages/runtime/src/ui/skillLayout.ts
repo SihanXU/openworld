@@ -1,8 +1,8 @@
 // Pure layout for one direction of the skill tree. Branch hubs exist even before their
 // skills are designed; learning starts at a branch's first skill, not at its hub.
 
-import type { SkillDef } from '@lsw/engine'
-import { SKILLS, SKILL_BRANCHES, type SkillDirection } from '@lsw/content'
+import type { SkillDef } from '@openworld/engine'
+import { SKILLS, SKILL_BRANCHES, type SkillDirection } from '@openworld-game/content'
 
 const BRANCH_RADIUS = 170
 const SKILL_RADIUS = 300

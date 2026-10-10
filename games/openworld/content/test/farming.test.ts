@@ -3,7 +3,7 @@
 // answered by the ripe crop; a hand takes (`taken`) what it picks.
 
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, SANDBOX_MAP, buildSandbox, type Engine, type Key } from '@lsw/engine'
+import { RuleLibrary, SANDBOX_MAP, buildSandbox, type Engine, type Key } from '@openworld/engine'
 import { BASE_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()

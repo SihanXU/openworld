@@ -5,8 +5,8 @@
 // one is moved by dragging it to another slot, set from the skill tree (hovering it, Shift+1–6), and taken out
 // with a right click; all of it is managed in the skill panel (U, ui/skillpanel.ts).
 
-import type { Frame } from '@lsw/engine'
-import { SKILL_BY_ID } from '@lsw/content'
+import type { Frame } from '@openworld/engine'
+import { SKILL_BY_ID } from '@openworld-game/content'
 import { $, esc, locale, tx } from './common.ts'
 import { skillPng } from './skillIcons.ts'
 

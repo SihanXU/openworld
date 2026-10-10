@@ -1,5 +1,5 @@
 // The draw order of the things of a frame (the 3/4 view, docs/building.md §9): what is drawn over
-// what. Pure, so it is tested without a renderer (packages/client/test/depth.test.ts).
+// what. Pure, so it is tested without a renderer (packages/runtime/test/depth.test.ts).
 //
 // The order of the place, back to front:
 // - the ground: tiles −100, heights −90, decals −50; what lies flat on it (moss, leaves) −45;

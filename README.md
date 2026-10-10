@@ -13,7 +13,7 @@ Successor to BardOS. Design: [docs/design.md](docs/design.md).
   and one goal: the far bank. The place teaches three ways across; anything else the world
   learns from the player counts too. It is the development scaffold of a world meant to reach
   hundreds of maps; every element it holds witnesses a requirement
-  ([docs/game-design.md](docs/game-design.md) §9, proven by `packages/tools/test/demo.test.ts`).
+  ([docs/game-design.md](docs/game-design.md) §9, proven by `games/openworld/tools/test/demo.test.ts`).
 
 The event model — one AI interface, the outcome of an event — is in
 [docs/design.md](docs/design.md) §5.4–5.14.
@@ -22,9 +22,9 @@ The event model — one AI interface, the outcome of an event — is in
 
 ```bash
 npm install
-npm run gen:world     # the Ford → packages/client/public/world/
+npm run gen:world     # the Ford → games/openworld/public/world/
 npm run dev           # http://localhost:5173, with the modder service on :8787
-npm run build         # static site in packages/client/dist
+npm run build         # static site in packages/runtime/dist
 ```
 
 Controls: WASD/arrows move (Shift walks) · **E** hands (talk, open, push) · **F** take ·
@@ -83,14 +83,14 @@ after a change reaches main.
 ```bash
 npm run wiki          # http://localhost:5180/wiki/, rebuilt when wiki/ changes
 npm run wiki:check    # links, templates, and completeness (every thing and system has a page)
-npm run wiki:build    # the static site in packages/wiki/out
+npm run wiki:build    # the static site in games/openworld/wiki/out
 ```
 
 ## Art & audio
 
 [Ninja Adventure asset pack](https://pixel-boy.itch.io/ninja-adventure-asset-pack) by
 Pixel-boy & AAA, CC0. The full pack goes in `assets/ninja-adventure/` (not committed);
-`npm run assets` copies the subset the catalogue uses into `packages/client/public/assets/na/`
+`npm run assets` copies the subset the catalogue uses into `games/openworld/public/assets/na/`
 (committed, so the site builds without the pack).
 
 ## Checks

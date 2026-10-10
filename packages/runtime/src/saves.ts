@@ -2,7 +2,7 @@
 // cover without loading it; any slot can be written out to a file on the player's computer
 // and read back into a slot. The rule library the world has learned is shared by all slots.
 
-import type { SaveData } from '@lsw/engine'
+import type { SaveData } from '@openworld/engine'
 import type { SaveSummary } from './protocol.ts'
 import { kvDel, kvGet, kvSet } from './storage.ts'
 

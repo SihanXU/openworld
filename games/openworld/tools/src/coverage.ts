@@ -2,16 +2,16 @@
 // player can face, through every act the player's inputs make (use, put, take, hands), resolved
 // through the base rule library exactly as the engine previews an act: the act's own outcome and
 // the outcomes of the impulses it emits (design.md §5.8–5.9). It is the progress meter for the
-// roadmap (docs/roadmap.md, M0) and a regression guard: packages/tools/test/coverage.test.ts
+// roadmap (docs/roadmap.md, M0) and a regression guard: games/openworld/tools/test/coverage.test.ts
 // fails when a combination loses its answer or a form or fixture loses its purpose.
 //
 //   npm run coverage      → prints the numbers in docs/roadmap.md (§1, §3) and refreshes the
-//                           baseline the test guards (packages/tools/test/coverage.baseline.json)
+//                           baseline the test guards (games/openworld/tools/test/coverage.baseline.json)
 
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { OntologyIndex, RuleLibrary, SANDBOX_MAP, buildSandbox, isRoot, matchSelector, textOf, type Cond, type Ontology, type Ref, type Rule, type Scenario, type Selector, type Tree, type Verb, type View } from '@lsw/engine'
-import { BASE_RULES, FORMS, MATERIALS, RECIPES, TERRAINS, buildOntology } from '@lsw/content'
+import { OntologyIndex, RuleLibrary, SANDBOX_MAP, buildSandbox, isRoot, matchSelector, textOf, type Cond, type Ontology, type Ref, type Rule, type Scenario, type Selector, type Tree, type Verb, type View } from '@openworld/engine'
+import { BASE_RULES, FORMS, MATERIALS, RECIPES, TERRAINS, buildOntology } from '@openworld-game/content'
 
 // ------------------------------------------------------------------ definitions
 

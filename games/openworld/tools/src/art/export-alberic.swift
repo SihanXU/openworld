@@ -1,6 +1,6 @@
 // Technical export of approved imagegen sheets only: cell extraction, shared nearest-neighbour
 // scale and ground alignment. Never paints, recolours, removes a background or touches legacy art.
-// Run at the repository root: swift packages/tools/src/art/export-alberic.swift [--v2|--v4|--v5] [--partial]
+// Run at the repository root: swift games/openworld/tools/src/art/export-alberic.swift [--v2|--v4|--v5] [--partial]
 import Foundation
 import CoreGraphics
 import ImageIO
@@ -60,7 +60,7 @@ if CommandLine.arguments.contains("--references") {
     let dense = CommandLine.arguments.contains("--v5")
     let referenceDir = root.appendingPathComponent("docs/boss-art/alberic-\(dense ? "v5" : "v4")/references")
     try FileManager.default.createDirectory(at: referenceDir, withIntermediateDirectories: true)
-    let old = read(root.appendingPathComponent("packages/client/public/assets/lsw/Bosses/alberic/\(dense ? "v4" : "v3")/actions.png"))
+    let old = read(root.appendingPathComponent("games/openworld/public/assets/lsw/Bosses/alberic/\(dense ? "v4" : "v3")/actions.png"))
     for (direction, name) in ["down", "right", "up"].enumerated() {
         for (row, action) in ["idle", "walk", "thorns", "arrow", "volley", "hurt", "death"].enumerated() {
             let count = dense ? 12 : 4, columns = dense ? 4 : 2, rows = dense ? 3 : 2
@@ -389,7 +389,7 @@ precondition(CGImageDestinationFinalize(gif))
 if directions.count == 3 {
     let map = read(root.appendingPathComponent("docs/firstlight-village-preview.png"))
     let background = map.cropping(to: CGRect(x: 880, y: 330, width: 392, height: 416))!
-    let knight = read(root.appendingPathComponent("packages/client/public/assets/na/Actor/Character/Knight/SpriteSheet.png"))
+    let knight = read(root.appendingPathComponent("games/openworld/public/assets/na/Actor/Character/Knight/SpriteSheet.png"))
         .cropping(to: CGRect(x: 0, y: 0, width: 16, height: 16))!
     let scene = canvas(1200, 544) { ctx in
         label("ALBERIC / OVERHEAD PROJECTION CHECK", 16, 506, 24)

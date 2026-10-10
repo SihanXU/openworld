@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, buildSandbox, type Engine, type Ontology } from '@lsw/engine'
+import { RuleLibrary, buildSandbox, type Engine, type Ontology } from '@openworld/engine'
 import { BASE_RULES, EGGS_LIE, LAYS_EVERY, buildOntology } from '../src/index.ts'
 
 function fresh(onto: Ontology = buildOntology()): Engine {

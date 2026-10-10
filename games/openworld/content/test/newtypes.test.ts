@@ -3,7 +3,7 @@
 // the icon format, and points at what exists when a patch names a type that does not.
 
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, artProblems, buildSandbox, holeKey, scenarioEvent, validatePatch, type Patch, type PixelArt, type Rule, type Scenario, type TypeDef } from '@lsw/engine'
+import { ModPort, RuleLibrary, artProblems, buildSandbox, holeKey, scenarioEvent, validatePatch, type Patch, type PixelArt, type Rule, type Scenario, type TypeDef } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()

@@ -6,11 +6,11 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { Rng, type Ontology } from '@lsw/engine'
-import { FORMS, decodeChunk, decodeMap, type RawChunk } from '@lsw/content'
+import { Rng, type Ontology } from '@openworld/engine'
+import { FORMS, decodeChunk, decodeMap, type RawChunk } from '@openworld-game/content'
 import { OUTCOMES, targets, type Cell, type Tally } from './coverage.ts'
 
-export const DEMO = fileURLToPath(new URL('../../client/public/world', import.meta.url))
+export const DEMO = fileURLToPath(new URL('../../public/world', import.meta.url))
 
 export interface Scope {
   /** item form → instances in the world ('' = the empty hand) */

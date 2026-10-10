@@ -36,8 +36,8 @@ import {
   restoreLibrary,
   CEILING,
   TICKS_PER_HOUR,
-} from '@lsw/engine'
-import { BASE_RULES, BOSS_LAYOUT, createBoss, COMPANION_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateCompanion, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
+} from '@openworld/engine'
+import { BASE_RULES, BOSS_LAYOUT, createBoss, COMPANION_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateCompanion, migrateFirstlight, wildChunkFor, type RawChunk } from '@openworld-game/content'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
 
 const TICK_MS = 100

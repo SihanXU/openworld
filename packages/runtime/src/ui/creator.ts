@@ -3,8 +3,8 @@
 // use for it. The new-game panel makes the player's look with it; the dev page (looks.html) makes anyone's and
 // copies the record for a person's file.
 
-import { LOOK_BODIES, LOOK_COLORS, LOOK_PARTS, LOOK_SLOTS, WORN_SLOTS, describeLook, generateLook } from '@lsw/content'
-import type { Look, Mood } from '@lsw/engine'
+import { LOOK_BODIES, LOOK_COLORS, LOOK_PARTS, LOOK_SLOTS, WORN_SLOTS, describeLook, generateLook } from '@openworld-game/content'
+import type { Look, Mood } from '@openworld/engine'
 import { FH, FW, composeSprite } from '../assets/figure/sprite.ts'
 import { portraitOf, preparePortrait } from '../assets/figure/index.ts'
 import { esc, locale, tx } from './common.ts'

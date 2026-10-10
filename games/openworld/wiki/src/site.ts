@@ -9,7 +9,7 @@ import { loadGame, zh, type Ent, type Game, type ItemEnt, type MapEnt } from './
 import { escapeAttr, escapeHtml, inline, parseFront, plain, render, slug, type Front } from './markup.ts'
 import { esc, fit, linkHref, runTemplate, type Ctx, type PageRef, type Translations } from './templates.ts'
 
-export const ROOT = fileURLToPath(new URL('../../../', import.meta.url))
+export const ROOT = fileURLToPath(new URL('../../../../', import.meta.url))
 export const WIKI = join(ROOT, 'wiki')
 const PAGES = join(WIKI, 'pages')
 

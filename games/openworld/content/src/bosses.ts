@@ -1,7 +1,7 @@
 // The authored boss kits (docs/bosses.md): the White Knight Alberic (the First Seal-bearer, Chapter 1's
 // boss), and three kept for later — the Crown Without a King, the Velvet Lure and the Face Thief. All
 // but the Face Thief span tiles. None has a campaign place yet.
-import type { BossDef, BossSkill, Effect, Entity, Pos, Rule, StatusDef, Tree, TypeDef } from '@lsw/engine'
+import type { BossDef, BossSkill, Effect, Entity, Pos, Rule, StatusDef, Tree, TypeDef } from '@openworld/engine'
 import { LEGENDARY_ARMS } from './items.ts'
 
 const L = (en: string, zh: string) => ({ en, zh })

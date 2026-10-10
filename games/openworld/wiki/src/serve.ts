@@ -1,5 +1,5 @@
 // npm run wiki — the wiki on http://localhost:5180/wiki/, rebuilt when a page, the site file or the
-// translations change. The game's pictures come from packages/client/public/assets, as on the server.
+// translations change. The game's pictures come from games/openworld/public/assets, as on the server.
 
 import { createReadStream, existsSync, statSync, watch } from 'node:fs'
 import { createServer } from 'node:http'
@@ -10,7 +10,7 @@ import { writeSite } from './build.ts'
 
 const PORT = Number(process.env.WIKI_PORT ?? 5180)
 const OUT = join(tmpdir(), 'openworld-wiki')
-const ASSETS = join(ROOT, 'packages', 'client', 'public', 'assets')
+const ASSETS = join(ROOT, 'games', 'openworld', 'public', 'assets')
 const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml' }
 
 let building = false

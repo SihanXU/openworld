@@ -4,7 +4,7 @@
 // beats here let Pip say one line each, and each quest stage waits on its beat; the lessons are the clearing's
 // stages' drills. Every beat waits for a state, never for a path: whatever gets the player there counts.
 
-import type { Lesson, StepCond, StepDef, Text } from '@lsw/engine'
+import type { Lesson, StepCond, StepDef, Text } from '@openworld/engine'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 

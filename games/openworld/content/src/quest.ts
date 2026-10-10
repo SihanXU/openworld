@@ -3,7 +3,7 @@
 // these rules and the scenes change them), and the `emberfall` quest (quests/main.ts) answers them.
 // The rules here are the turn-ins and rewards the people of Emberfall make, and the dragon's phases.
 
-import type { Cond, Effect, Rule, Text, Tree } from '@lsw/engine'
+import type { Cond, Effect, Rule, Text, Tree } from '@openworld/engine'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 

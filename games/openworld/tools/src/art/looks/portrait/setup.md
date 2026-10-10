@@ -28,6 +28,6 @@ canvas) keeps every pixel where it was, which the layer cut needs, at half the c
 
 `comfy.py` talks to it (`LSW_COMFY`, default `http://127.0.0.1:8188`); `batch.py` runs `parts.py`'s jobs (a job
 waits for the picture it edits; the man's and the boy's bases are composed by `bases.py`); `build.py` cuts the
-pictures into the game's layers and writes the manifest; `npx tsx packages/tools/src/art/looks/review.ts` composes
+pictures into the game's layers and writes the manifest; `npx tsx games/openworld/tools/src/art/looks/review.ts` composes
 everyone's portrait and sprite with the client's own code for review. On a laptop GPU a picture takes a few minutes
 (the driver slows a hot GPU down); the whole library is a night's run.

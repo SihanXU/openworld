@@ -2,9 +2,9 @@
 // pictures need — three tones for the map sprite's pixels, and a gradient for the portrait's shaded layers. Both
 // come from the same colour, so the hair on the map and in the portrait cannot disagree. Pure: Node and browser.
 
-import { LOOK_COLORS } from '@lsw/content'
-import { LOOK_TABLE } from '@lsw/content'
-import { lookColor, type Look } from '@lsw/engine'
+import { LOOK_COLORS } from '@openworld-game/content'
+import { LOOK_TABLE } from '@openworld-game/content'
+import { lookColor, type Look } from '@openworld/engine'
 
 export type RGB = [number, number, number]
 

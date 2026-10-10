@@ -3,7 +3,7 @@
 // Existing ids/grants remain save-compatible. Combat talents are automatic: moving, attacking
 // and defeating creatures trigger them without introducing another input/hotbar.
 
-import { Rng, type Entity, type ProfessionDef, type SkillDef } from '@lsw/engine'
+import { Rng, type Entity, type ProfessionDef, type SkillDef } from '@openworld/engine'
 import { FORM_BY_ID, makeItem } from './items.ts'
 
 export const SKILL_DIRECTIONS = [

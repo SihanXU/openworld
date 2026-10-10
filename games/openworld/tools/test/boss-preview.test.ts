@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import type { EntitySnap } from '@lsw/engine'
-import { bossPreviewMode, bossPreviewModes, previewBoss } from '../../client/src/boss-preview.ts'
-import { bossAnimationFrame } from '../../client/src/render/boss-animation.ts'
-import { ALBERIC_CLIPS, albericFrameMs } from '../../client/src/assets/bosses.ts'
+import type { EntitySnap } from '@openworld/engine'
+import { bossPreviewMode, bossPreviewModes, previewBoss } from '@openworld/runtime/src/boss-preview.ts'
+import { bossAnimationFrame } from '@openworld/runtime/src/render/boss-animation.ts'
+import { ALBERIC_CLIPS, albericFrameMs } from '@openworld/runtime/src/assets/bosses.ts'
 
 const entity = (kit = 'alberic'): EntitySnap => ({
   id: 'test.boss', type: 'actor/creature/sin/alberic', sprite: 'boss:sin:alberic', x: 10, y: 10,
@@ -21,10 +21,10 @@ describe('Boss Studio direct action controls', () => {
       .toEqual(['8', '10', '12', '12', '12', '8', '12'])
     expect(bossPreviewModes('alberic').filter((m) => m.value !== 'live').map((m) => m.label.match(/(\d+) FPS/)![1]))
       .toEqual(['8', '12', '12', '12', '12', '16', '10'])
-    const html = readFileSync(new URL('../../client/boss-gallery.html', import.meta.url), 'utf8')
+    const html = readFileSync(new URL('../../../../packages/runtime/boss-gallery.html', import.meta.url), 'utf8')
     expect(html).toContain('id="modeSelect" class="studio-modes" role="group"')
     expect(html).not.toContain('<select id="modeSelect"')
-    const css = readFileSync(new URL('../../client/src/boss-gallery.css', import.meta.url), 'utf8')
+    const css = readFileSync(new URL('../../../../packages/runtime/src/boss-gallery.css', import.meta.url), 'utf8')
     expect(css).toContain('button[aria-pressed="true"]')
     expect(css).toContain('.studio-modes button:focus-visible')
   })

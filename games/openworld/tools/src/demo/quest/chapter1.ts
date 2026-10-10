@@ -3,8 +3,8 @@
 // East Road — and its scenes: the night of the flame, the letter, the kingdom, the crown, the return.
 // The quests and objectives are content (content/src/chapter1.ts).
 
-import type { Entity, StepDef } from '@lsw/engine'
-import { ALBERIC_ID, CH1, HAVEN, createBoss } from '@lsw/content'
+import type { Entity, StepDef } from '@openworld/engine'
+import { ALBERIC_ID, CH1, HAVEN, createBoss } from '@openworld-game/content'
 
 const HAVEN_MAP = HAVEN.map
 import { L } from '../kit.ts'

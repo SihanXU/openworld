@@ -1,6 +1,6 @@
 // What every part of the DOM UI shares: the locale, the strings, small DOM helpers.
 
-import type { Text } from '@lsw/engine'
+import type { Text } from '@openworld/engine'
 import { textOf } from '../render/scene.ts'
 
 export type Locale = 'en' | 'zh'

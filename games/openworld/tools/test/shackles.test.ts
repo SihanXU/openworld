@@ -5,9 +5,9 @@
 // on, far past the checks' own bounds.
 
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, holeKey, scenarioEvent, validatePatch, type Effect, type Engine, type GameEvent, type Patch, type Rule, type Scenario, type Tree } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
-import { WorldLibrary } from '@lsw/modder'
+import { ModPort, RuleLibrary, buildSandbox, holeKey, scenarioEvent, validatePatch, type Effect, type Engine, type GameEvent, type Patch, type Rule, type Scenario, type Tree } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
+import { WorldLibrary } from '@openworld/modder'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

@@ -3,8 +3,8 @@
 // of thing it is; "When held:" with its attack in dark green; what a tool does and what food
 // restores in blue and gold; its traits as purple italic lore; statuses and an owner in red.
 
-import type { Frame, ItemInfo } from '@lsw/engine'
-import { MATERIALS, PROFESSION_BY_ID, RELICS, STATUSES } from '@lsw/content'
+import type { Frame, ItemInfo } from '@openworld/engine'
+import { MATERIALS, PROFESSION_BY_ID, RELICS, STATUSES } from '@openworld-game/content'
 import { esc, locale, tx } from './common.ts'
 
 const L = (en: string, zh: string) => (locale.value === 'zh' ? zh : en)
