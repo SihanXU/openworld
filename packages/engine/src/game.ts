@@ -92,9 +92,9 @@ export class Game {
     engine.controls.magnetic = true
   }
 
-  /** A new game, at the world's start or at one of its other starts (`start`, a name in `index.starts`). */
-  static create(index: WorldIndex, ontology: Ontology, library: RuleLibrary, start?: string): Game {
-    const other = start ? index.starts?.[start] : undefined
+  /** A new game, at the world's start, at one of its other starts (`start`, a name in `index.starts`), or at a start given (a playtest's cell). */
+  static create(index: WorldIndex, ontology: Ontology, library: RuleLibrary, start?: string | StartDef): Game {
+    const other = typeof start === 'object' ? start : start ? index.starts?.[start] : undefined
     if (start && !other) throw new Error(`no start ${start}`)
     const from: StartDef = other ?? { at: index.start, ...index.begin }
     const at = from.at

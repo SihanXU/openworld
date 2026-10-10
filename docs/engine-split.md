@@ -260,7 +260,32 @@ P2 and P3 overlap where they do not touch (the catalogue as data needs no module
 - **The starter** became self-contained: its catalogue (`catalog.json`) and its pictures and sounds
   (`assets/`, a 5 MB subset of the CC0 pack) are its own.
 
-## 11. Risks
+## 11. P4 as built (2026-10-10): the editor's first part
+
+- **The service** (`packages/editor/src/server/api.ts`): a local Node service over the projects' files —
+  the games under `games/` (a project at `games/<id>/` or, baked, at `games/<id>/project/`), a project read,
+  a file written as the format writes it (only the format's files: never a test, never outside the
+  project), a file removed, a new project made from the starter, the compiler's problems. It runs inside the
+  editor's dev server (`npm run editor`, :5175), which also serves the games compiled (`format/src/serve.ts`)
+  and the engine's player for the playtest. Changes go through git as any other.
+- **The editor** (`packages/editor/src/app`): the project in memory (`store.ts`: every file by path, edits
+  unsaved until Save, a brush stroke undone at once, the compiler run on the project as it is now — it is
+  pure, so the canvas and the validation panel never wait on a save); the canvas (`canvas.ts`) is the
+  runtime's own WorldScene over an engine made from the compiled project — autotiles, heights, rooms, every
+  thing and person where a new game finds them — with a free camera (`setFreeCamera`, `panBy`, `zoomBy`,
+  `cellAt`, `drawOverlay`, added to the scene for it); the **map** (`mapMode.ts`: terrain and heights
+  painted, things set down and taken away, portals, anchors, areas, the start; a cell's things in the
+  inspector, an entity's type, name, place, tags, props and behaviour; a map's settings, size, new and
+  deleted maps); the **people** (`peopleMode.ts`: who, where they stand, their day over the maps' anchors
+  with its gaps and overlaps said, their keyed lines, their look through the runtime's character creator
+  where the game has a look table); the **validation panel** (`problems.ts`, each problem a link to where it
+  is); **playtest** from the start or any cell (the player's `?playtest=1&at=<map>,<x>,<y>`: a new game at
+  once, nothing saved).
+- **Checked in a browser**: a new project from the starter; a new map, an anchor on it, a person whose day
+  is there — made, saved, compiled with no problem and played, with no TypeScript written (P4's "done
+  when"); painting, setting down, saving to the file; the baked Ford opened and drawn.
+
+## 12. Risks
 
 - **The way the Ford is written changes.** From the TypeScript DSL to data files: for a while the compiler
   takes both authored data and data a script made; the maps are baked once the editor can edit them.

@@ -149,6 +149,9 @@ export class WorldScene extends Phaser.Scene {
   private bossWarnings?: Phaser.GameObjects.Graphics
   private bossPreview?: { id: string; mode: Exclude<BossPreviewMode, 'live'>; startedAt?: number }
   private darkness = 0
+  /** The editor's view (docs/engine-split.md P4): the camera is the author's to move, never the player's to follow; no music. */
+  private free = false
+  private editorLayer?: Phaser.GameObjects.Graphics
   private music?: Phaser.Sound.BaseSound
   private musicKey?: string
   muted = false
@@ -211,7 +214,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private fitBounds(zoom = this.cameras.main.zoom): void {
-    if (!this.base) return
+    if (!this.base || this.free) return
     const cam = this.cameras.main
     const mw = this.base.width * T
     const mh = this.base.height * T
@@ -241,7 +244,7 @@ export class WorldScene extends Phaser.Scene {
       this.pending.frames = []
       return
     }
-    this.cameras.main.fadeIn(220, 8, 10, 16)
+    if (!this.free) this.cameras.main.fadeIn(220, 8, 10, 16)
     for (const v of this.views.values()) this.destroyView(v)
     this.views.clear()
     for (const t of this.tileFx.values()) t.sprites.forEach((s) => s.destroy())
@@ -454,7 +457,7 @@ export class WorldScene extends Phaser.Scene {
     this.drawQuestArrows(f)
     const me = this.views.get(this.playerId)
     this.frameBossFight(f, me)
-    if (me && !this.bossCam && this.following !== me.root) {
+    if (me && !this.bossCam && !this.free && this.following !== me.root) {
       this.following = me.root
       this.cameras.main.startFollow(me.root, true, 0.2, 0.2)
     }
@@ -592,6 +595,57 @@ export class WorldScene extends Phaser.Scene {
     const fy = Math.floor(p.y + o.displayOriginY)
     if (fx < 0 || fy < 0 || fx >= o.frame.width || fy >= o.frame.height) return false
     return this.textures.getPixelAlpha(o.flipX ? o.frame.width - 1 - fx : fx, o.flipY ? o.frame.height - 1 - fy : fy, o.texture.key, o.frame.name) > 0
+  }
+
+  // ---------------------------------------------------------------- the editor's canvas (docs/engine-split.md P4)
+
+  /** The camera free (the editor's): it follows no one, and the author moves it; no music plays. */
+  setFreeCamera(on: boolean): void {
+    this.free = on
+    if (on) {
+      this.following = undefined
+      this.cameras.main.stopFollow()
+      this.cameras.main.removeBounds()
+      this.muted = true
+      this.music?.stop()
+    }
+  }
+
+  /** Move the free camera by so many screen pixels; zoom it by a factor, about a screen point. */
+  panBy(dx: number, dy: number): void {
+    const cam = this.cameras.main
+    cam.scrollX -= dx / cam.zoom
+    cam.scrollY -= dy / cam.zoom
+  }
+  zoomBy(f: number, sx = this.scale.width / 2, sy = this.scale.height / 2): void {
+    const cam = this.cameras.main
+    const before = cam.getWorldPoint(sx, sy)
+    cam.setZoom(Math.max(0.5, Math.min(6, cam.zoom * f)))
+    cam.preRender()
+    const after = cam.getWorldPoint(sx, sy)
+    cam.scrollX += before.x - after.x
+    cam.scrollY += before.y - after.y
+  }
+  /** Centre the camera on a cell. */
+  lookAt(x: number, y: number): void {
+    this.cameras.main.centerOn(x * T + T / 2, y * T + T / 2)
+  }
+
+  /** The cell under a screen point (the editor's: the ground storey's). */
+  cellAt(sx: number, sy: number): { x: number; y: number } | undefined {
+    if (!this.base) return undefined
+    const p = this.cameras.main.getWorldPoint(sx, sy)
+    const x = Math.floor(p.x / T)
+    const y = Math.floor(p.y / T)
+    return x >= 0 && y >= 0 && x < this.base.width && y < this.base.height ? { x, y } : undefined
+  }
+
+  /** What the editor draws over the world (a selection, the anchors, the areas, the portals), in world pixels; drawn anew each call. */
+  drawOverlay(draw: (g: Phaser.GameObjects.Graphics, tile: number) => void): void {
+    if (!this.ready) return
+    this.editorLayer ??= this.add.graphics().setDepth(1e7 - 3)
+    this.editorLayer.clear()
+    draw(this.editorLayer, T)
   }
 
   /** The map on screen (for the menu's map tab). */

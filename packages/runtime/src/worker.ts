@@ -473,7 +473,7 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     }
     for (const id of game.engine.world.state.loadedMaps) if (id !== here) delete game.engine.world.state.maps[id]
   } else {
-    game = Game.create(index, ontology(), lib, init.start)
+    game = Game.create(index, ontology(), lib, init.at ? { at: init.at } : init.start)
     // a new game is already the world as it is now: no upgrade is due (the game's, the author's, on creating it)
     const w = game.engine.world
     played().fresh?.(game)

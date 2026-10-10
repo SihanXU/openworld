@@ -86,6 +86,11 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   `serve.ts` projects served compiled, `cli.ts` (`npm run game -- check|build`), `schema.ts` the JSON Schemas
   from the engine's types (`schema/`, `npm run schema`). A bundle (`bundle.json` + `world/` + `assets/`) is a
   whole game: another bundle URL is another game.
+- `packages/editor` — the OpenWorld Editor (docs/engine-split.md §6, §11): `src/server/api.ts` the local
+  service over the projects' files (runs in its dev server, `npm run editor`), `src/app/` the editor — `store.ts`
+  the project in memory (edits, undo, save, compiled as it is now), `canvas.ts` the runtime's WorldScene with a
+  free camera, `mapMode.ts`, `peopleMode.ts`, `problems.ts` the validation panel, `modes.ts` the further modes
+  (P5, P6); playtest opens the player at a cell.
 - `games/starter` — the minimal game, data only (S6), with its own catalogue and assets (a subset of the CC0
   pack): the kernel with no module plays it (`test/kernel.test.ts`); the editor's new project.
 - `games/openworld/content` — ontology (terrains, statuses, elements, types), item catalogue
@@ -233,6 +238,7 @@ npm test                 # vitest (engine + base rules + Mod port)
 npm run typecheck
 npm run coverage         # interaction coverage + refresh its test baseline
 npm run build            # gen:world + static build → games/openworld/client/dist
+npm run editor           # the OpenWorld Editor on http://localhost:5175/editor/ (the games under games/)
 npm run play             # the engine's player on :5174 (?game=/games/starter/ or /games/openworld/)
 npm run build:player     # the player alone → packages/runtime/dist, the starter built beside it
 npm run game -- check games/starter   # a project's problems (build <project> --out <dir>: a bundle)

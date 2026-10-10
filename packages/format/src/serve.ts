@@ -37,6 +37,21 @@ export function compiledAt(dir: string): Compiled {
 export const isProject = (dir: string) => existsSync(join(dir, 'game.json'))
 
 /**
+ * A game's project in the folder of games: `games/<id>/` when it is a project, or `games/<id>/project/` (a game
+ * written by code, baked into the format: OpenWorld's `npm run bake`).
+ */
+export function projectDir(games: string, id: string): string | undefined {
+  const dir = join(games, id)
+  return isProject(dir) ? dir : isProject(join(dir, 'project')) ? join(dir, 'project') : undefined
+}
+
+/** Where a game's pictures and sounds are: its project's assets/, or its public/assets/. */
+export function assetsDir(games: string, id: string): string {
+  const own = projectDir(games, id)
+  return own && existsSync(join(own, 'assets')) ? join(own, 'assets') : join(games, id, 'public', 'assets')
+}
+
+/**
  * Answer a request under `/games/<id>/…` from the folder of games, or pass it on (false). A project's errors are
  * an answer too: the bundle is refused with them, so the author sees why.
  */
@@ -45,6 +60,7 @@ export function serveGame(games: string, req: IncomingMessage, res: ServerRespon
   if (!m) return false
   const [, id, rest] = m
   const dir = join(games, id)
+  const project = projectDir(games, id)
   const send = (status: number, type: string, body: string | Buffer) => (res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store' }), res.end(body), true)
   const json = (v: unknown) => send(200, 'application/json', JSON.stringify(v))
   const file = (root: string, rel: string) => {
@@ -52,12 +68,12 @@ export function serveGame(games: string, req: IncomingMessage, res: ServerRespon
     if (!at.startsWith(root) || !existsSync(at) || !statSync(at).isFile()) return send(404, 'text/plain', `no ${rel}`)
     return send(200, TYPES[extname(at)] ?? 'application/octet-stream', readFileSync(at))
   }
-  if (isProject(dir)) {
-    if (rest.startsWith('assets/')) return file(dir, rest)
+  if (project) {
+    if (rest.startsWith('assets/')) return file(assetsDir(games, id), rest.slice('assets/'.length))
     if (rest !== 'bundle.json' && !rest.startsWith('world/')) return send(404, 'text/plain', `no ${rest}`)
     let c: Compiled
     try {
-      c = compiledAt(dir)
+      c = compiledAt(project)
     } catch (e) {
       return send(500, 'text/plain', `${id}: ${(e as Error).message}`)
     }

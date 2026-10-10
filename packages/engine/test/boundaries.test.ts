@@ -16,6 +16,7 @@ const MAY_IMPORT: Record<string, string[]> = {
   modules: ['@openworld/engine'],
   stdlib: ['@openworld/engine'],
   format: ['@openworld/engine', '@openworld/stdlib', '@openworld/modules'],
+  editor: ['@openworld/engine', '@openworld/stdlib', '@openworld/format', '@openworld/modules', '@openworld/runtime'],
   modder: ['@openworld/engine', '@openworld/modules', '@openworld/format', '@openworld/agent'],
   runtime: ['@openworld/engine', '@openworld/modules', '@openworld/format'],
 }

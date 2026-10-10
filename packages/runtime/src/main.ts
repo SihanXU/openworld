@@ -430,7 +430,20 @@ const cover = new Cover(WORLD, {
     minimap.relabel()
   },
 })
-void cover.show()
+/**
+ * A playtest (the editor's, docs/engine-split.md P4): `?playtest=1`, a new game at once with nothing saved, at
+ * the world's start or at the cell `?at=<map>,<x>,<y>`.
+ */
+const playtest = PARAMS.get('playtest') === '1'
+if (playtest) {
+  // (no cover: the page's loading note goes as the cover's would)
+  document.getElementById('loading')?.remove()
+  const [map, x, y] = (PARAMS.get('at') ?? '').split(',')
+  const at = map && Number.isFinite(Number(x)) && Number.isFinite(Number(y)) ? { map, x: Number(x), y: Number(y) } : undefined
+  slot = undefined
+  quietSave = true
+  void (async () => send({ t: 'init', base: worldBase(), library: await kvGet<LibraryData>(libraryKey()), modder: MODDER, prefetch: PARAMS.get('prefetch') === '1', ...(at && { at }) }))()
+} else void cover.show()
 
 // the death screen: the world stops; rise again, load a save, or back to the title
 const death = new DeathScreen({
