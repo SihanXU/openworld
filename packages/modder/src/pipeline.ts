@@ -272,7 +272,9 @@ export class Modder {
   /** A design in its lane, then in a slot (live first); one that waited is answered by what was committed meanwhile, if it can be. */
   private async episode(req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, eo: EpisodeOptions): Promise<ResolveReply> {
     if (!this.progress.has(sig.key)) this.progress.set(sig.key, { stage: 'queued' })
-    const leave = await this.enterLane(laneOf(req))
+    // a revision is background work on a patch already shipped: it takes no lane, so a player's request
+    // never waits behind it (its commit is validated against the library as it is then, like any other)
+    const leave = eo.revise ? () => {} : await this.enterLane(laneOf(req))
     const release = await this.design.acquire(eo.profile === 'live' ? 0 : 1)
     try {
       if (!eo.revise) {
@@ -598,7 +600,7 @@ export class Modder {
       this.later(`audit ${ep.id}`, async () => {
         const model = new Meter(this.backend!)
         const found = await this.audit(model, req, ep.patch!, ctx, h)
-        this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, confirmed: found.confirmed.map(({ evidence: _, ...f }) => f), unconfirmed: found.unconfirmed.map((u) => `${u.finding.title}: ${u.why}`), usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
+        this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, confirmed: found.confirmed.map(({ evidence: _, ...f }) => f), unconfirmed: found.unconfirmed.map((u) => `${u.finding.title}: ${u.why}`), ...(found.error && { error: found.error }), usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
         if (!found.confirmed.length) return
         for (const id of ep.rules) this.opts.library.remove(id, this.now())
         this.log(`${ep.id} audit: ${found.confirmed.map((f) => `${f.kind}: ${f.title}`).join('; ')} → removed ${ep.rules.join(', ')}`)
@@ -708,7 +710,7 @@ export class Modder {
       // out is no audit: that is the caller's to handle (not shipped unaudited before shipping)
       if (this.down()) throw err
       this.log(`audit failed: ${(err as Error).message}`)
-      return { confirmed: [], unconfirmed: [] }
+      return { confirmed: [], unconfirmed: [], error: (err as Error).message }
     }
   }
 

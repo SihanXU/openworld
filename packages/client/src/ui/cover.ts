@@ -3,7 +3,7 @@
 // slot, a new game in a slot, load a slot, controls, language. The slot panel shows each of the
 // three slots' summary, and writes a slot out to a file or reads one back (saves.ts).
 
-import { OBJECTIVES, PLAYER_LOOK, PROLOGUE_DONE, PROLOGUE_OBJECTIVES } from '@lsw/content'
+import { PLAYER_LOOK } from '@lsw/content'
 import type { Difficulty, Look } from '@lsw/engine'
 import { Creator } from './creator.ts'
 import type { SaveSummary } from '../protocol.ts'
@@ -153,9 +153,8 @@ export class Cover {
   private line(s: SaveSummary | undefined): string {
     if (!s) return t('cvOldSave')
     if (s.ended) return locale.value === 'zh' ? `极限 · 已终结 · ${tx(s.map)} · 第 ${s.day} 天` : `Hardcore · ended · ${tx(s.map)} · day ${s.day}`
-    const o = s.prologue < PROLOGUE_DONE ? PROLOGUE_OBJECTIVES[s.prologue] : OBJECTIVES[s.quest]
     const time = `${String(s.hour).padStart(2, '0')}:${String(s.minute).padStart(2, '0')}`
-    return [tx(s.map), `${t('cvDay').replace('{n}', String(s.day))} ${time}`, `Lv ${s.level}`, o && tx(o.title)].filter(Boolean).join(' · ')
+    return [tx(s.map), `${t('cvDay').replace('{n}', String(s.day))} ${time}`, `Lv ${s.level}`, s.objective ? tx(s.objective) : s.quest && tx(s.quest)].filter(Boolean).join(' · ')
   }
 
   private panelHtml(): string {

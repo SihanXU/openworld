@@ -9,6 +9,7 @@ import { personLook } from '../assets/looks.ts'
 import { crowdLook, figureDef, figureId, portraitOf, preparePortrait } from '../assets/figure/index.ts'
 import { GroundAtlas, T, groundTile, hash2 } from '../assets/ground.ts'
 import { depthOf, footOf } from './depth.ts'
+import { prefs } from '../ui/common.ts'
 
 /** How much higher a storey is drawn than the one below it (world-model.md §5.2): one tile, a wall's height. */
 const STOREY_LIFT = T
@@ -449,6 +450,7 @@ export class WorldScene extends Phaser.Scene {
     }
     for (const [id, v] of this.views) if (!seen.has(id)) (this.destroyView(v), this.views.delete(id))
     this.drawQuestMarks(f)
+    this.drawQuestArrows(f)
     const me = this.views.get(this.playerId)
     this.frameBossFight(f, me)
     if (me && !this.bossCam && this.following !== me.root) {
@@ -493,6 +495,45 @@ export class WorldScene extends Phaser.Scene {
       }
       v.role?.setVisible(show)
     }
+  }
+
+  private arrows?: HTMLElement
+  /**
+   * The tracked quest's markers on this map (docs/quests.md §2.5): a diamond over a target in view, and an arrow
+   * at the screen's edge pointing to one out of it (the options turn them off).
+   */
+  private drawQuestArrows(f: Frame): void {
+    if (!this.arrows) {
+      this.arrows = document.createElement('div')
+      this.arrows.className = 'quest-arrows'
+      this.game.canvas.parentElement?.appendChild(this.arrows)
+    }
+    const targets = prefs.get('markers') ? (f.quests?.targets ?? []).filter((q) => q.map === f.map) : []
+    const cam = this.cameras.main
+    const w = cam.width
+    const h = cam.height
+    const pad = 26
+    const html: string[] = []
+    for (const q of targets) {
+      const sx = ((q.x + 0.5) * T - cam.worldView.x) * cam.zoom
+      const sy = ((q.y + 0.5) * T - cam.worldView.y) * cam.zoom - T * cam.zoom
+      if (sx >= pad && sx <= w - pad && sy >= pad && sy <= h - pad) {
+        html.push(`<span class="qa on" style="left:${sx}px;top:${sy}px"><i></i></span>`)
+        continue
+      }
+      // out of view: on the edge, the way to it
+      const cx = w / 2
+      const cy = h / 2
+      const dx = sx - cx
+      const dy = sy - cy
+      const k = Math.min((w / 2 - pad) / Math.max(1e-6, Math.abs(dx)), (h / 2 - pad) / Math.max(1e-6, Math.abs(dy)))
+      const ex = cx + dx * k
+      const ey = cy + dy * k
+      const deg = (Math.atan2(dy, dx) * 180) / Math.PI + 90
+      html.push(`<span class="qa" style="left:${ex}px;top:${ey}px;transform:rotate(${deg}deg)"><i></i></span>`)
+    }
+    const out = html.join('')
+    if (this.arrows.innerHTML !== out) this.arrows.innerHTML = out
   }
 
   /** Outline the tile the inputs aim at: the mouse's own or neighbour tile, or the one in front. */
@@ -689,6 +730,12 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private textureFor(e: EntitySnap): { img: string; frame: string; ax: number; ay: number; actor?: EView['actor'] } {
+    // a body (docs/npc-sandbox.md §2.8): the one it was, as they looked, lying where they fell
+    if (e.tags.includes('body') && e.look && typeof e.look === 'object') {
+      const a = figureDef(this, e.look)
+      const { img, fw, fh } = actorFrames(this, a.key, a.def)
+      return { img, frame: `${a.key}:0,0`, ax: fw / 2, ay: a.def.anchorY ?? fh }
+    }
     // a thing the world learned, with a picture of its own
     if (!e.tags.includes('agent') && e.sprite?.startsWith('art:') && this.textures.exists(e.sprite)) return { img: e.sprite, frame: '__BASE', ax: 8, ay: 14 }
     if (e.tags.includes('agent')) {
@@ -1069,12 +1116,14 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     const tintStatus = e.statuses.find((s) => TINT_OF[s])
-    if (tintStatus) v.body.setTint(TINT_OF[tintStatus]).setTintMode(Phaser.TintModes.MULTIPLY)
+    // a body is grey (docs/npc-sandbox.md §2.8)
+    if (e.tags.includes('body')) v.body.setTint(0x8a8a8a).setTintMode(Phaser.TintModes.MULTIPLY)
+    else if (tintStatus) v.body.setTint(TINT_OF[tintStatus]).setTintMode(Phaser.TintModes.MULTIPLY)
     else if (v.actor?.tint) v.body.setTint(v.actor.tint).setTintMode(Phaser.TintModes.OVERLAY)
     else v.body.clearTint()
     // a thing an act waits on shimmers; one who is down lies on the ground
     v.body.setAlpha(this.alphaOf(v))
-    v.body.setAngle(!e.boss && (e.statuses.includes('down') || e.statuses.includes('out_cold') || e.statuses.includes('asleep')) ? 90 : 0)
+    v.body.setAngle(!e.boss && (e.statuses.includes('down') || e.statuses.includes('out_cold') || e.statuses.includes('asleep') || e.statuses.includes('jailed') || e.tags.includes('body')) ? 90 : 0)
     // held item (small, at the hand)
     if (e.held && e.tags.includes('agent')) {
       const d = CATALOG.items[e.held]

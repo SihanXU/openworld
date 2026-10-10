@@ -6,12 +6,17 @@ import { line, type PersonDef } from '../person.ts'
 export const holt: PersonDef = {
   id: 'npc.holt',
   role: 'guard',
+  essential: true,
   name: { en: 'Holt', zh: '霍尔特' },
   gender: 'male',
   look: { parts: { hair: 'hair.short', face: 'face.keen', outfit: 'outfit.gambeson', hat: null, beard: null }, colors: { hair: 'umber', eyes: 'storm', skin: 'light', 'outfit.1': 'madder' } },
   age: 38,
   temperament: { personality: 'dutiful', manner: 'plain', social: 'reserved', outlook: 'wary' },
   ties: {},
+  // he keeps the village's watch (docs/npc-sandbox.md §2.7): he stops the wanted, and fights back
+  watch: 'firstlight',
+  fights: true,
+  purse: 15,
   schedules: {
     default: [
       [23, 6, 'meadow:guard.home', 'sleep'],

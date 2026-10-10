@@ -7,7 +7,7 @@ export type Tile = Aim
 
 export type ToWorker =
   | { t: 'skipLearning' }
-  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** the modder service, if any */ modder?: string; /** true: prefetch undefined acts the pointer rests on (?prefetch=1; off by default) */ prefetch?: boolean; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look }
+  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any */ modder?: string; /** true: prefetch undefined acts the pointer rests on (?prefetch=1; off by default) */ prefetch?: boolean; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look }
   /** The one at the keys, fallen, rises again: where they fell, or at home (the death screen). */
   | { t: 'respawn'; home: boolean }
   /** Hold a direction (null: stop); `walk`: Shift, slower than the default run. */
@@ -62,6 +62,20 @@ export type ToWorker =
   /** The chest panel. */
   | { t: 'transfer'; from: 'chest' | 'bag'; item: string; all: boolean }
   | { t: 'closePanel' }
+  /** X and V (docs/npc-sandbox.md): draw one's weapon, walk soft — the input's own posture, toggled. */
+  | { t: 'toggle'; what: 'drawn' | 'sneaking' }
+  /** The talk panel: a verb said to the one the talk is with (and its choice); the talk closed. */
+  | { t: 'talk'; verb: string; choice?: string }
+  /** The journal: the quest followed (docs/quests.md §2.5); the commission board: a favour taken on. */
+  | { t: 'track'; id?: string }
+  | { t: 'board'; who: string; ref: string }
+  | { t: 'closeTalk' }
+  /** The trade panel: one of the merchant's goods bought, or a thing sold to it; the panel closed. */
+  | { t: 'trade'; item: string; buy: boolean }
+  | { t: 'closeTrade' }
+  /** A person's pockets: a thing taken from them, or one slipped in; the panel closed. */
+  | { t: 'pocket'; item: string; take: boolean }
+  | { t: 'closePockets' }
   /** Time stops while a menu, a dialogue or a question is open. */
   | { t: 'pause'; on: boolean }
   | { t: 'patch'; id?: string; patch: Patch }
@@ -99,6 +113,8 @@ export interface LibraryView {
 }
 
 export type FromWorker =
+  /** The shared log synced this far from this service: the next load goes on from here. */
+  | { t: 'synced'; url: string; seq: number; /** the library changed: the position is stored with it, not before it */ changed: boolean }
   | { t: 'placement'; preview: PlacementPreview }
   | { t: 'ready'; stats: WorldIndex['stats']; name: WorldIndex['name']; resumed: boolean }
   | { t: 'map'; map: MapData }
@@ -137,6 +153,8 @@ export interface Atlas {
   maps: AtlasMap[]
   waypoints: { id: string; map: string; x: number; y: number; name: Text; attuned: boolean }[]
   here: { map: string; x: number; y: number }
+  /** Where the tracked quest's open objectives point (docs/quests.md §2.5): its markers on the world map. */
+  targets?: { map: string; x: number; y: number; text: Text }[]
 }
 
 /** What a save slot shows without loading it: where, when, how far. */
@@ -146,9 +164,9 @@ export interface SaveSummary {
   hour: number
   minute: number
   level: number
-  /** The story's stages (the objective is looked up from them). */
-  prologue: number
-  quest: number
+  /** The quest followed, and its first open objective (docs/quests.md). */
+  quest?: Text
+  objective?: Text
   difficulty?: Difficulty
   /** A hardcore game whose one life is spent: kept as it ended, never played on. */
   ended?: boolean

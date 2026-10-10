@@ -46,6 +46,11 @@ export interface EntityInfo {
   makeup?: { type: string; count: number; chance?: number }[]
   /** How it looks, in words (a person's look, docs/looks.md): its body and each part in its colour. */
   look?: string
+  /**
+   * A person (docs/npc-sandbox.md §2.12): their role, temperament and ties, their household, whether they fight, what they
+   * think of the one who acted (regard, −100..100) and what they know of them (deeds, in words).
+   */
+  person?: { role: string; temperament?: Record<string, string>; ties?: Record<string, string>; household?: string; fights?: boolean; regard?: number; knows?: string[] }
   /** Offset from the host's tile. */
   at?: [number, number]
 }
@@ -192,6 +197,7 @@ const AUTHORING_RULES = [
   'Things with durability (props.maxHp) already lose it to blows and fire, and break into their makeup: a blow on a tree, rock or a wall is defined. A new type that can break names props.material and what it leaves (makeup [{type, count}] or a rule of its own on threshold/cross "broken").',
   'An act hosted by an instrument that consumes or changes it says so: `destroy` or `transform` the host.',
   'Outcomes the world started by itself (origin "world") happen without the player asking: keep them small and legible, never harm a person, never touch the story\'s facts, and let people react with say/emote, a notice to the story (a topic), or goto.',
+  'A topic a patch raises (notify the story, what "topic", value <id>) is news of its own: a new snake_case id. The story\'s own topics (the crown, the slain dragon, ...) are raised by the story when they happen; a patch raising one is refused.',
 ]
 
 const EVENTS: Record<string, string> = {
@@ -209,7 +215,7 @@ const EVENTS: Record<string, string> = {
   'time/timer': 'a status ran out on the host (params status, at: its scheduled deadline; actor: who gave it).',
   'threshold/gain|lose': 'the host gained or lost a status (param status).',
   'threshold/cross': 'a prop of the host came to a declared line (param name: broken at hp 0 — for every thing with durability: a person goes down, a tree falls, a rock breaks into its makeup; hungry under six tenths of maxHunger, and back over it with param way "up" — the host gains or loses the status hungry, and hunger falls slowly while it lasts; param prop).',
-  seen: 'the host (an actor) saw someone act: roles actor (the doer), target, instrument; params act (the verb), owner (mine | another | nobody: whose the target was before), defined (the world had an answer for the act and all it set going).',
+  seen: 'the host (an actor) saw someone act: roles actor (the doer), target, instrument; params act (the verb, or presence: someone seen where they are), owner (mine | ours | another | nobody: whose the target was before, to the seer), victim (me | ours | kin | other | none: whose the deed was against, to the seer), whose (the owner\'s id), theirs (the doer did not own it), from (person | container | ground), person (the target was a person), harm, killed, value, map, x, y, defined (the world had an answer for the act and all it set going); on a presence: trespass, suspect (a stranger the seer remembers doing something), drawn (a blade out), wanted (the bounty), meet (a face close in the light). The {deed} condition reads which deed it is (docs/npc-sandbox.md).',
   stuck: 'the host cannot go on with what it does (param activity): the day of a person — target is what it needs (gone, or not as it must be), or the spot they cannot reach; a companion that cannot follow (activity follow) — target is its leader.',
   broken: 'the story: content it must keep playable broke (param invariant; target the person it belongs to). The default is the invariant\'s fallback.',
 }
@@ -223,8 +229,8 @@ const IMPULSES: Record<string, string> = {
   taken: 'the host (a thing) is being taken: other = the taker (or receiver); param into (hand | contents | tile). Its root moves it there.',
   receive: 'something is put on or into the host: item = the thing. The host decides: take it (emit taken to the item with into) or refuse.',
   offered: 'the host (an actor) is handed a thing: item = the thing; accept (emit taken with into contents) or decline.',
-  handle: 'a bare hand on the host: open, read, talk, push, shake — the host says',
-  notify: 'news for the host: params what (a key) and value — a topic for the story, the player\'s stage, a defeat for the one who struck.',
+  handle: 'a bare hand on the host: open, read, talk, push, shake — the host says; param say (a talk verb: ask, trade, follow, persuade, bribe, intimidate, apologise, pay, jail, resist, buy with param item …) when one speaks to it, and a say no rule knows is the host\'s to answer',
+  notify: 'news for the host: params what (a key) and value — a topic for the story, the player\'s stage, a defeat for the one who struck; for people: pay (amount, to the source), give (the item, to the source), surrender, jail (map, x, y, hours), news (deeds), chat, calm; for a watch: report (actor, amount, key), pardon.',
 }
 
 /**
@@ -278,14 +284,25 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       '{chance:p}',
       '{hour:{from,to}}',
       "{night: true|false} — it is night (or day), as long as the story's night has grown (it lengthens as the seals fall)",
-      "{count:{role, in: contents|tile, match?: Selector, cmp: Bounds}} — how many things are in a role's contents (or on its tile besides itself)",
+      "{count:{role, in: contents|tile|map, match?: Selector, cmp: Bounds}} — how many things are in a role's contents (or on its tile besides itself, or lie anywhere on its map besides itself)",
       '{topic:id} — something that happened is still fresh',
       '{weather:[sun|cloud|rain|storm|fog]} — the weather now',
       '{exists: Selector} — something matching it exists anywhere in the world',
       '{outdoors:true} — the host is out under the sky',
       "{makeup: role} — the role's type says what it is made of (its makeup: what it leaves when it breaks)",
+      "{worn: role} — the role's thing is worn (or wielded) by the one who carries it",
       "{rel: {role, how}} — the role has that relation now: on (stands on something), support (something holds it up), in-region …",
       '{fighting: role} — the role is fighting: it struck at an actor, was struck by one, or a hostile one came after it, in the last five seconds',
+      '{regard: {of: role, toward: role, cmp}} — what one person thinks of another (−100..100, its regard: talk, gifts and help raise it, deeds lower it)',
+      '{grudge: {of: role, toward: role, deed?}} — one holds an unsettled deed against another (done to them, their household or kin): any, or one kind (theft, assault …)',
+      '{owns: [roleA, roleB]} — roleA owns roleB (its own or its household\'s)',
+      '{knows: [roleA, roleB]} — roleA knows roleB by sight',
+      '{remembers: role} — the role keeps a record of its own (a person whose day is its own): what it sees, it remembers',
+      '{deed: true | id} — the seen event holds a deed (theft, pickpocket, assault, murder, vandalism, arson, trespass)',
+      '{sway: {of: role, by: role, how: persuade|intimidate, bonus?}} — a roll of roleB swaying roleA',
+      '{bounty: {role, cmp}} — what the role owes the watch of where the host is',
+      '{canPay: {role, mul?}} — the role carries coin enough for its bounty here (times mul)',
+      '{unpardonable: role} — the role\'s bounty here is past what the watch pardons',
     ],
     events: EVENTS,
     impulses: IMPULSES,
@@ -312,6 +329,11 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
 
 const WINDOW = 3 // tiles around the host in the scenario (7x7)
 const TIMEOUT_TICKS = 100 // 10 s: then the default (the record stays patchable)
+
+/** Is a story fact protected: a listed prefix ending in "." (`ford.`), or a listed key itself and what hangs from it (`topic.crown`, `topic.crown.days`). */
+function isProtected(key: string, list: string[] = []): boolean {
+  return list.some((p) => key === p || key.startsWith(p.endsWith('.') ? p : `${p}.`))
+}
 
 /**
  * A library as a save kept it: the base rules fresh from content, then the patches' types and
@@ -519,9 +541,11 @@ export class ModPort implements UndefinedSink {
   /** Validate and apply a patch for a request (or, with id undefined, a free-standing patch). */
   /**
    * Validate a patch and take it. A patch for a request of this port is checked in that request's
-   * scene; one from elsewhere (the shared library, a prefetch) in the scene it came with.
+   * scene; one from elsewhere (the shared library, a prefetch) in the scene it came with. `answers`:
+   * the request a shared patch was made for; one of this port's own (a revision of its answer) is
+   * credited to it.
    */
-  submit(id: string | undefined, patch: Patch, scenario?: Scenario, replaces: string[] = []): ValidationResult {
+  submit(id: string | undefined, patch: Patch, scenario?: Scenario, replaces: string[] = [], answers?: string): ValidationResult {
     const eng = this.eng
     const w = eng.world
     const rec = id ? this.get(id) : undefined
@@ -575,7 +599,9 @@ export class ModPort implements UndefinedSink {
     const trigger = rec?.origin ?? patch.trigger ?? a0trigger(patch)
     for (const a of patch.artifacts) {
       if (a.kind !== 'rule') continue
-      const rule: Rule = { ...a.rule, source: { origin: 'patch', request: id, author: patch.author ?? 'manual', at: now, note: patch.note, trigger } }
+      // a shared patch that answers a request of this game's (a revision of one's own) is credited to it
+      const request = id ?? (answers && this.get(answers) ? answers : undefined)
+      const rule: Rule = { ...a.rule, source: { origin: 'patch', request, author: patch.author ?? 'manual', at: now, note: patch.note, trigger } }
       eng.lib.add(rule, now, replaces.find((old) => !eng.lib.rules.has(old)))
       ruleIds.push(rule.id)
     }
@@ -749,11 +775,21 @@ function stillValid(eng: Engine, ev: GameEvent): boolean {
 
 // ---------------------------------------------------------------- building requests
 
-function info(eng: Engine, role: string, v: View | undefined, origin?: { x: number; y: number }): EntityInfo | undefined {
+function info(eng: Engine, role: string, v: View | undefined, origin?: { x: number; y: number }, toward?: Ref): EntityInfo | undefined {
   if (!v) return undefined
   const w = eng.world
   const p = w.refPos(v.ref)
   const chain = w.onto.resolve(v.type).chain
+  const e = v.entity
+  const other = toward && toward.e !== v.ref.e ? toward.e : undefined
+  const person = e?.npc && {
+    role: e.npc.role,
+    ...(e.npc.person?.temperament && { temperament: e.npc.person.temperament as Record<string, string> }),
+    ...(e.npc.person?.ties && { ties: Object.fromEntries(Object.entries(e.npc.person.ties).map(([id, t]) => [eng.nameOf({ e: id }), t])) }),
+    ...(typeof w.prop(e, 'household') === 'string' && { household: String(w.prop(e, 'household')) }),
+    ...(w.prop(e, 'fights') === true && { fights: true }),
+    ...(other && { regard: eng.social.regard(e, other), knows: (e.npc.memory?.deeds ?? []).filter((d) => d.by === other).slice(-4).map((d) => eng.social.deedWords(d, 'en')) }),
+  }
   return {
     role,
     id: v.id,
@@ -766,6 +802,7 @@ function info(eng: Engine, role: string, v: View | undefined, origin?: { x: numb
     material: v.entity && w.materialOf(v.entity),
     makeup: w.onto.resolve(v.type).makeup,
     look: v.entity && typeof v.entity.look === 'object' && w.onto.data.looks ? lookWords(w.seenLook(v.entity) as Look, w.onto.data.looks) : undefined,
+    ...(person && { person }),
     at: p && origin ? [p.x - origin.x, p.y - origin.y] : undefined,
   }
 }
@@ -829,12 +866,14 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
   const recent = [...w.recent, ...w.fx.flatMap((f) => (f.t === 'log' || f.t === 'say' ? [f.text] : []))].slice(-RECENT_LINES).map((t) => textOf(t))
   const hostView = roles.host
   const infos: Partial<Record<RoleName, EntityInfo>> = {}
-  for (const [k, v] of Object.entries(roles)) if (k !== 'host' && v) infos[k as RoleName] = info(eng, k, v, center)
+  // a person in the event is told with what they think of the one who acted (docs/npc-sandbox.md §2.12)
+  const doer = ev.roles.actor ?? (ev.cause ? { e: ev.cause } : undefined)
+  for (const [k, v] of Object.entries(roles)) if (k !== 'host' && v) infos[k as RoleName] = info(eng, k, v, center, doer)
   return {
     id,
     summary: summarize(eng, ev),
     origin: ev.origin === 'player' ? 'player' : 'world',
-    event: { kind: ev.kind, params: { ...(ev.params ?? {}) }, host: info(eng, 'host', hostView, center), roles: infos, detail: detailOf(eng, ev) },
+    event: { kind: ev.kind, params: { ...(ev.params ?? {}) }, host: info(eng, 'host', hostView, center, doer), roles: infos, detail: detailOf(eng, ev) },
     hole: { rule: res.hole?.rule.id ?? '?', path: res.hole?.path ?? [], default: res.hole?.default ?? [], at: res.open?.path ?? [] },
     context: {
       map: { id: mapData.id, name: textOf(mapData.name), kind: mapData.kind, region: mapData.region },
@@ -858,7 +897,11 @@ function detailOf(eng: Engine, ev: GameEvent): string | undefined {
     const inv = eng.invariants.find((i) => i.id === ev.params?.invariant)
     return inv ? textOf(inv.text) : undefined
   }
-  if (ev.kind === 'seen') return `${n(ev.host)} saw ${n(ev.roles.actor)} ${ev.params?.act} ${n(ev.roles.target)} (${ev.params?.owner === 'mine' ? 'it is theirs' : ev.params?.owner === 'another' ? "it is someone else's" : "it is nobody's"})`
+  if (ev.kind === 'seen') {
+    const deed = eng.social.deedIn(ev)
+    const whose = ev.params?.owner === 'mine' || ev.params?.owner === 'ours' ? 'it is theirs' : ev.params?.owner === 'another' ? "it is someone else's" : "it is nobody's"
+    return `${n(ev.host)} saw ${n(ev.roles.actor)} ${ev.params?.act} ${n(ev.roles.target)} (${whose})${deed ? `: a ${textOf(deed.name)}` : ''}`
+  }
   if (ev.kind === 'stuck') {
     const p = 'e' in ev.host ? w.get(ev.host.e) : undefined
     const s = p?.npc?.person?.schedules?.flatMap((v) => v.entries).find((x) => x.activity === ev.params?.activity)
@@ -1062,8 +1105,19 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     }
     if ('none' in c) return role(c.none, `${where}.none`)
     if ('makeup' in c) return role(c.makeup, `${where}.makeup`)
+    if ('worn' in c) return role(c.worn, `${where}.worn`)
     if ('rel' in c) return role(c.rel.role, `${where}.rel.role`)
     if ('fighting' in c) return role(c.fighting, `${where}.fighting`)
+    if ('regard' in c) return (role(c.regard.of, `${where}.regard.of`), role(c.regard.toward, `${where}.regard.toward`))
+    if ('grudge' in c) return (role(c.grudge.of, `${where}.grudge.of`), role(c.grudge.toward, `${where}.grudge.toward`))
+    if ('owns' in c) return c.owns.forEach((r, i) => role(r, `${where}.owns[${i}]`))
+    if ('knows' in c) return c.knows.forEach((r, i) => role(r, `${where}.knows[${i}]`))
+    if ('remembers' in c) return role(c.remembers, `${where}.remembers`)
+    if ('sway' in c) return (role(c.sway.of, `${where}.sway.of`), role(c.sway.by, `${where}.sway.by`), c.sway.how !== 'persuade' && c.sway.how !== 'intimidate' ? void errors.push(`${where}.sway.how must be persuade|intimidate`) : undefined)
+    if ('bounty' in c) return role(c.bounty.role, `${where}.bounty.role`)
+    if ('canPay' in c) return role(c.canPay.role, `${where}.canPay.role`)
+    if ('unpardonable' in c) return role(c.unpardonable, `${where}.unpardonable`)
+    if ('deed' in c) return c.deed === true || ctx.ontology.deeds?.some((d) => d.id === c.deed) ? undefined : void errors.push(`${where}: unknown deed "${String(c.deed)}"`)
     if ('same' in c) return c.same.forEach((r, i) => role(r, `${where}.same[${i}]`))
     if ('leads' in c) return c.leads.forEach((r, i) => role(r, `${where}.leads[${i}]`))
     if ('has' in c) {
@@ -1078,7 +1132,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ('count' in c) {
       const k = c.count
       role(k.role, `${where}.count.role`)
-      if (k.in !== 'contents' && k.in !== 'tile') errors.push(`${where}.count.in must be contents|tile`)
+      if (k.in !== 'contents' && k.in !== 'tile' && k.in !== 'map') errors.push(`${where}.count.in must be contents|tile|map`)
       checkSel(k.match, `${where}.count.match`)
       if (!Object.keys(k.cmp ?? {}).length) errors.push(`${where}.count.cmp needs a bound`)
       for (const b of Object.keys(k.cmp ?? {})) if (!BOUNDS.has(b)) errors.push(`${where}.count.cmp.${b}: a bound is eq|gt|gte|lt|lte`)
@@ -1090,10 +1144,14 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   }
   const checkTo = (to: EmitTo, where: string) => {
     if (typeof to === 'string') {
-      if (to !== 'story' && to !== 'world' && !ROLE_REFS.has(to)) errors.push(`${where}: unknown receiver "${to}"`)
+      if (to !== 'story' && to !== 'world' && to !== 'watch' && !ROLE_REFS.has(to)) errors.push(`${where}: unknown receiver "${to}"`)
       return
     }
     if ('named' in to || 'map' in to) return
+    if ('around' in to) {
+      if (!(to.around >= 1 && to.around <= 12)) errors.push(`${where}: around must be 1–12`)
+      return
+    }
     if ('area' in to) {
       if (!(to.area.radius >= 1 && to.area.radius <= 3)) errors.push(`${where}: area radius must be 1–3`)
       return
@@ -1140,12 +1198,15 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       if (typeof e.to === 'object' && ('area' in e.to || 'map' in e.to) && (e.chance === undefined || e.chance >= 1)) warnings.push(`${where}: an emission to an area with chance 1 can cascade`)
       checkSel(e.filter, `${where}.filter`)
     }
+    // the story's own news is told by the story when it happens: a patch raises only topics of its own
+    // (a notice to the story, or the story's own `topic`), never one the story raises (its protected `topic.<id>`)
+    const raised = e.op === 'topic' ? e.id : e.op === 'emit' && e.impulse === 'notify' && e.params?.what === 'topic' ? e.params?.value : undefined
+    if (typeof raised === 'string' && isProtected(`topic.${raised}`, ctx.protectedFacts)) errors.push(`${where}: the story raises the topic "${raised}" itself when it happens; a patch may raise a topic of its own (a new id)`)
     // the boundaries of what the world does by itself
     if (ctx.world) {
       // the story's facts are its props: a world event's patch on the story may not change its protected ones
       const fact = (e.op === 'setProp' || e.op === 'addProp') && resident ? e.key : undefined
-      if (fact && (ctx.protectedFacts ?? []).some((p) => fact.startsWith(p))) errors.push(`${where}: a world event may not change the story's fact "${fact}"`)
-      if (e.op === 'setProp' && e.key === 'quest') errors.push(`${where}: a world event may not change the story's stage`)
+      if (fact && isProtected(fact, ctx.protectedFacts)) errors.push(`${where}: a world event may not change the story's fact "${fact}"`)
     }
   }
   /** A label is Text naming only the roles an input has: {target}, {instrument}, {actor}. */
@@ -1175,7 +1236,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     t.do.forEach((e, j) => checkEffect(e, `${where}.do[${j}]`, resident))
     // a world event's people are never harmed by what it learns
     if (ctx.world && host && (host.type ? isA(host.type, 'actor/person') || isA('actor/person', host.type) : !host.type))
-      for (const [j, e] of t.do.entries()) if (e.op === 'hurt' || e.op === 'destroy') errors.push(`${where}.do[${j}]: a world event may not harm a person (${e.op})`)
+      for (const [j, e] of t.do.entries()) if (e.op === 'hurt' || e.op === 'destroy' || e.op === 'die' || e.op === 'jail') errors.push(`${where}.do[${j}]: a world event may not harm a person (${e.op})`)
   }
   const ids = new Set<string>()
   for (const [i, r] of rules.entries()) {
@@ -1195,6 +1256,9 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (r.at !== undefined && !(Array.isArray(r.at) && r.at.every((x) => typeof x === 'string'))) errors.push(`${where}: at must be a path (a list of branches) when given`)
     if ('when' in (r as object) || 'do' in (r as object)) errors.push(`${where}: this is the earlier rule shape (when/do); write {host, on, tree}`)
     const resident = !!r.host?.type && isA(r.host.type, 'resident')
+    // a quest answers only its own rules (docs/quests.md §2: no patch hosts one, none writes one)
+    if (r.host?.type && isA(r.host.type, 'resident/quest')) errors.push(`${where}.host: a quest is the content's; a patch may not host a rule on one — notify the story, or the people the quest names`)
+    if (r.host?.type === 'resident') errors.push(`${where}.host: name the resident (resident/story, resident/world)`)
     if (r.tree === undefined) errors.push(`${where}: tree required`)
     else checkTree(r.tree, `${where}.tree`, resident, r.host)
     if (r.label !== undefined) checkLabel(r.label, `${where}.label`)

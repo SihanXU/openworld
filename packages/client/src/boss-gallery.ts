@@ -29,7 +29,7 @@ for (const boss of BOSSES) { const option = new Option(tx(boss.name), boss.id); 
 select.value = BOSS_BY_ID[params.get('boss') ?? ''] ? params.get('boss')! : 'pride'
 const scene = new WorldScene()
 const noop = () => {}
-const hud = new Hud({ select: noop, answer: noop, advance: noop, openJournal: noop, toggleInventory: noop, toggleCraft: noop, toggleOptions: noop, toggleSkills: noop, toggleQuests: noop, toggleSkillPanel: noop, toggleBuilding: noop }, (id) => scene.screenOf(id), (x, y) => scene.screenOfTile(x, y))
+const hud = new Hud({ select: noop, answer: noop, advance: noop, openJournal: noop, toggleInventory: noop, toggleCraft: noop, toggleOptions: noop, toggleSkills: noop, toggleQuests: noop, toggleSkillPanel: noop, toggleBuilding: noop, talk: noop, closeTalk: noop }, (id) => scene.screenOf(id), (x, y) => scene.screenOfTile(x, y))
 hud.paintIcons = (items) => {
   for (const item of items) {
     const d = CATALOG.items[item.sprite]

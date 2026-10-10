@@ -24,6 +24,7 @@ import type {
 } from './types.ts'
 import { DIRS } from './types.ts'
 import { matchSelector } from './rules.ts'
+import type { Social } from './social.ts'
 
 export const tileKey = (map: string, x: number, y: number) => `${map}:${x}:${y}`
 /** A cell's key in the index: its tile, and its storey above the ground's. */
@@ -92,6 +93,13 @@ export class World {
   fx: FxEvent[] = []
   /** The last lines logged or said, kept past the drain of `fx` (a request's recent context). */
   recent: Text[] = []
+  /** The people's social mechanisms (social.ts), lent by the engine: what the conditions on regard, deeds and the law read. */
+  social?: Social
+  /**
+   * What the quests watch (docs/quests.md): the story's facts changing, a thing gone; and the tags a quest under way
+   * gives what it names (essential people, kept things) — derived, never stored.
+   */
+  watch?: { fact(key: string): void; gone(id: Id): void; tags(id: Id): readonly string[] | undefined }
   /** The repeat check's assignment by chance site (world-model.md §8.4). Unset in play. */
   luck?: (site: object, part: number) => boolean
   /**
@@ -911,6 +919,7 @@ export class World {
     const tags = new Set(r.tags)
     for (const t of e.tags ?? []) tags.add(t)
     for (const t of this.lookTagsOf(e)) tags.add(t)
+    for (const t of this.watch?.tags(e.id) ?? []) tags.add(t)
     return {
       ref,
       type: e.type,
@@ -974,7 +983,7 @@ export class World {
   }
 
   hasTag(e: Entity, tag: string): boolean {
-    return (e.tags?.includes(tag) ?? false) || this.onto.resolve(e.type).tags.includes(tag) || (tag.startsWith(LOOK_TAG) && this.lookTagsOf(e).includes(tag))
+    return (e.tags?.includes(tag) ?? false) || this.onto.resolve(e.type).tags.includes(tag) || (tag.startsWith(LOOK_TAG) && this.lookTagsOf(e).includes(tag)) || !!this.watch?.tags(e.id)?.includes(tag)
   }
 
   /** A thing's look changes (the `restyle` primitive): a valid look of the world's table, inside its outcome. */
@@ -1029,6 +1038,8 @@ export class World {
       if (e.props) delete e.props[key]
     } else (e.props ??= {})[key] = value
     if (key === 'companion') this.indexCompanion(e)
+    // the story's facts are news for the quests (docs/quests.md §2.3)
+    if (e.id === STORY_ID) this.watch?.fact(key)
   }
 
   private indexCompanion(e: Entity): void {
@@ -1183,6 +1194,7 @@ export class World {
     this.guard('destroy', e)
     // (once: a holder loop an old save may carry would otherwise go round for ever)
     if (this.destroying.has(e.id)) return
+    this.watch?.gone(e.id)
     this.destroying.add(e.id)
     try {
       for (const c of [...(e.contents ?? [])]) {

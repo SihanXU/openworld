@@ -134,6 +134,25 @@ describe('the auditor in the pipeline', () => {
     expect(state.journalOf('audit')).toMatchObject([{ episode: reply.episode, rules: ['patch/stone-creak'], skipped: 'narrates only', usage: { calls: 0 } }])
   })
 
+  it('live: an auditor that fails keeps the patch, and the journal says it failed (not that it found nothing)', async () => {
+    let audits = 0
+    const model = new ScriptedModel((_messages: ChatMessage[], opts: ChatOptions) => {
+      if (opts.purpose === 'audit') {
+        audits++
+        throw new Error('model: no answer within 180000 ms')
+      }
+      if (opts.purpose === 'design') return { patch: bane, summary: 'a stone honed into a blade' }
+      return {}
+    })
+    const { library, state, modder } = setup(model, 'live')
+    const reply = await modder.resolve({ request: useRequest() })
+    expect(reply.outcome).toBe('accepted')
+    await modder.settled()
+    expect(audits).toBe(1)
+    expect(library.lib.rules.has('patch/stone-bane')).toBe(true)
+    expect(state.journalOf('audit')).toMatchObject([{ episode: reply.episode, confirmed: [], error: 'model: no answer within 180000 ms' }])
+  })
+
   it('offline: a draft the auditor breaks goes back with the evidence; the next one ships', async () => {
     const { model, calls } = scripted([bane, sniff], [becomesBane])
     const { library, modder } = setup(model, 'offline')

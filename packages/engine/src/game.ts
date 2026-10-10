@@ -6,7 +6,6 @@ import { HUNGER_EVERY } from './hunger.ts'
 import { ModPort } from './mod.ts'
 import { Codex, type CodexData } from './codex.ts'
 import { RuleLibrary, type LibraryData } from './rules.ts'
-import type { Guide } from './story.ts'
 import type { QuestDef } from './quests.ts'
 import type { BossDef, Entity, Id, Invariant, MapData, NpcMemory, Ontology, Pos, Portal, PropValue, SceneState, StepDef, Text, WorldState } from './types.ts'
 import { TOPIC_DAYS } from './world.ts'
@@ -61,9 +60,7 @@ export interface WorldIndex {
   protectedFacts?: string[]
   /** Spans of time whose weather the world fixes (the evening storm). */
   weather?: WeatherSpan[]
-  /** The story's objectives by stage, for a companion to tell (F on it). */
-  guides?: Guide[]
-  /** Quests people give (quests.ts, docs/quests.md). */
+  /** The quests (quests.ts, docs/quests.md): the main line, what people offer, the radiant favours. */
   quests?: QuestDef[]
   /** Actors who come with the player from the start (the bird), placed beside the start. */
   companions?: Entity[]
@@ -115,7 +112,7 @@ export class Game {
       spawn: at,
     }
     const eng = new Engine(state, ontology, library)
-    for (const m of index.maps) eng.graph[m.id] = m.portals
+    for (const m of index.maps) (eng.graph[m.id] = m.portals), (eng.maps[m.id] = { name: m.name, width: m.width, height: m.height })
     eng.ensureResidents()
     eng.author(() => {
       const player = structuredClone(index.player)
@@ -127,13 +124,15 @@ export class Game {
       for (const c of index.companions ?? []) eng.world.add({ ...structuredClone(c), place: { on: 'tile', map: at.map, x: at.x - 1, y: at.y }, props: { ...c.props, companion: index.player.id } })
     })
     loadContent(eng, index)
+    // a new game is news: the Story Manager begins what begins with the world
+    eng.quests.news({ kind: 'begin' })
     return new Game(eng)
   }
 
   static load(save: SaveData, index: WorldIndex, ontology: Ontology, library?: RuleLibrary): Game {
     const lib = library ?? RuleLibrary.fromJSON(save.library)
     const eng = new Engine(save.state, ontology, lib)
-    for (const m of index.maps) eng.graph[m.id] = m.portals
+    for (const m of index.maps) (eng.graph[m.id] = m.portals), (eng.maps[m.id] = { name: m.name, width: m.width, height: m.height })
     eng.ensureResidents()
     loadContent(eng, index)
     // loading is the author's: an older save is brought up to the world as it is now
@@ -226,6 +225,9 @@ function upgrade(eng: Engine, index: WorldIndex): void {
       if (e.npc.person && n.npc.person?.schedules) e.npc.person.schedules = structuredClone(n.npc.person.schedules)
     }
     for (const t of n.tags ?? []) if (!e.tags?.includes(t)) w.addTag(e, t)
+    // and what the world has said of them since (their household, stance, the watch they keep, their trade):
+    // what they never had, they have now; what they have, they keep
+    for (const [k, v] of Object.entries(n.props ?? {})) if (e.props?.[k] === undefined) w.setProp(e, k, v)
   }
   // what was the world's before it was the story's or the traveller's own: facts, the latest beat,
   // the maps seen, the reported invariants (the detector's own record), topics, memories, the scene
@@ -283,7 +285,7 @@ function addTree(eng: Engine, e: Entity & { _items?: Entity[] }): void {
 /** Scenes and invariants are content: read from the world on every start (they are not saved). */
 function loadContent(eng: Engine, index: WorldIndex): void {
   eng.bossKits = Object.fromEntries((index.bosses ?? []).map((b) => [b.id, structuredClone(b)]))
-  eng.story.load(index.steps, index.guides)
+  eng.story.load(index.steps)
   eng.quests.load(index.quests)
   eng.loadInvariants(index.invariants, index.protectedFacts)
   // the weather the world fixes is content, like the scenes: read on every start, never saved

@@ -6,6 +6,7 @@ import { line, type PersonDef } from '../person.ts'
 export const joss: PersonDef = {
   id: 'npc.joss',
   role: 'villager',
+  essential: true,
   name: { en: 'Joss', zh: '乔斯' },
   gender: 'male',
   look: { parts: { hair: 'hair.swept', face: 'face.keen', outfit: 'outfit.workshirt', beard: 'beard.moustache', hat: null }, colors: { hair: 'steelgrey', eyes: 'sky', skin: 'light', 'outfit.1': 'woad', 'outfit.2': 'slate' } },
@@ -19,6 +20,8 @@ export const joss: PersonDef = {
     ],
   },
   lines: [
+    // the news the story spreads (its topics), said once while fresh
+    line('topic:dragon_slain', "Dragon is dead, I hear. I hope it fell on something I did not build.", "听说龙死了。但愿它没砸在我造的东西上。"),
     line('greeting:first', 'Joss. I build things that stay built. Mostly.', '乔斯。我造的东西都结实。大部分是。'),
     line('default', 'An axe fells a tree, an axe on a log gives planks. Three planks and the footbridge is whole. That is the whole secret.', '斧头砍树，斧头劈木头出木板。三块木板，小桥就完整了。秘诀就这么多。'),
     line('default', 'Nails pulled straight and laid in a row. No storm pulls nails. Someone wanted that bridge gone, and wanted us to know it.', '钉子拔得笔直，摆成一排。哪场风暴会拔钉子？有人就是想让那座桥没了，还想让我们知道。'),

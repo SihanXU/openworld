@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, castLeft, knownActives, combatDamage, combatDelay, combatStrike, snapshot, textOf, type Engine, type Entity, type MapData } from '@lsw/engine'
-import { ACTIVE_SKILLS, BASE_RULES, PROLOGUE_DONE, SKILLS, SKILL_BY_ID, STORY_RULES, buildOntology, decodeChunk, skillBook } from '@lsw/content'
+import { ACTIVE_SKILLS, BASE_RULES, SKILLS, SKILL_BY_ID, STORY_RULES, buildOntology, decodeChunk, skillBook } from '@lsw/content'
 import { buildFord } from '../src/demo/world.ts'
 
 /** An open field of grass (an arena, as the boss tests have), the player in its middle facing right, every skill known to the engine. */
@@ -19,7 +19,7 @@ function field(): { eng: Engine; p: Entity; x: number; y: number } {
   for (const s of SKILLS) eng.skills.set(s.id, s)
   const [x, y] = [15, 15]
   eng.author(() => {
-    ;(w.player.props ??= {}).prologue = PROLOGUE_DONE
+    eng.quests.put('descent', 'done')
     w.setFact('seen.arrival', true)
     eng.teleport(w.player, { map: 'arena', x, y })
   })

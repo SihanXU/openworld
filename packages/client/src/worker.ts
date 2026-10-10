@@ -9,6 +9,7 @@ import {
   buildRequest,
   tickAt,
   snapshot,
+  peopleViews,
   previewPlacement,
   travelToWaypoint,
   dash,
@@ -34,8 +35,9 @@ import {
   type PlacementPreview,
   restoreLibrary,
   CEILING,
+  TICKS_PER_HOUR,
 } from '@lsw/engine'
-import { BASE_RULES, BOSS_LAYOUT, createBoss, COMPANION_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, PROLOGUE_DONE, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateCompanion, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
+import { BASE_RULES, BOSS_LAYOUT, createBoss, COMPANION_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateCompanion, migrateFirstlight, wildChunkFor, type RawChunk } from '@lsw/content'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
@@ -53,6 +55,10 @@ let aimTile: Tile | undefined
 /** The left click lays what is held in the ceiling (R with a floor in hand), not on one's storey. */
 let handUp = false
 let panel: string | undefined
+/** The people's panels open (docs/npc-sandbox.md): the talk with someone (a guard's arrest), a merchant's trade, a person's pockets. */
+let talk: { who: string; arrest?: boolean } | undefined
+let trade: string | undefined
+let pockets: string | undefined
 let paused = false
 let buildAim: { id: string; tile: Tile; up?: boolean } | undefined
 let lastMap = ''
@@ -61,7 +67,6 @@ let timer: ReturnType<typeof setInterval> | undefined
 let lastTickMs = 0
 let lastRecordsVersion = -1
 let saveEvery = 0
-let lastQuest: unknown
 /** The dev console's summon: a boss to set down once its map is the one the player stands on (loaded). */
 let summon: { kit: string; map: string; x: number; y: number } | undefined
 
@@ -99,10 +104,11 @@ const prefetched = new Set<string>()
 let prefetching = false
 
 /** Probe the service; if it answers, undefined interactions go to it and the shared library syncs from it. */
-async function connectModder(url: string): Promise<void> {
+async function connectModder(url: string, since = 0): Promise<void> {
   if (syncTimer) clearInterval(syncTimer)
   modderUrl = url.replace(/\/+$/, '')
-  modderSeq = 0
+  // the library restored has the log up to `since` in it already: only what came after is new
+  modderSeq = since
   if (!modderUrl || !game) return
   try {
     const health = (await (await fetch(`${modderUrl}/health`, { signal: AbortSignal.timeout(2500) })).json()) as { model?: string | null }
@@ -201,13 +207,19 @@ async function syncLibrary(): Promise<void> {
   if (!game || !modderUrl) return
   try {
     const log = (await (await fetch(`${modderUrl}/patches?since=${modderSeq}`, { signal: AbortSignal.timeout(5000) })).json()) as { seq: number; entries: PatchLogEntry[] }
+    // a log shorter than where we were is another log (the service started anew): sync it from the start
+    if (log.seq < modderSeq) {
+      modderSeq = 0
+      return syncLibrary()
+    }
     const lib = game.engine.lib
     const before = lib.version
     for (const e of log.entries) {
       if ('remove' in e) {
         if (lib.rules.get(e.remove)?.source?.origin === 'patch') lib.remove(e.remove)
-      } else game.mods.submit(undefined, e.patch, e.scenario, e.replaces)
+      } else game.mods.submit(undefined, e.patch, e.scenario, e.replaces, e.request)
     }
+    if (log.seq !== modderSeq) post({ t: 'synced', url: modderUrl, seq: log.seq, changed: lib.version !== before })
     modderSeq = log.seq
     if (lib.version !== before) sendRecords()
   } catch {
@@ -263,7 +275,7 @@ function keyViews(): Frame['keys'] {
     if (fw <= 1 && fd <= 1) return undefined
     return [t.place.x - Math.floor((fw - 1) / 2), t.place.y - fd + 1, fw, fd]
   }
-  const view = (pl: Plan | undefined): KeyView | undefined => pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(pl.sets && { sets: true }), ...(rect(pl) && { rect: rect(pl) }) }
+  const view = (pl: Plan | undefined): KeyView | undefined => pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(pl.sets && { sets: true }), ...(pl.steal && { steal: true }), ...(rect(pl) && { rect: rect(pl) }) }
   // standing still, one turns to the spot beside one that the pointer is on (the input's own posture):
   // a person one points at sees one face them, and waits (npc.ts, attended)
   const stand = w.posOf(w.player)
@@ -310,10 +322,14 @@ async function atlas(): Promise<Atlas | undefined> {
     }
     maps.push({ id: m.id, name: m.name, at: m.at, width: m.width, height: m.height, terrain })
   }
+  const targets = game.engine.quests.targets().map((x) => ({ map: x.map, x: x.x, y: x.y, text: x.text }))
   const named = new Map((index.waypoints ?? []).map((x) => [x.id, x.name]))
   const stones = waypoints(game.engine).map(({ e, attuned }) => ({ id: e.id, map: (e.place as { map: string }).map, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: named.get(e.id) ?? e.name ?? { en: 'Waypoint', zh: '传送雕像' }, attuned }))
   const pos = w.posOf(w.player)!
-  return { maps, waypoints: stones, here: { map: pos.map, x: pos.x, y: pos.y } }
+  // a place off the world's layout (the tutorial's clearing) with nothing else seen yet: it is the map, alone
+  const here = index.maps.find((m) => m.id === pos.map)
+  if (!maps.length && here && w.state.maps[here.id]) maps.push({ id: here.id, name: here.name, at: { x: 0, y: 0 }, width: here.width, height: here.height, terrain: w.state.maps[here.id]!.terrain })
+  return { targets, maps, waypoints: stones, here: { map: pos.map, x: pos.x, y: pos.y } }
 }
 
 function libraryView(): LibraryView {
@@ -371,8 +387,10 @@ function doSave(auto = false): void {
     hour: Math.floor(cal.hour),
     minute: cal.minute,
     level: Math.max(1, w.num(p, 'level', 1)),
-    prologue: w.num(p, 'prologue', PROLOGUE_DONE),
-    quest: w.num(p, 'quest'),
+    ...(() => {
+      const s = game.engine.quests.summary()
+      return { ...(s.title && { quest: s.title }), ...(s.objective && { objective: s.objective }) }
+    })(),
     difficulty,
     ...(fallen && { ended: true }),
   }
@@ -384,6 +402,15 @@ const ASK_MS = 20_000
 const MAKE_MS = 120_000
 let asked: { id: string; since: number } | undefined
 
+/** The people's panels a rule opened (the talk, a trade, a person's pockets), seen before the frame drains what was shown. */
+function peopleOpened(eng: Engine): void {
+  for (const x of eng.world.fx) {
+    if (x.t === 'talk') talk = { who: x.who, ...(x.arrest && { arrest: true }) }
+    if (x.t === 'panel' && x.panel === 'trade' && x.by) (trade = x.by), (talk = undefined)
+    if (x.t === 'panel' && x.panel === 'pockets' && x.by) pockets = x.by
+  }
+}
+
 function loop(): void {
   if (!game) return
   const t0 = performance.now()
@@ -394,8 +421,9 @@ function loop(): void {
   if (asking && asked?.id !== asking.id) asked = { id: asking.id, since: t0 }
   if (!asking) asked = undefined
   else if (t0 - asked!.since > (asking.deadline === Number.POSITIVE_INFINITY ? MAKE_MS : ASK_MS)) game.mods.fallback(asking.id)
+  peopleOpened(eng)
   // time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player)
-  const stopped = paused || !!eng.world.state.question || !!panel || !!game.mods.asking
+  const stopped = paused || !!eng.world.state.question || !!panel || !!game.mods.asking || !!talk || !!trade || !!pockets
   if (!stopped) {
     if (moveDir) eng.movePlayer(moveDir, walk)
     if (attacking) eng.controls.strike()
@@ -426,14 +454,17 @@ function loop(): void {
     post({ t: 'map', map: w.state.maps[pos.map] })
     if (!first) saveEvery = 599 // save right after arriving somewhere new
   }
-  // save as soon as the story moves on
-  const quest = w.player.props?.quest
-  if (quest !== lastQuest) {
-    if (lastQuest !== undefined) saveEvery = 599
-    lastQuest = quest
-  }
+  // save as soon as the story moves on (a quest reached a stage)
+  if (w.fx.some((x) => x.t === 'quest')) saveEvery = 599
+  // (what the tick itself opened: a guard stopping the one at the keys)
+  peopleOpened(eng)
   const frame = snapshot(eng, { panel })
   if (panel && !frame.container) panel = undefined // closed by the world (it burned, a rule shut it)
+  // the people's panels: closed when the one they are with is gone (dead, away)
+  Object.assign(frame, peopleViews(eng, { talk, trade, pockets }))
+  if (talk && !frame.talk) talk = undefined
+  if (trade && !frame.trade) trade = undefined
+  if (pockets && !frame.pockets) pockets = undefined
   // no labels while the player cannot act (working out an act, down, in a scene)
   frame.keys = stopped || eng.busy(w.player) ? undefined : keyViews()
   maybePrefetch()
@@ -500,6 +531,8 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     if (init.look && ontology.looks && !lookProblems(init.look, ontology.looks).length) game.engine.author(() => (w.player.look = structuredClone(init.look)))
   }
   game.worldVersion = index.version
+  // a night's sleep (a long step) passes a game hour a tick: the screen keeps up, and one lies asleep all the while
+  game.engine.fastForwardChunk = TICKS_PER_HOUR
   // every skill the tree has, so a skill set in the bar can be cast from a loaded game (actives.ts)
   for (const s of SKILLS) game.engine.skills.set(s.id, s)
   game.mods.onChange = () => sendRecords()
@@ -509,7 +542,7 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   artSent.clear()
   sendArts()
   sendRecords()
-  void connectModder(init.modder ?? modderUrl)
+  void connectModder(init.modder ?? modderUrl, init.library ? init.librarySeq : 0)
   if (timer) clearInterval(timer)
   timer = setInterval(() => {
     try {
@@ -666,6 +699,40 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'transfer':
         if (game && panel) game.engine.controls.transfer(panel, m.from, m.item, m.all)
         break
+      case 'toggle':
+        game?.engine.controls.toggle(m.what)
+        break
+      case 'talk': {
+        if (!game || !talk) break
+        const with_ = talk
+        // a guard's choices end the arrest; goodbye ends the talk
+        if (with_.arrest || m.verb === 'bye') talk = undefined
+        if (m.verb !== 'bye') game.engine.controls.talk(with_.who, m.verb, m.choice)
+        break
+      }
+      case 'track':
+        game?.engine.controls.track(m.id)
+        break
+      case 'board':
+        game?.engine.controls.board(m.who, m.ref)
+        break
+      case 'closeTalk':
+        // walking away from a guard who stopped one is resisting
+        if (game && talk?.arrest) game.engine.controls.talk(talk.who, 'resist')
+        talk = undefined
+        break
+      case 'trade':
+        if (game && trade) game.engine.controls.trade(trade, m.item, m.buy)
+        break
+      case 'closeTrade':
+        trade = undefined
+        break
+      case 'pocket':
+        if (game && pockets) game.engine.controls.pocket(pockets, m.item, m.take)
+        break
+      case 'closePockets':
+        pockets = undefined
+        break
       case 'closePanel': {
         if (game && panel && game.engine.world.hasStatus({ e: panel }, 'open')) game.engine.interact('interact', game.engine.world.state.player, { e: panel }, { instrument: null })
         panel = undefined
@@ -714,7 +781,12 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (m.op === 'teleport') eng.author(() => eng.travel(w.player, { map: m.map ?? w.posOf(w.player)!.map, x: m.x, y: m.y }))
         // into the bag, and onto a slot of it (the bag shows its slots)
         if (m.op === 'give') eng.author(() => (w.create(m.type, { on: 'inside', holder: w.state.player }, m.tags ? { tags: m.tags } : {}), eng.controls.sync()))
-        if (m.op === 'hour') w.state.tick = tickAt(w.calendar().day, m.hour)
+        // the hour only goes forward (the next time it comes round): cooldowns and timers are ticks, and a clock
+        // put back left them in the future (one could not move, nor strike, until it caught up)
+        if (m.op === 'hour') {
+          const today = tickAt(w.calendar().day, m.hour)
+          w.state.tick = today >= w.state.tick ? today : tickAt(w.calendar().day + 1, m.hour)
+        }
         if (m.op === 'hurt') eng.author(() => eng.hurt(w.player, m.amount, undefined, true))
         // a boss again (the dev's hand): to its map first; it is set down once that map is loaded (`loop`)
         if (m.op === 'summon') {

@@ -8,12 +8,16 @@ const CAULDRON = { uses: 'emberfall.cauldron', need: { status: ['lit'] } }
 export const wren: PersonDef = {
   id: 'npc.wren',
   role: 'herbalist',
+  essential: true,
   name: { en: 'Wren', zh: '雷恩' },
   gender: 'female',
   look: { parts: { hair: 'hair.wavy', face: 'face.bright', outfit: 'outfit.robe', hat: null, glasses: null }, colors: { hair: 'auburn', eyes: 'leaf', skin: 'fair', 'outfit.1': 'forest' } },
   age: 23,
   temperament: { personality: 'curious', manner: 'polite', social: 'outgoing', outlook: 'hopeful' },
   ties: { 'npc.mara': 'the elder who taught her letters' },
+  // her draughts are for sale
+  trade: { stock: [['item/potion/healing', 3]] },
+  purse: 40,
   schedules: {
     default: [
       [22, 6, 'emberfall:herb.home', 'sleep'],

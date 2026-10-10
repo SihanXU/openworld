@@ -7,6 +7,7 @@ import { line, type PersonDef } from '../person.ts'
 export const alberic: PersonDef = {
   id: 'npc.alberic',
   role: 'steward',
+  essential: true,
   name: { en: 'Alberic', zh: '阿尔贝里克' },
   gender: 'male',
   look: { parts: { hair: 'hair.tied', face: 'face.weary', outfit: 'outfit.coat', mark: 'mark.scar', beard: null, hat: null, age: null }, colors: { hair: 'snow', eyes: 'storm', skin: 'porcelain', 'outfit.1': 'ivory', 'outfit.2': 'slate', 'outfit.3': 'gold' } },

@@ -58,6 +58,8 @@ export interface AuditResult {
   confirmed: Confirmed[]
   /** Findings the sandbox did not bear out (kept for the record, never acted on). */
   unconfirmed: { finding: Finding; why: string }[]
+  /** Set when the auditor itself failed (a time-out, a bad reply): nothing was looked at, which is not "nothing found". */
+  error?: string
 }
 
 const VERBS = new Set<Verb>(['use', 'put', 'take', 'hands', 'move', 'craft', 'learn'])

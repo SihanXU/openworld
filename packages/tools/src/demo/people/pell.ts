@@ -6,6 +6,7 @@ import { line, type PersonDef } from '../person.ts'
 export const pell: PersonDef = {
   id: 'npc.pell',
   role: 'child',
+  essential: true,
   name: { en: 'Pell', zh: '佩尔' },
   gender: 'male',
   look: { parts: { hair: 'hair.tuft', face: 'face.child', outfit: 'outfit.smock', mark: 'mark.freckles' }, colors: { hair: 'umber', eyes: 'bark', skin: 'warm', 'outfit.1': 'woad' } },

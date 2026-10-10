@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_PACE, ModPort, TICKS_PER_HOUR, RuleLibrary, buildSandbox, holeKey, textOf, type Engine, type Key, type Plan, type Ref, type ScenarioEntity, type Verb } from '@lsw/engine'
-import { cellId } from '@lsw/engine'
+import { cellId, madeOf } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
@@ -210,6 +210,32 @@ describe('the five inputs: one act each', () => {
     expect(helm.world.prop(h, 'wear:head')).toBe('held')
     expect(helm.world.get('held')!.place).toMatchObject({ on: 'inside', holder: 'npc.hollis' })
     expect(helm.world.worn(h).map((e) => e.id)).toEqual(['held'])
+  })
+
+  it('a thing that changes form keeps its quality in its name (a masterwork bucket filled is a masterwork bucket)', () => {
+    const water = Array.from({ length: 5 }, (_, y) => Array.from({ length: 5 }, (_, x) => (y === 1 && x === 2 ? 'water' : 'grass')))
+    const eng = world('item/vessel/bucket/empty', [], water)
+    const w = eng.world
+    eng.author(() => Object.assign(w.get('held')!, madeOf(w.onto.data, w.onto, 'item/vessel/bucket/empty', undefined, 'masterwork'), { type: 'item/vessel/bucket/empty' }))
+    expect(textOf(w.get('held')!.name)).toMatch(/^Masterwork /)
+    eng.controls.run(eng.controls.plan('use')!)
+    const after = w.get('held')!
+    expect(after.type).not.toBe('item/vessel/bucket/empty')
+    expect(textOf(after.name)).toMatch(/^Masterwork /)
+    expect(textOf(after.name)).not.toBe(textOf(madeOf(w.onto.data, w.onto, 'item/vessel/bucket/empty', undefined, 'masterwork').name))
+  })
+
+  it('a right click on oneself says what it will do with what is held: put on or take off, and a weapon is wielded or put away', () => {
+    for (const [held, on, off] of [['item/clothing/cloak', 'Put on', 'Take off'], ['item/weapon/blade/axe', 'Wield', 'Put away']] as const) {
+      const eng = world(held, [])
+      const name = textOf(eng.world.get('held')!.name ?? eng.world.onto.resolve(held).name)
+      expect(label(eng.controls.plan('self'))).toBe(`${on} ${name}`)
+      eng.controls.run(eng.controls.plan('self')!)
+      expect(eng.world.worn(eng.world.player).map((e) => e.id)).toEqual(['held'])
+      expect(label(eng.controls.plan('self'))).toBe(`${off} ${name}`)
+      eng.controls.run(eng.controls.plan('self')!)
+      expect(eng.world.worn(eng.world.player)).toEqual([])
+    }
   })
 
   it('what an input does is said by what answers it: food eats or feeds; the unknown says its default with a ?, and a patch says its own once it fills the hole', () => {

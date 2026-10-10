@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Game, MAINHAND, OFFHAND, PROFESSION_LEVEL, RuleLibrary, canWield, combatDamage, combatDelay, combatStrike, offhandOf, rangeBonus, snapshot, weaponOf, type Engine, type Entity, type MapData } from '@lsw/engine'
-import { BASE_RULES, LEGENDARY_ARMS, PROFESSION_BY_ID, PROLOGUE_DONE, SKILLS, SKILL_BY_ID, SKILL_PROFESSIONS, STORY_RULES, buildOntology, createBoss, decodeChunk } from '@lsw/content'
+import { BASE_RULES, LEGENDARY_ARMS, PROFESSION_BY_ID, SKILLS, SKILL_BY_ID, SKILL_PROFESSIONS, STORY_RULES, buildOntology, createBoss, decodeChunk } from '@lsw/content'
 import { buildFord } from '../src/demo/world.ts'
 
 // Professions (docs/skill-tree.md): none at the start; Bram in Firstlight Village sets you on one
@@ -342,7 +342,7 @@ describe('profession weapons', () => {
     const at = { map: 'arena', x: 16, y: 20 }
     Object.assign(index, { start: at, npcs: [], companions: [], steps: [], quests: [], invariants: [], waypoints: [] })
     index.player.place = { on: 'tile', ...at }
-    index.player.props = { ...index.player.props, hp: 1000, maxHp: 1000, prologue: PROLOGUE_DONE, profession: 'warrior' }
+    index.player.props = { ...index.player.props, hp: 1000, maxHp: 1000, profession: 'warrior' }
     const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
     const map: MapData = { id: 'arena', name: 'Arena', kind: 'wild', width: 40, height: 40, terrain: Array(1600).fill('grass'), portals: [], light: 'indoor' }
     game.loadChunk({ map, entities: [createBoss('pride', { map: 'arena', x: 16, y: 16 }), createBoss('envy', { map: 'arena', x: 30, y: 30 }), createBoss('lust', { map: 'arena', x: 6, y: 30 })] })

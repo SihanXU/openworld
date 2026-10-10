@@ -4,10 +4,9 @@
 // dialogue box and the yes/no question, speech bubbles and floating numbers.
 
 import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Mood, type Text, type WorldIndex } from '@lsw/engine'
-import { OBJECTIVES, PROLOGUE_DONE, PROLOGUE_OBJECTIVES } from '@lsw/content'
 import { CATALOG } from '../assets/catalog.ts'
 import { assetUrl, cssAssetUrl } from '../render/assets.ts'
-import { $, MOOD_GLYPH, SLOT_KEYS, controlsTable, esc, locale, t, tx } from './common.ts'
+import { $, MOOD_GLYPH, SLOT_KEYS, controlsTable, esc, locale, prefs, t, tx } from './common.ts'
 import { skillPng } from './skillIcons.ts'
 
 export interface HudSend {
@@ -22,6 +21,9 @@ export interface HudSend {
   toggleBuilding(): void
   toggleQuests(): void
   toggleSkillPanel(): void
+  /** The talk panel (docs/npc-sandbox.md §2.9): a verb said, the talk closed. */
+  talk(verb: string): void
+  closeTalk(): void
 }
 
 export class Hud {
@@ -72,6 +74,7 @@ export class Hud {
         <div class="cb-time" id="cbTime"></div>
       </div>
       <div class="objective" id="objective"><div class="ob-title" id="obTitle"></div><div class="ob-progress" id="obProgress"></div></div>
+      <div class="social-status" id="socialStatus"></div>
       <div class="sin-boss hidden" id="sinBoss">
         <div class="sin-crown" aria-hidden="true"><i></i><svg viewBox="0 0 80 34"><path d="M6 8 22 17 28 5 40 18 52 5 58 17 74 8 65 29 15 29Z"/><path d="M17 33H63M40 0V8M0 8H8M72 8H80"/></svg><i></i></div>
         <div class="sin-epithet" id="sinEpithet"></div>
@@ -155,12 +158,12 @@ export class Hud {
   // ---------------------------------------------------------------- per frame
 
   onFrame(f: Frame): void {
-    // the quest button's badge: quests ready to hand in, else how many are under way
-    const log = f.quests?.log ?? []
-    const ready = log.filter((q) => q.status === 'ready').length
-    $('#questBadge').textContent = String(ready || log.length)
-    $('#questBadge').classList.toggle('hidden', !log.length)
-    $('#questBadge').classList.toggle('calm', !ready)
+    // the quest button's badge: how many quests are under way (red while someone waits for a word: a '?' in view)
+    const under = (f.quests?.journal ?? []).filter((q) => q.state === 'active').length
+    const waits = Object.values(f.quests?.marks ?? {}).includes('?')
+    $('#questBadge').textContent = String(under)
+    $('#questBadge').classList.toggle('hidden', !under)
+    $('#questBadge').classList.toggle('calm', !waits)
     this.frame = f
     this.renderClock(f)
     this.renderBars(f)
@@ -170,6 +173,8 @@ export class Hud {
     this.renderKeys(f)
     this.renderScene(f)
     this.renderQuestion(f)
+    this.renderTalk(f)
+    this.renderSocial(f)
     // while the world learns an act: the one acting is at work on it (a working bubble), the
     // things it is done to shimmer with dots
     const frozen = new Set(f.entities.filter((e) => e.frozen).map((e) => e.id))
@@ -310,23 +315,25 @@ export class Hud {
   }
 
   private obSig = ''
+  /**
+   * The tracker (docs/quests.md §2.5), top right under the clock: the quest followed, its open objectives with their
+   * counts, and the map one is on when it is elsewhere. A quest reaching a stage flashes the journal's button.
+   */
   private renderObjective(f: Frame): void {
-    // on the mountain, the prologue's objective (docs/prologue.md); then the main quest's
-    const prologue = Number(f.player.props.prologue ?? PROLOGUE_DONE)
-    const stage = prologue < PROLOGUE_DONE ? `p${prologue}` : Number(f.player.props.quest ?? -1)
-    const o = typeof stage === 'string' ? PROLOGUE_OBJECTIVES[prologue] : OBJECTIVES[stage]
-    // the objective's counters (what the smith and the herbalist have been given), live
-    const counts = (o?.progress ?? []).map((p) => [p, Math.min(p.need, Number(f.facts[p.fact] ?? 0))] as const)
-    const sig = `${locale.value}|${counts.map(([, n]) => n).join(',')}|${stage}`
+    const q = f.quests?.journal.find((x) => x.id === f.quests.tracked)
+    const open = (q?.objectives ?? []).filter((o) => o.state === 'open')
+    const sig = `${locale.value}|${prefs.get('tracker')}|${q?.id}|${JSON.stringify(open)}`
+    const moved = f.fx.some((x) => x.t === 'quest')
+    if (moved) $('#questBtn').classList.add('flash')
     if (sig === this.obSig) return
-    const changed = this.obSig !== '' && !this.obSig.endsWith(`|${stage}`)
     this.obSig = sig
-    $('#objective').classList.toggle('hidden', !o || !tx(o.title))
-    if (!o) return
-    $('#obTitle').textContent = tx(o.title)
-    $('#obProgress').innerHTML = counts.map(([p, n]) => `<div class="${n >= p.need ? 'done' : ''}">${n >= p.need ? '✓' : '·'} ${esc(tx(p.label))}${p.need > 1 ? ` ${n}/${p.need}` : ''}</div>`).join('')
-    // a new objective: the journal button flashes (Stardew's "!")
-    if (changed) $('#jbtn').classList.add('flash')
+    $('#objective').classList.toggle('hidden', !q || !prefs.get('tracker'))
+    if (!q) return
+    $('#obTitle').textContent = tx(q.title)
+    $('#obProgress').innerHTML = open
+      .slice(0, 4)
+      .map((o) => `<div>· ${esc(tx(o.text))}${o.need ? ` ${o.have}/${o.need}` : ''}${o.where ? ` <em>→ ${esc(tx(o.where))}</em>` : ''}</div>`)
+      .join('')
   }
 
   /** Called when the journal opens. */
@@ -341,7 +348,7 @@ export class Hud {
     if (sig !== this.keySig) {
       this.keySig = sig
       const line = (key: string, v?: KeyView) =>
-        v ? `<div class="kl${v.unknown ? ' unknown' : ''}"><kbd>${key}</kbd> ${esc(tx(v.label))}${v.unknown ? ` <span class="q">?</span>` : ''}</div>` : ''
+        v ? `<div class="kl${v.unknown ? ' unknown' : ''}${v.steal ? ' steal' : ''}"><kbd>${key}</kbd> ${esc(tx(v.label))}${v.unknown ? ` <span class="q">?</span>` : ''}</div>` : ''
       // what each input that reaches the spot would do (foreseeable): E, F, G, the left click there, the right click on oneself
       // (a left click on one's own place is the right click's act: one line for both)
       const same = !!k?.use && !!k?.self && JSON.stringify(k.use.label) === JSON.stringify(k.self.label) && k.use.x === k.self.x && k.use.y === k.self.y
@@ -493,7 +500,7 @@ export class Hud {
    * does not wait for it (handing the smith five ores is five G presses, not ten keys).
    */
   dismissLine(): boolean {
-    if (this.questionOpen || this.cardOpen || this.sceneDialog || $('#dialog').classList.contains('hidden')) return false
+    if (this.questionOpen || this.cardOpen || this.sceneDialog || this.talkOpen || $('#dialog').classList.contains('hidden')) return false
     clearInterval(this.typer)
     this.typedAll = true
     $('#dialog').classList.add('hidden')
@@ -502,6 +509,11 @@ export class Hud {
 
   advanceDialog(): void {
     if (this.questionOpen) return
+    // a talk stays open while one chooses (the line finishes typing; Esc or goodbye closes it)
+    if (this.talkOpen) {
+      if (!this.typedAll) (clearInterval(this.typer), ($('#dLine').textContent = this.fullText), (this.typedAll = true))
+      return
+    }
     if (this.cardOpen) {
       this.cardOpen = false
       $('#card').classList.add('hidden')
@@ -592,6 +604,79 @@ export class Hud {
     this.send.answer(yes)
   }
 
+  // ---------------------------------------------------------------- the talk (docs/npc-sandbox.md §2.9)
+
+  private talkSig = ''
+  /** A talk with someone is open (its verbs under their line). */
+  get talkOpen(): boolean {
+    return !!this.frame?.talk
+  }
+  /** The talk is a guard's arrest: only its choices close it. */
+  get arrestOpen(): boolean {
+    return !!this.frame?.talk?.arrest
+  }
+
+  private renderTalk(f: Frame): void {
+    const tk = f.talk
+    const box = $('#dialog')
+    const choices = $('#dChoices')
+    if (!tk) {
+      if (this.talkSig) {
+        this.talkSig = ''
+        choices.classList.add('hidden')
+        if (!this.sceneDialog && !this.questionOpen) box.classList.add('hidden')
+      }
+      return
+    }
+    const sig = `${locale.value}|${JSON.stringify(tk)}|${choices.classList.contains('hidden')}|${box.classList.contains('hidden')}`
+    if (sig === this.talkSig) return
+    this.talkSig = sig
+    const who = f.entities.find((e) => e.id === tk.who)
+    const zh = locale.value === 'zh'
+    // a talk the panel opened without a line (a guard stopping one): the guard's words
+    if (box.classList.contains('hidden')) this.openDialog(tk.who, who ? tx(who.name) : '', tk.arrest ? (zh ? `你欠守卫队 ${tk.bounty ?? 0}。` : `You owe the watch ${tk.bounty ?? 0}.`) : '…')
+    $('#dName').innerHTML = `${esc(who ? tx(who.name) : tx(tk.name))} <span class="regard r-${esc(tx(tk.regard).replace(/\s/g, ''))}">${esc(tx(tk.regard))}</span>${tk.grudge ? ` <span class="grudge">${esc(tx(tk.grudge))}</span>` : ''}${tk.bounty ? ` <span class="grudge">${zh ? '悬赏' : 'bounty'} ${tk.bounty}</span>` : ''}`
+    const verbs = [...tk.verbs, ...(tk.arrest ? [] : [{ id: 'bye', label: { en: 'Goodbye.', zh: '再见。' } }])]
+    choices.innerHTML = verbs.map((v, i) => `<button data-verb="${esc(v.id)}"><kbd>${i + 1}</kbd> ${esc(tx(v.label))}</button>`).join('')
+    choices.classList.remove('hidden')
+    choices.classList.add('talk')
+    $('#dMore').classList.add('hidden')
+    choices.querySelectorAll<HTMLButtonElement>('[data-verb]').forEach((b) => (b.onclick = (e) => (e.stopPropagation(), this.say(b.dataset.verb!))))
+  }
+
+  /** A verb of the open talk, chosen (a click, or its number). */
+  say(verb: string): void {
+    if (verb === 'bye') return this.send.closeTalk()
+    this.send.talk(verb)
+  }
+
+  /** The n-th verb of the open talk (1-based), from a number key. */
+  sayNth(n: number): void {
+    const tk = this.frame?.talk
+    if (!tk) return
+    const verbs = [...tk.verbs.map((v) => v.id), ...(tk.arrest ? [] : ['bye'])]
+    const v = verbs[n - 1]
+    if (v) this.say(v)
+  }
+
+  private socialSig = ''
+  /** What the one at the keys is doing with the people: walking soft, a blade out, wanted (docs/npc-sandbox.md). */
+  private renderSocial(f: Frame): void {
+    const st = f.player.statuses
+    const w = f.player.wanted
+    const zh = locale.value === 'zh'
+    const sig = `${locale.value}|${st.includes('sneaking')}|${st.includes('drawn')}|${w?.bounty ?? 0}|${f.player.purse}`
+    if (sig === this.socialSig) return
+    this.socialSig = sig
+    const parts = [
+      st.includes('sneaking') ? `<span class="ss sneak" title="V">👣 ${zh ? '潜行' : 'Sneaking'}</span>` : '',
+      st.includes('drawn') ? `<span class="ss drawn" title="X">⚔ ${zh ? '已拔武器' : 'Weapon drawn'}</span>` : '',
+      w ? `<span class="ss wanted">⚑ ${zh ? `${tx(w.by)}悬赏 ${w.bounty}` : `Wanted by ${tx(w.by)}: ${w.bounty}`}</span>` : '',
+      `<span class="ss coin" title="${zh ? '银荆币' : 'Thornmarks'}">⊕ ${f.player.purse}</span>`,
+    ]
+    $('#socialStatus').innerHTML = parts.join('')
+  }
+
   // ---------------------------------------------------------------- fx
 
   onFx(fx: FxEvent, frame?: Frame): void {
@@ -607,7 +692,10 @@ export class Hud {
         if (fx.mood && fx.mood !== 'neutral') this.bubble(fx.who, MOOD_GLYPH[fx.mood])
         if (fx.scene) return this.openDialog(fx.who, who ? tx(who.name) : '', text, true, fx.mood)
         const near = who && p && who.id !== p.id && Math.abs(who.x - p.x) + Math.abs(who.y - p.y) <= 2 && (who.look || who.tags.includes('person'))
-        if (near) return this.openDialog(fx.who, tx(who.name), text, false, fx.mood)
+        // the one the talk is with answers in the talk's box, wherever they stand; one person telling
+        // another is heard in passing (a bubble), however near
+        const toAnother = !!fx.to && fx.to !== p?.id
+        if ((near && !toAnother) || (frame?.talk && frame.talk.who === fx.who && !toAnother)) return this.openDialog(fx.who, who ? tx(who.name) : '', text, false, fx.mood)
         return this.bubble(fx.who, text)
       }
       case 'emote':

@@ -78,13 +78,13 @@ const NATURAL: MaterialDef[] = [
 
 /** Every material, as the world reads it (world-model.md §4.5): its category and hardness. */
 export const MATERIAL_DEFS: Record<string, MaterialDef> = Object.fromEntries([
-  ...Object.values(MATERIALS).map((m) => ({ id: m.id, category: m.category, hardness: m.hardness, name: { en: m.en, zh: m.zh }, tags: m.tags, attack: m.attack, defence: m.defence })),
+  ...Object.values(MATERIALS).map((m) => ({ id: m.id, category: m.category, hardness: m.hardness, name: { en: m.en, zh: m.zh }, tags: m.tags, attack: m.attack, defence: m.defence, value: m.value })),
   ...NATURAL,
 ].map((m) => [m.id, m]))
 
 /** The qualities as the world reads them: a maker reaches each by how far above the recipe's level they are (legendary: never by making). */
 export const QUALITY_DEFS = (): QualityDef[] =>
-  QUALITIES.map((q) => ({ id: q.id, tag: q.id === 'common' ? undefined : `quality:${q.id}`, name: q.en ? { en: q.en, zh: q.zh } : undefined, factor: q.factor, from: QUALITY_FROM[q.id] }))
+  QUALITIES.map((q) => ({ id: q.id, tag: q.id === 'common' ? undefined : `quality:${q.id}`, name: q.en ? { en: q.en, zh: q.zh } : undefined, factor: q.factor, from: QUALITY_FROM[q.id], value: q.value }))
 const QUALITY_FROM: Record<string, number | undefined> = { crude: -99, common: 0, fine: 3, masterwork: 6 }
 
 /**
@@ -180,6 +180,8 @@ export const FORMS: Form[] = [
   W('item/clothing/cloak', 'Cloak', '斗篷', 'item:cloak', { tags: ['wearable'], props: { slot: 'shoulders', look: 'cloak.cloak' }, materials: ['cloth', 'leather', 'silk'], where: { home: 2, shop: 1 } }),
   W('item/clothing/belt', 'Belt', '腰带', 'item:belt', { tags: ['wearable'], props: { def: 1, slot: 'waist' }, materials: ['leather', 'cloth'], where: { home: 1, shop: 1, smithy: 0.5 } }),
   W('item/clothing/hat', 'Hat', '帽子', 'item:hat', { tags: ['wearable'], props: { slot: 'head', look: 'hat.cap' }, materials: ['cloth', 'leather', 'silk'], where: { home: 2, shop: 1, npc: 0.3 } }),
+  // a hood drawn up hides the face: who sees a deed done under it remembers only the hood (docs/npc-sandbox.md §2.3)
+  W('item/clothing/hood', 'Hood', '兜帽', 'item:cloak', { tags: ['wearable'], props: { slot: 'head', look: 'hat.hood' }, materials: ['cloth', 'leather'], where: { shop: 0.5, home: 0.5 } }),
   W('item/clothing/boots', 'Boots', '靴子', 'item:boots', { tags: ['wearable'], props: { slot: 'feet' }, materials: ['leather', 'cloth'], where: { home: 2, shop: 1 } }),
   W('item/clothing/gloves', 'Gloves', '手套', 'item:gloves', { tags: ['wearable'], props: { slot: 'hands' }, materials: ['leather', 'cloth', 'silk'], where: { home: 1, shop: 1, smithy: 1 } }),
   // tools
@@ -388,13 +390,56 @@ export function itemTypes(): TypeDef[] {
       name: { en: f.en, zh: f.zh },
       sprite: f.sprite,
       tags: f.tags ?? [],
-      props: f.props,
+      // what it is worth (docs/npc-sandbox.md §2.10): its own, else its kind's; times its material's and quality's
+      props: { value: baseValue(f.id), ...f.props },
       ...(f.makeup && { makeup: f.makeup, station: f.station, craftLevel: f.craftLevel, tools: f.tools, yields: f.yields }),
     })),
   ]
 }
 
 export const FORM_BY_ID: Record<string, Form> = Object.fromEntries(FORMS.map((f) => [f.id, f]))
+
+/** What a kind of thing is worth before its material and quality (the longest prefix that names it). */
+const VALUES: [string, number][] = [
+  ['item/relic', 400],
+  ['item/valuable/crown', 120],
+  ['item/valuable/coin_pouch', 20],
+  ['item/valuable', 40],
+  ['item/weapon/magic', 45],
+  ['item/weapon/ranged', 35],
+  ['item/weapon/polearm', 35],
+  ['item/weapon/blade/dagger', 20],
+  ['item/weapon/blade/axe', 15],
+  ['item/weapon', 30],
+  ['item/armor/shield', 25],
+  ['item/armor', 35],
+  ['item/clothing', 10],
+  ['item/tool/lockpick', 8],
+  ['item/tool/rope', 4],
+  ['item/tool/flint', 3],
+  ['item/tool', 12],
+  ['item/light', 6],
+  ['item/vessel', 4],
+  ['item/potion/mystery', 15],
+  ['item/potion', 25],
+  ['item/food/fish', 6],
+  ['item/food/meat', 5],
+  ['item/food/bread', 4],
+  ['item/food', 3],
+  ['item/material/ingot', 15],
+  ['item/material/ore', 6],
+  ['item/material/plank', 3],
+  ['item/material', 2],
+  ['item/seed', 1],
+  ['item/document/skillbook', 60],
+  ['item/document', 8],
+  ['item/misc/thornmark', 1],
+  ['item/misc/old_boot', 1],
+  ['item/misc', 5],
+]
+export function baseValue(type: string): number {
+  return VALUES.find(([p]) => type === p || type.startsWith(p + '/'))?.[1] ?? 2
+}
 
 /** Each profession's legendary arms, in the order a fallen sin hands them over (bosses.ts). */
 export const LEGENDARY_ARMS: Record<string, string[]> = {

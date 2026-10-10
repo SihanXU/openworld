@@ -6,6 +6,7 @@
 // undefined is the Mod port's.
 
 import { HOMESTEAD_RULES } from './homestead.ts'
+import { PERSON_NEWS, SOCIAL_RULES } from './social.ts'
 import { HUNGRY_BELOW, type Amount, type Cond, type Effect, type Text, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@lsw/engine'
 
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
@@ -86,7 +87,7 @@ const ROOTS: Rule[] = [
     tree: IF(is('target', { type: 'actor/person' }), DO(say('This stays with me.', '这个得留在我身上。', 'actor')), 'inherit'),
   }),
   rule({ id: 'core/take', doc: 'Taking the target with the hands: it is taken (and answers how).', on: 'act/take', tree: DO(emit('taken', 'target', { into: { param: 'into' }, quiet: { param: 'quiet' } }, { other: 'actor' })) }),
-  rule({ id: 'core/hands', doc: 'A bare hand on the target: it is handled (and answers how); what the hand asks of it (a companion\'s boon) rides along.', on: 'act/hands', tree: DO(emit('handle', 'target', { boon: { param: 'boon' } })) }),
+  rule({ id: 'core/hands', doc: 'A bare hand on the target: it is handled (and answers how); what the hand asks of it rides along — a companion\'s boon, what is said to a person (a talk verb, its choice, the thing it is about; the offer or topic of a quest, docs/quests.md).', on: 'act/hands', tree: DO(emit('handle', 'target', { boon: { param: 'boon' }, say: { param: 'say' }, choice: { param: 'choice' }, item: { param: 'item' }, quest: { param: 'quest' }, topic: { param: 'topic' } })) }),
   rule({ id: 'core/move', doc: 'Moving: one step, or to a place.', on: 'act/move', tree: DO({ op: 'step' }) }),
   rule({ id: 'core/craft', doc: 'Crafting what the recipe makes from what is carried.', on: 'act/craft', tree: DO({ op: 'craft' }) }),
   rule({ id: 'core/learn', doc: 'Learning what the act names: a skill (with skill points), a profession (at a trainer).', on: 'act/learn', tree: DO({ op: 'learn' }) }),
@@ -358,7 +359,6 @@ const BODIES: Rule[] = [
         DO(
           emit('notify', 'actor', { what: 'defeat', xp: { prop: 'maxHp', of: 'host' } }),
           // the story hears what fell, and to whom (quests count it)
-          emit('notify', 'story', { what: 'defeat', type: { typeOf: 'host' } }),
           vfx('poof', 'tileOf:host'),
           log('{host} is defeated.', '{host}被打倒了。'),
           { op: 'breakdown', still: true },
@@ -454,7 +454,7 @@ const BODIES: Rule[] = [
   }),
   rule({
     id: 'body/stage',
-    doc: 'The story tells a person where it stands (the player\'s stage): they keep it. Told to step into a pocket place (what = pocket: the Oath-Thorn\'s Held Ground), they go — or, in it, come back out. Told to mend (what = mend: the Mend skill), they mend by as much.',
+    doc: 'The story tells a person where it stands (the player\'s stage): they keep it. Told to step into a pocket place (what = pocket: the Oath-Thorn\'s Held Ground), they go — or, in it, come back out. Told to mend (what = mend: the Mend skill), they mend by as much. Told to pay, to hand something over, to give back what is not theirs, to go to the cells; told the news, reminded to chat, told to calm down, called to help (docs/npc-sandbox.md).',
     host: PERSON,
     on: 'impulse/notify',
     tree: IF(
@@ -468,12 +468,8 @@ const BODIES: Rule[] = [
       // told to mend (the Mend skill, actives.ts): one mends by as much
       param('what', 'mend'),
       DO({ op: 'heal', amount: { param: 'amount' } }, vfx('heal')),
-      IF(
-      param('what', 'quest'),
-      // a stage only goes forward (a quest handed in late tells an earlier one: the pilgrim's road after the river)
-      IF({ prop: { role: 'host', key: 'quest', bounds: { lt: { param: 'value' } }, default: -1 } }, DO({ op: 'setProp', key: 'quest', value: { param: 'value' } }), DO()),
-      IF(param('what', 'prologue'), DO({ op: 'setProp', key: 'prologue', value: { param: 'value' } }), 'inherit'),
-    )))),
+      PERSON_NEWS('inherit'),
+    ))),
   }),
 ]
 
@@ -481,27 +477,20 @@ const BODIES: Rule[] = [
 
 const PEOPLE: Rule[] = [
   rule({
-    id: 'people/talk',
-    label: L('Talk to {target}', '和{target}说话'),
-    doc: 'A hand on a person: a quest they have for you (handed in, taken on, a word they were to hear — docs/quests.md), else what fits the moment.',
-    host: PERSON,
-    on: 'impulse/handle',
-    tree: IF({ same: ['host', 'actor'] }, 'inherit', DO({ op: 'quest' })),
-  }),
-  rule({
     id: 'people/accept',
     label: L('Give {instrument} to {target}', '把{instrument}送给{target}'),
-    doc: 'A person handed a thing takes it and says what they make of it (one put on them is theirs to wear).',
+    doc: 'A person handed a thing takes it: their own brought back, they let go what they held against the one who took it; a gift, they warm to the giver as its worth says, and say what they make of it (one put on them is theirs to wear).',
     host: PERSON,
     on: 'impulse/offered',
-    tree: IF(any({ same: ['host', 'actor'] }, param('wear', true)), 'inherit', DO(taken('contents'), { op: 'say', text: '@given' })),
-  }),
-  rule({
-    id: 'seen/owner-take',
-    doc: 'A person who sees someone take what is theirs objects (and people talk).',
-    host: PERSON,
-    on: 'seen',
-    tree: IF(all(param('act', 'take'), param('owner', 'mine')), DO(say('Hey — that is mine.', '喂——那是我的。'), { op: 'emote', mood: 'angry' }, emit('notify', 'story', { what: 'topic', value: 'theft', days: 2 }))),
+    tree: IF(
+      any({ same: ['host', 'actor'] }, param('wear', true)),
+      'inherit',
+      IF(
+        { owns: ['host', 'item'] },
+        AS(L('Give {instrument} back to {target}', '把{instrument}还给{target}'), DO(taken('contents'), { op: 'settle' }, { op: 'regard', delta: 5 }, say('…Thank you for bringing it back.', '……谢谢你把它还回来。'), { op: 'news', kind: 'give' })),
+        DO(taken('contents'), { op: 'regard', delta: { prop: 'value', of: 'item', mul: 0.3, add: 2 } }, { op: 'say', text: '@given' }, { op: 'news', kind: 'give' }),
+      ),
+    ),
   }),
   rule({
     id: 'stuck/relight',
@@ -513,6 +502,9 @@ const PEOPLE: Rule[] = [
 ]
 
 // ------------------------------------------------------------------ using held things (the instrument's nature)
+
+/** A person, with nothing drawn against them: what is in hand is not a blow on them (the AI says what it is). */
+const UNDRAWN_ON_PERSON: Cond = all(is('target', PERSON), not(has('actor', 'drawn')))
 
 const USE: Selector[] = []
 void USE
@@ -530,6 +522,7 @@ const TOOL_LABELS: Record<string, Text> = {
   'tool:hammer': L('Hammer {target}', '敲打{target}'),
   key: L('Try the key in {target}', '用钥匙试{target}'),
   writing: L('Write on {target}', '在{target}上写字'),
+  lockpick: L('Pick the lock of {target}', '撬{target}的锁'),
   'tool:fishing': L('Cast into {target}', '往{target}里甩竿'),
 }
 
@@ -575,7 +568,12 @@ const INSTRUMENTS: Rule[] = [
     // (a blow is never a dressing: a helmet swung at a slime is a blow, as anything swung is)
     tree: IF(param('attack', true), 'inherit', IF(
       { same: ['actor', 'target'] },
-      AS(L('Put on {instrument}', '穿上{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' }))),
+      // on oneself: put on, or taken off when it is on (a weapon taken up, or put away)
+      IF(
+        { worn: 'host' },
+        IF(tag('host', 'weapon'), AS(L('Put away {instrument}', '收起{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' }))), AS(L('Take off {instrument}', '脱下{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' })))),
+        IF(tag('host', 'weapon'), AS(L('Wield {instrument}', '装备{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' }))), AS(L('Put on {instrument}', '穿上{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' })))),
+      ),
       // (a weapon is not put on another: used on them, it is what it is — a blow, or what its own rules say)
       IF(all(is('target', { type: 'actor' }), not(tag('host', 'weapon'))), AS(L('Put {instrument} on {target}', '给{target}穿上{instrument}'), DO(emit('offered', 'target', { wear: true }, { item: 'host' }))), 'inherit'),
     )),
@@ -671,31 +669,31 @@ const INSTRUMENTS: Rule[] = [
   }),
   rule({
     id: 'use/blade',
-    doc: 'A blade used on something (not a person) strikes it with a cutting edge.',
+    doc: 'A blade used on something strikes it with a cutting edge — on a person only with the blade drawn (X: a blow on a person is meant).',
     host: { type: 'item/weapon/blade' },
     on: 'act/use',
-    tree: IF(is('target', PERSON), 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'cut', ...WOUND }))),
+    tree: IF(UNDRAWN_ON_PERSON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'cut', ...WOUND }))),
   }),
   rule({
     id: 'use/polearm',
-    doc: 'A spear or a halberd used on something (not a person) strikes it with a point.',
+    doc: 'A spear or a halberd used on something strikes it with a point — on a person only with it drawn.',
     host: { type: 'item/weapon/polearm' },
     on: 'act/use',
-    tree: IF(is('target', PERSON), 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'pierce', ...WOUND }))),
+    tree: IF(UNDRAWN_ON_PERSON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'pierce', ...WOUND }))),
   }),
   rule({
     id: 'use/weapon',
-    doc: 'A weapon used on something (not a person) strikes it.',
+    doc: 'A weapon used on something strikes it — on a person only with it drawn.',
     host: { type: 'item/weapon' },
     on: 'act/use',
-    tree: IF(is('target', PERSON), 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND }))),
+    tree: IF(UNDRAWN_ON_PERSON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND }))),
   }),
   rule({
     id: 'use/spell',
-    doc: 'A wand cast at something (not a person) strikes it with its element.',
+    doc: 'A wand cast at something strikes it with its element — at a person only with it drawn.',
     host: { type: 'item/weapon/magic' },
     on: 'act/use',
-    tree: IF(is('target', PERSON), 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'magic', ...WOUND }))),
+    tree: IF(UNDRAWN_ON_PERSON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'magic', ...WOUND }))),
   }),
   ...(
     [
@@ -712,14 +710,14 @@ const INSTRUMENTS: Rule[] = [
       doc: `A ${t.slice(5)} works what it is used on: a blow with a ${edge} edge.`,
       host: { tags: [t] },
       on: 'act/use',
-      tree: IF(any({ same: ['actor', 'target'] }, is('target', PERSON)), 'inherit', DO(emit('strike', 'target', { power: POWER, edge, ...WOUND }))),
+      tree: IF(any({ same: ['actor', 'target'] }, UNDRAWN_ON_PERSON), 'inherit', DO(emit('strike', 'target', { power: POWER, edge, ...WOUND }))),
     }),
   ),
-  ...(['key', 'writing', 'tool:fishing'] as const).map((t) =>
+  ...(['key', 'writing', 'tool:fishing', 'lockpick'] as const).map((t) =>
     rule({
       id: `use/${t.replace('tool:', '')}`,
       label: TOOL_LABELS[t],
-      doc: 'A key, a quill, a fishing line: a careful hand on the target, with the instrument in it.',
+      doc: 'A key, a quill, a fishing line, a lockpick: a careful hand on the target, with the instrument in it.',
       host: { tags: [t] },
       on: 'act/use',
       tree: IF({ same: ['actor', 'target'] }, 'inherit', DO(emit('handle', 'target'))),
@@ -839,13 +837,17 @@ const PLACING: Rule[] = [
   }),
   rule({
     id: 'core/open-close',
-    doc: 'A hand opens or closes a container; a key locks or unlocks it.',
+    doc: 'A hand opens or closes a container; a key locks or unlocks it; a lockpick, worked at a lock, may spring it (and one who sees it knows what it is).',
     host: CONTAINER,
     on: 'impulse/handle',
     tree: IF(
+      tag('instrument', 'lockpick'),
+      IF(tag('host', 'locked'), IF({ chance: 0.5 }, AS(L('Pick the lock of {target}', '撬{target}的锁'), DO({ op: 'removeTag', tag: 'locked' }, { op: 'open' }, vfx('sparkle'), log('Click — the lock gives.', '咔哒——锁开了。'))), DO(log('The pick slips. Try again.', '撬锁器滑了一下。再试试。'))), DO(log('It is not locked.', '它没有上锁。'))),
+      IF(
       tag('instrument', 'key'),
       IF(tag('host', 'locked'), AS(L('Unlock {target}', '打开{target}的锁'), DO({ op: 'removeTag', tag: 'locked' }, { op: 'open' }, vfx('sparkle'), log('Click. It opens.', '咔哒一声，开了。'))), IF(has('host', 'open'), 'inherit', AS(L('Lock {target}', '锁上{target}'), DO({ op: 'addTag', tag: 'locked' }, vfx('sparkle'), log('Click. It is locked.', '咔哒一声，锁上了。'))))),
       IF(tag('host', 'locked'), AS(L('Try {target}', '试着打开{target}'), DO(say('Locked.', '锁住了。', 'actor'))), IF(has('host', 'open'), AS(L('Close {target}', '关上{target}'), DO({ op: 'open' }, vfx('dust'))), AS(L('Open {target}', '打开{target}'), DO({ op: 'open' }, vfx('dust'))))),
+      ),
     ),
   }),
   rule({
@@ -951,10 +953,19 @@ const GROUND: Rule[] = [
   rule({
     id: 'element/freeze-water',
     label: L('Freeze {target}', '冻住{target}'),
-    doc: 'Ice turns water into walkable ice, spreading a little; that ice thaws in time.',
+    doc: 'Ice turns water into walkable ice, spreading a little (the cast\'s own cell spreads to those beside it, and no further); that ice thaws in time.',
     host: { type: 'tile/water' },
     on: 'impulse/element',
-    tree: IF(param('element', 'ice'), DO({ op: 'transform', into: 'tile/ice' }, add('chilled'), emit('element', { area: { radius: 1 } }, { element: 'ice', power: 1 }, { chance: 0.7, filter: { type: 'tile/water' } }), vfx('frost')), 'inherit'),
+    // only a strong frost (a cast, power 2 and up) spreads, and what it spreads is weak: one cast is a few cells, not a river
+    tree: IF(
+      param('element', 'ice'),
+      IF(
+        { param: { key: 'power', cmp: { gte: 2 } } },
+        DO({ op: 'transform', into: 'tile/ice' }, add('chilled'), emit('element', { area: { radius: 1 } }, { element: 'ice', power: 1 }, { chance: 0.7, filter: { type: 'tile/water' } }), vfx('frost')),
+        DO({ op: 'transform', into: 'tile/ice' }, add('chilled'), vfx('frost')),
+      ),
+      'inherit',
+    ),
   }),
   rule({
     id: 'element/thaw-ice',
@@ -1259,7 +1270,7 @@ const BUILD: Rule[] = [
     on: 'impulse/receive',
     tree: IF(
       param('what', 'stick'),
-      IF({ prop: { role: 'host', key: 'sticks', cmp: 0 } }, DO({ op: 'setProp', key: 'sticks', value: 1 }, log('One more stick.', '再加一根树枝。')), DO({ op: 'transform', into: 'fixture/light/campfire' }, vfx('dust'), log('A campfire, ready to light.', '篝火搭好了，可以点了。'))),
+      IF({ prop: { role: 'host', key: 'sticks', cmp: 0 } }, DO({ op: 'setProp', key: 'sticks', value: 1 }, log('One more stick.', '再加一根树枝。')), DO({ op: 'transform', into: 'fixture/light/campfire' }, vfx('dust'), log('A campfire, ready to light.', '营火搭好了，可以点了。'))),
       'inherit',
     ),
   }),
@@ -1470,10 +1481,10 @@ const JOURNEY: Rule[] = [
   rule({
     id: 'trainer/talk',
     label: L('Talk to {target}', '和{target}说话'),
-    doc: 'A profession trainer, spoken to: a quest if they have one, a word, and the choice of profession (from level 5; a change gives back the profession branch\'s points).',
+    doc: 'A profession trainer, spoken to: a quest if they have one, a word, and the choice of profession (from level 5; a change gives back the profession branch\'s points); asked anything else, as anyone.',
     host: { type: 'actor/person/trainer' },
     on: 'impulse/handle',
-    tree: IF({ same: ['host', 'actor'] }, 'inherit', DO({ op: 'quest' }, { op: 'panel', panel: 'profession' })),
+    tree: IF({ same: ['host', 'actor'] }, 'inherit', IF(param('say', 'profession'), DO({ op: 'panel', panel: 'profession' }), IF({ param: { key: 'say', cmp: { ne: '' } } }, 'inherit', DO({ op: 'quest' }, { op: 'talk' }, { op: 'panel', panel: 'profession' })))),
   }),
   rule({
     id: 'companion/talk',
@@ -1518,12 +1529,49 @@ const JOURNEY: Rule[] = [
     on: 'time/period',
     tree: IF(all(param('name', 'dawn'), { night: false }, { chance: 0.5 }), DO(vfx('poof', 'tileOf:host'), { op: 'destroy' }), 'inherit'),
   }),
+  // ---------------------------------------------------------------- quests (docs/quests.md)
   rule({
     id: 'story/quests',
-    doc: 'The story settles a quest\'s business it is told of: a word between a giver and the one who spoke to them, a defeat (quests.ts).',
+    doc: 'The story is told an offer was taken on (what = accept, param quest: the actor took it from the source, its giver): the quest begins. Told facts to keep (what = facts: a quest\'s reward), it keeps them.',
     host: { type: 'resident/story' },
     on: 'impulse/notify',
-    tree: IF(param('what', 'quest'), DO({ op: 'quests' }), IF(param('what', 'defeat'), DO({ op: 'quests' }), 'inherit')),
+    tree: IF(param('what', 'accept'), DO({ op: 'startQuest' }), IF(param('what', 'facts'), DO({ op: 'facts' }), 'inherit')),
+  }),
+  rule({
+    id: 'story/manager',
+    doc: 'The Story Manager: the story sees the world\'s news (a step played, a fact kept, a quest over, a place entered, the evening, a theft, the hungry): the quests that begin on it begin, the radiant offers on it are made (docs/quests.md §2.3).',
+    host: { type: 'resident/story' },
+    on: 'seen',
+    tree: DO({ op: 'begin' }),
+  }),
+  rule({
+    id: 'quest/news',
+    doc: 'A quest sees news it listens for (who its taker spoke to, what was felled or is gone, what the taker holds and where they are, the story\'s facts, the other quests): it moves on as its triggers say.',
+    host: { type: 'resident/quest' },
+    on: 'seen',
+    tree: DO({ op: 'advance' }),
+  }),
+  rule({
+    id: 'quest/notify',
+    doc: 'A quest told to reach a stage (what = stage, param n: a scene\'s, a rule\'s), to be taken on (accept: by the actor), turned down (decline), or that it failed (fail): it answers itself.',
+    host: { type: 'resident/quest' },
+    on: 'impulse/notify',
+    tree: IF(param('what', 'stage'), DO({ op: 'stage', n: { param: 'n' } }), IF(param('what', 'accept'), DO({ op: 'accept' }), IF(param('what', 'decline'), DO({ op: 'decline' }), IF(param('what', 'fail'), DO({ op: 'failQuest' }), 'inherit')))),
+  }),
+  rule({
+    id: 'quest/due',
+    doc: 'A quest\'s time runs out (its status due): an offer is withdrawn, a quest under way fails.',
+    host: { type: 'resident/quest' },
+    on: 'time/timer',
+    tree: IF(param('status', 'due'), DO({ op: 'failQuest' }), 'inherit'),
+  }),
+  rule({
+    id: 'board/read',
+    label: L('Look at {target}', '看看{target}'),
+    doc: 'The commission board (docs/quests.md §3): read with a hand, it shows the favours people want done (its panel); asked to take one on (say quest), the quest named is taken on.',
+    host: { type: 'fixture/sign/questboard' },
+    on: 'impulse/handle',
+    tree: IF(param('say', 'quest'), DO({ op: 'quest' }), DO({ op: 'panel', panel: 'board' })),
   }),
   rule({
     id: 'creature/not-taken',
@@ -1728,4 +1776,4 @@ const GENERAL: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL]
+export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL]

@@ -37,7 +37,11 @@
     "hold": "守着",
     "keep the held ground": "守护誓守之地",
     "keep out of sight": "藏起行踪",
-    "ride the roads": "奔走在路上"
+    "ride the roads": "奔走在路上",
+    "weave": "织布",
+    "sit by the fire": "围着火坐",
+    "loiter by the well": "在井边闲晃",
+    "mend his boots": "补靴子"
   },
   "性格": {
     "stubborn": "固执",
@@ -65,7 +69,8 @@
     "weary": "疲惫",
     "steadfast": "坚定",
     "grim": "阴郁",
-    "formal": "拘礼"
+    "formal": "拘礼",
+    "kind": "善良"
   },
   "关系": {
     "owes her last autumn's fare": "欠她去年秋天的船钱",
@@ -81,7 +86,9 @@
     "aunt": "姨妈",
     "knew him": "认识他",
     "squire": "侍从",
-    "raised by her": "被她养大"
+    "raised by her": "被她养大",
+    "husband": "丈夫",
+    "friend": "朋友"
   },
   "条件": {
     "default": "平时",
@@ -101,6 +108,10 @@
     "given:item/food": "收到食物时",
     "given:item/tool/rope": "收到绳子时",
     "topic:theft": "有人偷东西之后（话题）",
+    "topic:crossed": "过了河之后（话题）",
+    "topic:crown": "拿到荆棘冠之后（话题）",
+    "topic:dragon_slain": "魔龙被斩之后（话题）",
+    "topic:flame_stolen": "圣火被盗之后（话题）",
     "topic:winch_mended": "绞盘修好之后（话题）",
     "fact:ford.crossed": "过了河之后",
     "fact:ford.winch": "修好渡口绞盘之后",
@@ -122,7 +133,35 @@
     "fact:q.templar": "老骑士的任务之后",
     "fact:seen.village_arrival": "到达初原村之后",
     "fact:seen.pilgrim_camp": "见过朝圣者营地之后",
-    "fact:haven.met": "见过誓守之地的守地人之后"
+    "fact:haven.met": "见过誓守之地的守地人之后",
+    "fact:ch1.drawing.stone": "找到路碑旁的画之后",
+    "fact:ch1.drawing.door": "找到古墓门口的画之后",
+    "fact:ch1.drawing.bridge": "找到小桥边的画之后",
+    "fact:ch1.drawing.man": "找到圣火旁的画之后",
+    "fact:seen.chapel_bell": "敲响礼拜堂的钟之后",
+    "fact:seen.watch_log": "读过守夜人的日志之后",
+    "fact:waypoints.attuned": "唤醒的传送雕像",
+    "fact:seen.tut_wake": "在空地上醒来之后",
+    "fact:seen.tut_ate": "吃过东西之后",
+    "fact:seen.tut_gathered": "收齐树枝、石头和草之后",
+    "fact:seen.tut_axe": "做出石斧之后",
+    "fact:seen.tut_planks": "劈出木板之后",
+    "fact:seen.tut_fire": "点起营火之后",
+    "fact:seen.tut_house": "盖好有床的屋子之后",
+    "fact:seen.tut_morning": "熬过第一夜之后",
+    "fact:seen.tut_out": "走到山脚之后",
+    "fact:seen.relic": "见到山脚的封印石之后",
+    "fact:seen.tried": "对封印石做过世界没见过的事之后",
+    "fact:seen.ford": "来到渡口之后",
+    "fact:seen.emberfall_arrival": "来到余烬镇之后",
+    "fact:seen.ready": "拿到屠龙剑和防火药剂之后",
+    "fact:seen.lair_gate": "来到魔龙巢穴门口之后",
+    "fact:mq.council": "听玛拉讲过魔龙之后",
+    "fact:mq.ore": "交给加里克的铁矿石",
+    "fact:mq.coal": "交给加里克的煤",
+    "fact:mq.fireweed": "交给雷恩的火焰草",
+    "fact:mq.frostcap": "交给雷恩的霜盖菇",
+    "topic:death": "有人死了"
   },
   "地图类型": {
     "wild": "野外",
@@ -220,5 +259,16 @@
     "block": "格挡率",
     "night:def": "夜间防御",
     "night:atk": "夜间攻击"
+  },
+  "任务词": {
+    "alias:hungry": "饿着的人",
+    "alias:owner": "失主",
+    "alias:thief": "拿走的人",
+    "alias:thing": "东西",
+    "alias:sender": "写信人",
+    "alias:recipient": "收信人",
+    "alias:guard": "守卫",
+    "tag:edible": "吃的",
+    "tag:nightborn": "夜行者"
   }
 }

@@ -8,12 +8,17 @@ const FORGE = { uses: 'emberfall.forge', need: { status: ['lit'] } }
 export const garrick: PersonDef = {
   id: 'npc.garrick',
   role: 'smith',
+  essential: true,
   name: { en: 'Garrick', zh: '加里克' },
   gender: 'male',
   look: { parts: { hair: 'hair.cropped', face: 'face.stern', outfit: 'outfit.apron', beard: 'beard.full', mark: 'mark.scar', hat: null }, colors: { hair: 'black', eyes: 'bark', skin: 'tan' } },
   age: 46,
   temperament: { personality: 'gruff', manner: 'rough', social: 'reserved', outlook: 'hopeful' },
   ties: { 'npc.mara': 'the elder who pays for his coal' },
+  // he sells what he makes, and a smith struck strikes back
+  fights: true,
+  trade: { stock: [['item/tool/pickaxe', 1], ['item/tool/hoe', 1], ['item/weapon/blade/dagger', 1]] },
+  purse: 60,
   schedules: {
     default: [
       [21, 6, 'emberfall:smith.home', 'sleep'],

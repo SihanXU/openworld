@@ -1158,6 +1158,37 @@ describe('the live profile', () => {
     expect(rev.outcome).toBe('accepted')
   })
 
+  it('a background revision does not hold the lane a player\'s request waits in', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    let reviews = 0
+    let lives = 0
+    let revising = false
+    const model = new ScriptedModel(async (messages, opts) => {
+      if (opts.purpose === 'review') return reviews++ === 0 ? { verdict: 'revise', notes: ['Any creature can be tied up, not just slimes.'] } : { verdict: 'ship' }
+      if (opts.purpose === 'reflect') return {}
+      if (opts.tools?.length || messages.some((m) => m.role === 'tool')) {
+        revising = true
+        if (messages[messages.length - 1].role === 'user') return { content: '', toolCalls: [{ id: 'x', name: 'get_type', args: { id: 'item/tool/rope' } }] }
+        await gate
+        return { patch: patchOf(bindRule()) }
+      }
+      return { patch: patchOf(noTests(bindRule(`patch/stone-stills-slime-${lives++}`))) }
+    })
+    const { modder, state } = setup(model, undefined, 'live')
+    state.setHarness({ ...state.harness(), review: { ...state.harness().review, unflagged: true } }, 'test: review everything')
+    expect((await modder.resolve({ request: request() })).outcome).toBe('accepted')
+    for (let i = 0; i < 200 && !revising; i++) await new Promise((r) => setTimeout(r, 10))
+    expect(revising).toBe(true)
+    // another green slime offered a stone: the same lane (the type's tree at this hole), while its revision is still being designed
+    const again = request()
+    expect(laneOf(again)).toBe(laneOf(request()))
+    const second = await Promise.race([modder.resolve({ request: again }), new Promise<'blocked'>((r) => setTimeout(() => r('blocked'), 3000))])
+    expect(second).not.toBe('blocked')
+    release()
+    await modder.settled()
+  })
+
   it('flags a rule that changes nothing for the reviewer', async () => {
     const flavour: Rule = { id: 'patch/stone-on-creature-nothing', host: { type: 'actor/creature' }, on: 'impulse/offered', doc: 'Nothing.', tree: { if: STONY, then: { do: [{ op: 'log', text: 'You knock the stone about.' }] } } }
     let seen = ''

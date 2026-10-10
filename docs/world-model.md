@@ -427,8 +427,9 @@ else the striker's body) times its best row; softer than the target, "Too hard."
 `hurt` does nothing to what has no `maxHp`. Burning wears what has durability (`fire/wear`, and the
 spreading rules wear too); `fire/scorch` merged into it. The root of `broken` is `core/break`;
 `breakdown` makes the parts (popping out for the magnet, in the host's material) and spills what
-it held. `transform` gives the new form its full durability. Trees (10: a stone axe, two blows,
-notched between), pines, bushes, rock (10), cave walls, stone and wooden walls, roofs, stumps,
+it held, on the host's storey where another floor holds them, else on the first floor below (a
+floor that broke leaves nothing to lie on). `transform` gives the new form its full durability.
+Trees (10: a stone axe, two blows, notched between), pines, bushes, rock (10), cave walls, stone and wooden walls, roofs, stumps,
 charred trees, boulders, veins and the breakable containers have durability and makeup; the
 pickaxe's endless `mine/chip` and the counters `mine/crack`, `mine/vein`, `mine/rock` are gone. A
 burning wooden wall wears and stands black (`burnt_wall`). Bodies took their blows apart (`combat/struck`) until W8; now as anything with durability (§6.8).
@@ -726,6 +727,13 @@ one step at a time, the beats first. Guides (the objective by stage, `@objective
 objectives with a giver. An older save's `beat.<id>` facts become `seen.<id>`, `beat.last`
 `step.last`. The prologue and the quests play as before (P1, P3, P4, Q1–Q5). Not yet: one view of
 all objectives (the quest log and the guide are shown apart).
+
+**2026-10-09, the quests (docs/quests.md).** The view is one now: the guides and the player's
+`quest`/`prologue` stages are gone; the main line, the people's errands and the radiant favours are
+quests — resident things with stages, objectives and aliases, which see news the engine makes after
+every outcome and answer with their own rules (the story is the Story Manager). Steps wait on quests
+(`quest`, `objectives` in a step's trigger); a quest's stage carries the tutorial's lessons; the
+companion tells the tracked quest's objectives.
 
 ## 7. The event model, extended
 

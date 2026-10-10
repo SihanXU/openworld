@@ -8,6 +8,7 @@ import { VEGETABLE_CROPS } from './crops.ts'
 import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
 import { SKILL_PROFESSIONS } from './skills.ts'
 import { BOON_STATUSES } from './boons.ts'
+import { DEEDS, LAWS, SOCIAL, SOCIAL_STATUSES, SOCIAL_TYPES, TALK } from './social.ts'
 
 /** One char per terrain: maps are stored as strings. */
 export const TERRAIN_CHARS: Record<string, string> = {
@@ -90,6 +91,9 @@ const GROWS_INTO_TREE: StageDef = { into: 'tile/tree', lasts: TREE_GROWS, needs:
 const GROWS_UP = 2 * TICKS_PER_DAY
 /** A hen lays an egg every three game hours. */
 export const LAYS_EVERY = 1800
+/** A hen does not lay while this many eggs lie about her map: uncollected, they would pile up without end. */
+export const EGGS_LIE = 12
+const LAYS: StageDef = { lasts: LAYS_EVERY, yields: [{ type: 'item/food/egg/raw' }], needs: { count: { role: 'host', in: 'map', match: { type: 'item/food/egg' }, cmp: { lt: EGGS_LIE } } } }
 
 /** How many night-born walk a map at once, and how often (ticks) another may come (world-model.md §6.9). */
 export const NIGHT_CAP = 4
@@ -203,6 +207,8 @@ export const STATUSES: StatusDef[] = [
   { id: 'broken', name: { en: 'broken', zh: '坏了' } },
   // at no health the essential (people, the player) collapse for a while instead of dying
   { id: 'down', name: { en: 'down', zh: '倒地' }, duration: 300, immobilize: true },
+  // a quest's deadline (docs/quests.md): when it runs out, an offer is withdrawn and a quest under way fails
+  { id: 'due', name: { en: 'due', zh: '期限' } },
   // out cold (a new game's first moments): lying still a while, then one comes round
   { id: 'out_cold', name: { en: 'out cold', zh: '昏迷' }, duration: 50, immobilize: true },
   // asleep in a bed: lying still while the night passes, hungry four times slower (the hunger period's paceBy)
@@ -281,12 +287,14 @@ export const PERSON_ROLES: [string, string, string][] = [
 const actorTypes: TypeDef[] = [
   // an agent acts by itself, with a body that takes its cells (world-model.md §4.2)
   P('actor', 'creature', '生物', { tags: ['agent'], props: { level: 1, material: 'flesh' } }),
+  // people are mortal (docs/npc-sandbox.md §2.8): those the story needs carry `essential` themselves (they go
+  // down instead); a person grows hungry slower than the traveller, perceives, and has a conscience (and fights back when struck only if it says so: `fights`)
   P('actor/person', 'person', '人', {
-    tags: ['person', 'living', 'talkable', 'faction:folk', 'essential'],
-    props: { hp: 20, maxHp: 20, atk: 1, def: 0, speed: 2, sight: 7 },
+    tags: ['person', 'living', 'talkable', 'faction:folk'],
+    props: { hp: 20, maxHp: 20, atk: 1, def: 0, speed: 2, sight: 7, perception: 10, hunger: 20, maxHunger: 20, hungerEvery: 960, honesty: 1, bodyType: 'fixture/remains/body' },
     sprite: 'person',
   }),
-  P('actor/person/player', 'you', '你', { props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, hunger: 20, maxHunger: 20 } }),
+  P('actor/person/player', 'you', '你', { tags: ['essential'], props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, hunger: 20, maxHunger: 20, hungerEvery: 480 } }),
   ...PERSON_ROLES.map(([id, en, zh]) => P(`actor/person/${id}`, en, zh)),
   // the profession trainer (engine/src/profession.ts): a profession is chosen within reach of one
   P('actor/person/trainer', 'profession trainer', '职业导师', { tags: ['trainer'] }),
@@ -324,7 +332,7 @@ const actorTypes: TypeDef[] = [
   // the meadow's animals: passive, they run when struck, and leave food behind (drop × drops)
   P('actor/creature/animal', 'animal', '动物', { tags: ['animal'], props: { behaviour: 'passive', temper: 'wary', sight: 4 } }),
   P('actor/creature/animal/cow', 'cow', '牛', { tags: ['livestock', 'furry'], sprite: 'creature:cow', props: { hp: 10, maxHp: 10, atk: 0, speed: 7, babyType: 'actor/creature/animal/calf' }, makeup: [{ type: 'item/food/meat/raw', count: 4 }] }),
-  P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', stage: { lasts: LAYS_EVERY, yields: [{ type: 'item/food/egg/raw' }] }, props: { hp: 4, maxHp: 4, atk: 0, speed: 5, babyType: 'actor/creature/animal/chick' }, makeup: [{ type: 'item/food/chicken/raw', count: 2 }] }),
+  P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', stage: LAYS, props: { hp: 4, maxHp: 4, atk: 0, speed: 5, babyType: 'actor/creature/animal/chick' }, makeup: [{ type: 'item/food/chicken/raw', count: 2 }] }),
   // the young of a pair fed together (homestead.ts, Minecraft's breeding): they grow up in two days
   P('actor/creature/animal/calf', 'calf', '小牛', { tags: ['livestock', 'furry', 'young'], sprite: 'creature:calf', stage: { lasts: GROWS_UP, into: 'actor/creature/animal/cow' }, props: { hp: 5, maxHp: 5, atk: 0, speed: 6 }, makeup: [{ type: 'item/food/meat/raw', count: 1 }] }),
   P('actor/creature/animal/chick', 'chick', '小鸡', { tags: ['bird', 'feathered', 'young'], sprite: 'creature:chick', stage: { lasts: GROWS_UP, into: 'actor/creature/animal/chicken' }, props: { hp: 2, maxHp: 2, atk: 0, speed: 4 }, makeup: [{ type: 'item/material/feather', count: 1 }] }),
@@ -353,6 +361,8 @@ const RESIDENTS: TypeDef[] = [
   { id: 'resident', name: { en: 'the world', zh: '世界' } },
   { id: 'resident/world', name: { en: 'the world', zh: '世界' } },
   { id: 'resident/story', name: { en: 'the story', zh: '故事' } },
+  // a quest under way (docs/quests.md): a resident thing whose props are its state, answering only its own rules
+  { id: 'resident/quest', name: { en: 'quest', zh: '任务' } },
   // a map's named area (world-model.md §5.4): entering and leaving it is the relation in-region
   { id: 'region', name: { en: 'an area', zh: '区域' } },
   // a room: found where cells are covered and walled all round (derived, read-only, world-model.md §5.4)
@@ -408,7 +418,7 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/furniture/cart', 'handcart', '手推车', ['surface']),
   F('fixture/furniture/cart/flowers', 'flower cart', '花车', ['plant', 'flower'], { sprite: 'fixture:flower_cart' }),
   F('fixture/light', 'light', '灯', []),
-  F('fixture/light/campfire', 'campfire', '篝火', ['lightable', 'cookware'], { solid: true, props: { material: 'stone', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/stone', count: 2 }, { type: 'item/material/stick', count: 2 }] }),
+  F('fixture/light/campfire', 'campfire', '营火', ['lightable', 'cookware'], { solid: true, props: { material: 'stone', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/stone', count: 2 }, { type: 'item/material/stick', count: 2 }] }),
   F('fixture/light/brazier', 'brazier', '火盆', ['lightable', 'metal', 'conductive', 'cookware'], { solid: true }),
   F('fixture/light/lamppost', 'lamp post', '路灯', ['lightable', 'metal', 'conductive'], { solid: true }),
   F('fixture/light/candles', 'candles', '烛台', ['lightable'], { solid: true }),
@@ -422,6 +432,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/sign', 'sign', '告示牌', ['wooden', 'flammable', 'readable'], { solid: true, props: { material: 'wood', maxHp: 4, hp: 4, handsRange: 2 }, makeup: [{ type: 'item/material/stick', count: 1 }, { type: 'item/material/plank', count: 1 }] }),
   F('fixture/tent', 'tent', '帐篷', ['cloth', 'flammable', 'shelter', 'opaque'], { solid: true, footprint: [3, 3] }),
   F('fixture/sign/noticeboard', 'notice board', '布告栏', ['paper']),
+  // the village's board of favours (docs/quests.md §3): what people want done, to take on
+  F('fixture/sign/questboard', 'commission board', '委托板', ['paper']),
   F('fixture/craft', 'workstation', '工作台', [], { solid: true }),
   F('fixture/craft/anvil', 'anvil', '铁砧', ['metal', 'conductive', 'surface']),
   F('fixture/craft/forge', 'forge', '熔炉', ['stone', 'lightable', 'cookware']),
@@ -496,10 +508,15 @@ const fixtureTypes: TypeDef[] = [
 
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}
-  for (const t of [...actorTypes, ...fixtureTypes, ...itemTypes(), ...RESIDENTS, ...BOSS_TYPES]) types[t.id] = t
+  for (const t of [...actorTypes, ...fixtureTypes, ...itemTypes(), ...RESIDENTS, ...BOSS_TYPES, ...SOCIAL_TYPES]) types[t.id] = t
   return {
     types,
-    statuses: Object.fromEntries([...STATUSES, ...BOSS_STATUSES, ...BOON_STATUSES].map((s) => [s.id, s])),
+    statuses: Object.fromEntries([...STATUSES, ...BOSS_STATUSES, ...BOON_STATUSES, ...SOCIAL_STATUSES].map((s) => [s.id, s])),
+    // the people's social life (docs/npc-sandbox.md): deeds and their fines, the watches, the numbers, the talk panel's verbs
+    deeds: DEEDS,
+    laws: LAWS,
+    social: SOCIAL,
+    talk: TALK,
     // who attacks whom: the wild attacks folk (when a creature's temper says so); folk attack no one
     factions: {
       folk: { name: { en: 'folk', zh: '人们' }, hostile: [] },
@@ -540,6 +557,8 @@ export function buildOntology(): Ontology {
       // the Held Ground's mist looks now and then whether the ground has grown past it (haven.ts)
       { name: 'mist', every: 30, host: { type: 'fixture/nature/mist' } },
       { name: 'storm', every: 300, host: 'world' },
+      // each morning one has one's purse again, and a merchant its stock (people/morning)
+      { name: 'morning', every: TICKS_PER_DAY, host: { type: 'actor/person' } },
       // the night's walkers crumble at dawn (their own)
       { name: 'dawn', every: 5, host: { type: 'actor', tags: ['nightborn'] } },
       // the dragon's whelps, their mother slain, scatter into the dark (quest.ts, mq/whelps-scatter)

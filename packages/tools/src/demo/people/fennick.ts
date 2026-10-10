@@ -6,12 +6,17 @@ import { line, type PersonDef } from '../person.ts'
 export const fennick: PersonDef = {
   id: 'npc.fennick',
   role: 'guard',
+  essential: true,
   name: { en: 'Fennick', zh: '芬尼克' },
   gender: 'male',
   look: { parts: { hair: 'hair.swept', face: 'face.soft', outfit: 'outfit.plate', beard: 'beard.moustache', hat: null }, colors: { hair: 'snow', eyes: 'sky', skin: 'fair', 'outfit.1': 'ivory', 'outfit.2': 'gold', 'outfit.3': 'steel' } },
   age: 62,
   temperament: { personality: 'weary', manner: 'rough', social: 'reserved', outlook: 'wary' },
   ties: { 'npc.severin': 'knew him' },
+  // an old templar who still keeps the watch with Holt, and still fights
+  watch: 'firstlight',
+  fights: true,
+  purse: 12,
   schedules: {
     default: [
       [22, 7, 'meadow:guard.home', 'sleep'],

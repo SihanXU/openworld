@@ -181,7 +181,7 @@ export function buildSite(opts: { ref?: string } = {}): Built {
     if (e) {
       cats.add(({ item: '物品', fixture: '设施', structure: '建筑件', person: '居民', companion: '居民', creature: '怪物', boss: '首领', map: '地点', quest: '任务' } as Record<string, string>)[e.kind])
       if (e.kind === 'item' || e.kind === 'fixture') cats.add(e.group)
-      if (e.kind === 'quest') cats.add(({ main: '主线任务', side: '支线任务', repeat: '重复任务' } as Record<string, string>)[(e as any).def.kind])
+      if (e.kind === 'quest') cats.add(({ main: '主线任务', side: '支线任务', favor: '委托任务' } as Record<string, string>)[(e as any).def.kind])
       if (e.kind === 'creature') cats.add(e.group)
     } else cats.add(({ 系统: '玩法', 设定: '世界观', 章节: '剧情', 列表: '列表', 帮助: '帮助' } as Record<string, string>)[p.type] ?? p.type)
     if (p.stub) cats.add('待完善')

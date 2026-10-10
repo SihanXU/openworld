@@ -16,7 +16,7 @@ import { ProfessionPanel } from './profession.ts'
 import { BoonPanel } from './boons.ts'
 import { QuestLog } from './questlog.ts'
 import { SkillPanel } from './skillpanel.ts'
-import { $, SLOT_KEYS, controlsTable, esc, locale, t, tx } from './common.ts'
+import { $, SLOT_KEYS, controlsTable, esc, locale, prefs, t, tx } from './common.ts'
 
 export type Tab = 'inventory' | 'craft' | 'options' | 'shop'
 const ICONS: Record<Tab, string> = { inventory: '🎒', craft: '🔨', options: '⚙', shop: '🏪' }
@@ -139,6 +139,10 @@ export interface MenuSend {
   devConsole?(): void
   /** One of the inputs on an item in the bag or the open chest (the context menu). */
   keyOnItem(key: Key, item: string): void
+  /** The journal: the quest followed (none: the latest main quest). */
+  track(id: string | undefined): void
+  /** The commission board: a favour on it taken on. */
+  board(who: string, ref: string): void
 }
 
 export class Menu {
@@ -180,7 +184,7 @@ export class Menu {
        <div id="skillpanel" class="overlay hidden"></div>`,
     )
     this.skills = new SkillTree($('#skills'), (id) => this.send.learn(id), () => this.close())
-    this.quests = new QuestLog($('#questlog'), () => this.close())
+    this.quests = new QuestLog($('#questlog'), () => this.close(), { track: (id) => this.send.track(id), board: (who, ref) => this.send.board(who, ref) })
     $('#questlog').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
     this.skillPanel = new SkillPanel($('#skillpanel'), (slot, id) => this.send.setSkill(slot, id), () => this.close())
     $('#skillpanel').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
@@ -268,7 +272,7 @@ export class Menu {
     if (f.container && !this.chestOpen) ($('#chest').classList.remove('hidden'), (this.chestSig = ''))
     if (!f.container && this.chestOpen) $('#chest').classList.add('hidden')
     if (this.chestOpen) this.renderChest(f)
-    if (this.menuOpen && (this.tab === 'inventory' || this.tab === 'craft')) this.renderLive()
+    if (this.menuOpen && (this.tab === 'inventory' || this.tab === 'craft' || this.tab === 'shop')) this.renderLive()
     if (this.journalOpen && this.library && this.library.version !== this.journalLib) this.renderJournal()
     if (this.skillsOpen) this.skills.render(f)
     if (this.profession.open) this.profession.render(f)
@@ -289,6 +293,12 @@ export class Menu {
     if (this.quests.open) return this.close()
     this.close()
     this.quests.show(this.frame)
+  }
+
+  /** The commission board was read (docs/quests.md §3): the favours on offer, in the journal's sheet. */
+  openBoard(who: string): void {
+    this.close()
+    this.quests.show(this.frame, who)
   }
 
   /** A trainer opened the choice of profession. */
@@ -346,7 +356,7 @@ export class Menu {
   }
 
   private sigOf(f: Frame): string {
-    return `${this.tab}|${locale.value}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${this.picked}`
+    return `${this.tab}|${locale.value}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${f.player.stations.join()}|${this.picked}`
   }
 
   // ---------------------------------------------------------------- inventory
@@ -511,6 +521,8 @@ export class Menu {
     return `<div class="options">
       <div class="opt"><span>${t('language')}</span><button id="oLang">${locale.value === 'zh' ? '中文 → English' : 'English → 中文'}</button></div>
       <div class="opt"><span>${t('sound')}</span><button id="oSound">${this.muted ? t('off') : t('on')}</button></div>
+      <div class="opt"><span>${t('optTracker')}</span><button id="oTracker">${prefs.get('tracker') ? t('on') : t('off')}</button></div>
+      <div class="opt"><span>${t('optMarkers')}</span><button id="oMarkers">${prefs.get('markers') ? t('on') : t('off')}</button></div>
       <div class="opt"><button id="oSave">${t('save')}</button><button id="oNew">${t('toTitle')}</button>${import.meta.env.DEV ? `<button id="oDev">${t('devConsole')}</button>` : ''}</div>
       <h4>${t('controls')}</h4>${controlsTable(import.meta.env.DEV)}
     </div>`
@@ -519,6 +531,8 @@ export class Menu {
   private wireOptions(): void {
     $('#oLang').onclick = () => (this.send.toggleLocale(), this.render())
     $('#oSound').onclick = () => (this.send.toggleSound(), (this.muted = !this.muted), this.render())
+    $('#oTracker').onclick = () => (prefs.set('tracker', !prefs.get('tracker')), this.render())
+    $('#oMarkers').onclick = () => (prefs.set('markers', !prefs.get('markers')), this.render())
     $('#oSave').onclick = () => this.send.save()
     // back to the cover (saved first): new games and other slots start there
     $('#oNew').onclick = () => (this.close(), this.send.newGame())

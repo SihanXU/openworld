@@ -107,10 +107,10 @@ describe('base library', () => {
     }
     // the same validator patches go through: known kinds, impulses, primitives, statuses, types, vfx;
     // effects write only their host (no `of`). Only the base may answer for anything (a root rule)
-    // and leave an outcome undefined (a hole the AI fills).
+    // and leave an outcome undefined (a hole the AI fills), and only the base hosts a quest's rules (docs/quests.md).
     const res = validatePatch({ artifacts: [...BASE_RULES, ...STORY_RULES].map((r) => ({ kind: 'rule' as const, rule: r })) }, { ontology: onto, library: new RuleLibrary() })
-    // ...and only a learned rule has a place (design.md §5.16): one exact type, one kind, a hole, no inherit.
-    const placement = /host must be exactly|hole required|exact event kind|never inherits|no leaf answers|no default of its own/
+    // ...and only a learned rule has a place (design.md §5.16): one exact type, one kind, a hole, no inherit; a quest is the content's.
+    const placement = /host must be exactly|hole required|exact event kind|never inherits|no leaf answers|no default of its own|a quest is the content/
     expect(res.errors.filter((e) => !placement.test(e))).toEqual([])
   })
 
@@ -321,6 +321,16 @@ describe('fire and elements', () => {
     expect(rp.errors).toEqual([])
   })
 
+  it('one frost cast freezes its cell and some beside it, not the whole river', () => {
+    const river = field(Array.from({ length: 9 }, () => '~~~~~~~~~'))
+    const rp = replay({ ...fire('tile:4,4', 'ice', 2, [{ key: 'actor', type: 'actor/person/player', x: 4, y: 4, props: {} }], river), ticks: 30 }, onto, lib())
+    const w = rp.engine.world
+    const ice: [number, number][] = []
+    for (let y = 0; y < 9; y++) for (let x = 0; x < 9; x++) if (w.terrainAt('sandbox', x, y) === 'ice') ice.push([x, y])
+    expect(ice).toContainEqual([4, 4])
+    for (const [x, y] of ice) expect(Math.max(Math.abs(x - 4), Math.abs(y - 4)), `${x},${y}`).toBeLessThanOrEqual(1)
+  })
+
   it('ice turns water into walkable ice', () => {
     const rp = replay(fire('tile:2,2', 'ice', 3, [{ key: 'actor', type: 'actor/person/player', x: 2, y: 3 }], field(['.....', '.~~~.', '.~~~.', '.....'])), onto, lib())
     expect(rp.resolution.rule?.id).toBe('element/freeze-water')
@@ -521,6 +531,22 @@ describe('the Mod port', () => {
     expect(eng.lib.rules.has('patch/stone-wedges-dead-tree')).toBe(true)
   })
 
+  it('credits a shared patch to this game\'s own request (a revision of its answer), and only that', () => {
+    const eng = sandbox(stoneScenario())
+    const port = new ModPort(eng)
+    port.provider = working
+    stoneOnTree(eng)
+    const mine = port.records[0].id
+    for (let i = 0; i < 120; i++) eng.tick()
+    const scene = port.records[0].request.scenario
+    expect(port.submit(undefined, stonePatch(), scene, [], mine).errors).toEqual([])
+    expect(eng.lib.rules.get('patch/stone-wedges-dead-tree')!.source).toMatchObject({ request: mine })
+    const eng2 = sandbox(stoneScenario())
+    const port2 = new ModPort(eng2)
+    expect(port2.submit(undefined, stonePatch(), scene, [], 'req-of-another-game').errors).toEqual([])
+    expect(eng2.lib.rules.get('patch/stone-wedges-dead-tree')!.source?.request).toBeUndefined()
+  })
+
   it('asks about one hole and class once at a time, and a question that failed not again this session', async () => {
     const two = (): Scenario => ({
       ...stoneScenario(),
@@ -703,5 +729,19 @@ describe('text', () => {
     expect(eng.world.get('rope')).toBeUndefined()
     const line = eng.world.fx.find((f) => f.t === 'log' && typeof f.text === 'object' && f.text.en.startsWith('The '))
     expect(line && line.t === 'log' && typeof line.text === 'object' && line.text.en).toBe('The green slime eats the Rope.')
+  })
+})
+
+describe('a test whose given is not a scenario', () => {
+  it('is told what a scenario is, not met with a crash deep inside', () => {
+    expect(() => buildSandbox({ from: 'request' } as unknown as Scenario, onto, lib())).toThrow(/not a scenario.*entities/)
+    // a learned rule in its place (design.md §5.16): the stone's, at the hole a stone used on a dead tree falls into
+    const at = sandbox({ entities: [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2 }, { key: 'stone', type: 'item/material/stone', x: 2, y: 2, heldBy: 'actor' }, { key: 'tree', type: 'fixture/nature/dead_tree', x: 2, y: 1 }], event: {} })
+    const hole = holeOf(at, at.actEvent('use', 'actor', { e: 'tree' }, { e: 'stone' }))
+    const rule: Rule = { id: 'patch/test-shape', host: { type: 'item/material/stone' }, on: 'act/use', hole, at: [], tree: { do: [{ op: 'log', text: { en: 'Clack.', zh: '咔。' } }] }, tests: [{ given: { from: 'request' } as unknown as Scenario, expect: [] }] }
+    const res = validatePatch({ author: 'test', artifacts: [{ kind: 'rule', rule }] }, { ontology: onto, library: lib() })
+    const said = res.errors.join('\n')
+    expect(said).toMatch(/not a scenario/)
+    expect(said).not.toMatch(/Cannot read properties/)
   })
 })

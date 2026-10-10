@@ -175,7 +175,7 @@ game:
 
 ## Story state
 
-- The player's `prologue` prop (the table above). `quest` stays 0 until the Ford, so the main
+- (Since 2026-10-09 the stages are the quests `awakening` — the table's 1 … 8 as its stages 10 … 80, the lessons on them — and `descent`, docs/quests.md.) As first built: the player's `prologue` prop (the table above). `quest` stayed 0 until the Ford, so the main
   quest's stages and tests are untouched. `PROLOGUE_OBJECTIVES` (content) are shown while
   `prologue` < `PROLOGUE_DONE`.
 - The traveller's own record: `visited.<map>` props (set on entering a map; the world map shows

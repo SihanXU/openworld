@@ -579,6 +579,9 @@ At the Ford:
   one escalated to an offline run (2026-10-07).
 - **Boundaries.**
   - Only the story's own rules write its protected facts (`ford.`, `seen.`, `invalid.`).
+  - Only the story raises its own topics (the ones its steps and rules raise, protected as
+    `topic.<id>`): a patch, the player's or the world's, may raise a topic of its own, never the
+    story's news before it happens.
   - An `essential` actor goes down and is never destroyed.
   - Emitted spread stays within the event's map and below certainty.
 - **Legibility.** Every learned thread enters the Threadbook with its cause and with who
@@ -840,7 +843,7 @@ opens) are its own: written only by its own behaviour and outcomes, never read b
 | beats wrote the leader's props and facts | the story's script (as a scene's): its facts, and a notice of the stage the leader keeps itself (`body/stage`) |
 | the dispatcher counted the player's experiments | a companion sees an act whose chain reached an undefined outcome (`seen`, `defined` false: the act and all it set going) and tells the story (`companion/witness`) |
 | the teleport set `visited.<map>` facts for the player | the traveller's own props, in its outcome |
-| a quest wrote facts, the player's props and bag from the person's rule; the dispatcher counted defeats by the player | the person tells the story; the story's `quests` effect writes its facts, spawns the reward into the taker's bag, notifies the taker (experience, stage) and sends the brought things a `taken` into the giver's bag; a defeat tells the story what fell (`{typeOf}` param), counted for the quests its feller took on (`q.<id>.by`) |
+| a quest wrote facts, the player's props and bag from the person's rule; the dispatcher counted defeats by the player | the person tells the story; the story's `quests` effect writes its facts, spawns the reward into the taker's bag, notifies the taker (experience, stage) and sends the brought things a `taken` into the giver's bag; a defeat tells the story what fell (`{typeOf}` param), counted for the quests its feller took on (`q.<id>.by`). **2026-10-09** (docs/quests.md): a quest under way is a resident thing of its own; it sees news (a `seen` event) and moves on as its own outcome (`advance`, `stage`), writing only itself; the story begins quests (`begin`, `startQuest`) and keeps the facts it is told (`facts`) |
 | the skill tree and the trainer wrote the player's tags and props | `act/learn` (param `skill` or `profession`), like `craft`: the actor's outcome (`learn`) |
 | talents healed the striker and bled the target from the striker's code; a clock hurt and healed | the act carries `bleed` and `drain`; the struck one's `hurt` opens `bleeding` and sends a `restore`; `adrenaline` is a status; recoveries on a defeat are the striker's rule (the defeat carries the last blow's instrument) |
 | the dash, waypoint travel moved by code | acts of moving |
@@ -1352,7 +1355,8 @@ gone or become another, an event count). The code judges: a finding counts only 
 shows it with the patch and not without it, so the model searches and never decides. The offline
 profile audits before shipping, and what is broken goes back to the designer with the evidence. The
 live profile audits after shipping, and what is broken leaves the shared library at once and goes
-to one offline revision. An auditor that fails finds nothing. Harness `audit {enabled, blocking,
+to one offline revision. An auditor that fails finds nothing; the journal's audit entry keeps its
+`error`, so a failed audit is never counted as a clean one. Harness `audit {enabled, blocking,
 rounds, reasoning}`.
 
 **Client.** The worker probes `?modder=<url>` (default `VITE_MODDER_URL`; in development,
@@ -1560,8 +1564,9 @@ does not hold (iron from smelting, a stick from a stump). So the design works in
   worked and validated in its own sandbox, and the commit re-validates against the library as it
   is then. A request whose patch would be written where another's is (the same event kind and
   host class, `laneOf`) waits in that lane and is often answered by what the other committed;
-  others are designed side by side. Reviews, reflections and escalations run three at a time
-  (`concurrency.background`).
+  others are designed side by side. A revision takes no lane: a player's request never waits
+  behind one (seen live: 20 s behind a 107 s revision, past the act's time-out). Reviews,
+  reflections and escalations run three at a time (`concurrency.background`).
   As built (2026-10-05): before repairing a failed validation, a non-revision request checks
   whether another lane has already answered its hole and class. If so it returns `covered`
   without another design call.

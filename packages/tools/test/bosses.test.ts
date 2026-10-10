@@ -6,7 +6,7 @@ import { Game, RuleLibrary, bossPattern, combatDelay, encounter, snapshot, type 
 const stepBosses = (eng: Engine, map: string) => {
   for (const e of eng.world.entitiesOnMap(map)) encounter(eng, e, map)
 }
-import { BASE_RULES, BOSSES, BOSS_BY_ID, BOSS_LAYOUT, PROLOGUE_DONE, STORY_RULES, buildOntology, createBoss, migrateBosses } from '@lsw/content'
+import { BASE_RULES, BOSSES, BOSS_BY_ID, BOSS_LAYOUT, STORY_RULES, buildOntology, createBoss, migrateBosses } from '@lsw/content'
 import { SIN_ACTORS, SIN_FX } from '../../client/src/assets/bosses.ts'
 import { bossAnimationFrame } from '../../client/src/render/boss-animation.ts'
 import { buildFord } from '../src/demo/world.ts'
@@ -18,7 +18,7 @@ function arena(id = 'pride') {
   const at = { map: 'arena', x: 16, y: 20 }
   Object.assign(index, { start: at, npcs: [], companions: [], steps: [], quests: [], invariants: [], waypoints: [] })
   index.player.place = { on: 'tile', ...at }
-  index.player.props = { ...index.player.props, hp: 1000, maxHp: 1000, def: 0, prologue: PROLOGUE_DONE }
+  index.player.props = { ...index.player.props, hp: 1000, maxHp: 1000, def: 0 }
   const game = Game.create(index, onto, library()), eng = game.engine, w = eng.world
   const map: MapData = { id: 'arena', name: 'Arena', kind: 'wild', width: 40, height: 40, terrain: Array(1600).fill('grass'), portals: [], light: 'indoor' }
   game.loadChunk({ map, entities: [createBoss(id, { map: 'arena', x: 16, y: 16 })] })

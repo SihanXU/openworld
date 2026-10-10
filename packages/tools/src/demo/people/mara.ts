@@ -6,6 +6,7 @@ import { line, type PersonDef } from '../person.ts'
 export const mara: PersonDef = {
   id: 'npc.mara',
   role: 'elder',
+  essential: true,
   name: { en: 'Mara', zh: '玛拉' },
   gender: 'female',
   look: { parts: { hair: 'hair.bun', face: 'face.weary', outfit: 'outfit.shawl', hat: null }, colors: { hair: 'snow', eyes: 'bark', skin: 'light', 'outfit.1': 'plum', 'outfit.2': 'undyed' } },

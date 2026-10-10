@@ -89,11 +89,25 @@ const STRINGS: Record<string, [string, string]> = {
   qTitle: ['Quests', '任务'],
   q_main: ['Main', '主线'],
   q_side: ['Side', '支线'],
-  q_repeat: ['Repeatable', '重复'],
-  qActive: ['Under way', '进行中'],
-  qReady: ['Ready to hand in', '可以交付'],
+  q_favor: ['Favour', '委托'],
+  qTab_active: ['Under way', '进行中'],
+  qTab_done: ['Done', '已完成'],
+  qTab_failed: ['Failed', '失败'],
+  qTrack: ['Track', '追踪'],
+  qTracked: ['Tracked', '追踪中'],
+  qFailed: ['Failed', '失败'],
+  qFrom: ['From', '委托人'],
+  qLog: ['Journal', '日志'],
+  qOptional: ['optional', '可选'],
+  qBoard: ['Commission board', '委托板'],
+  qBoardEmpty: ['Nobody wants anything done just now. Come back later.', '眼下没人有事相托。过些时候再来看看。'],
+  qTake: ['Take it on', '接下'],
+  optMarkers: ['Quest markers (map and screen edge)', '任务标记（地图和屏幕边缘）'],
+  optTracker: ['Quest tracker', '任务追踪栏'],
   qNone: ['None', '暂无'],
   qEmpty: ['No quests taken on. Look for a yellow "!" over someone\'s head, and press E.', '还没有接任务。找头顶有黄色"！"的人，按 E 接受。'],
+  qIdle: ['Nothing under way. Look for a yellow "!" over someone\'s head for more.', '没有进行中的任务。头顶有黄色"！"的人还有事相托。'],
+  qDone: ['Done', '已完成'],
   zonePeaceful: ['Peaceful zone', '和平区域'],
   zoneCombat: ['Combat zone · monsters at night', '战斗区域 · 夜间有怪物'],
   worldMap: ['World map', '世界地图'],
@@ -166,6 +180,24 @@ const STRINGS: Record<string, [string, string]> = {
   confirmNew: ['Start a new game? (the threads the world learned are kept)', '开始新游戏？（世界学会的线会保留）'],
 }
 
+/** The player's view preferences (docs/quests.md §2.5): kept in this browser, read with care (it may be blocked). */
+export const prefs = {
+  get(k: 'markers' | 'tracker'): boolean {
+    try {
+      return localStorage.getItem(`lsw.${k}`) !== 'off'
+    } catch {
+      return true
+    }
+  },
+  set(k: 'markers' | 'tracker', on: boolean): void {
+    try {
+      localStorage.setItem(`lsw.${k}`, on ? 'on' : 'off')
+    } catch {
+      /* a blocked store: the choice lasts this page only */
+    }
+  },
+}
+
 export function t(k: string): string {
   const v = STRINGS[k]
   return v ? (locale.value === 'zh' ? v[1] : v[0]) : k
@@ -190,6 +222,8 @@ export function controlsTable(dev: boolean): string {
     ['right click', 'use the held thing on yourself: eat, drink, put on', '对自己用手上的东西：吃、喝、穿戴'],
     ['Space', 'attack: strike ahead (hold to keep striking)', '攻击：朝面前挥击（按住连续攻击）'],
     ['Q', 'dash, once learned (swiftness)', '冲刺（学会迅捷分支的冲刺后）'],
+    ['X', 'draw your weapon or put it away: drawn, a blow on a person is meant', '拔出或收起武器：拔出时，对人挥击才算真的动手'],
+    ['V', 'sneak: slower, seen only up close and from the front; F on a person picks their pocket', '潜行：走得慢，只有近处、正面的人才看得见你；潜行时对人按 F 是扒窃'],
     ['Shift+1–6', 'cast the skill in that slot of the skill bar (over the skill tree: put the skill there)', '施放技能栏那一格的技能（在技能树上：把指着的技能放进那一格）'],
     ['hold any of these', 'choose which of the things drawn there', '长按以上任一：选那个位置叠着的哪一样'],
     ['1–0 · wheel', 'choose what to hold', '选择拿在手里的东西'],

@@ -19,9 +19,11 @@ import { Hud } from './ui/hud.ts'
 import { BuildingMode } from './ui/building.ts'
 import { LessonGuide } from './ui/lesson.ts'
 import { Menu } from './ui/menu.ts'
+import { PeoplePanels } from './ui/people.ts'
 import { SkillBar } from './ui/skillbar.ts'
 import { Tooltip } from './ui/tooltip.ts'
 import { Minimap } from './ui/worldmap.ts'
+import { AfterSave } from './afterSave.ts'
 import './styles.css'
 import './ui/game.css'
 
@@ -59,14 +61,16 @@ const menu = new Menu({
   atlas: () => send({ t: 'atlas' }),
   travel: (waypoint) => send({ t: 'travel', waypoint }),
   profession: (id) => send({ t: 'profession', id }),
+  track: (id) => send({ t: 'track', id }),
+  board: (who, ref) => send({ t: 'board', who, ref }),
   boon: (id) => send({ t: 'boon', id }),
   transfer: (from, item, all) => send({ t: 'transfer', from, item, all }),
   closePanel: () => send({ t: 'closePanel' }),
   save: () => send({ t: 'save' }),
-  // back to the cover: the game is saved to its slot first
+  // back to the cover: the game is saved to its slot first, and the cover reads the slot once it is written
   newGame: () => {
+    afterSave.then(() => void cover.show())
     send({ t: 'save' })
-    void cover.show()
   },
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
@@ -88,14 +92,23 @@ const hud = new Hud(
     toggleCraft: () => openPanel('craft', () => menu.toggle('craft')),
     toggleOptions: () => menu.toggle('options'),
     toggleSkills: () => menu.toggleSkills(),
-    toggleQuests: () => menu.toggleQuests(),
+    toggleQuests: () => (menu.toggleQuests(), document.getElementById('questBtn')?.classList.remove('flash')),
     toggleSkillPanel: () => menu.toggleSkillPanel(),
     toggleBuilding: () => toggleBuilding(),
+    talk: (verb) => send({ t: 'talk', verb }),
+    closeTalk: () => send({ t: 'closeTalk' }),
   },
   (id) => scene.screenOf(id),
   (x, y) => scene.screenOfTile(x, y),
 )
 menu.muted = hud.muted
+/** A merchant's trade and a person's pockets (docs/npc-sandbox.md §2.10). */
+const people = new PeoplePanels({
+  trade: (item, buy) => send({ t: 'trade', item, buy }),
+  closeTrade: () => send({ t: 'closeTrade' }),
+  pocket: (item, take) => send({ t: 'pocket', item, take }),
+  closePockets: () => send({ t: 'closePockets' }),
+})
 /** The skill bar, bottom left (Shift+1–6). */
 const skillbar = new SkillBar({ cast: (slot) => send({ t: 'cast', slot }), set: (slot, id) => send({ t: 'setSkill', slot, id }) })
 const minimap = new Minimap(() => openPanel('map', () => menu.toggleMap()))
@@ -237,6 +250,7 @@ const paintIcons = (items: ItemInfo[]) => {
 }
 hud.paintIcons = paintIcons
 menu.paintIcons = paintIcons
+people.paintIcons = paintIcons
 building.paint = (sprite, across) => {
   const f = CATALOG.fixtures[sprite]
   const d = (across && f?.across) || f?.base || CATALOG.items[sprite]
@@ -299,8 +313,12 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       if (building.open) m.frame.keys = undefined
       scene.applyFrame(m.frame)
       minimap.onFrame(m.frame)
+      people.onFrame(m.frame)
       // a rule opened one of the player's panels (a trainer: the choice of profession)
       if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'profession')) menu.openProfession()
+      // the commission board read (docs/quests.md §3): the favours on offer
+      const board = m.frame.fx.find((x) => x.t === 'panel' && x.panel === 'board')
+      if (board && board.t === 'panel' && board.by) menu.openBoard(board.by)
       // a woken waypoint statue: the companion's boons
       if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'boons')) menu.openBoons()
       // the Held Ground's stall: its shelves (homestead.ts)
@@ -321,14 +339,19 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       dev.showValidation(m.id, m.result)
       break
     case 'saved':
-      if (slot) void writeSlot(WORLD, slot, { save: m.save, summary: m.summary, savedAt: m.save.savedAt })
-      void kvSet('library', m.library)
+      void (slot ? writeSlot(WORLD, slot, { save: m.save, summary: m.summary, savedAt: m.save.savedAt }) : Promise.resolve()).then(() => afterSave.written())
+      void kvSet('library', m.library).then(storeSeq)
       // the tutorial on its own keeps no save; an automatic save says nothing
       if (!cover.open && !quietSave && !m.auto) hud.message(slot ? t('savedSlot').replace('{n}', String(slot)) : locale.value === 'zh' ? '教程不保存进度。' : 'The tutorial keeps no save.', slot ? 'good' : undefined)
       quietSave = false
       break
     case 'library':
-      void kvSet('library', m.library)
+      void kvSet('library', m.library).then(storeSeq)
+      break
+    case 'synced':
+      // a position is only worth the library it was reached with: stored after it, if it changed
+      syncedTo = { url: m.url, seq: m.seq }
+      if (!m.changed) void storeSeq()
       break
     case 'modder':
       dev.setModder(m)
@@ -358,6 +381,19 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
 
 /** The slot being played (autosaves and the menu's Save write to it). */
 let slot: Slot | undefined
+/** What waits for the save being written (back to the title). */
+const afterSave = new AfterSave()
+/** How far the stored library has synced this modder's shared log (another service's position is no use). */
+let syncedTo: { url: string; seq: number } | undefined
+async function storeSeq(): Promise<void> {
+  const s = syncedTo
+  syncedTo = undefined
+  if (s) await kvSet('librarySeq', s)
+}
+async function librarySeq(): Promise<number | undefined> {
+  const s = await kvGet<{ url: string; seq: number }>('librarySeq')
+  return s && MODDER && s.url === MODDER.replace(/\/+$/, '') ? s.seq : undefined
+}
 /** The save the slot started from (undefined: a new game). */
 let startingFrom: SaveData | undefined
 /** The save right after loading is not announced. */
@@ -375,7 +411,7 @@ const cover = new Cover(WORLD, {
     quietSave = true
     const library = await kvGet<LibraryData>('library')
     const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
-    send({ t: 'init', base, save: data?.save, library, modder: MODDER, prefetch: PARAMS.get('prefetch') === '1', difficulty: game?.difficulty, start: game?.start, look: game?.look })
+    send({ t: 'init', base, save: data?.save, library, librarySeq: await librarySeq(), modder: MODDER, prefetch: PARAMS.get('prefetch') === '1', difficulty: game?.difficulty, start: game?.start, look: game?.look })
   },
   tutorial: async () => {
     // its own run: nothing is saved, and the story's main line is not reached from it
@@ -385,7 +421,7 @@ const cover = new Cover(WORLD, {
     quietSave = true
     const library = await kvGet<LibraryData>('library')
     const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
-    send({ t: 'init', base, library, modder: MODDER, start: 'tutorial' })
+    send({ t: 'init', base, library, librarySeq: await librarySeq(), modder: MODDER, start: 'tutorial' })
   },
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
@@ -522,6 +558,15 @@ window.addEventListener('keydown', (e) => {
     if (e.code === 'Escape') return hud.answer(false)
     return
   }
+  // a talk open (docs/npc-sandbox.md §2.9): a number says that verb; Esc says goodbye (a guard's arrest must be answered)
+  if (hud.talkOpen && !menu.anyOpen) {
+    const n = Number(e.key)
+    if (n >= 1 && n <= 9) return void (e.preventDefault(), hud.sayNth(n))
+    if (e.code === 'Escape') return void (e.preventDefault(), hud.arrestOpen || send({ t: 'closeTalk' }))
+  }
+  // a merchant's trade or a person's pockets: Esc closes it
+  if (people.open && e.code === 'Escape') return void (e.preventDefault(), people.close())
+  if (people.open) return
   // a person's line open: F and G put it away and act (a turn-in's thanks does not hold up the next one)
   if (hud.dialogOpen && !menu.anyOpen && (e.code === 'KeyF' || e.code === 'KeyG') && hud.dismissLine()) syncPause()
   // an open dialogue: E (or Esc) moves it on — unless a menu lies over it (Esc closes that first)
@@ -548,9 +593,12 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyC') return openPanel('craft', () => menu.toggle('craft'))
   if (e.code === 'KeyK') return menu.toggleSkills()
   if (e.code === 'KeyM') return openPanel('map', () => menu.toggleMap())
-  if (e.code === 'KeyL') return menu.toggleQuests()
+  if (e.code === 'KeyL') return void (menu.toggleQuests(), document.getElementById('questBtn')?.classList.remove('flash'))
   if (e.code === 'KeyU') return menu.toggleSkillPanel()
   if (e.code === 'KeyQ' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'dash' })
+  // X: draw one's weapon (a blow on a person is meant), or put it away; V: walk soft (docs/npc-sandbox.md)
+  if (e.code === 'KeyX' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'toggle', what: 'drawn' })
+  if (e.code === 'KeyV' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'toggle', what: 'sneaking' })
   if (e.code === 'KeyJ') return menu.journalOpen ? menu.close() : (menu.openJournal(), hud.seenJournal(), (codexSeen = -1))
   // Shift+1–6: the skill bar — over the skill tree, set the active skill under the pointer in that slot; else cast it
   const bar = e.shiftKey && !e.repeat ? SLOT_CODES.indexOf(e.code) : -1

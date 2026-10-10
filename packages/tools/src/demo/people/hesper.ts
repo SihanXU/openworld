@@ -10,6 +10,7 @@ const FIRE = { uses: 'ford.campfire', need: { status: ['lit'] } }
 export const hesper: PersonDef = {
   id: 'npc.hesper',
   role: 'ferrykeeper',
+  essential: true,
   name: { en: 'Hesper', zh: '赫斯珀' },
   gender: 'female',
   look: { parts: { hair: 'hair.bun', face: 'face.weary', outfit: 'outfit.oilcloth', hat: 'hat.kerchief' }, colors: { hair: 'steelgrey', eyes: 'storm', skin: 'tan', 'outfit.1': 'ochre', 'outfit.2': 'umber', 'hat.1': 'slate' } },

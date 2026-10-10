@@ -23,7 +23,7 @@
 import { isRoot } from './rules.ts'
 import { parseCellId } from './cells.ts'
 import type { Engine } from './engine.ts'
-import type { Writer } from './world.ts'
+import { NO_EXPIRY, type Writer } from './world.ts'
 import type { Aim, Dir, Entity, Id, LessonInput, Place, Plan, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb } from './types.ts'
 import { cannotLearn, skillsOf } from './progression.ts'
 import { SKILLBAR_SLOTS, cannotCast, castSkill, knownActives } from './actives.ts'
@@ -55,6 +55,7 @@ const GENERIC: Record<string, Text> = {
   put: { en: 'Put {instrument} on {target}', zh: '把{instrument}放到{target}上' },
   take: { en: 'Take {target}', zh: '拿起{target}' },
   attack: { en: 'Strike {target} with {instrument}', zh: '用{instrument}打{target}' },
+  steal: { en: 'Steal {target}', zh: '偷走{target}' },
   punch: { en: 'Punch {target}', zh: '一拳打向{target}' },
   cast: { en: 'Cast {instrument}', zh: '施放{instrument}' },
 }
@@ -301,7 +302,9 @@ export class Controls {
     if (!this.reaches('use', target, held ?? (main && { e: main.id }))) return undefined
     if (heldE) {
       const pure = isWeapon(heldE.type) && !w.hasTag(heldE, 'tool:axe') && !(heldE.tags ?? []).some((g) => g.startsWith('tool:'))
-      const blow = isWeapon(heldE.type) && !this.isPerson(target) && (pure || this.isCreature(target))
+      // a person is struck only with the blade drawn (X: the blow is meant, docs/npc-sandbox.md)
+      const drawn = w.hasStatus({ e: p.id }, 'drawn')
+      const blow = isWeapon(heldE.type) && (this.isPerson(target) ? drawn : pure || this.isCreature(target))
       if (blow && reach > 1 && !aligned) return undefined
       const plan = this.make(key, at, 'use', target, held, blow, blow ? (heldE.type.startsWith('item/weapon/magic/') ? GENERIC.cast : GENERIC.attack) : undefined)
       // another profession's weapon: its blow is refused, and the label says so (profession.ts)
@@ -339,7 +342,12 @@ export class Controls {
     if (!r.unknown && plan.rule && this.eng.lib.rules.get(plan.rule)?.on === 'impulse/receive') plan.sets = true
     if (r.confirm && !r.unknown) plan.confirm = this.label(r.confirm, target, instrument)
     const e = this.entity(target)
-    if (e && this.w.hasTag(e, 'container') && r.rules.includes('core/open-close')) plan.panel = e.id
+    if (e && this.w.hasTag(e, 'container') && (r.rules.includes('core/open-close') || this.w.hasTag(e, 'remains'))) plan.panel = e.id
+    // taking what is another's (docs/npc-sandbox.md §2.1): the label says it is a theft
+    if (verb === 'take' && e && !this.w.isAgent(e) && !r.unknown && this.eng.social.isAnothers(e, this.w.player)) {
+      plan.steal = true
+      plan.label = this.label(GENERIC.steal, target)
+    }
     return plan
   }
 
@@ -719,6 +727,64 @@ export class Controls {
     return SLOT_COUNT + ROW * Math.max(0, this.w.num(this.w.player, 'bagRows'))
   }
 
+  // ---------------------------------------------------------------- the people (docs/npc-sandbox.md)
+
+  /** V and X: walk soft, or draw one's weapon (the input's own posture: a status the one at the keys keeps). */
+  toggle(what: 'sneaking' | 'drawn', on?: boolean): boolean {
+    const w = this.w
+    const p = w.player
+    if (this.eng.busy(p) || !w.onto.status(what)) return false
+    const now = on ?? !w.hasStatus({ e: p.id }, what)
+    this.hand(() => (now ? w.setStatus({ e: p.id }, what, NO_EXPIRY) : w.clearStatus({ e: p.id }, what)))
+    return now
+  }
+
+  /** A verb of the talk panel said to a person: an act of the hands with something to say (and its choice). */
+  talk(who: Id, verb: string, choice?: string): void {
+    const p = this.w.player
+    if (this.eng.busy(p) && !this.w.hasStatus({ e: p.id }, 'jailed')) return
+    // a quest's verb (docs/quests.md §2.4): `quest:<ref>:<topic>` — an offer taken on or turned down, a topic told
+    const q = /^quest:(.+):([^:]+)$/.exec(verb)
+    const params: Record<string, PropValue> = q ? { say: 'quest', quest: q[1], topic: q[2] } : { say: verb, ...(choice && { choice }) }
+    this.eng.act('hands', p.id, { e: who }, { instrument: null, params })
+    this.sync()
+  }
+
+  /** The notice board (or anyone): a radiant offer on it taken on — the board is spoken to with it (docs/quests.md §3). */
+  board(who: Id, ref: string): void {
+    this.talk(who, `quest:${ref}:accept`)
+  }
+
+  /** The journal: the quest the player follows (its markers, the tracker, the companion's word) — the input's own choice. */
+  track(id: Id | undefined): void {
+    const w = this.w
+    this.hand(() => w.setProp(w.player, 'track', id))
+  }
+
+  /** The trade panel: ask a merchant for one of its goods (it sells it, the buyer pays), or offer it a thing (it buys it). */
+  trade(who: Id, item: Id, buy: boolean): void {
+    const p = this.w.player
+    if (this.eng.busy(p)) return
+    if (buy) this.eng.act('hands', p.id, { e: who }, { instrument: null, params: { say: 'buy', item } })
+    else {
+      this.stow()
+      this.eng.act('hands', p.id, { e: who }, { instrument: { e: item }, params: { say: 'sell' } })
+    }
+    this.sync()
+  }
+
+  /** The pockets panel: take a thing from a person's pockets, or slip one into them (acts of taking and putting, seen or not). */
+  pocket(who: Id, item: Id, take: boolean): void {
+    const p = this.w.player
+    if (this.eng.busy(p)) return
+    if (take) this.eng.act('take', p.id, { e: item }, { instrument: null, params: { into: 'contents' } })
+    else {
+      this.stow()
+      this.eng.act('put', p.id, { e: who }, { instrument: { e: item } })
+    }
+    this.sync()
+  }
+
   // ---------------------------------------------------------------- the skill tree
 
   /**
@@ -966,7 +1032,7 @@ export class Controls {
     for (let dy = -reach; dy <= reach; dy++)
       for (let dx = -reach; dx <= reach; dx++)
         for (const e of w.entitiesAt(here.map, here.x + dx, here.y + dy, here.z)) {
-          if (!e.dropped || e.frozenBy || !w.isPortable(e)) continue
+          if (!e.dropped || e.frozenBy || !w.isPortable(e) || this.eng.social.isAnothers(e, p)) continue
           const k = this.key(e)
           if (!by.has(k)) {
             if (free <= 0) continue

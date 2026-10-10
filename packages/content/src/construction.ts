@@ -22,11 +22,11 @@ export const BUILDINGS: PlacementRecipe[] = [
     [put(0, SET_DOWN, 'tile'), put(0, 'build/'), put(1, 'build/'), put(1, 'build/')]),
   building('crate', 'Crate', '板条箱', 'Compact storage. Leave build mode and press E to open.', '小型储物空间。退出建筑模式后按 E 打开。', 'fixture/container/crate',
     [material('plank', 'Plank', '木板', 2), hammer], [put(0, SET_DOWN, 'tile'), put(0, 'build/'), hit(1, 'build/')]),
-  building('chest', 'Wooden Chest', '木箱', 'Larger storage for a growing camp.', '更大的储物空间，适合营地物资。', 'fixture/container/chest',
+  building('chest', 'Wooden Chest', '箱子', 'Larger storage for a growing camp.', '更大的储物空间，适合营地物资。', 'fixture/container/chest',
     [material('plank', 'Plank', '木板', 4), hammer], [put(0, SET_DOWN, 'tile'), put(0, 'build/'), put(0, 'build/'), put(0, 'build/'), hit(1, 'build/')]),
   building('fence', 'Fence', '栅栏', 'Blocks passage. Place several to mark a garden.', '阻挡通行，可连续放置围出菜圃。', 'fixture/fence',
     [material('stick', 'Stick', '树枝', 2), hammer], [put(0, SET_DOWN, 'tile'), put(0, 'build/'), hit(1, 'build/')]),
-  building('sign', 'Sign', '路牌', 'A blank sign; write on it with a quill and ink.', '空白路牌，携带墨水后可用羽毛笔题字。', 'fixture/sign',
+  building('sign', 'Sign', '告示牌', 'A blank sign; write on it with a quill and ink.', '空白告示牌，携带墨水后可用羽毛笔题字。', 'fixture/sign',
     [material('stick', 'Stick', '树枝', 1), material('plank', 'Plank', '木板', 1), hammer], [put(0, SET_DOWN, 'tile'), put(1, 'build/'), hit(2, 'build/')]),
 ]
 

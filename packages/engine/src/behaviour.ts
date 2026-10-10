@@ -3,8 +3,13 @@
 // type's `goals`, else the world's, else this default — and the first that applies takes its turn:
 // - encounter: a sin's locked telegraphs (bosses.ts);
 // - threat: fight the nearest it is hostile to in sight, or, passive, run from it (creatures.ts);
-//   a person runs from what would attack them (npc.ts);
-// - follow: a companion keeps beside its leader, from map to map (companion.ts);
+//   a person runs from what would attack them (npc.ts), or, struck and of a fighting stance, fights back
+//   until its foes are down or gone, then calms (conduct.ts);
+// - social: a person afraid keeps away, one who keeps the watch stops the wanted, an owner asks back what
+//   was taken (conduct.ts, docs/npc-sandbox.md);
+// - follow: a companion keeps beside its leader, from map to map (companion.ts); a person who follows
+//   someone walks after them (conduct.ts);
+// - need: a hungry person eats, buys a meal, or takes one (conduct.ts);
 // - schedule: where a person's day takes them, the work there, between maps (npc.ts);
 // - home: back toward where it lives (after dark, where it roams);
 // - idle: a step now and then.
@@ -16,13 +21,13 @@ import { fight, home, idle, sceneOf, type Scene } from './creatures.ts'
 import type { Engine } from './engine.ts'
 import type { Entity } from './types.ts'
 
-export type GoalId = 'encounter' | 'threat' | 'follow' | 'schedule' | 'home' | 'idle'
+export type GoalId = 'encounter' | 'threat' | 'social' | 'follow' | 'need' | 'schedule' | 'home' | 'idle'
 
 /** The order goals are tried in when neither the type nor the world says (Elin's AIAct priorities). */
-export const GOALS: GoalId[] = ['encounter', 'threat', 'follow', 'schedule', 'home', 'idle']
+export const GOALS: GoalId[] = ['encounter', 'threat', 'social', 'follow', 'need', 'schedule', 'home', 'idle']
 
 /** Goals that wait for the actor's own pace (its step's cooldown) and for it to be free; the others keep theirs. */
-const PACED = new Set<GoalId>(['threat', 'schedule', 'home', 'idle'])
+const PACED = new Set<GoalId>(['threat', 'social', 'need', 'schedule', 'home', 'idle'])
 
 export class Behaviour {
   constructor(private eng: Engine) {}
@@ -56,8 +61,8 @@ export class Behaviour {
     const scripted = !!w.scene && !!e.npc
     for (const g of this.goalsOf(e)) {
       if (PACED.has(g) && (!ready || scripted)) continue
-      // a person's own round (not a threat) waits a moment for one who faces them (npc.ts, attended)
-      if (g !== 'threat' && PACED.has(g) && eng.npcs.attended(e)) return
+      // a person's own round (not a threat, not the law) waits a moment for one who faces them (npc.ts, attended)
+      if (g !== 'threat' && g !== 'social' && PACED.has(g) && eng.npcs.attended(e)) return
       if (this.run(g, e, sc)) return
     }
   }
@@ -68,9 +73,15 @@ export class Behaviour {
       case 'encounter':
         return encounter(eng, e, sc.active)
       case 'threat':
+        // a person who fought: while it still has a foe it fights, else it calms (and its round goes on)
+        if (e.ai && e.npc && !eng.conduct.fightOn(e, sc)) return eng.npcs.flee(e, sc.active)
         return e.ai && !e.boss ? fight(eng, e, sc) : eng.npcs.flee(e, sc.active)
+      case 'social':
+        return eng.conduct.social(e, sc)
       case 'follow':
-        return eng.companions.follow(e)
+        return eng.companions.follow(e) || eng.conduct.follow(e, sc)
+      case 'need':
+        return eng.conduct.need(e, sc)
       case 'schedule':
         return eng.npcs.schedule(e, sc.active)
       case 'home':

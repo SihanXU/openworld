@@ -193,7 +193,7 @@ const journal = join(state.dir, 'journal.jsonl')
 const audits = existsSync(journal) ? readFileSync(journal, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((j) => j.kind === 'audit') : []
 console.log(`\n## the auditor (${audits.length} audit(s))`)
 for (const a of audits) {
-  console.log(`  ${a.episode} ${a.rules.join(', ')}: ${a.skipped ? `skipped (${a.skipped})` : a.confirmed.length ? `BROKEN — ${a.confirmed.map((f: { kind: string; title: string }) => `${f.kind}: ${f.title}`).join('; ')} → removed` : 'nothing confirmed'}; ${a.usage.calls} call(s), $${(a.usage.cost ?? 0).toFixed(4)}`)
+  console.log(`  ${a.episode} ${a.rules.join(', ')}: ${a.skipped ? `skipped (${a.skipped})` : a.error ? `FAILED (${a.error}): not audited` : a.confirmed.length ? `BROKEN — ${a.confirmed.map((f: { kind: string; title: string }) => `${f.kind}: ${f.title}`).join('; ')} → removed` : 'nothing confirmed'}; ${a.usage.calls} call(s), $${(a.usage.cost ?? 0).toFixed(4)}`)
   for (const u of a.unconfirmed) console.log(`    not shown: ${u}`)
   cost += a.usage.cost ?? 0
 }
