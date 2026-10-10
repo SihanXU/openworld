@@ -329,7 +329,7 @@ export const LIFE_SKILLS: SkillDef[] = [
   S('plate-work', 'smithing', ['armorsmith'], 'Plate Work', '板甲', 'Forge pauldrons and breastplates.', '学会锻造护肩和胸甲。'),
   S('reinforced', 'smithing', ['armorsmith'], 'Reinforced', '加固', 'Armour you forge guards 1 better again.', '你锻造的护甲防御再 +1。', { grant: { 'anvil:def': 1 } }),
   S('master-armorsmith', 'smithing', ['plate-work', 'reinforced'], 'Master Armorsmith', '护甲大师', 'Armour you forge guards 2 better again.', '你锻造的护甲防御再 +2。', { grant: { 'anvil:def': 2 } }),
-  S('masterwork', 'smithing', ['fine-craft'], 'Masterwork', '杰作', 'What you forge is now and then (15%) one quality better.', '锻造时有 15% 几率品质提升一级。', { grant: { 'anvil:masterwork': 0.15 } }),
+  S('masterwork', 'smithing', ['fine-craft'], 'Masterwork', '杰作', 'What you forge is now and then (15%) one quality better.', '锻造时有 15% 几率品质提升一级。', { grant: { 'anvil:lift': 0.15 } }),
   S('legendary-smith', 'smithing', ['masterwork', 'steelworking'], 'Legendary Smith', '传奇锻造', 'Capstone: what you forge is sometimes (4%) Vowbound.', '终极：锻造时有 4% 几率打出「遗誓」品质。', { ...CAP, grant: { 'anvil:vowed': 0.04 } }),
   S('grandmaster-smith', 'smithing', ['master-weaponsmith', 'master-armorsmith'], 'Grandmaster Smith', '宗师铁匠', 'Capstone: what you forge is made as by a smith three levels higher again.', '终极：锻造时再按高 3 级的水平决定品质。', { ...CAP, grant: { 'craft:anvil': 3 }, ability: true }),
 ]

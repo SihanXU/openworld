@@ -29,7 +29,7 @@ export class SkillTree {
   /** The direction shown first: the game's first. */
   private direction: string = game().skills.directions[0]?.id ?? 'combat'
   private profession = ''
-  private tree: TreeLayout = layoutTree()
+  private tree: TreeLayout = layoutTree(game().skills.all, this.direction)
   private get layout() {
     return this.tree.nodes
   }

@@ -83,9 +83,14 @@ function columns(own: SkillDef[], depth: Map<string, number>): Map<string, numbe
   return col
 }
 
-/** Which way a branch grows from the start: the narrow two left and right, near it; the wide two up and down, beyond them. */
+/**
+ * Which way a branch grows from the start: the narrow two left and right, near it; the wide two up and down, beyond
+ * them. A direction of more than four branches goes round again, each further one beyond the one before on its side.
+ */
 export type Way = 'left' | 'right' | 'up' | 'down'
 const WAYS: Way[] = ['left', 'right', 'up', 'down']
+/** The room between two branch panels on one side. */
+const GAP = 40
 
 /** One direction of the tree laid out: the start in the middle, its four branches growing out from it like a cross. */
 export function layoutTree(skills: SkillDef[] = game().skills.all, direction: string = 'combat', profession = ''): TreeLayout {
@@ -109,11 +114,14 @@ export function layoutTree(skills: SkillDef[] = game().skills.all, direction: st
   const nodes = new Map<string, Placed>()
   const panels = new Map<string, Panel>()
   const ways = new Map<string, Way>()
+  // how far out each side's panels already reach (a fifth branch and after stand beyond the one before them)
+  const reached = new Map<Way, number>()
   for (const p of per) {
     // in the branch's own frame: `across` along its rows, `along` out from the start; then turned its way
     const turn = (across: number, along: number): Placed =>
       p.way === 'up' ? { x: across, y: -along } : p.way === 'down' ? { x: across, y: along } : p.way === 'left' ? { x: -along, y: across } : { x: along, y: across }
-    const d = out(p.way)
+    const d = Math.max(out(p.way), (reached.get(p.way) ?? -Infinity) + GAP + 62)
+    reached.set(p.way, d + ROW * Math.max(1, p.rows) + 70)
     const across = (c: number) => (c - p.min - p.span / 2) * COL
     for (const s of p.own) nodes.set(s.id, turn(across(p.col.get(s.id)!), d + ROW * (p.depth.get(s.id)! + 1)))
     // the hub straight behind its first skills (their middle), so the line into the branch runs straight

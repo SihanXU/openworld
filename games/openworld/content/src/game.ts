@@ -19,6 +19,8 @@ function upgradeSave(eng: Engine): void {
       if (every === 300 || every === 450 || every === 600) w.setProp(e, 'hungerEvery', Math.round((every * HUNGER_EVERY) / 300))
       // the night-born were marked by a prop before they had a tag
       if (e.props?.nightborn) (w.setProp(e, 'nightborn', undefined), w.addTag(e, 'nightborn'))
+      // a smith's Masterwork was its station's `<station>:masterwork` before the engine named the lift `<station>:lift`
+      for (const [key, v] of Object.entries(e.props ?? {})) if (key.endsWith(':masterwork') && typeof v === 'number') (w.setProp(e, `${key.slice(0, -':masterwork'.length)}:lift`, v), w.setProp(e, key, undefined))
     }
 }
 

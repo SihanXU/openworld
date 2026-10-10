@@ -711,12 +711,17 @@ export class EffectRunner {
           }
         }
         // the quality a maker reaches: their level, and what they know of the station's craft (`craft:<station>`), against
-        // the recipe's; a smith's masterwork or legend now and then lifts it (`<station>:masterwork`, `<station>:vowed`)
+        // the recipe's (the ontology's qualities); then what the maker's hand now and then does there: a quality beyond
+        // any maker's reach (one with no `from`: the Ford's Vowbound) by its own chance (`<station>:<quality>`), else
+        // one tier up among those a maker reaches (`<station>:lift`)
         const station = r.station ?? 'hands'
         let quality = qualityFor(w.onto.data, w.num(host, 'level', 1) + w.stat(host, `craft:${station}`), r.level ?? 1)
-        const tiers = ['crude', 'common', 'fine', 'masterwork']
-        if (w.stat(host, `${station}:vowed`) > 0 && w.rand() < w.stat(host, `${station}:vowed`)) quality = 'vowed'
-        else if (quality && tiers.includes(quality) && w.stat(host, `${station}:masterwork`) > 0 && w.rand() < w.stat(host, `${station}:masterwork`)) quality = tiers[Math.min(tiers.length - 1, tiers.indexOf(quality) + 1)]
+        const qualities = w.onto.data.qualities ?? []
+        const tiers = qualities.filter((q) => q.from !== undefined).sort((a, b) => a.from! - b.from!).map((q) => q.id)
+        const beyond = qualities.find((q) => q.from === undefined && w.stat(host, `${station}:${q.id}`) > 0 && w.rand() < w.stat(host, `${station}:${q.id}`))
+        const lift = w.stat(host, `${station}:lift`)
+        if (beyond) quality = beyond.id
+        else if (quality && tiers.includes(quality) && lift > 0 && w.rand() < lift) quality = tiers[Math.min(tiers.length - 1, tiers.indexOf(quality) + 1)]
         const look = structuredClone(r.make.tags || r.make.name ? r.make : madeOf(w.onto.data, w.onto, r.make.type, material, quality))
         // what the maker's hand adds to what it makes there (a weaponsmith's edge: `<station>:power`, `:def`, `:critChance`)
         for (const key of ['power', 'def', 'critChance'] as const) {
