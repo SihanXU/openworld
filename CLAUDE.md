@@ -89,8 +89,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - `packages/editor` — the OpenWorld Editor (docs/engine-split.md §6, §11): `src/server/api.ts` the local
   service over the projects' files (runs in its dev server, `npm run editor`), `src/app/` the editor — `store.ts`
   the project in memory (edits, undo, save, compiled as it is now), `canvas.ts` the runtime's WorldScene with a
-  free camera, `mapMode.ts`, `peopleMode.ts`, `problems.ts` the validation panel, `modes.ts` the further modes
-  (P5, P6); playtest opens the player at a cell.
+  free camera, `mapMode.ts`, `peopleMode.ts`, `databaseMode.ts` (types, statuses, terrains, recipes; `ontologyFiles.ts`
+  where an entry is written), `rulesMode.ts` (a rule's tree and JSON checked as typed, which rule answers here,
+  the sandbox), `storyMode.ts` (the story's steps and scene commands, the quests), `problems.ts` the validation
+  panel, `modes.ts` the further modes (P6); playtest opens the player at a cell.
 - `games/starter` — the minimal game, data only (S6), with its own catalogue and assets (a subset of the CC0
   pack): the kernel with no module plays it (`test/kernel.test.ts`); the editor's new project.
 - `games/openworld/content` — ontology (terrains, statuses, elements, types), item catalogue

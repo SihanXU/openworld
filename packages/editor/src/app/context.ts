@@ -33,6 +33,8 @@ export interface Mode {
   label: string
   /** Draw its tools (left) and its inspector (right). */
   render(ctx: Ctx, left: HTMLElement, right: HTMLElement): void
+  /** A mode that needs the middle of the window (the rules, the story, the quests) draws there instead of the canvas. */
+  main?(ctx: Ctx, el: HTMLElement): void
   /** The canvas's cell under the tool. */
   cell?(ctx: Ctx, c: { x: number; y: number }, ev: CellEvent): void
   overlay?(ctx: Ctx): Overlay | undefined

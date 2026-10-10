@@ -54,7 +54,7 @@ async function openProject(id: string): Promise<void> {
     <header><a href="./" class="home-link">OpenWorld Editor</a> <b>${esc(tx(store.game.name))}</b> <nav id="modes"></nav>
       <span class="grow"></span><span id="status" class="muted"></span>
       <button id="undo" title="Ctrl+Z">Undo</button><button id="save" title="Ctrl+S">Save</button><button id="play" title="Save, and play from the start (or the selected cell)">▶ Playtest</button></header>
-    <aside id="left"></aside><main id="canvas"></main><aside id="right"></aside>
+    <aside id="left"></aside><main id="canvas"></main><main id="center" class="hidden"></main><aside id="right"></aside>
     <footer id="problems"></footer><div id="toasts"></div></div>`
   const canvas = new Canvas($('#canvas'))
   const modes: Mode[] = [new MapMode(), new PeopleMode(), ...MORE]
@@ -90,6 +90,11 @@ async function openProject(id: string): Promise<void> {
   function refresh(): void {
     $('#modes').innerHTML = modes.map((m) => `<button data-mode="${m.id}" class="${m === mode ? 'on' : ''}">${esc(m.label)}</button>`).join('')
     document.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => (b.onclick = () => ctx.open(b.dataset.mode!)))
+    // a mode with a middle of its own draws there; the canvas waits (and keeps its place) behind it
+    const center = $('#center')
+    $('#canvas').classList.toggle('hidden', !!mode.main)
+    center.classList.toggle('hidden', !mode.main)
+    if (mode.main) mode.main(ctx, center)
     mode.render(ctx, $('#left'), $('#right'))
     canvas.setOverlay(mode.overlay?.(ctx))
     const n = store.unsaved()

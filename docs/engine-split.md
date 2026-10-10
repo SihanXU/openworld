@@ -285,7 +285,30 @@ P2 and P3 overlap where they do not touch (the catalogue as data needs no module
   is there — made, saved, compiled with no problem and played, with no TypeScript written (P4's "done
   when"); painting, setting down, saving to the file; the baked Ford opened and drawn.
 
-## 12. Risks
+## 12. P5 as built (2026-10-10): the database and the logic
+
+- **The database** (`databaseMode.ts`): the type tree (every kind by its path, the library's marked), a
+  type's fields (name, tags, props, sprite, solid, makeup, station, tools, yields, stage) and its whole JSON,
+  how the world sees it (its inherited tags and props), the rules on it; the statuses; the terrains with the
+  character a map writes each by; the recipes the types' makeup gives (`deriveRecipes`). An entry is written
+  where the project writes it — a list's item or a record's key, `ontologyFiles.ts` — and an entry of the
+  standard library is overridden by the project's own.
+- **The rules** (`rulesMode.ts`): every rule by file, the library's among them (overridden by copying);
+  a rule's tree in words (IF / DO / ELSE, its labels, its holes and their defaults) beside its JSON, checked
+  as it is typed — the patch validator's checks that hold for base rules, and the ties with every other rule
+  (`format`'s `ruleProblems`); **which rule answers here** (who does what to what, with what in hand: a
+  sandbox of that act, the deciding rule, its leaf, the hole if it is one); the **sandbox** replaying any
+  scenario (the chain of rules, what was said and shown, what changed); the game's ModSpec as the reference.
+- **The story** (`storyMode.ts`): its steps (a scene or a beat; its trigger, the facts it sets, what the
+  companion says), a scene's commands one a line with their kinds and order; the story's invariants,
+  protected facts and fixed weather. **The quests**: kind, title, summary, the giver's lines, how it begins,
+  aliases, objectives, stages; a new favour from a person.
+- **Checked in a browser** (P5's "done when"): in a new project, a type (an apple), a rule for it written
+  as JSON (checked clean as typed, and "which rule answers" names it for the apple used on oneself), the apple
+  set down on the map, a scene, a quest from Mira — saved, compiled with no error (one warning, rightly: the
+  apple's kind `item/food` was not made).
+
+## 13. Risks
 
 - **The way the Ford is written changes.** From the TypeScript DSL to data files: for a while the compiler
   takes both authored data and data a script made; the maps are baked once the editor can edit them.
