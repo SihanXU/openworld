@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_PACE, ModPort, TICKS_PER_HOUR, RuleLibrary, buildSandbox, holeKey, textOf, type Engine, type Key, type Plan, type Ref, type ScenarioEntity, type Verb } from '@openworld/engine'
+import { ModPort, TICKS_PER_HOUR, RuleLibrary, buildSandbox, holeKey, textOf, type Engine, type Key, type Plan, type Ref, type ScenarioEntity, type Verb } from '@openworld/engine'
+import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_PACE } from '@openworld/modules'
 import { cellId, madeOf } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 

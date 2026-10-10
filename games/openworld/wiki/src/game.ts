@@ -2,8 +2,8 @@
 // world the game runs (never from the design notes). One model, normalized for the templates: items,
 // fixtures and structures, people, creatures, bosses, maps, quests, recipes, skills, statuses…
 
-import { APPEAR_EVERY, BOON_REACH, CODEX_SIGHT, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE, MAGNET, ROW, SLOT_COUNT, TICKS_PER_HOUR, TICKS_PER_MINUTE, nightHours, type BossDef, type Entity, type Look, type PlacementRecipe, type QuestDef, type Recipe, type SkillDef, type StatusDef, type TerrainDef, type Text, type TypeDef } from '@openworld/engine'
-import { PROFESSION_LEVEL } from '@openworld/modules'
+import { APPEAR_EVERY, CODEX_SIGHT, MAGNET, ROW, SLOT_COUNT, TICKS_PER_HOUR, TICKS_PER_MINUTE, nightHours, type BossDef, type Entity, type Look, type PlacementRecipe, type QuestDef, type Recipe, type SkillDef, type StatusDef, type TerrainDef, type Text, type TypeDef } from '@openworld/engine'
+import { BOON_REACH, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE, PROFESSION_LEVEL } from '@openworld/modules'
 import {
   BOONS, BOSSES, COIN, EFFICIENCY, ELEMENT_NAMES, ELEMENTS, FALL_DAMAGE, FED_FOR, FORMS, LAYS_EVERY, LEGENDARY_ARMS, MATERIALS, NIGHT_CAP, NIGHT_EVERY, PLACEMENTS,
   QUALITIES, RECIPES, RECOVERY, RELICS, ROOM_SIZE, SAFE_FALL, SKILL_BRANCHES, SKILL_DIRECTIONS, SKILL_PROFESSIONS, SKILLS, STOREYS, TERRAIN_CHARS,

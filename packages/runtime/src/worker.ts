@@ -1,7 +1,7 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
-import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, peopleViews, previewPlacement, travelToWaypoint, waypoints, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR } from '@openworld/engine'
-import { cast, dash, setSkill, takeProfession } from '@openworld/modules'
+import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, peopleViews, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR } from '@openworld/engine'
+import { travelToWaypoint, waypoints, cast, dash, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, recipeById, skillById } from './game.ts'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
 
@@ -462,7 +462,7 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   const lib = libraryFrom(init.library ?? init.save?.library, index.protectedFacts)
   const compatible = init.save?.world === index.version
   if (init.save && !fresh && compatible) {
-    game = Game.load(init.save, index, ontology(), lib)
+    game = Game.load(init.save, index, ontology(), lib, played().upgradeSave)
     // an older save brought up to the world as it is now: the game's own upgrades, the author's, on loading
     await played().upgrade?.(game, { index, chunk: chunkOf })
     // re-fetch base terrain for the map we are standing on
@@ -632,7 +632,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (game && travelToWaypoint(game.engine, m.waypoint)) void ensureMaps()
         break
       case 'boon':
-        game?.engine.controls.chooseBoon(m.id)
+        if (game) chooseBoon(game.engine, m.id)
         break
       case 'profession':
         if (game) takeProfession(game.engine, professionById()[m.id], played().skills.all)

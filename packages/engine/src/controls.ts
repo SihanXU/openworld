@@ -26,7 +26,6 @@ import type { Engine } from './engine.ts'
 import { NO_EXPIRY, type Writer } from './world.ts'
 import type { Aim, Dir, Entity, Id, LessonInput, Place, Plan, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb } from './types.ts'
 import { cannotLearn, skillsOf } from './progression.ts'
-import { companionsOf, nearAttunedWaypoint } from './boons.ts'
 import { OFFHAND, weaponOf } from './blows.ts'
 
 /** The five inputs (design.md §5.2). */
@@ -787,23 +786,6 @@ export class Controls {
   }
 
   // ---------------------------------------------------------------- the skill tree
-
-  /**
-   * Choose the boon the companion carries (the waypoint's panel): an act of the hands on the
-   * companion, which answers it (`companion/talk` → `boon`), only beside an attuned waypoint.
-   */
-  chooseBoon(id: string): boolean {
-    const w = this.w
-    const p = w.player
-    const bird = companionsOf(w, p)[0]
-    if (!bird || this.eng.busy(p)) return false
-    if (!nearAttunedWaypoint(w, p)) {
-      w.fx.push({ t: 'log', text: { en: 'A power can be changed only beside a woken waypoint statue.', zh: '只有在唤醒过的传送雕像旁才能切换力量。' }, tone: 'warn' })
-      return false
-    }
-    this.eng.act('hands', p.id, { e: bird.id }, { instrument: null, params: { boon: id } })
-    return true
-  }
 
   /** Spend skill points on a skill: an act of learning it. */
   learn(def: SkillDef): boolean {

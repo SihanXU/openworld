@@ -2,8 +2,8 @@
 import '../../client/src/register.ts'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, bossPattern, encounter, snapshot, type Engine, type MapData } from '@openworld/engine'
-import { combatDelay } from '@openworld/modules'
+import { Game, RuleLibrary, snapshot, type Engine, type MapData } from '@openworld/engine'
+import { bossPattern, encounter, combatDelay } from '@openworld/modules'
 
 /** The encounter goal of every sin on a map, alone (world-model.md §6.10): what the bosses do this tick. */
 const stepBosses = (eng: Engine, map: string) => {

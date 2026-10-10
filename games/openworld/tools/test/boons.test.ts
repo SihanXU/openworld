@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, activeBoon, boonsOf, snapshot, type Engine } from '@openworld/engine'
+import { Game, RuleLibrary, snapshot, type Engine } from '@openworld/engine'
+import { activeBoon, boonsOf, chooseBoon } from '@openworld/modules'
 import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
@@ -65,18 +66,18 @@ describe('the companion\'s boons', () => {
     give(eng, 'test')
     expect(activeBoon(pip)).toBe('xp')
     // a statue not woken: refused
-    expect(eng.controls.chooseBoon('test')).toBe(false)
+    expect(chooseBoon(eng, 'test')).toBe(false)
     expect(activeBoon(pip)).toBe('xp')
     // woken: the bird carries the other one, and the leader's stats follow
     atStatue(eng, true)
     const atk = w.stat(p, 'atk')
     expect(snapshot(eng).player.boons?.atWaypoint).toBe(true)
-    expect(eng.controls.chooseBoon('test')).toBe(true)
+    expect(chooseBoon(eng, 'test')).toBe(true)
     expect(activeBoon(pip)).toBe('test')
     expect(w.stat(p, 'atk')).toBe(atk + 3)
     expect(w.stat(p, 'xpRate')).toBe(0)
     // one not given cannot be carried
-    eng.controls.chooseBoon('nothing')
+    chooseBoon(eng, 'nothing')
     expect(activeBoon(pip)).toBe('test')
   })
 

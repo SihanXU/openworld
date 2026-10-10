@@ -6,9 +6,7 @@
 // on the aimed tile, carrying the skill and the locked cells; the encounter's rule answers it
 // with `release` — a strike to each foe on those cells, a push or pull and a coat that they
 // answer themselves, and its own heal or blink.
-import type { Engine } from './engine.ts'
-import { astar } from './path.ts'
-import type { BossSkill, Entity, GameEvent, Pos } from './types.ts'
+import { astar, type BossSkill, type Engine, type Entity, type GameEvent, type Pos } from '@openworld/engine'
 
 /** Discrete hit cells; the same locked cells are sent to the renderer and used for damage. */
 export function bossPattern(skill: BossSkill, origin: Pos, aim: Pos): [number, number][] {

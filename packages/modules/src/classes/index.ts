@@ -152,7 +152,7 @@ export function takeProfession(eng: Engine, def: ProfessionDef | undefined, skil
   return undefined
 }
 
-export const classes: EngineModule = {
+export const classesModule: EngineModule = {
   id: 'classes',
   spec: {
     rules: [
@@ -191,4 +191,4 @@ export const classes: EngineModule = {
   },
 }
 
-registerModule(classes)
+registerModule(classesModule)

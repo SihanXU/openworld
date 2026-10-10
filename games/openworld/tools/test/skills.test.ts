@@ -3,7 +3,7 @@ import '../../client/src/register.ts'
 import { describe, expect, it } from 'vitest'
 import { Engine, Game, RuleLibrary, buildSandbox, cannotLearn, snapshot, type Ref, type Scenario } from '@openworld/engine'
 import { combatDelay, combatStrike } from '@openworld/modules'
-import { BASE_RULES, SKILLS, SKILL_DIRECTIONS, SKILL_BRANCHES, SKILL_BY_ID, skillsForProfession, branchesForProfession, buildOntology } from '@openworld-game/content'
+import { BASE_RULES, GAME, SKILLS, SKILL_DIRECTIONS, SKILL_BRANCHES, SKILL_BY_ID, skillsForProfession, branchesForProfession, buildOntology } from '@openworld-game/content'
 import { layoutBranches, layoutSkills } from '@openworld/runtime/src/ui/skillLayout.ts'
 import { buildFord } from '../src/demo/world.ts'
 import { FRONT, ORIGIN } from '../src/coverage.ts'
@@ -106,7 +106,7 @@ describe('the skill tree', () => {
     expect(p.props!.profession).toBeUndefined()
     p.tags = ['skill:iron-stomach', 'skill:strength']
     p.props!.hungerEvery = 150
-    const loaded = Game.load(structuredClone(game.save()), index, onto)
+    const loaded = Game.load(structuredClone(game.save()), index, onto, undefined, GAME.upgradeSave)
     expect(loaded.engine.world.player.props!.profession).toBeUndefined()
     // the early absolute 150 is Iron Stomach's 450 on the old pace, 720 on today's (480 + 240)
     expect(loaded.engine.world.player.props!.hungerEvery).toBe(720)

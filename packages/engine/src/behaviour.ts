@@ -16,7 +16,6 @@
 // Every goal acts with the acts and moves the player has; one that cannot go on reports `stuck`.
 // Behaviour is the game's own logic, not the AI interface (design.md §5.4): its acts' outcomes are.
 
-import { encounter } from './bosses.ts'
 import { fight, home, idle, sceneOf, type Scene } from './creatures.ts'
 import type { Engine } from './engine.ts'
 import type { Goal } from './module.ts'
@@ -27,7 +26,6 @@ export const GOALS: string[] = ['encounter', 'threat', 'social', 'follow', 'need
 
 /** The kernel's goals; a module adds its own (module.ts), or another way to the same goal, tried after these. */
 export const KERNEL_GOALS: Record<string, Goal> = {
-  encounter: { paced: false, run: (eng, e, sc) => encounter(eng, e, sc.active) },
   threat: {
     paced: true,
     urgent: true,

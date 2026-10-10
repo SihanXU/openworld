@@ -49,6 +49,8 @@ export interface EngineModule {
   spec?: ModuleSpec
   /** With every engine made over an ontology that names it: its own state, and the slots it fills. */
   install?(eng: Engine): void
+  /** An older save brought up to the module as it is now (on loading, as the author, after the kernel's own). */
+  upgrade?(eng: Engine): void
 }
 
 const MODULES = new Map<string, EngineModule>()

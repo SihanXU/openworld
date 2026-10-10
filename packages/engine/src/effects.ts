@@ -4,13 +4,11 @@
 
 import type { Engine } from './engine.ts'
 import { evalCond, matchSelector, rolesOf } from './rules.ts'
-import type { AiData, Amount, Effect, EmitTo, Entity, GameEvent, Id, Impulse, Place, Pos, PropValue, Ref, RoleName, RoleRef, Text } from './types.ts'
+import type { AiData, Amount, Effect, ModuleOp, EmitTo, Entity, GameEvent, Id, Impulse, Place, Pos, PropValue, Ref, RoleName, RoleRef, Text } from './types.ts'
 import { GIVEN_LINE, chooseLine, memoryOf, raiseTopic } from './people.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
 import { cannotRead, gainXp, learnSkill, readSkill } from './progression.ts'
-import { BOON_PREFIX, activeBoon, boonsOf, leaderOf, nearAttunedWaypoint } from './boons.ts'
 import { appear } from './appear.ts'
-import { releaseSkill } from './bosses.ts'
 import { NO_EXPIRY, WriteError } from './world.ts'
 import { bountyKey, lawId, pardonKey } from './social.ts'
 import { madeOf, qualityFor } from './recipes.ts'
@@ -19,7 +17,8 @@ import { restyled } from './looks.ts'
 /** How many things one effect makes at once at most, unless the world says (`params.spawnMax`). */
 const SPAWN_MAX = 64
 
-export const PRIMITIVES: Record<Effect['op'], string> = {
+/** The kernel's primitives, and what each does (the modules' are their own: module.ts). */
+export const PRIMITIVES: Record<Exclude<Effect['op'], ModuleOp>, string> = {
   spawn: 'spawn {type, at: role ref, into?: tile|contents|hand, count?, still?} — create new things at a role\'s place (its tile, contents or hand); type may be "@prop:<role>.<key>" (a crop\'s yieldType); count may read a prop or a param; items on the ground pop out for the magnet unless still (then they are taken with F)',
   destroy: 'destroy {} — the host is gone (with what it holds); the essential (people) never are: they go down instead',
   transform: 'transform {into} — the host becomes another type ("@prop:key" reads the type from its own prop, e.g. emptyType). A cell is made of things (tile/<terrain>: the floor, what roots in the soil, what fills the volume): water becoming ice is the water transforming; becoming a type whose space in its cell another thing holds (rock into gravel, where a floor is), the host is gone instead',
@@ -37,10 +36,8 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   fall: 'fall — with nothing under it on its storey, the host drops to the first floor below, struck by the drop beyond the safe height (the root of contact/end on)',
   breakdown: 'breakdown — the host breaks into what it is made of (its makeup × the world\'s recovery rate, in its material), what it holds spills out, and it is gone (the root outcome of broken for anything with a makeup)',
   heal: 'heal {amount}',
-  feed: 'feed {amount} — the host\'s hunger rises by amount, up to its maxHunger',
   gainXp: 'gainXp {amount} — the host gains experience (times 1 + its stat xpRate); enough raises its level (props xp, level, skillPoints)',
   pocket: 'pocket — the host (an actor) steps into a pocket place (param map, x, y: a place one carries, the Held Ground) and remembers where it stood (its prop pocket.return); in that place already, it steps back out where it was',
-  boon: 'boon — the host (a companion) is given a boon (param unlock: its id; carried at once if it carries none) or carries another it has (param boon), the latter only while its leader stands beside an attuned waypoint; a boon is its status boon_<id>, whose lead:<stat> props add to the leader\'s stats',
   foe: 'foe {} — whoever started the chain (the one who struck) becomes the host\'s foe, attacked on sight',
   open: 'open {} — the host opens or closes (toggles the `open` status)',
   dropContents: 'dropContents {still?, to?, keepWorn?, keep?, bundle?} — the host spills what it holds (its bag and its hand) onto its tile, or into a role\'s bag (to: a bundle opened); keepWorn: what it wears and the weapon in its hand stay with it; keep: so do things with any of these tags (important); bundle: what is spilled is packed into a new thing of that type on its tile',
@@ -70,7 +67,6 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   news: 'news {kind} — tells the quests what this event is (docs/quests.md §2.3): give (the actor handed the item to the host), deed, hungry',
   learn: 'learn {book?} — book: from the book it holds (the event\'s item: its param skill), no points and no skills before it, the book used up; else the host learns what its act names: param skill (spending its skill points) or param profession (at a trainer; a change gives back the profession branch)',
   appear: "appear {what?} — the world's: what appears by itself on the active map now (the map's own appearances and the world's that fit it, each at its pace, hours and weather, up to its max), or only the appearance given (world-model.md §6.9)",
-  release: "release {} — the host's encounter skill lands on the cells its act telegraphed (params skill, ox, oy, ax, ay): a strike to each foe there, a push or pull and a coat as the skill says; the host heals or blinks itself",
   panel: "panel {panel} — the host (a trainer) opens one of the player's panels when the player spoke to it: 'profession'",
   own: 'own {to?} — the host is a role\'s now (its owner prop; no role: nobody\'s). A thing moved by one who is not its owner keeps whose it was (stolen is a thing held by one who does not own it)',
   witness: 'witness {} — the host (a seer) takes in what it saw (a seen event): the deed in it remembered (who did it if it knew them, else how they looked), its regard toward the doer lowered by the deed\'s weight, fear of the violent; on a presence: a face learnt, a stranger it remembered known again (docs/npc-sandbox.md)',
@@ -486,13 +482,6 @@ export class EffectRunner {
         if (gained > 0) w.fx.push({ t: 'damage', who: host.id, amount: -gained })
         return
       }
-      case 'feed': {
-        // Hearty Meals (the skill): food fills half as much again
-        const max = host ? w.num(host, 'maxHunger') : 0
-        if (!host || max <= 0) return
-        eng.setProp(host, 'hunger', Math.max(0, Math.min(max, Math.round(w.num(host, 'hunger', max) + this.amount(ev, eff.amount) * (w.hasTag(host, 'skill:hearty-meals') ? 1.5 : 1)))), ev)
-        return
-      }
       case 'gainXp': {
         // a thing that has a level can learn (any thing with the prop, not only people)
         if (!host || w.prop(host, 'level') === undefined) return
@@ -664,9 +653,6 @@ export class EffectRunner {
       case 'appear':
         appear(eng, eff.what)
         return
-      case 'release':
-        if (host) releaseSkill(eng, host, ev)
-        return
       case 'pocket': {
         // the host's own: where it stands, kept on itself; then it goes (its companions follow as they do)
         if (!host) return
@@ -683,36 +669,6 @@ export class EffectRunner {
           w.setProp(host, 'pocket.return', `${at.map},${at.x},${at.y}`)
           eng.travel(host, { map, x: Number(ev.params?.x ?? 0), y: Number(ev.params?.y ?? 0) })
         }
-        return
-      }
-      case 'boon': {
-        // a companion's boon (boons.ts): given by the story (param unlock), or chosen (param boon)
-        // while its leader stands beside an attuned waypoint; it carries one at a time
-        if (!host) return
-        const give = ev.params?.unlock
-        const pick = ev.params?.boon
-        const carry = (id: string) => {
-          for (const s of Object.keys(host.statuses ?? {})) if (s.startsWith(BOON_PREFIX) && s !== BOON_PREFIX + id) eng.removeStatus({ e: host.id }, s)
-          if (!w.hasStatus({ e: host.id }, BOON_PREFIX + id)) eng.applyStatus({ e: host.id }, BOON_PREFIX + id)
-        }
-        const name = (id: string) => w.onto.status(BOON_PREFIX + id)?.name
-        const said = (t: Text | undefined, l: 'en' | 'zh') => (typeof t === 'string' ? t : t ? (l === 'zh' ? t.zh ?? t.en : t.en) : '')
-        if (typeof give === 'string' && give) {
-          const had = boonsOf(w, host)
-          if (had.includes(give)) return
-          eng.setProp(host, 'boons', [...had, give].join(','), ev)
-          if (!activeBoon(host)) carry(give)
-          w.fx.push({ t: 'log', text: { en: `${eng.nameOf({ e: host.id }, 'en')} takes up a new power: ${said(name(give), 'en')}.`, zh: `${eng.nameOf({ e: host.id }, 'zh')}获得了新的力量：${said(name(give), 'zh')}。` }, tone: 'good' })
-          return
-        }
-        if (typeof pick !== 'string' || !boonsOf(w, host).includes(pick) || activeBoon(host) === pick) return
-        const leader = leaderOf(w, host)
-        if (!leader || !nearAttunedWaypoint(w, leader)) {
-          w.fx.push({ t: 'log', text: { en: 'A power can be changed only beside a woken waypoint statue.', zh: '只有在唤醒过的传送雕像旁才能切换力量。' }, tone: 'warn' })
-          return
-        }
-        carry(pick)
-        w.fx.push({ t: 'log', text: { en: `${eng.nameOf({ e: host.id }, 'en')} now carries ${said(name(pick), 'en')}.`, zh: `${eng.nameOf({ e: host.id }, 'zh')}现在携带着${said(name(pick), 'zh')}。` }, tone: 'good' })
         return
       }
       case 'panel': {

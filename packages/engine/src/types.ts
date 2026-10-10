@@ -1384,6 +1384,9 @@ export type EmitTo =
  * The effect primitives. Every one writes only the host (design.md §5.6: read anything, write only
  * yourself), spawns, or presents; `emit` sends an event to others, which answer for themselves.
  */
+/** The primitives the engine's official modules carry (packages/modules): typed here, worked by their module (module.ts). */
+export type ModuleOp = 'release' | 'boon' | 'feed'
+
 export type Effect =
   | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean }
   | { op: 'destroy' }

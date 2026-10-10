@@ -2,6 +2,7 @@
 // the runtime and the modder import no game: a game's own entry hands its GameDef over, and they read
 // the game's content only through it. P3 replaces the code with a bundle of data files.
 
+import type { Engine } from './engine.ts'
 import type { Ontology, Rule } from './types.ts'
 
 export interface GameDef {
@@ -13,4 +14,6 @@ export interface GameDef {
   rules: Rule[]
   /** Which terrain each character of a map file's rows stands for (chunk.ts). */
   terrainChars: Record<string, string>
+  /** The game's own save history: an older save brought up to the game as it is now (on loading, as the author, after the engine's). */
+  upgradeSave?(eng: Engine): void
 }

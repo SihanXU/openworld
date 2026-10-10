@@ -1,7 +1,8 @@
 // Base ontology: terrains, statuses, elements, visual effects and the type tree
 // for actors and fixtures. Item types come from the catalogue in items.ts.
 
-import { APPEAR_TICK, TICKS_PER_DAY, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE, type Cond, type Ontology, type StageDef, type StatusDef, type TerrainDef, type TypeDef } from '@openworld/engine'
+import { APPEAR_TICK, TICKS_PER_DAY, type Cond, type Ontology, type StageDef, type StatusDef, type TerrainDef, type TypeDef } from '@openworld/engine'
+import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE } from '@openworld/modules'
 // the engine's official modules this game uses (docs/engine-split.md S3): loading them registers them
 import '@openworld/modules'
 import { LOOK_TABLE } from './looks.ts'
@@ -509,7 +510,7 @@ const fixtureTypes: TypeDef[] = [
 ]
 
 /** The engine's modules this game uses (docs/engine-split.md S3). */
-export const MODULES = ['classes']
+export const MODULES = ['classes', 'bosses', 'waypoints', 'boons', 'needs']
 
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}

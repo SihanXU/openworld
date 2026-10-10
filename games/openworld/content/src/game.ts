@@ -1,16 +1,33 @@
 // This game as the engine and the services around it read it (engine/src/gamedef.ts, docs/engine-split.md):
 // what the modder and the runtime are handed instead of importing the content.
 
-import type { GameDef } from '@openworld/engine'
+import type { Engine, GameDef } from '@openworld/engine'
+import { HUNGER_EVERY } from '@openworld/modules'
 import { STORY_RULES } from './ford.ts'
 import { TERRAIN_CHARS, buildOntology } from './ontology.ts'
 import { BASE_RULES } from './rules.ts'
+
+/** This game's own save history: what its older saves kept that the world reads otherwise now. */
+function upgradeSave(eng: Engine): void {
+    const w = eng.world
+    for (const e of Object.values(w.state.entities)) {
+      // Early Iron Stomach saves used its delta as an absolute interval (faster, not slower).
+      if (e.tags?.includes('skill:iron-stomach') && e.props?.hungerEvery === 150) w.setProp(e, 'hungerEvery', 450)
+      // Hunger's base pace was a point every 300 ticks (now HUNGER_EVERY): a skill's kept interval on
+      // the old scale (300, 450, 600) is scaled to the new one.
+      const every = e.props?.hungerEvery
+      if (every === 300 || every === 450 || every === 600) w.setProp(e, 'hungerEvery', Math.round((every * HUNGER_EVERY) / 300))
+      // the night-born were marked by a prop before they had a tag
+      if (e.props?.nightborn) (w.setProp(e, 'nightborn', undefined), w.addTag(e, 'nightborn'))
+    }
+}
 
 export const GAME: GameDef = {
   id: 'openworld',
   ontology: buildOntology,
   rules: [...BASE_RULES, ...STORY_RULES],
   terrainChars: TERRAIN_CHARS,
+  upgradeSave,
 }
 
 export default GAME

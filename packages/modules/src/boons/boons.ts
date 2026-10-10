@@ -5,8 +5,8 @@
 // writes only itself, the leader only reads. A boon is given by the story (a notify the companion
 // answers) and chosen only beside an attuned waypoint stone (the `boon` primitive checks it).
 
-import type { Entity } from './types.ts'
-import type { World } from './world.ts'
+import type { Entity, World } from '@openworld/engine'
+import { attunedNear } from '../waypoints/waypoints.ts'
 
 /** A boon's status: `boon_<id>`. */
 export const BOON_PREFIX = 'boon_'
@@ -38,9 +38,7 @@ export function companionsOf(w: World, leader: Entity): Entity[] {
   return w.entitiesOnMap(at.map).filter((o) => o.id !== leader.id && w.prop(o, 'companion') === leader.id)
 }
 
-/** An attuned waypoint stone within reach of the actor, on its map. */
+/** An attuned waypoint stone within reach of the actor, on its map (a boon is chosen there). */
 export function nearAttunedWaypoint(w: World, e: Entity, reach = BOON_REACH): boolean {
-  const at = w.posOf(e)
-  if (!at) return false
-  return w.entitiesOnMap(at.map).some((o) => o.type === 'fixture/sacred/waypoint' && o.place.on === 'tile' && w.hasStatus({ e: o.id }, 'attuned') && Math.max(Math.abs(o.place.x - at.x), Math.abs(o.place.y - at.y)) <= reach)
+  return attunedNear(w, e, reach)
 }

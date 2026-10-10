@@ -7,7 +7,8 @@
 
 import { HOMESTEAD_RULES } from './homestead.ts'
 import { PERSON_NEWS, SOCIAL_RULES } from './social.ts'
-import { HUNGRY_BELOW, type Amount, type Cond, type Effect, type Text, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@openworld/engine'
+import { type Amount, type Cond, type Effect, type Text, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@openworld/engine'
+import { HUNGRY_BELOW } from '@openworld/modules'
 
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
 const L = (en: string, zh: string) => ({ en, zh })

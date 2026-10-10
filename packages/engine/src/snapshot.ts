@@ -7,7 +7,6 @@ import { SLOT_COUNT } from './controls.ts'
 import { parseCellId } from './cells.ts'
 import { skillsOf } from './progression.ts'
 import { OFFHAND, offhandOf, weaponOf } from './blows.ts'
-import { activeBoon, boonsOf, companionsOf, nearAttunedWaypoint } from './boons.ts'
 import type { JournalQuest, QuestOffer, QuestTarget } from './quests.ts'
 import type { TalkOption } from './social.ts'
 
@@ -127,7 +126,7 @@ export interface Frame {
     /** The bag's slots (row 1 is the toolbar): a stack each, or empty. */
     slots: ({ item: ItemInfo; count: number; worn?: boolean } | null)[]
     selected: number
-    /** The boons the companion following the player has been given, the one it carries, and whether a waypoint is near (boons.ts). */
+    /** The boons the companion following the player has been given, the one it carries, and whether a waypoint is near (the boons module). */
     boons?: { unlocked: string[]; active?: string; atWaypoint: boolean }
     /** What is worn in the off hand (a shield), and whether it works there (another profession's does not). */
     offhand?: ItemInfo & { works: boolean }
@@ -475,8 +474,9 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       facing: p.facing ?? 'down',
       hp: w.num(p, 'hp'),
       maxHp: w.num(p, 'maxHp', 1),
-      hunger: w.num(p, 'hunger', w.num(p, 'maxHunger')),
-      maxHunger: w.num(p, 'maxHunger'),
+      // hunger: a module's (needs), none without one
+      hunger: 0,
+      maxHunger: 0,
       statuses: Object.keys(p.statuses ?? {}),
       props: { ...w.onto.resolve(p.type).props, ...(p.props ?? {}) },
       skills: skillsOf(p),
@@ -488,10 +488,6 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       inventory: (p.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),
       slots,
       selected: p.selected ?? 0,
-      boons: (() => {
-        const bird = companionsOf(w, p)[0]
-        return bird && { unlocked: boonsOf(w, bird), active: activeBoon(bird), atWaypoint: nearAttunedWaypoint(w, p) }
-      })(),
       offhand: (() => {
         // what the off-hand slot names while it is still carried; `works`: and it is the wearer's to wield
         const id = w.prop(p, OFFHAND)

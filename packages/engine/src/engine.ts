@@ -1518,10 +1518,11 @@ export class Engine {
           // asleep, one wakes (hunger, or something at one's bed); on the road, one stops
           const asleep = w.hasStatus({ e: p.id }, 'asleep')
           if (asleep) this.write(() => w.clearStatus({ e: p.id }, 'asleep'))
-          const starving = w.num(p, 'hunger', 1) <= 0
+          // why one woke: a module's word (hunger), else the hurt
+          const why = asleep ? this.hooks.woke.map((f) => f(p)).find(Boolean) : undefined
           w.fx.push({
             t: 'log',
-            text: !asleep ? { en: 'Hurt, you stop on the way.', zh: '你受了伤，停下了脚步。' } : starving ? { en: 'Hunger wakes you.', zh: '你被饿醒了。' } : { en: 'Something hurts you awake.', zh: '你被疼醒了。' },
+            text: !asleep ? { en: 'Hurt, you stop on the way.', zh: '你受了伤，停下了脚步。' } : why ?? { en: 'Something hurts you awake.', zh: '你被疼醒了。' },
           })
           break
         }
