@@ -1,0 +1,2223 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/OntologyPart",
+  "definitions": {
+    "OntologyPart": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "types": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/TypeDef"
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/TypeDef"
+              }
+            }
+          ]
+        },
+        "statuses": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/StatusDef"
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/StatusDef"
+              }
+            }
+          ]
+        },
+        "terrains": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/TerrainDef"
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/TerrainDef"
+              }
+            }
+          ]
+        },
+        "modules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The modules the game uses (module.ts, docs/engine-split.md §4), installed in this order with every engine made over it."
+        },
+        "deeds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DeedDef"
+          },
+          "description": "What people take as deeds (docs/npc-sandbox.md §2.2), the watches, the numbers of their social life."
+        },
+        "laws": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/LawDef"
+          }
+        },
+        "social": {
+          "$ref": "#/definitions/SocialParams"
+        },
+        "talk": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TalkVerb"
+          },
+          "description": "The verbs of the talk panel (docs/npc-sandbox.md §2.9): each offered when its condition holds (host: the one spoken to; actor: the speaker)."
+        },
+        "elements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "resistances": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Each element's resistance: the stat that takes a share of its harm away (percent; below 0, more harm), world-model.md §6.8."
+        },
+        "vfx": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "instanceTags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tags an instance may carry beyond its type's (materials, qualities…); used by conflict checks."
+        },
+        "factions": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/FactionDef"
+          },
+          "description": "Factions (an actor belongs to those its `faction:<id>` tags name) and whom each is hostile to."
+        },
+        "professions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "$ref": "#/definitions/Text"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false
+          },
+          "description": "Professions by id (the `profession` prop, an item's `profession:<id>` tag), for their names."
+        },
+        "thresholds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ThresholdDef"
+          },
+          "description": "Numeric lines that are events when a prop crosses them (design.md §5.7: threshold)."
+        },
+        "materials": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/MaterialDef"
+          },
+          "description": "The materials things are made of, by id."
+        },
+        "qualities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/QualityDef"
+          },
+          "description": "The qualities made things have."
+        },
+        "efficiency": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "description": "How well an instrument works on a material category (world-model.md §6.1): rows are its capabilities (`tool:axe` …) and its edge (`edge:cut` …); an instrument takes its best row. A category no row names: 1."
+        },
+        "params": {
+          "$ref": "#/definitions/WorldParams",
+          "description": "The world parameters."
+        },
+        "roomRoles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string"
+              },
+              "needs": {
+                "$ref": "#/definitions/Selector"
+              },
+              "count": {
+                "type": "number"
+              },
+              "props": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/definitions/PropValue"
+                }
+              }
+            },
+            "required": [
+              "role",
+              "needs"
+            ],
+            "additionalProperties": false
+          },
+          "description": "What makes a room what it is (world-model.md §5.4, RimWorld's roles, as tags): a room with `count` things matching `needs` in it has the tag `role:<role>`, and the role's props (a bedroom's `rest`: how much a night's sleep there gives back)."
+        },
+        "periods": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PeriodDef"
+          },
+          "description": "Clocks that make `time/period` events for the hosts they name."
+        },
+        "appear": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AppearDef"
+          },
+          "description": "What appears by itself on any map its `where` fits (the night's walkers), besides each map's own (MapData.appear)."
+        },
+        "goals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The order goals are tried in for a thing whose type does not say (world-model.md §6.10)."
+        },
+        "looks": {
+          "$ref": "#/definitions/LookTable",
+          "description": "The looks bodies are drawn from (docs/looks.md): bodies, parts, colours."
+        }
+      },
+      "description": "An ontology file: a part of the ontology; its types, statuses and terrains as lists or as records by id."
+    },
+    "TypeDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/definitions/Text"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tags inherited by every instance (instances may add more)."
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/PropValue"
+          },
+          "description": "Default properties (instances may override)."
+        },
+        "sprite": {
+          "type": "string",
+          "description": "Render key; resolved by the client's art layer (`art:<type id>` for a type that carries its own `art`)."
+        },
+        "art": {
+          "$ref": "#/definitions/PixelArt",
+          "description": "Its own picture, for a type a patch introduced (sprite `art:<id>`)."
+        },
+        "solid": {
+          "type": "boolean",
+          "description": "Does it block movement? (it fills its cell's volume; a body blocks by its own space)"
+        },
+        "occupies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Space"
+          },
+          "description": "The spaces it takes in its cell (world-model.md §5.2): in a cell each space has at most one occupant. Default: a body for an agent that does not fly, the volume for a solid thing, none for the rest (items and most furniture share a cell with anything)."
+        },
+        "terrain": {
+          "type": "string",
+          "description": "It is drawn as the ground of its cell, this terrain (the cell things of a map's data; world-model.md §4.6)."
+        },
+        "makeup": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MakeupPart"
+          },
+          "description": "What it is made of, which is also what it leaves when it breaks (world-model.md §6.4): each part's count is scaled by the world's recovery rate, in the thing's own material."
+        },
+        "stage": {
+          "$ref": "#/definitions/StageDef",
+          "description": "How long it stays what it is, and what it becomes (world-model.md §6.5)."
+        },
+        "goals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The order its goals are tried in (world-model.md §6.10): encounter, threat, follow, schedule, home, idle."
+        },
+        "station": {
+          "type": "string",
+          "description": "Where it is made from its makeup (world-model.md §6.4): `hands` (anywhere), or a station a thing within reach is (its `station:<x>` tag)."
+        },
+        "craftLevel": {
+          "type": "number",
+          "description": "The level its recipe asks (default 1): a maker above it makes it finer."
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tools its making needs carried (tags: `tool:axe`), not used up (Elin's tool requirement)."
+        },
+        "yields": {
+          "type": "number",
+          "description": "How many one making gives (a log splits into two planks); what one breaks back into is its share of the makeup."
+        },
+        "footprint": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Things bigger than a tile: the base they stand on, [width, depth] in tiles — centred on their own tile, reaching back (north) from it. A solid thing blocks all of it, and only while it is there. Default [1, 1]."
+        },
+        "reach": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The stances it acts on: what can stand or lie on it (none by default). A thing's own stance is its `stance` prop."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "description": "A type of thing (world-model.md §4). There are no kinds: everything descends from the one root, and whatever the engine asks of a thing is data here, inherited down the type path (the tags `agent` — acts by itself with a body — and `portable`, the stances it `reach`es, its props)."
+    },
+    "Text": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "en": {
+              "type": "string"
+            },
+            "zh": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "en"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "PropValue": {
+      "type": [
+        "number",
+        "string",
+        "boolean"
+      ]
+    },
+    "PixelArt": {
+      "type": "object",
+      "properties": {
+        "grid": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "palette": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "grid",
+        "palette"
+      ],
+      "additionalProperties": false,
+      "description": "A 16x16 icon as data: one string per row, one character per pixel (\".\" transparent), each other character a colour of the palette. Things the world learned carry their own picture this way (the client draws it), so it travels with the patch like the rest of the type."
+    },
+    "Space": {
+      "type": "string",
+      "enum": [
+        "floor",
+        "soil",
+        "volume",
+        "body"
+      ],
+      "description": "The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body."
+    },
+    "MakeupPart": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "count": {
+          "type": "number"
+        },
+        "chance": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "count"
+      ],
+      "additionalProperties": false,
+      "description": "A part of what a thing is made of: `count` of `type`, each with `chance` (default 1)."
+    },
+    "StageDef": {
+      "type": "object",
+      "properties": {
+        "into": {
+          "type": "string",
+          "description": "What it becomes at the end; none: it stays what it is and the stage begins again (a hen lays, and lays again)."
+        },
+        "lasts": {
+          "type": "number",
+          "description": "Ticks the stage lasts, its clock (the status `stage`) started when the thing comes to be what it is."
+        },
+        "clock": {
+          "type": "string",
+          "description": "Another status as its clock, started by whatever gives it (a crop moves on when its watering runs out): then nothing starts it by itself."
+        },
+        "needs": {
+          "$ref": "#/definitions/Cond",
+          "description": "A condition on the thing (the host) the end waits for (light, nobody standing on it); not met, it waits `wait` ticks and looks again."
+        },
+        "wait": {
+          "type": "number"
+        },
+        "fx": {
+          "type": "string",
+          "description": "What is seen at the end (a vfx: leaves, a splash)."
+        },
+        "yields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "count": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          "description": "What the end leaves where it is (an egg laid)."
+        }
+      },
+      "additionalProperties": false,
+      "description": "A stage (world-model.md §6.5, after Elin's GrowSystem, generalised): a thing stays what it is until its clock runs out, then becomes the next (a stump a tree, thin ice water) and leaves what the stage yields (a hen's egg). One mechanism for every such change; it runs on timers, so a dormant map catches up when it is entered."
+    },
+    "Cond": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "all": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Cond"
+              }
+            }
+          },
+          "required": [
+            "all"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "any": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Cond"
+              }
+            }
+          },
+          "required": [
+            "any"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "not": {
+              "$ref": "#/definitions/Cond"
+            }
+          },
+          "required": [
+            "not"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "is": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "sel": {
+                  "$ref": "#/definitions/Selector"
+                }
+              },
+              "required": [
+                "role",
+                "sel"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "is"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "none": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "none"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "same": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RoleName"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "same"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "leads": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RoleName"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "leads"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "has": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "tag": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "has"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "prop": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/Reader"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "cmp": {
+                  "$ref": "#/definitions/Cmp"
+                },
+                "bounds": {
+                  "$ref": "#/definitions/Bounds"
+                },
+                "default": {
+                  "$ref": "#/definitions/PropValue"
+                }
+              },
+              "required": [
+                "role",
+                "key"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "prop"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "param": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "cmp": {
+                  "$ref": "#/definitions/Cmp"
+                }
+              },
+              "required": [
+                "key",
+                "cmp"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "param"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "chance": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "chance"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "hour": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "number"
+                },
+                "to": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "hour"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "night": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "night"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "count": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "in": {
+                  "type": "string",
+                  "enum": [
+                    "contents",
+                    "tile",
+                    "map"
+                  ]
+                },
+                "match": {
+                  "$ref": "#/definitions/Selector"
+                },
+                "cmp": {
+                  "$ref": "#/definitions/Bounds"
+                }
+              },
+              "required": [
+                "role",
+                "in",
+                "cmp"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "count"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "topic": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "topic"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "weather": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "weather"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "exists": {
+              "$ref": "#/definitions/Selector"
+            }
+          },
+          "required": [
+            "exists"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "outdoors": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "outdoors"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "makeup": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "makeup"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "worn": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "worn"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "rel": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "how": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "how"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "rel"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fighting": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "fighting"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "regard": {
+              "type": "object",
+              "properties": {
+                "of": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "toward": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "cmp": {
+                  "$ref": "#/definitions/Cmp"
+                }
+              },
+              "required": [
+                "of",
+                "toward",
+                "cmp"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "regard"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "bounty": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "cmp": {
+                  "$ref": "#/definitions/Cmp"
+                }
+              },
+              "required": [
+                "role",
+                "cmp"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "bounty"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "grudge": {
+              "type": "object",
+              "properties": {
+                "of": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "toward": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "deed": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "of",
+                "toward"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "grudge"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "owns": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RoleName"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "owns"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "knows": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RoleName"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "knows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "remembers": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "remembers"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "deed": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean",
+                  "const": true
+                }
+              ]
+            }
+          },
+          "required": [
+            "deed"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "sway": {
+              "type": "object",
+              "properties": {
+                "of": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "by": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "how": {
+                  "type": "string",
+                  "enum": [
+                    "persuade",
+                    "intimidate"
+                  ]
+                },
+                "bonus": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "of",
+                "by",
+                "how"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "sway"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "canPay": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "mul": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "role"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "canPay"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "unpardonable": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "unpardonable"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "RoleName": {
+      "type": "string",
+      "enum": [
+        "host",
+        "actor",
+        "target",
+        "instrument",
+        "other",
+        "item",
+        "source"
+      ],
+      "description": "The roles of an event besides its host (whose rule answers it):\n- act: `actor`, `target`, `instrument` (the host is the instrument, or the actor's own hands);\n- impulse: `source` (what emitted it), `actor` (whose act started the chain), `instrument`,   `item` (the thing given, put or taken), `other` (the taker, for `taken`);\n- contact, bump: `other`, the thing on the other side;\n- seen: `actor` (the doer), `target`, `instrument`;\n- stuck: `target` (what the activity needs, or the spot); broken: `target` (the giver)."
+    },
+    "Selector": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Is-a match against the type hierarchy (prefix on slash paths): `actor`, `item/food`, `tile/grass`…"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "All of these tags."
+        },
+        "notTags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "None of these tags."
+        },
+        "status": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "All of these statuses."
+        },
+        "notStatus": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "None of these statuses."
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Cmp"
+          },
+          "description": "Property comparisons."
+        },
+        "id": {
+          "$ref": "#/definitions/Id",
+          "description": "Instance-bound (discouraged for patches)."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Selects the entity or tile filling a role. All given constraints must hold."
+    },
+    "Cmp": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/PropValue"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "eq": {
+              "$ref": "#/definitions/PropValue"
+            },
+            "ne": {
+              "$ref": "#/definitions/PropValue"
+            },
+            "gt": {
+              "type": "number"
+            },
+            "gte": {
+              "type": "number"
+            },
+            "lt": {
+              "type": "number"
+            },
+            "lte": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Id": {
+      "type": "string"
+    },
+    "Reader": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/RoleName"
+        },
+        {
+          "type": "string",
+          "const": "story"
+        },
+        {
+          "type": "string",
+          "const": "world"
+        }
+      ],
+      "description": "What a condition may read: the event's roles, and the stewards every rule may read (the story, the world)."
+    },
+    "Bounds": {
+      "type": "object",
+      "properties": {
+        "eq": {
+          "$ref": "#/definitions/Operand"
+        },
+        "gt": {
+          "$ref": "#/definitions/Operand"
+        },
+        "gte": {
+          "$ref": "#/definitions/Operand"
+        },
+        "lt": {
+          "$ref": "#/definitions/Operand"
+        },
+        "lte": {
+          "$ref": "#/definitions/Operand"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Numeric bounds whose limits may be read from roles. A missing property fails the test."
+    },
+    "Operand": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "prop": {
+              "type": "string"
+            },
+            "of": {
+              "$ref": "#/definitions/RoleName"
+            },
+            "mul": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "prop",
+            "of"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "param": {
+              "type": "string"
+            },
+            "mul": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "param"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "description": "A number, or a number read from a role's prop (scaled) or from the event's params."
+    },
+    "StatusDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/definitions/Text"
+        },
+        "duration": {
+          "type": "number",
+          "description": "Default duration in ticks; omitted = until removed."
+        },
+        "clears": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Statuses removed when this one is applied (e.g. frozen removes burning)."
+        },
+        "wards": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Statuses that cannot take hold while this one lasts (fireproof wards off burning)."
+        },
+        "immobilize": {
+          "type": "boolean",
+          "description": "An actor with this status cannot move or act."
+        },
+        "moveDelay": {
+          "type": "number",
+          "description": "Multiplier on movement delay while held (e.g. dream mist slows any actor)."
+        },
+        "every": {
+          "type": "number",
+          "description": "Ticks between the status's time/period events (default 5): a bleed pulses once a second."
+        },
+        "overlay": {
+          "type": "string",
+          "description": "What the client draws over a thing that has it: one of OVERLAYS (an unknown one draws nothing)."
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "What it adds to its holder's stats while held (world-model.md §6.8): fireproof's resistance to fire."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "TerrainDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/definitions/Text"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "solid": {
+          "type": "boolean"
+        },
+        "liquid": {
+          "type": "boolean",
+          "description": "Swimmable/liquid terrain: items put here are not simply dropped."
+        },
+        "reach": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The stances it acts on (default `ground` for a floor, none for the rest): what touches it (design.md §5.5)."
+        },
+        "space": {
+          "type": "string",
+          "enum": [
+            "floor",
+            "soil",
+            "volume"
+          ],
+          "description": "The space it takes in its cell (default `floor`): ground is a floor; trees, rock and walls fill the volume; a stump roots in the soil."
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/PropValue"
+          },
+          "description": "Its props as a thing (its material, its durability: maxHp and hp)."
+        },
+        "makeup": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MakeupPart"
+          },
+          "description": "What it is made of (TypeDef.makeup)."
+        },
+        "stage": {
+          "$ref": "#/definitions/StageDef",
+          "description": "How long it stays what it is, and what it becomes (TypeDef.stage)."
+        },
+        "color": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "DeedDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/definitions/Text"
+        },
+        "told": {
+          "$ref": "#/definitions/Text",
+          "description": "How it is told ({who} did it, against {whom}, to {what}): \"{who} stole {what} from {whom}\"."
+        },
+        "when": {
+          "$ref": "#/definitions/Cond"
+        },
+        "fine": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "const": "value"
+            }
+          ]
+        },
+        "weight": {
+          "type": "number",
+          "description": "Regard lost by its victim (others who learn of it lose a share)."
+        },
+        "violent": {
+          "type": "boolean",
+          "description": "Violence: those who see it fear the doer; the fighting answer."
+        },
+        "rank": {
+          "type": "number",
+          "description": "The worst first: a deed matched earlier hides the lesser ones in the same act (murder hides assault)."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "when",
+        "fine",
+        "weight",
+        "rank"
+      ],
+      "additionalProperties": false,
+      "description": "A kind of deed (docs/npc-sandbox.md §2.2): what in a `seen` event makes it one — a condition on the event (roles actor, target, instrument; params act, owner: mine|ours|another|nobody, from: person|container|ground, harm, killed, presence) — and what it costs: a fine (`value`: half the thing's worth) and the regard it takes."
+    },
+    "LawDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/definitions/Text"
+        },
+        "jail": {
+          "type": "object",
+          "properties": {
+            "map": {
+              "type": "string"
+            },
+            "anchor": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "map",
+            "anchor"
+          ],
+          "additionalProperties": false,
+          "description": "Where its jail is: a map and an anchor on it."
+        },
+        "unpardonable": {
+          "type": "number",
+          "description": "A bounty this high is not talked or bought away (a murderer's)."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "additionalProperties": false,
+      "description": "A watch (docs/npc-sandbox.md §2.7): who keeps the law on its maps, and where it keeps those who will not pay."
+    },
+    "SocialParams": {
+      "type": "object",
+      "properties": {
+        "coin": {
+          "type": "string",
+          "description": "The coin trade and fines are paid in."
+        },
+        "regardStart": {
+          "type": "number",
+          "description": "Regard one starts with toward a stranger, and toward one tied to them."
+        },
+        "regardTie": {
+          "type": "number"
+        },
+        "talk": {
+          "type": "number",
+          "description": "Talking raises regard by this once a day (harder as it rises)."
+        },
+        "fade": {
+          "type": "number",
+          "description": "How fast regard fades back to its start, each day (a share of the way)."
+        },
+        "gossipEvery": {
+          "type": "number",
+          "description": "Ticks between two rounds of gossip, and how many days a deed stays worth telling."
+        },
+        "gossipDays": {
+          "type": "number"
+        },
+        "perceiveEvery": {
+          "type": "number",
+          "description": "Ticks between two looks about (trespass, the wanted, a drawn blade, a familiar description)."
+        },
+        "fearTicks": {
+          "type": "number",
+          "description": "How long one fears a violent doer, in ticks."
+        },
+        "markup": {
+          "type": "number",
+          "description": "How much a merchant asks over a thing's value, and pays under it; and a fence's share for what is not yours."
+        },
+        "markdown": {
+          "type": "number"
+        },
+        "fence": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "coin",
+        "regardStart",
+        "regardTie",
+        "talk",
+        "fade",
+        "gossipEvery",
+        "gossipDays",
+        "perceiveEvery",
+        "fearTicks",
+        "markup",
+        "markdown",
+        "fence"
+      ],
+      "additionalProperties": false,
+      "description": "The numbers of the people's social life (data, docs/npc-sandbox.md): the engine holds the mechanisms."
+    },
+    "TalkVerb": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "$ref": "#/definitions/Text",
+          "description": "What the panel says ({bounty}, {bribe}, {name} are filled in)."
+        },
+        "when": {
+          "$ref": "#/definitions/Cond",
+          "description": "Offered when this holds (host: the one spoken to; actor: the speaker)."
+        },
+        "arrest": {
+          "type": "boolean",
+          "description": "A guard's, offered only when the guard has stopped the speaker (an arrest), and then only these."
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "$ref": "#/definitions/Text"
+              },
+              "when": {
+                "$ref": "#/definitions/Cond"
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "A verb of the talk panel: what it is called, when it is offered, and its sub-choices (a request's)."
+    },
+    "FactionDef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/Text"
+        },
+        "hostile": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Factions its members attack on sight (when their temper says so)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "ThresholdDef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The event's `name` param (\"broken\", \"hungry\")."
+        },
+        "prop": {
+          "type": "string"
+        },
+        "lte": {
+          "type": "number",
+          "description": "Crossed when the value comes to this or below."
+        },
+        "below": {
+          "type": "object",
+          "properties": {
+            "prop": {
+              "type": "string"
+            },
+            "mul": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "prop",
+            "mul"
+          ],
+          "additionalProperties": false,
+          "description": "Or crossed when it comes under this share of another prop of the thing (hungry: under 60 % of maxHunger)."
+        },
+        "both": {
+          "type": "boolean",
+          "description": "Crossed back as well: the value rises over the line again (the event's param `way` is `up`)."
+        }
+      },
+      "required": [
+        "name",
+        "prop"
+      ],
+      "additionalProperties": false
+    },
+    "MaterialDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "hardness": {
+          "type": "number"
+        },
+        "name": {
+          "$ref": "#/definitions/Text",
+          "description": "How a thing of it is named (\"Stone\" Axe, 石斧), what tags it gives."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "attack": {
+          "type": "number",
+          "description": "How much it makes of a weapon's or tool's power, and of a worn thing's defence (world-model.md §6.8, Elin's material atk/pv): factors, 1 when absent."
+        },
+        "defence": {
+          "type": "number"
+        },
+        "value": {
+          "type": "number",
+          "description": "What it makes of a thing's worth (docs/npc-sandbox.md §2.10): a factor, 1 when absent."
+        }
+      },
+      "required": [
+        "id",
+        "category",
+        "hardness"
+      ],
+      "additionalProperties": false,
+      "description": "A material (world-model.md §4.5): its category (what tools work on: wood, stone, ore, flesh …) and its hardness — an instrument softer than what it strikes does nothing (Elin: a tool below the material's level). Things carry theirs as a `material:<id>` tag, or their type's `material` prop."
+    },
+    "QualityDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/definitions/Text"
+        },
+        "factor": {
+          "type": "number"
+        },
+        "from": {
+          "type": "number"
+        },
+        "value": {
+          "type": "number",
+          "description": "What it makes of a thing's worth: a factor, 1 when absent."
+        }
+      },
+      "required": [
+        "id",
+        "factor"
+      ],
+      "additionalProperties": false,
+      "description": "A quality a made thing can have (world-model.md §6.4): its tag, name and factor on power and defence (Elin's rarity), and from how far above a recipe's level its maker reaches it (none: not by making)."
+    },
+    "WorldParams": {
+      "type": "object",
+      "properties": {
+        "recovery": {
+          "type": "number",
+          "description": "The share of its makeup a thing leaves when it breaks (D9)."
+        },
+        "spawnMax": {
+          "type": "number",
+          "description": "How many things one effect may make at once (a runtime guard; default 64)."
+        },
+        "safeFall": {
+          "type": "number",
+          "description": "A drop of this many levels or less does no harm (world-model.md §5.5)."
+        },
+        "fallDamage": {
+          "type": "number",
+          "description": "The harm of each level fallen beyond the safe height."
+        },
+        "rainCost": {
+          "type": "number",
+          "description": "How much longer a long step takes in rain, a storm or snow (a map with a `scale`)."
+        },
+        "storeys": {
+          "type": "number",
+          "description": "How many storeys may stand above the ground (world-model.md §5.2)."
+        },
+        "roomSize": {
+          "type": "number",
+          "description": "The largest a room may be, in cells: larger is out of doors (world-model.md §5.4)."
+        },
+        "riseHour": {
+          "type": "number",
+          "description": "The hour one rises; and how much of what is missing a night's sleep gives back outside a room that says more."
+        },
+        "rest": {
+          "type": "number"
+        },
+        "reach": {
+          "type": "number",
+          "description": "How far a hand or a thing used reaches when the thing does not say (`handsRange` on what is handled, `range` on what is used): cells round, the actor's own included."
+        },
+        "carry": {
+          "type": "number",
+          "description": "How far one takes and puts things (F, G): cells round, the actor's own included."
+        },
+        "slotCount": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "How many of a body's wearing slots there are of a kind, where more than one (two hands, two rings): `wear:ring`, `wear:ring.2`."
+        },
+        "nightFact": {
+          "type": "string",
+          "description": "The story's fact that lengthens the night by so many hours (a number; the Ford's `night.shift`): none, the night keeps its length."
+        }
+      },
+      "required": [
+        "recovery",
+        "safeFall",
+        "fallDamage"
+      ],
+      "additionalProperties": false,
+      "description": "Numbers the world is made with (world-model.md §11): data, never literals in the engine."
+    },
+    "PeriodDef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "every": {
+          "type": "number",
+          "description": "Ticks between events."
+        },
+        "host": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Selector"
+            },
+            {
+              "type": "string",
+              "const": "world"
+            },
+            {
+              "type": "string",
+              "const": "story"
+            }
+          ],
+          "description": "Things on the active map that have it (a selector), or a resident host."
+        },
+        "everyProp": {
+          "type": "string",
+          "description": "A prop on the host that overrides `every` for it (Iron Stomach's slower hunger: `hungerEvery`)."
+        },
+        "paceBy": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Statuses that slow it for a host that has them: its interval times this (asleep, hunger comes four times slower)."
+        }
+      },
+      "required": [
+        "name",
+        "every",
+        "host"
+      ],
+      "additionalProperties": false
+    },
+    "AppearDef": {
+      "type": "object",
+      "properties": {
+        "types": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "What appears: types, weighted."
+        },
+        "on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The grounds it appears on (terrain ids); any ground one can stand on when absent."
+        },
+        "max": {
+          "type": "number",
+          "description": "At most this many on the map: those tagged `tag` if it is given, else those of its types."
+        },
+        "every": {
+          "type": "number",
+          "description": "Ticks between appearances (a multiple of the `appear` period)."
+        },
+        "ring": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "How far from the one at the keys, [near, far] cells (default: anywhere, not within two)."
+        },
+        "hours": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "When: hours [from, to) (past midnight when from > to), and weathers."
+        },
+        "night": {
+          "type": "boolean",
+          "description": "When: at night, however long the story's night has grown (World.isNight; instead of hours)."
+        },
+        "weather": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "where": {
+          "type": "object",
+          "properties": {
+            "zone": {
+              "type": "string",
+              "enum": [
+                "peaceful",
+                "combat"
+              ]
+            },
+            "light": {
+              "type": "string",
+              "enum": [
+                "outdoor",
+                "indoor",
+                "dark"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "description": "Which maps (for the world's own): by the map's zone and light."
+        },
+        "tag": {
+          "type": "string",
+          "description": "A tag what appears carries (counted by `max`)."
+        },
+        "ai": {
+          "type": "object",
+          "properties": {
+            "behaviour": {
+              "type": "string",
+              "enum": [
+                "melee",
+                "ranged",
+                "passive"
+              ]
+            },
+            "temper": {
+              "type": "string",
+              "enum": [
+                "aggressive",
+                "nocturnal",
+                "wary"
+              ],
+              "description": "When it attacks those its factions are hostile to: always, after dark only, or only once provoked. Whoever strikes it becomes a foe, whatever its temper."
+            },
+            "foes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Id"
+              },
+              "description": "Whoever struck it: attacked on sight."
+            },
+            "leash": {
+              "type": "number",
+              "description": "How far from where it lives (home, or its night roam) it will chase before it gives up (default 8)."
+            },
+            "sight": {
+              "type": "number"
+            },
+            "state": {
+              "type": "string",
+              "enum": [
+                "idle",
+                "chase",
+                "return",
+                "flee"
+              ]
+            },
+            "detour": {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "path": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "path"
+              ],
+              "additionalProperties": false,
+              "description": "The way around an obstacle it is following, to the goal it was planned for."
+            },
+            "noWay": {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "until": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "until"
+              ],
+              "additionalProperties": false,
+              "description": "A goal no way led to (one shut in a house): it does not look for a way there again until then."
+            },
+            "cooldown": {
+              "type": "number"
+            },
+            "loot": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "night": {
+              "$ref": "#/definitions/Pos",
+              "description": "Where it roams at night (creatures come out after dark); by day it keeps to `home`."
+            }
+          },
+          "required": [
+            "behaviour",
+            "temper",
+            "sight"
+          ],
+          "additionalProperties": false,
+          "description": "A creature's behaviour (its home is where it appears), and statuses it appears with."
+        },
+        "statuses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "types",
+        "max",
+        "every"
+      ],
+      "additionalProperties": false,
+      "description": "What appears by itself (world-model.md §6.9; Don't Starve's twigs and flint, Minecraft's mobs, the night's walkers): data only. Now and then one more of the weighted types appears on a free cell of the right ground, at the right distance from the one at the keys, at the right hours and weather, until `max` of them are on the map."
+    },
+    "Pos": {
+      "type": "object",
+      "properties": {
+        "map": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number",
+          "description": "The storey (world-model.md §5.2): 0 the ground's, 1 the floor above it … (omitted: 0)."
+        }
+      },
+      "required": [
+        "map",
+        "x",
+        "y"
+      ],
+      "additionalProperties": false
+    },
+    "LookTable": {
+      "type": "object",
+      "properties": {
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "bodies": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/LookBodyDef"
+          }
+        },
+        "parts": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/LookPartDef"
+          }
+        },
+        "colors": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/LookColorDef"
+          }
+        },
+        "materials": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "The colour a worn thing shows in, by its material (an iron helmet is iron-grey): `#rrggbb` or a colour id."
+        }
+      },
+      "required": [
+        "slots",
+        "bodies",
+        "parts",
+        "colors"
+      ],
+      "additionalProperties": false,
+      "description": "The looks a world knows (Ontology.looks): bodies, parts and colours; the engine checks a look against it and derives its tags."
+    },
+    "LookBodyDef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/Text"
+        },
+        "sex": {
+          "type": "string",
+          "enum": [
+            "female",
+            "male"
+          ]
+        },
+        "age": {
+          "type": "string",
+          "enum": [
+            "child",
+            "adult"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "sex",
+        "age"
+      ],
+      "additionalProperties": false,
+      "description": "A body a look may have: its sex and age as a body shows them, and what it says of its bearer."
+    },
+    "LookPartDef": {
+      "type": "object",
+      "properties": {
+        "slot": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/definitions/Text"
+        },
+        "bodies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The bodies it is drawn for (omitted: every body)."
+        },
+        "colors": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Its own colour keys' defaults (`1` → a colour id) and the shared keys it uses (`hair`, `skin`, `eyes`)."
+        },
+        "uses": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "skin",
+              "hair",
+              "eyes"
+            ]
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "slot",
+        "name"
+      ],
+      "additionalProperties": false,
+      "description": "A part of a look: the slot it fills, the bodies it fits, the colour keys it is painted in, and its tags."
+    },
+    "LookColorDef": {
+      "type": "object",
+      "properties": {
+        "hex": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/definitions/Text"
+        },
+        "for": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Families it is offered for: hair, skin, eyes, cloth, metal."
+        },
+        "tags": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "required": [
+        "hex",
+        "name",
+        "for"
+      ],
+      "additionalProperties": false,
+      "description": "A named colour: what it is called, and the tags it gives the key it colours (silver hair → `look:grey-haired`)."
+    }
+  }
+}

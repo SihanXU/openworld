@@ -39,6 +39,9 @@ const PUT_HELP: Text = { en: 'Set down one you carry (as G does); with none, one
 
 const fromRecipe = (r: PlacementRecipe): Entry => ({ id: r.id, category: r.category, name: r.name, description: r.description, sprite: r.sprite, result: r.result, needs: r.needs.map((n) => ({ name: n.name, count: n.count, match: n.match, consume: n.consume })) })
 
+/** What the palette holds in a game where nothing is built. */
+const NOTHING: Entry = { id: '', category: 'building', name: { en: 'Nothing to build', zh: '没有可建造的东西' }, description: '', sprite: '', needs: [] }
+
 /** The things one makes and sets down (walls, floors, doors, beds, a workbench): from the recipes that make them. */
 const made = (): Entry[] => perGame('build:made', () => game().crafting.recipes.filter((r) => placeable(r.make.type)).map((r) => ({
   id: `put:${r.make.type}`,
@@ -59,7 +62,8 @@ const made = (): Entry[] => perGame('build:made', () => game().crafting.recipes.
  */
 export class BuildingMode {
   open = false
-  selected: Entry = made()[0] ?? fromRecipe(game().crafting.buildings[0])
+  // (a game with nothing to build: the palette holds nothing, and nothing is set down from it)
+  selected: Entry = made()[0] ?? (game().crafting.buildings[0] ? fromRecipe(game().crafting.buildings[0]) : NOTHING)
   category: PlacementRecipe['category'] = 'building'
   frame?: Frame
   preview?: PlacementPreview
@@ -94,7 +98,7 @@ export class BuildingMode {
       if (button.dataset.close) return this.toggle(false)
       if (button.dataset.category) {
         this.category = button.dataset.category as PlacementRecipe['category']
-        this.selected = this.entries()[0]
+        this.selected = this.entries()[0] ?? NOTHING
         this.render()
       } else if (button.dataset.recipe) {
         this.selected = this.entries().find((r) => r.id === button.dataset.recipe) ?? this.selected
@@ -210,7 +214,7 @@ export class BuildingMode {
     this.tick()
   }
   place(tile?: Tile): void {
-    if (!this.open) return
+    if (!this.open || !this.selected.id) return
     const at = this.slot(tile)
     if (!at) return
     this.lastPlaced = `${at.x},${at.y}`
@@ -296,7 +300,7 @@ export class BuildingMode {
     const zh = locale.value === 'zh'
     const entries = this.entries()
     this.listSignature = entries.map((e) => e.id).join('|')
-    if (!entries.some((e) => e.id === this.selected.id)) this.selected = entries[0]
+    if (!entries.some((e) => e.id === this.selected.id)) this.selected = entries[0] ?? NOTHING
     this.panel.innerHTML = `<header><strong>${zh ? '建筑模式' : 'BUILD MODE'}</strong><button data-close="1" title="B / Esc">×</button></header>
       <nav><button data-category="building" class="${this.category === 'building' ? 'chosen' : ''}">${zh ? '建筑' : 'Structures'}</button><button data-category="farming" class="${this.category === 'farming' ? 'chosen' : ''}">${zh ? '种植' : 'Farming'}</button></nav>
       <div class="build-recipes">${entries.map((r) => `<button data-recipe="${r.id}" class="${r.id === this.selected.id ? 'chosen' : ''}"><span class="build-art" data-sprite="${r.sprite}"></span><span>${esc(tx(r.name))}</span></button>`).join('')}</div>

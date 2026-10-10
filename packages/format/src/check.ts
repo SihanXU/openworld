@@ -2,7 +2,7 @@
 // References (types, maps, anchors, holders, aliases), sizes, portals, the rules (the patch validator's checks
 // that hold for base rules too; the root total; no ties) — each a Problem the editor's validation panel shows.
 
-import { EVENT_KINDS, RuleLibrary, compareSpec, hostsOverlap, isRoot, kindCovers, leaves, specOf, validatePatch, type Cond, type Entity, type Ontology, type RawChunk, type Rule, type Selector, type Tree, type WorldIndex } from '@openworld/engine'
+import { EVENT_KINDS, RuleLibrary, registeredModule, compareSpec, hostsOverlap, isRoot, kindCovers, leaves, specOf, validatePatch, type Cond, type Entity, type Ontology, type RawChunk, type Rule, type Selector, type Tree, type WorldIndex } from '@openworld/engine'
 import type { Problem, Project } from './project.ts'
 
 interface Made {
@@ -26,6 +26,15 @@ export function checkProject(p: Project, made: Made): Problem[] {
   const terrainOf = (map: string, x: number, y: number) => onto.terrains[p.game.terrainChars[mapOf.get(map)?.rows[y]?.[x] ?? ''] ?? '']
   const inBounds = (map: string, x: number, y: number) => { const m = mapOf.get(map); return !!m && x >= 0 && y >= 0 && x < m.width && y < m.height }
   const knownType = (t: string) => !!onto.types[t] || (t.startsWith('tile/') && !!onto.terrains[t.slice(5)])
+  /** The nearest kind a type without a definition of its own is (the ontology resolves it by its prefixes). */
+  const kindOf = (t: string): string | undefined => { for (let k = t; k.includes('/'); ) { k = k.slice(0, k.lastIndexOf('/')); if (onto.types[k]) return k } return undefined }
+  /** A thing's type: known, or of a known kind (a warning: it is only that kind), or unknown (an error). */
+  const typed = (what: string, t: string, file?: string, at?: string) => {
+    if (knownType(t)) return
+    const k = kindOf(t)
+    if (k) warn('reference', `${what} is of the type "${t}", which has no definition of its own: it is a ${k}`, file, at)
+    else err('reference', `${what} is of an unknown type "${t}"`, file, at)
+  }
 
   // ---------------------------------------------------------------- the game
   for (const [c, t] of Object.entries(p.game.terrainChars)) if (!onto.terrains[t]) err('reference', `the character "${c}" stands for "${t}", which is no terrain`, 'game.json', 'terrainChars')
@@ -50,7 +59,7 @@ export function checkProject(p: Project, made: Made): Problem[] {
   }
   own(p.game.player.id, 'game.json')
   for (const c of p.game.companions ?? []) own(c.id, 'game.json')
-  const holders = new Set([...chunks.flatMap((c) => c.entities.map((e) => e.id)), ...npcs.map((n) => n.id), ...npcs.flatMap((n) => ((n as { _items?: Entity[] })._items ?? []).map((e) => e.id)), p.game.player.id])
+  const holders = new Set([...chunks.flatMap((c) => c.entities.map((e) => e.id)), ...npcs.map((n) => n.id), ...npcs.flatMap((n) => ((n as { _items?: Entity[] })._items ?? []).map((e) => e.id)), p.game.player.id, ...(p.game.companions ?? []).map((c) => c.id)])
   for (const c of chunks) {
     const m = c.map
     const file = fileOf.get(m.id)
@@ -73,7 +82,7 @@ export function checkProject(p: Project, made: Made): Problem[] {
     for (const [name, [x, y, w, h]] of Object.entries(m.regions ?? {})) if (!inBounds(m.id, x, y) || !inBounds(m.id, x + w - 1, y + h - 1)) warn('region', `${m.id}: the area "${name}" reaches off the map`, file, `regions.${name}`)
     for (const e of c.entities) {
       own(e.id, file ?? m.id)
-      if (!knownType(e.type)) err('reference', `${e.id} is of an unknown type "${e.type}"`, file, e.id)
+      typed(e.id, e.type, file, e.id)
       const pl = e.place
       if (pl.on === 'tile') {
         if (pl.map !== m.id) err('place', `${e.id} is on ${pl.map}, but in the file of ${m.id}`, file, e.id)
@@ -90,9 +99,9 @@ export function checkProject(p: Project, made: Made): Problem[] {
     own(n.id, file ?? n.id)
     for (const it of (n as { _items?: Entity[] })._items ?? []) {
       own(it.id, file ?? n.id)
-      if (!knownType(it.type)) err('reference', `${it.id} is of an unknown type "${it.type}"`, file, it.id)
+      typed(it.id, it.type, file, it.id)
     }
-    if (!knownType(n.type)) err('reference', `${n.id} is of an unknown type "${n.type}"`, file)
+    typed(n.id, n.type, file)
     if (n.place.on === 'tile' && !inBounds(n.place.map, n.place.x, n.place.y)) err('place', `${n.id} at ${n.place.map} ${n.place.x},${n.place.y} is on no map`, file)
     for (const [i, s] of (n.npc?.schedule ?? []).entries()) {
       if (s.map && !inBounds(s.map, s.x, s.y)) err('reference', `${n.id}: schedule ${i} (${s.map} ${s.x},${s.y}) is on no map`, file, `npc.schedule[${i}]`)
@@ -122,6 +131,10 @@ export function checkProject(p: Project, made: Made): Problem[] {
     }
 
   // ---------------------------------------------------------------- the rules
+  // (a module the game names must be loaded where it is checked: its primitives are part of what a rule may use)
+  const missing = (p.game.modules ?? []).filter((m) => !registeredModule(m))
+  for (const m of missing) err('module', `the module "${m}" is not loaded here: import its package (the engine's official ones: @openworld/modules)`, 'game.json', 'modules')
+  if (missing.length) return out
   out.push(...ruleProblems(made.rules, onto, new Set(p.rules.flatMap((f) => f.data.map((r) => r.id)))))
   const seen = new Map<string, string>()
   for (const f of p.rules)

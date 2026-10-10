@@ -11,7 +11,8 @@
     ],
     "anchors": { "bed": [5, 2], "table": [2, 2] },
     "light": "indoor",
-    "zone": "peaceful"
+    "zone": "peaceful",
+    "music": "interior"
   },
   "entities": [
     {

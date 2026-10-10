@@ -4,7 +4,7 @@
 // dialogue box and the yes/no question, speech bubbles and floating numbers.
 
 import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Mood, type Text, type WorldIndex } from '@openworld/engine'
-import { catalog } from '../game.ts'
+import { catalog, game, hasModule, ontology } from '../game.ts'
 import { assetUrl, cssAssetUrl } from '../render/assets.ts'
 import { $, MOOD_GLYPH, SLOT_KEYS, controlsTable, esc, locale, prefs, t, tx } from './common.ts'
 import { skillPng } from './skillIcons.ts'
@@ -93,10 +93,10 @@ export class Hud {
         <button class="cbtn wood" id="questBtn" title="L"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerQuests.img)}" alt=""><kbd>L</kbd><span class="badge hidden" id="questBadge"></span></button>
         <button class="cbtn wood" id="buildBtn" title="B"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerBuild.img)}" alt=""><kbd>B</kbd></button>
         <button class="cbtn wood" id="bagBtn" title="I"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerBag.img)}" alt=""><kbd>I</kbd></button>
-        <button class="cbtn wood" id="skillBtn" title="K"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerSkills.img)}" alt=""><kbd>K</kbd><span class="badge hidden" id="skillBadge"></span></button>
+        <button class="cbtn wood${hasModule('classes') ? '' : ' hidden'}" id="skillBtn" title="K"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerSkills.img)}" alt=""><kbd>K</kbd><span class="badge hidden" id="skillBadge"></span></button>
         <button class="cbtn wood" id="jbtn" title="J"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerJournal.img)}" alt=""><kbd>J</kbd></button>
         <button class="cbtn wood" id="craftBtn" title="C"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerCraft.img)}" alt=""><kbd>C</kbd></button>
-        <button class="cbtn wood" id="skPanelBtn" title="U"><img class="cb-icon" src="${skillPng('whirlwind')}" alt=""><kbd>U</kbd></button>
+        <button class="cbtn wood${hasModule('classes') ? '' : ' hidden'}" id="skPanelBtn" title="U">${hasModule('classes') ? `<img class="cb-icon" src="${skillPng('whirlwind')}" alt="">` : ''}<kbd>U</kbd></button>
         <button class="cbtn wood" id="optionsBtn" title="Esc"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerOptions.img)}" alt=""><kbd>Esc</kbd></button>
       </div>
       <div class="msgs" id="msgs"></div>
@@ -108,7 +108,7 @@ export class Hud {
       <div class="fade hidden" id="fade"><div id="fadeText"></div></div>
       <div class="card hidden" id="card"><div class="card-text" id="cardText"></div><div class="dmore">▼</div></div>`
     $('#hotbar').style.setProperty('--heart', cssAssetUrl('Ui/Receptacle/Heart.png'))
-    $('#hotbar').style.setProperty('--drum', cssAssetUrl(catalog().ui.drumstick.img))
+    if (catalog().ui.drumstick) $('#hotbar').style.setProperty('--drum', cssAssetUrl(catalog().ui.drumstick.img))
     $('#jbtn').onclick = () => this.send.openJournal()
     $('#bagBtn').onclick = () => this.send.toggleInventory()
     $('#craftBtn').onclick = () => this.send.toggleCraft()
@@ -659,6 +659,9 @@ export class Hud {
     if (v) this.say(v)
   }
 
+  /** The world's coin, by name (its item type's). */
+  private coinName = (): string => tx(ontology().types[game().items.coin]?.name) || game().items.coin
+
   private socialSig = ''
   /** What the one at the keys is doing with the people: walking soft, a blade out, wanted (docs/npc-sandbox.md). */
   private renderSocial(f: Frame): void {
@@ -672,7 +675,8 @@ export class Hud {
       st.includes('sneaking') ? `<span class="ss sneak" title="V">👣 ${zh ? '潜行' : 'Sneaking'}</span>` : '',
       st.includes('drawn') ? `<span class="ss drawn" title="X">⚔ ${zh ? '已拔武器' : 'Weapon drawn'}</span>` : '',
       w ? `<span class="ss wanted">⚑ ${zh ? `${tx(w.by)}悬赏 ${w.bounty}` : `Wanted by ${tx(w.by)}: ${w.bounty}`}</span>` : '',
-      `<span class="ss coin" title="${zh ? '银荆币' : 'Thornmarks'}">⊕ ${f.player.purse}</span>`,
+      // the purse is the society module's (its coin the world's): a game without it keeps none
+      hasModule('society') ? `<span class="ss coin" title="${esc(this.coinName())}">⊕ ${f.player.purse}</span>` : '',
     ]
     $('#socialStatus').innerHTML = parts.join('')
   }

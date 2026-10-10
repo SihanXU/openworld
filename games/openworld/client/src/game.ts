@@ -42,6 +42,17 @@ import { CATALOG } from './catalog.ts'
 export const CLIENT_GAME: ClientGame = {
   ...GAME,
   catalog: CATALOG,
+  // its saves and its library keep the names they had before there were other games on the page
+  saves: 'world',
+  cover: {
+    title: 'OpenWorld',
+    kicker: { en: 'A world whose rules are code', zh: '一个规则即代码的世界' },
+    subtitle: { en: 'What the world has never seen, it learns — and remembers.', zh: '这个世界从没见过的事，它会学会，并且记住。' },
+    tutorial: true,
+    challenge: { label: { en: 'Boss Challenge', zh: '首领挑战' }, href: 'boss-gallery.html?challenge=1' },
+    art: true,
+    companion: true,
+  },
   // a wilderness is made from the world's seed and its cell (world-model.md §5.7); the rest is fetched
   wild: wildChunkFor,
   async upgrade(game, { index, chunk }) {

@@ -4,7 +4,7 @@
 // restores in blue and gold; its traits as purple italic lore; statuses and an owner in red.
 
 import type { Frame, ItemInfo } from '@openworld/engine'
-import { game, ontology, professionById } from '../game.ts'
+import { game, hasModule, ontology, professionById } from '../game.ts'
 import { esc, locale, tx } from './common.ts'
 
 const L = (en: string, zh: string) => (locale.value === 'zh' ? zh : en)
@@ -154,7 +154,7 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
     const role = professionById()[need]
     const name = role ? L(role.name.en, role.name.zh) : need
     out.push(line(esc(L(`${name} only`, `${name}专属`)), ctx.profession === need ? '#ffaa00' : '#ff5555'))
-  } else if (family === 'weapon') out.push(line(L('Common weapon: no profession talents', '通用武器：不受职业天赋加成'), '#aaaaaa'))
+  } else if (family === 'weapon' && hasModule('classes')) out.push(line(L('Common weapon: no profession talents', '通用武器：不受职业天赋加成'), '#aaaaaa'))
   // what it does
   const abilities = ABILITY.filter(([tag]) => tags.has(tag))
   // food: what it restores, with the hunger bar's drumsticks (Minecraft's AppleSkin)

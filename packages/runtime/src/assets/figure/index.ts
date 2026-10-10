@@ -3,6 +3,7 @@
 
 import Phaser from 'phaser'
 import type { Look, Mood } from '@openworld/engine'
+import { assetsBase, hasLooks } from '../../game.ts'
 import { figureId } from './ids.ts'
 import type { ActorDef } from '../types.ts'
 import { FH, FW, composeSprite } from './sprite.ts'
@@ -26,7 +27,8 @@ export function figureDef(scene: Phaser.Scene, look: Look): { key: string; def: 
 
 // ---------------------------------------------------------------- portraits
 
-const ROOT = 'assets/lsw/Looks/portrait'
+/** The portraits' cut layers, in the game's assets. */
+const root = () => `${assetsBase()}lsw/Looks/portrait`
 let manifest: PortraitManifest | undefined
 let manifestLoading: Promise<PortraitManifest | undefined> | undefined
 const layers = new Map<string, LayerPixels>()
@@ -34,7 +36,9 @@ const loading = new Map<string, Promise<void>>()
 const busts = new Map<string, HTMLCanvasElement>()
 
 function loadManifest(): Promise<PortraitManifest | undefined> {
-  manifestLoading ??= fetch(`${ROOT}/manifest.json`)
+  // (a game without looks has no portraits to cut)
+  if (!hasLooks()) return Promise.resolve(undefined)
+  manifestLoading ??= fetch(`${root()}/manifest.json`)
     .then((r) => (r.ok ? r.json() : undefined))
     .then((m) => (manifest = m))
     .catch(() => undefined)
@@ -61,7 +65,7 @@ function loadLayer(file: string): Promise<void> {
   if (layers.has(file)) return Promise.resolve()
   let p = loading.get(file)
   if (!p) {
-    p = Promise.all([pixelsOf(`${ROOT}/${file}.png`), pixelsOf(`${ROOT}/${file}.z.png`)])
+    p = Promise.all([pixelsOf(`${root()}/${file}.png`), pixelsOf(`${root()}/${file}.z.png`)])
       .then(([paint, value]) => void layers.set(file, { paint, value }))
       .catch(() => undefined)
     loading.set(file, p)

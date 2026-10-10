@@ -6,7 +6,7 @@
 // with a right click; all of it is managed in the skill panel (U, ui/skillpanel.ts).
 
 import type { Frame } from '@openworld/engine'
-import { skillById } from '../game.ts'
+import { hasModule, skillById } from '../game.ts'
 import { $, esc, locale, tx } from './common.ts'
 import { skillPng } from './skillIcons.ts'
 
@@ -22,6 +22,8 @@ export class SkillBar {
     bar.id = 'skillbar'
     bar.innerHTML = SKILLBAR_KEYS.map((k, i) => `<div class="sb-slot empty" data-slot="${i}"><img class="sb-icon" alt="" draggable="false"><div class="sb-cd"></div><span class="sb-sec"></span><kbd>⇧${k}</kbd></div>`).join('')
     $('#hud').appendChild(bar)
+    // the classes module's: a game without it has no skills to cast
+    if (!hasModule('classes')) bar.classList.add('hidden')
     bar.querySelectorAll<HTMLElement>('.sb-slot').forEach((el) => {
       const i = Number(el.dataset.slot)
       el.onclick = () => this.send.cast(i)

@@ -31,13 +31,13 @@ describe.skipIf(!here)('the compiler', () => {
   it('finds what is wrong: unknown types, portals to nowhere, anchors on rock, rows of the wrong width, a person\'s day at no anchor', () => {
     const p = fresh()
     const glade = p.maps.find((m) => m.data.map.id === 'glade')!.data
-    glade.entities.push({ id: 'glade.ghost', type: 'fixture/nothing', place: { on: 'tile', map: 'glade', x: 3, y: 3 } })
+    glade.entities.push({ id: 'glade.ghost', type: 'ghost/nothing', place: { on: 'tile', map: 'glade', x: 3, y: 3 } })
     glade.map.portals.push({ x: 0, y: 5, to: 'nowhere', tx: 1, ty: 1 })
     glade.map.anchors!.rock = [0, 0]
     glade.map.rows[3] = glade.map.rows[3].slice(1)
     p.people[0].data.npc!.schedule[1] = { from: 6, to: 12, at: 'glade:nowhere', activity: 'wander' }
     const found = codes(p).join('\n')
-    expect(found).toMatch(/reference: glade.ghost is of an unknown type "fixture\/nothing"/)
+    expect(found).toMatch(/reference: glade.ghost is of an unknown type "ghost\/nothing"/)
     expect(found).toMatch(/portal: glade: portal 1 leads to "nowhere"/)
     expect(found).toMatch(/anchor: glade: the anchor "rock" \(0,0\) is on solid ground/)
     expect(found).toMatch(/size: glade: row 3 is 23 wide/)

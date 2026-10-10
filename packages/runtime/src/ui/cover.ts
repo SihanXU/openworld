@@ -3,14 +3,15 @@
 // slot, a new game in a slot, load a slot, controls, language. The slot panel shows each of the
 // three slots' summary, and writes a slot out to a file or reads one back (saves.ts).
 
-import { game } from '../game.ts'
+import { assetsBase, game } from '../game.ts'
 import type { Difficulty, Look } from '@openworld/engine'
 import { Creator } from './creator.ts'
 import type { SaveSummary } from '../protocol.ts'
 import { SLOTS, deleteSlot, exportSlot, listSlots, pickSaveFile, writeSlot, type Slot, type SlotData } from '../saves.ts'
 import { $, controlsTable, esc, locale, t, tx } from './common.ts'
 
-const FAIRY = `${import.meta.env.BASE_URL}assets/lsw/Companion/Fairy/SpriteSheet.png`
+/** The companion flying across (the game's, when its cover says so). */
+const fairy = () => `${assetsBase()}lsw/Companion/Fairy/SpriteSheet.png`
 
 /** The scene behind the title: ridges in four depths, the plateau with its shelter, pines. */
 const SCENE = `
@@ -115,21 +116,24 @@ export class Cover {
   private render(): void {
     const latest = this.latest()
     const zh = locale.value === 'zh'
+    // what the game's cover shows (ClientGame.cover): its title, its art, its tutorial and its other pages
+    const cv = game().cover ?? {}
+    const title = esc(cv.title ? tx(cv.title) : game().id)
     $('#intro').innerHTML = `
-      <div class="cover">
-        ${SCENE}
+      <div class="cover${cv.art ? '' : ' plain'}">
+        ${cv.art ? SCENE : ''}
         <div class="cv-cloud c1"></div><div class="cv-cloud c2"></div><div class="cv-cloud c3"></div>
-        <div class="cv-pip" style="background-image:url('${FAIRY}')"></div>
+        ${cv.companion ? `<div class="cv-pip" style="background-image:url('${fairy()}')"></div>` : ''}
         <div class="cv-main">
-          <div class="cv-kicker">${zh ? '一个规则即代码的世界' : 'A world whose rules are code'}</div>
-          <h1 class="cv-title">OpenWorld</h1>
-          <div class="cv-sub">${zh ? '这个世界从没见过的事，它会学会，并且记住。' : 'What the world has never seen, it learns — and remembers.'}</div>
+          ${cv.kicker ? `<div class="cv-kicker">${esc(tx(cv.kicker))}</div>` : ''}
+          <h1 class="cv-title">${title}</h1>
+          ${cv.subtitle ? `<div class="cv-sub">${esc(tx(cv.subtitle))}</div>` : ''}
           <div class="cv-menu">
             ${latest ? `<button class="cv-btn primary" id="cvContinue">${t('cvContinue')}<small>${esc(this.line(this.slots[latest - 1]!.summary))}</small></button>` : ''}
             <button class="cv-btn${latest ? '' : ' primary'}" id="cvNew">${t('newGame')}</button>
             <button class="cv-btn" id="cvLoad" ${this.slots.some(Boolean) ? '' : 'disabled'}>${t('cvLoad')}</button>
-            <button class="cv-btn" id="cvTutorial">${zh ? '新手教程' : 'Tutorial'}<small>${zh ? '从零学起 · 独立于主线和存档' : 'Learn the ropes · Separate from the story and saves'}</small></button>
-            <button class="cv-btn cv-challenge" id="cvChallenge">${zh ? '首领挑战' : 'Boss Challenge'}<small>${zh ? '选择职业 · 挑战首领 · 独立于存档' : 'Choose a profession · The bosses · Separate from saves'}</small></button>
+            ${cv.tutorial ? `<button class="cv-btn" id="cvTutorial">${zh ? '新手教程' : 'Tutorial'}<small>${zh ? '从零学起 · 独立于主线和存档' : 'Learn the ropes · Separate from the story and saves'}</small></button>` : ''}
+            ${cv.challenge ? `<button class="cv-btn cv-challenge" id="cvChallenge">${esc(tx(cv.challenge.label))}</button>` : ''}
             <button class="cv-btn" id="cvHelp">${t('controls')}</button>
             <button class="cv-btn small" id="cvLang">${zh ? 'English' : '中文'}</button>
           </div>
@@ -143,8 +147,8 @@ export class Cover {
     $('#cvNew').onclick = () => ((this.panel = 'new'), this.render())
     $('#cvLoad').onclick = () => ((this.panel = 'load'), this.render())
     $('#cvHelp').onclick = () => ((this.panel = 'help'), this.render())
-    $('#cvTutorial').onclick = () => (this.busy(), this.on.tutorial())
-    $('#cvChallenge').onclick = () => location.assign(`${import.meta.env.BASE_URL}boss-gallery.html?challenge=1`)
+    document.querySelector<HTMLButtonElement>('#cvTutorial')?.addEventListener('click', () => (this.busy(), this.on.tutorial()))
+    document.querySelector<HTMLButtonElement>('#cvChallenge')?.addEventListener('click', () => cv.challenge && location.assign(new URL(cv.challenge.href, location.href).href))
     $('#cvLang').onclick = () => (this.on.toggleLocale(), this.render())
     if (this.panel) this.wirePanel()
   }
@@ -182,7 +186,8 @@ export class Cover {
       ['hardcore', zh ? '极限' : 'Hardcore', zh ? '只有一条命' : 'one life'],
     ]
     // a new game's traveller: their look, made here (docs/looks.md)
-    const maker = this.panel === 'new' ? `<div class="cv-sub">${zh ? '你的样子' : 'Your look'}</div><div id="cvCreator"></div>` : ''
+    // (a game without a look table keeps its travellers' sheets: nothing to make)
+    const maker = this.panel === 'new' && Object.keys(game().looks.bodies).length ? `<div class="cv-sub">${zh ? '你的样子' : 'Your look'}</div><div id="cvCreator"></div>` : ''
     const pick = this.panel === 'new' ? `<div class="cv-diff">${levels.map(([id, name, note]) => `<button class="cv-btn small${this.difficulty === id ? ' primary' : ''}" data-diff="${id}">${name}<small>${note}</small></button>`).join('')}</div>` : ''
     // a new game begins on the plateau, at the foot of the mountain: the tutorial is its own, from the title
     return head + maker + pick + `<div class="cv-slots">${cards}</div><div class="cv-note muted">${t('cvNote')}</div>`

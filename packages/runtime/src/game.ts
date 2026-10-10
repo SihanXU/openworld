@@ -53,9 +53,30 @@ export interface DevShortcut {
   debug: { op: 'teleport'; map: string; x: number; y: number } | { op: 'summon'; kit: string; map: string; x: number; y: number; from: [number, number] }
 }
 
+/** What the title screen shows of the game. */
+export interface CoverDef {
+  /** The title, the line above it, the line below it (default: the game's name and nothing). */
+  title?: Text
+  kicker?: Text
+  subtitle?: Text
+  /** The game has a tutorial run of its own (a start named `tutorial` in its world). */
+  tutorial?: boolean
+  /** A page of the game's beside the player, offered on the cover (the boss challenge). */
+  challenge?: { label: Text; href: string }
+  /** The game's own art behind the title (the mountain at dawn) and its companion flying across. */
+  art?: boolean
+  companion?: boolean
+}
+
 export interface ClientGame extends GameDef {
   /** Sprites, sounds and music by the content's keys. */
   catalog: Catalog
+  /** Where its pictures and sounds are (default: the page's `assets/`), and its world files (default: the page's `world/`). */
+  assets?: string
+  world?: string
+  /** Where its saves and its learned library are kept in the browser (default: its id). */
+  saves?: string
+  cover?: CoverDef
   /** A place made by seed rather than read from a map file (the wilderness); none: every map is a file. */
   wild?(w: World, id: string): MapChunk | undefined
   /** A save made before the world last changed, brought up to it on loading (as the author). */
@@ -136,6 +157,23 @@ export function perGame<T>(key: string, make: () => T): T {
   if (!made.has(key)) made.set(key, make())
   return made.get(key) as T
 }
+
+/** Does the game use this engine module (its ontology names it)? A module's panels show only then. */
+export const hasModule = (id: string): boolean => perGame('modules', () => new Set(ontology().modules ?? [])).has(id)
+
+/** Does the game make looks (docs/looks.md: a look table of bodies)? Without one, people are drawn from the catalogue's sheets by their role. */
+export const hasLooks = (): boolean => perGame('hasLooks', () => Object.keys(game().looks.bodies).length > 0)
+
+/** Where the game's pictures and sounds are, and its world files: absolute URLs ending in '/'. */
+/** The page's base (vite's BASE_URL; './' where there is no page bundler, a tool in node). */
+const pageBase = (): string => (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? './'
+/** The page's own URL (a tool or a test in node has none). */
+export const pageUrl = (): string => (typeof location === 'undefined' ? 'http://localhost/' : location.href)
+export const assetsBase = (): string => perGame('assets', () => new URL(game().assets ?? `${pageBase()}assets/`, pageUrl()).href)
+export const worldBase = (): string => perGame('world', () => new URL(game().world ?? `${pageBase()}world/`, pageUrl()).href)
+/** The browser's keeping of this game's saves and library. */
+export const savesKey = (): string => game().saves ?? game().id
+export const libraryKey = (): string => (savesKey() === 'world' ? 'library' : `library:${savesKey()}`)
 
 const byId = <T extends { id: string }>(list: readonly T[]): Record<string, T> => Object.fromEntries(list.map((x) => [x.id, x]))
 

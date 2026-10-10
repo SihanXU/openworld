@@ -13,6 +13,7 @@
 //   story/*.json      the story's steps, invariants, protected facts, fixed weather
 //   catalog.json      what the runtime draws and plays each content key with (the runtime's Catalog)
 //   client/*.json     tables the runtime's panels read (item forms, recipes, skills, looks …), merged by key
+//   extra.json        what the world's index carries beyond these (a module's data: bosses, the codex's entries)
 //   assets/           pictures and sounds the catalogue names, served beside the bundle
 //
 // A game whose content a script makes (OpenWorld's TypeScript builders) writes the same files, or hands the
@@ -37,6 +38,13 @@ export interface GameJson {
   modules?: string[]
   seed: number
   start: Pos
+  /** The map the world map lays the others out from, by their edge links (default: the start's). */
+  origin?: string
+  /**
+   * The order the world lists its maps, people and quests in, by id (the Story Manager tries quests in it);
+   * those not named come after, by file name.
+   */
+  order?: { maps?: string[]; people?: string[]; quests?: string[] }
   begin?: Omit<StartDef, 'at'>
   starts?: Record<string, StartDef>
   startHour?: number

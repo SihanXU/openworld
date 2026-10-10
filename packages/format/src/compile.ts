@@ -12,7 +12,7 @@ import { FORMAT, type Bundle, type Compiled, type GameJson, type OntologyPart, t
 const RECORDS = ['types', 'statuses', 'terrains', 'laws', 'professions', 'resistances', 'efficiency', 'materials', 'factions'] as const
 /** Lists of names: joined, each once. */
 const NAMES = ['elements', 'vfx', 'instanceTags'] as const
-/** Lists of things with a key: joined, a later one of the same key replacing the earlier. */
+/** Lists of things with a key: joined, a later file's of the same key replacing the earlier file's (within one file, all are kept: two talk verbs of one id for two persons). */
 const KEYED: Record<string, string> = { thresholds: 'name', periods: 'name', roomRoles: 'role', deeds: 'id', talk: 'id', qualities: 'id' }
 
 /** The ontology: the standard library's (unless the game says not), then each of the project's parts in order. */
@@ -32,8 +32,9 @@ export function mergeOntology(parts: OntologyPart[], game: Pick<GameJson, 'stdli
       } else if (k in KEYED) {
         const key = KEYED[k]
         const into = (out[k] ??= []) as Record<string, unknown>[]
+        const before = into.length
         for (const x of v as Record<string, unknown>[]) {
-          const i = into.findIndex((y) => y[key] === x[key])
+          const i = into.findIndex((y, j) => j < before && y[key] === x[key])
           if (i >= 0) into[i] = x
           else into.push(x)
         }
@@ -106,17 +107,22 @@ export function compile(p: Project): Compiled {
   const g = p.game
   const ontology = mergeOntology(p.ontology.map((f) => f.data), g)
   const rules = mergeRules(p.rules.map((f) => f.data), g)
-  const chunks = p.maps.map((f) => structuredClone(f.data))
+  // the maps, people and quests in the game's order (game.json `order`), the rest after them by file
+  const ordered = <T>(xs: T[], ids: string[] | undefined, id: (x: T) => string): T[] => {
+    const at = new Map((ids ?? []).map((k, i) => [k, i]))
+    return [...xs].sort((a, b) => (at.get(id(a)) ?? Infinity) - (at.get(id(b)) ?? Infinity))
+  }
+  const chunks = ordered(p.maps.map((f) => structuredClone(f.data)), g.order?.maps, (c) => c.map.id)
   const anchor = (name: string): Pos | undefined => {
     const [mapId, key] = name.split(':')
     const m = chunks.find((c) => c.map.id === mapId)?.map
     const a = key !== undefined ? m?.anchors?.[key] : undefined
     return m && a ? { map: m.id, x: a[0], y: a[1] } : undefined
   }
-  const npcs = p.people.map((f) => resolvePerson(f.data, anchor, problems, f.file))
+  const npcs = ordered(p.people, g.order?.people, (f) => f.data.id).map((f) => resolvePerson(f.data, anchor, problems, f.file))
   const steps = p.story.flatMap((f) => f.data.steps ?? [])
-  const quests = p.quests.map((f) => structuredClone(f.data))
-  const at = placeMaps(chunks, g.start.map)
+  const quests = ordered(p.quests, g.order?.quests, (f) => f.data.id).map((f) => structuredClone(f.data))
+  const at = placeMaps(chunks, g.origin ?? g.start.map)
   const onMap = (e: Entity, id: string) => e.place.on === 'tile' && e.place.map === id
   const maps: MapMeta[] = chunks.map((c) => ({
     id: c.map.id,
@@ -170,6 +176,7 @@ export function compile(p: Project): Compiled {
     ...(p.catalog !== undefined && { catalog: p.catalog }),
     ...(client && { client }),
   }
-  problems.push(...checkProject(p, { ontology, rules, chunks, npcs, index }))
+  // (on a copy: the checks see the cells' types as things, and the bundle stays as it was made)
+  problems.push(...checkProject(p, { ontology: structuredClone(ontology), rules, chunks, npcs, index }))
   return { bundle, index, chunks, problems }
 }

@@ -3,6 +3,8 @@
 // Original, full-colour illustrated pixel art only. Every skill has a distinct PNG;
 // no generic SVG glyphs are substituted, even when an image fails to load.
 
+import { assetsBase } from '../game.ts'
+
 export const SKILL_ART_KEYS = [
   'origin', 'sword', 'shield', 'hammer', 'sweep', 'heart', 'drumstick', 'hardy', 'renew',
   'magnet', 'axe', 'pack', 'flame', 'swift', 'farming', 'ranching', 'smithing',
@@ -28,7 +30,7 @@ export const SKILL_ART_KEYS = [
 const known = new Set<string>(SKILL_ART_KEYS)
 const artKey = (key: string | undefined): string => key && known.has(key) ? key : 'origin'
 
-export const skillPng = (key: string): string => `${import.meta.env.BASE_URL}assets/lsw/skills/${artKey(key)}.png`
+export const skillPng = (key: string): string => `${assetsBase()}lsw/skills/${artKey(key)}.png`
 
 export const skillArt = (key: string | undefined): string => {
   const icon = artKey(key)

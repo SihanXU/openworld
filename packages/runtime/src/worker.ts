@@ -425,7 +425,7 @@ function loop(): void {
   const frame = snapshot(eng, { panel })
   if (panel && !frame.container) panel = undefined // closed by the world (it burned, a rule shut it)
   // the people's panels: closed when the one they are with is gone (dead, away)
-  Object.assign(frame, peopleViews(eng, { talk, trade, pockets }))
+  if (eng.modules.some((m) => m.id === 'society')) Object.assign(frame, peopleViews(eng, { talk, trade, pockets }))
   if (talk && !frame.talk) talk = undefined
   if (trade && !frame.trade) trade = undefined
   if (pockets && !frame.pockets) pockets = undefined

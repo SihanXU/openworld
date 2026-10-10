@@ -1450,7 +1450,7 @@ export type Effect =
   /** The story's: the facts it is told (params `fact.<key>`) it keeps. */
   | { op: 'facts' }
   /** News for the quests (docs/quests.md §2.3): what this event is (its actor, host, item) — a gift handed over. */
-  | { op: 'news'; kind: 'give' | 'deed' | 'hungry' }
+  | { op: 'news'; kind: 'give' | 'deed' | 'hungry' | 'talk' }
   /** The world's: what appears by itself on the active map now (its own and the world's appearances), or the one given. */
   | { op: 'appear'; what?: AppearDef }
   /** The host's stage clock ran out (param status): it becomes what its stage says next (world-model.md §6.5). */

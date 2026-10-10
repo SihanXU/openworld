@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenWorld Player</title>
+    <meta name="description" content="The OpenWorld engine's player: any game's bundle, by URL (?game=)." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Noto+Sans+SC:wght@400;600&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="game"></div>
+      <div id="labels"></div>
+      <div id="hud"></div>
+      <div id="dev" class="panel dev hidden"></div>
+      <div id="intro" class="hidden"></div>
+      <div id="loading"><div class="kicker">OpenWorld</div><div class="spinner"></div><div id="loadingText">Loading…</div></div>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -222,7 +222,45 @@ P2 and P3 overlap where they do not touch (the catalogue as data needs no module
 - **Left**: the eight modder tests on the Ford's content (they test the pipeline on the Ford's holes; the
   starter has few) stay listed in `boundaries.test.ts`.
 
-## 10. Risks
+## 10. P3 as built (2026-10-10)
+
+- **The format** (`packages/format`, §5 as built): `project.ts` the files (game.json — with the world's
+  `order` of maps, people and quests, the `origin` the world map is laid out from, `plugins` —, ontology/,
+  rules/, maps/, people/ with schedules by anchor, quests/, story/, catalog.json, client/, extra.json for what a
+  module's data adds to the index), `compile.ts` (the ontology over the standard library's: records by key,
+  lists of names joined, keyed lists a later file's entry replacing an earlier file's; rules by id; anchors
+  resolved; maps laid out by their edge links; the topics the story raises itself protected), `check.ts` (the
+  problems: references, sizes, portals, anchors, holders, aliases, ties, the patch validator's checks on base
+  rules, a root that inherits, a kind no root answers, a module not loaded), `json.ts` (how files are written:
+  a value on one line when it fits), `node.ts` and `cli.ts` (`npm run game -- check|build <project>`),
+  `serve.ts` (a project served compiled as it is asked for, its errors refusing the bundle).
+- **JSON Schemas** generated from the engine's types (`npm run schema` → `packages/format/schema/`, seven: game,
+  ontology, rules, map, person, quest, story); a test holds them to the types and the starter's files to
+  them. They caught one gap at once: the `news` effect's type left out `talk`, which the engine took.
+- **The runtime loads a bundle by URL** (`runtime/src/bundle.ts`): `bundle.json` → a `ClientGame`, its assets
+  and world beside it; what only code can do comes from the game's plugins (`plugins` in the bundle, loaded in
+  the page and the worker). The **player** (`packages/runtime/play`, `npm run play`, `npm run build:player`)
+  has no game in its build and plays `?game=<url>` (default: the starter). The runtime keeps each game's
+  saves and learned library apart (`ClientGame.saves`; OpenWorld keeps its old names), takes its pictures
+  and world from the game's own folders, shows the title, tutorial and other pages a game's cover names, and
+  shows a module's panels only where the game uses it (the skill bar, K and U, the purse); a game without a
+  look table draws its people from the catalogue's sheets. Checked in a browser: the starter (from the dev
+  server and from the static build) and OpenWorld (from its bundle and plugin) both play in the player.
+- **OpenWorld as a bundle**: `client/src/bundle.ts` (`gen:world` writes `public/bundle.json`), its plugin
+  `client/src/plugin.ts` (the wilderness, the save upgrades, its look generator, its dev summons). Its own app
+  stays as it was (it hands the game over in code: its pages, its quick reloads while it is written).
+- **The Ford baked** (`client/scripts/bake.ts`, `npm run bake`): OpenWorld written as a project in the format,
+  the ids its builders gave kept, into `games/openworld/project/` — not committed: the builders stay the
+  source until the team chooses to edit these files instead (risk 1 below). The compiler makes the very
+  world of it gen:world makes, through its files too (`client/test/bake.test.ts`), with no error; its six
+  warnings are the Ford's own (four people of a role no type defines, a chicken's missing parent type).
+- **The modder and the wiki read the bundle**: the modder takes `--game` as a bundle, a project's folder or a
+  module (`open.ts` `loadGame`); the wiki takes the ontology and the catalogue from the bundle the player
+  loads (`wiki/src/bundle.ts`), its world from the builders.
+- **The starter** became self-contained: its catalogue (`catalog.json`) and its pictures and sounds
+  (`assets/`, a 5 MB subset of the CC0 pack) are its own.
+
+## 11. Risks
 
 - **The way the Ford is written changes.** From the TypeScript DSL to data files: for a while the compiler
   takes both authored data and data a script made; the maps are baked once the editor can edit them.

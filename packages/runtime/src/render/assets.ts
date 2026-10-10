@@ -3,10 +3,11 @@
 import Phaser from 'phaser'
 import type { PixelArt } from '@openworld/engine'
 import type { ActorDef, Catalog, FxDef, SpriteDef } from '../assets/types.ts'
+import { assetsBase } from '../game.ts'
 
 // encodeURI, not encodeURIComponent: folders like "Hit & Impact" must keep a raw '&' for Vite.
-/** Pack files live under assets/na/ (copied by tools/copyAssets.ts); the project's own art under assets/lsw/ (paths starting `lsw/`). */
-export const assetUrl = (path: string) => encodeURI(`${import.meta.env.BASE_URL}assets/${path.startsWith('lsw/') ? path : `na/${path}`}`)
+/** Pack files live under the game's assets/na/ (copied by tools/copyAssets.ts); the project's own art under assets/lsw/ (paths starting `lsw/`). */
+export const assetUrl = (path: string) => encodeURI(`${assetsBase()}${path.startsWith('lsw/') ? path : `na/${path}`}`)
 
 /** A pack file as a CSS url() for a custom property. Absolute: a relative url() in a variable resolves against the
  *  stylesheet that uses it, which a build puts under assets/ (BASE_URL is './'), so it would point at assets/assets/. */

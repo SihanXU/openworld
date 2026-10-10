@@ -5,7 +5,7 @@
 
 import Phaser from 'phaser'
 import { CEILING, type Dir, type Frame, type ItemInfo, type Key, type LibraryData, type Mood, type SaveData, type Text } from '@openworld/engine'
-import { catalog, newWorker } from './game.ts'
+import { catalog, hasModule, libraryKey, newWorker, savesKey, worldBase } from './game.ts'
 import type { FromWorker, Tile, ToWorker } from './protocol.ts'
 import { cssAssetUrl, registerArt } from './render/assets.ts'
 import { WorldScene } from './render/scene.ts'
@@ -28,7 +28,8 @@ import './styles.css'
 import './ui/game.css'
 
 const PARAMS = new URLSearchParams(location.search)
-const WORLD = 'world'
+/** Where this game's saves are kept (its own, beside other games' on the same page). */
+const WORLD = savesKey()
 /** The modder service: ?modder=<url> (or =off), else VITE_MODDER_URL, else a local one in development. */
 const MODDER = PARAMS.get('modder') === 'off' ? undefined : PARAMS.get('modder') || import.meta.env.VITE_MODDER_URL || (import.meta.env.DEV ? 'http://localhost:8787' : undefined)
 const scene = new WorldScene()
@@ -149,7 +150,7 @@ const tooltip = new Tooltip(() => ({
   },
 }))
 menu.registerTip = (key, info) => tooltip.register(key, info)
-document.documentElement.style.setProperty('--drum-icon', cssAssetUrl(catalog().ui.drumstick.img))
+if (catalog().ui.drumstick) document.documentElement.style.setProperty('--drum-icon', cssAssetUrl(catalog().ui.drumstick.img))
 // what a new thread is called in the player's language: its doc is the model's English (the
 // Threadbook's), so in Chinese its label says it, when it names no one ("拔草"), else nothing more
 hud.threadDoc = (rule) => {
@@ -340,13 +341,13 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       break
     case 'saved':
       void (slot ? writeSlot(WORLD, slot, { save: m.save, summary: m.summary, savedAt: m.save.savedAt }) : Promise.resolve()).then(() => afterSave.written())
-      void kvSet('library', m.library).then(storeSeq)
+      void kvSet(libraryKey(), m.library).then(storeSeq)
       // the tutorial on its own keeps no save; an automatic save says nothing
       if (!cover.open && !quietSave && !m.auto) hud.message(slot ? t('savedSlot').replace('{n}', String(slot)) : locale.value === 'zh' ? '教程不保存进度。' : 'The tutorial keeps no save.', slot ? 'good' : undefined)
       quietSave = false
       break
     case 'library':
-      void kvSet('library', m.library).then(storeSeq)
+      void kvSet(libraryKey(), m.library).then(storeSeq)
       break
     case 'synced':
       // a position is only worth the library it was reached with: stored after it, if it changed
@@ -388,10 +389,10 @@ let syncedTo: { url: string; seq: number } | undefined
 async function storeSeq(): Promise<void> {
   const s = syncedTo
   syncedTo = undefined
-  if (s) await kvSet('librarySeq', s)
+  if (s) await kvSet(`${libraryKey()}Seq`, s)
 }
 async function librarySeq(): Promise<number | undefined> {
-  const s = await kvGet<{ url: string; seq: number }>('librarySeq')
+  const s = await kvGet<{ url: string; seq: number }>(`${libraryKey()}Seq`)
   return s && MODDER && s.url === MODDER.replace(/\/+$/, '') ? s.seq : undefined
 }
 /** The save the slot started from (undefined: a new game). */
@@ -409,8 +410,8 @@ const cover = new Cover(WORLD, {
     tutorialRun = false
     startingFrom = data?.save
     quietSave = true
-    const library = await kvGet<LibraryData>('library')
-    const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
+    const library = await kvGet<LibraryData>(libraryKey())
+    const base = worldBase()
     send({ t: 'init', base, save: data?.save, library, librarySeq: await librarySeq(), modder: MODDER, prefetch: PARAMS.get('prefetch') === '1', difficulty: game?.difficulty, start: game?.start, look: game?.look })
   },
   tutorial: async () => {
@@ -419,8 +420,8 @@ const cover = new Cover(WORLD, {
     tutorialRun = true
     startingFrom = undefined
     quietSave = true
-    const library = await kvGet<LibraryData>('library')
-    const base = new URL(`${import.meta.env.BASE_URL}${WORLD}/`, location.href).href
+    const library = await kvGet<LibraryData>(libraryKey())
+    const base = worldBase()
     send({ t: 'init', base, library, librarySeq: await librarySeq(), modder: MODDER, start: 'tutorial' })
   },
   toggleLocale: () => {
@@ -591,10 +592,10 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.code === 'KeyI') return openPanel('bag', () => menu.toggle('inventory'))
   if (e.code === 'KeyC') return openPanel('craft', () => menu.toggle('craft'))
-  if (e.code === 'KeyK') return menu.toggleSkills()
+  if (e.code === 'KeyK') return hasModule('classes') ? menu.toggleSkills() : undefined
   if (e.code === 'KeyM') return openPanel('map', () => menu.toggleMap())
   if (e.code === 'KeyL') return void (menu.toggleQuests(), document.getElementById('questBtn')?.classList.remove('flash'))
-  if (e.code === 'KeyU') return menu.toggleSkillPanel()
+  if (e.code === 'KeyU') return hasModule('classes') ? menu.toggleSkillPanel() : undefined
   if (e.code === 'KeyQ' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'dash' })
   // X: draw one's weapon (a blow on a person is meant), or put it away; V: walk soft (docs/npc-sandbox.md)
   if (e.code === 'KeyX' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'toggle', what: 'drawn' })

@@ -36,8 +36,8 @@
     "anchors": { "garden": [9, 3], "woodlot": [14, 9], "door": [18, 5], "pond": [5, 9] },
     "regions": { "pondside": [4, 7, 3, 5] },
     "light": "outdoor",
-    "zone": "combat",
-    "music": "glade"
+    "zone": "peaceful",
+    "music": "village"
   },
   "entities": [
     {

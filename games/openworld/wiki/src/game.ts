@@ -9,10 +9,9 @@ import {
   QUALITIES, RECIPES, RECOVERY, RELICS, ROOM_SIZE, SAFE_FALL, SKILL_BRANCHES, SKILL_DIRECTIONS, SKILL_PROFESSIONS, SKILLS, STOREYS, TERRAIN_CHARS,
   TERRAINS, TREE_GROWS, VOW_TRAITS, buildOntology, type Form, LOOK_BODIES, LOOK_PARTS,
 } from '@openworld-game/content'
-import { buildFord } from '../../tools/src/demo/world.ts'
 import { PEOPLE } from '../../tools/src/demo/people.ts'
 import type { PersonDef } from '../../tools/src/demo/person.ts'
-import { CATALOG } from '../../client/src/catalog.ts'
+import { BUNDLE, CATALOG, WORLD } from './bundle.ts'
 import { pngSize } from './png.ts'
 import { FACE_PX, lookUrls } from './looks.ts'
 
@@ -238,11 +237,12 @@ export const isAccessory = (e: ItemEnt) => ACCESSORY_SLOTS.has(String(e.props.sl
 const KIND_ORDER: Kind[] = ['person', 'companion', 'boss', 'creature', 'map', 'item', 'structure', 'fixture', 'quest']
 
 export function loadGame(): Game {
-  const ontology = buildOntology()
+  // the game's ontology as its bundle carries it, and the world it plays
+  const ontology = BUNDLE.ontology
   const types = ontology.types
   const ids = Object.keys(types)
   const hasChildren = (id: string) => ids.some((x) => x.startsWith(id + '/'))
-  const { index, chunks } = buildFord()
+  const { index, chunks } = WORLD
   const ents: Ent[] = []
 
   // ---- where things stand when the world begins

@@ -4,7 +4,7 @@
 
 import Phaser from 'phaser'
 import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type Look, type MapData, type Mood, type Ref, type Text } from '@openworld/engine'
-import { catalog } from '../game.ts'
+import { catalog, hasLooks } from '../game.ts'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/types.ts'
 import { faceFrame, personLook } from '../assets/looks.ts'
 import { crowdLook, figureDef, figureId, portraitOf, preparePortrait } from '../assets/figure/index.ts'
@@ -358,8 +358,8 @@ export class WorldScene extends Phaser.Scene {
     // a roof hides what is under it (the draw order); a pool one wades into is ground, no roof
     if (!p.ground) for (let j = 0; j <= lastSolid; j++) for (let i = 0; i < p.tw; i++) this.roofs.set(`${x + i},${y + j}`, depth)
     // the healing spring says what it is: a heart bobbing over its middle
-    if (key === 'spring') {
-      const h = catalog().ui.iconHeart
+    const h = catalog().ui.iconHeart
+    if (key === 'spring' && h) {
       const htex = this.textures.get(h.img)
       if (!htex.has('spring:heart')) htex.add('spring:heart', 0, h.x, h.y, h.w, h.h)
       const heart = this.add.image((x + p.tw / 2) * T, y * T - 2, h.img, 'spring:heart').setDepth(1e6 - 1)
@@ -487,9 +487,9 @@ export class WorldScene extends Phaser.Scene {
     }
     // a profession trainer is marked over the head (the quest mark, when there is one, comes first)
     for (const v of this.views.values()) {
-      const show = v.snap.tags.includes('trainer') && !v.quest
+      const icon = catalog().ui.trainerMark
+      const show = !!icon && v.snap.tags.includes('trainer') && !v.quest
       if (show && !v.role) {
-        const icon = catalog().ui.trainerMark
         v.role = this.add.image(0, -T * 1.35, icon.img).setOrigin(0.5, 1).setScale(0.5)
         v.head.add(v.role)
         this.tweens.add({ targets: v.role, y: -T * 1.35 - 2, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
@@ -709,7 +709,7 @@ export class WorldScene extends Phaser.Scene {
   /** The look record an actor is drawn from: its own, or (a person no one gave one) one drawn from its id. */
   private lookRecord(e: EntitySnap): Look | undefined {
     if (e.look && typeof e.look === 'object') return e.look
-    if (!e.look && e.tags.includes('person')) return crowdLook(e.id, e.type)
+    if (!e.look && e.tags.includes('person') && hasLooks()) return crowdLook(e.id, e.type)
     return undefined
   }
 
@@ -720,8 +720,8 @@ export class WorldScene extends Phaser.Scene {
       void preparePortrait(look)
       return figureDef(this, look)
     }
-    if (typeof e.look === 'string') {
-      const key = personLook(e.id, e.type, e.look)
+    if (typeof e.look === 'string' || (e.tags.includes('person') && !hasLooks())) {
+      const key = personLook(e.id, e.type, typeof e.look === 'string' ? e.look : undefined)
       return { key: `char:${key}`, def: catalog().characters[key] }
     }
     const variant = e.element ?? e.type.split('/').pop()!
@@ -997,7 +997,7 @@ export class WorldScene extends Phaser.Scene {
     // over the head, over everything in the world (a tree in front does not hide a quest mark), under the roofs' ceilings
     const head = this.add.container(root.x, root.y, [hp]).setDepth(OVERHEAD)
     const v: EView = { snap: e, root, body, shadow, hp, head, key: `${t.img}|${t.frame}`, movingUntil: 0, phase: Math.random() * 1000, actor: t.actor }
-    if (e.sprite === 'boss:dragon') v.dragon = this.dragonParts(root, body)
+    if (e.sprite === 'boss:dragon' && catalog().ui.dragonBody1) v.dragon = this.dragonParts(root, body)
     this.updateView(v, e, true)
     return v
   }

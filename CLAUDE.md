@@ -80,11 +80,14 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   kernel names, the roots of the rule library, the Story Manager's and a quest's rules. A project takes it
   unless its game.json says not.
 - `packages/format` — the project format and its compiler (docs/engine-split.md §5): `project.ts` the files
-  (game.json, ontology/, rules/, maps/, people/, quests/, story/, catalog.json, client/), `compile.ts` a
-  project → the bundle and its world, `check.ts` the problems (references, sizes, portals, anchors, ties,
-  rules), `json.ts` how files are written, `node.ts` a folder read and a game written.
-- `games/starter` — the minimal game, data only (S6): the kernel with no module plays it
-  (`test/kernel.test.ts`); the editor's new project.
+  (game.json, ontology/, rules/, maps/, people/, quests/, story/, catalog.json, client/, extra.json),
+  `compile.ts` a project → the bundle and its world, `check.ts` the problems (references, sizes, portals,
+  anchors, ties, rules, modules), `json.ts` how files are written, `node.ts` a folder read and a game written,
+  `serve.ts` projects served compiled, `cli.ts` (`npm run game -- check|build`), `schema.ts` the JSON Schemas
+  from the engine's types (`schema/`, `npm run schema`). A bundle (`bundle.json` + `world/` + `assets/`) is a
+  whole game: another bundle URL is another game.
+- `games/starter` — the minimal game, data only (S6), with its own catalogue and assets (a subset of the CC0
+  pack): the kernel with no module plays it (`test/kernel.test.ts`); the editor's new project.
 - `games/openworld/content` — ontology (terrains, statuses, elements, types), item catalogue
   (forms × materials × qualities × elements), crafting recipes (`recipes.ts`), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
   story rules and invariants (`ford.ts`), the prologue's beats and lessons (`prologue.ts`), the main quest's rules (`quest.ts`,
@@ -103,20 +106,24 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   form × every target × every act through the rule library and the impulses it sends, counting
   the holes; the numbers in `docs/roadmap.md` §1).
 - `packages/runtime` — the player, a library with no game in it: `game.ts` (what it is handed, `useGame`,
-  `useWorker`); `main.ts` the page and `worker.ts` the engine thread, each loaded by a game's entry;
+  `useWorker`; where a game's assets, world and saves are; `hasModule`: a module's panels show only where the game
+  uses it); `bundle.ts` a bundle by URL → the game, and its plugins; `play/` the engine's player, no game in its
+  build (`?game=<url>`, `npm run play`, `npm run build:player`); `main.ts` the page and `worker.ts` the engine thread, each loaded by a game's entry;
   `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
   `render/scene.ts` renders snapshots with the Ninja Adventure pack (`render/depth.ts` the draw order); `assets/figure/` draws looks
   (docs/looks.md): the 16x32 map sprite from code grids, the anime portrait from the cut layers in
   `public/assets/lsw/Looks/portrait`, both repainted from the look's colours; `ui/creator.ts` the new game's character creator; `assets/types.ts` the catalogue's
   contract; `assets/ground.ts` autotiles (the blob layout); `ui/` the Stardew-style UI (`hud.ts` clock, bars,
   toolbar, key labels, dialogue; `menu.ts` menu tabs, journal, chest panel; `people.ts` the trade and pockets panels (the talk panel is the dialogue's, `hud.ts`); `worldmap.ts` the world map (M) and the minimap; `dev.ts` the Mod Console, dev only); the worker uses the modder service when one answers
-  (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it. Still this game's UI,
-  moving with its modules in P2: the skill tree, professions, boons, the boss preview and animations, the cover's companion.
+  (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it. Still this game's
+  in the runtime: the skill tree, professions, boons, the boss preview and animations (shown only with their modules).
 - `games/openworld/client` — the game's app: its pages (`index.html`, `boss-gallery.html`, `looks.html`,
   `preview.html`), `vite.config.ts` (public dir `../public`), `src/register.ts` (hands the game over; every page,
   the worker and the game's tests that use the runtime import it first), `src/game.ts` (the ClientGame: content, catalogue, the
-  wilderness, the upgrades of older saves, the dev console's shortcuts), `src/catalog.ts` (content keys →
-  sprites), the boss gallery, studio and challenge, and the looks page.
+  wilderness, the upgrades of older saves, the dev console's shortcuts, its cover), `src/catalog.ts` (content keys →
+  sprites), `src/bundle.ts` the game as a bundle (gen:world writes `public/bundle.json`) and `src/plugin.ts` its code
+  for the engine's player, `scripts/bake.ts` the Ford baked into the format (`npm run bake` →
+  `games/openworld/project/`, not committed), the boss gallery, studio and challenge, and the looks page.
 - `games/openworld/wiki` — the game's Chinese wiki (Stardew-wiki-shaped encyclopedia and design proposal): sources
   `wiki/pages/**.md` ([[links]], {{templates}}; format in 帮助/格式手册), `wiki/site.json` (nav, portal, the systems the
   completeness check requires), `wiki/译名.json`; the generator reads the game (`@openworld-game/content`, `buildFord()`, people,
@@ -226,6 +233,11 @@ npm test                 # vitest (engine + base rules + Mod port)
 npm run typecheck
 npm run coverage         # interaction coverage + refresh its test baseline
 npm run build            # gen:world + static build → games/openworld/client/dist
+npm run play             # the engine's player on :5174 (?game=/games/starter/ or /games/openworld/)
+npm run build:player     # the player alone → packages/runtime/dist, the starter built beside it
+npm run game -- check games/starter   # a project's problems (build <project> --out <dir>: a bundle)
+npm run bake             # OpenWorld as a project in the format → games/openworld/project/
+npm run schema           # the project's JSON Schemas from the engine's types
 npm run wiki             # the wiki on http://localhost:5180/wiki/ (wiki:check, wiki:build)
 npx tsx games/openworld/tools/src/art/looks/review.ts out.png [mood]   # everyone's portrait and sprite (docs/looks.md)
 # portrait parts: a local ComfyUI with Qwen-Image-Edit (tools/src/art/looks/portrait/setup.md), then

@@ -238,8 +238,11 @@ export class Minimap {
   }
 }
 
+/** The world's waypoint stones (the waypoints module's: params.waypoint, else its own). */
+const waypointType = (): string => (ontology().params as { waypoint?: string } | undefined)?.waypoint ?? 'fixture/sacred/waypoint'
+
 function dotColor(e: EntitySnap): string | undefined {
-  if (e.type === 'fixture/sacred/waypoint') return e.statuses.includes('attuned') ? '#5ff0ff' : '#3a7f8a'
+  if (e.type === waypointType()) return e.statuses.includes('attuned') ? '#5ff0ff' : '#3a7f8a'
   if (!e.tags.includes('agent')) return undefined
   if (e.tags.includes('companion')) return '#ffd23f'
   if (e.tags.includes('person')) return '#5aa0ff'
