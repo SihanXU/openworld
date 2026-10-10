@@ -13,6 +13,15 @@ import { esc, toast, tx } from './ui.ts'
 const VERBS: [string, string][] = [['use', 'use (left click)'], ['hands', 'hands (E)'], ['take', 'take (F)'], ['put', 'put (G)'], ['self', 'use on oneself (right click)']]
 
 export class RulesMode implements Mode {
+  /** Begin a rule here (the holes' "answer by hand"): written into the project's first rules file, and chosen. */
+  startWith(ctx: Ctx, rule: Rule): void {
+    const file = ctx.store.list<Rule[]>('rules')[0]?.file ?? 'rules/rules.json'
+    this.sel = rule.id
+    this.draft = undefined
+    if (!ctx.store.get(file)) ctx.store.add(file, [rule], `a new rule ${rule.id}`)
+    else ctx.store.change<Rule[]>(file, `a new rule ${rule.id}`, (rs) => rs.push(rule))
+  }
+
   id = 'rules'
   label = 'Rules'
   private sel?: string
@@ -192,9 +201,9 @@ function scenarioFor(a: { actor: string; verb: string; target: string; instrumen
   }
 }
 
-function sandbox(ctx: Ctx, sc: Scenario) {
+function sandbox(ctx: Ctx, sc: Scenario, lib?: RuleLibrary) {
   const c = ctx.store.compiled()
-  return buildSandbox(sc, structuredClone(c.bundle.ontology), new RuleLibrary(c.bundle.rules))
+  return buildSandbox(sc, structuredClone(c.bundle.ontology), lib ?? new RuleLibrary(c.bundle.rules))
 }
 
 /** Which rule decides the scenario's event, where in its tree, and whether it is a hole. */
@@ -210,10 +219,10 @@ function answer(ctx: Ctx, sc: Scenario): string {
   }
 }
 
-/** The scenario replayed: every rule the chain reached, what was said and shown, what changed. */
-function replayed(ctx: Ctx, sc: Scenario): string {
+/** The scenario replayed (with a library of its own: a patch under review in it): every rule the chain reached, what was said and shown, what changed. */
+export function replayed(ctx: Ctx, sc: Scenario, lib?: RuleLibrary): string {
   try {
-    const eng = sandbox(ctx, sc)
+    const eng = sandbox(ctx, sc, lib)
     const w = eng.world
     const before = JSON.stringify(w.state.entities)
     const snap = new Map(Object.values(w.state.entities).map((e) => [e.id, JSON.stringify({ type: e.type, statuses: e.statuses, props: e.props, place: e.place })]))

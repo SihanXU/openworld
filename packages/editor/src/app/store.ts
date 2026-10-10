@@ -7,7 +7,7 @@ import { compile, type Compiled, type GameJson, type Project, type Sourced } fro
 import type { RawChunk } from '@openworld/engine'
 
 /** The folders of the format, each a list of files of one kind. */
-export const FOLDERS = ['ontology', 'rules', 'maps', 'people', 'quests', 'story', 'client'] as const
+export const FOLDERS = ['ontology', 'rules', 'maps', 'people', 'quests', 'story', 'client', 'learned'] as const
 export type Folder = (typeof FOLDERS)[number]
 
 interface Edit {
@@ -147,7 +147,7 @@ export class Store {
 
   /** The project as the compiler takes it. */
   project(): Project {
-    const p: Project = { game: this.game, ontology: this.list('ontology'), rules: this.list('rules'), maps: this.list('maps'), people: this.list('people'), quests: this.list('quests'), story: this.list('story'), client: this.list('client') }
+    const p: Project = { game: this.game, ontology: this.list('ontology'), rules: this.list('rules'), maps: this.list('maps'), people: this.list('people'), quests: this.list('quests'), story: this.list('story'), client: this.list('client'), learned: this.list('learned') }
     if (this.docs.has('catalog.json')) p.catalog = this.docs.get('catalog.json')
     if (this.docs.has('extra.json')) p.extra = this.docs.get('extra.json') as Project['extra']
     return p

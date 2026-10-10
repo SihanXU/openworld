@@ -33,6 +33,20 @@ npm run dev           # http://localhost:5173, with the modder service on :8787
 npm run build         # static site in games/openworld/client/dist
 ```
 
+## The engine, its player and its editor
+
+OpenWorld is also the engine the game runs on ([docs/engine-split.md](docs/engine-split.md)): the kernel and
+its optional modules in `packages/`, each game in `games/<id>/` — this one, and `games/starter`, the smallest
+whole game, written as data files and played by the kernel with no module.
+
+```bash
+npm run play          # the engine's player, http://localhost:5174/?game=/games/starter/ (or /games/openworld/)
+npm run editor        # the OpenWorld Editor, http://localhost:5175/editor/ — maps, people, database,
+                      # rules, story, quests, and the holes with the AI as co-author; playtest from any cell
+npm run game -- check games/starter        # a project's problems (build <project> --out <dir>: a bundle)
+npm run bake          # OpenWorld written as a project in the format → games/openworld/project/
+```
+
 Controls: WASD/arrows move (Shift walks) · **E** hands (talk, open, push) · **F** take ·
 **left click** use the held thing (weapons strike; click yourself to eat) · **right click** put
 it there (place, store, hand over) — on the topmost thing drawn where you point; hold to choose another · **1–0** / wheel

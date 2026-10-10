@@ -13,13 +13,15 @@
 //   story/*.json      the story's steps, invariants, protected facts, fixed weather
 //   catalog.json      what the runtime draws and plays each content key with (the runtime's Catalog)
 //   client/*.json     tables the runtime's panels read (item forms, recipes, skills, looks …), merged by key
+//   learned/*.json    the patches the game ships with: answers to its holes its authors took in (rules with
+//                     their places, and the types and statuses they brought)
 //   extra.json        what the world's index carries beyond these (a module's data: bosses, the codex's entries)
 //   assets/           pictures and sounds the catalogue names, served beside the bundle
 //
 // A game whose content a script makes (OpenWorld's TypeScript builders) writes the same files, or hands the
 // compiler the same `Project` in memory.
 
-import type { Entity, Invariant, Ontology, Pos, QuestDef, RawChunk, Rule, ScheduleEntry, StartDef, StepDef, Text, WeatherSpan, WorldIndex, WorldParams } from '@openworld/engine'
+import type { Entity, Invariant, LibraryData, Ontology, Pos, QuestDef, RawChunk, Rule, ScheduleEntry, StartDef, StatusDef, StepDef, Text, TypeDef, WeatherSpan, WorldIndex, WorldParams } from '@openworld/engine'
 
 export const FORMAT = 1
 
@@ -79,6 +81,13 @@ export interface StoryFile {
   weather?: WeatherSpan[]
 }
 
+/** A file of learned patches: a patch's artifacts, kept as data. */
+export interface LearnedFile {
+  rules?: Rule[]
+  types?: TypeDef[]
+  statuses?: StatusDef[]
+}
+
 /** A file of the project, read: where it came from (for the problems) and what it holds. */
 export interface Sourced<T> {
   file: string
@@ -96,6 +105,7 @@ export interface Project {
   story: Sourced<StoryFile>[]
   catalog?: unknown
   client?: Sourced<Record<string, unknown>>[]
+  learned?: Sourced<LearnedFile>[]
   /** What is in the index beyond the format's own (a game's script adds its bosses, its codex). */
   extra?: Partial<WorldIndex>
 }
@@ -112,6 +122,8 @@ export interface Bundle {
   terrainChars: Record<string, string>
   catalog?: unknown
   client?: Record<string, unknown>
+  /** The patches it ships with (its learned/ files). */
+  learned?: LibraryData
 }
 
 /** A problem the compiler found: an error stops a build, a warning does not. */

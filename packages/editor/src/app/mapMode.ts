@@ -4,10 +4,11 @@
 // regions and entities with ids of their own.
 
 import type { Entity, Portal, RawChunk } from '@openworld/engine'
+import { paintOrganic, paintPath, scatter, yard } from '@openworld/format'
 import type { Ctx, Mode } from './context.ts'
 import { esc, parseValue, textOf, toast, tx, enOf, zhOf } from './ui.ts'
 
-type Tool = 'select' | 'terrain' | 'height' | 'thing' | 'erase' | 'portal' | 'anchor' | 'region' | 'start'
+type Tool = 'select' | 'terrain' | 'height' | 'thing' | 'erase' | 'portal' | 'anchor' | 'region' | 'start' | 'path' | 'organic' | 'scatter' | 'yard'
 const TOOLS: [Tool, string, string][] = [
   ['select', 'Select', 'see and change what is in a cell'],
   ['terrain', 'Terrain', 'paint the ground (drag)'],
@@ -18,7 +19,14 @@ const TOOLS: [Tool, string, string][] = [
   ['anchor', 'Anchor', 'a named spot (people\'s days, scenes)'],
   ['region', 'Area', 'a named area (drag a rectangle)'],
   ['start', 'Start', 'where a new game begins'],
+  // the builder's brushes (format/src/brushes.ts): each stroke from a seed of its own, kept in the map
+  ['path', 'Path', 'a curved path through the points you click'],
+  ['organic', 'Patch', 'an organic patch of ground (drag its box): a pond, a clearing'],
+  ['scatter', 'Scatter', 'small things by a mask (drag a box): on the ground you name'],
+  ['yard', 'Yard', 'a fenced yard of the thing chosen (drag its box), a gate at its foot'],
 ]
+const TERRAIN_TOOLS = new Set<Tool>(['terrain', 'path', 'organic'])
+const THING_TOOLS = new Set<Tool>(['thing', 'scatter', 'yard'])
 /** What can be set down: the kinds of things the inputs and the world handle. */
 const PLACEABLE = /^(fixture|item|actor\/creature|structure)\//
 
@@ -32,6 +40,13 @@ export class MapMode implements Mode {
   private filter = ''
   private stroke = 0
   private drag?: { x: number; y: number; to: { x: number; y: number } }
+  /** The path brush's points, and the brushes' settings. */
+  private points: [number, number][] = []
+  private width = 2
+  private edge = ''
+  private rough = 0.22
+  private only = ''
+  private density = 0.15
 
   private file(ctx: Ctx): string | undefined {
     return ctx.store.mapFile(ctx.map)
@@ -52,9 +67,10 @@ export class MapMode implements Mode {
     const things = Object.keys(onto.types).filter((t) => PLACEABLE.test(t) && (!this.filter || t.includes(this.filter))).sort()
     left.innerHTML = `
       <div class="tools">${TOOLS.map(([t, name, tip]) => `<button data-tool="${t}" class="${t === this.tool ? 'on' : ''}" title="${esc(tip)}">${name}</button>`).join('')}</div>
-      ${this.tool === 'terrain' ? `<h3>Terrain</h3><div class="palette">${chars.map(([c, id]) => `<button data-char="${esc(c)}" class="${c === this.char ? 'on' : ''}" title="${esc(id)} (${esc(c)})"><span class="sw" style="background:${esc(onto.terrains[id]?.color ?? '#555')}"></span>${esc(tx(onto.terrains[id]?.name) || id)}</button>`).join('')}</div>` : ''}
+      ${this.brushOptions(chars)}
+      ${TERRAIN_TOOLS.has(this.tool) ? `<h3>Terrain</h3><div class="palette">${chars.map(([c, id]) => `<button data-char="${esc(c)}" class="${c === this.char ? 'on' : ''}" title="${esc(id)} (${esc(c)})"><span class="sw" style="background:${esc(onto.terrains[id]?.color ?? '#555')}"></span>${esc(tx(onto.terrains[id]?.name) || id)}</button>`).join('')}</div>` : ''}
       ${this.tool === 'height' ? `<h3>Height</h3><div class="palette row">${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((h) => `<button data-height="${h}" class="${h === this.height ? 'on' : ''}">${h}</button>`).join('')}</div><p class="muted">Half levels: 2 is a level. One walks at most half a level up or down.</p>` : ''}
-      ${this.tool === 'thing' ? `<h3>Thing</h3><input id="thingFilter" placeholder="filter types" value="${esc(this.filter)}"><div class="palette list">${things.map((t) => `<button data-thing="${esc(t)}" class="${t === this.thing ? 'on' : ''}">${esc(t)}<small>${esc(tx(onto.types[t]?.name))}</small></button>`).join('')}</div>` : ''}
+      ${THING_TOOLS.has(this.tool) ? `<h3>Thing</h3><input id="thingFilter" placeholder="filter types" value="${esc(this.filter)}"><div class="palette list">${things.map((t) => `<button data-thing="${esc(t)}" class="${t === this.thing ? 'on' : ''}">${esc(t)}<small>${esc(tx(onto.types[t]?.name))}</small></button>`).join('')}</div>` : ''}
       <h3>Maps</h3>
       <div class="palette list">${ctx.store.maps().map((m) => `<button data-map="${esc(m.data.map.id)}" class="${m.data.map.id === ctx.map ? 'on' : ''}">${esc(m.data.map.id)}<small>${esc(tx(m.data.map.name))} · ${m.data.map.width}×${m.data.map.height}</small></button>`).join('')}</div>
       <details><summary>New map</summary>
@@ -72,7 +88,39 @@ export class MapMode implements Mode {
     const filter = left.querySelector<HTMLInputElement>('#thingFilter')
     if (filter) filter.oninput = () => { this.filter = filter.value; const at = filter.selectionStart; ctx.refresh(); const f = document.querySelector<HTMLInputElement>('#thingFilter'); f?.focus(); f?.setSelectionRange(at, at) }
     left.querySelector<HTMLButtonElement>('#nmMake')!.onclick = () => this.newMap(ctx, left)
+    this.wireBrush(ctx, left)
     this.inspector(ctx, right)
+  }
+
+  private brushOptions(chars: [string, string][]): string {
+    const opt = (cur: string, none: string) => `<option value="">${none}</option>${chars.map(([c, id]) => `<option value="${esc(c)}" ${c === cur ? 'selected' : ''}>${esc(id)}</option>`).join('')}`
+    if (this.tool === 'path') return `<h3>Path</h3><p class="muted">Click its points on the map, then lay it.</p><label>width <input id="bWidth" type="number" min="1" max="6" value="${this.width}"></label><label>frayed with <select id="bEdge">${opt(this.edge, 'nothing')}</select></label><p>${this.points.length} point${this.points.length === 1 ? '' : 's'}</p><button id="bLay" ${this.points.length ? '' : 'disabled'}>Lay the path</button> <button id="bClear">Clear the points</button>`
+    if (this.tool === 'organic') return `<h3>Patch</h3><label>rough <input id="bRough" type="number" step="0.05" min="0" max="0.6" value="${this.rough}"></label><label>only over <select id="bOnly">${opt(this.only, 'anything')}</select></label>`
+    if (this.tool === 'scatter') return `<h3>Scatter</h3><label>chance a cell <input id="bDensity" type="number" step="0.05" min="0.01" max="1" value="${this.density}"></label><label>only on <select id="bOnly">${opt(this.only, 'any ground')}</select></label>`
+    if (this.tool === 'yard') return '<h3>Yard</h3><p class="muted">Choose its fence (a fixture), then drag the yard\'s box.</p>'
+    return ''
+  }
+
+  private wireBrush(ctx: Ctx, left: HTMLElement): void {
+    const num = (id: string, f: (v: number) => void) => { const el = left.querySelector<HTMLInputElement>(id); if (el) el.onchange = () => f(Number(el.value)) }
+    num('#bWidth', (v) => (this.width = Math.max(1, Math.min(6, v || 2))))
+    num('#bRough', (v) => (this.rough = Math.max(0, Math.min(0.6, v))))
+    num('#bDensity', (v) => (this.density = Math.max(0.01, Math.min(1, v || 0.15))))
+    const sel = (id: string, f: (v: string) => void) => { const el = left.querySelector<HTMLSelectElement>(id); if (el) el.onchange = () => f(el.value) }
+    sel('#bEdge', (v) => (this.edge = v))
+    sel('#bOnly', (v) => (this.only = v))
+    left.querySelector<HTMLButtonElement>('#bClear')?.addEventListener('click', () => ((this.points = []), ctx.refresh()))
+    left.querySelector<HTMLButtonElement>('#bLay')?.addEventListener('click', () => {
+      const seed = newSeed()
+      this.edit(ctx, `a path (seed ${seed})`, (ch) => paintPath(ch, this.points, this.char, seed, { width: this.width, ...(this.edge && { edge: this.edge }) }))
+      this.points = []
+      ctx.refresh()
+    })
+  }
+
+  /** The project's ids, so a brush's new things never take one. */
+  private taken(ctx: Ctx): Set<string> {
+    return new Set([...ctx.store.maps().flatMap((m) => m.data.entities.map((e) => e.id)), ...ctx.store.list<Entity>('people').map((p) => p.data.id)])
   }
 
   private newMap(ctx: Ctx, left: HTMLElement): void {
@@ -148,6 +196,26 @@ export class MapMode implements Mode {
       case 'start':
         if (ev !== 'down') return
         return ctx.store.change('game.json', 'the start', (g: { start: { map: string; x: number; y: number } }) => (g.start = { map: ctx.map, x: c.x, y: c.y }))
+      case 'path':
+        if (ev === 'down') (this.points.push([c.x, c.y]), ctx.refresh())
+        return
+      case 'organic':
+      case 'scatter':
+      case 'yard': {
+        if (ev === 'down') this.drag = { x: c.x, y: c.y, to: c }
+        else if (this.drag) this.drag.to = c
+        ctx.canvas.redraw()
+        if (ev !== 'up' || !this.drag) return
+        const d = this.drag
+        this.drag = undefined
+        const x = Math.min(d.x, d.to.x), y = Math.min(d.y, d.to.y), w = Math.abs(d.to.x - d.x) + 1, h = Math.abs(d.to.y - d.y) + 1
+        const seed = newSeed()
+        if (this.tool === 'organic') return this.edit(ctx, `a patch (seed ${seed})`, (ch) => paintOrganic(ch, x + w / 2, y + h / 2, w / 2, h / 2, this.char, seed, { rough: this.rough, ...(this.only && { only: [this.only] }) }))
+        if (!this.thing) return toast('Choose a kind of thing first.', 'warn')
+        const taken = this.taken(ctx)
+        if (this.tool === 'scatter') return this.edit(ctx, `scatter ${this.thing} (seed ${seed})`, (ch) => scatter(ch, [x, y, w, h], this.thing, this.density, seed, taken, this.only ? { on: [this.only] } : {}))
+        return this.edit(ctx, `a yard of ${this.thing}`, (ch) => yard(ch, [x, y, w, h], this.thing, taken, [[x + Math.floor(w / 2), y + h - 1]]))
+      }
     }
   }
 
@@ -155,13 +223,15 @@ export class MapMode implements Mode {
     const ch = this.chunk(ctx)
     const sel = ctx.sel
     const start = ctx.store.game.start
-    const drag = this.drag
     return (g: Phaser.GameObjects.Graphics, T: number) => {
+      // (the box being dragged, as it is now: the canvas draws this again while the pointer moves)
+      const drag = this.drag
       if (!ch) return
       for (const [, [x, y, w, h]] of Object.entries(ch.map.regions ?? {})) (g.fillStyle(0x4aa3ff, 0.12), g.fillRect(x * T, y * T, w * T, h * T), g.lineStyle(1, 0x4aa3ff, 0.8), g.strokeRect(x * T, y * T, w * T, h * T))
       for (const [, [x, y]] of Object.entries(ch.map.anchors ?? {})) (g.fillStyle(0x3ff0e0, 0.9), g.fillCircle(x * T + T / 2, y * T + T / 2, 3))
       for (const p of ch.map.portals) (g.lineStyle(2, 0xff4fd8, 0.9), g.strokeRect(p.x * T + 1, p.y * T + 1, T - 2, T - 2))
       if (start.map === ch.map.id) (g.lineStyle(2, 0x6dff6d, 1), g.strokeCircle(start.x * T + T / 2, start.y * T + T / 2, T / 2 - 1))
+      for (const [i, [px, py]] of this.points.entries()) (g.fillStyle(0xffd23f, 1), g.fillCircle(px * T + T / 2, py * T + T / 2, 3), i && (g.lineStyle(1, 0xffd23f, 0.8), g.lineBetween(this.points[i - 1][0] * T + T / 2, this.points[i - 1][1] * T + T / 2, px * T + T / 2, py * T + T / 2)))
       if (drag) { const x = Math.min(drag.x, drag.to.x), y = Math.min(drag.y, drag.to.y); g.lineStyle(1, 0xffffff, 1); g.strokeRect(x * T, y * T, (Math.abs(drag.to.x - drag.x) + 1) * T, (Math.abs(drag.to.y - drag.y) + 1) * T) }
       if (sel.cell) (g.lineStyle(2, 0xffd23f, 1), g.strokeRect(sel.cell.x * T, sel.cell.y * T, T, T))
     }
@@ -294,6 +364,9 @@ export class MapMode implements Mode {
     if (cell) ctx.canvas.scene.lookAt(0, Number(cell[1]))
   }
 }
+
+/** A stroke's seed: shown to the author, kept in the map's strokes. */
+const newSeed = () => Math.floor(Math.random() * 1e6)
 
 /** A thing's new id: its map's, its kind's, a number no other thing has. */
 function newId(ctx: Ctx, type: string): string {

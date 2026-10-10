@@ -80,10 +80,12 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   kernel names, the roots of the rule library, the Story Manager's and a quest's rules. A project takes it
   unless its game.json says not.
 - `packages/format` — the project format and its compiler (docs/engine-split.md §5): `project.ts` the files
-  (game.json, ontology/, rules/, maps/, people/, quests/, story/, catalog.json, client/, extra.json),
+  (game.json, ontology/, rules/, maps/, people/, quests/, story/, catalog.json, client/, learned/ — the patches
+  the game ships with —, extra.json),
   `compile.ts` a project → the bundle and its world, `check.ts` the problems (references, sizes, portals,
   anchors, ties, rules, modules), `json.ts` how files are written, `node.ts` a folder read and a game written,
-  `serve.ts` projects served compiled, `cli.ts` (`npm run game -- check|build`), `schema.ts` the JSON Schemas
+  `serve.ts` projects served compiled, `cli.ts` (`npm run game -- check|build`), `holes.ts` a project's holes,
+  `brushes.ts` the builder's brushes, `crowd.ts` people in bulk, `schema.ts` the JSON Schemas
   from the engine's types (`schema/`, `npm run schema`). A bundle (`bundle.json` + `world/` + `assets/`) is a
   whole game: another bundle URL is another game.
 - `packages/editor` — the OpenWorld Editor (docs/engine-split.md §6, §11): `src/server/api.ts` the local
@@ -91,8 +93,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   the project in memory (edits, undo, save, compiled as it is now), `canvas.ts` the runtime's WorldScene with a
   free camera, `mapMode.ts`, `peopleMode.ts`, `databaseMode.ts` (types, statuses, terrains, recipes; `ontologyFiles.ts`
   where an entry is written), `rulesMode.ts` (a rule's tree and JSON checked as typed, which rule answers here,
-  the sandbox), `storyMode.ts` (the story's steps and scene commands, the quests), `problems.ts` the validation
-  panel, `modes.ts` the further modes (P6); playtest opens the player at a cell.
+  the sandbox), `storyMode.ts` (the story's steps and scene commands, the quests), `holesMode.ts` (the holes panel:
+  count, answer by hand, ask the game's modder, review, replay, take into `learned/`), `problems.ts` the validation
+  panel, `modes.ts` the modes; the map's brushes and the people in bulk come from the format; playtest opens the
+  player at a cell.
 - `games/starter` — the minimal game, data only (S6), with its own catalogue and assets (a subset of the CC0
   pack): the kernel with no module plays it (`test/kernel.test.ts`); the editor's new project.
 - `games/openworld/content` — ontology (terrains, statuses, elements, types), item catalogue

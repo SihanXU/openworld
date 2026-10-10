@@ -3,7 +3,9 @@
 
 import type { Mode } from './context.ts'
 import { DatabaseMode } from './databaseMode.ts'
+import { HolesMode } from './holesMode.ts'
 import { RulesMode } from './rulesMode.ts'
 import { QuestsMode, StoryMode } from './storyMode.ts'
 
-export const MODES: Mode[] = [new DatabaseMode(), new RulesMode(), new StoryMode(), new QuestsMode()]
+const rules = new RulesMode()
+export const MODES: Mode[] = [new DatabaseMode(), rules, new StoryMode(), new QuestsMode(), new HolesMode(() => rules)]

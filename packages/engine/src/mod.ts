@@ -124,6 +124,8 @@ export interface ModWorkspace {
 export interface ResolveBody {
   request: ModRequest
   workspace?: ModWorkspace
+  /** How the modder works on it: live (a player waits) or offline (an author asks, in the editor: more care). */
+  profile?: 'live' | 'offline'
 }
 
 /**

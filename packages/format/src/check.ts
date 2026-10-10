@@ -2,7 +2,8 @@
 // References (types, maps, anchors, holders, aliases), sizes, portals, the rules (the patch validator's checks
 // that hold for base rules too; the root total; no ties) — each a Problem the editor's validation panel shows.
 
-import { EVENT_KINDS, RuleLibrary, registeredModule, compareSpec, hostsOverlap, isRoot, kindCovers, leaves, specOf, validatePatch, type Cond, type Entity, type Ontology, type RawChunk, type Rule, type Selector, type Tree, type WorldIndex } from '@openworld/engine'
+import { EVENT_KINDS, RuleLibrary, registeredModule, restoreLibrary, compareSpec, hostsOverlap, isRoot, kindCovers, leaves, specOf, validatePatch, type Cond, type Entity, type Ontology, type RawChunk, type Rule, type Selector, type Tree, type WorldIndex } from '@openworld/engine'
+import { learnedOf } from './compile.ts'
 import type { Problem, Project } from './project.ts'
 
 interface Made {
@@ -136,6 +137,8 @@ export function checkProject(p: Project, made: Made): Problem[] {
   for (const m of missing) err('module', `the module "${m}" is not loaded here: import its package (the engine's official ones: @openworld/modules)`, 'game.json', 'modules')
   if (missing.length) return out
   out.push(...ruleProblems(made.rules, onto, new Set(p.rules.flatMap((f) => f.data.map((r) => r.id)))))
+  // the patches it ships with: each must have its place in this library still (a hole that is still one)
+  restoreLibrary(made.rules, learnedOf((p.learned ?? []).map((f) => f.data)), onto, [], (id, why) => err('learned', `the learned rule ${id} has no place here any more: ${why}`, p.learned?.find((f) => f.data.rules?.some((r) => r.id === id))?.file, id))
   const seen = new Map<string, string>()
   for (const f of p.rules)
     for (const r of f.data) {

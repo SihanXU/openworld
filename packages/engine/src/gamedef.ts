@@ -3,6 +3,7 @@
 // the game's content only through it. P3 replaces the code with a bundle of data files.
 
 import type { Engine } from './engine.ts'
+import type { LibraryData } from './rules.ts'
 import type { Ontology, Rule } from './types.ts'
 
 export interface GameDef {
@@ -14,6 +15,11 @@ export interface GameDef {
   rules: Rule[]
   /** Which terrain each character of a map file's rows stands for (chunk.ts). */
   terrainChars: Record<string, string>
+  /**
+   * The patches the game ships with (docs/engine-split.md P6): answers to its holes its authors took in, a
+   * library every new game and every save begins from (the modder's, and a save's own, come over it).
+   */
+  learned?: LibraryData
   /** The game's own save history: an older save brought up to the game as it is now (on loading, as the author, after the engine's). */
   upgradeSave?(eng: Engine): void
 }

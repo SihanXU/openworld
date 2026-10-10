@@ -308,7 +308,41 @@ P2 and P3 overlap where they do not touch (the catalogue as data needs no module
   set down on the map, a scene, a quest from Mira — saved, compiled with no error (one warning, rightly: the
   apple's kind `item/food` was not made).
 
-## 13. Risks
+## 13. P6 as built (2026-10-10): the AI as co-author
+
+- **The holes of a project** (`format/src/holes.ts`): every bare hand, every thing in hand and every thing
+  used on oneself, on every kind one may face (the ontology's leaf kinds and the ground's cells), resolved as
+  the engine previews an act (its outcome and the impulses it sends); where it is undefined, the base rule
+  and the branch that hold the hole, the event that reaches it. The starter: 117 holes in 125 acts (40 ms);
+  the baked Ford: 89,837 in 103,600 (7 s) — most of a world's acts are the AI's in play, as designed.
+- **Learned patches ship with the game**: a project's `learned/*.json` (a patch's rules with their places,
+  and the types and statuses it brought) are compiled into the bundle (`Bundle.learned`, `GameDef.learned`);
+  every new game and every save begins its library from them (the worker's `libraryFrom`); the compiler
+  reports one whose place is gone; the holes are counted with them answering.
+- **The holes panel** (`editor/src/app/holesMode.ts`): count the holes (a few kinds at a time), see a kind's,
+  and answer one — **by hand** (a rule of the project's for the hole's host and kind, opened in the rule
+  editor) or **by the AI**: the editor builds the request the game would make there (`buildRequest` on a
+  sandbox of the act) and asks the game's modder (`npm run modder -- serve 8787 --game games/<id>`; it now says
+  its game at `/health`, and a request may name its profile: offline by default from the editor, live as in
+  play). The patch is read as its tree, **replayed in the sandbox** with it in the library (the chain, what was
+  said, what changed), and **taken into the game** (a `learned/` file) or left.
+- **The builder's brushes** (`format/src/brushes.ts`, from the Ford's map DSL): a curved path through points
+  (Catmull-Rom, frayed edges), an organic patch, small things scattered by a mask of ground, a fenced yard
+  with a gate — each from a seed of its own, recorded in the map file (`strokes`); in the map mode as the
+  Path, Patch, Scatter and Yard tools.
+- **People in bulk** (`format/src/crowd.ts`): a crowd from a seed — names in both languages, a day over a
+  map's anchors, a line or two — each an ordinary person file; in the people mode as "Many people".
+- **Checked in a browser** (P6's "done when": holes seen and filled in the editor): in a new project the holes
+  counted, the bare hand on the slime asked of a modder (a scripted model), its patch reviewed, replayed and
+  taken in — counted again, the hole is gone; another answered by hand; a path, a pond, scattered stones and
+  five people made with the brushes and the crowd; the project compiled with no problem.
+- **Left**: the offline profile is the modder's agent working on the world as a repository with its tools;
+  a scripted model answers only the live profile's single call, so the offline path was checked to the
+  modder's reply (a failure said plainly), not to a patch. The modder does not yet read a project's learned
+  files into its own library (it may answer a hole the game already ships an answer for; the editor's
+  count, which does read them, shows no such hole).
+
+## 14. Risks
 
 - **The way the Ford is written changes.** From the TypeScript DSL to data files: for a while the compiler
   takes both authored data and data a script made; the maps are baked once the editor can edit them.

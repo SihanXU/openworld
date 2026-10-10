@@ -3,7 +3,7 @@
 
 import { appearFromForage } from './appear.ts'
 import type { MapChunk } from './engine.ts'
-import type { Entity, MapData, Portal, Text } from './types.ts'
+import type { Entity, MapData, Portal, PropValue, Text } from './types.ts'
 
 export interface RawMap {
   id: string
@@ -31,6 +31,8 @@ export interface RawMap {
   zone?: MapData['zone']
   scale?: MapData['scale']
   site?: MapData['site']
+  /** The editor's brush strokes that drew it, with their seeds (the engine ignores them: the rows are the map). */
+  strokes?: { brush: string; seed: number; at: [number, number, number, number]; params?: Record<string, PropValue> }[]
 }
 
 export interface RawChunk {

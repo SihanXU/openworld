@@ -221,6 +221,41 @@
           ],
           "additionalProperties": false,
           "description": "Where the map lies on the overworld: the top left of its cell's block there (world-model.md §5.1). Its open edges lead to it."
+        },
+        "strokes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "brush": {
+                "type": "string"
+              },
+              "seed": {
+                "type": "number"
+              },
+              "at": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 4,
+                "maxItems": 4
+              },
+              "params": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/definitions/PropValue"
+                }
+              }
+            },
+            "required": [
+              "brush",
+              "seed",
+              "at"
+            ],
+            "additionalProperties": false
+          },
+          "description": "The editor's brush strokes that drew it, with their seeds (the engine ignores them: the rows are the map)."
         }
       },
       "required": [

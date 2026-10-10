@@ -11,6 +11,7 @@ export function gameDefOf(b: Bundle, code: Pick<GameDef, 'upgradeSave'> = {}): G
     ontology: () => structuredClone(b.ontology),
     rules: b.rules,
     terrainChars: b.terrainChars,
+    ...(b.learned && { learned: b.learned }),
     ...code,
   }
 }

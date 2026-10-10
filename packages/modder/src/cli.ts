@@ -45,7 +45,7 @@ switch (cmd) {
     const port = Number(args[0] ?? process.env.LSW_PORT ?? 8787)
     // what the validator no longer takes leaves the library before any client can sync it
     const pruned = library.prune()
-    createModderServer(modder).listen(port, () => {
+    createModderServer(modder, { game: game.id }).listen(port, () => {
       console.log(`modder on http://localhost:${port}  model: ${modder.model?.name ?? '(none: answers from the shared library only)'}`)
       for (const p of pruned) console.log(`library: rolled back ${p.rules.join(', ')}: ${p.reason}`)
       console.log(`library: ${library.patchRules().length} patch rules (seq ${library.seq}) · self-state: ${state.dir}`)

@@ -4,3 +4,4 @@ export type { GameJson, OntologyPart, PersonFile, StoryFile } from './project.ts
 export type RuleFile = Rule[]
 export type MapFile = RawChunk
 export type QuestFile = QuestDef
+export type { LearnedFile } from './project.ts'

@@ -3,7 +3,7 @@
 // keyed lines, and their look through the game's own character creator (runtime/src/ui/creator.ts).
 
 import type { Entity, LineDef, Look, Mood } from '@openworld/engine'
-import type { PersonFile, ScheduleFileEntry } from '@openworld/format'
+import { generateCrowd, type PersonFile, type ScheduleFileEntry } from '@openworld/format'
 import { Creator } from '@openworld/runtime/src/ui/creator.ts'
 import { game, hasLooks } from '@openworld/runtime/src/game.ts'
 import type { Ctx, Mode } from './context.ts'
@@ -36,6 +36,13 @@ export class PeopleMode implements Mode {
         <label>name <input id="npEn" placeholder="Ada"> <input id="npZh" placeholder="艾达"></label>
         <label>kind <input id="npType" value="actor/person"></label>
         <button id="npMake">Make them (on this map)</button>
+      </details>
+      <details><summary>Many people</summary>
+        <p class="muted">A crowd from a seed (format/src/crowd.ts): names in both languages, a day over this map's anchors, a line or two — each a person file to change afterwards.</p>
+        <label>how many <input id="crN" type="number" min="1" max="200" value="6"></label>
+        <label>kind <input id="crType" value="actor/person"></label>
+        <label>seed <input id="crSeed" type="number" value="${Math.floor(Math.random() * 1e5)}"></label>
+        <button id="crMake">Make them</button>
       </details>`
     left.querySelectorAll<HTMLButtonElement>('[data-person]').forEach((b) => (b.onclick = () => {
       ctx.sel = { person: b.dataset.person }
@@ -53,6 +60,16 @@ export class PeopleMode implements Mode {
       ctx.store.add(`people/${id}.json`, p, `a new person ${id}`)
       ctx.sel = { person: id }
       ctx.refresh()
+    }
+    left.querySelector<HTMLButtonElement>('#crMake')!.onclick = () => {
+      const v = (s: string) => left.querySelector<HTMLInputElement>(s)!.value.trim()
+      const m = ctx.store.maps().find((x) => x.data.map.id === ctx.map)?.data
+      const anchors = Object.entries(m?.map.anchors ?? {})
+      if (!m || !anchors.length) return toast('Name an anchor or two on this map first (the Map\'s Anchor tool): their days run over them.', 'warn')
+      const taken = new Set([...people.map((p) => p.data.id), ...ctx.store.maps().flatMap((x) => x.data.entities.map((e) => e.id))])
+      const crowd = generateCrowd({ n: Math.max(1, Math.min(200, Number(v('#crN')) || 6)), seed: Number(v('#crSeed')) || 1, type: v('#crType') || 'actor/person', map: ctx.map, anchors: anchors.map(([a]) => `${ctx.map}:${a}`), taken, place: (i) => { const [, [x, y]] = anchors[i % anchors.length]; return { x: Math.max(0, Math.min(m.map.width - 1, x + (i % 3) - 1)), y: Math.max(0, Math.min(m.map.height - 1, y + (Math.floor(i / 3) % 3) - 1)) } } })
+      for (const p of crowd) ctx.store.add(`people/${p.id}.json`, p, `a crowd: ${p.id}`)
+      toast(`${crowd.length} people made: ${crowd.map((p) => tx(p.name)).join(', ')}.`)
     }
     this.form(ctx, right)
   }

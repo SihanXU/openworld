@@ -13,7 +13,7 @@ import { compileProject, readProject } from '@openworld/format/src/node.ts'
 import { projectDir } from '@openworld/format/src/serve.ts'
 
 /** The files of a project the editor may write: game.json, catalog.json, extra.json, and a JSON file in one of the format's folders. */
-const WRITABLE = /^(game\.json|catalog\.json|extra\.json|(ontology|rules|maps|people|quests|story|client)\/[A-Za-z0-9._-]+\.json)$/
+const WRITABLE = /^(game\.json|catalog\.json|extra\.json|(ontology|rules|maps|people|quests|story|client|learned)\/[A-Za-z0-9._-]+\.json)$/
 const ID = /^[a-z][a-z0-9-]{0,40}$/
 
 export interface ProjectInfo {

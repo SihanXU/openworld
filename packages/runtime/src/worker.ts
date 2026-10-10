@@ -195,7 +195,10 @@ async function syncLibrary(): Promise<void> {
 
 /** Base rules are always fresh from content; patches (and their types/statuses) persist, each validated again (engine `restoreLibrary`). */
 function libraryFrom(saved: LibraryData | undefined, protectedFacts: string[] = []): RuleLibrary {
-  return restoreLibrary(played().rules, saved, ontology(), protectedFacts, (id, why) => console.warn(`[library] a saved patch rule is not restored: ${id}: ${why}`))
+  // the patches the game ships with first (GameDef.learned), the saved and the synced ones over them
+  const base = played().learned
+  const all = base && saved ? { ...saved, rules: [...base.rules, ...saved.rules], types: [...base.types, ...saved.types], statuses: [...base.statuses, ...saved.statuses] } : (saved ?? base)
+  return restoreLibrary(played().rules, all, ontology(), protectedFacts, (id, why) => console.warn(`[library] a saved patch rule is not restored: ${id}: ${why}`))
 }
 
 async function fetchJson<T>(path: string): Promise<T> {

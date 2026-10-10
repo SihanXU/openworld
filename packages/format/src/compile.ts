@@ -3,10 +3,10 @@
 // together, resolves the people's anchors, lays the maps out by their edge links, counts what is where and
 // derives what the story protects, and reports every problem it finds (check.ts) instead of throwing.
 
-import { storyTopics, type Entity, type MapMeta, type Ontology, type Pos, type RawChunk, type Rule, type ScheduleEntry, type WorldIndex } from '@openworld/engine'
+import { storyTopics, type Entity, type LibraryData, type MapMeta, type Ontology, type Pos, type RawChunk, type Rule, type ScheduleEntry, type WorldIndex } from '@openworld/engine'
 import { STDLIB_ONTOLOGY, STDLIB_RULES } from '@openworld/stdlib'
 import { checkProject } from './check.ts'
-import { FORMAT, type Bundle, type Compiled, type GameJson, type OntologyPart, type PersonFile, type Problem, type Project } from './project.ts'
+import { FORMAT, type Bundle, type Compiled, type GameJson, type LearnedFile, type OntologyPart, type PersonFile, type Problem, type Project } from './project.ts'
 
 /** Records merged by key (a later file's entry replaces an earlier one's). */
 const RECORDS = ['types', 'statuses', 'terrains', 'laws', 'professions', 'resistances', 'efficiency', 'materials', 'factions'] as const
@@ -101,6 +101,14 @@ export function placeMaps(chunks: RawChunk[], origin: string | undefined): Map<s
   return out
 }
 
+/** The learned files as one library's data (a later file's entry of an id replacing an earlier one's). */
+export function learnedOf(files: LearnedFile[]): LibraryData {
+  const by = <T extends { id: string }>(xs: T[]) => [...new Map(xs.map((x) => [x.id, x])).values()]
+  // (a learned file holds patches: each rule is one, whatever its file says of its source)
+  const rules = files.flatMap((f) => f.rules ?? []).map((r) => (r.source?.origin === 'patch' ? r : { ...r, source: { ...r.source, origin: 'patch' as const } }))
+  return { rules: by(rules), types: by(files.flatMap((f) => f.types ?? [])), statuses: by(files.flatMap((f) => f.statuses ?? [])), log: [], version: 1 }
+}
+
 /** A project → its bundle, its world, and what is wrong with it. */
 export function compile(p: Project): Compiled {
   const problems: Problem[] = []
@@ -167,6 +175,7 @@ export function compile(p: Project): Compiled {
     ...p.extra,
   }
   const client = p.client?.length ? Object.assign({}, ...p.client.map((f) => f.data)) : undefined
+  const learned = p.learned?.length ? learnedOf(p.learned.map((f) => f.data)) : undefined
   const bundle: Bundle = {
     format: FORMAT,
     game: { id: g.id, name: g.name, version: g.version, ...(g.engine && { engine: g.engine }), modules: [...(g.modules ?? [])], ...(g.plugins && { plugins: g.plugins }) },
@@ -175,6 +184,7 @@ export function compile(p: Project): Compiled {
     terrainChars: g.terrainChars,
     ...(p.catalog !== undefined && { catalog: p.catalog }),
     ...(client && { client }),
+    ...(learned && { learned }),
   }
   // (on a copy: the checks see the cells' types as things, and the bundle stays as it was made)
   problems.push(...checkProject(p, { ontology: structuredClone(ontology), rules, chunks, npcs, index }))
