@@ -4,23 +4,23 @@
 
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, TICKS_PER_HOUR, buildModSpec, decodeRawChunk, registeredModule, snapshot, type Engine, type Entity } from '@openworld/engine'
+import { Game, RuleLibrary, TICKS_PER_HOUR, buildModSpec, decodeRawChunk, registeredModule, snapshot, type Engine, type Entity, type QualityDef, type Recipe } from '@openworld/engine'
 import { compileProject } from '@openworld/format/src/node.ts'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const compiled = compileProject(ROOT)
 const { bundle, index } = compiled
 
-function newGame(): Game {
-  const game = Game.create(index, structuredClone(bundle.ontology), new RuleLibrary(bundle.rules))
+function newGame(ontology = bundle.ontology): Game {
+  const game = Game.create(index, structuredClone(ontology), new RuleLibrary(bundle.rules))
   for (const c of compiled.chunks) game.loadChunk(decodeRawChunk(c, bundle.terrainChars))
   game.engine.controls.sync()
   return game
 }
 
 /** A new game, its opening watched to the end (each line advanced, as the player would): it has set its fact. */
-function played(): Game {
-  const game = newGame()
+function played(ontology = bundle.ontology): Game {
+  const game = newGame(ontology)
   const eng = game.engine
   for (let i = 0; i < 200 && (eng.world.scene || eng.world.fact('glade.arrived') !== 1); i++) {
     eng.tick()
@@ -169,5 +169,38 @@ describe('the starter, on the kernel alone', () => {
     expect(back.engine.world.state.tick).toBe(eng.world.state.tick)
     expect(back.engine.world.posOf(back.engine.world.player)).toEqual(eng.world.posOf(eng.world.player))
     expect(Object.keys(back.engine.world.state.entities).sort()).toEqual(Object.keys(eng.world.state.entities).sort())
+  })
+})
+
+describe('a made thing\'s quality, as the game\'s data says it', () => {
+  // qualities of the test's own, none of them OpenWorld's: three a maker's level reaches, one beyond any maker's reach
+  const QUALITIES: QualityDef[] = [
+    { id: 'rough', tag: 'quality:rough', factor: 0.8, from: -99 },
+    { id: 'plain', factor: 1, from: 0 },
+    { id: 'good', tag: 'quality:good', factor: 1.2, from: 5 },
+    { id: 'mythic', tag: 'quality:mythic', factor: 2 },
+  ]
+  const RECIPE: Recipe = { id: 'test/stone', name: 'a stone', sprite: 'item:stone', needs: [{ type: 'item/material/log', count: 1 }], make: { type: 'item/material/stone' } }
+  /** Make the stone by hand once, the maker's hand at the bench as `stats` say: the quality tags of what is made. */
+  const make = (stats: Record<string, number>): string[] => {
+    const eng = played({ ...bundle.ontology, qualities: QUALITIES }).engine
+    const w = eng.world
+    eng.recipes.set(RECIPE.id, RECIPE)
+    eng.author(() => {
+      for (const [k, v] of Object.entries(stats)) w.setProp(w.player, k, v)
+      w.create('item/material/log', { on: 'inside', holder: w.player.id })
+    })
+    const before = new Set(Object.keys(w.state.entities))
+    expect(eng.controls.craft(RECIPE)).toBe(true)
+    const made = Object.values(w.state.entities).find((e) => !before.has(e.id) && e.type === 'item/material/stone')!
+    return (made.tags ?? []).filter((t) => t.startsWith('quality:'))
+  }
+
+  it('is the tier the maker\'s level reaches; the hand\'s lift takes it one tier up the game\'s own; a quality beyond reach comes by its own chance', () => {
+    expect(make({})).toEqual([])
+    expect(make({ 'hands:lift': 1 })).toEqual(['quality:good'])
+    expect(make({ 'hands:mythic': 1 })).toEqual(['quality:mythic'])
+    // the level's reach and the craft's (`craft:<station>`): good already, and no tier above it to lift to
+    expect(make({ 'craft:hands': 5, 'hands:lift': 1 })).toEqual(['quality:good'])
   })
 })

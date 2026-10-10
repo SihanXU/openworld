@@ -449,7 +449,8 @@ How a life skill works, in three idioms: a number it grants that a rule reads as
 `harvest`, `harvest:<kind>` by the crop's `crop:<kind>` tag, `seeds`, `feedEggs`, `cheese`, `honey`, `butcher` …); its
 tag a rule branches on (`skill:sharp-axe`, `skill:wide-hoe`, `skill:herdsman` …); or a recipe it teaches
 (`Recipe.skill`). Crafting reads the maker's stats: `craft:<station>` lifts the quality level, `<station>:power|def|
-critChance` adds to what is made, `<station>:masterwork` and `:vowed` are chances of a better quality, and
+critChance` adds to what is made, `<station>:lift` is a chance of one quality better and `<station>:vowed` (any
+quality beyond a maker's reach, by its id) a chance of that one, and
 `Recipe.bonus` multiplies how many (`smelt`, `feedMaking`, `sell:farm`, `sell:ranch`, `sell:smith`, `buy:farm`).
 Harvesting stays one rule (`farm/harvest`: the farming palette checks it) that branches on the crop's kind.
 Proved by `content/test/life.test.ts` and demo L1 (the forest's rings and hives). Icons:

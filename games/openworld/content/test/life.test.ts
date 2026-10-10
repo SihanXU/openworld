@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { RuleLibrary, SANDBOX_MAP, buildSandbox, type Engine, type Key, type ScenarioEntity } from '@openworld/engine'
 import { BASE_RULES, LIFE_SKILLS, RECIPE_BY_ID, SKILLS, buildOntology } from '../src/index.ts'
+import GAME from '../src/game.ts'
 
 const onto = buildOntology()
 const DAY = 14400
@@ -106,6 +107,19 @@ describe('smithing', () => {
     knows(eng, 'apprentice-smith', 'fine-craft', 'grandmaster-smith')
     expect(eng.controls.craft(RECIPE_BY_ID['smith/dagger-iron'])).toBe(true)
     expect(made('item/weapon/blade/dagger')[0].tags?.some((t) => t === 'quality:masterwork' || t === 'quality:fine')).toBe(true)
+  })
+})
+
+describe('smithing in an older save', () => {
+  it('a Masterwork learned before the engine named the lift (`anvil:masterwork`) is the lift (`anvil:lift`) once loaded', () => {
+    const eng = patch()
+    const w = eng.world
+    eng.author(() => w.setProp(w.player, 'anvil:masterwork', 0.15))
+    eng.author(() => GAME.upgradeSave!(eng))
+    expect(w.num(w.player, 'anvil:lift')).toBe(0.15)
+    expect(w.player.props?.['anvil:masterwork']).toBeUndefined()
+    // the skill grants the lift itself now
+    expect(SKILLS.find((x) => x.id === 'masterwork')?.grant).toEqual({ 'anvil:lift': 0.15 })
   })
 })
 
