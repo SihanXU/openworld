@@ -65,7 +65,12 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   `test/demo.test.ts` the completeness and minimality proof),
   `copyAssets.ts` (catalogue subset of the pack → `public/assets/na/`), `coverage.ts` (every item
   form × every target × every act through the rule library and the impulses it sends, counting
-  the holes; the numbers in `docs/roadmap.md` §1).
+  the holes; the numbers in `docs/roadmap.md` §1), `upstream.ts` (docs/upstream.md: a candidate from
+  `modder/src/promote.ts` — a class whose types learned one hole alike — as a content task of the
+  agent: `packages/content` writable, `packages/engine` read-only, the issue from the hole's source
+  and the evidence, a verdict the agent cannot touch (the generated promotion test from
+  `tasks/upstream/promotion.test.ts.tmpl`, the coverage regression, the content suite, the bounds);
+  a solved task is a branch and a PR a person merges, recorded as an `upstream` episode).
 - `packages/client` — `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
   `render/scene.ts` renders snapshots with the Ninja Adventure pack (`render/depth.ts` the draw order); `assets/figure/` draws looks
   (docs/looks.md): the 16x32 map sprite from code grids, the anime portrait from the cut layers in
@@ -193,6 +198,9 @@ npm run eval:objects     # five acts to find a known thing, five to create a new
 npm run latency -- --n 20 # live-profile latency bench (fresh library each run; costs model calls)
 npm run improve -- --select 8 --confirm 8   # one outer-loop turn (costs model calls)
 npm run engine-task -- toggle-status --state <dir>
+npm run upstream -- scan [--data var] [--sweep]   # candidates for base rules from the learned layer (no model)
+npm run upstream -- propose --candidate <n> | propose <hole> <class> [--note …] [--dry] [--max 3]   # one proposal → a PR (costs model calls; --dry prints the issue)
+npm run upstream -- status   # the proposals made and how they stand
 npm run agent -- swe --instances <file> --state <snapshot> --out predictions.jsonl [--env docker]
 npm run modder -- stats | snapshot <label> | export [label] | library [remove <id>]
 ```

@@ -356,12 +356,19 @@ function resultOf(out: string, stream: boolean): ClaudeResult {
   throw new Error('no result in the stream')
 }
 
+/**
+ * The CLI's traffic that is not the call: the update check, telemetry, error reports, surveys.
+ * Measured (2026-10-09, Opus 5.5 low, a one-word answer): with it a call is 3.5–3.8 s of wall
+ * for 1.1 s of API; without it 1.5–1.7 s. Every call of the modder's pays that, so it is off.
+ */
+const QUIET_CLI = { DISABLE_TELEMETRY: '1', DISABLE_AUTOUPDATER: '1', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1', DISABLE_ERROR_REPORTING: '1', DISABLE_COST_WARNINGS: '1', DISABLE_BUG_COMMAND: '1', DISABLE_FEEDBACK_SURVEY: '1' }
+
 function runClaude(bin: string, args: string[], stdin: string, timeoutMs: number, stream = false): Promise<{ data: ClaudeResult; ms: number }> {
   return new Promise((resolve, reject) => {
     const t0 = Date.now()
     // outside the repo, so the session picks up no project instructions
     const c = commandFor(bin, args)
-    const child = spawn(c.file, c.args, { cwd: tmpdir(), stdio: ['pipe', 'pipe', 'pipe'], shell: c.shell, windowsHide: true })
+    const child = spawn(c.file, c.args, { cwd: tmpdir(), stdio: ['pipe', 'pipe', 'pipe'], shell: c.shell, windowsHide: true, env: { ...process.env, ...QUIET_CLI } })
     let out = ''
     let err = ''
     const timer = setTimeout(() => (child.kill(), reject(new Error(`model: no answer within ${timeoutMs} ms`))), timeoutMs)

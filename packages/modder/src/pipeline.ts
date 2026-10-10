@@ -423,7 +423,7 @@ export class Modder {
         if (ask) {
           ep.attempts.push({ phase, errors: [ask.need ? 'asked for more things after the catalogue: write the patch now' : 'asked to create again: write the patch now'], warnings: [], raw: answer.slice(0, 2000) })
           if (repairs++ >= h.repair.maxRounds) break
-          retry(`${ask.need ? 'You have the catalogue.' : 'Creating is already under way.'} Answer now with ONLY the JSON object {"patch": {"artifacts": [...]}, "summary": "..."}.`, 'repair')
+          retry(`${ask.need ? 'You have the catalogue.' : 'Creating is already under way.'} Answer now with ONLY the JSON object {"patch": {"artifacts": [...]}}.`, 'repair')
           continue
         }
         const { patch: draft, fixes } = normalizePatch(parsed)
@@ -856,7 +856,7 @@ function unreadable(answer: string): string {
   const text = answer.slice(a, b + 1)
   try {
     JSON.parse(text)
-    return 'the answer is JSON but holds no patch: answer {"patch": {"artifacts": [...]}, "summary": "..."}'
+    return 'the answer is JSON but holds no patch: answer {"patch": {"artifacts": [...]}}'
   } catch (err) {
     const msg = (err as Error).message
     const at = Number(/position (\d+)/.exec(msg)?.[1] ?? -1)

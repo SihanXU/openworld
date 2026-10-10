@@ -95,6 +95,9 @@ When a request needs a new primitive, condition or expectation, the task is the 
   the hidden test passes and so does everything else.
 - **Tasks so far:** `toggle-status` (a new effect primitive: types, runner, docs, validator)
   and `prop-eq` (a new test expectation).
+- **Upstream proposals** are a task kind too (`tools/src/upstream.ts`, docs/upstream.md): the
+  content's base rules as the repository, the engine read-only, a generated promotion test and the
+  coverage regression as the hidden judge; a solved task is a pull request a person merges.
 
 ### 3.4 SWE-like instances (`agent/src/swe.ts`, `npm run agent -- swe`)
 

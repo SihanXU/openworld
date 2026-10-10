@@ -1,7 +1,8 @@
 # The upstream loop: the AI proposes base rules (proposed, 2026-10-09)
 
-Status: **design to discuss; nothing coded.** An RSI design change (CLAUDE.md): it is agreed with
-the user before it is built.
+Status: **built (2026-10-09):** the detector, the task, the verdict, the proposal and the CLI, with
+the thresholds §8 asked about decided (K = 3, S = one half, N = 5, L = 80; a person merges; a
+declined proposal is only recorded). See "As built" at the end.
 
 ## 1. Why
 
@@ -130,3 +131,34 @@ on every curriculum checkpoint.
 3. Merge by a person always, or auto-merge when the four tests pass and the diff is within
    bounds? Proposal: a person, until ten proposals have been reviewed.
 4. Does a declined proposal teach the agent (a lesson), or only the record?
+
+## 9. As built (2026-10-09)
+
+| Piece | File |
+|---|---|
+| S1 and S2, `normalizeTree` / `normalKey`, `lowestCommonAncestor`, `askedCounts` (every question the log took, by `type|kind|hole`), `candidates()` | `packages/modder/src/promote.ts` |
+| the workspace (`contentWorkspace`: the engine's files read-only and hashed; the judge's sweep runner in `.upstream/`, out of the diff), the issue (`issueFor`, the hole quoted from its source by `holeSource`), the promotion cases (`promotionCases`, derive.ts's `effectsOf` without `resolvedBy`) and test (`promotionTest`), the coverage regression (`compareSweeps`: a defined cell keeps its rule; what is newly defined is at the hole, on the class), the bounds (`checkBounds`), the task (`upstreamTask`), the proposal (`openProposal`: a branch `upstream/<hole>-<class>` from HEAD in a temporary worktree, the diff applied, pushed, `gh pr create --base main --label upstream`), the guard rails (`Proposals`: `var/upstream/open.json`, one open per hole and class, a daily cap), the driver (`propose`, `scan`, `byHand`, `status`) | `packages/tools/src/upstream.ts` |
+| the promotion test template (`/*__CASES__*/` takes the cases) | `packages/tools/tasks/upstream/promotion.test.ts.tmpl` |
+| the sweep's cells carry `open`, the key an answer would go to (`type|kind|hole`): the class's reach at a hole | `packages/tools/src/coverage.ts` |
+| tests: three slimes alike → one S1 candidate; a differing sibling apart; S2 at five questions; the task's issue; the promotion test failing on the content as it is and passing with a class rule; the whole verdict; the bounds and the regression | `packages/modder/test/promote.test.ts`, `packages/tools/test/upstream.test.ts` |
+
+```
+npm run upstream -- scan [--data var] [--sweep]          # the candidates now; --sweep adds the sweep's reach and each learned rule's cells
+npm run upstream -- propose --candidate <n> [--sweep]    # one proposal: the task, the agent, the verdict, the PR
+npm run upstream -- propose <hole> <class> [--kind k] [--note …]   # S3, by hand
+npm run upstream -- … --dry                              # build the task and print its issue; no model
+npm run upstream -- … --max 3 --L 80 --state <dir> --preset tuned
+npm run upstream -- status                               # the proposals and how they stand (gh says merged / declined)
+```
+
+The record: the episode (`kind: 'upstream'`, the PR url in its `submission`, the new rule's id in
+`rules`) in the modder's self-state (`var/modder-state`), and the proposal in `var/upstream/open.json`.
+What §4 describes after the merge (`library prune`, the next sweep) needs nothing new: the base
+answers the scenes, the validator reports it, the learned rules go.
+
+Deviations from the design above: the verdict runs the content suite only (`vitest run
+packages/content`; the tools' suite — the demo's completeness, the baseline — is not in the
+workspace, which holds the engine and the content as the engine tasks do); a proposal is judged
+locally with the person running it (`localRun`), or in the `lsw-sandbox` container unattended, as
+engine tasks are; the regression also refuses a rule that newly answers cells outside the hole and
+class proposed (the bound "one hole, one class" made checkable).
