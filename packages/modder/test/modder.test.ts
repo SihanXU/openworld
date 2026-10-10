@@ -165,7 +165,7 @@ function setup(model?: Model, dir = mkdtempSync(join(tmpdir(), 'lsw-modder-')), 
   const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
   const state = SelfState.open(join(dir, 'modder-state'))
   // these tests drive the patch pipeline (json); the repo-form agent has its own tests; the auditor too (audit.test.ts)
-  state.setHarness({ ...state.harness(), audit: { ...auditOf(state.harness()), enabled: false }, offline: { ...state.harness().offline, design: { ...state.harness().offline.design, mode: 'json' } } }, 'test: json pipeline offline')
+  state.setHarness({ ...state.harness(), audit: { ...auditOf(state.harness()), enabled: false }, reflect: { ...state.harness().reflect, batch: 4 }, offline: { ...state.harness().offline, design: { ...state.harness().offline.design, mode: 'json' } } }, 'test: json pipeline offline')
   const modder = new Modder({ library, state, model, profile })
   return { dir, library, state, modder }
 }
@@ -1186,8 +1186,10 @@ describe('checks that hold their ground', () => {
     const { model, calls } = scripted([patchOf(bindRule())], { review: () => ({ thoughts: 'looks fine to me' }) })
     const { modder, state } = setup(model)
     const reply = await modder.resolve({ request: request() })
-    expect(calls.review).toBe(2)
     expect(state.episode(reply.episode!)!.attempts.at(-1)!.review).toEqual({ verdict: 'error', notes: [] })
+    // no verdict before shipping (asked twice): the rule ships, and is reviewed again after the fact (twice more)
+    await modder.settled()
+    expect(calls.review).toBe(4)
     // and a verdict in capitals is read as what it says
     const again = scripted([patchOf(bindRule()), patchOf(bindRule('patch/stone-stills-creature-2'))], { review: (n) => (n === 0 ? { verdict: 'REVISE', notes: ['say what happens'] } : { verdict: 'ship', notes: [] }) })
     const s2 = setup(again.model)

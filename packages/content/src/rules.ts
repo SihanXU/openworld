@@ -247,6 +247,8 @@ const ROOTS: Rule[] = [
 // ------------------------------------------------------------------ actors: bodies
 
 const PERSON: Selector = { type: 'actor/person' }
+/** News sent by a thing or a creature (what a learned rule may speak for), as against the story's or a person's. */
+const FROM_THING: Cond = any(is('source', { type: 'item' }), is('source', { type: 'fixture' }), is('source', { type: 'tile' }), is('source', { type: 'actor/creature' }))
 const ACTOR: Selector = { type: 'actor' }
 const ESSENTIAL: Selector = { type: 'actor', tags: ['essential'] }
 /** What one carried, bundled where one fell (body/rise). */
@@ -469,10 +471,11 @@ const BODIES: Rule[] = [
       param('what', 'mend'),
       DO({ op: 'heal', amount: { param: 'amount' } }, vfx('heal')),
       IF(
-      param('what', 'quest'),
+      // (one's stage is the story's word, never a thing's: not what a learned rule speaking for a stone could tell)
+      all(param('what', 'quest'), not(FROM_THING)),
       // a stage only goes forward (a quest handed in late tells an earlier one: the pilgrim's road after the river)
       IF({ prop: { role: 'host', key: 'quest', bounds: { lt: { param: 'value' } }, default: -1 } }, DO({ op: 'setProp', key: 'quest', value: { param: 'value' } }), DO()),
-      IF(param('what', 'prologue'), DO({ op: 'setProp', key: 'prologue', value: { param: 'value' } }), 'inherit'),
+      IF(all(param('what', 'prologue'), not(FROM_THING)), DO({ op: 'setProp', key: 'prologue', value: { param: 'value' } }), 'inherit'),
     )))),
   }),
 ]
@@ -1523,7 +1526,9 @@ const JOURNEY: Rule[] = [
     doc: 'The story settles a quest\'s business it is told of: a word between a giver and the one who spoke to them, a defeat (quests.ts).',
     host: { type: 'resident/story' },
     on: 'impulse/notify',
-    tree: IF(param('what', 'quest'), DO({ op: 'quests' }), IF(param('what', 'defeat'), DO({ op: 'quests' }), 'inherit')),
+    // (a quest's word comes from a person, a defeat from the one felled, which may be gone by the time its news arrives:
+    // never from a thing a learned rule speaks for)
+    tree: IF(any(is('source', { type: 'item' }), is('source', { type: 'fixture' }), is('source', { type: 'tile' })), 'inherit', IF(param('what', 'quest'), DO({ op: 'quests' }), IF(param('what', 'defeat'), DO({ op: 'quests' }), 'inherit'))),
   }),
   rule({
     id: 'creature/not-taken',

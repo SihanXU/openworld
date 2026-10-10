@@ -110,7 +110,7 @@ describe('base library', () => {
     // and leave an outcome undefined (a hole the AI fills).
     const res = validatePatch({ artifacts: [...BASE_RULES, ...STORY_RULES].map((r) => ({ kind: 'rule' as const, rule: r })) }, { ontology: onto, library: new RuleLibrary() })
     // ...and only a learned rule has a place (design.md §5.16): one exact type, one kind, a hole, no inherit.
-    const placement = /host must be exactly|hole required|exact event kind|never inherits|no leaf answers|no default of its own/
+    const placement = /host must be exactly|hole required|exact event kind|never inherits|no leaf answers|no default of its own|may notify only a topic/
     expect(res.errors.filter((e) => !placement.test(e))).toEqual([])
   })
 

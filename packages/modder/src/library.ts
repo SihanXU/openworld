@@ -10,6 +10,8 @@ import { connected, economySteps, freeLunch } from './economy.ts'
 import {
   RuleLibrary,
   RepeatLimitError,
+  holeKey,
+  patchKey,
   buildModSpec,
   buildSandbox,
   checkExpectations,
@@ -107,6 +109,8 @@ export class WorldLibrary {
    * answering rule is returned, and no model is needed.
    */
   covering(req: ModRequest): { rule: string; patch: Patch } | undefined {
+    // no learned tree where this question falls: no patch can answer it (design.md §5.16), no replay needed
+    if (!this.lib.tree(patchKey(req.event.host?.type ?? '-', req.event.kind, holeKey(req.hole.rule, req.hole.path)))) return undefined
     const rule = this.answering(req)
     if (!rule) return undefined
     for (let i = this.log.length - 1; i >= 0; i--) {
@@ -140,7 +144,8 @@ export class WorldLibrary {
     withTerrainTypes(this.ontology)
     // Public ontology and workspace data can change without a mutator or sequence bump.
     const artifacts = patch?.artifacts?.map((a) => a?.kind === 'rule' && a.rule ? { ...a, rule: { ...a.rule, tests: undefined } } : a)
-    const key = createHash('sha256').update(JSON.stringify([this.lib.version, [...this.lib.rules.values()], this.lib.types, this.lib.statuses, this.ontology, ws, req?.scenario, replaces, artifacts])).digest('hex')
+    // (the library's version moves with every add and removal, so its rules need not be hashed)
+    const key = createHash('sha256').update(JSON.stringify([this.lib.version, this.lib.types, this.lib.statuses, this.ontology, ws, req?.scenario, replaces, artifacts])).digest('hex')
     const rules = patch?.artifacts?.flatMap((a) => a?.kind === 'rule' && a.rule ? [a.rule] : []) ?? []
     const tests = rules.map((r) => (r.tests ?? []).map((t) => JSON.stringify(t)))
     const proof = this.proofs.get(key)

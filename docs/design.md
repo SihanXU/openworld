@@ -955,6 +955,34 @@ but never consulted; `library prune` lists and rolls back what the validator no 
 - A boss is not lashed down by a handful of grass: `creature/offered` leaves bosses to their own
   kind's answer.
 
+**The god loop held to its own review (`fix/god-loop`, the same day):**
+
+- A learned rule may give the story a topic and nothing else (`notify` with `what: topic`); a stage,
+  a defeat, a reward, a status are the game's own news. The records trust only their own sources
+  besides: a person keeps a stage told by the story, a book or a skill (`body/stage`), the story
+  settles a quest's word from a person and a defeat from the one felled (`story/quests`).
+- The validator knows every tag the world has (the types', the terrains', the instances', the base
+  rules') and refuses one nothing carries; families made at run time (`skill:`, `profession:`,
+  `faction:`…) pass by their prefix.
+- The repeat check counts what the actor gains as a yield too: experience or fullness that goes up
+  with nothing between.
+- The auditor's deterministic probe runs first: the scene's own act thirty times, with the patch and
+  without it; things made or numbers gained beyond what the world gave without the patch are a
+  farm, found with no model call. The model is asked only when the probe finds nothing. Its acts
+  reach as far as the event did (as the validator's replay).
+- A reviewer that gives no verdict before shipping is no review: the rule ships and is reviewed
+  after the fact, flagged so. In the repo mode, what the auditor broke goes back to the agent once
+  (the findings and the draft in its issue), as the pipeline gives it to the designer.
+- A client reports a learned rule it set aside (`POST /fault`); past the harness's bound
+  (`faults.remove`, two clients) the rule leaves the shared library and goes to an offline revision.
+- While a scene plays, the world's own questions hold nobody: the default runs at once and a late
+  answer still applies. A step with a region is looked at again every three seconds while one
+  stands in a region (a thing picked up there, the hour), not only on entering it.
+- Cost: a sandbox shares the world's ontology (the index copies on its first write) instead of
+  cloning 334 types per build; a library builds its indexes once when made or cloned, not once per
+  rule; the validation proof's key is the library's version, not every rule stringified; a request
+  whose host type has no learned tree at its hole skips the covering replay.
+
 **The base's general cases (the same day).** With generalization moved to the base, the base
 took the class-level answers the curriculum had been learning one patch at a time
 (`rules.ts` GENERAL): a thing used on a creature is held out to it, as §5.2 says (`core/use`);

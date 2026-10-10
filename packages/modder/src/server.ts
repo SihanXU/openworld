@@ -4,6 +4,7 @@
 //   GET  /patches?since=n the shared library's patch log after seq n (clients sync from it)
 //   GET  /stats           the numbers the paper reports
 //   GET  /progress?id=r   where request r is (queued, local, find, create, art; {} when not here)
+//   POST /fault           {rule, reason, client?}: a client set a learned rule aside at run time
 
 import { createServer, type IncomingMessage, type Server } from 'node:http'
 import type { ResolveBody } from '@lsw/engine'
@@ -36,6 +37,11 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
       }
       if (req.method === 'GET' && url.pathname === '/progress') return send(200, modder.progressOf(url.searchParams.get('id') ?? '') ?? {})
       if (req.method === 'GET' && url.pathname === '/stats') return send(200, { library: libraryInfo(), state: state.stats(), snapshots: state.snapshots() })
+      if (req.method === 'POST' && url.pathname === '/fault') {
+        const body = (await readJson(req, 64_000)) as { rule?: unknown; reason?: unknown; client?: unknown }
+        if (typeof body?.rule !== 'string') return send(400, { error: 'rule required' })
+        return send(200, modder.fault(body.rule, String(body.reason ?? ''), typeof body.client === 'string' ? body.client : (req.socket.remoteAddress ?? 'anon')))
+      }
       if (req.method === 'POST' && url.pathname === '/resolve') {
         const body = (await readJson(req, opts.maxBody ?? 4_000_000)) as ResolveBody
         return send(200, await modder.resolve(body))

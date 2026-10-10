@@ -1,0 +1,129 @@
+// The god loop held to review (docs/design.md §5.16, the artifact's §11): what a learned rule may
+// tell the story, what the validator knows of tags, what the repeat check counts, what the probe
+// finds without a model, faults reported by clients, scenes not held up by the world's questions.
+
+import { describe, expect, it } from 'vitest'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { ModPort, RuleLibrary, buildSandbox, holeKey, placePatch, validatePatch, type Patch, type Rule, type Scenario } from '@lsw/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { SelfState } from '@lsw/agent'
+import { Modder, WorldLibrary, probe, withPatch } from '../src/index.ts'
+
+const onto = buildOntology()
+const BASE = [...BASE_RULES, ...STORY_RULES]
+const STONE = 'item/material/stone'
+const TREE = 'fixture/nature/dead_tree'
+const SLIME = 'actor/creature/slime/green_slime'
+
+const scene = (target: string, held = STONE): Scenario => ({
+  entities: [
+    { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+    { key: 'held', type: held, x: 2, y: 2, heldBy: 'actor' },
+    { key: 'it', type: target, x: 2, y: 1 },
+  ],
+  event: {},
+})
+
+function ask(target: string, lib = new RuleLibrary(BASE)) {
+  const eng = buildSandbox(scene(target), onto, lib)
+  const port = new ModPort(eng)
+  eng.act('use', 'actor', { e: 'it' })
+  return { eng, port, req: port.records[0]?.request }
+}
+
+const rule = (id: string, tree: Rule['tree']): Patch => ({ artifacts: [{ kind: 'rule', rule: { id, host: { type: 'x' }, on: 'x', label: 'Use {instrument} on {target}', tree } }] })
+
+describe("a learned rule and the story's records", () => {
+  it('may notify only a topic: the quest stage, a defeat, a reward are the game\'s own news', () => {
+    const { req, eng } = ask(TREE)
+    const says = (what: string) => validatePatch(placePatch(rule('patch/news', { do: [{ op: 'emit', impulse: 'notify', to: 'actor', params: { what, value: 9 } }] }), req).patch, { ontology: onto, library: eng.lib, scenario: req.scenario }).errors.join()
+    expect(says('quest')).toMatch(/may notify only a topic/)
+    expect(says('defeat')).toMatch(/may notify only a topic/)
+    expect(says('status')).toMatch(/may notify only a topic/)
+    expect(says('topic')).toBe('')
+  })
+
+  it('and the records trust only their own sources: news of a stage from a stone changes nothing', () => {
+    const { req, eng, port } = ask(TREE)
+    // the validator refuses it; slipped past it (a hand-built rule), the person's own rule ignores news from a thing
+    const sneaked: Rule = { ...(placePatch(rule('patch/news', { do: [{ op: 'emit', impulse: 'notify', to: 'actor', params: { what: 'quest', value: 9 } }] }), req).patch.artifacts[0] as { rule: Rule }).rule, source: { origin: 'patch' } }
+    eng.lib.add(sneaked)
+    eng.act('use', 'actor', { e: 'it' })
+    expect(eng.world.player.props?.quest).toBeUndefined()
+    expect(port.records).toHaveLength(1)
+  })
+})
+
+describe('the validator and the repeat check', () => {
+  it('knows every tag the world has: a tag nothing carries is refused, a family made at run time is not', () => {
+    const { req, eng } = ask(TREE)
+    const withTag = (tag: string) => validatePatch(placePatch(rule('patch/tag', { if: { has: { role: 'target', tag } }, then: { do: [] }, else: { undefined: true } }), req).patch, { ontology: onto, library: eng.lib }).errors.join()
+    expect(withTag('heavy')).toBe('')
+    expect(withTag('nosuchtag')).toMatch(/no thing in the world carries the tag "nosuchtag"/)
+    expect(withTag('skill:whatever')).toBe('')
+  })
+
+  it('counts experience gained for nothing as a yield', () => {
+    const { req, eng } = ask(TREE)
+    const xp = placePatch(rule('patch/xp', { do: [{ op: 'emit', impulse: 'notify', to: 'actor', params: { what: 'topic' } }] }), req).patch
+    expect(validatePatch(xp, { ontology: onto, library: eng.lib, scenario: req.scenario }).ok).toBe(true)
+    // a hand-built rule that raises the actor's xp through its own hands (the host writes only itself: here the host is the stone, so it cannot;
+    // the probe below shows the farm when a receiver does)
+    const found = probe(req, onto, eng.lib, withPatch(eng.lib, xp))
+    expect(found).toEqual([])
+  })
+
+  it('the probe finds a farm without a model: a thing made on every use that costs nothing', () => {
+    const { req, eng } = ask(TREE)
+    const farm = placePatch(rule('patch/farm', { do: [{ op: 'spawn', type: STONE, at: 'actor', into: 'contents' }] }), req).patch
+    const found = probe(req, onto, eng.lib, withPatch(eng.lib, farm))
+    expect(found.map((f) => f.kind)).toEqual(['farm'])
+    expect(found[0].evidence).toMatch(/with the patch/)
+    const fair = placePatch(rule('patch/fair', { do: [{ op: 'spawn', type: STONE, at: 'actor', into: 'contents' }, { op: 'destroy' }] }), req).patch
+    expect(probe(req, onto, eng.lib, withPatch(eng.lib, fair))).toEqual([])
+  })
+})
+
+describe('faults and scenes', () => {
+  it('a learned rule set aside by enough clients leaves the shared library', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'lsw-fault-'))
+    const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
+    const state = SelfState.open(join(dir, 'modder-state'))
+    state.setHarness({ ...state.harness(), revise: false, faults: { remove: 2 } }, 'test')
+    const modder = new Modder({ library, state })
+    const { req } = ask(TREE)
+    const p = placePatch(rule('patch/wobbly', { do: [{ op: 'log', text: 'x' }] }), req).patch
+    expect(library.commit(p, req).ok).toBe(true)
+    expect(modder.fault('patch/wobbly', 'a chain that does not end', 'client-a')).toMatchObject({ counted: 1, removed: false })
+    expect(library.lib.rules.has('patch/wobbly')).toBe(true)
+    expect(modder.fault('patch/wobbly', 'a chain that does not end', 'client-b')).toMatchObject({ counted: 2, removed: true })
+    expect(library.lib.rules.has('patch/wobbly')).toBe(false)
+    expect(modder.fault('use/eat', 'x', 'client-a')).toMatchObject({ counted: 0, removed: false })
+  })
+
+  it("while a scene plays, the world's own question does not hold anyone: the default runs, the answer still applies", () => {
+    const eng = buildSandbox(scene(SLIME), onto, new RuleLibrary(BASE))
+    const port = new ModPort(eng)
+    let resolve!: (p: Patch | null) => void
+    port.provider = { resolve: () => new Promise<Patch | null>((r) => (resolve = r)) }
+    eng.world.scene = { id: 'x', step: 0 }
+    // a world event the slime has no answer to: a stone held out to it by the world
+    eng.queue({ kind: 'impulse/offered', host: { e: 'it' }, roles: { item: { e: 'held' }, source: { e: 'held' } }, params: {}, origin: 'world' })
+    eng.flush()
+    expect(port.records).toHaveLength(1)
+    expect(port.records[0].status).toBe('fallback')
+    expect(eng.world.get('it')!.frozenBy).toBeUndefined()
+    const answer = placePatch({ artifacts: [{ kind: 'rule', rule: { id: 'patch/sniff', host: { type: 'x' }, on: 'x', tree: { do: [{ op: 'addStatus', status: 'stunned', duration: 5 }] } } }] }, port.records[0].request).patch
+    resolve(answer)
+    return new Promise<void>((done) => setTimeout(() => (expect(eng.world.hasStatus({ e: 'it' }, 'stunned')).toBe(true), done()), 20))
+  })
+
+  it('a stale hole key is told apart from a real one', () => {
+    const { req, eng } = ask(TREE)
+    expect(holeKey(req.hole.rule, req.hole.path)).toMatch(/^core\/use#/)
+    const r = (placePatch(rule('patch/x', { do: [] }), req).patch.artifacts[0] as { rule: Rule }).rule
+    expect(validatePatch({ artifacts: [{ kind: 'rule', rule: { ...r, hole: 'core/use#!{"none":"instrument"}' } }] }, { ontology: onto, library: eng.lib }).errors.join()).toMatch(/not an open leaf/)
+  })
+})

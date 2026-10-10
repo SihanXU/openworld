@@ -84,6 +84,8 @@ export class Engine {
   npcs: NpcSim
   /** Everyone's goals (behaviour.ts). */
   behaviour: Behaviour
+  /** Told when a learned rule is set aside at run time (the client reports it to the service). */
+  onFault?: (rule: import('./types.ts').Rule, reason: string) => void
   /** The story's script: its steps, scenes and beats (story.ts). */
   story: Story
   /** The player's inputs, slots and magnet (design.md §5.2–5.3). */
@@ -292,6 +294,7 @@ export class Engine {
       // it leaves the library: its leaf is open again, for the validator's replays as for the game
       this.lib.remove(rule.id)
       this.world.fx.push({ t: 'log', text: `learned rule ${rule.id} is set aside: ${reason}`, tone: 'dev' })
+      this.onFault?.(rule, reason)
     }
     return true
   }
