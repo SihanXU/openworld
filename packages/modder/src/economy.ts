@@ -16,7 +16,7 @@
 // there is none, the simplex's dual gives prices (every thing at least 1) under which no step
 // gives more value than it takes: the proof that nothing comes from nothing.
 
-import { OntologyIndex, cmp, compareSpec, deriveRecipes, isA, isPatch, kindCovers, specOf, type Amount, type Cond, type Effect, type Ontology, type PropValue, type Reader, type Rule, type Selector, type Tree } from '@lsw/engine'
+import { OntologyIndex, cmp, compareSpec, deriveRecipes, isA, isPatch, kindCovers, specOf, type Amount, type Cond, type Effect, type Ontology, type PropValue, type Reader, type Rule, type Selector, type Tree } from '@openworld/engine'
 
 export interface Step {
   name: string

@@ -5,7 +5,6 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { createHash } from 'node:crypto'
-import { RECOVERY } from '@lsw/content'
 import { connected, economySteps, freeLunch } from './economy.ts'
 import {
   RuleLibrary,
@@ -27,7 +26,7 @@ import {
   type Rule,
   type Scenario,
   type ValidationResult,
-} from '@lsw/engine'
+} from '@openworld/engine'
 
 export interface CommitResult {
   ok: boolean
@@ -202,8 +201,9 @@ export class WorldLibrary {
     const known = [...lib.rules.values()]
     // what the world could not model before is not this patch's to report: only what it adds
     const had: string[] = []
-    const old = economySteps(before, known, RECOVERY, had)
-    const all = economySteps(after, [...known, ...rules], RECOVERY, warnings)
+    const recovery = this.ontology.params?.recovery ?? 0.5
+    const old = economySteps(before, known, recovery, had)
+    const all = economySteps(after, [...known, ...rules], recovery, warnings)
     const seen = new Set(had)
     warnings.splice(0, warnings.length, ...warnings.filter((w) => !seen.has(w)))
     const key = (s: (typeof all)[number]) => JSON.stringify([s.name, [...s.takes].sort(), [...s.gives].sort()])

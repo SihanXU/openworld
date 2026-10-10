@@ -1,0 +1,148 @@
+{
+  "types": {
+    "resident": { "id": "resident", "name": { "en": "the world", "zh": "世界" } },
+    "resident/world": { "id": "resident/world", "name": { "en": "the world", "zh": "世界" } },
+    "resident/story": { "id": "resident/story", "name": { "en": "the story", "zh": "故事" } },
+    "resident/quest": { "id": "resident/quest", "name": { "en": "quest", "zh": "任务" } },
+    "region": { "id": "region", "name": { "en": "an area", "zh": "区域" } },
+    "region/room": { "id": "region/room", "name": { "en": "a room", "zh": "房间" } },
+    "site": {
+      "id": "site",
+      "name": { "en": "a place", "zh": "地点" },
+      "sprite": "site",
+      "footprint": [3, 3],
+      "props": { "handsRange": 0 }
+    },
+    "site/wild": { "id": "site/wild", "name": { "en": "the wild", "zh": "荒野" }, "sprite": "site:wild" },
+    "site/place": { "id": "site/place", "name": { "en": "a place", "zh": "地点" }, "sprite": "site:place" },
+    "actor": {
+      "id": "actor",
+      "name": { "en": "creature", "zh": "生物" },
+      "tags": ["agent"],
+      "props": { "level": 1, "material": "flesh" }
+    },
+    "actor/person": {
+      "id": "actor/person",
+      "name": { "en": "person", "zh": "人" },
+      "tags": ["person", "living", "talkable"],
+      "props": { "hp": 20, "maxHp": 20, "atk": 1, "def": 0, "speed": 2, "sight": 7 },
+      "sprite": "person"
+    },
+    "actor/person/player": {
+      "id": "actor/person/player",
+      "name": { "en": "you", "zh": "你" },
+      "tags": ["essential"],
+      "props": { "hp": 30, "maxHp": 30, "atk": 2, "def": 0, "speed": 2 }
+    },
+    "actor/creature": {
+      "id": "actor/creature",
+      "name": { "en": "creature", "zh": "怪物" },
+      "tags": ["creature", "living"],
+      "props": { "hp": 10, "maxHp": 10, "atk": 2, "def": 0, "speed": 6 }
+    },
+    "item": { "id": "item", "name": { "en": "item", "zh": "物品" }, "tags": ["portable"] },
+    "fixture": { "id": "fixture", "name": { "en": "thing", "zh": "物件" }, "reach": ["ground"] },
+    "fixture/container": {
+      "id": "fixture/container",
+      "name": { "en": "container", "zh": "容器" },
+      "tags": ["container"],
+      "solid": true
+    },
+    "structure": {
+      "id": "structure",
+      "name": { "en": "structure", "zh": "建筑件" },
+      "tags": ["portable", "structure"]
+    },
+    "item/misc": { "id": "item/misc", "name": { "en": "thing", "zh": "杂物" } },
+    "item/misc/bundle": {
+      "id": "item/misc/bundle",
+      "name": { "en": "Lost Belongings", "zh": "遗落的包裹" },
+      "tags": ["belongings", "container"],
+      "sprite": "item:bundle"
+    }
+  },
+  "statuses": {
+    "burning": {
+      "id": "burning",
+      "name": { "en": "burning", "zh": "燃烧" },
+      "duration": 45,
+      "clears": ["frozen"],
+      "overlay": "fire"
+    },
+    "wet": {
+      "id": "wet",
+      "name": { "en": "wet", "zh": "潮湿" },
+      "duration": 400,
+      "clears": ["burning"],
+      "overlay": "wet"
+    },
+    "frozen": {
+      "id": "frozen",
+      "name": { "en": "frozen", "zh": "冰冻" },
+      "duration": 40,
+      "clears": ["burning", "wet"],
+      "immobilize": true,
+      "overlay": "ice"
+    },
+    "thawed": { "id": "thawed", "name": { "en": "thawing", "zh": "刚解冻" }, "duration": 80 },
+    "electrified": {
+      "id": "electrified",
+      "name": { "en": "electrified", "zh": "感电" },
+      "duration": 8,
+      "immobilize": true,
+      "overlay": "spark"
+    },
+    "oiled": { "id": "oiled", "name": { "en": "oiled", "zh": "油污" }, "duration": 900, "overlay": "oil" },
+    "lit": { "id": "lit", "name": { "en": "lit", "zh": "点燃" }, "overlay": "flame" },
+    "open": { "id": "open", "name": { "en": "open", "zh": "打开" } },
+    "stage": { "id": "stage", "name": { "en": "growing", "zh": "生长中" } },
+    "down": { "id": "down", "name": { "en": "down", "zh": "倒地" }, "duration": 300, "immobilize": true },
+    "due": { "id": "due", "name": { "en": "due", "zh": "期限" } },
+    "asleep": { "id": "asleep", "name": { "en": "asleep", "zh": "睡着" }, "immobilize": true },
+    "out_cold": {
+      "id": "out_cold",
+      "name": { "en": "out cold", "zh": "昏迷" },
+      "duration": 50,
+      "immobilize": true
+    },
+    "sneaking": { "id": "sneaking", "name": { "en": "sneaking", "zh": "潜行" }, "moveDelay": 1.6 },
+    "drawn": { "id": "drawn", "name": { "en": "weapon drawn", "zh": "拔出武器" } }
+  },
+  "terrains": {
+    "void": {
+      "id": "void",
+      "name": { "en": "void", "zh": "虚空" },
+      "tags": ["solid"],
+      "solid": true,
+      "color": "#000000"
+    }
+  },
+  "elements": ["fire", "water", "ice", "lightning", "wind", "earth"],
+  "vfx": [
+    "steam",
+    "splash",
+    "fire_burst",
+    "sparks",
+    "frost",
+    "smoke",
+    "poof",
+    "heal",
+    "hit",
+    "explosion",
+    "leaves",
+    "dust",
+    "sparkle",
+    "gust",
+    "shatter"
+  ],
+  "thresholds": [{ "name": "broken", "prop": "hp", "lte": 0 }],
+  "params": {
+    "recovery": 0.5,
+    "safeFall": 1,
+    "fallDamage": 6,
+    "riseHour": 6,
+    "rest": 0.5,
+    "reach": 1,
+    "carry": 1
+  }
+}

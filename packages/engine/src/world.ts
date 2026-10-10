@@ -24,7 +24,7 @@ import type {
 } from './types.ts'
 import { DIRS } from './types.ts'
 import { matchSelector } from './rules.ts'
-import type { Social } from './social.ts'
+import type { CondImpl } from './module.ts'
 
 export const tileKey = (map: string, x: number, y: number) => `${map}:${x}:${y}`
 /** A cell's key in the index: its tile, and its storey above the ground's. */
@@ -93,8 +93,12 @@ export class World {
   fx: FxEvent[] = []
   /** The last lines logged or said, kept past the drain of `fx` (a request's recent context). */
   recent: Text[] = []
-  /** The people's social mechanisms (social.ts), lent by the engine: what the conditions on regard, deeds and the law read. */
-  social?: Social
+  /** What the world's modules keep on it for their conditions to read (a society's mechanisms), by key. */
+  ext = new Map<string, unknown>()
+  /** The conditions the world's modules add (module.ts), by the key that names each. */
+  condImpls: [string, CondImpl][] = []
+  /** Whether a worn thing works for its wearer, as the world's modules say (a profession's piece: only for its own). */
+  wears: ((e: Entity, item: Entity) => boolean)[] = []
   /**
    * What the quests watch (docs/quests.md): the story's facts changing, a thing gone; and the tags a quest under way
    * gives what it names (essential people, kept things) — derived, never stored.
@@ -967,16 +971,14 @@ export class World {
     return Array.from({ length: n }, (_, i) => (i ? `wear:${slot}.${i + 1}` : `wear:${slot}`))
   }
 
-  /** What a thing wears: what each of its `wear:<slot>` props names, while it still has it (in its bag or its hand) and, a profession's piece, follows that profession. */
+  /** What a thing wears: what each of its `wear:<slot>` props names, while it still has it (in its bag or its hand) and it works for it (`wears`). */
   worn(e: Entity): Entity[] {
     const out: Entity[] = []
     for (const [k, id] of Object.entries(e.props ?? {})) {
       if (!k.startsWith('wear:') || typeof id !== 'string') continue
       const w = this.get(id)
       if (!w || (w.place.on !== 'inside' && w.place.on !== 'hand') || w.place.holder !== e.id) continue
-      // a profession's piece (the warrior's shield) works only for its own (profession.ts)
-      const need = [...this.onto.resolve(w.type).tags, ...(w.tags ?? [])].find((t) => t.startsWith('profession:'))
-      if (need && need.slice('profession:'.length) !== this.prop(e, 'profession')) continue
+      if (!this.wears.every((f) => f(e, w))) continue
       out.push(w)
     }
     return out
@@ -1292,9 +1294,10 @@ export class World {
     return calendarAt(this.state.tick, this.state.seed).hour
   }
 
-  /** How much longer the night is than at the start (hours): the story's `night.shift` (docs/chapter-1.md). */
+  /** How much longer the night is than at the start (hours): the story's fact the world names (`params.nightFact`). */
   nightShift(): number {
-    const v = this.fact('night.shift')
+    const key = this.onto.data.params?.nightFact
+    const v = key ? this.fact(key) : undefined
     return typeof v === 'number' ? v : 0
   }
 

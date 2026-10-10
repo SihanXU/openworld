@@ -150,6 +150,8 @@ export interface WorldParams {
   carry?: number
   /** How many of a body's wearing slots there are of a kind, where more than one (two hands, two rings): `wear:ring`, `wear:ring.2`. */
   slotCount?: Record<string, number>
+  /** The story's fact that lengthens the night by so many hours (a number; the Ford's `night.shift`): none, the night keeps its length. */
+  nightFact?: string
 }
 
 /** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */
@@ -203,6 +205,8 @@ export interface TerrainDef {
 }
 
 export interface Ontology {
+  /** The modules the game uses (module.ts, docs/engine-split.md §4), installed in this order with every engine made over it. */
+  modules?: string[]
   types: Record<string, TypeDef>
   /** What people take as deeds (docs/npc-sandbox.md §2.2), the watches, the numbers of their social life. */
   deeds?: DeedDef[]
@@ -1382,6 +1386,9 @@ export type EmitTo =
  * The effect primitives. Every one writes only the host (design.md §5.6: read anything, write only
  * yourself), spawns, or presents; `emit` sends an event to others, which answer for themselves.
  */
+/** The primitives the engine's official modules carry (packages/modules): typed here, worked by their module (module.ts). */
+export type ModuleOp = 'release' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm'
+
 export type Effect =
   | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean }
   | { op: 'destroy' }
@@ -1443,7 +1450,7 @@ export type Effect =
   /** The story's: the facts it is told (params `fact.<key>`) it keeps. */
   | { op: 'facts' }
   /** News for the quests (docs/quests.md §2.3): what this event is (its actor, host, item) — a gift handed over. */
-  | { op: 'news'; kind: 'give' | 'deed' | 'hungry' }
+  | { op: 'news'; kind: 'give' | 'deed' | 'hungry' | 'talk' }
   /** The world's: what appears by itself on the active map now (its own and the world's appearances), or the one given. */
   | { op: 'appear'; what?: AppearDef }
   /** The host's stage clock ran out (param status): it becomes what its stage says next (world-model.md §6.5). */

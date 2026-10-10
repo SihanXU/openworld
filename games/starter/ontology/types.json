@@ -1,0 +1,76 @@
+{
+  "types": [
+    { "id": "actor/person/villager", "name": { "en": "villager", "zh": "村民" }, "tags": ["faction:folk"] },
+    {
+      "id": "actor/creature/slime",
+      "name": { "en": "slime", "zh": "史莱姆" },
+      "tags": ["slime", "faction:wild"],
+      "sprite": "creature:slime",
+      "props": { "hp": 8, "maxHp": 8, "atk": 1, "speed": 7 }
+    },
+    { "id": "item/tool", "name": { "en": "tool", "zh": "工具" }, "tags": ["tool"] },
+    {
+      "id": "item/tool/axe",
+      "name": { "en": "Axe", "zh": "斧头" },
+      "tags": ["tool:axe"],
+      "sprite": "item:axe",
+      "props": { "power": 3 }
+    },
+    { "id": "item/material", "name": { "en": "material", "zh": "材料" }, "tags": ["material"] },
+    {
+      "id": "item/material/log",
+      "name": { "en": "Log", "zh": "木头" },
+      "tags": ["wooden", "flammable"],
+      "sprite": "item:log",
+      "props": { "material": "wood" }
+    },
+    {
+      "id": "item/material/stone",
+      "name": { "en": "Stone", "zh": "石头" },
+      "tags": ["stone"],
+      "sprite": "item:stone",
+      "props": { "material": "stone" }
+    },
+    {
+      "id": "item/material/gel",
+      "name": { "en": "Slime Gel", "zh": "史莱姆凝胶" },
+      "tags": ["gelatinous"],
+      "sprite": "item:gel"
+    },
+    {
+      "id": "fixture/container/chest",
+      "name": { "en": "chest", "zh": "箱子" },
+      "tags": ["wooden", "flammable"],
+      "sprite": "fixture:chest",
+      "props": { "capacity": 8 }
+    },
+    {
+      "id": "fixture/sign",
+      "name": { "en": "sign", "zh": "告示牌" },
+      "tags": ["wooden", "readable"],
+      "solid": true,
+      "sprite": "fixture:sign",
+      "props": { "handsRange": 2 }
+    },
+    {
+      "id": "fixture/furniture",
+      "name": { "en": "furniture", "zh": "家具" },
+      "tags": ["wooden"],
+      "solid": true
+    },
+    {
+      "id": "fixture/furniture/bed",
+      "name": { "en": "bed", "zh": "床" },
+      "tags": ["cloth"],
+      "solid": false,
+      "sprite": "fixture:bed",
+      "props": { "handsRange": 0 }
+    },
+    {
+      "id": "fixture/furniture/table",
+      "name": { "en": "table", "zh": "桌子" },
+      "tags": ["surface"],
+      "sprite": "fixture:table"
+    }
+  ]
+}
