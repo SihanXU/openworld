@@ -8,7 +8,6 @@ import { parseCellId } from './cells.ts'
 import { skillsOf } from './progression.ts'
 import { OFFHAND, offhandOf, weaponOf } from './blows.ts'
 import type { JournalQuest, QuestOffer, QuestTarget } from './quests.ts'
-import type { TalkOption } from './social.ts'
 
 export interface ItemInfo {
   id: Id
@@ -86,6 +85,13 @@ export interface KnownActive {
   source: SkillSource
   /** The piece that lends it (a gear skill). */
   item?: string
+}
+
+/** A talk verb as the panel offers it: its label filled in. */
+export interface TalkOption {
+  id: string
+  label: Text
+  choices?: { id: string; label: Text }[]
 }
 
 export interface Frame {
@@ -313,7 +319,7 @@ export function itemInfo(eng: Engine, id: Id): ItemInfo | undefined {
   const e = w.get(id)
   if (!e) return undefined
   const r = w.onto.resolve(e.type)
-  const steal = eng.social.isAnothers(e, w.player)
+  const steal = eng.society.isAnothers(e, w.player)
   return {
     id,
     type: e.type,
@@ -323,44 +329,10 @@ export function itemInfo(eng: Engine, id: Id): ItemInfo | undefined {
     statuses: Object.keys(e.statuses ?? {}),
     props: { ...r.props, ...(e.props ?? {}) },
     ...(steal && { steal }),
-    value: eng.social.value(e),
+    value: eng.society.value(e),
   }
 }
 
-/** The views of the people's panels the host has open (docs/npc-sandbox.md): a talk, a trade, a person's pockets. */
-export function peopleViews(eng: Engine, open: { talk?: { who: Id; arrest?: boolean }; trade?: Id; pockets?: Id }): Pick<Frame, 'talk' | 'trade' | 'pockets'> {
-  const w = eng.world
-  const p = w.player
-  const s = eng.social
-  const out: Pick<Frame, 'talk' | 'trade' | 'pockets'> = {}
-  const talkTo = open.talk && w.get(open.talk.who)
-  if (talkTo?.npc) out.talk = { name: talkTo.name ?? w.onto.resolve(talkTo.type).name ?? talkTo.id, ...s.talkView(talkTo, p, open.talk!.arrest) }
-  const m = open.trade ? w.get(open.trade) : undefined
-  if (m?.npc) {
-    const carried = [...(p.contents ?? []), ...(p.held ? [p.held] : [])].map((id) => w.get(id)).filter((e): e is NonNullable<typeof e> => !!e)
-    out.trade = {
-      who: m.id,
-      name: m.name ?? w.onto.resolve(m.type).name ?? m.id,
-      goods: s.stock(m).map((e) => ({ item: itemInfo(eng, e.id)!, price: s.priceToBuy(e, m, p) })),
-      offers: carried.filter((e) => s.buys(m, e, p)).map((e) => ({ item: itemInfo(eng, e.id)!, price: s.priceToSell(e, p, m) })),
-      purse: s.purse(p),
-      theirs: s.purse(m),
-    }
-  }
-  const who = open.pockets ? w.get(open.pockets) : undefined
-  if (who?.npc) {
-    const worn = new Set(w.worn(who).map((e) => e.id))
-    out.pockets = {
-      id: who.id,
-      name: who.name ?? w.onto.resolve(who.type).name ?? who.id,
-      contents: [...(who.contents ?? []), ...(who.held ? [who.held] : [])].flatMap((id) => {
-        const info = itemInfo(eng, id)
-        return info ? [{ ...info, ...(worn.has(id) && { worn: true }) }] : []
-      }),
-    }
-  }
-  return out
-}
 
 /** The cells of the room a place lies in (a derived region: walls round, a floor over it), if any. */
 function roomCells(eng: Engine, pos: { map: string; x: number; y: number; z?: number }): [number, number][] | undefined {
@@ -500,11 +472,8 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
         const info = item && (item.place.on === 'inside' || item.place.on === 'hand') && item.place.holder === p.id ? itemInfo(eng, item.id) : undefined
         return info ? [[k.slice(5), info]] : []
       })),
-      ...((law) => {
-        const bounty = law ? eng.social.bounty(law.id, p.id) : 0
-        return bounty > 0 && law ? { wanted: { bounty, by: law.name } } : {}
-      })(eng.social.lawHere(p)),
-      purse: eng.social.purse(p),
+      // what one owes the watch here, and the coin one carries: a module's (society)
+      purse: 0,
     },
     question: w.state.question ? { text: w.state.question.text } : undefined,
     quests: questsOf(eng, entities),

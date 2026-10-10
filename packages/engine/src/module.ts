@@ -9,7 +9,7 @@ import type { Scene } from './creatures.ts'
 import type { EffectRunner } from './effects.ts'
 import type { Roles } from './rules.ts'
 import type { Frame } from './snapshot.ts'
-import type { Entity, GameEvent, PropValue, SkillDef, Text } from './types.ts'
+import type { Entity, GameEvent, Id, PropValue, Ref, SkillDef, Text } from './types.ts'
 import type { World } from './world.ts'
 
 /** A goal of the behaviour system (behaviour.ts): the first of an actor's goals that applies takes its turn. */
@@ -140,3 +140,47 @@ export interface Combat {
   /** The actor made a step (mobility talents count it). */
   stepped(e: Entity): void
 }
+
+/**
+ * The society slot (docs/npc-sandbox.md): whose things are, who notices an act and how it stands to them, fear
+ * and the watch. Without a society module nothing is anyone's, everyone who can see an act sees it, and no one
+ * keeps a watch.
+ */
+export interface Society {
+  /** Whose a thing is: a person, a household (`household:<id>`), or nobody. */
+  ownerOf(e: Entity): string | undefined
+  /** How an owner stands to someone: theirs, their household's, another's, nobody's. */
+  relation(owner: string | undefined, to: Entity): 'mine' | 'ours' | 'another' | 'nobody'
+  /** Is the thing another's than someone's (it would be stolen in their hands)? */
+  isAnothers(thing: Entity, who: Entity): boolean
+  /** What a thing is worth (coin). */
+  value(thing: Entity): number
+  /** Does a seer in sight of an act notice it (one sneaking, a hand in a pocket)? */
+  notices(seer: Entity, doer: Entity, facts: { from?: PropValue; whose?: PropValue; worn?: PropValue }, d: number, sight: number): boolean
+  /** How a deed's victim stands to someone who sees it: me, ours, kin, other, none. */
+  victim(against: string | undefined, seer: Entity): string
+  /** A person struck who does not fight back fears the one who struck. */
+  frighten(e: Entity, of: Id): void
+  /** A person who fought: whether it fights on (a foe still up and near), else it calms. */
+  fightOn(e: Entity, sc: Scene): boolean
+  /** The watch that keeps the law where a thing is (the receiver `watch`). */
+  watchOf(e: Entity | undefined): Ref | undefined
+  /** What the modder is told of how a person stands to another: regard, and the deeds it remembers of them. */
+  brief(e: Entity, toward: Id): { regard: number; knows: string[] } | undefined
+  /** The deed a seen event holds, if any: its name. */
+  deedName(seen: GameEvent): Text | undefined
+}
+
+export const noSociety = (): Society => ({
+  ownerOf: () => undefined,
+  relation: () => 'nobody',
+  isAnothers: () => false,
+  value: () => 0,
+  notices: () => true,
+  victim: () => 'none',
+  frighten: () => {},
+  fightOn: () => true,
+  watchOf: () => undefined,
+  brief: () => undefined,
+  deedName: () => undefined,
+})

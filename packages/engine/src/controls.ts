@@ -343,7 +343,7 @@ export class Controls {
     const e = this.entity(target)
     if (e && this.w.hasTag(e, 'container') && (r.rules.includes('core/open-close') || this.w.hasTag(e, 'remains'))) plan.panel = e.id
     // taking what is another's (docs/npc-sandbox.md §2.1): the label says it is a theft
-    if (verb === 'take' && e && !this.w.isAgent(e) && !r.unknown && this.eng.social.isAnothers(e, this.w.player)) {
+    if (verb === 'take' && e && !this.w.isAgent(e) && !r.unknown && this.eng.society.isAnothers(e, this.w.player)) {
       plan.steal = true
       plan.label = this.label(GENERIC.steal, target)
     }
@@ -946,7 +946,7 @@ export class Controls {
     for (let dy = -reach; dy <= reach; dy++)
       for (let dx = -reach; dx <= reach; dx++)
         for (const e of w.entitiesAt(here.map, here.x + dx, here.y + dy, here.z)) {
-          if (!e.dropped || e.frozenBy || !w.isPortable(e) || this.eng.social.isAnothers(e, p)) continue
+          if (!e.dropped || e.frozenBy || !w.isPortable(e) || this.eng.society.isAnothers(e, p)) continue
           const k = this.key(e)
           if (!by.has(k)) {
             if (free <= 0) continue

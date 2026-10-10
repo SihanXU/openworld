@@ -31,13 +31,11 @@ export const KERNEL_GOALS: Record<string, Goal> = {
     urgent: true,
     run: (eng, e, sc) => {
       // a person who fought: while it still has a foe it fights, else it calms (and its round goes on)
-      if (e.ai && e.npc && !eng.conduct.fightOn(e, sc)) return eng.npcs.flee(e, sc.active)
+      if (e.ai && e.npc && !eng.society.fightOn(e, sc)) return eng.npcs.flee(e, sc.active)
       return e.ai && !e.boss ? fight(eng, e, sc) : eng.npcs.flee(e, sc.active)
     },
   },
-  social: { paced: true, urgent: true, run: (eng, e, sc) => eng.conduct.social(e, sc) },
-  follow: { paced: false, run: (eng, e, sc) => eng.companions.follow(e) || eng.conduct.follow(e, sc) },
-  need: { paced: true, run: (eng, e, sc) => eng.conduct.need(e, sc) },
+  follow: { paced: false, run: (eng, e) => eng.companions.follow(e) },
   schedule: { paced: true, run: (eng, e, sc) => eng.npcs.schedule(e, sc.active) },
   home: { paced: true, run: (eng, e, sc) => !e.boss && home(eng, e, sc) },
   idle: { paced: true, run: (eng, e, sc) => !e.boss && idle(eng, e, sc) },

@@ -296,16 +296,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       "{worn: role} — the role's thing is worn (or wielded) by the one who carries it",
       "{rel: {role, how}} — the role has that relation now: on (stands on something), support (something holds it up), in-region …",
       '{fighting: role} — the role is fighting: it struck at an actor, was struck by one, or a hostile one came after it, in the last five seconds',
-      '{regard: {of: role, toward: role, cmp}} — what one person thinks of another (−100..100, its regard: talk, gifts and help raise it, deeds lower it)',
-      '{grudge: {of: role, toward: role, deed?}} — one holds an unsettled deed against another (done to them, their household or kin): any, or one kind (theft, assault …)',
-      '{owns: [roleA, roleB]} — roleA owns roleB (its own or its household\'s)',
-      '{knows: [roleA, roleB]} — roleA knows roleB by sight',
       '{remembers: role} — the role keeps a record of its own (a person whose day is its own): what it sees, it remembers',
-      '{deed: true | id} — the seen event holds a deed (theft, pickpocket, assault, murder, vandalism, arson, trespass)',
-      '{sway: {of: role, by: role, how: persuade|intimidate, bonus?}} — a roll of roleB swaying roleA',
-      '{bounty: {role, cmp}} — what the role owes the watch of where the host is',
-      '{canPay: {role, mul?}} — the role carries coin enough for its bounty here (times mul)',
-      '{unpardonable: role} — the role\'s bounty here is past what the watch pardons',
       ...mods.flatMap((m) => m.spec?.conditions ?? []),
     ],
     events: EVENTS,
@@ -792,7 +783,7 @@ function info(eng: Engine, role: string, v: View | undefined, origin?: { x: numb
     ...(e.npc.person?.ties && { ties: Object.fromEntries(Object.entries(e.npc.person.ties).map(([id, t]) => [eng.nameOf({ e: id }), t])) }),
     ...(typeof w.prop(e, 'household') === 'string' && { household: String(w.prop(e, 'household')) }),
     ...(w.prop(e, 'fights') === true && { fights: true }),
-    ...(other && { regard: eng.social.regard(e, other), knows: (e.npc.memory?.deeds ?? []).filter((d) => d.by === other).slice(-4).map((d) => eng.social.deedWords(d, 'en')) }),
+    ...(other && eng.society.brief(e, other)),
   }
   return {
     role,
@@ -902,9 +893,9 @@ function detailOf(eng: Engine, ev: GameEvent): string | undefined {
     return inv ? textOf(inv.text) : undefined
   }
   if (ev.kind === 'seen') {
-    const deed = eng.social.deedIn(ev)
+    const deed = eng.society.deedName(ev)
     const whose = ev.params?.owner === 'mine' || ev.params?.owner === 'ours' ? 'it is theirs' : ev.params?.owner === 'another' ? "it is someone else's" : "it is nobody's"
-    return `${n(ev.host)} saw ${n(ev.roles.actor)} ${ev.params?.act} ${n(ev.roles.target)} (${whose})${deed ? `: a ${textOf(deed.name)}` : ''}`
+    return `${n(ev.host)} saw ${n(ev.roles.actor)} ${ev.params?.act} ${n(ev.roles.target)} (${whose})${deed ? `: a ${textOf(deed)}` : ''}`
   }
   if (ev.kind === 'stuck') {
     const p = 'e' in ev.host ? w.get(ev.host.e) : undefined

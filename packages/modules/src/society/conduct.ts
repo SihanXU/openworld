@@ -10,11 +10,8 @@
 // Every move is a step and every deed an act, as the player's are; what a goal sets going it does by events
 // (behaviour may make them, as a day that cannot go on makes `stuck`): the answers are the people's rules.
 
-import type { Engine } from './engine.ts'
-import { astar } from './path.ts'
-import type { Scene } from './creatures.ts'
-import type { Dir, Entity, Id, Pos } from './types.ts'
-import { DIRS } from './types.ts'
+import { DIRS, astar, type Dir, type Engine, type Entity, type Id, type Pos, type Scene } from '@openworld/engine'
+import { socialOf } from './state.ts'
 
 const NPC_STEP_TICKS = 4
 /** How often a guard tries again to stop one who has not yielded (ticks). */
@@ -170,7 +167,7 @@ export class Conduct {
     const afraid = e.npc?.memory?.afraid
     if (!afraid) return false
     for (const o of sc.actors) {
-      if (o.id === e.id || !this.eng.social.fears(e, o) || this.dist(e, o) > 5 || w.hasStatus({ e: o.id }, 'down')) continue
+      if (o.id === e.id || !socialOf(this.eng).fears(e, o) || this.dist(e, o) > 5 || w.hasStatus({ e: o.id }, 'down')) continue
       return this.away(e, o.place as Pos)
     }
     return false
@@ -180,14 +177,14 @@ export class Conduct {
   private pursue(e: Entity, sc: Scene): boolean {
     const eng = this.eng
     const w = eng.world
-    const law = eng.social.lawAt(sc.active)
+    const law = socialOf(eng).lawAt(sc.active)
     if (!law || w.prop(e, 'watch') !== law.id || eng.asleep(e)) return false
     let target: Entity | undefined
     let near = Infinity
     for (const o of sc.actors) {
-      if (o.id === e.id || eng.social.bounty(law.id, o.id) <= 0) continue
+      if (o.id === e.id || socialOf(eng).bounty(law.id, o.id) <= 0) continue
       const d = this.dist(e, o)
-      if (d >= near || !this.sees(e, o) || !(eng.social.knows(e, o.id) || d <= 3)) continue
+      if (d >= near || !this.sees(e, o) || !(socialOf(eng).knows(e, o.id) || d <= 3)) continue
       target = o
       near = d
     }
@@ -212,10 +209,10 @@ export class Conduct {
     if (w.hasStatus({ e: e.id }, 'demanded') || eng.asleep(e)) return false
     for (const o of sc.actors) {
       if (o.id === e.id || w.hasStatus({ e: o.id }, 'down') || this.dist(e, o) > DEMAND_NEAR || !this.sees(e, o)) continue
-      const g = eng.social.grudge(e, o.id)
+      const g = socialOf(eng).grudge(e, o.id)
       const def = g && w.onto.data.deeds?.find((d) => d.id === g.deed)
       // a thing taken from them or theirs (not a blow: violence is fled, not argued with; not a friend's: theirs to ask)
-      const theirs = !!g && ['me', 'ours'].includes(eng.social.victim(g.against, e))
+      const theirs = !!g && ['me', 'ours'].includes(socialOf(eng).victim(g.against, e))
       if (!g || !def || def.violent || !g.thing || !theirs || w.state.tick - g.tick > 2 * 600) continue
       if (this.dist(e, o) <= 1 && o.place.on === 'tile') {
         this.face(e, o.place)
@@ -246,7 +243,7 @@ export class Conduct {
       return true
     }
     // coin for a meal: the nearest who sells food they can pay for
-    const purse = eng.social.purse(e)
+    const purse = socialOf(eng).purse(e)
     let seller: { who: Entity; item: Entity } | undefined
     let near = Infinity
     if (purse > 0)
@@ -254,7 +251,7 @@ export class Conduct {
         if (o.id === e.id || !w.hasTag(o, 'merchant') || eng.asleep(o)) continue
         const d = this.dist(e, o)
         if (d > MEAL_REACH || d >= near) continue
-        const item = eng.social.stock(o).find((x) => edible(x) && eng.social.priceToBuy(x, o, e) <= purse)
+        const item = socialOf(eng).stock(o).find((x) => edible(x) && socialOf(eng).priceToBuy(x, o, e) <= purse)
         if (item) (seller = { who: o, item }), (near = d)
       }
     if (seller && seller.who.place.on === 'tile') {
@@ -300,7 +297,7 @@ export class Conduct {
   private giveUp(rt: Runtime, e: Entity): boolean {
     rt.meal = this.eng.world.state.tick + MEAL_AGAIN
     // hungry with no coin and nothing found: news for the quests (a favour: bring them something to eat)
-    if (this.eng.social.purse(e) === 0) this.eng.quests.news({ kind: 'hungry', target: e.id })
+    if (socialOf(this.eng).purse(e) === 0) this.eng.quests.news({ kind: 'hungry', target: e.id })
     return false
   }
 

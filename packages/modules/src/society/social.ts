@@ -7,15 +7,11 @@
 //
 // Nothing here asks whether one is the player (CLAUDE.md): anyone can steal, see, tell, be wanted.
 
-import type { Engine } from './engine.ts'
-import { evalCond, type Roles } from './rules.ts'
-import { TICKS_PER_DAY } from './calendar.ts'
-import type { DeedDef, DeedMemory, Entity, GameEvent, Id, LawDef, Look, NpcMemory, Pos, PropValue, Ref, SocialParams, TalkVerb, Text } from './types.ts'
-import { DIRS } from './types.ts'
+import { DIRS, TICKS_PER_DAY, evalCond, type DeedDef, type DeedMemory, type Engine, type Entity, type GameEvent, type Id, type LawDef, type Look, type NpcMemory, type Pos, type PropValue, type Ref, type Roles, type SocialParams, type TalkOption, type TalkVerb, type Text } from '@openworld/engine'
 
 /** The social numbers when the world gives none (the content gives its own). */
 export const SOCIAL_DEFAULTS: SocialParams = {
-  coin: 'item/misc/thornmark',
+  coin: 'item/coin',
   regardStart: 0,
   regardTie: 30,
   talk: 2,
@@ -42,12 +38,6 @@ export type Relation = 'mine' | 'ours' | 'another' | 'nobody'
 /** Whose a deed was against, as one who sees it stands to them: oneself, one's household, one's kin, someone else, no one. */
 export type Victim = 'me' | 'ours' | 'kin' | 'other' | 'none'
 
-/** A talk verb as the panel offers it: its label filled in. */
-export interface TalkOption {
-  id: string
-  label: Text
-  choices?: { id: string; label: Text }[]
-}
 
 export class Social {
   constructor(private eng: Engine) {}

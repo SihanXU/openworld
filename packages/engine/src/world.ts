@@ -24,7 +24,6 @@ import type {
 } from './types.ts'
 import { DIRS } from './types.ts'
 import { matchSelector } from './rules.ts'
-import type { Social } from './social.ts'
 import type { CondImpl } from './module.ts'
 
 export const tileKey = (map: string, x: number, y: number) => `${map}:${x}:${y}`
@@ -94,8 +93,8 @@ export class World {
   fx: FxEvent[] = []
   /** The last lines logged or said, kept past the drain of `fx` (a request's recent context). */
   recent: Text[] = []
-  /** The people's social mechanisms (social.ts), lent by the engine: what the conditions on regard, deeds and the law read. */
-  social?: Social
+  /** What the world's modules keep on it for their conditions to read (a society's mechanisms), by key. */
+  ext = new Map<string, unknown>()
   /** The conditions the world's modules add (module.ts), by the key that names each. */
   condImpls: [string, CondImpl][] = []
   /** Whether a worn thing works for its wearer, as the world's modules say (a profession's piece: only for its own). */

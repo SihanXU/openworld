@@ -18,10 +18,8 @@ import { NpcSim, scheduleAt } from './npc.ts'
 import { scheduleFor } from './people.ts'
 import { OntologyIndex } from './ontology.ts'
 import { appearFromForage } from './appear.ts'
-import { Social, lawId } from './social.ts'
-import { Conduct } from './conduct.ts'
 import { RuleLibrary, evalCond, isDo, isPatch, matchSelector, rolesOf, type Resolution } from './rules.ts'
-import { modulesOf, noHooks, type Combat, type EffectImpl, type EngineHooks, type EngineModule, type Goal } from './module.ts'
+import { modulesOf, noHooks, noSociety, type Combat, type Society, type EffectImpl, type EngineHooks, type EngineModule, type Goal } from './module.ts'
 import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb, WorldState } from './types.ts'
 import { DIRS, FIRE_RADIUS, OPPOSITE } from './types.ts'
 import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type Writer } from './world.ts'
@@ -97,10 +95,8 @@ export class Engine {
   npcs: NpcSim
   /** Everyone's goals (behaviour.ts). */
   behaviour: Behaviour
-  /** The people's social life: whose things are, deeds, memory, regard, gossip, the law, prices (social.ts). */
-  social: Social
-  /** The people's social goals and needs: the law, a debt, fear, hunger, following (conduct.ts). */
-  conduct: Conduct
+  /** Whose things are, who notices an act, fear and the watch (module.ts): nobody's and none, or a society module's. */
+  society: Society = noSociety()
   /** The story's script: its steps, scenes and beats (story.ts). */
   story: Story
   /** The player's inputs, slots and magnet (design.md §5.2–5.3). */
@@ -173,9 +169,6 @@ export class Engine {
     this.world.author = (f) => this.write(f)
     this.lib = lib
     this.effects = new EffectRunner(this)
-    this.social = new Social(this)
-    this.world.social = this.social
-    this.conduct = new Conduct(this)
     this.npcs = new NpcSim(this)
     this.behaviour = new Behaviour(this)
     this.story = new Story(this)
@@ -227,8 +220,8 @@ export class Engine {
     this.write(() => {
       if (!w.get(WORLD_HOST)) w.add({ id: WORLD_HOST, type: 'resident/world', place: { on: 'resident' } })
       if (!w.get(STORY)) w.add({ id: STORY, type: 'resident/story', place: { on: 'resident' } })
-      for (const law of Object.values(w.onto.data.laws ?? {}))
-        if (!w.get(lawId(law.id)) && w.onto.hasType('resident/watch')) w.add({ id: lawId(law.id), type: 'resident/watch', name: law.name, place: { on: 'resident' } })
+      // the residents the modules keep (the watches)
+      for (const make of this.hooks.residents) for (const e of make()) if (!w.get(e.id)) w.add(e)
     })
   }
 
@@ -544,9 +537,9 @@ export class Engine {
 
   // ---------------------------------------------------------------- acts (design.md §5.7)
 
-  /** Whose a thing is (social.ts): its own `owner` prop ('' = nobody's), what holds it, the region it lies in. */
+  /** Whose a thing is (the society slot): its own `owner` prop ('' = nobody's), what holds it, the region it lies in. */
   ownerOf(e: Entity): string | undefined {
-    return this.social.ownerOf(e)
+    return this.society.ownerOf(e)
   }
 
   /** The act event an actor's verb makes: hosted by the instrument, or by the actor's own hands. */
@@ -697,18 +690,18 @@ export class Engine {
     const doer = ev.roles.actor ? w.get(ev.roles.actor.e) : undefined
     const thing = ev.roles.target ? w.get(ev.roles.target.e) : undefined
     if (!doer || !thing || thing.id === doer.id) return { at: w.posOf(doer) }
-    const whose = this.social.ownerOf(thing)
+    const whose = this.society.ownerOf(thing)
     const holder = thing.place.on === 'inside' || thing.place.on === 'hand' ? w.get(thing.place.holder) : undefined
     const person = w.isAgent(thing) && w.hasTag(thing, 'person')
     return {
       at: w.posOf(doer),
       thing: thing.id,
-      ...(whose && { whose, theirs: this.social.relation(whose, doer) === 'another' }),
+      ...(whose && { whose, theirs: this.society.relation(whose, doer) === 'another' }),
       from: holder ? (w.isAgent(holder) ? 'person' : 'container') : thing.place.on === 'tile' ? 'ground' : undefined,
       person,
       hp: w.prop(thing, 'maxHp') !== undefined ? w.num(thing, 'hp', w.num(thing, 'maxHp', 1)) : undefined,
       worn: !!holder && w.worn(holder).some((x) => x.id === thing.id),
-      value: person ? undefined : this.social.value(thing),
+      value: person ? undefined : this.society.value(thing),
     }
   }
 
@@ -753,13 +746,13 @@ export class Engine {
       const sight = this.sightOf(e, p)
       if (d > sight) continue
       if (!this.lineOfSight(at.map, p, at)) continue
-      if (!this.social.notices(e, doer, { from: b.from, whose: b.whose, worn: b.worn }, d, sight)) continue
-      const rel = this.social.relation(b.whose, e)
+      if (!this.society.notices(e, doer, { from: b.from, whose: b.whose, worn: b.worn }, d, sight)) continue
+      const rel = this.society.relation(b.whose, e)
       this.offer({
         kind: 'seen',
         host: { e: e.id },
         roles: { actor: ev.roles.actor, target: ev.roles.target, instrument: ev.roles.instrument },
-        params: { ...facts, owner: rel === 'mine' || rel === 'ours' ? rel : rel === 'another' ? 'another' : 'nobody', victim: this.social.victim(b.person ? b.thing : b.whose, e) },
+        params: { ...facts, owner: rel === 'mine' || rel === 'ours' ? rel : rel === 'another' ? 'another' : 'nobody', victim: this.society.victim(b.person ? b.thing : b.whose, e) },
         cause: ev.cause,
         origin: ev.origin,
       })
@@ -1336,7 +1329,7 @@ export class Engine {
     }
     this.npcs.onEnterMap(map, from)
     // those who follow the one at the keys come with them (docs/npc-sandbox.md: following)
-    this.conduct.bringFollowers(map)
+    for (const h of this.hooks.enterMap) h(map)
     this.diffMap(map, false)
     this.flush()
   }
@@ -1489,10 +1482,8 @@ export class Engine {
     this.stayTick(active)
     // everyone's behaviour, one goal system (world-model.md §6.10): their moves and blows are acts
     this.behaviour.tick(active)
-    // the people look about them and talk among themselves (docs/npc-sandbox.md §2.3, §2.5): events, their answers their own
-    const sp = this.social.params
-    if (s.tick % Math.max(1, sp.perceiveEvery) === 0) this.social.perceive(active)
-    if (s.tick % Math.max(1, sp.gossipEvery) === 0) this.social.gossip(active)
+    // what the modules do after everyone's turn (the people look about them, and talk among themselves)
+    for (const h of this.hooks.tick) if (h.phase === 'behaviour') h.run(active)
     this.undefinedSink?.tick()
     this.controls.magnet()
     this.invariantTick()

@@ -13,7 +13,7 @@ import { BASE_RULES, buildOntology } from '@openworld-game/content'
 // hand).
 
 const ROOT = join(import.meta.dirname, '..', '..', '..', '..')
-const GAME = ['packages/engine/src', 'games/openworld/content/src']
+const GAME = ['packages/engine/src', ...['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society'].map((m) => `packages/modules/src/${m}`), 'games/openworld/content/src']
 /** The client's code: the runtime and the game's own pages. */
 const CLIENT = ['packages/runtime/src', 'games/openworld/client/src']
 

@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { textOf, EVENT_KINDS, FIRE_RADIUS, FIGHT_TICKS, APPEAR_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, isRoot, kindCovers, leaves, rulesTie, tickAt, xpToNext, astar, performPlacement, snapshot, regionId, madeOf, CEILING, type Engine, type Entity, type GameEvent, type Key, type Patch, type Plan, type Ref, type World } from '@openworld/engine'
-import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession } from '@openworld/modules'
+import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf } from '@openworld/modules'
 import { ALBERIC_ID, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@openworld-game/content'
 import { BLOCK, OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
@@ -2452,13 +2452,13 @@ req('R1', 'a radiant favour (docs/quests.md §3): one hungry with no coin who fo
   expect(q.stateOf(w.get(ref))).toBe('active')
   expect(JSON.stringify(q.journal().find((j) => j.id === ref)!.summary)).toContain('维戈')
   // a loaf handed to him: done, and he thinks the better of whoever brought it
-  const before = f.eng.social.regard(vigo, 'player')
+  const before = socialOf(f.eng).regard(vigo, 'player')
   hold(f, author(f, () => w.create('item/food/bread', { on: 'inside', holder: 'player' })))
   const [vx, vy] = faceNpc(f, vigo.id)
   run(f, 'put', vx, vy)
   ticks(f, 3)
   expect(q.stateOf(w.get(ref))).toBe('done')
-  expect(f.eng.social.regard(vigo, 'player') - before).toBeGreaterThanOrEqual(15)
+  expect(socialOf(f.eng).regard(vigo, 'player') - before).toBeGreaterThanOrEqual(15)
   // the board is empty again
   expect(snapshot(f.eng).quests.board.map((o) => o.ref)).not.toContain(ref)
 })
@@ -2477,7 +2477,7 @@ req('R2', 'a theft its owner saw and could not stop (docs/quests.md §3): Cass s
     cass.facing = 'right'
     w.place(vigo, { on: 'tile', map: 'meadow', x: 19, y: 15 })
     vigo.facing = 'left'
-    f.eng.social.meet(cass, vigo.id)
+    socialOf(f.eng).meet(cass, vigo.id)
     return r
   })
   // he takes it from her, an act as anyone's, in front of her
@@ -2495,11 +2495,11 @@ req('R2', 'a theft its owner saw and could not stop (docs/quests.md §3): Cass s
   expect(w.hasTag(w.get(ring.id)!, 'quest-item')).toBe(true)
   // asked of the thief: the topic in his talk panel
   faceNpc(f, vigo.id)
-  expect(f.eng.social.questVerbs(vigo, w.player).map((v) => v.id)).toContain(`quest:${offer.ref}:demand`)
+  expect(socialOf(f.eng).questVerbs(vigo, w.player).map((v) => v.id)).toContain(`quest:${offer.ref}:demand`)
   f.eng.controls.talk(vigo.id, `quest:${offer.ref}:demand`)
   ticks(f, 3)
   expect(holderOf(f, ring.id)).toBe('player')
-  expect(f.eng.social.buys(w.get('npc.tobin')!, w.get(ring.id)!, w.player)).toBe(false)
+  expect(socialOf(f.eng).buys(w.get('npc.tobin')!, w.get(ring.id)!, w.player)).toBe(false)
   // back to her
   const coins = f.eng.controls.count(SOCIAL_COIN)
   hold(f, w.get(ring.id))
@@ -3184,7 +3184,7 @@ const onlyNpcs = (f: Ford, keep: string[]) => {
   })
   f.eng.npcs.begin(FIRSTLIGHT.map)
 }
-const bountyOf = (f: Ford, who = 'player') => f.eng.social.bounty('firstlight', who)
+const bountyOf = (f: Ford, who = 'player') => socialOf(f.eng).bounty('firstlight', who)
 
 req('N1', "a deed seen is a deed known: a loaf of Marta's taken in the square before her and Holt — she cries out, Holt charges the bounty; he comes to the one he wants and stops them, and paid, the bounty is cleared and the loaf goes back", ['npc.marta', 'npc.holt'], () => {
   const f = fresh()
@@ -3211,7 +3211,7 @@ req('N2', 'people are mortal unless the story needs them: Cass, struck down with
   stand(f, 20, 15, 'up', FIRSTLIGHT.map)
   placeNpc(f, 'npc.cass', 20, 14, 'down')
   placeNpc(f, 'npc.fennick', 21, 16, 'left')
-  author(f, () => f.eng.social.meet(W(f).get('npc.fennick')!, 'player'))
+  author(f, () => socialOf(f.eng).meet(W(f).get('npc.fennick')!, 'player'))
   expect(W(f).hasTag(W(f).get('npc.cass')!, 'essential')).toBe(false)
   expect(W(f).hasTag(W(f).get('npc.marta')!, 'essential')).toBe(true)
   hold(f, author(f, () => W(f).create('item/weapon/blunt/club', { on: 'inside', holder: 'player' })))
@@ -3224,7 +3224,7 @@ req('N2', 'people are mortal unless the story needs them: Cass, struck down with
   expect(body.type).toBe('fixture/remains/body')
   expect(W(f).prop(body, 'owner')).toBe('household:wood')
   expect(bountyOf(f)).toBe(1000)
-  expect(f.eng.social.talkView(W(f).get('npc.fennick')!, W(f).player, true).verbs.map((v) => v.id)).not.toContain('bribe')
+  expect(socialOf(f.eng).talkView(W(f).get('npc.fennick')!, W(f).player, true).verbs.map((v) => v.id)).not.toContain('bribe')
 })
 
 req('N3', 'the people have needs of their own, and anyone may be wanted: Vigo, hungry with no coin and little conscience, takes a loaf of Marta\'s, is seen, and the watch takes him to the cells; asked, he walks with anyone (a hireling)', ['npc.vigo'], () => {
@@ -3252,7 +3252,7 @@ req('N4', 'trade: a merchant sells at its price and pays for what is yours; a pe
   stand(f, 20, 15, 'up', FIRSTLIGHT.map)
   placeNpc(f, 'npc.marta', 20, 14, 'down')
   author(f, () => { for (let i = 0; i < 20; i++) W(f).create('item/misc/thornmark', { on: 'inside', holder: 'player' }) })
-  const bread = f.eng.social.stock(W(f).get('npc.marta')!).find((e) => e.type === 'item/food/bread')!
+  const bread = socialOf(f.eng).stock(W(f).get('npc.marta')!).find((e) => e.type === 'item/food/bread')!
   f.eng.controls.trade('npc.marta', bread.id, true)
   expect(W(f).get(bread.id)!.place).toMatchObject({ holder: 'player' })
   const ring = author(f, () => W(f).create('item/valuable/ring', { on: 'inside', holder: 'player' }, { props: { owner: 'npc.edda' } }))
@@ -3262,7 +3262,7 @@ req('N4', 'trade: a merchant sells at its price and pays for what is yours; a pe
   placeNpc(f, 'npc.tobin', 20, 14, 'down')
   f.eng.controls.trade('npc.tobin', ring.id, false)
   expect(W(f).get(ring.id)!.place).toEqual({ on: 'inside', holder: 'npc.tobin' })
-  expect(f.eng.social.talkView(W(f).get('npc.tobin')!, W(f).player).regard).toEqual({ en: 'neutral', zh: '一般' })
+  expect(socialOf(f.eng).talkView(W(f).get('npc.tobin')!, W(f).player).regard).toEqual({ en: 'neutral', zh: '一般' })
 })
 
 describe('the Ford is complete', () => {

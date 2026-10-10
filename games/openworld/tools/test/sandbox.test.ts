@@ -4,7 +4,8 @@
 // real demo world through the player's own inputs (and the people's own goals), in strict mode.
 
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, TICKS_PER_HOUR, bountyKey, buildRequest, lawId, tickAt, type Engine, type Entity, type FxEvent, type Look } from '@openworld/engine'
+import { Game, RuleLibrary, TICKS_PER_HOUR, buildRequest, tickAt, type Engine, type Entity, type FxEvent, type Look } from '@openworld/engine'
+import { bountyKey, lawId, socialOf } from '@openworld/modules'
 import { BASE_RULES, STORY_RULES, SOCIAL_COIN, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
@@ -67,8 +68,8 @@ function clear(s: S, keep: string[]): void {
 }
 const make = (s: S, type: string, place: Entity['place'], props?: Entity['props']) => author(s, () => W(s).create(type, place, props ? { props } : {}))
 const coins = (s: S, holder: string, n: number) => author(s, () => { for (let i = 0; i < n; i++) W(s).create(SOCIAL_COIN, { on: 'inside', holder }) })
-const purse = (s: S, id: string) => s.eng.social.purse(get(s, id))
-const bounty = (s: S, who = 'player') => s.eng.social.bounty('firstlight', who)
+const purse = (s: S, id: string) => socialOf(s.eng).purse(get(s, id))
+const bounty = (s: S, who = 'player') => socialOf(s.eng).bounty('firstlight', who)
 const deeds = (s: S, id: string) => get(s, id).npc?.memory?.deeds ?? []
 const ticks = (s: S, n: number, until?: () => boolean) => {
   for (let i = 0; i < n; i++) {
@@ -84,7 +85,7 @@ describe('whose things are (docs/npc-sandbox.md §2.1)', () => {
   it('a thing is its own owner\'s, else what holds it, else the region it lies in; taken by another, it stays theirs', () => {
     const s = fresh()
     clear(s, [])
-    const so = s.eng.social
+    const so = socialOf(s.eng)
     const marta = get(s, 'npc.marta')
     // what a person carries is theirs; a household's doorstep makes what lies on it the household's
     const loaf = make(s, 'item/food/bread', { on: 'inside', holder: marta.id })
@@ -117,7 +118,7 @@ describe('deeds seen, remembered, told to the watch (§2.2–2.7)', () => {
     // Marta: a theft against her, by the traveller (close, in daylight: she knows the face now)
     const m = deeds(s, 'npc.marta')
     expect(m.map((d) => [d.deed, d.by, d.against])).toEqual([['theft', 'player', 'npc.marta']])
-    expect(s.eng.social.regard(get(s, 'npc.marta'), 'player')).toBeLessThan(0)
+    expect(socialOf(s.eng).regard(get(s, 'npc.marta'), 'player')).toBeLessThan(0)
     expect(W(s).hasStatus({ e: 'npc.marta' }, 'reporting')).toBe(true)
     // Holt keeps the watch: told at once, the bounty is half the loaf's worth (at least five)
     expect(bounty(s)).toBe(5)
@@ -186,7 +187,7 @@ describe('deeds seen, remembered, told to the watch (§2.2–2.7)', () => {
     }
     const heard = deeds(s, 'npc.marta')[0]
     expect(heard).toMatchObject({ deed: 'theft', by: 'player', firsthand: false })
-    expect(s.eng.social.regard(get(s, 'npc.marta'), 'player')).toBeLessThan(0)
+    expect(socialOf(s.eng).regard(get(s, 'npc.marta'), 'player')).toBeLessThan(0)
     // told once: she is not told it again
     expect(deeds(s, 'npc.cass')[0].told).toEqual(['npc.marta'])
   })
@@ -203,13 +204,13 @@ describe('the watch: arrest and its choices (§2.7)', () => {
     put(s, 'npc.holt', 20, 19, 'up')
     put(s, 'npc.marta', 10, 10, 'down')
     put(s, 'player', 20, 14, 'down')
-    author(s, () => s.eng.social.meet(get(s, 'npc.holt'), 'player'))
+    author(s, () => socialOf(s.eng).meet(get(s, 'npc.holt'), 'player'))
     const loaf = make(s, 'item/food/bread', { on: 'inside', holder: 'player' }, { owner: 'npc.marta' })
     coins(s, 'player', 20)
     wanted(s, 12)
     expect(ticks(s, 300, () => fxOf(s).some((f) => f.t === 'talk' && f.arrest && f.who === 'npc.holt'))).toBe(true)
     // the talk the guard opens: the watch's choices only
-    const view = s.eng.social.talkView(get(s, 'npc.holt'), P(s), true)
+    const view = socialOf(s.eng).talkView(get(s, 'npc.holt'), P(s), true)
     expect(view.verbs.map((v) => v.id)).toEqual(['pay', 'jail', 'persuade', 'bribe', 'resist'])
     s.eng.controls.talk('npc.holt', 'pay')
     expect(bounty(s)).toBe(0)
@@ -248,7 +249,7 @@ describe('the watch: arrest and its choices (§2.7)', () => {
     expect(purse(s, 'player')).toBe(15)
     expect(ring.place).toMatchObject({ holder: 'player' })
     wanted(s, 1000)
-    expect(s.eng.social.talkView(get(s, 'npc.holt'), P(s), true).verbs.map((v) => v.id)).toEqual(['jail', 'resist'])
+    expect(socialOf(s.eng).talkView(get(s, 'npc.holt'), P(s), true).verbs.map((v) => v.id)).toEqual(['jail', 'resist'])
   })
 
   it('resisting, the guard fights and calls the watch', () => {
@@ -299,7 +300,7 @@ describe('violence, death and bodies (§2.8)', () => {
     put(s, 'npc.cass', 20, 14, 'down', MAP)
     put(s, 'player', 20, 15, 'up')
     s.eng.controls.run(s.eng.controls.plan('use', { x: 20, y: 14 })!, true)
-    expect(s.eng.social.fears(get(s, 'npc.cass'), 'player')).toBe(true)
+    expect(socialOf(s.eng).fears(get(s, 'npc.cass'), 'player')).toBe(true)
     expect(deeds(s, 'npc.cass')[0]).toMatchObject({ deed: 'assault', by: 'player' })
   })
 
@@ -324,7 +325,7 @@ describe('violence, death and bodies (§2.8)', () => {
     put(s, 'npc.holt', 23, 15, 'left')
     put(s, 'player', 20, 15, 'up')
     // Holt knows the traveller's face (they have met)
-    author(s, () => s.eng.social.meet(get(s, 'npc.holt'), 'player'))
+    author(s, () => socialOf(s.eng).meet(get(s, 'npc.holt'), 'player'))
     expect(W(s).hasTag(get(s, 'npc.cass'), 'essential')).toBe(false)
     author(s, () => W(s).setProp(get(s, 'npc.cass'), 'hp', 1))
     s.eng.controls.run(s.eng.controls.plan('use', { x: 20, y: 14 })!, true)
@@ -339,7 +340,7 @@ describe('violence, death and bodies (§2.8)', () => {
     expect(get(s, 'npc.holt').ai?.foes).toContain('player')
     // looting the body is taking what is another's
     const thing = W(s).get(body.contents![0])!
-    expect(s.eng.social.isAnothers(thing, P(s))).toBe(true)
+    expect(socialOf(s.eng).isAnothers(thing, P(s))).toBe(true)
     // a hand on it searches it: its things in their panel
     const search = s.eng.controls.plan('hands', { x: 20, y: 14 })!
     expect(search.label).toEqual({ en: "Search Cass's body", zh: '翻找卡丝的遗体' })
@@ -353,15 +354,15 @@ describe('talk, regard, trade, followers (§2.4, §2.9, §2.10)', () => {
     clear(s, ['npc.cass'])
     put(s, 'npc.cass', 20, 14, 'down')
     put(s, 'player', 20, 15, 'up')
-    const r0 = s.eng.social.regard(get(s, 'npc.cass'), 'player')
+    const r0 = socialOf(s.eng).regard(get(s, 'npc.cass'), 'player')
     s.eng.controls.run(s.eng.controls.plan('hands', { x: 20, y: 14 })!)
     expect(fxOf(s).some((f) => f.t === 'talk' && f.who === 'npc.cass')).toBe(true)
-    const r1 = s.eng.social.regard(get(s, 'npc.cass'), 'player')
+    const r1 = socialOf(s.eng).regard(get(s, 'npc.cass'), 'player')
     expect(r1).toBeGreaterThan(r0)
     s.eng.controls.run(s.eng.controls.plan('hands', { x: 20, y: 14 })!)
-    expect(s.eng.social.regard(get(s, 'npc.cass'), 'player')).toBe(r1)
-    expect(s.eng.social.knows(get(s, 'npc.cass'), 'player')).toBe(true)
-    const verbs = s.eng.social.verbs(get(s, 'npc.cass'), P(s)).map((v) => v.id)
+    expect(socialOf(s.eng).regard(get(s, 'npc.cass'), 'player')).toBe(r1)
+    expect(socialOf(s.eng).knows(get(s, 'npc.cass'), 'player')).toBe(true)
+    const verbs = socialOf(s.eng).verbs(get(s, 'npc.cass'), P(s)).map((v) => v.id)
     expect(verbs).toEqual(expect.arrayContaining(['ask', 'follow', 'persuade', 'intimidate']))
     expect(verbs).not.toContain('trade')
     s.eng.controls.talk('npc.cass', 'ask')
@@ -375,12 +376,12 @@ describe('talk, regard, trade, followers (§2.4, §2.9, §2.10)', () => {
     put(s, 'player', 20, 15, 'up')
     const cup = make(s, 'item/vessel/cup', { on: 'tile', map: MAP, x: 21, y: 15 }, { owner: 'npc.cass' })
     take(s, cup.id)
-    expect(s.eng.social.grudge(get(s, 'npc.cass'), 'player')).toBeDefined()
-    const before = s.eng.social.regard(get(s, 'npc.cass'), 'player')
+    expect(socialOf(s.eng).grudge(get(s, 'npc.cass'), 'player')).toBeDefined()
+    const before = socialOf(s.eng).regard(get(s, 'npc.cass'), 'player')
     s.eng.act('put', 'player', { e: 'npc.cass' }, { instrument: { e: cup.id } })
     expect(cup.place).toEqual({ on: 'inside', holder: 'npc.cass' })
-    expect(s.eng.social.grudge(get(s, 'npc.cass'), 'player')).toBeUndefined()
-    expect(s.eng.social.regard(get(s, 'npc.cass'), 'player')).toBeGreaterThan(before)
+    expect(socialOf(s.eng).grudge(get(s, 'npc.cass'), 'player')).toBeUndefined()
+    expect(socialOf(s.eng).regard(get(s, 'npc.cass'), 'player')).toBeGreaterThan(before)
   })
 
   it('a merchant sells at its price (worth, markup, regard) and buys what is yours; a fence takes what is not', () => {
@@ -391,8 +392,8 @@ describe('talk, regard, trade, followers (§2.4, §2.9, §2.10)', () => {
     coins(s, 'player', 20)
     s.eng.controls.talk('npc.marta', 'trade')
     expect(fxOf(s).some((f) => f.t === 'panel' && f.panel === 'trade' && f.by === 'npc.marta')).toBe(true)
-    const bread = s.eng.social.stock(get(s, 'npc.marta')).find((e) => e.type === 'item/food/bread')!
-    const price = s.eng.social.priceToBuy(bread, get(s, 'npc.marta'), P(s))
+    const bread = socialOf(s.eng).stock(get(s, 'npc.marta')).find((e) => e.type === 'item/food/bread')!
+    const price = socialOf(s.eng).priceToBuy(bread, get(s, 'npc.marta'), P(s))
     expect(price).toBe(5)
     const before = purse(s, 'npc.marta')
     s.eng.controls.trade('npc.marta', bread.id, true)
@@ -406,7 +407,7 @@ describe('talk, regard, trade, followers (§2.4, §2.9, §2.10)', () => {
     expect(ring.place).toEqual({ on: 'inside', holder: 'player' })
     put(s, 'npc.tobin', 20, 14, 'down')
     put(s, 'npc.marta', 5, 25)
-    const fence = s.eng.social.priceToSell(ring, P(s), get(s, 'npc.tobin'))
+    const fence = socialOf(s.eng).priceToSell(ring, P(s), get(s, 'npc.tobin'))
     const p0 = purse(s, 'player')
     s.eng.controls.trade('npc.tobin', ring.id, false)
     expect(ring.place).toEqual({ on: 'inside', holder: 'npc.tobin' })
@@ -445,7 +446,7 @@ describe('talk, regard, trade, followers (§2.4, §2.9, §2.10)', () => {
     author(s, () => W(s).setProp(P(s), 'level', 12))
     s.eng.controls.toggle('drawn', true)
     s.eng.controls.talk('npc.cass', 'intimidate')
-    expect(s.eng.social.fears(get(s, 'npc.cass'), 'player')).toBe(true)
+    expect(socialOf(s.eng).fears(get(s, 'npc.cass'), 'player')).toBe(true)
     expect(deeds(s, 'npc.cass')[0].settled).toBe(true)
     ticks(s, 400)
     expect(bounty(s)).toBe(0)
@@ -489,10 +490,10 @@ describe('the people\'s looks are what is remembered (§2.3)', () => {
   it('two looks alike enough are taken for one', () => {
     const s = fresh()
     const a = P(s).look as Look
-    expect(s.eng.social.likeness(a, a)).toBe(1)
+    expect(socialOf(s.eng).likeness(a, a)).toBe(1)
     // another outfit is another look; a hood drawn up, too
-    expect(s.eng.social.likeness(a, { ...a, parts: { ...a.parts, outfit: 'outfit.cloak' } })).toBeLessThan(0.8)
-    expect(s.eng.social.likeness(a, { ...a, parts: { ...a.parts, hat: 'hat.hood' } })).toBeLessThan(0.8)
+    expect(socialOf(s.eng).likeness(a, { ...a, parts: { ...a.parts, outfit: 'outfit.cloak' } })).toBeLessThan(0.8)
+    expect(socialOf(s.eng).likeness(a, { ...a, parts: { ...a.parts, hat: 'hat.hood' } })).toBeLessThan(0.8)
   })
 })
 

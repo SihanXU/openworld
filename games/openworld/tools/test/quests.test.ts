@@ -3,6 +3,7 @@
 // journal's tracking and markers, the Story Manager's caps, the step conditions on quests, and the validator's word
 // that no patch hosts a quest.
 
+import { socialOf } from '@openworld/modules'
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, tickAt, validatePatch, type Engine, type QuestDef } from '@openworld/engine'
 import { BASE_RULES, CH1, QUESTS, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
@@ -76,7 +77,7 @@ describe('a quest makes what it is about, and keeps the people it names', () => 
     expect(letter.place).toMatchObject({ holder: 'player' })
     expect(JSON.stringify(letter.name)).toContain('卡丝的信')
     expect(w.hasTag(letter, 'quest-item')).toBe(true)
-    expect(eng.social.buys(w.get('npc.tobin')!, letter, w.player)).toBe(false)
+    expect(socialOf(eng).buys(w.get('npc.tobin')!, letter, w.player)).toBe(false)
     expect(w.hasTag(cass, 'essential')).toBe(true)
     // the journal names the aliases in its words
     const j = eng.quests.journal().find((x) => x.id === q.id)!

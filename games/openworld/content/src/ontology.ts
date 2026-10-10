@@ -510,7 +510,7 @@ const fixtureTypes: TypeDef[] = [
 ]
 
 /** The engine's modules this game uses (docs/engine-split.md S3). */
-export const MODULES = ['classes', 'bosses', 'waypoints', 'boons', 'needs']
+export const MODULES = ['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society']
 
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}
