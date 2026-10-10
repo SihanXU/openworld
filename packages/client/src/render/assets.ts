@@ -52,14 +52,18 @@ export function spriteFrames(scene: Phaser.Scene, key: string, d: SpriteDef): st
   return names
 }
 
-/** A learned thing's picture (16x16 as data) as the texture `art:<id>`, once. */
+/** Pictures of learned things drawn so far: a panel that shows them repaints when it moves (its copies of a redrawn one are stale). */
+export let artEpoch = 0
+
+/** A learned thing's picture (16x16 as data) as the texture `art:<id>`; drawn again in place when its definition redraws it (what shows it follows). */
 export function registerArt(scene: Phaser.Scene, id: string, art: PixelArt): void {
   const key = `art:${id}`
-  if (scene.textures.exists(key)) return
-  const c = document.createElement('canvas')
+  const had = scene.textures.exists(key) ? scene.textures.get(key) : undefined
+  const c = had instanceof Phaser.Textures.CanvasTexture ? had.getCanvas() : document.createElement('canvas')
   c.width = 16
   c.height = 16
   const g = c.getContext('2d')!
+  g.clearRect(0, 0, 16, 16)
   art.grid.forEach((row, y) =>
     [...row].forEach((ch, x) => {
       const colour = art.palette[ch]
@@ -68,7 +72,9 @@ export function registerArt(scene: Phaser.Scene, id: string, art: PixelArt): voi
       g.fillRect(x, y, 1, 1)
     }),
   )
-  scene.textures.addCanvas(key, c)
+  if (had instanceof Phaser.Textures.CanvasTexture) had.refresh()
+  else if (!had) scene.textures.addCanvas(key, c)
+  artEpoch++
 }
 
 /** Actor sheet: frame name `${key}:${col},${row}` (col = direction, row = frame). */

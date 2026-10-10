@@ -3,7 +3,7 @@
 // of thing it is; "When held:" with its attack in dark green; what a tool does and what food
 // restores in blue and gold; its traits as purple italic lore; statuses and an owner in red.
 
-import type { Frame, ItemInfo } from '@lsw/engine'
+import type { Frame, ItemInfo, StatusDef } from '@lsw/engine'
 import { MATERIALS, PROFESSION_BY_ID, RELICS, STATUSES } from '@lsw/content'
 import { esc, locale, tx } from './common.ts'
 
@@ -173,11 +173,22 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   if (traits.length) out.push(line(esc([...new Set(traits)].join(' · ')), '#aa00aa', 'lore'))
   // what has happened to it, and whose it is
   for (const s of it.statuses) {
-    const def = STATUSES.find((d) => d.id === s)
-    out.push(line(esc(def ? tx(def.name) : s), '#ff5555'))
+    const def = STATUSES.find((d) => d.id === s) ?? LEARNED_STATUSES.find((d) => d.id === s)
+    out.push(line(esc(def?.name ? tx(def.name) : readable(s)), '#ff5555'))
   }
   if (typeof p.owner === 'string' && p.owner) out.push(line(esc(L(`Belongs to ${ctx.nameOf(p.owner) ?? p.owner}`, `属于${ctx.nameOf(p.owner) ?? p.owner}`)), '#ff5555'))
   return out.join('')
+}
+
+/** The statuses the world learned (the shared library's): named on the things that have them. */
+let LEARNED_STATUSES: StatusDef[] = []
+export function setLearnedStatuses(statuses: StatusDef[]): void {
+  LEARNED_STATUSES = statuses
+}
+/** A status with no name of its own: its id, as words ("well_honeyed" → "Well honeyed"). */
+const readable = (id: string): string => {
+  const w = id.replace(/[_-]+/g, ' ').trim()
+  return w.charAt(0).toUpperCase() + w.slice(1)
 }
 
 /** The box that follows the cursor over anything marked `data-item` (an item id, or a key `register`ed). */

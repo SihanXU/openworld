@@ -16,12 +16,12 @@ import { DeathScreen } from './ui/death.ts'
 import { locale, t, tx } from './ui/common.ts'
 import { ModConsole } from './ui/dev.ts'
 import { Hud } from './ui/hud.ts'
-import { BuildingMode } from './ui/building.ts'
+import { BuildingMode, setLearnedPlaceables } from './ui/building.ts'
 import { LessonGuide } from './ui/lesson.ts'
-import { Menu } from './ui/menu.ts'
+import { Menu, setLearnedRecipes } from './ui/menu.ts'
 import { PeoplePanels } from './ui/people.ts'
 import { SkillBar } from './ui/skillbar.ts'
-import { Tooltip } from './ui/tooltip.ts'
+import { Tooltip, setLearnedStatuses } from './ui/tooltip.ts'
 import { Minimap } from './ui/worldmap.ts'
 import { AfterSave } from './afterSave.ts'
 import './styles.css'
@@ -252,6 +252,8 @@ hud.paintIcons = paintIcons
 menu.paintIcons = paintIcons
 people.paintIcons = paintIcons
 building.paint = (sprite, across) => {
+  // a learned thing's own picture (a texture `art:<id>`)
+  if (sprite.startsWith('art:') && scene.textures.exists(sprite)) return crop(sprite, 0, 0, 16, 16)
   const f = CATALOG.fixtures[sprite]
   const d = (across && f?.across) || f?.base || CATALOG.items[sprite]
   return d ? crop(d.img, d.x, d.y, d.w, d.h) : undefined
@@ -346,6 +348,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       quietSave = false
       break
     case 'library':
+      setLearnedStatuses(m.statuses ?? m.library.statuses ?? [])
       void kvSet('library', m.library).then(storeSeq)
       break
     case 'synced':
@@ -359,6 +362,11 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       break
     case 'art':
       for (const a of m.arts) registerArt(scene, a.id, a.art)
+      break
+    case 'recipes':
+      setLearnedRecipes(m.recipes)
+      setLearnedPlaceables(m.recipes)
+      if (menu.menuOpen && (menu.tab === 'craft' || menu.tab === 'shop')) menu.render()
       break
     case 'creating':
       hud.message(`✦ ${t('creating')}: ${m.names.map((n) => tx(n)).join(locale.value === 'zh' ? '、' : ', ')}…`, 'ai')
@@ -517,6 +525,8 @@ function release(key: Key): void {
  * stood still while it was open: it runs again before the key goes (a key while paused is dropped).
  */
 onChoices = (key, tile, list) =>
+  // nothing the input reaches there (F held on a person): no list to choose from, and time does not stop for one
+  list.length &&
   hud.showChooser(KEY_NAME[key] === 'L' ? t('lmb') : KEY_NAME[key] === 'R' ? t('rmb') : KEY_NAME[key], tile ?? aimFront(), list, (layer) => (syncPause(), send({ t: 'ui', what: 'chooser' }), send({ t: 'key', key, tile, layer })))
 
 /** Esc held this long skips the lesson at hand (docs/prologue.md, the drills). */

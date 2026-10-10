@@ -82,6 +82,8 @@ export interface Episode<Req = unknown, P = unknown> {
   calls?: CallRecord[]
   ms: number
   error?: string
+  /** Where an error the program threw came from (its stack's first lines): a failure no model output explains. */
+  stack?: string
   /** the agent's own one-line summary when it submitted (repo-form tasks) */
   submission?: string
 }

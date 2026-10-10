@@ -83,7 +83,7 @@ interface Result {
   cost?: number
   s: number
   rules: { id: string; doc?: string }[]
-  types: { id: string; name: unknown; tags?: string[]; material?: unknown; makeup?: unknown }[]
+  types: { id: string; name: unknown; tags?: string[]; material?: unknown; makeup?: unknown; station?: string }[]
   pictures: string[]
 }
 const results: Result[] = []
@@ -146,7 +146,7 @@ for (const c of cases) {
   const cost = eps.reduce((a, e) => a + (e.usage.cost ?? 0), 0)
   const calls = eps.reduce((a, e) => a + e.usage.calls, 0)
   const pictures = types.filter((t) => t.art).map((t) => picture(t.id, t.art!))
-  const r: Result = { case: c.name, kind: c.find ? 'find' : 'create', pass, why, holes, routes: eps.map((e) => e.route ?? []), needed: eps.flatMap((e) => e.needed ?? []), calls, cost, s: (Date.now() - t0) / 1000, rules: rules.map((x) => ({ id: x.id, doc: x.doc })), types: types.map((t) => ({ id: t.id, name: t.name, tags: t.tags, material: t.props?.material, makeup: t.makeup })), pictures }
+  const r: Result = { case: c.name, kind: c.find ? 'find' : 'create', pass, why, holes, routes: eps.map((e) => e.route ?? []), needed: eps.flatMap((e) => e.needed ?? []), calls, cost, s: (Date.now() - t0) / 1000, rules: rules.map((x) => ({ id: x.id, doc: x.doc })), types: types.map((t) => ({ id: t.id, name: t.name, tags: t.tags, material: t.props?.material, makeup: t.makeup, station: t.station })), pictures }
   results.push(r)
   console.log(`  ${pass ? 'PASS' : 'FAIL'} — ${why}`)
   console.log(`  holes: ${holes}`)

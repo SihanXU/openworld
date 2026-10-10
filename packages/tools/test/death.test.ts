@@ -49,6 +49,35 @@ describe('death and rising again', () => {
     expect(textOf(f.fallen?.by)).toMatch(/slime/)
   })
 
+  it('a fall names the harm that felled one, not an older blow (struck by a slime, then felled by the world)', () => {
+    const eng = ford()
+    const w = eng.world
+    const p = w.player
+    const at = w.posOf(p)!
+    const slime = eng.author(() => w.create('actor/creature/slime/green_slime', { on: 'tile', map: 'ford', x: at.x + 1, y: at.y }))
+    eng.author(() => w.setProp(p, 'hp', 40))
+    eng.act('use', slime.id, { e: p.id }, { instrument: null, params: { attack: true, power: 5 } })
+    expect(w.hasStatus({ e: p.id }, 'down')).toBe(false)
+    // later: a harm from no one (a fall, the clock) fells them
+    eng.damage(p, 999, undefined, true)
+    expect(w.hasStatus({ e: p.id }, 'down')).toBe(true)
+    expect(snapshot(eng).fallen?.by).toBeUndefined()
+  })
+
+  it('a wound from one now gone still names them (a bleed the slime opened, the slime gone)', () => {
+    const eng = ford()
+    const w = eng.world
+    const p = w.player
+    const at = w.posOf(p)!
+    const slime = eng.author(() => w.create('actor/creature/slime/green_slime', { on: 'tile', map: 'ford', x: at.x + 1, y: at.y }))
+    eng.author(() => w.setProp(p, 'hp', 40))
+    eng.act('use', slime.id, { e: p.id }, { instrument: null, params: { attack: true, power: 5 } })
+    eng.author(() => (eng.applyStatus({ e: p.id }, 'bleeding', 300, slime.id), w.setProp(p, 'hp', 2), w.destroy(w.get(slime.id)!)))
+    for (let i = 0; i < 100 && !w.hasStatus({ e: p.id }, 'down'); i++) eng.tick()
+    expect(w.hasStatus({ e: p.id }, 'down')).toBe(true)
+    expect(textOf(snapshot(eng).fallen?.by)).toMatch(/slime/)
+  })
+
   it('easy: one gets up where one fell, whole, with everything', () => {
     const eng = ford('easy')
     const at = fall(eng)

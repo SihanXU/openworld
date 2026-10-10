@@ -7,7 +7,7 @@ import { Server } from 'node:http'
 import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildSandbox, holeKey, patchKey, placePatch, restoreLibrary, validatePatch, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
-import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, parseJson, qualifyTerrains, scriptFromFile, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
+import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, parseJson, qualifyTerrains, scriptFromFile, stationFromRules, normalizePatch, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
@@ -660,7 +660,7 @@ describe('integrity', () => {
 
   it('commits to the shared log only what stands on the shared library alone', async () => {
     const glow: Rule = { ...bindRule('patch/stone-glows'), tree: { if: STONY, then: { do: [{ op: 'addStatus', status: 'glowing', duration: 30 }] }, else: { undefined: true } }, tests: [] }
-    const status = { id: 'glowing', duration: 30 }
+    const status = { id: 'glowing', name: { en: 'Glowing', zh: '发光' }, duration: 30 }
     // the first draft leans on a status only this client has (a local patch of its own); the repair carries it
     const { model, calls } = scripted([patchOf(glow), { artifacts: [{ kind: 'status', status }, { kind: 'rule', rule: glow }] }])
     const { modder, library } = setup(model)
@@ -710,6 +710,49 @@ describe('deterministic repairs', () => {
       expect(calls.design).toBe(2) // the tool turn and the answer: no repair round
       expect(library.lib.rules.get('patch/stone-stills-creature')!.tree).toEqual(bindTree())
     }
+  })
+
+  it('reads a rule the model wrote without its place (no on, no host) as a rule, bare or flattened beside its kind', () => {
+    // 2026-10-10, Opus 5.5 low (frostcap used on oneself): the harness sets host and on now, so the model leaves them out
+    const tree = { if: { same: ['actor', 'target'] }, then: { do: [{ op: 'destroy' }] }, else: { undefined: true } }
+    const bare = normalizePatch({ patch: { artifacts: [{ id: 'patch/frostcap-eaten-raw', doc: 'd', tree }] } })
+    expect(bare.patch!.artifacts).toEqual([{ kind: 'rule', rule: { id: 'patch/frostcap-eaten-raw', doc: 'd', tree } }])
+    const flat = normalizePatch({ patch: { artifacts: [{ kind: 'rule', id: 'patch/frostcap-eaten-raw', doc: 'd', tree }] } })
+    expect(flat.patch!.artifacts).toEqual([{ kind: 'rule', rule: { id: 'patch/frostcap-eaten-raw', doc: 'd', tree } }])
+    expect(flat.fixes.join()).toMatch(/wrapped rule/)
+    // a type is not taken for a rule
+    const type = normalizePatch({ patch: { artifacts: [{ kind: 'type', id: 'item/material/x', name: { en: 'X', zh: 'X' } }] } })
+    expect(type.patch!.artifacts[0]).toMatchObject({ kind: 'type', type: { id: 'item/material/x' } })
+  })
+
+  it('reads the station of a new thing off the branch that makes it on a workbench', () => {
+    const strips = { id: 'item/material/leather_strips', name: { en: 'Leather Strips', zh: '皮条' }, tags: ['fiber'], props: { material: 'leather' }, makeup: [{ type: 'item/material/leather', count: 1 }] }
+    const onWorkbench: Rule = { id: 'patch/leather-strips', host: { type: 'item/material/leather' }, on: 'act/use', doc: 'd', tree: { if: { is: { role: 'target', sel: { type: 'fixture/craft/workbench' } } }, then: { do: [{ op: 'transform', into: strips.id }] }, else: { undefined: true } } }
+    const made = (rule: Rule, type: object = strips) => stationFromRules({ artifacts: [{ kind: 'type', type: type as never }, { kind: 'rule', rule }] }, onto)
+    const { patch, fixes } = made(onWorkbench)
+    expect((patch.artifacts[0] as { type: { station?: string } }).type.station).toBe('workbench')
+    expect(fixes).toHaveLength(1)
+    // made two at a time by the rule: the recipe makes two (yields), whether or not the designer named the station
+    const two: Rule = { ...onWorkbench, tree: { if: { is: { role: 'target', sel: { type: 'fixture/craft/workbench' } } }, then: { do: [{ op: 'spawn', type: strips.id, at: 'target', count: 2 }, { op: 'destroy' }] }, else: { undefined: true } } }
+    expect((made(two).patch.artifacts[0] as { type: { yields?: number; station?: string } }).type).toMatchObject({ station: 'workbench', yields: 2 })
+    expect((made(two, { ...strips, station: 'workbench' }).patch.artifacts[0] as { type: { yields?: number } }).type.yields).toBe(2)
+    // made in a cauldron (no station), or said already: left alone
+    expect(made({ ...onWorkbench, tree: { if: { is: { role: 'target', sel: { type: 'fixture/craft/cauldron' } } }, then: { do: [{ op: 'transform', into: strips.id }] }, else: { undefined: true } } }).fixes).toEqual([])
+    expect(made(onWorkbench, { ...strips, station: 'hands' }).fixes).toEqual([])
+    // the shop's stall is a station of buying, not of making
+    expect(made({ ...onWorkbench, tree: { if: { is: { role: 'target', sel: { type: 'fixture/furniture/stall/trade' } } }, then: { do: [{ op: 'transform', into: strips.id }] }, else: { undefined: true } } }).fixes).toEqual([])
+  })
+
+  it('makes a fixture it gives a station portable: made into the hand, it can be set down', () => {
+    const stool = { id: 'fixture/furniture/stool', name: { en: 'Stool', zh: '凳子' }, tags: ['wooden'], props: { material: 'wood' }, makeup: [{ type: 'item/material/plank', count: 1 }] }
+    const rule: Rule = { id: 'patch/plank-stool', host: { type: 'item/material/plank' }, on: 'act/use', doc: 'd', tree: { if: { is: { role: 'target', sel: { type: 'fixture/craft/workbench' } } }, then: { do: [{ op: 'transform', into: stool.id }] }, else: { undefined: true } } }
+    const { patch, fixes } = stationFromRules({ artifacts: [{ kind: 'type', type: stool as never }, { kind: 'rule', rule }] }, onto)
+    expect((patch.artifacts[0] as { type: { station?: string; tags?: string[] } }).type).toMatchObject({ station: 'workbench', tags: ['wooden', 'portable'] })
+    expect(fixes.join()).toMatch(/portable/)
+    expect(validatePatch(patch, { ontology: onto, library: new RuleLibrary(BASE) }).errors.join()).not.toMatch(/portable/)
+    // a station the designer named, with its yields too: made portable all the same
+    const named = stationFromRules({ artifacts: [{ kind: 'type', type: { ...stool, station: 'workbench', yields: 2 } as never }, { kind: 'rule', rule }] }, onto)
+    expect((named.patch.artifacts[0] as { type: { tags?: string[] } }).type.tags).toContain('portable')
   })
 
   it('reads a bare terrain id as its tile type, in the host and in conditions', () => {
@@ -830,7 +873,7 @@ describe('the router: local, then find, then create', () => {
   const leaves = (type: string): Rule => ({ id: 'patch/stone-on-creature-leaves', host: { type: 'actor/creature' }, on: 'impulse/offered', doc: `A creature offered a stone leaves ${type} behind, and not again for a while.`, tree: { if: { all: [STONY, { not: { has: { role: 'host', status: 'stirred' } } }] }, then: { do: [{ op: 'spawn', type, at: 'host' }, { op: 'addStatus', status: 'stirred' }, { op: 'log', text: { en: 'Something drops.', zh: '掉下了东西。' } }] } } })
   const INGOT_TYPE = { id: 'item/material/steel_ingot', name: { en: 'Steel Ingot', zh: '钢锭' }, tags: ['metal'], props: { material: 'iron' }, makeup: [{ type: 'item/material/iron_ore', count: 1 }] }
 
-  function router(o: { local: unknown; find?: unknown; create?: unknown; art?: (n: number) => unknown; onArt?: () => void }) {
+  function router(o: { local: unknown; find?: unknown; create?: unknown; art?: (n: number) => unknown; onArt?: () => void; onCreate?: () => void }) {
     const seen: { purpose?: string; system: string; last: string }[] = []
     let arts = 0
     const model = new ScriptedModel((messages, opts) => {
@@ -839,7 +882,7 @@ describe('the router: local, then find, then create', () => {
       if (opts.purpose === 'review') return { verdict: 'ship' }
       if (opts.purpose === 'reflect') return {}
       if (opts.purpose === 'art') return (o.onArt?.(), o.art?.(arts++) ?? INGOT_ART) as object
-      if (last.startsWith('# Create')) return o.create as object
+      if (last.startsWith('# Create')) return (o.onCreate?.(), o.create) as object
       if (last.startsWith('# What you asked for')) return o.find as object
       return o.local as object
     })
@@ -880,6 +923,59 @@ describe('the router: local, then find, then create', () => {
     expect(state.episode(reply.episode!)!.route).toEqual(['local', 'find'])
     expect(seen.find((c) => c.last.startsWith('# What you asked for'))!.last).toMatch(/"Sticks".*item\/material\/stick/)
     expect(library.lib.types).toEqual([])
+  })
+
+  it('a draft that makes a thing the world has no type for goes to create, not to a repair that swaps it for a known one', async () => {
+    const req = request()
+    let during: unknown
+    const { model, seen } = router({
+      // the designer writes the spawn at once, as if the thing existed (a recalled episode named it)
+      local: { patch: { artifacts: [{ kind: 'rule', rule: leaves('item/material/steel_ingot') }] } },
+      create: { patch: { artifacts: [{ kind: 'type', type: INGOT_TYPE }, { kind: 'rule', rule: leaves('item/material/steel_ingot') }] } },
+      onCreate: () => (during = modder.progressOf(req.id)),
+    })
+    const { modder, state, library } = setup(model, undefined, 'live')
+    const reply = await modder.resolve({ request: req })
+    expect(reply.outcome).toBe('accepted')
+    expect(state.episode(reply.episode!)).toMatchObject({ route: ['local', 'create'], created: ['item/material/steel_ingot'] })
+    expect(seen.find((x) => x.last.startsWith('# Create'))?.last).toContain('item/material/steel_ingot (Steel Ingot)')
+    // the player is told what is being made in either language: the id's words stand for the Chinese name it has not got yet
+    expect(during).toEqual({ stage: 'create', creating: [{ en: 'Steel Ingot', zh: 'Steel Ingot' }] })
+    expect(library.lib.types.map((t) => t.id)).toContain('item/material/steel_ingot')
+  })
+
+  it('takes a slip of a known id for a slip, and a malformed draft for the repair, not for a creation or a crash', async () => {
+    const { unknownMade } = await import('../src/pipeline.ts')
+    const spawning = (type: unknown) => ({ artifacts: [{ kind: 'rule' as const, rule: { ...leaves('x'), tree: { if: STONY, then: { do: [{ op: 'spawn', type, at: 'host' }] } } } as never }] })
+    expect(unknownMade(spawning('item/material/steel_ingot'), onto).map((c) => c.id)).toEqual(['item/material/steel_ingot'])
+    expect(unknownMade(spawning('item/food/berrie'), onto)).toEqual([])
+    expect(unknownMade({ artifacts: [{ kind: 'rule', rule: { ...leaves('x'), tree: { do: { op: 'spawn' } } } as never }] }, onto)).toEqual([])
+    expect(unknownMade({ artifacts: [{ kind: 'rule', rule: { ...leaves('x'), tree: { do: [null] } } as never }] }, onto)).toEqual([])
+    expect(stationFromRules({ artifacts: [{ kind: 'type' } as never, { kind: 'rule', rule: { ...leaves('x'), tree: { if: null, then: { do: [null] } } } as never }] }, onto).fixes).toEqual([])
+  })
+
+  it('does not design for a thing only the asking client knows (its own kind, or one its save kept): no answer could be shared', async () => {
+    let calls = 0
+    const model: Model = { name: 'scripted:counting', chat: async () => (calls++, { content: '{}' }) as never }
+    const { modder } = setup(model, undefined, 'live')
+    const req = request()
+    const local = { id: 'item/clothing/wool_scarf', name: { en: 'Wool Scarf', zh: '羊毛围巾' }, tags: ['wearable'], props: { material: 'cloth', slot: 'neck' }, makeup: [{ type: 'item/material/wool', count: 1 }] }
+    req.event.host = { ...req.event.host, type: local.id } as never
+    const reply = await modder.resolve({ request: req, workspace: { patches: { rules: [], types: [local as never], statuses: [] } } })
+    expect(reply.outcome).toBe('failed')
+    expect(reply.diagnostics?.join()).toMatch(/known only to this client/)
+    expect(calls).toBe(0)
+  })
+
+  it('draws a new creature too, but leaves it its kind\'s look: a picture is no animated sheet', async () => {
+    const { model } = router({ local: {} })
+    const { modder } = setup(model, undefined, 'live')
+    const drawn = (await (modder as unknown as { drawAll: (m: Model, p: Patch, c: unknown[]) => Promise<Patch> }).drawAll(model, {
+      artifacts: [{ kind: 'type', type: { id: 'actor/creature/beast/wolf/ash_wolf', name: { en: 'Ash Wolf', zh: '灰狼' } } as never }, { kind: 'type', type: { id: 'item/material/ash_fur', name: { en: 'Ash Fur', zh: '灰毛' } } as never }],
+    }, [])).artifacts.map((a) => (a.kind === 'type' ? a.type : undefined))
+    expect(drawn[0]).toMatchObject({ art: INGOT_ART })
+    expect(drawn[0]?.sprite).toBeUndefined()
+    expect(drawn[1]).toMatchObject({ art: INGOT_ART, sprite: 'art:item/material/ash_fur' })
   })
 
   it('creates what the world does not have, with its picture, and says so while it works', async () => {
@@ -998,6 +1094,23 @@ describe('the design prompt', () => {
 })
 
 const noTestsRule = (r: Rule): Rule => ({ ...r, tests: undefined })
+
+describe('a failure of the harness itself', () => {
+  it('keeps where it came from and the answer it failed on, so it can be found again', async () => {
+    const model = new ScriptedModel((_m, opts) => (opts.purpose === 'reflect' ? {} : opts.purpose === 'review' ? { verdict: 'ship' } : { patch: patchOf(noTestsRule(bindRule())) }))
+    const { modder, state, library } = setup(model, undefined, 'live')
+    // (2026-10-10: "Maximum call stack size exceeded" on a strike from a feather, with nothing kept to see why)
+    library.validate = () => {
+      throw new RangeError('Maximum call stack size exceeded')
+    }
+    const reply = await modder.resolve({ request: request() })
+    const ep = state.episode(reply.episode!)!
+    expect(ep).toMatchObject({ outcome: 'failed', error: 'Maximum call stack size exceeded' })
+    expect(ep.stack).toMatch(/at /)
+    expect(ep.attempts.at(-1)).toMatchObject({ errors: [expect.stringMatching(/harness failed on this answer/)] })
+    expect(ep.attempts.at(-1)!.raw).toMatch(/patch/)
+  })
+})
 
 describe('the live profile', () => {
   /** Live design calls carry no tools; offline ones do. */
@@ -1153,7 +1266,7 @@ describe('the live profile', () => {
     await modder.settled()
     expect(library.lib.rules.has('patch/stone-stills-slime')).toBe(false)
     expect(library.lib.rules.has('patch/stone-stills-creature')).toBe(true)
-    expect(library.since(0).map((e) => ('remove' in e ? `-${e.remove}` : `+${e.rules.join()}`))).toEqual(['+patch/stone-stills-slime', '-patch/stone-stills-slime', '+patch/stone-stills-creature'])
+    expect(library.since(0).map((e) => ('remove' in e ? `-${e.remove}` : 'patch' in e ? `+${e.rules.join()}` : 'removeType' in e ? `-type ${e.removeType}` : `-status ${e.removeStatus}`))).toEqual(['+patch/stone-stills-slime', '-patch/stone-stills-slime', '+patch/stone-stills-creature'])
     const rev = state.episodes().map((e) => state.episode(e.id)!).find((e) => e.revises === first.episode)!
     expect(rev.outcome).toBe('accepted')
   })

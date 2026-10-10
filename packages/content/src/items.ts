@@ -374,7 +374,8 @@ export function itemTypes(): TypeDef[] {
     { id: 'item/food/meat', name: { en: 'Meat', zh: '肉' }, tags: ['edible'] },
     { id: 'item/food/mushroom', name: { en: 'Mushroom', zh: '蘑菇' }, tags: ['edible', 'fungus'] },
     { id: 'item/food/egg', name: { en: 'Egg', zh: '蛋' }, tags: ['edible'] },
-    { id: 'item/potion', tags: ['potion'] },
+    // every potion is drunk (use/drink keys on the tag): one the world learns is too
+    { id: 'item/potion', tags: ['potion', 'drinkable'] },
     { id: 'item/material', tags: ['material'] },
     { id: 'item/seed', name: { en: 'Seeds', zh: '种子' }, tags: ['seed', 'plant'] },
     { id: 'item/valuable', tags: ['valuable'] },

@@ -74,6 +74,8 @@ export interface TileSnap {
   y: number
   terrain?: string
   statuses?: string[]
+  /** The overlay each of its statuses names, a learned one too (status → overlay). */
+  overlays?: Record<string, string>
   /** The durability of what fills or makes up the cell, when it has lost some (a notched tree, a cracked rock). */
   hp?: number
   maxHp?: number
@@ -425,7 +427,8 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     const statuses = w.entitiesAt(map, x, y).filter((c) => w.isTerrain(c)).flatMap((c) => Object.keys(c.statuses ?? {}))
     const top = w.cellTop(map, x, y)
     const hurt = top && w.prop(top, 'maxHp') !== undefined && w.num(top, 'hp', w.num(top, 'maxHp')) < w.num(top, 'maxHp')
-    tiles.push({ x, y, terrain: w.terrainAt(map, x, y), statuses: statuses.length ? statuses : undefined, ...(hurt && { hp: w.num(top!, 'hp'), maxHp: w.num(top!, 'maxHp') }) })
+    const overlays = Object.fromEntries(statuses.flatMap((s) => ((o) => (o ? [[s, o]] : []))(w.onto.status(s)?.overlay)))
+    tiles.push({ x, y, terrain: w.terrainAt(map, x, y), statuses: statuses.length ? statuses : undefined, ...(Object.keys(overlays).length && { overlays }), ...(hurt && { hp: w.num(top!, 'hp'), maxHp: w.num(top!, 'maxHp') }) })
   }
   const panel = opts.panel ? w.get(opts.panel) : undefined
   const box = panel && w.hasStatus({ e: panel.id }, 'open') ? panel : undefined

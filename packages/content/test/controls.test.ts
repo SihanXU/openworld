@@ -170,6 +170,19 @@ describe('the five inputs: one act each', () => {
     expect(eng.controls.plan('use', { x: 2, y: 2 })).toMatchObject({ verb: 'use', target: { e: 'actor' }, rule: 'use/eat' })
   })
 
+  it('an open door is closed as a door: its name says it is open, the label does not say it twice', () => {
+    const eng = world(undefined, [{ key: 'door', type: 'structure/door/open', x: 2, y: 1 }])
+    expect(eng.controls.plan('hands', { x: 2, y: 1 })!.label).toEqual({ en: 'Close the door', zh: '关上门' })
+  })
+
+  it('a label aimed at oneself says "yourself", not "you"', () => {
+    // a learned answer for a cloth on anyone, oneself too (the live game's bandage)
+    const eng = world('item/material/cloth', [])
+    const on = eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'actor' }, { e: 'held' }))
+    eng.lib.add({ id: 'patch/cloth-binds', host: { type: 'item/material/cloth' }, on: 'act/use', hole: holeKey(on.hole!.rule.id, on.hole!.path), at: on.open!.path, label: { en: 'Bandage {target}', zh: '给{target}包扎' }, tree: { do: [{ op: 'destroy' }] }, source: { origin: 'patch' } })
+    expect(eng.controls.plan('self')!.label).toEqual({ en: 'Bandage yourself', zh: '给自己包扎' })
+  })
+
   it("on one's own place E meets its top layer: the berries one stands on, though the pointer is on one's picture (over the tile behind) or the cell's own growth is drawn first", () => {
     const eng = world(undefined, [{ key: 'berries', type: 'item/food/berries', x: 2, y: 2 }])
     const c = eng.controls

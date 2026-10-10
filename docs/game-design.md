@@ -137,7 +137,8 @@ schedules and keyed lines (about 16 each, English and Chinese).
 | Storm | waits it out at the tent's mouth | waits it out beside the tent |
 | What they own | the chest and the bread in it (the rope is the ferry's) | the cart, the frost wand, the oil |
 
-- **Schedules** pick the most specific variant: `fact:<key>` → `storm` → `rain` → `default`. An
+- **Schedules** pick the most specific variant: `fact:<key>` → `storm` → `rain` → `default`; a
+  key may join a fact and the weather (`fact:<key>+storm`), and holds when both do, over either. An
   entry may name the thing its activity **uses** and what it must be (`need`); when it is not,
   the person is **blocked** (§8).
 - **Lines** pick the most specific key: `topic:<id>` → `fact:<key>` → `greeting:first` →

@@ -14,10 +14,10 @@
 // Two profiles of one harness (state.ts): LIVE while a player waits, OFFLINE for everything
 // nobody waits on — curriculum, a failed live request worked again, a revision after review.
 
-import { artProblems, buildModSpec, closestTypes, holeKey, patchKey, type ModProgress, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef } from '@lsw/engine'
+import { artProblems, buildModSpec, closestTypes, holeKey, isDo, isHole, leaves, patchKey, type ModProgress, type Ontology, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef } from '@lsw/engine'
 import { briefOf, relatedRules } from './brief.ts'
 import { changesNothing, deriveTests } from './derive.ts'
-import { normalizePatch, placePatch, qualifyTerrains } from './fixes.ts'
+import { normalizePatch, placePatch, qualifyTerrains, stationFromRules } from './fixes.ts'
 import type { WorldLibrary } from './library.ts'
 import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@lsw/agent'
 import { materializeWorld } from './repo.ts'
@@ -217,6 +217,11 @@ export class Modder {
     }
     const base = this.opts.library.answeredByBase(req)
     if (base) return { patch: null, outcome: 'failed', diagnostics: [`answered by the base rule "${base}" here: the client's base rules are older than the service's`] }
+    // the thing asked about is a kind only the asking client knows (its own patch, or one its save kept after the
+    // library forgot it): an answer hosted on it could never be shared (the library refuses its host), so none is designed
+    const host = req.event.host?.type
+    if (host && body.workspace?.patches?.types?.some((t) => t?.id === host) && !(host in this.opts.library.fullOntology().types))
+      return { patch: null, outcome: 'failed', diagnostics: [`"${host}" is known only to this client (a kind of its own, or one its save kept): no answer for it can be shared`] }
     if (!this.opts.model) return { patch: null, outcome: 'unavailable' }
     // the backend said it is out (of quota, or signed out): no calls until the pause is over
     const why = this.down()
@@ -346,6 +351,7 @@ export class Modder {
     let reviews = 0
     let phase: Attempt['phase'] = 'design'
     let reviewed: Patch | undefined // a valid draft a reviewer sent back: shipped if the revision never validates
+    let lastRaw = '' // the last answer, kept for an attempt the program failed on before it was recorded
     const retry = (content: string, next: Attempt['phase']) => {
       messages.push({ role: 'user', content })
       phase = next
@@ -353,6 +359,7 @@ export class Modder {
     try {
       for (;;) {
         const answer = await this.converse(model, messages, tools, h, ep, stage === 'local' ? undefined : SLOW_MS)
+        lastRaw = answer
         let bracketsRepaired = false
         const parsed = parseJson(answer, () => (bracketsRepaired = true))
         const ask = router ? routeOf(parsed) : undefined
@@ -386,7 +393,7 @@ export class Modder {
           stage = 'create'
           ep.route!.push('create')
           creations = ask.create
-          at({ stage: 'create', creating: creations.map((c) => c.name) })
+          at({ stage: 'create', creating: creations.map((c) => shownName(c.name)) })
           ep.attempts.push({ phase, errors: [], warnings: [], raw: answer.slice(0, 2000) })
           retry(createUser(creations, Object.keys(ctx.ontology.materials ?? {})), 'create')
           continue
@@ -410,6 +417,8 @@ export class Modder {
         let patch: Patch = { ...draft, author: 'modder' }
         const qualified = qualifyTerrains(patch, ctx.ontology)
         if (qualified.fixes.length) ((patch = qualified.patch), fixes.push(...qualified.fixes))
+        const crafted = stationFromRules(patch, ctx.ontology)
+        if (crafted.fixes.length) ((patch = crafted.patch), fixes.push(...crafted.fixes))
         // the rule's place is the request's, never the model's (design.md §5.16)
         const put = placePatch(patch, req, { ontology: ctx.ontology, library: lib })
         patch = put.patch
@@ -442,6 +451,18 @@ export class Modder {
             ep.rules = [meanwhile.rule]
             ep.patch = meanwhile.patch
             break
+          }
+          // the draft makes a thing the world has no type for (a spawn or a transform into an unknown id): a
+          // creation, not a slip to repair; told only "unknown type", the designer swaps in something known
+          // and learns never to create
+          const missing = router && stage !== 'create' ? unknownMade(patch, ctx.ontology) : []
+          if (missing.length) {
+            stage = 'create'
+            ep.route!.push('create')
+            creations = missing
+            at({ stage: 'create', creating: creations.map((c) => shownName(c.name)) })
+            retry(createUser(creations, Object.keys(ctx.ontology.materials ?? {})), 'create')
+            continue
           }
           if (repairs++ >= h.repair.maxRounds) break
           retry(repairUser(res.errors, res.warnings), 'repair')
@@ -482,6 +503,10 @@ export class Modder {
       if (ep.outcome === 'failed' && reviewed && this.commit(ep, reviewed, req, replaces)) ep.error = 'the revision never validated; shipped the reviewed draft'
     } catch (err) {
       ep.error = (err as Error).message
+      // the program's own failure (a stack overflow, a crash in a fix): where it came from, kept with the episode
+      const stack = (err as Error).stack?.split('\n').slice(1, 12).map((l) => l.trim()).join('\n')
+      if (stack) ep.stack = stack
+      if (lastRaw && !ep.attempts.some((x) => x.raw === lastRaw.slice(0, 2000))) ep.attempts.push({ phase, errors: [`the harness failed on this answer: ${(err as Error).message}`], warnings: [], raw: lastRaw.slice(0, 4000) })
       if (reviewed && ep.outcome === 'failed' && this.commit(ep, reviewed, req, replaces)) ep.error += '; shipped the reviewed draft'
     }
 
@@ -531,7 +556,7 @@ export class Modder {
       const collected = repo.collect()
       const problems = collected.problems
       // the rule's place is the request's, as the library is now (design.md §5.16)
-      const patch = collected.patch ? placePatch(collected.patch, req, { ontology: library.fullOntology(lib), library: lib }).patch : collected.patch
+      const patch = collected.patch ? placePatch(stationFromRules(collected.patch, library.fullOntology(lib)).patch, req, { ontology: library.fullOntology(lib), library: lib }).patch : collected.patch
       ep.patch = undefined
       // the auditor, before shipping: a patch it breaks in the sandbox is not committed (nor one it
       // could not audit because the backend went out)
@@ -648,7 +673,8 @@ export class Modder {
       }
       const why = creations.find((c) => c.id === a.type.id)?.why ?? `a new kind of ${a.type.id.split('/').slice(-2, -1)[0] ?? 'thing'}`
       const art = await this.draw(model, a.type, why)
-      artifacts.push(art ? { ...a, type: { ...a.type, art, sprite: `art:${a.type.id}` } } : a)
+      // drawn by its picture; an agent keeps its kind's animated sheet (the picture is kept with it)
+      artifacts.push(art ? { ...a, type: { ...a.type, art, ...(!a.type.id.startsWith('actor/') && { sprite: `art:${a.type.id}` }) } } : a)
     }
     return { ...patch, artifacts }
   }
@@ -810,8 +836,40 @@ function unreadable(answer: string): string {
   }
 }
 
+/** A creation's name as the waiting player reads it: one named only in English (from its id) is so in Chinese too. */
+const shownName = (n: { en: string; zh: string }) => ({ en: n.en, zh: n.zh || n.en })
+
 /** Finding and creating take longer than a design (a long catalogue, a picture): their calls may. */
 const SLOW_MS = 60_000
+
+/**
+ * The things a draft makes that the world has no type for and the patch does not define: spawned, or
+ * transformed into, under a parent the world has (a new kind of ground is never made). Named from the id;
+ * the create prompt names them properly.
+ */
+export function unknownMade(patch: Patch, onto: Ontology): Creation[] {
+  const own = new Set(patch.artifacts.flatMap((a) => (a.kind === 'type' ? [a.type.id] : [])))
+  const ids = new Set<string>()
+  for (const a of patch.artifacts) {
+    if (a.kind !== 'rule' || !a.rule?.tree) continue
+    for (const l of leaves(a.rule.tree)) {
+      // a malformed draft (effects not a list, a null among them) is the validator's to name, not a crash here
+      const effects = isDo(l) ? l.do : isHole(l) ? l.default : undefined
+      for (const e of Array.isArray(effects) ? effects : []) {
+        if (!e || typeof e !== 'object') continue
+        const id = e.op === 'spawn' ? e.type : e.op === 'transform' ? e.into : undefined
+        if (typeof id !== 'string' || id in onto.types || own.has(id) || id.startsWith('tile/') || id.startsWith('@')) continue
+        const segs = id.split('/')
+        // a slip of a known id (item/food/berry for berries) is the repair's to point out, not a creation
+        const most = segs.at(-1)!.length >= 6 ? 2 : 1
+        const slip = Object.keys(onto.types).some((k) => k.startsWith(segs.slice(0, -1).join('/') + '/') && editDistance(k, id) <= most)
+        if (segs.length > 2 && segs.slice(0, -1).join('/') in onto.types && !slip) ids.add(id)
+      }
+    }
+  }
+  const title = (s: string) => s.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  return [...ids].map((id) => ({ id, name: { en: title(id.split('/').at(-1)!), zh: '' } }))
+}
 
 /** The router's two answers besides a patch: things needed beyond the request, or things to create. */
 function routeOf(j: unknown): { need?: Need[]; create?: Creation[] } | undefined {
@@ -833,3 +891,16 @@ function routeOf(j: unknown): { need?: Need[]; create?: Creation[] } | undefined
 export function laneOf(req: ModRequest): string {
   return patchKey(req.event.host?.type ?? '-', req.event.kind, holeKey(req.hole.rule, req.hole.path))
 }
+
+/** How many single-character edits turn one id into the other (small ids only: a slip, not a resemblance). */
+function editDistance(a: string, b: string): number {
+  if (Math.abs(a.length - b.length) > 2) return 3
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j)
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i]
+    for (let j = 1; j <= b.length; j++) row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+    prev = row
+  }
+  return prev[b.length]
+}
+

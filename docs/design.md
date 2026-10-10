@@ -270,8 +270,9 @@ The craft is Stardew Valley's; the systems are the Ford's own (game-design.md §
 was cut).
 
 - **Death** (Minecraft's death screen): the one at the keys, felled, lies fallen (`down`, as any
-  essential being) and the world stops on a red veil: "You died!", who felled them (the last who
-  struck them, `combat.lastHurtBy`), and what may follow by the game's **difficulty**, chosen at a
+  essential being) and the world stops on a red veil: "You died!", who felled them (the source of
+  the harm that did, `combat.lastHurtBy`: no one for a fall, hunger or the world; a wound's pulse
+  names whoever opened it), and what may follow by the game's **difficulty**, chosen at a
   new game (the story's fact `game.difficulty`, protected; a game from before is normal):
   - **easy**: get up where one fell, whole, with everything;
   - **normal**: respawn at home — the bed last slept in or the waypoint last woken (the actor's
@@ -602,7 +603,10 @@ defines picks from the same set (the validator refuses any other). A thing with 
 (a brazier) shows that instead of a flame. **The shared library holds only what holds**: at start the
 service judges every live patch, in the log's order, against what came before it, and rolls back
 what the validator, as it is now, no longer takes (`modder library prune`). Clients used to refuse
-each such patch on every load. The developer's lines (a refused patch, a rule set aside) are a
+each such patch on every load. The types and statuses a rolled-back patch alone brought go with it
+(`removeType`, `removeStatus` in the log), and so does any learned type or status the checks no longer
+take; a client forgets them unless something in its world is made of them or has them, and a synced
+patch's definition of a learned thing replaces the one a client kept. The developer's lines (a refused patch, a rule set aside) are a
 `dev` tone: the console's, never a player's toast. **A key does what its label said**: pressed a
 moment after the label named someone who has since stepped off the spot, it still acts on them
 while it reaches them (`Controls.planFor`), and what lies on a thing comes before the thing however
@@ -1414,6 +1418,33 @@ repairs, reviews and quality flags still cause immediate reflection. Working not
 the static ModSpec in the system prompt so its cache prefix stays intact. The brief sends
 its closest rules in full once and the other related rules as summaries; live instructions
 name only tools available to that call.
+
+As built (2026-10-10), after a play session on the things the world makes:
+- A draft that spawns or transforms into a type the world lacks goes to create with that id
+  (`unknownMade`), unless the id is a slip of a known sibling; before, the repair rounds told the
+  designer only "unknown type", and it learnt to swap in something known.
+- A new thing made on a station (a rule whose branch asks for a workbench) is that station's
+  craft: the harness sets its `station`, and its `yields` from the rule's spawn count
+  (`stationFromRules`). Learned recipes reach the crafting panel and the build palette.
+- What the world uses a thing by is checked on a new type: a food carries `edible` (or a drink
+  `drinkable`; item/potion carries it) and fills by a positive `food`; what a base rule turns into the type a prop names
+  (`TURNS` in mod.ts: a `plantable` seed its `cropType`, raw `cookable` food its `cookedType`, an
+  `empty-vessel` its `waterType`, ore what it `smelts` into, a drinkable vessel its `emptyType`) names it; a thing worn names its slot, a thing made at hand or at a
+  station is `portable` (it comes into the maker's hand; the harness adds the tag when it sets the
+  station), and a new status its name in both languages. A status that holds one still always ends (a duration, given or defined). The create prompt says what tags are for; the ModSpec guide says that both
+  ingredients of a thing made from two are used up, the other by its own answer.
+- A revision may define again the types and statuses of the patch it replaces; prune judges it in
+  that patch's place.
+- An act an answer completes is replayed as `act` runs it, so a patch does the same the first time
+  as every time after. A line about anyone agrees with "you" when the slot is the player.
+- Every answer a client takes, its own included (`ModPort.adopt`), replaces a learned definition it
+  kept when the library brings a corrected one. The library is every save's: a save brings back the
+  learned kinds its own things need (`withKept`), and these stay out of the shared store. Each game
+  keeps its own definitions (an Engine copies the world's), and on loading a client judges what it
+  learned as the library's prune does (`forgetInvalid`).
+- A thing that brings its picture is drawn by it (`art:<id>`) whether it names a sprite or not, and a
+  definition taken anew redraws it in place; an agent keeps its kind's animated sheet. A cell draws the overlay of a learned status as a thing
+  does. The model is shown each status's name, as it is each type's.
 
 **Results.** On 20 unseen curriculum interactions with the live profile:
 - 19/19 accepted (one was already covered); the first answer was valid for 17/19;

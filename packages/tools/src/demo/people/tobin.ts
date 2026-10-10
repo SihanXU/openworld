@@ -35,6 +35,19 @@ export const tobin: PersonDef = {
       [22, 6, 'meadow:cart.bed', 'sleep'],
       [6, 22, 'meadow:market.shelter', 'wait out the storm'],
     ],
+    // the Firstlight taken: he sits by the cold pit and does not strike a flint in it (chapter-1.md: the altar stays
+    // cold unless the pilgrim lights it; a fire he needed lit, he would light again)
+    'fact:ch1.flame_stolen': [
+      [22, 6, 'meadow:cart.bed', 'sleep'],
+      [6, 9, 'meadow:cart', 'mind the cart', CART],
+      [9, 11, 'meadow:square.well', 'fetch water'],
+      [11, 19, 'meadow:cart', 'mind the cart', CART],
+      [19, 22, 'meadow:square.warm', 'sit by the cold fire'],
+    ],
+    'fact:ch1.flame_stolen+storm': [
+      [22, 6, 'meadow:cart.bed', 'sleep'],
+      [6, 22, 'meadow:market.shelter', 'wait out the storm'],
+    ],
   },
   lines: [
     // the news the story spreads (its topics), said once while fresh

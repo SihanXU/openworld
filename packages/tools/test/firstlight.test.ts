@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, tickAt, type Entity } from '@lsw/engine'
 import { BASE_RULES, FIRSTLIGHT, FIRSTLIGHT_LAYOUT, STORY_RULES, buildOntology, decodeChunk, migrateFirstlight } from '@lsw/content'
 import { buildFord } from '../src/demo/world.ts'
+import { CANOPIES, reachingPlots } from '../src/demo/garden.ts'
 
 const garden = (e: Entity) => e.id.startsWith('ford.garden.') || (e.place.on === 'inside' && e.place.holder === 'ford.garden.supplies')
 
@@ -129,5 +130,14 @@ describe('Firstlight Village save compatibility', () => {
     expect(at).not.toEqual({ map: FIRSTLIGHT.map, x: 8, y: 5 })
     expect(w.isSolidTerrain(w.terrainAt(at.map, at.x, at.y))).toBe(false)
     expect(w.get(ore.id)?.place).toEqual({ on: 'inside', holder: crate.id })
+  })
+})
+
+describe('Firstlight Village garden', () => {
+  it('has no tree whose canopy hides a plot or the supplies crate (the pointer there would meet the tree)', () => {
+    const { chunks } = buildFord()
+    const village = decodeChunk(chunks.find((c) => c.map.id === FIRSTLIGHT.map)!)
+    const at = (x: number, y: number) => village.map.terrain[y * village.map.width + x]
+    expect(reachingPlots().map(([x, y]) => at(x, y)).filter((t) => CANOPIES.has(t))).toEqual([])
   })
 })

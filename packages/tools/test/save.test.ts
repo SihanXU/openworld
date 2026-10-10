@@ -59,3 +59,17 @@ describe('an older save (cells as tile overrides, before world-model.md §4.6)',
   })
 })
 
+describe('one game\'s learning', () => {
+  it('stays in that game: a second game made from the same world does not have its learned things', () => {
+    const world = buildOntology()
+    const { index } = buildFord()
+    const learned = { id: 'item/material/bone_ash', name: { en: 'Bone Ash', zh: '骨灰' }, tags: ['powder'], props: { material: 'bone' }, makeup: [{ type: 'item/material/bone', count: 1 }] }
+    const first = Game.create(index, world, lib())
+    first.engine.lib.addType(learned as never)
+    first.engine.world.onto.addType(learned as never)
+    expect(first.engine.world.onto.hasType('item/material/bone_ash')).toBe(true)
+    // the world's own definitions are left as they were, and the next game (a new one, another save) starts from them
+    expect('item/material/bone_ash' in world.types).toBe(false)
+    expect(Game.create(index, world, lib()).engine.world.onto.hasType('item/material/bone_ash')).toBe(false)
+  })
+})

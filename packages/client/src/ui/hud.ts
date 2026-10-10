@@ -5,7 +5,7 @@
 
 import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Mood, type Text, type WorldIndex } from '@lsw/engine'
 import { CATALOG } from '../assets/catalog.ts'
-import { assetUrl, cssAssetUrl } from '../render/assets.ts'
+import { artEpoch, assetUrl, cssAssetUrl } from '../render/assets.ts'
 import { $, MOOD_GLYPH, SLOT_KEYS, controlsTable, esc, locale, prefs, t, tx } from './common.ts'
 import { skillPng } from './skillIcons.ts'
 
@@ -296,7 +296,7 @@ export class Hud {
     const top = !!me && me.y > window.innerHeight * 0.78 && $('#sinBoss').classList.contains('hidden')
     $('#hotbar').classList.toggle('top', top)
     const off = f.player.offhand
-    const sig = `${f.player.selected}|${row.map((s) => (s ? `${s.item.id}:${s.count}${s.worn ? 'w' : ''}` : '')).join(',')}|${off?.id}:${off?.works}`
+    const sig = `${f.player.selected}|${row.map((s) => (s ? `${s.item.id}:${s.count}${s.worn ? 'w' : ''}` : '')).join(',')}|${off?.id}:${off?.works}|${artEpoch}`
     if (sig === this.barSig) return
     this.barSig = sig
     $('#toolbar').innerHTML = row

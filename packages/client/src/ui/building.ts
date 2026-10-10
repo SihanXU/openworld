@@ -1,7 +1,8 @@
-import type { Dir, Frame, PlacementPreview, PlacementRecipe, Text } from '@lsw/engine'
+import type { Dir, Frame, PlacementPreview, PlacementRecipe, Recipe, Text } from '@lsw/engine'
 import { BUILDINGS, FORM_BY_ID, PLACEMENTS, RECIPES, buildOntology } from '@lsw/content'
 import type { Tile, ToWorker } from '../protocol.ts'
 import { esc, locale, tx } from './common.ts'
+import { artEpoch } from '../render/assets.ts'
 
 /** What the palette offers: a placement recipe (a campfire, a chest, sowing), or setting a built thing down (`put:<type>`). */
 interface Entry {
@@ -40,8 +41,8 @@ const PUT_HELP: Text = { en: 'Set down one you carry (as G does); with none, one
 
 const fromRecipe = (r: PlacementRecipe): Entry => ({ id: r.id, category: r.category, name: r.name, description: r.description, sprite: r.sprite, result: r.result, needs: r.needs.map((n) => ({ name: n.name, count: n.count, match: n.match, consume: n.consume })) })
 
-/** The things one makes and sets down (walls, floors, doors, beds, a workbench): from the recipes that make them. */
-const MADE: Entry[] = RECIPES.filter((r) => placeable(r.make.type)).map((r) => ({
+/** Setting down a thing a recipe makes: one carried, or one made first from what the recipe needs. */
+const madeEntry = (r: Recipe): Entry => ({
   id: `put:${r.make.type}`,
   category: 'building',
   name: r.name,
@@ -49,7 +50,14 @@ const MADE: Entry[] = RECIPES.filter((r) => placeable(r.make.type)).map((r) => (
   sprite: r.sprite,
   put: r.make.type,
   needs: r.needs.map((n) => ({ name: FORM_BY_ID[n.type] ? { en: FORM_BY_ID[n.type].en, zh: FORM_BY_ID[n.type].zh } : { en: n.type.split('/').pop()!, zh: n.type.split('/').pop()! }, count: n.count, type: n.type, consume: true })),
-}))
+})
+/** The things one makes and sets down (walls, floors, doors, beds, a workbench): from the recipes that make them. */
+const MADE: Entry[] = RECIPES.filter((r) => placeable(r.make.type)).map(madeEntry)
+/** The things the world learned to make and set down (the worker's `recipes`): after the content's. */
+let LEARNED: Entry[] = []
+export function setLearnedPlaceables(recipes: Recipe[]): void {
+  LEARNED = recipes.filter((r) => placeable(r.make.type) && !MADE.some((m) => m.put === r.make.type)).map(madeEntry)
+}
 
 /**
  * The build palette (B): everything one can set in a place — the things one makes and carries
@@ -114,9 +122,9 @@ export class BuildingMode {
     if (this.category !== 'building') return PLACEMENTS.filter((r) => r.category === this.category).map(fromRecipe)
     // anything else carried that is set in a place (a found chest, a crate) is offered too
     const carried = [...(this.frame?.player.inventory ?? []), ...(this.frame?.player.held ? [this.frame.player.held] : [])]
-    const extra = [...new Map(carried.filter((it) => placeable(it.type) && !MADE.some((m) => m.put === it.type)).map((it) => [it.type, it])).values()]
+    const extra = [...new Map(carried.filter((it) => placeable(it.type) && ![...MADE, ...LEARNED].some((m) => m.put === it.type)).map((it) => [it.type, it])).values()]
       .map((it): Entry => ({ id: `put:${it.type}`, category: 'building', name: it.name, description: PUT_HELP, sprite: it.sprite, put: it.type, needs: [] }))
-    return [...MADE, ...extra, ...BUILDINGS.map(fromRecipe)]
+    return [...MADE, ...LEARNED, ...extra, ...BUILDINGS.map(fromRecipe)]
   }
 
   /** R: a floor between one's storey and the ceiling over it; anything else the next way round (clockwise), from the way it would face now. */
@@ -158,7 +166,7 @@ export class BuildingMode {
     if (!this.open) return
     if (f.scene || f.question || f.container) return this.toggle(false)
     // what is carried changes what is offered (a found crate)
-    const list = this.entries().map((e) => e.id).join('|')
+    const list = `${this.entries().map((e) => e.id).join('|')}|${artEpoch}`
     if (list !== this.listSignature) this.render()
     this.refreshAim()
     this.details()
@@ -257,7 +265,7 @@ export class BuildingMode {
   /** The ghost's picture: the thing's, across when it faces east or west (a fence running north-south). */
   private artSig = ''
   private setArt(sprite: string, across = false): void {
-    const sig = `${sprite}|${across}`
+    const sig = `${sprite}|${across}|${artEpoch}`
     if (sig === this.artSig) return
     this.artSig = sig
     this.ghost.replaceChildren()
@@ -296,7 +304,7 @@ export class BuildingMode {
   private render(): void {
     const zh = locale.value === 'zh'
     const entries = this.entries()
-    this.listSignature = entries.map((e) => e.id).join('|')
+    this.listSignature = `${entries.map((e) => e.id).join('|')}|${artEpoch}`
     if (!entries.some((e) => e.id === this.selected.id)) this.selected = entries[0]
     this.panel.innerHTML = `<header><strong>${zh ? '建筑模式' : 'BUILD MODE'}</strong><button data-close="1" title="B / Esc">×</button></header>
       <nav><button data-category="building" class="${this.category === 'building' ? 'chosen' : ''}">${zh ? '建筑' : 'Structures'}</button><button data-category="farming" class="${this.category === 'farming' ? 'chosen' : ''}">${zh ? '种植' : 'Farming'}</button></nav>

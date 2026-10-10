@@ -88,7 +88,7 @@ const OVERLAY_FX: [string, string][] = [
   ['flame', 'ovl:lit'],
   ['mend', 'ovl:mend'],
 ]
-/** A cell carries its statuses by name only: the overlay each of the base statuses names (ontology.ts). */
+/** The overlay each of the base statuses names (ontology.ts), for a cell whose snapshot names none. */
 const CELL_OVERLAY: Record<string, string> = { burning: 'fire', frozen: 'ice', electrified: 'spark', wet: 'wet', oiled: 'oil', lit: 'flame' }
 // The engine's DIRS, kept here so the main thread does not bundle the engine.
 const STEP: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }
@@ -568,7 +568,13 @@ export class WorldScene extends Phaser.Scene {
     const wx = cam.worldView.x + sx / cam.zoom
     const wy = cam.worldView.y + sy / cam.zoom
     const hits: { ref: Ref; depth: number }[] = []
-    for (const v of this.views.values()) if (this.drawnAt(v.body, wx, wy)) hits.push({ ref: { e: v.snap.id }, depth: v.root.depth })
+    const z = this.playerAt?.z ?? 0
+    const x = Math.floor(wx / T)
+    const y = Math.floor((wy + z * STOREY_LIFT) / T)
+    // one's own body is aimed at only in one's own cell: drawn taller than a tile, it covers the foot of what
+    // stands just north, which is what the pointer there means (oneself has the right click)
+    const mine = !this.playerAt || (this.playerAt.x === x && this.playerAt.y === y)
+    for (const v of this.views.values()) if ((mine || v.snap.id !== this.playerId) && this.drawnAt(v.body, wx, wy)) hits.push({ ref: { e: v.snap.id }, depth: v.root.depth })
     for (const [k, img] of this.objects) {
       if (!this.drawnAt(img, wx, wy)) continue
       const [x, y] = k.split(',').map(Number)
@@ -578,9 +584,7 @@ export class WorldScene extends Phaser.Scene {
     // the cell under the point on the storey the player stands on (drawn a storey higher for each)
     // the cell of the player's storey under the point, and the cell whose ceiling (a storey up, drawn a
     // tile higher) is drawn there (docs/building.md §5)
-    const z = this.playerAt?.z ?? 0
-    const x = Math.floor(wx / T)
-    return { x, y: Math.floor((wy + z * STOREY_LIFT) / T), stack: hits.map((h) => h.ref), over: { x, y: Math.floor((wy + (z + 1) * STOREY_LIFT) / T) } }
+    return { x, y, stack: hits.map((h) => h.ref), over: { x, y: Math.floor((wy + (z + 1) * STOREY_LIFT) / T) } }
   }
 
   /** Is a picture's own (not transparent) pixel at this world point? */
@@ -605,9 +609,11 @@ export class WorldScene extends Phaser.Scene {
   private applyTiles(f: Frame): void {
     const now = new Map<string, string>()
     const statusNow = new Map<string, string[]>()
+    const overlayOf = new Map<string, Record<string, string>>()
     for (const t of f.tiles) {
       if (t.terrain) now.set(`${t.x},${t.y}`, t.terrain)
       if (t.statuses?.length) statusNow.set(`${t.x},${t.y}`, t.statuses)
+      if (t.overlays) overlayOf.set(`${t.x},${t.y}`, t.overlays)
     }
     const dirty = new Set<string>()
     for (const [k, terrain] of now) if (this.overrides.get(k) !== terrain) (this.overrides.set(k, terrain), dirty.add(k))
@@ -634,7 +640,7 @@ export class WorldScene extends Phaser.Scene {
       const [x, y] = k.split(',').map(Number)
       const sprites: Phaser.GameObjects.GameObject[] = []
       for (const [o, ov] of OVERLAY_FX) {
-        const st = list.find((s) => CELL_OVERLAY[s] === o)
+        const st = list.find((s) => (overlayOf.get(k)?.[s] ?? CELL_OVERLAY[s]) === o)
         if (!st) continue
         const s = this.overlaySprite(ov, x * T + T / 2, (y + 1) * T)
         if (s) {

@@ -469,6 +469,8 @@ export interface LibraryEntry {
   ruleId?: string
   rule?: Rule
   type?: TypeDef
+  typeId?: string
+  statusId?: string
   status?: StatusDef
   at: string
 }
@@ -558,6 +560,24 @@ export class RuleLibrary {
     this.types = this.types.filter((x) => x.id !== t.id).concat(t)
     this.version += 1
     this.log.push({ version: this.version, action: 'add', type: t, at: now })
+  }
+
+  /** Forget a learned type (rolled back with the patch that brought it). */
+  removeType(id: string, now = new Date().toISOString()): boolean {
+    if (!this.types.some((t) => t.id === id)) return false
+    this.types = this.types.filter((t) => t.id !== id)
+    this.version += 1
+    this.log.push({ version: this.version, action: 'remove', typeId: id, at: now })
+    return true
+  }
+
+  /** Forget a learned status (rolled back with the patch that brought it). */
+  removeStatus(id: string, now = new Date().toISOString()): boolean {
+    if (!this.statuses.some((s) => s.id === id)) return false
+    this.statuses = this.statuses.filter((s) => s.id !== id)
+    this.version += 1
+    this.log.push({ version: this.version, action: 'remove', statusId: id, at: now })
+    return true
   }
 
   addStatus(s: StatusDef, now = new Date().toISOString()): void {

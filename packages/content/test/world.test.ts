@@ -104,6 +104,19 @@ describe('people', () => {
     expect(talk(eng)).toBe('Get under something.')
   })
 
+  it('asked for news with no deed to tell, give the fresh news of the place (their topic line) before "quiet days"', () => {
+    const eng = place({ lines: [L('topic:theft', 'I saw that.'), L('default', 'Hm.')] })
+    eng.author(() => (eng.world.setFact('topic.theft', 1), eng.world.setFact('topic.theft.days', 2)))
+    const ask = () => {
+      eng.world.fx = []
+      eng.controls.talk('hesper', 'ask')
+      return eng.world.fx.flatMap((f) => (f.t === 'say' && f.who === 'hesper' ? [typeof f.text === 'string' ? f.text : f.text.en] : []))
+    }
+    expect(ask()).toEqual(['I saw that.'])
+    // said once: then there is nothing more to tell
+    expect(ask()).toEqual(['Nothing much has happened. Quiet days.'])
+  })
+
   it('remember what happened: a topic line is said once while it is fresh', () => {
     const eng = place({ lines: [L('topic:theft', 'I saw that.'), L('default', 'Hm.')] })
     eng.world.get('hesper')!.npc!.memory = { talked: 1 }
@@ -132,6 +145,13 @@ describe('people', () => {
     expect(scheduleFor(eng, h)[0].x).toBe(2)
     fact(eng, 'ford.crossed', 1)
     expect(scheduleFor(eng, h)[0].x).toBe(3)
+    // a variant may join a fact and the weather: both holding, it is the more specific
+    const both = place({ schedules: [{ key: 'default', entries: at(1) }, { key: 'storm', entries: at(2) }, { key: 'fact:ford.crossed', entries: at(3) }, { key: 'fact:ford.crossed+storm', entries: at(4) }] })
+    const h2 = both.world.get('hesper')!
+    fact(both, 'ford.crossed', 1)
+    expect(scheduleFor(both, h2)[0].x).toBe(3)
+    both.world.weather = [{ day: 1, weather: 'storm' }]
+    expect(scheduleFor(both, h2)[0].x).toBe(4)
     // an outcome may change its host's script (design.md §5.4): a ferrykeeper who cannot go on takes shelter
     eng.world.state.maps.sandbox.anchors = { shelter: [6, 6] }
     const stuck: GameEvent = { kind: 'stuck', host: { e: 'hesper' }, roles: {}, params: { activity: 'at 3' }, origin: 'world' }

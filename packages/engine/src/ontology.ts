@@ -83,6 +83,20 @@ export class OntologyIndex {
     this.data.statuses[def.id] = def
   }
 
+  /** Forget a status registered at runtime (a learned status rolled back). */
+  removeStatus(id: string): void {
+    // the ontology's table of what statuses are, not any thing's statuses
+    const definitions = this.data.statuses
+    delete definitions[id]
+  }
+
+  /** Forget a type registered at runtime (a learned type rolled back). */
+  removeType(id: string): void {
+    delete this.data.types[id]
+    this.cache.clear()
+    this.biggest = undefined
+  }
+
   hasType(id: string): boolean {
     return id in this.data.types
   }
@@ -127,7 +141,10 @@ export class OntologyIndex {
       chain.push(p)
       for (const t of def.tags ?? []) tags.add(t)
       Object.assign(props, def.props ?? {})
+      // a type that carries its own picture is drawn by it (the client's texture `art:<id>`), sprite named or not;
+      // an agent is drawn by its kind's animated sheet, which a 16x16 picture is not, so it keeps its kind's
       if (def.sprite) sprite = def.sprite
+      else if (def.art && !p.startsWith('actor/')) sprite = `art:${p}`
       if (def.solid !== undefined) solid = def.solid
       if (def.footprint) footprint = def.footprint
       if (def.reach) reach = def.reach

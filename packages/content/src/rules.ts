@@ -1649,7 +1649,8 @@ const BUILDING: Rule[] = [
     doc: 'An open door taken hold of shuts.',
     host: { type: 'structure/door/open' },
     on: 'impulse/handle',
-    tree: AS(L('Close {target}', '关上{target}'), DO({ op: 'transform', into: 'structure/door' }, vfx('dust'))),
+    // (its name is "Open Door": the label names the act, not the state again)
+    tree: AS(L('Close the door', '关上门'), DO({ op: 'transform', into: 'structure/door' }, vfx('dust'))),
   }),
   rule({
     id: 'bed/sleep',

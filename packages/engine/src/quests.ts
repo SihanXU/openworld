@@ -1029,7 +1029,7 @@ export class Quests {
       // a map not loaded here yet: its middle, as the world's index knows it
       const m = w.map(map) ?? this.eng.maps[map]
       if (!m) continue
-      const r = i < 0 ? undefined : w.map(map)?.regions?.[id.slice(i + 1)]
+      const r = i < 0 ? undefined : m.regions?.[id.slice(i + 1)]
       out.push(r ? { map, x: r[0] + Math.floor(r[2] / 2), y: r[1] + Math.floor(r[3] / 2) } : { map, x: Math.floor(m.width / 2), y: Math.floor(m.height / 2) })
     }
     return out
