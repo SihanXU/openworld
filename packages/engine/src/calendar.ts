@@ -64,7 +64,7 @@ export function tickAt(day: number, hour: number): number {
   return Math.round(((day - 1) * 24 + hour - START_HOUR) * TICKS_PER_HOUR)
 }
 
-/** When night falls and when it ends, in clock hours, the night longer by `shift` hours (the story's `night.shift`). */
+/** When night falls and when it ends, in clock hours, the night longer by `shift` hours (the story's fact `params.nightFact` names). */
 export const nightHours = (shift = 0): { dusk: number; dawn: number } => ({ dusk: 21 - Math.max(0, shift), dawn: 5 + Math.max(0, shift) / 2 })
 
 /** Night: the hours creatures roam and people sleep — longer as the story's night lengthens (docs/lore.md §2). */

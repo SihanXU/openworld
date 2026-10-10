@@ -252,7 +252,7 @@ the instrument, and every carried thing (or none) can be selected; the aim, the 
 context menu reach every target within the act's reach (one's own place for use: the right
 click). The three are independent, so their product — the event space within reach, less the
 stated conventions and the takes and puts that would change nothing — is reachable; and a given
-input state is one dry run, shown by the label. `packages/content/test/controls.test.ts` checks it
+input state is one dry run, shown by the label. `games/openworld/content/test/controls.test.ts` checks it
 by enumeration on a scene with the hard cases (a pile on a table, a stick on the ground, a person,
 the own tile, a second thing in the bag).
 
@@ -414,7 +414,8 @@ lists where it fell short).
   - Walk its tree to a leaf. `inherit` goes up a level.
   - The root type `thing` has a rule for every root event kind, and none of them inherits, so
     every event reaches a leaf.
-  - The validator rejects two rules that are equally specific.
+  - The validator rejects two base rules that are equally specific; learned rules have places,
+    not ranks (§5.16).
 - **One outcome per event.** There are no composed rules. Further consequences are further
   events: an act that someone sees is also a `seen` event, with the seer as its host.
 
@@ -535,13 +536,13 @@ At the Ford:
   - it sits on a host type and an event kind of the AI's choosing;
   - its conditions name classes, not instances;
   - every case it does not match inherits.
-- **Validation**, in addition to §8's schema, ontology, sandbox replay, tests and regression:
+- **Validation**, in addition to §8's schema, ontology, sandbox replay and tests:
   1. it writes only its host;
   2. it emits only known kinds;
-  3. it addresses classes;
-  4. **it only fills holes**: every case it matches resolved to an undefined leaf before.
-     Conditions are conjunctions over types, tags, statuses and numeric ranges, so whether
-     the patch's region lies inside the hole's region can be decided.
+  3. it is one type's, placed at one open leaf of that type's tree for the hole (§5.16);
+  4. **it only fills holes**: by construction, since the learned tree is consulted only where
+     the base rules reach an undefined leaf, and a learned rule has no undefined leaf of its own
+     that it could close for others.
 
   Rule 4 makes refinement monotone: the AI never changes defined behaviour. An authored
   outcome that is wrong is fixed by a person, or by offline review.
@@ -578,6 +579,9 @@ At the Ford:
   one escalated to an offline run (2026-10-07).
 - **Boundaries.**
   - Only the story's own rules write its protected facts (`ford.`, `seen.`, `invalid.`).
+  - Only the story raises its own topics (the ones its steps and rules raise, protected as
+    `topic.<id>`): a patch, the player's or the world's, may raise a topic of its own, never the
+    story's news before it happens.
   - An `essential` actor goes down and is never destroyed.
   - Emitted spread stays within the event's map and below certainty.
 - **Legibility.** Every learned thread enters the Threadbook with its cause and with who
@@ -839,7 +843,7 @@ opens) are its own: written only by its own behaviour and outcomes, never read b
 | beats wrote the leader's props and facts | the story's script (as a scene's): its facts, and a notice of the stage the leader keeps itself (`body/stage`) |
 | the dispatcher counted the player's experiments | a companion sees an act whose chain reached an undefined outcome (`seen`, `defined` false: the act and all it set going) and tells the story (`companion/witness`) |
 | the teleport set `visited.<map>` facts for the player | the traveller's own props, in its outcome |
-| a quest wrote facts, the player's props and bag from the person's rule; the dispatcher counted defeats by the player | the person tells the story; the story's `quests` effect writes its facts, spawns the reward into the taker's bag, notifies the taker (experience, stage) and sends the brought things a `taken` into the giver's bag; a defeat tells the story what fell (`{typeOf}` param), counted for the quests its feller took on (`q.<id>.by`) |
+| a quest wrote facts, the player's props and bag from the person's rule; the dispatcher counted defeats by the player | the person tells the story; the story's `quests` effect writes its facts, spawns the reward into the taker's bag, notifies the taker (experience, stage) and sends the brought things a `taken` into the giver's bag; a defeat tells the story what fell (`{typeOf}` param), counted for the quests its feller took on (`q.<id>.by`). **2026-10-09** (docs/quests.md): a quest under way is a resident thing of its own; it sees news (a `seen` event) and moves on as its own outcome (`advance`, `stage`), writing only itself; the story begins quests (`begin`, `startQuest`) and keeps the facts it is told (`facts`) |
 | the skill tree and the trainer wrote the player's tags and props | `act/learn` (param `skill` or `profession`), like `craft`: the actor's outcome (`learn`) |
 | talents healed the striker and bled the target from the striker's code; a clock hurt and healed | the act carries `bleed` and `drain`; the struck one's `hurt` opens `bleeding` and sends a `restore`; `adrenaline` is a status; recoveries on a defeat are the striker's rule (the defeat carries the last blow's instrument) |
 | the dash, waypoint travel moved by code | acts of moving |
@@ -881,6 +885,93 @@ Sources:
 - BardOS: `docs/overview.md`, `demo/loom/src/interact.ts` (free action, conversation,
   examine/trigger, ambient arrival, opening), `demo/loom/docs/quests.md` (the stage
   invariant).
+
+### 5.16 Learned rules take one leaf (2026-10-09)
+
+Agreed with the user, and built. A patch used to name a class (`{type: "item/weapon"}`,
+`{tags: ["edible"]}`) and join a layer of learned rules ranked by specificity. Three things
+followed from the ranking: two learned rules could tie (the validator refused the later one, and
+the modder learnt to add tags to win the ranking); a later, more specific one could shadow an
+earlier one, so every patch was replayed against the scenes earlier ones answered (the regression
+set); and once a broad patch filled a hole, nothing more specific was ever asked about any
+instance of its class. A second observation: none of this guarded anything. What the base rules
+define is resolved before the learned layer is consulted at all; a learned rule may not have an
+undefined leaf; `inherit` ran on to the next learned rule. So no patch could ever make a defined
+outcome undefined, and the regression replay could only ever report a shadowing it then allowed.
+
+**Now a learned rule is one type's, placed at one leaf.**
+
+- Its host is exactly `{type: T}`, the type of the event's host instance; its `on` is the exact
+  event kind; `hole` names the base hole it fills (`holeKey`: the base rule and the branch that
+  reached it); `at` is the path in the type's tree for that hole to the open leaf it replaces
+  (empty for the first answer). The four are set from the request by the harness (`placePatch`),
+  never by the model, which writes the tree.
+- For each (type, kind, hole) the library keeps **one tree**, composed from its answers in the
+  order they were learned: the first answer is the tree; each later one replaces the open leaf at
+  its `at`. A leaf keeps the answer it came from, so the rule that decided an event is known, and
+  an answer set aside at runtime (`quarantine`) leaves its leaves open again.
+- A learned rule never writes `inherit`. A case it does not answer ends in `{"undefined": true}`:
+  it stays open, and is asked later; the base hole's default runs there meanwhile. An `if` needs
+  an `else`.
+- Resolution: the base chain as before; at a hole, the host type's own tree for that hole;
+  `Resolution.open` says where an answer would go (the key and the path), and the request carries
+  it (`hole.at`). The class key includes it: one question per open leaf and class.
+
+**What this removes.** Ties, the regression set (the client's ring of recent acts, the service's
+FIFO, the validator's step 7), `overrides`, `narrowKinds`, and the sibling generalization test (a
+learned rule has no siblings; its derived test is the scene that asked). The validator's checks
+on a learned rule are: schema, ontology, locality and the world-event boundaries; its place (with
+the scene that asked: the host's type, the kind, the hole and the open leaf it reaches; without
+one: a first answer, or an open leaf of the library's tree); the sandbox replay of the triggering
+event (it resolves to this rule); the repeat check; its own tests. Monotonicity over the base is
+by construction, not by test.
+
+**What it costs.** Generalization moves out of the learned layer: a class-wide answer ("natural
+fixtures hold nothing put on them", which once answered 1,638 cells) is now one answer per type
+reached, and sibling types are answered independently and may disagree. That is the intended
+division: the live layer answers one type at one leaf and never interacts with another answer;
+what holds for a class belongs in the base rules, which the offline loop may propose (a repo
+change with tests, merged by a person) and which then makes the learned trees under it stale
+(`RuleLibrary.stale()` lists answers whose leaf is gone or already answered).
+
+**Older patches.** A learned rule without a place (a class host, no `hole`) is kept in a library
+but never consulted; `library prune` lists and rolls back what the validator no longer takes, and
+`restoreLibrary` drops it from a save with the reason.
+
+**Found in review (the same day), and held to:**
+
+- A leaf that says `undefined` and carries `do` at once is open: the validator refuses it, and the
+  engine reads such a leaf as open whatever it carries.
+- A question's place is read off the scene **as the library is now**, not as it was when the
+  question was asked: another answer may have grown the tree since (the open leaf moved) or taken
+  the case (then nothing is placed, and the request is covered). `placePatch` does this in the
+  pipeline, the repo mode and the port, so a stale request is still answered.
+- A learned rule set aside at run time (`fault`, `quarantine`) leaves the library: its leaf is open
+  again for the validator's replays as for the game.
+- A rule's `hole` must be an open leaf of a base rule that exists. So a base rule whose branches
+  change makes the learned rules below it fail validation on restore, sync and prune, with the
+  reason, instead of silently never being consulted; what grew below a rule that is not restored
+  is dropped with it (`restoreLibrary`, `stale()`).
+- A revision takes its predecessor's place in the tree (the log entry says what it `replaces`;
+  `RuleLibrary.add(rule, at, inPlaceOf)`), so the answers that grew below the old one keep their
+  place where their paths still fit.
+- A boss is not lashed down by a handful of grass: `creature/offered` leaves bosses to their own
+  kind's answer.
+
+**The base's general cases (the same day).** With generalization moved to the base, the base
+took the class-level answers the curriculum had been learning one patch at a time
+(`rules.ts` GENERAL): a thing used on a creature is held out to it, as §5.2 says (`core/use`);
+a creature lashed down by anything fibrous and fed by anything edible, else its own kind's to
+answer (`creature/offered`, still a hole at the root); a wild creature snapping at a bare hand,
+animals left to their own rules (`creature/handle`); a cell only touched by a bare hand, but a
+place of the overworld entered (`tile/handle`); a lit fire drying and thawing who warms their
+hands at it (`fire/warm-hands`); ore smelted in a lit forge into its bar (`smelt/ore`, the ore's
+`smelts`; iron and gold ingots are forms now); a down companion waiting (`companion/stuck`); and
+anything swung as a blow striking. What §5.2 calls the player's experiments — a thing used on the
+ground, on an item, on a person, on oneself, on a fixture with no purpose — stays undefined on
+purpose: that is where the AI's answers are interesting, and it is most of the 27,213 `core/use`
+holes left. The planner no longer lets the ground's "touched" take E away from an unanswered
+thing in front (`controls.ts`: what one stands on wins only with an answer that does something).
 
 ## 6. Rule system
 
@@ -1066,16 +1157,16 @@ Lifecycle of a patch:
    4. **writes only its host**;
    5. **fills only holes**: by construction — patches are consulted only where the base rules
       reach an undefined leaf (§5.14), and the replay must resolve to the patch;
-   6. no tie with an existing rule;
-   7. **sandbox replay** of the triggering event, of the patch's own `tests`, and of the
-      regression set, on a copy of the state.
+   6. its place: one type, the exact kind, the hole and the open leaf the scene reaches (§5.16);
+   7. **sandbox replay** of the triggering event and of the patch's own `tests`, on a copy of
+      the state; the repeat check.
 5. **Apply.** The rule enters the library; the held event is replayed and now reaches it.
 6. **Persist** (§9).
 
 A failure at any step runs the leaf's default; the game never blocks.
 
 As built (2026-10-05): the service keeps bounded validation proofs keyed by the library
-version and the contents of the ontology, workspace, regression set, scenario and candidate
+version and the contents of the ontology, workspace, scenario and candidate
 artifacts. Adding only tests replays the added tests. Commit reuses a proof only when its
 shared-library context matches exactly; any context change requires full validation. Both
 luck branches of the repeat check remain.
@@ -1197,18 +1288,18 @@ Notes from verification that changed the design:
 Direction from the user: build a small but refined demo first, then scale. The default world is
 hand-crafted; the generated 460-map world was removed on 2026-10-02.
 
-- **Art**: the Ninja Adventure pack (CC0). `packages/client/src/assets/catalog.ts` maps every
+- **Art**: the Ninja Adventure pack (CC0). `games/openworld/client/src/catalog.ts` maps every
   terrain, fixture, item, creature, character look, VFX, UI piece, music and sound to the pack;
   a preview page (`/src/assets/preview.html`) shows all of it.
-- **Renderer** (`packages/client/src/render/`): 47-tile blob autotiling (table `BLOB47`) into a
+- **Renderer** (`packages/runtime/src/render/`): 47-tile blob autotiling (table `BLOB47`) into a
   runtime ground atlas; terrain objects (trees, rocks, tall grass…) that follow terrain state
   (burnt → charred, chopped → stump); prefab buildings stamped by the map author with correct
   occlusion; nine-slice room walls; 4-direction animated actors; status overlays, projectiles,
   day/night light, music per map and sound effects.
-- **World** (`packages/tools/src/demo/`): an authoring DSL (terrain painting, prefabs, rooms,
+- **World** (`games/openworld/tools/src/demo/`): an authoring DSL (terrain painting, prefabs, rooms,
   fixtures, items, creatures, portals). First Hearthvale (15 maps, 12 villagers), replaced on
   2026-10-02 by **the Ford** — one map, two people, minimal and complete (game-design.md).
-- **Story as data** (`packages/content/src/ford.ts`): objectives keyed by a player prop, rules
+- **Story as data** (`games/openworld/content/src/ford.ts`): objectives keyed by a player prop, rules
   on classes (the ferrykeeper, the peddler, the dead tree), and invariants that keep it winnable.
 - **UI**: JRPG dialogue box with portraits, objective panel, and an action prompt that shows
   what E/F will do — including "the world has never seen this" for undefined interactions.
@@ -1264,7 +1355,8 @@ gone or become another, an event count). The code judges: a finding counts only 
 shows it with the patch and not without it, so the model searches and never decides. The offline
 profile audits before shipping, and what is broken goes back to the designer with the evidence. The
 live profile audits after shipping, and what is broken leaves the shared library at once and goes
-to one offline revision. An auditor that fails finds nothing. Harness `audit {enabled, blocking,
+to one offline revision. An auditor that fails finds nothing; the journal's audit entry keeps its
+`error`, so a failed audit is never counted as a clean one. Harness `audit {enabled, blocking,
 rounds, reasoning}`.
 
 **Client.** The worker probes `?modder=<url>` (default `VITE_MODDER_URL`; in development,
@@ -1472,8 +1564,9 @@ does not hold (iron from smelting, a stick from a stump). So the design works in
   worked and validated in its own sandbox, and the commit re-validates against the library as it
   is then. A request whose patch would be written where another's is (the same event kind and
   host class, `laneOf`) waits in that lane and is often answered by what the other committed;
-  others are designed side by side. Reviews, reflections and escalations run three at a time
-  (`concurrency.background`).
+  others are designed side by side. A revision takes no lane: a player's request never waits
+  behind one (seen live: 20 s behind a 107 s revision, past the act's time-out). Reviews,
+  reflections and escalations run three at a time (`concurrency.background`).
   As built (2026-10-05): before repairing a failed validation, a non-revision request checks
   whether another lane has already answered its hole and class. If so it returns `covered`
   without another design call.

@@ -1,5 +1,6 @@
 // World: the mutable state plus derived indices (not serialized) for fast spatial queries.
 
+import { LOOK_TAG, lookProblems, lookTags, wornLook } from './looks.ts'
 import { calendarAt, type Calendar, type WeatherSpan, isNight } from './calendar.ts'
 import { CELL_SPACES, cellId, parseCellId, splitLayers, type CellSpace, type Layers } from './cells.ts'
 import { OntologyIndex } from './ontology.ts'
@@ -9,6 +10,7 @@ import type {
   Entity,
   FxEvent,
   Id,
+  Look,
   MapData,
   Place,
   Pos,
@@ -22,6 +24,7 @@ import type {
 } from './types.ts'
 import { DIRS } from './types.ts'
 import { matchSelector } from './rules.ts'
+import type { CondImpl } from './module.ts'
 
 export const tileKey = (map: string, x: number, y: number) => `${map}:${x}:${y}`
 /** A cell's key in the index: its tile, and its storey above the ground's. */
@@ -90,6 +93,17 @@ export class World {
   fx: FxEvent[] = []
   /** The last lines logged or said, kept past the drain of `fx` (a request's recent context). */
   recent: Text[] = []
+  /** What the world's modules keep on it for their conditions to read (a society's mechanisms), by key. */
+  ext = new Map<string, unknown>()
+  /** The conditions the world's modules add (module.ts), by the key that names each. */
+  condImpls: [string, CondImpl][] = []
+  /** Whether a worn thing works for its wearer, as the world's modules say (a profession's piece: only for its own). */
+  wears: ((e: Entity, item: Entity) => boolean)[] = []
+  /**
+   * What the quests watch (docs/quests.md): the story's facts changing, a thing gone; and the tags a quest under way
+   * gives what it names (essential people, kept things) — derived, never stored.
+   */
+  watch?: { fact(key: string): void; gone(id: Id): void; tags(id: Id): readonly string[] | undefined }
   /** The repeat check's assignment by chance site (world-model.md §8.4). Unset in play. */
   luck?: (site: object, part: number) => boolean
   /**
@@ -908,6 +922,8 @@ export class World {
     const r = this.onto.resolve(e.type)
     const tags = new Set(r.tags)
     for (const t of e.tags ?? []) tags.add(t)
+    for (const t of this.lookTagsOf(e)) tags.add(t)
+    for (const t of this.watch?.tags(e.id) ?? []) tags.add(t)
     return {
       ref,
       type: e.type,
@@ -955,23 +971,64 @@ export class World {
     return Array.from({ length: n }, (_, i) => (i ? `wear:${slot}.${i + 1}` : `wear:${slot}`))
   }
 
-  /** What a thing wears: what each of its `wear:<slot>` props names, while it still has it (in its bag or its hand) and, a profession's piece, follows that profession. */
+  /** What a thing wears: what each of its `wear:<slot>` props names, while it still has it (in its bag or its hand) and it works for it (`wears`). */
   worn(e: Entity): Entity[] {
     const out: Entity[] = []
     for (const [k, id] of Object.entries(e.props ?? {})) {
       if (!k.startsWith('wear:') || typeof id !== 'string') continue
       const w = this.get(id)
       if (!w || (w.place.on !== 'inside' && w.place.on !== 'hand') || w.place.holder !== e.id) continue
-      // a profession's piece (the warrior's shield) works only for its own (profession.ts)
-      const need = [...this.onto.resolve(w.type).tags, ...(w.tags ?? [])].find((t) => t.startsWith('profession:'))
-      if (need && need.slice('profession:'.length) !== this.prop(e, 'profession')) continue
+      if (!this.wears.every((f) => f(e, w))) continue
       out.push(w)
     }
     return out
   }
 
   hasTag(e: Entity, tag: string): boolean {
-    return (e.tags?.includes(tag) ?? false) || this.onto.resolve(e.type).tags.includes(tag)
+    return (e.tags?.includes(tag) ?? false) || this.onto.resolve(e.type).tags.includes(tag) || (tag.startsWith(LOOK_TAG) && this.lookTagsOf(e).includes(tag)) || !!this.watch?.tags(e.id)?.includes(tag)
+  }
+
+  /** A thing's look changes (the `restyle` primitive): a valid look of the world's table, inside its outcome. */
+  setLook(e: Entity, look: Look): void {
+    this.guard('setLook', e)
+    const table = this.onto.data.looks
+    const wrong = table ? lookProblems(look, table) : []
+    if (wrong.length) throw new Error(`${e.id}: ${wrong.join('; ')}`)
+    e.look = look
+  }
+
+  private lookTags = new WeakMap<Look, { key: string; tags: string[] }>()
+
+  /** What a thing is seen to look like (docs/looks.md): its own look with what it wears on it (`wornLook`). */
+  seenLook(e: Entity): string | Look | undefined {
+    const look = e.look
+    const table = this.onto.data.looks
+    if (!look || typeof look === 'string' || !table) return look
+    const worn = this.wornParts(e)
+    return worn.length ? wornLook(look, worn, table) : look
+  }
+
+  /** What a thing wears that shows on its look: each worn thing's part (its `look` prop) and material. */
+  private wornParts(e: Entity): { part: string; material?: string }[] {
+    if (!e.props || !Object.keys(e.props).some((k) => k.startsWith('wear:'))) return []
+    const out: { part: string; material?: string }[] = []
+    for (const w of this.worn(e)) {
+      const part = this.prop(w, 'look')
+      if (typeof part === 'string') out.push({ part, material: this.materialOf(w)?.id })
+    }
+    return out
+  }
+
+  /** The tags a thing's look gives it (docs/looks.md): derived from the look as seen and the world's table, never kept. */
+  lookTagsOf(e: Entity): string[] {
+    const look = e.look
+    const table = this.onto.data.looks
+    if (!look || typeof look === 'string' || !table) return []
+    const worn = this.wornParts(e)
+    const key = worn.map((w) => `${w.part}:${w.material ?? ''}`).join(',')
+    let t = this.lookTags.get(look)
+    if (!t || t.key !== key) this.lookTags.set(look, (t = { key, tags: lookTags(worn.length ? wornLook(look, worn, table) : look, table) }))
+    return t.tags
   }
 
   /** A thing's own prop changes (the engine's `setProp` adds the threshold events). */
@@ -983,6 +1040,8 @@ export class World {
       if (e.props) delete e.props[key]
     } else (e.props ??= {})[key] = value
     if (key === 'companion') this.indexCompanion(e)
+    // the story's facts are news for the quests (docs/quests.md §2.3)
+    if (e.id === STORY_ID) this.watch?.fact(key)
   }
 
   private indexCompanion(e: Entity): void {
@@ -1137,6 +1196,7 @@ export class World {
     this.guard('destroy', e)
     // (once: a holder loop an old save may carry would otherwise go round for ever)
     if (this.destroying.has(e.id)) return
+    this.watch?.gone(e.id)
     this.destroying.add(e.id)
     try {
       for (const c of [...(e.contents ?? [])]) {
@@ -1234,9 +1294,10 @@ export class World {
     return calendarAt(this.state.tick, this.state.seed).hour
   }
 
-  /** How much longer the night is than at the start (hours): the story's `night.shift` (docs/chapter-1.md). */
+  /** How much longer the night is than at the start (hours): the story's fact the world names (`params.nightFact`). */
   nightShift(): number {
-    const v = this.fact('night.shift')
+    const key = this.onto.data.params?.nightFact
+    const v = key ? this.fact(key) : undefined
     return typeof v === 'number' ? v : 0
   }
 

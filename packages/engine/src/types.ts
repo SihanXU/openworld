@@ -110,6 +110,8 @@ export interface MaterialDef {
   /** How much it makes of a weapon's or tool's power, and of a worn thing's defence (world-model.md §6.8, Elin's material atk/pv): factors, 1 when absent. */
   attack?: number
   defence?: number
+  /** What it makes of a thing's worth (docs/npc-sandbox.md §2.10): a factor, 1 when absent. */
+  value?: number
 }
 
 /** A quality a made thing can have (world-model.md §6.4): its tag, name and factor on power and defence (Elin's rarity), and from how far above a recipe's level its maker reaches it (none: not by making). */
@@ -119,6 +121,8 @@ export interface QualityDef {
   name?: Text
   factor: number
   from?: number
+  /** What it makes of a thing's worth: a factor, 1 when absent. */
+  value?: number
 }
 
 /** Numbers the world is made with (world-model.md §11): data, never literals in the engine. */
@@ -146,6 +150,8 @@ export interface WorldParams {
   carry?: number
   /** How many of a body's wearing slots there are of a kind, where more than one (two hands, two rings): `wear:ring`, `wear:ring.2`. */
   slotCount?: Record<string, number>
+  /** The story's fact that lengthens the night by so many hours (a number; the Ford's `night.shift`): none, the night keeps its length. */
+  nightFact?: string
 }
 
 /** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */
@@ -199,7 +205,15 @@ export interface TerrainDef {
 }
 
 export interface Ontology {
+  /** The modules the game uses (module.ts, docs/engine-split.md §4), installed in this order with every engine made over it. */
+  modules?: string[]
   types: Record<string, TypeDef>
+  /** What people take as deeds (docs/npc-sandbox.md §2.2), the watches, the numbers of their social life. */
+  deeds?: DeedDef[]
+  laws?: Record<string, LawDef>
+  social?: SocialParams
+  /** The verbs of the talk panel (docs/npc-sandbox.md §2.9): each offered when its condition holds (host: the one spoken to; actor: the speaker). */
+  talk?: TalkVerb[]
   statuses: Record<string, StatusDef>
   terrains: Record<string, TerrainDef>
   elements: string[]
@@ -238,6 +252,8 @@ export interface Ontology {
   appear?: AppearDef[]
   /** The order goals are tried in for a thing whose type does not say (world-model.md §6.10). */
   goals?: string[]
+  /** The looks bodies are drawn from (docs/looks.md): bodies, parts, colours. */
+  looks?: LookTable
 }
 
 /**
@@ -360,7 +376,7 @@ export interface Entity {
   contents?: Id[]
   /** Actors: the held item. */
   held?: Id
-  /** NPCs: schedule + appearance + role. */
+  /** NPCs: schedule + role. */
   npc?: NpcData
   /** Creatures: combat behaviour. */
   ai?: AiData
@@ -384,8 +400,12 @@ export interface Entity {
   skillbar?: (string | null)[]
   /** The player: the selected slot (what is held). */
   selected?: number
-  /** Render hint: a character look key from the client's asset catalogue. */
-  look?: string
+  /**
+   * How an actor looks: a look record (its body, a part per slot and a colour per colour key; the map
+   * sprite, the portrait and the look's tags and words are all drawn from it, docs/looks.md), or the key of
+   * a whole drawn sheet in the client's catalogue (a figure no parts make: a skeleton, a statue).
+   */
+  look?: string | Look
 }
 
 export interface BossSkill {
@@ -528,9 +548,6 @@ export interface NpcData {
   role: string
   home?: Pos
   schedule: ScheduleEntry[]
-  appearance?: Appearance
-  /** Character look key (asset catalogue); preferred over `appearance` when present. */
-  look?: string
   lines?: Text[]
   faction?: string
   /** A person's record (docs/game-design.md §5); crowd NPCs may have none. */
@@ -574,7 +591,7 @@ export interface PersonData {
   schedules?: ScheduleVariant[]
 }
 
-/** What a person remembers about the player. */
+/** What a person remembers (their own record): what they said, what they saw and heard, what they think of others. */
 export interface NpcMemory {
   /** keys (or texts) of once-only and topic lines already said */
   said?: string[]
@@ -582,6 +599,114 @@ export interface NpcMemory {
   last?: string
   /** the day they were last talked to */
   talked?: number
+  /** What they know was done (docs/npc-sandbox.md §2.4): seen or heard, newest last. */
+  deeds?: DeedMemory[]
+  /** What they think of others, by id (−100..100; missing: their start), and when each last changed (it fades back from there). */
+  regard?: Record<Id, number>
+  regardAt?: Record<Id, number>
+  /** Whom they know by sight (met, talked to, seen close in daylight). */
+  met?: Id[]
+  /** The day each was last talked to, by id (talking raises regard once a day). */
+  chatted?: Record<Id, number>
+  /** Whom they fear for now (they saw them do violence): run from them until the tick. */
+  afraid?: Record<Id, number>
+}
+
+/** A deed a person knows of: what was done, by whom (or how they looked), to whom, and how they know. */
+export interface DeedMemory {
+  /** The deed's id (the world's `deeds`). */
+  deed: string
+  /** Who did it, if they knew them. */
+  by?: Id
+  /** How the doer looked, when they did not know them (a hood hides the hair): matched later against who they see. */
+  desc?: Look
+  /** That look in words, for what they say. */
+  words?: string
+  /** Against whom: a person's id, or `household:<h>`. */
+  against?: string
+  /** What it was done to or with (the thing taken). */
+  thing?: Id
+  /** The thing's name then (it may be gone since). */
+  what?: Text
+  map: string
+  x: number
+  y: number
+  tick: number
+  /** Seen with their own eyes (else heard). */
+  firsthand: boolean
+  /** The fine the watch would charge for it. */
+  fine: number
+  /** Told to the watch; settled (given back, paid for, forgiven). */
+  reported?: boolean
+  settled?: boolean
+  /** Whom they have told it to. */
+  told?: Id[]
+}
+
+/**
+ * A kind of deed (docs/npc-sandbox.md §2.2): what in a `seen` event makes it one — a condition on the event
+ * (roles actor, target, instrument; params act, owner: mine|ours|another|nobody, from: person|container|ground,
+ * harm, killed, presence) — and what it costs: a fine (`value`: half the thing's worth) and the regard it takes.
+ */
+export interface DeedDef {
+  id: string
+  name: Text
+  /** How it is told ({who} did it, against {whom}, to {what}): "{who} stole {what} from {whom}". */
+  told?: Text
+  when: Cond
+  fine: number | 'value'
+  /** Regard lost by its victim (others who learn of it lose a share). */
+  weight: number
+  /** Violence: those who see it fear the doer; the fighting answer. */
+  violent?: boolean
+  /** The worst first: a deed matched earlier hides the lesser ones in the same act (murder hides assault). */
+  rank: number
+}
+
+/** A verb of the talk panel: what it is called, when it is offered, and its sub-choices (a request's). */
+export interface TalkVerb {
+  id: string
+  /** What the panel says ({bounty}, {bribe}, {name} are filled in). */
+  label: Text
+  /** Offered when this holds (host: the one spoken to; actor: the speaker). */
+  when?: Cond
+  /** A guard's, offered only when the guard has stopped the speaker (an arrest), and then only these. */
+  arrest?: boolean
+  choices?: { id: string; label: Text; when?: Cond }[]
+}
+
+/** A watch (docs/npc-sandbox.md §2.7): who keeps the law on its maps, and where it keeps those who will not pay. */
+export interface LawDef {
+  id: string
+  name: Text
+  /** Where its jail is: a map and an anchor on it. */
+  jail?: { map: string; anchor: string }
+  /** A bounty this high is not talked or bought away (a murderer's). */
+  unpardonable?: number
+}
+
+/** The numbers of the people's social life (data, docs/npc-sandbox.md): the engine holds the mechanisms. */
+export interface SocialParams {
+  /** The coin trade and fines are paid in. */
+  coin: string
+  /** Regard one starts with toward a stranger, and toward one tied to them. */
+  regardStart: number
+  regardTie: number
+  /** Talking raises regard by this once a day (harder as it rises). */
+  talk: number
+  /** How fast regard fades back to its start, each day (a share of the way). */
+  fade: number
+  /** Ticks between two rounds of gossip, and how many days a deed stays worth telling. */
+  gossipEvery: number
+  gossipDays: number
+  /** Ticks between two looks about (trespass, the wanted, a drawn blade, a familiar description). */
+  perceiveEvery: number
+  /** How long one fears a violent doer, in ticks. */
+  fearTicks: number
+  /** How much a merchant asks over a thing's value, and pays under it; and a fence's share for what is not yours. */
+  markup: number
+  markdown: number
+  fence: number
 }
 
 /** Something that happened, which people may talk about while it is fresh. */
@@ -606,8 +731,12 @@ export interface StepCond {
   weather?: string[]
   /** The story's facts. */
   facts?: Record<string, Cmp>
-  /** The leader's props (their stage). */
+  /** The leader's props. */
   props?: Record<string, Cmp>
+  /** Quests' stages (0 before one begins; a quest over keeps the stage it ended at): docs/quests.md. */
+  quest?: Record<string, Cmp>
+  /** Quests' objectives done (`quest.objective`: the warden down, Fennick heard). */
+  objectives?: string[]
   /** The leader carries (hand or bag) something of a type starting with this (each of these, for a list). */
   carrying?: string | string[]
   /** The leader has (true) or has not (false) these statuses (out cold, down). */
@@ -677,8 +806,6 @@ export interface StepDef {
   script?: SceneCmd[]
   /** The story's facts it sets. */
   facts?: Record<string, PropValue>
-  /** The leader's stage: the story tells them (`notify` what = key, value), and they keep it. */
-  props?: Record<string, PropValue>
   /** Said by the leader's companion, in a bubble, when it plays. */
   say?: Text
   /** What the companion says when spoken to while this is the latest beat (default: `say`). */
@@ -715,8 +842,8 @@ export type SceneCmd =
   | { warp: string; x: number; y: number }
   /** add or remove a status on an entity (the Hearth goes out: remove 'lit') */
   | { status: Id; add?: string; remove?: string }
-  /** set a prop on the player (the story's stage) */
-  | { prop: string; value: PropValue }
+  /** tell a quest to reach a stage (its own rule answers: docs/quests.md) */
+  | { stage: string; n: number }
   /** tell someone something (a notice they answer themselves: the fairy given a boon) */
   | { tell: Id; params: Record<string, PropValue> }
   /** a full-screen card (the ending), advanced like a line */
@@ -733,12 +860,62 @@ export interface SceneState {
   line?: { who: Id; text: Text; mood?: Mood; card?: boolean }
 }
 
-export interface Appearance {
-  skin: number // index into palettes; the art layer owns the actual colors
-  hair: number
-  hairStyle: number
-  top: number
-  bottom: number
+/**
+ * A look (docs/looks.md): what a body is drawn from — the one record its map sprite, its portrait and its
+ * look's tags and words all come from, so they cannot disagree. Parts and colours are the ontology's
+ * (`Ontology.looks`); their pictures are the client's.
+ */
+export interface Look {
+  /** The body (`LookTable.bodies`): its frame on the map and its bust in the portrait. */
+  body: string
+  /** A part per slot (`LookTable.parts`; the slot is the part's own): hair, face, outfit, hat, beard, mark, glasses… */
+  parts: Record<string, string>
+  /**
+   * A colour per colour key: `skin`, `hair`, `eyes`, and a part's own as `<slot>.<n>` (`outfit.1`); a colour of
+   * `LookTable.colors` by id, or `#rrggbb`. A key no colour is given for takes the part's default.
+   */
+  colors: Record<string, string>
+  /** Changed in the world (`restyle`): the world's own design of this person no longer replaces it on load. */
+  own?: boolean
+}
+
+/** A body a look may have: its sex and age as a body shows them, and what it says of its bearer. */
+export interface LookBodyDef {
+  name: Text
+  sex: 'female' | 'male'
+  age: 'child' | 'adult'
+  tags?: string[]
+}
+
+/** A part of a look: the slot it fills, the bodies it fits, the colour keys it is painted in, and its tags. */
+export interface LookPartDef {
+  slot: string
+  name: Text
+  /** The bodies it is drawn for (omitted: every body). */
+  bodies?: string[]
+  /** Its own colour keys' defaults (`1` → a colour id) and the shared keys it uses (`hair`, `skin`, `eyes`). */
+  colors?: Record<string, string>
+  uses?: ('skin' | 'hair' | 'eyes')[]
+  tags?: string[]
+}
+
+/** A named colour: what it is called, and the tags it gives the key it colours (silver hair → `look:grey-haired`). */
+export interface LookColorDef {
+  hex: string
+  name: Text
+  /** Families it is offered for: hair, skin, eyes, cloth, metal. */
+  for: string[]
+  tags?: Record<string, string[]>
+}
+
+/** The looks a world knows (Ontology.looks): bodies, parts and colours; the engine checks a look against it and derives its tags. */
+export interface LookTable {
+  slots: string[]
+  bodies: Record<string, LookBodyDef>
+  parts: Record<string, LookPartDef>
+  colors: Record<string, LookColorDef>
+  /** The colour a worn thing shows in, by its material (an iron helmet is iron-grey): `#rrggbb` or a colour id. */
+  materials?: Record<string, string>
 }
 
 export interface AiData {
@@ -813,8 +990,12 @@ export interface MapData {
   fish?: boolean
   /** Named spots ('square.well') for schedules, scenes and authors. */
   anchors?: Record<string, [number, number]>
+  /** The watch that keeps the law here (docs/npc-sandbox.md §2.7). */
+  law?: string
   /** Named areas [x, y, w, h] ('far_bank') for scenes and goals. */
   regions?: Record<string, [number, number, number, number]>
+  /** What a named area is beyond its cells (docs/npc-sandbox.md §2.1): whose it is (`owner`), whether it is `private`. */
+  regionProps?: Record<string, Record<string, PropValue>>
   /** What appears on the map by itself (world-model.md §6.9): the ground's yield, creatures that come back. */
   appear?: AppearDef[]
   /** Older chunks' name for `appear`, one type each (read when a chunk is decoded). */
@@ -1012,6 +1193,8 @@ export interface Plan {
   panel?: Id
   /** It sets what is held down where it is aimed (the cell takes it): G, or the left click with a built thing (it builds). */
   sets?: boolean
+  /** It takes what is another's (docs/npc-sandbox.md §2.1): the HUD says so. */
+  steal?: boolean
 }
 
 // ------------------------------------------------------------------ events (design.md §5.7)
@@ -1149,7 +1332,7 @@ export type Cond =
   | { none: RoleName }
   /** Two roles are the same thing (food used on oneself). */
   | { same: [RoleName, RoleName] }
-  /** The first role leads the second: the second follows it (a companion's own `companion` prop names it). */
+  /** The first role leads the second: the second follows it (a companion's own `companion` prop names it, a person's `follow`). */
   | { leads: [RoleName, RoleName] }
   | { has: { role: RoleName; status?: string; tag?: string } }
   /** A role's prop compared to a value, or bounded by other numbers. A missing prop is false. */
@@ -1162,7 +1345,7 @@ export type Cond =
   /** It is night (true) or day (false), however long the story's night has grown (World.isNight). */
   | { night: boolean }
   /** How many entities (matching `match`) are in a role's contents, or on its tile besides itself. */
-  | { count: { role: RoleName; in: 'contents' | 'tile'; match?: Selector; cmp: Bounds } }
+  | { count: { role: RoleName; in: 'contents' | 'tile' | 'map'; match?: Selector; cmp: Bounds } }
   /** Something that happened is still fresh. */
   | { topic: string }
   /** The weather now. */
@@ -1173,10 +1356,35 @@ export type Cond =
   | { outdoors: true }
   /** A role's type says what it is made of (it has a makeup). */
   | { makeup: RoleName }
+  /** The role's thing is worn by the one who carries it (in one of its slot's keys). */
+  | { worn: RoleName }
   /** A role has a relation now (world-model.md §7): `on`, `support`, `in-region` … */
   | { rel: { role: RoleName; how: string } }
   /** A role is fighting: it struck at an actor, was struck by one, or was chased by a hostile one, in the last FIGHT_TICKS. */
   | { fighting: RoleName }
+  /** What one role thinks of another (docs/npc-sandbox.md §2.4): its regard, −100..100. */
+  | { regard: { of: RoleName; toward: RoleName; cmp: Cmp } }
+  /** A role's bounty with the watch of where the host is (or any watch, with no host place). */
+  | { bounty: { role: RoleName; cmp: Cmp } }
+  /** One role holds an unsettled deed against another (done to it or its household; any deed, or one). */
+  | { grudge: { of: RoleName; toward: RoleName; deed?: string } }
+  /** The first role owns the second (its own, or its household's). */
+  | { owns: [RoleName, RoleName] }
+  /** The first role knows the second by sight (met, talked to, tied to them). */
+  | { knows: [RoleName, RoleName] }
+  /** A role keeps a record of its own (what it saw and heard, what it thinks of others): a person whose day is its own. */
+  | { remembers: RoleName }
+  /** The seen event holds a deed (docs/npc-sandbox.md §2.2): any (true), or the one named. */
+  | { deed: string | true }
+  /**
+   * A roll of one role swaying another (docs/npc-sandbox.md §2.9): `persuade` (its regard, the speaker's level),
+   * `intimidate` (their levels and the speaker's arms), as the social numbers say; `bonus` adds to the chance.
+   */
+  | { sway: { of: RoleName; by: RoleName; how: 'persuade' | 'intimidate'; bonus?: number } }
+  /** A role carries coin enough for its bounty with the watch of the host's map, times `mul`. */
+  | { canPay: { role: RoleName; mul?: number } }
+  /** A role's bounty with the watch of the host's map is past what that watch pardons (a murderer's). */
+  | { unpardonable: RoleName }
 
 /** A role, or the cell under it (`tileOf:`: the thing that makes up that cell on top — what fills it, roots in it, or the floor). */
 export type RoleRef = RoleName | 'tileOf:host' | 'tileOf:actor' | 'tileOf:target' | 'tileOf:instrument' | 'tileOf:other' | 'tileOf:item' | 'tileOf:source'
@@ -1193,11 +1401,18 @@ export type EmitTo =
   | { line: { from?: RoleRef; away: RoleRef; length: number; over?: string[] } }
   /** Everything on the host's map (the world's weather); `sky`: only what is out under it (world-model.md §5.3). */
   | { map: true; sky?: boolean }
+  /** The watch that keeps the law where the host is (docs/npc-sandbox.md §2.7). */
+  | 'watch'
+  /** The actors within so many cells of the host, on its map (a call for help: at most 12). */
+  | { around: number }
 
 /**
  * The effect primitives. Every one writes only the host (design.md §5.6: read anything, write only
  * yourself), spawns, or presents; `emit` sends an event to others, which answer for themselves.
  */
+/** The primitives the engine's official modules carry (packages/modules): typed here, worked by their module (module.ts). */
+export type ModuleOp = 'release' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm'
+
 export type Effect =
   | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean }
   | { op: 'destroy' }
@@ -1236,10 +1451,30 @@ export type Effect =
   | { op: 'dropContents'; still?: boolean; to?: RoleRef; keepWorn?: boolean; keep?: string[]; bundle?: string }
   | { op: 'goto'; anchor: string; hours: number; activity?: string }
   | { op: 'topic'; id: string; days?: number }
-  /** The host (a person) is spoken to about quests: its business with the speaker goes to the story; else it says its line. */
+  /**
+   * The host (a person, a notice board) is spoken to about quests (docs/quests.md §2.4): a quest under way that the
+   * word moves on sees it; else the host says its offer (accept or decline in the talk panel), its quest's waiting
+   * line, or its own. Asked with `say: quest` (a talk verb), the offer named (param quest) is accepted or declined,
+   * or the quest's topic (param topic) is told to it.
+   */
   | { op: 'quest' }
-  /** The story's: a quest's business (a word with its giver, a defeat) is settled (quests.ts). */
-  | { op: 'quests' }
+  /** A quest's (docs/quests.md): it sees news, and moves on — counts, objectives, the next stage whose trigger holds. */
+  | { op: 'advance' }
+  /** A quest's: it reaches a stage (a notice's SetStage), and looks again. */
+  | { op: 'stage'; n: Amount }
+  /** A quest's: an offer is taken on by the event's actor; or turned down (a radiant one is withdrawn). */
+  | { op: 'accept' }
+  | { op: 'decline' }
+  /** A quest's: past its deadline, or told so — an offer withdrawn, a quest under way failed. */
+  | { op: 'failQuest' }
+  /** The story's (the Story Manager): it sees news — the quests that begin on it begin, the radiant offers are made. */
+  | { op: 'begin' }
+  /** The story's or a quest's: a quest begins (`offer`: is offered), its aliases filled; param `quest` names it when `id` does not. */
+  | { op: 'startQuest'; id?: string; offer?: boolean }
+  /** The story's: the facts it is told (params `fact.<key>`) it keeps. */
+  | { op: 'facts' }
+  /** News for the quests (docs/quests.md §2.3): what this event is (its actor, host, item) — a gift handed over. */
+  | { op: 'news'; kind: 'give' | 'deed' | 'hungry' | 'talk' }
   /** The world's: what appears by itself on the active map now (its own and the world's appearances), or the one given. */
   | { op: 'appear'; what?: AppearDef }
   /** The host's stage clock ran out (param status): it becomes what its stage says next (world-model.md §6.5). */
@@ -1265,6 +1500,54 @@ export type Effect =
   | { op: 'say'; text: Text; who?: RoleName }
   | { op: 'log'; text: Text }
   | { op: 'emote'; mood: Mood }
+  | { op: 'restyle'; parts?: Record<string, string | null>; colors?: Record<string, string | null> }
+  // the people's social life (docs/npc-sandbox.md): each writes its host only
+  /** The host is someone's now: a role's (absent: nobody's). */
+  | { op: 'own'; to?: RoleName }
+  /** The host (a seer) takes in what it saw: a deed remembered (who, or how they looked), a face learnt, a stranger known again. */
+  | { op: 'witness' }
+  /** The host tells a role its fresh news (what it knows was done): the role hears it. */
+  | { op: 'tell'; to: RoleName }
+  /** The host takes in the news told it (params deeds, from the source). */
+  | { op: 'hear' }
+  /** The host's regard toward a role (default: the actor) changes by delta: gains come harder as it rises. */
+  | { op: 'regard'; toward?: RoleName; delta: Amount }
+  /** The host lets go what it holds against a role (default: the actor): its deeds settled (one deed, or all). */
+  | { op: 'settle'; toward?: RoleName; deed?: string }
+  /** The host fears a role (default: the actor) for a while (the social numbers' fearTicks). */
+  | { op: 'fear'; of?: RoleName }
+  /** The host tells the watch of where it is the deeds it knows of and has not told yet. */
+  | { op: 'report' }
+  /** The watch's: the actor's bounty rises by param amount for the deed reported (param key: once a deed); `clear`: paid, pardoned. */
+  | { op: 'charge'; clear?: boolean }
+  /** The host gives back what it carries that is not its own, each to its owner. */
+  | { op: 'surrender' }
+  /** The host dies: it becomes its body, a container of what it carried and wore, its household's. */
+  | { op: 'die' }
+  /** The host pays a role an amount of the world's coin from its bag (as much as it has). */
+  | { op: 'pay'; amount: Amount; to: RoleName }
+  /** The host gives a role the event's item (from its bag): the role's now. */
+  | { op: 'give'; to: RoleName }
+  /** The host (a merchant) sells the actor what it asks (param item) for its price: it hands it over, the buyer is told to pay. */
+  | { op: 'sell' }
+  /** The host (a merchant) buys the instrument the actor offers: it pays, the seller is told to hand it over. */
+  | { op: 'buy' }
+  /** The host follows a role (its `follow` prop), or (no leader) stops following. */
+  | { op: 'follow'; leader?: RoleName }
+  /** The host is spoken to: it knows the speaker now, warms to them (once a day), and its talk opens for them. */
+  | { op: 'talk' }
+  /** The host (a guard) fines the actor its bounty (times mul) here: the actor is told to pay and (unless keep) give back what is not theirs; the watch, that it is paid. */
+  | { op: 'fine'; mul?: number; keep?: boolean }
+  /** The host (a guard) sends the actor to its watch's jail: told to go and give back what is not theirs; the watch, that it is paid. */
+  | { op: 'imprison' }
+  /** The host goes to the jail named (params map, x, y) and is held there the hours (param hours): time passes at once for the one at the keys. */
+  | { op: 'jail' }
+  /** The host (a guard) stops the actor (the one wanted): its watch's choice is the actor's to make (the talk opens), or, not at the keys, the actor yields. */
+  | { op: 'arrest' }
+  /** The host (a merchant) has its stock again (its `stock` prop: types, by `|`), and its coin back up to its `purse`. */
+  | { op: 'restock' }
+  /** The host forgets its foes and puts its weapon away (a fight over). */
+  | { op: 'calm' }
 
 /**
  * A rule's outcome: a condition tree whose leaves are effects (an empty list: no change),
@@ -1347,11 +1630,18 @@ export interface Provenance {
 
 export interface Rule {
   id: string
-  /** Whose nature this is: the host's class (empty: anything, the root). */
+  /** Whose nature this is: the host's class (empty: anything, the root). A learned rule names one type. */
   host?: Selector
-  /** The event kind it answers, or a branch of the kind tree (`impulse`). */
+  /** The event kind it answers, or a branch of the kind tree (`impulse`). A learned rule names the exact kind. */
   on: string
   tree: Tree
+  /**
+   * A learned rule's place (design.md §5.16): the hole it fills (`holeKey`: the base rule and the
+   * branch that reached it), and `at`, the path in its host type's tree to the undefined leaf it
+   * replaces (none or empty: it is the tree's first answer). Set from the request, never written by hand.
+   */
+  hole?: string
+  at?: string[]
   /** Ask the player first when their input chooses this rule ("Eat {instrument}?"). */
   confirm?: Text
   /**
@@ -1370,7 +1660,7 @@ export interface Rule {
 
 export type FxEvent =
   | { t: 'vfx'; fx: string; map: string; x: number; y: number; angle?: number; span?: number }
-  | { t: 'say'; who: Id; text: Text; mood?: Mood; scene?: boolean }
+  | { t: 'say'; who: Id; text: Text; mood?: Mood; scene?: boolean; /** said to another (one person telling another): heard in passing, not a talk with the one at the keys */ to?: Id }
   | { t: 'emote'; who: Id; mood: Mood }
   | { t: 'fade'; dir: 'out' | 'in' }
   | { t: 'card'; text: Text }
@@ -1387,5 +1677,9 @@ export type FxEvent =
   | { t: 'levelup'; level: number }
   /** A rule opened one of the player's panels ('profession'). */
   | { t: 'panel'; panel: string; by?: Id }
+  /** One spoke to someone (docs/npc-sandbox.md §2.9): their talk opens for the one at the keys (`arrest`: a guard stops them). */
+  | { t: 'talk'; who: Id; arrest?: boolean }
   /** A lesson (docs/prologue.md, the drills): done (its id), or an input it does not allow tried (the key shakes). */
   | { t: 'lesson'; done?: string; blocked?: LessonInput }
+  /** A quest reached a stage (docs/quests.md): its state after (the journal flashes; a save is made). */
+  | { t: 'quest'; id: Id; stage: number; state: string }

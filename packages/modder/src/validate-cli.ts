@@ -5,8 +5,9 @@
 
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { RuleLibrary, validatePatch } from '@lsw/engine'
-import { buildOntology } from '@lsw/content'
+import { RuleLibrary, validatePatch } from '@openworld/engine'
+// the engine's official modules, which a world's ontology may name (docs/engine-split.md S3)
+import '@openworld/modules'
 import { collectPatch, type WorldRepoState } from './repo.ts'
 import { describeOutcome } from './tools.ts'
 
@@ -19,11 +20,10 @@ for (const p of problems) out.push(`FAIL: ${p}`)
 if (patch) {
   const lib = RuleLibrary.fromJSON(state.library)
   for (const id of state.replaces) lib.remove(id)
-  const ontology = buildOntology()
-  const res = validatePatch(patch, { ontology, library: lib, scenario: state.request.scenario, regression: state.regression.filter((r) => !state.replaces.includes(r.rule)) })
+  const ontology = state.ontology
+  const res = validatePatch(patch, { ontology, library: lib, scenario: state.request.scenario })
   for (const e of res.errors) out.push(`FAIL: ${e}`)
   for (const w of res.warnings) out.push(`warning: ${w}`)
-  for (const o of res.overrides) out.push(`overrides: ${o}`)
   if (!res.errors.length) {
     const onto = { ...ontology, types: { ...ontology.types }, statuses: { ...ontology.statuses } }
     for (const t of lib.types) onto.types[t.id] = t

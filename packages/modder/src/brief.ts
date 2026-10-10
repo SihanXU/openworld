@@ -4,7 +4,7 @@
 // same few things — the roles' types, and the rules that already speak about this host or this
 // kind. Those are deterministic queries, so they run here.
 
-import { OntologyIndex, isA, kindCovers, type EntityInfo, type ModRequest, type Ontology, type Rule, type RuleLibrary, type Selector } from '@lsw/engine'
+import { OntologyIndex, isA, kindCovers, type EntityInfo, type ModRequest, type Ontology, type Rule, type RuleLibrary, type Selector } from '@openworld/engine'
 import { compactRule } from './tools.ts'
 
 const MAX_RELATED = 24

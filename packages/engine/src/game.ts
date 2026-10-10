@@ -2,11 +2,9 @@
 
 import { START_HOUR, TICKS_PER_HOUR, type WeatherSpan } from './calendar.ts'
 import { Engine, type MapChunk } from './engine.ts'
-import { HUNGER_EVERY } from './hunger.ts'
 import { ModPort } from './mod.ts'
 import { Codex, type CodexData } from './codex.ts'
 import { RuleLibrary, type LibraryData } from './rules.ts'
-import type { Guide } from './story.ts'
 import type { QuestDef } from './quests.ts'
 import type { BossDef, Entity, Id, Invariant, MapData, NpcMemory, Ontology, Pos, Portal, PropValue, SceneState, StepDef, Text, WorldState } from './types.ts'
 import { TOPIC_DAYS } from './world.ts'
@@ -61,9 +59,7 @@ export interface WorldIndex {
   protectedFacts?: string[]
   /** Spans of time whose weather the world fixes (the evening storm). */
   weather?: WeatherSpan[]
-  /** The story's objectives by stage, for a companion to tell (F on it). */
-  guides?: Guide[]
-  /** Quests people give (quests.ts, docs/quests.md). */
+  /** The quests (quests.ts, docs/quests.md): the main line, what people offer, the radiant favours. */
   quests?: QuestDef[]
   /** Actors who come with the player from the start (the bird), placed beside the start. */
   companions?: Entity[]
@@ -96,9 +92,9 @@ export class Game {
     engine.controls.magnetic = true
   }
 
-  /** A new game, at the world's start or at one of its other starts (`start`, a name in `index.starts`). */
-  static create(index: WorldIndex, ontology: Ontology, library: RuleLibrary, start?: string): Game {
-    const other = start ? index.starts?.[start] : undefined
+  /** A new game, at the world's start, at one of its other starts (`start`, a name in `index.starts`), or at a start given (a playtest's cell). */
+  static create(index: WorldIndex, ontology: Ontology, library: RuleLibrary, start?: string | StartDef): Game {
+    const other = typeof start === 'object' ? start : start ? index.starts?.[start] : undefined
     if (start && !other) throw new Error(`no start ${start}`)
     const from: StartDef = other ?? { at: index.start, ...index.begin }
     const at = from.at
@@ -115,7 +111,7 @@ export class Game {
       spawn: at,
     }
     const eng = new Engine(state, ontology, library)
-    for (const m of index.maps) eng.graph[m.id] = m.portals
+    for (const m of index.maps) (eng.graph[m.id] = m.portals), (eng.maps[m.id] = { name: m.name, width: m.width, height: m.height })
     eng.ensureResidents()
     eng.author(() => {
       const player = structuredClone(index.player)
@@ -127,17 +123,24 @@ export class Game {
       for (const c of index.companions ?? []) eng.world.add({ ...structuredClone(c), place: { on: 'tile', map: at.map, x: at.x - 1, y: at.y }, props: { ...c.props, companion: index.player.id } })
     })
     loadContent(eng, index)
+    // a new game is news: the Story Manager begins what begins with the world
+    eng.quests.news({ kind: 'begin' })
     return new Game(eng)
   }
 
-  static load(save: SaveData, index: WorldIndex, ontology: Ontology, library?: RuleLibrary): Game {
+  /** A save loaded (upgradeSave: the game's own save history, GameDef.upgradeSave). */
+  static load(save: SaveData, index: WorldIndex, ontology: Ontology, library?: RuleLibrary, upgradeSave?: (eng: Engine) => void): Game {
     const lib = library ?? RuleLibrary.fromJSON(save.library)
     const eng = new Engine(save.state, ontology, lib)
-    for (const m of index.maps) eng.graph[m.id] = m.portals
+    for (const m of index.maps) (eng.graph[m.id] = m.portals), (eng.maps[m.id] = { name: m.name, width: m.width, height: m.height })
     eng.ensureResidents()
     loadContent(eng, index)
-    // loading is the author's: an older save is brought up to the world as it is now
-    eng.author(() => upgrade(eng, index))
+    // loading is the author's: an older save is brought up to the world as it is now, and to its modules
+    eng.author(() => {
+      upgrade(eng, index)
+      for (const m of eng.modules) m.upgrade?.(eng)
+      upgradeSave?.(eng)
+    })
     const game = new Game(eng)
     game.codex = Codex.from(save.codex)
     return game
@@ -189,20 +192,13 @@ function upgrade(eng: Engine, index: WorldIndex): void {
     weather?: unknown
     tiles?: Record<string, { terrain?: string; statuses?: Record<string, number>; statusBy?: Record<Id, Id> }>
   }
-  // how the player looks is the world's to say, not the save's (a save from before a new look gets it)
+  // how the player looks: their own once they have made one (a look record); a save from before looks were made
+  // of parts (a sheet's key) takes the world's
   const p = w.get(s.player)
-  if (p && index.player.look) p.look = index.player.look
+  if (p && index.player.look && typeof p.look !== 'object') p.look = structuredClone(index.player.look)
   // Old saves acquire the world's initial profession; an explicit profession is never replaced.
   if (p && p.props?.profession === undefined && index.player.props?.profession !== undefined) w.setProp(p, 'profession', index.player.props.profession)
   for (const e of Object.values(s.entities)) {
-    // Early Iron Stomach saves used its delta as an absolute interval (faster, not slower).
-    if (e.tags?.includes('skill:iron-stomach') && e.props?.hungerEvery === 150) w.setProp(e, 'hungerEvery', 450)
-    // Hunger's base pace was a point every 300 ticks (now HUNGER_EVERY): a skill's kept interval on
-    // the old scale (300, 450, 600) is scaled to the new one.
-    const every = e.props?.hungerEvery
-    if (every === 300 || every === 450 || every === 600) w.setProp(e, 'hungerEvery', Math.round((every * HUNGER_EVERY) / 300))
-    // the night-born were marked by a prop before they had a tag
-    if (e.props?.nightborn) (w.setProp(e, 'nightborn', undefined), w.addTag(e, 'nightborn'))
     // A save taken while an outcome was being worked out holds its participants, but the request
     // itself is not saved: nobody will answer it, so they are let go (as after a time-out).
     delete e.frozenBy
@@ -216,11 +212,18 @@ function upgrade(eng: Engine, index: WorldIndex): void {
       addTree(eng, n)
       continue
     }
+    // how they look is the world's to say, unless the world changed it (a restyle: `own`); a sheet's key kept
+    // from before looks were made of parts is the world's look now
+    delete (e.npc as { look?: unknown } | undefined)?.look
+    if (n.look && (typeof e.look !== 'object' || !e.look.own)) e.look = structuredClone(n.look)
     if (e.npc && n.npc) {
       e.npc.schedule = structuredClone(n.npc.schedule)
       if (e.npc.person && n.npc.person?.schedules) e.npc.person.schedules = structuredClone(n.npc.person.schedules)
     }
     for (const t of n.tags ?? []) if (!e.tags?.includes(t)) w.addTag(e, t)
+    // and what the world has said of them since (their household, stance, the watch they keep, their trade):
+    // what they never had, they have now; what they have, they keep
+    for (const [k, v] of Object.entries(n.props ?? {})) if (e.props?.[k] === undefined) w.setProp(e, k, v)
   }
   // what was the world's before it was the story's or the traveller's own: facts, the latest beat,
   // the maps seen, the reported invariants (the detector's own record), topics, memories, the scene
@@ -278,7 +281,7 @@ function addTree(eng: Engine, e: Entity & { _items?: Entity[] }): void {
 /** Scenes and invariants are content: read from the world on every start (they are not saved). */
 function loadContent(eng: Engine, index: WorldIndex): void {
   eng.bossKits = Object.fromEntries((index.bosses ?? []).map((b) => [b.id, structuredClone(b)]))
-  eng.story.load(index.steps, index.guides)
+  eng.story.load(index.steps)
   eng.quests.load(index.quests)
   eng.loadInvariants(index.invariants, index.protectedFacts)
   // the weather the world fixes is content, like the scenes: read on every start, never saved

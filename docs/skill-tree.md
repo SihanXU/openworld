@@ -14,13 +14,13 @@ outlines, ivory highlights, copper fittings and worn materials unify the set. Te
 identifies Swiftness, brick red Damage, moss green Survival, iron/red Warrior,
 forest green Ranger and violet Mage. All nodes remain full-colour when locked.
 
-- Assets: `packages/client/public/assets/lsw/skills/<key>.png`.
+- Assets: `games/openworld/public/assets/lsw/skills/<key>.png`.
 - Exact shared brief, individual subjects and paths: [generation manifest](skill-art-prompts.json).
 - New artwork contact sheet: [44 completed icons](skill-art-complete-preview.png).
 - Local full-resolution sources: `var/skill-art/sources/` (not committed).
-- Export: `packages/tools/src/art/export-skill-icon.swift`, nearest-neighbour sampling
+- Export: `games/openworld/tools/src/art/export-skill-icon.swift`, nearest-neighbour sampling
   with generated alpha preserved; it refuses to overwrite existing artwork.
-- Coverage: `packages/tools/test/skill-art.test.ts` checks every skill/entrance, registry
+- Coverage: `games/openworld/tools/test/skill-art.test.ts` checks every skill/entrance, registry
   and file parity, distinct decoded images, dimensions, actual transparent padding,
   visible pixels, prompts and full-colour bitmap rendering. Placeholder exemptions
   have been removed. No gameplay values or skill prerequisites changed in this pass.
@@ -28,7 +28,7 @@ forest green Ranger and violet Mage. All nodes remain full-colour when locked.
 Art verification: all eight focused tests pass, and the client production build includes
 all 78 PNGs unchanged. The 44-icon contact sheet was checked against the preserved style
 references. Recreate it from the repository root with
-`swift packages/tools/src/art/preview-skill-icons.swift`.
+`swift games/openworld/tools/src/art/preview-skill-icons.swift`.
 
 ## Original tree brief and subsequent extensions
 
@@ -82,8 +82,8 @@ acquire the world's initial one; explicit values are preserved. Iron Stomach's l
 falls in two paces (base 480 ticks fed, 7.5 times slower once hungry, under six tenths); intervals kept
 on the old scale (300, 450, 600) are scaled to it (480, 720, 960).
 
-Branch configuration is in `packages/content/src/skills.ts`. Layout is calculated per
-direction in `packages/client/src/ui/skillLayout.ts`; the page supports dragging, wheel zoom
+Branch configuration is in `games/openworld/content/src/skills.ts`. Layout is calculated per
+direction in `packages/runtime/src/ui/skillLayout.ts`; the page supports dragging, wheel zoom
 and explicit +/− zoom controls for touch screens. The compact toolbar stays above navigation.
 Empty branches retain their visible entrances so future skills can use the same layout.
 
@@ -205,7 +205,7 @@ talents; reaction rules must not apply those bonuses again.
 ## Art
 
 The new branch emblems are 64×64 transparent PNGs in
-`packages/client/public/assets/lsw/skills/`: `swift.png`, `farming.png`, `ranching.png`,
+`games/openworld/public/assets/lsw/skills/`: `swift.png`, `farming.png`, `ranching.png`,
 and `smithing.png`. Existing branch emblems reuse `shield.png`, `sweep.png`, and `axe.png`.
 Generation used the built-in imagegen tool, with the original generated sword as a style
 reference. The source images remain in Codex's generated-images directory; web assets
@@ -281,7 +281,7 @@ Subject:
 The twelve additional assets below completed a one-to-one mapping for the **29 skills
 implemented at that stage**. That library contained 34 PNGs including hubs/navigation. Original artwork is
 preserved; only previously duplicated talent references are assigned a new, unique image.
-All files live at `packages/client/public/assets/lsw/skills/<key>.png`, exported as 64×64
+All files live at `games/openworld/public/assets/lsw/skills/<key>.png`, exported as 64×64
 RGBA PNGs with nearest-neighbour sampling so no smooth resampling is introduced.
 
 Generation mode: **built-in imagegen**, one call per distinct asset. The original sword
@@ -322,7 +322,7 @@ Subject and skill:
 
 ## Verification
 
-`packages/tools/test/skills.test.ts` covers tree topology, both prerequisites/capstone cost,
+`games/openworld/tools/test/skills.test.ts` covers tree topology, both prerequisites/capstone cost,
 profession filtering/enforcement, legacy save migration, actual input cooldowns, fractional
 cadence, step charging, secondary-hit isolation, seeded criticals, execute/defiance thresholds,
 Last Stand timing/persistence, food sustain, blade eligibility, opener reset, facing-based

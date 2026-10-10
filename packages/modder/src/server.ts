@@ -1,18 +1,20 @@
 // The modder service: one small HTTP API next to the static game (design.md §11).
 //   GET  /health          model, library and self-state at a glance
-//   POST /resolve         ResolveBody → ResolveReply (a validated patch, or why not)
+//   POST /resolve         ResolveBody → ResolveReply (a validated patch, or why not); `profile: offline` from the editor
 //   GET  /patches?since=n the shared library's patch log after seq n (clients sync from it)
 //   GET  /stats           the numbers the paper reports
 //   GET  /progress?id=r   where request r is (queued, local, find, create, art; {} when not here)
 
 import { createServer, type IncomingMessage, type Server } from 'node:http'
-import type { ResolveBody } from '@lsw/engine'
+import type { ResolveBody } from '@openworld/engine'
 import type { Modder } from './pipeline.ts'
 
 export interface ServerOptions {
   /** Access-Control-Allow-Origin (default *: the client is a static page on another origin). */
   origin?: string
   maxBody?: number
+  /** The game this modder patches (its id, said at /health: the editor checks it asks the right one). */
+  game?: string
 }
 
 export function createModderServer(modder: Modder, opts: ServerOptions = {}): Server {
@@ -29,7 +31,7 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
     if (req.method === 'OPTIONS') return void res.writeHead(204).end()
     const url = new URL(req.url ?? '/', 'http://localhost')
     try {
-      if (req.method === 'GET' && url.pathname === '/health') return send(200, { ok: true, model: modder.model?.name ?? null, library: libraryInfo(), state: state.stats() })
+      if (req.method === 'GET' && url.pathname === '/health') return send(200, { ok: true, game: opts.game ?? null, model: modder.model?.name ?? null, library: libraryInfo(), state: state.stats() })
       if (req.method === 'GET' && url.pathname === '/patches') {
         const since = Number(url.searchParams.get('since') ?? 0) || 0
         return send(200, { seq: library.seq, entries: library.since(since) })
@@ -38,7 +40,8 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
       if (req.method === 'GET' && url.pathname === '/stats') return send(200, { library: libraryInfo(), state: state.stats(), snapshots: state.snapshots() })
       if (req.method === 'POST' && url.pathname === '/resolve') {
         const body = (await readJson(req, opts.maxBody ?? 4_000_000)) as ResolveBody
-        return send(200, await modder.resolve(body))
+        // an author asking from the editor asks with the offline profile (more care: tools, review before shipping)
+        return send(200, await modder.resolve(body, body.profile === 'offline' || body.profile === 'live' ? body.profile : undefined))
       }
       send(404, { error: 'not found' })
     } catch (err) {

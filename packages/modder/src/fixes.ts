@@ -3,7 +3,7 @@
 // the latency bench, every malformed first answer had a correct rule inside the wrong wrapper.
 // Each fix is recorded on the attempt, so the episode shows what was changed and why.
 
-import { PRIMITIVES, selectByType, type Artifact, type Cond, type Effect, type ModRequest, type Ontology, type Patch, type Rule, type Selector, type Tree, type ValidationResult } from '@lsw/engine'
+import { PRIMITIVES, selectByType, type Artifact, type Cond, type Effect, type Ontology, type Patch, type Rule, type Selector, type Tree } from '@openworld/engine'
 
 const looksLikeRule = (x: Record<string, unknown>) => typeof x.on === 'string' && (!!x.tree || Array.isArray(x.do))
 
@@ -87,23 +87,7 @@ function flatEffects(t: Tree, id: string, fixes: string[]): Tree {
   return n ? { ...t, do: effects } : t
 }
 
-/**
- * A rule that answers a broader kind than the one asked (`impulse` for `impulse/strike`) and so
- * ties with another patch there: narrow it to the requested kind. Returns the narrowed patch, or
- * undefined when that is not the problem.
- */
-export function narrowKinds(patch: Patch, req: ModRequest, res: ValidationResult): { patch: Patch; fixes: string[] } | undefined {
-  if (!res.errors.some((e) => e.includes(' ties with '))) return undefined
-  const kind = req.event.kind
-  const fixes: string[] = []
-  const artifacts = patch.artifacts.map((a) => {
-    if (a.kind !== 'rule' || a.rule.on === kind || !kind.startsWith(a.rule.on + '/')) return a
-    if (!res.errors.some((e) => e.includes(`"${a.rule.id}"`))) return a
-    fixes.push(`narrowed "${a.rule.id}" from ${a.rule.on} to ${kind}`)
-    return { kind: 'rule' as const, rule: { ...a.rule, on: kind } }
-  })
-  return fixes.length ? { patch: { ...patch, artifacts }, fixes } : undefined
-}
+export { placePatch } from '@openworld/engine'
 
 /**
  * A selector naming a terrain by its bare id (`{type: "bush"}`) means the tile type `tile/bush`:

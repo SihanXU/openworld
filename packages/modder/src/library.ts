@@ -5,7 +5,6 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { createHash } from 'node:crypto'
-import { RECOVERY } from '@lsw/content'
 import { connected, economySteps, freeLunch } from './economy.ts'
 import {
   RuleLibrary,
@@ -27,9 +26,7 @@ import {
   type Rule,
   type Scenario,
   type ValidationResult,
-} from '@lsw/engine'
-
-const REGRESSION_CAP = 300
+} from '@openworld/engine'
 
 export interface CommitResult {
   ok: boolean
@@ -41,8 +38,8 @@ export interface CommitResult {
 export class WorldLibrary {
   readonly lib: RuleLibrary
   readonly log: PatchLogEntry[] = []
-  /** Triggering scenarios of accepted patches: they must stay answered by later patches. */
-  readonly regression: { scenario: Scenario; rule: string }[] = []
+  /** The scene each live patch answered, by its first rule (for the audit sweep and the outer loop). */
+  readonly asked: { scenario: Scenario; rule: string }[] = []
   private proofs = new Map<string, { tests: string[][]; result: ValidationResult }>()
 
   constructor(
@@ -140,9 +137,9 @@ export class WorldLibrary {
   /** replaces: patch rules this patch takes the place of (a revision), judged as if they were gone. */
   validate(patch: Patch, req?: ModRequest, ws?: ModWorkspace, replaces: string[] = []): ValidationResult {
     withTerrainTypes(this.ontology)
-    // Public ontology/workspace/regression data can change without a mutator or sequence bump.
+    // Public ontology and workspace data can change without a mutator or sequence bump.
     const artifacts = patch?.artifacts?.map((a) => a?.kind === 'rule' && a.rule ? { ...a, rule: { ...a.rule, tests: undefined } } : a)
-    const key = createHash('sha256').update(JSON.stringify([this.lib.version, [...this.lib.rules.values()], this.lib.types, this.lib.statuses, this.ontology, ws, this.regression, req?.scenario, replaces, artifacts])).digest('hex')
+    const key = createHash('sha256').update(JSON.stringify([this.lib.version, [...this.lib.rules.values()], this.lib.types, this.lib.statuses, this.ontology, ws, req?.scenario, replaces, artifacts])).digest('hex')
     const rules = patch?.artifacts?.flatMap((a) => a?.kind === 'rule' && a.rule ? [a.rule] : []) ?? []
     const tests = rules.map((r) => (r.tests ?? []).map((t) => JSON.stringify(t)))
     const proof = this.proofs.get(key)
@@ -153,12 +150,7 @@ export class WorldLibrary {
       if (result.ok) this.proofs.set(key, { tests, result: structuredClone(result) })
       return result
     }
-    const result = validatePatch(patch, {
-      ontology: this.ontology,
-      library: lib,
-      scenario: req?.scenario,
-      regression: [...this.regression, ...(ws?.regression ?? [])].filter((r) => !replaces.includes(r.rule)),
-    })
+    const result = validatePatch(patch, { ontology: this.ontology, library: lib, scenario: req?.scenario })
     if (!result.ok) return result
     // what the patch costs the world (a free lunch refused): its warnings are part of the proof
     const economy = this.economy(patch, lib)
@@ -209,8 +201,9 @@ export class WorldLibrary {
     const known = [...lib.rules.values()]
     // what the world could not model before is not this patch's to report: only what it adds
     const had: string[] = []
-    const old = economySteps(before, known, RECOVERY, had)
-    const all = economySteps(after, [...known, ...rules], RECOVERY, warnings)
+    const recovery = this.ontology.params?.recovery ?? 0.5
+    const old = economySteps(before, known, recovery, had)
+    const all = economySteps(after, [...known, ...rules], recovery, warnings)
     const seen = new Set(had)
     warnings.splice(0, warnings.length, ...warnings.filter((w) => !seen.has(w)))
     const key = (s: (typeof all)[number]) => JSON.stringify([s.name, [...s.takes].sort(), [...s.gives].sort()])
@@ -241,7 +234,7 @@ export class WorldLibrary {
     // a revision: the old rules leave the log first, so every client sees remove-then-add
     for (const id of replaces) if (this.lib.rules.get(id)?.source?.origin === 'patch') this.remove(id, now)
     const rules = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : []))
-    const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), patch, rules, request: req?.id, scenario: req?.scenario }
+    const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), patch, rules, request: req?.id, scenario: req?.scenario, ...(replaces.length && { replaces }) }
     this.apply(entry)
     this.persist(entry)
     return { ok: true, result, rules, seq: entry.seq }
@@ -264,7 +257,7 @@ export class WorldLibrary {
    */
   audit(): { rule: string; reason: string }[] {
     const out: { rule: string; reason: string }[] = []
-    for (const reg of this.regression) {
+    for (const reg of this.asked) {
       if (!this.lib.rules.has(reg.rule)) continue
       try {
         const rp = replay(reg.scenario, this.fullOntology(), this.lib)
@@ -299,7 +292,7 @@ export class WorldLibrary {
         // the types it brought are not there yet; what came after was judged with it in place)
         res = this.fork((o) => o.seq < e.seq && !gone.has(o.seq)).validate(e.patch, req)
       } catch (err) {
-        res = { ok: false, errors: [(err as Error).message], warnings: [], overrides: [] }
+        res = { ok: false, errors: [(err as Error).message], warnings: [] }
       }
       if (res.ok) continue
       gone.add(e.seq)
@@ -322,7 +315,7 @@ export class WorldLibrary {
     this.log.push(e)
     if ('remove' in e) {
       this.lib.remove(e.remove, e.at)
-      for (let i = this.regression.length - 1; i >= 0; i--) if (this.regression[i].rule === e.remove) this.regression.splice(i, 1)
+      for (let i = this.asked.length - 1; i >= 0; i--) if (this.asked[i].rule === e.remove) this.asked.splice(i, 1)
       return
     }
     for (const a of e.patch.artifacts) {
@@ -331,15 +324,12 @@ export class WorldLibrary {
     }
     for (const a of e.patch.artifacts) {
       if (a.kind !== 'rule') continue
-      this.lib.add({ ...a.rule, source: { origin: 'patch', request: e.request, author: e.patch.author ?? 'modder', at: e.at, note: e.patch.note, trigger: e.patch.trigger } }, e.at)
+      this.lib.add({ ...a.rule, source: { origin: 'patch', request: e.request, author: e.patch.author ?? 'modder', at: e.at, note: e.patch.note, trigger: e.patch.trigger } }, e.at, (e.replaces ?? []).find((old) => !this.lib.rules.has(old)))
     }
-    // the event that asked for the patch must stay answered (by it, or by something more specific)
+    // the scene that asked, kept with the patch's first rule
     const first = e.rules.find((id) => !!this.lib.rules.get(id)?.host)
     const sc = e.scenario ?? firstTestScenario(e.patch)
-    if (first && sc) {
-      this.regression.push({ scenario: sc, rule: first })
-      if (this.regression.length > REGRESSION_CAP) this.regression.shift()
-    }
+    if (first && sc) this.asked.push({ scenario: sc, rule: first })
   }
 
   private persist(e: PatchLogEntry): void {

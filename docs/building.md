@@ -279,7 +279,7 @@ Taking it down is the reverse, step by step. Every step is reachable, and nothin
   - the palette's ceiling toggle and its line in the details;
   - `WorldScene.setBuildView` while the palette is open (one's own storey; the ceilings tinted where they are drawn while one lays them);
   - the prologue's house hint tells how to lay the ceiling;
-  - **the draw order** (`render/depth.ts`, tested in `packages/client/test/depth.test.ts`):
+  - **the draw order** (`render/depth.ts`, tested in `packages/runtime/test/depth.test.ts`):
     - by the row a thing stands in, then its storey, then what it is in its cell: the slab, a built block
       or a fixture, what lies loose on it, a body;
     - a floor laid on the ground is part of the ground, under all that stands whatever was made first
@@ -289,5 +289,5 @@ Taking it down is the reverse, step by step. Every step is reachable, and nothin
     - a fixture one can carry (a bed) is drawn as itself once set down, not as its icon in the bag;
     - what stands in front of the player and over them (a tree's crown, a lamppost) fades (`WorldScene.fadeOver`),
       as built walls and floors do (`findSeeThrough`).
-- **Tests:** `packages/content/test/building.test.ts` ("storeys: what one reaches…"), one test per table
+- **Tests:** `games/openworld/content/test/building.test.ts` ("storeys: what one reaches…"), one test per table
   of §6, and W10, W12 and the tutorial walkthrough laying the ceiling by choice.

@@ -20,9 +20,9 @@ import {
   type Selector,
   type Tree,
   type ValidationResult,
-} from '@lsw/engine'
-import type { ToolSpec } from '@lsw/agent'
-import type { SelfState } from '@lsw/agent'
+} from '@openworld/engine'
+import type { ToolSpec } from '@openworld/agent'
+import type { SelfState } from '@openworld/agent'
 
 export interface Tool extends ToolSpec {
   run(args: Record<string, unknown>): string
@@ -126,7 +126,7 @@ export function buildTools(ctx: ToolContext, allowed: string[]): Tool[] {
     {
       name: 'dry_run',
       description:
-        'Run a draft patch through the real validator (schema, ontology, ties, sandbox replay of the triggering event, the patch\'s own tests, regression) WITHOUT applying it, and show what the triggering event does under it. Pass `scenario` to replay another situation instead (e.g. to check the rule generalizes). Always dry-run before answering.',
+        'Run a draft patch through the real validator (schema, ontology, its place in the host type\'s tree, sandbox replay of the triggering event, the patch\'s own tests) WITHOUT applying it, and show what the triggering event does under it. Pass `scenario` to replay another situation instead. Always dry-run before answering.',
       parameters: {
         type: 'object',
         properties: { patch: { type: 'object', description: '{ "artifacts": [ { "kind": "rule", "rule": {…} } ] }' }, scenario: { type: 'object' } },
@@ -139,7 +139,6 @@ export function buildTools(ctx: ToolContext, allowed: string[]): Tool[] {
         const lines = [res.ok ? 'VALID' : 'INVALID']
         for (const e of res.errors) lines.push(`error: ${e}`)
         for (const w of res.warnings) lines.push(`warning: ${w}`)
-        for (const o of res.overrides) lines.push(`overrides: ${o}`)
         const sc = (a.scenario as Scenario | undefined) ?? ctx.request.scenario
         lines.push('', describeOutcome(sc, patch, ctx))
         return lines.join('\n')

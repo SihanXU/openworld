@@ -8,7 +8,6 @@
 // elemental reaction is a rule.
 
 import type { Engine } from './engine.ts'
-import { combatDelay } from './combat.ts'
 import { astar } from './path.ts'
 import type { Dir, Entity, Pos } from './types.ts'
 import { DIRS, FIRE_RADIUS } from './types.ts'
@@ -51,7 +50,7 @@ export function fight(eng: Engine, e: Entity, sc: Scene): boolean {
   const ai = e.ai
   if (!ai || e.place.on !== 'tile') return false
   const { x, y } = e.place
-  const speed = combatDelay(w, e, w.num(e, 'speed', 6), 'move')
+  const speed = eng.combat.delay(e, w.num(e, 'speed', 6), 'move')
   const safe = safety(eng, e, sc)
   // it chases no farther than its leash from where it lives
   const home = homeOf(e, sc)
@@ -83,7 +82,7 @@ export function fight(eng: Engine, e: Entity, sc: Scene): boolean {
     e.facing = face
     if (eng.ready('atk:' + e.id)) {
       eng.attack(e, { e: target.id })
-      eng.setCooldown('atk:' + e.id, combatDelay(w, e, ai.behaviour === 'ranged' ? 22 : 14, 'attack'))
+      eng.setCooldown('atk:' + e.id, eng.combat.delay(e, ai.behaviour === 'ranged' ? 22 : 14, 'attack'))
     }
     eng.setCooldown(e.id, speed)
     return true
@@ -101,7 +100,7 @@ export function home(eng: Engine, e: Entity, sc: Scene): boolean {
   if (Math.abs(h.x - e.place.x) + Math.abs(h.y - e.place.y) <= HOME_NEAR) return false
   e.ai.state = 'return'
   go(eng, e, h.x, h.y, safety(eng, e, sc))
-  eng.setCooldown(e.id, combatDelay(w, e, w.num(e, 'speed', 6), 'move') * 2)
+  eng.setCooldown(e.id, eng.combat.delay(e, w.num(e, 'speed', 6), 'move') * 2)
   return true
 }
 
@@ -111,7 +110,7 @@ export function idle(eng: Engine, e: Entity, sc: Scene): boolean {
   if (!e.ai || e.place.on !== 'tile') return false
   e.ai.state = 'idle'
   if (w.rand() < 0.3) wander(eng, e, safety(eng, e, sc))
-  eng.setCooldown(e.id, combatDelay(w, e, w.num(e, 'speed', 6), 'move') * 2)
+  eng.setCooldown(e.id, eng.combat.delay(e, w.num(e, 'speed', 6), 'move') * 2)
   return true
 }
 

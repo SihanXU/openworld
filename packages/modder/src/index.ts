@@ -1,4 +1,4 @@
-export * from '@lsw/agent'
+export * from '@openworld/agent'
 export * from './signature.ts'
 export * from './library.ts'
 export * from './tools.ts'

@@ -1,0 +1,41 @@
+{
+  "id": "starter",
+  "name": { "en": "The Glade", "zh": "林间空地" },
+  "version": "1",
+  "engine": "1",
+  "doc": "The smallest whole game on the OpenWorld engine (docs/engine-split.md S6): the kernel and the standard library, no module. A glade, a cottage, a villager with a day, an axe in a chest, a tree to fell, a slime, a favour. It is the editor's new project and the engine's test fixture.",
+  "stdlib": true,
+  "modules": [],
+  "seed": 7,
+  "start": { "map": "glade", "x": 11, "y": 8 },
+  "startHour": 8,
+  "terrainChars": {
+    ".": "grass",
+    "*": "flowers",
+    "=": "path",
+    "~": "water",
+    "T": "tree",
+    "u": "stump",
+    "X": "wall",
+    "f": "floor",
+    "D": "door",
+    "V": "void"
+  },
+  "params": {
+    "recovery": 0.5,
+    "safeFall": 1,
+    "fallDamage": 6,
+    "reach": 1,
+    "carry": 1,
+    "riseHour": 6,
+    "rest": 0.5
+  },
+  "player": {
+    "id": "player",
+    "type": "actor/person/player",
+    "name": { "en": "You", "zh": "你" },
+    "place": { "on": "none" },
+    "facing": "down",
+    "tags": ["faction:folk"]
+  }
+}
