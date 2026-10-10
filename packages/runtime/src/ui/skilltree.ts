@@ -24,10 +24,11 @@ export class SkillTree {
   private suppressClick = false
   /** The skill node under the pointer (the skill bar's Shift+1–6 sets it). */
   hovered?: string
-  private direction: string = 'combat'
+  /** The direction shown first: the game's first. */
+  private direction: string = game().skills.directions[0]?.id ?? 'combat'
   private profession = ''
   private layout = layoutSkills()
-  private branches = layoutBranches('combat')
+  private branches = layoutBranches(this.direction)
 
   constructor(
     host: HTMLElement,

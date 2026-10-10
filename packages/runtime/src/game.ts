@@ -63,9 +63,11 @@ export interface CoverDef {
   tutorial?: boolean
   /** A page of the game's beside the player, offered on the cover (the boss challenge). */
   challenge?: { label: Text; href: string }
-  /** The game's own art behind the title (the mountain at dawn) and its companion flying across. */
+  /** The game's own art behind the title (the mountain at dawn), and its companion flying across: the sheet it is drawn from (in the game's assets/; true: OpenWorld's fairy). */
   art?: boolean
-  companion?: boolean
+  companion?: boolean | string
+  /** The line of credits at the foot of the cover (default: the pack's; false: none). */
+  credit?: Text | false
 }
 
 export interface ClientGame extends GameDef {
@@ -86,6 +88,8 @@ export interface ClientGame extends GameDef {
   /** The dev console's summon: a boss kit's body at a place, and what the log says. */
   summon?(kit: string, at: Pos, id: string): { body: Entity; say?: Text }
   dev?: { shortcuts: DevShortcut[] }
+  /** The interface's words the game says its own way, by the runtime's key (ui/common.ts STRINGS): a module's panel speaking of the game's people and places. */
+  texts?: Record<string, { en: string; zh?: string }>
   items: {
     forms: Record<string, FormInfo>
     materials: Record<string, Words>
@@ -136,6 +140,9 @@ export function useGame(g: ClientGame): void {
   current = g
   made.clear()
 }
+
+/** The game handed over, if one is yet (what the interface's words read before a game is chosen). */
+export const gameIfAny = (): ClientGame | undefined => current
 
 export function game(): ClientGame {
   if (!current) throw new Error('no game: a game\'s entry hands its definition over with useGame() before the runtime starts')

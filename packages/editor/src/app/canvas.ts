@@ -12,7 +12,9 @@ export type CellEvent = 'down' | 'drag' | 'up' | 'hover'
 export type Overlay = (g: Phaser.GameObjects.Graphics, tile: number) => void
 
 export class Canvas {
-  readonly scene = new WorldScene()
+  scene!: WorldScene
+  private game?: Phaser.Game
+  private last?: { c: Compiled; mapId: string }
   private ready = false
   private pending?: () => void
   private shown?: string
@@ -26,8 +28,7 @@ export class Canvas {
   map?: MapData
 
   constructor(private parent: HTMLElement) {
-    this.scene.hooks = { onFx: () => {}, onFrame: () => {}, onReady: () => ((this.ready = true), this.scene.setFreeCamera(true), this.pending?.(), (this.pending = undefined)) }
-    new Phaser.Game({ type: Phaser.WEBGL, parent, pixelArt: true, backgroundColor: '#0b0d12', scale: { mode: Phaser.Scale.RESIZE, width: parent.clientWidth, height: parent.clientHeight }, scene: [this.scene], input: { keyboard: false }, audio: { noAudio: true } })
+    this.boot()
     const local = (e: PointerEvent | WheelEvent) => { const r = parent.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top } }
     parent.addEventListener('contextmenu', (e) => e.preventDefault())
     parent.addEventListener('pointerdown', (e) => {
@@ -54,11 +55,31 @@ export class Canvas {
     window.addEventListener('keyup', (e) => { if (e.code === 'Space') this.space = false })
   }
 
+  /** The renderer made (anew: the game's pictures changed, which it loads as it starts). */
+  private boot(): void {
+    const parent = this.parent
+    this.scene = new WorldScene()
+    this.ready = false
+    this.scene.hooks = { onFx: () => {}, onFrame: () => {}, onReady: () => ((this.ready = true), this.scene.setFreeCamera(true), this.pending?.(), (this.pending = undefined)) }
+    this.game = new Phaser.Game({ type: Phaser.WEBGL, parent, pixelArt: true, backgroundColor: '#0b0d12', scale: { mode: Phaser.Scale.RESIZE, width: parent.clientWidth, height: parent.clientHeight }, scene: [this.scene], input: { keyboard: false }, audio: { noAudio: true } })
+  }
+
+  /** Start the renderer again over the game as it is now (its catalogue changed: new pictures to load), at the map it showed. */
+  reset(): void {
+    const last = this.last
+    this.game?.destroy(true)
+    this.parent.querySelectorAll('canvas').forEach((c) => c.remove())
+    this.shown = undefined
+    this.boot()
+    if (last) this.show(last.c, last.mapId)
+  }
+
   /**
    * Draw a map of the compiled project: an engine made over it (the world as a new game begins it, its people
    * where they stand), with the one at the keys at `at` — where a playtest from here would begin.
    */
   show(c: Compiled, mapId: string, at?: { x: number; y: number }): void {
+    this.last = { c, mapId }
     if (!this.ready) return void (this.pending = () => this.show(c, mapId, at))
     const raw = c.chunks.find((x) => x.map.id === mapId)
     if (!raw) return

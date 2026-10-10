@@ -3,10 +3,10 @@
 // messages bottom left, the map name as it fades in, the two keys' labels over the target, the
 // dialogue box and the yes/no question, speech bubbles and floating numbers.
 
-import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Mood, type Text, type WorldIndex } from '@openworld/engine'
+import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Mood, type Text } from '@openworld/engine'
 import { catalog, game, hasModule, ontology } from '../game.ts'
 import { assetUrl, cssAssetUrl } from '../render/assets.ts'
-import { $, MOOD_GLYPH, SLOT_KEYS, controlsTable, esc, locale, prefs, t, tx } from './common.ts'
+import { $, MOOD_GLYPH, SLOT_KEYS, esc, locale, prefs, t, tx } from './common.ts'
 import { skillPng } from './skillIcons.ts'
 
 export interface HudSend {
@@ -122,37 +122,6 @@ export class Hud {
       this.advanceDialog()
     }
     $('#card').onclick = () => this.advanceDialog()
-  }
-
-  // ---------------------------------------------------------------- intro
-
-  showIntro(name: Text, stats: WorldIndex['stats'], resumed: boolean, onStart: (fresh: boolean) => void): void {
-    const zh = locale.value === 'zh'
-    const n = (x: number) => x.toLocaleString('en-US')
-    $('#intro').innerHTML = `
-      <div class="intro-card">
-        <div class="kicker">OpenWorld</div>
-        <h1>${esc(tx(name))}</h1>
-        <p class="lede">${zh ? '一个渡口，在地图的尽头。河对岸，什么都还没写成。你可以做任何事——这个世界从没见过的事，它会学会，并且记住。' : 'A ford at the edge of the map. Past the river, nothing is written yet. Do anything you like — what the world has never seen, it learns, and remembers.'}</p>
-        <div class="stats${import.meta.env.DEV ? '' : ' hidden'}">
-          <div><b>${n(stats.maps)}</b><span>maps</span></div><div><b>${n(stats.npcs)}</b><span>people</span></div>
-          <div><b>${n(stats.creatures)}</b><span>creatures</span></div><div><b>${n(stats.items)}</b><span>items</span></div>
-          <div><b>${n(stats.itemKinds)}</b><span>item kinds</span></div><div><b>${n(stats.fixtures)}</b><span>fixtures</span></div>
-        </div>
-        <div class="controls-mini">${controlsTable(import.meta.env.DEV)}</div>
-        <div class="credit">${zh ? '美术与音乐：' : 'Art & music: '}<a href="https://pixel-boy.itch.io/ninja-adventure-asset-pack" target="_blank" rel="noopener">Ninja Adventure</a> by Pixel-boy &amp; AAA (CC0)</div>
-        <div class="intro-actions">
-          ${resumed ? `<button id="iCont" class="primary">${zh ? '继续' : 'Continue'}</button><button id="iNew">${zh ? '新游戏' : 'New game'}</button>` : `<button id="iCont" class="primary">${zh ? '开始' : 'Start'}</button>`}
-        </div>
-      </div>`
-    $('#intro').classList.remove('hidden')
-    const go = (fresh: boolean) => {
-      $('#intro').classList.add('hidden')
-      onStart(fresh)
-    }
-    $('#iCont').onclick = () => go(false)
-    const nb = document.querySelector<HTMLButtonElement>('#iNew')
-    if (nb) nb.onclick = () => go(true)
   }
 
   // ---------------------------------------------------------------- per frame

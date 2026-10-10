@@ -20,6 +20,7 @@ export function openworldBundle(index: Pick<WorldIndex, 'name' | 'version'>): Bu
     looks: { table: g.looks.table, slots: [...g.looks.slots], worn: [...g.looks.worn], parts: g.looks.parts, player: g.looks.player },
     ...(g.cover && { cover: g.cover }),
     ...(g.dev && { dev: g.dev }),
+    ...(g.texts && { texts: g.texts }),
   }
   const bundle: Bundle = {
     format: FORMAT,

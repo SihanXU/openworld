@@ -51,7 +51,14 @@ export const CLIENT_GAME: ClientGame = {
     tutorial: true,
     challenge: { label: { en: 'Boss Challenge', zh: '首领挑战' }, href: 'boss-gallery.html?challenge=1' },
     art: true,
-    companion: true,
+    companion: 'lsw/Companion/Fairy/SpriteSheet.png',
+  },
+  // the interface's words about the Ford's own people: the trainer, the fairy who carries the seals' powers
+  texts: {
+    skillNoProfession: { en: 'No profession yet. At level 5, Bram the trainer sets you on one in the drill yard of Firstlight Village (crossed blades over his head): assassin, warrior, ranger or mage.', zh: '还没有职业。到 5 级后，去初原村操练场找职业导师布拉姆（头顶有交叉双剑标记）选择：刺客、战士、游侠或法师。' },
+    boonTitle: { en: "Pip's Powers", zh: '小啾的力量' },
+    boonSealedDoc: { en: "Pip takes up part of a seal's power when its bearer falls.", zh: '击败持印者后，小啾会接住其圣印的一部分力量。' },
+    boonOne: { en: 'Pip carries one power at a time.', zh: '小啾一次只能携带一种力量。' },
   },
   // a wilderness is made from the world's seed and its cell (world-model.md §5.7); the rest is fetched
   wild: wildChunkFor,

@@ -9,7 +9,8 @@ Successor to BardOS. Design: [docs/design.md](docs/design.md).
 OpenWorld is both the engine and, for now, the name of its first game. The engine side lives in
 `packages/` (`engine`, `runtime`, `modder`, `agent`) and imports no game; each game lives in
 `games/<id>/` and hands itself over (this one: `games/openworld/`, with its content, maps, tools,
-art, wiki generator and app in `client/`). An OpenWorld Editor in the manner of RPG Maker is planned:
+art, wiki generator and app in `client/`). The OpenWorld Editor makes games on the engine in the manner
+of RPG Maker — a program of its own, in the browser or as a desktop application:
 [docs/engine-split.md](docs/engine-split.md).
 
 ## Worlds
@@ -41,8 +42,11 @@ whole game, written as data files and played by the kernel with no module.
 
 ```bash
 npm run play          # the engine's player, http://localhost:5174/?game=/games/starter/ (or /games/openworld/)
-npm run editor        # the OpenWorld Editor, http://localhost:5175/editor/ — maps, people, database,
-                      # rules, story, quests, and the holes with the AI as co-author; playtest from any cell
+npm run editor        # the OpenWorld Editor, http://localhost:5175/editor/ — projects in any folder; the game,
+                      # maps, people, database, pictures and sounds, rules, story, quests, and the holes with
+                      # the AI as co-author; playtest from any cell; export a game anyone can play
+npm run editor:build  # the editor as a program of its own (packages/editor/dist), then npm run editor:start
+npm run desktop       # the editor as a desktop application (npm run desktop:dist: its installers)
 npm run game -- check games/starter        # a project's problems (build <project> --out <dir>: a bundle)
 npm run bake          # OpenWorld written as a project in the format → games/openworld/project/
 ```

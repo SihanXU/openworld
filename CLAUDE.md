@@ -7,8 +7,9 @@ First Night, the five Seal-bearers; every chapter follows it) and [docs/chapter-
 Design: [docs/design.md](docs/design.md); the agreed world model and base gameplay (not yet built,
 steps W1–W10): [docs/world-model.md](docs/world-model.md). Paper draft lives in Notion ("Large Symbolic World").
 OpenWorld is the engine and, for now, also the name of its first game: the engine side lives in `packages/`,
-each game in `games/<id>/` (this one `games/openworld/`), and an OpenWorld Editor in the manner of RPG Maker
-is planned — [docs/engine-split.md](docs/engine-split.md) (agreed 2026-10-10: decisions S1–S6, phases P1–P7).
+each game in `games/<id>/` (this one `games/openworld/`), and the OpenWorld Editor, a game-making program in the
+manner of RPG Maker (a local server and page, or a desktop application, over projects in any folder) —
+[docs/engine-split.md](docs/engine-split.md) (agreed 2026-10-10: decisions S1–S6, phases P1–P8; S2 changed: §15).
 
 ## Working agreements
 
@@ -88,8 +89,19 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   `brushes.ts` the builder's brushes, `crowd.ts` people in bulk, `schema.ts` the JSON Schemas
   from the engine's types (`schema/`, `npm run schema`). A bundle (`bundle.json` + `world/` + `assets/`) is a
   whole game: another bundle URL is another game.
-- `packages/editor` — the OpenWorld Editor (docs/engine-split.md §6, §11): `src/server/api.ts` the local
-  service over the projects' files (runs in its dev server, `npm run editor`), `src/app/` the editor — `store.ts`
+- `packages/editor` — the OpenWorld Editor (docs/engine-split.md §6, §11, §15), a program of its own: `src/server/`
+  — `workspace.ts` where projects are (any folder; a recent list in `~/.openworld-editor`; shelves: the repo's
+  `games/` in development; templates: the starter, empty), `api.ts` the local service over them (only this host,
+  every change with its header), `assets.ts` a project's pictures and sounds and the shipped pack (the Ninja
+  Adventure subset: a file used is copied into the project's `assets/na/`; imports go to `assets/own/`),
+  `export.ts` + `zip.ts` a project as a playable folder and zip, `server.ts` + `cli.ts` its own server (the built
+  page, the built player, the service, the projects compiled; `npm run editor:build` → `dist/`, `npm run
+  editor:start`); `desktop/` the Electron shell (outside the root workspaces; `npm run desktop`, `desktop:dist`;
+  the `desktop` workflow builds installers). `src/app/` the editor — `home.ts` the first page (recent projects,
+  new from a template, open a folder; `dialogs.ts` the folder chooser, the desktop's own dialog there),
+  `gameMode.ts` (the game's settings, modules, parameters, cover, interface words, factions, the rest of the
+  ontology and the player's tables), `assetsMode.ts` + `sheet.ts` (the catalogue cut from pictures, the files,
+  the pack, what needs a picture), `exportDialog.ts`, `store.ts`
   the project in memory (edits, undo, save, compiled as it is now), `canvas.ts` the runtime's WorldScene with a
   free camera, `mapMode.ts`, `peopleMode.ts`, `databaseMode.ts` (types, statuses, terrains, recipes; `ontologyFiles.ts`
   where an entry is written), `rulesMode.ts` (a rule's tree and JSON checked as typed, which rule answers here,
@@ -244,7 +256,11 @@ npm test                 # vitest (engine + base rules + Mod port)
 npm run typecheck
 npm run coverage         # interaction coverage + refresh its test baseline
 npm run build            # gen:world + static build → games/openworld/client/dist
-npm run editor           # the OpenWorld Editor on http://localhost:5175/editor/ (the games under games/)
+npm run editor           # the OpenWorld Editor on http://localhost:5175/editor/ (the games under games/, and any folder)
+npm run editor:build     # the editor as a program → packages/editor/dist (page, player, server, templates, pack)
+npm run editor:start     # that build run alone (node packages/editor/dist/server/cli.js --open)
+npm run desktop          # the desktop application from the repository (Electron, installed on first run)
+npm run desktop:dist     # its installers → packages/editor/desktop/release (NSIS/zip, dmg, AppImage)
 npm run play             # the engine's player on :5174 (?game=/games/starter/ or /games/openworld/)
 npm run build:player     # the player alone → packages/runtime/dist, the starter built beside it
 npm run game -- check games/starter   # a project's problems (build <project> --out <dir>: a bundle)

@@ -64,6 +64,11 @@ export function registeredModule(id: string): EngineModule | undefined {
   return MODULES.get(id)
 }
 
+/** Every module registered (the ones a game may name), in the order they were. */
+export function registeredModules(): EngineModule[] {
+  return [...MODULES.values()]
+}
+
 /** The modules an ontology names, in its order, each after the ones it needs. */
 export function modulesOf(names: string[] | undefined): EngineModule[] {
   const out: EngineModule[] = []

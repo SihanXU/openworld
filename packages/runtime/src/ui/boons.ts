@@ -4,7 +4,7 @@
 
 import type { Frame } from '@openworld/engine'
 import { game } from '../game.ts'
-import { $, esc, locale, tx } from './common.ts'
+import { $, esc, locale, t, tx } from './common.ts'
 
 /** How many boons the journey holds (the slots shown). */
 const SLOTS = 5
@@ -37,7 +37,7 @@ export class BoonPanel {
     const unlocked = b?.unlocked ?? []
     const cards = Array.from({ length: SLOTS }, (_, i) => {
       const def = game().boons[unlocked[i]]
-      if (!def) return `<div class="pf-card sealed"><div class="pf-icon">🔒</div><div class="pf-body"><b>${zh ? '尚未获得' : 'Not yet found'}</b><div class="pf-doc">${zh ? '击败持印者后，小啾会接住其圣印的一部分力量。' : 'Pip takes up part of a seal\'s power when its bearer falls.'}</div></div></div>`
+      if (!def) return `<div class="pf-card sealed"><div class="pf-icon">🔒</div><div class="pf-body"><b>${t('boonSealed')}</b><div class="pf-doc">${t('boonSealedDoc')}</div></div></div>`
       const mine = def.id === b?.active
       const action = mine
         ? `<span class="pf-current">✓ ${zh ? '携带中' : 'Carried'}</span>`
@@ -47,10 +47,10 @@ export class BoonPanel {
         <div class="pf-act">${action}</div></div>`
     }).join('')
     const note = b?.atWaypoint
-      ? zh ? '小啾一次只能携带一种力量。' : 'Pip carries one power at a time.'
+      ? t('boonOne')
       : zh ? '只有在唤醒过的传送雕像旁才能切换力量。' : 'A power can be changed only beside a woken waypoint statue.'
     this.host.innerHTML = `<div class="sheet wood pf-sheet">
-      <div class="tabs-row"><span class="sk-title">${zh ? '小啾的力量' : "Pip's Powers"}</span><button class="x" id="boonClose">✕</button></div>
+      <div class="tabs-row"><span class="sk-title">${t('boonTitle')}</span><button class="x" id="boonClose">✕</button></div>
       <div class="tab-body"><div class="pf-note">${note}</div><div class="pf-cards">${cards}</div></div></div>`
     $('#boonClose').onclick = () => this.close()
     this.host.querySelectorAll<HTMLButtonElement>('[data-boon]').forEach((el) => (el.onclick = () => this.choose(el.dataset.boon!)))

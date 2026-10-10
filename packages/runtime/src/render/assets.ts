@@ -6,8 +6,10 @@ import type { ActorDef, Catalog, FxDef, SpriteDef } from '../assets/types.ts'
 import { assetsBase } from '../game.ts'
 
 // encodeURI, not encodeURIComponent: folders like "Hit & Impact" must keep a raw '&' for Vite.
-/** Pack files live under the game's assets/na/ (copied by tools/copyAssets.ts); the project's own art under assets/lsw/ (paths starting `lsw/`). */
-export const assetUrl = (path: string) => encodeURI(`${assetsBase()}${path.startsWith('lsw/') ? path : `na/${path}`}`)
+/** A catalogue's path is the game's own art where it begins with one of these folders (under its assets/); any other is the pack's, under assets/na/. */
+export const OWN_ART = /^(lsw|own)\//
+/** Pack files live under the game's assets/na/ (copied by tools/copyAssets.ts, or taken by the editor); the game's own art under assets/lsw/ or assets/own/ (what the editor imports). */
+export const assetUrl = (path: string) => encodeURI(`${assetsBase()}${OWN_ART.test(path) ? path : `na/${path}`}`)
 
 /** A pack file as a CSS url() for a custom property. Absolute: a relative url() in a variable resolves against the
  *  stylesheet that uses it, which a build puts under assets/ (BASE_URL is './'), so it would point at assets/assets/. */

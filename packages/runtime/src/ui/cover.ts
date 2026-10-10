@@ -10,8 +10,8 @@ import type { SaveSummary } from '../protocol.ts'
 import { SLOTS, deleteSlot, exportSlot, listSlots, pickSaveFile, writeSlot, type Slot, type SlotData } from '../saves.ts'
 import { $, controlsTable, esc, locale, t, tx } from './common.ts'
 
-/** The companion flying across (the game's, when its cover says so). */
-const fairy = () => `${assetsBase()}lsw/Companion/Fairy/SpriteSheet.png`
+/** The companion flying across (the game's, when its cover says so): the sheet it names in the game's assets, or OpenWorld's fairy. */
+const companionSheet = (c: string | boolean) => `${assetsBase()}${typeof c === 'string' ? c : 'lsw/Companion/Fairy/SpriteSheet.png'}`
 
 /** The scene behind the title: ridges in four depths, the plateau with its shelter, pines. */
 const SCENE = `
@@ -123,7 +123,7 @@ export class Cover {
       <div class="cover${cv.art ? '' : ' plain'}">
         ${cv.art ? SCENE : ''}
         <div class="cv-cloud c1"></div><div class="cv-cloud c2"></div><div class="cv-cloud c3"></div>
-        ${cv.companion ? `<div class="cv-pip" style="background-image:url('${fairy()}')"></div>` : ''}
+        ${cv.companion ? `<div class="cv-pip" style="background-image:url('${encodeURI(companionSheet(cv.companion))}')"></div>` : ''}
         <div class="cv-main">
           ${cv.kicker ? `<div class="cv-kicker">${esc(tx(cv.kicker))}</div>` : ''}
           <h1 class="cv-title">${title}</h1>
@@ -140,7 +140,7 @@ export class Cover {
           <div class="cv-status"></div>
         </div>
         ${this.panel ? `<div class="cv-panel wood">${this.panelHtml()}</div>` : ''}
-        <div class="cv-foot">${zh ? '美术与音乐：' : 'Art & music: '}<a href="https://pixel-boy.itch.io/ninja-adventure-asset-pack" target="_blank" rel="noopener">Ninja Adventure</a> (CC0)</div>
+        ${cv.credit === false ? '' : `<div class="cv-foot">${cv.credit ? esc(tx(cv.credit)) : `${zh ? '美术与音乐：' : 'Art & music: '}<a href="https://pixel-boy.itch.io/ninja-adventure-asset-pack" target="_blank" rel="noopener">Ninja Adventure</a> (CC0)`}</div>`}
       </div>`
     const go = (slot: Slot) => (this.busy(), this.on.start(slot, this.slots[slot - 1]))
     document.querySelector<HTMLButtonElement>('#cvContinue')?.addEventListener('click', () => latest && go(latest))

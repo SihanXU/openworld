@@ -1,6 +1,7 @@
 // What every part of the DOM UI shares: the locale, the strings, small DOM helpers.
 
 import type { Text } from '@openworld/engine'
+import { gameIfAny, hasModule } from '../game.ts'
 import { textOf } from '../render/scene.ts'
 
 export type Locale = 'en' | 'zh'
@@ -31,7 +32,8 @@ export const locale = {
 
 export const tx = (t: Text | undefined) => textOf(t, locale.value)
 
-const STRINGS: Record<string, [string, string]> = {
+/** The interface's words by key (English, Chinese): what a game may say its own way (ClientGame.texts). */
+export const STRINGS: Record<string, [string, string]> = {
   inventory: ['Inventory', '背包'],
   craft: ['Craft', '制作'],
   shop: ['The Stall', '货摊'],
@@ -75,7 +77,11 @@ const STRINGS: Record<string, [string, string]> = {
   cvBadFile: ['That file is not an OpenWorld save.', '这个文件不是 OpenWorld 的存档。'],
   cvIncompatible: ['That save is from another version of the world: a new game began in its slot.', '这个存档来自另一个版本的世界，已在该存档位开始新游戏。'],
   cvNote: ['Saves live in this browser (it autosaves as you play). Export one to keep it as a file, or to carry it to another browser.', '存档保存在这个浏览器里（游戏中会自动保存）。导出可以存成文件，或带到别的浏览器。'],
-  skillNoProfession: ['No profession yet. At level 5, Bram the trainer sets you on one in the drill yard of Firstlight Village (crossed blades over his head): assassin, warrior, ranger or mage.', '还没有职业。到 5 级后，去初原村操练场找职业导师布拉姆（头顶有交叉双剑标记）选择：刺客、战士、游侠或法师。'],
+  skillNoProfession: ['No profession yet: a trainer sets you on one once you are ready.', '还没有职业：时候到了，会有导师为你指点。'],
+  boonTitle: ['The Companion\'s Powers', '同伴的力量'],
+  boonSealed: ['Not yet found', '尚未获得'],
+  boonSealedDoc: ['A power is found as the story goes on.', '力量会随着故事获得。'],
+  boonOne: ['One power is carried at a time.', '一次只能携带一种力量。'],
   profTitle: ['Choose a profession', '选择职业'],
   profCurrent: ['Your profession', '当前职业'],
   profChoose: ['Choose', '选择'],
@@ -199,6 +205,8 @@ export const prefs = {
 }
 
 export function t(k: string): string {
+  const own = gameIfAny()?.texts?.[k]
+  if (own) return locale.value === 'zh' ? (own.zh ?? own.en) : own.en
   const v = STRINGS[k]
   return v ? (locale.value === 'zh' ? v[1] : v[0]) : k
 }
@@ -211,6 +219,8 @@ export const SLOT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 /** The controls, as shown in the intro and the Options tab. */
 export function controlsTable(dev: boolean): string {
   const zh = locale.value === 'zh'
+  // the keys of a module's panels show only where the game uses it (before a game: all of them)
+  const skills = gameIfAny() ? hasModule('classes') : true
   const rows: [string, string, string][] = [
     ['WASD · ↑↓←→', 'move (Shift: walk)', '移动（Shift：慢走）'],
     ['B', 'build / farm mode; left click or E places, Esc / RMB exits', '建筑 / 种植模式；左键或 E 放置，Esc / 右键退出'],
@@ -221,14 +231,16 @@ export function controlsTable(dev: boolean): string {
     ['R', 'a floor in hand: the left click lays it in the ceiling (and back)', '手上拿着地板：左键改为铺天花板（再按切回）'],
     ['right click', 'use the held thing on yourself: eat, drink, put on', '对自己用手上的东西：吃、喝、穿戴'],
     ['Space', 'attack: strike ahead (hold to keep striking)', '攻击：朝面前挥击（按住连续攻击）'],
-    ['Q', 'dash, once learned (swiftness)', '冲刺（学会迅捷分支的冲刺后）'],
+    ...(skills ? [['Q', 'dash, once learned (swiftness)', '冲刺（学会迅捷分支的冲刺后）'] as [string, string, string]] : []),
     ['X', 'draw your weapon or put it away: drawn, a blow on a person is meant', '拔出或收起武器：拔出时，对人挥击才算真的动手'],
     ['V', 'sneak: slower, seen only up close and from the front; F on a person picks their pocket', '潜行：走得慢，只有近处、正面的人才看得见你；潜行时对人按 F 是扒窃'],
-    ['Shift+1–6', 'cast the skill in that slot of the skill bar (over the skill tree: put the skill there)', '施放技能栏那一格的技能（在技能树上：把指着的技能放进那一格）'],
+    ...(skills ? [['Shift+1–6', 'cast the skill in that slot of the skill bar (over the skill tree: put the skill there)', '施放技能栏那一格的技能（在技能树上：把指着的技能放进那一格）'] as [string, string, string]] : []),
     ['hold any of these', 'choose which of the things drawn there', '长按以上任一：选那个位置叠着的哪一样'],
     ['1–0 · wheel', 'choose what to hold', '选择拿在手里的东西'],
     ['Tab · Shift+Tab', 'the next (previous) row of the bag becomes the toolbar', '把背包的下一行（上一行）换到快捷栏'],
-    ['Esc · I · C · K · U · M · L · J', 'menu · inventory · craft · skill tree · skills · map · quests · codex (with the Threadbook)', '菜单 · 背包 · 制作 · 技能树 · 技能面板 · 地图 · 任务 · 图鉴（含织线簿）'],
+    skills
+      ? ['Esc · I · C · K · U · M · L · J', 'menu · inventory · craft · skill tree · skills · map · quests · codex', '菜单 · 背包 · 制作 · 技能树 · 技能面板 · 地图 · 任务 · 图鉴']
+      : ['Esc · I · C · M · L · J', 'menu · inventory · craft · map · quests · codex', '菜单 · 背包 · 制作 · 地图 · 任务 · 图鉴'],
   ]
   if (dev) rows.push(['`', 'Mod Console (dev)', '模组控制台（开发）'])
   return `<table>${rows.map(([k, en, z]) => `<tr><td><kbd>${k}</kbd></td><td>${zh ? z : en}</td></tr>`).join('')}</table>`

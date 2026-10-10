@@ -21,6 +21,8 @@ export interface ClientTables {
   looks?: { table?: LookTable; slots?: string[]; worn?: string[]; parts?: Record<string, LookPartInfo>; player?: Look }
   cover?: CoverDef
   dev?: { shortcuts: DevShortcut[] }
+  /** The interface's words the game says its own way (ClientGame.texts). */
+  texts?: Record<string, { en: string; zh?: string }>
 }
 
 /**
@@ -61,6 +63,7 @@ export function clientGameOf(b: Bundle, url: string): ClientGame {
     world: `${base}world/`,
     cover: { title: b.game.name, ...c.cover },
     ...(c.dev && { dev: c.dev }),
+    ...(c.texts && { texts: c.texts }),
     items: { forms: c.items?.forms ?? {}, materials: c.items?.materials ?? {}, relics: c.items?.relics ?? {}, coin: c.items?.coin ?? b.ontology.social?.coin ?? 'item/coin' },
     crafting: {
       recipes: c.crafting?.recipes ?? [],

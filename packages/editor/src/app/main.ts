@@ -1,12 +1,12 @@
-// The OpenWorld Editor (docs/engine-split.md §6, P4–P6): RPG Maker's feel over OpenWorld's model. Without
-// `?project=` it lists the games and makes a new one from the starter; with it, it edits that project — its maps,
-// its people, (P5) its database, rules, story and quests, (P6) its holes with the AI — on the runtime's own
-// renderer, and plays it from any cell.
+// The OpenWorld Editor (docs/engine-split.md §6, P4–P6, §15): RPG Maker's feel over OpenWorld's model. Without
+// `?project=` it shows the projects it knows, makes a new one from a template and opens any folder (home.ts);
+// with it, it edits that project — its maps, its people, (P5) its database, rules, story and quests, (P6) its
+// holes with the AI, its pictures and sounds — on the runtime's own renderer, plays it from any cell, and exports
+// it as a game anyone can play.
 
 import '@openworld/modules'
 import { useGame } from '@openworld/runtime/src/game.ts'
 import { clientGameOf } from '@openworld/runtime/src/bundle.ts'
-import type { Text } from '@openworld/engine'
 import { Canvas } from './canvas.ts'
 import type { Ctx, Mode } from './context.ts'
 import { MapMode } from './mapMode.ts'
@@ -14,35 +14,18 @@ import { PeopleMode } from './peopleMode.ts'
 import { ProblemsPanel } from './problems.ts'
 import { Store } from './store.ts'
 import { $, esc, toast, tx } from './ui.ts'
+import { home } from './home.ts'
+import { exportDialog } from './exportDialog.ts'
 import { MODES as MORE } from './modes.ts'
 import './editor.css'
 
 const PARAMS = new URLSearchParams(location.search)
 const project = PARAMS.get('project')
 
-if (!project) void projectList()
-else void openProject(project)
-
-// ------------------------------------------------------------------ the games
-
-async function projectList(): Promise<void> {
-  const list = (await (await fetch('/api/projects')).json()) as { id: string; name: Text; modules: string[]; maps: number; people: number }[]
-  document.body.innerHTML = `<div class="home">
-    <h1>OpenWorld Editor</h1>
-    <p class="muted">The games under <code>games/</code>. What you change is written to their files; commit them as any other change.</p>
-    <div class="cards">${list.map((p) => `<a class="card" href="?project=${encodeURIComponent(p.id)}"><b>${esc(tx(p.name))}</b><small>${esc(p.id)} · ${p.maps} maps · ${p.people} people${p.modules.length ? ` · ${esc(p.modules.join(', '))}` : ' · the kernel alone'}</small></a>`).join('')}</div>
-    <h2>New project</h2>
-    <p class="muted">A copy of the starter (games/starter): a glade, a cottage, a villager with a day, an axe in a chest.</p>
-    <label>id <input id="newId" placeholder="my-game"></label> <label>name <input id="newName" placeholder="My Game"></label> <button id="newGo">Make it</button>
-    <div id="toasts"></div></div>`
-  $<HTMLButtonElement>('#newGo').onclick = async () => {
-    const id = $<HTMLInputElement>('#newId').value.trim()
-    const r = await fetch('/api/projects', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id, name: $<HTMLInputElement>('#newName').value.trim() || id }) })
-    const b = (await r.json()) as { error?: string }
-    if (!r.ok) return toast(b.error ?? 'could not make it', 'error')
-    location.search = `?project=${encodeURIComponent(id)}`
-  }
-}
+if (!project) void home()
+else void openProject(project).catch((e: Error) => {
+  document.body.innerHTML = `<div class="home"><h1>OpenWorld Editor</h1><p class="warn">${esc(e.message)}</p><p><a href="./">Back to the projects</a></p></div>`
+})
 
 // ------------------------------------------------------------------ a project
 
@@ -53,7 +36,7 @@ async function openProject(id: string): Promise<void> {
   document.body.innerHTML = `<div class="editor">
     <header><a href="./" class="home-link">OpenWorld Editor</a> <b>${esc(tx(store.game.name))}</b> <nav id="modes"></nav>
       <span class="grow"></span><span id="status" class="muted"></span>
-      <button id="undo" title="Ctrl+Z">Undo</button><button id="save" title="Ctrl+S">Save</button><button id="play" title="Save, and play from the start (or the selected cell)">▶ Playtest</button></header>
+      <button id="undo" title="Ctrl+Z">Undo</button><button id="save" title="Ctrl+S">Save</button><button id="play" title="Save, and play from the start (or the selected cell)">▶ Playtest</button><button id="export" title="Save, and make the game a folder anyone can play">Export…</button></header>
     <aside id="left"></aside><main id="canvas"></main><main id="center" class="hidden"></main><aside id="right"></aside>
     <footer id="problems"></footer><div id="toasts"></div></div>`
   const canvas = new Canvas($('#canvas'))
@@ -87,6 +70,8 @@ async function openProject(id: string): Promise<void> {
       refresh()
     },
   }
+  // the renderer loads the game's pictures as it starts: a changed catalogue starts it again (when it is next shown)
+  let pictures = false
   function refresh(): void {
     $('#modes').innerHTML = modes.map((m) => `<button data-mode="${m.id}" class="${m === mode ? 'on' : ''}">${esc(m.label)}</button>`).join('')
     document.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => (b.onclick = () => ctx.open(b.dataset.mode!)))
@@ -95,6 +80,11 @@ async function openProject(id: string): Promise<void> {
     $('#canvas').classList.toggle('hidden', !!mode.main)
     center.classList.toggle('hidden', !mode.main)
     if (mode.main) mode.main(ctx, center)
+    else if (pictures) {
+      pictures = false
+      useGame(clientGameOf(store.compiled().bundle, `/games/${encodeURIComponent(id)}/bundle.json`))
+      canvas.reset()
+    }
     mode.render(ctx, $('#left'), $('#right'))
     canvas.setOverlay(mode.overlay?.(ctx))
     const n = store.unsaved()
@@ -117,6 +107,7 @@ async function openProject(id: string): Promise<void> {
       cancelAnimationFrame(redraw)
       redraw = requestAnimationFrame(() => canvas.show(store.compiled(), ctx.map))
     }
+    if (file === 'catalog.json') pictures = true
     if (why.startsWith('undo')) toast(why)
     problems.soon()
     refresh()
@@ -124,6 +115,7 @@ async function openProject(id: string): Promise<void> {
   $<HTMLButtonElement>('#undo').onclick = () => store.undo() ?? toast('Nothing to undo.', 'warn')
   $<HTMLButtonElement>('#save').onclick = () => void save().then(() => toast('Saved.'))
   $<HTMLButtonElement>('#play').onclick = () => void ctx.playtest()
+  $<HTMLButtonElement>('#export').onclick = () => void save().then(() => exportDialog(id, store))
   window.addEventListener('keydown', (e) => {
     if (!(e.ctrlKey || e.metaKey)) return
     if (e.key === 'z') (e.preventDefault(), store.undo())

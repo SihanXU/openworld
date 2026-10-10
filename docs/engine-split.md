@@ -4,14 +4,15 @@ Status: **agreed with the user 2026-10-10.** The user asked to take OpenWorld ou
 own, keep the present game as one story on it, and build an OpenWorld Editor in the manner of RPG Maker
 ("OpenWorld拿出来专门当游戏引擎，现在的游戏是其中的一个story作为demo，然后同步还要做一个OpenWorld Editor，
 像RPG Maker那样可以自己做游戏"), and accepted every recommendation below; then to build P2–P6 in the same pull request ("p2到p6", P7
-left). §8 onwards records what was built.
+left); then, asked whether the editor was a tool for this one game or a game-making program like RPG Maker, to
+make it a program of its own now ("现在就往独立软件方向做啊": S2 changed, §15). §8 onwards records what was built.
 
 ## 1. Decisions
 
 | # | Decision |
 |---|---|
 | S1 | **One repository first.** The engine, its modules, the runtime, the editor and the modder live in `packages/`; each game lives in `games/<id>/`. `games/*` may import `packages/*`, never the reverse, and a test holds it. The engine goes to a repository of its own only when its API has settled (P7). |
-| S2 | **The editor is the team's tool first**: a local web app over the project's files in git, changes going through pull requests as now. A public, packaged editor is decided later. |
+| S2 | ~~The editor is the team's tool first~~ → **the editor is a game-making program of its own** (changed 2026-10-10, §15): a local server and its page, run from the command line or as a desktop application, over projects in any folder; it ships the pack's pictures and sounds and the templates, and exports a game anyone can play. Inside the repository it is still the team's tool over `games/`, its changes going through pull requests as before. |
 | S3 | **This game's systems become the engine's official optional modules** (classes and combat, progression, needs, society, companions, waypoints, bosses, looks, codex), as RPG Maker ships its battle system: a game enables the modules it uses. |
 | S4 | **The game is called OpenWorld for now**, like the engine. It lives in `games/openworld/`; its packages are `@openworld-game/*`, the engine's `@openworld/*`. |
 | S5 | **The editor takes RPG Maker's feel and OpenWorld's model** (§5): maps, a database, a playtest button; but behaviour is rules on types, never a script per instance, and the holes are where the AI enters. |
@@ -143,6 +144,7 @@ held, the game playable throughout.
 | **P5 Database and logic** | type tree, items, statuses, recipes; the rule editor (tree view, "which rule answers here", ties reported as you type, a sandbox replay); story steps and scene commands; quests' stages, objectives and aliases | a game like the starter made without writing TypeScript |
 | **P6 The AI as co-author** | the holes panel (coverage per project); a patch asked for one hole, reviewed and taken; the builder's brushes; people generated in bulk | holes seen and filled in the editor |
 | **P7** (later) | the engine side gets a repository of its own and versions; the game depends on them | — |
+| **P8 The editor as a program** (S2 changed) | projects in any folder, a recent list, templates; the editor's own server and a build of it; pictures and sounds imported, the pack shipped, the catalogue edited by cutting sprites; export as a playable folder and zip; a desktop shell; the runtime free of one game's words; the game's settings and the rest of its data in forms | a game made, given pictures and exported in the desktop application, with no repository and no TypeScript |
 
 P2 and P3 overlap where they do not touch (the catalogue as data needs no modules).
 
@@ -352,3 +354,84 @@ P2 and P3 overlap where they do not touch (the catalogue as data needs no module
   and goes with it; the editor may offer it as an optional requirements panel.
 - **The product must not eat the paper.** P1–P3 serve the paper as they are (generality, a second game,
   content at scale offline); how far P4 and after go is decided on its own.
+
+## 15. P8 as built (2026-10-10): the editor as a program of its own
+
+The user asked whether the editor edits only this game or makes games as RPG Maker does; it was general (any
+project in the format) but tied to the repository's `games/`, with no pictures of its own, no export and no
+program to install. Asked to go that way now, S2 changed and this was built.
+
+- **Projects anywhere** (`editor/src/server/workspace.ts`): a project is any folder with a game.json. The editor
+  keeps the ones it opened (its recent list, in its own folder: `~/.openworld-editor`, or the desktop's user
+  data) and lists its shelves' beside them (the repository's `games/` in development); each has a key made from
+  its folder's name, which the editor's URLs and the player's `/games/<key>/` use. A new project is a
+  template's copy in a folder the author chooses (default `~/OpenWorld Projects`): **the starter**, or
+  **empty** — the starter's kinds of things, rules, pictures and sounds, and one blank map. Forgetting a project
+  takes it off the list and touches no file. The first page (`app/home.ts`): the recent projects, the
+  repository's games, New project (template, name, id, folder), Open project (a folder chosen in the system's
+  dialog on the desktop, else in the editor's own over the service's listing of the disk).
+- **The service** (`server/api.ts`) answers only its own machine: a request must name this host (a page of
+  another site reached through a name of its own — DNS rebinding — is refused) and every change carries the
+  editor's header (`x-openworld-editor`, which another origin cannot send without leave).
+- **The editor's own server** (`server/server.ts`, `server/cli.ts`): one Node server for the built page
+  (/editor/), the built player (/runtime/play/, the playtest), the service, the pack (/pack/) and the projects
+  compiled as the player fetches them. `npm run editor:build` (`scripts/build.ts`) lays a built editor out in
+  `packages/editor/dist/` — `editor/`, `player/`, `server/cli.js` (the server bundled for Node, nothing to
+  install), `templates/starter/`, `pack/` — and `npm run editor:start` runs it (`node dist/server/cli.js
+  --open [--port] [--home] [--projects] [--shelf]`). `npm run editor` stays the same service in Vite's
+  development server.
+- **Pictures and sounds** (`server/assets.ts`, `app/assetsMode.ts`, `app/sheet.ts`): a project's files are its
+  assets/ — the pack's under `na/` (a catalogue writes them bare), the author's under `own/` (imported from the
+  disk; the runtime takes `own/` as the game's own art beside `lsw/`), OpenWorld's under `lsw/`. The editor
+  ships **the pack**, the Ninja Adventure pack's subset (CC0) OpenWorld uses, as RPG Maker ships its runtime
+  package; a pack file an entry uses is copied into the project, so a project is whole on its own. The
+  **Assets** mode edits the catalogue (`runtime/src/assets/types.ts`) by kind — items, fixtures (as they are,
+  open, lit, turned across, looks of their own), creatures and characters (a sheet: its columns the
+  directions, its rows the frames, a portrait), roles, the ground (autotiles, tiles, objects, decals), rooms,
+  buildings, effects, music, sounds, the interface — each entry cut from a picture drawn large on a grid (a
+  rectangle dragged out, snapped), its fields and how it looks beside it, its JSON; the files of the project
+  and of the pack, filtered, imported, removed (only the author's own); and **what needs a picture**: the
+  sprite keys the types name and the terrains a map writes that no entry answers. A changed catalogue starts the
+  map's renderer again (it loads the pictures as it starts). The Database's type links to its picture.
+- **Export** (`server/export.ts`, `server/zip.ts`, `app/exportDialog.ts`): the project compiled (refused while
+  it has errors), the built player without the games built beside it, the game under `game/` (bundle, world,
+  assets, the plugins it ships as scripts), the page naming it (`<meta name="openworld-game">`, which the
+  player reads when no `?game=` is given) and titled by it, a README, a mark that lets a later export replace
+  the folder (any other non-empty folder is refused), and a zip of the whole (for itch.io's HTML games; written
+  with no dependency). The editor serves the last export at `/exported/<key>/` to be tried at once.
+- **The desktop application** (`packages/editor/desktop/`, Electron, outside the root workspaces so that
+  `npm install` does not fetch it): the editor's server started inside it on a free port of this machine, its
+  page in a window; through `preload.cjs` the page gets the system's folder dialog and a folder shown in the file
+  manager, nothing else; the playtest and a tried export open in windows of their own, other links in the
+  system's browser; unsaved changes are asked about before a window closes. `npm run desktop` runs it from the
+  repository (its games listed too); `npm run desktop:dist` makes the installers (electron-builder: an NSIS
+  installer and a zip on Windows, a dmg on macOS, an AppImage on Linux; unsigned), and the `desktop` workflow
+  builds the three as artifacts (when the shell changes, when asked, on a tag `editor-v*`).
+- **The runtime says no one game's words**: the interface's words are a table a game may write its own way
+  (`ClientGame.texts`, a bundle's `client.texts`; the runtime's `STRINGS` are the defaults), and OpenWorld's
+  trainer and fairy (the skill tree's "no profession yet", the boons' panel) moved there; the cover's companion
+  is the sheet the game names, its credits line the game's or none; the keys of a module's panels (the skill
+  bar, the dash, the skill tree) show in the controls only where the game uses the module; a save written out is
+  named by its game; the skill tree opens on the game's first direction; the old intro card, unused since the
+  cover, is gone.
+- **The game's settings and the rest of its data in forms** (`app/gameMode.ts`, the **Game** mode): the game
+  (name, version, seed, the standard library taken or not, where and at what hour a new game begins, where the
+  world map is laid out from, the player's name and tags), **the engine's modules** (every registered one —
+  `registeredModules()` —, what it needs, what it is), the world's parameters (each with what it does, the
+  ontology's value beside the game's own), the cover, the interface words (filtered, each beside the engine's),
+  the factions (names, whom each attacks on sight), and every other part of the ontology (periods, what appears
+  by itself, thresholds, laws, deeds, talk, the social numbers, materials, qualities, efficiency, resistances,
+  professions, room roles, goals, elements, effects, tags, the look table) and of the player's tables (item
+  forms, crafting, skills, boons, looks, the console's shortcuts), each as the project writes it beside the
+  standard library's and what the game gets.
+- **Checked**: the service, the workspace, the assets, export and its zip read back byte for byte, the server
+  (`editor/test/api.test.ts`, `server.test.ts`); in a browser, the built editor run alone: a new project from the
+  empty template, edited, exported, the export played; the Assets mode: a type's missing picture listed, a
+  picture taken from the pack, a cut making the entry, an import, the map drawn again with it; the Game mode: a
+  module, a parameter, the cover's title and an interface word written and seen in the playtest's cover. The
+  desktop application under a virtual display: its first page with the system's dialog bridged, a project made,
+  the playtest window; packaged for Linux (AppImage and unpacked, run from its own resources with no repository
+  beside it: the pack, the templates, an export) and, from Linux, as a Windows zip.
+- **Left**: the installers are unsigned; the modder is still started on its own (`npm run modder -- serve`) for
+  the holes panel's AI, and does not yet read a project's learned files; the fonts come from Google Fonts (a
+  machine offline draws the fallback); the cover's mountain art is OpenWorld's own, offered to any game.

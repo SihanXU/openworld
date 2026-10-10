@@ -60,7 +60,8 @@ export function exportSlot(world: string, slot: Slot, data: SlotData): void {
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
   const day = data.summary ? `-day${data.summary.day}` : ''
-  a.download = `openworld-slot${slot}${day}-${data.savedAt.slice(0, 10)}.json`
+  // (OpenWorld's saves kept the name `world` from before there were other games)
+  a.download = `${world === 'world' ? 'openworld' : world}-slot${slot}${day}-${data.savedAt.slice(0, 10)}.json`
   document.body.appendChild(a)
   a.click()
   a.remove()

@@ -5,6 +5,7 @@
 
 import { compile, type Compiled, type GameJson, type Project, type Sourced } from '@openworld/format'
 import type { RawChunk } from '@openworld/engine'
+import { call } from './api.ts'
 
 /** The folders of the format, each a list of files of one kind. */
 export const FOLDERS = ['ontology', 'rules', 'maps', 'people', 'quests', 'story', 'client', 'learned'] as const
@@ -37,9 +38,7 @@ export class Store {
   }
 
   static async open(id: string): Promise<Store> {
-    const r = await fetch(`/api/projects/${encodeURIComponent(id)}`)
-    if (!r.ok) throw new Error(((await r.json()) as { error: string }).error)
-    return new Store(id, (await r.json()) as Project)
+    return new Store(id, await call<Project>(`/api/projects/${encodeURIComponent(id)}`))
   }
 
   on(fn: (why: string, file?: string) => void): () => void {
@@ -132,14 +131,13 @@ export class Store {
   /** Write what changed through the service. */
   async save(): Promise<void> {
     const base = `/api/projects/${encodeURIComponent(this.id)}/files/`
+    const said = (file: string) => (e: Error) => { throw new Error(`${file}: ${e.message}`) }
     for (const file of [...this.dirty]) {
-      const r = await fetch(base + file, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(this.docs.get(file)) })
-      if (!r.ok) throw new Error(`${file}: ${((await r.json()) as { error: string }).error}`)
+      await call(base + file, { method: 'PUT', body: this.docs.get(file) }).catch(said(file))
       this.dirty.delete(file)
     }
     for (const file of [...this.deleted]) {
-      const r = await fetch(base + file, { method: 'DELETE' })
-      if (!r.ok) throw new Error(`${file}: ${((await r.json()) as { error: string }).error}`)
+      await call(base + file, { method: 'DELETE' }).catch(said(file))
       this.deleted.delete(file)
     }
     this.emit('saved')

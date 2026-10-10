@@ -48,6 +48,7 @@ export class DatabaseMode implements Mode {
         <label>name <input data-f="en" value="${esc(enOf(def.name))}"> <input data-f="zh" value="${esc(zhOf(def.name))}"></label>
         ${FIELDS[section].map(([k, hint]) => `<label>${esc(hint)} <input data-f="${k}" value="${esc(fieldText(own[k], LISTS.has(k)))}"></label>`).join('')}
         ${section === 'terrains' ? `<label>map character <input data-f="char" maxlength="1" value="${esc(chars[0] ?? '')}"></label>` : ''}
+        ${section === 'types' && (def as TypeDef).sprite ? `<p><a id="dbPic">The picture of ${esc((def as TypeDef).sprite)} →</a></p>` : ''}
         <button id="dbDel" class="danger" ${file ? '' : 'disabled'}>Remove ${esc(def.id)}${file ? '' : ' (the library\'s)'}</button>
       </div><div>
         <h3>JSON</h3><textarea id="dbJson" rows="16">${esc(JSON.stringify(def, null, 2))}</textarea><button id="dbApply">Apply the JSON</button>
@@ -72,6 +73,10 @@ export class DatabaseMode implements Mode {
       }
       write(d, `${def.id}: ${k}`)
     }))
+    el.querySelector<HTMLElement>('#dbPic')?.addEventListener('click', () => {
+      const sp = (def as TypeDef).sprite!
+      ctx.open('assets', 'catalog.json', `${sp.startsWith('fixture:') ? 'fixtures' : sp.startsWith('creature:') ? 'creatures' : 'items'}:${sp}`)
+    })
     el.querySelector<HTMLButtonElement>('#dbApply')!.onclick = () => {
       try {
         const d = JSON.parse(el.querySelector<HTMLTextAreaElement>('#dbJson')!.value) as Record<string, unknown>

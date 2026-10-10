@@ -27,4 +27,11 @@ describe('the starter in the player', () => {
     for (const key of ['item:axe', 'item:log', 'fixture:chest', 'creature:slime']) expect(g.catalog.items[key] ?? g.catalog.fixtures[key] ?? g.catalog.creatures[key], key).toBeDefined()
     expect(g.catalog.roles.villager?.length).toBeGreaterThan(0)
   })
+
+  it('says the interface\'s words its own way where its client tables write them (ClientGame.texts), the engine\'s elsewhere', () => {
+    expect(g.texts).toBeUndefined()
+    const own = clientGameOf({ ...compiled.bundle, client: { ...compiled.bundle.client, texts: { newGame: { en: 'Begin', zh: '开始' } }, cover: { companion: 'own/bird.png', credit: false } } }, 'https://example.org/g/bundle.json')
+    expect(own.texts).toEqual({ newGame: { en: 'Begin', zh: '开始' } })
+    expect(own.cover).toMatchObject({ title: compiled.bundle.game.name, companion: 'own/bird.png', credit: false })
+  })
 })
