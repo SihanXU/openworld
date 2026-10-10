@@ -614,6 +614,11 @@ export function buildOntology(): Ontology {
         ...QUALITIES.map((q) => `quality:${q.id}`),
         ...Object.keys(ELEMENT_NAMES).map((e) => `element:${e}`),
         'locked',
+        // a person's place in the people's life, from their record (tools/src/demo/world.ts): the watch, a trade, a fence, a hand for hire
+        'watchman',
+        'merchant',
+        'fence',
+        'hireling',
       ]),
     ],
   }

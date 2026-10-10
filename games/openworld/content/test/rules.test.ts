@@ -63,8 +63,8 @@ describe('base library', () => {
     // effects write only their host (no `of`). Only the base may answer for anything (a root rule)
     // and leave an outcome undefined (a hole the AI fills), and only the base hosts a quest's rules (docs/quests.md).
     const res = validatePatch({ artifacts: [...BASE_RULES, ...STORY_RULES].map((r) => ({ kind: 'rule' as const, rule: r })) }, { ontology: onto, library: new RuleLibrary() })
-    // ...and only a learned rule has a place (design.md §5.16): one exact type, one kind, a hole, no inherit; a quest is the content's.
-    const placement = /host must be exactly|hole required|exact event kind|never inherits|no leaf answers|no default of its own|a quest is the content/
+    // ...and only a learned rule has a place (design.md §5.16): one exact type, one kind, a hole, no inherit; a quest is the content's; a learned rule notifies only a topic.
+    const placement = /host must be exactly|hole required|exact event kind|never inherits|no leaf answers|no default of its own|a quest is the content|may notify only a topic/
     expect(res.errors.filter((e) => !placement.test(e))).toEqual([])
   })
 

@@ -43,7 +43,7 @@ export function designSystem(spec: ModSpec, h: Harness, router = false): string 
           '2. Decide what a player would find plausible and satisfying here, consistent with those rules. Write it for this type: branch on what varies among its instances (material, quality, element, statuses) and on the other roles\' classes.',
           '3. Answer directly — there are no tools. The engine validates your answer and sends back exact diagnostics if anything is wrong.',
         ]),
-    `${h.design.toolRounds > 0 ? 5 : 4}. Answer with ONLY one JSON object: {"patch": {"artifacts": [...], "note": "<what the rule does, one line>"}, "summary": "<one line for your records>"}`,
+    `${h.design.toolRounds > 0 ? 5 : 4}. Answer with ONLY one JSON object, minified: {"patch": {"artifacts": [...], "note": "<what the rule does, one line>"}}`,
     '',
     'Requirements:',
     '- Rule ids start with "patch/" and must be new.',
@@ -123,9 +123,9 @@ export function revisionUser(current: Patch, notes: string[]): string {
   ].join('\n')
 }
 
-export const NO_JSON = 'Your answer had no JSON patch. Answer with ONLY the JSON object: {"patch": {"artifacts": [...]}, "summary": "..."}'
+export const NO_JSON = 'Your answer had no JSON patch. Answer with ONLY the JSON object: {"patch": {"artifacts": [...]}}'
 
-export const FINALIZE = 'Stop investigating. Answer now with ONLY the JSON object: {"patch": {"artifacts": [...]}, "summary": "..."}'
+export const FINALIZE = 'Stop investigating. Answer now with ONLY the JSON object: {"patch": {"artifacts": [...]}}'
 
 // ---------------------------------------------------------------- review
 
@@ -313,7 +313,7 @@ export function createUser(creations: Creation[], materials: string[] = []): str
     '- station (optional): "hands" or "workbench" when a player could also make it there from its makeup; leave it out when only your rule makes it (smelting in a forge).',
     '- A new kind of ground (tile/...) cannot be made; make a thing that lies on the cell instead.',
     '- Do not draw it: an artist draws its icon next.',
-    'Answer with ONLY the JSON object {"patch": {"artifacts": [...]}, "summary": "..."}.',
+    'Answer with ONLY the JSON object {"patch": {"artifacts": [...]}}.',
   ].join('\n')
 }
 

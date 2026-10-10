@@ -61,6 +61,8 @@ export interface Cell {
   rule?: string
   /** Where the outcome is undefined: the rule whose leaf is a hole. */
   hole?: string
+  /** And where an answer would go: `type|kind|hole` (Resolution.open), the key the upstream loop groups by. */
+  open?: string
   outcome: Outcome
 }
 
@@ -168,6 +170,7 @@ export function sweep(onto: Ontology = buildOntology(), rules: Rule[] = BASE_RUL
           verb,
           rule: specific ?? p.rules[0],
           hole: p.unknown ? (p.hole?.res.hole?.rule.id ?? p.rules.at(-1)) : undefined,
+          open: p.unknown ? p.hole?.res.open?.key : undefined,
           outcome: p.unknown ? 'undefined' : specific ? 'specific' : 'generic',
         }
         cells.push(cell)

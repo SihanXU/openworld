@@ -28,8 +28,11 @@ const MAY_IMPORT: Record<string, string[]> = {
 const TESTS_ON_THE_GAME = new Set([
   'packages/modder/test/audit.test.ts',
   'packages/modder/test/economy.test.ts',
+  // (the god loop's and the promotion detector's, written on the game's content before the split)
+  'packages/modder/test/god-loop.test.ts',
   'packages/modder/test/leaf-trees.test.ts',
   'packages/modder/test/modder.test.ts',
+  'packages/modder/test/promote.test.ts',
   'packages/modder/test/prune.test.ts',
   'packages/modder/test/repo.test.ts',
   'packages/modder/test/shackles.test.ts',

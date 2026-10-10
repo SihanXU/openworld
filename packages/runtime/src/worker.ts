@@ -83,6 +83,10 @@ async function connectModder(url: string, since = 0): Promise<void> {
     // asking it would only pause the world before the default, so the default runs at once
     if (health.model) {
       game.mods.provider = { resolve: resolveRemote }
+      // a learned rule set aside here is reported: the service counts, and past its bound retires the rule for everyone
+      game.engine.onFault = (rule, reason) => {
+        void fetch(`${modderUrl}/fault`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rule: rule.id, reason }), signal: AbortSignal.timeout(5000) }).catch(() => undefined)
+      }
       game.mods.timeoutTicks = MODDER_TIMEOUT_TICKS
     }
     modderOnline = true

@@ -131,7 +131,7 @@ export function modspecMarkdown(spec: ModSpec): string {
   ].join('\n')
 }
 
-function issueOf(req: ModRequest, revise?: { rules: Rule[]; notes: string[] }): string {
+function issueOf(req: ModRequest, revise?: { rules: Rule[]; notes: string[] }, audit?: { notes: string[]; draft: Patch }): string {
   const ent = (r: string, e?: EntityInfo) => (e ? `- ${r}: ${e.name} — \`${e.type}\`; tags ${e.tags.join(', ') || '—'}; statuses ${e.statuses.join(', ') || '—'}` : `- ${r}: none`)
   const params = Object.entries(req.event.params ?? {})
   return [
@@ -155,14 +155,24 @@ function issueOf(req: ModRequest, revise?: { rules: Rule[]; notes: string[] }): 
       : 'Define it: add the rule that answers this event for this host TYPE under `rules/patch/` (one JSON rule `{id, host, on, tree, doc}` per file; ids start with `patch/`; host is exactly {type: <the host\'s type>} and on the exact event kind, as the issue says; the harness sets the rule\'s place (hole, at) when it takes the patch; a case you do not answer ends in {"undefined": true}, never "inherit"; new types go in `types/`, new statuses in `statuses/`). A rule writes only its host; it affects others by emitting impulses. Follow `MODSPEC.md` and the conventions of the existing rules.',
     '',
     'Done means `node validate.mjs` passes: your rule is valid, the event resolves to it, its tests pass and nothing that worked before breaks. Do not change existing files outside rules/patch/.',
+    ...(audit
+      ? [
+          '',
+          '## An auditor broke your previous draft in the sandbox (shown with the patch and not without it)',
+          ...audit.notes.map((n) => `- ${n}`),
+          '',
+          'Your previous draft (write a new one that cannot be broken this way: make it cost something, run out, or give less):',
+          ...audit.draft.artifacts.filter((a) => a.kind === 'rule').map((a) => (a.kind === 'rule' ? '```json\n' + JSON.stringify({ ...a.rule, tests: undefined }) + '\n```' : '')),
+        ]
+      : []),
   ].join('\n')
 }
 
-export async function materializeWorld(o: { request: ModRequest; library: RuleLibrary; ontology: Ontology; base: Ontology; spec: ModSpec; revise?: { rules: string[]; notes: string[] }; isolation?: Isolation }): Promise<WorldRepo> {
+export async function materializeWorld(o: { request: ModRequest; library: RuleLibrary; ontology: Ontology; base: Ontology; spec: ModSpec; revise?: { rules: string[]; notes: string[] }; audit?: { notes: string[]; draft: Patch }; isolation?: Isolation }): Promise<WorldRepo> {
   const iso = o.isolation ?? (await worldIsolation())
   const dir = mkdtempSync(join(tmpdir(), 'lsw-world-'))
   const lib = o.library
-  write(dir, 'ISSUE.md', issueOf(o.request, o.revise ? { rules: o.revise.rules.map((id) => lib.rules.get(id)!).filter(Boolean), notes: o.revise.notes } : undefined))
+  write(dir, 'ISSUE.md', issueOf(o.request, o.revise ? { rules: o.revise.rules.map((id) => lib.rules.get(id)!).filter(Boolean), notes: o.revise.notes } : undefined, o.audit))
   write(
     dir,
     'README.md',

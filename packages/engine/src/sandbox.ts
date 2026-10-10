@@ -49,7 +49,8 @@ export function buildSandbox(sc: Scenario, ontology: Ontology, lib: RuleLibrary)
     counter: 0,
     spawn: { map: SANDBOX_MAP, x: 0, y: 0 },
   }
-  const eng = new Engine(state, structuredClone(ontology), lib)
+  // the ontology is shared (the index copies on its first write): cloning it was most of a build
+  const eng = new Engine(state, ontology, lib)
   eng.ensureResidents()
   eng.author(() => fill(eng, sc, player))
   eng.seedRelations(SANDBOX_MAP)
@@ -130,15 +131,27 @@ export function scenarioEvent(sc: Scenario, eng: Engine): GameEvent {
  * What one event makes, replayed again and again with no time between (world-model.md §8.4):
  * the things each replay made (cell things changing are not things made), while its host stands.
  */
+/** The actor's numbers an outcome may raise for nothing: experience and fullness (a farm of either is a yield too). */
+const GAINS = ['xp', 'hunger'] as const
+
 export function repeatYields(eng: Engine, ev: GameEvent, times = 12): number[] {
   const w = eng.world
   const out: number[] = []
+  const actor = ev.roles.actor && 'e' in ev.roles.actor ? ev.roles.actor.e : undefined
+  const nums = () => {
+    const a = actor ? w.get(actor) : undefined
+    return a ? GAINS.map((k) => w.num(a, k)) : []
+  }
   for (let i = 0; i < times && w.get(ev.host.e); i++) {
     const before = new Set(Object.keys(w.state.entities))
+    const had = nums()
     eng.queue({ ...structuredClone(ev), depth: 0 })
     eng.flush()
     let made = 0
     for (const id of Object.keys(w.state.entities)) if (!before.has(id) && !parseCellId(id) && w.get(id)) made++
+    // a number that went up with nothing between is a yield as much as a thing made
+    const has = nums()
+    for (const [k, v] of has.entries()) if (v > (had[k] ?? v)) made++
     out.push(made)
   }
   return out

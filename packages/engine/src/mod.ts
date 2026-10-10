@@ -458,6 +458,12 @@ export class ModPort implements UndefinedSink {
       if (e && !w.isPlaceless(e)) e.frozenBy = rec.id
     }
     this.ask(rec)
+    // while a scene plays, the world's own questions do not hold its players: the default runs now,
+    // and the answer, when it comes, still applies if the event stands (story.ts moves people by push)
+    if (origin === 'world' && w.scene) {
+      this.fallback(rec.id)
+      return false
+    }
     return true
   }
 
@@ -1028,6 +1034,8 @@ function opsOf(onto: Ontology): { ops: Set<string>; residentOnly: Set<string> } 
   return { ops: new Set([...OPS, ...mods.flatMap((m) => Object.keys(m.effects ?? {}))]), residentOnly: new Set([...RESIDENT_ONLY, ...mods.flatMap((m) => m.spec?.residentOnly ?? [])]) }
 }
 const IMPULSE_KINDS = new Set(['strike', 'element', 'coat', 'restore', 'push', 'taken', 'receive', 'offered', 'handle', 'notify'])
+/** The news a learned rule may send: a topic for people to talk about. The rest (quest, defeat, reward, status…) is the game's own. */
+const NOTIFY_OPEN = new Set(['topic'])
 const KIND_PREFIXES = new Set<string>(EVENT_KINDS.flatMap((k) => k.split('/').map((_, i, a) => a.slice(0, i + 1).join('/'))))
 const BOUNDS = new Set(['eq', 'gt', 'gte', 'lt', 'lte'])
 const ROLE_NAMES = new Set(['host', 'actor', 'target', 'instrument', 'other', 'item', 'source'])
@@ -1084,9 +1092,23 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
 
   // 1-3. schema, ontology & assets, effect typing, locality
   const known = (id: string) => id in onto.types || Object.keys(onto.types).some((t) => t.startsWith(id + '/'))
+  // every tag the world has: the types' (inherited), the terrains', the instances' (materials, qualities, elements…)
+  const tags = new Set<string>(onto.instanceTags ?? [])
+  {
+    const index = new OntologyIndex(onto)
+    for (const id of Object.keys(onto.types)) for (const t of index.resolve(id).tags) tags.add(t)
+    for (const t of Object.values(onto.terrains)) for (const x of t.tags ?? []) tags.add(x)
+    for (const r of ctx.library.rules.values()) for (const t of [...(r.host?.tags ?? []), ...(r.host?.notTags ?? [])]) tags.add(t)
+  }
+  // families of tags made as the world runs (a skill learnt, a profession, a faction): the family is enough
+  const OPEN_TAGS = /^(skill|profession|faction|tool|liquid|material|quality|element|role):/
+  const checkTag = (t: string, where: string) => {
+    if (!tags.has(t) && !OPEN_TAGS.test(t)) errors.push(`${where}: no thing in the world carries the tag "${t}"`)
+  }
   const checkSel = (s: Selector | undefined, where: string) => {
     if (!s) return
     if (typeof s !== 'object') return errors.push(`${where}: selector must be an object`)
+    for (const t of [...(s.tags ?? []), ...(s.notTags ?? [])]) checkTag(t, where)
     if (s.type && s.type !== 'tile' && !s.type.startsWith('tile/') && !known(s.type)) errors.push(`${where}.type: unknown type "${s.type}"${s.type in onto.terrains ? ` — a terrain is named "tile/${s.type}"` : closest(s.type, onto)}`)
     if (s.type?.startsWith('tile/') && !(s.type.slice(5) in onto.terrains)) errors.push(`${where}.type: unknown terrain "${s.type}"`)
     for (const st of [...(s.status ?? []), ...(s.notStatus ?? [])]) if (!(st in onto.statuses)) errors.push(`${where}: unknown status "${st}"`)
@@ -1126,6 +1148,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ('has' in c) {
       role(c.has.role, `${where}.has.role`)
       if (c.has.status && !(c.has.status in onto.statuses)) errors.push(`${where}: unknown status "${c.has.status}"`)
+      if (c.has.tag) checkTag(c.has.tag, where)
       return
     }
     if ('prop' in c) {
@@ -1193,6 +1216,9 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     }
     if (e.op === 'emit') {
       if (!IMPULSE_KINDS.has(e.impulse)) errors.push(`${where}: unknown impulse "${e.impulse}"`)
+      // news is the game's own channel to its records (a stage, a defeat, a reward, a status): a learned
+      // rule may only give the story a topic to talk about
+      if (e.impulse === 'notify' && !NOTIFY_OPEN.has(String(e.params?.what))) errors.push(`${where}: a learned rule may notify only a topic (params.what "topic"); "${String(e.params?.what)}" is the game's own news`)
       checkTo(e.to, `${where}.to`)
       if (e.item) role(e.item, `${where}.item`)
       if (e.other) role(e.other, `${where}.other`)
@@ -1260,7 +1286,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ('when' in (r as object) || 'do' in (r as object)) errors.push(`${where}: this is the earlier rule shape (when/do); write {host, on, tree}`)
     const resident = !!r.host?.type && isA(r.host.type, 'resident')
     // a quest answers only its own rules (docs/quests.md §2: no patch hosts one, none writes one)
-    if (r.host?.type && isA(r.host.type, 'resident/quest')) errors.push(`${where}.host: a quest is the content's; a patch may not host a rule on one — notify the story, or the people the quest names`)
+    if (r.host?.type && isA(r.host.type, 'resident/quest')) errors.push(`${where}.host: a quest is the content's; a patch may not host a rule on one — it may give the story a topic to talk about (notify, what "topic")`)
     if (r.host?.type === 'resident') errors.push(`${where}.host: name the resident (resident/story, resident/world)`)
     if (r.tree === undefined) errors.push(`${where}: tree required`)
     else checkTree(r.tree, `${where}.tree`, resident, r.host)

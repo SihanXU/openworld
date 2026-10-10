@@ -43,8 +43,8 @@ export function engineTaskDefs(): EngineTaskDef[] {
 }
 
 /** The engine and content packages as a repository of their own. */
-export function engineWorkspace(): { dir: string; dispose: () => void } {
-  const dir = mkdtempSync(join(tmpdir(), 'lsw-engine-'))
+export function engineWorkspace(o: { prefix?: string } = {}): { dir: string; dispose: () => void } {
+  const dir = mkdtempSync(join(tmpdir(), o.prefix ?? 'lsw-engine-'))
   for (const f of ['package.json', 'tsconfig.base.json', 'vitest.config.ts']) copyFileSync(join(REPO, f), join(dir, f))
   // the workspace list names only what is there
   const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))

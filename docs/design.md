@@ -958,6 +958,34 @@ but never consulted; `library prune` lists and rolls back what the validator no 
 - A boss is not lashed down by a handful of grass: `creature/offered` leaves bosses to their own
   kind's answer.
 
+**The god loop held to its own review (`fix/god-loop`, the same day):**
+
+- A learned rule may give the story a topic and nothing else (`notify` with `what: topic`); a stage,
+  a defeat, a reward, a status are the game's own news. The records trust only their own sources
+  besides: a person keeps a stage told by the story, a book or a skill (`body/stage`), the story
+  settles a quest's word from a person and a defeat from the one felled (`story/quests`).
+- The validator knows every tag the world has (the types', the terrains', the instances', the base
+  rules') and refuses one nothing carries; families made at run time (`skill:`, `profession:`,
+  `faction:`…) pass by their prefix.
+- The repeat check counts what the actor gains as a yield too: experience or fullness that goes up
+  with nothing between.
+- The auditor's deterministic probe runs first: the scene's own act thirty times, with the patch and
+  without it; things made or numbers gained beyond what the world gave without the patch are a
+  farm, found with no model call. The model is asked only when the probe finds nothing. Its acts
+  reach as far as the event did (as the validator's replay).
+- A reviewer that gives no verdict before shipping is no review: the rule ships and is reviewed
+  after the fact, flagged so. In the repo mode, what the auditor broke goes back to the agent once
+  (the findings and the draft in its issue), as the pipeline gives it to the designer.
+- A client reports a learned rule it set aside (`POST /fault`); past the harness's bound
+  (`faults.remove`, two clients) the rule leaves the shared library and goes to an offline revision.
+- While a scene plays, the world's own questions hold nobody: the default runs at once and a late
+  answer still applies. A step with a region is looked at again every three seconds while one
+  stands in a region (a thing picked up there, the hour), not only on entering it.
+- Cost: a sandbox shares the world's ontology (the index copies on its first write) instead of
+  cloning 334 types per build; a library builds its indexes once when made or cloned, not once per
+  rule; the validation proof's key is the library's version, not every rule stringified; a request
+  whose host type has no learned tree at its hole skips the covering replay.
+
 **The base's general cases (the same day).** With generalization moved to the base, the base
 took the class-level answers the curriculum had been learning one patch at a time
 (`rules.ts` GENERAL): a thing used on a creature is held out to it, as §5.2 says (`core/use`);
@@ -1439,6 +1467,38 @@ had a real inconsistency: it ignored ink that the player might be carrying.
 - Tool skills (sandboxed TypeScript).
 - Harness proposals and the meta-validation gate (rsi.md §5.3).
 - Per-player rate limits for public deployment.
+
+### Live latency through claude-code (2026-10-09)
+
+Measured on the live design prompt of a stone used on a dead tree (the system prefix 30 k
+characters, the user turn 8.5 k), Opus 5.5 at effort low, `claude -p` signed in as the user:
+
+| Call | Wall | API | Output | Thinking |
+|---|---|---|---|---|
+| a one-word answer, cache cold | 4.4 s | 1.3 s | 4 | 0 |
+| a one-word answer, cache warm | 3.3 s | 1.0–1.1 s | 4 | 0 |
+| the same with the CLI's non-essential traffic off | **1.5–1.7 s** | 1.1–1.3 s | 4 | 0 |
+| a live design, as before | 7.4 s | 4.6 s | 413 | 0 |
+| a live design, traffic off | 6.8–7.4 s | 6.5–6.8 s | 566–571 | 137–148 |
+| the same prompt, Sonnet 5.5 | 5.8–7.2 s | 5.4–6.4 s | 619–784 | 224–268 |
+| the same prompt, Haiku 5.5 | 6.7 s | 6.3 s | 1,147 | 640 |
+
+- **The CLI's own traffic was 2 s of every call**: the update check, telemetry, error reports
+  and surveys around the request. `ClaudeCodeModel` now runs the CLI with them off
+  (`DISABLE_AUTOUPDATER`, `DISABLE_TELEMETRY`, `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` and the
+  like), so wall time is the API's: a design loses about 2 s of 7, an agent step (median 3.7 s)
+  about half.
+- **The rest is output.** The API time is the answer's tokens at roughly 85 a second; the JSON is
+  already minified (no newlines). The `summary` field, which nothing read, is gone from the
+  answer format. A smaller model is not faster here: Sonnet and Haiku think longer and write more
+  for the same rule.
+- **Fast mode is not granted** to `-p` on this account (`fast_mode_state: off`). A warm pool of
+  pre-spawned CLIs would save only 0.5 s (the CLI does most of its work after reading stdin), so
+  there is none.
+- The prefix cache holds: 11.2 k tokens read, 4.4 k written per design call (the user turn and
+  the CLI's own context), 0 thinking at effort low unless the model chooses to.
+- Recorded episodes before this (30, claude-code): design median 6.1 s (p90 8.9 s), agent step
+  median 3.7 s (p90 9.9 s), a live episode median 7.1 s.
 
 ### The event model, live (2026-10-02)
 

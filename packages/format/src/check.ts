@@ -15,7 +15,7 @@ interface Made {
 }
 
 /** What the validator says of base rules that only a learned rule must be (design.md §5.16): a base rule is none of it. */
-const PLACEMENT = /host must be exactly|hole required|exact event kind|never inherits|no leaf answers|no default of its own|a quest is the content/
+const PLACEMENT = /host must be exactly|hole required|exact event kind|never inherits|no leaf answers|no default of its own|a quest is the content|may notify only a topic/
 
 export function checkProject(p: Project, made: Made): Problem[] {
   const out: Problem[] = []

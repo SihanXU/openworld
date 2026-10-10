@@ -466,11 +466,14 @@ export class RuleLibrary {
     for (const r of rules) {
       // one id, one rule: a second would silently replace the first
       if (this.rules.has(r.id)) throw new Error(`rule id "${r.id}" appears twice`)
-      this.put(r)
+      this.put(r, undefined, true)
     }
+    // the indexes once, not once per rule (a clone of a thousand rules was a thousand sorts)
+    for (const root of new Set([...this.rules.values()].filter((r) => !isPatch(r)).map((r) => r.on.split('/')[0]))) this.rebuild(root)
+    for (const key of new Set([...this.rules.values()].map(keyOf).filter((k): k is string => !!k))) this.rebuildTree(key)
   }
 
-  private put(r: Rule, inPlaceOf?: string): void {
+  private put(r: Rule, inPlaceOf?: string, later = false): void {
     selectByType(r)
     factsOnTheStory(r)
     cellsAsThings(r)
@@ -478,6 +481,7 @@ export class RuleLibrary {
     this.specs.set(r.id, specOf(r))
     const old = inPlaceOf ? this.retired.get(inPlaceOf) : undefined
     this.order.set(r.id, old && old.key === keyOf(r) ? old.order : this.added++)
+    if (later) return
     if (isPatch(r)) this.rebuildTree(keyOf(r))
     else this.rebuild(r.on.split('/')[0])
   }

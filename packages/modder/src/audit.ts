@@ -109,7 +109,8 @@ export function run(sc: Scenario, onto: Ontology, lib: RuleLibrary, setup: Scena
       } else {
         if (++acts > MOST.acts) throw new Error(`more than ${MOST.acts} acts`)
         if (!VERBS.has(s.act)) throw new Error(`unknown act "${s.act}"`)
-        const res = eng.act(s.act, s.actor ?? actor, refOf(eng, s.target ?? s.actor ?? actor), { ...(s.instrument !== undefined && { instrument: s.instrument ? refOf(eng, s.instrument) : null }), ...(s.params && { params: s.params }) })
+        // (as the validator's replay: the act reaches what it reached when it happened, wherever the setup put things)
+        const res = eng.act(s.act, s.actor ?? actor, refOf(eng, s.target ?? s.actor ?? actor), { ...(s.instrument !== undefined && { instrument: s.instrument ? refOf(eng, s.instrument) : null }), ...(s.params && { params: s.params }), reach: Infinity })
         if (lines.length < 40) lines.push(`${s.act} ${s.target ?? ''}${s.instrument ? ` with ${s.instrument}` : ''} → ${res.defined ? res.rule?.id : res.hole ? 'undefined' : 'nothing'}`)
       }
     }
@@ -245,6 +246,66 @@ export interface AuditOptions {
   rounds: number
   reasoning?: ChatOptions['reasoning']
   provider?: ChatOptions['provider']
+}
+
+/** What the actor stands to gain from an act done again and again: things, and numbers that only go up. */
+const PROBE_REPEATS = 30
+const PROBE_GAINS = ['xp', 'hunger'] as const
+
+/** The scene's own act, done PROBE_REPEATS times: what it made, and what the actor's numbers gained. */
+function gains(r: Run, sc: Scenario, actorKey: string): { things: number; nums: number[] } {
+  const w = r.eng.world
+  const was = new Map<string, number>()
+  for (const e of sc.entities) was.set(e.type, (was.get(e.type) ?? 0) + 1)
+  let things = 0
+  for (const e of Object.values(w.state.entities)) {
+    if (e.place.on === 'none' || e.type.startsWith('tile/') || e.type.startsWith('resident')) continue
+    things++
+  }
+  const a = w.get(actorKey)
+  return { things: things - sc.entities.filter((e) => !e.type.startsWith('tile/')).length, nums: a ? PROBE_GAINS.map((k) => w.num(a, k)) : [] }
+}
+
+/**
+ * The deterministic probe (no model): the scene's act repeated with the patch and without it. A
+ * farm is what the patch lets the actor gain again and again that the world did not: things made,
+ * or experience and fullness, beyond what the same steps gain without the patch.
+ */
+export function probe(req: ModRequest, onto: Ontology, base: RuleLibrary, patched: RuleLibrary): Confirmed[] {
+  const sc = req.scenario
+  const ev = sc.event
+  if (!ev.actor || !(ev.kind ?? 'act/use').startsWith('act/')) return []
+  const step: AuditStep = { act: (ev.kind ?? 'act/use').slice(4) as Verb, actor: ev.actor, target: ev.target ?? ev.actor, ...(ev.instrument && { instrument: ev.instrument }), ...(ev.params && { params: ev.params }) }
+  const steps: AuditStep[] = [{ repeat: PROBE_REPEATS, steps: [step] }]
+  const withIt = run(sc, onto, patched, [], steps)
+  let without: Run | undefined
+  try {
+    without = run(sc, onto, base, [], steps)
+  } catch {
+    without = undefined
+  }
+  const a = gains(withIt, sc, ev.actor)
+  const b = without ? gains(without, sc, ev.actor) : { things: 0, nums: a.nums.map(() => 0) }
+  const start = (() => {
+    const fresh = buildSandbox(sc, onto, base).world
+    const e = fresh.get(ev.actor!)
+    return e ? PROBE_GAINS.map((k) => fresh.num(e, k)) : []
+  })()
+  const out: Confirmed[] = []
+  // things: more than one per repeat is a faucet pressed PROBE_REPEATS times (one made, consumed, is a trade)
+  if (a.things - b.things >= PROBE_REPEATS) {
+    const f: Finding = { title: `the act done ${PROBE_REPEATS} times leaves ${a.things - b.things} more things than without the patch`, kind: 'farm', steps, expect: [{ events: { atLeast: 1 } }] }
+    out.push({ ...f, evidence: `with the patch:\n${summary(withIt, sc)}${without ? `\nwithout it:\n${summary(without, sc)}` : ''}` })
+  }
+  for (const [i, k] of PROBE_GAINS.entries()) {
+    const gained = (a.nums[i] ?? 0) - (start[i] ?? 0)
+    const gainedWithout = (b.nums[i] ?? 0) - (start[i] ?? 0)
+    if (gained - gainedWithout >= PROBE_REPEATS) {
+      const f: Finding = { title: `the act done ${PROBE_REPEATS} times gains ${gained - gainedWithout} ${k} for nothing`, kind: 'farm', steps, expect: [{ prop: { key: ev.actor, name: k, atLeast: (start[i] ?? 0) + gained } }] }
+      out.push({ ...f, evidence: `with the patch:\n${summary(withIt, sc)}${without ? `\nwithout it:\n${summary(without, sc)}` : ''}` })
+    }
+  }
+  return out
 }
 
 /** One audit of a patch: tool rounds, a final answer, every finding checked in the sandbox. */
