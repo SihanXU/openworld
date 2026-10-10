@@ -21,6 +21,9 @@ const TASKS = join(REPO, 'games/openworld/tools/tasks/engine')
 const PACKAGES = [
   { dir: 'packages/engine', name: '@openworld/engine' },
   { dir: 'packages/modules', name: '@openworld/modules' },
+  // the standard library and the format: the content's tests check its rules with the compiler's own checks
+  { dir: 'packages/stdlib', name: '@openworld/stdlib' },
+  { dir: 'packages/format', name: '@openworld/format' },
   { dir: 'games/openworld/content', name: '@openworld-game/content' },
 ]
 const SCOPES = new Set(PACKAGES.map((p) => p.name.split('/')[0]))

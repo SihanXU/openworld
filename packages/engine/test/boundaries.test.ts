@@ -3,8 +3,9 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 // The engine side imports no game (docs/engine-split.md, S1): games/* may import packages/*, never the
-// reverse, and among the packages the direction is engine ← modules ← runtime, modules ← modder → agent. A game
-// reaches the engine side only by being handed over (GameDef, ClientGame), never by being imported.
+// reverse, and among the packages the direction is engine ← modules ← runtime, modules ← modder → agent,
+// engine ← stdlib ← format. A game reaches the engine side only by being handed over (GameDef, ClientGame, a
+// bundle), never by being imported; and no game imports another.
 
 const ROOT = resolve(import.meta.dirname, '..', '..', '..')
 
@@ -13,6 +14,8 @@ const MAY_IMPORT: Record<string, string[]> = {
   engine: [],
   agent: [],
   modules: ['@openworld/engine'],
+  stdlib: ['@openworld/engine'],
+  format: ['@openworld/engine', '@openworld/stdlib'],
   modder: ['@openworld/engine', '@openworld/modules', '@openworld/agent'],
   runtime: ['@openworld/engine', '@openworld/modules'],
 }
@@ -96,6 +99,24 @@ describe('the engine side imports no game (docs/engine-split.md, S1)', () => {
     // (judged where their package is here: a copy of the engine alone, an engine task's workspace, has no modder)
     const here = (f: string) => existsSync(join(ROOT, ...f.split('/').slice(0, 2)))
     expect([...TESTS_ON_THE_GAME].filter((f) => here(f) && !onGame.has(f))).toEqual([])
+  })
+
+  it('no game imports another game', () => {
+    const games = readdirSync(join(ROOT, 'games')).filter((g) => existsSync(join(ROOT, 'games', g)))
+    // a game's packages, by name (games/<id>/<part>/package.json)
+    const own = (g: string) => new Set(readdirSync(join(ROOT, 'games', g)).flatMap((d) => { const f = join(ROOT, 'games', g, d, 'package.json'); return existsSync(f) ? [JSON.parse(readFileSync(f, 'utf8')).name as string] : [] }))
+    const found: string[] = []
+    for (const g of games) {
+      const mine = own(g)
+      for (const f of files(join(ROOT, 'games', g)))
+        for (const spec of specifiers(f)) {
+          const t = target(f, spec)
+          const where = relative(ROOT, f).split(sep).join('/')
+          if (t.startsWith('@openworld-game/') && !mine.has(t)) found.push(`${where}: ${spec}`)
+          if (t.startsWith('games/') && !t.startsWith(`games/${g}/`)) found.push(`${where}: ${spec}`)
+        }
+    }
+    expect(found).toEqual([])
   })
 
   it('the scan sees every way of importing', () => {

@@ -546,7 +546,7 @@ export function buildOntology(): Ontology {
     materials: MATERIAL_DEFS,
     qualities: QUALITY_DEFS(),
     efficiency: EFFICIENCY,
-    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1, slotCount: { ring: 2 } },
+    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1, slotCount: { ring: 2 }, nightFact: 'night.shift' },
     // what makes a room what it is: a bed a bedroom (a night there gives everything back), a cooking fire a
     // kitchen, a workbench or forge a workshop, three chests and more a storeroom (world-model.md §5.4)
     roomRoles: [

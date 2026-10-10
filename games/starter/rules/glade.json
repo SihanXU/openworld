@@ -1,0 +1,72 @@
+[
+  {
+    "id": "glade/axe",
+    "doc": "An axe used on something strikes it with a cutting edge (on oneself it is what the world says).",
+    "host": { "tags": ["tool:axe"] },
+    "on": "act/use",
+    "tree": {
+      "if": { "same": ["actor", "target"] },
+      "then": "inherit",
+      "else": {
+        "do": [
+          {
+            "op": "emit",
+            "impulse": "strike",
+            "to": "target",
+            "params": { "power": { "param": "power" }, "edge": "cut" }
+          }
+        ],
+        "label": { "en": "Chop {target}", "zh": "砍{target}" }
+      }
+    }
+  },
+  {
+    "id": "glade/fell",
+    "doc": "A tree broken falls: a stump that grows back in a few days, and two logs.",
+    "host": { "type": "tile/tree" },
+    "on": "threshold/cross",
+    "tree": {
+      "if": { "param": { "key": "name", "cmp": "broken" } },
+      "then": {
+        "do": [
+          { "op": "transform", "into": "tile/stump" },
+          { "op": "spawn", "type": "item/material/log", "at": "host", "count": 2 },
+          { "op": "vfx", "fx": "leaves" },
+          { "op": "log", "text": { "en": "Timber!", "zh": "树倒了！" } }
+        ]
+      },
+      "else": "inherit"
+    }
+  },
+  {
+    "id": "glade/bed",
+    "label": { "en": "Sleep in {target}", "zh": "在{target}上睡觉" },
+    "doc": "A bed taken hold of: one lies down and sleeps until it is time to rise; it is one's home.",
+    "host": { "type": "fixture/furniture/bed" },
+    "on": "impulse/handle",
+    "tree": {
+      "do": [
+        { "op": "log", "text": { "en": "You lie down.", "zh": "你躺了下来。" } },
+        {
+          "op": "emit",
+          "impulse": "notify",
+          "to": "actor",
+          "params": { "what": "home", "value": { "idOf": "host" } }
+        },
+        { "op": "emit", "impulse": "restore", "to": "actor", "params": { "which": "sleep" } }
+      ]
+    }
+  },
+  {
+    "id": "glade/talk",
+    "label": { "en": "Talk to {target}", "zh": "和{target}说话" },
+    "doc": "A villager spoken to (a hand on them): the quests hear it, and they say what they have — a favour under way, else a line for the moment.",
+    "host": { "type": "actor/person/villager" },
+    "on": "impulse/handle",
+    "tree": {
+      "if": { "same": ["host", "actor"] },
+      "then": "inherit",
+      "else": { "do": [{ "op": "news", "kind": "talk" }, { "op": "quest" }] }
+    }
+  }
+]

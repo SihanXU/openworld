@@ -25,7 +25,7 @@
     "ford-live": "tsx games/openworld/tools/src/ford-live.ts",
     "eval:objects": "tsx games/openworld/tools/src/eval-objects.ts",
     "test": "vitest run",
-    "typecheck": "tsc -p packages/engine && tsc -p packages/engine/test && tsc -p packages/modules && tsc -p packages/agent && tsc -p packages/modder && tsc -p packages/runtime && tsc -p games/openworld/content && tsc -p games/openworld/client && tsc -p games/openworld/tools && tsc -p games/openworld/wiki",
+    "typecheck": "tsc -p packages/engine && tsc -p packages/engine/test && tsc -p packages/stdlib && tsc -p packages/format && tsc -p games/starter && tsc -p packages/modules && tsc -p packages/agent && tsc -p packages/modder && tsc -p packages/runtime && tsc -p games/openworld/content && tsc -p games/openworld/client && tsc -p games/openworld/tools && tsc -p games/openworld/wiki",
     "check": "npm run typecheck && npm test",
     "wiki": "tsx games/openworld/wiki/src/serve.ts",
     "wiki:build": "tsx games/openworld/wiki/src/build.ts",

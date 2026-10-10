@@ -32,8 +32,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 ```
 
 - **The engine side imports no game** (docs/engine-split.md S1): `games/*` may import `packages/*`, never
-  the reverse; among the packages, engine ← runtime and engine ← modder → agent.
-  `packages/engine/test/boundaries.test.ts` holds it. A game is handed over instead: the engine's
+  the reverse, and no game imports another; among the packages, engine ← modules ← runtime, engine ← stdlib ←
+  format, modules ← modder → agent. `packages/engine/test/boundaries.test.ts` holds it. A game is handed over instead: the engine's
   `GameDef` (`gamedef.ts`: ontology, base rules, terrain characters) to the modder (`openModder({ game })`,
   `--game <module>`), and the runtime's `ClientGame` (`runtime/src/game.ts`: `useGame()`, read through
   `game()` and never at a module's top level) to the runtime by the game's own entries.
@@ -42,8 +42,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   rule matching/specificity/library (`rules.ts`), effect primitives (`effects.ts`), event
   dispatch + tick + movement + combat (`engine.ts`), one goal system for every actor (`behaviour.ts`:
   goals in each type's order — encounter, threat, follow, schedule, home, idle; the people's goals and
-  their real work in `npc.ts`, the creatures' in `creatures.ts`, the bosses' locked telegraphs in
-  `bosses.ts`, docs/bosses.md), Mod port: ModSpec / ModRequest / validatePatch / records
+  their real work in `npc.ts`, the creatures' in `creatures.ts`; a module's goals join them), Mod port: ModSpec / ModRequest / validatePatch / records
   (`mod.ts`), sandbox replay (`sandbox.ts`), snapshots for rendering (`snapshot.ts`),
   new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
   lines, schedule variants with the thing an activity needs, topics (`people.ts`), the story's one
@@ -65,16 +64,27 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   each as far as its reach: the target's `handsRange`, the world's `carry`, the held thing's `range`,
   held to by the engine for every actor), layers, slots and magnet
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
-  (`controls.ts`), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`), hunger (`hunger.ts`); companions that follow a
-  leader (`companion.ts`), waypoint stones (`waypoints.ts`) — docs/prologue.md; the codex (`codex.ts`: every item kind, person and creature kind, the ones the player carried or saw marked — the reader's record beside the state, saved with the game; its entries `content/src/codex.ts`, its panel J); looks (`looks.ts`, docs/looks.md: a look is a body, a part per slot and a colour per key, on `Entity.look`; the engine checks it against `Ontology.looks`, derives its `look:*` tags (never stored) and its words for the modder; `restyle` changes the host's); the people's social life
-  (docs/npc-sandbox.md): `social.ts` (`Social` on `World.social`: whose things are, households, deeds seen and judged, who is recognised by
-  their look or remembered by it, each person's memory and per-pair regard, gossip, the watches' ledgers, prices, the talk panel) and
-  `conduct.ts` (the goals `social` — a guard stops the wanted, an owner asks back —, `need` — the hungry eat, buy or steal —, and
-  `follow` for people); the inputs X (draw) and V (sneak) are statuses the input keeps. What a game hands the
+  (`controls.ts`), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`); companions that follow a
+  leader (`companion.ts`) — docs/prologue.md; the codex (`codex.ts`: every item kind, person and creature kind, the ones the player carried or saw marked — the reader's record beside the state, saved with the game; its entries `content/src/codex.ts`, its panel J); looks (`looks.ts`, docs/looks.md: a look is a body, a part per slot and a colour per key, on `Entity.look`; the engine checks it against `Ontology.looks`, derives its `look:*` tags (never stored) and its words for the modder; `restyle` changes the host's); the inputs X (draw) and V (sneak) are statuses the input keeps. What a game hands the
   engine side (`gamedef.ts`) and the map file format (`chunk.ts`, the game's terrain characters a parameter).
-  Still this game's, and moving out into optional modules in P2: combat's professions, talents and relics,
-  the actives, boons, waypoints, hunger, the social and law systems, the codex, bosses, the save upgrades
-  in `game.ts`.
+  The modules (`module.ts`, docs/engine-split.md §9): those a game's ontology names (`Ontology.modules`) are
+  installed with every engine — their primitives, conditions, goals and ModSpec words, and what they put in the
+  kernel's slots (`eng.combat`, the kernel's plain one in `blows.ts`; `eng.society`) and hooks (`eng.hooks`).
+- `packages/modules` — the engine's official optional systems (S3), a folder each, registered as the package
+  loads: `classes` (professions, combat talents, relics, active skills and the skill bar; the combat slot),
+  `bosses` (docs/bosses.md: the encounter goal, locked telegraphs, `release`), `waypoints`, `boons`, `needs`
+  (hunger), `society` (docs/npc-sandbox.md: `social.ts` whose things are, households, deeds seen and judged,
+  recognition, memory and regard, gossip, the watches, prices, the talk panel; `conduct.ts` the goals social,
+  need and follow; its state in `World.ext`, read with `socialOf(eng)`; the society slot).
+- `packages/stdlib` — the standard library, data (`ontology.json`, `rules.json`): the types and statuses the
+  kernel names, the roots of the rule library, the Story Manager's and a quest's rules. A project takes it
+  unless its game.json says not.
+- `packages/format` — the project format and its compiler (docs/engine-split.md §5): `project.ts` the files
+  (game.json, ontology/, rules/, maps/, people/, quests/, story/, catalog.json, client/), `compile.ts` a
+  project → the bundle and its world, `check.ts` the problems (references, sizes, portals, anchors, ties,
+  rules), `json.ts` how files are written, `node.ts` a folder read and a game written.
+- `games/starter` — the minimal game, data only (S6): the kernel with no module plays it
+  (`test/kernel.test.ts`); the editor's new project.
 - `games/openworld/content` — ontology (terrains, statuses, elements, types), item catalogue
   (forms × materials × qualities × elements), crafting recipes (`recipes.ts`), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
   story rules and invariants (`ford.ts`), the prologue's beats and lessons (`prologue.ts`), the main quest's rules (`quest.ts`,

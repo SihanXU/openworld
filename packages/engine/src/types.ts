@@ -150,6 +150,8 @@ export interface WorldParams {
   carry?: number
   /** How many of a body's wearing slots there are of a kind, where more than one (two hands, two rings): `wear:ring`, `wear:ring.2`. */
   slotCount?: Record<string, number>
+  /** The story's fact that lengthens the night by so many hours (a number; the Ford's `night.shift`): none, the night keeps its length. */
+  nightFact?: string
 }
 
 /** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */

@@ -1,0 +1,951 @@
+[
+  {
+    "id": "combat/defeat",
+    "doc": "At no health: the essential (people, the player) go down for a while (as anything essential); the rest break down into what they are made of and spill what they carried (lying still: taken with F), and the one who struck learns from it (world-model.md §6.8, D9).",
+    "host": { "type": "actor" },
+    "on": "threshold/cross",
+    "tree": {
+      "if": { "param": { "key": "name", "cmp": "broken" } },
+      "then": {
+        "if": { "has": { "role": "host", "tag": "essential" } },
+        "then": "inherit",
+        "else": {
+          "do": [
+            {
+              "op": "emit",
+              "impulse": "notify",
+              "to": "actor",
+              "params": { "what": "defeat", "xp": { "prop": "maxHp", "of": "host" } }
+            },
+            { "op": "vfx", "fx": "poof", "at": "tileOf:host" },
+            { "op": "log", "text": { "en": "{host} is defeated.", "zh": "{host}被打倒了。" } },
+            { "op": "breakdown", "still": true }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "combat/come-to",
+    "doc": "The essential come to with half their health.",
+    "host": { "type": "actor", "tags": ["essential"] },
+    "on": "time/timer",
+    "tree": {
+      "if": { "param": { "key": "status", "cmp": "down" } },
+      "then": {
+        "do": [
+          { "op": "setProp", "key": "hp", "value": 1 },
+          { "op": "heal", "amount": { "prop": "maxHp", "of": "host", "mul": 0.5 } },
+          { "op": "log", "text": { "en": "{host} comes to.", "zh": "{host}醒了过来。" } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "combat/learn",
+    "doc": "Whoever defeated a foe gains experience as much as its full health; a quest handed in rewards experience too.",
+    "host": { "type": "actor" },
+    "on": "impulse/notify",
+    "tree": {
+      "if": { "param": { "key": "what", "cmp": "defeat" } },
+      "then": { "do": [{ "op": "gainXp", "amount": { "param": "xp" } }] },
+      "else": {
+        "if": { "param": { "key": "what", "cmp": "reward" } },
+        "then": { "do": [{ "op": "gainXp", "amount": { "param": "xp" } }] },
+        "else": "inherit"
+      }
+    }
+  },
+  {
+    "id": "story/quests",
+    "doc": "The story is told an offer was taken on (what = accept, param quest: the actor took it from the source, its giver): the quest begins. Told facts to keep (what = facts: a quest's reward), it keeps them.",
+    "host": { "type": "resident/story" },
+    "on": "impulse/notify",
+    "tree": {
+      "if": { "param": { "key": "what", "cmp": "accept" } },
+      "then": { "do": [{ "op": "startQuest" }] },
+      "else": {
+        "if": { "param": { "key": "what", "cmp": "facts" } },
+        "then": { "do": [{ "op": "facts" }] },
+        "else": "inherit"
+      }
+    }
+  },
+  {
+    "id": "story/manager",
+    "doc": "The Story Manager: the story sees the world's news (a step played, a fact kept, a quest over, a place entered, the evening, a theft, the hungry): the quests that begin on it begin, the radiant offers on it are made (docs/quests.md §2.3).",
+    "host": { "type": "resident/story" },
+    "on": "seen",
+    "tree": { "do": [{ "op": "begin" }] }
+  },
+  {
+    "id": "quest/news",
+    "doc": "A quest sees news it listens for (who its taker spoke to, what was felled or is gone, what the taker holds and where they are, the story's facts, the other quests): it moves on as its triggers say.",
+    "host": { "type": "resident/quest" },
+    "on": "seen",
+    "tree": { "do": [{ "op": "advance" }] }
+  },
+  {
+    "id": "quest/notify",
+    "doc": "A quest told to reach a stage (what = stage, param n: a scene's, a rule's), to be taken on (accept: by the actor), turned down (decline), or that it failed (fail): it answers itself.",
+    "host": { "type": "resident/quest" },
+    "on": "impulse/notify",
+    "tree": {
+      "if": { "param": { "key": "what", "cmp": "stage" } },
+      "then": { "do": [{ "op": "stage", "n": { "param": "n" } }] },
+      "else": {
+        "if": { "param": { "key": "what", "cmp": "accept" } },
+        "then": { "do": [{ "op": "accept" }] },
+        "else": {
+          "if": { "param": { "key": "what", "cmp": "decline" } },
+          "then": { "do": [{ "op": "decline" }] },
+          "else": {
+            "if": { "param": { "key": "what", "cmp": "fail" } },
+            "then": { "do": [{ "op": "failQuest" }] },
+            "else": "inherit"
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "quest/due",
+    "doc": "A quest's time runs out (its status due): an offer is withdrawn, a quest under way fails.",
+    "host": { "type": "resident/quest" },
+    "on": "time/timer",
+    "tree": {
+      "if": { "param": { "key": "status", "cmp": "due" } },
+      "then": { "do": [{ "op": "failQuest" }] },
+      "else": "inherit"
+    }
+  },
+  {
+    "id": "creature/not-taken",
+    "doc": "People and creatures are not picked up (taking is physics: never asked).",
+    "host": { "type": "actor" },
+    "on": "impulse/taken",
+    "tree": { "do": [{ "op": "log", "text": { "en": "It cannot be picked up.", "zh": "这个拿不起来。" } }] }
+  },
+  {
+    "id": "body/rise",
+    "doc": "One who has fallen, told by the story to rise (the death screen's choice): one gets up, whole — leaving what one carried bundled where one fell, when one rises at home (but what one wears, the weapon in one's hand and what is important stay with one). Told of a home (a bed slept in, a waypoint woken), one keeps it.",
+    "host": { "type": "actor", "tags": ["essential"] },
+    "on": "impulse/notify",
+    "tree": {
+      "if": { "param": { "key": "what", "cmp": "respawn" } },
+      "then": {
+        "if": { "param": { "key": "drop", "cmp": true } },
+        "then": {
+          "do": [
+            { "op": "dropContents", "keepWorn": true, "keep": ["important"], "bundle": "item/misc/bundle" },
+            { "op": "removeStatus", "status": "down" },
+            { "op": "setProp", "key": "hp", "value": 1 },
+            { "op": "heal", "amount": { "prop": "maxHp", "of": "host" } },
+            {
+              "op": "log",
+              "text": {
+                "en": "You rise again. What you carried lies bundled where you fell; what you wore and what matters most are still with you.",
+                "zh": "你重新站了起来。身上的东西打成一包留在了倒下的地方；穿戴的装备和重要物品还在身上。"
+              }
+            }
+          ]
+        },
+        "else": {
+          "do": [
+            { "op": "removeStatus", "status": "down" },
+            { "op": "setProp", "key": "hp", "value": 1 },
+            { "op": "heal", "amount": { "prop": "maxHp", "of": "host" } },
+            { "op": "log", "text": { "en": "You get up again.", "zh": "你重新站了起来。" } }
+          ]
+        }
+      },
+      "else": {
+        "if": { "param": { "key": "what", "cmp": "home" } },
+        "then": { "do": [{ "op": "setProp", "key": "home", "value": { "param": "value" } }] },
+        "else": "inherit"
+      }
+    }
+  },
+  {
+    "id": "body/belongings",
+    "label": { "en": "Gather {target}", "zh": "收回{target}" },
+    "doc": "One's belongings, bundled where one fell: a hand on the bundle, or taking it, and all of it comes back to whoever opens it; the bundle is gone.",
+    "host": { "type": "item/misc/bundle" },
+    "on": "impulse/handle",
+    "tree": {
+      "do": [
+        { "op": "dropContents", "to": "actor" },
+        { "op": "log", "text": { "en": "You gather up your belongings.", "zh": "你收回了自己的东西。" } },
+        { "op": "destroy" }
+      ]
+    }
+  },
+  {
+    "id": "body/belongings-taken",
+    "doc": "One's belongings, bundled where one fell, taken (F): opened as by a hand — all of it comes back to the taker; the bundle is gone. An empty one is taken as anything is.",
+    "host": { "type": "item/misc/bundle" },
+    "on": "impulse/taken",
+    "tree": {
+      "if": { "count": { "role": "host", "in": "contents", "cmp": { "gt": 0 } } },
+      "then": {
+        "do": [
+          { "op": "dropContents", "to": "other" },
+          { "op": "log", "text": { "en": "You gather up your belongings.", "zh": "你收回了自己的东西。" } },
+          { "op": "destroy" }
+        ]
+      },
+      "else": "inherit"
+    }
+  },
+  {
+    "id": "core/use",
+    "doc": "Using a thing on something its nature says nothing about: the bare body used on anything is a blow (Minecraft's fist), and so is anything swung; on a place of the overworld it is out of reach; on a creature it is held out to it (the creature answers: offered, design.md §5.2). On anything else it is the player's experiment: undefined (the AI answers).",
+    "on": "act/use",
+    "tree": {
+      "if": { "none": "instrument" },
+      "then": {
+        "do": [
+          {
+            "op": "emit",
+            "impulse": "strike",
+            "to": "target",
+            "params": {
+              "power": { "param": "power" },
+              "element": { "param": "element" },
+              "edge": "blunt",
+              "bleed": { "param": "bleed" },
+              "drain": { "param": "drain" },
+              "afflict": { "param": "afflict" },
+              "afflictFor": { "param": "afflictFor" }
+            }
+          }
+        ]
+      },
+      "else": {
+        "if": { "is": { "role": "target", "sel": { "type": "site" } } },
+        "then": {
+          "do": [{ "op": "log", "text": { "en": "Too far to reach: go in first (E).", "zh": "够不着：先进去（E）。" } }],
+          "label": { "en": "Out of reach — go in first (E)", "zh": "够不着——先进去（E）" }
+        },
+        "else": {
+          "if": { "param": { "key": "attack", "cmp": true } },
+          "then": {
+            "do": [
+              {
+                "op": "emit",
+                "impulse": "strike",
+                "to": "target",
+                "params": {
+                  "power": { "param": "power" },
+                  "element": { "param": "element" },
+                  "edge": "blunt",
+                  "bleed": { "param": "bleed" },
+                  "drain": { "param": "drain" },
+                  "afflict": { "param": "afflict" },
+                  "afflictFor": { "param": "afflictFor" }
+                }
+              }
+            ],
+            "label": { "en": "Strike {target} with {instrument}", "zh": "用{instrument}打{target}" }
+          },
+          "else": {
+            "if": {
+              "all": [
+                { "is": { "role": "target", "sel": { "type": "actor/creature" } } },
+                { "not": { "same": ["actor", "target"] } }
+              ]
+            },
+            "then": {
+              "do": [{ "op": "emit", "impulse": "offered", "to": "target", "item": "host" }],
+              "label": { "en": "Hold out {instrument} to {target}", "zh": "把{instrument}递给{target}" }
+            },
+            "else": {
+              "undefined": true,
+              "default": [{ "op": "log", "text": { "en": "Nothing happens.", "zh": "什么也没有发生。" } }]
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "core/put",
+    "doc": "Putting the host somewhere (physics: never asked): a person is handed it, anything else that lives does not take what is put on it, anything else receives it.",
+    "on": "act/put",
+    "tree": {
+      "if": { "is": { "role": "target", "sel": { "type": "actor/person" } } },
+      "then": {
+        "do": [{ "op": "emit", "impulse": "offered", "to": "target", "item": "host" }],
+        "label": { "en": "Give {instrument} to {target}", "zh": "把{instrument}交给{target}" }
+      },
+      "else": {
+        "if": { "is": { "role": "target", "sel": { "type": "actor" } } },
+        "then": {
+          "do": [{ "op": "log", "text": { "en": "{target} does not take it.", "zh": "{target}不收。" } }]
+        },
+        "else": { "do": [{ "op": "emit", "impulse": "receive", "to": "target", "item": "host" }] }
+      }
+    }
+  },
+  {
+    "id": "core/take",
+    "doc": "Taking the target with the hands: it is taken (and answers how).",
+    "on": "act/take",
+    "tree": {
+      "do": [
+        {
+          "op": "emit",
+          "impulse": "taken",
+          "to": "target",
+          "params": { "into": { "param": "into" }, "quiet": { "param": "quiet" } },
+          "other": "actor"
+        }
+      ]
+    }
+  },
+  {
+    "id": "core/hands",
+    "doc": "A bare hand on the target: it is handled (and answers how); what the hand asks of it rides along — a companion's boon, what is said to a person (a talk verb, its choice, the thing it is about; the offer or topic of a quest, docs/quests.md).",
+    "on": "act/hands",
+    "tree": {
+      "do": [
+        {
+          "op": "emit",
+          "impulse": "handle",
+          "to": "target",
+          "params": {
+            "boon": { "param": "boon" },
+            "say": { "param": "say" },
+            "choice": { "param": "choice" },
+            "item": { "param": "item" },
+            "quest": { "param": "quest" },
+            "topic": { "param": "topic" }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "core/move",
+    "doc": "Moving: one step, or to a place.",
+    "on": "act/move",
+    "tree": { "do": [{ "op": "step" }] }
+  },
+  {
+    "id": "core/craft",
+    "doc": "Crafting what the recipe makes from what is carried.",
+    "on": "act/craft",
+    "tree": { "do": [{ "op": "craft" }] }
+  },
+  {
+    "id": "core/learn",
+    "doc": "Learning what the act names: a skill (with skill points), a profession (at a trainer).",
+    "on": "act/learn",
+    "tree": { "do": [{ "op": "learn" }] }
+  },
+  {
+    "id": "core/impulse",
+    "doc": "What is done to a thing is undefined unless its nature says (the AI answers).",
+    "on": "impulse",
+    "tree": { "undefined": true }
+  },
+  {
+    "id": "core/strike",
+    "doc": "A blow on something with no answer of its own: what has durability loses it (as well as the instrument works on what it is made of; nothing if the instrument is softer — too hard), and the element the blow carries reaches it; a plain blow on what cannot break is undefined.",
+    "on": "impulse/strike",
+    "tree": {
+      "if": { "prop": { "role": "host", "key": "maxHp", "cmp": { "gt": 0 } } },
+      "then": {
+        "if": { "param": { "key": "element", "cmp": { "ne": "" } } },
+        "then": {
+          "do": [
+            { "op": "hurt", "amount": { "param": "power" }, "blow": true },
+            {
+              "op": "emit",
+              "impulse": "element",
+              "to": "host",
+              "params": { "element": { "param": "element" }, "power": { "param": "power" } }
+            }
+          ]
+        },
+        "else": { "do": [{ "op": "hurt", "amount": { "param": "power" }, "blow": true }] }
+      },
+      "else": {
+        "if": { "param": { "key": "element", "cmp": { "ne": "" } } },
+        "then": {
+          "do": [
+            {
+              "op": "emit",
+              "impulse": "element",
+              "to": "host",
+              "params": { "element": { "param": "element" }, "power": { "param": "power" } }
+            }
+          ]
+        },
+        "else": { "undefined": true }
+      }
+    }
+  },
+  {
+    "id": "core/handle",
+    "doc": "A bare hand on something with no answer of its own: undefined (it is looked at meanwhile).",
+    "on": "impulse/handle",
+    "tree": {
+      "undefined": true,
+      "default": [{ "op": "log", "text": { "en": "It is {host}.", "zh": "这是{host}。" } }]
+    }
+  },
+  {
+    "id": "core/taken",
+    "doc": "A portable thing taken moves into the taker's hand (or bag, or onto the ground); anything else stays where it is (taking is physics: never asked).",
+    "on": "impulse/taken",
+    "tree": {
+      "if": { "is": { "role": "host", "sel": { "tags": ["portable"] } } },
+      "then": {
+        "if": { "param": { "key": "into", "cmp": "contents" } },
+        "then": { "do": [{ "op": "move", "to": "other", "into": "contents" }] },
+        "else": {
+          "if": { "param": { "key": "into", "cmp": "tile" } },
+          "then": { "do": [{ "op": "move", "to": "other", "into": "tile" }] },
+          "else": {
+            "if": { "param": { "key": "quiet", "cmp": true } },
+            "then": { "do": [{ "op": "move", "to": "other", "into": "hand" }] },
+            "else": {
+              "do": [
+                { "op": "move", "to": "other", "into": "hand" },
+                { "op": "log", "text": { "en": "You take {host}.", "zh": "你拿起了{host}。" } }
+              ],
+              "label": { "en": "Take {target}", "zh": "拿起{target}" }
+            }
+          }
+        }
+      },
+      "else": { "do": [{ "op": "log", "text": { "en": "That stays where it is.", "zh": "这个拿不走。" } }] }
+    }
+  },
+  {
+    "id": "core/receive",
+    "doc": "Something put on a thing with no answer of its own: there is no room there.",
+    "on": "impulse/receive",
+    "tree": { "do": [{ "op": "log", "text": { "en": "There is no room there.", "zh": "那里放不下。" } }] }
+  },
+  {
+    "id": "core/offered",
+    "doc": "Something held out to one with no answer of its own: undefined (the AI answers).",
+    "on": "impulse/offered",
+    "tree": { "undefined": true }
+  },
+  {
+    "id": "core/restore",
+    "doc": "Health given back; or a night's sleep (until it is time to rise, giving back as the room says).",
+    "on": "impulse/restore",
+    "tree": {
+      "if": { "param": { "key": "which", "cmp": "sleep" } },
+      "then": { "do": [{ "op": "sleep" }] },
+      "else": { "do": [{ "op": "heal", "amount": { "param": "amount" } }] }
+    }
+  },
+  {
+    "id": "core/notify",
+    "doc": "News: noted, nothing changes, unless the host says.",
+    "on": "impulse/notify",
+    "tree": { "do": [] }
+  },
+  {
+    "id": "core/push",
+    "doc": "A pushed actor steps (or gets out of where it cannot be); a pushed thing is undefined.",
+    "on": "impulse/push",
+    "tree": {
+      "if": { "is": { "role": "host", "sel": { "type": "actor" } } },
+      "then": {
+        "if": { "param": { "key": "ashore", "cmp": true } },
+        "then": { "do": [{ "op": "ashore" }] },
+        "else": { "do": [{ "op": "step" }] }
+      },
+      "else": { "undefined": true }
+    }
+  },
+  {
+    "id": "core/element",
+    "doc": "Elements follow physics: fire burns the flammable and lights the lightable, water wets and douses, ice freezes the wet, lightning charges the wet and the conductive; otherwise no change.",
+    "on": "impulse/element",
+    "tree": {
+      "if": { "param": { "key": "element", "cmp": "fire" } },
+      "then": {
+        "if": {
+          "all": [
+            { "has": { "role": "host", "status": "oiled" } },
+            { "not": { "has": { "role": "host", "status": "wet" } } },
+            { "not": { "has": { "role": "host", "status": "frozen" } } },
+            { "not": { "has": { "role": "host", "status": "burning" } } },
+            { "not": { "has": { "role": "host", "tag": "water" } } }
+          ]
+        },
+        "then": {
+          "do": [
+            { "op": "removeStatus", "status": "oiled" },
+            { "op": "addStatus", "status": "burning" },
+            {
+              "op": "emit",
+              "impulse": "element",
+              "to": { "area": { "radius": 1 } },
+              "params": { "element": "fire", "power": 3 },
+              "chance": 0.7,
+              "filter": { "tags": ["flammable"], "notStatus": ["wet"] }
+            },
+            { "op": "vfx", "fx": "explosion" }
+          ]
+        },
+        "else": {
+          "if": { "has": { "role": "host", "status": "wet" } },
+          "then": { "do": [{ "op": "removeStatus", "status": "wet" }, { "op": "vfx", "fx": "steam" }] },
+          "else": {
+            "if": { "has": { "role": "host", "status": "frozen" } },
+            "then": {
+              "do": [
+                { "op": "removeStatus", "status": "frozen" },
+                { "op": "addStatus", "status": "wet" },
+                { "op": "vfx", "fx": "steam" }
+              ]
+            },
+            "else": {
+              "if": { "has": { "role": "host", "tag": "lightable" } },
+              "then": {
+                "if": { "not": { "has": { "role": "host", "status": "lit" } } },
+                "then": {
+                  "do": [{ "op": "addStatus", "status": "lit" }, { "op": "vfx", "fx": "fire_burst" }]
+                },
+                "else": { "do": [] }
+              },
+              "else": {
+                "if": {
+                  "all": [
+                    { "has": { "role": "host", "tag": "flammable" } },
+                    { "not": { "has": { "role": "host", "status": "burning" } } }
+                  ]
+                },
+                "then": {
+                  "do": [{ "op": "addStatus", "status": "burning" }, { "op": "vfx", "fx": "fire_burst" }]
+                },
+                "else": { "do": [] }
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "if": { "param": { "key": "element", "cmp": "water" } },
+        "then": {
+          "if": { "has": { "role": "host", "status": "burning" } },
+          "then": {
+            "do": [
+              { "op": "removeStatus", "status": "burning" },
+              { "op": "addStatus", "status": "wet" },
+              { "op": "vfx", "fx": "steam" }
+            ]
+          },
+          "else": {
+            "if": { "has": { "role": "host", "status": "lit" } },
+            "then": { "do": [{ "op": "removeStatus", "status": "lit" }, { "op": "vfx", "fx": "steam" }] },
+            "else": {
+              "if": { "has": { "role": "host", "tag": "water" } },
+              "then": { "do": [] },
+              "else": { "do": [{ "op": "addStatus", "status": "wet" }, { "op": "vfx", "fx": "splash" }] }
+            }
+          }
+        },
+        "else": {
+          "if": { "param": { "key": "element", "cmp": "ice" } },
+          "then": {
+            "if": { "has": { "role": "host", "status": "burning" } },
+            "then": { "do": [{ "op": "removeStatus", "status": "burning" }, { "op": "vfx", "fx": "steam" }] },
+            "else": {
+              "if": {
+                "all": [
+                  { "has": { "role": "host", "status": "wet" } },
+                  { "not": { "has": { "role": "host", "status": "thawed" } } }
+                ]
+              },
+              "then": {
+                "do": [
+                  { "op": "addStatus", "status": "frozen" },
+                  { "op": "addStatus", "status": "thawed" },
+                  { "op": "vfx", "fx": "frost" }
+                ]
+              },
+              "else": { "do": [] }
+            }
+          },
+          "else": {
+            "if": { "param": { "key": "element", "cmp": "lightning" } },
+            "then": {
+              "if": { "has": { "role": "host", "status": "wet" } },
+              "then": {
+                "do": [
+                  { "op": "removeStatus", "status": "wet" },
+                  { "op": "addStatus", "status": "electrified" },
+                  {
+                    "op": "emit",
+                    "impulse": "element",
+                    "to": { "area": { "radius": 2 } },
+                    "params": { "element": "lightning", "power": 4 },
+                    "chance": 0.9,
+                    "filter": { "status": ["wet"] }
+                  },
+                  { "op": "vfx", "fx": "sparks" }
+                ]
+              },
+              "else": {
+                "if": { "has": { "role": "host", "tag": "conductive" } },
+                "then": {
+                  "do": [{ "op": "addStatus", "status": "electrified" }, { "op": "vfx", "fx": "sparks" }]
+                },
+                "else": {
+                  "if": {
+                    "all": [
+                      { "has": { "role": "host", "tag": "flammable" } },
+                      { "has": { "role": "host", "tag": "dry" } },
+                      { "not": { "has": { "role": "host", "status": "burning" } } }
+                    ]
+                  },
+                  "then": {
+                    "do": [{ "op": "addStatus", "status": "burning" }, { "op": "vfx", "fx": "sparks" }]
+                  },
+                  "else": { "do": [] }
+                }
+              }
+            },
+            "else": {
+              "if": {
+                "all": [
+                  { "param": { "key": "element", "cmp": "wind" } },
+                  { "has": { "role": "host", "status": "burning" } }
+                ]
+              },
+              "then": {
+                "do": [
+                  {
+                    "op": "emit",
+                    "impulse": "element",
+                    "to": { "area": { "radius": 2 } },
+                    "params": { "element": "fire", "power": 1 },
+                    "chance": 0.5,
+                    "filter": { "tags": ["flammable"], "notStatus": ["wet"] }
+                  },
+                  { "op": "vfx", "fx": "gust" }
+                ]
+              },
+              "else": { "do": [] }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "core/contact",
+    "doc": "Touching is no change unless the host says.",
+    "on": "contact",
+    "tree": { "do": [] }
+  },
+  {
+    "id": "core/touch",
+    "doc": "Physics of touch: what burns burns what touches it (stepping into fire, a burning thing put down on straw); charged ground shocks what stands on it; wet ground wets it; otherwise no change.",
+    "on": "contact/begin",
+    "tree": {
+      "if": { "has": { "role": "host", "status": "burning" } },
+      "then": {
+        "do": [
+          { "op": "emit", "impulse": "element", "to": "other", "params": { "element": "fire", "power": 2 } }
+        ]
+      },
+      "else": {
+        "if": {
+          "all": [
+            { "param": { "key": "how", "cmp": "under" } },
+            { "has": { "role": "host", "status": "electrified" } }
+          ]
+        },
+        "then": {
+          "do": [
+            {
+              "op": "emit",
+              "impulse": "element",
+              "to": "other",
+              "params": { "element": "lightning", "power": 2 }
+            }
+          ]
+        },
+        "else": {
+          "if": {
+            "all": [
+              { "param": { "key": "how", "cmp": "under" } },
+              { "is": { "role": "host", "sel": { "type": "tile" } } },
+              {
+                "any": [
+                  { "has": { "role": "host", "status": "wet" } },
+                  { "has": { "role": "host", "tag": "wet-ground" } }
+                ]
+              }
+            ]
+          },
+          "then": {
+            "do": [
+              {
+                "op": "emit",
+                "impulse": "element",
+                "to": "other",
+                "params": { "element": "water", "power": 1 }
+              }
+            ]
+          },
+          "else": { "do": [] }
+        }
+      }
+    }
+  },
+  {
+    "id": "core/bump",
+    "doc": "Bumping is no change unless the host says.",
+    "on": "bump",
+    "tree": { "do": [] }
+  },
+  {
+    "id": "core/time",
+    "doc": "Time passing is no change unless the host says.",
+    "on": "time",
+    "tree": { "do": [] }
+  },
+  {
+    "id": "core/stage",
+    "doc": "A clock running out: a thing in a stage whose clock it is becomes what its stage says next (a stump a tree, a sprout a young plant, thin ice water; a hen lays) — world-model.md §6.5; for anything else, no change.",
+    "on": "time/timer",
+    "tree": { "do": [{ "op": "grow" }] }
+  },
+  {
+    "id": "core/threshold",
+    "doc": "Gaining or losing a status, crossing a line: no change unless the host says.",
+    "on": "threshold",
+    "tree": { "do": [] }
+  },
+  {
+    "id": "core/fall",
+    "doc": "What stood on something and stands on nothing now falls to the first floor below (physics: defined, never asked; nothing happens while a floor is there).",
+    "on": "contact/end",
+    "tree": {
+      "if": { "param": { "key": "how", "cmp": "on" } },
+      "then": { "do": [{ "op": "fall" }] },
+      "else": { "do": [] }
+    }
+  },
+  {
+    "id": "core/break",
+    "doc": "Something with durability at none (world-model.md §6.3): an essential one goes down (and comes to); one made of something breaks down into it (its makeup × the recovery rate) and spills what it holds; anything else is undefined (meanwhile it is gone).",
+    "on": "threshold/cross",
+    "tree": {
+      "if": { "param": { "key": "name", "cmp": "broken" } },
+      "then": {
+        "if": { "has": { "role": "host", "tag": "essential" } },
+        "then": {
+          "do": [
+            { "op": "addStatus", "status": "down" },
+            { "op": "vfx", "fx": "poof", "at": "tileOf:host" },
+            { "op": "log", "text": { "en": "{host} collapses.", "zh": "{host}倒下了。" } }
+          ]
+        },
+        "else": {
+          "if": { "makeup": "host" },
+          "then": {
+            "do": [
+              { "op": "vfx", "fx": "dust", "at": "tileOf:host" },
+              { "op": "log", "text": { "en": "{host} breaks.", "zh": "{host}碎了。" } },
+              { "op": "breakdown" }
+            ]
+          },
+          "else": { "undefined": true, "default": [{ "op": "dropContents" }, { "op": "destroy" }] }
+        }
+      },
+      "else": { "do": [] }
+    }
+  },
+  {
+    "id": "core/seen",
+    "doc": "Seeing an act is no change unless the seer says.",
+    "on": "seen",
+    "tree": { "do": [] }
+  },
+  {
+    "id": "core/stuck",
+    "doc": "A person who cannot go on: undefined (the AI answers); meanwhile they wait.",
+    "on": "stuck",
+    "tree": { "undefined": true }
+  },
+  {
+    "id": "core/broken",
+    "doc": "Content the story must keep playable broke: undefined (the AI answers); meanwhile its authored fallback runs.",
+    "on": "broken",
+    "tree": { "undefined": true, "default": [{ "op": "fallback" }] }
+  },
+  {
+    "id": "core/open-close",
+    "doc": "A hand opens or closes a container; a key locks or unlocks it; a lockpick, worked at a lock, may spring it (and one who sees it knows what it is).",
+    "host": { "type": "fixture", "tags": ["container"] },
+    "on": "impulse/handle",
+    "tree": {
+      "if": { "has": { "role": "instrument", "tag": "lockpick" } },
+      "then": {
+        "if": { "has": { "role": "host", "tag": "locked" } },
+        "then": {
+          "if": { "chance": 0.5 },
+          "then": {
+            "do": [
+              { "op": "removeTag", "tag": "locked" },
+              { "op": "open" },
+              { "op": "vfx", "fx": "sparkle" },
+              { "op": "log", "text": { "en": "Click — the lock gives.", "zh": "咔哒——锁开了。" } }
+            ],
+            "label": { "en": "Pick the lock of {target}", "zh": "撬{target}的锁" }
+          },
+          "else": {
+            "do": [{ "op": "log", "text": { "en": "The pick slips. Try again.", "zh": "撬锁器滑了一下。再试试。" } }]
+          }
+        },
+        "else": { "do": [{ "op": "log", "text": { "en": "It is not locked.", "zh": "它没有上锁。" } }] }
+      },
+      "else": {
+        "if": { "has": { "role": "instrument", "tag": "key" } },
+        "then": {
+          "if": { "has": { "role": "host", "tag": "locked" } },
+          "then": {
+            "do": [
+              { "op": "removeTag", "tag": "locked" },
+              { "op": "open" },
+              { "op": "vfx", "fx": "sparkle" },
+              { "op": "log", "text": { "en": "Click. It opens.", "zh": "咔哒一声，开了。" } }
+            ],
+            "label": { "en": "Unlock {target}", "zh": "打开{target}的锁" }
+          },
+          "else": {
+            "if": { "has": { "role": "host", "status": "open" } },
+            "then": "inherit",
+            "else": {
+              "do": [
+                { "op": "addTag", "tag": "locked" },
+                { "op": "vfx", "fx": "sparkle" },
+                { "op": "log", "text": { "en": "Click. It is locked.", "zh": "咔哒一声，锁上了。" } }
+              ],
+              "label": { "en": "Lock {target}", "zh": "锁上{target}" }
+            }
+          }
+        },
+        "else": {
+          "if": { "has": { "role": "host", "tag": "locked" } },
+          "then": {
+            "do": [{ "op": "say", "text": { "en": "Locked.", "zh": "锁住了。" }, "who": "actor" }],
+            "label": { "en": "Try {target}", "zh": "试着打开{target}" }
+          },
+          "else": {
+            "if": { "has": { "role": "host", "status": "open" } },
+            "then": {
+              "do": [{ "op": "open" }, { "op": "vfx", "fx": "dust" }],
+              "label": { "en": "Close {target}", "zh": "关上{target}" }
+            },
+            "else": {
+              "do": [{ "op": "open" }, { "op": "vfx", "fx": "dust" }],
+              "label": { "en": "Open {target}", "zh": "打开{target}" }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "core/read",
+    "label": { "en": "Read {target}", "zh": "阅读{target}" },
+    "doc": "A hand on something written: it is read.",
+    "host": { "type": "fixture", "tags": ["readable"] },
+    "on": "impulse/handle",
+    "tree": { "do": [{ "op": "say", "text": "@line" }] }
+  },
+  {
+    "id": "combat/struck",
+    "doc": "An actor struck takes the blow as anything with durability does — as well as what struck works on what it is made of (world-model.md §6.1, §6.8; a frozen one shatters under a blunt or earthen blow); the one who struck becomes its foe; the element of the blow reaches it.",
+    "host": { "type": "actor" },
+    "on": "impulse/strike",
+    "tree": {
+      "if": {
+        "all": [
+          { "has": { "role": "host", "status": "frozen" } },
+          {
+            "any": [
+              { "param": { "key": "edge", "cmp": "blunt" } },
+              { "param": { "key": "element", "cmp": "earth" } }
+            ]
+          }
+        ]
+      },
+      "then": {
+        "do": [
+          { "op": "removeStatus", "status": "frozen" },
+          { "op": "hurt", "amount": { "param": "power", "mul": 1.5 }, "blow": true },
+          { "op": "foe" },
+          { "op": "vfx", "fx": "shatter" }
+        ]
+      },
+      "else": {
+        "if": { "param": { "key": "element", "cmp": { "ne": "" } } },
+        "then": {
+          "do": [
+            { "op": "hurt", "amount": { "param": "power" }, "blow": true },
+            { "op": "foe" },
+            { "op": "vfx", "fx": "hit" },
+            {
+              "op": "emit",
+              "impulse": "element",
+              "to": "host",
+              "params": { "element": { "param": "element" }, "power": { "param": "power" } }
+            }
+          ]
+        },
+        "else": {
+          "do": [
+            { "op": "hurt", "amount": { "param": "power" }, "blow": true },
+            { "op": "foe" },
+            { "op": "vfx", "fx": "hit" }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "id": "body/wear",
+    "doc": "Something one wears, used on one (one's own, or another's held out): one puts it on (what was in its slot comes off), or takes it off if it is on (world-model.md §6.8).",
+    "host": { "type": "actor" },
+    "on": "impulse/offered",
+    "tree": {
+      "if": {
+        "all": [
+          { "param": { "key": "wear", "cmp": true } },
+          { "is": { "role": "item", "sel": { "tags": ["wearable"] } } }
+        ]
+      },
+      "then": {
+        "if": { "same": ["host", "actor"] },
+        "then": { "do": [{ "op": "wear" }] },
+        "else": {
+          "do": [
+            {
+              "op": "emit",
+              "impulse": "taken",
+              "to": "item",
+              "params": { "into": "contents" },
+              "other": "host"
+            },
+            { "op": "wear" }
+          ]
+        }
+      },
+      "else": "inherit"
+    }
+  }
+]

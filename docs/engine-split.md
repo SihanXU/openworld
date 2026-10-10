@@ -3,8 +3,8 @@
 Status: **agreed with the user 2026-10-10.** The user asked to take OpenWorld out as a game engine of its
 own, keep the present game as one story on it, and build an OpenWorld Editor in the manner of RPG Maker
 ("OpenWorld拿出来专门当游戏引擎，现在的游戏是其中的一个story作为demo，然后同步还要做一个OpenWorld Editor，
-像RPG Maker那样可以自己做游戏"), and accepted every recommendation below. P1 is being built; §8 records
-what was built.
+像RPG Maker那样可以自己做游戏"), and accepted every recommendation below; then to build P2–P6 in the same pull request ("p2到p6", P7
+left). §8 onwards records what was built.
 
 ## 1. Decisions
 
@@ -173,7 +173,56 @@ P2 and P3 overlap where they do not touch (the catalogue as data needs no module
   `games/openworld/wiki/out`, or pass `--out`), and any deployment that took `packages/client/dist` (now
   `games/openworld/client/dist`). The wiki's pages stay in the root `wiki/`.
 
-## 9. Risks
+## 9. P2 as built (2026-10-10)
+
+- **The module interface** (`engine/src/module.ts`). A module is `{ id, needs, effects, conds, goals, spec,
+  install, upgrade }` and registers itself when its package loads; an ontology names the modules it uses
+  (`Ontology.modules`, from game.json) and every engine made over it installs them in that order (one it names
+  that is not loaded is refused). A module's primitives and conditions run through `world.condImpls` and the
+  effect runner's default case; its goals join the kernel's (`KERNEL_GOALS`: threat, follow, schedule, home,
+  idle; one goal several modules give is tried in their order). The kernel has two **slots** — `eng.combat`
+  (`Combat`: refusals, reach, pace, a blow's power and what it carries, the struck one's harm; the kernel's own
+  is `plainCombat`, `blows.ts`) and `eng.society` (`Society`: whose things are, who notices, fear, the watch;
+  `noSociety` by default) — and **hooks** (`eng.hooks`: a tick's `status`, `behaviour` and `end` steps, entering
+  a map, the residents a world needs, learning, the frame's fields, why a sleeper woke), plus `world.wears`
+  and `world.ext` for a module's own state. The ModSpec and `validatePatch` are made from the enabled modules:
+  the AI is told only of what the game has (`buildModSpec(onto)`, `opsOf(onto)`).
+- **Differences from §4.** The modules are one package, `@openworld/modules`, a folder each (they share
+  helpers; a package each when one is wanted alone). `phases` became the hooks; `snapshot` the `frame` hook;
+  `migrations` each module's `upgrade`. The effect and condition *types* (`types.ts`) still name the modules'
+  primitives (`ModuleOp`), so every rule stays type-checked; only their work moved out.
+- **The modules**: `classes` (professions and their weapons, the combat talents, relics, the active skills
+  and the skill bar; it fills the combat slot), `bosses` (the encounter goal, `release`), `waypoints`,
+  `boons` (needs waypoints), `needs` (hunger: `feed`, the woken-by-hunger word), `society` (the social life and
+  conduct of docs/npc-sandbox.md: 23 primitives, 9 conditions, the goals social, follow and need, the watches as
+  residents; it fills the society slot). OpenWorld names all six (`content/src/ontology.ts` `MODULES`).
+  **Kept in the kernel**, by decision: looks, experience and levels, the codex, a companion's following, the
+  quests and the story — mechanisms every game has, with each game's data; the editor and the AI interface
+  stand on them. The runtime may import modules (the worker casts, sets the skill bar, takes a profession,
+  chooses a boon through them).
+- **Ids and numbers out of the kernel**: the coin (`ontology.social.coin`), the waypoint stone's type
+  (`params.waypoint`), the fact that lengthens the night (`params.nightFact`, the Ford's `night.shift`), the
+  professions' names (`ontology.professions`). `game.difficulty` stays the engine's own fact (a new game's
+  choice, under `game.`). The Ford's save upgrades are the game's (`GameDef.upgradeSave`,
+  `content/src/game.ts`); each module brings its own.
+- **The standard library** (`packages/stdlib`, data): what the kernel names and every game starts from — the
+  resident, region and site types, the roots of the actor, item and fixture trees, the statuses the kernel and
+  the inputs keep, the elements, the `broken` line, and 44 rules (the roots, a fall, a defeat and coming to,
+  experience, rising, wearing, the Story Manager and a quest's own rules). Baked once from the Ford's library;
+  the Ford keeps its own versions for now (they carry its hunger and professions).
+- **The starter** (`games/starter`, S6): a whole game in data files — a glade and a cottage, Mira and her day,
+  an axe in a chest, a tree to fell, a slime, a favour, an opening scene — on the kernel and the standard
+  library, no module. `games/starter/test/kernel.test.ts` plays it with no module loaded in its process: the
+  opening, the chest, the axe and the tree, Mira's day, the favour and its reward, plain combat, sleeping,
+  a save. It found one kernel bug: a quest that begins when its giver is spoken to never began (its probe
+  had no aliases; `quests.ts` `probe`).
+- **Ahead of P3**: the starter is written in the project format (§5) and compiled by `@openworld/format`
+  (`packages/format`); the compiler's checks (references, sizes, portals, anchors, ties, rules that write past
+  their host) are the Ford's content tests made general (the tie sweep is now `format/src/check.ts` `ties`).
+- **Left**: the eight modder tests on the Ford's content (they test the pipeline on the Ford's holes; the
+  starter has few) stay listed in `boundaries.test.ts`.
+
+## 10. Risks
 
 - **The way the Ford is written changes.** From the TypeScript DSL to data files: for a while the compiler
   takes both authored data and data a script made; the maps are baked once the editor can edit them.

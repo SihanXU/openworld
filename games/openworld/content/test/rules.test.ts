@@ -20,13 +20,11 @@ import {
   validatePatch,
   type Engine,
   type Patch,
-  type Cond,
   type Rule,
   type Scenario,
   type ScenarioEntity,
-  type Selector,
-  type Tree,
 } from '@openworld/engine'
+import { ties } from '@openworld/format'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
@@ -54,51 +52,6 @@ const holeOf = (eng: Engine, ev: Parameters<Engine['resolveEvent']>[0]): string 
   return holeKey(res.hole.rule.id, res.hole.path)
 }
 
-/**
- * Ties (design.md §5.6): two rules on the same kind, equally specific, whose hosts overlap and
- * whose trees could both answer one event. A tree answers in regions: the conjunction of the
- * conditions on the way to each leaf that is not `inherit`. Two regions exclude each other when
- * they need different values of one param, or roles that no one thing could fill (conditions
- * that are not plain conjunctions are taken as possibly true).
- */
-function ties(rules: Rule[]): string[] {
-  type Atom = Cond
-  const regions = (t: Tree, acc: Atom[] = []): Atom[][] => {
-    if (t === 'inherit') return []
-    if (!('if' in t)) return [acc]
-    const atoms = (c: Cond): Atom[] => ('all' in c ? c.all.flatMap(atoms) : [c])
-    return [...regions(t.then, [...acc, ...atoms(t.if)]), ...regions(t.else ?? 'inherit', acc)]
-  }
-  const sels = (as: Atom[]) => {
-    const by = new Map<string, Selector[]>()
-    const add = (role: string, s: Selector) => by.set(role, [...(by.get(role) ?? []), s])
-    for (const a of as) {
-      if ('is' in a) add(a.is.role, a.is.sel)
-      if ('has' in a) add(a.has.role, { ...(a.has.tag && { tags: [a.has.tag] }), ...(a.has.status && { status: [a.has.status] }) })
-    }
-    return by
-  }
-  const params = (as: Atom[]) => new Map(as.flatMap((a) => ('param' in a && typeof a.param.cmp !== 'object' ? [[a.param.key, a.param.cmp] as const] : [])))
-  const nones = (as: Atom[]) => new Set(as.flatMap((a) => ('none' in a ? [a.none] : [])))
-  const compatible = (x: Atom[], y: Atom[]) => {
-    const [px, py] = [params(x), params(y)]
-    for (const [k, v] of px) if (py.has(k) && py.get(k) !== v) return false
-    const [sx, sy] = [sels(x), sels(y)]
-    const [nx, ny] = [nones(x), nones(y)]
-    for (const r of nx) if (sy.has(r)) return false
-    for (const r of ny) if (sx.has(r)) return false
-    for (const [r, a] of sx) for (const s of a) for (const t of sy.get(r) ?? []) if (!hostsOverlap(s, t, onto)) return false
-    return true
-  }
-  const out: string[] = []
-  for (const [i, a] of rules.entries())
-    for (const b of rules.slice(i + 1)) {
-      if (a.on !== b.on || compareSpec(specOf(a), specOf(b)) !== 0 || !hostsOverlap(a.host ?? {}, b.host ?? {}, onto)) continue
-      if (regions(a.tree).some((x) => regions(b.tree).some((y) => compatible(x, y)))) out.push(`${a.id} ~ ${b.id}`)
-    }
-  return out
-}
-
 describe('base library', () => {
   it('has unique ids, and every rule passes the patch validator save for what only the base may do', () => {
     const ids = new Set<string>()
@@ -122,7 +75,8 @@ describe('base library', () => {
   })
 
   it('has no ties: two equally specific rules on the same kind never both answer one event', () => {
-    expect(ties([...BASE_RULES, ...STORY_RULES])).toEqual([])
+    // (the compiler's own check, docs/engine-split.md §5: any project's ties)
+    expect(ties([...BASE_RULES, ...STORY_RULES], onto)).toEqual([])
   })
 
   it('tells apart hosts that need incompatible property values', () => {

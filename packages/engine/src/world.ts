@@ -1294,9 +1294,10 @@ export class World {
     return calendarAt(this.state.tick, this.state.seed).hour
   }
 
-  /** How much longer the night is than at the start (hours): the story's `night.shift` (docs/chapter-1.md). */
+  /** How much longer the night is than at the start (hours): the story's fact the world names (`params.nightFact`). */
   nightShift(): number {
-    const v = this.fact('night.shift')
+    const key = this.onto.data.params?.nightFact
+    const v = key ? this.fact(key) : undefined
     return typeof v === 'number' ? v : 0
   }
 
