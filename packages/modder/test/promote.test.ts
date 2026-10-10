@@ -3,8 +3,8 @@
 // a class keeps falling into is a candidate even before its answers converge.
 
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, placePatch, type Patch, type Scenario, type Tree } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { ModPort, RuleLibrary, buildSandbox, placePatch, type Patch, type Scenario, type Tree } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { WorldLibrary, askedCounts, candidates, lowestCommonAncestor, normalKey, normalizeTree } from '../src/index.ts'
 
 const onto = buildOntology()

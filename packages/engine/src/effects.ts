@@ -4,14 +4,11 @@
 
 import type { Engine } from './engine.ts'
 import { evalCond, matchSelector, rolesOf } from './rules.ts'
-import type { AiData, Amount, Effect, EmitTo, Entity, GameEvent, Impulse, Place, Pos, PropValue, Ref, RoleName, RoleRef, Text } from './types.ts'
-import { GIVEN_LINE, chooseLine, raiseTopic } from './people.ts'
+import type { AiData, Amount, Effect, ModuleOp, EmitTo, Entity, GameEvent, Id, Impulse, Place, Pos, PropValue, Ref, RoleName, RoleRef, Text } from './types.ts'
+import { GIVEN_LINE, chooseLine, memoryOf, raiseTopic } from './people.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
 import { cannotRead, gainXp, learnSkill, readSkill } from './progression.ts'
-import { BOON_PREFIX, activeBoon, boonsOf, leaderOf, nearAttunedWaypoint } from './boons.ts'
-import { canWield, cannotChoose, chooseProfession, itemProfession } from './profession.ts'
 import { appear } from './appear.ts'
-import { releaseSkill } from './bosses.ts'
 import { WriteError } from './world.ts'
 import { madeOf, qualityFor } from './recipes.ts'
 import { restyled } from './looks.ts'
@@ -19,7 +16,8 @@ import { restyled } from './looks.ts'
 /** How many things one effect makes at once at most, unless the world says (`params.spawnMax`). */
 const SPAWN_MAX = 64
 
-export const PRIMITIVES: Record<Effect['op'], string> = {
+/** The kernel's primitives, and what each does (the modules' are their own: module.ts). */
+export const PRIMITIVES: Record<Exclude<Effect['op'], ModuleOp>, string> = {
   spawn: 'spawn {type, at: role ref, into?: tile|contents|hand, count?, still?} — create new things at a role\'s place (its tile, contents or hand); type may be "@prop:<role>.<key>" (a crop\'s yieldType); count may read a prop or a param; items on the ground pop out for the magnet unless still (then they are taken with F)',
   destroy: 'destroy {} — the host is gone (with what it holds); the essential (people) never are: they go down instead',
   transform: 'transform {into} — the host becomes another type ("@prop:key" reads the type from its own prop, e.g. emptyType). A cell is made of things (tile/<terrain>: the floor, what roots in the soil, what fills the volume): water becoming ice is the water transforming; becoming a type whose space in its cell another thing holds (rock into gravel, where a floor is), the host is gone instead',
@@ -37,10 +35,8 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   fall: 'fall — with nothing under it on its storey, the host drops to the first floor below, struck by the drop beyond the safe height (the root of contact/end on)',
   breakdown: 'breakdown — the host breaks into what it is made of (its makeup × the world\'s recovery rate, in its material), what it holds spills out, and it is gone (the root outcome of broken for anything with a makeup)',
   heal: 'heal {amount}',
-  feed: 'feed {amount} — the host\'s hunger rises by amount, up to its maxHunger',
   gainXp: 'gainXp {amount} — the host gains experience (times 1 + its stat xpRate); enough raises its level (props xp, level, skillPoints)',
   pocket: 'pocket — the host (an actor) steps into a pocket place (param map, x, y: a place one carries, the Held Ground) and remembers where it stood (its prop pocket.return); in that place already, it steps back out where it was',
-  boon: 'boon — the host (a companion) is given a boon (param unlock: its id; carried at once if it carries none) or carries another it has (param boon), the latter only while its leader stands beside an attuned waypoint; a boon is its status boon_<id>, whose lead:<stat> props add to the leader\'s stats',
   foe: 'foe {} — whoever started the chain (the one who struck) becomes the host\'s foe, attacked on sight',
   open: 'open {} — the host opens or closes (toggles the `open` status)',
   dropContents: 'dropContents {still?, to?, keepWorn?, keep?, bundle?} — the host spills what it holds (its bag and its hand) onto its tile, or into a role\'s bag (to: a bundle opened); keepWorn: what it wears and the weapon in its hand stay with it; keep: so do things with any of these tags (important); bundle: what is spilled is packed into a new thing of that type on its tile',
@@ -58,21 +54,30 @@ export const PRIMITIVES: Record<Effect['op'], string> = {
   log: 'log {text} — a message line ({role} = names, {role.key} = that role\'s prop, {param.key} = an event param; "@line": what the host has written on it, its text and text_zh)',
   emote: 'emote {mood: neutral|happy|sad|angry|surprised|shy} — an emote bubble over the host',
   restyle: 'restyle {parts?, colors?} — the host\'s look changes (docs/looks.md): a part per slot of the world\'s look table (hair: "hair.bob"; null empties the slot), a colour per key (hair, skin, eyes, <slot>.<n>; a colour id or #rrggbb); its map sprite, its portrait and its look:* tags follow, and the change is its own from then on',
-  quest: 'quest {} — the host (a person) is spoken to about quests: business with the speaker (a quest to hand in, to take on, a talk goal) is told to the story; else the host says how a quest goes, or its line (quests.ts)',
-  quests: "quests {} — the story's: a quest's business it is told of is settled (notify what = quest: between the source, a giver, and the actor; what = defeat: the actor felled a thing of param type) — its facts change, the giver takes what was brought, the taker is told its reward; with no notice (the story's own pass), quests it has gone past are done, auto ones taken on, self ones completed",
+  quest: 'quest {} — the host (a person, a notice board) is spoken to about quests (docs/quests.md §2.4): a quest under way that the word moves on (a hand-in, someone it sent you to) sees it; else the host says its offer (accept or decline in the talk panel), the waiting line of its quest, or its own line. Asked with param say = quest: param topic accept / decline takes on or turns down the offer named by param quest, any other topic is told to that quest',
+  advance: "advance {} — a quest's: it sees news (a seen event, param news) and moves on: kills it counts, objectives its triggers mark done, the next stage whose trigger holds (and again, while one holds)",
+  stage: "stage {n} — a quest's: it reaches stage n (a notice's SetStage), its journal line, objectives, hand-overs, reward, lines and effects, and looks again",
+  accept: "accept {} — a quest's: an offer is taken on by the event's actor (its first stage)",
+  decline: "decline {} — a quest's: an offer is turned down (a radiant one is withdrawn)",
+  failQuest: "failQuest {} — a quest's: past its deadline or told so: an offer is withdrawn, a quest under way reaches its failing stage",
+  begin: "begin {} — the story's (the Story Manager): it sees news; the quests that begin on it (auto, their trigger holding) begin, the radiant offers on it (their chance, cap and aliases) are made",
+  startQuest: "startQuest {id?, offer?} — the story's or a quest's: the quest named (or param quest) begins for the event's actor (offer: is offered), its aliases filled, else it does not",
+  facts: "facts {} — the story's: it keeps the facts it is told (params fact.<key>)",
+  news: 'news {kind} — tells the quests what this event is (docs/quests.md §2.3): give (the actor handed the item to the host), deed, hungry, talk (the actor spoke to the host: a quest may begin on it)',
   learn: 'learn {book?} — book: from the book it holds (the event\'s item: its param skill), no points and no skills before it, the book used up; else the host learns what its act names: param skill (spending its skill points) or param profession (at a trainer; a change gives back the profession branch)',
   appear: "appear {what?} — the world's: what appears by itself on the active map now (the map's own appearances and the world's that fit it, each at its pace, hours and weather, up to its max), or only the appearance given (world-model.md §6.9)",
-  release: "release {} — the host's encounter skill lands on the cells its act telegraphed (params skill, ox, oy, ax, ay): a strike to each foe there, a push or pull and a coat as the skill says; the host heals or blinks itself",
   panel: "panel {panel} — the host (a trainer) opens one of the player's panels when the player spoke to it: 'profession'",
 }
 
 /** Primitives only the story's and the world's rules may use. */
-export const RESIDENT_ONLY = new Set<Effect['op']>(['topic', 'scene', 'lightning', 'fallback', 'quests', 'appear'])
+export const RESIDENT_ONLY = new Set<Effect['op']>(['topic', 'scene', 'lightning', 'fallback', 'appear', 'begin', 'startQuest', 'facts', 'advance', 'stage', 'accept', 'decline', 'failQuest'])
+/** Primitives only a quest's own rules may use (docs/quests.md: a quest writes only itself). */
+export const QUEST_ONLY = new Set<Effect['op']>(['advance', 'stage', 'accept', 'decline', 'failQuest'])
 
 export class EffectRunner {
-  constructor(private eng: Engine) {}
+  constructor(readonly eng: Engine) {}
 
-  private ref(ev: GameEvent, r: RoleRef): Ref | undefined {
+  ref(ev: GameEvent, r: RoleRef): Ref | undefined {
     const w = this.eng.world
     // the cell under a role: what makes it up on top
     if (r.startsWith('tileOf:')) {
@@ -83,15 +88,15 @@ export class EffectRunner {
     return this.roleRef(ev, r as RoleName)
   }
 
-  private roleRef(ev: GameEvent, r: RoleName): Ref | undefined {
+  roleRef(ev: GameEvent, r: RoleName): Ref | undefined {
     return r === 'host' ? ev.host : ev.roles[r]
   }
 
-  private hostEntity(ev: GameEvent): Entity | undefined {
+  hostEntity(ev: GameEvent): Entity | undefined {
     return 'e' in ev.host ? this.eng.world.get(ev.host.e) : undefined
   }
 
-  private pos(ev: GameEvent, r: RoleRef): Pos | undefined {
+  pos(ev: GameEvent, r: RoleRef): Pos | undefined {
     return this.eng.world.refPos(this.ref(ev, r))
   }
 
@@ -111,7 +116,7 @@ export class EffectRunner {
   }
 
   /** How many things one effect may make at once (a guard: the most the content makes is a few). */
-  private most(n: number, what: string): number {
+  most(n: number, what: string): number {
     const most = this.eng.world.onto.data.params?.spawnMax ?? SPAWN_MAX
     if (n > most) throw new Error(`${what} of ${n}: more than ${most} at once`)
     return n
@@ -188,7 +193,8 @@ export class EffectRunner {
     const eng = this.eng
     const w = eng.world
     const host = this.hostEntity(ev)
-    if (RESIDENT_ONLY.has(eff.op) && (!host || !w.isPlaceless(host))) throw new Error(`${eff.op} is the story's and the world's only`)
+    if ((RESIDENT_ONLY.has(eff.op) || eng.residentOnly.has(eff.op)) && (!host || !w.isPlaceless(host))) throw new Error(`${eff.op} is the story's and the world's only`)
+    if (QUEST_ONLY.has(eff.op) && host?.type !== 'resident/quest') throw new Error(`${eff.op} is a quest's only`)
     switch (eff.op) {
       case 'spawn': {
         const type = this.typeOf(ev, eff.type)
@@ -252,7 +258,13 @@ export class EffectRunner {
         // it faced, as one set down does (its front toward them); one that turned already keeps its way
         const maker = ev.cause ? w.get(ev.cause) : undefined
         if (p && !host.facing && w.hasTag(host, 'turns') && maker?.facing) host.facing = maker.facing
-        delete host.name
+        // its name was its old form's: what it is made of and how well stay in the new one's (a master
+        // bucket filled is a master bucket of water); a name that said neither goes
+        const quality = (w.onto.data.qualities ?? []).find((q) => q.tag && w.hasTag(host, q.tag))
+        const material = (host.tags ?? []).find((t) => t.startsWith('material:'))?.slice('material:'.length)
+        const renamed = madeOf(w.onto.data, w.onto, into, material, quality?.id).name
+        if (renamed) host.name = renamed
+        else delete host.name
         // a thing become another is whole as what it is now (a felled tree's stump, a regrown tree)
         if (host.props?.hp !== undefined && w.onto.resolve(into).props.maxHp !== undefined) w.setProp(host, 'hp', undefined)
         eng.touch({ e: host.id })
@@ -265,6 +277,10 @@ export class EffectRunner {
         if (w.bears(host)) return
         const place = this.placeFor(this.ref(ev, eff.to), eff.into ?? 'tile', host.id)
         if (!place) return
+        // a thing moved by one who is not its owner keeps whose it was: taken, it is still theirs (docs/npc-sandbox.md §2.1)
+        const was = eng.society.ownerOf(host)
+        const mover = w.get(ev.roles.actor?.e ?? ev.cause)
+        if (was && w.prop(host, 'owner') === undefined && mover && eng.society.relation(was, mover) === 'another') w.setProp(host, 'owner', was)
         eng.touch({ e: host.id })
         w.place(host, place)
         delete host.dropped
@@ -350,17 +366,18 @@ export class EffectRunner {
         const worn = keys.find((k) => w.prop(host, k) === item.id)
         const key = worn ?? keys.find((k) => { const id = w.prop(host, k); const it = typeof id === 'string' ? w.get(id) : undefined; return !it || !((it.place.on === 'inside' || it.place.on === 'hand') && it.place.holder === host.id) }) ?? keys[0]
         const on = !!worn
-        // a profession's piece (the warrior's shield) goes on only for its own (profession.ts)
-        if (!on && !canWield(w, host, item)) {
-          const need = itemProfession(w, item)!
-          const name = w.onto.data.professions?.[need]?.name
-          const n = (l: 'en' | 'zh') => (typeof name === 'string' ? name : name ? (l === 'zh' ? name.zh ?? name.en : name.en) : need)
-          w.fx.push({ t: 'log', text: { en: `Only a${/^[aeiou]/i.test(n('en')) ? 'n' : ''} ${n('en')} can wear ${eng.nameOf({ e: item.id }, 'en')}.`, zh: `只有${n('zh')}能装备${eng.nameOf({ e: item.id }, 'zh')}。` }, tone: 'warn' })
+        // a piece that is not one's to wear (another profession's) does not go on, and says so
+        const refused = on ? undefined : eng.combat.refuses(host, item, 'wear')
+        if (refused) {
+          w.fx.push({ t: 'log', text: refused, tone: 'warn' })
           return
         }
         if (on) w.setProp(host, key, undefined)
         else eng.setProp(host, key, item.id, ev)
-        w.fx.push({ t: 'log', text: on ? { en: `You take off ${eng.nameOf({ e: item.id }, 'en')}.`, zh: `你脱下了${eng.nameOf({ e: item.id }, 'zh')}。` } : { en: `You put on ${eng.nameOf({ e: item.id }, 'en')}.`, zh: `你穿上了${eng.nameOf({ e: item.id }, 'zh')}。` } })
+        // a weapon is taken up and put away, not put on
+        const weapon = w.hasTag(item, 'weapon')
+        const nm = (l: 'en' | 'zh') => eng.nameOf({ e: item.id }, l)
+        if (host.id === w.state.player) w.fx.push({ t: 'log', text: on ? (weapon ? { en: `You put ${nm('en')} away.`, zh: `你收起了${nm('zh')}。` } : { en: `You take off ${nm('en')}.`, zh: `你脱下了${nm('zh')}。` }) : weapon ? { en: `You take up ${nm('en')}.`, zh: `你装备了${nm('zh')}。` } : { en: `You put on ${nm('en')}.`, zh: `你穿上了${nm('zh')}。` } })
         return
       }
       case 'sleep': {
@@ -371,7 +388,7 @@ export class EffectRunner {
         const rest = Math.max(params?.rest ?? 0.5, ...(at ? w.regionsAt(at.map, at.x, at.y, at.z).map((r) => w.num(r, 'rest', 0)) : []))
         const missing = w.num(host, 'maxHp', 1) - w.num(host, 'hp', w.num(host, 'maxHp', 1))
         if (missing > 0) eng.setProp(host, 'hp', w.num(host, 'hp') + Math.ceil(missing * Math.min(1, rest)), ev)
-        w.fx.push({ t: 'log', text: rest >= 1 ? { en: 'You sleep soundly, and wake rested.', zh: '你睡得很沉，醒来精神饱满。' } : { en: 'You sleep, after a fashion.', zh: '你勉强睡了一觉。' } })
+        if (host.id === w.state.player) w.fx.push({ t: 'log', text: rest >= 1 ? { en: 'You sleep soundly, and wake rested.', zh: '你睡得很沉，醒来精神饱满。' } : { en: 'You sleep, after a fashion.', zh: '你勉强睡了一觉。' } })
         // the one at the keys sleeps the night through (the clock runs at once), asleep all the while:
         // lying still, and growing hungry slower (the hunger period's pace, data)
         if (host.id === w.state.player) w.setStatus({ e: host.id }, 'asleep', w.state.tick + eng.sleepUntil(params?.riseHour ?? 6))
@@ -400,13 +417,17 @@ export class EffectRunner {
         const at = w.posOf(host)
         const rate = w.onto.data.params?.recovery ?? 1
         const material = [...(host.tags ?? []), ...w.onto.resolve(host.type).tags].find((t) => t.startsWith('material:'))
+        // what it leaves keeps its storey only where a floor other than itself is there to hold it (a
+        // floor that broke leaves nothing to lie on): else it lands on the first floor below
+        let z = at?.z ?? 0
+        while (at && z > 0 && !w.entitiesAt(at.map, at.x, at.y, z).some((o) => o.id !== host.id && w.spacesOf(o).includes('floor'))) z--
         if (at)
           for (const [i, part] of (w.onto.resolve(host.type).makeup ?? []).entries()) {
             // the expected count: whole parts, and the fraction by chance
             const expect = (part.count * (part.chance ?? 1) * rate) / Math.max(1, w.onto.resolve(host.type).yields ?? 1)
             const n = this.most(Math.floor(expect) + (w.chance(eff, expect - Math.floor(expect), i) ? 1 : 0), 'a breakdown')
             for (let i = 0; i < n; i++) {
-              const made = w.create(part.type, { on: 'tile', map: at.map, x: at.x, y: at.y, ...(at.z && { z: at.z }) }, material && w.onto.resolve(part.type).tags.includes('portable') ? { tags: [material] } : {})
+              const made = w.create(part.type, { on: 'tile', map: at.map, x: at.x, y: at.y, ...(z && { z }) }, material && w.onto.resolve(part.type).tags.includes('portable') ? { tags: [material] } : {})
               eng.touch({ e: made.id })
               // it pops out for the magnet, as anything a rule drops (what a body leaves lies still: taken with F)
               if (w.isPortable(made) && !eff.still) made.dropped = true
@@ -416,7 +437,7 @@ export class EffectRunner {
         for (const id of [...(host.contents ?? []), ...(host.held ? [host.held] : [])]) {
           const c = w.get(id)
           if (!c || !at) continue
-          w.place(c, { on: 'tile', map: at.map, x: at.x, y: at.y, ...(at.z && { z: at.z }) })
+          w.place(c, { on: 'tile', map: at.map, x: at.x, y: at.y, ...(z && { z }) })
           eng.touch({ e: c.id })
           if (!eff.still) c.dropped = true
         }
@@ -437,13 +458,6 @@ export class EffectRunner {
         if (gained > 0) w.fx.push({ t: 'damage', who: host.id, amount: -gained })
         return
       }
-      case 'feed': {
-        // Hearty Meals (the skill): food fills half as much again
-        const max = host ? w.num(host, 'maxHunger') : 0
-        if (!host || max <= 0) return
-        eng.setProp(host, 'hunger', Math.max(0, Math.min(max, Math.round(w.num(host, 'hunger', max) + this.amount(ev, eff.amount) * (w.hasTag(host, 'skill:hearty-meals') ? 1.5 : 1)))), ev)
-        return
-      }
       case 'gainXp': {
         // a thing that has a level can learn (any thing with the prop, not only people)
         if (!host || w.prop(host, 'level') === undefined) return
@@ -462,7 +476,15 @@ export class EffectRunner {
       }
       case 'foe': {
         const by = ev.roles.actor && 'e' in ev.roles.actor ? ev.roles.actor.e : ev.cause
-        if (!host?.ai || !by || by === host.id || !w.get(by)) return
+        if (!host || !by || by === host.id || !w.get(by)) return
+        // a person struck takes up a fight if it is one who fights (a guard, the smith: `fights`); else it fears the one who struck
+        if (!host.ai && host.npc) {
+          const at = w.posOf(host)
+          if (w.prop(host, 'fights') !== true || !at) return eng.society.frighten(host, by)
+          host.ai = { behaviour: 'melee', temper: 'wary', sight: w.num(host, 'sight', 6), home: { map: at.map, x: at.x, y: at.y }, leash: 12 }
+          if (!w.hasStatus(ev.host, 'drawn') && w.onto.status('drawn')) eng.applyStatus(ev.host, 'drawn')
+        }
+        if (!host.ai) return
         const foes = (host.ai.foes ??= [])
         if (!foes.includes(by)) foes.push(by)
         return
@@ -510,18 +532,73 @@ export class EffectRunner {
         return
       }
       case 'quest': {
-        // the host is spoken to; the one speaking is the act's actor (quests.ts): the story settles their business
+        // the host is spoken to about quests (docs/quests.md §2.4); the one speaking is the act's actor
         const a = ev.roles.actor
         const who = a && 'e' in a ? w.get(a.e) : undefined
-        const business = host && who ? eng.quests.business(host.id, who) : undefined
-        if (business === 'story')
-          eng.queue({ kind: 'impulse/notify', host: { e: 'story' }, roles: { actor: a, source: ev.host }, params: { what: 'quest' }, cause: ev.cause, origin: ev.origin, depth: (ev.depth ?? 0) + 1 })
-        else this.apply({ op: 'say', text: business ?? '@line' }, ev)
+        if (!host || !who) return
+        const depth = (ev.depth ?? 0) + 1
+        const tell = (to: Id, params: Record<string, PropValue>, kind: GameEvent['kind'] = 'impulse/notify') => eng.queue({ kind, host: { e: to }, roles: { actor: { e: who.id }, source: ev.host }, params, cause: ev.cause, origin: ev.origin, depth })
+        const ref = typeof ev.params?.quest === 'string' && ev.params.quest ? ev.params.quest : undefined
+        const topic = typeof ev.params?.topic === 'string' ? ev.params.topic : undefined
+        if (ev.params?.say === 'quest' && ref && topic) {
+          const q = w.get(ref)
+          const d = q ? eng.quests.defOf(q) : eng.quests.def(ref)
+          if (topic === 'accept' || topic === 'decline') {
+            // an offer taken on or turned down: a radiant one is the quest's to answer, an authored one the story begins
+            if (topic === 'accept') q ? tell(q.id, { what: 'accept' }) : d && tell('story', { what: 'accept', quest: d.id })
+            else if (q) tell(q.id, { what: 'decline' })
+            const line = topic === 'accept' ? d?.accepted : d?.declined
+            if (line && host.npc) this.apply({ op: 'say', text: q ? eng.quests.fill(q, line) : line }, ev)
+            return
+          }
+          // a topic of the quest's, told to it (it says what it says)
+          if (q) eng.queue({ kind: 'seen', host: { e: q.id }, roles: { actor: { e: who.id }, target: { e: host.id } }, params: { news: 'talk', by: who.id, of: host.id, topic }, cause: ev.cause, origin: 'world', depth })
+          return
+        }
+        const b = eng.quests.business(host.id, who)
+        if (b.quest) eng.queue({ kind: 'seen', host: { e: b.quest.id }, roles: { actor: { e: who.id }, target: { e: host.id } }, params: { news: 'talk', by: who.id, of: host.id }, cause: ev.cause, origin: 'world', depth })
+        else if (host.npc) {
+          const offer = b.offers[0] && eng.quests.offerLine(b.offers[0].ref)
+          this.apply({ op: 'say', text: offer ?? b.waiting ?? '@line' }, ev)
+        }
+        // business talked over is a meeting too: their first-meeting line is not kept for after it
+        if ((b.quest || b.offers.length || b.waiting) && host.npc) { const mem = memoryOf(host); mem.talked ??= w.calendar().day }
         return
       }
-      case 'quests':
-        eng.quests.settle(ev)
+      case 'advance':
+        eng.quests.advance(ev)
         return
+      case 'stage':
+        eng.quests.setStage(ev, Math.floor(this.amount(ev, eff.n)))
+        return
+      case 'accept':
+        eng.quests.accept(ev)
+        return
+      case 'decline':
+        eng.quests.decline(ev)
+        return
+      case 'failQuest':
+        eng.quests.fail(ev)
+        return
+      case 'begin':
+        eng.quests.begin(ev)
+        return
+      case 'startQuest': {
+        const d = eng.quests.def(eff.id ?? String(ev.params?.quest ?? ''))
+        const a = ev.roles.actor
+        if (d) eng.quests.start(d, ev, { taker: a && 'e' in a ? a.e : w.state.player, offer: eff.offer, ...(ev.roles.source && 'e' in ev.roles.source && { giver: ev.roles.source.e }) })
+        return
+      }
+      case 'facts':
+        if (!host) return
+        for (const [k, v] of Object.entries(ev.params ?? {})) if (k.startsWith('fact.')) w.setProp(host, k.slice(5), v)
+        return
+      case 'news': {
+        const r = (role: keyof GameEvent['roles']) => { const x = ev.roles[role]; return x && 'e' in x ? x.e : undefined }
+        if (eff.kind === 'give') eng.quests.news({ kind: 'give', actor: r('actor'), target: host?.id, item: r('item') })
+        else eng.quests.news({ kind: eff.kind, actor: r('actor'), target: host?.id, item: r('item') })
+        return
+      }
       case 'learn': {
         // the host's own: its tags, props and points; a profession's starter weapon is made in its bag
         if (!host) return
@@ -545,18 +622,12 @@ export class EffectRunner {
           learnSkill(w, host, skill)
           return
         }
-        const prof = eng.professions.get(String(ev.params?.profession ?? ''))
-        if (!prof || cannotChoose(w, host, prof)) return
-        const before = new Set(host.contents ?? [])
-        chooseProfession(w, host, prof, [...eng.skills.values()])
-        for (const id of host.contents ?? []) if (!before.has(id)) eng.touch({ e: id })
+        // what else it names is a module's to learn (a profession, at a trainer)
+        for (const h of eng.hooks.learn) if (h(host, ev)) return
         return
       }
       case 'appear':
         appear(eng, eff.what)
-        return
-      case 'release':
-        if (host) releaseSkill(eng, host, ev)
         return
       case 'pocket': {
         // the host's own: where it stands, kept on itself; then it goes (its companions follow as they do)
@@ -574,36 +645,6 @@ export class EffectRunner {
           w.setProp(host, 'pocket.return', `${at.map},${at.x},${at.y}`)
           eng.travel(host, { map, x: Number(ev.params?.x ?? 0), y: Number(ev.params?.y ?? 0) })
         }
-        return
-      }
-      case 'boon': {
-        // a companion's boon (boons.ts): given by the story (param unlock), or chosen (param boon)
-        // while its leader stands beside an attuned waypoint; it carries one at a time
-        if (!host) return
-        const give = ev.params?.unlock
-        const pick = ev.params?.boon
-        const carry = (id: string) => {
-          for (const s of Object.keys(host.statuses ?? {})) if (s.startsWith(BOON_PREFIX) && s !== BOON_PREFIX + id) eng.removeStatus({ e: host.id }, s)
-          if (!w.hasStatus({ e: host.id }, BOON_PREFIX + id)) eng.applyStatus({ e: host.id }, BOON_PREFIX + id)
-        }
-        const name = (id: string) => w.onto.status(BOON_PREFIX + id)?.name
-        const said = (t: Text | undefined, l: 'en' | 'zh') => (typeof t === 'string' ? t : t ? (l === 'zh' ? t.zh ?? t.en : t.en) : '')
-        if (typeof give === 'string' && give) {
-          const had = boonsOf(w, host)
-          if (had.includes(give)) return
-          eng.setProp(host, 'boons', [...had, give].join(','), ev)
-          if (!activeBoon(host)) carry(give)
-          w.fx.push({ t: 'log', text: { en: `${eng.nameOf({ e: host.id }, 'en')} takes up a new power: ${said(name(give), 'en')}.`, zh: `${eng.nameOf({ e: host.id }, 'zh')}获得了新的力量：${said(name(give), 'zh')}。` }, tone: 'good' })
-          return
-        }
-        if (typeof pick !== 'string' || !boonsOf(w, host).includes(pick) || activeBoon(host) === pick) return
-        const leader = leaderOf(w, host)
-        if (!leader || !nearAttunedWaypoint(w, leader)) {
-          w.fx.push({ t: 'log', text: { en: 'A power can be changed only beside a woken waypoint statue.', zh: '只有在唤醒过的传送雕像旁才能切换力量。' }, tone: 'warn' })
-          return
-        }
-        carry(pick)
-        w.fx.push({ t: 'log', text: { en: `${eng.nameOf({ e: host.id }, 'en')} now carries ${said(name(pick), 'en')}.`, zh: `${eng.nameOf({ e: host.id }, 'zh')}现在携带着${said(name(pick), 'zh')}。` }, tone: 'good' })
         return
       }
       case 'panel': {
@@ -708,6 +749,9 @@ export class EffectRunner {
         return
       }
       case 'log':
+        // the message line is the one at the keys': what another set going (a villager eating, a guard's blow on a
+        // slime) is not written there, unless it befalls them
+        if (ev.cause && ev.cause !== w.state.player && host?.id !== w.state.player && w.get(ev.cause) && w.isAgent(w.get(ev.cause)!)) return
         // "@line" reads what the host has written on it (a document read in hand)
         w.fx.push({ t: 'log', text: this.text(ev, eff.text === '@line' ? host : undefined, eff.text) })
         return
@@ -717,6 +761,12 @@ export class EffectRunner {
       case 'restyle':
         if (host && typeof host.look === 'object') w.setLook(host, restyled(host.look, { parts: eff.parts, colors: eff.colors }))
         return
+      default: {
+        // a module's primitive (module.ts): its own work, in this outcome
+        const impl = eng.effectImpls.get((eff as { op: string }).op)
+        if (!impl) throw new Error(`no module of this world does "${(eff as { op: string }).op}"`)
+        return impl(this, eff, ev)
+      }
     }
   }
 
@@ -776,10 +826,20 @@ export class EffectRunner {
     const w = eng.world
     if (typeof to === 'string') {
       if (to === 'story' || to === 'world') return w.get(to) ? [{ e: to }] : []
+      if (to === 'watch') {
+        const watch = eng.society.watchOf(this.hostEntity(ev))
+        return watch && w.get(watch.e) ? [watch] : []
+      }
       const r = this.ref(ev, to)
       return r ? [r] : []
     }
     if ('named' in to) return w.get(to.named) ? [{ e: to.named }] : []
+    if ('around' in to) {
+      const c = w.posOf(this.hostEntity(ev))
+      if (!c) return []
+      const r = Math.min(12, Math.max(0, to.around))
+      return w.entitiesOnMap(c.map).filter((e) => e.id !== ev.host.e && e.place.on === 'tile' && w.isAgent(e) && Math.max(Math.abs(e.place.x - c.x), Math.abs(e.place.y - c.y)) <= r).map((e) => ({ e: e.id }))
+    }
     const self = (r: Ref) => r.e === ev.host.e
     // every thing in a cell: what stands there and what makes it up, top first
     const at = (map: string, x: number, y: number): Ref[] => (w.inBounds(map, x, y) ? w.entitiesAt(map, x, y).sort((a, b) => w.cellRank(b) - w.cellRank(a)).map((e) => ({ e: e.id })) : [])

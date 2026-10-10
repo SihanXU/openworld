@@ -4,7 +4,7 @@
 // rule and guards it from then on (a learned rule is one type's, placed at one leaf: there is no
 // other instance of a class to try it on, design.md §5.16).
 
-import { RuleLibrary, buildSandbox, isDo, isHole, leaves, replay, type Expectation, type ModRequest, type Ontology, type Patch, type Rule, type Scenario } from '@lsw/engine'
+import { RuleLibrary, buildSandbox, isDo, isHole, leaves, replay, type Expectation, type ModRequest, type Ontology, type Patch, type Rule, type Scenario } from '@openworld/engine'
 
 const NARRATION = new Set(['vfx', 'say', 'log', 'emote'])
 

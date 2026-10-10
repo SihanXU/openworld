@@ -6,9 +6,9 @@ import { describe, expect, it } from 'vitest'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ModPort, RuleLibrary, buildSandbox, holeKey, placePatch, validatePatch, type Patch, type Rule, type Scenario } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
-import { SelfState } from '@lsw/agent'
+import { ModPort, RuleLibrary, buildSandbox, holeKey, placePatch, validatePatch, type Patch, type Rule, type Scenario } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
+import { SelfState } from '@openworld/agent'
 import { Modder, WorldLibrary, probe, withPatch } from '../src/index.ts'
 
 const onto = buildOntology()

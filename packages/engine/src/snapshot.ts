@@ -6,10 +6,8 @@ import type { BossState, Look, Dir, FxEvent, Id, LessonInput, PropValue, SceneSt
 import { SLOT_COUNT } from './controls.ts'
 import { parseCellId } from './cells.ts'
 import { skillsOf } from './progression.ts'
-import { OFFHAND, offhandOf, weaponOf } from './profession.ts'
-import { castLeft, knownActives, type KnownActive } from './actives.ts'
-import { activeBoon, boonsOf, companionsOf, nearAttunedWaypoint } from './boons.ts'
-import type { QuestView } from './quests.ts'
+import { OFFHAND, offhandOf, weaponOf } from './blows.ts'
+import type { JournalQuest, QuestOffer, QuestTarget } from './quests.ts'
 
 export interface ItemInfo {
   id: Id
@@ -20,6 +18,10 @@ export interface ItemInfo {
   statuses: string[]
   /** Its props, the type's under the instance's own (power, range, heal, food, element, owner…): what a tooltip tells. */
   props: Record<string, PropValue>
+  /** It is another's than the one at the keys (taking it is a theft, docs/npc-sandbox.md §2.1). */
+  steal?: boolean
+  /** Its worth (the world's prices start from it). */
+  value?: number
 }
 
 export interface EntitySnap {
@@ -74,6 +76,24 @@ export interface TileSnap {
   maxHp?: number
 }
 
+/** Where an active skill one has comes from: the skill tree, a book read, or a piece one wears (its `skill` prop). */
+export type SkillSource = 'tree' | 'book' | 'gear'
+
+/** An active skill one has now (the skill panel). */
+export interface KnownActive {
+  id: string
+  source: SkillSource
+  /** The piece that lends it (a gear skill). */
+  item?: string
+}
+
+/** A talk verb as the panel offers it: its label filled in. */
+export interface TalkOption {
+  id: string
+  label: Text
+  choices?: { id: string; label: Text }[]
+}
+
 export interface Frame {
   tick: number
   hour: number
@@ -112,12 +132,16 @@ export interface Frame {
     /** The bag's slots (row 1 is the toolbar): a stack each, or empty. */
     slots: ({ item: ItemInfo; count: number; worn?: boolean } | null)[]
     selected: number
-    /** The boons the companion following the player has been given, the one it carries, and whether a waypoint is near (boons.ts). */
+    /** The boons the companion following the player has been given, the one it carries, and whether a waypoint is near (the boons module). */
     boons?: { unlocked: string[]; active?: string; atWaypoint: boolean }
     /** What is worn in the off hand (a shield), and whether it works there (another profession's does not). */
     offhand?: ItemInfo & { works: boolean }
     /** What is worn, by slot (`head`, `body`, `ring`, `ring.2` …: the `wear:` props, the off hand's too), while it is still carried. */
     worn: Record<string, ItemInfo>
+    /** What one owes the watch of the map one is on, and its name (docs/npc-sandbox.md §2.7). */
+    wanted?: { bounty: number; by: Text }
+    /** The coin one carries. */
+    purse: number
   }
   /** A yes/no question waiting for the player (time is stopped). */
   question?: { text: Text }
@@ -137,16 +161,54 @@ export interface Frame {
     capacity?: number
     contents: ItemInfo[]
   }
+  /** The talk the one at the keys has open with a person (docs/npc-sandbox.md §2.9): who, what they think, the verbs that fit. */
+  talk?: TalkView
+  /** The trade panel open with a merchant (§2.10): its goods at its prices, what it would pay for what one carries, the purses. */
+  trade?: TradeView
+  /** A person's pockets open to a sneaking hand (§2.10): what they carry. */
+  pockets?: { id: Id; name: Text; contents: (ItemInfo & { worn?: boolean })[] }
   entities: EntitySnap[]
   tiles: TileSnap[]
   fx: FxEvent[]
   pendingMap?: string
   /** What the player's E / F keys would do right now (filled by the host, not by snapshot()). */
   prompt?: Prompt
-  /** Quests: the marks over the people on this map ('!' to give, '?' to take back), and the player's log. */
-  quests: { marks: Record<Id, '!' | '?'>; log: QuestView[] }
+  /**
+   * Quests (docs/quests.md §2.5): the marks over the people in view ('!' an offer, '?' someone to speak to), the
+   * journal (every quest taken on, its objectives and its log), the tracked quest and where its open objectives
+   * point (the markers), and the radiant offers (the notice board).
+   */
+  quests: { marks: Record<Id, '!' | '?'>; journal: JournalQuest[]; tracked?: Id; targets: QuestTarget[]; board: QuestOffer[] }
   /** The lesson at hand (docs/prologue.md, the drills): what to spotlight, the key to draw, what the keys may do. */
   lesson?: LessonView
+}
+
+/** A talk with a person, as the panel shows it. */
+export interface TalkView {
+  who: Id
+  name: Text
+  /** What they think of the one at the keys, in a word (hostile … close). */
+  regard: Text
+  /** What they hold against them, in words. */
+  grudge?: Text
+  /** What the one at the keys owes the watch here. */
+  bounty?: number
+  /** A guard has stopped them: only the watch's choices. */
+  arrest?: boolean
+  verbs: TalkOption[]
+}
+
+/** A merchant's goods and offers, as the trade panel shows them. */
+export interface TradeView {
+  who: Id
+  name: Text
+  /** What it sells, and for how much to the one at the keys. */
+  goods: { item: ItemInfo; price: number }[]
+  /** What the one at the keys carries that it would buy, and for how much. */
+  offers: { item: ItemInfo; price: number }[]
+  /** The coin each side carries. */
+  purse: number
+  theirs: number
 }
 
 /** A lesson as the view shows it: its focus resolved to a thing, a cell, cells or a panel's part. */
@@ -234,6 +296,8 @@ export interface KeyView {
   confirm?: boolean
   /** It sets what is held down there (it builds): the left button held and dragged sets one in each cell. */
   sets?: boolean
+  /** It takes what is another's (a theft, docs/npc-sandbox.md). */
+  steal?: boolean
   x: number
   y: number
   /** The target's base when it covers more than its cell (a place of the overworld, a tent): x, y, width, height. */
@@ -255,6 +319,7 @@ export function itemInfo(eng: Engine, id: Id): ItemInfo | undefined {
   const e = w.get(id)
   if (!e) return undefined
   const r = w.onto.resolve(e.type)
+  const steal = eng.society.isAnothers(e, w.player)
   return {
     id,
     type: e.type,
@@ -263,8 +328,11 @@ export function itemInfo(eng: Engine, id: Id): ItemInfo | undefined {
     tags: [...r.tags, ...(e.tags ?? [])],
     statuses: Object.keys(e.statuses ?? {}),
     props: { ...r.props, ...(e.props ?? {}) },
+    ...(steal && { steal }),
+    value: eng.society.value(e),
   }
 }
+
 
 /** The cells of the room a place lies in (a derived region: walls round, a floor over it), if any. */
 function roomCells(eng: Engine, pos: { map: string; x: number; y: number; z?: number }): [number, number][] | undefined {
@@ -362,7 +430,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
   })
   const fx = w.drainFx()
   const sc = w.scene
-  return {
+  const frame: Frame = {
     tick: w.state.tick,
     hour: w.hour(),
     night: nightHours(w.nightShift()),
@@ -378,24 +446,20 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       facing: p.facing ?? 'down',
       hp: w.num(p, 'hp'),
       maxHp: w.num(p, 'maxHp', 1),
-      hunger: w.num(p, 'hunger', w.num(p, 'maxHunger')),
-      maxHunger: w.num(p, 'maxHunger'),
+      // hunger: a module's (needs), none without one
+      hunger: 0,
+      maxHunger: 0,
       statuses: Object.keys(p.statuses ?? {}),
       props: { ...w.onto.resolve(p.type).props, ...(p.props ?? {}) },
       skills: skillsOf(p),
       stations: [...w.stationsNear(p)],
       held: p.held ? itemInfo(eng, p.held) : undefined,
-      ...((known) => ({
-        skillbar: eng.controls.skillbar().map((id) => (id ? { id, left: castLeft(eng, p, id), cooldown: eng.skills.get(id)?.active?.cooldown ?? 0, usable: known.some((k) => k.id === id) } : null)),
-        actives: known,
-      }))(knownActives(eng, p)),
+      // the skill bar and the active skills one has: a module's (classes), none without one
+      skillbar: [],
+      actives: [],
       inventory: (p.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),
       slots,
       selected: p.selected ?? 0,
-      boons: (() => {
-        const bird = companionsOf(w, p)[0]
-        return bird && { unlocked: boonsOf(w, bird), active: activeBoon(bird), atWaypoint: nearAttunedWaypoint(w, p) }
-      })(),
       offhand: (() => {
         // what the off-hand slot names while it is still carried; `works`: and it is the wearer's to wield
         const id = w.prop(p, OFFHAND)
@@ -408,6 +472,8 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
         const info = item && (item.place.on === 'inside' || item.place.on === 'hand') && item.place.holder === p.id ? itemInfo(eng, item.id) : undefined
         return info ? [[k.slice(5), info]] : []
       })),
+      // what one owes the watch here, and the coin one carries: a module's (society)
+      purse: 0,
     },
     question: w.state.question ? { text: w.state.question.text } : undefined,
     quests: questsOf(eng, entities),
@@ -425,10 +491,13 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     fx,
     pendingMap: eng.pendingTransition?.map,
   }
+  // what the world's modules show (their HUD's fields)
+  for (const h of eng.hooks.frame) h(frame)
+  return frame
 }
 
 
-/** The marks over the people in view, and the player's quest log. */
+/** The marks over the people in view, the journal, the tracked quest's markers, the notice board's offers. */
 function questsOf(eng: Engine, entities: EntitySnap[]): Frame['quests'] {
   const marks: Record<Id, '!' | '?'> = {}
   if (eng.quests.defs.length)
@@ -437,5 +506,6 @@ function questsOf(eng: Engine, entities: EntitySnap[]): Frame['quests'] {
       const m = eng.quests.mark(e.id)
       if (m) marks[e.id] = m
     }
-  return { marks, log: eng.quests.log() }
+  const tracked = eng.quests.tracked()?.id
+  return { marks, journal: eng.quests.journal(), ...(tracked && { tracked }), targets: eng.quests.targets(), board: eng.quests.board() }
 }

@@ -89,7 +89,7 @@ fast one-call pipeline.
 ### 3.3 Engine tasks (`tools/src/engine-tasks.ts`)
 
 When a request needs a new primitive, condition or expectation, the task is the engine's code:
-- **Workspace:** a copy of `packages/engine` and `packages/content` as its own git repository;
+- **Workspace:** a copy of `packages/engine` and `games/openworld/content` as its own git repository;
   dependencies are linked in and line endings normalized.
 - **Task:** an issue, plus a **hidden fail-to-pass test** (SWE-bench style). It is solved when
   the hidden test passes and so does everything else.

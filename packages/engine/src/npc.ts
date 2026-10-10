@@ -178,6 +178,12 @@ export class NpcSim {
     return rt.attended <= ATTEND_TURNS
   }
 
+  /** Is the person holding their round for one who faces them (attended)? They keep their place: another on its way goes round. */
+  holding(e: Entity): boolean {
+    const a = this.rt.get(e.id)?.attended ?? 0
+    return a > 0 && a <= ATTEND_TURNS
+  }
+
   private runtime(e: Entity): Runtime {
     const rt = this.rt.get(e.id) ?? { wait: 0, blocked: 0 }
     this.rt.set(e.id, rt)
@@ -345,6 +351,8 @@ export class NpcSim {
       return true
     }
     const goal = `${active}:${gx}:${gy}`
+    // a path that no longer starts beside them (they were made to step aside) is planned again
+    if (rt.path?.length && Math.abs(rt.path[0][0] - x) + Math.abs(rt.path[0][1] - y) !== 1) rt.path = undefined
     if (!rt.path || rt.goal !== goal || !rt.path.length) {
       if (this.budget <= 0) return true
       this.budget--

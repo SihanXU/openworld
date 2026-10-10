@@ -4,8 +4,8 @@
 // the model can use: the brief replaces the rules the request carries, and the scenario (the
 // harness replays it) is left out.
 
-import type { ModRequest, ModSpec, Patch, Rule, StatusDef, TypeDef } from '@lsw/engine'
-import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta } from '@lsw/agent'
+import type { ModRequest, ModSpec, Patch, Rule, StatusDef, TypeDef } from '@openworld/engine'
+import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta } from '@openworld/agent'
 
 type Episode = AgentEpisode<ModRequest, Patch>
 import { compactRule } from './tools.ts'

@@ -1,0 +1,37 @@
+{
+  "id": "npc.mira",
+  "type": "actor/person/villager",
+  "name": { "en": "Mira", "zh": "米拉" },
+  "place": { "on": "tile", "map": "glade", "x": 9, "y": 3 },
+  "facing": "down",
+  "props": { "age": 34 },
+  "npc": {
+    "role": "villager",
+    "schedule": [
+      { "from": 21, "to": 6, "at": "cottage:bed", "activity": "sleep" },
+      { "from": 6, "to": 12, "at": "glade:garden", "activity": "tend the garden" },
+      { "from": 12, "to": 13, "at": "cottage:table", "activity": "eat" },
+      { "from": 13, "to": 18, "at": "glade:pond", "activity": "fetch water" },
+      { "from": 18, "to": 21, "at": "glade:door", "activity": "sit by the door" }
+    ],
+    "person": {
+      "temperament": { "personality": "kind", "manner": "plain", "social": "warm", "outlook": "hopeful" },
+      "lines": [
+        {
+          "key": "greeting:first",
+          "text": {
+            "en": "A traveller! Sit a while. The glade does not get many.",
+            "zh": "有客人！坐会儿吧。这片空地很少有人来。"
+          },
+          "once": true
+        },
+        { "key": "default", "text": { "en": "The glade is quiet. Mostly.", "zh": "这片空地很安静。大多数时候。" } },
+        {
+          "key": "default",
+          "text": { "en": "Mind the slime by the trees. It bites.", "zh": "小心树边那只史莱姆，它会咬人。" }
+        },
+        { "key": "hour:evening", "text": { "en": "The light goes fast under the trees.", "zh": "树底下天黑得很快。" } }
+      ]
+    }
+  }
+}

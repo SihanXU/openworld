@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, holeKey, validatePatch, replay, type ModWorkspace, type Patch, type Rule } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { ModPort, RuleLibrary, buildSandbox, holeKey, validatePatch, replay, type ModWorkspace, type Patch, type Rule } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { WorldLibrary } from '../src/library.ts'
 
-vi.mock('@lsw/engine', async (original) => {
-  const engine = await original<typeof import('@lsw/engine')>()
+vi.mock('@openworld/engine', async (original) => {
+  const engine = await original<typeof import('@openworld/engine')>()
   return { ...engine, validatePatch: vi.fn(engine.validatePatch), replay: vi.fn(engine.replay) }
 })
 

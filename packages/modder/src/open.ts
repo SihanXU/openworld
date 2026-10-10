@@ -1,14 +1,18 @@
-// Wiring for this world: the content's ontology and base rules, the shared library file and
-// the self-state directory under one data directory.
+// Wiring for a world: the game's ontology and base rules (its GameDef, handed over: the modder imports
+// no game), the shared library file and the self-state directory under one data directory.
 
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import type { GameDef } from '@openworld/engine'
+import { gameDefOf, type Bundle } from '@openworld/format'
+import { compileProject } from '@openworld/format/src/node.ts'
+// the engine's official modules, which a game's ontology may name (docs/engine-split.md S3)
+import '@openworld/modules'
 import { WorldLibrary } from './library.ts'
-import { modelFromEnv, type Model } from '@lsw/agent'
+import { modelFromEnv, type Model } from '@openworld/agent'
 import { Modder } from './pipeline.ts'
-import { SelfState } from '@lsw/agent'
+import { SelfState } from '@openworld/agent'
 
 export const REPO = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
 
@@ -17,6 +21,8 @@ export const REPO = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
 if (existsSync(join(REPO, '.env'))) process.loadEnvFile(join(REPO, '.env'))
 
 export interface OpenOptions {
+  /** The game whose world this modder patches. */
+  game: GameDef
   /** Holds library.jsonl and modder-state/ (default: $LSW_DATA or <repo>/var). */
   data?: string
   /** Default: from the environment (model.ts modelFromEnv); null forces none. */
@@ -24,10 +30,30 @@ export interface OpenOptions {
   log?: (line: string) => void
 }
 
-export function openModder(o: OpenOptions = {}): Modder {
+export function openModder(o: OpenOptions): Modder {
   const data = o.data ?? process.env.LSW_DATA ?? join(REPO, 'var')
-  const library = new WorldLibrary(buildOntology(), [...BASE_RULES, ...STORY_RULES], join(data, 'library.jsonl'))
+  const library = new WorldLibrary(o.game.ontology(), o.game.rules, join(data, 'library.jsonl'))
   const state = SelfState.open(join(data, 'modder-state'))
   const model = o.model === null ? undefined : (o.model ?? modelFromEnv())
   return new Modder({ library, state, model, log: o.log })
+}
+
+/**
+ * A game's definition, for the command lines: a bundle (its bundle.json, or the folder that holds one), a
+ * project's folder (compiled: its game.json), or a module (its default export, or `GAME`).
+ */
+export async function loadGame(module: string): Promise<GameDef> {
+  const at = resolve(REPO, module)
+  const dir = existsSync(at) && statSync(at).isDirectory()
+  if (at.endsWith('.json') || (dir && existsSync(join(at, 'bundle.json')))) return gameDefOf(JSON.parse(readFileSync(at.endsWith('.json') ? at : join(at, 'bundle.json'), 'utf8')) as Bundle)
+  if (dir && existsSync(join(at, 'game.json'))) {
+    const c = compileProject(at)
+    const errors = c.problems.filter((p) => p.level === 'error')
+    if (errors.length) throw new Error(`${module} does not compile: ${errors.map((p) => p.message).join('; ')}`)
+    return gameDefOf(c.bundle)
+  }
+  const m = (await import(pathToFileURL(resolve(REPO, module)).href)) as { default?: GameDef; GAME?: GameDef }
+  const game = m.default ?? m.GAME
+  if (!game) throw new Error(`${module} exports no game (a default export or GAME)`)
+  return game
 }

@@ -9,7 +9,7 @@
     "var/boss-art/alberic-v3/sources/idle.png"
   ],
   "export": {
-    "directory": "packages/client/public/assets/lsw/Bosses/alberic/v4",
+    "directory": "games/openworld/public/assets/lsw/Bosses/alberic/v4",
     "reviewDirectory": "docs/boss-art/alberic-v4",
     "bodyCell": 128,
     "bodyColumns": 12,

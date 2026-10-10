@@ -2,8 +2,8 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Scenario } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Scenario } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, confirm, withPatch, type ChatMessage, type ChatOptions, type Finding } from '../src/index.ts'
 
 // The auditor (audit.ts, design.md §13): an agent plays against a patch in the sandbox, out to break
@@ -132,6 +132,25 @@ describe('the auditor in the pipeline', () => {
     expect(calls.audit).toBe(0)
     expect(library.lib.rules.has('patch/stone-creak')).toBe(true)
     expect(state.journalOf('audit')).toMatchObject([{ episode: reply.episode, rules: ['patch/stone-creak'], skipped: 'narrates only', usage: { calls: 0 } }])
+  })
+
+  it('live: an auditor that fails keeps the patch, and the journal says it failed (not that it found nothing)', async () => {
+    let audits = 0
+    const model = new ScriptedModel((_messages: ChatMessage[], opts: ChatOptions) => {
+      if (opts.purpose === 'audit') {
+        audits++
+        throw new Error('model: no answer within 180000 ms')
+      }
+      if (opts.purpose === 'design') return { patch: bane, summary: 'a stone honed into a blade' }
+      return {}
+    })
+    const { library, state, modder } = setup(model, 'live')
+    const reply = await modder.resolve({ request: useRequest() })
+    expect(reply.outcome).toBe('accepted')
+    await modder.settled()
+    expect(audits).toBe(1)
+    expect(library.lib.rules.has('patch/stone-bane')).toBe(true)
+    expect(state.journalOf('audit')).toMatchObject([{ episode: reply.episode, confirmed: [], error: 'model: no answer within 180000 ms' }])
   })
 
   it('offline: a draft the auditor breaks goes back with the evidence; the next one ships', async () => {

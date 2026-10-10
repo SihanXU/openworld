@@ -4,7 +4,7 @@
 // trees, a share S of the class the hole reaches), S2 a hole one class was asked about N times.
 // S3, the person's own request, is the driver's (tools/src/upstream.ts).
 
-import { isA, placed, type Cond, type Effect, type Leaf, type Ontology, type Rule, type Tree } from '@lsw/engine'
+import { isA, placed, type Cond, type Effect, type Leaf, type Ontology, type Rule, type Tree } from '@openworld/engine'
 import type { WorldLibrary } from './library.ts'
 
 /** The thresholds the user set: K types alike, a share S of the class, N questions. */

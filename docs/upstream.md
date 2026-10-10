@@ -51,7 +51,7 @@ that distinguish the host from its class) is a separate tool, and its output fee
 ## 3. The task: a repository, an issue, tests the agent cannot touch
 
 The agent is `packages/agent` (loop.ts), as for engine tasks (`tools/src/engine-tasks.ts`), with
-the workspace machinery of those: a copy of the repository with `packages/content` writable and
+the workspace machinery of those: a copy of the repository with `games/openworld/content` writable and
 `packages/engine` read only, dependencies linked in, line endings normalized, run in the
 `lsw-sandbox` container (no network, no `.env`).
 
@@ -71,9 +71,9 @@ right block of `rules.ts`; a `doc`; a `label` if an input reaches it.
 2. **No defined outcome changes.** The coverage sweep, run on the base before and after: every
    cell that was `specific` or `generic` resolves to the same rule id, except cells the proposal
    is for (undefined before). The existing baseline test ("never takes a purpose away") stays.
-3. **The content suite.** `vitest run packages/content packages/tools` (ties among base rules, the
+3. **The content suite.** `vitest run games/openworld/content games/openworld/tools` (ties among base rules, the
    validator sweep, the demo's completeness, the economy and yield sweeps, `check:world`).
-4. **Bounds.** The diff touches only `packages/content/src/rules.ts` (and `items.ts` /
+4. **Bounds.** The diff touches only `games/openworld/content/src/rules.ts` (and `items.ts` /
    `ontology.ts` when a type or status is needed), at most `L` lines (default 80), one new rule
    (plus at most one type or status).
 
@@ -112,8 +112,8 @@ changes until then.
 | Piece | Where |
 |---|---|
 | candidate detection (S1, S2), tree normalization and equivalence | `packages/modder/src/promote.ts` |
-| the task: workspace, issue, generated tests | `packages/tools/src/upstream.ts` (reusing `engine-tasks.ts`'s workspace and `agent/env.ts`'s isolation) |
-| the promotion test template | `packages/tools/tasks/upstream/promotion.test.ts.tmpl` |
+| the task: workspace, issue, generated tests | `games/openworld/tools/src/upstream.ts` (reusing `engine-tasks.ts`'s workspace and `agent/env.ts`'s isolation) |
+| the promotion test template | `games/openworld/tools/tasks/upstream/promotion.test.ts.tmpl` |
 | the driver | `npm run upstream -- scan \| propose <hole> <class> \| status` |
 | the record | `var/modder-state/memory/episodes/<id>.json` with `kind: 'upstream'`; `harness/CHANGELOG.md` untouched (this is content, not the harness) |
 
@@ -137,10 +137,10 @@ on every curriculum checkpoint.
 | Piece | File |
 |---|---|
 | S1 and S2, `normalizeTree` / `normalKey`, `lowestCommonAncestor`, `askedCounts` (every question the log took, by `type|kind|hole`), `candidates()` | `packages/modder/src/promote.ts` |
-| the workspace (`contentWorkspace`: the engine's files read-only and hashed; the judge's sweep runner in `.upstream/`, out of the diff), the issue (`issueFor`, the hole quoted from its source by `holeSource`), the promotion cases (`promotionCases`, derive.ts's `effectsOf` without `resolvedBy`) and test (`promotionTest`), the coverage regression (`compareSweeps`: a defined cell keeps its rule; what is newly defined is at the hole, on the class), the bounds (`checkBounds`), the task (`upstreamTask`), the proposal (`openProposal`: a branch `upstream/<hole>-<class>` from HEAD in a temporary worktree, the diff applied, pushed, `gh pr create --base main --label upstream`), the guard rails (`Proposals`: `var/upstream/open.json`, one open per hole and class, a daily cap), the driver (`propose`, `scan`, `byHand`, `status`) | `packages/tools/src/upstream.ts` |
-| the promotion test template (`/*__CASES__*/` takes the cases) | `packages/tools/tasks/upstream/promotion.test.ts.tmpl` |
-| the sweep's cells carry `open`, the key an answer would go to (`type|kind|hole`): the class's reach at a hole | `packages/tools/src/coverage.ts` |
-| tests: three slimes alike → one S1 candidate; a differing sibling apart; S2 at five questions; the task's issue; the promotion test failing on the content as it is and passing with a class rule; the whole verdict; the bounds and the regression | `packages/modder/test/promote.test.ts`, `packages/tools/test/upstream.test.ts` |
+| the workspace (`contentWorkspace`: the engine's files read-only and hashed; the judge's sweep runner in `.upstream/`, out of the diff), the issue (`issueFor`, the hole quoted from its source by `holeSource`), the promotion cases (`promotionCases`, derive.ts's `effectsOf` without `resolvedBy`) and test (`promotionTest`), the coverage regression (`compareSweeps`: a defined cell keeps its rule; what is newly defined is at the hole, on the class), the bounds (`checkBounds`), the task (`upstreamTask`), the proposal (`openProposal`: a branch `upstream/<hole>-<class>` from HEAD in a temporary worktree, the diff applied, pushed, `gh pr create --base main --label upstream`), the guard rails (`Proposals`: `var/upstream/open.json`, one open per hole and class, a daily cap), the driver (`propose`, `scan`, `byHand`, `status`) | `games/openworld/tools/src/upstream.ts` |
+| the promotion test template (`/*__CASES__*/` takes the cases) | `games/openworld/tools/tasks/upstream/promotion.test.ts.tmpl` |
+| the sweep's cells carry `open`, the key an answer would go to (`type|kind|hole`): the class's reach at a hole | `games/openworld/tools/src/coverage.ts` |
+| tests: three slimes alike → one S1 candidate; a differing sibling apart; S2 at five questions; the task's issue; the promotion test failing on the content as it is and passing with a class rule; the whole verdict; the bounds and the regression | `packages/modder/test/promote.test.ts`, `games/openworld/tools/test/upstream.test.ts` |
 
 ```
 npm run upstream -- scan [--data var] [--sweep]          # the candidates now; --sweep adds the sweep's reach and each learned rule's cells
@@ -157,7 +157,7 @@ What §4 describes after the merge (`library prune`, the next sweep) needs nothi
 answers the scenes, the validator reports it, the learned rules go.
 
 Deviations from the design above: the verdict runs the content suite only (`vitest run
-packages/content`; the tools' suite — the demo's completeness, the baseline — is not in the
+games/openworld/content`; the tools' suite — the demo's completeness, the baseline — is not in the
 workspace, which holds the engine and the content as the engine tasks do); a proposal is judged
 locally with the person running it (`localRun`), or in the `lsw-sandbox` container unattended, as
 engine tasks are; the regression also refuses a rule that newly answers cells outside the hole and

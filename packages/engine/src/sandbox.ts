@@ -20,6 +20,9 @@ export interface ReplayResult {
 }
 
 export function buildSandbox(sc: Scenario, ontology: Ontology, lib: RuleLibrary): Engine {
+  // a scenario written by hand (a rule's test) that is not one is said so, with what one is, not met with a crash deep inside
+  const why = scenarioShape(sc)
+  if (why) throw new Error(why)
   const rows = sc.terrain ?? Array.from({ length: 5 }, () => Array(5).fill('grass'))
   const height = rows.length
   const width = rows[0].length
@@ -319,6 +322,18 @@ export function chainLoop(eng: Engine, ev: GameEvent): string | undefined {
   }
   if (loop) return loop
   if (dispatched > CHAIN_EVENTS || eng.waiting(ROOT)) return `it sets off ${dispatched} events and is still going after ${CHAIN_TICKS} ticks`
+  return undefined
+}
+
+/** What is wrong with the shape of a scenario, if anything (a test's `given` must be one, written out). */
+export function scenarioShape(sc: unknown): string | undefined {
+  const want = 'a scenario is {terrain?: string[][] (rows of terrain ids), entities: [{key, type, x, y, …}], event: {kind, host, …}}, written out in full'
+  if (!sc || typeof sc !== 'object') return `not a scenario: ${JSON.stringify(sc)?.slice(0, 60)}; ${want}`
+  const s = sc as Partial<Scenario> & Record<string, unknown>
+  if (!Array.isArray(s.entities)) return `not a scenario (no entities list; keys: ${Object.keys(s).join(', ') || 'none'}); ${want}`
+  if (s.terrain !== undefined && !(Array.isArray(s.terrain) && s.terrain.length && s.terrain.every((r) => Array.isArray(r) && r.length === s.terrain![0].length)))
+    return `terrain must be equal rows of terrain ids; ${want}`
+  for (const e of s.entities) if (!e || typeof e !== 'object' || typeof e.key !== 'string' || typeof e.type !== 'string') return `every entity needs a key and a type: ${JSON.stringify(e)?.slice(0, 80)}; ${want}`
   return undefined
 }
 

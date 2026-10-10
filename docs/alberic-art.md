@@ -86,7 +86,7 @@ extrapolator. Clicking a mode starts at its first rendered pose; all seven clips
 on every pose. Facing changes keep the clip running, clicking the same action restarts it,
 and returning to live mode clears the override and resumes authoritative combat snapshots.
 
-`packages/client/public/assets/lsw/Bosses/alberic/v5/`:
+`games/openworld/public/assets/lsw/Bosses/alberic/v5/`:
 
 - `actions.png`: 4096 × 2688 RGBA, 32 columns × 21 rows, 128px cells, scale 1.25, anchor Y 88.
 - Rows 0–6: down; 7–13: right; 14–20: up. Each block is idle, walk, thorns, arrow, volley,
@@ -120,7 +120,7 @@ including after reloading an existing save. Atlas selection is pure and covered 
   **not** an in-game screenshot or a campaign spawn change.
 - `alberic-art-v5-prompts.json`: exact prompts, references, frame layout, source paths and export settings.
 - Sources are in `var/boss-art/alberic-v5/sources/`; originals also remain in the image tool cache.
-  Export from the project root with `swift packages/tools/src/art/export-alberic.swift --v5`.
+  Export from the project root with `swift games/openworld/tools/src/art/export-alberic.swift --v5`.
   `--v4` reproduces twelve poses, no version flag reproduces v3; `--v2` the retained portrait version.
 - Runtime frames are audited in `boss-art/alberic-v5/frames.json`. Tests decode the PNG pixels
   and check nonempty art, real alpha, transparent borders, uniqueness and all directional rows.

@@ -3,7 +3,7 @@
 // the latency bench, every malformed first answer had a correct rule inside the wrong wrapper.
 // Each fix is recorded on the attempt, so the episode shows what was changed and why.
 
-import { PRIMITIVES, selectByType, type Artifact, type Cond, type Effect, type Ontology, type Patch, type Rule, type Selector, type Tree } from '@lsw/engine'
+import { PRIMITIVES, selectByType, type Artifact, type Cond, type Effect, type Ontology, type Patch, type Rule, type Selector, type Tree } from '@openworld/engine'
 
 const looksLikeRule = (x: Record<string, unknown>) => typeof x.on === 'string' && (!!x.tree || Array.isArray(x.do))
 
@@ -87,7 +87,7 @@ function flatEffects(t: Tree, id: string, fixes: string[]): Tree {
   return n ? { ...t, do: effects } : t
 }
 
-export { placePatch } from '@lsw/engine'
+export { placePatch } from '@openworld/engine'
 
 /**
  * A selector naming a terrain by its bare id (`{type: "bush"}`) means the tile type `tile/bush`:

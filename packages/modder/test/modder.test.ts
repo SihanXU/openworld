@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url'
 import type { AddressInfo } from 'node:net'
 import { Server } from 'node:http'
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, holeKey, patchKey, placePatch, restoreLibrary, validatePatch, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { ModPort, RuleLibrary, buildSandbox, holeKey, patchKey, placePatch, restoreLibrary, validatePatch, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, parseJson, qualifyTerrains, scriptFromFile, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
 
 const onto = buildOntology()
@@ -539,7 +539,7 @@ describe('the OpenAI-compatible adapter', () => {
     }).listen(0)
     await listening(server)
     try {
-      const { OpenAICompatModel } = await import('@lsw/agent')
+      const { OpenAICompatModel } = await import('@openworld/agent')
       const model = new OpenAICompatModel({ baseUrl: `http://localhost:${(server.address() as AddressInfo).port}/v1`, apiKey: 'test', model: 'mock-1' })
       const { modder, state } = setup(model)
       const reply = await modder.resolve({ request: request() })
@@ -779,7 +779,7 @@ describe('the tail guard', () => {
       })
     }).listen(0)
     await listening(server)
-    const { OpenAICompatModel } = await import('@lsw/agent')
+    const { OpenAICompatModel } = await import('@openworld/agent')
     const model = new OpenAICompatModel({ baseUrl: `http://localhost:${(server.address() as AddressInfo).port}/v1`, apiKey: 't', model: 'm', extraBody: { provider: { order: ['a', 'b'] } } })
     return { model, bodies, close: () => (server.closeAllConnections(), server.close()) }
   }
@@ -1156,6 +1156,37 @@ describe('the live profile', () => {
     expect(library.since(0).map((e) => ('remove' in e ? `-${e.remove}` : `+${e.rules.join()}`))).toEqual(['+patch/stone-stills-slime', '-patch/stone-stills-slime', '+patch/stone-stills-creature'])
     const rev = state.episodes().map((e) => state.episode(e.id)!).find((e) => e.revises === first.episode)!
     expect(rev.outcome).toBe('accepted')
+  })
+
+  it('a background revision does not hold the lane a player\'s request waits in', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    let reviews = 0
+    let lives = 0
+    let revising = false
+    const model = new ScriptedModel(async (messages, opts) => {
+      if (opts.purpose === 'review') return reviews++ === 0 ? { verdict: 'revise', notes: ['Any creature can be tied up, not just slimes.'] } : { verdict: 'ship' }
+      if (opts.purpose === 'reflect') return {}
+      if (opts.tools?.length || messages.some((m) => m.role === 'tool')) {
+        revising = true
+        if (messages[messages.length - 1].role === 'user') return { content: '', toolCalls: [{ id: 'x', name: 'get_type', args: { id: 'item/tool/rope' } }] }
+        await gate
+        return { patch: patchOf(bindRule()) }
+      }
+      return { patch: patchOf(noTests(bindRule(`patch/stone-stills-slime-${lives++}`))) }
+    })
+    const { modder, state } = setup(model, undefined, 'live')
+    state.setHarness({ ...state.harness(), review: { ...state.harness().review, unflagged: true } }, 'test: review everything')
+    expect((await modder.resolve({ request: request() })).outcome).toBe('accepted')
+    for (let i = 0; i < 200 && !revising; i++) await new Promise((r) => setTimeout(r, 10))
+    expect(revising).toBe(true)
+    // another green slime offered a stone: the same lane (the type's tree at this hole), while its revision is still being designed
+    const again = request()
+    expect(laneOf(again)).toBe(laneOf(request()))
+    const second = await Promise.race([modder.resolve({ request: again }), new Promise<'blocked'>((r) => setTimeout(() => r('blocked'), 3000))])
+    expect(second).not.toBe('blocked')
+    release()
+    await modder.settled()
   })
 
   it('flags a rule that changes nothing for the reviewer', async () => {

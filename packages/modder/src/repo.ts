@@ -18,8 +18,8 @@ import { tmpdir } from 'node:os'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
-import { DockerEnv, LocalEnv, SANDBOX_LIMITS, chooseIsolation, hostUser, sandboxImage, sh, type AgentTask, type Env, type Isolation } from '@lsw/agent'
-import type { EntityInfo, LibraryData, ModRequest, ModSpec, Ontology, Patch, Rule, RuleLibrary, StatusDef, TypeDef } from '@lsw/engine'
+import { DockerEnv, LocalEnv, SANDBOX_LIMITS, chooseIsolation, hostUser, sandboxImage, sh, type AgentTask, type Env, type Isolation } from '@openworld/agent'
+import type { EntityInfo, LibraryData, ModRequest, ModSpec, Ontology, Patch, Rule, RuleLibrary, StatusDef, TypeDef } from '@openworld/engine'
 
 const VALIDATE_CLI = fileURLToPath(new URL('./validate-cli.ts', import.meta.url))
 const REPO = fileURLToPath(new URL('../../..', import.meta.url))
@@ -56,6 +56,8 @@ async function worldEnv(dir: string, iso: Isolation): Promise<Env> {
 
 export interface WorldRepoState {
   request: ModRequest
+  /** The world's own ontology (without the library's types): what the validator checks against. */
+  ontology: Ontology
   library: LibraryData
   /** patch rules this task may replace (a revision) */
   replaces: string[]
@@ -166,7 +168,7 @@ function issueOf(req: ModRequest, revise?: { rules: Rule[]; notes: string[] }, a
   ].join('\n')
 }
 
-export async function materializeWorld(o: { request: ModRequest; library: RuleLibrary; ontology: Ontology; spec: ModSpec; revise?: { rules: string[]; notes: string[] }; audit?: { notes: string[]; draft: Patch }; isolation?: Isolation }): Promise<WorldRepo> {
+export async function materializeWorld(o: { request: ModRequest; library: RuleLibrary; ontology: Ontology; base: Ontology; spec: ModSpec; revise?: { rules: string[]; notes: string[] }; audit?: { notes: string[]; draft: Patch }; isolation?: Isolation }): Promise<WorldRepo> {
   const iso = o.isolation ?? (await worldIsolation())
   const dir = mkdtempSync(join(tmpdir(), 'lsw-world-'))
   const lib = o.library
@@ -193,7 +195,7 @@ export async function materializeWorld(o: { request: ModRequest; library: RuleLi
     'validate.mjs',
     `// the tests of this repository: the engine's validator on the rules under rules/patch/\nimport { spawnSync } from 'node:child_process'\nconst r = spawnSync(process.execPath, ${JSON.stringify([asSeen(TSX, iso), asSeen(VALIDATE_CLI, iso), '.'])}, { stdio: 'inherit' })\nprocess.exit(r.status ?? 1)\n`,
   )
-  const state: WorldRepoState = { request: o.request, library: lib.toJSON(), replaces: o.revise?.rules ?? [] }
+  const state: WorldRepoState = { request: o.request, ontology: o.base, library: lib.toJSON(), replaces: o.revise?.rules ?? [] }
   write(dir, '.lsw/state.json', JSON.stringify(state))
   const manifest = Object.fromEntries(DIRS.flatMap((d) => files(dir, d)).map((f) => [f, hash(readFileSync(join(dir, f), 'utf8'))]))
   write(dir, '.lsw/manifest.json', JSON.stringify(manifest))

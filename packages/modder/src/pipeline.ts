@@ -14,16 +14,16 @@
 // Two profiles of one harness (state.ts): LIVE while a player waits, OFFLINE for everything
 // nobody waits on — curriculum, a failed live request worked again, a revision after review.
 
-import { artProblems, buildModSpec, closestTypes, holeKey, patchKey, type ModProgress, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef } from '@lsw/engine'
+import { artProblems, buildModSpec, closestTypes, holeKey, patchKey, type ModProgress, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef } from '@openworld/engine'
 import { briefOf, relatedRules } from './brief.ts'
 import { changesNothing, deriveTests } from './derive.ts'
 import { normalizePatch, placePatch, qualifyTerrains } from './fixes.ts'
 import type { WorldLibrary } from './library.ts'
-import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@lsw/agent'
+import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@openworld/agent'
 import { materializeWorld } from './repo.ts'
 import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, type Creation, type Need } from './prompts.ts'
 import { coarseTerms, signatureOf, type Signature } from './signature.ts'
-import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@lsw/agent'
+import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@openworld/agent'
 
 /**
  * A backend that cannot answer says so in its error: out of quota or throttling (claude-code's session
@@ -302,7 +302,9 @@ export class Modder {
   /** A design in its lane, then in a slot (live first); one that waited is answered by what was committed meanwhile, if it can be. */
   private async episode(req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, eo: EpisodeOptions): Promise<ResolveReply> {
     if (!this.progress.has(sig.key)) this.progress.set(sig.key, { stage: 'queued' })
-    const leave = await this.enterLane(laneOf(req))
+    // a revision is background work on a patch already shipped: it takes no lane, so a player's request
+    // never waits behind it (its commit is validated against the library as it is then, like any other)
+    const leave = eo.revise ? () => {} : await this.enterLane(laneOf(req))
     const release = await this.design.acquire(eo.profile === 'live' ? 0 : 1)
     try {
       if (!eo.revise) {
@@ -547,6 +549,7 @@ export class Modder {
       request: req,
       library: lib,
       ontology: library.fullOntology(lib),
+      base: library.ontology,
       spec: buildModSpec(library.ontology, lib),
       revise: eo.revise ? { rules: replaces, notes: eo.revise.notes } : undefined,
     })
@@ -574,7 +577,7 @@ export class Modder {
         ep.attempts.push({ phase: 'audit', patch, errors: auditNotes(found.confirmed), warnings: [], audit: { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length } })
         // what the auditor broke goes back to the agent once, as the pipeline gives it to the designer
         if (h.repair.maxRounds > 0 && patch) {
-          const again = await materializeWorld({ request: req, library: lib, ontology: library.fullOntology(lib), spec: buildModSpec(library.ontology, lib), revise: eo.revise ? { rules: replaces, notes: eo.revise.notes } : undefined, audit: { notes: auditNotes(found.confirmed), draft: patch } })
+          const again = await materializeWorld({ request: req, library: lib, ontology: library.fullOntology(lib), base: library.ontology, spec: buildModSpec(library.ontology, lib), revise: eo.revise ? { rules: replaces, notes: eo.revise.notes } : undefined, audit: { notes: auditNotes(found.confirmed), draft: patch } })
           try {
             const second = await runAgent({ ...again.task, terms: sig.terms }, { model: this.backend!, state, harness: h, record: false, log: this.opts.log })
             ep.usage = { calls: ep.usage.calls + second.episode.usage.calls, input: ep.usage.input + second.episode.usage.input, output: ep.usage.output + second.episode.usage.output, cost: (ep.usage.cost ?? 0) + (second.episode.usage.cost ?? 0) }
@@ -614,7 +617,7 @@ export class Modder {
         if (!req?.scenario) return undefined
         const before = this.opts.library.fork((e) => !('patch' in e && e.request === req.id))
         if (before.covering(req)) return undefined // something else answers it now: no test of the harness
-        const repo = await materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), spec: buildModSpec(before.ontology, before.lib) })
+        const repo = await materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), base: before.ontology, spec: buildModSpec(before.ontology, before.lib) })
         // the task carries its own release: its workspace and its container go with it, whoever cleans up
         return { ...repo.task, terms: ep.terms, dispose: repo.dispose }
       },
@@ -648,7 +651,7 @@ export class Modder {
       this.later(`audit ${ep.id}`, async () => {
         const model = new Meter(this.backend!)
         const found = await this.audit(model, req, ep.patch!, ctx, h)
-        this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, confirmed: found.confirmed.map(({ evidence: _, ...f }) => f), unconfirmed: found.unconfirmed.map((u) => `${u.finding.title}: ${u.why}`), usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
+        this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, confirmed: found.confirmed.map(({ evidence: _, ...f }) => f), unconfirmed: found.unconfirmed.map((u) => `${u.finding.title}: ${u.why}`), ...(found.error && { error: found.error }), usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
         if (!found.confirmed.length) return
         for (const id of ep.rules) this.opts.library.remove(id, this.now())
         this.log(`${ep.id} audit: ${found.confirmed.map((f) => `${f.kind}: ${f.title}`).join('; ')} → removed ${ep.rules.join(', ')}`)
@@ -765,7 +768,7 @@ export class Modder {
       // out is no audit: that is the caller's to handle (not shipped unaudited before shipping)
       if (this.down()) throw err
       this.log(`audit failed: ${(err as Error).message}`)
-      return { confirmed: [], unconfirmed: [] }
+      return { confirmed: [], unconfirmed: [], error: (err as Error).message }
     }
   }
 
