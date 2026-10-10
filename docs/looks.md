@@ -61,7 +61,7 @@ Colour: one colour per key gives both ramps (`figure/color.ts`): the sprite's th
 gradient (lines → shadow → the colour at value 180 → light → highlight), with painters' hue shift. The hair on
 the map and in the portrait is the same colour by construction.
 
-## 4. The art pipeline (`packages/tools/src/art/looks/portrait/`)
+## 4. The art pipeline (`games/openworld/tools/src/art/looks/portrait/`)
 
 - **Model**: Qwen-Image-Edit-2511 (Apache-2.0) in a local ComfyUI: GGUF Q4_K_M transformer, fp8 Qwen2.5-VL
   encoder, VAE, Lightning 4-step LoRA (`setup.md`, `download.sh`). `comfy_node.py` keeps the edit's reference at the
@@ -76,7 +76,7 @@ the map and in the portrait is the same colour by construction.
   the body; a face is what replaces the base's features (the same mask in every mood); zones by hue (key hues,
   the skin's hue band, the iris, grey for hair); lines take their neighbour's zone (coloured lineart); values
   anchored at the zone's median with a bounded gain (skin uses one mapping for every layer, so no seams).
-- **Review**: `npx tsx packages/tools/src/art/looks/review.ts out.png [mood]` composes everyone with the client's
+- **Review**: `npx tsx games/openworld/tools/src/art/looks/review.ts out.png [mood]` composes everyone with the client's
   own code. `batch.py` runs the jobs (resumable; a job waits for the picture it edits).
 - Outputs are CC0 with their prompts and workflow in the repository; the model's licence allows it.
 

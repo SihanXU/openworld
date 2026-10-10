@@ -6,11 +6,8 @@ import type { BossState, Look, Dir, FxEvent, Id, LessonInput, PropValue, SceneSt
 import { SLOT_COUNT } from './controls.ts'
 import { parseCellId } from './cells.ts'
 import { skillsOf } from './progression.ts'
-import { OFFHAND, offhandOf, weaponOf } from './profession.ts'
-import { castLeft, knownActives, type KnownActive } from './actives.ts'
-import { activeBoon, boonsOf, companionsOf, nearAttunedWaypoint } from './boons.ts'
+import { OFFHAND, offhandOf, weaponOf } from './blows.ts'
 import type { JournalQuest, QuestOffer, QuestTarget } from './quests.ts'
-import type { TalkOption } from './social.ts'
 
 export interface ItemInfo {
   id: Id
@@ -81,6 +78,24 @@ export interface TileSnap {
   maxHp?: number
 }
 
+/** Where an active skill one has comes from: the skill tree, a book read, or a piece one wears (its `skill` prop). */
+export type SkillSource = 'tree' | 'book' | 'gear'
+
+/** An active skill one has now (the skill panel). */
+export interface KnownActive {
+  id: string
+  source: SkillSource
+  /** The piece that lends it (a gear skill). */
+  item?: string
+}
+
+/** A talk verb as the panel offers it: its label filled in. */
+export interface TalkOption {
+  id: string
+  label: Text
+  choices?: { id: string; label: Text }[]
+}
+
 export interface Frame {
   tick: number
   hour: number
@@ -119,7 +134,7 @@ export interface Frame {
     /** The bag's slots (row 1 is the toolbar): a stack each, or empty. */
     slots: ({ item: ItemInfo; count: number; worn?: boolean } | null)[]
     selected: number
-    /** The boons the companion following the player has been given, the one it carries, and whether a waypoint is near (boons.ts). */
+    /** The boons the companion following the player has been given, the one it carries, and whether a waypoint is near (the boons module). */
     boons?: { unlocked: string[]; active?: string; atWaypoint: boolean }
     /** What is worn in the off hand (a shield), and whether it works there (another profession's does not). */
     offhand?: ItemInfo & { works: boolean }
@@ -306,7 +321,7 @@ export function itemInfo(eng: Engine, id: Id): ItemInfo | undefined {
   const e = w.get(id)
   if (!e) return undefined
   const r = w.onto.resolve(e.type)
-  const steal = eng.social.isAnothers(e, w.player)
+  const steal = eng.society.isAnothers(e, w.player)
   return {
     id,
     type: e.type,
@@ -316,44 +331,10 @@ export function itemInfo(eng: Engine, id: Id): ItemInfo | undefined {
     statuses: Object.keys(e.statuses ?? {}),
     props: { ...r.props, ...(e.props ?? {}) },
     ...(steal && { steal }),
-    value: eng.social.value(e),
+    value: eng.society.value(e),
   }
 }
 
-/** The views of the people's panels the host has open (docs/npc-sandbox.md): a talk, a trade, a person's pockets. */
-export function peopleViews(eng: Engine, open: { talk?: { who: Id; arrest?: boolean }; trade?: Id; pockets?: Id }): Pick<Frame, 'talk' | 'trade' | 'pockets'> {
-  const w = eng.world
-  const p = w.player
-  const s = eng.social
-  const out: Pick<Frame, 'talk' | 'trade' | 'pockets'> = {}
-  const talkTo = open.talk && w.get(open.talk.who)
-  if (talkTo?.npc) out.talk = { name: talkTo.name ?? w.onto.resolve(talkTo.type).name ?? talkTo.id, ...s.talkView(talkTo, p, open.talk!.arrest) }
-  const m = open.trade ? w.get(open.trade) : undefined
-  if (m?.npc) {
-    const carried = [...(p.contents ?? []), ...(p.held ? [p.held] : [])].map((id) => w.get(id)).filter((e): e is NonNullable<typeof e> => !!e)
-    out.trade = {
-      who: m.id,
-      name: m.name ?? w.onto.resolve(m.type).name ?? m.id,
-      goods: s.stock(m).map((e) => ({ item: itemInfo(eng, e.id)!, price: s.priceToBuy(e, m, p) })),
-      offers: carried.filter((e) => s.buys(m, e, p)).map((e) => ({ item: itemInfo(eng, e.id)!, price: s.priceToSell(e, p, m) })),
-      purse: s.purse(p),
-      theirs: s.purse(m),
-    }
-  }
-  const who = open.pockets ? w.get(open.pockets) : undefined
-  if (who?.npc) {
-    const worn = new Set(w.worn(who).map((e) => e.id))
-    out.pockets = {
-      id: who.id,
-      name: who.name ?? w.onto.resolve(who.type).name ?? who.id,
-      contents: [...(who.contents ?? []), ...(who.held ? [who.held] : [])].flatMap((id) => {
-        const info = itemInfo(eng, id)
-        return info ? [{ ...info, ...(worn.has(id) && { worn: true }) }] : []
-      }),
-    }
-  }
-  return out
-}
 
 /** The cells of the room a place lies in (a derived region: walls round, a floor over it), if any. */
 function roomCells(eng: Engine, pos: { map: string; x: number; y: number; z?: number }): [number, number][] | undefined {
@@ -433,11 +414,12 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
   const panel = opts.panel ? w.get(opts.panel) : undefined
   const box = panel && w.hasStatus({ e: panel.id }, 'open') ? panel : undefined
   const capacity = box && w.prop(box, 'capacity')
-  // the bag's slots: each the stack of carried items with that key
+  // the bag's slots: each the stack of carried items with that key — what is worn is on the body, not in the bag
   const carried = new Map<string, Id[]>()
+  const onBody = eng.controls.wornIds()
   for (const id of [...(p.held ? [p.held] : []), ...(p.contents ?? [])]) {
     const e = w.get(id)
-    if (!e) continue
+    if (!e || onBody.has(id)) continue
     const k = eng.controls.key(e)
     carried.set(k, [...(carried.get(k) ?? []), id])
   }
@@ -452,7 +434,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
   })
   const fx = w.drainFx()
   const sc = w.scene
-  return {
+  const frame: Frame = {
     tick: w.state.tick,
     hour: w.hour(),
     night: nightHours(w.nightShift()),
@@ -468,24 +450,20 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       facing: p.facing ?? 'down',
       hp: w.num(p, 'hp'),
       maxHp: w.num(p, 'maxHp', 1),
-      hunger: w.num(p, 'hunger', w.num(p, 'maxHunger')),
-      maxHunger: w.num(p, 'maxHunger'),
+      // hunger: a module's (needs), none without one
+      hunger: 0,
+      maxHunger: 0,
       statuses: Object.keys(p.statuses ?? {}),
       props: { ...w.onto.resolve(p.type).props, ...(p.props ?? {}) },
       skills: skillsOf(p),
       stations: [...w.stationsNear(p)],
       held: p.held ? itemInfo(eng, p.held) : undefined,
-      ...((known) => ({
-        skillbar: eng.controls.skillbar().map((id) => (id ? { id, left: castLeft(eng, p, id), cooldown: eng.skills.get(id)?.active?.cooldown ?? 0, usable: known.some((k) => k.id === id) } : null)),
-        actives: known,
-      }))(knownActives(eng, p)),
+      // the skill bar and the active skills one has: a module's (classes), none without one
+      skillbar: [],
+      actives: [],
       inventory: (p.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),
       slots,
       selected: p.selected ?? 0,
-      boons: (() => {
-        const bird = companionsOf(w, p)[0]
-        return bird && { unlocked: boonsOf(w, bird), active: activeBoon(bird), atWaypoint: nearAttunedWaypoint(w, p) }
-      })(),
       offhand: (() => {
         // what the off-hand slot names while it is still carried; `works`: and it is the wearer's to wield
         const id = w.prop(p, OFFHAND)
@@ -498,11 +476,8 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
         const info = item && (item.place.on === 'inside' || item.place.on === 'hand') && item.place.holder === p.id ? itemInfo(eng, item.id) : undefined
         return info ? [[k.slice(5), info]] : []
       })),
-      ...((law) => {
-        const bounty = law ? eng.social.bounty(law.id, p.id) : 0
-        return bounty > 0 && law ? { wanted: { bounty, by: law.name } } : {}
-      })(eng.social.lawHere(p)),
-      purse: eng.social.purse(p),
+      // what one owes the watch here, and the coin one carries: a module's (society)
+      purse: 0,
     },
     question: w.state.question ? { text: w.state.question.text } : undefined,
     quests: questsOf(eng, entities),
@@ -520,6 +495,9 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     fx,
     pendingMap: eng.pendingTransition?.map,
   }
+  // what the world's modules show (their HUD's fields)
+  for (const h of eng.hooks.frame) h(frame)
+  return frame
 }
 
 

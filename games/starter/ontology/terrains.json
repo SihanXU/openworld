@@ -1,0 +1,57 @@
+{
+  "terrains": [
+    { "id": "grass", "name": { "en": "grass", "zh": "草地" }, "tags": ["ground", "plant"], "color": "#6ab04c" },
+    {
+      "id": "flowers",
+      "name": { "en": "flowers", "zh": "花丛" },
+      "tags": ["ground", "plant"],
+      "color": "#7cc05a"
+    },
+    {
+      "id": "path",
+      "name": { "en": "dirt road", "zh": "土路" },
+      "tags": ["ground", "road"],
+      "color": "#c9a86a"
+    },
+    {
+      "id": "water",
+      "name": { "en": "water", "zh": "浅水" },
+      "tags": ["water", "liquid", "solid"],
+      "solid": true,
+      "liquid": true,
+      "color": "#3d7fd6"
+    },
+    {
+      "id": "tree",
+      "name": { "en": "tree", "zh": "树" },
+      "tags": ["plant", "tree", "flammable", "wooden", "solid"],
+      "solid": true,
+      "space": "volume",
+      "props": { "material": "wood", "maxHp": 6, "hp": 6 },
+      "color": "#2f6b33"
+    },
+    {
+      "id": "stump",
+      "name": { "en": "stump", "zh": "树桩" },
+      "tags": ["wooden", "flammable"],
+      "space": "soil",
+      "stage": { "into": "tile/tree", "lasts": 9600, "fx": "leaves" },
+      "color": "#7a5a3a"
+    },
+    {
+      "id": "wall",
+      "name": { "en": "wall", "zh": "墙" },
+      "tags": ["wall", "solid"],
+      "solid": true,
+      "space": "volume",
+      "color": "#6b6e75"
+    },
+    {
+      "id": "floor",
+      "name": { "en": "wooden floor", "zh": "木地板" },
+      "tags": ["floor", "wooden", "indoor"],
+      "color": "#9c7a4c"
+    },
+    { "id": "door", "name": { "en": "door", "zh": "门" }, "tags": ["door", "wooden"], "color": "#6b4226" }
+  ]
+}

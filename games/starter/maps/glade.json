@@ -1,0 +1,80 @@
+{
+  "map": {
+    "id": "glade",
+    "name": { "en": "The Glade", "zh": "林间空地" },
+    "kind": "village",
+    "width": 24,
+    "height": 16,
+    "rows": [
+      "TTTTTTTTTTTTTTTTTTTTTTTT",
+      "TT.......*......XXXXXXTT",
+      "T.....T.........XXXXXX.T",
+      "T...........*...XXXXXX.T",
+      "T..T............XXDXXX.T",
+      "T...........=======....T",
+      "T.....T.....=..........T",
+      "T...........=.....T....T",
+      "T~~~........=..........T",
+      "T~~~~.......=.....*....T",
+      "T~~~........=.....T....T",
+      "T.......*...=..........T",
+      "T.....T.....=......T...T",
+      "T...........=..........T",
+      "T.........*............T",
+      "TTTTTTTTTTTTTTTTTTTTTTTT"
+    ],
+    "portals": [
+      {
+        "x": 18,
+        "y": 4,
+        "to": "cottage",
+        "tx": 3,
+        "ty": 4,
+        "label": { "en": "Mira's cottage", "zh": "米拉的小屋" }
+      }
+    ],
+    "anchors": { "garden": [9, 3], "woodlot": [14, 9], "door": [18, 5], "pond": [5, 9] },
+    "regions": { "pondside": [4, 7, 3, 5] },
+    "light": "outdoor",
+    "zone": "peaceful",
+    "music": "village"
+  },
+  "entities": [
+    {
+      "id": "glade.chest",
+      "type": "fixture/container/chest",
+      "place": { "on": "tile", "map": "glade", "x": 14, "y": 4 }
+    },
+    { "id": "glade.axe", "type": "item/tool/axe", "place": { "on": "inside", "holder": "glade.chest" } },
+    {
+      "id": "glade.sign",
+      "type": "fixture/sign",
+      "place": { "on": "tile", "map": "glade", "x": 11, "y": 6 },
+      "props": { "text": "The Glade. Mira's cottage, north-east.", "text_zh": "林间空地。东北是米拉的小屋。" }
+    },
+    {
+      "id": "glade.stone1",
+      "type": "item/material/stone",
+      "place": { "on": "tile", "map": "glade", "x": 8, "y": 9 }
+    },
+    {
+      "id": "glade.stone2",
+      "type": "item/material/stone",
+      "place": { "on": "tile", "map": "glade", "x": 16, "y": 13 }
+    },
+    {
+      "id": "glade.slime",
+      "type": "actor/creature/slime",
+      "place": { "on": "tile", "map": "glade", "x": 20, "y": 10 },
+      "facing": "down",
+      "ai": {
+        "behaviour": "melee",
+        "temper": "aggressive",
+        "sight": 4,
+        "home": { "map": "glade", "x": 20, "y": 10 },
+        "leash": 5,
+        "loot": ["item/material/gel"]
+      }
+    }
+  ]
+}

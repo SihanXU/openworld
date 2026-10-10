@@ -122,51 +122,9 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
     const e = roles[c.fighting]?.entity
     return !!e && world.state.tick - (e.combat?.fightTick ?? -Infinity) < FIGHT_TICKS
   }
-  // the people's social life (docs/npc-sandbox.md): read through the engine's social mechanisms
-  const social = world.social
-  if ('regard' in c) {
-    const of = roles[c.regard.of]?.entity
-    const to = roles[c.regard.toward]
-    return !!social && !!of && !!to && cmp(social.regard(of, to.ref.e), c.regard.cmp)
-  }
-  if ('grudge' in c) {
-    const to = roles[c.grudge.toward]
-    return !!social && !!to && !!social.grudge(roles[c.grudge.of]?.entity, to.ref.e, c.grudge.deed)
-  }
-  if ('owns' in c) {
-    const [a, b] = c.owns.map((r) => roles[r]?.entity)
-    return !!social && !!a && !!b && social.owns(a, b)
-  }
-  if ('knows' in c) {
-    const [a, b] = c.knows.map((r) => roles[r])
-    return !!social && !!a?.entity && !!b && social.knows(a.entity, b.ref.e)
-  }
   if ('remembers' in c) return !!roles[c.remembers]?.entity?.npc
-  if ('deed' in c) {
-    const d = social && ev?.kind === 'seen' ? social.deedIn(ev) : undefined
-    return !!d && (c.deed === true || d.id === c.deed)
-  }
-  if ('sway' in c) {
-    const of = roles[c.sway.of]?.entity
-    const by = roles[c.sway.by]?.entity
-    return !!social && !!of && !!by && social.sway(of, by, c.sway.how, c.sway.bonus ?? 0)
-  }
-  // the watch of where the host is (a resident host: where the role is)
-  const lawFor = (role: View | undefined) => social?.lawAt(world.posOf(roles.host?.entity)?.map ?? world.posOf(role?.entity)?.map)
-  if ('bounty' in c) {
-    const v = roles[c.bounty.role]
-    return !!social && !!v && cmp(social.bounty(lawFor(v)?.id, v.ref.e), c.bounty.cmp)
-  }
-  if ('canPay' in c) {
-    const v = roles[c.canPay.role]
-    const b = social && v ? social.bounty(lawFor(v)?.id, v.ref.e) : 0
-    return !!social && !!v?.entity && b > 0 && social.purse(v.entity) >= Math.round(b * (c.canPay.mul ?? 1))
-  }
-  if ('unpardonable' in c) {
-    const v = roles[c.unpardonable]
-    const law = lawFor(v)
-    return !!social && !!v && social.unpardonable(law, social.bounty(law?.id, v.ref.e))
-  }
+  // a module's condition (module.ts)
+  for (const [key, impl] of world.condImpls) if (key in c) return impl(c, roles, world, ev)
   return false
 }
 
@@ -510,11 +468,14 @@ export class RuleLibrary {
     for (const r of rules) {
       // one id, one rule: a second would silently replace the first
       if (this.rules.has(r.id)) throw new Error(`rule id "${r.id}" appears twice`)
-      this.put(r)
+      this.put(r, undefined, true)
     }
+    // the indexes once, not once per rule (a clone of a thousand rules was a thousand sorts)
+    for (const root of new Set([...this.rules.values()].filter((r) => !isPatch(r)).map((r) => r.on.split('/')[0]))) this.rebuild(root)
+    for (const key of new Set([...this.rules.values()].map(keyOf).filter((k): k is string => !!k))) this.rebuildTree(key)
   }
 
-  private put(r: Rule, inPlaceOf?: string): void {
+  private put(r: Rule, inPlaceOf?: string, later = false): void {
     selectByType(r)
     factsOnTheStory(r)
     cellsAsThings(r)
@@ -522,6 +483,7 @@ export class RuleLibrary {
     this.specs.set(r.id, specOf(r))
     const old = inPlaceOf ? this.retired.get(inPlaceOf) : undefined
     this.order.set(r.id, old && old.key === keyOf(r) ? old.order : this.added++)
+    if (later) return
     if (isPatch(r)) this.rebuildTree(keyOf(r))
     else this.rebuild(r.on.split('/')[0])
   }

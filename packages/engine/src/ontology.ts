@@ -53,12 +53,20 @@ export function typeDepth(type: string): number {
 }
 
 export class OntologyIndex {
-  readonly data: Ontology
+  data: Ontology
   private cache = new Map<string, ResolvedType>()
+  /** The data is shared (a sandbox built on the world's ontology) until the first write: then it is this index's own copy. */
+  private own = false
 
   constructor(data: Ontology) {
     this.data = data
     withTerrainTypes(data)
+  }
+
+  private write(): void {
+    if (this.own) return
+    this.data = { ...this.data, types: { ...this.data.types }, statuses: { ...this.data.statuses } }
+    this.own = true
   }
 
   private biggest?: [number, number]
@@ -74,12 +82,14 @@ export class OntologyIndex {
 
   /** Register (or replace) a type at runtime, e.g. from an accepted patch. */
   addType(def: TypeDef): void {
+    this.write()
     this.data.types[def.id] = def
     this.cache.clear()
     this.biggest = undefined
   }
 
   addStatus(def: StatusDef): void {
+    this.write()
     this.data.statuses[def.id] = def
   }
 

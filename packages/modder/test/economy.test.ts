@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
-import { RuleLibrary, buildRequest, buildSandbox, holeKey, scenarioEvent, type Ontology, type Patch, type Rule, type Scenario, type Tree } from '@lsw/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
+import { RuleLibrary, buildRequest, buildSandbox, holeKey, scenarioEvent, type Ontology, type Patch, type Rule, type Scenario, type Tree } from '@openworld/engine'
 import { economySteps, freeLunch, prices, ruleSteps, simplexMax, type Step } from '../src/economy.ts'
 import { WorldLibrary } from '../src/library.ts'
 

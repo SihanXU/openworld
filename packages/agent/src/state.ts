@@ -218,6 +218,8 @@ export interface Harness {
   revise: boolean
   /** design: episodes worked at once, one per lane (live requests first); background: reviews, reflections, escalations at once */
   concurrency?: { design: number; background: number }
+  /** remove: a learned rule set aside at run time by this many clients leaves the shared library (and is revised offline) */
+  faults?: { remove: number }
 }
 
 /** The naive agent loop: the starting point of a self-improvement run (no hooks, no notes, no skills). */
@@ -241,7 +243,7 @@ export const DEFAULT_HARNESS: Harness = {
   review: { enabled: true, maxRounds: 1, blocking: false, unflagged: false, reasoning: 'low' },
   audit: { enabled: true, blocking: false, rounds: 6, reasoning: 'low' },
   recall: { episodes: 4, lessons: 12 },
-  reflect: { enabled: true, skillMinRecurrence: 3, batch: 4, reasoning: 'low' },
+  reflect: { enabled: true, skillMinRecurrence: 3, batch: 8, reasoning: 'low' },
   tools: ['search_rules', 'get_rule', 'find_types', 'get_type', 'dry_run', 'read_skill', 'get_episode'],
   addenda: [],
   offline: {
@@ -253,6 +255,7 @@ export const DEFAULT_HARNESS: Harness = {
   escalate: true,
   revise: true,
   concurrency: { design: 4, background: 3 },
+  faults: { remove: 2 },
 }
 
 /** The harness as one profile sees it. */

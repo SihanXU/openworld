@@ -1,0 +1,1 @@
+{ "name": "@openworld/editor", "private": true, "type": "module", "main": "src/server/api.ts" }

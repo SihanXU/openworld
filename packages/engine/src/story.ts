@@ -23,6 +23,8 @@ const MOVE_STEP_TICKS = 4
 const MOVE_TIMEOUT = 900
 /** How often (ticks) the steps without a region are looked at. */
 const CHECK_EVERY = 3
+/** How often (ticks) the steps with a region are looked at again while nobody enters one: a condition beside the region may come true where one stands (a thing picked up, the hour). */
+const REGION_EVERY = 30
 /** A lesson's line waits this long (ticks) after the companion last spoke, so a beat's line is read first. */
 const LESSON_AFTER_SAY = 30
 
@@ -191,9 +193,10 @@ export class Story {
       const arrived = this.arrived
       this.arrived = false
       const now = t % CHECK_EVERY === 0
-      if (arrived || now)
+      const region = arrived || t % REGION_EVERY === 0
+      if (region || now)
         for (const d of this.defs.values())
-          if ((d.when?.region ? arrived : now) && this.eligible(d)) {
+          if ((d.when?.region ? region : now) && this.eligible(d)) {
             this.play(d)
             break
           }

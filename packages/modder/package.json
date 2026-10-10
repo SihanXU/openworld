@@ -1,1 +1,1 @@
-{ "name": "@lsw/modder", "private": true, "type": "module", "main": "src/index.ts" }
+{ "name": "@openworld/modder", "private": true, "type": "module", "main": "src/index.ts" }

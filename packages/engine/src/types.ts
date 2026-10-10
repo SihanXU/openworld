@@ -150,6 +150,8 @@ export interface WorldParams {
   carry?: number
   /** How many of a body's wearing slots there are of a kind, where more than one (two hands, two rings): `wear:ring`, `wear:ring.2`. */
   slotCount?: Record<string, number>
+  /** The story's fact that lengthens the night by so many hours (a number; the Ford's `night.shift`): none, the night keeps its length. */
+  nightFact?: string
 }
 
 /** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */
@@ -203,6 +205,8 @@ export interface TerrainDef {
 }
 
 export interface Ontology {
+  /** The modules the game uses (module.ts, docs/engine-split.md §4), installed in this order with every engine made over it. */
+  modules?: string[]
   types: Record<string, TypeDef>
   /** What people take as deeds (docs/npc-sandbox.md §2.2), the watches, the numbers of their social life. */
   deeds?: DeedDef[]
@@ -501,7 +505,13 @@ export interface CombatState {
   /** Envenom: so many more blows open a bleed. */
   envenomHits?: number
   /** Arrow Rain: volleys still to fall on a 3×3 around (x, y), the next at tick `next`. */
-  rain?: { map: string; x: number; y: number; next: number; left: number; power: number }
+  rain?: { map: string; x: number; y: number; next: number; left: number; power: number; element?: string }
+  /** Iron Guard: blows taken much lighter, steps slower, until this tick. Hawk Eye: reach and criticals, until this tick. */
+  ironUntil?: number
+  aimUntil?: number
+  /** Creatures it has felled (the talents that answer a defeat: actives.ts onDefeat), and casts made (Elemental Master). */
+  defeats?: number
+  casts?: number
 }
 
 export interface ScheduleEntry {
@@ -1033,6 +1043,11 @@ export interface SkillDef {
   icon?: string
   /** An active skill: cast from the skill bar (Shift+1–6), then it rests (actives.ts). */
   active?: ActiveDef
+  /**
+   * A talent that strengthens an active skill (Dungeon Fighter's "enhancements"): learned, its numbers are added to
+   * the skill's when it is cast (actives.ts effectiveActive) — a shorter cooldown, more power, reach, hits or time.
+   */
+  modifies?: { skill: string } & Partial<Pick<ActiveDef, 'cooldown' | 'power' | 'range' | 'count' | 'ticks' | 'radius'>>
 }
 
 /**
@@ -1046,6 +1061,7 @@ export interface ActiveDef {
     | 'bash' | 'charge' | 'rally' | 'quake'
     | 'multishot' | 'leap-shot' | 'pierce' | 'rain'
     | 'fireball' | 'nova' | 'chain' | 'blink'
+    | 'shot' | 'arc' | 'guard' | 'aim' | 'slam'
   /** Ticks before it can be cast again (10 a second). */
   cooldown: number
   power?: number
@@ -1058,6 +1074,14 @@ export interface ActiveDef {
   afflict?: string
   /** The element its blows carry (fire, ice, lightning). */
   element?: string
+  /** Ticks a blow of it makes the struck bleed (a Fan of Knives). */
+  bleed?: number
+  /** A burst's half-width: a Fireball's (1: 3×3) or a Meteor's (2: 5×5). */
+  radius?: number
+  /** Its arrows fly through every body in their line (an Arrow Storm). */
+  through?: boolean
+  /** What is drawn in flight (a shot's): arrow, knife, ice. */
+  missile?: string
 }
 
 /** A recipe for the crafting panel: the carried items it uses up, and the item it makes. */
@@ -1077,6 +1101,10 @@ export interface Recipe {
   count?: number
   /** A stall's shelf it is sold on (`farm`, `ranch`, `fish`), or `sell`: what the stall buys (the homestead). */
   group?: string
+  /** A skill its maker must know (a recipe a skill teaches: steel, jewellery). */
+  skill?: string
+  /** A stat of the maker's that makes it give more: so many times more (a smelter's `smelt`, a farmer's `sell:farm`). */
+  bonus?: string
 }
 
 export interface Portal {
@@ -1382,6 +1410,9 @@ export type EmitTo =
  * The effect primitives. Every one writes only the host (design.md §5.6: read anything, write only
  * yourself), spawns, or presents; `emit` sends an event to others, which answer for themselves.
  */
+/** The primitives the engine's official modules carry (packages/modules): typed here, worked by their module (module.ts). */
+export type ModuleOp = 'release' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm'
+
 export type Effect =
   | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean }
   | { op: 'destroy' }
@@ -1443,7 +1474,7 @@ export type Effect =
   /** The story's: the facts it is told (params `fact.<key>`) it keeps. */
   | { op: 'facts' }
   /** News for the quests (docs/quests.md §2.3): what this event is (its actor, host, item) — a gift handed over. */
-  | { op: 'news'; kind: 'give' | 'deed' | 'hungry' }
+  | { op: 'news'; kind: 'give' | 'deed' | 'hungry' | 'talk' }
   /** The world's: what appears by itself on the active map now (its own and the world's appearances), or the one given. */
   | { op: 'appear'; what?: AppearDef }
   /** The host's stage clock ran out (param status): it becomes what its stage says next (world-model.md §6.5). */

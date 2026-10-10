@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url'
 import type { AddressInfo } from 'node:net'
 import { Server } from 'node:http'
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, holeKey, patchKey, placePatch, restoreLibrary, validatePatch, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@lsw/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+import { ModPort, RuleLibrary, buildSandbox, holeKey, patchKey, placePatch, restoreLibrary, validatePatch, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, parseJson, qualifyTerrains, scriptFromFile, stationFromRules, normalizePatch, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
 
 const onto = buildOntology()
@@ -165,7 +165,7 @@ function setup(model?: Model, dir = mkdtempSync(join(tmpdir(), 'lsw-modder-')), 
   const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
   const state = SelfState.open(join(dir, 'modder-state'))
   // these tests drive the patch pipeline (json); the repo-form agent has its own tests; the auditor too (audit.test.ts)
-  state.setHarness({ ...state.harness(), audit: { ...auditOf(state.harness()), enabled: false }, offline: { ...state.harness().offline, design: { ...state.harness().offline.design, mode: 'json' } } }, 'test: json pipeline offline')
+  state.setHarness({ ...state.harness(), audit: { ...auditOf(state.harness()), enabled: false }, reflect: { ...state.harness().reflect, batch: 4 }, offline: { ...state.harness().offline, design: { ...state.harness().offline.design, mode: 'json' } } }, 'test: json pipeline offline')
   const modder = new Modder({ library, state, model, profile })
   return { dir, library, state, modder }
 }
@@ -539,7 +539,7 @@ describe('the OpenAI-compatible adapter', () => {
     }).listen(0)
     await listening(server)
     try {
-      const { OpenAICompatModel } = await import('@lsw/agent')
+      const { OpenAICompatModel } = await import('@openworld/agent')
       const model = new OpenAICompatModel({ baseUrl: `http://localhost:${(server.address() as AddressInfo).port}/v1`, apiKey: 'test', model: 'mock-1' })
       const { modder, state } = setup(model)
       const reply = await modder.resolve({ request: request() })
@@ -822,7 +822,7 @@ describe('the tail guard', () => {
       })
     }).listen(0)
     await listening(server)
-    const { OpenAICompatModel } = await import('@lsw/agent')
+    const { OpenAICompatModel } = await import('@openworld/agent')
     const model = new OpenAICompatModel({ baseUrl: `http://localhost:${(server.address() as AddressInfo).port}/v1`, apiKey: 't', model: 'm', extraBody: { provider: { order: ['a', 'b'] } } })
     return { model, bodies, close: () => (server.closeAllConnections(), server.close()) }
   }
@@ -1330,8 +1330,10 @@ describe('checks that hold their ground', () => {
     const { model, calls } = scripted([patchOf(bindRule())], { review: () => ({ thoughts: 'looks fine to me' }) })
     const { modder, state } = setup(model)
     const reply = await modder.resolve({ request: request() })
-    expect(calls.review).toBe(2)
     expect(state.episode(reply.episode!)!.attempts.at(-1)!.review).toEqual({ verdict: 'error', notes: [] })
+    // no verdict before shipping (asked twice): the rule ships, and is reviewed again after the fact (twice more)
+    await modder.settled()
+    expect(calls.review).toBe(4)
     // and a verdict in capitals is read as what it says
     const again = scripted([patchOf(bindRule()), patchOf(bindRule('patch/stone-stills-creature-2'))], { review: (n) => (n === 0 ? { verdict: 'REVISE', notes: ['say what happens'] } : { verdict: 'ship', notes: [] }) })
     const s2 = setup(again.model)

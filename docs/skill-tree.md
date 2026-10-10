@@ -14,13 +14,13 @@ outlines, ivory highlights, copper fittings and worn materials unify the set. Te
 identifies Swiftness, brick red Damage, moss green Survival, iron/red Warrior,
 forest green Ranger and violet Mage. All nodes remain full-colour when locked.
 
-- Assets: `packages/client/public/assets/lsw/skills/<key>.png`.
+- Assets: `games/openworld/public/assets/lsw/skills/<key>.png`.
 - Exact shared brief, individual subjects and paths: [generation manifest](skill-art-prompts.json).
 - New artwork contact sheet: [44 completed icons](skill-art-complete-preview.png).
 - Local full-resolution sources: `var/skill-art/sources/` (not committed).
-- Export: `packages/tools/src/art/export-skill-icon.swift`, nearest-neighbour sampling
+- Export: `games/openworld/tools/src/art/export-skill-icon.swift`, nearest-neighbour sampling
   with generated alpha preserved; it refuses to overwrite existing artwork.
-- Coverage: `packages/tools/test/skill-art.test.ts` checks every skill/entrance, registry
+- Coverage: `games/openworld/tools/test/skill-art.test.ts` checks every skill/entrance, registry
   and file parity, distinct decoded images, dimensions, actual transparent padding,
   visible pixels, prompts and full-colour bitmap rendering. Placeholder exemptions
   have been removed. No gameplay values or skill prerequisites changed in this pass.
@@ -28,7 +28,7 @@ forest green Ranger and violet Mage. All nodes remain full-colour when locked.
 Art verification: all eight focused tests pass, and the client production build includes
 all 78 PNGs unchanged. The 44-icon contact sheet was checked against the preserved style
 references. Recreate it from the repository root with
-`swift packages/tools/src/art/preview-skill-icons.swift`.
+`swift games/openworld/tools/src/art/preview-skill-icons.swift`.
 
 ## Original tree brief and subsequent extensions
 
@@ -82,8 +82,8 @@ acquire the world's initial one; explicit values are preserved. Iron Stomach's l
 falls in two paces (base 480 ticks fed, 7.5 times slower once hungry, under six tenths); intervals kept
 on the old scale (300, 450, 600) are scaled to it (480, 720, 960).
 
-Branch configuration is in `packages/content/src/skills.ts`. Layout is calculated per
-direction in `packages/client/src/ui/skillLayout.ts`; the page supports dragging, wheel zoom
+Branch configuration is in `games/openworld/content/src/skills.ts`. Layout is calculated per
+direction in `packages/runtime/src/ui/skillLayout.ts`; the page supports dragging, wheel zoom
 and explicit +/− zoom controls for touch screens. The compact toolbar stays above navigation.
 Empty branches retain their visible entrances so future skills can use the same layout.
 
@@ -205,7 +205,7 @@ talents; reaction rules must not apply those bonuses again.
 ## Art
 
 The new branch emblems are 64×64 transparent PNGs in
-`packages/client/public/assets/lsw/skills/`: `swift.png`, `farming.png`, `ranching.png`,
+`games/openworld/public/assets/lsw/skills/`: `swift.png`, `farming.png`, `ranching.png`,
 and `smithing.png`. Existing branch emblems reuse `shield.png`, `sweep.png`, and `axe.png`.
 Generation used the built-in imagegen tool, with the original generated sword as a style
 reference. The source images remain in Codex's generated-images directory; web assets
@@ -281,7 +281,7 @@ Subject:
 The twelve additional assets below completed a one-to-one mapping for the **29 skills
 implemented at that stage**. That library contained 34 PNGs including hubs/navigation. Original artwork is
 preserved; only previously duplicated talent references are assigned a new, unique image.
-All files live at `packages/client/public/assets/lsw/skills/<key>.png`, exported as 64×64
+All files live at `games/openworld/public/assets/lsw/skills/<key>.png`, exported as 64×64
 RGBA PNGs with nearest-neighbour sampling so no smooth resampling is introduced.
 
 Generation mode: **built-in imagegen**, one call per distinct asset. The original sword
@@ -322,7 +322,7 @@ Subject and skill:
 
 ## Verification
 
-`packages/tools/test/skills.test.ts` covers tree topology, both prerequisites/capstone cost,
+`games/openworld/tools/test/skills.test.ts` covers tree topology, both prerequisites/capstone cost,
 profession filtering/enforcement, legacy save migration, actual input cooldowns, fractional
 cadence, step charging, secondary-hit isolation, seeded criticals, execute/defiance thresholds,
 Last Stand timing/persistence, food sustain, blade eligibility, opener reset, facing-based
@@ -408,3 +408,49 @@ had and is not cast. **The skill panel** (U, or its button bottom right; client 
 skill one has with its source, above the skill bar's six slots: a skill goes in a slot by dragging its card there,
 or by a click on it and then on the slot; a right click empties a slot. A skill's blows are struck with a weapon
 only — never with whatever else the hand holds.
+
+## The professions, deeper (2026-10-09)
+
+Each profession's tree grows to **22 nodes** (`PROFESSION_DEEPER` in `skills.ts`): three more active skills (the last
+an ultimate, two points, joining two arms), five **enhancements** — talents that add their numbers to one active
+skill when it is cast (`SkillDef.modifies`, engine `effectiveActive`: cooldown, power, range, count, ticks, radius;
+pure data, no engine code each) — three talents of its own, and a capstone talent (two points).
+
+| Profession | New active skills | Enhancements | Talents | Capstone |
+| --- | --- | --- | --- | --- |
+| Assassin | Throwing Knives, Fan of Knives, **Vanishing Strikes** | Shadow Strike, Envenom, Smoke Bomb, Flurry, Fan of Knives | Venom Mastery, Nightstalker, Nimble Blade | Master Assassin |
+| Warrior | Wide Slash, Iron Guard, **Heaven Splitter** | Shield Bash, Charge, War Cry, Earthsplitter, Wide Slash | Shield Wall, Bloodthirst, Fortitude | Undying Spirit |
+| Ranger | Concussive Shot, Hawk Eye, **Arrow Storm** | Multishot, Leap Shot, Piercing Arrow, Arrow Rain, Concussive Shot | Light Gear, Deadly Shot, Windwalker | Marksman |
+| Mage | Frost Bolt, Thunderstorm, **Meteor** | Fireball, Frost Nova, Chain Lightning, Blink, Frost Bolt | Mana Surge, Elementalist, Arcane Barrier | Elemental Master |
+
+New kinds in `actives.ts`: `shot` (one missile on the first foe in line), `arc` (the three cells ahead), `guard`
+(Iron Guard: blows ×0.4, steps slower), `aim` (Hawk Eye: a shooting weapon +3 reach, +20% critical), `slam` (a
+`range`-deep, three-wide blow); `multishot` takes `count` and `through`, `fireball` a `radius`, `shadow-strike` a
+`count`, `rain` an element. The talents that answer a defeat (Master Assassin, Bloodthirst, Undying Spirit) run in
+`onDefeat` when a blow — a cast's or an ordinary attack's — raises the striker's `combat.defeats`; `cdr` (Mana
+Surge) shortens every cooldown, at most by half.
+
+Balance: the Boss Challenge learns every node, and the White Knight's "ignoring every warning" test sat within
+about a tenth of the knight's health of a warrior's win — a warrior's +10 max health turned it. So Fortitude halves
+the control effects a blow leaves instead (stun, freeze, kneeling), and Shield Wall adds +5% block with a shield.
+The ring layout eases crowded neighbours apart on each ring (`skillLayout.ts`, GAP 76) so twenty-two nodes fit.
+Icons: `tools/src/art/skill-professions-a.ts` (assassin, warrior) and `-b.ts` (ranger, mage), drawn by code.
+
+## The life branches, deeper (2026-10-09)
+
+Gathering, agriculture, husbandry and smithing grow to **twenty nodes each** (`content/src/life.ts` `LIFE_SKILLS`),
+with the content they work on that the world lacked: the smith's craft (ore smelted to ingots at a forge — iron for
+anyone, gold and steel taught — and ingots worked on an anvil with a smith's hammer into weapons, armour, metal tools
+and jewellery: `LIFE_RECIPES`; portable forge and anvil for a Forge Builder), mushroom rings and wild beehives in the
+forest (picked once a day: status `picked`; bees sting one who does not keep them), cheese from milk over a lit fire,
+feed from wheat, compost, leather gear, a bee box, and what the stall buys of it all.
+
+How a life skill works, in three idioms: a number it grants that a rule reads as an Amount (`fellLogs`, `mineOre`,
+`harvest`, `harvest:<kind>` by the crop's `crop:<kind>` tag, `seeds`, `feedEggs`, `cheese`, `honey`, `butcher` …); its
+tag a rule branches on (`skill:sharp-axe`, `skill:wide-hoe`, `skill:herdsman` …); or a recipe it teaches
+(`Recipe.skill`). Crafting reads the maker's stats: `craft:<station>` lifts the quality level, `<station>:power|def|
+critChance` adds to what is made, `<station>:masterwork` and `:vowed` are chances of a better quality, and
+`Recipe.bonus` multiplies how many (`smelt`, `feedMaking`, `sell:farm`, `sell:ranch`, `sell:smith`, `buy:farm`).
+Harvesting stays one rule (`farm/harvest`: the farming palette checks it) that branches on the crop's kind.
+Proved by `content/test/life.test.ts` and demo L1 (the forest's rings and hives). Icons:
+`tools/src/art/skill-life-*.ts`.

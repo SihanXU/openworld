@@ -20,9 +20,9 @@ import {
   type Selector,
   type Tree,
   type ValidationResult,
-} from '@lsw/engine'
-import type { ToolSpec } from '@lsw/agent'
-import type { SelfState } from '@lsw/agent'
+} from '@openworld/engine'
+import type { ToolSpec } from '@openworld/agent'
+import type { SelfState } from '@openworld/agent'
 
 export interface Tool extends ToolSpec {
   run(args: Record<string, unknown>): string

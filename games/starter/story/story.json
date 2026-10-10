@@ -1,0 +1,16 @@
+{
+  "steps": [
+    {
+      "id": "arrive",
+      "when": { "map": "glade" },
+      "script": [
+        {
+          "say": "player",
+          "text": { "en": "A glade, and a cottage. Someone lives here.", "zh": "一片空地，一间小屋。这里有人住。" }
+        },
+        { "fact": "glade.arrived", "value": 1 }
+      ]
+    }
+  ],
+  "protectedFacts": ["glade."]
+}

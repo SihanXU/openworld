@@ -14,16 +14,16 @@
 // Two profiles of one harness (state.ts): LIVE while a player waits, OFFLINE for everything
 // nobody waits on — curriculum, a failed live request worked again, a revision after review.
 
-import { artProblems, buildModSpec, closestTypes, holeKey, isDo, isHole, leaves, patchKey, type ModProgress, type Ontology, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef } from '@lsw/engine'
+import { artProblems, buildModSpec, closestTypes, holeKey, isDo, isHole, leaves, patchKey, type ModProgress, type Ontology, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef } from '@openworld/engine'
 import { briefOf, relatedRules } from './brief.ts'
 import { changesNothing, deriveTests } from './derive.ts'
 import { normalizePatch, placePatch, qualifyTerrains, stationFromRules } from './fixes.ts'
 import type { WorldLibrary } from './library.ts'
-import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@lsw/agent'
+import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@openworld/agent'
 import { materializeWorld } from './repo.ts'
 import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, type Creation, type Need } from './prompts.ts'
 import { coarseTerms, signatureOf, type Signature } from './signature.ts'
-import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@lsw/agent'
+import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@openworld/agent'
 
 /**
  * A backend that cannot answer says so in its error: out of quota or throttling (claude-code's session
@@ -38,7 +38,7 @@ export type WorldEpisode = AgentEpisode<ModRequest, Patch>
 type Episode = WorldEpisode
 type Attempt = AgentAttempt<Patch>
 import { buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
-import { audit, type AuditResult } from './audit.ts'
+import { audit, probe, withPatch, type AuditResult } from './audit.ts'
 
 export interface ModderOptions {
   library: WorldLibrary
@@ -185,6 +185,36 @@ export class Modder {
         })
     }
     if (!this.running && !this.jobs.length) for (const done of this.idle.splice(0)) done()
+  }
+
+  /** Faults clients reported per learned rule, by client (a rule set aside by this many clients leaves the library). */
+  private faults = new Map<string, Set<string>>()
+
+  /**
+   * A client set a learned rule aside at run time (a chain that would not end, an effect refused):
+   * counted by client; past the harness's bound (`faults.remove`, default 2) the rule leaves the
+   * shared library and goes back for an offline revision with the reason. Returns what was done.
+   */
+  fault(ruleId: string, reason: string, client = 'anon'): { rule: string; counted: number; removed: boolean } {
+    const { library, state } = this.opts
+    const rule = library.lib.rules.get(ruleId)
+    if (!rule || rule.source?.origin !== 'patch') return { rule: ruleId, counted: 0, removed: false }
+    const set = this.faults.get(ruleId) ?? new Set<string>()
+    set.add(client)
+    this.faults.set(ruleId, set)
+    const bound = state.harness().faults?.remove ?? 2
+    state.note('fault', { rule: ruleId, reason, client, counted: set.size })
+    if (set.size < bound) return { rule: ruleId, counted: set.size, removed: false }
+    const asked = library.asked.find((a) => a.rule === ruleId)
+    library.remove(ruleId, this.now())
+    this.faults.delete(ruleId)
+    this.log(`${ruleId} set aside by ${set.size} client(s): ${reason} → removed`)
+    if (asked && state.harness().revise && this.backend) {
+      // the request as the scene that asked gives it: the revision is placed where the event falls undefined now
+      const req: ModRequest = { id: `fault-${ruleId}`, summary: `revision of ${ruleId} after a fault: ${reason}`, origin: rule.source?.trigger ?? 'player', event: { kind: rule.on, params: {}, roles: {} }, hole: { rule: rule.hole?.split('#')[0] ?? '', path: [], default: [], at: rule.at ?? [] }, context: { map: { id: '', name: '', kind: '' }, anchors: [], hour: 0, nearby: [], tiles: [], tileStatuses: [], recent: [], rules: [] }, scenario: asked.scenario }
+      this.later(`revise ${ruleId} after a fault`, () => this.episode(req, undefined, signatureOf(req), { profile: 'offline', revise: { episode: { id: `fault-${ruleId}`, rules: [ruleId], patch: { artifacts: [{ kind: 'rule', rule }] } } as never, notes: [`a client set this rule aside at run time: ${reason}`] } }).then(() => undefined))
+    }
+    return { rule: ruleId, counted: set.size, removed: true }
   }
 
   /** Where a request is: waiting its turn, designing, finding, creating (undefined: not here, or done). */
@@ -349,6 +379,7 @@ export class Modder {
 
     let repairs = 0
     let reviews = 0
+    let reviewLater = false
     let phase: Attempt['phase'] = 'design'
     let reviewed: Patch | undefined // a valid draft a reviewer sent back: shipped if the revision never validates
     let lastRaw = '' // the last answer, kept for an attempt the program failed on before it was recorded
@@ -401,7 +432,7 @@ export class Modder {
         if (ask) {
           ep.attempts.push({ phase, errors: [ask.need ? 'asked for more things after the catalogue: write the patch now' : 'asked to create again: write the patch now'], warnings: [], raw: answer.slice(0, 2000) })
           if (repairs++ >= h.repair.maxRounds) break
-          retry(`${ask.need ? 'You have the catalogue.' : 'Creating is already under way.'} Answer now with ONLY the JSON object {"patch": {"artifacts": [...]}, "summary": "..."}.`, 'repair')
+          retry(`${ask.need ? 'You have the catalogue.' : 'Creating is already under way.'} Answer now with ONLY the JSON object {"patch": {"artifacts": [...]}}.`, 'repair')
           continue
         }
         const { patch: draft, fixes } = normalizePatch(parsed)
@@ -487,6 +518,8 @@ export class Modder {
             retry(reviseUser(attempt.review.notes), 'review')
             continue
           }
+          // no verdict is no review: the rule ships, and is reviewed again after the fact
+          if (attempt.review.verdict === 'error') reviewLater = true
         }
         if (this.commit(ep, patch, req, replaces)) break
         // the library moved under us: someone else's patch may already answer this
@@ -518,7 +551,7 @@ export class Modder {
     this.log(
       `${ep.id} ${eo.profile}${eo.revise ? ' revision' : eo.escalatedFrom ? ' escalation' : ''} ${ep.outcome} after ${ep.attempts.length} attempt(s), ${ep.usage.calls} call(s), ${ep.ms} ms: ${req.summary}${ep.rules.length ? ` → ${ep.rules.join(', ')}` : ''}${ep.error ? ` (${ep.error})` : ''}${retired.length ? `; retired skill ${retired.join(', ')}` : ''}`,
     )
-    this.afterwards(ep, req, ws, sig, h, ctx, eo)
+    this.afterwards(ep, req, ws, sig, h, ctx, eo, reviewLater)
     const last = ep.attempts.at(-1)
     return {
       patch: ep.outcome === 'failed' ? null : (ep.patch ?? null),
@@ -541,6 +574,7 @@ export class Modder {
       request: req,
       library: lib,
       ontology: library.fullOntology(lib),
+      base: library.ontology,
       spec: buildModSpec(library.ontology, lib),
       revise: eo.revise ? { rules: replaces, notes: eo.revise.notes } : undefined,
     })
@@ -564,8 +598,24 @@ export class Modder {
       let unaudited = false
       if (run.submitted && patch && !problems.length && auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch))
         found = await this.audit(new Meter(this.backend!), req, patch, { library: lib, ontology: library.fullOntology(lib) }, h).catch((err: Error) => ((ep.error = err.message), (unaudited = true), undefined))
-      if (found?.confirmed.length) ep.attempts.push({ phase: 'audit', patch, errors: auditNotes(found.confirmed), warnings: [], audit: { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length } })
-      else if (run.submitted && patch && !problems.length && !unaudited) this.commit(ep, { ...patch, author: 'modder' }, req, replaces)
+      if (found?.confirmed.length) {
+        ep.attempts.push({ phase: 'audit', patch, errors: auditNotes(found.confirmed), warnings: [], audit: { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length } })
+        // what the auditor broke goes back to the agent once, as the pipeline gives it to the designer
+        if (h.repair.maxRounds > 0 && patch) {
+          const again = await materializeWorld({ request: req, library: lib, ontology: library.fullOntology(lib), base: library.ontology, spec: buildModSpec(library.ontology, lib), revise: eo.revise ? { rules: replaces, notes: eo.revise.notes } : undefined, audit: { notes: auditNotes(found.confirmed), draft: patch } })
+          try {
+            const second = await runAgent({ ...again.task, terms: sig.terms }, { model: this.backend!, state, harness: h, record: false, log: this.opts.log })
+            ep.usage = { calls: ep.usage.calls + second.episode.usage.calls, input: ep.usage.input + second.episode.usage.input, output: ep.usage.output + second.episode.usage.output, cost: (ep.usage.cost ?? 0) + (second.episode.usage.cost ?? 0) }
+            const fixed = again.collect()
+            const placed = fixed.patch ? placePatch(fixed.patch, req, { ontology: library.fullOntology(lib), library: lib }).patch : undefined
+            const still = second.submitted && placed && !fixed.problems.length ? await this.audit(new Meter(this.backend!), req, placed, { library: lib, ontology: library.fullOntology(lib) }, h).catch(() => undefined) : undefined
+            if (placed && still && !still.confirmed.length) this.commit(ep, { ...placed, author: 'modder' }, req, replaces)
+            else ep.attempts.push({ phase: 'audit', patch: placed, errors: still?.confirmed.length ? auditNotes(still.confirmed) : fixed.problems.length ? fixed.problems : ['the second draft was not submitted'], warnings: [] })
+          } finally {
+            await again.dispose()
+          }
+        }
+      } else if (run.submitted && patch && !problems.length && !unaudited) this.commit(ep, { ...patch, author: 'modder' }, req, replaces)
       else if (problems.length) ep.attempts.push({ phase: 'repair', errors: problems, warnings: [] })
       if (ep.outcome !== 'accepted') ep.outcome = 'failed'
       state.recordEpisode(ep)
@@ -592,7 +642,7 @@ export class Modder {
         if (!req?.scenario) return undefined
         const before = this.opts.library.fork((e) => !('patch' in e && e.request === req.id))
         if (before.covering(req)) return undefined // something else answers it now: no test of the harness
-        const repo = await materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), spec: buildModSpec(before.ontology, before.lib) })
+        const repo = await materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), base: before.ontology, spec: buildModSpec(before.ontology, before.lib) })
         // the task carries its own release: its workspace and its container go with it, whoever cleans up
         return { ...repo.task, terms: ep.terms, dispose: repo.dispose }
       },
@@ -601,15 +651,16 @@ export class Modder {
   }
 
   /** What follows an episode once the player has their answer. */
-  private afterwards(ep: Episode, req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, h: Harness, ctx: ToolContext, eo: EpisodeOptions): void {
+  private afterwards(ep: Episode, req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, h: Harness, ctx: ToolContext, eo: EpisodeOptions, reviewLater = false): void {
     // a failure that is the backend's (out of quota, throttled, signed out) is no lesson and no reason to
     // work the request again: nothing follows (the backend's guard has paused the calls)
     if (ep.outcome === 'failed' && BACKEND_DOWN.test(ep.error ?? '')) return
     const shipped = ep.attempts.at(-1)
     const flags = ep.patch ? flagsOf(ep.patch, shipped?.derived) : []
+    if (reviewLater) flags.push('the reviewer before shipping gave no verdict: look at everything')
     // a review after the fact: for a rule that narrates only or did not generalize (and for every
     // live rule when the harness says review.unflagged)
-    if (ep.outcome === 'accepted' && !eo.revise && h.review.enabled && (flags.length || (h.review.blocking === false && h.review.unflagged)) && !shipped?.review)
+    if (ep.outcome === 'accepted' && !eo.revise && h.review.enabled && (flags.length || (h.review.blocking === false && h.review.unflagged)) && (!shipped?.review || reviewLater))
       this.later(`review ${ep.id}`, async () => {
         const model = new Meter(this.backend!)
         const v = await this.review(model, req, ep.patch!, ctx, h, flags)
@@ -729,6 +780,13 @@ export class Modder {
   /** The auditor on a patch (audit.ts): only what it broke in the sandbox, with the patch and not without it. */
   private async audit(model: Model, req: ModRequest, patch: Patch, ctx: Pick<ToolContext, 'library' | 'ontology'>, h: Harness): Promise<AuditResult> {
     const a = auditOf(h)
+    // the deterministic probe first: a farm the sandbox shows by itself needs no model to find it
+    try {
+      const found = probe(req, ctx.ontology, ctx.library, withPatch(ctx.library, patch))
+      if (found.length) return { confirmed: found, unconfirmed: [] }
+    } catch (err) {
+      this.log(`audit probe failed: ${(err as Error).message}`)
+    }
     try {
       return await audit(model, AUDIT_SYSTEM, auditUser(req, patch, describeOutcome(req.scenario, patch, ctx)), req, ctx.ontology, ctx.library, patch, { rounds: a.rounds, reasoning: a.reasoning, provider: profileOf(h, 'offline').design.provider })
     } catch (err) {
@@ -827,7 +885,7 @@ function unreadable(answer: string): string {
   const text = answer.slice(a, b + 1)
   try {
     JSON.parse(text)
-    return 'the answer is JSON but holds no patch: answer {"patch": {"artifacts": [...]}, "summary": "..."}'
+    return 'the answer is JSON but holds no patch: answer {"patch": {"artifacts": [...]}}'
   } catch (err) {
     const msg = (err as Error).message
     const at = Number(/position (\d+)/.exec(msg)?.[1] ?? -1)

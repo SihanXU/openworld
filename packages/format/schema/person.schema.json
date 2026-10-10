@@ -1,0 +1,2300 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/PersonFile",
+  "definitions": {
+    "PersonFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "npc": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schedule": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ScheduleFileEntry"
+              }
+            },
+            "role": {
+              "type": "string"
+            },
+            "home": {
+              "$ref": "#/definitions/Pos"
+            },
+            "lines": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Text"
+              }
+            },
+            "faction": {
+              "type": "string"
+            },
+            "person": {
+              "$ref": "#/definitions/PersonData",
+              "description": "A person's record (docs/game-design.md §5); crowd NPCs may have none."
+            },
+            "override": {
+              "type": "object",
+              "properties": {
+                "map": {
+                  "type": "string"
+                },
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "until": {
+                  "type": "number"
+                },
+                "activity": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "map",
+                "x",
+                "y",
+                "until",
+                "activity"
+              ],
+              "additionalProperties": false,
+              "description": "A detour a rule ordered (`goto`): this anchor until the tick, whatever the schedule says."
+            },
+            "memory": {
+              "$ref": "#/definitions/NpcMemory",
+              "description": "What the person remembers of talking: the lines said, the last one, the day last talked to (their own record)."
+            }
+          },
+          "required": [
+            "role",
+            "schedule"
+          ]
+        },
+        "_items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Entity"
+          }
+        },
+        "id": {
+          "$ref": "#/definitions/Id"
+        },
+        "type": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/definitions/Text"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Instance tags, added to the type's tags."
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/PropValue"
+          }
+        },
+        "statuses": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "status id -> expiry tick (Infinity-like = -1 means no expiry)"
+        },
+        "statusBy": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Id"
+          },
+          "description": "status id -> who gave it (the actor of the outcome that set it): its time events name them."
+        },
+        "place": {
+          "$ref": "#/definitions/Place"
+        },
+        "facing": {
+          "$ref": "#/definitions/Dir"
+        },
+        "contents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Id"
+          },
+          "description": "Ordered contents of a container or an actor's inventory."
+        },
+        "held": {
+          "$ref": "#/definitions/Id",
+          "description": "Actors: the held item."
+        },
+        "ai": {
+          "$ref": "#/definitions/AiData",
+          "description": "Creatures: combat behaviour."
+        },
+        "combat": {
+          "$ref": "#/definitions/CombatState",
+          "description": "The actor's memory of its own blows and steps (combos, chains, windows its talents open): written only by its own act-making (combat.ts) and its own outcomes, never read by rules — like a cooldown. Anything others see (health, a bleed) is a prop or a status."
+        },
+        "script": {
+          "$ref": "#/definitions/SceneState",
+          "description": "The story's script: where it stands (the scene playing) — its behaviour memory."
+        },
+        "boss": {
+          "$ref": "#/definitions/BossState",
+          "description": "An encounter's behaviour memory (its telegraph, its animation); its blows are acts."
+        },
+        "frozenBy": {
+          "type": "string",
+          "description": "Set while an undefined outcome involving this entity awaits a patch (design.md §5.11)."
+        },
+        "dropped": {
+          "type": "boolean",
+          "description": "Items a rule dropped on the ground (a harvest, logs, loot): the player's magnet pulls them in."
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": "The player: inventory slots (design.md §5.3), each the stack key of what it holds; row 1 is the toolbar."
+        },
+        "skillbar": {
+          "type": "array",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": "The skill bar (the one at the keys): the active skills set in its six slots (Shift+1–6), by id."
+        },
+        "selected": {
+          "type": "number",
+          "description": "The player: the selected slot (what is held)."
+        },
+        "look": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/Look"
+            }
+          ],
+          "description": "How an actor looks: a look record (its body, a part per slot and a colour per colour key; the map sprite, the portrait and the look's tags and words are all drawn from it, docs/looks.md), or the key of a whole drawn sheet in the client's catalogue (a figure no parts make: a skeleton, a statue)."
+        }
+      },
+      "required": [
+        "id",
+        "place",
+        "type"
+      ],
+      "description": "A person's file: the entity, its schedule's places by anchor if it likes."
+    },
+    "ScheduleFileEntry": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "map": {
+              "type": "string"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "at": {
+              "not": {}
+            },
+            "from": {
+              "type": "number",
+              "description": "Game hour window [from, to) in 0..24; may wrap past midnight."
+            },
+            "to": {
+              "type": "number"
+            },
+            "activity": {
+              "type": "string"
+            },
+            "uses": {
+              "$ref": "#/definitions/Id",
+              "description": "The thing the activity needs (the fire she tends, the cart he minds)."
+            },
+            "need": {
+              "$ref": "#/definitions/Selector",
+              "description": "What `uses` must be for the activity to go on (the fire lit); else the person is blocked."
+            },
+            "work": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/WorkDef"
+              },
+              "description": "The work the activity is (world-model.md §6.10): real acts on what is about, tried in order."
+            }
+          },
+          "required": [
+            "activity",
+            "from",
+            "map",
+            "to",
+            "x",
+            "y"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "at": {
+              "type": "string"
+            },
+            "map": {
+              "not": {}
+            },
+            "x": {
+              "not": {}
+            },
+            "y": {
+              "not": {}
+            },
+            "from": {
+              "type": "number",
+              "description": "Game hour window [from, to) in 0..24; may wrap past midnight."
+            },
+            "to": {
+              "type": "number"
+            },
+            "activity": {
+              "type": "string"
+            },
+            "uses": {
+              "$ref": "#/definitions/Id",
+              "description": "The thing the activity needs (the fire she tends, the cart he minds)."
+            },
+            "need": {
+              "$ref": "#/definitions/Selector",
+              "description": "What `uses` must be for the activity to go on (the fire lit); else the person is blocked."
+            },
+            "work": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/WorkDef"
+              },
+              "description": "The work the activity is (world-model.md §6.10): real acts on what is about, tried in order."
+            }
+          },
+          "required": [
+            "activity",
+            "at",
+            "from",
+            "to"
+          ]
+        }
+      ],
+      "description": "A schedule entry as a person's file writes it: a place, or an anchor of a map (`map:anchor`)."
+    },
+    "Id": {
+      "type": "string"
+    },
+    "Selector": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Is-a match against the type hierarchy (prefix on slash paths): `actor`, `item/food`, `tile/grass`…"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "All of these tags."
+        },
+        "notTags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "None of these tags."
+        },
+        "status": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "All of these statuses."
+        },
+        "notStatus": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "None of these statuses."
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Cmp"
+          },
+          "description": "Property comparisons."
+        },
+        "id": {
+          "$ref": "#/definitions/Id",
+          "description": "Instance-bound (discouraged for patches)."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Selects the entity or tile filling a role. All given constraints must hold."
+    },
+    "Cmp": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/PropValue"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "eq": {
+              "$ref": "#/definitions/PropValue"
+            },
+            "ne": {
+              "$ref": "#/definitions/PropValue"
+            },
+            "gt": {
+              "type": "number"
+            },
+            "gte": {
+              "type": "number"
+            },
+            "lt": {
+              "type": "number"
+            },
+            "lte": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "PropValue": {
+      "type": [
+        "number",
+        "string",
+        "boolean"
+      ]
+    },
+    "WorkDef": {
+      "type": "object",
+      "properties": {
+        "verb": {
+          "$ref": "#/definitions/Verb"
+        },
+        "target": {
+          "$ref": "#/definitions/Selector"
+        },
+        "holding": {
+          "$ref": "#/definitions/Selector"
+        },
+        "radius": {
+          "type": "number"
+        },
+        "when": {
+          "$ref": "#/definitions/Cond",
+          "description": "A condition on the worker (the host) the work waits for: carrying fewer than six logs."
+        }
+      },
+      "required": [
+        "verb",
+        "target",
+        "radius"
+      ],
+      "additionalProperties": false,
+      "description": "A piece of work (world-model.md §6.10, D26): the act a person does, with the player's own acts, on the nearest thing that fits within `radius` of their anchor (a woodcutter's axe on a tree), with what they carry that fits `holding`."
+    },
+    "Verb": {
+      "type": "string",
+      "enum": [
+        "use",
+        "put",
+        "take",
+        "hands",
+        "move",
+        "craft",
+        "learn"
+      ],
+      "description": "What an actor does: the inputs, and the behaviour of people and creatures (the same acts)."
+    },
+    "Cond": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "all": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Cond"
+              }
+            }
+          },
+          "required": [
+            "all"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "any": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Cond"
+              }
+            }
+          },
+          "required": [
+            "any"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "not": {
+              "$ref": "#/definitions/Cond"
+            }
+          },
+          "required": [
+            "not"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "is": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "sel": {
+                  "$ref": "#/definitions/Selector"
+                }
+              },
+              "required": [
+                "role",
+                "sel"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "is"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "none": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "none"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "same": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RoleName"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "same"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "leads": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RoleName"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "leads"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "has": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "tag": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "has"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "prop": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/Reader"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "cmp": {
+                  "$ref": "#/definitions/Cmp"
+                },
+                "bounds": {
+                  "$ref": "#/definitions/Bounds"
+                },
+                "default": {
+                  "$ref": "#/definitions/PropValue"
+                }
+              },
+              "required": [
+                "role",
+                "key"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "prop"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "param": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "cmp": {
+                  "$ref": "#/definitions/Cmp"
+                }
+              },
+              "required": [
+                "key",
+                "cmp"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "param"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "chance": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "chance"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "hour": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "number"
+                },
+                "to": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "hour"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "night": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "night"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "count": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "in": {
+                  "type": "string",
+                  "enum": [
+                    "contents",
+                    "tile",
+                    "map"
+                  ]
+                },
+                "match": {
+                  "$ref": "#/definitions/Selector"
+                },
+                "cmp": {
+                  "$ref": "#/definitions/Bounds"
+                }
+              },
+              "required": [
+                "role",
+                "in",
+                "cmp"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "count"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "topic": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "topic"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "weather": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "weather"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "exists": {
+              "$ref": "#/definitions/Selector"
+            }
+          },
+          "required": [
+            "exists"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "outdoors": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "outdoors"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "makeup": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "makeup"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "worn": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "worn"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "rel": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "how": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "how"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "rel"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fighting": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "fighting"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "regard": {
+              "type": "object",
+              "properties": {
+                "of": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "toward": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "cmp": {
+                  "$ref": "#/definitions/Cmp"
+                }
+              },
+              "required": [
+                "of",
+                "toward",
+                "cmp"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "regard"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "bounty": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "cmp": {
+                  "$ref": "#/definitions/Cmp"
+                }
+              },
+              "required": [
+                "role",
+                "cmp"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "bounty"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "grudge": {
+              "type": "object",
+              "properties": {
+                "of": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "toward": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "deed": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "of",
+                "toward"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "grudge"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "owns": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RoleName"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "owns"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "knows": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RoleName"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "knows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "remembers": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "remembers"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "deed": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean",
+                  "const": true
+                }
+              ]
+            }
+          },
+          "required": [
+            "deed"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "sway": {
+              "type": "object",
+              "properties": {
+                "of": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "by": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "how": {
+                  "type": "string",
+                  "enum": [
+                    "persuade",
+                    "intimidate"
+                  ]
+                },
+                "bonus": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "of",
+                "by",
+                "how"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "sway"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "canPay": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "mul": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "role"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "canPay"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "unpardonable": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "unpardonable"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "RoleName": {
+      "type": "string",
+      "enum": [
+        "host",
+        "actor",
+        "target",
+        "instrument",
+        "other",
+        "item",
+        "source"
+      ],
+      "description": "The roles of an event besides its host (whose rule answers it):\n- act: `actor`, `target`, `instrument` (the host is the instrument, or the actor's own hands);\n- impulse: `source` (what emitted it), `actor` (whose act started the chain), `instrument`,   `item` (the thing given, put or taken), `other` (the taker, for `taken`);\n- contact, bump: `other`, the thing on the other side;\n- seen: `actor` (the doer), `target`, `instrument`;\n- stuck: `target` (what the activity needs, or the spot); broken: `target` (the giver)."
+    },
+    "Reader": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/RoleName"
+        },
+        {
+          "type": "string",
+          "const": "story"
+        },
+        {
+          "type": "string",
+          "const": "world"
+        }
+      ],
+      "description": "What a condition may read: the event's roles, and the stewards every rule may read (the story, the world)."
+    },
+    "Bounds": {
+      "type": "object",
+      "properties": {
+        "eq": {
+          "$ref": "#/definitions/Operand"
+        },
+        "gt": {
+          "$ref": "#/definitions/Operand"
+        },
+        "gte": {
+          "$ref": "#/definitions/Operand"
+        },
+        "lt": {
+          "$ref": "#/definitions/Operand"
+        },
+        "lte": {
+          "$ref": "#/definitions/Operand"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Numeric bounds whose limits may be read from roles. A missing property fails the test."
+    },
+    "Operand": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "prop": {
+              "type": "string"
+            },
+            "of": {
+              "$ref": "#/definitions/RoleName"
+            },
+            "mul": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "prop",
+            "of"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "param": {
+              "type": "string"
+            },
+            "mul": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "param"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "description": "A number, or a number read from a role's prop (scaled) or from the event's params."
+    },
+    "Pos": {
+      "type": "object",
+      "properties": {
+        "map": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number",
+          "description": "The storey (world-model.md §5.2): 0 the ground's, 1 the floor above it … (omitted: 0)."
+        }
+      },
+      "required": [
+        "map",
+        "x",
+        "y"
+      ],
+      "additionalProperties": false
+    },
+    "Text": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "en": {
+              "type": "string"
+            },
+            "zh": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "en"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "PersonData": {
+      "type": "object",
+      "properties": {
+        "temperament": {
+          "type": "object",
+          "properties": {
+            "personality": {
+              "type": "string"
+            },
+            "manner": {
+              "type": "string"
+            },
+            "social": {
+              "type": "string"
+            },
+            "outlook": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ties": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "id → relation ('daughter', 'old friend' …)"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/LineDef"
+          }
+        },
+        "schedules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ScheduleVariant"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "LineDef": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "text": {
+          "$ref": "#/definitions/Text"
+        },
+        "mood": {
+          "$ref": "#/definitions/Mood"
+        },
+        "once": {
+          "type": "boolean",
+          "description": "said at most once to the player"
+        }
+      },
+      "required": [
+        "key",
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "A line and the context it is for. Keys, most specific first (people.ts resolves them): topic:<id> · fact:<key> (the fact is truthy) · greeting:first · weather:<w> · hour:<morning|day|evening|night> · default — and when handed something: given:<type prefix> · given. Slots in the text: {player} {name} {friend:<id>} {fact:<key>} {item}."
+    },
+    "Mood": {
+      "type": "string",
+      "enum": [
+        "neutral",
+        "happy",
+        "sad",
+        "angry",
+        "surprised",
+        "shy"
+      ]
+    },
+    "ScheduleVariant": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ScheduleEntry"
+          }
+        }
+      },
+      "required": [
+        "key",
+        "entries"
+      ],
+      "additionalProperties": false,
+      "description": "A schedule variant. Keys, most specific first: fact:<key> (the fact is truthy) · storm · rain · default."
+    },
+    "ScheduleEntry": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "number",
+          "description": "Game hour window [from, to) in 0..24; may wrap past midnight."
+        },
+        "to": {
+          "type": "number"
+        },
+        "map": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "activity": {
+          "type": "string"
+        },
+        "uses": {
+          "$ref": "#/definitions/Id",
+          "description": "The thing the activity needs (the fire she tends, the cart he minds)."
+        },
+        "need": {
+          "$ref": "#/definitions/Selector",
+          "description": "What `uses` must be for the activity to go on (the fire lit); else the person is blocked."
+        },
+        "work": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/WorkDef"
+          },
+          "description": "The work the activity is (world-model.md §6.10): real acts on what is about, tried in order."
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "map",
+        "x",
+        "y",
+        "activity"
+      ],
+      "additionalProperties": false
+    },
+    "NpcMemory": {
+      "type": "object",
+      "properties": {
+        "said": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "keys (or texts) of once-only and topic lines already said"
+        },
+        "last": {
+          "type": "string",
+          "description": "the last line said, not repeated next time"
+        },
+        "talked": {
+          "type": "number",
+          "description": "the day they were last talked to"
+        },
+        "deeds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DeedMemory"
+          },
+          "description": "What they know was done (docs/npc-sandbox.md §2.4): seen or heard, newest last."
+        },
+        "regard": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "What they think of others, by id (−100..100; missing: their start), and when each last changed (it fades back from there)."
+        },
+        "regardAt": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "met": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Id"
+          },
+          "description": "Whom they know by sight (met, talked to, seen close in daylight)."
+        },
+        "chatted": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "The day each was last talked to, by id (talking raises regard once a day)."
+        },
+        "afraid": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Whom they fear for now (they saw them do violence): run from them until the tick."
+        }
+      },
+      "additionalProperties": false,
+      "description": "What a person remembers (their own record): what they said, what they saw and heard, what they think of others."
+    },
+    "DeedMemory": {
+      "type": "object",
+      "properties": {
+        "deed": {
+          "type": "string",
+          "description": "The deed's id (the world's `deeds`)."
+        },
+        "by": {
+          "$ref": "#/definitions/Id",
+          "description": "Who did it, if they knew them."
+        },
+        "desc": {
+          "$ref": "#/definitions/Look",
+          "description": "How the doer looked, when they did not know them (a hood hides the hair): matched later against who they see."
+        },
+        "words": {
+          "type": "string",
+          "description": "That look in words, for what they say."
+        },
+        "against": {
+          "type": "string",
+          "description": "Against whom: a person's id, or `household:<h>`."
+        },
+        "thing": {
+          "$ref": "#/definitions/Id",
+          "description": "What it was done to or with (the thing taken)."
+        },
+        "what": {
+          "$ref": "#/definitions/Text",
+          "description": "The thing's name then (it may be gone since)."
+        },
+        "map": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "tick": {
+          "type": "number"
+        },
+        "firsthand": {
+          "type": "boolean",
+          "description": "Seen with their own eyes (else heard)."
+        },
+        "fine": {
+          "type": "number",
+          "description": "The fine the watch would charge for it."
+        },
+        "reported": {
+          "type": "boolean",
+          "description": "Told to the watch; settled (given back, paid for, forgiven)."
+        },
+        "settled": {
+          "type": "boolean"
+        },
+        "told": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Id"
+          },
+          "description": "Whom they have told it to."
+        }
+      },
+      "required": [
+        "deed",
+        "map",
+        "x",
+        "y",
+        "tick",
+        "firsthand",
+        "fine"
+      ],
+      "additionalProperties": false,
+      "description": "A deed a person knows of: what was done, by whom (or how they looked), to whom, and how they know."
+    },
+    "Look": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "description": "The body (`LookTable.bodies`): its frame on the map and its bust in the portrait."
+        },
+        "parts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "A part per slot (`LookTable.parts`; the slot is the part's own): hair, face, outfit, hat, beard, mark, glasses…"
+        },
+        "colors": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "A colour per colour key: `skin`, `hair`, `eyes`, and a part's own as `<slot>.<n>` (`outfit.1`); a colour of `LookTable.colors` by id, or `#rrggbb`. A key no colour is given for takes the part's default."
+        },
+        "own": {
+          "type": "boolean",
+          "description": "Changed in the world (`restyle`): the world's own design of this person no longer replaces it on load."
+        }
+      },
+      "required": [
+        "body",
+        "parts",
+        "colors"
+      ],
+      "additionalProperties": false,
+      "description": "A look (docs/looks.md): what a body is drawn from — the one record its map sprite, its portrait and its look's tags and words all come from, so they cannot disagree. Parts and colours are the ontology's (`Ontology.looks`); their pictures are the client's."
+    },
+    "Entity": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Id"
+        },
+        "type": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/definitions/Text"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Instance tags, added to the type's tags."
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/PropValue"
+          }
+        },
+        "statuses": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "status id -> expiry tick (Infinity-like = -1 means no expiry)"
+        },
+        "statusBy": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Id"
+          },
+          "description": "status id -> who gave it (the actor of the outcome that set it): its time events name them."
+        },
+        "place": {
+          "$ref": "#/definitions/Place"
+        },
+        "facing": {
+          "$ref": "#/definitions/Dir"
+        },
+        "contents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Id"
+          },
+          "description": "Ordered contents of a container or an actor's inventory."
+        },
+        "held": {
+          "$ref": "#/definitions/Id",
+          "description": "Actors: the held item."
+        },
+        "npc": {
+          "$ref": "#/definitions/NpcData",
+          "description": "NPCs: schedule + role."
+        },
+        "ai": {
+          "$ref": "#/definitions/AiData",
+          "description": "Creatures: combat behaviour."
+        },
+        "combat": {
+          "$ref": "#/definitions/CombatState",
+          "description": "The actor's memory of its own blows and steps (combos, chains, windows its talents open): written only by its own act-making (combat.ts) and its own outcomes, never read by rules — like a cooldown. Anything others see (health, a bleed) is a prop or a status."
+        },
+        "script": {
+          "$ref": "#/definitions/SceneState",
+          "description": "The story's script: where it stands (the scene playing) — its behaviour memory."
+        },
+        "boss": {
+          "$ref": "#/definitions/BossState",
+          "description": "An encounter's behaviour memory (its telegraph, its animation); its blows are acts."
+        },
+        "frozenBy": {
+          "type": "string",
+          "description": "Set while an undefined outcome involving this entity awaits a patch (design.md §5.11)."
+        },
+        "dropped": {
+          "type": "boolean",
+          "description": "Items a rule dropped on the ground (a harvest, logs, loot): the player's magnet pulls them in."
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": "The player: inventory slots (design.md §5.3), each the stack key of what it holds; row 1 is the toolbar."
+        },
+        "skillbar": {
+          "type": "array",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": "The skill bar (the one at the keys): the active skills set in its six slots (Shift+1–6), by id."
+        },
+        "selected": {
+          "type": "number",
+          "description": "The player: the selected slot (what is held)."
+        },
+        "look": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/Look"
+            }
+          ],
+          "description": "How an actor looks: a look record (its body, a part per slot and a colour per colour key; the map sprite, the portrait and the look's tags and words are all drawn from it, docs/looks.md), or the key of a whole drawn sheet in the client's catalogue (a figure no parts make: a skeleton, a statue)."
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "place"
+      ],
+      "additionalProperties": false
+    },
+    "Place": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "on": {
+              "type": "string",
+              "const": "tile"
+            },
+            "map": {
+              "type": "string"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "z": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "on",
+            "map",
+            "x",
+            "y"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "on": {
+              "type": "string",
+              "const": "inside"
+            },
+            "holder": {
+              "$ref": "#/definitions/Id"
+            }
+          },
+          "required": [
+            "on",
+            "holder"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "on": {
+              "type": "string",
+              "const": "hand"
+            },
+            "holder": {
+              "$ref": "#/definitions/Id"
+            }
+          },
+          "required": [
+            "on",
+            "holder"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "on": {
+              "type": "string",
+              "const": "resident"
+            }
+          },
+          "required": [
+            "on"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "on": {
+              "type": "string",
+              "const": "area"
+            },
+            "map": {
+              "type": "string"
+            },
+            "rects": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 4,
+                "maxItems": 4
+              }
+            },
+            "z": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "on",
+            "map",
+            "rects"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "on": {
+              "type": "string",
+              "const": "none"
+            }
+          },
+          "required": [
+            "on"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "description": "Where an entity is: on a tile, inside a container/inventory, or nowhere (destroyed)."
+    },
+    "Dir": {
+      "type": "string",
+      "enum": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ]
+    },
+    "NpcData": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string"
+        },
+        "home": {
+          "$ref": "#/definitions/Pos"
+        },
+        "schedule": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ScheduleEntry"
+          }
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Text"
+          }
+        },
+        "faction": {
+          "type": "string"
+        },
+        "person": {
+          "$ref": "#/definitions/PersonData",
+          "description": "A person's record (docs/game-design.md §5); crowd NPCs may have none."
+        },
+        "override": {
+          "type": "object",
+          "properties": {
+            "map": {
+              "type": "string"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "until": {
+              "type": "number"
+            },
+            "activity": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "map",
+            "x",
+            "y",
+            "until",
+            "activity"
+          ],
+          "additionalProperties": false,
+          "description": "A detour a rule ordered (`goto`): this anchor until the tick, whatever the schedule says."
+        },
+        "memory": {
+          "$ref": "#/definitions/NpcMemory",
+          "description": "What the person remembers of talking: the lines said, the last one, the day last talked to (their own record)."
+        }
+      },
+      "required": [
+        "role",
+        "schedule"
+      ],
+      "additionalProperties": false
+    },
+    "AiData": {
+      "type": "object",
+      "properties": {
+        "behaviour": {
+          "type": "string",
+          "enum": [
+            "melee",
+            "ranged",
+            "passive"
+          ]
+        },
+        "temper": {
+          "type": "string",
+          "enum": [
+            "aggressive",
+            "nocturnal",
+            "wary"
+          ],
+          "description": "When it attacks those its factions are hostile to: always, after dark only, or only once provoked. Whoever strikes it becomes a foe, whatever its temper."
+        },
+        "foes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Id"
+          },
+          "description": "Whoever struck it: attacked on sight."
+        },
+        "leash": {
+          "type": "number",
+          "description": "How far from where it lives (home, or its night roam) it will chase before it gives up (default 8)."
+        },
+        "sight": {
+          "type": "number"
+        },
+        "home": {
+          "$ref": "#/definitions/Pos"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "chase",
+            "return",
+            "flee"
+          ]
+        },
+        "detour": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "path": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "path"
+          ],
+          "additionalProperties": false,
+          "description": "The way around an obstacle it is following, to the goal it was planned for."
+        },
+        "noWay": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "until": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "until"
+          ],
+          "additionalProperties": false,
+          "description": "A goal no way led to (one shut in a house): it does not look for a way there again until then."
+        },
+        "cooldown": {
+          "type": "number"
+        },
+        "loot": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "night": {
+          "$ref": "#/definitions/Pos",
+          "description": "Where it roams at night (creatures come out after dark); by day it keeps to `home`."
+        }
+      },
+      "required": [
+        "behaviour",
+        "temper",
+        "sight",
+        "home"
+      ],
+      "additionalProperties": false
+    },
+    "CombatState": {
+      "type": "object",
+      "properties": {
+        "fightTick": {
+          "type": "number",
+          "description": "When it last fought: struck at an actor, was struck by one, or was chased by a hostile one (the `fighting` condition)."
+        },
+        "lastMoveTick": {
+          "type": "number"
+        },
+        "lastAttackTick": {
+          "type": "number"
+        },
+        "lastHurtTick": {
+          "type": "number"
+        },
+        "lastHurtBy": {
+          "$ref": "#/definitions/Id",
+          "description": "Who struck it last, and what they were (kept when they are gone): who felled it, when it falls."
+        },
+        "lastHurtByType": {
+          "type": "string"
+        },
+        "steps": {
+          "type": "number"
+        },
+        "comboTarget": {
+          "$ref": "#/definitions/Id"
+        },
+        "comboHits": {
+          "type": "number"
+        },
+        "comboTick": {
+          "type": "number"
+        },
+        "pursuitUntil": {
+          "type": "number"
+        },
+        "lastStandTick": {
+          "type": "number"
+        },
+        "moveCarry": {
+          "type": "number"
+        },
+        "attackCarry": {
+          "type": "number"
+        },
+        "retaliateUntil": {
+          "type": "number",
+          "description": "Warrior: a Retaliation is ready until this tick (after taking a hit)."
+        },
+        "rampageStacks": {
+          "type": "number",
+          "description": "Warrior: Rampage stacks, and when they lapse."
+        },
+        "rampageUntil": {
+          "type": "number"
+        },
+        "markTarget": {
+          "$ref": "#/definitions/Id",
+          "description": "Ranger: Hunter's Mark — ranged hits in a row on one target."
+        },
+        "markHits": {
+          "type": "number"
+        },
+        "fleetUntil": {
+          "type": "number",
+          "description": "Ranger: Fleet Archer's speed lasts until this tick."
+        },
+        "spellHits": {
+          "type": "number",
+          "description": "Mage: magic hits landed (every fourth echoes)."
+        },
+        "dodgeTick": {
+          "type": "number",
+          "description": "Swiftness: the last dodge (Untouchable readies a critical from it), and blows pass by until this tick (Phantom Step, Phoenix)."
+        },
+        "guardUntil": {
+          "type": "number"
+        },
+        "slipUntil": {
+          "type": "number",
+          "description": "Swiftness: Slipstream's speed after a dash lasts until this tick."
+        },
+        "chain": {
+          "type": "number",
+          "description": "Damage: Momentum — hits landed in a chain, and when the last one was."
+        },
+        "chainTick": {
+          "type": "number"
+        },
+        "adrenalineTick": {
+          "type": "number",
+          "description": "Survival: Adrenaline — when it last came (once a minute; the rush itself is a status)."
+        },
+        "starHits": {
+          "type": "number",
+          "description": "Relics (a Stigmatic piece's power): Starfall's hits toward the fifth, the gale's speed until, the Unfallen Wall's last turned blow."
+        },
+        "galeUntil": {
+          "type": "number"
+        },
+        "unfallenTick": {
+          "type": "number"
+        },
+        "hasteUntil": {
+          "type": "number",
+          "description": "Active skills (actives.ts): Gale Step's speed, a War Cry's guard and strength, a Smoke Bomb's veil — until these ticks."
+        },
+        "rallyUntil": {
+          "type": "number"
+        },
+        "veilUntil": {
+          "type": "number"
+        },
+        "envenomHits": {
+          "type": "number",
+          "description": "Envenom: so many more blows open a bleed."
+        },
+        "rain": {
+          "type": "object",
+          "properties": {
+            "map": {
+              "type": "string"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "next": {
+              "type": "number"
+            },
+            "left": {
+              "type": "number"
+            },
+            "power": {
+              "type": "number"
+            },
+            "element": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "map",
+            "x",
+            "y",
+            "next",
+            "left",
+            "power"
+          ],
+          "additionalProperties": false,
+          "description": "Arrow Rain: volleys still to fall on a 3×3 around (x, y), the next at tick `next`."
+        },
+        "ironUntil": {
+          "type": "number",
+          "description": "Iron Guard: blows taken much lighter, steps slower, until this tick. Hawk Eye: reach and criticals, until this tick."
+        },
+        "aimUntil": {
+          "type": "number"
+        },
+        "defeats": {
+          "type": "number",
+          "description": "Creatures it has felled (the talents that answer a defeat: actives.ts onDefeat), and casts made (Elemental Master)."
+        },
+        "casts": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "SceneState": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "step": {
+          "type": "number"
+        },
+        "until": {
+          "type": "number"
+        },
+        "waiting": {
+          "type": "string",
+          "enum": [
+            "advance",
+            "move"
+          ]
+        },
+        "mover": {
+          "type": "object",
+          "properties": {
+            "who": {
+              "$ref": "#/definitions/Id"
+            },
+            "path": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            },
+            "next": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "who",
+            "path",
+            "next"
+          ],
+          "additionalProperties": false
+        },
+        "started": {
+          "type": "number"
+        },
+        "line": {
+          "type": "object",
+          "properties": {
+            "who": {
+              "$ref": "#/definitions/Id"
+            },
+            "text": {
+              "$ref": "#/definitions/Text"
+            },
+            "mood": {
+              "$ref": "#/definitions/Mood"
+            },
+            "card": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "who",
+            "text"
+          ],
+          "additionalProperties": false,
+          "description": "the line waiting to be advanced (so a client that missed the say event can show it)"
+        }
+      },
+      "required": [
+        "id",
+        "step"
+      ],
+      "additionalProperties": false
+    },
+    "BossState": {
+      "type": "object",
+      "properties": {
+        "kit": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "number"
+        },
+        "nextSkill": {
+          "type": "number"
+        },
+        "nextAt": {
+          "type": "number"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "walk",
+            "attack",
+            "cast",
+            "hurt",
+            "death"
+          ]
+        },
+        "actionTick": {
+          "type": "number"
+        },
+        "actionEnd": {
+          "type": "number"
+        },
+        "pending": {
+          "type": "object",
+          "properties": {
+            "skill": {
+              "type": "number"
+            },
+            "target": {
+              "$ref": "#/definitions/Id"
+            },
+            "origin": {
+              "$ref": "#/definitions/Pos"
+            },
+            "aim": {
+              "$ref": "#/definitions/Pos"
+            },
+            "tiles": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            },
+            "releaseAt": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "skill",
+            "target",
+            "origin",
+            "aim",
+            "tiles",
+            "releaseAt"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kit"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

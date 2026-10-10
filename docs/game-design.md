@@ -232,7 +232,7 @@ The requirements are derived from the system, not chosen:
   sticks, stones and grass that craft the first tools (F12); a defeated foe teaches whoever
   struck it (F13); the meadow's animals and their food (F14); the forest's trees (F15).
 
-**The proof** is `packages/tools/test/demo.test.ts`. It builds the real map in memory
+**The proof** is `games/openworld/tools/test/demo.test.ts`. It builds the real map in memory
 (`buildFord()`), and for every requirement runs a scenario on it — through the player's own
 inputs wherever there are any (the routes are walked, the axe is swung, the wand is cast) — and
 asserts the event, request or state. Then the converse, **minimality**: every placed type, every

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Asset Catalogue Preview</title>
+    <style>
+      :root {
+        --bg: #1d2026;
+        --panel: #272b33;
+        --text: #e6e6e6;
+        --muted: #9aa3ad;
+        --accent: #f0c060;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.35 system-ui, sans-serif; }
+      header { position: sticky; top: 0; z-index: 5; background: #14161a; padding: 8px 16px; border-bottom: 1px solid #333; }
+      header h1 { margin: 0 12px 0 0; font-size: 16px; display: inline; }
+      header nav a { color: var(--accent); margin-right: 10px; text-decoration: none; }
+      main { padding: 8px 16px 64px; }
+      section { margin: 18px 0 28px; }
+      section > h2 { font-size: 15px; color: var(--accent); border-bottom: 1px solid #3a3f48; padding-bottom: 4px; }
+      .grid { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
+      .card { background: var(--panel); border-radius: 6px; padding: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+      .card .key { font: 11px ui-monospace, monospace; color: var(--text); max-width: 360px; text-align: center; word-break: break-all; }
+      .card .note { font-size: 11px; color: var(--muted); max-width: 360px; text-align: center; }
+      canvas { image-rendering: pixelated; display: block; }
+      button { background: #3a404b; color: var(--text); border: 1px solid #555; border-radius: 4px; padding: 4px 8px; cursor: pointer; font: 12px ui-monospace, monospace; }
+      button:hover { background: #4a5260; }
+      .row { display: flex; gap: 6px; flex-wrap: wrap; }
+      .err { color: #ff7070; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Ninja Adventure catalogue</h1>
+      <nav id="nav"></nav>
+      <span id="status" class="note"></span>
+    </header>
+    <main id="main"></main>
+    <script type="module" src="/src/preview.ts"></script>
+  </body>
+</html>

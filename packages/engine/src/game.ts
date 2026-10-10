@@ -2,7 +2,6 @@
 
 import { START_HOUR, TICKS_PER_HOUR, type WeatherSpan } from './calendar.ts'
 import { Engine, type MapChunk } from './engine.ts'
-import { HUNGER_EVERY } from './hunger.ts'
 import { ModPort } from './mod.ts'
 import { Codex, type CodexData } from './codex.ts'
 import { RuleLibrary, type LibraryData } from './rules.ts'
@@ -95,9 +94,9 @@ export class Game {
     engine.controls.magnetic = true
   }
 
-  /** A new game, at the world's start or at one of its other starts (`start`, a name in `index.starts`). */
-  static create(index: WorldIndex, ontology: Ontology, library: RuleLibrary, start?: string): Game {
-    const other = start ? index.starts?.[start] : undefined
+  /** A new game, at the world's start, at one of its other starts (`start`, a name in `index.starts`), or at a start given (a playtest's cell). */
+  static create(index: WorldIndex, ontology: Ontology, library: RuleLibrary, start?: string | StartDef): Game {
+    const other = typeof start === 'object' ? start : start ? index.starts?.[start] : undefined
     if (start && !other) throw new Error(`no start ${start}`)
     const from: StartDef = other ?? { at: index.start, ...index.begin }
     const at = from.at
@@ -131,14 +130,19 @@ export class Game {
     return new Game(eng)
   }
 
-  static load(save: SaveData, index: WorldIndex, ontology: Ontology, library?: RuleLibrary): Game {
+  /** A save loaded (upgradeSave: the game's own save history, GameDef.upgradeSave). */
+  static load(save: SaveData, index: WorldIndex, ontology: Ontology, library?: RuleLibrary, upgradeSave?: (eng: Engine) => void): Game {
     const lib = library ?? RuleLibrary.fromJSON(save.library)
     const eng = new Engine(save.state, ontology, lib)
     for (const m of index.maps) (eng.graph[m.id] = m.portals), (eng.maps[m.id] = { name: m.name, width: m.width, height: m.height, ...(m.regions && { regions: m.regions }) })
     eng.ensureResidents()
     loadContent(eng, index)
-    // loading is the author's: an older save is brought up to the world as it is now
-    eng.author(() => upgrade(eng, index))
+    // loading is the author's: an older save is brought up to the world as it is now, and to its modules
+    eng.author(() => {
+      upgrade(eng, index)
+      for (const m of eng.modules) m.upgrade?.(eng)
+      upgradeSave?.(eng)
+    })
     const game = new Game(eng)
     game.codex = Codex.from(save.codex)
     return game
@@ -197,14 +201,6 @@ function upgrade(eng: Engine, index: WorldIndex): void {
   // Old saves acquire the world's initial profession; an explicit profession is never replaced.
   if (p && p.props?.profession === undefined && index.player.props?.profession !== undefined) w.setProp(p, 'profession', index.player.props.profession)
   for (const e of Object.values(s.entities)) {
-    // Early Iron Stomach saves used its delta as an absolute interval (faster, not slower).
-    if (e.tags?.includes('skill:iron-stomach') && e.props?.hungerEvery === 150) w.setProp(e, 'hungerEvery', 450)
-    // Hunger's base pace was a point every 300 ticks (now HUNGER_EVERY): a skill's kept interval on
-    // the old scale (300, 450, 600) is scaled to the new one.
-    const every = e.props?.hungerEvery
-    if (every === 300 || every === 450 || every === 600) w.setProp(e, 'hungerEvery', Math.round((every * HUNGER_EVERY) / 300))
-    // the night-born were marked by a prop before they had a tag
-    if (e.props?.nightborn) (w.setProp(e, 'nightborn', undefined), w.addTag(e, 'nightborn'))
     // A save taken while an outcome was being worked out holds its participants, but the request
     // itself is not saved: nobody will answer it, so they are let go (as after a time-out).
     delete e.frozenBy

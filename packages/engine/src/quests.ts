@@ -765,9 +765,13 @@ export class Quests {
     }
   }
 
-  /** A stand-in for a quest not yet begun (its triggers read the taker as the player). */
+  /**
+   * A stand-in for a quest not yet begun: its triggers read the taker as the player, and an alias that names
+   * one thing as that thing (a quest that begins when its giver is spoken to).
+   */
   private probe(d: QuestDef): Entity {
-    return { id: questId(d.id), type: QUEST_TYPE, place: { on: 'resident' }, props: { quest: d.id, by: this.w.state.player } } as Entity
+    const fixed = Object.fromEntries(Object.entries(d.aliases ?? {}).flatMap(([k, a]) => (a.id ? [[`alias.${k}`, a.id]] : [])))
+    return { id: questId(d.id), type: QUEST_TYPE, place: { on: 'resident' }, props: { quest: d.id, by: this.w.state.player, ...fixed } } as Entity
   }
 
   /**
