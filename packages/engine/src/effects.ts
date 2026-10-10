@@ -9,7 +9,6 @@ import { GIVEN_LINE, chooseLine, memoryOf, raiseTopic } from './people.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
 import { cannotRead, gainXp, learnSkill, readSkill } from './progression.ts'
 import { BOON_PREFIX, activeBoon, boonsOf, leaderOf, nearAttunedWaypoint } from './boons.ts'
-import { canWield, cannotChoose, chooseProfession, itemProfession } from './profession.ts'
 import { appear } from './appear.ts'
 import { releaseSkill } from './bosses.ts'
 import { NO_EXPIRY, WriteError } from './world.ts'
@@ -104,9 +103,9 @@ export const RESIDENT_ONLY = new Set<Effect['op']>(['topic', 'scene', 'lightning
 export const QUEST_ONLY = new Set<Effect['op']>(['advance', 'stage', 'accept', 'decline', 'failQuest'])
 
 export class EffectRunner {
-  constructor(private eng: Engine) {}
+  constructor(readonly eng: Engine) {}
 
-  private ref(ev: GameEvent, r: RoleRef): Ref | undefined {
+  ref(ev: GameEvent, r: RoleRef): Ref | undefined {
     const w = this.eng.world
     // the cell under a role: what makes it up on top
     if (r.startsWith('tileOf:')) {
@@ -117,15 +116,15 @@ export class EffectRunner {
     return this.roleRef(ev, r as RoleName)
   }
 
-  private roleRef(ev: GameEvent, r: RoleName): Ref | undefined {
+  roleRef(ev: GameEvent, r: RoleName): Ref | undefined {
     return r === 'host' ? ev.host : ev.roles[r]
   }
 
-  private hostEntity(ev: GameEvent): Entity | undefined {
+  hostEntity(ev: GameEvent): Entity | undefined {
     return 'e' in ev.host ? this.eng.world.get(ev.host.e) : undefined
   }
 
-  private pos(ev: GameEvent, r: RoleRef): Pos | undefined {
+  pos(ev: GameEvent, r: RoleRef): Pos | undefined {
     return this.eng.world.refPos(this.ref(ev, r))
   }
 
@@ -222,7 +221,7 @@ export class EffectRunner {
     const eng = this.eng
     const w = eng.world
     const host = this.hostEntity(ev)
-    if (RESIDENT_ONLY.has(eff.op) && (!host || !w.isPlaceless(host))) throw new Error(`${eff.op} is the story's and the world's only`)
+    if ((RESIDENT_ONLY.has(eff.op) || eng.residentOnly.has(eff.op)) && (!host || !w.isPlaceless(host))) throw new Error(`${eff.op} is the story's and the world's only`)
     if (QUEST_ONLY.has(eff.op) && host?.type !== 'resident/quest') throw new Error(`${eff.op} is a quest's only`)
     switch (eff.op) {
       case 'spawn': {
@@ -395,12 +394,10 @@ export class EffectRunner {
         const worn = keys.find((k) => w.prop(host, k) === item.id)
         const key = worn ?? keys.find((k) => { const id = w.prop(host, k); const it = typeof id === 'string' ? w.get(id) : undefined; return !it || !((it.place.on === 'inside' || it.place.on === 'hand') && it.place.holder === host.id) }) ?? keys[0]
         const on = !!worn
-        // a profession's piece (the warrior's shield) goes on only for its own (profession.ts)
-        if (!on && !canWield(w, host, item)) {
-          const need = itemProfession(w, item)!
-          const name = w.onto.data.professions?.[need]?.name
-          const n = (l: 'en' | 'zh') => (typeof name === 'string' ? name : name ? (l === 'zh' ? name.zh ?? name.en : name.en) : need)
-          w.fx.push({ t: 'log', text: { en: `Only a${/^[aeiou]/i.test(n('en')) ? 'n' : ''} ${n('en')} can wear ${eng.nameOf({ e: item.id }, 'en')}.`, zh: `只有${n('zh')}能装备${eng.nameOf({ e: item.id }, 'zh')}。` }, tone: 'warn' })
+        // a piece that is not one's to wear (another profession's) does not go on, and says so
+        const refused = on ? undefined : eng.combat.refuses(host, item, 'wear')
+        if (refused) {
+          w.fx.push({ t: 'log', text: refused, tone: 'warn' })
           return
         }
         if (on) w.setProp(host, key, undefined)
@@ -660,11 +657,8 @@ export class EffectRunner {
           learnSkill(w, host, skill)
           return
         }
-        const prof = eng.professions.get(String(ev.params?.profession ?? ''))
-        if (!prof || cannotChoose(w, host, prof)) return
-        const before = new Set(host.contents ?? [])
-        chooseProfession(w, host, prof, [...eng.skills.values()])
-        for (const id of host.contents ?? []) if (!before.has(id)) eng.touch({ e: id })
+        // what else it names is a module's to learn (a profession, at a trainer)
+        for (const h of eng.hooks.learn) if (h(host, ev)) return
         return
       }
       case 'appear':
@@ -1089,6 +1083,12 @@ export class EffectRunner {
         if (host.npc) delete host.ai
         if (w.hasStatus(ev.host, 'drawn')) eng.removeStatus(ev.host, 'drawn')
         return
+      }
+      default: {
+        // a module's primitive (module.ts): its own work, in this outcome
+        const impl = eng.effectImpls.get((eff as { op: string }).op)
+        if (!impl) throw new Error(`no module of this world does "${(eff as { op: string }).op}"`)
+        return impl(this, eff, ev)
       }
     }
   }

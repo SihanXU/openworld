@@ -7,10 +7,8 @@
 // brink); what a defeat gives back is the striker's rule (content: combat/learn). The memory of
 // one's own blows and steps (`Entity.combat`) is written only by its owner.
 
-import { DIRS, type Entity } from './types.ts'
-import type { World } from './world.ts'
-import type { Engine } from './engine.ts'
-import { offhandOf, ownWeapon, weaponOf } from './profession.ts'
+import { DIRS, offhandOf, weaponOf, type Engine, type Entity, type World } from '@openworld/engine'
+import { ownWeapon } from './profession.ts'
 
 const skill = (w: World, e: Entity, id: string): boolean => w.hasTag(e, `skill:${id}`)
 const of = (profession: string) => (w: World, e: Entity, id: string): boolean => w.prop(e, 'profession') === profession && skill(w, e, id)

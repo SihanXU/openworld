@@ -6,8 +6,7 @@ import type { BossState, Look, Dir, FxEvent, Id, LessonInput, PropValue, SceneSt
 import { SLOT_COUNT } from './controls.ts'
 import { parseCellId } from './cells.ts'
 import { skillsOf } from './progression.ts'
-import { OFFHAND, offhandOf, weaponOf } from './profession.ts'
-import { castLeft, knownActives, type KnownActive } from './actives.ts'
+import { OFFHAND, offhandOf, weaponOf } from './blows.ts'
 import { activeBoon, boonsOf, companionsOf, nearAttunedWaypoint } from './boons.ts'
 import type { JournalQuest, QuestOffer, QuestTarget } from './quests.ts'
 import type { TalkOption } from './social.ts'
@@ -77,6 +76,17 @@ export interface TileSnap {
   /** The durability of what fills or makes up the cell, when it has lost some (a notched tree, a cracked rock). */
   hp?: number
   maxHp?: number
+}
+
+/** Where an active skill one has comes from: the skill tree, a book read, or a piece one wears (its `skill` prop). */
+export type SkillSource = 'tree' | 'book' | 'gear'
+
+/** An active skill one has now (the skill panel). */
+export interface KnownActive {
+  id: string
+  source: SkillSource
+  /** The piece that lends it (a gear skill). */
+  item?: string
 }
 
 export interface Frame {
@@ -449,7 +459,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
   })
   const fx = w.drainFx()
   const sc = w.scene
-  return {
+  const frame: Frame = {
     tick: w.state.tick,
     hour: w.hour(),
     night: nightHours(w.nightShift()),
@@ -472,10 +482,9 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       skills: skillsOf(p),
       stations: [...w.stationsNear(p)],
       held: p.held ? itemInfo(eng, p.held) : undefined,
-      ...((known) => ({
-        skillbar: eng.controls.skillbar().map((id) => (id ? { id, left: castLeft(eng, p, id), cooldown: eng.skills.get(id)?.active?.cooldown ?? 0, usable: known.some((k) => k.id === id) } : null)),
-        actives: known,
-      }))(knownActives(eng, p)),
+      // the skill bar and the active skills one has: a module's (classes), none without one
+      skillbar: [],
+      actives: [],
       inventory: (p.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),
       slots,
       selected: p.selected ?? 0,
@@ -517,6 +526,9 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     fx,
     pendingMap: eng.pendingTransition?.map,
   }
+  // what the world's modules show (their HUD's fields)
+  for (const h of eng.hooks.frame) h(frame)
+  return frame
 }
 
 

@@ -26,9 +26,8 @@ import type { Engine } from './engine.ts'
 import { NO_EXPIRY, type Writer } from './world.ts'
 import type { Aim, Dir, Entity, Id, LessonInput, Place, Plan, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb } from './types.ts'
 import { cannotLearn, skillsOf } from './progression.ts'
-import { SKILLBAR_SLOTS, cannotCast, castSkill, knownActives } from './actives.ts'
 import { companionsOf, nearAttunedWaypoint } from './boons.ts'
-import { OFFHAND, PROFESSION_LEVEL, canWield, cannotChoose, itemProfession, weaponOf, type ProfessionDef, type ProfessionRefusal } from './profession.ts'
+import { OFFHAND, weaponOf } from './blows.ts'
 
 /** The five inputs (design.md §5.2). */
 export type Key = Plan['key']
@@ -313,26 +312,21 @@ export class Controls {
       const blow = isWeapon(heldE.type) && (this.isPerson(target) ? drawn : pure || this.isCreature(target))
       if (blow && reach > 1 && !aligned) return undefined
       const plan = this.make(key, at, 'use', target, held, blow, blow ? (heldE.type.startsWith('item/weapon/magic/') ? GENERIC.cast : GENERIC.attack) : undefined)
-      // another profession's weapon: its blow is refused, and the label says so (profession.ts)
-      if (blow && !canWield(w, p, heldE)) plan.label = this.onlyFor(heldE, held!)
+      // a weapon that is not one's to fight with (another profession's): its blow is refused, and the label says so
+      const why = blow ? this.eng.combat.refuses(p, heldE, 'aim') : undefined
+      if (why) plan.label = why
       return plan
     }
     if (reach > 1 && !aligned) return undefined
     if (main) {
       const plan = this.make(key, at, 'use', target, { e: main.id }, true, main.type.startsWith('item/weapon/magic/') ? GENERIC.cast : GENERIC.attack)
-      if (!canWield(w, p, main)) plan.label = this.onlyFor(main, { e: main.id })
+      const why = this.eng.combat.refuses(p, main, 'aim')
+      if (why) plan.label = why
       return plan
     }
     return this.make(key, at, 'use', target, undefined, true, GENERIC.punch)
   }
 
-  /** "Only a warrior can fight with the sword": the label of a blow another profession's weapon will not make. */
-  private onlyFor(item: Entity, ref: Ref): Text {
-    const need = itemProfession(this.w, item) ?? ''
-    const name = this.w.onto.data.professions?.[need]?.name
-    const n = typeof name === 'string' ? { en: name, zh: name } : { en: name?.en ?? need, zh: name?.zh ?? name?.en ?? need }
-    return { en: `Only a${/^[aeiou]/i.test(n.en) ? 'n' : ''} ${n.en} can fight with ${this.eng.nameOf(ref, 'en')}`, zh: `只有${n.zh}会用${this.eng.nameOf(ref, 'zh')}` }
-  }
 
   /** The rule that answers: the deepest one of the chain that belongs to a host (the receiver's answer, not the root that passed it on). */
   private telling(rules: string[]): string | undefined {
@@ -795,32 +789,6 @@ export class Controls {
   // ---------------------------------------------------------------- the skill tree
 
   /**
-   * Take up a profession at a trainer (level 5, a trainer within reach): an act of learning it.
-   * Changing gives back the profession branch's points. Returns why not, or undefined when done.
-   */
-  takeProfession(def: ProfessionDef | undefined, skills: SkillDef[]): ProfessionRefusal | undefined {
-    const w = this.w
-    const p = w.player
-    const why = cannotChoose(w, p, def)
-    const n = (t: Text) => (typeof t === 'string' ? { en: t, zh: t } : { en: t.en, zh: t.zh ?? t.en })
-    if (why === 'level') w.fx.push({ t: 'log', text: { en: `Come back at level ${PROFESSION_LEVEL}.`, zh: `等你到 ${PROFESSION_LEVEL} 级再来。` }, tone: 'warn' })
-    if (why === 'trainer') w.fx.push({ t: 'log', text: { en: 'Only a trainer can set you on a profession.', zh: '只有职业导师能为你选定职业。' }, tone: 'warn' })
-    if (why || !def || this.eng.busy(p)) return why
-    const had = w.prop(p, 'profession')
-    const points = w.num(p, 'skillPoints')
-    for (const s of skills) this.eng.skills.set(s.id, s)
-    this.eng.professions.set(def.id, def)
-    this.eng.act('learn', p.id, { e: p.id }, { instrument: null, params: { profession: def.id } })
-    if (w.prop(p, 'profession') !== def.id) return 'unknown'
-    const back = w.num(p, 'skillPoints') - points
-    const name = n(def.name)
-    w.fx.push({ t: 'log', text: { en: `You are now a${/^[aeiou]/i.test(name.en) ? 'n' : ''} ${name.en}.${back ? ` ${back} skill points given back.` : ''}`, zh: `你成为了${name.zh}。${back ? `返还了 ${back} 技能点。` : ''}` }, tone: 'good' })
-    if (had) w.fx.push({ t: 'log', text: { en: 'Your old profession\'s skills are unlearned: spend the points again in the skill tree (K).', zh: '原职业的技能已重置：在技能树（K）里重新加点吧。' } })
-    this.sync()
-    return undefined
-  }
-
-  /**
    * Choose the boon the companion carries (the waypoint's panel): an act of the hands on the
    * companion, which answers it (`companion/talk` → `boon`), only beside an attuned waypoint.
    */
@@ -837,48 +805,6 @@ export class Controls {
     return true
   }
 
-  // ---------------------------------------------------------------- the skill bar
-
-  /** The skill bar's six slots: the active skill set in each, by id. */
-  skillbar(): (string | null)[] {
-    const bar = this.w.player.skillbar ?? []
-    return Array.from({ length: SKILLBAR_SLOTS }, (_, i) => bar[i] ?? null)
-  }
-
-  /**
-   * Set an active skill one has learned in a slot of the skill bar (the input's own posture, as the selected
-   * toolbar slot is): from another slot it moves (what was there takes its old place); null empties the slot.
-   */
-  setSkill(slot: number, id: string | null): boolean {
-    const p = this.w.player
-    if (slot < 0 || slot >= SKILLBAR_SLOTS) return false
-    // any active skill one has: learned in the tree or from a book, or lent by what one wears
-    if (id && !knownActives(this.eng, p).some((k) => k.id === id)) return false
-    const bar = this.skillbar()
-    const from = id ? bar.indexOf(id) : -1
-    if (from >= 0) bar[from] = bar[slot]
-    bar[slot] = id
-    p.skillbar = bar
-    return true
-  }
-
-  /** Cast the skill in a slot of the skill bar (Shift+1–6); a cast that cannot be made says why (once a press). */
-  cast(slot: number): boolean {
-    const w = this.w
-    const p = w.player
-    const id = this.skillbar()[slot]
-    if (!id || !this.allows('use')) return false
-    const def = this.eng.skills.get(id)
-    const why = cannotCast(this.eng, p, def)
-    if (why === 'profession') w.fx.push({ t: 'log', text: { en: 'That skill belongs to another profession.', zh: '这是别的职业的技能。' }, tone: 'warn' })
-    if (why === 'unlearned') w.fx.push({ t: 'log', text: { en: 'You no longer have that skill (what lent it is not worn).', zh: '你现在没有这个技能了（带来它的装备没有穿着）。' }, tone: 'warn' })
-    if (why) return false
-    const done = castSkill(this.eng, p, id)
-    if (!done) w.fx.push({ t: 'log', text: { en: 'Nothing to use it on.', zh: '附近没有可以施放的目标。' }, tone: 'warn' })
-    this.sync()
-    return done
-  }
-
   /** Spend skill points on a skill: an act of learning it. */
   learn(def: SkillDef): boolean {
     const w = this.w
@@ -890,9 +816,8 @@ export class Controls {
     if (!skillsOf(p).includes(def.id)) return false
     const n = typeof def.name === 'string' ? { en: def.name } : def.name
     w.fx.push({ t: 'log', text: { en: `Learned ${n.en}.`, zh: `学会了${n.zh ?? n.en}。` }, tone: 'good' })
-    // an active skill goes in the skill bar's first empty slot
-    const free = this.skillbar().indexOf(null)
-    if (def.active && free >= 0) this.setSkill(free, def.id)
+    // what a module does with it (an active skill goes in the skill bar)
+    for (const h of this.eng.hooks.learned) h(def)
     this.sync()
     return true
   }

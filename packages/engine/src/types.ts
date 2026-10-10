@@ -203,6 +203,8 @@ export interface TerrainDef {
 }
 
 export interface Ontology {
+  /** The modules the game uses (module.ts, docs/engine-split.md §4), installed in this order with every engine made over it. */
+  modules?: string[]
   types: Record<string, TypeDef>
   /** What people take as deeds (docs/npc-sandbox.md §2.2), the watches, the numbers of their social life. */
   deeds?: DeedDef[]

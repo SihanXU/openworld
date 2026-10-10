@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { Engine, RuleLibrary, buildSandbox, combatDamage, combatDelay, combatStrike, dash, finishCombatStrike, type Entity, type Scenario } from '@openworld/engine'
+import { Engine, RuleLibrary, buildSandbox, type Entity, type Scenario } from '@openworld/engine'
+import { combatDamage, combatDelay, combatStrike, dash, finishCombatStrike } from '@openworld/modules'
 import { BASE_RULES, SKILLS, buildOntology } from '@openworld-game/content'
 
 // The general combat branches, deeper (docs/skill-tree.md): swiftness (dodge, the dash and what

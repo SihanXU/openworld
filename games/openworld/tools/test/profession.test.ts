@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { Game, MAINHAND, OFFHAND, PROFESSION_LEVEL, RuleLibrary, canWield, combatDamage, combatDelay, combatStrike, offhandOf, rangeBonus, snapshot, weaponOf, type Engine, type Entity, type MapData } from '@openworld/engine'
+import { Game, MAINHAND, OFFHAND, RuleLibrary, offhandOf, snapshot, weaponOf, type Engine, type Entity, type MapData } from '@openworld/engine'
+import { PROFESSION_LEVEL, canWield, combatDamage, combatDelay, combatStrike, rangeBonus, takeProfession } from '@openworld/modules'
 import { BASE_RULES, LEGENDARY_ARMS, PROFESSION_BY_ID, SKILLS, SKILL_BY_ID, SKILL_PROFESSIONS, STORY_RULES, buildOntology, createBoss, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
@@ -75,12 +76,12 @@ describe('professions', () => {
     const eng = world()
     const w = eng.world
     atBram(eng, PROFESSION_LEVEL - 1)
-    expect(eng.controls.takeProfession(PROFESSION_BY_ID.warrior, SKILLS)).toBe('level')
+    expect(takeProfession(eng, PROFESSION_BY_ID.warrior, SKILLS)).toBe('level')
     eng.author(() => eng.teleport(w.player, { map: 'ford', x: 14, y: 17 }))
     w.player.props!.level = PROFESSION_LEVEL
-    expect(eng.controls.takeProfession(PROFESSION_BY_ID.warrior, SKILLS)).toBe('trainer')
+    expect(takeProfession(eng, PROFESSION_BY_ID.warrior, SKILLS)).toBe('trainer')
     atBram(eng, PROFESSION_LEVEL)
-    expect(eng.controls.takeProfession(PROFESSION_BY_ID.warrior, SKILLS)).toBeUndefined()
+    expect(takeProfession(eng, PROFESSION_BY_ID.warrior, SKILLS)).toBeUndefined()
     expect(w.prop(w.player, 'profession')).toBe('warrior')
     // sword and shield: the shield is worn in the off hand at once
     expect(carries(eng, 'item/weapon/blade/sword')).toBe(1)
@@ -93,12 +94,12 @@ describe('professions', () => {
     const w = eng.world
     const p = w.player
     atBram(eng, 9, 8)
-    eng.controls.takeProfession(PROFESSION_BY_ID.warrior, SKILLS)
+    takeProfession(eng, PROFESSION_BY_ID.warrior, SKILLS)
     const maxHp = w.num(p, 'maxHp')
     learnAll(eng, ['vitality', 'warrior-arms', 'bulwark', 'unbreakable'])
     expect(w.num(p, 'maxHp')).toBe(maxHp + 4 + 10)
     expect(p.props!.skillPoints).toBe(4)
-    expect(eng.controls.takeProfession(PROFESSION_BY_ID.ranger, SKILLS)).toBeUndefined()
+    expect(takeProfession(eng, PROFESSION_BY_ID.ranger, SKILLS)).toBeUndefined()
     expect(p.props!.skillPoints).toBe(7)
     expect(w.num(p, 'maxHp')).toBe(maxHp + 4)
     expect(p.tags).toContain('skill:vitality')
@@ -108,7 +109,7 @@ describe('professions', () => {
     expect(w.prop(p, OFFHAND)).toBeUndefined()
     expect(carries(eng, 'item/armor/shield')).toBe(1)
     // back to the warrior: the sword and shield were handed over once already
-    eng.controls.takeProfession(PROFESSION_BY_ID.warrior, SKILLS)
+    takeProfession(eng, PROFESSION_BY_ID.warrior, SKILLS)
     expect(carries(eng, 'item/weapon/blade/sword')).toBe(1)
     expect(carries(eng, 'item/armor/shield')).toBe(1)
   })
@@ -120,7 +121,7 @@ describe('the new trees', () => {
     const eng = world()
     const w = eng.world
     atBram(eng, 20, 30)
-    eng.controls.takeProfession(PROFESSION_BY_ID[profession], SKILLS)
+    takeProfession(eng, PROFESSION_BY_ID[profession], SKILLS)
     learnAll(eng, skills)
     const pos = w.posOf(w.player)!
     const slime = w.author(() => w.create('actor/creature/slime/green_slime', { on: 'tile', map: pos.map, x: pos.x + 1, y: pos.y }, { props: { hp: 50, maxHp: 50 } }))
@@ -212,7 +213,7 @@ describe('profession weapons', () => {
     const w = eng.world
     const p = w.player
     atBram(eng, 9)
-    eng.controls.takeProfession(PROFESSION_BY_ID.ranger, SKILLS)
+    takeProfession(eng, PROFESSION_BY_ID.ranger, SKILLS)
     // the ranger's bow, back in the bag
     eng.author(() => { if (p.held) w.place(w.get(p.held)!, { on: 'inside', holder: p.id }) })
     const pos = w.posOf(p)!
@@ -239,7 +240,7 @@ describe('profession weapons', () => {
     const w = eng.world
     const p = w.player
     atBram(eng, 9)
-    eng.controls.takeProfession(PROFESSION_BY_ID.ranger, SKILLS)
+    takeProfession(eng, PROFESSION_BY_ID.ranger, SKILLS)
     // an open row in the village: the player, two empty cells, a slime
     const open = (x: number, y: number) => w.walkable('meadow', x, y) && !w.placedAt('meadow', x, y).length
     let at: [number, number] | undefined
@@ -266,7 +267,7 @@ describe('profession weapons', () => {
     const w = eng.world
     const p = w.player
     atBram(eng, 9)
-    eng.controls.takeProfession(PROFESSION_BY_ID.warrior, SKILLS)
+    takeProfession(eng, PROFESSION_BY_ID.warrior, SKILLS)
     // whatever the trainer handed over goes back to the bag; a sword readied in the main hand (the bag's Wear)
     eng.author(() => { if (p.held) w.place(w.get(p.held)!, { on: 'inside', holder: p.id }) })
     const sword = eng.author(() => w.create('item/weapon/blade/sword', { on: 'inside', holder: p.id }, { props: { power: 9 } }))
@@ -311,7 +312,7 @@ describe('profession weapons', () => {
     eng.controls.wear(shield.id)
     expect(w.prop(p, OFFHAND)).toBeUndefined()
     atBram(eng, 9)
-    eng.controls.takeProfession(PROFESSION_BY_ID.warrior, SKILLS)
+    takeProfession(eng, PROFESSION_BY_ID.warrior, SKILLS)
     const starter = w.prop(p, OFFHAND) as string
     expect(w.get(starter)?.type).toBe('item/armor/shield')
     // wear the other one instead; the slot shows it, and its defence counts
@@ -332,7 +333,7 @@ describe('profession weapons', () => {
     expect(w.prop(p, OFFHAND)).toBeUndefined()
     // a ranger: the shield comes off and no longer works
     eng.controls.wear(shield.id)
-    eng.controls.takeProfession(PROFESSION_BY_ID.ranger, SKILLS)
+    takeProfession(eng, PROFESSION_BY_ID.ranger, SKILLS)
     expect(w.prop(p, OFFHAND)).toBeUndefined()
     expect(offhandOf(w, p)).toBeUndefined()
   })

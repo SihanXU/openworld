@@ -8,6 +8,7 @@
 import { lookWords } from './looks.ts'
 import { EVENT_KINDS, OVERLAYS } from './types.ts'
 import { PRIMITIVES, RESIDENT_ONLY } from './effects.ts'
+import { modulesOf } from './module.ts'
 import type { Engine, Resolution, UndefinedSink } from './engine.ts'
 import { STORY, textOf } from './engine.ts'
 import { OntologyIndex, isA, withTerrainTypes } from './ontology.ts'
@@ -189,7 +190,6 @@ const AUTHORING_RULES = [
   'Conditions narrow the cases (the target\'s type or tags, a param like element or how). A case you do not answer ends in {"undefined": true}: it stays open and is asked later; a learned rule never writes `inherit`. An `if` needs an `else`.',
   `Use only the listed event kinds, impulses, primitives, statuses, terrains, types and vfx. If you need a new type or status, add a \`type\`/\`status\` artifact to the same patch; a status draws over what has it with \`overlay\`: one of ${OVERLAYS.join(', ')}.`,
   'Every rule should carry at least one test (a small scenario + expectations). The triggering event is replayed automatically.',
-  'Combat talents are evaluated by the engine for any actor carrying skill:<id>. Actor props profession, moveHaste, attackHaste and critChance control eligibility/cadence/critical chance. Attack hit.power already includes offensive talents; do not apply them again in a hit rule. Direct combat damage reductions and Last Stand are handled by damage. Timed talent state lives in Entity.combat and is saved.',
   'Give the player feedback: a `vfx` and/or a `say`/`log` line, so the outcome is visible.',
   'Name slots ({actor}, {target}, {host}, …) read "you" when they are the player: write lines that read right either way — no verb or possessive straight after a slot ("a warm glow mends {target}", not "{actor} holds" or "{target}\'s wounds").',
   'Keep emissions local and bounded: an area radius of at most 3, and a chance below 1 when it could cascade.',
@@ -239,6 +239,9 @@ const IMPULSES: Record<string, string> = {
  * while the library grows, so a provider's prompt cache keeps serving it.
  */
 export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | 'statuses'>, opts: { types?: boolean } = {}): ModSpec {
+  // what the world's modules add: their primitives, conditions and what an author must know of them
+  const mods = modulesOf(onto.modules)
+  const modPrimitives = Object.assign({}, ...mods.map((m) => m.spec?.primitives ?? {})) as Record<string, string>
   const types = { ...onto.types }
   for (const t of lib?.types ?? []) types[t.id] = t
   const statuses = { ...onto.statuses }
@@ -303,10 +306,11 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       '{bounty: {role, cmp}} — what the role owes the watch of where the host is',
       '{canPay: {role, mul?}} — the role carries coin enough for its bounty here (times mul)',
       '{unpardonable: role} — the role\'s bounty here is past what the watch pardons',
+      ...mods.flatMap((m) => m.spec?.conditions ?? []),
     ],
     events: EVENTS,
     impulses: IMPULSES,
-    primitives: { _shape: 'Each effect is ONE flat object naming its op: {"op": "spawn", "type": "item/tool/rope", "at": "target"} — never {"spawn": {…}}. Below, `name {args}` lists the fields beside op.', ...PRIMITIVES, _roles: 'RoleRef = host | actor | target | instrument | other | item | source | tileOf:<role>', _amount: 'Amount = number | {param, mul?, add?} | {prop, of: role, mul?, add?}' },
+    primitives: { _shape: 'Each effect is ONE flat object naming its op: {"op": "spawn", "type": "item/tool/rope", "at": "target"} — never {"spawn": {…}}. Below, `name {args}` lists the fields beside op.', ...PRIMITIVES, ...modPrimitives, _roles: 'RoleRef = host | actor | target | instrument | other | item | source | tileOf:<role>', _amount: 'Amount = number | {param, mul?, add?} | {prop, of: role, mul?, add?}' },
     expectations: [
       '{key, hasStatus} {key, lacksStatus} {key, isType} {key, destroyed:true} {key, exists:true}',
       '{key, propGt:[k,n]} {key, propLt:[k,n]} {tile:[x,y], terrain} {tile:[x,y], hasStatus} {spawned:type} {resolvedBy:ruleId} (the event was answered by that rule)',
@@ -321,7 +325,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       factions: onto.factions ?? {},
     },
     assets: { vfx: onto.vfx },
-    authoringRules: AUTHORING_RULES,
+    authoringRules: [...AUTHORING_RULES, ...mods.flatMap((m) => m.spec?.rules ?? [])],
   }
 }
 
@@ -1025,6 +1029,11 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
 // ---------------------------------------------------------------- validation
 
 const OPS = new Set(Object.keys(PRIMITIVES))
+/** The primitives a world has: the kernel's and its modules' (module.ts); those only its residents may use. */
+function opsOf(onto: Ontology): { ops: Set<string>; residentOnly: Set<string> } {
+  const mods = modulesOf(onto.modules)
+  return { ops: new Set([...OPS, ...mods.flatMap((m) => Object.keys(m.effects ?? {}))]), residentOnly: new Set([...RESIDENT_ONLY, ...mods.flatMap((m) => m.spec?.residentOnly ?? [])]) }
+}
 const IMPULSE_KINDS = new Set(['strike', 'element', 'coat', 'restore', 'push', 'taken', 'receive', 'offered', 'handle', 'notify'])
 const KIND_PREFIXES = new Set<string>(EVENT_KINDS.flatMap((k) => k.split('/').map((_, i, a) => a.slice(0, i + 1).join('/'))))
 const BOUNDS = new Set(['eq', 'gt', 'gte', 'lt', 'lte'])
@@ -1044,6 +1053,7 @@ interface ValidateCtx {
 
 export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult {
   withTerrainTypes(ctx.ontology)
+  const worldOps = opsOf(ctx.ontology)
   const errors: string[] = []
   const warnings: string[] = []
   if (!patch || !Array.isArray(patch.artifacts) || !patch.artifacts.length) {
@@ -1164,11 +1174,11 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   }
   const checkEffect = (e: Effect, where: string, resident: boolean) => {
     if ((e as { op?: string })?.op === 'setTerrain') return errors.push(`${where}: there is no setTerrain — a cell is made of things; the host becomes another with {op: "transform", into: "tile/<terrain>"}`)
-    if (!e || !OPS.has(e.op)) return errors.push(`${where}: unknown primitive "${(e as { op?: string })?.op}"`)
+    if (!e || !worldOps.ops.has(e.op)) return errors.push(`${where}: unknown primitive "${(e as { op?: string })?.op}"`)
     const any = e as Record<string, unknown>
     if ('of' in any) errors.push(`${where}: effects act on the host only (no "of"): to affect another thing, emit an impulse to it`)
     for (const k of ['at', 'to'] as const) if (k in any && typeof any[k] === 'string' && e.op !== 'emit' && !ROLE_REFS.has(any[k] as string)) errors.push(`${where}.${k}: role ref must be one of ${[...ROLE_REFS].join('|')}`)
-    if (RESIDENT_ONLY.has(e.op) && !resident) errors.push(`${where}: ${e.op} is the story's and the world's only — notify the story instead`)
+    if (worldOps.residentOnly.has(e.op) && !resident) errors.push(`${where}: ${e.op} is the story's and the world's only — notify the story instead`)
     if (e.op === 'spawn' && !/^@prop:(host|actor|target|instrument|other|item|source)\.\w+$/.test(e.type) && !(e.type in onto.types)) errors.push(`${where}: unknown type "${e.type}"${closest(e.type, onto)}`)
     if (e.op === 'dropContents' && e.bundle && !(e.bundle in onto.types)) errors.push(`${where}: unknown type "${e.bundle}"${closest(e.bundle, onto)}`)
     if (e.op === 'transform' && !e.into.startsWith('@prop:') && !(e.into in onto.types)) errors.push(`${where}: unknown type "${e.into}"${closest(e.into, onto)}`)

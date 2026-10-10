@@ -4,7 +4,7 @@
 // the panel says so and asks first.
 
 import type { Frame } from '@openworld/engine'
-import { PROFESSION_LEVEL } from '@openworld/engine'
+import { PROFESSION_LEVEL } from '@openworld/modules'
 import { game } from '../game.ts'
 import { $, esc, t, tx } from './common.ts'
 import { skillArt } from './skillIcons.ts'

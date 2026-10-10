@@ -5,6 +5,8 @@ import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { GameDef } from '@openworld/engine'
+// the engine's official modules, which a game's ontology may name (docs/engine-split.md S3)
+import '@openworld/modules'
 import { WorldLibrary } from './library.ts'
 import { modelFromEnv, type Model } from '@openworld/agent'
 import { Modder } from './pipeline.ts'

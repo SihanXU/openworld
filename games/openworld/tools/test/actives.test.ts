@@ -3,7 +3,8 @@
 // profession's skill is not cast. Every one of the twenty does what it says on a field of slimes.
 
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, castLeft, knownActives, combatDamage, combatDelay, combatStrike, snapshot, textOf, type Engine, type Entity, type MapData } from '@openworld/engine'
+import { Game, RuleLibrary, snapshot, textOf, type Engine, type Entity, type MapData } from '@openworld/engine'
+import { castLeft, knownActives, combatDamage, combatDelay, combatStrike, cast, setSkill, skillbar } from '@openworld/modules'
 import { ACTIVE_SKILLS, BASE_RULES, SKILLS, SKILL_BY_ID, STORY_RULES, buildOntology, decodeChunk, skillBook } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
@@ -36,7 +37,7 @@ function know(eng: Engine, id: string): void {
     if (def.profession) w.setProp(w.player, 'profession', def.profession)
     w.addTag(w.player, `skill:${id}`)
   })
-  expect(eng.controls.setSkill(0, id)).toBe(true)
+  expect(setSkill(eng, 0, id)).toBe(true)
 }
 
 const slime = (eng: Engine, x: number, y: number) => eng.author(() => eng.world.create('actor/creature/slime/green_slime', { on: 'tile', map: 'arena', x, y }, { props: { hp: 200, maxHp: 200 } }))
@@ -47,39 +48,39 @@ describe('the skill bar', () => {
     const { eng, p } = field()
     eng.author(() => eng.world.setProp(p, 'skillPoints', 10))
     expect(eng.controls.learn(SKILL_BY_ID['light-footed'])).toBe(true)
-    expect(eng.controls.skillbar()).toEqual([null, null, null, null, null, null])
+    expect(skillbar(eng)).toEqual([null, null, null, null, null, null])
     expect(eng.controls.learn(SKILL_BY_ID['gale-step'])).toBe(true)
-    expect(eng.controls.skillbar()[0]).toBe('gale-step')
+    expect(skillbar(eng)[0]).toBe('gale-step')
     expect(eng.controls.learn(SKILL_BY_ID.strength)).toBe(true)
     expect(eng.controls.learn(SKILL_BY_ID.cleave)).toBe(true)
-    expect(eng.controls.skillbar().slice(0, 2)).toEqual(['gale-step', 'cleave'])
+    expect(skillbar(eng).slice(0, 2)).toEqual(['gale-step', 'cleave'])
     // moved to another slot: what was there takes its place
-    expect(eng.controls.setSkill(1, 'gale-step')).toBe(true)
-    expect(eng.controls.skillbar().slice(0, 2)).toEqual(['cleave', 'gale-step'])
-    expect(eng.controls.setSkill(5, 'whirlwind')).toBe(false)
-    expect(eng.controls.setSkill(5, 'strength')).toBe(false)
-    expect(eng.controls.setSkill(0, null)).toBe(true)
-    expect(eng.controls.skillbar()[0]).toBeNull()
+    expect(setSkill(eng, 1, 'gale-step')).toBe(true)
+    expect(skillbar(eng).slice(0, 2)).toEqual(['cleave', 'gale-step'])
+    expect(setSkill(eng, 5, 'whirlwind')).toBe(false)
+    expect(setSkill(eng, 5, 'strength')).toBe(false)
+    expect(setSkill(eng, 0, null)).toBe(true)
+    expect(skillbar(eng)[0]).toBeNull()
   })
 
   it('a cast rests for its cooldown (shown in the frame), and another profession\'s skill is not cast', () => {
     const { eng, p, x, y } = field()
     know(eng, 'whirlwind')
     const s = slime(eng, x + 1, y)
-    expect(eng.controls.cast(0)).toBe(true)
+    expect(cast(eng, 0)).toBe(true)
     expect(hurt(eng, s)).toBe(true)
     expect(castLeft(eng, p, 'whirlwind')).toBe(SKILL_BY_ID.whirlwind.active!.cooldown)
     expect(snapshot(eng).player.skillbar[0]).toEqual({ id: 'whirlwind', left: 80, cooldown: 80, usable: true })
     // resting: not cast again
     const hp = eng.world.num(s, 'hp')
-    expect(eng.controls.cast(0)).toBe(false)
+    expect(cast(eng, 0)).toBe(false)
     expect(eng.world.num(s, 'hp')).toBe(hp)
     for (let i = 0; i < 80; i++) eng.tick()
     expect(castLeft(eng, p, 'whirlwind')).toBe(0)
     // a warrior's skill, the player now a mage: not cast
     know(eng, 'shield-bash')
     eng.author(() => eng.world.setProp(p, 'profession', 'mage'))
-    expect(eng.controls.cast(0)).toBe(false)
+    expect(cast(eng, 0)).toBe(false)
   })
 })
 
@@ -178,7 +179,7 @@ describe('each active skill does what it says', () => {
         eng.author(() => eng.world.create(def.profession === 'ranger' ? 'item/weapon/ranged/bow' : 'item/weapon/magic/staff', { on: 'hand', holder: p.id }, { props: { power: 3, range: 6 } }))
       know(eng, def.id)
       const check = CASES[def.id](eng, p, x, y)
-      expect(eng.controls.cast(0), def.id).toBe(true)
+      expect(cast(eng, 0), def.id).toBe(true)
       eng.tick()
       check()
       expect(castLeft(eng, p, def.id)).toBeGreaterThan(0)
@@ -192,25 +193,25 @@ describe('what the buffs do in a fight', () => {
     const s = slime(eng, x + 1, y)
     const step = combatDelay(w, p, 100, 'move')
     know(eng, 'gale-step')
-    eng.controls.cast(0)
+    cast(eng, 0)
     expect(combatDelay(w, p, 100, 'move')).toBeLessThan(step)
     // a War Cry: blows taken lighter, blows dealt heavier
     const taken = eng.author(() => combatDamage(eng, p, 10, s, false))
     const dealt = combatStrike(w, p, s, 10, 1, undefined, false).power
     know(eng, 'war-cry')
-    eng.controls.cast(0)
+    cast(eng, 0)
     expect(eng.author(() => combatDamage(eng, p, 10, s, false))).toBeLessThan(taken)
     expect(combatStrike(w, p, s, 10, 1, undefined, false).power).toBeGreaterThan(dealt)
     // Envenom: the next blows open a bleed, five of them
     know(eng, 'envenom')
-    eng.controls.cast(0)
+    cast(eng, 0)
     expect(combatStrike(w, p, s, 10, 1, undefined, false).bleed).toBeGreaterThan(0)
     expect(p.combat?.envenomHits).toBe(4)
     // a Smoke Bomb: the slime, hostile and beside one, does not come at one
     eng.author(() => w.setProp(p, 'hp', 50))
     s.ai = { behaviour: 'melee', temper: 'aggressive', sight: 5, home: { map: 'arena', x: x + 1, y } }
     know(eng, 'smoke-bomb')
-    eng.controls.cast(0)
+    cast(eng, 0)
     const hp = w.num(p, 'hp')
     for (let i = 0; i < 25; i++) eng.tick()
     expect(w.num(p, 'hp')).toBe(hp)
@@ -240,8 +241,8 @@ describe('where active skills come from: the tree, a book, what one wears', () =
     eng.tick()
     expect([w.get(fire.id) !== undefined, knownActives(eng, p).some((k) => k.id === 'fireball')]).toEqual([true, false])
     // what a book taught is cast like any other
-    expect(eng.controls.setSkill(2, 'whirlwind')).toBe(true)
-    expect(eng.controls.cast(2)).toBe(true)
+    expect(setSkill(eng, 2, 'whirlwind')).toBe(true)
+    expect(cast(eng, 2)).toBe(true)
   })
 
   it('a piece that lends a skill gives it while worn, whatever one\'s profession; taken off, the slot keeps it but it is not had', () => {
@@ -249,17 +250,17 @@ describe('where active skills come from: the tree, a book, what one wears', () =
     const w = eng.world
     const helm = eng.author(() => w.create('item/armor/helmet', { on: 'inside', holder: p.id }, { props: { skill: 'fireball' } }))
     eng.controls.sync()
-    expect(eng.controls.setSkill(0, 'fireball')).toBe(false)
+    expect(setSkill(eng, 0, 'fireball')).toBe(false)
     eng.controls.wear(helm.id, true)
     expect(knownActives(eng, p)).toEqual([{ id: 'fireball', source: 'gear', item: helm.id }])
-    expect(eng.controls.setSkill(0, 'fireball')).toBe(true)
+    expect(setSkill(eng, 0, 'fireball')).toBe(true)
     const s = slime(eng, x + 3, y)
-    expect(eng.controls.cast(0)).toBe(true)
+    expect(cast(eng, 0)).toBe(true)
     expect(hurt(eng, s)).toBe(true)
     // taken off: still in the slot, shown as not had, and not cast
     eng.controls.wear(helm.id)
     for (let i = 0; i < 70; i++) eng.tick()
     expect(snapshot(eng).player.skillbar[0]).toMatchObject({ id: 'fireball', usable: false })
-    expect(eng.controls.cast(0)).toBe(false)
+    expect(cast(eng, 0)).toBe(false)
   })
 })

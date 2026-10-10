@@ -1,7 +1,8 @@
 // the game handed to the runtime first, as its pages do (client/src/register.ts)
 import '../../client/src/register.ts'
 import { describe, expect, it } from 'vitest'
-import { Engine, Game, RuleLibrary, buildSandbox, cannotLearn, combatDelay, combatStrike, snapshot, type Ref, type Scenario } from '@openworld/engine'
+import { Engine, Game, RuleLibrary, buildSandbox, cannotLearn, snapshot, type Ref, type Scenario } from '@openworld/engine'
+import { combatDelay, combatStrike } from '@openworld/modules'
 import { BASE_RULES, SKILLS, SKILL_DIRECTIONS, SKILL_BRANCHES, SKILL_BY_ID, skillsForProfession, branchesForProfession, buildOntology } from '@openworld-game/content'
 import { layoutBranches, layoutSkills } from '@openworld/runtime/src/ui/skillLayout.ts'
 import { buildFord } from '../src/demo/world.ts'

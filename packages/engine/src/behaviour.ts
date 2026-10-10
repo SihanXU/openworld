@@ -19,23 +19,39 @@
 import { encounter } from './bosses.ts'
 import { fight, home, idle, sceneOf, type Scene } from './creatures.ts'
 import type { Engine } from './engine.ts'
+import type { Goal } from './module.ts'
 import type { Entity } from './types.ts'
 
-export type GoalId = 'encounter' | 'threat' | 'social' | 'follow' | 'need' | 'schedule' | 'home' | 'idle'
-
 /** The order goals are tried in when neither the type nor the world says (Elin's AIAct priorities). */
-export const GOALS: GoalId[] = ['encounter', 'threat', 'social', 'follow', 'need', 'schedule', 'home', 'idle']
+export const GOALS: string[] = ['encounter', 'threat', 'social', 'follow', 'need', 'schedule', 'home', 'idle']
 
-/** Goals that wait for the actor's own pace (its step's cooldown) and for it to be free; the others keep theirs. */
-const PACED = new Set<GoalId>(['threat', 'social', 'need', 'schedule', 'home', 'idle'])
+/** The kernel's goals; a module adds its own (module.ts), or another way to the same goal, tried after these. */
+export const KERNEL_GOALS: Record<string, Goal> = {
+  encounter: { paced: false, run: (eng, e, sc) => encounter(eng, e, sc.active) },
+  threat: {
+    paced: true,
+    urgent: true,
+    run: (eng, e, sc) => {
+      // a person who fought: while it still has a foe it fights, else it calms (and its round goes on)
+      if (e.ai && e.npc && !eng.conduct.fightOn(e, sc)) return eng.npcs.flee(e, sc.active)
+      return e.ai && !e.boss ? fight(eng, e, sc) : eng.npcs.flee(e, sc.active)
+    },
+  },
+  social: { paced: true, urgent: true, run: (eng, e, sc) => eng.conduct.social(e, sc) },
+  follow: { paced: false, run: (eng, e, sc) => eng.companions.follow(e) || eng.conduct.follow(e, sc) },
+  need: { paced: true, run: (eng, e, sc) => eng.conduct.need(e, sc) },
+  schedule: { paced: true, run: (eng, e, sc) => eng.npcs.schedule(e, sc.active) },
+  home: { paced: true, run: (eng, e, sc) => !e.boss && home(eng, e, sc) },
+  idle: { paced: true, run: (eng, e, sc) => !e.boss && idle(eng, e, sc) },
+}
 
 export class Behaviour {
   constructor(private eng: Engine) {}
 
   /** The goals of a thing, in its order. */
-  goalsOf(e: Entity): GoalId[] {
+  goalsOf(e: Entity): string[] {
     const w = this.eng.world
-    return (w.onto.resolve(e.type).goals ?? w.onto.data.goals ?? GOALS) as GoalId[]
+    return w.onto.resolve(e.type).goals ?? w.onto.data.goals ?? GOALS
   }
 
   /** One tick of everyone's behaviour on the active map (and of companions wherever their leader went). */
@@ -59,35 +75,15 @@ export class Behaviour {
     const ready = eng.ready(e.id) && !eng.busy(e)
     // during a scene the people on stage are the script's
     const scripted = !!w.scene && !!e.npc
-    for (const g of this.goalsOf(e)) {
-      if (PACED.has(g) && (!ready || scripted)) continue
+    for (const id of this.goalsOf(e)) {
+      const ways = eng.goalImpls.get(id)
+      // a goal no installed module gives is passed over (the world names it, the game does without)
+      if (!ways?.length) continue
+      const paced = ways[0].paced
+      if (paced && (!ready || scripted)) continue
       // a person's own round (not a threat, not the law) waits a moment for one who faces them (npc.ts, attended)
-      if (g !== 'threat' && g !== 'social' && PACED.has(g) && eng.npcs.attended(e)) return
-      if (this.run(g, e, sc)) return
-    }
-  }
-
-  private run(g: GoalId, e: Entity, sc: Scene): boolean {
-    const eng = this.eng
-    switch (g) {
-      case 'encounter':
-        return encounter(eng, e, sc.active)
-      case 'threat':
-        // a person who fought: while it still has a foe it fights, else it calms (and its round goes on)
-        if (e.ai && e.npc && !eng.conduct.fightOn(e, sc)) return eng.npcs.flee(e, sc.active)
-        return e.ai && !e.boss ? fight(eng, e, sc) : eng.npcs.flee(e, sc.active)
-      case 'social':
-        return eng.conduct.social(e, sc)
-      case 'follow':
-        return eng.companions.follow(e) || eng.conduct.follow(e, sc)
-      case 'need':
-        return eng.conduct.need(e, sc)
-      case 'schedule':
-        return eng.npcs.schedule(e, sc.active)
-      case 'home':
-        return !e.boss && home(eng, e, sc)
-      case 'idle':
-        return !e.boss && idle(eng, e, sc)
+      if (!ways[0].urgent && paced && eng.npcs.attended(e)) return
+      if (ways.some((g) => g.run(eng, e, sc))) return
     }
   }
 }

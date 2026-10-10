@@ -3,7 +3,8 @@
 // game's content only through game(). No module reads it at its top level, so the order the modules load in
 // does not matter, only that useGame() comes before the first frame.
 
-import type { Entity, Game, GameDef, Look, LookBodyDef, LookColorDef, LookPartDef, LookTable, MapChunk, Ontology, PlacementRecipe, Pos, PropValue, ProfessionDef, Recipe, SkillDef, Text, World, WorldIndex } from '@openworld/engine'
+import type { Entity, Game, GameDef, Look, LookBodyDef, LookColorDef, LookPartDef, LookTable, MapChunk, Ontology, PlacementRecipe, Pos, PropValue, Recipe, SkillDef, Text, World, WorldIndex } from '@openworld/engine'
+import type { ProfessionDef } from '@openworld/modules'
 import type { Catalog } from './assets/types.ts'
 
 type Words = { en: string; zh: string }

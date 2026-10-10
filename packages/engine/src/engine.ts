@@ -10,10 +10,8 @@ import { EffectRunner } from './effects.ts'
 import { Controls } from './controls.ts'
 import { Story } from './story.ts'
 import { deriveRecipes } from './recipes.ts'
-import { Behaviour } from './behaviour.ts'
-import { rainTick } from './actives.ts'
-import { combatDamage, combatDelay, combatStrike, finishCombatStrike, rangeBonus, recordCombatStep } from './combat.ts'
-import { canWield, itemProfession, weaponOf } from './profession.ts'
+import { Behaviour, KERNEL_GOALS } from './behaviour.ts'
+import { plainCombat, weaponOf } from './blows.ts'
 import { Companions } from './companion.ts'
 import { Quests } from './quests.ts'
 import { NpcSim, scheduleAt } from './npc.ts'
@@ -23,8 +21,8 @@ import { appearFromForage } from './appear.ts'
 import { Social, lawId } from './social.ts'
 import { Conduct } from './conduct.ts'
 import { RuleLibrary, evalCond, isDo, isPatch, matchSelector, rolesOf, type Resolution } from './rules.ts'
+import { modulesOf, noHooks, type Combat, type EffectImpl, type EngineHooks, type EngineModule, type Goal } from './module.ts'
 import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb, WorldState } from './types.ts'
-import type { ProfessionDef } from './profession.ts'
 import { DIRS, FIRE_RADIUS, OPPOSITE } from './types.ts'
 import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type Writer } from './world.ts'
 
@@ -115,7 +113,8 @@ export class Engine {
   recipes = new Map<string, Recipe>()
   /** Skills and professions an act of learning may name (the skill tree, the trainers). */
   skills = new Map<string, SkillDef>()
-  professions = new Map<string, ProfessionDef>()
+  /** How blows, reach and pace are worked out (module.ts): the kernel's plain combat, or a combat module's. */
+  combat: Combat
   undefinedSink?: UndefinedSink
   /** Encounter mechanics supplied by the world, never imported from content (bosses.ts). */
   bossKits: Record<string, BossDef> = {}
@@ -135,6 +134,16 @@ export class Engine {
    * the clock is seen to run and one lies asleep all the while); unset, they pass at once.
    */
   fastForwardChunk?: number
+  /** The modules installed (module.ts): the ontology's, in its order. */
+  modules: EngineModule[] = []
+  /** What the kernel asks its modules at its own steps (module.ts). */
+  hooks: EngineHooks = noHooks()
+  /** The modules' primitives, by op. */
+  effectImpls = new Map<string, EffectImpl>()
+  /** The modules' primitives only the story and the world may use. */
+  residentOnly = new Set<string>()
+  /** Every goal by id: the kernel's and the modules' (a goal several give is tried in their order). */
+  goalImpls = new Map<string, Goal[]>()
   /** Resolution trace of the last dispatched events (for tests and the dev panel). */
   trace: { ev: GameEvent; rule?: string; defined: boolean }[] = []
   /** How many entries the trace has ever taken (it keeps only the last 300): what came after a mark is the last `traced - mark`. */
@@ -180,8 +189,19 @@ export class Engine {
       tags: (id) => this.quests.tagsOf(id),
     }
     this.controls = new Controls(this, this.write)
+    this.combat = plainCombat(this)
     // what can be made: every type with a station and a makeup (world-model.md §6.4)
     for (const r of deriveRecipes(onto)) this.recipes.set(r.id, r)
+    for (const [id, g] of Object.entries(KERNEL_GOALS)) this.goalImpls.set(id, [g])
+    // the game's modules: what each adds, then its own state and the slots it fills
+    this.modules = modulesOf(ontology.modules)
+    for (const m of this.modules) {
+      for (const [op, impl] of Object.entries(m.effects ?? {})) this.effectImpls.set(op, impl)
+      for (const op of m.spec?.residentOnly ?? []) this.residentOnly.add(op)
+      for (const [key, impl] of Object.entries(m.conds ?? {})) this.world.condImpls.push([key, impl])
+      for (const [id, g] of Object.entries(m.goals ?? {})) this.goalImpls.set(id, [...(this.goalImpls.get(id) ?? []), g])
+    }
+    for (const m of this.modules) m.install?.(this)
   }
 
   /**
@@ -597,7 +617,7 @@ export class Engine {
     const reach = p?.reach ?? 1
     if (verb === 'hands') return target ? w.num(target, 'handsRange', reach) : reach
     if (verb === 'take' || verb === 'put') return p?.carry ?? 1
-    if (verb === 'use') return (instrument ? w.num(instrument, 'range', reach) : w.num(actor, 'range', reach)) + rangeBonus(w, actor, instrument)
+    if (verb === 'use') return (instrument ? w.num(instrument, 'range', reach) : w.num(actor, 'range', reach)) + this.combat.reach(actor, instrument)
     return undefined
   }
 
@@ -874,32 +894,17 @@ export class Engine {
     // the combat talents of the one struck (combat.ts): dodge, a guarded moment, reductions, the brink
     const by_ = by?.roles.actor ?? (by?.cause ? { e: by.cause } : undefined)
     const attacker = by_ && 'e' in by_ ? w.get(by_.e) : undefined
-    const dmg = combatDamage(this, e, Math.max(1, Math.round(amount - def)), attacker, !!pierce)
+    const dmg = this.combat.damage(e, Math.max(1, Math.round(amount - def)), attacker, !!pierce)
     // a blow that found nothing (dodged, or the moment after a dash)
     if (dmg <= 0) return
     w.fx.push({ t: 'damage', who: e.id, amount: dmg, element })
     // what has durability starts whole: its hp is its maxHp until it is struck
     // health stops at nothing: a blow past it is a blow that fells, not a debt (thresholds read lte 0)
-    let hp = Math.max(0, w.num(e, 'hp', w.num(e, 'maxHp', 1)) - dmg)
-    // Phoenix (the skill): once a day, any lethal damage leaves 30% health and a moment untouchable
-    if (hp <= 0 && w.hasTag(e, 'skill:phoenix') && w.prop(e, 'phoenixDay') !== w.calendar().day) {
-      hp = Math.max(1, Math.ceil(w.num(e, 'maxHp', 1) * 0.3))
-      w.setProp(e, 'phoenixDay', w.calendar().day)
-      ;(e.combat ??= {}).guardUntil = w.state.tick + 30
-      w.fx.push({ t: 'log', text: { en: 'Phoenix: you rise from a lethal blow.', zh: '涅槃：你从致命一击中重新站起。' }, tone: 'good' })
-    }
+    // health stops at nothing; what a combat module keeps from a lethal blow, it keeps (combat.lethal)
+    const hp = this.combat.lethal(e, Math.max(0, w.num(e, 'hp', w.num(e, 'maxHp', 1)) - dmg))
     this.setProp(e, 'hp', hp, by)
-    // what a landed blow carries beyond its harm (combat.ts): a wound that bleeds (from the one who
-    // struck), and health drawn back to them — a restore they answer for themselves
-    const bleed = by?.params?.bleed
-    if (typeof bleed === 'number' && bleed > 0 && w.get(e.id)) this.applyStatus({ e: e.id }, 'bleeding', bleed, attacker?.id)
-    // a relic's affliction (kneeling, burning, frozen): the struck takes it as its own status
-    const afflict = by?.params?.afflict
-    const afflictFor = by?.params?.afflictFor
-    if (typeof afflict === 'string' && typeof afflictFor === 'number' && afflictFor > 0 && w.get(e.id) && w.num(e, 'hp') > 0) this.applyStatus({ e: e.id }, afflict, afflictFor, attacker?.id)
-    const drain = by?.params?.drain
-    if (typeof drain === 'number' && drain > 0 && attacker && attacker.id !== e.id)
-      this.queue({ kind: 'impulse/restore', host: { e: attacker.id }, roles: { source: { e: e.id }, actor: { e: attacker.id } }, params: { which: 'hp', amount: drain }, cause: by?.cause, origin: by?.origin, depth: (by?.depth ?? 0) + 1 })
+    // what a landed blow carries beyond its harm (a bleed, an affliction, health drawn back): the combat module's
+    this.combat.wounded(e, by, attacker)
   }
 
   // ---------------------------------------------------------------- relations (design.md §5.10)
@@ -1131,7 +1136,7 @@ export class Engine {
       else this.setCooldown(e.id, ticks)
     }
     // a successful step charges the swiftness talents (combat.ts)
-    recordCombatStep(w, e)
+    this.combat.stepped(e)
     if (isPlayer && portalHere) this.travel(e, { map: portalHere.to, x: portalHere.tx, y: portalHere.ty })
     return true
   }
@@ -1260,7 +1265,7 @@ export class Engine {
       return false
     }
     const moved = this.step(p, dir)
-    if (moved) this.setCooldown(p.id, combatDelay(this.world, p, this.world.num(p, 'speed', 2) + (walk ? 1 : 0), 'move'))
+    if (moved) this.setCooldown(p.id, this.combat.delay(p, this.world.num(p, 'speed', 2) + (walk ? 1 : 0), 'move'))
     return moved
   }
 
@@ -1363,17 +1368,14 @@ export class Engine {
     const p = w.player
     if (this.busy(p) || !this.ready('atk:' + p.id)) return
     if (!this.attack(p, target)) {
-      // another profession's weapon: said once per press, then the key rests a moment
+      // a weapon that is not one's to fight with (another profession's): said once per press, then the key rests a moment
       const weapon = weaponOf(w, p)!
-      const need = itemProfession(w, weapon)!
-      const name = w.onto.data.professions?.[need]?.name
-      const n = (l: 'en' | 'zh') => (typeof name === 'string' ? name : name ? (l === 'zh' ? name.zh ?? name.en : name.en) : need)
-      const what = { e: weapon.id }
-      w.fx.push({ t: 'log', text: { en: `Only a${/^[aeiou]/i.test(n('en')) ? 'n' : ''} ${n('en')} can fight with ${this.nameOf(what, 'en')}.`, zh: `只有${n('zh')}会用${this.nameOf(what, 'zh')}战斗。` }, tone: 'warn' })
+      const why = this.combat.refuses(p, weapon, 'fight')
+      if (why) w.fx.push({ t: 'log', text: why, tone: 'warn' })
       this.setCooldown('atk:' + p.id, 10)
       return
     }
-    this.setCooldown('atk:' + p.id, combatDelay(w, p, 5, 'attack'))
+    this.setCooldown('atk:' + p.id, this.combat.delay(p, 5, 'attack'))
   }
 
   /**
@@ -1384,7 +1386,7 @@ export class Engine {
     const w = this.world
     // the weapon in the hand, else the one kept in the main hand (a torch held, the sword still strikes)
     const weapon = weaponOf(w, a)
-    if (weapon && !canWield(w, a, weapon)) return false
+    if (weapon && this.combat.refuses(a, weapon, 'fight')) return false
     // a weapon's reach; without one, the actor's own (a dragon's breath carries); a profession may lengthen it
     const range = this.reachOf('use', a, undefined, weapon) ?? 1
     const element = (weapon && (w.prop(weapon, 'element') as string | undefined)) || (w.prop(a, 'element') as string | undefined)
@@ -1423,7 +1425,7 @@ export class Engine {
     }
     const base = w.stat(a, 'atk', 1) + (weapon ? w.num(weapon, 'power', 0) : 0)
     if (!target) {
-      finishCombatStrike(w, a, undefined, { power: base, critical: false, charged: false, comboHits: 0, bleed: 0, drain: 0 }, 0, range, true)
+      this.combat.struck(a, undefined, { power: base }, 0, range, true)
       return true
     }
     // a blow from afar flies: a bolt of its element, or what the weapon looses (its `missile`: a bow's arrow)
@@ -1433,21 +1435,16 @@ export class Engine {
     // the attacker's talents shape the blow (combat.ts): its power, a critical; the act carries it
     const victim = 'e' in target ? w.get(target.e) : undefined
     const before = victim ? w.num(victim, 'hp') : 0
-    const strike = combatStrike(w, a, victim, base, range, weapon, true)
-    this.act('use', a.id, target, { instrument: weapon ? { e: weapon.id } : null, params: { attack: true, power: strike.power, ...(strike.critical && { critical: true }), ...(strike.bleed && { bleed: strike.bleed }), ...(strike.drain && { drain: strike.drain }), ...(strike.afflict && { afflict: strike.afflict.status, afflictFor: strike.afflict.ticks }) } })
-    finishCombatStrike(w, a, victim, strike, before, range, true)
-    // a sweep (the skill): a melee blow also lands on the creatures on either side of the tile ahead
-    if (range <= 1 && w.hasTag(a, 'skill:sweep'))
-      for (const s of [1, -1]) {
-        const x = start.x + dx + dy * s
-        const y = start.y + dy + dx * s
-        const side = w.inBounds(start.map, x, y) ? w.actorAt(start.map, x, y, a.id, start.z) : undefined
-        if (!side || !w.hasTag(side, 'creature') || ('e' in target && target.e === side.id)) continue
-        const sideHp = w.num(side, 'hp')
-        const sideStrike = combatStrike(w, a, side, base, range, weapon, false)
-        this.act('use', a.id, { e: side.id }, { instrument: weapon ? { e: weapon.id } : null, params: { attack: true, power: sideStrike.power } })
-        finishCombatStrike(w, a, side, sideStrike, sideHp, range, false)
-      }
+    const strike = this.combat.strike(a, victim, base, range, weapon, true)
+    this.act('use', a.id, target, { instrument: weapon ? { e: weapon.id } : null, params: { attack: true, ...strike.params, power: strike.power } })
+    this.combat.struck(a, victim, strike, before, range, true)
+    // what else the blow lands on (a sweep's sides): each its own blow, of its power alone
+    for (const side of this.combat.besides(a, victim, range)) {
+      const sideHp = w.num(side, 'hp')
+      const sideStrike = this.combat.strike(a, side, base, range, weapon, false)
+      this.act('use', a.id, { e: side.id }, { instrument: weapon ? { e: weapon.id } : null, params: { attack: true, power: sideStrike.power } })
+      this.combat.struck(a, side, sideStrike, sideHp, range, false)
+    }
     return true
   }
 
@@ -1487,8 +1484,7 @@ export class Engine {
     // a waiting chain is forgotten a minute after it began (it has ended, or it was stopped)
     if (s.tick % 60 === 0) for (const [id, c] of this.chains) if (s.tick - c.since > 600) this.chains.delete(id)
     this.statusTick(active)
-    // what a cast leaves falling (an Arrow Rain's volleys, actives.ts)
-    rainTick(this, active)
+    for (const h of this.hooks.tick) if (h.phase === 'status') h.run(active)
     this.periodTick(active)
     this.stayTick(active)
     // everyone's behaviour, one goal system (world-model.md §6.10): their moves and blows are acts

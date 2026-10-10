@@ -3,8 +3,8 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 // The engine side imports no game (docs/engine-split.md, S1): games/* may import packages/*, never the
-// reverse, and among the packages the direction is engine ← runtime, engine ← modder → agent. A game reaches
-// the engine side only by being handed over (GameDef, ClientGame), never by being imported.
+// reverse, and among the packages the direction is engine ← modules ← runtime, modules ← modder → agent. A game
+// reaches the engine side only by being handed over (GameDef, ClientGame), never by being imported.
 
 const ROOT = resolve(import.meta.dirname, '..', '..', '..')
 
@@ -12,8 +12,9 @@ const ROOT = resolve(import.meta.dirname, '..', '..', '..')
 const MAY_IMPORT: Record<string, string[]> = {
   engine: [],
   agent: [],
-  modder: ['@openworld/engine', '@openworld/agent'],
-  runtime: ['@openworld/engine'],
+  modules: ['@openworld/engine'],
+  modder: ['@openworld/engine', '@openworld/modules', '@openworld/agent'],
+  runtime: ['@openworld/engine', '@openworld/modules'],
 }
 
 /**

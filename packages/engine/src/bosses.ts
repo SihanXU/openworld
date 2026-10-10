@@ -7,7 +7,6 @@
 // with `release` — a strike to each foe on those cells, a push or pull and a coat that they
 // answer themselves, and its own heal or blink.
 import type { Engine } from './engine.ts'
-import { combatDelay } from './combat.ts'
 import { astar } from './path.ts'
 import type { BossSkill, Entity, GameEvent, Pos } from './types.ts'
 
@@ -180,7 +179,7 @@ export function encounter(eng: Engine, e: Entity, active: string): boolean {
     // Return to the encounter instead of camping the map exit or chasing into a town.
     if (Math.abs(pos.x-home.x)+Math.abs(pos.y-home.y)>1 && eng.ready(e.id)) {
       if (moveToward(eng, e, home)) b.action = 'walk'
-      eng.setCooldown(e.id, combatDelay(w, e, w.num(e, 'speed', 8), 'move'))
+      eng.setCooldown(e.id, eng.combat.delay(e, w.num(e, 'speed', 8), 'move'))
     }
     return true
   }
@@ -193,7 +192,7 @@ export function encounter(eng: Engine, e: Entity, active: string): boolean {
     if (eng.ready(e.id)) {
       if (moveToward(eng, e, at)) b.action = 'walk'
       else b.action = 'idle'
-      eng.setCooldown(e.id, combatDelay(w, e, w.num(e, 'speed', 8), 'move'))
+      eng.setCooldown(e.id, eng.combat.delay(e, w.num(e, 'speed', 8), 'move'))
     }
     return true
   }

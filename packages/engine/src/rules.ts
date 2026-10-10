@@ -167,6 +167,8 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
     const law = lawFor(v)
     return !!social && !!v && social.unpardonable(law, social.bounty(law?.id, v.ref.e))
   }
+  // a module's condition (module.ts)
+  for (const [key, impl] of world.condImpls) if (key in c) return impl(c, roles, world, ev)
   return false
 }
 

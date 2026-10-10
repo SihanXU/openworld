@@ -6,6 +6,8 @@
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { RuleLibrary, validatePatch } from '@openworld/engine'
+// the engine's official modules, which a world's ontology may name (docs/engine-split.md S3)
+import '@openworld/modules'
 import { collectPatch, type WorldRepoState } from './repo.ts'
 import { describeOutcome } from './tools.ts'
 

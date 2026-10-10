@@ -1,45 +1,7 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
-import {
-  lookProblems,
-  signatureOf,
-  difficultyOf,
-  Game,
-  RuleLibrary,
-  buildRequest,
-  tickAt,
-  snapshot,
-  peopleViews,
-  previewPlacement,
-  travelToWaypoint,
-  dash,
-  waypoints,
-  performPlacement,
-  type Dir,
-  type GameEvent,
-  type LibraryData,
-  type ModProgress,
-  type ModRequest,
-  type Patch,
-  type PatchLogEntry,
-  type Frame,
-  type Key,
-  type KeyView,
-  type Plan,
-  type Ref,
-  type Resolution,
-  type ResolveBody,
-  type ResolveReply,
-  type WorldIndex,
-  type Engine,
-  type PlacementPreview,
-  restoreLibrary,
-  decodeRawChunk,
-  decodeRawMap,
-  type RawChunk,
-  CEILING,
-  TICKS_PER_HOUR,
-} from '@openworld/engine'
+import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, peopleViews, previewPlacement, travelToWaypoint, waypoints, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR } from '@openworld/engine'
+import { cast, dash, setSkill, takeProfession } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, recipeById, skillById } from './game.ts'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
 
@@ -673,7 +635,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         game?.engine.controls.chooseBoon(m.id)
         break
       case 'profession':
-        game?.engine.controls.takeProfession(professionById()[m.id], played().skills.all)
+        if (game) takeProfession(game.engine, professionById()[m.id], played().skills.all)
         break
       case 'learn': {
         const s = skillById()[m.id]
@@ -681,10 +643,10 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       }
       case 'cast':
-        if (game && !paused && !panel && !game.engine.world.state.question) game.engine.controls.cast(m.slot)
+        if (game && !paused && !panel && !game.engine.world.state.question) cast(game.engine, m.slot)
         break
       case 'setSkill':
-        game?.engine.controls.setSkill(m.slot, m.id)
+        if (game) setSkill(game.engine, m.slot, m.id)
         break
       case 'transfer':
         if (game && panel) game.engine.controls.transfer(panel, m.from, m.item, m.all)

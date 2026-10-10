@@ -2,6 +2,8 @@
 // for actors and fixtures. Item types come from the catalogue in items.ts.
 
 import { APPEAR_TICK, TICKS_PER_DAY, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE, type Cond, type Ontology, type StageDef, type StatusDef, type TerrainDef, type TypeDef } from '@openworld/engine'
+// the engine's official modules this game uses (docs/engine-split.md S3): loading them registers them
+import '@openworld/modules'
 import { LOOK_TABLE } from './looks.ts'
 import { ELEMENT_NAMES, MATERIALS, MATERIAL_DEFS, QUALITIES, QUALITY_DEFS, itemTypes } from './items.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
@@ -506,10 +508,15 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/scarecrow', 'scarecrow', '稻草人', ['straw', 'cloth', 'wooden', 'flammable'], { solid: true }),
 ]
 
+/** The engine's modules this game uses (docs/engine-split.md S3). */
+export const MODULES = ['classes']
+
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}
   for (const t of [...actorTypes, ...fixtureTypes, ...itemTypes(), ...RESIDENTS, ...BOSS_TYPES, ...SOCIAL_TYPES]) types[t.id] = t
   return {
+    // the systems this game takes from the engine's modules (module.ts), installed in this order
+    modules: MODULES,
     types,
     statuses: Object.fromEntries([...STATUSES, ...BOSS_STATUSES, ...BOON_STATUSES, ...SOCIAL_STATUSES].map((s) => [s.id, s])),
     // the people's social life (docs/npc-sandbox.md): deeds and their fines, the watches, the numbers, the talk panel's verbs

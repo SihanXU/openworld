@@ -6,10 +6,9 @@
 // to the caster, who answers it (content body/stage). Content says the numbers (SkillDef.active); this
 // says what each kind does.
 
-import type { Engine } from './engine.ts'
+import { DIRS, OPPOSITE, weaponOf, type ActiveDef, type Dir, type Engine, type Entity, type KnownActive, type Pos, type SkillDef } from '@openworld/engine'
 import { combatStrike, finishCombatStrike } from './combat.ts'
-import { professionOf, weaponOf } from './profession.ts'
-import { DIRS, OPPOSITE, type ActiveDef, type Dir, type Entity, type Pos, type SkillDef } from './types.ts'
+import { professionOf } from './profession.ts'
 
 /** How many slots the skill bar has. */
 export const SKILLBAR_SLOTS = 6
@@ -19,14 +18,6 @@ export const castKey = (skill: string, actor: string) => `skill:${skill}:${actor
 
 export type CastRefusal = 'unknown' | 'passive' | 'unlearned' | 'profession' | 'busy' | 'cooling' | 'nothing'
 
-/** Where an active skill one has comes from: the skill tree, a book read, or a piece one wears (its `skill` prop). */
-export type SkillSource = 'tree' | 'book' | 'gear'
-export interface KnownActive {
-  id: string
-  source: SkillSource
-  /** The piece that lends it (a gear skill). */
-  item?: string
-}
 
 /**
  * The active skills an actor has now: those it learned (in the tree, or from a book: its `skillFrom:<id>`), and those

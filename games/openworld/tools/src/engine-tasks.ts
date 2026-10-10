@@ -20,6 +20,7 @@ const TASKS = join(REPO, 'games/openworld/tools/tasks/engine')
 /** what the workspace copies, at the same paths as here, and the names they are imported by */
 const PACKAGES = [
   { dir: 'packages/engine', name: '@openworld/engine' },
+  { dir: 'packages/modules', name: '@openworld/modules' },
   { dir: 'games/openworld/content', name: '@openworld-game/content' },
 ]
 const SCOPES = new Set(PACKAGES.map((p) => p.name.split('/')[0]))
@@ -100,7 +101,7 @@ export async function engineTask(def: EngineTaskDef, o: { isolation?: Isolation;
       localRun: iso === 'none' && o.localRun,
       tests: { command: tests, timeoutMs: 300_000 },
       request: { id: def.id },
-      notes: 'This repository is the engine (packages/engine) and content (games/openworld/content) of a rule-based game world. The tests are vitest; content tests exercise the engine through the base rule library.',
+      notes: 'This repository is the engine (packages/engine), its modules (packages/modules) and content (games/openworld/content) of a rule-based game world. The tests are vitest; content tests exercise the engine through the base rule library.',
       // fail-to-pass: the hidden test must pass, and so must everything that passed before
       verdict: async (env) => {
         const target = join(ws.dir, HIDDEN)

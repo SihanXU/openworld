@@ -10,10 +10,7 @@
 // shield in the off hand: the `arm` slot). Every other weapon is common to all and takes no
 // profession's talents.
 
-import type { Entity, SkillDef, Text } from './types.ts'
-import type { World } from './world.ts'
-import { HUNGER_EVERY } from './hunger.ts'
-import { skillTag, skillsOf } from './progression.ts'
+import { OFFHAND, grantBase, offhandOf, skillTag, skillsOf, type Entity, type SkillDef, type Text, type World } from '@openworld/engine'
 
 /** The level from which a trainer will take you on. */
 export const PROFESSION_LEVEL = 5
@@ -54,26 +51,9 @@ export function ownWeapon(w: World, e: Entity, item: Entity | undefined): boolea
   return !!item && !!itemProfession(w, item) && itemProfession(w, item) === professionOf(w, e)
 }
 
-/** The main hand: the `weapon` slot of what is worn, where a weapon is kept ready while the hand holds something else. */
-export const MAINHAND = 'wear:weapon'
 
-/**
- * What one fights with: a weapon in one's hand, else the one worn in the main hand (`World.worn`: still carried, one's
- * own to wield), else whatever the hand holds (a torch swung).
- */
-export function weaponOf(w: World, e: Entity): Entity | undefined {
-  const held = w.get(e.held)
-  if (held && w.hasTag(held, 'weapon')) return held
-  return w.worn(e).find((it) => w.prop(it, 'slot') === 'weapon') ?? held
-}
 
-/** The off hand: the `arm` slot of what is worn (world-model.md §6.8), where a shield goes. */
-export const OFFHAND = 'wear:arm'
 
-/** What is worn in the off hand and works there (`World.worn`: still carried, and the wearer's to wield). */
-export function offhandOf(w: World, e: Entity): Entity | undefined {
-  return w.worn(e).find((item) => w.prop(item, 'slot') === 'arm')
-}
 
 /** How far a trainer can be (tiles) for the choice to be made. */
 const TRAINER_REACH = 3
@@ -103,7 +83,7 @@ export function refundProfessionSkills(w: World, e: Entity, skills: SkillDef[]):
     w.removeTag(e, skillTag(id))
     refunded += def.cost ?? 1
     for (const [key, delta] of Object.entries(def.grant ?? {})) {
-      w.setProp(e, key, w.num(e, key, key === 'hungerEvery' ? HUNGER_EVERY : 0) - delta)
+      w.setProp(e, key, w.num(e, key, grantBase(w, key)) - delta)
       // a smaller pool: what was in it beyond the new top is gone
       if (key === 'maxHp') w.setProp(e, 'hp', Math.max(1, Math.min(w.num(e, 'hp'), w.num(e, 'maxHp', 1))))
       if (key === 'maxHunger') w.setProp(e, 'hunger', Math.min(w.num(e, 'hunger'), w.num(e, 'maxHunger')))
