@@ -1,29 +1,10 @@
 // Tests the harness writes instead of the model. A hand-written test scenario was a large part
-// of every answer (output tokens are most of a call's latency), and it is mechanical: replay
-// the event under the draft, note what changed, then swap in ANOTHER instance of the host class
-// the rule names and check the rule answers there with the same effects. A test that holds is
-// attached to the rule (and guards it from then on); one that does not is reported, because a
-// rule that only works for the instance that asked is not the class it claims.
+// of every answer (output tokens are most of a call's latency), and it is mechanical: replay the
+// event under the draft in the scene that asked and note what changed. The test is attached to the
+// rule and guards it from then on (a learned rule is one type's, placed at one leaf: there is no
+// other instance of a class to try it on, design.md §5.16).
 
-import {
-  OntologyIndex,
-  RuleLibrary,
-  buildSandbox,
-  isA,
-  isDo,
-  isHole,
-  leaves,
-  matchSelector,
-  replay,
-  type Expectation,
-  type ModRequest,
-  type Ontology,
-  type Patch,
-  type Rule,
-  type Scenario,
-  type Selector,
-  type View,
-} from '@lsw/engine'
+import { RuleLibrary, buildSandbox, isDo, isHole, leaves, replay, type Expectation, type ModRequest, type Ontology, type Patch, type Rule, type Scenario } from '@lsw/engine'
 
 const NARRATION = new Set(['vfx', 'say', 'log', 'emote'])
 
@@ -41,12 +22,6 @@ function candidate(patch: Patch, lib: RuleLibrary, onto: Ontology): { lib: RuleL
   }
   for (const a of patch.artifacts) if (a.kind === 'rule') l.add({ ...a.rule, source: { origin: 'patch' } })
   return { lib: l, onto: o }
-}
-
-/** The scenario key of the event's host (as the sandbox picks it when the scenario does not say). */
-function hostKey(sc: Scenario): string | undefined {
-  const e = sc.event
-  return e.host ?? e.instrument ?? e.actor ?? e.target
 }
 
 /** What the event did to the scenario's things, as expectations that should hold for any instance. */
@@ -92,41 +67,17 @@ function effectsOf(sc: Scenario, rule: Rule, lib: RuleLibrary, onto: Ontology): 
   return out
 }
 
-const shape = (s: Selector): Selector => {
-  const { status: _s, notStatus: _n, props: _p, ...rest } = s
-  return rest
-}
-
-/** Other instances the selector also picks, best first: types under the same root elsewhere in the tree (another branch first), or other terrains. */
-function siblings(sel: Selector, current: string, tile: boolean, onto: Ontology): string[] {
-  const s = shape(sel)
-  if (tile) {
-    const terrains = Object.values(onto.terrains).filter((t) => `tile/${t.id}` !== current && t.id !== current)
-    const view = (id: string, tags: string[] = []): View => ({ ref: { e: `x:0,0,0:${id}` }, type: `tile/${id}`, tags: new Set(tags), statuses: new Set(), props: {} })
-    return terrains.filter((t) => matchSelector(s, view(t.id, t.tags))).map((t) => t.id)
-  }
-  const index = new OntologyIndex(onto)
-  const parent = current.split('/').slice(0, -1).join('/')
-  const leafTypes = Object.keys(onto.types)
-    .filter((id) => id !== current && !Object.keys(onto.types).some((o) => o.startsWith(id + '/')))
-    .sort()
-  const root = current.split('/')[0]
-  const fits = leafTypes.filter((id) => {
-    const r = index.resolve(id)
-    if (id.split('/')[0] !== root) return false
-    return matchSelector(s, { ref: { e: id }, type: id, tags: new Set(r.tags), statuses: new Set(), props: r.props })
-  })
-  // prefer an instance from another branch: that is what tests the class, not the family
-  return [...fits.filter((id) => !isA(id, parent)), ...fits.filter((id) => isA(id, parent))]
-}
-
 export interface Derived {
   patch: Patch
-  /** what was derived, and what did not generalize (for the reviewer) */
+  /** what was derived, or why nothing was (for the reviewer) */
   notes: string[]
 }
 
-/** Attach a derived test to every rule of the patch that has none: the same event, another instance of its host class. */
+/**
+ * Attach a test to every rule of the patch that has none: the scene that asked, and what the rule
+ * did there (a learned rule is one type's and answers at one place, so there is no sibling to try;
+ * the test guards the answer against later changes of the base rules around it).
+ */
 export function deriveTests(patch: Patch, req: ModRequest, lib: RuleLibrary, onto: Ontology): Derived {
   const notes: string[] = []
   let cand: { lib: RuleLibrary; onto: Ontology }
@@ -141,45 +92,8 @@ export function deriveTests(patch: Patch, req: ModRequest, lib: RuleLibrary, ont
     try {
       const expect = effectsOf(req.scenario, r, cand.lib, cand.onto)
       if (!expect) return a // not this rule's event: the validator will say so
-      const key = hostKey(req.scenario)
-      // (a thing under a cell's top, `tile:x,y:space`, has no row of its own to swap)
-      if (!key || key.split(':').length > 2) return a
-      const tile = key.startsWith('tile:') ? key.slice(5).split(',').map(Number) : undefined
-      const ent = tile ? undefined : req.scenario.entities.find((e) => e.key === key)
-      if (!tile && !ent) return a // a resident host: one of a kind
-      const others = tile ? siblings(r.host!, req.scenario.terrain![tile[1]][tile[0]], true, cand.onto) : siblings(r.host!, ent!.type, false, cand.onto)
-      const swap = (other: string): Scenario => {
-        const sc: Scenario = structuredClone(req.scenario)
-        if (tile) sc.terrain![tile[1]][tile[0]] = other
-        else Object.assign(sc.entities.find((e) => e.key === key)!, { type: other, props: undefined, tags: undefined })
-        return sc
-      }
-      // the first instance this rule answers, or one it should answer but the hole is still open;
-      // an instance a more specific rule already answers (another patch, a base rule) says nothing
-      let other: string | undefined
-      let sc: Scenario | undefined
-      for (const o of others.slice(0, 8)) {
-        const s = swap(o)
-        const res = replay(s, cand.onto, cand.lib).resolution
-        if (res.rule && res.rule.id !== r.id && res.defined) continue
-        ;[other, sc] = [o, s]
-        break
-      }
-      if (!other || !sc) {
-        notes.push(`${r.id}: no other instance of its host class to test on${others.length ? ' (the others are answered by more specific rules)' : ''}`)
-        return a
-      }
-      const there = effectsOf(sc, r, cand.lib, cand.onto)
-      // a number is compared by its direction (its start differs per instance), a rule's answer by the rule
-      const same = (x: Expectation) => JSON.stringify('propGt' in x ? { key: x.key, up: x.propGt[0] } : 'propLt' in x ? { key: x.key, down: x.propLt[0] } : x)
-      // a transformation names the type it became, which may differ per instance: compare the rest
-      const holds = there && expect.filter((x) => !('isType' in x)).every((x) => there.some((y) => same(y) === same(x)))
-      if (!holds) {
-        notes.push(`${r.id}: did not generalize — with host ${other} it ${there ? 'has other effects' : 'does not answer'}`)
-        return a
-      }
-      notes.push(`${r.id}: derived a test on host ${other}${there!.length === 1 ? ' (it checks only that the rule answers: its effects are not ones a test can see)' : ''}`)
-      return { ...a, rule: { ...r, tests: [{ name: `derived: host ${other}`, given: sc, expect: there! }] } }
+      notes.push(`${r.id}: derived a test from the scene that asked${expect.length === 1 ? ' (it checks only that the rule answers: its effects are not ones a test can see)' : ''}`)
+      return { ...a, rule: { ...r, tests: [{ name: 'derived: the scene that asked', given: structuredClone(req.scenario), expect }] } }
     } catch (err) {
       notes.push(`${r.id}: could not derive a test (${(err as Error).message})`)
       return a

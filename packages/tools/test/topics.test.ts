@@ -34,8 +34,8 @@ describe("the story's topics", () => {
   })
 
   it('a topic of its own is news a patch may raise, a near name included', () => {
-    expect(check(patch(notify('feather_rumour'))).filter((e) => e.includes('topic'))).toEqual([])
-    expect(check(patch(notify('crown_polished'))).filter((e) => e.includes('topic'))).toEqual([])
-    expect(check(patch(notify('theft'))).filter((e) => e.includes('topic'))).toEqual([])
+    expect(check(patch(notify('feather_rumour'))).filter((e) => e.includes('raises the topic'))).toEqual([])
+    expect(check(patch(notify('crown_polished'))).filter((e) => e.includes('raises the topic'))).toEqual([])
+    expect(check(patch(notify('theft'))).filter((e) => e.includes('raises the topic'))).toEqual([])
   })
 })

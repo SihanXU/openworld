@@ -252,29 +252,30 @@ describe('the world', () => {
   })
 
   it("the player's own act waiting for its outcome is what the host stops the world for; the world's own questions are not", () => {
-    const eng = meadow([{ key: 'rope', type: 'item/tool/rope', x: 3, y: 3 }, { key: 'slime', type: 'actor/creature/slime/green_slime', x: 3, y: 2 }])
-    eng.author(() => eng.world.place(eng.world.get('rope')!, { on: 'hand', holder: 'actor' }))
+    // a stone used on a dead tree: the base has no word for it (a rope on a creature it has: offered, bound)
+    const eng = meadow([{ key: 'stone', type: 'item/material/stone', x: 3, y: 3 }, { key: 'tree', type: 'fixture/nature/dead_tree', x: 3, y: 2 }])
+    eng.author(() => eng.world.place(eng.world.get('stone')!, { on: 'hand', holder: 'actor' }))
     const port = new ModPort(eng)
     port.provider = { resolve: () => new Promise(() => undefined) }
     expect(port.asking).toBeUndefined()
-    eng.act('use', 'actor', { e: 'slime' })
+    eng.act('use', 'actor', { e: 'tree' })
     expect(port.asking?.origin).toBe('player')
     port.fallback(port.asking!.id)
     expect(port.asking).toBeUndefined()
   })
 
   it('a late answer completes an act that timed out, but not one the player declined to wait for (they moved on)', () => {
-    const answer = { artifacts: [{ kind: 'rule' as const, rule: { id: 'patch/rope-mark', host: { type: 'item/tool/rope' }, on: 'act/use' as const, tree: { do: [{ op: 'addTag' as const, tag: 'marked' }] } } }] }
+    const answer = { artifacts: [{ kind: 'rule' as const, rule: { id: 'patch/stone-mark', host: { type: 'item/material/stone' }, on: 'act/use' as const, tree: { do: [{ op: 'addTag' as const, tag: 'marked' }] } } }] }
     for (const declined of [false, true]) {
-      const eng = meadow([{ key: 'rope', type: 'item/tool/rope', x: 3, y: 3 }, { key: 'slime', type: 'actor/creature/slime/green_slime', x: 3, y: 2 }])
-      eng.author(() => eng.world.place(eng.world.get('rope')!, { on: 'hand', holder: 'actor' }))
+      const eng = meadow([{ key: 'stone', type: 'item/material/stone', x: 3, y: 3 }, { key: 'tree', type: 'fixture/nature/dead_tree', x: 3, y: 2 }])
+      eng.author(() => eng.world.place(eng.world.get('stone')!, { on: 'hand', holder: 'actor' }))
       const port = new ModPort(eng)
       port.provider = { resolve: () => new Promise(() => undefined) }
-      eng.act('use', 'actor', { e: 'slime' })
+      eng.act('use', 'actor', { e: 'tree' })
       const id = port.asking!.id
       port.fallback(id, declined)
       expect(port.submit(id, answer).errors).toEqual([])
-      expect(eng.world.get('rope')!.tags?.includes('marked') ?? false).toBe(!declined)
+      expect(eng.world.get('stone')!.tags?.includes('marked') ?? false).toBe(!declined)
     }
   })
 })

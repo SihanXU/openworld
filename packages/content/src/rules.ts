@@ -49,12 +49,24 @@ const TOO_FAR = log('Too far to reach: go in first (E).', '够不着：先进去
 const ROOTS: Rule[] = [
   rule({
     id: 'core/use',
-    doc: 'Using a thing on something is undefined unless its nature says (the AI answers) — on a place of the overworld it is out of reach; the bare body used on anything is a blow (Minecraft\'s fist).',
+    doc: 'Using a thing on something its nature says nothing about: the bare body used on anything is a blow (Minecraft\'s fist), and so is anything swung; on a place of the overworld it is out of reach; on a creature it is held out to it (the creature answers: offered, design.md §5.2). On anything else it is the player\'s experiment: undefined (the AI answers).',
     on: 'act/use',
     tree: IF(
       { none: 'instrument' },
       DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND })),
-      IF(is('target', SITE), AS(L('Out of reach — go in first (E)', '够不着——先进去（E）'), DO(TOO_FAR)), HOLE(log('Nothing happens.', '什么也没有发生。'))),
+      IF(
+        is('target', SITE),
+        AS(L('Out of reach — go in first (E)', '够不着——先进去（E）'), DO(TOO_FAR)),
+        IF(
+          param('attack', true),
+          AS(L('Strike {target} with {instrument}', '用{instrument}打{target}'), DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND }))),
+          IF(
+            all(is('target', { type: 'actor/creature' }), not({ same: ['actor', 'target'] })),
+            AS(L('Hold out {instrument} to {target}', '把{instrument}递给{target}'), DO(emit('offered', 'target', undefined, { item: 'host' }))),
+            HOLE(log('Nothing happens.', '什么也没有发生。')),
+          ),
+        ),
+      ),
     ),
   }),
   rule({
@@ -1684,4 +1696,91 @@ const SITES: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...BUILDING, ...HOMESTEAD_RULES]
+
+// ------------------------------------------------------------------ the general cases (2026-10-09)
+// What a player expects of a class without its sub-types asking one by one (design.md §5.16: the
+// learned layer answers one type at one leaf; what holds for a class is the base's). Each ends in
+// `inherit` where a sub-type, or the AI, may still have something to say.
+
+const CREATURE: Selector = { type: 'actor/creature' }
+
+const GENERAL: Rule[] = [
+  rule({
+    id: 'creature/offered',
+    doc: 'A creature held out a thing: something fibrous lashes it down (the rope goes onto it); something edible it snaps up (the food is told it is eaten: food/eaten); anything else, and anything offered a boss, is its own kind\'s to answer (undefined at the root).',
+    host: CREATURE,
+    on: 'impulse/offered',
+    tree: IF(
+      any({ same: ['host', 'actor'] }, tag('host', 'boss')),
+      'inherit',
+      IF(
+        all(tag('item', 'fiber'), not(has('host', 'frozen'))),
+        AS(L('Bind {target} with {instrument}', '用{instrument}捆住{target}'), DO(add('frozen', 30), taken('contents'), vfx('dust'), log('{host} is lashed down with {item}.', '{host}被{item}捆住了。'))),
+        IF(
+          tag('item', 'edible'),
+          AS(L('Feed {instrument} to {target}', '给{target}吃{instrument}'), DO(emit('notify', 'item', { what: 'eaten' }), { op: 'emote', mood: 'happy' }, vfx('sparkle'), log('{host} snaps up {item}.', '{host}一口吞下了{item}。'))),
+          'inherit',
+        ),
+      ),
+    ),
+  }),
+  rule({
+    id: 'food/eaten',
+    doc: 'Food told it is eaten (snapped up by a creature it was held out to: creature/offered) is gone; any other news it only notes.',
+    host: { tags: ['edible'] },
+    on: 'impulse/notify',
+    tree: IF(param('what', 'eaten'), DO({ op: 'destroy' }), 'inherit'),
+  }),
+  rule({
+    id: 'creature/handle',
+    label: L('Reach out to {target}', '向{target}伸手'),
+    doc: 'A bare hand reached toward a wild creature: it snaps at the hand and takes the reacher for a foe. An animal is its own to answer.',
+    host: CREATURE,
+    on: 'impulse/handle',
+    tree: IF(
+      any({ same: ['host', 'actor'] }, tag('host', 'animal')),
+      'inherit',
+      DO(emit('strike', 'actor', { power: { prop: 'atk', of: 'host' }, edge: 'pierce' }), { op: 'foe' }, { op: 'emote', mood: 'angry' }, vfx('hit', 'actor'), log('{host} snaps at the outstretched hand!', '{host}朝伸来的手猛咬一口！')),
+    ),
+  }),
+  rule({
+    id: 'tile/handle',
+    label: L('Touch {target}', '摸摸{target}'),
+    doc: 'A bare hand on the ground, a floor or any other cell with no answer of its own: it is only touched (a place of the overworld is entered instead: site/enter).',
+    host: { type: 'tile' },
+    on: 'impulse/handle',
+    tree: IF(tag('host', 'overworld'), 'inherit', DO(vfx('dust'), log('Your hand brushes {host}. Nothing comes of it.', '你的手拂过{host}。什么也没有发生。'))),
+  }),
+  rule({
+    id: 'fire/warm-hands',
+    label: L('Warm yourself at {target}', '在{target}旁取暖'),
+    doc: 'A bare hand at a lit fire: the wet and the frozen dry and thaw in its heat (the fire reaches them, gently); the rest only feel its warmth.',
+    host: { type: 'fixture', tags: ['lightable'], status: ['lit'] },
+    on: 'impulse/handle',
+    tree: IF(
+      any(has('actor', 'wet'), has('actor', 'frozen')),
+      DO(emit('element', 'actor', { element: 'fire', power: 0 }), log('You warm yourself at {host}; the damp steams off you.', '你在{host}旁取暖，湿气蒸发了。')),
+      DO(vfx('heal', 'actor'), log('Warmth from {host} seeps into your hands.', '{host}的暖意渗进手心。')),
+    ),
+  }),
+  rule({
+    id: 'smelt/ore',
+    doc: 'Ore used on a lit forge is smelted into its bar (the ore\'s `smelts`); a cold forge only wants fire first. On anything else, undefined.',
+    host: { type: 'item/material', tags: ['ore'] },
+    on: 'act/use',
+    tree: IF(
+      is('target', { type: 'fixture/craft/forge', status: ['lit'] }),
+      AS(L('Smelt {instrument} in {target}', '在{target}里熔炼{instrument}'), DO({ op: 'transform', into: '@prop:smelts' }, vfx('smoke', 'target'), log('The ore glows in {target} and runs into a bar.', '矿石在{target}中烧得通红，熔成了一块金属锭。'))),
+      IF(is('target', { type: 'fixture/craft/forge' }), AS(L('Smelt {instrument} in {target}', '在{target}里熔炼{instrument}'), DO(log('{target} is cold. It wants a fire first.', '{target}是冷的，得先生火。'))), 'inherit'),
+    ),
+  }),
+  rule({
+    id: 'companion/stuck',
+    doc: 'A companion that is down cannot follow: it stays where it fell until it comes to.',
+    host: COMPANION,
+    on: 'stuck',
+    tree: IF(has('host', 'down'), DO({ op: 'emote', mood: 'sad' }, log('{host} lies where it fell, too weak to follow.', '{host}倒在原地，虚弱得跟不上。')), 'inherit'),
+  }),
+]
+
+export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL]

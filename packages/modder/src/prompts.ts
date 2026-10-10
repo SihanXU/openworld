@@ -24,7 +24,7 @@ export const ROUTER_RULES = [
 
 export function designSystem(spec: ModSpec, h: Harness, router = false): string {
   return [
-    'You are the modder of a 2D JRPG world whose mechanics are data. Every happening is an event with one outcome, given by the rules of its host. When an event reaches an outcome the rules leave undefined (request.hole), you are called to write the missing rule(s) as a patch: a rule for the host\'s class that answers that event. The engine validates every patch (schema, ontology, ties at equal specificity, a sandbox replay of the event, your tests, regression) before it applies it. Once applied, a rule holds for every instance of the class you wrote, so you are writing the physics of the world, not a one-off answer.',
+    'You are the modder of a 2D JRPG world whose mechanics are data. Every happening is an event with one outcome, given by the rules of its host. When an event reaches an outcome the rules leave undefined (request.hole), you are called to write the missing rule as a patch: the host type\'s own rule for that event at that hole. The harness places it (host, on, hole, at: from the request, never from you); you write its tree. The engine validates every patch (schema, ontology, its place, a sandbox replay of the event, your tests) before it applies it. Once applied, the rule holds for every instance of the host\'s type at that place, so write its nature, not a one-off answer.',
     '',
     'How to work:',
     ...(h.design.toolRounds > 0
@@ -33,14 +33,14 @@ export function designSystem(spec: ModSpec, h: Harness, router = false): string 
           h.design.brief
             ? '2. The brief lists the roles\' types and the rules that already speak about this host or this event. Use your tools only for what it lacks. If one of your skills fits, read it.'
             : '2. Investigate with your tools: search_rules for neighbouring rules (same kind, the host\'s type, the other roles\' tags) and get_type for what the roles really are. If one of your skills fits, read it.',
-          '3. Decide what a player would find plausible and satisfying here, consistent with the rules that exist. Then write it for the widest class of things that keeps it plausible.',
+          '3. Decide what a player would find plausible and satisfying here, consistent with the rules that exist. Then write it for this type: branch on what varies among its instances (material, quality, element, statuses) and on the other roles\' classes.',
           h.design.brief
             ? '4. Answer as soon as you are confident: the engine validates your answer and sends back exact diagnostics if anything is wrong. dry_run only when unsure.'
-            : '4. dry_run the draft. Fix everything it reports. dry_run it again on a scenario with another instance of the class to check that it generalizes.',
+            : '4. dry_run the draft. Fix everything it reports.',
         ]
       : [
           '1. Read the request and the brief: the host and the roles, where the outcome was undefined, and the rules that already speak about this host or event (the conventions in force).',
-          '2. Decide what a player would find plausible and satisfying here, consistent with those rules. Write it for the widest class of things that keeps it plausible.',
+          '2. Decide what a player would find plausible and satisfying here, consistent with those rules. Write it for this type: branch on what varies among its instances (material, quality, element, statuses) and on the other roles\' classes.',
           '3. Answer directly — there are no tools. The engine validates your answer and sends back exact diagnostics if anything is wrong.',
         ]),
     `${h.design.toolRounds > 0 ? 5 : 4}. Answer with ONLY one JSON object: {"patch": {"artifacts": [...], "note": "<what the rule does, one line>"}, "summary": "<one line for your records>"}`,
@@ -48,9 +48,10 @@ export function designSystem(spec: ModSpec, h: Harness, router = false): string 
     'Requirements:',
     '- Rule ids start with "patch/" and must be new.',
     h.design.tests === 'harness'
-      ? '- Every rule has a one-line `doc` and player-visible feedback (vfx and/or log/say). Do not write tests: the harness replays your rule on another instance of its class and keeps that as its test.'
-      : '- Every rule has a one-line `doc`, player-visible feedback (vfx and/or log/say), and at least one test whose scenario uses ANOTHER instance of the host class than the triggering one (the triggering event is replayed automatically).',
-    '- Prefer outcomes that change something (a status, a transformation, an item). A rule that only narrates is right only when nothing happening is clearly the most plausible outcome, and then its class must stay narrow.',
+      ? '- Every rule has a one-line `doc` and player-visible feedback (vfx and/or log/say). Do not write tests: the harness keeps the scene that asked as the rule\'s test.'
+      : '- Every rule has a one-line `doc`, player-visible feedback (vfx and/or log/say), and at least one test (the triggering event is replayed automatically).',
+    '- Prefer outcomes that change something (a status, a transformation, an item). A rule that only narrates is right only when nothing happening is clearly the most plausible outcome.',
+    '- Answer the case that was asked (the target\'s class, the params given); a case you do not answer ends in {"undefined": true} so it stays open and is asked later. Never write `inherit`; give every `if` an `else`.',
     '- Nothing for nothing: if the outcome makes something (a stick shaken from a tree, food), let it cost or run out — use the instrument up, or change or spend the host (a status that clears with time, a prop that counts down) — so it is not a faucet pressed forever.',
     '- Your rule writes only its host; to affect anything else, emit an impulse to it and its receiver answers. Player-facing text is {"en": "...", "zh": "..."}; {host}, {actor}, {target}, {instrument}, {item} insert names.',
     '- If nothing should happen, still define it: {"do": []} (no change) or a short in-world line of feedback is a valid answer.',
@@ -131,7 +132,7 @@ export const FINALIZE = 'Stop investigating. Answer now with ONLY the JSON objec
 export const REVIEW_SYSTEM = `You review a rule a modder just wrote for a 2D JRPG world, as a player and as the world's designer.
 The rule was written because an event reached an outcome no rule defined (a player's act, or the world by itself); it is already valid code. Judge only:
 - plausibility: would a player find this outcome believable and satisfying in this world?
-- scope: does it cover the right CLASS — not one instance (too narrow), not unrelated things (too broad)?
+- scope: does it answer the right cases of this host type — not one target only (too narrow), not unrelated targets or params (too broad)?
 - consistency with the neighbouring rules shown;
 - feedback: does the player see what happened?
 - no destructive surprises (destroying or taking things the player values without reason);

@@ -49,7 +49,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   active/dormant maps and the writer (`World.grant`: the mutators throw outside an outcome, the
   clock, loading, the input's posture and the author, and in an outcome beyond its host —
   design.md §5.15; `tools/test/writes.test.ts` scans for writes behind them) in `engine.ts`/`world.ts`; the request, one question per hole and class, the
-  validator (host-only writes, ties, replay) and the boundaries in `mod.ts` (design.md §5.4–5.14);
+  validator (host-only writes, the rule's place, replay) and the boundaries in `mod.ts` (design.md §5.4–5.16);
   the player's five
   inputs (E hands, F take, G put, left click use — a bare one is a blow —, right click use on oneself;
   each as far as its reach: the target's `handsRange`, the world's `carry`, the held thing's `range`,
@@ -159,8 +159,11 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
     through events and rules, never around them in engine code. A deliberate act on
     something no rule covers stays an undefined leaf (the AI's place to answer). Play without
     a model is kept by the leaf's default and authored fallbacks, never by closing the hole.
-- Specificity: host first (instance-bound, type depth), then event kind depth. Two equally
-  specific rules are rejected by the validator; there is no compose.
+- Specificity (base rules): host first (instance-bound, type depth), then event kind depth. Two
+  equally specific base rules are an authoring error (the content tests sweep for it). Learned
+  rules have places, not ranks (design.md §5.16): one type, the exact kind, one tree per (type,
+  kind, hole) that grows by replacing its own open leaves; they never `inherit`, never tie, and no
+  regression set is needed because the base is resolved first.
 - Game code never writes the state directly and never takes the author's hand (`Engine.author`
   is for tests, world building, loading, migrations and the dev console). A system that changes
   the world does it as events: behaviour makes acts, the clock makes periods and timers, a

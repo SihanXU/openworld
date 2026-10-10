@@ -23,7 +23,7 @@ import { appearFromForage } from './appear.ts'
 import { Social, lawId } from './social.ts'
 import { Conduct } from './conduct.ts'
 import { RuleLibrary, evalCond, isDo, isPatch, matchSelector, rolesOf, type Resolution } from './rules.ts'
-import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, Scenario, SkillDef, Text, Verb, WorldState } from './types.ts'
+import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb, WorldState } from './types.ts'
 import type { ProfessionDef } from './profession.ts'
 import { DIRS, FIRE_RADIUS, OPPOSITE } from './types.ts'
 import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type Writer } from './world.ts'
@@ -38,13 +38,6 @@ export interface UndefinedSink {
    */
   raise(ev: GameEvent, res: Resolution): boolean
   tick(): void
-  /**
-   * The scene of an act the player is about to make, taken before it happens (what a regression
-   * set replays: the world as the act found it, not as it left it).
-   */
-  scene?(ev: GameEvent): Scenario | undefined
-  /** Called with every defined act the player made and its scene before it, e.g. to build a regression set. */
-  observe?(ev: GameEvent, rule: string, scene?: Scenario): void
 }
 
 export interface MapChunk {
@@ -334,6 +327,8 @@ export class Engine {
     const set = (this.world.state.quarantine ??= {})
     if ((severe || n >= FAULTS) && !set[rule.id]) {
       set[rule.id] = { tick: this.world.state.tick, reason }
+      // it leaves the library: its leaf is open again, for the validator's replays as for the game
+      this.lib.remove(rule.id)
       this.world.fx.push({ t: 'log', text: `learned rule ${rule.id} is set aside: ${reason}`, tone: 'dev' })
     }
     return true
@@ -576,8 +571,6 @@ export class Engine {
     // what the act is, before it is resolved (a thing taken from her chest is hers until it is taken)
     const before = this.before(ev)
     const holes = this.holes
-    // (the scene as the act finds it: after it, what it used up or changed is gone from it)
-    const scene = ev.origin === 'player' ? this.undefinedSink?.scene?.(ev) : undefined
     this.dispatching++
     let res: Resolution
     try {
@@ -586,7 +579,6 @@ export class Engine {
       this.dispatching--
     }
     this.flush()
-    if (res.defined && res.rule && ev.origin === 'player') this.undefinedSink?.observe?.(ev, res.rule.id, scene)
     // what the seers see: the act, and whether the world had an answer for all it set going
     if (verb !== 'move' && verb !== 'craft' && verb !== 'learn') this.see(ev, res.defined && this.holes === holes, before)
     this.flush()

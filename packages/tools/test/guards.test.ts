@@ -3,7 +3,7 @@
 // cannot be lost is not lost, and a rule that keeps failing is set aside (its hole open again).
 
 import { describe, expect, it } from 'vitest'
-import { Engine, RuleLibrary, SANDBOX_MAP, buildSandbox, gainXp, type GameEvent, type Rule, type Scenario, type Tree } from '@lsw/engine'
+import { Engine, RuleLibrary, SANDBOX_MAP, buildSandbox, gainXp, holeKey, type GameEvent, type Rule, type Scenario, type Tree } from '@lsw/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
 
 const onto = buildOntology()
@@ -12,9 +12,15 @@ const STONE = 'item/material/stone'
 const POT = 'fixture/container/pot'
 const STATUE = 'fixture/sacred/statue'
 
-const learned = (id: string, host: string, on: string, tree: Tree): Rule => ({ id: `test/${id}`, host: { type: host }, on, tree, source: { origin: 'patch' } })
+/** A learned rule: one type's own answer at one base hole (design.md §5.16). */
+const learned = (id: string, host: string, on: string, hole: string, tree: Tree): Rule => ({ id: `test/${id}`, host: { type: host }, on, hole, tree, source: { origin: 'patch' } })
+/** The key of the base hole an event falls into on a world with nothing learned. */
+const holeOf = (ev: GameEvent, extra: Scenario['entities'] = []): string => {
+  const res = world([], extra).resolveEvent(ev)
+  return holeKey(res.hole!.rule.id, res.hole!.path)
+}
 /** A feather used on the pot does what the learned rule says (the act's hole, filled). */
-const onPot = (id: string, ...effects: unknown[]): Rule => learned(id, FEATHER, 'act/use', { if: { is: { role: 'target', sel: { type: POT } } }, then: { do: effects as never }, else: 'inherit' })
+const onPot = (id: string, ...effects: unknown[]): Rule => learned(id, FEATHER, 'act/use', USE_HOLE, { if: { is: { role: 'target', sel: { type: POT } } }, then: { do: effects as never }, else: { undefined: true } })
 
 function world(rules: Rule[], extra: Scenario['entities'] = []): Engine {
   const sc: Scenario = {
@@ -32,11 +38,14 @@ function world(rules: Rule[], extra: Scenario['entities'] = []): Engine {
 const use = (eng: Engine) => eng.act('use', 'actor', { e: 'pot' }, { instrument: { e: 'feather' } })
 const count = (eng: Engine, type: string) => Object.values(eng.world.state.entities).filter((e) => e.type === type && e.place.on !== 'none').length
 const pushTo = (host: string): GameEvent => ({ kind: 'impulse/push', host: { e: host }, roles: {}, params: {}, origin: 'world' })
+const USE_HOLE = holeOf(world([]).actEvent('use', 'actor', { e: 'pot' }, { e: 'feather' }))
+/** A pushed fixture is a hole (only an actor moves). */
+const PUSH_HOLE = holeOf(pushTo('pot'))
 
 describe('every chain ends (design.md A7)', () => {
   it('two learned rules that answer each other for ever are stopped, and set aside', () => {
     // a pushed thing is a hole: each answers by pushing the other, with no time between
-    const eng = world([learned('ping', POT, 'impulse/push', { do: [{ op: 'emit', impulse: 'push', to: { named: 'statue' } }] }), learned('pong', STATUE, 'impulse/push', { do: [{ op: 'emit', impulse: 'push', to: { named: 'pot' } }] })], [{ key: 'statue', type: STATUE, x: 6, y: 3 }])
+    const eng = world([learned('ping', POT, 'impulse/push', PUSH_HOLE, { do: [{ op: 'emit', impulse: 'push', to: { named: 'statue' } }] }), learned('pong', STATUE, 'impulse/push', PUSH_HOLE, { do: [{ op: 'emit', impulse: 'push', to: { named: 'pot' } }] })], [{ key: 'statue', type: STATUE, x: 6, y: 3 }])
     eng.author(() => eng.queue(pushTo('pot')))
     for (let i = 0; i < 400; i++) eng.tick()
     const before = eng.traced
@@ -48,7 +57,7 @@ describe('every chain ends (design.md A7)', () => {
 
   it('a cascade that fans out does not grow without bound: the waiting events are capped, each tick stays short', () => {
     const statues = Array.from({ length: 24 }, (_, i) => ({ key: `s${i}`, type: STATUE, x: i % 9, y: 6 + Math.floor(i / 9) }))
-    const eng = world([learned('fan', STATUE, 'impulse/push', { do: [{ op: 'emit', impulse: 'push', to: { area: { radius: 3 } } }] })], statues)
+    const eng = world([learned('fan', STATUE, 'impulse/push', PUSH_HOLE, { do: [{ op: 'emit', impulse: 'push', to: { area: { radius: 3 } } }] })], statues)
     eng.author(() => eng.queue(pushTo('s0')))
     let slowest = 0
     for (let i = 0; i < 60; i++) {
@@ -112,9 +121,10 @@ describe('things stay where a thing can be', () => {
 
   it('what is essential may change into anything that can act, and stays essential; never into a stick', () => {
     // tar on a person is a hole (oil coats; anything else is undefined)
+    const coat: GameEvent = { kind: 'impulse/coat', host: { e: 'actor' }, roles: {}, params: { substance: 'tar' }, origin: 'world' }
     const tar = (into: string) => {
-      const eng = world([learned('change', 'actor/person/player', 'impulse/coat', { do: [{ op: 'transform', into }] })])
-      eng.author(() => eng.queue({ kind: 'impulse/coat', host: { e: 'actor' }, roles: {}, params: { substance: 'tar' }, origin: 'world' }))
+      const eng = world([learned('change', 'actor/person/player', 'impulse/coat', holeOf(coat), { do: [{ op: 'transform', into }] })])
+      eng.author(() => eng.queue(coat))
       return eng.world.get('actor')!
     }
     const hen = tar('actor/creature/animal/chicken')

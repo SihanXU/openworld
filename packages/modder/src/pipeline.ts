@@ -14,10 +14,10 @@
 // Two profiles of one harness (state.ts): LIVE while a player waits, OFFLINE for everything
 // nobody waits on — curriculum, a failed live request worked again, a revision after review.
 
-import { artProblems, buildModSpec, closestTypes, type ModProgress, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef } from '@lsw/engine'
+import { artProblems, buildModSpec, closestTypes, holeKey, patchKey, type ModProgress, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef } from '@lsw/engine'
 import { briefOf, relatedRules } from './brief.ts'
 import { changesNothing, deriveTests } from './derive.ts'
-import { narrowKinds, normalizePatch, qualifyTerrains } from './fixes.ts'
+import { normalizePatch, placePatch, qualifyTerrains } from './fixes.ts'
 import type { WorldLibrary } from './library.ts'
 import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@lsw/agent'
 import { materializeWorld } from './repo.ts'
@@ -410,13 +410,11 @@ export class Modder {
         let patch: Patch = { ...draft, author: 'modder' }
         const qualified = qualifyTerrains(patch, ctx.ontology)
         if (qualified.fixes.length) ((patch = qualified.patch), fixes.push(...qualified.fixes))
+        // the rule's place is the request's, never the model's (design.md §5.16)
+        const put = placePatch(patch, req, { ontology: ctx.ontology, library: lib })
+        patch = put.patch
+        fixes.push(...put.fixes)
         let res = validate(patch)
-        // mechanical conflicts are fixed here, not with another model turn
-        const narrowed = res.ok ? undefined : narrowKinds(patch, req, res)
-        if (narrowed) {
-          const again = validate(narrowed.patch)
-          if (again.ok || again.errors.length < res.errors.length) ((patch = narrowed.patch), (res = again), fixes.push(...narrowed.fixes))
-        }
         // the generalization test, written by the harness (only for a draft that already holds)
         let derived: string[] | undefined
         if (res.ok && h.design.tests === 'harness') {
@@ -519,7 +517,6 @@ export class Modder {
       library: lib,
       ontology: library.fullOntology(lib),
       spec: buildModSpec(library.ontology, lib),
-      regression: [...library.regression, ...(ws?.regression ?? [])].filter((r) => !replaces.includes(r.rule)),
       revise: eo.revise ? { rules: replaces, notes: eo.revise.notes } : undefined,
     })
     try {
@@ -531,7 +528,10 @@ export class Modder {
       ep.profile = eo.profile
       if (eo.escalatedFrom) ep.escalatedFrom = eo.escalatedFrom
       if (eo.revise) ep.revises = eo.revise.episode.id
-      const { patch, problems } = repo.collect()
+      const collected = repo.collect()
+      const problems = collected.problems
+      // the rule's place is the request's, as the library is now (design.md §5.16)
+      const patch = collected.patch ? placePatch(collected.patch, req, { ontology: library.fullOntology(lib), library: lib }).patch : collected.patch
       ep.patch = undefined
       // the auditor, before shipping: a patch it breaks in the sandbox is not committed (nor one it
       // could not audit because the backend went out)
@@ -567,7 +567,7 @@ export class Modder {
         if (!req?.scenario) return undefined
         const before = this.opts.library.fork((e) => !('patch' in e && e.request === req.id))
         if (before.covering(req)) return undefined // something else answers it now: no test of the harness
-        const repo = await materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), spec: buildModSpec(before.ontology, before.lib), regression: before.regression })
+        const repo = await materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), spec: buildModSpec(before.ontology, before.lib) })
         // the task carries its own release: its workspace and its container go with it, whoever cleans up
         return { ...repo.task, terms: ep.terms, dispose: repo.dispose }
       },
@@ -826,12 +826,10 @@ function routeOf(j: unknown): { need?: Need[]; create?: Creation[] } | undefined
 }
 
 /**
- * Where a request's patch is written: its rule belongs to the host, and answers one kind of event.
- * Patches are usually written for a class (all creatures, every material), so the lane is the
- * event kind and the host type's first two segments: two requests in one lane would likely write
- * the same rule, and queue; any others are designed side by side.
+ * Where a request's answer is written (design.md §5.16): its host type's tree for its hole. Two
+ * requests bound for one tree queue, so the later one sees what the earlier placed (and is often
+ * answered by it); any others are designed side by side.
  */
 export function laneOf(req: ModRequest): string {
-  const host = req.event.host?.type.split('/').slice(0, 2).join('/') ?? '-'
-  return `${req.event.kind}|${host}`
+  return patchKey(req.event.host?.type ?? '-', req.event.kind, holeKey(req.hole.rule, req.hole.path))
 }

@@ -1,30 +1,27 @@
 [
  {
   "purpose": "design",
-  "contains": "item/tool/rope",
+  "contains": "core/offered",
   "reply": {
    "patch": {
-    "note": "rope binds creatures",
+    "note": "a stone weighs down the green slime it is held out to",
     "artifacts": [
      {
       "kind": "rule",
       "rule": {
-       "id": "patch/fiber-binds-creature",
+       "id": "patch/stone-weighs-creature",
        "host": {
-        "type": "actor/creature",
-        "notStatus": [
-         "frozen"
-        ]
+        "type": "actor/creature/slime/green_slime"
        },
        "on": "impulse/offered",
-       "doc": "A creature offered a rope (anything fibrous) is lashed down with it for a while.",
+       "doc": "A green slime offered a stone (anything stony) is weighed down by it for a while and takes it in; anything else stays open.",
        "tree": {
         "if": {
          "is": {
           "role": "item",
           "sel": {
            "tags": [
-            "fiber"
+            "stone"
            ]
           }
          }
@@ -52,16 +49,19 @@
           {
            "op": "log",
            "text": {
-            "en": "You lash {host} down with {item}.",
-            "zh": "你用{item}把{host}捆了个结实。"
+            "en": "You weigh {host} down with {item}.",
+            "zh": "你用{item}把{host}压住了。"
            }
           }
          ]
+        },
+        "else": {
+         "undefined": true
         }
        },
        "tests": [
         {
-         "name": "a rope put on a wolf binds it too",
+         "name": "a stone held out to another green slime weighs it down too",
          "given": {
           "entities": [
            {
@@ -72,14 +72,14 @@
            },
            {
             "key": "r",
-            "type": "item/tool/rope",
+            "type": "item/material/stone",
             "x": 2,
             "y": 2,
             "heldBy": "actor"
            },
            {
             "key": "w",
-            "type": "actor/creature/beast/wolf",
+            "type": "actor/creature/slime/green_slime",
             "x": 2,
             "y": 1
            }
@@ -101,41 +101,59 @@
         }
        ]
       }
-     },
+     }
+    ]
+   },
+   "summary": "stony things weigh down the creature they are held out to"
+  }
+ },
+ {
+  "purpose": "design",
+  "contains": "core/use",
+  "reply": {
+   "patch": {
+    "note": "a stone used on a dead tree is knocked against it",
+    "artifacts": [
      {
       "kind": "rule",
       "rule": {
-       "id": "patch/fiber-lashes-creature",
+       "id": "patch/stone-knocks-dead-tree",
        "host": {
-        "tags": [
-         "fiber"
-        ]
+        "type": "item/material/stone"
        },
        "on": "act/use",
-       "doc": "Using a rope (anything fibrous) on a creature lashes it: the creature is offered the rope, and answers.",
+       "doc": "Using a stone on a dead tree knocks it against the trunk: dust and a hollow sound, nothing more; used on anything else, the case stays open.",
        "tree": {
         "if": {
          "is": {
           "role": "target",
           "sel": {
-           "type": "actor/creature"
+           "type": "fixture/nature/dead_tree"
           }
          }
         },
         "then": {
          "do": [
           {
-           "op": "emit",
-           "impulse": "offered",
-           "to": "target",
-           "item": "host"
+           "op": "vfx",
+           "fx": "dust"
+          },
+          {
+           "op": "log",
+           "text": {
+            "en": "You knock {host} against {target}: a hollow sound.",
+            "zh": "你用{host}敲了敲{target}：空空的响声。"
+           }
           }
          ]
+        },
+        "else": {
+         "undefined": true
         }
        },
        "tests": [
         {
-         "name": "a rope used on a wolf binds it",
+         "name": "a stone used on another dead tree is knocked against it",
          "given": {
           "entities": [
            {
@@ -146,14 +164,14 @@
            },
            {
             "key": "r",
-            "type": "item/tool/rope",
+            "type": "item/material/stone",
             "x": 2,
             "y": 2,
             "heldBy": "actor"
            },
            {
             "key": "w",
-            "type": "actor/creature/beast/wolf",
+            "type": "fixture/nature/dead_tree",
             "x": 2,
             "y": 1
            }
@@ -168,7 +186,10 @@
          "expect": [
           {
            "key": "w",
-           "hasStatus": "frozen"
+           "exists": true
+          },
+          {
+           "resolvedBy": "patch/stone-knocks-dead-tree"
           }
          ]
         }
@@ -177,7 +198,7 @@
      }
     ]
    },
-   "summary": "fibrous things bind creatures, put on them or used on them"
+   "summary": "a stone used on a dead tree is knocked against it"
   }
  },
  {
@@ -189,15 +210,15 @@
  },
  {
   "purpose": "reflect",
-  "contains": "fiber",
+  "contains": "stone",
   "reply": {
    "lessons": {
     "add": [
      {
-      "text": "Host the rule on the class that changes (the creature), select what reaches it by a tag such as fiber rather than an exact type, and reach others only by emitting impulses.",
+      "text": "Host the rule on the thing that changes (the creature), select what reaches it by a tag such as stone rather than an exact type, and reach others only by emitting impulses.",
       "terms": [
        "kind:impulse/offered",
-       "item#fiber"
+       "item#stone"
       ]
      }
     ]

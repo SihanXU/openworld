@@ -12,12 +12,14 @@ import {
   TICKS_PER_HOUR,
   buildSandbox,
   calendarAt,
+  holeKey,
   isNight,
   scheduleFor,
   tickAt,
   validatePatch,
   type Effect,
   type Engine,
+  type GameEvent,
   type LineDef,
   type PersonData,
   type Rule,
@@ -132,8 +134,10 @@ describe('people', () => {
     expect(scheduleFor(eng, h)[0].x).toBe(3)
     // an outcome may change its host's script (design.md §5.4): a ferrykeeper who cannot go on takes shelter
     eng.world.state.maps.sandbox.anchors = { shelter: [6, 6] }
-    eng.lib.add({ id: 'patch/keeper-shelters', host: { type: 'actor/person/ferrykeeper' }, on: 'stuck', tree: { do: [{ op: 'goto', anchor: 'shelter', hours: 1 }] }, source: { origin: 'patch' } })
-    eng.queue({ kind: 'stuck', host: { e: 'hesper' }, roles: {}, params: { activity: 'at 3' }, origin: 'world' })
+    const stuck: GameEvent = { kind: 'stuck', host: { e: 'hesper' }, roles: {}, params: { activity: 'at 3' }, origin: 'world' }
+    const open = eng.resolveEvent(stuck)
+    eng.lib.add({ id: 'patch/keeper-shelters', host: { type: 'actor/person/ferrykeeper' }, on: 'stuck', hole: holeKey(open.hole!.rule.id, open.hole!.path), at: open.open!.path, tree: { do: [{ op: 'goto', anchor: 'shelter', hours: 1 }] }, source: { origin: 'patch' } })
+    eng.queue(stuck)
     expect(scheduleFor(eng, h)[0]).toMatchObject({ x: 6, y: 6, activity: 'shelter' })
   })
 })
@@ -346,7 +350,8 @@ describe('the boundaries of the world\'s own patches (design.md §5.11)', () => 
     player: '__player',
     event: { kind: 'stuck', host: 'w', target: 'thing', params: { activity: 'mind the cart' } },
   }
-  const rule = (id: string, effects: Effect[]): Rule => ({ id, host: { type: 'actor/person' }, on: 'stuck', tree: { do: effects }, tests: [] })
+  // the peddler's own answer at the hole a stuck person reaches (core/stuck, its root)
+  const rule = (id: string, effects: Effect[]): Rule => ({ id, host: { type: 'actor/person/peddler' }, on: 'stuck', hole: 'core/stuck', at: [], tree: { do: effects }, tests: [] })
   const check = (r: Rule, world = true) => validatePatch({ artifacts: [{ kind: 'rule', rule: r }] }, { ontology: onto, library: lib(), scenario: stuck, world, protectedFacts: ['ford.'] })
 
   it('a person may react — a line, an emote, a topic for the story, a detour', () => {

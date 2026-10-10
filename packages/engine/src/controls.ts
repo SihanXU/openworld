@@ -153,6 +153,12 @@ export class Controls {
    * What stands on the tile always comes before its ground: a pointer on the tile but beside a small
    * sprite (a stone) still meets the stone, not the bare ground.
    */
+  /** The ground: a cell's terrain, or a floor laid there (what a hand on it only touches). */
+  private ground(r: Ref): boolean {
+    const e = this.w.get(r.e)
+    return e ? this.w.isTerrain(e) || this.w.spacesOf(e).includes('floor') : !!parseCellId(r.e)
+  }
+
   layers(at: Pos, stack?: Ref[]): Ref[] {
     const w = this.w
     // only the storey aimed at (the one the player stands on): what is above or below is out of the
@@ -388,12 +394,13 @@ export class Controls {
     }
     const p = this.planAt(key, a.at, a.stack, layer)
     // E with no spot pointed at (or the pointer beyond reach): the spot in front or toward the
-    // pointer — unless what is there has no answer of its own and what one stands on has one (the
-    // bed one lies on, a place of the overworld)
-    if (key === 'hands' && layer === 0 && !a.pointed && (!p || p.unknown)) {
+    // pointer — unless what is there has no answer of its own, or is only the ground touched, and
+    // what one stands on has one that does something (the bed one lies on, a place of the
+    // overworld; never the ground's "touched" itself)
+    if (key === 'hands' && layer === 0 && !a.pointed && (!p || p.unknown || (!p.changes && this.ground(p.target)))) {
       const pos = this.w.posOf(this.w.player)
       const own = pos && this.planAt(key, pos, undefined, 0)
-      if (own && !own.unknown) return own
+      if (own && !own.unknown && own.changes) return own
     }
     return p
   }

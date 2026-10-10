@@ -1,8 +1,8 @@
 // Rules as host natures (design.md §5.6): matching, specificity, the condition tree, and the
 // versioned rule library. Resolution is the same for every event: the most specific base rule
 // whose host and kind fit is walked to a leaf; `inherit` goes up a level; an undefined leaf
-// consults the patch layer — patch rules are only ever reached there, so the AI fills holes and
-// never changes what is defined.
+// consults the host type's own learned tree for that hole (design.md §5.16) — learned rules are
+// only ever reached there, so the AI fills holes and never changes what is defined.
 
 import { isA, typeDepth } from './ontology.ts'
 import { FIGHT_TICKS } from './types.ts'
@@ -378,11 +378,87 @@ export const isRoot = (r: Rule) => !r.host || Object.keys(r.host).length === 0
 export interface Resolution {
   /** The outcome is defined: a rule (base or patch) gives effects. */
   defined: boolean
-  /** The rule whose leaf decided (the patch that filled the hole, when one did). */
+  /** The rule whose leaf decided (the learned answer that filled the hole, when one did). */
   rule?: Rule
   leaf?: Leaf
   /** The base rule and path where the outcome was undefined (filled or not). */
   hole?: { rule: Rule; path: string[]; default: import('./types.ts').Effect[] }
+  /**
+   * Still undefined after the host type's own tree (design.md §5.16): the tree's key and the path to
+   * the undefined leaf the event fell into (empty: no tree yet). A learned answer is placed there.
+   */
+  open?: { key: string; path: string[] }
+}
+
+// ---------------------------------------------------------------- learned trees
+
+/** A hole as a key: its base rule, and the branch that reached it. */
+export const holeKey = (rule: string, path: string[]): string => `${rule}${path.length ? '#' + path.join('&') : ''}`
+
+/** Where a host type's learned answers to one kind of event at one hole live: one tree per key. */
+export const patchKey = (type: string, kind: string, hole: string): string => `${type}|${kind}|${hole}`
+
+/** A learned rule that has a place: its host is one type, its kind is exact, and it names its hole. */
+export const placed = (r: Rule): boolean => isPatch(r) && typeof r.hole === 'string' && typeof r.on === 'string' && !!r.host?.type && Object.keys(r.host).length === 1
+
+/** The key of a learned rule's tree (undefined for one with no place: an older class patch). */
+export const keyOf = (r: Rule): string | undefined => (placed(r) ? patchKey(r.host!.type!, r.on, r.hole!) : undefined)
+
+/** A copy of a tree that keeps its leaves by reference (so a leaf still tells which rule it came from). */
+function copyTree(t: Tree): Tree {
+  if (typeof t === 'string' || !('if' in t)) return t
+  return { if: t.if, then: copyTree(t.then), ...(t.else !== undefined ? { else: copyTree(t.else) } : {}) }
+}
+
+/** The branch a path element names at an if-node: the condition, taken (`...`) or not (`!...`). */
+const branchKey = (c: Cond, yes: boolean): string => `${yes ? '' : '!'}${JSON.stringify(c)}`
+
+/**
+ * Follow a path (as `walk` records it) through a tree to the leaf it ends at. Returns how to replace
+ * that leaf, or undefined when the path does not fit the tree.
+ */
+export function locate(tree: Tree, path: string[]): { leaf: Leaf; set: (t: Tree) => Tree } | undefined {
+  if (!path.length) return typeof tree === 'string' || !('if' in tree) ? { leaf: tree, set: (t) => t } : undefined
+  if (typeof tree === 'string' || !('if' in tree)) return undefined
+  const node = tree
+  const yes = path[0] === branchKey(node.if, true)
+  if (!yes && path[0] !== branchKey(node.if, false)) return undefined
+  const sub = locate(yes ? node.then : (node.else ?? 'inherit'), path.slice(1))
+  if (!sub) return undefined
+  return { leaf: sub.leaf, set: (t) => (yes ? { ...node, then: sub.set(t) } : { ...node, else: sub.set(t) }) }
+}
+
+interface Composed {
+  tree: Tree
+  /** Each leaf (by reference) to the learned rule it belongs to. */
+  owner: WeakMap<object, string>
+  /** Answers that could not be placed: their leaf is gone or already answered. */
+  stale: { id: string; why: string }[]
+}
+
+/**
+ * One tree per key from its answers in the order they were learned: the first answer is the tree;
+ * each later one replaces the undefined leaf at its `at`. A leaf keeps its answer, so the rule that
+ * decided an event is known, and an answer set aside at runtime leaves its leaves open.
+ */
+export function compose(answers: Rule[]): Composed {
+  const owner = new WeakMap<object, string>()
+  const stale: Composed['stale'] = []
+  let tree: Tree | undefined
+  for (const r of answers) {
+    for (const l of leaves(r.tree)) if (typeof l === 'object') owner.set(l, r.id)
+    const at = r.at ?? []
+    if (tree === undefined) {
+      if (at.length) stale.push({ id: r.id, why: 'placed below a leaf, but no answer holds the tree yet' })
+      else tree = copyTree(r.tree)
+      continue
+    }
+    const spot = locate(tree, at)
+    if (!spot) stale.push({ id: r.id, why: 'its place is gone: the path no longer leads to a leaf' })
+    else if (!isHole(spot.leaf)) stale.push({ id: r.id, why: `its leaf is already answered by "${owner.get(spot.leaf as object) ?? '?'}"` })
+    else tree = spot.set(copyTree(r.tree))
+  }
+  return { tree: tree ?? { undefined: true }, owner, stale }
 }
 
 // ---------------------------------------------------------------- library
@@ -406,14 +482,21 @@ export interface LibraryData {
 }
 
 /**
- * The rule library: base rules + accepted patches, with an append-only log so any patch can be
- * inspected, rolled back or ablated. Rules are bucketed by the root of their kind and kept most
- * specific first; base and patch rules form separate layers.
+ * The rule library: base rules + learned answers, with an append-only log so any patch can be
+ * inspected, rolled back or ablated. Base rules are bucketed by the root of their kind and kept
+ * most specific first. Learned rules form one tree per (host type, event kind, hole), grown by
+ * answers in the order they were learned (design.md §5.16).
  */
 export class RuleLibrary {
   private base = new Map<string, Rule[]>()
-  private layer = new Map<string, Rule[]>()
   private specs = new Map<string, Spec>()
+  /** Learned answers by their tree's key, in the order they were added. */
+  private byKey = new Map<string, Rule[]>()
+  private trees = new Map<string, Composed>()
+  private order = new Map<string, number>()
+  /** Where removed learned rules stood (a revision takes its predecessor's place, so what grew below it stays). */
+  private retired = new Map<string, { order: number; key: string | undefined }>()
+  private added = 0
   readonly rules = new Map<string, Rule>()
   /** Types and statuses introduced by patches (base ontology lives in content). */
   types: TypeDef[] = []
@@ -429,28 +512,44 @@ export class RuleLibrary {
     }
   }
 
-  private put(r: Rule): void {
+  private put(r: Rule, inPlaceOf?: string): void {
     selectByType(r)
     factsOnTheStory(r)
     cellsAsThings(r)
     this.rules.set(r.id, r)
     this.specs.set(r.id, specOf(r))
-    this.rebuild(r.on.split('/')[0])
+    const old = inPlaceOf ? this.retired.get(inPlaceOf) : undefined
+    this.order.set(r.id, old && old.key === keyOf(r) ? old.order : this.added++)
+    if (isPatch(r)) this.rebuildTree(keyOf(r))
+    else this.rebuild(r.on.split('/')[0])
   }
 
   private rebuild(root: string): void {
-    const all = [...this.rules.values()].filter((r) => r.on.split('/')[0] === root)
+    const all = [...this.rules.values()].filter((r) => !isPatch(r) && r.on.split('/')[0] === root)
     const order = (a: Rule, b: Rule) => compareSpec(this.specs.get(b.id)!, this.specs.get(a.id)!)
-    this.base.set(root, all.filter((r) => !isPatch(r)).sort(order))
-    this.layer.set(root, all.filter(isPatch).sort(order))
+    this.base.set(root, all.sort(order))
+  }
+
+  /** The tree of a key from its answers, oldest first (a learned rule with no place is kept, never consulted). */
+  private rebuildTree(key: string | undefined): void {
+    if (!key) return
+    const list = [...this.rules.values()].filter((r) => keyOf(r) === key).sort((a, b) => this.order.get(a.id)! - this.order.get(b.id)!)
+    if (!list.length) {
+      this.byKey.delete(key)
+      this.trees.delete(key)
+      return
+    }
+    this.byKey.set(key, list)
+    this.trees.set(key, compose(list))
   }
 
   spec(id: string): Spec | undefined {
     return this.specs.get(id)
   }
 
-  add(rule: Rule, now = new Date().toISOString()): void {
-    this.put(rule)
+  /** inPlaceOf: a learned rule this one replaces (a revision): it takes that rule's place in its tree. */
+  add(rule: Rule, now = new Date().toISOString(), inPlaceOf?: string): void {
+    this.put(rule, inPlaceOf)
     this.version += 1
     this.log.push({ version: this.version, action: 'add', ruleId: rule.id, rule, at: now })
   }
@@ -472,25 +571,46 @@ export class RuleLibrary {
     if (!r) return false
     this.rules.delete(id)
     this.specs.delete(id)
-    this.rebuild(r.on.split('/')[0])
+    this.retired.set(id, { order: this.order.get(id)!, key: keyOf(r) })
+    this.order.delete(id)
+    if (isPatch(r)) this.rebuildTree(keyOf(r))
+    else this.rebuild(r.on.split('/')[0])
     this.version += 1
     this.log.push({ version: this.version, action: 'remove', ruleId: id, at: now })
     return true
   }
 
-  /** The rules of a layer whose kind covers this one and whose host fits, most specific first. */
-  candidates(kind: string, host: View | undefined, patches = false): Rule[] {
-    const list = (patches ? this.layer : this.base).get(kind.split('/')[0]) ?? []
+  /** The base rules whose kind covers this one and whose host fits, most specific first. */
+  candidates(kind: string, host: View | undefined): Rule[] {
+    const list = this.base.get(kind.split('/')[0]) ?? []
     return list.filter((r) => kindCovers(r.on, kind) && matchSelector(r.host, host))
   }
 
-  /** Every rule a kind could reach (both layers), for the ModSpec's context and the dev panel. */
-  forKind(kind: string): Rule[] {
-    const root = kind.split('/')[0]
-    return [...(this.base.get(root) ?? []), ...(this.layer.get(root) ?? [])].filter((r) => kindCovers(r.on, kind) || kindCovers(kind, r.on))
+  /** The learned answers of a host type to a kind, at every hole (oldest first within a hole). */
+  learned(type: string | undefined, kind: string): Rule[] {
+    if (!type) return []
+    const out: Rule[] = []
+    for (const [key, list] of this.byKey) if (key.startsWith(`${type}|${kind}|`)) out.push(...list)
+    return out
   }
 
-  /** Walk one layer's chain: the first leaf that does not inherit. */
+  /** The composed tree at a key (undefined: no answer yet). */
+  tree(key: string): Tree | undefined {
+    return this.trees.get(key)?.tree
+  }
+
+  /** Learned rules that have no place in their tree any more (their leaf is gone or already answered). */
+  stale(): { id: string; why: string }[] {
+    return [...this.trees.values()].flatMap((c) => c.stale)
+  }
+
+  /** Every rule a kind could reach (base and learned), for the ModSpec's context and the dev panel. */
+  forKind(kind: string): Rule[] {
+    const root = kind.split('/')[0]
+    return [...(this.base.get(root) ?? []), ...this.patches().filter((r) => kindCovers(r.on, kind) || kindCovers(kind, r.on))]
+  }
+
+  /** Walk the base chain: the first leaf that does not inherit. */
   private chain(list: Rule[], roles: Roles, world: World, ev: GameEvent): { rule: Rule; leaf: Leaf; path: string[] } | undefined {
     for (const rule of list) {
       const { leaf, path } = walk(rule.tree, roles, world, ev)
@@ -499,16 +619,25 @@ export class RuleLibrary {
     return undefined
   }
 
-  /** Resolve an event's outcome (design.md §5.6). Conditions may consume randomness: callers dry-running restore it. */
+  /**
+   * Resolve an event's outcome (design.md §5.6, §5.16): the base chain to a leaf; at a hole, the host
+   * type's own tree for that hole. Conditions may consume randomness: callers dry-running restore it.
+   */
   resolve(ev: GameEvent, roles: Roles, world: World): Resolution {
     const base = this.chain(this.candidates(ev.kind, roles.host), roles, world, ev)
     if (!base) return { defined: false }
     if (!isHole(base.leaf)) return { defined: true, rule: base.rule, leaf: base.leaf }
     const hole = { rule: base.rule, path: base.path, default: base.leaf.default ?? [] }
-    // (a learned rule set aside at runtime answers no more: its hole is open again)
-    const patch = this.chain(this.candidates(ev.kind, roles.host, true).filter((r) => !world.state.quarantine?.[r.id]), roles, world, ev)
-    if (patch && isDo(patch.leaf)) return { defined: true, rule: patch.rule, leaf: patch.leaf, hole }
-    return { defined: false, rule: base.rule, leaf: base.leaf, hole }
+    const key = patchKey(roles.host?.type ?? '-', ev.kind, holeKey(base.rule.id, base.path))
+    const composed = this.trees.get(key)
+    if (!composed) return { defined: false, rule: base.rule, leaf: base.leaf, hole, open: { key, path: [] } }
+    const { leaf, path } = walk(composed.tree, roles, world, ev)
+    const id = typeof leaf === 'object' ? composed.owner.get(leaf) : undefined
+    const rule = id ? this.rules.get(id) : undefined
+    // (a leaf that says undefined is open, whatever else it carries; a learned answer set aside at
+    // runtime answers no more: its leaf is open again)
+    if (rule && isDo(leaf) && !isHole(leaf) && !world.state.quarantine?.[rule.id]) return { defined: true, rule, leaf, hole }
+    return { defined: false, rule: base.rule, leaf: base.leaf, hole, open: { key, path } }
   }
 
   /**
@@ -516,11 +645,11 @@ export class RuleLibrary {
    * is a root rule whose only outcome is no change — then the engine need not make the event.
    */
   answers(kind: string, host: View | undefined): boolean {
-    for (const patches of [false, true])
-      for (const r of this.candidates(kind, host, patches)) {
-        if (!isRoot(r)) return true
-        if (leaves(r.tree).some((l) => l !== 'inherit' && !(isDo(l) && l.do.length === 0))) return true
-      }
+    for (const r of this.candidates(kind, host)) {
+      if (!isRoot(r)) return true
+      if (leaves(r.tree).some((l) => l !== 'inherit' && !(isDo(l) && l.do.length === 0))) return true
+    }
+    for (const r of this.learned(host?.type, kind)) if (leaves(r.tree).some((l) => isDo(l) && l.do.length > 0)) return true
     return false
   }
 

@@ -1599,11 +1599,18 @@ export interface Provenance {
 
 export interface Rule {
   id: string
-  /** Whose nature this is: the host's class (empty: anything, the root). */
+  /** Whose nature this is: the host's class (empty: anything, the root). A learned rule names one type. */
   host?: Selector
-  /** The event kind it answers, or a branch of the kind tree (`impulse`). */
+  /** The event kind it answers, or a branch of the kind tree (`impulse`). A learned rule names the exact kind. */
   on: string
   tree: Tree
+  /**
+   * A learned rule's place (design.md §5.16): the hole it fills (`holeKey`: the base rule and the
+   * branch that reached it), and `at`, the path in its host type's tree to the undefined leaf it
+   * replaces (none or empty: it is the tree's first answer). Set from the request, never written by hand.
+   */
+  hole?: string
+  at?: string[]
   /** Ask the player first when their input chooses this rule ("Eat {instrument}?"). */
   confirm?: Text
   /**

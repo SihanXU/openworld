@@ -40,7 +40,7 @@ describe('the companion', () => {
     expect(Math.max(Math.abs(at.x - me.x), Math.abs(at.y - me.y))).toBe(1)
   })
 
-  it('struck down, it cannot follow: its behaviour reports stuck, and the world (the AI) answers; with no answer it comes to and follows again', () => {
+  it('struck down, it cannot follow: its behaviour reports stuck, and the base answers (it lies where it fell); it comes to and follows again', () => {
     const { index, chunks } = buildFord()
     const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
     for (const c of chunks) game.loadChunk(decodeChunk(c))
@@ -58,12 +58,14 @@ describe('the companion', () => {
     eng.playerAttack({ e: pip.id })
     // essential: it goes down, it is not gone
     expect(w.hasStatus({ e: pip.id }, 'down')).toBe(true)
-    // no modder: the request is the Mod port's to make; here it is only recorded and its default (wait) runs
+    // a companion that is down is the base's to answer (companion/stuck): nothing is asked of the AI
     eng.trace.length = 0
     eng.author(() => eng.teleport(p, { map: 'foot', x: 14, y: 8 }))
     for (let i = 0; i < 5; i++) eng.tick()
     const stuck = eng.trace.find((t) => t.ev.kind === 'stuck' && 'e' in t.ev.host && t.ev.host.e === pip.id)
-    expect(stuck?.defined).toBe(false)
+    expect(stuck?.defined).toBe(true)
+    expect(stuck?.rule).toBe('companion/stuck')
+    expect(game.mods.records).toEqual([])
     expect(stuck?.ev.params).toMatchObject({ activity: 'follow' })
     expect(stuck?.ev.roles.target).toEqual({ e: p.id })
     // it stays where it fell, and says so once an hour, not every tick

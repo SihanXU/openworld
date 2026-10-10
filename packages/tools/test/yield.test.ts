@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { Engine, ModPort, RuleLibrary, SANDBOX_MAP, buildSandbox, endlessYield, repeatYields, scenarioEvent, validatePatch, type Patch, type Ref, type Rule, type Scenario } from '@lsw/engine'
+import { Engine, ModPort, RuleLibrary, SANDBOX_MAP, buildSandbox, endlessYield, holeKey, repeatYields, scenarioEvent, validatePatch, type ModRequest, type Patch, type Ref, type Rule, type Scenario } from '@lsw/engine'
 import { BASE_RULES, FORMS, STORY_RULES, buildOntology } from '@lsw/content'
 import { FRONT, HANDS, ORIGIN, targets, verbsFor } from '../src/coverage.ts'
 
@@ -12,6 +12,9 @@ const lib = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
 
 /** A request for a blow on something that cannot break (a statue): the hole the stick farm filled. */
 function blowOnStatue(): Scenario {
+  return requestOnStatue().scenario
+}
+function requestOnStatue(): ModRequest {
   const eng = buildSandbox(
     {
       terrain: Array.from({ length: 5 }, () => Array(5).fill('grass')),
@@ -28,10 +31,16 @@ function blowOnStatue(): Scenario {
   const port = new ModPort(eng)
   eng.act('use', 'actor', { e: 'statue' })
   const rec = port.records.find((r) => r.event.kind === 'impulse/strike')!
-  return rec.request.scenario
+  return rec.request
 }
+/** The key of that hole: where the statue's own answer is placed (design.md §5.16). */
+const STRIKE_HOLE = (() => {
+  const req = requestOnStatue()
+  return holeKey(req.hole.rule, req.hole.path)
+})()
 
-const patch = (rule: Omit<Rule, 'source'>): Patch => ({ artifacts: [{ kind: 'rule', rule: rule as Rule }] })
+/** A patch of one learned rule at the statue's hole (unless the rule names its own). */
+const patch = (rule: Omit<Rule, 'source'>): Patch => ({ artifacts: [{ kind: 'rule', rule: { hole: STRIKE_HOLE, ...rule } as Rule }] })
 const STICK = { op: 'spawn' as const, type: 'item/material/stick', at: 'host' as const }
 
 describe('no endless yield (world-model.md §8.4)', () => {
@@ -212,7 +221,7 @@ describe('the repeat check, exact (world-model.md §8.4)', () => {
   it('a cycle is named: the replays that come back to where they began, and what they make each time round', () => {
     expect(validate({ id: 'patch/statue-sticks', host: statue, on: 'impulse/strike', tree: { do: [STICK] } })).toMatch(/every 1 replay\(s\) come back to where they began and make 1 thing/)
     // a host that turns into another and back, a stick each way: a round of two
-    const flip = (from: string, into: string): Rule => ({ id: `patch/flip-${from.split('/').at(-1)}`, host: { type: from }, on: 'impulse/strike', tree: { do: [STICK, { op: 'transform', into }] }, source: { origin: 'patch' } })
+    const flip = (from: string, into: string): Rule => ({ id: `patch/flip-${from.split('/').at(-1)}`, host: { type: from }, on: 'impulse/strike', hole: STRIKE_HOLE, tree: { do: [STICK, { op: 'transform', into }] }, source: { origin: 'patch' } })
     const both: Patch = { artifacts: [{ kind: 'rule', rule: flip('fixture/sacred/statue', 'fixture/sacred/altar') }, { kind: 'rule', rule: flip('fixture/sacred/altar', 'fixture/sacred/statue') }] }
     const errs = validatePatch(both, { ontology: onto, library: lib(), scenario: blowOnStatue() }).errors.join('\n')
     expect(errs).toMatch(/every 2 replay\(s\) come back to where they began and make 2 thing/)

@@ -73,7 +73,7 @@ export class ModConsole {
   showValidation(id: string | undefined, r: ValidationResult): void {
     const el = document.querySelector('#valOut')
     const html = r.ok
-      ? `<div class="ok">✓ ${locale.value === 'zh' ? '校验通过并已应用' : 'validated and applied'}${r.overrides.length ? ` · overrides: ${esc(r.overrides.join(', '))}` : ''}</div>`
+      ? `<div class="ok">✓ ${locale.value === 'zh' ? '校验通过并已应用' : 'validated and applied'}</div>`
       : `<div class="err">${r.errors.map((e) => `✗ ${esc(e)}`).join('<br>')}</div>`
     const warn = r.warnings.length ? `<div class="warn">${r.warnings.map((w) => `! ${esc(w)}`).join('<br>')}</div>` : ''
     if (el) el.innerHTML = html + warn
@@ -258,7 +258,7 @@ function ruleCard(r: Rule): string {
 export function llmPrompt(r: RecordView, spec?: ModSpec): string {
   return [
     'You are the modder of a 2D RPG world whose mechanics are data (rules). An event just happened that no rule covers.',
-    'Write ONE JSON patch {"artifacts":[{"kind":"rule","rule":{...}}]} that defines the CLASS of this event, following the ModSpec exactly. Output only JSON.',
+    'Write ONE JSON patch {"artifacts":[{"kind":"rule","rule":{...}}]} that answers this event for its host\'s own type at the open leaf it fell into (design.md §5.16): host exactly {"type": <the host\'s type>}, "on" the event\'s kind, "hole" the request\'s hole.rule, then "#" and its path joined by "&" when the path is not empty, "at" the request\'s hole.at; a case you do not answer is {"undefined": true}, never "inherit". Follow the ModSpec exactly. Output only JSON.',
     '',
     '## ModRequest',
     JSON.stringify(r.request, null, 2),
