@@ -234,10 +234,12 @@ interface Req {
   /** The demo's elements that witness it (entity ids or types). */
   by: string[]
   check: () => void
+  /** A longer budget than the suite's 30 s, for a check that plays a long stretch (it takes most of that alone). */
+  timeout?: number
 }
 
 const R: Req[] = []
-const req = (id: string, what: string, by: string[], check: () => void) => R.push({ id, what, by, check })
+const req = (id: string, what: string, by: string[], check: () => void, timeout?: number) => R.push({ id, what, by, check, timeout })
 
 // ------------------------------------------------------------------ B. sources of undefined behaviour (design.md §5.13), and E, the AI interface's loop
 
@@ -2124,7 +2126,7 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs, lesson by
   expect(index.maps.flatMap((m) => m.portals).filter((x) => x.to === T)).toEqual([])
   expect(index.maps.find((m) => m.id === T)!.at).toBeUndefined()
   expect(w.map(T)!.site).toBeUndefined()
-})
+}, 60_000)
 
 req('T3', 'a lesson of the tutorial can be skipped (Esc held): it is done, and what it locked works again; a game without the tutorial has no lessons', [], () => {
   const { index, chunks } = buildFord()
@@ -3297,7 +3299,7 @@ req('N4', 'trade: a merchant sells at its price and pays for what is yours; a pe
 })
 
 describe('the Ford is complete', () => {
-  for (const r of R) it(`${r.id}: ${r.what}`, r.check)
+  for (const r of R) it(`${r.id}: ${r.what}`, r.timeout ? { timeout: r.timeout } : {}, r.check)
 
   it('A: every event kind of the closed tree occurs on this map, and no other', () => {
     // kinds the requirements above need not reach on their own
