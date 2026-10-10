@@ -1,6 +1,8 @@
 // The Mod Console's template (packages/runtime/src/ui/template.ts) is where a person starts a patch
 // by hand: for every kind of hole the Ford reaches, it must already be a valid patch.
 
+// the game handed to the runtime first, as its pages do (client/src/register.ts)
+import '../../client/src/register.ts'
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, validatePatch, type Key } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'

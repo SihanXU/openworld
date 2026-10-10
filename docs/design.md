@@ -1288,7 +1288,7 @@ Notes from verification that changed the design:
 Direction from the user: build a small but refined demo first, then scale. The default world is
 hand-crafted; the generated 460-map world was removed on 2026-10-02.
 
-- **Art**: the Ninja Adventure pack (CC0). `packages/runtime/src/assets/catalog.ts` maps every
+- **Art**: the Ninja Adventure pack (CC0). `games/openworld/client/src/catalog.ts` maps every
   terrain, fixture, item, creature, character look, VFX, UI piece, music and sound to the pack;
   a preview page (`/src/assets/preview.html`) shows all of it.
 - **Renderer** (`packages/runtime/src/render/`): 47-tile blob autotiling (table `BLOB47`) into a

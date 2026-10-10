@@ -1,3 +1,5 @@
+// the game handed to the runtime first, as its pages do (client/src/register.ts)
+import '../../client/src/register.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { inflateSync } from 'node:zlib'

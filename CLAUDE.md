@@ -6,6 +6,9 @@ Story and world: [docs/lore.md](docs/lore.md) (the user's canonical setting: the
 First Night, the five Seal-bearers; every chapter follows it) and [docs/chapter-1.md](docs/chapter-1.md).
 Design: [docs/design.md](docs/design.md); the agreed world model and base gameplay (not yet built,
 steps W1–W10): [docs/world-model.md](docs/world-model.md). Paper draft lives in Notion ("Large Symbolic World").
+OpenWorld is the engine and, for now, also the name of its first game: the engine side lives in `packages/`,
+each game in `games/<id>/` (this one `games/openworld/`), and an OpenWorld Editor in the manner of RPG Maker
+is planned — [docs/engine-split.md](docs/engine-split.md) (agreed 2026-10-10: decisions S1–S6, phases P1–P7).
 
 ## Working agreements
 
@@ -28,6 +31,13 @@ steps W1–W10): [docs/world-model.md](docs/world-model.md). Paper draft lives i
 client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod port  →  modder service (HTTP)
 ```
 
+- **The engine side imports no game** (docs/engine-split.md S1): `games/*` may import `packages/*`, never
+  the reverse; among the packages, engine ← runtime and engine ← modder → agent.
+  `packages/engine/test/boundaries.test.ts` holds it. A game is handed over instead: the engine's
+  `GameDef` (`gamedef.ts`: ontology, base rules, terrain characters) to the modder (`openModder({ game })`,
+  `--game <module>`), and the runtime's `ClientGame` (`runtime/src/game.ts`: `useGame()`, read through
+  `game()` and never at a module's top level) to the runtime by the game's own entries.
+
 - `packages/engine` — pure, deterministic, no DOM/AI. World state + indices (`world.ts`),
   rule matching/specificity/library (`rules.ts`), effect primitives (`effects.ts`), event
   dispatch + tick + movement + combat (`engine.ts`), one goal system for every actor (`behaviour.ts`:
@@ -48,7 +58,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   a map's named areas are `region` things (`in-region`); invariants live in the engine; events, relations (contact from the relation difference),
   active/dormant maps and the writer (`World.grant`: the mutators throw outside an outcome, the
   clock, loading, the input's posture and the author, and in an outcome beyond its host —
-  design.md §5.15; `tools/test/writes.test.ts` scans for writes behind them) in `engine.ts`/`world.ts`; the request, one question per hole and class, the
+  design.md §5.15; `games/openworld/tools/test/writes.test.ts` scans for writes behind them) in `engine.ts`/`world.ts`; the request, one question per hole and class, the
   validator (host-only writes, the rule's place, replay) and the boundaries in `mod.ts` (design.md §5.4–5.16);
   the player's five
   inputs (E hands, F take, G put, left click use — a bare one is a blow —, right click use on oneself;
@@ -60,14 +70,21 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   (docs/npc-sandbox.md): `social.ts` (`Social` on `World.social`: whose things are, households, deeds seen and judged, who is recognised by
   their look or remembered by it, each person's memory and per-pair regard, gossip, the watches' ledgers, prices, the talk panel) and
   `conduct.ts` (the goals `social` — a guard stops the wanted, an owner asks back —, `need` — the hungry eat, buy or steal —, and
-  `follow` for people); the inputs X (draw) and V (sneak) are statuses the input keeps.
+  `follow` for people); the inputs X (draw) and V (sneak) are statuses the input keeps. What a game hands the
+  engine side (`gamedef.ts`) and the map file format (`chunk.ts`, the game's terrain characters a parameter).
+  Still this game's, and moving out into optional modules in P2: combat's professions, talents and relics,
+  the actives, boons, waypoints, hunger, the social and law systems, the codex, bosses, the save upgrades
+  in `game.ts`.
 - `games/openworld/content` — ontology (terrains, statuses, elements, types), item catalogue
   (forms × materials × qualities × elements), crafting recipes (`recipes.ts`), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
   story rules and invariants (`ford.ts`), the prologue's beats and lessons (`prologue.ts`), the main quest's rules (`quest.ts`,
   docs/main-quest.md), the quests (`quests/`: the main line, the people's errands through `errand()`, the radiant favours; docs/quests.md),
   Chapter 1's facts and rules (`chapter1.ts`; its maps and scenes in
-  `tools/src/demo/quest/chapter1.ts`, docs/chapter-1.md), the fairy's boons (`boons.ts`), the boss kits (four: the White Knight and three for later), defeat rules and compatibility migration (`bosses.ts`, `migrateBosses.ts`), the look table and its generator (`looks.ts`: bodies, parts, colours, `generateLook` seeded by a person's id, `describeLook`), the people's social rules and numbers (`social.ts`: deeds and fines, the watches, talk verbs, the people's rules), chunk codec.
-- `games/openworld/tools` — `art/animals.ts` (the project's own sprites → `client/public/assets/lsw/`), `demo/` (the hand-crafted Ford, Firstlight Village west of it (`meadow`) and the forest south of that, and the main quest's maps and scenes in `quest/` → `public/world/`, each map from its own seed: `builder.ts` the map DSL
+  `tools/src/demo/quest/chapter1.ts`, docs/chapter-1.md), the fairy's boons (`boons.ts`), the boss kits (four: the White Knight and three for later), defeat rules and compatibility migration (`bosses.ts`, `migrateBosses.ts`), the look table and its generator (`looks.ts`: bodies, parts, colours, `generateLook` seeded by a person's id, `describeLook`), the people's social rules and numbers (`social.ts`: deeds and fines, the watches, talk verbs, the people's rules), its map files' terrain characters (`chunk.ts`), and
+  `game.ts`, the GameDef the engine side is handed.
+- `games/openworld/public` — what the game serves: `assets/na/` (the pack's subset), `assets/lsw/` (the project's
+  own art), `world/` (generated by `gen:world`, not committed).
+- `games/openworld/tools` — `art/animals.ts` (the project's own sprites → `public/assets/lsw/`), `demo/` (the hand-crafted Ford, Firstlight Village west of it (`meadow`) and the forest south of that, and the main quest's maps and scenes in `quest/` → `public/world/`, each map from its own seed: `builder.ts` the map DSL
   with the tools of composition — curved paths, organic shapes, fences and yards, small things by masks,
   anchors, regions; `world.ts` `buildFord()` — the map, scenes, invariants;
   `people/*.ts` one record per person (`person.ts`: a gender and the look pins the author chose; whether they fight, keep a watch, trade, their purse and honesty), `people.ts` `HOUSEHOLDS`; `check.ts` a headless two-day playtest;
@@ -75,17 +92,26 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   `copyAssets.ts` (catalogue subset of the pack → `public/assets/na/`), `coverage.ts` (every item
   form × every target × every act through the rule library and the impulses it sends, counting
   the holes; the numbers in `docs/roadmap.md` §1).
-- `packages/runtime` — `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
+- `packages/runtime` — the player, a library with no game in it: `game.ts` (what it is handed, `useGame`,
+  `useWorker`); `main.ts` the page and `worker.ts` the engine thread, each loaded by a game's entry;
+  `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
   `render/scene.ts` renders snapshots with the Ninja Adventure pack (`render/depth.ts` the draw order); `assets/figure/` draws looks
   (docs/looks.md): the 16x32 map sprite from code grids, the anime portrait from the cut layers in
-  `public/assets/lsw/Looks/portrait`, both repainted from the look's colours; `ui/creator.ts` the new game's character creator; `assets/catalog.ts` maps
-  content keys to sprites; `assets/ground.ts` autotiles; `ui/` the Stardew-style UI (`hud.ts` clock, bars,
+  `public/assets/lsw/Looks/portrait`, both repainted from the look's colours; `ui/creator.ts` the new game's character creator; `assets/types.ts` the catalogue's
+  contract; `assets/ground.ts` autotiles (the blob layout); `ui/` the Stardew-style UI (`hud.ts` clock, bars,
   toolbar, key labels, dialogue; `menu.ts` menu tabs, journal, chest panel; `people.ts` the trade and pockets panels (the talk panel is the dialogue's, `hud.ts`); `worldmap.ts` the world map (M) and the minimap; `dev.ts` the Mod Console, dev only); the worker uses the modder service when one answers
-  (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it.
+  (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it. Still this game's UI,
+  moving with its modules in P2: the skill tree, professions, boons, the boss preview and animations, the cover's companion.
+- `games/openworld/client` — the game's app: its pages (`index.html`, `boss-gallery.html`, `looks.html`,
+  `preview.html`), `vite.config.ts` (public dir `../public`), `src/register.ts` (hands the game over; every page,
+  the worker and the game's tests that use the runtime import it first), `src/game.ts` (the ClientGame: content, catalogue, the
+  wilderness, the upgrades of older saves, the dev console's shortcuts), `src/catalog.ts` (content keys →
+  sprites), the boss gallery, studio and challenge, and the looks page.
 - `games/openworld/wiki` — the game's Chinese wiki (Stardew-wiki-shaped encyclopedia and design proposal): sources
   `wiki/pages/**.md` ([[links]], {{templates}}; format in 帮助/格式手册), `wiki/site.json` (nav, portal, the systems the
   completeness check requires), `wiki/译名.json`; the generator reads the game (`@openworld-game/content`, `buildFord()`, people,
-  the client CATALOG; `render-map.ts` draws maps as the client does). Every item, fixture, person, creature, boss, map
+  the game client's catalogue; `render-map.ts` draws maps as the client does). The pages stay in the root `wiki/` for now
+  (the live site and the team's editing use that path). Every item, fixture, person, creature, boss, map
   and quest gets a page; `npm run wiki:check` fails on broken links/templates or a thing/system without a page (CI
   `.github/workflows/wiki.yml`). A change to game content that adds a thing or system needs its wiki page.
 - `packages/agent` — the SWE-style agent and its self-state, task-agnostic (no engine, no content):
@@ -96,8 +122,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - An unattended agent runs commands only in a container (`env.ts` `chooseIsolation`: the
   `lsw-sandbox` image, no network, no `.env`); without Docker it gets no shell and its hooks do
   not run. `LSW_ISOLATION=docker|none` overrides. Never give an unattended agent a local shell.
-- `packages/modder` — the modder service (design.md §13, rsi.md). It may depend on content;
-  the engine never depends on it. Parts:
+- `packages/modder` — the modder service (design.md §13, rsi.md). It imports no game: it is handed one
+  (`openModder({ game })`; the command line's `--game <module>`, which the root script passes); a world
+  repository carries its own ontology. The engine never depends on it. Parts:
   - `model.ts`: a model interface — OpenAI-compatible, or scripted for tests and offline.
   - `pipeline.ts`: comprehend → recall → design (tools) → verify/repair → audit → review → commit →
     record → reflect. The auditor (`audit.ts`) plays against a patch in the sandbox; only what it
@@ -108,8 +135,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   - `state.ts`: the self-state — memory, skills, harness, journal, snapshots.
   - `server.ts`, `cli.ts`: the HTTP API and the command line.
   - `repo.ts`, `validate-cli.ts`: a world request as a repository for the agent (the offline profile).
-  - The offline driver is `tools/src/curriculum.ts`; engine tasks (hidden fail-to-pass tests) are
-    `tools/src/engine-tasks.ts` + `tools/tasks/engine/<id>/`; one outer-loop turn is `tools/src/improve.ts`.
+  - The offline driver is `games/openworld/tools/src/curriculum.ts`; engine tasks (hidden fail-to-pass tests) are
+    `games/openworld/tools/src/engine-tasks.ts` + `games/openworld/tools/tasks/engine/<id>/`; one outer-loop turn is
+    `games/openworld/tools/src/improve.ts`.
 - RSI design changes (what the outer loop may change, how it is judged, the benchmark interface)
   are discussed with the user before they are coded.
 - Game mechanics are designed reference-first: read how Elin (installed; decompile
@@ -125,7 +153,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 
 ## Rules of thumb
 
-- New behaviour = a rule (data) in `content/src/rules.ts` or a patch; a rule an input reaches says
+- New behaviour = a rule (data) in `games/openworld/content/src/rules.ts` or a patch; a rule an input reaches says
   what the input does there (`label`, on the rule or on one of its answers). New primitive,
   condition or event kind = an engine change (and add it to the ModSpec docs in `effects.ts`/`mod.ts`).
 - Rules address classes (types/tags/statuses), never instances, unless unavoidable.
@@ -169,7 +197,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   the world does it as events: behaviour makes acts, the clock makes periods and timers, a
   system's own logic runs inside its host's outcome as an effect primitive (design.md §5.15).
 - The demo must stay complete: anything added to its maps witnesses a requirement in
-  `tools/test/demo.test.ts` (or the test fails), and every requirement is checked on the real map.
+  `games/openworld/tools/test/demo.test.ts` (or the test fails), and every requirement is checked on the real map.
 - Only the player steps onto portals; NPCs transfer from the adjacent tile.
 - After changing rules, run `npm run coverage` and commit the refreshed baseline with them; a
   finished milestone records its numbers in its row of `docs/roadmap.md` §3. The coverage test
@@ -187,7 +215,7 @@ npm run dev -- --backend claude-code   # the modder through claude -p (Opus 5.5,
 npm test                 # vitest (engine + base rules + Mod port)
 npm run typecheck
 npm run coverage         # interaction coverage + refresh its test baseline
-npm run build            # gen:world + static build → packages/runtime/dist
+npm run build            # gen:world + static build → games/openworld/client/dist
 npm run wiki             # the wiki on http://localhost:5180/wiki/ (wiki:check, wiki:build)
 npx tsx games/openworld/tools/src/art/looks/review.ts out.png [mood]   # everyone's portrait and sprite (docs/looks.md)
 # portrait parts: a local ComfyUI with Qwen-Image-Edit (tools/src/art/looks/portrait/setup.md), then

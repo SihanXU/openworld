@@ -1,3 +1,5 @@
+// the game handed to the runtime first, as its pages do (client/src/register.ts)
+import '../../client/src/register.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

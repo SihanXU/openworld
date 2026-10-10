@@ -6,6 +6,12 @@ applies, and keeps. When interactions are defined, the game runs on its own.
 
 Successor to BardOS. Design: [docs/design.md](docs/design.md).
 
+OpenWorld is both the engine and, for now, the name of its first game. The engine side lives in
+`packages/` (`engine`, `runtime`, `modder`, `agent`) and imports no game; each game lives in
+`games/<id>/` and hands itself over (this one: `games/openworld/`, with its content, maps, tools,
+art, wiki generator and app in `client/`). An OpenWorld Editor in the manner of RPG Maker is planned:
+[docs/engine-split.md](docs/engine-split.md).
+
 ## Worlds
 
 - **The Ford** (default, hand-crafted demo): a river crossing at the edge of the world — a
@@ -24,7 +30,7 @@ The event model — one AI interface, the outcome of an event — is in
 npm install
 npm run gen:world     # the Ford → games/openworld/public/world/
 npm run dev           # http://localhost:5173, with the modder service on :8787
-npm run build         # static site in packages/runtime/dist
+npm run build         # static site in games/openworld/client/dist
 ```
 
 Controls: WASD/arrows move (Shift walks) · **E** hands (talk, open, push) · **F** take ·

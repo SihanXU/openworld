@@ -1,3 +1,5 @@
+// the game handed to the runtime first, as its pages do (client/src/register.ts)
+import '../../client/src/register.ts'
 import { describe, expect, it, vi } from 'vitest'
 import { snapshot, type EntitySnap } from '@openworld/engine'
 import { BOSSES, BOSS_ARENA } from '@openworld-game/content'

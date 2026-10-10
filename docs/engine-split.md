@@ -146,9 +146,32 @@ held, the game playable throughout.
 
 P2 and P3 overlap where they do not touch (the catalogue as data needs no modules).
 
-## 8. P1 as built
+## 8. P1 as built (2026-10-10)
 
-(filled in as the steps land)
+- **Names and places.** `@openworld/*` is the engine side (`engine`, `runtime` — the client that was —,
+  `modder`, `agent`), `@openworld-game/*` the game (`content`, `tools`, `wiki`, `client`), under
+  `games/openworld/`; the public assets (the pack's subset, the project's art, the generated world) are
+  `games/openworld/public/`. Root scripts keep their names (`npm run dev`, `build`, `gen:world`, `wiki`…).
+- **The seam.** The engine defines `GameDef` (`gamedef.ts`: id, ontology, base rules, terrain characters)
+  and owns the map file format (`chunk.ts`). The runtime defines `ClientGame` (`runtime/src/game.ts`:
+  the catalogue; item, crafting, skill, boon and look tables; hooks for the wilderness, the upgrades of
+  older saves, a new game's marks, the dev console's summon and shortcuts) and reads it only through
+  `game()`, never at a module's top level. The runtime is a library; the game owns its app
+  (`games/openworld/client`: the pages, the vite config, `register.ts` that hands the game over, the worker
+  entry, the catalogue, the boss and looks pages). The modder is handed the game (`openModder({ game })`,
+  `--game <module>`); a world repository carries its ontology, so its validator imports none.
+- **The direction, held.** `packages/engine/test/boundaries.test.ts`: no package imports a game, each
+  imports only what its rule allows, and the eight modder tests still on the game's content are listed
+  (the list only shrinks; P2's starter game replaces them). The engine's own tests start there.
+- **Checked.** Typecheck, the full suite, `gen:world`, `check:world`, `wiki:check` and the build; in a
+  browser, the built game boots, a new game starts, the boss gallery, the challenge and the looks page open.
+- **Left for P2**, named where they are: the runtime still carries this game's UI (the skill tree,
+  professions, boons, the boss preview and animation clips, the cover's companion and challenge link) and the
+  engine its systems (§2). The game's tests that use the runtime import `client/src/register.ts` first, as
+  its pages do.
+- **To check outside the repository:** the live wiki's server, if it serves `packages/wiki/out` (now
+  `games/openworld/wiki/out`, or pass `--out`), and any deployment that took `packages/client/dist` (now
+  `games/openworld/client/dist`). The wiki's pages stay in the root `wiki/`.
 
 ## 9. Risks
 

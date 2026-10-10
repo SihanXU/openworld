@@ -3,6 +3,8 @@
 // is a valid look of it, distinct from everyone else's, the same every time, and what it says agrees with what
 // it draws.
 
+// the game handed to the runtime first, as its pages do (client/src/register.ts)
+import '../../client/src/register.ts'
 import { describe, expect, it } from 'vitest'
 import { LOOK_BODIES, LOOK_COLORS, LOOK_PARTS, LOOK_SLOTS, LOOK_TABLE, PLAYER_LOOK, buildOntology, describeLook, generateLook, tagsOfLook } from '@openworld-game/content'
 import { Game, LOOK_TAG, RuleLibrary, lookCode, lookProblems, lookTags, restyled, validatePatch, type Look, type Rule } from '@openworld/engine'

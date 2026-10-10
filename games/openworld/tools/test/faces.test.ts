@@ -1,3 +1,5 @@
+// the game handed to the runtime first, as its pages do (client/src/register.ts)
+import '../../client/src/register.ts'
 import { describe, expect, it } from 'vitest'
 import { FACE_FIXES, faceStrip, facesets, sourceOf, stripOf } from '../src/art/faces.ts'
 import { readPng } from '../src/art/png.ts'
