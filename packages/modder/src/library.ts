@@ -18,6 +18,9 @@ import {
   replay,
   scenarioEvent,
   validatePatch,
+  newStatusProblems,
+  newTypeProblems,
+  namesClash,
   withTerrainTypes,
   type ModRequest,
   type ModSpec,
@@ -40,6 +43,8 @@ export interface CommitResult {
 export class WorldLibrary {
   readonly lib: RuleLibrary
   readonly log: PatchLogEntry[] = []
+  /** What the log rolled back (rules) or forgot (types), until a later patch brings it again: a client that still holds it does not bring it back in its workspace. */
+  private readonly gone = { rules: new Set<string>(), types: new Set<string>(), statuses: new Set<string>() }
   /** The scene each live patch answered, by its first rule (for the audit sweep and the outer loop). */
   readonly asked: { scenario: Scenario; rule: string }[] = []
   private proofs = new Map<string, { tests: string[][]; result: ValidationResult }>()
@@ -80,14 +85,33 @@ export class WorldLibrary {
   }
 
   /** The library a request is judged against: the shared one plus the client's own local patches. */
-  workspace(ws?: ModWorkspace, without: string[] = []): RuleLibrary {
+  workspace(ws?: ModWorkspace, without: string[] = [], redefines?: Patch): RuleLibrary {
     const lib = this.lib.clone()
     for (const id of without) lib.remove(id)
+    // a revision may define again what the patches it replaces made (a jam that was not edible): the types
+    // and statuses it brings anew leave with the patches they came with, unless a patch that stays brought
+    // them too (what it only goes on using stays as it is)
+    const redefined = { types: new Set<string>(), statuses: new Set<string>() }
+    if (without.length && redefines) {
+      const replaced = (e: PatchLogEntry) => 'patch' in e && e.rules.length > 0 && e.rules.every((r) => without.includes(r))
+      const stays = (e: PatchLogEntry) => 'patch' in e && !replaced(e) && (e.rules.length === 0 || e.rules.some((r) => this.lib.rules.has(r)))
+      for (const kind of ['type', 'status'] as const) {
+        const kept = new Set(this.log.filter(stays).flatMap((e) => broughtBy(e, kind)))
+        const anew = new Set(broughtBy({ seq: 0, at: '', patch: redefines, rules: [] }, kind))
+        for (const id of new Set(this.log.filter(replaced).flatMap((e) => broughtBy(e, kind)))) {
+          if (kept.has(id) || !anew.has(id)) continue
+          if (kind === 'type') lib.removeType(id)
+          else lib.removeStatus(id)
+          redefined[kind === 'type' ? 'types' : 'statuses'].add(id)
+        }
+      }
+    }
     const p = ws?.patches
     if (!p) return lib
-    for (const t of p.types ?? []) if (!lib.types.some((x) => x.id === t.id)) lib.types.push(t)
-    for (const s of p.statuses ?? []) if (!lib.statuses.some((x) => x.id === s.id)) lib.statuses.push(s)
-    for (const r of p.rules ?? []) if (r?.id && !lib.rules.has(r.id) && !without.includes(r.id) && r.source?.origin === 'patch') lib.add(r, r.source.at)
+    // (what the log forgot, or a revision defines again, a client's own copy does not bring back)
+    for (const t of p.types ?? []) if (!lib.types.some((x) => x.id === t.id) && !this.gone.types.has(t.id) && !redefined.types.has(t.id)) lib.types.push(t)
+    for (const s of p.statuses ?? []) if (!lib.statuses.some((x) => x.id === s.id) && !this.gone.statuses.has(s.id) && !redefined.statuses.has(s.id)) lib.statuses.push(s)
+    for (const r of p.rules ?? []) if (r?.id && !lib.rules.has(r.id) && !without.includes(r.id) && !this.gone.rules.has(r.id) && r.source?.origin === 'patch') lib.add(r, r.source.at)
     return lib
   }
 
@@ -149,7 +173,7 @@ export class WorldLibrary {
     const tests = rules.map((r) => (r.tests ?? []).map((t) => JSON.stringify(t)))
     const proof = this.proofs.get(key)
     if (proof && tests.every((ts, i) => ts.length === proof.tests[i].length && ts.every((t, j) => t === proof.tests[i][j]))) return structuredClone(proof.result)
-    const lib = this.workspace(ws, replaces)
+    const lib = this.workspace(ws, replaces, patch)
     if (proof && tests.every((ts, i) => proof.tests[i].every((t, j) => t === ts[j]))) {
       const result = this.addedTests(patch, lib, proof)
       if (result.ok) this.proofs.set(key, { tests, result: structuredClone(result) })
@@ -287,7 +311,7 @@ export class WorldLibrary {
     const out: { rules: string[]; reason: string }[] = []
     const gone = new Set<number>()
     for (const e of [...this.log]) {
-      if ('remove' in e) continue
+      if (!('patch' in e)) continue
       const live = e.rules.filter((id) => this.lib.rules.get(id)?.source?.origin === 'patch')
       if (!live.length) continue
       const req = e.scenario ? ({ scenario: e.scenario, origin: e.patch.trigger ?? 'player' } as ModRequest) : undefined
@@ -295,7 +319,12 @@ export class WorldLibrary {
       try {
         // judged as it was taken: against what came before it and still holds (its own rules and
         // the types it brought are not there yet; what came after was judged with it in place)
-        res = this.fork((o) => o.seq < e.seq && !gone.has(o.seq)).validate(e.patch, req)
+        const before = this.fork((o) => o.seq < e.seq && !gone.has(o.seq))
+        // without what the library has forgotten since (its removal comes later in the log)
+        for (const t of [...before.lib.types]) if (!this.lib.types.some((x) => x.id === t.id)) before.lib.removeType(t.id)
+        for (const st of [...before.lib.statuses]) if (!this.lib.statuses.some((x) => x.id === st.id)) before.lib.removeStatus(st.id)
+        // a revision is judged in the place of what it replaced (it may define that patch's things again)
+        res = before.validate(e.patch, req, undefined, e.replaces ?? [])
       } catch (err) {
         res = { ok: false, errors: [(err as Error).message], warnings: [] }
       }
@@ -304,7 +333,61 @@ export class WorldLibrary {
       for (const id of live) this.remove(id, now)
       out.push({ rules: live, reason: res.errors[0] ?? 'no longer valid' })
     }
+    // the types and statuses a rolled-back patch brought go with it, unless a patch that holds brought them too:
+    // left in the library, a later answer would make the thing the validator no longer takes (and no corrected
+    // one could be defined, its id being taken)
+    for (const kind of ['type', 'status'] as const) {
+      const kept = new Set(this.log.filter((e) => 'patch' in e && !gone.has(e.seq)).flatMap((e) => broughtBy(e, kind)))
+      for (const e of this.log.filter((x) => gone.has(x.seq)))
+        for (const id of broughtBy(e, kind)) {
+          if (kept.has(id)) continue
+          if (kind === 'type' && this.lib.types.some((t) => t.id === id)) this.removeType(id, now)
+          if (kind === 'status' && this.lib.statuses.some((t) => t.id === id)) this.removeStatus(id, now)
+        }
+    }
+    // and a learned type or status the checks no longer take, whatever brought it (a patch rolled back before
+    // this pass, a type-only patch): forgotten, and what makes it is judged again without it. A type is judged
+    // with the patch that brought it (its own rules count: a thing that breaks by a rule of its own)
+    let dropped = false
+    // in the order they were first brought (a revision's definition does not make a thing later)
+    const first = (id: string) => this.log.find((e) => 'patch' in e && broughtBy(e, 'type').includes(id))?.seq ?? Infinity
+    const learned = [...this.lib.types].sort((a, b) => first(a.id) - first(b.id))
+    for (const [i, t] of learned.entries()) {
+      // judged against the world and everything else learned, but of two by one name the later is the other name:
+      // a later one with its name is left out (what it is made of may well be learned after it was first brought)
+      const full = this.fullOntology()
+      delete full.types[t.id]
+      for (const later of learned.slice(i + 1)) if (namesClash(t, later)) delete full.types[later.id]
+      const from = [...this.log].reverse().find((e) => 'patch' in e && !gone.has(e.seq) && broughtBy(e, 'type').includes(t.id))
+      // the patch's own types count as far as the library still has them (a kind of a forgotten thing has no parent)
+      const own = (a: Patch['artifacts'][number]) => a?.kind !== 'type' || a.type?.id === t.id || this.lib.types.some((x) => x.id === a.type?.id)
+      const patch = from && 'patch' in from ? { ...from.patch, artifacts: from.patch.artifacts.filter(own) } : { artifacts: [{ kind: 'type' as const, type: t }] }
+      if (newTypeProblems(t, full, patch).length) {
+        this.removeType(t.id, now)
+        dropped = true
+      }
+    }
+    for (const st of [...this.lib.statuses]) {
+      if (st.id in this.ontology.statuses || !newStatusProblems(st).length) continue
+      this.removeStatus(st.id, now)
+      dropped = true
+    }
+    if (dropped) out.push(...this.prune(now))
     return out
+  }
+
+  /** Forget a learned status (the log keeps both its addition and its removal). */
+  removeStatus(id: string, now = new Date()): void {
+    const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), removeStatus: id }
+    this.apply(entry)
+    this.persist(entry)
+  }
+
+  /** Forget a learned type (the log keeps both its addition and its removal). */
+  removeType(id: string, now = new Date()): void {
+    const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), removeType: id }
+    this.apply(entry)
+    this.persist(entry)
   }
 
   /** Roll a patch rule back (the log keeps both the addition and the removal). */
@@ -318,14 +401,26 @@ export class WorldLibrary {
 
   private apply(e: PatchLogEntry): void {
     this.log.push(e)
+    if ('removeType' in e) {
+      this.lib.removeType(e.removeType, e.at)
+      this.gone.types.add(e.removeType)
+      return
+    }
+    if ('removeStatus' in e) {
+      this.lib.removeStatus(e.removeStatus, e.at)
+      this.gone.statuses.add(e.removeStatus)
+      return
+    }
     if ('remove' in e) {
       this.lib.remove(e.remove, e.at)
+      this.gone.rules.add(e.remove)
       for (let i = this.asked.length - 1; i >= 0; i--) if (this.asked[i].rule === e.remove) this.asked.splice(i, 1)
       return
     }
     for (const a of e.patch.artifacts) {
-      if (a.kind === 'type') this.lib.addType(a.type, e.at)
-      if (a.kind === 'status') this.lib.addStatus(a.status, e.at)
+      if (a.kind === 'type') (this.lib.addType(a.type, e.at), this.gone.types.delete(a.type.id))
+      if (a.kind === 'rule') this.gone.rules.delete(a.rule.id)
+      if (a.kind === 'status') (this.lib.addStatus(a.status, e.at), this.gone.statuses.delete(a.status.id))
     }
     for (const a of e.patch.artifacts) {
       if (a.kind !== 'rule') continue
@@ -348,3 +443,10 @@ function firstTestScenario(p: Patch): Scenario | undefined {
   for (const a of p.artifacts) if (a.kind === 'rule' && a.rule.tests?.length) return a.rule.tests[0].given
   return undefined
 }
+
+/** The ids of the types (or statuses) a log entry's patch brought. */
+function broughtBy(e: PatchLogEntry, kind: 'type' | 'status'): string[] {
+  if (!('patch' in e)) return []
+  return e.patch.artifacts.flatMap((a) => (kind === 'type' && a.kind === 'type' && a.type?.id ? [a.type.id] : kind === 'status' && a.kind === 'status' && a.status?.id ? [a.status.id] : []))
+}
+

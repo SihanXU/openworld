@@ -21,6 +21,8 @@ export interface MapMeta {
   items: number
   /** Where the map lies in the world (tiles, its top left), from the edge links; the world map lays maps out by it. */
   at?: { x: number; y: number }
+  /** Its named areas (x, y, w, h): a quest points at one while the map is not loaded. */
+  regions?: Record<string, [number, number, number, number]>
 }
 
 /** A place a new game may begin, and what the player is there (the story's stage they begin at). */
@@ -111,7 +113,7 @@ export class Game {
       spawn: at,
     }
     const eng = new Engine(state, ontology, library)
-    for (const m of index.maps) (eng.graph[m.id] = m.portals), (eng.maps[m.id] = { name: m.name, width: m.width, height: m.height })
+    for (const m of index.maps) (eng.graph[m.id] = m.portals), (eng.maps[m.id] = { name: m.name, width: m.width, height: m.height, ...(m.regions && { regions: m.regions }) })
     eng.ensureResidents()
     eng.author(() => {
       const player = structuredClone(index.player)
@@ -132,7 +134,7 @@ export class Game {
   static load(save: SaveData, index: WorldIndex, ontology: Ontology, library?: RuleLibrary, upgradeSave?: (eng: Engine) => void): Game {
     const lib = library ?? RuleLibrary.fromJSON(save.library)
     const eng = new Engine(save.state, ontology, lib)
-    for (const m of index.maps) (eng.graph[m.id] = m.portals), (eng.maps[m.id] = { name: m.name, width: m.width, height: m.height })
+    for (const m of index.maps) (eng.graph[m.id] = m.portals), (eng.maps[m.id] = { name: m.name, width: m.width, height: m.height, ...(m.regions && { regions: m.regions }) })
     eng.ensureResidents()
     loadContent(eng, index)
     // loading is the author's: an older save is brought up to the world as it is now, and to its modules

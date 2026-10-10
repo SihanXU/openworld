@@ -22,12 +22,17 @@ export function scheduleFor(eng: Engine, e: Entity, cal: Calendar = eng.world.ca
   if (o && o.until > eng.world.state.tick) return [{ from: 0, to: 24, map: o.map, x: o.x, y: o.y, activity: o.activity }]
   const variants = e.npc?.person?.schedules
   if (!variants?.length) return e.npc?.schedule ?? []
-  const rank = (key: string): number => {
+  const one = (key: string): number => {
     if (key.startsWith('fact:') && truthy(eng.world.fact(key.slice(5)))) return 90
     if (key === cal.weather && (key === 'rain' || key === 'storm')) return 70
     if (key === 'rain' && cal.weather === 'storm') return 65
     if (key === 'default') return 1
     return -1
+  }
+  // a variant may join conditions with '+' (a fact and the weather): all must hold, and the more it names, the more specific
+  const rank = (key: string): number => {
+    const parts = key.split('+').map(one)
+    return parts.some((r) => r < 0) ? -1 : Math.max(...parts) + (parts.length - 1) * 10
   }
   let best: ScheduleEntry[] | undefined
   let score = 0
@@ -64,6 +69,8 @@ export interface LineContext {
   given?: Entity
   /** false: the line is chosen for another's outcome (the story has them speak); their memory is left as it is */
   record?: boolean
+  /** only a line on a fresh topic (the story's news), or none: what they tell when asked for news */
+  topicOnly?: boolean
 }
 
 export interface ChosenLine {
@@ -94,6 +101,7 @@ export function chooseLine(eng: Engine, e: Entity, ctx: LineContext = {}): Chose
     }
     if (k.startsWith('given')) return -1
     if (k.startsWith('topic:')) return w.topicFresh(k.slice(6), cal.day) ? 100 : -1
+    if (ctx.topicOnly) return -1
     if (k.startsWith('fact:')) return truthy(w.fact(k.slice(5))) ? 95 : -1
     if (k === 'greeting:first') return mem.talked === undefined ? 99 : -1
     if (k === `weather:${cal.weather}`) return 55

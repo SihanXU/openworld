@@ -143,6 +143,8 @@ export function compile(p: Project): Compiled {
     npcs: npcs.filter((n) => onMap(n, c.map.id)).length,
     items: c.entities.filter((e) => e.type.startsWith('item/')).length,
     ...(at.has(c.map.id) && { at: at.get(c.map.id) }),
+    // its named areas: a quest points at one while the map is not loaded
+    ...(c.map.regions && Object.keys(c.map.regions).length && { regions: c.map.regions }),
   }))
   const placed = chunks.flatMap((c) => c.entities)
   const kinds = new Set(placed.filter((e) => e.type.startsWith('item/')).map((e) => `${e.type}|${(e.tags ?? []).join(',')}`))

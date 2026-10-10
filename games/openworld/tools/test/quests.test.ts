@@ -124,6 +124,17 @@ describe('a quest makes what it is about, and keeps the people it names', () => 
 })
 
 describe('the journal follows one quest', () => {
+  it('points at a named area of a map not loaded here (the barrow mouth, from the village), not at the map\'s middle', () => {
+    const { eng } = world()
+    ticks(eng, 5)
+    // as the client keeps them: only the map one stands on
+    for (const id of Object.keys(eng.world.state.maps)) if (id !== 'meadow') delete eng.world.state.maps[id]
+    const mouth = eng.quests.targets().find((t) => t.objective === 'mouth')!
+    expect(mouth.map).toBe('hollow')
+    // the hollow's `mouth` area: [22, 22, 11, 6]
+    expect(mouth.x >= 22 && mouth.x < 33 && mouth.y >= 22 && mouth.y < 28, `${mouth.x},${mouth.y}`).toBe(true)
+  })
+
   it('tracks the latest main quest by default, the one chosen after; the markers and the companion follow it', () => {
     const { eng } = world([ERRAND])
     const w = eng.world

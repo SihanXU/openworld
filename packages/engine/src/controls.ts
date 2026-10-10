@@ -223,7 +223,9 @@ export class Controls {
   /** "Give {instrument} to {target}" with the names filled in. */
   private label(t: Text, target: Ref, instrument?: Ref): Text {
     const me = { e: this.w.state.player }
-    const fill = (s: string, l: 'en' | 'zh') => s.replace('{target}', this.eng.nameOf(target, l)).replace('{instrument}', this.eng.nameOf(instrument, l)).replace('{actor}', this.eng.nameOf(me, l))
+    // a label is said to the one at the keys: aimed at them, it is "yourself" ("Bandage yourself")
+    const whom = (l: 'en' | 'zh') => ('e' in target && target.e === me.e ? (l === 'zh' ? '自己' : 'yourself') : this.eng.nameOf(target, l))
+    const fill = (s: string, l: 'en' | 'zh') => s.replace('{target}', whom(l)).replace('{instrument}', this.eng.nameOf(instrument, l)).replace('{actor}', this.eng.nameOf(me, l))
     const tt = typeof t === 'string' ? { en: t, zh: t } : t
     return { en: fill(tt.en, 'en'), zh: fill(tt.zh ?? tt.en, 'zh') }
   }

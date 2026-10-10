@@ -99,7 +99,7 @@ export interface ModSpec {
   expectations: string[]
   ontology: {
     types: { id: string; tags: string[]; name?: string }[]
-    statuses: { id: string; duration?: number; immobilize?: boolean; moveDelay?: number; clears?: string[] }[]
+    statuses: { id: string; name?: string; duration?: number; immobilize?: boolean; moveDelay?: number; clears?: string[] }[]
     terrains: { id: string; tags: string[]; solid?: boolean; liquid?: boolean }[]
     elements: string[]
     /** Factions: an actor belongs to those its faction:<id> tags name; the wild is hostile to folk. */
@@ -154,6 +154,10 @@ export interface ModProgress {
 export type PatchLogEntry =
   | { seq: number; at: string; patch: Patch; rules: string[]; request?: string; /** the scene that asked (clients replay it before taking the patch) */ scenario?: Scenario; /** a revision: the learned rules it took the place of (removed just before it) */ replaces?: string[] }
   | { seq: number; at: string; remove: string }
+  /** A learned type rolled back with the patch that brought it (the validator no longer takes it): forgotten where nothing is made of it yet. */
+  | { seq: number; at: string; removeType: string }
+  /** A learned status rolled back with the patch that brought it (the validator no longer takes it). */
+  | { seq: number; at: string; removeStatus: string }
 
 export type RecordStatus = 'pending' | 'patched' | 'fallback' | 'rejected'
 
@@ -198,6 +202,7 @@ const AUTHORING_RULES = [
   'A yield must cost its host (world-model.md §8.4): what someone can do again at will (an act, what it sets off) may not keep making things from a host that is neither changed nor used up — the validator replays the triggering event 12 times with no time between, and refuses an endless yield. Change the host (a status that gates the yield and runs out, its durability, its type) or use it up.',
   'Things with durability (props.maxHp) already lose it to blows and fire, and break into their makeup: a blow on a tree, rock or a wall is defined. A new type that can break names props.material and what it leaves (makeup [{type, count}] or a rule of its own on threshold/cross "broken").',
   'An act hosted by an instrument that consumes or changes it says so: `destroy` or `transform` the host.',
+  'One thing made out of two (the held thing used on another thing): both go into it. A rule writes only its host, so the other is used up by its own answer: emit to it (strike with an edge, coat, receive) and let it become the result (the knife on a pumpkin sends a cut; the pumpkin turns into slices). Make the result from the host alone only when the other is a tool or a station that stays (a workbench, a lit forge).',
   'Outcomes the world started by itself (origin "world") happen without the player asking: keep them small and legible, never harm a person, never touch the story\'s facts, and let people react with say/emote, a notice to the story (a topic), or goto.',
   'A topic a patch raises (notify the story, what "topic", value <id>) is news of its own: a new snake_case id. The story\'s own topics (the crown, the slain dragon, ...) are raised by the story when they happen; a patch raising one is refused.',
 ]
@@ -312,7 +317,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
     ontology: {
       // without types: the model is shown the request's own types (the brief) and asks for the rest (the router)
       types: opts.types === false ? [] : Object.values(types).map((t) => ({ id: t.id, tags: t.tags ?? [], name: t.name ? textOf(t.name) : undefined })),
-      statuses: Object.values(statuses).map((s) => ({ id: s.id, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears })),
+      statuses: Object.values(statuses).map((s) => ({ id: s.id, name: s.name ? textOf(s.name) : undefined, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears })),
       terrains: Object.values(onto.terrains).map((t) => ({ id: t.id, tags: t.tags ?? [], solid: t.solid, liquid: t.liquid })),
       elements: onto.elements,
       factions: onto.factions ?? {},
@@ -405,6 +410,13 @@ const MAX_UNREACHABLE = 3
 
 export class ModPort implements UndefinedSink {
   provider?: ModProvider
+  /**
+   * The host's part before its own answer is taken: a learned definition the answer brings anew replaces one
+   * kept here (a client's copy the shared library has since corrected), put back if the answer is refused.
+   */
+  adopt?: (patch: Patch) => { restore(): void; done?(): void }
+  /** What the host put aside for the answer being judged: back before the hole's default runs, should the answer be refused. */
+  private putBack?: () => void
   records: UndefinedRecord[] = []
   onChange?: () => void
   /** How long an outcome waits for a patch before the default runs (a late patch still applies). */
@@ -484,8 +496,20 @@ export class ModPort implements UndefinedSink {
       .resolve(rec.request, this.spec())
       .then((p) => {
         rec.awaiting = false
-        if (p) this.submit(id, p)
-        else {
+        if (p) {
+          const took = this.adopt?.(p)
+          this.putBack = took && (() => took.restore())
+          let ok = false
+          try {
+            ok = this.submit(id, p).ok
+          } finally {
+            // never left set: what was put aside comes back (a refusal, a throw), or what is still needed does (taken)
+            const back = this.putBack
+            this.putBack = undefined
+            if (ok) took?.done?.()
+            else back?.()
+          }
+        } else {
           this.failed.add(rec.signature)
           this.fallback(id)
         }
@@ -526,7 +550,9 @@ export class ModPort implements UndefinedSink {
   }
 
   private unfreeze(id: string): void {
-    for (const e of Object.values(this.eng.world.state.entities)) if (e.frozenBy === id) delete e.frozenBy
+    const w = this.eng.world
+    // a cell's own thing (the ground asked about) is kept for its id, outside the state, and waits as well
+    for (const e of [...Object.values(w.state.entities), ...w.staticThings()]) if (e.frozenBy === id) delete e.frozenBy
   }
 
   /** Nobody answered in time (or the answer failed): the default runs; a later patch still applies. */
@@ -580,6 +606,10 @@ export class ModPort implements UndefinedSink {
       if (rec && wasPending) {
         rec.status = 'rejected'
         this.unfreeze(rec.id)
+        // what the host put aside for this answer is back before the default runs (it sees the world as it was)
+        const back = this.putBack
+        this.putBack = undefined
+        back?.()
         eng.run(rec.request.hole.default, rec.event, rec.request.hole.rule)
       }
       w.fx.push({ t: 'log', text: `patch rejected: ${res.errors[0]}`, tone: 'dev' })
@@ -1078,8 +1108,8 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       }
     } else if (a?.kind === 'status') {
       if (!a.status?.id) errors.push(`${where}: status.id required`)
-      else if (a.status.overlay !== undefined && !(OVERLAYS as readonly string[]).includes(a.status.overlay)) errors.push(`${where}: overlay "${a.status.overlay}" is not one the world can draw: one of ${OVERLAYS.join(', ')}`)
       else if (statuses.some((s) => s.id === a.status.id && statusDefinition(s) !== statusDefinition(a.status))) errors.push(`${where}: status "${a.status.id}" already exists with a different definition`)
+      else if (!statuses.some((s) => s.id === a.status.id) && newStatusProblems(a.status).length) errors.push(...newStatusProblems(a.status).map((p) => `${where}: ${p}`))
       else {
         onto.statuses[a.status.id] = a.status
         statuses.push(a.status)
@@ -1199,6 +1229,9 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (e.op === 'dropContents' && e.bundle && !(e.bundle in onto.types)) errors.push(`${where}: unknown type "${e.bundle}"${closest(e.bundle, onto)}`)
     if (e.op === 'transform' && !e.into.startsWith('@prop:') && !(e.into in onto.types)) errors.push(`${where}: unknown type "${e.into}"${closest(e.into, onto)}`)
     if ((e.op === 'addStatus' || e.op === 'removeStatus') && !(e.status in onto.statuses)) errors.push(`${where}: unknown status "${e.status}"`)
+    // a status that holds its bearer still must end, or the one at the keys can never act again
+    else if (e.op === 'addStatus' && onto.statuses[e.status]?.immobilize && !lasts(e.duration !== undefined ? e.duration : onto.statuses[e.status].duration))
+      errors.push(`${where}: "${e.status}" holds its bearer still and would never end: give the effect a duration (ticks, > 0)`)
     if (e.op === 'vfx' && !onto.vfx.includes(e.fx)) errors.push(`${where}: unknown vfx "${e.fx}"`)
     if (e.op === 'hurt' && e.element && !ctx.ontology.elements.includes(e.element)) errors.push(`${where}: unknown element "${e.element}"`)
     if (e.op === 'goto' && !(e.hours > 0 && e.hours <= 12)) errors.push(`${where}: goto hours must be in (0, 12]`)
@@ -1333,7 +1366,9 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
         const want = { type, on: ev.kind, hole: holeKey(res.hole.rule.id, res.hole.path), at: res.open?.path ?? [] }
         const same = (r: Rule) => (!type || r.host!.type === type) && r.on === want.on && r.hole === want.hole && JSON.stringify(r.at ?? []) === JSON.stringify(want.at)
         answer = rules.find(same)
-        if (!answer) {
+        // a thing or a status alone changes nothing that happens: the event is answered by a rule
+        if (!answer && !rules.length) errors.push(`the patch has no rule: the triggering event (${want.on} on a ${type ?? 'thing'}) is still undefined; a type or status alone answers nothing, so add the rule that uses it`)
+        else if (!answer) {
           const r = rules.length === 1 ? rules[0] : rules.find((x) => x.host!.type === type && x.on === want.on) ?? rules[0]
           const where = `rule "${r.id}"`
           if (type && r.host!.type !== type) errors.push(`${where}.host: the host of the triggering event is a ${type}, not a ${r.host!.type}`)
@@ -1572,6 +1607,33 @@ export function closest(id: string, onto: Ontology, n = 4): string {
   return found.length ? ` — the closest known types: ${found.join(', ')}` : ''
 }
 
+/** A duration that runs out (ticks, > 0); none or 0 is for good (Engine.applyStatus). */
+const lasts = (d: unknown): boolean => typeof d === 'number' && d > 0
+
+/** What a new status must say: an overlay the world can draw (if any), what it is called (the things that have it show it), and an end if it holds one still. */
+export function newStatusProblems(st: StatusDef): string[] {
+  const out: string[] = []
+  if (st.immobilize && !lasts(st.duration)) out.push('a status that holds its bearer still lasts a while: duration (ticks, > 0), or it would never end')
+  if (st.overlay !== undefined && !(OVERLAYS as readonly string[]).includes(st.overlay)) out.push(`overlay "${st.overlay}" is not one the world can draw: one of ${OVERLAYS.join(', ')}`)
+  if (typeof st.name !== 'object' || !st.name?.en?.trim() || !st.name?.zh?.trim()) out.push('a new status says what it is called, as the things that have it show it: name {"en": "...", "zh": "..."}')
+  return out
+}
+
+/** The base rules that turn a thing into the type a prop of its own names, by the tags they key on (rules.ts). */
+const TURNS: { when: (id: string, tags: string[]) => boolean; prop: string; what: string; as: string }[] = [
+  { when: (_, tags) => tags.includes('plantable'), prop: 'cropType', what: 'a seed sown on farmland becomes the crop it names', as: 'carrot seeds become fixture/crop/carrot/sprout' },
+  { when: (_, tags) => tags.includes('cookable') && tags.includes('raw'), prop: 'cookedType', what: 'raw food cooked at a fire becomes what it names', as: 'raw fish becomes item/food/fish/cooked' },
+  { when: (_, tags) => tags.includes('empty-vessel'), prop: 'waterType', what: 'an empty vessel filled at water becomes the full one it names', as: 'the empty bucket becomes item/vessel/bucket/water' },
+  { when: (id, tags) => id.startsWith('item/material/') && tags.includes('ore'), prop: 'smelts', what: 'ore smelted in a lit forge becomes the bar it names', as: 'iron ore becomes item/material/iron_ingot' },
+  { when: (id, tags) => id.startsWith('item/vessel/') && (tags.includes('drinkable') || tags.some((t) => t.startsWith('liquid:'))), prop: 'emptyType', what: 'a vessel of something drunk or poured out leaves the vessel it names', as: 'the bucket of milk leaves item/vessel/bucket/empty' },
+]
+
+/** Is one type the same thing as another under another name: the same leaf or English name (either number), or the same Chinese name? */
+export function namesClash(t: TypeDef, o: TypeDef): boolean {
+  const leaf = (x: TypeDef) => x.id.split('/').at(-1)!
+  return o.id !== t.id && (nameKey(leaf(o)) === nameKey(leaf(t)) || (!!enName(t) && nameKey(enName(o)) === nameKey(enName(t))) || (!!zhName(t) && zhName(o) === zhName(t)))
+}
+
 /**
  * What is wrong with a type a patch introduces: it must be new, live under a type that exists
  * (or another of the patch's own), have a lowercase snake_case id, an English and a Chinese
@@ -1589,11 +1651,7 @@ export function newTypeProblems(t: TypeDef, onto: Ontology, patch: Patch): strin
   if (segs.length > 2 && !(parent in onto.types) && !ownTypes.has(parent)) out.push(`its parent "${parent}" does not exist${closest(parent, onto)}`)
   const name = t.name
   if (!name || typeof name === 'string' || !name.en?.trim() || !name.zh?.trim()) out.push('a new type needs a name in both languages: {"en": "...", "zh": "..."}')
-  const leaf = segs.at(-1)!
-  // the same thing under another name: the same leaf or English name (either number), or the same Chinese name
-  const same = Object.values(onto.types).find(
-    (o) => o.id !== t.id && (nameKey(o.id.split('/').at(-1)!) === nameKey(leaf) || (!!enName(t) && nameKey(enName(o)) === nameKey(enName(t))) || (!!zhName(t) && zhName(o) === zhName(t))),
-  )
+  const same = Object.values(onto.types).find((o) => namesClash(t, o))
   if (same) out.push(`"${same.id}" already is this thing (same name): use it, or name what is different about the new one`)
   if (t.art) out.push(...artProblems(t.art))
   // what it is made of and how it breaks (world-model.md §8.3), read through what it inherits
@@ -1610,6 +1668,32 @@ export function newTypeProblems(t: TypeDef, onto: Ontology, patch: Patch): strin
     if (!m || typeof m.type !== 'string' || !(m.type in onto.types || ownTypes.has(m.type))) out.push(`makeup[${i}]: unknown type "${m?.type}"${m?.type ? closest(m.type, onto) : ''}`)
     if (!(Number.isSafeInteger(m?.count) && m.count > 0)) out.push(`makeup[${i}].count: a positive safe integer`)
   }
+  // a food is used by its tags (use/eat keys on edible, use/drink on drinkable), and item/food does not carry
+  // them: a dish made without the tag could not be eaten, and every new food would be asked how it is eaten
+  const nourishes = typeof r.props.food === 'number' && r.props.food > 0
+  if ((nourishes || t.id.startsWith('item/food/')) && !r.tags.includes('edible') && !r.tags.includes('drinkable'))
+    out.push('a food is eaten by the tag "edible" (a drink is drunk by "drinkable"): the world\'s food rules key on the tag, and item/food does not carry it, so add it to tags')
+  // eaten, a food is gone and fills by its food (the world's own each fill by theirs): one without would fill nothing
+  // what the world's rules turn a thing into by a tag it carries, it names (every one of the world's own does): one that
+  // names none would be told it happened (sown, cooked, filled, smelted, drunk) and stay as it was
+  for (const turn of TURNS) {
+    if (!turn.when(t.id, r.tags)) continue
+    const into = r.props[turn.prop]
+    if (!(typeof into === 'string' && (into in onto.types || ownTypes.has(into))))
+      out.push(`${turn.what}: props.${turn.prop}, a type the world has (as ${turn.as})${typeof into === 'string' ? closest(into, onto) : ''}`)
+  }
+  if (r.tags.includes('edible') && !nourishes) out.push('a food says how much it fills: props.food, a positive number (eating it restores hunger by that, and it is gone)')
+  // a thing worn goes on in its slot (the wear effect does nothing without one), and item/clothing and item/armor name none
+  if (r.tags.includes('wearable')) {
+    // the slots the world's own things are worn in (not one this patch makes up)
+    const known = new OntologyIndex({ ...onto, types: { ...onto.types } })
+    const slots = [...new Set(Object.keys(onto.types).map((id) => known.resolve(id).props.slot).filter((s): s is string => typeof s === 'string'))]
+    const slot = r.props.slot
+    if (typeof slot !== 'string' || !slots.includes(slot)) out.push(`a thing worn names where it is worn: props.slot, one of ${slots.join(', ')} (its parent names none)`)
+  }
+  // what is made at hand or at a station comes into the maker's hand, and only a portable thing leaves it (set down, put away)
+  if (t.station && !r.tags.includes('portable'))
+    out.push('a thing made at hand or at a station comes into the maker\'s hand and could never be set down: add the tag "portable" (as the world\'s bed and workbench have)')
   return out
 }
 

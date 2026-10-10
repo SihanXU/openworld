@@ -82,7 +82,7 @@ export function designUser(req: ModRequest, recall: Recall, brief?: string, adde
   if (added && (added.types.length || added.statuses.length)) {
     out.push('', '# Types and statuses added by patches (beyond the ModSpec; use them like any other)')
     for (const t of added.types) out.push(`- type ${JSON.stringify({ id: t.id, tags: t.tags ?? [], name: t.name })}`)
-    for (const s of added.statuses) out.push(`- status ${JSON.stringify({ id: s.id, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears })}`)
+    for (const s of added.statuses) out.push(`- status ${JSON.stringify({ id: s.id, name: s.name, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears })}`)
   }
   out.push('', tools ? '# Your skills (read one with read_skill)' : '# Your skills')
   out.push(...(recall.skills.length ? recall.skills.map((s) => `- ${s.name}: ${s.description} (used ${s.uses}×, ${s.accepted} accepted)`) : ['(none yet)']))
@@ -303,14 +303,15 @@ export function findUser(needs: Need[], candidates: Map<string, string[]>, catal
 export function createUser(creations: Creation[], materials: string[] = []): string {
   return [
     '# Create',
-    `The world is making ${creations.length === 1 ? 'a new thing' : 'new things'}: ${creations.map((c) => `${c.id} (${c.name.en} / ${c.name.zh})`).join(', ')}.`,
+    `The world is making ${creations.length === 1 ? 'a new thing' : 'new things'}: ${creations.map((c) => `${c.id} (${[c.name.en, c.name.zh].filter(Boolean).join(' / ')})`).join(', ')}.`,
     'Write the patch with, for each, a type artifact beside your rule(s):',
-    '{"kind": "type", "type": {"id": "<parent>/<snake_case>", "name": {"en": "...", "zh": "..."}, "tags": ["only what it adds to its parent"], "props": {"material": "<one of the materials>"}, "makeup": [{"type": "<a type the world has>", "count": 1}], "station": "hands | workbench (optional)"}}',
-    '- The parent must exist; the new type inherits its tags and its rules, so choose the parent whose behaviour fits (an ingot under item/material, a dish under item/food).',
+    '{"kind": "type", "type": {"id": "<parent>/<snake_case>", "name": {"en": "...", "zh": "..."}, "tags": ["what the world uses it by"], "props": {"material": "<one of the materials>"}, "makeup": [{"type": "<a type the world has>", "count": 1}], "station": "hands | workbench (optional)"}}',
+    '- The parent must exist; the new type inherits its rules and the few tags its parent has, so choose the parent whose behaviour fits (an ingot under item/material, a dish under item/food).',
+    '- tags: the world uses a thing by its tags, and a parent carries few of them (item/food has only portable and food): a food that can be eaten has "edible" (and props.food, how much it fills), a drink "drinkable", something that binds "fiber"; give the ones it is used by, as the things beside it have them. A tag some rule turns it by names what it becomes: a "plantable" seed props.cropType, raw "cookable" food props.cookedType, an "empty-vessel" props.waterType, an "ore" props.smelts, a drink in a vessel props.emptyType. Made at hand or a station, a fixture is "portable". Something worn (under item/clothing or item/armor) names where in props.slot (head, body, shoulders, waist, feet, hands, ring, neck, ear, arm).',
     '- Its name is what a player would call it, in both languages; it must not be another name for a thing the world has.',
     `- props.material: what it is made of, one of: ${materials.join(', ') || '(see the ModSpec)'}.`,
     '- makeup: the things it is made of, by type and count (an iron ingot: one iron ore); it is also what it leaves when broken, so it takes no more than the outcome took to make it.',
-    '- station (optional): "hands" or "workbench" when a player could also make it there from its makeup; leave it out when only your rule makes it (smelting in a forge).',
+    '- station (optional): where a player could also make it from its makeup, listed in the crafting panel: "workbench" when your rule makes it by using its makeup on a workbench, "hands" when its makeup alone makes it with no tool or place; leave it out when only your rule makes it somewhere else (smelting in a forge, cooking in a cauldron).',
     '- A new kind of ground (tile/...) cannot be made; make a thing that lies on the cell instead.',
     '- Do not draw it: an artist draws its icon next.',
     'Answer with ONLY the JSON object {"patch": {"artifacts": [...]}}.',

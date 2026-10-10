@@ -1,7 +1,7 @@
 // The society module's primitives (docs/npc-sandbox.md): whose things are, what people saw and say, the watch's
 // ledger and its cells, trade and coin, following, the talk panel. Each runs in its host's outcome.
 
-import { NO_EXPIRY, TICKS_PER_HOUR, type Effect, type EffectRunner, type Entity, type GameEvent, type Pos, type RoleName } from '@openworld/engine'
+import { NO_EXPIRY, TICKS_PER_HOUR, chooseLine, type Effect, type EffectRunner, type Entity, type GameEvent, type Pos, type RoleName } from '@openworld/engine'
 import { bountyKey, lawId, pardonKey } from './social.ts'
 import { socialOf } from './state.ts'
 
@@ -44,7 +44,11 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
       const you = toPlayer(to) ? to.id : undefined
       if (newest) w.fx.push({ t: 'say', who: host.id, to: to.id, text: { en: `Did you hear? ${s.deedWords(newest, 'en', you)}.`, zh: `你听说了吗？${s.deedWords(newest, 'zh', you)}。` } })
       else if (grudge) w.fx.push({ t: 'say', who: host.id, text: { en: `I know what you did. ${s.deedWords(grudge, 'en', to.id)}.`, zh: `我知道你干了什么。${s.deedWords(grudge, 'zh', to.id)}。` }, mood: 'angry' })
-      else if (ev.kind === 'impulse/handle') w.fx.push({ t: 'say', who: host.id, text: { en: 'Nothing much has happened. Quiet days.', zh: '没出什么事。日子挺平静的。' } })
+      else if (ev.kind === 'impulse/handle') {
+        // no deed to tell: the place's fresh news (the story's topic, if they have a word on it), else quiet days
+        const news = chooseLine(eng, host, { topicOnly: true })
+        w.fx.push({ t: 'say', who: host.id, text: news?.text ?? { en: 'Nothing much has happened. Quiet days.', zh: '没出什么事。日子挺平静的。' }, ...(news?.mood && { mood: news.mood }) })
+      }
       if (told.length) eng.queue({ kind: 'impulse/notify', host: { e: to.id }, roles: { source: ev.host }, params: { what: 'news', deeds: told.map((d) => s.key(d)).join('|') }, cause: ev.cause, origin: ev.origin, depth: (ev.depth ?? 0) + 1 })
       return
     }

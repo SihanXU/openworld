@@ -194,6 +194,11 @@ export class World {
 
   // ---------------------------------------------------------------- indices
 
+  /** The static cell things asked for so far (the ground, the air above it): kept for their ids, never saved. */
+  staticThings(): IterableIterator<Entity> {
+    return this.statics.values()
+  }
+
   reindex(): void {
     this.onTile.clear()
     this.onMap.clear()

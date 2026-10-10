@@ -18,9 +18,9 @@ const SPAWN_MAX = 64
 
 /** The kernel's primitives, and what each does (the modules' are their own: module.ts). */
 export const PRIMITIVES: Record<Exclude<Effect['op'], ModuleOp>, string> = {
-  spawn: 'spawn {type, at: role ref, into?: tile|contents|hand, count?, still?} — create new things at a role\'s place (its tile, contents or hand); type may be "@prop:<role>.<key>" (a crop\'s yieldType); count may read a prop or a param; items on the ground pop out for the magnet unless still (then they are taken with F)',
+  spawn: 'spawn {type, at: role ref, into?: tile|contents|hand, count?, still?} — create new things at a role\'s place (its tile, contents or hand); type may be "@prop:<role>.<key>" (a crop\'s yieldType); count may read a prop or a param; items on the ground pop out for the magnet unless still (then they are taken with F); what cannot be carried (not portable) is made on the holder\'s tile, never in a hand or bag',
   destroy: 'destroy {} — the host is gone (with what it holds); the essential (people) never are: they go down instead',
-  transform: 'transform {into} — the host becomes another type ("@prop:key" reads the type from its own prop, e.g. emptyType). A cell is made of things (tile/<terrain>: the floor, what roots in the soil, what fills the volume): water becoming ice is the water transforming; becoming a type whose space in its cell another thing holds (rock into gravel, where a floor is), the host is gone instead',
+  transform: 'transform {into} — the host becomes another type ("@prop:key" reads the type from its own prop, e.g. emptyType). A cell is made of things (tile/<terrain>: the floor, what roots in the soil, what fills the volume): water becoming ice is the water transforming; becoming a type whose space in its cell another thing holds (rock into gravel, where a floor is), the host is gone instead; a carried host become a thing that cannot be carried is set down at its holder\'s feet',
   move: 'move {to: role ref, into?: tile|contents|hand} — the host moves itself to a role\'s tile, contents or hand',
   step: 'step {dir?} — the host steps one tile (dir, or the act\'s `dir` param): walls and the solid stop it (a bump), portals carry it',
   addStatus: 'addStatus {status, duration?} — the host gains a status (a threshold/gain event follows)',
@@ -152,12 +152,17 @@ export class EffectRunner {
    * had when the outcome started: "you pour out {instrument}" reads right after it was emptied.
    */
   private fill(ev: GameEvent, s: string, locale: 'en' | 'zh' = 'en'): string {
-    return s.replace(/\{(host|actor|target|instrument|other|item|source|param)(?:\.(\w+))?\}/g, (_, role: RoleName | 'param', key?: string) => {
+    const filled = s.replace(/\{(host|actor|target|instrument|other|item|source|param)(?:\.(\w+))?\}/g, (_, role: RoleName | 'param', key?: string) => {
       if (role === 'param') return key && ev.params?.[key] !== undefined ? String(ev.params[key]) : '?'
-      if (!key) return this.names?.get(`${role}:${locale}`) ?? this.eng.nameOf(this.roleRef(ev, role), locale)
+      if (!key) {
+        const name = this.names?.get(`${role}:${locale}`) ?? this.eng.nameOf(this.roleRef(ev, role), locale)
+        // the one at the keys is "you": marked, so what follows agrees with it (agreeYou)
+        return locale === 'en' && name === 'you' ? YOU : name
+      }
       const v = this.eng.world.view(this.roleRef(ev, role))?.props[key]
       return v === undefined ? '?' : String(v)
     })
+    return agreeYou(filled)
   }
 
   /** Run an outcome's effects on its event (the rule id names it in warnings). */
@@ -202,8 +207,10 @@ export class EffectRunner {
         const at = this.ref(ev, eff.at)
         const into = eff.into ?? 'tile'
         const n = this.most(eff.count === undefined ? 1 : Math.max(0, Math.floor(this.amount(ev, eff.count))), 'a spawn')
+        // what cannot be carried is not made into a hand or a bag: it is set down where its holder is
+        const carried = into === 'tile' || w.onto.resolve(type).tags.includes('portable') ? into : 'tile'
         for (let i = 0; i < n; i++) {
-          let place = this.placeFor(at, into)
+          let place = this.placeFor(at, carried)
           if (!place) continue
           const made = w.create(type, place)
           // an actor never appears on top of another, or in a wall: it takes the nearest free tile
@@ -241,6 +248,13 @@ export class EffectRunner {
         // anything that can still act, and stays essential as what it becomes (a hen, a frog)
         const essential = w.hasTag(host, 'essential')
         if (essential && !w.onto.resolve(into).tags.includes('agent')) throw new Error(`${host.id} cannot become a thing that cannot act (${into})`)
+        // to become a thing that cannot be carried, it leaves the hand or the bag it is in for its holder's feet first
+        // (and stays as it is where there is no room there)
+        if (host.place.on !== 'tile' && !w.onto.resolve(into).tags.includes('portable')) {
+          const down = this.placeFor({ e: host.id }, 'tile', host.id)
+          if (!down) return
+          w.place(host, down)
+        }
         // becoming a thing that takes a space of its cell another holds, it gives way: it is gone (rock
         // turning to gravel where there is a floor already), as one destroyed
         const p = host.place.on === 'tile' ? host.place : undefined
@@ -925,3 +939,40 @@ export class EffectRunner {
     return { on: 'inside', holder: holder.id }
   }
 }
+
+/** A name slot filled with "you" (the one at the keys), marked until what follows it is made to agree. */
+const YOU = '\u0001you\u0002'
+const SECOND: Record<string, string> = { is: 'are', was: 'were', has: 'have', does: 'do', goes: 'go', aches: 'ache', "isn't": "aren't", "wasn't": "weren't", "hasn't": "haven't", "doesn't": "don't" }
+/** Words that end in s after a name and are no verb ("you always", "you perhaps"). */
+const NOT_VERBS = new Set(['always', 'perhaps', 'sometimes', 'towards', 'afterwards', 'besides', 'backwards', 'forwards', 'upwards', 'downwards', 'as', 'yes', 'thus', 'less', 'this', 'his', 'its', 'us'])
+/** What opens a clause before "you", so it is the one doing what follows (not "hands you this map"). */
+const OPENS = /(^|[.!?;:,\u2014\u2013]\s*|["\u201c\u2018(]\s*|\b(?:and|but|then|so|while|as|when|until|before|after|because|if|or|now)\s+)$/i
+
+/**
+ * Lines are written about anyone ("{actor} comes up clean"), and a slot reads "you" when it is the
+ * player: where "you" opens a clause the verb after it is made second person ("you come"), "'s" becomes
+ * "your" anywhere, and "you" opening a sentence is capitalised. Only a marked "you" is touched (English).
+ */
+export function agreeYou(s: string): string {
+  if (!s.includes(YOU)) return s
+  const verb = (w: string): string => {
+    const l = w.toLowerCase().replace('\u2019', "'")
+    const curly = w.includes('\u2019')
+    if (SECOND[l]) {
+      const to = curly ? SECOND[l].replace("'", '\u2019') : SECOND[l]
+      return w[0] === w[0].toUpperCase() ? to[0].toUpperCase() + to.slice(1) : to
+    }
+    if (NOT_VERBS.has(l) || !l.endsWith('s') || l.endsWith('ss') || l.endsWith('us') || l.length < 3) return w
+    // dies, lies (die, lie) but carries, tries (carry, try)
+    if (l.endsWith('ies')) return l.length <= 4 ? w.slice(0, -1) : w.slice(0, -3) + 'y'
+    // washes, watches, fixes, buzzes, echoes (wash, watch, fix, buzz, echo); freezes, rises, tiptoes (freeze, rise, tiptoe)
+    if (/(sh|ch|x|zz|ss|echo|veto|torpedo|embargo)es$/.test(l)) return w.slice(0, -2)
+    return w.slice(0, -1)
+  }
+  let out = s.replace(new RegExp(`${YOU}['\u2019]s\\b`, 'g'), '\u0001your\u0002')
+  out = out.replace(new RegExp(`${YOU} ([A-Za-z]+(?:['\u2019]t)?)`, 'g'), (m, w: string, at: number) => (OPENS.test(out.slice(0, at).replace(/[\u0001\u0002]/g, '')) ? `${YOU} ${verb(w)}` : m))
+  return out
+    .replace(/(^|[.!?]\s+|^["\u201c\u2018]|[.!?]\s+["\u201c\u2018])\u0001(you|your)\u0002/g, (_, pre: string, w: string) => `${pre}${w[0].toUpperCase()}${w.slice(1)}`)
+    .replace(/[\u0001\u0002]/g, '')
+}
+

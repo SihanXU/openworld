@@ -1,8 +1,10 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
+import { untilUp } from './untilUp.ts'
+import { artsToSend, forgetInvalid, forgetStatus, forgetType, learnedRecipes, recipeOf, shareKept, sharedPart, takeDefinitions, withKept } from './learned.ts'
 import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
-import { game as played, ontology, placementById, professionById, recipeById, skillById } from './game.ts'
+import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
@@ -53,9 +55,13 @@ function buildPreview(eng: Engine, id: string, at: { map: string; x: number; y: 
 const MODDER_TIMEOUT_TICKS = 150 // with a modder online, an interaction waits up to 15 s; a later patch still teaches the world
 const PROGRESS_MS = 1000 // how often a waiting request asks where it is
 const SYNC_MS = 15_000
+/** How soon a service not up yet is asked again (twice as long after each failure, up to a minute). */
+const RETRY_MS = 5_000
 let modderUrl = ''
 let modderSeq = 0
 let syncTimer: ReturnType<typeof setInterval> | undefined
+/** The probes of a service not up yet (connectModder). */
+let connecting: { stop: () => void } | undefined
 let modderOnline = false
 
 // Prefetch: the action prompt knows an interaction is undefined before E is pressed. Pointing at
@@ -72,17 +78,26 @@ let prefetching = false
 /** Probe the service; if it answers, undefined interactions go to it and the shared library syncs from it. */
 async function connectModder(url: string, since = 0): Promise<void> {
   if (syncTimer) clearInterval(syncTimer)
+  connecting?.stop()
   modderUrl = url.replace(/\/+$/, '')
   // the library restored has the log up to `since` in it already: only what came after is new
   modderSeq = since
   if (!modderUrl || !game) return
+  // a service not up yet (started after the page, or starting again) is asked again until it answers
+  connecting = untilUp(probeModder, RETRY_MS, 60_000)
+}
+
+/** One probe of the service: true once it answers (or there is no game to connect any more). `live`: false once a newer connection called it off. */
+async function probeModder(live: () => boolean): Promise<boolean> {
   try {
     const health = (await (await fetch(`${modderUrl}/health`, { signal: AbortSignal.timeout(2500) })).json()) as { model?: string | null }
-    if (!game) return
+    if (!game || !live()) return true
     // a service with no model answers only from the shared library, which syncs here anyway:
     // asking it would only pause the world before the default, so the default runs at once
     if (health.model) {
       game.mods.provider = { resolve: resolveRemote }
+      // an answer to our own question wins over a learned definition kept here, as a synced one does
+      game.mods.adopt = adoptAnswer
       // a learned rule set aside here is reported: the service counts, and past its bound retires the rule for everyone
       game.engine.onFault = (rule, reason) => {
         void fetch(`${modderUrl}/fault`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rule: rule.id, reason }), signal: AbortSignal.timeout(5000) }).catch(() => undefined)
@@ -92,10 +107,13 @@ async function connectModder(url: string, since = 0): Promise<void> {
     modderOnline = true
     post({ t: 'modder', online: true, url: modderUrl, model: health.model })
     await syncLibrary()
-    syncTimer = setInterval(() => void syncLibrary(), SYNC_MS)
+    if (live()) syncTimer = setInterval(() => void syncLibrary(), SYNC_MS)
+    return true
   } catch {
+    if (!live()) return true
     modderOnline = false
     post({ t: 'modder', online: false, url: modderUrl })
+    return !game
   }
 }
 
@@ -139,13 +157,37 @@ function watchProgress(id: string): { stop: () => void } {
   return { stop: () => clearInterval(timer) }
 }
 
+/** What only the save loaded keeps (learned kinds its things are of that the shared library forgot): never written back to it. */
+let kept: { types: Set<string>; statuses: Set<string> } = { types: new Set(), statuses: new Set() }
+
+/** Take a learned definition an answer brings anew, and make what it brings shared; both undone should the answer be refused. */
+function adoptAnswer(patch: Patch): { restore: () => void; done: () => void } {
+  const took = takeDefinitions(game!.engine, patch)
+  const unshare = shareKept(kept, patch)
+  return {
+    restore: () => (took.restore(), unshare()),
+    // a kind kept beside the library's new one, for what is made of it here, is this save's alone
+    done: () => took.done().forEach((id) => kept.types.add(id)),
+  }
+}
+
+/** The recipes of learned things (derived from their makeup when a patch brings a type with a station), sent when they change. */
+let recipesSent = ''
+function sendRecipes(): void {
+  if (!game) return
+  const recipes = learnedRecipes(game.engine)
+  // (what each makes and needs: a definition taken again may change them under the same id)
+  const sig = JSON.stringify(recipes.map((r) => [r.id, r.needs, r.count, r.station, r.name]))
+  if (sig === recipesSent) return
+  recipesSent = sig
+  post({ t: 'recipes', recipes })
+}
+
 /** The pictures of learned things not sent to the main thread yet. */
-const artSent = new Set<string>()
+const artSent = new Map<string, string>()
 function sendArts(): void {
-  const arts = (game?.engine.lib.types ?? []).filter((t) => t.art && !artSent.has(t.id)).map((t) => ({ id: t.id, art: t.art! }))
-  if (!arts.length) return
-  for (const a of arts) artSent.add(a.id)
-  post({ t: 'art', arts })
+  const arts = artsToSend(game?.engine.lib.types ?? [], artSent)
+  if (arts.length) post({ t: 'art', arts })
 }
 
 function noteProbe(hole: { ev: GameEvent; res: Resolution } | undefined, spot: string): void {
@@ -166,7 +208,12 @@ function maybePrefetch(): void {
   const request = buildRequest(eng, probe.ev, probe.res, `pre-${eng.world.state.tick.toString(36)}`)
   resolveRemote(request)
     .then((patch) => {
-      if (patch && game) game.mods.submit(undefined, patch, request.scenario)
+      if (patch && game) {
+        // as any answer: a learned definition it brings anew replaces the one kept here
+        const took = adoptAnswer(patch)
+        if (!game.mods.submit(undefined, patch, request.scenario).ok) took.restore()
+        else took.done()
+      }
     })
     .catch(() => undefined)
     .finally(() => (prefetching = false))
@@ -185,9 +232,17 @@ async function syncLibrary(): Promise<void> {
     const lib = game.engine.lib
     const before = lib.version
     for (const e of log.entries) {
-      if ('remove' in e) {
+      // what the library forgot but a thing here needs is this save's from now on: not written back to the shared store
+      if ('removeType' in e) forgetType(game.engine, e.removeType) || (game.engine.lib.types.some((t) => t.id === e.removeType) && kept.types.add(e.removeType))
+      else if ('removeStatus' in e) forgetStatus(game.engine, e.removeStatus) || (game.engine.lib.statuses.some((s) => s.id === e.removeStatus) && kept.statuses.add(e.removeStatus))
+      else if ('remove' in e) {
         if (lib.rules.get(e.remove)?.source?.origin === 'patch') lib.remove(e.remove)
-      } else game.mods.submit(undefined, e.patch, e.scenario, e.replaces, e.request)
+      } else {
+        // the library's definition of a learned thing wins over one kept here (put back if the patch is not taken)
+        const took = adoptAnswer(e.patch)
+        if (!game.mods.submit(undefined, e.patch, e.scenario, e.replaces, e.request).ok) took.restore()
+        else took.done()
+      }
     }
     if (log.seq !== modderSeq) post({ t: 'synced', url: modderUrl, seq: log.seq, changed: lib.version !== before })
     modderSeq = log.seq
@@ -367,7 +422,7 @@ function doSave(auto = false): void {
     difficulty,
     ...(fallen && { ended: true }),
   }
-  post({ t: 'saved', save, library: game.engine.lib.toJSON(), summary, auto })
+  post({ t: 'saved', save, library: sharedPart(game.engine.lib.toJSON(), kept), summary, auto })
 }
 
 /** How long the world stands still for the player's own question, in real seconds: an answer, a thing being made. */
@@ -446,7 +501,7 @@ function loop(): void {
   post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length }, codex: game.codex.version, learning })
   if (buildAim) post({ t: 'placement', preview: buildPreview(eng, buildAim.id, { map: frame.map, x: buildAim.tile.x, y: buildAim.tile.y }, buildAim.up) })
   if (eng.lib.version !== lastRecordsVersion || frame.fx.some((f) => f.t === 'undefined' || f.t === 'patched')) {
-    if (eng.lib.version !== lastRecordsVersion) (post({ t: 'library', library: eng.lib.toJSON() }), sendArts())
+    if (eng.lib.version !== lastRecordsVersion) (post({ t: 'library', library: sharedPart(eng.lib.toJSON(), kept), statuses: eng.lib.statuses }), sendArts(), sendRecipes())
     lastRecordsVersion = eng.lib.version
     sendRecords()
   }
@@ -466,8 +521,11 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   base = init.base
   if (init.prefetch !== undefined) prefetchOn = init.prefetch
   index = await fetchJson<WorldIndex>('index.json')
-  const lib = libraryFrom(init.library ?? init.save?.library, index.protectedFacts)
   const compatible = init.save?.world === index.version
+  // the shared library, with what the save loaded keeps of its own though another game's sync forgot it
+  const taken = withKept(init.library, init.save && !fresh && compatible ? init.save : undefined)
+  kept = { types: new Set(taken.kept.types), statuses: new Set(taken.kept.statuses) }
+  const lib = libraryFrom(taken.library ?? init.save?.library, index.protectedFacts)
   if (init.save && !fresh && compatible) {
     game = Game.load(init.save, index, ontology(), lib, played().upgradeSave)
     // an older save brought up to the world as it is now: the game's own upgrades, the author's, on loading
@@ -490,16 +548,23 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     if (init.look && looks && !lookProblems(init.look, looks).length) game.engine.author(() => (w.player.look = structuredClone(init.look)))
   }
   game.worldVersion = index.version
+  // what was learned past the checks of its time (an older client's copy) and nothing here needs is forgotten
+  for (const id of forgetInvalid(game.engine, kept.types)) console.info(`[library] forgotten on loading (no longer valid): ${id}`)
   // a night's sleep (a long step) passes a game hour a tick: the screen keeps up, and one lies asleep all the while
   game.engine.fastForwardChunk = TICKS_PER_HOUR
   // every skill the tree has, so a skill set in the bar can be cast from a loaded game (actives.ts)
   for (const s of played().skills.all) game.engine.skills.set(s.id, s)
   game.mods.onChange = () => sendRecords()
   lastMap = ''
+  // a game begun or loaded tells the main thread its library, whatever the last one's version was
+  lastRecordsVersion = -1
   await ensureMaps()
   post({ t: 'ready', stats: index.stats, name: index.name, resumed: !!init.save && !fresh && compatible })
   artSent.clear()
   sendArts()
+  // a new game: whatever the main thread was told before, it is told again
+  recipesSent = '\0'
+  sendRecipes()
   sendRecords()
   void connectModder(init.modder ?? modderUrl, init.library ? init.librarySeq : 0)
   if (timer) clearInterval(timer)
@@ -520,7 +585,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         await start(m)
         break
       case 'newGame': {
-        const library = game?.engine.lib.toJSON()
+        const library = game && sharedPart(game.engine.lib.toJSON(), kept)
         await start({ t: 'init', base, library }, true)
         break
       }
@@ -623,7 +688,8 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         game?.engine.controls.wear(m.item, m.putOn)
         break
       case 'craft': {
-        const r = recipeById()[m.id]
+        // the game's recipes, and those of things the world learned (the engine derives them from a patch's type)
+        const r = recipeOf(game?.engine, m.id)
         if (r) m.all ? game?.engine.controls.craftAll(r) : game?.engine.controls.craft(r)
         break
       }
@@ -702,7 +768,10 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'patch': {
         if (!game) break
+        const took = adoptAnswer(m.patch)
         const result = game.mods.submit(m.id, m.patch)
+        if (!result.ok) took.restore()
+        else took.done()
         post({ t: 'validation', id: m.id, result })
         sendRecords()
         break
@@ -739,7 +808,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         const w = eng.world
         if (m.op === 'teleport') eng.author(() => eng.travel(w.player, { map: m.map ?? w.posOf(w.player)!.map, x: m.x, y: m.y }))
         // into the bag, and onto a slot of it (the bag shows its slots)
-        if (m.op === 'give') eng.author(() => (w.create(m.type, { on: 'inside', holder: w.state.player }, m.tags ? { tags: m.tags } : {}), eng.controls.sync()))
+        // a type the world has: an unknown id would make a nameless thing that is saved with the game
+        if (m.op === 'give' && !w.onto.hasType(m.type)) w.fx.push({ t: 'log', text: { en: `No such type: ${m.type}.`, zh: `没有这个类型：${m.type}。` }, tone: 'bad' })
+        else if (m.op === 'give') eng.author(() => (w.create(m.type, { on: 'inside', holder: w.state.player }, m.tags ? { tags: m.tags } : {}), eng.controls.sync()))
         // the hour only goes forward (the next time it comes round): cooldowns and timers are ticks, and a clock
         // put back left them in the future (one could not move, nor strike, until it caught up)
         if (m.op === 'hour') {

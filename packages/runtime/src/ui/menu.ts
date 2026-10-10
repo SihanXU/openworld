@@ -3,11 +3,11 @@
 // every thread the world has learned, and whose act taught it) and the chest panel: the chest's
 // grid above the bag, a click moving a stack to the other side.
 
-import type { CodexEntry, CodexView, Frame, ItemInfo, Key, Look, Rule, Text, Tree } from '@openworld/engine'
+import type { CodexEntry, CodexView, Frame, ItemInfo, Key, Look, Recipe, Rule, Text, Tree } from '@openworld/engine'
 import { catalog, game } from '../game.ts'
 import { personLook } from '../assets/looks.ts'
 import { FH, FW, composeSprite } from '../assets/figure/sprite.ts'
-import { assetUrl } from '../render/assets.ts'
+import { artEpoch, assetUrl } from '../render/assets.ts'
 import type { LibraryView } from '../protocol.ts'
 import { SkillTree } from './skilltree.ts'
 import { WorldMap } from './worldmap.ts'
@@ -355,7 +355,7 @@ export class Menu {
   }
 
   private sigOf(f: Frame): string {
-    return `${this.tab}|${locale.value}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${f.player.stations.join()}|${this.picked}`
+    return `${this.tab}|${locale.value}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${f.player.stations.join()}|${this.picked}|${artEpoch}`
   }
 
   // ---------------------------------------------------------------- inventory
@@ -479,7 +479,7 @@ export class Menu {
     const have = (type: string) => f.player.slots.reduce((n, s) => n + (s && s.item.type === type ? s.count : 0), 0)
     const tool = (tag: string) => f.player.slots.some((s) => s?.item.tags.includes(tag))
     // the crafting panel shows what is made; the stall's offers are the stall's (its own tab)
-    const list = shelf ? game().crafting.recipes.filter((r) => r.station === 'stall' && r.group === shelf) : game().crafting.recipes.filter((r) => r.station !== 'stall')
+    const list = shelf ? game().crafting.recipes.filter((r) => r.station === 'stall' && r.group === shelf) : allRecipes().filter((r) => r.station !== 'stall')
     const verb = shelf === 'sell' ? (locale.value === 'zh' ? '出售' : 'Sell') : shelf ? (locale.value === 'zh' ? '购买' : 'Buy') : t('craftIt')
     const rows = list.map((r) => {
       // how many times what is carried makes it (the tools are not used up)
@@ -650,6 +650,14 @@ export class Menu {
   }
 }
 
+/** The recipes of things the world learned (the worker's `recipes`): made like the content's, listed after them. */
+let LEARNED: Recipe[] = []
+export function setLearnedRecipes(recipes: Recipe[]): void {
+  LEARNED = recipes
+}
+/** The game's recipes, and the learned things' after them. */
+const allRecipes = (): Recipe[] => [...game().crafting.recipes, ...LEARNED.filter((l) => !game().crafting.recipes.some((r) => r.id === l.id))]
+
 /** The crafting panel's items (each recipe's result, each material), keyed `recipe:<id>` / `need:<type>`: for their icons and tooltips. */
 function craftInfos(): ItemInfo[] {
   const of = (id: string, type: string, extra: { name?: ItemInfo['name']; tags?: string[]; props?: ItemInfo['props']; sprite?: string } = {}): ItemInfo | undefined => {
@@ -658,8 +666,11 @@ function craftInfos(): ItemInfo[] {
     if (!f) return extra.sprite && extra.name ? { id, type, sprite: extra.sprite, name: extra.name, tags: [...(extra.tags ?? [])], statuses: [], props: { ...(extra.props ?? {}) } } : undefined
     return { id, type, sprite: f.sprite, name: extra.name ?? { en: f.en, zh: f.zh }, tags: [...(f.tags ?? []), ...(extra.tags ?? [])], statuses: [], props: { ...(f.props ?? {}), ...(extra.props ?? {}) } }
   }
-  const needs = [...new Set([...game().crafting.recipes.flatMap((r) => r.needs.map((n) => n.type)), ...game().crafting.recipes.flatMap((r) => (r.tools ?? []).map(toolForm)).filter((x): x is string => !!x)])]
-  return [...game().crafting.recipes.map((r) => of(`recipe:${r.id}`, r.make.type, { name: r.name, tags: r.make.tags, props: r.make.props, sprite: r.sprite })), ...needs.map((n) => of(`need:${n}`, n))].filter((x): x is ItemInfo => !!x)
+  const recipes = allRecipes()
+  const needs = [...new Set([...recipes.flatMap((r) => r.needs.map((n) => n.type)), ...recipes.flatMap((r) => (r.tools ?? []).map(toolForm)).filter((x): x is string => !!x)])]
+  // a learned thing a recipe needs shows the picture and name of the recipe that makes it
+  const made = (n: string) => recipes.find((r) => r.make.type === n)
+  return [...recipes.map((r) => of(`recipe:${r.id}`, r.make.type, { name: r.name, tags: r.make.tags, props: r.make.props, sprite: r.sprite })), ...needs.map((n) => of(`need:${n}`, n, made(n) ? { name: made(n)!.name, sprite: made(n)!.sprite } : {}))].filter((x): x is ItemInfo => !!x)
 }
 
 /** The item form that stands for a tool tag in the crafting panel (an axe for `tool:axe`). */

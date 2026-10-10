@@ -122,7 +122,7 @@ export class Engine {
   /** Portal graph of every map (loaded or not): map -> outgoing portals. */
   graph: Record<string, { to: string; x: number; y: number; tx: number; ty: number }[]> = {}
   /** Every map's name and size, from the world's index (a quest's marker on a map not loaded yet, docs/quests.md). */
-  maps: Record<string, { name: Text; width: number; height: number }> = {}
+  maps: Record<string, { name: Text; width: number; height: number; regions?: Record<string, [number, number, number, number]> }> = {}
   /** Set when the player walked into a portal whose map isn't loaded yet. */
   pendingTransition?: { map: string; x: number; y: number; entry?: Entry }
   /** Ticks to run at once at the end of this tick: a long step (the overworld) passing (world-model.md §6.11). */
@@ -163,7 +163,8 @@ export class Engine {
   private touched = new Map<string, Ref>()
 
   constructor(state: WorldState, ontology: Ontology, lib: RuleLibrary) {
-    const onto = new OntologyIndex(ontology)
+    // this game's own definitions: what it learns is its own, the world's are left for the next game (another save)
+    const onto = new OntologyIndex({ ...ontology, types: { ...ontology.types }, statuses: { ...ontology.statuses } })
     for (const t of lib.types) onto.addType(t)
     for (const s of lib.statuses) onto.addStatus(s)
     this.world = new World(state, onto)
@@ -480,7 +481,15 @@ export class Engine {
   replay(ev: GameEvent): void {
     if (!ev.kind.startsWith('act/') || ev.kind === 'act/move') return this.queue({ ...ev, depth: 0 })
     const before = this.before(ev)
-    this.queue({ ...ev, depth: 0 })
+    // as `act` runs it: the act's own outcome, and what it sets off answered as it goes (an impulse sent
+    // before the host is used up meets it still there) — not queued behind the whole outcome, or a patch
+    // would do one thing the first time (replayed here) and another every time after
+    this.dispatching++
+    try {
+      this.dispatch({ ...ev, depth: 0 })
+    } finally {
+      this.dispatching--
+    }
     this.flush()
     this.see(ev, true, before)
     this.flush()
@@ -894,6 +903,15 @@ export class Engine {
     // a blow that found nothing (dodged, or the moment after a dash)
     if (dmg <= 0) return
     w.fx.push({ t: 'damage', who: e.id, amount: dmg, element })
+    // who felled it (the death screen): the source of this harm, never an older blow's; none for a fall, hunger, the world.
+    // A status's pulse from one now gone (a bleed they opened) keeps naming them, if they are the last who struck.
+    const status = by?.kind.startsWith('time/') && typeof by.params?.status === 'string' ? by.params.status : undefined
+    const giver = status ? w.statusBy({ e: e.id }, status) : undefined
+    if (attacker && attacker.id !== e.id) Object.assign((e.combat ??= {}), { lastHurtBy: attacker.id, lastHurtByType: attacker.type })
+    else if (e.combat && !(giver && giver !== e.id && e.combat.lastHurtBy === giver)) {
+      delete e.combat.lastHurtBy
+      delete e.combat.lastHurtByType
+    }
     // what has durability starts whole: its hp is its maxHp until it is struck
     // health stops at nothing: a blow past it is a blow that fells, not a debt (thresholds read lte 0)
     // health stops at nothing; what a combat module keeps from a lethal blow, it keeps (combat.lethal)

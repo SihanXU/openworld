@@ -1,6 +1,6 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, PlacementPreview, Pos, Rule, SaveData, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
+import type { Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, PlacementPreview, Pos, Recipe, Rule, SaveData, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
 
 /** Where the mouse points: its tile, and what is drawn at the point, top first (the keys act there when it is next to the player). */
 export type Tile = Aim
@@ -124,13 +124,15 @@ export type FromWorker =
   | { t: 'validation'; id?: string; result: ValidationResult }
   | { t: 'saved'; save: SaveData; library: LibraryData; summary: SaveSummary; /** the world's own save (no toast: on the overworld one comes with every block) */ auto?: boolean }
   /** The library changed (a patch was accepted or removed): keep it at once, not at the next save. */
-  | { t: 'library'; library: LibraryData }
+  | { t: 'library'; library: LibraryData; /** every learned status, this save's kept ones too: what the tooltips name */ statuses: StatusDef[] }
   | { t: 'loading'; what: string }
   /** The layer chooser's list for a key at a tile. */
   | { t: 'choices'; key: Key; tile?: Tile; list: { layer: number; name: Text; label?: Text; unknown?: boolean }[] }
   | { t: 'modder'; online: boolean; url?: string; model?: string | null }
   /** The pictures of things the world learned (types a patch introduced): drawn as textures `art:<id>`. */
   | { t: 'art'; arts: { id: string; art: PixelArt }[] }
+  /** The recipes of learned things (a patch's type made at hand or at a workbench from its makeup): the crafting panel lists them beside the content's. */
+  | { t: 'recipes'; recipes: Recipe[] }
   /** The modder is making things the world does not have yet; the act waits for them. */
   | { t: 'creating'; names: Text[] }
   | { t: 'error'; message: string }

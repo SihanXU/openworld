@@ -495,6 +495,8 @@ describe('the Mod port', () => {
     expect(spec.primitives.emit).toBeTruthy()
     expect(spec.impulses.strike).toBeTruthy()
     expect(spec.ontology.statuses.map((s) => s.id)).toContain('notched')
+    // a status is named for the model as a type is: `stirred` is the water's, not "agitated"
+    expect(spec.ontology.statuses.find((s) => s.id === 'stirred')?.name).toBe('stirred up')
 
     const v = port.submit(rec.id, stonePatch())
     expect(v.errors).toEqual([])
@@ -519,6 +521,38 @@ describe('the Mod port', () => {
     expect(eng.world.get('tree')?.frozenBy).toBeUndefined()
     expect(port.submit(port.records[0].id, stonePatch()).ok).toBe(true)
     expect(eng.lib.rules.has('patch/stone-wedges-dead-tree')).toBe(true)
+  })
+
+  it('lets the host adopt what its own answer brings before taking it, and puts it back when the answer is refused', async () => {
+    const calls: string[] = []
+    for (const [patch, taken] of [[stonePatch(), true], [{ artifacts: [{ kind: 'rule', rule: { id: 'patch/broken', host: { type: 'item/material/stone' }, on: 'act/use' } }] } as unknown as Patch, false]] as const) {
+      const eng = sandbox(stoneScenario())
+      const port = new ModPort(eng)
+      port.provider = { resolve: async () => patch }
+      // put back before the hole's default runs, so the default sees the world's definitions
+      const ranDefault = () => eng.world.fx.some((f) => f.t === 'log' && typeof f.text === 'object' && f.text.en === 'Nothing happens.')
+      port.adopt = (p) => (calls.push(`adopt ${p.artifacts.length}`), { restore: () => calls.push(`restore${ranDefault() ? ' after the default' : ''}`) })
+      stoneOnTree(eng)
+      await new Promise((r) => setTimeout(r, 0))
+      expect(port.records[0].status).toBe(taken ? 'patched' : 'rejected')
+    }
+    expect(calls).toEqual(['adopt 2', 'adopt 1', 'restore'])
+  })
+
+  it('lets the ground go when the outcome comes: a cell asked about takes the next act', () => {
+    const eng = sandbox(stoneScenario())
+    const port = new ModPort(eng)
+    port.provider = working
+    const ground = cellOf(eng, 2, 3)
+    eng.act('use', 'actor', ground)
+    expect(port.records[0]?.status).toBe('pending')
+    expect(eng.world.get((ground as { e: string }).e)!.frozenBy).toBe(port.records[0].id)
+    for (let i = 0; i < 120; i++) eng.tick()
+    expect(port.records[0].status).toBe('fallback')
+    // the cell's own thing is kept for its id, not in the state: it is let go all the same
+    expect(eng.world.get((ground as { e: string }).e)!.frozenBy).toBeUndefined()
+    eng.act('put', 'actor', ground, { instrument: { e: 'stone' } })
+    expect(eng.world.posOf(eng.world.get('stone')!)).toMatchObject({ x: 2, y: 3 })
   })
 
   it('credits a shared patch to this game\'s own request (a revision of its answer), and only that', () => {

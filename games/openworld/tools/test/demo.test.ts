@@ -2601,6 +2601,9 @@ req('C1', 'Chapter 1, offline: the night of the flame (the grey man takes it), t
   expect(w.hasStatus({ e: 'village.campfire' }, 'lit')).toBe(false)
   expect(w.posOf(w.get('npc.severin')!)?.map).toBe('offstage')
   expect(quest()).toBe(0.6)
+  // and it stays gone: the ones whose evening needs the fire do not light the Firstlight again
+  ticks(f, 600)
+  expect(w.hasStatus({ e: 'village.campfire' }, 'lit')).toBe(false)
   // dawn: the Church's courier, the proclamation; the courier gone again
   setHour(f, 2, 6)
   expect(ticks(f, 900, () => w.fact('ch1.letter') === 1 && !w.scene)).toBe(true)

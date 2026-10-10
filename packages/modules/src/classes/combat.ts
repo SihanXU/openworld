@@ -297,8 +297,6 @@ export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: E
   // a War Cry's guard, an Iron Guard's (actives.ts)
   if ((state.rallyUntil ?? 0) > w.state.tick) damage *= 0.7
   if ((state.ironUntil ?? 0) > w.state.tick) damage *= 0.4
-  state.lastHurtBy = attacker.id
-  state.lastHurtByType = attacker.type
   if (skill(w, e, 'evasive-step') && recentlyMoved(w, e)) damage *= 0.75
   if (skill(w, e, 'defiance') && w.num(e, 'hp') <= w.num(e, 'maxHp', 1) * 0.3) damage *= 0.75
   if (warrior(w, e, 'bulwark')) damage *= warrior(w, e, 'warlord') ? 0.7 : 0.85
