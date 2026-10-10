@@ -41,7 +41,9 @@ export function engineTaskDefs(): EngineTaskDef[] {
 /** The engine and content packages as a repository of their own. */
 export function engineWorkspace(): { dir: string; dispose: () => void } {
   const dir = mkdtempSync(join(tmpdir(), 'lsw-engine-'))
-  for (const f of ['package.json', 'tsconfig.base.json', 'vitest.config.ts']) copyFileSync(join(REPO, f), join(dir, f))
+  for (const f of ['package.json', 'tsconfig.base.json']) copyFileSync(join(REPO, f), join(dir, f))
+  // the tests of what the workspace holds (the repository's own config also runs the game's pages, which it has not)
+  writeFileSync(join(dir, 'vitest.config.ts'), "import { defineConfig } from 'vitest/config'\nexport default defineConfig({ test: { include: ['packages/*/test/**/*.test.ts', 'games/*/*/test/**/*.test.ts'], testTimeout: 30_000 } })\n")
   // the workspace list names only what is there
   const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'lsw-engine-task', private: true, type: 'module', workspaces: PACKAGES.map((p) => p.dir), scripts: { test: 'vitest run' }, devDependencies: pkg.devDependencies }, null, 2))

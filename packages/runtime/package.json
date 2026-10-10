@@ -2,11 +2,7 @@
   "name": "@openworld/runtime",
   "private": true,
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
+  "main": "src/game.ts",
   "dependencies": {
     "phaser": "^4.2.1"
   }

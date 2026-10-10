@@ -15,7 +15,7 @@ import {
 import { buildFord } from '../../tools/src/demo/world.ts'
 import { PEOPLE } from '../../tools/src/demo/people.ts'
 import type { PersonDef } from '../../tools/src/demo/person.ts'
-import { CATALOG } from '@openworld/runtime/src/assets/catalog.ts'
+import { CATALOG } from '../../client/src/catalog.ts'
 import { pngSize } from './png.ts'
 import { FACE_PX, lookUrls } from './looks.ts'
 

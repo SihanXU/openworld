@@ -4,12 +4,11 @@
 // map always on screen under the clock.
 
 import type { EntitySnap, Frame, MapData } from '@openworld/engine'
-import { buildOntology } from '@openworld-game/content'
+import { ontology } from '../game.ts'
 import type { Atlas } from '../protocol.ts'
 import { $, esc, prefs, t, tx } from './common.ts'
 
-const TERRAIN = buildOntology().terrains
-const colorOf = (id: string) => TERRAIN[id]?.color ?? '#000'
+const colorOf = (id: string) => ontology().terrains[id]?.color ?? '#000'
 /** World map pixels per tile at zoom 1. */
 const PX = 6
 const ZOOM: [number, number] = [0.25, 3]

@@ -1,5 +1,5 @@
 import type { Dir, Frame, PlacementPreview, PlacementRecipe, Text } from '@openworld/engine'
-import { BUILDINGS, FORM_BY_ID, PLACEMENTS, RECIPES, buildOntology } from '@openworld-game/content'
+import { game, ontology, perGame } from '../game.ts'
 import type { Tile, ToWorker } from '../protocol.ts'
 import { esc, locale, tx } from './common.ts'
 
@@ -18,17 +18,16 @@ interface Entry {
   result?: string
 }
 
-const ONTO = buildOntology()
 /** The spaces a type takes in its cell (docs/building.md §3): a floor takes the floor; a wall, a door, stairs the volume. */
 const spaces = (type?: string): string[] => {
-  for (let t = type; t; t = t.includes('/') ? t.slice(0, t.lastIndexOf('/')) : undefined) if (ONTO.types[t]?.occupies) return ONTO.types[t].occupies!
+  for (let t = type; t; t = t.includes('/') ? t.slice(0, t.lastIndexOf('/')) : undefined) if (ontology().types[t]?.occupies) return ontology().types[t].occupies!
   return []
 }
 /** A floor: laid on one's storey, or (R) in the ceiling over it. */
 const lays = (type?: string) => spaces(type).includes('floor')
 /** A thing that turns (stairs, a fence): it is set down facing a way (R turns it; by hand, away from one). */
 const turns = (type?: string): boolean => {
-  for (let t = type; t; t = t.includes('/') ? t.slice(0, t.lastIndexOf('/')) : undefined) if (ONTO.types[t]?.tags?.includes('turns')) return true
+  for (let t = type; t; t = t.includes('/') ? t.slice(0, t.lastIndexOf('/')) : undefined) if (ontology().types[t]?.tags?.includes('turns')) return true
   return false
 }
 /** A block drawn a storey high (its front in the cell, its top a tile up): a wall, a door, stairs. */
@@ -41,15 +40,15 @@ const PUT_HELP: Text = { en: 'Set down one you carry (as G does); with none, one
 const fromRecipe = (r: PlacementRecipe): Entry => ({ id: r.id, category: r.category, name: r.name, description: r.description, sprite: r.sprite, result: r.result, needs: r.needs.map((n) => ({ name: n.name, count: n.count, match: n.match, consume: n.consume })) })
 
 /** The things one makes and sets down (walls, floors, doors, beds, a workbench): from the recipes that make them. */
-const MADE: Entry[] = RECIPES.filter((r) => placeable(r.make.type)).map((r) => ({
+const made = (): Entry[] => perGame('build:made', () => game().crafting.recipes.filter((r) => placeable(r.make.type)).map((r) => ({
   id: `put:${r.make.type}`,
   category: 'building',
   name: r.name,
   description: PUT_HELP,
   sprite: r.sprite,
   put: r.make.type,
-  needs: r.needs.map((n) => ({ name: FORM_BY_ID[n.type] ? { en: FORM_BY_ID[n.type].en, zh: FORM_BY_ID[n.type].zh } : { en: n.type.split('/').pop()!, zh: n.type.split('/').pop()! }, count: n.count, type: n.type, consume: true })),
-}))
+  needs: r.needs.map((n) => ({ name: game().items.forms[n.type] ? { en: game().items.forms[n.type].en, zh: game().items.forms[n.type].zh } : { en: n.type.split('/').pop()!, zh: n.type.split('/').pop()! }, count: n.count, type: n.type, consume: true })),
+})))
 
 /**
  * The build palette (B): everything one can set in a place — the things one makes and carries
@@ -60,7 +59,7 @@ const MADE: Entry[] = RECIPES.filter((r) => placeable(r.make.type)).map((r) => (
  */
 export class BuildingMode {
   open = false
-  selected: Entry = MADE[0] ?? fromRecipe(BUILDINGS[0])
+  selected: Entry = made()[0] ?? fromRecipe(game().crafting.buildings[0])
   category: PlacementRecipe['category'] = 'building'
   frame?: Frame
   preview?: PlacementPreview
@@ -111,12 +110,12 @@ export class BuildingMode {
 
   /** The palette's entries in the open category: what is made and set down first, then the placement recipes. */
   private entries(): Entry[] {
-    if (this.category !== 'building') return PLACEMENTS.filter((r) => r.category === this.category).map(fromRecipe)
+    if (this.category !== 'building') return game().crafting.placements.filter((r) => r.category === this.category).map(fromRecipe)
     // anything else carried that is set in a place (a found chest, a crate) is offered too
     const carried = [...(this.frame?.player.inventory ?? []), ...(this.frame?.player.held ? [this.frame.player.held] : [])]
-    const extra = [...new Map(carried.filter((it) => placeable(it.type) && !MADE.some((m) => m.put === it.type)).map((it) => [it.type, it])).values()]
+    const extra = [...new Map(carried.filter((it) => placeable(it.type) && !made().some((m) => m.put === it.type)).map((it) => [it.type, it])).values()]
       .map((it): Entry => ({ id: `put:${it.type}`, category: 'building', name: it.name, description: PUT_HELP, sprite: it.sprite, put: it.type, needs: [] }))
-    return [...MADE, ...extra, ...BUILDINGS.map(fromRecipe)]
+    return [...made(), ...extra, ...game().crafting.buildings.map(fromRecipe)]
   }
 
   /** R: a floor between one's storey and the ceiling over it; anything else the next way round (clockwise), from the way it would face now. */

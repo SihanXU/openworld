@@ -4,7 +4,7 @@
 // dialogue box and the yes/no question, speech bubbles and floating numbers.
 
 import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Mood, type Text, type WorldIndex } from '@openworld/engine'
-import { CATALOG } from '../assets/catalog.ts'
+import { catalog } from '../game.ts'
 import { assetUrl, cssAssetUrl } from '../render/assets.ts'
 import { $, MOOD_GLYPH, SLOT_KEYS, controlsTable, esc, locale, prefs, t, tx } from './common.ts'
 import { skillPng } from './skillIcons.ts'
@@ -90,14 +90,14 @@ export class Hud {
         <div class="barrow"><div class="toolbar wood" id="toolbar"></div><div class="toolbar wood offhand-bar" id="offhandBar"></div></div>
       </div>
       <div class="corner" id="corner">
-        <button class="cbtn wood" id="questBtn" title="L"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerQuests.img)}" alt=""><kbd>L</kbd><span class="badge hidden" id="questBadge"></span></button>
-        <button class="cbtn wood" id="buildBtn" title="B"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerBuild.img)}" alt=""><kbd>B</kbd></button>
-        <button class="cbtn wood" id="bagBtn" title="I"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerBag.img)}" alt=""><kbd>I</kbd></button>
-        <button class="cbtn wood" id="skillBtn" title="K"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerSkills.img)}" alt=""><kbd>K</kbd><span class="badge hidden" id="skillBadge"></span></button>
-        <button class="cbtn wood" id="jbtn" title="J"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerJournal.img)}" alt=""><kbd>J</kbd></button>
-        <button class="cbtn wood" id="craftBtn" title="C"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerCraft.img)}" alt=""><kbd>C</kbd></button>
+        <button class="cbtn wood" id="questBtn" title="L"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerQuests.img)}" alt=""><kbd>L</kbd><span class="badge hidden" id="questBadge"></span></button>
+        <button class="cbtn wood" id="buildBtn" title="B"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerBuild.img)}" alt=""><kbd>B</kbd></button>
+        <button class="cbtn wood" id="bagBtn" title="I"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerBag.img)}" alt=""><kbd>I</kbd></button>
+        <button class="cbtn wood" id="skillBtn" title="K"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerSkills.img)}" alt=""><kbd>K</kbd><span class="badge hidden" id="skillBadge"></span></button>
+        <button class="cbtn wood" id="jbtn" title="J"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerJournal.img)}" alt=""><kbd>J</kbd></button>
+        <button class="cbtn wood" id="craftBtn" title="C"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerCraft.img)}" alt=""><kbd>C</kbd></button>
         <button class="cbtn wood" id="skPanelBtn" title="U"><img class="cb-icon" src="${skillPng('whirlwind')}" alt=""><kbd>U</kbd></button>
-        <button class="cbtn wood" id="optionsBtn" title="Esc"><img class="cb-icon" src="${assetUrl(CATALOG.ui.cornerOptions.img)}" alt=""><kbd>Esc</kbd></button>
+        <button class="cbtn wood" id="optionsBtn" title="Esc"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerOptions.img)}" alt=""><kbd>Esc</kbd></button>
       </div>
       <div class="msgs" id="msgs"></div>
       <div class="mapname" id="mapname"></div>
@@ -108,7 +108,7 @@ export class Hud {
       <div class="fade hidden" id="fade"><div id="fadeText"></div></div>
       <div class="card hidden" id="card"><div class="card-text" id="cardText"></div><div class="dmore">▼</div></div>`
     $('#hotbar').style.setProperty('--heart', cssAssetUrl('Ui/Receptacle/Heart.png'))
-    $('#hotbar').style.setProperty('--drum', cssAssetUrl(CATALOG.ui.drumstick.img))
+    $('#hotbar').style.setProperty('--drum', cssAssetUrl(catalog().ui.drumstick.img))
     $('#jbtn').onclick = () => this.send.openJournal()
     $('#bagBtn').onclick = () => this.send.toggleInventory()
     $('#craftBtn').onclick = () => this.send.toggleCraft()

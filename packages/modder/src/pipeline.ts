@@ -516,6 +516,7 @@ export class Modder {
       request: req,
       library: lib,
       ontology: library.fullOntology(lib),
+      base: library.ontology,
       spec: buildModSpec(library.ontology, lib),
       revise: eo.revise ? { rules: replaces, notes: eo.revise.notes } : undefined,
     })
@@ -567,7 +568,7 @@ export class Modder {
         if (!req?.scenario) return undefined
         const before = this.opts.library.fork((e) => !('patch' in e && e.request === req.id))
         if (before.covering(req)) return undefined // something else answers it now: no test of the harness
-        const repo = await materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), spec: buildModSpec(before.ontology, before.lib) })
+        const repo = await materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), base: before.ontology, spec: buildModSpec(before.ontology, before.lib) })
         // the task carries its own release: its workspace and its container go with it, whoever cleans up
         return { ...repo.task, terms: ep.terms, dispose: repo.dispose }
       },

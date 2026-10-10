@@ -95,7 +95,7 @@ function setup(model?: ScriptedModel) {
 describe('a world task as a repository', () => {
   it('lays the world out as files, and turns what the agent added into a patch', async () => {
     const lib = new RuleLibrary(BASE)
-    const repo = await materializeWorld({ request: request(), library: lib, ontology: onto, spec: buildModSpec(onto, lib), isolation: 'none' })
+    const repo = await materializeWorld({ request: request(), library: lib, ontology: onto, base: onto, spec: buildModSpec(onto, lib), isolation: 'none' })
     try {
       expect(readFileSync(join(repo.dir, 'ISSUE.md'), 'utf8')).toContain('# Undefined outcome: green slime is sent offered (the thing: Stone)')
       const issue = readFileSync(join(repo.dir, 'ISSUE.md'), 'utf8')
@@ -118,7 +118,7 @@ describe('a world task as a repository', () => {
 
   it('runs the validator as the repository\'s tests', { timeout: 120_000 }, async () => {
     const lib = new RuleLibrary(BASE)
-    const repo = await materializeWorld({ request: request(), library: lib, ontology: onto, spec: buildModSpec(onto, lib), isolation: 'none' })
+    const repo = await materializeWorld({ request: request(), library: lib, ontology: onto, base: onto, spec: buildModSpec(onto, lib), isolation: 'none' })
     try {
       // the task's own tests run the validator from the engine's code, not the workspace's file
       expect(repo.task.tests!.command).not.toMatch(/validate\.mjs/)
@@ -145,7 +145,7 @@ describe('a world task as a repository', () => {
   // where a Docker daemon answers (the Linux host): the boundary itself, not a description of it
   it.runIf(DOCKER)('in a container: the engine is read-only, the secrets and the network are out of reach, the validator runs', { timeout: 300_000 }, async () => {
     const lib = new RuleLibrary(BASE)
-    const repo = await materializeWorld({ request: request(), library: lib, ontology: onto, spec: buildModSpec(onto, lib), isolation: 'docker' })
+    const repo = await materializeWorld({ request: request(), library: lib, ontology: onto, base: onto, spec: buildModSpec(onto, lib), isolation: 'docker' })
     try {
       const env = repo.task.env
       expect(env.isolated).toBe(true)

@@ -13,14 +13,14 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Game, RuleLibrary, TICKS_PER_HOUR, tickAt, type Engine, type Entity, type Key, type UndefinedRecord } from '@openworld/engine'
-import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
+import { BASE_RULES, GAME, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { modelFromEnv, openModder, type WorldEpisode } from '@openworld/modder'
 import { AT, STAND, buildFord } from './demo/world.ts'
 
-openModder({ data: mkdtempSync(join(tmpdir(), 'lsw-warm-')), model: null }) // loads .env
+openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-warm-')), model: null }) // loads .env
 const model = modelFromEnv()
 if (!model) throw new Error('no model')
-const modder = openModder({ data: mkdtempSync(join(tmpdir(), 'lsw-live-')), model })
+const modder = openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-live-')), model })
 const { state } = modder.opts
 const h = state.harness()
 state.setHarness({ ...h, review: { ...h.review, enabled: false }, reflect: { ...h.reflect, enabled: false }, escalate: false, revise: false }, 'live smoke')

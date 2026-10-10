@@ -4,7 +4,7 @@
 // restores in blue and gold; its traits as purple italic lore; statuses and an owner in red.
 
 import type { Frame, ItemInfo } from '@openworld/engine'
-import { MATERIALS, PROFESSION_BY_ID, RELICS, STATUSES } from '@openworld-game/content'
+import { game, ontology, professionById } from '../game.ts'
 import { esc, locale, tx } from './common.ts'
 
 const L = (en: string, zh: string) => (locale.value === 'zh' ? zh : en)
@@ -143,7 +143,7 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   trait(p['night:def'], `+${p['night:def']} Defence at night`, `入夜后防御 +${p['night:def']}`)
   trait(p['night:atk'], `+${p['night:atk']} Attack at night`, `入夜后攻击 +${p['night:atk']}`)
   // a Stigmatic piece's power: one of its kind in the world
-  const relic = typeof p.relic === 'string' ? RELICS[p.relic] : undefined
+  const relic = typeof p.relic === 'string' ? game().items.relics[p.relic] : undefined
   if (relic) {
     out.push('<div class="gap"></div>', line(`✦ ${esc(L(relic.en, relic.zh))} · ${L('Unique', '唯一')}`, QUALITY_COLOR.legendary))
     out.push(line(esc(L(relic.text.en, relic.text.zh)), '#ffb199', 'lore'))
@@ -151,7 +151,7 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   // whose it is to fight with: a profession's own, or common to all (and no profession's talents)
   const need = it.tags.find((g) => g.startsWith('profession:'))?.slice(11)
   if (need) {
-    const role = PROFESSION_BY_ID[need]
+    const role = professionById()[need]
     const name = role ? L(role.name.en, role.name.zh) : need
     out.push(line(esc(L(`${name} only`, `${name}专属`)), ctx.profession === need ? '#ffaa00' : '#ff5555'))
   } else if (family === 'weapon') out.push(line(L('Common weapon: no profession talents', '通用武器：不受职业天赋加成'), '#aaaaaa'))
@@ -169,11 +169,11 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   for (const [, en, zh] of abilities) out.push(line(L(en, zh), '#5555ff'))
   // traits: the material and what it is like
   const material = it.tags.find((g) => g.startsWith('material:'))?.slice(9)
-  const traits = [material && MATERIALS[material] ? L(MATERIALS[material].en, MATERIALS[material].zh) : '', ...it.tags.filter((g) => TRAIT[g]).map((g) => L(...TRAIT[g]))].filter(Boolean)
+  const traits = [material && game().items.materials[material] ? L(game().items.materials[material].en, game().items.materials[material].zh) : '', ...it.tags.filter((g) => TRAIT[g]).map((g) => L(...TRAIT[g]))].filter(Boolean)
   if (traits.length) out.push(line(esc([...new Set(traits)].join(' · ')), '#aa00aa', 'lore'))
   // what has happened to it, and whose it is
   for (const s of it.statuses) {
-    const def = STATUSES.find((d) => d.id === s)
+    const def = ontology().statuses[s]
     out.push(line(esc(def ? tx(def.name) : s), '#ff5555'))
   }
   if (typeof p.owner === 'string' && p.owner) out.push(line(esc(L(`Belongs to ${ctx.nameOf(p.owner) ?? p.owner}`, `属于${ctx.nameOf(p.owner) ?? p.owner}`)), '#ff5555'))

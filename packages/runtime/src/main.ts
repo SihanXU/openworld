@@ -5,7 +5,7 @@
 
 import Phaser from 'phaser'
 import { CEILING, type Dir, type Frame, type ItemInfo, type Key, type LibraryData, type Mood, type SaveData, type Text } from '@openworld/engine'
-import { CATALOG } from './assets/catalog.ts'
+import { catalog, newWorker } from './game.ts'
 import type { FromWorker, Tile, ToWorker } from './protocol.ts'
 import { cssAssetUrl, registerArt } from './render/assets.ts'
 import { WorldScene } from './render/scene.ts'
@@ -32,7 +32,7 @@ const WORLD = 'world'
 /** The modder service: ?modder=<url> (or =off), else VITE_MODDER_URL, else a local one in development. */
 const MODDER = PARAMS.get('modder') === 'off' ? undefined : PARAMS.get('modder') || import.meta.env.VITE_MODDER_URL || (import.meta.env.DEV ? 'http://localhost:8787' : undefined)
 const scene = new WorldScene()
-const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
+const worker = newWorker()
 const send = (m: ToWorker) => worker.postMessage(m)
 // dev-only hook for scripted testing from the console
 // development: lsw.god() toggles the player's invulnerability (lsw.god(true) / lsw.god(false)); ?god=1 turns it on at start
@@ -149,7 +149,7 @@ const tooltip = new Tooltip(() => ({
   },
 }))
 menu.registerTip = (key, info) => tooltip.register(key, info)
-document.documentElement.style.setProperty('--drum-icon', cssAssetUrl(CATALOG.ui.drumstick.img))
+document.documentElement.style.setProperty('--drum-icon', cssAssetUrl(catalog().ui.drumstick.img))
 // what a new thread is called in the player's language: its doc is the model's English (the
 // Threadbook's), so in Chinese its label says it, when it names no one ("拔草"), else nothing more
 hud.threadDoc = (rule) => {
@@ -226,7 +226,7 @@ menu.facesetOf = faceset
 const paintIcons = (items: ItemInfo[]) => {
   for (const it of items) {
     // an item's own icon, else (a thing that is built: a workbench, a bed) the picture it stands as
-    const d = it.sprite.startsWith('art:') && scene.textures.exists(it.sprite) ? { img: it.sprite, x: 0, y: 0, w: 16, h: 16 } : (CATALOG.items[it.sprite] ?? CATALOG.fixtures[it.sprite]?.base)
+    const d = it.sprite.startsWith('art:') && scene.textures.exists(it.sprite) ? { img: it.sprite, x: 0, y: 0, w: 16, h: 16 } : (catalog().items[it.sprite] ?? catalog().fixtures[it.sprite]?.base)
     if (!d) continue
     const c = crop(d.img, d.x, d.y, d.w, d.h)
     if (!c) continue
@@ -240,7 +240,7 @@ const paintIcons = (items: ItemInfo[]) => {
   }
   // portraits in the Social tab, by character look
   document.querySelectorAll<HTMLElement>('[data-look]:empty').forEach((el) => {
-    const a = CATALOG.characters[el.dataset.look!]
+    const a = catalog().characters[el.dataset.look!]
     const path = a?.faceset ? `${a.dir}/${a.faceset}` : undefined
     if (!path || !scene.textures.exists(path)) return
     const src = scene.textures.get(path).getSourceImage() as HTMLImageElement
@@ -252,8 +252,8 @@ hud.paintIcons = paintIcons
 menu.paintIcons = paintIcons
 people.paintIcons = paintIcons
 building.paint = (sprite, across) => {
-  const f = CATALOG.fixtures[sprite]
-  const d = (across && f?.across) || f?.base || CATALOG.items[sprite]
+  const f = catalog().fixtures[sprite]
+  const d = (across && f?.across) || f?.base || catalog().items[sprite]
   return d ? crop(d.img, d.x, d.y, d.w, d.h) : undefined
 }
 

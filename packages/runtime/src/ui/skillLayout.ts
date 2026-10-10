@@ -2,7 +2,7 @@
 // skills are designed; learning starts at a branch's first skill, not at its hub.
 
 import type { SkillDef } from '@openworld/engine'
-import { SKILLS, SKILL_BRANCHES, type SkillDirection } from '@openworld-game/content'
+import { game } from '../game.ts'
 
 const BRANCH_RADIUS = 170
 const SKILL_RADIUS = 300
@@ -20,12 +20,12 @@ const polar = (radius: number, angle: number): Placed => {
   return { x: radius * Math.cos(rad), y: radius * Math.sin(rad), angle }
 }
 
-export function layoutBranches(direction: SkillDirection): Map<string, Placed> {
-  const branches = SKILL_BRANCHES.filter((b) => b.direction === direction)
+export function layoutBranches(direction: string): Map<string, Placed> {
+  const branches = game().skills.branches.filter((b) => b.direction === direction)
   return new Map(branches.map((b, i) => [b.id, polar(BRANCH_RADIUS, -90 + (i * 360) / branches.length)]))
 }
 
-export function layoutSkills(skills: SkillDef[] = SKILLS, direction: SkillDirection = 'combat', profession = ''): Map<string, Placed> {
+export function layoutSkills(skills: SkillDef[] = game().skills.all, direction: string = 'combat', profession = ''): Map<string, Placed> {
   const branches = layoutBranches(direction)
   const allowed = skills.filter((s) => !s.profession || s.profession === profession)
   const kids = new Map<string, SkillDef[]>()

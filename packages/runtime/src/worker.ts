@@ -34,10 +34,13 @@ import {
   type Engine,
   type PlacementPreview,
   restoreLibrary,
+  decodeRawChunk,
+  decodeRawMap,
+  type RawChunk,
   CEILING,
   TICKS_PER_HOUR,
 } from '@openworld/engine'
-import { BASE_RULES, BOSS_LAYOUT, createBoss, COMPANION_LAYOUT, FIRSTLIGHT_LAYOUT, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILL_BY_ID, SKILLS, STORY_RULES, buildOntology, decodeChunk, decodeMap, migrateBosses, migrateCompanion, migrateFirstlight, wildChunkFor, type RawChunk } from '@openworld-game/content'
+import { game as played, ontology, placementById, professionById, recipeById, skillById } from './game.ts'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
@@ -70,14 +73,15 @@ let saveEvery = 0
 /** The dev console's summon: a boss to set down once its map is the one the player stands on (loaded). */
 let summon: { kit: string; map: string; x: number; y: number } | undefined
 
-const ontology = buildOntology()
+/** A map file of the game's, read through its terrain characters. */
+const chunkOf = async (id: string) => decodeRawChunk(await fetchJson<RawChunk>(`maps/${id}.json`), played().terrainChars)
 
 /** The build palette's entries that set a thing down (`put:<type>`), beside the placement recipes. */
 const PUT = 'put:'
 
 /** What the build palette would do at a cell: a placement recipe's plan, or setting a thing down. */
 function buildPreview(eng: Engine, id: string, at: { map: string; x: number; y: number }, up = false): PlacementPreview {
-  if (!id.startsWith(PUT)) return previewPlacement(eng, eng.world.state.player, PLACEMENT_BY_ID[id], at)
+  if (!id.startsWith(PUT)) return previewPlacement(eng, eng.world.state.player, placementById()[id], at)
   const pv = eng.controls.previewPlace(id.slice(PUT.length), { x: at.x, y: at.y }, up)
   return { id, at, ok: pv.ok, reason: pv.reason, have: [pv.carried] }
 }
@@ -229,7 +233,7 @@ async function syncLibrary(): Promise<void> {
 
 /** Base rules are always fresh from content; patches (and their types/statuses) persist, each validated again (engine `restoreLibrary`). */
 function libraryFrom(saved: LibraryData | undefined, protectedFacts: string[] = []): RuleLibrary {
-  return restoreLibrary([...BASE_RULES, ...STORY_RULES], saved, ontology, protectedFacts, (id, why) => console.warn(`[library] a saved patch rule is not restored: ${id}: ${why}`))
+  return restoreLibrary(played().rules, saved, ontology(), protectedFacts, (id, why) => console.warn(`[library] a saved patch rule is not restored: ${id}: ${why}`))
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -246,8 +250,8 @@ async function ensureMaps(): Promise<void> {
     post({ t: 'loading', what: id })
     try {
       // a wilderness is made here, from the world's seed and its cell (world-model.md §5.7); the rest is fetched
-      const made = wildChunkFor(game.engine.world, id)
-      const chunk = made ?? decodeChunk(await fetchJson<RawChunk>(`maps/${id}.json`))
+      const made = played().wild?.(game.engine.world, id)
+      const chunk = made ?? (await chunkOf(id))
       if (game.engine.world.state.loadedMaps.includes(id)) game.loadMapData(chunk.map)
       game.loadChunk(chunk)
     } catch (err) {
@@ -314,7 +318,7 @@ async function atlas(): Promise<Atlas | undefined> {
     let terrain = w.state.maps[m.id]?.terrain ?? terrainCache.get(m.id)
     if (!terrain) {
       try {
-        terrain = decodeMap((await fetchJson<RawChunk>(`maps/${m.id}.json`)).map).terrain
+        terrain = decodeRawMap((await fetchJson<RawChunk>(`maps/${m.id}.json`)).map, played().terrainChars).terrain
         terrainCache.set(m.id, terrain)
       } catch {
         continue
@@ -431,20 +435,18 @@ function loop(): void {
   }
   if (game.neededMaps().length) void ensureMaps()
   const w = eng.world
-  if (summon && w.posOf(w.player)?.map === summon.map && w.state.maps[summon.map]) {
+  const summonOf = played().summon
+  if (summon && summonOf && w.posOf(w.player)?.map === summon.map && w.state.maps[summon.map]) {
     const s = summon
     summon = undefined
-    // the campaign's knight as Chapter 1 sets him (tools quest/chapter1.ts), on the nearest open tile of his field
-    // clear of any boss still standing there (their bodies are large)
+    // the game's body for the kit, on the nearest open tile of its field clear of any boss still standing there
+    // (their bodies are large)
     const bosses = w.entitiesOnMap(s.map).filter((e) => e.boss && w.num(e, 'hp') > 0).map((e) => w.posOf(e)!)
     const clear = (x: number, y: number) => w.walkable(s.map, x, y) && bosses.every((b) => Math.max(Math.abs(b.x - x), Math.abs(b.y - y)) >= 4)
     const at = [[0, 0], [0, -4], [-5, 0], [0, 4], [5, 0], [-5, -4], [-5, 4]].map(([dx, dy]) => ({ x: s.x + dx, y: s.y + dy })).find((p) => clear(p.x, p.y)) ?? { x: s.x, y: s.y }
-    eng.author(() => {
-      const knight = createBoss(s.kit, { map: s.map, ...at }, `${s.map}.${s.kit}.${w.state.tick}`)
-      if (s.kit === 'alberic') knight.props = { hp: 300, maxHp: 300, def: 1, atk: 5, skillScale: 0.4 }
-      w.add(knight)
-    })
-    w.fx.push({ t: 'log', text: { en: 'The White Knight stands in his field again.', zh: '白骑士再次站在了他的田野上。' }, tone: 'warn' })
+    const made = summonOf(s.kit, { map: s.map, ...at }, `${s.map}.${s.kit}.${w.state.tick}`)
+    eng.author(() => w.add(made.body))
+    if (made.say) w.fx.push({ t: 'log', text: made.say, tone: 'warn' })
   }
   const pos = w.posOf(w.player)
   if (!pos || !w.state.maps[pos.map]) return
@@ -498,43 +500,31 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   const lib = libraryFrom(init.library ?? init.save?.library, index.protectedFacts)
   const compatible = init.save?.world === index.version
   if (init.save && !fresh && compatible) {
-    game = Game.load(init.save, index, ontology, lib)
-    if (!game.engine.world.fact(FIRSTLIGHT_LAYOUT)) {
-      const [ford, village] = await Promise.all(['ford', 'meadow'].map((id) => fetchJson<RawChunk>(`maps/${id}.json`)))
-      const g = game
-      // an older save brought up to the world as it is now: the author's, on loading
-      g.engine.author(() => migrateFirstlight(g, index, decodeChunk(ford), decodeChunk(village)))
-    }
-    if (!game.engine.world.fact(BOSS_LAYOUT)) {
-      const g = game
-      // the removed boss kits' bodies go (the author's, on loading)
-      g.engine.author(() => migrateBosses(g))
-    }
-    if (!game.engine.world.fact(COMPANION_LAYOUT)) {
-      const g = game
-      // the bird became a fairy (the author's, on loading)
-      g.engine.author(() => migrateCompanion(g))
-    }
+    game = Game.load(init.save, index, ontology(), lib)
+    // an older save brought up to the world as it is now: the game's own upgrades, the author's, on loading
+    await played().upgrade?.(game, { index, chunk: chunkOf })
     // re-fetch base terrain for the map we are standing on
     const here = game.engine.world.posOf(game.engine.world.player)?.map
     if (here) {
-      const made = wildChunkFor(game.engine.world, here)
-      game.loadMapData(made?.map ?? decodeMap((await fetchJson<RawChunk>(`maps/${here}.json`)).map))
+      const made = played().wild?.(game.engine.world, here)
+      game.loadMapData(made?.map ?? (await chunkOf(here)).map)
     }
     for (const id of game.engine.world.state.loadedMaps) if (id !== here) delete game.engine.world.state.maps[id]
   } else {
-    game = Game.create(index, ontology, lib, init.start)
-    // a new game is already the world as it is now: no migration is due (the author's, on creating it)
+    game = Game.create(index, ontology(), lib, init.start)
+    // a new game is already the world as it is now: no upgrade is due (the game's, the author's, on creating it)
     const w = game.engine.world
-    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact('game.difficulty', init.difficulty ?? 'normal')))
+    played().fresh?.(game)
+    game.engine.author(() => w.setFact('game.difficulty', init.difficulty ?? 'normal'))
     // the traveller the player made (docs/looks.md): a look the world's table knows, else the world's own
-    if (init.look && ontology.looks && !lookProblems(init.look, ontology.looks).length) game.engine.author(() => (w.player.look = structuredClone(init.look)))
+    const looks = ontology().looks
+    if (init.look && looks && !lookProblems(init.look, looks).length) game.engine.author(() => (w.player.look = structuredClone(init.look)))
   }
   game.worldVersion = index.version
   // a night's sleep (a long step) passes a game hour a tick: the screen keeps up, and one lies asleep all the while
   game.engine.fastForwardChunk = TICKS_PER_HOUR
   // every skill the tree has, so a skill set in the bar can be cast from a loaded game (actives.ts)
-  for (const s of SKILLS) game.engine.skills.set(s.id, s)
+  for (const s of played().skills.all) game.engine.skills.set(s.id, s)
   game.mods.onChange = () => sendRecords()
   lastMap = ''
   await ensureMaps()
@@ -596,10 +586,10 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (game) game.engine.story.skipLesson()
         break
       case 'buildAim':
-        buildAim = m.id && m.tile && (PLACEMENT_BY_ID[m.id] || m.id.startsWith(PUT)) ? { id: m.id, tile: m.tile, up: m.up } : undefined
+        buildAim = m.id && m.tile && (placementById()[m.id] || m.id.startsWith(PUT)) ? { id: m.id, tile: m.tile, up: m.up } : undefined
         break
       case 'build': {
-        if (!game || paused || panel || game.engine.world.state.question || !(PLACEMENT_BY_ID[m.id] || m.id.startsWith(PUT))) break
+        if (!game || paused || panel || game.engine.world.state.question || !(placementById()[m.id] || m.id.startsWith(PUT))) break
         const eng = game.engine
         const at = eng.world.posOf(eng.world.player)
         if (!at) break
@@ -613,7 +603,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         }
         // a lesson at hand may let the palette set down only what it teaches (docs/prologue.md, the drills)
         if (!eng.controls.allows('build', { type: m.id, at: m.tile })) break
-        const result = performPlacement(eng, eng.world.state.player, PLACEMENT_BY_ID[m.id], to, m.facing)
+        const result = performPlacement(eng, eng.world.state.player, placementById()[m.id], to, m.facing)
         if (!result.ok) eng.world.fx.push({ t: 'log', text: result.reason, tone: 'warn' })
         post({ t: 'placement', preview: result })
         break
@@ -664,7 +654,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         game?.engine.controls.wear(m.item, m.putOn)
         break
       case 'craft': {
-        const r = RECIPE_BY_ID[m.id]
+        const r = recipeById()[m.id]
         if (r) m.all ? game?.engine.controls.craftAll(r) : game?.engine.controls.craft(r)
         break
       }
@@ -683,10 +673,10 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         game?.engine.controls.chooseBoon(m.id)
         break
       case 'profession':
-        game?.engine.controls.takeProfession(PROFESSION_BY_ID[m.id], SKILLS)
+        game?.engine.controls.takeProfession(professionById()[m.id], played().skills.all)
         break
       case 'learn': {
-        const s = SKILL_BY_ID[m.id]
+        const s = skillById()[m.id]
         if (s) game?.engine.controls.learn(s)
         break
       }

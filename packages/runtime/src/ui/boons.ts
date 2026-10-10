@@ -3,7 +3,7 @@
 // (engine/src/boons.ts). Five slots, the ones not yet found shown as sealed.
 
 import type { Frame } from '@openworld/engine'
-import { BOON_BY_ID } from '@openworld-game/content'
+import { game } from '../game.ts'
 import { $, esc, locale, tx } from './common.ts'
 
 /** How many boons the journey holds (the slots shown). */
@@ -36,7 +36,7 @@ export class BoonPanel {
     this.sig = sig
     const unlocked = b?.unlocked ?? []
     const cards = Array.from({ length: SLOTS }, (_, i) => {
-      const def = BOON_BY_ID[unlocked[i]]
+      const def = game().boons[unlocked[i]]
       if (!def) return `<div class="pf-card sealed"><div class="pf-icon">🔒</div><div class="pf-body"><b>${zh ? '尚未获得' : 'Not yet found'}</b><div class="pf-doc">${zh ? '击败持印者后，小啾会接住其圣印的一部分力量。' : 'Pip takes up part of a seal\'s power when its bearer falls.'}</div></div></div>`
       const mine = def.id === b?.active
       const action = mine

@@ -5,7 +5,7 @@
 // as not had (engine actives.ts knownActives).
 
 import type { Frame, KnownActive } from '@openworld/engine'
-import { SKILL_BY_ID } from '@openworld-game/content'
+import { skillById } from '../game.ts'
 import { $, esc, locale, tx } from './common.ts'
 import { skillPng } from './skillIcons.ts'
 import { SKILLBAR_KEYS } from './skillbar.ts'
@@ -48,11 +48,11 @@ export class SkillPanel {
     }
     const slots = SKILLBAR_KEYS.map((k, i) => {
       const s = bar[i]
-      const def = s ? SKILL_BY_ID[s.id] : undefined
+      const def = s ? skillById()[s.id] : undefined
       return `<div class="sp-slot${def ? '' : ' empty'}${s && !s.usable ? ' lost' : ''}${this.picked ? ' target' : ''}" data-slot="${i}" title="${def ? esc(tx(def.name)) : ''}">${def ? `<img src="${skillPng(def.icon ?? def.id)}" alt="" draggable="false">` : ''}<kbd>⇧${k}</kbd></div>`
     }).join('')
     const cards = known.map((k) => {
-      const def = SKILL_BY_ID[k.id]
+      const def = skillById()[k.id]
       if (!def) return ''
       const at = bar.findIndex((s) => s?.id === k.id)
       return `<div class="sp-card${this.picked === k.id ? ' picked' : ''}" data-skill="${k.id}" draggable="true">

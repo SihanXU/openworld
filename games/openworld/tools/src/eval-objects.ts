@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ModPort, RuleLibrary, buildSandbox, type Patch, type PixelArt, type Rule, type TypeDef } from '@openworld/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
+import { BASE_RULES, GAME, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { modelFromEnv, openModder, type WorldEpisode } from '@openworld/modder'
 import { png } from './art/png.ts'
 
@@ -43,7 +43,7 @@ const CASES: Case[] = [
 ]
 
 const REPO = resolve(fileURLToPath(new URL('../../../..', import.meta.url)))
-openModder({ data: mkdtempSync(join(tmpdir(), 'lsw-warm-')), model: null }) // loads .env
+openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-warm-')), model: null }) // loads .env
 const model = modelFromEnv()
 if (!model) throw new Error('no model: set LSW_MODEL_BACKEND (claude-code) or the OpenRouter key')
 const onto = buildOntology()
@@ -88,7 +88,7 @@ interface Result {
 }
 const results: Result[] = []
 for (const c of cases) {
-  const modder = openModder({ data: mkdtempSync(join(tmpdir(), 'lsw-eval-')), model })
+  const modder = openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-eval-')), model })
   const { state } = modder.opts
   const h = state.harness()
   state.setHarness({ ...h, review: { ...h.review, enabled: false }, reflect: { ...h.reflect, enabled: false }, escalate: false }, 'eval: objects')

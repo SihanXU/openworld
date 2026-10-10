@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { changesNothing, modelFromEnv, openModder, type ChatOptions, type WorldEpisode } from '@openworld/modder'
+import { GAME } from '@openworld-game/content'
 import { sweep } from './coverage.ts'
 import { cellRequest, pick } from './curriculum.ts'
 
@@ -40,10 +41,10 @@ const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(
 async function main(): Promise<void> {
   const a = args(process.argv.slice(2))
   // load .env (via open.ts), then build the model with this run's overrides
-  openModder({ data: mkdtempSync(join(tmpdir(), 'lsw-warm-')), model: null })
+  openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-warm-')), model: null })
   const model = modelFromEnv({ ...process.env, ...(a.model ? { LSW_MODEL: a.model } : {}), ...(a.sort ? { LSW_MODEL_SORT: a.sort } : {}), ...(a.providers ? { LSW_MODEL_PROVIDERS: a.providers } : {}) })
   if (!model) throw new Error('no model: set LSW_MODEL_KEY (in .env) and --model')
-  const modder = openModder({ data: mkdtempSync(join(tmpdir(), 'lsw-latency-')), model })
+  const modder = openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-latency-')), model })
   const { library, state } = modder.opts
   const h = state.harness()
   state.setHarness(

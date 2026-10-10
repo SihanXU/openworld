@@ -7,11 +7,14 @@
 // (water, flames, the idle loops); there is no light (night, a dark map's gloom, glows), weather or UI
 // (health bars, quest marks, the focus).
 
+// the runtime's figures draw this game's looks (packages/runtime/src/game.ts)
+import '../../client/src/register.ts'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { OntologyIndex, type Dir, type Entity, type Look } from '@openworld/engine'
 import { TERRAIN_CHARS } from '@openworld-game/content'
-import { CATALOG, LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '@openworld/runtime/src/assets/catalog.ts'
+import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '@openworld/runtime/src/assets/types.ts'
+import { CATALOG } from '../../client/src/catalog.ts'
 import { T, groundTile, hash2, type GroundAtlas } from '@openworld/runtime/src/assets/ground.ts'
 import { personLook } from '@openworld/runtime/src/assets/looks.ts'
 import type { ActorDef, SpriteDef } from '@openworld/runtime/src/assets/types.ts'

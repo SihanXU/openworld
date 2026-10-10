@@ -2,7 +2,7 @@
 // it runs on (the maps once named 'Village' where the client knows 'village').
 
 import { describe, expect, it } from 'vitest'
-import { CATALOG } from '@openworld/runtime/src/assets/catalog.ts'
+import { CATALOG } from '../../client/src/catalog.ts'
 import { buildFord } from '../src/demo/world.ts'
 
 describe('music', () => {

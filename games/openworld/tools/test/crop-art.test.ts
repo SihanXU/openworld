@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { CROP_STAGES, GARDEN_CROPS, PLACEMENTS, VEGETABLE_CROPS, buildOntology } from '@openworld-game/content'
-import { CATALOG } from '@openworld/runtime/src/assets/catalog.ts'
+import { CATALOG } from '../../client/src/catalog.ts'
 
 describe('original crop sprites', () => {
   it('registers all three growth stages and both inventory sprites per crop', () => {

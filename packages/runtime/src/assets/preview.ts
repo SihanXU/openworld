@@ -1,9 +1,10 @@
-// Standalone visual check of everything in CATALOG (served by Vite at /src/assets/preview.html,
+// Standalone visual check of everything in the game's catalogue (a game serves it as its preview.html,
 // images from /assets/na/… — run `npx tsx games/openworld/tools/src/copyAssets.ts` first).
 // Everything is drawn with plain 2D canvases at 3x so the catalogue can be verified without
 // the game renderer.
 
-import { BLOB47, CATALOG } from './catalog.ts'
+import { catalog } from '../game.ts'
+import { BLOB47 } from './ground.ts'
 import type { ActorDef, FxDef, PrefabDef, SpriteDef } from './types.ts'
 
 const S = Number(new URLSearchParams(location.search).get('s')) || 3 // display scale (?s=2 to shrink)
@@ -188,7 +189,7 @@ const BLOB_UNDER: Record<string, [string, number, number]> = {
 }
 {
   const g = section('blobs', 'Blobs (block 11x5 + island via BLOB47)')
-  for (const [key, b] of Object.entries(CATALOG.blobs)) {
+  for (const [key, b] of Object.entries(catalog().blobs)) {
     const ctx = card(g, `blobs.${key}  ${b.img.split('/').pop()} (${b.col},${b.row})`, 11 * T + 8 + 14 * T, 10 * T)
     const under = BLOB_UNDER[key] ?? GRASS
     drawers.push(() => {
@@ -216,7 +217,7 @@ const BLOB_UNDER: Record<string, [string, number, number]> = {
 // ------------------------------------------------------------------------------------------
 {
   const g = section('plain', 'Plain tiles')
-  for (const [key, tiles] of Object.entries(CATALOG.plain)) {
+  for (const [key, tiles] of Object.entries(catalog().plain)) {
     const ctx = card(g, `plain.${key}`, tiles.length * (T + 2), T)
     drawers.push(() => {
       clear(ctx)
@@ -226,7 +227,7 @@ const BLOB_UNDER: Record<string, [string, number, number]> = {
 }
 {
   const g = section('decals', 'Decals (on grass / floor)')
-  for (const [key, list] of Object.entries(CATALOG.decals)) {
+  for (const [key, list] of Object.entries(catalog().decals)) {
     const ctx = card(g, `decals.${key}`, list.length * (T + 2), T)
     drawers.push(() => {
       clear(ctx)
@@ -243,7 +244,7 @@ const BLOB_UNDER: Record<string, [string, number, number]> = {
 // ------------------------------------------------------------------------------------------
 {
   const g = section('objects', 'Terrain objects (anchor tile outlined red)')
-  for (const [key, list] of Object.entries(CATALOG.terrainObjects)) {
+  for (const [key, list] of Object.entries(catalog().terrainObjects)) {
     list.forEach((s, i) => {
       const ctx = card(g, `terrainObjects.${key}[${i}]`, 4 * T, 4 * T, `${s.w}x${s.h} a(${s.ax},${s.ay})`)
       drawers.push(() => {
@@ -273,7 +274,7 @@ function drawPrefab(ctx: CanvasRenderingContext2D, p: PrefabDef, ox: number, oy:
 }
 {
   const g = section('prefabs', 'Prefabs (red solid, green door, blue walkable)')
-  for (const [key, p] of Object.entries(CATALOG.prefabs)) {
+  for (const [key, p] of Object.entries(catalog().prefabs)) {
     const w = p.tw + 2, h = p.th + 2
     const ctx = card(g, `prefabs.${key}`, w * T * 2 + 8, h * T, `${p.tw}x${p.th}  ${p.grid.map((r) => `[${r}]`).join('')}`)
     drawers.push(() => {
@@ -290,12 +291,12 @@ function drawPrefab(ctx: CanvasRenderingContext2D, p: PrefabDef, ox: number, oy:
 // ------------------------------------------------------------------------------------------
 {
   const g = section('rooms', 'Rooms (nine-sliced into a 7x5 room, floor_wood inside)')
-  for (const [key, r] of Object.entries(CATALOG.rooms)) {
+  for (const [key, r] of Object.entries(catalog().rooms)) {
     const W = 7, H = 5
     const ctx = card(g, `rooms.${key} (${r.col},${r.row}) size ${r.size}`, W * T, H * T)
     drawers.push(() => {
       clear(ctx, '#141b1b')
-      const fb = CATALOG.blobs.floor_wood
+      const fb = catalog().blobs.floor_wood
       for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) tile(ctx, [fb.img, fb.col + 1, fb.row + 1], x * T, y * T)
       const last = r.size - 1
       const pick = (i: number, n: number) => (i === 0 ? 0 : i === n - 1 ? last : 1 + ((i - 1) % (r.size - 2)))
@@ -313,7 +314,7 @@ function drawPrefab(ctx: CanvasRenderingContext2D, p: PrefabDef, ox: number, oy:
 // ------------------------------------------------------------------------------------------
 {
   const g = section('fixtures', 'Fixtures (base / open / lit; anchor tile outlined)')
-  for (const [key, f] of Object.entries(CATALOG.fixtures)) {
+  for (const [key, f] of Object.entries(catalog().fixtures)) {
     const states = (['base', 'open', 'lit'] as const).filter((s) => f[s])
     const ctx = card(g, key, states.length * 4 * T, 4 * T, states.join(' / '))
     drawers.push(() => {
@@ -333,7 +334,7 @@ function drawPrefab(ctx: CanvasRenderingContext2D, p: PrefabDef, ox: number, oy:
 // ------------------------------------------------------------------------------------------
 {
   const g = section('items', 'Items')
-  for (const [key, s] of Object.entries(CATALOG.items)) {
+  for (const [key, s] of Object.entries(catalog().items)) {
     const w = Math.max(24, s.w + 4), h = Math.max(24, s.h + 4)
     const ctx = card(g, key, w, h)
     drawers.push(() => {
@@ -381,12 +382,12 @@ function actorCard(parent: HTMLElement, key: string, a: ActorDef, note?: string)
 }
 {
   const g = section('roles', 'Roles')
-  for (const [role, keys] of Object.entries(CATALOG.roles)) {
+  for (const [role, keys] of Object.entries(catalog().roles)) {
     const ctx = card(g, `roles.${role}`, keys.length * 18, 18, keys.join(', '))
     animators.push((t) => {
       clear(ctx, '#5a7a4a')
       keys.forEach((k, i) => {
-        const a = CATALOG.characters[k]
+        const a = catalog().characters[k]
         if (!a) {
           ctx.fillStyle = '#f00'
           ctx.fillRect(i * 18 * S, 0, 16 * S, 16 * S)
@@ -402,11 +403,11 @@ function actorCard(parent: HTMLElement, key: string, a: ActorDef, note?: string)
 }
 {
   const g = section('characters', 'Characters (walk cycle: down, up, left, right)')
-  for (const [key, a] of Object.entries(CATALOG.characters)) actorCard(g, key, a)
+  for (const [key, a] of Object.entries(catalog().characters)) actorCard(g, key, a)
 }
 {
   const g = section('creatures', 'Creatures')
-  for (const [key, a] of Object.entries(CATALOG.creatures)) actorCard(g, key, a)
+  for (const [key, a] of Object.entries(catalog().creatures)) actorCard(g, key, a)
 }
 
 // ------------------------------------------------------------------------------------------
@@ -432,7 +433,7 @@ function fxCard(parent: HTMLElement, key: string, f: FxDef): void {
     clear(ctx, key.startsWith('ovl:') ? '#5a7a4a' : '#20242b')
     if (key.startsWith('ovl:')) {
       // show the overlay on a villager
-      const v = CATALOG.characters.Villager
+      const v = catalog().characters.Villager
       const vi = img(`${v.dir}/${v.sheet}`)
       if (ready(vi)) ctx.drawImage(vi, 0, 0, 16, 16, ((w - 16) / 2) * S, (h - 18) * S, 16 * S, 16 * S)
     }
@@ -446,7 +447,7 @@ function fxCard(parent: HTMLElement, key: string, f: FxDef): void {
 }
 {
   const g = section('fx', 'FX')
-  for (const [key, f] of Object.entries(CATALOG.fx)) fxCard(g, key, f)
+  for (const [key, f] of Object.entries(catalog().fx)) fxCard(g, key, f)
 }
 
 // ------------------------------------------------------------------------------------------
@@ -454,7 +455,7 @@ function fxCard(parent: HTMLElement, key: string, f: FxDef): void {
 // ------------------------------------------------------------------------------------------
 {
   const g = section('ui', 'UI')
-  for (const [key, s] of Object.entries(CATALOG.ui)) {
+  for (const [key, s] of Object.entries(catalog().ui)) {
     const frames = s.frames ?? 1
     const ctx = card(g, `ui.${key}`, s.w * frames + (frames - 1) * 2, s.h, `${s.w}x${s.h}${frames > 1 ? ' x' + frames : ''}`)
     drawers.push(() => {
@@ -470,7 +471,7 @@ function fxCard(parent: HTMLElement, key: string, f: FxDef): void {
 {
   let playing: HTMLAudioElement | null = null
   const g = section('audio', 'Audio (music / sfx)')
-  for (const [group, table] of [['music', CATALOG.music], ['sfx', CATALOG.sfx]] as const) {
+  for (const [group, table] of [['music', catalog().music], ['sfx', catalog().sfx]] as const) {
     const box = document.createElement('div')
     box.className = 'card'
     const k = document.createElement('div')

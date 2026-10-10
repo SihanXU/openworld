@@ -4,6 +4,8 @@
 //
 //   npx tsx games/openworld/tools/src/art/looks/review.ts <out.png> [mood]
 
+// the runtime's figures draw this game's looks (packages/runtime/src/game.ts)
+import '../../../../client/src/register.ts'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Look, Mood } from '@openworld/engine'

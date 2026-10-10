@@ -1,0 +1,96 @@
+// OpenWorld, the game, as the runtime plays it (packages/runtime/src/game.ts, docs/engine-split.md): its content
+// and catalogue, and the code only this game has: its wilderness, its upgrades of older saves, its dev summons.
+
+import type { ClientGame } from '@openworld/runtime/src/game.ts'
+import {
+  BOON_BY_ID,
+  BOSS_LAYOUT,
+  BUILDINGS,
+  COIN,
+  COMPANION_LAYOUT,
+  FIRSTLIGHT_LAYOUT,
+  FORM_BY_ID,
+  GAME,
+  LOOK_BODIES,
+  LOOK_COLORS,
+  LOOK_PARTS,
+  LOOK_SLOTS,
+  LOOK_TABLE,
+  MATERIALS,
+  PLACEMENTS,
+  PLAYER_LOOK,
+  RECIPES,
+  RELICS,
+  SKILLS,
+  SKILL_BRANCHES,
+  SKILL_DIRECTIONS,
+  SKILL_PROFESSIONS,
+  WORN_SLOTS,
+  branchesForProfession,
+  createBoss,
+  describeLook,
+  generateLook,
+  migrateBosses,
+  migrateCompanion,
+  migrateFirstlight,
+  skillsForProfession,
+  stationName,
+  wildChunkFor,
+} from '@openworld-game/content'
+import { CATALOG } from './catalog.ts'
+
+export const CLIENT_GAME: ClientGame = {
+  ...GAME,
+  catalog: CATALOG,
+  // a wilderness is made from the world's seed and its cell (world-model.md §5.7); the rest is fetched
+  wild: wildChunkFor,
+  async upgrade(game, { index, chunk }) {
+    const w = game.engine.world
+    if (!w.fact(FIRSTLIGHT_LAYOUT)) {
+      const [ford, village] = await Promise.all(['ford', 'meadow'].map(chunk))
+      game.engine.author(() => migrateFirstlight(game, index, ford, village))
+    }
+    // the removed boss kits' bodies go
+    if (!w.fact(BOSS_LAYOUT)) game.engine.author(() => migrateBosses(game))
+    // the bird became a fairy
+    if (!w.fact(COMPANION_LAYOUT)) game.engine.author(() => migrateCompanion(game))
+  },
+  fresh(game) {
+    const w = game.engine.world
+    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true)))
+  },
+  summon(kit, at, id) {
+    const body = createBoss(kit, at, id)
+    // the campaign's knight as Chapter 1 sets him (tools quest/chapter1.ts)
+    if (kit === 'alberic') body.props = { hp: 300, maxHp: 300, def: 1, atk: 5, skillScale: 0.4 }
+    return { body, say: { en: 'The White Knight stands in his field again.', zh: '白骑士再次站在了他的田野上。' } }
+  },
+  dev: {
+    shortcuts: [
+      { label: 'Emberfall, by the lit forge', debug: { op: 'teleport', map: 'emberfall', x: 31, y: 8 } },
+      { label: '召唤白骑士 · Summon the White Knight (East Road)', debug: { op: 'summon', kit: 'alberic', map: 'eastroad', x: 40, y: 15, from: [30, 12] } },
+    ],
+  },
+  items: { forms: FORM_BY_ID, materials: MATERIALS, relics: RELICS, coin: COIN },
+  crafting: { recipes: RECIPES, stationName, placements: PLACEMENTS, buildings: BUILDINGS },
+  skills: {
+    all: SKILLS,
+    directions: SKILL_DIRECTIONS,
+    branches: SKILL_BRANCHES,
+    professions: SKILL_PROFESSIONS,
+    branchesFor: branchesForProfession,
+    forProfession: skillsForProfession,
+  },
+  boons: BOON_BY_ID,
+  looks: {
+    table: LOOK_TABLE,
+    slots: LOOK_SLOTS,
+    worn: WORN_SLOTS,
+    bodies: LOOK_BODIES,
+    colors: LOOK_COLORS,
+    parts: LOOK_PARTS,
+    player: PLAYER_LOOK,
+    generate: generateLook,
+    describe: describeLook,
+  },
+}

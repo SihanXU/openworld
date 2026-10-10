@@ -4,8 +4,7 @@
 // grid above the bag, a click moving a stack to the other side.
 
 import type { CodexEntry, CodexView, Frame, ItemInfo, Key, Look, Rule, Text, Tree } from '@openworld/engine'
-import { COIN, FORM_BY_ID, RECIPES, stationName } from '@openworld-game/content'
-import { CATALOG } from '../assets/catalog.ts'
+import { catalog, game } from '../game.ts'
 import { personLook } from '../assets/looks.ts'
 import { FH, FW, composeSprite } from '../assets/figure/sprite.ts'
 import { assetUrl } from '../render/assets.ts'
@@ -53,7 +52,7 @@ const groupName = (g: string) => (GROUPS[g] ? GROUPS[g][locale.value === 'zh' ? 
 /** A creature's picture: its kind's own art (`creature:slime:fire_slime`), else its family's. */
 const actorKey = (e: CodexEntry) => {
   const leaf = e.id.split('/').pop()
-  return e.sprite && CATALOG.creatures[`${e.sprite}:${leaf}`] ? `${e.sprite}:${leaf}` : (e.sprite ?? '')
+  return e.sprite && catalog().creatures[`${e.sprite}:${leaf}`] ? `${e.sprite}:${leaf}` : (e.sprite ?? '')
 }
 
 const images = new Map<string, Promise<HTMLImageElement>>()
@@ -86,7 +85,7 @@ function paintCell(el: HTMLElement, path: string, cell: (img: HTMLImageElement) 
 /** The codex's pictures: items from their sprite, people and creatures by their sheet's first frame. */
 function paintCodex(root: HTMLElement): void {
   root.querySelectorAll<HTMLElement>('[data-cx-item]').forEach((el) => {
-    const d = CATALOG.items[el.dataset.cxItem!]
+    const d = catalog().items[el.dataset.cxItem!]
     if (d) paintCell(el, d.img, () => [d.x, d.y, d.w, d.h])
   })
   const actor = (el: HTMLElement, a: { dir: string; sheet: string; faceset?: string; cols: number; rows: number } | undefined) => {
@@ -94,7 +93,7 @@ function paintCodex(root: HTMLElement): void {
     // the sheet's first frame (facing down): a portrait's square background would make a poor shadow
     paintCell(el, `${a.dir}/${a.sheet}`, (img) => [0, 0, Math.floor(img.width / a.cols), Math.floor(img.height / a.rows)])
   }
-  root.querySelectorAll<HTMLElement>('[data-cx-look]').forEach((el) => actor(el, CATALOG.characters[el.dataset.cxLook!]))
+  root.querySelectorAll<HTMLElement>('[data-cx-look]').forEach((el) => actor(el, catalog().characters[el.dataset.cxLook!]))
   // a look made of parts (docs/looks.md): its sprite standing, facing down
   root.querySelectorAll<HTMLElement>('[data-cx-fig]').forEach((el) => {
     const px = composeSprite(JSON.parse(el.dataset.cxFig!) as Look)
@@ -107,7 +106,7 @@ function paintCodex(root: HTMLElement): void {
     c.classList.add('fig')
     el.replaceChildren(c)
   })
-  root.querySelectorAll<HTMLElement>('[data-cx-actor]').forEach((el) => actor(el, CATALOG.creatures[el.dataset.cxActor!]))
+  root.querySelectorAll<HTMLElement>('[data-cx-actor]').forEach((el) => actor(el, catalog().creatures[el.dataset.cxActor!]))
 }
 
 export interface MenuSend {
@@ -469,10 +468,10 @@ export class Menu {
   private shopHtml(f?: Frame): string {
     if (!f) return ''
     const zh = locale.value === 'zh'
-    const coins = f.player.slots.reduce((n, s) => n + (s && s.item.type === COIN ? s.count : 0), 0)
+    const coins = f.player.slots.reduce((n, s) => n + (s && s.item.type === game().items.coin ? s.count : 0), 0)
     const tabs = SHELVES.map(([g, en, zh2]) => `<button class="cx-tab${g === this.shelf ? ' on' : ''}" data-shelf="${g}">${zh ? zh2 : en}</button>`).join('')
     const away = !f.player.stations.includes('stall') ? `<div class="muted small">${zh ? '站到货摊旁边才能交易。' : 'Stand beside the stall to trade.'}</div>` : ''
-    return `<div class="shop-head"><div class="cx-tabs">${tabs}</div><span class="coins"><span class="icon" data-icon="need:${COIN}"></span>${coins}</span></div>${away}${this.craftHtml(f, this.shelf)}`
+    return `<div class="shop-head"><div class="cx-tabs">${tabs}</div><span class="coins"><span class="icon" data-icon="need:${game().items.coin}"></span>${coins}</span></div>${away}${this.craftHtml(f, this.shelf)}`
   }
 
   private craftHtml(f?: Frame, shelf?: string): string {
@@ -480,7 +479,7 @@ export class Menu {
     const have = (type: string) => f.player.slots.reduce((n, s) => n + (s && s.item.type === type ? s.count : 0), 0)
     const tool = (tag: string) => f.player.slots.some((s) => s?.item.tags.includes(tag))
     // the crafting panel shows what is made; the stall's offers are the stall's (its own tab)
-    const list = shelf ? RECIPES.filter((r) => r.station === 'stall' && r.group === shelf) : RECIPES.filter((r) => r.station !== 'stall')
+    const list = shelf ? game().crafting.recipes.filter((r) => r.station === 'stall' && r.group === shelf) : game().crafting.recipes.filter((r) => r.station !== 'stall')
     const verb = shelf === 'sell' ? (locale.value === 'zh' ? '出售' : 'Sell') : shelf ? (locale.value === 'zh' ? '购买' : 'Buy') : t('craftIt')
     const rows = list.map((r) => {
       // how many times what is carried makes it (the tools are not used up)
@@ -500,9 +499,9 @@ export class Menu {
         }).join('')
       return `<div class="recipe${ok ? '' : ' off'}">
         <div class="slot" data-item="recipe:${r.id}"><div class="icon" data-icon="recipe:${r.id}"></div></div>
-        <div class="rname">${esc(tx(r.name))}${r.station && r.station !== 'hands' && !shelf ? ` <span class="station${here ? '' : ' short'}">${esc(tx({ en: `at a ${stationName(r.station).en}`, zh: `需在${stationName(r.station).zh}旁` }))}</span>` : ''}</div>
+        <div class="rname">${esc(tx(r.name))}${r.station && r.station !== 'hands' && !shelf ? ` <span class="station${here ? '' : ' short'}">${esc(tx({ en: `at a ${game().crafting.stationName(r.station).en}`, zh: `需在${game().crafting.stationName(r.station).zh}旁` }))}</span>` : ''}</div>
         <div class="needs">${needs}</div>
-        <button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(here ? t('needMore') : tx({ en: `Stand beside a ${stationName(r.station!).en}`, zh: `站到${stationName(r.station!).zh}旁边` }))}"`}>${verb}${shelf === 'sell' ? ` → ${r.count}` : r.count && r.count > 1 ? ` ×${r.count}` : ''}</button>
+        <button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(here ? t('needMore') : tx({ en: `Stand beside a ${game().crafting.stationName(r.station!).en}`, zh: `站到${game().crafting.stationName(r.station!).zh}旁边` }))}"`}>${verb}${shelf === 'sell' ? ` → ${r.count}` : r.count && r.count > 1 ? ` ×${r.count}` : ''}</button>
         ${times > 1 ? `<button class="all" data-craft-all="${r.id}" title="${esc(t('craftAllTip'))}">${t('craftAll')} ×${times}</button>` : ''}
       </div>`
     }).join('')
@@ -652,18 +651,18 @@ export class Menu {
 /** The crafting panel's items (each recipe's result, each material), keyed `recipe:<id>` / `need:<type>`: for their icons and tooltips. */
 function craftInfos(): ItemInfo[] {
   const of = (id: string, type: string, extra: { name?: ItemInfo['name']; tags?: string[]; props?: ItemInfo['props']; sprite?: string } = {}): ItemInfo | undefined => {
-    const f = FORM_BY_ID[type]
+    const f = game().items.forms[type]
     // what is not an item form (a wall, a door, a bed) shows the recipe's own picture
     if (!f) return extra.sprite && extra.name ? { id, type, sprite: extra.sprite, name: extra.name, tags: [...(extra.tags ?? [])], statuses: [], props: { ...(extra.props ?? {}) } } : undefined
     return { id, type, sprite: f.sprite, name: extra.name ?? { en: f.en, zh: f.zh }, tags: [...(f.tags ?? []), ...(extra.tags ?? [])], statuses: [], props: { ...(f.props ?? {}), ...(extra.props ?? {}) } }
   }
-  const needs = [...new Set([...RECIPES.flatMap((r) => r.needs.map((n) => n.type)), ...RECIPES.flatMap((r) => (r.tools ?? []).map(toolForm)).filter((x): x is string => !!x)])]
-  return [...RECIPES.map((r) => of(`recipe:${r.id}`, r.make.type, { name: r.name, tags: r.make.tags, props: r.make.props, sprite: r.sprite })), ...needs.map((n) => of(`need:${n}`, n))].filter((x): x is ItemInfo => !!x)
+  const needs = [...new Set([...game().crafting.recipes.flatMap((r) => r.needs.map((n) => n.type)), ...game().crafting.recipes.flatMap((r) => (r.tools ?? []).map(toolForm)).filter((x): x is string => !!x)])]
+  return [...game().crafting.recipes.map((r) => of(`recipe:${r.id}`, r.make.type, { name: r.name, tags: r.make.tags, props: r.make.props, sprite: r.sprite })), ...needs.map((n) => of(`need:${n}`, n))].filter((x): x is ItemInfo => !!x)
 }
 
 /** The item form that stands for a tool tag in the crafting panel (an axe for `tool:axe`). */
 function toolForm(tag: string): string | undefined {
-  return Object.values(FORM_BY_ID).find((f) => f.tags?.includes(tag))?.id
+  return Object.values(game().items.forms).find((f) => f.tags?.includes(tag))?.id
 }
 
 function keyOf(it: ItemInfo): string {

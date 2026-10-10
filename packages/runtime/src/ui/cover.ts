@@ -3,7 +3,7 @@
 // slot, a new game in a slot, load a slot, controls, language. The slot panel shows each of the
 // three slots' summary, and writes a slot out to a file or reads one back (saves.ts).
 
-import { PLAYER_LOOK } from '@openworld-game/content'
+import { game } from '../game.ts'
 import type { Difficulty, Look } from '@openworld/engine'
 import { Creator } from './creator.ts'
 import type { SaveSummary } from '../protocol.ts'
@@ -189,7 +189,7 @@ export class Cover {
   }
 
   /** The look a new game's traveller is made with (the new-game panel's creator). */
-  private look: Look = PLAYER_LOOK
+  private look: Look = game().looks.player
   private creator?: Creator
 
   private wirePanel(): void {

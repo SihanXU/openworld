@@ -1,12 +1,13 @@
 // The look maker (looks.html, dev): every person of the world in the character creator — their look as the game
 // draws it, changed by hand, and copied as the pins for their file (tools/src/demo/people/<id>.ts).
 
+import './register.ts'
 import type { Look, WorldIndex } from '@openworld/engine'
 import { PLAYER_LOOK } from '@openworld-game/content'
-import { Creator } from './ui/creator.ts'
-import { tx } from './ui/common.ts'
-import './styles.css'
-import './ui/game.css'
+import { Creator } from '@openworld/runtime/src/ui/creator.ts'
+import { tx } from '@openworld/runtime/src/ui/common.ts'
+import '@openworld/runtime/src/styles.css'
+import '@openworld/runtime/src/ui/game.css'
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id)! as T
 

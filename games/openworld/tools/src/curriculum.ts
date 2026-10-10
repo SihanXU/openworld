@@ -17,7 +17,7 @@ import { appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ModPort, Rng, buildSandbox, type ModRequest, type Ontology, type RuleLibrary, type Scenario } from '@openworld/engine'
-import { buildOntology } from '@openworld-game/content'
+import { GAME, buildOntology } from '@openworld-game/content'
 import { improve, runAgent, type TaskSource } from '@openworld/agent'
 import { openModder, type Modder } from '@openworld/modder'
 import { FRONT, ORIGIN, sweep, targets, type Cell } from './coverage.ts'
@@ -119,7 +119,7 @@ async function main(): Promise<void> {
   const profile = flag('profile', 'offline') as 'live' | 'offline'
   const byHole = flag('by') === 'hole'
   const data = flag('data')
-  const modder = openModder({ log: (l) => console.log(`  ${l}`), ...(data ? { data } : {}) })
+  const modder = openModder({ game: GAME, log: (l) => console.log(`  ${l}`), ...(data ? { data } : {}) })
   if (!modder.model) {
     console.error('no model configured: set LSW_MODEL_KEY + LSW_MODEL (e.g. in .env), or LSW_MODEL_SCRIPT')
     process.exit(1)

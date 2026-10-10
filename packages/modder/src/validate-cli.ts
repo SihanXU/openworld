@@ -6,7 +6,6 @@
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { RuleLibrary, validatePatch } from '@openworld/engine'
-import { buildOntology } from '@openworld-game/content'
 import { collectPatch, type WorldRepoState } from './repo.ts'
 import { describeOutcome } from './tools.ts'
 
@@ -19,7 +18,7 @@ for (const p of problems) out.push(`FAIL: ${p}`)
 if (patch) {
   const lib = RuleLibrary.fromJSON(state.library)
   for (const id of state.replaces) lib.remove(id)
-  const ontology = buildOntology()
+  const ontology = state.ontology
   const res = validatePatch(patch, { ontology, library: lib, scenario: state.request.scenario })
   for (const e of res.errors) out.push(`FAIL: ${e}`)
   for (const w of res.warnings) out.push(`warning: ${w}`)

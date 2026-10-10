@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { FACE_FIXES, faceStrip, facesets, sourceOf, stripOf } from '../src/art/faces.ts'
 import { readPng } from '../src/art/png.ts'
-import { CATALOG, faceFrame } from '@openworld/runtime/src/assets/catalog.ts'
-import FACES from '@openworld/runtime/src/assets/faces.json'
+import { faceFrame } from '@openworld/runtime/src/assets/looks.ts'
+import { CATALOG } from '../../client/src/catalog.ts'
+import FACES from '../../client/src/faces.json'
 
 const manifest = FACES as Record<string, { strip: string; moods: string[] }>
 const frame = (im: { w: number; h: number; rgba: Uint8Array }, i: number, w: number) => {

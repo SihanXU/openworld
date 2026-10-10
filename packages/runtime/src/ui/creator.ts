@@ -3,7 +3,7 @@
 // use for it. The new-game panel makes the player's look with it; the dev page (looks.html) makes anyone's and
 // copies the record for a person's file.
 
-import { LOOK_BODIES, LOOK_COLORS, LOOK_PARTS, LOOK_SLOTS, WORN_SLOTS, describeLook, generateLook } from '@openworld-game/content'
+import { game } from '../game.ts'
 import type { Look, Mood } from '@openworld/engine'
 import { FH, FW, composeSprite } from '../assets/figure/sprite.ts'
 import { portraitOf, preparePortrait } from '../assets/figure/index.ts'
@@ -51,16 +51,16 @@ export class Creator {
   /** The parts a slot may take for the current body. */
   private options(slot: string): (string | null)[] {
     // (a part only worn things show — a circlet — is not offered: it comes with the thing)
-    const ids = Object.entries(LOOK_PARTS).filter(([, p]) => p.slot === slot && !p.gen?.worn && (!p.bodies || p.bodies.includes(this.look.body))).map(([id]) => id)
+    const ids = Object.entries(game().looks.parts).filter(([, p]) => p.slot === slot && !p.gen?.worn && (!p.bodies || p.bodies.includes(this.look.body))).map(([id]) => id)
     return OPTIONAL.has(slot) ? [null, ...ids] : ids
   }
 
   private set(change: Partial<Look>): void {
     this.look = { ...this.look, ...change }
     // a body changed: what does not fit it gives way to what does
-    for (const slot of LOOK_SLOTS) {
+    for (const slot of game().looks.slots) {
       const id = this.look.parts[slot]
-      if (id && LOOK_PARTS[id]?.bodies && !LOOK_PARTS[id].bodies!.includes(this.look.body)) {
+      if (id && game().looks.parts[id]?.bodies && !game().looks.parts[id].bodies!.includes(this.look.body)) {
         const parts = { ...this.look.parts }
         const opts = this.options(slot).filter(Boolean) as string[]
         if (OPTIONAL.has(slot) || !opts.length) delete parts[slot]
@@ -83,35 +83,35 @@ export class Creator {
   }
 
   private random(): void {
-    const sex = LOOK_BODIES[this.look.body]?.sex ?? 'female'
+    const sex = game().looks.bodies[this.look.body]?.sex ?? 'female'
     const seed = Math.random().toString(36).slice(2)
-    const age = LOOK_BODIES[this.look.body]?.age === 'child' ? 9 : 18 + Math.floor(Math.random() * 30)
-    this.set(generateLook(seed, { sex, age, role: 'traveler' }, { body: this.look.body }))
+    const age = game().looks.bodies[this.look.body]?.age === 'child' ? 9 : 18 + Math.floor(Math.random() * 30)
+    this.set(game().looks.generate(seed, { sex, age, role: 'traveler' }, { body: this.look.body }))
   }
 
   private render(): void {
     const zh = this.zh()
-    const words = describeLook(this.look)
+    const words = game().looks.describe(this.look)
     // (what only worn things fill — a breastplate, a cloak — is the things', not the creator's)
-    const rows = LOOK_SLOTS.filter((s) => s !== 'age' && !WORN_SLOTS.has(s))
+    const rows = game().looks.slots.filter((s) => s !== 'age' && !game().looks.worn.has(s))
       .filter((s) => this.options(s).filter(Boolean).length)
       .map((slot) => {
         const id = this.look.parts[slot]
-        const name = id ? tx(LOOK_PARTS[id].name) : zh ? '无' : 'none'
+        const name = id ? tx(game().looks.parts[id].name) : zh ? '无' : 'none'
         return `<div class="cr-row"><span class="cr-label">${zh ? SLOT_NAMES[slot][1] : SLOT_NAMES[slot][0]}</span>
           <button class="cv-btn small" data-step="${slot}" data-by="-1">◀</button><span class="cr-val">${esc(name)}</span><button class="cv-btn small" data-step="${slot}" data-by="1">▶</button></div>`
       })
       .join('')
     const colours = COLOUR_ROWS.filter(([key]) => !key.includes('.') || this.look.parts[key.split('.')[0]])
       .map(([key, families, en, cn]) => {
-        const sw = Object.entries(LOOK_COLORS)
+        const sw = Object.entries(game().looks.colors)
           .filter(([, c]) => c.for.some((f) => families.includes(f)))
           .map(([id, c]) => `<button class="cr-sw${this.colourOf(key) === id ? ' on' : ''}" style="background:${c.hex}" title="${esc(tx(c.name))}" data-key="${key}" data-colour="${id}"></button>`)
           .join('')
         return `<div class="cr-row"><span class="cr-label">${zh ? cn : en}</span><span class="cr-sws">${sw}</span></div>`
       })
       .join('')
-    const bodies = Object.entries(LOOK_BODIES)
+    const bodies = Object.entries(game().looks.bodies)
       .filter(([, b]) => b.age === 'adult')
       .map(([id, b]) => `<button class="cv-btn small${this.look.body === id ? ' primary' : ''}" data-body="${id}">${esc(tx(b.name))}</button>`)
       .join('')
@@ -134,7 +134,7 @@ export class Creator {
   private colourOf(key: string): string | undefined {
     if (this.look.colors[key]) return this.look.colors[key]
     const [slot, n] = key.split('.')
-    return n ? LOOK_PARTS[this.look.parts[slot] ?? '']?.colors?.[n] : undefined
+    return n ? game().looks.parts[this.look.parts[slot] ?? '']?.colors?.[n] : undefined
   }
 
   private paintBust(): void {

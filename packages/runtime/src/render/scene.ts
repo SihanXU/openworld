@@ -4,8 +4,9 @@
 
 import Phaser from 'phaser'
 import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type Look, type MapData, type Mood, type Ref, type Text } from '@openworld/engine'
-import { CATALOG, LSW_FLOOR, LSW_STAIRS, LSW_WALL, faceFrame } from '../assets/catalog.ts'
-import { personLook } from '../assets/looks.ts'
+import { catalog } from '../game.ts'
+import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/types.ts'
+import { faceFrame, personLook } from '../assets/looks.ts'
 import { crowdLook, figureDef, figureId, portraitOf, preparePortrait } from '../assets/figure/index.ts'
 import { GroundAtlas, T, groundTile, hash2 } from '../assets/ground.ts'
 import { depthOf, footOf } from './depth.ts'
@@ -13,7 +14,7 @@ import { prefs } from '../ui/common.ts'
 
 /** How much higher a storey is drawn than the one below it (world-model.md §5.2): one tile, a wall's height. */
 const STOREY_LIFT = T
-import type { SpriteDef } from '../assets/types.ts'
+import type { ActorDef, Catalog, SpriteDef } from '../assets/types.ts'
 import { DIR_COL, actorFrames, assetUrl, fxAnim, preloadCatalog, spriteFrames } from './assets.ts'
 import { BossAnimationClock, bossAnimationFrame } from './boss-animation.ts'
 import { previewBoss, type BossPreviewMode } from '../boss-preview.ts'
@@ -157,7 +158,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   preload(): void {
-    preloadCatalog(this, CATALOG)
+    preloadCatalog(this, catalog())
     const bar = this.add.rectangle(this.scale.width / 4, this.scale.height / 2, 1, 6, 0xf0b85a).setOrigin(0, 0.5)
     this.preloadBar = bar
     this.load.on('progress', this.onPreloadProgress, this)
@@ -173,10 +174,10 @@ export class WorldScene extends Phaser.Scene {
     this.preloadBar?.destroy()
     this.preloadBar = undefined
     const images: Record<string, HTMLImageElement> = {}
-    for (const b of Object.values(CATALOG.blobs)) images[b.img] = this.textures.get(b.img).getSourceImage() as HTMLImageElement
-    for (const [img] of Object.values(CATALOG.plain).flat()) images[img] = this.textures.get(img).getSourceImage() as HTMLImageElement
-    for (const list of Object.values(CATALOG.plain)) for (const [img] of list) images[img] = this.textures.get(img).getSourceImage() as HTMLImageElement
-    this.atlas = new GroundAtlas(CATALOG, images)
+    for (const b of Object.values(catalog().blobs)) images[b.img] = this.textures.get(b.img).getSourceImage() as HTMLImageElement
+    for (const [img] of Object.values(catalog().plain).flat()) images[img] = this.textures.get(img).getSourceImage() as HTMLImageElement
+    for (const list of Object.values(catalog().plain)) for (const [img] of list) images[img] = this.textures.get(img).getSourceImage() as HTMLImageElement
+    this.atlas = new GroundAtlas(catalog(), images)
     this.textures.addCanvas(this.groundKey, this.atlas.canvas)
     this.makeGlowTexture()
     this.makeFishTexture()
@@ -277,7 +278,7 @@ export class WorldScene extends Phaser.Scene {
     const data: number[][] = []
     for (let y = 0; y < map.height; y++) {
       const row: number[] = []
-      for (let x = 0; x < map.width; x++) row.push(groundTile(this.atlas, CATALOG, this.terrainAt, x, y, this.base?.light === 'dark'))
+      for (let x = 0; x < map.width; x++) row.push(groundTile(this.atlas, catalog(), this.terrainAt, x, y, this.base?.light === 'dark'))
       data.push(row)
     }
     this.refreshGround()
@@ -311,7 +312,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private decal(x: number, y: number, t: string): void {
-    const list = CATALOG.decals[t === 'flowers' ? 'flowers' : 'grass'] ?? CATALOG.decals.grass
+    const list = catalog().decals[t === 'flowers' ? 'flowers' : 'grass'] ?? catalog().decals.grass
     if (!list?.length) return
     const d = list[hash2(x, y, 3) % list.length]
     const img = this.addSprite(`decal:${t}:${list.indexOf(d)}`, d, x, y)
@@ -330,7 +331,7 @@ export class WorldScene extends Phaser.Scene {
     this.objects.get(k)?.destroy()
     this.objects.delete(k)
     const t = this.terrainAt(x, y)
-    const list = CATALOG.terrainObjects[t]
+    const list = catalog().terrainObjects[t]
     if (!list?.length) return
     // tall grass is a meadow, not a crop: a third of its tiles stay bare
     if (t === 'drygrass' && hash2(x, y, 13) % 100 < 35) return
@@ -344,7 +345,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private stamp(key: string, x: number, y: number): void {
-    const p = CATALOG.prefabs[key]
+    const p = catalog().prefabs[key]
     if (!p) return
     const tex = this.textures.get(p.img)
     const name = `prefab:${key}`
@@ -358,7 +359,7 @@ export class WorldScene extends Phaser.Scene {
     if (!p.ground) for (let j = 0; j <= lastSolid; j++) for (let i = 0; i < p.tw; i++) this.roofs.set(`${x + i},${y + j}`, depth)
     // the healing spring says what it is: a heart bobbing over its middle
     if (key === 'spring') {
-      const h = CATALOG.ui.iconHeart
+      const h = catalog().ui.iconHeart
       const htex = this.textures.get(h.img)
       if (!htex.has('spring:heart')) htex.add('spring:heart', 0, h.x, h.y, h.w, h.h)
       const heart = this.add.image((x + p.tw / 2) * T, y * T - 2, h.img, 'spring:heart').setDepth(1e6 - 1)
@@ -368,7 +369,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private roomFrame(style: string, x: number, y: number, w: number, h: number): void {
-    const r = CATALOG.rooms[style] ?? Object.values(CATALOG.rooms)[0]
+    const r = catalog().rooms[style] ?? Object.values(catalog().rooms)[0]
     if (!r) return
     const tex = this.textures.get(r.img)
     const s = r.size
@@ -488,7 +489,7 @@ export class WorldScene extends Phaser.Scene {
     for (const v of this.views.values()) {
       const show = v.snap.tags.includes('trainer') && !v.quest
       if (show && !v.role) {
-        const icon = CATALOG.ui.trainerMark
+        const icon = catalog().ui.trainerMark
         v.role = this.add.image(0, -T * 1.35, icon.img).setOrigin(0.5, 1).setScale(0.5)
         v.head.add(v.role)
         this.tweens.add({ targets: v.role, y: -T * 1.35 - 2, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
@@ -622,7 +623,7 @@ export class WorldScene extends Phaser.Scene {
       for (const k of redo) {
         const [x, y] = k.split(',').map(Number)
         if (x < 0 || y < 0 || x >= this.base!.width || y >= this.base!.height) continue
-        this.layer!.putTileAt(groundTile(this.atlas, CATALOG, this.terrainAt, x, y, this.base?.light === 'dark'), x, y)
+        this.layer!.putTileAt(groundTile(this.atlas, catalog(), this.terrainAt, x, y, this.base?.light === 'dark'), x, y)
       }
       this.refreshGround()
     }
@@ -693,7 +694,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private overlaySprite(name: string, x: number, y: number): Phaser.GameObjects.Sprite | undefined {
-    const f = CATALOG.fx[name]
+    const f = catalog().fx[name]
     if (!f) return undefined
     const anim = fxAnim(this, name, f, -1)
     const s = this.add.sprite(x, y, f.img).setOrigin(0.5, 1)
@@ -712,7 +713,7 @@ export class WorldScene extends Phaser.Scene {
     return undefined
   }
 
-  private actorDef(e: EntitySnap): { key: string; def: (typeof CATALOG.characters)[string] } | undefined {
+  private actorDef(e: EntitySnap): { key: string; def: ActorDef } | undefined {
     const look = this.lookRecord(e)
     if (look) {
       // its portrait is fetched as it comes onto the map, ready for the dialogue box
@@ -721,11 +722,11 @@ export class WorldScene extends Phaser.Scene {
     }
     if (typeof e.look === 'string') {
       const key = personLook(e.id, e.type, e.look)
-      return { key: `char:${key}`, def: CATALOG.characters[key] }
+      return { key: `char:${key}`, def: catalog().characters[key] }
     }
     const variant = e.element ?? e.type.split('/').pop()!
-    const key = CATALOG.creatures[`${e.sprite}:${variant}`] ? `${e.sprite}:${variant}` : CATALOG.creatures[e.sprite] ? e.sprite : 'creature:slime'
-    const def = CATALOG.creatures[key]
+    const key = catalog().creatures[`${e.sprite}:${variant}`] ? `${e.sprite}:${variant}` : catalog().creatures[e.sprite] ? e.sprite : 'creature:slime'
+    const def = catalog().creatures[key]
     return def ? { key: `cre:${key}`, def } : undefined
   }
 
@@ -763,13 +764,13 @@ export class WorldScene extends Phaser.Scene {
     // gear lying on the ground is a bundle, all alike: what it is shows once it is picked up (its own icon in the bag)
     const gear = e.tags.includes('wearable') || e.type.startsWith('item/weapon') || e.type.startsWith('item/armor')
     const key = gear ? 'item:loot' : e.sprite
-    const d = CATALOG.items[key] ?? CATALOG.items['item:bag'] ?? Object.values(CATALOG.items)[0]
+    const d = catalog().items[key] ?? catalog().items['item:bag'] ?? Object.values(catalog().items)[0]
     const [frame] = spriteFrames(this, `ico:${key}`, d)
     return { img: d.img, frame, ax: d.w / 2, ay: d.h - 2 }
   }
 
-  private fixtureDef(e: EntitySnap): (typeof CATALOG.fixtures)[string] | undefined {
-    return CATALOG.fixtures[e.sprite] ?? CATALOG.fixtures[`fixture:${e.type.split('/')[1]}`] ?? CATALOG.fixtures['fixture:fixture']
+  private fixtureDef(e: EntitySnap): Catalog['fixtures'][string] | undefined {
+    return catalog().fixtures[e.sprite] ?? catalog().fixtures[`fixture:${e.type.split('/')[1]}`] ?? catalog().fixtures['fixture:fixture']
   }
 
   /** Walls and doors, floors, and stairs of the frame, by `x,y,z`. */
@@ -1003,7 +1004,7 @@ export class WorldScene extends Phaser.Scene {
 
   /** The dragon composed (the pack draws it in parts): two wings behind the head, a body of segments and a tail in the world behind it. */
   private dragonParts(root: Phaser.GameObjects.Container, head: Phaser.GameObjects.Sprite): EView['dragon'] {
-    const ui = CATALOG.ui
+    const ui = catalog().ui
     const wings = [-1, 1].map((side) => {
       const w = this.add.image(side * 16, -30, ui.dragonWing.img).setOrigin(side < 0 ? 1 : 0, 0.75)
       if (side > 0) w.setFlipX(true)
@@ -1104,7 +1105,7 @@ export class WorldScene extends Phaser.Scene {
     v.root.setVisible(!(!!me && (e.z ?? 0) > me.z && (this.ceilingOverlay || this.underRoof.has(`${e.x},${e.y}`))))
     // status overlay + tint
     // (a thing with a lit picture of its own, a brazier, shows that, not a flame over it)
-    const top = OVERLAY_FX.find(([o]) => e.overlays?.includes(o) && !(o === 'flame' && CATALOG.fixtures[e.sprite]?.lit))
+    const top = OVERLAY_FX.find(([o]) => e.overlays?.includes(o) && !(o === 'flame' && catalog().fixtures[e.sprite]?.lit))
     const want = top?.[1]
     if (want !== v.overlayName) {
       v.overlay?.destroy()
@@ -1126,7 +1127,7 @@ export class WorldScene extends Phaser.Scene {
     v.body.setAngle(!e.boss && (e.statuses.includes('down') || e.statuses.includes('out_cold') || e.statuses.includes('asleep') || e.statuses.includes('jailed') || e.tags.includes('body')) ? 90 : 0)
     // held item (small, at the hand)
     if (e.held && e.tags.includes('agent')) {
-      const d = CATALOG.items[e.held]
+      const d = catalog().items[e.held]
       if (d) {
         const [frame] = spriteFrames(this, `ico:${e.held}`, d)
         if (!v.held) {
@@ -1365,7 +1366,7 @@ export class WorldScene extends Phaser.Scene {
     const v = this.views.get(id)
     if (!v?.actor) return undefined
     const key = v.actor.key.split(':').slice(1).join(':')
-    return faceFrame(v.actor.key.startsWith('char:') ? CATALOG.characters[key] : CATALOG.creatures[key], mood)
+    return faceFrame(v.actor.key.startsWith('char:') ? catalog().characters[key] : catalog().creatures[key], mood)
   }
 
   // ---------------------------------------------------------------- light & sound
@@ -1412,7 +1413,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private playMusic(mood?: string): void {
-    const path = mood ? CATALOG.music[mood] : undefined
+    const path = mood ? catalog().music[mood] : undefined
     if (!path || this.musicKey === path) return
     this.musicKey = path
     const key = `music:${mood}`
@@ -1451,7 +1452,7 @@ export class WorldScene extends Phaser.Scene {
     const key = `sfx:${name}`
     if (this.cache.audio.exists(key)) return void this.sound.play(key, { volume })
     // first use: fetch it in the background; this one plays when it arrives (if still recent)
-    const path = CATALOG.sfx[name]
+    const path = catalog().sfx[name]
     if (!path || this.sfxLoading.has(key)) return
     this.sfxLoading.add(key)
     const asked = this.time.now
@@ -1518,7 +1519,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private oneShot(name: string, x: number, y: number, opts: { angle?: number; tint?: number; depth?: number } = {}): Phaser.GameObjects.Sprite | undefined {
-    const f = CATALOG.fx[name]
+    const f = catalog().fx[name]
     if (!f) return undefined
     const anim = fxAnim(this, name, f, 0)
     const s = this.add.sprite(x, y, f.img).setDepth(opts.depth ?? 1e6)
@@ -1569,8 +1570,8 @@ export class WorldScene extends Phaser.Scene {
         const [dx, dy] = dirVec(b)
         const len = Number(c) || 1
         // what the weapon looses (d: an arrow, tinted by its element), else a bolt of the element
-        const key = d && CATALOG.fx[`missile:${d}`] ? `missile:${d}` : `bolt:${a}`
-        const f = CATALOG.fx[key] ?? CATALOG.fx['bolt:none']
+        const key = d && catalog().fx[`missile:${d}`] ? `missile:${d}` : `bolt:${a}`
+        const f = catalog().fx[key] ?? catalog().fx['bolt:none']
         this.sfx(key.startsWith('missile:') ? 'attack' : 'cast', 0.35)
         if (!f) return
         const anim = fxAnim(this, key, f, -1)
@@ -1584,7 +1585,7 @@ export class WorldScene extends Phaser.Scene {
       }
       // Authored effects may have a namespaced key (sin:greed:stamp); keep the
       // complete key before falling back to the legacy colon-argument convention.
-      const definition = CATALOG.fx[fx.fx]
+      const definition = catalog().fx[fx.fx]
       const s = this.oneShot(definition ? fx.fx : kind, x, y, definition?.beam ? { angle: fx.angle } : {})
       if (s && definition?.beam && fx.span !== undefined) s.setDisplaySize(fx.span * T, 3 * T)
       if (!s) this.oneShot('poof', x, y, { tint: ELEMENT_COLOR[kind] })

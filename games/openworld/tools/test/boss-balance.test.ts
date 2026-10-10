@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { type Dir, type Game } from '@openworld/engine'
 import { BOSSES, BOSS_ARENA, SKILL_PROFESSIONS } from '@openworld-game/content'
-import { challengeOutcome, createBossChallenge } from '@openworld/runtime/src/boss-challenge.ts'
+import { challengeOutcome, createBossChallenge } from '../../client/src/boss-challenge.ts'
 import { buildFord } from '../src/demo/world.ts'
 
 const { index, chunks } = buildFord()

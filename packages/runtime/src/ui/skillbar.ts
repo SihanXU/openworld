@@ -6,7 +6,7 @@
 // with a right click; all of it is managed in the skill panel (U, ui/skillpanel.ts).
 
 import type { Frame } from '@openworld/engine'
-import { SKILL_BY_ID } from '@openworld-game/content'
+import { skillById } from '../game.ts'
 import { $, esc, locale, tx } from './common.ts'
 import { skillPng } from './skillIcons.ts'
 
@@ -46,7 +46,7 @@ export class SkillBar {
       this.shown = sig
       slots.forEach((el, i) => {
         const s = bar[i]
-        const def = s ? SKILL_BY_ID[s.id] : undefined
+        const def = s ? skillById()[s.id] : undefined
         el.classList.toggle('empty', !def)
         el.draggable = !!def
         el.dataset.skill = def?.id ?? ''

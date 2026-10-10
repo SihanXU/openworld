@@ -129,3 +129,8 @@ export interface Catalog {
   music: Record<string, string>
   sfx: Record<string, string>
 }
+
+/** The structure sheets (the project's own art, in the game's assets/lsw/): walls, floors and stairs are drawn from them by their neighbours. */
+export const LSW_WALL = 'lsw/Structures/wall.png'
+export const LSW_FLOOR = 'lsw/Structures/floor.png'
+export const LSW_STAIRS = 'lsw/Structures/stairs.png'

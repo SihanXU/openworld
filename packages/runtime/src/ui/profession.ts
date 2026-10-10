@@ -5,7 +5,7 @@
 
 import type { Frame } from '@openworld/engine'
 import { PROFESSION_LEVEL } from '@openworld/engine'
-import { SKILLS, SKILL_PROFESSIONS } from '@openworld-game/content'
+import { game } from '../game.ts'
 import { $, esc, t, tx } from './common.ts'
 import { skillArt } from './skillIcons.ts'
 
@@ -32,14 +32,14 @@ export class ProfessionPanel {
     const level = Math.max(1, Number(f.player.props.level ?? 1))
     const current = typeof f.player.props.profession === 'string' ? f.player.props.profession : ''
     // the points a change would give back: the current profession's learned skills
-    const spent = SKILLS.filter((s) => s.profession && f.player.skills.includes(s.id)).reduce((n, s) => n + (s.cost ?? 1), 0)
+    const spent = game().skills.all.filter((s) => s.profession && f.player.skills.includes(s.id)).reduce((n, s) => n + (s.cost ?? 1), 0)
     const sig = `${level}|${current}|${spent}|${t('profTitle')}`
     if (sig === this.sig) return
     this.sig = sig
     const ready = level >= PROFESSION_LEVEL
-    const cards = SKILL_PROFESSIONS.map((p) => {
+    const cards = game().skills.professions.map((p) => {
       const mine = p.id === current
-      const nodes = SKILLS.filter((s) => s.profession === p.id)
+      const nodes = game().skills.all.filter((s) => s.profession === p.id)
       const action = mine
         ? `<span class="pf-current">✓ ${t('profCurrent')}</span>`
         : `<button class="cv-btn primary small" data-prof="${p.id}" ${ready ? '' : 'disabled'}>${current ? t('profSwitch') : t('profChoose')}</button>`

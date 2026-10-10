@@ -2,8 +2,7 @@
 // pictures need — three tones for the map sprite's pixels, and a gradient for the portrait's shaded layers. Both
 // come from the same colour, so the hair on the map and in the portrait cannot disagree. Pure: Node and browser.
 
-import { LOOK_COLORS } from '@openworld-game/content'
-import { LOOK_TABLE } from '@openworld-game/content'
+import { game } from '../../game.ts'
 import { lookColor, type Look } from '@openworld/engine'
 
 export type RGB = [number, number, number]
@@ -12,13 +11,13 @@ export const hexRgb = (h: string): RGB => [1, 3, 5].map((i) => parseInt(h.slice(
 
 /** A colour of a look by id or `#rrggbb` (an unknown one: a grey, so a missing colour shows as missing). */
 export function rgbOf(c: string | undefined): RGB {
-  if (c && LOOK_COLORS[c]) return hexRgb(LOOK_COLORS[c].hex)
+  if (c && game().looks.colors[c]) return hexRgb(game().looks.colors[c].hex)
   if (c && /^#[0-9a-f]{6}$/i.test(c)) return hexRgb(c)
   return [128, 128, 128]
 }
 
 /** The colour a key of a look has (its own, else its part's default). */
-export const keyRgb = (look: Look, key: string): RGB => rgbOf(lookColor(look, key, LOOK_TABLE))
+export const keyRgb = (look: Look, key: string): RGB => rgbOf(lookColor(look, key, game().looks.table))
 
 function toHsl([r, g, b]: RGB): [number, number, number] {
   r /= 255

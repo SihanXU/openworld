@@ -3,6 +3,8 @@
 //
 //   npx tsx games/openworld/tools/src/art/looks/sheet.ts <out.png> [scale]
 
+// the runtime's figures draw this game's looks (packages/runtime/src/game.ts)
+import '../../../../client/src/register.ts'
 import { readFileSync, writeFileSync } from 'node:fs'
 import type { Look } from '@openworld/engine'
 import { FH, FW, composeSprite } from '@openworld/runtime/src/assets/figure/sprite.ts'

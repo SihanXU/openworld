@@ -37,7 +37,7 @@
       "runtimeArgs": [
         "vite",
         "preview",
-        "packages/runtime",
+        "games/openworld/client",
         "--port",
         "4173",
         "--strictPort"
@@ -53,6 +53,8 @@
         "tsx",
         "watch",
         "packages/modder/src/cli.ts",
+        "--game",
+        "games/openworld/content/src/game.ts",
         "serve"
       ],
       "port": 8787

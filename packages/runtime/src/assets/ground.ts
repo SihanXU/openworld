@@ -6,8 +6,28 @@
 // "outside" (the ground around it). A map cell then asks for the tile whose signature
 // matches its neighbourhood.
 
-import { BLOB47 } from './catalog.ts'
 import type { Catalog } from './types.ts'
+
+// ---------------------------------------------------------------------------------------------
+// Blob autotile layout (verified)
+// ---------------------------------------------------------------------------------------------
+/**
+ * The 47-tile blob layout of TilesetFloor.png cols 0-10 rows 7-11, as offsets from the block's
+ * top-left. Key = canonical 8-neighbour mask of "same terrain" neighbours:
+ *   N=1 NE=2 E=4 SE=8 S=16 SW=32 W=64 NW=128 (a corner bit only counts when both adjacent
+ *   edges are set). Derived by classifying every tile of the reference block pixel-by-pixel
+ *   (47 distinct masks, one tile each). NOTE the layout is the 10x4 block + 5 tiles in the 5th
+ *   row (cols 4-8) + TWO extra tiles in column 10, rows 2-3 (masks 117 and 213) — so a block
+ *   is 11 tiles wide. (0,4)-(3,4) of a block are plain-ground variants, not part of the blob.
+ */
+export const BLOB47: Record<number, [number, number]> = {
+  0: [3, 3], 1: [3, 2], 4: [0, 3], 5: [4, 3], 7: [0, 2], 16: [3, 0], 17: [3, 1], 20: [4, 0], 21: [4, 4],
+  23: [4, 1], 28: [0, 0], 29: [4, 2], 31: [0, 1], 64: [2, 3], 65: [7, 3], 68: [1, 3], 69: [8, 3], 71: [6, 3],
+  80: [7, 0], 81: [7, 4], 84: [8, 0], 85: [8, 4], 87: [9, 3], 92: [6, 0], 93: [9, 2], 95: [6, 4], 112: [2, 0],
+  113: [7, 2], 116: [5, 0], 117: [10, 2], 119: [9, 1], 124: [1, 0], 125: [8, 2], 127: [6, 2], 193: [2, 2],
+  197: [5, 3], 199: [1, 2], 209: [7, 1], 213: [10, 3], 215: [8, 1], 221: [9, 0], 223: [6, 1], 241: [2, 1],
+  245: [5, 4], 247: [5, 1], 253: [5, 2], 255: [1, 1],
+}
 
 export const T = 16
 

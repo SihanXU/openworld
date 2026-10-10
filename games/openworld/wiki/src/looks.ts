@@ -1,6 +1,8 @@
 // A person's look on the wiki (docs/looks.md): the anime portrait and the map sprite, composed by the game's own
 // code from the same record the game draws them from, written next to the site's pages.
 
+// the runtime's figures draw this game's looks (packages/runtime/src/game.ts)
+import '../../client/src/register.ts'
 import type { Look } from '@openworld/engine'
 import { composePortrait } from '@openworld/runtime/src/assets/figure/portrait.ts'
 import { FH, FW, composeSprite } from '@openworld/runtime/src/assets/figure/sprite.ts'

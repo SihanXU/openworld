@@ -15,7 +15,7 @@ import { BASE_RULES, buildOntology } from '@openworld-game/content'
 const ROOT = join(import.meta.dirname, '..', '..', '..', '..')
 const GAME = ['packages/engine/src', 'games/openworld/content/src']
 /** The client's code: the runtime and the game's own pages. */
-const CLIENT = ['packages/runtime/src']
+const CLIENT = ['packages/runtime/src', 'games/openworld/client/src']
 
 function sources(): { file: string; lines: string[] }[] {
   const out: { file: string; lines: string[] }[] = []

@@ -2,7 +2,7 @@
 // Adventure pack (CC0, by Pixel-boy & AAA). Paths are relative to the pack root; the copy
 // script (games/openworld/tools/src/copyAssets.ts) mirrors every referenced file to
 // games/openworld/public/assets/na/<same path>. Rects were measured with PIL (tight bounding
-// boxes of opaque pixels) and checked visually in src/assets/preview.html.
+// boxes of opaque pixels) and checked visually in preview.html.
 //
 // Conventions used throughout:
 // - SpriteDef anchors: (ax, ay) is the pixel inside the rect that sits on the bottom-centre of
@@ -10,11 +10,10 @@
 //   trunk / base / feet at (ax, ay) and overhang upwards (and sideways, for 2-3 tile wide art).
 // - UI SpriteDefs use (0, 0) (top-left) — they are screen-space pieces.
 
-import type { Mood } from '@openworld/engine'
-import type { ActorDef, Catalog, FxDef, PrefabDef, SpriteDef } from './types.ts'
+import { LSW_FLOOR, LSW_STAIRS, LSW_WALL, type ActorDef, type Catalog, type FxDef, type PrefabDef, type SpriteDef } from '@openworld/runtime/src/assets/types.ts'
+import { SIN_ACTORS, SIN_FX } from '@openworld/runtime/src/assets/bosses.ts'
 import FACES from './faces.json'
 import { CROP_FIXTURES, CROP_ITEMS } from './crops.ts'
-import { SIN_ACTORS, SIN_FX } from './bosses.ts'
 
 // ---------------------------------------------------------------------------------------------
 // Sheet paths
@@ -37,9 +36,6 @@ const DESERT = TS + 'TilesetDesert.png'
 const IFLOOR = TS + 'Interior/TilesetInteriorFloor.png'
 const WALLS = TS + 'Interior/TilesetWallSimple.png'
 // the project's own pixel art for what one builds
-export const LSW_WALL = 'lsw/Structures/wall.png'
-export const LSW_FLOOR = 'lsw/Structures/floor.png'
-export const LSW_STAIRS = 'lsw/Structures/stairs.png'
 
 /** Tile-aligned sprite: (c, r) in tiles, w x h tiles, anchor defaults to bottom-centre of the rect. */
 function t(img: string, c: number, r: number, w = 1, h = 1, ax = w * 8, ay = h * 16): SpriteDef {
@@ -56,27 +52,6 @@ function icon(img: string, w: number, h: number): SpriteDef {
 /** UI piece: whole image, anchored top-left. */
 function ui(img: string, w: number, h: number, extra: Partial<SpriteDef> = {}): SpriteDef {
   return { img, x: 0, y: 0, w, h, ax: 0, ay: 0, ...extra }
-}
-
-// ---------------------------------------------------------------------------------------------
-// Blob autotile layout (verified)
-// ---------------------------------------------------------------------------------------------
-/**
- * The 47-tile blob layout of TilesetFloor.png cols 0-10 rows 7-11, as offsets from the block's
- * top-left. Key = canonical 8-neighbour mask of "same terrain" neighbours:
- *   N=1 NE=2 E=4 SE=8 S=16 SW=32 W=64 NW=128 (a corner bit only counts when both adjacent
- *   edges are set). Derived by classifying every tile of the reference block pixel-by-pixel
- *   (47 distinct masks, one tile each). NOTE the layout is the 10x4 block + 5 tiles in the 5th
- *   row (cols 4-8) + TWO extra tiles in column 10, rows 2-3 (masks 117 and 213) — so a block
- *   is 11 tiles wide. (0,4)-(3,4) of a block are plain-ground variants, not part of the blob.
- */
-export const BLOB47: Record<number, [number, number]> = {
-  0: [3, 3], 1: [3, 2], 4: [0, 3], 5: [4, 3], 7: [0, 2], 16: [3, 0], 17: [3, 1], 20: [4, 0], 21: [4, 4],
-  23: [4, 1], 28: [0, 0], 29: [4, 2], 31: [0, 1], 64: [2, 3], 65: [7, 3], 68: [1, 3], 69: [8, 3], 71: [6, 3],
-  80: [7, 0], 81: [7, 4], 84: [8, 0], 85: [8, 4], 87: [9, 3], 92: [6, 0], 93: [9, 2], 95: [6, 4], 112: [2, 0],
-  113: [7, 2], 116: [5, 0], 117: [10, 2], 119: [9, 1], 124: [1, 0], 125: [8, 2], 127: [6, 2], 193: [2, 2],
-  197: [5, 3], 199: [1, 2], 209: [7, 1], 213: [10, 3], 215: [8, 1], 221: [9, 0], 223: [6, 1], 241: [2, 1],
-  245: [5, 4], 247: [5, 1], 253: [5, 2], 255: [1, 1],
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -911,11 +886,4 @@ Object.assign(CATALOG.ui, {
 for (const a of [...Object.values(CATALOG.characters), ...Object.values(CATALOG.creatures)]) {
   const f = a.faceset ? (FACES as Record<string, ActorDef['faces']>)[`${a.dir}/${a.faceset}`] : undefined
   if (f) a.faces = f
-}
-
-/** The portrait for a line's mood: that frame of the face's strip, or the plain faceset (one frame) when it has no such mood. */
-export function faceFrame(a: ActorDef | undefined, mood?: Mood): { img: string; frame: number; frames: number } | undefined {
-  if (!a?.faceset) return undefined
-  const i = mood && a.faces ? a.faces.moods.indexOf(mood) : -1
-  return i >= 0 ? { img: a.faces!.strip, frame: i + 1, frames: a.faces!.moods.length + 1 } : { img: `${a.dir}/${a.faceset}`, frame: 0, frames: 1 }
 }

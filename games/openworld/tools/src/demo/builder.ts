@@ -9,7 +9,7 @@ import type { AiData, Entity, AppearDef, MapData, Portal, PropValue, Text } from
 import { CHAR_OF, FORM_BY_ID, buildOntology, makeItem, type RawChunk } from '@openworld-game/content'
 import { OntologyIndex, Rng, baseCovers, splitLayers } from '@openworld/engine'
 import type { PrefabDef } from '@openworld/runtime/src/assets/types.ts'
-import { CATALOG } from '@openworld/runtime/src/assets/catalog.ts'
+import { CATALOG } from '../../../client/src/catalog.ts'
 
 /** The builders' randomness. Re-seeded for each map (`reseed`), so a map comes out the same however many were built before it. */
 export let rng = new Rng(4242)

@@ -5,7 +5,7 @@
 // on hover; a click learns it when it is ready.
 
 import type { Frame, SkillDef } from '@openworld/engine'
-import { SKILLS, SKILL_DIRECTIONS, SKILL_BRANCHES, SKILL_BY_ID, branchesForProfession, skillsForProfession, type SkillDirection } from '@openworld-game/content'
+import { game, skillById } from '../game.ts'
 import { $, esc, locale, t, tx } from './common.ts'
 import { bindSkillArt, skillArt } from './skillIcons.ts'
 import { layoutBranches, layoutSkills } from './skillLayout.ts'
@@ -24,7 +24,7 @@ export class SkillTree {
   private suppressClick = false
   /** The skill node under the pointer (the skill bar's Shift+1–6 sets it). */
   hovered?: string
-  private direction: SkillDirection = 'combat'
+  private direction: string = 'combat'
   private profession = ''
   private layout = layoutSkills()
   private branches = layoutBranches('combat')
@@ -46,10 +46,10 @@ export class SkillTree {
       <div class="sk-tip hidden" id="skTip"></div>`
     $('#skDirections').onclick = (e) => {
       const button = (e.target as Element).closest<HTMLButtonElement>('[data-direction]')
-      const direction = SKILL_DIRECTIONS.find((d) => d.id === button?.dataset.direction)?.id
+      const direction = game().skills.directions.find((d) => d.id === button?.dataset.direction)?.id
       if (direction && direction !== this.direction) {
         this.direction = direction
-        this.layout = layoutSkills(SKILLS, direction, this.profession)
+        this.layout = layoutSkills(game().skills.all, direction, this.profession)
         this.branches = layoutBranches(direction)
         this.sig = ''
         if (this.frame) this.render(this.frame)
@@ -150,10 +150,10 @@ export class SkillTree {
     this.sig = sig
     if (profession !== this.profession) {
       this.profession = profession
-      this.layout = layoutSkills(SKILLS, this.direction, profession)
+      this.layout = layoutSkills(game().skills.all, this.direction, profession)
       this.hideTip()
     }
-    const branchDefs = branchesForProfession(profession)
+    const branchDefs = game().skills.branchesFor(profession)
     $('.sk-bar .sk-title').textContent = t('skills')
     $('#skPoints').innerHTML = `${t('skillPoints')}: <b>${points}</b>`
     $('#skPoints').classList.toggle('has', points > 0)
@@ -162,13 +162,13 @@ export class SkillTree {
     $('#skZoomIn').setAttribute('aria-label', t('skillZoomIn'))
     $('#skZoomOut').setAttribute('aria-label', t('skillZoomOut'))
     $('#skDirections').setAttribute('aria-label', t('skillDirections'))
-    $('#skDirections').innerHTML = SKILL_DIRECTIONS.map((d) => {
+    $('#skDirections').innerHTML = game().skills.directions.map((d) => {
       const branches = branchDefs.filter((b) => b.direction === d.id)
       const selected = this.direction === d.id
       return `<button class="sk-direction ${d.id}${selected ? ' selected' : ''}" data-direction="${d.id}" aria-pressed="${selected}"><span class="sk-direction-icon">${skillArt(d.icon)}</span><span><b>${esc(tx(d.name))}</b><small>${branches.map((b) => esc(tx(b.name))).join(' · ')}</small></span></button>`
     }).join('')
 
-    const visible = SKILLS.filter((s) => this.layout.has(s.id))
+    const visible = game().skills.all.filter((s) => this.layout.has(s.id))
     const at = (id: string) => this.layout.get(id)!
     const state = (s: SkillDef) =>
       have.has(s.id) ? 'learned' : (s.requires ?? []).some((r) => !have.has(r)) ? 'locked' : points >= (s.cost ?? 1) ? 'ready' : 'waiting'
@@ -194,7 +194,7 @@ export class SkillTree {
       const p = this.branches.get(b.id)!
       return `<path class="sk-line trunk ${b.id}" d="M0 0 L${p.x} ${p.y}"/>`
     }).join('')
-    const direction = SKILL_DIRECTIONS.find((d) => d.id === this.direction)!
+    const direction = game().skills.directions.find((d) => d.id === this.direction)!
     const origin = `<button class="sk-node origin" data-origin="1" style="left:0;top:0" aria-label="${esc(tx(direction.name))}">${skillArt('origin')}<span class="sk-lv">${level}</span><span class="sk-node-name">${esc(tx(direction.name))}</span></button>`
     $('#skWorld').innerHTML = `<svg class="sk-links" aria-hidden="true">${trunks}${links}</svg>${origin}${hubs}${nodes}`
 
@@ -223,33 +223,33 @@ export class SkillTree {
       return `<b>${t('level')} ${level}</b><span class="sk-doc">${t('skillOrigin')}</span><span class="sk-foot">${t('skillPoints')}: ${points}</span>`
     }
     if (b.dataset.branch) {
-      const branch = branchesForProfession(this.profession).find((s) => s.id === b.dataset.branch)!
-      const direction = SKILL_DIRECTIONS.find((d) => d.id === branch.direction)!
-      const own = skillsForProfession(this.profession).filter((s) => s.branch === branch.id)
+      const branch = game().skills.branchesFor(this.profession).find((s) => s.id === b.dataset.branch)!
+      const direction = game().skills.directions.find((d) => d.id === branch.direction)!
+      const own = game().skills.forProfession(this.profession).filter((s) => s.branch === branch.id)
       // no profession yet: where to get one
       if (branch.id === 'profession' && !own.length) return `<span class="sk-path">${esc(tx(direction.name))} / ${t('skillProfession')}</span><b>${esc(tx(branch.name))}</b><span class="sk-doc">${t('skillNoProfession')}</span>`
       return `<span class="sk-path">${esc(tx(direction.name))} / ${t(branch.id === 'profession' ? 'skillProfession' : 'skillBranch')}</span><b>${esc(tx(branch.name))}</b><span class="sk-doc">${own.length ? own.map((s) => esc(tx(s.name))).join(' · ') : t('skillPending')}</span>${own.length ? `<span class="sk-foot">${own.filter((s) => f.player.skills.includes(s.id)).length} / ${own.length} ${t('learnedSkill')}</span>` : ''}`
     }
-    const s = SKILL_BY_ID[b.dataset.skill!]
+    const s = skillById()[b.dataset.skill!]
     const have = new Set(f.player.skills)
     const missing = (s.requires ?? []).filter((r) => !have.has(r))
     const cost = s.cost ?? 1
     const foot = have.has(s.id)
       ? `✓ ${t('learnedSkill')}`
       : missing.length
-        ? t('needsSkill').replace('{s}', missing.map((r) => tx(SKILL_BY_ID[r].name)).join(', '))
+        ? t('needsSkill').replace('{s}', missing.map((r) => tx(skillById()[r].name)).join(', '))
         : points >= cost
           ? `${t('learn')} · ${cost} ${t('skillPoints')}`
           : t('noPoints')
-    const branch = branchesForProfession(this.profession).find((b) => b.id === s.branch)!
-    const direction = SKILL_DIRECTIONS.find((d) => d.id === branch.direction)!
+    const branch = game().skills.branchesFor(this.profession).find((b) => b.id === s.branch)!
+    const direction = game().skills.directions.find((d) => d.id === branch.direction)!
     return `<span class="sk-path">${esc(tx(direction.name))} / ${s.profession ? `${t('skillProfession')} · ` : ''}${esc(tx(branch.name))}</span><b>${esc(tx(s.name))}</b>${s.active ? `<span class="sk-tag">${locale.value === 'zh' ? '主动技能' : 'Active'}</span>` : s.ability ? `<span class="sk-tag">${t('ability')}</span>` : ''}<span class="sk-doc">${esc(tx(s.doc))}</span><span class="sk-foot">${esc(foot)}</span>${s.active && have.has(s.id) ? `<span class="sk-foot">${skillbarHint(locale.value === 'zh')}</span>` : ''}`
   }
 
   private showTip(b: HTMLElement): void {
     if (!this.frame) return
     const tip = $('#skTip')
-    tip.className = `sk-tip ${[...b.classList].filter((c) => SKILL_BRANCHES.some((x) => x.id === c) || c === 'ready').join(' ')}`
+    tip.className = `sk-tip ${[...b.classList].filter((c) => game().skills.branches.some((x) => x.id === c) || c === 'ready').join(' ')}`
     tip.innerHTML = this.tipHtml(b)
     const r = b.getBoundingClientRect()
     const w = tip.offsetWidth

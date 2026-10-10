@@ -4,6 +4,7 @@
 
 import type { Frame, ModSpec, Patch, Rule, ValidationResult, WorldIndex } from '@openworld/engine'
 import type { LibraryView, RecordView } from '../protocol.ts'
+import { game } from '../game.ts'
 import { $, esc, locale } from './common.ts'
 import { template } from './template.ts'
 
@@ -206,21 +207,22 @@ export class ModConsole {
     if (!body || !s) return
     // the tools stay put (what is typed in them survives the per-frame refresh); the numbers refresh
     if (!body.querySelector('#devTools')) {
+      const shortcuts = game().dev?.shortcuts ?? []
       body.innerHTML = `<div class="pad world-tab">
         <div id="devTools" class="dev-tools">
           <div class="row"><input id="dGive" list="dTypes" placeholder="item/material/iron_ore" spellcheck="false"><button id="bGive">Give</button></div>
           <datalist id="dTypes">${(this.spec?.ontology.types ?? []).filter((t) => t.id === 'item' || t.id.startsWith('item/')).map((t) => `<option value="${esc(t.id)}">`).join('')}</datalist>
           <div class="row"><input id="dMap" placeholder="map (blank: this one)" spellcheck="false"><input id="dX" type="number" placeholder="x"><input id="dY" type="number" placeholder="y"><button id="bGo">Teleport</button></div>
-          <div class="row"><button id="bForge">Emberfall, by the lit forge</button><input id="dHour" type="number" min="0" max="23" placeholder="hour"><button id="bHour">Set hour</button></div>
-          <div class="row"><button id="bKnight">召唤白骑士 · Summon the White Knight (East Road)</button></div>
+          <div class="row"><input id="dHour" type="number" min="0" max="23" placeholder="hour"><button id="bHour">Set hour</button></div>
+          ${shortcuts.map((c, i) => `<div class="row"><button data-shortcut="${i}">${esc(c.label)}</button></div>`).join('')}
         </div>
         <div id="worldStats"></div>
       </div>`
       const val = (id: string) => (body.querySelector(`#${id}`) as HTMLInputElement).value.trim()
       body.querySelector<HTMLButtonElement>('#bGive')!.onclick = () => val('dGive') && this.send.debug({ op: 'give', type: val('dGive') })
       body.querySelector<HTMLButtonElement>('#bGo')!.onclick = () => this.send.debug({ op: 'teleport', map: val('dMap') || undefined, x: Number(val('dX')), y: Number(val('dY')) })
-      body.querySelector<HTMLButtonElement>('#bForge')!.onclick = () => this.send.debug({ op: 'teleport', map: 'emberfall', x: 31, y: 8 })
-      body.querySelector<HTMLButtonElement>('#bKnight')!.onclick = () => this.send.debug({ op: 'summon', kit: 'alberic', map: 'eastroad', x: 40, y: 15, from: [30, 12] })
+      // the game's own places and summons (its dev shortcuts)
+      body.querySelectorAll<HTMLButtonElement>('[data-shortcut]').forEach((b) => (b.onclick = () => this.send.debug(shortcuts[Number(b.dataset.shortcut)].debug)))
       body.querySelector<HTMLButtonElement>('#bHour')!.onclick = () => val('dHour') && this.send.debug({ op: 'hour', hour: Number(val('dHour')) })
       if (!this.spec) this.send.spec()
     }

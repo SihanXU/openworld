@@ -5,11 +5,12 @@
 
 import { improve } from '@openworld/agent'
 import { openModder } from '@openworld/modder'
+import { GAME } from '@openworld-game/content'
 import { engineSource } from './engine-tasks.ts'
 
 const argv = process.argv.slice(2)
 const flag = (k: string, d: string) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1] : d)
-const modder = openModder({ log: (l) => console.log(`  ${l}`) })
+const modder = openModder({ game: GAME, log: (l) => console.log(`  ${l}`) })
 if (!modder.model) throw new Error('no model configured (LSW_MODEL_KEY, LSW_MODEL)')
 const r = await improve({
   model: modder.model,

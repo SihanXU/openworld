@@ -7,7 +7,7 @@
 import { copyFileSync, existsSync, mkdirSync, rmSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { CATALOG } from '@openworld/runtime/src/assets/catalog.ts'
+import { CATALOG } from '../../client/src/catalog.ts'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
 const PACK = join(ROOT, 'assets', 'ninja-adventure', 'Ninja Adventure - Asset Pack')
