@@ -1707,7 +1707,7 @@ const CREATURE: Selector = { type: 'actor/creature' }
 const GENERAL: Rule[] = [
   rule({
     id: 'creature/offered',
-    doc: 'A creature held out a thing: something fibrous lashes it down (the rope goes onto it); something edible it snaps up; anything else, and anything offered a boss, is its own kind\'s to answer (undefined at the root).',
+    doc: 'A creature held out a thing: something fibrous lashes it down (the rope goes onto it); something edible it snaps up (the food is told it is eaten: food/eaten); anything else, and anything offered a boss, is its own kind\'s to answer (undefined at the root).',
     host: CREATURE,
     on: 'impulse/offered',
     tree: IF(
@@ -1718,11 +1718,18 @@ const GENERAL: Rule[] = [
         AS(L('Bind {target} with {instrument}', '用{instrument}捆住{target}'), DO(add('frozen', 30), taken('contents'), vfx('dust'), log('{host} is lashed down with {item}.', '{host}被{item}捆住了。'))),
         IF(
           tag('item', 'edible'),
-          AS(L('Feed {instrument} to {target}', '给{target}吃{instrument}'), DO(taken('contents'), { op: 'emote', mood: 'happy' }, vfx('sparkle'), log('{host} snaps up {item}.', '{host}一口吞下了{item}。'))),
+          AS(L('Feed {instrument} to {target}', '给{target}吃{instrument}'), DO(emit('notify', 'item', { what: 'eaten' }), { op: 'emote', mood: 'happy' }, vfx('sparkle'), log('{host} snaps up {item}.', '{host}一口吞下了{item}。'))),
           'inherit',
         ),
       ),
     ),
+  }),
+  rule({
+    id: 'food/eaten',
+    doc: 'Food told it is eaten (snapped up by a creature it was held out to: creature/offered) is gone; any other news it only notes.',
+    host: { tags: ['edible'] },
+    on: 'impulse/notify',
+    tree: IF(param('what', 'eaten'), DO({ op: 'destroy' }), 'inherit'),
   }),
   rule({
     id: 'creature/handle',

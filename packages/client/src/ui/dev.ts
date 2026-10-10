@@ -258,7 +258,7 @@ function ruleCard(r: Rule): string {
 export function llmPrompt(r: RecordView, spec?: ModSpec): string {
   return [
     'You are the modder of a 2D RPG world whose mechanics are data (rules). An event just happened that no rule covers.',
-    'Write ONE JSON patch {"artifacts":[{"kind":"rule","rule":{...}}]} that defines the CLASS of this event, following the ModSpec exactly. Output only JSON.',
+    'Write ONE JSON patch {"artifacts":[{"kind":"rule","rule":{...}}]} that answers this event for its host\'s own type at the open leaf it fell into (design.md §5.16): host exactly {"type": <the host\'s type>}, "on" the event\'s kind, "hole" the request\'s hole.rule, then "#" and its path joined by "&" when the path is not empty, "at" the request\'s hole.at; a case you do not answer is {"undefined": true}, never "inherit". Follow the ModSpec exactly. Output only JSON.',
     '',
     '## ModRequest',
     JSON.stringify(r.request, null, 2),

@@ -139,6 +139,9 @@ let IDX: Indices | undefined
 const RULE_WAYS: Record<string, { way: string; page: string; text: string }> = {
   'core/fish': { way: '钓鱼', page: '钓鱼', text: '用鱼竿在水里钓到' },
   'home/milk': { way: '挤奶', page: '动物', text: '拿空木桶给吃饱的牛挤奶' },
+  'smelt/ore': { way: '熔炼', page: '熔炉', text: '拿着矿石对点着的熔炉按左键，熔成锭' },
+  'use/cook': { way: '烹饪', page: '烹饪', text: '拿着生的东西对点着的营火、火盆等炊具按左键，烤熟' },
+  'element/cook': { way: '烹饪', page: '烹饪', text: '被火烧到（放进点着的炊具、被火焰打中）也会熟' },
 }
 let IDX_FOR: Game | undefined
 
@@ -192,14 +195,23 @@ function idx(g: Game): Indices {
     for (const m of maps) { if (!mapPeople.has(m)) mapPeople.set(m, new Set()); mapPeople.get(m)!.add(p.id) }
   }
   const ruleMade = new Map<string, string[]>()
-  const walk = (n: any, rule: string): void => {
+  const made = (type: string, rule: string) => { if (!(ruleMade.get(type) ?? []).includes(rule)) push(ruleMade, type, rule) }
+  // what a rule's host may be: the kinds its selector names (a type prefix and the tags it needs)
+  const hosts = (h: { type?: string; tags?: string[] } | undefined) =>
+    Object.values(g.types).filter((t) => (!h?.type || matchesPrefix(t.id, h.type)) && (h?.tags ?? []).every((x) => (t.tags ?? []).includes(x)))
+  const walk = (n: any, r: (typeof BASE_RULES)[number]): void => {
     if (!n || typeof n !== 'object') return
-    if (Array.isArray(n)) return n.forEach((x) => walk(x, rule))
-    const made = n.op === 'spawn' ? n.type : n.op === 'transform' ? n.into : undefined
-    if (typeof made === 'string' && !made.startsWith('@') && !(ruleMade.get(made) ?? []).includes(rule)) push(ruleMade, made, rule)
-    for (const v of Object.values(n)) walk(v, rule)
+    if (Array.isArray(n)) return n.forEach((x) => walk(x, r))
+    const into = n.op === 'spawn' ? n.type : n.op === 'transform' ? n.into : undefined
+    if (typeof into === 'string' && !into.startsWith('@')) made(into, r.id)
+    // a kind read off the host's own prop (`@prop:smelts`, `@prop:host.babyType`): each host kind's own
+    else if (typeof into === 'string' && into.startsWith('@prop:')) {
+      const key = into.slice(6).replace(/^host\./, '')
+      for (const t of hosts(r.host as any)) if (typeof t.props?.[key] === 'string') made(t.props[key] as string, r.id)
+    }
+    for (const v of Object.values(n)) walk(v, r)
   }
-  for (const r of BASE_RULES) walk(r.tree, r.id)
+  for (const r of BASE_RULES) walk(r.tree, r)
   IDX = { madeFrom, reward, ingredient, tool, questNeeds, appearOn, carried, yields, given, personQuests, mapPeople, ruleMade }
   IDX_FOR = g
   return IDX

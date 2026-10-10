@@ -23,6 +23,7 @@ import {
   type Cond,
   type Rule,
   type Scenario,
+  type ScenarioEntity,
   type Selector,
   type Tree,
 } from '@lsw/engine'
@@ -408,6 +409,41 @@ describe('fire and elements', () => {
         expect(rp.engine.world.get('fish')?.type === 'item/food/fish/cooked', `${verb} on ${type}`).toBe(cooks)
       }
     }
+  })
+})
+
+describe("the base's general cases (design.md §5.16, roadmap G1)", () => {
+  const at = (extra: ScenarioEntity[]): Engine => sandbox({ entities: [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2 }, ...extra], event: {} })
+
+  it('a rope held out to a creature lashes it down and goes onto it; bread it snaps up is gone', () => {
+    const eng = at([{ key: 'rope', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' }, { key: 'slime', type: 'actor/creature/slime/green_slime', x: 2, y: 1 }])
+    expect(eng.act('use', 'actor', { e: 'slime' }, { instrument: { e: 'rope' } }).defined).toBe(true)
+    expect(eng.world.hasStatus({ e: 'slime' }, 'frozen')).toBe(true)
+    expect(eng.world.get('rope')!.place).toMatchObject({ holder: 'slime' })
+    const fed = at([{ key: 'bread', type: 'item/food/bread', x: 2, y: 2, heldBy: 'actor' }, { key: 'slime', type: 'actor/creature/slime/green_slime', x: 2, y: 1 }])
+    expect(fed.act('use', 'actor', { e: 'slime' }, { instrument: { e: 'bread' } }).defined).toBe(true)
+    fed.tick()
+    expect(fed.world.get('bread')).toBeUndefined()
+    expect(fed.world.get('slime')!.contents ?? []).toEqual([])
+  })
+
+  it('a bare hand on a wild creature is bitten; at a lit fire the wet dry off; ore on a lit forge runs into its bar, a cold one wants fire', () => {
+    const bite = at([{ key: 'slime', type: 'actor/creature/slime/green_slime', x: 2, y: 1 }])
+    const hp = bite.world.num(bite.world.get('actor')!, 'hp')
+    bite.act('hands', 'actor', { e: 'slime' }, { instrument: null })
+    bite.tick()
+    expect(bite.world.num(bite.world.get('actor')!, 'hp')).toBeLessThan(hp)
+    const warm = at([{ key: 'fire', type: 'fixture/light/campfire', x: 2, y: 1, statuses: ['lit'] }])
+    warm.author(() => warm.world.setStatus({ e: 'actor' }, 'wet', 100))
+    warm.act('hands', 'actor', { e: 'fire' }, { instrument: null })
+    warm.tick()
+    expect(warm.world.hasStatus({ e: 'actor' }, 'wet')).toBe(false)
+    const smelt = at([{ key: 'ore', type: 'item/material/iron_ore', x: 2, y: 2, heldBy: 'actor' }, { key: 'forge', type: 'fixture/craft/forge', x: 2, y: 1, statuses: ['lit'] }])
+    smelt.act('use', 'actor', { e: 'forge' }, { instrument: { e: 'ore' } })
+    expect(smelt.world.get('ore')!.type).toBe('item/material/iron_ingot')
+    const cold = at([{ key: 'ore', type: 'item/material/gold_ore', x: 2, y: 2, heldBy: 'actor' }, { key: 'forge', type: 'fixture/craft/forge', x: 2, y: 1 }])
+    cold.act('use', 'actor', { e: 'forge' }, { instrument: { e: 'ore' } })
+    expect(cold.world.get('ore')!.type).toBe('item/material/gold_ore')
   })
 })
 

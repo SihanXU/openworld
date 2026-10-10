@@ -155,6 +155,9 @@ describe('the five inputs: one act each', () => {
     expect(bed.controls.plan('hands', { x: 2, y: 1 })).toBeUndefined()
     bed.author(() => bed.world.place(bed.world.player, { on: 'tile', map: 'sandbox', x: 2, y: 1 }))
     expect(bed.controls.plan('hands', { x: 2, y: 1 })).toMatchObject({ verb: 'hands', target: { e: 'bed' } })
+    // E with nothing pointed at, on the bed, the bare ground in front: the ground is only touched, so E lies down
+    bed.author(() => (bed.world.player.facing = 'up'))
+    expect(bed.controls.plan('hands')).toMatchObject({ verb: 'hands', target: { e: 'bed' } })
   })
 
   it('E, F and G never take oneself: on one\'s own place they meet what is there; the right click is the held thing on oneself', () => {
