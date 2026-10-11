@@ -20,7 +20,6 @@ export const PROLOGUE = {
 export const PAT = {
   /** where a new game begins: in the ruined watch shelter on Cloudtop */
   spawn: [10, 5],
-  summitStone: [25, 7],
   /** the gap in the cut, Cloudtop's only way down */
   cut: [20, 20],
   /** the rune-cut seal stone: nothing in the world defines it */
@@ -62,7 +61,6 @@ export function buildSummit(): MapBuilder {
   for (const [x, y] of [[6, 13], [16, 12]] as const) m.item('item/material/stick', x, y)
   for (const [x, y] of [[12, 14], [18, 13]] as const) m.item('item/material/stone', x, y)
   for (const [x, y] of [[9, 14], [15, 14]] as const) m.item('item/material/grass', x, y)
-  m.fixture('fixture/sacred/waypoint', ...PAT.summitStone, { id: 'wp.summit', name: L('Cloudtop statue', '云顶台地传送雕像') })
   // the cut: a wall of rock across the plateau, one gap where the trail goes down; the plateau
   // stands two levels above the land below it, a ramp through the gap (each row half a level lower)
   const [cx, cy] = PAT.cut

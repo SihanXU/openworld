@@ -22,6 +22,7 @@ import type { PersonDef, Slot } from './person.ts'
 import { buildOverworld, placeCells, siteOf } from './overworld.ts'
 import { HOUSEHOLDS, PEOPLE, householdOf } from './people.ts'
 import { buildHaven } from './quest/haven.ts'
+import { villageInteriors, villageTown } from './village.ts'
 import { VIGIL, buildChapel, buildDawnHill, buildMillCellar, buildMillbrook } from './quest/vigil.ts'
 import { CHAPTER1_SCENES, CHAPTER1_STORY, HAVEN_STORY, buildOffstage, chapter1Barrow, chapter1EastRoad, chapter1Foot, chapter1Ford, chapter1Forest, chapter1Hollow, chapter1Pasture, chapter1Summit, chapter1Village } from './quest/chapter1.ts'
 
@@ -231,7 +232,8 @@ const GRAZER: Omit<AiData, 'home'> = { behaviour: 'passive', temper: 'wary', sig
 
 /** A starting village in a ring of woods, with homes, a shared square, pasture and a garden. */
 function buildMeadow(): MapBuilder {
-  const m = new MapBuilder(FIRSTLIGHT.map, FIRSTLIGHT.name, 'village', 40, 30, 'grass', 'village', 'outdoor', 'frostfang')
+  // (60 x 40 since 2026-10-11: it grew east along the road and south down the trail, so what stood keeps its cell)
+  const m = new MapBuilder(FIRSTLIGHT.map, FIRSTLIGHT.name, 'village', 60, 40, 'grass', 'village', 'outdoor', 'frostfang')
   const open = (y: number) => WEST_GAP.includes(y)
   // the woods all round, two to four deep, the east side open where the road comes in
   for (let y = 0; y < m.h; y++)
@@ -241,14 +243,15 @@ function buildMeadow(): MapBuilder {
       if (y >= m.h - 4 && SOUTH_GAP.includes(x)) continue
       if (edge < 2 || (edge < 4 && rng.chance(0.45 - edge * 0.1))) m.set(x, y, rng.chance(0.25) ? 'pine' : 'tree')
     }
-  for (const [cx, cy, r, p] of [[4, 4, 3, 0.7], [35, 4, 2.6, 0.7], [4, 26, 3, 0.75], [33, 26, 2.4, 0.7], [20, 2.5, 2, 0.6], [2.5, 15, 2, 0.6]] as const) clump(m, cx, cy, r, p)
+  for (const [cx, cy, r, p] of [[4, 4, 3, 0.7], [35, 4, 2.6, 0.7], [4, 26, 3, 0.75], [33, 26, 2.4, 0.7], [20, 2.5, 2, 0.6], [2.5, 15, 2, 0.6], [56, 4, 2.6, 0.7], [56, 36, 2.6, 0.7], [4, 36, 3, 0.7], [44, 33, 2.4, 0.6]] as const) clump(m, cx, cy, r, p)
   // The east gate leads to a village square, then homes and the forest trail.
-  m.path([[39, 19], [34, 19], [29, 17], [23, 16], [18, 17], [11, 16]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
+  m.path([[59, 19], [39, 19], [34, 19], [29, 17], [23, 16], [18, 17], [11, 16]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
   // and a trail south, into the forest
-  m.path([[23, 17], [24, 20], [23, 25], [23, 29]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
+  m.path([[23, 17], [24, 20], [23, 25], [23, 32], [23, 39]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
   m.organic(21, 16, 4.6, 3, 'cobble', { only: (t) => t === 'grass' || t === 'path' })
   // Four modest homes, paths to each door, a communal well and an evening fire.
-  for (const [key, x, y] of [['house_plaster', 8, 5], ['house_wood', 19, 5], ['house_thatch', 28, 5], ['house_red', 7, 13]] as const) m.scenery(key, x, y)
+  // (every house has a door and a room behind it: village.ts)
+  villageTown(m)
   m.path([[9, 8], [12, 11], [18, 16]], 'path', 1)
   m.path([[20, 8], [20, 11], [20, 13]], 'path', 1)
   m.path([[29, 8], [28, 11], [26, 15]], 'path', 1)
@@ -573,6 +576,9 @@ export function buildFord(): FordWorld {
   // the meadow west of the Ford, through the road's gap in the woods
   reseed(4243)
   const meadow = buildMeadow()
+  // the rooms behind the village's doors: homes, the store, the smithy, the church
+  const rooms = villageInteriors()
+  for (const r of rooms) meadow.linkInterior(r.door, r.map)
   linkEdge(m, WEST_GAP.map((y) => [0, y]), [1, 0], meadow, WEST_GAP.map((y) => [meadow.w - 1, y]), [-1, 0])
   // Firstlight's own country (docs/chapter-1.md §13): Millbrook west of it, Dawn Hill north; their cellar and chapel
   reseed(4270)
@@ -650,7 +656,7 @@ export function buildFord(): FordWorld {
   const offstage = buildOffstage()
   // the Held Ground the Oath-Thorn opens (docs/chapter-1.md §12): linked to nothing
   const haven = buildHaven()
-  const builders = [m, meadow, pasture, forest, hollow, barrow, ossuary, sanctum, mill, millcellar, dawnhill, chapel, road, ember, mine, pass, lair, summit, foot, tutorial, offstage, haven]
+  const builders = [m, meadow, ...rooms.map((r) => r.map), pasture, forest, hollow, barrow, ossuary, sanctum, mill, millcellar, dawnhill, chapel, road, ember, mine, pass, lair, summit, foot, tutorial, offstage, haven]
   const at = placeMaps(builders, m)
   for (const b of builders)
     for (const [name, [x, y]] of Object.entries(b.anchors)) {

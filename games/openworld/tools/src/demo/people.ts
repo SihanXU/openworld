@@ -20,6 +20,9 @@ import { joss } from './people/joss.ts'
 import { pell } from './people/pell.ts'
 import { brin } from './people/brin.ts'
 import { alberic } from './people/alberic.ts'
+import { haldor } from './people/haldor.ts'
+import { greta } from './people/greta.ts'
+import { anselm } from './people/anselm.ts'
 import { tam } from './people/tam.ts'
 import { nessa } from './people/nessa.ts'
 import { fennick } from './people/fennick.ts'
@@ -30,7 +33,7 @@ import { cass } from './people/cass.ts'
 import { vigo } from './people/vigo.ts'
 
 // Chapter 1's (docs/chapter-1.md): the village's six, and the two the scenes bring on
-export const PEOPLE: PersonDef[] = [hesper, tobin, mara, garrick, wren, bram, rowan, marta, mia, holt, gus, lina, oskar, ilse, joss, pell, nessa, fennick, edda, brin, tam, alberic, severin, courier, cass, vigo]
+export const PEOPLE: PersonDef[] = [hesper, tobin, mara, garrick, wren, bram, rowan, marta, mia, holt, gus, lina, oskar, ilse, joss, pell, nessa, fennick, edda, brin, tam, alberic, severin, courier, cass, vigo, haldor, greta, anselm]
 
 /**
  * Who keeps house together (docs/npc-sandbox.md §2.1): what one of them owns, all of them do; a theft from one

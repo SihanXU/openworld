@@ -64,6 +64,8 @@ export interface Entry {
   rel: [number, number]
   tile: [number, number]
   size: number
+  /** Going in from beside a one-cell site, from the place one stood on: the map it stands for (one arrives by the way between them). */
+  from?: string
 }
 export const WORLD_HOST = 'world'
 
@@ -1195,6 +1197,36 @@ export class Engine {
     const site = map.site!
     const part = w.partAt(map.id, x, y)
     const at = [(x + 0.5) / map.width, (y + 0.5) / map.height]
+    // a place of one cell: out onto the cell beside it the way one left (one walks back onto the place to go
+    // in again), or onto the place itself where that is sea or rock. A place a barrier runs through (its cell
+    // the barrier's, or two parts to the map) only onto a cell its part's ways lead to, nearest where one left.
+    if (site.size === 1) {
+      const open = (tx: number, ty: number) => !w.map(site.map) || w.walkable(site.map, tx, ty, e.id)
+      const parted = new Set(w.partsOf(map.id)?.filter((p) => p >= 0)).size > 1
+      const linked = new Set(map.portals.filter((p) => w.partAt(map.id, p.x, p.y) === part).map((p) => p.to))
+      const leads = (tx: number, ty: number) => w.entitiesAt(site.map, tx, ty).some((s) => linked.has(String(s.props?.map)))
+      const ahead = { x: site.x + DIRS[dir][0], y: site.y + DIRS[dir][1] }
+      let to: { x: number; y: number } | undefined
+      if (open(ahead.x, ahead.y) && (!parted || leads(ahead.x, ahead.y))) to = ahead
+      else if (!parted && open(site.x, site.y)) to = { x: site.x, y: site.y }
+      else {
+        const out = [site.x + at[0] - 0.5 + DIRS[dir][0], site.y + at[1] - 0.5 + DIRS[dir][1]]
+        let best: { x: number; y: number; d: number; linked: boolean } | undefined
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            const tx = site.x + dx
+            const ty = site.y + dy
+            if ((!dx && !dy) || !open(tx, ty)) continue
+            const l = leads(tx, ty)
+            const d = Math.hypot(tx - out[0], ty - out[1])
+            if (!best || (l && !best.linked) || (l === best.linked && d < best.d)) best = { x: tx, y: ty, d, linked: l }
+          }
+        to = best
+      }
+      e.facing = dir
+      this.travel(e, { map: site.map, x: to?.x ?? site.x, y: to?.y ?? site.y })
+      return
+    }
     let best: { x: number; y: number; d: number; same: boolean } | undefined
     for (let j = 0; j < site.size; j++)
       for (let i = 0; i < site.size; i++) {
@@ -1221,9 +1253,16 @@ export class Engine {
     const size = through ? this.world.onto.resolve(through.type).footprint[0] : 1
     const bx = through?.place.on === 'tile' ? through.place.x - Math.floor((size - 1) / 2) : 0
     const by = through?.place.on === 'tile' ? through.place.y - (size - 1) : 0
-    const rel: [number, number] = p ? [Math.min(1, Math.max(0, (p.x - bx + 0.5) / size)), Math.min(1, Math.max(0, (p.y - by + 0.5) / size))] : [0.5, 0.5]
+    const onIt = size === 1 && p && through?.place.on === 'tile' && p.x === through.place.x && p.y === through.place.y
+    // on a place of one cell: in on the side one came onto it from (behind one, as one faces)
+    const rel: [number, number] = onIt
+      ? [0.5 - DIRS[e.facing ?? 'down'][0] * 0.5, 0.5 - DIRS[e.facing ?? 'down'][1] * 0.5]
+      : p ? [Math.min(1, Math.max(0, (p.x - bx + 0.5) / size)), Math.min(1, Math.max(0, (p.y - by + 0.5) / size))] : [0.5, 0.5]
     const tile: [number, number] = [Math.min(size - 1, Math.floor(rel[0] * size)), Math.min(size - 1, Math.floor(rel[1] * size))]
-    const entry: Entry = { rel, tile, size }
+    // from beside a one-cell place, standing on another: one comes in by the way between the two maps
+    const beside = size === 1 && p && through?.place.on === 'tile' && (p.x !== through.place.x || p.y !== through.place.y)
+    const from = beside ? w.entitiesAt(p.map, p.x, p.y).find((s) => typeof s.props?.map === 'string')?.props?.map : undefined
+    const entry: Entry = { rel, tile, size, ...(typeof from === 'string' && { from }) }
     this.mapKnown(map)
     if (!w.map(map)) {
       this.pendingTransition = { map, x: -1, y: -1, entry }
@@ -1236,13 +1275,15 @@ export class Engine {
   private entryPoint(e: Entity, map: string, entry: Entry): Pos {
     const w = this.world
     const m = w.map(map)!
-    const part = w.regionPart(map, entry.tile[0], entry.tile[1], entry.size)
-    const tx = entry.rel[0] * m.width
-    const ty = entry.rel[1] * m.height
+    const ways = entry.from ? m.portals.filter((p) => p.to === entry.from) : []
+    // by the way from where one stood: next to it, on its side; otherwise in the part the tile shows, nearest its point
+    const part = ways.length ? w.partAt(map, ways[0].x, ways[0].y) : w.regionPart(map, entry.tile[0], entry.tile[1], entry.size)
+    const tx = ways.length ? ways.reduce((a, p) => a + p.x + 0.5, 0) / ways.length : entry.rel[0] * m.width
+    const ty = ways.length ? ways.reduce((a, p) => a + p.y + 0.5, 0) / ways.length : entry.rel[1] * m.height
     let best: { x: number; y: number; d: number; same: boolean } | undefined
     for (let y = 0; y < m.height; y++)
       for (let x = 0; x < m.width; x++) {
-        if (!w.fits(e, map, x, y)) continue
+        if (!w.fits(e, map, x, y) || (ways.length && m.portals.some((p) => p.x === x && p.y === y))) continue
         const same = part < 0 || w.partAt(map, x, y) === part
         const d = Math.hypot(x + 0.5 - tx, y + 0.5 - ty)
         if (!best || (same && !best.same) || (same === best.same && d < best.d)) best = { x, y, d, same }

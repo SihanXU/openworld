@@ -7,6 +7,8 @@
 
 import { HOMESTEAD_RULES } from './homestead.ts'
 import { LIFE_RULES } from './life.ts'
+import { CH1 } from './chapter1.ts'
+import { VILLAGE_SHOP_RULES } from './village.ts'
 import { PERSON_NEWS, SOCIAL_RULES } from './social.ts'
 import { type Amount, type Cond, type Effect, type Text, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@openworld/engine'
 import { HUNGRY_BELOW } from '@openworld/modules'
@@ -258,14 +260,14 @@ const BUNDLE = 'item/misc/bundle'
 const BODIES: Rule[] = [
   rule({
     id: 'body/rise',
-    doc: 'One who has fallen, told by the story to rise (the death screen\'s choice): one gets up, whole — leaving what one carried bundled where one fell, when one rises at home (but what one wears, the weapon in one\'s hand and what is important stay with one). Told of a home (a bed slept in, a waypoint woken), one keeps it.',
+    doc: 'One who has fallen, told by the story to rise (the death screen\'s choice): one gets up, whole — leaving what one carried bundled where one fell (one\'s coin loose beside it), when one rises at home (but what one wears, the weapon in one\'s hand and what is important stay with one). Told of a home (a bed slept in, a waypoint woken), one keeps it.',
     host: ESSENTIAL,
     on: 'impulse/notify',
     tree: IF(
       param('what', 'respawn'),
       IF(
         param('drop', true),
-        DO({ op: 'dropContents', keepWorn: true, keep: ['important'], bundle: BUNDLE }, remove('down'), { op: 'setProp', key: 'hp', value: 1 }, { op: 'heal', amount: { prop: 'maxHp', of: 'host' } }, log('You rise again. What you carried lies bundled where you fell; what you wore and what matters most are still with you.', '你重新站了起来。身上的东西打成一包留在了倒下的地方；穿戴的装备和重要物品还在身上。')),
+        DO({ op: 'dropContents', keepWorn: true, keep: ['important'], bundle: BUNDLE, loose: ['currency'] }, remove('down'), { op: 'setProp', key: 'hp', value: 1 }, { op: 'heal', amount: { prop: 'maxHp', of: 'host' } }, log('You rise again. What you carried lies bundled where you fell, your coin scattered beside it; what you wore and what matters most are still with you.', '你重新站了起来。身上的东西打成一包留在了倒下的地方，钱撒在旁边；穿戴的装备和重要物品还在身上。')),
         DO(remove('down'), { op: 'setProp', key: 'hp', value: 1 }, { op: 'heal', amount: { prop: 'maxHp', of: 'host' } }, log('You get up again.', '你重新站了起来。')),
       ),
       IF(param('what', 'home'), DO({ op: 'setProp', key: 'home', value: { param: 'value' } }), 'inherit'),
@@ -1748,14 +1750,26 @@ const BUILDING: Rule[] = [
   }),
 ]
 
+/**
+ * The ways the story opens on the world map: a place whose `opensWhen` is the fact is sealed until the story
+ * sets it (as a portal's `opensWhen`), and says why. Beyond the White Knight on the East Road: Emberfall and
+ * all east of it.
+ */
+export const SITE_GATES: { fact: string; say: { en: string; zh: string } }[] = [
+  { fact: CH1.knight, say: L('The White Knight still holds the East Road. There is no way past him yet.', '白骑士还守在东大路上，暂时过不去。') },
+]
+
 const SITES: Rule[] = [
   rule({
     id: 'site/enter',
     label: L('Enter {target}', '进入{target}'),
-    doc: 'Empty hands on a place of the overworld: one goes in — pushed into the map it stands for, on the side one stands.',
+    doc: 'Empty hands on a place of the overworld: one goes in — pushed into the map it stands for, on the side one stands; a place the story has not opened yet (its `opensWhen` fact unset) says why and stays shut.',
     host: SITE,
     on: 'impulse/handle',
-    tree: DO(emit('push', 'actor', { map: { prop: 'map', of: 'host' } })),
+    tree: SITE_GATES.reduceRight<Tree>(
+      (open, g) => IF({ all: [{ prop: { role: 'host', key: 'opensWhen', cmp: g.fact } }, { prop: { role: 'story', key: g.fact, cmp: 0, default: 0 } }] }, AS(L('Sealed: {target}', '未开放：{target}'), DO(log(g.say.en, g.say.zh))), open),
+      DO(emit('push', 'actor', { map: { prop: 'map', of: 'host' } })),
+    ),
   }),
   rule({
     id: 'site/far',
@@ -1854,4 +1868,4 @@ const GENERAL: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL, ...LIFE_RULES]
+export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL, ...LIFE_RULES, ...VILLAGE_SHOP_RULES]

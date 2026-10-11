@@ -95,6 +95,8 @@ const CELL_OVERLAY: Record<string, string> = { burning: 'fire', frozen: 'ice', e
 const STEP: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }
 
 /** Terrain objects and decor groups that grow loose: drawn a few pixels off the tile grid. */
+/** The tags that put a mark over a person's head (the catalogue's `<tag>Mark`), first first. */
+const ROLE_MARKS = ['trainer', 'smith']
 const LOOSE = new Set(['drygrass', 'flowers', 'bush'])
 /** The ground a stocked pond's fish shadows swim in. */
 const FISH_WATER = new Set(['water', 'deepwater'])
@@ -146,6 +148,9 @@ export class WorldScene extends Phaser.Scene {
   /** A boss fight under way: the camera holds still over the arena, zoomed out, until it ends. */
   private bossCam?: { id: string; x: number; y: number }
   private focus?: Phaser.GameObjects.Graphics
+  /** The map one last came out of, and its mark on the overworld (where one just was); the seals on places not open yet. */
+  private cameFrom?: string
+  private marks?: Phaser.GameObjects.Graphics
   private bossWarnings?: Phaser.GameObjects.Graphics
   private bossPreview?: { id: string; mode: Exclude<BossPreviewMode, 'live'>; startedAt?: number }
   private darkness = 0
@@ -262,8 +267,11 @@ export class WorldScene extends Phaser.Scene {
     this.bossCam = undefined
     this.focus?.destroy()
     this.focus = undefined
+    this.marks?.destroy()
+    this.marks = undefined
     this.layer?.destroy()
     this.tilemap?.destroy()
+    if (this.base && this.base.id !== map.id) this.cameFrom = this.base.id
     this.base = map
     this.fishWater = []
     if (map.fish) {
@@ -468,6 +476,7 @@ export class WorldScene extends Phaser.Scene {
       v.body.setAlpha(behind ? 0.55 : 1)
     }
     this.drawFocus(f)
+    this.drawMarks()
     for (const fx of f.fx) this.playFx(fx)
     this.weather = (this.base.light ?? 'outdoor') === 'outdoor' ? f.calendar.weather : 'sun'
     this.updateNight(f)
@@ -488,10 +497,12 @@ export class WorldScene extends Phaser.Scene {
       this.tweens.add({ targets: text, y: -T * 1.45 - 2, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
       v.quest = { mark, text }
     }
-    // a profession trainer is marked over the head (the quest mark, when there is one, comes first)
+    // what one is for, over the head — a profession trainer's crossed blades, a smith's anvil (the catalogue's
+    // `<tag>Mark`); the quest mark, when there is one, comes first
     for (const v of this.views.values()) {
-      const icon = catalog().ui.trainerMark
-      const show = !!icon && v.snap.tags.includes('trainer') && !v.quest
+      const tag = ROLE_MARKS.find((t) => v.snap.tags.includes(t))
+      const icon = tag ? catalog().ui[`${tag}Mark`] : undefined
+      const show = !!icon && !v.quest
       if (show && !v.role) {
         v.role = this.add.image(0, -T * 1.35, icon.img).setOrigin(0.5, 1).setScale(0.5)
         v.head.add(v.role)
@@ -538,6 +549,40 @@ export class WorldScene extends Phaser.Scene {
     }
     const out = html.join('')
     if (this.arrows.innerHTML !== out) this.arrows.innerHTML = out
+  }
+
+  /**
+   * On the overworld: the place one just came out of (a gold ring that breathes, a pin bobbing over it), and a
+   * padlock on each place the story has not opened yet (its picture dimmed).
+   */
+  private drawMarks(): void {
+    if (this.base?.kind !== 'overworld') return
+    this.marks ??= this.add.graphics().setDepth(1e5 - 1)
+    const g = this.marks.clear()
+    const now = this.time.now / 1000
+    for (const v of this.views.values()) {
+      const s = v.snap
+      if (!s.leadsTo) continue
+      v.body.setTint(s.sealed ? 0x8a8a8a : 0xffffff)
+      if (s.sealed) {
+        // a padlock in the cell's top right
+        const x = s.x * T + 10
+        const y = s.y * T + 1
+        g.lineStyle(1.5, 0x2a2026, 1).beginPath().arc(x + 2.5, y + 4, 2, Math.PI, 0).strokePath()
+        g.fillStyle(0x2a2026, 1).fillRect(x - 0.5, y + 3.5, 7, 6)
+        g.fillStyle(0xe8c050, 1).fillRect(x + 0.5, y + 4.5, 5, 4)
+        g.fillStyle(0x2a2026, 1).fillRect(x + 2.5, y + 5.5, 1, 2)
+      }
+      if (s.leadsTo === this.cameFrom) {
+        const a = 0.55 + 0.35 * Math.sin(now * 3)
+        g.lineStyle(1, 0xffd860, a).strokeRoundedRect(s.x * T + 0.5, s.y * T + 0.5, T - 1, T - 1, 3)
+        const bob = Math.sin(now * 4) * 1.5
+        const px = s.x * T + T / 2
+        const py = s.y * T - 7 + bob
+        g.fillStyle(0x2a2026, 1).fillTriangle(px - 4, py - 1, px + 4, py - 1, px, py + 5)
+        g.fillStyle(0xffd860, 1).fillTriangle(px - 3, py, px + 3, py, px, py + 3.5)
+      }
+    }
   }
 
   /** Outline the tile the inputs aim at: the mouse's own or neighbour tile, or the one in front. */

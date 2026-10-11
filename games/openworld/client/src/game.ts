@@ -32,9 +32,16 @@ import {
   generateLook,
   migrateBosses,
   migrateCompanion,
+  migrateOverworld,
+  migrateWaypoints,
+  migrateSmithy,
+  SMITHY_LAYOUT,
+  WAYPOINTS_LAYOUT,
+  OVERWORLD_LAYOUT,
   migrateFirstlight,
   skillsForProfession,
   stationName,
+  SHOPS,
   wildChunkFor,
 } from '@openworld-game/content'
 import { CATALOG } from './catalog.ts'
@@ -72,10 +79,22 @@ export const CLIENT_GAME: ClientGame = {
     if (!w.fact(BOSS_LAYOUT)) game.engine.author(() => migrateBosses(game))
     // the bird became a fairy
     if (!w.fact(COMPANION_LAYOUT)) game.engine.author(() => migrateCompanion(game))
+    // the world map became a place to a tile
+    if (!w.fact(OVERWORLD_LAYOUT)) {
+      const overworld = await chunk('overworld')
+      game.engine.author(() => migrateOverworld(game, overworld))
+    }
+    // Cloudtop's waypoint statue was removed
+    if (!w.fact(WAYPOINTS_LAYOUT)) game.engine.author(() => migrateWaypoints(game))
+    // the smithies of Firstlight Village and the Held Ground
+    if (!w.fact(SMITHY_LAYOUT)) {
+      const maps = await Promise.all(['meadow', 'haven'].map(chunk))
+      game.engine.author(() => migrateSmithy(game, maps))
+    }
   },
   fresh(game) {
     const w = game.engine.world
-    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true)))
+    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true)))
   },
   summon(kit, at, id) {
     const body = createBoss(kit, at, id)
@@ -90,7 +109,7 @@ export const CLIENT_GAME: ClientGame = {
     ],
   },
   items: { forms: FORM_BY_ID, materials: MATERIALS, relics: RELICS, coin: COIN },
-  crafting: { recipes: RECIPES, stationName, placements: PLACEMENTS, buildings: BUILDINGS },
+  crafting: { recipes: RECIPES, stationName, placements: PLACEMENTS, buildings: BUILDINGS, shops: SHOPS },
   skills: {
     all: SKILLS,
     directions: SKILL_DIRECTIONS,

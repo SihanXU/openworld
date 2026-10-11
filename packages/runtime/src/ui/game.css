@@ -190,6 +190,8 @@
 .chest-grid { margin-bottom: 4px; }
 .bag-grid { margin-top: 6px; }
 .shop-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.inv-foot .purse { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; font: 600 14px var(--pixel); color: var(--ink-warm); }
+.inv-foot .purse .icon { width: 20px; height: 20px; }
 .shop-head .coins { display: flex; align-items: center; gap: 4px; font: 600 14px var(--pixel); color: var(--ink-warm); }
 .shop-head .coins .icon { width: 20px; height: 20px; }
 .cx-tabs { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }

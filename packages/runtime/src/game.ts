@@ -101,6 +101,8 @@ export interface ClientGame extends GameDef {
   crafting: {
     recipes: Recipe[]
     stationName(station: string): Words
+    /** Shops: a station whose offers are recipes (grouped on shelves, the shop panel's tabs). Without: the stall's. */
+    shops?: { station: string; shelves: [group: string, en: string, zh: string][] }[]
     /** Everything the build palette places: buildings and the farm's work. */
     placements: PlacementRecipe[]
     buildings: PlacementRecipe[]

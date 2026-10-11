@@ -186,8 +186,10 @@ export class GroundAtlas {
   }
 }
 
-/** Terrains drawn with another terrain's tiles (ice = frozen-looking water). */
-// the overworld's grounds are drawn as the local ones they stand for
+/**
+ * Terrains drawn with another terrain's tiles (ice = frozen-looking water) — the overworld's grounds as the
+ * local ones they stand for, unless the catalogue draws them itself (a world map of its own: `ow_*` with tiles of their own).
+ */
 const ALIAS: Record<string, string> = { ice: 'water', spring: 'grass', dirt: 'path', ow_sea: 'deepwater', ow_river: 'water', ow_road: 'path', ow_plain: 'grass', ow_forest: 'grass', ow_hills: 'drygrass', ow_mountain: 'grass', ow_snow: 'snow' }
 /** Tints composited over a terrain's tiles. */
 const TINT: Record<string, string> = {
@@ -207,8 +209,11 @@ const UNDER: Record<string, string> = {
 }
 
 /** Autotile identity: terrains drawn from the same blob block join seamlessly (water + deep water). */
+/** The terrain whose tiles draw `terrain`: its own when the catalogue has them, else its alias's. */
+const drawnAs = (catalog: Catalog, terrain: string): string => (terrain.startsWith('ow_') && (catalog.blobs[terrain] || catalog.plain[terrain]) ? terrain : (ALIAS[terrain] ?? terrain))
+
 export function groupOf(catalog: Catalog, terrain: string): string {
-  const key = ALIAS[terrain] ?? terrain
+  const key = drawnAs(catalog, terrain)
   const b = catalog.blobs[key]
   return b ? `${b.img}|${b.col}|${b.row}` : terrain
 }
@@ -227,7 +232,7 @@ function fullTile(atlasTiles: (img: string, c: number, r: number) => void, catal
 /** Resolve the atlas tile index for a cell. `terrainAt` returns the terrain at map coords. */
 export function groundTile(atlas: GroundAtlas, catalog: Catalog, terrainAt: (x: number, y: number) => string, x: number, y: number, shoreless = false): number {
   const t = terrainAt(x, y)
-  const key = ALIAS[t] ?? t
+  const key = drawnAs(catalog, t)
   const tint = TINT[t]
   // an alias draws as its terrain, over that terrain's underlay (the overworld's snowfield is snow over grass)
   const below = UNDER[t] ?? UNDER[key]

@@ -1448,7 +1448,7 @@ export type Effect =
    * and the weapon in its hand, stay with it; `keep`: so do things with any of these tags (`important`). `bundle`: what
    * is spilled is packed into a new thing of this type on the tile (nothing spilled, none is made).
    */
-  | { op: 'dropContents'; still?: boolean; to?: RoleRef; keepWorn?: boolean; keep?: string[]; bundle?: string }
+  | { op: 'dropContents'; still?: boolean; to?: RoleRef; keepWorn?: boolean; keep?: string[]; bundle?: string; loose?: string[] }
   | { op: 'goto'; anchor: string; hours: number; activity?: string }
   | { op: 'topic'; id: string; days?: number }
   /**

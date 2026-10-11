@@ -118,6 +118,20 @@ describe('death and rising again', () => {
     expect(bundles[0].dropped).toBeFalsy()
   })
 
+  it('normal: the coin one carried is not bundled — it lies loose where one fell, to be picked up', () => {
+    const eng = ford('normal')
+    const w = eng.world
+    eng.author(() => { for (let i = 0; i < 7; i++) w.create('item/misc/thornmark', { on: 'inside', holder: 'player' }) })
+    eng.controls.sync()
+    const at = fall(eng)
+    eng.respawn(true)
+    eng.tick()
+    expect(eng.controls.count('item/misc/thornmark')).toBe(0)
+    const there = w.placedAt('ford', at.x, at.y)
+    expect(there.filter((e) => e.type === 'item/misc/thornmark')).toHaveLength(7)
+    for (const b of there.filter((e) => e.type === 'item/misc/bundle')) expect(b.contents?.some((id) => w.get(id)?.type === 'item/misc/thornmark')).toBeFalsy()
+  })
+
   it('normal: what one wears, the weapon in one\'s hand and what is important stay with one; a hand on the bundle gives back the rest', () => {
     const eng = ford('normal')
     const w = eng.world

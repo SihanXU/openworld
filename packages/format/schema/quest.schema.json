@@ -1320,6 +1320,12 @@
             },
             "bundle": {
               "type": "string"
+            },
+            "loose": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           "required": [

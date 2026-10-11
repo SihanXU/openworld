@@ -41,6 +41,11 @@ export function buildHaven(): MapBuilder {
   m.fixture('fixture/tent', hx - 4, hy - 3, { name: L("Alberic's tent", '阿尔贝里克的帐篷') })
   m.anchor('alberic.bed', hx - 4, hy - 1)
   m.anchor('alberic.post', hx + 1, hy + 1)
+  // the knight's forge: he was a smith's son before he was a knight; here he keeps the fire and works the anvil by
+  // day, and both are the steward's to lend (wiki 锻造)
+  m.fixture('fixture/craft/forge', hx + 6, hy - 2, { id: 'haven.forge', name: L("Alberic's forge", '阿尔贝里克的熔炉'), statuses: { lit: -1, fireproof: -1 } })
+  m.fixture('fixture/craft/anvil', hx + 6, hy, { id: 'haven.anvil', name: L("Alberic's anvil", '阿尔贝里克的铁砧') })
+  m.anchor('alberic.anvil', hx + 5, hy - 1)
   m.fixture('fixture/container/chest', hx + 3, hy - 3, { id: 'haven.chest', statuses: { open: -1 }, name: L('The Held Ground\'s chest', '誓守之地的箱子') })
   // a little tilled earth, ready to sow
   for (let y = hy + 2; y < hy + 5; y++) for (let x = hx - 7; x < hx - 2; x++) m.set(x, y, 'farmland')

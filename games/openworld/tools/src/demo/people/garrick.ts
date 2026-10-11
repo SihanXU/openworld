@@ -17,6 +17,8 @@ export const garrick: PersonDef = {
   ties: { 'npc.mara': 'the elder who pays for his coal' },
   // he sells what he makes, and a smith struck strikes back
   fights: true,
+  // a mark over his head (tag smith)
+  tags: ['smith'],
   trade: { stock: [['item/tool/pickaxe', 1], ['item/tool/hoe', 1], ['item/weapon/blade/dagger', 1]] },
   purse: 60,
   schedules: {

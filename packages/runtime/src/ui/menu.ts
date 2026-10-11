@@ -4,10 +4,10 @@
 // grid above the bag, a click moving a stack to the other side.
 
 import type { CodexEntry, CodexView, Frame, ItemInfo, Key, Look, Recipe, Rule, Text, Tree } from '@openworld/engine'
-import { catalog, game } from '../game.ts'
+import { catalog, game, professionById } from '../game.ts'
 import { personLook } from '../assets/looks.ts'
 import { FH, FW, composeSprite } from '../assets/figure/sprite.ts'
-import { artEpoch, assetUrl } from '../render/assets.ts'
+import { artEpoch, assetUrl, cssAssetUrl } from '../render/assets.ts'
 import type { LibraryView } from '../protocol.ts'
 import { SkillTree } from './skilltree.ts'
 import { WorldMap } from './worldmap.ts'
@@ -21,6 +21,9 @@ export type Tab = 'inventory' | 'craft' | 'options' | 'shop'
 const ICONS: Record<Tab, string> = { inventory: '🎒', craft: '🔨', options: '⚙', shop: '🏪' }
 /** The stall's shelves (homestead.ts), and what it buys back. */
 const SHELVES: [group: string, en: string, zh: string][] = [['farm', 'Farming', '农业'], ['ranch', 'Ranching', '牧业'], ['fish', 'Fishing', '渔业'], ['sell', 'Sell', '出售']]
+/** The game's shops (a station each, its shelves); without any, the stall's. */
+const shops = () => game().crafting.shops ?? [{ station: 'stall', shelves: SHELVES }]
+const shopStations = () => new Set(shops().map((s) => s.station))
 const ROW = SLOT_KEYS.length
 
 /** The body's slots as the bag shows them (a paper doll, three across), by the `wear:` key; the two hands last (the main hand: the weapon kept ready). */
@@ -30,6 +33,10 @@ const EQUIP: [key: string, en: string, zh: string, ghost: string][][] = [
   [['ring', 'Ring', '戒指', '○'], ['waist', 'Belt', '腰带', '═'], ['ring.2', 'Ring', '戒指', '○']],
   [['weapon', 'Main hand', '主手', '⚔'], ['feet', 'Feet', '脚', '▁'], ['arm', 'Off hand', '副手', '🛡']],
 ]
+
+/** Each body slot's silhouette in Ui/EquipSlots.png (tools/src/art/equip-slots.ts), drawn while it is empty. */
+const SILHOUETTE: Record<string, number> = { ear: 0, head: 1, neck: 2, shoulders: 3, body: 4, hands: 5, ring: 6, 'ring.2': 6, waist: 7, weapon: 8, feet: 9, arm: 10 }
+const silhouette = (key: string) => `<span class="eq-sil" style='--sil:${cssAssetUrl('lsw/Ui/EquipSlots.png')};--i:${SILHOUETTE[key] ?? 0}'></span>`
 
 type CodexTab = 'items' | 'people' | 'creatures' | 'threads'
 
@@ -155,6 +162,8 @@ export class Menu {
   private frame?: Frame
   /** The stall's shelf shown (homestead.ts). */
   private shelf = 'farm'
+  /** The shop open (its station): the stall, a store's counter, the church's bookstand. */
+  private shopStation = 'stall'
   private codex?: CodexView
   private codexTab: CodexTab = 'items'
   private skills: SkillTree
@@ -220,6 +229,14 @@ export class Menu {
   }
   get anyOpen(): boolean {
     return this.menuOpen || this.journalOpen || this.chestOpen || this.skillsOpen || this.worldmap.open || this.profession.open || this.boons.open || this.quests.open || this.skillPanel.open
+  }
+
+  /** Open the shop panel on a station's shelves (the first shelf, when it is another shop than the last). */
+  openShop(station = 'stall'): void {
+    const shop = shops().find((s) => s.station === station) ?? shops()[0]
+    if (shop.station !== this.shopStation || !shop.shelves.some(([g]) => g === this.shelf)) this.shelf = shop.shelves[0][0]
+    this.shopStation = shop.station
+    this.open('shop')
   }
 
   open(tab?: Tab): void {
@@ -345,7 +362,9 @@ export class Menu {
     if (this.tab === 'shop') $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-shelf]').forEach((b) => (b.onclick = () => ((this.shelf = b.dataset.shelf!), this.render())))
     if (f) {
       this.liveSig = this.sigOf(f)
-      if (this.tab === 'inventory') this.paintIcons?.([...f.player.slots.filter(Boolean).map((s) => s!.item), ...Object.values(f.player.worn ?? {})])
+      // (the purse's coin: its icon as the crafting panel paints a material's)
+      if (this.tab === 'inventory') this.paintPortrait(f)
+      if (this.tab === 'inventory') this.paintIcons?.([...f.player.slots.filter(Boolean).map((s) => s!.item), ...Object.values(f.player.worn ?? {}), ...craftInfos().filter((i) => i.id === `need:${game().items.coin}`)])
       if (this.tab === 'craft' || this.tab === 'shop') {
         const infos = craftInfos()
         for (const it of infos) this.registerTip?.(it.id, it)
@@ -354,8 +373,19 @@ export class Menu {
     }
   }
 
+  /** The player's portrait in the character sheet (the anime bust; the sprite's head while its layers come). */
+  private paintPortrait(f: Frame, tries = 12): void {
+    const host = $('#menuSheet').querySelector<HTMLElement>('.cs-portrait')
+    const c = host && this.facesetOf?.(f.player.id)
+    if (!host || !c) return
+    host.classList.toggle('bust', c.dataset.bust === '1')
+    host.replaceChildren(c)
+    // the bust's layers may still be coming: look again shortly
+    if (c.dataset.bust !== '1' && tries > 0) setTimeout(() => this.menuOpen && this.tab === 'inventory' && this.paintPortrait(f, tries - 1), 400)
+  }
+
   private sigOf(f: Frame): string {
-    return `${this.tab}|${locale.value}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${f.player.stations.join()}|${this.picked}|${artEpoch}`
+    return `${this.tab}|${locale.value}|${f.player.hp}/${f.player.maxHp}|${f.player.hunger}|${f.player.purse}|${String(f.player.props.level)}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${f.player.stations.join()}|${this.picked}|${artEpoch}`
   }
 
   // ---------------------------------------------------------------- inventory
@@ -377,19 +407,47 @@ export class Menu {
     // the off hand greyed while what is there does not work (another profession's shield)
     const worn = f.player.worn ?? {}
     const off = f.player.offhand
-    const doll = EQUIP.map((row) => row.map(([key, en, zh2, ghost]) => {
-      if (!key) return '<div class="eq-gap"></div>'
+    // the character sheet (world-model.md §6.8): the portrait in its frame, the body's slots down either side of it, the
+    // main and the off hand beneath; the off hand greyed while what is there does not work (another profession's shield)
+    const cell = ([key, en, zh2, ghost]: (typeof EQUIP)[number][number]) => {
       const it = worn[key]
       const dim = key === 'arm' && off && !off.works ? ' off' : ''
-      return `<div class="eq-cell"><div class="slot eq-slot${dim}" data-wear="${key}" title="${zh ? zh2 : en}${it ? ` · ${esc(tx(it.name))}` : ''}" ${it ? `data-item="${it.id}"` : ''}>${it ? `<div class="icon" data-icon="${it.id}"></div>` : `<span class="ghost">${ghost}</span>`}</div><span class="eq-name">${zh ? zh2 : en}</span></div>`
-    }).join('')).join('')
-    const equip = `<div class="inv-equip"><span class="muted small">${zh ? '装备' : 'Equipment'}</span><div class="eq-grid">${doll}</div></div>`
-    return `<div class="inv-wrap"><div class="inv">${rows}</div>${equip}</div>
+      return `<div class="eq-cell"><div class="slot eq-slot${dim}${it ? ' has' : ''}" data-wear="${key}" title="${zh ? zh2 : en}${it ? ` · ${esc(tx(it.name))}` : ''}" ${it ? `data-item="${it.id}"` : ''}>${it ? `<div class="icon" data-icon="${it.id}"></div>` : silhouette(key)}</div><span class="eq-name">${zh ? zh2 : en}</span></div>`
+    }
+    const byKey = Object.fromEntries(EQUIP.flat().map((e) => [e[0], e]))
+    const col = (keys: string[]) => `<div class="cs-col">${keys.map((k) => cell(byKey[k])).join('')}</div>`
+    const p = f.player
+    const num = (v: unknown) => (typeof v === 'number' ? v : Number(v) || 0)
+    const gear = Object.values(worn)
+    const sum = (key: string) => gear.reduce((n, it) => n + num(it.props[key]), 0)
+    const level = Math.max(1, num(p.props.level) || 1)
+    const prof = typeof p.props.profession === 'string' ? professionById()[p.props.profession] : undefined
+    const stat = (label: string, value: string, cls = '') => `<div class="cs-stat${cls}"><span>${label}</span><b>${value}</b></div>`
+    const pct = (v: number) => `${Math.round(v * 100)}%`
+    const stats = [
+      stat(zh ? '生命' : 'Health', `${p.hp} / ${p.maxHp}`, ' cs-hp'),
+      stat(zh ? '饱食' : 'Food', `${p.hunger} / ${p.maxHunger}`, ' cs-food'),
+      stat(zh ? '攻击' : 'Attack', String(num(p.props.atk) + sum('atk'))),
+      stat(zh ? '武器威力' : 'Weapon', String(num(worn.weapon?.props.power) || '—')),
+      stat(zh ? '防御' : 'Defence', String(num(p.props.def) + sum('def'))),
+      stat(zh ? '暴击' : 'Critical', pct(num(p.props.critChance) + sum('critChance'))),
+    ].join('')
+    const sheet = `<div class="cs">
+        <div class="cs-head"><span class="cs-lv">${zh ? '等级' : 'Lv'} ${level}</span><span class="cs-prof">${prof ? esc(tx(prof.name)) : zh ? '无职业' : 'No profession'}</span></div>
+        <div class="cs-doll">
+          ${col(['head', 'ear', 'neck', 'shoulders', 'body'])}
+          <div class="cs-figure"><div class="cs-portrait" data-portrait="${p.id}"></div><div class="cs-hands">${cell(byKey.weapon)}${cell(byKey.arm)}</div></div>
+          ${col(['hands', 'ring', 'ring.2', 'waist', 'feet'])}
+        </div>
+        <div class="cs-stats">${stats}</div>
+      </div>`
+    return `<div class="inv-wrap">${sheet}<div class="inv-side"><div class="inv-title"><span>${zh ? '行囊' : 'Pack'}</span><span class="purse" title="${zh ? '身上带的钱' : 'Coin carried'}"><span class="icon" data-icon="need:${game().items.coin}"></span><b>${p.purse ?? this.coinsOf(f)}</b><small>${zh ? '银荆币' : 'Thornmarks'}</small></span></div><div class="inv">${rows}</div>
       <div class="inv-foot">
         <button id="bOrganize">⇅ ${t('organize')}</button>
         <button id="bDrop" ${this.picked === undefined ? 'disabled' : ''}>⤓ ${t('dropHere')}</button>
-        <span class="muted small">${zh ? '点击拿起、再点击交换 · Shift+点击：在快捷栏和背包间移动 · Tab：换一行到快捷栏 · “丢下”放到面前 · 拿起装备点右边的装备栏穿上（右键也可以），点装备栏卸下 · 右键：对它用手上的东西、放进去、空手摆弄' : 'Click to pick up, again to swap · Shift+click: between the toolbar and the bag · Tab: the next row to the toolbar · Drop sets it down in front · pick up something wearable and click the equipment beside the bag to put it on (or right click it), click a worn piece to take it off · right click: use or put the held thing on it, or handle it'}</span>
       </div>
+      <div class="inv-help muted small">${zh ? '点击拿起、再点击交换 · Shift+点击：快捷栏↔背包 · Tab：换一行到快捷栏 · 拿起装备点左边的装备栏穿上（右键也可以），点装备栏卸下 · 右键：对它用手上的东西、放进去、空手摆弄' : 'Click to pick up, again to swap · Shift+click: toolbar ↔ bag · Tab: next row to the toolbar · pick up something wearable and click its slot on the left to put it on (or right click), click a worn piece to take it off · right click: use or put the held thing on it, or handle it'}</div>
+    </div></div>
 `
   }
 
@@ -465,12 +523,18 @@ export class Menu {
 
   /** Don't Starve's panel: each recipe, what it needs against what is carried, and a button that makes it. */
   /** The stall (homestead.ts): its shelves as tabs, one's coin, and the shelf's offers made as recipes are. */
+  /** The coin one carries: every stack of the game's coin in the bag (and in hand). */
+  private coinsOf(f: Frame): number {
+    return f.player.slots.reduce((n, s) => n + (s && s.item.type === game().items.coin ? s.count : 0), 0)
+  }
+
   private shopHtml(f?: Frame): string {
     if (!f) return ''
     const zh = locale.value === 'zh'
-    const coins = f.player.slots.reduce((n, s) => n + (s && s.item.type === game().items.coin ? s.count : 0), 0)
-    const tabs = SHELVES.map(([g, en, zh2]) => `<button class="cx-tab${g === this.shelf ? ' on' : ''}" data-shelf="${g}">${zh ? zh2 : en}</button>`).join('')
-    const away = !f.player.stations.includes('stall') ? `<div class="muted small">${zh ? '站到货摊旁边才能交易。' : 'Stand beside the stall to trade.'}</div>` : ''
+    const coins = this.coinsOf(f)
+    const shop = shops().find((s) => s.station === this.shopStation) ?? shops()[0]
+    const tabs = shop.shelves.map(([g, en, zh2]) => `<button class="cx-tab${g === this.shelf ? ' on' : ''}" data-shelf="${g}">${zh ? zh2 : en}</button>`).join('')
+    const away = !f.player.stations.includes(shop.station) ? `<div class="muted small">${zh ? `站到${tx(game().crafting.stationName(shop.station))}旁边才能交易。` : `Stand beside the ${tx(game().crafting.stationName(shop.station))} to trade.`}</div>` : ''
     return `<div class="shop-head"><div class="cx-tabs">${tabs}</div><span class="coins"><span class="icon" data-icon="need:${game().items.coin}"></span>${coins}</span></div>${away}${this.craftHtml(f, this.shelf)}`
   }
 
@@ -479,8 +543,8 @@ export class Menu {
     const have = (type: string) => f.player.slots.reduce((n, s) => n + (s && s.item.type === type ? s.count : 0), 0)
     const tool = (tag: string) => f.player.slots.some((s) => s?.item.tags.includes(tag))
     // the crafting panel shows what is made; the stall's offers are the stall's (its own tab)
-    const list = shelf ? game().crafting.recipes.filter((r) => r.station === 'stall' && r.group === shelf) : allRecipes().filter((r) => r.station !== 'stall')
-    const verb = shelf === 'sell' ? (locale.value === 'zh' ? '出售' : 'Sell') : shelf ? (locale.value === 'zh' ? '购买' : 'Buy') : t('craftIt')
+    const list = shelf ? game().crafting.recipes.filter((r) => r.station === this.shopStation && r.group === shelf) : allRecipes().filter((r) => !shopStations().has(r.station ?? ''))
+    const verb = shelf === 'sell' || shelf?.endsWith('-sell') ? (locale.value === 'zh' ? '出售' : 'Sell') : shelf ? (locale.value === 'zh' ? '购买' : 'Buy') : t('craftIt')
     const rows = list.map((r) => {
       // how many times what is carried makes it (the tools are not used up)
       // (a station's recipe is made beside one: away from it, nothing is made however much is carried)

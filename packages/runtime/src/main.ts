@@ -26,6 +26,7 @@ import { Minimap } from './ui/worldmap.ts'
 import { AfterSave } from './afterSave.ts'
 import './styles.css'
 import './ui/game.css'
+import './ui/polish.css'
 
 const PARAMS = new URLSearchParams(location.search)
 /** Where this game's saves are kept (its own, beside other games' on the same page). */
@@ -324,8 +325,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       if (board && board.t === 'panel' && board.by) menu.openBoard(board.by)
       // a woken waypoint statue: the companion's boons
       if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'boons')) menu.openBoons()
-      // the Held Ground's stall: its shelves (homestead.ts)
-      if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'shop')) menu.open('shop')
+      // a shop: the Held Ground's stall, a store's counter, a bookstand (`shop:<station>`), on its shelves
+      const shop = m.frame.fx.find((x) => x.t === 'panel' && (x.panel === 'shop' || x.panel.startsWith('shop:')))
+      if (shop && shop.t === 'panel') menu.openShop(shop.panel === 'shop' ? 'stall' : shop.panel.slice(5))
       reaim()
       dev.setPerf(m.perf, fps)
       // the open codex follows what is met

@@ -35,6 +35,12 @@ const HOLE = TS + 'TilesetHole.png'
 const DESERT = TS + 'TilesetDesert.png'
 const IFLOOR = TS + 'Interior/TilesetInteriorFloor.png'
 const WALLS = TS + 'Interior/TilesetWallSimple.png'
+// the world map's own inked tiles and marks (tools/src/art/worldmap.ts)
+const WM_TILES = 'lsw/WorldMap/tiles.png'
+const WM_MARKS = 'lsw/WorldMap/marks.png'
+const WM_MARK = ['woods', 'woods2', 'mountains', 'mountains2', 'hills', 'hills2', 'village', 'town', 'ford', 'farm', 'mill', 'woods-place', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'none']
+/** A mark of the world map (16x20, its foot on the cell's bottom). */
+const wm = (key: string) => px(WM_MARKS, WM_MARK.indexOf(key) * 16, 0, 16, 20)
 // the project's own pixel art for what one builds
 
 /** Tile-aligned sprite: (c, r) in tiles, w x h tiles, anchor defaults to bottom-centre of the rect. */
@@ -164,12 +170,22 @@ export const CATALOG: Catalog = {
     // Wooden deck / jetty (front edge with posts on the south side). Outside: TRANSPARENT — draw
     // the water (or ground) under it. Plain plank tiles are also listed in `plain.bridge`.
     bridge: { img: WATER, col: 0, row: 12 },
+    // the world map: the sea with its beach and inked coast, the river with its banks
+    ow_sea: { img: WM_TILES, col: 0, row: 0 },
+    ow_river: { img: WM_TILES, col: 0, row: 5 },
   },
 
   // -------------------------------------------------------------------------------------------
   // Plain ground tiles (variants picked per position). Opaque 16x16 unless noted.
   // -------------------------------------------------------------------------------------------
   plain: {
+    // the world map's grounds (its woods, hills and mountains are marks drawn over the plains)
+    ow_plain: [[WM_TILES, 0, 10], [WM_TILES, 1, 10], [WM_TILES, 2, 10]],
+    ow_forest: [[WM_TILES, 0, 10], [WM_TILES, 1, 10]],
+    ow_hills: [[WM_TILES, 2, 10], [WM_TILES, 1, 10]],
+    ow_mountain: [[WM_TILES, 0, 10]],
+    ow_snow: [[WM_TILES, 3, 10], [WM_TILES, 4, 10]],
+    ow_road: [[WM_TILES, 5, 10]],
     // The yellow-green grass that is the "outside" of path/water: col 0 plain, 1-4 with tufts.
     grass: [[FLOOR, 0, 12], [FLOOR, 0, 12], [FLOOR, 1, 12], [FLOOR, 2, 12], [FLOOR, 3, 12], [FLOOR, 4, 12]],
     drygrass: [[FLOOR, 0, 12], [FLOOR, 2, 12], [FLOOR, 3, 12]],
@@ -256,10 +272,10 @@ export const CATALOG: Catalog = {
       px(NATURE, 256, 128, 32, 32, 16, 31), // big grey rock
     ],
     stump: [t(NATURE, 4, 8), t(NATURE, 14, 18), t(NATURE, 12, 13), px(NATURE, 0, 128, 32, 32, 16, 29), px(NATURE, 32, 128, 32, 32, 16, 29)],
-    // the overworld: woods and mountains drawn as the trees and rocks they stand for
-    ow_forest: [px(NATURE, 32, 0, 32, 32, 16, 31), px(NATURE, 0, 0, 32, 32, 16, 31)],
-    ow_mountain: [px(NATURE, 208, 128, 32, 32, 16, 31), px(NATURE, 256, 128, 32, 32, 16, 31)],
-    ow_hills: [t(NATURE, 15, 9), t(NATURE, 7, 12)],
+    // the world map: woods, mountains and hills as inked marks, one to a cell
+    ow_forest: [wm('woods'), wm('woods2')],
+    ow_mountain: [wm('mountains'), wm('mountains2')],
+    ow_hills: [wm('hills'), wm('hills2')],
     // Bare dead trees (the pack has no burnt trees; these read as charred).
     charred_tree: [px(NATURE, 64, 0, 32, 32, 16, 31), t(NATURE, 4, 9)],
     // Tall grass tufts. The pack's tufts are green: tint them golden (e.g. 0xe0c060) for dry
@@ -411,7 +427,10 @@ export const CATALOG: Catalog = {
     'fixture:trough': { base: t(ELEM, 6, 10) },
     'fixture:sign': { base: t(ELEM, 0, 2) },
     // a place on the overworld: a signpost where it is; the wild shows no mark of its own
-    'site:place': { base: t(ELEM, 0, 2) },
+    'site:place': { base: wm('waystone') },
+    // the hand-made places, each by its kind; the Ford is its crossing
+    ...Object.fromEntries(['village', 'town', 'farm', 'mill', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'ford'].map((k) => [`site:${k}`, { base: wm(k) }])),
+    'site:woods': { base: wm('woods-place') },
     // what one builds, set in its cell: drawn as the wall, the floor, the stairs of the place
     // the project's own (tools/src/art/structures.ts): a wall block (its fronts and tops, by
     // what stands beside it), stairs by the way up, the edge of a floor laid a storey up
@@ -422,7 +441,8 @@ export const CATALOG: Catalog = {
     'structure:door': { base: t(ELEM, 8, 13) },
     // an open door: the doorway's floor
     'structure:door_open': { base: t(IFLOOR, 12, 1) },
-    'site:wild': { base: t(DETAIL, 3, 2) },
+    // the wild: its ground is its picture
+    'site:wild': { base: wm('none') },
     'fixture:noticeboard': { base: t(ELEM, 1, 2) },
     'fixture:questboard': { base: t(ELEM, 1, 2) },
     'fixture:craft': { base: t(HOUSE, 29, 15) },
@@ -821,6 +841,8 @@ export const CATALOG: Catalog = {
     cornerOptions: ui('lsw/Ui/Gear.png', 16, 16),
     // over a profession trainer's head (scene.ts): crossed blades
     trainerMark: ui('Ui/Skill Icon/Items & Weapon/Guard.png', 24, 24),
+    // a smith's: an anvil and a raised hammer (tools/src/art/smith-mark.ts)
+    smithMark: ui('lsw/Ui/SmithMark.png', 24, 24),
     // the dragon of Cinder Peak, in parts (scene.ts composes them round its head): a wing, two body segments, the tail
     dragonWing: ui('Actor/Boss/DragonGreen/Wing.png', 57, 57),
     dragonBody1: ui('Actor/Boss/DragonGreen/Body1.png', 31, 27),

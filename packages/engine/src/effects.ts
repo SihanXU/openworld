@@ -39,7 +39,7 @@ export const PRIMITIVES: Record<Exclude<Effect['op'], ModuleOp>, string> = {
   pocket: 'pocket — the host (an actor) steps into a pocket place (param map, x, y: a place one carries, the Held Ground) and remembers where it stood (its prop pocket.return); in that place already, it steps back out where it was',
   foe: 'foe {} — whoever started the chain (the one who struck) becomes the host\'s foe, attacked on sight',
   open: 'open {} — the host opens or closes (toggles the `open` status)',
-  dropContents: 'dropContents {still?, to?, keepWorn?, keep?, bundle?} — the host spills what it holds (its bag and its hand) onto its tile, or into a role\'s bag (to: a bundle opened); keepWorn: what it wears and the weapon in its hand stay with it; keep: so do things with any of these tags (important); bundle: what is spilled is packed into a new thing of that type on its tile',
+  dropContents: 'dropContents {still?, to?, keepWorn?, keep?, bundle?} — the host spills what it holds (its bag and its hand) onto its tile, or into a role\'s bag (to: a bundle opened); keepWorn: what it wears and the weapon in its hand stay with it; keep: so do things with any of these tags (important); bundle: what is spilled is packed into a new thing of that type on its tile; loose: things with any of these tags are left lying loose on the tile beside the bundle (coin)',
   goto: 'goto {anchor, hours, activity?} — the host (a person) leaves its schedule for a named anchor of its map for some hours',
   topic: "topic {id, days?} — the story's only: something happened that people will talk about (default 4 days); it keeps topic.<id> (the day) and topic.<id>.days as its own props. Others notify the story",
   scene: 'scene {id} — the story\'s only: play a scripted scene',
@@ -520,13 +520,15 @@ export class EffectRunner {
         const to = eff.to ? this.ref(ev, eff.to) : undefined
         const into = to && 'e' in to ? w.get(to.e) : undefined
         if (eff.to && !into) return
-        const pack = !into && eff.bundle && spilled.length ? w.create(eff.bundle, { on: 'tile', map: p.map, x: p.x, y: p.y }) : undefined
+        const loose = (c: Entity) => !into && (eff.loose ?? []).some((t) => w.hasTag(c, t))
+        const pack = !into && eff.bundle && spilled.some((c) => !loose(c)) ? w.create(eff.bundle, { on: 'tile', map: p.map, x: p.x, y: p.y }) : undefined
         if (pack) eng.touch({ e: pack.id })
         for (const c of spilled) {
           eng.touch({ e: c.id })
-          w.place(c, into ? { on: 'inside', holder: into.id } : pack ? { on: 'inside', holder: pack.id } : { on: 'tile', map: p.map, x: p.x, y: p.y })
+          const bundled = pack && !loose(c)
+          w.place(c, into ? { on: 'inside', holder: into.id } : bundled ? { on: 'inside', holder: pack.id } : { on: 'tile', map: p.map, x: p.x, y: p.y })
           eng.touch({ e: c.id })
-          if (into || pack) delete c.dropped
+          if (into || bundled) delete c.dropped
           else if (!eff.still) c.dropped = true
         }
         if (into) eng.touch({ e: into.id })

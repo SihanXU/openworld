@@ -242,20 +242,22 @@ on entering a library; the map builder clears the volume under a solid fixture s
   edges into parts that do not reach each other, the overworld's links between neighbouring
   cells match them (checked, §10).
 
-As built (W3): the overworld is the map `overworld`, 16 × 12 cells of 3 × 3 tiles each (a cell's
-block), with `scale` 30 (a step lasts 30 minutes × its ground's `cost` × rain's), its grounds the
-`ow_*` terrains. The hand-made maps lie on the cells their edge links give (`placeCells`), each
-map's `site` naming its block; every other cell of land is a wilderness `wild.<x>.<y>`. A site
-(`site/place`, `site/wild`) covers its block (footprint 3 × 3); empty hands on it push the actor
-in (`site/enter`), anything else is out of reach (`site/far`, and the root of `act/use` on a
-site). A map's **parts** (`World.partsOf`) are what one can reach inside it without crossing a
-floor one cannot stand on (water, lava, void; breakable things do not part it); its block shows
-each tile's part (`regionPart`), with river where parts would touch — so the overworld is an
-ordinary map and its barriers are terrain: the Ford's block is west bank, river, far bank, and a
-mountain range north of it and the river south of it run sea to sea. Walking out of a map's edge
-(the player) lands on the tile of its block showing the same part, nearest where one left;
-going in lands at the nearest place of the part the tile one stands on shows, nearest the point
-it stands for (`Engine.enterFrom`). Portals between hand-made maps stay. A wilderness is made by
+As built (W3; one tile to a cell since 2026-10-11): the overworld is the map `overworld`, 16 × 12 cells of
+one tile each, with `scale` 30 (a step lasts 30 minutes × its ground's `cost` × rain's), its grounds the
+`ow_*` terrains, drawn in its own inked style (`tools/src/art/worldmap.ts`: a coast, woods, hills and
+mountains as marks, each hand-made place by an icon of its kind) so it never reads as another local map.
+The hand-made maps lie on the cells their edge links give (`placeCells`), each map's `site` naming its
+cell; every other cell of land is a wilderness `wild.<x>.<y>`. A site (`site/place/<kind>`, `site/wild`)
+stands on its cell; empty hands on it push the actor in (`site/enter`), anything else is out of reach
+(`site/far`, and the root of `act/use` on a site). A map's **parts** (`World.partsOf`) are what one can
+reach inside it without crossing a floor one cannot stand on (water, lava, void; breakable things do not
+part it). The overworld is an ordinary map and its barriers are terrain: a mountain range north of the
+Ford and the river south of it run sea to sea, and the Ford's own cell is the river's — a crossing
+(`site/place/crossing`, hands' reach 1) gone into from the cell beside it. Walking out of a map's edge
+(the player) lands on the cell beside its own the way one left (on its own cell where that is sea or
+rock); out of a map of several parts, only onto a cell its part's ways lead to. Going in from standing
+on a place lands on the side one came onto it from (behind one, as one faces); from beside a crossing,
+by the way between the two maps (`Engine.enterFrom`). Older saves are brought over by `migrateOverworld`. Portals between hand-made maps stay. A wilderness is made by
 `wildChunk` (content `wild.ts`) from the world's seed, its cell and its ground (a recipe each:
 plains, woods, hills, snow, road), with open edges; the client makes it when it is needed, and
 on loading. A long step's time passes at once at the end of the tick (fast-forward); harm stops

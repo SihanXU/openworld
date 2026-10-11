@@ -10,10 +10,11 @@
 import { describe, expect, it } from 'vitest'
 import { textOf, EVENT_KINDS, FIRE_RADIUS, FIGHT_TICKS, APPEAR_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, isRoot, kindCovers, leaves, rulesTie, tickAt, xpToNext, astar, performPlacement, snapshot, regionId, madeOf, CEILING, type Engine, type Entity, type GameEvent, type Key, type Patch, type Plan, type Ref, type World } from '@openworld/engine'
 import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf } from '@openworld/modules'
-import { ALBERIC_ID, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@openworld-game/content'
-import { BLOCK, OVERWORLD } from '../src/demo/overworld.ts'
+import { ALBERIC_ID, ACTIVE_SKILLS, CH1, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@openworld-game/content'
+import { OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
 import { CH1_AT } from '../src/demo/quest/chapter1.ts'
+import { PEOPLE } from '../src/demo/people.ts'
 import { DRAGON_AT, EAST_ROAD, EMBERFALL, PASS } from '../src/demo/quest/maps.ts'
 import { GARDEN } from '../src/demo/garden.ts'
 import { BARROW, HOLLOW, OSSUARY, UNDER_BARROW } from '../src/demo/hollow.ts'
@@ -1136,13 +1137,13 @@ function reach(f: Ford, x: number, y: number): Set<string> {
   return seen
 }
 
-req('W4', 'every map but the tutorial (and the floors under the barrow) lies on the overworld, and its edges are open: mined through the rock at the pass\'s north edge, one walks out onto its cell there', ['site/place'], () => {
+req('W4', 'every map but the tutorial (and the floors under the barrow) lies on the overworld, a place to a cell drawn as what it is, and its edges are open: mined through the rock at the pass\'s north edge, one walks out onto the cell north of it; back onto the pass\'s cell and in, one comes in on the north side', [...['village', 'town', 'farm', 'mill', 'woods', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'crossing'].map((k) => `site/place/${k}`)], () => {
   const f = fresh()
   // (the floors under the barrow are reached by its stairs: they lie under its cell; the Held Ground is carried in a thorn)
   for (const m of W(f).state.loadedMaps.filter((id) => id !== OVERWORLD && id !== 'tutorial' && id !== 'offstage' && id !== 'haven' && W(f).map(id)!.kind !== 'interior' && !(UNDER_BARROW as readonly string[]).includes(id))) {
     const site = W(f).map(m)!.site!
     expect([m, site.map]).toEqual([m, OVERWORLD])
-    expect([m, W(f).entitiesAt(OVERWORLD, site.x + 1, site.y + BLOCK - 1).some((e) => e.type === 'site/place' && e.props?.map === m)]).toEqual([m, true])
+    expect([m, W(f).entitiesAt(OVERWORLD, site.x, site.y).some((e) => e.type.startsWith('site/place/') && e.props?.map === m)]).toEqual([m, true])
   }
   // the pass's north rim: two rows of rock above open ground
   const x = [...Array(26).keys()].map((i) => i + 2).find((x) => W(f).terrainAt('pass', x, 0) === 'rock' && W(f).terrainAt('pass', x, 1) === 'rock' && W(f).walkable('pass', x, 2))!
@@ -1155,26 +1156,26 @@ req('W4', 'every map but the tutorial (and the floors under the barrow) lies on 
   const out = walk(f, 'up')
   expect(out.map).toBe(OVERWORLD)
   const site = W(f).map('pass')!.site!
-  expect(out.x - site.x).toBeGreaterThanOrEqual(0)
-  expect(out.x - site.x).toBeLessThan(BLOCK)
-  // the north row of its block: the side it left by
-  expect(out.y).toBe(site.y)
-  // and E on its place there takes one back in, on that side
+  // the cell north of the pass's: the way it left by
+  expect(out).toMatchObject({ x: site.x, y: site.y - 1 })
+  // back down onto the pass's cell (open: the White Knight is beaten), and E there takes one in on the side one came from
+  author(f, () => W(f).setFact(CH1.knight, true))
+  expect(walk(f, 'down')).toMatchObject({ map: OVERWORLD, x: site.x, y: site.y })
   goIn(f)
   expect(W(f).posOf(W(f).player)!.map).toBe('pass')
   expect(W(f).posOf(W(f).player)!.y).toBeLessThan(W(f).map('pass')!.height / 4)
 })
 
-req('W5', 'an overworld step passes its time at once (half an hour on plains, by its ground), and hunger falls; harm stops it', [], () => {
+req('W5', 'an overworld step passes its time at once (a cell: half an hour on plains, by its ground), and hunger falls; harm stops it', [], () => {
   const f = fresh()
   const ford = W(f).map('ford')!.site!
-  // west of the river, on the meadow's cell
-  stand(f, ford.x - 2, ford.y + 1, 'left', OVERWORLD)
+  // west of the river, on the village's cell
+  stand(f, ford.x - 1, ford.y, 'left', OVERWORLD)
   const t0 = W(f).state.tick
   const hunger = W(f).num(W(f).player, 'hunger')
   walk(f, 'left')
   const took = W(f).state.tick - t0
-  const cost = W(f).num(W(f).cellTop(OVERWORLD, ford.x - 3, ford.y + 1)!, 'cost', 1)
+  const cost = W(f).num(W(f).cellTop(OVERWORLD, ford.x - 2, ford.y)!, 'cost', 1)
   expect(took).toBeGreaterThanOrEqual(30 * cost * TICKS_PER_HOUR / 60)
   expect(W(f).num(W(f).player, 'hunger')).toBeLessThan(hunger)
   // burning, one is hurt on the way: the step's time stops passing
@@ -1184,27 +1185,54 @@ req('W5', 'an overworld step passes its time at once (half an hour on plains, by
   expect(W(f).state.tick - t1).toBeLessThan(took)
 })
 
-req('W6', 'the river is a barrier on the overworld too: from the west bank no way leads to the far bank but the Ford; one comes into the Ford from the east on the far bank', ['region:far_bank'], () => {
+req('W6', 'the river is a barrier on the overworld too: the Ford\'s cell is the river\'s; from the west bank no way leads to the far bank but the Ford; one comes into the Ford from the east road\'s cell on the far bank, and out by its east edge onto that cell again', ['region:far_bank'], () => {
   const f = fresh()
   const ford = W(f).map('ford')!.site!
-  const west = reach(f, ford.x, ford.y + 1)
-  const east = [ford.x + BLOCK - 1, ford.y + 1] as const
-  expect(W(f).passable(OVERWORLD, ...east)).toBe(true)
-  expect(west.has(`${east[0]},${east[1]}`)).toBe(false)
+  expect(W(f).passable(OVERWORLD, ford.x, ford.y)).toBe(false)
+  const west = reach(f, ford.x - 1, ford.y)
   const road = W(f).map('eastroad')!.site!
-  expect(west.has(`${road.x + 1},${road.y + 1}`)).toBe(false)
-  // from the east road's cell, west into the Ford's: the far bank
-  stand(f, road.x, road.y + 1, 'left', OVERWORLD)
-  expect(walk(f, 'left')).toMatchObject({ map: OVERWORLD, x: east[0] })
-  goIn(f)
+  expect(road).toMatchObject({ x: ford.x + 1, y: ford.y })
+  expect(W(f).passable(OVERWORLD, road.x, road.y)).toBe(true)
+  expect(west.has(`${road.x},${road.y}`)).toBe(false)
+  // on the east road's cell, facing the Ford: E goes in, on the far bank by the road
+  stand(f, road.x, road.y, 'left', OVERWORLD)
+  const plan = f.eng.controls.plan('hands')!
+  expect([plan.rule, plan.target]).toEqual(['site/enter', { e: 'site.ford' }])
+  f.eng.controls.run(plan)
+  arrive(f)
+  expect(W(f).posOf(W(f).player)!.map).toBe('ford')
   expect(W(f).within(W(f).player, regionId('ford', 'far_bank'))).toBe(true)
+  // out by the far bank's north edge: not onto the trail's foot (the west bank's), but the east road's cell
+  const p = W(f).posOf(W(f).player)!
+  const x = [...Array(W(f).map('ford')!.width).keys()].reverse().find((x) => W(f).walkable('ford', x, 0) && W(f).partAt('ford', x, 0) === W(f).partAt('ford', p.x, p.y) && !W(f).map('ford')!.portals.some((q) => q.x === x && q.y === 0))
+  if (x !== undefined) {
+    stand(f, x, 0, 'up', 'ford')
+    expect(walk(f, 'up')).toMatchObject({ map: OVERWORLD, x: road.x, y: road.y })
+  }
+})
+
+req('W6b', 'the places beyond the White Knight are sealed on the world map until he falls: one stands on Emberfall\'s cell, but E says why and does not go in, and it is drawn sealed; once he is beaten, in one goes', [], () => {
+  const f = fresh()
+  const w = W(f)
+  for (const id of ['emberfall', 'mine', 'pass', 'lair']) expect([id, w.get(`site.${id}`)!.props?.opensWhen]).toEqual([id, CH1.knight])
+  const at = w.get('site.emberfall')!.place as { x: number; y: number }
+  stand(f, at.x, at.y, 'down', OVERWORLD)
+  const plan = f.eng.controls.plan('hands')!
+  expect(textOf(plan.label)).toMatch(/^Sealed: /)
+  f.eng.controls.run(plan)
+  ticks(f, 5)
+  expect(w.posOf(w.player)!.map).toBe(OVERWORLD)
+  expect(snapshot(f.eng).entities.find((e) => e.id === 'site.emberfall')).toMatchObject({ sealed: true, leadsTo: 'emberfall' })
+  author(f, () => w.setFact(CH1.knight, true))
+  expect(textOf(f.eng.controls.plan('hands')!.label)).toMatch(/^Enter /)
+  expect(snapshot(f.eng).entities.find((e) => e.id === 'site.emberfall')!.sealed).toBeUndefined()
 })
 
 req('W7', 'a wilderness is made from the world\'s seed and its cell: entered, left and entered again — or saved and loaded — it is the same map, with what one changed kept', ['site/wild'], () => {
   const f = fresh()
   const site = Object.values(W(f).state.entities).find((e) => e.type === 'site/wild' && e.props?.ground === 'ow_plain')!
   const at = site.place as { x: number; y: number }
-  stand(f, at.x, at.y - 1, 'up', OVERWORLD)
+  stand(f, at.x, at.y, 'down', OVERWORLD)
   goIn(f)
   const id = String(site.props!.map)
   expect(W(f).posOf(W(f).player)!.map).toBe(id)
@@ -1220,7 +1248,10 @@ req('W7', 'a wilderness is made from the world\'s seed and its cell: entered, le
   // out by its west edge, and in again
   const p = W(f).posOf(W(f).player)!
   stand(f, 0, p.y, 'left', id)
-  expect(walk(f, 'left').map).toBe(OVERWORLD)
+  const out = walk(f, 'left')
+  expect(out.map).toBe(OVERWORLD)
+  // beside its cell (or on it, where the west is sea): back onto it and in
+  if (out.x !== at.x || out.y !== at.y) expect(walk(f, 'right')).toMatchObject({ x: at.x, y: at.y })
   goIn(f)
   expect(W(f).posOf(W(f).player)!.map).toBe(id)
   expect(W(f).terrainAt(id, tx, ty)).not.toBe('tree')
@@ -1449,7 +1480,7 @@ req('W14', 'real work, and walking in: mornings the woodcutter fells trees in th
   expect((pile().contents ?? []).filter((id) => w.get(id)?.type === 'item/material/log').length).toBeGreaterThanOrEqual(3)
 })
 
-req('W18', 'the overworld is what it shows: every cell of it one can stand on is a place, entered by standing on it and pressing E, whichever way one faces; the place says its name ("Enter …") and is outlined whole', [], () => {
+req('W18', 'the overworld is what it shows: every cell of it one can stand on is a place, entered by standing on it and pressing E, whichever way one faces (but toward a crossing, which is gone into from beside it); the place says its name ("Enter …", or "Sealed: …" where the story has not opened it) and is outlined whole', [], () => {
   const f = fresh()
   const w = W(f)
   const m = w.map('overworld')!
@@ -1463,12 +1494,16 @@ req('W18', 'the overworld is what it shows: every cell of it one can stand on is
       for (const facing of ['up', 'down', 'left', 'right'] as const) {
         w.player.facing = facing
         const plan = f.eng.controls.plan('hands')
-        expect([x, y, facing, plan?.rule, plan?.target]).toEqual([x, y, facing, 'site/enter', { e: site!.id }])
-        expect(textOf(plan!.label).startsWith('Enter ')).toBe(true)
+        const [dx, dy] = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[facing]
+        const crossing = w.entitiesAt('overworld', x + dx, y + dy).find((e) => e.type === 'site/place/crossing')
+        expect([x, y, facing, plan?.rule, plan?.target]).toEqual([x, y, facing, 'site/enter', { e: (crossing ?? site)!.id }])
+        // a place the story has not opened yet says so instead
+        const to = crossing ?? site!
+        expect(textOf(plan!.label).startsWith(to.props?.opensWhen && !w.fact(String(to.props.opensWhen)) ? 'Sealed: ' : 'Enter ')).toBe(true)
       }
       tiles++
     }
-  expect(tiles).toBeGreaterThan(300)
+  expect(tiles).toBeGreaterThan(80)
   // a wild place is named by its ground, as drawn
   const wild = Object.values(w.state.entities).find((e) => e.type === 'site/wild' && e.props?.ground === 'ow_forest')!
   expect(f.eng.nameOf({ e: wild.id }, 'zh')).toBe('森林荒野')
@@ -1585,7 +1620,7 @@ req('F17', 'Firstlight Village is the former meadow: homes, a well, a lit square
   const ford = w.map('ford')!
   expect(village.name).toEqual(FIRSTLIGHT.name)
   expect(village.kind).toBe('village')
-  expect(village.stamps?.filter((s) => s.key.startsWith('house_'))).toHaveLength(4)
+  expect(village.stamps?.filter((s) => s.key.startsWith('house_'))).toHaveLength(5)
   expect(Object.values(w.state.entities).filter((e) => e.npc && e.place.on === 'tile' && e.place.map === 'ford').map((e) => e.id)).toEqual(['npc.hesper'])
   expect(w.posOf(w.get('npc.tobin'))?.map).toBe(FIRSTLIGHT.map)
   expect(w.posOf(w.get('ford.cart'))).toEqual({ map: FIRSTLIGHT.map, x: FIRSTLIGHT.cart[0], y: FIRSTLIGHT.cart[1] })
@@ -2227,9 +2262,130 @@ req('P1', "the prologue's end, offline: from Cloudtop (where a new game begins) 
   const at = new Map(index.maps.map((m) => [m.id, m.at]))
   expect(at.get('ford')).toEqual({ x: 0, y: 0 })
   expect(at.get('foot')!.y).toBe(-30)
-  expect(index.waypoints!.map((x) => x.id).sort()).toEqual(['wp.dawnhill', 'wp.eastroad', 'wp.foot', 'wp.ford', 'wp.hollow', 'wp.summit', 'wp.village'])
+  expect(index.waypoints!.map((x) => x.id).sort()).toEqual(['wp.dawnhill', 'wp.eastroad', 'wp.foot', 'wp.ford', 'wp.hollow', 'wp.village'])
   expect(travelToWaypoint(f.eng, 'wp.foot')).toBe(true)
   expect(w.posOf(p)).toMatchObject({ map: 'foot', x: PAT.footStone[0], y: PAT.footStone[1] + 1 })
+})
+
+/** Carried: so many of a kind (the smith's things). */
+function carryN(f: Ford, type: string, n = 1): void {
+  author(f, () => { for (let i = 0; i < n; i++) W(f).create(type, { on: 'inside', holder: 'player' }) })
+  f.eng.controls.sync()
+}
+
+req('S1', 'a smithy in Firstlight Village, a house on the east road: inside, a lit forge and an anvil anyone may use — ore and coal smelt to bars at the forge, and with a hammer carried the anvil makes gear of their metal; Haldor the smith works there by day (a smith\'s mark over his head) and sells the hammer, coal and bars', ['npc.haldor'], () => {
+  const f = fresh()
+  const w = W(f)
+  expect(w.get('smithy.forge')).toMatchObject({ type: 'fixture/craft/forge', statuses: { lit: -1 } })
+  expect(w.posOf(w.get('smithy.forge')!)!.map).toBe('meadow.smithy')
+  // by day he is at his anvil
+  const anvil = w.map('meadow.smithy')!.anchors!['smith.anvil']
+  setHour(f, 2, 9)
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.smithy', x: anvil[0], y: anvil[1] + 1 }))
+  ticks(f, 900)
+  const haldor = w.get('npc.haldor')!
+  const at = w.posOf(haldor)!
+  expect(at.map).toBe('meadow.smithy')
+  expect(Math.max(Math.abs(at.x - anvil[0]), Math.abs(at.y - anvil[1]))).toBeLessThanOrEqual(2)
+  expect(w.hasTag(haldor, 'smith')).toBe(true)
+  expect(PEOPLE.find((p) => p.id === 'npc.haldor')!.trade!.stock.map(([t]) => t)).toEqual(expect.arrayContaining(['item/tool/smith_hammer', 'item/material/coal', 'item/material/iron_ingot']))
+  // smelt and forge between the forge and the anvil
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.smithy', x: 4, y: 3 }))
+  carryN(f, 'item/material/iron_ore', 2)
+  carryN(f, 'item/material/coal', 1)
+  expect(f.eng.controls.craft(RECIPE_BY_ID['smith/smelt-iron'])).toBe(true)
+  const bars = () => [w.player.held, ...(w.player.contents ?? [])].filter((id) => w.get(id ?? '')?.type === 'item/material/iron_ingot').length
+  expect(bars()).toBe(2)
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.smithy', x: 5, y: 4 }))
+  // no hammer, no gear
+  carryN(f, 'item/material/plank', 1)
+  expect(f.eng.controls.craft(RECIPE_BY_ID['smith/dagger-iron'])).toBe(false)
+  carryN(f, 'item/tool/smith_hammer', 1)
+  expect(f.eng.controls.craft(RECIPE_BY_ID['smith/dagger-iron'])).toBe(true)
+  const dagger = Object.values(w.state.entities).find((e) => e.type === 'item/weapon/blade/dagger' && e.place.on === 'inside' && e.place.holder === w.player.id)!
+  expect(w.materialOf(dagger)?.id).toBe('iron')
+})
+
+req('T1', 'Firstlight\'s houses are walked into: every house on the village map has a door that leads into a furnished room — the elder\'s, the families\', two homes in the south lane, the general store, the smithy and the church — and out again to its door', ['fixture/furniture/bed', 'fixture/light/fireplace', 'fixture/furniture/chair', 'fixture/container/pot', 'fixture/container/bookshelf', 'fixture/container/shelf', 'fixture/furniture/counter'], () => {
+  const f = fresh()
+  const w = W(f)
+  const village = w.map('meadow')!
+  expect([village.width, village.height]).toEqual([60, 40])
+  const rooms = village.portals.filter((p) => w.map(p.to)?.kind === 'interior')
+  expect(new Set(rooms.map((p) => p.to))).toEqual(new Set(['meadow.cook', 'meadow.elder', 'meadow.guards', 'meadow.woodhouse', 'meadow.store', 'meadow.smithy', 'meadow.church', 'meadow.lane', 'meadow.cabin']))
+  for (const door of rooms) {
+    const inside = w.map(door.to)!
+    // each room's way out leads back to the step before its door
+    const out = inside.portals.find((p) => p.to === 'meadow')!
+    expect([door.to, out.tx, out.ty]).toEqual([door.to, door.x, door.y + 1])
+    expect(Object.values(w.state.entities).some((e) => e.place.on === 'tile' && e.place.map === door.to && e.type === 'fixture/furniture/bed')).toBe(true)
+  }
+  // walked into: from the step before the store's door, up, and one is inside
+  const store = rooms.find((p) => p.to === 'meadow.store')!
+  stand(f, store.x, store.y + 1, 'up', 'meadow')
+  walk(f, 'up')
+  expect(w.posOf(w.player)!.map).toBe('meadow.store')
+})
+
+req('T2', 'the general store: Greta keeps it by day, behind her counter; a hand on the counter opens its shelves — supplies, provisions, and what she buys — and Thornmarks buy a torch there, and a herb sells', ['npc.greta', 'fixture/furniture/counter/store'], () => {
+  const f = fresh()
+  const w = W(f)
+  setHour(f, 2, 10)
+  const counter = w.posOf(w.get('store.counter')!)!
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.store', x: counter.x, y: counter.y + 1 }))
+  ticks(f, 900)
+  const greta = w.posOf(w.get('npc.greta')!)!
+  expect(greta.map).toBe('meadow.store')
+  w.fx.length = 0
+  f.eng.act('hands', 'player', { e: 'store.counter' }, { instrument: null })
+  ticks(f, 2)
+  expect(w.fx.some((x) => x.t === 'panel' && x.panel === 'shop:store')).toBe(true)
+  carryN(f, 'item/misc/thornmark', 10)
+  expect(f.eng.controls.craft(RECIPE_BY_ID['store/buy/light-torch'])).toBe(true)
+  expect(f.eng.controls.count('item/light/torch')).toBeGreaterThanOrEqual(1)
+  expect(f.eng.controls.count('item/misc/thornmark')).toBe(6)
+  carryN(f, 'item/material/herb', 1)
+  expect(f.eng.controls.craft(RECIPE_BY_ID['store/sell/material-herb'])).toBe(true)
+  expect(f.eng.controls.count('item/misc/thornmark')).toBe(8)
+})
+
+req('T3', 'the church of the First Dawn: Brother Anselm keeps its bookstand, where every skill one learns from a book is sold — the common ones cheaper, a profession\'s dearer; bought and read, the book teaches its skill', ['npc.anselm', 'fixture/furniture/bookstand'], () => {
+  const f = fresh()
+  const w = W(f)
+  setHour(f, 2, 10)
+  const stand0 = w.posOf(w.get('church.books')!)!
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.church', x: stand0.x - 1, y: stand0.y + 1 }))
+  ticks(f, 900)
+  expect(w.posOf(w.get('npc.anselm')!)!.map).toBe('meadow.church')
+  w.fx.length = 0
+  f.eng.act('hands', 'player', { e: 'church.books' }, { instrument: null })
+  ticks(f, 2)
+  expect(w.fx.some((x) => x.t === 'panel' && x.panel === 'shop:books')).toBe(true)
+  const books = RECIPES.filter((r) => r.station === 'books')
+  expect(books.length).toBe(ACTIVE_SKILLS.length)
+  const common = books.find((r) => r.group === 'books')!
+  carryN(f, 'item/misc/thornmark', common.needs[0].count)
+  expect(f.eng.controls.craft(common)).toBe(true)
+  const book = Object.values(w.state.entities).find((e) => e.type === 'item/document/skillbook' && e.place.on === 'inside' && e.place.holder === w.player.id)!
+  expect(book.props?.teaches).toBe(common.id.split('/')[1])
+})
+
+req('S2', 'the Held Ground has a smithy too, and its smith is Alberic: a lit forge and an anvil beside the planted sword, where he works the mornings once he holds the ground (a smith\'s mark over his head), selling hammer, coal and bars', [], () => {
+  const f = fresh()
+  const w = W(f)
+  expect(w.get('haven.forge')).toMatchObject({ type: 'fixture/craft/forge', statuses: { lit: -1 } })
+  expect(w.posOf(w.get('haven.anvil')!)?.map).toBe('haven')
+  const alberic = w.get('npc.alberic')!
+  expect(w.hasTag(alberic, 'smith')).toBe(true)
+  const def = PEOPLE.find((p) => p.id === 'npc.alberic')!
+  expect(def.schedules!['fact:sins.defeated.alberic']).toContainEqual([6, 14, 'haven:alberic.anvil', 'work the anvil', { uses: 'haven.forge', need: { status: ['lit'] } }])
+  expect(def.trade!.stock.map(([t]) => t)).toEqual(expect.arrayContaining(['item/tool/smith_hammer', 'item/material/coal', 'item/material/iron_ingot']))
+  // the forge works for the steward's guest as any other
+  const forge = w.posOf(w.get('haven.forge')!)!
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'haven', x: forge.x - 1, y: forge.y }))
+  carryN(f, 'item/material/iron_ore', 2)
+  carryN(f, 'item/material/coal', 1)
+  expect(f.eng.controls.craft(RECIPE_BY_ID['smith/smelt-iron'])).toBe(true)
 })
 
 req('P2', 'a profession trainer in Firstlight Village: he keeps his spot in the drill yard, day and night; spoken to, he offers the choice; at level 5 a profession is taken up, its weapon handed over, and a change gives its points back', ['npc.bram'], () => {

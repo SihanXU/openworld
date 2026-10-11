@@ -380,11 +380,16 @@ const RESIDENTS: TypeDef[] = [
   { id: 'region', name: { en: 'an area', zh: '区域' } },
   // a room: found where cells are covered and walled all round (derived, read-only, world-model.md §5.4)
   { id: 'region/room', name: { en: 'a room', zh: '房间' } },
-  // a cell of the overworld, standing for its local map (world-model.md §5.1, §5.6): it covers the
-  // cell's block of the overworld; empty hands on it go in (props.map: the map it stands for)
-  { id: 'site', name: { en: 'a place', zh: '地点' }, sprite: 'site', footprint: [3, 3], props: { handsRange: 0 } },
+  // a cell of the overworld, standing for its local map (world-model.md §5.1, §5.6): one cell, one
+  // place; empty hands on it go in (props.map: the map it stands for)
+  { id: 'site', name: { en: 'a place', zh: '地点' }, sprite: 'site', props: { handsRange: 0 } },
   { id: 'site/wild', name: { en: 'the wild', zh: '荒野' }, sprite: 'site:wild' },
   { id: 'site/place', name: { en: 'a place', zh: '地点' }, sprite: 'site:place' },
+  // a hand-made place is drawn as what it is on the world map: its kind is its icon
+  ...(['village', 'town', 'farm', 'mill', 'woods', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone'] as const).map((k) => ({ id: `site/place/${k}`, name: { en: 'a place', zh: '地点' }, sprite: `site:${k}` })),
+  // a place a barrier runs through (the Ford: the river): its cell is the barrier's on the world map, so one
+  // goes in from the cell beside it, on the side one stands — and only through it from bank to bank
+  { id: 'site/place/crossing', name: { en: 'a crossing', zh: '渡口' }, sprite: 'site:ford', props: { handsRange: 1 } },
   // what one builds (world-model.md §6.6): a thing one carries and sets down — set in a cell it takes
   // its space there (a wall the volume, a floor the floor, on the storey where it comes to rest), and
   // can be picked up again; a floor needs holding up (walls hold what is laid over them, two cells round).
@@ -424,6 +429,9 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/furniture/bench/log', 'log bench', '原木长凳', [], { solid: true, footprint: [3, 1], sprite: 'fixture:log_bench' }),
   F('fixture/furniture/rack', 'cooking rack', '炊架', ['surface']),
   F('fixture/furniture/counter', 'counter', '柜台', ['surface']),
+  // the general store's counter, the church's bookstand: shops whose offers are recipes (village.ts)
+  F('fixture/furniture/counter/store', 'general store counter', '杂货铺柜台', ['shop', 'station:store'], { sprite: 'fixture:counter' }),
+  F('fixture/furniture/bookstand', 'bookstand', '教堂书架', ['paper', 'shop', 'station:books'], { sprite: 'fixture:bookshelf' }),
   F('fixture/furniture/stall', 'market stall', '市集摊位', ['cloth', 'surface']),
   // a stall that trades (homestead.ts): its shelves are made at it as at a station
   F('fixture/furniture/stall/trade', 'trading stall', '货摊', ['cloth', 'surface', 'stall', 'station:stall'], { sprite: 'fixture:stall' }),

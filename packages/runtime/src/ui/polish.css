@@ -1,0 +1,205 @@
+/* The polish over game.css (2026-10-11): the same warm wood and paper, finished — walnut frames with brass trim and
+   corner studs, paper with a grain, slots sunk into it, brass buttons that press, a gold ribbon for each panel's
+   title, a soft veil behind what is open; and the bag's character sheet (the portrait between the body's slots). */
+:root {
+  --walnut: #4a2a14;
+  --walnut-2: #6b3d1c;
+  --walnut-hi: #8a5530;
+  --brass: #d9a441;
+  --brass-hi: #ffe08a;
+  --brass-lo: #9a6a1e;
+  --parch: #f7e9c8;
+  --parch-2: #efdcae;
+  --parch-3: #e2c88f;
+  --ink-soft: #6b4a2a;
+  --glow: 0 0 0 2px rgba(255, 224, 138, 0.9), 0 0 12px rgba(255, 196, 64, 0.55);
+  --grain: radial-gradient(rgba(120, 80, 30, 0.05) 1px, transparent 1.2px) 0 0 / 5px 5px, radial-gradient(rgba(255, 255, 255, 0.25) 1px, transparent 1.2px) 2px 3px / 7px 7px;
+}
+
+/* ------------------------------------------------------------------ frames */
+.wood {
+  background: var(--grain), linear-gradient(180deg, #ecbb73 0%, #dba15a 55%, #c98c47 100%);
+  border: 3px solid var(--walnut-2);
+  border-radius: 10px;
+  box-shadow: 0 0 0 2px var(--walnut), inset 0 0 0 2px rgba(255, 226, 160, 0.75), inset 0 -6px 12px rgba(90, 45, 12, 0.18), 0 10px 28px rgba(0, 0, 0, 0.5);
+}
+.paper {
+  background: var(--grain), linear-gradient(180deg, #fbf0d4, var(--parch) 40%, var(--parch-2));
+  border: 3px solid var(--walnut-2);
+  border-radius: 10px;
+  box-shadow: 0 0 0 2px var(--walnut), inset 0 0 0 2px rgba(255, 255, 255, 0.5), 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+/* the brass studs in a panel's corners */
+.sheet.wood::before, .sheet.wood::after {
+  content: ''; position: absolute; top: 6px; width: 8px; height: 8px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--brass-hi), var(--brass) 55%, var(--brass-lo));
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); pointer-events: none;
+}
+.sheet.wood::before { left: 6px; }
+.sheet.wood::after { right: 6px; }
+
+/* what is open: the world behind it dimmed and softened */
+.overlay { background: radial-gradient(ellipse at center, rgba(20, 12, 6, 0.35), rgba(8, 5, 2, 0.7)); backdrop-filter: blur(2px) saturate(0.85); }
+.sheet { padding: 12px 16px 16px; animation: sheetIn 0.18s ease-out; }
+@keyframes sheetIn { from { transform: translateY(8px) scale(0.985); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* a panel's title as a gold ribbon; the close button a brass coin */
+.tabs-row { border-bottom: 2px solid rgba(74, 42, 20, 0.55); box-shadow: 0 1px 0 rgba(255, 232, 180, 0.6); padding-bottom: 8px; margin-bottom: 10px; }
+.tabs-row .sheet-title, .jhead > span:first-child {
+  position: relative; padding: 4px 16px 5px 14px; margin-left: -4px;
+  font: 700 16px var(--pixel); color: #fff6dc; letter-spacing: 0.04em;
+  background: linear-gradient(180deg, #b8562e, #8f3a1c); border-radius: 4px 2px 2px 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 200, 150, 0.5), 0 2px 0 rgba(60, 20, 6, 0.45);
+  text-shadow: 0 1px 0 rgba(60, 16, 0, 0.8);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 50%, 100% 100%, 0 100%);
+}
+.tabs-row .x, .jhead .x, .cv-phead .x, .sk-bar .x {
+  width: 32px; height: 32px; padding: 0; border-radius: 50%; display: grid; place-items: center;
+  font: 700 15px var(--pixel); color: #5a320f;
+  background: radial-gradient(circle at 35% 30%, var(--brass-hi), var(--brass) 60%, var(--brass-lo));
+  border: 2px solid var(--walnut); box-shadow: 0 2px 0 var(--walnut), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: transform 0.1s, filter 0.1s;
+}
+.tabs-row .x:hover, .jhead .x:hover { filter: brightness(1.08); transform: rotate(90deg); }
+.tabs-row .tab, .cx-tab, .ql-tab {
+  border-radius: 6px 6px 3px 3px; background: linear-gradient(#e9d3a0, #d9bd82); border: 2px solid var(--walnut-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 2px 0 rgba(74, 42, 20, 0.35); transition: transform 0.1s, background 0.1s;
+}
+.tabs-row .tab:hover, .cx-tab:hover, .ql-tab:hover { background: linear-gradient(#f3e0b2, #e2c78d); }
+.tabs-row .tab.on, .cx-tab.on, .ql-tab.on { background: linear-gradient(#fff6dc, var(--parch)); transform: translateY(-2px); box-shadow: inset 0 -2px 0 var(--brass), 0 3px 0 rgba(74, 42, 20, 0.35); }
+
+.tab-body {
+  background: var(--grain), linear-gradient(180deg, #fdf4dc, var(--parch) 30%, var(--parch-2));
+  border: 2px solid var(--walnut-2); border-radius: 8px;
+  box-shadow: inset 0 2px 6px rgba(90, 50, 15, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  padding: 14px;
+}
+
+/* ------------------------------------------------------------------ slots: sunk into the paper */
+.slot {
+  background: linear-gradient(180deg, #e6cf9c, #f1e1b9 60%, #f6e9c9);
+  border: 2px solid #9a6b3c; border-radius: 6px;
+  box-shadow: inset 0 2px 3px rgba(90, 50, 15, 0.35), inset 0 -1px 0 rgba(255, 255, 255, 0.7), 0 1px 0 rgba(255, 255, 255, 0.55);
+  transition: transform 0.08s, box-shadow 0.12s, background 0.12s;
+}
+.slot:hover { background: linear-gradient(180deg, #f2ddae, #fff3d6); box-shadow: inset 0 1px 2px rgba(90, 50, 15, 0.25), var(--glow); transform: translateY(-1px); }
+.slot.sel { outline: none; box-shadow: inset 0 1px 2px rgba(90, 50, 15, 0.25), 0 0 0 2px #fff6d0, 0 0 0 4px #e0552c, 0 0 14px rgba(224, 85, 44, 0.55); }
+.slot.picked { opacity: 0.4; filter: saturate(0.4); }
+.slot canvas { filter: drop-shadow(1px 2px 0 rgba(60, 30, 10, 0.3)); }
+.slot .key { color: #a07a4c; font-weight: 600; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7); }
+.grid-row.toolbar-row { border-bottom: 0; padding-bottom: 8px; margin-bottom: 6px; background: linear-gradient(90deg, transparent, rgba(154, 107, 60, 0.35), transparent) bottom / 100% 2px no-repeat; }
+.inv { gap: 4px; }
+.grid-row { gap: 4px; }
+
+/* ------------------------------------------------------------------ buttons: brass that presses */
+.inv-foot button, .recipe button, .options button, .dchoices button, .sk-btn {
+  font: 600 13px var(--pixel); color: #4a2a0c; padding: 5px 12px; border-radius: 6px;
+  background: linear-gradient(180deg, #ffe7a4, #f0c35e 55%, #d89c3a); border: 2px solid var(--walnut-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 3px 0 var(--walnut), 0 4px 6px rgba(0, 0, 0, 0.2);
+  transition: transform 0.06s, box-shadow 0.06s, filter 0.1s;
+}
+.inv-foot button:hover:not(:disabled), .recipe button:hover:not(:disabled), .options button:hover, .dchoices button:hover, .sk-btn:hover:not(:disabled) { filter: brightness(1.07); transform: translateY(-1px); }
+.inv-foot button:active:not(:disabled), .recipe button:active:not(:disabled), .options button:active, .sk-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 1px 0 var(--walnut); }
+.inv-foot button:disabled, .recipe button:disabled { filter: grayscale(0.7); opacity: 0.55; box-shadow: 0 2px 0 var(--walnut); }
+
+/* ------------------------------------------------------------------ the bag: a character sheet beside the pack */
+.inv-wrap { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: stretch; }
+.cs {
+  position: relative; display: flex; flex-direction: column; gap: 10px; padding: 12px 12px 14px; width: 300px;
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(255, 236, 190, 0.95), rgba(214, 178, 118, 0.0) 62%),
+    repeating-linear-gradient(135deg, rgba(110, 70, 30, 0.05) 0 2px, transparent 2px 9px),
+    linear-gradient(180deg, #e8cf98, #d7b678);
+  border: 2px solid var(--walnut-2); border-radius: 10px;
+  box-shadow: inset 0 0 0 2px rgba(255, 240, 200, 0.55), inset 0 6px 14px rgba(90, 50, 15, 0.22), 0 2px 0 rgba(255, 255, 255, 0.5);
+}
+.cs-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 2px; }
+.cs-lv { font: 700 15px var(--pixel); color: #fff6dc; padding: 2px 10px; border-radius: 10px; background: linear-gradient(#5e8f2e, #3f6b1a); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 2px 0 rgba(30, 50, 10, 0.5); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45); }
+.cs-prof { font: 700 15px var(--pixel); color: #7a3414; letter-spacing: 0.06em; }
+.cs-doll { display: grid; grid-template-columns: auto 1fr auto; gap: 6px; align-items: start; }
+.cs-col { display: flex; flex-direction: column; gap: 4px; }
+.cs-figure { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.cs-portrait {
+  position: relative; width: 156px; height: 220px; display: grid; place-items: end center; overflow: hidden;
+  border-radius: 70px 70px 10px 10px;
+  background: radial-gradient(ellipse at 50% 30%, #fff7e0 0%, #f2d9a2 45%, #c99a58 100%);
+  box-shadow: inset 0 0 0 2px var(--brass), inset 0 0 0 4px rgba(74, 42, 20, 0.6), inset 0 -20px 30px rgba(90, 50, 15, 0.25), 0 3px 0 rgba(74, 42, 20, 0.35);
+}
+.cs-portrait::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 2px var(--brass), inset 0 0 0 4px rgba(74, 42, 20, 0.55); }
+.cs-portrait canvas { width: 96px; height: 96px; image-rendering: pixelated; margin-bottom: 52px; }
+.cs-portrait.bust canvas { position: absolute; left: 50%; bottom: -8px; transform: translateX(-50%); width: 236px; height: 236px; margin: 0; image-rendering: auto; filter: drop-shadow(0 6px 8px rgba(60, 30, 10, 0.35)); }
+.cs-hands { display: flex; gap: 14px; }
+.cs .eq-cell { gap: 0; }
+.cs .eq-name { font: 600 10px var(--pixel); color: var(--ink-soft); opacity: 0.85; }
+.cs .eq-slot { width: 42px; height: 42px; }
+.cs .eq-slot canvas { width: 30px; height: 30px; }
+.cs .eq-slot.has { background: linear-gradient(180deg, #fff1c9, #f4dc9c); border-color: var(--brass-lo); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7), 0 0 0 1px var(--brass), 0 0 8px rgba(255, 196, 64, 0.35); }
+.cs .eq-slot .ghost { opacity: 0.3; font-size: 16px; }
+.cs-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; padding: 8px 10px; border-radius: 8px; background: rgba(255, 248, 228, 0.65); box-shadow: inset 0 1px 3px rgba(90, 50, 15, 0.2); }
+.cs-stat { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; font: 12px var(--text); color: var(--ink-soft); border-bottom: 1px dashed rgba(154, 107, 60, 0.35); padding-bottom: 2px; }
+.cs-stat b { font: 700 13px var(--pixel); color: var(--ink-warm); }
+.cs-stat.cs-hp b { color: #b8321e; }
+.cs-stat.cs-food b { color: #a0631a; }
+.inv-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.inv-title { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 2px; font: 700 15px var(--pixel); color: #7a3414; letter-spacing: 0.06em; }
+.inv-title .purse { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 6px; border-radius: 14px; font: 700 15px var(--pixel); color: #5a3a0c; letter-spacing: 0; background: linear-gradient(#fff2c4, #f1d48a); border: 2px solid var(--brass-lo); box-shadow: inset 0 1px 0 #fff, 0 2px 0 rgba(74, 42, 20, 0.3); }
+.inv-title .purse .icon canvas { width: 20px; height: 20px; image-rendering: pixelated; }
+.inv-title .purse small { font: 11px var(--text); color: var(--ink-soft); }
+.inv-foot { margin: 4px 0 0; justify-content: flex-start; }
+.inv-help { line-height: 1.5; margin-top: auto; padding-top: 6px; border-top: 1px dashed rgba(154, 107, 60, 0.35); }
+@media (max-width: 900px) { .inv-wrap { grid-template-columns: 1fr; } .cs { width: auto; } }
+
+/* ------------------------------------------------------------------ crafting and shops */
+.recipe { background: linear-gradient(180deg, #fff6dd, var(--parch)); border-color: #a87a46; border-radius: 8px; box-shadow: 0 2px 0 rgba(74, 42, 20, 0.2); transition: transform 0.08s, box-shadow 0.12s; }
+.recipe:hover { transform: translateY(-1px); box-shadow: 0 3px 0 rgba(74, 42, 20, 0.25), 0 0 0 2px rgba(255, 224, 138, 0.6); }
+.recipe.off { opacity: 0.55; filter: saturate(0.6); }
+.shop-head .coins { padding: 3px 10px 3px 6px; border-radius: 14px; background: linear-gradient(#fff2c4, #f1d48a); border: 2px solid var(--brass-lo); box-shadow: inset 0 1px 0 #fff, 0 2px 0 rgba(74, 42, 20, 0.3); }
+.cx-card { background: linear-gradient(180deg, #fff6dd, var(--parch-2)); border-color: #a87a46; border-radius: 8px; box-shadow: 0 2px 0 rgba(74, 42, 20, 0.2); }
+
+/* ------------------------------------------------------------------ the HUD */
+.clockbox { border-radius: 12px; }
+.cb-date { font: 700 17px var(--pixel); text-shadow: 0 1px 0 rgba(255, 240, 200, 0.8); }
+.cb-time { background: linear-gradient(#2b1a0c, #3d2512); color: #ffe7a6; border: 2px solid var(--walnut); border-radius: 6px; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 230, 180, 0.6); letter-spacing: 0.08em; text-shadow: 0 0 6px rgba(255, 200, 90, 0.6); }
+.dial { border-color: var(--walnut); box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.25); }
+.minimap { border-radius: 12px; }
+.minimap canvas { border-radius: 6px; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35); }
+.cbtn { border-radius: 10px; transition: transform 0.1s, filter 0.1s; }
+.cbtn:hover { filter: brightness(1.06); transform: translateY(-2px); box-shadow: 0 0 0 2px var(--walnut), inset 0 0 0 2px rgba(255, 226, 160, 0.75), 0 0 14px rgba(255, 200, 90, 0.55), 0 8px 18px rgba(0, 0, 0, 0.45); }
+.cbtn:active { transform: translateY(1px); }
+.toolbar { gap: 4px; padding: 6px; }
+.objective { background: linear-gradient(90deg, rgba(36, 22, 10, 0.78), rgba(36, 22, 10, 0.5)); border-left: 3px solid var(--brass); border-radius: 4px 10px 10px 4px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25); }
+.objective .ob-title { color: var(--brass-hi); letter-spacing: 0.03em; }
+.msg { background: var(--grain), linear-gradient(180deg, #fff6dd, var(--parch)); border-radius: 8px; border-width: 2px; border-left-width: 5px; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3); animation: msgIn 0.2s ease-out; }
+@keyframes msgIn { from { transform: translateX(-10px); opacity: 0; } to { transform: none; opacity: 1; } }
+.keys { background: linear-gradient(180deg, rgba(36, 22, 10, 0.72), rgba(36, 22, 10, 0.55)); border: 1px solid rgba(217, 164, 65, 0.4); border-radius: 8px; }
+.mapname { font-size: 34px; letter-spacing: 0.08em; text-shadow: 0 3px 0 #2a1608, 0 0 18px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 200, 120, 0.35); }
+
+/* ------------------------------------------------------------------ the dialogue box */
+.dialog { background: var(--grain), linear-gradient(180deg, #fff8e2, var(--parch) 45%, var(--parch-2)); border-radius: 12px; border-color: var(--walnut-2); box-shadow: 0 0 0 2px var(--walnut), inset 0 0 0 2px rgba(255, 255, 255, 0.55), 0 14px 34px rgba(0, 0, 0, 0.55); }
+.dialog .dname { display: inline-block; padding: 2px 12px; margin-bottom: 6px; border-radius: 4px; color: #fff6dc; background: linear-gradient(#b8562e, #8f3a1c); box-shadow: 0 2px 0 rgba(60, 20, 6, 0.45); text-shadow: 0 1px 0 rgba(60, 16, 0, 0.8); }
+
+/* ------------------------------------------------------------------ tooltips: dark velvet, a brass rule */
+.mctip { background: linear-gradient(180deg, rgba(30, 18, 30, 0.97), rgba(18, 10, 20, 0.97)); border: 1px solid rgba(217, 164, 65, 0.65); border-radius: 6px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 8px 22px rgba(0, 0, 0, 0.5); padding: 8px 10px 7px; }
+.mctip::before { border: 1px solid transparent; border-image: linear-gradient(180deg, rgba(255, 224, 138, 0.5), rgba(154, 106, 30, 0.15)) 1; inset: 2px; opacity: 1; }
+.tip { background: linear-gradient(#3d2512, #2b1a0c); border: 1px solid rgba(217, 164, 65, 0.6); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35); }
+.chooser, .ctx { border-radius: 8px; background: var(--grain), linear-gradient(180deg, #fff6dd, var(--parch)); }
+.ch-row:hover, .ctx-row:hover { background: linear-gradient(90deg, rgba(217, 164, 65, 0.35), rgba(217, 164, 65, 0.1)); }
+#menuSheet { width: min(960px, 96vw); }
+
+/* the skill bar keeps Dungeon Fighter's dark steel, set in the same brass-trimmed walnut as the rest */
+.skillbar { border-radius: 10px; padding: 6px; background: linear-gradient(#34303c, #1a171f); border: 2px solid var(--walnut); box-shadow: 0 0 0 2px var(--brass-lo), inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 6px 14px rgba(0, 0, 0, 0.45); }
+.sb-slot { border-radius: 6px; }
+.sb-slot.empty { background: radial-gradient(circle at 50% 40%, #24232c, #141319); }
+.sp-bar { border-radius: 10px; border-color: var(--walnut); box-shadow: 0 0 0 2px var(--brass-lo); }
+.sp-card { background: linear-gradient(180deg, #fff6dd, var(--parch-2)); border-color: #a87a46; border-radius: 8px; box-shadow: 0 2px 0 rgba(74, 42, 20, 0.2); }
+/* the recipe's picture in a sunk slot */
+.recipe > .icon, .recipe > div:first-child { border-radius: 6px; }
+.cx-body::-webkit-scrollbar, .sheet::-webkit-scrollbar { width: 10px; }
+.cx-body::-webkit-scrollbar-thumb, .sheet::-webkit-scrollbar-thumb { background: linear-gradient(90deg, var(--brass-lo), var(--brass)); border-radius: 6px; border: 2px solid var(--parch); }
+.cx-body::-webkit-scrollbar-track, .sheet::-webkit-scrollbar-track { background: rgba(154, 107, 60, 0.15); border-radius: 6px; }
+
+/* an empty body slot: what goes there, embossed into the slot (Ui/EquipSlots.png, 16x16 each, shown at 2x) */
+.eq-sil { width: 32px; height: 32px; background: var(--sil) calc(var(--i) * -32px) 0 / 352px 32px no-repeat; image-rendering: pixelated; opacity: 0.55; transition: opacity 0.12s, transform 0.12s; }
+.cs .eq-slot .eq-sil { width: 28px; height: 28px; background-position: calc(var(--i) * -28px) 0; background-size: 308px 28px; }
+.eq-slot:hover .eq-sil { opacity: 0.8; transform: scale(1.06); }
+.eq-slot.off .eq-sil { opacity: 0.3; }

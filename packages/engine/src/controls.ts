@@ -395,7 +395,9 @@ export class Controls {
     if (key === 'hands' && layer === 0 && !a.pointed && (!p || p.unknown || (!p.changes && this.ground(p.target)))) {
       const pos = this.w.posOf(this.w.player)
       const own = pos && this.planAt(key, pos, undefined, 0)
-      if (own && !own.unknown && own.changes) return own
+      // what one stands on answers even when its answer changes nothing (a place the story has not opened
+      // says why), where in front there is only the ground
+      if (own && !own.unknown && (own.changes || ((!p || this.ground(p.target)) && !this.ground(own.target)))) return own
     }
     return p
   }

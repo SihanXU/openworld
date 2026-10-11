@@ -46,6 +46,10 @@ export interface EntitySnap {
   look?: string | Look
   hostile?: boolean
   frozen?: boolean
+  /** The map it stands for (a place of the overworld: its `map`). */
+  leadsTo?: string
+  /** A way the story has not opened yet (its `opensWhen` fact unset, like a portal's): drawn sealed. */
+  sealed?: boolean
   element?: string
   open?: boolean
   held?: string // sprite key of the held item
@@ -381,6 +385,8 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       // this moment (a bat that wheels away is no friend)
       hostile: e.ai ? eng.hostileTo(e, w.player) : undefined,
       frozen: !!e.frozenBy,
+      ...(typeof e.props?.map === 'string' && { leadsTo: e.props.map }),
+      ...(typeof e.props?.opensWhen === 'string' && !w.fact(e.props.opensWhen) && { sealed: true }),
       element: (w.prop(e, 'element') as string | undefined) ?? undefined,
       open: !!e.statuses?.open,
       held: held ? (w.onto.resolve(held.type).sprite ?? held.type) : undefined,
