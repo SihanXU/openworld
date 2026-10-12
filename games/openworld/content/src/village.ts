@@ -1,6 +1,6 @@
 // Firstlight Village's shops (the houses one walks into: tools/src/demo/village.ts): the general store's counter and
 // the church's bookstand. Each is a station whose offers are recipes, as the Held Ground's stall's are
-// (homestead.ts): what one gives (Thornmarks, or a thing sold) and what one gets, at a fixed price, made beside it.
+// (homestead.ts): what one gives (Dawnmarks, or a thing sold) and what one gets, at a fixed price, made beside it.
 // A hand on the counter or the stand opens the shop panel on its shelves (`shop:<station>`).
 
 import type { Recipe, Rule, Text } from '@openworld/engine'

@@ -23,6 +23,7 @@ import { buildOverworld, placeCells, siteOf } from './overworld.ts'
 import { HOUSEHOLDS, PEOPLE, householdOf } from './people.ts'
 import { buildHaven, buildHavenGrounds } from './quest/haven.ts'
 import { villageInteriors, villageTown } from './village.ts'
+import { eastRoadRooms, emberfallRooms, tentRooms } from './interiors.ts'
 import { VIGIL, buildChapel, buildDawnHill, buildMillCellar, buildMillbrook } from './quest/vigil.ts'
 import { CHAPTER1_SCENES, CHAPTER1_STORY, HAVEN_STORY, buildOffstage, chapter1Barrow, chapter1EastRoad, chapter1Foot, chapter1Ford, chapter1Forest, chapter1Hollow, chapter1Pasture, chapter1Summit, chapter1Village } from './quest/chapter1.ts'
 
@@ -308,7 +309,7 @@ function buildMeadow(): MapBuilder {
   const [sx, sy] = FIRSTLIGHT.spring
   for (let y = sy - 2; y <= sy + 2; y++) for (let x = sx - 2; x <= sx + 2; x++) if (m.get(x, y) === 'tree' || m.get(x, y) === 'pine') m.set(x, y, 'grass')
   m.scenery('spring', sx - 1, sy - 1)
-  // the ground round it, where Pip points it out
+  // the ground round it, where Lumi points it out
   m.regions.spring = [sx - 4, sy - 3, 9, 7]
   m.fixture('fixture/sign', sx - 2, sy - 2, { props: { text: 'Warm spring — sit a while, and it mends you.', text_zh: '温泉——泡一会儿，伤就好了。' } })
   // small things: flowers and tufts in the open, leaves under the trees
@@ -490,7 +491,7 @@ function person(p: PersonDef, at: (name: string) => Pos): Entity {
 
 const say = (who: string, en: string, zh: string, mood?: 'neutral' | 'happy' | 'sad' | 'angry' | 'surprised' | 'shy') => ({ say: who, text: L(en, zh), ...(mood && { mood }) })
 
-/** Firstlight's own beats: Pip points out the healing spring the first time one comes near it. */
+/** Firstlight's own beats: Lumi points out the healing spring the first time one comes near it. */
 const FIRSTLIGHT_BEATS: StepDef[] = [
   {
     id: 'see_spring',
@@ -660,7 +661,9 @@ export function buildFord(): FordWorld {
   const haven = buildHaven()
   // its grounds, opened by its steward: places of their own, a way back to the heart from each
   const grounds = buildHavenGrounds()
-  const builders = [m, meadow, ...rooms.map((r) => r.map), pasture, forest, hollow, barrow, ossuary, sanctum, mill, millcellar, dawnhill, chapel, road, ember, mine, pass, lair, summit, foot, tutorial, offstage, haven, ...grounds]
+  // every building walked into (interiors.ts): Emberfall's, the East Road farmhouse; the tents, gone into by hand
+  const elsewhere = [...emberfallRooms().map((r) => (ember.linkInterior(r.door, r.map), r.map)), ...eastRoadRooms().map((r) => (road.linkInterior(r.door, r.map), r.map)), ...tentRooms(m, forest, haven)]
+  const builders = [m, meadow, ...rooms.map((r) => r.map), pasture, forest, hollow, barrow, ossuary, sanctum, mill, millcellar, dawnhill, chapel, road, ember, mine, pass, lair, summit, foot, tutorial, offstage, haven, ...grounds, ...elsewhere]
   const at = placeMaps(builders, m)
   for (const b of builders)
     for (const [name, [x, y]] of Object.entries(b.anchors)) {
@@ -736,7 +739,7 @@ export function buildFord(): FordWorld {
       // a little hungry: the first thing the mountain teaches is to eat
       props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, hunger: 12 },
     },
-    companions: [{ id: 'pip', type: 'actor/companion/fairy', name: L('Pip', '小啾'), place: { on: 'none' }, facing: 'down' }],
+    companions: [{ id: 'pip', type: 'actor/companion/fairy', name: L('Lumi', '露米'), place: { on: 'none' }, facing: 'down' }],
     // the quests (docs/quests.md): the main line, what the people ask, the radiant favours
     quests: QUESTS,
     waypoints: chunks.flatMap((c) => c.entities.filter((e) => e.type === 'fixture/sacred/waypoint').map((e) => ({ id: e.id, map: c.map.id, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: e.name ?? L('Waypoint', '传送雕像') }))),

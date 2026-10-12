@@ -27,7 +27,7 @@ const regard = (delta: number): Effect => ({ op: 'regard', delta })
 const what = (w: string) => param('what', w)
 const says = (s: string) => param('say', s)
 
-/** The coin of the world: the Held Ground's Thornmark (homestead.ts). */
+/** The coin of the world: the Held Ground's Dawnmark (homestead.ts). */
 export const SOCIAL_COIN = COIN
 
 // ------------------------------------------------------------------ deeds (§2.2)
@@ -70,6 +70,27 @@ export const SOCIAL: SocialParams = {
   markup: 0.25,
   markdown: 0.5,
   fence: 0.5,
+  // a friend made stays one: a liking fades a hundredth of the way a day (a grudge a tenth); a merchant at full regard
+  // asks three tenths less (and pays a fifth more)
+  fadeUp: 0.01,
+  discount: 0.3,
+  // the Held Ground's beds (haven.ts: one by the camp from the first; each residents' tent built, two more): one held
+  // in full regard may be asked to come and live there
+  residence: {
+    map: 'haven',
+    at: 100,
+    slots: [
+      { anchor: 'home.camp' },
+      { anchor: 'home.lodge1.a', when: 'haven.build.lodge1' },
+      { anchor: 'home.lodge1.b', when: 'haven.build.lodge1' },
+      { anchor: 'home.lodge2.a', when: 'haven.build.lodge2' },
+      { anchor: 'home.lodge2.b', when: 'haven.build.lodge2' },
+      { anchor: 'home.lodge3.a', when: 'haven.build.lodge3' },
+      { anchor: 'home.lodge3.b', when: 'haven.build.lodge3' },
+    ],
+    yes: L("...Live there? With you? — Yes. Give me a moment to pack. I'll see you in the Held Ground.", '……搬去那儿住？和你一起？——好。让我收拾一下东西。我们誓守之地见。'),
+    full: L("I'd like that. But you've no bed for me there yet — ask Alberic to raise another tent.", '我很想去。可你那儿还没有我的床位——去找阿尔贝里克再搭一顶营帐吧。'),
+  },
 }
 
 // ------------------------------------------------------------------ statuses
@@ -126,6 +147,8 @@ export const TALK: TalkVerb[] = [
   { id: 'giveback', label: L('Give back what I took.', '把拿走的东西还回去。'), when: GRUDGE },
   { id: 'apologise', label: L("I'm sorry.", '对不起。'), when: GRUDGE },
   { id: 'turnin', label: L('I want to settle what I owe the watch ({bounty}).', '我要了结欠守卫队的账（{bounty}）。'), when: all({ is: { role: 'host', sel: WATCHMAN } }, WANTED) },
+  // one held in full regard, free to leave, asked to come and live in the Held Ground (once it is one's own)
+  { id: 'invite', label: L('Come and live in the Held Ground?', '要不要搬来誓守之地住？'), when: all({ regard: { of: 'host', toward: 'actor', cmp: { gte: 100 } } }, not(tag('host', 'storybound')), not({ prop: { role: 'host', key: 'resident', cmp: 'haven' } }), { prop: { role: 'story', key: 'sins.defeated.alberic', cmp: { gte: 1 } } }) },
   { id: 'follow', label: L('Come with me.', '跟我来。'), when: not(FOLLOWS) },
   { id: 'wait', label: L('Wait here.', '在这儿等着。'), when: all(FOLLOWS, not({ prop: { role: 'host', key: 'waiting', cmp: true } })) },
   { id: 'come', label: L("Let's go on.", '我们走吧。'), when: all(FOLLOWS, { prop: { role: 'host', key: 'waiting', cmp: true } }) },
@@ -238,6 +261,8 @@ const TALK_TREE: Tree = IF(
           ),
         ],
         [says('wait'), DO({ op: 'setProp', key: 'waiting', value: true }, say("I'll wait here.", '我在这儿等你。'))],
+        // asked to come and live in the Held Ground: a bed free there, they go (the society module's moveIn)
+        [says('invite'), DO({ op: 'moveIn' })],
         [says('come'), DO({ op: 'setProp', key: 'waiting', value: false }, say('Right behind you.', '我跟着你。'))],
         [says('dismiss'), DO({ op: 'follow' }, say("I'll head home, then.", '那我回家了。'))],
         [

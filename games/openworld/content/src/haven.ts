@@ -55,6 +55,7 @@ const n = (type: string, count: number, en: string, zh: string) => ({ type, coun
 const LOG = 'item/material/log'
 const STONE = 'item/material/stone'
 const PLANK = 'item/material/plank'
+const CLOTH = 'item/material/cloth'
 
 export const HAVEN_UPGRADES: HavenUpgrade[] = [
   // the land: the rings of mist, one after another
@@ -104,6 +105,19 @@ export const HAVEN_UPGRADES: HavenUpgrade[] = [
     unlocks: [L('A loom for cloth', '一架织布机')],
     needs: [n(PLANK, 8, 'Planks', '木板'), n('item/material/stick', 6, 'Sticks', '树枝')],
     done: W('A loom. Someone used to weave the order\'s banners. I do not remember who. It does not matter now.', '一架织布机。从前有人给骑士团织旗帜。我记不得是谁了。现在也不要紧了。') },
+  // residents' tents (content social.ts residence): two beds each, for people asked to come and live here
+  { id: 'lodge1', track: 'building', name: L("Residents' Tent", '居民营帐'), land: 1, fact: 'haven.build.lodge1', value: 1, coins: 30, plot: [31, 14], becomes: 'fixture/tent',
+    unlocks: [L('Two more beds: two more people may come and live here', '多两个床位：可以再请两个人搬来住')],
+    needs: [n(CLOTH, 6, 'Cloth', '布'), n(PLANK, 10, 'Planks', '木板')],
+    done: W('A tent with two cots in it. A knight once had a hundred men under canvas. Two will do, to begin with.', '一顶营帐，两张行军床。从前一个骑士的帐篷下能睡一百个人。先从两个开始吧。') },
+  { id: 'lodge2', track: 'building', name: L("Second Residents' Tent", '第二座居民营帐'), land: 1, fact: 'haven.build.lodge2', value: 1, coins: 50, plot: [34, 21], becomes: 'fixture/tent',
+    unlocks: [L('Two more beds', '再多两个床位')],
+    needs: [n(CLOTH, 8, 'Cloth', '布'), n(PLANK, 14, 'Planks', '木板'), n(LOG, 6, 'Logs', '木头')],
+    done: W('Voices at the fire of an evening. I had forgotten that, too.', '傍晚火堆边有人说话。这个我也差点忘了。') },
+  { id: 'lodge3', track: 'building', name: L("Third Residents' Tent", '第三座居民营帐'), land: 2, fact: 'haven.build.lodge3', value: 1, coins: 80, plot: [16, 12], becomes: 'fixture/tent',
+    unlocks: [L('Two more beds: seven in all', '再多两个床位：一共七个')],
+    needs: [n(CLOTH, 10, 'Cloth', '布'), n(PLANK, 18, 'Planks', '木板'), n('item/material/iron_ingot', 2, 'Iron ingots', '铁锭')],
+    done: W('A village, nearly. Nobody kneels in it.', '都快成一个村子了。在这里，没人下跪。') },
   { id: 'apothecary', track: 'building', name: L('Apothecary', '药房'), land: 2, fact: 'haven.build.apothecary', value: 1, coins: 0, plot: [18, 16], becomes: 'fixture/craft/cauldron',
     unlocks: [L('A cauldron for brewing', '一口熬药的坩埚')],
     needs: [n(STONE, 8, 'Stones', '石块'), n('item/material/herb', 6, 'Herbs', '草药')],

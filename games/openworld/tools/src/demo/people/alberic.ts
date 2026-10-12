@@ -15,7 +15,7 @@ export const alberic: PersonDef = {
   temperament: { personality: 'steadfast', manner: 'polite', social: 'reserved', outlook: 'hopeful' },
   ties: { 'npc.fennick': 'squire' },
   // the Held Ground's smith too: a mark over his head (tag smith); he sells what the anvil needs
-  tags: ['smith', 'haven-steward'],
+  tags: ['smith', 'haven-steward', 'storybound'],
   trade: { stock: [['item/tool/smith_hammer', 1], ['item/material/coal', 6], ['item/material/iron_ingot', 4], ['item/material/steel_bar', 2]] },
   purse: 30,
   schedules: {

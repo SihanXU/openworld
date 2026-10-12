@@ -423,7 +423,7 @@ icon('royal-jelly', (r) => {
   r.outline('k')
 })
 
-// Rancher: a wide-brimmed hat, a Thornmark coin before it
+// Rancher: a wide-brimmed hat, a Dawnmark coin before it
 icon('rancher', (r) => {
   r.ellipse(30, 36, 26, 7, 'w2')
   r.ellipse(30, 34, 24, 5, 'w3')

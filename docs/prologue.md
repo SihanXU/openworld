@@ -16,10 +16,10 @@ teleport stones that are attuned by touch and used from the map.
 
 - **A new game** begins on **Cloudtop** (云顶台地, the map `summit`, restored 2026-10-06), in its
   ruined watch shelter (`PAT.spawn`, the world's start, `prologue` = `PROLOGUE_AT_FOOT`), straight into
-  the story. Pip's first line (`summit_wake`) names the place and points to the cut in the south
+  the story. Lumi's first line (`summit_wake`) names the place and points to the cut in the south
   rim, Cloudtop's only way down; the trail comes out on the Mountain Foot's north edge. Cloudtop
   is peaceful, with berries, sticks, stones and grass before the shelter (its waypoint statue
-  removed 2026-10-11: the first is the Mountain Foot's). Pip's "the world answers" beat waits until the seal stone was seen (`after: 'relic'`).
+  removed 2026-10-11: the first is the Mountain Foot's). Lumi's "the world answers" beat waits until the seal stone was seen (`after: 'relic'`).
 - **The tutorial is its own** (the title screen's *Tutorial* button): it begins in the Clearing, out cold,
   writes no save slot, and walking out of the Clearing ends it and returns to the title.
 - (Before 2026-10-06: the tutorial was the default start.)
@@ -35,7 +35,7 @@ lying about (and turning up again: the ground's yield and the clearing's own ber
 combat zone: after dark the dead walk it. It lies on no cell of the overworld and nothing leads
 back into it: a scene played once. Its one way out is the path south: two portals on the south
 edge to the top of the foot's trail, which wait on the story's fact `TUTORIAL_OPEN`
-(`Portal.opensWhen`: until then the tiles are only ground, and walking there too soon, Pip says not
+(`Portal.opensWhen`: until then the tiles are only ground, and walking there too soon, Lumi says not
 yet).
 
 | `prologue` | Objective | The step that ends it (state, not path) |
@@ -60,7 +60,7 @@ who does nothing is not let out the next day. What the steps need, and where:
 - Food: berries (food 2 each). Hunger falls in two paces (hunger.ts): fed, a point every 48 game
   minutes, full to six tenths between meals; under six tenths one is hungry and it falls a point
   every six hours (full to empty in about three days); asleep, four times slower. A starving
-  sleeper wakes in the night, so Pip says to eat one's fill before sleeping.
+  sleeper wakes in the night, so Lumi says to eat one's fill before sleeping.
 - Making: the stone axe, the torch (a stick and grass), walls, a door, a floor and a bed (planks;
   the bed also grass), all by hand (C); the campfire from the building panel (B) or by putting
   stones and sticks together; an axe on a log splits it into planks.
@@ -85,7 +85,7 @@ Each stage of the table above holds its lessons in order (`TUTORIAL_LESSONS` in 
 on the stage's objective; the engine's `Lesson`).
 
 **A lesson:**
-- **One short line.** Pip says it as the lesson begins, after any beat's line has been read.
+- **One short line.** Lumi says it as the lesson begins, after any beat's line has been read.
 - **A focus**, resolved by the view each frame:
   - the nearest thing of a type;
   - the nearest cell of a terrain, nearest to a spot (the grove, not the forest's rim);
@@ -140,10 +140,12 @@ of the map's south edge onto the top of the Ford's cliff.
 
 ## The fairy
 
-Pip (`actor/companion/fairy`: a small winged girl, a fairy, in the project's own art —
-`tools/src/art/fairy.ts`, a four-frame wingbeat and a portrait; until 2026-10-05 she was the
-pack's red parrot, and `content/src/migrateCompanion.ts` turns an older save's bird into her) wakes you and stays with you for the whole
-game:
+Lumi (`actor/companion/fairy`: a small winged girl, a fairy, chibi-drawn — moon-pale lavender hair with a glowing
+star pinned in it, violet eyes, a white dress, a butterfly's glassy wings — in the project's own art,
+`tools/src/art/fairy.ts`, a four-frame wingbeat and a portrait; until 2026-10-05 she was the pack's red parrot, and
+`content/src/migrateCompanion.ts` turns an older save's bird into her; until 2026-10-12 she was called Pip, and the
+same file renames an older save's fairy — her name is the light she gives in the lengthening night) wakes you and
+stays with you for the whole game:
 
 - **Follows** its leader (`props.companion` = the leader's id — data, not "the player"): it
   hops beside them, flies over what blocks people, follows them across maps, and is airborne:
@@ -165,7 +167,7 @@ game:
 ## The map system
 
 - **Waypoint statues** (`fixture/sacred/waypoint`, drawn as a statue that glows once woken): E
-  attunes one (status `attuned`); the first one in view, Pip points out. From the world map, any
+  attunes one (status `attuned`); the first one in view, Lumi points out. From the world map, any
   attuned stone takes you to it (not during a scene or while the world is learning).
 - **World map** (M): every visited map placed where it lies (offsets computed from the edge
   links when the world is built, `MapMeta.at`), painted from its terrain, the player's

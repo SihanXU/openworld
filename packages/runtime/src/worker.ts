@@ -2,7 +2,7 @@
 
 import { untilUp } from './untilUp.ts'
 import { artsToSend, forgetInvalid, forgetStatus, forgetType, learnedRecipes, recipeOf, shareKept, sharedPart, takeDefinitions, withKept } from './learned.ts'
-import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR } from '@openworld/engine'
+import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR, rollAffixes } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
@@ -816,7 +816,11 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         // into the bag, and onto a slot of it (the bag shows its slots)
         // a type the world has: an unknown id would make a nameless thing that is saved with the game
         if (m.op === 'give' && !w.onto.hasType(m.type)) w.fx.push({ t: 'log', text: { en: `No such type: ${m.type}.`, zh: `没有这个类型：${m.type}。` }, tone: 'bad' })
-        else if (m.op === 'give') eng.author(() => (w.create(m.type, { on: 'inside', holder: w.state.player }, m.tags ? { tags: m.tags } : {}), eng.controls.sync()))
+        else if (m.op === 'give') {
+          // gear rolls its extras as it is made anywhere (engine affixes.ts)
+          const slot = w.onto.resolve(m.type).props.slot
+          eng.author(() => (w.create(m.type, { on: 'inside', holder: w.state.player }, { ...(m.tags && { tags: m.tags }), ...(typeof slot === 'string' && { props: rollAffixes(w.onto.data, slot, () => w.rand()) }) }), eng.controls.sync()))
+        }
         // the hour only goes forward (the next time it comes round): cooldowns and timers are ticks, and a clock
         // put back left them in the future (one could not move, nor strike, until it caught up)
         if (m.op === 'hour') {

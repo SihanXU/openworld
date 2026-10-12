@@ -9,6 +9,8 @@ const FIRE = { uses: 'ford.campfire', need: { status: ['lit'] } }
 
 export const hesper: PersonDef = {
   id: 'npc.hesper',
+  // the main story needs them where they are: not asked to move to a home ground (content social.ts residence)
+  tags: ['storybound'],
   role: 'ferrykeeper',
   essential: true,
   name: { en: 'Hesper', zh: '赫斯珀' },

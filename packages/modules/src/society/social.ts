@@ -159,7 +159,9 @@ export class Social {
     const v = m?.regard?.[toward]
     if (v === undefined) return start
     const days = Math.max(0, (this.w.state.tick - (m?.regardAt?.[toward] ?? this.w.state.tick)) / TICKS_PER_DAY)
-    return Math.round((start + (v - start) * Math.pow(1 - this.params.fade, days)) * 10) / 10
+    // a grudge heals at `fade`; a liking wears off slower (`fadeUp`): a friend made stays one
+    const fade = v > start ? (this.params.fadeUp ?? this.params.fade) : this.params.fade
+    return Math.round((start + (v - start) * Math.pow(1 - fade, days)) * 10) / 10
   }
 
   /** One's regard toward another changes (an outcome of theirs): losses in full, gains harder the higher it is (Elin's affinity). */
@@ -521,17 +523,25 @@ export class Social {
     return this.coins(e).length
   }
 
+  /**
+   * What a merchant's regard does to its prices (a share): off what it asks one it likes — `discount` at full regard,
+   * in proportion below — and on for one it does not (a fifth at −50 and under).
+   */
+  regardDiscount(merchant: Entity, other: Id): number {
+    const r = Math.max(-50, Math.min(100, this.regard(merchant, other)))
+    return r >= 0 ? ((this.params.discount ?? 0.2) * r) / 100 : r / 250
+  }
+
   /** What a seller asks a buyer for a thing: its worth and the markup, less for one it likes, more for one it does not. */
   priceToBuy(thing: Entity, seller: Entity, buyer: Entity): number {
-    const r = this.regard(seller, buyer.id)
-    const f = (1 + this.params.markup) * (1 - Math.max(-50, Math.min(50, r)) / 250)
+    const f = (1 + this.params.markup) * (1 - this.regardDiscount(seller, buyer.id))
     return Math.max(1, Math.round(this.value(thing) * f))
   }
 
-  /** What a buyer pays a seller for a thing: its worth less the markdown, better for one it likes; a fence pays its share for what is not the seller's. */
+  /** What a buyer pays a seller for a thing: its worth less the markdown, better for one it likes (two thirds of its discount); a fence pays its share for what is not the seller's. */
   priceToSell(thing: Entity, seller: Entity, buyer: Entity): number {
-    const r = this.regard(buyer, seller.id)
-    let f = this.params.markdown * (1 + Math.max(-50, Math.min(50, r)) / 250)
+    const d = this.regardDiscount(buyer, seller.id)
+    let f = this.params.markdown * (1 + (d > 0 ? (d * 2) / 3 : d))
     if (this.isAnothers(thing, seller)) f *= this.params.fence
     return Math.max(1, Math.floor(this.value(thing) * f))
   }
@@ -707,17 +717,32 @@ export class Social {
   }
 
   /** The one the talk is with, as the panel shows them: their regard word, what they hold against the speaker, what the speaker owes here, the verbs. */
-  talkView(person: Entity, speaker: Entity, arrest = false): { who: Id; regard: Text; grudge?: Text; bounty?: number; arrest?: boolean; verbs: TalkOption[] } {
+  talkView(person: Entity, speaker: Entity, arrest = false): { who: Id; regard: Text; affection: number; grudge?: Text; bounty?: number; arrest?: boolean; verbs: TalkOption[] } {
     const g = this.grudge(person, speaker.id)
     const b = this.bountyHere(speaker)
     return {
       who: person.id,
       regard: this.regardWord(this.regard(person, speaker.id)),
+      affection: this.regard(person, speaker.id),
       ...(g && { grudge: { en: this.deedWords(g, 'en', speaker.id), zh: this.deedWords(g, 'zh', speaker.id) } }),
       ...(b > 0 && { bounty: b }),
       ...(arrest && { arrest }),
       verbs: this.verbs(person, speaker, arrest),
     }
+  }
+
+  // ---------------------------------------------------------------- a home ground's residents (moveIn)
+
+  /** The beds of the home ground open now (their facts hold) and on its map, and who sleeps in each. */
+  residenceBeds(): { anchor: string; at: [number, number]; day: [number, number]; who?: Id }[] {
+    const r = this.params.residence
+    const anchors = r && this.w.map(r.map)?.anchors
+    if (!r || !anchors) return []
+    const taken = new Map<string, Id>()
+    for (const e of Object.values(this.w.state.entities)) if (e.npc?.resident?.map === r.map) taken.set(e.npc.resident.slot, e.id)
+    return r.slots
+      .filter((b) => anchors[b.anchor] && (!b.when || !!this.w.fact(b.when)))
+      .map((b) => ({ anchor: b.anchor, at: anchors[b.anchor], day: anchors[`${b.anchor}.day`] ?? anchors[b.anchor], ...(taken.has(b.anchor) && { who: taken.get(b.anchor) }) }))
   }
 
   /** A ref's entity. */

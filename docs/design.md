@@ -817,7 +817,7 @@ The code runs the event model. The previous model's text is in git history, at c
 
 Systems added after the migration (companions and the tutorial's beats, quests, professions and
 the skill tree, combat talents, the seven sins, the night) changed the state outside outcomes:
-striking Pip down changed nothing the world could answer, a quest wrote the player's bag from
+striking Lumi down changed nothing the world could answer, a quest wrote the player's bag from
 code, the night made and unmade creatures from the clock's code. The guard of §5.14 could not
 see it: it was on only in tests, and any code could take the writer. A2 and A3 are now held by
 construction, always.

@@ -1,5 +1,5 @@
 // The companion's boons (docs/chapter-1.md §8, docs/lore.md): when a Seal-bearer falls, its seal's
-// power breaks loose and the fairy Pip takes up part of it, carrying it for her leader, one at a time, changed only beside an attuned waypoint statue
+// power breaks loose and the fairy Lumi takes up part of it, carrying it for her leader, one at a time, changed only beside an attuned waypoint statue
 // (engine/src/boons.ts). Each boon is a status of the fairy (`boon_<id>`) whose `lead:<stat>`
 // props add to the leader's stats. Five, one per seal; the first (the Crown of Thorns) is given at the end of Chapter 1.
 
@@ -11,13 +11,15 @@ export interface BoonDef {
   id: string
   name: { en: string; zh: string }
   doc: Text
+  /** The seal whose power it is (1–5, docs/lore.md §4). */
+  seal: number
   /** What it adds to the leader's stats (World.stat). */
   lead: Record<string, number>
 }
 
 export const BOONS: BoonDef[] = [
   // the First Seal, the Crown of Thorns: it wears the self's borders thin, and a thinner self learns faster
-  { id: 'xp', name: L("Crown's Insight", '荆冠之悟'), doc: L('From the First Seal, the Crown of Thorns. Experience gained +100%.', '来自第一印·荆棘冠。获得的经验 +100%。'), lead: { xpRate: 1 } },
+  { id: 'xp', seal: 1, name: L("Crown's Insight", '荆冠之悟'), doc: L('From the First Seal, the Crown of Thorns. Experience gained +100%.', '来自第一印·荆棘冠。获得的经验 +100%。'), lead: { xpRate: 1 } },
 ]
 
 export const BOON_BY_ID: Record<string, BoonDef> = Object.fromEntries(BOONS.map((b) => [b.id, b]))

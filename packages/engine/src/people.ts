@@ -20,6 +20,8 @@ export function memoryOf(e: Entity): NpcMemory {
 export function scheduleFor(eng: Engine, e: Entity, cal: Calendar = eng.world.calendar()): ScheduleEntry[] {
   const o = e.npc?.override
   if (o && o.until > eng.world.state.tick) return [{ from: 0, to: 24, map: o.map, x: o.x, y: o.y, activity: o.activity }]
+  // moved to live elsewhere (a home ground's resident): that place's days, whatever the variants say
+  if (e.npc?.resident) return e.npc.resident.schedule
   const variants = e.npc?.person?.schedules
   if (!variants?.length) return e.npc?.schedule ?? []
   const one = (key: string): number => {

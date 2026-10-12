@@ -1,5 +1,5 @@
 // Companions (docs/prologue.md). A companion is any actor whose `companion` prop names a leader:
-// it keeps beside them, flies over what blocks people, and follows them from map to map — its
+// it keeps near them (two tiles off), flies over what blocks people, and follows them from map to map — its
 // goal, `follow` (behaviour.ts, world-model.md §6.10). It is `airborne` (its type's tag): it never
 // blocks a tile, and blows pass under it. Each hop is an act of moving, and when it cannot go on
 // (it is down) it reports `stuck` (design.md §5.7), whose outcome is the world's to say. What it
@@ -10,8 +10,11 @@ import type { Entity, Id } from './types.ts'
 import { DIRS } from './types.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
 
-/** Where a companion settles: within this many tiles of a leader standing still. */
-const NEAR = 1
+/**
+ * Where a companion settles: this many tiles from a leader standing still, neither nearer nor farther — two, so it is
+ * not right behind them, where turning to it would send it round behind again (its hands reach as far: `handsRange`).
+ */
+const NEAR = 2
 /** How far a companion may trail a leader on the move before it hurries to catch up. */
 const LAG = 3
 /** A companion that cannot follow says so at most this often (ticks). */
@@ -69,8 +72,9 @@ export class Companions {
     this.still.set(e.id, { map: to.map, x: to.x, y: to.y, ticks: idle })
     const inTheWay = (at.x === ahead.x && at.y === ahead.y) || (at.x === to.x && at.y === to.y)
     // a bird trails a few tiles behind on the move, catching up only when it falls back past LAG;
-    // once the leader stands still it drifts in, unhurried, to its perch behind them
-    if (!inTheWay && d <= LAG && !(idle >= 10 && d > NEAR && idle % 3 === 0)) return
+    // once the leader stands still it drifts, unhurried, to its perch behind them (and stays where it settled, at
+    // NEAR, when they turn to it)
+    if (!inTheWay && d <= LAG && !(idle >= 10 && d !== NEAR && idle % 3 === 0)) return
     const x = at.x + Math.sign(perch.x - at.x)
     const y = at.y + Math.sign(perch.y - at.y)
     if (x === at.x && y === at.y) return
@@ -83,12 +87,13 @@ export class Companions {
     this.eng.act('move', e.id, { e: e.id }, { instrument: null, params: { map, x, y } })
   }
 
-  /** The tile behind the leader (or beside them, at the map's edge). */
+  /** The tile NEAR tiles behind the leader (or beside them, nearer at the map's edge). */
   private perch(lead: Entity, map: string, x: number, y: number): { x: number; y: number } {
     const w = this.eng.world
     const [fx, fy] = DIRS[lead.facing ?? 'down']
-    for (const [dx, dy] of [[-fx, -fy], [-fx - fy, -fy - fx], [-fx + fy, -fy + fx], [fy, fx], [-fy, -fx]])
-      if (w.inBounds(map, x + dx, y + dy) && (dx || dy)) return { x: x + dx, y: y + dy }
+    for (const n of [NEAR, 1])
+      for (const [dx, dy] of [[-fx, -fy], [-fx - fy, -fy - fx], [-fx + fy, -fy + fx], [fy, fx], [-fy, -fx]])
+        if (w.inBounds(map, x + dx * n, y + dy * n) && (dx || dy)) return { x: x + dx * n, y: y + dy * n }
     return { x, y }
   }
 }

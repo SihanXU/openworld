@@ -888,6 +888,19 @@
           "properties": {
             "op": {
               "type": "string",
+              "const": "trophy"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
               "const": "news"
             },
             "kind": {
@@ -1442,6 +1455,19 @@
             "op": {
               "type": "string",
               "const": "sell"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "moveIn"
             }
           },
           "required": [

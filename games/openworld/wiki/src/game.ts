@@ -466,7 +466,7 @@ export function loadGame(): Game {
     地面产出间隔: v(APPEAR_EVERY / TICKS_PER_MINUTE, '树枝、石头、草这类地面产出每隔多少现实秒长出一份', 'engine/src/appear.ts APPEAR_EVERY'),
     职业等级: v(PROFESSION_LEVEL, '可以选择职业的等级', 'engine/src/profession.ts PROFESSION_LEVEL'),
     升级经验系数: v(20, '升到下一级需要 这个数 × 当前等级 的经验', 'engine/src/progression.ts xpToNext'),
-    恩赐切换距离: v(BOON_REACH, '在已唤醒的传送雕像多少格内可以更换小啾的恩赐', 'engine/src/boons.ts BOON_REACH'),
+    恩赐切换距离: v(BOON_REACH, '在已唤醒的传送雕像多少格内可以更换露米的恩赐', 'engine/src/boons.ts BOON_REACH'),
     图鉴视距: v(CODEX_SIGHT, '人物或生物来到多少格内就算「见过」', 'engine/src/codex.ts CODEX_SIGHT'),
     交互距离: v(ontology.params?.reach ?? 1, '默认的 E 交互距离（格）', 'content/src/ontology.ts params.reach'),
     拿放距离: v(ontology.params?.carry ?? 1, 'F 拿、G 放的距离（格）', 'content/src/ontology.ts params.carry'),

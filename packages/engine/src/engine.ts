@@ -1485,8 +1485,8 @@ export class Engine {
     }
     // a blow from afar flies: a bolt of its element, or what the weapon looses (its `missile`: a bow's arrow)
     const missile = weapon && w.prop(weapon, 'missile')
-    if (range > 1 && last && (last.x !== start.x || last.y !== start.y)) w.fx.push({ t: 'vfx', fx: `bolt:${element ?? 'none'}:${a.facing}:${Math.abs(last.x - start.x) + Math.abs(last.y - start.y)}${typeof missile === 'string' ? `:${missile}` : ''}`, map: start.map, x: start.x, y: start.y })
-    else w.fx.push({ t: 'vfx', fx: `swing:${a.facing}`, map: start.map, x: start.x, y: start.y })
+    if (range > 1 && last && (last.x !== start.x || last.y !== start.y)) w.fx.push({ t: 'vfx', fx: `bolt:${element ?? 'none'}:${a.facing}:${Math.abs(last.x - start.x) + Math.abs(last.y - start.y)}${typeof missile === 'string' ? `:${missile}` : ''}`, map: start.map, x: start.x, y: start.y, who: a.id })
+    else w.fx.push({ t: 'vfx', fx: `swing:${a.facing}`, map: start.map, x: start.x, y: start.y, who: a.id })
     // the attacker's talents shape the blow (combat.ts): its power, a critical; the act carries it
     const victim = 'e' in target ? w.get(target.e) : undefined
     const before = victim ? w.num(victim, 'hp') : 0

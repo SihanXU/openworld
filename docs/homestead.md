@@ -6,7 +6,7 @@ place. Content: `content/src/homestead.ts` (items in `items.ts`); the map's stal
 
 ## The coin and the stall
 
-- **The Thornmark** (银荆币, `item/misc/thornmark`) is the Held Ground's coin. Alberic gives 30 at his welcome;
+- **The Dawnmark** (晨辉币, `item/misc/thornmark`) is the Held Ground's coin. Alberic gives 30 at his welcome;
   his widening errands pay 20, 40, 60; the rest comes from selling.
 - **Alberic's stall** (`fixture/furniture/stall/trade`, tags `stall`, `station:stall`) stands beside his post.
   A hand on it (E) opens the stall panel: four tabs — **Farming**, **Ranching**, **Fishing**, **Sell** — and

@@ -323,26 +323,19 @@ export class Hud {
       const same = !!k?.use && !!k?.self && JSON.stringify(k.use.label) === JSON.stringify(k.self.label) && k.use.x === k.self.x && k.use.y === k.self.y
       $('#keys').innerHTML = k ? line('E', k.hands) + line('F', k.take) + line('G', k.put) + line(same ? `${t('lmb')} · ${t('rmb')}` : t('lmb'), k.use) + (same ? '' : line(t('rmb'), k.self)) : ''
     }
-    // over the target: what each key would do, where it would be done (the tile is outlined in the scene)
+    // what each key would do, in one still place on the screen: just over the middle of the view, where the camera
+    // keeps the one acting (following them, it would shake with every step); the target's tile is outlined in the scene
     const at = k?.hands ?? k?.take ?? k?.put ?? k?.use ?? k?.self
     const el = $('#keys')
     el.classList.toggle('hidden', !at)
     if (at) {
-      const s = this.screenOfTile(at.x, at.y)
-      // above the tile, or below it when there is no room above, or when someone's speech is there
-      // (a companion's line beside the target would cover what the keys would do)
-      const w = el.offsetWidth
-      const top = s.y - 30 - el.offsetHeight
-      const said = [...this.bubbles.values()].some((b) => {
-        const r = b.el.getBoundingClientRect()
-        return r.left < s.x + w / 2 && r.right > s.x - w / 2 && r.top < s.y - 30 && r.bottom > top
-      })
-      // nor over the one acting: the player just above the target (facing down) would be hidden by it
-      const me = this.screenOfTile(f.player.x, f.player.y)
-      const tile = Math.abs(this.screenOfTile(f.player.x + 1, f.player.y).x - me.x)
-      const covers = me.y < s.y && Math.abs(me.x - s.x) < w / 2 + tile / 2 && me.y + tile / 2 > top
-      const above = top >= 4 && !said && !covers
-      el.style.transform = above ? `translate(${s.x}px, ${s.y - 30}px) translate(-50%, -100%)` : `translate(${s.x}px, ${s.y + 30}px) translate(-50%, 0)`
+      const view = (el.offsetParent as HTMLElement | null) ?? document.body
+      const tile = Math.abs(this.screenOfTile(1, 0).x - this.screenOfTile(0, 0).x)
+      // over the head of one standing mid-view (a tile and a half tall), and over a companion settled two tiles behind
+      // them (engine companion.ts); whole pixels, as a half-pixel offset blurs the text
+      const x = Math.round(view.clientWidth / 2 - el.offsetWidth / 2)
+      const y = Math.round(view.clientHeight / 2 - tile * 3 - el.offsetHeight)
+      el.style.transform = `translate(${x}px, ${Math.max(4, y)}px)`
     }
   }
 
@@ -604,7 +597,10 @@ export class Hud {
     const zh = locale.value === 'zh'
     // a talk the panel opened without a line (a guard stopping one): the guard's words
     if (box.classList.contains('hidden')) this.openDialog(tk.who, who ? tx(who.name) : '', tk.arrest ? (zh ? `你欠守卫队 ${tk.bounty ?? 0}。` : `You owe the watch ${tk.bounty ?? 0}.`) : '…')
-    $('#dName').innerHTML = `${esc(who ? tx(who.name) : tx(tk.name))} <span class="regard r-${esc(tx(tk.regard).replace(/\s/g, ''))}">${esc(tx(tk.regard))}</span>${tk.grudge ? ` <span class="grudge">${esc(tx(tk.grudge))}</span>` : ''}${tk.bounty ? ` <span class="grudge">${zh ? '悬赏' : 'bounty'} ${tk.bounty}</span>` : ''}`
+    // their regard as ten hearts (a heart for every ten, a half for five): how near one is to their full regard
+    const aff = Math.max(0, Math.min(100, tk.affection ?? 0))
+    const hearts = tk.affection === undefined ? '' : `<span class="hearts" title="${zh ? '好感' : 'Regard'} ${Math.round(tk.affection)}/100">${Array.from({ length: 10 }, (_, i) => `<i class="${aff >= (i + 1) * 10 ? 'on' : aff >= i * 10 + 5 ? 'half' : ''}"></i>`).join('')}</span>`
+    $('#dName').innerHTML = `${esc(who ? tx(who.name) : tx(tk.name))} <span class="regard r-${esc(tx(tk.regard).replace(/\s/g, ''))}">${esc(tx(tk.regard))}</span>${hearts}${tk.grudge ? ` <span class="grudge">${esc(tx(tk.grudge))}</span>` : ''}${tk.bounty ? ` <span class="grudge">${zh ? '悬赏' : 'bounty'} ${tk.bounty}</span>` : ''}`
     const verbs = [...tk.verbs, ...(tk.arrest ? [] : [{ id: 'bye', label: { en: 'Goodbye.', zh: '再见。' } }])]
     choices.innerHTML = verbs.map((v, i) => `<button data-verb="${esc(v.id)}"><kbd>${i + 1}</kbd> ${esc(tx(v.label))}</button>`).join('')
     choices.classList.remove('hidden')

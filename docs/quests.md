@@ -75,7 +75,7 @@ our SetStage. No patch may host a rule on a quest, and none may write one (mod.t
   - `optional`.
   - Stages show, complete and fail objectives. Without any `show`, all are shown from the start.
 - **Stages** (`QuestStage`): `n`; `on`, the trigger that sets it, from `from` (stages it may follow;
-  default any lower); `log`, the journal line; `hint`, Pip's tip; `show` / `done` / `fail`
+  default any lower); `log`, the journal line; `hint`, Lumi's tip; `show` / `done` / `fail`
   (objectives); `say` / `by` (a line, by an alias; by default the one spoken to, else the giver);
   `take` (things the taker hands over to an alias, default the giver); `reward` (xp, items, coin,
   regard with aliases, the story's facts); `do`, effects run as the quest's own outcome (a scene,
@@ -169,7 +169,7 @@ Accepting:
   The options turn markers and the tracker off.
 - **Over heads**: a yellow **!** means an offer; a **?** means someone to speak to (a talk
   objective, or a hand-in ready now).
-- **Pip** (E on the companion) says the tracked quest's open objectives and its stage's hint.
+- **Lumi** (E on the companion) says the tracked quest's open objectives and its stage's hint.
 
 ### 2.6 Rules of thumb
 

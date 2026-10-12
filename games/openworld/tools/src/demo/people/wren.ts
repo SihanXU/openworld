@@ -7,6 +7,8 @@ const CAULDRON = { uses: 'emberfall.cauldron', need: { status: ['lit'] } }
 
 export const wren: PersonDef = {
   id: 'npc.wren',
+  // the main story needs them where they are: not asked to move to a home ground (content social.ts residence)
+  tags: ['storybound'],
   role: 'herbalist',
   essential: true,
   name: { en: 'Wren', zh: '雷恩' },

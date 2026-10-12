@@ -5,7 +5,7 @@ place where a journey begins. Its internal ID stays `meadow`: portals, fireweed
 turn-ins, save records and explored-map facts keep working.
 
 The Ford keeps Hesper, who opens the arrival dialogue. Tobin, his cart, frost wand
-and oil move to the village. Residents of Emberfall are unchanged. Pip remains a
+and oil move to the village. Residents of Emberfall are unchanged. Lumi remains a
 following companion. Tobin's default and storm schedules never return to the Ford;
 the arrival and crossing scenes no longer ask an off-map peddler to speak.
 

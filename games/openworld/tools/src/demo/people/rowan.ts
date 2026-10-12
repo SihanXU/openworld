@@ -5,6 +5,8 @@ import { line, type PersonDef } from '../person.ts'
 
 export const rowan: PersonDef = {
   id: 'npc.rowan',
+  // the main story needs them where they are: not asked to move to a home ground (content social.ts residence)
+  tags: ['storybound'],
   role: 'villager',
   essential: true,
   name: { en: 'Rowan', zh: '罗万' },

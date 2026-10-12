@@ -1,9 +1,11 @@
-// The four sets of gear (2026-10-11), one for each profession, each covering the whole body: head, ear, neck,
-// shoulders, body, hands, two rings, waist, feet, the main hand and the off hand — twelve pieces. Every piece is forged
-// at an anvil with a smith's hammer carried (life.ts: the smith's craft); its main ingredient gives its material, the
-// smith's level and craft its quality, the set its name and what it adds. Worn together, a set gives more at three,
-// six, nine and twelve pieces (World.stat reads `Ontology.sets`). Only the weapon and the off hand are a profession's
-// own (their forms' `profession:` tags); the rest anyone may wear, and a set's bonus counts whatever is worn.
+// The four sets of gear (2026-10-11), one for each profession, each covering the whole body: head, shoulders, body,
+// hands, waist and feet; neck, ear and ring; the main hand and the off hand. Every piece is forged at an anvil with a
+// smith's hammer carried (life.ts: the smith's craft); its main ingredient gives its material, the smith's level and
+// craft its quality, the set its name and what it adds. As in Dungeon Fighter, a profession's gear is two sets, not
+// one: its armour (the six pieces on the body: bonuses at two, four and six) and its trinkets (neck, ear, ring: at two
+// and three); the weapon and the off hand are pieces of their own, in no set (World.stat reads `Ontology.sets`, a
+// piece per slot). Only the weapon and the off hand are a profession's own (their forms' `profession:` tags); the rest
+// anyone may wear.
 
 import type { GearSet, Recipe, Text } from '@openworld/engine'
 import { FORM_BY_ID } from './items.ts'
@@ -38,11 +40,13 @@ interface SetDef {
   /** How hard its pieces are to make (the quality a smith reaches against it). */
   level: number
   pieces: Piece[]
-  bonuses: GearSet['bonuses']
+  /** What its armour gives worn together (head, shoulders, body, hands, waist, feet), and its trinkets (neck, ear, ring). */
+  armour: GearSet['bonuses']
+  trinkets: GearSet['bonuses']
 }
 
 const P = (slot: string, type: string, en: string, zh: string, needs: [string, number][], props?: Record<string, number>, skill?: string): Piece => ({ slot, type, en, zh, needs, ...(props && { props }), ...(skill && { skill }) })
-/** The two rings of a set: the same piece, made twice. */
+/** A set's ring (one piece: a second of it worn counts once). */
 const ring = (en: string, zh: string, props: Record<string, number>): Piece => P('ring', 'item/valuable/ring', en, zh, [[GOLD, 1]], props, 'jeweler')
 const pct = (n: number) => `${Math.round(n * 100)}%`
 
@@ -62,11 +66,14 @@ export const SET_DEFS: SetDef[] = [
       P('weapon', 'item/weapon/blade/dagger', 'Shadowfang', '影刃', [[STEEL, 2], [LEATHER, 1]], { critChance: 0.03 }),
       P('arm', 'item/armor/parrying_dagger', 'Shadowfang Parrier', '影刃格挡短刃', [[STEEL, 1], [LEATHER, 1]]),
     ],
-    bonuses: [
-      { pieces: 3, props: { dodge: 0.05 }, text: L(`Dodge +${pct(0.05)}`, `闪避 +${pct(0.05)}`) },
-      { pieces: 6, props: { stealth: 2, critChance: 0.05 }, text: L(`Stealth +2, critical chance +${pct(0.05)}`, `潜行 +2，暴击率 +${pct(0.05)}`) },
-      { pieces: 9, props: { critDamage: 0.3 }, text: L(`Critical damage +${pct(0.3)}`, `暴击伤害 +${pct(0.3)}`) },
-      { pieces: 12, props: { lifesteal: 1, critChance: 0.05 }, text: L(`Each hit draws 1 health; critical chance +${pct(0.05)}`, `每次命中吸取 1 点生命，暴击率 +${pct(0.05)}`) },
+    armour: [
+      { pieces: 2, props: { dodge: 0.03 }, text: L(`Dodge +${pct(0.03)}`, `闪避 +${pct(0.03)}`) },
+      { pieces: 4, props: { stealth: 2, critChance: 0.05 }, text: L(`Stealth +2, critical chance +${pct(0.05)}`, `潜行 +2，暴击率 +${pct(0.05)}`) },
+      { pieces: 6, props: { critDamage: 0.3, lifesteal: 1 }, text: L(`Critical damage +${pct(0.3)}; each hit draws 1 health`, `暴击伤害 +${pct(0.3)}，每次命中吸取 1 点生命`) },
+    ],
+    trinkets: [
+      { pieces: 2, props: { critChance: 0.03 }, text: L(`Critical chance +${pct(0.03)}`, `暴击率 +${pct(0.03)}`) },
+      { pieces: 3, props: { critDamage: 0.15, attackHaste: 0.05 }, text: L(`Critical damage +${pct(0.15)}, attack speed +${pct(0.05)}`, `暴击伤害 +${pct(0.15)}，攻击速度 +${pct(0.05)}`) },
     ],
   },
   {
@@ -84,11 +91,14 @@ export const SET_DEFS: SetDef[] = [
       P('weapon', 'item/weapon/blade/sword', 'Oathguard Blade', '誓卫长剑', [[STEEL, 2], [LEATHER, 1]]),
       P('arm', 'item/armor/shield', 'Oathguard Bulwark', '誓卫塔盾', [[STEEL, 3], [PLANK, 1]], { block: 0.1 }),
     ],
-    bonuses: [
-      { pieces: 3, props: { def: 2 }, text: L('Defence +2', '防御 +2') },
-      { pieces: 6, props: { atk: 1, holdFast: 0.1 }, text: L(`Attack +1; ${pct(0.1)} less damage standing still`, `攻击 +1，站定不动时受到的伤害 -${pct(0.1)}`) },
-      { pieces: 9, props: { def: 3 }, text: L('Defence +3', '防御 +3') },
-      { pieces: 12, props: { atk: 2, lifesteal: 1 }, text: L('Attack +2; each hit draws 1 health', '攻击 +2，每次命中吸取 1 点生命') },
+    armour: [
+      { pieces: 2, props: { def: 2 }, text: L('Defence +2', '防御 +2') },
+      { pieces: 4, props: { atk: 1, holdFast: 0.1 }, text: L(`Attack +1; ${pct(0.1)} less damage standing still`, `攻击 +1，站定不动时受到的伤害 -${pct(0.1)}`) },
+      { pieces: 6, props: { def: 3, lifesteal: 1 }, text: L('Defence +3; each hit draws 1 health', '防御 +3，每次命中吸取 1 点生命') },
+    ],
+    trinkets: [
+      { pieces: 2, props: { atk: 1 }, text: L('Attack +1', '攻击 +1') },
+      { pieces: 3, props: { atk: 1, def: 2, holdFast: 0.05 }, text: L(`Attack +1, defence +2; ${pct(0.05)} less damage standing still`, `攻击 +1，防御 +2，站定不动时受到的伤害 -${pct(0.05)}`) },
     ],
   },
   {
@@ -106,11 +116,14 @@ export const SET_DEFS: SetDef[] = [
       P('weapon', 'item/weapon/ranged/bow', 'Windrunner Bow', '风行长弓', [[PLANK, 3], [LEATHER, 1], [IRON, 1]], { critChance: 0.03 }),
       P('arm', 'item/armor/quiver', 'Windrunner Quiver', '风行箭袋', [[LEATHER, 3], [FEATHER, 6]]),
     ],
-    bonuses: [
-      { pieces: 3, props: { dodge: 0.04 }, text: L(`Dodge +${pct(0.04)}`, `闪避 +${pct(0.04)}`) },
-      { pieces: 6, props: { atk: 2 }, text: L('Attack +2', '攻击 +2') },
-      { pieces: 9, props: { critChance: 0.06 }, text: L(`Critical chance +${pct(0.06)}`, `暴击率 +${pct(0.06)}`) },
-      { pieces: 12, props: { cdr: 0.15, critDamage: 0.2 }, text: L(`Skills rest ${pct(0.15)} less; critical damage +${pct(0.2)}`, `技能冷却 -${pct(0.15)}，暴击伤害 +${pct(0.2)}`) },
+    armour: [
+      { pieces: 2, props: { dodge: 0.04 }, text: L(`Dodge +${pct(0.04)}`, `闪避 +${pct(0.04)}`) },
+      { pieces: 4, props: { atk: 2 }, text: L('Attack +2', '攻击 +2') },
+      { pieces: 6, props: { critChance: 0.06, critDamage: 0.2 }, text: L(`Critical chance +${pct(0.06)}, critical damage +${pct(0.2)}`, `暴击率 +${pct(0.06)}，暴击伤害 +${pct(0.2)}`) },
+    ],
+    trinkets: [
+      { pieces: 2, props: { xpRate: 0.1 }, text: L(`Experience +${pct(0.1)}`, `经验 +${pct(0.1)}`) },
+      { pieces: 3, props: { cdr: 0.1, attackHaste: 0.05 }, text: L(`Skills rest ${pct(0.1)} less; attack speed +${pct(0.05)}`, `技能冷却 -${pct(0.1)}，攻击速度 +${pct(0.05)}`) },
     ],
   },
   {
@@ -128,19 +141,30 @@ export const SET_DEFS: SetDef[] = [
       P('weapon', 'item/weapon/magic/staff', 'Starweave Staff', '星辉法杖', [[PLANK, 2], [GOLD, 1]], { critChance: 0.03 }),
       P('arm', 'item/armor/tome', 'Starweave Tome', '星辉法典', [[LEATHER, 1], [CLOTH, 2], [FEATHER, 2]]),
     ],
-    bonuses: [
-      { pieces: 3, props: { xpRate: 0.1 }, text: L(`Experience +${pct(0.1)}`, `经验 +${pct(0.1)}`) },
-      { pieces: 6, props: { cdr: 0.1 }, text: L(`Skills rest ${pct(0.1)} less`, `技能冷却 -${pct(0.1)}`) },
-      { pieces: 9, props: { atk: 3 }, text: L('Attack +3', '攻击 +3') },
-      { pieces: 12, props: { critChance: 0.08, cdr: 0.1 }, text: L(`Critical chance +${pct(0.08)}; skills rest ${pct(0.1)} less`, `暴击率 +${pct(0.08)}，技能冷却 -${pct(0.1)}`) },
+    armour: [
+      { pieces: 2, props: { xpRate: 0.1 }, text: L(`Experience +${pct(0.1)}`, `经验 +${pct(0.1)}`) },
+      { pieces: 4, props: { cdr: 0.1 }, text: L(`Skills rest ${pct(0.1)} less`, `技能冷却 -${pct(0.1)}`) },
+      { pieces: 6, props: { atk: 3, critChance: 0.05 }, text: L(`Attack +3, critical chance +${pct(0.05)}`, `攻击 +3，暴击率 +${pct(0.05)}`) },
+    ],
+    trinkets: [
+      { pieces: 2, props: { atk: 1 }, text: L('Attack +1', '攻击 +1') },
+      { pieces: 3, props: { cdr: 0.08, critChance: 0.03 }, text: L(`Skills rest ${pct(0.08)} less; critical chance +${pct(0.03)}`, `技能冷却 -${pct(0.08)}，暴击率 +${pct(0.03)}`) },
     ],
   },
 ]
 
-/** The sets as the world knows them (Ontology.sets): twelve pieces each (the ring twice). */
-export const GEAR_SETS: GearSet[] = SET_DEFS.map((s) => ({ id: s.id, name: L(s.en, s.zh), pieces: s.pieces.length + 1, bonuses: s.bonuses }))
+/** Which of a profession's two sets a slot's piece belongs to (none: the weapon and the off hand). */
+export const ARMOUR_SLOTS = ['head', 'shoulders', 'body', 'hands', 'waist', 'feet']
+export const TRINKET_SLOTS = ['neck', 'ear', 'ring']
+export const setOfSlot = (id: string, slot: string): string | undefined => (ARMOUR_SLOTS.includes(slot) ? id : TRINKET_SLOTS.includes(slot) ? `${id}_trinkets` : undefined)
 
-/** Each piece, forged at an anvil with a hammer carried: named for its set, carrying the set and what it adds. */
+/** The sets as the world knows them (Ontology.sets): each profession's armour (six pieces) and trinkets (three). */
+export const GEAR_SETS: GearSet[] = SET_DEFS.flatMap((s) => [
+  { id: s.id, name: L(`${s.en} Armour`, `${s.zh}防具`), pieces: ARMOUR_SLOTS.length, bonuses: s.armour },
+  { id: `${s.id}_trinkets`, name: L(`${s.en} Trinkets`, `${s.zh}首饰`), pieces: TRINKET_SLOTS.length, bonuses: s.trinkets },
+])
+
+/** Each piece, forged at an anvil with a hammer carried: named for its profession's gear, carrying its set (if any) and what it adds. */
 export const SET_RECIPES: Recipe[] = SET_DEFS.flatMap((s) =>
   s.pieces.map((p): Recipe => ({
     id: `set/${s.id}/${p.slot}`,
@@ -148,7 +172,7 @@ export const SET_RECIPES: Recipe[] = SET_DEFS.flatMap((s) =>
     sprite: FORM_BY_ID[p.type]?.sprite ?? 'item:bag',
     group: `set:${s.id}`,
     needs: p.needs.map(([type, count]) => ({ type, count })),
-    make: { type: p.type, name: L(p.en, p.zh), props: { set: s.id, ...p.props } },
+    make: { type: p.type, name: L(p.en, p.zh), props: { ...(setOfSlot(s.id, p.slot) && { set: setOfSlot(s.id, p.slot) }), ...p.props } },
     station: 'anvil',
     tools: ['tool:hammer'],
     level: s.level,

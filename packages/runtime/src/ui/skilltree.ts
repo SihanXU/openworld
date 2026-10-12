@@ -168,6 +168,8 @@ export class SkillTree {
 
   private apply(): void {
     $('#skWorld').style.transform = `translate(${this.pan.x}px, ${this.pan.y}px) scale(${this.zoom})`
+    // the stars behind slide slower than the tree (a little depth)
+    $('#skView').style.backgroundPosition = `${Math.round(this.pan.x * 0.25)}px ${Math.round(this.pan.y * 0.25)}px`
     $<HTMLButtonElement>('#skZoomIn').disabled = this.zoom >= ZOOM[1]
     $<HTMLButtonElement>('#skZoomOut').disabled = this.zoom <= ZOOM[0]
   }
@@ -241,7 +243,7 @@ export class SkillTree {
       const p = this.branches.get(b.id)!
       const own = visible.filter((s) => s.branch === b.id)
       const pending = own.length === 0
-      return `<button class="sk-node hub ${b.id}${pending ? ' pending' : ''}" data-branch="${b.id}" style="left:${p.x}px;top:${p.y}px" aria-label="${esc(tx(b.name))}">${skillArt(b.icon)}<span class="sk-node-name">${esc(tx(b.name))}${pending ? `<small>${t('skillPending')}</small>` : ''}</span></button>`
+      return `<button class="sk-node hub ${b.id}${pending ? ' pending' : ''}" data-branch="${b.id}" data-way="${this.tree.ways.get(b.id)}" style="left:${p.x}px;top:${p.y}px" aria-label="${esc(tx(b.name))}">${skillArt(b.icon)}<span class="sk-node-name">${esc(tx(b.name))}${pending ? `<small>${t('skillPending')}</small>` : ''}</span></button>`
     }).join('')
     // the trunk: out from the start to each hub, its way
     const trunks = branchDefs.filter((b) => b.direction === this.direction).map((b) => `<path class="sk-line trunk ${b.id}" d="${elbow({ x: 0, y: 0 }, this.branches.get(b.id)!, this.tree.ways.get(b.id)!)}"/>`).join('')

@@ -40,6 +40,8 @@ export interface BoonInfo {
   id: string
   name: Text
   doc: Text
+  /** The seal it comes from (1–5), its place in the companion's panel. */
+  seal?: number
 }
 
 /** A part of a look, as the creator offers it (a part only a worn thing brings is never offered). */
@@ -118,6 +120,8 @@ export interface ClientGame extends GameDef {
     forProfession(profession: string): SkillDef[]
   }
   boons: Record<string, BoonInfo>
+  /** The companion's panel (E on the companion): her portrait's look and the word under her name. */
+  companion?: { look: Look; epithet: Text }
   /**
    * A home ground's widenings (the haven panel, opened by a rule's `panel: haven`): who widens it, and each widening —
    * the quest that brings it, its name, what it opens, what it asks (the quest's objectives say how far one is).

@@ -18,7 +18,7 @@ Firstlight into a lantern and leaves east, across the river on ice he makes as h
 Church's letter comes: the five Seal-bearers are failing, the Long Night is returning, and a
 pilgrim guided by a fairy is called to the pilgrimage. You mend the bridge and find the White
 Knight on the far road, holding the ford as his kingdom, kneeling to no one. You bring him down
-and take the Crown. His seal's power breaks loose; Pip catches part of it, and the grey man
+and take the Crown. His seal's power breaks loose; Lumi catches part of it, and the grey man
 steps out of the smoke and draws the rest into the stolen flame: "Every seal you break makes the
 night longer. Ask your Church why." That evening the sun sets four minutes earlier.
 
@@ -47,12 +47,12 @@ night longer. Ask your Church why." That evening the sun sets four minutes earli
 | The Five Sufferings and Astra (§1, §4, §5) | Firstlight's chapel: five carved wounds round Astra the First Martyr; Ilse's litany: "Suffering is not God's abandonment. It is the proof the debt is being paid." |
 | The Seal-bearers failing (§6, §7) | the Church's letter; the shrine stone at the Mountain Foot has five carved wounds, and the first (the crown) is cracked and weeps black |
 | The pilgrimage (§7) | the letter names a pilgrim; Ilse sends you, with the chapel's blessing |
-| The selection (§13), unseen | Pip carries each seal's power for you — and she is what is left of the last one who tried to bear the Five (§3b) |
+| The selection (§13), unseen | Lumi carries each seal's power for you — and she is what is left of the last one who tried to bear the Five (§3b) |
 | The bearers suffer and are twisted (§6, §12) | Alberic was a kind knight; Fennick served under him; the crown has eaten his self (the crown's real work, §4: the self's borders worn thin) |
 
-## 3b. Pip, the failed second vessel (decided 2026-10-05)
+## 3b. Lumi, the failed second vessel (decided 2026-10-05)
 
-Pip is not a guide the Church sent. She is what remains of the **second vessel**: long ago, someone
+Lumi is not a guide the Church sent. She is what remains of the **second vessel**: long ago, someone
 tried to take up the Five after Astra and could not bear them. The sufferings stripped her of her
 power and her memory and left her small, a fairy, with no idea what she was. (When and why that
 attempt was made is for later chapters.)
@@ -138,16 +138,16 @@ New stages are marked **new**.
 
 | # | Where | Beat | Goal (a state) | Clue planted |
 |---|---|---|---|---|
-| P | Mountain | The prologue, unchanged, except: the seal stone at the Mountain Foot is a wayside shrine of the Five Sufferings, five carved wounds, the first cracked and weeping black, fresh ash on it; Pip: "It's colder near it." | reach the Ford | the cracked first wound; the ash |
+| P | Mountain | The prologue, unchanged, except: the seal stone at the Mountain Foot is a wayside shrine of the Five Sufferings, five carved wounds, the first cracked and weeping black, fresh ash on it; Lumi: "It's colder near it." | reach the Ford | the cracked first wound; the ash |
 | 0a | The Ford | Hesper's arrival scene: the bridge was *taken* by a white rider in a crown of thorns; the nails laid like a toll; "the evenings come sooner every week." She sends you to the village | enter Firstlight | thorns in the stumps (things; E reads them) |
 | 0b | Firstlight | The chapel and its flame, Ilse's litany, Rowan's request (the barrow), new people about the square | take on *Lost in the Barrow* | Pell's chalk drawing of a grey man; Nessa's sunset table |
 | 0c | The barrow | Lina and Oskar in the side cells; the restless warden behind a door shut from outside | the warden down; both found | the marked loaf; "the grey man shut the door" |
 | 1 **new** | Firstlight, night | *The Night of the Flame*: the village gives thanks in the chapel; at 22:00 a scene — the grey man in the chapel, the flame into his lantern, Holt shouts, he walks east. The player can follow and watch him freeze the river and cross | (scene) | the ice crossing, shown; he looks back once at Ilse's window |
-| 2 **new** | Firstlight | *The Letter*: at dawn a Church courier brings the Holy City's proclamation: the Seal-bearers fail, the Long Night returns, the pilgrimage is called, and one who has walked down from the mountain with a fairy is named to it. Ilse blesses you and names your road: the First Seal-bearer, beyond the ford | talk to Ilse | the letter (a document); the courier stares at Pip and says nothing |
+| 2 **new** | Firstlight | *The Letter*: at dawn a Church courier brings the Holy City's proclamation: the Seal-bearers fail, the Long Night returns, the pilgrimage is called, and one who has walked down from the mountain with a fairy is named to it. Ilse blesses you and names your road: the First Seal-bearer, beyond the ford | talk to Ilse | the letter (a document); the courier stares at Lumi and says nothing |
 | 3 | Firstlight → Ford | *The Broken Bridge*: Joss and the three planks; the ferry, the dead tree and the ice still work | stand on the far bank | Joss: "nails pulled straight. No storm pulls nails." |
 | 4 | East Road | The farmstead (crops dying in the short days; night things came). Edda in the barn. The road ends at a ring of thorns round a field of kneeling stones: the knight's kingdom | — | Edda: "the night things came; the grey one pulled me out" |
 | 5 | East Road | **The White Knight Alberic** | the knight down | the kneeling stones are the graves of pilgrims before you **[proposal]** |
-| 6 **new** | East Road | *The Crown*: he offers the Crown and dies; its power breaks loose; Pip catches part of it and glows (the story gives her the first boon); the grey man steps out of the smoke, draws the rest into the lantern; a barrier, no fight: "Every seal you break makes the night longer. Ask your Church why." He looks at Pip a moment too long, and goes east | the Crown carried | his hand shakes after the binding |
+| 6 **new** | East Road | *The Crown*: he offers the Crown and dies; its power breaks loose; Lumi catches part of it and glows (the story gives her the first boon); the grey man steps out of the smoke, draws the rest into the lantern; a barrier, no fight: "Every seal you break makes the night longer. Ask your Church why." He looks at Lumi a moment too long, and goes east | the Crown carried | his hand shakes after the binding |
 | 7 **new** | Firstlight | *Return*: the village rejoices at the Crown; Rowan hardens against the heretic; Ilse says nothing and keeps the cold altar swept. Nessa, that evening: "Four minutes. The sun set four minutes early." A card: **Chapter 1 · The First Seal — end** | talk to Rowan | the earlier sunset |
 
 The player can relight the cold altar with any flame (ordinary fire physics). It burns; Ilse
@@ -226,17 +226,17 @@ one thing they do not say.
 | Tobin | sold Nessa the old almanac; sold the grey man a frost charm, paid in Watch coin |
 | Lina, Oskar | their rescue lines name the shut door and the marked loaf; the dead "would not lie down" |
 | Marta | worried about Pell's stories |
-| Pip | shivers at the shrine stone; does not know how old she is; the courier and Severin both stare at her (§3b) |
+| Lumi | shivers at the shrine stone; does not know how old she is; the courier and Severin both stare at her (§3b) |
 
-## 8. Pip's boons (built 2026-10-04; renamed for the new setting)
+## 8. Lumi's boons (built 2026-10-04; renamed for the new setting)
 
-Each Seal-bearer's power breaks loose when they fall; Pip takes up part of it. Five, one per seal.
+Each Seal-bearer's power breaks loose when they fall; Lumi takes up part of it. Five, one per seal.
 The first, from the Crown of Thorns, is **Crown's Insight (荆冠之悟)**: experience +100% — the crown
 wears the self's borders thin, and a thinner self learns faster (lore.md §4; the player does not
 know that is what it is for).
 
-- Pip carries **one** at a time, the others kept, changed **only beside a woken waypoint statue**
-  (touch one: *Pip's Powers*, five slots, the ones not yet found sealed).
+- Lumi carries **one** at a time, the others kept, changed **only beside a woken waypoint statue**
+  (touch one: *Lumi's Powers*, five slots, the ones not yet found sealed).
 - As data (`content/src/boons.ts`): a boon is a status of the fairy, `boon_<id>`, whose
   `lead:<stat>` props add to her leader's stats (`World.stat`); Crown's Insight is `lead:xpRate` 1.
   Given by the story (a notify she answers: `companion/boon`); chosen by an act of the hands on her
@@ -255,7 +255,7 @@ know that is what it is for).
   the **Crown of Thorns** as types; the knight's kingdom on the East Road (a ring of thorns, the
   kneeling stones, the bridge's planks).
 - **The boss**: Alberic's kit, footprint and art (not designed yet); his defeat tells the story,
-  which gives Pip her boon (`notify` what = boon, unlock = `xp`) and spawns the Crown.
+  which gives Lumi her boon (`notify` what = boon, unlock = `xp`) and spawns the Crown.
 - **Rules, not code** (CLAUDE.md, the event model): the theft is a scene; the cold altar is a
   status; the clue things answer what the base rules cover and leave the rest undefined.
 - **Proof**: every new person and thing witnesses a requirement in `tools/test/demo.test.ts`
@@ -266,7 +266,7 @@ know that is what it is for).
 Decided: the Firstlight is not recovered and Severin escapes; no fight with Severin; one
 Seal-bearer per chapter, each leaving a boon; names unchanged; the setting is lore.md. 2026-10-05:
 Severin believes Astra is the monster from the start, works against the pilgrim, and later hunts
-Astra with them, finding the second reversal on the way; Pip is the failed second vessel, her power
+Astra with them, finding the second reversal on the way; Lumi is the failed second vessel, her power
 and memory lost; the nights really lengthen; Alberic is built (art, kit, effects); later chapters
 wait until Chapter 1 is done.
 
@@ -363,21 +363,21 @@ demo C4): each place and step has its scene.
 
 | Scene | Where, when | What happens |
 |---|---|---|
-| `village_arrival` | first into Firstlight | Ilse at the flame, Pell wants to draw Pip, Rowan asks for help |
-| `barrow_cells` | Lina's cell in the barrow | the grey man shut the inner door and left bread with an ash mark; Pip: the dead cannot lie down |
+| `village_arrival` | first into Firstlight | Ilse at the flame, Pell wants to draw Lumi, Rowan asks for help |
+| `barrow_cells` | Lina's cell in the barrow | the grey man shut the inner door and left bread with an ash mark; Lumi: the dead cannot lie down |
 | `warden_falls` | the warden down | its last words: "The night is coming back. I could not lie down." |
-| `tale` | the village at dusk, after the rescue, before the theft | Ilse tells the First Night and the Five; at the spear, Pip shivers |
+| `tale` | the village at dusk, after the rescue, before the theft | Ilse tells the First Night and the Five; at the spear, Lumi shivers |
 | `night_flame` | the village at night | the grey man takes the Firstlight |
 | `ford_night` | the Ford, before the letter | the river's ice already gone; a lantern far off east |
 | `letter` | the morning after | the courier, the proclamation |
 | `fennick_memory` | after Fennick is asked | Alberic knelt to children; one morning he asked Fennick's name |
 | `hesper_stumps` | after Hesper is asked | thorns in the stumps; Aldo's bridge |
-| `road_east` (a beat) | first onto the East Road | Pip: the sun is lower than it should be; thorns planted along the road |
+| `road_east` (a beat) | first onto the East Road | Lumi: the sun is lower than it should be; thorns planted along the road |
 | `burned_farm` | the farmstead | the dragon's claw marks (Chapter 2's hook) |
 | `edda_barn` | the barn | Edda: the knight took all that shone; the grey man pulled her out |
-| `severin_warning` | the road before the thorns, after the letter | the grey man tries to turn the pilgrim back: the seals hold Astra, the First Night wears his face; to Pip: "You of all of them should know… No. You would not remember." No fight |
-| `statue_rest` (a beat) | the statue before the thorns | Pip: rest here; it is colder past the thorns than at the shrine stone |
-| `watch_log` | Cloudtop, beside the shelter's table | the Church's sunset watch: years of earlier sunsets nobody read; the last page, a light asleep in the snow that asked how old it was (Pip does not remember) |
+| `severin_warning` | the road before the thorns, after the letter | the grey man tries to turn the pilgrim back: the seals hold Astra, the First Night wears his face; to Lumi: "You of all of them should know… No. You would not remember." No fight |
+| `statue_rest` (a beat) | the statue before the thorns | Lumi: rest here; it is colder past the thorns than at the shrine stone |
+| `watch_log` | Cloudtop, beside the shelter's table | the Church's sunset watch: years of earlier sunsets nobody read; the last page, a light asleep in the snow that asked how old it was (Lumi does not remember) |
 | `pasture_first` (a beat) | first onto the grassland | the herd keeps to the north, away from the trees |
 | `kneeling_herd` | the grassland at dusk (17–20) | the cows kneel, all facing east; Brin: since the bridge went; the dead come up at night |
 | `forest_quiet` (a beat) | first into the forest | no birds |
@@ -405,7 +405,7 @@ after the knight); Severin and the Church courier wait on `offstage` (a plot lin
 scenes place them. Hesper, Rowan, Holt, Tobin, Lina, Oskar and Marta have new lines.
 
 **The world**: Astra's altar beside the flame; waypoint statues in the village, at the Ford and on the
-East Road before the kingdom (Pip's power is chosen beside one); the kingdom of thorns (a ring of briars,
+East Road before the kingdom (Lumi's power is chosen beside one); the kingdom of thorns (a ring of briars,
 kneeling stones, the ninth nail and the band); Alberic in it, softer than in the Boss Challenge (300
 health, armour 1, plain blow 5, skills ×0.4: a dodging level-5 player of any profession wins in 20–40 s);
 the road to Emberfall shut until he falls (`Portal.opensWhen`).

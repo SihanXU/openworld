@@ -89,9 +89,17 @@ describe('the companion\'s boons', () => {
     eng.act('hands', w.player.id, { e: 'wp.foot' }, { instrument: null })
     expect(w.fx.some((f) => f.t === 'panel' && f.panel === 'boons')).toBe(true)
   })
+
+  it('Lumi spoken to opens her panel (the main road, and her boons: the seals, the unfound sealed), wherever one is; changing one still wants a statue', () => {
+    const eng = world()
+    const w = eng.world
+    w.fx = []
+    eng.act('hands', w.player.id, { e: 'pip' }, { instrument: null })
+    expect(w.fx.some((f) => f.t === 'panel' && f.panel === 'companion')).toBe(true)
+  })
 })
 
-describe('Pip, the fairy', () => {
+describe('Lumi, the fairy', () => {
   it('is a fairy companion drawn from the project\'s own art; an older save\'s bird becomes her', async () => {
     const { readFileSync } = await import('node:fs')
     const { COMPANION_LAYOUT, migrateCompanion } = await import('@openworld-game/content')
@@ -104,7 +112,7 @@ describe('Pip, the fairy', () => {
       const bytes = readFileSync(new URL(`../../public/assets/lsw/Companion/Fairy/${file}`, import.meta.url))
       expect([bytes.readUInt32BE(16), bytes.readUInt32BE(20), bytes[25]]).toEqual([width, height, 6])
     }
-    // an older save: Pip as a bird, with a boon already given
+    // an older save: Lumi as a bird, with a boon already given
     const { index, chunks } = buildFord()
     const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
     for (const c of chunks) game.loadChunk(decodeChunk(c))

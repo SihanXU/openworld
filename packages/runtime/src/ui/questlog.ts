@@ -1,7 +1,7 @@
 // The journal (L, or its button bottom right; docs/quests.md §2.5): three tabs — under way, done, failed. Each
 // quest shows its kind and who gave it, what it is about, its objectives (open with their counts, done ticked,
 // failed struck through, where they are when elsewhere) and its log, the lines of the stages reached, in order;
-// one is tracked (★: the tracker, the markers, Pip). The commission board (docs/quests.md §3) opens here too:
+// one is tracked (★: the tracker, the markers, Lumi). The commission board (docs/quests.md §3) opens here too:
 // the favours on offer, to take on.
 
 import type { Frame, JournalQuest, QuestOffer } from '@openworld/engine'

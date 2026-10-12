@@ -171,7 +171,12 @@
 .objective .ob-title { color: var(--brass-hi); letter-spacing: 0.03em; }
 .msg { background: var(--grain), linear-gradient(180deg, #fff6dd, var(--parch)); border-radius: 8px; border-width: 2px; border-left-width: 5px; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3); animation: msgIn 0.2s ease-out; }
 @keyframes msgIn { from { transform: translateX(-10px); opacity: 0; } to { transform: none; opacity: 1; } }
-.keys { background: linear-gradient(180deg, rgba(36, 22, 10, 0.72), rgba(36, 22, 10, 0.55)); border: 1px solid rgba(217, 164, 65, 0.4); border-radius: 8px; }
+/* the keys' labels over the one acting: one row, see-through, the words kept legible by their outline (not the keys':
+   a shadow on their dark letters blurs them) */
+.keys { flex-direction: row; align-items: center; gap: 12px; padding: 3px 10px; background: rgba(36, 22, 10, 0.32); border: 1px solid rgba(217, 164, 65, 0.22); border-radius: 8px; }
+.keys .kl { text-shadow: 0 1px 0 #000, 1px 0 0 #000, -1px 0 0 #000, 0 -1px 0 #000; }
+.keys .kl + .kl { padding-left: 12px; border-left: 1px solid rgba(251, 233, 196, 0.25); }
+.keys .kl kbd { text-shadow: none; font-weight: 700; font-size: 11px; }
 .mapname { font-size: 34px; letter-spacing: 0.08em; text-shadow: 0 3px 0 #2a1608, 0 0 18px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 200, 120, 0.35); }
 
 /* ------------------------------------------------------------------ the dialogue box */
@@ -308,3 +313,397 @@
 .hs-body { grid-template-columns: 260px 1fr; }
 .hs-left { gap: 6px; padding: 10px 8px 12px; }
 .hs-note { font-size: 11px; line-height: 1.5; }
+
+/* ------------------------------------------------------------------ the companion's panel (companion.ts, 2026-10-12)
+   Lumi under a night sky — her bust floating in its own light, her wings beating slowly behind it, motes rising — and
+   on parchment beside her, the road (what the main quest asks now, in her words) and the five seals' powers. */
+.lm-sheet { width: min(1000px, 96vw); display: grid; grid-template-columns: 340px 1fr; gap: 16px; padding: 14px; }
+.lm-stage {
+  position: relative; height: min(540px, 78vh); border-radius: 12px; overflow: hidden; isolation: isolate;
+  border: 3px solid var(--walnut); box-shadow: 0 0 0 2px var(--brass-lo), inset 0 0 0 2px rgba(255, 226, 160, 0.45), inset 0 0 48px rgba(0, 0, 0, 0.55);
+}
+.lm-sky { position: absolute; inset: 0; background: radial-gradient(120% 70% at 50% 18%, #6a58b4 0%, #3a2d78 38%, #1d1543 72%, #110b29 100%); }
+.lm-sky::before {
+  content: ''; position: absolute; inset: 0; animation: lmTwinkle 4.5s ease-in-out infinite alternate;
+  background:
+    radial-gradient(1.6px 1.6px at 12% 14%, #fff, transparent), radial-gradient(1.2px 1.2px at 28% 32%, #f3eaff, transparent),
+    radial-gradient(1.8px 1.8px at 82% 10%, #fff, transparent), radial-gradient(1.2px 1.2px at 70% 26%, #e8dcff, transparent),
+    radial-gradient(1.4px 1.4px at 90% 44%, #fff, transparent), radial-gradient(1.2px 1.2px at 8% 52%, #f3eaff, transparent),
+    radial-gradient(1.6px 1.6px at 46% 8%, #fffbe0, transparent), radial-gradient(1px 1px at 60% 40%, #fff, transparent),
+    radial-gradient(1.4px 1.4px at 20% 70%, #e8dcff, transparent), radial-gradient(1px 1px at 88% 66%, #fff, transparent);
+}
+.lm-sky::after {
+  content: ''; position: absolute; inset: 0; animation: lmTwinkle 6s ease-in-out infinite alternate-reverse;
+  background:
+    radial-gradient(1.4px 1.4px at 36% 18%, #fff, transparent), radial-gradient(1.2px 1.2px at 58% 16%, #f3eaff, transparent),
+    radial-gradient(1.6px 1.6px at 16% 38%, #fffbe0, transparent), radial-gradient(1.2px 1.2px at 76% 54%, #fff, transparent),
+    linear-gradient(180deg, transparent 62%, rgba(18, 10, 40, 0.65) 100%);
+}
+.lm-halo {
+  position: absolute; left: 50%; top: 30%; width: 330px; height: 330px; transform: translate(-50%, -30%); border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 240, 190, 0.5) 0%, rgba(214, 194, 255, 0.3) 34%, rgba(150, 120, 240, 0.1) 56%, transparent 70%);
+  animation: lmPulse 5s ease-in-out infinite;
+}
+.lm-figure {
+  position: absolute; left: 50%; top: 58px; width: 360px; height: 360px; transform: translateX(-50%); animation: lmFloat 5.5s ease-in-out infinite;
+  /* she and her wings fade out together below the waist */
+  -webkit-mask-image: linear-gradient(#000 74%, transparent 97%); mask-image: linear-gradient(#000 74%, transparent 97%);
+}
+.lm-wings { position: absolute; left: -20px; top: 66px; width: 400px; height: 356px; overflow: visible; filter: drop-shadow(0 0 10px rgba(205, 184, 255, 0.55)); }
+.lm-wing { transform-box: view-box; transform-origin: 50% 55%; }
+.lm-wing.left { animation: lmFlapL 3.6s ease-in-out infinite; }
+.lm-wing.right { animation: lmFlapR 3.6s ease-in-out infinite; }
+.lm-bust { position: relative; width: 360px; height: 360px; }
+.lm-portrait {
+  display: block; width: 100%; height: auto;
+  filter: drop-shadow(0 0 14px rgba(224, 210, 255, 0.7)) drop-shadow(0 6px 10px rgba(10, 4, 30, 0.5));
+}
+.lm-mote {
+  position: absolute; bottom: -12px; left: calc(6% + var(--i) * 10.5%); width: 6px; height: 6px; border-radius: 50%; z-index: 2;
+  background: radial-gradient(circle, #fffbe6 0%, #ffe9a8 45%, transparent 72%); box-shadow: 0 0 8px 2px rgba(255, 228, 150, 0.6);
+  animation: lmRise calc(7s + var(--i) * 0.8s) linear infinite; animation-delay: calc(var(--i) * -1.7s); opacity: 0;
+}
+.lm-mote:nth-child(odd) { width: 4px; height: 4px; background: radial-gradient(circle, #fff 0%, #d8c8ff 50%, transparent 72%); box-shadow: 0 0 7px 2px rgba(205, 184, 255, 0.6); }
+.lm-plate {
+  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 3; min-width: 190px; text-align: center;
+  padding: 8px 26px 9px; border-radius: 10px; border: 2px solid var(--brass);
+  background: linear-gradient(180deg, rgba(52, 38, 102, 0.92), rgba(24, 16, 54, 0.95));
+  box-shadow: 0 0 0 2px rgba(30, 18, 60, 0.9), inset 0 1px 0 rgba(255, 236, 180, 0.35), 0 6px 16px rgba(0, 0, 0, 0.45), 0 0 22px rgba(170, 140, 255, 0.35);
+}
+.lm-plate::before, .lm-plate::after { content: '✦'; position: absolute; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--brass-hi); text-shadow: 0 0 6px rgba(255, 214, 120, 0.9); }
+.lm-plate::before { left: 9px; }
+.lm-plate::after { right: 9px; }
+.lm-plate b { display: block; font: 700 24px var(--pixel); color: #fff3cf; letter-spacing: 0.14em; text-shadow: 0 0 10px rgba(255, 214, 120, 0.75), 0 2px 0 rgba(30, 10, 60, 0.8); }
+.lm-plate small { display: block; margin-top: 2px; font: 12px var(--text); color: #d6c8ff; letter-spacing: 0.22em; }
+
+.lm-main { display: flex; flex-direction: column; min-width: 0; }
+.lm-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 2px 10px; }
+.lm-tabs { display: flex; gap: 8px; }
+.lm-tab {
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer; padding: 8px 16px 9px; border-radius: 10px;
+  font: 700 15px var(--pixel); color: #4a2a0c; letter-spacing: 0.04em;
+  background: linear-gradient(#fbecc4, #e9cf92); border: 2px solid var(--walnut-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 3px 0 rgba(74, 42, 20, 0.45); transition: transform 0.1s;
+}
+.lm-tab i { font-style: normal; color: #9a6a1e; }
+.lm-tab:hover { transform: translateY(-1px); background: linear-gradient(#fff3d6, #efd8a4); }
+.lm-tab.on {
+  color: #fff3cf; background: linear-gradient(180deg, #6b52c4, #432f8e); border-color: #2a1d5c;
+  box-shadow: inset 0 1px 0 rgba(220, 205, 255, 0.55), 0 3px 0 #1d1442, 0 0 14px rgba(150, 120, 240, 0.45); text-shadow: 0 1px 0 rgba(20, 8, 50, 0.8);
+}
+.lm-tab.on i { color: var(--brass-hi); text-shadow: 0 0 6px rgba(255, 214, 120, 0.9); }
+.lm-x {
+  width: 34px; height: 34px; padding: 0; border-radius: 50%; display: grid; place-items: center; cursor: pointer; flex: none;
+  font: 700 15px var(--pixel); color: #5a320f; background: radial-gradient(circle at 35% 30%, var(--brass-hi), var(--brass) 60%, var(--brass-lo));
+  border: 2px solid var(--walnut); box-shadow: 0 2px 0 var(--walnut), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.lm-x:hover { filter: brightness(1.08); }
+.lm-body {
+  flex: 1; min-height: 0; max-height: min(480px, 70vh); overflow-y: auto; padding: 16px 18px; border-radius: 10px;
+  background: var(--grain), linear-gradient(180deg, #fdf4dc, var(--parch) 45%, var(--parch-2));
+  border: 3px solid var(--walnut-2); box-shadow: 0 0 0 2px var(--walnut), inset 0 0 0 2px rgba(255, 255, 255, 0.5), inset 0 -10px 18px rgba(140, 90, 30, 0.08);
+}
+
+.lm-say {
+  position: relative; margin: 2px 0 16px 8px; padding: 12px 16px 13px; border-radius: 14px;
+  background: linear-gradient(180deg, #fefbff, #efe7ff); border: 2px solid #9d86d8;
+  box-shadow: 0 3px 0 rgba(70, 40, 120, 0.22), inset 0 1px 0 #fff, 0 0 18px rgba(170, 140, 255, 0.18);
+}
+.lm-say::before {
+  content: ''; position: absolute; left: -9px; top: 20px; width: 14px; height: 14px; transform: rotate(45deg);
+  background: #f9f5ff; border-left: 2px solid #9d86d8; border-bottom: 2px solid #9d86d8;
+}
+.lm-who { font: 700 13px var(--pixel); color: #7a5bc8; letter-spacing: 0.08em; }
+.lm-who::before { content: '✦ '; color: #e0a83e; }
+.lm-say p { margin: 5px 0 0; font: 15px/1.75 var(--text); color: #3d2b5e; }
+.lm-quest { padding: 12px 14px 14px; border-radius: 10px; background: rgba(255, 251, 238, 0.75); border: 2px solid var(--parch-3); box-shadow: inset 0 1px 0 #fff, 0 2px 0 rgba(74, 42, 20, 0.12); }
+.lm-kicker { display: flex; align-items: center; gap: 8px; font: 700 11px var(--pixel); letter-spacing: 0.24em; color: #b8562e; }
+.lm-kicker::before { content: ''; width: 18px; height: 2px; background: linear-gradient(90deg, transparent, #b8562e); }
+.lm-tracked { font: 600 10px var(--pixel); letter-spacing: 0.06em; color: #3f6b1a; padding: 2px 8px; border-radius: 10px; background: rgba(95, 145, 50, 0.15); border: 1px solid rgba(79, 125, 34, 0.5); }
+.lm-quest h3 { margin: 6px 0 4px; font: 700 21px var(--pixel); color: #4a2a0c; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7); }
+.lm-summary { margin: 0 0 10px; font: 13px/1.65 var(--text); color: var(--ink-soft); }
+.lm-objs { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-direction: column; gap: 6px; }
+.lm-objs li {
+  display: grid; grid-template-columns: 22px 1fr auto auto; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.55); border: 1px solid rgba(154, 107, 60, 0.28);
+}
+.lm-check { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; font: 700 12px var(--pixel); color: #fff; border: 2px solid #9a6a1e; background: #fffaf0; }
+.lm-objs li.done .lm-check { background: linear-gradient(#8bc34a, #4f7d22); border-color: #3f6b1a; }
+.lm-objs li.done .lm-obj { text-decoration: line-through; opacity: 0.55; }
+.lm-objs li.opt { opacity: 0.85; }
+.lm-obj { font: 14px/1.5 var(--text); color: #3a2410; }
+.lm-obj small { color: var(--ink-soft); }
+.lm-where { display: block; margin-top: 1px; font: 11px var(--text); color: #8a3b12; }
+.lm-bar { width: 86px; height: 8px; border-radius: 4px; background: rgba(110, 104, 92, 0.28); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2); overflow: hidden; }
+.lm-bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #c9b6f5, #8a6be0); box-shadow: 0 0 6px rgba(138, 107, 224, 0.6); }
+.lm-objs em { font: 600 12px var(--pixel); font-style: normal; color: #4a2a0c; }
+.lm-log { margin-left: auto; }
+
+.lm-note { margin-bottom: 12px; padding: 7px 12px; border-radius: 8px; font: 12px/1.5 var(--text); color: #5a3f9a; background: rgba(184, 162, 239, 0.16); border: 1px dashed rgba(122, 91, 200, 0.55); }
+.lm-note.near { color: #3f6b1a; background: rgba(95, 145, 50, 0.14); border-color: rgba(79, 125, 34, 0.55); }
+.lm-seals { display: flex; flex-direction: column; gap: 8px; }
+.lm-seal {
+  display: grid; grid-template-columns: 54px 1fr auto; gap: 14px; align-items: center; padding: 7px 14px; border-radius: 12px;
+  background: linear-gradient(180deg, #fffaf0, #f3e6c6); border: 2px solid var(--parch-3); box-shadow: inset 0 1px 0 #fff, 0 3px 0 rgba(74, 42, 20, 0.18);
+}
+.lm-seal.mine {
+  background: linear-gradient(180deg, #faf6ff, #e7dcff); border-color: #8a6be0;
+  box-shadow: 0 3px 0 rgba(60, 30, 100, 0.25), 0 0 0 2px rgba(205, 184, 255, 0.7), 0 0 18px rgba(170, 140, 255, 0.45);
+}
+.lm-seal.sealed { background: linear-gradient(180deg, #ece5d6, #ddd2bd); }
+.lm-seal.sealed .lm-seal-body { opacity: 0.7; }
+.lm-medal {
+  position: relative; width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 35% 30%, #fff1b8, #e0a83e 55%, #8d5a14); border: 3px solid #5a3a0c;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.6), inset 0 -3px 6px rgba(90, 50, 10, 0.4), 0 0 14px rgba(255, 200, 90, 0.55);
+}
+.lm-medal::after { content: ''; position: absolute; inset: 5px; border-radius: 50%; border: 1px dashed rgba(90, 58, 12, 0.5); }
+.lm-medal b { font: 700 18px var(--pixel); color: #4a2a0c; text-shadow: 0 1px 0 rgba(255, 240, 200, 0.8); }
+.lm-seal.mine .lm-medal { animation: lmMedal 2.4s ease-in-out infinite; }
+.lm-seal.sealed .lm-medal { background: radial-gradient(circle at 35% 30%, #7a6ea0, #3e3460 60%, #241d3a); border-color: #1d1730; box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.18), inset 0 -3px 6px rgba(0, 0, 0, 0.4); }
+.lm-seal.sealed .lm-medal::after { border-color: rgba(200, 190, 240, 0.3); }
+.lm-seal.sealed .lm-medal b { color: #a89ccc; text-shadow: none; }
+.lm-medal i { position: absolute; right: -4px; bottom: -4px; font-size: 15px; font-style: normal; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.4)); }
+.lm-seal-body small { font: 600 11px var(--pixel); letter-spacing: 0.16em; color: #9a6a1e; }
+.lm-seal-body b { display: block; font: 700 16px var(--pixel); color: #3a2410; }
+.lm-seal-body p { margin: 2px 0 0; font: 13px/1.5 var(--text); color: var(--ink-soft); }
+.lm-carried { font: 700 13px var(--pixel); color: #5a3fb0; padding: 5px 12px; border-radius: 14px; background: rgba(184, 162, 239, 0.32); border: 1px solid #8a6be0; white-space: nowrap; }
+
+@keyframes lmFloat { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -7px); } }
+@keyframes lmFlapL { 0%, 100% { transform: rotate(0deg) scaleX(1); } 50% { transform: rotate(4deg) scaleX(0.9); } }
+@keyframes lmFlapR { 0%, 100% { transform: rotate(0deg) scaleX(1); } 50% { transform: rotate(-4deg) scaleX(0.9); } }
+@keyframes lmPulse { 0%, 100% { opacity: 0.85; transform: translate(-50%, -30%) scale(1); } 50% { opacity: 1; transform: translate(-50%, -30%) scale(1.06); } }
+@keyframes lmTwinkle { from { opacity: 0.45; } to { opacity: 1; } }
+@keyframes lmRise { 0% { transform: translate(0, 0); opacity: 0; } 12% { opacity: 1; } 85% { opacity: 0.8; } 100% { transform: translate(18px, -560px); opacity: 0; } }
+@keyframes lmMedal { 0%, 100% { box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.6), 0 0 12px rgba(255, 200, 90, 0.5); } 50% { box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.6), 0 0 24px rgba(255, 210, 110, 0.9); } }
+@media (max-width: 780px) {
+  .lm-sheet { grid-template-columns: 1fr; }
+  .lm-stage { height: 300px; }
+  .lm-figure { transform: translateX(-50%) scale(0.72); transform-origin: top center; animation: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lm-figure, .lm-wing, .lm-halo, .lm-mote, .lm-sky::before, .lm-sky::after, .lm-seal.mine .lm-medal { animation: none; }
+}
+/* a seal pointed at stirs her: the card lifts, the plate under her name glows with the seal's name */
+.lm-seal { transition: transform 0.12s ease, box-shadow 0.12s ease; cursor: default; }
+.lm-seal:hover { transform: translateX(3px); box-shadow: inset 0 1px 0 #fff, 0 3px 0 rgba(74, 42, 20, 0.18), 0 0 0 2px rgba(205, 184, 255, 0.55), 0 0 14px rgba(170, 140, 255, 0.3); }
+.lm-plate small { transition: color 0.15s; }
+.lm-plate.stirred { box-shadow: 0 0 0 2px rgba(30, 18, 60, 0.9), inset 0 1px 0 rgba(255, 236, 180, 0.35), 0 6px 16px rgba(0, 0, 0, 0.45), 0 0 30px rgba(255, 210, 120, 0.55); }
+.lm-plate.stirred small { color: var(--brass-hi); }
+.lm-portrait { animation: lmFace 0.22s ease-out; }
+@keyframes lmFace { from { opacity: 0.55; filter: brightness(1.25) drop-shadow(0 0 22px rgba(255, 236, 190, 0.9)); } }
+
+/* ------------------------------------------------------------------ the skill tree (skilltree.ts, 2026-10-12)
+   A night field the tree grows across, as the seals' and the companion's pages are lit: deep violet with drifting
+   nebulae and stars that slide slower than the tree (parallax, skilltree.ts apply()); each branch a pane of tinted
+   glass with gilt corners; skills as medallions whose state reads at a glance — learned glowing in the branch's colour
+   in a gold ring, ready pulsing gold, waiting plain, locked dimmed to iron; the links lit as the branch is. */
+#skills.sk-page {
+  background:
+    radial-gradient(60% 50% at 22% 28%, rgba(120, 80, 200, 0.28), transparent 70%),
+    radial-gradient(50% 45% at 80% 70%, rgba(60, 120, 190, 0.22), transparent 70%),
+    radial-gradient(40% 35% at 70% 18%, rgba(200, 90, 150, 0.14), transparent 70%),
+    radial-gradient(120% 100% at 50% 50%, #1d1838 0%, #120f26 60%, #0a0818 100%);
+}
+#skills .sk-view {
+  background-image:
+    radial-gradient(1.4px 1.4px at 10% 20%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1px 1px at 30% 70%, rgba(230, 220, 255, 0.8), transparent),
+    radial-gradient(1.6px 1.6px at 55% 35%, rgba(255, 250, 220, 0.9), transparent),
+    radial-gradient(1px 1px at 75% 15%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1.2px 1.2px at 88% 60%, rgba(220, 210, 255, 0.85), transparent),
+    radial-gradient(1px 1px at 40% 90%, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1.3px 1.3px at 65% 80%, rgba(255, 240, 200, 0.8), transparent);
+  background-size: 420px 380px;
+}
+#skills .sk-view::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(4, 3, 12, 0.7) 100%); }
+
+/* the bar over it: the wood, with the points as a gem that glows while one is to spend */
+#skills .sk-bar { z-index: 3; }
+#skills .sk-title { font-size: 19px; color: #4a2a0c; letter-spacing: 0.08em; }
+#skills .sk-points { display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px 3px 6px; border-radius: 14px; font: 700 13px var(--pixel); color: #5a3a0c; background: linear-gradient(#fff2c4, #f1d48a); border: 2px solid var(--brass-lo); box-shadow: inset 0 1px 0 #fff, 0 2px 0 rgba(74, 42, 20, 0.3); }
+#skills .sk-points::before { content: ''; width: 16px; height: 16px; transform: rotate(45deg) scale(0.8); border-radius: 3px; background: radial-gradient(circle at 35% 30%, #e6dcff, #8a6be0 60%, #4a2f9a); box-shadow: 0 0 0 2px #2a1a5c; }
+#skills .sk-points b { font-size: 16px; color: #4a2f9a; }
+#skills .sk-points.has { animation: skGem 1.8s ease-in-out infinite; }
+#skills .sk-points.has::before { background: radial-gradient(circle at 35% 30%, #fffbe0, #ffcc4d 55%, #c07a10); box-shadow: 0 0 0 2px #6a3a06, 0 0 10px rgba(255, 200, 80, 0.9); }
+#skills .sk-points.has b { color: #b8321e; }
+#skills .sk-btn, #skills .sk-bar .x { border-radius: 8px; border: 2px solid var(--walnut); background: linear-gradient(#fbecc4, #e9cf92); color: #4a2a0c; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 2px 0 var(--walnut); font-weight: 700; }
+#skills .sk-bar .x { width: 32px; height: 32px; padding: 0; border-radius: 50%; background: radial-gradient(circle at 35% 30%, var(--brass-hi), var(--brass) 60%, var(--brass-lo)); }
+#skills .sk-zoom .sk-btn { border-radius: 50%; background: radial-gradient(circle at 35% 30%, var(--brass-hi), var(--brass) 60%, var(--brass-lo)); box-shadow: 0 3px 0 var(--walnut), inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 14px rgba(255, 200, 90, 0.25); }
+
+/* the two directions: panes of dark glass with a gilt edge; the one shown lit in its colour */
+#skills .sk-direction {
+  border-radius: 12px; padding: 8px 16px; color: #e8e0f5; cursor: pointer; transition: transform 0.12s, box-shadow 0.12s;
+  background: linear-gradient(180deg, rgba(48, 40, 82, 0.92), rgba(24, 19, 46, 0.94)); border: 2px solid rgba(217, 164, 65, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+#skills .sk-direction:hover { transform: translateY(-2px); border-color: rgba(255, 224, 138, 0.8); }
+#skills .sk-direction b { color: color-mix(in srgb, var(--c) 55%, #fff); text-shadow: 0 0 10px color-mix(in srgb, var(--c) 60%, transparent); }
+#skills .sk-direction small { color: #b9aed6; }
+#skills .sk-direction-icon { filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6)); }
+#skills .sk-direction.selected {
+  border-color: var(--brass-hi); background: linear-gradient(180deg, color-mix(in srgb, var(--c) 35%, #2a2350), color-mix(in srgb, var(--c) 14%, #16122c));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 0 2px rgba(255, 224, 138, 0.35), 0 0 26px color-mix(in srgb, var(--c) 45%, transparent), 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+/* the branch tabs: pills of dark glass, the one closed in on filled with its colour */
+#skills .sk-tab {
+  padding: 5px 14px 5px 8px; border-radius: 16px; color: color-mix(in srgb, var(--c, #d9a441) 50%, #fff); font-size: 13px;
+  background: rgba(20, 16, 40, 0.88); border: 2px solid color-mix(in srgb, var(--c, #d9a441) 70%, transparent);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45); transition: transform 0.1s, background 0.12s;
+}
+#skills .sk-tab[data-focus=""] { color: var(--brass-hi); border-color: rgba(217, 164, 65, 0.7); padding-left: 14px; }
+#skills .sk-tab:hover { transform: translateY(-1px); background: rgba(40, 32, 72, 0.95); }
+#skills .sk-tab.selected { color: #fff; background: linear-gradient(180deg, color-mix(in srgb, var(--c, #b8862e) 80%, #fff 10%), color-mix(in srgb, var(--c, #b8862e) 70%, #000 20%)); box-shadow: 0 0 0 2px rgba(255, 224, 138, 0.5), 0 0 16px color-mix(in srgb, var(--c, #d9a441) 60%, transparent); }
+
+/* each branch: a pane of tinted glass, gilt at its corners */
+#skills .sk-panel {
+  border-radius: 20px; opacity: 1; border: 1px solid color-mix(in srgb, var(--c) 55%, transparent);
+  background:
+    radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, var(--c) 22%, transparent), transparent 70%),
+    linear-gradient(180deg, rgba(30, 24, 58, 0.62), rgba(14, 11, 30, 0.7));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05), inset 0 0 50px color-mix(in srgb, var(--c) 14%, transparent), 0 14px 36px rgba(0, 0, 0, 0.45);
+}
+#skills .sk-panel::before, #skills .sk-panel::after { content: ''; position: absolute; width: 26px; height: 26px; border: 3px solid var(--brass); opacity: 0.75; }
+#skills .sk-panel::before { left: -2px; top: -2px; border-right: 0; border-bottom: 0; border-top-left-radius: 20px; }
+#skills .sk-panel::after { right: -2px; bottom: -2px; border-left: 0; border-top: 0; border-bottom-right-radius: 20px; }
+
+/* the links: dim where locked, flowing gold where the next skill is ready, lit in the branch's colour once learned */
+#skills .sk-line { stroke: rgba(170, 150, 220, 0.3); stroke-width: 3; stroke-dasharray: 2 9; opacity: 1; }
+#skills .sk-line.ready { stroke: #f2c45a; stroke-width: 4; stroke-dasharray: 10 8; animation: skFlow 1.1s linear infinite; filter: drop-shadow(0 0 4px rgba(255, 196, 64, 0.8)); }
+#skills .sk-line.learned { stroke: color-mix(in srgb, var(--c) 75%, #fff); stroke-width: 6; stroke-dasharray: none; filter: drop-shadow(0 0 6px var(--c)); }
+#skills .sk-line.trunk { stroke: color-mix(in srgb, var(--c) 60%, #fff); stroke-width: 5; stroke-dasharray: none; opacity: 0.6; filter: drop-shadow(0 0 5px var(--c)); }
+
+/* the medallions */
+#skills .sk-node {
+  border: 3px solid color-mix(in srgb, var(--c, #9c8662) 45%, #3a3048);
+  background: radial-gradient(circle at 38% 30%, #efe4c8, #c9b892 80%);
+  box-shadow: 0 0 0 2px rgba(8, 6, 20, 0.75), 0 6px 14px rgba(0, 0, 0, 0.55), inset 0 -4px 8px rgba(70, 50, 20, 0.25);
+  transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s;
+}
+#skills .sk-node .sk-art { filter: drop-shadow(0 1px 1px rgba(60, 30, 10, 0.4)); }
+#skills .sk-node:hover, #skills .sk-node:focus-visible { transform: scale(1.12); box-shadow: 0 0 0 2px rgba(8, 6, 20, 0.75), 0 0 0 5px rgba(255, 224, 138, 0.55), 0 8px 20px rgba(0, 0, 0, 0.6); }
+#skills .sk-node.waiting .sk-art { opacity: 0.88; }
+#skills .sk-node.locked { border-style: solid; border-color: #3a3448; background: radial-gradient(circle at 38% 30%, #6a6380, #3c3650 80%); }
+#skills .sk-node.locked .sk-art { filter: grayscale(1) brightness(0.62) contrast(0.9); }
+#skills .sk-node.locked::after { content: '🔒︎'; position: absolute; right: -4px; bottom: -4px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; background: #241f36; border: 2px solid #4a4260; filter: grayscale(1); }
+#skills .sk-node.ready {
+  border-color: #f2b84e; background: radial-gradient(circle at 38% 30%, #fffdf2, #fbe2a0 78%);
+  box-shadow: 0 0 0 2px rgba(8, 6, 20, 0.75), 0 0 0 4px rgba(255, 214, 110, 0.85), 0 0 22px rgba(255, 196, 64, 0.7);
+  animation: skReadyGlow 1.5s ease-in-out infinite;
+}
+#skills .sk-node.ready::before { content: ''; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid rgba(255, 220, 120, 0.9); animation: skRing 1.5s ease-out infinite; pointer-events: none; }
+#skills .sk-node.learned {
+  border-color: var(--c); background: radial-gradient(circle at 38% 30%, #fffaf0, var(--c-soft) 78%);
+  box-shadow: 0 0 0 2px rgba(8, 6, 20, 0.75), 0 0 0 5px #e9c46a, 0 0 20px color-mix(in srgb, var(--c) 75%, transparent), 0 0 34px rgba(255, 210, 120, 0.22);
+}
+#skills .sk-node.learned::after { content: '✓'; position: absolute; right: -5px; bottom: -5px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 700 13px var(--pixel); color: #fff; background: radial-gradient(circle at 35% 30%, #b8f08a, #4f9a2c 70%); border: 2px solid #23400f; box-shadow: 0 0 8px rgba(130, 220, 90, 0.7); }
+#skills .sk-node.ability { outline: 2px solid color-mix(in srgb, var(--c) 70%, #fff); outline-offset: 5px; }
+#skills .sk-node.ability.locked { outline-color: #4a4260; }
+#skills .sk-node.capstone { width: 92px; height: 92px; margin: -46px 0 0 -46px; border-width: 4px; }
+#skills .sk-node.capstone::before { content: ''; position: absolute; inset: -12px; border-radius: 50%; pointer-events: none; background: conic-gradient(from 0deg, transparent 0 10%, rgba(255, 224, 138, 0.55) 12%, transparent 14% 35%, rgba(255, 224, 138, 0.55) 37%, transparent 39% 60%, rgba(255, 224, 138, 0.55) 62%, transparent 64% 85%, rgba(255, 224, 138, 0.55) 87%, transparent 89%); -webkit-mask: radial-gradient(circle, transparent 58%, #000 60%); mask: radial-gradient(circle, transparent 58%, #000 60%); animation: skSpin 14s linear infinite; }
+#skills .sk-cost { border-color: var(--brass-lo); background: radial-gradient(circle at 35% 30%, var(--brass-hi), var(--brass)); color: #4a2a0c; }
+
+/* the hubs and the start */
+#skills .sk-node.hub { width: 88px; height: 88px; margin: -44px 0 0 -44px; border: 4px solid var(--c); background: radial-gradient(circle at 38% 30%, #fff, var(--c-soft) 70%, color-mix(in srgb, var(--c) 40%, var(--c-soft))); box-shadow: 0 0 0 2px rgba(8, 6, 20, 0.75), 0 0 0 6px color-mix(in srgb, var(--c) 35%, transparent), 0 0 26px color-mix(in srgb, var(--c) 60%, transparent); }
+#skills .sk-node.origin {
+  width: 124px; height: 124px; margin: -62px 0 0 -62px; border: 5px solid #8a5a14;
+  background: radial-gradient(circle at 38% 30%, #fffbe6, #f7d77a 55%, #d99a2c 100%);
+  box-shadow: 0 0 0 3px rgba(8, 6, 20, 0.8), 0 0 0 8px rgba(255, 214, 110, 0.35), 0 0 46px rgba(255, 200, 90, 0.65), 0 0 90px rgba(170, 130, 255, 0.3);
+}
+#skills .sk-node.origin::before { content: ''; position: absolute; inset: -22px; border-radius: 50%; border: 2px dashed rgba(255, 224, 138, 0.7); animation: skSpin 30s linear infinite; pointer-events: none; }
+#skills .sk-node.origin::after { content: ''; position: absolute; inset: -34px; border-radius: 50%; border: 1px solid rgba(200, 180, 255, 0.35); box-shadow: 0 0 20px rgba(170, 130, 255, 0.25); pointer-events: none; animation: skSpin 60s linear infinite reverse; }
+#skills .sk-lv { min-width: 34px; height: 34px; border-radius: 17px; font: 700 16px/30px var(--pixel); color: #fff6dc; background: radial-gradient(circle at 35% 30%, #8a6be0, #432f8e); border: 2px solid var(--brass-hi); box-shadow: 0 0 10px rgba(138, 107, 224, 0.8); right: -6px; bottom: -6px; }
+#skills .sk-node-name {
+  width: max-content; min-width: 0; padding: 4px 12px; border-radius: 12px; font-size: 16px; letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--c, #d9a441) 45%, #fff); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  background: rgba(14, 11, 30, 0.85); border: 1px solid color-mix(in srgb, var(--c, #d9a441) 65%, transparent); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+#skills .sk-node.origin .sk-node-name { color: var(--brass-hi); border-color: rgba(217, 164, 65, 0.7); left: calc(100% + 30px); }
+#skills .sk-node.hub .sk-node-name { left: calc(100% + 14px); }
+#skills .sk-node-name small { color: #b9aed6; opacity: 1; }
+
+/* the hover card: dark vellum with the branch's colour at its edge */
+.sk-tip {
+  width: 270px; padding: 12px 14px; border-radius: 12px; gap: 5px; color: #e8e0f5; font: 13px/1.55 var(--text);
+  background: linear-gradient(180deg, rgba(44, 36, 76, 0.97), rgba(22, 18, 42, 0.98));
+  border: 2px solid color-mix(in srgb, var(--c, #d9a441) 70%, #d9a441);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 14px 32px rgba(0, 0, 0, 0.6), 0 0 22px color-mix(in srgb, var(--c, #d9a441) 30%, transparent);
+}
+.sk-tip b { font-size: 17px; color: color-mix(in srgb, var(--c, #d9a441) 45%, #fff); text-shadow: 0 0 10px color-mix(in srgb, var(--c, #d9a441) 50%, transparent); }
+.sk-tip .sk-path { font: 600 10px var(--pixel); letter-spacing: 0.12em; color: #9d92c0; opacity: 1; text-transform: uppercase; }
+.sk-tip .sk-tag { padding: 1px 8px; border-radius: 8px; background: color-mix(in srgb, var(--c, #7b4fb0) 70%, #000 10%); box-shadow: 0 0 8px color-mix(in srgb, var(--c, #7b4fb0) 50%, transparent); }
+.sk-tip .sk-doc { color: #ddd5ee; padding: 6px 0; border-top: 1px solid rgba(255, 255, 255, 0.08); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.sk-tip .sk-foot { color: var(--brass-hi); opacity: 1; }
+.sk-tip.ready .sk-foot { color: #ffd166; text-shadow: 0 0 8px rgba(255, 200, 80, 0.7); }
+
+@keyframes skFlow { to { stroke-dashoffset: -36; } }
+@keyframes skReadyGlow { 0%, 100% { box-shadow: 0 0 0 2px rgba(8, 6, 20, 0.75), 0 0 0 4px rgba(255, 214, 110, 0.85), 0 0 16px rgba(255, 196, 64, 0.55); } 50% { box-shadow: 0 0 0 2px rgba(8, 6, 20, 0.75), 0 0 0 4px rgba(255, 230, 150, 1), 0 0 30px rgba(255, 196, 64, 0.95); } }
+@keyframes skRing { from { transform: scale(0.92); opacity: 0.9; } to { transform: scale(1.35); opacity: 0; } }
+@keyframes skSpin { to { transform: rotate(360deg); } }
+@keyframes skGem { 0%, 100% { box-shadow: inset 0 1px 0 #fff, 0 2px 0 rgba(74, 42, 20, 0.3); } 50% { box-shadow: inset 0 1px 0 #fff, 0 2px 0 rgba(74, 42, 20, 0.3), 0 0 16px rgba(255, 200, 80, 0.8); } }
+@media (prefers-reduced-motion: reduce) {
+  #skills .sk-line.ready, #skills .sk-node.ready, #skills .sk-node.ready::before, #skills .sk-node.capstone::before, #skills .sk-node.origin::before, #skills .sk-node.origin::after, #skills .sk-points.has { animation: none; }
+}
+/* the field runs under the bars (the tree fits below them: skilltree.ts top()) */
+#skills .sk-view { inset: 0; }
+#skills .sk-directions { z-index: 3; }
+/* a hub's name off its branch's line: over it where the branch runs sideways, beside it where it runs up or down;
+   the start's name is the direction's, shown above the field already */
+#skills .sk-node.hub[data-way='left'] .sk-node-name, #skills .sk-node.hub[data-way='right'] .sk-node-name { top: auto; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); }
+#skills .sk-node.origin .sk-node-name { display: none; }
+
+/* the skill tree, toned down (2026-10-12): a lighter, single-hued field; gold and parchment for every state, a
+   branch's own colour only on its hub's ring and its tab; bigger medallions over finer links */
+#skills.sk-page { background: radial-gradient(35% 30% at 50% 45%, rgba(255, 226, 160, 0.1), transparent 70%), radial-gradient(130% 110% at 50% 40%, #57527c 0%, #464167 50%, #36324f 100%); }
+#skills .sk-view { background-image: radial-gradient(1.2px 1.2px at 12% 22%, rgba(255, 250, 230, 0.55), transparent), radial-gradient(1px 1px at 34% 68%, rgba(255, 250, 230, 0.4), transparent), radial-gradient(1.3px 1.3px at 58% 32%, rgba(255, 250, 230, 0.5), transparent), radial-gradient(1px 1px at 82% 58%, rgba(255, 250, 230, 0.4), transparent); background-size: 460px 400px; }
+#skills .sk-view::after { background: radial-gradient(ellipse at center, transparent 62%, rgba(30, 26, 48, 0.45) 100%); }
+
+#skills .sk-panel { border: 1px solid rgba(255, 228, 170, 0.22); background: linear-gradient(180deg, rgba(255, 248, 230, 0.07), rgba(255, 248, 230, 0.03)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 12px 30px rgba(20, 16, 36, 0.3); }
+#skills .sk-panel::before, #skills .sk-panel::after { opacity: 0.6; }
+
+#skills .sk-line { stroke: rgba(255, 240, 210, 0.22); stroke-width: 2; stroke-dasharray: 2 8; filter: none; }
+#skills .sk-line.ready { stroke: #f2c45a; stroke-width: 2.5; stroke-dasharray: 8 7; filter: drop-shadow(0 0 3px rgba(255, 196, 64, 0.6)); }
+#skills .sk-line.learned { stroke: #e9c46a; stroke-width: 3.5; filter: drop-shadow(0 0 4px rgba(255, 206, 110, 0.65)); }
+#skills .sk-line.trunk { stroke: rgba(233, 196, 106, 0.55); stroke-width: 3; filter: none; opacity: 1; }
+
+#skills .sk-node { width: 96px; height: 96px; margin: -48px 0 0 -48px; border-color: #8a7350; }
+#skills .sk-node.capstone { width: 108px; height: 108px; margin: -54px 0 0 -54px; }
+#skills .sk-node.hub { width: 104px; height: 104px; margin: -52px 0 0 -52px; background: radial-gradient(circle at 38% 30%, #fffaf0, #efe2c2 75%); box-shadow: 0 0 0 2px rgba(20, 16, 36, 0.6), 0 0 0 6px rgba(233, 196, 106, 0.45), 0 0 22px rgba(255, 206, 110, 0.35); }
+#skills .sk-node.origin { width: 132px; height: 132px; margin: -66px 0 0 -66px; box-shadow: 0 0 0 3px rgba(20, 16, 36, 0.6), 0 0 0 8px rgba(255, 214, 110, 0.35), 0 0 46px rgba(255, 200, 90, 0.55); }
+#skills .sk-node.origin::after { border-color: rgba(255, 224, 138, 0.3); box-shadow: none; }
+#skills .sk-node.locked { border-color: #5d5770; background: radial-gradient(circle at 38% 30%, #8d87a0, #6a6480 80%); }
+#skills .sk-node.locked .sk-art { filter: grayscale(1) brightness(0.8) contrast(0.9); }
+#skills .sk-node.locked::after { background: #4a4560; border-color: #6d6788; }
+#skills .sk-node.learned { border-color: #c99a3a; background: radial-gradient(circle at 38% 30%, #fffdf4, #f6e3b0 78%); box-shadow: 0 0 0 2px rgba(20, 16, 36, 0.6), 0 0 0 5px #e9c46a, 0 0 20px rgba(255, 206, 110, 0.55); }
+#skills .sk-node.learned::after { color: #4a2a0c; background: radial-gradient(circle at 35% 30%, #fff3c4, #e0a83e 70%); border-color: #7a4a12; box-shadow: 0 0 8px rgba(255, 206, 110, 0.7); }
+#skills .sk-node.ability { outline-color: rgba(233, 196, 106, 0.8); }
+#skills .sk-lv { background: radial-gradient(circle at 35% 30%, #8a5530, #4a2a14); box-shadow: 0 0 8px rgba(255, 206, 110, 0.6); }
+#skills .sk-node-name, #skills .sk-node.origin .sk-node-name { color: #ffe9b0; background: rgba(40, 34, 60, 0.85); border-color: rgba(233, 196, 106, 0.55); }
+#skills .sk-node-name small { color: #d8cfe8; }
+
+#skills .sk-direction { background: linear-gradient(180deg, rgba(70, 64, 104, 0.92), rgba(52, 47, 80, 0.94)); border-color: rgba(217, 164, 65, 0.4); }
+#skills .sk-direction b { color: #ffe9b0; text-shadow: none; }
+#skills .sk-direction small { color: #d0c7e2; }
+#skills .sk-direction.selected { background: linear-gradient(180deg, rgba(92, 82, 128, 0.95), rgba(66, 59, 98, 0.96)); border-color: var(--brass-hi); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 0 2px rgba(255, 224, 138, 0.35), 0 0 22px rgba(255, 206, 110, 0.3), 0 6px 18px rgba(0, 0, 0, 0.35); }
+#skills .sk-tab { background: rgba(52, 47, 80, 0.92); }
+#skills .sk-tab:hover { background: rgba(70, 64, 104, 0.95); }
+#skills .sk-tab.selected { color: #4a2a0c; background: linear-gradient(#fff2c4, #e9c46a); border-color: var(--brass-lo); box-shadow: 0 0 0 2px rgba(255, 224, 138, 0.4), 0 0 14px rgba(255, 206, 110, 0.45); }
+#skills .sk-points::before { background: radial-gradient(circle at 35% 30%, #fff3c4, #e0a83e 60%, #8d5a14); box-shadow: 0 0 0 2px #5a3a0c; }
+#skills .sk-points b { color: #7a3414; }
+
+.sk-tip { background: linear-gradient(180deg, rgba(66, 59, 96, 0.97), rgba(46, 41, 70, 0.98)); border-color: #d9a441; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 14px 30px rgba(0, 0, 0, 0.45); }
+.sk-tip b { color: #ffe9b0; text-shadow: none; }
+.sk-tip .sk-path { color: #c4bad8; }
+.sk-tip .sk-tag { background: #8a5a14; box-shadow: none; }
+
+/* a person's regard as ten hearts beside their name (hud.ts), and what it does to a merchant's prices (people.ts) */
+.dname .hearts { display: inline-flex; gap: 2px; margin-left: 8px; vertical-align: middle; }
+.dname .hearts i {
+  width: 13px; height: 12px; display: inline-block; background: rgba(255, 236, 214, 0.34); filter: drop-shadow(0 1px 0 rgba(60, 16, 0, 0.5));
+  clip-path: path('M6.5 11.5 L1.2 6.2 C-0.6 4.3 0.4 0.6 3.4 0.6 C5 0.6 6 1.6 6.5 2.6 C7 1.6 8 0.6 9.6 0.6 C12.6 0.6 13.6 4.3 11.8 6.2 Z');
+}
+.dname .hearts i.on { background: linear-gradient(#ffd6e0, #ff5c7a 60%, #e0304e); filter: drop-shadow(0 1px 0 rgba(60, 16, 0, 0.5)) drop-shadow(0 0 3px rgba(255, 150, 175, 0.8)); }
+.dname .hearts i.half { background: linear-gradient(90deg, #ff6d88 0 50%, rgba(255, 236, 214, 0.34) 50% 100%); }
+.pp-deal { margin-left: 8px; padding: 2px 8px; border-radius: 10px; font: 700 11px var(--pixel); color: #a0283f; background: rgba(240, 106, 133, 0.16); border: 1px solid rgba(224, 64, 94, 0.45); white-space: nowrap; }
+.pp-deal.worse { color: #4a5a80; background: rgba(125, 141, 176, 0.18); border-color: rgba(90, 105, 140, 0.5); }

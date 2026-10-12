@@ -195,6 +195,8 @@ export interface TalkView {
   name: Text
   /** What they think of the one at the keys, in a word (hostile … close). */
   regard: Text
+  /** And as a number (−100..100): the panel's hearts, ten at full. */
+  affection?: number
   /** What they hold against them, in words. */
   grudge?: Text
   /** What the one at the keys owes the watch here. */
@@ -215,6 +217,8 @@ export interface TradeView {
   /** The coin each side carries. */
   purse: number
   theirs: number
+  /** What the merchant's regard takes off its prices (a share; negative: what it adds). */
+  discount?: number
 }
 
 /** A lesson as the view shows it: its focus resolved to a thing, a cell, cells or a panel's part. */

@@ -8,6 +8,7 @@ import '@openworld/modules'
 import { LOOK_TABLE } from './looks.ts'
 import { ELEMENT_NAMES, MATERIALS, MATERIAL_DEFS, QUALITIES, QUALITY_DEFS, itemTypes } from './items.ts'
 import { GEAR_SETS } from './sets.ts'
+import { AFFIX_TABLE, TROPHY_OF, TROPHY_SETS } from './trophies.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
 import { SKILL_PROFESSIONS } from './skills.ts'
@@ -332,8 +333,9 @@ const actorTypes: TypeDef[] = [
   P('actor/creature/wisp', 'wisp', '鬼火', { tags: ['spectral', 'charged'], sprite: 'creature:wisp', props: { stance: 'air' } }),
   P('actor/creature/wisp/storm_wisp', 'storm wisp', '风暴鬼火', { props: { hp: 9, maxHp: 9, atk: 3, speed: 4, element: 'lightning', range: 4 } }),
   // companions (docs/prologue.md): they follow a leader (props.companion), fly, never block nor fight
-  P('actor/companion', 'companion', '同伴', { tags: ['companion', 'living', 'airborne', 'essential'], props: { hp: 10, maxHp: 10, atk: 0, def: 0, speed: 2, sight: 8 } }),
-  // Pip: a fairy, a small winged girl (the project's own art, tools/src/art/fairy.ts)
+  // (it keeps two tiles off its leader, engine companion.ts, and is spoken to from as far)
+  P('actor/companion', 'companion', '同伴', { tags: ['companion', 'living', 'airborne', 'essential'], props: { hp: 10, maxHp: 10, atk: 0, def: 0, speed: 2, sight: 8, handsRange: 2 } }),
+  // Lumi: a fairy, a small winged girl (the project's own art, tools/src/art/fairy.ts)
   P('actor/companion/fairy', 'fairy', '精灵', { tags: ['fairy', 'winged'], sprite: 'creature:fairy' }),
   // the meadow's animals: passive, they run when struck, and leave food behind (drop × drops)
   P('actor/creature/animal', 'animal', '动物', { tags: ['animal'], props: { behaviour: 'passive', temper: 'wary', sight: 4 } }),
@@ -537,7 +539,7 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/build/ring', 'stone ring', '石圈', ['stone']),
   // a plot staked out at the Held Ground's heart for a building the steward will build there (haven.ts HAVEN_UPGRADES)
   F('fixture/build/plot', 'staked plot', '地基', ['wooden', 'flammable'], { solid: false, sprite: 'fixture:stakes' }),
-  ...([['workshop', 'workshop', '工坊'], ['kitchen', 'kitchen hearth', '厨房灶台'], ['storehouse', 'storehouse', '储物棚'], ['loom', 'weaving shed', '织坊'], ['apothecary', 'apothecary', '药房']] as const).map(([id, en, zh]) => F(`fixture/build/plot/${id}`, `plot for a ${en}`, `${zh}地基`, [])),
+  ...([['workshop', 'workshop', '工坊'], ['kitchen', 'kitchen hearth', '厨房灶台'], ['storehouse', 'storehouse', '储物棚'], ['loom', 'weaving shed', '织坊'], ['apothecary', 'apothecary', '药房'], ['lodge1', "residents' tent", '居民营帐'], ['lodge2', "second residents' tent", '第二座居民营帐'], ['lodge3', "third residents' tent", '第三座居民营帐']] as const).map(([id, en, zh]) => F(`fixture/build/plot/${id}`, `plot for a ${en}`, `${zh}地基`, [])),
   // a training dummy: knocked down it stands up again (train/dummy), for practising blows (the tutorial's)
   F('fixture/dummy', 'training dummy', '训练假人', ['wooden', 'flammable', 'straw'], { solid: true, props: { material: 'wood', maxHp: 12, hp: 12 } }),
   F('fixture/scarecrow', 'scarecrow', '稻草人', ['straw', 'cloth', 'wooden', 'flammable'], { solid: true }),
@@ -549,6 +551,8 @@ export const MODULES = ['classes', 'bosses', 'waypoints', 'boons', 'needs', 'soc
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}
   for (const t of [...actorTypes, ...fixtureTypes, ...itemTypes(), ...RESIDENTS, ...BOSS_TYPES, ...SOCIAL_TYPES]) types[t.id] = t
+  // each kind of monster with its own piece (trophies.ts): what it is and how often a felling gives it (rules.ts combat/defeat)
+  for (const [kind, t] of Object.entries(TROPHY_OF)) types[kind] = { ...types[kind], props: { ...types[kind].props, trophy: t.type, trophyChance: t.chance } }
   return {
     // the systems this game takes from the engine's modules (module.ts), installed in this order
     modules: MODULES,
@@ -579,8 +583,10 @@ export function buildOntology(): Ontology {
     // what things are made of, and how well each instrument works on each (world-model.md §4.5, §6.1)
     materials: MATERIAL_DEFS,
     qualities: QUALITY_DEFS(),
-    // the four sets of gear and what each gives worn together (sets.ts)
-    sets: GEAR_SETS,
+    // the four forged sets and the monster families' sets, and what each gives worn together (sets.ts, trophies.ts)
+    sets: [...GEAR_SETS, ...TROPHY_SETS],
+    // the small extras a piece of gear rolls as it is made (trophies.ts)
+    affixes: AFFIX_TABLE,
     efficiency: EFFICIENCY,
     params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1, slotCount: { ring: 2 }, nightFact: 'night.shift' },
     // what makes a room what it is: a bed a bedroom (a night there gives everything back), a cooking fire a

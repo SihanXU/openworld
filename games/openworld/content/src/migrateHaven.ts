@@ -27,3 +27,15 @@ export function migrateHaven(game: Game): void {
   }
   w.setFact(HAVEN_LAYOUT, true)
 }
+
+/** Saves marked with it have the residents' tents' plots staked out (2026-10-12). */
+export const LODGES_LAYOUT = 'content.haven-lodges-v1'
+
+/** A Held Ground already in a save gets the plots its residents' tents will stand on (a fresh one is built with them). */
+export function migrateLodges(game: Game, plots: { id: string; at: readonly [number, number] }[]): void {
+  const w = game.engine.world
+  if (w.fact(LODGES_LAYOUT)) return
+  if (w.get('haven.heart'))
+    for (const p of plots) if (!w.get(`haven.plot.${p.id}`)) w.create(`fixture/build/plot/${p.id}`, { on: 'tile', map: 'haven', x: p.at[0], y: p.at[1] }, { id: `haven.plot.${p.id}` })
+  w.setFact(LODGES_LAYOUT, true)
+}

@@ -76,7 +76,7 @@ export class PeoplePanels {
       ? this.stacks(t.offers).map(({ first: o, count }) => this.row(o.item, coin(o.price), `<button data-sell="${o.item.id}"${o.price > t.theirs ? ' disabled' : ''}>${L('Sell', '卖')}</button>`, '', count, true)).join('')
       : `<div class="muted">${L('Nothing you carry interests them.', '你身上没有他们想要的东西。')}</div>`
     $('#tradeSheet').innerHTML = `
-      <div class="pp-head"><b>${esc(tx(t.name))}</b><span class="pp-purse">${L('You', '你')} ${coin(t.purse)} · ${esc(tx(t.name))} ${coin(t.theirs)}</span><button class="x" id="tradeX">✕</button></div>
+      <div class="pp-head"><b>${esc(tx(t.name))}</b>${t.discount ? `<span class="pp-deal${t.discount < 0 ? ' worse' : ''}" title="${L('What their regard for you does to their prices', '他们对你的好感让价格变了多少')}">${t.discount > 0 ? `♥ ${L('Friend’s price', '好感优惠')} −${Math.round(t.discount * 100)}%` : `${L('Cold price', '冷淡加价')} +${Math.round(-t.discount * 100)}%`}</span>` : ''}<span class="pp-purse">${L('You', '你')} ${coin(t.purse)} · ${esc(tx(t.name))} ${coin(t.theirs)}</span><button class="x" id="tradeX">✕</button></div>
       <div class="pp-cols">
         <div><div class="pp-title">${L('Their goods', '他们的货')}</div>${goods}</div>
         <div><div class="pp-title">${L('What they would pay', '他们愿意收的')}</div>${offers}</div>

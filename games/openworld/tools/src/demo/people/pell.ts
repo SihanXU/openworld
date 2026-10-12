@@ -5,6 +5,8 @@ import { line, type PersonDef } from '../person.ts'
 
 export const pell: PersonDef = {
   id: 'npc.pell',
+  // the main story needs them where they are: not asked to move to a home ground (content social.ts residence)
+  tags: ['storybound'],
   role: 'child',
   essential: true,
   name: { en: 'Pell', zh: '佩尔' },

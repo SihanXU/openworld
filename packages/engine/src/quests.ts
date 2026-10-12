@@ -202,6 +202,8 @@ export interface JournalQuest {
   giver?: Text
   objectives: { id: string; text: Text; state: 'open' | 'done' | 'failed'; have?: number; need?: number; where?: Text; optional?: boolean }[]
   log: { stage: number; text: Text; tick: number }[]
+  /** Under way: its stage's hint, how to go on (what a companion tells; the companion's panel). */
+  hint?: Text
 }
 
 /** An offer, as the talk panel and the notice board show it. */
@@ -1010,7 +1012,9 @@ export class Quests {
         log.push({ stage: this.w.num(q, 'stage'), text: { en: 'It came to nothing.', zh: '这件事没能办成。' }, tick: this.w.num(q, 'ended') })
       log.sort((a, b) => a.tick - b.tick || a.stage - b.stage)
       const giver = this.aliasEntity(q, this.giverAlias(d))
-      out.push({ id: q.id, quest: d.id, kind: d.kind, title: d.title, summary: this.fill(q, d.summary), state, tracked: q.id === tracked, ...(giver && giver.id !== w.state.player && { giver: { en: this.eng.nameOf({ e: giver.id }, 'en'), zh: this.eng.nameOf({ e: giver.id }, 'zh') } }), objectives: this.objectives(q, d), log })
+      const stage = state === 'active' ? d.stages.find((x) => x.n === w.num(q, 'stage')) : undefined
+      const hint = stage && (stage.hint ?? stage.log)
+      out.push({ id: q.id, quest: d.id, kind: d.kind, title: d.title, summary: this.fill(q, d.summary), state, tracked: q.id === tracked, ...(giver && giver.id !== w.state.player && { giver: { en: this.eng.nameOf({ e: giver.id }, 'en'), zh: this.eng.nameOf({ e: giver.id }, 'zh') } }), objectives: this.objectives(q, d), log, ...(hint && { hint: this.fill(q, hint) }) })
     }
     return out.sort((a, b) => w.num(w.get(b.id)!, 'since') - w.num(w.get(a.id)!, 'since'))
   }

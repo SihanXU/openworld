@@ -34,7 +34,7 @@ const awakening: QuestDef = {
   id: 'awakening',
   kind: 'main',
   title: L('Waking', '醒来'),
-  summary: L('You came round in a clearing in the woods, with a fairy called Pip at your side. Get through a day and a night here, then take the path south off the mountain.', '你在林间的一片空地上醒来，身边有一个叫小啾的精灵。在这里熬过一天一夜，然后沿着小路往南下山。'),
+  summary: L('You came round in a clearing in the woods, with a fairy called Lumi at your side. Get through a day and a night here, then take the path south off the mountain.', '你在林间的一片空地上醒来，身边有一个叫露米的精灵。在这里熬过一天一夜，然后沿着小路往南下山。'),
   aliases: { pip: { id: 'pip' } },
   objectives: TUTORIAL.map(([id, text]) => ({ id, text })),
   stages: [
@@ -46,7 +46,7 @@ const awakening: QuestDef = {
       show: [id],
       hint,
       log: [
-        L('A fairy, Pip, woke me. First: something to eat.', '一个叫小啾的精灵叫醒了我。先找点吃的。'),
+        L('A fairy, Lumi, woke me. First: something to eat.', '一个叫露米的精灵叫醒了我。先找点吃的。'),
         L('Fed. To make anything I need sticks, stones and grass.', '吃饱了。要做东西，得先有树枝、石头和草。'),
         L("An axe's worth gathered.", '凑齐了做一把斧头的材料。'),
         L('A stone axe. Now wood.', '有了石斧。该去砍木头了。'),
@@ -78,8 +78,8 @@ const descent: QuestDef = {
     { id: 'village', text: L('West to Firstlight Village', '往西到初原村'), target: 'village' },
   ],
   stages: [
-    { n: 10, show: ['stone', 'try'], hint: L('The only way down is the cut in the rocks to the south; below it lies the Mountain Foot, and an old seal stone to try anything on — use what you hold on it, put something on it, strike it. The world learns.', '下山只有南边岩壁上的那道豁口；下面是山脚，那里有一块古老的封印石，对它做点什么都行——用手里的东西、放点东西上去、打它一下。世界会学习。'), log: L('Pip says the way down is south, to the foot of the mountain.', '小啾说下山的路在南边，通往山脚。') },
-    { n: 20, on: { step: 'relic' }, done: ['stone'], hint: L('Use what you hold on the old seal stone, put something on it, strike it — anything. The world learns.', '拿着东西对古老的封印石用一用、放点东西上去、打它一下——什么都行。世界会学习。'), log: L('An old stone with five marks, the first one cracked. Pip does not like it.', '一块有五道痕的古老石头，第一道裂开了。小啾不喜欢它。') },
+    { n: 10, show: ['stone', 'try'], hint: L('The only way down is the cut in the rocks to the south; below it lies the Mountain Foot, and an old seal stone to try anything on — use what you hold on it, put something on it, strike it. The world learns.', '下山只有南边岩壁上的那道豁口；下面是山脚，那里有一块古老的封印石，对它做点什么都行——用手里的东西、放点东西上去、打它一下。世界会学习。'), log: L('Lumi says the way down is south, to the foot of the mountain.', '露米说下山的路在南边，通往山脚。') },
+    { n: 20, on: { step: 'relic' }, done: ['stone'], hint: L('Use what you hold on the old seal stone, put something on it, strike it — anything. The world learns.', '拿着东西对古老的封印石用一用、放点东西上去、打它一下——什么都行。世界会学习。'), log: L('An old stone with five marks, the first one cracked. Lumi does not like it.', '一块有五道痕的古老石头，第一道裂开了。露米不喜欢它。') },
     { n: 30, on: { step: 'tried' }, done: ['try'], show: ['ford'], hint: L('The trail runs south off the mountain. J: the Threadbook keeps what the world has learned.', '小路往南下山。J：织线簿记着世界学会的事。'), log: L('The world answered something it had never seen. It keeps what it learns in the Threadbook.', '世界回应了它从没见过的事。它学会的都记在织线簿里。') },
     { n: 40, on: { step: 'ford' }, done: ['stone', 'try', 'ford'], show: ['village'], hint: L('Firstlight Village is west of the Ford. Rowan, its elder, is looking for anyone who can fight: a yellow "!" over a head means someone has a task for you (E).', '初原村在渡口西边。村里的长老罗万在找能打的人：头顶有黄色"！"的人有任务给你（按 E）。'), log: L('The Ford. The ferry rope is gone and the bridge is broken; the village west of here needs a hand.', '渡口到了。渡绳断了，桥也坏了；西边的村子需要人帮忙。') },
     { n: 100, on: { step: 'village_arrival' }, done: ['stone', 'try', 'ford', 'village'], complete: true, reward: { xp: 15, items: [gear('item/clothing/boots', 'feet', "Traveller's Boots", '旅人的靴子', 'common', { def: 1 })] }, log: L('Firstlight Village, and its flame.', '初原村，和它的圣火。') },

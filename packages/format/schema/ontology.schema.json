@@ -161,6 +161,10 @@
           },
           "description": "Sets of gear (`props.set` on each piece): worn together, so many pieces give more (World.stat adds each bonus whose `pieces` the worn count reaches) — the sum of its `props`, read as any worn number is."
         },
+        "affixes": {
+          "$ref": "#/definitions/AffixTable",
+          "description": "Gear's rolled extras (affixes.ts): how many a piece rolls when it is made, and from what."
+        },
         "efficiency": {
           "type": "object",
           "additionalProperties": {
@@ -1524,6 +1528,18 @@
         },
         "fence": {
           "type": "number"
+        },
+        "fadeUp": {
+          "type": "number",
+          "description": "How fast regard above its start fades back, each day (a share of the way): slower than a grudge heals. Default `fade`."
+        },
+        "discount": {
+          "type": "number",
+          "description": "The share off what a merchant asks one it holds in full regard (100), and in proportion below (default 0.2)."
+        },
+        "residence": {
+          "$ref": "#/definitions/ResidenceDef",
+          "description": "Where people held in full regard may be asked to come and live (a home ground): `moveIn`."
         }
       },
       "required": [
@@ -1542,6 +1558,51 @@
       ],
       "additionalProperties": false,
       "description": "The numbers of the people's social life (data, docs/npc-sandbox.md): the engine holds the mechanisms."
+    },
+    "ResidenceDef": {
+      "type": "object",
+      "properties": {
+        "map": {
+          "type": "string"
+        },
+        "at": {
+          "type": "number",
+          "description": "The regard (of the one asked toward the one asking) it takes."
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "anchor": {
+                "type": "string"
+              },
+              "when": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "anchor"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "yes": {
+          "$ref": "#/definitions/Text"
+        },
+        "full": {
+          "$ref": "#/definitions/Text"
+        }
+      },
+      "required": [
+        "map",
+        "at",
+        "slots",
+        "yes",
+        "full"
+      ],
+      "additionalProperties": false,
+      "description": "A home ground's room for people (the society module's `moveIn`): its map and the beds it has, each an anchor there (where the resident sleeps; `<anchor>.day` where their day is spent, else the same), open once its fact holds; what the one asked says, moved in or with no bed free."
     },
     "TalkVerb": {
       "type": "object",
@@ -1770,6 +1831,60 @@
       "additionalProperties": false,
       "description": "A set of gear: its pieces carry `props.set: id`; worn together they give its bonuses."
     },
+    "AffixTable": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "number"
+        },
+        "pool": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AffixDef"
+          }
+        }
+      },
+      "required": [
+        "count",
+        "pool"
+      ],
+      "additionalProperties": false,
+      "description": "The world's table of extras: how many a piece rolls, and the pool they come from."
+    },
+    "AffixDef": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "weight": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "key",
+        "min",
+        "max",
+        "step"
+      ],
+      "additionalProperties": false,
+      "description": "One extra a piece may roll: a stat key, its range and step, the slots it may roll on (all, if none), how often."
+    },
     "WorldParams": {
       "type": "object",
       "properties": {
@@ -1780,6 +1895,10 @@
         "spawnMax": {
           "type": "number",
           "description": "How many things one effect may make at once (a runtime guard; default 64)."
+        },
+        "trophyPity": {
+          "type": "number",
+          "description": "How many of a kind one fells before its trophy surely comes (the `trophy` primitive; default 50)."
         },
         "safeFall": {
           "type": "number",

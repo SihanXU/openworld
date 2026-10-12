@@ -355,3 +355,14 @@ export function describeLook(look: Look, who?: { age?: number }): { en: string; 
 
 /** The tags a look gives, against the world's table. */
 export const tagsOfLook = (look: Look): string[] => lookTags(look, LOOK_TABLE)
+
+/**
+ * Lumi's portrait (the companion's panel, 2026-10-12): the fairy as the creator would draw her bust — moon-pale
+ * lavender hair in waves, bright violet eyes, a gold circlet like a halo, a white vestment with a lavender stole. Her
+ * map figure stays the fairy's own sheet (tools/src/art/fairy.ts); the panel draws her wings and her light about it.
+ */
+export const COMPANION_LOOK: Look = {
+  body: 'woman',
+  parts: { hair: 'hair.wavy', face: 'face.bright', outfit: 'outfit.vestment', hat: 'hat.circlet' },
+  colors: { skin: 'porcelain', hair: '#ebe4fb', eyes: '#8a6be0', 'outfit.1': 'snow', 'outfit.2': '#b8a2ef', 'outfit.3': 'gold', 'hat.1': 'gold' },
+}

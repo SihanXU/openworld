@@ -2,8 +2,9 @@
 // material × quality × element, carried as tags and props, so type-level rules address
 // whole classes while the world still holds tens of thousands of distinct items.
 
-import { gearProps, type Entity, type MaterialDef, type PropValue, type QualityDef, type Rng, type TypeDef } from '@openworld/engine'
+import { gearProps, rollAffixes, type Entity, type MaterialDef, type PropValue, type QualityDef, type Rng, type TypeDef } from '@openworld/engine'
 import { VEGETABLE_CROPS } from './crops.ts'
+import { AFFIX_TABLE, TROPHIES } from './trophies.ts'
 
 export interface Form {
   id: string // full type path
@@ -284,7 +285,7 @@ export const FORMS: Form[] = [
   // wheat is feed too (Minecraft's: a cow or a hen fed wheat, homestead.ts)
   W('item/material/wheat', 'Wheat', '麦子', 'item:wheat', { tags: ['plant', 'flammable', 'dry', 'feed'], where: { farm: 3 } }),
   // the homestead (docs/homestead.md): the Held Ground's coin, and what its stall sells and buys
-  W('item/misc/thornmark', 'Thornmark', '银荆币', 'item:thornmark', { tags: ['currency', 'metal', 'precious'], where: {} }),
+  W('item/misc/thornmark', 'Dawnmark', '晨辉币', 'item:thornmark', { tags: ['currency', 'metal', 'precious'], where: {} }),
   W('item/material/fertilizer', 'Fertilizer', '肥料', 'item:fertilizer', { tags: ['fertilizer'], where: { farm: 1 } }),
   W('item/material/feed', 'Animal Feed', '饲料', 'item:feed', { tags: ['feed', 'flammable', 'dry'], where: { farm: 1 } }),
   W('item/misc/bait', 'Bait', '鱼饵', 'item:bait', { tags: ['bait'], props: { casts: 5 }, where: { shop: 0.5 } }),
@@ -356,6 +357,8 @@ export const FORMS: Form[] = [
   W('item/misc/firework', 'Firecracker', '爆竹', 'item:firework', { tags: ['explosive', 'flammable', 'paper'], props: { blast: 1 }, where: { shop: 0.3 } }),
   W('item/misc/bomb', 'Blackpowder Bomb', '黑火药炸弹', 'item:bomb', { tags: ['explosive', 'flammable', 'heavy'], props: { blast: 8 }, where: { dungeon: 0.4 } }),
   W('item/misc/snowball', 'Snowball', '雪球', 'item:snowball', { tags: ['icy', 'cold', 'water', 'fragile'], where: {} }),
+  // each kind of monster's own piece (trophies.ts): found in the bag of the one who fells it, never made nor sold
+  ...TROPHIES.map((t) => W(t.type, t.en, t.zh, t.sprite, { tags: ['wearable', 'trophy'], props: { ...t.props, ...(t.set && { set: t.set }), value: t.value }, where: {} })),
 ]
 
 /** Types derived from the catalogue (plus the roots). */
@@ -411,7 +414,7 @@ export const FORM_BY_ID: Record<string, Form> = Object.fromEntries(FORMS.map((f)
 
 /** What a kind of thing is worth before its material and quality (the longest prefix that names it). */
 const VALUES: [string, number][] = [
-  // What a kind of thing is worth (2026-10-11): a day's work is a few dozen Thornmarks (a villager's purse, a quest's
+  // What a kind of thing is worth (2026-10-11): a day's work is a few dozen Dawnmarks (a villager's purse, a quest's
   // reward); a merchant sells at the worth and a quarter, buys at half (social.ts). What the Held Ground's stall buys
   // back is worth twice what it pays (so it pays what any merchant would), and what it sells is worth what it asks
   // less the merchant's quarter. Material and quality multiply it (iron 1, wood 0.6, steel 1.6, gold 5).
@@ -619,6 +622,9 @@ export function makeItem(rng: Rng, form: Form, opts: { material?: string; qualit
   Object.assign(props, gearProps(form.props ?? {}, matId ? MATERIAL_DEFS[matId] : undefined, QUALITY_DEFS().find((x) => x.id === quality)))
   // a Vowbound piece keeps something of its vow beyond its numbers
   if (quality === 'vowed' && opts.trait !== false) Object.assign(props, rng.pick(VOW_TRAITS))
+  // a piece one wears or wields rolls its small extras (trophies.ts AFFIX_TABLE), unless the author gives its props
+  const slot = form.props?.slot ?? (form.id.startsWith('item/weapon') ? 'weapon' : undefined)
+  if (typeof slot === 'string' && opts.trait !== false) Object.assign(props, rollAffixes({ affixes: AFFIX_TABLE }, slot, () => rng.next()))
   const el = opts.element === null ? undefined : (opts.element ?? (form.elemental && rng.chance(0.28) ? rng.pick(Object.keys(ELEMENT_NAMES)) : undefined))
   if (el && form.elemental) {
     tags.push(`element:${el}`)
