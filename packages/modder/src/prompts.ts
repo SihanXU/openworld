@@ -1,11 +1,11 @@
-// Every prompt the modder sends. The design system prompt is the same for every request, every
+// Every prompt the modder sends. The design system prefix is the same for every request, every
 // client and every library version (the ModSpec of the base ontology is its bulk), so providers
-// serve it from their prompt cache; everything per request goes in the user turn, and only what
+// serve it from their prompt cache; working notes follow it. Each request goes in the user turn, and only what
 // the model can use: the brief replaces the rules the request carries, and the scenario (the
 // harness replays it) is left out.
 
-import type { ModRequest, ModSpec, Patch, Rule, StatusDef, TypeDef } from '@lsw/engine'
-import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta } from '@lsw/agent'
+import type { ModRequest, ModSpec, Patch, Rule, StatusDef, TypeDef } from '@openworld/engine'
+import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta } from '@openworld/agent'
 
 type Episode = AgentEpisode<ModRequest, Patch>
 import { compactRule } from './tools.ts'
@@ -24,7 +24,7 @@ export const ROUTER_RULES = [
 
 export function designSystem(spec: ModSpec, h: Harness, router = false): string {
   return [
-    'You are the modder of a 2D JRPG world whose mechanics are data. Every happening is an event with one outcome, given by the rules of its host. When an event reaches an outcome the rules leave undefined (request.hole), you are called to write the missing rule(s) as a patch: a rule for the host\'s class that answers that event. The engine validates every patch (schema, ontology, ties at equal specificity, a sandbox replay of the event, your tests, regression) before it applies it. Once applied, a rule holds for every instance of the class you wrote, so you are writing the physics of the world, not a one-off answer.',
+    'You are the modder of a 2D JRPG world whose mechanics are data. Every happening is an event with one outcome, given by the rules of its host. When an event reaches an outcome the rules leave undefined (request.hole), you are called to write the missing rule as a patch: the host type\'s own rule for that event at that hole. The harness places it (host, on, hole, at: from the request, never from you); you write its tree. The engine validates every patch (schema, ontology, its place, a sandbox replay of the event, your tests) before it applies it. Once applied, the rule holds for every instance of the host\'s type at that place, so write its nature, not a one-off answer.',
     '',
     'How to work:',
     ...(h.design.toolRounds > 0
@@ -33,32 +33,34 @@ export function designSystem(spec: ModSpec, h: Harness, router = false): string 
           h.design.brief
             ? '2. The brief lists the roles\' types and the rules that already speak about this host or this event. Use your tools only for what it lacks. If one of your skills fits, read it.'
             : '2. Investigate with your tools: search_rules for neighbouring rules (same kind, the host\'s type, the other roles\' tags) and get_type for what the roles really are. If one of your skills fits, read it.',
-          '3. Decide what a player would find plausible and satisfying here, consistent with the rules that exist. Then write it for the widest class of things that keeps it plausible.',
+          '3. Decide what a player would find plausible and satisfying here, consistent with the rules that exist. Then write it for this type: branch on what varies among its instances (material, quality, element, statuses) and on the other roles\' classes.',
           h.design.brief
             ? '4. Answer as soon as you are confident: the engine validates your answer and sends back exact diagnostics if anything is wrong. dry_run only when unsure.'
-            : '4. dry_run the draft. Fix everything it reports. dry_run it again on a scenario with another instance of the class to check that it generalizes.',
+            : '4. dry_run the draft. Fix everything it reports.',
         ]
       : [
           '1. Read the request and the brief: the host and the roles, where the outcome was undefined, and the rules that already speak about this host or event (the conventions in force).',
-          '2. Decide what a player would find plausible and satisfying here, consistent with those rules. Write it for the widest class of things that keeps it plausible.',
+          '2. Decide what a player would find plausible and satisfying here, consistent with those rules. Write it for this type: branch on what varies among its instances (material, quality, element, statuses) and on the other roles\' classes.',
           '3. Answer directly — there are no tools. The engine validates your answer and sends back exact diagnostics if anything is wrong.',
         ]),
-    `${h.design.toolRounds > 0 ? 5 : 4}. Answer with ONLY one JSON object: {"patch": {"artifacts": [...], "note": "<what the rule does, one line>"}, "summary": "<one line for your records>"}`,
+    `${h.design.toolRounds > 0 ? 5 : 4}. Answer with ONLY one JSON object, minified: {"patch": {"artifacts": [...], "note": "<what the rule does, one line>"}}`,
     '',
     'Requirements:',
     '- Rule ids start with "patch/" and must be new.',
     h.design.tests === 'harness'
-      ? '- Every rule has a one-line `doc` and player-visible feedback (vfx and/or log/say). Do not write tests: the harness replays your rule on another instance of its class and keeps that as its test.'
-      : '- Every rule has a one-line `doc`, player-visible feedback (vfx and/or log/say), and at least one test whose scenario uses ANOTHER instance of the host class than the triggering one (the triggering event is replayed automatically).',
-    '- Prefer outcomes that change something (a status, a transformation, an item). A rule that only narrates is right only when nothing happening is clearly the most plausible outcome, and then its class must stay narrow.',
+      ? '- Every rule has a one-line `doc` and player-visible feedback (vfx and/or log/say). Do not write tests: the harness keeps the scene that asked as the rule\'s test.'
+      : '- Every rule has a one-line `doc`, player-visible feedback (vfx and/or log/say), and at least one test (the triggering event is replayed automatically).',
+    '- Prefer outcomes that change something (a status, a transformation, an item). A rule that only narrates is right only when nothing happening is clearly the most plausible outcome.',
+    '- Answer the case that was asked (the target\'s class, the params given); a case you do not answer ends in {"undefined": true} so it stays open and is asked later. Never write `inherit`; give every `if` an `else`.',
     '- Nothing for nothing: if the outcome makes something (a stick shaken from a tree, food), let it cost or run out — use the instrument up, or change or spend the host (a status that clears with time, a prop that counts down) — so it is not a faucet pressed forever.',
     '- Your rule writes only its host; to affect anything else, emit an impulse to it and its receiver answers. Player-facing text is {"en": "...", "zh": "..."}; {host}, {actor}, {target}, {instrument}, {item} insert names.',
     '- If nothing should happen, still define it: {"do": []} (no change) or a short in-world line of feedback is a valid answer.',
+    '- Give a rule the player reaches a `label`: what their input does there, as the game shows it before the press ("label": {"en": "Tame {target}", "zh": "驯服{target}"}), naming {target}, {instrument} or {actor}; when its branches do different things, put a label on each {"do"} leaf instead. Without one the player sees a generic line.',
     ...(router ? [ROUTER_RULES] : []),
-    ...(h.addenda.length ? ['', 'Your own working notes:', ...h.addenda.map((a) => `- ${a}`)] : []),
     '',
     '# ModSpec',
     JSON.stringify(spec),
+    ...(h.addenda.length ? ['', 'Your own working notes:', ...h.addenda.map((a) => `- ${a}`)] : []),
   ].join('\n')
 }
 
@@ -74,19 +76,19 @@ export function requestView(req: ModRequest, brief: boolean): Omit<ModRequest, '
   return brief ? { ...rest, context: { ...rest.context, rules: [] } } : rest
 }
 
-export function designUser(req: ModRequest, recall: Recall, brief?: string, added?: { types: TypeDef[]; statuses: StatusDef[] }): string {
+export function designUser(req: ModRequest, recall: Recall, brief?: string, added?: { types: TypeDef[]; statuses: StatusDef[] }, tools = true): string {
   const out = [`# Request ${req.id}`, req.summary, '', '```json', JSON.stringify(requestView(req, !!brief)), '```']
   if (brief) out.push('', brief)
   if (added && (added.types.length || added.statuses.length)) {
     out.push('', '# Types and statuses added by patches (beyond the ModSpec; use them like any other)')
-    for (const t of added.types) out.push(`- type ${JSON.stringify({ id: t.id, kind: t.kind, tags: t.tags ?? [], name: t.name })}`)
-    for (const s of added.statuses) out.push(`- status ${JSON.stringify({ id: s.id, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears })}`)
+    for (const t of added.types) out.push(`- type ${JSON.stringify({ id: t.id, tags: t.tags ?? [], name: t.name })}`)
+    for (const s of added.statuses) out.push(`- status ${JSON.stringify({ id: s.id, name: s.name, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears })}`)
   }
-  out.push('', '# Your skills (read one with read_skill)')
+  out.push('', tools ? '# Your skills (read one with read_skill)' : '# Your skills')
   out.push(...(recall.skills.length ? recall.skills.map((s) => `- ${s.name}: ${s.description} (used ${s.uses}×, ${s.accepted} accepted)`) : ['(none yet)']))
   out.push('', '# Lessons from your past episodes')
   out.push(...(recall.lessons.length ? recall.lessons.map((l) => `- [${l.id}] ${l.text}`) : ['(none yet)']))
-  out.push('', '# Similar past episodes (read one with get_episode)')
+  out.push('', tools ? '# Similar past episodes (read one with get_episode)' : '# Similar past episodes')
   out.push(
     ...(recall.episodes.length
       ? recall.episodes.map((e) => `- ${e.id}: ${e.summary} → ${e.outcome} after ${e.attempts} attempt(s)${e.rules.length ? `; rules ${e.rules.join(', ')}` : ''}`)
@@ -121,22 +123,57 @@ export function revisionUser(current: Patch, notes: string[]): string {
   ].join('\n')
 }
 
-export const NO_JSON = 'Your answer had no JSON patch. Answer with ONLY the JSON object: {"patch": {"artifacts": [...]}, "summary": "..."}'
+export const NO_JSON = 'Your answer had no JSON patch. Answer with ONLY the JSON object: {"patch": {"artifacts": [...]}}'
 
-export const FINALIZE = 'Stop investigating. Answer now with ONLY the JSON object: {"patch": {"artifacts": [...]}, "summary": "..."}'
+export const FINALIZE = 'Stop investigating. Answer now with ONLY the JSON object: {"patch": {"artifacts": [...]}}'
 
 // ---------------------------------------------------------------- review
 
 export const REVIEW_SYSTEM = `You review a rule a modder just wrote for a 2D JRPG world, as a player and as the world's designer.
 The rule was written because an event reached an outcome no rule defined (a player's act, or the world by itself); it is already valid code. Judge only:
 - plausibility: would a player find this outcome believable and satisfying in this world?
-- scope: does it cover the right CLASS — not one instance (too narrow), not unrelated things (too broad)?
+- scope: does it answer the right cases of this host type — not one target only (too narrow), not unrelated targets or params (too broad)?
 - consistency with the neighbouring rules shown;
 - feedback: does the player see what happened?
 - no destructive surprises (destroying or taking things the player values without reason);
 - no free repeatable gain: an outcome that makes something (a stick, food, a resource) must cost something or run out — the instrument used up, the host changed or spent (a status, a prop) — or the world gains a faucet the player can press forever;
 - the lines read right when a name slot is the player ("you"): no "{actor} holds", no "{target}'s".
 Respond with JSON only: {"verdict": "ship" | "revise", "notes": ["..."]}. Default to "ship"; "revise" only for a real problem, with concrete notes.`
+
+export const AUDIT_SYSTEM = `You audit a rule a modder just wrote for a 2D JRPG world, as a player out to break the game. The rule is valid code and passed the deterministic checks; your job is what they cannot see.
+Look for what a player would call an exploit or a bug, caused by this patch:
+- farm: something made again and again for nothing, or for far less than it is worth;
+- value: a cheap road to a rare or strong thing (a stick that becomes a legendary sword);
+- softlock: the player, or someone the story needs, can no longer act, move, or go on;
+- harm: someone hurt, taken or destroyed who should not be;
+- runaway: a chain of events that never settles, or a number that grows without end.
+What the patch is plainly meant to do is not a finding; nor is anything the world already did without it.
+You have tools: look (the scene) and run (play steps in a copy of the scene, with the patch and without it). Prove each finding: run it, then report it with the setup, the steps and the claims that must hold at the end.
+Answer with JSON only: {"findings": [{"title": "...", "kind": "farm|value|softlock|harm|runaway|other", "setup": [...], "steps": [...], "expect": [claims]}]}; {"findings": []} when you found nothing.
+Claims: {"count": {"type", "in"?: key, "atLeast": n}}, {"prop": {"key", "name", "atLeast"?: n, "atMost"?: n}}, {"status": {"key", "has"}}, {"gone": key}, {"is": {"key", "type"}}, {"events": {"atLeast": n}}.
+A finding counts only if the sandbox shows it with the patch and not without it.`
+
+export function auditUser(req: ModRequest, patch: Patch, outcome: string): string {
+  return [
+    `# What happened (${req.origin === 'player' ? "the player's act" : 'the world by itself'})\n${req.summary}`,
+    `event: ${req.event.kind} ${JSON.stringify(req.event.params)}; the scene's keys: ${req.scenario.entities.map((e) => `${e.key} (${e.type})`).join(', ')}`,
+    '',
+    '# The patch',
+    ...patch.artifacts.map((a) => JSON.stringify(a.kind === 'rule' ? { rule: { id: a.rule.id, host: a.rule.host, on: a.rule.on, tree: a.rule.tree } } : a.kind === 'type' ? { type: { ...a.type, art: undefined } } : a)),
+    '',
+    '# What happens now when it happens',
+    outcome,
+  ].join('\n')
+}
+
+/** Confirmed findings, sent back to the designer (or to a revision). */
+export function auditNotes(findings: { title: string; kind: string; evidence: string }[]): string[] {
+  return findings.map((f) => `${f.kind}: ${f.title}\n${f.evidence}`)
+}
+
+export function auditRepairUser(notes: string[]): string {
+  return ['An auditor broke the patch in the sandbox (shown with the patch and not without it):', ...notes.map((n) => `- ${n}`), '', 'Change the patch so this cannot happen (make it cost something, run out, or give less), and answer with the complete JSON object, same format.'].join('\n')
+}
 
 export function reviewUser(req: ModRequest, patch: Patch, outcome: string, neighbours: Rule[], flags: string[] = []): string {
   const rules = patch.artifacts.filter((a) => a.kind === 'rule').map((a) => (a.kind === 'rule' ? a.rule : undefined)!)
@@ -263,16 +300,21 @@ export function findUser(needs: Need[], candidates: Map<string, string[]>, catal
 }
 
 /** Create: define the new types in the patch, beside the rule that makes them. */
-export function createUser(creations: Creation[]): string {
+export function createUser(creations: Creation[], materials: string[] = []): string {
   return [
     '# Create',
-    `The world is making ${creations.length === 1 ? 'a new thing' : 'new things'}: ${creations.map((c) => `${c.id} (${c.name.en} / ${c.name.zh})`).join(', ')}.`,
+    `The world is making ${creations.length === 1 ? 'a new thing' : 'new things'}: ${creations.map((c) => `${c.id} (${[c.name.en, c.name.zh].filter(Boolean).join(' / ')})`).join(', ')}.`,
     'Write the patch with, for each, a type artifact beside your rule(s):',
-    '{"kind": "type", "type": {"id": "<parent>/<snake_case>", "kind": "item|fixture|actor", "name": {"en": "...", "zh": "..."}, "tags": ["only what it adds to its parent"], "props": {}}}',
-    '- The parent must exist; the new type inherits its tags and its rules, so choose the parent whose behaviour fits (an ingot under item/material, a dish under item/food).',
+    '{"kind": "type", "type": {"id": "<parent>/<snake_case>", "name": {"en": "...", "zh": "..."}, "tags": ["what the world uses it by"], "props": {"material": "<one of the materials>"}, "makeup": [{"type": "<a type the world has>", "count": 1}], "station": "hands | workbench (optional)"}}',
+    '- The parent must exist; the new type inherits its rules and the few tags its parent has, so choose the parent whose behaviour fits (an ingot under item/material, a dish under item/food).',
+    '- tags: the world uses a thing by its tags, and a parent carries few of them (item/food has only portable and food): a food that can be eaten has "edible" (and props.food, how much it fills), a drink "drinkable", something that binds "fiber"; give the ones it is used by, as the things beside it have them. A tag some rule turns it by names what it becomes: a "plantable" seed props.cropType, raw "cookable" food props.cookedType, an "empty-vessel" props.waterType, an "ore" props.smelts, a drink in a vessel props.emptyType. Made at hand or a station, a fixture is "portable". Something worn (under item/clothing or item/armor) names where in props.slot (head, body, shoulders, waist, feet, hands, ring, neck, ear, arm).',
     '- Its name is what a player would call it, in both languages; it must not be another name for a thing the world has.',
+    `- props.material: what it is made of, one of: ${materials.join(', ') || '(see the ModSpec)'}.`,
+    '- makeup: the things it is made of, by type and count (an iron ingot: one iron ore); it is also what it leaves when broken, so it takes no more than the outcome took to make it.',
+    '- station (optional): where a player could also make it from its makeup, listed in the crafting panel: "workbench" when your rule makes it by using its makeup on a workbench, "hands" when its makeup alone makes it with no tool or place; leave it out when only your rule makes it somewhere else (smelting in a forge, cooking in a cauldron).',
+    '- A new kind of ground (tile/...) cannot be made; make a thing that lies on the cell instead.',
     '- Do not draw it: an artist draws its icon next.',
-    'Answer with ONLY the JSON object {"patch": {"artifacts": [...]}, "summary": "..."}.',
+    'Answer with ONLY the JSON object {"patch": {"artifacts": [...]}}.',
   ].join('\n')
 }
 

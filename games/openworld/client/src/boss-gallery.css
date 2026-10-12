@@ -1,0 +1,60 @@
+#bossStudio { position: absolute; z-index: 100; top: 18px; left: 18px; bottom: 18px; width: 255px; padding: 24px 20px; box-sizing: border-box; background: #122126ef; color: #dfdccb; border: 1px solid #51615d; box-shadow: 4px 4px #0b141ac0; overflow-y: auto; font: 13px/1.7 "Noto Sans SC", sans-serif; }
+.studio-kicker { color: #c9a85f; font-size: 9px; letter-spacing: 1.6px; }
+#bossStudio h1 { margin: 13px 0 5px; font-size: 22px; color: #f1dfad; }
+#bossStudio p { font-size: 11px; color: #8fa7a4; }
+#bossStudio label { display: block; margin: 20px 0; font-size: 11px; color: #c9a85f; }
+#bossStudio select, #bossStudio button { color: #ede9d9; background: #263a3e; border: 1px solid #526460; padding: 9px; font: inherit; border-radius: 0; }
+#bossStudio select { display: block; margin-top: 6px; width: 100%; font-size: 12px; }
+#bossStudio button { cursor: pointer; font-size: 11px; }
+#bossStudio button:hover { background: #415457; border-color: #c9a85f; }
+.studio-control { margin: 20px 0; color: #c9a85f; font-size: 11px; }
+.studio-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+#bossStudio .studio-modes button { padding: 8px 4px; min-height: 36px; line-height: 1.5; }
+#bossStudio .studio-modes button[aria-pressed="true"] { color: #172429; background: #e8c575; border-color: #f5dea8; font-weight: 700; }
+#bossStudio .studio-modes button:focus-visible { outline: 2px solid #f5dea8; outline-offset: 2px; }
+.studio-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+#bossInfo { margin-top: 24px; padding-top: 18px; border-top: 1px solid #40514f; font-size: 11px; color: #aebdbc; }
+#skillButtons { display: grid; gap: 8px; margin-top: 15px; }
+#skillButtons button { text-align: left; }
+#bossStudio .studio-help { margin: 22px 0; line-height: 1.9; }
+#studioStatus { display: block; font: 11px/1.8 monospace; color: #c9a85f; }
+#bossStudio a { display: inline-block; color: #d4dfcd; margin-top: 20px; font-size: 12px; }
+#objective, #corner, #clockbox { display: none; }
+/* Keep the encounter plate clear of the studio rail and leave its crown on screen. */
+.sin-boss { left: calc(50% + 130px); width: min(860px, calc(100vw - 340px)); }
+@media (max-width: 900px) { .sin-boss { left: calc(50% + 100px); width: calc(100vw - 240px); top: 12px; } }
+@media(max-width: 900px) { #bossStudio { width: 190px; left: 8px; padding: 16px 12px; } #bossStudio h1 { font-size: 18px; } }
+
+.challenge-overlay { position: fixed; inset: 0; z-index: 200; background: #081419eb; display: flex; overflow-y: auto; padding: 28px; }
+.challenge-sheet { width: min(960px, 100%); margin: auto; padding: 32px; background: #14272d; border: 2px solid #8b7851; box-shadow: 6px 6px #050c1199; color: #ede6d2; }
+.challenge-sheet h1 { margin: 10px 0; font: 700 32px var(--pixel); color: #f4dba0; }
+.challenge-lede { margin: 0 0 8px; font-size: 15px; }
+.challenge-note { color: #98afac; font-size: 12px; line-height: 1.8; }
+.challenge-professions { border: 0; padding: 0; margin: 24px 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.challenge-professions legend, .challenge-target { color: #d7b974; font: 12px var(--text); letter-spacing: 1px; }
+.challenge-professions legend { margin-bottom: 14px; }
+.challenge-profession { cursor: pointer; position: relative; }
+.challenge-profession input { position: absolute; top: 12px; right: 12px; accent-color: #dab866; }
+.challenge-profession > div { padding: 16px 14px; border: 2px solid #40565b; background: #1c3339; height: 100%; transition: border-color .12s, background .12s; }
+.challenge-profession input:checked + div { border-color: #e0ba65; background: #36403a; box-shadow: inset 0 -3px #b58a3c; }
+.challenge-profession input:focus-visible + div { outline: 3px solid #f7e0aa; outline-offset: 3px; }
+.challenge-profession img { display: block; width: 64px; height: 64px; image-rendering: pixelated; margin: 0 auto 12px; }
+.challenge-profession b { font-size: 20px; display: block; text-align: center; }
+.challenge-profession p { min-height: 64px; font-size: 12px; color: #bbcec9; line-height: 1.8; }
+.challenge-profession small { font-size: 11px; color: #dac79e; }
+.challenge-target { display: flex; align-items: center; gap: 20px; }
+.challenge-target select { flex: 1; min-width: 0; padding: 12px; background: #213940; border: 1px solid #59706e; color: #f2e5c6; font: 14px var(--text); }
+.challenge-footer { display: flex; align-items: center; gap: 20px; margin: 28px 0 12px; border-top: 1px solid #385156; padding-top: 22px; }
+.challenge-footer span { margin-left: auto; color: #9eb5ac; font-size: 12px; }
+.challenge-sheet a { color: #c9d6c9; font-size: 13px; }
+.challenge-sheet button { padding: 11px 22px; border: 1px solid #77877d; border-radius: 0; font: 14px var(--text); }
+.challenge-sheet .challenge-primary { background: #e8c575; color: #1c2829; border-color: #e8c575; font-weight: 700; }
+.challenge-sheet button:disabled { opacity: .45; cursor: wait; }
+.challenge-result { max-width: 620px; text-align: center; padding: 40px; }
+.challenge-result-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 25px 0; }
+#challengeRole { padding-top: 20px; font-size: 12px; color: #e5c586; }
+#challengeCount { font-size: 12px; margin-top: 10px; color: #99c7ac; }
+.challenge-mode #skillButtons button:disabled { cursor: default; opacity: .85; background: transparent; border-color: #38504f; }
+.challenge-mode #studioStatus { font-size: 10px; }
+@media (max-height: 800px) and (min-width: 761px) { .challenge-sheet { padding: 24px; } .challenge-professions { margin: 18px 0; } .challenge-profession p { min-height: 48px; } .challenge-footer { margin-top: 20px; padding-top: 16px; } }
+@media (max-width: 760px) { .challenge-overlay { padding: 12px; } .challenge-sheet { padding: 22px 16px; } .challenge-professions { grid-template-columns: repeat(2, 1fr); } .challenge-profession p { min-height: 42px; } .challenge-target { display: block; } .challenge-target select { display: block; width: 100%; margin-top: 10px; } .challenge-footer { gap: 10px; flex-wrap: wrap; } }

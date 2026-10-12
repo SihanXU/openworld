@@ -1,11 +1,10 @@
 // The is-a hierarchy. Type ids are slash paths, so `a isA b` is a prefix test; the
 // registry merges tags/props/sprite down the chain and caches the result per type.
 
-import type { EntityKind, Ontology, PropValue, StatusDef, TerrainDef, TypeDef } from './types.ts'
+import type { MakeupPart, Ontology, PropValue, Space, StageDef, StatusDef, TerrainDef, TypeDef } from './types.ts'
 
 export interface ResolvedType {
   id: string
-  kind: EntityKind | 'tile'
   tags: string[]
   props: Record<string, PropValue>
   sprite?: string
@@ -14,6 +13,18 @@ export interface ResolvedType {
   footprint: [number, number]
   /** The stances it acts on (TypeDef.reach). */
   reach?: string[]
+  /** The spaces it takes in its cell, if its type says (TypeDef.occupies). */
+  occupies?: Space[]
+  /** The terrain it is drawn as, if it makes up its cell (TypeDef.terrain). */
+  terrain?: string
+  /** What it is made of (TypeDef.makeup). */
+  makeup?: MakeupPart[]
+  /** How many one making gives (TypeDef.yields): what it breaks back into is its share. */
+  yields?: number
+  /** How long it stays what it is (TypeDef.stage). */
+  stage?: StageDef
+  /** The order its goals are tried in (TypeDef.goals). */
+  goals?: string[]
   name?: TypeDef['name']
   /** Ancestor chain from root to self (only registered ids). */
   chain: string[]
@@ -24,16 +35,38 @@ export function isA(type: string, ancestor: string): boolean {
   return type === ancestor || type.startsWith(ancestor + '/')
 }
 
+/** A terrain is a type of thing like any other (world-model.md §4.6): each is registered as `tile/<id>`, under `tile`. */
+export function withTerrainTypes(data: Ontology): Ontology {
+  data.types.tile ??= { id: 'tile' }
+  for (const t of Object.values(data.terrains)) data.types[`tile/${t.id}`] ??= terrainType(t)
+  return data
+}
+
+/** The type of the cell things made of a terrain: its space, what stands on it (a floor: the ground by default), whether it blocks. */
+export function terrainType(t: TerrainDef): TypeDef {
+  const space = t.space ?? 'floor'
+  return { id: `tile/${t.id}`, name: t.name, tags: t.tags, props: t.props, makeup: t.makeup, stage: t.stage, solid: t.solid, occupies: [space], terrain: t.id, reach: t.reach ?? (space === 'floor' ? ['ground'] : []) }
+}
+
 export function typeDepth(type: string): number {
   return type.split('/').length
 }
 
 export class OntologyIndex {
-  readonly data: Ontology
+  data: Ontology
   private cache = new Map<string, ResolvedType>()
+  /** The data is shared (a sandbox built on the world's ontology) until the first write: then it is this index's own copy. */
+  private own = false
 
   constructor(data: Ontology) {
     this.data = data
+    withTerrainTypes(data)
+  }
+
+  private write(): void {
+    if (this.own) return
+    this.data = { ...this.data, types: { ...this.data.types }, statuses: { ...this.data.statuses } }
+    this.own = true
   }
 
   private biggest?: [number, number]
@@ -49,13 +82,29 @@ export class OntologyIndex {
 
   /** Register (or replace) a type at runtime, e.g. from an accepted patch. */
   addType(def: TypeDef): void {
+    this.write()
     this.data.types[def.id] = def
     this.cache.clear()
     this.biggest = undefined
   }
 
   addStatus(def: StatusDef): void {
+    this.write()
     this.data.statuses[def.id] = def
+  }
+
+  /** Forget a status registered at runtime (a learned status rolled back). */
+  removeStatus(id: string): void {
+    // the ontology's table of what statuses are, not any thing's statuses
+    const definitions = this.data.statuses
+    delete definitions[id]
+  }
+
+  /** Forget a type registered at runtime (a learned type rolled back). */
+  removeType(id: string): void {
+    delete this.data.types[id]
+    this.cache.clear()
+    this.biggest = undefined
   }
 
   hasType(id: string): boolean {
@@ -84,27 +133,39 @@ export class OntologyIndex {
     const chain: string[] = []
     const tags = new Set<string>()
     const props: Record<string, PropValue> = {}
-    let kind: ResolvedType['kind'] = parts[0] === 'tile' ? 'tile' : (parts[0] as EntityKind)
     let sprite: string | undefined
     let solid = false
     let footprint: [number, number] = [1, 1]
     let reach: string[] | undefined
+    let occupies: Space[] | undefined
+    let terrain: string | undefined
+    let makeup: MakeupPart[] | undefined
+    let yields: number | undefined
+    let stage: StageDef | undefined
+    let goals: string[] | undefined
     let name: TypeDef['name']
     for (let i = 1; i <= parts.length; i++) {
       const p = parts.slice(0, i).join('/')
       const def = this.data.types[p]
       if (!def) continue
       chain.push(p)
-      kind = def.kind
       for (const t of def.tags ?? []) tags.add(t)
       Object.assign(props, def.props ?? {})
+      // a type that carries its own picture is drawn by it (the client's texture `art:<id>`), sprite named or not;
+      // an agent is drawn by its kind's animated sheet, which a 16x16 picture is not, so it keeps its kind's
       if (def.sprite) sprite = def.sprite
+      else if (def.art && !p.startsWith('actor/')) sprite = `art:${p}`
       if (def.solid !== undefined) solid = def.solid
       if (def.footprint) footprint = def.footprint
       if (def.reach) reach = def.reach
+      if (def.occupies) occupies = def.occupies
+      if (def.terrain) terrain = def.terrain
+      if (def.makeup) (makeup = def.makeup), (yields = def.yields)
+      if (def.stage) stage = def.stage
+      if (def.goals) goals = def.goals
       if (def.name) name = def.name
     }
-    const r: ResolvedType = { id, kind, tags: [...tags], props, sprite, solid, footprint, reach, name, chain, depth: parts.length }
+    const r: ResolvedType = { id, tags: [...tags], props, sprite, solid, footprint, reach, occupies, terrain, makeup, yields, stage, goals, name, chain, depth: parts.length }
     this.cache.set(id, r)
     return r
   }

@@ -14,22 +14,31 @@
 // Two profiles of one harness (state.ts): LIVE while a player waits, OFFLINE for everything
 // nobody waits on — curriculum, a failed live request worked again, a revision after review.
 
-import { artProblems, buildModSpec, closestTypes, type ModProgress, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef } from '@lsw/engine'
+import { artProblems, buildModSpec, closestTypes, holeKey, isDo, isHole, leaves, patchKey, type ModProgress, type Ontology, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef } from '@openworld/engine'
 import { briefOf, relatedRules } from './brief.ts'
 import { changesNothing, deriveTests } from './derive.ts'
-import { narrowKinds, normalizePatch, qualifyTerrains } from './fixes.ts'
+import { normalizePatch, placePatch, qualifyTerrains, stationFromRules } from './fixes.ts'
 import type { WorldLibrary } from './library.ts'
-import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@lsw/agent'
+import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@openworld/agent'
 import { materializeWorld } from './repo.ts'
-import { ART_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, artUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, type Creation, type Need } from './prompts.ts'
+import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, type Creation, type Need } from './prompts.ts'
 import { coarseTerms, signatureOf, type Signature } from './signature.ts'
-import { profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@lsw/agent'
+import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@openworld/agent'
+
+/**
+ * A backend that cannot answer says so in its error: out of quota or throttling (claude-code's session
+ * limit, an HTTP 429, a provider's quota), or not signed in (an expired OAuth session, a 401/403, a bad key).
+ */
+const BACKEND_DOWN = /session limit|usage limit|rate.?limit|quota|\b429\b|overloaded|insufficient_quota|authenticat|oauth|unauthori[sz]ed|\b401\b|\b403\b|invalid.?api.?key|not logged in/i
+/** How long the service makes no calls after the backend said it is out (a request meanwhile gets `unavailable`). */
+const BACKEND_PAUSE_MS = 5 * 60_000
 
 /** An episode of the patch pipeline: the request is the world's, the result a Patch. */
 export type WorldEpisode = AgentEpisode<ModRequest, Patch>
 type Episode = WorldEpisode
 type Attempt = AgentAttempt<Patch>
 import { buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
+import { audit, probe, withPatch, type AuditResult } from './audit.ts'
 
 export interface ModderOptions {
   library: WorldLibrary
@@ -75,8 +84,14 @@ class Gate {
 
 export class Modder {
   private inflight = new Map<string, Promise<ResolveReply>>()
-  /** Designs, one at a time by default (harness concurrency.design): what one patch adds, the next request sees. */
-  private design = new Gate(() => this.opts.state.harness().concurrency?.design ?? 1)
+  /**
+   * Designs run in parallel (harness concurrency.design at once, live first): each is worked and
+   * validated in its own sandbox, and the commit re-validates against the library as it is then.
+   * Requests whose patches would be written in the same place queue in one lane (laneOf), so the
+   * later one sees what the earlier committed and is often answered by it.
+   */
+  private design = new Gate(() => this.opts.state.harness().concurrency?.design ?? 4)
+  private lanes = new Map<string, Promise<void>>()
   /** Work after the reply: reflections, late reviews, escalations, revisions (harness concurrency.background at once). */
   private jobs: { what: string; job: () => Promise<void> }[] = []
   private running = 0
@@ -87,10 +102,49 @@ export class Modder {
   /** Live episodes that went cleanly, waiting to be reflected on together (harness reflect.batch). */
   private clean: { ep: Episode; sig: Signature }[] = []
 
-  constructor(readonly opts: ModderOptions) {}
+  /**
+   * The model behind one check, for every call the modder makes (designs, audits, reviews,
+   * reflections, the repo agent): none goes out while the backend is out, and an error that says
+   * it is out starts the pause.
+   */
+  private backend?: Model
+
+  constructor(readonly opts: ModderOptions) {
+    const inner = opts.model
+    if (inner)
+      this.backend = {
+        name: inner.name,
+        chat: async (messages, o) => {
+          const why = this.down()
+          if (why) throw new Error(`model unavailable: ${why}`)
+          try {
+            return await inner.chat(messages, o)
+          } catch (err) {
+            this.pause((err as Error).message)
+            throw err
+          }
+        },
+      }
+  }
 
   get model(): Model | undefined {
     return this.opts.model
+  }
+
+  /** When the backend may be called again after it said it is out, and what it said. */
+  private downUntil = 0
+  private downWhy = ''
+
+  /** What the backend said while it is out (no calls until the pause is over); undefined when it may be called. */
+  private down(): string | undefined {
+    return Date.now() < this.downUntil ? this.downWhy : undefined
+  }
+
+  private pause(error: string): void {
+    if (!BACKEND_DOWN.test(error)) return
+    this.downUntil = Date.now() + BACKEND_PAUSE_MS
+    this.downWhy = error
+    this.log(`model unavailable (${error}): no calls for ${BACKEND_PAUSE_MS / 60000} min`)
   }
 
   private now(): Date {
@@ -116,6 +170,12 @@ export class Modder {
     const limit = this.opts.state.harness().concurrency?.background ?? 3
     while (this.running < limit && this.jobs.length) {
       const { what, job } = this.jobs.shift()!
+      // work queued before the backend went out is dropped, not run against it
+      const why = this.down()
+      if (why) {
+        this.log(`${what}: skipped, model unavailable (${why})`)
+        continue
+      }
       this.running++
       job()
         .catch((err) => this.log(`${what}: ${(err as Error).message}`))
@@ -125,6 +185,36 @@ export class Modder {
         })
     }
     if (!this.running && !this.jobs.length) for (const done of this.idle.splice(0)) done()
+  }
+
+  /** Faults clients reported per learned rule, by client (a rule set aside by this many clients leaves the library). */
+  private faults = new Map<string, Set<string>>()
+
+  /**
+   * A client set a learned rule aside at run time (a chain that would not end, an effect refused):
+   * counted by client; past the harness's bound (`faults.remove`, default 2) the rule leaves the
+   * shared library and goes back for an offline revision with the reason. Returns what was done.
+   */
+  fault(ruleId: string, reason: string, client = 'anon'): { rule: string; counted: number; removed: boolean } {
+    const { library, state } = this.opts
+    const rule = library.lib.rules.get(ruleId)
+    if (!rule || rule.source?.origin !== 'patch') return { rule: ruleId, counted: 0, removed: false }
+    const set = this.faults.get(ruleId) ?? new Set<string>()
+    set.add(client)
+    this.faults.set(ruleId, set)
+    const bound = state.harness().faults?.remove ?? 2
+    state.note('fault', { rule: ruleId, reason, client, counted: set.size })
+    if (set.size < bound) return { rule: ruleId, counted: set.size, removed: false }
+    const asked = library.asked.find((a) => a.rule === ruleId)
+    library.remove(ruleId, this.now())
+    this.faults.delete(ruleId)
+    this.log(`${ruleId} set aside by ${set.size} client(s): ${reason} → removed`)
+    if (asked && state.harness().revise && this.backend) {
+      // the request as the scene that asked gives it: the revision is placed where the event falls undefined now
+      const req: ModRequest = { id: `fault-${ruleId}`, summary: `revision of ${ruleId} after a fault: ${reason}`, origin: rule.source?.trigger ?? 'player', event: { kind: rule.on, params: {}, roles: {} }, hole: { rule: rule.hole?.split('#')[0] ?? '', path: [], default: [], at: rule.at ?? [] }, context: { map: { id: '', name: '', kind: '' }, anchors: [], hour: 0, nearby: [], tiles: [], tileStatuses: [], recent: [], rules: [] }, scenario: asked.scenario }
+      this.later(`revise ${ruleId} after a fault`, () => this.episode(req, undefined, signatureOf(req), { profile: 'offline', revise: { episode: { id: `fault-${ruleId}`, rules: [ruleId], patch: { artifacts: [{ kind: 'rule', rule }] } } as never, notes: [`a client set this rule aside at run time: ${reason}`] } }).then(() => undefined))
+    }
+    return { rule: ruleId, counted: set.size, removed: true }
   }
 
   /** Where a request is: waiting its turn, designing, finding, creating (undefined: not here, or done). */
@@ -157,7 +247,15 @@ export class Modder {
     }
     const base = this.opts.library.answeredByBase(req)
     if (base) return { patch: null, outcome: 'failed', diagnostics: [`answered by the base rule "${base}" here: the client's base rules are older than the service's`] }
+    // the thing asked about is a kind only the asking client knows (its own patch, or one its save kept after the
+    // library forgot it): an answer hosted on it could never be shared (the library refuses its host), so none is designed
+    const host = req.event.host?.type
+    if (host && body.workspace?.patches?.types?.some((t) => t?.id === host) && !(host in this.opts.library.fullOntology().types))
+      return { patch: null, outcome: 'failed', diagnostics: [`"${host}" is known only to this client (a kind of its own, or one its save kept): no answer for it can be shared`] }
     if (!this.opts.model) return { patch: null, outcome: 'unavailable' }
+    // the backend said it is out (of quota, or signed out): no calls until the pause is over
+    const why = this.down()
+    if (why) return { patch: null, outcome: 'unavailable', diagnostics: [`model unavailable: ${why}`] }
     return this.track(sig.key, this.episode(req, body.workspace, sig, { profile }))
   }
 
@@ -206,9 +304,12 @@ export class Modder {
     }
   }
 
-  /** One design at a time (live first); a request that waited is answered by what was committed meanwhile, if it can be. */
+  /** A design in its lane, then in a slot (live first); one that waited is answered by what was committed meanwhile, if it can be. */
   private async episode(req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, eo: EpisodeOptions): Promise<ResolveReply> {
     if (!this.progress.has(sig.key)) this.progress.set(sig.key, { stage: 'queued' })
+    // a revision is background work on a patch already shipped: it takes no lane, so a player's request
+    // never waits behind it (its commit is validated against the library as it is then, like any other)
+    const leave = eo.revise ? () => {} : await this.enterLane(laneOf(req))
     const release = await this.design.acquire(eo.profile === 'live' ? 0 : 1)
     try {
       if (!eo.revise) {
@@ -218,16 +319,34 @@ export class Modder {
       return await this.work(req, ws, sig, eo)
     } finally {
       release()
+      leave()
       this.progress.delete(sig.key)
     }
   }
 
+  /** Wait for the designs ahead in this lane; the returned function lets the next one in. */
+  private async enterLane(lane: string): Promise<() => void> {
+    const ahead = this.lanes.get(lane) ?? Promise.resolve()
+    let done!: () => void
+    const mine = new Promise<void>((r) => (done = r))
+    const tail = ahead.then(() => mine)
+    this.lanes.set(lane, tail)
+    await ahead
+    return () => {
+      done()
+      if (this.lanes.get(lane) === tail) this.lanes.delete(lane)
+    }
+  }
+
   private async work(req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, eo: EpisodeOptions): Promise<ResolveReply> {
+    // an escalation or a revision that waited its turn while the backend went out: not worked against it
+    const why = this.down()
+    if (why) return { patch: null, outcome: 'unavailable', diagnostics: [`model unavailable: ${why}`] }
     const t0 = Date.now()
     const { state, library } = this.opts
     const h = profileOf(state.harness(), eo.profile)
     if (h.design.mode === 'repo') return this.repoEpisode(req, ws, sig, eo, h)
-    const model = new Meter(this.opts.model!)
+    const model = new Meter(this.backend!)
     const ep = this.blank(state.newEpisodeId(), req, sig, h)
     ep.profile = eo.profile
     if (eo.escalatedFrom) ep.escalatedFrom = eo.escalatedFrom
@@ -242,7 +361,7 @@ export class Modder {
     const validate = (p: Patch) => library.validate(p, req, ws, replaces)
     const ctx: ToolContext = { library: lib, ontology: library.fullOntology(lib), request: req, state, validate, skillsRead: ep.skillsRead }
     const tools = h.design.toolRounds > 0 ? buildTools(ctx, h.tools) : []
-    // the system prompt is the same for every request and every client (the base ontology), so
+    // the system prefix is the same for every request and every client (the base ontology), so
     // it is served from the provider's prompt cache; what patches added goes in the user turn.
     // The router (one call, no tools: live): the design sees the request's own types and asks for
     // the rest by name; the harness finds them in the catalogue, or has them created.
@@ -255,13 +374,15 @@ export class Modder {
     const added = { types: lib.types.filter((t) => !(t.id in library.ontology.types)), statuses: lib.statuses.filter((s) => !(s.id in library.ontology.statuses)) }
     const messages: ChatMessage[] = [
       { role: 'system', content: designSystem(buildModSpec(library.ontology, undefined, { types: !router }), h, router) },
-      { role: 'user', content: designUser(req, recall, h.design.brief ? briefOf(req, lib, ctx.ontology) : undefined, added) + (eo.revise ? `\n\n${revisionUser(eo.revise.episode.patch!, eo.revise.notes)}` : '') },
+      { role: 'user', content: designUser(req, recall, h.design.brief ? briefOf(req, lib, ctx.ontology, !router) : undefined, added, !router) + (eo.revise ? `\n\n${revisionUser(eo.revise.episode.patch!, eo.revise.notes)}` : '') },
     ]
 
     let repairs = 0
     let reviews = 0
+    let reviewLater = false
     let phase: Attempt['phase'] = 'design'
     let reviewed: Patch | undefined // a valid draft a reviewer sent back: shipped if the revision never validates
+    let lastRaw = '' // the last answer, kept for an attempt the program failed on before it was recorded
     const retry = (content: string, next: Attempt['phase']) => {
       messages.push({ role: 'user', content })
       phase = next
@@ -269,9 +390,24 @@ export class Modder {
     try {
       for (;;) {
         const answer = await this.converse(model, messages, tools, h, ep, stage === 'local' ? undefined : SLOW_MS)
+        lastRaw = answer
         let bracketsRepaired = false
         const parsed = parseJson(answer, () => (bracketsRepaired = true))
         const ask = router ? routeOf(parsed) : undefined
+        // create only what the world lacks: a creation asked for at once, whose name is close to
+        // things the catalogue has, goes through find first (the router is local, find, create)
+        if (ask?.create && stage === 'local') {
+          const close = new Map(ask.create.map((c) => [c.name.en, closestTypes(c.name.en || c.id, ctx.ontology, 6, c.name.zh)]))
+          if ([...close.values()].some((ids) => ids.length)) {
+            stage = 'find'
+            ep.route!.push('find')
+            ep.needed = ask.create.map((c) => c.name.en)
+            at({ stage: 'find' })
+            ep.attempts.push({ phase, errors: [], warnings: [], raw: answer.slice(0, 2000) })
+            retry(findUser(ask.create.map((c) => ({ name: c.name.en, why: c.why })), close, catalogueOf(Object.values(ctx.ontology.types))), 'find')
+            continue
+          }
+        }
         if (ask?.need && stage === 'local') {
           // find: what the design needs beyond the request, in the whole catalogue
           stage = 'find'
@@ -286,18 +422,17 @@ export class Modder {
         if (ask?.create && stage !== 'create') {
           // create: the world has no such thing; the player is told, and waits for it
           stage = 'create'
-          if (!ep.route!.includes('find')) ep.route!.push('find')
           ep.route!.push('create')
           creations = ask.create
-          at({ stage: 'create', creating: creations.map((c) => c.name) })
+          at({ stage: 'create', creating: creations.map((c) => shownName(c.name)) })
           ep.attempts.push({ phase, errors: [], warnings: [], raw: answer.slice(0, 2000) })
-          retry(createUser(creations), 'create')
+          retry(createUser(creations, Object.keys(ctx.ontology.materials ?? {})), 'create')
           continue
         }
         if (ask) {
           ep.attempts.push({ phase, errors: [ask.need ? 'asked for more things after the catalogue: write the patch now' : 'asked to create again: write the patch now'], warnings: [], raw: answer.slice(0, 2000) })
           if (repairs++ >= h.repair.maxRounds) break
-          retry(`${ask.need ? 'You have the catalogue.' : 'Creating is already under way.'} Answer now with ONLY the JSON object {"patch": {"artifacts": [...]}, "summary": "..."}.`, 'repair')
+          retry(`${ask.need ? 'You have the catalogue.' : 'Creating is already under way.'} Answer now with ONLY the JSON object {"patch": {"artifacts": [...]}}.`, 'repair')
           continue
         }
         const { patch: draft, fixes } = normalizePatch(parsed)
@@ -313,13 +448,13 @@ export class Modder {
         let patch: Patch = { ...draft, author: 'modder' }
         const qualified = qualifyTerrains(patch, ctx.ontology)
         if (qualified.fixes.length) ((patch = qualified.patch), fixes.push(...qualified.fixes))
+        const crafted = stationFromRules(patch, ctx.ontology)
+        if (crafted.fixes.length) ((patch = crafted.patch), fixes.push(...crafted.fixes))
+        // the rule's place is the request's, never the model's (design.md §5.16)
+        const put = placePatch(patch, req, { ontology: ctx.ontology, library: lib })
+        patch = put.patch
+        fixes.push(...put.fixes)
         let res = validate(patch)
-        // mechanical conflicts are fixed here, not with another model turn
-        const narrowed = res.ok ? undefined : narrowKinds(patch, req, res)
-        if (narrowed) {
-          const again = validate(narrowed.patch)
-          if (again.ok || again.errors.length < res.errors.length) ((patch = narrowed.patch), (res = again), fixes.push(...narrowed.fixes))
-        }
         // the generalization test, written by the harness (only for a draft that already holds)
         let derived: string[] | undefined
         if (res.ok && h.design.tests === 'harness') {
@@ -341,9 +476,39 @@ export class Modder {
         const attempt: Attempt = { phase, patch, errors: res.errors, warnings: res.warnings, ...(fixes.length ? { fixes } : {}), ...(derived?.length ? { derived } : {}) }
         ep.attempts.push(attempt)
         if (!res.ok) {
+          const meanwhile = eo.revise ? undefined : library.covering(req)
+          if (meanwhile) {
+            ep.outcome = 'covered'
+            ep.rules = [meanwhile.rule]
+            ep.patch = meanwhile.patch
+            break
+          }
+          // the draft makes a thing the world has no type for (a spawn or a transform into an unknown id): a
+          // creation, not a slip to repair; told only "unknown type", the designer swaps in something known
+          // and learns never to create
+          const missing = router && stage !== 'create' ? unknownMade(patch, ctx.ontology) : []
+          if (missing.length) {
+            stage = 'create'
+            ep.route!.push('create')
+            creations = missing
+            at({ stage: 'create', creating: creations.map((c) => shownName(c.name)) })
+            retry(createUser(creations, Object.keys(ctx.ontology.materials ?? {})), 'create')
+            continue
+          }
           if (repairs++ >= h.repair.maxRounds) break
           retry(repairUser(res.errors, res.warnings), 'repair')
           continue
+        }
+        // the auditor, before shipping: what it breaks in the sandbox goes back to the designer
+        if (auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch)) {
+          const found = await this.audit(model, req, patch, ctx, h)
+          attempt.audit = { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length }
+          if (found.confirmed.length) {
+            attempt.errors = auditNotes(found.confirmed)
+            if (repairs++ >= h.repair.maxRounds) break
+            retry(auditRepairUser(attempt.errors), 'audit')
+            continue
+          }
         }
         if (h.review.enabled && h.review.blocking !== false && reviews < h.review.maxRounds) {
           attempt.review = await this.review(model, req, patch, ctx, h, flagsOf(patch, derived))
@@ -353,6 +518,8 @@ export class Modder {
             retry(reviseUser(attempt.review.notes), 'review')
             continue
           }
+          // no verdict is no review: the rule ships, and is reviewed again after the fact
+          if (attempt.review.verdict === 'error') reviewLater = true
         }
         if (this.commit(ep, patch, req, replaces)) break
         // the library moved under us: someone else's patch may already answer this
@@ -369,6 +536,10 @@ export class Modder {
       if (ep.outcome === 'failed' && reviewed && this.commit(ep, reviewed, req, replaces)) ep.error = 'the revision never validated; shipped the reviewed draft'
     } catch (err) {
       ep.error = (err as Error).message
+      // the program's own failure (a stack overflow, a crash in a fix): where it came from, kept with the episode
+      const stack = (err as Error).stack?.split('\n').slice(1, 12).map((l) => l.trim()).join('\n')
+      if (stack) ep.stack = stack
+      if (lastRaw && !ep.attempts.some((x) => x.raw === lastRaw.slice(0, 2000))) ep.attempts.push({ phase, errors: [`the harness failed on this answer: ${(err as Error).message}`], warnings: [], raw: lastRaw.slice(0, 4000) })
       if (reviewed && ep.outcome === 'failed' && this.commit(ep, reviewed, req, replaces)) ep.error += '; shipped the reviewed draft'
     }
 
@@ -380,7 +551,7 @@ export class Modder {
     this.log(
       `${ep.id} ${eo.profile}${eo.revise ? ' revision' : eo.escalatedFrom ? ' escalation' : ''} ${ep.outcome} after ${ep.attempts.length} attempt(s), ${ep.usage.calls} call(s), ${ep.ms} ms: ${req.summary}${ep.rules.length ? ` → ${ep.rules.join(', ')}` : ''}${ep.error ? ` (${ep.error})` : ''}${retired.length ? `; retired skill ${retired.join(', ')}` : ''}`,
     )
-    this.afterwards(ep, req, ws, sig, h, ctx, eo)
+    this.afterwards(ep, req, ws, sig, h, ctx, eo, reviewLater)
     const last = ep.attempts.at(-1)
     return {
       patch: ep.outcome === 'failed' ? null : (ep.patch ?? null),
@@ -403,12 +574,12 @@ export class Modder {
       request: req,
       library: lib,
       ontology: library.fullOntology(lib),
+      base: library.ontology,
       spec: buildModSpec(library.ontology, lib),
-      regression: [...library.regression, ...(ws?.regression ?? [])].filter((r) => !replaces.includes(r.rule)),
       revise: eo.revise ? { rules: replaces, notes: eo.revise.notes } : undefined,
     })
     try {
-      const run = await runAgent({ ...repo.task, terms: sig.terms }, { model: this.opts.model!, state, harness: h, record: false, log: this.opts.log })
+      const run = await runAgent({ ...repo.task, terms: sig.terms }, { model: this.backend!, state, harness: h, record: false, log: this.opts.log })
       const ep = run.episode as unknown as Episode
       ep.request = req
       ep.summary = req.summary
@@ -416,15 +587,42 @@ export class Modder {
       ep.profile = eo.profile
       if (eo.escalatedFrom) ep.escalatedFrom = eo.escalatedFrom
       if (eo.revise) ep.revises = eo.revise.episode.id
-      const { patch, problems } = repo.collect()
+      const collected = repo.collect()
+      const problems = collected.problems
+      // the rule's place is the request's, as the library is now (design.md §5.16)
+      const patch = collected.patch ? placePatch(stationFromRules(collected.patch, library.fullOntology(lib)).patch, req, { ontology: library.fullOntology(lib), library: lib }).patch : collected.patch
       ep.patch = undefined
-      if (run.submitted && patch && !problems.length) this.commit(ep, { ...patch, author: 'modder' }, req, replaces)
+      // the auditor, before shipping: a patch it breaks in the sandbox is not committed (nor one it
+      // could not audit because the backend went out)
+      let found: AuditResult | undefined
+      let unaudited = false
+      if (run.submitted && patch && !problems.length && auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch))
+        found = await this.audit(new Meter(this.backend!), req, patch, { library: lib, ontology: library.fullOntology(lib) }, h).catch((err: Error) => ((ep.error = err.message), (unaudited = true), undefined))
+      if (found?.confirmed.length) {
+        ep.attempts.push({ phase: 'audit', patch, errors: auditNotes(found.confirmed), warnings: [], audit: { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length } })
+        // what the auditor broke goes back to the agent once, as the pipeline gives it to the designer
+        if (h.repair.maxRounds > 0 && patch) {
+          const again = await materializeWorld({ request: req, library: lib, ontology: library.fullOntology(lib), base: library.ontology, spec: buildModSpec(library.ontology, lib), revise: eo.revise ? { rules: replaces, notes: eo.revise.notes } : undefined, audit: { notes: auditNotes(found.confirmed), draft: patch } })
+          try {
+            const second = await runAgent({ ...again.task, terms: sig.terms }, { model: this.backend!, state, harness: h, record: false, log: this.opts.log })
+            ep.usage = { calls: ep.usage.calls + second.episode.usage.calls, input: ep.usage.input + second.episode.usage.input, output: ep.usage.output + second.episode.usage.output, cost: (ep.usage.cost ?? 0) + (second.episode.usage.cost ?? 0) }
+            const fixed = again.collect()
+            const placed = fixed.patch ? placePatch(fixed.patch, req, { ontology: library.fullOntology(lib), library: lib }).patch : undefined
+            const still = second.submitted && placed && !fixed.problems.length ? await this.audit(new Meter(this.backend!), req, placed, { library: lib, ontology: library.fullOntology(lib) }, h).catch(() => undefined) : undefined
+            if (placed && still && !still.confirmed.length) this.commit(ep, { ...placed, author: 'modder' }, req, replaces)
+            else ep.attempts.push({ phase: 'audit', patch: placed, errors: still?.confirmed.length ? auditNotes(still.confirmed) : fixed.problems.length ? fixed.problems : ['the second draft was not submitted'], warnings: [] })
+          } finally {
+            await again.dispose()
+          }
+        }
+      } else if (run.submitted && patch && !problems.length && !unaudited) this.commit(ep, { ...patch, author: 'modder' }, req, replaces)
       else if (problems.length) ep.attempts.push({ phase: 'repair', errors: problems, warnings: [] })
       if (ep.outcome !== 'accepted') ep.outcome = 'failed'
       state.recordEpisode(ep)
       state.noteSkillUse(ep.skillsRead, ep.outcome, ep.id)
       this.log(`${ep.id} ${eo.profile} repo${eo.revise ? ' revision' : eo.escalatedFrom ? ' escalation' : ''} ${ep.outcome} in ${ep.usage.calls} steps, ${ep.ms} ms: ${req.summary}${ep.rules.length ? ` → ${ep.rules.join(', ')}` : ''}${ep.error ? ` (${ep.error})` : ''}`)
-      this.later(`reflect ${ep.id}`, () => reflectAgent(ep as never, { model: this.opts.model!, state, harness: h }))
+      // a failure that is the backend's is no lesson (afterwards() says why)
+      if (!(ep.outcome === 'failed' && BACKEND_DOWN.test(ep.error ?? ''))) this.later(`reflect ${ep.id}`, () => reflectAgent(ep as never, { model: this.backend!, state, harness: h }))
       const last = ep.attempts.at(-1)
       return { patch: ep.outcome === 'accepted' ? (ep.patch ?? null) : null, outcome: ep.outcome, episode: ep.id, diagnostics: ep.outcome === 'failed' ? [...(last?.errors ?? []), ...(ep.error ? [ep.error] : [])] : undefined }
     } finally {
@@ -444,7 +642,7 @@ export class Modder {
         if (!req?.scenario) return undefined
         const before = this.opts.library.fork((e) => !('patch' in e && e.request === req.id))
         if (before.covering(req)) return undefined // something else answers it now: no test of the harness
-        const repo = await materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), spec: buildModSpec(before.ontology, before.lib), regression: before.regression })
+        const repo = await materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), base: before.ontology, spec: buildModSpec(before.ontology, before.lib) })
         // the task carries its own release: its workspace and its container go with it, whoever cleans up
         return { ...repo.task, terms: ep.terms, dispose: repo.dispose }
       },
@@ -453,17 +651,36 @@ export class Modder {
   }
 
   /** What follows an episode once the player has their answer. */
-  private afterwards(ep: Episode, req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, h: Harness, ctx: ToolContext, eo: EpisodeOptions): void {
+  private afterwards(ep: Episode, req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, h: Harness, ctx: ToolContext, eo: EpisodeOptions, reviewLater = false): void {
+    // a failure that is the backend's (out of quota, throttled, signed out) is no lesson and no reason to
+    // work the request again: nothing follows (the backend's guard has paused the calls)
+    if (ep.outcome === 'failed' && BACKEND_DOWN.test(ep.error ?? '')) return
     const shipped = ep.attempts.at(-1)
     const flags = ep.patch ? flagsOf(ep.patch, shipped?.derived) : []
+    if (reviewLater) flags.push('the reviewer before shipping gave no verdict: look at everything')
     // a review after the fact: for a rule that narrates only or did not generalize (and for every
     // live rule when the harness says review.unflagged)
-    if (ep.outcome === 'accepted' && !eo.revise && h.review.enabled && (flags.length || (h.review.blocking === false && h.review.unflagged)) && !shipped?.review)
+    if (ep.outcome === 'accepted' && !eo.revise && h.review.enabled && (flags.length || (h.review.blocking === false && h.review.unflagged)) && (!shipped?.review || reviewLater))
       this.later(`review ${ep.id}`, async () => {
-        const model = new Meter(this.opts.model!)
+        const model = new Meter(this.backend!)
         const v = await this.review(model, req, ep.patch!, ctx, h, flags)
         this.opts.state.note('review', { episode: ep.id, rules: ep.rules, flags, ...v, usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
         if (v.verdict === 'revise' && v.notes.length && h.revise) await this.episode(req, ws, sig, { profile: 'offline', revise: { episode: ep, notes: v.notes } })
+      })
+    // the auditor, after shipping: what it breaks in the sandbox leaves the library at once (clients drop
+    // it on their next sync), and goes back for a revision. A patch that only narrates has nothing to
+    // break: no call, and the journal says why
+    const auditing = ep.outcome === 'accepted' && !eo.revise && auditOf(h).enabled && !auditOf(h).blocking && ep.patch
+    if (auditing && narratesOnly(ep.patch!)) this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, skipped: NARRATES_ONLY, confirmed: [], unconfirmed: [], usage: { calls: 0, input: 0, output: 0, cost: 0 } })
+    else if (auditing)
+      this.later(`audit ${ep.id}`, async () => {
+        const model = new Meter(this.backend!)
+        const found = await this.audit(model, req, ep.patch!, ctx, h)
+        this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, confirmed: found.confirmed.map(({ evidence: _, ...f }) => f), unconfirmed: found.unconfirmed.map((u) => `${u.finding.title}: ${u.why}`), ...(found.error && { error: found.error }), usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
+        if (!found.confirmed.length) return
+        for (const id of ep.rules) this.opts.library.remove(id, this.now())
+        this.log(`${ep.id} audit: ${found.confirmed.map((f) => `${f.kind}: ${f.title}`).join('; ')} → removed ${ep.rules.join(', ')}`)
+        if (h.revise) await this.episode(req, ws, sig, { profile: 'offline', revise: { episode: ep, notes: auditNotes(found.confirmed) } })
       })
     // a live request that failed is worked again with the offline profile: the world still learns it
     if (ep.outcome === 'failed' && eo.profile === 'live' && h.escalate && !this.inflight.has(`${sig.key}#offline`))
@@ -472,7 +689,7 @@ export class Modder {
         await this.track(`${sig.key}#offline`, this.episode(req, ws, sig, { profile: 'offline', escalatedFrom: ep.id }))
       })
     // what went wrong is reflected on at once; live episodes that went cleanly, a batch at a time
-    const clean = eo.profile === 'live' && !eo.revise && !eo.escalatedFrom && ep.outcome === 'accepted' && ep.attempts.length === 1 && !flags.length
+    const clean = eo.profile === 'live' && !eo.revise && !eo.escalatedFrom && ep.outcome === 'accepted' && !flags.length && ep.attempts.every((a) => !a.errors.length && !a.fixes?.length && !a.review && ['design', 'find', 'create'].includes(a.phase))
     if (clean && (h.reflect.batch ?? 1) > 1) {
       this.clean.push({ ep, sig })
       if (this.clean.length < h.reflect.batch!) return
@@ -507,7 +724,8 @@ export class Modder {
       }
       const why = creations.find((c) => c.id === a.type.id)?.why ?? `a new kind of ${a.type.id.split('/').slice(-2, -1)[0] ?? 'thing'}`
       const art = await this.draw(model, a.type, why)
-      artifacts.push(art ? { ...a, type: { ...a.type, art, sprite: `art:${a.type.id}` } } : a)
+      // drawn by its picture; an agent keeps its kind's animated sheet (the picture is kept with it)
+      artifacts.push(art ? { ...a, type: { ...a.type, art, ...(!a.type.id.startsWith('actor/') && { sprite: `art:${a.type.id}` }) } } : a)
     }
     return { ...patch, artifacts }
   }
@@ -559,19 +777,44 @@ export class Modder {
     return r.content
   }
 
+  /** The auditor on a patch (audit.ts): only what it broke in the sandbox, with the patch and not without it. */
+  private async audit(model: Model, req: ModRequest, patch: Patch, ctx: Pick<ToolContext, 'library' | 'ontology'>, h: Harness): Promise<AuditResult> {
+    const a = auditOf(h)
+    // the deterministic probe first: a farm the sandbox shows by itself needs no model to find it
+    try {
+      const found = probe(req, ctx.ontology, ctx.library, withPatch(ctx.library, patch))
+      if (found.length) return { confirmed: found, unconfirmed: [] }
+    } catch (err) {
+      this.log(`audit probe failed: ${(err as Error).message}`)
+    }
+    try {
+      return await audit(model, AUDIT_SYSTEM, auditUser(req, patch, describeOutcome(req.scenario, patch, ctx)), req, ctx.ontology, ctx.library, patch, { rounds: a.rounds, reasoning: a.reasoning, provider: profileOf(h, 'offline').design.provider })
+    } catch (err) {
+      // an auditor that fails finds nothing: the deterministic checks already passed. A backend that is
+      // out is no audit: that is the caller's to handle (not shipped unaudited before shipping)
+      if (this.down()) throw err
+      this.log(`audit failed: ${(err as Error).message}`)
+      return { confirmed: [], unconfirmed: [], error: (err as Error).message }
+    }
+  }
+
   private async review(model: Model, req: ModRequest, patch: Patch, ctx: ToolContext, h: Harness, flags: string[] = []): Promise<{ verdict: string; notes: string[] }> {
     const outcome = describeOutcome(req.scenario, patch, ctx)
-    const r = await model.chat(
-      [
-        { role: 'system', content: REVIEW_SYSTEM },
-        { role: 'user', content: reviewUser(req, patch, outcome, relatedRules(req, ctx.library), flags) },
-      ],
+    const messages: ChatMessage[] = [
+      { role: 'system', content: REVIEW_SYSTEM },
+      { role: 'user', content: reviewUser(req, patch, outcome, relatedRules(req, ctx.library), flags) },
+    ]
+    // a reply that says no verdict is no review: asked once more, then recorded as an error (never as "ship")
+    for (let attempt = 0; attempt < 2; attempt++) {
       // nobody waits on a review: the cheap providers
-      { json: true, temperature: 0.2, purpose: 'review', reasoning: h.review.reasoning, provider: profileOf(h, 'offline').design.provider },
-    )
-    const j = parseJson(r.content) as { verdict?: unknown; notes?: unknown } | undefined
-    const notes = Array.isArray(j?.notes) ? j!.notes.filter((n): n is string => typeof n === 'string' && !!n.trim()).slice(0, 5) : []
-    return { verdict: j?.verdict === 'revise' ? 'revise' : 'ship', notes }
+      const r = await model.chat(messages, { json: true, temperature: 0.2, purpose: 'review', reasoning: h.review.reasoning, provider: profileOf(h, 'offline').design.provider })
+      const j = parseJson(r.content) as { verdict?: unknown; notes?: unknown } | undefined
+      const verdict = typeof j?.verdict === 'string' ? j.verdict.trim().toLowerCase() : undefined
+      if (verdict !== 'ship' && verdict !== 'revise') continue
+      const notes = Array.isArray(j?.notes) ? j!.notes.filter((n): n is string => typeof n === 'string' && !!n.trim()).slice(0, 5) : []
+      return { verdict, notes }
+    }
+    return { verdict: 'error', notes: [] }
   }
 
   /** The middle loop: what is worth keeping from this episode. */
@@ -580,8 +823,8 @@ export class Modder {
     const { state } = this.opts
     const h = state.harness()
     const done = items.filter((i) => i.ep.outcome !== 'covered')
-    if (!h.reflect.enabled || !this.opts.model || !done.length) return
-    const model = new Meter(this.opts.model)
+    if (!h.reflect.enabled || !this.backend || !done.length) return
+    const model = new Meter(this.backend)
     const last = done[done.length - 1]
     const ids = done.map((i) => i.ep.id)
     const coarse = [...new Set(done.flatMap((i) => coarseTerms(i.sig)))]
@@ -610,6 +853,13 @@ export class Modder {
   }
 }
 
+const NARRATES_ONLY = 'narrates only'
+
+/** A patch of rules that only narrate (changesNothing) has nothing the auditor could break: it adds no thing and changes none. */
+function narratesOnly(patch: Patch): boolean {
+  return patch.artifacts.every((a) => a.kind === 'rule' && changesNothing(a.rule))
+}
+
 /** What the reviewer should look at first: rules that change nothing, rules that did not generalize. */
 function flagsOf(patch: Patch, derived?: string[]): string[] {
   const flags: string[] = []
@@ -635,7 +885,7 @@ function unreadable(answer: string): string {
   const text = answer.slice(a, b + 1)
   try {
     JSON.parse(text)
-    return 'the answer is JSON but holds no patch: answer {"patch": {"artifacts": [...]}, "summary": "..."}'
+    return 'the answer is JSON but holds no patch: answer {"patch": {"artifacts": [...]}}'
   } catch (err) {
     const msg = (err as Error).message
     const at = Number(/position (\d+)/.exec(msg)?.[1] ?? -1)
@@ -644,8 +894,40 @@ function unreadable(answer: string): string {
   }
 }
 
+/** A creation's name as the waiting player reads it: one named only in English (from its id) is so in Chinese too. */
+const shownName = (n: { en: string; zh: string }) => ({ en: n.en, zh: n.zh || n.en })
+
 /** Finding and creating take longer than a design (a long catalogue, a picture): their calls may. */
 const SLOW_MS = 60_000
+
+/**
+ * The things a draft makes that the world has no type for and the patch does not define: spawned, or
+ * transformed into, under a parent the world has (a new kind of ground is never made). Named from the id;
+ * the create prompt names them properly.
+ */
+export function unknownMade(patch: Patch, onto: Ontology): Creation[] {
+  const own = new Set(patch.artifacts.flatMap((a) => (a.kind === 'type' ? [a.type.id] : [])))
+  const ids = new Set<string>()
+  for (const a of patch.artifacts) {
+    if (a.kind !== 'rule' || !a.rule?.tree) continue
+    for (const l of leaves(a.rule.tree)) {
+      // a malformed draft (effects not a list, a null among them) is the validator's to name, not a crash here
+      const effects = isDo(l) ? l.do : isHole(l) ? l.default : undefined
+      for (const e of Array.isArray(effects) ? effects : []) {
+        if (!e || typeof e !== 'object') continue
+        const id = e.op === 'spawn' ? e.type : e.op === 'transform' ? e.into : undefined
+        if (typeof id !== 'string' || id in onto.types || own.has(id) || id.startsWith('tile/') || id.startsWith('@')) continue
+        const segs = id.split('/')
+        // a slip of a known id (item/food/berry for berries) is the repair's to point out, not a creation
+        const most = segs.at(-1)!.length >= 6 ? 2 : 1
+        const slip = Object.keys(onto.types).some((k) => k.startsWith(segs.slice(0, -1).join('/') + '/') && editDistance(k, id) <= most)
+        if (segs.length > 2 && segs.slice(0, -1).join('/') in onto.types && !slip) ids.add(id)
+      }
+    }
+  }
+  const title = (s: string) => s.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  return [...ids].map((id) => ({ id, name: { en: title(id.split('/').at(-1)!), zh: '' } }))
+}
 
 /** The router's two answers besides a patch: things needed beyond the request, or things to create. */
 function routeOf(j: unknown): { need?: Need[]; create?: Creation[] } | undefined {
@@ -658,3 +940,25 @@ function routeOf(j: unknown): { need?: Need[]; create?: Creation[] } | undefined
     : []
   return create.length ? { create } : undefined
 }
+
+/**
+ * Where a request's answer is written (design.md §5.16): its host type's tree for its hole. Two
+ * requests bound for one tree queue, so the later one sees what the earlier placed (and is often
+ * answered by it); any others are designed side by side.
+ */
+export function laneOf(req: ModRequest): string {
+  return patchKey(req.event.host?.type ?? '-', req.event.kind, holeKey(req.hole.rule, req.hole.path))
+}
+
+/** How many single-character edits turn one id into the other (small ids only: a slip, not a resemblance). */
+function editDistance(a: string, b: string): number {
+  if (Math.abs(a.length - b.length) > 2) return 3
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j)
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i]
+    for (let j = 1; j <= b.length; j++) row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+    prev = row
+  }
+  return prev[b.length]
+}
+

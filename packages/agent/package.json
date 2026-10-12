@@ -1,1 +1,1 @@
-{ "name": "@lsw/agent", "private": true, "type": "module", "main": "src/index.ts" }
+{ "name": "@openworld/agent", "private": true, "type": "module", "main": "src/index.ts" }

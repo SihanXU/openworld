@@ -5,14 +5,16 @@
 //   export [label]            print the self-state as one document (now, or a snapshot)
 //   library                   list the patch rules in the shared library
 //   library remove <rule-id>  roll a patch rule back
-// Data: --data <dir> or $LSW_DATA (default <repo>/var). Model: LSW_MODEL_URL + LSW_MODEL_KEY +
+//   library prune             roll back the patches the validator no longer takes (serve does it at start)
+// The game: --game <game> or $OPENWORLD_GAME — a bundle (bundle.json, or its folder), a project's folder (its
+// game.json), or a module whose default export is its GameDef (the root script passes games/openworld's). Data: --data <dir> or $LSW_DATA (default <repo>/var). Model: LSW_MODEL_URL + LSW_MODEL_KEY +
 // LSW_MODEL (OpenAI-compatible), --backend claude-code (claude -p; LSW_CLAUDE_MODEL, LSW_CLAUDE_EFFORT;
 // --fast for fast mode), --backend none, or --script <file> / LSW_MODEL_SCRIPT (scripted, no network). See modelFromEnv.
 
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { scriptFromFile } from '@lsw/agent'
-import { REPO, openModder } from './open.ts'
+import { scriptFromFile } from '@openworld/agent'
+import { REPO, loadGame, openModder } from './open.ts'
 import { createModderServer } from './server.ts'
 
 const argv = process.argv.slice(2)
@@ -25,9 +27,13 @@ const backend = flag('backend')
 if (backend) process.env.LSW_MODEL_BACKEND = backend
 if (argv.includes('--fast')) (argv.splice(argv.indexOf('--fast'), 1), (process.env.LSW_CLAUDE_FAST = '1'))
 const data = flag('data')
+const gameModule = flag('game') ?? process.env.OPENWORLD_GAME
+if (!gameModule) throw new Error('which game? --game <game> (or OPENWORLD_GAME): a bundle, a project\'s folder, or a module whose default export is the GameDef')
+const game = await loadGame(gameModule)
 const [cmd = 'serve', ...args] = argv
 const stamp = () => new Date().toISOString().slice(11, 19)
 const modder = openModder({
+  game,
   data: data ? resolve(REPO, data) : undefined,
   model: script ? scriptFromFile(resolve(REPO, script)) : undefined,
   log: (l) => console.log(`[${stamp()}] ${l}`),
@@ -37,8 +43,11 @@ const { library, state } = modder.opts
 switch (cmd) {
   case 'serve': {
     const port = Number(args[0] ?? process.env.LSW_PORT ?? 8787)
-    createModderServer(modder).listen(port, () => {
+    // what the validator no longer takes leaves the library before any client can sync it
+    const pruned = library.prune()
+    createModderServer(modder, { game: game.id }).listen(port, () => {
       console.log(`modder on http://localhost:${port}  model: ${modder.model?.name ?? '(none: answers from the shared library only)'}`)
+      for (const p of pruned) console.log(`library: rolled back ${p.rules.join(', ')}: ${p.reason}`)
       console.log(`library: ${library.patchRules().length} patch rules (seq ${library.seq}) · self-state: ${state.dir}`)
     })
     break
@@ -57,6 +66,20 @@ switch (cmd) {
     break
   }
   case 'library':
+    if (args[0] === 'audit') {
+      // the patches that make something from nothing: listed, for you to remove (library remove <id>)
+      const bad = library.audit()
+      for (const b of bad) console.log(`${b.rule}  ${b.reason}`)
+      console.log(`${library.patchRules().length} patch rules, ${library.asked.length} with the event that asked for them: ` + (bad.length ? `${bad.length} to review (npm run modder -- library remove <id>)` : 'none makes something from nothing'))
+      break
+    }
+    if (args[0] === 'prune') {
+      // the patches the validator, as it is now, no longer takes: rolled back (serve does this at start)
+      const gone = library.prune()
+      for (const p of gone) console.log(`rolled back ${p.rules.join(', ')}: ${p.reason}`)
+      console.log(gone.length ? `${gone.length} patch(es) rolled back` : 'every patch still holds')
+      break
+    }
     if (args[0] === 'remove') {
       if (!args[1]) throw new Error('usage: library remove <rule-id>')
       console.log(library.remove(args[1]) ? `removed ${args[1]}` : `no patch rule "${args[1]}"`)

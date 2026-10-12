@@ -1,0 +1,253 @@
+{
+  "version": 4,
+  "generator": "built-in imagegen",
+  "date": "2026-10-05",
+  "revision": "Twelve real poses per action and direction, smaller motion arcs and full recoveries.",
+  "bodyPrompt": "Use case: identity-preserve\nAsset type: production sprite animation sheet for a TOP-DOWN 2D pixel RPG.\nImage 1: existing approved White Knight animation sheet, character/camera/action reference to expand. Image 2: approved idle stance and exact costume. Change only temporal resolution and smoothness, not the character design.\nPrimary request: redraw this action as TWELVE genuinely distinct, closely spaced animation poses for EACH of THREE map directions, total EXACTLY 36 isolated sprites.\nOUTPUT GRID MUST BE EXACTLY SIX COLUMNS BY SIX ROWS of equal square cells, preferably 1536x1536. No margins outside grid, no text or grid lines. Every sprite has 12% transparent padding within its cell.\nReading order: rows 1+2 = DOWN-facing frames 01..12, row1 columns1..6 frames01..06, row2 columns1..6 frames07..12. Rows3+4 = RIGHT-facing frames01..12. Rows5+6 = UP-facing/back view frames01..12. Do NOT use six different facings. The second row in each pair CONTINUES THE SAME animation, it does not restart.\nCamera fixed HIGH OVERHEAD 65-degree orthographic: large visible flat helmet roof, top planes of shoulder armour, short foreshortened boots, cape on ground plane. Up-facing sprites show the back and roof of helmet and cape, NEVER face/visor. Not a tall portrait, side-scrolling character, or isometric pedestal.\nPreserve ivory sealed great helm, dark narrow visor, gold/bronze thorn crown, ivory plate with old gold edging/cross marks, dark mail joints, white-feathered quiver, ragged ivory cape with dark-rust hem, recurved bow and straight sword. No redesign, no horse, shield, bare face or extra limbs. Hand-crafted crisp pixel clusters, restrained 3-4 value steps, warm dark contours. No painterly noise or blur.\nCRUCIAL TEMPORAL CONSISTENCY: fixed character scale and a common foot/hips map pivot at (50%,68%) in every cell. Helmet and torso must not randomly shift position or change proportions. Do not independently enlarge crouching or fallen poses. Sequential poses are small anatomically plausible increments, not unrelated illustrations. Cape lags gently, no extreme cape flapping or random size changes. Draw in-between arm/leg positions, not repeated/rotated/zoomed copies. No ground, shadow, effects, labels, watermarks, outlines of cells, or background. Genuinely transparent alpha.\nThe twelve sequential poses for EACH direction:\n",
+  "references": [
+    "var/boss-art/alberic-v3/sources/{action}.png",
+    "var/boss-art/alberic-v3/sources/idle.png"
+  ],
+  "export": {
+    "directory": "games/openworld/public/assets/lsw/Bosses/alberic/v4",
+    "reviewDirectory": "docs/boss-art/alberic-v4",
+    "bodyCell": 128,
+    "bodyColumns": 12,
+    "bodyRows": 21,
+    "bodyAnchorY": 88,
+    "scale": 1.25,
+    "bodySampling": 0.76,
+    "effectSampling": 0.88,
+    "directions": [
+      "down",
+      "right",
+      "up"
+    ],
+    "resampling": "nearest-neighbour, preserve generated alpha; fixed scale and pivot, no repainting",
+    "registration": "One median vertical packing offset per source grid row; idle/walk also use one shared horizontal packing correction per source column across all facings. One rest-pose-to-idle transform per action/facing, held for all twelve poses. No per-frame rescaling, warping or synthesized poses."
+  },
+  "assets": [
+    {
+      "id": "idle",
+      "name": "Burdened vigil",
+      "row": 0,
+      "subject": "A seamless restrained breathing loop with FEET FIRMLY PLANTED, sword held low in the same hand and bow low in the other. Poses1..6 slowly inhale through 6 tiny chest/shoulder rises, 7..12 exhale smoothly back toward pose1; total helmet displacement <= TWO logical pixels at 128px sprite size, total cape edge sway <= THREE logical pixels. No steps, turning, arm swings, crown bobbing or major weapon movement. Keep cape cross marks fixed on the same cloth. Frame12 differs only slightly from frame1 so the loop has no pop. Keep the same balanced guard from Image2.",
+      "kind": "body",
+      "columns": 6,
+      "rows": 6,
+      "frames": 36,
+      "source": "var/boss-art/alberic-v4/sources/idle.png"
+    },
+    {
+      "id": "walk",
+      "name": "Armoured advance",
+      "row": 1,
+      "subject": "A seamless twelve-pose heavy walk IN PLACE along the given map facing, no whole-sprite translation. 1 left heel contact, 2 left loading, 3 hips over left foot/right heel rises, 4 right passing, 5 right swings forward, 6 right nearly contacts, 7 right heel contact, 8 right loading, 9 hips over right/right support, 10 left passing, 11 left swings forward, 12 left nearly contacts leading smoothly back to1. Small consistent stride with intermediate positions, shoulder counter-swing <=3 pixels, torso bob <=2 pixels at128px. Sword and bow held low steadily, cape trails with gentle lag. No marching exaggerated high knees. Arms/weapons/helmet follow continuous arcs, no stance redesign.",
+      "kind": "body",
+      "columns": 6,
+      "rows": 6,
+      "frames": 36,
+      "source": "var/boss-art/alberic-v4/sources/walk.png"
+    },
+    {
+      "id": "thorns",
+      "name": "Crown judgement",
+      "row": 2,
+      "subject": "One coherent SWORD-PLANT spell with anticipation and RETURN TO GUARD, not a kneel held forever. Poses1 neutral low guard matching Image2, 2 gauntlets begin closing on sword, 3 sword rises a little, 4 elbows bend and sword lifts, 5 sword reaches compact overhead ready position, 6 poised at full windup. Pose7 is FIRST GROUND CONTACT: plunge sword into ground between feet with short follow-through; no earlier pose contacts ground. Pose8 slight knee compression, 9 begin straightening and withdraw sword, 10 sword lowering, 11 almost at original low guard, 12 returns very close to pose1. Movement stays compact with gradual arm transitions; kneel is shallow. Foreshorten raised blade viewed from above; no elongated blade leaving cell. Bow remains safely slung for plant; reappears naturally at guard. No ground, thorns or explosion drawn.",
+      "kind": "body",
+      "columns": 6,
+      "rows": 6,
+      "frames": 36,
+      "source": "var/boss-art/alberic-v4/sources/thorns-down.png",
+      "sheets": [
+        {
+          "source": "var/boss-art/alberic-v4/sources/thorns-down.png",
+          "columns": 4,
+          "rows": 3,
+          "frames": 12,
+          "prompt": "Use case: identity-preserve. Production overhead RPG pixel sprite ANIMATION, not concept art.\nImage1: four old key poses of the exact character and camera/facing to expand smoothly. Image2: his idle stance. Preserve this character/costume, palette and HIGH OVERHEAD camera. Do NOT change armour, body scale, helmet shape or map facing.\nGenerate ONE sprite sheet of EXACTLY TWELVE SEQUENTIAL frames in FOUR COLUMNS and THREE ROWS, square equal cells. Read left-to-right then next row: row1=frames1,2,3,4; row2=5,6,7,8; row3=9,10,11,12. The ENTIRE sheet is the SAME facing and SAME continuous action.\nHand-drawn pixel clusters, coarse readable 128px style matching inputs: ivory great helm/cylindrical roof, bronze thorn crown, gold-edged ivory armour, dark joints, torn ivory-gold cape, rust hem, white quiver, recurved bow and sword. Strong warm outlines, no gradients, blur, photocollage or random new details.\nFixed HIGH OVERHEAD 65-degree orthographic camera; visible helmet roof/top planes, short foreshortened body/boots, cape spreads in ground plane. Not eye-level or standing portrait.\nFIXED REGISTRATION: same hip/foot pivot (50%,68%) and absolute body scale across every cell. Full sprite inside central70% of cell, minimum15% empty transparent border EACH SIDE, INCLUDING raised weapons. Foreshorten raised sword/bow. Entire sheet has genuinely transparent alpha, no cast shadow/floor/grid/text/numbers/watermark. Do not fit pose-dependent scale, do not shrink kneeling poses.\n12 poses must be successive, anatomically coherent small steps in movement, including transitional arm positions. No looping halfway, teleporting weapons, random turn, instant jump or cloth flicker. No arrows in flight, explosions or drawn VFX. Finishes in the same low stance it started, unless death.\nFACING DOWN toward bottom of map for ALL 12 frames. Visor/front visible; cape behind toward top.\nAnimation in 12 successive beats:\nOne coherent SWORD-PLANT spell with anticipation and RETURN TO GUARD, not a kneel held forever. Poses1 neutral low guard matching Image2, 2 gauntlets begin closing on sword, 3 sword rises a little, 4 elbows bend and sword lifts, 5 sword reaches compact overhead ready position, 6 poised at full windup. Pose7 is FIRST GROUND CONTACT: plunge sword into ground between feet with short follow-through; no earlier pose contacts ground. Pose8 slight knee compression, 9 begin straightening and withdraw sword, 10 sword lowering, 11 almost at original low guard, 12 returns very close to pose1. Movement stays compact with gradual arm transitions; kneel is shallow. Foreshorten raised blade viewed from above; no elongated blade leaving cell. Bow remains safely slung for plant; reappears naturally at guard. No ground, thorns or explosion drawn.",
+          "references": [
+            "docs/boss-art/alberic-v4/references/thorns-down.png",
+            "docs/boss-art/alberic-v4/references/idle-down.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v4/sources/thorns-right.png",
+          "columns": 4,
+          "rows": 3,
+          "frames": 12,
+          "prompt": "Use case: identity-preserve. Production overhead RPG pixel sprite ANIMATION, not concept art.\nImage1: four old key poses of the exact character and camera/facing to expand smoothly. Image2: his idle stance. Preserve this character/costume, palette and HIGH OVERHEAD camera. Do NOT change armour, body scale, helmet shape or map facing.\nGenerate ONE sprite sheet of EXACTLY TWELVE SEQUENTIAL frames in FOUR COLUMNS and THREE ROWS, square equal cells. Read left-to-right then next row: row1=frames1,2,3,4; row2=5,6,7,8; row3=9,10,11,12. The ENTIRE sheet is the SAME facing and SAME continuous action.\nHand-drawn pixel clusters, coarse readable 128px style matching inputs: ivory great helm/cylindrical roof, bronze thorn crown, gold-edged ivory armour, dark joints, torn ivory-gold cape, rust hem, white quiver, recurved bow and sword. Strong warm outlines, no gradients, blur, photocollage or random new details.\nFixed HIGH OVERHEAD 65-degree orthographic camera; visible helmet roof/top planes, short foreshortened body/boots, cape spreads in ground plane. Not eye-level or standing portrait.\nFIXED REGISTRATION: same hip/foot pivot (50%,68%) and absolute body scale across every cell. Full sprite inside central70% of cell, minimum15% empty transparent border EACH SIDE, INCLUDING raised weapons. Foreshorten raised sword/bow. Entire sheet has genuinely transparent alpha, no cast shadow/floor/grid/text/numbers/watermark. Do not fit pose-dependent scale, do not shrink kneeling poses.\n12 poses must be successive, anatomically coherent small steps in movement, including transitional arm positions. No looping halfway, teleporting weapons, random turn, instant jump or cloth flicker. No arrows in flight, explosions or drawn VFX. Finishes in the same low stance it started, unless death.\nFACING RIGHT toward right side of map for ALL 12 frames; cape trails left. Do NOT turn to back/down.\nAnimation in 12 successive beats:\nOne coherent SWORD-PLANT spell with anticipation and RETURN TO GUARD, not a kneel held forever. Poses1 neutral low guard matching Image2, 2 gauntlets begin closing on sword, 3 sword rises a little, 4 elbows bend and sword lifts, 5 sword reaches compact overhead ready position, 6 poised at full windup. Pose7 is FIRST GROUND CONTACT: plunge sword into ground between feet with short follow-through; no earlier pose contacts ground. Pose8 slight knee compression, 9 begin straightening and withdraw sword, 10 sword lowering, 11 almost at original low guard, 12 returns very close to pose1. Movement stays compact with gradual arm transitions; kneel is shallow. Foreshorten raised blade viewed from above; no elongated blade leaving cell. Bow remains safely slung for plant; reappears naturally at guard. No ground, thorns or explosion drawn.",
+          "references": [
+            "docs/boss-art/alberic-v4/references/thorns-right.png",
+            "docs/boss-art/alberic-v4/references/idle-right.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v4/sources/thorns-up.png",
+          "columns": 4,
+          "rows": 3,
+          "frames": 12,
+          "prompt": "Use case: identity-preserve. Production overhead RPG pixel sprite ANIMATION, not concept art.\nImage1: four old key poses of the exact character and camera/facing to expand smoothly. Image2: his idle stance. Preserve this character/costume, palette and HIGH OVERHEAD camera. Do NOT change armour, body scale, helmet shape or map facing.\nGenerate ONE sprite sheet of EXACTLY TWELVE SEQUENTIAL frames in FOUR COLUMNS and THREE ROWS, square equal cells. Read left-to-right then next row: row1=frames1,2,3,4; row2=5,6,7,8; row3=9,10,11,12. The ENTIRE sheet is the SAME facing and SAME continuous action.\nHand-drawn pixel clusters, coarse readable 128px style matching inputs: ivory great helm/cylindrical roof, bronze thorn crown, gold-edged ivory armour, dark joints, torn ivory-gold cape, rust hem, white quiver, recurved bow and sword. Strong warm outlines, no gradients, blur, photocollage or random new details.\nFixed HIGH OVERHEAD 65-degree orthographic camera; visible helmet roof/top planes, short foreshortened body/boots, cape spreads in ground plane. Not eye-level or standing portrait.\nFIXED REGISTRATION: same hip/foot pivot (50%,68%) and absolute body scale across every cell. Full sprite inside central70% of cell, minimum15% empty transparent border EACH SIDE, INCLUDING raised weapons. Foreshorten raised sword/bow. Entire sheet has genuinely transparent alpha, no cast shadow/floor/grid/text/numbers/watermark. Do not fit pose-dependent scale, do not shrink kneeling poses.\n12 poses must be successive, anatomically coherent small steps in movement, including transitional arm positions. No looping halfway, teleporting weapons, random turn, instant jump or cloth flicker. No arrows in flight, explosions or drawn VFX. Finishes in the same low stance it started, unless death.\nFACING UP toward top of map for ALL 12 frames. View from behind/above, ONLY back/top of helmet and cape, NEVER face/visor on back.\nAnimation in 12 successive beats:\nOne coherent SWORD-PLANT spell with anticipation and RETURN TO GUARD, not a kneel held forever. Poses1 neutral low guard matching Image2, 2 gauntlets begin closing on sword, 3 sword rises a little, 4 elbows bend and sword lifts, 5 sword reaches compact overhead ready position, 6 poised at full windup. Pose7 is FIRST GROUND CONTACT: plunge sword into ground between feet with short follow-through; no earlier pose contacts ground. Pose8 slight knee compression, 9 begin straightening and withdraw sword, 10 sword lowering, 11 almost at original low guard, 12 returns very close to pose1. Movement stays compact with gradual arm transitions; kneel is shallow. Foreshorten raised blade viewed from above; no elongated blade leaving cell. Bow remains safely slung for plant; reappears naturally at guard. No ground, thorns or explosion drawn.",
+          "references": [
+            "docs/boss-art/alberic-v4/references/thorns-up.png",
+            "docs/boss-art/alberic-v4/references/idle-up.png"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arrow",
+      "name": "Arrow of Conquest",
+      "row": 3,
+      "subject": "One flat bow shot with detailed draw and RETURN TO GUARD. 1 low ready bow, 2 lift bow slightly and nock arrow, 3 lift to aim, 4 quarter draw, 5 three-quarter draw, 6 full draw held (arrow still on string). Pose7 is FIRST RELEASE, fingers open and arrow leaves; 8 small recoil, 9 settle elbow and begin lowering, 10 lower bow further, 11 nearly low ready, 12 low guard matching pose1. Aim along each row pair's MAP facing (down/right/up), not into sky. Short sword remains sheathed on belt throughout, no random weapon spawning. Small continuous increments in bow and drawing arm, keep boots/root/helmet steady. No detached projectile, giant glow or particles.",
+      "kind": "body",
+      "columns": 6,
+      "rows": 6,
+      "frames": 36,
+      "source": "var/boss-art/alberic-v4/sources/arrow-down.png",
+      "sheets": [
+        {
+          "source": "var/boss-art/alberic-v4/sources/arrow-down.png",
+          "columns": 4,
+          "rows": 3,
+          "frames": 12,
+          "prompt": "undefinedALL TWELVE FACING DOWN toward screen bottom. Visor/front visible, cape toward top. Do not turn or shoot right.\nAnimation beats for frames1..12 (only this sequence, never restart mid-sheet):\nOne flat bow shot with detailed draw and RETURN TO GUARD. 1 low ready bow, 2 lift bow slightly and nock arrow, 3 lift to aim, 4 quarter draw, 5 three-quarter draw, 6 full draw held (arrow still on string). Pose7 is FIRST RELEASE, fingers open and arrow leaves; 8 small recoil, 9 settle elbow and begin lowering, 10 lower bow further, 11 nearly low ready, 12 low guard matching pose1. Aim along each row pair's MAP facing (down/right/up), not into sky. Short sword remains sheathed on belt throughout, no random weapon spawning. Small continuous increments in bow and drawing arm, keep boots/root/helmet steady. No detached projectile, giant glow or particles.",
+          "references": [
+            "docs/boss-art/alberic-v4/references/arrow-down.png",
+            "docs/boss-art/alberic-v4/references/idle-down.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v4/sources/arrow-right.png",
+          "columns": 4,
+          "rows": 3,
+          "frames": 12,
+          "prompt": "undefinedALL TWELVE FACING RIGHT toward screen right. Cape toward left. Never turn down or show back.\nAnimation beats for frames1..12 (only this sequence, never restart mid-sheet):\nOne flat bow shot with detailed draw and RETURN TO GUARD. 1 low ready bow, 2 lift bow slightly and nock arrow, 3 lift to aim, 4 quarter draw, 5 three-quarter draw, 6 full draw held (arrow still on string). Pose7 is FIRST RELEASE, fingers open and arrow leaves; 8 small recoil, 9 settle elbow and begin lowering, 10 lower bow further, 11 nearly low ready, 12 low guard matching pose1. Aim along each row pair's MAP facing (down/right/up), not into sky. Short sword remains sheathed on belt throughout, no random weapon spawning. Small continuous increments in bow and drawing arm, keep boots/root/helmet steady. No detached projectile, giant glow or particles.",
+          "references": [
+            "docs/boss-art/alberic-v4/references/arrow-right.png",
+            "docs/boss-art/alberic-v4/references/idle-right.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v4/sources/arrow-up.png",
+          "columns": 4,
+          "rows": 3,
+          "frames": 12,
+          "prompt": "undefinedALL TWELVE FACING UP toward screen top, view BACK and TOP of helmet and embroidered cape. No front visor anywhere. Do not turn toward viewer.\nAnimation beats for frames1..12 (only this sequence, never restart mid-sheet):\nOne flat bow shot with detailed draw and RETURN TO GUARD. 1 low ready bow, 2 lift bow slightly and nock arrow, 3 lift to aim, 4 quarter draw, 5 three-quarter draw, 6 full draw held (arrow still on string). Pose7 is FIRST RELEASE, fingers open and arrow leaves; 8 small recoil, 9 settle elbow and begin lowering, 10 lower bow further, 11 nearly low ready, 12 low guard matching pose1. Aim along each row pair's MAP facing (down/right/up), not into sky. Short sword remains sheathed on belt throughout, no random weapon spawning. Small continuous increments in bow and drawing arm, keep boots/root/helmet steady. No detached projectile, giant glow or particles.",
+          "references": [
+            "docs/boss-art/alberic-v4/references/arrow-up.png",
+            "docs/boss-art/alberic-v4/references/idle-up.png"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "volley",
+      "name": "White-Feather Volley",
+      "row": 4,
+      "subject": "One SKYWARD bow shot with RETURN TO GUARD. 1 low bow, 2 start lifting, 3 bow tilts steeply upward into sky, 4 nock and half draw, 5 almost full skyward draw, 6 held full draw with bow raised above/beside helmet and FORESHORTENED by overhead camera. Pose7 FIRST RELEASE toward sky; 8 soft recoil with arm beginning to relax, 9 elbow lowers gradually, 10 bow lowers, 11 almost low guard, 12 low guard close to1. This differs clearly from horizontal arrow shot but same rooted feet and compact body. Sword stays sheathed throughout. Small continuous arcs, no detached arrow, giant glow or effect; no random head turns.",
+      "kind": "body",
+      "columns": 6,
+      "rows": 6,
+      "frames": 36,
+      "source": "var/boss-art/alberic-v4/sources/volley-down.png",
+      "sheets": [
+        {
+          "source": "var/boss-art/alberic-v4/sources/volley-down.png",
+          "columns": 4,
+          "rows": 3,
+          "frames": 12,
+          "prompt": "Create a TRANSPARENT PNG sprite sheet for a game, NOT a presentation. Exactly 4 columns and 3 rows = 12 frames of the SAME TOP-DOWN knight facing DOWN throughout. References give the knight and high OVERHEAD 65-degree camera: ivory helmet ROOF and shoulders visible, short foreshortened boots. Keep exact ivory/gold armour, thorn crown, ragged white cape, bow and quiver. Pixel art. All frames same size and fixed feet pivot. Leave wide EMPTY transparent gutters. NO NUMBERS, no labels, no brown or black or grey background, no ground, no scene, no shadow. The ONLY opaque pixels are the knight and his equipment.\nAnimate one coherent SKYWARD BOW SHOT in twelve small increments read left-to-right then next row. First row: low bow, start lifting, lift further, nock and draw. Second row: three-quarter draw aimed upward into the sky, held full draw near helmet, RELEASE (first shot), slight recoil. Third row: lower a little, lower further, almost low guard, return to low guard. Smooth continuous arms; feet/helmet remain steady. No projectile effects. DO NOT put frame numbers on the image. Export genuine transparent alpha.",
+          "references": [
+            "docs/boss-art/alberic-v4/references/volley-down.png",
+            "docs/boss-art/alberic-v4/references/idle-down.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v4/sources/volley-right.png",
+          "columns": 4,
+          "rows": 3,
+          "frames": 12,
+          "prompt": "undefinedALL TWELVE FACING RIGHT toward screen right. Cape toward left. Never turn down or show back.\nAnimation beats for frames1..12 (only this sequence, never restart mid-sheet):\nOne SKYWARD bow shot with RETURN TO GUARD. 1 low bow, 2 start lifting, 3 bow tilts steeply upward into sky, 4 nock and half draw, 5 almost full skyward draw, 6 held full draw with bow raised above/beside helmet and FORESHORTENED by overhead camera. Pose7 FIRST RELEASE toward sky; 8 soft recoil with arm beginning to relax, 9 elbow lowers gradually, 10 bow lowers, 11 almost low guard, 12 low guard close to1. This differs clearly from horizontal arrow shot but same rooted feet and compact body. Sword stays sheathed throughout. Small continuous arcs, no detached arrow, giant glow or effect; no random head turns.",
+          "references": [
+            "docs/boss-art/alberic-v4/references/volley-right.png",
+            "docs/boss-art/alberic-v4/references/idle-right.png"
+          ],
+          "cleanupPrompt": "Use case: background-extraction and precise-object-edit. EDIT TARGET: the supplied twelve-frame sprite sheet. Change ONLY the following: REMOVE ALL numerals, frame labels and lettering completely; remove the entire background to GENUINELY TRANSPARENT ALPHA, no flat color, no checkerboard pattern, no gradients. Retain exactly the same TWELVE knight poses in EXACTLY the same four-column, three-row cells, same pixel character shapes, pose sequence, high overhead view, costume, size, colors and location in each cell. Do not redraw, rearrange, relabel or crop any sprite. Preserve all bowstring/cape edges and limbs. No new letters/numbers/UI/labels/shadows. The final image consists of twelve clean isolated pixel sprites and empty transparent space ONLY."
+        },
+        {
+          "source": "var/boss-art/alberic-v4/sources/volley-up.png",
+          "columns": 4,
+          "rows": 3,
+          "frames": 12,
+          "prompt": "undefinedALL TWELVE FACING UP toward screen top, view BACK and TOP of helmet and embroidered cape. No front visor anywhere. Do not turn toward viewer.\nAnimation beats for frames1..12 (only this sequence, never restart mid-sheet):\nOne SKYWARD bow shot with RETURN TO GUARD. 1 low bow, 2 start lifting, 3 bow tilts steeply upward into sky, 4 nock and half draw, 5 almost full skyward draw, 6 held full draw with bow raised above/beside helmet and FORESHORTENED by overhead camera. Pose7 FIRST RELEASE toward sky; 8 soft recoil with arm beginning to relax, 9 elbow lowers gradually, 10 bow lowers, 11 almost low guard, 12 low guard close to1. This differs clearly from horizontal arrow shot but same rooted feet and compact body. Sword stays sheathed throughout. Small continuous arcs, no detached arrow, giant glow or effect; no random head turns.",
+          "references": [
+            "docs/boss-art/alberic-v4/references/volley-up.png",
+            "docs/boss-art/alberic-v4/references/idle-up.png"
+          ],
+          "cleanupPrompt": "Use case: background-extraction and precise-object-edit. EDIT TARGET: the supplied twelve-frame sprite sheet. Change ONLY the following: REMOVE ALL numerals, frame labels and lettering completely; remove the entire background to GENUINELY TRANSPARENT ALPHA, no flat color, no checkerboard pattern, no gradients. Retain exactly the same TWELVE knight poses in EXACTLY the same four-column, three-row cells, same pixel character shapes, pose sequence, high overhead view, costume, size, colors and location in each cell. Do not redraw, rearrange, relabel or crop any sprite. Preserve all bowstring/cape edges and limbs. No new letters/numbers/UI/labels/shadows. The final image consists of twelve clean isolated pixel sprites and empty transparent space ONLY."
+        }
+      ]
+    },
+    {
+      "id": "hurt",
+      "name": "Weight of the crown",
+      "row": 5,
+      "subject": "One compact physical hit reaction and recovery, twelve closely-spaced poses. 1 low guard, 2 impact begins in shoulder, 3 shoulder draws back, 4 maximum modest recoil, 5 weight sinks slightly, 6 knee flexes just a little, 7 stabilizes, 8 begins straightening, 9 shoulder recovers, 10 helmet returns, 11 nearly ready, 12 original guard. No dramatic bow/kneeling. Whole torso movement <=4 logical pixels at128px, feet planted, cape trails by few pixels. Arms remain anatomically continuous. No gore, blood, flashes, particles or white silhouette. Subtle real pose changes, not translation of the entire sprite.",
+      "kind": "body",
+      "columns": 6,
+      "rows": 6,
+      "frames": 36,
+      "source": "var/boss-art/alberic-v4/sources/hurt.png"
+    },
+    {
+      "id": "death",
+      "name": "The crown was never mine",
+      "row": 6,
+      "subject": "A SINGLE NON-LOOPING twelve-pose fall, same character scale throughout. 1 standing guard, 2 knees begin to bend using sword as support, 3 settles onto one knee, 4 free hand starts reaching up, 5 touches thorn crown, 6 lifts crown clear of helmet (NEVER duplicate crown), 7 slowly offers removed crown forward, 8 bowed helmet as crown is lowered near ground, 9 loss of balance/torso leans to side, 10 supporting elbow descends, 11 body almost lying, 12 fully still lying on side with cape spread and removed crown/sword beside open gauntlet. Smooth anatomical increments between kneeling and falling, no instant teleport from upright to prone. Camera stays overhead looking at armour top/back. Fallen body same absolute dimensions as standing, not miniature. No gore or ground.",
+      "kind": "body",
+      "columns": 6,
+      "rows": 6,
+      "frames": 36,
+      "source": "var/boss-art/alberic-v4/sources/death-down.png",
+      "sheets": [
+        {
+          "source": "var/boss-art/alberic-v4/sources/death-down.png",
+          "columns": 4,
+          "rows": 3,
+          "frames": 12,
+          "prompt": "undefinedALL TWELVE FACING DOWN toward screen bottom. Visor/front visible, cape toward top. Do not turn or shoot right.\nAnimation beats for frames1..12 (only this sequence, never restart mid-sheet):\nA SINGLE NON-LOOPING twelve-pose fall, same character scale throughout. 1 standing guard, 2 knees begin to bend using sword as support, 3 settles onto one knee, 4 free hand starts reaching up, 5 touches thorn crown, 6 lifts crown clear of helmet (NEVER duplicate crown), 7 slowly offers removed crown forward, 8 bowed helmet as crown is lowered near ground, 9 loss of balance/torso leans to side, 10 supporting elbow descends, 11 body almost lying, 12 fully still lying on side with cape spread and removed crown/sword beside open gauntlet. Smooth anatomical increments between kneeling and falling, no instant teleport from upright to prone. Camera stays overhead looking at armour top/back. Fallen body same absolute dimensions as standing, not miniature. No gore or ground.",
+          "references": [
+            "docs/boss-art/alberic-v4/references/death-down.png",
+            "docs/boss-art/alberic-v4/references/idle-down.png"
+          ]
+        },
+        {
+          "source": "var/boss-art/alberic-v4/sources/death-right.png",
+          "columns": 4,
+          "rows": 3,
+          "frames": 12,
+          "prompt": "undefinedALL TWELVE FACING RIGHT toward screen right. Cape toward left. Never turn down or show back.\nAnimation beats for frames1..12 (only this sequence, never restart mid-sheet):\nA SINGLE NON-LOOPING twelve-pose fall, same character scale throughout. 1 standing guard, 2 knees begin to bend using sword as support, 3 settles onto one knee, 4 free hand starts reaching up, 5 touches thorn crown, 6 lifts crown clear of helmet (NEVER duplicate crown), 7 slowly offers removed crown forward, 8 bowed helmet as crown is lowered near ground, 9 loss of balance/torso leans to side, 10 supporting elbow descends, 11 body almost lying, 12 fully still lying on side with cape spread and removed crown/sword beside open gauntlet. Smooth anatomical increments between kneeling and falling, no instant teleport from upright to prone. Camera stays overhead looking at armour top/back. Fallen body same absolute dimensions as standing, not miniature. No gore or ground.",
+          "references": [
+            "docs/boss-art/alberic-v4/references/death-right.png",
+            "docs/boss-art/alberic-v4/references/idle-right.png"
+          ],
+          "cleanupPrompt": "Use case: background-extraction. EDIT TARGET: the supplied twelve-frame pixel sprite sheet. Remove ONLY the entire brown gradient background, floor and shadow so all space between and around the twelve knights is genuinely transparent alpha. Preserve EXACTLY all twelve knight poses, their positions, pixel edges, crown/sword/cloth details, color palette, identical body size and four-column three-row layout. No painted background, no checkerboard, no labels or numbers. Retain the original overhead game perspective and pose sequence. Do not rearrange, crop, zoom, redesign or add any pixels to the knight sprites. This is a game-ready sprite sheet, not a presentation sheet."
+        },
+        {
+          "source": "var/boss-art/alberic-v4/sources/death-up.png",
+          "columns": 4,
+          "rows": 3,
+          "frames": 12,
+          "prompt": "undefinedALL TWELVE FACING UP toward screen top, view BACK and TOP of helmet and embroidered cape. No front visor anywhere. Do not turn toward viewer.\nAnimation beats for frames1..12 (only this sequence, never restart mid-sheet):\nA SINGLE NON-LOOPING twelve-pose fall, same character scale throughout. 1 standing guard, 2 knees begin to bend using sword as support, 3 settles onto one knee, 4 free hand starts reaching up, 5 touches thorn crown, 6 lifts crown clear of helmet (NEVER duplicate crown), 7 slowly offers removed crown forward, 8 bowed helmet as crown is lowered near ground, 9 loss of balance/torso leans to side, 10 supporting elbow descends, 11 body almost lying, 12 fully still lying on side with cape spread and removed crown/sword beside open gauntlet. Smooth anatomical increments between kneeling and falling, no instant teleport from upright to prone. Camera stays overhead looking at armour top/back. Fallen body same absolute dimensions as standing, not miniature. No gore or ground.",
+          "references": [
+            "docs/boss-art/alberic-v4/references/death-up.png",
+            "docs/boss-art/alberic-v4/references/idle-up.png"
+          ]
+        }
+      ]
+    }
+  ],
+  "singleDirectionPrompt": "Use case: identity-preserve. Production overhead RPG pixel sprite ANIMATION, not concept art.\nImage1: four old key poses of the exact character and camera/facing to expand smoothly. Image2: his idle stance. Preserve this character/costume, palette and HIGH OVERHEAD camera. Do NOT change armour, body scale, helmet shape or map facing.\nGenerate ONE sprite sheet of EXACTLY TWELVE SEQUENTIAL frames in FOUR COLUMNS and THREE ROWS, square equal cells. Read left-to-right then next row: row1=frames1,2,3,4; row2=5,6,7,8; row3=9,10,11,12. The ENTIRE sheet is the SAME facing and SAME continuous action.\nHand-drawn pixel clusters, coarse readable 128px style matching inputs: ivory great helm/cylindrical roof, bronze thorn crown, gold-edged ivory armour, dark joints, torn ivory-gold cape, rust hem, white quiver, recurved bow and sword. Strong warm outlines, no gradients, blur, photocollage or random new details.\nFixed HIGH OVERHEAD 65-degree orthographic camera; visible helmet roof/top planes, short foreshortened body/boots, cape spreads in ground plane. Not eye-level or standing portrait.\nFIXED REGISTRATION: same hip/foot pivot (50%,68%) and absolute body scale across every cell. Full sprite inside central70% of cell, minimum15% empty transparent border EACH SIDE, INCLUDING raised weapons. Foreshorten raised sword/bow. Entire sheet has genuinely transparent alpha, no cast shadow/floor/grid/text/numbers/watermark. Do not fit pose-dependent scale, do not shrink kneeling poses.\n12 poses must be successive, anatomically coherent small steps in movement, including transitional arm positions. No looping halfway, teleporting weapons, random turn, instant jump or cloth flicker. No arrows in flight, explosions or drawn VFX. Finishes in the same low stance it started, unless death.\n",
+  "rejected": "Initial six-by-six thorns, arrow, volley, and death sheets had facing/pose continuity errors. Replaced with one twelve-pose generation per direction; no discarded frame is shipped."
+}

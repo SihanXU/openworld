@@ -3,16 +3,14 @@
 // Memory is retrieved by these terms (no embeddings: deterministic, inspectable), and the key
 // groups requests that are the same class of undefined outcome.
 
-import type { EntityInfo, ModRequest } from '@lsw/engine'
+import { BRANCHING_PARAMS, classKey, holeKey, type EntityInfo, type ModRequest } from '@openworld/engine'
 
 export interface Signature {
-  /** hole | kind | host type | other roles' types | branching params | host statuses: the class of the outcome. */
+  /** hole | kind | host type | other roles' types | branching params: the class of the outcome (the engine's classKey). */
   key: string
   terms: string[]
 }
 
-/** Params that branch outcomes (as the engine's own signature counts them). */
-const BRANCHING = ['verb', 'element', 'edge', 'how', 'status', 'name', 'act', 'owner', 'activity', 'invariant', 'what', 'substance', 'which', 'into']
 
 function roleTerms(role: string, e: EntityInfo | undefined): string[] {
   if (!e) return [`${role}:none`]
@@ -23,7 +21,6 @@ function roleTerms(role: string, e: EntityInfo | undefined): string[] {
     const parts = t.split('/')
     for (let i = 1; i <= parts.length; i++) out.add(`${role}:${parts.slice(0, i).join('/')}`)
   }
-  out.add(`${role}:kind:${e.kind}`)
   for (const t of e.tags ?? []) out.add(`${role}#${t}`)
   for (const s of e.statuses ?? []) out.add(`${role}!${s}`)
   return [...out]
@@ -32,10 +29,9 @@ function roleTerms(role: string, e: EntityInfo | undefined): string[] {
 export function signatureOf(req: ModRequest): Signature {
   const ev = req.event
   const params = Object.entries(ev.params ?? {})
-    .filter(([k]) => BRANCHING.includes(k))
+    .filter(([k]) => BRANCHING_PARAMS.includes(k))
     .map(([k, v]) => `${k}=${v}`)
     .sort()
-  const others = Object.entries(ev.roles).filter(([k]) => k !== 'actor' && k !== 'source')
   const terms = [
     ...ev.kind.split('/').map((_, i, a) => `kind:${a.slice(0, i + 1).join('/')}`),
     `hole:${req.hole.rule}`,
@@ -44,17 +40,9 @@ export function signatureOf(req: ModRequest): Signature {
     ...Object.entries(ev.roles).flatMap(([k, e]) => roleTerms(k, e)),
     `map:${req.context.map.kind}`,
   ]
-  const key = [
-    `${req.hole.rule}${req.hole.path.length ? '#' + req.hole.path.join('&') : ''}`,
-    ev.kind,
-    ev.host?.type ?? '-',
-    others
-      .map(([k, e]) => `${k}=${e?.type ?? '-'}`)
-      .sort()
-      .join(','),
-    params.join(','),
-    [...(ev.host?.statuses ?? [])].sort().join('+'),
-  ].join('|')
+  // the class, as the client's port keys it (the engine's classKey: one definition)
+  const self = (e: EntityInfo | undefined) => !!e?.id && e.id === ev.host?.id
+  const key = classKey({ hole: holeKey(req.hole.rule, req.hole.path), kind: ev.kind, host: ev.host?.type ?? '-', roles: Object.entries(ev.roles).map(([k, e]) => [k, self(e) ? 'self' : e?.type ?? '-']), params: ev.params })
   return { key, terms: [...new Set(terms)] }
 }
 
@@ -70,4 +58,4 @@ export function coarseTerms(sig: Signature): string[] {
   })
 }
 
-export { similarity } from '@lsw/agent'
+export { similarity } from '@openworld/agent'

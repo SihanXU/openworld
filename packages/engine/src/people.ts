@@ -7,12 +7,11 @@ import type { Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
 import { isA } from './ontology.ts'
 import type { Entity, LineDef, Mood, NpcMemory, PropValue, ScheduleEntry, Text } from './types.ts'
+import { TOPIC_DAYS } from './world.ts'
 
-const TOPIC_DAYS = 4
-
-export function memoryOf(eng: Engine, npc: string): NpcMemory {
-  const m = (eng.world.state.memory ??= {})
-  return (m[npc] ??= {})
+/** What a person remembers of talking: their own record (world-model.md §3). */
+export function memoryOf(e: Entity): NpcMemory {
+  return e.npc ? (e.npc.memory ??= {}) : {}
 }
 
 // ------------------------------------------------------------------ schedules
@@ -23,13 +22,17 @@ export function scheduleFor(eng: Engine, e: Entity, cal: Calendar = eng.world.ca
   if (o && o.until > eng.world.state.tick) return [{ from: 0, to: 24, map: o.map, x: o.x, y: o.y, activity: o.activity }]
   const variants = e.npc?.person?.schedules
   if (!variants?.length) return e.npc?.schedule ?? []
-  const facts = eng.world.state.facts ?? {}
-  const rank = (key: string): number => {
-    if (key.startsWith('fact:') && truthy(facts[key.slice(5)])) return 90
+  const one = (key: string): number => {
+    if (key.startsWith('fact:') && truthy(eng.world.fact(key.slice(5)))) return 90
     if (key === cal.weather && (key === 'rain' || key === 'storm')) return 70
     if (key === 'rain' && cal.weather === 'storm') return 65
     if (key === 'default') return 1
     return -1
+  }
+  // a variant may join conditions with '+' (a fact and the weather): all must hold, and the more it names, the more specific
+  const rank = (key: string): number => {
+    const parts = key.split('+').map(one)
+    return parts.some((r) => r < 0) ? -1 : Math.max(...parts) + (parts.length - 1) * 10
   }
   let best: ScheduleEntry[] | undefined
   let score = 0
@@ -44,16 +47,15 @@ const truthy = (v: PropValue | undefined) => v !== undefined && v !== false && v
 
 // ------------------------------------------------------------------ topics
 
-export function raiseTopic(eng: Engine, id: string, days = TOPIC_DAYS): void {
-  const s = eng.world.state
-  const day = eng.world.calendar().day
-  s.topics = (s.topics ?? []).filter((t) => t.id !== id)
-  s.topics.push({ id, day, days })
+/** The story raises a topic (in its own outcome): it keeps the day it was raised and for how long. */
+export function raiseTopic(eng: Engine, story: Entity, id: string, days = TOPIC_DAYS): void {
+  const w = eng.world
+  w.setProp(story, `topic.${id}`, w.calendar().day)
+  w.setProp(story, `topic.${id}.days`, days)
 }
 
 export function topicFresh(eng: Engine, id: string): boolean {
-  const day = eng.world.calendar().day
-  return (eng.world.state.topics ?? []).some((t) => t.id === id && day < t.day + (t.days ?? TOPIC_DAYS))
+  return eng.world.topicFresh(id)
 }
 
 // ------------------------------------------------------------------ lines
@@ -65,6 +67,10 @@ export function hourBand(hour: number): 'morning' | 'day' | 'evening' | 'night' 
 export interface LineContext {
   /** what the person was just handed */
   given?: Entity
+  /** false: the line is chosen for another's outcome (the story has them speak); their memory is left as it is */
+  record?: boolean
+  /** only a line on a fresh topic (the story's news), or none: what they tell when asked for news */
+  topicOnly?: boolean
 }
 
 export interface ChosenLine {
@@ -83,9 +89,9 @@ export function chooseLine(eng: Engine, e: Entity, ctx: LineContext = {}): Chose
   if (!lines?.length) return undefined
   const w = eng.world
   const cal = w.calendar()
-  const mem = memoryOf(eng, e.id)
+  // what they remember is theirs: only their own outcome records it (a line the story has them say is not)
+  const mem = ctx.record === false ? { ...memoryOf(e) } : memoryOf(e)
   const said = new Set(mem.said ?? [])
-  const topics = w.state.topics ?? []
   const rank = (l: LineDef): number => {
     const k = l.key
     if (ctx.given) {
@@ -94,10 +100,8 @@ export function chooseLine(eng: Engine, e: Entity, ctx: LineContext = {}): Chose
       return -1
     }
     if (k.startsWith('given')) return -1
-    if (k.startsWith('topic:')) {
-      const t = topics.find((x) => x.id === k.slice(6))
-      return t && cal.day < t.day + (t.days ?? TOPIC_DAYS) ? 100 : -1
-    }
+    if (k.startsWith('topic:')) return w.topicFresh(k.slice(6), cal.day) ? 100 : -1
+    if (ctx.topicOnly) return -1
     if (k.startsWith('fact:')) return truthy(w.fact(k.slice(5))) ? 95 : -1
     if (k === 'greeting:first') return mem.talked === undefined ? 99 : -1
     if (k === `weather:${cal.weather}`) return 55

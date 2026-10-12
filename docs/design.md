@@ -91,6 +91,11 @@ docs/
 
 ## 4. World model
 
+> **Superseded by [world-model.md](world-model.md)** (agreed 2026-10-04, not yet built): one
+> root type `thing` with no kinds, things and the clock as the whole state, cells with occupied
+> spaces, z and height, durability and materials for everything, makeup, two-level maps. This
+> section describes the world as built today.
+
 ### 4.1 Entities
 
 Everything in the world is an entity with a stable id:
@@ -152,7 +157,7 @@ Interaction = { verb, actor, target, instrument?, at, time }
 
 The player never chooses among the verbs. The two keys below do, using the rule library.
 
-### 5.2 Player input: four inputs, one verb each
+### 5.2 Player input: five inputs, one act each
 
 **Why not Stardew's contextual Action key.** Stardew's interaction space is closed: each pair
 of (held thing, target) means one thing, a tile holds one thing, and items in the bag do not
@@ -164,9 +169,9 @@ there was unreachable. Checked against the engine's event space, it had five hol
 a bare-hand interaction on the same fixture; a tool on the ground versus using it on oneself;
 layers under a pile; items in the bag as targets; an axe that both chops and strikes).
 
-**The attack key.** Besides the four, **Space** strikes straight ahead with the held weapon (or
+**The attack key.** Besides the five, **Space** strikes straight ahead with the held weapon (or
 a fist): on the press, and again while held, paced by the attack cooldown. It adds no event the
-four cannot make (left click with a weapon makes the same blow, aimed at a spot); it is there
+five cannot make (left click with a weapon makes the same blow, aimed at a spot); it is there
 for feel, because a fight should not wait for a mouse release or depend on where the cursor is.
 
 **Completeness**, the criterion every input design here must meet:
@@ -175,29 +180,53 @@ for feel, because a fight should not wait for a mouse release or depend on where
    by some input.
 2. **Unshadowed**: an input state (key, selected slot, aim, chosen layer) makes exactly one
    event; no event is reachable only while another is undefined.
-3. **Foreseeable**: before the press, the HUD shows the event it will make.
+3. **Foreseeable**: before the press, the HUD shows the event it will make. What it says is the
+   answering rule's own `label` (or the label of the answer it reaches: food eaten says "Eat
+   {instrument}", given to someone "Feed {instrument} to {target}"; a place of the overworld "Enter
+   {target}"), the receiver's before the act's own; where no rule says, the input's default, marked
+   `?` when the outcome is undefined. A patch carries its own label, so a hole the AI filled says
+   what it now does (the validator warns when an input-reached rule has none).
 
-**The player's event space** (from the engine and the rules): `take(target)` — picking crops is
-a take; `put(held, target)` — sowing and giving are puts; `interact(none, target)`;
-`interact(held, target)` — eating is an interaction with oneself; `hit(held or fist, target)`;
-`enter(tile)`. Targets: every layer of a tile within reach (people and creatures, fixtures, the
-items of a pile, the ground), the player, and items in the bag or an open chest.
+**The player's event space** (from the engine and the rules): `hands(target)` — a hand on it;
+`take(target)` — picking crops is a take; `put(held, target)` — sowing, storing and giving are
+puts; `use(held, target)` — eating is a use on oneself; `use(none, target)` — the bare body's
+blow; `enter(tile)`. Targets: every layer of a tile within the act's reach (people and creatures,
+fixtures, the items of a pile, the ground), the player (for use only), and items in the bag or an
+open chest.
 
-**The inputs**, one verb each, as in action RPGs:
+**The inputs**, one act each (Stardew's and Minecraft's split of hands, items and the world):
 
-| Input | Verb | For |
-|---|---|---|
-| **E** | `interact(none, target)` — hands | talk, open, read, push, shake (whatever is held) |
-| **F** | `take(target)` | pick up, pick a crop, take down, take from a table |
-| **Left click** | `interact(held, target)`, or a blow | tools, eating and drinking (click yourself), the player's experiments; weapons strike |
-| **Right click** | `put(held, target)` | place, store, set on a table or fire, sow, give |
+| Input | Act | Reach | For |
+|---|---|---|---|
+| **E** | `hands(target)` | the target's `handsRange` (0: standing on it, a bed; 1, beside it, by default; a sign 2) | talk, open, read, wake, sleep (whatever is held) |
+| **F** | `take(target)` | the world's `carry` (1: the cells round, one's own included) | pick up, pick a crop, take from a table |
+| **G** | `put(held, target)` | `carry` | place, store, set on a table or fire, sow, hand to a person |
+| **Left click** | `use(held, target)`; with nothing held, a blow | the held thing's `range` (1 by default; a spear 2, a bow 6) | tools, weapons, feeding someone, putting armour on someone, the player's experiments; a bare fist hits anything (Minecraft); a built thing or a fixture in hand on open ground, a floor or what is built is set down there (it builds, Terraria: the rules `use/set-structure`, `use/set-fixture` hand it to the cell as G does; held and dragged, a row; R with a floor in hand, the ceiling) |
+| **Right click** | `use(held, self)` | oneself | eat, drink, put on, a bare fist on oneself; the same act as a left click on one's own place |
+
+**Taking and putting are the world's physics, never asked**: what can be taken is taken, what has
+room takes what is put on it, a person takes what is handed to them; anything else refuses, and F
+and G are offered only where they would change something. What a thing makes of another is the
+left click's: using something on something is where the AI answers ("put places; use applies").
+A creature does not take what is put on it; a rope *used* on it holds the rope out to it, and what
+it makes of that is its own nature, undefined until the AI says.
 
 Other keys: Esc (menu, and closes anything open), I (inventory), J (journal), M (map), 1–0, -, =
 and the wheel (toolbar), Shift (walk), WASD (move). Dialogue moves on with E or a click.
 
 - **The instrument** is the selected toolbar slot: any carried thing, or an empty slot (none).
-- **The aim**: the point the mouse is on, when its tile is the player's own or one of their 8
-  neighbours, else the tile in front.
+- **The aim**: the point the mouse is on, when some input reaches it (so how far the pointer
+  reaches is the farthest of them, with what is held and what is there); else, for E, F and G, the
+  tile in front. A spot shows only the inputs that reach it: far off, perhaps just the bow's shot.
+- **Reach is the engine's**, for every actor: an act whose target lies beyond its reach is not done
+  (`Engine.inReach`; Gus works from beside the tree as the player does). A system that pulls from
+  farther says how far (the magnet, a sin's skill).
+- **E with nothing pointed at** acts on the place in front, unless what is there has no answer
+  of its own and what one stands on has one: the bed one lies on, a place of the overworld (its
+  block of 3×3: standing anywhere on it, facing any way, E enters it; the block is outlined whole).
+- **Oneself is never E's, F's or G's target**: on one's own place they meet what is there (the
+  floor, what lies at one's feet, the bed one stands on). The left click on one's own place is on
+  oneself.
 - **The layer**: whatever is drawn at that point, top first — a person, the things lying on a
   table, the table, the canopy of a tree reaching over from behind, the ground last. The view
   alone knows what is drawn where (it tests the pictures' own pixels), so it hands the stack to
@@ -212,27 +241,47 @@ and the wheel (toolbar), Shift (walk), WASD (move). Dialogue moves on with E or 
   the item): use the held thing on it, put the held thing into or onto it, handle it bare-handed.
 - **Blows** (a convention the ModSpec states): pure weapons (blades, clubs, bows, wands) strike
   whatever they are used on except people; tools that are also weapons (the axe) strike living
-  things and work everything else; a bare fist on a creature punches. A weapon used on a person
-  is an interaction, never a blow — no villager is hurt by accident. The events these exclude
-  (a pure weapon's `interact` on a non-person, a tool's `hit` on a non-creature) are not player
-  events.
-- Eating and drinking ask first (yes / no); so does any rule with `confirm`.
+  things and work everything else; the bare body strikes whatever it is used on (a fist wears down
+  plants and wood, slowly; stone is too hard). A weapon used on a person is a use, never a blow — no
+  villager is hurt by accident. A blow from afar flies along a row or a column.
+- Eating and drinking oneself ask first (yes / no); so does any rule with `confirm`. Food, a
+  draught or armour used on another feeds them, doses them, dresses them.
 
 **Proof sketch.** An event is (verb, instrument, target). The key fixes the verb; the slot fixes
 the instrument, and every carried thing (or none) can be selected; the aim, the chooser and the
-context menu reach every target. The three are independent, so their product — the event space
-less the stated conventions — is reachable; and a given input state is one dry run, shown by the
-label. `packages/content/test/controls.test.ts` checks it by enumeration on a scene with the hard
-cases (a pile on a table, a stick on the ground, a person, the own tile, a second thing in the
-bag): every (verb, instrument, target) is produced by some input, and each input by one event.
+context menu reach every target within the act's reach (one's own place for use: the right
+click). The three are independent, so their product — the event space within reach, less the
+stated conventions and the takes and puts that would change nothing — is reachable; and a given
+input state is one dry run, shown by the label. `games/openworld/content/test/controls.test.ts` checks it
+by enumeration on a scene with the hard cases (a pile on a table, a stick on the ground, a person,
+the own tile, a second thing in the bag).
 
 **Undefined behaviour from the inputs**: every input makes an act (§5.7). Where its outcome,
 or that of an impulse it emits, reaches an undefined leaf, the AI is asked (§5.11).
+
+As built (2026-10-05): aiming, keyboard layers, reach, blows, menu drops and magnetic pickup
+keep the actor's storey. A built floor sits below the things on it in the chooser. A blow keeps
+its announced target, including an item in the bag; a chosen target beyond a blocked ray or
+off its line is refused.
 
 ### 5.3 Inventory, chests, pickup, HUD, menus, time
 
 The craft is Stardew Valley's; the systems are the Ford's own (game-design.md §10 lists what
 was cut).
+
+- **Death** (Minecraft's death screen): the one at the keys, felled, lies fallen (`down`, as any
+  essential being) and the world stops on a red veil: "You died!", who felled them (the source of
+  the harm that did, `combat.lastHurtBy`: no one for a fall, hunger or the world; a wound's pulse
+  names whoever opened it), and what may follow by the game's **difficulty**, chosen at a
+  new game (the story's fact `game.difficulty`, protected; a game from before is normal):
+  - **easy**: get up where one fell, whole, with everything;
+  - **normal**: respawn at home — the bed last slept in or the waypoint last woken (the actor's
+    `home`, which the bed and the statue tell them), else where the world began — whole, what one
+    carried left where one fell (lying still, to go back for);
+  - **hardcore**: one life: the slot is saved as it ended and can no longer be played.
+  On easy and normal one may instead load a save (a fallen player is not autosaved, so it is from
+  before the fall) or go back to the title. Rising is the story's word and the actor's own rule
+  (`Engine.respawn` → `notify {what: respawn}` and a push home; `body/rise`), not a write.
 
 - **Inventory**
   - 30 slots in three rows of ten; the first row is the toolbar (keys 1–0), and the selected
@@ -244,6 +293,9 @@ was cut).
     moves a stack between the toolbar and the rest of the bag, dragging an item out of the menu
     drops it, and a button organizes the bag.
   - Slot order and the selected slot are part of the world state.
+
+  As built (2026-10-05): organizing uses the bag's learned capacity, including Big Pack's
+  fourth row.
 - **Chests**
   - The chest's grid is shown above the inventory's grid.
   - Clicking an item moves it to the other side; right-click moves one.
@@ -254,10 +306,11 @@ was cut).
     (its meat, its loot) and a hen's eggs lie still instead (`spawn`/`dropContents` with
     `still`): they are taken with F.
   - Items placed in the world are taken with F. Walking through town never vacuums it.
-- **Foraging** (Don't Starve's twigs, flint and grass): a map names what its ground yields
-  (`MapData.forage`: an item type, the terrains it lies on, a cap). While the player is on the
-  map, every 150 ticks one more of each kind below its cap appears on a free tile, never right
-  beside the player (`engine/src/forage.ts`). These are taken with F like any placed item.
+- **Foraging** (Don't Starve's twigs, flint and grass): a map names what appears on it by itself
+  (`MapData.appear`: weighted types, the terrains, a cap, a pace). While the player is on the
+  map, one more of each below its cap appears on a free tile at its pace (150 ticks for the
+  ground's yield), never right beside the player (`engine/src/appear.ts`, world-model.md §6.9).
+  These are taken with F like any placed item.
 - **Crafting** (C, or the menu's Craft tab): recipes are content (`content/src/recipes.ts`);
   each lists what it uses up from the bag and the item it makes. The first tools are the
   catalogue's axe and pickaxe in stone (stone axe: stick, stone, grass; stone pickaxe: two
@@ -266,7 +319,7 @@ was cut).
   clump of trees), the creature takes a path around (A*) and keeps to it (`ai.detour`) until it
   arrives or its goal moves. A fire's reach still stops it.
 - **Animals** (game-design.md §4b): `behaviour: 'passive'` creatures never attack and run from
-  their foes; `MapData.forage` also brings creatures back (with `every`, `ai`, `statuses`).
+  their foes; `MapData.appear` also brings creatures back (with `every`, `ai`, `statuses`).
 - **Hunger** (Minecraft's food bar): an actor with `maxHunger` (the player: 20) loses one
   point every 300 ticks; eating feeds it the food's `food` prop (the `feed` primitive in
   `core/eat`). Food does not heal: health comes back from being well fed (below). Medicine eaten
@@ -320,6 +373,10 @@ lists where it fell short).
 
 ### 5.5 What the world is made of
 
+> The agreed extension is [world-model.md](world-model.md) §3–5: the state is things and the
+> clock (facts become props of the story and the world), cells are `(map, x, y, z)` with occupied
+> spaces, regions and rooms are things, and maps form two levels (overworld and local maps).
+
 - **Things**, each with a type, props, statuses and a place: on a tile, inside a thing, or in a
   hand. Tiles are things of `tile/*` types; map regions are things too.
 - **Stance**: where a thing is — `ground` (the default), `air` (flyers), `water` (swimmers).
@@ -358,7 +415,8 @@ lists where it fell short).
   - Walk its tree to a leaf. `inherit` goes up a level.
   - The root type `thing` has a rule for every root event kind, and none of them inherits, so
     every event reaches a leaf.
-  - The validator rejects two rules that are equally specific.
+  - The validator rejects two base rules that are equally specific; learned rules have places,
+    not ranks (§5.16).
 - **One outcome per event.** There are no composed rules. Further consequences are further
   events: an act that someone sees is also a `seen` event, with the seer as its host.
 
@@ -416,6 +474,9 @@ Checked against the base rules: every cross-thing effect maps to one impulse.
 | change another person's schedule | notify that person, who changes it |
 
 ### 5.9 Root defaults: what is asked
+
+> [world-model.md](world-model.md) §7 adds the rows for durability, `broken`, building, support,
+> falling, stages, regions and sites; the policy below is unchanged.
 
 The policy: **what someone does on purpose is undefined at the root; what happens around them
 all the time is defined by physics at the root.** Authors then leave undefined leaves on
@@ -476,17 +537,33 @@ At the Ford:
   - it sits on a host type and an event kind of the AI's choosing;
   - its conditions name classes, not instances;
   - every case it does not match inherits.
-- **Validation**, in addition to §8's schema, ontology, sandbox replay, tests and regression:
+- **Validation**, in addition to §8's schema, ontology, sandbox replay and tests:
   1. it writes only its host;
   2. it emits only known kinds;
-  3. it addresses classes;
-  4. **it only fills holes**: every case it matches resolved to an undefined leaf before.
-     Conditions are conjunctions over types, tags, statuses and numeric ranges, so whether
-     the patch's region lies inside the hole's region can be decided.
+  3. it is one type's, placed at one open leaf of that type's tree for the hole (§5.16);
+  4. **it only fills holes**: by construction, since the learned tree is consulted only where
+     the base rules reach an undefined leaf, and a learned rule has no undefined leaf of its own
+     that it could close for others.
 
   Rule 4 makes refinement monotone: the AI never changes defined behaviour. An authored
   outcome that is wrong is fixed by a person, or by offline review.
-- **One question at a time.** A hole is asked once per class: while a request is open, the
+- As built (2026-10-06), checks that hold their ground:
+- **One class key.** The engine's `classKey` (the hole, the kind, the host's type, the other roles'
+  types with `self` for the host, the branching params; residents out) is what both the client's
+  port and the service key by. They used to disagree (the service added the host's statuses).
+- **A review with no verdict is no review.** It is asked once more, then recorded as `error`, never
+  as `ship`; a verdict in capitals reads as what it says.
+- **A derived test always tests.** It asserts that the rule answers (`resolvedBy`, a new
+  expectation), and a number that moved by the way it moved (its start differs per instance).
+- **Create only what the world lacks.** A creation asked for at once, whose name is close to
+  things the catalogue has, goes through find first; the route is recorded as it happened. A new
+  type that is a thing the world has under another number (sticks, stick) or the same Chinese name
+  is refused.
+- **What comes from elsewhere is checked here.** A shared-library patch comes with the scene it
+  answered, and a client replays it there before it takes it (the repeat check included). A saved
+  library's patch rules are validated again as they come back (`restoreLibrary`).
+
+**One question at a time.** A hole is asked once per class: while a request is open, the
   same hole and class wait for it, and once it is answered the class never asks again. The
   number of calls is bounded by the (hole, class) pairs that are actually reached, not by how
   often events happen.
@@ -498,15 +575,45 @@ At the Ford:
   - At the time-out the leaf's default runs. A patch that comes later replays the event if
     it still applies.
 - **Before the press.** Aiming dry-runs the act through the events it emits. Reaching a hole
-  marks the label `?` and starts the request early (prefetch).
+  marks the label `?`. Starting the request early (prefetch) is off by default (`?prefetch=1`):
+  in play it committed patches to the shared library for acts the player never made, and a failed
+  one escalated to an offline run (2026-10-07).
 - **Boundaries.**
   - Only the story's own rules write its protected facts (`ford.`, `seen.`, `invalid.`).
+  - Only the story raises its own topics (the ones its steps and rules raise, protected as
+    `topic.<id>`): a patch, the player's or the world's, may raise a topic of its own, never the
+    story's news before it happens.
   - An `essential` actor goes down and is never destroyed.
   - Emitted spread stays within the event's map and below certainty.
 - **Legibility.** Every learned thread enters the Threadbook with its cause and with who
   started the chain (you, or the world), and the first time the player sees one there is a
   light cue ("The world pauses…"). People may talk about it: a patch may notify the story of a
   topic.
+
+As built (2026-10-07), after a play session: **the world pauses while the player's own act waits.**
+Before, only the event's participants were held (the player among them), and everything else went
+on: at night, a held player stood for the model's ten seconds among monsters that kept striking.
+Now the host stops the world's clock while a request the player's act raised is pending
+(`ModPort.asking`), as it does for a menu, and times the wait in real seconds: 20 for an answer,
+120 while new things are made; then the hole's default runs and the world goes on. Questions the
+world raises by itself (a fire reaching what nothing defines) do not stop it. **Statuses draw what
+their data names**: a status's `overlay` is one of a closed set the client can draw (`OVERLAYS`:
+fire, flame, ice, spark, wet, oil), the frame carries each thing's overlays, and a status a patch
+defines picks from the same set (the validator refuses any other). A thing with its own lit picture
+(a brazier) shows that instead of a flame. **The shared library holds only what holds**: at start the
+service judges every live patch, in the log's order, against what came before it, and rolls back
+what the validator, as it is now, no longer takes (`modder library prune`). Clients used to refuse
+each such patch on every load. The types and statuses a rolled-back patch alone brought go with it
+(`removeType`, `removeStatus` in the log), and so does any learned type or status the checks no longer
+take; a client forgets them unless something in its world is made of them or has them, and a synced
+patch's definition of a learned thing replaces the one a client kept. The developer's lines (a refused patch, a rule set aside) are a
+`dev` tone: the console's, never a player's toast. **A key does what its label said**: pressed a
+moment after the label named someone who has since stepped off the spot, it still acts on them
+while it reaches them (`Controls.planFor`), and what lies on a thing comes before the thing however
+small it is drawn. A thing that reaches the bag without an input (a scene's gift) takes its slot
+each tick (`Controls.keep`). The client saves quietly each minute and on each new map, but not in
+danger (hurt in the last 15 s, or something hostile within 8 tiles): the save loaded after a fall
+is never the fight that was lost.
 
 ### 5.12 Space and time: active, dormant, resident
 
@@ -555,6 +662,10 @@ At the Ford:
 
 ### 5.13 Completeness
 
+> [world-model.md](world-model.md) §10 re-argues A1–A7 for the extended world and lists the new
+> checks (no kinds, one reference form, exclusivity, every damage channel, economy,
+> reachability, mirrored barriers, deterministic generation, parameters).
+
 **The claim.** For the simulated world, every consequence passes through an event, and every
 event reaches exactly one leaf; only undefined leaves ask the AI, and without one they run
 their default. The simulated world is the active map and the resident hosts, continuously, and
@@ -589,7 +700,25 @@ undefined behaviour is exactly reaching an undefined leaf.
 | relation difference | after every outcome and on entering a map |
 | playable without an AI | the story's critical path has no undefined leaf: the three routes, dry-run with the AI off |
 | the inputs are complete | already proven (§5.2) |
-| deterministic, and every chain ends | replay; the depth bound |
+| deterministic, and every chain ends | replay; the depth bound; the termination check on the request's scene (`chainLoop`: a patch whose event sets itself off again is refused with the round); the runtime guards below |
+
+As built (2026-10-06), the runtime guards: what the validator checked beforehand, the engine holds
+to while learned rules run (`tools/test/guards.test.ts`).
+- **Every chain ends.** What an outcome sets off (an emit, a threshold, a contact, a status) joins its
+  chain one step deeper, not only emits. A chain that has to wait for a later tick may run 2,000 more
+  events, and no more; at most 2,400 events wait for the next tick. What is dropped is charged to the
+  rule whose outcome made it.
+- **Numbers stay finite.** An amount that is not a finite number (a prop that is a word, an overflow)
+  is refused, and so is a prop written as NaN or Infinity. One effect makes at most `params.spawnMax`
+  things (64; the content makes at most 8); a heal never takes; levels come at most a hundred at a time.
+- **Things stay where a thing can be.** A place is a whole cell inside its map, or a holder that is
+  there and is not the thing nor inside it. One goes only to a map that is loaded, in the portal
+  graph, or named by a site. An essential thing may become anything that can act (a spell that
+  turns one into a hen), and stays essential as it; never a thing that cannot act.
+- **A rule that keeps failing is set aside.** A learned rule's outcome stops at its first refused
+  effect; when a base rule refuses what a learned rule sent it, the sender is charged. After three
+  failures, or at once for a chain that would not end, the rule goes into the state's `quarantine`
+  (kept in saves): it answers no more, and its hole is open again.
 
 **The twelve sources of the previous model**, all covered:
 
@@ -718,7 +847,7 @@ opens) are its own: written only by its own behaviour and outcomes, never read b
 | beats wrote the leader's props and facts | the story's script (as a scene's): its facts, and a notice of the stage the leader keeps itself (`body/stage`) |
 | the dispatcher counted the player's experiments | a companion sees an act whose chain reached an undefined outcome (`seen`, `defined` false: the act and all it set going) and tells the story (`companion/witness`) |
 | the teleport set `visited.<map>` facts for the player | the traveller's own props, in its outcome |
-| a quest wrote facts, the player's props and bag from the person's rule; the dispatcher counted defeats by the player | the person tells the story; the story's `quests` effect writes its facts, spawns the reward into the taker's bag, notifies the taker (experience, stage) and sends the brought things a `taken` into the giver's bag; a defeat tells the story what fell (`{typeOf}` param), counted for the quests its feller took on (`q.<id>.by`) |
+| a quest wrote facts, the player's props and bag from the person's rule; the dispatcher counted defeats by the player | the person tells the story; the story's `quests` effect writes its facts, spawns the reward into the taker's bag, notifies the taker (experience, stage) and sends the brought things a `taken` into the giver's bag; a defeat tells the story what fell (`{typeOf}` param), counted for the quests its feller took on (`q.<id>.by`). **2026-10-09** (docs/quests.md): a quest under way is a resident thing of its own; it sees news (a `seen` event) and moves on as its own outcome (`advance`, `stage`), writing only itself; the story begins quests (`begin`, `startQuest`) and keeps the facts it is told (`facts`) |
 | the skill tree and the trainer wrote the player's tags and props | `act/learn` (param `skill` or `profession`), like `craft`: the actor's outcome (`learn`) |
 | talents healed the striker and bled the target from the striker's code; a clock hurt and healed | the act carries `bleed` and `drain`; the struck one's `hurt` opens `bleeding` and sends a `restore`; `adrenaline` is a status; recoveries on a defeat are the striker's rule (the defeat carries the last blow's instrument) |
 | the dash, waypoint travel moved by code | acts of moving |
@@ -761,6 +890,121 @@ Sources:
   examine/trigger, ambient arrival, opening), `demo/loom/docs/quests.md` (the stage
   invariant).
 
+### 5.16 Learned rules take one leaf (2026-10-09)
+
+Agreed with the user, and built. A patch used to name a class (`{type: "item/weapon"}`,
+`{tags: ["edible"]}`) and join a layer of learned rules ranked by specificity. Three things
+followed from the ranking: two learned rules could tie (the validator refused the later one, and
+the modder learnt to add tags to win the ranking); a later, more specific one could shadow an
+earlier one, so every patch was replayed against the scenes earlier ones answered (the regression
+set); and once a broad patch filled a hole, nothing more specific was ever asked about any
+instance of its class. A second observation: none of this guarded anything. What the base rules
+define is resolved before the learned layer is consulted at all; a learned rule may not have an
+undefined leaf; `inherit` ran on to the next learned rule. So no patch could ever make a defined
+outcome undefined, and the regression replay could only ever report a shadowing it then allowed.
+
+**Now a learned rule is one type's, placed at one leaf.**
+
+- Its host is exactly `{type: T}`, the type of the event's host instance; its `on` is the exact
+  event kind; `hole` names the base hole it fills (`holeKey`: the base rule and the branch that
+  reached it); `at` is the path in the type's tree for that hole to the open leaf it replaces
+  (empty for the first answer). The four are set from the request by the harness (`placePatch`),
+  never by the model, which writes the tree.
+- For each (type, kind, hole) the library keeps **one tree**, composed from its answers in the
+  order they were learned: the first answer is the tree; each later one replaces the open leaf at
+  its `at`. A leaf keeps the answer it came from, so the rule that decided an event is known, and
+  an answer set aside at runtime (`quarantine`) leaves its leaves open again.
+- A learned rule never writes `inherit`. A case it does not answer ends in `{"undefined": true}`:
+  it stays open, and is asked later; the base hole's default runs there meanwhile. An `if` needs
+  an `else`.
+- Resolution: the base chain as before; at a hole, the host type's own tree for that hole;
+  `Resolution.open` says where an answer would go (the key and the path), and the request carries
+  it (`hole.at`). The class key includes it: one question per open leaf and class.
+
+**What this removes.** Ties, the regression set (the client's ring of recent acts, the service's
+FIFO, the validator's step 7), `overrides`, `narrowKinds`, and the sibling generalization test (a
+learned rule has no siblings; its derived test is the scene that asked). The validator's checks
+on a learned rule are: schema, ontology, locality and the world-event boundaries; its place (with
+the scene that asked: the host's type, the kind, the hole and the open leaf it reaches; without
+one: a first answer, or an open leaf of the library's tree); the sandbox replay of the triggering
+event (it resolves to this rule); the repeat check; its own tests. Monotonicity over the base is
+by construction, not by test.
+
+**What it costs.** Generalization moves out of the learned layer: a class-wide answer ("natural
+fixtures hold nothing put on them", which once answered 1,638 cells) is now one answer per type
+reached, and sibling types are answered independently and may disagree. That is the intended
+division: the live layer answers one type at one leaf and never interacts with another answer;
+what holds for a class belongs in the base rules, which the offline loop may propose (a repo
+change with tests, merged by a person) and which then makes the learned trees under it stale
+(`RuleLibrary.stale()` lists answers whose leaf is gone or already answered).
+
+**Older patches.** A learned rule without a place (a class host, no `hole`) is kept in a library
+but never consulted; `library prune` lists and rolls back what the validator no longer takes, and
+`restoreLibrary` drops it from a save with the reason.
+
+**Found in review (the same day), and held to:**
+
+- A leaf that says `undefined` and carries `do` at once is open: the validator refuses it, and the
+  engine reads such a leaf as open whatever it carries.
+- A question's place is read off the scene **as the library is now**, not as it was when the
+  question was asked: another answer may have grown the tree since (the open leaf moved) or taken
+  the case (then nothing is placed, and the request is covered). `placePatch` does this in the
+  pipeline, the repo mode and the port, so a stale request is still answered.
+- A learned rule set aside at run time (`fault`, `quarantine`) leaves the library: its leaf is open
+  again for the validator's replays as for the game.
+- A rule's `hole` must be an open leaf of a base rule that exists. So a base rule whose branches
+  change makes the learned rules below it fail validation on restore, sync and prune, with the
+  reason, instead of silently never being consulted; what grew below a rule that is not restored
+  is dropped with it (`restoreLibrary`, `stale()`).
+- A revision takes its predecessor's place in the tree (the log entry says what it `replaces`;
+  `RuleLibrary.add(rule, at, inPlaceOf)`), so the answers that grew below the old one keep their
+  place where their paths still fit.
+- A boss is not lashed down by a handful of grass: `creature/offered` leaves bosses to their own
+  kind's answer.
+
+**The god loop held to its own review (`fix/god-loop`, the same day):**
+
+- A learned rule may give the story a topic and nothing else (`notify` with `what: topic`); a stage,
+  a defeat, a reward, a status are the game's own news. The records trust only their own sources
+  besides: a person keeps a stage told by the story, a book or a skill (`body/stage`), the story
+  settles a quest's word from a person and a defeat from the one felled (`story/quests`).
+- The validator knows every tag the world has (the types', the terrains', the instances', the base
+  rules') and refuses one nothing carries; families made at run time (`skill:`, `profession:`,
+  `faction:`…) pass by their prefix.
+- The repeat check counts what the actor gains as a yield too: experience or fullness that goes up
+  with nothing between.
+- The auditor's deterministic probe runs first: the scene's own act thirty times, with the patch and
+  without it; things made or numbers gained beyond what the world gave without the patch are a
+  farm, found with no model call. The model is asked only when the probe finds nothing. Its acts
+  reach as far as the event did (as the validator's replay).
+- A reviewer that gives no verdict before shipping is no review: the rule ships and is reviewed
+  after the fact, flagged so. In the repo mode, what the auditor broke goes back to the agent once
+  (the findings and the draft in its issue), as the pipeline gives it to the designer.
+- A client reports a learned rule it set aside (`POST /fault`); past the harness's bound
+  (`faults.remove`, two clients) the rule leaves the shared library and goes to an offline revision.
+- While a scene plays, the world's own questions hold nobody: the default runs at once and a late
+  answer still applies. A step with a region is looked at again every three seconds while one
+  stands in a region (a thing picked up there, the hour), not only on entering it.
+- Cost: a sandbox shares the world's ontology (the index copies on its first write) instead of
+  cloning 334 types per build; a library builds its indexes once when made or cloned, not once per
+  rule; the validation proof's key is the library's version, not every rule stringified; a request
+  whose host type has no learned tree at its hole skips the covering replay.
+
+**The base's general cases (the same day).** With generalization moved to the base, the base
+took the class-level answers the curriculum had been learning one patch at a time
+(`rules.ts` GENERAL): a thing used on a creature is held out to it, as §5.2 says (`core/use`);
+a creature lashed down by anything fibrous and fed by anything edible, else its own kind's to
+answer (`creature/offered`, still a hole at the root); a wild creature snapping at a bare hand,
+animals left to their own rules (`creature/handle`); a cell only touched by a bare hand, but a
+place of the overworld entered (`tile/handle`); a lit fire drying and thawing who warms their
+hands at it (`fire/warm-hands`); ore smelted in a lit forge into its bar (`smelt/ore`, the ore's
+`smelts`; iron and gold ingots are forms now); a down companion waiting (`companion/stuck`); and
+anything swung as a blow striking. What §5.2 calls the player's experiments — a thing used on the
+ground, on an item, on a person, on oneself, on a fixture with no purpose — stays undefined on
+purpose: that is where the AI's answers are interesting, and it is most of the 27,213 `core/use`
+holes left. The planner no longer lets the ground's "touched" take E away from an unanswered
+thing in front (`controls.ts`: what one stands on wins only with an answer that does something).
+
 ## 6. Rule system
 
 The shape below is the event model's (§5.6), agreed 2026-10-02 and built (§5.14).
@@ -802,8 +1046,9 @@ answers, and a condition tree:
 - **Leaves** (§5.6): `effects` (an empty list means no change), `emit`, `inherit`, and
   `undefined` with an optional authored default.
 - **Effects** are drawn from a fixed, typed set of primitives that act on the host:
-  `transform, destroy, move, addStatus, removeStatus, setProp, addProp, setTerrain` (a tile
-  host), `spawn, dropContents, setScript`; presentation: `say, log, vfx, emote, scene`.
+  `transform, destroy, move, addStatus, removeStatus, setProp, addProp` (a cell is made of
+  things, world-model.md §4.6: water freezing is the water transforming), `spawn, dropContents,
+  setScript`; presentation: `say, log, vfx, emote, scene`.
   `emit` sends an impulse or a notice to a role, an area, a line, a direction, or a named
   receiver (§5.12).
 - Adding a primitive, a condition or an event kind is an engine change; adding behaviour is
@@ -944,13 +1189,29 @@ Lifecycle of a patch:
    4. **writes only its host**;
    5. **fills only holes**: by construction — patches are consulted only where the base rules
       reach an undefined leaf (§5.14), and the replay must resolve to the patch;
-   6. no tie with an existing rule;
-   7. **sandbox replay** of the triggering event, of the patch's own `tests`, and of the
-      regression set, on a copy of the state.
+   6. its place: one type, the exact kind, the hole and the open leaf the scene reaches (§5.16);
+   7. **sandbox replay** of the triggering event and of the patch's own `tests`, on a copy of
+      the state; the repeat check.
 5. **Apply.** The rule enters the library; the held event is replayed and now reaches it.
 6. **Persist** (§9).
 
 A failure at any step runs the leaf's default; the game never blocks.
+
+As built (2026-10-05): the service keeps bounded validation proofs keyed by the library
+version and the contents of the ontology, workspace, scenario and candidate
+artifacts. Adding only tests replays the added tests. Commit reuses a proof only when its
+shared-library context matches exactly; any context change requires full validation. Both
+luck branches of the repeat check remain.
+
+As built (2026-10-05): request scenarios keep the participants' holding closure, the story
+and world props, and storeys. Terrain rows supply each ground cell's top; cell overrides keep
+the actual types and state below it and upstairs. Cover above participants is kept before
+the limit on loose neighbours. Cell roles use `tile:x,y[,z][:space]`.
+
+As built (2026-10-05): a status artifact may repeat an existing definition, but cannot change
+one from the base ontology, shared library or an earlier artifact in the patch. Object key
+order does not change a definition. This keeps ontology additions inside the same boundary
+as rules that only fill holes.
 
 **One question at a time.** A request is keyed by its hole and its class (the host's type, the
 event kind, the parameters the tree branched on, the other roles' types). While one is open,
@@ -1059,18 +1320,18 @@ Notes from verification that changed the design:
 Direction from the user: build a small but refined demo first, then scale. The default world is
 hand-crafted; the generated 460-map world was removed on 2026-10-02.
 
-- **Art**: the Ninja Adventure pack (CC0). `packages/client/src/assets/catalog.ts` maps every
+- **Art**: the Ninja Adventure pack (CC0). `games/openworld/client/src/catalog.ts` maps every
   terrain, fixture, item, creature, character look, VFX, UI piece, music and sound to the pack;
   a preview page (`/src/assets/preview.html`) shows all of it.
-- **Renderer** (`packages/client/src/render/`): 47-tile blob autotiling (table `BLOB47`) into a
+- **Renderer** (`packages/runtime/src/render/`): 47-tile blob autotiling (table `BLOB47`) into a
   runtime ground atlas; terrain objects (trees, rocks, tall grass…) that follow terrain state
   (burnt → charred, chopped → stump); prefab buildings stamped by the map author with correct
   occlusion; nine-slice room walls; 4-direction animated actors; status overlays, projectiles,
   day/night light, music per map and sound effects.
-- **World** (`packages/tools/src/demo/`): an authoring DSL (terrain painting, prefabs, rooms,
+- **World** (`games/openworld/tools/src/demo/`): an authoring DSL (terrain painting, prefabs, rooms,
   fixtures, items, creatures, portals). First Hearthvale (15 maps, 12 villagers), replaced on
   2026-10-02 by **the Ford** — one map, two people, minimal and complete (game-design.md).
-- **Story as data** (`packages/content/src/ford.ts`): objectives keyed by a player prop, rules
+- **Story as data** (`games/openworld/content/src/ford.ts`): objectives keyed by a player prop, rules
   on classes (the ferrykeeper, the peddler, the dead tree), and invariants that keep it winnable.
 - **UI**: JRPG dialogue box with portraits, objective panel, and an action prompt that shows
   what E/F will do — including "the world has never seen this" for undefined interactions.
@@ -1115,6 +1376,20 @@ client worker ──POST /resolve {request, workspace}──▶ modder ──▶
 8. **Reflect** — after replying, the model distils lessons, which are added, supported,
    revised or dropped, each citing its episodes. It writes or revises a skill once that kind
    of work has recurred.
+
+As built (2026-10-06), **the auditor** (`modder/src/audit.ts`), between verify and review: an
+agent plays against the patch the way a player out to break the game would. It looks for farms,
+cheap roads to rare things (a rope that becomes Dragonsbane passes the validator and the LP: one
+for one), softlocks, harm, and runaway chains. It has the sandbox, not an opinion. Its tools are
+`look` (the scene) and `run` (play acts, ticks and repeats in a copy of the scene, with the patch
+and without it), and each finding is a setup, steps and claims (counts, props, statuses, a thing
+gone or become another, an event count). The code judges: a finding counts only when the sandbox
+shows it with the patch and not without it, so the model searches and never decides. The offline
+profile audits before shipping, and what is broken goes back to the designer with the evidence. The
+live profile audits after shipping, and what is broken leaves the shared library at once and goes
+to one offline revision. An auditor that fails finds nothing; the journal's audit entry keeps its
+`error`, so a failed audit is never counted as a clean one. Harness `audit {enabled, blocking,
+rounds, reasoning}`.
 
 **Client.** The worker probes `?modder=<url>` (default `VITE_MODDER_URL`; in development,
 `localhost:8787`). If the service answers, the worker becomes the port's provider, waits up to
@@ -1166,6 +1441,39 @@ checkpoints are produced between benchmark runs.
 | **Review after shipping**: rules that only narrate, or did not generalize, are always reviewed. A "revise" verdict sends the rule to one offline revision, which *replaces* it in the shared library (remove-then-add in the log) | quality without a model turn on the critical path |
 | **Escalation**: a live request that fails is worked again offline in the background | the player gets the fallback now; the world still learns it |
 
+As built (2026-10-05): clean local, find and create routes share the reflection batch. Errors,
+repairs, reviews and quality flags still cause immediate reflection. Working notes follow
+the static ModSpec in the system prompt so its cache prefix stays intact. The brief sends
+its closest rules in full once and the other related rules as summaries; live instructions
+name only tools available to that call.
+
+As built (2026-10-10), after a play session on the things the world makes:
+- A draft that spawns or transforms into a type the world lacks goes to create with that id
+  (`unknownMade`), unless the id is a slip of a known sibling; before, the repair rounds told the
+  designer only "unknown type", and it learnt to swap in something known.
+- A new thing made on a station (a rule whose branch asks for a workbench) is that station's
+  craft: the harness sets its `station`, and its `yields` from the rule's spawn count
+  (`stationFromRules`). Learned recipes reach the crafting panel and the build palette.
+- What the world uses a thing by is checked on a new type: a food carries `edible` (or a drink
+  `drinkable`; item/potion carries it) and fills by a positive `food`; what a base rule turns into the type a prop names
+  (`TURNS` in mod.ts: a `plantable` seed its `cropType`, raw `cookable` food its `cookedType`, an
+  `empty-vessel` its `waterType`, ore what it `smelts` into, a drinkable vessel its `emptyType`) names it; a thing worn names its slot, a thing made at hand or at a
+  station is `portable` (it comes into the maker's hand; the harness adds the tag when it sets the
+  station), and a new status its name in both languages. A status that holds one still always ends (a duration, given or defined). The create prompt says what tags are for; the ModSpec guide says that both
+  ingredients of a thing made from two are used up, the other by its own answer.
+- A revision may define again the types and statuses of the patch it replaces; prune judges it in
+  that patch's place.
+- An act an answer completes is replayed as `act` runs it, so a patch does the same the first time
+  as every time after. A line about anyone agrees with "you" when the slot is the player.
+- Every answer a client takes, its own included (`ModPort.adopt`), replaces a learned definition it
+  kept when the library brings a corrected one. The library is every save's: a save brings back the
+  learned kinds its own things need (`withKept`), and these stay out of the shared store. Each game
+  keeps its own definitions (an Engine copies the world's), and on loading a client judges what it
+  learned as the library's prune does (`forgetInvalid`).
+- A thing that brings its picture is drawn by it (`art:<id>`) whether it names a sprite or not, and a
+  definition taken anew redraws it in place; an agent keeps its kind's animated sheet. A cell draws the overlay of a learned status as a thing
+  does. The model is shown each status's name, as it is each type's.
+
 **Results.** On 20 unseen curriculum interactions with the live profile:
 - 19/19 accepted (one was already covered); the first answer was valid for 17/19;
 - **median 5.7 s, max 16.6 s**, 1.1 calls and $0.037 per patch.
@@ -1191,11 +1499,44 @@ had a real inconsistency: it ignored ink that the player might be carrying.
 - Harness proposals and the meta-validation gate (rsi.md §5.3).
 - Per-player rate limits for public deployment.
 
+### Live latency through claude-code (2026-10-09)
+
+Measured on the live design prompt of a stone used on a dead tree (the system prefix 30 k
+characters, the user turn 8.5 k), Opus 5.5 at effort low, `claude -p` signed in as the user:
+
+| Call | Wall | API | Output | Thinking |
+|---|---|---|---|---|
+| a one-word answer, cache cold | 4.4 s | 1.3 s | 4 | 0 |
+| a one-word answer, cache warm | 3.3 s | 1.0–1.1 s | 4 | 0 |
+| the same with the CLI's non-essential traffic off | **1.5–1.7 s** | 1.1–1.3 s | 4 | 0 |
+| a live design, as before | 7.4 s | 4.6 s | 413 | 0 |
+| a live design, traffic off | 6.8–7.4 s | 6.5–6.8 s | 566–571 | 137–148 |
+| the same prompt, Sonnet 5.5 | 5.8–7.2 s | 5.4–6.4 s | 619–784 | 224–268 |
+| the same prompt, Haiku 5.5 | 6.7 s | 6.3 s | 1,147 | 640 |
+
+- **The CLI's own traffic was 2 s of every call**: the update check, telemetry, error reports
+  and surveys around the request. `ClaudeCodeModel` now runs the CLI with them off
+  (`DISABLE_AUTOUPDATER`, `DISABLE_TELEMETRY`, `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` and the
+  like), so wall time is the API's: a design loses about 2 s of 7, an agent step (median 3.7 s)
+  about half.
+- **The rest is output.** The API time is the answer's tokens at roughly 85 a second; the JSON is
+  already minified (no newlines). The `summary` field, which nothing read, is gone from the
+  answer format. A smaller model is not faster here: Sonnet and Haiku think longer and write more
+  for the same rule.
+- **Fast mode is not granted** to `-p` on this account (`fast_mode_state: off`). A warm pool of
+  pre-spawned CLIs would save only 0.5 s (the CLI does most of its work after reading stdin), so
+  there is none.
+- The prefix cache holds: 11.2 k tokens read, 4.4 k written per design call (the user turn and
+  the CLI's own context), 0 thinking at effort low unless the model chooses to.
+- Recorded episodes before this (30, claude-code): design median 6.1 s (p90 8.9 s), agent step
+  median 3.7 s (p90 9.9 s), a live episode median 7.1 s.
+
 ### The event model, live (2026-10-02)
 
-`npm run ford-live` plays eight scenarios on the Ford, each reaching one kind of hole through
+`npm run ford-live` plays the scenarios on the Ford, each reaching one kind of hole through
 the game's own path, and lets the live profile answer with Kimi K3 (review, reflection and
-escalation off; a fresh library).
+escalation off; a fresh library). Since inputs v2 (§5.2) taking and putting are physics and no
+longer holes: the tour has six scenarios; the measurements below are from before, with eight.
 
 | Scenario | Event, hole | Patch | Time |
 |---|---|---|---|
@@ -1310,9 +1651,16 @@ does not hold (iron from smelting, a stick from a stump). So the design works in
 - **The player waits for a creation.** `GET /progress?id=` says where a request is; once it
   creates, the client holds the act past its time-out (`ModPort.hold`) and the HUD says "The
   world is making something new: <names>".
-- **One design at a time** (`harness.concurrency.design`, live before offline): a request that
-  waited is answered by what was committed meanwhile. Reviews, reflections and escalations run
-  three at a time (`concurrency.background`).
+- **Designs in lanes** (`harness.concurrency.design`, 4 at once, live before offline): each is
+  worked and validated in its own sandbox, and the commit re-validates against the library as it
+  is then. A request whose patch would be written where another's is (the same event kind and
+  host class, `laneOf`) waits in that lane and is often answered by what the other committed;
+  others are designed side by side. A revision takes no lane: a player's request never waits
+  behind one (seen live: 20 s behind a 107 s revision, past the act's time-out). Reviews,
+  reflections and escalations run three at a time (`concurrency.background`).
+  As built (2026-10-05): before repairing a failed validation, a non-revision request checks
+  whether another lane has already answered its hole and class. If so it returns `covered`
+  without another design call.
 - **A rule writes only its host, so one act can take several holes.** A knife on a haystack is
   answered by the knife (a cut sent to the haystack), and the haystack's answer to a cut is its
   own hole, asked next. `npm run eval:objects` follows an act through up to four holes and judges
@@ -1350,6 +1698,9 @@ smoke results: [rsi.md](rsi.md).
 
 ## 14. Next
 
+The world model and base gameplay (state, things, space, breaking, makeup, building, rooms,
+storeys, stages, combat, behaviour, the story's script, two-level maps) are agreed in
+[world-model.md](world-model.md); its steps W1–W10 (§12 there) are the next engine work.
 Near-term gameplay work — interactions and simple loops — is planned in [roadmap.md](roadmap.md).
 
 - Grow the Ford with the offline profile (curriculum, guided by what players actually try);

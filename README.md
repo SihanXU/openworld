@@ -6,6 +6,13 @@ applies, and keeps. When interactions are defined, the game runs on its own.
 
 Successor to BardOS. Design: [docs/design.md](docs/design.md).
 
+OpenWorld is both the engine and, for now, the name of its first game. The engine side lives in
+`packages/` (`engine`, `runtime`, `modder`, `agent`) and imports no game; each game lives in
+`games/<id>/` and hands itself over (this one: `games/openworld/`, with its content, maps, tools,
+art, wiki generator and app in `client/`). The OpenWorld Editor makes games on the engine in the manner
+of RPG Maker — a program of its own, in the browser or as a desktop application:
+[docs/engine-split.md](docs/engine-split.md).
+
 ## Worlds
 
 - **The Ford** (default, hand-crafted demo): a river crossing at the edge of the world — a
@@ -13,7 +20,7 @@ Successor to BardOS. Design: [docs/design.md](docs/design.md).
   and one goal: the far bank. The place teaches three ways across; anything else the world
   learns from the player counts too. It is the development scaffold of a world meant to reach
   hundreds of maps; every element it holds witnesses a requirement
-  ([docs/game-design.md](docs/game-design.md) §9, proven by `packages/tools/test/demo.test.ts`).
+  ([docs/game-design.md](docs/game-design.md) §9, proven by `games/openworld/tools/test/demo.test.ts`).
 
 The event model — one AI interface, the outcome of an event — is in
 [docs/design.md](docs/design.md) §5.4–5.14.
@@ -22,9 +29,26 @@ The event model — one AI interface, the outcome of an event — is in
 
 ```bash
 npm install
-npm run gen:world     # the Ford → packages/client/public/world/
+npm run gen:world     # the Ford → games/openworld/public/world/
 npm run dev           # http://localhost:5173, with the modder service on :8787
-npm run build         # static site in packages/client/dist
+npm run build         # static site in games/openworld/client/dist
+```
+
+## The engine, its player and its editor
+
+OpenWorld is also the engine the game runs on ([docs/engine-split.md](docs/engine-split.md)): the kernel and
+its optional modules in `packages/`, each game in `games/<id>/` — this one, and `games/starter`, the smallest
+whole game, written as data files and played by the kernel with no module.
+
+```bash
+npm run play          # the engine's player, http://localhost:5174/?game=/games/starter/ (or /games/openworld/)
+npm run editor        # the OpenWorld Editor, http://localhost:5175/editor/ — projects in any folder; the game,
+                      # maps, people, database, pictures and sounds, rules, story, quests, and the holes with
+                      # the AI as co-author; playtest from any cell; export a game anyone can play
+npm run editor:build  # the editor as a program of its own (packages/editor/dist), then npm run editor:start
+npm run desktop       # the editor as a desktop application (npm run desktop:dist: its installers)
+npm run game -- check games/starter        # a project's problems (build <project> --out <dir>: a bundle)
+npm run bake          # OpenWorld written as a project in the format → games/openworld/project/
 ```
 
 With Nix, `nix develop` (or `direnv allow`, through `.envrc`) gives Node 24 with npm; install
@@ -74,11 +98,26 @@ npm run agent -- swe --instances instances.jsonl --state var/modder-state --out 
 npm run improve -- --select 8 --confirm 8   # one turn of the outer loop
 ```
 
+## Wiki
+
+The game's Chinese wiki (and design proposal), in the shape of the Stardew Valley wiki: a page for
+every system, control, item, fixture, person, creature, boss, place and quest, plus the setting.
+Pages are Markdown files in `wiki/pages/` that anyone on the team can edit on GitHub; tables,
+infoboxes, schedules, dialogue and maps are generated from the game's own data at build time.
+How to edit: `wiki/pages/帮助/编辑入门.md`. Live at `http://35.239.4.44:5175/wiki/`, rebuilt a minute
+after a change reaches main.
+
+```bash
+npm run wiki          # http://localhost:5180/wiki/, rebuilt when wiki/ changes
+npm run wiki:check    # links, templates, and completeness (every thing and system has a page)
+npm run wiki:build    # the static site in games/openworld/wiki/out
+```
+
 ## Art & audio
 
 [Ninja Adventure asset pack](https://pixel-boy.itch.io/ninja-adventure-asset-pack) by
 Pixel-boy & AAA, CC0. The full pack goes in `assets/ninja-adventure/` (not committed);
-`npm run assets` copies the subset the catalogue uses into `packages/client/public/assets/na/`
+`npm run assets` copies the subset the catalogue uses into `games/openworld/public/assets/na/`
 (committed, so the site builds without the pack).
 
 ## Checks

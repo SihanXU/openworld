@@ -1,5 +1,9 @@
 # Main quest: from the broken bridge to the dragon
 
+> 2026-10-05: stages 0–2 are now **Chapter 1, the First Seal** ([chapter-1.md](chapter-1.md)): the bridge was
+> taken by the White Knight, the road east is his kingdom, and Emberfall opens after he falls. The chapters
+> below from Emberfall on are unchanged for now; the story's setting is [lore.md](lore.md).
+
 Status: **built** (2026-10-02): all seven chapters are playable and each is proved by a demo
 requirement (Q1–Q6 in `tools/test/demo.test.ts`). Still to do: a single headless run of the
 whole quest in order, and play-testing the length (estimated 50–60 minutes). About an hour of play, in seven chapters, from mending
@@ -11,7 +15,7 @@ Ford, the survival loop (bag, foraging, crafting, hunger, levels), the meadow an
 - **The goal of each chapter is a state, not a path** (as the Ford's crossing already is): the
   objective says what must be true (the far bank reached, the sword forged, the dragon down);
   any way the world allows, or learns, counts.
-- **Story state is facts and the player's `quest` prop**, changed only by story rules and
+- **Story state is facts** (and, since 2026-10-09, the `dragon_road` quest that answers them, docs/quests.md), changed only by story rules and
   scenes; world patches may not touch them (design.md §5.8; `PROTECTED_FACTS`).
 - **Behaviour is rules.** Turn-ins, rewards, boss phases and summons are story rules on
   `interaction`, `hit`, `defeat` and `expire`. An engine change only where no rule can do it

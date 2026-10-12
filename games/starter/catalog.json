@@ -1,0 +1,943 @@
+{
+  "blobs": {
+    "path": { "img": "Backgrounds/Tilesets/TilesetFloor.png", "col": 0, "row": 7 },
+    "water": { "img": "Backgrounds/Tilesets/TilesetWater.png", "col": 0, "row": 6 },
+    "floor": { "img": "Backgrounds/Tilesets/Interior/TilesetInteriorFloor.png", "col": 11, "row": 0 }
+  },
+  "plain": {
+    "grass": [
+      ["Backgrounds/Tilesets/TilesetFloor.png", 0, 12],
+      ["Backgrounds/Tilesets/TilesetFloor.png", 0, 12],
+      ["Backgrounds/Tilesets/TilesetFloor.png", 1, 12],
+      ["Backgrounds/Tilesets/TilesetFloor.png", 2, 12],
+      ["Backgrounds/Tilesets/TilesetFloor.png", 3, 12],
+      ["Backgrounds/Tilesets/TilesetFloor.png", 4, 12]
+    ],
+    "flowers": [
+      ["Backgrounds/Tilesets/TilesetFloor.png", 0, 12],
+      ["Backgrounds/Tilesets/TilesetFloor.png", 4, 12]
+    ],
+    "tree": [
+      ["Backgrounds/Tilesets/TilesetFloor.png", 0, 12],
+      ["Backgrounds/Tilesets/TilesetFloor.png", 1, 12]
+    ],
+    "stump": [["Backgrounds/Tilesets/TilesetFloor.png", 0, 12]],
+    "wall": [
+      ["Backgrounds/Tilesets/TilesetHouse.png", 11, 9],
+      ["Backgrounds/Tilesets/TilesetHouse.png", 12, 9]
+    ],
+    "door": [["Backgrounds/Tilesets/TilesetElement.png", 8, 13]],
+    "void": [["Backgrounds/Tilesets/TilesetHole.png", 1, 1]]
+  },
+  "decals": {
+    "grass": [
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 0,
+        "y": 32,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 16,
+        "y": 32,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 32,
+        "y": 32,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 48,
+        "y": 32,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 64,
+        "y": 32,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 80,
+        "y": 32,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 96,
+        "y": 32,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 112,
+        "y": 32,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 32,
+        "y": 0,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 48,
+        "y": 0,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 16,
+        "y": 0,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 96,
+        "y": 0,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 240,
+        "y": 288,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 256,
+        "y": 288,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      }
+    ],
+    "floor": [
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 48,
+        "y": 0,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 240,
+        "y": 0,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 0,
+        "y": 16,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      }
+    ],
+    "leaves": [
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 16,
+        "y": 0,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 192,
+        "y": 176,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 208,
+        "y": 192,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      }
+    ]
+  },
+  "terrainObjects": {
+    "flowers": [
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 0,
+        "y": 176,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 16,
+        "y": 176,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 48,
+        "y": 176,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 96,
+        "y": 176,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 32,
+        "y": 176,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 80,
+        "y": 32,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetFloorDetail.png",
+        "x": 32,
+        "y": 0,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      }
+    ],
+    "tree": [
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32,
+        "ax": 16,
+        "ay": 31
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 256,
+        "y": 0,
+        "w": 32,
+        "h": 32,
+        "ax": 16,
+        "ay": 32
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 288,
+        "y": 0,
+        "w": 32,
+        "h": 32,
+        "ax": 16,
+        "ay": 32
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 96,
+        "y": 0,
+        "w": 32,
+        "h": 32,
+        "ax": 15,
+        "ay": 32
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 96,
+        "y": 128,
+        "w": 32,
+        "h": 32,
+        "ax": 15,
+        "ay": 32
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 48,
+        "y": 288,
+        "w": 48,
+        "h": 48,
+        "ax": 24,
+        "ay": 48
+      }
+    ],
+    "stump": [
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 64,
+        "y": 128,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 224,
+        "y": 288,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 192,
+        "y": 208,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 0,
+        "y": 128,
+        "w": 32,
+        "h": 32,
+        "ax": 16,
+        "ay": 29
+      },
+      {
+        "img": "Backgrounds/Tilesets/TilesetNature.png",
+        "x": 32,
+        "y": 128,
+        "w": 32,
+        "h": 32,
+        "ax": 16,
+        "ay": 29
+      }
+    ]
+  },
+  "prefabs": {},
+  "rooms": {
+    "wood": { "img": "Backgrounds/Tilesets/Interior/TilesetWallSimple.png", "col": 5, "row": 0, "size": 5 }
+  },
+  "fixtures": {
+    "fixture:chest": {
+      "base": {
+        "img": "Items/Treasure/BigTreasureChest.png",
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 14,
+        "ax": 8,
+        "ay": 14
+      },
+      "open": {
+        "img": "Items/Treasure/BigTreasureChest.png",
+        "x": 16,
+        "y": 0,
+        "w": 16,
+        "h": 14,
+        "ax": 8,
+        "ay": 14
+      }
+    },
+    "fixture:sign": {
+      "base": {
+        "img": "Backgrounds/Tilesets/TilesetElement.png",
+        "x": 0,
+        "y": 32,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      }
+    },
+    "fixture:bed": {
+      "base": {
+        "img": "Backgrounds/Tilesets/tileset_bed.png",
+        "x": 80,
+        "y": 48,
+        "w": 16,
+        "h": 32,
+        "ax": 8,
+        "ay": 32
+      }
+    },
+    "fixture:table": {
+      "base": {
+        "img": "Backgrounds/Tilesets/TilesetElement.png",
+        "x": 80,
+        "y": 112,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      }
+    },
+    "fixture:fixture": {
+      "base": {
+        "img": "Backgrounds/Tilesets/TilesetDungeon.png",
+        "x": 32,
+        "y": 16,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      },
+      "open": {
+        "img": "Backgrounds/Tilesets/TilesetDungeon.png",
+        "x": 48,
+        "y": 16,
+        "w": 16,
+        "h": 16,
+        "ax": 8,
+        "ay": 16
+      }
+    }
+  },
+  "items": {
+    "item:axe": { "img": "Items/Tool/Axe.png", "x": 0, "y": 0, "w": 16, "h": 16, "ax": 8, "ay": 16 },
+    "item:log": {
+      "img": "Backgrounds/Tilesets/tileset_camp.png",
+      "x": 128,
+      "y": 128,
+      "w": 16,
+      "h": 16,
+      "ax": 8,
+      "ay": 16
+    },
+    "item:stone": { "img": "Items/Resource/Rock.png", "x": 0, "y": 0, "w": 16, "h": 16, "ax": 8, "ay": 16 },
+    "item:bundle": { "img": "Items/Object/Bag.png", "x": 0, "y": 0, "w": 16, "h": 16, "ax": 8, "ay": 16 },
+    "item:loot": { "img": "lsw/Items/Loot.png", "x": 0, "y": 0, "w": 16, "h": 16, "ax": 8, "ay": 16 },
+    "item:gel": {
+      "img": "Backgrounds/Tilesets/TilesetHouse.png",
+      "x": 336,
+      "y": 224,
+      "w": 16,
+      "h": 16,
+      "ax": 8,
+      "ay": 16
+    }
+  },
+  "characters": {
+    "Villager": {
+      "dir": "Actor/Character/Villager",
+      "sheet": "SpriteSheet.png",
+      "faceset": "Faceset.png",
+      "cols": 4,
+      "rows": 7,
+      "faces": {
+        "strip": "lsw/Faces/Actor/Character/Villager/Faceset.png",
+        "moods": ["happy", "sad", "angry", "surprised", "shy"]
+      }
+    },
+    "Villager2": {
+      "dir": "Actor/Character/Villager2",
+      "sheet": "SpriteSheet.png",
+      "faceset": "Faceset.png",
+      "cols": 4,
+      "rows": 7,
+      "faces": {
+        "strip": "lsw/Faces/Actor/Character/Villager2/Faceset.png",
+        "moods": ["happy", "sad", "angry", "surprised", "shy"]
+      }
+    },
+    "Villager3": {
+      "dir": "Actor/Character/Villager3",
+      "sheet": "SpriteSheet.png",
+      "faceset": "Faceset.png",
+      "cols": 4,
+      "rows": 7,
+      "faces": {
+        "strip": "lsw/Faces/Actor/Character/Villager3/Faceset.png",
+        "moods": ["happy", "sad", "angry", "surprised", "shy"]
+      }
+    },
+    "Villager4": {
+      "dir": "Actor/Character/Villager4",
+      "sheet": "SpriteSheet.png",
+      "faceset": "Faceset.png",
+      "cols": 4,
+      "rows": 7,
+      "faces": {
+        "strip": "lsw/Faces/Actor/Character/Villager4/Faceset.png",
+        "moods": ["happy", "sad", "angry", "surprised", "shy"]
+      }
+    },
+    "Villager5": {
+      "dir": "Actor/Character/Villager5",
+      "sheet": "SpriteSheet.png",
+      "faceset": "Faceset.png",
+      "cols": 4,
+      "rows": 7,
+      "faces": {
+        "strip": "lsw/Faces/Actor/Character/Villager5/Faceset.png",
+        "moods": ["happy", "sad", "angry", "surprised", "shy"]
+      }
+    },
+    "Woman": {
+      "dir": "Actor/Character/Woman",
+      "sheet": "SpriteSheet.png",
+      "faceset": "Faceset.png",
+      "cols": 4,
+      "rows": 7,
+      "faces": {
+        "strip": "lsw/Faces/Actor/Character/Woman/Faceset.png",
+        "moods": ["happy", "sad", "angry", "surprised", "shy"]
+      }
+    },
+    "NinjaMasked": {
+      "dir": "Actor/Character/NinjaMasked",
+      "sheet": "SpriteSheet.png",
+      "faceset": "Faceset.png",
+      "cols": 4,
+      "rows": 7
+    },
+    "NinjaGreen": {
+      "dir": "Actor/Character/NinjaGreen",
+      "sheet": "SpriteSheet.png",
+      "faceset": "Faceset.png",
+      "cols": 4,
+      "rows": 7,
+      "faces": {
+        "strip": "lsw/Faces/Actor/Character/NinjaGreen/Faceset.png",
+        "moods": ["happy", "sad", "angry", "surprised", "shy"]
+      }
+    },
+    "NinjaBlue": {
+      "dir": "Actor/Character/NinjaBlue",
+      "sheet": "SpriteSheet.png",
+      "faceset": "Faceset.png",
+      "cols": 4,
+      "rows": 7
+    },
+    "NinjaRed": {
+      "dir": "Actor/Character/NinjaRed",
+      "sheet": "SpriteSheet.png",
+      "faceset": "Faceset.png",
+      "cols": 4,
+      "rows": 7
+    },
+    "NinjaYellow": {
+      "dir": "Actor/Character/NinjaYellow",
+      "sheet": "SpriteSheet.png",
+      "faceset": "Faceset.png",
+      "cols": 4,
+      "rows": 7
+    }
+  },
+  "roles": {
+    "villager": ["Villager", "Villager2", "Villager3", "Villager4", "Villager5", "Woman"],
+    "player": ["NinjaMasked", "NinjaGreen", "NinjaBlue", "NinjaRed", "NinjaYellow"]
+  },
+  "creatures": {
+    "creature:slime": {
+      "dir": "Actor/Monster/Slime4",
+      "sheet": "Slime4.png",
+      "faceset": "Faceset.png",
+      "cols": 4,
+      "rows": 4
+    }
+  },
+  "fx": {
+    "steam": { "img": "FX/Magic/Spirit/SpriteSheet.png", "fw": 32, "fh": 32, "frames": 5, "fps": 10 },
+    "splash": { "img": "FX/Elemental/Water/SpriteSheet.png", "fw": 44, "fh": 33, "frames": 10, "fps": 16 },
+    "fire_burst": {
+      "img": "FX/Elemental/Flam/SpriteSheet.png",
+      "fw": 25,
+      "fh": 30,
+      "frames": 8,
+      "fps": 14,
+      "add": true
+    },
+    "sparks": {
+      "img": "FX/Elemental/Thunder/SpriteSheet.png",
+      "fw": 20,
+      "fh": 28,
+      "frames": 8,
+      "fps": 16,
+      "add": true
+    },
+    "frost": { "img": "FX/Elemental/Ice/SpriteSheet.png", "fw": 32, "fh": 32, "frames": 10, "fps": 14 },
+    "smoke": { "img": "FX/Smoke/Smoke/SpriteSheet.png", "fw": 32, "fh": 32, "frames": 6, "fps": 10 },
+    "poof": { "img": "FX/Magic/Circle/SpriteSheetWhite.png", "fw": 32, "fh": 32, "frames": 4, "fps": 14 },
+    "heal": {
+      "img": "FX/Magic/Boost/SpriteSheet.png",
+      "fw": 53,
+      "fh": 35,
+      "frames": 8,
+      "fps": 12,
+      "add": true
+    },
+    "hit": { "img": "FX/Magic/Circle/SpriteSheetSpark.png", "fw": 32, "fh": 32, "frames": 6, "fps": 18 },
+    "explosion": {
+      "img": "FX/Elemental/Explosion/SpriteSheet.png",
+      "fw": 40,
+      "fh": 40,
+      "frames": 9,
+      "fps": 14
+    },
+    "leaves": { "img": "FX/Elemental/Plant/SpriteSheetB.png", "fw": 30, "fh": 26, "frames": 4, "fps": 10 },
+    "dust": { "img": "FX/Smoke/SmokeCircular/SpriteSheet.png", "fw": 30, "fh": 14, "frames": 8, "fps": 14 },
+    "sparkle": {
+      "img": "FX/Magic/Spark/SpriteSheet.png",
+      "fw": 27,
+      "fh": 35,
+      "frames": 10,
+      "fps": 14,
+      "add": true
+    },
+    "gust": { "img": "FX/Elemental/Plant/SpriteSheet.png", "fw": 30, "fh": 28, "frames": 8, "fps": 14 },
+    "shatter": { "img": "FX/Elemental/Ice/SpriteSheetB.png", "fw": 32, "fh": 32, "frames": 9, "fps": 16 },
+    "slash": { "img": "FX/Attack/SlashCurved/SpriteSheet.png", "fw": 32, "fh": 32, "frames": 4, "fps": 18 },
+    "bolt:fire": {
+      "img": "FX/Projectile/Fireball.png",
+      "fw": 16,
+      "fh": 16,
+      "frames": 4,
+      "fps": 12,
+      "add": true
+    },
+    "bolt:ice": { "img": "FX/Projectile/IceSpike.png", "fw": 18, "fh": 10, "frames": 8, "fps": 12 },
+    "bolt:lightning": {
+      "img": "FX/Elemental/Thunder/SpriteSheet.png",
+      "fw": 20,
+      "fh": 28,
+      "frames": 8,
+      "fps": 16,
+      "add": true
+    },
+    "bolt:water": { "img": "FX/Projectile/EnergyBall.png", "fw": 16, "fh": 16, "frames": 4, "fps": 10 },
+    "bolt:wind": { "img": "FX/Magic/Spirit/SpriteSheetBlue.png", "fw": 32, "fh": 32, "frames": 5, "fps": 12 },
+    "bolt:earth": { "img": "FX/Projectile/SpriteSheetRock.png", "fw": 16, "fh": 16, "frames": 4, "fps": 10 },
+    "bolt:none": { "img": "FX/Projectile/ShurikenMagic.png", "fw": 16, "fh": 16, "frames": 2, "fps": 12 },
+    "missile:arrow": { "img": "FX/Projectile/Arrow.png", "fw": 13, "fh": 5, "frames": 1, "fps": 1 },
+    "ovl:burning": {
+      "img": "FX/Particle/Fire.png",
+      "fw": 8,
+      "fh": 12,
+      "frames": 5,
+      "fps": 10,
+      "add": true,
+      "scale": 1.5
+    },
+    "ovl:wet": { "img": "FX/Particle/Rain.png", "fw": 8, "fh": 8, "frames": 3, "fps": 6 },
+    "ovl:frozen": {
+      "img": "FX/Elemental/Ice/SpriteSheetFlake.png",
+      "fw": 32,
+      "fh": 32,
+      "frames": 9,
+      "fps": 8
+    },
+    "ovl:electrified": {
+      "img": "FX/Particle/Spark.png",
+      "fw": 10,
+      "fh": 8,
+      "frames": 7,
+      "fps": 14,
+      "add": true
+    },
+    "ovl:oiled": { "img": "FX/Magic/Aura/SpriteSheet.png", "fw": 25, "fh": 24, "frames": 5, "fps": 8 },
+    "ovl:lit": { "img": "FX/Particle/Fire.png", "fw": 8, "fh": 12, "frames": 4, "fps": 10, "add": true },
+    "ovl:mend": { "img": "lsw/Fx/Mend.png", "fw": 16, "fh": 16, "frames": 4, "fps": 6, "scale": 1.4 },
+    "ovl:steam": { "img": "lsw/Fx/Steam.png", "fw": 16, "fh": 16, "frames": 4, "fps": 4 }
+  },
+  "ui": {
+    "dialog": { "img": "Ui/Dialog/DialogBox.png", "x": 0, "y": 0, "w": 300, "h": 58, "ax": 0, "ay": 0 },
+    "dialogFace": {
+      "img": "Ui/Dialog/DialogBoxFaceset.png",
+      "x": 0,
+      "y": 0,
+      "w": 300,
+      "h": 58,
+      "ax": 0,
+      "ay": 0
+    },
+    "dialogSimple": {
+      "img": "Ui/Dialog/DialogueBoxSimple.png",
+      "x": 0,
+      "y": 0,
+      "w": 316,
+      "h": 60,
+      "ax": 0,
+      "ay": 0
+    },
+    "facesetBox": { "img": "Ui/Dialog/FacesetBox.png", "x": 0, "y": 0, "w": 48, "h": 48, "ax": 0, "ay": 0 },
+    "choice": { "img": "Ui/Dialog/ChoiceBox.png", "x": 0, "y": 0, "w": 64, "h": 20, "ax": 0, "ay": 0 },
+    "info": {
+      "img": "Ui/Dialog/DialogInfo.png",
+      "x": 0,
+      "y": 0,
+      "w": 20,
+      "h": 16,
+      "ax": 0,
+      "ay": 0,
+      "frames": 4,
+      "step": 20,
+      "fps": 6
+    },
+    "yes": { "img": "Ui/Dialog/YesButton.png", "x": 0, "y": 0, "w": 26, "h": 16, "ax": 0, "ay": 0 },
+    "no": { "img": "Ui/Dialog/NoButton.png", "x": 0, "y": 0, "w": 26, "h": 16, "ax": 0, "ay": 0 },
+    "arrow": { "img": "Ui/Arrow.png", "x": 0, "y": 0, "w": 13, "h": 13, "ax": 0, "ay": 0 },
+    "panel": {
+      "img": "Ui/Theme/Theme Wood/nine_path_panel.png",
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "ax": 0,
+      "ay": 0
+    },
+    "panel2": {
+      "img": "Ui/Theme/Theme Wood/nine_path_panel_2.png",
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "ax": 0,
+      "ay": 0
+    },
+    "panel3": {
+      "img": "Ui/Theme/Theme Wood/nine_path_panel_3.png",
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "ax": 0,
+      "ay": 0
+    },
+    "panelInterior": {
+      "img": "Ui/Theme/Theme Wood/nine_path_panel_interior.png",
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "ax": 0,
+      "ay": 0
+    },
+    "panelBg": {
+      "img": "Ui/Theme/Theme Wood/nine_path_bg.png",
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "ax": 0,
+      "ay": 0
+    },
+    "focus": {
+      "img": "Ui/Theme/Theme Wood/nine_path_focus.png",
+      "x": 0,
+      "y": 0,
+      "w": 8,
+      "h": 8,
+      "ax": 0,
+      "ay": 0
+    },
+    "cell": {
+      "img": "Ui/Theme/Theme Wood/inventory_cell.png",
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "ax": 0,
+      "ay": 0
+    },
+    "heart": {
+      "img": "Ui/Receptacle/Heart.png",
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "ax": 0,
+      "ay": 0,
+      "frames": 5,
+      "step": 16
+    },
+    "iconHeart": { "img": "Ui/Receptacle/IconHeart.png", "x": 0, "y": 0, "w": 14, "h": 12, "ax": 0, "ay": 0 },
+    "drumstick": { "img": "Items/Food/Meat.png", "x": 0, "y": 0, "w": 15, "h": 15, "ax": 0, "ay": 0 },
+    "cornerQuests": {
+      "img": "Items/Scroll/ScrollEmpty.png",
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "ax": 0,
+      "ay": 0
+    },
+    "cornerBuild": { "img": "Items/Tool/Hammer.png", "x": 0, "y": 0, "w": 16, "h": 16, "ax": 0, "ay": 0 },
+    "cornerBag": { "img": "Items/Object/Bag.png", "x": 0, "y": 0, "w": 16, "h": 16, "ax": 0, "ay": 0 },
+    "cornerSkills": { "img": "lsw/Ui/Star.png", "x": 0, "y": 0, "w": 16, "h": 16, "ax": 0, "ay": 0 },
+    "cornerJournal": { "img": "Items/Object/Book.png", "x": 0, "y": 0, "w": 16, "h": 16, "ax": 0, "ay": 0 },
+    "cornerCraft": { "img": "Items/Tool/Anvil.png", "x": 0, "y": 0, "w": 16, "h": 16, "ax": 0, "ay": 0 },
+    "cornerOptions": { "img": "lsw/Ui/Gear.png", "x": 0, "y": 0, "w": 16, "h": 16, "ax": 0, "ay": 0 },
+    "trainerMark": {
+      "img": "Ui/Skill Icon/Items & Weapon/Guard.png",
+      "x": 0,
+      "y": 0,
+      "w": 24,
+      "h": 24,
+      "ax": 0,
+      "ay": 0
+    },
+    "lifebarUnder": {
+      "img": "Ui/Receptacle/LifeBarMiniUnder.png",
+      "x": 0,
+      "y": 0,
+      "w": 18,
+      "h": 4,
+      "ax": 0,
+      "ay": 0
+    },
+    "lifebarProgress": {
+      "img": "Ui/Receptacle/LifeBarMiniProgress.png",
+      "x": 0,
+      "y": 0,
+      "w": 18,
+      "h": 4,
+      "ax": 0,
+      "ay": 0
+    },
+    "emote1": { "img": "Ui/Emote/emote1.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote2": { "img": "Ui/Emote/emote2.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote3": { "img": "Ui/Emote/emote3.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote4": { "img": "Ui/Emote/emote4.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote5": { "img": "Ui/Emote/emote5.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote6": { "img": "Ui/Emote/emote6.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote7": { "img": "Ui/Emote/emote7.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote8": { "img": "Ui/Emote/emote8.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote9": { "img": "Ui/Emote/emote9.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote10": { "img": "Ui/Emote/emote10.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote11": { "img": "Ui/Emote/emote11.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote12": { "img": "Ui/Emote/emote12.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote13": { "img": "Ui/Emote/emote13.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote14": { "img": "Ui/Emote/emote14.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote15": { "img": "Ui/Emote/emote15.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote16": { "img": "Ui/Emote/emote16.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote17": { "img": "Ui/Emote/emote17.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote18": { "img": "Ui/Emote/emote18.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote19": { "img": "Ui/Emote/emote19.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote20": { "img": "Ui/Emote/emote20.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote21": { "img": "Ui/Emote/emote21.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote22": { "img": "Ui/Emote/emote22.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote23": { "img": "Ui/Emote/emote23.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote24": { "img": "Ui/Emote/emote24.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote25": { "img": "Ui/Emote/emote25.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote26": { "img": "Ui/Emote/emote26.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote27": { "img": "Ui/Emote/emote27.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote28": { "img": "Ui/Emote/emote28.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote29": { "img": "Ui/Emote/emote29.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emote30": { "img": "Ui/Emote/emote30.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emoteExclaim": { "img": "Ui/Emote/emote21.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emoteQuestion": { "img": "Ui/Emote/emote23.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emoteHeart": { "img": "Ui/Emote/emote27.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "emoteDots": { "img": "Ui/Emote/emote20.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 }
+  },
+  "music": { "village": "Audio/Musics/4 - Village.ogg", "interior": "Audio/Musics/5 - Peaceful.ogg" },
+  "sfx": {
+    "step": "Audio/Sounds/Elemental/Grass.wav",
+    "take": "Audio/Sounds/Bonus/Bonus2.wav",
+    "put": "Audio/Sounds/Menu/Move5.wav",
+    "interact": "Audio/Sounds/Menu/Accept4.wav",
+    "talk": "Audio/Sounds/Voice/Voice4.wav",
+    "hit": "Audio/Sounds/Hit & Impact/Hit1.wav",
+    "hurt": "Audio/Sounds/Hit & Impact/Impact.wav",
+    "attack": "Audio/Sounds/Whoosh & Slash/Slash.wav",
+    "cast": "Audio/Sounds/Magic & Skill/Magic1.wav",
+    "fire": "Audio/Sounds/Elemental/Fire.wav",
+    "water": "Audio/Sounds/Elemental/Water1.wav",
+    "ice": "Audio/Sounds/Magic & Skill/Magic4.wav",
+    "thunder": "Audio/Sounds/Elemental/Explosion4.wav",
+    "wind": "Audio/Sounds/Whoosh & Slash/Whoosh2.wav",
+    "explosion": "Audio/Sounds/Elemental/Explosion.wav",
+    "open": "Audio/Sounds/Menu/Accept3.wav",
+    "close": "Audio/Sounds/Menu/Cancel2.wav",
+    "door": "Audio/Sounds/Jump & Bounce/Bounce4.wav",
+    "eat": "Audio/Sounds/Bonus/PowerUp1.wav",
+    "heal": "Audio/Sounds/Magic & Skill/Heal.wav",
+    "coin": "Audio/Sounds/Bonus/Coin.wav",
+    "undefined": "Audio/Sounds/Magic & Skill/Strange.wav",
+    "patched": "Audio/Jingles/Success1.wav",
+    "error": "Audio/Sounds/Menu/Cancel.wav",
+    "death": "Audio/Jingles/GameOver2.wav"
+  }
+}

@@ -1,0 +1,1917 @@
+{
+ "size": 768,
+ "bodies": {
+  "woman": {
+   "layers": [
+    {
+     "file": "body/woman",
+     "x": 154,
+     "y": 39,
+     "w": 460,
+     "h": 729,
+     "z": "body",
+     "zones": [
+      "skin"
+     ]
+    }
+   ]
+  },
+  "man": {
+   "layers": [
+    {
+     "file": "body/man",
+     "x": 148,
+     "y": 39,
+     "w": 473,
+     "h": 729,
+     "z": "body",
+     "zones": [
+      "skin"
+     ]
+    }
+   ]
+  },
+  "girl": {
+   "layers": [
+    {
+     "file": "body/girl",
+     "x": 155,
+     "y": 39,
+     "w": 459,
+     "h": 729,
+     "z": "body",
+     "zones": [
+      "skin"
+     ]
+    }
+   ]
+  },
+  "boy": {
+   "layers": [
+    {
+     "file": "body/boy",
+     "x": 155,
+     "y": 39,
+     "w": 459,
+     "h": 729,
+     "z": "body",
+     "zones": [
+      "skin"
+     ]
+    }
+   ]
+  }
+ },
+ "parts": {
+  "age.lined": {
+   "woman": {
+    "layers": [
+     {
+      "file": "age.lined/woman.age",
+      "x": 222,
+      "y": 60,
+      "w": 326,
+      "h": 340,
+      "z": "age",
+      "zones": [
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "armour.plate": {
+   "man": {
+    "layers": [
+     {
+      "file": "armour.plate/man.armour",
+      "x": 220,
+      "y": 448,
+      "w": 325,
+      "h": 320,
+      "z": "armour",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "armour.plate/woman.armour",
+      "x": 228,
+      "y": 451,
+      "w": 312,
+      "h": 274,
+      "z": "armour",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "beard.full": {
+   "man": {
+    "layers": [
+     {
+      "file": "beard.full/man.beard",
+      "x": 249,
+      "y": 254,
+      "w": 271,
+      "h": 261,
+      "z": "beard",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "beard.moustache": {
+   "man": {
+    "layers": [
+     {
+      "file": "beard.moustache/man.beard",
+      "x": 235,
+      "y": 327,
+      "w": 296,
+      "h": 441,
+      "z": "beard",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "beard.stubble": {
+   "man": {
+    "layers": [
+     {
+      "file": "beard.stubble/man.beard",
+      "x": 209,
+      "y": 228,
+      "w": 305,
+      "h": 274,
+      "z": "beard",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "cloak.cloak": {
+   "man": {
+    "layers": [
+     {
+      "file": "cloak.cloak/man.cloak",
+      "x": 34,
+      "y": 357,
+      "w": 707,
+      "h": 411,
+      "z": "cloak",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "cloak.cloak/woman.cloak",
+      "x": 93,
+      "y": 360,
+      "w": 580,
+      "h": 408,
+      "z": "cloak",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "cloak.pauldrons": {
+   "man": {
+    "layers": [
+     {
+      "file": "cloak.pauldrons/man.cloak",
+      "x": 113,
+      "y": 404,
+      "w": 544,
+      "h": 286,
+      "z": "cloak",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "cloak.pauldrons/woman.cloak",
+      "x": 133,
+      "y": 410,
+      "w": 503,
+      "h": 277,
+      "z": "cloak",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "face.bright": {
+   "woman": {
+    "layers": [
+     {
+      "file": "face.bright/woman.face",
+      "x": 237,
+      "y": 114,
+      "w": 296,
+      "h": 274,
+      "z": "face",
+      "zones": [
+       "skin",
+       "eyes",
+       "hair"
+      ]
+     }
+    ],
+    "moods": {
+     "happy": [
+      {
+       "file": "face.bright/woman.face.happy",
+       "x": 237,
+       "y": 114,
+       "w": 296,
+       "h": 274,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "sad": [
+      {
+       "file": "face.bright/woman.face.sad",
+       "x": 237,
+       "y": 114,
+       "w": 296,
+       "h": 274,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "angry": [
+      {
+       "file": "face.bright/woman.face.angry",
+       "x": 237,
+       "y": 114,
+       "w": 296,
+       "h": 274,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "surprised": [
+      {
+       "file": "face.bright/woman.face.surprised",
+       "x": 237,
+       "y": 114,
+       "w": 296,
+       "h": 274,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "shy": [
+      {
+       "file": "face.bright/woman.face.shy",
+       "x": 237,
+       "y": 114,
+       "w": 296,
+       "h": 274,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "face.child": {
+   "girl": {
+    "layers": [
+     {
+      "file": "face.child/girl.face",
+      "x": 236,
+      "y": 123,
+      "w": 297,
+      "h": 280,
+      "z": "face",
+      "zones": [
+       "skin",
+       "eyes",
+       "hair"
+      ]
+     }
+    ],
+    "moods": {
+     "happy": [
+      {
+       "file": "face.child/girl.face.happy",
+       "x": 236,
+       "y": 123,
+       "w": 297,
+       "h": 280,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "sad": [
+      {
+       "file": "face.child/girl.face.sad",
+       "x": 236,
+       "y": 123,
+       "w": 297,
+       "h": 280,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "angry": [
+      {
+       "file": "face.child/girl.face.angry",
+       "x": 236,
+       "y": 123,
+       "w": 297,
+       "h": 280,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "surprised": [
+      {
+       "file": "face.child/girl.face.surprised",
+       "x": 236,
+       "y": 123,
+       "w": 297,
+       "h": 280,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "shy": [
+      {
+       "file": "face.child/girl.face.shy",
+       "x": 236,
+       "y": 123,
+       "w": 297,
+       "h": 280,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "face.keen": {
+   "woman": {
+    "layers": [
+     {
+      "file": "face.keen/woman.face",
+      "x": 237,
+      "y": 127,
+      "w": 296,
+      "h": 261,
+      "z": "face",
+      "zones": [
+       "skin",
+       "eyes",
+       "hair"
+      ]
+     }
+    ],
+    "moods": {
+     "happy": [
+      {
+       "file": "face.keen/woman.face.happy",
+       "x": 237,
+       "y": 127,
+       "w": 296,
+       "h": 261,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "sad": [
+      {
+       "file": "face.keen/woman.face.sad",
+       "x": 237,
+       "y": 127,
+       "w": 296,
+       "h": 261,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "angry": [
+      {
+       "file": "face.keen/woman.face.angry",
+       "x": 237,
+       "y": 127,
+       "w": 296,
+       "h": 261,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "surprised": [
+      {
+       "file": "face.keen/woman.face.surprised",
+       "x": 237,
+       "y": 127,
+       "w": 296,
+       "h": 261,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "shy": [
+      {
+       "file": "face.keen/woman.face.shy",
+       "x": 237,
+       "y": 127,
+       "w": 296,
+       "h": 261,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "face.soft": {
+   "woman": {
+    "layers": [
+     {
+      "file": "face.soft/woman.face",
+      "x": 237,
+      "y": 125,
+      "w": 296,
+      "h": 263,
+      "z": "face",
+      "zones": [
+       "skin",
+       "eyes",
+       "hair"
+      ]
+     }
+    ],
+    "moods": {
+     "happy": [
+      {
+       "file": "face.soft/woman.face.happy",
+       "x": 237,
+       "y": 125,
+       "w": 296,
+       "h": 263,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "sad": [
+      {
+       "file": "face.soft/woman.face.sad",
+       "x": 237,
+       "y": 125,
+       "w": 296,
+       "h": 263,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "angry": [
+      {
+       "file": "face.soft/woman.face.angry",
+       "x": 237,
+       "y": 125,
+       "w": 296,
+       "h": 263,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "surprised": [
+      {
+       "file": "face.soft/woman.face.surprised",
+       "x": 237,
+       "y": 125,
+       "w": 296,
+       "h": 263,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "shy": [
+      {
+       "file": "face.soft/woman.face.shy",
+       "x": 237,
+       "y": 125,
+       "w": 296,
+       "h": 263,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "face.stern": {
+   "woman": {
+    "layers": [
+     {
+      "file": "face.stern/woman.face",
+      "x": 237,
+      "y": 122,
+      "w": 296,
+      "h": 266,
+      "z": "face",
+      "zones": [
+       "skin",
+       "eyes",
+       "hair"
+      ]
+     }
+    ],
+    "moods": {
+     "happy": [
+      {
+       "file": "face.stern/woman.face.happy",
+       "x": 237,
+       "y": 122,
+       "w": 296,
+       "h": 266,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "sad": [
+      {
+       "file": "face.stern/woman.face.sad",
+       "x": 237,
+       "y": 122,
+       "w": 296,
+       "h": 266,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "angry": [
+      {
+       "file": "face.stern/woman.face.angry",
+       "x": 237,
+       "y": 122,
+       "w": 296,
+       "h": 266,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "surprised": [
+      {
+       "file": "face.stern/woman.face.surprised",
+       "x": 237,
+       "y": 122,
+       "w": 296,
+       "h": 266,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "shy": [
+      {
+       "file": "face.stern/woman.face.shy",
+       "x": 237,
+       "y": 122,
+       "w": 296,
+       "h": 266,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "face.weary": {
+   "woman": {
+    "layers": [
+     {
+      "file": "face.weary/woman.face",
+      "x": 237,
+      "y": 134,
+      "w": 296,
+      "h": 254,
+      "z": "face",
+      "zones": [
+       "skin",
+       "eyes",
+       "hair"
+      ]
+     }
+    ],
+    "moods": {
+     "happy": [
+      {
+       "file": "face.weary/woman.face.happy",
+       "x": 237,
+       "y": 134,
+       "w": 296,
+       "h": 254,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "sad": [
+      {
+       "file": "face.weary/woman.face.sad",
+       "x": 237,
+       "y": 134,
+       "w": 296,
+       "h": 254,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "angry": [
+      {
+       "file": "face.weary/woman.face.angry",
+       "x": 237,
+       "y": 134,
+       "w": 296,
+       "h": 254,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "surprised": [
+      {
+       "file": "face.weary/woman.face.surprised",
+       "x": 237,
+       "y": 134,
+       "w": 296,
+       "h": 254,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ],
+     "shy": [
+      {
+       "file": "face.weary/woman.face.shy",
+       "x": 237,
+       "y": 134,
+       "w": 296,
+       "h": 254,
+       "z": "face",
+       "zones": [
+        "skin",
+        "eyes",
+        "hair"
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "glasses.round": {
+   "woman": {
+    "layers": [
+     {
+      "file": "glasses.round/woman.glasses",
+      "x": 234,
+      "y": 211,
+      "w": 304,
+      "h": 111,
+      "z": "glasses",
+      "zones": [
+       ".1"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.bob": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.bob/woman.hair",
+      "x": 225,
+      "y": 39,
+      "w": 319,
+      "h": 445,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.bob/woman.hairBack",
+      "x": 205,
+      "y": 32,
+      "w": 359,
+      "h": 435,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.braid": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.braid/woman.hair",
+      "x": 226,
+      "y": 39,
+      "w": 315,
+      "h": 699,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.braid/woman.hairBack",
+      "x": 219,
+      "y": 39,
+      "w": 328,
+      "h": 729,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.bun": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.bun/woman.hair",
+      "x": 229,
+      "y": 41,
+      "w": 311,
+      "h": 550,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.bun/woman.hairBack",
+      "x": 234,
+      "y": 0,
+      "w": 301,
+      "h": 247,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.childbob": {
+   "girl": {
+    "layers": [
+     {
+      "file": "hair.childbob/girl.hair",
+      "x": 243,
+      "y": 91,
+      "w": 281,
+      "h": 334,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.childbob/girl.hairBack",
+      "x": 181,
+      "y": 28,
+      "w": 407,
+      "h": 409,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.cropped": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.cropped/woman.hair",
+      "x": 228,
+      "y": 39,
+      "w": 315,
+      "h": 552,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.cropped/woman.hairBack",
+      "x": 235,
+      "y": 38,
+      "w": 308,
+      "h": 224,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.long": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.long/woman.hair",
+      "x": 166,
+      "y": 39,
+      "w": 437,
+      "h": 717,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.long/woman.hairBack",
+      "x": 145,
+      "y": 36,
+      "w": 478,
+      "h": 719,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.messy": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.messy/woman.hair",
+      "x": 225,
+      "y": 39,
+      "w": 319,
+      "h": 553,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.messy/woman.hairBack",
+      "x": 146,
+      "y": 0,
+      "w": 474,
+      "h": 430,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.pigtails": {
+   "girl": {
+    "layers": [
+     {
+      "file": "hair.pigtails/girl.hair",
+      "x": 225,
+      "y": 39,
+      "w": 319,
+      "h": 336,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.pigtails/girl.hairBack",
+      "x": 111,
+      "y": 33,
+      "w": 554,
+      "h": 349,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.ponytail": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.ponytail/woman.hair",
+      "x": 236,
+      "y": 39,
+      "w": 296,
+      "h": 554,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.ponytail/woman.hairBack",
+      "x": 233,
+      "y": 0,
+      "w": 303,
+      "h": 474,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.short": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.short/woman.hair",
+      "x": 236,
+      "y": 39,
+      "w": 296,
+      "h": 552,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.short/woman.hairBack",
+      "x": 229,
+      "y": 25,
+      "w": 309,
+      "h": 222,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.swept": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.swept/woman.hair",
+      "x": 234,
+      "y": 39,
+      "w": 301,
+      "h": 553,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.swept/woman.hairBack",
+      "x": 223,
+      "y": 28,
+      "w": 322,
+      "h": 220,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.thin": {
+   "man": {
+    "layers": [
+     {
+      "file": "hair.thin/man.hair",
+      "x": 236,
+      "y": 72,
+      "w": 296,
+      "h": 284,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.thin/man.hairBack",
+      "x": 234,
+      "y": 71,
+      "w": 300,
+      "h": 176,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.tied": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.tied/woman.hair",
+      "x": 232,
+      "y": 39,
+      "w": 308,
+      "h": 550,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.tied/woman.hairBack",
+      "x": 213,
+      "y": 37,
+      "w": 341,
+      "h": 432,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.tuft": {
+   "girl": {
+    "layers": [
+     {
+      "file": "hair.tuft/girl.hair",
+      "x": 225,
+      "y": 39,
+      "w": 319,
+      "h": 530,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.tuft/girl.hairBack",
+      "x": 159,
+      "y": 0,
+      "w": 450,
+      "h": 435,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.wavy": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.wavy/woman.hair",
+      "x": 165,
+      "y": 39,
+      "w": 439,
+      "h": 722,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.wavy/woman.hairBack",
+      "x": 93,
+      "y": 20,
+      "w": 590,
+      "h": 737,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hat.cap": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hat.cap/woman.hat",
+      "x": 223,
+      "y": 21,
+      "w": 323,
+      "h": 570,
+      "z": "hat",
+      "zones": [
+       ".1",
+       ".2"
+      ]
+     }
+    ],
+    "covers": true
+   }
+  },
+  "hat.circlet": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hat.circlet/woman.hat",
+      "x": 225,
+      "y": 83,
+      "w": 319,
+      "h": 508,
+      "z": "hat",
+      "zones": [
+       ".1",
+       ".2"
+      ]
+     }
+    ]
+   }
+  },
+  "hat.helm": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hat.helm/woman.hat",
+      "x": 217,
+      "y": 34,
+      "w": 335,
+      "h": 557,
+      "z": "hat",
+      "zones": [
+       ".1",
+       ".2"
+      ]
+     }
+    ],
+    "covers": true
+   }
+  },
+  "hat.hood": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hat.hood/woman.hat",
+      "x": 186,
+      "y": 29,
+      "w": 397,
+      "h": 561,
+      "z": "hat",
+      "zones": [
+       ".1",
+       ".2"
+      ]
+     }
+    ],
+    "covers": true
+   }
+  },
+  "hat.kerchief": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hat.kerchief/woman.hat",
+      "x": 223,
+      "y": 34,
+      "w": 322,
+      "h": 558,
+      "z": "hat",
+      "zones": [
+       ".1",
+       ".2"
+      ]
+     }
+    ],
+    "covers": true
+   }
+  },
+  "hat.straw": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hat.straw/woman.hat",
+      "x": 47,
+      "y": 22,
+      "w": 676,
+      "h": 571,
+      "z": "hat",
+      "zones": [
+       ".1",
+       ".2"
+      ]
+     }
+    ],
+    "covers": true
+   }
+  },
+  "hat.thorns": {
+   "woman": {
+    "layers": [
+     {
+      "file": "hat.thorns/woman.hat",
+      "x": 129,
+      "y": 20,
+      "w": 512,
+      "h": 572,
+      "z": "hat",
+      "zones": [
+       ".1",
+       ".2"
+      ]
+     }
+    ]
+   }
+  },
+  "mark.freckles": {
+   "woman": {
+    "layers": [
+     {
+      "file": "mark.freckles/woman.mark",
+      "x": 249,
+      "y": 292,
+      "w": 229,
+      "h": 24,
+      "z": "mark",
+      "zones": [
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "mark.scar": {
+   "woman": {
+    "layers": [
+     {
+      "file": "mark.scar/woman.mark",
+      "x": 251,
+      "y": 242,
+      "w": 146,
+      "h": 143,
+      "z": "mark",
+      "zones": [
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.adventurer": {
+   "man": {
+    "layers": [
+     {
+      "file": "outfit.adventurer/man.outfit",
+      "x": 129,
+      "y": 367,
+      "w": 513,
+      "h": 401,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "outfit.adventurer/woman.outfit",
+      "x": 140,
+      "y": 400,
+      "w": 490,
+      "h": 368,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.apron": {
+   "man": {
+    "layers": [
+     {
+      "file": "outfit.apron/man.outfit",
+      "x": 120,
+      "y": 425,
+      "w": 529,
+      "h": 343,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.cloak": {
+   "man": {
+    "layers": [
+     {
+      "file": "outfit.cloak/man.outfit",
+      "x": 76,
+      "y": 357,
+      "w": 614,
+      "h": 411,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "outfit.cloak/woman.outfit",
+      "x": 85,
+      "y": 360,
+      "w": 597,
+      "h": 408,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.coat": {
+   "man": {
+    "layers": [
+     {
+      "file": "outfit.coat/man.outfit",
+      "x": 129,
+      "y": 363,
+      "w": 512,
+      "h": 405,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "outfit.coat/woman.outfit",
+      "x": 148,
+      "y": 360,
+      "w": 474,
+      "h": 408,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.dress": {
+   "woman": {
+    "layers": [
+     {
+      "file": "outfit.dress/woman.outfit",
+      "x": 142,
+      "y": 456,
+      "w": 485,
+      "h": 312,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.gambeson": {
+   "man": {
+    "layers": [
+     {
+      "file": "outfit.gambeson/man.outfit",
+      "x": 123,
+      "y": 388,
+      "w": 523,
+      "h": 380,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.gi": {
+   "man": {
+    "layers": [
+     {
+      "file": "outfit.gi/man.outfit",
+      "x": 112,
+      "y": 394,
+      "w": 547,
+      "h": 374,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.oilcloth": {
+   "man": {
+    "layers": [
+     {
+      "file": "outfit.oilcloth/man.outfit",
+      "x": 108,
+      "y": 357,
+      "w": 553,
+      "h": 411,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "outfit.oilcloth/woman.outfit",
+      "x": 134,
+      "y": 360,
+      "w": 501,
+      "h": 408,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.pinafore": {
+   "girl": {
+    "layers": [
+     {
+      "file": "outfit.pinafore/girl.outfit",
+      "x": 135,
+      "y": 400,
+      "w": 498,
+      "h": 368,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.plate": {
+   "man": {
+    "layers": [
+     {
+      "file": "outfit.plate/man.outfit",
+      "x": 99,
+      "y": 382,
+      "w": 576,
+      "h": 386,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.robe": {
+   "woman": {
+    "layers": [
+     {
+      "file": "outfit.robe/woman.outfit",
+      "x": 97,
+      "y": 360,
+      "w": 578,
+      "h": 408,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.shawl": {
+   "woman": {
+    "layers": [
+     {
+      "file": "outfit.shawl/woman.outfit",
+      "x": 140,
+      "y": 396,
+      "w": 489,
+      "h": 372,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.smock": {
+   "boy": {
+    "layers": [
+     {
+      "file": "outfit.smock/boy.outfit",
+      "x": 147,
+      "y": 448,
+      "w": 474,
+      "h": 320,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   },
+   "girl": {
+    "layers": [
+     {
+      "file": "outfit.smock/girl.outfit",
+      "x": 151,
+      "y": 448,
+      "w": 467,
+      "h": 320,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.travel": {
+   "man": {
+    "layers": [
+     {
+      "file": "outfit.travel/man.outfit",
+      "x": 127,
+      "y": 386,
+      "w": 523,
+      "h": 382,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "outfit.travel/woman.outfit",
+      "x": 144,
+      "y": 404,
+      "w": 482,
+      "h": 364,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.tunic": {
+   "man": {
+    "layers": [
+     {
+      "file": "outfit.tunic/man.outfit",
+      "x": 137,
+      "y": 394,
+      "w": 496,
+      "h": 374,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.vestment": {
+   "man": {
+    "layers": [
+     {
+      "file": "outfit.vestment/man.outfit",
+      "x": 109,
+      "y": 398,
+      "w": 552,
+      "h": 370,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "outfit.vestment/woman.outfit",
+      "x": 121,
+      "y": 396,
+      "w": 527,
+      "h": 372,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.workdress": {
+   "woman": {
+    "layers": [
+     {
+      "file": "outfit.workdress/woman.outfit",
+      "x": 154,
+      "y": 449,
+      "w": 459,
+      "h": 319,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  },
+  "outfit.workshirt": {
+   "man": {
+    "layers": [
+     {
+      "file": "outfit.workshirt/man.outfit",
+      "x": 133,
+      "y": 400,
+      "w": 504,
+      "h": 368,
+      "z": "outfit",
+      "zones": [
+       ".1",
+       ".2",
+       ".3",
+       "skin"
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "heads": {
+  "man": "woman",
+  "boy": "girl"
+ }
+}

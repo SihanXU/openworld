@@ -1,1 +1,1 @@
-{ "name": "@lsw/engine", "private": true, "type": "module", "main": "src/index.ts" }
+{ "name": "@openworld/engine", "private": true, "type": "module", "main": "src/index.ts" }

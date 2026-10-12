@@ -1,0 +1,29 @@
+{
+  "map": {
+    "id": "cottage",
+    "name": { "en": "Mira's Cottage", "zh": "米拉的小屋" },
+    "kind": "interior",
+    "width": 8,
+    "height": 6,
+    "rows": ["XXXXXXXX", "XffffffX", "XffffffX", "XffffffX", "XffffffX", "XXXDXXXX"],
+    "portals": [
+      { "x": 3, "y": 5, "to": "glade", "tx": 18, "ty": 5, "label": { "en": "The Glade", "zh": "林间空地" } }
+    ],
+    "anchors": { "bed": [5, 2], "table": [2, 2] },
+    "light": "indoor",
+    "zone": "peaceful",
+    "music": "interior"
+  },
+  "entities": [
+    {
+      "id": "cottage.bed",
+      "type": "fixture/furniture/bed",
+      "place": { "on": "tile", "map": "cottage", "x": 5, "y": 1 }
+    },
+    {
+      "id": "cottage.table",
+      "type": "fixture/furniture/table",
+      "place": { "on": "tile", "map": "cottage", "x": 2, "y": 1 }
+    }
+  ]
+}

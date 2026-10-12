@@ -24,8 +24,8 @@ import { similarity } from './util.ts'
 export type Outcome = 'accepted' | 'covered' | 'failed'
 
 export interface Attempt<P = unknown> {
-  /** design: a fresh draft; repair: after validator diagnostics; review: after a reviewer's notes; find, create: the router's later layers. */
-  phase: 'design' | 'repair' | 'review' | 'find' | 'create'
+  /** design: a fresh draft; repair: after validator diagnostics; review: after a reviewer's notes; audit: after the auditor broke it; find, create: the router's later layers. */
+  phase: 'design' | 'repair' | 'review' | 'audit' | 'find' | 'create'
   patch?: P
   errors: string[]
   warnings: string[]
@@ -35,6 +35,8 @@ export interface Attempt<P = unknown> {
   derived?: string[]
   /** Reviewer verdict on a valid draft, when the review stage ran. */
   review?: { verdict: string; notes: string[] }
+  /** What the auditor broke in the sandbox (confirmed), and how many of its claims did not hold. */
+  audit?: { confirmed: string[]; unconfirmed: number }
   /** The answer as the model gave it, when no patch could be read from it (clipped). */
   raw?: string
 }
@@ -80,6 +82,8 @@ export interface Episode<Req = unknown, P = unknown> {
   calls?: CallRecord[]
   ms: number
   error?: string
+  /** Where an error the program threw came from (its stack's first lines): a failure no model output explains. */
+  stack?: string
   /** the agent's own one-line summary when it submitted (repo-form tasks) */
   submission?: string
 }
@@ -190,6 +194,13 @@ export interface Harness {
    * for flagged ones: rules that only narrate, or did not generalize).
    */
   review: { enabled: boolean; maxRounds: number; blocking?: boolean; unflagged?: boolean; reasoning?: Reasoning }
+  /**
+   * The auditor (design.md §13): an agent that tries to break a patch in the sandbox; only what the
+   * sandbox shows, with the patch and not without it, counts. blocking: before the patch ships (a
+   * finding goes back to the designer); else after it (a finding takes the patch out of the library
+   * and sends it back for a revision). rounds: its tool calls. Absent in an older harness: the default.
+   */
+  audit?: { enabled: boolean; blocking?: boolean; rounds: number; reasoning?: Reasoning }
   recall: { episodes: number; lessons: number }
   /**
    * batch: live episodes that went cleanly (accepted at the first answer, nothing flagged) are
@@ -200,13 +211,15 @@ export interface Harness {
   tools: string[]
   /** Instructions the modder has added to its own system prompt. */
   addenda: string[]
-  offline: { design?: Partial<DesignConfig>; repair?: Partial<Harness['repair']>; review?: Partial<Harness['review']> }
+  offline: { design?: Partial<DesignConfig>; repair?: Partial<Harness['repair']>; review?: Partial<Harness['review']>; audit?: Partial<AuditConfig> }
   /** a live request that fails is worked again offline, in the background: the world still learns it */
   escalate: boolean
   /** a late review asking for changes sends the rule back for one offline revision */
   revise: boolean
-  /** design: episodes worked at once (live requests first); background: reviews, reflections, escalations at once */
+  /** design: episodes worked at once, one per lane (live requests first); background: reviews, reflections, escalations at once */
   concurrency?: { design: number; background: number }
+  /** remove: a learned rule set aside at run time by this many clients leaves the shared library (and is revised offline) */
+  faults?: { remove: number }
 }
 
 /** The naive agent loop: the starting point of a self-improvement run (no hooks, no notes, no skills). */
@@ -228,25 +241,35 @@ export const DEFAULT_HARNESS: Harness = {
   design: { toolRounds: 0, temperature: 0.3, brief: true, reasoning: 'low', tests: 'harness', hedgeMs: 7000, deadlineMs: 15000, retries: 1 },
   repair: { maxRounds: 1 },
   review: { enabled: true, maxRounds: 1, blocking: false, unflagged: false, reasoning: 'low' },
+  audit: { enabled: true, blocking: false, rounds: 6, reasoning: 'low' },
   recall: { episodes: 4, lessons: 12 },
-  reflect: { enabled: true, skillMinRecurrence: 3, batch: 4, reasoning: 'low' },
+  reflect: { enabled: true, skillMinRecurrence: 3, batch: 8, reasoning: 'low' },
   tools: ['search_rules', 'get_rule', 'find_types', 'get_type', 'dry_run', 'read_skill', 'get_episode'],
   addenda: [],
   offline: {
     design: { mode: 'repo', toolRounds: 10, brief: true, reasoning: 'medium', tests: 'model', hedgeMs: 0, deadlineMs: 0, provider: { sort: 'price' } },
     repair: { maxRounds: 3 },
     review: { blocking: true, reasoning: 'medium' },
+    audit: { blocking: true, reasoning: 'medium' },
   },
   escalate: true,
   revise: true,
-  concurrency: { design: 1, background: 3 },
+  concurrency: { design: 4, background: 3 },
+  faults: { remove: 2 },
 }
 
 /** The harness as one profile sees it. */
 export function profileOf(h: Harness, p: Profile): Harness {
   if (p === 'live') return h
   const o = h.offline ?? {}
-  return { ...h, design: { ...h.design, ...o.design }, repair: { ...h.repair, ...o.repair }, review: { ...h.review, ...o.review } }
+  return { ...h, design: { ...h.design, ...o.design }, repair: { ...h.repair, ...o.repair }, review: { ...h.review, ...o.review }, audit: { ...auditOf(h), ...o.audit } }
+}
+
+export type AuditConfig = NonNullable<Harness['audit']>
+
+/** The auditor's settings, an older harness's filled from the default. */
+export function auditOf(h: Harness): AuditConfig {
+  return { ...DEFAULT_HARNESS.audit!, ...h.audit }
 }
 
 /** A skill is retired once it has been used this often and does clearly worse than the average episode. */

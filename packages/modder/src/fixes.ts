@@ -3,9 +3,10 @@
 // the latency bench, every malformed first answer had a correct rule inside the wrong wrapper.
 // Each fix is recorded on the attempt, so the episode shows what was changed and why.
 
-import { PRIMITIVES, type Artifact, type Cond, type Effect, type ModRequest, type Ontology, type Patch, type Rule, type Selector, type Tree, type ValidationResult } from '@lsw/engine'
+import { OntologyIndex, PRIMITIVES, selectByType, type Artifact, type Cond, type Effect, type Ontology, type Patch, type Rule, type Selector, type Tree } from '@openworld/engine'
 
-const looksLikeRule = (x: Record<string, unknown>) => typeof x.on === 'string' && (!!x.tree || Array.isArray(x.do))
+// a rule's kind and place are the harness's now (design.md §5.16): one the model wrote without `on` is a rule by its id
+const looksLikeRule = (x: Record<string, unknown>) => (typeof x.on === 'string' || (typeof x.id === 'string' && x.id.startsWith('patch/'))) && (!!x.tree || Array.isArray(x.do))
 
 /**
  * Bring a draft into the Patch shape: a bare rule, a list of rules, or an artifact with the
@@ -48,6 +49,13 @@ export function normalizePatch(x: unknown): { patch?: Patch; fixes: string[] } {
     }
     artifacts.push(a as unknown as Artifact) // let the validator say what is wrong with it
   }
+  // there are no kinds (world-model.md §4.1): a selector naming one selects by that root type
+  for (const a of artifacts) {
+    if (a?.kind !== 'rule' || !a.rule) continue
+    const before = JSON.stringify(a.rule)
+    selectByType(a.rule)
+    if (JSON.stringify(a.rule) !== before) fixes.push(`rule "${a.rule.id}" selected by kind: now by its root type`)
+  }
   return { patch: { ...(o as object), artifacts } as Patch, fixes }
 }
 
@@ -80,23 +88,7 @@ function flatEffects(t: Tree, id: string, fixes: string[]): Tree {
   return n ? { ...t, do: effects } : t
 }
 
-/**
- * A rule that answers a broader kind than the one asked (`impulse` for `impulse/strike`) and so
- * ties with another patch there: narrow it to the requested kind. Returns the narrowed patch, or
- * undefined when that is not the problem.
- */
-export function narrowKinds(patch: Patch, req: ModRequest, res: ValidationResult): { patch: Patch; fixes: string[] } | undefined {
-  if (!res.errors.some((e) => e.includes(' ties with '))) return undefined
-  const kind = req.event.kind
-  const fixes: string[] = []
-  const artifacts = patch.artifacts.map((a) => {
-    if (a.kind !== 'rule' || a.rule.on === kind || !kind.startsWith(a.rule.on + '/')) return a
-    if (!res.errors.some((e) => e.includes(`"${a.rule.id}"`))) return a
-    fixes.push(`narrowed "${a.rule.id}" from ${a.rule.on} to ${kind}`)
-    return { kind: 'rule' as const, rule: { ...a.rule, on: kind } }
-  })
-  return fixes.length ? { patch: { ...patch, artifacts }, fixes } : undefined
-}
+export { placePatch } from '@openworld/engine'
 
 /**
  * A selector naming a terrain by its bare id (`{type: "bush"}`) means the tile type `tile/bush`:
@@ -120,4 +112,69 @@ export function qualifyTerrains(patch: Patch, onto: Ontology): { patch: Patch; f
   const tree = (t: Tree, id: string): Tree => (t && typeof t === 'object' && 'if' in t ? { if: cond(t.if, id), then: tree(t.then, id), ...(t.else !== undefined ? { else: tree(t.else, id) } : {}) } : t)
   const artifacts = patch.artifacts.map((a) => (a.kind === 'rule' && a.rule ? { ...a, rule: { ...a.rule, host: sel(a.rule.host, a.rule.id), tree: tree(a.rule.tree, a.rule.id) } } : a))
   return { patch: fixes.length ? { ...patch, artifacts } : patch, fixes }
+}
+
+/**
+ * A new thing a rule makes by using something on a station (a workbench: a fixture tagged `station:<id>`)
+ * is that station's craft, and is listed in the crafting panel too (world-model.md §6.4): its type says
+ * so (`station`). The designer often leaves it out; the harness reads it off the branch that makes it.
+ */
+export function stationFromRules(patch: Patch, onto: Ontology): { patch: Patch; fixes: string[] } {
+  const made = stationsOf(patch, onto)
+  // made at hand or a station, it comes into the maker's hand and has to leave it: a fixture is carried (as the world's workbench is)
+  const fixes = [...made.fixes]
+  const artifacts = made.patch.artifacts.map((a) => {
+    if (a?.kind !== 'type' || !a.type?.id || !a.type.station) return a
+    if (new OntologyIndex({ ...onto, types: { ...onto.types, [a.type.id]: a.type } }).resolve(a.type.id).tags.includes('portable')) return a
+    fixes.push(`"${a.type.id}" is made into the maker's hand: portable, so the hand can set it down`)
+    return { ...a, type: { ...a.type, tags: [...(a.type.tags ?? []), 'portable'] } }
+  })
+  return fixes.length > made.fixes.length ? { patch: { ...made.patch, artifacts }, fixes } : made
+}
+
+function stationsOf(patch: Patch, onto: Ontology): { patch: Patch; fixes: string[] } {
+  const fixes: string[] = []
+  const open = new Map(patch.artifacts.flatMap((a) => (a.kind === 'type' && a.type?.id && (!a.type.station || !a.type.yields) ? [[a.type.id, a.type]] : [])))
+  if (!open.size) return { patch, fixes }
+  const stationOf = (c: Cond): string | undefined => {
+    if (!c || typeof c !== 'object' || !('is' in c) || c.is?.role !== 'target' || !c.is.sel?.type) return undefined
+    const tag = onto.types[c.is.sel.type]?.tags?.find((t) => t.startsWith('station:'))
+    const s = tag?.slice('station:'.length)
+    return s && s !== 'stall' ? s : undefined
+  }
+  const found = new Map<string, string>()
+  const counts = new Map<string, number>()
+  const walk = (t: Tree, path: Cond[]): void => {
+    if (!t || typeof t !== 'object') return
+    if ('if' in t) {
+      const c = t.if as Cond | null
+      const here = c && typeof c === 'object' && 'all' in c && Array.isArray(c.all) ? c.all : [c as Cond]
+      walk(t.then, [...path, ...here])
+      if (t.else !== undefined) walk(t.else, path)
+      return
+    }
+    if (!('do' in t) || !Array.isArray(t.do)) return
+    const station = path.map(stationOf).find(Boolean)
+    if (!station) return
+    for (const e of t.do) {
+      if (!e || typeof e !== 'object') continue
+      const id = e.op === 'spawn' ? e.type : e.op === 'transform' ? e.into : undefined
+      if (typeof id !== 'string' || !open.has(id) || found.has(id)) continue
+      found.set(id, station)
+      // what the rule makes at once, the recipe makes too (a bolt cut into two bandages)
+      const n = e.op === 'spawn' && typeof e.count === 'number' ? e.count : 1
+      if (n > 1) counts.set(id, n)
+    }
+  }
+  for (const a of patch.artifacts) if (a.kind === 'rule' && a.rule?.tree) walk(a.rule.tree, [])
+  if (!found.size) return { patch, fixes }
+  const artifacts = patch.artifacts.map((a) => {
+    if (a?.kind !== 'type' || !a.type?.id || !found.has(a.type.id)) return a
+    const station = a.type.station ? undefined : found.get(a.type.id)
+    const n = a.type.yields ? undefined : counts.get(a.type.id)
+    if (!station && !n) return a
+    fixes.push(`"${a.type.id}" is made at a ${found.get(a.type.id)}: it is that station's craft too${station ? ` (station "${station}")` : ''}${n ? `, ${n} at a time as the rule makes it (yields ${n})` : ''}`)
+    return { ...a, type: { ...a.type, ...(station && { station }), ...(n && { yields: n }) } }
+  })
+  return fixes.length ? { patch: { ...patch, artifacts }, fixes } : { patch, fixes }
 }

@@ -1,0 +1,38 @@
+# The OpenWorld Editor as a desktop application (packages/editor/desktop, docs/engine-split.md §15), built for
+# Windows, macOS and Linux: the installers are this run's artifacts (unsigned: Windows and macOS warn on first
+# open). It runs when the desktop shell changes, when asked (Actions → desktop → Run workflow), and on a tag
+# editor-v*.
+name: desktop
+on:
+  workflow_dispatch:
+  push:
+    tags: ['editor-v*']
+  pull_request:
+    paths: ['packages/editor/desktop/**', '.github/workflows/desktop.yml']
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run editor:build
+      - run: npm ci --no-audit --no-fund --prefix packages/editor/desktop
+      - run: npx electron-builder --publish never
+        working-directory: packages/editor/desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openworld-editor-${{ matrix.os }}
+          path: |
+            packages/editor/desktop/release/*.exe
+            packages/editor/desktop/release/*.zip
+            packages/editor/desktop/release/*.dmg
+            packages/editor/desktop/release/*.AppImage
+          if-no-files-found: error

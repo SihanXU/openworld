@@ -1,0 +1,1 @@
+{ "name": "@openworld-game/content", "private": true, "type": "module", "main": "src/index.ts" }

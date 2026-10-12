@@ -4,7 +4,7 @@ Status: **proposed** (2026-09-30).
 
 Scope: make the world that already exists respond to the player, and add simple gameplay
 loops on top of it — storage, woodcutting, building, farming and their neighbours. Almost
-all of it is base rules in `packages/content/src/rules.ts` and new types in the ontology;
+all of it is base rules in `games/openworld/content/src/rules.ts` and new types in the ontology;
 the engine and client changes it needs are small and are listed in §5.
 
 ## 1. Baseline
@@ -72,13 +72,34 @@ Time, for the durations below: 600 ticks are one game hour and one minute of pla
 | M4 | Farming | M1 (stacks, facing indicator) | 15,600 / 24,054 (64.9%) | 50 of 113 forms, 12 of 52 fixture types |
 | M4a | Original vegetables + live B building/farming palette (after quest expansion) | M3, M4 | 24,707 / 35,154 (70.3%) | 49 of 125 forms, 25 of 85 fixture types |
 | S1 | Seven original sin bosses, action/FX atlases, East Road encounter and save migration | M4a, Firstlight Village | 24,945 / 35,406 (70.5%) | 49 of 125 forms, 25 of 86 fixture types |
-| M5 | Gathering and fishing | M1 | | |
-| M6 | Cooking | M4 (wheat), M5 (fish) | | |
-| M7 | Mining and smithing | M3 (hammer, frames) | | |
-| M8 | Wearing, resting, trading | M1 | | |
-| M9 | Every item has a purpose | all of the above | | |
+| M5 | Gathering and fishing (superseded by W2, W7) | M1 | | |
+| M6 | Cooking (superseded by W4, W7) | M4 (wheat), M5 (fish) | | |
+| M7 | Mining and smithing (superseded by W2, W4) | M3 (hammer, frames) | | |
+| M8 | Wearing, resting, trading (resting: W3, W5; wearing and trading after W8) | M1 | | |
+| M9 | Every item has a purpose (after W10) | all of the above | | |
 | EM | The event model (design.md §5.14), 2026-10-02 | M4 | 20,059 / 29,492 (68.0%) | 46 of 116 forms, 25 of 71 fixture types |
 | EM2 | Completeness enforced: the writer, A2–A3 at run time; companions, beats, quests, learning, talents, sins and the night as events (design.md §5.15), 2026-10-04 | EM, S1 | 25,320 / 35,546 (71.2%) | 46 of 125 forms, 25 of 86 fixture types |
+| W1 | State model: no kinds off the grid, facts and the like onto things, regions as things ([world-model.md](world-model.md) §12), 2026-10-04 | EM2 | 25,320 / 35,546 (71.2%) | 46 of 125 forms, 25 of 86 fixture types |
+| W2 | Space and breaking: occupied spaces, z, height, cells as things and one reference form, durability, materials, instruments, damage channels, makeup, `broken`, `breakdown`, `fall` (done 2026-10-04: W2a cells, W2b breaking, W2c the repeat check, W2d height; storeys' z and the `fall` primitive: W6) | W1 | 25,177 / 35,799 (70.3%) | 46 of 125 forms, 25 of 86 fixture types |
+| W3 | Two-level maps: overworld, sites, open edges, durations and fast-forward, generated wilderness, changes-only saves (done 2026-10-04; people walking in from edges: W9) | W2 | 26,131 / 37,823 (69.1%) | 46 of 125 forms, 25 of 86 fixture types |
+| W4 | Makeup and recipes: stations, derived recipes, quality, building as `move`, economy and reachability (done 2026-10-04 but building as `move`, which comes with W6) | W2 | 26,007 / 37,823 (68.8%) | 46 of 125 forms, 24 of 86 fixture types |
+| W5 | Cover and rooms (done 2026-10-04, after W6) | W2 | 26,002 / 37,823 (68.7%) | 46 of 125 forms, 23 of 86 fixture types |
+| W6 | Storeys: slabs, stairs, support, collapse (core done 2026-10-04, before W5: building as `move` with it) | W5 | 26,007 / 37,823 (68.8%) | 46 of 125 forms, 24 of 86 fixture types |
+| W7 | Stages and appearances (done 2026-10-04) | W2 | 26,002 / 37,823 (68.7%) | 46 of 125 forms, 23 of 86 fixture types |
+| W8 | Combat: material and quality, elements and resistances as data (done 2026-10-04) | W2 | 26,002 / 37,823 (68.7%) | 39 of 125 forms, 23 of 86 fixture types |
+| W9 | Behaviour: one goal system, real work (done 2026-10-04) | W3 | 26,189 / 38,329 (68.3%) | 39 of 125 forms, 23 of 87 fixture types |
+| W10 | The story's script (done 2026-10-04) | W1 | 26,189 / 38,329 (68.3%) | 39 of 125 forms, 23 of 87 fixture types |
+| Inputs v2 | Five inputs with reach (E, F, G, left click, right click on oneself); taking and putting are physics (done 2026-10-04) | W10 | 16,716 / 38,329 (43.6%) | 39 of 125 forms, 23 of 87 fixture types |
+| NPC | The people as playable as The Elder Scrolls': ownership, deeds and witnesses, recognition, memory and regard, gossip, the watch and bounties, arrest, death and bodies, talk, trade, pockets, followers, needs ([npc-sandbox.md](npc-sandbox.md), done 2026-10-09) | Inputs v2, looks | 31,687 / 71,381 (44.4%) | 0 of 182 forms, 23 of 126 fixture types |
+| Quests | Bethesda's quest system: a quest under way is a resident thing (stages, aliases, objectives, its own rules); news after every outcome; the Story Manager's starts and radiant favours; offers in the talk panel, the commission board, the journal, tracking and markers; the main line and the errands migrated ([quests.md](quests.md), done 2026-10-09) | NPC | 31,829 / 71,748 (44.4%) | 0 of 182 forms, 23 of 127 fixture types |
+| G1 | The base's general cases (design.md §5.16): a thing used on a creature is held out to it; a creature bound by fiber, fed by food, snapping at a bare hand; cells touched; a lit fire warms; ore smelts into ingots (two new forms); a down companion waits (done 2026-10-09, with leaf-placed learned rules) | Inputs v2 | 31,059 / 70,294 (44.2%); with the NPC sandbox and the quests merged, 31,949 / 72,530 (44.0%) | 32 of 183 forms, 23 of 124 fixture types; merged, 0 of 184 forms, 23 of 127 |
+
+Inputs v2 (design.md §5.2) moved taking and putting out of the AI's questions by design: what is
+taken or put down, what refuses it, and a creature not taking what is put on it are the world's
+physics now (`core/taken`, `core/receive`, `fixture/receive`, `creature/not-taken`, `core/put`), so
+the 9,473 holes they held (9,033 at `fixture/receive` alone) are defined; using one thing on another
+(`core/use`), a blow on what cannot break (`core/strike`) and a hand on what does not say
+(`core/handle`) remain the AI's. A bare left click is a blow now, never E's hand.
 
 The event model changed what is swept: the acts each input makes (use, put, take, hands; use
 or hands on yourself) and the outcomes of the impulses they send, so the space grew to 29,492.
@@ -88,7 +109,9 @@ lines as defaults; pouring and lighting are `use` only (`put` places). The holes
 are: `core/use` 10,737, `core/receive` 6,620, `core/strike` 1,956, `core/handle` 526,
 `core/offered` 116, `core/taken` 104.
 
-M1–M4 are the core. M5–M9 can follow in any order. §1 stays the M0 baseline; each milestone
+M1–M4 are the core. The world model ([world-model.md](world-model.md), agreed 2026-10-04) replaces
+M5–M7 and parts of M8 with its steps W1–W10, in that order (each depends on the state model and
+on space and breaking). M5–M9 as written below are kept for their content ideas. §1 stays the M0 baseline; each milestone
 fills in its row from `npm run coverage` when it lands. New fixture types join the sweep as
 targets and new forms as held items, so the space grows with them (M3 adds four kinds of
 unfinished work, M4 ten crop stages and three seeds). Most forms have nothing to do with a
@@ -98,7 +121,7 @@ new target, so the share undefined rises although nothing was lost.
 
 ### M0 — Coverage report
 
-Land the sweep behind §1 as `packages/tools/src/coverage.ts`: the matrix, the list of forms
+Land the sweep behind §1 as `games/openworld/tools/src/coverage.ts`: the matrix, the list of forms
 and fixture types without a purpose, and the three counts. It is the progress meter for
 everything below and runs with the tests: `npm test` fails if any form or target answers fewer
 combinations, or any form or fixture type loses its purpose, than the committed baseline.
@@ -411,7 +434,7 @@ rule.
 | C4 | Container panel in the HUD | M1 |
 
 Every engine change is added to the ModSpec docs in the same commit, and each milestone's
-rules come with tests beside the existing ones in `packages/content/test`.
+rules come with tests beside the existing ones in `games/openworld/content/test`.
 
 ## 6. Choices to confirm
 

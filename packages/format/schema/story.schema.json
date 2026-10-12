@@ -1,0 +1,3253 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/StoryFile",
+  "definitions": {
+    "StoryFile": {
+      "type": "object",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/StepDef"
+          }
+        },
+        "invariants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Invariant"
+          }
+        },
+        "protectedFacts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Fact-key prefixes only the story's own rules may change (design.md §5.11)."
+        },
+        "weather": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/WeatherSpan"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "StepDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/definitions/StepCond"
+        },
+        "manual": {
+          "type": "boolean",
+          "description": "Played only when something starts it (a `scene` effect: the ferry), never by itself."
+        },
+        "repeat": {
+          "type": "boolean",
+          "description": "Again each day its trigger holds (default: once)."
+        },
+        "script": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SceneCmd"
+          },
+          "description": "It takes control while it plays: what is said and done, in order."
+        },
+        "facts": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/PropValue"
+          },
+          "description": "The story's facts it sets."
+        },
+        "say": {
+          "$ref": "#/definitions/Text",
+          "description": "Said by the leader's companion, in a bubble, when it plays."
+        },
+        "hint": {
+          "$ref": "#/definitions/Text",
+          "description": "What the companion says when spoken to while this is the latest beat (default: `say`)."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "description": "A step of the story's script (world-model.md §6.12): when its trigger holds it plays, once (or once a day); it may take control while it plays (a scene: its `script`) or not (a beat); its effects are the story's own props and the notices it sends."
+    },
+    "StepCond": {
+      "type": "object",
+      "properties": {
+        "map": {
+          "type": "string",
+          "description": "The leader is on this map."
+        },
+        "region": {
+          "type": "string",
+          "description": "The leader stands in this region (of `map`, else of their map): looked at when they enter it, and as a step plays — never polled."
+        },
+        "hour": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "number"
+            },
+            "to": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "from",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        "weather": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "facts": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Cmp"
+          },
+          "description": "The story's facts."
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Cmp"
+          },
+          "description": "The leader's props."
+        },
+        "quest": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Cmp"
+          },
+          "description": "Quests' stages (0 before one begins; a quest over keeps the stage it ended at): docs/quests.md."
+        },
+        "objectives": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Quests' objectives done (`quest.objective`: the warden down, Fennick heard)."
+        },
+        "carrying": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "description": "The leader carries (hand or bag) something of a type starting with this (each of these, for a list)."
+        },
+        "statuses": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "description": "The leader has (true) or has not (false) these statuses (out cold, down)."
+        },
+        "skill": {
+          "type": [
+            "boolean",
+            "string"
+          ],
+          "description": "The leader has learned a skill: any (true) or this one."
+        },
+        "after": {
+          "type": "string",
+          "description": "Another step has played."
+        },
+        "near": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "r": {
+              "type": "number"
+            },
+            "status": {
+              "type": "string"
+            },
+            "exact": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "r"
+          ],
+          "additionalProperties": false,
+          "description": "Something of a type starting with this stands within r tiles of the leader (in view), with this status if one is named (a lit fire); `exact`: of that type itself (a shut door, not an open one)."
+        },
+        "holding": {
+          "type": "string",
+          "description": "The leader holds (in hand) something of a type starting with this."
+        },
+        "spot": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "r": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y"
+          ],
+          "additionalProperties": false,
+          "description": "The leader stands within r tiles of this spot (of their map)."
+        },
+        "on": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "cells": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            },
+            "count": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "cells"
+          ],
+          "additionalProperties": false,
+          "description": "At least `count` (1) things of a type starting with this stand on these cells of the leader's map."
+        },
+        "room": {
+          "type": "string",
+          "description": "A room with this role (bedroom, kitchen …) stands on the leader's map."
+        },
+        "morningAfter": {
+          "type": "string",
+          "description": "The first morning (05:00, when the night ends) after another step played has come."
+        }
+      },
+      "additionalProperties": false,
+      "description": "What starts a step of the story's script (world-model.md §6.12), on the one at the keys (the leader) and the story: all that is given must hold."
+    },
+    "Cmp": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/PropValue"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "eq": {
+              "$ref": "#/definitions/PropValue"
+            },
+            "ne": {
+              "$ref": "#/definitions/PropValue"
+            },
+            "gt": {
+              "type": "number"
+            },
+            "gte": {
+              "type": "number"
+            },
+            "lt": {
+              "type": "number"
+            },
+            "lte": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "PropValue": {
+      "type": [
+        "number",
+        "string",
+        "boolean"
+      ]
+    },
+    "SceneCmd": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "say": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Id"
+                },
+                {
+                  "type": "string",
+                  "const": "player"
+                }
+              ]
+            },
+            "text": {
+              "$ref": "#/definitions/Text"
+            },
+            "mood": {
+              "$ref": "#/definitions/Mood"
+            }
+          },
+          "required": [
+            "say",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "move": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Id"
+                },
+                {
+                  "type": "string",
+                  "const": "player"
+                }
+              ]
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "move",
+            "x",
+            "y"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "face": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Id"
+                },
+                {
+                  "type": "string",
+                  "const": "player"
+                }
+              ]
+            },
+            "dir": {
+              "$ref": "#/definitions/Dir"
+            }
+          },
+          "required": [
+            "face",
+            "dir"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "emote": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Id"
+                },
+                {
+                  "type": "string",
+                  "const": "player"
+                }
+              ]
+            },
+            "mood": {
+              "$ref": "#/definitions/Mood"
+            }
+          },
+          "required": [
+            "emote",
+            "mood"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "wait": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "wait"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fade": {
+              "type": "string",
+              "enum": [
+                "out",
+                "in"
+              ]
+            }
+          },
+          "required": [
+            "fade"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "place": {
+              "$ref": "#/definitions/Id"
+            },
+            "map": {
+              "type": "string"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "place",
+            "map",
+            "x",
+            "y"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/definitions/PropValue"
+            }
+          },
+          "required": [
+            "fact",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "topic": {
+              "type": "string"
+            },
+            "days": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "topic"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "give": {
+              "type": "string"
+            },
+            "count": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "give"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "warp": {
+              "type": "string"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "warp",
+            "x",
+            "y"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "$ref": "#/definitions/Id"
+            },
+            "add": {
+              "type": "string"
+            },
+            "remove": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "stage": {
+              "type": "string"
+            },
+            "n": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "stage",
+            "n"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "tell": {
+              "$ref": "#/definitions/Id"
+            },
+            "params": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/PropValue"
+              }
+            }
+          },
+          "required": [
+            "tell",
+            "params"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "card": {
+              "$ref": "#/definitions/Text"
+            }
+          },
+          "required": [
+            "card"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Id": {
+      "type": "string"
+    },
+    "Text": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "en": {
+              "type": "string"
+            },
+            "zh": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "en"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Mood": {
+      "type": "string",
+      "enum": [
+        "neutral",
+        "happy",
+        "sad",
+        "angry",
+        "surprised",
+        "shy"
+      ]
+    },
+    "Dir": {
+      "type": "string",
+      "enum": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ]
+    },
+    "Invariant": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "giver": {
+          "$ref": "#/definitions/Id"
+        },
+        "text": {
+          "$ref": "#/definitions/Text",
+          "description": "What the content is, in words (for the modder)."
+        },
+        "when": {
+          "$ref": "#/definitions/Cond"
+        },
+        "holds": {
+          "$ref": "#/definitions/Cond"
+        },
+        "fallback": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Effect"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "holds"
+      ],
+      "additionalProperties": false,
+      "description": "Content the world must keep playable (BardOS's stage invariant): while `when` holds, `holds` must hold. When state breaks it (the rope she asked for burned), the story receives a `broken` event (`invariant` = id, target = the giver); its outcome is undefined, and `fallback` (run by the story) is the default while nobody answers."
+    },
+    "Cond": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "all": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Cond"
+              }
+            }
+          },
+          "required": [
+            "all"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "any": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Cond"
+              }
+            }
+          },
+          "required": [
+            "any"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "not": {
+              "$ref": "#/definitions/Cond"
+            }
+          },
+          "required": [
+            "not"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "is": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "sel": {
+                  "$ref": "#/definitions/Selector"
+                }
+              },
+              "required": [
+                "role",
+                "sel"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "is"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "none": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "none"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "same": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RoleName"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "same"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "leads": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RoleName"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "leads"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "has": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "tag": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "has"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "prop": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/Reader"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "cmp": {
+                  "$ref": "#/definitions/Cmp"
+                },
+                "bounds": {
+                  "$ref": "#/definitions/Bounds"
+                },
+                "default": {
+                  "$ref": "#/definitions/PropValue"
+                }
+              },
+              "required": [
+                "role",
+                "key"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "prop"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "param": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "cmp": {
+                  "$ref": "#/definitions/Cmp"
+                }
+              },
+              "required": [
+                "key",
+                "cmp"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "param"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "chance": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "chance"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "hour": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "number"
+                },
+                "to": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "hour"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "night": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "night"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "count": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "in": {
+                  "type": "string",
+                  "enum": [
+                    "contents",
+                    "tile",
+                    "map"
+                  ]
+                },
+                "match": {
+                  "$ref": "#/definitions/Selector"
+                },
+                "cmp": {
+                  "$ref": "#/definitions/Bounds"
+                }
+              },
+              "required": [
+                "role",
+                "in",
+                "cmp"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "count"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "topic": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "topic"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "weather": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "weather"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "exists": {
+              "$ref": "#/definitions/Selector"
+            }
+          },
+          "required": [
+            "exists"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "outdoors": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "outdoors"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "makeup": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "makeup"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "worn": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "worn"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "rel": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "how": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "how"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "rel"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fighting": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "fighting"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "regard": {
+              "type": "object",
+              "properties": {
+                "of": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "toward": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "cmp": {
+                  "$ref": "#/definitions/Cmp"
+                }
+              },
+              "required": [
+                "of",
+                "toward",
+                "cmp"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "regard"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "bounty": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "cmp": {
+                  "$ref": "#/definitions/Cmp"
+                }
+              },
+              "required": [
+                "role",
+                "cmp"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "bounty"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "grudge": {
+              "type": "object",
+              "properties": {
+                "of": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "toward": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "deed": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "of",
+                "toward"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "grudge"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "owns": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RoleName"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "owns"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "knows": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/RoleName"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "knows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "remembers": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "remembers"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "deed": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean",
+                  "const": true
+                }
+              ]
+            }
+          },
+          "required": [
+            "deed"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "sway": {
+              "type": "object",
+              "properties": {
+                "of": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "by": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "how": {
+                  "type": "string",
+                  "enum": [
+                    "persuade",
+                    "intimidate"
+                  ]
+                },
+                "bonus": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "of",
+                "by",
+                "how"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "sway"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "canPay": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "mul": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "role"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "canPay"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "unpardonable": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "unpardonable"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "RoleName": {
+      "type": "string",
+      "enum": [
+        "host",
+        "actor",
+        "target",
+        "instrument",
+        "other",
+        "item",
+        "source"
+      ],
+      "description": "The roles of an event besides its host (whose rule answers it):\n- act: `actor`, `target`, `instrument` (the host is the instrument, or the actor's own hands);\n- impulse: `source` (what emitted it), `actor` (whose act started the chain), `instrument`,   `item` (the thing given, put or taken), `other` (the taker, for `taken`);\n- contact, bump: `other`, the thing on the other side;\n- seen: `actor` (the doer), `target`, `instrument`;\n- stuck: `target` (what the activity needs, or the spot); broken: `target` (the giver)."
+    },
+    "Selector": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Is-a match against the type hierarchy (prefix on slash paths): `actor`, `item/food`, `tile/grass`…"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "All of these tags."
+        },
+        "notTags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "None of these tags."
+        },
+        "status": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "All of these statuses."
+        },
+        "notStatus": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "None of these statuses."
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Cmp"
+          },
+          "description": "Property comparisons."
+        },
+        "id": {
+          "$ref": "#/definitions/Id",
+          "description": "Instance-bound (discouraged for patches)."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Selects the entity or tile filling a role. All given constraints must hold."
+    },
+    "Reader": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/RoleName"
+        },
+        {
+          "type": "string",
+          "const": "story"
+        },
+        {
+          "type": "string",
+          "const": "world"
+        }
+      ],
+      "description": "What a condition may read: the event's roles, and the stewards every rule may read (the story, the world)."
+    },
+    "Bounds": {
+      "type": "object",
+      "properties": {
+        "eq": {
+          "$ref": "#/definitions/Operand"
+        },
+        "gt": {
+          "$ref": "#/definitions/Operand"
+        },
+        "gte": {
+          "$ref": "#/definitions/Operand"
+        },
+        "lt": {
+          "$ref": "#/definitions/Operand"
+        },
+        "lte": {
+          "$ref": "#/definitions/Operand"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Numeric bounds whose limits may be read from roles. A missing property fails the test."
+    },
+    "Operand": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "prop": {
+              "type": "string"
+            },
+            "of": {
+              "$ref": "#/definitions/RoleName"
+            },
+            "mul": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "prop",
+            "of"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "param": {
+              "type": "string"
+            },
+            "mul": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "param"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "description": "A number, or a number read from a role's prop (scaled) or from the event's params."
+    },
+    "Effect": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "spawn"
+            },
+            "type": {
+              "type": "string"
+            },
+            "at": {
+              "$ref": "#/definitions/RoleRef"
+            },
+            "into": {
+              "type": "string",
+              "enum": [
+                "tile",
+                "contents",
+                "hand"
+              ]
+            },
+            "count": {
+              "$ref": "#/definitions/Amount"
+            },
+            "still": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "op",
+            "type",
+            "at"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "destroy"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "transform"
+            },
+            "into": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "into"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "move"
+            },
+            "to": {
+              "$ref": "#/definitions/RoleRef"
+            },
+            "into": {
+              "type": "string",
+              "enum": [
+                "tile",
+                "contents",
+                "hand"
+              ]
+            }
+          },
+          "required": [
+            "op",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "step"
+            },
+            "dir": {
+              "$ref": "#/definitions/Dir"
+            },
+            "away": {
+              "$ref": "#/definitions/RoleRef"
+            },
+            "tiles": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "addStatus"
+            },
+            "status": {
+              "type": "string"
+            },
+            "duration": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "op",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "removeStatus"
+            },
+            "status": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "setProp"
+            },
+            "key": {
+              "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/PropValue"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "param": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "param"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "op",
+            "key",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "addProp"
+            },
+            "key": {
+              "type": "string"
+            },
+            "delta": {
+              "$ref": "#/definitions/Amount"
+            },
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "$ref": "#/definitions/Amount"
+            }
+          },
+          "required": [
+            "op",
+            "key",
+            "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "addTag"
+            },
+            "tag": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "tag"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "removeTag"
+            },
+            "tag": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "tag"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "hurt"
+            },
+            "amount": {
+              "$ref": "#/definitions/Amount"
+            },
+            "element": {
+              "type": "string"
+            },
+            "pierce": {
+              "type": "boolean"
+            },
+            "blow": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "op",
+            "amount"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "breakdown"
+            },
+            "still": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "wear"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "fall"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "sleep"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "heal"
+            },
+            "amount": {
+              "$ref": "#/definitions/Amount"
+            }
+          },
+          "required": [
+            "op",
+            "amount"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "feed"
+            },
+            "amount": {
+              "$ref": "#/definitions/Amount"
+            }
+          },
+          "required": [
+            "op",
+            "amount"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "gainXp"
+            },
+            "amount": {
+              "$ref": "#/definitions/Amount"
+            }
+          },
+          "required": [
+            "op",
+            "amount"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "boon"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "pocket"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "foe"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "open"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "dropContents"
+            },
+            "still": {
+              "type": "boolean"
+            },
+            "to": {
+              "$ref": "#/definitions/RoleRef"
+            },
+            "keepWorn": {
+              "type": "boolean"
+            },
+            "keep": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "bundle": {
+              "type": "string"
+            },
+            "loose": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "goto"
+            },
+            "anchor": {
+              "type": "string"
+            },
+            "hours": {
+              "type": "number"
+            },
+            "activity": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "anchor",
+            "hours"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "topic"
+            },
+            "id": {
+              "type": "string"
+            },
+            "days": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "op",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "quest"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "advance"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "stage"
+            },
+            "n": {
+              "$ref": "#/definitions/Amount"
+            }
+          },
+          "required": [
+            "op",
+            "n"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "accept"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "decline"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "failQuest"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "begin"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "startQuest"
+            },
+            "id": {
+              "type": "string"
+            },
+            "offer": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "facts"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "news"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "give",
+                "deed",
+                "hungry",
+                "talk"
+              ]
+            }
+          },
+          "required": [
+            "op",
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "appear"
+            },
+            "what": {
+              "$ref": "#/definitions/AppearDef"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "grow"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "learn"
+            },
+            "book": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "release"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "panel"
+            },
+            "panel": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "panel"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "scene"
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "craft"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "lightning"
+            },
+            "power": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "op",
+            "power"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "emit"
+            },
+            "impulse": {
+              "$ref": "#/definitions/Impulse"
+            },
+            "to": {
+              "$ref": "#/definitions/EmitTo"
+            },
+            "params": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/PropValue"
+                  },
+                  {
+                    "$ref": "#/definitions/Amount"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "typeOf": {
+                        "$ref": "#/definitions/RoleName"
+                      }
+                    },
+                    "required": [
+                      "typeOf"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "idOf": {
+                        "$ref": "#/definitions/RoleName"
+                      }
+                    },
+                    "required": [
+                      "idOf"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "item": {
+              "$ref": "#/definitions/RoleName"
+            },
+            "other": {
+              "$ref": "#/definitions/RoleName"
+            },
+            "chance": {
+              "type": "number"
+            },
+            "filter": {
+              "$ref": "#/definitions/Selector"
+            }
+          },
+          "required": [
+            "op",
+            "impulse",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "ashore"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "fallback"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "vfx"
+            },
+            "at": {
+              "$ref": "#/definitions/RoleRef"
+            },
+            "fx": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "fx"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "say"
+            },
+            "text": {
+              "$ref": "#/definitions/Text"
+            },
+            "who": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "op",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "log"
+            },
+            "text": {
+              "$ref": "#/definitions/Text"
+            }
+          },
+          "required": [
+            "op",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "emote"
+            },
+            "mood": {
+              "$ref": "#/definitions/Mood"
+            }
+          },
+          "required": [
+            "op",
+            "mood"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "restyle"
+            },
+            "parts": {
+              "type": "object",
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "colors": {
+              "type": "object",
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "own"
+            },
+            "to": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "witness"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "tell"
+            },
+            "to": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "op",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "hear"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "regard"
+            },
+            "toward": {
+              "$ref": "#/definitions/RoleName"
+            },
+            "delta": {
+              "$ref": "#/definitions/Amount"
+            }
+          },
+          "required": [
+            "op",
+            "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "settle"
+            },
+            "toward": {
+              "$ref": "#/definitions/RoleName"
+            },
+            "deed": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "fear"
+            },
+            "of": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "report"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "charge"
+            },
+            "clear": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "surrender"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "die"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "pay"
+            },
+            "amount": {
+              "$ref": "#/definitions/Amount"
+            },
+            "to": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "op",
+            "amount",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "give"
+            },
+            "to": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "op",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "sell"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "buy"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "follow"
+            },
+            "leader": {
+              "$ref": "#/definitions/RoleName"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "talk"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "fine"
+            },
+            "mul": {
+              "type": "number"
+            },
+            "keep": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "imprison"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "jail"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "arrest"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "restock"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "calm"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "RoleRef": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/RoleName"
+        },
+        {
+          "type": "string",
+          "const": "tileOf:host"
+        },
+        {
+          "type": "string",
+          "const": "tileOf:actor"
+        },
+        {
+          "type": "string",
+          "const": "tileOf:target"
+        },
+        {
+          "type": "string",
+          "const": "tileOf:instrument"
+        },
+        {
+          "type": "string",
+          "const": "tileOf:other"
+        },
+        {
+          "type": "string",
+          "const": "tileOf:item"
+        },
+        {
+          "type": "string",
+          "const": "tileOf:source"
+        }
+      ],
+      "description": "A role, or the cell under it (`tileOf:`: the thing that makes up that cell on top — what fills it, roots in it, or the floor)."
+    },
+    "Amount": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "param": {
+              "type": "string"
+            },
+            "mul": {
+              "type": "number"
+            },
+            "add": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "param"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "prop": {
+              "type": "string"
+            },
+            "of": {
+              "$ref": "#/definitions/RoleName"
+            },
+            "mul": {
+              "type": "number"
+            },
+            "add": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "prop",
+            "of"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "AppearDef": {
+      "type": "object",
+      "properties": {
+        "types": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "What appears: types, weighted."
+        },
+        "on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The grounds it appears on (terrain ids); any ground one can stand on when absent."
+        },
+        "max": {
+          "type": "number",
+          "description": "At most this many on the map: those tagged `tag` if it is given, else those of its types."
+        },
+        "every": {
+          "type": "number",
+          "description": "Ticks between appearances (a multiple of the `appear` period)."
+        },
+        "ring": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "How far from the one at the keys, [near, far] cells (default: anywhere, not within two)."
+        },
+        "hours": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "When: hours [from, to) (past midnight when from > to), and weathers."
+        },
+        "night": {
+          "type": "boolean",
+          "description": "When: at night, however long the story's night has grown (World.isNight; instead of hours)."
+        },
+        "weather": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "where": {
+          "type": "object",
+          "properties": {
+            "zone": {
+              "type": "string",
+              "enum": [
+                "peaceful",
+                "combat"
+              ]
+            },
+            "light": {
+              "type": "string",
+              "enum": [
+                "outdoor",
+                "indoor",
+                "dark"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "description": "Which maps (for the world's own): by the map's zone and light."
+        },
+        "tag": {
+          "type": "string",
+          "description": "A tag what appears carries (counted by `max`)."
+        },
+        "ai": {
+          "type": "object",
+          "properties": {
+            "behaviour": {
+              "type": "string",
+              "enum": [
+                "melee",
+                "ranged",
+                "passive"
+              ]
+            },
+            "temper": {
+              "type": "string",
+              "enum": [
+                "aggressive",
+                "nocturnal",
+                "wary"
+              ],
+              "description": "When it attacks those its factions are hostile to: always, after dark only, or only once provoked. Whoever strikes it becomes a foe, whatever its temper."
+            },
+            "foes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Id"
+              },
+              "description": "Whoever struck it: attacked on sight."
+            },
+            "leash": {
+              "type": "number",
+              "description": "How far from where it lives (home, or its night roam) it will chase before it gives up (default 8)."
+            },
+            "sight": {
+              "type": "number"
+            },
+            "state": {
+              "type": "string",
+              "enum": [
+                "idle",
+                "chase",
+                "return",
+                "flee"
+              ]
+            },
+            "detour": {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "path": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "path"
+              ],
+              "additionalProperties": false,
+              "description": "The way around an obstacle it is following, to the goal it was planned for."
+            },
+            "noWay": {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "until": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "until"
+              ],
+              "additionalProperties": false,
+              "description": "A goal no way led to (one shut in a house): it does not look for a way there again until then."
+            },
+            "cooldown": {
+              "type": "number"
+            },
+            "loot": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "night": {
+              "$ref": "#/definitions/Pos",
+              "description": "Where it roams at night (creatures come out after dark); by day it keeps to `home`."
+            }
+          },
+          "required": [
+            "behaviour",
+            "temper",
+            "sight"
+          ],
+          "additionalProperties": false,
+          "description": "A creature's behaviour (its home is where it appears), and statuses it appears with."
+        },
+        "statuses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "types",
+        "max",
+        "every"
+      ],
+      "additionalProperties": false,
+      "description": "What appears by itself (world-model.md §6.9; Don't Starve's twigs and flint, Minecraft's mobs, the night's walkers): data only. Now and then one more of the weighted types appears on a free cell of the right ground, at the right distance from the one at the keys, at the right hours and weather, until `max` of them are on the map."
+    },
+    "Pos": {
+      "type": "object",
+      "properties": {
+        "map": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number",
+          "description": "The storey (world-model.md §5.2): 0 the ground's, 1 the floor above it … (omitted: 0)."
+        }
+      },
+      "required": [
+        "map",
+        "x",
+        "y"
+      ],
+      "additionalProperties": false
+    },
+    "Impulse": {
+      "type": "string",
+      "enum": [
+        "strike",
+        "element",
+        "coat",
+        "restore",
+        "push",
+        "taken",
+        "receive",
+        "offered",
+        "handle",
+        "notify"
+      ],
+      "description": "The impulses: what one thing does to another (design.md §5.8)."
+    },
+    "EmitTo": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/RoleRef"
+        },
+        {
+          "type": "string",
+          "const": "story"
+        },
+        {
+          "type": "string",
+          "const": "world"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "named": {
+              "$ref": "#/definitions/Id"
+            }
+          },
+          "required": [
+            "named"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "area": {
+              "type": "object",
+              "properties": {
+                "at": {
+                  "$ref": "#/definitions/RoleRef"
+                },
+                "radius": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "radius"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "area"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "line": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "$ref": "#/definitions/RoleRef"
+                },
+                "away": {
+                  "$ref": "#/definitions/RoleRef"
+                },
+                "length": {
+                  "type": "number"
+                },
+                "over": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "away",
+                "length"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "line"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "map": {
+              "type": "boolean",
+              "const": true
+            },
+            "sky": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "map"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "string",
+          "const": "watch"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "around": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "around"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "description": "Where an emitted event goes: a role, a resident host, a named thing, or a place of the host's map."
+    },
+    "WeatherSpan": {
+      "type": "object",
+      "properties": {
+        "day": {
+          "type": "number"
+        },
+        "from": {
+          "type": "number"
+        },
+        "to": {
+          "type": "number"
+        },
+        "weather": {
+          "$ref": "#/definitions/Weather"
+        }
+      },
+      "required": [
+        "day",
+        "weather"
+      ],
+      "additionalProperties": false,
+      "description": "A span of fixed weather: a whole day, or hours [from, to) of it."
+    },
+    "Weather": {
+      "type": "string",
+      "enum": [
+        "sun",
+        "cloud",
+        "rain",
+        "storm",
+        "fog"
+      ]
+    }
+  }
+}

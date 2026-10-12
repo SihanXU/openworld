@@ -107,10 +107,10 @@ The road leaves the Ford through the gap in its western woods (rows 18–20) and
 meadow's east edge: open grassland in a ring of woods, a pond, flowers and tufts (Minecraft's
 plains). Its ground yields sticks, stones and grass like the Ford's (three of each to start,
 up to 6/5/6). Three cows and four hens live there; more appear slowly while the player is on the map
-(`MapData.forage`: a cow every 1,200 ticks up to 4, a hen every 900 up to 5). Animals are
+(`MapData.appear`: a cow every 1,200 ticks up to 4, a hen every 900 up to 5). Animals are
 passive: they wander near where they appeared and run from whoever strikes them. A cow leaves
-two raw beef, a hen one raw chicken (`drop` × `drops`, in `combat/defeat`); a hen lays an egg
-every 1,800 ticks (`laying`, `animal/lay-egg`). Both lie where they fell, taken with F. Every food is edible, raw or cooked, and feeds
+two raw beef, a hen one raw chicken (what they are made of, broken down: `combat/defeat`); a hen
+lays an egg every 1,800 ticks (her stage, world-model.md §6.5). Both lie where they fell, taken with F. Every food is edible, raw or cooked, and feeds
 its own `food` (raw beef 3, steak 8, raw chicken 2, roast chicken 6, egg 1, bread 5).
 The cow and chicken sprites are the project's own (`tools/src/art/animals.ts`, served from
 `public/assets/lsw/`); the pack subset has none.
@@ -137,7 +137,8 @@ schedules and keyed lines (about 16 each, English and Chinese).
 | Storm | waits it out at the tent's mouth | waits it out beside the tent |
 | What they own | the chest and the bread in it (the rope is the ferry's) | the cart, the frost wand, the oil |
 
-- **Schedules** pick the most specific variant: `fact:<key>` → `storm` → `rain` → `default`. An
+- **Schedules** pick the most specific variant: `fact:<key>` → `storm` → `rain` → `default`; a
+  key may join a fact and the weather (`fact:<key>+storm`), and holds when both do, over either. An
   entry may name the thing its activity **uses** and what it must be (`need`); when it is not,
   the person is **blocked** (§8).
 - **Lines** pick the most specific key: `topic:<id>` → `fact:<key>` → `greeting:first` →
@@ -197,6 +198,12 @@ Sources 6 (free intent) and 7 (open conversation) stay reserved (D9).
 
 ## 9. Completeness: the Ford contains everything the demo needs, and nothing else
 
+The world model ([world-model.md](world-model.md) §10.3) adds fifteen requirements, each landing
+with its step (W1–W10): felling, too hard, mining, leaving by an edge, overworld time, the river
+as a barrier, persistent wilderness, height and falls, derived recipes, bedrooms, cover, storeys
+and collapse, fire on structures, real work and people entering from edges, story steps on
+entering regions.
+
 The requirements are derived from the system, not chosen:
 
 - **A. The engine's event space**: every event kind — `interaction`, `hit`, `status`, `expire`,
@@ -225,7 +232,7 @@ The requirements are derived from the system, not chosen:
   sticks, stones and grass that craft the first tools (F12); a defeated foe teaches whoever
   struck it (F13); the meadow's animals and their food (F14); the forest's trees (F15).
 
-**The proof** is `packages/tools/test/demo.test.ts`. It builds the real map in memory
+**The proof** is `games/openworld/tools/test/demo.test.ts`. It builds the real map in memory
 (`buildFord()`), and for every requirement runs a scenario on it — through the player's own
 inputs wherever there are any (the routes are walked, the axe is swung, the wand is cast) — and
 asserts the event, request or state. Then the converse, **minimality**: every placed type, every
