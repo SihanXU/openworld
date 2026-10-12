@@ -10,7 +10,7 @@ import { faceFrame, personLook } from '../assets/looks.ts'
 import { crowdLook, figureDef, figureId, portraitOf, preparePortrait } from '../assets/figure/index.ts'
 import { GroundAtlas, T, groundTile, hash2 } from '../assets/ground.ts'
 import { depthOf, footOf } from './depth.ts'
-import { prefs } from '../ui/common.ts'
+import { KEYS_STILL_MS, prefs } from '../ui/common.ts'
 
 /** How much higher a storey is drawn than the one below it (world-model.md §5.2): one tile, a wall's height. */
 const STOREY_LIFT = T
@@ -596,6 +596,8 @@ export class WorldScene extends Phaser.Scene {
     const unknown = ks.length > 0 && ks.every((v) => v!.unknown)
     this.focus.clear()
     if (f.scene || !f.keys) return
+    // walking, nothing: the spot ahead changes at every step (the labels wait for the player to stand too)
+    if (!this.playerStill(KEYS_STILL_MS)) return
     // past the map's edge there is nothing to aim at (an edge that leads nowhere: the tutorial's)
     if (this.base && (tx < 0 || ty < 0 || tx >= this.base.width || ty >= this.base.height)) return
     // the whole of a target that covers more than its cell (a place of the overworld: its block)
@@ -1358,6 +1360,7 @@ export class WorldScene extends Phaser.Scene {
       const e = v.snap
       if (v.flyer) this.glide(v, time)
       if (v.walker) this.walk(v, time)
+      if (e.id === this.playerId && v.walker && Math.hypot(v.root.x - v.walker.x, v.root.y - v.walker.y) > 0.05) this.playerMovedAt = time
       v.head?.setPosition(v.root.x, v.root.y).setVisible(v.root.visible).setAlpha(v.root.alpha)
       // a body between two cells is ordered by where it is drawn now (depth.ts footOf)
       if (e.tags.includes('agent') && !e.boss) v.root.setDepth(this.depthOf(e, footOf(e.y, v.root.y + (e.z ?? 0) * STOREY_LIFT + this.liftOf(e))))
@@ -1450,6 +1453,23 @@ export class WorldScene extends Phaser.Scene {
     const cam = this.cameras.main
     const lift = (this.playerAt?.z ?? 0) * STOREY_LIFT
     return { x: (x * T + 8 - cam.worldView.x) * cam.zoom, y: (y * T + 8 - lift - cam.worldView.y) * cam.zoom }
+  }
+
+  /** Where a body's feet are on screen. */
+  feetOf(id: string): { x: number; y: number } | undefined {
+    const v = this.views.get(id)
+    if (!v) return undefined
+    const cam = this.cameras.main
+    return { x: (v.root.x - cam.worldView.x) * cam.zoom, y: (v.root.y - cam.worldView.y) * cam.zoom }
+  }
+
+  /** When the player's sprite last moved (it chases its cell at the walking pace: walk()). */
+  private playerMovedAt = 0
+  /** Set by main.ts: a key walks the player. */
+  walking: () => boolean = () => false
+  /** The player stands: no key walks them, and their sprite has been at rest for `ms`. */
+  playerStill(ms: number): boolean {
+    return !this.walking() && this.time.now - this.playerMovedAt >= ms
   }
 
   lookOf(id: string): { img: string; frame: string } | undefined {

@@ -106,6 +106,7 @@ const hud = new Hud(
   },
   (id) => scene.screenOf(id),
   (x, y) => scene.screenOfTile(x, y),
+  { feetOf: (id) => scene.feetOf(id), still: (ms) => scene.playerStill(ms) },
 )
 menu.muted = hud.muted
 /** A merchant's trade and a person's pockets (docs/npc-sandbox.md §2.10). */
@@ -496,6 +497,7 @@ const KEY_DIR: Record<string, Dir> = {
 }
 const SLOT_CODES = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0']
 const held: Dir[] = []
+scene.walking = () => held.length > 0
 let sentDir: Dir | null = null
 let shift = false
 const syncMove = () => {
@@ -647,6 +649,7 @@ window.addEventListener('keydown', (e) => {
   if (menu.anyOpen || dev.open) return
   const dir = KEY_DIR[e.code]
   if (dir) {
+    if (!held.length) pointerStill = true
     if (!held.includes(dir)) held.push(dir)
     syncMove()
     e.preventDefault()
@@ -703,10 +706,16 @@ document.addEventListener('visibilitychange', () => {
 let mouseTile: Tile | undefined
 /** The pointer's screen point while it is over the world. */
 let mouseAt: { x: number; y: number } | undefined
+/**
+ * The pointer has not moved since the keys last began to walk. Until it does, it aims at nothing (the
+ * spot in front is aimed at): the world scrolling under a still pointer is not the player pointing, the
+ * spot toward it would change at every step, and one who walked up to something with the keys means it.
+ */
+let pointerStill = false
 const aimSig = (a?: Tile) => (a ? `${a.x},${a.y}|${(a.stack ?? []).map((r) => r.e).join(' ')}` : '')
 /** Aim at what is drawn under the pointer: it changes as things move, not only as the mouse does. */
 function reaim(): void {
-  const a = mouseAt ? scene.aimAtScreen(mouseAt.x, mouseAt.y) : undefined
+  const a = mouseAt && !pointerStill ? scene.aimAtScreen(mouseAt.x, mouseAt.y) : undefined
   building.setAim(a)
   if (aimSig(a) === aimSig(mouseTile)) return
   mouseTile = a
@@ -738,6 +747,7 @@ const gameEl = document.getElementById('game')!
 window.addEventListener('mousemove', (e) => {
   // only over the world itself (the HUD's own panels take their own clicks)
   const over = e.target === gameEl || gameEl.contains(e.target as Node) || (e.target as HTMLElement).id === 'hud' || (e.target as HTMLElement).id === 'labels'
+  if (!mouseAt || mouseAt.x !== e.clientX || mouseAt.y !== e.clientY) pointerStill = false
   mouseAt = over ? { x: e.clientX, y: e.clientY } : undefined
   reaim()
 })
@@ -747,6 +757,8 @@ gameEl.addEventListener('mousedown', (e) => {
   if (hud.questionShown) return
   if (hud.dialogOpen) return hud.advanceDialog()
   if (menu.anyOpen || dev.open) return
+  // a click points, as a move of the pointer does
+  if (pointerStill) ((pointerStill = false), reaim())
   const tile = scene.aimAtScreen(e.clientX, e.clientY)
   if (building.open) {
     if (e.button === 0 && tile) building.press(tile)

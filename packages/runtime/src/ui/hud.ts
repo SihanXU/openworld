@@ -6,7 +6,7 @@
 import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Mood, type Text } from '@openworld/engine'
 import { catalog, game, hasModule, ontology } from '../game.ts'
 import { artEpoch, assetUrl, cssAssetUrl } from '../render/assets.ts'
-import { $, MOOD_GLYPH, SLOT_KEYS, esc, locale, prefs, t, tx } from './common.ts'
+import { $, KEYS_STILL_MS, MOOD_GLYPH, SLOT_KEYS, esc, locale, prefs, t, tx } from './common.ts'
 import { skillPng } from './skillIcons.ts'
 
 export interface HudSend {
@@ -60,6 +60,8 @@ export class Hud {
     private send: HudSend,
     private screenOf: (id: string) => { x: number; y: number } | undefined,
     private screenOfTile: (x: number, y: number) => { x: number; y: number },
+    /** The player's body in the scene: where the feet are on screen, and whether they have stood still for a while. */
+    private body: { feetOf(id: string): { x: number; y: number } | undefined; still(ms: number): boolean } = { feetOf: () => undefined, still: () => true },
   ) {
     this.build()
   }
@@ -102,7 +104,7 @@ export class Hud {
       <div class="msgs" id="msgs"></div>
       <div class="mapname" id="mapname"></div>
       <div class="learning hidden" id="learning"></div>
-      <div class="keys" id="keys"></div>
+      <div class="keys off" id="keys"><div class="kbox" id="kbox"></div></div>
       <div class="chooser hidden" id="chooser"></div>
       <div class="dialog hidden" id="dialog"><div class="face" id="dFace"></div><div class="dtext"><div class="dname" id="dName"></div><div class="dline" id="dLine"></div><div class="dchoices hidden" id="dChoices"></div></div><div class="dmore" id="dMore">▼</div></div>
       <div class="fade hidden" id="fade"><div id="fadeText"></div></div>
@@ -310,40 +312,82 @@ export class Hud {
     $('#jbtn').classList.remove('flash')
   }
 
-  private keySig = ''
+  /** The key labels' lines as last drawn. */
+  private keyHtml = ''
+  /** Whether they say anything. */
+  private keyAny = false
+  /** Their box's size, measured as the lines change. */
+  private keySize = { w: 0, h: 0 }
+  /** Below the player's feet instead of over the head: someone's speech is there, or there is no room above. */
+  private keyBelow = false
+  /** The spot the keys act on (outlined in the scene), which the labels below the feet keep clear of. */
+  private keyAt?: { x: number; y: number }
+  /** Their offset from the player's head, eased toward where they belong (a move between head and feet glides). */
+  private keyOff = 0
+  private keyT = 0
   private renderKeys(f: Frame): void {
     const k = this.dialogOpen || f.question || f.scene ? undefined : f.keys
-    const sig = k ? `${locale.value}|${JSON.stringify(k)}` : ''
-    if (sig !== this.keySig) {
-      this.keySig = sig
-      const line = (key: string, v?: KeyView) =>
-        v ? `<div class="kl${v.unknown ? ' unknown' : ''}${v.steal ? ' steal' : ''}"><kbd>${key}</kbd> ${esc(tx(v.label))}${v.unknown ? ` <span class="q">?</span>` : ''}</div>` : ''
-      // what each input that reaches the spot would do (foreseeable): E, F, G, the left click there, the right click on oneself
-      // (a left click on one's own place is the right click's act: one line for both)
-      const same = !!k?.use && !!k?.self && JSON.stringify(k.use.label) === JSON.stringify(k.self.label) && k.use.x === k.self.x && k.use.y === k.self.y
-      $('#keys').innerHTML = k ? line('E', k.hands) + line('F', k.take) + line('G', k.put) + line(same ? `${t('lmb')} · ${t('rmb')}` : t('lmb'), k.use) + (same ? '' : line(t('rmb'), k.self)) : ''
+    const line = (key: string, v?: KeyView) =>
+      v ? `<div class="kl${v.unknown ? ' unknown' : ''}${v.steal ? ' steal' : ''}"><kbd>${key}</kbd> ${esc(tx(v.label))}${v.unknown ? ` <span class="q">?</span>` : ''}</div>` : ''
+    // what each input that reaches the spot would do (foreseeable): E, F, G, the left click there, the right click on oneself
+    // (a left click on one's own place is the right click's act: one line for both); the spot is outlined in the scene
+    const same = !!k?.use && !!k?.self && JSON.stringify(k.use.label) === JSON.stringify(k.self.label) && k.use.x === k.self.x && k.use.y === k.self.y
+    const html = k ? line('E', k.hands) + line('F', k.take) + line('G', k.put) + line(same ? `${t('lmb')} · ${t('rmb')}` : t('lmb'), k.use) + (same ? '' : line(t('rmb'), k.self)) : ''
+    const box = $('#kbox')
+    if (html !== this.keyHtml) {
+      this.keyHtml = html
+      if (html) {
+        box.innerHTML = html
+        // other lines while they show: they pop in (from hidden, they fade in)
+        if (!$('#keys').classList.contains('off')) box.animate([{ opacity: 0.45, transform: 'scale(0.96)' }, { opacity: 1, transform: 'none' }], { duration: 150, easing: 'ease-out' })
+      }
     }
-    // over the target: what each key would do, where it would be done (the tile is outlined in the scene)
-    const at = k?.hands ?? k?.take ?? k?.put ?? k?.use ?? k?.self
-    const el = $('#keys')
-    el.classList.toggle('hidden', !at)
-    if (at) {
-      const s = this.screenOfTile(at.x, at.y)
-      // above the tile, or below it when there is no room above, or when someone's speech is there
-      // (a companion's line beside the target would cover what the keys would do)
-      const w = el.offsetWidth
-      const top = s.y - 30 - el.offsetHeight
+    if (html) this.keySize = { w: box.offsetWidth, h: box.offsetHeight }
+    const views = k ? Object.values(k).filter((v): v is KeyView => !!v) : []
+    this.keyAny = views.length > 0
+    this.keyAt = views[0] && { x: views[0].x, y: views[0].y }
+    // over the head, as speech is; below the feet when someone's speech is there (a companion talking
+    // beside the player) or there is no room above. Back over the head only with room to spare, so the
+    // labels do not flit up and down as a companion flies about.
+    const me = this.screenOf(f.player.id)
+    if (me) {
+      const pad = this.keyBelow ? 16 : 0
+      const top = me.y - 30 - this.keySize.h
       const said = [...this.bubbles.values()].some((b) => {
         const r = b.el.getBoundingClientRect()
-        return r.left < s.x + w / 2 && r.right > s.x - w / 2 && r.top < s.y - 30 && r.bottom > top
+        return r.left < me.x + this.keySize.w / 2 + pad && r.right > me.x - this.keySize.w / 2 - pad && r.top < me.y - 30 + pad && r.bottom > top - pad
       })
-      // nor over the one acting: the player just above the target (facing down) would be hidden by it
-      const me = this.screenOfTile(f.player.x, f.player.y)
-      const tile = Math.abs(this.screenOfTile(f.player.x + 1, f.player.y).x - me.x)
-      const covers = me.y < s.y && Math.abs(me.x - s.x) < w / 2 + tile / 2 && me.y + tile / 2 > top
-      const above = top >= 4 && !said && !covers
-      el.style.transform = above ? `translate(${s.x}px, ${s.y - 30}px) translate(-50%, -100%)` : `translate(${s.x}px, ${s.y + 30}px) translate(-50%, 0)`
+      this.keyBelow = top < 4 + pad || said
     }
+    this.placeKeys()
+  }
+
+  /** The key labels over the player's head, every animation frame (frames come ten times a second; the view moves on between them). */
+  private placeKeys(): void {
+    const el = $('#keys')
+    const f = this.frame
+    const me = f && this.screenOf(f.player.id)
+    // they wait until the player stands: walking, the spot ahead changes at every step, and the things
+    // passed by (a stone, a stick, a companion flying across) would pop up and away
+    const on = this.keyAny && !!me && this.body.still(KEYS_STILL_MS)
+    const was = !el.classList.contains('off')
+    el.classList.toggle('off', !on)
+    el.classList.toggle('below', this.keyBelow)
+    if (!me) return
+    const feet = this.body.feetOf(f.player.id)
+    let goal = this.keyBelow && feet ? feet.y - me.y + 10 : -30 - this.keySize.h
+    // below the feet, facing down: under the spot in front, not over it
+    const at = this.keyAt
+    if (this.keyBelow && at && at.y > f.player.y) {
+      const c = this.screenOfTile(at.x, at.y)
+      const half = Math.abs(this.screenOfTile(at.x, at.y + 1).y - c.y) / 2
+      if (Math.abs(c.x - me.x) < this.keySize.w / 2 + half) goal = Math.max(goal, c.y + half + 6 - me.y)
+    }
+    const now = performance.now()
+    // shown, they glide to where they belong; appearing, they are there at once
+    this.keyOff = on && was ? this.keyOff + (goal - this.keyOff) * (1 - Math.exp(-Math.min(100, now - this.keyT) / 70)) : goal
+    this.keyT = now
+    el.style.transform = `translate(${me.x}px, ${me.y + this.keyOff}px) translate(-50%, 0)`
   }
 
   // ---------------------------------------------------------------- the layer chooser (a long press)
@@ -780,6 +824,7 @@ export class Hud {
   /** Reposition the DOM labels to follow sprites (every animation frame). */
   tickLabels(): void {
     const now = performance.now()
+    this.placeKeys()
     for (const [id, b] of this.bubbles) {
       const p = this.screenOf(b.who)
       if (!p || now > b.until) {
@@ -825,7 +870,7 @@ export class Hud {
 
   /** Re-render everything that carries words (the language changed). */
   relabel(): void {
-    this.clockSig = this.obSig = this.keySig = this.barSig = ''
+    this.clockSig = this.obSig = this.barSig = ''
     if (this.mapName) $('#mapname').textContent = tx(this.mapName)
     if (this.frame) this.onFrame(this.frame)
   }

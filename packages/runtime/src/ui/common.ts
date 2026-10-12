@@ -213,6 +213,9 @@ export function t(k: string): string {
 
 export const MOOD_GLYPH: Record<string, string> = { happy: '♥', sad: '…', angry: '!!', surprised: '!', shy: '♡', neutral: '…' }
 
+/** How long the player stands still before the key labels (and the outline of their spot) show. */
+export const KEYS_STILL_MS = 200
+
 /** The toolbar (the bag's first row): ten slots, keys 1–0. */
 export const SLOT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 
