@@ -13,6 +13,9 @@ export const nessa: PersonDef = {
   age: 31,
   temperament: { personality: 'restless', manner: 'polite', social: 'outgoing', outlook: 'wary' },
   ties: {},
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/document/map', 1], ['item/document/scroll', 2], ['item/misc/ink', 2], ['item/misc/feather_quill', 1]] },
+  purse: 30,
   schedules: {
     default: [
       [23, 6, 'meadow:market.shelter', 'sleep'],

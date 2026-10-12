@@ -12,6 +12,7 @@ import type { LibraryView } from '../protocol.ts'
 import { SkillTree } from './skilltree.ts'
 import { WorldMap } from './worldmap.ts'
 import { ProfessionPanel } from './profession.ts'
+import { HomesteadPanel } from './homestead.ts'
 import { BoonPanel } from './boons.ts'
 import { QuestLog } from './questlog.ts'
 import { SkillPanel } from './skillpanel.ts'
@@ -134,6 +135,10 @@ export interface MenuSend {
   travel(waypoint: string): void
   /** Take up (or change to) a profession at a trainer. */
   profession(id: string): void
+  /** A word said to someone without the talk panel (the haven panel's widenings). */
+  speak(who: string, verb: string, choice?: string): void
+  /** Up to so many of a carried kind put into a thing (the haven panel). */
+  offer(target: string, item: string, count: number): void
   /** The companion carries another of its boons (beside a woken waypoint). */
   boon(id: string): void
   transfer(from: 'chest' | 'bag', item: string, all: boolean): void
@@ -171,6 +176,8 @@ export class Menu {
   worldmap: WorldMap
   /** The trainer's choice of profession (opened by talking to a trainer). */
   profession: ProfessionPanel
+  /** The home ground's widenings (opened at its heart). */
+  homestead: HomesteadPanel
   boons: BoonPanel
   /** The quest log (L). */
   quests: QuestLog
@@ -187,6 +194,7 @@ export class Menu {
        <div id="skills" class="sk-page hidden"></div>
        <div id="worldmap" class="sk-page wm-page hidden"></div>
        <div id="profession" class="overlay hidden"></div>
+       <div id="homestead" class="overlay hidden"></div>
        <div id="boons" class="overlay hidden"></div>
        <div id="questlog" class="overlay hidden"></div>
        <div id="skillpanel" class="overlay hidden"></div>`,
@@ -198,6 +206,8 @@ export class Menu {
     $('#skillpanel').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
     this.profession = new ProfessionPanel($('#profession'), (id) => this.send.profession(id), () => this.close())
     $('#profession').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
+    this.homestead = new HomesteadPanel($('#homestead'), { say: (who, verb, choice) => this.send.speak(who, verb, choice), offer: (target, item, count) => this.send.offer(target, item, count) }, () => this.close(), (items) => this.paintIcons?.([...craftInfos(), ...items]))
+    $('#homestead').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
     this.boons = new BoonPanel($('#boons'), (id) => this.send.boon(id), () => this.close())
     $('#boons').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
     this.worldmap = new WorldMap($('#worldmap'), { atlas: () => this.send.atlas(), travel: (id) => (this.send.travel(id), this.close()), close: () => this.close() })
@@ -228,7 +238,7 @@ export class Menu {
     return !$('#skills').classList.contains('hidden')
   }
   get anyOpen(): boolean {
-    return this.menuOpen || this.journalOpen || this.chestOpen || this.skillsOpen || this.worldmap.open || this.profession.open || this.boons.open || this.quests.open || this.skillPanel.open
+    return this.menuOpen || this.journalOpen || this.chestOpen || this.skillsOpen || this.worldmap.open || this.profession.open || this.homestead.open || this.boons.open || this.quests.open || this.skillPanel.open
   }
 
   /** Open the shop panel on a station's shelves (the first shelf, when it is another shop than the last). */
@@ -278,7 +288,7 @@ export class Menu {
 
   close(): void {
     if (this.chestOpen) this.send.closePanel()
-    for (const id of ['#menu', '#journal', '#chest', '#skills', '#worldmap', '#profession', '#boons', '#questlog', '#skillpanel']) $(id).classList.add('hidden')
+    for (const id of ['#menu', '#journal', '#chest', '#skills', '#worldmap', '#profession', '#homestead', '#boons', '#questlog', '#skillpanel']) $(id).classList.add('hidden')
     this.picked = undefined
   }
 
@@ -292,6 +302,7 @@ export class Menu {
     if (this.journalOpen && this.library && this.library.version !== this.journalLib) this.renderJournal()
     if (this.skillsOpen) this.skills.render(f)
     if (this.profession.open) this.profession.render(f)
+    if (this.homestead.open) this.homestead.render(f)
     if (this.boons.open) this.boons.render(f)
     if (this.quests.open) this.quests.render(f)
     if (this.skillPanel.open) this.skillPanel.render(f)
@@ -315,6 +326,12 @@ export class Menu {
   openBoard(who: string): void {
     this.close()
     this.quests.show(this.frame, who)
+  }
+
+  /** The home ground's heart opened its widenings. */
+  openHomestead(): void {
+    this.close()
+    this.homestead.show(this.frame)
   }
 
   /** A trainer opened the choice of profession. */
@@ -723,7 +740,7 @@ export function setLearnedRecipes(recipes: Recipe[]): void {
 const allRecipes = (): Recipe[] => [...game().crafting.recipes, ...LEARNED.filter((l) => !game().crafting.recipes.some((r) => r.id === l.id))]
 
 /** The crafting panel's items (each recipe's result, each material), keyed `recipe:<id>` / `need:<type>`: for their icons and tooltips. */
-function craftInfos(): ItemInfo[] {
+export function craftInfos(): ItemInfo[] {
   const of = (id: string, type: string, extra: { name?: ItemInfo['name']; tags?: string[]; props?: ItemInfo['props']; sprite?: string } = {}): ItemInfo | undefined => {
     const f = game().items.forms[type]
     // what is not an item form (a wall, a door, a bed) shows the recipe's own picture

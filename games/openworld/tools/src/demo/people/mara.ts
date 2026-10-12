@@ -13,6 +13,9 @@ export const mara: PersonDef = {
   age: 71,
   temperament: { personality: 'steady', manner: 'plain', social: 'reserved', outlook: 'wary' },
   ties: { 'npc.garrick': 'the smith she trusts with the village gate', 'npc.wren': 'the herbalist she taught her letters' },
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/document/map', 1], ['item/food/apple', 4], ['item/vessel/flask/oil', 2]] },
+  purse: 40,
   schedules: {
     default: [
       [21, 7, 'emberfall:elder.home', 'sleep'],

@@ -175,29 +175,5 @@ export const SIDE_QUESTS: QuestDef[] = [
     asks: [{ id: 'band', text: L('The wedding band', '婚戒'), carry: { type: 'item/valuable/band' }, count: 1, where: 'eastroad:kingdom' }],
     reward: { xp: 30, items: [{ type: 'item/food/egg/raw', count: 2 }, { type: 'item/food/bread', count: 1 }, gear('item/clothing/gloves', 'hands', "Edda's Work Gloves", '艾达的干活手套', 'fine', { def: 1 })], regard: { giver: 20 } },
   }),
-  // ------------------------------------------------------------------ the Held Ground (docs/chapter-1.md §12)
-  ...([
-    [1, [['item/material/log', 10, L('Logs', '原木')], ['item/material/stone', 10, L('Stones', '石头')]],
-      L('The ground holds as far as I can hold it. Bring me ten logs and ten stones, and I will set a fence of them in the mist — and the mist will keep behind it.', '这片土地，我能守多远就有多远。给我十根原木、十块石头，我把它们在迷雾里立成一道篱笆——迷雾就会退到篱笆后面。'),
-      L('There. Do you see how far it goes now? A knight is only as wide as what he holds.', '好了。看见它现在延伸到多远了吗？一个骑士的分量，就是他守住的那片土地。')],
-    [2, [['item/material/plank', 20, L('Planks', '木板')], ['item/material/iron_ore', 5, L('Iron ore', '铁矿石')]],
-      L('Twenty planks and five iron ore. Iron for the posts, planks for the walls — a hall needs room round it.', '二十块木板、五块铁矿石。铁做桩，木板做墙——一座厅堂周围要留出地方。'),
-      L('More ground. I remember fields like this, once. Whose they were, I do not.', '又多了一片地。我记得从前也有过这样的田野。是谁的，我想不起来了。')],
-    [3, [['item/material/plank', 30, L('Planks', '木板')], ['item/material/stone', 30, L('Stones', '石头')], ['item/material/gold_ore', 3, L('Gold ore', '金矿石')]],
-      L('The last of it: thirty planks, thirty stones, three gold. Gold for the boundary stones — they are what a kingdom is.', '最后一次了：三十块木板、三十块石头、三块金矿石。金子用来做界石——一个王国就是由界石圈出来的。'),
-      L('That is all the ground there is. ...It is more than I held before. And nobody kneels here.', '这就是全部的土地了。……比我从前守的还要多。而且在这里，没有人下跪。')],
-  ] as const).map(([n, needs, offer, done]) =>
-    errand({
-      id: `haven${n}`,
-      title: L(`Widen the Held Ground ${'I'.repeat(n)}`, `扩建誓守之地 ${'I'.repeat(n)}`),
-      summary: L('Alberic, steward of the Held Ground, can push the mist back further — with what it takes to hold more ground.', '誓守之地的管家阿尔贝里克可以把迷雾再推远一些——只要有守住更多土地所需的东西。'),
-      giver: 'npc.alberic',
-      when: n === 1 ? { fact: { 'haven.met': { ne: 0 } } } : { done: `haven${n - 1}` },
-      offer,
-      waiting: L('Bring what I asked, and I will hold more ground for you.', '把我要的东西带来，我就为你守住更多的土地。'),
-      done,
-      asks: needs.map(([type, count, text], i) => ({ id: `n${i}`, text, carry: { type }, count })),
-      reward: { xp: 30 * n, items: [{ type: 'item/misc/thornmark', count: 20 * n }], facts: { 'haven.size': n } },
-    }),
-  ),
+  // (the Held Ground's widenings are its heart's own now, not errands: haven.ts HAVEN_TIERS)
 ]

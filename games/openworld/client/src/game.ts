@@ -35,6 +35,9 @@ import {
   migrateOverworld,
   migrateWaypoints,
   migrateSmithy,
+  migrateHaven,
+  migrateHavenHeart,
+  HAVEN_LAYOUT,
   SMITHY_LAYOUT,
   WAYPOINTS_LAYOUT,
   OVERWORLD_LAYOUT,
@@ -42,6 +45,7 @@ import {
   skillsForProfession,
   stationName,
   SHOPS,
+  HAVEN_UPGRADES,
   wildChunkFor,
 } from '@openworld-game/content'
 import { CATALOG } from './catalog.ts'
@@ -91,10 +95,14 @@ export const CLIENT_GAME: ClientGame = {
       const maps = await Promise.all(['meadow', 'haven'].map(chunk))
       game.engine.author(() => migrateSmithy(game, maps))
     }
+    // the Held Ground widens at its heart, no longer by errands
+    if (!w.fact(HAVEN_LAYOUT)) game.engine.author(() => migrateHaven(game))
+    // its heart is the planted sword, not an altar
+    game.engine.author(() => migrateHavenHeart(game))
   },
   fresh(game) {
     const w = game.engine.world
-    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true)))
+    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true)))
   },
   summon(kit, at, id) {
     const body = createBoss(kit, at, id)
@@ -109,6 +117,8 @@ export const CLIENT_GAME: ClientGame = {
     ],
   },
   items: { forms: FORM_BY_ID, materials: MATERIALS, relics: RELICS, coin: COIN },
+  // the Held Ground's growing (its steward's panel: the land, its grounds, its buildings, the stock; haven.ts)
+  homestead: { title: { en: 'The Held Ground', zh: '誓守之地 · 领地经营' }, steward: 'npc.alberic', size: 'haven.size', stock: 'haven.stock.', upgrades: HAVEN_UPGRADES },
   crafting: { recipes: RECIPES, stationName, placements: PLACEMENTS, buildings: BUILDINGS, shops: SHOPS },
   skills: {
     all: SKILLS,

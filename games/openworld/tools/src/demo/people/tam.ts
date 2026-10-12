@@ -12,6 +12,9 @@ export const tam: PersonDef = {
   age: 52,
   temperament: { personality: 'steady', manner: 'plain', social: 'outgoing', outlook: 'wary' },
   ties: {},
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/material/wheat', 6], ['item/food/bread', 4], ['item/material/feed', 5]] },
+  purse: 30,
   schedules: {
     default: [
       [21, 6, 'mill:mill.bed', 'sleep'],

@@ -13,6 +13,9 @@ export const ilse: PersonDef = {
   age: 56,
   temperament: { personality: 'serene', manner: 'polite', social: 'reserved', outlook: 'hopeful' },
   ties: { 'npc.rowan': 'old friend', 'npc.severin': 'raised him' },
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/light/candle', 6], ['item/vessel/flask/holy_water', 1], ['item/food/bread', 2]] },
+  purse: 15,
   schedules: {
     default: [
       [22, 6, 'meadow:ilse.home', 'sleep'],

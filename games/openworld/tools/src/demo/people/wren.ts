@@ -16,7 +16,7 @@ export const wren: PersonDef = {
   temperament: { personality: 'curious', manner: 'polite', social: 'outgoing', outlook: 'hopeful' },
   ties: { 'npc.mara': 'the elder who taught her letters' },
   // her draughts are for sale
-  trade: { stock: [['item/potion/healing', 3]] },
+  trade: { stock: [['item/potion/healing', 3], ['item/potion/antidote', 2], ['item/potion/fire_resist', 1], ['item/material/herb', 4]] },
   purse: 40,
   schedules: {
     default: [

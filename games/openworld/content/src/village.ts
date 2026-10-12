@@ -4,7 +4,7 @@
 // A hand on the counter or the stand opens the shop panel on its shelves (`shop:<station>`).
 
 import type { Recipe, Rule, Text } from '@openworld/engine'
-import { FORM_BY_ID } from './items.ts'
+import { FORM_BY_ID, baseValue } from './items.ts'
 import { COIN } from './homestead.ts'
 import { ACTIVE_SKILLS, skillBook } from './skills.ts'
 
@@ -28,39 +28,44 @@ export const SHOPS: ShopDef[] = [
   { station: 'books', name: L('Church Bookstand', '教堂书架'), shelves: [['books', 'Skill Books', '技能书'], ['books-profession', 'Profession', '职业技能书']] },
 ]
 
-const buy = (station: string, group: string, type: string, count: number, price: number): Recipe => ({
+/** A merchant's price for so many of a thing: its worth and the merchant's quarter (social.ts markup), as any trader asks. */
+const priced = (type: string, count: number) => Math.max(1, Math.round(baseValue(type) * count * 1.25))
+/** What a shop pays for one: half its worth (social.ts markdown). */
+const paid = (type: string) => Math.max(1, Math.floor(baseValue(type) / 2))
+
+const buy = (station: string, group: string, type: string, count: number, price = priced(type, count)): Recipe => ({
   id: `${station}/buy/${type.split('/').slice(1).join('-')}`, group, name: nameOf(type), sprite: spriteOf(type),
   needs: [{ type: COIN, count: price }], make: { type }, station, count,
 })
-const sell = (station: string, type: string, price: number): Recipe => ({
+const sell = (station: string, type: string, price = paid(type)): Recipe => ({
   id: `${station}/sell/${type.split('/').slice(1).join('-')}`, group: `${station}-sell`, name: nameOf(type), sprite: spriteOf(type),
   needs: [{ type, count: 1 }], make: { type: COIN }, station, count: price,
 })
 
-/** The general store: what a traveller needs on the road, and what it buys back from the wild. */
+/** The general store: what a traveller needs on the road, and what it buys back from the wild — at any merchant's prices. */
 const STORE: Recipe[] = [
-  buy('store', 'supplies', 'item/light/torch', 1, 4),
-  buy('store', 'supplies', 'item/light/candle', 2, 3),
-  buy('store', 'supplies', 'item/light/lantern', 1, 25),
-  buy('store', 'supplies', 'item/tool/rope', 1, 8),
-  buy('store', 'supplies', 'item/tool/flint', 1, 6),
-  buy('store', 'supplies', 'item/tool/knife', 1, 12),
-  buy('store', 'supplies', 'item/vessel/flask/empty', 1, 3),
-  buy('store', 'supplies', 'item/vessel/bucket/empty', 1, 6),
-  buy('store', 'supplies', 'item/tool/fishing_rod', 1, 15),
-  buy('store', 'supplies', 'item/misc/bait', 5, 5),
-  buy('store', 'provisions', 'item/food/bread', 2, 4),
-  buy('store', 'provisions', 'item/food/cheese', 1, 5),
-  buy('store', 'provisions', 'item/food/apple', 3, 3),
-  buy('store', 'provisions', 'item/food/ale', 1, 4),
-  buy('store', 'provisions', 'item/potion/healing', 1, 20),
-  buy('store', 'provisions', 'item/potion/antidote', 1, 15),
-  sell('store', 'item/material/herb', 2),
-  sell('store', 'item/food/berries', 1),
-  sell('store', 'item/food/mushroom/raw', 2),
-  sell('store', 'item/material/feather', 1),
-  sell('store', 'item/material/leather', 4),
-  sell('store', 'item/food/egg/raw', 2),
+  buy('store', 'supplies', 'item/light/torch', 1),
+  buy('store', 'supplies', 'item/light/candle', 2),
+  buy('store', 'supplies', 'item/light/lantern', 1),
+  buy('store', 'supplies', 'item/tool/rope', 1),
+  buy('store', 'supplies', 'item/tool/flint', 1),
+  buy('store', 'supplies', 'item/tool/knife', 1),
+  buy('store', 'supplies', 'item/vessel/flask/empty', 1),
+  buy('store', 'supplies', 'item/vessel/bucket/empty', 1),
+  buy('store', 'supplies', 'item/tool/fishing_rod', 1),
+  buy('store', 'supplies', 'item/misc/bait', 5),
+  buy('store', 'provisions', 'item/food/bread', 2),
+  buy('store', 'provisions', 'item/food/cheese', 1),
+  buy('store', 'provisions', 'item/food/apple', 3),
+  buy('store', 'provisions', 'item/food/ale', 1),
+  buy('store', 'provisions', 'item/potion/healing', 1),
+  buy('store', 'provisions', 'item/potion/antidote', 1),
+  sell('store', 'item/material/herb'),
+  sell('store', 'item/food/berries'),
+  sell('store', 'item/food/mushroom/raw'),
+  sell('store', 'item/material/feather'),
+  sell('store', 'item/material/leather'),
+  sell('store', 'item/food/egg/raw'),
 ]
 
 /**

@@ -173,6 +173,7 @@
   },
   "地图类型": {
     "wild": "野外",
+    "field": "野地",
     "village": "村镇",
     "dungeon": "地下",
     "interior": "室内",

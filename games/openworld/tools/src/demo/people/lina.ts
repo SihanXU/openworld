@@ -13,6 +13,9 @@ export const lina: PersonDef = {
   age: 24,
   temperament: { personality: 'brave', manner: 'polite', social: 'outgoing', outlook: 'hopeful' },
   ties: {},
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/material/herb', 4], ['item/food/berries', 6], ['item/food/mushroom/raw', 4], ['item/material/fireweed', 2]] },
+  purse: 15,
   schedules: {
     default: [
       [0, 24, 'barrow:cell.lina', 'wait to be found'],

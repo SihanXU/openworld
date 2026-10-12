@@ -717,6 +717,20 @@ export class Controls {
   }
 
   /**
+   * A panel's offering (the home ground's widenings): up to `count` of a carried kind put into a thing, one act each,
+   * as the chest panel puts things into a chest; what the thing will not take stays carried.
+   */
+  offer(target: Id, item: Id, count: number): void {
+    const w = this.w
+    const p = w.player
+    const it = w.get(item)
+    if (!it || !w.get(target) || this.eng.busy(p)) return
+    const pool = this.carried(true).get(this.key(it)) ?? []
+    for (const e of pool.slice(0, Math.max(0, count))) this.eng.act('put', p.id, { e: target }, { instrument: { e: e.id } })
+    this.sync()
+  }
+
+  /**
    * What is worn (the inventory's equipment): put a carried thing on oneself — an act, as using it on
    * oneself is (`use/wear` → `body/wear`: a helmet on the head, a shield on the arm) — or take it off
    * (offered again, it comes off); with no item, what is worn in the off hand. `putOn`: from the bag, so a

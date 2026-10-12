@@ -233,6 +233,11 @@ export interface Ontology {
   /** The qualities made things have. */
   qualities?: QualityDef[]
   /**
+   * Sets of gear (`props.set` on each piece): worn together, so many pieces give more (World.stat adds each bonus whose
+   * `pieces` the worn count reaches) — the sum of its `props`, read as any worn number is.
+   */
+  sets?: GearSet[]
+  /**
    * How well an instrument works on a material category (world-model.md §6.1): rows are its
    * capabilities (`tool:axe` …) and its edge (`edge:cut` …); an instrument takes its best row.
    * A category no row names: 1.
@@ -1085,6 +1090,15 @@ export interface ActiveDef {
 }
 
 /** A recipe for the crafting panel: the carried items it uses up, and the item it makes. */
+/** A set of gear: its pieces carry `props.set: id`; worn together they give its bonuses. */
+export interface GearSet {
+  id: string
+  name: Text
+  /** How many pieces it has. */
+  pieces: number
+  bonuses: { pieces: number; props: Record<string, number>; text: Text }[]
+}
+
 export interface Recipe {
   id: string
   name: Text

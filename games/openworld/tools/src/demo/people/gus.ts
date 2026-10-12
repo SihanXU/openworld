@@ -28,6 +28,9 @@ export const gus: PersonDef = {
   ties: {},
   tags: ['skill:woodcutter'],
   items: [{ form: 'item/weapon/blade/axe', material: 'iron', quality: 'common', element: null }],
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/material/plank', 6], ['item/material/stick', 6], ['item/weapon/blade/axe', 1]] },
+  purse: 20,
   schedules: {
     default: [
       [21, 6, 'meadow:wood.home', 'sleep'],

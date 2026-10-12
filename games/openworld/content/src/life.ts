@@ -93,6 +93,8 @@ export const LIFE_RECIPES: Recipe[] = [
   // the smith's own stations, raised at home (Forge Builder)
   { id: 'smith/forge', name: L("Smith's Forge", '铁匠炉'), sprite: 'fixture:forge', needs: needs([M.stone, 8], [M.coal, 2]), make: { type: 'fixture/craft/forge/smith', name: L("Smith's Forge", '铁匠炉') }, station: 'hands', skill: 'forge-builder' },
   { id: 'smith/anvil', name: L("Smith's Anvil", '铁匠砧'), sprite: 'fixture:anvil', needs: needs([INGOTS.iron, 3]), make: { type: 'fixture/craft/anvil/smith', name: L("Smith's Anvil", '铁匠砧') }, station: 'forge', skill: 'forge-builder' },
+  // cloth woven at a loom from grass fibre (the village weaver's, the Held Ground's weaving shed)
+  { id: 'weave/cloth', name: formName('item/material/cloth'), sprite: sprite('item/material/cloth'), needs: needs(['item/material/grass', 4]), make: { type: 'item/material/cloth' }, station: 'loom' },
   // leather gear (Leatherworker)
   leather('item/clothing/gloves', 1),
   leather('item/clothing/boots', 2),

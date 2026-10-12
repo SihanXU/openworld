@@ -154,6 +154,13 @@
           },
           "description": "The qualities made things have."
         },
+        "sets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/GearSet"
+          },
+          "description": "Sets of gear (`props.set` on each piece): worn together, so many pieces give more (World.stat adds each bonus whose `pieces` the worn count reaches) — the sum of its `props`, read as any worn number is."
+        },
         "efficiency": {
           "type": "object",
           "additionalProperties": {
@@ -1713,6 +1720,55 @@
       ],
       "additionalProperties": false,
       "description": "A quality a made thing can have (world-model.md §6.4): its tag, name and factor on power and defence (Elin's rarity), and from how far above a recipe's level its maker reaches it (none: not by making)."
+    },
+    "GearSet": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/definitions/Text"
+        },
+        "pieces": {
+          "type": "number",
+          "description": "How many pieces it has."
+        },
+        "bonuses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "pieces": {
+                "type": "number"
+              },
+              "props": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "number"
+                }
+              },
+              "text": {
+                "$ref": "#/definitions/Text"
+              }
+            },
+            "required": [
+              "pieces",
+              "props",
+              "text"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "pieces",
+        "bonuses"
+      ],
+      "additionalProperties": false,
+      "description": "A set of gear: its pieces carry `props.set: id`; worn together they give its bonuses."
     },
     "WorldParams": {
       "type": "object",

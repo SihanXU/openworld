@@ -19,7 +19,7 @@ export const garrick: PersonDef = {
   fights: true,
   // a mark over his head (tag smith)
   tags: ['smith'],
-  trade: { stock: [['item/tool/pickaxe', 1], ['item/tool/hoe', 1], ['item/weapon/blade/dagger', 1]] },
+  trade: { stock: [['item/tool/pickaxe', 1], ['item/tool/hoe', 1], ['item/weapon/blade/dagger', 1], ['item/weapon/blade/sword', 1], ['item/armor/helmet', 1], ['item/material/iron_ingot', 3]] },
   purse: 60,
   schedules: {
     default: [

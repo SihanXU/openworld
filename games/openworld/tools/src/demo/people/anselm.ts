@@ -14,7 +14,9 @@ export const anselm: PersonDef = {
   age: 68,
   temperament: { personality: 'gentle', manner: 'polite', social: 'reserved', outlook: 'hopeful' },
   ties: { 'npc.ilse': 'the sister who keeps the Firstlight' },
-  purse: 10,
+  purse: 30,
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/vessel/flask/holy_water', 2], ['item/light/candle', 6], ['item/document/book', 1], ['item/misc/feather_quill', 1]] },
   schedules: {
     default: [
       [21, 6, 'meadow.church:priest.bed', 'sleep'],

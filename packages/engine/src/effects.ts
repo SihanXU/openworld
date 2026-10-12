@@ -724,7 +724,9 @@ export class EffectRunner {
         const lift = w.stat(host, `${station}:lift`)
         if (beyond) quality = beyond.id
         else if (quality && tiers.includes(quality) && lift > 0 && w.rand() < lift) quality = tiers[Math.min(tiers.length - 1, tiers.indexOf(quality) + 1)]
-        const look = structuredClone(r.make.tags || r.make.name ? r.make : madeOf(w.onto.data, w.onto, r.make.type, material, quality))
+        // what it is made of and how well, and what the recipe names it and gives it beyond that (a set's piece)
+        const base = madeOf(w.onto.data, w.onto, r.make.type, material, quality)
+        const look = structuredClone(r.make.tags || r.make.name || r.make.props ? { ...base, ...r.make, tags: [...new Set([...(base.tags ?? []), ...(r.make.tags ?? [])])], props: { ...base.props, ...r.make.props } } : base)
         // what the maker's hand adds to what it makes there (a weaponsmith's edge: `<station>:power`, `:def`, `:critChance`)
         for (const key of ['power', 'def', 'critChance'] as const) {
           const add = w.stat(host, `${station}:${key}`)

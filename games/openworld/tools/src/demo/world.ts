@@ -21,7 +21,7 @@ import { BARROW, HOLLOW, buildBarrow, buildHollow, buildOssuary, buildSanctum } 
 import type { PersonDef, Slot } from './person.ts'
 import { buildOverworld, placeCells, siteOf } from './overworld.ts'
 import { HOUSEHOLDS, PEOPLE, householdOf } from './people.ts'
-import { buildHaven } from './quest/haven.ts'
+import { buildHaven, buildHavenGrounds } from './quest/haven.ts'
 import { villageInteriors, villageTown } from './village.ts'
 import { VIGIL, buildChapel, buildDawnHill, buildMillCellar, buildMillbrook } from './quest/vigil.ts'
 import { CHAPTER1_SCENES, CHAPTER1_STORY, HAVEN_STORY, buildOffstage, chapter1Barrow, chapter1EastRoad, chapter1Foot, chapter1Ford, chapter1Forest, chapter1Hollow, chapter1Pasture, chapter1Summit, chapter1Village } from './quest/chapter1.ts'
@@ -299,6 +299,8 @@ function buildMeadow(): MapBuilder {
   m.anchor('cells', 30, 4)
   // Cass's loom by the square; where Vigo sleeps rough
   m.anchor('cass.loom', 15, 14)
+  // her loom, by the square: anyone may weave cloth at it from grass fibre (life.ts weave/cloth)
+  m.fixture('fixture/craft/loom', 14, 13, { id: 'village.loom', props: { owner: 'npc.cass' } })
   m.anchor('vigo.camp', 34, 15)
   // a pond where the animals drink
   m.organic(16, 22, 2.6, 1.7, 'water', { only: (t) => t === 'grass' })
@@ -656,7 +658,9 @@ export function buildFord(): FordWorld {
   const offstage = buildOffstage()
   // the Held Ground the Oath-Thorn opens (docs/chapter-1.md §12): linked to nothing
   const haven = buildHaven()
-  const builders = [m, meadow, ...rooms.map((r) => r.map), pasture, forest, hollow, barrow, ossuary, sanctum, mill, millcellar, dawnhill, chapel, road, ember, mine, pass, lair, summit, foot, tutorial, offstage, haven]
+  // its grounds, opened by its steward: places of their own, a way back to the heart from each
+  const grounds = buildHavenGrounds()
+  const builders = [m, meadow, ...rooms.map((r) => r.map), pasture, forest, hollow, barrow, ossuary, sanctum, mill, millcellar, dawnhill, chapel, road, ember, mine, pass, lair, summit, foot, tutorial, offstage, haven, ...grounds]
   const at = placeMaps(builders, m)
   for (const b of builders)
     for (const [name, [x, y]] of Object.entries(b.anchors)) {

@@ -14,7 +14,9 @@ export const greta: PersonDef = {
   age: 52,
   temperament: { personality: 'warm', manner: 'plain', social: 'outgoing', outlook: 'hopeful' },
   ties: { 'npc.marta': 'buys her bread for the shelf' },
-  purse: 30,
+  purse: 60,
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/light/torch', 5], ['item/food/bread', 4], ['item/potion/healing', 2]] },
   schedules: {
     default: [
       [21, 7, 'meadow.store:keeper.bed', 'sleep'],

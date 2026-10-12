@@ -8,8 +8,9 @@ import { buildOntology } from './ontology.ts'
 import { SHOP_RECIPES } from './homestead.ts'
 import { LIFE_RECIPES, LIFE_SELLS } from './life.ts'
 import { VILLAGE_SHOP_RECIPES } from './village.ts'
+import { SET_RECIPES } from './sets.ts'
 
 /** What is made, and (the homestead's stall) what is bought and sold there. */
-export const RECIPES: Recipe[] = [...deriveRecipes(new OntologyIndex(buildOntology())), ...LIFE_RECIPES, ...SHOP_RECIPES, ...LIFE_SELLS, ...VILLAGE_SHOP_RECIPES]
+export const RECIPES: Recipe[] = [...deriveRecipes(new OntologyIndex(buildOntology())), ...LIFE_RECIPES, ...SHOP_RECIPES, ...LIFE_SELLS, ...VILLAGE_SHOP_RECIPES, ...SET_RECIPES]
 
 export const RECIPE_BY_ID: Record<string, Recipe> = Object.fromEntries(RECIPES.map((r) => [r.id, r]))

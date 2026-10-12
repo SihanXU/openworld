@@ -14,6 +14,9 @@ export const brin: PersonDef = {
   age: 24,
   temperament: { personality: 'steady', manner: 'plain', social: 'reserved', outlook: 'wary' },
   ties: {},
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/food/egg/raw', 6], ['item/vessel/bucket/milk', 1], ['item/material/feather', 4], ['item/material/wool', 3]] },
+  purse: 25,
   schedules: {
     default: [
       [21, 6, 'meadow:market.shelter', 'sleep'],

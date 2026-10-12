@@ -13,6 +13,9 @@ export const courier: PersonDef = {
   age: 27,
   temperament: { personality: 'formal', manner: 'polite', social: 'reserved', outlook: 'hopeful' },
   ties: {},
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/document/map', 1], ['item/vessel/waterskin/full', 1], ['item/food/bread', 2]] },
+  purse: 30,
   schedules: {
     default: [[0, 24, 'offstage:courier.hide', 'ride the roads']],
   },

@@ -14,6 +14,9 @@ export const edda: PersonDef = {
   age: 44,
   temperament: { personality: 'stubborn', manner: 'plain', social: 'reserved', outlook: 'wary' },
   ties: {},
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/food/potato', 4], ['item/food/carrot', 4], ['item/food/egg/raw', 4], ['item/seed/wheat', 5]] },
+  purse: 20,
   schedules: {
     default: [
       [0, 24, 'eastroad:edda.barn', 'hide in the barn'],

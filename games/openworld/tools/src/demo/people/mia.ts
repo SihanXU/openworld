@@ -13,6 +13,9 @@ export const mia: PersonDef = {
   age: 9,
   temperament: { personality: 'bright', manner: 'polite', social: 'outgoing', outlook: 'hopeful' },
   ties: {},
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/food/berries', 4], ['item/food/egg/boiled', 2]] },
+  purse: 5,
   schedules: {
     default: [
       [20, 7, 'meadow:cook.home', 'sleep'],

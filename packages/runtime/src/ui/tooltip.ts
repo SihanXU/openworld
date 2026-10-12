@@ -83,6 +83,8 @@ export interface TipContext {
   nameOf: (id: string) => string | undefined
   /** The player's profession: whether a profession weapon is theirs to fight with. */
   profession?: string
+  /** How many pieces of each set the player wears (a set's bonuses lit as they are reached). */
+  sets?: Record<string, number>
 }
 
 /** The tooltip's lines for an item. */
@@ -138,10 +140,21 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
     trait(p.lifesteal, `+${p.lifesteal} Health per hit`, `每次命中吸取 ${p.lifesteal} 点生命`)
   }
   trait(p.dodge, `+${pctv(p.dodge)}% Dodge`, `闪避 +${pctv(p.dodge)}%`)
+  trait(p.critDamage, `+${pctv(p.critDamage)}% Critical Damage`, `暴击伤害 +${pctv(p.critDamage)}%`)
+  trait(p.cdr, `Skills rest ${pctv(p.cdr)}% less`, `技能冷却 -${pctv(p.cdr)}%`)
+  trait(p.stealth, `+${p.stealth} Stealth`, `潜行 +${p.stealth}`)
+  if (p.slot === 'arm' && p.critChance) trait(p.critChance, `+${pctv(p.critChance)}% Critical Chance`, `暴击率 +${pctv(p.critChance)}%`)
   trait(p.moveHaste, `+${pctv(p.moveHaste)}% Movement Speed`, `移动速度 +${pctv(p.moveHaste)}%`)
   if (typeof p.holdFast === 'number' && p.holdFast > 0) out.push(line(` ${L(`Standing your ground: ${pctv(p.holdFast)}% less damage while still`, `坚守：站定不动时受到的伤害 -${pctv(p.holdFast)}%`)}`, '#c77dff', 'lore'))
   trait(p['night:def'], `+${p['night:def']} Defence at night`, `入夜后防御 +${p['night:def']}`)
   trait(p['night:atk'], `+${p['night:atk']} Attack at night`, `入夜后攻击 +${p['night:atk']}`)
+  // a piece of a set: the set, how many of it are worn, and what it gives at three, six, nine, twelve (lit when reached)
+  const set = typeof p.set === 'string' ? ontology().sets?.find((s) => s.id === p.set) : undefined
+  if (set) {
+    const n = ctx.sets?.[set.id] ?? 0
+    out.push('<div class="gap"></div>', line(`◆ ${esc(tx(set.name))} ${L('Set', '套装')} (${n}/${set.pieces})`, '#ffd23f'))
+    for (const b of set.bonuses) out.push(line(` (${b.pieces}) ${esc(tx(b.text))}`, n >= b.pieces ? '#55ff55' : '#777777'))
+  }
   // a Stigmatic piece's power: one of its kind in the world
   const relic = typeof p.relic === 'string' ? game().items.relics[p.relic] : undefined
   if (relic) {

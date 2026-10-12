@@ -51,6 +51,10 @@ export type ToWorker =
   | { t: 'setSkill'; slot: number; id: string | null }
   /** Take up (or change to) a profession at a trainer. */
   | { t: 'profession'; id: string }
+  /** A word said to someone without the talk panel (the haven panel: a widening taken on, or handed in). */
+  | { t: 'speak'; who: string; verb: string; choice?: string }
+  /** Up to so many of a carried kind put into a thing (the haven panel: materials laid at the sword). */
+  | { t: 'offer'; target: string; item: string; count: number }
   /** The companion carries another of its boons (only beside a woken waypoint). */
   | { t: 'boon'; id: string }
   /** The world map: what has been seen of the world (answered by `atlas`). */

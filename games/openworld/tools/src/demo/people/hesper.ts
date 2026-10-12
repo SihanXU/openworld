@@ -17,6 +17,9 @@ export const hesper: PersonDef = {
   age: 64,
   temperament: { personality: 'stubborn', manner: 'plain', social: 'reserved', outlook: 'wary' },
   ties: { 'npc.tobin': 'owes her last autumn\'s fare' },
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/food/fish/raw', 3], ['item/food/fish/cooked', 2], ['item/tool/fishing_rod', 1], ['item/misc/bait', 6]] },
+  purse: 25,
   schedules: {
     default: [
       [21, 5, 'camp.bed', 'sleep'],

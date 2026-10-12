@@ -18,8 +18,10 @@ export const bram: PersonDef = {
   ties: { 'npc.tobin': 'the peddler who talks through his drills' },
   // a trainer struck strikes back
   fights: true,
-  purse: 20,
+  purse: 60,
   // he keeps the drill yard day and night, standing where anyone can find him (tag stationary)
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/weapon/blade/dagger', 1], ['item/weapon/blade/sword', 1], ['item/weapon/ranged/bow', 1], ['item/weapon/magic/staff', 1]] },
   schedules: {
     default: [[0, 24, 'meadow:drill.yard', 'keep the drill yard']],
   },

@@ -454,6 +454,8 @@ export const CATALOG: Catalog = {
     // the slender statue (7, 15) is the waypoint's alone: nothing else may look like one
     'fixture:sacred': { base: t(HOUSE, 5, 15, 2, 2) },
     'fixture:altar': { base: px(HOUSE, 48, 240, 32, 32, 16, 32) },
+    // the Held Ground's heart: a longsword point down in a mound of earth (tools/src/art/planted-sword.ts)
+    'fixture:planted_sword': { base: px('lsw/Fixtures/PlantedSword.png', 0, 0, 16, 32, 8, 31) },
     'fixture:statue': { base: t(HOUSE, 5, 15, 2, 2) },
     'fixture:gravestone': { base: t(ELEM, 4, 2) },
     // what a person leaves (docs/npc-sandbox.md §2.8): a body is drawn from its look, lying (scene.ts); bones, a skull

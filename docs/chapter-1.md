@@ -424,7 +424,7 @@ Vowbound; the step `oath_thorn`, which also reaches a save whose knight fell bef
 on the overworld.
 
 The Held Ground is the player's camp: a peaceful field round **the planted sword** (Alberic's longsword, point down),
-his tent and post, a chest, tilled earth to sow, a cow and two hens, a pond — build, farm and keep animals there as
+his tent and post, a chest, tilled earth to sow, a pond (beasts are bought, crated, at the stall) — build, farm and keep animals there as
 anywhere. It is ringed by **three rings of mist** (`fixture/nature/mist`, each with its `ring`): beyond the first a
 grove and stones, beyond the second a meadow and water, beyond the third boundary stones and iron in the rock.
 

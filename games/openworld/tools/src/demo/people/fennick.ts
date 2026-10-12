@@ -16,7 +16,9 @@ export const fennick: PersonDef = {
   // an old templar who still keeps the watch with Holt, and still fights
   watch: 'firstlight',
   fights: true,
-  purse: 12,
+  purse: 40,
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/armor/helmet', 1], ['item/armor/shield', 1], ['item/clothing/boots', 1], ['item/weapon/polearm/spear', 1]] },
   schedules: {
     default: [
       [22, 7, 'meadow:guard.home', 'sleep'],

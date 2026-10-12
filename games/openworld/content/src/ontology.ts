@@ -7,6 +7,7 @@ import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE } from '@o
 import '@openworld/modules'
 import { LOOK_TABLE } from './looks.ts'
 import { ELEMENT_NAMES, MATERIALS, MATERIAL_DEFS, QUALITIES, QUALITY_DEFS, itemTypes } from './items.ts'
+import { GEAR_SETS } from './sets.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
 import { SKILL_PROFESSIONS } from './skills.ts'
@@ -416,6 +417,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/container/crate', 'crate', '板条箱', ['wooden', 'flammable', 'breakable'], { solid: true, props: { capacity: 6, material: 'wood', maxHp: 1, hp: 1 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
   F('fixture/container/pot', 'clay pot', '陶罐', ['clay', 'fragile', 'breakable'], { solid: true, props: { capacity: 2, material: 'clay', maxHp: 1, hp: 1 } }),
   F('fixture/container/wardrobe', 'wardrobe', '衣柜', ['wooden', 'flammable'], { solid: true, props: { capacity: 12, material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/plank', count: 4 }] }),
+  // the Held Ground's storehouse (built by its steward): forty places
+  F('fixture/container/storehouse', 'storehouse', '储物棚', ['wooden', 'flammable'], { solid: true, sprite: 'fixture:wardrobe', props: { capacity: 40, material: 'wood' } }),
   F('fixture/container/shelf', 'shelf', '货架', ['wooden', 'flammable'], { solid: true, props: { capacity: 8, material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
   F('fixture/container/bookshelf', 'bookshelf', '书架', ['wooden', 'flammable', 'paper'], { solid: true, props: { capacity: 8, material: 'wood', maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
   F('fixture/container/sack', 'sack', '麻袋', ['cloth', 'flammable'], { solid: false, props: { capacity: 4, material: 'cloth', maxHp: 3, hp: 3 }, makeup: [{ type: 'item/material/cloth', count: 1 }] }),
@@ -463,12 +466,14 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/craft/forge', 'forge', '熔炉', ['stone', 'lightable', 'cookware', 'station:forge']),
   F('fixture/craft/forge/smith', 'smith\'s forge', '铁匠炉', ['portable'], { sprite: 'fixture:forge' }),
   F('fixture/craft/cauldron', 'cauldron', '坩埚', ['metal', 'conductive', 'lightable', 'cookware']),
-  F('fixture/craft/loom', 'loom', '织布机', ['wooden', 'flammable']),
+  F('fixture/craft/loom', 'loom', '织布机', ['wooden', 'flammable', 'station:loom']),
   // a station (world-model.md §6.4): what is made at a workbench is made beside one
   // made by hand from planks, carried, and set down where one works (as a bed is)
   F('fixture/craft/workbench', 'workbench', '工作台', ['wooden', 'flammable', 'surface', 'station:workbench', 'portable'], { makeup: [{ type: 'item/material/plank', count: 4 }], station: 'hands' }),
   F('fixture/sacred', 'sacred place', '圣所', ['stone'], { solid: true }),
   F('fixture/sacred/altar', 'altar', '祭坛', ['holy', 'surface']),
+  // the Held Ground's heart: Alberic's longsword, point down in the earth (tools/src/art/planted-sword.ts)
+  F('fixture/sacred/sword', 'planted sword', '插在地上的长剑', ['metal', 'conductive'], { sprite: 'fixture:planted_sword' }),
   F('fixture/sacred/statue', 'statue', '雕像', []),
   F('fixture/sacred/gravestone', 'gravestone', '墓碑', ['readable']),
   // a wayside shrine of the Five Sufferings: five carved wounds, the first cracked and weeping black (docs/chapter-1.md)
@@ -530,6 +535,9 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/build/stakes', 'stakes', '木桩', ['wooden', 'flammable', 'turns']),
   F('fixture/build/post', 'sign post', '牌子立柱', ['wooden', 'flammable']),
   F('fixture/build/ring', 'stone ring', '石圈', ['stone']),
+  // a plot staked out at the Held Ground's heart for a building the steward will build there (haven.ts HAVEN_UPGRADES)
+  F('fixture/build/plot', 'staked plot', '地基', ['wooden', 'flammable'], { solid: false, sprite: 'fixture:stakes' }),
+  ...([['workshop', 'workshop', '工坊'], ['kitchen', 'kitchen hearth', '厨房灶台'], ['storehouse', 'storehouse', '储物棚'], ['loom', 'weaving shed', '织坊'], ['apothecary', 'apothecary', '药房']] as const).map(([id, en, zh]) => F(`fixture/build/plot/${id}`, `plot for a ${en}`, `${zh}地基`, [])),
   // a training dummy: knocked down it stands up again (train/dummy), for practising blows (the tutorial's)
   F('fixture/dummy', 'training dummy', '训练假人', ['wooden', 'flammable', 'straw'], { solid: true, props: { material: 'wood', maxHp: 12, hp: 12 } }),
   F('fixture/scarecrow', 'scarecrow', '稻草人', ['straw', 'cloth', 'wooden', 'flammable'], { solid: true }),
@@ -571,6 +579,8 @@ export function buildOntology(): Ontology {
     // what things are made of, and how well each instrument works on each (world-model.md §4.5, §6.1)
     materials: MATERIAL_DEFS,
     qualities: QUALITY_DEFS(),
+    // the four sets of gear and what each gives worn together (sets.ts)
+    sets: GEAR_SETS,
     efficiency: EFFICIENCY,
     params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1, slotCount: { ring: 2 }, nightFact: 'night.shift' },
     // what makes a room what it is: a bed a bedroom (a night there gives everything back), a cooking fire a
@@ -590,6 +600,8 @@ export function buildOntology(): Ontology {
       { name: 'weather', every: 60, host: 'world' },
       // the Held Ground's mist looks now and then whether the ground has grown past it (haven.ts)
       { name: 'mist', every: 30, host: { type: 'fixture/nature/mist' } },
+      // a plot staked at the Held Ground's heart looks whether its building has been built (haven.ts)
+      { name: 'plot', every: 30, host: { type: 'fixture/build/plot' } },
       { name: 'storm', every: 300, host: 'world' },
       // each morning one has one's purse again, and a merchant its stock (people/morning)
       { name: 'morning', every: TICKS_PER_DAY, host: { type: 'actor/person' } },

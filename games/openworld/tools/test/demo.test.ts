@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest'
 import { textOf, EVENT_KINDS, FIRE_RADIUS, FIGHT_TICKS, APPEAR_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, isRoot, kindCovers, leaves, rulesTie, tickAt, xpToNext, astar, performPlacement, snapshot, regionId, madeOf, CEILING, type Engine, type Entity, type GameEvent, type Key, type Patch, type Plan, type Ref, type World } from '@openworld/engine'
 import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf } from '@openworld/modules'
-import { ALBERIC_ID, ACTIVE_SKILLS, CH1, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@openworld-game/content'
+import { ALBERIC_ID, ACTIVE_SKILLS, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@openworld-game/content'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
 import { CH1_AT } from '../src/demo/quest/chapter1.ts'
@@ -1140,7 +1140,7 @@ function reach(f: Ford, x: number, y: number): Set<string> {
 req('W4', 'every map but the tutorial (and the floors under the barrow) lies on the overworld, a place to a cell drawn as what it is, and its edges are open: mined through the rock at the pass\'s north edge, one walks out onto the cell north of it; back onto the pass\'s cell and in, one comes in on the north side', [...['village', 'town', 'farm', 'mill', 'woods', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'crossing'].map((k) => `site/place/${k}`)], () => {
   const f = fresh()
   // (the floors under the barrow are reached by its stairs: they lie under its cell; the Held Ground is carried in a thorn)
-  for (const m of W(f).state.loadedMaps.filter((id) => id !== OVERWORLD && id !== 'tutorial' && id !== 'offstage' && id !== 'haven' && W(f).map(id)!.kind !== 'interior' && !(UNDER_BARROW as readonly string[]).includes(id))) {
+  for (const m of W(f).state.loadedMaps.filter((id) => id !== OVERWORLD && id !== 'tutorial' && id !== 'offstage' && id !== 'haven' && !id.startsWith('haven.') && W(f).map(id)!.kind !== 'interior' && !(UNDER_BARROW as readonly string[]).includes(id))) {
     const site = W(f).map(m)!.site!
     expect([m, site.map]).toEqual([m, OVERWORLD])
     expect([m, W(f).entitiesAt(OVERWORLD, site.x, site.y).some((e) => e.type.startsWith('site/place/') && e.props?.map === m)]).toEqual([m, true])
@@ -1845,10 +1845,11 @@ req('Q4g', "the old mine's deep chamber holds the only gold: a pickaxe breaks a 
     expect(W(f).get(v.id)).toBeUndefined()
     ticks(f, 3)
   }
-  // two veins give what the widening asks (three), and only the mine has them
+  // two veins give what the widening asks (three); only the mine has them — and, once the steward opens it, the Held
+  // Ground's quarry
   expect(c.count('item/material/gold_ore')).toBeGreaterThanOrEqual(3)
   const { chunks } = buildFord()
-  expect(chunks.filter((ch) => ch.entities.some((e) => e.type === 'fixture/nature/vein/gold')).map((ch) => ch.map.id)).toEqual(['mine'])
+  expect(chunks.filter((ch) => ch.entities.some((e) => e.type === 'fixture/nature/vein/gold')).map((ch) => ch.map.id).sort()).toEqual(['haven.quarry', 'mine'])
 })
 
 req('Q5', 'chapter 5, fire and frost: fireweed grows in the meadow and frostcap in the forest; the herbalist brews two fireproof draughts; one drunk, fire does a quarter of its harm; armed and fireproof, the village sends you up the pass', ['npc.wren', 'item/material/fireweed', 'item/material/frostcap'], () => {
@@ -1932,6 +1933,49 @@ req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem
   expect(fact(f, 'mq.dragon')).toBe(1)
   expect(cards.length).toBe(1)
   expect(W(f).num(p, 'level')).toBeGreaterThan(1)
+})
+
+req('S3', 'four sets of gear, one for each profession, cover the whole body (head, ear, neck, shoulders, body, hands, two rings, waist, feet, main hand, off hand); each piece is forged at an anvil, of its main ingredient\'s metal and the smith\'s quality, named for its set; worn together a set gives more at three, six, nine and twelve pieces; the cloth its robes and cloaks take is woven from grass at the weaver\'s loom', ['fixture/craft/loom'], () => {
+  const f = fresh()
+  const w = W(f)
+  const sets = w.onto.data.sets!
+  expect(sets.map((s) => s.id)).toEqual(['shadowfang', 'oathguard', 'windrunner', 'starweave'])
+  for (const set of SET_DEFS) {
+    const slots = new Set(set.pieces.map((p) => p.slot))
+    expect([set.id, [...slots].sort()]).toEqual([set.id, ['arm', 'body', 'ear', 'feet', 'hands', 'head', 'neck', 'ring', 'shoulders', 'waist', 'weapon']])
+    expect(sets.find((s) => s.id === set.id)!.pieces).toBe(12)
+  }
+  // cloth: grass fibre woven at Cass's loom by the square
+  const loom = w.posOf(w.get('village.loom')!)!
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow', x: loom.x, y: loom.y + 1 }))
+  carryN(f, 'item/material/grass', 4)
+  expect(f.eng.controls.craft(RECIPE_BY_ID['weave/cloth'])).toBe(true)
+  expect(f.eng.controls.count('item/material/cloth')).toBe(1)
+  // forged at the smithy's anvil: Shadowfang's jerkin, of its leather, named for its set
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.smithy', x: 5, y: 4 }))
+  carryN(f, 'item/tool/smith_hammer', 1)
+  const forge = (slot: string) => {
+    const r = RECIPE_BY_ID[`set/shadowfang/${slot}`]
+    for (const n of r.needs) carryN(f, n.type, n.count)
+    expect([slot, f.eng.controls.craft(r)]).toEqual([slot, true])
+    return Object.values(w.state.entities).find((e) => e.place.on === 'inside' && e.place.holder === w.player.id && e.props?.set === 'shadowfang' && e.type === r.make.type && !Object.values(w.player.props ?? {}).includes(e.id))!
+  }
+  const jerkin = forge('body')
+  expect([textOf(jerkin.name!), w.materialOf(jerkin)?.id, w.prop(jerkin, 'dodge')]).toEqual(['Shadowfang Jerkin', 'leather', 0.03])
+  // worn: one piece, its own dodge; three, the set's first bonus too; six, its second
+  const wear = (e: Entity) => (f.eng.controls.wear(e.id, true), ticks(f, 1))
+  wear(jerkin)
+  const dodge = () => Math.round(w.stat(w.player, 'dodge') * 100) / 100
+  const base = dodge()
+  expect(base).toBeGreaterThanOrEqual(0.03)
+  wear(forge('feet'))
+  wear(forge('shoulders'))
+  expect(dodge()).toBeCloseTo(base + 0.02 + 0.02 + 0.05, 5)
+  expect(w.stat(w.player, 'stealth')).toBe(0)
+  wear(forge('head'))
+  wear(forge('hands'))
+  wear(forge('waist'))
+  expect(w.stat(w.player, 'stealth')).toBe(1 + 1 + 2)
 })
 
 req('T1', 'the tutorial, offline and through the player\'s own inputs, lesson by lesson (each one thing, the keys it does not teach locked in the first ones): one comes round in a clearing, walks, eats, opens the bag, gathers, makes an axe, fells a tree and splits planks, lights a fire, builds a house on the outline with a door, a bed and a ceiling, knocks the training dummy down and gets through a night while the dead walk; the way out opens only on the first morning after the house, and nothing leads back', [
@@ -2343,10 +2387,11 @@ req('T2', 'the general store: Greta keeps it by day, behind her counter; a hand 
   carryN(f, 'item/misc/thornmark', 10)
   expect(f.eng.controls.craft(RECIPE_BY_ID['store/buy/light-torch'])).toBe(true)
   expect(f.eng.controls.count('item/light/torch')).toBeGreaterThanOrEqual(1)
-  expect(f.eng.controls.count('item/misc/thornmark')).toBe(6)
+  // at any merchant's prices: a torch (worth 3) for 4, a herb (worth 6) bought for 3
+  expect(f.eng.controls.count('item/misc/thornmark')).toBe(10 - RECIPE_BY_ID['store/buy/light-torch'].needs[0].count)
   carryN(f, 'item/material/herb', 1)
   expect(f.eng.controls.craft(RECIPE_BY_ID['store/sell/material-herb'])).toBe(true)
-  expect(f.eng.controls.count('item/misc/thornmark')).toBe(8)
+  expect(f.eng.controls.count('item/misc/thornmark')).toBe(10 - RECIPE_BY_ID['store/buy/light-torch'].needs[0].count + RECIPE_BY_ID['store/sell/material-herb'].count!)
 })
 
 req('T3', 'the church of the First Dawn: Brother Anselm keeps its bookstand, where every skill one learns from a book is sold — the common ones cheaper, a profession\'s dearer; bought and read, the book teaches its skill', ['npc.anselm', 'fixture/furniture/bookstand'], () => {
@@ -3033,15 +3078,29 @@ req('H1', "the Held Ground: once the knight falls, a thorn of his crown is the O
   ticks(f, 3)
   expect(w.get(thorn.id)?.place).toMatchObject({ on: 'inside', holder: 'player' })
   // Alberic's first errand: ten logs, ten stones; handed in, the ground widens and the first ring lifts
-  take(f, 'npc.alberic', 'haven1')
+  // the first widening: logs and stones handed to the steward into the ground's stock — a little at a time, what no
+  // upgrade asks for a gift as to anyone; asked to build it with too little in stock, nothing grows; with all of it,
+  // the ground grows, the first ring lifts, and the steward pays
+  const by2 = w.posOf(w.get('npc.alberic')!)!
+  stand(f, by2.x, by2.y + 1, 'up', 'haven')
   author(f, () => {
-    for (let i = 0; i < 10; i++) (w.create('item/material/log', { on: 'inside', holder: 'player' }), w.create('item/material/stone', { on: 'inside', holder: 'player' }))
+    for (let i = 0; i < 12; i++) (w.create('item/material/log', { on: 'inside', holder: 'player' }), w.create('item/material/stone', { on: 'inside', holder: 'player' }))
   })
   c.sync()
+  const one = (type: string) => Object.values(w.state.entities).find((e) => e.type === type && e.place.on === 'inside' && e.place.holder === 'player')!.id
+  c.offer('npc.alberic', one('item/material/log'), 4)
   ticks(f, 2)
-  talkTo(f, 'npc.alberic')
+  expect([w.fact('haven.stock.item/material/log'), c.count('item/material/log')]).toEqual([4, 8])
+  c.talk('npc.alberic', 'haven', 'build:land1')
   ticks(f, 2)
-  expect([qs(f, 'haven1'), w.fact('haven.size')]).toEqual(['done', 1])
+  expect(w.fact('haven.size') ?? 0).toBe(0)
+  c.offer('npc.alberic', one('item/material/log'), 8)
+  c.offer('npc.alberic', one('item/material/stone'), 12)
+  ticks(f, 2)
+  const coins = c.count('item/misc/thornmark')
+  c.talk('npc.alberic', 'haven', 'build:land1')
+  ticks(f, 2)
+  expect([w.fact('haven.size'), c.count('item/misc/thornmark') - coins, w.fact('haven.stock.item/material/log'), w.fact('haven.stock.item/material/stone')]).toEqual([1, HAVEN_UPGRADES[0].coins, 2, 2])
   ticks(f, 60)
   expect([mist(1), mist(2) > 30]).toEqual([0, true])
   expect(reachable()).toBeGreaterThan(small * 1.5)
@@ -3104,6 +3163,70 @@ req('V1', "Firstlight's vigil (the main line between the rescue and the night of
   expect(underWay(f).map(([q]) => q)).toContain('first_seal')
 })
 
+req('H4', 'the Held Ground\'s steward: his talk has "The Held Ground…", which opens its panel — the land, its grounds, its buildings, the stock; the planted sword (a longsword point down in the earth) is only read', ['fixture/sacred/sword'], () => {
+  const f = fresh()
+  const w = W(f)
+  // the knight fallen: the steward keeps the Held Ground (by his post at the heart)
+  author(f, () => (w.setFact('sins.defeated.alberic', 1), w.place(w.get('npc.alberic')!, { on: 'tile', map: 'haven', x: HAVEN.heart[0] + 1, y: HAVEN.heart[1] + 1 })))
+  const at = w.posOf(w.get('npc.alberic')!)!
+  stand(f, at.x, at.y + 1, 'up', at.map)
+  const verbs = socialOf(f.eng).talkView(w.get('npc.alberic')!, w.player).verbs.map((v) => v.id)
+  expect(verbs).toContain('haven')
+  w.fx.length = 0
+  f.eng.controls.talk('npc.alberic', 'haven')
+  ticks(f, 2)
+  expect(w.fx.some((x) => x.t === 'panel' && x.panel === 'haven')).toBe(true)
+  expect(new Set(HAVEN_UPGRADES.map((u) => u.track))).toEqual(new Set(['land', 'zone', 'building']))
+  expect(w.get('haven.heart')!.type).toBe('fixture/sacred/sword')
+})
+
+req('H5', 'the Held Ground grows three ways: new grounds of their own (a quarry, a timberland, a lake, hot springs — each from a land it needs, then gone to from the panel, a way back at its edge) and buildings (a plot staked at the heart becomes a workshop, a hearth, a storehouse, a loom, a cauldron)', ['fixture/build/plot/workshop', 'fixture/build/plot/kitchen', 'fixture/build/plot/storehouse', 'fixture/build/plot/loom', 'fixture/build/plot/apothecary', 'fixture/nature/reeds', 'fixture/nature/vein/coal', 'fixture/nature/vein/gold', 'fixture/nature/logpile', 'fixture/nature/mushroom_ring'], () => {
+  const f = fresh()
+  const w = W(f)
+  const c = f.eng.controls
+  // the knight fallen: the steward keeps the Held Ground (by his post at the heart)
+  author(f, () => (w.setFact('sins.defeated.alberic', 1), w.place(w.get('npc.alberic')!, { on: 'tile', map: 'haven', x: HAVEN.heart[0] + 1, y: HAVEN.heart[1] + 1 })))
+  const at = w.posOf(w.get('npc.alberic')!)!
+  stand(f, at.x, at.y + 1, 'up', at.map)
+  const give = (type: string, n: number) => {
+    author(f, () => { for (let i = 0; i < n; i++) w.create(type, { on: 'inside', holder: 'player' }) })
+    c.sync()
+    c.offer('npc.alberic', Object.values(w.state.entities).find((e) => e.type === type && e.place.on === 'inside' && e.place.holder === 'player')!.id, n)
+    ticks(f, 2)
+  }
+  // a ground needs its land first: the quarry, with the stock for it but no land, is not opened
+  const quarry = HAVEN_UPGRADES.find((u) => u.id === 'quarry')!
+  for (const n of quarry.needs) give(n.type, n.count)
+  c.talk('npc.alberic', 'haven', 'build:quarry')
+  ticks(f, 2)
+  expect(w.fact('haven.zone.quarry') ?? 0).toBe(0)
+  author(f, () => w.setFact('haven.size', 1))
+  c.talk('npc.alberic', 'haven', 'build:quarry')
+  ticks(f, 2)
+  expect(w.fact('haven.zone.quarry')).toBe(1)
+  // gone to: into the quarry, with its rock and veins; its south edge leads back to the heart
+  c.talk('npc.alberic', 'haven', 'go:quarry')
+  ticks(f, 3)
+  expect(w.posOf(w.player)!.map).toBe('haven.quarry')
+  expect(w.map('haven.quarry')!.portals.every((p) => p.to === 'haven')).toBe(true)
+  for (const id of ['haven.timber', 'haven.lake', 'haven.springs']) expect([id, !!w.map(id)]).toEqual([id, true])
+  // a building: the workshop's plot, built, becomes a workbench at the heart (beside the steward, wherever his day has him)
+  author(f, () => w.place(w.get('npc.alberic')!, { on: 'tile', map: 'haven', x: at.x, y: at.y }))
+  stand(f, at.x, at.y + 1, 'up', at.map)
+  // (the steward's welcome, the first time one comes in, plays out first)
+  ticks(f, 900, () => !w.scene)
+  author(f, () => w.place(w.get('npc.alberic')!, { on: 'tile', map: 'haven', x: at.x, y: at.y }))
+  stand(f, at.x, at.y + 1, 'up', at.map)
+  const workshop = HAVEN_UPGRADES.find((u) => u.id === 'workshop')!
+  for (const n of workshop.needs) give(n.type, n.count)
+  expect(w.get('haven.plot.workshop')!.type).toBe('fixture/build/plot/workshop')
+  c.talk('npc.alberic', 'haven', 'build:workshop')
+  ticks(f, 2)
+  expect(w.fact('haven.build.workshop')).toBe(1)
+  ticks(f, 900, () => w.get('haven.plot.workshop')?.type === 'fixture/craft/workbench')
+  expect(w.get('haven.plot.workshop')!.type).toBe('fixture/craft/workbench')
+})
+
 req('H2', "the homestead: Alberic's stall sells seeds, fertilizer, feed, beasts in crates and bait for Thornmarks and buys back what one grows, raises and catches; a fed cow gives milk to a bucket once a day; a crated hen set down walks out; a rod made at hand, baited, fishes the pond", [
   'fixture/furniture/stall/trade',
 ], () => {
@@ -3148,7 +3271,8 @@ req('H2', "the homestead: Alberic's stall sells seeds, fertilizer, feed, beasts 
   run(f, 'use', fx, fy)
   expect(w.hasStatus({ e: crop.id }, 'fertilized')).toBe(true)
   // the cow: unfed, no milk; fed (the stall's feed), milked once into a bucket; not twice the same day
-  const cow = Object.values(w.state.entities).find((e) => e.type === 'actor/creature/animal/cow' && w.posOf(e)?.map === 'haven')!
+  // (the Held Ground keeps no beasts of its own: they are bought, crated, at the stall; this one is set there)
+  const cow = author(f, () => w.create('actor/creature/animal/cow', { on: 'tile', map: 'haven', x: HAVEN.heart[0] + 5, y: HAVEN.heart[1] + 5 }))
   stand(f, sp.x, sp.y + 1, 'up', 'haven')
   expect(c.craft(recipe('shop/buy/material-feed'))).toBe(true)
   expect(c.craft(recipe('shop/buy/vessel-bucket-empty'))).toBe(true)
@@ -3253,7 +3377,7 @@ req('H3', "the homestead, further: Stardew's crops (ten more, five bearing again
   // breeding: two cows fed side by side; a calf; it grows into a cow; the parents rest
   const cows = () => Object.values(w.state.entities).filter((e) => e.type === 'actor/creature/animal/cow' && w.posOf(e)?.map === 'haven')
   const calves = () => Object.values(w.state.entities).filter((e) => e.type === 'actor/creature/animal/calf' && w.posOf(e)?.map === 'haven')
-  const [a] = cows()
+  const a = cows()[0] ?? author(f, () => w.create('actor/creature/animal/cow', { on: 'tile', map: 'haven', x: HAVEN.heart[0] + 5, y: HAVEN.heart[1] + 5 }))
   const ap = w.posOf(a)!
   const b = author(f, () => w.create('actor/creature/animal/cow', { on: 'tile', map: 'haven', x: ap.x + 1, y: ap.y }))
   author(f, () => w.place(b, { on: 'tile', map: 'haven', x: ap.x + 1, y: ap.y }))

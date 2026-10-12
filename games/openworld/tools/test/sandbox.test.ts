@@ -215,7 +215,7 @@ describe('the watch: arrest and its choices (§2.7)', () => {
     s.eng.controls.talk('npc.holt', 'pay')
     expect(bounty(s)).toBe(0)
     expect(purse(s, 'player')).toBe(8)
-    expect(purse(s, 'npc.holt')).toBe(15 + 12)
+    expect(purse(s, 'npc.holt')).toBe(25 + 12)
     expect(loaf.place).toEqual({ on: 'inside', holder: 'npc.marta' })
   })
 
@@ -364,7 +364,8 @@ describe('talk, regard, trade, followers (§2.4, §2.9, §2.10)', () => {
     expect(socialOf(s.eng).knows(get(s, 'npc.cass'), 'player')).toBe(true)
     const verbs = socialOf(s.eng).verbs(get(s, 'npc.cass'), P(s)).map((v) => v.id)
     expect(verbs).toEqual(expect.arrayContaining(['ask', 'follow', 'persuade', 'intimidate']))
-    expect(verbs).not.toContain('trade')
+    // (everyone sells something that fits who they are: the weaver her cloth)
+    expect(verbs).toContain('trade')
     s.eng.controls.talk('npc.cass', 'ask')
     expect(fxOf(s).some((f) => f.t === 'say' && f.who === 'npc.cass')).toBe(true)
   })
@@ -394,7 +395,8 @@ describe('talk, regard, trade, followers (§2.4, §2.9, §2.10)', () => {
     expect(fxOf(s).some((f) => f.t === 'panel' && f.panel === 'trade' && f.by === 'npc.marta')).toBe(true)
     const bread = socialOf(s.eng).stock(get(s, 'npc.marta')).find((e) => e.type === 'item/food/bread')!
     const price = socialOf(s.eng).priceToBuy(bread, get(s, 'npc.marta'), P(s))
-    expect(price).toBe(5)
+    // a loaf is worth 6; the merchant's quarter on it
+    expect(price).toBe(8)
     const before = purse(s, 'npc.marta')
     s.eng.controls.trade('npc.marta', bread.id, true)
     expect(bread.place).toEqual({ on: 'inside', holder: 'player' })

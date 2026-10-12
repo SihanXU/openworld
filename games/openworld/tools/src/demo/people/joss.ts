@@ -13,6 +13,9 @@ export const joss: PersonDef = {
   age: 58,
   temperament: { personality: 'precise', manner: 'rough', social: 'reserved', outlook: 'wary' },
   ties: { 'npc.hesper': 'friend of her husband' },
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/material/plank', 8], ['item/tool/shovel', 1], ['item/tool/broom', 1], ['item/tool/hoe', 1]] },
+  purse: 25,
   schedules: {
     default: [
       [21, 6, 'meadow:joss.home', 'sleep'],

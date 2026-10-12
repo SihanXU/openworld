@@ -13,6 +13,9 @@ export const rowan: PersonDef = {
   age: 67,
   temperament: { personality: 'grave', manner: 'polite', social: 'reserved', outlook: 'wary' },
   ties: {},
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/document/map', 1], ['item/food/apple', 4], ['item/food/wine', 1]] },
+  purse: 40,
   schedules: {
     default: [
       [21, 7, 'meadow:elder.home', 'sleep'],

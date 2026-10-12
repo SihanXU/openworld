@@ -1,13 +1,17 @@
 // The Held Ground (誓守之地, docs/chapter-1.md §12): the White Knight's kingdom, kept in a single thorn. Felled, freed of
 // the crown, Alberic keeps his vow another way — "I will hold until I am relieved": he gives the one who relieved him the
 // Oath-Thorn, and holds for them a place they carry. Used on oneself it takes one there and back. It is the player's camp:
-// build a home, farm, keep animals. At first a small field ringed in mist; Alberic, its steward, widens it for what is
-// brought him (his errands, quests/side.ts): each widening sets the story's `haven.size`, and the banks of mist of that ring lift
-// by themselves (each looks now and then whether the ground has grown past it).
+// build a home, farm, keep animals. Alberic, its steward, grows it three ways (his talk's "The Held Ground…", the haven
+// panel): the LAND (rings of mist lifted: the story's `haven.size`), new GROUNDS (places of their own beyond a way he
+// opens: a quarry, a timberland, a lake, hot springs — `haven.zone.<id>`), and BUILDINGS (a plot staked out at the
+// heart that becomes a workshop, a storehouse… — `haven.build.<id>`). What each asks is handed to him into the
+// ground's stock (`haven.stock.<type>`, kept on him, copied to the story for the panel); built, it is taken from there.
 
-import type { Rule, Text } from '@openworld/engine'
+import type { Cond, Effect, Rule, Text, Tree } from '@openworld/engine'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
+/** Words in both languages, kept as such (to be quoted into others). */
+const W = (en: string, zh: string) => ({ en, zh })
 
 /** The Held Ground's map and its places. */
 export const HAVEN = {
@@ -20,6 +24,157 @@ export const HAVEN = {
   /** the rings of mist round the heart (cells from it): the first widening lifts the first, and so on */
   rings: [8.5, 12.5, 16.5] as const,
 } as const
+
+/** One way the Held Ground grows. */
+export interface HavenUpgrade {
+  id: string
+  track: 'land' | 'zone' | 'building'
+  name: Text
+  /** What it opens or gives. */
+  unlocks: Text[]
+  needs: { type: string; count: number; text: Text }[]
+  /** The land it needs first (haven.size at least). */
+  land: number
+  /** The fact it sets, and to what. */
+  fact: string
+  value: number
+  coins: number
+  /** What Alberic says as it is done. */
+  done: { en: string; zh: string }
+  /** A ground: its map, and where one comes into it. */
+  map?: string
+  at?: [number, number]
+  /** A building: the plot staked out for it at the heart, and what it becomes. */
+  plot?: [number, number]
+  becomes?: string
+  /** A status it is built with (the hearth lit, the storehouse open). */
+  status?: string
+}
+
+const n = (type: string, count: number, en: string, zh: string) => ({ type, count, text: L(en, zh) })
+const LOG = 'item/material/log'
+const STONE = 'item/material/stone'
+const PLANK = 'item/material/plank'
+
+export const HAVEN_UPGRADES: HavenUpgrade[] = [
+  // the land: the rings of mist, one after another
+  { id: 'land1', track: 'land', name: L('The Grove', '林地'), land: 0, fact: 'haven.size', value: 1, coins: 20,
+    unlocks: [L('The first ring of mist lifts', '第一圈迷雾散去'), L('A grove of young trees, loose stone', '一片小树林和散落的石块'), L('Room to build round the sword', '长剑周围更多空地')],
+    needs: [n(LOG, 10, 'Logs', '木头'), n(STONE, 10, 'Stones', '石块')],
+    done: W('There. Do you see how far it goes now? A knight is only as wide as what he holds.', '好了。看见它现在延伸到多远了吗？一个骑士的分量，就是他守住的那片土地。') },
+  { id: 'land2', track: 'land', name: L('The Meadow', '草甸'), land: 1, fact: 'haven.size', value: 2, coins: 40,
+    unlocks: [L('The second ring of mist lifts', '第二圈迷雾散去'), L('A flowering meadow and water', '开花的草甸和水边'), L('Ground enough for a hall', '足够盖厅堂的土地')],
+    needs: [n(PLANK, 20, 'Planks', '木板'), n('item/material/iron_ore', 5, 'Iron ore', '铁矿石')],
+    done: W('More ground. I remember fields like this, once. Whose they were, I do not.', '又多了一片地。我记得从前也有过这样的田野。是谁的，我想不起来了。') },
+  { id: 'land3', track: 'land', name: L('The Old Bounds', '古老界石'), land: 2, fact: 'haven.size', value: 3, coins: 60,
+    unlocks: [L('The last ring of mist lifts', '最后一圈迷雾散去'), L('The old boundary stones, iron in the rock', '古老界石，岩石里的铁矿脉'), L('The whole of the ground', '整片土地')],
+    needs: [n(PLANK, 30, 'Planks', '木板'), n(STONE, 30, 'Stones', '石块'), n('item/material/gold_ore', 3, 'Gold ore', '金矿石')],
+    done: W('That is all the ground there is. ...It is more than I held before. And nobody kneels here.', '这就是全部的土地了。……比我从前守的还要多。而且在这里，没有人下跪。') },
+  // new grounds: places of their own, each with what its ground is good for
+  { id: 'quarry', track: 'zone', name: L('The Quarry', '采石场'), land: 1, fact: 'haven.zone.quarry', value: 1, coins: 0, map: 'haven.quarry', at: [16, 18],
+    unlocks: [L('Boulders to break for stone', '可以凿开的巨石'), L('Iron and coal veins, and one of gold', '铁矿脉、煤矿脉和一处金矿脉'), L('Stone underfoot that comes back', '地上会重新冒出石块')],
+    needs: [n(PLANK, 15, 'Planks', '木板'), n(STONE, 10, 'Stones', '石块')],
+    done: W('There was a quarry under the mist. Every kingdom has one; it is where its walls come from.', '迷雾底下原来有个采石场。每个王国都有一个；城墙就是从那里来的。') },
+  { id: 'timber', track: 'zone', name: L('The Timberland', '林场'), land: 1, fact: 'haven.zone.timber', value: 1, coins: 0, map: 'haven.timber', at: [16, 18],
+    unlocks: [L('Dense woods to fell, that grow back', '能砍、也会长回来的密林'), L('Mushrooms and berries under the trees', '树下的蘑菇和浆果'), L('Sticks and grass on the ground', '地上的树枝和干草')],
+    needs: [n(LOG, 15, 'Logs', '木头'), n(STONE, 5, 'Stones', '石块')],
+    done: W('Trees. Old ones. They were here before the crown, and they will be here after me.', '树。老树。荆棘冠出现之前它们就在这儿，我走了以后它们也还在。') },
+  { id: 'lake', track: 'zone', name: L('The Lakeside', '湖畔'), land: 2, fact: 'haven.zone.lake', value: 1, coins: 0, map: 'haven.lake', at: [16, 18],
+    unlocks: [L('A deep lake with pike, eels and carp', '一片深湖，有狗鱼、鳗鱼和鲤鱼'), L('Reeds and sand along the shore', '岸边的芦苇和沙滩'), L('Water for the fields', '浇地的水')],
+    needs: [n(STONE, 20, 'Stones', '石块'), n(PLANK, 10, 'Planks', '木板')],
+    done: W('Listen. Water. I had forgotten the sound of it with nobody kneeling beside it.', '听。是水声。没有人跪在它旁边时的水声，我都忘了。') },
+  { id: 'springs', track: 'zone', name: L('The Hot Springs', '温泉谷'), land: 3, fact: 'haven.zone.springs', value: 1, coins: 0, map: 'haven.springs', at: [16, 18],
+    unlocks: [L('Warm springs that mend whoever soaks in them', '泡进去就能疗伤的温泉'), L('Herbs and frostcap on the slopes', '山坡上的草药和霜盖菇'), L('A quiet place at the edge of the ground', '领地边缘一处安静的地方')],
+    needs: [n(STONE, 25, 'Stones', '石块'), n('item/material/iron_ingot', 2, 'Iron ingots', '铁锭')],
+    done: W('Warm water out of cold rock. Sit in it a while. I will keep watch.', '冷石头里流出来的暖水。去泡一会儿吧。我来守着。') },
+  // buildings: a plot staked out at the heart, built into what the ground needs
+  { id: 'workshop', track: 'building', name: L('Workshop', '工坊'), land: 0, fact: 'haven.build.workshop', value: 1, coins: 0, plot: [18, 18], becomes: 'fixture/craft/workbench',
+    unlocks: [L('A workbench: what is made at one is made here', '一张工作台：需要工作台的东西都能在这里做')],
+    needs: [n(LOG, 8, 'Logs', '木头'), n(STONE, 4, 'Stones', '石块')],
+    done: W('A bench, and room to work at it. Make what you need; I will not ask what it is for.', '一张工作台，还有干活的地方。需要什么就做什么；我不会问做来干什么。') },
+  { id: 'kitchen', track: 'building', name: L('Kitchen Hearth', '厨房灶台'), land: 0, fact: 'haven.build.kitchen', value: 1, coins: 0, plot: [22, 25], becomes: 'fixture/light/campfire', status: 'lit',
+    unlocks: [L('A hearth that is always lit: cook what you catch and grow', '一直燃着的灶台：做你钓到、种出的东西')],
+    needs: [n(STONE, 10, 'Stones', '石块'), n(LOG, 4, 'Logs', '木头')],
+    done: W('A fire that stays lit. Eat. A steward who lets his lord starve is no steward.', '一堆不会灭的火。吃点东西吧。让主人挨饿的管家，算不上管家。') },
+  { id: 'storehouse', track: 'building', name: L('Storehouse', '储物棚'), land: 1, fact: 'haven.build.storehouse', value: 1, coins: 0, plot: [24, 25], becomes: 'fixture/container/storehouse', status: 'open',
+    unlocks: [L('A storehouse of forty places for what you keep', '一个四十格的储物棚，放你攒下的东西')],
+    needs: [n(PLANK, 12, 'Planks', '木板'), n(LOG, 6, 'Logs', '木头')],
+    done: W('Walls and a roof for what you keep. Nothing in it will be taken; I sleep lightly.', '给你的东西搭了墙和顶。里面的东西不会丢；我睡得很浅。') },
+  { id: 'loom', track: 'building', name: L('Weaving Shed', '织坊'), land: 1, fact: 'haven.build.loom', value: 1, coins: 0, plot: [26, 25], becomes: 'fixture/craft/loom',
+    unlocks: [L('A loom for cloth', '一架织布机')],
+    needs: [n(PLANK, 8, 'Planks', '木板'), n('item/material/stick', 6, 'Sticks', '树枝')],
+    done: W('A loom. Someone used to weave the order\'s banners. I do not remember who. It does not matter now.', '一架织布机。从前有人给骑士团织旗帜。我记不得是谁了。现在也不要紧了。') },
+  { id: 'apothecary', track: 'building', name: L('Apothecary', '药房'), land: 2, fact: 'haven.build.apothecary', value: 1, coins: 0, plot: [18, 16], becomes: 'fixture/craft/cauldron',
+    unlocks: [L('A cauldron for brewing', '一口熬药的坩埚')],
+    needs: [n(STONE, 8, 'Stones', '石块'), n('item/material/herb', 6, 'Herbs', '草药')],
+    done: W('A pot for remedies. I have been wounded enough times to know which ones work.', '一口熬药的锅。我受过的伤够多，知道哪些药管用。') },
+]
+
+/** Every kind of thing an upgrade asks for: what the steward takes into the ground's stock. */
+export const HAVEN_MATERIALS = [...new Set(HAVEN_UPGRADES.flatMap((u) => u.needs.map((x) => x.type)))]
+/** The ground's stock of one thing (on the steward; the story keeps a copy under `haven.` for the panel). */
+export const stockKey = (type: string) => `haven.stock.${type}`
+/** The steward of the Held Ground (his talk's "The Held Ground…"). */
+export const HAVEN_STEWARD = { type: 'actor/person/steward', tag: 'haven-steward' } as const
+
+const STEWARD = { type: HAVEN_STEWARD.type, tags: [HAVEN_STEWARD.tag] }
+const param = (key: string, value: string): Cond => ({ param: { key, cmp: value } })
+const storyAtLeast = (key: string, v: number): Cond => ({ prop: { role: 'story', key, cmp: { gte: v }, default: 0 } })
+const hostAtLeast = (key: string, v: number): Cond => ({ prop: { role: 'host', key, cmp: { gte: v }, default: 0 } })
+const logLine = (en: string, zh: string): Effect => ({ op: 'log', text: L(en, zh) })
+/** The story keeps a copy of a count the steward keeps (for the panel). */
+const copy = (key: string): Effect => ({ op: 'emit', impulse: 'notify', to: 'story', params: { what: 'facts', [`fact.${key}`]: { prop: key, of: 'host' } } })
+
+/** Something handed to the steward: what an upgrade asks for goes into the ground's stock (the thing itself is used up). */
+const HANDED: Tree = HAVEN_MATERIALS.reduceRight<Tree>(
+  (rest, type) => ({
+    if: { is: { role: 'item', sel: { type } } },
+    then: {
+      do: [
+        { op: 'addProp', key: stockKey(type), delta: 1 },
+        copy(stockKey(type)),
+        { op: 'emit', impulse: 'notify', to: 'item', params: { what: 'consumed' } },
+      ],
+      label: L('Hand {instrument} to the ground\'s stock', '把{instrument}放进领地库存'),
+    },
+    else: rest,
+  }),
+  'inherit',
+)
+
+/** An upgrade asked for: built if its land is reached, it is not built yet, and the stock holds all it asks. */
+const BUILD: Tree = HAVEN_UPGRADES.reduceRight<Tree>((rest, u) => {
+  const ready: Cond = {
+    all: [
+      storyAtLeast('haven.size', u.land),
+      { not: storyAtLeast(u.fact, u.value) },
+      // the land's rings one after another
+      ...(u.track === 'land' ? [{ prop: { role: 'story', key: 'haven.size', cmp: u.value - 1, default: 0 } } as Cond] : []),
+      ...u.needs.map((x) => hostAtLeast(stockKey(x.type), x.count)),
+    ],
+  }
+  const build: Effect[] = [
+    ...u.needs.flatMap((x): Effect[] => [{ op: 'addProp', key: stockKey(x.type), delta: -x.count }, copy(stockKey(x.type))]),
+    { op: 'emit', impulse: 'notify', to: 'story', params: { what: 'facts', [`fact.${u.fact}`]: u.value } },
+    ...(u.coins ? [{ op: 'spawn', type: 'item/misc/thornmark', at: 'actor', into: 'contents', count: u.coins } as Effect] : []),
+    { op: 'say', text: L(u.done.en, u.done.zh) },
+  ]
+  return {
+    if: param('choice', `build:${u.id}`),
+    then: { if: ready, then: { do: build }, else: { do: [logLine('Not yet: the stock does not hold all of it, or the ground is not ready for it.', '还不行：库存的材料不够，或者领地还没到这一步。')] } },
+    else: rest,
+  }
+}, 'inherit')
+
+/** A ground opened, gone to: the steward sends one there (and a way at its edge leads back). */
+const GO: Tree = HAVEN_UPGRADES.filter((u) => u.map).reduceRight<Tree>(
+  (rest, u) => ({
+    if: param('choice', `go:${u.id}`),
+    then: { if: storyAtLeast(u.fact, u.value), then: { do: [{ op: 'emit', impulse: 'push', to: 'actor', params: { map: u.map!, x: u.at![0], y: u.at![1] } }] }, else: { do: [logLine('That ground is still under the mist.', '那片地方还在迷雾里。')] } },
+    else: rest,
+  }),
+  'inherit',
+)
 
 const story = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base', note: 'story' } })
 
@@ -40,6 +195,38 @@ export const HAVEN_RULES: Rule[] = [
       else: 'inherit',
     },
   }),
+  story({
+    id: 'haven/steward',
+    label: L('The Held Ground…', '领地扩建……'),
+    doc: 'The steward spoken to about the ground (his talk\'s "The Held Ground…"): its panel (the land, its grounds, its buildings, the stock); asked to build one (choice build:<id>), he builds it from the stock if the land is ready for it and the stock holds all it asks; asked to go to a ground (choice go:<id>), he sends one there once it is opened.',
+    host: STEWARD,
+    on: 'impulse/handle',
+    tree: { if: param('say', 'haven'), then: { if: { param: { key: 'choice', cmp: { ne: '' } } }, then: { if: { any: [...HAVEN_UPGRADES.map((u) => param('choice', `build:${u.id}`))] }, then: BUILD, else: GO }, else: { do: [{ op: 'panel', panel: 'haven' }] } }, else: 'inherit' },
+  }),
+  story({
+    id: 'haven/stock',
+    doc: 'Something handed to the steward that an upgrade of the ground asks for: it goes into the ground\'s stock (his count, the story\'s copy); anything else is a gift as to anyone.',
+    host: STEWARD,
+    on: 'impulse/offered',
+    tree: { if: { none: 'item' }, then: 'inherit', else: HANDED },
+  }),
+  story({
+    id: 'haven/consumed',
+    doc: 'A thing told it is used up (handed into the Held Ground\'s stock): it is gone.',
+    host: { type: 'item' },
+    on: 'impulse/notify',
+    tree: { if: param('what', 'consumed'), then: { do: [{ op: 'destroy' }] }, else: 'inherit' },
+  }),
+  // a building's plot at the heart: once built, it is what it was staked out for
+  ...HAVEN_UPGRADES.filter((u) => u.plot).map((u) =>
+    story({
+      id: `haven/plot-${u.id}`,
+      doc: `The plot staked out for the ${u.id}: once the steward has built it (${u.fact}), it becomes ${u.becomes}${u.status ? ` (${u.status})` : ''}.`,
+      host: { type: `fixture/build/plot/${u.id}` },
+      on: 'time/period',
+      tree: { if: storyAtLeast(u.fact, u.value), then: { do: [{ op: 'transform', into: u.becomes! }, ...(u.status ? [{ op: 'addStatus', status: u.status } as Effect] : []), { op: 'vfx', fx: 'sparkle' }] }, else: { do: [] } },
+    }),
+  ),
   story({
     id: 'haven/mist-lifts',
     doc: 'A bank of mist at the Held Ground\'s edge looks now and then (its period) whether the ground has grown past it: when the story\'s haven.size reaches its ring, it lifts.',

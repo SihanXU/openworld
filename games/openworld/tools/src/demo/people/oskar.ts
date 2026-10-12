@@ -13,6 +13,9 @@ export const oskar: PersonDef = {
   age: 63,
   temperament: { personality: 'stubborn', manner: 'rough', social: 'reserved', outlook: 'wary' },
   ties: {},
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/food/mushroom/raw', 4], ['item/material/herb', 3], ['item/material/feather', 3]] },
+  purse: 15,
   schedules: {
     default: [
       [0, 24, 'ossuary:cell.oskar', 'wait to be found'],

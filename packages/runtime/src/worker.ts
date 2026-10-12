@@ -707,6 +707,12 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'boon':
         if (game) chooseBoon(game.engine, m.id)
         break
+      case 'speak':
+        game?.engine.controls.talk(m.who, m.verb, m.choice)
+        break
+      case 'offer':
+        game?.engine.controls.offer(m.target, m.item, m.count)
+        break
       case 'profession':
         if (game) takeProfession(game.engine, professionById()[m.id], played().skills.all)
         break

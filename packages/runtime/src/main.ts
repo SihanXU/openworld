@@ -63,6 +63,8 @@ const menu = new Menu({
   atlas: () => send({ t: 'atlas' }),
   travel: (waypoint) => send({ t: 'travel', waypoint }),
   profession: (id) => send({ t: 'profession', id }),
+  speak: (who, verb, choice) => send({ t: 'speak', who, verb, ...(choice && { choice }) }),
+  offer: (target, item, count) => send({ t: 'offer', target, item, count }),
   track: (id) => send({ t: 'track', id }),
   board: (who, ref) => send({ t: 'board', who, ref }),
   boon: (id) => send({ t: 'boon', id }),
@@ -83,6 +85,8 @@ const menu = new Menu({
   devConsole: () => dev.toggle(true),
   keyOnItem: (key, item) => send({ t: 'keyOnItem', key, item }),
 })
+// (dev: the panels, for checking them by hand)
+if (import.meta.env.DEV) Object.assign((window as unknown as { lsw: object }).lsw, { menu })
 
 const hud = new Hud(
   {
@@ -145,6 +149,7 @@ function toggleBuilding(): void {
 const tooltip = new Tooltip(() => ({
   atk: Number(lastFrame?.player.props.atk ?? 0),
   profession: typeof lastFrame?.player.props.profession === 'string' ? lastFrame.player.props.profession : undefined,
+  sets: Object.values(lastFrame?.player.worn ?? {}).reduce<Record<string, number>>((n, it) => (typeof it.props.set === 'string' && (n[it.props.set] = (n[it.props.set] ?? 0) + 1), n), {}),
   nameOf: (id) => {
     const e = lastFrame?.entities.find((x) => x.id === id)
     return e ? tx(e.name) : undefined
@@ -320,6 +325,8 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       people.onFrame(m.frame)
       // a rule opened one of the player's panels (a trainer: the choice of profession)
       if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'profession')) menu.openProfession()
+      // the home ground's heart: its widenings
+      if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'haven')) menu.openHomestead()
       // the commission board read (docs/quests.md §3): the favours on offer
       const board = m.frame.fx.find((x) => x.t === 'panel' && x.panel === 'board')
       if (board && board.t === 'panel' && board.by) menu.openBoard(board.by)

@@ -121,6 +121,8 @@ export const TALK: TalkVerb[] = [
   { id: 'ask', label: L('What news?', '最近有什么事？') },
   { id: 'trade', label: L("Let's trade.", '做点买卖吧。'), when: { is: { role: 'host', sel: MERCHANT } } },
   { id: 'profession', label: L('About professions…', '关于职业……'), when: { is: { role: 'host', sel: { type: 'actor/person/trainer' } } } },
+  // the Held Ground's steward: its land, grounds and buildings (haven.ts)
+  { id: 'haven', label: L('The Held Ground…', '领地扩建……'), when: { is: { role: 'host', sel: { tags: ['haven-steward'] } } } },
   { id: 'giveback', label: L('Give back what I took.', '把拿走的东西还回去。'), when: GRUDGE },
   { id: 'apologise', label: L("I'm sorry.", '对不起。'), when: GRUDGE },
   { id: 'turnin', label: L('I want to settle what I owe the watch ({bounty}).', '我要了结欠守卫队的账（{bounty}）。'), when: all({ is: { role: 'host', sel: WATCHMAN } }, WANTED) },

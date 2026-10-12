@@ -14,6 +14,9 @@ export const severin: PersonDef = {
   age: 40,
   temperament: { personality: 'grim', manner: 'plain', social: 'reserved', outlook: 'wary' },
   ties: { 'npc.ilse': 'raised by her' },
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/potion/mystery', 2], ['item/vessel/flask/oil', 2], ['item/misc/bomb', 1], ['item/light/lantern', 1]] },
+  purse: 30,
   schedules: {
     // off the map until a scene places him (the story's `place`)
     default: [[0, 24, 'offstage:severin.hide', 'keep out of sight']],

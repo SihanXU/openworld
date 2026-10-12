@@ -13,8 +13,10 @@ export const cass: PersonDef = {
   age: 47,
   temperament: { personality: 'kind', manner: 'plain', social: 'outgoing', outlook: 'hopeful' },
   ties: { 'npc.gus': 'husband', 'npc.marta': 'friend' },
-  purse: 14,
+  purse: 25,
   items: [{ form: 'item/food/bread' }],
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/material/cloth', 4], ['item/clothing/cloak', 1], ['item/clothing/gloves', 1], ['item/clothing/hat', 1]] },
   schedules: {
     default: [
       [21, 6, 'meadow:wood.home', 'sleep'],

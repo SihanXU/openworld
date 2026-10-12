@@ -118,6 +118,19 @@ export interface ClientGame extends GameDef {
     forProfession(profession: string): SkillDef[]
   }
   boons: Record<string, BoonInfo>
+  /**
+   * A home ground's widenings (the haven panel, opened by a rule's `panel: haven`): who widens it, and each widening —
+   * the quest that brings it, its name, what it opens, what it asks (the quest's objectives say how far one is).
+   */
+  homestead?: {
+    title: Text
+    /** Who keeps the ground: materials are handed to them, an upgrade asked of them (`say: haven`, choice `build:<id>`, `go:<id>`). */
+    steward: string
+    /** The fact of how far the land goes, and the stock's facts' prefix (`<stock><type>`). */
+    size: string
+    stock: string
+    upgrades: { id: string; track: 'land' | 'zone' | 'building'; name: Text; unlocks: Text[]; needs: { type: string; count: number; text: Text }[]; land: number; fact: string; value: number; coins: number; map?: string }[]
+  }
   looks: {
     table: LookTable
     slots: readonly string[]

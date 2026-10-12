@@ -13,6 +13,9 @@ export const pell: PersonDef = {
   age: 9,
   temperament: { personality: 'dreamy', manner: 'plain', social: 'outgoing', outlook: 'hopeful' },
   ties: { 'npc.marta': 'aunt' },
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/document/scroll', 2], ['item/misc/dice', 1], ['item/material/feather', 3]] },
+  purse: 5,
   schedules: {
     default: [
       [20, 7, 'meadow:cook.home', 'sleep'],

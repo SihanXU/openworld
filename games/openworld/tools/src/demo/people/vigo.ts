@@ -20,6 +20,8 @@ export const vigo: PersonDef = {
   fights: true,
   // he came in on an empty stomach
   props: { hunger: 8 },
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/misc/old_boot', 1], ['item/misc/dice', 1], ['item/tool/knife', 1]], fence: true },
   schedules: {
     default: [
       [22, 6, 'meadow:vigo.camp', 'sleep'],

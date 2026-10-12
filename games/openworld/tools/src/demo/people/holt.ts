@@ -16,7 +16,9 @@ export const holt: PersonDef = {
   // he keeps the village's watch (docs/npc-sandbox.md §2.7): he stops the wanted, and fights back
   watch: 'firstlight',
   fights: true,
-  purse: 15,
+  purse: 25,
+  // what they sell (fits who they are; content items.ts prices it)
+  trade: { stock: [['item/light/torch', 3], ['item/weapon/polearm/spear', 1], ['item/potion/healing', 1]] },
   schedules: {
     default: [
       [23, 6, 'meadow:guard.home', 'sleep'],

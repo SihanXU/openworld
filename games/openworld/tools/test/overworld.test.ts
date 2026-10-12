@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary } from '@openworld/engine'
-import { BASE_RULES, OVERWORLD_LAYOUT, STORY_RULES, WILD_GROUNDS, buildOntology, decodeChunk, migrateOverworld, wildChunk } from '@openworld-game/content'
+import { BASE_RULES, HAVEN_LAYOUT, OVERWORLD_LAYOUT, migrateHaven, migrateHavenHeart, STORY_RULES, WILD_GROUNDS, buildOntology, decodeChunk, migrateOverworld, wildChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { UNDER_BARROW } from '../src/demo/hollow.ts'
@@ -56,9 +56,9 @@ describe('the overworld (world-model.md §5.1, §10.2)', () => {
     expect(split).toEqual([])
   })
 
-  it('every map but the overworld (and the tutorial, which lies nowhere, the floors under the barrow, reached by its stairs, and the Held Ground, carried in a thorn) lies on a cell of land, and that cell holds the site that leads into it', () => {
+  it('every map but the overworld (and the tutorial, which lies nowhere, the floors under the barrow, reached by its stairs, and the Held Ground and its grounds, carried in a thorn) lies on a cell of land, and that cell holds the site that leads into it', () => {
     const w = world()
-    for (const id of w.state.loadedMaps.filter((m) => m !== OVERWORLD && m !== 'tutorial' && m !== 'offstage' && m !== 'haven' && w.map(m)!.kind !== 'interior' && !(UNDER_BARROW as readonly string[]).includes(m))) {
+    for (const id of w.state.loadedMaps.filter((m) => m !== OVERWORLD && m !== 'tutorial' && m !== 'offstage' && m !== 'haven' && !m.startsWith('haven.') && w.map(m)!.kind !== 'interior' && !(UNDER_BARROW as readonly string[]).includes(m))) {
       const s = w.map(id)!.site!
       const site = w.entitiesAt(OVERWORLD, s.x, s.y).find((e) => e.props?.map === id)
       expect([id, !!site]).toEqual([id, true])
@@ -95,5 +95,21 @@ describe('the overworld (world-model.md §5.1, §10.2)', () => {
     expect(w.get('site.meadow')).toMatchObject({ type: 'site/place/village', place: { x: meadow.x, y: meadow.y } })
     expect(Object.values(w.state.entities).filter((e) => e.type.startsWith('site')).length).toBe(sites.length)
     expect(w.posOf(w.player)).toMatchObject({ map: OVERWORLD, x: meadow.x, y: meadow.y })
+  })
+
+  it('an older save\'s widening errands (the Held Ground widened by Alberic\'s quests) go; how far the ground goes stays', () => {
+    const g = game()
+    const w = g.engine.world
+    g.engine.author(() => {
+      w.add({ id: 'quest.haven1', type: 'resident/quest', place: { on: 'resident' }, props: { quest: 'haven1', state: 'active', stage: 10 } })
+      w.setFact('q.haven1', 'active')
+      w.setFact('haven.size', 0)
+    })
+    g.engine.author(() => migrateHaven(g))
+    expect([w.get('quest.haven1'), w.fact('q.haven1'), w.fact('haven.size'), w.fact(HAVEN_LAYOUT)]).toEqual([undefined, undefined, 0, true])
+    // the heart, drawn as an altar in an older save, is the planted sword
+    g.engine.author(() => w.transform(w.get('haven.heart')!, 'fixture/sacred/altar'))
+    g.engine.author(() => migrateHavenHeart(g))
+    expect(w.get('haven.heart')!.type).toBe('fixture/sacred/sword')
   })
 })
