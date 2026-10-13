@@ -1312,7 +1312,7 @@ export class World {
 
   // ---------------------------------------------------------------- time
 
-  /** The clock, 0 … 24 (calendar.ts: day 1 begins at 06:00, a game minute is 7 ticks). */
+  /** The clock, 0 … 24 (calendar.ts: day 1 begins at 06:00, a game minute is 10 ticks). */
   hour(): number {
     return calendarAt(this.state.tick, this.state.seed).hour
   }

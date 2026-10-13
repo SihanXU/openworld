@@ -54,7 +54,7 @@ function lay(f: F, shrine: string, item: Entity): void {
 }
 
 describe('the wayside shrines', () => {
-  it('never take a relic or what matters most: the Crown of Thorns on the Shrine of the Crown, the Order\'s seal on the Shrine of the Nails', () => {
+  it('never take a relic or what matters most: the Crown of Thorns on the Shrine of the Crown, the Order\'s seal and the ninth nail on the Shrine of the Nails', () => {
     const f = fresh()
     const kept = (shrine: string, type: string) => {
       const it = carried(f, type)
@@ -64,6 +64,8 @@ describe('the wayside shrines', () => {
     }
     kept('way.shrine.crown', 'item/relic/crown_of_thorns')
     kept('way.shrine.nails', ORDER_SEAL)
+    // the ninth nail of Joss's errand (quests/side.ts): metal, so the Nails shrine asks for it, and the errand would be left uncompletable
+    kept('way.shrine.nails', 'item/misc/ninth_nail')
     expect(f.w.fact('ch1.shrines.crown') ?? 0).toBe(0)
     expect(f.w.fact('ch1.shrines.nails') ?? 0).toBe(0)
     // what each asks still lights it, and is taken
