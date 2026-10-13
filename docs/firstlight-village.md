@@ -17,9 +17,24 @@ the arrival and crossing scenes no longer ask an off-map peddler to speak.
 - Footbridge: row 22, western pier x28–30, eastern pier x34–35. Only x31–33 are
   missing, so completing the story still requires three planks. The ferry, fallen
   dead tree and successive frost casts still cross the wider water.
-- Village: 40 × 30. Four existing pixel-art cottage prefabs at (8,5), (19,5),
-  (28,5) and (7,13), joined by paths to a cobbled square. Well (21,14), lit fire
-  (22,17), log bench (20,19), noticeboard (17,14), two lit lamps.
+- Village: 60 × 40 since 2026-10-11 (it grew east along the road from the Ford and
+  south down the forest trail, so what stood keeps its cell; `tools/src/demo/world.ts`
+  `buildMeadow`, `tools/src/demo/village.ts`). Four pixel-art cottage prefabs at (8,5),
+  (19,5), (28,5) and (7,13) — Marta's, the elder's, the watch house, the woodcutter's —
+  joined by paths to a cobbled square. Well (21,14), lit fire (22,17), log bench
+  (20,19), noticeboard (17,14) and commission board (16,14), lit lamps; Cass's loom
+  (14,13) by the woodcutter's house.
+- The east road's frontage, north of the road as it comes in from the Ford, each door
+  with a path down to the road and a sign: the general store (Greta behind her
+  counter, the shop panel on its shelves: content `village.ts`) and the smithy (Haldor
+  at the forge and anvil inside, anyone's to use with a hammer carried). Two lit lamps
+  on the road. Brother Anselm keeps his bookstand of skill books (a shop station too)
+  in the chapel (Ilse's).
+- Two homes in a south lane off the forest trail: the house in the lane (12,31) and
+  the little cabin (30,31).
+- Every house has a door and a furnished room behind it (an interior map each:
+  `villageInteriors`), the cottages included; older saves get the town by
+  `content/src/migrateSmithy.ts`.
 - Tobin's cart (30,15), with stock on top. Cart, well, sheltered market corner and
   evening fire have reachable schedule anchors. The eastern gate still connects
   to the Ford; the southern trail still connects to the forest.
@@ -48,9 +63,10 @@ is cleared, and normal saving remains responsible for persistence.
 
 ## Verification
 
-The real-world requirement F15 checks the village name, four cottages and reachable
-doors, NPC locations and schedule paths, wider river, absence of Ford crops,
-working well and lighting. Existing requirements still prove all four crossings,
+The real-world requirement F17 checks the village name, its cottage prefabs, the
+smithy's anvil at work, wider river, absence of Ford crops, working well and
+lighting; T1 checks that every house on the 60 × 40 map leads into a furnished room
+and out again. Existing requirements still prove all four crossings,
 trade and the full planting/building loop. Seven migration tests cover visited and
 unvisited chunks, partial bridge progress, harvested/destroyed objects, carried
 stock, building relocation and idempotency.
