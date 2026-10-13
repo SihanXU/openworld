@@ -129,11 +129,23 @@ describe('the overworld (world-model.md §5.1, §10.2)', () => {
   })
 
   it('every place the story seals on the world map is shut by a gate that says why (content SITE_GATES): drawn sealed, it does not let one in', () => {
-    const w = world()
-    const gates = new Set(SITE_GATES.map((g) => g.fact))
+    const g = game()
+    const w = g.engine.world
+    const gates = new Set(SITE_GATES.map((x) => x.fact))
     const sealed = Object.values(w.state.entities).filter((e) => e.type.startsWith('site') && typeof e.props?.opensWhen === 'string')
     expect(sealed.length).toBeGreaterThan(0)
     for (const e of sealed) expect([e.id, gates.has(String(e.props!.opensWhen))]).toEqual([e.id, true])
+    // and the gate holds: E on the place's cell says why and one stays on the world map; opened, one goes in
+    const enter = (site: (typeof sealed)[number]) => {
+      const { x, y } = site.place as { x: number; y: number }
+      g.engine.author(() => (w.place(w.player, { on: 'tile', map: OVERWORLD, x, y }), (w.player.facing = 'down')))
+      g.engine.controls.run(g.engine.controls.plan('hands')!)
+      for (let i = 0; i < 10; i++) g.engine.tick()
+      return w.posOf(w.player)!.map
+    }
+    for (const e of sealed) expect([e.id, enter(e)]).toEqual([e.id, OVERWORLD])
+    g.engine.author(() => { for (const f of gates) w.setFact(f, 1) })
+    expect(enter(sealed[0])).toBe(sealed[0].props!.map)
   })
 
   it('an older save\'s widening errands (the Held Ground widened by Alberic\'s quests) go; how far the ground goes stays', () => {
