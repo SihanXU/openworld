@@ -545,10 +545,10 @@ export const CATALOG: Catalog = {
     'item:wand': icon('Items/Weapons/MagicWand/SpriteInHand.png', 5, 10),
     'item:staff': icon('Items/Weapons/MagicWand/Sprite.png', 5, 18),
     // Armour pieces only exist as 24x24 skill icons (with their coloured badge background).
-    'item:helmet': icon('Ui/Skill Icon/Items & Weapon/Helmet.png', 24, 24),
-    'item:shield': icon('Ui/Skill Icon/Items & Weapon/Guard.png', 24, 24),
-    'item:armor': icon('Ui/Skill Icon/Items & Weapon/Armor.png', 24, 24),
-    'item:boots': icon('Ui/Skill Icon/Items & Weapon/Boot.png', 24, 24),
+    'item:helmet': icon('lsw/Items/Gear/Helmet.png', 24, 24),
+    'item:shield': icon('lsw/Items/Gear/Shield.png', 16, 16),
+    'item:armor': icon('lsw/Items/Gear/Armor.png', 24, 24),
+    'item:boots': icon('lsw/Items/Gear/Boot.png', 24, 24),
     // Red cloth hanging on the clothes line (TilesetElement (15,3)).
     'item:cloak': t(ELEM, 15, 3),
     // Conical straw (kasa) hat shape, TilesetHouse (29,17).
@@ -631,8 +631,8 @@ export const CATALOG: Catalog = {
     ...CROP_ITEMS,
     'item:gem': icon('Items/Resource/GemRed.png', 15, 15),
     'item:coins': icon('Items/Object/MoneyBag.png', 14, 15),
-    'item:ring': icon('Ui/Skill Icon/Items & Weapon/Ring.png', 24, 24),
-    'item:amulet': icon('Ui/Skill Icon/Items & Weapon/Amulet.png', 24, 24),
+    'item:ring': icon('lsw/Items/Gear/Ring.png', 24, 24),
+    'item:amulet': icon('lsw/Items/Gear/Amulet.png', 24, 24),
     'item:goblet': icon('Items/Treasure/GoldCup.png', 9, 11),
     'item:crown': icon('Items/Resource/GemYellow.png', 14, 14),
     'item:shard': icon('Items/Resource/GemPurple.png', 16, 16),

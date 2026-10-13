@@ -4,7 +4,7 @@
 import { gearProps, type Entity, type QuestDef, type QuestReward, type QuestTrigger, type Text } from '@openworld/engine'
 import { BASE_RULES } from '@openworld-game/content'
 import {
-  EFFICIENCY, ELEMENT_NAMES, ELEMENTS, LEGENDARY_ARMS, MATERIALS, QUALITIES, RELICS, VOW_TRAITS, isAccessory, zh,
+  EFFICIENCY, ELEMENT_NAMES, ELEMENTS, LEGENDARY_ARMS, MATERIALS, QUALITIES, RELICS, VOWS, isAccessory, zh,
   type BossEnt, type CreatureEnt, type Ent, type Game, type ItemEnt, type MapEnt, type PersonEnt, type QuestEnt, type Sprite,
 } from './game.ts'
 import { escapeAttr, escapeHtml, type TemplateCall } from './markup.ts'
@@ -267,6 +267,7 @@ function itemInfobox(ctx: Ctx, e: ItemEnt): string {
   const rows: [string, string][] = [['类别', ctx.link(groupPage(e), e.group)], ...itemStats(ctx, e)]
   if (e.quality) rows.push(['品质', ctx.link('品质', qualityName(e.quality))])
   if (e.relic) rows.push(['圣痕之力', `<b>${esc(e.relic.zh)}</b>：${esc(e.relic.text)}`])
+  if (e.vow) rows.push(['誓言', `<b>${esc(e.vow.zh)}</b>：${esc(e.vow.text)}`])
   const make = e.recipe ? `${e.recipe.station === 'hands' || !e.recipe.station ? '手工' : '工作台旁'}（${ctx.link('制作')}）` : e.placement ? ctx.link('建造', '建造模式') : ''
   if (make) rows.push(['制作', make])
   if (e.makeup.length) rows.push(['构成', e.makeup.map((m) => typeLink(ctx, m.type, { count: m.count })).join(' ')])
@@ -448,8 +449,10 @@ function rewardItem(ctx: Ctx, it: NonNullable<QuestReward['items']>[number]): st
   const base = typeLink(ctx, it.type, { count: it.count })
   if (!it.name) return base
   const q = it.tags?.find((t) => t.startsWith('quality:'))?.slice(8)
-  const stats = Object.entries(it.props ?? {}).filter(([k]) => k !== 'slot').map(([k, v]) => `${T(ctx, '属性', k)} ${v}`).join('，')
-  return `<b>${esc(zh(it.name))}</b>${q ? `（${esc(qualityName(q))}）` : ''}：${base}${stats ? `，${esc(stats)}` : ''}`
+  // (its vow by name; the small extras it rolled are its own, not the author's word)
+  const stats = Object.entries(it.props ?? {}).filter(([k]) => k !== 'slot' && k !== 'vow' && !k.startsWith('sub:')).map(([k, v]) => `${T(ctx, '属性', k)} ${v}`).join('，')
+  const vow = typeof it.props?.vow === 'string' ? VOWS[it.props.vow] : undefined
+  return `<b>${esc(zh(it.name))}</b>${q ? `（${esc(qualityName(q))}）` : ''}：${base}${stats ? `，${esc(stats)}` : ''}${vow ? `，誓言「${esc(vow.zh)}」` : ''}`
 }
 
 const groupPage = (e: ItemEnt): string => {
@@ -818,7 +821,7 @@ function lists(ctx: Ctx, name: string, args: string[]): string | undefined {
     case '夜行生物表': return table(['生物', '权重', '上限', '间隔', '在哪里'], (g.ontology.appear ?? []).flatMap((a: any) => Object.entries(a.types).map(([t, w]) => [typeLink(ctx, t), `${Math.round(Number(w) * 100)}%`, String(a.max), secs(a.every), `${a.where?.zone === 'combat' ? '战斗区域' : '所有区域'}、${a.where?.light === 'outdoor' ? '室外地图' : '所有地图'}，入夜后`])))
     case '传说武器表': return table(['职业', '传说武器', '圣痕之力'], Object.entries(LEGENDARY_ARMS).flatMap(([prof, arms]) => arms.map((t) => { const e = g.byId.get(t) as ItemEnt | undefined; return [ctx.link(g.professions.find((p) => p.id === prof)?.name.zh ?? prof), entLink(ctx, e) || esc(t), e?.relic ? `<b>${esc(e.relic.zh)}</b>：${esc(e.relic.text)}` : '—'] })))
     case '圣痕之力表': return table(['圣痕之力', '效果', '持有它的'], Object.entries(RELICS).map(([id, r]) => [`<b>${esc(r.zh)}</b>`, esc(r.text.zh), join(g.items.filter((e) => e.props.relic === id).map((e) => entLink(ctx, e)))]))
-    case '遗誓特质表': return table(['特质'], VOW_TRAITS.map((t) => [Object.entries(t).map(([k, v]) => `${T(ctx, '属性', k.replace('night:', ''))}${k.startsWith('night:') ? '（夜里）' : ''} +${v < 1 ? `${Math.round(v * 100)}%` : v}`).join('')]))
+    case '誓言表': return table(['誓言', '效果'], Object.values(VOWS).map((v) => [`<b>${esc(v.zh)}</b>`, esc(v.text.zh)]))
     case '版本历史': return table(['日期', '合并', '内容'], ctx.history.map((h) => [h.date, `<a href="https://github.com/SihanXU/symbolic-world/pull/${h.pr}">#${h.pr}</a>`, esc(h.title)]))
     case '数值表': return ctx.values()
     case '门户': return ctx.portal()
@@ -891,7 +894,7 @@ const BLOCK = new Set([
   '信息框', '引言', '小作品', '规划中', '待设计', '开发者', '主条目', '另见', '导航框', '日程表', '对话', '人际关系', '相关任务', '肖像', '来源', '用途', '配方', '变体',
   '出没', '掉落', '首领技能', '地图', '相连地点', '居民', '生物', '物品分布', '任务目标', '任务奖励', '任务对话', '任务阶段', '物品表', '居民表', '怪物表', '首领表', '地点表', '任务表',
   '配方表', '建造表', '技能树', '职业表', '恩赐表', '状态表', '元素表', '地形表', '材质表', '品质表', '装备栏表', '作物表', '食物表', '传送雕像表', '配乐表', '效率表',
-  '房间用途表', '夜行生物表', '传说武器表', '圣痕之力表', '遗誓特质表', '货摊表', '版本历史', '数值表', '门户', '原文', '图', '剧透',
+  '房间用途表', '夜行生物表', '传说武器表', '圣痕之力表', '誓言表', '货摊表', '版本历史', '数值表', '门户', '原文', '图', '剧透',
 ])
 
 export function runTemplate(ctx: Ctx, call: TemplateCall): { html: string; block: boolean } {

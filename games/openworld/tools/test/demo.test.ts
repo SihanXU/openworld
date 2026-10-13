@@ -17,6 +17,7 @@ import { CH1_AT } from '../src/demo/quest/chapter1.ts'
 import { PEOPLE } from '../src/demo/people.ts'
 import { DRAGON_AT, EAST_ROAD, EMBERFALL, PASS } from '../src/demo/quest/maps.ts'
 import { PILGRIM } from '../src/demo/quest/pilgrimage.ts'
+import { FAT, FLANKS } from '../src/demo/quest/flanks.ts'
 import { GARDEN } from '../src/demo/garden.ts'
 import { BARROW, HOLLOW, OSSUARY, UNDER_BARROW } from '../src/demo/hollow.ts'
 import { PAT, TUTORIAL } from '../src/demo/prologue.ts'
@@ -1423,7 +1424,8 @@ req('W17', 'combat by what things are made of: iron strikes harder than wood, fi
   hold(f, hat)
   run(f, 'self', 20, 14)
   expect(w.prop(p, 'wear:head')).toBe(hat.id)
-  expect(w.stat(p, 'def')).toBe(0)
+  // (a cloth hat keeps a little off: clothing has its own defence, 2026-10-12)
+  expect(w.stat(p, 'def')).toBe(1)
   // the helmet again: on — and off the body, it leaves the hand (what is worn is on the body, not in the bag or the
   // hand); taken off from the equipment, it is back in the bag
   hold(f, helmet)
@@ -1972,17 +1974,20 @@ req('S3', 'each profession\'s forged gear covers the whole body (head, ear, neck
   // worn: one piece, its own dodge; two, the armour's first bonus too; four, its second
   const wear = (e: Entity) => (f.eng.controls.wear(e.id, true), ticks(f, 1))
   wear(jerkin)
-  const dodge = () => Math.round(w.stat(w.player, 'dodge') * 100) / 100
+  // (less the small extras each forged piece rolled: the rolls are the seed's, not the set's)
+  const own = (key: string) => Math.round((w.stat(w.player, key) - w.worn(w.player).reduce((n, e) => n + w.num(e, `sub:${key}`), 0)) * 100) / 100
+  const dodge = () => own('dodge')
   const base = dodge()
   expect(base).toBeGreaterThanOrEqual(0.03)
   wear(forge('feet'))
   wear(forge('shoulders'))
   expect(dodge()).toBeCloseTo(base + 0.02 + 0.02 + 0.03, 5)
-  expect(w.stat(w.player, 'stealth')).toBe(0)
+  expect(own('luck')).toBe(0)
   wear(forge('head'))
   wear(forge('hands'))
   wear(forge('waist'))
-  expect(w.stat(w.player, 'stealth')).toBe(1 + 1 + 2)
+  // the belt's own luck, and the armour's second bonus at four
+  expect(own('luck')).toBeCloseTo(0.03 + 0.1, 5)
 })
 
 req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14): past the river, the Church's Rest — its priest takes the oath at the five wounds; five wayside shrines on the road, each lit only by what its suffering asks; a penitent on it; the Abbey of the Thorn north of it — the roll, Alberic's statue, his journal, the writ of relief never sent; in its crypt the Order's last keeper and its seal; the Kneeling Field of the pilgrims before; each a stage of the First Seal", [
@@ -3280,6 +3285,100 @@ req('V1', "Firstlight's vigil (the main line between the rescue and the night of
   expect([qs(f, 'vigil'), w.fact('ch1.vigil')]).toEqual(['done', 1])
   ticks(f, 20)
   expect(underWay(f).map(([q]) => q)).toContain('first_seal')
+})
+
+req('FL1', "the forest's flanks (docs/chapter-1.md §15): west, by the side trail, the Charcoal Dell — Orrin at his kilns by day, boars in the coppice, coal lying about, the roost oak the forest's birds fled to (at dusk, all facing east); east, by the clearing's trail, the Reed Bend on the river's own cell — Hilde on her pier, the river to fish, the drowned stone, Aldo's bell on the spit among water slimes; their errands: six logs for a clamp (paid in coal), four boars, the birds (Gus asked, three feathers), three fish, the bell", [
+  'npc.orrin', 'npc.hilde', 'item/material/coal', 'item/material/feather', 'item/misc/bell', 'actor/creature/slime/water_slime', 'item/food/fish/cooked',
+], () => {
+  const f = fresh()
+  const w = W(f)
+  const c = f.eng.controls
+  const { index } = buildFord()
+  const played = (id: string) => !!w.fact(`seen.${id}`)
+  const waitFor = (id: string) => expect([id, ticks(f, 900, () => played(id) && !w.scene)]).toEqual([id, true])
+  const go = (map: string, x: number, y: number) => f.eng.author(() => f.eng.teleport(w.player, { map, x, y }))
+  const give = (type: string, n: number) => { author(f, () => { for (let i = 0; i < n; i++) w.create(type, { on: 'inside', holder: 'player' }) }); c.sync() }
+  const objective = (quest: string, id: string) => f.eng.quests.journal().find((q) => q.quest === quest)!.objectives.find((o) => o.id === id)!
+  // the forest opens west and east, a trail to each
+  const forest = index.maps.find((m) => m.id === 'forest')!
+  expect(forest.portals.filter((p) => p.to === 'charcoal').map((p) => p.y).sort()).toEqual([...FLANKS.forestWest])
+  expect(forest.portals.filter((p) => p.to === 'reedbend').map((p) => p.y).sort()).toEqual([...FLANKS.forestEast])
+  for (const y of FLANKS.forestWest) expect(w.walkable('forest', 1, y)).toBe(true)
+  for (const y of FLANKS.forestEast) expect(w.walkable('forest', forest.width - 2, y)).toBe(true)
+  // the dell, early afternoon: Orrin by his kilns (solid mounds), boars in the coppice, coal and feathers on the ground
+  go('charcoal', 36, 15)
+  waitFor('dell_first')
+  expect(w.posOf(w.get('npc.orrin')!)?.map).toBe('charcoal')
+  for (const [x, y] of FAT.kilns) expect(w.walkable('charcoal', x + 1, y + 1)).toBe(false)
+  expect(onMap(f, 'actor/creature/beast/boar', 'charcoal').length).toBe(4)
+  expect(onMap(f, 'item/material/coal', 'charcoal').length).toBeGreaterThanOrEqual(3)
+  expect(onMap(f, 'item/material/feather', 'charcoal').length).toBeGreaterThanOrEqual(3)
+  // his errands: six logs, paid in coal
+  for (const id of ['clamp', 'birds']) expect(f.eng.quests.offers('npc.orrin', w.player).map((o) => o.ref)).toContain(id)
+  take(f, 'npc.orrin', 'clamp')
+  give('item/material/log', 6)
+  const coal = c.count('item/material/coal')
+  talkTo(f, 'npc.orrin')
+  ticks(f, 2)
+  expect([qs(f, 'clamp'), c.count('item/material/log'), c.count('item/material/coal') - coal]).toEqual(['done', 0, 4])
+  // four boars felled in the dell (for level 2)
+  w.player.props!.level = 2
+  take(f, 'npc.orrin', 'boars')
+  for (let i = 0; i < 4; i++) (fell(f, author(f, () => w.create('actor/creature/beast/boar', { on: 'tile', map: 'charcoal', x: 20, y: 15 }))), ticks(f, 1))
+  talkTo(f, 'npc.orrin')
+  ticks(f, 2)
+  expect(qs(f, 'boars')).toBe('done')
+  // the birds: Gus asked (he says what he never said), three feathers from under the oak
+  take(f, 'npc.orrin', 'birds')
+  expect(talkTo(f, 'npc.gus')).toContain('往西去了')
+  ticks(f, 1)
+  expect(objective('birds', 'gus')).toMatchObject({ state: 'done' })
+  for (const e of onMap(f, 'item/material/feather', 'charcoal').slice(0, 3)) {
+    const at = w.posOf(e)!
+    stand(f, at.x, at.y + 1, 'up', 'charcoal')
+    run(f, 'take', at.x, at.y)
+  }
+  talkTo(f, 'npc.orrin')
+  ticks(f, 2)
+  expect([qs(f, 'birds'), w.fact('ch1.birds'), c.count('item/misc/feather_quill')]).toEqual(['done', 1, 1])
+  // the roost at dusk: every bird of the forest, silent, facing east
+  setHour(f, 1, 18)
+  go('charcoal', FAT.roost[0] + 1, FAT.roost[1])
+  waitFor('roost_dusk')
+  expect(w.fact('ch1.roost')).toBe(1)
+  // the bend, next noon: Hilde on her pier, the river (deep past the shallows) to fish, the drowned stone
+  setHour(f, 2, 12)
+  go('reedbend', 4, 17)
+  waitFor('bend_first')
+  expect(w.posOf(w.get('npc.hilde')!)?.map).toBe('reedbend')
+  expect(w.map('reedbend')!.fish).toBe(true)
+  expect(w.terrainAt('reedbend', FAT.pier[0], FAT.pier[1])).toBe('bridge')
+  expect(w.terrainAt('reedbend', FAT.pier[0] + 4, FAT.pier[1])).toBe('deepwater')
+  go('reedbend', FAT.stone[0] - 1, FAT.stone[1])
+  waitFor('drowned_stone')
+  expect(w.fact('ch1.drowned_stone')).toBe(1)
+  // the bell on the spit, three water slimes about it
+  expect(onMap(f, 'actor/creature/slime/water_slime', 'reedbend').length).toBe(3)
+  expect(w.posOf(w.get('quest.hilde.bell')!)).toMatchObject({ map: 'reedbend', x: FAT.spit[0], y: FAT.spit[1] })
+  // her errands: three fish of any kind for the smoke (bait paid); the bell, which she keeps
+  take(f, 'npc.hilde', 'catch')
+  give('item/food/fish/eel', 2)
+  give('item/food/fish/raw', 1)
+  talkTo(f, 'npc.hilde')
+  ticks(f, 2)
+  expect([qs(f, 'catch'), c.count('item/food/fish/eel'), c.count('item/food/fish/raw'), c.count('item/misc/bait')]).toEqual(['done', 0, 0, 5])
+  take(f, 'npc.hilde', 'boatbell')
+  stand(f, FAT.spit[0], FAT.spit[1] + 1, 'up', 'reedbend')
+  run(f, 'take', ...FAT.spit)
+  expect(talkTo(f, 'npc.hilde')).toContain('还是那个声音')
+  ticks(f, 2)
+  expect([qs(f, 'boatbell'), w.fact('ch1.boatbell'), w.get('quest.hilde.bell')?.place]).toEqual(['done', 1, { on: 'inside', holder: 'npc.hilde' }])
+  // on the overworld: the dell two cells west of the bend, the bend a camp on the river's own cell — not stood on, so the river stays the barrier (W6)
+  const bend = w.map('reedbend')!.site!
+  expect(w.map('charcoal')!.site).toMatchObject({ x: bend.x - 2, y: bend.y })
+  expect(w.map('forest')!.site).toMatchObject({ x: bend.x - 1, y: bend.y })
+  expect(w.passable(OVERWORLD, bend.x, bend.y)).toBe(false)
+  expect(w.entitiesAt(OVERWORLD, bend.x, bend.y).some((e) => e.type === 'site/place/camp' && e.props?.map === 'reedbend')).toBe(true)
 })
 
 req('H4', 'the Held Ground\'s steward: his talk has "The Held Ground…", which opens its panel — the land, its grounds, its buildings, the stock; the planted sword (a longsword point down in the earth) is only read', ['fixture/sacred/sword'], () => {

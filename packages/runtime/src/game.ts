@@ -97,6 +97,8 @@ export interface ClientGame extends GameDef {
     materials: Record<string, Words>
     /** The unique pieces' names and lore. */
     relics: Record<string, Words & { text: Words }>
+    /** The Vowbound pieces' vows (`vow`): each one's name and what it does. */
+    vows?: Record<string, Words & { text: Words }>
     /** The money's item type. */
     coin: string
   }

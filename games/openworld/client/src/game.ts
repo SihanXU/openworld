@@ -42,6 +42,13 @@ import {
   migrateHavenHeart,
   migrateLodges,
   LODGES_LAYOUT,
+  migrateStats,
+  STATS_LAYOUT,
+  migrateGear,
+  GEAR_LAYOUT,
+  migrateVows,
+  VOWS_LAYOUT,
+  VOWS,
   migrateTents,
   HAVEN_LAYOUT,
   SMITHY_LAYOUT,
@@ -109,6 +116,11 @@ export const CLIENT_GAME: ClientGame = {
     game.engine.author(() => migrateHavenHeart(game))
     // the residents' tents' plots (a home ground's beds: content social.ts residence)
     if (!w.fact(LODGES_LAYOUT)) game.engine.author(() => migrateLodges(game, HAVEN_UPGRADES.filter((u) => u.id.startsWith('lodge') && u.plot).map((u) => ({ id: u.id, at: u.plot! }))))
+    // standing your ground, stealth and perception left the gear for luck
+    if (!w.fact(STATS_LAYOUT)) game.engine.author(() => migrateStats(game))
+    if (!w.fact(GEAR_LAYOUT)) game.engine.author(() => migrateGear(game))
+    // the Vowbound took their vows, and rolled the extras the named ones never had
+    if (!w.fact(VOWS_LAYOUT)) game.engine.author(() => migrateVows(game))
     // the tents have rooms behind their flaps (only for maps a save has been to: the others come as built)
     const tentMaps = ['ford', 'forest', 'haven'].filter((id) => w.state.loadedMaps.includes(id))
     if (tentMaps.length) {
@@ -118,7 +130,7 @@ export const CLIENT_GAME: ClientGame = {
   },
   fresh(game) {
     const w = game.engine.world
-    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(COMPANION_NAME, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true), w.setFact(LODGES_LAYOUT, true)))
+    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(COMPANION_NAME, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true), w.setFact(LODGES_LAYOUT, true), w.setFact(STATS_LAYOUT, true), w.setFact(GEAR_LAYOUT, true), w.setFact(VOWS_LAYOUT, true)))
   },
   summon(kit, at, id) {
     const body = createBoss(kit, at, id)
@@ -132,7 +144,7 @@ export const CLIENT_GAME: ClientGame = {
       { label: '召唤白骑士 · Summon the White Knight (East Road)', debug: { op: 'summon', kit: 'alberic', map: 'eastroad', x: 40, y: 15, from: [30, 12] } },
     ],
   },
-  items: { forms: FORM_BY_ID, materials: MATERIALS, relics: RELICS, coin: COIN },
+  items: { forms: FORM_BY_ID, materials: MATERIALS, relics: RELICS, vows: VOWS, coin: COIN },
   // the Held Ground's growing (its steward's panel: the land, its grounds, its buildings, the stock; haven.ts)
   homestead: { title: { en: 'The Held Ground', zh: '誓守之地 · 领地经营' }, steward: 'npc.alberic', size: 'haven.size', stock: 'haven.stock.', upgrades: HAVEN_UPGRADES },
   crafting: { recipes: RECIPES, stationName, placements: PLACEMENTS, buildings: BUILDINGS, shops: SHOPS },

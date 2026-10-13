@@ -125,6 +125,11 @@ export interface QualityDef {
   from?: number
   /** What it makes of a thing's worth: a factor, 1 when absent. */
   value?: number
+  /**
+   * What a piece of gear of this quality carries beyond its numbers: made, it takes one of these as its `vow` (a
+   * combat module answers each by id: the Vowbound's vows), unless its kind or the maker names one.
+   */
+  vows?: string[]
 }
 
 /** Numbers the world is made with (world-model.md §11): data, never literals in the engine. */
@@ -156,6 +161,13 @@ export interface WorldParams {
   slotCount?: Record<string, number>
   /** The story's fact that lengthens the night by so many hours (a number; the Ford's `night.shift`): none, the night keeps its length. */
   nightFact?: string
+  /**
+   * Gear's levels (world-model.md §6.8, 2026-10-13): a piece of gear has a `level` from 1 to `max`; each level above the
+   * first adds `perLevel` to the factor on its main stats (power, defence, attack: ×(1 + perLevel·(level − 1)); its
+   * shares — a crit chance, a dodge — half as much), and `affixPerLevel` to the factor on what its rolled extras may
+   * reach; `affixCount` is how many extras a piece of each quality rolls (a quality not named: the table's count).
+   */
+  gearLevels?: { max: number; perLevel: number; affixPerLevel: number; affixCount?: Record<string, number> }
 }
 
 /** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */
@@ -1454,7 +1466,7 @@ export type EmitTo =
  * yourself), spawns, or presents; `emit` sends an event to others, which answer for themselves.
  */
 /** The primitives the engine's official modules carry (packages/modules): typed here, worked by their module (module.ts). */
-export type ModuleOp = 'release' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn'
+export type ModuleOp = 'release' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral'
 
 export type Effect =
   | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean }
@@ -1576,6 +1588,10 @@ export type Effect =
   /** The host (a merchant) sells the actor what it asks (param item) for its price: it hands it over, the buyer is told to pay. */
   | { op: 'sell' }
   | { op: 'moveIn' }
+  /** The host saw its own deed (a seen event, params own): its karma falls by what the deed weighs. */
+  | { op: 'conscience' }
+  /** The host's karma or faith moves by delta (−100..100). */
+  | { op: 'moral'; key: 'karma' | 'faith'; delta: Amount }
   /** The host (a merchant) buys the instrument the actor offers: it pays, the seller is told to hand it over. */
   | { op: 'buy' }
   /** The host follows a role (its `follow` prop), or (no leader) stops following. */

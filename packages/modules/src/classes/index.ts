@@ -4,7 +4,10 @@
 
 import { DIRS, registerModule, type Combat, type Engine, type EngineModule, type Entity, type SkillDef, type Strike as KernelStrike, type Text } from '@openworld/engine'
 import { castCooldown, castLeft, castSkill, cannotCast, knownActives, onDefeat, rainTick, SKILLBAR_SLOTS } from './actives.ts'
-import { combatDamage, combatDelay, combatStrike, finishCombatStrike, rangeBonus, recordCombatStep, type Strike } from './combat.ts'
+import { combatDamage, combatDelay, combatStrike, finishCombatStrike, rangeBonus, recordCombatStep, vowsOf, type Strike } from './combat.ts'
+
+/** What the Vow of the Thorn pricks the one who struck its keeper for (before their defence). */
+const THORN_PRICK = 3
 import { PROFESSION_LEVEL, canWield, cannotChoose, chooseProfession, itemProfession, type ProfessionDef, type ProfessionRefusal } from './profession.ts'
 
 export * from './actives.ts'
@@ -85,6 +88,15 @@ function classCombat(eng: Engine): Combat {
       const drain = by?.params?.drain
       if (typeof drain === 'number' && drain > 0 && attacker && attacker.id !== e.id)
         eng.queue({ kind: 'impulse/restore', host: { e: attacker.id }, roles: { source: { e: e.id }, actor: { e: attacker.id } }, params: { which: 'hp', amount: drain }, cause: by?.cause, origin: by?.origin, depth: (by?.depth ?? 0) + 1 })
+      // the Vow of the Thorn (content items.ts VOWS): whoever struck its keeper hand to hand is pricked — a blow of the
+      // keeper's back at them, the piece its instrument; a thorn's blow is not answered with thorns (`thorn`)
+      if (by?.kind === 'impulse/strike' && !by.params?.thorn && attacker && attacker.id !== e.id && w.get(e.id) && w.get(attacker.id) && vowsOf(w, e).has('thorn')) {
+        const ap = w.posOf(e)
+        const tp = w.posOf(attacker)
+        const piece = [...w.worn(e), ...(w.get(e.held) ? [w.get(e.held)!] : [])].find((it) => w.prop(it, 'vow') === 'thorn')
+        if (ap && tp && ap.map === tp.map && Math.max(Math.abs(ap.x - tp.x), Math.abs(ap.y - tp.y)) <= 1)
+          eng.queue({ kind: 'impulse/strike', host: { e: attacker.id }, roles: { actor: { e: e.id }, ...(piece && { instrument: { e: piece.id } }) }, params: { power: THORN_PRICK, thorn: true }, cause: by.cause, origin: by.origin, depth: (by.depth ?? 0) + 1 })
+      }
     },
     stepped: (e) => recordCombatStep(w, e),
   }

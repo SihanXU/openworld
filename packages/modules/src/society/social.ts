@@ -7,7 +7,7 @@
 //
 // Nothing here asks whether one is the player (CLAUDE.md): anyone can steal, see, tell, be wanted.
 
-import { DIRS, TICKS_PER_DAY, evalCond, type DeedDef, type DeedMemory, type Engine, type Entity, type GameEvent, type Id, type LawDef, type Look, type NpcMemory, type Pos, type PropValue, type Ref, type Roles, type SocialParams, type TalkOption, type TalkVerb, type Text } from '@openworld/engine'
+import { DIRS, TICKS_PER_DAY, evalCond, levelFactor, type DeedDef, type DeedMemory, type Engine, type Entity, type GameEvent, type Id, type LawDef, type Look, type NpcMemory, type Pos, type PropValue, type Ref, type Roles, type SocialParams, type TalkOption, type TalkVerb, type Text } from '@openworld/engine'
 
 /** The social numbers when the world gives none (the content gives its own). */
 export const SOCIAL_DEFAULTS: SocialParams = {
@@ -169,11 +169,64 @@ export class Social {
     const m = this.record(of)
     if (!m || of.id === toward || !Number.isFinite(delta)) return 0
     const now = this.regard(of, toward)
-    const d = delta > 0 ? delta * (100 / (100 + Math.max(0, now) * 2)) : delta
+    const d = delta > 0 ? delta * (100 / (100 + Math.max(0, now) * 2)) * this.kinship(of, toward) : delta
     const next = Math.max(-100, Math.min(100, Math.round((now + d) * 10) / 10))
     ;(m.regard ??= {})[toward] = next
     ;(m.regardAt ??= {})[toward] = this.w.state.tick
     return next - now
+  }
+
+  // ---------------------------------------------------------------- good and evil, faith
+
+  /**
+   * Where one stands between good and evil (−1..1): its own `alignment`, else read from its honesty (the honest good,
+   * a thief like Vigo evil, a peddler who bends the truth in between).
+   */
+  alignment(e: Entity): number {
+    const own = this.w.prop(e, 'alignment')
+    if (typeof own === 'number') return Math.max(-1, Math.min(1, own))
+    return Math.max(-1, Math.min(1, (this.w.num(e, 'honesty', 1) - 0.5) * 2))
+  }
+
+  /**
+   * How much faster a liking grows between like and like: the other's karma (−100..100) against one's alignment — the
+   * good warm sooner to the good and slower to the wicked, the wicked the other way (at most 1.6×, at least 0.4×).
+   */
+  kinship(of: Entity, toward: Id): number {
+    const other = this.w.get(toward)
+    if (!other) return 1
+    const k = Math.max(-100, Math.min(100, this.w.num(other, 'karma'))) / 100
+    return Math.max(0.25, 1 + 0.6 * k * this.alignment(of))
+  }
+
+  /** One's karma or faith moves (−100..100), and the one at the keys is told. */
+  moral(e: Entity, key: 'karma' | 'faith', delta: number): number {
+    if (!Number.isFinite(delta) || !delta) return 0
+    const now = this.w.num(e, key)
+    const next = Math.max(-100, Math.min(100, Math.round(now + delta)))
+    if (next === now) return 0
+    this.w.setProp(e, key, next)
+    if (e.id === this.w.state.player) {
+      const d = next - now
+      const text =
+        key === 'karma'
+          ? d > 0 ? { en: `Your heart grows lighter (good +${d}).`, zh: `你的心轻了一些（善 +${d}）。` } : { en: `Something in you darkens (evil +${-d}).`, zh: `你心里有什么暗了下去（恶 +${-d}）。` }
+          : d > 0 ? { en: `Your faith deepens (+${d}).`, zh: `你的信念更坚定了（+${d}）。` } : { en: `Your faith wavers (${d}).`, zh: `你的信念动摇了（${d}）。` }
+      this.w.fx.push({ t: 'log', text, tone: d > 0 ? 'good' : 'bad' })
+    }
+    return next - now
+  }
+
+  /**
+   * One saw its own deed (the `conscience` primitive, its own outcome): its karma falls by a quarter of what the deed
+   * weighs with people (murder 25, theft 4) — seen by anyone or not. A blow against one who fought it first is no sin.
+   */
+  conscience(e: Entity, seen: GameEvent): number {
+    const def = this.deedIn(seen)
+    if (!def || seen.params?.own !== true) return 0
+    const victim = seen.roles.target ? this.w.get(seen.roles.target.e) : undefined
+    if (def.violent && victim?.ai?.foes?.includes(e.id)) return 0
+    return this.moral(e, 'karma', -Math.max(1, Math.round(def.weight / 4)))
   }
 
   /** A word for a regard (the talk panel names it). */
@@ -495,7 +548,7 @@ export class Social {
 
   // ---------------------------------------------------------------- trade (§2.10)
 
-  /** What a thing is worth: its `value`, times what its material and quality make of it. */
+  /** What a thing is worth: its `value`, times what its material, quality and level (a piece of gear's) make of it. */
   value(thing: Entity): number {
     const w = this.w
     let v = w.num(thing, 'value', 2)
@@ -504,6 +557,7 @@ export class Social {
     const tags = [...(thing.tags ?? []), ...w.onto.resolve(thing.type).tags]
     const q = (w.onto.data.qualities ?? []).find((x) => x.tag && tags.includes(x.tag))
     if (q?.value) v *= q.value
+    if (typeof w.prop(thing, 'slot') === 'string') v *= levelFactor(w.onto.data.params?.gearLevels, w.num(thing, 'level', 1))
     return Math.max(1, Math.round(v))
   }
 

@@ -57,6 +57,7 @@ export function buildMillbrook(): MapBuilder {
 /** The mill's cellar, under the press: where the vigil oil is kept, and where something has moved in. */
 export function buildMillCellar(): MapBuilder {
   const m = new MapBuilder('millcellar', L('The Mill Cellar', '磨坊地窖'), 'interior', 16, 12, 'floor_stone', 'cave', 'dark', 'frostfang')
+  m.gearLevel = 2
   m.room('stone', 'floor_stone')
   for (const [x, y] of [[2, 2], [13, 2], [2, 9], [13, 9]] as const) m.fixture('fixture/container/barrel', x, y)
   for (const [x, y] of [[6, 2], [9, 2]] as const) m.fixture('fixture/container/crate', x, y)
@@ -71,6 +72,7 @@ export function buildMillCellar(): MapBuilder {
 
 export function buildDawnHill(): MapBuilder {
   const m = new MapBuilder('dawnhill', L('Dawn Hill', '晨光丘'), 'wild', 40, 30, 'grass', 'field', 'outdoor', 'frostfang')
+  m.gearLevel = 2
   rim(m, (x, y) => y >= m.h - 3 && (VIGIL.hillSouth as readonly number[]).includes(x))
   // the hill rises to the north: its top two levels up, a path winding to the chapel
   m.raise(10, 2, 20, 9, 2)

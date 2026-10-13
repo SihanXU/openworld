@@ -148,6 +148,11 @@ export interface Frame {
     wanted?: { bounty: number; by: Text }
     /** The coin one carries. */
     purse: number
+    /**
+     * What the player has, all told (World.stat: their own, what they wear and its rolled extras, their sets, statuses,
+     * what the companion lends), and what the weapon they fight with adds when it strikes: the character sheet's.
+     */
+    stats: Record<string, number>
   }
   /** A yes/no question waiting for the player (time is stopped). */
   question?: { text: Text }
@@ -488,6 +493,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       })),
       // what one owes the watch here, and the coin one carries: a module's (society)
       purse: 0,
+      stats: statsOf(w, p),
     },
     question: w.state.question ? { text: w.state.question.text } : undefined,
     quests: questsOf(eng, entities),
@@ -522,4 +528,20 @@ function questsOf(eng: Engine, entities: EntitySnap[]): Frame['quests'] {
     }
   const tracked = eng.quests.tracked()?.id
   return { marks, journal: eng.quests.journal(), ...(tracked && { tracked }), targets: eng.quests.targets(), board: eng.quests.board() }
+}
+
+/** The stats a character sheet shows, as the world reckons them (World.stat). */
+export const SHEET_STATS = ['atk', 'def', 'critChance', 'critDamage', 'dodge', 'lifesteal', 'cdr', 'xpRate', 'luck', 'moveHaste', 'attackHaste', 'karma', 'faith'] as const
+
+/** One's stats, all told, with what the weapon one fights with adds when it strikes (its power, its own edge). */
+function statsOf(w: import('./world.ts').World, p: import('./types.ts').Entity): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const k of SHEET_STATS) out[k] = Math.round(w.stat(p, k) * 1000) / 1000
+  const weapon = weaponOf(w, p)
+  if (weapon) {
+    out.power = w.num(weapon, 'power')
+    // a weapon's own edge counts as it is fought with (combat.ts reads it off the weapon)
+    for (const k of ['critChance', 'attackHaste', 'lifesteal'] as const) out[k] = Math.round((out[k] + w.num(weapon, k)) * 1000) / 1000
+  }
+  return out
 }

@@ -16,7 +16,7 @@ import { HomesteadPanel } from './homestead.ts'
 import { CompanionPanel, type CompanionTab } from './companion.ts'
 import { QuestLog } from './questlog.ts'
 import { SkillPanel } from './skillpanel.ts'
-import { $, SLOT_KEYS, controlsTable, esc, locale, prefs, t, tx } from './common.ts'
+import { $, SLOT_KEYS, controlsTable, esc, locale, prefs, t, tx, gearFrame } from './common.ts'
 
 export type Tab = 'inventory' | 'craft' | 'options' | 'shop'
 const ICONS: Record<Tab, string> = { inventory: '🎒', craft: '🔨', options: '⚙', shop: '🏪' }
@@ -412,7 +412,7 @@ export class Menu {
 
   private slotHtml(s: Frame['player']['slots'][number], i: number, extra = ''): string {
     const key = i < ROW ? `<span class="key">${SLOT_KEYS[i]}</span>` : ''
-    return `<div class="slot${extra}" data-i="${i}" ${s ? `data-item="${s.item.id}"` : ''}>${key}${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}${s.worn ? '<span class="worn"></span>' : ''}` : ''}</div>`
+    return `<div class="slot${extra}${gearFrame(s?.item)}" data-i="${i}" ${s ? `data-item="${s.item.id}"` : ''}>${key}${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}${s.worn ? '<span class="worn"></span>' : ''}` : ''}</div>`
   }
 
   private inventoryHtml(f?: Frame): string {
@@ -432,25 +432,40 @@ export class Menu {
     const cell = ([key, en, zh2, ghost]: (typeof EQUIP)[number][number]) => {
       const it = worn[key]
       const dim = key === 'arm' && off && !off.works ? ' off' : ''
-      return `<div class="eq-cell"><div class="slot eq-slot${dim}${it ? ' has' : ''}" data-wear="${key}" title="${zh ? zh2 : en}${it ? ` · ${esc(tx(it.name))}` : ''}" ${it ? `data-item="${it.id}"` : ''}>${it ? `<div class="icon" data-icon="${it.id}"></div>` : silhouette(key)}</div><span class="eq-name">${zh ? zh2 : en}</span></div>`
+      return `<div class="eq-cell"><div class="slot eq-slot${dim}${it ? ' has' : ''}${gearFrame(it)}" data-wear="${key}" ${it ? `data-item="${it.id}"` : `title="${zh ? zh2 : en}"`}>${it ? `<div class="icon" data-icon="${it.id}"></div>` : silhouette(key)}</div><span class="eq-name">${zh ? zh2 : en}</span></div>`
     }
     const byKey = Object.fromEntries(EQUIP.flat().map((e) => [e[0], e]))
     const col = (keys: string[]) => `<div class="cs-col">${keys.map((k) => cell(byKey[k])).join('')}</div>`
     const p = f.player
     const num = (v: unknown) => (typeof v === 'number' ? v : Number(v) || 0)
-    const gear = Object.values(worn)
-    const sum = (key: string) => gear.reduce((n, it) => n + num(it.props[key]), 0)
     const level = Math.max(1, num(p.props.level) || 1)
     const prof = typeof p.props.profession === 'string' ? professionById()[p.props.profession] : undefined
-    const stat = (label: string, value: string, cls = '') => `<div class="cs-stat${cls}"><span>${label}</span><b>${value}</b></div>`
+    const stat = (label: string, value: string, cls = '', tip = '') => `<div class="cs-stat${cls}"${tip ? ` title="${esc(tip)}"` : ''}><span>${label}</span><b>${value}</b></div>`
     const pct = (v: number) => `${Math.round(v * 100)}%`
+    const plus = (v: number) => (v > 0 ? `+${pct(v)}` : v < 0 ? `−${pct(-v)}` : '—')
+    // what the world reckons (World.stat: own, worn and its rolled extras, sets, statuses, the companion's power), and
+    // the weapon fought with (snapshot statsOf)
+    const st = (k: string) => num(p.stats?.[k])
+    // good and evil shown as a size: good 5, or evil 5 once it falls below nought
+    const karmaStat = (k: number) =>
+      stat(zh ? '善恶' : 'Karma', k > 0 ? `${zh ? '善良' : 'Good'} +${k}` : k < 0 ? `${zh ? '邪恶' : 'Evil'} +${-k}` : zh ? '中立' : 'Neutral', k > 0 ? ' cs-good' : k < 0 ? ' cs-evil' : '', zh ? '善行使善良的人更快亲近你，恶行则让邪恶的人更快亲近你' : 'Good deeds win the good over faster; evil deeds, the wicked')
     const stats = [
       stat(zh ? '生命' : 'Health', `${p.hp} / ${p.maxHp}`, ' cs-hp'),
       stat(zh ? '饱食' : 'Food', `${p.hunger} / ${p.maxHunger}`, ' cs-food'),
-      stat(zh ? '攻击' : 'Attack', String(num(p.props.atk) + sum('atk'))),
-      stat(zh ? '武器威力' : 'Weapon', String(num(worn.weapon?.props.power) || '—')),
-      stat(zh ? '防御' : 'Defence', String(num(p.props.def) + sum('def'))),
-      stat(zh ? '暴击' : 'Critical', pct(num(p.props.critChance) + sum('critChance'))),
+      stat(zh ? '攻击' : 'Attack', String(st('atk')), '', zh ? '你自己的攻击，加上身上穿戴的' : 'Your own attack and what you wear'),
+      stat(zh ? '武器威力' : 'Weapon', String(st('power') || '—'), '', zh ? '用武器打时再加上的' : 'Added when you strike with your weapon'),
+      stat(zh ? '防御' : 'Defence', String(st('def'))),
+      stat(zh ? '暴击率' : 'Critical', pct(Math.min(1, st('critChance')))),
+      stat(zh ? '暴击伤害' : 'Crit damage', pct(1.5 + st('critDamage')), '', zh ? '暴击时造成的伤害倍数' : 'Damage dealt by a critical hit'),
+      stat(zh ? '闪避' : 'Dodge', pct(Math.min(0.5, st('dodge')))),
+      stat(zh ? '吸血' : 'Lifesteal', st('lifesteal') ? `+${st('lifesteal')}` : '—', '', zh ? '每次命中吸取的生命' : 'Health drawn back per hit'),
+      stat(zh ? '冷却缩减' : 'Cooldowns', plus(st('cdr'))),
+      stat(zh ? '经验获取' : 'Experience', plus(st('xpRate'))),
+      stat(zh ? '幸运' : 'Luck', plus(st('luck')), '', zh ? '怪物掉落稀有材料与专属装备的几率提高' : 'Monsters drop rare parts and trophies more often'),
+      stat(zh ? '移动速度' : 'Move speed', plus(st('moveHaste'))),
+      stat(zh ? '攻击速度' : 'Attack speed', plus(st('attackHaste'))),
+      karmaStat(st('karma')),
+      stat(zh ? '信念' : 'Faith', st('faith') > 0 ? `+${st('faith')}` : st('faith') < 0 ? `−${-st('faith')}` : '0', st('faith') < 0 ? ' cs-doubt' : st('faith') > 0 ? ' cs-faith' : '', zh ? '你与教会的关系：在祭坛和圣龛祈祷会升高，散布无神论会降低；会改变剧情走向' : 'How you stand with the Church: prayer at altars and shrines raises it, spreading unbelief lowers it; the story turns on it'),
     ].join('')
     const sheet = `<div class="cs">
         <div class="cs-head"><span class="cs-lv">${zh ? '等级' : 'Lv'} ${level}</span><span class="cs-prof">${prof ? esc(tx(prof.name)) : zh ? '无职业' : 'No profession'}</span></div>

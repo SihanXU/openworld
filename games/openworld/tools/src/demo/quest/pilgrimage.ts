@@ -6,7 +6,7 @@
 // Kneeling Field, where the pilgrims before you knelt to him and stayed. Then the East Road and the knight.
 
 import type { AiData, StepDef } from '@openworld/engine'
-import { ABBOT_ID, ALBERIC_ID, CH1, ORDER_SEAL, PILGRIMAGE, WAYSHRINES, WRIT, shrineFact } from '@openworld-game/content'
+import { ABBOT_ID, ALBERIC_ID, CH1, CHURCH, FAITH, ORDER_SEAL, PILGRIMAGE, WAYSHRINES, WRIT, shrineFact } from '@openworld-game/content'
 import { MapBuilder, rng } from '../builder.ts'
 import { L, GROUND_YIELD, appears, clump, lay } from '../kit.ts'
 import { room } from '../village.ts'
@@ -115,6 +115,7 @@ export function buildHostel(): MapBuilder {
 export function buildWay(): MapBuilder {
   const P = PILGRIM.way
   const m = new MapBuilder('pilgrimway', L("The Pilgrim's Road", '朝圣者之路'), 'wild', P.w, P.h, 'grass', 'field', 'outdoor', 'frostfang')
+  m.gearLevel = 3
   rim(m, (x, y) => (x < 4 && has(P.west, y)) || (x >= m.w - 4 && has(P.east, y)) || (y < 4 && has(P.north, x)), 4)
   for (const [cx, cy, r] of [[12, 4.5, 2.4], [22, 19, 2.6], [36, 4, 2.2], [46, 19, 2.6]] as const) clump(m, cx, cy, r, 0.7)
   m.path([[0, 12], [7, 12], [15, 13], [24, 11], [33, 12], [42, 13], [50, 12], [55, 12]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
@@ -166,6 +167,7 @@ export function buildWay(): MapBuilder {
 export function buildAbbey(): MapBuilder {
   const P = PILGRIM.abbey
   const m = new MapBuilder('abbey', L('Abbey of the Thorn', '荆棘修道院'), 'wild', P.w, P.h, 'grass', 'forest', 'outdoor', 'frostfang')
+  m.gearLevel = 4
   rim(m, (x, y) => y >= m.h - 4 && has(P.south, x), 4)
   m.path([[20, 29], [20, 22], [20, 15]], 'path', 2, { edge: 'dirt', edgeP: 0.3 })
   // the cloister's broken walls round a yard of weeds
@@ -201,6 +203,7 @@ export function buildAbbey(): MapBuilder {
 /** The chapter hall: the Order's roll, the knights' table, and at the back a knight's narrow cell. */
 export function buildAbbeyHall(): MapBuilder {
   const m = room('abbey.hall', 'The Chapter Hall', '骑士团大厅', 22, 14, 'stone', 'floor_stone', 'dungeon')
+  m.gearLevel = 4
   m.fixture('fixture/furniture/table', 10, 3, {
     name: L('The Roll of the Order', '骑士团名册'),
     tags: ['readable'],
@@ -231,6 +234,7 @@ export function buildAbbeyHall(): MapBuilder {
 /** The crypt under the abbey's shrine: the Order's dead in their niches, and its last keeper with the seal. */
 export function buildAbbeyCrypt(): MapBuilder {
   const m = new MapBuilder('abbey.crypt', L('Crypt of the Order', '骑士团地下墓室'), 'interior', 30, 20, 'cave_wall', 'cave', 'dark', 'frostfang')
+  m.gearLevel = 5
   m.room('stone', 'floor_stone')
   for (let x = 1; x < m.w - 1; x++) for (const y of [6, 13]) if (x % 6 !== 3) m.set(x, y, 'wall')
   for (const [x, y] of [[4, 3], [12, 3], [20, 3], [26, 9], [6, 16]] as const) m.fixture('fixture/light/brazier', x, y, { statuses: { lit: -1 } })
@@ -251,6 +255,7 @@ export function buildAbbeyCrypt(): MapBuilder {
 export function buildField(): MapBuilder {
   const P = PILGRIM.field
   const m = new MapBuilder('kneelfield', L('The Kneeling Field', '跪石原'), 'wild', P.w, P.h, 'grass', 'field', 'outdoor', 'frostfang')
+  m.gearLevel = 4
   rim(m, (x, y) => (x < 4 && has(P.west, y)) || (x >= m.w - 4 && has(P.east, y)))
   m.path([[0, 12], [10, 12], [22, 11], [34, 12], [43, 12]], 'path', 2, { edge: 'dirt', edgeP: 0.25 })
   m.organic(22, 12, 15, 8, 'drygrass', { only: (t) => t === 'grass', rough: 0.3 })
@@ -301,6 +306,43 @@ export const PILGRIMAGE_STORY: StepDef[] = [
       say('npc.caius', 'The Seal-bearer has held that road three hundred years. Kneel to him if you must; he will spare you. ...He was due relief, once. That is not a pilgrim\'s concern.', '那位持印者守着那条路已经三百年了。必要的话就向他下跪，他会放过你的。……他本该有人去接替。那不是朝圣者该操心的事。', 'sad'),
       say('pip', '"Was due relief"? What does that mean? — He went quiet. I don\'t like it when grown-ups go quiet.', '"本该有人接替"？那是什么意思？——他不说话了。我不喜欢大人突然不说话。', 'surprised'),
       { fact: PILGRIMAGE.oath, value: 1 },
+    ],
+  },
+  // ---- the Church's answer to one's faith (content faith.ts): blessed by its priest, or watched by the Grey Man
+  {
+    // The devout: the priest sees one who prays as if it mattered, and gives what the Church gives its own.
+    id: 'caius_blessing',
+    when: { map: 'waystation', after: 'pilgrim_oath', props: { faith: { gte: FAITH.devout } } },
+    script: [
+      say('npc.caius', 'You pray as if someone were listening. Few do, this far east. — Here. Holy water from the See; the dead on the road do not like it.', '你祈祷的样子，像是真有谁在听。到了这么东边，很少有人这样了。——拿着。圣座的圣水；路上那些死人不喜欢它。', 'happy'),
+      { give: 'item/vessel/flask/holy_water', count: 2 },
+      say('npc.caius', 'And one thing more, since you keep the faith. The abbey kept its letters in the hall. If you find the writ of relief... bring me word of what it says. I was told not to ask.', '还有一件事，既然你守着信仰。修道院的信件都收在大厅里。要是你找到那份替任文书……告诉我上面写了什么。他们叫我别问。', 'sad'),
+      { fact: CHURCH.blessed, value: 1 },
+    ],
+  },
+  {
+    // The unbeliever: word of it has reached the Rest before them.
+    id: 'caius_cold',
+    when: { map: 'waystation', after: 'pilgrim_oath', props: { faith: { lte: FAITH.doubter } } },
+    script: [
+      say('npc.caius', 'They tell me you say there are no gods. On the road to the Seal-bearer, with the Church\'s letter in your bag.', '有人告诉我，你到处说世上没有神。走在去见持印者的路上，包里还揣着教会的信。', 'angry'),
+      say('npc.caius', 'Go on, then. But the Rest\'s blessing is for pilgrims, and I will not pretend you are one.', '那你就走吧。但驿站的祝福是给朝圣者的，我不会假装你是其中之一。'),
+      say('pip', 'He\'s not wrong that you said it. ...He\'s wrong that it makes you not one, though.', '你确实说过那话，这点他没说错。……但他说你因此就不算朝圣者，这就错了。', 'shy'),
+      { fact: CHURCH.shunned, value: 1 },
+    ],
+  },
+  {
+    // The Grey Man finds one who has stopped believing the Church: he has things to say to such a pilgrim.
+    id: 'grey_man_doubter',
+    when: { map: 'pilgrimway', after: 'way_first', props: { faith: { lte: FAITH.doubter } } },
+    script: [
+      { place: 'npc.severin', map: 'pilgrimway', x: 44, y: 12 },
+      say('npc.severin', 'You stopped kneeling. Good. Then you can hear this without your Church\'s hand over your ears.', '你不再下跪了。很好。那你就能不被教会捂着耳朵，听我说完。'),
+      say('npc.severin', 'Those shrines are not prayers. They are a cage\'s bars, counted out loud. Five sufferings, five seals, five bearers. Ask who decided the bearers would suffer.', '那些圣龛不是祈祷。那是笼子的栏杆，被一根根念出来。五种苦难，五道印，五位持印者。去问问是谁决定让持印者受苦的。'),
+      say('npc.severin', 'When you reach the abbey, read what they kept back. Then decide whose road this is.', '到了修道院，读一读他们扣下的东西。然后再决定这是谁的路。'),
+      { move: 'npc.severin', x: 54, y: 12 },
+      { place: 'npc.severin', map: 'offstage', x: 2, y: 2 },
+      { fact: CHURCH.greyman, value: 1 },
     ],
   },
   {
@@ -382,6 +424,18 @@ export const PILGRIMAGE_STORY: StepDef[] = [
       say('pip', 'It\'s not for us. ...It\'s not for us, right?', '那不是给我们的。……不是给我们的，对吧？', 'shy'),
       { fact: PILGRIMAGE.field, value: 1 },
     ],
+  },
+  {
+    // The Kneeling Field to the devout: the Church's own blessing on these stones.
+    id: 'kneelfield_devout',
+    when: { map: 'kneelfield', after: 'kneelfield_arrival', props: { faith: { gte: FAITH.devout } } },
+    say: L('"Sent with the blessing of the Holy See." ...You prayed the same prayers they did. Did they think someone was listening, too?', '"奉圣座祝福而来。"……你念的祷词和他们一模一样。他们当时也以为有人在听吗？'),
+  },
+  {
+    // The Kneeling Field to the unbeliever: no god asked this of them.
+    id: 'kneelfield_doubter',
+    when: { map: 'kneelfield', after: 'kneelfield_arrival', props: { faith: { lte: FAITH.doubter } } },
+    say: L('You said there are no gods. Then nobody asked this of them. Somebody just... sent them. That\'s worse. That\'s so much worse.', '你说过世上没有神。那就是说，没有谁要求他们这样做。只是有人……把他们派来了。那更糟。糟糕得多。'),
   },
 ]
 void ALBERIC_ID

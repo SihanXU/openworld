@@ -1,8 +1,8 @@
 {
  "totals": {
-  "specific": 31846,
+  "specific": 31851,
   "generic": 18953,
-  "undefined": 41213
+  "undefined": 41208
  },
  "byRule": {
   "board/read": 5,
@@ -22,12 +22,13 @@
   "build/unpost": 1,
   "build/unring": 1,
   "build/unstake": 1,
+  "combat/learn": 30,
   "combat/struck": 35,
   "core/fish": 4,
   "core/open-close": 95,
   "core/put": 18713,
   "core/put-bound": 1,
-  "core/read": 55,
+  "core/read": 30,
   "core/receive-lava": 213,
   "core/take": 193,
   "core/use": 47,
@@ -89,16 +90,16 @@
   "wood/uproot": 1
  },
  "byHole": {
-  "core/handle": 613,
+  "core/handle": 608,
   "core/offered": 82,
   "core/strike": 3668,
   "core/use": 36850
  },
  "byHand": {
   "(empty hand)": {
-   "specific": 113,
+   "specific": 114,
    "generic": 240,
-   "undefined": 284
+   "undefined": 283
   },
   "item/weapon/blade/sword": {
    "specific": 173,
@@ -301,9 +302,9 @@
    "undefined": 147
   },
   "item/tool/fishing_rod": {
-   "specific": 217,
+   "specific": 218,
    "generic": 88,
-   "undefined": 120
+   "undefined": 119
   },
   "item/tool/smith_hammer": {
    "specific": 174,
@@ -331,9 +332,9 @@
    "undefined": 213
   },
   "item/tool/lockpick": {
-   "specific": 215,
+   "specific": 216,
    "generic": 88,
-   "undefined": 122
+   "undefined": 121
   },
   "item/light/torch": {
    "specific": 336,
@@ -991,9 +992,9 @@
    "undefined": 210
   },
   "item/key": {
-   "specific": 205,
+   "specific": 206,
    "generic": 88,
-   "undefined": 132
+   "undefined": 131
   },
   "item/misc/bell": {
    "specific": 124,
@@ -1031,9 +1032,9 @@
    "undefined": 213
   },
   "item/misc/feather_quill": {
-   "specific": 215,
+   "specific": 216,
    "generic": 88,
-   "undefined": 122
+   "undefined": 121
   },
   "item/misc/ink": {
    "specific": 124,
@@ -1458,9 +1459,9 @@
    "undefined": 203
   },
   "fixture/sacred/altar": {
-   "specific": 16,
+   "specific": 21,
    "generic": 214,
-   "undefined": 203
+   "undefined": 198
   },
   "fixture/sacred/sword": {
    "specific": 229,

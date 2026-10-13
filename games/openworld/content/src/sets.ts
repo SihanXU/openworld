@@ -54,21 +54,21 @@ export const SET_DEFS: SetDef[] = [
   {
     id: 'shadowfang', profession: 'assassin', en: 'Shadowfang', zh: '影刃', level: 3,
     pieces: [
-      P('head', 'item/clothing/hood', 'Shadowfang Hood', '影刃兜帽', [[LEATHER, 2], [CLOTH, 1]], { stealth: 1 }),
+      P('head', 'item/clothing/hood', 'Shadowfang Hood', '影刃兜帽', [[LEATHER, 2], [CLOTH, 1]], { dodge: 0.01 }),
       P('ear', 'item/valuable/earring', 'Shadowfang Earring', '影刃耳坠', [[GOLD, 1]], { critChance: 0.01 }, 'jeweler'),
       P('neck', 'item/valuable/amulet', 'Shadowfang Pendant', '影刃吊坠', [[GOLD, 1], [STEEL, 1]], { dodge: 0.01 }, 'jeweler'),
       P('shoulders', 'item/clothing/cloak', 'Shadowfang Cloak', '影刃披风', [[CLOTH, 3], [LEATHER, 1]], { dodge: 0.02 }),
       P('body', 'item/armor/jerkin', 'Shadowfang Jerkin', '影刃皮甲', [[LEATHER, 4], [STEEL, 1]], { dodge: 0.03 }),
       P('hands', 'item/clothing/gloves', 'Shadowfang Gloves', '影刃手套', [[LEATHER, 2]], { critChance: 0.02 }),
       ring('Shadowfang Ring', '影刃指环', { critDamage: 0.1 }),
-      P('waist', 'item/clothing/belt', 'Shadowfang Belt', '影刃腰带', [[LEATHER, 2], [IRON, 1]], { stealth: 1 }),
+      P('waist', 'item/clothing/belt', 'Shadowfang Belt', '影刃腰带', [[LEATHER, 2], [IRON, 1]], { luck: 0.03 }),
       P('feet', 'item/clothing/boots', 'Shadowfang Boots', '影刃软靴', [[LEATHER, 3]], { dodge: 0.02 }),
       P('weapon', 'item/weapon/blade/dagger', 'Shadowfang', '影刃', [[STEEL, 2], [LEATHER, 1]], { critChance: 0.03 }),
       P('arm', 'item/armor/parrying_dagger', 'Shadowfang Parrier', '影刃格挡短刃', [[STEEL, 1], [LEATHER, 1]]),
     ],
     armour: [
       { pieces: 2, props: { dodge: 0.03 }, text: L(`Dodge +${pct(0.03)}`, `闪避 +${pct(0.03)}`) },
-      { pieces: 4, props: { stealth: 2, critChance: 0.05 }, text: L(`Stealth +2, critical chance +${pct(0.05)}`, `潜行 +2，暴击率 +${pct(0.05)}`) },
+      { pieces: 4, props: { luck: 0.1, critChance: 0.05 }, text: L(`Luck +${pct(0.1)}, critical chance +${pct(0.05)}`, `幸运 +${pct(0.1)}，暴击率 +${pct(0.05)}`) },
       { pieces: 6, props: { critDamage: 0.3, lifesteal: 1 }, text: L(`Critical damage +${pct(0.3)}; each hit draws 1 health`, `暴击伤害 +${pct(0.3)}，每次命中吸取 1 点生命`) },
     ],
     trinkets: [
@@ -93,12 +93,12 @@ export const SET_DEFS: SetDef[] = [
     ],
     armour: [
       { pieces: 2, props: { def: 2 }, text: L('Defence +2', '防御 +2') },
-      { pieces: 4, props: { atk: 1, holdFast: 0.1 }, text: L(`Attack +1; ${pct(0.1)} less damage standing still`, `攻击 +1，站定不动时受到的伤害 -${pct(0.1)}`) },
+      { pieces: 4, props: { atk: 1, def: 2 }, text: L('Attack +1, defence +2', '攻击 +1，防御 +2') },
       { pieces: 6, props: { def: 3, lifesteal: 1 }, text: L('Defence +3; each hit draws 1 health', '防御 +3，每次命中吸取 1 点生命') },
     ],
     trinkets: [
       { pieces: 2, props: { atk: 1 }, text: L('Attack +1', '攻击 +1') },
-      { pieces: 3, props: { atk: 1, def: 2, holdFast: 0.05 }, text: L(`Attack +1, defence +2; ${pct(0.05)} less damage standing still`, `攻击 +1，防御 +2，站定不动时受到的伤害 -${pct(0.05)}`) },
+      { pieces: 3, props: { atk: 1, def: 3 }, text: L('Attack +1, defence +3', '攻击 +1，防御 +3') },
     ],
   },
   {

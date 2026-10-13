@@ -245,3 +245,15 @@ export function controlsTable(dev: boolean): string {
   if (dev) rows.push(['`', 'Mod Console (dev)', '模组控制台（开发）'])
   return `<table>${rows.map(([k, en, z]) => `<tr><td><kbd>${k}</kbd></td><td>${zh ? z : en}</td></tr>`).join('')}</table>`
 }
+
+/**
+ * A slot's frame for what is in it (2026-10-12, after Dungeon Fighter's item slots): gear sits on a dark ground in a
+ * border of its quality's colour — crude grey, common white, fine blue, masterwork purple, Vowbound pink, Stigmatic
+ * orange, a monster's own piece gold; anything else keeps the plain slot.
+ */
+export function gearFrame(it: { type: string; tags: string[] } | undefined): string {
+  if (!it || !(it.tags.includes('wearable') || it.type.startsWith('item/weapon'))) return ''
+  const q = it.tags.find((t) => t.startsWith('quality:'))?.slice(8)
+  const tier = it.tags.includes('trophy') ? 'trophy' : (q ?? 'common')
+  return ` gear q-${tier}`
+}

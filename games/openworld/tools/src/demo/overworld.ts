@@ -30,6 +30,9 @@ const PLACES: Record<string, { ground: string; kind: string; opensWhen?: string 
   pasture: { ground: 'ow_plain', kind: 'farm' },
   forest: { ground: 'ow_plain', kind: 'woods' },
   hollow: { ground: 'ow_plain', kind: 'hollow' },
+  charcoal: { ground: 'ow_forest', kind: 'woods' },
+  // the river's own cell (the barrier's, D22): a camp on the near bank, reached through the forest alone
+  reedbend: { ground: 'ow_river', kind: 'camp' },
   barrow: { ground: 'ow_plain', kind: 'barrow' },
   waystation: { ground: 'ow_road', kind: 'camp' },
   pilgrimway: { ground: 'ow_road', kind: 'waystone' },

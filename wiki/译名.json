@@ -37,6 +37,8 @@
     "work the village garden": "打理村里的菜园",
     "watch the herd": "看着牛群",
     "mind the wheel": "照看水车",
+    "tend the kilns": "看炭窑",
+    "fish from the pier": "在码头钓鱼",
     "hold": "守着",
     "keep the held ground": "守护誓守之地",
     "keep out of sight": "藏起行踪",
@@ -52,6 +54,7 @@
     "play by the well": "在井边玩耍"
   },
   "性格": {
+    "blunt": "直来直去",
     "stubborn": "固执",
     "plain": "直率",
     "reserved": "内敛",
@@ -85,6 +88,7 @@
     "bold": "大胆"
   },
   "关系": {
+    "the woodcutter he trades with": "一起做买卖的樵夫",
     "owes her last autumn's fare": "欠她去年秋天的船钱",
     "the ferrykeeper he owes a fare": "他欠船钱的摆渡人",
     "the smith she trusts with the village gate": "她托付守镇门的铁匠",
@@ -109,6 +113,9 @@
     "mother": "母亲"
   },
   "条件": {
+    "fact:ch1.roost": "黄昏看过老橡树之后",
+    "fact:ch1.boatbell": "交回船铃之后",
+    "fact:ch1.drowned_stone": "读过沉石之后",
     "default": "平时",
     "rain": "下雨时",
     "storm": "暴风雨时",
@@ -269,6 +276,8 @@
     "arm": "副手"
   },
   "属性": {
+    "luck": "幸运",
+    "level": "等级",
     "power": "攻击",
     "range": "射程",
     "def": "防御",
@@ -288,7 +297,8 @@
     "holdFast": "稳固",
     "block": "格挡率",
     "night:def": "夜间防御",
-    "night:atk": "夜间攻击"
+    "night:atk": "夜间攻击",
+    "vow": "誓言"
   },
   "任务词": {
     "alias:hungry": "饿着的人",
