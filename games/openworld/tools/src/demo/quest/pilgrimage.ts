@@ -279,9 +279,10 @@ export function buildField(): MapBuilder {
 
 export const PILGRIMAGE_STORY: StepDef[] = [
   {
-    // The Rest: the Church's priest has been waiting for the pilgrim the letter named.
+    // The Rest: the Church's priest has been waiting for the pilgrim the letter named (not once the knight has fallen:
+    // the road the oath was for is behind them — `rest_after` greets them then).
     id: 'rest_arrival',
-    when: { map: 'waystation', facts: { [CH1.letter]: 1 } },
+    when: { map: 'waystation', facts: { [CH1.letter]: 1, [CH1.knight]: 0 } },
     script: [
       say('npc.caius', 'A pilgrim, at last — and with a fairy, as the letter said. Welcome to the Rest. I am Father Caius; the Holy See keeps me here to send the pilgrims on.', '终于来了一位朝圣者——还带着精灵，正如信上所说。欢迎来到驿站。我是凯乌斯司铎；圣座派我驻守在这里，送朝圣者上路。', 'happy'),
       say('npc.caius', 'Before the road, the oath. Come to the chapel and kneel at the five wounds. A pilgrim who has not knelt does not reach the First Seal-bearer.', '上路之前，先立誓。到礼拜堂来，在五道圣伤前跪下。没跪过的朝圣者，到不了第一持印者面前。'),
@@ -290,9 +291,9 @@ export const PILGRIMAGE_STORY: StepDef[] = [
     ],
   },
   {
-    // The oath: at the altar of the five wounds, the priest takes the pilgrim through the Five.
+    // The oath: at the altar of the five wounds, the priest takes the pilgrim through the Five. Not past the knight.
     id: 'pilgrim_oath',
-    when: { map: 'waystation.chapel', region: 'altar', after: 'rest_arrival' },
+    when: { map: 'waystation.chapel', region: 'altar', after: 'rest_arrival', facts: { [CH1.knight]: 0 } },
     script: [
       say('npc.caius', 'Kneel. — Say after me. The first suffering: the Crown. He let them press the thorns into his brow, and did not lift his hand.', '跪下。——跟着我念。第一苦：戴冠。他任由荆棘刺进额头，没有抬手。'),
       say('npc.caius', 'The second: the Scourge. Bound to the pillar, he bled for every one of us. The third: Hunger. On the scales his flesh grew lighter than sin.', '第二苦：受鞭。他被绑在刑柱上，为我们每一个人流血。第三苦：受饥。在天平上，他的肉身变得比罪还轻。'),
@@ -301,6 +302,15 @@ export const PILGRIMAGE_STORY: StepDef[] = [
       say('npc.caius', 'The Seal-bearer has held that road three hundred years. Kneel to him if you must; he will spare you. ...He was due relief, once. That is not a pilgrim\'s concern.', '那位持印者守着那条路已经三百年了。必要的话就向他下跪，他会放过你的。……他本该有人去接替。那不是朝圣者该操心的事。', 'sad'),
       say('pip', '"Was due relief"? What does that mean? — He went quiet. I don\'t like it when grown-ups go quiet.', '"本该有人接替"？那是什么意思？——他不说话了。我不喜欢大人突然不说话。', 'surprised'),
       { fact: PILGRIMAGE.oath, value: 1 },
+    ],
+  },
+  {
+    // The Rest once the knight has fallen: the priest greets the one who came back from him (or comes by first after him).
+    id: 'rest_after',
+    when: { map: 'waystation', facts: { [CH1.knight]: { ne: 0 } } },
+    script: [
+      say('npc.caius', 'You came from the east. From him. ...Then it is done, and the road is open. The Holy See will have its Crown, the first of the five.', '你是从东边来的。从他那里。……那么，事情办完了，路也通了。圣座会得到它的荆棘冠——五件圣器的第一件。', 'sad'),
+      say('npc.caius', 'Rest here as long as you need, pilgrim. The chapel is open, and the five wounds keep.', '想在这里歇多久都行，朝圣者。礼拜堂一直开着，五道圣伤也一直在。'),
     ],
   },
   {

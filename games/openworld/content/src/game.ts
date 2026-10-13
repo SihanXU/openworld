@@ -22,6 +22,14 @@ function upgradeSave(eng: Engine): void {
       // a smith's Masterwork was its station's `<station>:masterwork` before the engine named the lift `<station>:lift`
       for (const [key, v] of Object.entries(e.props ?? {})) if (key.endsWith(':masterwork') && typeof v === 'number') (w.setProp(e, `${key.slice(0, -':masterwork'.length)}:lift`, v), w.setProp(e, key, undefined))
     }
+    // The First Seal's stage 40 (across the river) showed the White Knight until the Pilgrim's Road came between them
+    // (2026-10-12, docs/chapter-1.md §14): it shows the oath at the Pilgrims' Rest now, and the knight from stage 80. A
+    // save at that stage from before shows what the stage shows now (the oath's own fact moves it on, as ever).
+    const seal = w.get('quest.first_seal')
+    if (seal && w.prop(seal, 'state') === 'active' && w.prop(seal, 'stage') === 40 && w.prop(seal, 'obj.oath') === undefined) {
+      w.setProp(seal, 'obj.oath', 'shown')
+      if (w.prop(seal, 'obj.knight') === 'shown') w.setProp(seal, 'obj.knight', undefined)
+    }
 }
 
 export const GAME: GameDef = {

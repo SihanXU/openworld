@@ -82,16 +82,18 @@ const BOOKS: Recipe[] = ACTIVE_SKILLS.map((s) => {
 
 export const VILLAGE_SHOP_RECIPES: Recipe[] = [...STORE, ...BOOKS]
 
-/** A hand on a shop's counter opens its panel (the stall's is homestead.ts home/stall). */
+/**
+ * A hand on a shop's counter opens its panel (the stall's is homestead.ts home/stall). A counter or stand with something
+ * written on it instead (the litany on the bookstand in the Pilgrims' Rest's chapel) is read, as any written thing is.
+ */
 export const VILLAGE_SHOP_RULES: Rule[] = [
   { station: 'store', type: 'fixture/furniture/counter/store' },
   { station: 'books', type: 'fixture/furniture/bookstand' },
 ].map(({ station, type }) => ({
   id: `village/shop-${station}`,
-  label: L('Trade at {target}', '在{target}交易'),
-  doc: `A hand on the ${station === 'store' ? 'general store\'s counter' : 'church\'s bookstand'}: its shelves are shown (the shop panel; buying and selling are made there).`,
+  doc: `A hand on the ${station === 'store' ? 'general store\'s counter' : 'church\'s bookstand'}: its shelves are shown (the shop panel; buying and selling are made there) — unless it is a written thing (readable, with a text), which is read (core/read).`,
   host: { type },
   on: 'impulse/handle',
-  tree: { do: [{ op: 'panel', panel: `shop:${station}` }] },
+  tree: { if: { all: [{ has: { role: 'host', tag: 'readable' } }, { prop: { role: 'host', key: 'text' } }] }, then: 'inherit', else: { do: [{ op: 'panel', panel: `shop:${station}` }], label: L('Trade at {target}', '在{target}交易') } },
   source: { origin: 'base' },
 }))
