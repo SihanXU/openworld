@@ -47,14 +47,14 @@ describe('the starter, on the kernel alone', () => {
 
   it('loads no module, and the kernel needs none', () => {
     expect(bundle.game.modules).toEqual([])
-    for (const m of ['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society']) expect(registeredModule(m)).toBeUndefined()
+    for (const m of ['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society', 'loot']) expect(registeredModule(m)).toBeUndefined()
     const game = newGame()
     expect(game.engine.modules).toEqual([])
     // the AI is told only of what this game has: the kernel's primitives, none of a module's
     const spec = buildModSpec(game.engine.world.onto.data)
     const ops = Object.keys(spec.primitives)
     expect(ops).toContain('hurt')
-    for (const op of ['feed', 'boon', 'talk', 'pay', 'arrest', 'release']) expect(ops).not.toContain(op)
+    for (const op of ['feed', 'boon', 'talk', 'pay', 'arrest', 'release', 'trophy']) expect(ops).not.toContain(op)
   })
 
   it('a new game begins at its start, at its hour, and the story opens', () => {

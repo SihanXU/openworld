@@ -196,12 +196,23 @@ P2 and P3 overlap where they do not touch (the catalogue as data needs no module
 - **The modules**: `classes` (professions and their weapons, the combat talents, relics, the active skills
   and the skill bar; it fills the combat slot), `bosses` (the encounter goal, `release`), `waypoints`,
   `boons` (needs waypoints), `needs` (hunger: `feed`, the woken-by-hunger word), `society` (the social life and
-  conduct of docs/npc-sandbox.md: 23 primitives, 9 conditions, the goals social, follow and need, the watches as
-  residents; it fills the society slot). OpenWorld names all six (`content/src/ontology.ts` `MODULES`).
+  conduct of docs/npc-sandbox.md: 24 primitives — `moveIn` the latest, 2026-10-12 —, 9 conditions, the goals
+  social, follow and need, the watches as residents; it fills the society slot), `loot` (2026-10-12: a creature
+  kind's own piece of gear, its `trophy` prop, found on felling one by its `trophyChance` or surely after
+  `Ontology.loot.pity` fellings, the count the feller's `trophy.<type>`; one primitive, `trophy`; the words the
+  finder is told are the game's, `loot.found`. Only a piece some kind of the game's own ontology names as its
+  trophy is ever made, so no rule, a patch's included, can put another type into a bag by defeat news; its
+  chance is a `World.chance` site, so the sandbox explores both outcomes). OpenWorld names all seven
+  (`content/src/ontology.ts` `MODULES`).
   **Kept in the kernel**, by decision: looks, experience and levels, the codex, a companion's following, the
   quests and the story — mechanisms every game has, with each game's data; the editor and the AI interface
-  stand on them. The runtime may import modules (the worker casts, sets the skill bar, takes a profession,
-  chooses a boon through them).
+  stand on them. So are **gear sets** (`Ontology.sets`: a piece's `set` prop, bonuses by the count of slots worn)
+  and **rolled affixes** (`Ontology.affixes`, `engine/affixes.ts`: a piece's `sub:<key>` extras, rolled as gear is
+  made; of weapons only the one fought with counts, `weaponOf`), decided 2026-10-12: mechanisms configured
+  entirely by data, which World.stat reads as it reads any worn number; a game without the tables has neither.
+  A recipe's `make` that names or tags what it makes is made as it says; `madeOf` asks for the material and
+  quality as well (a set's piece). A skill book asks no points but holds to the tree's `requires`. The runtime
+  may import modules (the worker casts, sets the skill bar, takes a profession, chooses a boon through them).
 - **Ids and numbers out of the kernel**: the coin (`ontology.social.coin`), the waypoint stone's type
   (`params.waypoint`), the fact that lengthens the night (`params.nightFact`, the Ford's `night.shift`), the
   professions' names (`ontology.professions`). `game.difficulty` stays the engine's own fact (a new game's

@@ -274,6 +274,14 @@ describe('where active skills come from: the tree, a book, what one wears', () =
     const give = (id: string) => eng.author(() => w.create('item/document/skillbook', { on: 'inside', holder: p.id }, skillBook(id)))
     const book = give('whirlwind')
     expect(w.num(p, 'skillPoints')).toBe(0)
+    // a book does not leap the tree: Whirlwind comes after Sweep, and is not read before it
+    expect(SKILL_BY_ID.whirlwind.requires).toEqual(['sweep'])
+    w.fx = []
+    eng.act('use', p.id, { e: p.id }, { instrument: { e: book.id } })
+    eng.tick()
+    expect([w.get(book.id) !== undefined, knownActives(eng, p)]).toEqual([true, []])
+    expect(w.fx.some((f) => f.t === 'log' && textOf(f.text, 'en').includes('Sweep'))).toBe(true)
+    eng.author(() => w.addTag(p, 'skill:sweep'))
     eng.act('use', p.id, { e: p.id }, { instrument: { e: book.id } })
     eng.tick()
     expect(knownActives(eng, p)).toEqual([{ id: 'whirlwind', source: 'book' }])
@@ -292,6 +300,21 @@ describe('where active skills come from: the tree, a book, what one wears', () =
     // what a book taught is cast like any other
     expect(setSkill(eng, 2, 'whirlwind')).toBe(true)
     expect(cast(eng, 2)).toBe(true)
+  })
+
+  it('a profession\'s book bought out of order is not read before the skill it comes after in the tree (Smoke Bomb after Shadow Strike)', () => {
+    const { eng, p } = field()
+    const w = eng.world
+    eng.author(() => w.setProp(p, 'profession', 'assassin'))
+    const smoke = eng.author(() => w.create('item/document/skillbook', { on: 'inside', holder: p.id }, skillBook('smoke-bomb')))
+    const read = () => (eng.act('use', p.id, { e: p.id }, { instrument: { e: smoke.id } }), eng.tick())
+    const knows = () => [w.get(smoke.id) === undefined, knownActives(eng, p).some((k) => k.id === 'smoke-bomb')]
+    expect(SKILL_BY_ID['smoke-bomb'].requires).toEqual(['shadow-strike'])
+    read()
+    expect(knows()).toEqual([false, false])
+    eng.author(() => w.addTag(p, 'skill:shadow-strike'))
+    read()
+    expect(knows()).toEqual([true, true])
   })
 
   it('a piece that lends a skill gives it while worn, whatever one\'s profession; taken off, the slot keeps it but it is not had', () => {
