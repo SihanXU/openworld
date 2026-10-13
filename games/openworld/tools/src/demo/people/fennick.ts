@@ -1,5 +1,6 @@
-// Fennick, an old templar (docs/chapter-1.md §7): once of the Seal-bearers' escort under the White
-// Knight Alberic, the gentlest man who ever wore armour, until the crown began to change him.
+// Fennick, an old templar (docs/chapter-1.md §7): once of the Seal-bearers' escort, squire to the White Knight
+// Alberic in the long hold — crowned two and a half centuries before, and still the gentlest man who ever wore armour
+// — until the crown took enough of him that one morning he did not know Fennick's name.
 
 import { line, type PersonDef } from '../person.ts'
 

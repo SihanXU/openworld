@@ -115,4 +115,4 @@ far the land goes and what was carried.
   built adds two in front of it (`home.lodge<n>.a/b`, open when `haven.build.lodge<n>` is set), seven in all.
   Asked with a bed free, they go at once and keep the ground's days from then on (`NpcData.resident`: asleep
   at their bed 21–7, about it 7–21); with none free they say so. Older saves get the tents' plots
-  (`migrateLodges`).
+  (`migratePlots`, with the Held Ground's other plots and Cass's loom).

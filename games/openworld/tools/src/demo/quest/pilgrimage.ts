@@ -3,7 +3,10 @@
 // wounds; the Pilgrim's Road, its five wayside shrines lit one by one, and a penitent who scourges himself on it; north
 // of the road, the ruined Abbey of the Thorn where Alberic was made a knight — his Order's roll, his cell and his
 // journal, the writ of relief that never went out, and in the crypt the Order's last keeper, who holds its seal; and the
-// Kneeling Field, where the pilgrims before you knelt to him and stayed. Then the East Road and the knight.
+// Kneeling Field, where pilgrims knelt to pray before they went on, and stones stand for those who would not kneel to
+// him (as on the East Road). Then the East Road and the knight. The Church here speaks of the pilgrimage as it is
+// proclaimed — seek out the Seal-bearers, overcome them, bring the instruments home — and of the Five as it reads them
+// (lore.md §4, §7; docs/chapter-1.md §2: the first layer only).
 
 import type { AiData, StepDef } from '@openworld/engine'
 import { ABBOT_ID, ALBERIC_ID, CH1, ORDER_SEAL, PILGRIMAGE, WAYSHRINES, WRIT, shrineFact } from '@openworld-game/content'
@@ -64,8 +67,8 @@ export function buildRest(): MapBuilder {
   m.fixture('fixture/sign/noticeboard', 10, 11, {
     name: L('The Holy See\'s notice', '圣座告示'),
     props: {
-      text: 'BY THE HOLY SEE OF THE FIVE. The Seal-bearers are saints: they carry what Astra carried. Who kneels to the First Seal-bearer on the East Road passes in his mercy; who does not, he does not suffer to pass. Pilgrims, take the oath at the five wounds before you go on.',
-      text_zh: '五苦圣座公告。持印者是圣人：他们背负着阿斯特拉背负过的东西。在东大路上向第一持印者下跪者，蒙其慈悲得以通过；不跪者，他不容通过。朝圣者，先在五道圣伤前立誓，再继续上路。',
+      text: 'BY THE HOLY SEE OF THE FIVE. The Seal-bearers are saints: they carry what Astra carried, and they can carry it no longer. Pilgrims of the Five: seek out the five Seal-bearers, overcome them, and bring the five instruments home to the Holy City for the Rite. Take the oath at the five wounds before you go on.',
+      text_zh: '五苦圣座公告。持印者是圣人：他们背负着阿斯特拉背负过的东西，如今已不堪重负。五苦的朝圣者：去寻访五位持印者，击败他们，把五件圣刑之器带回圣城，重行五苦大礼。上路之前，先在五道圣伤前立誓。',
     },
   })
   m.fixture('fixture/sign', 31, 10, { props: { text: "THE PILGRIM'S ROAD → five shrines, one road. Light them as you go.", text_zh: '朝圣者之路 → 五座圣龛，一条路。走一路，点一路。' } })
@@ -89,7 +92,7 @@ export function buildRestChapel(): MapBuilder {
     props: { text: 'Astra on the holy wood, carved in white stone: a crown of thorns, the scourge\'s marks, the ribs of the fast, the nails, the lance in the side. Below: WHO BEARS, IS NEAR TO GOD.', text_zh: '白石雕成的阿斯特拉被钉在圣木上：荆棘冠、鞭痕、斋戒后的肋骨、圣钉、肋旁的枪伤。下方刻着：承受者，近于神。' },
   })
   for (const [x, y] of [[5, 2], [11, 2]] as const) m.fixture('fixture/light/candles', x, y, { statuses: { lit: -1 } })
-  m.fixture('fixture/furniture/bookstand', 4, 5, { name: L('The Litany of the Five', '五苦祷文'), tags: ['readable'], props: { text: 'Suffering is not God\'s abandonment. It is the proof the debt is being paid. As long as one bears the Five, the night shall not return.', text_zh: '苦难并非神的遗弃。苦难，是灾厄得以被偿还的证明。只要仍有人承担五苦，长夜便不会归来。' } })
+  m.fixture('fixture/furniture/bookstand', 4, 5, { name: L('The Litany of the Five', '五苦祷文'), tags: ['readable'], props: { text: 'Suffering is not God\'s abandonment. It is the proof the debt is being paid. As long as one bears the Five, the Long Night shall not return.', text_zh: '苦难并非神的遗弃。苦难，是灾厄得以被偿还的证明。只要仍有人承担五苦，极夜便不会归来。' } })
   for (const [x, y] of [[5, 8], [10, 8]] as const) m.fixture('fixture/furniture/bench', x, y)
   m.fixture('fixture/furniture/bed', 14, 1, { name: L("The priest's cot", '司铎的小床') })
   m.anchor('caius.altar', 8, 4)
@@ -103,7 +106,7 @@ export function buildHostel(): MapBuilder {
   const m = room('waystation.hostel', "The Pilgrims' Hostel", '朝圣者客舍', 14, 9, 'wood', 'floor_wood')
   for (let i = 0; i < 5; i++) m.fixture('fixture/furniture/bed', 1 + i * 2, 1, i < 2 ? {} : { name: L('An empty cot', '一张空床') })
   m.fixture('fixture/light/fireplace', 12, 1, { statuses: { lit: -1 } })
-  m.fixture('fixture/furniture/table', 6, 5, { name: L('The pilgrims\' book', '朝圣者名册'), tags: ['readable'], props: { text: 'Names, years, a scallop drawn beside each. The oldest pages are brown. Next to many, in the warden\'s hand: "Went east. Did not come back."', text_zh: '一个个名字、年份，每个名字旁边都画着一枚扇贝。最早的几页已经发黄。很多名字旁边，有驿站看守写的一行字："往东去了。没有回来。"' } })
+  m.fixture('fixture/furniture/table', 6, 5, { name: L('The pilgrims\' book', '朝圣者名册'), tags: ['readable'], props: { text: 'Names, years, a scallop drawn beside each. The oldest pages are brown. Next to many, in one hand after another down the years: "Went east. Did not come back."', text_zh: '一个个名字、年份，每个名字旁边都画着一枚扇贝。最早的几页已经发黄。很多名字旁边，一代代守驿站的人写着同一行字："往东去了。没有回来。"' } })
   m.fixture('fixture/container/chest', 12, 6)
   m.anchor('maud.bed', 2, 2)
   m.anchor('wynn.bed', 4, 2)
@@ -141,13 +144,15 @@ export function buildWay(): MapBuilder {
         text_zh: ['一面挂在枪杆上的白色三角旗，绣着一圈荆棘。曾经很干净；被人耐心地补过许多次。', '同样的白旗，更灰了。补到一半就没再补。', '杆子上只剩几条破布。补旗的人，已经忘了怎么补。'][n],
       },
     })
-  // what a pilgrim might lay at each: a fallen pilgrim's hat, a plaited cord by a post, a loaf in a bundle, an old helm, a candle at a cairn
+  // what a pilgrim might lay at each: a fallen pilgrim's hat, a plaited cord by a post, a loaf left in an abandoned
+  // cart, an old helm, a candle at a cairn (demo PR1 takes each with F and lays it with G)
   m.item({ form: 'item/clothing/hat', material: 'cloth', name: L("A pilgrim's hat", '朝圣者的帽子') }, ...spot(m, 9, 16))
   m.item({ form: 'item/material/grass', name: L("A penitent's plaited cord", '苦修者编的草绳') }, ...spot(m, 15, 8))
-  m.item({ form: 'item/food/bread' }, ...spot(m, 25, 16))
+  const cart = spot(m, 38, 17)
+  m.fixture('fixture/furniture/cart', ...cart, { name: L("An abandoned pilgrims' cart", '被丢下的朝圣者推车') })
+  m.item({ form: 'item/food/bread', name: L("A pilgrim's loaf", '朝圣者的面包') }, ...cart)
   m.item({ form: 'item/armor/helmet', material: 'iron', name: L('A dented helm', '一顶凹陷的头盔') }, ...spot(m, 34, 9))
   m.item({ form: 'item/light/candle' }, ...spot(m, 47, 16))
-  m.fixture('fixture/furniture/cart', ...spot(m, 38, 17), { name: L("An abandoned pilgrims' cart", '被丢下的朝圣者推车') })
   // the penitent's camp off the road
   m.fixture('fixture/light/campfire', ...spot(m, 33, 17), { statuses: { lit: -1 } })
   m.anchor('ezra.road', ...spot(m, 31, 14, true))
@@ -174,14 +179,15 @@ export function buildAbbey(): MapBuilder {
   // the abbey church: its crypt under the floor
   m.house('temple', 29, 6, 'crypt')
   for (const [x, y] of [[8, 9], [8, 13], [31, 15], [10, 17]] as const) m.set(x, y, 'rock')
-  // the knights' graves, and the statue the Order kept in its yard
-  const graves: [string, string][] = [
-    ['SER ODO OF THE THORN. He held the gate at Varrow nine days.', '荆棘骑士奥多爵士。他在瓦罗城门坚守了九天。'],
-    ['SER MAREN OF THE THORN. She carried water to the enemy wounded.', '荆棘骑士玛伦女爵士。她给敌方的伤兵送过水。'],
-    ['SER TOMAS OF THE THORN, brother to the Commander. He keeps the barrow still.', '荆棘骑士托马斯爵士，团长的兄弟。他至今仍守着古墓。'],
-    ['BROTHER GILES, gardener. He grew roses in the thorn yard. The roses died with him.', '吉尔斯修士，园丁。他在荆棘院里种过玫瑰。玫瑰随他一同死去。'],
+  // the Order's memorial stones (its dead lie in the ossuary under Thornwood Hollow: hollow.ts), a gardener's grave,
+  // and the statue the Order kept in its yard
+  const stones: [string, string, string, string][] = [
+    ['A memorial stone', '纪念碑', 'BROTHER ODO OF THE THORN, who held the gate at Varn three days and did not kneel. He lies with his brothers under Thornwood Hollow; his name is kept here.', '荆棘修士奥多，他在瓦恩守了三天城门，没有下跪。他与弟兄们一同长眠在荆棘谷之下；他的名字留在这里。'],
+    ['A memorial stone', '纪念碑', 'SISTER MAREN OF THE THORN, who carried water to both armies. She lies with the Order under Thornwood Hollow; her name is kept here.', '荆棘修女玛伦，她给两边的军队都送过水。她与骑士团一同长眠在荆棘谷之下；她的名字留在这里。'],
+    ['A memorial stone', '纪念碑', 'BROTHER TOMAS OF THE THORN, sworn brother to the Commander, sent to ward the Order\'s dead under the hollow. He keeps them still.', '荆棘修士托马斯，骑士长的誓约兄弟，奉命看守荆棘谷之下骑士团的亡者。他至今仍守着他们。'],
+    ['A grave in the yard', '院中的墓', 'BROTHER GILES, gardener, buried in the yard he kept. He grew roses in the thorn yard. The roses died with him.', '吉尔斯修士，园丁，葬在他照料过的院子里。他在荆棘院里种过玫瑰。玫瑰随他一同死去。'],
   ]
-  graves.forEach(([en, zh], i) => m.fixture('fixture/sacred/gravestone', ...spot(m, 9 + i * 3, 21), { name: L("A knight's grave", '骑士之墓'), props: { text: en, text_zh: zh } }))
+  stones.forEach(([en, zh, text, textZh], i) => m.fixture('fixture/sacred/gravestone', ...spot(m, 9 + i * 3, 21), { name: L(en, zh), props: { text, text_zh: textZh } }))
   // (an altar's plinth: a statue would look like a waypoint's, and those are the waypoints' alone)
   m.fixture('fixture/sacred/altar', ...spot(m, 20, 11), {
     name: L('The statue in the thorn yard', '荆棘院中的雕像'),
@@ -204,7 +210,7 @@ export function buildAbbeyHall(): MapBuilder {
   m.fixture('fixture/furniture/table', 10, 3, {
     name: L('The Roll of the Order', '骑士团名册'),
     tags: ['readable'],
-    props: { text: 'Forty names in forty hands. The last, larger, the ink still black: ALBERIC — BEARER OF THE CROWN. HE HOLDS FOR US ALL. Below it, nothing more was ever written.', text_zh: '四十个名字，四十种笔迹。最后一个写得大一些，墨迹仍旧乌黑：阿尔贝里克——持冠者。他为我们所有人坚守。在那之下，再也没有人写过任何名字。' },
+    props: { text: 'Forty-one names in forty-one hands, the knights of the Order. The last, larger, the ink still black: ALBERIC, KNIGHT-COMMANDER — BEARER OF THE CROWN. HE HOLDS FOR US ALL. No knight was made after him.', text_zh: '四十一个名字，四十一种笔迹，都是骑士团的骑士。最后一个写得大一些，墨迹仍旧乌黑：阿尔贝里克，骑士长——持冠者。他为我们所有人坚守。在他之后，再没有人受封为骑士。' },
   })
   for (const x of [7, 13]) m.fixture('fixture/furniture/chair', x, 3)
   for (const [x, y] of [[2, 2], [19, 2]] as const) m.fixture('fixture/light/brazier', x, y, { statuses: { lit: -1 } })
@@ -215,8 +221,8 @@ export function buildAbbeyHall(): MapBuilder {
   m.fixture('fixture/furniture/table', 16, 10, { name: L("Alberic's desk", '阿尔贝里克的书桌') })
   const pages: [string, string][] = [
     ['I. Mended the miller\'s girl\'s kite today. She says knights do not mend kites. I told her this one does. — A.', '一。今天给磨坊主家的小姑娘修好了风筝。她说骑士不修风筝。我告诉她，这个骑士会。——阿'],
-    ['II. They have chosen me for the Crown. The Prior says it is an honour. My brother says it is a sentence. They are both right. Forty years, and then relief. I can hold for forty years. — A.', '二。他们选了我戴冠。院长说这是荣耀。我兄弟说这是判决。他们都没说错。四十年，然后就有人来接替。我能守四十年。——阿'],
-    ['III. The forty-first year. No one has come. The thorns are into the bone now. I forgot Tomas\'s face today and wept, and could not remember why I wept. — A.', '三。第四十一年。没有人来。荆棘已经扎进了骨头。今天我忘了托马斯的脸，哭了，却想不起来为什么要哭。——阿'],
+    ['II. They have chosen me for the Crown. The Prior says it is an honour. My brother Hugh says it is a sentence. They are both right. Forty years, and then relief. I can hold for forty years. — A.', '二。他们选了我戴冠。院长说这是荣耀。我兄弟休说这是判决。他们都没说错。四十年，然后就有人来接替。我能守四十年。——阿'],
+    ['III. The forty-first year. No one has come. The thorns are into the bone now. I forgot Hugh\'s face today and wept, and could not remember why I wept. — A.', '三。第四十一年。没有人来。荆棘已经扎进了骨头。今天我忘了休的脸，哭了，却想不起来为什么要哭。——阿'],
     ['IV. Hold. Hold. Hold. Hold until relieved. Hold. Hold. Hold. Hold.', '四。守住。守住。守住。守到有人来接替。守住。守住。守住。守住。'],
   ]
   pages.forEach(([en, zh], i) => m.item({ form: 'item/document/letter', name: L(`Alberic's Journal, Leaf ${['I', 'II', 'III', 'IV'][i]}`, `阿尔贝里克的日记·第${['一', '二', '三', '四'][i]}页`), props: { text: en, text_zh: zh } }, ...spot(m, 14 + (i % 2) * 3, 9 + Math.floor(i / 2) * 2)))
@@ -228,13 +234,16 @@ export function buildAbbeyHall(): MapBuilder {
   return m
 }
 
-/** The crypt under the abbey's shrine: the Order's dead in their niches, and its last keeper with the seal. */
+/**
+ * The crypt under the abbey's shrine: the abbey's priors in their niches (the Order's knights lie in the ossuary under
+ * Thornwood Hollow: hollow.ts), and its last keeper with the seal.
+ */
 export function buildAbbeyCrypt(): MapBuilder {
-  const m = new MapBuilder('abbey.crypt', L('Crypt of the Order', '骑士团地下墓室'), 'interior', 30, 20, 'cave_wall', 'cave', 'dark', 'frostfang')
+  const m = new MapBuilder('abbey.crypt', L('The Abbey Crypt', '修道院地下墓室'), 'interior', 30, 20, 'cave_wall', 'cave', 'dark', 'frostfang')
   m.room('stone', 'floor_stone')
   for (let x = 1; x < m.w - 1; x++) for (const y of [6, 13]) if (x % 6 !== 3) m.set(x, y, 'wall')
   for (const [x, y] of [[4, 3], [12, 3], [20, 3], [26, 9], [6, 16]] as const) m.fixture('fixture/light/brazier', x, y, { statuses: { lit: -1 } })
-  for (let i = 0; i < 6; i++) m.fixture('fixture/sacred/gravestone', 3 + i * 4, 17, { name: L('A niche of the Order', '骑士团的壁龛'), props: { text: 'A knight\'s niche, a thorn ring carved over it. The name has been chiselled off and cut again, smaller, lower down, as if by someone who kept forgetting.', text_zh: '一个骑士的壁龛，上方刻着一圈荆棘。名字被凿掉过，又在更低处刻了一遍，字更小，像是有人总在忘记。' } })
+  for (let i = 0; i < 6; i++) m.fixture('fixture/sacred/gravestone', 3 + i * 4, 17, { name: L("A prior's niche", '院长的壁龛'), props: { text: 'A prior of the abbey, a thorn ring carved over the niche. The name has been chiselled off and cut again, smaller, lower down, as if by someone who kept forgetting.', text_zh: '一位修道院院长的壁龛，上方刻着一圈荆棘。名字被凿掉过，又在更低处刻了一遍，字更小，像是有人总在忘记。' } })
   m.creature('undead/skeleton', 8, 9, HUNT(4))
   m.creature('undead/ghost', 20, 9, { behaviour: 'ranged', temper: 'aggressive', sight: 5, leash: 5 })
   // the Order's last keeper: Prior Wendel, who sent the Crown east and never sent the relief
@@ -254,20 +263,21 @@ export function buildField(): MapBuilder {
   rim(m, (x, y) => (x < 4 && has(P.west, y)) || (x >= m.w - 4 && has(P.east, y)))
   m.path([[0, 12], [10, 12], [22, 11], [34, 12], [43, 12]], 'path', 2, { edge: 'dirt', edgeP: 0.25 })
   m.organic(22, 12, 15, 8, 'drygrass', { only: (t) => t === 'grass', rough: 0.3 })
-  // the kneeling stones: the pilgrims before you, each with a name and a year; then his "subjects", made of straw
+  // where pilgrims knelt to pray before going on; the kneeling stones, as on the East Road, are those who went on and
+  // would not kneel to him (docs/chapter-1.md §6), each with a name and a year of the Crown; then his "subjects", of straw
   const names: [string, string][] = [
-    ['Aelis of Varrow, pilgrim. Knelt in the 212th year of the Crown.', '瓦罗的艾莉丝，朝圣者。于持冠第二百一十二年跪下。'],
-    ['Brother Hal, pilgrim. Knelt in the 240th year.', '哈尔修士，朝圣者。于第二百四十年跪下。'],
-    ['Maren of the Salt Coast, pilgrim. Knelt in the 251st year. She would not stop walking.', '盐海岸的玛伦，朝圣者。于第二百五十一年跪下。她一直不肯停下脚步。'],
+    ['Aelis of Varrow, pilgrim. She would not kneel. The 212th year of the Crown.', '瓦罗的艾莉丝，朝圣者。她不肯下跪。持冠第二百一十二年。'],
+    ['Brother Hal, pilgrim. He would not kneel. The 240th year.', '哈尔修士，朝圣者。他不肯下跪。持冠第二百四十年。'],
+    ['Ysolde of the Salt Coast, pilgrim. She would not kneel, and would not stop walking. The 251st year.', '盐海岸的伊索尔德，朝圣者。她不肯下跪，也不肯停下脚步。持冠第二百五十一年。'],
     ['Unnamed. A scallop and a child\'s shoe.', '无名。一枚扇贝，一只孩子的鞋。'],
-    ['Odile the Smith, pilgrim. Knelt in the 263rd year.', '铁匠奥迪尔，朝圣者。于第二百六十三年跪下。'],
-    ['Corin, pilgrim. Knelt in the 270th year. Sent with the blessing of the Holy See.', '科林，朝圣者。于第二百七十年跪下。奉圣座祝福而来。'],
-    ['Petra and Joan, pilgrims, sisters. Knelt together.', '佩特拉与琼，朝圣者，姐妹。一同跪下。'],
+    ['Odile the Smith, pilgrim. She would not kneel. The 263rd year.', '铁匠奥迪尔，朝圣者。她不肯下跪。持冠第二百六十三年。'],
+    ['Corin, pilgrim, sent with the blessing of the Holy See. He would not kneel. The 270th year.', '科林，朝圣者，奉圣座祝福而来。他不肯下跪。持冠第二百七十年。'],
+    ['Petra and Joan, pilgrims, sisters. Neither would kneel.', '佩特拉与琼，朝圣者，姐妹。两人都不肯下跪。'],
     ['The latest stone. The carving is fresh. The name is not cut yet.', '最新的一块石头。刻痕还很新。名字还没刻上。'],
   ]
   names.forEach(([en, zh], i) => m.fixture('fixture/sacred/gravestone', ...spot(m, 10 + (i % 4) * 7, i < 4 ? 7 : 17), { name: L('A kneeling stone', '跪石'), props: { text: `A stone carved as a pilgrim kneeling. ${en}`, text_zh: `一块雕成朝圣者跪姿的石头。${zh}` } }))
   for (const [x, y] of [[16, 9], [18, 9], [20, 9], [26, 15], [28, 15], [30, 15]] as const)
-    m.fixture('fixture/scarecrow', ...spot(m, x, y), { name: L('A kneeling subject', '跪着的"臣民"'), props: { text: 'Straw in a pilgrim\'s coat, bent at the knees and tied there with briar. Someone set them in rows, facing east, and keeps setting them straight.', text_zh: '稻草塞进朝圣者的外衣，膝盖弯着，用荆棘捆住。有人把它们排成一排排，脸朝东，还一直把它们扶正。' } })
+    m.fixture('fixture/scarecrow', ...spot(m, x, y), { name: L('A kneeling subject', '跪着的"臣民"'), tags: ['readable'], props: { text: 'Straw in a pilgrim\'s coat, bent at the knees and tied there with briar. Someone set them in rows, facing east, and keeps setting them straight.', text_zh: '稻草塞进朝圣者的外衣，膝盖弯着，用荆棘捆住。有人把它们排成一排排，脸朝东，还一直把它们扶正。' } })
   for (const [x, y] of [[36, 8], [37, 16], [12, 15]] as const) m.fixture('fixture/nature/briar', ...spot(m, x, y), { name: L("The knight's thorns", '骑士的荆棘') })
   m.fixture('fixture/sign', ...spot(m, 40, 10), { props: { text: 'THE KINGDOM. KNEEL.', text_zh: '王国。跪下。' } })
   m.regions.field = [6, 4, 32, 16]
@@ -279,28 +289,39 @@ export function buildField(): MapBuilder {
 
 export const PILGRIMAGE_STORY: StepDef[] = [
   {
-    // The Rest: the Church's priest has been waiting for the pilgrim the letter named.
+    // The Rest: the Church's priest has been waiting for the pilgrim the letter named (not once the knight has fallen:
+    // the road the oath was for is behind them — `rest_after` greets them then).
     id: 'rest_arrival',
-    when: { map: 'waystation', facts: { [CH1.letter]: 1 } },
+    when: { map: 'waystation', facts: { [CH1.letter]: 1, [CH1.knight]: 0 } },
     script: [
       say('npc.caius', 'A pilgrim, at last — and with a fairy, as the letter said. Welcome to the Rest. I am Father Caius; the Holy See keeps me here to send the pilgrims on.', '终于来了一位朝圣者——还带着精灵，正如信上所说。欢迎来到驿站。我是凯乌斯司铎；圣座派我驻守在这里，送朝圣者上路。', 'happy'),
-      say('npc.caius', 'Before the road, the oath. Come to the chapel and kneel at the five wounds. A pilgrim who has not knelt does not reach the First Seal-bearer.', '上路之前，先立誓。到礼拜堂来，在五道圣伤前跪下。没跪过的朝圣者，到不了第一持印者面前。'),
+      say('npc.caius', 'Before the road, the oath. Come to the chapel and kneel at the five wounds; every pilgrim the Holy See sends east has knelt there first.', '上路之前，先立誓。到礼拜堂来，在五道圣伤前跪下；圣座派往东边的每一位朝圣者，都先在那里跪过。'),
       say('pip', 'Kneel again? Everyone out here wants someone to kneel.', '又要跪？这边的人好像都想让别人跪下。', 'shy'),
       { fact: PILGRIMAGE.arrived, value: 1 },
     ],
   },
   {
-    // The oath: at the altar of the five wounds, the priest takes the pilgrim through the Five.
+    // The oath: at the altar of the five wounds, the priest takes the pilgrim through the Five, as the Church reads
+    // them (lore.md §4: the first layer), and names the pilgrimage as it is proclaimed (§7). Not past the knight.
     id: 'pilgrim_oath',
-    when: { map: 'waystation.chapel', region: 'altar', after: 'rest_arrival' },
+    when: { map: 'waystation.chapel', region: 'altar', after: 'rest_arrival', facts: { [CH1.knight]: 0 } },
     script: [
       say('npc.caius', 'Kneel. — Say after me. The first suffering: the Crown. He let them press the thorns into his brow, and did not lift his hand.', '跪下。——跟着我念。第一苦：戴冠。他任由荆棘刺进额头，没有抬手。'),
       say('npc.caius', 'The second: the Scourge. Bound to the pillar, he bled for every one of us. The third: Hunger. On the scales his flesh grew lighter than sin.', '第二苦：受鞭。他被绑在刑柱上，为我们每一个人流血。第三苦：受饥。在天平上，他的肉身变得比罪还轻。'),
-      say('npc.caius', 'The fourth: the Nails, that he might not leave us. The fifth: the Lance. When it pierced his heart, the sun rose.', '第四苦：受钉，好让他不离开我们。第五苦：受枪。圣枪刺穿他心口的那一刻，太阳升起了。'),
+      say('npc.caius', 'The fourth: the Nails. Upon the holy wood he accepted death. The fifth: the Lance. When it pierced his heart, the sun rose.', '第四苦：受钉。他在圣木上接受了死亡。第五苦：受枪。圣枪刺穿他心口的那一刻，太阳升起了。'),
       say('npc.caius', 'Five shrines stand on the road east, one for each. Light them as you go — lay at each what its suffering asks. Then the abbey, then the knight.', '往东的路上有五座圣龛，一苦一座。走一路，点一路——在每座龛上放下它那一苦要的东西。然后是修道院，然后是骑士。'),
-      say('npc.caius', 'The Seal-bearer has held that road three hundred years. Kneel to him if you must; he will spare you. ...He was due relief, once. That is not a pilgrim\'s concern.', '那位持印者守着那条路已经三百年了。必要的话就向他下跪，他会放过你的。……他本该有人去接替。那不是朝圣者该操心的事。', 'sad'),
+      say('npc.caius', 'The Seal-bearer has held that road three hundred years. The Holy See asks you to overcome him and bring home the Crown, the first of the five. ...He was due relief, once. That is not a pilgrim\'s concern.', '那位持印者守着那条路已经三百年了。圣座要你击败他，把荆棘冠带回来——五件圣器的第一件。……他本该有人去接替。那不是朝圣者该操心的事。', 'sad'),
       say('pip', '"Was due relief"? What does that mean? — He went quiet. I don\'t like it when grown-ups go quiet.', '"本该有人接替"？那是什么意思？——他不说话了。我不喜欢大人突然不说话。', 'surprised'),
       { fact: PILGRIMAGE.oath, value: 1 },
+    ],
+  },
+  {
+    // The Rest once the knight has fallen: the priest greets the one who came back from him (or comes by first after him).
+    id: 'rest_after',
+    when: { map: 'waystation', facts: { [CH1.knight]: { ne: 0 } } },
+    script: [
+      say('npc.caius', 'You came from the east. From him. ...Then it is done, and the road is open. The Holy See will have its Crown, the first of the five.', '你是从东边来的。从他那里。……那么，事情办完了，路也通了。圣座会得到它的荆棘冠——五件圣器的第一件。', 'sad'),
+      say('npc.caius', 'Rest here as long as you need, pilgrim. The chapel is open, and the five wounds keep.', '想在这里歇多久都行，朝圣者。礼拜堂一直开着，五道圣伤也一直在。'),
     ],
   },
   {
@@ -317,7 +338,7 @@ export const PILGRIMAGE_STORY: StepDef[] = [
       say('npc.ezra', '(A man kneels by the road, his back bare, a cord in his hand. He strikes himself once, steadily, and looks up.)', '（路边跪着一个人，脊背裸露，手里攥着一根绳。他稳稳地抽了自己一下，抬起头。）'),
       say('npc.ezra', 'Don\'t be frightened, pilgrim. Every stroke I take is one Astra need not. The Seal-bearers bear his pain; we small ones bear a little of theirs.', '别害怕，朝圣者。我每挨一下，阿斯特拉就少挨一下。持印者替他承受痛苦；我们这些小人物，就替他们分一点。'),
       say('npc.ezra', 'I went as far as the field of stones, once. The knight was mending a flag. He saw me and his hands stopped — like he had forgotten what hands were for. Then he told me to kneel.', '我曾经走到过跪石原。那位骑士正在补一面旗子。他看见我，手就停了——像是忘了手是用来做什么的。然后他让我跪下。'),
-      say('pip', 'That\'s horrible. ...Not the hitting. The flag.', '好可怕。……不是打自己那件事。是那面旗子。', 'sad'),
+      say('pip', 'A knight who mends flags? I\'d like to see that. ...From a safe distance.', '会补旗子的骑士？我倒想看看。……站远一点看。', 'shy'),
     ],
   },
   {
@@ -325,7 +346,7 @@ export const PILGRIMAGE_STORY: StepDef[] = [
     id: 'shrines_lit',
     when: { map: 'pilgrimway', facts: Object.fromEntries(WAYSHRINES.map((s) => [shrineFact(s.id), 1])) },
     script: [
-      say('player', '(The fifth carving kindles. All along the road, the five small lights burn at once — and the path north, up to the abbey, is suddenly plain to see.)', '（第五道刻痕亮了起来。整条路上，五点小小的光同时亮起——往北通向修道院的小路一下子清晰了。）'),
+      say('player', '(The fifth carving kindles. All along the road the five small lights burn at once, and the middle one throws its light up the path north, to the abbey.)', '（第五道刻痕亮了起来。整条路上，五点小小的光同时亮起，中间那一点的光，照向往北通往修道院的小路。）'),
       say('pip', 'The crown one is the coldest. I touched it and it touched back. — Up there: the abbey where the knights lived. The priest said that\'s next.', '荆棘冠那座最冷。我碰了它一下，它也"碰"了我一下。——上面那里：骑士们住过的修道院。司铎说下一站就是那儿。', 'shy'),
       { fact: PILGRIMAGE.shrines, value: 1 },
     ],
@@ -347,9 +368,9 @@ export const PILGRIMAGE_STORY: StepDef[] = [
     id: 'writ_found',
     when: { carrying: WRIT },
     script: [
-      say('player', '(The writ of relief. Forty years, and a successor sent. The wax is whole: it was never sent. On the back: "No successor could be found who would bear it. Let him hold. He will not know the difference.")', '（替任文书。四十年，另遣继任者。封蜡完好：它从未寄出。背面写着："寻不到愿意承受的继任者。让他继续守着吧。他不会察觉其中分别。"）'),
-      say('pip', 'They promised him. Forty years, and then someone would come. And then they just... didn\'t. And he\'s still out there, holding.', '他们答应过他的。四十年，然后会有人来。然后他们就……没来。而他还在那里，守着。', 'sad'),
-      say('pip', '"He will not know the difference." He knows. He wrote it in his diary. He knows.', '"他不会察觉其中分别。"他察觉了。他写在日记里了。他知道的。', 'angry'),
+      say('player', '(The writ of relief. In the fortieth year of his bearing, a successor sent. The wax is whole: it was never sent. On the back: "No successor could be found who would bear it. Let him hold. He will not know the difference.")', '（替任文书。于其承印之第四十年，另遣继任者。封蜡完好：它从未寄出。背面写着："寻不到愿意承受的继任者。让他继续守着吧。他不会察觉其中分别。"）'),
+      say('player', '(On his desk, the leaves of his journal count on past the fortieth year.)', '（他书桌上的日记，一页页数过了第四十年。）'),
+      say('pip', 'A letter nobody ever sent? Then we\'ll take it with us. Somebody ought to deliver it — late is better than never.', '一封从来没寄出去的信？那我们带上它。总得有人把它送到——晚了也比不送好。'),
       { fact: PILGRIMAGE.writ, value: 1 },
     ],
   },
@@ -373,13 +394,13 @@ export const PILGRIMAGE_STORY: StepDef[] = [
     ],
   },
   {
-    // The Kneeling Field: the pilgrims before you.
+    // The Kneeling Field: where pilgrims knelt to pray before going on, and the stones of those who would not kneel to him.
     id: 'kneelfield_arrival',
     when: { map: 'kneelfield' },
     script: [
-      say('player', '(Stones carved as kneeling pilgrims, row on row, each with a name and a year. Between them, straw men in pilgrims\' coats, tied on their knees, all facing east.)', '（一排又一排被雕成跪姿的朝圣者石像，每块都刻着名字和年份。石像之间，是穿着朝圣者外衣的稻草人，被捆着跪在地上，全都面朝东方。）'),
-      say('pip', 'Aelis. Hal. Maren. Corin — "sent with the blessing of the Holy See"... They sent all of them. Before us. And the newest stone doesn\'t have a name yet.', '艾莉丝。哈尔。玛伦。科林——"奉圣座祝福而来"……他们把这些人都派来过。在我们之前。最新的那块石头，还没有刻名字。', 'sad'),
-      say('pip', 'It\'s not for us. ...It\'s not for us, right?', '那不是给我们的。……不是给我们的，对吧？', 'shy'),
+      say('player', '(A field where pilgrims knelt to pray before they went on. Stones carved as kneeling pilgrims stand in rows, each with a name and a year — and under each, that they would not kneel. Between them, straw men in pilgrims\' coats, tied on their knees, all facing east.)', '（朝圣者们会在这片原野上跪下祈祷，然后继续上路。一排排雕成跪姿的朝圣者石像立在这里，每块都刻着名字和年份——每块下面都刻着：不肯下跪。石像之间，是穿着朝圣者外衣的稻草人，被捆着跪在地上，全都面朝东方。）'),
+      say('pip', 'Aelis, Hal, Ysolde, Corin... "would not kneel", every one of them. Stubborn! I like them already.', '艾莉丝、哈尔、伊索尔德、科林……"不肯下跪"，一个都没跪。真倔！我已经喜欢上他们了。', 'happy'),
+      say('pip', 'And somebody keeps setting the straw ones straight, all facing east. Who tidies a field like this?', '还有人一直把这些稻草人扶正，全都朝着东边。谁会这样收拾一片原野啊？', 'surprised'),
       { fact: PILGRIMAGE.field, value: 1 },
     ],
   },
