@@ -58,6 +58,7 @@ export const GAME: GameDef = {
   rules: [...BASE_RULES, ...STORY_RULES],
   terrainChars: TERRAIN_CHARS,
   upgradeSave,
+  probes: async () => (await import('./probes.ts')).PROBES,
 }
 
 export default GAME

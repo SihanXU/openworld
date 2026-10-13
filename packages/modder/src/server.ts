@@ -5,10 +5,14 @@
 //   GET  /stats           the numbers the paper reports
 //   GET  /progress?id=r   where request r is (queued, local, find, create, art; {} when not here)
 //   POST /fault           {rule, reason, client?}: a client set a learned rule aside at run time
+//   GET  /quality         what the model carries (design.md §13, the AI setting): the last detection, one running; ?plan=1 what one would play
+//   POST /quality/detect  start a detection (this host only: it costs model calls)
 
 import { createServer, type IncomingMessage, type Server } from 'node:http'
-import type { ResolveBody } from '@openworld/engine'
+import { join } from 'node:path'
+import { AI_WAIT_MS, type ResolveBody } from '@openworld/engine'
 import type { Modder } from './pipeline.ts'
+import { Detector } from './detect.ts'
 
 export interface ServerOptions {
   /** Access-Control-Allow-Origin (default *: the client is a static page on another origin). */
@@ -21,6 +25,9 @@ export interface ServerOptions {
 export function createModderServer(modder: Modder, opts: ServerOptions = {}): Server {
   const { library, state } = modder.opts
   const libraryInfo = () => ({ seq: library.seq, patches: library.patchRules().length, rules: library.lib.rules.size })
+  const detector = new Detector(modder, { file: modder.opts.data ? join(modder.opts.data, 'quality.json') : undefined, probes: modder.opts.probes, log: modder.opts.log })
+  // a detection is model calls on this service's account: asked for from this machine only
+  const local = (req: IncomingMessage) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress ?? '')
   return createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', opts.origin ?? '*')
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -32,7 +39,13 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
     if (req.method === 'OPTIONS') return void res.writeHead(204).end()
     const url = new URL(req.url ?? '/', 'http://localhost')
     try {
-      if (req.method === 'GET' && url.pathname === '/health') return send(200, { ok: true, game: opts.game ?? null, model: modder.model?.name ?? null, library: libraryInfo(), state: state.stats() })
+      if (req.method === 'GET' && url.pathname === '/health') return send(200, { ok: true, game: opts.game ?? null, model: modder.model?.name ?? null, library: libraryInfo(), state: state.stats(), detected: detector.last ? { model: detector.last.model, at: detector.last.at, recommend: detector.last.recommend } : null })
+      if (req.method === 'GET' && url.pathname === '/quality')
+        return send(200, { model: modder.model?.name ?? null, waitMs: AI_WAIT_MS, detection: detector.last ?? null, running: detector.running ?? null, error: detector.error ?? null, ...(url.searchParams.get('plan') && { plan: await detector.plan() }) })
+      if (req.method === 'POST' && url.pathname === '/quality/detect') {
+        if (!local(req)) return send(403, { error: 'a detection is started from the machine the service runs on' })
+        return send(200, await detector.start())
+      }
       if (req.method === 'GET' && url.pathname === '/patches') {
         const since = Number(url.searchParams.get('since') ?? 0) || 0
         return send(200, { seq: library.seq, entries: library.since(since) })

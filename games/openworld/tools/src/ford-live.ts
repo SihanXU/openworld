@@ -12,10 +12,11 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Game, RuleLibrary, TICKS_PER_HOUR, tickAt, type Engine, type Entity, type Key, type UndefinedRecord } from '@openworld/engine'
+import { Game, RuleLibrary, type UndefinedRecord } from '@openworld/engine'
 import { BASE_RULES, GAME, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { modelFromEnv, openModder, type WorldEpisode } from '@openworld/modder'
-import { AT, STAND, buildFord } from './demo/world.ts'
+import { buildFord } from './demo/world.ts'
+import { SCENARIOS, W, ready, ticks, type Ford } from './fordScenarios.ts'
 
 openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-warm-')), model: null }) // loads .env
 const model = modelFromEnv()
@@ -26,10 +27,6 @@ const h = state.harness()
 state.setHarness({ ...h, review: { ...h.review, enabled: false }, reflect: { ...h.reflect, enabled: false }, escalate: false, revise: false }, 'live smoke')
 const onto = buildOntology()
 
-interface Ford {
-  game: Game
-  eng: Engine
-}
 function fresh(): Ford {
   const { index, chunks } = buildFord()
   const game = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES, ...modder.opts.library.lib.patches()]))
@@ -41,99 +38,8 @@ function fresh(): Ford {
       return r.patch
     },
   }
-  const eng = game.engine
-  const w = eng.world
-  eng.author(() => {
-    w.setFact('seen.arrival', true)
-    w.player.props!.quest = 1
-    w.create('item/food/bread', { on: 'inside', holder: 'player' })
-    eng.controls.sync()
-  })
-  return { game, eng }
+  return ready({ game, eng: game.engine })
 }
-const W = (f: Ford) => f.eng.world
-const ofType = (f: Ford, type: string) => Object.values(W(f).state.entities).find((e) => e.type === type)!
-const stand = (f: Ford, x: number, y: number, facing: Entity['facing'] = 'up') => f.eng.author(() => (W(f).place(W(f).player, { on: 'tile', map: 'ford', x, y }), (W(f).player.facing = facing)))
-function hold(f: Ford, e: Entity): void {
-  f.eng.author(() => W(f).place(e, { on: 'inside', holder: 'player' }))
-  f.eng.controls.sync()
-  f.eng.controls.select(W(f).player.slots!.indexOf(f.eng.controls.key(e)))
-}
-const run = (f: Ford, key: Key, x: number, y: number, layer?: number) => {
-  const plan = f.eng.controls.plan(key, { x, y }, layer)
-  if (!plan) throw new Error(`no plan for ${key} at ${x},${y}`)
-  f.eng.controls.run(plan, true)
-  return plan
-}
-const ticks = (f: Ford, n: number, until?: () => boolean) => {
-  for (let i = 0; i < n; i++) {
-    if (W(f).scene?.waiting === 'advance') f.eng.story.advance()
-    f.eng.tick()
-    if (until?.()) return true
-  }
-  return false
-}
-
-const SCENARIOS: { name: string; act: (f: Ford) => void }[] = [
-  {
-    name: 'bread used on the winch (act/use)',
-    act: (f) => {
-      hold(f, ofType(f, 'item/food/bread'))
-      stand(f, ...STAND.winch)
-      run(f, 'use', ...AT.winch)
-    },
-  },
-  {
-    name: 'the axe on the chopping stump (strike)',
-    act: (f) => {
-      const stump = ofType(f, 'fixture/nature/stump')
-      const { x, y } = stump.place as { x: number; y: number }
-      hold(f, ofType(f, 'item/weapon/blade/axe'))
-      stand(f, x - 1, y, 'right')
-      f.eng.controls.run(f.eng.controls.plan('use', { x, y, stack: [{ e: stump.id }] })!, true)
-    },
-  },
-  {
-    name: 'a bare hand on the raft (handle)',
-    act: (f) => {
-      stand(f, ...STAND.raft, 'right')
-      run(f, 'hands', ...AT.raft)
-    },
-  },
-  {
-    name: 'a rope used on a fire slime (use)',
-    act: (f) => {
-      const slime = W(f).get('ford.fire_slime')!
-      stand(f, ...STAND.road, 'right')
-      f.eng.author(() => W(f).place(slime, { on: 'tile', map: 'ford', x: STAND.road[0] + 1, y: STAND.road[1] }))
-      hold(f, ofType(f, 'item/tool/rope'))
-      run(f, 'use', STAND.road[0] + 1, STAND.road[1])
-    },
-  },
-  {
-    name: 'Hesper cannot tend her soaked fire (stuck)',
-    act: (f) => {
-      W(f).state.tick = tickAt(2, 17.8)
-      const fire = W(f).get('ford.campfire')!
-      f.eng.author(() => {
-        W(f).clearStatus({ e: fire.id }, 'lit')
-        W(f).setStatus({ e: fire.id }, 'wet', W(f).state.tick + 4000)
-      })
-      stand(f, ...AT.spawn)
-      ticks(f, TICKS_PER_HOUR, () => f.game.mods.records.length > 0)
-    },
-  },
-  {
-    name: 'the rope burns (broken)',
-    act: (f) => {
-      const rope = ofType(f, 'item/tool/rope')
-      f.eng.author(() => W(f).place(rope, { on: 'tile', map: 'ford', x: STAND.road[0], y: STAND.road[1] }))
-      f.eng.queue({ kind: 'impulse/element', host: { e: rope.id }, roles: {}, params: { element: 'fire', power: 2 }, origin: 'world' })
-      ticks(f, 300, () => f.game.mods.records.length > 0)
-    },
-  },
-]
-
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const out: unknown[] = []
 const only = process.argv[2]

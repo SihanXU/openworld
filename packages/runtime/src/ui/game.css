@@ -219,6 +219,21 @@
 .options .opt span { width: 90px; }
 .options button { background: var(--paper-dark); color: var(--ink-warm); border: 2px solid var(--wood-dark); }
 .options td { padding: 2px 12px 2px 0; }
+/* The AI setting (ui/quality.ts): a level per kind of work, as a graphics setting's rows. */
+.ai-opts .ai-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+.ai-opts .ai-name { width: 130px; }
+.ai-opts .ai-row small.muted { flex-basis: 100%; margin: -2px 0 2px 140px; font-size: 11px; }
+.ai-seg { display: inline-flex; }
+.ai-seg button { padding: 2px 12px; margin: 0; border-radius: 0; }
+.ai-seg button + button { border-left-width: 0; }
+.ai-seg button:first-child { border-radius: 4px 0 0 4px; }
+.ai-seg button:last-child { border-radius: 0 4px 4px 0; }
+.options .ai-seg button.on { background: var(--wood-dark); color: var(--paper); }
+.ai-custom { font-style: italic; color: #8a6a44; }
+.ai-note { font-size: 12px; max-width: 620px; margin: 8px 0; }
+.ai-detect { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.ai-detect .warn { color: #a33a22; }
+.options .ai-table th, .options .ai-table td { padding: 2px 12px 2px 0; font-size: 12px; text-align: left; font-weight: normal; }
 .tab-body kbd, .cv-help kbd { background: var(--paper-dark); color: var(--ink-warm); border-color: var(--wood-dark); }
 .tab-body .muted, .sheet .muted { color: #8a6a44; }
 .tab-body .thread { border-left-color: #c8782c; background: var(--paper-dark); }

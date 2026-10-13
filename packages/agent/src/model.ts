@@ -209,10 +209,21 @@ function parseArgs(s: string | undefined): unknown {
 
 // ---------------------------------------------------------------- Claude Code (headless)
 
+const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max']
+/** A call's effort: the configured one, or more when the call asks for more reasoning (never less). */
+export function effortOf(floor: string | undefined, reasoning: ChatOptions['reasoning']): string {
+  const base = floor ?? 'low'
+  const want = reasoning === 'medium' || reasoning === 'high' ? reasoning : 'low'
+  return EFFORTS.indexOf(want) > EFFORTS.indexOf(base) ? want : base
+}
+
 export interface ClaudeCodeConfig {
   /** e.g. claude-opus-5-5 */
   model: string
-  /** low | medium | high | xhigh | max; fixed for every call (the harness's `reasoning` is not consulted) */
+  /**
+   * low | medium | high | xhigh | max: the least effort of every call; a call that asks for more reasoning
+   * (`reasoning` medium or high: the high AI setting's design, the offline profile) gets that much
+   */
   effort?: string
   /** fast mode (the account must allow it: extra usage on); the reply says when it was not granted */
   fast?: boolean
@@ -260,7 +271,7 @@ export class ClaudeCodeModel implements Model {
     const systemFile = join(dir, 'system.txt')
     writeFileSync(systemFile, system)
     const args = [
-      '-p', '--model', this.cfg.model, '--effort', this.cfg.effort ?? 'low', '--output-format', stream ? 'stream-json' : 'json',
+      '-p', '--model', this.cfg.model, '--effort', effortOf(this.cfg.effort, opts.reasoning), '--output-format', stream ? 'stream-json' : 'json',
       '--tools', '', '--setting-sources', '', '--strict-mcp-config', '--disable-slash-commands', '--no-session-persistence',
       '--system-prompt-file', systemFile,
       ...(this.cfg.fast ? ['--settings', JSON.stringify({ fastMode: true })] : []),

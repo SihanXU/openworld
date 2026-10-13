@@ -14,8 +14,9 @@ import { STORY, textOf } from './engine.ts'
 import { OntologyIndex, isA, withTerrainTypes } from './ontology.ts'
 import { deriveRecipes } from './recipes.ts'
 import { RuleLibrary, cmp, compareSpec, holeKey, isDo, isHole, leaves, locate, patchKey, rolesOf, specOf, type LibraryData } from './rules.ts'
+import { TIERS, categoryOf, isTier, ruleTier, tierOfRequest, type AiLevel } from './quality.ts'
 import { buildSandbox, chainLoop, checkExpectations, replay, scenarioEvent, whyEndless } from './sandbox.ts'
-import type { Cmp, Cond, Effect, EmitTo, GameEvent, Look, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tree, TypeDef } from './types.ts'
+import type { Cmp, Cond, Effect, EmitTo, GameEvent, Look, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tier, Tree, TypeDef } from './types.ts'
 import { RECENT_LINES, type View } from './world.ts'
 
 // ---------------------------------------------------------------- contract
@@ -70,6 +71,10 @@ export interface ModRequest {
    * The answer is placed there (design.md §5.16).
    */
   hole: { rule: string; path: string[]; default: Effect[]; at: string[] }
+  /** The AI setting it is asked at (quality.ts): the tier its answer is made at and kept in (the scenario's too). None: medium. */
+  tier?: Tier
+  /** How far its answer may go in making kinds the world has none of (the setting's `create`). None: medium. */
+  create?: AiLevel
   context: {
     map: { id: string; name: string; kind: string; region?: string }
     /** Named spots of the map (for `goto`). */
@@ -330,6 +335,17 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
 // ---------------------------------------------------------------- the port
 
 const WINDOW = 3 // tiles around the host in the scenario (7x7)
+
+/**
+ * What the AI is shown of the world around an event, by the tier it is asked at (quality.ts — the view
+ * distance): the terrain window, how far and how many things nearby, the lines said lately, the rules
+ * in force. The scenario the answer is judged in is the same at every tier.
+ */
+const VIEW: Record<Tier, { tiles: number; nearby: number; things: number; recent: number; rules: number }> = {
+  low: { tiles: 1, nearby: 0, things: 0, recent: 0, rules: 0 },
+  medium: { tiles: WINDOW, nearby: 2, things: 16, recent: RECENT_LINES, rules: 8 },
+  high: { tiles: WINDOW, nearby: 4, things: 32, recent: RECENT_LINES, rules: 16 },
+}
 const TIMEOUT_TICKS = 100 // 10 s: then the default (the record stays patchable)
 
 /** Is a story fact protected: a listed prefix ending in "." (`ford.`), or a listed key itself and what hangs from it (`topic.crown`, `topic.crown.days`). */
@@ -405,6 +421,9 @@ export function signatureOf(eng: Engine, ev: GameEvent, res?: Resolution): strin
   })
 }
 
+/** A question as it was asked: its class, at its tier (a failure at one tier leaves the others free to ask). */
+const askedAt = (r: Pick<UndefinedRecord, 'signature' | 'request'>) => `${r.signature}@${r.request.tier ?? 'medium'}`
+
 /** Asks of one question that may go unanswered (no reply) before it is given up for the session. */
 const MAX_UNREACHABLE = 3
 
@@ -441,25 +460,28 @@ export class ModPort implements UndefinedSink {
 
   /**
    * An outcome is undefined (design.md §5.11). One question per hole and class at a time; one that
-   * failed is not asked again this session. With no one to ask, the default runs now and the record
-   * stays open to a patch. Otherwise the event's participants — and the actor who started the
-   * chain — are held, and the default runs at the time-out if no patch has come.
+   * failed is not asked again this session at its tier (design.md §13, the AI setting). With no one to
+   * ask, or the setting off for this kind of event, the default runs now and the record stays open to
+   * a patch. Otherwise the event's participants — and the actor who started the chain — are held, and
+   * the default runs at the time-out if no patch has come.
    */
   raise(ev: GameEvent, res: Resolution): boolean {
     const eng = this.eng
     const w = eng.world
     const signature = signatureOf(eng, ev, res)
     const origin: 'player' | 'world' = ev.origin === 'player' ? 'player' : 'world'
-    if (this.records.some((r) => r.signature === signature && (r.status === 'pending' || r.awaiting)) || this.failed.has(signature)) {
+    if (this.records.some((r) => r.signature === signature && (r.status === 'pending' || r.awaiting)) || this.failed.has(`${signature}@${eng.tierOf(ev)}`)) {
       if (origin === 'player' && ev.kind.startsWith('act/')) w.fx.push({ t: 'log', text: attemptLine(eng, ev) })
       return false
     }
     const rec = this.open(ev, res, signature, origin)
     // say at once what is being tried (never what comes of it: that is the patch's to decide)
     w.fx.push({ t: 'log', text: origin === 'player' ? attemptLine(eng, ev) : worldLine(eng, ev), tone: origin === 'player' ? undefined : 'ai' })
-    w.fx.push({ t: 'undefined', request: rec.id, summary: rec.request.summary, asked: !!this.provider })
+    // the setting may turn this kind of work off (quality.ts): then no one is asked, as with no one to ask
+    const asking = !!this.provider && eng.quality[categoryOf(w, ev)] !== 'off'
+    w.fx.push({ t: 'undefined', request: rec.id, summary: rec.request.summary, asked: asking })
     this.onChange?.()
-    if (!this.provider) {
+    if (!asking) {
       rec.status = 'fallback'
       return false
     }
@@ -510,16 +532,16 @@ export class ModPort implements UndefinedSink {
             else back?.()
           }
         } else {
-          this.failed.add(rec.signature)
+          this.failed.add(askedAt(rec))
           this.fallback(id)
         }
       })
       .catch(() => {
         // no reply at all is not an answer: the question may be asked again, a few times
         rec.awaiting = false
-        const n = (this.unreachable.get(rec.signature) ?? 0) + 1
-        this.unreachable.set(rec.signature, n)
-        if (n >= MAX_UNREACHABLE) this.failed.add(rec.signature)
+        const n = (this.unreachable.get(askedAt(rec)) ?? 0) + 1
+        this.unreachable.set(askedAt(rec), n)
+        if (n >= MAX_UNREACHABLE) this.failed.add(askedAt(rec))
         this.fallback(id)
       })
   }
@@ -602,7 +624,7 @@ export class ModPort implements UndefinedSink {
     }
     if (!res.ok) {
       const wasPending = rec?.status === 'pending'
-      if (rec) this.failed.add(rec.signature)
+      if (rec) this.failed.add(askedAt(rec))
       if (rec && wasPending) {
         rec.status = 'rejected'
         this.unfreeze(rec.id)
@@ -652,8 +674,8 @@ export class ModPort implements UndefinedSink {
     rec.patch = patch
     rec.rules = ruleIds
     rec.status = 'patched'
-    this.failed.delete(rec.signature)
-    this.unreachable.delete(rec.signature)
+    this.failed.delete(askedAt(rec))
+    this.unreachable.delete(askedAt(rec))
     this.unfreeze(rec.id)
     eng.world.fx.push({ t: 'patched', request: rec.id, rule: ruleIds[0] ?? '' })
     if (wasOpen && stillValid(eng, rec.event) && eng.resolveEvent(rec.event).defined) eng.replay(rec.event)
@@ -669,7 +691,7 @@ export class ModPort implements UndefinedSink {
   /** A person answered "nothing happens": the question is not asked again this session. */
   dismiss(id: string): void {
     const r = this.get(id)
-    if (r) this.failed.add(r.signature)
+    if (r) this.failed.add(askedAt(r))
     this.fallback(id)
   }
 }
@@ -683,6 +705,8 @@ export class ModPort implements UndefinedSink {
 export function placePatch(patch: Patch, req: ModRequest, now?: { ontology: Ontology; library: RuleLibrary }): { patch: Patch; fixes: string[] } {
   const fixes: string[] = []
   const type = req.event.host?.type
+  // the tier it was asked at is the tier it is kept in (quality.ts)
+  const tier = tierOfRequest(req)
   // the place as the library is now, not as it was when the question was asked: another answer may
   // have grown the tree since (then the open leaf moved), or taken the case (then nothing is placed)
   let hole = holeKey(req.hole.rule, req.hole.path)
@@ -731,6 +755,10 @@ export function placePatch(patch: Patch, req: ModRequest, now?: { ontology: Onto
     if (r.at === undefined || JSON.stringify(r.at) !== JSON.stringify(at)) {
       if (r.at !== undefined) fixes.push(`"${r.id}": at set from the request`)
       next.at = at
+    }
+    if (ruleTier(r) !== tier) {
+      if (r.tier !== undefined) fixes.push(`"${r.id}": tier set from the request`)
+      next.tier = tier
     }
     return { kind: 'rule' as const, rule: next }
   })
@@ -869,13 +897,15 @@ export function summarize(eng: Engine, ev: GameEvent): string {
 export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: string): ModRequest {
   const w = eng.world
   const roles = rolesOf(ev, w)
+  const tier = eng.tierOf(ev)
+  const view = VIEW[tier]
   const center = w.refPos(ev.host) ?? w.refPos(ev.roles.target) ?? w.refPos(ev.roles.actor) ?? w.posOf(w.player)!
   const mapData = w.map(center.map)!
   const tiles: string[][] = []
   const tileStatuses: { at: [number, number]; statuses: string[] }[] = []
-  for (let dy = -WINDOW; dy <= WINDOW; dy++) {
+  for (let dy = -view.tiles; dy <= view.tiles; dy++) {
     const row: string[] = []
-    for (let dx = -WINDOW; dx <= WINDOW; dx++) {
+    for (let dx = -view.tiles; dx <= view.tiles; dx++) {
       const x = center.x + dx
       const y = center.y + dy
       row.push(w.terrainAt(center.map, x, y))
@@ -887,8 +917,8 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
   }
   const involved = new Set(Object.values(roles).map((v) => v?.id).filter(Boolean))
   const nearby: EntityInfo[] = []
-  for (let dy = -2; dy <= 2; dy++)
-    for (let dx = -2; dx <= 2; dx++)
+  for (let dy = -view.nearby; dy <= view.nearby; dy++)
+    for (let dx = -view.nearby; dx <= view.nearby; dx++)
       for (const e of w.entitiesAt(center.map, center.x + dx, center.y + dy)) {
         // the cells themselves are the tiles' rows; nearby is what stands or lies there
         if (w.isTerrain(e) || involved.has(e.id) || nearby.some((x) => x.id === e.id)) continue
@@ -896,7 +926,8 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
         if (i) nearby.push(i)
       }
   // what was said lately: the lines already shown (drained each frame) and this frame's
-  const recent = [...w.recent, ...w.fx.flatMap((f) => (f.t === 'log' || f.t === 'say' ? [f.text] : []))].slice(-RECENT_LINES).map((t) => textOf(t))
+  const said = [...w.recent, ...w.fx.flatMap((f) => (f.t === 'log' || f.t === 'say' ? [f.text] : []))]
+  const recent = (view.recent ? said.slice(-view.recent) : []).map((t) => textOf(t))
   const hostView = roles.host
   const infos: Partial<Record<RoleName, EntityInfo>> = {}
   // a person in the event is told with what they think of the one who acted (docs/npc-sandbox.md §2.12)
@@ -908,15 +939,17 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
     origin: ev.origin === 'player' ? 'player' : 'world',
     event: { kind: ev.kind, params: { ...(ev.params ?? {}) }, host: info(eng, 'host', hostView, center, doer), roles: infos, detail: detailOf(eng, ev) },
     hole: { rule: res.hole?.rule.id ?? '?', path: res.hole?.path ?? [], default: res.hole?.default ?? [], at: res.open?.path ?? [] },
+    tier,
+    create: eng.quality.create,
     context: {
       map: { id: mapData.id, name: textOf(mapData.name), kind: mapData.kind, region: mapData.region },
       anchors: Object.keys(mapData.anchors ?? {}),
       hour: Math.round(w.hour() * 10) / 10,
-      nearby: nearby.slice(0, 16),
+      nearby: nearby.slice(0, view.things),
       tiles,
       tileStatuses,
       recent,
-      rules: [...eng.lib.candidates(ev.kind, hostView), ...eng.lib.learned(hostView?.type, ev.kind)].slice(0, 8),
+      rules: [...eng.lib.candidates(ev.kind, hostView), ...eng.lib.learned(hostView?.type, ev.kind)].slice(0, view.rules),
     },
     scenario: buildScenario(eng, ev),
   }
@@ -1052,7 +1085,7 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
     if (props && Object.keys(props).length) residents[id] = { ...props }
   }
   const player = keyOf.get(w.state.player) ?? '__player'
-  return { terrain, entities, player, event, ...(cells.length && { cells }), ...(Object.keys(residents).length && { residents }) }
+  return { tier: eng.tierOf(ev), terrain, entities, player, event, ...(cells.length && { cells }), ...(Object.keys(residents).length && { residents }) }
 }
 
 // ---------------------------------------------------------------- validation
@@ -1316,6 +1349,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     else checkSel(r.host, `${where}.host`)
     if (typeof r.hole !== 'string' || !r.hole) errors.push(`${where}: hole required — the base hole this rule fills (the harness sets it from the request)`)
     if (r.at !== undefined && !(Array.isArray(r.at) && r.at.every((x) => typeof x === 'string'))) errors.push(`${where}: at must be a path (a list of branches) when given`)
+    if (r.tier !== undefined && !isTier(r.tier)) errors.push(`${where}: tier must be one of ${TIERS.join('|')} (the harness sets it from the request)`)
     if ('when' in (r as object) || 'do' in (r as object)) errors.push(`${where}: this is the earlier rule shape (when/do); write {host, on, tree}`)
     const resident = !!r.host?.type && isA(r.host.type, 'resident')
     // a quest answers only its own rules (docs/quests.md §2: no patch hosts one, none writes one)
@@ -1345,7 +1379,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       const leaf = locate(base.tree, path)
       if (!leaf || !isHole(leaf.leaf)) errors.push(`${where}.hole: "${r.hole}" is not an open leaf of "${baseId}"${leaf ? ' (that leaf is defined)' : ' (no such branch)'}`)
     }
-    const tree = placing.tree(patchKey(r.host!.type!, r.on, r.hole!))
+    const tree = placing.tree(patchKey(r.host!.type!, r.on, r.hole!, ruleTier(r)))
     const at = r.at ?? []
     if (!tree && at.length) errors.push(`${where}.at: ${r.host!.type} has no tree at this hole yet — the first answer has no path`)
     if (!tree) return
@@ -1363,8 +1397,8 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       if (res.defined) errors.push(`the triggering event is already defined by "${res.rule!.id}" — there is nothing to answer`)
       else if (!res.hole) errors.push('the triggering event reaches no rule at all')
       else {
-        const want = { type, on: ev.kind, hole: holeKey(res.hole.rule.id, res.hole.path), at: res.open?.path ?? [] }
-        const same = (r: Rule) => (!type || r.host!.type === type) && r.on === want.on && r.hole === want.hole && JSON.stringify(r.at ?? []) === JSON.stringify(want.at)
+        const want = { type, on: ev.kind, hole: holeKey(res.hole.rule.id, res.hole.path), at: res.open?.path ?? [], tier: rp.engine.tierOf(ev) }
+        const same = (r: Rule) => (!type || r.host!.type === type) && r.on === want.on && r.hole === want.hole && JSON.stringify(r.at ?? []) === JSON.stringify(want.at) && ruleTier(r) === want.tier
         answer = rules.find(same)
         // a thing or a status alone changes nothing that happens: the event is answered by a rule
         if (!answer && !rules.length) errors.push(`the patch has no rule: the triggering event (${want.on} on a ${type ?? 'thing'}) is still undefined; a type or status alone answers nothing, so add the rule that uses it`)
@@ -1375,6 +1409,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
           if (r.on !== want.on) errors.push(`${where}.on: the triggering event is ${want.on}, not ${r.on}`)
           if (r.hole !== want.hole) errors.push(`${where}.hole: the triggering event falls undefined at "${want.hole}", not "${r.hole}"`)
           if (JSON.stringify(r.at ?? []) !== JSON.stringify(want.at)) errors.push(`${where}.at: the open leaf the triggering event reaches is at [${want.at.join(' › ')}], not [${(r.at ?? []).join(' › ')}]`)
+          if (ruleTier(r) !== want.tier) errors.push(`${where}.tier: the triggering event was asked at the ${want.tier} tier, not the ${ruleTier(r)}`)
         }
       }
     } catch (err) {
@@ -1422,7 +1457,8 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   for (const r of rules)
     for (const [i, t] of (r.tests ?? []).entries()) {
       try {
-        const rp = replay(t.given, ctx.ontology, cand)
+        // a rule's tests are played at its own tier (quality.ts): its answers and the higher tiers'
+        const rp = replay({ ...t.given, tier: ruleTier(r) }, ctx.ontology, cand)
         const fails = [...rp.errors, ...checkExpectations(rp.engine, t.expect ?? [], rp.resolution)]
         for (const f of fails) errors.push(`test "${t.name ?? `${r.id}#${i}`}": ${f}`)
       } catch (err) {
