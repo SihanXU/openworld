@@ -820,6 +820,8 @@ export class Engine {
   applyStatus(ref: Ref, status: string, duration?: number, by?: Id): void {
     const w = this.world
     const def = w.onto.status(status)
+    // a status that wards this one off (fireproof against burning) keeps it from taking hold
+    for (const held of Object.keys(w.statusesOf(ref) ?? {})) if (w.onto.status(held)?.wards?.includes(status)) return
     for (const c of def?.clears ?? []) if (w.hasStatus(ref, c)) this.removeStatus(ref, c)
     const dur = duration ?? def?.duration
     const fresh = w.setStatus(ref, status, dur ? w.state.tick + dur : NO_EXPIRY, by && w.get(by) ? by : undefined)
