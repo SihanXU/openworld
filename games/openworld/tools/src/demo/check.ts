@@ -34,9 +34,9 @@ for (let t = 0; t < TICKS_PER_HOUR * 48; t++) {
       const e = w.get(n.id)!
       const s = scheduleAt(scheduleFor(eng, e), w.hour())
       const p = w.posOf(e)
-      // an hour with a threat at hand (or flat on the ground) is not the schedule's to keep
+      // an hour with a threat at hand (or flat on the ground, or held in the cells) is not the schedule's to keep
       const threatened = w.entitiesOnMap(p?.map ?? '').some((o) => o.place.on === 'tile' && p && eng.hostileTo(o, e) && Math.abs(o.place.x - p.x) + Math.abs(o.place.y - p.y) <= 6)
-      if (threatened || w.hasStatus({ e: e.id }, 'down')) continue
+      if (threatened || w.hasStatus({ e: e.id }, 'down') || w.hasStatus({ e: e.id }, 'jailed')) continue
       const away = !s || !p || p.map !== s.map || Math.abs(p.x - s.x) + Math.abs(p.y - s.y) > 3
       totalAll++
       if (away) offAll++

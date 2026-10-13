@@ -558,11 +558,17 @@ export class Social {
     return !this.isAnothers(thing, seller) || w.hasTag(merchant, 'fence')
   }
 
-  /** What a merchant offers: what it carries that is its own to sell (not coin, not what it wears). */
+  /**
+   * What a merchant offers: what it carries that is its own to sell (not coin, not what it wears). One hungry keeps
+   * its food: where everyone sells, the hungry would otherwise buy the loaf off each other faster than they eat it.
+   */
   stock(merchant: Entity): Entity[] {
     const w = this.w
     const worn = new Set(w.worn(merchant).map((x) => x.id))
-    return (merchant.contents ?? []).map((id) => w.get(id)).filter((e): e is Entity => !!e && !this.isCoin(e) && !worn.has(e.id) && !e.frozenBy && this.owns(merchant, e))
+    const keepsFood = w.hasStatus({ e: merchant.id }, 'hungry')
+    return (merchant.contents ?? [])
+      .map((id) => w.get(id))
+      .filter((e): e is Entity => !!e && !this.isCoin(e) && !worn.has(e.id) && !e.frozenBy && this.owns(merchant, e) && !(keepsFood && w.hasTag(e, 'edible')))
   }
 
   // ---------------------------------------------------------------- noticing (§2.3)
