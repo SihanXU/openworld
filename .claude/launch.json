@@ -32,6 +32,15 @@
       "port": 5173
     },
     {
+      "name": "player",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "play"
+      ],
+      "port": 5174
+    },
+    {
       "name": "client-dist",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
