@@ -596,9 +596,13 @@ export const LEGENDARY_ARMS: Record<string, string[]> = {
   mage: ['item/weapon/magic/staff/emberheart', 'item/weapon/magic/staff/rimecrown'],
 }
 
-/** Instantiate an item: material × quality × element, with a composed bilingual name. */
-/** `trait`: whether a Vowbound piece rolls its vow's trait (a named piece says its own). */
-export function makeItem(rng: Rng, form: Form, opts: { material?: string; quality?: string; element?: string | null; trait?: boolean } = {}): Omit<Entity, 'id' | 'place'> {
+/**
+ * Instantiate an item: material × quality × element, with a composed bilingual name. `trait`: whether a Vowbound piece
+ * rolls its vow's trait (a named piece says its own). `extras`: the randomness its rolled extras draw on (default
+ * `rng`'s own); a map's builder gives each thing a stream of its own, so the extras never draw on the map's randomness
+ * and the affix table may change without moving the map's ground or things.
+ */
+export function makeItem(rng: Rng, form: Form, opts: { material?: string; quality?: string; element?: string | null; trait?: boolean; extras?: () => number } = {}): Omit<Entity, 'id' | 'place'> {
   const tags: string[] = []
   const props: Record<string, PropValue> = {}
   let en = form.en
@@ -628,7 +632,7 @@ export function makeItem(rng: Rng, form: Form, opts: { material?: string; qualit
   if (quality === 'vowed' && opts.trait !== false) Object.assign(props, rng.pick(VOW_TRAITS))
   // a piece one wears or wields rolls its small extras (trophies.ts AFFIX_TABLE), unless the author gives its props
   const slot = form.props?.slot ?? (form.id.startsWith('item/weapon') ? 'weapon' : undefined)
-  if (typeof slot === 'string' && opts.trait !== false) Object.assign(props, rollAffixes({ affixes: AFFIX_TABLE }, slot, () => rng.next()))
+  if (typeof slot === 'string' && opts.trait !== false) Object.assign(props, rollAffixes({ affixes: AFFIX_TABLE }, slot, opts.extras ?? (() => rng.next())))
   const el = opts.element === null ? undefined : (opts.element ?? (form.elemental && rng.chance(0.28) ? rng.pick(Object.keys(ELEMENT_NAMES)) : undefined))
   if (el && form.elemental) {
     tags.push(`element:${el}`)

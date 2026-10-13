@@ -370,6 +370,19 @@ describe('talk, regard, trade, followers (§2.4, §2.9, §2.10)', () => {
     expect(fxOf(s).some((f) => f.t === 'say' && f.who === 'npc.cass')).toBe(true)
   })
 
+  it('trade is a merchant\'s: one who keeps none (a person record need not trade — the demo\'s all do) is not asked to, and asked anyway has nothing to sell', () => {
+    const s = fresh()
+    clear(s, ['npc.cass'])
+    const cass = put(s, 'npc.cass', 20, 14, 'down')
+    put(s, 'player', 20, 15, 'up')
+    expect(socialOf(s.eng).verbs(cass, P(s)).map((v) => v.id)).toContain('trade')
+    author(s, () => W(s).removeTag(cass, 'merchant'))
+    expect(socialOf(s.eng).verbs(cass, P(s)).map((v) => v.id)).not.toContain('trade')
+    s.eng.controls.talk('npc.cass', 'trade')
+    expect(fxOf(s).some((f) => f.t === 'panel')).toBe(false)
+    expect(fxOf(s).some((f) => f.t === 'say' && f.who === 'npc.cass' && JSON.stringify(f.text).includes('没什么可卖'))).toBe(true)
+  })
+
   it('a gift raises regard by its worth; what was taken given back is forgiven', () => {
     const s = fresh()
     clear(s, ['npc.cass'])
