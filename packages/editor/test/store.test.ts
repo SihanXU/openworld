@@ -31,6 +31,33 @@ describe.skipIf(!existsSync(STARTER))('the editor\'s store', () => {
     expect(s.undo()).toBeUndefined()
   })
 
+  it('makes an undone edit again, until another edit; a stroke again at once; an added or removed file too', () => {
+    const s = fresh()
+    const before = JSON.stringify(s.get('maps/glade.json'))
+    for (let x = 1; x < 4; x++) s.change<RawChunk>('maps/glade.json', 'paint', (c) => (c.map.rows[2] = c.map.rows[2].slice(0, x) + '~' + c.map.rows[2].slice(x + 1)), 3)
+    const after = JSON.stringify(s.get('maps/glade.json'))
+    expect(s.redo()).toBeUndefined()
+    s.undo()
+    expect(s.next()).toEqual({ redo: 'paint' })
+    expect(s.redo()).toBe('paint')
+    expect(JSON.stringify(s.get('maps/glade.json'))).toBe(after)
+    s.undo()
+    expect(JSON.stringify(s.get('maps/glade.json'))).toBe(before)
+    // another edit: what was undone is not made again
+    s.change<RawChunk>('maps/glade.json', 'other', (c) => (c.map.name = 'X'))
+    expect(s.redo()).toBeUndefined()
+    s.add('people/npc.ada.json', { id: 'npc.ada', type: 'actor/person', place: { on: 'none' } }, 'a person')
+    s.undo()
+    expect(s.get('people/npc.ada.json')).toBeUndefined()
+    s.redo()
+    expect(s.get('people/npc.ada.json')).toBeDefined()
+    s.remove('people/mira.json', 'remove Mira')
+    s.undo()
+    s.redo()
+    expect(s.get('people/mira.json')).toBeUndefined()
+    expect(s.unsaved()).toBe(3)
+  })
+
   it('adds and removes files, and undoes either', () => {
     const s = fresh()
     s.add('people/npc.ada.json', { id: 'npc.ada', type: 'actor/person', place: { on: 'none' } }, 'a person')

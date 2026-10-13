@@ -5,7 +5,8 @@ own, keep the present game as one story on it, and build an OpenWorld Editor in 
 ("OpenWorld拿出来专门当游戏引擎，现在的游戏是其中的一个story作为demo，然后同步还要做一个OpenWorld Editor，
 像RPG Maker那样可以自己做游戏"), and accepted every recommendation below; then to build P2–P6 in the same pull request ("p2到p6", P7
 left); then, asked whether the editor was a tool for this one game or a game-making program like RPG Maker, to
-make it a program of its own now ("现在就往独立软件方向做啊": S2 changed, §15). §8 onwards records what was built.
+make it a program of its own now ("现在就往独立软件方向做啊": S2 changed, §15); then, the editor checked against
+RPG Maker, its next phase (§16: E1–E7). §8 onwards records what was built.
 
 ## 1. Decisions
 
@@ -145,6 +146,7 @@ held, the game playable throughout.
 | **P6 The AI as co-author** | the holes panel (coverage per project); a patch asked for one hole, reviewed and taken; the builder's brushes; people generated in bulk | holes seen and filled in the editor |
 | **P7** (later) | the engine side gets a repository of its own and versions; the game depends on them | — |
 | **P8 The editor as a program** (S2 changed) | projects in any folder, a recent list, templates; the editor's own server and a build of it; pictures and sounds imported, the pack shipped, the catalogue edited by cutting sprites; export as a playable folder and zip; a desktop shell; the runtime free of one game's words; the game's settings and the rest of its data in forms | a game made, given pictures and exported in the desktop application, with no repository and no TypeScript |
+| **E1–E7 The editor as RPG Maker is used** (§16) | the map's feel, OpenWorld's events, the editor's words in two languages, the database in forms, playtest and debug, publishing, the program, the AI in the program | each step's own (§16) |
 
 P2 and P3 overlap where they do not touch (the catalogue as data needs no modules).
 
@@ -470,3 +472,94 @@ program to install. Asked to go that way now, S2 changed and this was built.
 - **Left**: the installers are unsigned; the modder is still started on its own (`npm run modder -- serve`) for
   the holes panel's AI, and does not yet read a project's learned files; the fonts come from Google Fonts (a
   machine offline draws the fallback); the cover's mountain art is OpenWorld's own, offered to any game.
+
+## 16. The editor as RPG Maker is used: E1–E7 (agreed 2026-10-13)
+
+The user asked for the editor to be checked against RPG Maker's features and the way its users work
+("根据rpg maker的功能和操作/交互习惯，检查一下openworlds editor，看看之后的计划是什么，给我一个完整的方案"). The
+audit found the skeleton whole — projects, maps, people, the database, rules, the story, quests, assets, export,
+the desktop program, and what RPG Maker has no counterpart for (the validation panel, which rule answers here,
+the sandbox, the holes and the AI, a playtest from any cell) — and two gaps: **the feel** (few drawing tools; the
+right button, the double click and the shortcuts RPG Maker's users reach for do other things or nothing) and
+**JSON where RPG Maker has a form** (a step's trigger, a scene's commands, quests, what appears on a map).
+
+### Decisions
+
+| # | Decision |
+|---|---|
+| E-a | **The editor's words in Chinese and English, switched in the editor** (not Chinese only). |
+| E-b | **"Its own kind" stands for RPG Maker's single event**: on one thing, the author asks for a kind of its own; the editor makes a child type of its type, moves the thing to it, and its rules hang there. It feels like giving one event its behaviour; the model is unchanged (S5: rules on types, the holes asked per class). |
+| E-c | **No mobile publishing.** A game is exported for the web and, later, as a desktop game. |
+| E-d | **The installers stay unsigned** for now (no certificate). |
+
+Not taken from RPG Maker, by the model: behaviour per instance (E-b instead), numbered entries (ids keep their
+meaning), passability per tile (it follows terrain and type, `solid`, which suits a large world), and a
+turn-based battle database (troops, battle events) unless a module brings one.
+
+### The plan
+
+| Step | What | Done when |
+|---|---|---|
+| **E1 The map's feel** | rectangle, ellipse and fill beside the pencil, a brush size; the right button picks what is under it (a drag: a block, as a stamp to paste), panning on the middle button or with space held, the wheel scrolls and Ctrl+wheel zooms; a selection copied, cut, pasted and cleared; things dragged to move and nudged with the arrows; redo; layers (ground, height, things, marks) with the others dimmed, a grid; a status bar (the cell, its ground, height and things, the zoom and its presets); a palette of pictures, grouped by kind; buildings (the catalogue's prefabs) and rooms (wall frames) as tools, an interior made from a building's door; the maps as a tree by group, duplicated, with thumbnails, and a world overview by the edge links and portals; a map's settings as forms (what appears, the law, fish) | someone who knows RPG Maker draws a small village with a house and its interior in ten minutes without touching JSON |
+| **E2 OpenWorld's events** | a double click opens what is there (a person in the people mode, a thing's kind and rules, a portal's settings); quick events (a door, a chest and what is in it, a sign, a bed, a merchant, a quest giver); "its own kind" (E-b); a form for each scene command (a line with its speaker and portrait, previewed as the game's dialogue; a move or a transfer picked on the map; a fact or a quest's stage from a list); a step's trigger and a quest's stages, objectives and aliases as forms; the facts' list with where each is set and read (RPG Maker's event searcher), and the same for types, items and rules; play from this scene | a story — into the village, a word with someone, a thing given, the quest done — made with no JSON |
+| **E6a The editor's words** (from E6, brought forward) | the Chinese/English switch (E-a) over every panel; the shortcuts (F9 the database, Ctrl+R playtest, Ctrl+F a search of the project, F1 help) and their table | the editor reads whole in either language |
+| **E3 The database in forms** | a form made from the format's JSON Schemas (`packages/format/schema`) replacing every raw JSON field; the types in tabs by kind (items, weapons, armour, food, furniture, creatures, people), each with templates, an entry duplicated; the skill tree edited on the game's own layout; professions, boons, bosses, the look table and the modules' parameters as forms; a person's social life (trade, purse, watch, household) | no raw JSON box left, JSON kept only as "advanced" |
+| **E4 Playtest and debug** | a debug panel in the playtest, the exported player too (facts, time and weather, a transfer, items given, a thing summoned, the learned rules); a playtest from a quest's stage or a scene; a fight or a boss tried alone; a playtest that takes the editor's changes without starting again | — |
+| **E5 Publishing** | an export that leaves out the pictures and sounds no entry uses; a desktop game (the Electron shell, Windows, macOS, Linux); an icon, a version and the cover set as it is exported; optionally itch.io in one step. No mobile (E-c) | — |
+| **E6 The program** (the rest) | the desktop's own menu bar; help inside and sample projects (a village, a dungeon); the fonts shipped (offline); autosave and recovery after a crash; updates. Signing waits for a certificate (E-d) | — |
+| **E7 The AI in the program** | the modder started from the editor, its model and key in the settings; the holes as a heat map over the map and the database; people, quests and scenes drafted by the AI (offline profile), reviewed before they are taken; the modder reads a project's `learned/` | — |
+
+The order is E1, E2, E6a, E3, E4, E5, E7: the first two decide whether it is used as RPG Maker is; the words are
+cheap and felt at once. Each step keeps the present rules (typecheck, the suite, the editor's tests, a browser
+run of its done-when) and is recorded below as built.
+
+## 17. E1 as built (2026-10-13): the map's feel
+
+- **Layers and tools** (`editor/src/app/mapMode.ts`): the map has four layers, **Ground** (terrain, buildings,
+  rooms), **Height**, **Things** (the things and the people standing there) and **Marks** (portals, anchors, areas,
+  the start), each with its own tools and the others dimmed on the canvas (the scene's `setEditorDim`). The ground
+  and the height: a **pencil** with a brush of 1 to 5, a **rectangle**, an **ellipse**, a **fill** (the cells joined by
+  their sides with the same ground), a **selection**; on the ground besides, **Building**, **Room** and the builder's
+  Path and Patch. Things: **Select** (a thing or a person clicked, dragged to move, the arrows nudge, Delete removes),
+  **Set down** (dragged: one a cell), **Rectangle** (one in every cell), **Erase** (with the brush), Scatter, Yard.
+  Marks: a portal, an anchor or the start dragged to move; anchors and areas named in the panel (else the next free
+  name), no prompt. Each tool has its key (P, R, E, F, S, B, O, X …), shown on its button.
+- **As RPG Maker is used** (`canvas.ts`): the right button picks what is under it — the ground, the height, or a
+  thing's kind — and a right-button drag picks a block, which then follows the pointer and is laid at each click
+  until Esc; the middle button or space held pans; the wheel scrolls (Shift: across), Ctrl+wheel and a pinch zoom; a
+  double click reaches the mode (for E2). A **selection** is copied, cut, pasted (Ctrl+C, X, V), its things taken away
+  (Delete), filled, dragged or moved with the arrows; a block carries its ground, heights, things with what they hold
+  (new ids when pasted, the same when moved), and the buildings and rooms wholly inside it; a move takes the portals,
+  anchors and areas in it too; the cells left get the ground around them. **Redo** beside Undo (Ctrl+Y,
+  Ctrl+Shift+Z; the store keeps what was undone until another edit), each button titled with what it would do; a
+  field's own Ctrl+Z stays the field's.
+- **The status bar**: the cell under the pointer, its ground and character, its height and what stands there; the
+  grid (G); the zoom's presets (50 % to 600 %), in and out (+, −), the whole map (Fit, 0).
+- **Palettes of pictures** (`thumbs.ts`): the ground as its tile (an autotile's middle, a plain tile, or the thing
+  drawn on it), the kinds of things as the canvas draws them (a creature's sheet, a fixture's picture, an item's icon),
+  grouped by the first steps of their kind (fixture/furniture, item/tool …) and filtered; the buildings as stamped.
+- **Buildings and rooms** (`mapEdit.ts`, as the Ford's builder lays them): a building from the catalogue's prefabs —
+  its picture one of the map's stamps, its solid cells the prefab's terrain, its door a door — previewed under the
+  pointer with its door marked, removed with its cells given back; a room's walls round a floor in a catalogue
+  frame's style, a click on its wall a doorway; **the room behind a door**: a selected door that leads nowhere offers
+  to make it — a new interior map (its size, walls, floor and name), its door at the foot, a portal each way, then
+  shown. The starter (and so both templates) gained eight houses and four wall styles from the pack's sheets it had.
+- **The maps** (`mapTree.ts`): a tree by group (a map's `region`, set in its settings), each with a picture of its
+  ground; a map duplicated (its things anew under its id); **the world overview**: the maps the edge links lay out
+  where they lie, those reached only by portals in a row below, a line for every portal between two maps, a click
+  opening one.
+- **A map's settings as forms** (`mapForms.ts`): name, group, kind, light, zone, music (the catalogue's), the law kept
+  there (the ontology's laws), fish in its water, and **what appears by itself**: each entry its kinds and weights,
+  the grounds, at most so many, every so many ticks, the hours or the night, the weathers, a tag, and a creature's
+  behaviour, temper, sight and leash.
+- **Checked**: `editor/test/mapEdit.test.ts` (the shapes, the fill, blocks copied, pasted and moved with what their
+  things hold, buildings and rooms as the builder lays them, the interior and its portals, a map duplicated, all
+  compiled with no new problem on the starter) and the store's redo (`store.test.ts`); in a browser, on a new project
+  from the starter, the done-when: the ground painted with each shape, picked with the right button, undone and
+  redone; a house stamped and the room behind its door made, furnished, its bed dragged; the chest dragged, nudged,
+  copied and pasted; a block picked and laid, a selection cut and pasted; an anchor and an area named; the map's
+  group, fish and what appears set; a room with a doorway; heights; a playtest from a cell; a map duplicated; the
+  overview — saved, compiled with no problem, no error in the page. The baked Ford opens (7 s) and its overview draws
+  its 23 maps (3 s).
+- **Left for later**: a person is moved here but made in the people mode; anchors and areas are renamed by removing
+  and placing again; a cut leaves the ground around it, not "nothing" (every cell has a ground).

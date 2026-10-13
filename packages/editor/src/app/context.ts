@@ -35,8 +35,10 @@ export interface Mode {
   render(ctx: Ctx, left: HTMLElement, right: HTMLElement): void
   /** A mode that needs the middle of the window (the rules, the story, the quests) draws there instead of the canvas. */
   main?(ctx: Ctx, el: HTMLElement): void
-  /** The canvas's cell under the tool. */
+  /** The canvas's cell under the tool (or the picker, the right button). */
   cell?(ctx: Ctx, c: { x: number; y: number }, ev: CellEvent): void
+  /** A key pressed over the editor while no field is typed in: true when the mode took it. */
+  keydown?(ctx: Ctx, e: KeyboardEvent): boolean
   overlay?(ctx: Ctx): Overlay | undefined
   /** Open at a file (and a place in it). */
   focus?(ctx: Ctx, file: string, at?: string): void

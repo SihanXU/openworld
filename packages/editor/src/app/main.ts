@@ -7,7 +7,9 @@
 import '@openworld/modules'
 import { useGame } from '@openworld/runtime/src/game.ts'
 import { clientGameOf } from '@openworld/runtime/src/bundle.ts'
-import { Canvas } from './canvas.ts'
+import { Canvas, ZOOMS } from './canvas.ts'
+import type { PersonFile } from '@openworld/format'
+import type { RawChunk } from '@openworld/engine'
 import type { Ctx, Mode } from './context.ts'
 import { MapMode } from './mapMode.ts'
 import { PeopleMode } from './peopleMode.ts'
@@ -36,8 +38,8 @@ async function openProject(id: string): Promise<void> {
   document.body.innerHTML = `<div class="editor">
     <header><a href="./" class="home-link">OpenWorld Editor</a> <b>${esc(tx(store.game.name))}</b> <nav id="modes"></nav>
       <span class="grow"></span><span id="status" class="muted"></span>
-      <button id="undo" title="Ctrl+Z">Undo</button><button id="save" title="Ctrl+S">Save</button><button id="play" title="Save, and play from the start (or the selected cell)">▶ Playtest</button><button id="export" title="Save, and make the game a folder anyone can play">Export…</button></header>
-    <aside id="left"></aside><main id="canvas"></main><main id="center" class="hidden"></main><aside id="right"></aside>
+      <button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Y or Ctrl+Shift+Z">Redo</button><button id="save" title="Ctrl+S">Save</button><button id="play" title="Save, and play from the start (or the selected cell)">▶ Playtest</button><button id="export" title="Save, and make the game a folder anyone can play">Export…</button></header>
+    <aside id="left"></aside><main id="canvas"><div id="statusbar"><span id="sbCell" class="muted"></span><span class="grow"></span><button id="sbGrid" title="the grid (G)">Grid</button><span class="sep"></span><button id="sbOut" title="zoom out (-)">−</button>${ZOOMS.map((z) => `<button data-zoom="${z}">${z * 100}%</button>`).join('')}<button id="sbIn" title="zoom in (+)">+</button><button id="sbFit" title="the whole map (0)">Fit</button></div></main><main id="center" class="hidden"></main><aside id="right"></aside>
     <footer id="problems"></footer><div id="toasts"></div></div>`
   const canvas = new Canvas($('#canvas'))
   const modes: Mode[] = [new MapMode(), new PeopleMode(), ...MORE]
@@ -90,7 +92,37 @@ async function openProject(id: string): Promise<void> {
     const n = store.unsaved()
     $('#status').textContent = n ? `${n} unsaved` : 'saved'
     $<HTMLButtonElement>('#save').disabled = !n
+    const next = store.next()
+    $<HTMLButtonElement>('#undo').disabled = !next.undo
+    $<HTMLButtonElement>('#undo').title = next.undo ? `Undo: ${next.undo} (Ctrl+Z)` : 'Nothing to undo'
+    $<HTMLButtonElement>('#redo').disabled = !next.redo
+    $<HTMLButtonElement>('#redo').title = next.redo ? `Redo: ${next.redo} (Ctrl+Y)` : 'Nothing to redo'
   }
+  // the status bar: the cell under the pointer (its ground, height and things), the zoom, the grid
+  function cellInfo(c: { x: number; y: number }): string {
+    const f = store.mapFile(ctx.map)
+    const ch = f ? store.get<RawChunk>(f) : undefined
+    if (!ch || c.x < 0) return ''
+    const char = ch.map.rows[c.y]?.[c.x] ?? ''
+    const terrain = store.game.terrainChars[char] ?? '?'
+    const things = ch.entities.filter((e) => e.place.on === 'tile' && e.place.x === c.x && e.place.y === c.y)
+    const people = store.list<PersonFile>('people').filter((p) => p.data.place.on === 'tile' && p.data.place.map === ctx.map && p.data.place.x === c.x && p.data.place.y === c.y)
+    const what = [...people.map((p) => tx(p.data.name) || p.data.id), ...things.map((e) => e.type.split('/').pop())]
+    return `${esc(ctx.map)} · <b>${c.x}, ${c.y}</b> · ${esc(terrain)} <code>${esc(char)}</code> · height ${esc(ch.map.heights?.[c.y]?.[c.x] ?? '0')}${what.length ? ` · ${esc(what.join(', '))}` : ''}`
+  }
+  function zoomShown(): void {
+    const z = canvas.zoom
+    document.querySelectorAll<HTMLButtonElement>('[data-zoom]').forEach((b) => b.classList.toggle('on', Math.abs(Number(b.dataset.zoom) - z) < 0.01))
+    $('#sbGrid').classList.toggle('on', canvas.grid)
+  }
+  canvas.onView = zoomShown
+  const step = (dir: 1 | -1) => canvas.zoomTo(dir > 0 ? (ZOOMS.find((z) => z > canvas.zoom + 0.01) ?? ZOOMS[ZOOMS.length - 1]) : ([...ZOOMS].reverse().find((z) => z < canvas.zoom - 0.01) ?? ZOOMS[0]))
+  const grid = () => ((canvas.grid = !canvas.grid), canvas.redraw(), zoomShown())
+  document.querySelectorAll<HTMLButtonElement>('[data-zoom]').forEach((b) => (b.onclick = () => canvas.zoomTo(Number(b.dataset.zoom))))
+  $<HTMLButtonElement>('#sbIn').onclick = () => step(1)
+  $<HTMLButtonElement>('#sbOut').onclick = () => step(-1)
+  $<HTMLButtonElement>('#sbFit').onclick = () => canvas.fit()
+  $<HTMLButtonElement>('#sbGrid').onclick = grid
   async function save(): Promise<void> {
     try {
       if (store.unsaved()) await store.save()
@@ -99,7 +131,10 @@ async function openProject(id: string): Promise<void> {
       throw e
     }
   }
-  canvas.onCell = (c, ev) => mode.cell?.(ctx, c, ev)
+  canvas.onCell = (c, ev) => {
+    if (ev === 'hover' || ev === 'drag' || ev === 'rdrag' || ev === 'leave') $('#sbCell').innerHTML = cellInfo(c)
+    mode.cell?.(ctx, c, ev)
+  }
   // the canvas follows the project: drawn again a frame after an edit (a stroke is many)
   let redraw = 0
   store.on((why, file) => {
@@ -113,13 +148,25 @@ async function openProject(id: string): Promise<void> {
     refresh()
   })
   $<HTMLButtonElement>('#undo').onclick = () => store.undo() ?? toast('Nothing to undo.', 'warn')
+  $<HTMLButtonElement>('#redo').onclick = () => store.redo() ?? toast('Nothing to redo.', 'warn')
   $<HTMLButtonElement>('#save').onclick = () => void save().then(() => toast('Saved.'))
   $<HTMLButtonElement>('#play').onclick = () => void ctx.playtest()
   $<HTMLButtonElement>('#export').onclick = () => void save().then(() => exportDialog(id, store))
+  // the keys: Ctrl+S anywhere; the rest only while no field is being typed in (a field's own Ctrl+Z is its own)
   window.addEventListener('keydown', (e) => {
-    if (!(e.ctrlKey || e.metaKey)) return
-    if (e.key === 'z') (e.preventDefault(), store.undo())
-    if (e.key === 's') (e.preventDefault(), void save().then(() => toast('Saved.')))
+    const mod = e.ctrlKey || e.metaKey
+    const k = e.key.toLowerCase()
+    if (mod && k === 's') return (e.preventDefault(), void save().then(() => toast('Saved.')))
+    const t = e.target as HTMLElement
+    if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement || t.isContentEditable) return
+    if (mod && k === 'z' && !e.shiftKey) return (e.preventDefault(), void store.undo())
+    if (mod && (k === 'y' || (k === 'z' && e.shiftKey))) return (e.preventDefault(), void store.redo())
+    if (mode.keydown?.(ctx, e)) return e.preventDefault()
+    if (mode.main || mod || e.altKey) return
+    if (k === 'g') grid()
+    else if (k === '+' || k === '=') step(1)
+    else if (k === '-') step(-1)
+    else if (k === '0') canvas.fit()
   })
   window.addEventListener('beforeunload', (e) => { if (store.unsaved()) e.preventDefault() })
   ctx.showMap(ctx.map)

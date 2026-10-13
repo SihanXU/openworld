@@ -1,6 +1,6 @@
 // The project open in the editor: every file of it by path, as the format writes it (docs/engine-split.md §5).
 // An edit changes a file's data in memory and marks it unsaved; Save writes what changed through the service;
-// Undo takes the last edit back. The compiler runs here as it runs anywhere (it is pure): what the canvas draws
+// Undo takes the last edit back and Redo makes it again (until another edit). The compiler runs here as it runs anywhere (it is pure): what the canvas draws
 // and what the validation panel lists are the project as it is now, saved or not.
 
 import { compile, type Compiled, type GameJson, type Project, type Sourced } from '@openworld/format'
@@ -15,6 +15,8 @@ interface Edit {
   file: string
   /** The file's text before the edit (none: it did not exist). */
   before?: string
+  /** An undone edit: the file's text as the edit left it (none: it was removed), which Redo puts back. */
+  after?: string
   why: string
   stroke?: number
 }
@@ -25,6 +27,7 @@ export class Store {
   private dirty = new Set<string>()
   private deleted = new Set<string>()
   private undos: Edit[] = []
+  private redos: Edit[] = []
   private listeners = new Set<(why: string, file?: string) => void>()
   private made?: Compiled
   private madeFor = -1
@@ -82,6 +85,7 @@ export class Store {
     if (JSON.stringify(data) === before) return
     const last = this.undos[this.undos.length - 1]
     if (!(stroke !== undefined && last?.stroke === stroke && last.file === file)) this.undos.push({ file, before, why, stroke })
+    this.redos = []
     this.dirty.add(file)
     this.emit(why, file)
   }
@@ -90,9 +94,8 @@ export class Store {
   add(file: string, data: unknown, why: string): void {
     if (this.docs.has(file)) throw new Error(`${file} exists`)
     this.undos.push({ file, why })
-    this.docs.set(file, data)
-    this.deleted.delete(file)
-    this.dirty.add(file)
+    this.redos = []
+    this.put(file, data)
     this.emit(why, file)
   }
 
@@ -101,27 +104,50 @@ export class Store {
     const data = this.docs.get(file)
     if (data === undefined) return
     this.undos.push({ file, before: JSON.stringify(data), why })
-    this.docs.delete(file)
-    this.dirty.delete(file)
-    this.deleted.add(file)
+    this.redos = []
+    this.put(file, undefined)
     this.emit(why, file)
+  }
+
+  /** A file set to a value (none: removed), as unsaved. */
+  private put(file: string, data: unknown): void {
+    if (data === undefined) {
+      this.docs.delete(file)
+      this.dirty.delete(file)
+      this.deleted.add(file)
+    } else {
+      this.docs.set(file, data)
+      this.deleted.delete(file)
+      this.dirty.add(file)
+    }
+  }
+  private text(file: string): string | undefined {
+    return this.docs.has(file) ? JSON.stringify(this.docs.get(file)) : undefined
   }
 
   /** Take the last edit back: what it was called. */
   undo(): string | undefined {
     const u = this.undos.pop()
     if (!u) return undefined
-    if (u.before === undefined) {
-      this.docs.delete(u.file)
-      this.deleted.add(u.file)
-      this.dirty.delete(u.file)
-    } else {
-      this.docs.set(u.file, JSON.parse(u.before))
-      this.deleted.delete(u.file)
-      this.dirty.add(u.file)
-    }
+    this.redos.push({ ...u, after: this.text(u.file) })
+    this.put(u.file, u.before === undefined ? undefined : JSON.parse(u.before))
     this.emit(`undo: ${u.why}`, u.file)
     return u.why
+  }
+
+  /** Make the last undone edit again: what it was called. */
+  redo(): string | undefined {
+    const r = this.redos.pop()
+    if (!r) return undefined
+    this.undos.push({ file: r.file, before: this.text(r.file), why: r.why })
+    this.put(r.file, r.after === undefined ? undefined : JSON.parse(r.after))
+    this.emit(`redo: ${r.why}`, r.file)
+    return r.why
+  }
+
+  /** What Undo and Redo would take back or make again (for their buttons' titles). */
+  next(): { undo?: string; redo?: string } {
+    return { undo: this.undos[this.undos.length - 1]?.why, redo: this.redos[this.redos.length - 1]?.why }
   }
 
   unsaved(): number {
