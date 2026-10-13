@@ -1,12 +1,12 @@
 // Every kind of monster's own piece of gear (2026-10-11): one piece per kind, not a set. Felling one, the one who
 // struck may find it in their bag — a small chance each time (a boss's sure), and at the fiftieth without it, surely
-// (the engine's `trophy` primitive keeps the count on the striker: `trophy.<type>`, WorldParams.trophyPity). Its main
+// (the loot module's `trophy` primitive keeps the count on the striker: `trophy.<type>`; LOOT below its pity). Its main
 // stats are its own and fixed (the props below); the four small extras it rolls as it is made (affixes.ts, the table
 // AFFIX_TABLE here), as every made piece of gear does. As the forged gear (sets.ts, after Dungeon Fighter), the pieces
 // of one family of monsters make an armour set (the six on the body) or a trinket set (neck, ear, ring); a few bosses'
 // pieces stand alone, stronger, in no set (Ontology.sets).
 
-import type { AffixTable, GearSet, Text } from '@openworld/engine'
+import type { AffixTable, GearSet, LootParams, Text } from '@openworld/engine'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 
@@ -120,6 +120,9 @@ export const TROPHY_SETS: GearSet[] = FAMILIES.map((f) => ({ id: f.id, name: L(f
 
 /** The kinds of monster that have a piece, and the piece: what the creature's props carry (rules.ts combat/defeat). */
 export const TROPHY_OF: Record<string, Trophy> = Object.fromEntries(TROPHIES.map((t) => [t.kind, t]))
+
+/** The loot module's numbers and words (Ontology.loot): sure at the fiftieth of a kind, and what the finder is told. */
+export const LOOT: LootParams = { pity: 50, found: L('A trophy: {item}!', '获得专属装备：{item}！') }
 
 /**
  * The small extras a piece of gear rolls when it is made (engine affixes.ts): four different ones, each a value in its

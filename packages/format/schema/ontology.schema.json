@@ -77,6 +77,10 @@
         "social": {
           "$ref": "#/definitions/SocialParams"
         },
+        "loot": {
+          "$ref": "#/definitions/LootParams",
+          "description": "What a felled creature's kind leaves its feller beyond the rules' spoils: its own piece's pity and words (the loot module)."
+        },
         "talk": {
           "type": "array",
           "items": {
@@ -1604,6 +1608,21 @@
       "additionalProperties": false,
       "description": "A home ground's room for people (the society module's `moveIn`): its map and the beds it has, each an anchor there (where the resident sleeps; `<anchor>.day` where their day is spent, else the same), open once its fact holds; what the one asked says, moved in or with no bed free."
     },
+    "LootParams": {
+      "type": "object",
+      "properties": {
+        "pity": {
+          "type": "number",
+          "description": "How many of a kind one fells without its piece before the next surely gives it (default 50; the count is the feller's `trophy.<type>`)."
+        },
+        "found": {
+          "$ref": "#/definitions/Text",
+          "description": "What the one at the keys is told when a piece comes to them (`{item}`: its name); none, only the piece's pickup is shown."
+        }
+      },
+      "additionalProperties": false,
+      "description": "The loot module's numbers and words (packages/modules/src/loot): a creature kind's own piece of gear (its type's `trophy` prop, found by its `trophyChance`) comes to the one who fells it by that chance, or surely after so many."
+    },
     "TalkVerb": {
       "type": "object",
       "properties": {
@@ -1895,10 +1914,6 @@
         "spawnMax": {
           "type": "number",
           "description": "How many things one effect may make at once (a runtime guard; default 64)."
-        },
-        "trophyPity": {
-          "type": "number",
-          "description": "How many of a kind one fells before its trophy surely comes (the `trophy` primitive; default 50)."
         },
         "safeFall": {
           "type": "number",

@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { Game, Rng, RuleLibrary, rollAffixes, type Entity } from '@openworld/engine'
-import { AFFIX_TABLE, BASE_RULES, FORM_BY_ID, STORY_RULES, TROPHIES, TROPHY_OF, TROPHY_SETS, buildOntology, decodeChunk, makeItem } from '@openworld-game/content'
+import { Game, MAINHAND, Rng, RuleLibrary, rollAffixes, weaponOf, type Entity, type Ontology } from '@openworld/engine'
+import { trophyTypes } from '@openworld/modules'
+import { AFFIX_TABLE, BASE_RULES, FORM_BY_ID, LOOT, STORY_RULES, TROPHIES, TROPHY_OF, TROPHY_SETS, buildOntology, decodeChunk, makeItem } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
-// Every kind of monster's own piece (content trophies.ts): a chance each felling, sure at the fiftieth; every piece of
-// gear rolls four small extras as it is made (engine affixes.ts); a family's pieces worn together make a set.
+// Every kind of monster's own piece (content trophies.ts): a chance each felling, sure at the fiftieth (the loot
+// module); every piece of gear rolls four small extras as it is made (engine affixes.ts); a family's pieces worn
+// together make a set.
 
 const onto = buildOntology()
 
-function game() {
+function game(ontology: Ontology = onto) {
   const { index, chunks } = buildFord()
-  const g = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+  const g = Game.create(index, ontology, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
   for (const c of chunks) g.loadChunk(decodeChunk(c))
   g.mods.provider = { resolve: () => new Promise<null>(() => {}) }
   const eng = g.engine, w = eng.world, p = w.player
@@ -36,7 +38,9 @@ function game() {
     expect(w.fx.some((x) => x.t === 'vfx' && x.fx.startsWith('swing:') && x.who === p.id)).toBe(true)
   }
   const bag = (type: string) => Object.values(w.state.entities).filter((e) => e.type === type && e.place.on === 'inside' && e.place.holder === p.id)
-  return { eng, w, p, fell, bag }
+  /** The defeat news the game's own rule sends the striker, shaped as any rule (a patch's) could send it: naming a piece. */
+  const defeat = (trophy: string, trophyChance = 1) => eng.queue({ kind: 'impulse/notify', host: { e: p.id }, roles: {}, params: { what: 'defeat', xp: 0, trophy, trophyChance } })
+  return { g, eng, w, p, fell, bag, defeat }
 }
 
 describe('monster trophies', () => {
@@ -76,6 +80,76 @@ describe('monster trophies', () => {
   })
 })
 
+describe('the loot module (a trophy is the game\'s own spoils)', () => {
+  it('only a piece some kind names as its trophy is ever made: defeat news naming any other type, as a patch could send it, finds nothing', () => {
+    const { eng, w, p, bag, defeat } = game()
+    const ring = TROPHY_OF['actor/creature/slime/green_slime'].type
+    for (const other of ['item/weapon/blade/axe', 'item/material/gold_ingot', 'item/valuable/ring']) {
+      expect(w.onto.hasType(other)).toBe(true)
+      const before = bag(other).length
+      defeat(other)
+      expect([other, bag(other).length, w.prop(p, `trophy.${other}`)]).toEqual([other, before, undefined])
+    }
+    // the same news naming a kind's own piece: it comes
+    defeat(ring)
+    expect(bag(ring)).toHaveLength(1)
+    // nor does a kind the AI made (a learned type) make its word a trophy
+    const learned = { id: 'actor/creature/slime/gilded_slime', name: { en: 'gilded slime', zh: '镀金史莱姆' }, props: { trophy: 'item/material/gold_ingot', trophyChance: 1 } }
+    w.onto.addType(learned)
+    eng.lib.addType(learned)
+    expect(trophyTypes(eng).has(ring)).toBe(true)
+    expect(trophyTypes(eng).has('item/material/gold_ingot')).toBe(false)
+    const gold = bag('item/material/gold_ingot').length
+    defeat('item/material/gold_ingot')
+    expect(bag('item/material/gold_ingot')).toHaveLength(gold)
+  })
+
+  it('a save from before the module keeps its counts: the striker\'s trophy.<type> goes on where it was', () => {
+    const { g, eng, w, p } = game()
+    const ring = TROPHY_OF['actor/creature/slime/green_slime'].type
+    eng.author(() => w.setProp(p, `trophy.${ring}`, 49))
+    const { index, chunks } = buildFord()
+    const loaded = Game.load(structuredClone(g.save()), index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    for (const c of chunks) loaded.loadChunk(decodeChunk(c))
+    const lp = loaded.engine.world.player
+    expect(loaded.engine.modules.map((m) => m.id)).toContain('loot')
+    loaded.engine.queue({ kind: 'impulse/notify', host: { e: lp.id }, roles: {}, params: { what: 'defeat', xp: 0, trophy: ring, trophyChance: 0 } })
+    expect(Object.values(loaded.engine.world.state.entities).filter((e) => e.type === ring && e.place.on === 'inside' && e.place.holder === lp.id)).toHaveLength(1)
+  })
+
+  it('its chance is a chance site of the world: the sandbox\'s exploration of luck takes both of its outcomes', () => {
+    const { w, bag, defeat } = game()
+    const ring = TROPHY_OF['actor/creature/slime/green_slime'].type
+    w.luck = () => false
+    defeat(ring, 0.04)
+    expect(bag(ring)).toHaveLength(0)
+    w.luck = () => true
+    defeat(ring, 0.04)
+    expect(bag(ring)).toHaveLength(1)
+  })
+
+  it('its pity and its words are the game\'s (Ontology.loot): sure at the game\'s count, told in the game\'s words', () => {
+    const { eng, w, p, bag, defeat } = game({ ...onto, loot: { pity: 3, found: LOOT.found } })
+    const ring = TROPHY_OF['actor/creature/slime/green_slime'].type
+    defeat(ring, 0)
+    defeat(ring, 0)
+    expect([bag(ring).length, w.prop(p, `trophy.${ring}`)]).toEqual([0, 2])
+    w.fx = []
+    defeat(ring, 0)
+    expect(bag(ring)).toHaveLength(1)
+    const name = (l: 'en' | 'zh') => eng.nameOf({ e: bag(ring)[0].id }, l)
+    const told = (fx: typeof w.fx) => fx.filter((f) => f.t === 'log' && JSON.stringify(f.text).includes(name('en')))
+    expect(told(w.fx)).toEqual([{ t: 'log', text: { en: `A trophy: ${name('en')}!`, zh: `获得专属装备：${name('zh')}！` }, tone: 'good' }])
+    // a game that gives no words says nothing of it (the engine has none of its own): only the pickup is shown
+    const quiet = game({ ...onto, loot: { pity: 1 } })
+    quiet.w.fx = []
+    quiet.defeat(ring, 0)
+    expect(quiet.bag(ring)).toHaveLength(1)
+    expect(told(quiet.w.fx)).toEqual([])
+    expect(quiet.w.fx.some((f) => f.t === 'pickup' && f.item === quiet.bag(ring)[0].id)).toBe(true)
+  })
+})
+
 describe('rolled extras', () => {
   it('a roll is four of the pool, each in its range on its step; a slot narrows the pool', () => {
     const rng = new Rng(3)
@@ -109,6 +183,27 @@ describe('rolled extras', () => {
     const crit = w.stat(p, 'critChance') - w.num(held, 'sub:critChance')
     eng.author(() => w.setProp(held, 'sub:critChance', 0.04))
     expect(w.stat(p, 'critChance')).toBeCloseTo(crit + 0.04)
+  })
+
+  it('of weapons, only the one fought with counts its extras: one kept in the main hand while another is held does not (blows.ts weaponOf)', () => {
+    const { eng, w, p } = game()
+    const held = w.get(p.held)!
+    eng.author(() => w.setProp(held, 'sub:critChance', 0.02))
+    const bare = w.stat(p, 'critChance') - 0.02
+    // another axe kept in the main hand, with an extra of its own
+    const kept = eng.author(() => w.create('item/weapon/blade/axe', { on: 'inside', holder: p.id }, { props: { 'sub:critChance': 0.07 } }))
+    eng.author(() => w.setProp(p, MAINHAND, kept.id))
+    expect(w.worn(p).map((e) => e.id)).toContain(kept.id)
+    // the axe in hand is fought with: its extras count, the kept one's do not
+    expect(weaponOf(w, p)?.id).toBe(held.id)
+    expect(w.stat(p, 'critChance')).toBeCloseTo(bare + 0.02)
+    // the hand empty, the kept one is fought with: its extras count, once
+    eng.author(() => w.place(held, { on: 'inside', holder: p.id }))
+    expect(weaponOf(w, p)?.id).toBe(kept.id)
+    expect(w.stat(p, 'critChance')).toBeCloseTo(bare + 0.07)
+    // the kept one taken up into the hand as well: still once
+    eng.author(() => w.place(kept, { on: 'hand', holder: p.id }))
+    expect(w.stat(p, 'critChance')).toBeCloseTo(bare + 0.07)
   })
 })
 

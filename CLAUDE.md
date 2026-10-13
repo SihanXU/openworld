@@ -65,7 +65,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   each as far as its reach: the target's `handsRange`, the world's `carry`, the held thing's `range`,
   held to by the engine for every actor), layers, slots and magnet
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
-  (`controls.ts`), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`); companions that follow a
+  (`controls.ts`; a recipe's `madeOf` keeps the material and quality under the name it gives), gear's rolled extras (`affixes.ts`, `Ontology.affixes`) and sets
+  (`Ontology.sets`), read by `World.stat` — mechanisms configured by data, kept in the kernel by decision (docs/engine-split.md §9), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`; a skill book asks no points but holds to the tree's `requires`); companions that follow a
   leader (`companion.ts`) — docs/prologue.md; the codex (`codex.ts`: every item kind, person and creature kind, the ones the player carried or saw marked — the reader's record beside the state, saved with the game; its entries `content/src/codex.ts`, its panel J); looks (`looks.ts`, docs/looks.md: a look is a body, a part per slot and a colour per key, on `Entity.look`; the engine checks it against `Ontology.looks`, derives its `look:*` tags (never stored) and its words for the modder; `restyle` changes the host's); the inputs X (draw) and V (sneak) are statuses the input keeps. What a game hands the
   engine side (`gamedef.ts`) and the map file format (`chunk.ts`, the game's terrain characters a parameter).
   The modules (`module.ts`, docs/engine-split.md §9): those a game's ontology names (`Ontology.modules`) are
@@ -76,7 +77,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   `bosses` (docs/bosses.md: the encounter goal, locked telegraphs, `release`), `waypoints`, `boons`, `needs`
   (hunger), `society` (docs/npc-sandbox.md: `social.ts` whose things are, households, deeds seen and judged,
   recognition, memory and regard, gossip, the watches, prices, the talk panel; `conduct.ts` the goals social,
-  need and follow; its state in `World.ext`, read with `socialOf(eng)`; the society slot).
+  need and follow; its state in `World.ext`, read with `socialOf(eng)`; the society slot), `loot` (a creature
+  kind's own piece of gear, its `trophy` prop: by its chance or surely after `Ontology.loot.pity` fellings, the
+  game's words `loot.found`; only a piece some kind of the game names is ever made, whatever a rule sends).
 - `packages/stdlib` — the standard library, data (`ontology.json`, `rules.json`): the types and statuses the
   kernel names, the roots of the rule library, the Story Manager's and a quest's rules. A project takes it
   unless its game.json says not.
