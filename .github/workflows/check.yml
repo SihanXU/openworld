@@ -1,0 +1,27 @@
+# The typecheck and the whole test suite (as npm run check) on every pull request and every push to main: the engine,
+# the modules, the format, the starter, the modder and agent, the runtime and editor, and OpenWorld's content, demo
+# and wiki generator. The wiki's own check is wiki.yml; the desktop installers are desktop.yml. The one test that
+# needs Docker (the agent's sandbox container, packages/modder/test/repo.test.ts) runs here, where Docker is.
+name: check
+on:
+  pull_request:
+  push:
+    branches: [main]
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      # a runner has a few cores: the slowest tests (a night in bed, rising at home) take 10 s each on a fast machine
+      # and run beside the rest, so they get more than the local 30 s
+      - run: npm test -- --testTimeout=120000
