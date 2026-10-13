@@ -2,7 +2,7 @@
 // relics, and the active skills one casts from the skill bar. It puts its combat in the kernel's slot: what
 // a blow is, how far it reaches, how fast one steps and strikes, what the struck one takes.
 
-import { DIRS, registerModule, type Combat, type Engine, type EngineModule, type Entity, type SkillDef, type Strike as KernelStrike, type Text } from '@openworld/engine'
+import { DIRS, registerModule, weaponOf, type Combat, type Engine, type EngineModule, type Entity, type SkillDef, type Strike as KernelStrike, type Text } from '@openworld/engine'
 import { castCooldown, castLeft, castSkill, cannotCast, knownActives, onDefeat, rainTick, SKILLBAR_SLOTS } from './actives.ts'
 import { combatDamage, combatDelay, combatStrike, finishCombatStrike, rangeBonus, recordCombatStep, type Strike } from './combat.ts'
 import { PROFESSION_LEVEL, canWield, cannotChoose, chooseProfession, itemProfession, type ProfessionDef, type ProfessionRefusal } from './profession.ts'
@@ -192,6 +192,9 @@ export const classesModule: EngineModule = {
       const known = knownActives(eng, p)
       f.player.skillbar = skillbar(eng).map((id) => (id ? { id, left: castLeft(eng, p, id), cooldown: castCooldown(eng, p, id), usable: known.some((k) => k.id === id) } : null))
       f.player.actives = known
+      // the character sheet's critical chance as a blow reads it (combat.ts): the weapon's own edge beside the stat
+      const weapon = weaponOf(w, p)
+      if (weapon) f.player.stats.critChance += w.num(weapon, 'critChance')
     })
   },
 }

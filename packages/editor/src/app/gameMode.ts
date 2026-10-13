@@ -60,7 +60,7 @@ const PARTS: [key: keyof OntologyPart & string, doc: string][] = [
 /** The player's tables (a bundle's `client`): what its panels show. */
 const TABLES: [key: string, doc: string][] = [
   ['items', 'Item forms and materials by name, relics, the coin.'],
-  ['crafting', 'Recipes, the stations\' names, what is placed and built.'],
+  ['crafting', 'Recipes, the stations\' names, the shops and their shelves, what is placed and built.'],
   ['skills', 'The skill tree: skills, directions, branches, professions (the classes module).'],
   ['boons', 'The companion\'s powers (the boons module).'],
   ['looks', 'The look table, the slots, the parts\' names, the player\'s first look.'],

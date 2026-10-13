@@ -1142,7 +1142,7 @@ export interface Recipe {
   tools?: string[]
   /** How many one making gives (default 1). */
   count?: number
-  /** A stall's shelf it is sold on (`farm`, `ranch`, `fish`), or `sell`: what the stall buys (the homestead). */
+  /** The shelf of a shop it is offered on (a shelf's `group`: the runtime's ClientGame.crafting.shops, which says whether the shelf buys). */
   group?: string
   /** A skill its maker must know (a recipe a skill teaches: steel, jewellery). */
   skill?: string

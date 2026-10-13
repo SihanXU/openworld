@@ -142,13 +142,20 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   (docs/looks.md): the 16x32 map sprite from code grids, the anime portrait from the cut layers in
   `public/assets/lsw/Looks/portrait`, both repainted from the look's colours; `ui/creator.ts` the new game's character creator; `assets/types.ts` the catalogue's
   contract; `assets/ground.ts` autotiles (the blob layout); `ui/` the Stardew-style UI (`hud.ts` clock, bars,
-  toolbar, key labels, dialogue; `menu.ts` menu tabs, journal, chest panel; `people.ts` the trade and pockets panels (the talk panel is the dialogue's, `hud.ts`); `worldmap.ts` the world map (M) and the minimap; `dev.ts` the Mod Console, dev only); the worker uses the modder service when one answers
-  (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it. Still this game's
-  in the runtime: the skill tree, professions, boons, the boss preview and animations (shown only with their modules).
+  toolbar, key labels, dialogue; `menu.ts` menu tabs, the character sheet (the engine's numbers, `Frame.player.stats`),
+  journal, chest panel, the shops a game lists (`crafting.shops`: shelves with names and `sell`); `panels.ts` a game's own panels
+  (`ClientGame.panels`: by the key a rule's `panel` effect opens, told the fx's `by`, loaded when first opened);
+  `boons.ts` the boons module's panel for a game with none of its own; `people.ts` the trade and pockets panels (the talk panel is the dialogue's, `hud.ts`); `worldmap.ts` the world map (M) and the minimap; `dev.ts` the Mod Console, dev only); the worker uses the modder service when one answers
+  (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it. It says no one game's
+  words (docs/engine-split.md §15; `test/words.test.ts`): a game's words are its `texts` (over `ui/common.ts`
+  STRINGS), its catalogue (`<tag>Mark`, `equipSlots`, a weapon's `swing`), its tables and its panels. Still this
+  game's in the runtime: the boss art, preview and animations (and the skill tree, professions, shown only with their module).
 - `games/openworld/client` — the game's app: its pages (`index.html`, `boss-gallery.html`, `looks.html`,
   `preview.html`), `vite.config.ts` (public dir `../public`), `src/register.ts` (hands the game over; every page,
   the worker and the game's tests that use the runtime import it first), `src/game.ts` (the ClientGame: content, catalogue, the
-  wilderness, the upgrades of older saves, the dev console's shortcuts, its cover), `src/catalog.ts` (content keys →
+  wilderness, the upgrades of older saves, the dev console's shortcuts, its cover, its words), `src/ui/` its own panels
+  (`panels.ts` the registry: the companion's, `companion.ts`, opened by `companion` and `boons`; the Held Ground's,
+  `homestead.ts` with `stock.ts`, opened by `haven`; each with its .css, loaded when first opened), `src/catalog.ts` (content keys →
   sprites), `src/bundle.ts` the game as a bundle (gen:world writes `public/bundle.json`) and `src/plugin.ts` its code
   for the engine's player, `scripts/bake.ts` the Ford baked into the format (`npm run bake` →
   `games/openworld/project/`, not committed), the boss gallery, studio and challenge, and the looks page.

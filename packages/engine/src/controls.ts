@@ -722,7 +722,7 @@ export class Controls {
   }
 
   /**
-   * A panel's offering (the home ground's widenings): up to `count` of a carried kind put into a thing, one act each,
+   * A panel's offering (a game's panel handing materials to someone): up to `count` of a carried kind put into a thing, one act each,
    * as the chest panel puts things into a chest; what the thing will not take stays carried.
    */
   offer(target: Id, item: Id, count: number): void {

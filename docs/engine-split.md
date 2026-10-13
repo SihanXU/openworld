@@ -414,6 +414,30 @@ program to install. Asked to go that way now, S2 changed and this was built.
   bar, the dash, the skill tree) show in the controls only where the game uses the module; a save written out is
   named by its game; the skill tree opens on the game's first direction; the old intro card, unused since the
   cover, is gone.
+- **A game's own panels** (2026-10-12, after a review of four commits that had put OpenWorld's panels back in the
+  runtime): `ClientGame.panels` maps the key a rule's `panel` effect opens to a factory (`runtime/src/ui/panels.ts`:
+  `PanelFactory`, `GamePanel`, `PanelContext` — the overlay to draw in, the menu's acts, close, paint icons, the
+  quest log); a panel is told which key opened it and whose rule did (the fx's `by`), one factory under two keys
+  is one panel, and a factory may load its panel when first opened (a promise), so the game's worker and its
+  tools never load a panel's code. It works the same handed over in code (`register.ts`) and from a bundle (the
+  plugin returns the game's `panels`, code beside the bundle's data). The runtime's own panels stay its own
+  (the bag, crafting, the journal, a shop, a trainer's professions, the commission board); for a module it keeps
+  a panel a game may replace (the boons module's `boons`, the generic list, shown only once the companion has a
+  power). OpenWorld's two moved to `games/openworld/client/src/ui/` with their styles: the companion's (Lumi, the
+  road and the seals' powers; `companion` and `boons`) and the Held Ground's widenings (`haven`, its materials
+  handed and its asks said to whoever opened it, its one stock shown as the one pile every card draws on,
+  `stock.ts`). What else the runtime held of OpenWorld became data: the coin's name is its type's (no coin type,
+  no purse); a mark over a head is the catalogue's `<tag>Mark` for any tag; a weapon's swing is its catalogue
+  entry's `swing` (`sweep`, `shoot`, `point`); the empty body slots' pictures are the catalogue's `ui.equipSlots`
+  (else a glyph); a rolled extra's name is its `AffixDef`'s (`name`, `percent`); a trophy's word and a tier's
+  lore are the game's texts (`tipTrophy`, `tier:<quality>`); shops are the game's (`crafting.shops`, carried in
+  a bundle's `client.crafting`; each shelf a `Text` name and a `sell` flag; none, no shop panel). The character
+  sheet's words are `STRINGS`, its profession shown only with the classes module, its food only for one who
+  hungers, and its numbers the engine's (`Frame.player.stats`: World.stat's atk, def and critical chance — the
+  classes module adds the weapon's own edge — and the power of the weapon fought with), no longer a sum of the
+  worn things' props. `runtime/test/words.test.ts` holds it: the runtime's code names none of OpenWorld's people,
+  places, coin or tiers, but for the files still listed (the boss art, preview and animations), a list that only
+  shrinks.
 - **The game's settings and the rest of its data in forms** (`app/gameMode.ts`, the **Game** mode): the game
   (name, version, seed, the standard library taken or not, where and at what hour a new game begins, where the
   world map is laid out from, the player's name and tags), **the engine's modules** (every registered one —
