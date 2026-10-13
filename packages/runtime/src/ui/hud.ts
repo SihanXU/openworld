@@ -648,7 +648,10 @@ export class Hud {
     const zh = locale.value === 'zh'
     // a talk the panel opened without a line (a guard stopping one): the guard's words
     if (box.classList.contains('hidden')) this.openDialog(tk.who, who ? tx(who.name) : '', tk.arrest ? (zh ? `你欠守卫队 ${tk.bounty ?? 0}。` : `You owe the watch ${tk.bounty ?? 0}.`) : '…')
-    $('#dName').innerHTML = `${esc(who ? tx(who.name) : tx(tk.name))} <span class="regard r-${esc(tx(tk.regard).replace(/\s/g, ''))}">${esc(tx(tk.regard))}</span>${tk.grudge ? ` <span class="grudge">${esc(tx(tk.grudge))}</span>` : ''}${tk.bounty ? ` <span class="grudge">${zh ? '悬赏' : 'bounty'} ${tk.bounty}</span>` : ''}`
+    // their regard as ten hearts (a heart for every ten, a half for five): how near one is to their full regard
+    const aff = Math.max(0, Math.min(100, tk.affection ?? 0))
+    const hearts = tk.affection === undefined ? '' : `<span class="hearts" title="${zh ? '好感' : 'Regard'} ${Math.round(tk.affection)}/100">${Array.from({ length: 10 }, (_, i) => `<i class="${aff >= (i + 1) * 10 ? 'on' : aff >= i * 10 + 5 ? 'half' : ''}"></i>`).join('')}</span>`
+    $('#dName').innerHTML = `${esc(who ? tx(who.name) : tx(tk.name))} <span class="regard r-${esc(tx(tk.regard).replace(/\s/g, ''))}">${esc(tx(tk.regard))}</span>${hearts}${tk.grudge ? ` <span class="grudge">${esc(tx(tk.grudge))}</span>` : ''}${tk.bounty ? ` <span class="grudge">${zh ? '悬赏' : 'bounty'} ${tk.bounty}</span>` : ''}`
     const verbs = [...tk.verbs, ...(tk.arrest ? [] : [{ id: 'bye', label: { en: 'Goodbye.', zh: '再见。' } }])]
     choices.innerHTML = verbs.map((v, i) => `<button data-verb="${esc(v.id)}"><kbd>${i + 1}</kbd> ${esc(tx(v.label))}</button>`).join('')
     choices.classList.remove('hidden')

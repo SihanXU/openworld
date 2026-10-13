@@ -4,10 +4,12 @@
 import type { ClientGame } from '@openworld/runtime/src/game.ts'
 import {
   BOON_BY_ID,
+  COMPANION_LOOK,
   BOSS_LAYOUT,
   BUILDINGS,
   COIN,
   COMPANION_LAYOUT,
+  COMPANION_NAME,
   FIRSTLIGHT_LAYOUT,
   FORM_BY_ID,
   GAME,
@@ -32,11 +34,15 @@ import {
   generateLook,
   migrateBosses,
   migrateCompanion,
+  migrateCompanionName,
   migrateOverworld,
   migrateWaypoints,
   migrateSmithy,
   migrateHaven,
   migrateHavenHeart,
+  migrateLodges,
+  LODGES_LAYOUT,
+  migrateTents,
   HAVEN_LAYOUT,
   SMITHY_LAYOUT,
   WAYPOINTS_LAYOUT,
@@ -67,9 +73,9 @@ export const CLIENT_GAME: ClientGame = {
   // the interface's words about the Ford's own people: the trainer, the fairy who carries the seals' powers
   texts: {
     skillNoProfession: { en: 'No profession yet. At level 5, Bram the trainer sets you on one in the drill yard of Firstlight Village (crossed blades over his head): assassin, warrior, ranger or mage.', zh: '还没有职业。到 5 级后，去初原村操练场找职业导师布拉姆（头顶有交叉双剑标记）选择：刺客、战士、游侠或法师。' },
-    boonTitle: { en: "Pip's Powers", zh: '小啾的力量' },
-    boonSealedDoc: { en: "Pip takes up part of a seal's power when its bearer falls.", zh: '击败持印者后，小啾会接住其圣印的一部分力量。' },
-    boonOne: { en: 'Pip carries one power at a time.', zh: '小啾一次只能携带一种力量。' },
+    boonTitle: { en: "Lumi's Powers", zh: '露米的力量' },
+    boonSealedDoc: { en: "Lumi takes up part of a seal's power when its bearer falls.", zh: '击败持印者后，露米会接住其圣印的一部分力量。' },
+    boonOne: { en: 'Lumi carries one power at a time.', zh: '露米一次只能携带一种力量。' },
   },
   // a wilderness is made from the world's seed and its cell (world-model.md §5.7); the rest is fetched
   wild: wildChunkFor,
@@ -83,6 +89,8 @@ export const CLIENT_GAME: ClientGame = {
     if (!w.fact(BOSS_LAYOUT)) game.engine.author(() => migrateBosses(game))
     // the bird became a fairy
     if (!w.fact(COMPANION_LAYOUT)) game.engine.author(() => migrateCompanion(game))
+    // and was renamed Lumi
+    if (!w.fact(COMPANION_NAME)) game.engine.author(() => migrateCompanionName(game))
     // the world map became a place to a tile
     if (!w.fact(OVERWORLD_LAYOUT)) {
       const overworld = await chunk('overworld')
@@ -99,10 +107,18 @@ export const CLIENT_GAME: ClientGame = {
     if (!w.fact(HAVEN_LAYOUT)) game.engine.author(() => migrateHaven(game))
     // its heart is the planted sword, not an altar
     game.engine.author(() => migrateHavenHeart(game))
+    // the residents' tents' plots (a home ground's beds: content social.ts residence)
+    if (!w.fact(LODGES_LAYOUT)) game.engine.author(() => migrateLodges(game, HAVEN_UPGRADES.filter((u) => u.id.startsWith('lodge') && u.plot).map((u) => ({ id: u.id, at: u.plot! }))))
+    // the tents have rooms behind their flaps (only for maps a save has been to: the others come as built)
+    const tentMaps = ['ford', 'forest', 'haven'].filter((id) => w.state.loadedMaps.includes(id))
+    if (tentMaps.length) {
+      const maps = await Promise.all(tentMaps.map(chunk))
+      game.engine.author(() => migrateTents(game, maps))
+    }
   },
   fresh(game) {
     const w = game.engine.world
-    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true)))
+    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(COMPANION_NAME, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true), w.setFact(LODGES_LAYOUT, true)))
   },
   summon(kit, at, id) {
     const body = createBoss(kit, at, id)
@@ -129,6 +145,7 @@ export const CLIENT_GAME: ClientGame = {
     forProfession: skillsForProfession,
   },
   boons: BOON_BY_ID,
+  companion: { look: COMPANION_LOOK, epithet: { en: 'your little fairy', zh: '随行的小精灵' } },
   looks: {
     table: LOOK_TABLE,
     slots: LOOK_SLOTS,

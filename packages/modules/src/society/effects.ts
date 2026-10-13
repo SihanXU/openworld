@@ -1,7 +1,7 @@
 // The society module's primitives (docs/npc-sandbox.md): whose things are, what people saw and say, the watch's
 // ledger and its cells, trade and coin, following, the talk panel. Each runs in its host's outcome.
 
-import { NO_EXPIRY, TICKS_PER_HOUR, chooseLine, type Effect, type EffectRunner, type Entity, type GameEvent, type Pos, type RoleName } from '@openworld/engine'
+import { NO_EXPIRY, TICKS_PER_HOUR, chooseLine, type Effect, type EffectRunner, type Entity, type GameEvent, type Pos, type RoleName, rollAffixes } from '@openworld/engine'
 import { bountyKey, lawId, pardonKey } from './social.ts'
 import { socialOf } from './state.ts'
 
@@ -56,6 +56,28 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
       const from = ev.roles.source ? w.get(ev.roles.source.e) : undefined
       const keys = String(ev.params?.deeds ?? '').split('|').filter(Boolean)
       if (host?.npc && from) s.hear(host, from, keys)
+      return
+    }
+    case 'moveIn': {
+      // the host, asked by one it holds in full regard, comes to live on their home ground (a bed free there): its days
+      // there from now on (NpcData.resident), and it goes at once; with no bed free it says so
+      const r = s.params.residence
+      if (!host?.npc || !r || !actor) return
+      const bed = s.residenceBeds().find((b) => !b.who)
+      if (!bed) return void w.fx.push({ t: 'say', who: host.id, text: r.full })
+      host.npc.resident = {
+        map: r.map,
+        slot: bed.anchor,
+        schedule: [
+          { from: 21, to: 7, map: r.map, x: bed.at[0], y: bed.at[1], activity: 'sleep' },
+          { from: 7, to: 21, map: r.map, x: bed.day[0], y: bed.day[1], activity: 'live' },
+        ],
+      }
+      host.npc.home = { map: r.map, x: bed.at[0], y: bed.at[1] }
+      host.npc.override = undefined
+      w.setProp(host, 'resident', r.map)
+      w.fx.push({ t: 'say', who: host.id, text: r.yes, mood: 'happy' })
+      eng.travel(host, { map: r.map, x: bed.day[0], y: bed.day[1] })
       return
     }
     case 'regard': {
@@ -248,7 +270,9 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
       for (const part of String(w.prop(host, 'stock') ?? '').split('|').filter(Boolean)) {
         const [type, count] = part.split('*')
         if (!w.onto.hasType(type)) continue
-        for (let n = have(type); n < fx.most(Math.max(1, Number(count) || 1), 'a restock'); n++) eng.touch({ e: w.create(type, { on: 'inside', holder: host.id }).id })
+        // gear rolls its extras as it is made (engine affixes.ts)
+        const slot = w.onto.resolve(type).props.slot
+        for (let n = have(type); n < fx.most(Math.max(1, Number(count) || 1), 'a restock'); n++) eng.touch({ e: w.create(type, { on: 'inside', holder: host.id }, typeof slot === 'string' ? { props: rollAffixes(w.onto.data, slot, () => w.rand()) } : {}).id })
       }
       const purse = w.num(host, 'purse', 0)
       for (let n = s.purse(host); n < Math.min(purse, 500); n++) eng.touch({ e: w.create(s.params.coin, { on: 'inside', holder: host.id }).id })

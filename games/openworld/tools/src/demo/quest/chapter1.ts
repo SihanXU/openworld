@@ -257,7 +257,7 @@ export const CHAPTER1_STORY: StepDef[] = [
       say('npc.ilse', 'And when the spear went through his heart — the sun rose.', '当圣枪刺穿他的心脏时——太阳升起了。'),
       { emote: 'pip', mood: 'surprised' },
       say('pip', '...', '……', 'sad'),
-      say('npc.pell', 'Pip? You\'re shaking.', '小啾？你在发抖。'),
+      say('npc.pell', 'Lumi? You\'re shaking.', '露米？你在发抖。'),
       say('pip', 'I\'m not. It\'s cold. It\'s just cold.', '我没有。是冷。只是冷而已。', 'shy'),
       say('npc.ilse', 'Suffering is not God\'s abandonment, Pell. It is the proof the debt is being paid. Now — tonight we give thanks.', '佩尔，苦难并非神的遗弃。苦难，是灾厄得以被偿还的证明。好了——今晚我们要感恩。'),
       { fact: 'ch1.tale', value: 1 },
@@ -530,7 +530,7 @@ export const CHAPTER1_SCENES: StepDef[] = [
       say('npc.courier', 'By order of the Holy City: the Seal-bearers fail. The Long Night returns. Let the pilgrimage be called.', '奉圣城之命：持印者正在衰败。极夜正在回归。朝圣就此发起。'),
       say('npc.courier', 'One has come down from the mountain with a fairy at their side. The Church names them pilgrim.', '有一人带着精灵从山上下来。教会封其为朝圣者。'),
       { emote: 'npc.courier', mood: 'surprised' },
-      say('player', '(The courier stares at Pip a long moment, and says nothing.)', '（信使盯着小啾看了很久，什么也没说。）'),
+      say('player', '(The courier stares at Lumi a long moment, and says nothing.)', '（信使盯着露米看了很久，什么也没说。）'),
       { give: 'item/document/proclamation' },
       say('npc.ilse', 'The flame is gone and the Church calls you in the same night. I do not believe in coincidence, pilgrim. Come to me when you are ready.', '圣火被夺走的同一夜，教会就召唤了你。我不相信巧合，朝圣者。准备好了就来找我。'),
       { place: 'npc.courier', map: 'offstage', x: 5, y: 3 },
@@ -550,7 +550,7 @@ export const CHAPTER1_SCENES: StepDef[] = [
     ],
   },
   {
-    // The crown: the knight falls, gives up the crown; its power breaks loose; Pip catches part of it; the
+    // The crown: the knight falls, gives up the crown; its power breaks loose; Lumi catches part of it; the
     // grey man takes the rest into the stolen flame, and goes. The night grows longer.
     id: 'crown',
     when: { map: 'eastroad', facts: { [CH1.knight]: 1 } },
@@ -559,7 +559,7 @@ export const CHAPTER1_SCENES: StepDef[] = [
       say('player', '(The knight kneels. For the first time in a long while he lifts the crown from his own head, and holds it out.)', '（骑士跪了下来。很久以来第一次，他亲手把荆棘冠从头上摘下，递了出来。）'),
       say('player', '("Take it. It was never mine to hold.")', '（"拿去吧。它本就不该由我戴着。"）', 'sad'),
       { give: 'item/relic/crown_of_thorns' },
-      say('player', '(Something comes loose from the crown — a cold light — and runs to Pip like water finding an old riverbed.)', '（有什么东西从荆棘冠上散开——一道冷光——像水找到了旧河床一样，流向了小啾。）'),
+      say('player', '(Something comes loose from the crown — a cold light — and runs to Lumi like water finding an old riverbed.)', '（有什么东西从荆棘冠上散开——一道冷光——像水找到了旧河床一样，流向了露米。）'),
       { tell: 'pip', params: { what: 'boon', unlock: 'xp' } },
       say('pip', 'It came to me! It\'s warm — no, cold — no, it\'s mine? Is that allowed?', '它朝我来了！暖暖的——不对，凉凉的——不对，它是我的？可以这样吗？', 'surprised'),
       { place: 'npc.severin', map: 'eastroad', x: rd.severin[0], y: rd.severin[1] },

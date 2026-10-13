@@ -33,7 +33,6 @@ interface EView {
   shadow?: Phaser.GameObjects.Ellipse
   overlay?: Phaser.GameObjects.Sprite
   overlayName?: string
-  held?: Phaser.GameObjects.Image
   hp: Phaser.GameObjects.Graphics
   /** What shows over its head (the health bar, the quest mark, a trainer's sign): drawn over the world, following the body. */
   head: Phaser.GameObjects.Container
@@ -142,6 +141,8 @@ export class WorldScene extends Phaser.Scene {
   private drops: { x: number; y: number; v: number; len: number }[] = []
   private weather = 'sun'
   private playerId = 'player'
+  /** The player's worn weapon's picture: what is swung when nothing held is a weapon (blows.ts weaponOf). */
+  private mainHand?: string
   private ready = false
   private pending: { map?: MapData; frames: Frame[] } = { frames: [] }
   private following?: Phaser.GameObjects.Container
@@ -414,6 +415,7 @@ export class WorldScene extends Phaser.Scene {
     }
     if (f.map !== this.base.id) return
     this.playerId = f.player.id
+    this.mainHand = f.player.worn?.weapon?.sprite
     this.playerAt = { x: f.player.x, y: f.player.y, z: f.player.z ?? 0 }
     this.walls.clear()
     this.floors.clear()
@@ -1232,17 +1234,7 @@ export class WorldScene extends Phaser.Scene {
     // a thing an act waits on shimmers; one who is down lies on the ground
     v.body.setAlpha(this.alphaOf(v))
     v.body.setAngle(!e.boss && (e.statuses.includes('down') || e.statuses.includes('out_cold') || e.statuses.includes('asleep') || e.statuses.includes('jailed') || e.tags.includes('body')) ? 90 : 0)
-    // held item (small, at the hand)
-    if (e.held && e.tags.includes('agent')) {
-      const d = catalog().items[e.held]
-      if (d) {
-        const [frame] = spriteFrames(this, `ico:${e.held}`, d)
-        if (!v.held) {
-          v.held = this.add.image(6, -5, d.img, frame).setScale(0.55)
-          v.root.add(v.held)
-        } else v.held.setTexture(d.img, frame)
-      }
-    } else if (v.held) (v.held.destroy(), (v.held = undefined))
+    // (what is held is not drawn in the hand: a weapon shows only as it is swung, swingWeapon)
     // lights glow at night
     const lit = e.statuses.includes('lit') || e.statuses.includes('burning') || e.statuses.includes('attuned') || (e.id === this.playerId && e.heldTags?.includes('light'))
     if (lit && !v.glow) v.glow = this.add.image(px, py - 8, 'glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(1e7 + 1).setTint(0xffb050)
@@ -1674,6 +1666,68 @@ export class WorldScene extends Phaser.Scene {
     dust: 'open',
   }
 
+  /**
+   * The one who struck from a tile, seen wielding their weapon for a moment: a sword swept in an arc across the way
+   * they face, a bow raised, drawn and loosed, a staff swung up and brought down to point. Only these three for now;
+   * other weapons (and bare hands) show the blow alone.
+   */
+  private swingWeapon(x: number, y: number, dir: string, who?: string): void {
+    // whoever made it, wherever they are drawn now (one striking on the move has stepped on); else whoever stands there
+    const v = (who && this.views.get(who)) || [...this.views.values()].find((u) => u.snap.tags.includes('agent') && u.snap.x === x && u.snap.y === y)
+    if (!v) return
+    const isMe = v.snap.id === this.playerId
+    const held = v.snap.heldTags?.includes('weapon') ? v.snap.held : undefined
+    const key = held ?? (isMe ? this.mainHand : undefined)
+    const kind = key === 'item:sword' ? 'sword' : key === 'item:bow' ? 'bow' : key === 'item:staff' ? 'staff' : undefined
+    const d = kind && key ? catalog().items[key] : undefined
+    if (!kind || !key || !d) return
+    const [frame] = spriteFrames(this, `ico:${key}`, d)
+    const [dx, dy] = dirVec(dir)
+    // the hand: before the body, to its right side as it faces (behind it, facing away)
+    const hand = { down: [5, -6], up: [-5, -8], left: [-4, -7], right: [4, -7] }[dir as 'down'] ?? [5, -6]
+    const facing = (Math.atan2(dy, dx) * 180) / Math.PI
+    const img = this.add.image(hand[0], hand[1], d.img, frame)
+    if (dir === 'up') v.root.addAt(img, Math.max(0, v.root.getIndex(v.body)))
+    else v.root.add(img)
+    const gone = (delay = 0) => this.tweens.add({ targets: img, alpha: 0, delay, duration: 90, onComplete: () => img.destroy() })
+    // a lean into the blow
+    this.tweens.add({ targets: v.body, x: dx * 2, duration: 70, yoyo: true, onComplete: () => v.body.setX(0) })
+    if (kind === 'sword') {
+      // the blade points up in its picture: swept from one side of the facing to the other, about the hilt
+      img.setOrigin(0.5, 0.9).setAngle(facing + 90 - 80)
+      this.tweens.add({ targets: img, angle: facing + 90 + 70, duration: 170, ease: 'Cubic.easeOut', onComplete: () => gone() })
+    } else if (kind === 'bow') {
+      // the arrow in its picture points up-left: turned to the facing, drawn back, loosed forward
+      img.setOrigin(0.5, 0.5).setScale(0.8).setAngle(facing + 135).setPosition(hand[0] + dx * 3, hand[1] + dy * 3)
+      this.tweens.chain({
+        targets: img,
+        tweens: [
+          { x: img.x - dx * 2, y: img.y - dy * 2, scaleX: 0.72, duration: 90, ease: 'Sine.easeIn' },
+          { x: img.x + dx * 2, y: img.y + dy * 2, scaleX: 0.8, duration: 50, ease: 'Back.easeOut' },
+          { alpha: 1, duration: 110 },
+        ],
+        onComplete: () => gone(),
+      })
+    } else {
+      // the staff's head is up in its picture: raised overhead (and back, facing away), brought down to point where it
+      // casts, the head glinting
+      img.setOrigin(0.5, 0.9).setAngle((dir === 'up' ? -130 : -90) + 90)
+      this.tweens.add({
+        targets: img,
+        // the short way round from overhead (pointing left is a quarter turn back, not three forward)
+        angle: Phaser.Math.Angle.WrapDegrees(facing + 90),
+        duration: 160,
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          const tip = this.add.circle(hand[0] + dx * 15, hand[1] + dy * 15, 3, 0xbfe9ff, 0.9).setBlendMode(Phaser.BlendModes.ADD)
+          v.root.add(tip)
+          this.tweens.add({ targets: tip, scale: 2.2, alpha: 0, duration: 200, onComplete: () => tip.destroy() })
+          gone(90)
+        },
+      })
+    }
+  }
+
   playFx(fx: FxEvent): void {
     if (fx.t === 'strike') {
       // lightning: a flash over everything, then the bolt where it lands
@@ -1688,11 +1742,13 @@ export class WorldScene extends Phaser.Scene {
       const [kind, a, b, c, d] = fx.fx.split(':')
       if (kind === 'swing') {
         const [dx, dy] = dirVec(a)
+        this.swingWeapon(fx.x, fx.y, a, fx.who)
         this.oneShot('slash', x + dx * 10, y + dy * 10, { angle: (Math.atan2(dy, dx) * 180) / Math.PI })
         return this.sfx('attack', 0.35)
       }
       if (kind === 'bolt') {
         const [dx, dy] = dirVec(b)
+        this.swingWeapon(fx.x, fx.y, b, fx.who)
         const len = Number(c) || 1
         // what the weapon looses (d: an arrow, tinted by its element), else a bolt of the element
         const key = d && catalog().fx[`missile:${d}`] ? `missile:${d}` : `bolt:${a}`

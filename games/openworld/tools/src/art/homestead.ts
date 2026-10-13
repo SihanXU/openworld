@@ -1,4 +1,5 @@
-// The homestead's own icons (16x16, the pack's look), drawn by code: the Thornmark coin, a sack of fertilizer, a sack
+// The homestead's own icons (16x16, the pack's look), drawn by code: the Dawnmark coin (its file keeps the coin's old
+// name, Thornmark, as its type id does), a sack of fertilizer, a sack
 // of feed, an animal crate, a bucket of milk, a golden carp. (Bait is the pack's shrimp.)
 //
 //   npx tsx games/openworld/tools/src/art/homestead.ts
@@ -19,6 +20,7 @@ const PAL: Palette = {
   y: [255, 232, 140, 255],
   O: [214, 120, 40, 255],
   w: [120, 84, 52, 255],
+  A: [178, 116, 28, 255],
 }
 
 const draw = (name: string, f: (r: Raster) => void) => {
@@ -28,13 +30,20 @@ const draw = (name: string, f: (r: Raster) => void) => {
   writeAtlas(`Items/${name}.png`, [[r]], PAL)
 }
 
-// the Thornmark: a silver coin, a thorn ring stamped on it
+// the Dawnmark: a gold coin, the first dawn after the First Night stamped on it — a sun half risen over the horizon, its rays
+// (the file keeps the coin's first name, as the type id item/misc/thornmark does: saves name it)
 draw('Thornmark', (r) => {
-  r.ellipse(8, 8, 5.5, 5.5, 'S')
-  r.ellipse(7.5, 7.5, 4.2, 4.2, 's')
-  r.ellipse(8, 8, 2.8, 2.8, 'D')
-  r.ellipse(8, 8, 1.8, 1.8, 's')
-  for (const [x, y] of [[8, 4], [12, 8], [8, 12], [4, 8]] as const) r.set(x, y, 'D')
+  r.ellipse(8, 8, 5.5, 5.5, 'A')
+  r.ellipse(7.6, 7.6, 4.5, 4.5, 'Y')
+  // the sun, half over the horizon (pale gold, white at its heart), and the dark ground under the horizon
+  r.ellipse(8, 11, 2.6, 2.6, 'y')
+  r.ellipse(8, 11, 1.6, 1.6, 'W')
+  r.line(4, 11, 12, 11, 'O')
+  r.line(5, 12, 11, 12, 'A')
+  r.line(6, 13, 10, 13, 'A')
+  // its rays
+  for (const [x, y] of [[8, 6], [5, 8], [11, 8]] as const) r.set(x, y, 'W')
+  for (const [x, y] of [[6, 7], [10, 7]] as const) r.set(x, y, 'y')
 })
 // sacks: fertilizer (green band), feed (wheat band)
 const sack = (band: string, mark: string) => (r: Raster) => {

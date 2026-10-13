@@ -13,7 +13,7 @@ import { SkillTree } from './skilltree.ts'
 import { WorldMap } from './worldmap.ts'
 import { ProfessionPanel } from './profession.ts'
 import { HomesteadPanel } from './homestead.ts'
-import { BoonPanel } from './boons.ts'
+import { CompanionPanel, type CompanionTab } from './companion.ts'
 import { QuestLog } from './questlog.ts'
 import { SkillPanel } from './skillpanel.ts'
 import { $, SLOT_KEYS, controlsTable, esc, locale, prefs, t, tx } from './common.ts'
@@ -178,7 +178,7 @@ export class Menu {
   profession: ProfessionPanel
   /** The home ground's widenings (opened at its heart). */
   homestead: HomesteadPanel
-  boons: BoonPanel
+  boons: CompanionPanel
   /** The quest log (L). */
   quests: QuestLog
   skillPanel: SkillPanel
@@ -208,7 +208,7 @@ export class Menu {
     $('#profession').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
     this.homestead = new HomesteadPanel($('#homestead'), { say: (who, verb, choice) => this.send.speak(who, verb, choice), offer: (target, item, count) => this.send.offer(target, item, count) }, () => this.close(), (items) => this.paintIcons?.([...craftInfos(), ...items]))
     $('#homestead').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
-    this.boons = new BoonPanel($('#boons'), (id) => this.send.boon(id), () => this.close())
+    this.boons = new CompanionPanel($('#boons'), (id) => this.send.boon(id), () => this.close(), () => this.toggleQuests())
     $('#boons').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
     this.worldmap = new WorldMap($('#worldmap'), { atlas: () => this.send.atlas(), travel: (id) => (this.send.travel(id), this.close()), close: () => this.close() })
     // a click on the backdrop closes (or, holding a stack, drops it)
@@ -340,11 +340,14 @@ export class Menu {
     this.profession.show(this.frame)
   }
 
-  /** The waypoint's panel: the companion's boons (only once it has one). */
-  openBoons(): void {
-    if (!this.frame?.player.boons?.unlocked.length) return
+  /**
+   * The companion's panel: her portrait, what the main road asks now, and the seals' powers (the five, those not yet
+   * found sealed). Spoken to, she opens on the road; a woken waypoint statue opens it on the powers.
+   */
+  openCompanion(tab: CompanionTab): void {
+    if (!this.frame) return
     this.close()
-    this.boons.show(this.frame)
+    this.boons.show(this.frame, tab)
   }
 
   // ---------------------------------------------------------------- the skill tree
@@ -458,7 +461,7 @@ export class Menu {
         </div>
         <div class="cs-stats">${stats}</div>
       </div>`
-    return `<div class="inv-wrap">${sheet}<div class="inv-side"><div class="inv-title"><span>${zh ? '行囊' : 'Pack'}</span><span class="purse" title="${zh ? '身上带的钱' : 'Coin carried'}"><span class="icon" data-icon="need:${game().items.coin}"></span><b>${p.purse ?? this.coinsOf(f)}</b><small>${zh ? '银荆币' : 'Thornmarks'}</small></span></div><div class="inv">${rows}</div>
+    return `<div class="inv-wrap">${sheet}<div class="inv-side"><div class="inv-title"><span>${zh ? '行囊' : 'Pack'}</span><span class="purse" title="${zh ? '身上带的钱' : 'Coin carried'}"><span class="icon" data-icon="need:${game().items.coin}"></span><b>${p.purse ?? this.coinsOf(f)}</b><small>${zh ? '晨辉币' : 'Dawnmarks'}</small></span></div><div class="inv">${rows}</div>
       <div class="inv-foot">
         <button id="bOrganize">⇅ ${t('organize')}</button>
         <button id="bDrop" ${this.picked === undefined ? 'disabled' : ''}>⤓ ${t('dropHere')}</button>

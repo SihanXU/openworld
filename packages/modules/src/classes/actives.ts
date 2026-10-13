@@ -227,7 +227,7 @@ function blow(eng: Engine, a: Entity, v: Entity, def: ActiveDef, mult = def.powe
   if ((a.combat?.defeats ?? 0) > defeats) onDefeat(eng, a)
 }
 
-const fx = (eng: Engine, name: string, map: string, x: number, y: number) => eng.world.fx.push({ t: 'vfx', fx: name, map, x, y })
+const fx = (eng: Engine, name: string, map: string, x: number, y: number, who?: string) => eng.world.fx.push({ t: 'vfx', fx: name, map, x, y, ...(who && { who }) })
 
 /** Step the caster to a cell as a move (a dash's way): it lands there, or nowhere. */
 function leap(eng: Engine, a: Entity, to: { x: number; y: number }): boolean {
@@ -291,7 +291,7 @@ const CAST: Record<ActiveDef['kind'], (eng: Engine, a: Entity, def: ActiveDef) =
   cleave: (eng, a, def) => {
     const p = at(a)!
     const [dx, dy] = DIRS[a.facing ?? 'down']
-    fx(eng, `swing:${a.facing ?? 'down'}`, p.map, p.x, p.y)
+    fx(eng, `swing:${a.facing ?? 'down'}`, p.map, p.x, p.y, a.id)
     fx(eng, 'dust', p.map, p.x + dx, p.y + dy)
     for (const v of foesOn(eng, a, [{ x: p.x + dx, y: p.y + dy }])) blow(eng, a, v, def)
     return true
@@ -348,7 +348,7 @@ const CAST: Record<ActiveDef['kind'], (eng: Engine, a: Entity, def: ActiveDef) =
     const p = at(a)!
     const [dx, dy] = DIRS[a.facing ?? 'down']
     for (let i = 0; i < (def.count ?? 4); i++) {
-      fx(eng, `swing:${a.facing ?? 'down'}`, p.map, p.x, p.y)
+      fx(eng, `swing:${a.facing ?? 'down'}`, p.map, p.x, p.y, a.id)
       for (const v of foesOn(eng, a, [{ x: p.x + dx, y: p.y + dy }])) blow(eng, a, v, def)
     }
     return true
@@ -410,13 +410,13 @@ const CAST: Record<ActiveDef['kind'], (eng: Engine, a: Entity, def: ActiveDef) =
       const from = { x: p.x + dy * o, y: p.y + dx * o }
       if (def.through) {
         const hit = line(eng, a, from, dir, range)
-        fx(eng, `bolt:none:${dir}:${Math.max(1, hit.len)}:arrow`, p.map, from.x, from.y)
+        fx(eng, `bolt:none:${dir}:${Math.max(1, hit.len)}:arrow`, p.map, from.x, from.y, a.id)
         for (const v of hit.foes) blow(eng, a, v, def)
         continue
       }
       const r = ray(eng, a, from, dir, range)
       const end = r.end ?? from
-      fx(eng, `bolt:none:${dir}:${Math.max(1, Math.abs(end.x - from.x) + Math.abs(end.y - from.y))}:arrow`, p.map, from.x, from.y)
+      fx(eng, `bolt:none:${dir}:${Math.max(1, Math.abs(end.x - from.x) + Math.abs(end.y - from.y))}:arrow`, p.map, from.x, from.y, a.id)
       if (r.first) blow(eng, a, r.first, def)
     }
     return true
@@ -429,7 +429,7 @@ const CAST: Record<ActiveDef['kind'], (eng: Engine, a: Entity, def: ActiveDef) =
     const now = at(a)!
     const line = ray(eng, a, now, dir, reach(eng, a, def))
     const end = line.end ?? now
-    fx(eng, `bolt:none:${dir}:${Math.max(1, Math.abs(end.x - now.x) + Math.abs(end.y - now.y))}:arrow`, now.map, now.x, now.y)
+    fx(eng, `bolt:none:${dir}:${Math.max(1, Math.abs(end.x - now.x) + Math.abs(end.y - now.y))}:arrow`, now.map, now.x, now.y, a.id)
     if (line.first) blow(eng, a, line.first, def)
     return true
   },
@@ -438,7 +438,7 @@ const CAST: Record<ActiveDef['kind'], (eng: Engine, a: Entity, def: ActiveDef) =
     const dir = a.facing ?? 'down'
     // through every body in the row, to the first wall
     const hit = line(eng, a, p, dir, reach(eng, a, def))
-    fx(eng, `bolt:none:${dir}:${Math.max(1, hit.len)}:arrow`, p.map, p.x, p.y)
+    fx(eng, `bolt:none:${dir}:${Math.max(1, hit.len)}:arrow`, p.map, p.x, p.y, a.id)
     for (const v of hit.foes) blow(eng, a, v, def)
     return true
   },
@@ -459,7 +459,7 @@ const CAST: Record<ActiveDef['kind'], (eng: Engine, a: Entity, def: ActiveDef) =
     const line = ray(eng, a, p, dir, reach(eng, a, def))
     const c = line.first ? at(line.first)! : line.end
     if (!c) return false
-    fx(eng, `bolt:fire:${dir}:${Math.max(1, Math.abs(c.x - p.x) + Math.abs(c.y - p.y))}`, p.map, p.x, p.y)
+    fx(eng, `bolt:fire:${dir}:${Math.max(1, Math.abs(c.x - p.x) + Math.abs(c.y - p.y))}`, p.map, p.x, p.y, a.id)
     for (const s of def.radius && def.radius > 1 ? square(c, def.radius) : [c]) fx(eng, 'explosion', p.map, s.x, s.y)
     for (const v of foesOn(eng, a, square(c, def.radius ?? 1))) blow(eng, a, v, def)
     return true
@@ -509,7 +509,7 @@ const CAST: Record<ActiveDef['kind'], (eng: Engine, a: Entity, def: ActiveDef) =
     const r = ray(eng, a, p, dir, reach(eng, a, def))
     const end = r.end ?? p
     const len = Math.max(1, Math.abs(end.x - p.x) + Math.abs(end.y - p.y))
-    fx(eng, def.missile === 'arrow' || def.missile === 'knife' ? `bolt:none:${dir}:${len}:${def.missile}` : `bolt:${def.element ?? 'none'}:${dir}:${len}`, p.map, p.x, p.y)
+    fx(eng, def.missile === 'arrow' || def.missile === 'knife' ? `bolt:none:${dir}:${len}:${def.missile}` : `bolt:${def.element ?? 'none'}:${dir}:${len}`, p.map, p.x, p.y, a.id)
     if (r.first) blow(eng, a, r.first, def)
     return true
   },
@@ -518,7 +518,7 @@ const CAST: Record<ActiveDef['kind'], (eng: Engine, a: Entity, def: ActiveDef) =
     const p = at(a)!
     const [dx, dy] = DIRS[a.facing ?? 'down']
     const cells = [-1, 0, 1].map((o) => ({ x: p.x + dx + dy * o, y: p.y + dy + dx * o }))
-    fx(eng, `swing:${a.facing ?? 'down'}`, p.map, p.x, p.y)
+    fx(eng, `swing:${a.facing ?? 'down'}`, p.map, p.x, p.y, a.id)
     for (const c of cells) fx(eng, 'hit', p.map, c.x, c.y)
     for (const v of foesOn(eng, a, cells)) blow(eng, a, v, def)
     return true

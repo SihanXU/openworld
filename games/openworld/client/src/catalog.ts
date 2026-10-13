@@ -758,7 +758,7 @@ export const CATALOG: Catalog = {
     // the young (homestead.ts): their parents, smaller
     'creature:calf': { dir: 'lsw/Animal/Cow', sheet: 'SpriteSheet.png', cols: 4, rows: 4, scale: 0.7 },
     'creature:chick': { dir: 'lsw/Animal/Chicken', sheet: 'SpriteSheet.png', cols: 4, rows: 4, scale: 0.65 },
-    // the companion, Pip the fairy: the project's own art (tools/src/art/fairy.ts), a four-frame wingbeat, no directions
+    // the companion, Lumi the fairy: the project's own art (tools/src/art/fairy.ts), a four-frame wingbeat, no directions
     'creature:fairy': { dir: 'lsw/Companion/Fairy', sheet: 'SpriteSheet.png', faceset: 'Faceset.png', cols: 4, rows: 1 },
     // Boss sheets are single-row strips: cols = animation frames (62x52 each), no directions.
     'boss:slime': { dir: 'Actor/Boss/GiantSlime', sheet: 'Idle.png', faceset: 'Faceset.png', cols: 5, rows: 1 },

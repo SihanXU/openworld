@@ -138,7 +138,7 @@ export const QUEST_RULES: Rule[] = [
       { param: { key: 'name', cmp: 'broken' } },
       DO(
         { op: 'dropContents', still: true },
-        { op: 'emit', impulse: 'notify', to: 'actor', params: { what: 'defeat', xp: { prop: 'maxHp', of: 'host' } } },
+        { op: 'emit', impulse: 'notify', to: 'actor', params: { what: 'defeat', xp: { prop: 'maxHp', of: 'host' }, trophy: { prop: 'trophy', of: 'host' }, trophyChance: { prop: 'trophyChance', of: 'host' } } },
         notify('dragon'),
         { op: 'vfx', fx: 'poof' },
         log('{host} is defeated.', '{host}被打倒了。'),

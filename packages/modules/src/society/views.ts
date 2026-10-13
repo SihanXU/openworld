@@ -21,6 +21,7 @@ export function peopleViews(eng: Engine, open: { talk?: { who: Id; arrest?: bool
       offers: carried.filter((e) => s.buys(m, e, p)).map((e) => ({ item: itemInfo(eng, e.id)!, price: s.priceToSell(e, p, m) })),
       purse: s.purse(p),
       theirs: s.purse(m),
+      discount: Math.round(s.regardDiscount(m, p.id) * 100) / 100,
     }
   }
   const who = open.pockets ? w.get(open.pockets) : undefined

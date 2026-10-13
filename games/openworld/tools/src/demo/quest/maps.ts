@@ -37,7 +37,7 @@ export function buildEastRoad(): MapBuilder {
   m.path([[0, 12], [6, 12], [12, 10], [20, 11], [28, 13], [36, 11], [42, 11], [47, 11]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
   // the burned farmstead north of the road: the house still stands; the yard, the hay and the orchard are ash
   m.organic(24, 6, 6, 3, 'ash', { only: grassy, rough: 0.25 })
-  m.scenery('house_wood', 22, 3)
+  m.scenery('house_wood', 22, 3, 'farmhouse')
   for (const [x, y] of [[19, 5], [28, 4], [29, 7], [20, 8]] as const) m.set(x, y, 'charred_tree')
   m.fixture('fixture/nature/haystack', 26, 7, { statuses: { lit: -1 } })
   m.regions = { farmstead: [17, 2, 15, 8] }
@@ -75,18 +75,19 @@ export function buildEmberfall(): MapBuilder {
   m.fixture('fixture/sign/noticeboard', 17, 12, { props: { text: 'DRAGON SEEN OVER CINDER PEAK. KEEP THE BUCKETS FULL.', text_zh: '烬峰上空有龙出没。水桶要一直盛满。' } })
   for (const [x, y] of [[16, 17], [24, 11]] as const) m.fixture('fixture/light/lamppost', x, y, { statuses: { lit: -1 } })
   // houses round the square; some roofs new thatch, the dragon's last visit
-  m.scenery('house_orange', 6, 6)
-  m.scenery('house_red', 11, 5)
-  m.scenery('house_thatch', 6, 21)
-  m.scenery('house_plaster', 30, 21)
-  m.scenery('teahouse', 18, 20) // the elder's house
+  // (every house has a door and a room behind it: interiors.ts)
+  m.scenery('house_orange', 6, 6, 'house.west')
+  m.scenery('house_red', 11, 5, 'house.north')
+  m.scenery('house_thatch', 6, 21, 'house.south')
+  m.scenery('house_plaster', 30, 21, 'house.east')
+  m.scenery('teahouse', 18, 20, 'elder') // the elder's house
   // the smithy: the forge and the anvil out front
-  m.scenery('smithy', 27, 5)
+  m.scenery('smithy', 27, 5, 'smithy')
   m.fixture('fixture/craft/forge', 31, 7, { id: 'emberfall.forge', statuses: { lit: -1 } })
   m.fixture('fixture/craft/anvil', 29, 9)
   m.fixture('fixture/container/barrel', 26, 8)
   // the herbalist's hut and her cauldron
-  m.scenery('hut_straw', 9, 13)
+  m.scenery('hut_straw', 9, 13, 'herbalist')
   m.fixture('fixture/craft/cauldron', 12, 16, { id: 'emberfall.cauldron', statuses: { lit: -1 } })
   m.fixture('fixture/container/crate', 8, 16)
   // a few things of a village: hens about, flowers by the doors, a scorched patch where the dragon breathed

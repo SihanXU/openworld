@@ -26,8 +26,8 @@ export const SKILL_BRANCHES: { id: string; direction: SkillDirection; icon: stri
   { id: 'smithing', direction: 'life', icon: 'smithing', name: { en: 'Smithing', zh: '锻造' } },
 ]
 
-/** A profession's starter weapon and off-hand piece (common, no element), handed over the first time it is taken up. */
-const kit = (form: string, material: string) => makeItem(new Rng(0), FORM_BY_ID[form], { material, quality: 'common', element: null })
+/** A profession's starter weapon and off-hand piece (common, no element, no rolled extras), handed over the first time it is taken up. */
+const kit = (form: string, material: string) => makeItem(new Rng(0), FORM_BY_ID[form], { material, quality: 'common', element: null, trait: false })
 
 /**
  * The professions a trainer teaches (docs/skill-tree.md), from level 5 (engine/src/profession.ts).

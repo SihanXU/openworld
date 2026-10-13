@@ -1,7 +1,7 @@
 // The prologue (docs/prologue.md): the tutorial — a day and a night in the clearing — then the foot of the mountain
 // and down to the Ford. Its stages are the main line's first two quests (quests/main.ts, docs/quests.md): `awakening`
 // (the clearing: stage 10 for each of the drills' days, 10 … 80) and `descent` (the stone, the Ford, the village). The
-// beats here let Pip say one line each, and each quest stage waits on its beat; the lessons are the clearing's
+// beats here let Lumi say one line each, and each quest stage waits on its beat; the lessons are the clearing's
 // stages' drills. Every beat waits for a state, never for a path: whatever gets the player there counts.
 
 import type { Lesson, StepCond, StepDef, Text } from '@openworld/engine'
@@ -28,7 +28,7 @@ const cells = (xs: readonly (readonly [number, number])[]): [number, number][] =
  * a thing spotlit, the key drawn over it, the keys it does not teach locked (the first ones only), done
  * when the state holds. A lock never keeps one from what the lesson itself needs (gathering for the
  * campfire, wood for the walls), so it cannot leave one stuck. One short line each; the stages' hints
- * stay for E on Pip.
+ * stay for E on Lumi.
  */
 export const TUTORIAL_LESSONS: Record<number, Lesson[]> = {
   1: [
@@ -81,7 +81,7 @@ export const PROLOGUE_BEATS: StepDef[] = [
   {
     id: 'tut_wake',
     when: { map: 'tutorial', statuses: { out_cold: false }, quest: { awakening: { lt: 10 } } },
-    say: L('Hey! You are awake at last! I am Pip — a fairy, and from today I go where you go.', '嘿！你终于醒啦！我是小啾，是个精灵，从今天起你去哪儿我就去哪儿。'),
+    say: L('Hey! You are awake at last! I am Lumi — a fairy, and from today I go where you go.', '嘿！你终于醒啦！我是露米，是个精灵，从今天起你去哪儿我就去哪儿。'),
   },
   {
     id: 'tut_ate',
@@ -134,7 +134,7 @@ export const PROLOGUE_BEATS: StepDef[] = [
     // a new game: one comes round on Cloudtop (the tutorial run has its own line)
     id: 'summit_wake',
     when: { map: 'summit', facts: { [TUTORIAL_OPEN]: 0 }, quest: { descent: { lt: 20 } } },
-    say: L("You're awake! I'm Pip, a fairy — from today I go where you go. This is Cloudtop, the plateau at the top of the mountain. The only way down is the cut in the rocks to the south; below it lies the Mountain Foot, and further down, the Ford.", '你醒啦！我是小啾，是个精灵，从今天起你去哪儿我就去哪儿。这里是云顶台地，山顶上的高台。下山只有南边岩壁上的那道豁口；下面是山脚，再往下就是渡口。'),
+    say: L("You're awake! I'm Lumi, a fairy — from today I go where you go. This is Cloudtop, the plateau at the top of the mountain. The only way down is the cut in the rocks to the south; below it lies the Mountain Foot, and further down, the Ford.", '你醒啦！我是露米，是个精灵，从今天起你去哪儿我就去哪儿。这里是云顶台地，山顶上的高台。下山只有南边岩壁上的那道豁口；下面是山脚，再往下就是渡口。'),
   },
   {
     // the first waypoint statue in view, whenever that is

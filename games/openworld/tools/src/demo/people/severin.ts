@@ -6,6 +6,8 @@ import { line, type PersonDef } from '../person.ts'
 
 export const severin: PersonDef = {
   id: 'npc.severin',
+  // the main story needs them where they are: not asked to move to a home ground (content social.ts residence)
+  tags: ['storybound'],
   role: 'stranger',
   essential: true,
   name: { en: 'The Grey Man', zh: '灰衣人' },

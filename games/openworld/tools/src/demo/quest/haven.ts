@@ -44,6 +44,15 @@ export function buildHaven(): MapBuilder {
   m.fixture('fixture/craft/forge', hx + 6, hy - 2, { id: 'haven.forge', name: L("Alberic's forge", '阿尔贝里克的熔炉'), statuses: { lit: -1, fireproof: -1 } })
   m.fixture('fixture/craft/anvil', hx + 6, hy, { id: 'haven.anvil', name: L("Alberic's anvil", '阿尔贝里克的铁砧') })
   m.anchor('alberic.anvil', hx + 5, hy - 1)
+  // the beds of those who come to live here (content social.ts residence): one by the camp from the first, two in front
+  // of each residents' tent once it stands (its plot: HAVEN_UPGRADES lodge1–3); a day spent by the fire
+  m.anchor('home.camp', hx - 2, hy + 3)
+  m.anchor('home.camp.day', hx - 1, hy + 1)
+  for (const u of HAVEN_UPGRADES.filter((x) => x.id.startsWith('lodge') && x.plot)) {
+    const [x, y] = u.plot!
+    m.anchor(`home.${u.id}.a`, x - 1, y + 1)
+    m.anchor(`home.${u.id}.b`, x + 1, y + 1)
+  }
   m.fixture('fixture/container/chest', hx + 3, hy - 3, { id: 'haven.chest', statuses: { open: -1 }, name: L('The Held Ground\'s chest', '誓守之地的箱子') })
   // a little tilled earth, ready to sow
   for (let y = hy + 2; y < hy + 5; y++) for (let x = hx - 7; x < hx - 2; x++) m.set(x, y, 'farmland')

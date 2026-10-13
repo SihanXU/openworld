@@ -137,7 +137,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     giver: 'npc.nessa',
     offer: L('There was a Church watch on Cloudtop — one man, timing every sunset for the almanacs. His reports stopped coming years ago. If his log is still up there, I need to know what it says.', '云顶台地以前有个教会的观日哨——就一个人，给历书记下每一次日落。他的报告好几年前就断了。要是他的日志还在山上，我得知道上面写了什么。'),
     waiting: L('Cloudtop, above the Mountain Foot. A shelter on the snow. He kept his log on the table, if I know watchmen.', '云顶台地，在山脚上面。雪地上有间小屋。要是我没猜错，守夜人会把日志放在桌上。'),
-    done: L('Eleven years. The sunsets were coming early ELEVEN years ago, and he wrote it down every night, and nobody read it. ...And a sleeping light in the snow? Pip, you do not remember a watchman, do you? No. Of course not.', '十一年。十一年前日落就开始提前了，他每天晚上都记下来，却没有人读过。……还有雪里一点睡着的光？小啾，你不记得什么守夜人吧？不记得。当然不记得。'),
+    done: L('Eleven years. The sunsets were coming early ELEVEN years ago, and he wrote it down every night, and nobody read it. ...And a sleeping light in the snow? Lumi, you do not remember a watchman, do you? No. Of course not.', '十一年。十一年前日落就开始提前了，他每天晚上都记下来，却没有人读过。……还有雪里一点睡着的光？露米，你不记得什么守夜人吧？不记得。当然不记得。'),
     asks: [{ id: 'log', text: L("Read the watchman's log on Cloudtop", '读云顶台地上守夜人的日志'), step: 'watch_log', where: 'summit' }],
     reward: { xp: 30, items: [{ type: 'item/food/bread', count: 2 }, gear('item/valuable/earring', 'ear', 'Star-glass Earring', '星玻璃耳环', 'masterwork', { xpRate: 0.2 })], regard: { giver: 10 } },
   }),

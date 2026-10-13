@@ -2,7 +2,7 @@
 // ranching, fishing) and what it buys back; and what the shelves sell does what it should, as Minecraft and Stardew
 // have it: seeds take root, fertilizer adds to a harvest, feed makes a beast fed for the day (a fed cow gives milk to a
 // bucket, once a day), a crated beast set down walks out, bait on a rod makes the fish bite more (its casts kept on
-// the rod). The coin is the Thornmark, the Held Ground's own. Buying and selling are made at the stall as anything is
+// the rod). The coin is the Dawnmark, the Held Ground's own. Buying and selling are made at the stall as anything is
 // made at a station: what one gives is used up, what one gets comes into one's bag (engine `craft`).
 
 import { TICKS_PER_DAY, type Cond, type Effect, type Recipe, type Rule, type Text, type Tree } from '@openworld/engine'
@@ -39,12 +39,12 @@ const CROP_PRICE: Record<string, number> = {
 /** What it pays for one of a fish (the rarer, the dearer: the Dawnscale bites only at first light). */
 const FISH_PRICE: Record<string, number> = { sunfish: 6, perch: 8, catfish: 20, eel: 18, pike: 16, carp: 30, dawnscale: 80 }
 
-/** A shelf's offer: `count` of a thing for `price` Thornmarks (seeds: more for a Seed Merchant, life.ts). */
+/** A shelf's offer: `count` of a thing for `price` Dawnmarks (seeds: more for a Seed Merchant, life.ts). */
 const buy = (group: string, type: string, count: number, price: number): Recipe => ({
   id: `shop/buy/${type.split('/').slice(1).join('-')}`, group, name: nameOf(type), sprite: spriteOf(type),
   needs: [{ type: COIN, count: price }], make: { type }, station: 'stall', count, ...(type.startsWith('item/seed/') && { bonus: 'buy:farm' }),
 })
-/** What the stall buys back: one of a thing for `price` Thornmarks (more for a Market Gardener's crops, a Rancher's goods: life.ts). */
+/** What the stall buys back: one of a thing for `price` Dawnmarks (more for a Market Gardener's crops, a Rancher's goods: life.ts). */
 const sell = (type: string, price: number, bonus?: string): Recipe => ({
   id: `shop/sell/${type.split('/').slice(1).join('-')}`, group: 'sell', name: nameOf(type), sprite: spriteOf(type),
   needs: [{ type, count: 1 }], make: { type: COIN }, station: 'stall', count: price, ...(bonus && { bonus }),

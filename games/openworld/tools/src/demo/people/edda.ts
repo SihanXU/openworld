@@ -6,6 +6,8 @@ import { line, type PersonDef } from '../person.ts'
 
 export const edda: PersonDef = {
   id: 'npc.edda',
+  // the main story needs them where they are: not asked to move to a home ground (content social.ts residence)
+  tags: ['storybound'],
   role: 'farmer',
   essential: true,
   name: { en: 'Edda', zh: '艾达' },

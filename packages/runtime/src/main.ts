@@ -150,7 +150,12 @@ function toggleBuilding(): void {
 const tooltip = new Tooltip(() => ({
   atk: Number(lastFrame?.player.props.atk ?? 0),
   profession: typeof lastFrame?.player.props.profession === 'string' ? lastFrame.player.props.profession : undefined,
-  sets: Object.values(lastFrame?.player.worn ?? {}).reduce<Record<string, number>>((n, it) => (typeof it.props.set === 'string' && (n[it.props.set] = (n[it.props.set] ?? 0) + 1), n), {}),
+  // a set's pieces worn, one per slot (World.stat: two of its rings count once)
+  sets: Object.fromEntries(
+    Object.entries(
+      Object.values(lastFrame?.player.worn ?? {}).reduce<Record<string, Set<string>>>((n, it) => (typeof it.props.set === 'string' && (n[it.props.set] ??= new Set()).add(String(it.props.slot)), n), {}),
+    ).map(([id, slots]) => [id, slots.size]),
+  ),
   nameOf: (id) => {
     const e = lastFrame?.entities.find((x) => x.id === id)
     return e ? tx(e.name) : undefined
@@ -331,8 +336,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       // the commission board read (docs/quests.md §3): the favours on offer
       const board = m.frame.fx.find((x) => x.t === 'panel' && x.panel === 'board')
       if (board && board.t === 'panel' && board.by) menu.openBoard(board.by)
-      // a woken waypoint statue: the companion's boons
-      if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'boons')) menu.openBoons()
+      // the companion spoken to: her panel, on the road; a woken waypoint statue: on the seals' powers
+      if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'companion')) menu.openCompanion('guide')
+      else if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'boons')) menu.openCompanion('powers')
       // a shop: the Held Ground's stall, a store's counter, a bookstand (`shop:<station>`), on its shelves
       const shop = m.frame.fx.find((x) => x.t === 'panel' && (x.panel === 'shop' || x.panel.startsWith('shop:')))
       if (shop && shop.t === 'panel') menu.openShop(shop.panel === 'shop' ? 'stall' : shop.panel.slice(5))

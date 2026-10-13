@@ -7,6 +7,7 @@
 // (`first_seal`, docs/quests.md) answers them: the story's rules keep the facts (others notify it), and the world's own patches
 // may not touch them (design.md §5.11).
 
+import { PILGRIMAGE_RULES } from './pilgrimage.ts'
 import type { Cond, Effect, Invariant, RoleName, Rule, Selector, Text } from '@openworld/engine'
 import { QUEST_RULES } from './quest.ts'
 import { BOSS_RULES } from './bosses.ts'
@@ -155,7 +156,7 @@ const FORD_RULES: Rule[] = [
 ]
 
 /** The story's rules: the Ford's, then the main quest's (quest.ts). */
-export const STORY_RULES: Rule[] = [...FORD_RULES, ...QUEST_RULES, ...BOSS_RULES, ...CH1_RULES, ...HAVEN_RULES]
+export const STORY_RULES: Rule[] = [...FORD_RULES, ...QUEST_RULES, ...BOSS_RULES, ...CH1_RULES, ...PILGRIMAGE_RULES, ...HAVEN_RULES]
 
 const RIVER_CROSSED: Effect = { op: 'scene', id: 'ferry' }
 /** The story speaks through the person the content belongs to. */

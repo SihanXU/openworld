@@ -298,6 +298,6 @@ the earlier settings (the seven sins; the Unwritten).
 - **Severin** (塞弗林) believes from the start that Astra is evil (the first reversal, §9) and works
   against the protagonist from the first chapter. By mid-game the protagonist comes to the same
   belief and they hunt Astra together; during that hunt they discover the second reversal (§10).
-- **Pip** (the fairy companion) is the **second vessel**, who could not bear the Five Sufferings and
+- **Lumi** (the fairy companion) is the **second vessel**, who could not bear the Five Sufferings and
   lost all her power and memory. She catches part of each fallen Seal-bearer's power (her boons).
 - **The nights really lengthen** in play as the story advances (each Seal-bearer that falls).

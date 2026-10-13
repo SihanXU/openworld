@@ -88,6 +88,23 @@ export interface TipContext {
 }
 
 /** The tooltip's lines for an item. */
+/** A rolled extra's words: its stat's name, and whether it is a share. */
+const AFFIX: Record<string, [string, string, boolean]> = {
+  atk: ['Attack', '攻击', false],
+  def: ['Defence', '防御', false],
+  critChance: ['Critical Chance', '暴击率', true],
+  critDamage: ['Critical Damage', '暴击伤害', true],
+  dodge: ['Dodge', '闪避', true],
+  lifesteal: ['Health per hit', '每次命中吸血', false],
+  cdr: ['Cooldown Reduction', '冷却缩减', true],
+  xpRate: ['Experience', '经验获取', true],
+  stealth: ['Stealth', '潜行', false],
+  holdFast: ['Standing your ground', '坚守减伤', true],
+  perception: ['Perception', '感知', false],
+  moveHaste: ['Movement Speed', '移动速度', true],
+  attackHaste: ['Attack Speed', '攻击速度', true],
+}
+
 export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   const p = it.props
   const tags = new Set(it.tags)
@@ -113,7 +130,7 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   const pct = (v: unknown) => (typeof v === 'number' && v > 0 ? Math.round(v * 100) : 0)
   if (pct(p.critChance)) out.push(line(` +${pct(p.critChance)}% ${L('Critical Chance', '暴击率')}`, '#00aa00'))
   if (pct(p.attackHaste)) out.push(line(` +${pct(p.attackHaste)}% ${L('Attack Speed', '攻击速度')}`, '#00aa00'))
-  if (typeof p.lifesteal === 'number' && p.lifesteal > 0) out.push(line(` +${p.lifesteal} ${L('Health per hit', '生命/每次命中')}`, '#00aa00'))
+  if (typeof p.lifesteal === 'number' && p.lifesteal > 0 && (typeof p.slot !== 'string' || p.slot === 'weapon')) out.push(line(` +${p.lifesteal} ${L('Health per hit', '生命/每次命中')}`, '#00aa00'))
   // worn in the off hand (the arm slot): the shield's defence and block (at most half the blows)
   if (p.slot === 'arm') {
     out.push('<div class="gap"></div>', line(L('In the off hand:', '装备在副手时：'), '#aaaaaa'))
@@ -135,7 +152,7 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   // the traits a Vowbound piece keeps of its vow (and any piece that has them), wherever it is worn or held
   const trait = (v: unknown, en: string, zh: string) => typeof v === 'number' && v > 0 && out.push(line(` ${L(en, zh)}`, '#c77dff'))
   const pctv = (v: unknown) => Math.round(Number(v) * 100)
-  if (typeof p.slot === 'string' && p.slot !== 'arm') {
+  if (typeof p.slot === 'string' && p.slot !== 'arm' && p.slot !== 'weapon') {
     trait(p.critChance, `+${pctv(p.critChance)}% Critical Chance`, `暴击率 +${pctv(p.critChance)}%`)
     trait(p.lifesteal, `+${p.lifesteal} Health per hit`, `每次命中吸取 ${p.lifesteal} 点生命`)
   }
@@ -145,9 +162,24 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   trait(p.stealth, `+${p.stealth} Stealth`, `潜行 +${p.stealth}`)
   if (p.slot === 'arm' && p.critChance) trait(p.critChance, `+${pctv(p.critChance)}% Critical Chance`, `暴击率 +${pctv(p.critChance)}%`)
   trait(p.moveHaste, `+${pctv(p.moveHaste)}% Movement Speed`, `移动速度 +${pctv(p.moveHaste)}%`)
+  trait(p.perception, `+${p.perception} Perception`, `感知 +${p.perception}`)
   if (typeof p.holdFast === 'number' && p.holdFast > 0) out.push(line(` ${L(`Standing your ground: ${pctv(p.holdFast)}% less damage while still`, `坚守：站定不动时受到的伤害 -${pctv(p.holdFast)}%`)}`, '#c77dff', 'lore'))
   trait(p['night:def'], `+${p['night:def']} Defence at night`, `入夜后防御 +${p['night:def']}`)
   trait(p['night:atk'], `+${p['night:atk']} Attack at night`, `入夜后攻击 +${p['night:atk']}`)
+  // the small extras it rolled when it was made (engine affixes.ts)
+  const subs = Object.entries(p).filter((kv): kv is [string, number] => kv[0].startsWith('sub:') && typeof kv[1] === 'number' && kv[1] !== 0)
+  if (subs.length) {
+    out.push('<div class="gap"></div>', line(L('Affixes:', '词条：'), '#aaaaaa'))
+    for (const [k, v] of subs) {
+      const [en, zh, isPct] = AFFIX[k.slice(4)] ?? [k.slice(4), k.slice(4), false]
+      out.push(line(` ${v > 0 ? '+' : ''}${isPct ? `${Math.round(v * 100)}%` : v} ${L(en, zh)}`, '#6cb6ff'))
+    }
+  }
+  // a monster's own piece: whose it is (the kind whose `trophy` it is)
+  if (tags.has('trophy')) {
+    const kind = Object.values(ontology().types).find((t) => t.props?.trophy === it.type)
+    out.push(line(`✧ ${L('Trophy', '专属装备')}${kind?.name ? ` · ${esc(L(`dropped by ${tx(kind.name)}`, `${tx(kind.name)}掉落`))}` : ''}`, '#ff9f43'))
+  }
   // a piece of a set: the set, how many of it are worn, and what it gives at three, six, nine, twelve (lit when reached)
   const set = typeof p.set === 'string' ? ontology().sets?.find((s) => s.id === p.set) : undefined
   if (set) {

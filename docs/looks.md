@@ -108,6 +108,6 @@ cut into 18 MB of layers. `docs/figures/looks-review.png` is everyone as the gam
 
 ## 7. Not yet
 
-- Unique figures: Pip, the Seal-bearers' portraits.
+- Unique figures: Lumi, the Seal-bearers' portraits.
 - A bigger library (more hair, outfits per role and region, more faces), kin resemblance, regional palettes.
 - A style LoRA for a house style, once the art direction settles.

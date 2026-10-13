@@ -5,6 +5,8 @@ import { line, type PersonDef } from '../person.ts'
 
 export const mara: PersonDef = {
   id: 'npc.mara',
+  // the main story needs them where they are: not asked to move to a home ground (content social.ts residence)
+  tags: ['storybound'],
   role: 'elder',
   essential: true,
   name: { en: 'Mara', zh: '玛拉' },

@@ -57,14 +57,14 @@ export interface Interior {
 }
 
 /** A plain room: walls, a floor, a door in its bottom wall (MapBuilder.room). */
-function room(id: string, en: string, zh: string, w: number, h: number, style: string, floor: string, music = 'interior'): MapBuilder {
+export function room(id: string, en: string, zh: string, w: number, h: number, style: string, floor: string, music = 'interior'): MapBuilder {
   const m = new MapBuilder(id, L(en, zh), 'interior', w, h, floor, music, 'indoor', 'frostfang')
   m.room(style, floor)
   return m
 }
 
 /** A family's home: beds along the top wall, a table and chairs, a hearth, a chest. */
-function home(id: string, en: string, zh: string, beds: number, style: string): MapBuilder {
+export function home(id: string, en: string, zh: string, beds: number, style: string): MapBuilder {
   const m = room(id, en, zh, 11, 8, style, 'floor_wood')
   for (let i = 0; i < beds; i++) m.fixture('fixture/furniture/bed', 1 + i * 2, 1)
   m.fixture('fixture/light/fireplace', 8, 1, { statuses: { lit: -1 } })

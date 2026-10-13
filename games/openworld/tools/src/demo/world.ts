@@ -23,7 +23,9 @@ import { buildOverworld, placeCells, siteOf } from './overworld.ts'
 import { HOUSEHOLDS, PEOPLE, householdOf } from './people.ts'
 import { buildHaven, buildHavenGrounds } from './quest/haven.ts'
 import { villageInteriors, villageTown } from './village.ts'
+import { eastRoadRooms, emberfallRooms, tentRooms } from './interiors.ts'
 import { VIGIL, buildChapel, buildDawnHill, buildMillCellar, buildMillbrook } from './quest/vigil.ts'
+import { PILGRIM, PILGRIMAGE_STORY, buildAbbey, buildAbbeyCrypt, buildAbbeyHall, buildField, buildHostel, buildRest, buildRestChapel, buildWay } from './quest/pilgrimage.ts'
 import { CHAPTER1_SCENES, CHAPTER1_STORY, HAVEN_STORY, buildOffstage, chapter1Barrow, chapter1EastRoad, chapter1Foot, chapter1Ford, chapter1Forest, chapter1Hollow, chapter1Pasture, chapter1Summit, chapter1Village } from './quest/chapter1.ts'
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '../../../public/world')
@@ -308,7 +310,7 @@ function buildMeadow(): MapBuilder {
   const [sx, sy] = FIRSTLIGHT.spring
   for (let y = sy - 2; y <= sy + 2; y++) for (let x = sx - 2; x <= sx + 2; x++) if (m.get(x, y) === 'tree' || m.get(x, y) === 'pine') m.set(x, y, 'grass')
   m.scenery('spring', sx - 1, sy - 1)
-  // the ground round it, where Pip points it out
+  // the ground round it, where Lumi points it out
   m.regions.spring = [sx - 4, sy - 3, 9, 7]
   m.fixture('fixture/sign', sx - 2, sy - 2, { props: { text: 'Warm spring — sit a while, and it mends you.', text_zh: '温泉——泡一会儿，伤就好了。' } })
   // small things: flowers and tufts in the open, leaves under the trees
@@ -490,7 +492,7 @@ function person(p: PersonDef, at: (name: string) => Pos): Entity {
 
 const say = (who: string, en: string, zh: string, mood?: 'neutral' | 'happy' | 'sad' | 'angry' | 'surprised' | 'shy') => ({ say: who, text: L(en, zh), ...(mood && { mood }) })
 
-/** Firstlight's own beats: Pip points out the healing spring the first time one comes near it. */
+/** Firstlight's own beats: Lumi points out the healing spring the first time one comes near it. */
 const FIRSTLIGHT_BEATS: StepDef[] = [
   {
     id: 'see_spring',
@@ -628,7 +630,30 @@ export function buildFord(): FordWorld {
   const lair = buildLair()
   const col = (b: MapBuilder, x: number, ys: readonly number[]): [number, number][] => ys.map((y) => [x, y])
   const row = (b: MapBuilder, y: number, xs: readonly number[]): [number, number][] => xs.map((x) => [x, y])
-  linkEdge(m, col(m, m.w - 1, EAST_ROAD.fordEast), [-1, 0], road, col(road, 0, EAST_ROAD.west), [1, 0])
+  // the Pilgrim's Road between the Ford and the knight (docs/chapter-1.md §14): the Rest, the road, the abbey north of
+  // it, the Kneeling Field; then the East Road
+  reseed(4280)
+  const rest = buildRest()
+  const restChapel = buildRestChapel()
+  const hostel = buildHostel()
+  rest.linkInterior('chapel', restChapel)
+  rest.linkInterior('hostel', hostel)
+  reseed(4281)
+  const way = buildWay()
+  reseed(4282)
+  const abbey = buildAbbey()
+  const abbeyHall = buildAbbeyHall()
+  const abbeyCrypt = buildAbbeyCrypt()
+  abbey.linkInterior('hall', abbeyHall)
+  abbey.linkInterior('crypt', abbeyCrypt)
+  reseed(4283)
+  const field = buildField()
+  linkEdge(m, col(m, m.w - 1, EAST_ROAD.fordEast), [-1, 0], rest, col(rest, 0, PILGRIM.rest.west), [1, 0])
+  linkEdge(rest, col(rest, rest.w - 1, PILGRIM.rest.east), [-1, 0], way, col(way, 0, PILGRIM.way.west), [1, 0])
+  linkEdge(way, row(way, 0, PILGRIM.way.north), [0, 1], abbey, row(abbey, abbey.h - 1, PILGRIM.abbey.south), [0, -1])
+  linkEdge(way, col(way, way.w - 1, PILGRIM.way.east), [-1, 0], field, col(field, 0, PILGRIM.field.west), [1, 0])
+  linkEdge(field, col(field, field.w - 1, PILGRIM.field.east), [-1, 0], road, col(road, 0, EAST_ROAD.west), [1, 0])
+  const pilgrimage = [rest, restChapel, hostel, way, abbey, abbeyHall, abbeyCrypt, field]
   linkEdge(road, col(road, road.w - 1, EAST_ROAD.east), [-1, 0], ember, col(ember, 0, EMBERFALL.west), [1, 0])
   linkEdge(ember, row(ember, 0, EMBERFALL.north), [0, 1], mine, row(mine, mine.h - 1, MINE.south), [0, -1])
   linkEdge(ember, col(ember, ember.w - 1, EMBERFALL.east), [-1, 0], pass, col(pass, 0, PASS.west), [1, 0])
@@ -644,7 +669,7 @@ export function buildFord(): FordWorld {
   linkEdge(summit, row(summit, summit.h - 1, PROLOGUE.summitSouth), [0, -1], foot, row(foot, 0, PROLOGUE.footNorth), [0, 1])
   linkEdge(foot, row(foot, foot.h - 1, PROLOGUE.footSouth), [0, -1], m, row(m, 0, PROLOGUE.fordNorth), [0, 1])
   // towns and camps are peaceful: nothing comes out of the dark there (nightspawn.ts); everywhere else is a combat zone
-  for (const b of [m, meadow, ember, summit]) b.zone = 'peaceful'
+  for (const b of [m, meadow, ember, summit, rest]) b.zone = 'peaceful'
   // Chapter 1 (docs/chapter-1.md): the shrine, the drawings, the statues, the knight's kingdom; the scenes' own people wait offstage
   chapter1Ford(m)
   chapter1Village(meadow)
@@ -660,7 +685,9 @@ export function buildFord(): FordWorld {
   const haven = buildHaven()
   // its grounds, opened by its steward: places of their own, a way back to the heart from each
   const grounds = buildHavenGrounds()
-  const builders = [m, meadow, ...rooms.map((r) => r.map), pasture, forest, hollow, barrow, ossuary, sanctum, mill, millcellar, dawnhill, chapel, road, ember, mine, pass, lair, summit, foot, tutorial, offstage, haven, ...grounds]
+  // every building walked into (interiors.ts): Emberfall's, the East Road farmhouse; the tents, gone into by hand
+  const elsewhere = [...emberfallRooms().map((r) => (ember.linkInterior(r.door, r.map), r.map)), ...eastRoadRooms().map((r) => (road.linkInterior(r.door, r.map), r.map)), ...tentRooms(m, forest, haven)]
+  const builders = [m, meadow, ...rooms.map((r) => r.map), pasture, forest, hollow, barrow, ossuary, sanctum, mill, millcellar, dawnhill, chapel, ...pilgrimage, road, ember, mine, pass, lair, summit, foot, tutorial, offstage, haven, ...grounds, ...elsewhere]
   const at = placeMaps(builders, m)
   for (const b of builders)
     for (const [name, [x, y]] of Object.entries(b.anchors)) {
@@ -710,7 +737,7 @@ export function buildFord(): FordWorld {
   }
   const metaOf = (b: MapBuilder, c: RawChunk): MapMeta => ({ id: b.id, name: b.name, kind: b.kind, region: b.region, width: b.w, height: b.h, portals: b.portals, npcs: npcs.filter((n) => n.place.on === 'tile' && n.place.map === b.id).length, items: c.entities.filter((e) => e.type.startsWith('item/')).length, at: at.get(b.id), ...(Object.keys(b.regions).length && { regions: b.regions }) })
   // the story's one script (world-model.md §6.12): the tutorial's beats, then the scenes
-  const steps = [...PROLOGUE_BEATS, ...FIRSTLIGHT_BEATS, ...scenes, ...CHAPTER1_STORY, ...CHAPTER1_SCENES, ...HAVEN_STORY, ...QUEST_SCENES]
+  const steps = [...PROLOGUE_BEATS, ...FIRSTLIGHT_BEATS, ...scenes, ...CHAPTER1_STORY, ...PILGRIMAGE_STORY, ...CHAPTER1_SCENES, ...HAVEN_STORY, ...QUEST_SCENES]
   const index: WorldIndex = {
     name: L('The Ford', '渡口'),
     version: VERSION,
@@ -736,7 +763,7 @@ export function buildFord(): FordWorld {
       // a little hungry: the first thing the mountain teaches is to eat
       props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, hunger: 12 },
     },
-    companions: [{ id: 'pip', type: 'actor/companion/fairy', name: L('Pip', '小啾'), place: { on: 'none' }, facing: 'down' }],
+    companions: [{ id: 'pip', type: 'actor/companion/fairy', name: L('Lumi', '露米'), place: { on: 'none' }, facing: 'down' }],
     // the quests (docs/quests.md): the main line, what the people ask, the radiant favours
     quests: QUESTS,
     waypoints: chunks.flatMap((c) => c.entities.filter((e) => e.type === 'fixture/sacred/waypoint').map((e) => ({ id: e.id, map: c.map.id, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: e.name ?? L('Waypoint', '传送雕像') }))),

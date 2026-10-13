@@ -361,7 +361,8 @@ const BODIES: Rule[] = [
         tag('host', 'essential'),
         'inherit',
         DO(
-          emit('notify', 'actor', { what: 'defeat', xp: { prop: 'maxHp', of: 'host' } }),
+          // the striker learns from it, and may find the kind's own piece (trophies.ts) in their bag
+          emit('notify', 'actor', { what: 'defeat', xp: { prop: 'maxHp', of: 'host' }, trophy: { prop: 'trophy', of: 'host' }, trophyChance: { prop: 'trophyChance', of: 'host' } }),
           // the story hears what fell, and to whom (quests count it)
           vfx('poof', 'tileOf:host'),
           log('{host} is defeated.', '{host}被打倒了。'),
@@ -379,18 +380,18 @@ const BODIES: Rule[] = [
   }),
   rule({
     id: 'combat/learn',
-    doc: 'Whoever defeated a foe gains experience as much as its full health (and is rewarded with experience when a quest is handed in). A mage felling a foe with a staff mends 3 (Arcane Recovery); an assassin felling one with a dagger mends a tenth of their health (Shadow Recovery): a profession\'s talents answer its own weapons only (profession.ts).',
+    doc: 'Whoever defeated a foe gains experience as much as its full health, and may find the foe kind\'s own piece of gear in their bag (a chance each felling, sure at the fiftieth: the trophy primitive) (and is rewarded with experience when a quest is handed in). A mage felling a foe with a staff mends 3 (Arcane Recovery); an assassin felling one with a dagger mends a tenth of their health (Shadow Recovery): a profession\'s talents answer its own weapons only (profession.ts).',
     host: ACTOR,
     on: 'impulse/notify',
     tree: IF(
       param('what', 'defeat'),
       IF(
         all(tag('host', 'skill:arcane-recovery'), is('instrument', { tags: ['profession:mage'] })),
-        DO({ op: 'gainXp', amount: { param: 'xp' } }, { op: 'heal', amount: 3 }),
+        DO({ op: 'gainXp', amount: { param: 'xp' } }, { op: 'trophy' }, { op: 'heal', amount: 3 }),
         IF(
           all(tag('host', 'skill:shadow-recovery'), is('instrument', { tags: ['profession:assassin'] })),
-          DO({ op: 'gainXp', amount: { param: 'xp' } }, { op: 'heal', amount: { prop: 'maxHp', of: 'host', mul: 0.1 } }),
-          DO({ op: 'gainXp', amount: { param: 'xp' } }),
+          DO({ op: 'gainXp', amount: { param: 'xp' } }, { op: 'trophy' }, { op: 'heal', amount: { prop: 'maxHp', of: 'host', mul: 0.1 } }),
+          DO({ op: 'gainXp', amount: { param: 'xp' } }, { op: 'trophy' }),
         ),
       ),
       IF(param('what', 'reward'), DO({ op: 'gainXp', amount: { param: 'xp' } }), 'inherit'),
@@ -1561,10 +1562,10 @@ const JOURNEY: Rule[] = [
   rule({
     id: 'companion/talk',
     label: L('Talk to {target}', '和{target}说话'),
-    doc: 'A companion, spoken to (E), tells what the story asks for now and how (else what it last pointed out); asked to carry one of its boons (param boon, from the waypoint\'s panel), it takes it up if a woken waypoint is near (boons.ts).',
+    doc: 'A companion, spoken to (E), tells what the story asks for now and how (else what it last pointed out), and opens its panel: what the main road asks now, and the five seals\' powers, those taken up and those still sealed (one is changed only beside a woken waypoint). Asked to carry one of its boons (param boon, from that panel), it takes it up if a woken waypoint is near (boons.ts).',
     host: COMPANION,
     on: 'impulse/handle',
-    tree: IF({ param: { key: 'boon', cmp: { ne: '' } } }, DO({ op: 'boon' }), DO({ op: 'say', text: '@guide' })),
+    tree: IF({ param: { key: 'boon', cmp: { ne: '' } } }, DO({ op: 'boon' }), DO({ op: 'say', text: '@guide' }, { op: 'panel', panel: 'companion' })),
   }),
   rule({
     id: 'light/told',
@@ -1759,6 +1760,22 @@ export const SITE_GATES: { fact: string; say: { en: string; zh: string } }[] = [
   { fact: CH1.knight, say: L('The White Knight still holds the East Road. There is no way past him yet.', '白骑士还守在东大路上，暂时过不去。') },
 ]
 
+/** A tent with a room behind its flap (its `interior`, `interiorX`, `interiorY`): a hand on it, and in one goes. */
+const TENTS: Rule[] = [
+  rule({
+    id: 'tent/enter',
+    label: L('Go into {target}', '进入{target}'),
+    doc: 'A hand on a tent that has a room (its interior props): one goes in, out again by its flap in front of it. A tent with none: no change.',
+    host: { type: 'fixture/tent' },
+    on: 'impulse/handle',
+    tree: IF(
+      { prop: { role: 'host', key: 'interior', cmp: { ne: '' } } },
+      DO(emit('push', 'actor', { map: { prop: 'interior', of: 'host' }, x: { prop: 'interiorX', of: 'host' }, y: { prop: 'interiorY', of: 'host' } })),
+      'inherit',
+    ),
+  }),
+]
+
 const SITES: Rule[] = [
   rule({
     id: 'site/enter',
@@ -1868,4 +1885,4 @@ const GENERAL: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL, ...LIFE_RULES, ...VILLAGE_SHOP_RULES]
+export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...TENTS, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL, ...LIFE_RULES, ...VILLAGE_SHOP_RULES]

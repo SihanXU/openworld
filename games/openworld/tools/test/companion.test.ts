@@ -5,7 +5,7 @@ import { Game, RuleLibrary, type Dir } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
-// Pip keeps up (docs/prologue.md): however the player runs — straight or diagonally, changing
+// Lumi keeps up (docs/prologue.md): however the player runs — straight or diagonally, changing
 // direction every step — the bird glides one tile at a time and never falls far behind (so it
 // never has to jump back to them).
 
@@ -35,11 +35,26 @@ describe('the companion', () => {
       prev = at
     }
     expect(worst).toBeLessThanOrEqual(4)
-    // the leader stops: the bird drifts in to a tile beside them
+    // the leader stops: the bird settles two tiles off them (not right behind: turning to it would send it round)
     for (let i = 0; i < 60; i++) eng.tick()
     const at = w.posOf(pip)!
     const me = w.posOf(p)!
-    expect(Math.max(Math.abs(at.x - me.x), Math.abs(at.y - me.y))).toBe(1)
+    expect(Math.max(Math.abs(at.x - me.x), Math.abs(at.y - me.y))).toBe(2)
+    // turned to face it, it stays where it is, and is within reach of a word (its handsRange)
+    p.facing = at.x > me.x ? 'right' : at.x < me.x ? 'left' : at.y > me.y ? 'down' : 'up'
+    for (let i = 0; i < 60; i++) eng.tick()
+    expect(w.posOf(pip)).toEqual(at)
+    expect(w.num(pip, 'handsRange')).toBe(2)
+    // and E there means her, not the grass she hovers over: the hands meet a companion first
+    eng.controls.sync()
+    const talk = eng.controls.plan('hands', { x: at.x, y: at.y })
+    expect(talk?.target).toEqual({ e: pip.id })
+    // but over a person within reach, E is for the person (she hovers by; one speaks to whom she hovers over)
+    const someone = Object.values(w.state.entities).find((e) => e.type.startsWith('actor/person/') && e.id !== p.id && e.npc)!
+    const near = { x: me.x + Math.sign(at.x - me.x), y: me.y + (at.x === me.x ? Math.sign(at.y - me.y) : 0) }
+    eng.author(() => (w.place(someone, { on: 'tile', map: at.map, ...near }), w.place(pip, { on: 'tile', map: at.map, ...near })))
+    eng.controls.sync()
+    expect(eng.controls.plan('hands', near)?.target).toEqual({ e: someone.id })
   })
 
   it('struck down, it cannot follow: its behaviour reports stuck, and the base answers (it lies where it fell); it comes to and follows again', () => {
@@ -52,10 +67,11 @@ describe('the companion', () => {
     eng.author(() => eng.teleport(p, { map: 'foot', x: 8, y: 8 }))
     for (let i = 0; i < 20; i++) eng.tick()
     const pip = w.get('pip')!
-    // the player strikes the bird it can point at (blows along the facing pass under a flyer)
+    // the player strikes the bird it can point at (blows along the facing pass under a flyer), once it is beside them
     eng.author(() => w.setProp(p, 'atk', 50))
-    const at = w.posOf(pip)!
     const me = w.posOf(p)!
+    eng.author(() => w.place(pip, { on: 'tile', map: me.map, x: me.x + 1, y: me.y }))
+    const at = w.posOf(pip)!
     p.facing = at.x > me.x ? 'right' : at.x < me.x ? 'left' : at.y > me.y ? 'down' : 'up'
     eng.playerAttack({ e: pip.id })
     // essential: it goes down, it is not gone

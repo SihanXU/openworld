@@ -245,7 +245,12 @@ export class Controls {
     const me = this.w.state.player
     // the open air only F and G meet, and the left click with a built thing in hand (it builds there)
     const air = key === 'put' || key === 'take' || (key === 'use' && this.buildsInHand())
-    const all = this.layers(at, stack).filter((r) => r.e !== me && (air || !this.w.isAir(this.w.get(r.e))))
+    const layered = this.layers(at, stack).filter((r) => r.e !== me && (air || !this.w.isAir(this.w.get(r.e))))
+    // a bird overhead is the last layer (layers()), but the hands (E) meet a companion before the ground and what lies
+    // there — one reaches for the fairy to speak to her, not for the grass under her — though after a person she hovers by
+    const friend = (r: Ref) => key === 'hands' && !!this.w.get(r.e) && this.w.hasTag(this.w.get(r.e)!, 'companion')
+    const person = (r: Ref) => { const e = this.w.get(r.e); return !!e && this.w.isAgent(e) && !friend(r) && !this.w.hasTag(e, 'airborne') }
+    const all = [...layered.filter(person), ...layered.filter(friend), ...layered.filter((r) => !friend(r) && !person(r))]
     // what another cell draws over the point but stands beyond the key's reach (a farther tree's
     // crown over the tree beside one) is not what the key meets: the next layer is. What stands on
     // the spot itself stays, reached or not (a bed pointed at from beside it is not its floor).

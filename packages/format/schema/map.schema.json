@@ -1037,6 +1037,30 @@
           "additionalProperties": false,
           "description": "A detour a rule ordered (`goto`): this anchor until the tick, whatever the schedule says."
         },
+        "resident": {
+          "type": "object",
+          "properties": {
+            "map": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "schedule": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ScheduleEntry"
+              }
+            }
+          },
+          "required": [
+            "map",
+            "slot",
+            "schedule"
+          ],
+          "additionalProperties": false,
+          "description": "Where the person has moved to live (the society module's `moveIn`, a home ground's resident): this place and its days, over every schedule variant (a detour still goes first), until they move again."
+        },
         "memory": {
           "$ref": "#/definitions/NpcMemory",
           "description": "What the person remembers of talking: the lines said, the last one, the day last talked to (their own record)."

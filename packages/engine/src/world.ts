@@ -959,16 +959,22 @@ export class World {
     // what it wears: each piece's number, and at night what a piece gives only then (`night:<key>`: a vigil's belt)
     const night = this.isNight()
     // (a weapon kept in the main hand counts only when it is fought with: combat.ts reads it as the weapon)
-    for (const w of this.worn(e)) if (this.prop(w, 'slot') !== 'weapon') v += this.num(w, key) + (night ? this.num(w, `night:${key}`) : 0)
-    // a set worn together (the weapon among its pieces): each bonus its worn count reaches
+    const worn = this.worn(e)
+    for (const w of worn) if (this.prop(w, 'slot') !== 'weapon') v += this.num(w, key) + (night ? this.num(w, `night:${key}`) : 0)
+    // what each piece rolled when it was made (affixes.ts), the weapon's too
+    for (const w of worn) v += this.num(w, `sub:${key}`)
+    // and the weapon in hand, if it is not the one kept worn (blows.ts weaponOf: the held weapon is fought with)
+    const held = this.get(e.held)
+    if (held && this.hasTag(held, 'weapon') && !worn.includes(held)) v += this.num(held, `sub:${key}`)
+    // a set worn together: each bonus its count of pieces reaches, a piece per slot (two of its rings count once)
     const sets = this.onto.data.sets
     if (sets?.length) {
-      const count = new Map<string, number>()
-      for (const w of this.worn(e)) {
+      const slots = new Map<string, Set<string>>()
+      for (const w of worn) {
         const s = this.prop(w, 'set')
-        if (typeof s === 'string') count.set(s, (count.get(s) ?? 0) + 1)
+        if (typeof s === 'string') slots.set(s, (slots.get(s) ?? new Set<string>()).add(String(this.prop(w, 'slot'))))
       }
-      for (const [id, n] of count) for (const b of sets.find((s) => s.id === id)?.bonuses ?? []) if (n >= b.pieces) v += b.props[key] ?? 0
+      for (const [id, n] of slots) for (const b of sets.find((s) => s.id === id)?.bonuses ?? []) if (n.size >= b.pieces) v += b.props[key] ?? 0
     }
     // what the companions following it give their leader (boons.ts): their statuses' `lead:<key>`
     const at = this.posOf(e)

@@ -3,6 +3,8 @@
 // between the engine, the client, saves and (later) the modder service.
 
 
+import type { AffixTable } from './affixes.ts'
+
 export type Id = string
 export type Text = string | { en: string; zh?: string }
 
@@ -131,6 +133,8 @@ export interface WorldParams {
   recovery: number
   /** How many things one effect may make at once (a runtime guard; default 64). */
   spawnMax?: number
+  /** How many of a kind one fells before its trophy surely comes (the `trophy` primitive; default 50). */
+  trophyPity?: number
   /** A drop of this many levels or less does no harm (world-model.md §5.5). */
   safeFall: number
   /** The harm of each level fallen beyond the safe height. */
@@ -237,6 +241,8 @@ export interface Ontology {
    * `pieces` the worn count reaches) — the sum of its `props`, read as any worn number is.
    */
   sets?: GearSet[]
+  /** Gear's rolled extras (affixes.ts): how many a piece rolls when it is made, and from what. */
+  affixes?: AffixTable
   /**
    * How well an instrument works on a material category (world-model.md §6.1): rows are its
    * capabilities (`tool:axe` …) and its edge (`edge:cut` …); an instrument takes its best row.
@@ -559,6 +565,9 @@ export interface NpcData {
   person?: PersonData
   /** A detour a rule ordered (`goto`): this anchor until the tick, whatever the schedule says. */
   override?: { map: string; x: number; y: number; until: number; activity: string }
+  /** Where the person has moved to live (the society module's `moveIn`, a home ground's resident): this place and its
+   * days, over every schedule variant (a detour still goes first), until they move again. */
+  resident?: { map: string; slot: string; schedule: ScheduleEntry[] }
   /** What the person remembers of talking: the lines said, the last one, the day last talked to (their own record). */
   memory?: NpcMemory
 }
@@ -712,6 +721,26 @@ export interface SocialParams {
   markup: number
   markdown: number
   fence: number
+  /** How fast regard above its start fades back, each day (a share of the way): slower than a grudge heals. Default `fade`. */
+  fadeUp?: number
+  /** The share off what a merchant asks one it holds in full regard (100), and in proportion below (default 0.2). */
+  discount?: number
+  /** Where people held in full regard may be asked to come and live (a home ground): `moveIn`. */
+  residence?: ResidenceDef
+}
+
+/**
+ * A home ground's room for people (the society module's `moveIn`): its map and the beds it has, each an anchor there
+ * (where the resident sleeps; `<anchor>.day` where their day is spent, else the same), open once its fact holds; what
+ * the one asked says, moved in or with no bed free.
+ */
+export interface ResidenceDef {
+  map: string
+  /** The regard (of the one asked toward the one asking) it takes. */
+  at: number
+  slots: { anchor: string; when?: string }[]
+  yes: Text
+  full: Text
 }
 
 /** Something that happened, which people may talk about while it is fresh. */
@@ -1425,7 +1454,7 @@ export type EmitTo =
  * yourself), spawns, or presents; `emit` sends an event to others, which answer for themselves.
  */
 /** The primitives the engine's official modules carry (packages/modules): typed here, worked by their module (module.ts). */
-export type ModuleOp = 'release' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm'
+export type ModuleOp = 'release' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn'
 
 export type Effect =
   | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean }
@@ -1487,6 +1516,8 @@ export type Effect =
   | { op: 'startQuest'; id?: string; offer?: boolean }
   /** The story's: the facts it is told (params `fact.<key>`) it keeps. */
   | { op: 'facts' }
+  /** A trophy, perhaps (the host felled a creature that keeps one: params type, chance): see effects.ts PRIMITIVES. */
+  | { op: 'trophy' }
   /** News for the quests (docs/quests.md §2.3): what this event is (its actor, host, item) — a gift handed over. */
   | { op: 'news'; kind: 'give' | 'deed' | 'hungry' | 'talk' }
   /** The world's: what appears by itself on the active map now (its own and the world's appearances), or the one given. */
@@ -1544,6 +1575,7 @@ export type Effect =
   | { op: 'give'; to: RoleName }
   /** The host (a merchant) sells the actor what it asks (param item) for its price: it hands it over, the buyer is told to pay. */
   | { op: 'sell' }
+  | { op: 'moveIn' }
   /** The host (a merchant) buys the instrument the actor offers: it pays, the seller is told to hand it over. */
   | { op: 'buy' }
   /** The host follows a role (its `follow` prop), or (no leader) stops following. */
@@ -1673,7 +1705,7 @@ export interface Rule {
 // ------------------------------------------------------------------ outputs to the client
 
 export type FxEvent =
-  | { t: 'vfx'; fx: string; map: string; x: number; y: number; angle?: number; span?: number }
+  | { t: 'vfx'; fx: string; map: string; x: number; y: number; angle?: number; span?: number; /** who made it (a blow's swing, a bolt loosed): drawn wielding it wherever they are drawn now */ who?: Id }
   | { t: 'say'; who: Id; text: Text; mood?: Mood; scene?: boolean; /** said to another (one person telling another): heard in passing, not a talk with the one at the keys */ to?: Id }
   | { t: 'emote'; who: Id; mood: Mood }
   | { t: 'fade'; dir: 'out' | 'in' }
