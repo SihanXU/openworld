@@ -1,18 +1,20 @@
 // The action and the pointer, as in Stardew Valley. The action (E, the right click) is one input that does
 // what the thing it is aimed at calls for (actionOf), and the cursor shows it at once: a glove over what it
-// opens, reads or picks up (or where what is held is set down: a chest, a torch), a speech bubble over someone
-// to talk to, a heart over someone to hand what is held,
-// a "?" where the world has never seen the act (the modder will be asked), a "!" where F would be a theft, and
-// a faded arrow where nothing under the pointer is within reach (the act goes to the spot the scene outlines).
+// opens, reads or picks up (or where what is held is set down: a bed, a workbench), a speech bubble over
+// someone to talk to, a "?" where the world has never seen the act (the modder will be asked), a "!" where F
+// would be a theft, and a faded arrow where nothing under the pointer is within reach (the act goes to the
+// spot the scene outlines). The pictures are the game's own (its catalogue): without them, the arrow.
 // The scene frames the spot the inputs act on, under the pointer or in front (render/scene.ts focusOn). When the
 // pointer aims at nothing (the keys walked last, or it rests on the HUD), the keys act on the spot in front, and
 // the same mark floats over its frame when it is a thing or someone (never on the bare ground), walking too.
 
 import type { Frame, Key } from '@openworld/engine'
+import type { SpriteDef } from '../assets/types.ts'
+import { catalog } from '../game.ts'
 import { assetUrl } from '../render/assets.ts'
 import { placeable } from './building.ts'
 
-type Mark = 'arrow' | 'hand' | 'talk' | 'gift'
+type Mark = 'arrow' | 'hand' | 'talk'
 type Badge = '?' | '!'
 interface Look {
   mark: Mark
@@ -51,7 +53,7 @@ const BADGE: Record<Badge, string[]> = {
   '!': ['KKKK', 'KRRK', 'KRRK', 'KRRK', 'KRRK', 'KKKK', 'KRRK', 'KKKK'],
 }
 /** Where each mark points, in pixels of its art (the bubble's with the outline it is given). */
-const HOT: Record<Mark, [number, number]> = { arrow: [0, 0], hand: [6, 1], talk: [2, 2], gift: [2, 2] }
+const HOT: Record<Mark, [number, number]> = { arrow: [0, 0], hand: [6, 1], talk: [2, 2] }
 
 function drawn(rows: string[]): HTMLCanvasElement {
   const c = document.createElement('canvas')
@@ -63,7 +65,7 @@ function drawn(rows: string[]): HTMLCanvasElement {
 }
 
 /** An image with a dark one-pixel outline around it (the pack's bubbles have none, and vanish on a pale floor). */
-function outlined(img: HTMLImageElement): HTMLCanvasElement {
+function outlined(img: Art): HTMLCanvasElement {
   const c = document.createElement('canvas')
   c.width = img.width + 2
   c.height = img.height + 2
@@ -77,11 +79,21 @@ function outlined(img: HTMLImageElement): HTMLCanvasElement {
   return c
 }
 
-async function picture(path: string): Promise<HTMLImageElement> {
+/** A sprite of the game's catalogue, cut out of its sheet (none when the game has no such picture). */
+async function picture(d: SpriteDef | undefined): Promise<HTMLCanvasElement | undefined> {
+  if (!d) return undefined
   const img = new Image()
-  img.src = assetUrl(path)
-  await img.decode()
-  return img
+  img.src = assetUrl(d.img)
+  try {
+    await img.decode()
+  } catch {
+    return undefined
+  }
+  const c = document.createElement('canvas')
+  c.width = d.w
+  c.height = d.h
+  c.getContext('2d')!.drawImage(img, d.x, d.y, d.w, d.h, 0, 0, d.w, d.h)
+  return c
 }
 
 /** The keys' spot: where the act would be done. */
@@ -91,22 +103,24 @@ function spotOf(k: Frame['keys']): { x: number; y: number } | undefined {
 }
 
 /**
- * The action, as Stardew's: to someone, a word, or what is held handed to them; what the hands do something
- * with is done (open, read, sleep, pick); what can be taken is picked up (never what is another's: that is F's
- * alone); on the open ground, what is held is set down if it is set in a place (a chest, a torch: the left
- * click's act),
- * else eaten, drunk or put on; on a thing, else the hands try it (an experiment). Nothing else: no act whose
- * outcome is unknown or nothing is made on the bare ground (dropping is the bag's: drag a thing out of it).
+ * The action, as Stardew's: to someone, a word (handing them what is held is G's alone: an axe in hand is not
+ * given away by a word); what the hands do something with is done (open, read, sleep, pick); what can be taken
+ * is picked up (never what is another's: that is F's alone); on the open ground, what is held is set down if it
+ * is set in a place (a bed, a workbench: G's act, which offers nothing where it cannot rest), else eaten, drunk
+ * or put on; on a thing, else the hands try it (an experiment). Nothing else: no act whose outcome is unknown or
+ * nothing is made on the bare ground (dropping is the bag's: drag a thing out of it). A lesson that lets only
+ * some inputs work (docs/prologue.md) is kept: the action is the first of them that answers.
  */
-export function actionOf(k: Frame['keys'], held: string | undefined): Key | undefined {
+export function actionOf(k: Frame['keys'], held: string | undefined, allow?: readonly string[]): Key | undefined {
   if (!k) return undefined
+  const may = (key: Key) => !allow || allow.includes(key)
   const h = k.hands
-  if (h?.person) return held && k.put && !k.put.unknown ? 'put' : 'hands'
-  if (h && !h.unknown && !h.ground) return 'hands'
-  if (k.take && !k.take.ground && !k.take.steal) return 'take'
-  if (held && placeable(held) && k.use?.ground && !k.use.unknown) return 'use'
-  if (held && k.self && !k.self.unknown) return 'self'
-  if (h && !h.ground) return 'hands'
+  if (h?.person && may('hands')) return 'hands'
+  if (h && !h.unknown && !h.ground && may('hands')) return 'hands'
+  if (k.take && !k.take.ground && !k.take.steal && may('take')) return 'take'
+  if (held && placeable(held) && k.put?.ground && !k.put.unknown && may('put')) return 'put'
+  if (held && k.self && !k.self.unknown && may('self')) return 'self'
+  if (h && !h.ground && may('hands')) return 'hands'
   return undefined
 }
 
@@ -115,8 +129,7 @@ function lookOf(k: Frame['keys'], act: Key | undefined): Look {
   const v = act && k?.[act]
   const badge: Badge | undefined = k?.take?.steal ? '!' : v?.unknown ? '?' : undefined
   if (!act || !v || act === 'self') return { mark: 'arrow', badge: badge === '!' ? '!' : undefined }
-  if (v.person) return { mark: act === 'put' ? 'gift' : 'talk', badge }
-  return { mark: 'hand', badge }
+  return { mark: v.person ? 'talk' : 'hand', badge }
 }
 
 const keyOf = (l: Look) => `${l.mark}|${l.badge ?? ''}|${l.far ? 'far' : ''}`
@@ -148,16 +161,19 @@ export class Cursor {
   ) {
     this.el.className = 'vcursor off'
     layer.appendChild(this.el)
-    void picture('Items/Action/Interact.png').then((img) => (this.art.hand = img))
-    void picture('Ui/Emote/emote20.png').then((img) => (this.art.talk = outlined(img)))
-    void picture('Ui/Emote/emote27.png').then((img) => (this.art.gift = outlined(img)))
+    // the glove (the game's own "gloves" item) and the speech bubble ("…"), if the game has them
+    void picture(catalog().items['item:gloves']).then((c) => c && (this.art.hand = c))
+    void picture(catalog().ui.emoteDots).then((c) => c && (this.art.talk = outlined(c)))
     this.show({ mark: 'arrow' })
   }
 
-  /** What the keys would do now; the type of what is held; the cell the pointer aims at (none: it aims at nothing). */
-  update(keys: Frame['keys'], held: string | undefined, aim: { x: number; y: number } | undefined): void {
+  /**
+   * What the keys would do now; the type of what is held; the cell the pointer aims at (none: it aims at
+   * nothing); the inputs a lesson lets work.
+   */
+  update(keys: Frame['keys'], held: string | undefined, aim: { x: number; y: number } | undefined, allow?: readonly string[]): void {
     const at = spotOf(keys)
-    const act = actionOf(keys, held)
+    const act = actionOf(keys, held, allow)
     const look = lookOf(keys, act)
     if (aim) {
       this.far = !!at && (at.x !== aim.x || at.y !== aim.y)

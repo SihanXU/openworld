@@ -194,15 +194,14 @@ blow; `enter(tile)`. Targets: every layer of a tile within the act's reach (peop
 fixtures, the items of a pile, the ground), the player (for use only), and items in the bag or an
 open chest.
 
-**The inputs**, one act each (Stardew's and Minecraft's split of hands, items and the world):
+**The inputs**, one act each (Stardew's and Minecraft's split of hands, items and the world); the action picks its act:
 
 | Input | Act | Reach | For |
 |---|---|---|---|
-| **E** | `hands(target)` | the target's `handsRange` (0: standing on it, a bed; 1, beside it, by default; a sign 2) | talk, open, read, wake, sleep (whatever is held) |
+| **E**, **right click** (the action) | what the thing aimed at calls for, as Stardew's action button: `hands(target)` to someone (a word: what is held is handed over with G only) or what the bare hands do something with; else `take(target)` (never another's: a theft is F's alone); else, on open ground, `put(held, target)` for a built thing or a fixture in hand (a bed, a workbench), or `use(held, self)` (eat, drink, put on); else `hands(target)` on a thing (an experiment); on the bare ground, nothing. Without the pointer, on what is close by: the cell in front if anything but its ground is there, else a thing or someone ahead on either side, then beside (the player turns to it). The cursor shows which (runtime `ui/cursor.ts` `actionOf`; a lesson's locked inputs are passed over). Held long: the chooser of the bare hands' targets | that act's | talk, open, read, wake, sleep, pick up, set down a bed, eat |
 | **F** | `take(target)` | the world's `carry` (1: the cells round, one's own included) | pick up, pick a crop, take from a table |
 | **G** | `put(held, target)` | `carry` | place, store, set on a table or fire, sow, hand to a person |
 | **Left click** | `use(held, target)`; with nothing held, a blow | the held thing's `range` (1 by default; a spear 2, a bow 6) | tools, weapons, feeding someone, putting armour on someone, the player's experiments; a bare fist hits anything (Minecraft); a built thing or a fixture in hand on open ground, a floor or what is built is set down there (it builds, Terraria: the rules `use/set-structure`, `use/set-fixture` hand it to the cell as G does; held and dragged, a row; R with a floor in hand, the ceiling) |
-| **Right click** | `use(held, self)` | oneself | eat, drink, put on, a bare fist on oneself; the same act as a left click on one's own place |
 
 **Taking and putting are the world's physics, never asked**: what can be taken is taken, what has
 room takes what is put on it, a person takes what is handed to them; anything else refuses, and F

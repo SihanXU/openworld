@@ -2,7 +2,7 @@
 
 import { untilUp } from './untilUp.ts'
 import { artsToSend, forgetInvalid, forgetStatus, forgetType, learnedRecipes, recipeOf, shareKept, sharedPart, takeDefinitions, withKept } from './learned.ts'
-import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR, rollAffixes } from '@openworld/engine'
+import { lookProblems, signatureOf, difficultyOf, DIRS, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR, rollAffixes } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
@@ -335,8 +335,6 @@ function keyViews(): Frame['keys'] {
   return out
 }
 
-const AHEAD: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }
-
 /** The cell the keys act on when the pointer aims at nothing and it is not the one in front (assist). */
 let assisted: Tile | undefined
 
@@ -351,14 +349,16 @@ function assist(person: (pl: Plan) => boolean): Tile | undefined {
   const c = eng.controls
   const w = eng.world
   const pos = w.posOf(w.player)
-  if (!pos) return undefined
-  const [fx, fy] = AHEAD[w.player.facing ?? 'down']
+  const front = w.front(w.player)
+  if (!pos || !front) return undefined
+  const [fx, fy] = DIRS[w.player.facing ?? 'down']
+  // only a cell with something on it but its ground is asked about (the open field costs nothing)
+  const occupied = (t: { x: number; y: number }) => w.entitiesAt(pos.map, t.x, t.y, pos.z).some((e) => e.id !== w.state.player && !c.ground({ e: e.id }))
   const thing = (pl: Plan | undefined) => !!pl && !c.ground(pl.target)
-  const at = (x: number, y: number) => ({ x: pos.x + x, y: pos.y + y })
-  const front = at(fx, fy)
-  if (thing(c.plan('hands', front)) || thing(c.plan('take', front))) return undefined
+  if (occupied(front) && (thing(c.plan('hands', front)) || thing(c.plan('take', front)))) return undefined
   for (const [x, y] of [[fx - fy, fy + fx], [fx + fy, fy - fx], [-fy, fx], [fy, -fx]]) {
-    const t = at(x, y)
+    const t = { x: pos.x + x!, y: pos.y + y! }
+    if (!occupied(t)) continue
     const h = c.plan('hands', t)
     const k = c.plan('take', t)
     if ((thing(h) && (person(h!) || !h!.unknown)) || (thing(k) && !k!.steal)) return t
@@ -650,12 +650,16 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'key': {
         if (!game || paused || panel || game.engine.world.state.question) break
         const c = game.engine.controls
-        // without the pointer, what the keys found close by; the player turns to it
-        const tile = m.tile ?? assisted
+        // the action with nothing pointed at goes to what the keys found close by, and the player turns to it;
+        // F, G and a choice from the chooser go to the cell in front, as ever
+        const assisting = !m.tile && !!m.assist && m.layer === undefined && !!assisted
+        const tile = m.tile ?? (assisting ? assisted : undefined)
         const pos = game.engine.world.posOf(game.engine.world.player)
-        if (!m.tile && assisted && pos) c.face({ ...pos, x: assisted.x, y: assisted.y })
-        // the target the key's label named (one who walked a step off since stays it)
-        const plan = c.planFor(m.key, tile, m.layer, m.layer ? undefined : shownTarget[m.key])
+        if (assisting && pos) c.face({ ...pos, x: assisted!.x, y: assisted!.y })
+        // the target the key's label named (one who walked a step off since stays it) — not one the labels found
+        // close by, when this key does not go there
+        const shown = m.layer || (!m.tile && !assisting && assisted) ? undefined : shownTarget[m.key]
+        const plan = c.planFor(m.key, tile, m.layer, shown)
         // dragged over a cell, the left button only sets things down (never an experiment on what it passes)
         if (!plan || (m.drag && !plan.sets)) break
         const out = c.run(plan)
@@ -708,8 +712,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'aim':
         aimTile = m.tile
-        // what the keys would do there, at once: the pointer's mark follows the hand, not the tick
-        if (game) post({ t: 'keys', keys: keysNow(game) })
+        // what the keys would do there, at once: the pointer's mark follows the hand, not the tick (always
+        // answered, with the aim's number: the page waits for it before it acts on what the keys would do)
+        post({ t: 'keys', keys: game ? keysNow(game) : undefined, n: m.n })
         break
       case 'answer':
         game?.engine.controls.answer(m.yes)

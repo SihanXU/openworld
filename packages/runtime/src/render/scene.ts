@@ -598,6 +598,8 @@ export class WorldScene extends Phaser.Scene {
    * to each thing passed, no pop): it goes to what the keys found once the player has stopped (settled).
    */
   focusOn(f: Frame): void {
+    // a frame made before the worker saw the latest aim tells the old spot: the frame waits for the new
+    if (!this.keysFresh()) return
     const k = f.keys?.hands ?? f.keys?.take ?? f.keys?.put ?? f.keys?.use ?? f.keys?.self
     const [dx, dy] = STEP[f.player.facing]
     const tx = k ? k.x : f.player.x + dx
@@ -1534,6 +1536,8 @@ export class WorldScene extends Phaser.Scene {
 
   /** Set by main.ts: the keys aim (the pointer aims at nothing), at the spot in front. */
   keysAhead: () => boolean = () => false
+  /** Set by main.ts: the worker has answered the latest aim (the frame's keys are for where the pointer is). */
+  keysFresh: () => boolean = () => true
 
   lookOf(id: string): { img: string; frame: string } | undefined {
     const v = this.views.get(id)

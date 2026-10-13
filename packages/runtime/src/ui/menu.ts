@@ -231,6 +231,8 @@ export class Menu {
   /** What is picked up follows the pointer; a press dragged a little way off its slot becomes a drag. */
   private carry(e: MouseEvent): void {
     if (this.picked === undefined) return
+    // the bag went away under it (the journal opened, another panel): put back
+    if (!this.bagShown) return this.showCarried()
     this.carried.style.transform = `translate(${e.clientX - 16}px, ${e.clientY - 16}px)`
     if (this.drag && Math.hypot(e.clientX - this.drag.x, e.clientY - this.drag.y) > 4) this.drag.moved = true
   }
@@ -244,6 +246,8 @@ export class Menu {
     const d = this.drag
     this.drag = undefined
     if (!d?.moved || this.picked === undefined) return
+    // let go once the bag has gone (the journal opened mid-drag): it goes back, never into the world
+    if (!this.bagShown) return this.showCarried()
     const from = this.picked
     this.picked = undefined
     const at = document.elementFromPoint(e.clientX, e.clientY)
@@ -256,9 +260,15 @@ export class Menu {
     this.render()
   }
 
-  /** The thing picked up, drawn on the pointer while the bag is open. */
+  /** The bag is what is shown (a thing picked up from it rides the pointer only then). */
+  private get bagShown(): boolean {
+    return this.menuOpen && this.tab === 'inventory'
+  }
+
+  /** The thing picked up, drawn on the pointer while the bag is open; with the bag gone, it is put back. */
   private showCarried(): void {
-    const s = this.picked !== undefined && this.menuOpen && this.tab === 'inventory' ? this.frame?.player.slots[this.picked] : undefined
+    if (!this.bagShown) (this.picked = undefined), (this.drag = undefined)
+    const s = this.picked !== undefined ? this.frame?.player.slots[this.picked] : undefined
     this.carried.classList.toggle('hidden', !s)
     if (!s) return void delete this.carried.dataset.item
     const sig = `${s.item.id}|${s.count}`
@@ -330,6 +340,7 @@ export class Menu {
   openJournal(): void {
     $('#menu').classList.add('hidden')
     $('#skills').classList.add('hidden')
+    this.showCarried()
     $('#journal').classList.toggle('hidden')
     if (this.journalOpen) this.renderJournal()
   }
