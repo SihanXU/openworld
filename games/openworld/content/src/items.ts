@@ -333,7 +333,7 @@ export const FORMS: Form[] = [
   // what the grey man gave a child: an ember of a dawn flame, warm at night (its uses left to the world)
   W('item/misc/warm_ember', 'Warm Ember', '温暖的余烬', 'item:warm_ember', { tags: ['warm', 'light', 'holy'], where: {} }),
   // the bridge's missing nail, pulled straight; a farmer's wedding band
-  W('item/misc/ninth_nail', 'The Ninth Nail', '第九根钉子', 'item:ninth_nail', { tags: ['metal', 'iron', 'conductive', 'sharp'], where: {} }),
+  W('item/misc/ninth_nail', 'The Ninth Nail', '第九根钉子', 'item:ninth_nail', { tags: ['metal', 'iron', 'conductive', 'sharp', 'important'], where: {} }),
   W('item/valuable/band', 'Wedding Band', '婚戒', 'item:ring', { tags: ['metal', 'precious', 'wearable'], props: { slot: 'ring' }, where: {} }),
   // the pilgrim before you: a scallop shell on a cord, the pilgrim's mark, found at his cold camp in the forest
   // the White Knight's last gift: one thorn of his crown, still green, that opens the ground he holds for you (haven.ts)

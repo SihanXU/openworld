@@ -5,7 +5,7 @@
 // the Kneeling Field, where the pilgrims before you knelt and stayed. The maps and scenes are the demo's
 // (tools/src/demo/quest/pilgrimage.ts); here are the facts, the shrines, and how a shrine takes its offering.
 
-import type { Effect, Rule, Selector, Tree, TypeDef } from '@openworld/engine'
+import type { Cond, Effect, Rule, Selector, Tree, TypeDef } from '@openworld/engine'
 
 type Words = { en: string; zh: string }
 const L = (en: string, zh: string): Words => ({ en, zh })
@@ -70,20 +70,33 @@ export const PILGRIMAGE_TYPES: TypeDef[] = [
 ]
 
 const lit = 'lit'
-/** A shrine given what its suffering asks: the offering is taken (gone), it lights, and the story keeps it. */
+/** What a shrine will not take: the tags a merchant will not buy either (social.ts `buys`) — not the bearer's to give away. */
+const KEPT: Cond = {
+  any: [
+    { has: { role: 'item', tag: 'important' } },
+    { has: { role: 'item', tag: 'quest-item' } },
+    { has: { role: 'item', tag: 'bound' } },
+    { has: { role: 'item', tag: 'relic' } },
+  ],
+}
+/** A shrine given what its suffering asks: the offering is taken (gone), it lights, and the story keeps it. What is not the bearer's to give away, it will not take. */
 const OFFERED = (s: Wayshrine): Tree => ({
   if: { has: { role: 'host', status: lit } },
   then: { do: [{ op: 'log', text: L('{host} already burns.', '{host}已经亮着了。') }] },
   else: {
     if: { is: { role: 'item', sel: s.takes } },
     then: {
-      do: [
-        { op: 'emit', impulse: 'notify', to: 'item', params: { what: 'consumed' } },
-        { op: 'addStatus', status: lit },
-        { op: 'vfx', fx: 'sparkle' },
-        { op: 'log', text: L(`{item} is laid on {host}. A light kindles in the carving.`, `{item}被放在{host}上。刻痕里亮起了一点光。`) },
-        { op: 'emit', impulse: 'notify', to: 'story', params: { what: 'facts', [`fact.${shrineFact(s.id)}`]: 1 } },
-      ] as Effect[],
+      if: KEPT,
+      then: { do: [{ op: 'log', text: L('{item} hopes to stay with you. {host} asks only for what you can spare.', '{item}希望留在你身边。{host}只索要你能匀出来的东西。') }] },
+      else: {
+        do: [
+          { op: 'emit', impulse: 'notify', to: 'item', params: { what: 'consumed' } },
+          { op: 'addStatus', status: lit },
+          { op: 'vfx', fx: 'sparkle' },
+          { op: 'log', text: L(`{item} is laid on {host}. A light kindles in the carving.`, `{item}被放在{host}上。刻痕里亮起了一点光。`) },
+          { op: 'emit', impulse: 'notify', to: 'story', params: { what: 'facts', [`fact.${shrineFact(s.id)}`]: 1 } },
+        ] as Effect[],
+      },
     },
     else: { do: [{ op: 'log', text: L(`Nothing kindles. {host} asks for ${s.asks.en}.`, `什么也没亮起来。{host}要的是${s.asks.zh}。`) }] },
   },
@@ -92,7 +105,7 @@ const OFFERED = (s: Wayshrine): Tree => ({
 export const PILGRIMAGE_RULES: Rule[] = WAYSHRINES.map((s) =>
   story({
     id: `pilgrim/shrine-${s.id}`,
-    doc: `The ${s.id} shrine on the Pilgrim's Road: laid ${s.asks.en} (G), it takes it, lights (lit) and tells the story (${shrineFact(s.id)}); laid anything else, it says what it asks; lit, it stays lit.`,
+    doc: `The ${s.id} shrine on the Pilgrim's Road: laid ${s.asks.en} (G), it takes it, lights (lit) and tells the story (${shrineFact(s.id)}); laid what is not the bearer's to give away (KEPT: important, quest-item, bound, relic — the tags a merchant will not buy either), it is held back; laid anything else, it says what it asks; lit, it stays lit.`,
     host: { type: `fixture/sacred/wayshrine/${s.id}` },
     on: 'impulse/receive',
     tree: OFFERED(s),
