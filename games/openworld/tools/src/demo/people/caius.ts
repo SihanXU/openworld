@@ -9,7 +9,7 @@ export const caius: PersonDef = {
   role: 'priest',
   essential: true,
   // the main story needs them where they are: not asked to move to a home ground (content social.ts residence)
-  tags: ['storybound'],
+  tags: ['storybound', 'devout'],
   name: { en: 'Father Caius', zh: '凯乌斯司铎' },
   gender: 'male',
   look: { parts: { hair: 'hair.cropped', face: 'face.weary', outfit: 'outfit.vestment' }, colors: { hair: 'steelgrey', eyes: 'storm', skin: 'light', 'outfit.1': 'ivory', 'outfit.2': 'indigo', 'outfit.3': 'gold' } },

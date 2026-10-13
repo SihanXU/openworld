@@ -40,6 +40,13 @@ import {
   migrateSmithy,
   migrateHaven,
   migrateHavenHeart,
+  migrateStats,
+  STATS_LAYOUT,
+  migrateGear,
+  GEAR_LAYOUT,
+  migrateVows,
+  VOWS_LAYOUT,
+  VOWS,
   migratePlots,
   PLOTS_LAYOUT,
   migrateStock,
@@ -121,6 +128,12 @@ export const CLIENT_GAME: ClientGame = {
     }
     // the people who traded before keep what they sold and sell what they sell now
     if (!w.fact(STOCK_LAYOUT)) game.engine.author(() => migrateStock(game, index))
+    // standing your ground, stealth and perception left the gear for luck
+    if (!w.fact(STATS_LAYOUT)) game.engine.author(() => migrateStats(game))
+    // gear came in levels: what has none is of the first
+    if (!w.fact(GEAR_LAYOUT)) game.engine.author(() => migrateGear(game))
+    // the Vowbound took their vows, and rolled the extras the named ones never had
+    if (!w.fact(VOWS_LAYOUT)) game.engine.author(() => migrateVows(game))
     // the tents have rooms behind their flaps (only for maps a save has been to: the others come as built)
     const tentMaps = ['ford', 'forest', 'haven'].filter((id) => w.state.loadedMaps.includes(id))
     if (tentMaps.length) {
@@ -130,7 +143,7 @@ export const CLIENT_GAME: ClientGame = {
   },
   fresh(game) {
     const w = game.engine.world
-    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(COMPANION_NAME, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true), w.setFact(PLOTS_LAYOUT, true), w.setFact(STOCK_LAYOUT, true)))
+    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(COMPANION_NAME, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true), w.setFact(PLOTS_LAYOUT, true), w.setFact(STOCK_LAYOUT, true), w.setFact(STATS_LAYOUT, true), w.setFact(GEAR_LAYOUT, true), w.setFact(VOWS_LAYOUT, true)))
   },
   summon(kit, at, id) {
     const body = createBoss(kit, at, id)
@@ -144,7 +157,7 @@ export const CLIENT_GAME: ClientGame = {
       { label: '召唤白骑士 · Summon the White Knight (East Road)', debug: { op: 'summon', kit: 'alberic', map: 'eastroad', x: 40, y: 15, from: [30, 12] } },
     ],
   },
-  items: { forms: FORM_BY_ID, materials: MATERIALS, relics: RELICS, coin: COIN },
+  items: { forms: FORM_BY_ID, materials: MATERIALS, relics: RELICS, vows: VOWS, coin: COIN },
   crafting: { recipes: RECIPES, stationName, placements: PLACEMENTS, buildings: BUILDINGS, shops: SHOPS },
   skills: {
     all: SKILLS,

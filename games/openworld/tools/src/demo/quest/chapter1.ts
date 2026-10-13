@@ -125,8 +125,8 @@ export function chapter1EastRoad(m: MapBuilder): void {
   for (const [x, y] of [[36, 16], [38, 17], [43, 17], [45, 15], [35, 9]] as const)
     m.fixture('fixture/sacred/gravestone', ...spot(m, x, y), { name: L('A kneeling stone', '跪石'), props: { text: 'A stone carved as a pilgrim kneeling. No name. A scallop shell, the pilgrim\'s mark, worn almost away.', text_zh: '一块雕成朝圣者跪姿的石头。没有名字。朝圣者的扇贝徽记几乎被磨平了。' } })
   // by a kneeling stone, what a pilgrim before you wore; in the ring, the gauntlets of one of the knight's own
-  m.item({ form: 'item/valuable/earring', material: 'silver', quality: 'fine', name: L("A Kneeling Pilgrim's Earring", '跪石旁的朝圣耳环'), props: { xpRate: 0.1 } }, ...spot(m, 37, 16))
-  m.item({ form: 'item/clothing/gloves', material: 'leather', quality: 'masterwork', name: L('Gauntlets of the White Host', '白骑士扈从的护手'), props: { def: 2, atk: 1 } }, ...spot(m, 43, 11))
+  m.item({ form: 'item/valuable/earring', material: 'silver', quality: 'fine', name: L("A Kneeling Pilgrim's Earring", '跪石旁的朝圣耳环'), props: {} }, ...spot(m, 37, 16))
+  m.item({ form: 'item/clothing/gloves', material: 'leather', quality: 'masterwork', name: L('Gauntlets of the White Host', '白骑士扈从的护手'), props: { atk: 1 } }, ...spot(m, 43, 11))
   // what he took: the bridge's ninth nail, a farmer's wedding band
   m.item({ form: 'item/misc/ninth_nail' }, ...spot(m, ...a.nail))
   m.item({ form: 'item/valuable/band', material: 'gold' }, ...spot(m, ...a.band))
@@ -152,7 +152,7 @@ export function chapter1Summit(m: MapBuilder): void {
     },
   })
   // the watchman's cloak, left on its peg: he went down the mountain without it
-  m.item({ form: 'item/clothing/cloak', material: 'cloth', quality: 'fine', name: L("Watchman's Cloak", '守夜人的斗篷'), props: { def: 1 } }, ...spot(m, 8, 5))
+  m.item({ form: 'item/clothing/cloak', material: 'cloth', quality: 'fine', name: L("Watchman's Cloak", '守夜人的斗篷'), props: {} }, ...spot(m, 8, 5))
 }
 
 /** The grassland: Brin's place by the herd, and the ground where the herd kneels at dusk. */
@@ -189,7 +189,7 @@ export function chapter1Hollow(m: MapBuilder): void {
   // a waypoint statue by the barrow mouth: the far end of the rescue's road, and of the barrow's three floors
   statue(m, 'wp.hollow', 23, 21, 'Thornwood Hollow', '荆棘谷')
   // in the thickest thorns, boots someone gave up on
-  m.item({ form: 'item/clothing/boots', material: 'leather', quality: 'fine', name: L('Thornproof Boots', '防刺长靴'), props: { def: 2 } }, ...spot(m, 22, 9))
+  m.item({ form: 'item/clothing/boots', material: 'leather', quality: 'fine', name: L('Thornproof Boots', '防刺长靴'), props: {} }, ...spot(m, 22, 9))
   for (const [x, y] of CH1_AT.hollow.stones)
     m.fixture('fixture/sacred/gravestone', ...spot(m, x, y), {
       name: L('A carved standing stone', '刻纹立石'),

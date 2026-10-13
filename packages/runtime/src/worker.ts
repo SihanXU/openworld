@@ -556,6 +556,8 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     // the traveller the player made (docs/looks.md): a look the world's table knows, else the world's own
     const looks = ontology().looks
     if (init.look && looks && !lookProblems(init.look, looks).length) game.engine.author(() => (w.player.look = structuredClone(init.look)))
+    // the editor's "play from this scene": the step begun before any other can take control
+    if (init.scene && !game.engine.story.start(init.scene)) post({ t: 'error', message: `the story has no step ${init.scene} to begin` })
   }
   game.worldVersion = index.version
   // the player's AI setting: which tier each kind of event is asked at, and takes learned answers from

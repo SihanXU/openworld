@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 import type { Ontology, Rule, WorldIndex } from '@openworld/engine'
 import type { GameJson, Project } from '@openworld/format'
 import { writeProjectFile } from '@openworld/format/src/node.ts'
+import { extractLocales } from '@openworld/format'
 import { BASE_RULES } from '@openworld-game/content'
 import { buildFord } from '../../tools/src/demo/world.ts'
 import { openworldBundle } from '../src/bundle.ts'
@@ -40,12 +41,14 @@ export function fordProject(): Project {
     terrainChars: bundle.terrainChars,
     ...(params && { params }),
     plugins: bundle.game.plugins,
+    // written in English, translated into Chinese (docs/engine-split.md §19): the builders' words in both, split below
+    languages: { source: 'en', translations: ['zh'] },
   }
   const base = new Set(BASE_RULES.map((r) => r.id))
   const derived = new Set(['name', 'version', 'seed', 'start', 'begin', 'starts', 'startHour', 'maps', 'npcs', 'player', 'companions', 'stats', 'steps', 'invariants', 'protectedFacts', 'weather', 'quests'])
   const extra = Object.fromEntries(Object.entries(index).filter(([k]) => !derived.has(k))) as Partial<WorldIndex>
   const at = (file: string) => <T>(data: T) => ({ file, data })
-  return {
+  const p: Project = {
     game,
     ontology: [at('ontology/types.json')({ types }), at('ontology/statuses.json')({ statuses }), at('ontology/terrains.json')({ terrains }), at('ontology/world.json')(world as Partial<Ontology>)],
     rules: [at('rules/base.json')(bundle.rules.filter((r) => base.has(r.id)) as Rule[]), at('rules/story.json')(bundle.rules.filter((r) => !base.has(r.id)) as Rule[])],
@@ -57,6 +60,12 @@ export function fordProject(): Project {
     client: Object.entries(bundle.client ?? {}).map(([k, v]) => at(`client/${k}.json`)({ [k]: v })),
     extra,
   }
+  // the files say each text once, in English; its Chinese is the table's (the compiler gives the engine both again).
+  // (a copy as the files are, sharing nothing: the builders' own data, which the content shares, is left as it is,
+  // and a table one file holds and another shares — the client's looks, the ontology's — is each file's own)
+  const own = JSON.parse(JSON.stringify(p)) as Project
+  own.locales = extractLocales(own).tables.map((t) => at(`locales/${t.language}.json`)(t))
+  return own
 }
 
 /** Write the project's files (the folder made anew). */
@@ -65,7 +74,7 @@ export function bake(out: string): Project {
   rmSync(out, { recursive: true, force: true })
   const write = (file: string, v: unknown) => (mkdirSync(join(out, file, '..'), { recursive: true }), writeProjectFile(join(out, file), v))
   write('game.json', p.game)
-  for (const group of [p.ontology, p.rules, p.maps, p.people, p.quests, p.story, p.client ?? []]) for (const f of group) write(f.file, f.data)
+  for (const group of [p.ontology, p.rules, p.maps, p.people, p.quests, p.story, p.client ?? [], p.locales ?? []]) for (const f of group) write(f.file, f.data)
   write('catalog.json', p.catalog)
   write('extra.json', p.extra)
   return p

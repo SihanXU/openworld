@@ -23,8 +23,10 @@ const ONTO = new OntologyIndex(buildOntology())
 
 export type Cell = [number, number]
 
-export type ItemSpec = string | { form: string; material?: string; quality?: string; element?: string | null; name?: Text; tags?: string[]; props?: Record<string, PropValue> }
+/** An item as the author writes it: its form, and what of it is chosen (the rest is rolled); `level` a piece of gear's (else its map's). */
+export type ItemSpec = string | { form: string; material?: string; quality?: string; element?: string | null; level?: number; name?: Text; tags?: string[]; props?: Record<string, PropValue>; /** A Vowbound piece's vow (content VOWS); else one is rolled. */ vow?: string }
 
+/**
 /**
  * A thing's own randomness, from its id (unique in the world; a map's own things carry the map's id): what its rolled
  * extras draw on, apart from the builders' stream, so the affix table can change without moving a map's ground or things.
@@ -37,16 +39,22 @@ export function ownRandom(id: string): () => number {
   return () => r.next()
 }
 
-/** An item as a spec says: its form, material, quality, element, name, tags and props (`id`: the thing it will be). */
-export function itemOf(spec: ItemSpec, id: string): Omit<Entity, 'id' | 'place'> {
+/**
+ * An item as a spec says: its form, material, quality, element, level, name, tags and props (`id`: the thing it will be;
+ * `level`: the map's, unless the piece says its own). A piece of gear's main stats are its form's at its quality and level
+ * (world-model.md §6.8), never the author's: of the props given, what the form itself gives is dropped, and the rest is the
+ * piece's own (a vigil's `night:def`). Every piece rolls its small extras, a named one too; a Vowbound piece takes the vow
+ * the author names, else one rolled.
+ */
+export function itemOf(spec: ItemSpec, id: string, level = 1): Omit<Entity, 'id' | 'place'> {
   const s = typeof spec === 'string' ? { form: spec } : spec
   const form = FORM_BY_ID[s.form]
   if (!form) throw new Error(`unknown item form ${s.form}`)
-  // a piece the author gives its own props keeps to them (a named Vowbound piece's trait is its own)
-  const it = makeItem(rng, form, { material: s.material, quality: s.quality ?? 'common', element: s.element === undefined ? null : s.element, trait: !s.props, extras: ownRandom(id) })
+  // (a form that is its own tier, the scallop, keeps it; any other is common unless the author says)
+  const it = makeItem(rng, form, { material: s.material, quality: s.quality ?? (form.tags?.some((t) => t.startsWith('quality:')) ? undefined : 'common'), element: s.element === undefined ? null : s.element, vow: s.vow, level: s.level ?? level, extras: ownRandom(id) })
   if (s.name) it.name = s.name
   if (s.tags) it.tags = [...(it.tags ?? []), ...s.tags]
-  if (s.props) it.props = { ...(it.props ?? {}), ...s.props }
+  if (s.props) it.props = { ...(it.props ?? {}), ...Object.fromEntries(Object.entries(s.props).filter(([k]) => !(form.props && k in form.props && typeof form.props[k] === 'number'))) }
   return it
 }
 
@@ -72,6 +80,8 @@ export class MapBuilder {
   zone: 'peaceful' | 'combat' = 'combat'
   /** Fish shadows show in its water now and then (MapData.fish): a stocked pond. */
   fish = false
+  /** The level of the gear laid on it, unless a piece says its own (world-model.md §6.8): the Ford's 1, deeper and further 2 … */
+  gearLevel = 1
   /** Where the map lies on the overworld (MapData.site): its open edges lead there. */
   site?: MapData['site']
   /** Ground heights in half levels (MapData.heights): a level is two, a ramp is a column between. */
@@ -353,10 +363,10 @@ export class MapBuilder {
     return e
   }
 
-  /** A thing as a spec says, its id the map's next, where it is put. */
+  /** A thing as a spec says, its id the map's next, where it is put; its level the map's unless it says its own. */
   makeItem(spec: ItemSpec, place: Entity['place']): Entity {
     const id = this.newId('i')
-    return { ...itemOf(spec, id), id, place }
+    return { ...itemOf(spec, id, this.gearLevel), id, place }
   }
 
   item(spec: ItemSpec, x: number, y: number): Entity {

@@ -6,6 +6,7 @@
 import { storyTopics, type Entity, type LibraryData, type MapMeta, type Ontology, type Pos, type RawChunk, type Rule, type ScheduleEntry, type WorldIndex } from '@openworld/engine'
 import { STDLIB_ONTOLOGY, STDLIB_RULES } from '@openworld/stdlib'
 import { checkProject } from './check.ts'
+import { applyLocales, languagesOf, localeProblems } from './texts.ts'
 import { FORMAT, type Bundle, type Compiled, type GameJson, type LearnedFile, type OntologyPart, type PersonFile, type Problem, type Project } from './project.ts'
 
 /** Records merged by key (a later file's entry replaces an earlier one's). */
@@ -110,8 +111,10 @@ export function learnedOf(files: LearnedFile[]): LibraryData {
 }
 
 /** A project → its bundle, its world, and what is wrong with it. */
-export function compile(p: Project): Compiled {
-  const problems: Problem[] = []
+export function compile(project: Project): Compiled {
+  const problems: Problem[] = [...localeProblems(project)]
+  // every text in all its languages, as the engine and the runtime read it (texts.ts: the tables applied)
+  const p = applyLocales(project)
   const g = p.game
   const ontology = mergeOntology(p.ontology.map((f) => f.data), g)
   const rules = mergeRules(p.rules.map((f) => f.data), g)
@@ -180,7 +183,7 @@ export function compile(p: Project): Compiled {
   const learned = p.learned?.length ? learnedOf(p.learned.map((f) => f.data)) : undefined
   const bundle: Bundle = {
     format: FORMAT,
-    game: { id: g.id, name: g.name, version: g.version, ...(g.engine && { engine: g.engine }), modules: [...(g.modules ?? [])], ...(g.plugins && { plugins: g.plugins }) },
+    game: { id: g.id, name: g.name, version: g.version, ...(g.engine && { engine: g.engine }), modules: [...(g.modules ?? [])], ...(g.plugins && { plugins: g.plugins }), ...(g.languages && { languages: languagesOf(g) }) },
     ontology,
     rules,
     terrainChars: g.terrainChars,

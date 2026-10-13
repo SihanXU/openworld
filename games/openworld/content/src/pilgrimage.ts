@@ -101,6 +101,8 @@ const OFFERED = (s: Wayshrine): Tree => ({
           { op: 'vfx', fx: 'sparkle' },
           { op: 'log', text: L(`{item} is laid on {host}. A light kindles in the carving.`, `{item}被放在{host}上。刻痕里亮起了一点光。`) },
           { op: 'emit', impulse: 'notify', to: 'story', params: { what: 'facts', [`fact.${shrineFact(s.id)}`]: 1 } },
+          // an offering made as the Church asks: the one who made it keeps the faith a little more
+          { op: 'emit', impulse: 'notify', to: 'actor', params: { what: 'faith', delta: 5 } },
         ] as Effect[],
       },
       else: { do: [{ op: 'log', text: L(`Nothing kindles. {host} asks for ${s.asks.en}.`, `什么也没亮起来。{host}要的是${s.asks.zh}。`) }] },
@@ -111,7 +113,7 @@ const OFFERED = (s: Wayshrine): Tree => ({
 export const PILGRIMAGE_RULES: Rule[] = WAYSHRINES.map((s) =>
   story({
     id: `pilgrim/shrine-${s.id}`,
-    doc: `The ${s.id} shrine on the Pilgrim's Road: laid ${s.asks.en} (G), it takes it, lights (lit) and tells the story (${shrineFact(s.id)}); laid a relic, something important or bound, or a keepsake, it refuses it and does not take it; laid anything else, it says what it asks; lit, it stays lit.`,
+    doc: `The ${s.id} shrine on the Pilgrim's Road: laid ${s.asks.en} (G), it takes it, lights (lit), tells the story (${shrineFact(s.id)}) and the one who laid it (faith +5); laid a relic, something important or bound, or a keepsake, it refuses it and does not take it; laid anything else, it says what it asks; lit, it stays lit.`,
     host: { type: `fixture/sacred/wayshrine/${s.id}` },
     on: 'impulse/receive',
     tree: OFFERED(s),

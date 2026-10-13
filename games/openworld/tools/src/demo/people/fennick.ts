@@ -21,7 +21,7 @@ export const fennick: PersonDef = {
   fights: true,
   purse: 40,
   // what they sell (fits who they are; content items.ts prices it)
-  trade: { stock: [['item/armor/helmet', 1], ['item/armor/shield', 1], ['item/clothing/boots', 1], ['item/weapon/polearm/spear', 1]] },
+  trade: { level: 2, stock: [['item/armor/helmet', 1], ['item/armor/shield', 1], ['item/clothing/boots', 1], ['item/weapon/polearm/spear', 1]] },
   schedules: {
     default: [
       [22, 7, 'meadow:guard.home', 'sleep'],

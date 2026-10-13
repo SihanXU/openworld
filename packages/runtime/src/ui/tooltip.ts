@@ -91,6 +91,8 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   // the name, in its rarity's colour
   const quality = it.tags.find((g) => g.startsWith('quality:'))?.slice(8)
   out.push(line(esc(tx(it.name)), QUALITY_COLOR[quality ?? ''] ?? '#ffffff', 'name'))
+  // a piece of gear's level (world-model.md §6.8): its main stats grow with it, as with its quality
+  if (typeof p.level === 'number' && typeof p.slot === 'string') out.push(line(L(`Level ${p.level}`, `等级 ${p.level}`), '#aaaaaa'))
   // what a tier is, in the game's words (its texts' `tier:<quality>`: OpenWorld's Vowbound and Stigmatic)
   const tier = quality && gameText(`tier:${quality}`)
   if (tier) out.push(line(esc(tier), QUALITY_COLOR[quality!] ?? '#ffffff', 'lore'))
@@ -140,13 +142,17 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   trait(p.dodge, `+${pctv(p.dodge)}% Dodge`, `闪避 +${pctv(p.dodge)}%`)
   trait(p.critDamage, `+${pctv(p.critDamage)}% Critical Damage`, `暴击伤害 +${pctv(p.critDamage)}%`)
   trait(p.cdr, `Skills rest ${pctv(p.cdr)}% less`, `技能冷却 -${pctv(p.cdr)}%`)
-  trait(p.stealth, `+${p.stealth} Stealth`, `潜行 +${p.stealth}`)
+  trait(p.luck, `+${pctv(p.luck)}% Luck`, `幸运 +${pctv(p.luck)}%`)
   if (p.slot === 'arm' && p.critChance) trait(p.critChance, `+${pctv(p.critChance)}% Critical Chance`, `暴击率 +${pctv(p.critChance)}%`)
   trait(p.moveHaste, `+${pctv(p.moveHaste)}% Movement Speed`, `移动速度 +${pctv(p.moveHaste)}%`)
-  trait(p.perception, `+${p.perception} Perception`, `感知 +${p.perception}`)
-  if (typeof p.holdFast === 'number' && p.holdFast > 0) out.push(line(` ${L(`Standing your ground: ${pctv(p.holdFast)}% less damage while still`, `坚守：站定不动时受到的伤害 -${pctv(p.holdFast)}%`)}`, '#c77dff', 'lore'))
   trait(p['night:def'], `+${p['night:def']} Defence at night`, `入夜后防御 +${p['night:def']}`)
   trait(p['night:atk'], `+${p['night:atk']} Attack at night`, `入夜后攻击 +${p['night:atk']}`)
+  // a Vowbound piece's vow (content items.ts VOWS): a promise kept, with a condition and what it pays
+  const vow = typeof p.vow === 'string' ? game().items.vows?.[p.vow] : undefined
+  if (vow) {
+    out.push('<div class="gap"></div>', line(`✦ ${esc(L(vow.en, vow.zh))} · ${L('Vow', '誓言')}`, QUALITY_COLOR.vowed))
+    out.push(line(esc(L(vow.text.en, vow.text.zh)), '#d9b8ff', 'lore'))
+  }
   // the small extras it rolled when it was made (engine affixes.ts), named as the world's table of them names them
   const subs = Object.entries(p).filter((kv): kv is [string, number] => kv[0].startsWith('sub:') && typeof kv[1] === 'number' && kv[1] !== 0)
   if (subs.length) {
@@ -255,6 +261,8 @@ export class Tooltip {
       for (const s of f.player.slots) if (s?.item.id === key) return s.item
       if (f.player.held?.id === key) return f.player.held
       if (f.player.offhand?.id === key) return f.player.offhand
+      // what is worn (the sheet's slots, world-model.md §6.8): its stats read the same as in the bag
+      for (const it of Object.values(f.player.worn ?? {})) if (it.id === key) return it
       const c = f.container?.contents.find((i) => i.id === key)
       if (c) return c
     }

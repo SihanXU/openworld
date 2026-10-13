@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/LocaleFile",
+  "definitions": {
+    "LocaleFile": {
+      "type": "object",
+      "properties": {
+        "language": {
+          "type": "string",
+          "description": "Its language's code ('zh', 'en', 'ja')."
+        },
+        "entries": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "A source text, and how this language says it (wherever the text is said)."
+        },
+        "review": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The source texts whose translation is to be looked at again (made for an earlier source, or guessed)."
+        },
+        "at": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "source",
+              "text"
+            ],
+            "additionalProperties": false
+          },
+          "description": "One place that says a source text otherwise: `file#path`, the source it was made for, and its words."
+        }
+      },
+      "required": [
+        "language",
+        "entries"
+      ],
+      "additionalProperties": false,
+      "description": "A translation table: one language's (docs/engine-split.md §19)."
+    }
+  }
+}

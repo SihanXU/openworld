@@ -41,13 +41,15 @@ export const trophy: EffectImpl = (fx, eff, ev) => {
   const key = `trophy.${type}`
   const count = w.num(host, key) + 1
   const loot = w.onto.data.loot
-  const chance = Number(ev.params?.trophyChance ?? 0)
+  // the felling hand's luck widens the chance (World.stat `luck`: a tenth of luck, a tenth more often)
+  const chance = Number(ev.params?.trophyChance ?? 0) * (1 + Math.max(0, w.stat(host, 'luck')))
   // a chance site of its own (World.chance): the sandbox's repeat check explores both of its outcomes
-  if (count < (loot?.pity ?? PITY) && !w.chance(eff, Number.isFinite(chance) ? chance : 0)) return w.setProp(host, key, count)
+  if (count < (loot?.pity ?? PITY) && !w.chance(eff, Number.isFinite(chance) ? Math.min(1, chance) : 0)) return w.setProp(host, key, count)
   w.setProp(host, key, 0)
   const def = w.onto.resolve(type)
   const slot = def.props.slot
-  const made = w.create(type, { on: 'inside', holder: host.id }, { props: typeof slot === 'string' ? rollAffixes(w.onto.data, slot, () => w.rand()) : {} })
+  // (a trophy's level is its kind's: the type's; it rolls the table's count of extras, as wide as its level, having no quality)
+  const made = w.create(type, { on: 'inside', holder: host.id }, { props: typeof slot === 'string' ? rollAffixes(w.onto.data, slot, () => w.rand(), { level: Number(def.props.level) || 1 }) : {} })
   eng.touch({ e: made.id })
   const p = w.posOf(host)
   if (p) w.fx.push({ t: 'pickup', item: made.id, sprite: def.sprite ?? type, name: def.name ?? type, map: p.map, x: p.x, y: p.y })

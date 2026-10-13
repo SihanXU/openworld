@@ -7,7 +7,7 @@ import { line, type PersonDef } from '../person.ts'
 export const ilse: PersonDef = {
   id: 'npc.ilse',
   // the main story needs them where they are: not asked to move to a home ground (content social.ts residence)
-  tags: ['storybound'],
+  tags: ['storybound', 'devout'],
   role: 'priest',
   essential: true,
   name: { en: 'Sister Ilse', zh: '伊尔丝修女' },

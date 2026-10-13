@@ -7,6 +7,8 @@ import { line, type PersonDef } from '../person.ts'
 export const anselm: PersonDef = {
   id: 'npc.anselm',
   role: 'priest',
+  // of the Church: speak against the gods and they take it ill (content social.ts unbelief)
+  tags: ['devout'],
   essential: true,
   name: { en: 'Brother Anselm', zh: '安塞姆修士' },
   gender: 'male',

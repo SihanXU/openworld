@@ -6,6 +6,8 @@ import { line, type PersonDef } from '../person.ts'
 export const maud: PersonDef = {
   id: 'npc.maud',
   role: 'traveler',
+  // of the Church: speak against the gods and they take it ill (content social.ts unbelief)
+  tags: ['devout'],
   name: { en: 'Maud', zh: '莫德' },
   gender: 'female',
   look: { parts: { hair: 'hair.tied', face: 'face.soft', outfit: 'outfit.travel', hat: 'hat.kerchief' }, colors: { hair: 'chestnut', eyes: 'hazel', skin: 'light', 'outfit.1': 'russet', 'outfit.2': 'linen', 'outfit.3': 'leather', 'hat.1': 'linen' } },

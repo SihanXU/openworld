@@ -38,23 +38,48 @@ export function rangeBonus(w: World, a: Entity, weapon: Entity | undefined): num
  * one of its kind in the world, each answered here as a talent is.
  */
 export function relicsOf(w: World, e: Entity): Set<string> {
+  return powersOf(w, e, 'relic')
+}
+/**
+ * The vows of what one holds and wears: a Vowbound piece's `vow` (content items.ts VOWS; a quality's `vows` in the
+ * ontology names what a made piece may take) — each a promise kept with a condition and what it pays, answered
+ * here as a talent is. Two pieces of one vow are one vow.
+ */
+export function vowsOf(w: World, e: Entity): Set<string> {
+  return powersOf(w, e, 'vow')
+}
+function powersOf(w: World, e: Entity, key: string): Set<string> {
   const out = new Set<string>()
   const held = w.get(e.held)
   const weapon = weaponOf(w, e)
   // what is held, the weapon one fights with, and what is worn — a weapon kept in the main hand only while it is the one fought with
   for (const it of [...(held ? [held] : []), ...(weapon ? [weapon] : []), ...w.worn(e).filter((it) => w.prop(it, 'slot') !== 'weapon')]) {
-    const r = w.prop(it, 'relic')
+    const r = w.prop(it, key)
     if (typeof r === 'string') out.add(r)
   }
   return out
 }
 
 const recentlyMoved = (w: World, e: Entity): boolean => e.combat?.lastMoveTick !== undefined && w.state.tick - e.combat.lastMoveTick < 6
+/** Standing one's ground: no step this second (one who never stepped stands). */
+const standing = (w: World, e: Entity): boolean => w.state.tick - (e.combat?.lastMoveTick ?? -Infinity) >= 10
+/** On a road: the terrain underfoot is tagged `road` (a dirt road, cobbles, a bridge). */
+const onRoad = (w: World, e: Entity): boolean => {
+  const at = w.posOf(e)
+  return !!at && e.place.on === 'tile' && !!w.onto.terrain(w.terrainAt(at.map, at.x, at.y))?.tags?.includes('road')
+}
+/** With no companion following (companion.ts: a follower's `companion` names its leader). */
+const alone = (w: World, e: Entity): boolean => {
+  const at = w.posOf(e)
+  return !at || !w.entitiesOnMap(at.map).some((c) => c.props?.companion === e.id)
+}
 
 /** Successful steps, not failed bumps/turning/teleports, charge mobility talents. */
 export function recordCombatStep(w: World, e: Entity): void {
-  // standing one's ground counts too (worn `holdFast`: a Vowbound piece), so the step is kept for anyone who moves
-  if (!skill(w, e, 'battle-tempo') && !skill(w, e, 'evasive-step') && !skill(w, e, 'windrunner') && !skill(w, e, 'steady-aim') && !(w.stat(e, 'holdFast') > 0)) return
+  // standing one's ground counts too (worn `holdFast`; the Vow of the Held Ground), and the road's stride (the Vow of the
+  // Road), so the step is kept for anyone who moves
+  const vows = vowsOf(w, e)
+  if (!skill(w, e, 'battle-tempo') && !skill(w, e, 'evasive-step') && !skill(w, e, 'windrunner') && !skill(w, e, 'steady-aim') && !(w.stat(e, 'holdFast') > 0) && !vows.has('holdfast') && !vows.has('pilgrim')) return
   const state = (e.combat ??= {})
   state.lastMoveTick = w.state.tick
   if (skill(w, e, 'windrunner')) state.steps = Math.min(3, (state.steps ?? 0) + 1)
@@ -62,11 +87,16 @@ export function recordCombatStep(w: World, e: Entity): void {
 
 /** Carry fractional ticks across actions so small haste bonuses really affect a 10 Hz world. */
 export function combatDelay(w: World, e: Entity, base: number, kind: 'move' | 'attack'): number {
-  if (kind === 'move') for (const id of Object.keys(e.statuses ?? {})) base *= w.onto.status(id)?.moveDelay ?? 1
+  const vows = vowsOf(w, e)
+  // (the Vow of Silence: sneaking slows its keeper no more)
+  if (kind === 'move') for (const id of Object.keys(e.statuses ?? {})) if (!(id === 'sneaking' && vows.has('silence'))) base *= w.onto.status(id)?.moveDelay ?? 1
   // braced behind an Iron Guard (actives.ts): slower on one's feet
   if (kind === 'move' && (e.combat?.ironUntil ?? 0) > w.state.tick) base *= 1.5
   // its own and what it wears (a Vowbound scallop's stride)
   let haste = Math.max(0, w.stat(e, kind === 'move' ? 'moveHaste' : 'attackHaste'))
+  // the vows: the Vigil's night stride, the Road's on a road
+  if (kind === 'move' && vows.has('vigil') && w.isNight()) haste += 0.15
+  if (kind === 'move' && vows.has('pilgrim') && onRoad(w, e)) haste += 0.3
   if (kind === 'move' && (e.combat?.galeUntil ?? 0) > w.state.tick) haste += 0.3
   if (kind === 'move' && skill(w, e, 'pursuit') && (e.combat?.pursuitUntil ?? 0) > w.state.tick) haste += 0.25
   if (kind === 'attack' && skill(w, e, 'battle-tempo') && recentlyMoved(w, e)) haste += 0.1
@@ -180,16 +210,27 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
   const relics = relicsOf(w, a)
   // Dragonsbane: what it was forged for
   if (relics.has('dragonsbane') && /\/(dragon|whelp)$/.test(target.type)) bonus += 1
+  // the vows (content items.ts VOWS), each a condition and what it pays: the Held Ground strikes harder from where one
+  // stands, the Lone Road with no companion by; the Hunt's blow on an unhurt foe falls true; Mercy draws back from
+  // one near its end, Dawn from every blow by day
+  const vows = vowsOf(w, a)
+  if (vows.has('holdfast') && standing(w, a)) bonus += 0.25
+  if (vows.has('lone') && alone(w, a)) bonus += 0.15
+  const unhurt = w.num(target, 'hp') >= w.num(target, 'maxHp', 1)
   // Starfall: every fifth hit falls true
-  const guaranteed = (primary && melee && assassin(w, a, 'death-dance') && (opening || behind)) || marked || (primary && relics.has('starfall') && (a.combat?.starHits ?? 0) >= 4)
+  const guaranteed = (primary && melee && assassin(w, a, 'death-dance') && (opening || behind)) || marked || (primary && relics.has('starfall') && (a.combat?.starHits ?? 0) >= 4) || (primary && vows.has('hunt') && unhurt)
   // a weapon that drinks: its lifesteal is health drawn back when the blow lands; and what is worn that drinks (a Vowbound ring)
   if (weapon && w.num(weapon, 'lifesteal') > 0) out.drain += w.num(weapon, 'lifesteal')
   out.drain += Math.max(0, w.stat(a, 'lifesteal'))
+  if (vows.has('mercy') && w.num(target, 'hp') <= w.num(target, 'maxHp', 1) * 0.3) out.drain += 2
+  if (vows.has('dawn') && !w.isNight()) out.drain += 1
   // a weapon may carry its own edge (a legendary's critChance); what is worn may too; Nightfang at night
-  const night = relics.has('nightfang') && w.isNight() ? 0.25 : 0
+  const night = (relics.has('nightfang') && w.isNight() ? 0.25 : 0) + (vows.has('vigil') && w.isNight() ? 0.2 : 0)
+  // (the Vow of Silence: a blow struck while sneaking)
+  const quiet = vows.has('silence') && w.hasStatus({ e: a.id }, 'sneaking') ? 0.25 : 0
   // Hawk Eye's keen sight (actives.ts)
   const aimed = (a.combat?.aimUntil ?? 0) > w.state.tick ? 0.2 : 0
-  const chance = Math.max(0, Math.min(1, w.stat(a, 'critChance') + (weapon ? w.num(weapon, 'critChance') : 0) + (berserk ? 0.1 : 0) + night + aimed))
+  const chance = Math.max(0, Math.min(1, w.stat(a, 'critChance') + (weapon ? w.num(weapon, 'critChance') : 0) + (berserk ? 0.1 : 0) + night + quiet + aimed))
   out.critical = guaranteed || (chance > 0 && w.rand() < chance)
   // a critical: ×1.5 (Deadly Focus ×2), and what critDamage adds (Lethal Edge, Brutal)
   // Deadly Shot: the ranger's bow's criticals cut deeper
@@ -278,7 +319,10 @@ export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: E
   // with one's own dagger (Nimble Blade) or bow (Windwalker), a little more
   const held = weaponOf(w, e)
   const nimble = (assassin(w, e, 'nimble-blade') && own(w, e, held) ? 0.08 : 0) + (ranger(w, e, 'windwalker') && own(w, e, held) ? 0.05 : 0)
-  const dodge = Math.min(0.5, Math.max(0, w.stat(e, 'dodge') + nimble))
+  // the vows (content items.ts VOWS): the Road's keeper slips blows on the move, the Lone Road's with no companion by
+  const vows = vowsOf(w, e)
+  const sworn = (vows.has('pilgrim') && recentlyMoved(w, e) ? 0.1 : 0) + (vows.has('lone') && alone(w, e) ? 0.1 : 0)
+  const dodge = Math.min(0.5, Math.max(0, w.stat(e, 'dodge') + nimble + sworn))
   if (dodge > 0 && w.rand() < dodge) {
     state.dodgeTick = w.state.tick
     w.fx.push({ t: 'say', who: e.id, text: { en: 'Dodged!', zh: '闪避！' } })
@@ -292,8 +336,14 @@ export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: E
     w.fx.push({ t: 'say', who: e.id, text: { en: 'Blocked!', zh: '格挡！' } })
     return 0
   }
+  // (the Vow of the Shield: a fight's first blow — ten seconds out of the fray — is turned half aside)
+  const calm = w.state.tick - (state.fightTick ?? -Infinity) > 100
   state.lastHurtTick = w.state.tick
   state.fightTick = w.state.tick
+  if (vows.has('ward') && calm) damage *= 0.5
+  // the Held Ground takes less from where one stands, Dawn's keeper by day
+  if (vows.has('holdfast') && standing(w, e)) damage *= 0.7
+  if (vows.has('dawn') && !w.isNight()) damage *= 0.9
   // a War Cry's guard, an Iron Guard's (actives.ts)
   if ((state.rallyUntil ?? 0) > w.state.tick) damage *= 0.7
   if ((state.ironUntil ?? 0) > w.state.tick) damage *= 0.4

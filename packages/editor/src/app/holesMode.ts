@@ -9,7 +9,9 @@ import { buildRequest, buildSandbox, restoreLibrary, scenarioEvent, validatePatc
 import { holeScenario, holesByType, holesFor, targetsOf, type HoleCell, type HoleReport, type LearnedFile } from '@openworld/format'
 import type { Ctx, Mode } from './context.ts'
 import { outline, replayed, type RulesMode } from './rulesMode.ts'
-import { esc, toast, tx } from './ui.ts'
+import { phrase } from './lang.ts'
+import { esc, t, toast, tx } from './ui.ts'
+import { adoptTexts } from './words.ts'
 
 const MODDER = 'openworld.editor.modder'
 
@@ -24,7 +26,7 @@ interface Asked {
 
 export class HolesMode implements Mode {
   id = 'holes'
-  label = 'Holes · AI'
+  label = phrase('Holes · AI')
   private report?: HoleReport
   private counting?: { done: number; of: number }
   private countedAt?: unknown
@@ -66,47 +68,47 @@ export class HolesMode implements Mode {
     const by = r ? [...holesByType(r)].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])) : []
     const shown = by.filter(([t]) => !this.filter || t.includes(this.filter))
     const stale = r && this.countedAt !== ctx.store.compiled()
-    left.innerHTML = `<h3>The holes</h3>
-      <p class="muted">Every bare hand, every thing in hand and every thing used on oneself, on every kind of thing: what is undefined is where the AI answers in play.</p>
-      <button id="hCount" ${this.counting ? 'disabled' : ''}>${this.counting ? `Counting… ${this.counting.done}/${this.counting.of}` : r ? 'Count again' : 'Count the holes'}</button>
-      ${r ? `<p>${r.cells.length} holes in ${r.checked} acts${stale ? ' <span class="warn">(before the last edits)</span>' : ''}</p>
-        <input id="hFilter" placeholder="filter kinds" value="${esc(this.filter)}">
+    left.innerHTML = `<h3>${t('The holes')}</h3>
+      <p class="muted">${t('Every bare hand, every thing in hand and every thing used on oneself, on every kind of thing: what is undefined is where the AI answers in play.')}</p>
+      <button id="hCount" ${this.counting ? 'disabled' : ''}>${this.counting ? t('Counting… {done}/{of}', { done: this.counting.done, of: this.counting.of }) : r ? t('Count again') : t('Count the holes')}</button>
+      ${r ? `<p>${t('{n} holes in {acts} acts', { n: r.cells.length, acts: r.checked })}${stale ? ` <span class="warn">${t('(before the last edits)')}</span>` : ''}</p>
+        <input id="hFilter" placeholder="${t('filter kinds')}" value="${esc(this.filter)}">
         <div class="palette list" style="max-height:52vh">${shown.map(([t, n]) => `<div class="tree-row ${t === this.sel ? 'on' : ''}" data-kind="${esc(t)}">${esc(t)}<small>${n}</small></div>`).join('')}</div>` : ''}`
     left.querySelector<HTMLButtonElement>('#hCount')!.onclick = () => void this.count(ctx)
     left.querySelectorAll<HTMLElement>('[data-kind]').forEach((x) => (x.onclick = () => ((this.sel = x.dataset.kind), (this.asked = undefined), ctx.refresh())))
     const f = left.querySelector<HTMLInputElement>('#hFilter')
     if (f) f.oninput = () => { this.filter = f.value; ctx.refresh(); const g = document.querySelector<HTMLInputElement>('#hFilter'); g?.focus(); g?.setSelectionRange(f.value.length, f.value.length) }
-    right.innerHTML = `<h3>The modder</h3>
-      <p class="muted">The service that answers holes for this game (<code>npm run modder -- serve 8787 --game games/${esc(ctx.store.id)}</code>).</p>
-      <label>at <input id="hModder" value="${esc(this.modder)}"></label><button id="hHealth">Is it there?</button>
-      <label>how <select id="hProfile"><option value="offline" ${this.profile === 'offline' ? 'selected' : ''}>offline: an agent on the world, with tools (more care)</option><option value="live" ${this.profile === 'live' ? 'selected' : ''}>live: one call, as in play</option></select></label>
+    right.innerHTML = `<h3>${t('The modder')}</h3>
+      <p class="muted">${t('The service that answers holes for this game ({command}).', { command: `<code>npm run modder -- serve 8787 --game games/${esc(ctx.store.id)}</code>` })}</p>
+      <label>${t('at')} <input id="hModder" value="${esc(this.modder)}"></label><button id="hHealth">${t('Is it there?')}</button>
+      <label>${t('how')} <select id="hProfile"><option value="offline" ${this.profile === 'offline' ? 'selected' : ''}>${t('offline: an agent on the world, with tools (more care)')}</option><option value="live" ${this.profile === 'live' ? 'selected' : ''}>${t('live: one call, as in play')}</option></select></label>
       ${this.health ? `<p>${this.health}</p>` : ''}
-      <h3>Taken in</h3><ul class="things">${ctx.store.list<LearnedFile>('learned').flatMap((l) => (l.data.rules ?? []).map((r) => `<li>${esc(r.id)} <small>${esc(l.file)}</small> <a data-unlearn="${esc(l.file)}" class="x">✕</a></li>`)).join('') || '<li class="muted">No patch yet: the game ships with its base rules alone.</li>'}</ul>`
+      <h3>${t('Taken in')}</h3><ul class="things">${ctx.store.list<LearnedFile>('learned').flatMap((l) => (l.data.rules ?? []).map((r) => `<li>${esc(r.id)} <small>${esc(l.file)}</small> <a data-unlearn="${esc(l.file)}" class="x">✕</a></li>`)).join('') || `<li class="muted">${t('No patch yet: the game ships with its base rules alone.')}</li>`}</ul>`
     const m = right.querySelector<HTMLInputElement>('#hModder')!
     m.onchange = () => { this.modder = m.value.trim().replace(/\/+$/, ''); try { localStorage.setItem(MODDER, this.modder) } catch { /* a private window */ } }
     right.querySelector<HTMLSelectElement>('#hProfile')!.onchange = (e) => (this.profile = (e.target as HTMLSelectElement).value as 'offline' | 'live')
     right.querySelector<HTMLButtonElement>('#hHealth')!.onclick = async () => {
       try {
         const h = (await (await fetch(`${this.modder}/health`, { signal: AbortSignal.timeout(3000) })).json()) as { game?: string | null; model?: string | null; library?: { patches: number } }
-        this.health = `${h.game ? `for <b>${esc(h.game)}</b>` : 'for an unnamed game'}${h.game && h.game !== ctx.store.game.id ? ` <span class="warn">— not this one (${esc(ctx.store.game.id)})</span>` : ''} · model ${esc(h.model ?? 'none')} · ${h.library?.patches ?? 0} patches`
+        this.health = `${h.game ? t('for {game}', { game: `<b>${esc(h.game)}</b>` }) : t('for an unnamed game')}${h.game && h.game !== ctx.store.game.id ? ` <span class="warn">${t('— not this one ({id})', { id: esc(ctx.store.game.id) })}</span>` : ''} · ${t('model {model}', { model: esc(h.model ?? t('none')) })} · ${t('{n} patches', { n: h.library?.patches ?? 0 })}`
       } catch (e) {
-        this.health = `<span class="warn">No modder at ${esc(this.modder)} (${esc((e as Error).message)}).</span>`
+        this.health = `<span class="warn">${esc(t('No modder at {url} ({why}).', { url: this.modder, why: (e as Error).message }))}</span>`
       }
       ctx.refresh()
     }
-    right.querySelectorAll<HTMLElement>('[data-unlearn]').forEach((a) => (a.onclick = () => ctx.store.remove(a.dataset.unlearn!, `leave ${a.dataset.unlearn}`)))
+    right.querySelectorAll<HTMLElement>('[data-unlearn]').forEach((a) => (a.onclick = () => ctx.store.remove(a.dataset.unlearn!, t('leave {file}', { file: a.dataset.unlearn! }))))
   }
 
   main(ctx: Ctx, el: HTMLElement): void {
     const r = this.report
-    if (!r) return void (el.innerHTML = '<p class="muted">Count the holes (left) to see where the world has no answer yet.</p>')
-    if (!this.sel) return void (el.innerHTML = '<p class="muted">Choose a kind on the left: its holes as what is acted on, and as what is held.</p>')
+    if (!r) return void (el.innerHTML = `<p class="muted">${t('Count the holes (left) to see where the world has no answer yet.')}</p>`)
+    if (!this.sel) return void (el.innerHTML = `<p class="muted">${t('Choose a kind on the left: its holes as what is acted on, and as what is held.')}</p>`)
     const cells = r.cells.filter((c) => c.target === this.sel || c.hand === this.sel)
     const a = this.asked
-    el.innerHTML = `<h3>${esc(this.sel)}</h3><p class="muted">${cells.length} holes</p>
-      <table class="sched"><tr><th>act</th><th>in hand</th><th>on</th><th>falls into</th><th></th></tr>
-      ${cells.slice(0, 300).map((c, i) => `<tr><td>${esc(c.verb)}</td><td>${esc(c.hand || '—')}</td><td>${esc(c.target)}</td><td><small>${esc(c.kind)} · ${esc(c.rule)}${c.path.length ? ` › ${esc(c.path.length)} branches` : ''}</small></td><td><button data-ask="${i}">Ask the AI</button> <button data-hand="${i}">By hand</button></td></tr>`).join('')}</table>
-      ${cells.length > 300 ? `<p class="muted">… and ${cells.length - 300} more</p>` : ''}
+    el.innerHTML = `<h3>${esc(this.sel)}</h3><p class="muted">${t('{n} holes', { n: cells.length })}</p>
+      <table class="sched"><tr><th>${t('act')}</th><th>${t('in hand')}</th><th>${t('on')}</th><th>${t('falls into')}</th><th></th></tr>
+      ${cells.slice(0, 300).map((c, i) => `<tr><td>${esc(c.verb)}</td><td>${esc(c.hand || '—')}</td><td>${esc(c.target)}</td><td><small>${esc(c.kind)} · ${esc(c.rule)}${c.path.length ? ` › ${t('{n} branches', { n: c.path.length })}` : ''}</small></td><td><button data-ask="${i}">${t('Ask the AI')}</button> <button data-hand="${i}">${t('By hand')}</button></td></tr>`).join('')}</table>
+      ${cells.length > 300 ? `<p class="muted">${t('… and {n} more', { n: cells.length - 300 })}</p>` : ''}
       ${a ? this.review(a) : ''}`
     el.querySelectorAll<HTMLButtonElement>('[data-ask]').forEach((b) => (b.onclick = () => void this.ask(ctx, cells[Number(b.dataset.ask)])))
     el.querySelectorAll<HTMLButtonElement>('[data-hand]').forEach((b) => (b.onclick = () => this.byHand(ctx, cells[Number(b.dataset.hand)])))
@@ -118,16 +120,16 @@ export class HolesMode implements Mode {
   /** What the modder answered, to read before it is taken. */
   private review(a: Asked): string {
     const c = a.cell
-    const head = `<div class="box"><h3>${esc(c.verb)} ${esc(c.hand || 'a bare hand')} → ${esc(c.target)}</h3>`
-    if (a.state === 'asking') return `${head}<p>Asking the modder… ${esc(a.stage ?? '')}</p></div>`
-    if (a.state === 'failed' || !a.reply?.patch) return `${head}<p class="warn">${esc(a.error ?? `No patch (${a.reply?.outcome ?? 'no answer'})`)}${a.reply?.diagnostics?.length ? `: ${esc(a.reply.diagnostics.join('; '))}` : ''}</p></div>`
+    const head = `<div class="box"><h3>${esc(c.verb)} ${esc(c.hand || t('a bare hand'))} → ${esc(c.target)}</h3>`
+    if (a.state === 'asking') return `${head}<p>${t('Asking the modder…')} ${esc(a.stage ?? '')}</p></div>`
+    if (a.state === 'failed' || !a.reply?.patch) return `${head}<p class="warn">${esc(a.error ?? t('No patch ({why})', { why: a.reply?.outcome ?? t('no answer') }))}${a.reply?.diagnostics?.length ? `: ${esc(a.reply.diagnostics.join('; '))}` : ''}</p></div>`
     const p = a.reply.patch
     const rules = p.artifacts.flatMap((x) => (x.kind === 'rule' ? [x.rule] : []))
     const others = p.artifacts.filter((x) => x.kind !== 'rule')
-    return `${head}<p class="muted">${esc(a.reply.outcome)}${a.reply.episode ? ` · episode ${esc(a.reply.episode)}` : ''}${p.note ? ` · ${esc(p.note)}` : ''}</p>
-      ${rules.map((r) => `<p><b>${esc(r.id)}</b> on <code>${esc(r.on)}</code> for <code>${esc(JSON.stringify(r.host ?? {}))}</code>${r.doc ? ` — ${esc(r.doc)}` : ''}</p><div class="outline">${outline(r.tree)}</div>`).join('')}
-      ${others.length ? `<p class="muted">and ${others.map((x) => esc(x.kind === 'type' ? `the type ${x.type.id}` : x.kind === 'status' ? `the status ${x.status.id}` : '')).join(', ')}</p>` : ''}
-      <button id="pReplay">Replay it in the sandbox</button> <button id="pTake" class="on">Take it into the game</button> <button id="pLeave">Leave it</button>
+    return `${head}<p class="muted">${esc(a.reply.outcome)}${a.reply.episode ? ` · ${t('episode {id}', { id: esc(a.reply.episode) })}` : ''}${p.note ? ` · ${esc(p.note)}` : ''}</p>
+      ${rules.map((r) => `<p>${t('{rule} on {kind} for {host}', { rule: `<b>${esc(r.id)}</b>`, kind: `<code>${esc(r.on)}</code>`, host: `<code>${esc(JSON.stringify(r.host ?? {}))}</code>` })}${r.doc ? ` — ${esc(r.doc)}` : ''}</p><div class="outline">${outline(r.tree)}</div>`).join('')}
+      ${others.length ? `<p class="muted">${t('and {list}', { list: others.map((x) => esc(x.kind === 'type' ? t('the type {id}', { id: x.type.id }) : x.kind === 'status' ? t('the status {id}', { id: x.status.id }) : '')).join(', ') })}</p>` : ''}
+      <button id="pReplay">${t('Replay it in the sandbox')}</button> <button id="pTake" class="on">${t('Take it into the game')}</button> <button id="pLeave">${t('Leave it')}</button>
       ${a.replay ? `<div class="outline">${a.replay}</div>` : ''}</div>`
   }
 
@@ -138,7 +140,7 @@ export class HolesMode implements Mode {
     const sc = { ...holeScenario(cell), tier: 'high' as const }
     const eng = buildSandbox(sc, structuredClone(c.bundle.ontology), restoreLibrary(c.bundle.rules, c.bundle.learned, structuredClone(c.bundle.ontology)))
     const p = eng.preview(scenarioEvent(sc, eng))
-    if (!p.hole) return toast('That is no hole any more (count again).', 'warn')
+    if (!p.hole) return toast(t('That is no hole any more (count again).'), 'warn')
     const id = `editor-${Date.now().toString(36)}`
     const request = buildRequest(eng, p.hole.ev, p.hole.res, id)
     this.asked = { cell, state: 'asking' }
@@ -146,7 +148,7 @@ export class HolesMode implements Mode {
     const poll = setInterval(async () => {
       try {
         const pr = (await (await fetch(`${this.modder}/progress?id=${encodeURIComponent(id)}`)).json()) as ModProgress
-        if (this.asked?.state === 'asking' && pr.stage) (this.asked.stage = pr.stage + (pr.creating?.length ? `: ${pr.creating.map((t) => tx(t)).join(', ')}` : '')), ctx.refresh()
+        if (this.asked?.state === 'asking' && pr.stage) (this.asked.stage = pr.stage + (pr.creating?.length ? `: ${pr.creating.map((x) => tx(x)).join(', ')}` : '')), ctx.refresh()
       } catch { /* it answers when it answers */ }
     }, 1500)
     try {
@@ -155,7 +157,7 @@ export class HolesMode implements Mode {
       this.asked = { cell, state: reply.patch ? 'answered' : 'failed', reply, error: reply.error }
       if (reply.patch) this.asked.replay = this.replayWith(ctx, cell, reply.patch)
     } catch (e) {
-      this.asked = { cell, state: 'failed', error: `No modder at ${this.modder}: ${(e as Error).message}` }
+      this.asked = { cell, state: 'failed', error: t('No modder at {url} ({why}).', { url: this.modder, why: (e as Error).message }) }
     } finally {
       clearInterval(poll)
     }
@@ -167,7 +169,7 @@ export class HolesMode implements Mode {
     const c = ctx.store.compiled()
     const lib = restoreLibrary(c.bundle.rules, c.bundle.learned, structuredClone(c.bundle.ontology))
     const res = validatePatch(patch, { ontology: structuredClone(c.bundle.ontology), library: lib })
-    if (!res.ok) return `<span class="h">The patch does not hold here: ${esc(res.errors.join('; '))}</span>`
+    if (!res.ok) return `<span class="h">${esc(t('The patch does not hold here: {why}', { why: res.errors.join('; ') }))}</span>`
     for (const x of patch.artifacts) {
       if (x.kind === 'type') lib.addType(x.type)
       else if (x.kind === 'status') lib.addStatus(x.status)
@@ -189,18 +191,22 @@ export class HolesMode implements Mode {
     }
     const name = (rules[0]?.id ?? `patch-${Date.now()}`).replace(/[^A-Za-z0-9._-]+/g, '-')
     const file = `learned/${name}.json`
-    if (ctx.store.get(file)) ctx.store.change<LearnedFile>(file, `take ${name} again`, (d) => Object.assign(d, data))
-    else ctx.store.add(file, data, `take ${name} into the game`)
+    // (its words as the game writes them: in its language, the translations the modder gave into the tables)
+    ctx.store.batch(t('take {name} into the game', { name }), () => {
+      adoptTexts(file, data)
+      if (ctx.store.get(file)) ctx.store.change<LearnedFile>(file, t('take {name} again', { name }), (d) => Object.assign(d, data))
+      else ctx.store.add(file, data, t('take {name} into the game', { name }))
+    })
     if (this.report) this.report = { ...this.report, cells: this.report.cells.filter((c) => c !== this.asked!.cell) }
     this.asked = undefined
-    toast(`Taken in: ${file}. Save, and the game ships with it.`)
+    toast(t('Taken in: {file}. Save, and the game ships with it.', { file }))
   }
 
   /** Answer the hole by hand: a rule of the project's for the kind the hole's event is of, on its exact kind. */
   private byHand(ctx: Ctx, cell: HoleCell): void {
     const leaf = cell.host.split('/').pop()
     const rule: Rule = { id: `${leaf}/${cell.kind.split('/').pop()}${cell.hand ? `-${cell.hand.split('/').pop()}` : ''}`, doc: `What ${cell.host} does on ${cell.kind}${cell.hand ? ` with ${cell.hand}` : ''}.`, host: { type: cell.host }, on: cell.kind, tree: { do: [{ op: 'log', text: { en: 'Something happens.', zh: '发生了点什么。' } }] } }
-    this.rules().startWith(ctx, rule)
+    ctx.store.batch(t('a new rule {id}', { id: rule.id }), () => this.rules().startWith(ctx, adoptTexts('rules/rules.json', [rule])[0]))
     ctx.open('rules')
   }
 }

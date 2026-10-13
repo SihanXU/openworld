@@ -1465,6 +1465,44 @@
           "properties": {
             "op": {
               "type": "string",
+              "const": "conscience"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "moral"
+            },
+            "key": {
+              "type": "string",
+              "enum": [
+                "karma",
+                "faith"
+              ]
+            },
+            "delta": {
+              "$ref": "#/definitions/Amount"
+            }
+          },
+          "required": [
+            "op",
+            "key",
+            "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
               "const": "buy"
             }
           },

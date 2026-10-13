@@ -6,7 +6,7 @@
 import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Mood, type Text } from '@openworld/engine'
 import { catalog, game, hasModule, ontology } from '../game.ts'
 import { artEpoch, assetUrl, cssAssetUrl } from '../render/assets.ts'
-import { $, MOOD_GLYPH, SLOT_KEYS, esc, locale, prefs, t, tx } from './common.ts'
+import { $, MOOD_GLYPH, SLOT_KEYS, esc, locale, prefs, t, tx, gearFrame } from './common.ts'
 import { skillPng } from './skillIcons.ts'
 import { heartsOf } from './hearts.ts'
 
@@ -272,7 +272,7 @@ export class Hud {
     $('#toolbar').innerHTML = row
       .map(
         (s, i) =>
-          `<div class="slot${i === f.player.selected ? ' sel' : ''}" data-slot="${i}"${s ? ` data-item="${s.item.id}"` : ''}>` +
+          `<div class="slot${i === f.player.selected ? ' sel' : ''}${gearFrame(s?.item)}" data-slot="${i}"${s ? ` data-item="${s.item.id}"` : ''}>` +
           `<span class="key">${SLOT_KEYS[i]}</span>${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}${s.worn ? '<span class="worn"></span>' : ''}` : ''}</div>`,
       )
       .join('')
@@ -280,7 +280,7 @@ export class Hud {
       .querySelectorAll<HTMLElement>('[data-slot]')
       .forEach((el) => (el.onclick = () => this.send.select(Number(el.dataset.slot))))
     // the off hand beside the toolbar (a shield worn there), greyed while it does not work
-    $('#offhandBar').innerHTML = `<div class="slot${off && !off.works ? ' off' : ''}" title="${locale.value === 'zh' ? '副手' : 'Off hand'}"${off ? ` data-item="${off.id}"` : ''}>${off ? `<div class="icon" data-icon="${off.id}"></div>` : '<span class="ghost">🛡</span>'}</div>`
+    $('#offhandBar').innerHTML = `<div class="slot${off && !off.works ? ' off' : ''}${gearFrame(off)}" title="${locale.value === 'zh' ? '副手' : 'Off hand'}"${off ? ` data-item="${off.id}"` : ''}>${off ? `<div class="icon" data-icon="${off.id}"></div>` : '<span class="ghost">🛡</span>'}</div>`
     this.paintIcons?.([...row.filter(Boolean).map((s) => s!.item), ...(off ? [off] : [])])
   }
 

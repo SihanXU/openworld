@@ -10,9 +10,11 @@ export const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: Parent
 export const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
 export const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
-/** The player's language, remembered between visits. */
+/** The player's language, remembered between visits (a page asked for one, `?lang=`, is in it and remembers nothing: the editor's playtest in its preview language). */
 export const locale = {
   value: ((): Locale => {
+    const asked = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('lang')
+    if (asked === 'en' || asked === 'zh') return asked
     try {
       return (localStorage.getItem('lsw.locale') as Locale) || 'en'
     } catch {
@@ -50,6 +52,26 @@ export const STRINGS: Record<string, [string, string]> = {
   csWeapon: ['Weapon', '武器威力'],
   csDefence: ['Defence', '防御'],
   csCritical: ['Critical', '暴击'],
+  csAttackTip: ['Your own attack and what you wear', '你自己的攻击，加上身上穿戴的'],
+  csWeaponTip: ['Added when you strike with your weapon', '用武器打时再加上的'],
+  csCritDamage: ['Crit damage', '暴击伤害'],
+  csCritDamageTip: ['Damage dealt by a critical hit', '暴击时造成的伤害倍数'],
+  csDodge: ['Dodge', '闪避'],
+  csLifesteal: ['Lifesteal', '吸血'],
+  csLifestealTip: ['Health drawn back per hit', '每次命中吸取的生命'],
+  csCooldowns: ['Cooldowns', '冷却缩减'],
+  csExperience: ['Experience', '经验获取'],
+  csLuck: ['Luck', '幸运'],
+  csLuckTip: ['Monsters drop rare parts and trophies more often', '怪物掉落稀有材料与专属装备的几率提高'],
+  csMoveSpeed: ['Move speed', '移动速度'],
+  csAttackSpeed: ['Attack speed', '攻击速度'],
+  csKarma: ['Karma', '善恶'],
+  csGood: ['Good', '善良'],
+  csEvil: ['Evil', '邪恶'],
+  csNeutral: ['Neutral', '中立'],
+  csKarmaTip: ['Good deeds win the good over faster; evil deeds, the wicked', '善行使善良的人更快亲近你，恶行则让邪恶的人更快亲近你'],
+  csFaith: ['Faith', '信念'],
+  csFaithTip: ['How you stand with the Church: prayer at altars and shrines raises it, spreading unbelief lowers it; the story turns on it', '你与教会的关系：在祭坛和圣龛祈祷会升高，散布无神论会降低；会改变剧情走向'],
   csPack: ['Pack', '行囊'],
   csPurse: ['Coin carried', '身上带的钱'],
   'slot:ear': ['Earring', '耳环'],
@@ -279,7 +301,7 @@ export function t(k: string): string {
 /** What the game itself says for a key (ClientGame.texts), if it says anything: words only a game has (a tier's lore). */
 export function gameText(k: string): string | undefined {
   const own = gameIfAny()?.texts?.[k]
-  return own && (locale.value === 'zh' ? (own.zh ?? own.en) : own.en)
+  return own === undefined ? undefined : typeof own === 'string' ? own : locale.value === 'zh' ? (own.zh ?? own.en) : own.en
 }
 
 export const MOOD_GLYPH: Record<string, string> = { happy: '♥', sad: '…', angry: '!!', surprised: '!', shy: '♡', neutral: '…' }
@@ -315,4 +337,16 @@ export function controlsTable(dev: boolean): string {
   ]
   if (dev) rows.push(['`', 'Mod Console (dev)', '模组控制台（开发）'])
   return `<table>${rows.map(([k, en, z]) => `<tr><td><kbd>${k}</kbd></td><td>${zh ? z : en}</td></tr>`).join('')}</table>`
+}
+
+/**
+ * A slot's frame for what is in it (2026-10-12, after Dungeon Fighter's item slots): gear sits on a dark ground in a
+ * border of its quality's colour — crude grey, common white, fine blue, masterwork purple, Vowbound pink, Stigmatic
+ * orange, a monster's own piece gold; anything else keeps the plain slot.
+ */
+export function gearFrame(it: { type: string; tags: string[] } | undefined): string {
+  if (!it || !(it.tags.includes('wearable') || it.type.startsWith('item/weapon'))) return ''
+  const q = it.tags.find((t) => t.startsWith('quality:'))?.slice(8)
+  const tier = it.tags.includes('trophy') ? 'trophy' : (q ?? 'common')
+  return ` gear q-${tier}`
 }

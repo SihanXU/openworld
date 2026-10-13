@@ -18,7 +18,7 @@ import { boonPanel } from './boons.ts'
 import { QuestLog } from './questlog.ts'
 import { SkillPanel } from './skillpanel.ts'
 import { AiOptions } from './quality.ts'
-import { $, SLOT_KEYS, controlsTable, esc, locale, prefs, t, tx } from './common.ts'
+import { $, SLOT_KEYS, controlsTable, esc, locale, prefs, t, tx, gearFrame } from './common.ts'
 
 export type Tab = 'inventory' | 'craft' | 'options' | 'shop'
 const ICONS: Record<Tab, string> = { inventory: '🎒', craft: '🔨', options: '⚙', shop: '🏪' }
@@ -449,7 +449,7 @@ export class Menu {
 
   private slotHtml(s: Frame['player']['slots'][number], i: number, extra = ''): string {
     const key = i < ROW ? `<span class="key">${SLOT_KEYS[i]}</span>` : ''
-    return `<div class="slot${extra}" data-i="${i}" ${s ? `data-item="${s.item.id}"` : ''}>${key}${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}${s.worn ? '<span class="worn"></span>' : ''}` : ''}</div>`
+    return `<div class="slot${extra}${gearFrame(s?.item)}" data-i="${i}" ${s ? `data-item="${s.item.id}"` : ''}>${key}${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}${s.worn ? '<span class="worn"></span>' : ''}` : ''}</div>`
   }
 
   private inventoryHtml(f?: Frame): string {
@@ -468,7 +468,7 @@ export class Menu {
     const cell = ([key, ghost]: (typeof EQUIP)[number]) => {
       const it = worn[key]
       const dim = key === 'arm' && off && !off.works ? ' off' : ''
-      return `<div class="eq-cell"><div class="slot eq-slot${dim}${it ? ' has' : ''}" data-wear="${key}" title="${esc(slotName(key))}${it ? ` · ${esc(tx(it.name))}` : ''}" ${it ? `data-item="${it.id}"` : ''}>${it ? `<div class="icon" data-icon="${it.id}"></div>` : silhouette(key, ghost)}</div><span class="eq-name">${esc(slotName(key))}</span></div>`
+      return `<div class="eq-cell"><div class="slot eq-slot${dim}${it ? ' has' : ''}${gearFrame(it)}" data-wear="${key}" title="${esc(slotName(key))}${it ? ` · ${esc(tx(it.name))}` : ''}" ${it ? `data-item="${it.id}"` : ''}>${it ? `<div class="icon" data-icon="${it.id}"></div>` : silhouette(key, ghost)}</div><span class="eq-name">${esc(slotName(key))}</span></div>`
     }
     const byKey = Object.fromEntries(EQUIP.map((e) => [e[0], e]))
     const col = (keys: string[]) => `<div class="cs-col">${keys.map((k) => cell(byKey[k])).join('')}</div>`
@@ -478,18 +478,42 @@ export class Menu {
     // the profession: the classes module's (none without it)
     const classes = hasModule('classes')
     const prof = classes && typeof p.props.profession === 'string' ? professionById()[p.props.profession] : undefined
-    const stat = (label: string, value: string, cls = '') => `<div class="cs-stat${cls}"><span>${esc(label)}</span><b>${value}</b></div>`
+    const stat = (label: string, value: string, cls = '', tip = '') => `<div class="cs-stat${cls}"${tip ? ` title="${esc(tip)}"` : ''}><span>${esc(label)}</span><b>${value}</b></div>`
     const pct = (v: number) => `${Math.round(v * 100)}%`
     const n = (v: number) => String(Math.round(v * 10) / 10)
-    // the numbers the engine fights with (snapshot.ts `stats`: World.stat), never summed here; food only for one who hungers
-    const s = p.stats
+    const plus = (v: number) => (v > 0 ? `+${pct(v)}` : v < 0 ? `−${pct(-v)}` : '—')
+    // the numbers the engine fights with (snapshot.ts `stats`: World.stat), never summed here; food only for one who hungers;
+    // the talents' numbers with the classes module; good and evil and faith with the society module (its conscience, moral)
+    const s = p.stats as Record<string, number>
+    const st = (k: string) => num(s?.[k])
+    const society = hasModule('society')
+    const karma = st('karma')
+    const faith = st('faith')
     const stats = [
       stat(t('csHealth'), `${p.hp} / ${p.maxHp}`, ' cs-hp'),
       ...(p.maxHunger > 0 ? [stat(t('csFood'), `${p.hunger} / ${p.maxHunger}`, ' cs-food')] : []),
-      stat(t('csAttack'), n(s.atk)),
-      stat(t('csWeapon'), s.power ? n(s.power) : '—'),
-      stat(t('csDefence'), n(s.def)),
-      ...(classes || s.critChance ? [stat(t('csCritical'), pct(s.critChance))] : []),
+      stat(t('csAttack'), n(st('atk')), '', t('csAttackTip')),
+      stat(t('csWeapon'), st('power') ? n(st('power')) : '—', '', t('csWeaponTip')),
+      stat(t('csDefence'), n(st('def'))),
+      ...(classes || st('critChance') ? [stat(t('csCritical'), pct(Math.min(1, st('critChance'))))] : []),
+      ...(classes
+        ? [
+            stat(t('csCritDamage'), pct(1.5 + st('critDamage')), '', t('csCritDamageTip')),
+            stat(t('csDodge'), pct(Math.min(0.5, st('dodge')))),
+            stat(t('csLifesteal'), st('lifesteal') ? `+${st('lifesteal')}` : '—', '', t('csLifestealTip')),
+            stat(t('csCooldowns'), plus(st('cdr'))),
+          ]
+        : []),
+      stat(t('csExperience'), plus(st('xpRate'))),
+      stat(t('csLuck'), plus(st('luck')), '', t('csLuckTip')),
+      stat(t('csMoveSpeed'), plus(st('moveHaste'))),
+      stat(t('csAttackSpeed'), plus(st('attackHaste'))),
+      ...(society
+        ? [
+            stat(t('csKarma'), karma > 0 ? `${t('csGood')} +${karma}` : karma < 0 ? `${t('csEvil')} +${-karma}` : t('csNeutral'), karma > 0 ? ' cs-good' : karma < 0 ? ' cs-evil' : '', t('csKarmaTip')),
+            stat(t('csFaith'), faith > 0 ? `+${faith}` : faith < 0 ? `−${-faith}` : '0', faith < 0 ? ' cs-doubt' : faith > 0 ? ' cs-faith' : '', t('csFaithTip')),
+          ]
+        : []),
     ].join('')
     const coin = coinOf()
     const purse = coin

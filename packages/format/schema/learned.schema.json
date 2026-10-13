@@ -1484,6 +1484,44 @@
           "properties": {
             "op": {
               "type": "string",
+              "const": "conscience"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "moral"
+            },
+            "key": {
+              "type": "string",
+              "enum": [
+                "karma",
+                "faith"
+              ]
+            },
+            "delta": {
+              "$ref": "#/definitions/Amount"
+            }
+          },
+          "required": [
+            "op",
+            "key",
+            "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
               "const": "buy"
             }
           },
@@ -3325,6 +3363,10 @@
         },
         "name": {
           "$ref": "#/definitions/Text"
+        },
+        "own": {
+          "$ref": "#/definitions/Id",
+          "description": "The one thing this kind was made for (the editor's \"its own kind\", docs/engine-split.md §16 E-b): rules on it are that thing's alone. The engine reads nothing from it."
         },
         "tags": {
           "type": "array",

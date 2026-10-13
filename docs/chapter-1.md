@@ -325,12 +325,21 @@ behind, the Order of the Thorn's dead, the pilgrim before you; found, never made
 asks something back — the id stays `legendary`; the professions' legendary arms the Seal-bearers drop are
 Stigmatic). The tooltip names the two story tiers and what a piece gives where it is worn (a cost in red).
 
-**Effects** (2026-10-07; engine `combat.ts`, `World.stat`; content `RELICS`, `VOW_TRAITS`; tests
-`equipment.test.ts`). A Vowbound piece keeps a trait of its vow beyond its numbers — dodge, lifesteal, critical
-chance, movement speed, *standing your ground* (`holdFast`: less harm while one has not stepped this second), or
-a bonus only at night (`night:<stat>`); a rolled one takes one of these, the story's own name theirs (Odo's
-pauldrons hold fast, Maren's ring drinks, Tomas's belt guards by night, the scallop quickens the stride,
-Fennick's helm dodges). Every Stigmatic piece carries a power of its own, one of each in the world (`relic`):
+**Effects** (2026-10-07; the classes module's `combat.ts`, `World.stat`; content `RELICS`, `VOWS`; tests
+`equipment.test.ts`). A Vowbound piece keeps the **vow** it was made under (`vow`, 2026-10-13; before, only a small
+trait — a dodge, a lifesteal — which left the named pieces below a common one with its three extras): a promise
+with a condition and what it pays, answered as a talent is (`vowsOf`), and like any piece it rolls its extras. Ten
+vows: Vigil (night: +20% crit, +15% speed), Dawn (day: 1 drawn back a blow, −10% taken), the Held Ground (standing:
++25% given, −30% taken), the Thorn (a melee blow on you pricks the striker for 3: a strike of yours back, the piece
+its instrument, never answered with thorns), Mercy (a foe under a third: 2 drawn back), Silence (sneaking unslowed,
++25% crit from it), the Road (+30% speed on a road, +10% dodge moving), the Shield (a fight's first blow halved),
+the Hunt (a blow on an unhurt foe is a critical), the Lone Road (no companion: +15% given, +10% dodge). A rolled piece
+takes one (`QualityDef.vows`; the craft primitive, `makeItem`); the story's own name theirs (Odo's pauldrons the Held
+Ground, Maren's ring Mercy, Tomas's belt Vigil, the scallop the Road, Fennick's helm the Shield, Cassian's cord Dawn,
+the Order's seal the Thorn; `NAMED_VOWS`), and keep their small numbers besides (`night:def`, a lifesteal, a dodge;
+`holdFast` still reads). Older saves: `migrateVows` gives each Vowbound piece its vow, brings its main stats up to its
+tier's (never down) and rolls the extras it never had. Every Stigmatic piece carries a power of its own, one of each
+in the world (`relic`):
 
 | Piece | Power |
 |---|---|
@@ -519,3 +528,39 @@ Fixed after review (2026-10-13):
   him either way.
 - **The Rest's litany** on its bookstand is read with a hand (E), as any written thing; only a bookstand with nothing
   written on it is a shop (Firstlight's chapel's).
+
+**Faith, and good and evil** (the user's request, 2026-10-12; content `faith.ts`, the society module's `conscience`,
+`moral`, `kinship`): the one at the keys carries `karma` and `faith`, each −100..100. Karma falls by a quarter of a
+deed's weight whenever one does a deed, seen or not (the doer is offered its own `seen` event, params `own`); it rises
+with a favour done (a quest reward with regard: +3), what was taken given back (+2), an apology taken (+1). A positive
+regard gain is scaled by the doer's karma against the person's alignment (`alignment` prop, else from honesty):
+×(1 + 0.6·k·a), so the good warm sooner to the good and the wicked to the wicked. Faith rises with prayer (E on an
+altar +4, on a wayside shrine +2, once a day each: status `prayed`) and with a shrine lit (+5); the talk verb
+`unbelief` lowers it (−5; the `devout` take it ill). The Church answers it here: at the Rest, after the oath, Caius
+blesses the devout (faith ≥ 30: holy water, `ch1.church.blessed`) or turns away the unbeliever (≤ −30:
+`ch1.church.shunned`); the Grey Man meets the unbeliever on the road (`ch1.church.greyman`); the Kneeling Field reads
+differently to each. Later chapters read these facts. Luck (gear) widens a creature's trophy chance and its chance
+parts, × (1 + luck). Standing your ground, stealth and perception left the sheet and the gear (the engine still reads
+them).
+
+## 15. The forest's flanks (built 2026-10-13)
+
+The user's request: more maps left and right of the forest, with quests of their own. Two places off the forest's sides
+(`tools/src/demo/quest/flanks.ts`; errands in content `quests/side.ts`; demo FL1), each with one who lives there, a
+room behind their door, and what they ask. The forest's side trail now runs on west (rows 14–16), and a trail leaves
+the east clearing (rows 16–18).
+
+| Place | What is there | Errands |
+|---|---|---|
+| **The Charcoal Dell** (烧炭谷, `charcoal`; hut `charcoal.hut`) | Orrin the charcoal burner (`npc.orrin`: sells coal, torches, logs) at three kilns (the `kiln` prefab) on trodden earth and ash, coal lying about and in his crate; coppice woods with stumps and four boars (more come back); west, the **roost oak** in a ring of trees, feathers under it, his tally board ("DAYS SINCE THE BIRDS CAME") | *Wood for the Clamp* (6 logs → 4 coal, a cap); *Boars in the Coppice* (level 2: 4 boars on the map); *Where the Birds Went* (Gus asked — he says the birds rose and flew west the night the bridge came down; 3 feathers; `ch1.birds`) |
+| **The Reed Bend** (芦苇湾, `reedbend`; cabin `reedbend.cabin`) | the Ford's river bending south along the east side, shallows then deep water (fish: `MapData.fish`); Hilde the fisher (`npc.hilde`: fish, bait, a rod) on her pier, a smoke-fire, salt, nets; the **spit** with Rolf's boat bell (`quest.hilde.bell`, keepsake) among three water slimes; the **drowned stone**, a carving of a fish given to a child — no thorns, no wounds, nobody kneeling (the faith before the Church, lore.md) | *Three for the Smoke* (3 fish of any kind → bait, an oilskin); *The Bell on the Spit* (the bell → a luck ring; `ch1.boatbell`) |
+
+Why the forest is quiet (§11's `forest_quiet`) is answered here: at dusk (`roost_dusk`) every bird of the forest sits
+silent in the oak, facing east, as the herd kneels east — birds know before people do. Lumi's beats: `dell_first`,
+`roost_dusk` (`ch1.roost`), `bend_first`, `drowned_stone` (`ch1.drowned_stone`); Orrin and Hilde each have a line that
+answers the fact once.
+
+The overworld (world-model.md §5.1, D22): the dell is a woods cell west of the forest's; the bend lies on the **river's
+own cell** east of it — a camp drawn there, but the cell is river ground and not stood on, so it is reached only through
+the forest and the river remains a barrier crossed by the Ford alone (demo W6, the overworld's mirrored-barriers check:
+the bend has one bank, its water reaching the map's edge).

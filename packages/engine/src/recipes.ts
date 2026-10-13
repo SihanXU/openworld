@@ -5,7 +5,7 @@
 // the recipe's, and its power from its form, material and quality.
 
 import type { OntologyIndex } from './ontology.ts'
-import type { Entity, MaterialDef, Ontology, PropValue, QualityDef, Recipe, Text } from './types.ts'
+import type { Entity, MaterialDef, Ontology, PropValue, QualityDef, Recipe, Text, WorldParams } from './types.ts'
 
 /** Every recipe the types give: those with a station and a makeup. */
 export function deriveRecipes(onto: OntologyIndex): Recipe[] {
@@ -41,26 +41,57 @@ export function qualityFor(onto: Ontology, makerLevel: number, recipeLevel: numb
  * A made thing's look as data: its type, its material's tags (and `material:<id>`), its quality's
  * tag, its name (quality, material, form) and its power (form + material + quality).
  */
+/** Gear's levels as the world sets them (params.gearLevels). */
+export type GearLevels = NonNullable<WorldParams['gearLevels']>
+
+/** A level kept within the levels gear comes in (1 … max; 1 when the world has none). */
+export function gearLevel(g: GearLevels | undefined, level: number | undefined): number {
+  return Math.min(g?.max ?? 1, Math.max(1, Math.round(Number(level) || 1)))
+}
+
+/** What a level makes of a piece's main stats: ×(1 + perLevel·(level − 1)); of its shares (`share`), half as much. */
+export function levelFactor(g: GearLevels | undefined, level: number | undefined, share = false): number {
+  if (!g) return 1
+  return 1 + (share ? g.perLevel / 2 : g.perLevel) * (gearLevel(g, level) - 1)
+}
+
+/** The stats a piece of gear's form may carry: its main ones (whole numbers), and the shares (a chance, a rate). */
+export const GEAR_MAIN = ['power', 'def', 'atk'] as const
+export const GEAR_SHARES = ['critChance', 'critDamage', 'dodge', 'cdr', 'xpRate', 'luck', 'moveHaste', 'attackHaste', 'block'] as const
+
 /**
- * What a thing's material and quality make of its form's power and defence (world-model.md §6.8, after
- * Elin's ApplyMaterial): the form's number times the material's factor and the quality's, whole, at least 1.
+ * What a thing's material, quality and level make of its form's stats (world-model.md §6.8, after Elin's
+ * ApplyMaterial): power and defence times the material's factor; those and attack times the quality's and the level's
+ * (whole, at least 1); its shares (a hood's dodge, an earring's experience) times the quality's and half the level's, to
+ * the hundredth. A level given is kept on the piece (`level`). So at one level a finer piece is the better, and at one
+ * quality a higher one — never the other way about.
  */
-export function gearProps(form: Record<string, PropValue>, m?: MaterialDef, q?: QualityDef): Record<string, number> {
+export function gearProps(form: Record<string, PropValue>, m?: MaterialDef, q?: QualityDef, level?: number, g?: GearLevels): Record<string, number> {
   const out: Record<string, number> = {}
   const f = q?.factor ?? 1
-  if (typeof form.power === 'number') out.power = Math.max(1, Math.round(form.power * (m?.attack ?? 1) * f))
-  if (typeof form.def === 'number') out.def = Math.max(1, Math.round(form.def * (m?.defence ?? 1) * f))
+  const lf = level !== undefined ? levelFactor(g, level) : 1
+  const sf = level !== undefined ? levelFactor(g, level, true) : 1
+  if (typeof form.power === 'number') out.power = Math.max(1, Math.round(form.power * (m?.attack ?? 1) * f * lf))
+  if (typeof form.def === 'number') out.def = Math.max(1, Math.round(form.def * (m?.defence ?? 1) * f * lf))
+  if (typeof form.atk === 'number') out.atk = Math.max(1, Math.round(form.atk * f * lf))
+  for (const key of GEAR_SHARES) {
+    const v = form[key]
+    // (a cost — the Crown's experience — stays what it is: a quality lessens no price asked)
+    if (typeof v === 'number' && v > 0) out[key] = Math.round(v * f * sf * 100) / 100
+  }
+  if (level !== undefined) out.level = gearLevel(g, level)
   return out
 }
 
-export function madeOf(data: Ontology, onto: OntologyIndex, type: string, material?: string, quality?: string): Omit<Entity, 'id' | 'place'> {
+export function madeOf(data: Ontology, onto: OntologyIndex, type: string, material?: string, quality?: string, level?: number): Omit<Entity, 'id' | 'place'> {
   const r = onto.resolve(type)
   // a material that is the thing's own (a plank is wood) does not name it again: one kind of plank
   const m = material && r.props.material !== material ? data.materials?.[material] : undefined
   const q = quality ? data.qualities?.find((x) => x.id === quality) : undefined
   const tags = [...(m ? [`material:${m.id}`, ...(m.tags ?? [])] : []), ...(q?.tag ? [q.tag] : [])]
   const props: Record<string, PropValue> = {}
-  Object.assign(props, gearProps(r.props, m, q))
+  // (only gear — a thing with a slot — has a level; a bucket does not)
+  Object.assign(props, gearProps(r.props, m, q, typeof r.props.slot === 'string' ? level : undefined, data.params?.gearLevels))
   const base = r.name ?? { en: type.split('/').pop()!, zh: type.split('/').pop()! }
   const say = (x: Text | undefined, l: 'en' | 'zh') => (x === undefined ? '' : typeof x === 'string' ? x : (x[l] ?? x.en))
   // nor when its name already begins with it (a 木桶 of wood is not a 木木桶)

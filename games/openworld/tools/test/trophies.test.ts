@@ -5,8 +5,8 @@ import { AFFIX_TABLE, BASE_RULES, FORM_BY_ID, LOOT, STORY_RULES, TROPHIES, TROPH
 import { buildFord } from '../src/demo/world.ts'
 
 // Every kind of monster's own piece (content trophies.ts): a chance each felling, sure at the fiftieth (the loot
-// module); every piece of gear rolls four small extras as it is made (engine affixes.ts); a family's pieces worn
-// together make a set.
+// module); every piece of gear rolls its small extras as it is made (engine affixes.ts: the table's four for a monster's
+// piece, by quality for the rest — gear-levels.test.ts); a family's pieces worn together make a set.
 
 const onto = buildOntology()
 
@@ -166,9 +166,11 @@ describe('rolled extras', () => {
     }
   })
 
-  it('gear laid on a map or forged rolls them; what is not gear does not', () => {
+  it('gear laid on a map or forged rolls them (a common piece three, a fine one four); what is not gear does not', () => {
     const helm = makeItem(new Rng(5), FORM_BY_ID['item/armor/helmet'], { material: 'iron', quality: 'common' })
-    expect(Object.keys(helm.props ?? {}).filter((k) => k.startsWith('sub:'))).toHaveLength(4)
+    expect(Object.keys(helm.props ?? {}).filter((k) => k.startsWith('sub:'))).toHaveLength(3)
+    const fine = makeItem(new Rng(5), FORM_BY_ID['item/armor/helmet'], { material: 'iron', quality: 'fine' })
+    expect(Object.keys(fine.props ?? {}).filter((k) => k.startsWith('sub:'))).toHaveLength(4)
     const bread = makeItem(new Rng(5), FORM_BY_ID['item/food/bread'])
     expect(Object.keys(bread.props ?? {}).some((k) => k.startsWith('sub:'))).toBe(false)
   })

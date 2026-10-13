@@ -38,8 +38,8 @@ export interface PersonDef {
   fights?: boolean
   /** The watch they keep (its law id): they stop the wanted, and see deeds for the watch. */
   watch?: string
-  /** A merchant: what they sell (made up each morning: a type and how many), and whether they take what is not the seller's (a fence). */
-  trade?: { stock: [string, number][]; fence?: boolean }
+  /** A merchant: what they sell (made up each morning: a type and how many), the level of the gear they stock (1, world-model.md §6.8), and whether they take what is not the seller's (a fence). */
+  trade?: { stock: [string, number][]; level?: number; fence?: boolean }
   /** Coin carried, made up each morning (a day's wage); default by role. */
   purse?: number
   /** Their conscience, 0..1 (default 1): the hungry with no coin and little conscience take a meal; and whether they tell the watch what they see (default true). */

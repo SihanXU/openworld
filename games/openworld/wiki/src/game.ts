@@ -7,7 +7,7 @@ import { BOON_REACH, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PAC
 import {
   BOONS, BOSSES, COIN, EFFICIENCY, ELEMENT_NAMES, ELEMENTS, FALL_DAMAGE, FED_FOR, FORMS, LAYS_EVERY, LEGENDARY_ARMS, MATERIALS, NIGHT_CAP, NIGHT_EVERY, PLACEMENTS,
   QUALITIES, RECIPES, RECOVERY, RELICS, ROOM_SIZE, SAFE_FALL, SHOPS, SKILL_BRANCHES, SKILL_DIRECTIONS, SKILL_PROFESSIONS, SKILLS, STOREYS, TERRAIN_CHARS,
-  TERRAINS, TREE_GROWS, VOW_TRAITS, buildOntology, type Form, LOOK_BODIES, LOOK_PARTS,
+  TERRAINS, TREE_GROWS, VOWS, buildOntology, type Form, LOOK_BODIES, LOOK_PARTS,
 } from '@openworld-game/content'
 import { PEOPLE } from '../../tools/src/demo/people.ts'
 import type { PersonDef } from '../../tools/src/demo/person.ts'
@@ -104,6 +104,8 @@ export interface ItemEnt extends Ent {
   recipe?: Recipe
   placement?: PlacementRecipe
   relic?: { zh: string; text: string }
+  /** A Vowbound form's own vow (the scallop's). */
+  vow?: { zh: string; text: string }
   quality?: string
 }
 
@@ -281,11 +283,13 @@ export function loadGame(): Game {
     const tags = [...new Set([...(t?.tags ?? []), ...(f.tags ?? [])])]
     const group = ITEM_GROUPS[f.id.split('/')[1]] ?? '杂物'
     const relicId = props.relic as string | undefined
+    const vowId = props.vow as string | undefined
     const q = tags.find((g) => g.startsWith('quality:'))?.slice(8)
     return {
       kind: 'item', id: f.id, zh: f.zh, en: f.en, title: f.zh, group, type: t, form: f, tags, props,
       makeup: (f.makeup ?? []) as any, recipe: recipeOf.get(f.id), sprite: itemSprite(f.sprite),
       relic: relicId && RELICS[relicId] ? { zh: RELICS[relicId].zh, text: RELICS[relicId].text.zh } : undefined,
+      vow: vowId && VOWS[vowId] ? { zh: VOWS[vowId].zh, text: VOWS[vowId].text.zh } : undefined,
       quality: q,
     } satisfies ItemEnt
   })
@@ -510,4 +514,4 @@ function bossSprite(id: string): Sprite | undefined {
 }
 
 // re-exports the templates read
-export { EFFICIENCY, ELEMENT_NAMES, ELEMENTS, LEGENDARY_ARMS, MATERIALS, QUALITIES, RELICS, TERRAIN_CHARS, VOW_TRAITS }
+export { EFFICIENCY, ELEMENT_NAMES, ELEMENTS, LEGENDARY_ARMS, MATERIALS, QUALITIES, RELICS, TERRAIN_CHARS, VOWS }

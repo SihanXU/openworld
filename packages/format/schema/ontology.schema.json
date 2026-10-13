@@ -249,6 +249,10 @@
         "name": {
           "$ref": "#/definitions/Text"
         },
+        "own": {
+          "$ref": "#/definitions/Id",
+          "description": "The one thing this kind was made for (the editor's \"its own kind\", docs/engine-split.md §16 E-b): rules on it are that thing's alone. The engine reads nothing from it."
+        },
         "tags": {
           "type": "array",
           "items": {
@@ -367,6 +371,9 @@
           "additionalProperties": false
         }
       ]
+    },
+    "Id": {
+      "type": "string"
     },
     "PropValue": {
       "type": [
@@ -1193,9 +1200,6 @@
         }
       ]
     },
-    "Id": {
-      "type": "string"
-    },
     "Reader": {
       "anyOf": [
         {
@@ -1825,6 +1829,13 @@
         "value": {
           "type": "number",
           "description": "What it makes of a thing's worth: a factor, 1 when absent."
+        },
+        "vows": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "What a piece of gear of this quality carries beyond its numbers: made, it takes one of these as its `vow` (a combat module answers each by id: the Vowbound's vows), unless its kind or the maker names one."
         }
       },
       "required": [
@@ -2000,6 +2011,33 @@
         "nightFact": {
           "type": "string",
           "description": "The story's fact that lengthens the night by so many hours (a number; the Ford's `night.shift`): none, the night keeps its length."
+        },
+        "gearLevels": {
+          "type": "object",
+          "properties": {
+            "max": {
+              "type": "number"
+            },
+            "perLevel": {
+              "type": "number"
+            },
+            "affixPerLevel": {
+              "type": "number"
+            },
+            "affixCount": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            }
+          },
+          "required": [
+            "max",
+            "perLevel",
+            "affixPerLevel"
+          ],
+          "additionalProperties": false,
+          "description": "Gear's levels (world-model.md §6.8, 2026-10-13): a piece of gear has a `level` from 1 to `max`; each level above the first adds `perLevel` to the factor on its main stats (power, defence, attack: ×(1 + perLevel·(level − 1)); its shares — a crit chance, a dodge — half as much), and `affixPerLevel` to the factor on what its rolled extras may reach; `affixCount` is how many extras a piece of each quality rolls (a quality not named: the table's count)."
         }
       },
       "required": [

@@ -14,7 +14,7 @@ export const lootModule: EngineModule = {
   spec: {
     primitives: {
       trophy:
-        "trophy {} — the host felled a creature whose kind keeps a piece of gear of its own (params trophy: that piece, a type some kind of the world names as its `trophy`; trophyChance): it comes to the host's bag by that chance, or surely once the host has felled so many of the kind without one (the world's loot.pity, default 50: the host keeps its count, trophy.<type>); made, it rolls its extras as all gear does. A type no kind names as its trophy is never made",
+        "trophy {} — the host felled a creature whose kind keeps a piece of gear of its own (params trophy: that piece, a type some kind of the world names as its `trophy`; trophyChance): it comes to the host's bag by that chance (widened by the host's luck, World.stat: × (1 + luck)), or surely once the host has felled so many of the kind without one (the world's loot.pity, default 50: the host keeps its count, trophy.<type>); made, it rolls its extras as all gear does, as wide as its kind's level. A type no kind names as its trophy is never made",
     },
     rules: ['A trophy is the game\'s own spoils: it comes only through the game\'s defeat news, and only a piece some kind names as its `trophy` is ever made.'],
   },

@@ -118,6 +118,8 @@ export const SOCIAL_STATUSES: StatusDef[] = [
   { id: 'pursuing', name: L('pursuing', '追捕中'), duration: 300 },
   // talked round once today
   { id: 'persuaded', name: L('talked round', '已被说服过'), duration: TICKS_PER_DAY },
+  // told there are no gods, once today
+  { id: 'doubted', name: L('heard the unbeliever', '听过无神论了'), duration: TICKS_PER_DAY },
   // in the cells
   { id: 'jailed', name: L('jailed', '关押中'), immobilize: true },
 ]
@@ -175,6 +177,8 @@ export const TALK: TalkVerb[] = [
   { id: 'persuade', label: L('Persuade', '说服'), when: not(has('host', 'persuaded')) },
   { id: 'bribe', label: L(`Bribe (${BRIBE})`, `贿赂（${BRIBE}）`), when: COINS(BRIBE) },
   { id: 'intimidate', label: L('Intimidate', '恐吓') },
+  // to speak against the gods (lowers one's faith; the devout take it ill): once a day to each
+  { id: 'unbelief', label: L('There are no gods watching, you know.', '散布无神论：其实根本没有神在看着。'), when: not(has('host', 'doubted')) },
   // a guard who has stopped one the watch wants: these only
   { id: 'pay', arrest: true, label: L('Pay the fine ({bounty}).', '交罚金（{bounty}）。'), when: { canPay: { role: 'actor' } } },
   { id: 'jail', arrest: true, label: L('Go to jail.', '跟你去牢房。') },
@@ -330,13 +334,22 @@ const TALK_TREE: Tree = IF(
             GRUDGE,
             IF(
               { sway: { of: 'host', by: 'actor', how: 'persuade', bonus: 0.15 } },
-              DO({ op: 'settle' }, regard(5), say("…Fine. Don't let it happen again.", '……算了。别再有下次。')),
+              DO({ op: 'settle' }, regard(5), emit('notify', 'actor', { what: 'karma', delta: 1 }), say("…Fine. Don't let it happen again.", '……算了。别再有下次。')),
               DO(regard(-2), say("Sorry won't mend it.", '一句对不起可补不回来。')),
             ),
             DO(say('For what?', '为什么？')),
           ),
         ],
-        [says('giveback'), DO(emit('notify', 'actor', { what: 'surrender' }), { op: 'settle' }, regard(8), say("Good. We'll leave it there.", '好。这事就到此为止。'))],
+        [says('giveback'), DO(emit('notify', 'actor', { what: 'surrender' }), { op: 'settle' }, regard(8), emit('notify', 'actor', { what: 'karma', delta: 2 }), say("Good. We'll leave it there.", '好。这事就到此为止。'))],
+        // told there are no gods: the speaker's own faith wavers for saying it; the devout are hurt by it, the rest wonder
+        [
+          says('unbelief'),
+          IF(
+            tag('host', 'devout'),
+            DO(add('doubted'), emit('notify', 'actor', { what: 'faith', delta: -5 }), regard(-8), say('Hold your tongue. They suffered five times over for that mouth of yours.', '闭嘴。他们为你这张嘴受了五重苦难。'), emote('angry')),
+            DO(add('doubted'), emit('notify', 'actor', { what: 'faith', delta: -5 }), say('…No gods? Then who is keeping the sun up?', '……没有神？那是谁在托着太阳？'), emote('surprised')),
+          ),
+        ],
         // asked for what one took (an owner, conduct.ts): one may give it back (the talk) or not; nothing said back here
         [says('demand'), NOTHING],
         // stopped by one who keeps the watch: the one at the keys chooses, anyone else yields (the `arrest` primitive)
@@ -443,11 +456,12 @@ export const SOCIAL_RULES: Rule[] = [
   }),
   rule({
     id: 'people/see',
-    doc: 'A person who sees a deed takes it in (who did it, or how they looked) and answers by who they are: the watch at once; the wronged cry out or ask back, and people talk of a theft; witnesses tell the watch, unless they keep quiet. Seeing someone where they should not be, a stranger they remember, a blade drawn, one the watch wants: they say so. An act the world had no answer for is asked once, of its host; what it comes to is seen when it is answered (§2.6, §2.12).',
+    doc: 'A person who did a deed sees it too, witnessed or not: its karma falls (conscience). A person who sees a deed takes it in (who did it, or how they looked) and answers by who they are: the watch at once; the wronged cry out or ask back, and people talk of a theft; witnesses tell the watch, unless they keep quiet. Seeing someone where they should not be, a stranger they remember, a blade drawn, one the watch wants: they say so. An act the world had no answer for is asked once, of its host; what it comes to is seen when it is answered (§2.6, §2.12).',
     host: PERSON,
     on: 'seen',
     // (one with no record of its own — whose answers are an input's — makes nothing of it here)
-    tree: IF({ remembers: 'host' }, IF(param('act', 'presence'), SEE_PRESENCE, IF({ deed: true }, SEE_DEED, NOTHING)), NOTHING),
+    // (one's own deed — seen by its doer, witnessed or not — weighs on its karma: its conscience)
+    tree: IF(param('own', true), DO({ op: 'conscience' }), IF({ remembers: 'host' }, IF(param('act', 'presence'), SEE_PRESENCE, IF({ deed: true }, SEE_DEED, NOTHING)), NOTHING)),
   }),
   rule({
     id: 'people/report',

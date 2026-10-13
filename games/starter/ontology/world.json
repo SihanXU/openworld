@@ -1,7 +1,7 @@
 {
   "factions": {
-    "folk": { "name": { "en": "folk", "zh": "人们" }, "hostile": [] },
-    "wild": { "name": { "en": "the wild", "zh": "野物" }, "hostile": ["folk"] }
+    "folk": { "name": "folk", "hostile": [] },
+    "wild": { "name": "the wild", "hostile": ["folk"] }
   },
   "roomRoles": [{ "role": "bedroom", "needs": { "type": "fixture/furniture/bed" }, "props": { "rest": 1 } }]
 }

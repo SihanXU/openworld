@@ -11,7 +11,7 @@ import { TICKS_PER_HOUR } from './calendar.ts'
 import { cannotRead, gainXp, learnSkill, readSkill, skillsOf } from './progression.ts'
 import { appear } from './appear.ts'
 import { WriteError } from './world.ts'
-import { madeOf, qualityFor } from './recipes.ts'
+import { gearLevel, madeOf, qualityFor } from './recipes.ts'
 import { restyled } from './looks.ts'
 
 /** How many things one effect makes at once at most, unless the world says (`params.spawnMax`). */
@@ -34,7 +34,7 @@ export const PRIMITIVES: Record<Exclude<Effect['op'], ModuleOp>, string> = {
   wear: 'wear — the host (an actor) puts on the thing of its own it is offered (param item, by its slot prop: a helmet on the head; of a slot there are more of, as two rings, the first free), what was in that slot coming off; offered what it wears, it takes it off (world-model.md §6.8); a profession\'s piece (tag profession:<id>, the warrior\'s shield) goes on only for that profession',
   sleep: 'sleep — the host sleeps until it is time to rise (time passes at once for the one at the keys), and wakes with what it was missing given back as its room says (a bedroom: all; elsewhere: half)',
   fall: 'fall — with nothing under it on its storey, the host drops to the first floor below, struck by the drop beyond the safe height (the root of contact/end on)',
-  breakdown: 'breakdown — the host breaks into what it is made of (its makeup × the world\'s recovery rate, in its material), what it holds spills out, and it is gone (the root outcome of broken for anything with a makeup)',
+  breakdown: 'breakdown — the host breaks into what it is made of (its makeup × the world\'s recovery rate, in its material; a creature\'s parts by chance come more often to the luck of the one who felled it, chance × (1 + luck)), what it holds spills out, and it is gone (the root outcome of broken for anything with a makeup)',
   heal: 'heal {amount}',
   gainXp: 'gainXp {amount} — the host gains experience (times 1 + its stat xpRate); enough raises its level (props xp, level, skillPoints)',
   pocket: 'pocket — the host (an actor) steps into a pocket place (param map, x, y: a place one carries, the Held Ground) and remembers where it stood (its prop pocket.return); in that place already, it steps back out where it was',
@@ -436,10 +436,14 @@ export class EffectRunner {
         // floor that broke leaves nothing to lie on): else it lands on the first floor below
         let z = at?.z ?? 0
         while (at && z > 0 && !w.entitiesAt(at.map, at.x, at.y, z).some((o) => o.id !== host.id && w.spacesOf(o).includes('floor'))) z--
+        // a creature felled leaves its rarer parts more often to a lucky hand (the one who started its end)
+        const feller = w.isAgent(host) && !host.npc && ev.cause ? w.get(ev.cause) : undefined
+        const luck = feller && feller.id !== host.id ? Math.max(0, w.stat(feller, 'luck')) : 0
         if (at)
           for (const [i, part] of (w.onto.resolve(host.type).makeup ?? []).entries()) {
             // the expected count: whole parts, and the fraction by chance
-            const expect = (part.count * (part.chance ?? 1) * rate) / Math.max(1, w.onto.resolve(host.type).yields ?? 1)
+            const chance = part.chance !== undefined && part.chance < 1 ? Math.min(1, part.chance * (1 + luck)) : (part.chance ?? 1)
+            const expect = (part.count * chance * rate) / Math.max(1, w.onto.resolve(host.type).yields ?? 1)
             const n = this.most(Math.floor(expect) + (w.chance(eff, expect - Math.floor(expect), i) ? 1 : 0), 'a breakdown')
             for (let i = 0; i < n; i++) {
               const made = w.create(part.type, { on: 'tile', map: at.map, x: at.x, y: at.y, ...(z && { z }) }, material && w.onto.resolve(part.type).tags.includes('portable') ? { tags: [material] } : {})
@@ -732,15 +736,20 @@ export class EffectRunner {
         const lift = w.stat(host, `${station}:lift`)
         if (beyond) quality = beyond.id
         else if (quality && tiers.includes(quality) && lift > 0 && w.rand() < lift) quality = tiers[Math.min(tiers.length - 1, tiers.indexOf(quality) + 1)]
-        // what it is made of and how well; a recipe that names, tags or gives props to what it makes makes it as it says
-        // (an anvil, a bee box, a skill book), unless it asks for both (`madeOf`: a set's piece, of what it took and as
-        // well as its maker makes it, under the set's name)
-        const base = madeOf(w.onto.data, w.onto, r.make.type, material, quality)
+        // what it is made of and how well — and at what level: the maker's, no lower than the recipe's (a piece of gear;
+        // world-model.md §6.8); a recipe that names, tags or gives props to what it makes makes it as it says (an anvil, a
+        // bee box, a skill book), unless it asks for both (`madeOf`: a set's piece, of what it took and as well as its maker
+        // makes it, under the set's name)
+        const level = gearLevel(w.onto.data.params?.gearLevels, Math.max(r.level ?? 1, w.num(host, 'level', 1)))
+        const base = madeOf(w.onto.data, w.onto, r.make.type, material, quality, level)
         const says = !!(r.make.tags || r.make.name || r.make.props)
         const look = structuredClone(!says ? base : r.madeOf ? { ...base, ...r.make, tags: [...new Set([...(base.tags ?? []), ...(r.make.tags ?? [])])], props: { ...base.props, ...r.make.props } } : r.make)
-        // gear rolls its extras as it is made (affixes.ts)
+        // gear rolls its extras as it is made (affixes.ts): as many as its quality gives, as wide as its level
         const slotOf = look.props?.slot ?? w.onto.resolve(r.make.type).props.slot
-        if (typeof slotOf === 'string' && !hasAffixes(look.props)) look.props = { ...look.props, ...rollAffixes(w.onto.data, slotOf, () => w.rand()) }
+        if (typeof slotOf === 'string' && !hasAffixes(look.props)) look.props = { ...look.props, ...rollAffixes(w.onto.data, slotOf, () => w.rand(), { quality, level }) }
+        // and what its quality carries beyond its numbers (QualityDef.vows: a Vowbound piece's vow), unless one is named already
+        const vows = qualities.find((q) => q.id === quality)?.vows
+        if (typeof slotOf === 'string' && vows?.length && typeof (look.props?.vow ?? w.onto.resolve(r.make.type).props.vow) !== 'string') look.props = { ...look.props, vow: vows[Math.floor(w.rand() * vows.length)] }
         // what the maker's hand adds to what it makes there (a weaponsmith's edge: `<station>:power`, `:def`, `:critChance`)
         for (const key of ['power', 'def', 'critChance'] as const) {
           const add = w.stat(host, `${station}:${key}`)

@@ -173,6 +173,33 @@
             "nightFact": {
               "type": "string",
               "description": "The story's fact that lengthens the night by so many hours (a number; the Ford's `night.shift`): none, the night keeps its length."
+            },
+            "gearLevels": {
+              "type": "object",
+              "properties": {
+                "max": {
+                  "type": "number"
+                },
+                "perLevel": {
+                  "type": "number"
+                },
+                "affixPerLevel": {
+                  "type": "number"
+                },
+                "affixCount": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "number"
+                  }
+                }
+              },
+              "required": [
+                "max",
+                "perLevel",
+                "affixPerLevel"
+              ],
+              "additionalProperties": false,
+              "description": "Gear's levels (world-model.md §6.8, 2026-10-13): a piece of gear has a `level` from 1 to `max`; each level above the first adds `perLevel` to the factor on its main stats (power, defence, attack: ×(1 + perLevel·(level − 1)); its shares — a crit chance, a dodge — half as much), and `affixPerLevel` to the factor on what its rolled extras may reach; `affixCount` is how many extras a piece of each quality rolls (a quality not named: the table's count)."
             }
           },
           "additionalProperties": false,
@@ -184,6 +211,25 @@
             "type": "string"
           },
           "description": "Scripts the runtime loads with the game (its own code: a wilderness, the upgrades of older saves), by URL beside the bundle."
+        },
+        "languages": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "type": "string"
+            },
+            "translations": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "source"
+          ],
+          "additionalProperties": false,
+          "description": "Its languages (docs/engine-split.md §19): the one its words are written in (default English), and those they are translated into, a table each in `locales/<code>.json`."
         }
       },
       "required": [

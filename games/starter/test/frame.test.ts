@@ -46,7 +46,8 @@ describe("the frame's numbers are the engine's", () => {
     const w = eng.world
     const p = w.player
     const f = snapshot(eng)
-    expect(f.player.stats).toEqual({ atk: w.stat(p, 'atk', 1), def: w.stat(p, 'def'), critChance: w.stat(p, 'critChance'), power: 4 })
+    // (the frame carries the rest of the sheet's numbers beside these four: SHEET_STATS)
+    expect(f.player.stats).toMatchObject({ atk: w.stat(p, 'atk', 1), def: w.stat(p, 'def'), critChance: w.stat(p, 'critChance'), power: 4 })
     // the helm (2), its rolled 2, the blessing (1) and the set's one-piece bonus (3) on one's own; not the blade's 9
     expect(f.player.stats.def).toBe(w.num(p, 'def') + 2 + 2 + 1 + 3)
     expect(summed(f, 'def')).not.toBe(f.player.stats.def)
@@ -67,6 +68,6 @@ describe("the frame's numbers are the engine's", () => {
     eng.author(() => w.setProp(p, 'wear:weapon', undefined))
     const f = snapshot(eng)
     expect(f.player.stats.power).toBe(0)
-    expect(f.player.stats).toEqual({ atk: w.stat(p, 'atk', 1), def: w.stat(p, 'def'), critChance: w.stat(p, 'critChance'), power: 0 })
+    expect(f.player.stats).toMatchObject({ atk: w.stat(p, 'atk', 1), def: w.stat(p, 'def'), critChance: w.stat(p, 'critChance'), power: 0 })
   })
 })

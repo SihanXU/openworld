@@ -1,14 +1,12 @@
 {
   "map": {
     "id": "cottage",
-    "name": { "en": "Mira's Cottage", "zh": "米拉的小屋" },
+    "name": "Mira's Cottage",
     "kind": "interior",
     "width": 8,
     "height": 6,
     "rows": ["XXXXXXXX", "XffffffX", "XffffffX", "XffffffX", "XffffffX", "XXXDXXXX"],
-    "portals": [
-      { "x": 3, "y": 5, "to": "glade", "tx": 18, "ty": 5, "label": { "en": "The Glade", "zh": "林间空地" } }
-    ],
+    "portals": [{ "x": 3, "y": 5, "to": "glade", "tx": 18, "ty": 5, "label": "The Glade" }],
     "anchors": { "bed": [5, 2], "table": [2, 2] },
     "light": "indoor",
     "zone": "peaceful",

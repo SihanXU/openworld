@@ -23,7 +23,7 @@ export const SIDE_QUESTS: QuestDef[] = [
       { id: 'beef', text: L('Raw beef', '生牛肉'), carry: { type: 'item/food/meat/raw' }, count: 3, where: 'pasture' },
       { id: 'eggs', text: L('Eggs', '鸡蛋'), carry: { type: 'item/food/egg/raw' }, count: 2, where: 'pasture' },
     ],
-    reward: { xp: 25, items: [{ type: 'item/food/bread', count: 3 }, gear('item/clothing/belt', 'waist', "Marta's Kitchen Sash", '玛尔塔的围腰', 'fine', { def: 1 })], regard: { giver: 10 } },
+    reward: { xp: 25, items: [{ type: 'item/food/bread', count: 3 }, gear('item/clothing/belt', 'waist', "Marta's Kitchen Sash", '玛尔塔的围腰', 'fine', {}, 1)], regard: { giver: 10 } },
   }),
   errand({
     id: 'ring',
@@ -34,7 +34,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     waiting: L('East side of the hollow, where the thorns are thickest. It is silver.', '荆棘谷东边，荆棘最密的地方。是银的。'),
     done: L("You found it! Gran's ring! Here, this is my best stone. It's lucky. Mostly.", '你找到了！奶奶的戒指！给，这是我最好的石头，会带来好运的。大概吧。'),
     asks: [{ id: 'ring', text: L("Mia's ring", '米娅的戒指'), carry: { type: 'item/valuable/ring', tags: ['keepsake'] }, count: 1, where: 'hollow' }],
-    reward: { xp: 30, items: [{ type: 'item/material/stone', count: 1 }, gear('item/valuable/earring', 'ear', "Mia's Ribbon Earring", '米娅的缎带耳环', 'fine', { xpRate: 0.1 })], regard: { giver: 15 } },
+    reward: { xp: 30, items: [{ type: 'item/material/stone', count: 1 }, gear('item/valuable/earring', 'ear', "Mia's Ribbon Earring", '米娅的缎带耳环', 'fine', {}, 1)], regard: { giver: 15 } },
   }),
   errand({
     id: 'thorns',
@@ -46,7 +46,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     waiting: L('Six. Slimes, spiders, wolves, whatever moves in the hollow.', '六只。史莱姆、蜘蛛、狼，荆棘谷里会动的都算。'),
     done: L('Quieter already. Take this — a guard with a spare arm is a guard who listens.', '已经安静多了。拿着这个——有备用武器的卫兵才听得进话。'),
     asks: [{ id: 'kills', text: L('Creatures felled in the hollow', '在荆棘谷打倒的怪物'), kill: { type: 'actor/creature' }, map: 'hollow', count: 6, where: 'hollow' }],
-    reward: { xp: 40, items: [{ type: 'item/weapon/polearm/spear', count: 1 }, gear('item/armor/pauldrons', 'shoulders', 'Militia Pauldrons', '民兵护肩', 'fine', { def: 2 })], regard: { giver: 10 } },
+    reward: { xp: 40, items: [{ type: 'item/weapon/polearm/spear', count: 1 }, gear('item/armor/pauldrons', 'shoulders', 'Militia Pauldrons', '民兵护肩', 'fine', {}, 2)], regard: { giver: 10 } },
   }),
   errand({
     id: 'firewood',
@@ -77,7 +77,7 @@ export const SIDE_QUESTS: QuestDef[] = [
       { id: 'joss', text: L('Ask Joss about the bridge', '问乔斯桥的事'), talk: 'npc.joss', line: L('Three planks fill the gap. An axe fells a tree and splits a log; lay the planks on the water. Or go round some other way — the river does not care how.', '三块木板就能补上缺口。斧头砍树、劈木头；把木板铺到水面上。或者想别的办法过去——河才不在乎你怎么过。') },
       { id: 'hesper', text: L('Ask Hesper what she saw', '问赫斯珀她看到了什么'), talk: 'npc.hesper', line: L('White, all of him. A crown of thorns grown through his helm. He pulled my bridge out board by board and laid the nails on the pier like a toll paid. He did not look at me once.', '他浑身是白的。荆棘冠长进了他的头盔里。他一块一块把我的桥拆了，把钉子摆在码头上，像是在收过路费。他一眼都没看我。') },
     ],
-    reward: { xp: 40, items: [{ type: 'item/food/bread', count: 2 }, gear('item/valuable/amulet', 'neck', 'Amulet of the Five Wounds', '五伤护符', 'masterwork', { def: 2 })], facts: { [CH1.pilgrim]: 1 } },
+    reward: { xp: 40, items: [{ type: 'item/food/bread', count: 2 }, gear('item/valuable/amulet', 'neck', 'Amulet of the Five Wounds', '五伤护符', 'masterwork', {}, 3)], facts: { [CH1.pilgrim]: 1 } },
   }),
   errand({
     id: 'drawings',
@@ -93,7 +93,7 @@ export const SIDE_QUESTS: QuestDef[] = [
       fact: `ch1.drawing.${d}`,
       where: { stone: 'foot', door: 'hollow:mouth', bridge: 'ford', man: 'meadow' }[d],
     })),
-    reward: { xp: 30, items: [{ type: 'item/misc/warm_ember', count: 1 }, gear('item/clothing/cloak', 'shoulders', 'Chalk-dusted Cloak', '沾满粉笔灰的斗篷', 'fine', { def: 1 })], regard: { giver: 15 } },
+    reward: { xp: 30, items: [{ type: 'item/misc/warm_ember', count: 1 }, gear('item/clothing/cloak', 'shoulders', 'Chalk-dusted Cloak', '沾满粉笔灰的斗篷', 'fine', {}, 2)], regard: { giver: 15 } },
   }),
   errand({
     id: 'measure',
@@ -104,7 +104,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     waiting: L('Three statues. The one at the Mountain Foot, ours by the square, the Ford\'s... they are all humming the same note, lower every week.', '三座雕像。山脚那座、我们广场边这座、渡口那座……它们哼的都是同一个音，一周比一周低。'),
     done: L('Lower every week, and faster than the old almanac says. Take it — I have copied what I need. Read the last pages. I cannot make sense of them.', '一周比一周低，而且比旧历书说的还快。拿去吧——我需要的都抄下来了。读读最后几页。我怎么也看不懂。'),
     asks: [{ id: 'statues', text: L('Waypoint statues woken', '唤醒的传送雕像'), fact: 'waypoints.attuned', count: 3 }],
-    reward: { xp: 30, items: [{ type: 'item/document/almanac', count: 1 }, gear('item/valuable/ring', 'ring', "Surveyor's Ring", '测天者的戒指', 'fine', { atk: 1 })], regard: { giver: 10 } },
+    reward: { xp: 30, items: [{ type: 'item/document/almanac', count: 1 }, gear('item/valuable/ring', 'ring', "Surveyor's Ring", '测天者的戒指', 'fine', {}, 2)], regard: { giver: 10 } },
   }),
   errand({
     id: 'templar',
@@ -116,7 +116,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     waiting: L('Three of the dead. They come out after dark, out past the fence. Keep moving.', '三个亡灵。天黑以后出来，在围栏外面。别停下脚步。'),
     done: L('Still standing. Good. Take my old helm — it stopped worse than claws, once.', '还站着。好。拿上我的旧头盔——它以前挡过比爪子更狠的东西。'),
     asks: [{ id: 'dead', text: L('The dead put down', '打倒的亡灵'), kill: { type: 'actor/creature/undead/zombie' }, count: 3, where: 'pasture' }],
-    reward: { xp: 40, items: [gear('item/armor/helmet', 'head', "Fennick's Squire Helm", '芬尼克的侍从头盔', 'vowed', { def: 3, dodge: 0.1 })], regard: { giver: 15 } },
+    reward: { xp: 40, items: [gear('item/armor/helmet', 'head', "Fennick's Squire Helm", '芬尼克的侍从头盔', 'vowed', { dodge: 0.1 }, 3, undefined, 'ward')], regard: { giver: 15 } },
   }),
   errand({
     id: 'nail',
@@ -128,7 +128,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     waiting: L('The ninth nail. Square-headed, pulled straight. You\'ll know it.', '第九根钉子。方头的，拔得笔直。你一看就知道。'),
     done: L('The ninth. ...Twenty years that bridge stood. Here — a proper hammer. You\'ve earned it.', '第九根。……那座桥立了二十年。给——一把像样的锤子。这是你应得的。'),
     asks: [{ id: 'nail', text: L('The ninth nail', '第九根钉子'), carry: { type: 'item/misc/ninth_nail' }, count: 1, where: 'eastroad' }],
-    reward: { xp: 30, items: [{ type: 'item/tool/smith_hammer', count: 1 }, gear('item/clothing/belt', 'waist', "Joss's Tool Belt", '乔斯的工具腰带', 'fine', { def: 1 })], regard: { giver: 15 } },
+    reward: { xp: 30, items: [{ type: 'item/tool/smith_hammer', count: 1 }, gear('item/clothing/belt', 'waist', "Joss's Tool Belt", '乔斯的工具腰带', 'fine', {}, 3)], regard: { giver: 15 } },
   }),
   errand({
     id: 'watch',
@@ -139,7 +139,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     waiting: L('Cloudtop, above the Mountain Foot. A shelter on the snow. He kept his log on the table, if I know watchmen.', '云顶台地，在山脚上面。雪地上有间小屋。要是我没猜错，守夜人会把日志放在桌上。'),
     done: L('Eleven years. The sunsets were coming early ELEVEN years ago, and he wrote it down every night, and nobody read it. ...And a sleeping light in the snow? Lumi, you do not remember a watchman, do you? No. Of course not.', '十一年。十一年前日落就开始提前了，他每天晚上都记下来，却没有人读过。……还有雪里一点睡着的光？露米，你不记得什么守夜人吧？不记得。当然不记得。'),
     asks: [{ id: 'log', text: L("Read the watchman's log on Cloudtop", '读云顶台地上守夜人的日志'), step: 'watch_log', where: 'summit' }],
-    reward: { xp: 30, items: [{ type: 'item/food/bread', count: 2 }, gear('item/valuable/earring', 'ear', 'Star-glass Earring', '星玻璃耳环', 'masterwork', { xpRate: 0.2 })], regard: { giver: 10 } },
+    reward: { xp: 30, items: [{ type: 'item/food/bread', count: 2 }, gear('item/valuable/earring', 'ear', 'Star-glass Earring', '星玻璃耳环', 'masterwork', {}, 2)], regard: { giver: 10 } },
   }),
   errand({
     id: 'herd',
@@ -150,7 +150,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     waiting: L('They come up after dark, from the south end, by the trees. Three of them down and the herd will sleep.', '它们天黑以后从南边树林那头上来。打倒三个，牛群就能睡了。'),
     done: L('They\'re lying down. Lying down properly, not kneeling. ...Here, cheese from the last of the good milk. Thank you.', '它们躺下了。是好好躺下，不是跪着。……给，用最后一点好奶做的奶酪。谢谢你。'),
     asks: [{ id: 'dead', text: L('The dead put down on the grassland', '在草原上打倒的亡灵'), kill: { type: 'actor/creature/undead' }, map: 'pasture', count: 3, where: 'pasture' }],
-    reward: { xp: 40, items: [{ type: 'item/food/cheese', count: 2 }, gear('item/valuable/ring', 'ring', "Brin's Bone Ring", '布琳的骨戒', 'fine', { atk: 1 })], regard: { giver: 15 } },
+    reward: { xp: 40, items: [{ type: 'item/food/cheese', count: 2 }, gear('item/valuable/ring', 'ring', "Brin's Bone Ring", '布琳的骨戒', 'fine', {}, 2)], regard: { giver: 15 } },
   }),
   errand({
     id: 'scallop',
@@ -163,7 +163,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     done: L('Brother Cassian. He sat in this chapel when I was a novice and asked me to pray for him. The Church named him pilgrim thirty-one years ago. ...They told us he reached the Holy City. Keep it. He would want it walking.', '卡西安修士。我还是见习修女的时候，他坐在这间礼拜堂里，请我为他祈祷。三十一年前，教会点名他为朝圣者。……他们告诉我们，他到达了圣城。你留着吧。他会希望它继续上路。'),
     // (his, not the one the Rest gives a pilgrim for the oath: that is sworn, items.ts)
     asks: [{ id: 'scallop', text: L("The pilgrim's scallop", '朝圣者的扇贝'), carry: { type: 'item/valuable/scallop', notTags: ['sworn'] }, count: 1, keep: true, where: 'forest:camp' }],
-    reward: { xp: 40, items: [{ type: 'item/potion/healing', count: 2 }, gear('item/valuable/amulet', 'neck', "Cassian's Prayer Cord", '卡西安的祈祷绳', 'vowed', { def: 1, 'night:def': 1 })] },
+    reward: { xp: 40, items: [{ type: 'item/potion/healing', count: 2 }, gear('item/valuable/amulet', 'neck', "Cassian's Prayer Cord", '卡西安的祈祷绳', 'vowed', { 'night:def': 1 }, 3, undefined, 'dawn')] },
   }),
   errand({
     id: 'band',
@@ -174,7 +174,68 @@ export const SIDE_QUESTS: QuestDef[] = [
     waiting: L('A plain band. It\'s all I have of him.', '一枚普通的戒指。这是他留给我的全部。'),
     done: L('...Thank you. I\'ll wear it now. I was keeping it on the gate so he could find his way home.', '……谢谢你。我现在就戴上。之前我把它挂在门上，是想让他能找到回家的路。'),
     asks: [{ id: 'band', text: L('The wedding band', '婚戒'), carry: { type: 'item/valuable/band' }, count: 1, where: 'eastroad:kingdom' }],
-    reward: { xp: 30, items: [{ type: 'item/food/egg/raw', count: 2 }, { type: 'item/food/bread', count: 1 }, gear('item/clothing/gloves', 'hands', "Edda's Work Gloves", '艾达的干活手套', 'fine', { def: 1 })], regard: { giver: 20 } },
+    reward: { xp: 30, items: [{ type: 'item/food/egg/raw', count: 2 }, { type: 'item/food/bread', count: 1 }, gear('item/clothing/gloves', 'hands', "Edda's Work Gloves", '艾达的干活手套', 'fine', {}, 4)], regard: { giver: 20 } },
+  }),
+  // ------------------------------------------------------------------ the forest's flanks (docs/chapter-1.md §15): the Charcoal Dell, west
+  errand({
+    id: 'clamp',
+    title: L('Wood for the Clamp', '一窑炭'),
+    summary: L('Orrin the charcoal burner needs 6 logs to build his next clamp. Fell trees with an axe (two swings); the coppice round his dell is thick with them.', '烧炭的奥林需要 6 根木头来垒下一窑炭。用斧头砍树（砍两下）；他谷地周围的矮林里树多得很。'),
+    giver: 'npc.orrin',
+    offer: L('Six logs and I can build another clamp. My back will not carry them any more, and Gus\'s is going the same way. Coal for your trouble — it burns hotter than wood.', '六根木头，我就能再垒一窑。我的腰已经扛不动了，格斯的腰也快了。炭给你当酬劳——它比木头烧得旺。'),
+    waiting: L('Six logs. Any tree, the coppice is nearest.', '六根木头。哪棵树都行，矮林最近。'),
+    done: L('That is a clamp\'s worth. Four days and it is charcoal. Here — the last burn\'s, and a cap: the ash gets in your hair.', '这够垒一窑了。四天就是炭。给——上一窑烧的，再加一顶帽子：灰会落到头发里。'),
+    asks: [{ id: 'logs', text: L('Logs', '木头'), carry: { type: 'item/material/log' }, count: 6, where: 'charcoal' }],
+    reward: { xp: 25, items: [{ type: 'item/material/coal', count: 4 }, gear('item/clothing/hat', 'head', "Burner's Felt Cap", '炭工的毡帽', 'fine', {}, 2)], regard: { giver: 10 } },
+  }),
+  errand({
+    id: 'boars',
+    title: L('Boars in the Coppice', '林中野猪'),
+    summary: L('Boars root up the coppice stools round the Charcoal Dell and the young wood never comes. Fell 4 of them there for Orrin.', '野猪把烧炭谷周围矮林的树桩拱翻，新木头就长不出来了。替奥林在那里打倒 4 头野猪。'),
+    giver: 'npc.orrin',
+    level: 2,
+    offer: L('Boars in the coppice again. Six years of growing, gone in a night of rooting. Four of them down and the rest will keep to the deep woods. Mind the tusks.', '矮林里又有野猪了。六年的功夫，一夜就被拱没了。打掉四头，剩下的就会缩回深林里去。小心獠牙。'),
+    waiting: L('Four boars, here in the dell\'s woods. They come out of the undergrowth at you — stand your ground.', '四头野猪，就在谷地周围的林子里。它们会从矮树丛里冲出来——站稳了。'),
+    done: L('Quieter. The stools might come back now. Take these — the boots I cut the coppice in, before my knees went.', '安静了。树桩或许能长回来了。这个给你——我以前在矮林里干活穿的靴子，那时候膝盖还没坏。'),
+    asks: [{ id: 'kills', text: L('Boars felled in the dell', '在烧炭谷打倒的野猪'), kill: { type: 'actor/creature/beast/boar' }, map: 'charcoal', count: 4, where: 'charcoal' }],
+    reward: { xp: 40, items: [gear('item/clothing/boots', 'feet', 'Coppice Boots', '矮林靴', 'fine', { moveHaste: 0.05 }, 2)], regard: { giver: 10 } },
+  }),
+  errand({
+    id: 'birds',
+    title: L('Where the Birds Went', '鸟都去哪儿了'),
+    summary: L('The forest has no birds: Orrin says they all roost in his old oak at dusk and never sing. Ask Gus whether the forest was always so quiet, and bring Orrin 3 feathers from under the roost.', '森林里没有鸟：奥林说它们每天黄昏全落在他的老橡树上，从不叫。问问格斯森林是不是一直这么安静，再从栖鸟的橡树下捡 3 根羽毛带给奥林。'),
+    giver: 'npc.orrin',
+    offer: L('You came through the forest. Hear any birds? No. They are all in my oak, west of here, every dusk, and not a note. Ask Gus if it was always like that — he will not say so to me. And bring me three of their feathers. I want to know what kind they are.', '你是穿过森林来的。听见鸟叫了吗？没有吧。它们全在我西边那棵橡树上，天天黄昏，一声不吭。去问问格斯，是不是一直这样——他不肯跟我说。再给我捡三根它们的羽毛来。我想知道是什么鸟。'),
+    waiting: L('Gus, for the forest; the oak at the west end of the dell for the feathers. They drop them at dawn when they go.', '森林的事问格斯；羽毛在谷地西头的橡树下。它们天亮飞走时会掉下来。'),
+    done: L('Every kind. Thrush, finch, jay — birds that do not roost together. ...And Gus says it began the night the bridge went. So it is not my oak they want. It is what they can see from it.', '什么鸟都有。画眉、金翅雀、松鸦——这些鸟从来不会一起过夜。……格斯说是从桥没了那晚开始的。那它们要的就不是我的橡树。是从树上能看见的东西。'),
+    asks: [
+      { id: 'gus', text: L('Ask Gus about the quiet', '问格斯森林为什么安静'), talk: 'npc.gus', line: L('Quiet? ...It went quiet the night the bridge came down. Every bird in it got up at once and flew west. I did not say so. Nobody wants a woodcutter talking about birds.', '安静？……桥塌的那天晚上就安静了。林子里所有的鸟一下子全飞起来，往西去了。我没跟人说过。谁想听一个樵夫讲鸟的事。') },
+      { id: 'feathers', text: L('Feathers from under the roost', '栖鸟橡树下的羽毛'), carry: { type: 'item/material/feather' }, count: 3, where: 'charcoal:roost' },
+    ],
+    reward: { xp: 30, items: [{ type: 'item/misc/feather_quill', count: 1 }, gear('item/valuable/earring', 'ear', "Fowler's Earring", '捕鸟人的耳坠', 'fine', { luck: 0.05 }, 2)], regard: { giver: 15 }, facts: { 'ch1.birds': 1 } },
+  }),
+  // ------------------------------------------------------------------ the Reed Bend, east
+  errand({
+    id: 'catch',
+    title: L('Three for the Smoke', '三条鱼'),
+    summary: L('Hilde smokes fish at the Reed Bend and wants 3 of any kind for the smoke-fire. A rod is two sticks and two grass; the river bites all day, eels after dark.', '希尔德在芦苇湾熏鱼，想要 3 条鱼给熏鱼的火堆，什么鱼都行。两根树枝加两把草就是一根鱼竿；河里整天都有鱼咬钩，天黑后有鳗鱼。'),
+    giver: 'npc.hilde',
+    offer: L('You want to be useful? Three fish for the smoke, any kind. Make a rod — two sticks, two handfuls of grass — and cast off the pier. Bait from me if you are in a hurry.', '想帮忙？给熏房弄三条鱼，什么鱼都行。做根鱼竿——两根树枝，两把草——站在码头上甩。急的话，饵在我这儿买。'),
+    waiting: L('Three fish. The pier, the shallows, anywhere the water is. Eels come after dark.', '三条鱼。码头、浅滩，有水的地方都行。鳗鱼天黑以后才来。'),
+    done: L('Those will smoke. Here — bait, and my spare oilskin. You will want it on this river.', '这些能熏了。给——鱼饵，还有我多的那件油布斗篷。在这条河上你用得着。'),
+    asks: [{ id: 'fish', text: L('Fish', '鱼'), carry: { type: 'item/food/fish' }, count: 3, where: 'reedbend' }],
+    reward: { xp: 25, items: [{ type: 'item/misc/bait', count: 5 }, gear('item/clothing/cloak', 'shoulders', "Hilde's Oilskin", '希尔德的油布斗篷', 'fine', {}, 2)], regard: { giver: 10 } },
+  }),
+  errand({
+    id: 'boatbell',
+    title: L('The Bell on the Spit', '沙洲上的船铃'),
+    summary: L('Nine winters ago the fog took Hilde\'s husband Rolf and gave the boat back without him. Its bell lies on the spit at the Reed Bend, among the water slimes. Bring it to her.', '九个冬天前，雾带走了希尔德的丈夫罗尔夫，只把船还了回来。船铃就在芦苇湾的沙洲上，和水史莱姆在一起。把它带给她。'),
+    giver: 'npc.hilde',
+    offer: L('The bell. Rolf\'s boat bell. It is out on the spit where the boat ran aground, and the slimes have had it nine years. I don\'t go out there. ...You could.', '那个铃。罗尔夫的船铃。它就在船搁浅的沙洲上，让史莱姆占了九年。我不去那儿。……你可以去。', ),
+    waiting: L('The spit, south of the pier. Bronze, the size of your fist. Mind the slimes, they are wet work.', '码头南边的沙洲。青铜的，拳头大小。小心史莱姆，打起来一身水。'),
+    done: L('It rings the same. I thought it would ring different. ...His ring. He mended nets with it on. You keep it — it is luckier on a hand that goes places.', '它还是那个声音。我以为会变的。……这是他的戒指。他戴着它补网。你留着吧——戴在一只到处走的手上，它才灵。'),
+    asks: [{ id: 'bell', text: L("Rolf's boat bell", '罗尔夫的船铃'), carry: { type: 'item/misc/bell', tags: ['keepsake'] }, count: 1, where: 'reedbend:spit' }],
+    reward: { xp: 35, items: [{ type: 'item/food/fish/cooked', count: 2 }, gear('item/valuable/ring', 'ring', "Rolf's Net Ring", '罗尔夫的结网戒', 'fine', { luck: 0.05 }, 2)], regard: { giver: 20 }, facts: { 'ch1.boatbell': 1 } },
   }),
   // (the Held Ground's widenings are its steward's panel now, not errands: haven.ts HAVEN_UPGRADES)
 ]

@@ -140,6 +140,10 @@
 .cs-stat b { font: 700 13px var(--pixel); color: var(--ink-warm); }
 .cs-stat.cs-hp b { color: #b8321e; }
 .cs-stat.cs-food b { color: #a0631a; }
+.cs-stat.cs-good b { color: #2f8a4a; }
+.cs-stat.cs-evil b { color: #8e2a3c; }
+.cs-stat.cs-faith b { color: #b7871c; }
+.cs-stat.cs-doubt b { color: #5d5a7a; }
 .inv-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .inv-title { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 2px; font: 700 15px var(--pixel); color: #7a3414; letter-spacing: 0.06em; }
 .inv-title .purse { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 6px; border-radius: 14px; font: 700 15px var(--pixel); color: #5a3a0c; letter-spacing: 0; background: linear-gradient(#fff2c4, #f1d48a); border: 2px solid var(--brass-lo); box-shadow: inset 0 1px 0 #fff, 0 2px 0 rgba(74, 42, 20, 0.3); }
@@ -424,3 +428,36 @@
 .dname .hearts i.half { background: linear-gradient(90deg, #ff6d88 0 50%, rgba(255, 236, 214, 0.34) 50% 100%); }
 .pp-deal { margin-left: 8px; padding: 2px 8px; border-radius: 10px; font: 700 11px var(--pixel); color: #a0283f; background: rgba(240, 106, 133, 0.16); border: 1px solid rgba(224, 64, 94, 0.45); white-space: nowrap; }
 .pp-deal.worse { color: #4a5a80; background: rgba(125, 141, 176, 0.18); border-color: rgba(90, 105, 140, 0.5); }
+
+/* gear in its slot (common.ts gearFrame, 2026-10-12, after Dungeon Fighter): the icon on a dark ground, no fill of its
+   own, framed in its quality's colour, the better ones glowing inward a little */
+.slot.gear { --qc: #e6e2d8; }
+.slot.gear.q-crude { --qc: #8d8d8d; }
+.slot.gear.q-fine { --qc: #4fa8ff; }
+.slot.gear.q-masterwork { --qc: #b779ff; }
+.slot.gear.q-vowed { --qc: #ff6fd0; }
+.slot.gear.q-legendary { --qc: #ff9d2e; }
+.slot.gear.q-trophy { --qc: #ffd447; }
+.slot.gear, .cs .eq-slot.has.gear {
+  background: radial-gradient(circle at 50% 38%, #3d3648 0%, #241f2d 62%, #16131c 100%);
+  border: 2px solid var(--qc);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.65), inset 0 0 9px color-mix(in srgb, var(--qc) 30%, transparent), 0 0 0 1px rgba(30, 18, 6, 0.55);
+}
+.slot.gear:hover, .cs .eq-slot.has.gear:hover {
+  background: radial-gradient(circle at 50% 38%, #4a4256 0%, #2a2434 62%, #19161f 100%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.65), inset 0 0 12px color-mix(in srgb, var(--qc) 45%, transparent), 0 0 10px color-mix(in srgb, var(--qc) 60%, transparent);
+}
+.slot.gear.q-masterwork, .slot.gear.q-vowed, .slot.gear.q-legendary, .slot.gear.q-trophy {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.65), inset 0 0 12px color-mix(in srgb, var(--qc) 45%, transparent), 0 0 6px color-mix(in srgb, var(--qc) 55%, transparent);
+}
+.slot.gear.q-legendary::after, .slot.gear.q-trophy::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, color-mix(in srgb, var(--qc) 35%, transparent) 48%, transparent 62%);
+  background-size: 250% 100%; animation: gearShine 3.2s ease-in-out infinite;
+}
+.slot.gear .icon canvas { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.75)); }
+.slot.gear .count { color: #fff6dc; text-shadow: 0 1px 0 #000, 0 0 2px #000; }
+.slot.gear.sel { outline: 2px solid #ffe08a; outline-offset: 1px; }
+@keyframes gearShine { 0% { background-position: 120% 0; } 60%, 100% { background-position: -40% 0; } }
+@media (prefers-reduced-motion: reduce) { .slot.gear::after { animation: none; } }
+.slot.gear .key { color: color-mix(in srgb, var(--qc) 60%, #fff); text-shadow: 0 1px 0 #000; }
