@@ -8,7 +8,7 @@ import { evalCond, matchSelector, rolesOf } from './rules.ts'
 import type { AiData, Amount, Effect, ModuleOp, EmitTo, Entity, GameEvent, Id, Impulse, Place, Pos, PropValue, Ref, RoleName, RoleRef, Text } from './types.ts'
 import { GIVEN_LINE, chooseLine, memoryOf, raiseTopic } from './people.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
-import { cannotRead, gainXp, learnSkill, readSkill } from './progression.ts'
+import { cannotRead, gainXp, learnSkill, readSkill, skillsOf } from './progression.ts'
 import { appear } from './appear.ts'
 import { WriteError } from './world.ts'
 import { gearLevel, madeOf, qualityFor } from './recipes.ts'
@@ -64,11 +64,10 @@ export const PRIMITIVES: Record<Exclude<Effect['op'], ModuleOp>, string> = {
   begin: "begin {} — the story's (the Story Manager): it sees news; the quests that begin on it (auto, their trigger holding) begin, the radiant offers on it (their chance, cap and aliases) are made",
   startQuest: "startQuest {id?, offer?} — the story's or a quest's: the quest named (or param quest) begins for the event's actor (offer: is offered), its aliases filled, else it does not",
   facts: "facts {} — the story's: it keeps the facts it is told (params fact.<key>)",
-  trophy: 'trophy {} — the host felled a creature that keeps a trophy (params trophy: its piece of gear, trophyChance): it comes to the host\'s bag by that chance (widened by the host\'s luck: chance × (1 + luck)), or surely once the host has felled so many of its kind without one (params.trophyPity, default 50: the host keeps its count, trophy.<type>); made, it rolls its extras as all gear does',
   news: 'news {kind} — tells the quests what this event is (docs/quests.md §2.3): give (the actor handed the item to the host), deed, hungry, talk (the actor spoke to the host: a quest may begin on it)',
-  learn: 'learn {book?} — book: from the book it holds (the event\'s item: its param skill), no points and no skills before it, the book used up; else the host learns what its act names: param skill (spending its skill points) or param profession (at a trainer; a change gives back the profession branch)',
+  learn: 'learn {book?} — book: from the book it holds (the event\'s item: its param skill), no points, but only its profession and only once the skills before it in the tree are learned, the book used up; else the host learns what its act names: param skill (spending its skill points) or param profession (at a trainer; a change gives back the profession branch)',
   appear: "appear {what?} — the world's: what appears by itself on the active map now (the map's own appearances and the world's that fit it, each at its pace, hours and weather, up to its max), or only the appearance given (world-model.md §6.9)",
-  panel: "panel {panel} — the host (a trainer) opens one of the player's panels when the player spoke to it: 'profession'",
+  panel: "panel {panel} — the host opens one of the panels the game's client shows, by its id (e.g. profession, board, haven), for the one at the keys when they are the actor who spoke to it",
 }
 
 /** Primitives only the story's and the world's rules may use. */
@@ -611,25 +610,6 @@ export class EffectRunner {
         if (d) eng.quests.start(d, ev, { taker: a && 'e' in a ? a.e : w.state.player, offer: eff.offer, ...(ev.roles.source && 'e' in ev.roles.source && { giver: ev.roles.source.e }) })
         return
       }
-      case 'trophy': {
-        const type = String(ev.params?.trophy ?? '')
-        if (!host || !type || !w.onto.hasType(type)) return
-        const key = `trophy.${type}`
-        const count = w.num(host, key) + 1
-        const pity = w.onto.data.params?.trophyPity ?? 50
-        // the felling hand's luck widens the chance (a tenth of luck, a tenth more often)
-        if (count < pity && w.rand() >= Number(ev.params?.trophyChance ?? 0) * (1 + Math.max(0, w.stat(host, 'luck')))) return w.setProp(host, key, count)
-        w.setProp(host, key, 0)
-        const slot = w.onto.resolve(type).props.slot
-        // (a trophy's level is its kind's: the type's; it rolls the table's count of extras, having no quality)
-        const made = w.create(type, { on: 'inside', holder: host.id }, { props: typeof slot === 'string' ? rollAffixes(w.onto.data, slot, () => w.rand(), { level: Number(w.onto.resolve(type).props.level) || 1 }) : {} })
-        eng.touch({ e: made.id })
-        const p = w.posOf(host)
-        const name = w.onto.resolve(type).name
-        if (p) w.fx.push({ t: 'pickup', item: made.id, sprite: w.onto.resolve(type).sprite ?? type, name: name ?? type, map: p.map, x: p.x, y: p.y })
-        if (host.id === w.state.player) w.fx.push({ t: 'log', text: { en: `A trophy: ${eng.nameOf({ e: made.id }, 'en')}!`, zh: `获得专属装备：${eng.nameOf({ e: made.id }, 'zh')}！` }, tone: 'good' })
-        return
-      }
       case 'facts':
         if (!host) return
         for (const [k, v] of Object.entries(ev.params ?? {})) if (k.startsWith('fact.')) w.setProp(host, k.slice(5), v)
@@ -651,7 +631,14 @@ export class EffectRunner {
           const why = cannotRead(host, skill, w.prop(host, 'profession'))
           const name = (l: 'en' | 'zh') => (typeof skill.name === 'string' ? skill.name : l === 'zh' ? skill.name.zh ?? skill.name.en : skill.name.en)
           if (why) {
-            w.fx.push({ t: 'log', text: why === 'learned' ? { en: `You know ${name('en')} already.`, zh: `你已经会${name('zh')}了。` } : { en: 'This book is for another profession.', zh: '这本书是别的职业的。' }, tone: 'warn' })
+            // the skills before it in the tree, not yet learned, by name
+            const first = (l: 'en' | 'zh') =>
+              (skill.requires ?? []).filter((r) => !skillsOf(host).includes(r)).map((r) => { const n = eng.skills.get(r)?.name ?? r; return typeof n === 'string' ? n : l === 'zh' ? n.zh ?? n.en : n.en }).join(l === 'zh' ? '、' : ', ')
+            const text =
+              why === 'learned' ? { en: `You know ${name('en')} already.`, zh: `你已经会${name('zh')}了。` }
+              : why === 'requires' ? { en: `You must learn ${first('en')} before ${name('en')}.`, zh: `要先学会${first('zh')}，才能学${name('zh')}。` }
+              : { en: 'This book is for another profession.', zh: '这本书是别的职业的。' }
+            w.fx.push({ t: 'log', text, tone: 'warn' })
             return
           }
           readSkill(w, host, skill)
@@ -750,10 +737,13 @@ export class EffectRunner {
         if (beyond) quality = beyond.id
         else if (quality && tiers.includes(quality) && lift > 0 && w.rand() < lift) quality = tiers[Math.min(tiers.length - 1, tiers.indexOf(quality) + 1)]
         // what it is made of and how well — and at what level: the maker's, no lower than the recipe's (a piece of gear;
-        // world-model.md §6.8) — and what the recipe names it and gives it beyond that (a set's piece)
+        // world-model.md §6.8); a recipe that names, tags or gives props to what it makes makes it as it says (an anvil, a
+        // bee box, a skill book), unless it asks for both (`madeOf`: a set's piece, of what it took and as well as its maker
+        // makes it, under the set's name)
         const level = gearLevel(w.onto.data.params?.gearLevels, Math.max(r.level ?? 1, w.num(host, 'level', 1)))
         const base = madeOf(w.onto.data, w.onto, r.make.type, material, quality, level)
-        const look = structuredClone(r.make.tags || r.make.name || r.make.props ? { ...base, ...r.make, tags: [...new Set([...(base.tags ?? []), ...(r.make.tags ?? [])])], props: { ...base.props, ...r.make.props } } : base)
+        const says = !!(r.make.tags || r.make.name || r.make.props)
+        const look = structuredClone(!says ? base : r.madeOf ? { ...base, ...r.make, tags: [...new Set([...(base.tags ?? []), ...(r.make.tags ?? [])])], props: { ...base.props, ...r.make.props } } : r.make)
         // gear rolls its extras as it is made (affixes.ts): as many as its quality gives, as wide as its level
         const slotOf = look.props?.slot ?? w.onto.resolve(r.make.type).props.slot
         if (typeof slotOf === 'string' && !hasAffixes(look.props)) look.props = { ...look.props, ...rollAffixes(w.onto.data, slotOf, () => w.rand(), { quality, level }) }

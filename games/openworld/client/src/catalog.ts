@@ -533,7 +533,8 @@ export const CATALOG: Catalog = {
   // -------------------------------------------------------------------------------------------
   items: {
     'item:acorn': icon('Items/Food/Nut.png', 15, 15),
-    'item:sword': icon('Items/Weapons/Sword2/Sprite.png', 6, 15),
+    // a weapon's swing (scene.ts swingWeapon): the sword sweeps, the bow shoots, the staff points
+    'item:sword': { ...icon('Items/Weapons/Sword2/Sprite.png', 6, 15), swing: 'sweep' },
     'item:dagger': icon('Items/Projectile/Kunai.png', 16, 16),
     'item:axe': icon('Items/Tool/Axe.png', 16, 16),
     'item:club': icon('Items/Weapons/Club/Sprite.png', 8, 14),
@@ -541,9 +542,9 @@ export const CATALOG: Catalog = {
     'item:hammer': icon('Items/Tool/Hammer.png', 16, 16),
     'item:spear': icon('Items/Weapons/Lance2/Sprite.png', 7, 21),
     // the project's own (tools/src/art/gear.ts): the pack's bow is its in-hand arc, which reads as a bowl
-    'item:bow': icon('lsw/Items/Bow.png', 16, 16),
+    'item:bow': { ...icon('lsw/Items/Bow.png', 16, 16), swing: 'shoot' },
     'item:wand': icon('Items/Weapons/MagicWand/SpriteInHand.png', 5, 10),
-    'item:staff': icon('Items/Weapons/MagicWand/Sprite.png', 5, 18),
+    'item:staff': { ...icon('Items/Weapons/MagicWand/Sprite.png', 5, 18), swing: 'point' },
     // Armour pieces only exist as 24x24 skill icons (with their coloured badge background).
     'item:helmet': icon('lsw/Items/Gear/Helmet.png', 24, 24),
     'item:shield': icon('lsw/Items/Gear/Shield.png', 16, 16),
@@ -845,6 +846,8 @@ export const CATALOG: Catalog = {
     trainerMark: ui('Ui/Skill Icon/Items & Weapon/Guard.png', 24, 24),
     // a smith's: an anvil and a raised hammer (tools/src/art/smith-mark.ts)
     smithMark: ui('lsw/Ui/SmithMark.png', 24, 24),
+    // the empty body slots' silhouettes (tools/src/art/equip-slots.ts), a frame each in the runtime's order (EQUIP_SLOT_FRAMES)
+    equipSlots: ui('lsw/Ui/EquipSlots.png', 16, 16, { frames: 11, step: 16 }),
     // the dragon of Cinder Peak, in parts (scene.ts composes them round its head): a wing, two body segments, the tail
     dragonWing: ui('Actor/Boss/DragonGreen/Wing.png', 57, 57),
     dragonBody1: ui('Actor/Boss/DragonGreen/Body1.png', 31, 27),

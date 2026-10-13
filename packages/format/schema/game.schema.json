@@ -128,10 +128,6 @@
               "type": "number",
               "description": "How many things one effect may make at once (a runtime guard; default 64)."
             },
-            "trophyPity": {
-              "type": "number",
-              "description": "How many of a kind one fells before its trophy surely comes (the `trophy` primitive; default 50)."
-            },
             "safeFall": {
               "type": "number",
               "description": "A drop of this many levels or less does no harm (world-model.md §5.5)."

@@ -2,7 +2,7 @@
 // main stats from its form, material and quality (fixed), and a few small extras rolled when it is made, from the
 // world's table (Ontology.affixes): each a `sub:<key>` prop, read by World.stat as the key itself is.
 
-import type { Ontology } from './types.ts'
+import type { Ontology, Text } from './types.ts'
 
 /** One extra a piece may roll: a stat key, its range and step, the slots it may roll on (all, if none), how often. */
 export interface AffixDef {
@@ -12,6 +12,9 @@ export interface AffixDef {
   step: number
   slots?: string[]
   weight?: number
+  /** What a tooltip calls it (default: its key), and whether its value is a share, shown as a percentage (0.05: 5%). */
+  name?: Text
+  percent?: boolean
 }
 
 /** The world's table of extras: how many a piece rolls, and the pool they come from. */

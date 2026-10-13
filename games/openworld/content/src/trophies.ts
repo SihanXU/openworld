@@ -1,12 +1,12 @@
 // Every kind of monster's own piece of gear (2026-10-11): one piece per kind, not a set. Felling one, the one who
 // struck may find it in their bag — a small chance each time (a boss's sure), and at the fiftieth without it, surely
-// (the engine's `trophy` primitive keeps the count on the striker: `trophy.<type>`, WorldParams.trophyPity). Its main
+// (the loot module's `trophy` primitive keeps the count on the striker: `trophy.<type>`; LOOT below its pity). Its main
 // stats are its own and fixed (the props below); the four small extras it rolls as it is made (affixes.ts, the table
 // AFFIX_TABLE here), as every made piece of gear does. As the forged gear (sets.ts, after Dungeon Fighter), the pieces
 // of one family of monsters make an armour set (the six on the body) or a trinket set (neck, ear, ring); a few bosses'
 // pieces stand alone, stronger, in no set (Ontology.sets).
 
-import { levelFactor, type AffixTable, type GearSet, type Text } from '@openworld/engine'
+import { levelFactor, type AffixTable, type GearSet, type LootParams, type Text } from '@openworld/engine'
 import { GEAR_LEVELS } from './gear.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
@@ -138,6 +138,9 @@ export const TROPHY_SETS: GearSet[] = FAMILIES.map((f) => ({ id: f.id, name: L(f
 /** The kinds of monster that have a piece, and the piece: what the creature's props carry (rules.ts combat/defeat). */
 export const TROPHY_OF: Record<string, Trophy> = Object.fromEntries(TROPHIES.map((t) => [t.kind, t]))
 
+/** The loot module's numbers and words (Ontology.loot): sure at the fiftieth of a kind, and what the finder is told. */
+export const LOOT: LootParams = { pity: 50, found: L('A trophy: {item}!', '获得专属装备：{item}！') }
+
 /**
  * The small extras a piece of gear rolls when it is made (engine affixes.ts): four different ones, each a value in its
  * range on its step. Attack and the mends are rarer; a piece's slot narrows a few (no attack speed on boots).
@@ -145,16 +148,16 @@ export const TROPHY_OF: Record<string, Trophy> = Object.fromEntries(TROPHIES.map
 export const AFFIX_TABLE: AffixTable = {
   count: 4,
   pool: [
-    { key: 'atk', min: 1, max: 3, step: 1, weight: 0.7 },
-    { key: 'def', min: 1, max: 3, step: 1 },
-    { key: 'critChance', min: 0.01, max: 0.05, step: 0.01 },
-    { key: 'critDamage', min: 0.05, max: 0.2, step: 0.05 },
-    { key: 'dodge', min: 0.01, max: 0.04, step: 0.01 },
-    { key: 'lifesteal', min: 1, max: 1, step: 1, weight: 0.3 },
-    { key: 'cdr', min: 0.02, max: 0.06, step: 0.01 },
-    { key: 'xpRate', min: 0.03, max: 0.1, step: 0.01, weight: 0.8 },
-    { key: 'luck', min: 0.03, max: 0.1, step: 0.01, weight: 0.8 },
-    { key: 'moveHaste', min: 0.02, max: 0.06, step: 0.01, slots: ['feet', 'waist', 'shoulders', 'body', 'ear'] },
-    { key: 'attackHaste', min: 0.02, max: 0.06, step: 0.01, slots: ['weapon', 'hands', 'ring', 'ear', 'arm'] },
+    { key: 'atk', min: 1, max: 3, step: 1, weight: 0.7, name: L('Attack', '攻击') },
+    { key: 'def', min: 1, max: 3, step: 1, name: L('Defence', '防御') },
+    { key: 'critChance', min: 0.01, max: 0.05, step: 0.01, name: L('Critical Chance', '暴击率'), percent: true },
+    { key: 'critDamage', min: 0.05, max: 0.2, step: 0.05, name: L('Critical Damage', '暴击伤害'), percent: true },
+    { key: 'dodge', min: 0.01, max: 0.04, step: 0.01, name: L('Dodge', '闪避'), percent: true },
+    { key: 'lifesteal', min: 1, max: 1, step: 1, weight: 0.3, name: L('Health per hit', '每次命中吸血') },
+    { key: 'cdr', min: 0.02, max: 0.06, step: 0.01, name: L('Cooldown Reduction', '冷却缩减'), percent: true },
+    { key: 'xpRate', min: 0.03, max: 0.1, step: 0.01, weight: 0.8, name: L('Experience', '经验获取'), percent: true },
+    { key: 'luck', min: 0.03, max: 0.1, step: 0.01, weight: 0.8, name: L('Luck', '幸运'), percent: true },
+    { key: 'moveHaste', min: 0.02, max: 0.06, step: 0.01, slots: ['feet', 'waist', 'shoulders', 'body', 'ear'], name: L('Movement Speed', '移动速度'), percent: true },
+    { key: 'attackHaste', min: 0.02, max: 0.06, step: 0.01, slots: ['weapon', 'hands', 'ring', 'ear', 'arm'], name: L('Attack Speed', '攻击速度'), percent: true },
   ],
 }

@@ -67,6 +67,12 @@ describe.skipIf(!here)('the compiler', () => {
     expect(onto.types['actor/creature']).toBeDefined()
     expect(onto.modules).toEqual(['x'])
   })
+
+  it('gear sets are keyed by id: a later file\'s set replaces the earlier\'s of its id and keeps the rest', () => {
+    const set = (id: string, atk: number) => ({ id, name: id, pieces: 2, bonuses: [{ pieces: 2, props: { atk }, text: `+${atk}` }] })
+    const onto = mergeOntology([{ sets: [set('wolf', 1), set('bear', 2)] }, { sets: [set('wolf', 5), set('owl', 3)] }], {})
+    expect(onto.sets?.map((s) => [s.id, s.bonuses[0].props.atk])).toEqual([['wolf', 5], ['bear', 2], ['owl', 3]])
+  })
 })
 
 describe.skipIf(!here)('the files', () => {

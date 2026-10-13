@@ -194,7 +194,7 @@ Accepting:
 | `first_seal` 第一印 | main | auto, once `vigil` is done | the night of thanks; the letter; the pilgrim's road and the river; the White Knight |
 | `crown_home` 荆棘冠 | main | auto, the knight down | bring the Crown home |
 | `dragon_road` 屠龙之路 | main | auto, `crown_home` done | to Emberfall; Mara; arm (ore, coal, fireweed, frostcap, blade, draught); the pass; the dragon |
-| `pilgrim`, `stew`, `ring`, `thorns`, `drawings`, `measure`, `templar`, `nail`, `watch`, `herd`, `scallop`, `band`, `haven1–3` | side | offered | as before, each now with stages and a log |
+| `pilgrim`, `stew`, `ring`, `thorns`, `drawings`, `measure`, `templar`, `nail`, `watch`, `herd`, `scallop`, `band` | side | offered | as before, each now with stages and a log (the Held Ground's widening errands `haven1–3` were removed 2026-10-11: the ground grows from its steward's panel, docs/homestead.md) |
 | `firewood` | favor (daily) | offered | four logs a day for Gus |
 | `recover` 失物 | favor (radiant) | news `deed`: a theft its victim saw and did not get back | get the thing back (from the thief, by talk, or however) and bring it to its owner |
 | `meal` 一口吃的 | favor (radiant) | news `hungry`: one who found no meal | bring them something to eat (G) |

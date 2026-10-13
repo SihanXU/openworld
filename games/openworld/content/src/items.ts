@@ -356,7 +356,7 @@ export const FORMS: Form[] = [
   // what the grey man gave a child: an ember of a dawn flame, warm at night (its uses left to the world)
   W('item/misc/warm_ember', 'Warm Ember', '温暖的余烬', 'item:warm_ember', { tags: ['warm', 'light', 'holy'], where: {} }),
   // the bridge's missing nail, pulled straight; a farmer's wedding band
-  W('item/misc/ninth_nail', 'The Ninth Nail', '第九根钉子', 'item:ninth_nail', { tags: ['metal', 'iron', 'conductive', 'sharp'], where: {} }),
+  W('item/misc/ninth_nail', 'The Ninth Nail', '第九根钉子', 'item:ninth_nail', { tags: ['metal', 'iron', 'conductive', 'sharp', 'important'], where: {} }),
   W('item/valuable/band', 'Wedding Band', '婚戒', 'item:ring', { tags: ['metal', 'precious', 'wearable'], props: { slot: 'ring' }, where: {} }),
   // the pilgrim before you: a scallop shell on a cord, the pilgrim's mark, found at his cold camp in the forest
   // the White Knight's last gift: one thorn of his crown, still green, that opens the ground he holds for you (haven.ts)
@@ -368,6 +368,9 @@ export const FORMS: Form[] = [
   W('item/valuable/order_seal', "The Order's Seal", '荆棘骑士团印章', 'item:amulet', { tags: ['holy', 'metal', 'wearable', 'important', 'quality:vowed'], props: { slot: 'neck', def: 4, vow: 'thorn', value: 80, text: 'A bronze seal on a chain: a ring of thorns, and in it a knight kneeling — not before a lord, before a child. Around the rim: WE HOLD, THAT OTHERS NEED NOT.', text_zh: '链子上挂着一枚青铜印章：一圈荆棘，圈里一个骑士单膝跪下——跪的不是领主，而是一个孩子。边缘刻着：我们坚守，好让别人不必。' }, where: {} }),
   W('item/document/writ_of_relief', 'Writ of Relief', '替任文书', 'item:letter', { tags: ['paper', 'flammable', 'readable', 'holy', 'important'], props: { value: 5, text: 'BY THE HOLY SEE OF THE FIVE. To Brother-Knight Alberic of the Thorn, First Seal-bearer: in the fortieth year of your bearing you shall be relieved of the Crown, and a successor sent to take it up. — The seal is unbroken. It was never sent. On the back, in a later, smaller hand: "No successor could be found who would bear it. Let him hold. He will not know the difference." ', text_zh: '五苦圣座谕令。致荆棘骑士团骑士兄弟阿尔贝里克，第一持印者：于汝承印之第四十年，当卸下荆冠，另遣继任者承之。——封蜡完好无损。它从未被寄出。背面是后来添上的一行小字："寻不到愿意承受的继任者。让他继续守着吧。他不会察觉其中分别。"' }, where: {} }),
   W('item/valuable/scallop', "Pilgrim's Scallop", '朝圣者的扇贝', 'item:amulet', { tags: ['holy', 'keepsake', 'wearable', 'quality:vowed'], props: { slot: 'neck', def: 1, xpRate: 0.1, moveHaste: 0.15, vow: 'pilgrim' }, where: {} }),
+  // the pilgrim's own scallop, given at the Pilgrims' Rest for the oath (pilgrimage.ts SWORN_SCALLOP): a scallop, but not
+  // the one the pilgrim before left in the forest, which Sister Ilse asks after (quests/side.ts, `sworn` tells them apart)
+  W('item/valuable/scallop/sworn', 'Sworn Scallop', '立誓扇贝', 'item:amulet', { tags: ['holy', 'keepsake', 'wearable', 'sworn', 'quality:fine'], props: { slot: 'neck', def: 1, moveHaste: 0.1 }, where: {} }),
   // keys
   W('item/key', 'Key', '钥匙', 'item:key', { tags: ['key', 'metal'], materials: ['iron', 'bronze', 'silver', 'gold'], where: { home: 0.3, dungeon: 0.5, npc: 0.2 } }),
   // misc
@@ -623,9 +626,11 @@ export const LEGENDARY_ARMS: Record<string, string[]> = {
  * Instantiate an item: material × quality × element (× level, for gear), with a composed bilingual name. A piece
  * one wears or wields rolls its small extras (trophies.ts AFFIX_TABLE: as many as its quality gives, as wide as
  * its level) unless `affixes` is false; a Vowbound piece takes its `vow` — the one given, else one rolled (false:
- * none; a form that names its own, the scallop, keeps it).
+ * none; a form that names its own, the scallop, keeps it). `extras`: the randomness its rolled extras and vow draw
+ * on (default `rng`'s own); a map's builder gives each thing a stream of its own, so the extras never draw on the
+ * map's randomness and the affix table may change without moving the map's ground or things.
  */
-export function makeItem(rng: Rng, form: Form, opts: { material?: string; quality?: string; element?: string | null; affixes?: boolean; vow?: string | false; level?: number } = {}): Omit<Entity, 'id' | 'place'> {
+export function makeItem(rng: Rng, form: Form, opts: { material?: string; quality?: string; element?: string | null; affixes?: boolean; vow?: string | false; level?: number; extras?: () => number } = {}): Omit<Entity, 'id' | 'place'> {
   const tags: string[] = []
   const props: Record<string, PropValue> = {}
   let en = form.en
@@ -654,10 +659,11 @@ export function makeItem(rng: Rng, form: Form, opts: { material?: string; qualit
   // what the material, the quality and the level make of its stats (world-model.md §6.8): a level only on what is worn or wielded
   const slot = form.props?.slot ?? (form.id.startsWith('item/weapon') ? 'weapon' : undefined)
   Object.assign(props, gearProps(form.props ?? {}, matId ? MATERIAL_DEFS[matId] : undefined, QUALITY_DEFS().find((x) => x.id === quality), typeof slot === 'string' ? (opts.level ?? 1) : undefined, GEAR_LEVELS))
+  const own = opts.extras ?? (() => rng.next())
   // a Vowbound piece keeps its vow beyond its numbers (VOWS): the one given, else one rolled, unless its form names its own
-  if (quality === 'vowed' && typeof slot === 'string' && opts.vow !== false && typeof form.props?.vow !== 'string') props.vow = opts.vow ?? rng.pick(VOW_IDS)
+  if (quality === 'vowed' && typeof slot === 'string' && opts.vow !== false && typeof form.props?.vow !== 'string') props.vow = opts.vow ?? VOW_IDS[Math.floor(own() * VOW_IDS.length)]
   // a piece one wears or wields rolls its small extras (trophies.ts AFFIX_TABLE: as many as its quality gives, as wide as its level)
-  if (typeof slot === 'string' && opts.affixes !== false) Object.assign(props, rollAffixes({ affixes: AFFIX_TABLE, params: { gearLevels: GEAR_LEVELS } as never }, slot, () => rng.next(), { quality, level: opts.level ?? 1 }))
+  if (typeof slot === 'string' && opts.affixes !== false) Object.assign(props, rollAffixes({ affixes: AFFIX_TABLE, params: { gearLevels: GEAR_LEVELS } as never }, slot, own, { quality, level: opts.level ?? 1 }))
   const el = opts.element === null ? undefined : (opts.element ?? (form.elemental && rng.chance(0.28) ? rng.pick(Object.keys(ELEMENT_NAMES)) : undefined))
   if (el && form.elemental) {
     tags.push(`element:${el}`)

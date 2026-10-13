@@ -27,17 +27,31 @@ export type Cell = [number, number]
 export type ItemSpec = string | { form: string; material?: string; quality?: string; element?: string | null; level?: number; name?: Text; tags?: string[]; props?: Record<string, PropValue>; /** A Vowbound piece's vow (content VOWS); else one is rolled. */ vow?: string }
 
 /**
- * An item as a spec says: its form, material, quality, element, level, name, tags and props. A piece of gear's main
- * stats are its form's at its quality and level (world-model.md §6.8), never the author's: of the props given, what the
- * form itself gives is dropped, and the rest is the piece's own (a vigil's `night:def`). Every piece rolls its small
- * extras, a named one too; a Vowbound piece takes the vow the author names, else one rolled.
+/**
+ * A thing's own randomness, from its id (unique in the world; a map's own things carry the map's id): what its rolled
+ * extras draw on, apart from the builders' stream, so the affix table can change without moving a map's ground or things.
  */
-export function itemOf(spec: ItemSpec, level = 1): Omit<Entity, 'id' | 'place'> {
+export function ownRandom(id: string): () => number {
+  // FNV-1a over the id: a seed for a generator of its own
+  let h = 0x811c9dc5
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 0x01000193)
+  const r = new Rng(h)
+  return () => r.next()
+}
+
+/**
+ * An item as a spec says: its form, material, quality, element, level, name, tags and props (`id`: the thing it will be;
+ * `level`: the map's, unless the piece says its own). A piece of gear's main stats are its form's at its quality and level
+ * (world-model.md §6.8), never the author's: of the props given, what the form itself gives is dropped, and the rest is the
+ * piece's own (a vigil's `night:def`). Every piece rolls its small extras, a named one too; a Vowbound piece takes the vow
+ * the author names, else one rolled.
+ */
+export function itemOf(spec: ItemSpec, id: string, level = 1): Omit<Entity, 'id' | 'place'> {
   const s = typeof spec === 'string' ? { form: spec } : spec
   const form = FORM_BY_ID[s.form]
   if (!form) throw new Error(`unknown item form ${s.form}`)
   // (a form that is its own tier, the scallop, keeps it; any other is common unless the author says)
-  const it = makeItem(rng, form, { material: s.material, quality: s.quality ?? (form.tags?.some((t) => t.startsWith('quality:')) ? undefined : 'common'), element: s.element === undefined ? null : s.element, vow: s.vow, level: s.level ?? level })
+  const it = makeItem(rng, form, { material: s.material, quality: s.quality ?? (form.tags?.some((t) => t.startsWith('quality:')) ? undefined : 'common'), element: s.element === undefined ? null : s.element, vow: s.vow, level: s.level ?? level, extras: ownRandom(id) })
   if (s.name) it.name = s.name
   if (s.tags) it.tags = [...(it.tags ?? []), ...s.tags]
   if (s.props) it.props = { ...(it.props ?? {}), ...Object.fromEntries(Object.entries(s.props).filter(([k]) => !(form.props && k in form.props && typeof form.props[k] === 'number'))) }
@@ -345,16 +359,18 @@ export class MapBuilder {
   fixture(type: string, x: number, y: number, extra: Partial<Entity> = {}, contents: ItemSpec[] = []): Entity {
     const e: Entity = { id: extra.id ?? this.newId(), type, place: { on: 'tile', map: this.id, x, y }, ...extra }
     this.entities.push(e)
-    for (const it of contents) this.entities.push({ ...this.makeItem(it), id: this.newId('i'), place: { on: 'inside', holder: e.id } })
+    for (const it of contents) this.entities.push(this.makeItem(it, { on: 'inside', holder: e.id }))
     return e
   }
 
-  makeItem(spec: ItemSpec): Omit<Entity, 'id' | 'place'> {
-    return itemOf(spec, this.gearLevel)
+  /** A thing as a spec says, its id the map's next, where it is put; its level the map's unless it says its own. */
+  makeItem(spec: ItemSpec, place: Entity['place']): Entity {
+    const id = this.newId('i')
+    return { ...itemOf(spec, id, this.gearLevel), id, place }
   }
 
   item(spec: ItemSpec, x: number, y: number): Entity {
-    const e: Entity = { ...this.makeItem(spec), id: this.newId('i'), place: { on: 'tile', map: this.id, x, y } }
+    const e = this.makeItem(spec, { on: 'tile', map: this.id, x, y })
     this.entities.push(e)
     return e
   }
@@ -375,7 +391,7 @@ export class MapBuilder {
       },
     }
     this.entities.push(e)
-    for (const it of opts.loot ?? []) this.entities.push({ ...this.makeItem(it), id: this.newId('i'), place: { on: 'inside', holder: e.id } })
+    for (const it of opts.loot ?? []) this.entities.push(this.makeItem(it, { on: 'inside', holder: e.id }))
     return e
   }
 

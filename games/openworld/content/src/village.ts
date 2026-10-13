@@ -1,7 +1,8 @@
 // Firstlight Village's shops (the houses one walks into: tools/src/demo/village.ts): the general store's counter and
-// the church's bookstand. Each is a station whose offers are recipes, as the Held Ground's stall's are
-// (homestead.ts): what one gives (Dawnmarks, or a thing sold) and what one gets, at a fixed price, made beside it.
-// A hand on the counter or the stand opens the shop panel on its shelves (`shop:<station>`).
+// the bookstand in Sister Ilse's chapel at Astra's altar, which Brother Anselm keeps. Each is a station whose offers
+// are recipes, as the Held Ground's stall's are (homestead.ts): what one gives (Dawnmarks, or a thing sold) and what
+// one gets, at a fixed price, made beside it. A hand on the counter or the stand opens the shop panel on its shelves
+// (`shop:<station>`); a bookstand that is a written thing (the Rest's litany) is read instead.
 
 import type { Recipe, Rule, Text } from '@openworld/engine'
 import { FORM_BY_ID, baseValue } from './items.ts'
@@ -15,18 +16,34 @@ const nameOf = (type: string): Text => {
 }
 const spriteOf = (type: string) => FORM_BY_ID[type]?.sprite ?? 'item:bag'
 
-/** A shop: the station its counter is, its name, and its shelves (the panel's tabs: group, English, Chinese). */
+/** A shop: the station its counter is, its name, and its shelves (the panel's tabs: the recipes' group, its name, whether it buys from one). */
 export interface ShopDef {
   station: string
   name: Text
-  shelves: [group: string, en: string, zh: string][]
+  shelves: { group: string; name: Text; sell?: boolean }[]
 }
 
+const SELL = { name: L('Sell', '出售'), sell: true }
 export const SHOPS: ShopDef[] = [
-  { station: 'stall', name: L("Alberic's stall", '阿尔贝里克的货摊'), shelves: [['farm', 'Farming', '农业'], ['ranch', 'Ranching', '牧业'], ['fish', 'Fishing', '渔业'], ['sell', 'Sell', '出售']] },
-  { station: 'store', name: L('General Store', '杂货铺'), shelves: [['supplies', 'Supplies', '杂货'], ['provisions', 'Provisions', '食物药水'], ['store-sell', 'Sell', '出售']] },
-  { station: 'books', name: L('Church Bookstand', '教堂书架'), shelves: [['books', 'Skill Books', '技能书'], ['books-profession', 'Profession', '职业技能书']] },
+  { station: 'stall', name: L("Alberic's stall", '阿尔贝里克的货摊'), shelves: [{ group: 'farm', name: L('Farming', '农业') }, { group: 'ranch', name: L('Ranching', '牧业') }, { group: 'fish', name: L('Fishing', '渔业') }, { group: 'sell', ...SELL }] },
+  { station: 'store', name: L('General Store', '杂货铺'), shelves: [{ group: 'supplies', name: L('Supplies', '杂货') }, { group: 'provisions', name: L('Provisions', '食物药水') }, { group: 'store-sell', ...SELL }] },
+  { station: 'books', name: L('Chapel Bookstand', '礼拜堂书架'), shelves: [{ group: 'books', name: L('Skill Books', '技能书') }, { group: 'books-profession', name: L('Profession', '职业技能书') }] },
 ]
+
+/**
+ * Firstlight's chapel (docs/chapter-1.md §7, Sister Ilse): it stands behind Astra's altar on the square, and Brother
+ * Anselm keeps its bookstand. (It was a "church of the First Dawn" on the east road, 2026-10-11, until it was merged
+ * into her chapel, 2026-10-12: the First Dawn's is the chapel on Dawn Hill.) Its sign by the door, which an older save
+ * moves here (game.ts).
+ */
+export const CHAPEL_SIGN = {
+  id: 'village.church.sign',
+  at: [22, 12] as const,
+  /** where it stood on the east road */
+  was: [51, 17] as const,
+  text: "FIRSTLIGHT CHAPEL — Sister Ilse keeps the flame and Astra's altar; inside, Brother Anselm keeps the bookstand of skill books.",
+  text_zh: '初原村礼拜堂——伊尔丝修女守着圣火和阿斯特拉的祭坛；里面，安塞姆修士照看着技能书架。',
+}
 
 /** A merchant's price for so many of a thing: its worth and the merchant's quarter (social.ts markup), as any trader asks. */
 const priced = (type: string, count: number) => Math.max(1, Math.round(baseValue(type) * count * 1.25))
@@ -69,7 +86,7 @@ const STORE: Recipe[] = [
 ]
 
 /**
- * The church's bookstand: a book for every skill one learns from books, the common ones on one shelf, the
+ * The chapel's bookstand: a book for every skill one learns from books, the common ones on one shelf, the
  * professions' on another, dearer (a profession's book teaches only one of that profession).
  */
 const BOOKS: Recipe[] = ACTIVE_SKILLS.map((s) => {
@@ -82,16 +99,18 @@ const BOOKS: Recipe[] = ACTIVE_SKILLS.map((s) => {
 
 export const VILLAGE_SHOP_RECIPES: Recipe[] = [...STORE, ...BOOKS]
 
-/** A hand on a shop's counter opens its panel (the stall's is homestead.ts home/stall). */
+/**
+ * A hand on a shop's counter opens its panel (the stall's is homestead.ts home/stall). A counter or stand with something
+ * written on it instead (the litany on the bookstand in the Pilgrims' Rest's chapel) is read, as any written thing is.
+ */
 export const VILLAGE_SHOP_RULES: Rule[] = [
   { station: 'store', type: 'fixture/furniture/counter/store' },
   { station: 'books', type: 'fixture/furniture/bookstand' },
 ].map(({ station, type }) => ({
   id: `village/shop-${station}`,
-  label: L('Trade at {target}', '在{target}交易'),
-  doc: `A hand on the ${station === 'store' ? 'general store\'s counter' : 'church\'s bookstand'}: its shelves are shown (the shop panel; buying and selling are made there).`,
+  doc: `A hand on the ${station === 'store' ? 'general store\'s counter' : 'chapel\'s bookstand'}: its shelves are shown (the shop panel; buying and selling are made there) — unless it is a written thing (readable, with a text), which is read (core/read).`,
   host: { type },
   on: 'impulse/handle',
-  tree: { do: [{ op: 'panel', panel: `shop:${station}` }] },
+  tree: { if: { all: [{ has: { role: 'host', tag: 'readable' } }, { prop: { role: 'host', key: 'text' } }] }, then: 'inherit', else: { do: [{ op: 'panel', panel: `shop:${station}` }], label: L('Trade at {target}', '在{target}交易') } },
   source: { origin: 'base' },
 }))

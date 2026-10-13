@@ -268,7 +268,7 @@ function itemInfobox(ctx: Ctx, e: ItemEnt): string {
   if (e.quality) rows.push(['品质', ctx.link('品质', qualityName(e.quality))])
   if (e.relic) rows.push(['圣痕之力', `<b>${esc(e.relic.zh)}</b>：${esc(e.relic.text)}`])
   if (e.vow) rows.push(['誓言', `<b>${esc(e.vow.zh)}</b>：${esc(e.vow.text)}`])
-  const make = e.recipe ? `${e.recipe.station === 'hands' || !e.recipe.station ? '手工' : '工作台旁'}（${ctx.link('制作')}）` : e.placement ? ctx.link('建造', '建造模式') : ''
+  const make = e.recipe ? `${e.recipe.station === 'hands' || !e.recipe.station ? '手工' : `${STATION_PAGE[e.recipe.station] ?? e.recipe.station}旁`}（${ctx.link('制作')}）` : e.placement ? ctx.link('建造', '建造模式') : ''
   if (make) rows.push(['制作', make])
   if (e.makeup.length) rows.push(['构成', e.makeup.map((m) => typeLink(ctx, m.type, { count: m.count })).join(' ')])
   const offers = offersOf(ctx.g, e.id)
@@ -309,6 +309,7 @@ function creatureInfobox(ctx: Ctx, c: CreatureEnt): string {
     ['经验', String(p.maxHp ?? p.hp ?? '—')],
     ['出没', join(whereCreature(ctx, c.id).map((w) => mapLink(ctx, w)))],
     ['掉落', c.makeup.length ? c.makeup.map((m) => typeLink(ctx, m.type, { count: Math.floor(m.count * ctx.g.ontology.params!.recovery!) || 1 })).join(' ') : '无'],
+    ['专属装备', typeof p.trophy === 'string' ? `${typeLink(ctx, p.trophy)}（${trophyOdds(ctx, p)}）` : ''],
     ['英文名', esc(c.en)],
     ['编号', `<code>${esc(c.id)}</code>`],
   ]
@@ -541,7 +542,7 @@ function recipeBlock(ctx: Ctx, e: ItemEnt): string {
     return table(['材料', '工具（不消耗）', '地点', '等级', '产量'], [[
       r.needs.map((n) => typeLink(ctx, n.type, { count: n.count })).join(' '),
       join((r.tools ?? []).map((t) => toolName(t))),
-      !r.station || r.station === 'hands' ? '手工' : ctx.link('工作台'),
+      stationCell(ctx, r.station),
       String(r.level ?? 1),
       `×${r.count ?? 1}`,
     ]])
@@ -552,6 +553,15 @@ function recipeBlock(ctx: Ctx, e: ItemEnt): string {
   }
   return `<p class="empty">不能制作。</p>`
 }
+/** How often a kind's own piece of gear drops (its `trophyChance`), and the felling that brings it surely (the loot module's pity, 50 by default). */
+const trophyOdds = (ctx: Ctx, p: Record<string, any>) => {
+  const chance = Number(p.trophyChance ?? 0)
+  const pity = Number(ctx.g.ontology.loot?.pity ?? 50)
+  return chance >= 1 ? '必掉' : `每只 ${Math.round(chance * 100)}%，连续 ${pity - 1} 只没掉时第 ${pity} 只必掉`
+}
+/** The page of the station a recipe is made beside (its fixture's): the workbench, the anvil, the forge, the loom. */
+const STATION_PAGE: Record<string, string> = { workbench: '工作台', anvil: '铁砧', forge: '熔炉', loom: '织布机', cauldron: '坩埚' }
+const stationCell = (ctx: Ctx, station: string | undefined) => (!station || station === 'hands' ? '手工' : STATION_PAGE[station] ? ctx.link(STATION_PAGE[station]) : esc(station))
 const toolName = (t: string) => ({ 'tool:axe': '斧头', 'tool:pickaxe': '镐', 'tool:hammer': '锤子', 'tool:hoe': '锄头', 'tool:sickle': '镰刀', 'tool:shovel': '铲子' } as Record<string, string>)[t] ?? t
 
 function variants(ctx: Ctx, e: ItemEnt): string {
@@ -778,7 +788,7 @@ function lists(ctx: Ctx, name: string, args: string[]): string | undefined {
       return (buy.length ? table(['', '东西', '货架', '一次买', '价格', '每个约'], buy.map((r) => [...thing(String((r.make as any).type)), SHELF[r.group ?? ''], `${r.count ?? 1} 个`, coins(ctx, priceOf(r)), `${+(priceOf(r) / (r.count ?? 1)).toFixed(1)}`]), 'wikitable sortable') : '')
         + (sell.length ? table(['', '东西', '卖一个得'], sell.map((r) => [...thing(r.needs[0].type), coins(ctx, r.count ?? 1)]), 'wikitable sortable') : '')
     }
-    case '配方表': return table(['', '名称', '材料', '工具（不消耗）', '地点', '等级', '产量'], g.recipes.map((r) => { const e = g.entOfType(String((r.make as any).type)); return [fit(e?.sprite, 32), e ? ctx.link(e.title, e.zh) : esc(zh(r.name)), r.needs.map((n) => typeLink(ctx, n.type, { count: n.count })).join(' '), join((r.tools ?? []).map(toolName)), !r.station || r.station === 'hands' ? '手工' : ctx.link('工作台'), String(r.level ?? 1), `×${r.count ?? 1}`] }), 'wikitable sortable')
+    case '配方表': return table(['', '名称', '材料', '工具（不消耗）', '地点', '等级', '产量'], g.recipes.map((r) => { const e = g.entOfType(String((r.make as any).type)); return [fit(e?.sprite, 32), e ? ctx.link(e.title, zh(r.name) || e.zh) : esc(zh(r.name)), r.needs.map((n) => typeLink(ctx, n.type, { count: n.count })).join(' '), join((r.tools ?? []).map(toolName)), stationCell(ctx, r.station), String(r.level ?? 1), `×${r.count ?? 1}`] }), 'wikitable sortable')
     case '建造表': return table(['', '名称', '分页', '需要', '说明'], g.placements.map((p) => { const e = p.result ? g.entOfType(String(p.result)) : undefined; return [fit(e?.sprite ?? (p.sprite.startsWith('item:') ? g.items.find((i) => i.form?.sprite === p.sprite)?.sprite : undefined), 32), e ? ctx.link(e.title, zh(p.name)) : esc(zh(p.name)), p.category === 'building' ? '建筑' : '种植', p.needs.map((n) => `${esc(zh(n.name))}×${n.count}${n.consume ? '' : '（工具）'}`).join('、'), esc(zh(p.description))] }))
       + `<p>另外，身上带着或能现做的${g.structures.map((s) => ctx.link(s.title, s.zh)).join('、')}、${ctx.link('床')}、${ctx.link('工作台')}也会出现在建筑分页里（见${ctx.link('楼层')}）。</p>`
     case '技能树': {
@@ -995,6 +1005,7 @@ export function runTemplate(ctx: Ctx, call: TemplateCall): { html: string; block
       const lines = [
         ...c.makeup.map((m) => `<li>${typeLink(ctx, m.type, { count: Math.max(1, Math.floor(m.count * r)) })}（构成 ${m.count} × ${r * 100}%）</li>`),
         ...[...carried].map(([t, n]) => `<li>${typeLink(ctx, t, { count: n })}（身上带着的）</li>`),
+        ...(typeof c.props.trophy === 'string' ? [`<li>${typeLink(ctx, c.props.trophy)}（${ctx.link('专属掉落', '专属装备')}，直接进打倒它的人的背包：${trophyOdds(ctx, c.props)}）</li>`] : []),
         `<li>经验 ${c.props.maxHp ?? '—'}（等于生命上限，见${ctx.link('等级与经验')}）</li>`,
       ]
       return out(`<ul class="facts">${lines.join('')}</ul>`)

@@ -65,7 +65,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   each as far as its reach: the target's `handsRange`, the world's `carry`, the held thing's `range`,
   held to by the engine for every actor), layers, slots and magnet
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
-  (`controls.ts`), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`); companions that follow a
+  (`controls.ts`; a recipe's `madeOf` keeps the material and quality under the name it gives), gear's rolled extras (`affixes.ts`, `Ontology.affixes`) and sets
+  (`Ontology.sets`), read by `World.stat` — mechanisms configured by data, kept in the kernel by decision (docs/engine-split.md §9), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`; a skill book asks no points but holds to the tree's `requires`); companions that follow a
   leader (`companion.ts`) — docs/prologue.md; the codex (`codex.ts`: every item kind, person and creature kind, the ones the player carried or saw marked — the reader's record beside the state, saved with the game; its entries `content/src/codex.ts`, its panel J); looks (`looks.ts`, docs/looks.md: a look is a body, a part per slot and a colour per key, on `Entity.look`; the engine checks it against `Ontology.looks`, derives its `look:*` tags (never stored) and its words for the modder; `restyle` changes the host's); the inputs X (draw) and V (sneak) are statuses the input keeps. What a game hands the
   engine side (`gamedef.ts`) and the map file format (`chunk.ts`, the game's terrain characters a parameter).
   The modules (`module.ts`, docs/engine-split.md §9): those a game's ontology names (`Ontology.modules`) are
@@ -76,7 +77,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   `bosses` (docs/bosses.md: the encounter goal, locked telegraphs, `release`), `waypoints`, `boons`, `needs`
   (hunger), `society` (docs/npc-sandbox.md: `social.ts` whose things are, households, deeds seen and judged,
   recognition, memory and regard, gossip, the watches, prices, the talk panel; `conduct.ts` the goals social,
-  need and follow; its state in `World.ext`, read with `socialOf(eng)`; the society slot).
+  need and follow; its state in `World.ext`, read with `socialOf(eng)`; the society slot), `loot` (a creature
+  kind's own piece of gear, its `trophy` prop: by its chance or surely after `Ontology.loot.pity` fellings, the
+  game's words `loot.found`; only a piece some kind of the game names is ever made, whatever a rule sends).
 - `packages/stdlib` — the standard library, data (`ontology.json`, `rules.json`): the types and statuses the
   kernel names, the roots of the rule library, the Story Manager's and a quest's rules. A project takes it
   unless its game.json says not.
@@ -116,14 +119,18 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   story rules and invariants (`ford.ts`), the prologue's beats and lessons (`prologue.ts`), the main quest's rules (`quest.ts`,
   docs/main-quest.md), the quests (`quests/`: the main line, the people's errands through `errand()`, the radiant favours; docs/quests.md),
   Chapter 1's facts and rules (`chapter1.ts`; its maps and scenes in
-  `tools/src/demo/quest/chapter1.ts`, docs/chapter-1.md), the fairy's boons (`boons.ts`), the boss kits (four: the White Knight and three for later), defeat rules and compatibility migration (`bosses.ts`, `migrateBosses.ts`), the look table and its generator (`looks.ts`: bodies, parts, colours, `generateLook` seeded by a person's id, `describeLook`), the people's social rules and numbers (`social.ts`: deeds and fines, the watches, talk verbs, the people's rules), its map files' terrain characters (`chunk.ts`), and
+  `tools/src/demo/quest/chapter1.ts`, docs/chapter-1.md), the Pilgrim's Road's facts, wayside shrines and their rules
+  (`pilgrimage.ts`; its maps and scenes in `tools/src/demo/quest/pilgrimage.ts`, docs/chapter-1.md §14), the fairy's boons (`boons.ts`), the boss kits (four: the White Knight and three for later), defeat rules and compatibility migration (`bosses.ts`, `migrateBosses.ts`), the look table and its generator (`looks.ts`: bodies, parts, colours, `generateLook` seeded by a person's id, `describeLook`), the people's social rules and numbers (`social.ts`: deeds and fines, the watches, talk verbs, the people's rules, prices, and `residence`: the Held Ground's beds for one asked at full regard, taken by the society module's `moveIn`), the Held Ground (`haven.ts`: its steward's panel — the land, its grounds, its buildings and the residents' tents, `HAVEN_UPGRADES` — and the ground's stock; `homestead.ts` its stall, crops, beasts and fish; docs/homestead.md), gear (docs/gear.md: `sets.ts` each profession's armour and trinket sets, forged at an anvil; `trophies.ts` each monster kind's own piece with its pity, the families' sets, the affix table), Firstlight's shops (`village.ts`), the migrations of older saves (`migrate*.ts`: among them `migrateHaven` the widening errands gone, `migrateTents` the tents' rooms, `migratePlots` the Held Ground's plots and the loom, `migrateStock` the merchants' goods, `migrateOverworld`, `migrateSmithy`), its map files' terrain characters (`chunk.ts`), and
   `game.ts`, the GameDef the engine side is handed.
 - `games/openworld/public` — what the game serves: `assets/na/` (the pack's subset), `assets/lsw/` (the project's
   own art), `world/` (generated by `gen:world`, not committed).
-- `games/openworld/tools` — `art/animals.ts` (the project's own sprites → `public/assets/lsw/`), `demo/` (the hand-crafted Ford, Firstlight Village west of it (`meadow`) and the forest south of that, and the main quest's maps and scenes in `quest/` → `public/world/`, each map from its own seed: `builder.ts` the map DSL
+- `games/openworld/tools` — `art/animals.ts` (the project's own sprites → `public/assets/lsw/`), `demo/` (the hand-crafted Ford, Firstlight Village west of it (`meadow`) and the forest south of that, and the main quest's maps and scenes in `quest/` (the Pilgrim's Road before the knight in `quest/pilgrimage.ts`) → `public/world/`, each map from its own seed: `builder.ts` the map DSL
   with the tools of composition — curved paths, organic shapes, fences and yards, small things by masks,
-  anchors, regions; `world.ts` `buildFord()` — the map, scenes, invariants;
-  `people/*.ts` one record per person (`person.ts`: a gender and the look pins the author chose; whether they fight, keep a watch, trade, their purse and honesty), `people.ts` `HOUSEHOLDS`; `check.ts` a headless two-day playtest;
+  anchors, regions; `world.ts` `buildFord()` — the map, scenes, invariants; `village.ts` Firstlight's houses and the rooms
+  behind their doors; `interiors.ts` the rooms behind the other doors and the tents (Emberfall's houses, the East Road
+  farmhouse, the ferry camp's tent, the rotted one, Alberic's); `quest/haven.ts` the Held Ground, its plots and its four
+  grounds;
+  `people/*.ts` one record per person (`person.ts`: a gender and the look pins the author chose; whether they fight, keep a watch, what they trade — every person does, what fits who they are —, their purse and honesty), `people.ts` `HOUSEHOLDS`; `check.ts` a headless two-day playtest;
   `test/demo.test.ts` the completeness and minimality proof),
   `copyAssets.ts` (catalogue subset of the pack → `public/assets/na/`), `coverage.ts` (every item
   form × every target × every act through the rule library and the impulses it sends, counting
@@ -142,13 +149,20 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   (docs/looks.md): the 16x32 map sprite from code grids, the anime portrait from the cut layers in
   `public/assets/lsw/Looks/portrait`, both repainted from the look's colours; `ui/creator.ts` the new game's character creator; `assets/types.ts` the catalogue's
   contract; `assets/ground.ts` autotiles (the blob layout); `ui/` the Stardew-style UI (`hud.ts` clock, bars,
-  toolbar, key labels, dialogue; `menu.ts` menu tabs, journal, chest panel; `people.ts` the trade and pockets panels (the talk panel is the dialogue's, `hud.ts`); `worldmap.ts` the world map (M) and the minimap; `dev.ts` the Mod Console, dev only); the worker uses the modder service when one answers
-  (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it. Still this game's
-  in the runtime: the skill tree, professions, boons, the boss preview and animations (shown only with their modules).
+  toolbar, key labels, dialogue; `menu.ts` menu tabs, the character sheet (the engine's numbers, `Frame.player.stats`),
+  journal, chest panel, the shops a game lists (`crafting.shops`: shelves with names and `sell`); `panels.ts` a game's own panels
+  (`ClientGame.panels`: by the key a rule's `panel` effect opens, told the fx's `by`, loaded when first opened);
+  `boons.ts` the boons module's panel for a game with none of its own; `people.ts` the trade and pockets panels (the talk panel is the dialogue's, `hud.ts`); `worldmap.ts` the world map (M) and the minimap; `dev.ts` the Mod Console, dev only); the worker uses the modder service when one answers
+  (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it. It says no one game's
+  words (docs/engine-split.md §15; `test/words.test.ts`): a game's words are its `texts` (over `ui/common.ts`
+  STRINGS), its catalogue (`<tag>Mark`, `equipSlots`, a weapon's `swing`), its tables and its panels. Still this
+  game's in the runtime: the boss art, preview and animations (and the skill tree, professions, shown only with their module).
 - `games/openworld/client` — the game's app: its pages (`index.html`, `boss-gallery.html`, `looks.html`,
   `preview.html`), `vite.config.ts` (public dir `../public`), `src/register.ts` (hands the game over; every page,
   the worker and the game's tests that use the runtime import it first), `src/game.ts` (the ClientGame: content, catalogue, the
-  wilderness, the upgrades of older saves, the dev console's shortcuts, its cover), `src/catalog.ts` (content keys →
+  wilderness, the upgrades of older saves, the dev console's shortcuts, its cover, its words), `src/ui/` its own panels
+  (`panels.ts` the registry: the companion's, `companion.ts`, opened by `companion` and `boons`; the Held Ground's,
+  `homestead.ts` with `stock.ts`, opened by `haven`; each with its .css, loaded when first opened), `src/catalog.ts` (content keys →
   sprites), `src/bundle.ts` the game as a bundle (gen:world writes `public/bundle.json`) and `src/plugin.ts` its code
   for the engine's player, `scripts/bake.ts` the Ford baked into the format (`npm run bake` →
   `games/openworld/project/`, not committed), the boss gallery, studio and challenge, and the looks page.
@@ -259,6 +273,7 @@ npm run dev              # client at http://localhost:5173 + the modder on :8787
 npm run dev -- --backend claude-code   # the modder through claude -p (Opus 5.5, effort low)
 npm test                 # vitest (engine + base rules + Mod port)
 npm run typecheck
+npm run check            # both, as CI runs them on every PR and push to main (.github/workflows/check.yml)
 npm run coverage         # interaction coverage + refresh its test baseline
 npm run build            # gen:world + static build → games/openworld/client/dist
 npm run editor           # the OpenWorld Editor on http://localhost:5175/editor/ (the games under games/, and any folder)

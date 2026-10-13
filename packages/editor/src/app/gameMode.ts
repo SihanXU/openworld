@@ -46,6 +46,9 @@ const PARTS: [key: keyof OntologyPart & string, doc: string][] = [
   ['social', 'The numbers of the people\'s social life (the society module).'],
   ['materials', 'The materials things are made of.'],
   ['qualities', 'The qualities made things have.'],
+  ['sets', 'Sets of gear (each piece\'s `set` prop): worn together, so many pieces give each bonus.'],
+  ['affixes', 'The small extras a piece of gear rolls as it is made: how many, and the pool they come from.'],
+  ['loot', 'A creature kind\'s own piece (its `trophy` prop): how many fellings make it sure, and what the finder is told (the loot module).'],
   ['efficiency', 'How well an instrument works on a material category, by its capabilities.'],
   ['resistances', 'Each element\'s resistance: the stat that takes a share of its harm away.'],
   ['professions', 'Professions by id, for their names.'],
@@ -60,7 +63,7 @@ const PARTS: [key: keyof OntologyPart & string, doc: string][] = [
 /** The player's tables (a bundle's `client`): what its panels show. */
 const TABLES: [key: string, doc: string][] = [
   ['items', 'Item forms and materials by name, relics, the coin.'],
-  ['crafting', 'Recipes, the stations\' names, what is placed and built.'],
+  ['crafting', 'Recipes, the stations\' names, the shops and their shelves, what is placed and built.'],
   ['skills', 'The skill tree: skills, directions, branches, professions (the classes module).'],
   ['boons', 'The companion\'s powers (the boons module).'],
   ['looks', 'The look table, the slots, the parts\' names, the player\'s first look.'],

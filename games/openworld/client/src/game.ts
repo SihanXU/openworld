@@ -1,10 +1,10 @@
 // OpenWorld, the game, as the runtime plays it (packages/runtime/src/game.ts, docs/engine-split.md): its content
-// and catalogue, and the code only this game has: its wilderness, its upgrades of older saves, its dev summons.
+// and catalogue, and the code only this game has: its wilderness, its upgrades of older saves, its dev summons, its
+// own panels (ui/panels.ts: the companion's, the Held Ground's).
 
 import type { ClientGame } from '@openworld/runtime/src/game.ts'
 import {
   BOON_BY_ID,
-  COMPANION_LOOK,
   BOSS_LAYOUT,
   BUILDINGS,
   COIN,
@@ -40,8 +40,6 @@ import {
   migrateSmithy,
   migrateHaven,
   migrateHavenHeart,
-  migrateLodges,
-  LODGES_LAYOUT,
   migrateStats,
   STATS_LAYOUT,
   migrateGear,
@@ -49,6 +47,10 @@ import {
   migrateVows,
   VOWS_LAYOUT,
   VOWS,
+  migratePlots,
+  PLOTS_LAYOUT,
+  migrateStock,
+  STOCK_LAYOUT,
   migrateTents,
   HAVEN_LAYOUT,
   SMITHY_LAYOUT,
@@ -58,10 +60,10 @@ import {
   skillsForProfession,
   stationName,
   SHOPS,
-  HAVEN_UPGRADES,
   wildChunkFor,
 } from '@openworld-game/content'
 import { CATALOG } from './catalog.ts'
+import { PANELS } from './ui/panels.ts'
 
 export const CLIENT_GAME: ClientGame = {
   ...GAME,
@@ -83,6 +85,10 @@ export const CLIENT_GAME: ClientGame = {
     boonTitle: { en: "Lumi's Powers", zh: '露米的力量' },
     boonSealedDoc: { en: "Lumi takes up part of a seal's power when its bearer falls.", zh: '击败持印者后，露米会接住其圣印的一部分力量。' },
     boonOne: { en: 'Lumi carries one power at a time.', zh: '露米一次只能携带一种力量。' },
+    // a monster's own piece of gear (content trophies.ts), and the two tiers the story names (content items.ts QUALITIES)
+    tipTrophy: { en: 'Trophy', zh: '专属装备' },
+    'tier:vowed': { en: 'Vowbound — left by one who swore a vow. It still remembers.', zh: '遗誓——立誓之人留下的东西。它还记得那个誓言。' },
+    'tier:legendary': { en: "Stigmatic — it bears one of the First Martyr's five wounds. Suffering brings one nearer to God.", zh: '圣痕——它带着初殉者五道伤痕中的一道。苦难使人接近神。' },
   },
   // a wilderness is made from the world's seed and its cell (world-model.md §5.7); the rest is fetched
   wild: wildChunkFor,
@@ -114,10 +120,17 @@ export const CLIENT_GAME: ClientGame = {
     if (!w.fact(HAVEN_LAYOUT)) game.engine.author(() => migrateHaven(game))
     // its heart is the planted sword, not an altar
     game.engine.author(() => migrateHavenHeart(game))
-    // the residents' tents' plots (a home ground's beds: content social.ts residence)
-    if (!w.fact(LODGES_LAYOUT)) game.engine.author(() => migrateLodges(game, HAVEN_UPGRADES.filter((u) => u.id.startsWith('lodge') && u.plot).map((u) => ({ id: u.id, at: u.plot! }))))
+    // the plots at the Held Ground's heart (its buildings, the residents' tents) and Cass's loom on Firstlight's square
+    // (only for maps a save has been to: the others come as built)
+    if (!w.fact(PLOTS_LAYOUT)) {
+      const maps = await Promise.all(['haven', 'meadow'].filter((id) => w.state.loadedMaps.includes(id)).map(chunk))
+      game.engine.author(() => migratePlots(game, maps))
+    }
+    // the people who traded before keep what they sold and sell what they sell now
+    if (!w.fact(STOCK_LAYOUT)) game.engine.author(() => migrateStock(game, index))
     // standing your ground, stealth and perception left the gear for luck
     if (!w.fact(STATS_LAYOUT)) game.engine.author(() => migrateStats(game))
+    // gear came in levels: what has none is of the first
     if (!w.fact(GEAR_LAYOUT)) game.engine.author(() => migrateGear(game))
     // the Vowbound took their vows, and rolled the extras the named ones never had
     if (!w.fact(VOWS_LAYOUT)) game.engine.author(() => migrateVows(game))
@@ -130,7 +143,7 @@ export const CLIENT_GAME: ClientGame = {
   },
   fresh(game) {
     const w = game.engine.world
-    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(COMPANION_NAME, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true), w.setFact(LODGES_LAYOUT, true), w.setFact(STATS_LAYOUT, true), w.setFact(GEAR_LAYOUT, true), w.setFact(VOWS_LAYOUT, true)))
+    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(COMPANION_NAME, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true), w.setFact(PLOTS_LAYOUT, true), w.setFact(STOCK_LAYOUT, true), w.setFact(STATS_LAYOUT, true), w.setFact(GEAR_LAYOUT, true), w.setFact(VOWS_LAYOUT, true)))
   },
   summon(kit, at, id) {
     const body = createBoss(kit, at, id)
@@ -145,8 +158,6 @@ export const CLIENT_GAME: ClientGame = {
     ],
   },
   items: { forms: FORM_BY_ID, materials: MATERIALS, relics: RELICS, vows: VOWS, coin: COIN },
-  // the Held Ground's growing (its steward's panel: the land, its grounds, its buildings, the stock; haven.ts)
-  homestead: { title: { en: 'The Held Ground', zh: '誓守之地 · 领地经营' }, steward: 'npc.alberic', size: 'haven.size', stock: 'haven.stock.', upgrades: HAVEN_UPGRADES },
   crafting: { recipes: RECIPES, stationName, placements: PLACEMENTS, buildings: BUILDINGS, shops: SHOPS },
   skills: {
     all: SKILLS,
@@ -157,7 +168,8 @@ export const CLIENT_GAME: ClientGame = {
     forProfession: skillsForProfession,
   },
   boons: BOON_BY_ID,
-  companion: { look: COMPANION_LOOK, epithet: { en: 'your little fairy', zh: '随行的小精灵' } },
+  // the companion's panel and the Held Ground's (its steward's: the land, its grounds, its buildings, the stock)
+  panels: PANELS,
   looks: {
     table: LOOK_TABLE,
     slots: LOOK_SLOTS,
