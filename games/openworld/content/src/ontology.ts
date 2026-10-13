@@ -648,6 +648,8 @@ export function buildOntology(): Ontology {
         'merchant',
         'fence',
         'hireling',
+        // one the main story needs where they are: not asked to come and live on a home ground (social.ts residence)
+        'storybound',
       ]),
     ],
   }

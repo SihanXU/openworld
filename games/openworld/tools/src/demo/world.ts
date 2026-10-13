@@ -452,8 +452,8 @@ function person(p: PersonDef, at: (name: string) => Pos): Entity {
   const stock = p.trade?.stock ?? []
   const tags = [...(p.tags ?? []), ...(p.watch ? ['watchman'] : []), ...(p.trade ? ['merchant'] : []), ...(p.trade?.fence ? ['fence'] : []), ...(p.hireling ? ['hireling'] : []), ...(p.essential ? ['essential'] : [])]
   const carried = [
-    ...(p.items ?? []).map((spec, i) => ({ id: `${p.id}.item${i}`, ...itemOf(spec) })),
-    ...stock.flatMap(([form, n], i) => Array.from({ length: n }, (_, j) => ({ id: `${p.id}.stock${i}.${j}`, ...itemOf(form) }))),
+    ...(p.items ?? []).map((spec, i) => ({ id: `${p.id}.item${i}`, ...itemOf(spec, `${p.id}.item${i}`) })),
+    ...stock.flatMap(([form, n], i) => Array.from({ length: n }, (_, j) => ({ id: `${p.id}.stock${i}.${j}`, ...itemOf(form, `${p.id}.stock${i}.${j}`) }))),
     ...Array.from({ length: purse }, (_, i) => ({ id: `${p.id}.coin${i}`, type: SOCIAL_COIN })),
   ].map((e) => ({ ...e, place: { on: 'inside' as const, holder: p.id } }))
   return {

@@ -116,6 +116,18 @@ function hold(f: Ford, e: Entity | undefined): void {
   c.select(W(f).player.slots!.indexOf(c.key(e)))
   expect(W(f).player.held).toBe(e.id)
 }
+/**
+ * An axe in hand (the first the world has), its rolled extras (engine affixes.ts) taken off: the sums the checks count
+ * (experience, blows to fell a tree or a cow) are an axe's own, not what one happened to roll — a change to the affix
+ * table must not move them.
+ */
+function holdAxe(f: Ford): void {
+  hold(f, ofType(f, 'item/weapon/blade/axe'))
+  author(f, () => {
+    const axe = W(f).get(W(f).player.held)!
+    for (const k of Object.keys(axe.props ?? {})) if (k.startsWith('sub:')) W(f).setProp(axe, k, undefined)
+  })
+}
 const at = (x: number, y: number) => ({ x, y })
 const run = (f: Ford, key: Key, x: number, y: number, layer = 0): Plan => {
   const plan = f.eng.controls.plan(key, at(x, y), layer)
@@ -165,7 +177,7 @@ function byFerry(f: Ford): void {
 
 /** The dead tree: the axe, three blows from the west, and a walk across. */
 function byTree(f: Ford): void {
-  hold(f, ofType(f, 'item/weapon/blade/axe'))
+  holdAxe(f)
   stand(f, ...STAND.tree, 'right')
   for (let i = 0; i < 3; i++) run(f, 'use', ...AT.deadTree)
   expect(W(f).fact('ford.tree')).toBe(1)
@@ -238,7 +250,7 @@ req('B2', 'putting is physics, never asked: the axe put on the dead tree is set 
 
 req('B3', 'a blow on a thing with no answer to it is asked, hosted by the one struck (an axe at the winch)', ['item/weapon/blade/axe', 'fixture/ferry/winch'], () => {
   const f = fresh()
-  hold(f, ofType(f, 'item/weapon/blade/axe'))
+  holdAxe(f)
   stand(f, ...STAND.winch)
   const plan = run(f, 'use', ...AT.winch)
   expect(plan.unknown).toBe(true)
@@ -645,7 +657,7 @@ req('F11', 'a place, not a picture: all that is drawn or in the way is terrain o
   // the old axe on the chopping stump, pointed at where the stump is drawn over the grass
   const stump = ofType(f, 'fixture/nature/stump')!
   const { x, y } = stump.place as { x: number; y: number }
-  hold(f, ofType(f, 'item/weapon/blade/axe'))
+  holdAxe(f)
   stand(f, x - 1, y, 'right')
   const point = { x, y, stack: [{ e: stump.id }] }
   const plan = f.eng.controls.plan('use', point)!
@@ -786,7 +798,7 @@ req('F12', "the ground yields sticks, stones and grass (Don't Starve): taken by 
 
 req('F13', 'a defeated foe teaches whoever struck it: experience, levels, a skill point', ['actor/creature/slime/fire_slime', 'actor/creature/slime/frost_slime'], () => {
   const f = fresh()
-  hold(f, ofType(f, 'item/weapon/blade/axe'))
+  holdAxe(f)
   const p = W(f).player
   for (const id of ['ford.fire_slime', 'ford.frost_slime']) {
     const s = W(f).get(id)!
@@ -854,7 +866,7 @@ req('F14', 'west of the Ford the village, and south of it the grassland (Minecra
   expect(onMeadow(f, COW).length).toBeGreaterThan(0)
   expect(onMeadow(f, HEN).length).toBeGreaterThan(0)
   const here = W(f).posOf(p)!
-  hold(f, ofType(f, 'item/weapon/blade/axe'))
+  holdAxe(f)
   // a struck cow runs from whoever struck it, and never strikes back
   const cow = onMeadow(f, COW)[0]
   author(f, () => {
@@ -960,7 +972,7 @@ req('F15', 'south of the grassland, a forest: many trees within reach, and an ax
     }
   expect(reachable.length).toBeGreaterThan(100)
   // the old axe fells one: two swings
-  hold(f, ofType(f, 'item/weapon/blade/axe'))
+  holdAxe(f)
   const [tx, ty, sx, sy, face] = reachable[Math.floor(reachable.length / 2)]
   stand(f, sx, sy, face, 'forest')
   const logs = () => Object.values(W(f).state.entities).filter((e) => e.type === 'item/material/log').length
@@ -1664,7 +1676,7 @@ req('Q1', 'chapter 1, mend the bridge: the old axe fells a tree, splits its logs
   for (const x of FOOTBRIDGE.ends) expect(W(f).terrainAt('ford', x, FOOTBRIDGE.y)).toBe('bridge')
   for (const x of FOOTBRIDGE.gap) expect(W(f).terrainAt('ford', x, FOOTBRIDGE.y)).toBe('water')
   // the old axe fells a tree in the western woods: two logs
-  hold(f, ofType(f, 'item/weapon/blade/axe'))
+  holdAxe(f)
   let tree: [number, number] | undefined
   for (let y = 3; y < 28 && !tree; y++) for (let x = 0; x < 4 && !tree; x++) if (W(f).terrainAt('ford', x, y) === 'tree' && W(f).walkable('ford', x + 1, y)) tree = [x, y]
   stand(f, tree![0] + 1, tree![1], 'left')
@@ -1816,7 +1828,7 @@ req('Q4', 'chapter 4, the old mine: a pickaxe breaks iron and coal from the vein
   author(f, () => W(f).place(cy, { on: 'tile', map: 'mine', x: 20, y: 25 }))
   cy.props = { ...(cy.props ?? {}), hp: 1 }
   stand(f, 20, 26, 'up', 'mine')
-  hold(f, ofType(f, 'item/weapon/blade/axe'))
+  holdAxe(f)
   f.eng.controls.strike()
   ticks(f, 2)
   expect(W(f).get('mine.cyclops')).toBeUndefined()
@@ -1833,7 +1845,7 @@ req('Q4', 'chapter 4, the old mine: a pickaxe breaks iron and coal from the vein
   expect(c.count('item/weapon/blade/dragonsbane')).toBe(1)
 })
 
-req('Q4g', "the old mine's deep chamber holds the only gold: a pickaxe breaks a gold vein for gold ore, what the Held Ground's last widening asks", ['fixture/nature/vein/gold'], () => {
+req('Q4g', "the old mine's deep chamber holds gold (and, once the steward opens it, the Held Ground's quarry; nowhere else): a pickaxe breaks a gold vein for gold ore, what the Held Ground's last widening asks", ['fixture/nature/vein/gold'], () => {
   const f = fresh()
   const c = f.eng.controls
   author(f, () => W(f).setFact('mq.council', 1))
@@ -2317,7 +2329,7 @@ req('T3', 'a lesson of the tutorial can be skipped (Esc held): it is done, and w
   expect(plain.engine.controls.allows('take')).toBe(true)
 })
 
-req('T4', 'every building can be walked into: each house, shop, smithy, temple and hut stamped on any map has a door that leads into a room and back; each tent is gone into with a hand on it, and left by its flap in front of it', ['fixture/container/sack'], () => {
+req('T4', 'every building can be walked into: each house, shop, smithy, temple and hut stamped on any map has a door that leads into a room and back; each tent is gone into with a hand on it, and left by its flap in front of it', [], () => {
   const f = fresh()
   const w = W(f)
   const { index, chunks } = buildFord()
@@ -2347,6 +2359,31 @@ req('T4', 'every building can be walked into: each house, shop, smithy, temple a
     const out = w.posOf(w.player)!
     expect([map, out.map, Math.max(Math.abs(out.x - at.x), Math.abs(out.y - (at.y + 1))) <= 1]).toEqual([map, map, true])
   }
+})
+
+req('T5', "a container takes what is put in it up to what it holds: the forager's sack in the rotted tent, opened by hand, takes four things put in it and not a fifth (it is full)", ['fixture/container/sack'], () => {
+  const f = fresh()
+  const w = W(f)
+  const room = 'forest.tentroom'
+  const sack = onMap(f, 'fixture/container/sack', room)[0]
+  const sp = sack.place as { x: number; y: number }
+  stand(f, ...beside(f, sp.x, sp.y, room), room)
+  run(f, 'hands', sp.x, sp.y)
+  expect(w.hasStatus({ e: sack.id }, 'open')).toBe(true)
+  const things = author(f, () => ['item/material/stick', 'item/material/stone', 'item/material/grass', 'item/material/bone', 'item/material/feather'].map((t) => w.create(t, { on: 'inside', holder: 'player' })))
+  for (const e of things.slice(0, 4)) {
+    hold(f, e)
+    expect(run(f, 'put', sp.x, sp.y).rule).toBe('core/receive-store')
+  }
+  expect(w.num(sack, 'capacity')).toBe(4)
+  // full: G offers no putting a fifth in, and put there all the same, it is not taken
+  const fifth = things[4]
+  hold(f, fifth)
+  expect(f.eng.controls.plan('put', at(sp.x, sp.y))).toBeUndefined()
+  w.fx = []
+  f.eng.act('put', 'player', { e: sack.id }, { instrument: { e: fifth.id } })
+  expect(things.map((e) => (e.place.on === 'inside' || e.place.on === 'hand' ? e.place.holder : e.place.on))).toEqual([sack.id, sack.id, sack.id, sack.id, 'player'])
+  expect(JSON.stringify(w.fx)).toContain('已经装满')
 })
 
 req('T2', "a game without the tutorial begins on Cloudtop, above the foot of the mountain, at the seal stone's stage, the fairy beside", [], () => {

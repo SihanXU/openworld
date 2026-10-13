@@ -742,14 +742,16 @@ export interface SocialParams {
 
 /**
  * A home ground's room for people (the society module's `moveIn`): its map and the beds it has, each an anchor there
- * (where the resident sleeps; `<anchor>.day` where their day is spent, else the same), open once its fact holds; what
- * the one asked says, moved in or with no bed free.
+ * (where the resident sleeps; `<anchor>.day` where their day is spent, else the same), open once its fact holds; a
+ * resident's day there; what the one asked says, moved in or with no bed free.
  */
 export interface ResidenceDef {
   map: string
-  /** The regard (of the one asked toward the one asking) it takes. */
+  /** The regard (of the one asked toward the one asking) it takes: one a liking keeps for days as it fades. */
   at: number
   slots: { anchor: string; when?: string }[]
+  /** A resident's day there, hour by hour: each span spent at its bed (`bed`) or its bed's day place (`day`), and doing what. */
+  days: { from: number; to: number; at: 'bed' | 'day'; activity: string }[]
   yes: Text
   full: Text
 }

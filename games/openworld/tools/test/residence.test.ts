@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, TICKS_PER_DAY, type Entity } from '@openworld/engine'
 import { socialOf } from '@openworld/modules'
-import { BASE_RULES, HAVEN, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
+import { BASE_RULES, HAVEN, SOCIAL, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 // Each person's regard for the one at the keys (docs/npc-sandbox.md §2.4) as hearts: raised by talk, gifts and their
@@ -24,7 +24,9 @@ function game() {
   }
   const fullRegard = (e: Entity) => eng.author(() => s.changeRegard(e, p.id, 1000))
   const verbs = (e: Entity) => s.verbs(e, p).map((v) => v.id)
-  return { eng, w, p, s, beside, fullRegard, verbs }
+  /** What a person said since the last look. */
+  const said = (e: Entity) => w.fx.filter((x) => x.t === 'say' && x.who === e.id).map((x) => JSON.stringify((x as { text: unknown }).text)).join(' ')
+  return { eng, w, p, s, beside, fullRegard, verbs, said }
 }
 
 describe('regard as hearts', () => {
@@ -102,6 +104,69 @@ describe('asked to come and live in the Held Ground', () => {
     expect(vigo.npc!.resident!.schedule.every((e) => e.map === HAVEN.map)).toBe(true)
     expect(s.stock(tam).length).toBeGreaterThan(0)
     void cass
+  })
+
+  it('full regard is a mark a liking keeps (the talk panel\'s ten hearts, 95): a day after the last gain one may still be asked, five days on too, and goes', () => {
+    const { eng, w, p, s, beside, fullRegard, verbs } = game()
+    eng.author(() => w.setFact('sins.defeated.alberic', 1))
+    const tam = w.get('npc.tam')!
+    fullRegard(tam)
+    expect(SOCIAL.residence!.at).toBe(95)
+    eng.author(() => void (w.state.tick += TICKS_PER_DAY))
+    expect(s.regard(tam, p.id)).toBeLessThan(100)
+    expect(verbs(tam)).toContain('invite')
+    eng.author(() => void (w.state.tick += 4 * TICKS_PER_DAY))
+    expect(s.regard(tam, p.id)).toBeGreaterThanOrEqual(95)
+    expect(verbs(tam)).toContain('invite')
+    beside(tam.id)
+    eng.controls.talk(tam.id, 'invite')
+    eng.tick()
+    expect([w.posOf(tam)?.map, tam.npc?.resident?.slot]).toEqual([HAVEN.map, 'home.camp'])
+    // a resident's day is the residence's (content social.ts): asleep in the bed by night, by the fire by day
+    expect(tam.npc!.resident!.schedule.map((e) => [e.from, e.to, e.activity])).toEqual(SOCIAL.residence!.days.map((d) => [d.from, d.to, d.activity]))
+  })
+
+  it('the word said with no verb offered is answered as the verb asks: one the story needs and a stranger at low regard both stay, and say why', () => {
+    const { eng, w, beside, fullRegard, verbs, said } = game()
+    eng.author(() => w.setFact('sins.defeated.alberic', 1))
+    const ilse = w.get('npc.ilse')!
+    const cass = w.get('npc.cass')!
+    fullRegard(ilse)
+    expect(verbs(ilse)).not.toContain('invite')
+    expect(verbs(cass)).not.toContain('invite')
+    for (const [e, why] of [[ilse, '离不开'], [cass, '没熟']] as const) {
+      const home = w.posOf(e)!.map
+      beside(e.id)
+      w.fx = []
+      eng.controls.talk(e.id, 'invite')
+      eng.tick()
+      expect([e.id, w.posOf(e)?.map, e.npc?.resident, w.prop(e, 'resident')]).toEqual([e.id, home, undefined, undefined])
+      expect(said(e)).toContain(why)
+    }
+    // nor before the Held Ground is one's own, however well they think of one
+    eng.author(() => w.setFact('sins.defeated.alberic', 0))
+    const tam = w.get('npc.tam')!
+    fullRegard(tam)
+    const home = w.posOf(tam)!.map
+    beside(tam.id)
+    w.fx = []
+    eng.controls.talk(tam.id, 'invite')
+    eng.tick()
+    expect([w.posOf(tam)?.map, tam.npc?.resident]).toEqual([home, undefined])
+    expect(said(tam)).toContain('自己的地方')
+  })
+
+  it('one who follows, asked to come and live there, goes and follows no longer', () => {
+    const { eng, w, p, beside, fullRegard } = game()
+    eng.author(() => w.setFact('sins.defeated.alberic', 1))
+    const vigo = w.get('npc.vigo')!
+    beside(vigo.id)
+    eng.controls.talk(vigo.id, 'follow')
+    expect(w.prop(vigo, 'follow')).toBe(p.id)
+    fullRegard(vigo)
+    eng.controls.talk(vigo.id, 'invite')
+    eng.tick()
+    expect([w.posOf(vigo)?.map, w.prop(vigo, 'follow'), w.prop(vigo, 'resident')]).toEqual([HAVEN.map, undefined, HAVEN.map])
   })
 
   it('the Held Ground holds seven at most: the camp\'s bed and two in each of three tents', () => {

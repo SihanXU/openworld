@@ -40,8 +40,10 @@ import {
   migrateSmithy,
   migrateHaven,
   migrateHavenHeart,
-  migrateLodges,
-  LODGES_LAYOUT,
+  migratePlots,
+  PLOTS_LAYOUT,
+  migrateStock,
+  STOCK_LAYOUT,
   migrateTents,
   HAVEN_LAYOUT,
   SMITHY_LAYOUT,
@@ -112,8 +114,14 @@ export const CLIENT_GAME: ClientGame = {
     if (!w.fact(HAVEN_LAYOUT)) game.engine.author(() => migrateHaven(game))
     // its heart is the planted sword, not an altar
     game.engine.author(() => migrateHavenHeart(game))
-    // the residents' tents' plots (a home ground's beds: content social.ts residence)
-    if (!w.fact(LODGES_LAYOUT)) game.engine.author(() => migrateLodges(game, HAVEN_UPGRADES.filter((u) => u.id.startsWith('lodge') && u.plot).map((u) => ({ id: u.id, at: u.plot! }))))
+    // the plots at the Held Ground's heart (its buildings, the residents' tents) and Cass's loom on Firstlight's square
+    // (only for maps a save has been to: the others come as built)
+    if (!w.fact(PLOTS_LAYOUT)) {
+      const maps = await Promise.all(['haven', 'meadow'].filter((id) => w.state.loadedMaps.includes(id)).map(chunk))
+      game.engine.author(() => migratePlots(game, maps))
+    }
+    // the people who traded before keep what they sold and sell what they sell now
+    if (!w.fact(STOCK_LAYOUT)) game.engine.author(() => migrateStock(game, index))
     // the tents have rooms behind their flaps (only for maps a save has been to: the others come as built)
     const tentMaps = ['ford', 'forest', 'haven'].filter((id) => w.state.loadedMaps.includes(id))
     if (tentMaps.length) {
@@ -123,7 +131,7 @@ export const CLIENT_GAME: ClientGame = {
   },
   fresh(game) {
     const w = game.engine.world
-    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(COMPANION_NAME, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true), w.setFact(LODGES_LAYOUT, true)))
+    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(COMPANION_NAME, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true), w.setFact(PLOTS_LAYOUT, true), w.setFact(STOCK_LAYOUT, true)))
   },
   summon(kit, at, id) {
     const body = createBoss(kit, at, id)

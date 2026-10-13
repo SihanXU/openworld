@@ -1571,7 +1571,7 @@
         },
         "at": {
           "type": "number",
-          "description": "The regard (of the one asked toward the one asking) it takes."
+          "description": "The regard (of the one asked toward the one asking) it takes: one a liking keeps for days as it fades."
         },
         "slots": {
           "type": "array",
@@ -1591,6 +1591,38 @@
             "additionalProperties": false
           }
         },
+        "days": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "number"
+              },
+              "to": {
+                "type": "number"
+              },
+              "at": {
+                "type": "string",
+                "enum": [
+                  "bed",
+                  "day"
+                ]
+              },
+              "activity": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "from",
+              "to",
+              "at",
+              "activity"
+            ],
+            "additionalProperties": false
+          },
+          "description": "A resident's day there, hour by hour: each span spent at its bed (`bed`) or its bed's day place (`day`), and doing what."
+        },
         "yes": {
           "$ref": "#/definitions/Text"
         },
@@ -1602,11 +1634,12 @@
         "map",
         "at",
         "slots",
+        "days",
         "yes",
         "full"
       ],
       "additionalProperties": false,
-      "description": "A home ground's room for people (the society module's `moveIn`): its map and the beds it has, each an anchor there (where the resident sleeps; `<anchor>.day` where their day is spent, else the same), open once its fact holds; what the one asked says, moved in or with no bed free."
+      "description": "A home ground's room for people (the society module's `moveIn`): its map and the beds it has, each an anchor there (where the resident sleeps; `<anchor>.day` where their day is spent, else the same), open once its fact holds; a resident's day there; what the one asked says, moved in or with no bed free."
     },
     "LootParams": {
       "type": "object",
