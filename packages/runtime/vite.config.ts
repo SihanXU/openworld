@@ -6,6 +6,8 @@ import { serveGame } from '../format/src/serve.ts'
 // (/games/<id>/: a project compiled when asked for, or a game's own public bundle); a build is the player alone,
 // the games built next to it (npm run build:player).
 const GAMES = fileURLToPath(new URL('../../games', import.meta.url))
+/** A file of this machine as Vite serves it: `/@fs/` and its path with forward slashes (`/@fs/C:/…` on Windows). */
+const fs = (path: string) => `/@fs/${path.replace(/\\/g, '/').replace(/^\/+/, '')}`
 
 function games(): Plugin {
   return {
@@ -15,7 +17,7 @@ function games(): Plugin {
         // a game's own plugin, as source (one module graph with the player: one engine)
         const plugin = (req.url ?? '').match(/^\/games\/([a-z0-9-]+)\/plugin\.js$/)
         if (plugin) {
-          res.writeHead(302, { location: `/@fs${GAMES}/${plugin[1]}/client/src/plugin.ts` })
+          res.writeHead(302, { location: fs(`${GAMES}/${plugin[1]}/client/src/plugin.ts`) })
           return res.end()
         }
         if (!serveGame(GAMES, req, res)) next()

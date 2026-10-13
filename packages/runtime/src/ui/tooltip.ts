@@ -5,17 +5,12 @@
 
 import type { Frame, ItemInfo, StatusDef } from '@openworld/engine'
 import { game, hasModule, ontology, professionById } from '../game.ts'
-import { esc, locale, tx } from './common.ts'
+import { esc, gameText, locale, t, tx } from './common.ts'
 
 const L = (en: string, zh: string) => (locale.value === 'zh' ? zh : en)
 
 /** Minecraft's rarity colours, by quality. */
 const QUALITY_COLOR: Record<string, string> = { crude: '#aaaaaa', fine: '#ffff55', masterwork: '#55ffff', vowed: '#c77dff', legendary: '#ff7a59' }
-/** The two tiers the story names (content items.ts QUALITIES): what each is, under the name. */
-const TIER: Record<string, [en: string, zh: string]> = {
-  vowed: ['Vowbound — left by one who swore a vow. It still remembers.', '遗誓——立誓之人留下的东西。它还记得那个誓言。'],
-  legendary: ['Stigmatic — it bears one of the First Martyr\'s five wounds. Suffering brings one nearer to God.', '圣痕——它带着初殉者五道伤痕中的一道。苦难使人接近神。'],
-}
 /** A worn slot's name (the body's ten, world-model.md §6.8). */
 const SLOT: Record<string, [string, string]> = {
   head: ['head', '头'], body: ['body', '躯干'], feet: ['feet', '脚'], hands: ['hands', '手'], waist: ['waist', '腰'],
@@ -88,23 +83,6 @@ export interface TipContext {
 }
 
 /** The tooltip's lines for an item. */
-/** A rolled extra's words: its stat's name, and whether it is a share. */
-const AFFIX: Record<string, [string, string, boolean]> = {
-  atk: ['Attack', '攻击', false],
-  def: ['Defence', '防御', false],
-  critChance: ['Critical Chance', '暴击率', true],
-  critDamage: ['Critical Damage', '暴击伤害', true],
-  dodge: ['Dodge', '闪避', true],
-  lifesteal: ['Health per hit', '每次命中吸血', false],
-  cdr: ['Cooldown Reduction', '冷却缩减', true],
-  xpRate: ['Experience', '经验获取', true],
-  stealth: ['Stealth', '潜行', false],
-  holdFast: ['Standing your ground', '坚守减伤', true],
-  perception: ['Perception', '感知', false],
-  moveHaste: ['Movement Speed', '移动速度', true],
-  attackHaste: ['Attack Speed', '攻击速度', true],
-}
-
 export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   const p = it.props
   const tags = new Set(it.tags)
@@ -113,7 +91,9 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   // the name, in its rarity's colour
   const quality = it.tags.find((g) => g.startsWith('quality:'))?.slice(8)
   out.push(line(esc(tx(it.name)), QUALITY_COLOR[quality ?? ''] ?? '#ffffff', 'name'))
-  if (quality && TIER[quality]) out.push(line(esc(L(...TIER[quality])), QUALITY_COLOR[quality], 'lore'))
+  // what a tier is, in the game's words (its texts' `tier:<quality>`: OpenWorld's Vowbound and Stigmatic)
+  const tier = quality && gameText(`tier:${quality}`)
+  if (tier) out.push(line(esc(tier), QUALITY_COLOR[quality!] ?? '#ffffff', 'lore'))
   const family = it.type.split('/')[1]
   if (KIND[family]) out.push(line(L(...KIND[family]), '#aaaaaa'))
   // when held: the blow it makes (Minecraft's attributes, dark green)
@@ -126,11 +106,12 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
     if (range > 1) out.push(line(` ${range} ${L('Reach', '攻击距离')}`, '#00aa00'))
     if (element) out.push(line(` ${L('Element', '元素')}: ${L(element[0], element[1])}`, element[2]))
   }
-  // a weapon's own traits (the legendary arms)
+  // a weapon's own traits (the legendary arms; a piece worn elsewhere says its own below)
   const pct = (v: unknown) => (typeof v === 'number' && v > 0 ? Math.round(v * 100) : 0)
-  if (pct(p.critChance)) out.push(line(` +${pct(p.critChance)}% ${L('Critical Chance', '暴击率')}`, '#00aa00'))
+  const wornElsewhere = typeof p.slot === 'string' && p.slot !== 'weapon'
+  if (!wornElsewhere && pct(p.critChance)) out.push(line(` +${pct(p.critChance)}% ${L('Critical Chance', '暴击率')}`, '#00aa00'))
   if (pct(p.attackHaste)) out.push(line(` +${pct(p.attackHaste)}% ${L('Attack Speed', '攻击速度')}`, '#00aa00'))
-  if (typeof p.lifesteal === 'number' && p.lifesteal > 0 && (typeof p.slot !== 'string' || p.slot === 'weapon')) out.push(line(` +${p.lifesteal} ${L('Health per hit', '生命/每次命中')}`, '#00aa00'))
+  if (typeof p.lifesteal === 'number' && p.lifesteal > 0 && !wornElsewhere) out.push(line(` +${p.lifesteal} ${L('Health per hit', '生命/每次命中')}`, '#00aa00'))
   // worn in the off hand (the arm slot): the shield's defence and block (at most half the blows)
   if (p.slot === 'arm') {
     out.push('<div class="gap"></div>', line(L('In the off hand:', '装备在副手时：'), '#aaaaaa'))
@@ -166,19 +147,16 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   if (typeof p.holdFast === 'number' && p.holdFast > 0) out.push(line(` ${L(`Standing your ground: ${pctv(p.holdFast)}% less damage while still`, `坚守：站定不动时受到的伤害 -${pctv(p.holdFast)}%`)}`, '#c77dff', 'lore'))
   trait(p['night:def'], `+${p['night:def']} Defence at night`, `入夜后防御 +${p['night:def']}`)
   trait(p['night:atk'], `+${p['night:atk']} Attack at night`, `入夜后攻击 +${p['night:atk']}`)
-  // the small extras it rolled when it was made (engine affixes.ts)
+  // the small extras it rolled when it was made (engine affixes.ts), named as the world's table of them names them
   const subs = Object.entries(p).filter((kv): kv is [string, number] => kv[0].startsWith('sub:') && typeof kv[1] === 'number' && kv[1] !== 0)
   if (subs.length) {
     out.push('<div class="gap"></div>', line(L('Affixes:', '词条：'), '#aaaaaa'))
-    for (const [k, v] of subs) {
-      const [en, zh, isPct] = AFFIX[k.slice(4)] ?? [k.slice(4), k.slice(4), false]
-      out.push(line(` ${v > 0 ? '+' : ''}${isPct ? `${Math.round(v * 100)}%` : v} ${L(en, zh)}`, '#6cb6ff'))
-    }
+    for (const [k, v] of subs) out.push(line(` ${affixLine(k.slice(4), v)}`, '#6cb6ff'))
   }
-  // a monster's own piece: whose it is (the kind whose `trophy` it is)
+  // a creature's own piece: whose it is (the kind whose `trophy` it is)
   if (tags.has('trophy')) {
-    const kind = Object.values(ontology().types).find((t) => t.props?.trophy === it.type)
-    out.push(line(`✧ ${L('Trophy', '专属装备')}${kind?.name ? ` · ${esc(L(`dropped by ${tx(kind.name)}`, `${tx(kind.name)}掉落`))}` : ''}`, '#ff9f43'))
+    const kind = Object.values(ontology().types).find((d) => d.props?.trophy === it.type)
+    out.push(line(`✧ ${esc(t('tipTrophy'))}${kind?.name ? ` · ${esc(t('tipDroppedBy').replace('{kind}', tx(kind.name)))}` : ''}`, '#ff9f43'))
   }
   // a piece of a set: the set, how many of it are worn, and what it gives at three, six, nine, twelve (lit when reached)
   const set = typeof p.set === 'string' ? ontology().sets?.find((s) => s.id === p.set) : undefined
@@ -223,6 +201,13 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   }
   if (typeof p.owner === 'string' && p.owner) out.push(line(esc(L(`Belongs to ${ctx.nameOf(p.owner) ?? p.owner}`, `属于${ctx.nameOf(p.owner) ?? p.owner}`)), '#ff5555'))
   return out.join('')
+}
+
+/** A rolled extra in words: its value (a share as a percentage) and its name, as the world's table says (Ontology.affixes; its key, if the table names it not). */
+export function affixLine(key: string, v: number): string {
+  const def = ontology().affixes?.pool.find((a) => a.key === key)
+  const value = def?.percent ? `${Math.round(v * 100)}%` : String(v)
+  return `${v > 0 ? '+' : ''}${value} ${esc(def?.name ? tx(def.name) : readable(key))}`
 }
 
 /** The statuses the world learned (the shared library's): named on the things that have them. */

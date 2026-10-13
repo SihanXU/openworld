@@ -14,7 +14,7 @@ export function openworldBundle(index: Pick<WorldIndex, 'name' | 'version'>): Bu
   const stations = [...new Set([...g.crafting.recipes.map((r) => r.station), ...g.crafting.placements.map((p) => (p as { station?: string }).station)].filter((s): s is string => !!s))]
   const client: ClientTables = {
     items: g.items,
-    crafting: { recipes: g.crafting.recipes, stations: Object.fromEntries(stations.map((s) => [s, g.crafting.stationName(s)])), placements: g.crafting.placements, buildings: g.crafting.buildings },
+    crafting: { recipes: g.crafting.recipes, stations: Object.fromEntries(stations.map((s) => [s, g.crafting.stationName(s)])), ...(g.crafting.shops && { shops: g.crafting.shops }), placements: g.crafting.placements, buildings: g.crafting.buildings },
     skills: { all: g.skills.all, directions: [...g.skills.directions], branches: g.skills.branches, professions: g.skills.professions },
     boons: g.boons,
     looks: { table: g.looks.table, slots: [...g.looks.slots], worn: [...g.looks.worn], parts: g.looks.parts, player: g.looks.player },

@@ -15,17 +15,18 @@ const nameOf = (type: string): Text => {
 }
 const spriteOf = (type: string) => FORM_BY_ID[type]?.sprite ?? 'item:bag'
 
-/** A shop: the station its counter is, its name, and its shelves (the panel's tabs: group, English, Chinese). */
+/** A shop: the station its counter is, its name, and its shelves (the panel's tabs: the recipes' group, its name, whether it buys from one). */
 export interface ShopDef {
   station: string
   name: Text
-  shelves: [group: string, en: string, zh: string][]
+  shelves: { group: string; name: Text; sell?: boolean }[]
 }
 
+const SELL = { name: L('Sell', '出售'), sell: true }
 export const SHOPS: ShopDef[] = [
-  { station: 'stall', name: L("Alberic's stall", '阿尔贝里克的货摊'), shelves: [['farm', 'Farming', '农业'], ['ranch', 'Ranching', '牧业'], ['fish', 'Fishing', '渔业'], ['sell', 'Sell', '出售']] },
-  { station: 'store', name: L('General Store', '杂货铺'), shelves: [['supplies', 'Supplies', '杂货'], ['provisions', 'Provisions', '食物药水'], ['store-sell', 'Sell', '出售']] },
-  { station: 'books', name: L('Church Bookstand', '教堂书架'), shelves: [['books', 'Skill Books', '技能书'], ['books-profession', 'Profession', '职业技能书']] },
+  { station: 'stall', name: L("Alberic's stall", '阿尔贝里克的货摊'), shelves: [{ group: 'farm', name: L('Farming', '农业') }, { group: 'ranch', name: L('Ranching', '牧业') }, { group: 'fish', name: L('Fishing', '渔业') }, { group: 'sell', ...SELL }] },
+  { station: 'store', name: L('General Store', '杂货铺'), shelves: [{ group: 'supplies', name: L('Supplies', '杂货') }, { group: 'provisions', name: L('Provisions', '食物药水') }, { group: 'store-sell', ...SELL }] },
+  { station: 'books', name: L('Church Bookstand', '教堂书架'), shelves: [{ group: 'books', name: L('Skill Books', '技能书') }, { group: 'books-profession', name: L('Profession', '职业技能书') }] },
 ]
 
 /** A merchant's price for so many of a thing: its worth and the merchant's quarter (social.ts markup), as any trader asks. */

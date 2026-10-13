@@ -144,6 +144,12 @@ export interface Frame {
     offhand?: ItemInfo & { works: boolean }
     /** What is worn, by slot (`head`, `body`, `ring`, `ring.2` …: the `wear:` props, the off hand's too), while it is still carried. */
     worn: Record<string, ItemInfo>
+    /**
+     * The numbers one fights with now, as the engine reckons them (World.stat: one's own, what one's statuses add, what
+     * one wears and what it rolled, a set's bonuses, the night's, what a companion lends; a module may add what its
+     * combat reads beside them), and the power of what a blow is struck with (blows.ts weaponOf): the character sheet's.
+     */
+    stats: { atk: number; def: number; critChance: number; power: number }
     /** What one owes the watch of the map one is on, and its name (docs/npc-sandbox.md §2.7). */
     wanted?: { bounty: number; by: Text }
     /** The coin one carries. */
@@ -486,6 +492,8 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
         const info = item && (item.place.on === 'inside' || item.place.on === 'hand') && item.place.holder === p.id ? itemInfo(eng, item.id) : undefined
         return info ? [[k.slice(5), info]] : []
       })),
+      // the sheet's numbers, as a blow reckons them (engine.ts: atk, 1 for one with none, and the weapon's power)
+      stats: ((weapon) => ({ atk: w.stat(p, 'atk', 1), def: w.stat(p, 'def'), critChance: w.stat(p, 'critChance'), power: weapon ? w.num(weapon, 'power', 0) : 0 }))(weaponOf(w, p)),
       // what one owes the watch here, and the coin one carries: a module's (society)
       purse: 0,
     },

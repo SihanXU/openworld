@@ -1893,6 +1893,13 @@
         },
         "weight": {
           "type": "number"
+        },
+        "name": {
+          "$ref": "#/definitions/Text",
+          "description": "What a tooltip calls it (default: its key), and whether its value is a share, shown as a percentage (0.05: 5%)."
+        },
+        "percent": {
+          "type": "boolean"
         }
       },
       "required": [
