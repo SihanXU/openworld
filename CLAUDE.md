@@ -259,6 +259,7 @@ npm run dev              # client at http://localhost:5173 + the modder on :8787
 npm run dev -- --backend claude-code   # the modder through claude -p (Opus 5.5, effort low)
 npm test                 # vitest (engine + base rules + Mod port)
 npm run typecheck
+npm run check            # both, as CI runs them on every PR and push to main (.github/workflows/check.yml)
 npm run coverage         # interaction coverage + refresh its test baseline
 npm run build            # gen:world + static build → games/openworld/client/dist
 npm run editor           # the OpenWorld Editor on http://localhost:5175/editor/ (the games under games/, and any folder)

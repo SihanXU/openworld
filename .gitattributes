@@ -1,0 +1,4 @@
+# Text is stored and checked out with LF on every platform. The format's writer, the generated JSON Schemas and
+# the tests that compare files byte for byte all write "\n", so a CRLF checkout (Windows' core.autocrlf) fails
+# them; shell scripts with CRLF do not run. Git still detects binaries (pictures, sounds) and leaves them alone.
+* text=auto eol=lf
