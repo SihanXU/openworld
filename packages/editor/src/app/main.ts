@@ -12,6 +12,7 @@ import type { PersonFile } from '@openworld/format'
 import type { RawChunk } from '@openworld/engine'
 import type { Ctx, Mode } from './context.ts'
 import { MapMode } from './mapMode.ts'
+import { mapTree, paintMinis } from './mapTree.ts'
 import { PeopleMode } from './peopleMode.ts'
 import { ProblemsPanel } from './problems.ts'
 import { Store } from './store.ts'
@@ -59,18 +60,48 @@ async function openProject(id: string): Promise<void> {
       ctx.refresh()
     },
     refresh,
-    async playtest(at) {
+    async playtest(at, o) {
       await save()
-      const where = at ?? (ctx.sel.cell ? { map: ctx.map, ...ctx.sel.cell } : undefined)
-      window.open(`/runtime/play/?game=/games/${encodeURIComponent(id)}/&playtest=1&modder=off${where ? `&at=${encodeURIComponent(`${where.map},${where.x},${where.y}`)}` : ''}`, '_blank')
+      const where = at ?? (o?.scene ? undefined : ctx.sel.cell ? { map: ctx.map, ...ctx.sel.cell } : undefined)
+      window.open(`/runtime/play/?game=/games/${encodeURIComponent(id)}/&playtest=1&modder=off${where ? `&at=${encodeURIComponent(`${where.map},${where.x},${where.y}`)}` : ''}${o?.scene ? `&scene=${encodeURIComponent(o.scene)}` : ''}`, '_blank')
     },
     open(m, file, at) {
       const next = modes.find((x) => x.id === m)
       if (!next) return
+      if (picking) endPick(undefined)
       mode = next
-      if (file) next.focus?.(ctx, file, at)
+      if (file || at) next.focus?.(ctx, file ?? '', at)
       refresh()
     },
+    pick(why, map) {
+      picking?.done(undefined)
+      return new Promise((done) => {
+        picking = { why, done }
+        if (map && store.mapFile(map)) ctx.map = map
+        canvas.show(store.compiled(), ctx.map)
+        refresh()
+      })
+    },
+  }
+  // a cell asked for (a scene's move, a trigger's spot): the canvas shown with the maps to choose among, until one is clicked or Esc
+  let picking: { why: string; done: (p?: { map: string; x: number; y: number }) => void; hover?: { x: number; y: number } } | undefined
+  function endPick(p?: { map: string; x: number; y: number }): void {
+    const k = picking
+    picking = undefined
+    k?.done(p)
+    refresh()
+  }
+  function pickPanel(): void {
+    const left = $('#left')
+    left.innerHTML = `<h3>Pick a cell</h3><p>${esc(picking!.why)}: click it on the map.</p><button id="pkCancel">Cancel (Esc)</button><h3>Maps</h3>${mapTree(ctx)}`
+    paintMinis(ctx, left)
+    left.querySelectorAll<HTMLButtonElement>('[data-map]').forEach((b) => (b.onclick = () => ctx.showMap(b.dataset.map!)))
+    $<HTMLButtonElement>('#pkCancel').onclick = () => endPick(undefined)
+    $('#right').innerHTML = '<p class="muted">The cell you click is written into the field that asked for it.</p>'
+    canvas.setOverlay((g, T) => {
+      const h = picking?.hover
+      if (h) (g.fillStyle(0xffd23f, 0.35), g.fillRect(h.x * T, h.y * T, T, T), g.lineStyle(2, 0xffd23f, 1), g.strokeRect(h.x * T, h.y * T, T, T))
+    })
   }
   // the renderer loads the game's pictures as it starts: a changed catalogue starts it again (when it is next shown)
   let pictures = false
@@ -79,16 +110,20 @@ async function openProject(id: string): Promise<void> {
     document.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => (b.onclick = () => ctx.open(b.dataset.mode!)))
     // a mode with a middle of its own draws there; the canvas waits (and keeps its place) behind it
     const center = $('#center')
-    $('#canvas').classList.toggle('hidden', !!mode.main)
-    center.classList.toggle('hidden', !mode.main)
-    if (mode.main) mode.main(ctx, center)
+    const main = picking ? undefined : mode.main
+    $('#canvas').classList.toggle('hidden', !!main)
+    center.classList.toggle('hidden', !main)
+    if (picking) pickPanel()
+    else if (main) main.call(mode, ctx, center)
     else if (pictures) {
       pictures = false
       useGame(clientGameOf(store.compiled().bundle, `/games/${encodeURIComponent(id)}/bundle.json`))
       canvas.reset()
     }
-    mode.render(ctx, $('#left'), $('#right'))
-    canvas.setOverlay(mode.overlay?.(ctx))
+    if (!picking) {
+      mode.render(ctx, $('#left'), $('#right'))
+      canvas.setOverlay(mode.overlay?.(ctx))
+    }
     const n = store.unsaved()
     $('#status').textContent = n ? `${n} unsaved` : 'saved'
     $<HTMLButtonElement>('#save').disabled = !n
@@ -133,6 +168,11 @@ async function openProject(id: string): Promise<void> {
   }
   canvas.onCell = (c, ev) => {
     if (ev === 'hover' || ev === 'drag' || ev === 'rdrag' || ev === 'leave') $('#sbCell').innerHTML = cellInfo(c)
+    if (picking) {
+      if (ev === 'hover' || ev === 'leave') (picking.hover = ev === 'leave' ? undefined : c), canvas.redraw()
+      if (ev === 'down') endPick({ map: ctx.map, ...c })
+      return
+    }
     mode.cell?.(ctx, c, ev)
   }
   // the canvas follows the project: drawn again a frame after an edit (a stroke is many)
@@ -158,11 +198,12 @@ async function openProject(id: string): Promise<void> {
     const k = e.key.toLowerCase()
     if (mod && k === 's') return (e.preventDefault(), void save().then(() => toast('Saved.')))
     const t = e.target as HTMLElement
+    if (picking && e.key === 'Escape') return endPick(undefined)
     if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement || t.isContentEditable) return
     if (mod && k === 'z' && !e.shiftKey) return (e.preventDefault(), void store.undo())
     if (mod && (k === 'y' || (k === 'z' && e.shiftKey))) return (e.preventDefault(), void store.redo())
-    if (mode.keydown?.(ctx, e)) return e.preventDefault()
-    if (mode.main || mod || e.altKey) return
+    if (!picking && mode.keydown?.(ctx, e)) return e.preventDefault()
+    if ((mode.main && !picking) || mod || e.altKey) return
     if (k === 'g') grid()
     else if (k === '+' || k === '=') step(1)
     else if (k === '-') step(-1)

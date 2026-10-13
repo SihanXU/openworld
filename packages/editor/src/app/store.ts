@@ -19,6 +19,8 @@ interface Edit {
   after?: string
   why: string
   stroke?: number
+  /** Edits made together (a quick event: the map, a person, a quest), undone and made again together. */
+  group?: number
 }
 
 export class Store {
@@ -28,6 +30,8 @@ export class Store {
   private deleted = new Set<string>()
   private undos: Edit[] = []
   private redos: Edit[] = []
+  private grouping?: number
+  private groups = 0
   private listeners = new Set<(why: string, file?: string) => void>()
   private made?: Compiled
   private madeFor = -1
@@ -84,7 +88,7 @@ export class Store {
     edit(data)
     if (JSON.stringify(data) === before) return
     const last = this.undos[this.undos.length - 1]
-    if (!(stroke !== undefined && last?.stroke === stroke && last.file === file)) this.undos.push({ file, before, why, stroke })
+    if (!(stroke !== undefined && last?.stroke === stroke && last.file === file)) this.undos.push({ file, before, why, stroke, group: this.grouping })
     this.redos = []
     this.dirty.add(file)
     this.emit(why, file)
@@ -93,7 +97,7 @@ export class Store {
   /** A new file (a map, a person, a quest). */
   add(file: string, data: unknown, why: string): void {
     if (this.docs.has(file)) throw new Error(`${file} exists`)
-    this.undos.push({ file, why })
+    this.undos.push({ file, why, group: this.grouping })
     this.redos = []
     this.put(file, data)
     this.emit(why, file)
@@ -103,7 +107,7 @@ export class Store {
   remove(file: string, why: string): void {
     const data = this.docs.get(file)
     if (data === undefined) return
-    this.undos.push({ file, before: JSON.stringify(data), why })
+    this.undos.push({ file, before: JSON.stringify(data), why, group: this.grouping })
     this.redos = []
     this.put(file, undefined)
     this.emit(why, file)
@@ -125,24 +129,47 @@ export class Store {
     return this.docs.has(file) ? JSON.stringify(this.docs.get(file)) : undefined
   }
 
-  /** Take the last edit back: what it was called. */
-  undo(): string | undefined {
-    const u = this.undos.pop()
-    if (!u) return undefined
-    this.redos.push({ ...u, after: this.text(u.file) })
-    this.put(u.file, u.before === undefined ? undefined : JSON.parse(u.before))
-    this.emit(`undo: ${u.why}`, u.file)
-    return u.why
+  /** Several edits as one (one Undo takes them all back): what `fn` changes, under the name given. */
+  batch<T>(why: string, fn: () => T): T {
+    if (this.grouping !== undefined) return fn()
+    this.grouping = ++this.groups
+    const from = this.undos.length
+    try {
+      return fn()
+    } finally {
+      for (const u of this.undos.slice(from)) (u.group = this.grouping), (u.why = why)
+      this.grouping = undefined
+    }
   }
 
-  /** Make the last undone edit again: what it was called. */
+  /** Take the last edit back (all of a batch): what it was called. */
+  undo(): string | undefined {
+    const top = this.undos[this.undos.length - 1]
+    if (!top) return undefined
+    while (this.undos.length) {
+      const u = this.undos[this.undos.length - 1]
+      if (u !== top && (top.group === undefined || u.group !== top.group)) break
+      this.undos.pop()
+      this.redos.push({ ...u, after: this.text(u.file) })
+      this.put(u.file, u.before === undefined ? undefined : JSON.parse(u.before))
+    }
+    this.emit(`undo: ${top.why}`, top.file)
+    return top.why
+  }
+
+  /** Make the last undone edit again (all of a batch): what it was called. */
   redo(): string | undefined {
-    const r = this.redos.pop()
-    if (!r) return undefined
-    this.undos.push({ file: r.file, before: this.text(r.file), why: r.why })
-    this.put(r.file, r.after === undefined ? undefined : JSON.parse(r.after))
-    this.emit(`redo: ${r.why}`, r.file)
-    return r.why
+    const top = this.redos[this.redos.length - 1]
+    if (!top) return undefined
+    while (this.redos.length) {
+      const r = this.redos[this.redos.length - 1]
+      if (r !== top && (top.group === undefined || r.group !== top.group)) break
+      this.redos.pop()
+      this.undos.push({ file: r.file, before: this.text(r.file), why: r.why, group: r.group })
+      this.put(r.file, r.after === undefined ? undefined : JSON.parse(r.after))
+    }
+    this.emit(`redo: ${top.why}`, top.file)
+    return top.why
   }
 
   /** What Undo and Redo would take back or make again (for their buttons' titles). */

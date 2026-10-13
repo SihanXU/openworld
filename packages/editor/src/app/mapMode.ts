@@ -6,12 +6,17 @@
 // things are dragged to move and nudged with the arrows. Every stroke is the format's data: a map file's rows,
 // heights, stamps, rooms, portals, anchors, regions and entities with ids of their own (mapEdit.ts).
 
-import type { Entity, Portal, RawChunk } from '@openworld/engine'
+import type { Entity, Portal, RawChunk, Rule } from '@openworld/engine'
 import { paintOrganic, paintPath, scatter, yard, type PersonFile } from '@openworld/format'
 import type { Catalog } from '@openworld/runtime/src/assets/types.ts'
 import type { CellEvent } from './canvas.ts'
 import type { Ctx, Mode } from './context.ts'
+import { contents, ownKindId, ownKindRule } from './events.ts'
+import { Form } from './form.ts'
 import { mapSettings, wireMapSettings } from './mapForms.ts'
+import { rulesMode } from './modes.ts'
+import { setEntry } from './ontologyFiles.ts'
+import { QuickEvents, type QuickKind } from './quickEvents.ts'
 import { mapTree, overview, paintMinis } from './mapTree.ts'
 import {
   EditError,
@@ -52,7 +57,7 @@ import { enOf, esc, parseValue, textOf, toast, tx, zhOf } from './ui.ts'
 type LayerId = 'ground' | 'height' | 'things' | 'marks'
 type Tool =
   | 'pencil' | 'rect' | 'ellipse' | 'fill' | 'select' | 'building' | 'room' | 'path' | 'organic'
-  | 'pick' | 'put' | 'putRect' | 'erase' | 'scatter' | 'yard'
+  | 'pick' | 'put' | 'putRect' | 'erase' | 'scatter' | 'yard' | 'quick'
   | 'mark' | 'portal' | 'anchor' | 'region' | 'start'
 
 /** A layer's tools: the tool, its name, what it does, its key. */
@@ -84,7 +89,8 @@ const LAYERS: { id: LayerId; label: string; tip: string; tools: [Tool, string, s
   {
     id: 'things', label: 'Things', tip: 'the things on the map, and the people standing there',
     tools: [
-      ['pick', 'Select', 'click a thing or a person: drag to move, the arrows nudge, Delete removes, Ctrl+C / Ctrl+V copy', 'S'],
+      ['pick', 'Select', 'click a thing or a person: drag to move, the arrows nudge, Delete removes, Ctrl+C / Ctrl+V copy; a double click opens it', 'S'],
+      ['quick', 'Quick', 'a door, a chest, a sign, a bed, a person, a merchant or a quest giver: choose it, fill it in, click where it goes', 'Q'],
       ['put', 'Set down', 'the kind chosen, in each cell clicked or dragged over', 'P'],
       ['putRect', 'Rectangle', 'one in every cell of a box', 'R'],
       ['erase', 'Erase', 'take away the things in the cells (drag; the brush size)', 'X'],
@@ -148,6 +154,8 @@ export class MapMode implements Mode {
   private density = 0.15
   /** The world overview in the middle instead of the map. */
   main?: (ctx: Ctx, el: HTMLElement) => void
+  /** The Things layer's quick events. */
+  private quick = new QuickEvents()
 
   private get tool(): Tool {
     return this.tools[this.layer]
@@ -217,7 +225,9 @@ export class MapMode implements Mode {
       parts.push(`<h3>Ground</h3><div class="palette grid">${chars.map(([c, id]) => `<button data-char="${esc(c)}" class="pic ${c === this.char ? 'on' : ''}" title="${esc(id)} (${esc(c)}); right-click on the map picks one"><canvas data-pic="t:${esc(id)}" width="32" height="32" style="background:${esc(onto.terrains[id]?.color ?? '#555')}"></canvas><small>${esc(tx(onto.terrains[id]?.name) || id)}</small></button>`).join('')}</div>`)
     }
     if (this.layer === 'height' && this.tool !== 'select') parts.push(`<h3>Height</h3><div class="palette row">${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((h) => `<button data-height="${h}" class="${h === this.height ? 'on' : ''}">${h}</button>`).join('')}</div><p class="muted">Half levels: 2 is a level. One walks at most half a level up or down.</p>`)
-    if (this.layer === 'things' && this.tool !== 'pick' && this.tool !== 'erase') parts.push(this.thingPalette(ctx, pics))
+    const quick = this.layer === 'things' && this.tool === 'quick' ? new Form() : undefined
+    if (quick) parts.push(this.quick.panel(ctx, quick, () => ctx.refresh()))
+    else if (this.layer === 'things' && this.tool !== 'pick' && this.tool !== 'erase') parts.push(this.thingPalette(ctx, pics))
     if (this.layer === 'marks' && (this.tool === 'anchor' || this.tool === 'region')) parts.push(`<label>its name <input id="markName" value="${esc(this.markName)}" placeholder="${this.tool === 'anchor' ? 'well (or the next spot)' : 'square (or the next area)'}"></label>`)
     parts.push(`<h3>Maps <a id="mOverview" class="x" title="every map, laid out by its edges, its portals' lines">world ▸</a></h3>${mapTree(ctx)}`)
     parts.push(`<details><summary>New map</summary>
@@ -228,6 +238,10 @@ export class MapMode implements Mode {
         <button id="nmMake">Make the map</button>
       </details>`)
     left.innerHTML = parts.join('')
+    if (quick) {
+      quick.wire(left)
+      left.querySelectorAll<HTMLElement>('[data-quick]').forEach((b) => (b.onclick = () => ((this.quick.kind = b.dataset.quick as QuickKind), ctx.refresh())))
+    }
     paintPics(left, ctx.store.id, pics)
     paintMinis(ctx, left)
     this.wireLeft(ctx, left)
@@ -332,7 +346,7 @@ export class MapMode implements Mode {
     if (ev === 'hover' || ev === 'drag' || ev === 'rdrag') this.hover = c
     if (ev === 'hover') return void ((this.paste || this.preview()) && ctx.canvas.redraw())
     if (ev === 'rdown' || ev === 'rdrag' || ev === 'rup') return this.picker(ctx, c, ev)
-    if (ev === 'double') return
+    if (ev === 'double') return this.open(ctx, c)
     if (ev === 'down') this.stroke++
     const s = this.stroke
     // a block being pasted goes where it is clicked, whatever the tool
@@ -376,6 +390,9 @@ export class MapMode implements Mode {
         return
       case 'pick':
         return this.pick(ctx, c, ev)
+      case 'quick':
+        if (ev === 'down') void this.quick.place(ctx, c).then((sel) => sel && ((ctx.sel = { cell: c, ...sel }), ctx.refresh()))
+        return
       case 'put': {
         if (!this.thing) return ev === 'down' ? toast('Choose a kind of thing first.', 'warn') : undefined
         const ch = this.chunk(ctx)
@@ -510,6 +527,30 @@ export class MapMode implements Mode {
     let now = b
     this.edit(ctx, `move ${b.w}×${b.h}`, (ch) => (now = moveBlock(ch, b, d, this.background(ctx, ch, b), this.prefabs(ctx))))
     this.selBox = now
+    ctx.refresh()
+  }
+
+  /**
+   * A double click (RPG Maker's on an event): a person opens in the people mode, a thing at its kind in the database
+   * (its fields and the rules on it), a portal in its settings, a door that leads nowhere offers the room behind it.
+   */
+  private open(ctx: Ctx, c: Cell): void {
+    if (!(this.tool === 'pick' || this.tool === 'mark' || this.tool === 'select')) return
+    const ch = this.chunk(ctx)
+    if (!ch) return
+    const top = this.topAt(ctx, c)
+    if (top?.kind === 'person') {
+      const f = ctx.store.list<PersonFile>('people').find((p) => p.data.id === top.id)?.file
+      ctx.sel = { person: top.id }
+      return ctx.open('people', f)
+    }
+    const pi = ch.map.portals.findIndex((p) => p.x === c.x && p.y === c.y)
+    if (pi >= 0 && (this.layer === 'marks' || !top)) return void ((this.layer = 'marks'), (this.tools.marks = 'mark'), (ctx.sel = { cell: c, portal: pi }), ctx.refresh())
+    if (top?.kind === 'entity') {
+      const e = ch.entities.find((x) => x.id === top.id)
+      if (e) return ctx.open('database', '', e.type)
+    }
+    ctx.sel = { cell: c }
     ctx.refresh()
   }
 
@@ -794,8 +835,10 @@ export class MapMode implements Mode {
       if (si !== undefined) parts.push(`<p>Building <b>${esc(m.stamps![si].key)}</b> at ${m.stamps![si].x}, ${m.stamps![si].y} <button id="stDel" class="danger">Remove it</button></p>`)
       const ri = roomAt(ch, c)
       if (ri !== undefined) parts.push(`<p>Room walls <b>${esc(m.rooms![ri].style)}</b> ${m.rooms![ri].w}×${m.rooms![ri].h} <button id="rmDel" class="danger" title="the frame's picture only: the walls stay as terrain">Remove the frame</button></p>`)
+      const who = people.find((p) => p.data.id === ctx.sel.person)
+      if (who) parts.push(`<div class="box"><b>${esc(tx(who.data.name) || who.data.id)}</b> <small class="muted">${esc(who.data.type)}</small><div class="row"><button data-person-open="${esc(who.data.id)}">Open in People</button><button id="pFind">Where they are used</button></div></div>`)
       const e = here.find((x) => x.id === ctx.sel.entity)
-      if (e) parts.push(this.entityForm(e, onto.types[e.type] ? '' : ' (no such type)'))
+      if (e) parts.push(this.entityForm(ctx, ch, e, onto.types[e.type] ? '' : ' (no such type)'))
     }
     const pi = ctx.sel.portal
     const p = pi !== undefined ? m.portals[pi] : undefined
@@ -823,7 +866,8 @@ export class MapMode implements Mode {
     wireMapSettings(ctx, right, (why, fn) => this.edit(ctx, why, fn))
     click('[data-entity]', (a) => ((ctx.sel = { ...ctx.sel, entity: a.dataset.entity, person: undefined }), ctx.refresh()))
     click('[data-person]', (a) => ((ctx.sel = { ...ctx.sel, person: a.dataset.person, entity: undefined }), ctx.refresh()))
-    click('[data-person-open]', (a) => ((ctx.sel = { person: a.dataset.personOpen }), ctx.open('people')))
+    click('[data-person-open]', (a) => { const f = ctx.store.list<PersonFile>('people').find((p) => p.data.id === a.dataset.personOpen)?.file; ctx.sel = { person: a.dataset.personOpen }; ctx.open('people', f) })
+    click('#pFind', () => ctx.sel.person && ctx.open('find', '', ctx.sel.person))
     click('#playHere', () => c && void ctx.playtest({ map: m.id, ...c }))
     const box = () => this.selBox!
     click('#sCopy', () => this.copy(ctx, ch, false))
@@ -879,15 +923,47 @@ export class MapMode implements Mode {
     ctx.refresh()
   }
 
-  private entityForm(e: Entity, warn: string): string {
+  private entityForm(ctx: Ctx, ch: RawChunk, e: Entity, warn: string): string {
+    const held = ch.entities.filter((x) => (x.place.on === 'inside' || x.place.on === 'hand') && x.place.holder === e.id)
+    const counts = new Map<string, number>()
+    for (const h of held) counts.set(h.type, (counts.get(h.type) ?? 0) + 1)
+    const own = ctx.onto().types[e.type]?.own === e.id
     return `<h3>${esc(e.id)}${esc(warn)}</h3>
+      <div class="row"><button id="eKind" title="its kind's fields and the rules on it (a double click on the map)">Its kind</button><button id="eOwn" title="a child type for this one thing: rules written for it are its behaviour alone">${own ? 'Its rules' : 'A kind of its own'}</button><button id="eFind">Where it is used</button></div>
       <label>type <input data-e="type" value="${esc(e.type)}"></label>
       <label>name <input data-e="en" value="${esc(enOf(e.name))}"> <input data-e="zh" value="${esc(zhOf(e.name))}"></label>
       <label>at <input data-e="x" type="number" value="${e.place.on === 'tile' ? e.place.x : ''}"> <input data-e="y" type="number" value="${e.place.on === 'tile' ? e.place.y : ''}"></label>
       <label>tags <input data-e="tags" value="${esc((e.tags ?? []).join(', '))}"></label>
       <label>props <textarea data-e="props" rows="3">${esc(e.props ? JSON.stringify(e.props) : '')}</textarea></label>
       ${e.ai ? `<label>behaviour <textarea data-e="ai" rows="3">${esc(JSON.stringify(e.ai))}</textarea></label>` : ''}
+      <details ${held.length ? 'open' : ''}><summary>What it holds (${held.length})</summary><ul class="things">${[...counts].map(([t, n]) => `<li>${n} × ${esc(t)} <a data-hold-del="${esc(t)}" class="x" title="one fewer">−</a><a data-hold-add="${esc(t)}" class="x" title="one more">+</a></li>`).join('')}</ul>
+        <input id="eHoldAdd" list="dlHoldKinds" placeholder="+ a kind in it"><datalist id="dlHoldKinds">${Object.keys(ctx.onto().types).filter((t) => t.startsWith('item/')).map((t) => `<option value="${esc(t)}">`).join('')}</datalist></details>
       <button id="eDel" class="danger" title="Delete">Remove ${esc(e.id)}</button>`
+  }
+
+  /** A thing's own kind (E-b): a child type of its type made for it, the thing moved to it, a first rule for it (not for a person: theirs is their talk). */
+  private ownKind(ctx: Ctx, id: string): void {
+    const ch = this.chunk(ctx)
+    const e = ch?.entities.find((x) => x.id === id)
+    if (!e) return
+    const onto = ctx.onto()
+    if (onto.types[e.type]?.own !== e.id) {
+      const type = ownKindId(e, onto.types)
+      const name = e.name ?? textOf(`${tx(onto.types[e.type]?.name) || e.type.split('/').pop()} (${e.id})`, '')
+      ctx.store.batch(`${e.id}: a kind of its own`, () => {
+        setEntry(ctx.store, 'types', { id: type, name, own: e.id } as never, `the kind ${type}`)
+        this.edit(ctx, `${e.id} is a ${type}`, (x) => { const t = x.entities.find((y) => y.id === id); if (t) t.type = type })
+      })
+      toast(`${e.id} is now its own kind, ${type}: the rules written for it are its behaviour alone.`)
+      if (!type.startsWith('actor/')) rulesMode.startWith(ctx, ownKindRule(type, name))
+      else rulesMode.filterBy(type)
+      return ctx.open('rules')
+    }
+    const rule = [...ctx.store.list<Rule[]>('rules').flatMap((f) => f.data)].find((r) => r.host?.type === e.type)
+    if (rule) return ctx.open('rules', '', rule.id)
+    if (!e.type.startsWith('actor/')) rulesMode.startWith(ctx, ownKindRule(e.type, e.name ?? e.id))
+    else rulesMode.filterBy(e.type)
+    ctx.open('rules')
   }
 
   private wireEntity(ctx: Ctx, right: HTMLElement): void {
@@ -911,6 +987,19 @@ export class MapMode implements Mode {
       }
     }))
     right.querySelector<HTMLButtonElement>('#eDel')?.addEventListener('click', () => (this.edit(ctx, `remove ${id}`, (ch) => removeThings(ch, [id])), (ctx.sel = { cell: ctx.sel.cell })))
+    const type = this.chunk(ctx)?.entities.find((x) => x.id === id)?.type
+    right.querySelector<HTMLButtonElement>('#eKind')?.addEventListener('click', () => type && ctx.open('database', '', type))
+    right.querySelector<HTMLButtonElement>('#eOwn')?.addEventListener('click', () => this.ownKind(ctx, id))
+    right.querySelector<HTMLButtonElement>('#eFind')?.addEventListener('click', () => ctx.open('find', '', id))
+    const hold = (t: string, more: boolean) => this.edit(ctx, `${more ? 'one more' : 'one fewer'} ${t} in ${id}`, (ch) => {
+      if (more) return void ch.entities.push(...contents(id, ch.map.id, [{ type: t, count: 1 }], this.taken(ctx)))
+      const last = [...ch.entities].reverse().find((x) => x.type === t && (x.place.on === 'inside' || x.place.on === 'hand') && x.place.holder === id)
+      if (last) removeThings(ch, [last.id])
+    })
+    right.querySelectorAll<HTMLElement>('[data-hold-add]').forEach((a) => (a.onclick = () => hold(a.dataset.holdAdd!, true)))
+    right.querySelectorAll<HTMLElement>('[data-hold-del]').forEach((a) => (a.onclick = () => hold(a.dataset.holdDel!, false)))
+    const add = right.querySelector<HTMLInputElement>('#eHoldAdd')
+    if (add) add.onchange = () => add.value.trim() && hold(add.value.trim(), true)
   }
 
   private resize(ctx: Ctx, w: number, h: number): void {

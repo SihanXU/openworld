@@ -563,3 +563,60 @@ run of its done-when) and is recorded below as built.
   its 23 maps (3 s).
 - **Left for later**: a person is moved here but made in the people mode; anchors and areas are renamed by removing
   and placing again; a cut leaves the ground around it, not "nothing" (every cell has a ground).
+
+## 18. E2 as built (2026-10-13): OpenWorld's events
+
+- **A double click opens what is there** (the map's Select tools): a person in the people mode, a thing at its kind
+  in the database (its fields and the rules on it), a portal in its settings, a door that leads nowhere at the room
+  behind it.
+- **Quick events** (`app/quickEvents.ts`, `app/events.ts`; the Things layer's **Quick** tool, Q): a **door** to a cell of
+  another map — the landing and the way back picked on the map, a portal each way —; a **chest** and what is in it; a
+  **sign** with its words in both languages (`text`, `text_zh`, which the standard library's `core/read` says); a
+  **bed**; a **person** with a line; a **merchant** (with the society module: tagged `merchant`, a stock and a purse of
+  the game's coin, carried); a **quest giver**: a person and a favour of the starter's shape — bring so many of a
+  kind, defeat so many, or a word with someone —, its words, its reward. Each is one Undo (the store's `batch`: a map,
+  a person's file and a quest's file undone and made again together).
+- **Its own kind** (E-b): on a thing, "A kind of its own" makes a child type of its type for it (`TypeDef.own` names
+  the thing; the engine reads nothing from it), moves the thing to it and begins a first rule for it in the rules
+  mode (a hand on it); for a person, whose hand is their talk, the rules mode is opened on their kind instead. After,
+  the button opens its rules. A thing's contents are listed and changed in its form (one more, one fewer, a new kind).
+- **A step's trigger and a quest's triggers as forms** (`app/triggers.ts`): a step's `when` is a list of conditions,
+  each a row — the map, an area, a spot (picked on the map), the hours, the weather, facts and quests' stages compared
+  (is, is not, over, at least …), objectives done, after a step, the morning after, carrying, holding, statuses, a
+  skill, near a thing, a room, one's numbers, things on cells (JSON) —, one added from a list; a quest's trigger is a
+  kind and its fields — spoken to, given to, carrying, felled, gone, entering a place, objectives, facts, another
+  quest's stage or end, a step — and all, any and not of them, nested.
+- **A scene's commands as forms** (`app/sceneForms.ts`): each kind named as RPG Maker names its commands (show a line,
+  walk to, turn, a mood, wait, fade, transfer, place, give, a fact, a quest's stage, a topic, a status, tell, a card),
+  its fields from the project's names (the speaker among the people, the quest's stages by their log, the facts
+  known), a cell **picked on the map** (the editor's `pick`: the canvas shown with the maps to choose among, Esc to
+  cancel); reordered, copied, removed. **A line is shown as the game shows it**: the runtime's dialogue box, the
+  speaker's name and portrait (a look's bust, else the catalogue's faceset in the line's mood), in English or Chinese.
+- **The quests as forms**: the quest (kind, repeat, deadline, title, summary, the giver's four lines); how it begins
+  (by itself on a trigger, offered by an alias once a trigger holds, by an effect; radiant as JSON); its aliases (this
+  one by id, a place, found or made as JSON; essential, a quest item, may stay empty); its objectives (words, whom they
+  point at, someone to speak to, counting what is carried or felled or a fact, else done by a trigger); its stages (the
+  trigger that reaches it, the journal's line, what is said and by whom, the objectives shown, done and failed, what is
+  taken, the reward — experience, things, facts —, completing or failing it; its hint, the stages it follows, its
+  effects and lessons as JSON).
+- **Find** (`app/findMode.ts`, `app/usage.ts`; RPG Maker's event searcher): the story's facts, each with where it is set
+  (a step's facts, a scene's `fact`, a reward, a rule telling the story `fact.<key>`) and read (a trigger, a quest's
+  `fact`, a line's `fact:` key or `{fact:…}` slot, a counting objective); and any id — a type and the kinds under it,
+  a person, a thing, a map, a quest, a step — with every place that names it, each opening where it is edited. The
+  story mode lists the facts with their counts; a step, a quest, a thing and a person have "Where it is used".
+- **Play from this scene**: a step's button saves and opens a playtest on its map (its spot, its area's middle, the
+  start) with the step begun at once (`?scene=<step>`: the worker's `story.start` before any other step can take
+  control).
+- **Checked**: `editor/test/events.test.ts` — a door and its way back, a chest's contents, a sign, a merchant, a
+  favour, its own kind, the facts set and read and an id's uses on the starter, a batch undone and made again as one,
+  and a story made of quick events alone played on the kernel to its end (a villager's favour: spoken to, the stones
+  carried, handed in, rewarded). In a browser, E2's done-when on a new project from the starter, with no JSON: Tess
+  and her favour (two stones, an axe for it), a chest with two stones, a sign, a door to the cottage and its way back
+  picked on the map; a double click on Tess opening her; a scene after the opening — Tess's line (previewed with her
+  portrait), her walk to a cell picked on the map, a stone given, a fact set —; the quest's forms; Find naming the
+  fact and Tess's four places; the sign given a kind of its own and its first rule; saved with no problem; played from
+  the scene, Tess's line shown in the game's box. The saved project then played headless: the opening, Tess's scene
+  and her stone, a word with her, a stone from the chest, back to her — done, the stones taken, the axe given.
+- **Left for later**: a person's schedule and lines stay the people mode's (the quick events make a person who stands
+  where they were put); radiant offers, a stage's effects and lessons, invariants and an alias found or made are JSON
+  still (E3's forms from the schemas); "play from this scene" begins the step but sets none of the facts before it.

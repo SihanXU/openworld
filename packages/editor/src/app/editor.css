@@ -186,3 +186,29 @@ details.group > summary { font-size: 12px; margin: 4px 0; }
 #ovCanvas { image-rendering: pixelated; cursor: pointer; border: 1px solid var(--ed-line); border-radius: 4px; }
 .box.appear .row { margin-bottom: 4px; }
 .box.appear table.sched input:not([type=number]) { width: 100%; }
+
+/* OpenWorld's events (§16 E2): conditions, triggers, scene commands, the line as the game shows it, quick events */
+.conds { display: flex; flex-direction: column; gap: 4px; }
+.cond { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding: 4px 6px; background: #161a26; border: 1px solid var(--ed-line); border-radius: 5px; }
+.cond .lbl { color: var(--ed-accent); font-size: 12px; min-width: 110px; }
+.cond .rows { flex: 1 1 100%; }
+.rows { display: flex; flex-direction: column; gap: 3px; }
+.row.add select, .row.add input { opacity: 0.85; }
+.trig { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.trigline { margin: 4px 0; }
+.nest { flex: 1 1 100%; margin-left: 14px; padding-left: 8px; border-left: 2px solid var(--ed-line); display: flex; flex-direction: column; gap: 3px; }
+.cmdcard { background: #161a26; border: 1px solid var(--ed-line); border-radius: 6px; padding: 6px 8px; margin: 6px 0; }
+.cmdcard .row { flex-wrap: wrap; }
+.cmdcard.stage { border-left: 3px solid var(--ed-accent); }
+.words { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.words input { width: 46%; min-width: 140px; }
+.words textarea { width: 48%; min-width: 160px; font-family: inherit; font-size: 13px; }
+input.wide { width: 100%; }
+textarea.json { font-size: 11px; }
+.preview .dialog.line-preview { position: relative; left: auto; bottom: auto; transform: none; width: auto; margin: 6px 0 2px; min-height: 92px; }
+.preview .dialog.line-preview.bust { padding-left: 150px; }
+.preview .dialog.line-preview .face.bust { width: 170px; height: 170px; left: -20px; }
+.preview .dialog.line-preview .face.bust canvas { width: 170px; height: 170px; }
+table.facts { width: 100%; border-collapse: collapse; }
+table.facts td { padding: 2px 4px; }
+.tools.quick { grid-template-columns: 1fr 1fr; margin-bottom: 6px; }

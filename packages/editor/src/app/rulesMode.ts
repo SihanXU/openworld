@@ -22,6 +22,11 @@ export class RulesMode implements Mode {
     else ctx.store.change<Rule[]>(file, `a new rule ${rule.id}`, (rs) => rs.push(rule))
   }
 
+  /** Show the rules whose id, kind or host has this (a thing's own kind: the rules on it). */
+  filterBy(text: string): void {
+    this.filter = text
+  }
+
   id = 'rules'
   label = 'Rules'
   private sel?: string

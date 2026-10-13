@@ -92,7 +92,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   `brushes.ts` the builder's brushes, `crowd.ts` people in bulk, `schema.ts` the JSON Schemas
   from the engine's types (`schema/`, `npm run schema`). A bundle (`bundle.json` + `world/` + `assets/`) is a
   whole game: another bundle URL is another game.
-- `packages/editor` — the OpenWorld Editor (docs/engine-split.md §6, §11, §15; the plan E1–E7 and E1 as built §16–17), a program of its own: `src/server/`
+- `packages/editor` — the OpenWorld Editor (docs/engine-split.md §6, §11, §15; the plan E1–E7 and E1, E2 as built §16–18), a program of its own: `src/server/`
   — `workspace.ts` where projects are (any folder; a recent list in `~/.openworld-editor`; shelves: the repo's
   `games/` in development; templates: the starter, empty), `api.ts` the local service over them (only this host,
   every change with its header), `assets.ts` a project's pictures and sounds and the shipped pack (the Ninja
@@ -108,9 +108,12 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   the project in memory (edits, undo and redo, save, compiled as it is now), `canvas.ts` the runtime's WorldScene with a
   free camera (the right button picks, the middle pans, Ctrl+wheel zooms), `mapMode.ts` (four layers and their tools; `mapEdit.ts`
   the edits — shapes, fill, blocks copied, pasted and moved, buildings, rooms, the interior behind a door —, `mapForms.ts` a map's
-  settings, `mapTree.ts` the maps' tree and the world overview, `thumbs.ts` the palettes' pictures), `peopleMode.ts`, `databaseMode.ts` (types, statuses, terrains, recipes; `ontologyFiles.ts`
+  settings, `mapTree.ts` the maps' tree and the world overview, `thumbs.ts` the palettes' pictures; `quickEvents.ts` + `events.ts` the quick events — a door, a chest, a sign, a bed, a person,
+  a merchant, a quest giver — and a thing's own kind), `peopleMode.ts`, `databaseMode.ts` (types, statuses, terrains, recipes; `ontologyFiles.ts`
   where an entry is written), `rulesMode.ts` (a rule's tree and JSON checked as typed, which rule answers here,
-  the sandbox), `storyMode.ts` (the story's steps and scene commands, the quests), `holesMode.ts` (the holes panel:
+  the sandbox), `storyMode.ts` (the story's steps and scene commands, the quests, all as forms: `triggers.ts` a step's and a quest's triggers,
+  `sceneForms.ts` a scene's commands and a line shown as the game's dialogue, `form.ts` the forms' controls), `findMode.ts` + `usage.ts`
+  (the event searcher: the facts set and read, where an id is used), `holesMode.ts` (the holes panel:
   count, answer by hand, ask the game's modder, review, replay, take into `learned/`), `problems.ts` the validation
   panel, `modes.ts` the modes; the map's brushes and the people in bulk come from the format; playtest opens the
   player at a cell.
