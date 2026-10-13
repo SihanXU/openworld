@@ -6,7 +6,7 @@ import { APPEAR_EVERY, CODEX_SIGHT, MAGNET, ROW, SLOT_COUNT, TICKS_PER_HOUR, TIC
 import { BOON_REACH, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE, PROFESSION_LEVEL } from '@openworld/modules'
 import {
   BOONS, BOSSES, COIN, EFFICIENCY, ELEMENT_NAMES, ELEMENTS, FALL_DAMAGE, FED_FOR, FORMS, LAYS_EVERY, LEGENDARY_ARMS, MATERIALS, NIGHT_CAP, NIGHT_EVERY, PLACEMENTS,
-  QUALITIES, RECIPES, RECOVERY, RELICS, ROOM_SIZE, SAFE_FALL, SKILL_BRANCHES, SKILL_DIRECTIONS, SKILL_PROFESSIONS, SKILLS, STOREYS, TERRAIN_CHARS,
+  QUALITIES, RECIPES, RECOVERY, RELICS, ROOM_SIZE, SAFE_FALL, SHOPS, SKILL_BRANCHES, SKILL_DIRECTIONS, SKILL_PROFESSIONS, SKILLS, STOREYS, TERRAIN_CHARS,
   TERRAINS, TREE_GROWS, VOW_TRAITS, buildOntology, type Form, LOOK_BODIES, LOOK_PARTS,
 } from '@openworld-game/content'
 import { PEOPLE } from '../../tools/src/demo/people.ts'
@@ -268,8 +268,10 @@ export function loadGame(): Game {
   }
 
   // ---- items (the catalogue's forms), fixtures, structures
-  // buying and selling are made at the stall as recipes are (content homestead.ts), but they are trade, not making
-  const MADE = RECIPES.filter((r) => r.station !== 'stall')
+  // buying and selling are made at a shop's station as recipes are (the stall, the general store's counter, the church's
+  // bookstand: content homestead.ts, village.ts), but they are trade, not making
+  const shopStations = new Set(SHOPS.map((s) => s.station))
+  const MADE = RECIPES.filter((r) => !shopStations.has(r.station ?? ''))
   const SHOP = RECIPES.filter((r) => r.station === 'stall')
   const recipeOf = new Map(MADE.map((r) => [String((r.make as any).type), r]))
   const placementOf = new Map(PLACEMENTS.filter((p) => p.result).map((p) => [String(p.result), p]))

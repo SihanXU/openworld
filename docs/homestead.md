@@ -2,12 +2,16 @@
 
 Built 2026-10-07. The Held Ground (docs/chapter-1.md §12) is the player's camp; this is what makes it a working
 place. Content: `content/src/homestead.ts` (items in `items.ts`); the map's stall and pond in
-`tools/src/demo/quest/haven.ts`; the panel is the menu's `shop` tab (`client/src/ui/menu.ts`). Proved by demo H2.
+`tools/src/demo/quest/haven.ts`; the panel is the menu's `shop` tab (`runtime/src/ui/menu.ts`). Proved by demo H2.
+How the ground grows (its steward's panel, the stock, the grounds, the buildings, the residents) is below,
+"The Held Ground's panel".
 
 ## The coin and the stall
 
-- **The Dawnmark** (晨辉币, `item/misc/thornmark`) is the Held Ground's coin. Alberic gives 30 at his welcome;
-  his widening errands pay 20, 40, 60; the rest comes from selling.
+- **The Dawnmark** (晨辉币, `item/misc/thornmark`) is the Held Ground's coin, and since 2026-10-11 every
+  merchant's (docs/npc-sandbox.md §2.10). Alberic gives 30 at his welcome; the land's three widenings pay
+  20, 40, 60 as they are built in his panel, the residents' tents 30, 50, 80 (below); the rest comes from
+  selling (and a few favours: docs/quests.md).
 - **Alberic's stall** (`fixture/furniture/stall/trade`, tags `stall`, `station:stall`) stands beside his post.
   A hand on it (E) opens the stall panel: four tabs — **Farming**, **Ranching**, **Fishing**, **Sell** — and
   the coin one carries.
@@ -51,7 +55,7 @@ illustrated crops' sprout and young plant of their habit (leafy, sprawling, clim
   (`home/milk`).
 - **Eggs**: hens lay every three hours (their stage), fed or not.
 - **Beasts in crates** (`item/misc/crate_hen`, `crate_calf`): set down (G), the beast walks out (`home/crate`).
-  The Held Ground starts with a cow and two hens.
+  The Held Ground keeps no beasts of its own (since 2026-10-11): they are bought, crated, at the stall.
 
 - **Breeding** (Minecraft's; `home/breed-cow`, `home/breed-chicken`): a cow or a hen fed (feed, or wheat) calls to
   the fed of its kind within three cells; one that hears it, fed and not resting, bears a **calf** or a **chick**
@@ -75,7 +79,40 @@ illustrated crops' sprout and young plant of their habit (leafy, sprawling, clim
 | Soggy boot | 8% | 1 |
 | Catfish | in rain or storm | 20 |
 | Eel | at night (20–05) | 18 |
-| Pike | deep water (the Held Ground's lake has a deep middle) | 16 |
+| Pike | deep water (the Held Ground's east pond and the Lakeside's lake have deep middles; a Deep Fisher, any water) | 16 |
 | Sunfish | by day (06–19) | 6 |
 | Perch | otherwise, often | 8 |
 | Raw fish | otherwise | 6 |
+
+## The Held Ground's panel (2026-10-11)
+
+Alberic is the ground's steward (`actor/person/steward`, tag `haven-steward`). His talk's "The Held Ground…"
+(`haven/steward`) opens its panel (`runtime/src/ui/homestead.ts`; content `haven.ts` `HAVEN_UPGRADES`; the
+client game's `homestead` entry): a round chart of the ground (what is held green, each ring of mist still
+standing dashed), the land's level, the **stock**, and three tabs of what the ground can grow into. The
+widening errands (`haven1–3`) are gone; `content/src/migrateHaven.ts` drops them from older saves, keeping how
+far the land goes and what was carried.
+
+- **The stock**: what an upgrade asks for is handed to the steward (G, or from the panel: a stack dragged onto
+  a card's slot hands as many as it lacks; a click hands all that open upgrades lack). It goes into the
+  ground's stock (`haven.stock.<type>` on him, copied to the story for the panel: `haven/stock`), the thing
+  itself used up; anything else handed to him is a gift. Every upgrade is built from the stock.
+- **Land** (`haven.size`, one after another): the Grove (10 logs, 10 stones), the Meadow (20 planks, 5 iron
+  ore), the Old Bounds (30 planks, 30 stones, 3 gold ore). Each lifts a ring of mist round the planted sword
+  (`fixture/nature/mist`, its `ring`: `haven/mist-lifts`) and pays 20, 40, 60.
+- **Grounds** (`haven.zone.<id>`): places of their own, 32 × 24, peaceful, a way back at their south edge —
+  the quarry (land 1: boulders, iron, coal and a gold vein, stone that comes back), the timberland (land 1:
+  dense woods, mushrooms, berries), the lakeside (land 2: a deep lake with pike) and the hot springs (land 3:
+  three healing springs, herbs, frostcap). Opened, a ground's card has "Go ➜": the steward sends one there
+  (`go:<id>`, a push). Built in `tools/src/demo/quest/haven.ts` `buildHavenGrounds`.
+- **Buildings** (`haven.build.<id>`): a plot staked out at the heart for each (`fixture/build/plot/<id>`) looks
+  every few seconds whether it is built (`haven/plot-<id>`) and becomes it: the workshop (a workbench), the
+  kitchen hearth (a campfire, lit), the storehouse (`fixture/container/storehouse`, forty places, open), the
+  weaving shed (a loom), the apothecary (a cauldron), and three residents' tents (2026-10-12).
+- **The residents** (content `social.ts` `SOCIAL.residence`; the society module's `moveIn`): one held in full
+  regard who is not bound to the main story (tag `storybound`) may be asked, once Alberic has fallen, to come
+  and live in the Held Ground. A bed by the camp is there from the first (`home.camp`); each residents' tent
+  built adds two in front of it (`home.lodge<n>.a/b`, open when `haven.build.lodge<n>` is set), seven in all.
+  Asked with a bed free, they go at once and keep the ground's days from then on (`NpcData.resident`: asleep
+  at their bed 21–7, about it 7–21); with none free they say so. Older saves get the tents' plots
+  (`migrateLodges`).
