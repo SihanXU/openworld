@@ -53,7 +53,6 @@ import {
   skillsForProfession,
   stationName,
   SHOPS,
-  HAVEN_UPGRADES,
   wildChunkFor,
 } from '@openworld-game/content'
 import { CATALOG } from './catalog.ts'
