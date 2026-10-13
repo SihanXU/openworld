@@ -35,6 +35,7 @@ const hunters = (type: string, max: number, every: number, on: string[]): Appear
 
 export function buildHollow(): MapBuilder {
   const m = new MapBuilder('hollow', L('Thornwood Hollow', '荆棘谷'), 'wild', 40, 30, 'grass', 'field', 'outdoor', 'frostfang')
+  m.gearLevel = 2
   const gap = (xs: readonly number[], x: number) => xs.includes(x)
   // thick woods and thorn bushes round the dell, open north (the forest) and south (the barrow's mouth)
   for (let y = 0; y < m.h; y++)
@@ -69,6 +70,7 @@ export function buildHollow(): MapBuilder {
 
 export function buildBarrow(): MapBuilder {
   const m = new MapBuilder('barrow', L('The Old Barrow', '古墓'), 'dungeon', BARROW.w, BARROW.h, 'cave_wall', 'cave', 'dark', 'frostfang')
+  m.gearLevel = 2
   const open = (t: string) => t === 'cave_wall'
   // the stair down from the hollow (north), a long hall, two side cells: Lina's (west), the stair further down (east)
   m.path([[14, 0], [14, 6], [15, 11], [15, 16]], 'floor_stone', 3)
@@ -103,6 +105,7 @@ const NICHES: [number, number, string, string][] = [
 
 export function buildOssuary(): MapBuilder {
   const m = new MapBuilder('ossuary', L('The Ossuary of the Thorn', '荆棘骸骨堂'), 'dungeon', OSSUARY.w, OSSUARY.h, 'cave_wall', 'cave', 'dark', 'frostfang')
+  m.gearLevel = 3
   const open = (t: string) => t === 'cave_wall'
   const [ux, uy] = OSSUARY.up
   const [dx, dy] = OSSUARY.down
@@ -128,8 +131,9 @@ export function buildOssuary(): MapBuilder {
     },
   })
   // what the Order's dead were laid down with (Vowbound: theirs, and it remembers): Odo's pauldrons, Maren's ring
-  m.item({ form: 'item/armor/pauldrons', material: 'steel', quality: 'vowed', name: L("Brother Odo's Pauldrons", '奥多修士的护肩'), props: { def: 3, holdFast: 0.25 } }, 9, 8)
-  m.item({ form: 'item/valuable/ring', material: 'silver', quality: 'vowed', name: L("Sister Maren's Ring", '玛伦修女的戒指'), props: { atk: 1, def: 1, lifesteal: 1 } }, 21, 8)
+  // (their vows, content VOWS — and migrateGear.ts NAMED_VOWS for a save from before: Odo held the gate, Maren gave water)
+  m.item({ form: 'item/armor/pauldrons', material: 'steel', quality: 'vowed', name: L("Brother Odo's Pauldrons", '奥多修士的护肩'), vow: 'holdfast' }, 9, 8)
+  m.item({ form: 'item/valuable/ring', material: 'silver', quality: 'vowed', name: L("Sister Maren's Ring", '玛伦修女的戒指'), vow: 'mercy', props: { def: 1, lifesteal: 1 } }, 21, 8)
   m.regions.oskar_cell = [24, 17, 7, 5]
   m.regions.niches = [8, 6, 15, 12]
   m.anchor('cell.oskar', ...HAT.oskar)
@@ -145,6 +149,7 @@ export function buildOssuary(): MapBuilder {
 
 export function buildSanctum(): MapBuilder {
   const m = new MapBuilder('sanctum', L("The Warden's Sanctum", '守墓者圣所'), 'dungeon', SANCTUM.w, SANCTUM.h, 'cave_wall', 'cave', 'dark', 'frostfang')
+  m.gearLevel = 4
   const open = (t: string) => t === 'cave_wall'
   const [ux, uy] = SANCTUM.up
   // a stair down into one round chamber: the warden before the altar of the Commander's vow
@@ -165,7 +170,7 @@ export function buildSanctum(): MapBuilder {
   m.regions.vow = [8, 13, 9, 4]
   // the warden, Brother Tomas: falling, it leaves the belt it kept its vigil in
   const warden = m.creature('undead/warden', ...HAT.warden, { id: 'barrow.warden', ...HUNT(6), leash: 6 })
-  m.item({ form: 'item/clothing/belt', material: 'leather', quality: 'vowed', name: L("Tomas's Belt of Vigil", '托马斯的守夜腰带'), props: { def: 2, 'night:def': 2 } }, ...HAT.warden).place = { on: 'inside', holder: warden.id }
+  m.item({ form: 'item/clothing/belt', material: 'leather', quality: 'vowed', name: L("Tomas's Belt of Vigil", '托马斯的守夜腰带'), vow: 'vigil', props: { 'night:def': 2 } }, ...HAT.warden).place = { on: 'inside', holder: warden.id }
   for (const [x, y] of [[8, 10], [16, 10]] as const) m.creature('undead/skeleton', x, y, HUNT(4))
   return m
 }

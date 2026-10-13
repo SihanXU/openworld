@@ -115,6 +115,10 @@ export interface QuestReward {
   facts?: Record<string, PropValue>
   /** What aliases think of the taker after. */
   regard?: Record<string, number>
+  /** How the deed weighs on the taker's good and evil (their `karma`); unsaid, a kindness to someone (regard given) is +3. */
+  karma?: number
+  /** How it weighs on the taker's faith (their `faith`). */
+  faith?: number
 }
 
 export interface QuestStage {
@@ -648,6 +652,9 @@ export class Quests {
         const who = this.alias(q, a)
         if (who && who !== taker.id) send('impulse/notify', who, { what: 'regard', delta }, { actor: { e: taker.id }, source: { e: q.id } })
       }
+      const karma = r.karma ?? (Object.values(r.regard ?? {}).some((d) => d > 0) ? 3 : 0)
+      if (karma) send('impulse/notify', taker.id, { what: 'karma', delta: karma }, { source: { e: q.id } })
+      if (r.faith) send('impulse/notify', taker.id, { what: 'faith', delta: r.faith }, { source: { e: q.id } })
     }
     if (r?.facts && Object.keys(r.facts).length) send('impulse/notify', 'story', { what: 'facts', ...Object.fromEntries(Object.entries(r.facts).map(([k, v]) => [`fact.${k}`, v])) }, { source: { e: q.id } })
     if (s.say) this.say(q, s.say, s.by, n)

@@ -24,6 +24,7 @@ import type {
 } from './types.ts'
 import { DIRS } from './types.ts'
 import { matchSelector } from './rules.ts'
+import { weaponOf } from './blows.ts'
 import type { CondImpl } from './module.ts'
 
 export const tileKey = (map: string, x: number, y: number) => `${map}:${x}:${y}`
@@ -960,12 +961,13 @@ export class World {
     const night = this.isNight()
     // (a weapon kept in the main hand counts only when it is fought with: combat.ts reads it as the weapon)
     const worn = this.worn(e)
-    for (const w of worn) if (this.prop(w, 'slot') !== 'weapon') v += this.num(w, key) + (night ? this.num(w, `night:${key}`) : 0)
-    // what each piece rolled when it was made (affixes.ts), the weapon's too
-    for (const w of worn) v += this.num(w, `sub:${key}`)
-    // and the weapon in hand, if it is not the one kept worn (blows.ts weaponOf: the held weapon is fought with)
-    const held = this.get(e.held)
-    if (held && this.hasTag(held, 'weapon') && !worn.includes(held)) v += this.num(held, `sub:${key}`)
+    const pieces = worn.filter((w) => this.prop(w, 'slot') !== 'weapon')
+    for (const w of pieces) v += this.num(w, key) + (night ? this.num(w, `night:${key}`) : 0)
+    // what each piece rolled when it was made (affixes.ts); of weapons, only the one fought with (blows.ts weaponOf: the
+    // one in hand, else the one kept in the main hand), never a main hand's kept while another is held
+    for (const w of pieces) v += this.num(w, `sub:${key}`)
+    const arm = weaponOf(this, e)
+    if (arm && !pieces.includes(arm) && (this.hasTag(arm, 'weapon') || this.prop(arm, 'slot') === 'weapon')) v += this.num(arm, `sub:${key}`)
     // a set worn together: each bonus its count of pieces reaches, a piece per slot (two of its rings count once)
     const sets = this.onto.data.sets
     if (sets?.length) {
@@ -1310,7 +1312,7 @@ export class World {
 
   // ---------------------------------------------------------------- time
 
-  /** The clock, 0 … 24 (calendar.ts: day 1 begins at 06:00, a game minute is 7 ticks). */
+  /** The clock, 0 … 24 (calendar.ts: day 1 begins at 06:00, a game minute is 10 ticks). */
   hour(): number {
     return calendarAt(this.state.tick, this.state.seed).hour
   }

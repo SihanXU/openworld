@@ -633,6 +633,27 @@ first). Rings add `atk` 1, an amulet `def` 1, an earring `xpRate` 0.1, a belt an
 carries what is worn by slot (`player.worn`); the bag shows it as a paper doll beside the grid
 (`tools/test/equipment.test.ts`).
 
+**Gear levels** (2026-10-13, the user's request: "同等级下品级高的装备效果必须更好；给装备加入等级，1–20"). A piece worn or
+wielded has a `level`, 1 … `params.gearLevels.max` (20). Its main stats are its form's × material × quality ×
+(1 + perLevel·(level − 1)) (perLevel 0.25; its shares — a crit chance, an experience rate — half as much), so at one
+level the finer piece is the better and at one quality the higher (`gearProps`, `levelFactor`; the engine keeps the
+curve as data). A quality also sets how many extras a piece rolls (`affixCount`: crude 2 … Stigmatic 6; a monster's
+piece the table's 4) and a level widens their ranges (`affixPerLevel` 0.1). The level comes from the source: the
+maker's, no lower than the recipe's (the craft primitive); the merchant's `gearLevel` (restock); the map's `gearLevel`
+or the piece's own (the builder); the kind's for a monster's piece (its type's `level`, its main stats scaled to it); the
+author's for a quest's gear (`gear()` computes the main stats, the author writes only what is the piece's own); the
+Stigmatic arms are level 10. A level does not gate wearing. Worth scales with it (`Society.value`). Older saves:
+`migrateGear` stamps level 1 on what has none. `tools/test/gear-levels.test.ts`.
+
+**Vows** (2026-10-13, the user's request: "遗誓装备要有特殊效果，同时也要有小词条"). A Vowbound piece carries a `vow`
+beyond its numbers — a named power with a condition and what it pays (content `VOWS`, ten of them; docs/chapter-1.md
+§11), read like a relic from what one wears and holds (classes `combat.ts` `vowsOf`) and answered in the striker's
+act-making, the struck one's `damage`/`wounded`, and the pace of a step; the Thorn's prick is a strike of the keeper's
+queued back at the striker (`impulse/strike`, `thorn: true` so it is not answered again). The engine knows no vow by
+name: a quality may list the vows its made pieces take (`QualityDef.vows`; the craft primitive rolls one), the content
+names them, and a module answers them. Every piece rolls its extras, a named one too (`makeItem`, the builder, the
+quests' `gear()` seeded by the name). `migrateVows` for older saves. `tools/test/equipment.test.ts`.
+
 As built (2026-10-05): a ranged blow checks blocking from the first cell ahead, on the shooter's
 storey. An adjacent wall stops the ray and receives an unaimed blow through its own rules.
 

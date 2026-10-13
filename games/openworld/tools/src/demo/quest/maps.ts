@@ -32,6 +32,7 @@ export const EAST_ROAD = { w: 48, h: 24, west: [11, 12, 13], east: [10, 11, 12],
 
 export function buildEastRoad(): MapBuilder {
   const m = new MapBuilder('eastroad', L('The East Road', '东大路'), 'wild', EAST_ROAD.w, EAST_ROAD.h, 'grass', 'field', 'outdoor', 'frostfang')
+  m.gearLevel = 4
   woods(m, (x, y) => (x < 4 && (EAST_ROAD.west as readonly number[]).includes(y)) || (x >= m.w - 4 && (EAST_ROAD.east as readonly number[]).includes(y)))
   for (const [cx, cy, r] of [[8, 4.5, 2.4], [14, 19, 2.6], [33, 4, 2.2], [41, 19, 2.8], [44, 5, 2]] as const) clump(m, cx, cy, r, 0.7)
   m.path([[0, 12], [6, 12], [12, 10], [20, 11], [28, 13], [36, 11], [42, 11], [47, 11]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
@@ -61,6 +62,7 @@ export const EMBERFALL = { w: 40, h: 30, west: [14, 15, 16], north: [19, 20, 21]
 
 export function buildEmberfall(): MapBuilder {
   const m = new MapBuilder('emberfall', L('Emberfall', '余烬镇'), 'village', EMBERFALL.w, EMBERFALL.h, 'grass', 'village', 'outdoor', 'frostfang')
+  m.gearLevel = 4
   const has = (xs: readonly number[], v: number) => xs.includes(v)
   // the mountain to the north, its mine mouth; woods west, south and east, with the roads' gaps
   for (let y = 0; y < 4; y++) for (let x = 0; x < m.w; x++) if (!(has(EMBERFALL.north, x) && y < 4)) m.set(x, y, 'cave_wall')
@@ -115,6 +117,7 @@ export const DEEP = { x: 20, y: 5 } as const
 
 export function buildMine(): MapBuilder {
   const m = new MapBuilder('mine', L('The Old Mine', '旧矿坑'), 'dungeon', MINE.w, MINE.h, 'cave_wall', 'cave', 'dark', 'frostfang')
+  m.gearLevel = 5
   const open = (t: string) => t === 'cave_wall'
   // the main shaft from the mouth north to the deep chamber, side galleries east and west
   m.path([[20, 29], [20, 22], [17, 17], [20, 12], [20, 8]], 'cave_floor', 3)
@@ -154,6 +157,7 @@ export const PASS = { w: 30, h: 40, west: [34, 35, 36], north: [14, 15, 16] } as
 
 export function buildPass(): MapBuilder {
   const m = new MapBuilder('pass', L('Cinder Pass', '烬岭山道'), 'wild', PASS.w, PASS.h, 'snow', 'field', 'outdoor', 'frostfang')
+  m.gearLevel = 6
   const has = (xs: readonly number[], v: number) => xs.includes(v)
   // rock walls both sides of a climbing trail; snow below, scorched rock and ash near the top
   for (let y = 0; y < m.h; y++)
@@ -186,6 +190,7 @@ export const DRAGON_AT = { x: 15, y: 7 } as const
 
 export function buildLair(): MapBuilder {
   const m = new MapBuilder('lair', L("The Dragon's Lair", '魔龙巢穴'), 'dungeon', LAIR.w, LAIR.h, 'cave_wall', 'battle', 'dark', 'frostfang')
+  m.gearLevel = 8
   // an arena of scorched stone, rock pillars along its walls, the mouth in the south
   m.organic(15, 11, 12, 8.5, 'cave_floor', { only: (t) => t === 'cave_wall', rough: 0.15 })
   m.path([[15, 23], [15, 17]], 'cave_floor', 3)

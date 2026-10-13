@@ -2,13 +2,41 @@
 // place reached, and pays on hand-in — written as what it asks, made into a quest with aliases, objectives and
 // stages (begun, all of it done, handed in; and, if the story goes past it first, closed).
 
-import type { AliasDef, ObjectiveDef, PropValue, QuestDef, QuestReward, QuestStage, QuestTrigger, Selector, Text } from '@openworld/engine'
+import { Rng, gearProps, rollAffixes, type AliasDef, type ObjectiveDef, type PropValue, type QuestDef, type QuestReward, type QuestStage, type QuestTrigger, type Selector, type Text } from '@openworld/engine'
+import { FORM_BY_ID, MATERIAL_DEFS, QUALITY_DEFS, VOW_IDS } from '../items.ts'
+import { GEAR_LEVELS } from '../gear.ts'
+import { AFFIX_TABLE } from '../trophies.ts'
 
 export const L = (en: string, zh: string): Text => ({ en, zh })
 
-/** A named piece of gear a quest pays (docs/chapter-1.md §11, the chapter's gear): its slot, its tier, what it gives. */
-export const gear = (type: string, slot: string, en: string, zh: string, quality: string, props: Record<string, number> = {}) =>
-  ({ type, count: 1, name: L(en, zh), tags: quality === 'common' ? [] : [`quality:${quality}`], props: { slot, ...props } as Record<string, PropValue> })
+/** A number from a name (FNV-1a): the seed of what a named piece rolls, the same every time the content is built. */
+const seedOf = (s: string): number => {
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0
+  return h
+}
+
+/**
+ * A named piece of gear a quest pays (docs/chapter-1.md §11, the chapter's gear): its slot, its tier, its level (1 … 20,
+ * world-model.md §6.8), what it gives beyond its form. Its main stats are its form's at that quality and level, in its
+ * form's first material (an iron helm, a leather belt), as any made piece's are: a finer piece at one level is the
+ * better, so the author writes only what is its own (a vigil's `night:def`, an unusual dodge). Like any piece it rolls
+ * its small extras (seeded by its name: the same piece in every game); a Vowbound one takes the vow the author names
+ * (content VOWS), else one from its name.
+ */
+export const gear = (type: string, slot: string, en: string, zh: string, quality: string, props: Record<string, number> = {}, level = 1, material?: string, vow?: string) => {
+  const form = FORM_BY_ID[type]
+  if (!form) throw new Error(`gear: unknown form ${type}`)
+  const mat = material ?? form.materials?.[0]
+  const q = QUALITY_DEFS().find((x) => x.id === quality)
+  const main = gearProps(form.props ?? {}, mat ? MATERIAL_DEFS[mat] : undefined, q, level, GEAR_LEVELS)
+  // (what the form gives is computed, never written by hand: the author's number for it is dropped)
+  const extras = Object.fromEntries(Object.entries(props).filter(([k]) => !(k in main)))
+  const rng = new Rng(seedOf(en))
+  const sworn = quality === 'vowed' ? { vow: vow ?? VOW_IDS[Math.floor(rng.next() * VOW_IDS.length)] } : {}
+  const subs = rollAffixes({ affixes: AFFIX_TABLE, params: { gearLevels: GEAR_LEVELS } } as never, slot, () => rng.next(), { quality, level })
+  return { type, count: 1, name: L(en, zh), tags: [...(quality === 'common' ? [] : [`quality:${quality}`]), ...(mat ? [`material:${mat}`, ...(MATERIAL_DEFS[mat]?.tags ?? [])] : [])], props: { slot, ...main, ...extras, ...sworn, ...subs } as Record<string, PropValue> }
+}
 
 /** What an errand asks, each an objective. */
 export type Ask = { id: string; text: Text; where?: string; optional?: boolean } & (

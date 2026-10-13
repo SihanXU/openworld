@@ -221,8 +221,15 @@ and the wheel (toolbar), Shift (walk), WASD (move). Dialogue moves on with E or 
   (`Engine.inReach`; Gus works from beside the tree as the player does). A system that pulls from
   farther says how far (the magnet, a sin's skill).
 - **E with nothing pointed at** acts on the place in front, unless what is there has no answer
-  of its own and what one stands on has one: the bed one lies on, a place of the overworld (its
-  block of 3×3: standing anywhere on it, facing any way, E enters it; the block is outlined whole).
+  of its own (undefined, or only the ground touched) and what one stands on has one: the bed one
+  lies on, a place of the overworld (a place to a cell since 2026-10-11: standing on its cell,
+  facing any way, E enters it; the cell is outlined). What one stands on takes E when its answer
+  changes something, and also when it changes nothing but what is in front is only the ground (or
+  nothing): a place the story has not opened yet answers E by saying why (`site/enter`, its
+  `opensWhen` unset), and that answer reaches the one standing on it rather than the ground's
+  "touched" in front (`Controls.plan`, 2026-10-11). The ground underfoot never takes E from
+  anything in front. The Ford's cell is the river's (`site/place/crossing`, hands' reach 1): one
+  goes in with E from the cell beside it.
 - **Oneself is never E's, F's or G's target**: on one's own place they meet what is there (the
   floor, what lies at one's feet, the bed one stands on). The left click on one's own place is on
   oneself.
@@ -296,6 +303,15 @@ was cut).
 
   As built (2026-10-05): organizing uses the bag's learned capacity, including Big Pack's
   fourth row.
+
+  As built (2026-10-11): the bag panel is a character sheet beside the pack (`runtime/src/ui/menu.ts`).
+  On the left: the level and the profession; the player's anime portrait (docs/looks.md) framed
+  between the body's slots — head, ear, neck, shoulders, body down one side, hands, the two rings,
+  waist, feet down the other —, the main and the off hand beneath it; an embossed silhouette in
+  each empty slot (`Ui/EquipSlots.png`); the stats beneath (health, food, attack, the weapon's
+  power, defence, critical chance). On the right the pack, its title row carrying the coin one
+  carries, labelled with the coin's name (the Dawnmark). What is worn is on the body, not in a bag
+  slot (since 2026-10-09).
 - **Chests**
   - The chest's grid is shown above the inventory's grid.
   - Clicking an item moves it to the other side; right-click moves one.
@@ -337,6 +353,14 @@ was cut).
     from the right) and ten drumsticks on the right (hunger, emptying from the left). The
     whole block moves to the top when the player walks near the bottom edge.
   - Bottom left: messages such as "+1 log" or "The world pauses…".
+  - The interaction keys (§5.2, foreseeable): one translucent row of what each input would do
+    (E, F, G, the left click, the right click), fixed just above the middle of the view, over the
+    head of the one acting (the camera keeps them mid-view) and of a companion settled two tiles
+    off. It does not follow the target, whose tile is outlined in the scene, so it never shakes
+    as one walks (2026-10-12; until then the labels floated over the target).
+  - What is held is not drawn in the hand. A sword, a bow and a staff are seen for the moment of a
+    blow — swept, drawn and loosed, raised and brought down to point —, following the one who
+    struck; other weapons and bare hands show the blow alone (2026-10-12).
   - The map name fades in when the player enters a map.
   - Development only: the message log, performance numbers, the Mod Console.
 - **Tooltips** (Minecraft's): hovering an item in the toolbar, the bag, a chest or the

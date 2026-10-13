@@ -1,7 +1,7 @@
 // The society module's primitives (docs/npc-sandbox.md): whose things are, what people saw and say, the watch's
 // ledger and its cells, trade and coin, following, the talk panel. Each runs in its host's outcome.
 
-import { NO_EXPIRY, TICKS_PER_HOUR, chooseLine, type Effect, type EffectRunner, type Entity, type GameEvent, type Pos, type RoleName, rollAffixes } from '@openworld/engine'
+import { NO_EXPIRY, TICKS_PER_HOUR, chooseLine, gearLevel, gearProps, type Effect, type EffectRunner, type Entity, type GameEvent, type Pos, type RoleName, rollAffixes } from '@openworld/engine'
 import { bountyKey, lawId, pardonKey } from './social.ts'
 import { socialOf } from './state.ts'
 
@@ -58,23 +58,32 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
       if (host?.npc && from) s.hear(host, from, keys)
       return
     }
+    case 'conscience':
+      if (host) s.conscience(host, ev)
+      return
+    case 'moral':
+      if (host && eff.op === 'moral') s.moral(host, eff.key, fx.amount(ev, eff.delta))
+      return
     case 'moveIn': {
-      // the host, asked by one it holds in full regard, comes to live on their home ground (a bed free there): its days
-      // there from now on (NpcData.resident), and it goes at once; with no bed free it says so
+      // the host, asked by one it holds in full regard (the residence's `at`), comes to live on their home ground (a bed
+      // free there): its days there from now on (NpcData.resident, the residence's `days`), and it goes at once — no
+      // longer following anyone; with no bed free it says so. Below that regard, or living there already: no change
       const r = s.params.residence
-      if (!host?.npc || !r || !actor) return
+      if (!host?.npc || !r || !actor || host.npc.resident?.map === r.map || s.regard(host, actor.id) < r.at) return
       const bed = s.residenceBeds().find((b) => !b.who)
       if (!bed) return void w.fx.push({ t: 'say', who: host.id, text: r.full })
       host.npc.resident = {
         map: r.map,
         slot: bed.anchor,
-        schedule: [
-          { from: 21, to: 7, map: r.map, x: bed.at[0], y: bed.at[1], activity: 'sleep' },
-          { from: 7, to: 21, map: r.map, x: bed.day[0], y: bed.day[1], activity: 'live' },
-        ],
+        schedule: r.days.map((d) => {
+          const [x, y] = d.at === 'bed' ? bed.at : bed.day
+          return { from: d.from, to: d.to, map: r.map, x, y, activity: d.activity }
+        }),
       }
       host.npc.home = { map: r.map, x: bed.at[0], y: bed.at[1] }
       host.npc.override = undefined
+      w.setProp(host, 'follow', undefined)
+      w.setProp(host, 'waiting', undefined)
       w.setProp(host, 'resident', r.map)
       w.fx.push({ t: 'say', who: host.id, text: r.yes, mood: 'happy' })
       eng.travel(host, { map: r.map, x: bed.day[0], y: bed.day[1] })
@@ -270,9 +279,13 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
       for (const part of String(w.prop(host, 'stock') ?? '').split('|').filter(Boolean)) {
         const [type, count] = part.split('*')
         if (!w.onto.hasType(type)) continue
-        // gear rolls its extras as it is made (engine affixes.ts)
-        const slot = w.onto.resolve(type).props.slot
-        for (let n = have(type); n < fx.most(Math.max(1, Number(count) || 1), 'a restock'); n++) eng.touch({ e: w.create(type, { on: 'inside', holder: host.id }, typeof slot === 'string' ? { props: rollAffixes(w.onto.data, slot, () => w.rand()) } : {}).id })
+        // gear comes at the merchant's level (its `gearLevel` prop; the first), its main stats scaled to it (engine
+        // recipes.ts), and rolls its extras as it is made (engine affixes.ts)
+        const def = w.onto.resolve(type)
+        const slot = def.props.slot
+        const level = gearLevel(w.onto.data.params?.gearLevels, w.num(host, 'gearLevel', 1))
+        const gear = () => (typeof slot === 'string' ? { props: { ...gearProps(def.props, undefined, undefined, level, w.onto.data.params?.gearLevels), ...rollAffixes(w.onto.data, slot, () => w.rand(), { level }) } } : {})
+        for (let n = have(type); n < fx.most(Math.max(1, Number(count) || 1), 'a restock'); n++) eng.touch({ e: w.create(type, { on: 'inside', holder: host.id }, gear()).id })
       }
       const purse = w.num(host, 'purse', 0)
       for (let n = s.purse(host); n < Math.min(purse, 500); n++) eng.touch({ e: w.create(s.params.coin, { on: 'inside', holder: host.id }).id })

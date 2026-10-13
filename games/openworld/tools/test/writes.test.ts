@@ -13,7 +13,9 @@ import { BASE_RULES, buildOntology } from '@openworld-game/content'
 // hand).
 
 const ROOT = join(import.meta.dirname, '..', '..', '..', '..')
-const GAME = ['packages/engine/src', ...['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society'].map((m) => `packages/modules/src/${m}`), 'games/openworld/content/src']
+/** The engine's modules: every folder of packages/modules/src, so a new module is scanned as soon as it is there. */
+const MODULE_DIRS = readdirSync(join(ROOT, 'packages/modules/src'), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => `packages/modules/src/${d.name}`)
+const GAME = ['packages/engine/src', ...MODULE_DIRS, 'games/openworld/content/src']
 /** The client's code: the runtime and the game's own pages. */
 const CLIENT = ['packages/runtime/src', 'games/openworld/client/src']
 
@@ -52,6 +54,8 @@ const code = (l: string) => l.replace(/\/\/.*$/, '').trim()
 
 describe('the state changes only in outcomes, and an outcome only its host (design.md §5.13, A2–A3)', () => {
   it('no game code changes props, tags, statuses, places or the kept things behind the mutators', () => {
+    // every module is scanned, the ones the game names and the rest
+    for (const m of ['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society', 'loot']) expect(MODULE_DIRS).toContain(`packages/modules/src/${m}`)
     const found: string[] = []
     for (const { file, lines } of sources()) {
       if (MAY_WRITE.includes(file)) continue

@@ -7,6 +7,8 @@ import { line, type PersonDef } from '../person.ts'
 export const ezra: PersonDef = {
   id: 'npc.ezra',
   role: 'traveler',
+  // of the Church: speak against the gods and they take it ill (content social.ts unbelief)
+  tags: ['devout'],
   name: { en: 'Brother Ezra', zh: '以斯拉修士' },
   gender: 'male',
   look: { parts: { hair: 'hair.thin', face: 'face.weary', outfit: 'outfit.travel', beard: 'beard.stubble' }, colors: { hair: 'umber', eyes: 'hazel', skin: 'warm', 'outfit.1': 'undyed', 'outfit.2': 'linen', 'outfit.3': 'leather' } },

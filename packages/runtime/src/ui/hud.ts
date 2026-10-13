@@ -6,8 +6,9 @@
 import { xpToNext, type Frame, type FxEvent, type ItemInfo, type Mood, type Text } from '@openworld/engine'
 import { catalog, game, hasModule, ontology } from '../game.ts'
 import { artEpoch, assetUrl, cssAssetUrl } from '../render/assets.ts'
-import { $, MOOD_GLYPH, SLOT_KEYS, esc, locale, prefs, t, tx } from './common.ts'
+import { $, MOOD_GLYPH, SLOT_KEYS, esc, locale, prefs, t, tx, gearFrame } from './common.ts'
 import { skillPng } from './skillIcons.ts'
+import { heartsOf } from './hearts.ts'
 
 export interface HudSend {
   select(slot: number): void
@@ -269,7 +270,7 @@ export class Hud {
     $('#toolbar').innerHTML = row
       .map(
         (s, i) =>
-          `<div class="slot${i === f.player.selected ? ' sel' : ''}" data-slot="${i}"${s ? ` data-item="${s.item.id}"` : ''}>` +
+          `<div class="slot${i === f.player.selected ? ' sel' : ''}${gearFrame(s?.item)}" data-slot="${i}"${s ? ` data-item="${s.item.id}"` : ''}>` +
           `<span class="key">${SLOT_KEYS[i]}</span>${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}${s.worn ? '<span class="worn"></span>' : ''}` : ''}</div>`,
       )
       .join('')
@@ -277,7 +278,7 @@ export class Hud {
       .querySelectorAll<HTMLElement>('[data-slot]')
       .forEach((el) => (el.onclick = () => this.send.select(Number(el.dataset.slot))))
     // the off hand beside the toolbar (a shield worn there), greyed while it does not work
-    $('#offhandBar').innerHTML = `<div class="slot${off && !off.works ? ' off' : ''}" title="${locale.value === 'zh' ? '副手' : 'Off hand'}"${off ? ` data-item="${off.id}"` : ''}>${off ? `<div class="icon" data-icon="${off.id}"></div>` : '<span class="ghost">🛡</span>'}</div>`
+    $('#offhandBar').innerHTML = `<div class="slot${off && !off.works ? ' off' : ''}${gearFrame(off)}" title="${locale.value === 'zh' ? '副手' : 'Off hand'}"${off ? ` data-item="${off.id}"` : ''}>${off ? `<div class="icon" data-icon="${off.id}"></div>` : '<span class="ghost">🛡</span>'}</div>`
     this.paintIcons?.([...row.filter(Boolean).map((s) => s!.item), ...(off ? [off] : [])])
   }
 
@@ -566,9 +567,8 @@ export class Hud {
     const zh = locale.value === 'zh'
     // a talk the panel opened without a line (a guard stopping one): the guard's words
     if (box.classList.contains('hidden')) this.openDialog(tk.who, who ? tx(who.name) : '', tk.arrest ? (zh ? `你欠守卫队 ${tk.bounty ?? 0}。` : `You owe the watch ${tk.bounty ?? 0}.`) : '…')
-    // their regard as ten hearts (a heart for every ten, a half for five): how near one is to their full regard
-    const aff = Math.max(0, Math.min(100, tk.affection ?? 0))
-    const hearts = tk.affection === undefined ? '' : `<span class="hearts" title="${zh ? '好感' : 'Regard'} ${Math.round(tk.affection)}/100">${Array.from({ length: 10 }, (_, i) => `<i class="${aff >= (i + 1) * 10 ? 'on' : aff >= i * 10 + 5 ? 'half' : ''}"></i>`).join('')}</span>`
+    // their regard as ten hearts (hearts.ts): how near one is to their full regard
+    const hearts = tk.affection === undefined ? '' : `<span class="hearts" title="${zh ? '好感' : 'Regard'} ${Math.round(tk.affection)}/100">${heartsOf(tk.affection).map((h) => `<i class="${h}"></i>`).join('')}</span>`
     $('#dName').innerHTML = `${esc(who ? tx(who.name) : tx(tk.name))} <span class="regard r-${esc(tx(tk.regard).replace(/\s/g, ''))}">${esc(tx(tk.regard))}</span>${hearts}${tk.grudge ? ` <span class="grudge">${esc(tx(tk.grudge))}</span>` : ''}${tk.bounty ? ` <span class="grudge">${zh ? '悬赏' : 'bounty'} ${tk.bounty}</span>` : ''}`
     const verbs = [...tk.verbs, ...(tk.arrest ? [] : [{ id: 'bye', label: { en: 'Goodbye.', zh: '再见。' } }])]
     choices.innerHTML = verbs.map((v, i) => `<button data-verb="${esc(v.id)}"><kbd>${i + 1}</kbd> ${esc(tx(v.label))}</button>`).join('')

@@ -35,9 +35,11 @@ import { caius } from './people/caius.ts'
 import { ezra } from './people/ezra.ts'
 import { maud } from './people/maud.ts'
 import { wynn } from './people/wynn.ts'
+import { orrin } from './people/orrin.ts'
+import { hilde } from './people/hilde.ts'
 
-// Chapter 1's (docs/chapter-1.md): the village's six, and the two the scenes bring on
-export const PEOPLE: PersonDef[] = [hesper, tobin, mara, garrick, wren, bram, rowan, marta, mia, holt, gus, lina, oskar, ilse, joss, pell, nessa, fennick, edda, brin, tam, alberic, severin, courier, cass, vigo, haldor, greta, anselm, caius, ezra, maud, wynn]
+// Chapter 1's (docs/chapter-1.md): the village's six, and the two the scenes bring on; the forest's flanks' two (§15)
+export const PEOPLE: PersonDef[] = [hesper, tobin, mara, garrick, wren, bram, rowan, marta, mia, holt, gus, lina, oskar, ilse, joss, pell, nessa, fennick, edda, brin, tam, alberic, severin, courier, cass, vigo, haldor, greta, anselm, caius, ezra, maud, wynn, orrin, hilde]
 
 /**
  * Who keeps house together (docs/npc-sandbox.md §2.1): what one of them owns, all of them do; a theft from one
@@ -58,6 +60,8 @@ export const HOUSEHOLDS: Record<string, string[]> = {
   herbs: ['npc.wren'],
   mill: ['npc.tam'],
   pilgrims: ['npc.maud', 'npc.wynn'],
+  charcoal: ['npc.orrin'],
+  bend: ['npc.hilde'],
 }
 /** The household one keeps, if any. */
 export const householdOf = (id: string): string | undefined => Object.entries(HOUSEHOLDS).find(([, ids]) => ids.includes(id))?.[0]

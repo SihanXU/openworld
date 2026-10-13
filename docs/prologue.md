@@ -147,8 +147,13 @@ star pinned in it, violet eyes, a white dress, a butterfly's glassy wings — in
 same file renames an older save's fairy — her name is the light she gives in the lengthening night) wakes you and
 stays with you for the whole game:
 
-- **Follows** its leader (`props.companion` = the leader's id — data, not "the player"): it
-  hops beside them, flies over what blocks people, follows them across maps, and is airborne:
+- **Follows** its leader (`props.companion` = the leader's id — data, not "the player"): on the
+  move it trails up to three tiles behind, catching up only when it falls back past that; once the
+  leader stands still it drifts to its perch two tiles off, behind them (never where they face and
+  act), and stays where it settled when they turn to it (2026-10-12; `engine/src/companion.ts`
+  `NEAR`, `LAG`) — two tiles, which is also how far E reaches it (`actor/companion` `handsRange` 2;
+  the hands meet a companion before the ground under her: `Controls.targets`). It flies over what
+  blocks people, follows them across maps (at once when more than eight tiles away), and is airborne:
   it never blocks a tile, and blows along the facing pass under it (a blow aimed at it lands).
   Following is its behaviour: each hop is an act of moving. Struck down (it is `essential`: it
   goes down, it is not gone) it cannot follow, and says so: a `stuck` event (activity
@@ -162,7 +167,12 @@ stays with you for the whole game:
   leader its new stage (`notify` what = `prologue`, which the leader keeps itself: `body/stage`),
   and the fairy says one line in a bubble. Beats are content; the engine only evaluates them
   (`engine/src/story.ts`).
-- **E on the fairy** repeats the line of the stage you are at (`@hint`).
+- **E on the fairy** (`companion/talk`) says what the main road asks now (`@guide`: the tracked objective,
+  else the stage's hint, else that nothing presses) and opens **her panel** (2026-10-12,
+  `runtime/src/ui/companion.ts`): her portrait with her wings and her light, and two pages — the main road
+  (the main quest's stage, its hint in her words, its objectives) and the seals' powers (five slots, the ones not
+  yet found sealed; the one she carries; another taken up only beside a woken waypoint statue, whose E opens the
+  panel on that page). Her mood on the powers page follows the seal: each suffering stirs her its own way.
 
 ## The map system
 

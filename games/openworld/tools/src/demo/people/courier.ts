@@ -6,7 +6,7 @@ import { line, type PersonDef } from '../person.ts'
 export const courier: PersonDef = {
   id: 'npc.courier',
   // the main story needs them where they are: not asked to move to a home ground (content social.ts residence)
-  tags: ['storybound'],
+  tags: ['storybound', 'devout'],
   role: 'priest',
   essential: true,
   name: { en: 'Church Courier', zh: '圣教信使' },

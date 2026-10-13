@@ -6,6 +6,7 @@
 import type { Entity, Game, GameDef, Look, LookBodyDef, LookColorDef, LookPartDef, LookTable, MapChunk, Ontology, PlacementRecipe, Pos, PropValue, Recipe, SkillDef, Text, World, WorldIndex } from '@openworld/engine'
 import type { ProfessionDef } from '@openworld/modules'
 import type { Catalog } from './assets/types.ts'
+import type { PanelFactory } from './ui/panels.ts'
 
 type Words = { en: string; zh: string }
 
@@ -40,8 +41,20 @@ export interface BoonInfo {
   id: string
   name: Text
   doc: Text
-  /** The seal it comes from (1–5), its place in the companion's panel. */
-  seal?: number
+}
+
+/** A shelf of a shop (the shop panel's tab): its recipes' group, its name, and whether it buys from the player (its offers are sold, not bought). */
+export interface ShelfDef {
+  group: string
+  name: Text
+  sell?: boolean
+}
+
+/** A shop: a station whose offers are recipes, grouped on shelves; its name heads the panel. */
+export interface ShopDef {
+  station: string
+  name?: Text
+  shelves: ShelfDef[]
 }
 
 /** A part of a look, as the creator offers it (a part only a worn thing brings is never offered). */
@@ -97,14 +110,16 @@ export interface ClientGame extends GameDef {
     materials: Record<string, Words>
     /** The unique pieces' names and lore. */
     relics: Record<string, Words & { text: Words }>
+    /** The Vowbound pieces' vows (`vow`): each one's name and what it does. */
+    vows?: Record<string, Words & { text: Words }>
     /** The money's item type. */
     coin: string
   }
   crafting: {
     recipes: Recipe[]
     stationName(station: string): Words
-    /** Shops: a station whose offers are recipes (grouped on shelves, the shop panel's tabs). Without: the stall's. */
-    shops?: { station: string; shelves: [group: string, en: string, zh: string][] }[]
+    /** Shops: a station whose offers are recipes (grouped on shelves, the shop panel's tabs). None: no shop panel. */
+    shops?: ShopDef[]
     /** Everything the build palette places: buildings and the farm's work. */
     placements: PlacementRecipe[]
     buildings: PlacementRecipe[]
@@ -120,21 +135,12 @@ export interface ClientGame extends GameDef {
     forProfession(profession: string): SkillDef[]
   }
   boons: Record<string, BoonInfo>
-  /** The companion's panel (E on the companion): her portrait's look and the word under her name. */
-  companion?: { look: Look; epithet: Text }
   /**
-   * A home ground's widenings (the haven panel, opened by a rule's `panel: haven`): who widens it, and each widening —
-   * the quest that brings it, its name, what it opens, what it asks (the quest's objectives say how far one is).
+   * The game's own panels (ui/panels.ts), by the key a rule's `panel` effect opens them with (the fx's `by`: the host
+   * whose rule did): OpenWorld's companion and its home ground's widenings. A key here replaces the runtime's own panel
+   * for it (the boons module's `boons`). Code, not data: a bundle's game gets them from its plugin.
    */
-  homestead?: {
-    title: Text
-    /** Who keeps the ground: materials are handed to them, an upgrade asked of them (`say: haven`, choice `build:<id>`, `go:<id>`). */
-    steward: string
-    /** The fact of how far the land goes, and the stock's facts' prefix (`<stock><type>`). */
-    size: string
-    stock: string
-    upgrades: { id: string; track: 'land' | 'zone' | 'building'; name: Text; unlocks: Text[]; needs: { type: string; count: number; text: Text }[]; land: number; fact: string; value: number; coins: number; map?: string }[]
-  }
+  panels?: Record<string, PanelFactory>
   looks: {
     table: LookTable
     slots: readonly string[]

@@ -1,12 +1,13 @@
-// Sister Ilse, keeper of Firstlight's flame (docs/chapter-1.md §7): a nun of the Five Sufferings, calm
-// and dry. She raised a foundling who became the grey man; she knows his walk, and tells no one.
+// Sister Ilse, keeper of Firstlight's flame and its chapel at Astra's altar (docs/chapter-1.md §7): a nun of the Five
+// Sufferings, calm and dry; Brother Anselm serves in her chapel. She raised a foundling who became the grey man; she
+// knows his walk, and tells no one.
 
 import { line, type PersonDef } from '../person.ts'
 
 export const ilse: PersonDef = {
   id: 'npc.ilse',
   // the main story needs them where they are: not asked to move to a home ground (content social.ts residence)
-  tags: ['storybound'],
+  tags: ['storybound', 'devout'],
   role: 'priest',
   essential: true,
   name: { en: 'Sister Ilse', zh: '伊尔丝修女' },
@@ -14,7 +15,7 @@ export const ilse: PersonDef = {
   look: { parts: { face: 'face.soft', outfit: 'outfit.vestment', hat: 'hat.hood' }, colors: { hair: 'steelgrey', eyes: 'storm', skin: 'fair', 'outfit.1': 'ivory', 'outfit.2': 'madder', 'hat.1': 'ivory' } },
   age: 56,
   temperament: { personality: 'serene', manner: 'polite', social: 'reserved', outlook: 'hopeful' },
-  ties: { 'npc.rowan': 'old friend', 'npc.severin': 'raised him' },
+  ties: { 'npc.rowan': 'old friend', 'npc.severin': 'raised him', 'npc.anselm': 'serves in her chapel' },
   // what they sell (fits who they are; content items.ts prices it)
   trade: { stock: [['item/light/candle', 6], ['item/vessel/flask/holy_water', 1], ['item/food/bread', 2]] },
   purse: 15,

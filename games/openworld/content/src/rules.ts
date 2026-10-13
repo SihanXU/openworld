@@ -10,6 +10,7 @@ import { LIFE_RULES } from './life.ts'
 import { CH1 } from './chapter1.ts'
 import { VILLAGE_SHOP_RULES } from './village.ts'
 import { PERSON_NEWS, SOCIAL_RULES } from './social.ts'
+import { FAITH_RULES } from './faith.ts'
 import { type Amount, type Cond, type Effect, type Text, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@openworld/engine'
 import { HUNGRY_BELOW } from '@openworld/modules'
 
@@ -380,7 +381,7 @@ const BODIES: Rule[] = [
   }),
   rule({
     id: 'combat/learn',
-    doc: 'Whoever defeated a foe gains experience as much as its full health, and may find the foe kind\'s own piece of gear in their bag (a chance each felling, sure at the fiftieth: the trophy primitive) (and is rewarded with experience when a quest is handed in). A mage felling a foe with a staff mends 3 (Arcane Recovery); an assassin felling one with a dagger mends a tenth of their health (Shadow Recovery): a profession\'s talents answer its own weapons only (profession.ts).',
+    doc: 'Whoever defeated a foe gains experience as much as its full health, and may find the foe kind\'s own piece of gear in their bag (a chance each felling, sure at the fiftieth: the trophy primitive) (and is rewarded with experience when a quest is handed in; told of a deed\'s weight, what = karma or faith, its karma or faith moves by delta). A mage felling a foe with a staff mends 3 (Arcane Recovery); an assassin felling one with a dagger mends a tenth of their health (Shadow Recovery): a profession\'s talents answer its own weapons only (profession.ts).',
     host: ACTOR,
     on: 'impulse/notify',
     tree: IF(
@@ -394,7 +395,12 @@ const BODIES: Rule[] = [
           DO({ op: 'gainXp', amount: { param: 'xp' } }, { op: 'trophy' }),
         ),
       ),
-      IF(param('what', 'reward'), DO({ op: 'gainXp', amount: { param: 'xp' } }), 'inherit'),
+      IF(
+        param('what', 'reward'),
+        DO({ op: 'gainXp', amount: { param: 'xp' } }),
+        // a deed's weight on one's good and evil, or on one's faith (a quest's reward, a prayer, words against the gods)
+        IF(param('what', 'karma'), DO({ op: 'moral', key: 'karma', delta: { param: 'delta' } }), IF(param('what', 'faith'), DO({ op: 'moral', key: 'faith', delta: { param: 'delta' } }), 'inherit')),
+      ),
     ),
   }),
   rule({
@@ -1593,7 +1599,7 @@ const JOURNEY: Rule[] = [
     doc: 'A companion sees someone try what the world has never seen (an act it has no answer for): it tells the story, which counts the experiments (the prologue waits for the first).',
     host: COMPANION,
     on: 'seen',
-    tree: IF(param('defined', false), DO(emit('notify', 'story', { what: 'experiment' })), NOTHING),
+    tree: IF(all(param('defined', false), not(param('own', true))), DO(emit('notify', 'story', { what: 'experiment' })), NOTHING),
   }),
   rule({
     id: 'night/dawn',
@@ -1885,4 +1891,4 @@ const GENERAL: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...TENTS, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL, ...LIFE_RULES, ...VILLAGE_SHOP_RULES]
+export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...FAITH_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...TENTS, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL, ...LIFE_RULES, ...VILLAGE_SHOP_RULES]

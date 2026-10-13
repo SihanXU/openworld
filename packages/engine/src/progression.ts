@@ -53,10 +53,15 @@ export function cannotLearn(e: Entity, def: SkillDef, profession = e.props?.prof
   return undefined
 }
 
-/** Why a skill book cannot be read: known already, or another profession's (a book asks no points and no skills before it). */
+/**
+ * Why a skill book cannot be read: known already, another profession's, or the skills before it in the tree not yet
+ * learned (a book asks no points, but it does not leap the tree: its `requires` hold for it as for the tree).
+ */
 export function cannotRead(e: Entity, def: SkillDef, profession = e.props?.profession): LearnRefusal | undefined {
-  if (new Set(skillsOf(e)).has(def.id)) return 'learned'
+  const have = new Set(skillsOf(e))
+  if (have.has(def.id)) return 'learned'
   if (def.profession && def.profession !== profession) return 'profession'
+  if ((def.requires ?? []).some((r) => !have.has(r))) return 'requires'
   return undefined
 }
 

@@ -8,14 +8,14 @@ import { gameDefOf, type Bundle } from '@openworld/format'
 import type { Look, LookTable, PlacementRecipe, Recipe, SkillDef, Text } from '@openworld/engine'
 import type { Catalog } from './assets/types.ts'
 import { pageUrl } from './game.ts'
-import type { BoonInfo, ClientGame, CoverDef, DevShortcut, FormInfo, LookPartInfo, ProfessionCard, SkillBranchDef, SkillDirectionDef } from './game.ts'
+import type { BoonInfo, ClientGame, CoverDef, DevShortcut, FormInfo, LookPartInfo, ProfessionCard, ShopDef, SkillBranchDef, SkillDirectionDef } from './game.ts'
 
 type Words = { en: string; zh: string }
 
 /** The tables a bundle's `client` holds for the player's panels (the project's client/*.json). All optional. */
 export interface ClientTables {
-  items?: { forms?: Record<string, FormInfo>; materials?: Record<string, Words>; relics?: Record<string, Words & { text: Words }>; coin?: string }
-  crafting?: { recipes?: Recipe[]; stations?: Record<string, Words>; placements?: PlacementRecipe[]; buildings?: PlacementRecipe[] }
+  items?: { forms?: Record<string, FormInfo>; materials?: Record<string, Words>; relics?: Record<string, Words & { text: Words }>; vows?: Record<string, Words & { text: Words }>; coin?: string }
+  crafting?: { recipes?: Recipe[]; stations?: Record<string, Words>; shops?: ShopDef[]; placements?: PlacementRecipe[]; buildings?: PlacementRecipe[] }
   skills?: { all?: SkillDef[]; directions?: SkillDirectionDef[]; branches?: SkillBranchDef[]; professions?: ProfessionCard[] }
   boons?: Record<string, BoonInfo>
   looks?: { table?: LookTable; slots?: string[]; worn?: string[]; parts?: Record<string, LookPartInfo>; player?: Look }
@@ -27,7 +27,8 @@ export interface ClientTables {
 
 /**
  * A game's plugin (its default export): given the game as the bundle makes it, what its own code adds or puts
- * in its place. It runs in the page and in the worker, before anything is drawn or played.
+ * in its place (its wilderness, its save upgrades, its own panels). It runs in the page and in the worker, before
+ * anything is drawn or played: a panel's code is best loaded when the panel is first opened (ui/panels.ts).
  */
 export type GamePlugin = (game: ClientGame) => Partial<ClientGame> | void
 
@@ -64,10 +65,11 @@ export function clientGameOf(b: Bundle, url: string): ClientGame {
     cover: { title: b.game.name, ...c.cover },
     ...(c.dev && { dev: c.dev }),
     ...(c.texts && { texts: c.texts }),
-    items: { forms: c.items?.forms ?? {}, materials: c.items?.materials ?? {}, relics: c.items?.relics ?? {}, coin: c.items?.coin ?? b.ontology.social?.coin ?? 'item/coin' },
+    items: { forms: c.items?.forms ?? {}, materials: c.items?.materials ?? {}, relics: c.items?.relics ?? {}, ...(c.items?.vows && { vows: c.items.vows }), coin: c.items?.coin ?? b.ontology.social?.coin ?? 'item/coin' },
     crafting: {
       recipes: c.crafting?.recipes ?? [],
       stationName: (s) => stations[s] ?? words(b.ontology.types[`fixture/${s}`]?.name, s),
+      ...(c.crafting?.shops && { shops: c.crafting.shops }),
       placements: c.crafting?.placements ?? [],
       buildings: c.crafting?.buildings ?? [],
     },

@@ -28,6 +28,21 @@ export interface SpriteDef {
 }
 
 /**
+ * How a weapon is seen in the striker's hand for a moment (scene.ts swingWeapon): `sweep`, swept in an arc across the
+ * way they face, its picture's point up (a sword); `shoot`, raised, drawn and loosed, its picture pointing up-left (a
+ * bow); `point`, raised overhead and brought down to point, its head glinting (a staff). None: the blow alone shows.
+ */
+export type Swing = 'sweep' | 'shoot' | 'point'
+
+/** An item's icon, and a weapon's swing. */
+export interface ItemSpriteDef extends SpriteDef {
+  swing?: Swing
+}
+
+/** The body slots in the order of the frames of the catalogue's `ui.equipSlots` strip (a second ring is a ring). */
+export const EQUIP_SLOT_FRAMES: readonly string[] = ['ear', 'head', 'neck', 'shoulders', 'body', 'hands', 'ring', 'waist', 'weapon', 'feet', 'arm']
+
+/**
  * A multi-tile structure stamped onto the map (houses, big decorations). The image covers
  * `tw` x `th` tiles; `grid` has one string per tile row with one char per tile:
  *   '#' solid (blocks movement)   '.' free (drawn, walkable — e.g. roof overhang shadow)
@@ -115,8 +130,8 @@ export interface Catalog {
    * on the ground, under whatever stands there; `loose`: set a little off the grid, never in rows.
    */
   fixtures: Record<string, { base: SpriteDef; open?: SpriteDef; lit?: SpriteDef; variants?: SpriteDef[]; ground?: boolean; loose?: boolean; /** its picture turned east or west (a fence running north-south) */ across?: SpriteDef }>
-  /** Item sprite keys used by the ontology ('item:sword', …) -> 16x16 icon. */
-  items: Record<string, SpriteDef>
+  /** Item sprite keys used by the ontology ('item:sword', …) -> 16x16 icon; a weapon's, how it is seen as it strikes (`swing`). */
+  items: Record<string, ItemSpriteDef>
   /** Character looks for NPCs and the player: key -> sheet. */
   characters: Record<string, ActorDef>
   /** NPC role ('farmer', 'guard', …, and 'player') -> character keys that suit it (variety). */
@@ -125,7 +140,11 @@ export interface Catalog {
   creatures: Record<string, ActorDef>
   /** VFX names used by rules ('steam', 'fire_burst', …) + status overlays ('ovl:burning', …). */
   fx: Record<string, FxDef>
-  /** UI: dialogue box, faceset box, etc. */
+  /**
+   * UI: dialogue box, faceset box, etc. Some keys the runtime looks for: `<tag>Mark`, a sign drawn over the head of
+   * anyone with that tag (a trainer's crossed blades: `trainerMark`); `equipSlots`, a strip of the empty body slots'
+   * silhouettes, a frame each (every `step` px, default `w`) in the order of EQUIP_SLOT_FRAMES (none: a glyph each).
+   */
   ui: Record<string, SpriteDef>
   /** Music per map mood and sound effects per event. Paths relative to the pack root. */
   music: Record<string, string>

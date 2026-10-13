@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ModPort, TICKS_PER_HOUR, RuleLibrary, buildSandbox, holeKey, textOf, type Engine, type Key, type Plan, type Ref, type ScenarioEntity, type Verb } from '@openworld/engine'
+import { ModPort, TICKS_PER_HOUR, RuleLibrary, buildSandbox, holeKey, textOf, type Engine, type Key, type Plan, type PropValue, type Ref, type ScenarioEntity, type Verb } from '@openworld/engine'
 import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_PACE } from '@openworld/modules'
 import { cellId, madeOf } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
@@ -192,6 +192,25 @@ describe('the five inputs: one act each', () => {
     expect(c.plan('hands', { x: 2, y: 1, stack: [{ e: 'actor' }] })).toMatchObject({ at: { x: 2, y: 2 }, target: { e: 'berries' } })
     // the tile's own growth, drawn at the point, lies under what stands on it
     expect(c.plan('hands', { x: 2, y: 2, stack: [{ e: 'actor' }, { e: cellId('sandbox', 2, 2, 'volume') }] })?.target).toEqual({ e: 'berries' })
+  })
+
+  it('E meets a person, then a companion, before what is drawn over them; F and the left click keep the layers\' order', () => {
+    const eng = world(undefined, [npc(), { key: 'stick', type: 'item/material/stick', x: 2, y: 1 }])
+    const c = eng.controls
+    // the view draws the stick over the farmer
+    const aim = { x: 2, y: 1, stack: [{ e: 'stick' }, { e: 'npc.hollis' }] }
+    expect(c.plan('hands', aim)?.target).toEqual({ e: 'npc.hollis' })
+    // F takes the stick, and a bare left click strikes it, not the farmer behind it (the order 33b18a7 and cad30b9 settled)
+    expect(c.plan('take', aim)?.target).toEqual({ e: 'stick' })
+    expect(c.choices('take', aim)[0]?.plan?.target).toEqual({ e: 'stick' })
+    expect(c.plan('use', aim)?.target).toEqual({ e: 'stick' })
+    // a companion is one whose `companion` prop names a leader (companion.ts), not anything of its kind: E reaches for
+    // the fairy that follows one before the stick under her, and for the stick under one that follows nobody
+    const fairy = (props: Record<string, PropValue>) => world(undefined, [{ key: 'stick', type: 'item/material/stick', x: 2, y: 1 }, { key: 'fairy', type: 'actor/companion', x: 2, y: 1, props }])
+    expect(fairy({ companion: 'actor' }).controls.plan('hands', { x: 2, y: 1 })?.target).toEqual({ e: 'fairy' })
+    expect(fairy({}).controls.plan('hands', { x: 2, y: 1 })?.target).toEqual({ e: 'stick' })
+    // and F, beside the fairy that follows one, still takes the stick
+    expect(fairy({ companion: 'actor' }).controls.plan('take', { x: 2, y: 1 })?.target).toEqual({ e: 'stick' })
   })
 
   it('a pointer beyond every reach aims at the farthest reached spot toward it, never at oneself', () => {

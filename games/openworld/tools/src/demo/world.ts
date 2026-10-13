@@ -26,6 +26,7 @@ import { villageInteriors, villageTown } from './village.ts'
 import { eastRoadRooms, emberfallRooms, tentRooms } from './interiors.ts'
 import { VIGIL, buildChapel, buildDawnHill, buildMillCellar, buildMillbrook } from './quest/vigil.ts'
 import { PILGRIM, PILGRIMAGE_STORY, buildAbbey, buildAbbeyCrypt, buildAbbeyHall, buildField, buildHostel, buildRest, buildRestChapel, buildWay } from './quest/pilgrimage.ts'
+import { FLANKS, FLANKS_STORY, buildBend, buildBendCabin, buildDell, buildDellHut } from './quest/flanks.ts'
 import { CHAPTER1_SCENES, CHAPTER1_STORY, HAVEN_STORY, buildOffstage, chapter1Barrow, chapter1EastRoad, chapter1Foot, chapter1Ford, chapter1Forest, chapter1Hollow, chapter1Pasture, chapter1Summit, chapter1Village } from './quest/chapter1.ts'
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '../../../public/world')
@@ -422,6 +423,12 @@ function buildForest(): MapBuilder {
   }
   for (const [x, y] of spots(3, [6, 14, 14, 10])) m.fixture('fixture/nature/mushroom_ring', x, y)
   for (const [x, y] of spots(2, [22, 6, 14, 12])) m.fixture('fixture/nature/beehive', x, y)
+  // the forest's flanks (docs/chapter-1.md §15): the side trail goes on west to the Charcoal Dell, and from the east
+  // clearing a trail leads out to the Reed Bend — opened last of all, so every draw above stays as it was
+  for (let x = 0; x < 4; x++) for (const y of FLANKS.forestWest) if (wood(m.get(x, y))) m.set(x, y, 'grass')
+  for (let x = m.w - 4; x < m.w; x++) for (const y of FLANKS.forestEast) if (wood(m.get(x, y))) m.set(x, y, 'grass')
+  m.path([[5, 15], [2, 15], [0, 15]], 'path', 1)
+  m.path([[27, 17], [33, 17], [39, 17]], 'path', 1)
   return m
 }
 
@@ -452,8 +459,9 @@ function person(p: PersonDef, at: (name: string) => Pos): Entity {
   const stock = p.trade?.stock ?? []
   const tags = [...(p.tags ?? []), ...(p.watch ? ['watchman'] : []), ...(p.trade ? ['merchant'] : []), ...(p.trade?.fence ? ['fence'] : []), ...(p.hireling ? ['hireling'] : []), ...(p.essential ? ['essential'] : [])]
   const carried = [
-    ...(p.items ?? []).map((spec, i) => ({ id: `${p.id}.item${i}`, ...itemOf(spec) })),
-    ...stock.flatMap(([form, n], i) => Array.from({ length: n }, (_, j) => ({ id: `${p.id}.stock${i}.${j}`, ...itemOf(form) }))),
+    ...(p.items ?? []).map((spec, i) => ({ id: `${p.id}.item${i}`, ...itemOf(spec, `${p.id}.item${i}`) })),
+    // (their gear at their level: world-model.md §6.8)
+    ...stock.flatMap(([form, n], i) => Array.from({ length: n }, (_, j) => ({ id: `${p.id}.stock${i}.${j}`, ...itemOf({ form, level: p.trade?.level ?? 1 }, `${p.id}.stock${i}.${j}`) }))),
     ...Array.from({ length: purse }, (_, i) => ({ id: `${p.id}.coin${i}`, type: SOCIAL_COIN })),
   ].map((e) => ({ ...e, place: { on: 'inside' as const, holder: p.id } }))
   return {
@@ -469,6 +477,7 @@ function person(p: PersonDef, at: (name: string) => Pos): Entity {
       ...(p.fights && { fights: true }),
       ...(p.watch && { watch: p.watch }),
       ...(stock.length && { stock: stock.map(([form, n]) => `${form}*${n}`).join('|') }),
+      ...(p.trade?.level && p.trade.level > 1 && { gearLevel: p.trade.level }),
       ...(p.honesty !== undefined && { honesty: p.honesty }),
       ...(p.lawful === false && { lawful: false }),
       ...p.props,
@@ -553,7 +562,8 @@ const scenes: StepDef[] = [
     script: [
       { fact: 'ford.crossed', value: 1 },
       { wait: 10 },
-      say('npc.hesper', 'Go on, then. The rider went east along the road, past the burned farm. If you find him — mind his bow.', '那就走吧。那个骑手沿着大路往东去了，过了烧毁的农庄。要是你找到他——当心他的弓。'),
+      // (the road east comes first to the Church's Rest: the Pilgrim's Road, docs/chapter-1.md §14)
+      say('npc.hesper', 'Go on, then. The road east comes first to the Church\'s Rest; the rider went on far past it, beyond the burned farm. If you find him — mind his bow.', '那就走吧。往东的路先到教会的驿站；那个骑手去了远得多的地方，过了烧毁的农庄。要是你找到他——当心他的弓。'),
       say('npc.hesper', 'If you need supplies before the road, Firstlight Village is still just west of here.', '上路前若还缺东西，初原村就在渡口西边。'),
       { topic: 'crossed', days: 30 },
     ],
@@ -617,6 +627,18 @@ export function buildFord(): FordWorld {
   const sanctum = buildSanctum()
   linkEdge(forest, HOLLOW.forestSouth.map((x) => [x, forest.h - 1]), [0, -1], hollow, HOLLOW.north.map((x) => [x, 0]), [0, 1])
   linkEdge(hollow, HOLLOW.south.map((x) => [x, hollow.h - 1]), [0, -1], barrow, BARROW.north.map((x) => [x, 0]), [0, 1])
+  // the forest's flanks (docs/chapter-1.md §15): the Charcoal Dell west of it, the Reed Bend east, a hut and a cabin
+  reseed(4290)
+  const dell = buildDell()
+  const dellHut = buildDellHut()
+  dell.linkInterior('hut', dellHut)
+  reseed(4291)
+  const bend = buildBend()
+  const bendCabin = buildBendCabin()
+  bend.linkInterior('cabin', bendCabin)
+  linkEdge(forest, FLANKS.forestWest.map((y) => [0, y]), [1, 0], dell, FLANKS.dellEast.map((y) => [dell.w - 1, y]), [-1, 0])
+  linkEdge(forest, FLANKS.forestEast.map((y) => [forest.w - 1, y]), [-1, 0], bend, FLANKS.bendWest.map((y) => [0, y]), [1, 0])
+  const flanks = [dell, dellHut, bend, bendCabin]
   // the main quest east of the Ford (docs/main-quest.md): the road, Emberfall, its mine, the pass, the lair
   reseed(4245)
   const road = buildEastRoad()
@@ -687,7 +709,7 @@ export function buildFord(): FordWorld {
   const grounds = buildHavenGrounds()
   // every building walked into (interiors.ts): Emberfall's, the East Road farmhouse; the tents, gone into by hand
   const elsewhere = [...emberfallRooms().map((r) => (ember.linkInterior(r.door, r.map), r.map)), ...eastRoadRooms().map((r) => (road.linkInterior(r.door, r.map), r.map)), ...tentRooms(m, forest, haven)]
-  const builders = [m, meadow, ...rooms.map((r) => r.map), pasture, forest, hollow, barrow, ossuary, sanctum, mill, millcellar, dawnhill, chapel, ...pilgrimage, road, ember, mine, pass, lair, summit, foot, tutorial, offstage, haven, ...grounds, ...elsewhere]
+  const builders = [m, meadow, ...rooms.map((r) => r.map), pasture, forest, hollow, barrow, ossuary, sanctum, ...flanks, mill, millcellar, dawnhill, chapel, ...pilgrimage, road, ember, mine, pass, lair, summit, foot, tutorial, offstage, haven, ...grounds, ...elsewhere]
   const at = placeMaps(builders, m)
   for (const b of builders)
     for (const [name, [x, y]] of Object.entries(b.anchors)) {
@@ -737,7 +759,7 @@ export function buildFord(): FordWorld {
   }
   const metaOf = (b: MapBuilder, c: RawChunk): MapMeta => ({ id: b.id, name: b.name, kind: b.kind, region: b.region, width: b.w, height: b.h, portals: b.portals, npcs: npcs.filter((n) => n.place.on === 'tile' && n.place.map === b.id).length, items: c.entities.filter((e) => e.type.startsWith('item/')).length, at: at.get(b.id), ...(Object.keys(b.regions).length && { regions: b.regions }) })
   // the story's one script (world-model.md §6.12): the tutorial's beats, then the scenes
-  const steps = [...PROLOGUE_BEATS, ...FIRSTLIGHT_BEATS, ...scenes, ...CHAPTER1_STORY, ...PILGRIMAGE_STORY, ...CHAPTER1_SCENES, ...HAVEN_STORY, ...QUEST_SCENES]
+  const steps = [...PROLOGUE_BEATS, ...FIRSTLIGHT_BEATS, ...scenes, ...CHAPTER1_STORY, ...PILGRIMAGE_STORY, ...FLANKS_STORY, ...CHAPTER1_SCENES, ...HAVEN_STORY, ...QUEST_SCENES]
   const index: WorldIndex = {
     name: L('The Ford', '渡口'),
     version: VERSION,

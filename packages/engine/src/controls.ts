@@ -246,11 +246,16 @@ export class Controls {
     // the open air only F and G meet, and the left click with a built thing in hand (it builds there)
     const air = key === 'put' || key === 'take' || (key === 'use' && this.buildsInHand())
     const layered = this.layers(at, stack).filter((r) => r.e !== me && (air || !this.w.isAir(this.w.get(r.e))))
-    // a bird overhead is the last layer (layers()), but the hands (E) meet a companion before the ground and what lies
-    // there — one reaches for the fairy to speak to her, not for the grass under her — though after a person she hovers by
-    const friend = (r: Ref) => key === 'hands' && !!this.w.get(r.e) && this.w.hasTag(this.w.get(r.e)!, 'companion')
-    const person = (r: Ref) => { const e = this.w.get(r.e); return !!e && this.w.isAgent(e) && !friend(r) && !this.w.hasTag(e, 'airborne') }
-    const all = [...layered.filter(person), ...layered.filter(friend), ...layered.filter((r) => !friend(r) && !person(r))]
+    // the hands (E) meet whoever is there first: a person or a creature before what is drawn over them, then a companion
+    // (an actor whose `companion` prop names a leader, companion.ts) — a bird overhead is the last layer (layers()), but
+    // one reaches for the fairy to speak to her, not for the grass under her — then the rest in their layers' order.
+    // The other keys keep the layers' order (F takes what lies there, the left click strikes what is drawn on top).
+    let all = layered
+    if (key === 'hands') {
+      const friend = (r: Ref) => typeof this.w.get(r.e)?.props?.companion === 'string'
+      const person = (r: Ref) => { const e = this.w.get(r.e); return !!e && this.w.isAgent(e) && !friend(r) && !this.w.hasTag(e, 'airborne') }
+      all = [...layered.filter(person), ...layered.filter(friend), ...layered.filter((r) => !friend(r) && !person(r))]
+    }
     // what another cell draws over the point but stands beyond the key's reach (a farther tree's
     // crown over the tree beside one) is not what the key meets: the next layer is. What stands on
     // the spot itself stays, reached or not (a bed pointed at from beside it is not its floor).
@@ -724,8 +729,9 @@ export class Controls {
   }
 
   /**
-   * A panel's offering (the home ground's widenings): up to `count` of a carried kind put into a thing, one act each,
-   * as the chest panel puts things into a chest; what the thing will not take stays carried.
+   * A panel's offering (a game's panel that takes what one carries into a thing: a stock, a store): up to `count` of a
+   * carried kind put into the thing, one act each, as the chest panel puts things into a chest; what it will not take
+   * stays carried.
    */
   offer(target: Id, item: Id, count: number): void {
     const w = this.w

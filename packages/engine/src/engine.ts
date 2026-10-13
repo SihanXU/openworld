@@ -771,6 +771,18 @@ export class Engine {
         origin: ev.origin,
       })
     }
+    // and the doer sees it too, seen or not: one's own deed (its conscience: the society's deeds say what it was)
+    if (w.isAgent(doer) && doer.place.on === 'tile') {
+      const own: GameEvent = {
+        kind: 'seen',
+        host: { e: doer.id },
+        roles: { actor: ev.roles.actor, target: ev.roles.target, instrument: ev.roles.instrument },
+        params: { ...facts, own: true, owner: this.society.relation(b.whose, doer), victim: this.society.victim(b.person ? b.thing : b.whose, doer) },
+        cause: ev.cause,
+        origin: ev.origin,
+      }
+      if (this.society.deedName(own)) this.offer(own)
+    }
   }
 
   // ---------------------------------------------------------------- factions and fear
@@ -1505,7 +1517,7 @@ export class Engine {
     return true
   }
 
-  /** The `lightning` primitive: a bolt seeks what stands tall near the player (or falls near them). */
+  /** The `lightning` primitive: a bolt seeks what stands tall near the player (four times in five, as lightning does), or falls near them. */
   lightning(power: number, ev: GameEvent): void {
     const w = this.world
     const active = this.activeMap
@@ -1513,7 +1525,7 @@ export class Engine {
     if (!p) return
     const tall = w.entitiesOnMap(active).filter((e) => e.place.on === 'tile' && w.hasTag(e, 'tall') && Math.max(Math.abs(e.place.x - p.x), Math.abs(e.place.y - p.y)) <= 12)
     let target: Ref
-    if (tall.length && w.rand() < 0.5) target = { e: tall[Math.floor(w.rand() * tall.length)].id }
+    if (tall.length && w.rand() < 0.8) target = { e: tall[Math.floor(w.rand() * tall.length)].id }
     else {
       const x = p.x + Math.round((w.rand() - 0.5) * 12)
       const y = p.y + Math.round((w.rand() - 0.5) * 12)

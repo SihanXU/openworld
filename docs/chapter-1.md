@@ -145,8 +145,9 @@ New stages are marked **new**.
 | 1 **new** | Firstlight, night | *The Night of the Flame*: the village gives thanks in the chapel; at 22:00 a scene — the grey man in the chapel, the flame into his lantern, Holt shouts, he walks east. The player can follow and watch him freeze the river and cross | (scene) | the ice crossing, shown; he looks back once at Ilse's window |
 | 2 **new** | Firstlight | *The Letter*: at dawn a Church courier brings the Holy City's proclamation: the Seal-bearers fail, the Long Night returns, the pilgrimage is called, and one who has walked down from the mountain with a fairy is named to it. Ilse blesses you and names your road: the First Seal-bearer, beyond the ford | talk to Ilse | the letter (a document); the courier stares at Lumi and says nothing |
 | 3 | Firstlight → Ford | *The Broken Bridge*: Joss and the three planks; the ferry, the dead tree and the ice still work | stand on the far bank | Joss: "nails pulled straight. No storm pulls nails." |
-| 4 | East Road | The farmstead (crops dying in the short days; night things came). Edda in the barn. The road ends at a ring of thorns round a field of kneeling stones: the knight's kingdom | — | Edda: "the night things came; the grey one pulled me out" |
-| 5 | East Road | **The White Knight Alberic** | the knight down | the kneeling stones are the graves of pilgrims before you **[proposal]** |
+| 3b **new** | The Pilgrim's Road (§14) | Past the far bank the road east runs through the Church's Rest (the oath at the five wounds), five wayside shrines, the ruined Abbey of the Thorn north of it, and the Kneeling Field | the oath, the shrines, the writ and the seal, the field | the writ of relief never sent; the stones of those who would not kneel |
+| 4 | East Road | Out of the Kneeling Field: the farmstead (crops dying in the short days; night things came). Edda in the barn. Beyond it, a ring of thorns round a field of kneeling stones: the knight's kingdom | — | Edda: "the night things came; the grey one pulled me out" |
+| 5 | East Road | **The White Knight Alberic** | the knight down | the kneeling stones are those who came before and would not kneel to him, carved on their knees all the same **[proposal]** |
 | 6 **new** | East Road | *The Crown*: he offers the Crown and dies; its power breaks loose; Lumi catches part of it and glows (the story gives her the first boon); the grey man steps out of the smoke, draws the rest into the lantern; a barrier, no fight: "Every seal you break makes the night longer. Ask your Church why." He looks at Lumi a moment too long, and goes east | the Crown carried | his hand shakes after the binding |
 | 7 **new** | Firstlight | *Return*: the village rejoices at the Crown; Rowan hardens against the heretic; Ilse says nothing and keeps the cold altar swept. Nessa, that evening: "Four minutes. The sun set four minutes early." A card: **Chapter 1 · The First Seal — end** | talk to Rowan | the earlier sunset |
 
@@ -164,6 +165,10 @@ one thing they do not say.
   and dusk; reads the litany: *"Suffering is not God's abandonment. It is the proof the debt is
   being paid."*
 - **Stake**: the flame was hers to keep. She receives the Church's letter and sends you.
+- **Her chapel** stands on the square behind Astra's altar and the flame (`meadow.church`, built 2026-10-11 as a "church of
+  the First Dawn" on the east road and merged into hers 2026-10-12: the First Dawn's is the chapel on Dawn Hill, §13).
+  Brother Anselm (68) serves in it and keeps its bookstand of skill books; on the east road Greta keeps the general store
+  and Haldor the smithy.
 - **Unsaid**: she raised Severin; she recognised his walk in the chapel and told no one. She once
   read a Watch book the Church burned.
 - Lines (sample): "The flame is older than the houses. The houses were built to keep it company." /
@@ -202,8 +207,9 @@ one thing they do not say.
 ### Fennick (芬尼克), an old templar
 
 - 62; drinks at the square's bench; once a templar of the Seal-bearers' escort.
-- **Stake**: he served under Alberic, "the gentlest man who ever wore armour", and saw the crown
-  begin to change him. When the village says *knight*, he goes quiet.
+- **Stake**: he squired for Alberic in the long hold, six years in his youth, when the knight had worn the crown two
+  hundred and fifty years and was still "the gentlest man who ever wore armour" (§14's three hundred years), and saw
+  the crown take more of him every year. When the village says *knight*, he goes quiet.
 - **Unsaid**: he left the escort the night Alberic did not know his name. He also knew Severin.
 - Lines (sample): "He used to kneel to children. Now he makes the world kneel to him. That is what
   the crown does." / "他以前会对孩子单膝下跪。现在他要整个世界向他下跪。那顶冠冕就是这样改变人的。"
@@ -294,7 +300,8 @@ Open: how Severin uses the dawn flame (marked [proposal]); Alberic's balance for
 |---|---|---|---|
 | *Down from the Mountain* (`descent`) | a new game | the shrine stone (Mountain Foot), the Ford, Firstlight | by itself; or once in the village |
 | *Lost in the Barrow* (`rescue`, Rowan) | the welcome in Firstlight | the barrow mouth (through the grassland, the forest, the hollow), Lina (barrow), Oskar (ossuary), the warden (sanctum) | handed in to Rowan |
-| *The First Seal* (`first_seal`) | the rescue handed in | the night of thanks, the letter, across the river, **the White Knight** | by itself |
+| *The Vigil* (`vigil`, Ilse; §13) | the rescue handed in | lamp oil, dawnbloom, the bell; back to Ilse | handed in to Ilse |
+| *The First Seal* (`first_seal`) | the vigil handed in | the night of thanks, the letter, across the river, the oath at the Rest, the five shrines, the writ and the Order's seal, the Kneeling Field (§14), **the White Knight** | by itself |
 | *The Crown of Thorns* (`crown_home`) | the knight's fall | the Crown home (`ch1.end`) | by itself |
 
 Whatever comes before the knight is done once he falls (`skipWhen: sins.defeated.alberic`): a player who
@@ -318,12 +325,21 @@ behind, the Order of the Thorn's dead, the pilgrim before you; found, never made
 asks something back — the id stays `legendary`; the professions' legendary arms the Seal-bearers drop are
 Stigmatic). The tooltip names the two story tiers and what a piece gives where it is worn (a cost in red).
 
-**Effects** (2026-10-07; engine `combat.ts`, `World.stat`; content `RELICS`, `VOW_TRAITS`; tests
-`equipment.test.ts`). A Vowbound piece keeps a trait of its vow beyond its numbers — dodge, lifesteal, critical
-chance, movement speed, *standing your ground* (`holdFast`: less harm while one has not stepped this second), or
-a bonus only at night (`night:<stat>`); a rolled one takes one of these, the story's own name theirs (Odo's
-pauldrons hold fast, Maren's ring drinks, Tomas's belt guards by night, the scallop quickens the stride,
-Fennick's helm dodges). Every Stigmatic piece carries a power of its own, one of each in the world (`relic`):
+**Effects** (2026-10-07; the classes module's `combat.ts`, `World.stat`; content `RELICS`, `VOWS`; tests
+`equipment.test.ts`). A Vowbound piece keeps the **vow** it was made under (`vow`, 2026-10-13; before, only a small
+trait — a dodge, a lifesteal — which left the named pieces below a common one with its three extras): a promise
+with a condition and what it pays, answered as a talent is (`vowsOf`), and like any piece it rolls its extras. Ten
+vows: Vigil (night: +20% crit, +15% speed), Dawn (day: 1 drawn back a blow, −10% taken), the Held Ground (standing:
++25% given, −30% taken), the Thorn (a melee blow on you pricks the striker for 3: a strike of yours back, the piece
+its instrument, never answered with thorns), Mercy (a foe under a third: 2 drawn back), Silence (sneaking unslowed,
++25% crit from it), the Road (+30% speed on a road, +10% dodge moving), the Shield (a fight's first blow halved),
+the Hunt (a blow on an unhurt foe is a critical), the Lone Road (no companion: +15% given, +10% dodge). A rolled piece
+takes one (`QualityDef.vows`; the craft primitive, `makeItem`); the story's own name theirs (Odo's pauldrons the Held
+Ground, Maren's ring Mercy, Tomas's belt Vigil, the scallop the Road, Fennick's helm the Shield, Cassian's cord Dawn,
+the Order's seal the Thorn; `NAMED_VOWS`), and keep their small numbers besides (`night:def`, a lifesteal, a dodge;
+`holdFast` still reads). Older saves: `migrateVows` gives each Vowbound piece its vow, brings its main stats up to its
+tier's (never down) and rolls the extras it never had. Every Stigmatic piece carries a power of its own, one of each
+in the world (`relic`):
 
 | Piece | Power |
 |---|---|
@@ -431,9 +447,11 @@ grove and stones, beyond the second a meadow and water, beyond the third boundar
 **Alberic, freed of the crown, is its steward** (`npc.alberic`; human form `lsw/Characters/Alberic`, the pack's Master
 recoloured by `tools/src/art/alberic-human.swift`: white hair, the knight's steel, the Order's gold, the thorns' scar on
 his brow). He keeps his vow turned round — "You relieved me. So I hold for you now." He does not remember names and asks
-yours; he remembers a squire he cannot see. His errands widen the ground (`haven1`–`haven3`: logs and stones; planks and
-iron; planks, stones and gold). Each sets the story's `haven.size`; every bank of mist looks now and then (the `mist`
-period) whether the ground has grown past its ring, and lifts (`haven/mist-lifts`). Demo H1 plays it.
+yours; he remembers a squire he cannot see. He grows the ground three ways in its panel (content `haven.ts`, since
+fb7bb3a; his errands `haven1`–`haven3` are gone, and an older save's are closed by `migrateHaven`): the land (what each
+ring asks is handed into the ground's stock; it sets the story's `haven.size`, and every bank of mist looks now and then,
+the `mist` period, whether the ground has grown past its ring, and lifts: `haven/mist-lifts`), new grounds beyond the
+mist, and buildings on plots at the heart. Demo H1 plays it.
 
 An older save is given the people the world has since added (engine `upgrade`), so the steward is in it too.
 
@@ -455,7 +473,9 @@ Four maps (`tools/src/demo/quest/vigil.ts`), through two new gaps in Firstlight'
 | **Chapel of the First Dawn** (初晓礼拜堂, `chapel`) | the temple's door on the hilltop | the cold first hearth where the Firstlight was kindled, the bell rope in the tower's corner (`chapel_bell`) |
 
 Waypoint statues now also stand on Dawn Hill and by the barrow mouth in Thornwood Hollow (`wp.dawnhill`,
-`wp.hollow`). Fifteen maps lead to the knight.
+`wp.hollow`). Fifteen maps led to the knight then; the Pilgrim's Road (§14) puts seven more on the main line (the Rest
+and its chapel, the road, the abbey, its hall and its crypt, the Kneeling Field): twenty-two, with the Rest's hostel
+beside them.
 
 **Gear on the ground** shows as one bundle (`item:loot`, tools `art/gear.ts`): what it is shows only once it is
 picked up. More errands pay in gear: Marta's Kitchen Sash, Mia's Ribbon Earring, Militia Pauldrons (Holt), the
@@ -465,16 +485,82 @@ Surveyor's Ring (Nessa), Cassian's Prayer Cord (Ilse, Vowbound).
 
 The user's request: many more maps before the knight, built round the Church and its faith, and the White Knight
 foreshadowed. Between the far bank and the knight the First Seal now runs through four places (content
-`pilgrimage.ts`; maps and scenes `tools/src/demo/quest/pilgrimage.ts`; demo PR1):
+`pilgrimage.ts`; maps and scenes `tools/src/demo/quest/pilgrimage.ts`; demo PR1 plays it through the player's own inputs;
+`tools/test/pilgrimage.test.ts`):
 
 | Place | What it is | What it shows |
 |---|---|---|
-| **The Pilgrims' Rest** (`waystation`; its chapel `waystation.chapel`, hostel `waystation.hostel`) | the Church's halt on the far bank; Father Caius (`npc.caius`) takes the pilgrim's oath at the altar of the five wounds; Maud and Wynn, pilgrims who stopped here | the Church as it means itself: the Five recited in full, the Holy See's notice ("who kneels to the First Seal-bearer passes in his mercy"); the hostel book of pilgrims who "went east, did not come back"; Caius: the knight "was due relief, once"; Wynn's rhyme of the knight who knelt to children |
-| **The Pilgrim's Road** (`pilgrimway`) | five wayside shrines, one per suffering (`fixture/sacred/wayshrine/<id>`), each lit by what it asks laid on it (G): something for the head, a cord, a meal, metal, a light; Brother Ezra (`npc.ezra`), a penitent | the Five as acts; the knight's mark on the signposts ("none cross that do not kneel"); white pennants mended less the further east they hang; Ezra saw the knight mending a flag |
-| **The Abbey of the Thorn** (`abbey`; `abbey.hall`, `abbey.crypt`) | the Order's ruined house, north of the road; its dead still keep the hours; Prior Wendel, the last keeper (`abbey.abbot`), in the crypt | Alberic made a knight (the statue: kneeling to a child); the Order's roll ending with him; his journal (the kite, the forty years, the forty-first, "hold"); the **writ of relief**, never sent: "Let him hold. He will not know the difference." (lore.md §6, §13: the Church uses its bearers up); the Order's seal (`item/valuable/order_seal`) |
-| **The Kneeling Field** (`kneelfield`) | the kingdom's outskirts, before the East Road | the pilgrims before you in stone, by name and year — the selection (lore.md §13), unseen; straw subjects tied kneeling, facing east; the newest stone uncut |
+| **The Pilgrims' Rest** (`waystation`; its chapel `waystation.chapel`, hostel `waystation.hostel`) | the Church's halt on the far bank; Father Caius (`npc.caius`) takes the pilgrim's oath at the altar of the five wounds; Maud and Wynn, pilgrims who stopped here | the Church as it means itself: the Five recited in full, as the Church reads them (the Nails: "upon the holy wood he accepted death", lore.md §4's first layer); the litany ("as long as one bears the Five, the Long Night shall not return", §5); the Holy See's notice, which speaks of the pilgrimage as it is proclaimed (§7): seek out the five Seal-bearers, overcome them, bring the five instruments home; the hostel book of pilgrims who "went east, did not come back"; Caius: the knight "was due relief, once"; Wynn's rhyme of the knight who knelt to children |
+| **The Pilgrim's Road** (`pilgrimway`) | five wayside shrines, one per suffering (`fixture/sacred/wayshrine/<id>`), each lit by what it asks laid on it (G): something for the head, a cord, a meal, metal, a light — the road itself holds one of each (a hat, a plaited cord, a loaf in an abandoned cart, a dented helm, a candle); Brother Ezra (`npc.ezra`), a penitent | the Five as acts; the knight's mark on the signposts ("none cross that do not kneel"); white pennants mended less the further east they hang; Ezra saw the knight mending a flag |
+| **The Abbey of the Thorn** (`abbey`; `abbey.hall`, `abbey.crypt`) | the Order's ruined house, north of the road; its dead still keep the hours; Prior Wendel, the last keeper (`abbey.abbot`), in the crypt among the abbey's priors | Alberic made a knight (the statue: kneeling to a child); the Order's roll, forty-one names ending with him, as the ossuary's (no knight was made after him); memorial stones for Brother Odo, Sister Maren and Brother Tomas, who lie in the ossuary under Thornwood Hollow (§11); his journal (the kite, the forty years, the forty-first, "hold"; his brother by blood is Hugh — Tomas, the warden, is a sworn brother of the Order, buried a century ago, §3); the **writ of relief**, never sent: "Let him hold. He will not know the difference."; the Order's seal (`item/valuable/order_seal`) |
+| **The Kneeling Field** (`kneelfield`) | the kingdom's outskirts, before the East Road, where pilgrims knelt to pray before they went on | the stones, as on the East Road (§6), of those who went on and would not kneel to him, carved on their knees all the same, each with a name and a year of the Crown; straw subjects tied kneeling, facing east; the newest stone uncut (the selection, lore.md §13, stays unseen: nobody says what it is for) |
 
-The First Seal's stages: 40 across the river → 50 the oath (`ch1.oath`; the Pilgrim's Scallop) → 60 the five shrines
-(`ch1.shrines.<id>`) → 70 the writ and the seal (`ch1.writ`, `ch1.order_seal`) → 80 the Kneeling Field
-(`ch1.kneelfield`) → 100 the knight. Nothing is gated: the knight still falls to one who goes straight for him, and
-every stage before him is done with him (`PAST_KNIGHT`).
+**[proposal]** The dating and the Church's institutions here are this design's, beyond lore.md (whose §6, §7 say only
+"数百年", several hundred years):
+- the First Seal-bearer has held **three hundred years** (the "years of the Crown");
+- his bearing was set at a **forty-year term**, with relief to follow;
+- the **writ of relief was withheld** by the abbey's Prior, who could find no successor willing to bear it;
+- the **Holy See** is the Church's seat, an institution that issues notices and keeps the Rest;
+- **pilgrims have been sent since the 212th year** of the Crown (the Kneeling Field's oldest stone; Brother Cassian,
+  thirty-one years ago, is one of them).
+
+The rest of Chapter 1 keeps to this timeline: Fennick squired for the knight in the long hold, two hundred and fifty years
+after the crowning (§7); the warden Tomas is a sworn brother of the Order buried a century ago (§3), not Alberic's brother by
+blood.
+
+What it keeps (§2, §3b): the Church speaks of the mission only, never of kneeling to the knight; the
+Nails are the Church's reading (the hidden one, lore.md §4, is a later chapter's); Lumi's lines stay light — the writ's
+"forty years" and the journal's "forty-first year" are left side by side for the player to read, and the Kneeling Field's
+stones speak for themselves.
+
+The First Seal's stages: 40 across the river → 50 the oath (`ch1.oath`; the pilgrim's own **Sworn Scallop**,
+`item/valuable/scallop/sworn`: a scallop, but not the one the pilgrim before left in the forest, which *The Pilgrim
+Before* asks for — `sworn` tells them apart) → 60 the five shrines (`ch1.shrines.<id>`) → 70 the writ and the seal
+(`ch1.writ`, `ch1.order_seal`) → 80 the Kneeling Field (`ch1.kneelfield`) → 100 the knight. Nothing is gated: the knight
+still falls to one who goes straight for him, and every stage before him is done with him (`PAST_KNIGHT`). A save at
+stage 40 from before the road shows the oath on loading (content `game.ts`).
+
+Fixed after review (2026-10-13):
+- **A shrine never takes what must not be given away** (`KEPT`): a relic (the Crown of Thorns is worn on the head),
+  what is important (the Order's seal is metal), bound, or a keepsake (Mia's ring, a scallop). It refuses it and says so.
+- **Past the knight** the Rest's welcome (`rest_arrival`) and the oath (`pilgrim_oath`) do not play (the only way east to
+  Emberfall runs through the Rest); `rest_after` greets one who comes from him, and Caius's first word says nothing of
+  him either way.
+- **The Rest's litany** on its bookstand is read with a hand (E), as any written thing; only a bookstand with nothing
+  written on it is a shop (Firstlight's chapel's).
+
+**Faith, and good and evil** (the user's request, 2026-10-12; content `faith.ts`, the society module's `conscience`,
+`moral`, `kinship`): the one at the keys carries `karma` and `faith`, each −100..100. Karma falls by a quarter of a
+deed's weight whenever one does a deed, seen or not (the doer is offered its own `seen` event, params `own`); it rises
+with a favour done (a quest reward with regard: +3), what was taken given back (+2), an apology taken (+1). A positive
+regard gain is scaled by the doer's karma against the person's alignment (`alignment` prop, else from honesty):
+×(1 + 0.6·k·a), so the good warm sooner to the good and the wicked to the wicked. Faith rises with prayer (E on an
+altar +4, on a wayside shrine +2, once a day each: status `prayed`) and with a shrine lit (+5); the talk verb
+`unbelief` lowers it (−5; the `devout` take it ill). The Church answers it here: at the Rest, after the oath, Caius
+blesses the devout (faith ≥ 30: holy water, `ch1.church.blessed`) or turns away the unbeliever (≤ −30:
+`ch1.church.shunned`); the Grey Man meets the unbeliever on the road (`ch1.church.greyman`); the Kneeling Field reads
+differently to each. Later chapters read these facts. Luck (gear) widens a creature's trophy chance and its chance
+parts, × (1 + luck). Standing your ground, stealth and perception left the sheet and the gear (the engine still reads
+them).
+
+## 15. The forest's flanks (built 2026-10-13)
+
+The user's request: more maps left and right of the forest, with quests of their own. Two places off the forest's sides
+(`tools/src/demo/quest/flanks.ts`; errands in content `quests/side.ts`; demo FL1), each with one who lives there, a
+room behind their door, and what they ask. The forest's side trail now runs on west (rows 14–16), and a trail leaves
+the east clearing (rows 16–18).
+
+| Place | What is there | Errands |
+|---|---|---|
+| **The Charcoal Dell** (烧炭谷, `charcoal`; hut `charcoal.hut`) | Orrin the charcoal burner (`npc.orrin`: sells coal, torches, logs) at three kilns (the `kiln` prefab) on trodden earth and ash, coal lying about and in his crate; coppice woods with stumps and four boars (more come back); west, the **roost oak** in a ring of trees, feathers under it, his tally board ("DAYS SINCE THE BIRDS CAME") | *Wood for the Clamp* (6 logs → 4 coal, a cap); *Boars in the Coppice* (level 2: 4 boars on the map); *Where the Birds Went* (Gus asked — he says the birds rose and flew west the night the bridge came down; 3 feathers; `ch1.birds`) |
+| **The Reed Bend** (芦苇湾, `reedbend`; cabin `reedbend.cabin`) | the Ford's river bending south along the east side, shallows then deep water (fish: `MapData.fish`); Hilde the fisher (`npc.hilde`: fish, bait, a rod) on her pier, a smoke-fire, salt, nets; the **spit** with Rolf's boat bell (`quest.hilde.bell`, keepsake) among three water slimes; the **drowned stone**, a carving of a fish given to a child — no thorns, no wounds, nobody kneeling (the faith before the Church, lore.md) | *Three for the Smoke* (3 fish of any kind → bait, an oilskin); *The Bell on the Spit* (the bell → a luck ring; `ch1.boatbell`) |
+
+Why the forest is quiet (§11's `forest_quiet`) is answered here: at dusk (`roost_dusk`) every bird of the forest sits
+silent in the oak, facing east, as the herd kneels east — birds know before people do. Lumi's beats: `dell_first`,
+`roost_dusk` (`ch1.roost`), `bend_first`, `drowned_stone` (`ch1.drowned_stone`); Orrin and Hilde each have a line that
+answers the fact once.
+
+The overworld (world-model.md §5.1, D22): the dell is a woods cell west of the forest's; the bend lies on the **river's
+own cell** east of it — a camp drawn there, but the cell is river ground and not stood on, so it is reached only through
+the forest and the river remains a barrier crossed by the Ford alone (demo W6, the overworld's mirrored-barriers check:
+the bend has one bank, its water reaching the map's edge).

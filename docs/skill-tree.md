@@ -400,8 +400,9 @@ and right-clicked to empty. The twenty icons are drawn by code (`tools/src/art/s
 image generator the other icons came from. Proved by `tools/test/actives.test.ts`.
 
 **Where active skills come from** (engine `knownActives`): the skill tree; a **skill book** (`item/document/skillbook`,
-its `teaches` prop; content `skillBook(id)` makes one) read by using it on oneself — no points and no skills before
-it, only its profession; the book is used up (`use/read-skillbook` → `body/stage` what = read → `learn {book}`;
+its `teaches` prop; content `skillBook(id)` makes one) read by using it on oneself — no points, but only its
+profession and only once the skills before it in the tree are learned (its `requires`, as the tree asks: a Smoke Bomb
+bought at the bookstand waits for Shadow Strike; 2026-10-12); the book is used up (`use/read-skillbook` → `body/stage` what = read → `learn {book}`;
 the learner keeps `skillFrom:<id>` = book); and **what one wears** — any piece with a `skill` prop lends that skill
 while worn, whoever wears it (no profession asked). A lent skill left in a slot when its piece comes off shows as not
 had and is not cast. **The skill panel** (U, or its button bottom right; client `ui/skillpanel.ts`) lists every active

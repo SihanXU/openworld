@@ -7,9 +7,11 @@ import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE } from '@o
 import '@openworld/modules'
 import { LOOK_TABLE } from './looks.ts'
 import { ELEMENT_NAMES, MATERIALS, MATERIAL_DEFS, QUALITIES, QUALITY_DEFS, itemTypes } from './items.ts'
+import { GEAR_LEVELS } from './gear.ts'
 import { GEAR_SETS } from './sets.ts'
-import { AFFIX_TABLE, TROPHY_OF, TROPHY_SETS } from './trophies.ts'
+import { AFFIX_TABLE, LOOT, TROPHY_OF, TROPHY_SETS } from './trophies.ts'
 import { PILGRIMAGE_TYPES } from './pilgrimage.ts'
+import { FAITH_STATUSES } from './faith.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
 import { SKILL_PROFESSIONS } from './skills.ts'
@@ -547,7 +549,7 @@ const fixtureTypes: TypeDef[] = [
 ]
 
 /** The engine's modules this game uses (docs/engine-split.md S3). */
-export const MODULES = ['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society']
+export const MODULES = ['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society', 'loot']
 
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}
@@ -558,7 +560,7 @@ export function buildOntology(): Ontology {
     // the systems this game takes from the engine's modules (module.ts), installed in this order
     modules: MODULES,
     types,
-    statuses: Object.fromEntries([...STATUSES, ...BOSS_STATUSES, ...BOON_STATUSES, ...SOCIAL_STATUSES].map((s) => [s.id, s])),
+    statuses: Object.fromEntries([...STATUSES, ...BOSS_STATUSES, ...BOON_STATUSES, ...SOCIAL_STATUSES, ...FAITH_STATUSES].map((s) => [s.id, s])),
     // the people's social life (docs/npc-sandbox.md): deeds and their fines, the watches, the numbers, the talk panel's verbs
     deeds: DEEDS,
     laws: LAWS,
@@ -588,8 +590,10 @@ export function buildOntology(): Ontology {
     sets: [...GEAR_SETS, ...TROPHY_SETS],
     // the small extras a piece of gear rolls as it is made (trophies.ts)
     affixes: AFFIX_TABLE,
+    // each kind of monster's own piece: sure at the fiftieth, and what the finder is told (the loot module, trophies.ts)
+    loot: LOOT,
     efficiency: EFFICIENCY,
-    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1, slotCount: { ring: 2 }, nightFact: 'night.shift' },
+    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1, slotCount: { ring: 2 }, nightFact: 'night.shift', gearLevels: GEAR_LEVELS },
     // what makes a room what it is: a bed a bedroom (a night there gives everything back), a cooking fire a
     // kitchen, a workbench or forge a workshop, three chests and more a storeroom (world-model.md §5.4)
     roomRoles: [
@@ -646,6 +650,10 @@ export function buildOntology(): Ontology {
         'merchant',
         'fence',
         'hireling',
+        // of the Church (people records): they take words against the gods ill (social.ts unbelief, faith.ts)
+        'devout',
+        // one the main story needs where they are: not asked to come and live on a home ground (social.ts residence)
+        'storybound',
       ]),
     ],
   }

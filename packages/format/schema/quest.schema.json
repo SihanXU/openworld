@@ -859,6 +859,14 @@
             "type": "number"
           },
           "description": "What aliases think of the taker after."
+        },
+        "karma": {
+          "type": "number",
+          "description": "How the deed weighs on the taker's good and evil (their `karma`); unsaid, a kindness to someone (regard given) is +3."
+        },
+        "faith": {
+          "type": "number",
+          "description": "How it weighs on the taker's faith (their `faith`)."
         }
       },
       "additionalProperties": false
@@ -2093,6 +2101,44 @@
           },
           "required": [
             "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "conscience"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "moral"
+            },
+            "key": {
+              "type": "string",
+              "enum": [
+                "karma",
+                "faith"
+              ]
+            },
+            "delta": {
+              "$ref": "#/definitions/Amount"
+            }
+          },
+          "required": [
+            "op",
+            "key",
+            "delta"
           ],
           "additionalProperties": false
         },

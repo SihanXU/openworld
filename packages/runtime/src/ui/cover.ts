@@ -1,5 +1,5 @@
 // The cover (title screen): the mountain at dawn — the plateau the game begins on, ridges behind
-// it, clouds drifting by, Lumi flapping across — the title, and the menu: continue the latest
+// it, clouds drifting by, the game's companion flying across — the title, and the menu: continue the latest
 // slot, a new game in a slot, load a slot, controls, language. The slot panel shows each of the
 // three slots' summary, and writes a slot out to a file or reads one back (saves.ts).
 

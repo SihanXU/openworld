@@ -1,8 +1,9 @@
 // Authored-content migration for the Held Ground's widenings (2026-10-11): they were Alberic's errands (quests haven1–3)
-// and are the planted sword's own now, its materials laid at it in its panel (haven.ts). An older save's widening
-// errands go — how far the ground goes (`haven.size`) stays, and what was carried toward one is still carried. It is
-// the author's, run on loading (the caller holds the author's hand: `engine.author`), never game code.
-import type { Game } from '@openworld/engine'
+// and are the steward's panel now, what each asks handed to him into the ground's stock (haven.ts). An older save's
+// widening errands go — how far the ground goes (`haven.size`) stays, and what was carried toward one is still carried.
+// It is the author's, run on loading (the caller holds the author's hand: `engine.author`), never game code.
+import type { Game, MapChunk } from '@openworld/engine'
+import { HAVEN_UPGRADES } from './haven.ts'
 
 /** Saves marked with it widen the Held Ground at its heart. */
 export const HAVEN_LAYOUT = 'content.haven-heart-v1'
@@ -28,14 +29,31 @@ export function migrateHaven(game: Game): void {
   w.setFact(HAVEN_LAYOUT, true)
 }
 
-/** Saves marked with it have the residents' tents' plots staked out (2026-10-12). */
-export const LODGES_LAYOUT = 'content.haven-lodges-v1'
+/**
+ * Saves marked with it have the plots staked out at the Held Ground's heart (its buildings, 2026-10-11; the residents'
+ * tents, 2026-10-12) and Cass's loom on Firstlight's square (2026-10-11), Firstlight's waypoint statue moved aside for it.
+ */
+export const PLOTS_LAYOUT = 'content.haven-plots-v1'
+/** What the Held Ground and Firstlight put on maps an older save has seen: each plot (it becomes its building once built), the loom. */
+const ADDED = [...HAVEN_UPGRADES.filter((u) => u.plot).map((u) => `haven.plot.${u.id}`), 'village.loom']
+/** What moved to make room: Firstlight's waypoint statue stood where the loom stands. */
+const MOVED = ['wp.village']
 
-/** A Held Ground already in a save gets the plots its residents' tents will stand on (a fresh one is built with them). */
-export function migrateLodges(game: Game, plots: { id: string; at: readonly [number, number] }[]): void {
+/**
+ * A Held Ground or a Firstlight already in a save gets the plots and the loom the maps have now (a map not yet visited
+ * gets them when it is first loaded). A plot comes as it is staked out; a building its steward has already been given
+ * the materials for (`haven.build.<id>`) rises on it at its next look (haven.ts, the plot's rule).
+ */
+export function migratePlots(game: Game, chunks: MapChunk[]): void {
   const w = game.engine.world
-  if (w.fact(LODGES_LAYOUT)) return
-  if (w.get('haven.heart'))
-    for (const p of plots) if (!w.get(`haven.plot.${p.id}`)) w.create(`fixture/build/plot/${p.id}`, { on: 'tile', map: 'haven', x: p.at[0], y: p.at[1] }, { id: `haven.plot.${p.id}` })
-  w.setFact(LODGES_LAYOUT, true)
+  if (w.fact(PLOTS_LAYOUT)) return
+  for (const c of chunks) {
+    if (!w.state.loadedMaps.includes(c.map.id)) continue
+    for (const e of c.entities) {
+      if (ADDED.includes(e.id) && !w.get(e.id)) w.add(structuredClone(e))
+      const moved = MOVED.includes(e.id) ? w.get(e.id) : undefined
+      if (moved?.place.on === 'tile' && e.place.on === 'tile' && (moved.place.x !== e.place.x || moved.place.y !== e.place.y)) w.place(moved, structuredClone(e.place))
+    }
+  }
+  w.setFact(PLOTS_LAYOUT, true)
 }
