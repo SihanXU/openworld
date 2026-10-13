@@ -1,7 +1,7 @@
 {
   "id": "npc.mira",
   "type": "actor/person/villager",
-  "name": { "en": "Mira", "zh": "米拉" },
+  "name": "Mira",
   "place": { "on": "tile", "map": "glade", "x": 9, "y": 3 },
   "facing": "down",
   "props": { "age": 34 },
@@ -19,18 +19,12 @@
       "lines": [
         {
           "key": "greeting:first",
-          "text": {
-            "en": "A traveller! Sit a while. The glade does not get many.",
-            "zh": "有客人！坐会儿吧。这片空地很少有人来。"
-          },
+          "text": "A traveller! Sit a while. The glade does not get many.",
           "once": true
         },
-        { "key": "default", "text": { "en": "The glade is quiet. Mostly.", "zh": "这片空地很安静。大多数时候。" } },
-        {
-          "key": "default",
-          "text": { "en": "Mind the slime by the trees. It bites.", "zh": "小心树边那只史莱姆，它会咬人。" }
-        },
-        { "key": "hour:evening", "text": { "en": "The light goes fast under the trees.", "zh": "树底下天黑得很快。" } }
+        { "key": "default", "text": "The glade is quiet. Mostly." },
+        { "key": "default", "text": "Mind the slime by the trees. It bites." },
+        { "key": "hour:evening", "text": "The light goes fast under the trees." }
       ]
     }
   }

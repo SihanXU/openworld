@@ -16,8 +16,11 @@ type Path = (string | number)[]
 
 const pathText = (p: Path) => p.map((k) => (typeof k === 'number' ? `[${k}]` : `.${k}`)).join('').replace(/^\./, '')
 
+/** A path as `pathText` writes it, read back (`steps[1].script[0].text`). */
+export const pathOf = (s: string): Path => s.split(/\.|(?=\[)/).filter(Boolean).map((k) => (/^\[\d+\]$/.test(k) ? Number(k.slice(1, -1)) : k))
+
 /** The id a path into a file opens at: the thing, rule, step or entry it is in. */
-function atOf(file: string, data: Json, p: Path): string | undefined {
+export function atOf(file: string, data: Json, p: Path): string | undefined {
   const idAt = (list: unknown, i: unknown) => (Array.isArray(list) && typeof i === 'number' ? (list[i] as { id?: string } | undefined)?.id : undefined)
   const d = data as Record<string, unknown>
   if (file.startsWith('maps/') && p[0] === 'entities') return idAt(d.entities, p[1])
@@ -99,5 +102,6 @@ export function modeOf(file: string): string {
   if (file.startsWith('learned/')) return 'holes'
   if (file.startsWith('ontology/')) return 'database'
   if (file === 'catalog.json') return 'assets'
+  if (file.startsWith('locales/')) return 'locales'
   return 'game'
 }

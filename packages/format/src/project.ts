@@ -15,12 +15,15 @@
 //   client/*.json     tables the runtime's panels read (item forms, recipes, skills, looks …), merged by key
 //   learned/*.json    the patches the game ships with: answers to its holes its authors took in (rules with
 //                     their places, and the types and statuses they brought)
+//   locales/<code>.json  a translation table: how a language says the game's words, written in its source
+//                     language (game.json `languages`; texts.ts)
 //   extra.json        what the world's index carries beyond these (a module's data: bosses, the codex's entries)
 //   assets/           pictures and sounds the catalogue names, served beside the bundle
 //
 // A game whose content a script makes (OpenWorld's TypeScript builders) writes the same files, or hands the
 // compiler the same `Project` in memory.
 
+import type { LocaleFile } from './texts.ts'
 import type { Entity, Invariant, LibraryData, Ontology, Pos, QuestDef, RawChunk, Rule, ScheduleEntry, StartDef, StatusDef, StepDef, Text, TypeDef, WeatherSpan, WorldIndex, WorldParams } from '@openworld/engine'
 
 export const FORMAT = 1
@@ -58,6 +61,11 @@ export interface GameJson {
   params?: Partial<WorldParams>
   /** Scripts the runtime loads with the game (its own code: a wilderness, the upgrades of older saves), by URL beside the bundle. */
   plugins?: string[]
+  /**
+   * Its languages (docs/engine-split.md §19): the one its words are written in (default English), and those they are
+   * translated into, a table each in `locales/<code>.json`.
+   */
+  languages?: { source: string; translations?: string[] }
 }
 
 /** An ontology file: a part of the ontology; its types, statuses and terrains as lists or as records by id. */
@@ -106,6 +114,8 @@ export interface Project {
   catalog?: unknown
   client?: Sourced<Record<string, unknown>>[]
   learned?: Sourced<LearnedFile>[]
+  /** Its translation tables (`locales/<code>.json`), a language each. */
+  locales?: Sourced<LocaleFile>[]
   /** What is in the index beyond the format's own (a game's script adds its bosses, its codex). */
   extra?: Partial<WorldIndex>
 }
@@ -116,7 +126,7 @@ export interface Project {
  */
 export interface Bundle {
   format: typeof FORMAT
-  game: { id: string; name: Text; version: string; engine?: string; modules: string[]; plugins?: string[] }
+  game: { id: string; name: Text; version: string; engine?: string; modules: string[]; plugins?: string[]; languages?: { source: string; translations: string[] } }
   ontology: Ontology
   rules: Rule[]
   terrainChars: Record<string, string>

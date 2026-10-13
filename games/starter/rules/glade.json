@@ -16,7 +16,7 @@
             "params": { "power": { "param": "power" }, "edge": "cut" }
           }
         ],
-        "label": { "en": "Chop {target}", "zh": "砍{target}" }
+        "label": "Chop {target}"
       }
     }
   },
@@ -32,7 +32,7 @@
           { "op": "transform", "into": "tile/stump" },
           { "op": "spawn", "type": "item/material/log", "at": "host", "count": 2 },
           { "op": "vfx", "fx": "leaves" },
-          { "op": "log", "text": { "en": "Timber!", "zh": "树倒了！" } }
+          { "op": "log", "text": "Timber!" }
         ]
       },
       "else": "inherit"
@@ -40,13 +40,13 @@
   },
   {
     "id": "glade/bed",
-    "label": { "en": "Sleep in {target}", "zh": "在{target}上睡觉" },
+    "label": "Sleep in {target}",
     "doc": "A bed taken hold of: one lies down and sleeps until it is time to rise; it is one's home.",
     "host": { "type": "fixture/furniture/bed" },
     "on": "impulse/handle",
     "tree": {
       "do": [
-        { "op": "log", "text": { "en": "You lie down.", "zh": "你躺了下来。" } },
+        { "op": "log", "text": "You lie down." },
         {
           "op": "emit",
           "impulse": "notify",
@@ -59,7 +59,7 @@
   },
   {
     "id": "glade/talk",
-    "label": { "en": "Talk to {target}", "zh": "和{target}说话" },
+    "label": "Talk to {target}",
     "doc": "A villager spoken to (a hand on them): the quests hear it, and they say what they have — a favour under way, else a line for the moment.",
     "host": { "type": "actor/person/villager" },
     "on": "impulse/handle",

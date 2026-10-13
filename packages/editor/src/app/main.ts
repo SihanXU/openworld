@@ -16,7 +16,10 @@ import { mapTree, paintMinis } from './mapTree.ts'
 import { PeopleMode } from './peopleMode.ts'
 import { ProblemsPanel } from './problems.ts'
 import { Store } from './store.ts'
-import { $, esc, toast, tx } from './ui.ts'
+import { $, esc, t, toast, tx } from './ui.ts'
+import { loadUiLang } from './lang.ts'
+import { settingsDialog } from './dialogs.ts'
+import { gameLangs, langName, previewLang, setPreviewLang, useProject } from './words.ts'
 import { home } from './home.ts'
 import { exportDialog } from './exportDialog.ts'
 import { MODES as MORE } from './modes.ts'
@@ -25,22 +28,26 @@ import './editor.css'
 const PARAMS = new URLSearchParams(location.search)
 const project = PARAMS.get('project')
 
-if (!project) void home()
-else void openProject(project).catch((e: Error) => {
-  document.body.innerHTML = `<div class="home"><h1>OpenWorld Editor</h1><p class="warn">${esc(e.message)}</p><p><a href="./">Back to the projects</a></p></div>`
+// the editor's own language first (its settings): every panel is drawn in it
+void loadUiLang().then(() => {
+  if (!project) void home()
+  else void openProject(project).catch((e: Error) => {
+    document.body.innerHTML = `<div class="home"><h1>${t('OpenWorld Editor')}</h1><p class="warn">${esc(e.message)}</p><p><a href="./">${t('Back to the projects')}</a></p></div>`
+  })
 })
 
 // ------------------------------------------------------------------ a project
 
 async function openProject(id: string): Promise<void> {
   const store = await Store.open(id)
+  useProject(store)
   // the runtime's renderer reads the game it is handed: the project as compiled now, its assets where it is served
   useGame(clientGameOf(store.compiled().bundle, `/games/${encodeURIComponent(id)}/bundle.json`))
   document.body.innerHTML = `<div class="editor">
-    <header><a href="./" class="home-link">OpenWorld Editor</a> <b>${esc(tx(store.game.name))}</b> <nav id="modes"></nav>
+    <header><a href="./" class="home-link">${t('OpenWorld Editor')}</a> <b id="gameName"></b> <nav id="modes"></nav>
       <span class="grow"></span><span id="status" class="muted"></span>
-      <button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Y or Ctrl+Shift+Z">Redo</button><button id="save" title="Ctrl+S">Save</button><button id="play" title="Save, and play from the start (or the selected cell)">▶ Playtest</button><button id="export" title="Save, and make the game a folder anyone can play">Export…</button></header>
-    <aside id="left"></aside><main id="canvas"><div id="statusbar"><span id="sbCell" class="muted"></span><span class="grow"></span><button id="sbGrid" title="the grid (G)">Grid</button><span class="sep"></span><button id="sbOut" title="zoom out (-)">−</button>${ZOOMS.map((z) => `<button data-zoom="${z}">${z * 100}%</button>`).join('')}<button id="sbIn" title="zoom in (+)">+</button><button id="sbFit" title="the whole map (0)">Fit</button></div></main><main id="center" class="hidden"></main><aside id="right"></aside>
+      <button id="undo"></button><button id="redo"></button><button id="save" title="Ctrl+S">${t('Save')}</button><span id="previewLang"></span><button id="play" title="${t('Save, and play from the start (or the selected cell)')}">▶ ${t('Playtest')}</button><button id="export" title="${t('Save, and make the game a folder anyone can play')}">${t('Export…')}</button><button id="settings" title="${t('The editor\'s settings: its own language')}">⚙</button></header>
+    <aside id="left"></aside><main id="canvas"><div id="statusbar"><span id="sbCell" class="muted"></span><span class="grow"></span><button id="sbGrid" title="${t('the grid (G)')}">${t('Grid')}</button><span class="sep"></span><button id="sbOut" title="${t('zoom out (-)')}">−</button>${ZOOMS.map((z) => `<button data-zoom="${z}">${z * 100}%</button>`).join('')}<button id="sbIn" title="${t('zoom in (+)')}">+</button><button id="sbFit" title="${t('the whole map (0)')}">${t('Fit')}</button></div></main><main id="center" class="hidden"></main><aside id="right"></aside>
     <footer id="problems"></footer><div id="toasts"></div></div>`
   const canvas = new Canvas($('#canvas'))
   const modes: Mode[] = [new MapMode(), new PeopleMode(), ...MORE]
@@ -63,7 +70,7 @@ async function openProject(id: string): Promise<void> {
     async playtest(at, o) {
       await save()
       const where = at ?? (o?.scene ? undefined : ctx.sel.cell ? { map: ctx.map, ...ctx.sel.cell } : undefined)
-      window.open(`/runtime/play/?game=/games/${encodeURIComponent(id)}/&playtest=1&modder=off${where ? `&at=${encodeURIComponent(`${where.map},${where.x},${where.y}`)}` : ''}${o?.scene ? `&scene=${encodeURIComponent(o.scene)}` : ''}`, '_blank')
+      window.open(`/runtime/play/?game=/games/${encodeURIComponent(id)}/&playtest=1&modder=off&lang=${encodeURIComponent(previewLang())}${where ? `&at=${encodeURIComponent(`${where.map},${where.x},${where.y}`)}` : ''}${o?.scene ? `&scene=${encodeURIComponent(o.scene)}` : ''}`, '_blank')
     },
     open(m, file, at) {
       const next = modes.find((x) => x.id === m)
@@ -93,11 +100,11 @@ async function openProject(id: string): Promise<void> {
   }
   function pickPanel(): void {
     const left = $('#left')
-    left.innerHTML = `<h3>Pick a cell</h3><p>${esc(picking!.why)}: click it on the map.</p><button id="pkCancel">Cancel (Esc)</button><h3>Maps</h3>${mapTree(ctx)}`
+    left.innerHTML = `<h3>${t('Pick a cell')}</h3><p>${esc(t('{why}: click it on the map.', { why: picking!.why }))}</p><button id="pkCancel">${t('Cancel (Esc)')}</button><h3>${t('Maps')}</h3>${mapTree(ctx)}`
     paintMinis(ctx, left)
     left.querySelectorAll<HTMLButtonElement>('[data-map]').forEach((b) => (b.onclick = () => ctx.showMap(b.dataset.map!)))
     $<HTMLButtonElement>('#pkCancel').onclick = () => endPick(undefined)
-    $('#right').innerHTML = '<p class="muted">The cell you click is written into the field that asked for it.</p>'
+    $('#right').innerHTML = `<p class="muted">${t('The cell you click is written into the field that asked for it.')}</p>`
     canvas.setOverlay((g, T) => {
       const h = picking?.hover
       if (h) (g.fillStyle(0xffd23f, 0.35), g.fillRect(h.x * T, h.y * T, T, T), g.lineStyle(2, 0xffd23f, 1), g.strokeRect(h.x * T, h.y * T, T, T))
@@ -106,7 +113,13 @@ async function openProject(id: string): Promise<void> {
   // the renderer loads the game's pictures as it starts: a changed catalogue starts it again (when it is next shown)
   let pictures = false
   function refresh(): void {
-    $('#modes').innerHTML = modes.map((m) => `<button data-mode="${m.id}" class="${m === mode ? 'on' : ''}">${esc(m.label)}</button>`).join('')
+    $('#gameName').textContent = tx(store.game.name)
+    $('#modes').innerHTML = modes.map((m) => `<button data-mode="${m.id}" class="${m === mode ? 'on' : ''}">${esc(t(m.label))}</button>`).join('')
+    // the preview language: what a line's preview and a playtest say (the game's languages; not the editor's own)
+    const langs = gameLangs()
+    $('#previewLang').innerHTML = langs.length > 1 ? `<select id="pvLang" title="${t('The language the game is previewed and playtested in (its words as translated); the editor\'s own language is in its settings')}">${langs.map((l) => `<option value="${esc(l)}" ${l === previewLang() ? 'selected' : ''}>${esc(t('play in {lang}', { lang: langName(l) }))}</option>`).join('')}</select>` : ''
+    const pv = document.querySelector<HTMLSelectElement>('#pvLang')
+    if (pv) pv.onchange = () => (setPreviewLang(pv.value), refresh())
     document.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => (b.onclick = () => ctx.open(b.dataset.mode!)))
     // a mode with a middle of its own draws there; the canvas waits (and keeps its place) behind it
     const center = $('#center')
@@ -125,13 +138,15 @@ async function openProject(id: string): Promise<void> {
       canvas.setOverlay(mode.overlay?.(ctx))
     }
     const n = store.unsaved()
-    $('#status').textContent = n ? `${n} unsaved` : 'saved'
+    $('#status').textContent = n ? t('{n} unsaved', { n }) : t('saved')
     $<HTMLButtonElement>('#save').disabled = !n
     const next = store.next()
     $<HTMLButtonElement>('#undo').disabled = !next.undo
-    $<HTMLButtonElement>('#undo').title = next.undo ? `Undo: ${next.undo} (Ctrl+Z)` : 'Nothing to undo'
+    $<HTMLButtonElement>('#undo').textContent = t('Undo')
+    $<HTMLButtonElement>('#undo').title = next.undo ? t('Undo: {what} (Ctrl+Z)', { what: next.undo }) : t('Nothing to undo')
     $<HTMLButtonElement>('#redo').disabled = !next.redo
-    $<HTMLButtonElement>('#redo').title = next.redo ? `Redo: ${next.redo} (Ctrl+Y)` : 'Nothing to redo'
+    $<HTMLButtonElement>('#redo').textContent = t('Redo')
+    $<HTMLButtonElement>('#redo').title = next.redo ? t('Redo: {what} (Ctrl+Y)', { what: next.redo }) : t('Nothing to redo')
   }
   // the status bar: the cell under the pointer (its ground, height and things), the zoom, the grid
   function cellInfo(c: { x: number; y: number }): string {
@@ -143,7 +158,7 @@ async function openProject(id: string): Promise<void> {
     const things = ch.entities.filter((e) => e.place.on === 'tile' && e.place.x === c.x && e.place.y === c.y)
     const people = store.list<PersonFile>('people').filter((p) => p.data.place.on === 'tile' && p.data.place.map === ctx.map && p.data.place.x === c.x && p.data.place.y === c.y)
     const what = [...people.map((p) => tx(p.data.name) || p.data.id), ...things.map((e) => e.type.split('/').pop())]
-    return `${esc(ctx.map)} · <b>${c.x}, ${c.y}</b> · ${esc(terrain)} <code>${esc(char)}</code> · height ${esc(ch.map.heights?.[c.y]?.[c.x] ?? '0')}${what.length ? ` · ${esc(what.join(', '))}` : ''}`
+    return `${esc(ctx.map)} · <b>${c.x}, ${c.y}</b> · ${esc(tx(ctx.onto().terrains[terrain]?.name) || terrain)} <code>${esc(char)}</code> · ${t('height {h}', { h: ch.map.heights?.[c.y]?.[c.x] ?? '0' })}${what.length ? ` · ${esc(what.join(', '))}` : ''}`
   }
   function zoomShown(): void {
     const z = canvas.zoom
@@ -183,23 +198,25 @@ async function openProject(id: string): Promise<void> {
       redraw = requestAnimationFrame(() => canvas.show(store.compiled(), ctx.map))
     }
     if (file === 'catalog.json') pictures = true
-    if (why.startsWith('undo')) toast(why)
+    if (why.startsWith('undo: ')) toast(t('Undone: {what}', { what: why.slice(6) }))
+    if (why.startsWith('redo: ')) toast(t('Made again: {what}', { what: why.slice(6) }))
     problems.soon()
     refresh()
   })
-  $<HTMLButtonElement>('#undo').onclick = () => store.undo() ?? toast('Nothing to undo.', 'warn')
-  $<HTMLButtonElement>('#redo').onclick = () => store.redo() ?? toast('Nothing to redo.', 'warn')
-  $<HTMLButtonElement>('#save').onclick = () => void save().then(() => toast('Saved.'))
+  $<HTMLButtonElement>('#undo').onclick = () => store.undo() ?? toast(t('Nothing to undo.'), 'warn')
+  $<HTMLButtonElement>('#redo').onclick = () => store.redo() ?? toast(t('Nothing to redo.'), 'warn')
+  $<HTMLButtonElement>('#save').onclick = () => void save().then(() => toast(t('Saved.')))
+  $<HTMLButtonElement>('#settings').onclick = () => settingsDialog()
   $<HTMLButtonElement>('#play').onclick = () => void ctx.playtest()
   $<HTMLButtonElement>('#export').onclick = () => void save().then(() => exportDialog(id, store))
   // the keys: Ctrl+S anywhere; the rest only while no field is being typed in (a field's own Ctrl+Z is its own)
   window.addEventListener('keydown', (e) => {
     const mod = e.ctrlKey || e.metaKey
     const k = e.key.toLowerCase()
-    if (mod && k === 's') return (e.preventDefault(), void save().then(() => toast('Saved.')))
-    const t = e.target as HTMLElement
+    if (mod && k === 's') return (e.preventDefault(), void save().then(() => toast(t('Saved.'))))
+    const el = e.target as HTMLElement
     if (picking && e.key === 'Escape') return endPick(undefined)
-    if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement || t.isContentEditable) return
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || el.isContentEditable) return
     if (mod && k === 'z' && !e.shiftKey) return (e.preventDefault(), void store.undo())
     if (mod && (k === 'y' || (k === 'z' && e.shiftKey))) return (e.preventDefault(), void store.redo())
     if (!picking && mode.keydown?.(ctx, e)) return e.preventDefault()

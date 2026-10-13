@@ -184,6 +184,25 @@
             "type": "string"
           },
           "description": "Scripts the runtime loads with the game (its own code: a wilderness, the upgrades of older saves), by URL beside the bundle."
+        },
+        "languages": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "type": "string"
+            },
+            "translations": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "source"
+          ],
+          "additionalProperties": false,
+          "description": "Its languages (docs/engine-split.md §19): the one its words are written in (default English), and those they are translated into, a table each in `locales/<code>.json`."
         }
       },
       "required": [

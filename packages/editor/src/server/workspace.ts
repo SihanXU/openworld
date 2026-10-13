@@ -9,7 +9,8 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
-import { formatJson, type GameJson } from '@openworld/format'
+import { filesOf, formatJson, languagesOf, switchSource, type GameJson, type LocaleFile } from '@openworld/format'
+import { readProject } from '@openworld/format/src/node.ts'
 import { gameFolder, isProject, projectDir, projectFolder, type GameFolder } from '@openworld/format/src/serve.ts'
 import type { RawChunk, Text } from '@openworld/engine'
 
@@ -59,6 +60,12 @@ interface Recent {
   opened: number
 }
 
+/** The editor's own settings, kept where it keeps its recent list. */
+export interface EditorSettings {
+  /** The language of the editor's own words (not the game's: docs/engine-split.md §19). */
+  lang?: 'en' | 'zh'
+}
+
 export class WorkspaceError extends Error {
   constructor(readonly status: number, message: string) {
     super(message)
@@ -89,6 +96,21 @@ export class Workspace {
   }
 
   // ------------------------------------------------------------------ the recent list
+
+  /** The editor's own settings (its language): the program's, never a project's. */
+  settings(): EditorSettings {
+    try {
+      return JSON.parse(readFileSync(join(this.home, 'settings.json'), 'utf8')) as EditorSettings
+    } catch {
+      return {}
+    }
+  }
+  saveSettings(s: EditorSettings): EditorSettings {
+    const next = { ...this.settings(), ...(s.lang === 'en' || s.lang === 'zh' ? { lang: s.lang } : {}) }
+    mkdirSync(this.home, { recursive: true })
+    writeFileSync(join(this.home, 'settings.json'), formatJson(next))
+    return next
+  }
 
   private recentFile(): string {
     return join(this.home, 'recent.json')
@@ -180,7 +202,7 @@ export class Workspace {
    * A new project: a template's files (its data and its assets, never its tests or builds) in `folder`/`name`
    * (default: the editor's projects folder, the game's id), with its own id and name; opened at once.
    */
-  create(o: { template?: string; id: string; name: Text; folder?: string; dirName?: string }): ProjectInfo {
+  create(o: { template?: string; id: string; name: Text; folder?: string; dirName?: string; /** the language its words are written in (default: the template's) */ source?: string }): ProjectInfo {
     if (!ID.test(o.id)) throw new WorkspaceError(400, `"${o.id}" is not a game id (lower case letters, digits and -, a letter first)`)
     const template = this.opts.templates[o.template ?? Object.keys(this.opts.templates)[0]]
     if (!template) throw new WorkspaceError(400, `no template ${o.template}`)
@@ -197,6 +219,17 @@ export class Workspace {
       },
     })
     template.shape?.(to)
+    // written in another language than the template: its words turned round, the template's into a table
+    if (o.source && o.source !== languagesOf(JSON.parse(readFileSync(join(to, 'game.json'), 'utf8')) as GameJson).source) {
+      const p = readProject(to)
+      const { changed } = switchSource(p, o.source)
+      const byFile = new Map(filesOf(p).map((f) => [f.file, f.data]))
+      for (const f of changed) writeFileSync(join(to, f), formatJson(byFile.get(f)))
+      mkdirSync(join(to, 'locales'), { recursive: true })
+      // (the table of the language it is now written in goes: its words are the files' own)
+      for (const f of readdirSync(join(to, 'locales'))) if (!(p.locales ?? []).some((l) => l.file === `locales/${f}`)) rmSync(join(to, 'locales', f))
+      for (const f of p.locales ?? []) writeFileSync(join(to, f.file), formatJson(f.data))
+    }
     const g = JSON.parse(readFileSync(join(to, 'game.json'), 'utf8')) as GameJson
     writeFileSync(join(to, 'game.json'), formatJson({ ...g, id: o.id, name: o.name, version: '1', doc: undefined }))
     return this.open(to)
@@ -233,7 +266,13 @@ export function emptyShape(dir: string): void {
   const w = 32
   const h = 20
   const rows = Array.from({ length: h }, (_, y) => (y === 0 || y === h - 1 ? edge.repeat(w) : edge + ground.repeat(w - 2) + edge))
-  const map: RawChunk = { map: { id: 'world', name: { en: 'A new map', zh: '新地图' }, kind: 'village', width: w, height: h, rows, portals: [] }, entities: [] }
+  const map: RawChunk = { map: { id: 'world', name: 'A new map', kind: 'village', width: w, height: h, rows, portals: [] }, entities: [] }
+  // (its name in the template's table, where it has one)
+  const zh = join(dir, 'locales', 'zh.json')
+  if (existsSync(zh)) {
+    const t = JSON.parse(readFileSync(zh, 'utf8')) as LocaleFile
+    writeFileSync(zh, formatJson({ ...t, entries: { ...t.entries, 'A new map': '新地图' } }))
+  }
   mkdirSync(join(dir, 'maps'), { recursive: true })
   writeFileSync(join(dir, 'maps', 'world.json'), formatJson(map))
   const { order: _order, origin: _origin, begin: _begin, starts: _starts, companions: _companions, ...rest } = g

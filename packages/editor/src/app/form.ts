@@ -4,7 +4,8 @@
 // control writes its value and the panel is drawn again from the project.
 
 import type { Text } from '@openworld/engine'
-import { enOf, esc, textOf, zhOf } from './ui.ts'
+import { esc, t, textField } from './ui.ts'
+import { together, written } from './words.ts'
 
 type On = (el: HTMLInputElement & HTMLSelectElement & HTMLTextAreaElement) => void
 
@@ -48,12 +49,9 @@ export class Form {
     return `<label class="chip"><input type="checkbox" data-f="${this.on((el) => set(el.checked))}" ${on ? 'checked' : ''}>${esc(label)}</label>`
   }
 
-  /** A text in both languages: two fields, a plain string when only the first is written. */
-  words(t: Text | undefined, set: (t: Text | undefined) => void, o: { placeholder?: string; area?: boolean } = {}): string {
-    let cur = t
-    const put = (en: string, zh: string) => ((cur = en.trim() ? textOf(en, zh) : undefined), set(cur))
-    const field = (v: string, fn: On, ph: string) => (o.area ? `<textarea rows="2" data-f="${this.on(fn)}" placeholder="${esc(ph)}">${esc(v)}</textarea>` : `<input data-f="${this.on(fn)}" value="${esc(v)}" placeholder="${esc(ph)}">`)
-    return `<span class="words">${field(enOf(t), (el) => put(el.value, zhOf(cur)), o.placeholder ?? 'English')}${field(zhOf(t), (el) => put(enOf(cur), el.value), '中文')}</span>`
+  /** A game's text: one field, its words in the game's source language (its translations are the Localization mode's). */
+  words(text: Text | undefined, set: (t: Text | undefined) => void, o: { placeholder?: string; area?: boolean } = {}): string {
+    return textField(`data-f="${this.on((el) => together(() => set(written(text, el.value))))}" class="words"`, text, { area: o.area, placeholder: o.placeholder })
   }
 
   button(label: string, fn: () => void, o: { cls?: string; title?: string } = {}): string {
@@ -67,12 +65,12 @@ export class Form {
   /** A value written as JSON (the "advanced" field): read back on change, and refused when it is not JSON. */
   json(value: unknown, set: (v: unknown) => void, bad: (msg: string) => void, rows = 3): string {
     return `<textarea class="json" rows="${rows}" data-f="${this.on((el) => {
-      const t = el.value.trim()
-      if (!t) return set(undefined)
+      const typed = el.value.trim()
+      if (!typed) return set(undefined)
       try {
-        set(JSON.parse(t))
+        set(JSON.parse(typed))
       } catch (e) {
-        bad(`not JSON: ${(e as Error).message}`)
+        bad(t('not JSON: {why}', { why: (e as Error).message }))
       }
     })}">${esc(value === undefined ? '' : JSON.stringify(value))}</textarea>`
   }

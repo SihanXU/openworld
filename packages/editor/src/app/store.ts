@@ -8,7 +8,7 @@ import type { RawChunk } from '@openworld/engine'
 import { call } from './api.ts'
 
 /** The folders of the format, each a list of files of one kind. */
-export const FOLDERS = ['ontology', 'rules', 'maps', 'people', 'quests', 'story', 'client', 'learned'] as const
+export const FOLDERS = ['ontology', 'rules', 'maps', 'people', 'quests', 'story', 'client', 'learned', 'locales'] as const
 export type Folder = (typeof FOLDERS)[number]
 
 interface Edit {
@@ -54,8 +54,11 @@ export class Store {
   }
   private emit(why: string, file?: string): void {
     this.version++
+    // (inside a batch, said once when it ends: a change of many files draws the panels once)
+    if (this.grouping !== undefined) return void (this.held = { why, file: this.held && this.held.file !== file ? undefined : file })
     for (const fn of this.listeners) fn(why, file)
   }
+  private held?: { why: string; file?: string }
 
   get game(): GameJson {
     return this.docs.get('game.json') as GameJson
@@ -103,6 +106,17 @@ export class Store {
     this.emit(why, file)
   }
 
+  /** A file's whole data written (the file made, where there is none yet). */
+  set(file: string, data: unknown, why: string): void {
+    if (!this.docs.has(file)) return this.add(file, data, why)
+    const before = JSON.stringify(this.docs.get(file))
+    if (JSON.stringify(data) === before) return
+    this.undos.push({ file, before, why, group: this.grouping })
+    this.redos = []
+    this.put(file, data)
+    this.emit(why, file)
+  }
+
   /** A file removed (Save deletes it). */
   remove(file: string, why: string): void {
     const data = this.docs.get(file)
@@ -129,7 +143,7 @@ export class Store {
     return this.docs.has(file) ? JSON.stringify(this.docs.get(file)) : undefined
   }
 
-  /** Several edits as one (one Undo takes them all back): what `fn` changes, under the name given. */
+  /** Several edits as one (one Undo takes them all back): what `fn` changes, under the name given (none: each keeps its own). */
   batch<T>(why: string, fn: () => T): T {
     if (this.grouping !== undefined) return fn()
     this.grouping = ++this.groups
@@ -137,8 +151,11 @@ export class Store {
     try {
       return fn()
     } finally {
-      for (const u of this.undos.slice(from)) (u.group = this.grouping), (u.why = why)
+      for (const u of this.undos.slice(from)) (u.group = this.grouping), why && (u.why = why)
       this.grouping = undefined
+      const h = this.held
+      this.held = undefined
+      if (h) this.emit(why || h.why, h.file)
     }
   }
 
@@ -198,7 +215,7 @@ export class Store {
 
   /** The project as the compiler takes it. */
   project(): Project {
-    const p: Project = { game: this.game, ontology: this.list('ontology'), rules: this.list('rules'), maps: this.list('maps'), people: this.list('people'), quests: this.list('quests'), story: this.list('story'), client: this.list('client'), learned: this.list('learned') }
+    const p: Project = { game: this.game, ontology: this.list('ontology'), rules: this.list('rules'), maps: this.list('maps'), people: this.list('people'), quests: this.list('quests'), story: this.list('story'), client: this.list('client'), learned: this.list('learned'), locales: this.list('locales') }
     if (this.docs.has('catalog.json')) p.catalog = this.docs.get('catalog.json')
     if (this.docs.has('extra.json')) p.extra = this.docs.get('extra.json') as Project['extra']
     return p

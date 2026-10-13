@@ -104,6 +104,22 @@ describe.skipIf(!existsSync(STARTER))('projects anywhere', () => {
     expect(ws().dir('forest')).toBe(join(elsewhere, 'forest'))
   })
 
+  it('makes a project written in another language: the template\'s words turned round, its English a translation', () => {
+    const z = ws().create({ template: 'starter', id: 'linjian', name: '林间', source: 'zh', folder: join(tmp, 'zh') })
+    const c = compileProject(z.dir)
+    expect(c.problems).toEqual([])
+    const g = JSON.parse(readFileSync(join(z.dir, 'game.json'), 'utf8'))
+    expect(g).toMatchObject({ name: '林间', languages: { source: 'zh', translations: ['en'] } })
+    expect(readdirSync(join(z.dir, 'locales'))).toEqual(['en.json'])
+    const mira = JSON.parse(readFileSync(join(z.dir, 'people', 'mira.json'), 'utf8'))
+    const en = JSON.parse(readFileSync(join(z.dir, 'locales', 'en.json'), 'utf8'))
+    expect(typeof mira.name).toBe('string')
+    expect(en.entries[mira.name]).toBe('Mira')
+    // the same world as the starter's, its English and Chinese as they were
+    const s = compileProject(STARTER)
+    expect(c.chunks.map((x) => x.entities.length)).toEqual(s.chunks.map((x) => x.entities.length))
+  })
+
   it('opens a folder as a project under a key of its own, refuses one that is not, and forgets one without touching it', () => {
     const other = join(tmp, 'x', 'forest')
     cpSync(join(elsewhere, 'forest'), other, { recursive: true })

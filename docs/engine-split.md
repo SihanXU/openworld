@@ -620,3 +620,75 @@ run of its done-when) and is recorded below as built.
 - **Left for later**: a person's schedule and lines stay the people mode's (the quick events make a person who stands
   where they were put); radiant offers, a stage's effects and lessons, invariants and an alias found or made are JSON
   still (E3's forms from the schemas); "play from this scene" begins the step but sets none of the facts before it.
+
+## 19. A game's languages, and the editor's (agreed and built 2026-10-13)
+
+The first cut of E2 showed every game text as two fields, English beside Chinese, and a second tied the editor's
+words to the game's; both were wrong, and the user asked how game editors do it. They keep three things apart:
+
+- **Unreal**: a project's *native culture* (the one its text is written in) and its target cultures; the
+  Localization Dashboard gathers the text, exports it to translators (PO), imports it and compiles it per culture;
+  "Preview Game Language" plays the game in one of them; the editor's own language is an editor preference.
+- **Unity** (Localization package): String Tables, an entry per key with a value per locale, a project's locales,
+  a locale chosen for play mode; the editor's language in its Preferences.
+- **Godot**: translations as CSV or gettext PO resources in the project's settings, a test locale for running it;
+  the editor's language in the Editor Settings.
+- **RPG Maker MZ**: none built in; the database is written in one language and plugins carry language packs (CSV,
+  JSON) beside it.
+
+**Decisions** (agreed 2026-10-13):
+
+- **L-a** The editor's language is the editor's (`~/.openworld-editor/settings.json`, `/api/settings`; ⚙ on the first
+  page and in the header), never a project's: English or Chinese for now (`app/lang.ts`: `t(english, slots)`, the
+  Chinese in `app/zh.ts`; `phrase()` marks words a table keeps and `t` says later).
+- **L-b** A game is written in one language, its source (game.json `languages: { source, translations }`, English by
+  default; OpenWorld and the starter are English). Each text is one field, in that language, whatever the editor
+  speaks; a new project is written in the language chosen (the template's words turned round, `switchSource`).
+- **L-c** Its translations are tables of their own, `locales/<code>.json` (`LocaleFile`): `entries` a source text and
+  how the language says it, wherever it is said; `at` a place that says it otherwise (`file#path`, with the source it
+  was made for, so a changed source falls back); `review` the sources to look at again. Where a file holds words is
+  read from the format's JSON Schemas (a field of the engine's `Text`), and a thing's written words (`props.text`,
+  `text_<code>` beside it) and the client's cover and interface words; never guessed from the words. The compiler
+  applies the tables (`applyLocales`): the engine and the runtime read `{ en, zh, … }` as before, `en` every
+  reader's fallback.
+- **L-d** A preview language, apart from both: what a line's preview and a playtest say (the header's "play in …";
+  `?lang=` to the player, not remembered).
+
+**As built**:
+
+- **The format** (`format/src/texts.ts`): the positions (`textsOf`, `filesOf`), `applyLocales` in `compile`,
+  `extractLocales` (an older project's translations kept inside its texts moved into tables: each source's most
+  common translation an entry, the others by place), `switchSource`, `localeProblems` (a table for a language the
+  game does not name; a place's translation whose place no longer says its source). `format/src/localize.ts`: a
+  language's rows (a source text once, its places, its translation, its places' own, its state — to translate, to
+  look at again, done —, its words kept inside the text), the entries no text says any more and the ones like a
+  text's (`likeness`, `suggestions`), CSV and gettext PO out and back (`toCsv`/`fromCsv`, `toPo`/`fromPo`: references,
+  `msgctxt` a place, `fuzzy` to look at again), `withImported`, `inlineLanguages`. Schemas: `game.schema.json`'s
+  `languages`, `locale.schema.json`.
+- **Migrated**: the starter (its files English, `locales/zh.json` 50 entries) and the bake (the Ford's 1,732 entries,
+  19 by place; extracted and applied again, the same world).
+- **The editor**: every panel's words through `t` (1,131 phrases, each in the Chinese table with its slots); each
+  game text one field in the source language (`ui.ts` `textField`, `Form.words`); a text's words changed keep their
+  translations, marked to look at again (`words.ts` `written`, one Undo with the edit); what the editor makes with
+  words of its own — a favour's lines, a crowd's names, a rule's first line, a patch taken in — written in the
+  source language, the translations it knows put in the tables (`adopt`, `adoptTexts`). The **Localization mode**
+  (`app/localeMode.ts`): the languages (the source, changed by "change…"; a translation added or dropped with its
+  table), a language's rows filtered by state and by words or place, the translation typed, a place's own, "it is
+  right", the translation of words like it offered, the table exported (CSV, PO) and imported, the unused entries
+  removed, an older project's inline translations moved into the tables (in any language, named or not). The store
+  writes a whole file (`set`) and says a batch once.
+- **The runtime**: `?lang=`; a game's interface words (`ClientGame.texts`) may be plain strings.
+- **Checked**: `format/test/texts.test.ts` (the positions; the starter's tables applied, the same world as with its
+  translations inside; places; written in Chinese and back), `format/test/localize.test.ts` (rows and states,
+  suggestions, CSV and PO out and back), `editor/test/words.test.ts` (every phrase in the Chinese table with its slots
+  and none left over; no two-language field; a changed text's translation kept to look at again; the editor's words
+  adopted; a batch said once), `editor/test/api.test.ts` (a project written in Chinese from the starter: its English a
+  table, the template's Chinese table gone, compiled clean). In a browser: the first page in English, then in Chinese
+  by the setting; a project written in Chinese made from the starter; its map, person and lines one field each in
+  Chinese; a line changed and found to look at again in the Localization mode, marked right, a translation typed,
+  the table out as CSV and PO and a translator's sheet taken back; the scene's line previewed in English and the
+  playtest opened with `lang=en`; the editor back in English over the same Chinese project; the village (an older
+  project) offered its 61 inline Chinese texts, moved into a table and undone.
+- **Left for later**: the player says English and Chinese only (a table for another language is kept, compiled and
+  previewed in the editor; the player falls back to English); the client's other tables (item forms, shops, skills)
+  keep their words inside them; machine-translated suggestions (the AI as co-author) are not offered yet.

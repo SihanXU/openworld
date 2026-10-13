@@ -9,7 +9,11 @@ import type { PersonFile, StoryFile } from '@openworld/format'
 import type { Ctx } from './context.ts'
 import { Form, setKey, valueOf } from './form.ts'
 import { factUses } from './usage.ts'
-import { esc, toast, tx } from './ui.ts'
+import { phrase } from './lang.ts'
+import { esc, t, toast, tx } from './ui.ts'
+
+/** A list's labels in the editor's language. */
+const said = (l: [string, string][]): [string, string][] => l.map(([k, v]) => [k, t(v)])
 
 // ------------------------------------------------------------------ what the forms choose from
 
@@ -40,7 +44,7 @@ export function datalists(ctx: Ctx): string {
 
 // ------------------------------------------------------------------ comparisons
 
-const OPS: [string, string][] = [['eq', 'is'], ['ne', 'is not'], ['gt', 'over'], ['gte', 'at least'], ['lt', 'under'], ['lte', 'at most']]
+const OPS: [string, string][] = [['eq', phrase('is')], ['ne', phrase('is not')], ['gt', phrase('over')], ['gte', phrase('at least')], ['lt', phrase('under')], ['lte', phrase('at most')]]
 
 function cmpParts(c: Cmp | undefined): [string, string] {
   if (c && typeof c === 'object') {
@@ -59,7 +63,7 @@ function cmpOf(op: string, value: string): Cmp {
 export function cmpField(f: Form, c: Cmp | undefined, set: (c: Cmp) => void): string {
   const [op, v] = cmpParts(c)
   let cur = { op, v }
-  return `${f.select(OPS, op, (o) => ((cur = { ...cur, op: o }), set(cmpOf(cur.op, cur.v))))} ${f.text(v, (x) => ((cur = { ...cur, v: x }), set(cmpOf(cur.op, cur.v))), { placeholder: 'value' })}`
+  return `${f.select(said(OPS), op, (o) => ((cur = { ...cur, op: o }), set(cmpOf(cur.op, cur.v))))} ${f.text(v, (x) => ((cur = { ...cur, v: x }), set(cmpOf(cur.op, cur.v))), { placeholder: t('value') })}`
 }
 
 /** A record of comparisons (facts, props, quests' stages): a row each, a row to add one. */
@@ -72,9 +76,9 @@ function cmpRows(f: Form, rec: Record<string, Cmp> | undefined, set: (r: Record<
 
 /** The conditions a step's trigger may have, by its key, with their names. */
 const STEP_KINDS: [keyof StepCond, string][] = [
-  ['map', 'on the map'], ['region', 'in the area'], ['spot', 'near a spot'], ['hour', 'between the hours'], ['weather', 'in the weather'],
-  ['facts', 'the story\'s facts'], ['quest', 'a quest\'s stage'], ['objectives', 'a quest\'s objective done'], ['after', 'after a step'], ['morningAfter', 'the morning after a step'],
-  ['carrying', 'carrying'], ['holding', 'holding'], ['statuses', 'with a status'], ['props', 'one\'s own numbers'], ['skill', 'a skill learned'], ['near', 'near a thing'], ['room', 'a room on the map'], ['on', 'things on cells'],
+  ['map', phrase('on the map')], ['region', phrase('in the area')], ['spot', phrase('near a spot')], ['hour', phrase('between the hours')], ['weather', phrase('in the weather')],
+  ['facts', phrase('the story\'s facts')], ['quest', phrase('a quest\'s stage')], ['objectives', phrase('a quest\'s objective done')], ['after', phrase('after a step')], ['morningAfter', phrase('the morning after a step')],
+  ['carrying', phrase('carrying')], ['holding', phrase('holding')], ['statuses', phrase('with a status')], ['props', phrase('one\'s own numbers')], ['skill', phrase('a skill learned')], ['near', phrase('near a thing')], ['room', phrase('a room on the map')], ['on', phrase('things on cells')],
 ]
 
 /** What a new condition starts as. */
@@ -110,62 +114,62 @@ export function stepCondForm(f: Form, ctx: Ctx, when: StepCond | undefined, set:
     else next[k] = v
     set(Object.keys(next).length ? next : undefined)
   }
-  const row = (k: keyof StepCond, label: string, body: string) => `<div class="cond"><span class="lbl">${esc(label)}</span>${body}${f.link('✕', () => put(k, undefined), { cls: 'x', title: 'remove the condition' })}</div>`
+  const row = (k: keyof StepCond, label: string, body: string) => `<div class="cond"><span class="lbl">${esc(t(label))}</span>${body}${f.link('✕', () => put(k, undefined), { cls: 'x', title: t('remove the condition') })}</div>`
   const rows: string[] = []
   for (const [k, label] of STEP_KINDS) {
     if (c[k] === undefined) continue
     const v = c[k] as never
     switch (k) {
       case 'map': rows.push(row(k, label, f.select(n.maps, c.map, (x) => put('map', x)))); break
-      case 'region': rows.push(row(k, label, f.select(n.regions(c.map ?? ctx.map), c.region, (x) => put('region', x), { none: '(choose)' }))); break
+      case 'region': rows.push(row(k, label, f.select(n.regions(c.map ?? ctx.map), c.region, (x) => put('region', x), { none: t('(choose)') }))); break
       case 'spot': {
         const s = c.spot!
-        rows.push(row(k, label, `${f.num(s.x, (x) => put('spot', { ...s, x: x ?? 0 }))} ${f.num(s.y, (y) => put('spot', { ...s, y: y ?? 0 }))} within ${f.num(s.r ?? 1, (r) => put('spot', { ...s, r: r ?? 1 }), { min: 0 })} ${f.button('Pick on the map', () => void ctx.pick(`the spot of the step's trigger`, c.map).then((p) => p && put('spot', { x: p.x, y: p.y, r: s.r ?? 1 })))}`))
+        rows.push(row(k, label, `${f.num(s.x, (x) => put('spot', { ...s, x: x ?? 0 }))} ${f.num(s.y, (y) => put('spot', { ...s, y: y ?? 0 }))} ${t('within')} ${f.num(s.r ?? 1, (r) => put('spot', { ...s, r: r ?? 1 }), { min: 0 })} ${f.button(t('Pick on the map'), () => void ctx.pick(t('the spot of the step\'s trigger'), c.map).then((p) => p && put('spot', { x: p.x, y: p.y, r: s.r ?? 1 })))}`))
         break
       }
       case 'hour': {
         const h = c.hour!
-        rows.push(row(k, label, `${f.num(h.from, (x) => put('hour', { ...h, from: x ?? 0 }), { min: 0, max: 23 })} to ${f.num(h.to, (x) => put('hour', { ...h, to: x ?? 24 }), { min: 0, max: 24 })}`))
+        rows.push(row(k, label, `${f.num(h.from, (x) => put('hour', { ...h, from: x ?? 0 }), { min: 0, max: 23 })} ${t('to')} ${f.num(h.to, (x) => put('hour', { ...h, to: x ?? 24 }), { min: 0, max: 24 })}`))
         break
       }
       case 'weather': rows.push(row(k, label, `<span class="chips">${WEATHERS.map((w) => f.check(c.weather!.includes(w), w, (on) => put('weather', on ? [...new Set([...c.weather!, w])] : c.weather!.filter((x) => x !== w)))).join('')}</span>`)); break
-      case 'facts': rows.push(row(k, label, `<div class="rows">${cmpRows(f, c.facts, (r) => put('facts', r ?? {}), (cur, putK) => f.text(cur, putK, { placeholder: cur === undefined ? '+ a fact' : 'fact', list: 'dlFacts' }))}</div>`)); break
-      case 'props': rows.push(row(k, label, `<div class="rows">${cmpRows(f, c.props, (r) => put('props', r ?? {}), (cur, putK) => f.text(cur, putK, { placeholder: cur === undefined ? '+ a number (level, hp …)' : 'prop' }))}</div>`)); break
-      case 'quest': rows.push(row(k, label, `<div class="rows">${cmpRows(f, c.quest, (r) => put('quest', r ?? {}), (cur, putK) => f.select(n.quests, cur, putK, { none: cur === undefined ? '+ a quest' : '(choose)' }))}</div>`)); break
+      case 'facts': rows.push(row(k, label, `<div class="rows">${cmpRows(f, c.facts, (r) => put('facts', r ?? {}), (cur, putK) => f.text(cur, putK, { placeholder: cur === undefined ? t('+ a fact') : t('fact'), list: 'dlFacts' }))}</div>`)); break
+      case 'props': rows.push(row(k, label, `<div class="rows">${cmpRows(f, c.props, (r) => put('props', r ?? {}), (cur, putK) => f.text(cur, putK, { placeholder: cur === undefined ? t('+ a number (level, hp …)') : t('prop') }))}</div>`)); break
+      case 'quest': rows.push(row(k, label, `<div class="rows">${cmpRows(f, c.quest, (r) => put('quest', r ?? {}), (cur, putK) => f.select(n.quests, cur, putK, { none: cur === undefined ? t('+ a quest') : t('(choose)') }))}</div>`)); break
       case 'objectives': {
         const all = n.quests.flatMap((q) => (n.quest(q)?.objectives ?? []).map((o) => `${q}.${o.id}`))
-        rows.push(row(k, label, `<span class="chips">${all.map((o) => f.check(c.objectives!.includes(o), o, (on) => put('objectives', on ? [...c.objectives!, o] : c.objectives!.filter((x) => x !== o)))).join('') || '<span class="muted">no quest has objectives yet</span>'}</span>`))
+        rows.push(row(k, label, `<span class="chips">${all.map((o) => f.check(c.objectives!.includes(o), o, (on) => put('objectives', on ? [...c.objectives!, o] : c.objectives!.filter((x) => x !== o)))).join('') || `<span class="muted">${t('no quest has objectives yet')}</span>`}</span>`))
         break
       }
       case 'after': case 'morningAfter': rows.push(row(k, label, f.select(n.steps, v, (x) => put(k, x)))); break
-      case 'carrying': rows.push(row(k, label, f.text(([] as string[]).concat(c.carrying!).join(', '), (x) => { const l = x.split(',').map((s) => s.trim()).filter(Boolean); put('carrying', l.length > 1 ? l : l[0]) }, { list: 'dlKinds', placeholder: 'a kind (item/food); several by commas' }))); break
+      case 'carrying': rows.push(row(k, label, f.text(([] as string[]).concat(c.carrying!).join(', '), (x) => { const l = x.split(',').map((s) => s.trim()).filter(Boolean); put('carrying', l.length > 1 ? l : l[0]) }, { list: 'dlKinds', placeholder: t('a kind (item/food); several by commas') }))); break
       case 'holding': rows.push(row(k, label, f.text(c.holding, (x) => put('holding', x), { list: 'dlKinds' }))); break
-      case 'room': rows.push(row(k, label, f.text(c.room, (x) => put('room', x), { placeholder: 'bedroom, kitchen …' }))); break
-      case 'skill': rows.push(row(k, label, f.text(c.skill === true ? '' : String(c.skill), (x) => put('skill', x || true), { placeholder: 'any skill, or its id' }))); break
+      case 'room': rows.push(row(k, label, f.text(c.room, (x) => put('room', x), { placeholder: t('bedroom, kitchen …') }))); break
+      case 'skill': rows.push(row(k, label, f.text(c.skill === true ? '' : String(c.skill), (x) => put('skill', x || true), { placeholder: t('any skill, or its id') }))); break
       case 'statuses': {
         const st = c.statuses ?? {}
-        rows.push(row(k, label, `<div class="rows">${Object.entries(st).map(([s, want]) => `<div class="row">${f.select([['true', 'has'], ['false', 'has not']], String(want), (x) => put('statuses', { ...st, [s]: x === 'true' }))} ${f.text(s, (ns) => { const r = { ...st }; delete r[s]; if (ns) r[ns] = want; put('statuses', r) }, { list: 'dlStatuses' })} ${f.link('✕', () => { const r = { ...st }; delete r[s]; put('statuses', r) }, { cls: 'x' })}</div>`).join('')}<div class="row add">${f.text('', (ns) => ns && put('statuses', { ...st, [ns]: true }), { list: 'dlStatuses', placeholder: '+ a status' })}</div></div>`))
+        rows.push(row(k, label, `<div class="rows">${Object.entries(st).map(([s, want]) => `<div class="row">${f.select([['true', t('has')], ['false', t('has not')]], String(want), (x) => put('statuses', { ...st, [s]: x === 'true' }))} ${f.text(s, (ns) => { const r = { ...st }; delete r[s]; if (ns) r[ns] = want; put('statuses', r) }, { list: 'dlStatuses' })} ${f.link('✕', () => { const r = { ...st }; delete r[s]; put('statuses', r) }, { cls: 'x' })}</div>`).join('')}<div class="row add">${f.text('', (ns) => ns && put('statuses', { ...st, [ns]: true }), { list: 'dlStatuses', placeholder: t('+ a status') })}</div></div>`))
         break
       }
       case 'near': {
         const nr = c.near!
-        rows.push(row(k, label, `${f.text(nr.type, (t) => put('near', { ...nr, type: t }), { list: 'dlKinds' })} within ${f.num(nr.r, (r) => put('near', { ...nr, r: r ?? 1 }), { min: 0 })} ${f.text(nr.status ?? '', (s) => put('near', { ...nr, ...(s ? { status: s } : { status: undefined }) }), { list: 'dlStatuses', placeholder: 'with a status' })}`))
+        rows.push(row(k, label, `${f.text(nr.type, (ty) => put('near', { ...nr, type: ty }), { list: 'dlKinds' })} ${t('within')} ${f.num(nr.r, (r) => put('near', { ...nr, r: r ?? 1 }), { min: 0 })} ${f.text(nr.status ?? '', (s) => put('near', { ...nr, ...(s ? { status: s } : { status: undefined }) }), { list: 'dlStatuses', placeholder: t('with a status') })}`))
         break
       }
       case 'on': rows.push(row(k, label, f.json(c.on, (x) => put('on', x as StepCond['on']), (m) => toast(m, 'error'), 2))); break
     }
   }
   const free = STEP_KINDS.filter(([k]) => c[k] === undefined)
-  return `<div class="conds">${rows.join('') || '<p class="muted">Always (no condition): it plays as soon as the game begins.</p>'}
-    <div class="row add">${f.select(free.map(([k, l]) => [k, l]), '', (k) => k && put(k as keyof StepCond, stepStart(k as keyof StepCond, ctx) as never), { none: '+ a condition' })}</div></div>`
+  return `<div class="conds">${rows.join('') || `<p class="muted">${t('Always (no condition): it plays as soon as the game begins.')}</p>`}
+    <div class="row add">${f.select(said(free), '', (k) => k && put(k as keyof StepCond, stepStart(k as keyof StepCond, ctx) as never), { none: t('+ a condition') })}</div></div>`
 }
 
 // ------------------------------------------------------------------ a quest's trigger
 
 const Q_KINDS: [string, string][] = [
-  ['talk', 'spoken to'], ['give', 'given to'], ['carry', 'carrying'], ['kill', 'felled'], ['gone', 'dead or gone'], ['enter', 'entering a place'],
-  ['objectives', 'objectives done'], ['fact', 'the story\'s facts'], ['quest', 'another quest\'s stage'], ['done', 'another quest done'], ['step', 'a step played'],
-  ['all', 'all of these'], ['any', 'any of these'], ['not', 'not this'],
+  ['talk', phrase('spoken to')], ['give', phrase('given to')], ['carry', phrase('carrying')], ['kill', phrase('felled')], ['gone', phrase('dead or gone')], ['enter', phrase('entering a place')],
+  ['objectives', phrase('objectives done')], ['fact', phrase('the story\'s facts')], ['quest', phrase('another quest\'s stage')], ['done', phrase('another quest done')], ['step', phrase('a step played')],
+  ['all', phrase('all of these')], ['any', phrase('any of these')], ['not', phrase('not this')],
 ]
 const qKind = (t: QuestTrigger): string => Object.keys(t)[0]
 
@@ -193,39 +197,39 @@ function qStart(k: string, q: QuestDef, ctx: Ctx): QuestTrigger {
 /** One of the quest's aliases (or the taker), or a kind of thing (a class): what a talk, a felling, a gift is about. */
 function aliasOrKind(f: Form, q: QuestDef, v: string | Selector, set: (v: string | Selector) => void): string {
   const aliases = ['player', ...Object.keys(q.aliases ?? {})]
-  if (typeof v === 'string') return `${f.select([...aliases.map((a): [string, string] => [a, `{${a}}`]), ['?kind', 'a kind of thing…']], v, (x) => set(x === '?kind' ? { type: 'item/' } : x))}`
+  if (typeof v === 'string') return `${f.select([...aliases.map((a): [string, string] => [a, `{${a}}`]), ['?kind', t('a kind of thing…')]], v, (x) => set(x === '?kind' ? { type: 'item/' } : x))}`
   const plain = Object.keys(v).every((k) => k === 'type')
-  return `${f.select([...aliases.map((a): [string, string] => [a, `{${a}}`]), ['?kind', 'a kind of thing']], '?kind', (x) => set(x === '?kind' ? v : x))} ${plain ? f.text(v.type, (t) => set({ ...v, type: t }), { list: 'dlKinds' }) : f.json(v, (x) => set(x as Selector), (m) => toast(m, 'error'), 1)}`
+  return `${f.select([...aliases.map((a): [string, string] => [a, `{${a}}`]), ['?kind', t('a kind of thing')]], '?kind', (x) => set(x === '?kind' ? v : x))} ${plain ? f.text(v.type, (ty) => set({ ...v, type: ty }), { list: 'dlKinds' }) : f.json(v, (x) => set(x as Selector), (m) => toast(m, 'error'), 1)}`
 }
 
 /** A quest's trigger as a form (all, any and not nest); `set` is given it after each change (none: removed). */
-export function questTriggerForm(f: Form, ctx: Ctx, q: QuestDef, t: QuestTrigger | undefined, set: (t: QuestTrigger | undefined) => void, depth = 0): string {
+export function questTriggerForm(f: Form, ctx: Ctx, q: QuestDef, tr: QuestTrigger | undefined, set: (t: QuestTrigger | undefined) => void, depth = 0): string {
   const n = namesOf(ctx)
-  if (!t) return `<span class="trig">${f.select(Q_KINDS, '', (k) => k && set(qStart(k, q, ctx)), { none: '+ a trigger' })}</span>`
-  const k = qKind(t)
+  if (!tr) return `<span class="trig">${f.select(said(Q_KINDS), '', (k) => k && set(qStart(k, q, ctx)), { none: t('+ a trigger') })}</span>`
+  const k = qKind(tr)
   const aliases = Object.keys(q.aliases ?? {})
-  const kind = f.select(Q_KINDS, k, (nk) => nk !== k && set(qStart(nk, q, ctx)))
-  const x = t as Record<string, unknown>
+  const kind = f.select(said(Q_KINDS), k, (nk) => nk !== k && set(qStart(nk, q, ctx)))
+  const x = tr as Record<string, unknown>
   let body = ''
   switch (k) {
-    case 'talk': body = `${f.select(aliases, String(x.talk), (a) => set({ ...(t as { talk: string }), talk: a }))}`; break
+    case 'talk': body = `${f.select(aliases, String(x.talk), (a) => set({ ...(tr as { talk: string }), talk: a }))}`; break
     case 'gone': body = f.select(aliases, String(x.gone), (a) => set({ gone: a })); break
-    case 'give': { const g = t as { give: string | Selector; to: string }; body = `${aliasOrKind(f, q, g.give, (v) => set({ ...g, give: v }))} to ${f.select(aliases, g.to, (a) => set({ ...g, to: a }))}`; break }
-    case 'carry': { const c = t as { carry: string | Selector; count?: number }; body = `${f.num(c.count ?? 1, (v) => set({ ...c, count: v ?? 1 }), { min: 1 })} × ${aliasOrKind(f, q, c.carry, (v) => set({ ...c, carry: v }))}`; break }
-    case 'kill': { const c = t as { kill: string | Selector; map?: string }; body = `${aliasOrKind(f, q, c.kill, (v) => set({ ...c, kill: v }))} on ${f.select(n.maps, c.map, (m) => set({ ...c, ...(m ? { map: m } : { map: undefined }) }), { none: 'any map' })}`; break }
+    case 'give': { const g = tr as { give: string | Selector; to: string }; body = `${aliasOrKind(f, q, g.give, (v) => set({ ...g, give: v }))} ${t('to')} ${f.select(aliases, g.to, (a) => set({ ...g, to: a }))}`; break }
+    case 'carry': { const c = tr as { carry: string | Selector; count?: number }; body = `${f.num(c.count ?? 1, (v) => set({ ...c, count: v ?? 1 }), { min: 1 })} × ${aliasOrKind(f, q, c.carry, (v) => set({ ...c, carry: v }))}`; break }
+    case 'kill': { const c = tr as { kill: string | Selector; map?: string }; body = `${aliasOrKind(f, q, c.kill, (v) => set({ ...c, kill: v }))} ${t('on')} ${f.select(n.maps, c.map, (m) => set({ ...c, ...(m ? { map: m } : { map: undefined }) }), { none: t('any map') })}`; break }
     case 'enter': {
       const places = n.maps.flatMap((m) => [m, ...n.regions(m).map((r) => `${m}:${r}`)])
       body = f.select(places, String(x.enter), (p) => set({ enter: p }))
       break
     }
     case 'objectives': {
-      const o = (t as { objectives: string[] | 'all' }).objectives
+      const o = (tr as { objectives: string[] | 'all' }).objectives
       const ids = (q.objectives ?? []).map((ob) => ob.id)
-      body = `${f.check(o === 'all', 'all of them', (on) => set({ objectives: on ? 'all' : [] }))} ${o === 'all' ? '' : `<span class="chips">${ids.map((id) => f.check(o.includes(id), id, (on) => set({ objectives: on ? [...o, id] : o.filter((y) => y !== id) }))).join('')}</span>`}`
+      body = `${f.check(o === 'all', t('all of them'), (on) => set({ objectives: on ? 'all' : [] }))} ${o === 'all' ? '' : `<span class="chips">${ids.map((id) => f.check(o.includes(id), id, (on) => set({ objectives: on ? [...o, id] : o.filter((y) => y !== id) }))).join('')}</span>`}`
       break
     }
-    case 'fact': body = `<div class="rows">${cmpRows(f, (t as { fact: Record<string, Cmp> }).fact, (r) => set({ fact: r ?? {} }), (cur, putK) => f.text(cur, putK, { placeholder: cur === undefined ? '+ a fact' : 'fact', list: 'dlFacts' }))}</div>`; break
-    case 'quest': body = `<div class="rows">${cmpRows(f, (t as { quest: Record<string, Cmp> }).quest, (r) => set({ quest: r ?? {} }), (cur, putK) => f.select(n.quests, cur, putK, { none: cur === undefined ? '+ a quest' : '(choose)' }))}</div>`; break
+    case 'fact': body = `<div class="rows">${cmpRows(f, (tr as { fact: Record<string, Cmp> }).fact, (r) => set({ fact: r ?? {} }), (cur, putK) => f.text(cur, putK, { placeholder: cur === undefined ? t('+ a fact') : t('fact'), list: 'dlFacts' }))}</div>`; break
+    case 'quest': body = `<div class="rows">${cmpRows(f, (tr as { quest: Record<string, Cmp> }).quest, (r) => set({ quest: r ?? {} }), (cur, putK) => f.select(n.quests, cur, putK, { none: cur === undefined ? t('+ a quest') : t('(choose)') }))}</div>`; break
     case 'done': body = f.select(n.quests, String(x.done), (v) => set({ done: v })); break
     case 'step': body = f.select(n.steps, String(x.step), (v) => set({ step: v })); break
     case 'all': case 'any': {
@@ -234,9 +238,9 @@ export function questTriggerForm(f: Form, ctx: Ctx, q: QuestDef, t: QuestTrigger
       break
     }
     case 'not': body = `<div class="nest">${questTriggerForm(f, ctx, q, x.not as QuestTrigger, (ns) => set(ns ? { not: ns } : undefined), depth + 1)}</div>`; break
-    default: body = f.json(t, (v) => set(v as QuestTrigger), (m) => toast(m, 'error'), 2)
+    default: body = f.json(tr, (v) => set(v as QuestTrigger), (m) => toast(m, 'error'), 2)
   }
-  return `<span class="trig">${kind} ${body} ${f.link('✕', () => set(undefined), { cls: 'x', title: 'remove' })}</span>`
+  return `<span class="trig">${kind} ${body} ${f.link('✕', () => set(undefined), { cls: 'x', title: t('remove') })}</span>`
 }
 
 /** A person's name, for the forms' lists. */

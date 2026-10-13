@@ -5,7 +5,7 @@
 import type { RawChunk } from '@openworld/engine'
 import type { Sourced } from '@openworld/format'
 import type { Ctx } from './context.ts'
-import { esc, tx } from './ui.ts'
+import { esc, t, tx } from './ui.ts'
 
 /** The colour a map's character is drawn in: its terrain's. */
 function colours(ctx: Ctx): (c: string) => [number, number, number] {
@@ -60,12 +60,12 @@ export function mapTree(ctx: Ctx): string {
     groups.set(g, [...(groups.get(g) ?? []), m])
   }
   const order = [...groups.keys()].sort((a, b) => (a === '' ? -1 : b === '' ? 1 : a.localeCompare(b)))
-  const row = (m: Sourced<RawChunk>) => `<button data-map="${esc(m.data.map.id)}" class="maprow ${m.data.map.id === ctx.map ? 'on' : ''}"><canvas data-mini="${esc(m.data.map.id)}" class="mini"></canvas><span>${esc(m.data.map.id)}<small>${esc(tx(m.data.map.name))} · ${m.data.map.width}×${m.data.map.height}${m.data.map.id === ctx.store.game.start.map ? ' · start' : ''}</small></span></button>`
+  const row = (m: Sourced<RawChunk>) => `<button data-map="${esc(m.data.map.id)}" class="maprow ${m.data.map.id === ctx.map ? 'on' : ''}"><canvas data-mini="${esc(m.data.map.id)}" class="mini"></canvas><span>${esc(m.data.map.id)}<small>${esc(tx(m.data.map.name))} · ${m.data.map.width}×${m.data.map.height}${m.data.map.id === ctx.store.game.start.map ? ` · ${t('start')}` : ''}</small></span></button>`
   return order
     .map((g) => {
       const list = groups.get(g)!
       const body = `<div class="palette list maps">${list.map(row).join('')}</div>`
-      return order.length === 1 && g === '' ? body : `<details open class="group"><summary>${esc(g || '(no group)')} <small class="muted">${list.length}</small></summary>${body}</details>`
+      return order.length === 1 && g === '' ? body : `<details open class="group"><summary>${esc(g || t('(no group)'))} <small class="muted">${list.length}</small></summary>${body}</details>`
     })
     .join('')
 }
@@ -102,13 +102,13 @@ export function overview(ctx: Ctx, el: HTMLElement, open: (id: string) => void):
   const H = Math.max(lyy + rowH, 1)
   const room = Math.max(320, el.clientWidth - 40)
   const k = Math.max(1, Math.min(8, Math.floor(room / W)))
-  el.innerHTML = `<div class="overview-head"><h3>The world</h3><span class="muted">${placed.length} laid out by their edges, ${loose.length} reached by portals. Click a map to open it.</span> <button id="ovBack">Back to the map</button></div><canvas id="ovCanvas" width="${W * k}" height="${H * k + 14}"></canvas>`
+  el.innerHTML = `<div class="overview-head"><h3>${t('The world')}</h3><span class="muted">${t('{placed} laid out by their edges, {loose} reached by portals. Click a map to open it.', { placed: placed.length, loose: loose.length })}</span> <button id="ovBack">${t('Back to the map')}</button></div><canvas id="ovCanvas" width="${W * k}" height="${H * k + 14}"></canvas>`
   const cv = el.querySelector<HTMLCanvasElement>('#ovCanvas')!
   const g = cv.getContext('2d')!
   g.imageSmoothingEnabled = false
   g.fillStyle = '#0f121a'
   g.fillRect(0, 0, cv.width, cv.height)
-  if (loose.length) (g.fillStyle = '#8b93a7'), (g.font = '11px system-ui'), g.fillText('reached by portals', 0, (ly - gap) * k)
+  if (loose.length) (g.fillStyle = '#8b93a7'), (g.font = '11px system-ui'), g.fillText(t('reached by portals'), 0, (ly - gap) * k)
   const tmp = document.createElement('canvas')
   for (const m of chunks) {
     const p = pos.get(m.map.id)!
