@@ -1,6 +1,6 @@
 // The heads-up display (design.md §5.3): the clock box top right with the journal button under
 // it, the bag and skill tree buttons bottom right, the toolbar at the bottom with health, hunger and experience above it (Minecraft's way),
-// messages bottom left, the map name as it fades in, the two keys' labels over the target, the
+// messages bottom left, the map name as it fades in, the keys' labels in one row above the player, the
 // dialogue box and the yes/no question, speech bubbles and floating numbers.
 
 import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Mood, type Text } from '@openworld/engine'

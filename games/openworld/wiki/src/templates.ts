@@ -550,10 +550,10 @@ function recipeBlock(ctx: Ctx, e: ItemEnt): string {
   }
   return `<p class="empty">不能制作。</p>`
 }
-/** How often a kind's own piece of gear drops (its `trophyChance`), and the felling that brings it surely (the world's trophyPity, the engine's 50 by default). */
+/** How often a kind's own piece of gear drops (its `trophyChance`), and the felling that brings it surely (the loot module's pity, 50 by default). */
 const trophyOdds = (ctx: Ctx, p: Record<string, any>) => {
   const chance = Number(p.trophyChance ?? 0)
-  const pity = Number(ctx.g.ontology.params?.trophyPity ?? 50)
+  const pity = Number(ctx.g.ontology.loot?.pity ?? 50)
   return chance >= 1 ? '必掉' : `每只 ${Math.round(chance * 100)}%，连续 ${pity - 1} 只没掉时第 ${pity} 只必掉`
 }
 /** The page of the station a recipe is made beside (its fixture's): the workbench, the anvil, the forge, the loom. */
