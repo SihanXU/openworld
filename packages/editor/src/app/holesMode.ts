@@ -134,7 +134,8 @@ export class HolesMode implements Mode {
   /** Ask the modder for the hole's patch: the request the game would make there, in the offline profile. */
   private async ask(ctx: Ctx, cell: HoleCell): Promise<void> {
     const c = ctx.store.compiled()
-    const sc = holeScenario(cell)
+    // asked at the high tier (the engine's quality.ts): an answer the author takes into the game serves every setting
+    const sc = { ...holeScenario(cell), tier: 'high' as const }
     const eng = buildSandbox(sc, structuredClone(c.bundle.ontology), restoreLibrary(c.bundle.rules, c.bundle.learned, structuredClone(c.bundle.ontology)))
     const p = eng.preview(scenarioEvent(sc, eng))
     if (!p.hole) return toast('That is no hole any more (count again).', 'warn')

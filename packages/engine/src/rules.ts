@@ -2,11 +2,13 @@
 // versioned rule library. Resolution is the same for every event: the most specific base rule
 // whose host and kind fit is walked to a leaf; `inherit` goes up a level; an undefined leaf
 // consults the host type's own learned tree for that hole (design.md §5.16) — learned rules are
-// only ever reached there, so the AI fills holes and never changes what is defined.
+// only ever reached there, so the AI fills holes and never changes what is defined. Each tier of the AI
+// setting keeps its own trees (quality.ts): an event takes its own tier's answer first, then a higher one's.
 
 import { isA, typeDepth } from './ontology.ts'
+import { ruleTier, tiersFrom } from './quality.ts'
 import { FIGHT_TICKS } from './types.ts'
-import type { Bounds, Cmp, Cond, GameEvent, Leaf, Operand, PropValue, Reader, RoleName, Rule, Selector, StatusDef, Tree, TypeDef } from './types.ts'
+import type { Bounds, Cmp, Cond, GameEvent, Leaf, Operand, PropValue, Reader, RoleName, Rule, Selector, StatusDef, Tier, Tree, TypeDef } from './types.ts'
 import type { View, World } from './world.ts'
 
 export const ROLES: RoleName[] = ['host', 'actor', 'target', 'instrument', 'other', 'item', 'source']
@@ -342,10 +344,11 @@ export interface Resolution {
   /** The base rule and path where the outcome was undefined (filled or not). */
   hole?: { rule: Rule; path: string[]; default: import('./types.ts').Effect[] }
   /**
-   * Still undefined after the host type's own tree (design.md §5.16): the tree's key and the path to
-   * the undefined leaf the event fell into (empty: no tree yet). A learned answer is placed there.
+   * Still undefined after the host type's own trees (design.md §5.16): the place (`placeKey`), the tier
+   * the event is answered at, and the path in that tier's tree to the undefined leaf the event fell
+   * into (empty: no tree yet). A learned answer is placed there.
    */
-  open?: { key: string; path: string[] }
+  open?: { key: string; tier: Tier; path: string[] }
 }
 
 // ---------------------------------------------------------------- learned trees
@@ -353,14 +356,17 @@ export interface Resolution {
 /** A hole as a key: its base rule, and the branch that reached it. */
 export const holeKey = (rule: string, path: string[]): string => `${rule}${path.length ? '#' + path.join('&') : ''}`
 
-/** Where a host type's learned answers to one kind of event at one hole live: one tree per key. */
-export const patchKey = (type: string, kind: string, hole: string): string => `${type}|${kind}|${hole}`
+/** A host type's place for answers to one kind of event at one hole, at every tier: `type|kind|hole`. */
+export const placeKey = (type: string, kind: string, hole: string): string => `${type}|${kind}|${hole}`
+
+/** Where a host type's learned answers to one kind of event at one hole, made at one tier, live: one tree per key. */
+export const patchKey = (type: string, kind: string, hole: string, tier: Tier = 'medium'): string => `${placeKey(type, kind, hole)}|${tier}`
 
 /** A learned rule that has a place: its host is one type, its kind is exact, and it names its hole. */
 export const placed = (r: Rule): boolean => isPatch(r) && typeof r.hole === 'string' && typeof r.on === 'string' && !!r.host?.type && Object.keys(r.host).length === 1
 
 /** The key of a learned rule's tree (undefined for one with no place: an older class patch). */
-export const keyOf = (r: Rule): string | undefined => (placed(r) ? patchKey(r.host!.type!, r.on, r.hole!) : undefined)
+export const keyOf = (r: Rule): string | undefined => (placed(r) ? patchKey(r.host!.type!, r.on, r.hole!, ruleTier(r)) : undefined)
 
 /** A copy of a tree that keeps its leaves by reference (so a leaf still tells which rule it came from). */
 function copyTree(t: Tree): Tree {
@@ -444,8 +450,8 @@ export interface LibraryData {
 /**
  * The rule library: base rules + learned answers, with an append-only log so any patch can be
  * inspected, rolled back or ablated. Base rules are bucketed by the root of their kind and kept
- * most specific first. Learned rules form one tree per (host type, event kind, hole), grown by
- * answers in the order they were learned (design.md §5.16).
+ * most specific first. Learned rules form one tree per (host type, event kind, hole, tier), grown by
+ * answers in the order they were learned (design.md §5.16; §13, the AI setting).
  */
 export class RuleLibrary {
   private base = new Map<string, Rule[]>()
@@ -568,7 +574,7 @@ export class RuleLibrary {
     return list.filter((r) => kindCovers(r.on, kind) && matchSelector(r.host, host))
   }
 
-  /** The learned answers of a host type to a kind, at every hole (oldest first within a hole). */
+  /** The learned answers of a host type to a kind, at every hole and tier (oldest first within a tree). */
   learned(type: string | undefined, kind: string): Rule[] {
     if (!type) return []
     const out: Rule[] = []
@@ -603,23 +609,36 @@ export class RuleLibrary {
 
   /**
    * Resolve an event's outcome (design.md §5.6, §5.16): the base chain to a leaf; at a hole, the host
-   * type's own tree for that hole. Conditions may consume randomness: callers dry-running restore it.
+   * type's own trees for that hole — the event's tier's first, then the higher tiers', nearest first
+   * (design.md §13, the AI setting: a higher answer serves a lower setting, never the reverse). Still open: where an answer of
+   * the event's own tier would go. Conditions may consume randomness: callers dry-running restore it.
    */
-  resolve(ev: GameEvent, roles: Roles, world: World): Resolution {
+  resolve(ev: GameEvent, roles: Roles, world: World, tierOf: Tier | (() => Tier) = 'medium'): Resolution {
     const base = this.chain(this.candidates(ev.kind, roles.host), roles, world, ev)
     if (!base) return { defined: false }
     if (!isHole(base.leaf)) return { defined: true, rule: base.rule, leaf: base.leaf }
+    // (the tier only matters at a hole: worked out only there)
+    const tier = typeof tierOf === 'function' ? tierOf() : tierOf
     const hole = { rule: base.rule, path: base.path, default: base.leaf.default ?? [] }
-    const key = patchKey(roles.host?.type ?? '-', ev.kind, holeKey(base.rule.id, base.path))
-    const composed = this.trees.get(key)
-    if (!composed) return { defined: false, rule: base.rule, leaf: base.leaf, hole, open: { key, path: [] } }
-    const { leaf, path } = walk(composed.tree, roles, world, ev)
-    const id = typeof leaf === 'object' ? composed.owner.get(leaf) : undefined
-    const rule = id ? this.rules.get(id) : undefined
-    // (a leaf that says undefined is open, whatever else it carries; a learned answer set aside at
-    // runtime answers no more: its leaf is open again)
-    if (rule && isDo(leaf) && !isHole(leaf) && !world.state.quarantine?.[rule.id]) return { defined: true, rule, leaf, hole }
-    return { defined: false, rule: base.rule, leaf: base.leaf, hole, open: { key, path } }
+    const place = placeKey(roles.host?.type ?? '-', ev.kind, holeKey(base.rule.id, base.path))
+    let open = { key: place, tier, path: [] as string[] }
+    for (const t of tiersFrom(tier)) {
+      const composed = this.trees.get(`${place}|${t}`)
+      if (!composed) continue
+      const { leaf, path } = walk(composed.tree, roles, world, ev)
+      const id = typeof leaf === 'object' ? composed.owner.get(leaf) : undefined
+      const rule = id ? this.rules.get(id) : undefined
+      // (a leaf that says undefined is open, whatever else it carries; a learned answer set aside at
+      // runtime answers no more: its leaf is open again)
+      if (rule && isDo(leaf) && !isHole(leaf) && !world.state.quarantine?.[rule.id]) return { defined: true, rule, leaf, hole }
+      if (t === tier) open = { key: place, tier, path }
+    }
+    return { defined: false, rule: base.rule, leaf: base.leaf, hole, open }
+  }
+
+  /** Is there a learned tree for this hole at any of these tiers? */
+  grown(type: string, kind: string, hole: string, tiers: Tier[]): boolean {
+    return tiers.some((t) => this.trees.has(patchKey(type, kind, hole, t)))
   }
 
   /**

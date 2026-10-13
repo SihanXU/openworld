@@ -1,13 +1,13 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, PlacementPreview, Pos, Recipe, Rule, SaveData, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
+import type { AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, PlacementPreview, Pos, Recipe, Rule, SaveData, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
 
 /** Where the mouse points: its tile, and what is drawn at the point, top first (the keys act there when it is next to the player). */
 export type Tile = Aim
 
 export type ToWorker =
   | { t: 'skipLearning' }
-  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any */ modder?: string; /** true: prefetch undefined acts the pointer rests on (?prefetch=1; off by default) */ prefetch?: boolean; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look; /** a new game begun at this cell instead of a start (the editor's playtest) */ at?: Pos }
+  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any */ modder?: string; /** true: prefetch undefined acts the pointer rests on (?prefetch=1: at least the medium setting's) */ prefetch?: boolean; /** the player's AI setting (the engine's quality.ts) */ quality?: AiQuality; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look; /** a new game begun at this cell instead of a start (the editor's playtest) */ at?: Pos }
   /** The one at the keys, fallen, rises again: where they fell, or at home (the death screen). */
   | { t: 'respawn'; home: boolean }
   /** Hold a direction (null: stop); `walk`: Shift, slower than the default run. */
@@ -82,6 +82,8 @@ export type ToWorker =
   | { t: 'closePockets' }
   /** Time stops while a menu, a dialogue or a question is open. */
   | { t: 'pause'; on: boolean }
+  /** The player changed the AI setting (the options' AI section): it holds from the next event. */
+  | { t: 'quality'; quality: AiQuality }
   | { t: 'patch'; id?: string; patch: Patch }
   | { t: 'dismiss'; id: string }
   | { t: 'removeRule'; id: string }

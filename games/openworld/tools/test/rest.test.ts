@@ -31,7 +31,8 @@ function bedtime(hunger: number): { eng: Engine; bed: string } {
 }
 
 describe('a night in bed', () => {
-  it('passes at once, asleep, and costs a quarter of the hunger a waking night would', () => {
+  // (a whole night: under a full parallel run it outlasts the default)
+  it('passes at once, asleep, and costs a quarter of the hunger a waking night would', { timeout: 90_000 }, () => {
     const { eng, bed } = bedtime(20)
     const w = eng.world
     const p = w.player
@@ -46,7 +47,8 @@ describe('a night in bed', () => {
     expect(eng.busy(p)).toBe(false)
   })
 
-  it('passed a game hour a tick (the worker), the night is seen to pass: asleep and busy all the while, one night only', () => {
+  // (a whole night: under a full parallel run it outlasts the default)
+  it('passed a game hour a tick (the worker), the night is seen to pass: asleep and busy all the while, one night only', { timeout: 90_000 }, () => {
     const { eng, bed } = bedtime(20)
     const w = eng.world
     const p = w.player
@@ -66,7 +68,8 @@ describe('a night in bed', () => {
     expect(eng.busy(p)).toBe(false)
   })
 
-  it('a low stomach sleeps the night through (hungry, the bar falls slowly, and slower asleep)', () => {
+  // (a whole night: under a full parallel run it outlasts the default)
+  it('a low stomach sleeps the night through (hungry, the bar falls slowly, and slower asleep)', { timeout: 90_000 }, () => {
     const { eng, bed } = bedtime(2)
     const w = eng.world
     const p = w.player

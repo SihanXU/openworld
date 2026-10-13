@@ -19,8 +19,9 @@ import { scheduleFor } from './people.ts'
 import { OntologyIndex } from './ontology.ts'
 import { appearFromForage } from './appear.ts'
 import { RuleLibrary, evalCond, isDo, isPatch, matchSelector, rolesOf, type Resolution } from './rules.ts'
+import { DEFAULT_QUALITY, categoryOf, tierOfLevel, type AiQuality } from './quality.ts'
 import { modulesOf, noHooks, noSociety, type Combat, type Society, type EffectImpl, type EngineHooks, type EngineModule, type Goal } from './module.ts'
-import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb, WorldState } from './types.ts'
+import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Tier, Verb, WorldState } from './types.ts'
 import { DIRS, FIRE_RADIUS, OPPOSITE } from './types.ts'
 import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type Writer } from './world.ts'
 
@@ -116,6 +117,13 @@ export class Engine {
   /** How blows, reach and pace are worked out (module.ts): the kernel's plain combat, or a combat module's. */
   combat: Combat
   undefinedSink?: UndefinedSink
+  /**
+   * The AI setting (quality.ts): which tier each kind of event is asked at and takes learned answers
+   * from. The player's, like a graphics setting: not the world's state, never saved with it.
+   */
+  quality: AiQuality = { ...DEFAULT_QUALITY }
+  /** One tier for every event, over the setting: a sandbox replays a scene at the tier it was asked at. */
+  tier?: Tier
   /** Encounter mechanics supplied by the world, never imported from content (bosses.ts). */
   bossKits: Record<string, BossDef> = {}
   /** Companions and the tutorial's beats (companion.ts), quests (quests.ts). */
@@ -391,9 +399,14 @@ export class Engine {
   resolveEvent(ev: GameEvent): Resolution {
     const w = this.world
     const saved = w.state.rng
-    const res = this.lib.resolve(ev, rolesOf(ev, w), w)
+    const res = this.lib.resolve(ev, rolesOf(ev, w), w, () => this.tierOf(ev))
     if (!this.running) w.state.rng = saved
     return res
+  }
+
+  /** The tier an event is answered at: the sandbox's, else the setting's for its kind of work. */
+  tierOf(ev: GameEvent): Tier {
+    return this.tier ?? tierOfLevel(this.quality[categoryOf(this.world, ev)])
   }
 
   /** True while an outcome is being dispatched (its randomness is real, not a dry run's). */

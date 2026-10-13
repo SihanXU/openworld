@@ -62,6 +62,8 @@ export interface Episode<Req = unknown, P = unknown> {
   /** the things the design asked for beyond the request, by name, and the types it created */
   needed?: string[]
   created?: string[]
+  /** the AI setting the request was asked at (world episodes; the engine's quality.ts): the tier its answer is kept in, and how far it could go in making new kinds */
+  quality?: { tier: string; create: string }
   request: Req
   key: string
   terms: string[]

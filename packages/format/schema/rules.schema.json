@@ -35,6 +35,10 @@
             "type": "string"
           }
         },
+        "tier": {
+          "$ref": "#/definitions/Tier",
+          "description": "A learned rule's tier: the AI setting it was answered at (quality.ts; none: medium). Each tier keeps its own trees; an answer serves its own tier and every lower one, never a higher."
+        },
         "confirm": {
           "$ref": "#/definitions/Text",
           "description": "Ask the player first when their input chooses this rule (\"Eat {instrument}?\")."
@@ -2791,6 +2795,15 @@
       ],
       "description": "A number, or a number read from a role's prop (scaled) or from the event's params."
     },
+    "Tier": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "description": "The AI setting a learned answer was made at, and an event is answered at (quality.ts)."
+    },
     "RuleTest": {
       "type": "object",
       "properties": {
@@ -2816,6 +2829,10 @@
     "Scenario": {
       "type": "object",
       "properties": {
+        "tier": {
+          "$ref": "#/definitions/Tier",
+          "description": "The AI tier the event is replayed at: which learned answers it may take (quality.ts; none: the engine's setting)."
+        },
         "terrain": {
           "type": "array",
           "items": {

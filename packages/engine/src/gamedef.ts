@@ -4,6 +4,7 @@
 
 import type { Engine } from './engine.ts'
 import type { LibraryData } from './rules.ts'
+import type { ModRequest } from './mod.ts'
 import type { Ontology, Rule } from './types.ts'
 
 export interface GameDef {
@@ -20,6 +21,12 @@ export interface GameDef {
    * library every new game and every save begins from (the modder's, and a save's own, come over it).
    */
   learned?: LibraryData
+  /**
+   * Questions the game asks of a model to see what it carries (design.md §13, the AI setting): undefined outcomes of its own,
+   * each a request as the game raises it, played at every tier by the modder's detection where its history is
+   * short. Loaded only then (a player never needs them).
+   */
+  probes?: () => Promise<ModRequest[]>
   /** The game's own save history: an older save brought up to the game as it is now (on loading, as the author, after the engine's). */
   upgradeSave?(eng: Engine): void
 }

@@ -84,6 +84,7 @@ const menu = new Menu({
   toggleSound: () => hud.toggleSound(),
   devConsole: () => dev.toggle(true),
   keyOnItem: (key, item) => send({ t: 'keyOnItem', key, item }),
+  setQuality: (quality) => send({ t: 'quality', quality }),
 })
 // (dev: the panels, for checking them by hand)
 if (import.meta.env.DEV) Object.assign((window as unknown as { lsw: object }).lsw, { menu })
@@ -372,6 +373,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     case 'modder':
       dev.setModder(m)
       hud.modderOnline = m.online
+      menu.ai.service = { url: m.url, online: m.online, model: m.model }
       break
     case 'art':
       for (const a of m.arts) registerArt(scene, a.id, a.art)
@@ -432,7 +434,7 @@ const cover = new Cover(WORLD, {
     quietSave = true
     const library = await kvGet<LibraryData>(libraryKey())
     const base = worldBase()
-    send({ t: 'init', base, save: data?.save, library, librarySeq: await librarySeq(), modder: MODDER, prefetch: PARAMS.get('prefetch') === '1', difficulty: game?.difficulty, start: game?.start, look: game?.look })
+    send({ t: 'init', base, save: data?.save, library, librarySeq: await librarySeq(), modder: MODDER, prefetch: PARAMS.get('prefetch') === '1', quality: menu.ai.quality, difficulty: game?.difficulty, start: game?.start, look: game?.look })
   },
   tutorial: async () => {
     // its own run: nothing is saved, and the story's main line is not reached from it
@@ -442,7 +444,7 @@ const cover = new Cover(WORLD, {
     quietSave = true
     const library = await kvGet<LibraryData>(libraryKey())
     const base = worldBase()
-    send({ t: 'init', base, library, librarySeq: await librarySeq(), modder: MODDER, start: 'tutorial' })
+    send({ t: 'init', base, library, librarySeq: await librarySeq(), modder: MODDER, quality: menu.ai.quality, start: 'tutorial' })
   },
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
@@ -462,7 +464,7 @@ if (playtest) {
   const at = map && Number.isFinite(Number(x)) && Number.isFinite(Number(y)) ? { map, x: Number(x), y: Number(y) } : undefined
   slot = undefined
   quietSave = true
-  void (async () => send({ t: 'init', base: worldBase(), library: await kvGet<LibraryData>(libraryKey()), modder: MODDER, prefetch: PARAMS.get('prefetch') === '1', ...(at && { at }) }))()
+  void (async () => send({ t: 'init', base: worldBase(), library: await kvGet<LibraryData>(libraryKey()), modder: MODDER, prefetch: PARAMS.get('prefetch') === '1', quality: menu.ai.quality, ...(at && { at }) }))()
 } else void cover.show()
 
 // the death screen: the world stops; rise again, load a save, or back to the title

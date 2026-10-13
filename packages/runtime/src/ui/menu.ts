@@ -3,7 +3,7 @@
 // every thread the world has learned, and whose act taught it) and the chest panel: the chest's
 // grid above the bag, a click moving a stack to the other side.
 
-import type { CodexEntry, CodexView, Frame, ItemInfo, Key, Look, Recipe, Rule, Text, Tree } from '@openworld/engine'
+import type { AiQuality, CodexEntry, CodexView, Frame, ItemInfo, Key, Look, Recipe, Rule, Text, Tree } from '@openworld/engine'
 import { catalog, game, hasModule, ontology, professionById, type ShopDef } from '../game.ts'
 import { personLook } from '../assets/looks.ts'
 import { FH, FW, composeSprite } from '../assets/figure/sprite.ts'
@@ -17,6 +17,7 @@ import { PanelRegistry, type PanelFactory } from './panels.ts'
 import { boonPanel } from './boons.ts'
 import { QuestLog } from './questlog.ts'
 import { SkillPanel } from './skillpanel.ts'
+import { AiOptions } from './quality.ts'
 import { $, SLOT_KEYS, controlsTable, esc, locale, prefs, t, tx } from './common.ts'
 
 export type Tab = 'inventory' | 'craft' | 'options' | 'shop'
@@ -179,10 +180,14 @@ export interface MenuSend {
   track(id: string | undefined): void
   /** The commission board: a favour on it taken on. */
   board(who: string, ref: string): void
+  /** The AI setting changed (the options' AI section): to the engine. */
+  setQuality(q: AiQuality): void
 }
 
 export class Menu {
   tab: Tab = 'inventory'
+  /** The options' AI section: the AI setting, and what the connected model carries. */
+  readonly ai: AiOptions
   library?: LibraryView
   muted = false
   paintIcons?: (items: ItemInfo[]) => void
@@ -210,6 +215,7 @@ export class Menu {
   private picked?: number
 
   constructor(private send: MenuSend) {
+    this.ai = new AiOptions((q) => send.setQuality(q), () => this.menuOpen && this.tab === 'options' && this.render())
     document.body.insertAdjacentHTML(
       'beforeend',
       `<div id="menu" class="overlay hidden"><div class="sheet wood" id="menuSheet"></div></div>
@@ -293,6 +299,7 @@ export class Menu {
     $('#menu').classList.remove('hidden')
     this.picked = undefined
     this.render()
+    if (this.tab === 'options') void this.ai.refresh()
   }
 
   toggle(tab?: Tab): void {
@@ -327,6 +334,7 @@ export class Menu {
     for (const id of ['#menu', '#journal', '#chest', '#skills', '#worldmap', '#profession', '#questlog', '#skillpanel']) $(id).classList.add('hidden')
     this.panels.close()
     this.picked = undefined
+    this.ai.stop()
   }
 
   onFrame(f: Frame): void {
@@ -643,6 +651,7 @@ export class Menu {
       <div class="opt"><span>${t('optTracker')}</span><button id="oTracker">${prefs.get('tracker') ? t('on') : t('off')}</button></div>
       <div class="opt"><span>${t('optMarkers')}</span><button id="oMarkers">${prefs.get('markers') ? t('on') : t('off')}</button></div>
       <div class="opt"><button id="oSave">${t('save')}</button><button id="oNew">${t('toTitle')}</button>${import.meta.env.DEV ? `<button id="oDev">${t('devConsole')}</button>` : ''}</div>
+      ${this.ai.html()}
       <h4>${t('controls')}</h4>${controlsTable(import.meta.env.DEV)}
     </div>`
   }
@@ -656,6 +665,7 @@ export class Menu {
     // back to the cover (saved first): new games and other slots start there
     $('#oNew').onclick = () => (this.close(), this.send.newGame())
     document.querySelector<HTMLButtonElement>('#oDev')?.addEventListener('click', () => (this.close(), this.send.devConsole?.()))
+    this.ai.wire($('#menuSheet'))
   }
 
   // ---------------------------------------------------------------- the journal: the objective and the Threadbook

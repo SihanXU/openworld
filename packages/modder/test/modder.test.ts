@@ -1043,7 +1043,7 @@ describe('the router: local, then find, then create', () => {
     // two green slimes offered a stone: one tree (the type's, at this hole), so one lane; a wolf's is another
     const again = request()
     expect(laneOf(again)).toBe(laneOf(request()))
-    expect(laneOf(again)).toBe(`${SLIME}|impulse/offered|core/offered`)
+    expect(laneOf(again)).toBe(`${SLIME}|impulse/offered|core/offered|medium`) // one lane per tree: per tier too
     expect(laneOf(request('actor/creature/beast/wolf'))).not.toBe(laneOf(again))
     const replies = await Promise.all([modder.resolve({ request: request() }), modder.resolve({ request: again })])
     expect(replies.map((r) => r.outcome).sort()).toEqual(['accepted', 'covered'])
