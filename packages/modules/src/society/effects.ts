@@ -59,22 +59,25 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
       return
     }
     case 'moveIn': {
-      // the host, asked by one it holds in full regard, comes to live on their home ground (a bed free there): its days
-      // there from now on (NpcData.resident), and it goes at once; with no bed free it says so
+      // the host, asked by one it holds in full regard (the residence's `at`), comes to live on their home ground (a bed
+      // free there): its days there from now on (NpcData.resident, the residence's `days`), and it goes at once — no
+      // longer following anyone; with no bed free it says so. Below that regard, or living there already: no change
       const r = s.params.residence
-      if (!host?.npc || !r || !actor) return
+      if (!host?.npc || !r || !actor || host.npc.resident?.map === r.map || s.regard(host, actor.id) < r.at) return
       const bed = s.residenceBeds().find((b) => !b.who)
       if (!bed) return void w.fx.push({ t: 'say', who: host.id, text: r.full })
       host.npc.resident = {
         map: r.map,
         slot: bed.anchor,
-        schedule: [
-          { from: 21, to: 7, map: r.map, x: bed.at[0], y: bed.at[1], activity: 'sleep' },
-          { from: 7, to: 21, map: r.map, x: bed.day[0], y: bed.day[1], activity: 'live' },
-        ],
+        schedule: r.days.map((d) => {
+          const [x, y] = d.at === 'bed' ? bed.at : bed.day
+          return { from: d.from, to: d.to, map: r.map, x, y, activity: d.activity }
+        }),
       }
       host.npc.home = { map: r.map, x: bed.at[0], y: bed.at[1] }
       host.npc.override = undefined
+      w.setProp(host, 'follow', undefined)
+      w.setProp(host, 'waiting', undefined)
       w.setProp(host, 'resident', r.map)
       w.fx.push({ t: 'say', who: host.id, text: r.yes, mood: 'happy' })
       eng.travel(host, { map: r.map, x: bed.day[0], y: bed.day[1] })
