@@ -11,7 +11,7 @@ const HERE = fileURLToPath(new URL('.', import.meta.url))
 const OUT = join(HERE, '..', 'schema')
 
 /** Each kind of project file, and the type its file is (a list of one, for the rules). */
-export const SCHEMAS = { game: 'GameJson', ontology: 'OntologyPart', rules: 'RuleFile', map: 'MapFile', person: 'PersonFile', quest: 'QuestFile', story: 'StoryFile', learned: 'LearnedFile' } as const
+export const SCHEMAS = { game: 'GameJson', ontology: 'OntologyPart', rules: 'RuleFile', map: 'MapFile', person: 'PersonFile', quest: 'QuestFile', story: 'StoryFile', learned: 'LearnedFile', locale: 'LocaleFile' } as const
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   mkdirSync(OUT, { recursive: true })

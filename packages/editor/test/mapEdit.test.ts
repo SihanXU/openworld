@@ -1,0 +1,184 @@
+// The map's edits (src/app/mapEdit.ts, docs/engine-split.md §16 E1): shapes, a flood fill, a block copied and
+// pasted with what its things hold, a building and a room as the builder lays them, an interior behind a door, a
+// map duplicated — each as the compiler then takes it.
+
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { describe, expect, it } from 'vitest'
+import type { RawChunk } from '@openworld/engine'
+import { readProject } from '@openworld/format/src/node.ts'
+import { brushCells, clearBlock, copyBlock, copyThing, duplicateMap, ellipseCells, floodCells, idsOf, interiorBehind, moveBlock, moveThing, paint, pasteBlock, rectCells, removeStamp, removeThings, room, stampAt, stampBuilding, valueAt } from '../src/app/mapEdit.ts'
+import { Store } from '../src/app/store.ts'
+
+const STARTER = fileURLToPath(new URL('../../../games/starter', import.meta.url))
+
+const blank = (w: number, h: number, c = '.'): RawChunk => ({ map: { id: 'm', name: 'M', kind: 'wild', width: w, height: h, rows: Array.from({ length: h }, () => c.repeat(w)), portals: [] }, entities: [] })
+
+describe('shapes', () => {
+  it('a brush is a square about its cell; a rectangle and an ellipse fill their box', () => {
+    expect(brushCells({ x: 5, y: 5 }, 1)).toEqual([{ x: 5, y: 5 }])
+    expect(brushCells({ x: 5, y: 5 }, 3)).toHaveLength(9)
+    expect(brushCells({ x: 5, y: 5 }, 3)[0]).toEqual({ x: 4, y: 4 })
+    expect(rectCells({ x: 3, y: 1 }, { x: 1, y: 2 })).toHaveLength(6)
+    const e = ellipseCells({ x: 0, y: 0 }, { x: 6, y: 4 })
+    // the corners are out, the middle row whole
+    expect(e.some((c) => c.x === 0 && c.y === 0)).toBe(false)
+    expect(e.filter((c) => c.y === 2)).toHaveLength(7)
+    expect(ellipseCells({ x: 2, y: 2 }, { x: 2, y: 2 })).toEqual([{ x: 2, y: 2 }])
+  })
+
+  it('fills what is joined by its sides, and paints the ground or the height (heights dropped when all 0)', () => {
+    const c = blank(6, 4)
+    paint(c, 'ground', rectCells({ x: 2, y: 0 }, { x: 2, y: 3 }), 'X')
+    const left = floodCells(c, 'ground', { x: 0, y: 0 })
+    expect(left).toHaveLength(8)
+    paint(c, 'ground', left, '~')
+    expect(c.map.rows).toEqual(['~~X...', '~~X...', '~~X...', '~~X...'])
+    paint(c, 'height', [{ x: 4, y: 1 }], '2')
+    expect(valueAt(c, 'height', { x: 4, y: 1 })).toBe('2')
+    expect(floodCells(c, 'height', { x: 0, y: 0 })).toHaveLength(23)
+    paint(c, 'height', [{ x: 4, y: 1 }], '0')
+    expect(c.map.heights).toBeUndefined()
+    // off the map: left alone
+    paint(c, 'ground', [{ x: -1, y: 0 }, { x: 9, y: 9 }], 'X')
+    expect(c.map.rows[0]).toBe('~~X...')
+  })
+})
+
+describe('blocks and things', () => {
+  const chest = (c: RawChunk) => {
+    c.entities.push({ id: 'm.chest1', type: 'fixture/container/chest', place: { on: 'tile', map: 'm', x: 1, y: 1 } })
+    c.entities.push({ id: 'm.axe1', type: 'item/tool/axe', place: { on: 'inside', holder: 'm.chest1' } })
+    c.entities.push({ id: 'm.slime1', type: 'actor/creature/slime', place: { on: 'tile', map: 'm', x: 3, y: 3 }, ai: { behaviour: 'melee', temper: 'wary', sight: 4, home: { map: 'm', x: 3, y: 3 }, leash: 6 } })
+    return c
+  }
+
+  it('copies a block with its things and what they hold, and pastes it anew elsewhere', () => {
+    const c = chest(blank(10, 6))
+    paint(c, 'ground', [{ x: 1, y: 1 }], 'f')
+    const b = copyBlock(c, { x: 0, y: 0, w: 3, h: 3 })
+    expect(b.rows).toEqual(['...', '.f.', '...'])
+    expect(b.entities.map((e) => e.id)).toEqual(['m.chest1', 'm.axe1'])
+    const taken = idsOf([c])
+    const made = pasteBlock(c, b, { x: 6, y: 2 }, taken)
+    expect(made).toEqual(['m.chest2', 'm.axe2'])
+    expect(c.map.rows[3][7]).toBe('f')
+    const copy = c.entities.find((e) => e.id === 'm.chest2')!
+    expect(copy.place).toEqual({ on: 'tile', map: 'm', x: 7, y: 3 })
+    expect(c.entities.find((e) => e.id === 'm.axe2')!.place).toEqual({ on: 'inside', holder: 'm.chest2' })
+    // the original stays as it was
+    expect(c.entities.find((e) => e.id === 'm.chest1')!.place).toMatchObject({ x: 1, y: 1 })
+  })
+
+  it('leaves out what falls off the map, and what such a thing held', () => {
+    const c = chest(blank(10, 6))
+    const b = copyBlock(c, { x: 0, y: 0, w: 4, h: 4 })
+    const made = pasteBlock(c, b, { x: 9, y: 5 }, idsOf([c]))
+    expect(made).toEqual([])
+    expect(c.map.rows[5]).toBe('..........')
+  })
+
+  it('moves a thing with its home, removes one with what it holds, clears a box', () => {
+    const c = chest(blank(10, 6))
+    expect(moveThing(c, 'm.slime1', { x: 5, y: 4 })).toBe(true)
+    expect(c.entities.find((e) => e.id === 'm.slime1')!.ai!.home).toEqual({ map: 'm', x: 5, y: 4 })
+    expect(moveThing(c, 'm.slime1', { x: 50, y: 4 })).toBe(false)
+    expect(removeThings(c, ['m.chest1'])).toBe(2)
+    expect(c.entities.map((e) => e.id)).toEqual(['m.slime1'])
+    const d = chest(blank(10, 6))
+    clearBlock(d, { x: 0, y: 0, w: 2, h: 2 }, '~')
+    expect(d.entities.map((e) => e.id)).toEqual(['m.slime1'])
+    expect(d.map.rows[0].slice(0, 3)).toBe('~~.')
+  })
+})
+
+describe('buildings, rooms and interiors', () => {
+  const chars = { '.': 'grass', X: 'wall', D: 'door', f: 'floor' }
+  const house = { tw: 4, th: 3, grid: ['####', '####', '#D##'] }
+
+  it('stamps a building as the builder does: its picture, its walls, its door', () => {
+    const c = blank(10, 8)
+    const door = stampBuilding(c, 'house_red', house, { x: 2, y: 1 }, chars)
+    expect(door).toEqual({ x: 3, y: 3 })
+    expect(c.map.stamps).toEqual([{ key: 'house_red', x: 2, y: 1 }])
+    expect(c.map.rows.slice(1, 4)).toEqual(['..XXXX....', '..XXXX....', '..XDXX....'])
+    expect(stampAt(c, { house_red: house }, { x: 5, y: 2 })).toBe(0)
+    expect(stampAt(c, { house_red: house }, { x: 6, y: 2 })).toBeUndefined()
+    removeStamp(c, { house_red: house }, 0, '.')
+    expect(c.map.stamps).toBeUndefined()
+    expect(c.map.rows.every((r) => r === '..........')).toBe(true)
+    expect(() => stampBuilding(c, 'h', house, { x: 0, y: 0 }, { '.': 'grass' })).toThrow(/wall/)
+  })
+
+  it('copies a building with its block, and moves a block with its things, building, portal and anchor', () => {
+    const prefabs = { house_red: house }
+    const c = blank(12, 8)
+    const door = stampBuilding(c, 'house_red', house, { x: 1, y: 1 }, chars)!
+    c.map.portals.push({ x: door.x, y: door.y, to: 'in', tx: 1, ty: 1 })
+    c.map.anchors = { porch: [2, 4] }
+    c.entities.push({ id: 'm.sign1', type: 'fixture/sign', place: { on: 'tile', map: 'm', x: 3, y: 4 } })
+    const b = copyBlock(c, { x: 0, y: 0, w: 6, h: 5 }, prefabs)
+    expect(b.stamps).toEqual([{ key: 'house_red', x: 1, y: 1 }])
+    pasteBlock(c, b, { x: 6, y: 3 }, idsOf([c]), prefabs)
+    // the house fits there (its box 7..10, 4..6); its door, but no portal (a copy leads nowhere yet)
+    expect(c.map.stamps).toEqual([{ key: 'house_red', x: 1, y: 1 }, { key: 'house_red', x: 7, y: 4 }])
+    expect(c.map.rows[6].slice(7, 11)).toBe('XDXX')
+    expect(c.map.portals).toHaveLength(1)
+    // a move keeps the ids, takes the portal and the anchor, leaves the ground given
+    const d = blank(12, 8)
+    stampBuilding(d, 'house_red', house, { x: 1, y: 1 }, chars)
+    d.map.portals.push({ x: 2, y: 3, to: 'in', tx: 1, ty: 1 })
+    d.map.anchors = { porch: [2, 4] }
+    d.entities.push({ id: 'm.sign1', type: 'fixture/sign', place: { on: 'tile', map: 'm', x: 3, y: 4 } })
+    const now = moveBlock(d, { x: 0, y: 0, w: 6, h: 5 }, { x: 5, y: 2 }, '.', prefabs)
+    expect(now).toEqual({ x: 5, y: 2, w: 6, h: 5 })
+    expect(d.map.stamps).toEqual([{ key: 'house_red', x: 6, y: 3 }])
+    expect(d.map.portals[0]).toMatchObject({ x: 7, y: 5 })
+    expect(d.map.anchors.porch).toEqual([7, 6])
+    expect(d.entities[0]).toMatchObject({ id: 'm.sign1', place: { x: 8, y: 6 } })
+    expect(d.map.rows[1]).toBe('............')
+    expect(d.map.rows[5].slice(6, 10)).toBe('XDXX')
+    // a block of one thing leaves the ground
+    const t = copyThing(d, 'm.sign1')!
+    pasteBlock(d, t, { x: 0, y: 0 }, idsOf([d]))
+    expect(d.entities.map((e) => e.id)).toEqual(['m.sign1', 'm.sign2'])
+    expect(d.map.rows[0]).toBe('............')
+  })
+
+  it('lays a room: walls in a frame, a floor, its doorways', () => {
+    const c = blank(8, 6)
+    room(c, 'wood', { x: 1, y: 1, w: 5, h: 4 }, chars, 'f', [{ x: 3, y: 4 }])
+    expect(c.map.rows.slice(1, 5)).toEqual(['.XXXXX..', '.XfffX..', '.XfffX..', '.XXDXX..'])
+    expect(c.map.rooms).toEqual([{ style: 'wood', x: 1, y: 1, w: 5, h: 4 }])
+  })
+
+  it('makes the interior behind a door, with a portal each way', () => {
+    const c = blank(10, 8)
+    const door = stampBuilding(c, 'house_red', house, { x: 2, y: 1 }, chars)!
+    const inner = interiorBehind(c, door, { id: 'm_house', name: 'The House', w: 8, h: 6, style: 'wood', floor: 'floor' }, chars)
+    expect(inner.map.rows).toEqual(['XXXXXXXX', 'XffffffX', 'XffffffX', 'XffffffX', 'XffffffX', 'XXXXDXXX'])
+    expect(inner.map.portals).toEqual([{ x: 4, y: 5, to: 'm', tx: 3, ty: 4, label: 'M' }])
+    expect(c.map.portals).toEqual([{ x: 3, y: 3, to: 'm_house', tx: 4, ty: 4, label: 'The House' }])
+    expect(inner.map).toMatchObject({ kind: 'interior', light: 'indoor', zone: 'peaceful', rooms: [{ style: 'wood', x: 0, y: 0, w: 8, h: 6 }] })
+  })
+})
+
+describe.skipIf(!existsSync(STARTER))('on the starter, compiled', () => {
+  it('a village drawn with the tools compiles with no new problem: a building, its interior, a duplicated map', () => {
+    const s = new Store('starter', readProject(STARTER))
+    const before = s.compiled().problems.length
+    const chars = s.game.terrainChars
+    let door
+    s.change<RawChunk>('maps/glade.json', 'a house', (c) => (door = stampBuilding(c, 'house_red', { tw: 4, th: 3, grid: ['####', '####', '#D##'] }, { x: 2, y: 10 }, chars)))
+    s.change<RawChunk>('maps/glade.json', 'its inside', (c) => s.add('maps/glade_house.json', interiorBehind(c, door!, { id: 'glade_house', name: { en: 'The House', zh: '房子' }, w: 7, h: 5, style: 'wood', floor: 'floor' }, chars), 'a new map'))
+    const taken = idsOf(s.maps().map((m) => m.data))
+    s.add('maps/glade2.json', duplicateMap(s.get<RawChunk>('maps/glade.json')!, 'glade2', 'The Glade again', taken), 'a copy')
+    const c = s.compiled()
+    expect(c.problems.filter((p) => p.level === 'error')).toEqual([])
+    expect(c.problems.length).toBe(before)
+    expect(c.chunks.map((x) => x.map.id)).toEqual(expect.arrayContaining(['glade_house', 'glade2']))
+    const copy = c.chunks.find((x) => x.map.id === 'glade2')!
+    expect(copy.entities.every((e) => e.id.startsWith('glade2.'))).toBe(true)
+    expect(copy.entities.find((e) => e.type === 'item/tool/axe')!.place).toEqual({ on: 'inside', holder: copy.entities.find((e) => e.type === 'fixture/container/chest')!.id })
+  })
+})

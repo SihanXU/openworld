@@ -37,6 +37,7 @@ export function readProject(root: string): Project {
     ...(existsSync(join(root, 'catalog.json')) && { catalog: readJson(join(root, 'catalog.json')) }),
     client: files(root, 'client'),
     learned: files(root, 'learned'),
+    locales: files(root, 'locales'),
     // what the world's index carries beyond the format's own (a module's data: the bosses, the codex's entries)
     ...(existsSync(join(root, 'extra.json')) && { extra: readJson(join(root, 'extra.json')) }),
   }

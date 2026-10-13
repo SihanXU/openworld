@@ -104,7 +104,7 @@ export interface ClientGame extends GameDef {
   summon?(kit: string, at: Pos, id: string): { body: Entity; say?: Text }
   dev?: { shortcuts: DevShortcut[] }
   /** The interface's words the game says its own way, by the runtime's key (ui/common.ts STRINGS): a module's panel speaking of the game's people and places. */
-  texts?: Record<string, { en: string; zh?: string }>
+  texts?: Record<string, Text>
   items: {
     forms: Record<string, FormInfo>
     materials: Record<string, Words>

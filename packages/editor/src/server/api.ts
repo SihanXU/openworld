@@ -21,7 +21,7 @@ import { Workspace, WorkspaceError, type ProjectInfo } from './workspace.ts'
 export type { ProjectInfo }
 
 /** The files of a project the editor may write: game.json, catalog.json, extra.json, and a JSON file in one of the format's folders. */
-const WRITABLE = /^(game\.json|catalog\.json|extra\.json|(ontology|rules|maps|people|quests|story|client|learned)\/[A-Za-z0-9._-]+\.json)$/
+const WRITABLE = /^(game\.json|catalog\.json|extra\.json|(ontology|rules|maps|people|quests|story|client|learned|locales)\/[A-Za-z0-9._-]+\.json)$/
 
 export { HEADER }
 
@@ -83,7 +83,7 @@ export class ProjectsApi {
   }
 
   /** A new project from a template (the first: the starter), in a folder (default: the editor's projects folder). */
-  create(o: { template?: string; id: string; name: ProjectInfo['name']; folder?: string; dirName?: string }): ProjectInfo {
+  create(o: { template?: string; id: string; name: ProjectInfo['name']; folder?: string; dirName?: string; source?: string }): ProjectInfo {
     return this.ws.create(o)
   }
 
@@ -143,6 +143,8 @@ export class ProjectsApi {
       }
       const body = async () => { const s = (await raw()).toString('utf8'); return s ? JSON.parse(s) : {} }
       if (parts[0] === 'workspace' && req.method === 'GET') return send(200, this.workspace())
+      if (parts[0] === 'settings' && req.method === 'GET') return send(200, this.ws.settings())
+      if (parts[0] === 'settings' && req.method === 'PUT') return send(200, this.ws.saveSettings(await body()))
       if (parts[0] === 'fs' && req.method === 'GET') return send(200, this.ws.browse(url.searchParams.get('path') ?? undefined))
       if (parts[0] === 'pack' && req.method === 'GET') return send(200, packFiles(this.o.pack))
       if (parts[0] !== 'projects') return send(404, { error: 'no such call' })

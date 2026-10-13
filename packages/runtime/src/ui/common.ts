@@ -10,9 +10,11 @@ export const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: Parent
 export const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
 export const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
-/** The player's language, remembered between visits. */
+/** The player's language, remembered between visits (a page asked for one, `?lang=`, is in it and remembers nothing: the editor's playtest in its preview language). */
 export const locale = {
   value: ((): Locale => {
+    const asked = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('lang')
+    if (asked === 'en' || asked === 'zh') return asked
     try {
       return (localStorage.getItem('lsw.locale') as Locale) || 'en'
     } catch {
@@ -270,7 +272,7 @@ export function t(k: string): string {
 /** What the game itself says for a key (ClientGame.texts), if it says anything: words only a game has (a tier's lore). */
 export function gameText(k: string): string | undefined {
   const own = gameIfAny()?.texts?.[k]
-  return own && (locale.value === 'zh' ? (own.zh ?? own.en) : own.en)
+  return own === undefined ? undefined : typeof own === 'string' ? own : locale.value === 'zh' ? (own.zh ?? own.en) : own.en
 }
 
 export const MOOD_GLYPH: Record<string, string> = { happy: '♥', sad: '…', angry: '!!', surprised: '!', shy: '♡', neutral: '…' }

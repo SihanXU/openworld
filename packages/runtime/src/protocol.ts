@@ -7,7 +7,7 @@ export type Tile = Aim
 
 export type ToWorker =
   | { t: 'skipLearning' }
-  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any */ modder?: string; /** true: prefetch undefined acts the pointer rests on (?prefetch=1; off by default) */ prefetch?: boolean; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look; /** a new game begun at this cell instead of a start (the editor's playtest) */ at?: Pos }
+  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any */ modder?: string; /** true: prefetch undefined acts the pointer rests on (?prefetch=1; off by default) */ prefetch?: boolean; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look; /** a new game begun at this cell instead of a start (the editor's playtest) */ at?: Pos; /** a step of the story begun at once in a new game (the editor's "play from this scene") */ scene?: string }
   /** The one at the keys, fallen, rises again: where they fell, or at home (the death screen). */
   | { t: 'respawn'; home: boolean }
   /** Hold a direction (null: stop); `walk`: Shift, slower than the default run. */

@@ -43,6 +43,8 @@ export interface PixelArt {
 export interface TypeDef {
   id: string
   name?: Text
+  /** The one thing this kind was made for (the editor's "its own kind", docs/engine-split.md §16 E-b): rules on it are that thing's alone. The engine reads nothing from it. */
+  own?: Id
   /** Tags inherited by every instance (instances may add more). */
   tags?: string[]
   /** Default properties (instances may override). */

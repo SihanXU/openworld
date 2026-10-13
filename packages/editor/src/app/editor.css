@@ -25,10 +25,10 @@ a.x { color: var(--ed-muted); margin-left: 6px; }
 a.on { color: var(--ed-accent); font-weight: 600; }
 
 .home { max-width: 860px; margin: 40px auto; padding: 0 20px; }
-.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
-.card { display: block; padding: 14px; background: var(--ed-panel); border: 1px solid var(--ed-line); border-radius: 8px; color: var(--ed-ink); text-decoration: none; }
-.card:hover { border-color: var(--ed-accent); }
-.card small { display: block; color: var(--ed-muted); margin-top: 4px; }
+.pcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.pcard { display: block; padding: 14px; background: var(--ed-panel); border: 1px solid var(--ed-line); border-radius: 8px; color: var(--ed-ink); text-decoration: none; }
+.pcard:hover { border-color: var(--ed-accent); }
+.pcard small { display: block; color: var(--ed-muted); margin-top: 4px; }
 
 .editor { position: fixed; inset: 0; display: grid; grid-template: 'top top top' 40px 'left canvas right' 1fr 'bottom bottom bottom' auto / 250px 1fr 320px; }
 .editor header { grid-area: top; display: flex; align-items: center; gap: 8px; padding: 0 10px; background: var(--ed-panel); border-bottom: 1px solid var(--ed-line); }
@@ -92,9 +92,9 @@ summary { cursor: pointer; color: var(--ed-accent); }
 .home h2 { margin-top: 28px; font-size: 15px; }
 .home-actions { display: flex; gap: 8px; margin: 18px 0 6px; }
 .home-actions button { padding: 8px 16px; font-size: 14px; }
-.card { cursor: pointer; position: relative; overflow: hidden; text-align: left; }
-.card small.path { font-family: ui-monospace, monospace; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.card.missing { opacity: 0.6; cursor: default; }
+.pcard { cursor: pointer; position: relative; overflow: hidden; text-align: left; }
+.pcard small.path { font-family: ui-monospace, monospace; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pcard.missing { opacity: 0.6; cursor: default; }
 .modal-back { position: fixed; inset: 0; background: #0009; display: flex; align-items: flex-start; justify-content: center; z-index: 50; padding-top: 8vh; }
 .modal { background: var(--ed-panel); border: 1px solid var(--ed-line); border-radius: 8px; width: min(460px, 94vw); max-height: 84vh; display: flex; flex-direction: column; box-shadow: 0 12px 40px #000a; }
 .modal.wide { width: min(720px, 94vw); }
@@ -151,9 +151,83 @@ label.mod small { display: block; color: var(--ed-muted); margin-top: 3px; }
 table.params td:first-child { width: 60%; padding: 5px 8px 5px 0; }
 table.params input { width: 140px; } table.params input.wide { width: 260px; }
 table.words td:first-child { width: 45%; padding: 4px 8px 4px 0; vertical-align: top; }
-table.words input { width: 48%; margin-right: 2%; }
+table.words input { width: 100%; }
 pre.json { background: #0f121a; border: 1px solid var(--ed-line); border-radius: 4px; padding: 6px 8px; max-height: 32vh; overflow: auto; font-size: 11px; }
 .factions { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
 .faction .row { margin-bottom: 6px; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
 label.chip { display: inline-flex; align-items: center; gap: 4px; margin: 0; color: var(--ed-ink); }
+
+/* the map (§16 E1): layers, palettes with pictures, the status bar, the map tree, the world overview */
+.layers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-bottom: 6px; }
+.layers button { padding: 4px 2px; font-weight: 600; }
+p.hint { font-size: 11px; margin: 4px 0 2px; min-height: 2.6em; }
+p.pasting { background: #173a3a; border: 1px solid #2b6b6b; border-radius: 4px; padding: 4px 6px; font-size: 12px; }
+.palette.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 3px; flex-direction: unset; }
+.palette.grid button.pic { flex-direction: column; justify-content: flex-start; padding: 3px 2px; gap: 2px; text-align: center; }
+.palette.grid button.pic small { margin: 0; font-size: 10px; line-height: 1.15; word-break: break-word; }
+.palette.grid canvas { image-rendering: pixelated; border-radius: 3px; }
+.palette.row.inline { display: inline-flex; gap: 2px; }
+.palette.row.inline button { padding: 2px 8px; }
+.things-pal { max-height: 46vh; }
+.things-pal details { margin: 2px 0; }
+#statusbar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 3px; padding: 3px 8px; background: #10131bdd; border-top: 1px solid var(--ed-line); font-size: 12px; z-index: 2; }
+#statusbar button { padding: 1px 7px; font-size: 11px; }
+#statusbar .sep { width: 8px; }
+#statusbar code { padding: 0 3px; }
+#center:not(.hidden) ~ #statusbar { display: none; }
+.maps .maprow { display: flex; align-items: center; gap: 6px; }
+.maps .maprow span { display: flex; flex-direction: column; text-align: left; flex: 1; min-width: 0; }
+.maps .maprow small { margin-left: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+canvas.mini { width: 40px; height: 28px; object-fit: contain; image-rendering: pixelated; background: #0f121a; border-radius: 2px; flex: 0 0 40px; }
+details.group > summary { font-size: 12px; margin: 4px 0; }
+.overview-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.overview-head h3 { margin: 0; }
+#ovCanvas { image-rendering: pixelated; cursor: pointer; border: 1px solid var(--ed-line); border-radius: 4px; }
+.box.appear .row { margin-bottom: 4px; }
+.box.appear table.sched input:not([type=number]) { width: 100%; }
+
+/* OpenWorld's events (§16 E2): conditions, triggers, scene commands, the line as the game shows it, quick events */
+.conds { display: flex; flex-direction: column; gap: 4px; }
+.cond { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding: 4px 6px; background: #161a26; border: 1px solid var(--ed-line); border-radius: 5px; }
+.cond .lbl { color: var(--ed-accent); font-size: 12px; min-width: 110px; }
+.cond .rows { flex: 1 1 100%; }
+.rows { display: flex; flex-direction: column; gap: 3px; }
+.row.add select, .row.add input { opacity: 0.85; }
+.trig { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.trigline { margin: 4px 0; }
+.nest { flex: 1 1 100%; margin-left: 14px; padding-left: 8px; border-left: 2px solid var(--ed-line); display: flex; flex-direction: column; gap: 3px; }
+.cmdcard { background: #161a26; border: 1px solid var(--ed-line); border-radius: 6px; padding: 6px 8px; margin: 6px 0; }
+.cmdcard .row { flex-wrap: wrap; }
+.cmdcard.stage { border-left: 3px solid var(--ed-accent); }
+input.words, textarea.words { width: 100%; }
+textarea.words { font-family: inherit; font-size: 13px; }
+input.wide { width: 100%; }
+textarea.json { font-size: 11px; }
+.preview .dialog.line-preview { position: relative; left: auto; bottom: auto; transform: none; width: auto; margin: 6px 0 2px; min-height: 92px; }
+.preview .dialog.line-preview.bust { padding-left: 150px; }
+.preview .dialog.line-preview .face.bust { width: 170px; height: 170px; left: -20px; }
+.preview .dialog.line-preview .face.bust canvas { width: 170px; height: 170px; }
+table.facts { width: 100%; border-collapse: collapse; }
+table.facts td { padding: 2px 4px; }
+.tools.quick { grid-template-columns: 1fr 1fr; margin-bottom: 6px; }
+
+/* the Localization mode (§19): a row a source text, its translation, its state */
+.lc-bar { height: 4px; background: var(--ed-line); border-radius: 2px; margin: 0 0 10px; }
+.lc-bar div { height: 100%; background: #7ee08a; border-radius: 2px; }
+.lc-rows { display: flex; flex-direction: column; gap: 4px; }
+.lc-row { display: grid; grid-template-columns: 1fr 1fr 120px; gap: 10px; padding: 6px 8px; background: var(--ed-panel); border: 1px solid var(--ed-line); border-left: 3px solid var(--ed-line); border-radius: 5px; }
+.lc-row.missing { border-left-color: var(--ed-warn); }
+.lc-row.review { border-left-color: #6fb3ff; }
+.lc-row.done { border-left-color: #7ee08a; }
+.lc-src div { white-space: pre-wrap; }
+.lc-src small a { cursor: pointer; }
+.lc-tr textarea { width: 100%; font-family: inherit; font-size: 13px; }
+.lc-tr small { display: block; }
+.lc-sug a { cursor: pointer; text-decoration: underline dotted; }
+.lc-own { display: block; margin: 2px 0; }
+.lc-own input { width: 100%; }
+.lc-state { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.chip.missing { color: var(--ed-warn); }
+.chip.review { color: #6fb3ff; }
+.chip.done { color: #7ee08a; }

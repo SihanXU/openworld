@@ -1,11 +1,19 @@
 // Small DOM helpers for the editor's panels.
 
 import type { Text } from '@openworld/engine'
+import { tx } from './words.ts'
 
 export const esc = (s: unknown): string => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
-/** A text in the editor's language (English, with the Chinese beside it where there is one). */
-export const tx = (t: Text | undefined): string => (t === undefined ? '' : typeof t === 'string' ? t : t.zh && t.zh !== t.en ? `${t.en} · ${t.zh}` : t.en)
+export { t } from './lang.ts'
+export { tx } from './words.ts'
+
+/** A field for a game's text: its words in the game's source language (words.ts), the one field there is. */
+export function textField(attrs: string, text: Text | undefined, o: { area?: boolean; rows?: number; placeholder?: string } = {}): string {
+  const v = tx(text)
+  const ph = o.placeholder ? ` placeholder="${esc(o.placeholder)}"` : ''
+  return o.area ? `<textarea ${attrs} rows="${o.rows ?? 2}"${ph}>${esc(v)}</textarea>` : `<input ${attrs} value="${esc(v)}"${ph}>`
+}
 
 /** An element from HTML (the first). */
 export function html<T extends HTMLElement = HTMLElement>(s: string): T {
@@ -30,11 +38,6 @@ export function parseValue(s: string): unknown {
     return s
   }
 }
-
-/** A bilingual text from two fields (a plain string when only one is given). */
-export const textOf = (en: string, zh: string): Text => (zh.trim() ? { en: en.trim(), zh: zh.trim() } : en.trim())
-export const enOf = (t: Text | undefined): string => (t === undefined ? '' : typeof t === 'string' ? t : t.en)
-export const zhOf = (t: Text | undefined): string => (t === undefined || typeof t === 'string' ? '' : t.zh ?? '')
 
 /** A short note at the foot of the window. */
 export function toast(msg: string, tone: 'ok' | 'warn' | 'error' = 'ok'): void {
