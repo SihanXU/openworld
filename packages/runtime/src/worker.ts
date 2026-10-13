@@ -303,28 +303,74 @@ function keyViews(): Frame['keys'] {
     if (fw <= 1 && fd <= 1) return undefined
     return [t.place.x - Math.floor((fw - 1) / 2), t.place.y - fd + 1, fw, fd]
   }
-  const view = (pl: Plan | undefined): KeyView | undefined => pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(pl.sets && { sets: true }), ...(pl.steal && { steal: true }), ...(rect(pl) && { rect: rect(pl) }) }
+  // someone to talk to (the pointer becomes a speech bubble over them)
+  const person = (pl: Plan) => {
+    const t = w.get(pl.target.e)
+    return !!t && t.id !== w.state.player && w.isAgent(t) && (w.hasTag(t, 'person') || w.hasTag(t, 'companion'))
+  }
+  const view = (pl: Plan | undefined): KeyView | undefined =>
+    pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(pl.sets && { sets: true }), ...(pl.steal && { steal: true }), ...(c.ground(pl.target) && { ground: true }), ...(person(pl) && { person: true }), ...(rect(pl) && { rect: rect(pl) }) }
   // standing still, one turns to the spot beside one that the pointer is on (the input's own posture):
   // a person one points at sees one face them, and waits (npc.ts, attended)
   const stand = w.posOf(w.player)
   if (!moveDir && stand && aimTile && Math.abs(aimTile.x - stand.x) + Math.abs(aimTile.y - stand.y) === 1) c.face({ ...stand, x: aimTile.x, y: aimTile.y })
+  // without the pointer, the keys find what is close by (assisted)
+  assisted = aimTile ? undefined : assist(person)
+  const aim = aimTile ?? assisted
   const out: NonNullable<Frame['keys']> = {}
   for (const k of ['hands', 'take', 'put', 'use'] as Key[]) {
-    const pl = c.plan(k, aimTile, k === 'use' && handUp ? CEILING : 0)
+    const pl = c.plan(k, aim, k === 'use' && handUp ? CEILING : 0)
     shownTarget[k] = pl?.target
     out[k] = view(pl)
   }
   const p = eng.world.player
   const here = eng.world.posOf(p)
   const self = c.plan('self')
-  const aimed = aimTile && c.aim(aimTile)?.at
+  const aimed = aim && c.aim(aim)?.at
   const atSelf = !!aimed && !!here && aimed.x === here.x && aimed.y === here.y
   if (self && (atSelf || (p.held && !self.unknown))) out.self = view(self)
-  const use = c.plan('use', aimTile)
+  const use = c.plan('use', aim)
   // an experiment with something in hand: where its chain reaches an undefined outcome
   noteProbe(use?.unknown && use.instrument && use.verb ? eng.preview(eng.actEvent(use.verb, p.id, use.target, use.instrument)).hole : undefined, use ? `${use.at.x},${use.at.y}` : '')
   return out
 }
+
+const AHEAD: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }
+
+/** The cell the keys act on when the pointer aims at nothing and it is not the one in front (assist). */
+let assisted: Tile | undefined
+
+/**
+ * Without the pointer, the keys find what is close by, as Stardew's action does: what is in front, if anything
+ * but the ground is there; else something beside the player to talk to, open, read or pick up — ahead on
+ * either side first, then on either hand — so a thing walked past stays the one the keys act on for a step or
+ * two. Nothing (the front as ever, and what one stands on) when nothing near answers.
+ */
+function assist(person: (pl: Plan) => boolean): Tile | undefined {
+  const eng = game!.engine
+  const c = eng.controls
+  const w = eng.world
+  const pos = w.posOf(w.player)
+  if (!pos) return undefined
+  const [fx, fy] = AHEAD[w.player.facing ?? 'down']
+  const thing = (pl: Plan | undefined) => !!pl && !c.ground(pl.target)
+  const at = (x: number, y: number) => ({ x: pos.x + x, y: pos.y + y })
+  const front = at(fx, fy)
+  if (thing(c.plan('hands', front)) || thing(c.plan('take', front))) return undefined
+  for (const [x, y] of [[fx - fy, fy + fx], [fx + fy, fy - fx], [-fy, fx], [fy, -fx]]) {
+    const t = at(x, y)
+    const h = c.plan('hands', t)
+    const k = c.plan('take', t)
+    if ((thing(h) && (person(h!) || !h!.unknown)) || (thing(k) && !k!.steal)) return t
+  }
+  return undefined
+}
+
+/** Time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player). */
+const timeStopped = (g: Game) => paused || !!g.engine.world.state.question || !!panel || !!g.mods.asking || !!talk || !!trade || !!pockets
+
+/** What the keys would do now, as a frame says it: nothing while time stands or the player cannot act. */
+const keysNow = (g: Game): Frame['keys'] => (timeStopped(g) || g.engine.busy(g.engine.world.player) ? undefined : keyViews())
 
 /** What each key's label last named: the target a key pressed now acts on, if it still reaches it. */
 const shownTarget: Partial<Record<Key, Ref>> = {}
@@ -450,8 +496,7 @@ function loop(): void {
   if (!asking) asked = undefined
   else if (t0 - asked!.since > (asking.deadline === Number.POSITIVE_INFINITY ? MAKE_MS : ASK_MS)) game.mods.fallback(asking.id)
   peopleOpened(eng)
-  // time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player)
-  const stopped = paused || !!eng.world.state.question || !!panel || !!game.mods.asking || !!talk || !!trade || !!pockets
+  const stopped = timeStopped(game)
   if (!stopped) {
     if (moveDir) eng.movePlayer(moveDir, walk)
     if (attacking) eng.controls.strike()
@@ -491,8 +536,8 @@ function loop(): void {
   if (talk && !frame.talk) talk = undefined
   if (trade && !frame.trade) trade = undefined
   if (pockets && !frame.pockets) pockets = undefined
-  // no labels while the player cannot act (working out an act, down, in a scene)
-  frame.keys = stopped || eng.busy(w.player) ? undefined : keyViews()
+  // nothing while the player cannot act (working out an act, down, in a scene)
+  frame.keys = keysNow(game)
   maybePrefetch()
   lastTickMs = performance.now() - t0
   // the codex: what the player carries and who and what is near (the reader's record, beside the state)
@@ -605,8 +650,12 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'key': {
         if (!game || paused || panel || game.engine.world.state.question) break
         const c = game.engine.controls
+        // without the pointer, what the keys found close by; the player turns to it
+        const tile = m.tile ?? assisted
+        const pos = game.engine.world.posOf(game.engine.world.player)
+        if (!m.tile && assisted && pos) c.face({ ...pos, x: assisted.x, y: assisted.y })
         // the target the key's label named (one who walked a step off since stays it)
-        const plan = c.planFor(m.key, m.tile, m.layer, m.layer ? undefined : shownTarget[m.key])
+        const plan = c.planFor(m.key, tile, m.layer, m.layer ? undefined : shownTarget[m.key])
         // dragged over a cell, the left button only sets things down (never an experiment on what it passes)
         if (!plan || (m.drag && !plan.sets)) break
         const out = c.run(plan)
@@ -659,6 +708,8 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'aim':
         aimTile = m.tile
+        // what the keys would do there, at once: the pointer's mark follows the hand, not the tick
+        if (game) post({ t: 'keys', keys: keysNow(game) })
         break
       case 'answer':
         game?.engine.controls.answer(m.yes)

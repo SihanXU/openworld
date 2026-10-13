@@ -171,10 +171,6 @@
 .objective .ob-title { color: var(--brass-hi); letter-spacing: 0.03em; }
 .msg { background: var(--grain), linear-gradient(180deg, #fff6dd, var(--parch)); border-radius: 8px; border-width: 2px; border-left-width: 5px; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3); animation: msgIn 0.2s ease-out; }
 @keyframes msgIn { from { transform: translateX(-10px); opacity: 0; } to { transform: none; opacity: 1; } }
-.kbox { background: linear-gradient(180deg, rgba(36, 22, 10, 0.72), rgba(36, 22, 10, 0.55)); border: 1px solid rgba(217, 164, 65, 0.4); border-radius: 8px; }
-/* its tail points at the player */
-.kbox::after { content: ''; position: absolute; left: 50%; bottom: -5px; margin-left: -5px; border: 5px solid transparent; border-top-color: rgba(36, 22, 10, 0.55); border-bottom: 0; }
-.keys.below .kbox::after { bottom: auto; top: -5px; border-top: 0; border-bottom: 5px solid rgba(36, 22, 10, 0.72); }
 .mapname { font-size: 34px; letter-spacing: 0.08em; text-shadow: 0 3px 0 #2a1608, 0 0 18px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 200, 120, 0.35); }
 
 /* ------------------------------------------------------------------ the dialogue box */

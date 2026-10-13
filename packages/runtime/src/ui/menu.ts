@@ -184,6 +184,10 @@ export class Menu {
   skillPanel: SkillPanel
   /** The inventory slot picked up by a click (placed by the next click). */
   private picked?: number
+  /** A thing pressed in the bag and being dragged: where the press was, and whether the pointer has moved off it. */
+  private drag?: { x: number; y: number; moved: boolean }
+  /** What is picked up rides on the pointer, as in Stardew's bag. */
+  private carried = document.createElement('div')
 
   constructor(private send: MenuSend) {
     document.body.insertAdjacentHTML(
@@ -218,6 +222,50 @@ export class Menu {
         if (id === 'menu' && this.picked !== undefined) return void (this.send.drop(this.picked, true), (this.picked = undefined), this.render())
         this.close()
       })
+    this.carried.className = 'carried hidden'
+    document.body.appendChild(this.carried)
+    document.addEventListener('mousemove', (e) => this.carry(e))
+    document.addEventListener('mouseup', (e) => this.letGo(e))
+  }
+
+  /** What is picked up follows the pointer; a press dragged a little way off its slot becomes a drag. */
+  private carry(e: MouseEvent): void {
+    if (this.picked === undefined) return
+    this.carried.style.transform = `translate(${e.clientX - 16}px, ${e.clientY - 16}px)`
+    if (this.drag && Math.hypot(e.clientX - this.drag.x, e.clientY - this.drag.y) > 4) this.drag.moved = true
+  }
+
+  /**
+   * A drag let go: on another slot it swaps there, on the body it is put on, out of the bag it is dropped
+   * before the player (Stardew's way); anywhere else in the bag it goes back. A press let go where it was
+   * keeps the thing on the pointer, for the next click to set down.
+   */
+  private letGo(e: MouseEvent): void {
+    const d = this.drag
+    this.drag = undefined
+    if (!d?.moved || this.picked === undefined) return
+    const from = this.picked
+    this.picked = undefined
+    const at = document.elementFromPoint(e.clientX, e.clientY)
+    const slot = at?.closest<HTMLElement>('.inv [data-i]')
+    const wear = at?.closest<HTMLElement>('[data-wear]')
+    const item = this.frame?.player.slots[from]?.item
+    if (slot) Number(slot.dataset.i) !== from && this.send.swap(from, Number(slot.dataset.i))
+    else if (wear) item?.props.slot && this.send.wear(item.id, true)
+    else if (!$('#menuSheet').contains(at)) this.send.drop(from, true)
+    this.render()
+  }
+
+  /** The thing picked up, drawn on the pointer while the bag is open. */
+  private showCarried(): void {
+    const s = this.picked !== undefined && this.menuOpen && this.tab === 'inventory' ? this.frame?.player.slots[this.picked] : undefined
+    this.carried.classList.toggle('hidden', !s)
+    if (!s) return void delete this.carried.dataset.item
+    const sig = `${s.item.id}|${s.count}`
+    if (this.carried.dataset.item === sig) return
+    this.carried.dataset.item = sig
+    this.carried.innerHTML = `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}`
+    this.paintIcons?.([s.item])
   }
 
   get menuOpen(): boolean {
@@ -290,6 +338,8 @@ export class Menu {
     if (this.chestOpen) this.send.closePanel()
     for (const id of ['#menu', '#journal', '#chest', '#skills', '#worldmap', '#profession', '#homestead', '#boons', '#questlog', '#skillpanel']) $(id).classList.add('hidden')
     this.picked = undefined
+    this.drag = undefined
+    this.showCarried()
   }
 
   onFrame(f: Frame): void {
@@ -391,6 +441,7 @@ export class Menu {
         this.paintIcons?.(infos)
       }
     }
+    this.showCarried()
   }
 
   /** The player's portrait in the character sheet (the anime bust; the sprite's head while its layers come). */
@@ -494,12 +545,19 @@ export class Menu {
     })
     $('#menuSheet').querySelectorAll<HTMLElement>('.inv [data-i]').forEach((el) => {
       const i = Number(el.dataset.i)
-      el.onclick = (e) => {
+      // as in Stardew's bag: a press picks a thing up onto the pointer — dragged, it goes where it is let go
+      // (letGo); let go where it was, it rides the pointer until a click sets it down (or out of the bag drops it)
+      el.onmousedown = (e) => {
+        if (e.button !== 0) return
+        e.preventDefault()
         if (e.shiftKey && this.picked === undefined) return void (slots[i] && this.send.quickMove(i))
         if (this.picked === undefined) {
-          if (slots[i]) this.picked = i
+          if (!slots[i]) return
+          this.picked = i
+          this.drag = { x: e.clientX, y: e.clientY, moved: false }
+          this.carried.style.transform = `translate(${e.clientX - 16}px, ${e.clientY - 16}px)`
         } else {
-          this.send.swap(this.picked, i)
+          if (this.picked !== i) this.send.swap(this.picked, i)
           this.picked = undefined
         }
         this.render()

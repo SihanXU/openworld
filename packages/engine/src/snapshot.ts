@@ -308,6 +308,10 @@ export interface KeyView {
   sets?: boolean
   /** It takes what is another's (a theft, docs/npc-sandbox.md). */
   steal?: boolean
+  /** Its target is the ground: a terrain, a floor. */
+  ground?: boolean
+  /** Its target is someone to talk to: a person, a companion. */
+  person?: boolean
   x: number
   y: number
   /** The target's base when it covers more than its cell (a place of the overworld, a tent): x, y, width, height. */

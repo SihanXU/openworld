@@ -343,7 +343,8 @@ describe('completeness of the inputs', () => {
     }
     // what the player can do: a hand on what is within its reach; take what can be taken and put any
     // carried thing where it would go; use any carried thing (and the bare body: a blow) on what is
-    // within its reach but one's own place, and on oneself
+    // within its reach but one's own place, and any carried thing on oneself (no blow: the inputs never
+    // strike the one at the keys)
     const carried = [...new Set([...(p.contents ?? []), ...(p.held ? [p.held] : [])].map((id) => eng.world.get(id)!))]
     const own = eng.world.posOf(p)!
     const changes = (verb: Verb, target: Ref, inst?: string) => eng.preview(eng.actEvent(verb, p.id, target, inst ? { e: inst } : undefined)).changes
@@ -359,8 +360,8 @@ describe('completeness of the inputs', () => {
         if (!made.has(sig('attack', 'none', target))) missing.push(sig('attack', 'none', target))
       }
     for (const inst of carried) if (!made.has(sig('use', inst.type, { e: p.id }))) missing.push(sig('use', inst.type, { e: p.id }))
-    if (!made.has(sig('attack', 'none', { e: p.id }))) missing.push(sig('attack', 'none', { e: p.id }))
     expect(missing).toEqual([])
+    expect(made.has(sig('attack', 'none', { e: p.id }))).toBe(false)
   })
 
   it('each input makes exactly one act, of its own verb (the left and right clicks use; a bare one is a blow)', () => {

@@ -213,9 +213,6 @@ export function t(k: string): string {
 
 export const MOOD_GLYPH: Record<string, string> = { happy: '♥', sad: '…', angry: '!!', surprised: '!', shy: '♡', neutral: '…' }
 
-/** How long the player stands still before the key labels (and the outline of their spot) show. */
-export const KEYS_STILL_MS = 200
-
 /** The toolbar (the bag's first row): ten slots, keys 1–0. */
 export const SLOT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 
@@ -227,12 +224,11 @@ export function controlsTable(dev: boolean): string {
   const rows: [string, string, string][] = [
     ['WASD · ↑↓←→', 'move (Shift: walk)', '移动（Shift：慢走）'],
     ['B', 'build / farm mode; left click or E places, Esc / RMB exits', '建筑 / 种植模式；左键或 E 放置，Esc / 右键退出'],
-    ['E', 'hands: talk, open, read, push', '空手：说话、打开、阅读、推'],
+    ['E · right click', 'the action, as the cursor shows: talk, give what you hold, open, read, pick up, eat or drink what you hold (hold E: the bare hands on what you choose)', '行动，光标显示要做什么：说话、把手上的东西送人、打开、阅读、捡起、吃喝手上的东西（长按 E：空手作用于选中的东西）'],
     ['F', 'take: pick up, take down, take out', '拿：捡起、取下、取出'],
     ['G', 'put the held thing there: set down, put in, hand it over', '放：把手上的东西放下、放进去、交给别人'],
     ['left click', 'use the held thing on it; with empty hands, a blow; weapons strike; a wall, a floor or a bed in hand is set down there (hold and drag for a row)', '用手上的东西作用于它；空手就是一拳；武器就是攻击；拿着墙、地板、床这类东西就放在那里（按住拖动放一排）'],
     ['R', 'a floor in hand: the left click lays it in the ceiling (and back)', '手上拿着地板：左键改为铺天花板（再按切回）'],
-    ['right click', 'use the held thing on yourself: eat, drink, put on', '对自己用手上的东西：吃、喝、穿戴'],
     ['Space', 'attack: strike ahead (hold to keep striking)', '攻击：朝面前挥击（按住连续攻击）'],
     ...(skills ? [['Q', 'dash, once learned (swiftness)', '冲刺（学会迅捷分支的冲刺后）'] as [string, string, string]] : []),
     ['X', 'draw your weapon or put it away: drawn, a blow on a person is meant', '拔出或收起武器：拔出时，对人挥击才算真的动手'],

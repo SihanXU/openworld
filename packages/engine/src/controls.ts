@@ -152,7 +152,7 @@ export class Controls {
    * sprite (a stone) still meets the stone, not the bare ground.
    */
   /** The ground: a cell's terrain, or a floor laid there (what a hand on it only touches). */
-  private ground(r: Ref): boolean {
+  ground(r: Ref): boolean {
     const e = this.w.get(r.e)
     return e ? this.w.isTerrain(e) || this.w.spacesOf(e).includes('floor') : !!parseCellId(r.e)
   }
@@ -303,7 +303,9 @@ export class Controls {
     }
     // use (and self: use on oneself): the held thing — a blow for weapons on creatures (and pure
     // weapons on anything but people); with nothing held, a blow on anything: with the weapon kept in
-    // the main hand, else the bare body
+    // the main hand, else the bare body. Never a blow on oneself: the inputs do not strike the one at
+    // the keys (a click on one's own place with nothing to use there does nothing).
+    const self = target.e === p.id
     const main = heldE ? undefined : weaponOf(w, p)
     const reach = this.eng.reachOf('use', p, this.entity(target), heldE ?? main) ?? 1
     const here = w.posOf(p)
@@ -316,14 +318,14 @@ export class Controls {
       // a person is struck only with the blade drawn (X: the blow is meant, docs/npc-sandbox.md)
       const drawn = w.hasStatus({ e: p.id }, 'drawn')
       const blow = isWeapon(heldE.type) && (this.isPerson(target) ? drawn : pure || this.isCreature(target))
-      if (blow && reach > 1 && !aligned) return undefined
+      if (blow && (self || (reach > 1 && !aligned))) return undefined
       const plan = this.make(key, at, 'use', target, held, blow, blow ? (heldE.type.startsWith('item/weapon/magic/') ? GENERIC.cast : GENERIC.attack) : undefined)
       // a weapon that is not one's to fight with (another profession's): its blow is refused, and the label says so
       const why = blow ? this.eng.combat.refuses(p, heldE, 'aim') : undefined
       if (why) plan.label = why
       return plan
     }
-    if (reach > 1 && !aligned) return undefined
+    if (self || (reach > 1 && !aligned)) return undefined
     if (main) {
       const plan = this.make(key, at, 'use', target, { e: main.id }, true, main.type.startsWith('item/weapon/magic/') ? GENERIC.cast : GENERIC.attack)
       const why = this.eng.combat.refuses(p, main, 'aim')

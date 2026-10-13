@@ -123,6 +123,8 @@ export type FromWorker =
   | { t: 'ready'; stats: WorldIndex['stats']; name: WorldIndex['name']; resumed: boolean }
   | { t: 'map'; map: MapData }
   | { t: 'frame'; frame: Frame; perf: { tickMs: number; entities: number; loaded: number }; /** the codex's version: something new was met */ codex: number; /** the world waits for the outcome of the player's act: for how long so far, and at most */ learning?: { seconds: number; limit: number } }
+  /** What the keys would do now, sent as soon as the pointer aims somewhere else (between frames). */
+  | { t: 'keys'; keys: Frame['keys'] }
   | { t: 'records'; records: RecordView[]; library: LibraryView }
   | { t: 'spec'; spec: ModSpec }
   | { t: 'validation'; id?: string; result: ValidationResult }

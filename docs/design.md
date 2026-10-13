@@ -243,7 +243,8 @@ and the wheel (toolbar), Shift (walk), WASD (move). Dialogue moves on with E or 
   whatever they are used on except people; tools that are also weapons (the axe) strike living
   things and work everything else; the bare body strikes whatever it is used on (a fist wears down
   plants and wood, slowly; stone is too hard). A weapon used on a person is a use, never a blow — no
-  villager is hurt by accident. A blow from afar flies along a row or a column.
+  villager is hurt by accident. A blow from afar flies along a row or a column. No input aims a blow at
+  oneself: a click on one's own place with nothing to use there does nothing.
 - Eating and drinking oneself ask first (yes / no); so does any rule with `confirm`. Food, a
   draught or armour used on another feeds them, doses them, dresses them.
 

@@ -10,7 +10,7 @@ import { faceFrame, personLook } from '../assets/looks.ts'
 import { crowdLook, figureDef, figureId, portraitOf, preparePortrait } from '../assets/figure/index.ts'
 import { GroundAtlas, T, groundTile, hash2 } from '../assets/ground.ts'
 import { depthOf, footOf } from './depth.ts'
-import { KEYS_STILL_MS, prefs } from '../ui/common.ts'
+import { prefs } from '../ui/common.ts'
 
 /** How much higher a storey is drawn than the one below it (world-model.md §5.2): one tile, a wall's height. */
 const STOREY_LIFT = T
@@ -477,7 +477,7 @@ export class WorldScene extends Phaser.Scene {
       const behind = me.root.depth < v.root.depth && v.body.getBounds().contains(me.root.x, me.root.y - T / 2)
       v.body.setAlpha(behind ? 0.55 : 1)
     }
-    this.drawFocus(f)
+    this.focusOn(f)
     this.drawMarks()
     for (const fx of f.fx) this.playFx(fx)
     this.weather = (this.base.light ?? 'outdoor') === 'outdoor' ? f.calendar.weather : 'sun'
@@ -587,26 +587,108 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** Outline the tile the inputs aim at: the mouse's own or neighbour tile, or the one in front. */
-  private drawFocus(f: Frame): void {
+  /**
+   * The spot the inputs act on, framed as Stardew frames its tile: four small corners that glide to the next
+   * spot (never jump), breathe a little and pop as they take a new one — faint over the bare ground, plainer over
+   * a thing or someone; amber where the world has never seen the act. A frame from the worker (or the keys it sends as the pointer moves) only says where the frame is going;
+   * it is drawn every animation frame (tickFocus). With the keys aiming (the pointer aims at nothing) the bare
+   * ground in front goes along with the player as drawn, who trails their cell while walking: the frame keeps
+   * beside them, and comes to rest on the cell as they stop; a thing the keys found (worker.ts assist) is framed
+   * where it stands. While the keys walk the player the frame keeps to the ground ahead, faint and steady (no leap
+   * to each thing passed, no pop): it goes to what the keys found once the player has stopped (settled).
+   */
+  focusOn(f: Frame): void {
     const k = f.keys?.hands ?? f.keys?.take ?? f.keys?.put ?? f.keys?.use ?? f.keys?.self
     const [dx, dy] = STEP[f.player.facing]
     const tx = k ? k.x : f.player.x + dx
     const ty = k ? k.y : f.player.y + dy
-    this.focus ??= this.add.graphics().setDepth(1e5)
     const ks = f.keys ? Object.values(f.keys).filter(Boolean) : []
-    const unknown = ks.length > 0 && ks.every((v) => v!.unknown)
-    this.focus.clear()
-    if (f.scene || !f.keys) return
-    // walking, nothing: the spot ahead changes at every step (the labels wait for the player to stand too)
-    if (!this.playerStill(KEYS_STILL_MS)) return
     // past the map's edge there is nothing to aim at (an edge that leads nowhere: the tutorial's)
-    if (this.base && (tx < 0 || ty < 0 || tx >= this.base.width || ty >= this.base.height)) return
+    if (f.scene || !f.keys || (this.base && (tx < 0 || ty < 0 || tx >= this.base.width || ty >= this.base.height))) return void (this.focusGoal = undefined)
     // the whole of a target that covers more than its cell (a place of the overworld: its block)
-    const [rx, ry, rw, rh] = k?.rect ?? [tx, ty, 1, 1]
-    // on the storey the player stands on
-    const lift = (f.player.z ?? 0) * STOREY_LIFT
-    this.focus.lineStyle(1, unknown ? 0xf0b85a : 0xffffff, 0.6).strokeRoundedRect(rx * T + 0.5, ry * T + 0.5 - lift, rw * T - 1, rh * T - 1, 2)
+    const [x, y, w, h] = k?.rect ?? [tx, ty, 1, 1]
+    const unknown = ks.length > 0 && ks.every((v) => v!.unknown)
+    // quiet: faint over the bare ground, plainer over a thing or someone to act on
+    const bare = ks.length > 0 && ks.every((v) => v!.ground)
+    // the bare ground ahead goes along with the player; a thing stays put, framed where it is
+    this.focusGoal = { x, y, w, h, z: f.player.z ?? 0, color: unknown ? 0xffc35a : 0xfff6dd, alpha: bare ? 0.35 : 0.7, ahead: this.keysAhead() && bare && w === 1 && h === 1 }
+    this.focusFront = { x: f.player.x + dx, y: f.player.y + dy, z: f.player.z ?? 0 }
+  }
+
+  /** The cell in front of the player (the frame's while the keys walk them). */
+  private focusFront?: { x: number; y: number; z: number }
+  /** When the player was last on the move: a key walking them, or their sprite catching up with their cell. */
+  private movedAt = -1e9
+  /** Set by main.ts: a key walks the player. */
+  walking: () => boolean = () => false
+  /** The player has stopped a moment: the frame and the pointer's mark settle on what the keys found. */
+  settled(): boolean {
+    return this.time.now - this.movedAt >= 120
+  }
+
+  /** The frame where it is drawn now (world px), where it was last going, and when it last took a new spot. */
+  private focusGoal?: { x: number; y: number; w: number; h: number; z: number; color: number; alpha: number; ahead: boolean }
+  private focusAt?: { x: number; y: number; w: number; h: number }
+  private focusTo?: { x: number; y: number }
+  private focusT = 0
+  private focusPopAt = -1e9
+
+  /** Every animation frame: the frame eases toward its spot (see focusOn). */
+  private tickFocus(time: number): void {
+    const found = this.focusGoal
+    this.focus?.clear()
+    if (!found) return void ((this.focusAt = undefined), (this.focusTo = undefined))
+    // walked by the keys: the ground ahead, faint and steady, whatever is near (see focusOn)
+    const front = this.focusFront
+    const walking = this.keysAhead() && !this.settled() && !!front
+    const goal = walking ? { ...found, ...front, w: 1, h: 1, color: 0xfff6dd, alpha: 0.35, ahead: true } : found
+    this.focus ??= this.add.graphics().setDepth(1e5)
+    const g = this.focus
+    // where it is going: the cell on the storey the player stands on — the keys' beside the player as drawn
+    let x = goal.x * T
+    let y = goal.y * T - goal.z * STOREY_LIFT
+    const v = goal.ahead ? this.views.get(this.playerId) : undefined
+    if (v?.walker) {
+      const lx = v.root.x - v.walker.x
+      const ly = v.root.y - v.walker.y
+      // (a trail longer than a walk's is a jump the sprite has not made yet: a portal)
+      if (Math.hypot(lx, ly) <= 2 * T) (x += lx), (y += ly)
+    }
+    const w = goal.w * T
+    const h = goal.h * T
+    // a new spot (a turn, the pointer onto another cell, appearing) pops a little
+    if (!walking && (!this.focusTo || Math.hypot(x - this.focusTo.x, y - this.focusTo.y) > T / 2)) this.focusPopAt = time
+    this.focusTo = { x, y }
+    const at = this.focusAt
+    const k = at ? 1 - Math.exp(-Math.min(100, time - this.focusT) / 40) : 1
+    this.focusT = time
+    const now = at ? { x: at.x + (x - at.x) * k, y: at.y + (y - at.y) * k, w: at.w + (w - at.w) * k, h: at.h + (h - at.h) * k } : { x, y, w, h }
+    this.focusAt = now
+    const pop = Math.max(0, 1 - (time - this.focusPopAt) / 180)
+    const out = 0.25 + Math.sin(time / 280) * 0.25 + pop * 0.75
+    const fx = now.x - out
+    const fy = now.y - out
+    const fw = now.w + 2 * out
+    const fh = now.h + 2 * out
+    const arm = Math.min(3, fw / 4, fh / 4)
+    const corners = (dy: number, color: number, alpha: number) => {
+      g.fillStyle(color, alpha)
+      for (const [cx, cy, sx, sy] of [[fx, fy, 1, 1], [fx + fw, fy, -1, 1], [fx, fy + fh, 1, -1], [fx + fw, fy + fh, -1, -1]] as const) {
+        g.fillRect(sx > 0 ? cx : cx - arm, (sy > 0 ? cy : cy - 1) + dy, arm, 1)
+        g.fillRect(sx > 0 ? cx : cx - 1, (sy > 0 ? cy : cy - arm) + dy, 1, arm)
+      }
+    }
+    // a light shadow under the corners, so they still show on pale ground
+    corners(1, 0x2a1608, goal.alpha * 0.35)
+    corners(0, goal.color, goal.alpha)
+  }
+
+  /** The frame on screen (the pointer's mark stands over it when the keys aim: ui/cursor.ts). */
+  focusRect(): { x: number; y: number; w: number; h: number } | undefined {
+    const at = this.focusAt
+    if (!at) return undefined
+    const cam = this.cameras.main
+    return { x: (at.x - cam.worldView.x) * cam.zoom, y: (at.y - cam.worldView.y) * cam.zoom, w: at.w * cam.zoom, h: at.h * cam.zoom }
   }
 
   /**
@@ -1352,7 +1434,6 @@ export class WorldScene extends Phaser.Scene {
       const e = v.snap
       if (v.flyer) this.glide(v, time)
       if (v.walker) this.walk(v, time)
-      if (e.id === this.playerId && v.walker && Math.hypot(v.root.x - v.walker.x, v.root.y - v.walker.y) > 0.05) this.playerMovedAt = time
       v.head?.setPosition(v.root.x, v.root.y).setVisible(v.root.visible).setAlpha(v.root.alpha)
       // a body between two cells is ordered by where it is drawn now (depth.ts footOf)
       if (e.tags.includes('agent') && !e.boss) v.root.setDepth(this.depthOf(e, footOf(e.y, v.root.y + (e.z ?? 0) * STOREY_LIFT + this.liftOf(e))))
@@ -1392,6 +1473,10 @@ export class WorldScene extends Phaser.Scene {
     }
     for (const t of this.tileFx.values())
       for (const s of t.sprites) if (s instanceof Phaser.GameObjects.Image && s.texture.key === 'glow') s.setAlpha(this.darkness * 1.2)
+    const me = this.views.get(this.playerId)
+    if (this.walking() || (me?.walker && Math.hypot(me.root.x - me.walker.x, me.root.y - me.walker.y) > 0.05)) this.movedAt = time
+    // the frame of the spot the inputs act on, after the player has moved this frame
+    this.tickFocus(time)
   }
 
   /**
@@ -1447,22 +1532,8 @@ export class WorldScene extends Phaser.Scene {
     return { x: (x * T + 8 - cam.worldView.x) * cam.zoom, y: (y * T + 8 - lift - cam.worldView.y) * cam.zoom }
   }
 
-  /** Where a body's feet are on screen. */
-  feetOf(id: string): { x: number; y: number } | undefined {
-    const v = this.views.get(id)
-    if (!v) return undefined
-    const cam = this.cameras.main
-    return { x: (v.root.x - cam.worldView.x) * cam.zoom, y: (v.root.y - cam.worldView.y) * cam.zoom }
-  }
-
-  /** When the player's sprite last moved (it chases its cell at the walking pace: walk()). */
-  private playerMovedAt = 0
-  /** Set by main.ts: a key walks the player. */
-  walking: () => boolean = () => false
-  /** The player stands: no key walks them, and their sprite has been at rest for `ms`. */
-  playerStill(ms: number): boolean {
-    return !this.walking() && this.time.now - this.playerMovedAt >= ms
-  }
+  /** Set by main.ts: the keys aim (the pointer aims at nothing), at the spot in front. */
+  keysAhead: () => boolean = () => false
 
   lookOf(id: string): { img: string; frame: string } | undefined {
     const v = this.views.get(id)

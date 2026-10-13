@@ -14,9 +14,10 @@ import { writeSlot, type Slot } from './saves.ts'
 import { Cover } from './ui/cover.ts'
 import { DeathScreen } from './ui/death.ts'
 import { locale, t, tx } from './ui/common.ts'
+import { Cursor, actionOf } from './ui/cursor.ts'
 import { ModConsole } from './ui/dev.ts'
 import { Hud } from './ui/hud.ts'
-import { BuildingMode, setLearnedPlaceables } from './ui/building.ts'
+import { BuildingMode, placeable, setLearnedPlaceables } from './ui/building.ts'
 import { LessonGuide } from './ui/lesson.ts'
 import { Menu, setLearnedRecipes } from './ui/menu.ts'
 import { PeoplePanels } from './ui/people.ts'
@@ -106,7 +107,6 @@ const hud = new Hud(
   },
   (id) => scene.screenOf(id),
   (x, y) => scene.screenOfTile(x, y),
-  { feetOf: (id) => scene.feetOf(id), still: (ms) => scene.playerStill(ms) },
 )
 menu.muted = hud.muted
 /** A merchant's trade and a person's pockets (docs/npc-sandbox.md §2.10). */
@@ -194,6 +194,7 @@ scene.hooks = {
     dev.onFrame(f)
     building.onFrame(f)
     lessons.onFrame(f)
+    markKeys()
     if (import.meta.env.DEV) (window as unknown as { lsw: { frame?: unknown } }).lsw.frame = f
     syncPause()
   },
@@ -346,6 +347,13 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       dev.setPerf(m.perf, fps)
       // the open codex follows what is met
       if (menu.journalOpen && m.codex !== codexSeen) ((codexSeen = m.codex), send({ t: 'codex' }))
+      break
+    case 'keys':
+      // what the keys would do where the pointer now aims, between frames
+      if (lastFrame) lastFrame.keys = building.open ? undefined : m.keys
+      markKeys()
+      // the frame goes to the new spot at once, not with the next frame
+      if (lastFrame) scene.focusOn(lastFrame)
       break
     case 'records':
       dev.setRecords(m.records, m.library)
@@ -530,18 +538,21 @@ const typing = () => {
   return !!a && (a.tagName === 'TEXTAREA' || a.tagName === 'INPUT')
 }
 
-// The five inputs (design.md §5.2): E hands, F take, G put, left click use (the held thing, or a
-// bare blow), right click use on oneself. A short press acts on the top of what is drawn where the
-// pointer is; a long press opens the chooser of all of it the input reaches (people, things, items,
-// the ground), so every event is reachable.
+// The inputs (design.md §5.2), as Stardew Valley's: the action — E, or the right click — does what the
+// thing aimed at calls for (talk, hand over, open, read, pick up, eat: ui/cursor.ts actionOf, which the
+// cursor shows); F takes and G puts, plainly; the left click uses the held thing (or a bare blow). A short
+// press acts on the top of what is drawn where the pointer is; a long press opens the chooser of all of it
+// the input reaches (people, things, items, the ground; for the action, the bare hands on it), so every
+// event is reachable.
 const LONG_MS = 380
 const KEY_OF: Record<string, Key> = { KeyE: 'hands', KeyF: 'take', KeyG: 'put' }
 const KEY_NAME: Record<Key, string> = { hands: 'E', take: 'F', put: 'G', use: 'L', self: 'R' }
-let pressing: { key: Key; tile?: Tile; timer: ReturnType<typeof setTimeout>; long: boolean } | undefined
+let pressing: { key: Key; tile?: Tile; timer: ReturnType<typeof setTimeout>; long: boolean; action: boolean } | undefined
 
-function press(key: Key, tile: Tile | undefined): void {
+/** A key goes down (`action`: the action, which is the hands when held long). */
+function press(key: Key, tile: Tile | undefined, action = false): void {
   if (pressing) return
-  const p = { key, tile, long: false, timer: setTimeout(() => ((p.long = true), send({ t: 'choices', key, tile })), LONG_MS) }
+  const p = { key, tile, action, long: false, timer: setTimeout(() => ((p.long = true), send({ t: 'choices', key, tile })), LONG_MS) }
   pressing = p
 }
 function release(key: Key): void {
@@ -549,7 +560,19 @@ function release(key: Key): void {
   if (!p || p.key !== key) return
   clearTimeout(p.timer)
   pressing = undefined
-  if (!p.long) send({ t: 'key', key, tile: p.tile })
+  if (p.long) return
+  // the action: what the cursor shows for what it is aimed at
+  const held = lastFrame?.player.held?.type
+  const k = p.action ? actionOf(lastFrame?.keys, held) : p.key
+  if (!k) return
+  // a chest, a torch in hand set on the open ground: the palette's own placing (B), which makes it part of the
+  // place (the plain use only hands it to the cell, and a container answers that as something taken out of it)
+  const spot = lastFrame?.keys?.use
+  if (k === 'use' && held && placeable(held) && spot?.ground && !spot.sets) return send({ t: 'build', id: `put:${held}`, tile: { x: spot.x, y: spot.y } })
+  // a click on the bare ground that the world has never seen done (a fist on grass): nothing, as in Stardew — no
+  // question asked for a click in passing (held long, the click chooses the ground; Space still strikes ahead)
+  if (k === 'use' && spot?.ground && spot.unknown) return
+  send({ t: 'key', key: k, tile: p.tile })
 }
 /**
  * The chooser's list arrived (after a long press): pick a layer, then the input acts on it. Time
@@ -658,6 +681,8 @@ window.addEventListener('keydown', (e) => {
     if (!held.length) pointerStill = true
     if (!held.includes(dir)) held.push(dir)
     syncMove()
+    // the keys aim at once (the spot in front is outlined from the first step)
+    reaim()
     e.preventDefault()
     return
   }
@@ -676,7 +701,7 @@ window.addEventListener('keydown', (e) => {
   // Tab: the next row of the bag becomes the toolbar (Shift+Tab: the previous one)
   if (e.code === 'Tab') return void (e.preventDefault(), send({ t: 'row', dir: e.shiftKey ? -1 : 1 }))
   const key = KEY_OF[e.code]
-  if (key) return press(key, mouseTile)
+  if (key) return press(key, mouseTile, e.code === 'KeyE')
   const slot = SLOT_CODES.indexOf(e.code)
   if (slot >= 0) send({ t: 'select', slot })
 })
@@ -750,6 +775,13 @@ function setHandUp(up: boolean): void {
   if (!building.open) scene.setBuildView(up, up)
 }
 const gameEl = document.getElementById('game')!
+/** The pointer's mark: what the keys would do at what it is over, shown in the cursor itself (ui/cursor.ts). */
+const cursor = new Cursor([gameEl], document.getElementById('labels')!, () => scene.focusRect(), () => scene.settled())
+scene.keysAhead = () => cursor.ahead
+if (import.meta.env.DEV) Object.assign((window as unknown as { lsw: object }).lsw, { cursor })
+function markKeys(): void {
+  cursor.update(hud.dialogOpen ? undefined : lastFrame?.keys, lastFrame?.player.held?.type, mouseTile)
+}
 window.addEventListener('mousemove', (e) => {
   // only over the world itself (the HUD's own panels take their own clicks)
   const over = e.target === gameEl || gameEl.contains(e.target as Node) || (e.target as HTMLElement).id === 'hud' || (e.target as HTMLElement).id === 'labels'
@@ -777,13 +809,13 @@ gameEl.addEventListener('mousedown', (e) => {
     return send({ t: 'key', key: 'use', tile, ...(handUp && { layer: CEILING }) })
   }
   if (e.button === 0) press('use', tile)
-  if (e.button === 2) press('self', tile)
+  if (e.button === 2) press('hands', tile, true)
 })
 window.addEventListener('mouseup', (e) => {
   if (e.button === 0) building.release()
   if (e.button === 0) handDrag = undefined
   if (e.button === 0) release('use')
-  if (e.button === 2) release('self')
+  if (e.button === 2) release('hands')
 })
 window.addEventListener(
   'wheel',
@@ -805,6 +837,7 @@ function raf(now: number) {
     last = now
   }
   hud.tickLabels()
+  cursor.tick()
   building.tick()
   building.hand(handUp)
   requestAnimationFrame(raf)
