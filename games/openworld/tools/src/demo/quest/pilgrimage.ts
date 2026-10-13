@@ -144,13 +144,15 @@ export function buildWay(): MapBuilder {
         text_zh: ['一面挂在枪杆上的白色三角旗，绣着一圈荆棘。曾经很干净；被人耐心地补过许多次。', '同样的白旗，更灰了。补到一半就没再补。', '杆子上只剩几条破布。补旗的人，已经忘了怎么补。'][n],
       },
     })
-  // what a pilgrim might lay at each: a fallen pilgrim's hat, a plaited cord by a post, a loaf in a bundle, an old helm, a candle at a cairn
+  // what a pilgrim might lay at each: a fallen pilgrim's hat, a plaited cord by a post, a loaf left in an abandoned
+  // cart, an old helm, a candle at a cairn (demo PR1 takes each with F and lays it with G)
   m.item({ form: 'item/clothing/hat', material: 'cloth', name: L("A pilgrim's hat", '朝圣者的帽子') }, ...spot(m, 9, 16))
   m.item({ form: 'item/material/grass', name: L("A penitent's plaited cord", '苦修者编的草绳') }, ...spot(m, 15, 8))
-  m.item({ form: 'item/food/bread' }, ...spot(m, 25, 16))
+  const cart = spot(m, 38, 17)
+  m.fixture('fixture/furniture/cart', ...cart, { name: L("An abandoned pilgrims' cart", '被丢下的朝圣者推车') })
+  m.item({ form: 'item/food/bread', name: L("A pilgrim's loaf", '朝圣者的面包') }, ...cart)
   m.item({ form: 'item/armor/helmet', material: 'iron', name: L('A dented helm', '一顶凹陷的头盔') }, ...spot(m, 34, 9))
   m.item({ form: 'item/light/candle' }, ...spot(m, 47, 16))
-  m.fixture('fixture/furniture/cart', ...spot(m, 38, 17), { name: L("An abandoned pilgrims' cart", '被丢下的朝圣者推车') })
   // the penitent's camp off the road
   m.fixture('fixture/light/campfire', ...spot(m, 33, 17), { statuses: { lit: -1 } })
   m.anchor('ezra.road', ...spot(m, 31, 14, true))
@@ -275,7 +277,7 @@ export function buildField(): MapBuilder {
   ]
   names.forEach(([en, zh], i) => m.fixture('fixture/sacred/gravestone', ...spot(m, 10 + (i % 4) * 7, i < 4 ? 7 : 17), { name: L('A kneeling stone', '跪石'), props: { text: `A stone carved as a pilgrim kneeling. ${en}`, text_zh: `一块雕成朝圣者跪姿的石头。${zh}` } }))
   for (const [x, y] of [[16, 9], [18, 9], [20, 9], [26, 15], [28, 15], [30, 15]] as const)
-    m.fixture('fixture/scarecrow', ...spot(m, x, y), { name: L('A kneeling subject', '跪着的"臣民"'), props: { text: 'Straw in a pilgrim\'s coat, bent at the knees and tied there with briar. Someone set them in rows, facing east, and keeps setting them straight.', text_zh: '稻草塞进朝圣者的外衣，膝盖弯着，用荆棘捆住。有人把它们排成一排排，脸朝东，还一直把它们扶正。' } })
+    m.fixture('fixture/scarecrow', ...spot(m, x, y), { name: L('A kneeling subject', '跪着的"臣民"'), tags: ['readable'], props: { text: 'Straw in a pilgrim\'s coat, bent at the knees and tied there with briar. Someone set them in rows, facing east, and keeps setting them straight.', text_zh: '稻草塞进朝圣者的外衣，膝盖弯着，用荆棘捆住。有人把它们排成一排排，脸朝东，还一直把它们扶正。' } })
   for (const [x, y] of [[36, 8], [37, 16], [12, 15]] as const) m.fixture('fixture/nature/briar', ...spot(m, x, y), { name: L("The knight's thorns", '骑士的荆棘') })
   m.fixture('fixture/sign', ...spot(m, 40, 10), { props: { text: 'THE KINGDOM. KNEEL.', text_zh: '王国。跪下。' } })
   m.regions.field = [6, 4, 32, 16]
