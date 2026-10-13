@@ -1,9 +1,11 @@
 // Firstlight Village's houses one walks into (2026-10-11): the village grew east along the road from the Ford and
 // south down the forest trail. Every house has a door and a room behind it — the elder's, three families', two new
 // homes in the south lane — and the east road has the village's trades: the general store (Greta behind its
-// counter), the smithy (Haldor at the forge and anvil inside) and the church (Brother Anselm, who keeps the
-// bookstand of skill books). The shops' offers: content village.ts.
+// counter) and the smithy (Haldor at the forge and anvil inside). Sister Ilse's chapel stands on the square behind
+// Astra's altar and the flame (docs/chapter-1.md §7); inside, Brother Anselm keeps the bookstand of skill books. (It was
+// a church of its own on the east road until 2026-10-12.) The shops' offers: content village.ts.
 
+import { CHAPEL_SIGN } from '@openworld-game/content'
 import { MapBuilder } from './builder.ts'
 import { L } from './kit.ts'
 
@@ -22,7 +24,8 @@ export const TOWN: TownHouse[] = [
   { door: 'house.wood', prefab: 'house_red', at: [7, 13] },
   { door: 'store', prefab: 'store', at: [41, 14] },
   { door: 'smithy', prefab: 'smithy', at: [47, 15] },
-  { door: 'church', prefab: 'temple', at: [52, 15] },
+  // Sister Ilse's chapel, behind Astra's altar on the square (its door one step above the altar: quest/chapter1.ts)
+  { door: 'church', prefab: 'temple', at: [23, 10] },
   { door: 'house.lane', prefab: 'house_orange', at: [12, 31] },
   { door: 'house.cabin', prefab: 'cabin', at: [30, 31] },
 ]
@@ -35,14 +38,14 @@ export function villageTown(m: MapBuilder): void {
     for (let y = h.at[1] - 1; y < h.at[1] + def.h + 1; y++) for (let x = h.at[0] - 1; x < h.at[0] + def.w + 1; x++) if (m.in(x, y) && ['tree', 'pine'].includes(m.get(x, y))) m.set(x, y, 'grass')
     m.scenery(h.prefab, h.at[0], h.at[1], h.door)
   }
-  // the east road's frontage: a short path from each door down to the road
-  for (const d of ['store', 'smithy', 'church']) {
+  // the east road's frontage: a short path from each door down to the road (the chapel's door gives onto the square)
+  for (const d of ['store', 'smithy']) {
     const [x, y] = m.doors[d]
     m.path([[x, y + 1], [x, 18]], 'path', 1)
   }
   m.fixture('fixture/sign', 40, 17, { id: 'village.store.sign', props: { text: "GENERAL STORE — Greta's. Lamps, rope, bread, potions; she buys herbs, hides and eggs.", text_zh: '杂货铺——葛瑞塔的店。灯、绳子、面包、药水；也收草药、皮子和鸡蛋。' } })
   m.fixture('fixture/sign', 46, 17, { id: 'village.smithy.sign', props: { text: 'SMITHY — the forge smelts ore with coal; the anvil, with a hammer in hand, makes gear. Haldor sells hammers.', text_zh: '铁匠铺——熔炉用煤把矿石炼成锭；手里拿着锻锤，在铁砧上打造装备。锻锤找哈尔多买。' } })
-  m.fixture('fixture/sign', 51, 17, { id: 'village.church.sign', props: { text: 'CHURCH OF THE FIRST DAWN — skill books at the stand inside, from Brother Anselm.', text_zh: '初晓教堂——里面的书架上有技能书，找安塞姆修士。' } })
+  m.fixture('fixture/sign', ...CHAPEL_SIGN.at, { id: CHAPEL_SIGN.id, props: { text: CHAPEL_SIGN.text, text_zh: CHAPEL_SIGN.text_zh } })
   for (const [x, y] of [[45, 20], [56, 20]] as const) m.fixture('fixture/light/lamppost', x, y, { id: `village.lamp.${x}`, statuses: { lit: -1 } })
   // the south lane: from the forest trail, west and east to the two new homes
   const lane = m.doors['house.lane']
@@ -114,9 +117,9 @@ export function villageInteriors(): Interior[] {
   smithy.fixture('fixture/furniture/rack', 9, 1, { name: L('Tool rack', '工具架') })
   smithy.fixture('fixture/furniture/bed', 10, 3)
   smithy.anchor('smith.bed', 9, 3)
-  // the church: an altar, candles, benches, the bookstand of skill books, Brother Anselm beside it
-  const church = room('meadow.church', 'Church of the First Dawn', '初晓教堂', 14, 11, 'stone', 'floor_stone', 'temple')
-  church.fixture('fixture/sacred/altar', 7, 2, { name: L('The dawn altar', '晨光祭坛'), tags: ['readable'], props: { text: 'A flame painted on the stone behind the altar, and five small marks under it.', text_zh: '祭坛后的石壁上画着一团火，下面有五道小刻痕。' } })
+  // Sister Ilse's chapel: the five wounds round Astra, candles, benches, the bookstand of skill books, Brother Anselm beside it
+  const church = room('meadow.church', 'Firstlight Chapel', '初原村礼拜堂', 14, 11, 'stone', 'floor_stone', 'temple')
+  church.fixture('fixture/sacred/altar', 7, 2, { name: L('The five wounds', '五道圣伤'), tags: ['readable'], props: { text: 'Five wounds carved in the stone round a figure of Astra, the First Martyr: the crown, the scourge, the scales, the nails, the lance. Here the village kneels to give thanks for the flame outside.', text_zh: '石壁上围着初殉者阿斯特拉的像，刻着五道圣伤：荆棘冠、鞭刑、天平、圣钉、圣枪。村里人就在这里跪下，为门外的圣火感恩。' } })
   for (const [x, y] of [[5, 2], [9, 2]] as const) church.fixture('fixture/light/candles', x, y, { statuses: { lit: -1 } })
   for (const [x, y] of [[3, 6], [10, 6], [3, 8], [10, 8]] as const) church.fixture('fixture/furniture/bench', x, y)
   church.fixture('fixture/furniture/bookstand', 11, 3, { id: 'church.books', name: L('The bookstand', '技能书架'), statuses: { fireproof: -1 } })

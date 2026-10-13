@@ -2469,7 +2469,7 @@ req('S1', 'a smithy in Firstlight Village, a house on the east road: inside, a l
   expect(w.materialOf(dagger)?.id).toBe('iron')
 })
 
-req('T1', 'Firstlight\'s houses are walked into: every house on the village map has a door that leads into a furnished room — the elder\'s, the families\', two homes in the south lane, the general store, the smithy and the church — and out again to its door', ['fixture/furniture/bed', 'fixture/light/fireplace', 'fixture/furniture/chair', 'fixture/container/pot', 'fixture/container/bookshelf', 'fixture/container/shelf', 'fixture/furniture/counter'], () => {
+req('T1', 'Firstlight\'s houses are walked into: every house on the village map has a door that leads into a furnished room — the elder\'s, the families\', two homes in the south lane, the general store, the smithy and the chapel — and out again to its door', ['fixture/furniture/bed', 'fixture/light/fireplace', 'fixture/furniture/chair', 'fixture/container/pot', 'fixture/container/bookshelf', 'fixture/container/shelf', 'fixture/furniture/counter'], () => {
   const f = fresh()
   const w = W(f)
   const village = w.map('meadow')!
@@ -2513,7 +2513,7 @@ req('T2', 'the general store: Greta keeps it by day, behind her counter; a hand 
   expect(f.eng.controls.count('item/misc/thornmark')).toBe(10 - RECIPE_BY_ID['store/buy/light-torch'].needs[0].count + RECIPE_BY_ID['store/sell/material-herb'].count!)
 })
 
-req('T3', 'the church of the First Dawn: Brother Anselm keeps its bookstand, where every skill one learns from a book is sold — the common ones cheaper, a profession\'s dearer; bought and read, the book teaches its skill', ['npc.anselm', 'fixture/furniture/bookstand'], () => {
+req('T3', "Firstlight's chapel, Sister Ilse's, behind Astra's altar on the square: Brother Anselm keeps its bookstand, where every skill one learns from a book is sold — the common ones cheaper, a profession's dearer; bought and read, the book teaches its skill", ['npc.anselm', 'fixture/furniture/bookstand'], () => {
   const f = fresh()
   const w = W(f)
   setHour(f, 2, 10)

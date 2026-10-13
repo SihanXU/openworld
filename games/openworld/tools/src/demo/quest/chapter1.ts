@@ -274,12 +274,13 @@ export const CHAPTER1_STORY: StepDef[] = [
     ],
   },
   {
-    // Fennick, after you have asked him about the knight: what Alberic was.
+    // Fennick, after you have asked him about the knight: what Alberic was. (He squired for him in the long hold, two
+    // hundred and fifty years after the crowning: the crown had worn him long before Fennick was born.)
     id: 'fennick_memory',
     when: { map: 'meadow', objectives: ['pilgrim.fennick'] },
     script: [
-      say('npc.fennick', 'I carried his lance for six years. He used to stop the whole column to kneel down and talk to children. Knights don\'t do that. He did.', '我给他扛了六年长枪。他会让整支队伍停下来，就为了单膝跪下和孩子们说话。骑士是不会那样做的。他会。'),
-      say('npc.fennick', 'Then they gave him the crown. A little more of him went every year. One morning he looked at me and asked my name.', '后来他们把那顶冠交给了他。他每年都少一点自己。有天早上，他看着我，问我叫什么名字。'),
+      say('npc.fennick', 'I carried his lance for six years, when I was young. He had worn the crown two hundred and fifty years by then, and still he would stop the whole column to kneel down and talk to children. Knights don\'t do that. He did.', '我年轻时给他扛了六年长枪。那时他已经戴了那顶冠两百五十年，可他还是会让整支队伍停下来，就为了单膝跪下和孩子们说话。骑士是不会那样做的。他会。'),
+      say('npc.fennick', 'But the crown kept taking. A little more of him went every year I was there. One morning he looked at me and asked my name.', '可那顶冠一直在拿。我在他身边的每一年，他都又少了一点自己。有天早上，他看着我，问我叫什么名字。'),
       say('npc.fennick', 'I left that night. ...If he asks your name, pilgrim — tell him. Somebody should.', '我当晚就走了。……朝圣者，要是他问起你的名字——告诉他。总该有人告诉他。', 'sad'),
     ],
   },

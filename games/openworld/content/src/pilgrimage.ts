@@ -2,8 +2,9 @@
 // as the Church means it to — the oath at the Pilgrims' Rest, five wayside shrines of the Five Sufferings along the
 // road, each lit by what its suffering asks, the ruined Abbey of the Thorn where Alberic was made a knight (his roll,
 // his cell, the writ that should have relieved him and never went out, the Order's seal its last keeper guards), and
-// the Kneeling Field, where the pilgrims before you knelt and stayed. The maps and scenes are the demo's
-// (tools/src/demo/quest/pilgrimage.ts); here are the facts, the shrines, and how a shrine takes its offering.
+// the Kneeling Field, where pilgrims knelt to pray before they went on, and the stones of those who would not kneel to
+// him. The maps and scenes are the demo's (tools/src/demo/quest/pilgrimage.ts); here are the facts, the shrines, and
+// how a shrine takes its offering.
 
 import type { Effect, Rule, Selector, Tree, TypeDef } from '@openworld/engine'
 
@@ -63,7 +64,7 @@ export const WAYSHRINES: Wayshrine[] = [
   },
   {
     id: 'nails', name: L('Shrine of the Nails', '钉刑圣木之龛'), takes: offering({ tags: ['metal'] }), asks: L('something of iron or metal: the nails', '一件铁器或金属：圣钉'),
-    text: L('THE FOURTH SUFFERING: THE NAILS. They fixed him to the holy wood, that he might not leave us. — Lay down metal, and be held.', '第四苦：受钉。他们把他钉在圣木上，好让他不离开我们。——放下金属，被钉住、被留住。'),
+    text: L('THE FOURTH SUFFERING: THE NAILS. Nailed to the holy wood, he accepted death. — Lay down metal, as he laid down his life.', '第四苦：受钉。他被钉在圣木上，接受了死亡。——放下金属，如同他放下了生命。'),
   },
   {
     id: 'lance', name: L('Shrine of the Lance', '穿心圣枪之龛'), takes: offering({ tags: ['light'] }), asks: L('a light — a torch or a candle: the dawn', '一盏光——火把或蜡烛：黎明'),

@@ -1,11 +1,11 @@
 // The Pilgrim's Road's bugs (docs/chapter-1.md §14): a shrine never takes what must not be given away; the Rest's
 // welcome and oath do not play once the knight has fallen, and its priest greets one who comes after him; the oath's
 // scallop is the pilgrim's own, not the scallop Sister Ilse asks after; a save at the First Seal's stage 40 from before
-// the road shows the oath; and the Rest's litany is read, not sold.
+// the road shows the oath; and Firstlight's chapel is Sister Ilse's, at Astra's altar.
 
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, textOf, type Entity } from '@openworld/engine'
-import { BASE_RULES, CH1, GAME, ORDER_SEAL, STORY_RULES, SWORN_SCALLOP, buildOntology, decodeChunk } from '@openworld-game/content'
+import { BASE_RULES, CHAPEL_SIGN, CH1, GAME, ORDER_SEAL, STORY_RULES, SWORN_SCALLOP, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()
@@ -122,7 +122,7 @@ describe("the Pilgrims' Rest after the knight", () => {
 })
 
 describe("the Rest's chapel", () => {
-  it('its litany on the bookstand is read with a hand (E), as any written thing; the skill books are the church\'s in Firstlight', () => {
+  it('its litany on the bookstand is read with a hand (E), as any written thing; the skill books are Firstlight\'s chapel\'s', () => {
     const f = fresh()
     const litany = Object.values(f.w.state.entities).find((e) => e.type === 'fixture/furniture/bookstand' && e.place.on === 'tile' && e.place.map === 'waystation.chapel')!
     const at = f.w.posOf(litany)!
@@ -134,8 +134,8 @@ describe("the Rest's chapel", () => {
     f.eng.act('hands', 'player', { e: litany.id }, { instrument: null })
     ticks(f, 2)
     expect(f.w.fx.some((x) => x.t === 'panel')).toBe(false)
-    expect(JSON.stringify(f.w.fx.filter((x) => x.t === 'say'))).toContain('苦难并非神的遗弃')
-    // the church's stand in Firstlight still opens its shelves
+    expect(JSON.stringify(f.w.fx.filter((x) => x.t === 'say'))).toContain('极夜便不会归来')
+    // the chapel's stand in Firstlight still opens its shelves
     const books = f.w.posOf(f.w.get('church.books')!)!
     teleport(f, books.map, books.x, books.y + 1)
     f.w.player.facing = 'up'
@@ -201,5 +201,31 @@ describe('an older save at the First Seal across the river', () => {
     loaded.engine.author(() => lw.setFact('ch1.oath', 1))
     for (let i = 0; i < 5; i++) loaded.engine.tick()
     expect(loaded.engine.quests.stage('first_seal')).toBe(50)
+  })
+})
+
+describe("Firstlight's chapel", () => {
+  it("is Sister Ilse's, behind Astra's altar on the square: Brother Anselm keeps its bookstand; the First Dawn's is the chapel on Dawn Hill", () => {
+    const f = fresh()
+    const door = f.w.map('meadow')!.portals.find((p) => p.to === 'meadow.church')!
+    const altar = f.w.posOf(f.w.get('village.astra')!)!
+    expect([door.x, door.y + 2]).toEqual([altar.x, altar.y])
+    expect(f.w.map('meadow.church')!.name).toEqual({ en: 'Firstlight Chapel', zh: '初原村礼拜堂' })
+    expect(f.w.posOf(f.w.get('church.books')!)!.map).toBe('meadow.church')
+    expect(f.w.map('chapel')!.name).toEqual({ en: 'Chapel of the First Dawn', zh: '初晓礼拜堂' })
+    const sign = f.w.get(CHAPEL_SIGN.id)!
+    expect(f.w.posOf(sign)).toMatchObject({ map: 'meadow', x: CHAPEL_SIGN.at[0], y: CHAPEL_SIGN.at[1] })
+  })
+
+  it('an older save keeps its sign where the church stood: on loading it stands by the chapel and says whose it is', () => {
+    const f = fresh()
+    const old = structuredClone(f.game.save())
+    const sign = old.state.entities[CHAPEL_SIGN.id]
+    sign.place = { on: 'tile', map: 'meadow', x: CHAPEL_SIGN.was[0], y: CHAPEL_SIGN.was[1] }
+    sign.props = { ...sign.props, text: 'CHURCH OF THE FIRST DAWN — skill books at the stand inside, from Brother Anselm.', text_zh: '初晓教堂——里面的书架上有技能书，找安塞姆修士。' }
+    const loaded = Game.load(old, f.index, onto, lib(), GAME.upgradeSave)
+    const s = loaded.engine.world.get(CHAPEL_SIGN.id)!
+    expect(s.place).toMatchObject({ on: 'tile', map: 'meadow', x: CHAPEL_SIGN.at[0], y: CHAPEL_SIGN.at[1] })
+    expect(s.props?.text_zh).toBe(CHAPEL_SIGN.text_zh)
   })
 })
