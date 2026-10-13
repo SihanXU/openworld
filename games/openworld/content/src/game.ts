@@ -6,6 +6,10 @@ import { HUNGER_EVERY } from '@openworld/modules'
 import { STORY_RULES } from './ford.ts'
 import { TERRAIN_CHARS, buildOntology } from './ontology.ts'
 import { BASE_RULES } from './rules.ts'
+import { SET_DEFS, setOfSlot } from './sets.ts'
+
+/** The forged sets' ids (each profession's armour; its trinkets are `<id>_trinkets`). */
+const FORGED = new Set(SET_DEFS.map((s) => s.id))
 
 /** This game's own save history: what its older saves kept that the world reads otherwise now. */
 function upgradeSave(eng: Engine): void {
@@ -21,6 +25,13 @@ function upgradeSave(eng: Engine): void {
       if (e.props?.nightborn) (w.setProp(e, 'nightborn', undefined), w.addTag(e, 'nightborn'))
       // a smith's Masterwork was its station's `<station>:masterwork` before the engine named the lift `<station>:lift`
       for (const [key, v] of Object.entries(e.props ?? {})) if (key.endsWith(':masterwork') && typeof v === 'number') (w.setProp(e, `${key.slice(0, -':masterwork'.length)}:lift`, v), w.setProp(e, key, undefined))
+      // a forged piece carried its profession's one set whatever its slot; a profession's gear is two sets now, its armour
+      // and its trinkets, and the weapon and the off hand are in neither (sets.ts): each piece takes its slot's
+      const set = e.props?.set
+      if (typeof set === 'string' && FORGED.has(set)) {
+        const now = setOfSlot(set, String(w.prop(e, 'slot')))
+        if (now !== set) w.setProp(e, 'set', now)
+      }
     }
 }
 

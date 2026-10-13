@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary } from '@openworld/engine'
-import { BASE_RULES, HAVEN_LAYOUT, OVERWORLD_LAYOUT, migrateHaven, migrateHavenHeart, STORY_RULES, WILD_GROUNDS, buildOntology, decodeChunk, migrateOverworld, wildChunk } from '@openworld-game/content'
+import { BASE_RULES, HAVEN_LAYOUT, OVERWORLD_LAYOUT, SITE_GATES, migrateHaven, migrateHavenHeart, STORY_RULES, WILD_GROUNDS, buildOntology, decodeChunk, migrateOverworld, wildChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { UNDER_BARROW } from '../src/demo/hollow.ts'
@@ -88,6 +88,8 @@ describe('the overworld (world-model.md §5.1, §10.2)', () => {
       for (const e of sites) w.place(e, { on: 'tile', map: OVERWORLD, x: (e.place as { x: number }).x * 3 + 1, y: (e.place as { y: number }).y * 3 + 2 })
       w.get('site.meadow')!.type = 'site/place'
       w.place(w.player, { on: 'tile', map: OVERWORLD, x: meadow.x * 3 + 2, y: meadow.y * 3 + 1 })
+      // and one who went into the Held Ground from beside the village, its way back kept on the old map (effects.ts pocket)
+      w.setProp(w.player, 'pocket.return', `${OVERWORLD},${meadow.x * 3 + 1},${meadow.y * 3 + 2}`)
     })
     w.state.maps[OVERWORLD] = map
     g.engine.author(() => migrateOverworld(g, chunk))
@@ -95,6 +97,43 @@ describe('the overworld (world-model.md §5.1, §10.2)', () => {
     expect(w.get('site.meadow')).toMatchObject({ type: 'site/place/village', place: { x: meadow.x, y: meadow.y } })
     expect(Object.values(w.state.entities).filter((e) => e.type.startsWith('site')).length).toBe(sites.length)
     expect(w.posOf(w.player)).toMatchObject({ map: OVERWORLD, x: meadow.x, y: meadow.y })
+    // out of the Held Ground, one comes back to the cell one left, not to a cell of the old, bigger map
+    expect(w.prop(w.player, 'pocket.return')).toBe(`${OVERWORLD},${meadow.x},${meadow.y}`)
+  })
+
+  it('a save laid out a place to a tile before the Pilgrim\'s Road gets the places as the map has them now (the four new ones, the east moved along); a way back out of the Held Ground still kept on the old scale comes down to its cell', () => {
+    const g = game()
+    const w = g.engine.world
+    const chunk = decodeChunk(buildFord().chunks.find((c) => c.map.id === OVERWORLD)!)
+    const cell = (id: string) => ({ ...(w.get(id)!.place as { x: number; y: number }) })
+    const [road, rest, meadow] = [cell('site.eastroad'), cell('site.waystation'), cell('site.meadow')]
+    // as such a save has them: no Pilgrim's Road on the map, the East Road where the Rest is now, a wild place where the
+    // East Road is; the Oath-Thorn's way back kept on the 3 x 3 scale (the first layout's migration did not move it)
+    g.engine.author(() => {
+      for (const id of ['site.waystation', 'site.pilgrimway', 'site.abbey', 'site.kneelfield']) w.destroy(w.get(id)!)
+      w.place(w.get('site.eastroad')!, { on: 'tile', map: OVERWORLD, x: rest.x, y: rest.y })
+      w.add({ id: `site.${road.x}.${road.y}`, type: 'site/wild', place: { on: 'tile', map: OVERWORLD, x: road.x, y: road.y }, props: { map: `wild.${road.x}.${road.y}` } })
+      w.setFact('content.overworld-cells-v2', true)
+      w.setFact(OVERWORLD_LAYOUT, 0)
+      w.setProp(w.player, 'pocket.return', `${OVERWORLD},${meadow.x * 3 + 1},${meadow.y * 3 + 1}`)
+    })
+    g.engine.author(() => migrateOverworld(g, chunk))
+    expect(w.fact(OVERWORLD_LAYOUT)).toBe(true)
+    for (const e of chunk.entities.filter((x) => x.type.startsWith('site'))) expect([e.id, w.get(e.id)?.place]).toEqual([e.id, e.place])
+    expect(w.get(`site.${road.x}.${road.y}`)).toBeUndefined()
+    expect(w.prop(w.player, 'pocket.return')).toBe(`${OVERWORLD},${meadow.x},${meadow.y}`)
+    // a way back on the map as it is now is left as it is
+    g.engine.author(() => (w.setFact('content.overworld-cells-v2', true), w.setFact(OVERWORLD_LAYOUT, 0), w.setProp(w.player, 'pocket.return', `${OVERWORLD},${meadow.x},${meadow.y}`)))
+    g.engine.author(() => migrateOverworld(g, chunk))
+    expect(w.prop(w.player, 'pocket.return')).toBe(`${OVERWORLD},${meadow.x},${meadow.y}`)
+  })
+
+  it('every place the story seals on the world map is shut by a gate that says why (content SITE_GATES): drawn sealed, it does not let one in', () => {
+    const w = world()
+    const gates = new Set(SITE_GATES.map((g) => g.fact))
+    const sealed = Object.values(w.state.entities).filter((e) => e.type.startsWith('site') && typeof e.props?.opensWhen === 'string')
+    expect(sealed.length).toBeGreaterThan(0)
+    for (const e of sealed) expect([e.id, gates.has(String(e.props!.opensWhen))]).toEqual([e.id, true])
   })
 
   it('an older save\'s widening errands (the Held Ground widened by Alberic\'s quests) go; how far the ground goes stays', () => {

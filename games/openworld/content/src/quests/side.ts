@@ -175,5 +175,5 @@ export const SIDE_QUESTS: QuestDef[] = [
     asks: [{ id: 'band', text: L('The wedding band', '婚戒'), carry: { type: 'item/valuable/band' }, count: 1, where: 'eastroad:kingdom' }],
     reward: { xp: 30, items: [{ type: 'item/food/egg/raw', count: 2 }, { type: 'item/food/bread', count: 1 }, gear('item/clothing/gloves', 'hands', "Edda's Work Gloves", '艾达的干活手套', 'fine', { def: 1 })], regard: { giver: 20 } },
   }),
-  // (the Held Ground's widenings are its heart's own now, not errands: haven.ts HAVEN_TIERS)
+  // (the Held Ground's widenings are its steward's panel now, not errands: haven.ts HAVEN_UPGRADES)
 ]
