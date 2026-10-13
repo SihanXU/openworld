@@ -8,6 +8,7 @@ import { L, gear } from './kit.ts'
 import { TUTORIAL_LESSONS, TUTORIAL_DONE } from '../prologue.ts'
 import { ALBERIC_ID, CH1 } from '../chapter1.ts'
 import { ASKS, BLADE, DRAGON } from '../quest.ts'
+import { ABBOT_ID, PILGRIMAGE, WAYSHRINES, shrineFact } from '../pilgrimage.ts'
 
 /** The White Knight is down: what comes before him is behind you. */
 export const PAST_KNIGHT: QuestTrigger = { fact: { [CH1.knight]: { ne: 0 } } }
@@ -144,25 +145,46 @@ const vigil: QuestDef = {
 
 // ------------------------------------------------------------------ the First Seal
 
+const SHRINES = WAYSHRINES.map((w) => `shrine.${w.id}`)
+
 const firstSeal: QuestDef = {
   id: 'first_seal',
   kind: 'main',
   title: L('The First Seal', '第一印'),
-  summary: L('The days grow shorter. Beyond the Ford, on the road east, the White Knight Alberic — the First Seal-bearer — holds the land as his kingdom, and nothing crosses that does not kneel. Firstlight gives thanks tonight; then the road, the river, and the knight.', '白昼越来越短。渡口那边的东大路上，第一位持印者——白骑士阿尔贝里克——把那片土地当成了他的王国，不跪者不得过。今晚初原村要感恩；然后是大路、河流，和那位骑士。'),
-  aliases: { giver: { id: 'npc.ilse', essential: true }, village: { place: 'meadow' }, bank: { place: 'ford:far_bank' }, knight: { id: ALBERIC_ID, optional: true } },
+  summary: L('The days grow shorter. Beyond the Ford, the Pilgrim\'s Road runs east past the Church\'s Rest, five wayside shrines and the ruined Abbey of the Thorn to the Kneeling Field, where the White Knight Alberic — the First Seal-bearer — holds the land as his kingdom, and nothing crosses that does not kneel.', '白昼越来越短。渡口那边，朝圣者之路一路向东：经过教会的驿站、五座路边圣龛、荒废的荆棘修道院，直到跪石原。第一位持印者——白骑士阿尔贝里克——在那里把土地当成他的王国，不跪者不得过。'),
+  aliases: {
+    giver: { id: 'npc.ilse', essential: true },
+    village: { place: 'meadow' },
+    bank: { place: 'ford:far_bank' },
+    rest: { place: 'waystation.chapel' },
+    way: { place: 'pilgrimway' },
+    hall: { place: 'abbey.hall' },
+    keeper: { id: ABBOT_ID, optional: true },
+    field: { place: 'kneelfield' },
+    knight: { id: ALBERIC_ID, optional: true },
+  },
   objectives: [
     { id: 'thanks', text: L('The night of thanks at the flame (Firstlight, after dark)', '圣火前的感恩之夜（入夜后在初原村）'), target: 'village', on: { fact: { [CH1.flameStolen]: 1 } } },
     { id: 'letter', text: L("The Church's letter (Firstlight, the morning after)", '教会的来信（第二天早上，初原村）'), target: 'village', on: { fact: { [CH1.letter]: 1 } } },
     { id: 'ilse', text: L('Ask Sister Ilse where the pilgrimage begins', '问伊尔丝修女朝圣从哪里开始'), target: 'giver', talk: true, optional: true, on: { any: [{ quest: { pilgrim: { gte: 10 } } }, { fact: { 'ford.crossed': 1 } }] } },
     { id: 'river', text: L('Across the river at the Ford', '在渡口过河'), target: 'bank', on: { fact: { 'ford.crossed': 1 } } },
+    { id: 'oath', text: L("Take the pilgrim's oath at the Pilgrims' Rest (kneel at the altar of the five wounds)", '在朝圣者驿站立朝圣者之誓（在五伤祭坛前跪下）'), target: 'rest', on: { fact: { [PILGRIMAGE.oath]: 1 } } },
+    ...WAYSHRINES.map((w, i) => ({ id: SHRINES[i], text: L(`Light the ${w.name.en} (lay ${w.asks.en})`, `点亮${w.name.zh}（放上${w.asks.zh}）`), target: 'way', on: { fact: { [shrineFact(w.id)]: 1 } } })),
+    { id: 'writ', text: L('Learn what became of the knight in the Abbey of the Thorn (north of the road)', '在荆棘修道院（大路北边）查明骑士的过往'), target: 'hall', on: { fact: { [PILGRIMAGE.writ]: 1 } } },
+    { id: 'seal', text: L("Take the Order's seal from its last keeper, in the abbey's crypt", '从修道院地下墓室的最后看守手中取得骑士团印章'), target: 'keeper', on: { fact: { [PILGRIMAGE.seal]: 1 } } },
+    { id: 'field', text: L('On to the Kneeling Field', '前往跪石原'), target: 'field', on: { fact: { [PILGRIMAGE.field]: 1 } } },
     { id: 'knight', text: L('Bring down the White Knight Alberic on the East Road', '在东大路打倒白骑士阿尔贝里克'), target: 'knight', on: PAST_KNIGHT },
   ],
   stages: [
     { n: 10, show: ['thanks'], hint: L('Lina and Oskar are home. Be in the village after dark: Firstlight gives thanks at the flame.', '莉娜和奥斯卡回家了。入夜时待在村里：初原村要在圣火前感恩。'), log: L('Tonight Firstlight gives thanks at the flame.', '今晚初原村要在圣火前感恩。') },
     { n: 20, on: { fact: { [CH1.flameStolen]: 1 } }, done: ['thanks'], show: ['letter'], hint: L('The Firstlight is gone. Wait for morning in the village: something is coming up the road.', '初火不见了。在村里等到天亮：有人正沿着大路赶来。'), log: L('A man in grey took the Firstlight in the night and walked east over the river on ice he made as he went.', '夜里一个灰衣人拿走了初火，边走边在河上结冰，往东过了河。') },
     { n: 30, on: { fact: { [CH1.letter]: 1 } }, done: ['letter'], show: ['ilse', 'river'], hint: L('The White Knight tore three planks out of the footbridge by the marsh. An axe fells a tree (two swings) and splits a log into planks; G lays a plank on the water. Any other way across counts too: E handles things, F takes, G puts or hands over, left click uses what you hold, right click uses it on yourself.', '白骑士拆走了沼泽边小桥上的三块木板。斧头能砍倒树（砍两下），也能把木头劈成木板；G 把木板铺到水上。别的过河办法也算：E 空手摆弄，F 拿取，G 放下或交出，左键用手里的东西，右键对自己用。'), log: L('The Holy City has called the pilgrimage, and named me pilgrim. The road begins across the river.', '圣城发布了朝圣令，封我为朝圣者。路从河对岸开始。') },
-    { n: 40, on: { fact: { 'ford.crossed': 1 } }, from: [30], done: ['river'], show: ['knight'], hint: L('Follow the road east past the burned farm. The First Seal-bearer, the White Knight Alberic, holds it as his kingdom. Watch where his blows will land, and be elsewhere.', '沿着大路往东走，经过烧毁的农庄。第一位持印者——白骑士阿尔贝里克——把那条路当成了他的王国。看清他的攻击会落在哪里，然后躲开。'), log: L('Across the river. The road east runs past a burned farm into the knight\'s kingdom.', '过了河。往东的大路经过一座烧毁的农庄，通进骑士的王国。') },
-    { n: 100, on: PAST_KNIGHT, done: ['thanks', 'letter', 'river', 'knight'], complete: true, reward: { xp: 60 }, log: L('The White Knight knelt and gave up the Crown of Thorns.', '白骑士跪下，交出了荆棘冠。') },
+    { n: 40, on: { fact: { 'ford.crossed': 1 } }, from: [30], done: ['river'], show: ['oath'], hint: L("East of the river, the Church keeps a Rest for pilgrims. Its priest takes the pilgrim's oath: kneel at the altar of the five wounds in its chapel.", '河东边，教会为朝圣者设了一座驿站。驿站的司铎主持朝圣者之誓：到礼拜堂里的五伤祭坛前跪下。'), log: L('Across the river. The Church keeps a Rest for pilgrims on the road east.', '过了河。往东的路上，教会为朝圣者设了一座驿站。') },
+    { n: 50, on: { fact: { [PILGRIMAGE.oath]: 1 } }, done: ['oath'], show: SHRINES, hint: L('Five shrines on the Pilgrim\'s Road, one for each suffering. Lay on each (G) what it asks: something worn on the head, a cord, a meal, a piece of metal, a light.', '朝圣者之路上有五座圣龛，一苦一座。在每座龛上放下（G）它要的东西：一样戴在头上的、一根绳、一顿饭、一块金属、一盏光。'), log: L('I knelt at the five wounds and swore the pilgrim\'s oath. The priest said the knight was due relief once — and then said nothing more.', '我在五道圣伤前跪下，立了朝圣者之誓。司铎说那位骑士本该有人去接替——然后就什么也不说了。'), reward: { xp: 20, items: [{ type: 'item/valuable/scallop', count: 1 }] } },
+    { n: 60, on: { objectives: SHRINES }, done: SHRINES, show: ['writ', 'seal'], hint: L('The path north from the middle of the road climbs to the Abbey of the Thorn, where the knight was made. Read what was left in the chapter hall; the Order\'s last keeper is in the crypt under the shrine.', '大路中段往北的小路通向荆棘修道院，骑士就是在那里受封的。读一读骑士团大厅里留下的东西；骑士团最后的看守在神龛下面的墓室里。'), log: L('All five shrines burn. The road points north, to the abbey where the knight was made.', '五座圣龛都亮了。路指向北边——那座骑士受封的修道院。') },
+    { n: 70, on: { objectives: ['writ', 'seal'] }, done: ['writ', 'seal'], show: ['field'], hint: L("East along the road to the Kneeling Field. The knight's kingdom is past it, on the East Road.", '沿着大路往东，到跪石原。骑士的王国就在它后面，东大路上。'), log: L('They promised him relief after forty years, and never sent it. He has held for three hundred.', '他们答应过四十年后有人接替他，却从未派人去。他已经守了三百年。'), reward: { xp: 40 } },
+    { n: 80, on: { fact: { [PILGRIMAGE.field]: 1 } }, from: [70], done: ['field'], show: ['knight'], hint: L('Through the field to the East Road, past the burned farm, into the knight\'s ring of thorns. Watch where his blows will land, and be elsewhere.', '穿过跪石原到东大路，经过烧毁的农庄，进入骑士的荆棘圈。看清他的攻击会落在哪里，然后躲开。'), log: L('The Kneeling Field: the pilgrims before me, in stone. The newest has no name yet.', '跪石原：在我之前的朝圣者，都成了石头。最新的那块还没有名字。') },
+    { n: 100, on: PAST_KNIGHT, done: ['thanks', 'letter', 'river', 'oath', ...SHRINES, 'writ', 'seal', 'field', 'knight'], complete: true, reward: { xp: 60 }, log: L('The White Knight knelt and gave up the Crown of Thorns.', '白骑士跪下，交出了荆棘冠。') },
   ],
   start: { auto: { done: 'vigil' } },
 }

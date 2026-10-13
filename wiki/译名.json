@@ -44,7 +44,12 @@
     "weave": "织布",
     "sit by the fire": "围着火坐",
     "loiter by the well": "在井边闲晃",
-    "mend his boots": "补靴子"
+    "mend his boots": "补靴子",
+    "keep the five wounds": "侍奉五道圣伤",
+    "watch the road for pilgrims": "守望路上的朝圣者",
+    "kneel by the road": "在路边跪拜",
+    "sit by the pilgrims' fire": "坐在朝圣者的火堆旁",
+    "play by the well": "在井边玩耍"
   },
   "性格": {
     "stubborn": "固执",
@@ -74,7 +79,10 @@
     "steadfast": "坚定",
     "grim": "阴郁",
     "formal": "拘礼",
-    "kind": "善良"
+    "kind": "善良",
+    "devout": "虔诚",
+    "earnest": "恳切",
+    "bold": "大胆"
   },
   "关系": {
     "owes her last autumn's fare": "欠她去年秋天的船钱",
@@ -95,7 +103,10 @@
     "squire": "侍从",
     "raised by her": "被她养大",
     "husband": "丈夫",
-    "friend": "朋友"
+    "friend": "朋友",
+    "old correspondent": "多年的通信者",
+    "daughter": "女儿",
+    "mother": "母亲"
   },
   "条件": {
     "default": "平时",
@@ -169,7 +180,17 @@
     "fact:mq.coal": "交给加里克的煤",
     "fact:mq.fireweed": "交给雷恩的火焰草",
     "fact:mq.frostcap": "交给雷恩的霜盖菇",
-    "topic:death": "有人死了"
+    "topic:death": "有人死了",
+    "fact:ch1.oath": "立下朝圣者之誓之后",
+    "fact:ch1.shrines.crown": "荆棘冠之龛点亮之后",
+    "fact:ch1.shrines.scourge": "鞭刑柱之龛点亮之后",
+    "fact:ch1.shrines.scales": "饥刑之秤之龛点亮之后",
+    "fact:ch1.shrines.nails": "钉刑圣木之龛点亮之后",
+    "fact:ch1.shrines.lance": "穿心圣枪之龛点亮之后",
+    "fact:ch1.writ": "找到替任文书之后",
+    "fact:ch1.order_seal": "拿到骑士团印章之后",
+    "fact:ch1.kneelfield": "到过跪石原之后",
+    "fact:ch1.shrines": "五座圣龛全部点亮之后"
   },
   "地图类型": {
     "wild": "野外",

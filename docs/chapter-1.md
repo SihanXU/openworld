@@ -460,3 +460,21 @@ Waypoint statues now also stand on Dawn Hill and by the barrow mouth in Thornwoo
 **Gear on the ground** shows as one bundle (`item:loot`, tools `art/gear.ts`): what it is shows only once it is
 picked up. More errands pay in gear: Marta's Kitchen Sash, Mia's Ribbon Earring, Militia Pauldrons (Holt), the
 Surveyor's Ring (Nessa), Cassian's Prayer Cord (Ilse, Vowbound).
+
+## 14. The Pilgrim's Road (built 2026-10-12)
+
+The user's request: many more maps before the knight, built round the Church and its faith, and the White Knight
+foreshadowed. Between the far bank and the knight the First Seal now runs through four places (content
+`pilgrimage.ts`; maps and scenes `tools/src/demo/quest/pilgrimage.ts`; demo PR1):
+
+| Place | What it is | What it shows |
+|---|---|---|
+| **The Pilgrims' Rest** (`waystation`; its chapel `waystation.chapel`, hostel `waystation.hostel`) | the Church's halt on the far bank; Father Caius (`npc.caius`) takes the pilgrim's oath at the altar of the five wounds; Maud and Wynn, pilgrims who stopped here | the Church as it means itself: the Five recited in full, the Holy See's notice ("who kneels to the First Seal-bearer passes in his mercy"); the hostel book of pilgrims who "went east, did not come back"; Caius: the knight "was due relief, once"; Wynn's rhyme of the knight who knelt to children |
+| **The Pilgrim's Road** (`pilgrimway`) | five wayside shrines, one per suffering (`fixture/sacred/wayshrine/<id>`), each lit by what it asks laid on it (G): something for the head, a cord, a meal, metal, a light; Brother Ezra (`npc.ezra`), a penitent | the Five as acts; the knight's mark on the signposts ("none cross that do not kneel"); white pennants mended less the further east they hang; Ezra saw the knight mending a flag |
+| **The Abbey of the Thorn** (`abbey`; `abbey.hall`, `abbey.crypt`) | the Order's ruined house, north of the road; its dead still keep the hours; Prior Wendel, the last keeper (`abbey.abbot`), in the crypt | Alberic made a knight (the statue: kneeling to a child); the Order's roll ending with him; his journal (the kite, the forty years, the forty-first, "hold"); the **writ of relief**, never sent: "Let him hold. He will not know the difference." (lore.md §6, §13: the Church uses its bearers up); the Order's seal (`item/valuable/order_seal`) |
+| **The Kneeling Field** (`kneelfield`) | the kingdom's outskirts, before the East Road | the pilgrims before you in stone, by name and year — the selection (lore.md §13), unseen; straw subjects tied kneeling, facing east; the newest stone uncut |
+
+The First Seal's stages: 40 across the river → 50 the oath (`ch1.oath`; the Pilgrim's Scallop) → 60 the five shrines
+(`ch1.shrines.<id>`) → 70 the writ and the seal (`ch1.writ`, `ch1.order_seal`) → 80 the Kneeling Field
+(`ch1.kneelfield`) → 100 the knight. Nothing is gated: the knight still falls to one who goes straight for him, and
+every stage before him is done with him (`PAST_KNIGHT`).

@@ -10,12 +10,13 @@
 import { describe, expect, it } from 'vitest'
 import { textOf, EVENT_KINDS, FIRE_RADIUS, FIGHT_TICKS, APPEAR_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, isRoot, kindCovers, leaves, rulesTie, tickAt, xpToNext, astar, performPlacement, snapshot, regionId, madeOf, CEILING, type Engine, type Entity, type GameEvent, type Key, type Patch, type Plan, type Ref, type World } from '@openworld/engine'
 import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf } from '@openworld/modules'
-import { ALBERIC_ID, ACTIVE_SKILLS, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@openworld-game/content'
+import { ALBERIC_ID, ACTIVE_SKILLS, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID } from '@openworld-game/content'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
 import { CH1_AT } from '../src/demo/quest/chapter1.ts'
 import { PEOPLE } from '../src/demo/people.ts'
 import { DRAGON_AT, EAST_ROAD, EMBERFALL, PASS } from '../src/demo/quest/maps.ts'
+import { PILGRIM } from '../src/demo/quest/pilgrimage.ts'
 import { GARDEN } from '../src/demo/garden.ts'
 import { BARROW, HOLLOW, OSSUARY, UNDER_BARROW } from '../src/demo/hollow.ts'
 import { PAT, TUTORIAL } from '../src/demo/prologue.ts'
@@ -1185,12 +1186,13 @@ req('W5', 'an overworld step passes its time at once (a cell: half an hour on pl
   expect(W(f).state.tick - t1).toBeLessThan(took)
 })
 
-req('W6', 'the river is a barrier on the overworld too: the Ford\'s cell is the river\'s; from the west bank no way leads to the far bank but the Ford; one comes into the Ford from the east road\'s cell on the far bank, and out by its east edge onto that cell again', ['region:far_bank'], () => {
+req('W6', 'the river is a barrier on the overworld too: the Ford\'s cell is the river\'s; from the west bank no way leads to the far bank but the Ford; one comes into the Ford from the far bank\'s cell (the Pilgrims\' Rest\'s, where the road east begins), and out by its east edge onto that cell again', ['region:far_bank'], () => {
   const f = fresh()
   const ford = W(f).map('ford')!.site!
   expect(W(f).passable(OVERWORLD, ford.x, ford.y)).toBe(false)
   const west = reach(f, ford.x - 1, ford.y)
-  const road = W(f).map('eastroad')!.site!
+  // (the far bank's cell east of the Ford: the Pilgrims' Rest's, where the road east begins)
+  const road = W(f).map('waystation')!.site!
   expect(road).toMatchObject({ x: ford.x + 1, y: ford.y })
   expect(W(f).passable(OVERWORLD, road.x, road.y)).toBe(true)
   expect(west.has(`${road.x},${road.y}`)).toBe(false)
@@ -1736,9 +1738,11 @@ const give = (f: Ford, type: string, n: number) => {
   f.eng.controls.sync()
 }
 
-req('Q2', 'the road east: past the far bank the road leads on; the burned farm shows the dragon\'s mark; wolves and a boar on the road; it ends at Emberfall, once the White Knight has fallen', ['actor/creature/beast/wolf', 'actor/creature/beast/boar'], () => {
+req('Q2', 'the road east: past the far bank the Pilgrim\'s Road, and past the Kneeling Field the East Road; the burned farm shows the dragon\'s mark; wolves and a boar on the road; it ends at Emberfall, once the White Knight has fallen', ['actor/creature/beast/wolf', 'actor/creature/beast/boar'], () => {
   const f = fresh()
-  expect(cross(f, 'ford', W(f).map('ford')!.width - 2, EAST_ROAD.fordEast[1], 'right')).toBe('eastroad')
+  // past the far bank, the Pilgrim's Road (docs/chapter-1.md §14) first: the Rest; the Kneeling Field gives onto the road
+  expect(cross(f, 'ford', W(f).map('ford')!.width - 2, EAST_ROAD.fordEast[1], 'right')).toBe('waystation')
+  expect(cross(f, 'kneelfield', PILGRIM.field.w - 2, PILGRIM.field.east[1], 'right')).toBe('eastroad')
   // the road's dangers
   expect(onMap(f, 'actor/creature/beast/wolf', 'eastroad').length).toBe(2)
   expect(onMap(f, 'actor/creature/beast/boar', 'eastroad').length).toBe(1)
@@ -1979,6 +1983,86 @@ req('S3', 'each profession\'s forged gear covers the whole body (head, ear, neck
   wear(forge('hands'))
   wear(forge('waist'))
   expect(w.stat(w.player, 'stealth')).toBe(1 + 1 + 2)
+})
+
+req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14): past the river, the Church's Rest — its priest takes the oath at the five wounds; five wayside shrines on the road, each lit only by what its suffering asks; a penitent on it; the Abbey of the Thorn north of it — the roll, Alberic's statue, his journal, the writ of relief never sent; in its crypt the Order's last keeper and its seal; the Kneeling Field of the pilgrims before; each a stage of the First Seal", [
+  'npc.caius', 'npc.ezra', 'npc.maud', 'npc.wynn', 'fixture/sacred/wayshrine/crown', 'fixture/sacred/wayshrine/scourge', 'fixture/sacred/wayshrine/scales', 'fixture/sacred/wayshrine/nails', 'fixture/sacred/wayshrine/lance',
+  'item/document/writ_of_relief', 'item/valuable/order_seal', 'fixture/scarecrow', 'fixture/furniture/bookstand', 'fixture/furniture/cart', 'fixture/sign', 'item/document/letter', 'item/clothing/hat', 'item/light/candle',
+], () => {
+  const f = fresh({ main: 'rescue' })
+  const w = W(f)
+  const stage = () => f.eng.quests.stage('first_seal')
+  author(f, () => { f.eng.quests.put('rescue', 'done'); f.eng.quests.put('vigil', 'done'); w.setFact('village.rescued', 1); w.setFact('ch1.vigil', 1); w.setFact('ch1.flame_stolen', 1); w.setFact('ch1.letter', 1) })
+  ticks(f, 3)
+  author(f, () => w.setFact('ford.crossed', 1))
+  ticks(f, 3)
+  expect(stage()).toBe(40)
+  // the Rest: Father Caius greets the pilgrim the letter named; his people about the square
+  for (const id of ['npc.caius', 'npc.maud', 'npc.wynn']) expect([id, ['waystation', 'waystation.chapel', 'waystation.hostel'].includes(w.posOf(w.get(id)!)!.map)]).toEqual([id, true])
+  author(f, () => f.eng.teleport(w.player, { map: 'waystation', x: 6, y: 13 }))
+  expect(ticks(f, 400, () => w.fact('ch1.rest') === 1 && !w.scene)).toBe(true)
+  // the oath at the altar of the five wounds
+  author(f, () => f.eng.teleport(w.player, { map: 'waystation.chapel', x: 8, y: 4 }))
+  expect(ticks(f, 600, () => w.fact('ch1.oath') === 1 && !w.scene)).toBe(true)
+  ticks(f, 2)
+  expect(stage()).toBe(50)
+  expect(f.eng.controls.count('item/valuable/scallop')).toBe(1)
+  // the shrines: each takes only what its suffering asks — a thing for the head, a cord, a meal, metal, a light
+  const offer: Record<string, string> = { crown: 'item/clothing/hat', scourge: 'item/tool/rope', scales: 'item/food/bread', nails: 'item/material/iron_ingot', lance: 'item/light/candle' }
+  const put = (shrine: string, type: string) => {
+    const at = w.posOf(w.get(`way.shrine.${shrine}`)!)!
+    const it = author(f, () => w.create(type, { on: 'inside', holder: w.player.id }))
+    const side = ([[0, 1, 'up'], [0, -1, 'down'], [1, 0, 'left'], [-1, 0, 'right']] as const).find(([dx, dy]) => w.walkable('pilgrimway', at.x + dx, at.y + dy))!
+    stand(f, at.x + side[0], at.y + side[1], side[2], 'pilgrimway')
+    // laid on it (G: the put act, the shrine receiving it)
+    f.eng.act('put', w.player.id, { e: `way.shrine.${shrine}` }, { instrument: { e: it.id } })
+    ticks(f, 2)
+    return it
+  }
+  // the wrong thing: G offers nothing there (it would change nothing); laid there all the same, nothing kindles, it says
+  // what it asks, and what was laid is kept
+  const wrong = author(f, () => w.create('item/food/bread', { on: 'inside', holder: w.player.id }))
+  const crown = w.posOf(w.get('way.shrine.crown')!)!
+  stand(f, crown.x, crown.y + 1, 'up', 'pilgrimway')
+  w.fx = []
+  f.eng.act('put', w.player.id, { e: 'way.shrine.crown' }, { instrument: { e: wrong.id } })
+  expect(w.hasStatus({ e: 'way.shrine.crown' }, 'lit')).toBe(false)
+  expect(w.get(wrong.id)).toBeTruthy()
+  expect(w.fx.some((x) => x.t === 'log' && JSON.stringify(x.text).includes('戴在头上'))).toBe(true)
+  author(f, () => w.destroy(wrong))
+  for (const [id, type] of Object.entries(offer)) {
+    const it = put(id, type)
+    expect([id, w.hasStatus({ e: `way.shrine.${id}` }, 'lit'), !!w.get(it.id)]).toEqual([id, true, false])
+  }
+  expect(ticks(f, 600, () => w.fact('ch1.shrines') === 1 && !w.scene)).toBe(true)
+  expect(stage()).toBe(60)
+  // the penitent keeps to the road
+  expect(w.posOf(w.get('npc.ezra')!)!.map).toBe('pilgrimway')
+  // the abbey: the writ of relief, never sent
+  const writ = Object.values(w.state.entities).find((e) => e.type === 'item/document/writ_of_relief')!
+  expect(w.posOf(writ)?.map).toBe('abbey.hall')
+  author(f, () => f.eng.teleport(w.player, { map: 'abbey.hall', x: 6, y: 10 }))
+  author(f, () => w.place(writ, { on: 'inside', holder: w.player.id }))
+  expect(ticks(f, 600, () => w.fact('ch1.writ') === 1 && !w.scene)).toBe(true)
+  // the crypt: the Order's last keeper falls, and his seal is the pilgrim's
+  const keeper = w.get(ABBOT_ID)!
+  expect(w.posOf(keeper)?.map).toBe('abbey.crypt')
+  author(f, () => f.eng.teleport(w.player, { map: 'abbey.crypt', x: 15, y: 5 }))
+  ticks(f, 200, () => !w.scene)
+  f.eng.damage(keeper, 10000, undefined, true, { e: 'player' })
+  ticks(f, 3)
+  const seal = Object.values(w.state.entities).find((e) => e.type === 'item/valuable/order_seal')!
+  expect(w.posOf(seal)?.map).toBe('abbey.crypt')
+  author(f, () => w.place(seal, { on: 'inside', holder: w.player.id }))
+  expect(ticks(f, 600, () => w.fact('ch1.order_seal') === 1 && !w.scene)).toBe(true)
+  ticks(f, 2)
+  expect(stage()).toBe(70)
+  // the Kneeling Field: the pilgrims before, in stone; straw subjects on their knees
+  expect(onMap(f, 'fixture/scarecrow', 'kneelfield').length).toBeGreaterThan(0)
+  author(f, () => f.eng.teleport(w.player, { map: 'kneelfield', x: 3, y: 12 }))
+  expect(ticks(f, 600, () => w.fact('ch1.kneelfield') === 1 && !w.scene)).toBe(true)
+  ticks(f, 2)
+  expect(stage()).toBe(80)
 })
 
 req('T1', 'the tutorial, offline and through the player\'s own inputs, lesson by lesson (each one thing, the keys it does not teach locked in the first ones): one comes round in a clearing, walks, eats, opens the bag, gathers, makes an axe, fells a tree and splits planks, lights a fire, builds a house on the outline with a door, a bed and a ceiling, knocks the training dummy down and gets through a night while the dead walk; the way out opens only on the first morning after the house, and nothing leads back', [

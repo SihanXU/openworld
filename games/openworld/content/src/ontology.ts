@@ -9,6 +9,7 @@ import { LOOK_TABLE } from './looks.ts'
 import { ELEMENT_NAMES, MATERIALS, MATERIAL_DEFS, QUALITIES, QUALITY_DEFS, itemTypes } from './items.ts'
 import { GEAR_SETS } from './sets.ts'
 import { AFFIX_TABLE, TROPHY_OF, TROPHY_SETS } from './trophies.ts'
+import { PILGRIMAGE_TYPES } from './pilgrimage.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
 import { SKILL_PROFESSIONS } from './skills.ts'
@@ -550,7 +551,7 @@ export const MODULES = ['classes', 'bosses', 'waypoints', 'boons', 'needs', 'soc
 
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}
-  for (const t of [...actorTypes, ...fixtureTypes, ...itemTypes(), ...RESIDENTS, ...BOSS_TYPES, ...SOCIAL_TYPES]) types[t.id] = t
+  for (const t of [...actorTypes, ...fixtureTypes, ...PILGRIMAGE_TYPES, ...itemTypes(), ...RESIDENTS, ...BOSS_TYPES, ...SOCIAL_TYPES]) types[t.id] = t
   // each kind of monster with its own piece (trophies.ts): what it is and how often a felling gives it (rules.ts combat/defeat)
   for (const [kind, t] of Object.entries(TROPHY_OF)) types[kind] = { ...types[kind], props: { ...types[kind].props, trophy: t.type, trophyChance: t.chance } }
   return {
