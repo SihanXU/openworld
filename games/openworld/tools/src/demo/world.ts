@@ -452,8 +452,8 @@ function person(p: PersonDef, at: (name: string) => Pos): Entity {
   const stock = p.trade?.stock ?? []
   const tags = [...(p.tags ?? []), ...(p.watch ? ['watchman'] : []), ...(p.trade ? ['merchant'] : []), ...(p.trade?.fence ? ['fence'] : []), ...(p.hireling ? ['hireling'] : []), ...(p.essential ? ['essential'] : [])]
   const carried = [
-    ...(p.items ?? []).map((spec, i) => ({ id: `${p.id}.item${i}`, ...itemOf(spec) })),
-    ...stock.flatMap(([form, n], i) => Array.from({ length: n }, (_, j) => ({ id: `${p.id}.stock${i}.${j}`, ...itemOf(form) }))),
+    ...(p.items ?? []).map((spec, i) => ({ id: `${p.id}.item${i}`, ...itemOf(spec, `${p.id}.item${i}`) })),
+    ...stock.flatMap(([form, n], i) => Array.from({ length: n }, (_, j) => ({ id: `${p.id}.stock${i}.${j}`, ...itemOf(form, `${p.id}.stock${i}.${j}`) }))),
     ...Array.from({ length: purse }, (_, i) => ({ id: `${p.id}.coin${i}`, type: SOCIAL_COIN })),
   ].map((e) => ({ ...e, place: { on: 'inside' as const, holder: p.id } }))
   return {
@@ -553,7 +553,8 @@ const scenes: StepDef[] = [
     script: [
       { fact: 'ford.crossed', value: 1 },
       { wait: 10 },
-      say('npc.hesper', 'Go on, then. The rider went east along the road, past the burned farm. If you find him — mind his bow.', '那就走吧。那个骑手沿着大路往东去了，过了烧毁的农庄。要是你找到他——当心他的弓。'),
+      // (the road east comes first to the Church's Rest: the Pilgrim's Road, docs/chapter-1.md §14)
+      say('npc.hesper', 'Go on, then. The road east comes first to the Church\'s Rest; the rider went on far past it, beyond the burned farm. If you find him — mind his bow.', '那就走吧。往东的路先到教会的驿站；那个骑手去了远得多的地方，过了烧毁的农庄。要是你找到他——当心他的弓。'),
       say('npc.hesper', 'If you need supplies before the road, Firstlight Village is still just west of here.', '上路前若还缺东西，初原村就在渡口西边。'),
       { topic: 'crossed', days: 30 },
     ],

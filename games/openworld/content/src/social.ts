@@ -75,10 +75,11 @@ export const SOCIAL: SocialParams = {
   fadeUp: 0.01,
   discount: 0.3,
   // the Held Ground's beds (haven.ts: one by the camp from the first; each residents' tent built, two more): one held
-  // in full regard may be asked to come and live there
+  // in full regard may be asked to come and live there — ten hearts in the talk panel, a mark a liking keeps five days
+  // as it fades (a hundredth a day: 100 is 95 five days on), not one it holds only for the hour after the last gain
   residence: {
     map: 'haven',
-    at: 100,
+    at: 95,
     slots: [
       { anchor: 'home.camp' },
       { anchor: 'home.lodge1.a', when: 'haven.build.lodge1' },
@@ -87,6 +88,11 @@ export const SOCIAL: SocialParams = {
       { anchor: 'home.lodge2.b', when: 'haven.build.lodge2' },
       { anchor: 'home.lodge3.a', when: 'haven.build.lodge3' },
       { anchor: 'home.lodge3.b', when: 'haven.build.lodge3' },
+    ],
+    // asleep in their bed from nine at night to seven, the day by the fire (a bed's `.day` anchor)
+    days: [
+      { from: 21, to: 7, at: 'bed', activity: 'sleep' },
+      { from: 7, to: 21, at: 'day', activity: 'live' },
     ],
     yes: L("...Live there? With you? — Yes. Give me a moment to pack. I'll see you in the Held Ground.", '……搬去那儿住？和你一起？——好。让我收拾一下东西。我们誓守之地见。'),
     full: L("I'd like that. But you've no bed for me there yet — ask Alberic to raise another tent.", '我很想去。可你那儿还没有我的床位——去找阿尔贝里克再搭一顶营帐吧。'),
@@ -137,6 +143,19 @@ const FOLLOWS: Cond = { leads: ['actor', 'host'] }
 const GRUDGE: Cond = { grudge: { of: 'host', toward: 'actor' } }
 const WANTED: Cond = { bounty: { role: 'actor', cmp: { gt: 0 } } }
 const BRIBE = 10
+/** The Held Ground, its residents' home (SOCIAL.residence). */
+const RESIDENCE = SOCIAL.residence!
+/** Asked to come and live in the Held Ground: what each part of it takes (the talk verb's condition is all of them). */
+const INVITE = {
+  // one the main story needs where they are does not leave
+  free: not(tag('host', 'storybound')),
+  // not one who lives there already
+  away: not({ prop: { role: 'host', key: 'resident', cmp: RESIDENCE.map } }),
+  // the Held Ground is one's own: its steward, the White Knight, is down
+  ours: { prop: { role: 'story', key: 'sins.defeated.alberic', cmp: { gte: 1 } } } as Cond,
+  // held in full regard (the residence's mark: the talk panel's ten hearts)
+  regard: { regard: { of: 'host', toward: 'actor', cmp: { gte: RESIDENCE.at } } } as Cond,
+}
 
 export const TALK: TalkVerb[] = [
   { id: 'ask', label: L('What news?', '最近有什么事？') },
@@ -148,7 +167,7 @@ export const TALK: TalkVerb[] = [
   { id: 'apologise', label: L("I'm sorry.", '对不起。'), when: GRUDGE },
   { id: 'turnin', label: L('I want to settle what I owe the watch ({bounty}).', '我要了结欠守卫队的账（{bounty}）。'), when: all({ is: { role: 'host', sel: WATCHMAN } }, WANTED) },
   // one held in full regard, free to leave, asked to come and live in the Held Ground (once it is one's own)
-  { id: 'invite', label: L('Come and live in the Held Ground?', '要不要搬来誓守之地住？'), when: all({ regard: { of: 'host', toward: 'actor', cmp: { gte: 100 } } }, not(tag('host', 'storybound')), not({ prop: { role: 'host', key: 'resident', cmp: 'haven' } }), { prop: { role: 'story', key: 'sins.defeated.alberic', cmp: { gte: 1 } } }) },
+  { id: 'invite', label: L('Come and live in the Held Ground?', '要不要搬来誓守之地住？'), when: all(INVITE.regard, INVITE.free, INVITE.away, INVITE.ours) },
   { id: 'follow', label: L('Come with me.', '跟我来。'), when: not(FOLLOWS) },
   { id: 'wait', label: L('Wait here.', '在这儿等着。'), when: all(FOLLOWS, not({ prop: { role: 'host', key: 'waiting', cmp: true } })) },
   { id: 'come', label: L("Let's go on.", '我们走吧。'), when: all(FOLLOWS, { prop: { role: 'host', key: 'waiting', cmp: true } }) },
@@ -261,8 +280,20 @@ const TALK_TREE: Tree = IF(
           ),
         ],
         [says('wait'), DO({ op: 'setProp', key: 'waiting', value: true }, say("I'll wait here.", '我在这儿等你。'))],
-        // asked to come and live in the Held Ground: a bed free there, they go (the society module's moveIn)
-        [says('invite'), DO({ op: 'moveIn' })],
+        // asked to come and live in the Held Ground: what the talk verb asks, checked again (a word may be said with no
+        // verb offered); all of it holding and a bed free there, they go (the society module's moveIn)
+        [
+          says('invite'),
+          cases(
+            [
+              [not(INVITE.free), DO(say("I can't leave — I'm needed here.", '我走不开——这里离不开我。'))],
+              [not(INVITE.away), DO(say('I live there already.', '我已经住在那儿了。'))],
+              [not(INVITE.ours), DO(say("Live where? You've no ground of your own to ask me to.", '搬去哪儿？你还没有自己的地方呢。'))],
+              [not(INVITE.regard), DO(say("I don't know you well enough for that.", '我跟你还没熟到那份上。'))],
+            ],
+            DO({ op: 'moveIn' }),
+          ),
+        ],
         [says('come'), DO({ op: 'setProp', key: 'waiting', value: false }, say('Right behind you.', '我跟着你。'))],
         [says('dismiss'), DO({ op: 'follow' }, say("I'll head home, then.", '那我回家了。'))],
         [

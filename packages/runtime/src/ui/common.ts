@@ -36,7 +36,40 @@ export const tx = (t: Text | undefined) => textOf(t, locale.value)
 export const STRINGS: Record<string, [string, string]> = {
   inventory: ['Inventory', '背包'],
   craft: ['Craft', '制作'],
-  shop: ['The Stall', '货摊'],
+  // a shop's panel (its title when the shop has no name of its own), what its offers' buttons say, and away from its counter
+  shop: ['Shop', '商店'],
+  shopBuy: ['Buy', '购买'],
+  shopSell: ['Sell', '出售'],
+  shopAway: ['Stand beside the {station} to trade.', '站到{station}旁边才能交易。'],
+  // the bag's character sheet
+  csLevel: ['Lv', '等级'],
+  csNoProfession: ['No profession', '无职业'],
+  csHealth: ['Health', '生命'],
+  csFood: ['Food', '饱食'],
+  csAttack: ['Attack', '攻击'],
+  csWeapon: ['Weapon', '武器威力'],
+  csDefence: ['Defence', '防御'],
+  csCritical: ['Critical', '暴击'],
+  csPack: ['Pack', '行囊'],
+  csPurse: ['Coin carried', '身上带的钱'],
+  'slot:ear': ['Earring', '耳环'],
+  'slot:head': ['Head', '头'],
+  'slot:neck': ['Necklace', '项链'],
+  'slot:shoulders': ['Shoulders', '肩'],
+  'slot:body': ['Armour', '护甲'],
+  'slot:hands': ['Hands', '手'],
+  'slot:ring': ['Ring', '戒指'],
+  'slot:waist': ['Belt', '腰带'],
+  'slot:weapon': ['Main hand', '主手'],
+  'slot:feet': ['Feet', '脚'],
+  'slot:arm': ['Off hand', '副手'],
+  invHelp: [
+    'Click to pick up, again to swap · Shift+click: toolbar ↔ bag · Tab: next row to the toolbar · pick up something wearable and click its slot on the left to put it on (or right click), click a worn piece to take it off · right click: use or put the held thing on it, or handle it',
+    '点击拿起、再点击交换 · Shift+点击：快捷栏↔背包 · Tab：换一行到快捷栏 · 拿起装备点左边的装备栏穿上（右键也可以），点装备栏卸下 · 右键：对它用手上的东西、放进去、空手摆弄',
+  ],
+  // the tooltip: a creature's own piece (its kind's `trophy`), and whose
+  tipTrophy: ['Trophy', '战利品'],
+  tipDroppedBy: ['dropped by {kind}', '{kind}掉落'],
   craftIt: ['Craft', '制作'],
   needMore: ['Not enough materials', '材料不够'],
   craftAll: ['All', '全部'],
@@ -82,6 +115,9 @@ export const STRINGS: Record<string, [string, string]> = {
   boonSealed: ['Not yet found', '尚未获得'],
   boonSealedDoc: ['A power is found as the story goes on.', '力量会随着故事获得。'],
   boonOne: ['One power is carried at a time.', '一次只能携带一种力量。'],
+  boonAway: ['A power can be changed only beside a woken waypoint statue.', '只有在唤醒过的传送雕像旁才能切换力量。'],
+  boonCarry: ['Carry', '携带'],
+  boonCarried: ['Carried', '携带中'],
   profTitle: ['Choose a profession', '选择职业'],
   profCurrent: ['Your profession', '当前职业'],
   profChoose: ['Choose', '选择'],
@@ -205,10 +241,16 @@ export const prefs = {
 }
 
 export function t(k: string): string {
-  const own = gameIfAny()?.texts?.[k]
-  if (own) return locale.value === 'zh' ? (own.zh ?? own.en) : own.en
+  const own = gameText(k)
+  if (own !== undefined) return own
   const v = STRINGS[k]
   return v ? (locale.value === 'zh' ? v[1] : v[0]) : k
+}
+
+/** What the game itself says for a key (ClientGame.texts), if it says anything: words only a game has (a tier's lore). */
+export function gameText(k: string): string | undefined {
+  const own = gameIfAny()?.texts?.[k]
+  return own && (locale.value === 'zh' ? (own.zh ?? own.en) : own.en)
 }
 
 export const MOOD_GLYPH: Record<string, string> = { happy: '♥', sad: '…', angry: '!!', surprised: '!', shy: '♡', neutral: '…' }

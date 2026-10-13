@@ -34,7 +34,7 @@ interface EView {
   overlay?: Phaser.GameObjects.Sprite
   overlayName?: string
   hp: Phaser.GameObjects.Graphics
-  /** What shows over its head (the health bar, the quest mark, a trainer's sign): drawn over the world, following the body. */
+  /** What shows over its head (the health bar, the quest mark, a sign of what it is): drawn over the world, following the body. */
   head: Phaser.GameObjects.Container
   glow?: Phaser.GameObjects.Image
   key: string
@@ -43,7 +43,7 @@ interface EView {
   bossAnimation?: BossAnimationClock
   /** The quest mark over a person ('!' a quest to give, '?' one to take back). */
   quest?: { mark: string; text: Phaser.GameObjects.Text }
-  /** What it is, over its head while no quest mark is: a profession trainer's crossed blades. */
+  /** What it is, over its head while no quest mark is: the catalogue's `<tag>Mark` for one of its tags. */
   role?: Phaser.GameObjects.Image
   /** The player: the tile it walks to; drawn chasing it at the walking pace (walk()). */
   walker?: { x: number; y: number; t: number }
@@ -94,8 +94,6 @@ const CELL_OVERLAY: Record<string, string> = { burning: 'fire', frozen: 'ice', e
 const STEP: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }
 
 /** Terrain objects and decor groups that grow loose: drawn a few pixels off the tile grid. */
-/** The tags that put a mark over a person's head (the catalogue's `<tag>Mark`), first first. */
-const ROLE_MARKS = ['trainer', 'smith']
 const LOOSE = new Set(['drygrass', 'flowers', 'bush'])
 /** The ground a stocked pond's fish shadows swim in. */
 const FISH_WATER = new Set(['water', 'deepwater'])
@@ -499,10 +497,10 @@ export class WorldScene extends Phaser.Scene {
       this.tweens.add({ targets: text, y: -T * 1.45 - 2, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
       v.quest = { mark, text }
     }
-    // what one is for, over the head — a profession trainer's crossed blades, a smith's anvil (the catalogue's
-    // `<tag>Mark`); the quest mark, when there is one, comes first
+    // what one is for, over the head: the catalogue's `<tag>Mark` for the first of one's tags that has one (OpenWorld's
+    // trainer's crossed blades, its smith's anvil); the quest mark, when there is one, comes first
     for (const v of this.views.values()) {
-      const tag = ROLE_MARKS.find((t) => v.snap.tags.includes(t))
+      const tag = v.snap.tags.find((t) => catalog().ui[`${t}Mark`])
       const icon = tag ? catalog().ui[`${tag}Mark`] : undefined
       const show = !!icon && !v.quest
       if (show && !v.role) {
@@ -1647,9 +1645,9 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * The one who struck from a tile, seen wielding their weapon for a moment: a sword swept in an arc across the way
-   * they face, a bow raised, drawn and loosed, a staff swung up and brought down to point. Only these three for now;
-   * other weapons (and bare hands) show the blow alone.
+   * The one who struck from a tile, seen wielding their weapon for a moment, as its catalogue entry's `swing` says
+   * (assets/types.ts Swing): swept in an arc across the way they face, raised, drawn and loosed, or swung up and brought
+   * down to point. A weapon with no swing (and bare hands) shows the blow alone.
    */
   private swingWeapon(x: number, y: number, dir: string, who?: string): void {
     // whoever made it, wherever they are drawn now (one striking on the move has stepped on); else whoever stands there
@@ -1658,8 +1656,8 @@ export class WorldScene extends Phaser.Scene {
     const isMe = v.snap.id === this.playerId
     const held = v.snap.heldTags?.includes('weapon') ? v.snap.held : undefined
     const key = held ?? (isMe ? this.mainHand : undefined)
-    const kind = key === 'item:sword' ? 'sword' : key === 'item:bow' ? 'bow' : key === 'item:staff' ? 'staff' : undefined
-    const d = kind && key ? catalog().items[key] : undefined
+    const d = key ? catalog().items[key] : undefined
+    const kind = d?.swing
     if (!kind || !key || !d) return
     const [frame] = spriteFrames(this, `ico:${key}`, d)
     const [dx, dy] = dirVec(dir)
@@ -1672,11 +1670,11 @@ export class WorldScene extends Phaser.Scene {
     const gone = (delay = 0) => this.tweens.add({ targets: img, alpha: 0, delay, duration: 90, onComplete: () => img.destroy() })
     // a lean into the blow
     this.tweens.add({ targets: v.body, x: dx * 2, duration: 70, yoyo: true, onComplete: () => v.body.setX(0) })
-    if (kind === 'sword') {
+    if (kind === 'sweep') {
       // the blade points up in its picture: swept from one side of the facing to the other, about the hilt
       img.setOrigin(0.5, 0.9).setAngle(facing + 90 - 80)
       this.tweens.add({ targets: img, angle: facing + 90 + 70, duration: 170, ease: 'Cubic.easeOut', onComplete: () => gone() })
-    } else if (kind === 'bow') {
+    } else if (kind === 'shoot') {
       // the arrow in its picture points up-left: turned to the facing, drawn back, loosed forward
       img.setOrigin(0.5, 0.5).setScale(0.8).setAngle(facing + 135).setPosition(hand[0] + dx * 3, hand[1] + dy * 3)
       this.tweens.chain({

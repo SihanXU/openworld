@@ -13,7 +13,7 @@ const RECORDS = ['types', 'statuses', 'terrains', 'laws', 'professions', 'resist
 /** Lists of names: joined, each once. */
 const NAMES = ['elements', 'vfx', 'instanceTags'] as const
 /** Lists of things with a key: joined, a later file's of the same key replacing the earlier file's (within one file, all are kept: two talk verbs of one id for two persons). */
-const KEYED: Record<string, string> = { thresholds: 'name', periods: 'name', roomRoles: 'role', deeds: 'id', talk: 'id', qualities: 'id' }
+const KEYED: Record<string, string> = { thresholds: 'name', periods: 'name', roomRoles: 'role', deeds: 'id', talk: 'id', qualities: 'id', sets: 'id' }
 
 /** The ontology: the standard library's (unless the game says not), then each of the project's parts in order. */
 export function mergeOntology(parts: OntologyPart[], game: Pick<GameJson, 'stdlib' | 'modules' | 'params'>): Ontology {

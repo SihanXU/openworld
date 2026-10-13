@@ -370,6 +370,19 @@ describe('talk, regard, trade, followers (§2.4, §2.9, §2.10)', () => {
     expect(fxOf(s).some((f) => f.t === 'say' && f.who === 'npc.cass')).toBe(true)
   })
 
+  it('trade is a merchant\'s: one who keeps none (a person record need not trade — the demo\'s all do) is not asked to, and asked anyway has nothing to sell', () => {
+    const s = fresh()
+    clear(s, ['npc.cass'])
+    const cass = put(s, 'npc.cass', 20, 14, 'down')
+    put(s, 'player', 20, 15, 'up')
+    expect(socialOf(s.eng).verbs(cass, P(s)).map((v) => v.id)).toContain('trade')
+    author(s, () => W(s).removeTag(cass, 'merchant'))
+    expect(socialOf(s.eng).verbs(cass, P(s)).map((v) => v.id)).not.toContain('trade')
+    s.eng.controls.talk('npc.cass', 'trade')
+    expect(fxOf(s).some((f) => f.t === 'panel')).toBe(false)
+    expect(fxOf(s).some((f) => f.t === 'say' && f.who === 'npc.cass' && JSON.stringify(f.text).includes('没什么可卖'))).toBe(true)
+  })
+
   it('a gift raises regard by its worth; what was taken given back is forgiven', () => {
     const s = fresh()
     clear(s, ['npc.cass'])
@@ -415,6 +428,34 @@ describe('talk, regard, trade, followers (§2.4, §2.9, §2.10)', () => {
     expect(ring.place).toEqual({ on: 'inside', holder: 'npc.tobin' })
     expect(W(s).prop(ring, 'owner')).toBe('npc.tobin')
     expect(purse(s, 'player')).toBe(p0 + fence)
+  })
+
+  it('the hungry keep their food: a hungry seller offers no meal, so the loaf is eaten, not sold round and round', () => {
+    const s = fresh()
+    clear(s, ['npc.joss', 'npc.cass'])
+    put(s, 'npc.joss', 20, 14, 'down')
+    put(s, 'npc.cass', 20, 15, 'up')
+    put(s, 'player', 30, 25, 'up')
+    // both hungry, both with coin; only Cass has a loaf
+    author(s, () => {
+      for (const id of ['npc.joss', 'npc.cass']) {
+        for (const x of [...(get(s, id).contents ?? [])].map((i) => W(s).get(i)!)) if (W(s).hasTag(x, 'edible')) W(s).destroy(x)
+        W(s).setStatus({ e: id }, 'hungry', -1)
+      }
+    })
+    coins(s, 'npc.joss', 20)
+    const loaf = make(s, 'item/food/bread', { on: 'inside', holder: 'npc.cass' }, { owner: 'npc.cass' })
+    expect(socialOf(s.eng).stock(get(s, 'npc.cass')).some((e) => e.id === loaf.id)).toBe(false)
+    let buys = 0
+    const dispatch = s.eng.dispatch.bind(s.eng)
+    s.eng.dispatch = (ev) => ((ev.kind === 'act/hands' && ev.params?.say === 'buy' && buys++), dispatch(ev))
+    // she eats it; he is offered none, so it never changes hands
+    expect(ticks(s, 300, () => !W(s).get(loaf.id))).toBe(true)
+    expect(buys).toBe(0)
+    // fed, she sells again
+    author(s, () => W(s).clearStatus({ e: 'npc.cass' }, 'hungry'))
+    const more = make(s, 'item/food/bread', { on: 'inside', holder: 'npc.cass' }, { owner: 'npc.cass' })
+    expect(socialOf(s.eng).stock(get(s, 'npc.cass')).some((e) => e.id === more.id)).toBe(true)
   })
 
   it('asked to come along, one who does not know you well declines; a hireling follows, waits when told, and comes from map to map', () => {

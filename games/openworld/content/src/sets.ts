@@ -173,6 +173,8 @@ export const SET_RECIPES: Recipe[] = SET_DEFS.flatMap((s) =>
     group: `set:${s.id}`,
     needs: p.needs.map(([type, count]) => ({ type, count })),
     make: { type: p.type, name: L(p.en, p.zh), props: { ...(setOfSlot(s.id, p.slot) && { set: setOfSlot(s.id, p.slot) }), ...p.props } },
+    // of the metal it took and as well as its smith forges, under the set's name (Recipe.madeOf)
+    madeOf: true,
     station: 'anvil',
     tools: ['tool:hammer'],
     level: s.level,

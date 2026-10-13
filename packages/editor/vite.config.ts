@@ -13,6 +13,8 @@ import { Workspace } from './src/server/workspace.ts'
 const PACKAGES = fileURLToPath(new URL('..', import.meta.url))
 const GAMES = fileURLToPath(new URL('../../games', import.meta.url))
 const PLAYER = fileURLToPath(new URL('../runtime/dist', import.meta.url))
+/** A file of this machine as Vite serves it: `/@fs/` and its path with forward slashes (`/@fs/C:/…` on Windows). */
+const fs = (path: string) => `/@fs/${path.replace(/\\/g, '/').replace(/^\/+/, '')}`
 const workspace = new Workspace({ shelves: [GAMES], templates: templatesOf(`${GAMES}/starter`) })
 const api = new ProjectsApi(workspace, {
   pack: `${GAMES}/openworld/public/assets/na`,
@@ -30,7 +32,7 @@ function service(): Plugin {
       server.middlewares.use((req, res, next) => {
         if (req.url === '/' || req.url === '/editor') return (res.writeHead(302, { location: '/editor/' }), res.end())
         const plugin = (req.url ?? '').match(/^\/games\/([a-z0-9-]+)\/plugin\.js$/)
-        if (plugin && existsSync(`${GAMES}/${plugin[1]}/client/src/plugin.ts`)) return (res.writeHead(302, { location: `/@fs${GAMES}/${plugin[1]}/client/src/plugin.ts` }), res.end())
+        if (plugin && existsSync(`${GAMES}/${plugin[1]}/client/src/plugin.ts`)) return (res.writeHead(302, { location: fs(`${GAMES}/${plugin[1]}/client/src/plugin.ts`) }), res.end())
         void api.handle(req, res).then((done) => {
           if (done) return
           const g = (req.url ?? '').split('?')[0].match(/^\/games\/([a-z0-9][a-z0-9-]*)\/(.*)$/)

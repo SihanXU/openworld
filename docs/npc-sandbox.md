@@ -69,9 +69,12 @@ watch 0.5, anyone else 0.25; heard second-hand, half again.
   first-hand or heard, settled or not.
 - `regard`: per pair (−100..100), starting at 0, or 30 toward kin and household. Talking (+2, once a day), gifts
   (value × 0.3 + 2), things given back (+5, +8 by the talk), persuasion (+10), a bribe (+12) raise it, gains
-  harder as it rises (×100/(100+2r), Elin); deeds lower it in full; it fades 10 % a day toward its start. It
-  names a word in the talk panel (hostile ≤ −60, cold ≤ −20, neutral, friendly ≥ 20, close ≥ 50) and moves prices,
-  persuasion and whether one follows (≥ 25).
+  harder as it rises (×100/(100+2r), Elin); deeds lower it in full. It fades back toward its start, a grudge
+  faster than a liking: a grudge a tenth of the way a day (`fade` 0.1), a liking a hundredth (`fadeUp` 0.01,
+  since 2026-10-12: a friend made stays one). It names a word in the talk panel (hostile ≤ −60, cold ≤ −20,
+  neutral, friendly ≥ 20, close ≥ 50) and, since 2026-10-12, shows as ten hearts beside the name (a heart for
+  every ten, a half for five; the number on hover). It moves prices, persuasion, whether one follows (≥ 25),
+  and, at full regard, whether one may be asked to come and live in the Held Ground (§2.14).
 - `met`: whom they know by sight (talked to, or a face learnt close).
 - `afraid`: whom they fear and until when (an intimidation that worked, a cry for help they did not answer).
 
@@ -121,17 +124,25 @@ E speaks to a person (a quest they have, else their line) and opens the panel of
 `TALK`, each with a condition): **ask** (news: what they know, "I know what you did"), **trade** (a merchant),
 **profession** (the trainer), **giveback** and **apologise** (for what they hold against you), **turnin** (a
 guard, when wanted), **follow / wait / come / dismiss**, **persuade** (once a day), **bribe** (10 coin),
-**intimidate** (levels, a drawn blade, the other's bravery, fear), goodbye. Each is an act on them (`hands` with
+**intimidate** (levels, a drawn blade, the other's bravery, fear), **invite** (at full regard: §2.14), goodbye. Each is an act on them (`hands` with
 `say`), answered by `people/talk` (merchants' and guards' rules over it); a word no rule knows is a hole (the
-AI's). The panel names their regard, a grudge in red, and the bounty here. Number keys choose.
+AI's). The panel names their regard (a word and ten hearts), a grudge in red, and the bounty here. Number keys
+choose.
 
 ### 2.10 Hands in pockets, and trade
 - F on a person **while sneaking** (`people/pockets` on `impulse/taken`) opens their **pockets**: each take is an
   act, seen or not by the rolls; G while sneaking (`people/plant`) slips a thing into their pocket.
-- Merchants (`trade` in the person record: stock and `fence`) carry their goods and coin; each morning
-  (`people/morning`, `restock`) the stock and every person's purse come back to their numbers (a day's wage).
-  Prices: buying, value × 1.25 × (1 − r/250); selling, value × 0.5 × (1 + r/250) (r the regard, ±50 at most);
-  a fence (Tobin) buys what is not the seller's at half again. A merchant does not buy back its own goods.
+- Every person trades (since 2026-10-11): each record's `trade` (its stock and `fence`) sells what fits who
+  they are — the smith hammers and bars, the farmer's wife vegetables and eggs, the brother holy water and
+  candles —, and every item's worth was set against a day's earnings (content `items.ts`; the general store
+  prices from the same worths). They carry their goods and coin; each morning (`people/morning`, `restock`) the
+  stock and every person's purse come back to their numbers (a day's wage).
+- Prices (`Social.priceToBuy`, `priceToSell`): buying, value × 1.25 × (1 − d); selling, value × 0.5 × (1 + ⅔d)
+  when d is above 0, × (1 + d) below. d is the merchant's regard discount (`regardDiscount`): `discount` × r/100
+  at a regard r of 0 and over — up to 30 % off at full regard (content `SOCIAL.discount` 0.3; three tenths less
+  asked, a fifth more paid) —, r/250 below 0, r held between −50 and 100 (a fifth dearer at −50 and under).
+  A fence (Tobin) buys what is not the seller's at half that (`fence` 0.5). A merchant does not buy back its own
+  goods.
 
 ### 2.11 Needs (M3)
 People grow hungry (`maxHunger`, at half the player's pace). Hungry, the `need` goal: eat what they carry; buy a
@@ -149,13 +160,25 @@ keeps them within 2 cells, brings them at once when more than 12 behind, takes t
   no verb holds).
 - The modder sees the person: role, temperament, ties, regard toward the actor, what they know of them.
 
+### 2.14 Residents (2026-10-12)
+One held in full regard may be asked to come and live on the player's home ground (content `SOCIAL.residence`:
+the Held Ground's map, the regard it takes, its beds, the yes and the no-bed lines). The talk verb **invite**
+("Come and live in the Held Ground?") shows when the person's regard toward the speaker is full, they are not
+bound to the main story (tag `storybound`), they do not live there already (prop `resident`), and Alberic has
+fallen (the story's `sins.defeated.alberic`). Answered by the people's rule with the society module's `moveIn`
+primitive: with a bed free (`Social.residenceBeds`: the camp's from the first; two in front of each residents'
+tent, open once its fact `haven.build.lodge<n>` holds — seven in all), the host takes it (`NpcData.resident`:
+the map, the bed, its days there — asleep at the bed 21–7, about it 7–21 —, which replace its schedule
+variants: `people.ts`), makes the ground its home, says yes, and travels there at once; with none free it says
+so. Its trade goes on as before. Tests: `tools/test/residence.test.ts`.
+
 ## 3. Where it lives
 - engine: `social.ts` (`Social`: ownership, households, deeds, recognition, descriptions, memory, regard, gossip,
   perception, the law, prices, the talk panel's view); `conduct.ts` (`Conduct`: the goals `social` — the guard's
   pursuit, the owner's demand, fear, calming —, `need`, `follow` for people, `bringFollowers`); primitives in
   `effects.ts` (`own`, `witness`, `tell`, `hear`, `regard`, `settle`, `fear`, `report`, `charge`, `surrender`,
   `die`, `pay`, `give`, `sell`, `buy`, `follow`, `talk`, `fine`, `imprison`, `jail`, `arrest`, `restock`,
-  `calm`); conditions (`rules.ts`) `regard`, `bounty`, `grudge`, `owns`, `knows`, `remembers`, `deed`, `sway`,
+  `calm`, `moveIn`); conditions (`rules.ts`) `regard`, `bounty`, `grudge`, `owns`, `knows`, `remembers`, `deed`, `sway`,
   `canPay`, `unpardonable`; `see` with sneaking and the deed's facts (`engine.ts`); the inputs X and V and the
   talk, trade and pocket verbs (`controls.ts`).
 - content: `social.ts` (deeds, laws, numbers, statuses, the watch and remains types, talk verbs, the people's

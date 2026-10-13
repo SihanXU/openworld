@@ -4,7 +4,7 @@
 // inventory, J journal, M map.
 
 import Phaser from 'phaser'
-import { CEILING, type Dir, type Frame, type ItemInfo, type Key, type LibraryData, type Mood, type SaveData, type Text } from '@openworld/engine'
+import { CEILING, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type SaveData, type Text } from '@openworld/engine'
 import { catalog, hasModule, libraryKey, newWorker, savesKey, worldBase } from './game.ts'
 import type { FromWorker, Tile, ToWorker } from './protocol.ts'
 import { cssAssetUrl, registerArt } from './render/assets.ts'
@@ -147,7 +147,7 @@ function toggleBuilding(): void {
 
 /** Minecraft's tooltip over any item in the toolbar, the bag, a chest or the crafting panel. */
 const tooltip = new Tooltip(() => ({
-  atk: Number(lastFrame?.player.props.atk ?? 0),
+  atk: lastFrame?.player.stats.atk ?? 0,
   profession: typeof lastFrame?.player.props.profession === 'string' ? lastFrame.player.props.profession : undefined,
   // a set's pieces worn, one per slot (World.stat: two of its rings count once)
   sets: Object.fromEntries(
@@ -328,19 +328,16 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       scene.applyFrame(m.frame)
       minimap.onFrame(m.frame)
       people.onFrame(m.frame)
-      // a rule opened one of the player's panels (a trainer: the choice of profession)
-      if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'profession')) menu.openProfession()
-      // the home ground's heart: its widenings
-      if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'haven')) menu.openHomestead()
-      // the commission board read (docs/quests.md §3): the favours on offer
-      const board = m.frame.fx.find((x) => x.t === 'panel' && x.panel === 'board')
-      if (board && board.t === 'panel' && board.by) menu.openBoard(board.by)
-      // the companion spoken to: her panel, on the road; a woken waypoint statue: on the seals' powers
-      if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'companion')) menu.openCompanion('guide')
-      else if (m.frame.fx.some((x) => x.t === 'panel' && x.panel === 'boons')) menu.openCompanion('powers')
-      // a shop: the Held Ground's stall, a store's counter, a bookstand (`shop:<station>`), on its shelves
-      const shop = m.frame.fx.find((x) => x.t === 'panel' && (x.panel === 'shop' || x.panel.startsWith('shop:')))
-      if (shop && shop.t === 'panel') menu.openShop(shop.panel === 'shop' ? 'stall' : shop.panel.slice(5))
+      // a rule opened one of the player's panels: the runtime's own — a trainer's choice of profession, the commission
+      // board's favours (docs/quests.md §3), a shop on its shelves (`shop:<station>`; `shop`: the game's first) —, else
+      // one of the game's (ClientGame.panels, told whose rule opened it) or the runtime's for a module it uses
+      const panels = m.frame.fx.filter((x): x is Extract<FxEvent, { t: 'panel' }> => x.t === 'panel')
+      for (const x of panels) {
+        if (x.panel === 'profession') menu.openProfession()
+        else if (x.panel === 'board') x.by && menu.openBoard(x.by)
+        else if (x.panel === 'shop' || x.panel.startsWith('shop:')) menu.openShop(x.panel === 'shop' ? undefined : x.panel.slice(5))
+        else if (menu.openPanel(x.panel, x.by)) break
+      }
       reaim()
       dev.setPerf(m.perf, fps)
       // the open codex follows what is met

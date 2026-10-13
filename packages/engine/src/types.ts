@@ -133,8 +133,6 @@ export interface WorldParams {
   recovery: number
   /** How many things one effect may make at once (a runtime guard; default 64). */
   spawnMax?: number
-  /** How many of a kind one fells before its trophy surely comes (the `trophy` primitive; default 50). */
-  trophyPity?: number
   /** A drop of this many levels or less does no harm (world-model.md §5.5). */
   safeFall: number
   /** The harm of each level fallen beyond the safe height. */
@@ -216,6 +214,8 @@ export interface Ontology {
   deeds?: DeedDef[]
   laws?: Record<string, LawDef>
   social?: SocialParams
+  /** What a felled creature's kind leaves its feller beyond the rules' spoils: its own piece's pity and words (the loot module). */
+  loot?: LootParams
   /** The verbs of the talk panel (docs/npc-sandbox.md §2.9): each offered when its condition holds (host: the one spoken to; actor: the speaker). */
   talk?: TalkVerb[]
   statuses: Record<string, StatusDef>
@@ -699,6 +699,17 @@ export interface LawDef {
   unpardonable?: number
 }
 
+/**
+ * The loot module's numbers and words (packages/modules/src/loot): a creature kind's own piece of gear (its type's
+ * `trophy` prop, found by its `trophyChance`) comes to the one who fells it by that chance, or surely after so many.
+ */
+export interface LootParams {
+  /** How many of a kind one fells without its piece before the next surely gives it (default 50; the count is the feller's `trophy.<type>`). */
+  pity?: number
+  /** What the one at the keys is told when a piece comes to them (`{item}`: its name); none, only the piece's pickup is shown. */
+  found?: Text
+}
+
 /** The numbers of the people's social life (data, docs/npc-sandbox.md): the engine holds the mechanisms. */
 export interface SocialParams {
   /** The coin trade and fines are paid in. */
@@ -731,14 +742,16 @@ export interface SocialParams {
 
 /**
  * A home ground's room for people (the society module's `moveIn`): its map and the beds it has, each an anchor there
- * (where the resident sleeps; `<anchor>.day` where their day is spent, else the same), open once its fact holds; what
- * the one asked says, moved in or with no bed free.
+ * (where the resident sleeps; `<anchor>.day` where their day is spent, else the same), open once its fact holds; a
+ * resident's day there; what the one asked says, moved in or with no bed free.
  */
 export interface ResidenceDef {
   map: string
-  /** The regard (of the one asked toward the one asking) it takes. */
+  /** The regard (of the one asked toward the one asking) it takes: one a liking keeps for days as it fades. */
   at: number
   slots: { anchor: string; when?: string }[]
+  /** A resident's day there, hour by hour: each span spent at its bed (`bed`) or its bed's day place (`day`), and doing what. */
+  days: { from: number; to: number; at: 'bed' | 'day'; activity: string }[]
   yes: Text
   full: Text
 }
@@ -1118,7 +1131,6 @@ export interface ActiveDef {
   missile?: string
 }
 
-/** A recipe for the crafting panel: the carried items it uses up, and the item it makes. */
 /** A set of gear: its pieces carry `props.set: id`; worn together they give its bonuses. */
 export interface GearSet {
   id: string
@@ -1128,13 +1140,23 @@ export interface GearSet {
   bonuses: { pieces: number; props: Record<string, number>; text: Text }[]
 }
 
+/** A recipe for the crafting panel: the carried items it uses up, and the item it makes. */
 export interface Recipe {
   id: string
   name: Text
   sprite: string
   /** What it uses up: its makeup (the first part is the main ingredient, whose material it takes). */
   needs: { type: string; count: number }[]
+  /**
+   * What it makes. A bare type is made of the main ingredient's material at the quality its maker reaches; a `make`
+   * that names, tags or gives props to what it makes is made as it says, unless `madeOf` asks for both.
+   */
   make: Omit<Entity, 'id' | 'place'>
+  /**
+   * What it makes is made of its main ingredient at the quality its maker reaches (its material and quality tags), with
+   * `make`'s name, tags and props laid over that: a set's piece, forged of the steel it took, as well as its smith forges.
+   */
+  madeOf?: boolean
   /** Where it is made: `hands`, or a station within reach. */
   station?: string
   level?: number
@@ -1142,7 +1164,7 @@ export interface Recipe {
   tools?: string[]
   /** How many one making gives (default 1). */
   count?: number
-  /** A stall's shelf it is sold on (`farm`, `ranch`, `fish`), or `sell`: what the stall buys (the homestead). */
+  /** The shelf of a shop it is offered on (a shelf's `group`: the runtime's ClientGame.crafting.shops, which says whether the shelf buys). */
   group?: string
   /** A skill its maker must know (a recipe a skill teaches: steel, jewellery). */
   skill?: string
@@ -1454,7 +1476,7 @@ export type EmitTo =
  * yourself), spawns, or presents; `emit` sends an event to others, which answer for themselves.
  */
 /** The primitives the engine's official modules carry (packages/modules): typed here, worked by their module (module.ts). */
-export type ModuleOp = 'release' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn'
+export type ModuleOp = 'release' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'trophy'
 
 export type Effect =
   | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean }
@@ -1489,7 +1511,8 @@ export type Effect =
   /**
    * The host spills what it holds onto its tile — or into a role's bag (`to`: a bundle opened). `keepWorn`: what it wears,
    * and the weapon in its hand, stay with it; `keep`: so do things with any of these tags (`important`). `bundle`: what
-   * is spilled is packed into a new thing of this type on the tile (nothing spilled, none is made).
+   * is spilled is packed into a new thing of this type on the tile (nothing spilled, none is made); `loose`: things with
+   * any of these tags are left lying loose on the tile beside the bundle (coin), not packed into it.
    */
   | { op: 'dropContents'; still?: boolean; to?: RoleRef; keepWorn?: boolean; keep?: string[]; bundle?: string; loose?: string[] }
   | { op: 'goto'; anchor: string; hours: number; activity?: string }
@@ -1516,7 +1539,7 @@ export type Effect =
   | { op: 'startQuest'; id?: string; offer?: boolean }
   /** The story's: the facts it is told (params `fact.<key>`) it keeps. */
   | { op: 'facts' }
-  /** A trophy, perhaps (the host felled a creature that keeps one: params type, chance): see effects.ts PRIMITIVES. */
+  /** The loot module's: a trophy, perhaps (the host felled a creature whose kind keeps one: params trophy, trophyChance). */
   | { op: 'trophy' }
   /** News for the quests (docs/quests.md §2.3): what this event is (its actor, host, item) — a gift handed over. */
   | { op: 'news'; kind: 'give' | 'deed' | 'hungry' | 'talk' }
@@ -1525,11 +1548,11 @@ export type Effect =
   /** The host's stage clock ran out (param status): it becomes what its stage says next (world-model.md §6.5). */
   | { op: 'grow' }
   /** The host learns: the skill (param skill) or the profession (param profession) its act names. */
-  /** `book`: from a book the host holds (the event's item): no points, no skills before it — only its profession; the book is used up. */
+  /** `book`: from a book the host holds (the event's item): no points, but its profession and the skills before it in the tree; the book is used up. */
   | { op: 'learn'; book?: boolean }
   /** The host's encounter skill lands on the cells its act telegraphed (bosses.ts). */
   | { op: 'release' }
-  /** Open one of the player's panels (the profession trainer's: 'profession'). */
+  /** Open one of the panels the game's client shows, by its id (profession, board, haven, …), for the one at the keys who spoke to the host. */
   | { op: 'panel'; panel: string }
   | { op: 'scene'; id: string }
   | { op: 'craft' }

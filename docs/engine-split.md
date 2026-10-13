@@ -196,12 +196,23 @@ P2 and P3 overlap where they do not touch (the catalogue as data needs no module
 - **The modules**: `classes` (professions and their weapons, the combat talents, relics, the active skills
   and the skill bar; it fills the combat slot), `bosses` (the encounter goal, `release`), `waypoints`,
   `boons` (needs waypoints), `needs` (hunger: `feed`, the woken-by-hunger word), `society` (the social life and
-  conduct of docs/npc-sandbox.md: 23 primitives, 9 conditions, the goals social, follow and need, the watches as
-  residents; it fills the society slot). OpenWorld names all six (`content/src/ontology.ts` `MODULES`).
+  conduct of docs/npc-sandbox.md: 24 primitives — `moveIn` the latest, 2026-10-12 —, 9 conditions, the goals
+  social, follow and need, the watches as residents; it fills the society slot), `loot` (2026-10-12: a creature
+  kind's own piece of gear, its `trophy` prop, found on felling one by its `trophyChance` or surely after
+  `Ontology.loot.pity` fellings, the count the feller's `trophy.<type>`; one primitive, `trophy`; the words the
+  finder is told are the game's, `loot.found`. Only a piece some kind of the game's own ontology names as its
+  trophy is ever made, so no rule, a patch's included, can put another type into a bag by defeat news; its
+  chance is a `World.chance` site, so the sandbox explores both outcomes). OpenWorld names all seven
+  (`content/src/ontology.ts` `MODULES`).
   **Kept in the kernel**, by decision: looks, experience and levels, the codex, a companion's following, the
   quests and the story — mechanisms every game has, with each game's data; the editor and the AI interface
-  stand on them. The runtime may import modules (the worker casts, sets the skill bar, takes a profession,
-  chooses a boon through them).
+  stand on them. So are **gear sets** (`Ontology.sets`: a piece's `set` prop, bonuses by the count of slots worn)
+  and **rolled affixes** (`Ontology.affixes`, `engine/affixes.ts`: a piece's `sub:<key>` extras, rolled as gear is
+  made; of weapons only the one fought with counts, `weaponOf`), decided 2026-10-12: mechanisms configured
+  entirely by data, which World.stat reads as it reads any worn number; a game without the tables has neither.
+  A recipe's `make` that names or tags what it makes is made as it says; `madeOf` asks for the material and
+  quality as well (a set's piece). A skill book asks no points but holds to the tree's `requires`. The runtime
+  may import modules (the worker casts, sets the skill bar, takes a profession, chooses a boon through them).
 - **Ids and numbers out of the kernel**: the coin (`ontology.social.coin`), the waypoint stone's type
   (`params.waypoint`), the fact that lengthens the night (`params.nightFact`, the Ford's `night.shift`), the
   professions' names (`ontology.professions`). `game.difficulty` stays the engine's own fact (a new game's
@@ -414,6 +425,30 @@ program to install. Asked to go that way now, S2 changed and this was built.
   bar, the dash, the skill tree) show in the controls only where the game uses the module; a save written out is
   named by its game; the skill tree opens on the game's first direction; the old intro card, unused since the
   cover, is gone.
+- **A game's own panels** (2026-10-12, after a review of four commits that had put OpenWorld's panels back in the
+  runtime): `ClientGame.panels` maps the key a rule's `panel` effect opens to a factory (`runtime/src/ui/panels.ts`:
+  `PanelFactory`, `GamePanel`, `PanelContext` — the overlay to draw in, the menu's acts, close, paint icons, the
+  quest log); a panel is told which key opened it and whose rule did (the fx's `by`), one factory under two keys
+  is one panel, and a factory may load its panel when first opened (a promise), so the game's worker and its
+  tools never load a panel's code. It works the same handed over in code (`register.ts`) and from a bundle (the
+  plugin returns the game's `panels`, code beside the bundle's data). The runtime's own panels stay its own
+  (the bag, crafting, the journal, a shop, a trainer's professions, the commission board); for a module it keeps
+  a panel a game may replace (the boons module's `boons`, the generic list, shown only once the companion has a
+  power). OpenWorld's two moved to `games/openworld/client/src/ui/` with their styles: the companion's (Lumi, the
+  road and the seals' powers; `companion` and `boons`) and the Held Ground's widenings (`haven`, its materials
+  handed and its asks said to whoever opened it, its one stock shown as the one pile every card draws on,
+  `stock.ts`). What else the runtime held of OpenWorld became data: the coin's name is its type's (no coin type,
+  no purse); a mark over a head is the catalogue's `<tag>Mark` for any tag; a weapon's swing is its catalogue
+  entry's `swing` (`sweep`, `shoot`, `point`); the empty body slots' pictures are the catalogue's `ui.equipSlots`
+  (else a glyph); a rolled extra's name is its `AffixDef`'s (`name`, `percent`); a trophy's word and a tier's
+  lore are the game's texts (`tipTrophy`, `tier:<quality>`); shops are the game's (`crafting.shops`, carried in
+  a bundle's `client.crafting`; each shelf a `Text` name and a `sell` flag; none, no shop panel). The character
+  sheet's words are `STRINGS`, its profession shown only with the classes module, its food only for one who
+  hungers, and its numbers the engine's (`Frame.player.stats`: World.stat's atk, def and critical chance — the
+  classes module adds the weapon's own edge — and the power of the weapon fought with), no longer a sum of the
+  worn things' props. `runtime/test/words.test.ts` holds it: the runtime's code names none of OpenWorld's people,
+  places, coin or tiers, but for the files still listed (the boss art, preview and animations), a list that only
+  shrinks.
 - **The game's settings and the rest of its data in forms** (`app/gameMode.ts`, the **Game** mode): the game
   (name, version, seed, the standard library taken or not, where and at what hour a new game begins, where the
   world map is laid out from, the player's name and tags), **the engine's modules** (every registered one —

@@ -161,7 +161,8 @@ export const SIDE_QUESTS: QuestDef[] = [
     offer: L('A camp in the forest, with the Church\'s proclamation nailed up beside it? ...Bring me what he left. If he wore the scallop, bring that.', '森林里的营地，旁边还钉着教会的朝圣令？……把他留下的东西带给我。要是他戴着扇贝徽记，就把那个带来。'),
     waiting: L('The scallop is the pilgrim\'s mark. Every one of us is given one when we are named.', '扇贝是朝圣者的标记。每一个被点名的人都会得到一枚。'),
     done: L('Brother Cassian. He sat in this chapel when I was a novice and asked me to pray for him. The Church named him pilgrim thirty-one years ago. ...They told us he reached the Holy City. Keep it. He would want it walking.', '卡西安修士。我还是见习修女的时候，他坐在这间礼拜堂里，请我为他祈祷。三十一年前，教会点名他为朝圣者。……他们告诉我们，他到达了圣城。你留着吧。他会希望它继续上路。'),
-    asks: [{ id: 'scallop', text: L("The pilgrim's scallop", '朝圣者的扇贝'), carry: { type: 'item/valuable/scallop' }, count: 1, keep: true, where: 'forest:camp' }],
+    // (his, not the one the Rest gives a pilgrim for the oath: that is sworn, items.ts)
+    asks: [{ id: 'scallop', text: L("The pilgrim's scallop", '朝圣者的扇贝'), carry: { type: 'item/valuable/scallop', notTags: ['sworn'] }, count: 1, keep: true, where: 'forest:camp' }],
     reward: { xp: 40, items: [{ type: 'item/potion/healing', count: 2 }, gear('item/valuable/amulet', 'neck', "Cassian's Prayer Cord", '卡西安的祈祷绳', 'vowed', { def: 1, 'night:def': 1 })] },
   }),
   errand({
@@ -175,5 +176,5 @@ export const SIDE_QUESTS: QuestDef[] = [
     asks: [{ id: 'band', text: L('The wedding band', '婚戒'), carry: { type: 'item/valuable/band' }, count: 1, where: 'eastroad:kingdom' }],
     reward: { xp: 30, items: [{ type: 'item/food/egg/raw', count: 2 }, { type: 'item/food/bread', count: 1 }, gear('item/clothing/gloves', 'hands', "Edda's Work Gloves", '艾达的干活手套', 'fine', { def: 1 })], regard: { giver: 20 } },
   }),
-  // (the Held Ground's widenings are its heart's own now, not errands: haven.ts HAVEN_TIERS)
+  // (the Held Ground's widenings are its steward's panel now, not errands: haven.ts HAVEN_UPGRADES)
 ]

@@ -46,7 +46,7 @@ without it, three and a half minutes and six collapses.
 | Map | Size | Links | Contents |
 |---|---|---|---|
 | the Ford | 48 × 30 | west: Firstlight Village; east: East Road | wider river, Hesper only; broken footbridge (a 3-tile gap at row 22) |
-| Firstlight Village (`meadow`) | 40 × 30 | east: Ford; south: Forest | four homes, well, lit square, Tobin's cart, crops and supply crate; pasture and fireweed retained |
+| Firstlight Village (`meadow`) | 60 × 40 | east: Ford; south: Forest | four cottages and two homes in a south lane, each with a room behind its door; on the east road the general store (Greta) and the smithy (Haldor); the chapel (Ilse's), where Brother Anselm keeps his bookstand; well, lit square, Tobin's cart, crops and supply crate; pasture and fireweed retained |
 | East Road | 48 × 24 | west: Ford; east: Emberfall | road, burned farmstead, wolves, a boar |
 | Emberfall | 40 × 30 | west: East Road; north: Old Mine; east: Cinder Pass (always open) | houses, smithy (anvil, lit forge), herbalist's hut and cauldron, the elder's house, well, hens |
 | Old Mine | 40 × 30, dark | south: Emberfall | tunnels, ore and coal veins, torches; bats, spiders, skeletons; the cyclops |

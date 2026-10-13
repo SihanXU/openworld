@@ -77,6 +77,10 @@
         "social": {
           "$ref": "#/definitions/SocialParams"
         },
+        "loot": {
+          "$ref": "#/definitions/LootParams",
+          "description": "What a felled creature's kind leaves its feller beyond the rules' spoils: its own piece's pity and words (the loot module)."
+        },
         "talk": {
           "type": "array",
           "items": {
@@ -1567,7 +1571,7 @@
         },
         "at": {
           "type": "number",
-          "description": "The regard (of the one asked toward the one asking) it takes."
+          "description": "The regard (of the one asked toward the one asking) it takes: one a liking keeps for days as it fades."
         },
         "slots": {
           "type": "array",
@@ -1587,6 +1591,38 @@
             "additionalProperties": false
           }
         },
+        "days": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "number"
+              },
+              "to": {
+                "type": "number"
+              },
+              "at": {
+                "type": "string",
+                "enum": [
+                  "bed",
+                  "day"
+                ]
+              },
+              "activity": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "from",
+              "to",
+              "at",
+              "activity"
+            ],
+            "additionalProperties": false
+          },
+          "description": "A resident's day there, hour by hour: each span spent at its bed (`bed`) or its bed's day place (`day`), and doing what."
+        },
         "yes": {
           "$ref": "#/definitions/Text"
         },
@@ -1598,11 +1634,27 @@
         "map",
         "at",
         "slots",
+        "days",
         "yes",
         "full"
       ],
       "additionalProperties": false,
-      "description": "A home ground's room for people (the society module's `moveIn`): its map and the beds it has, each an anchor there (where the resident sleeps; `<anchor>.day` where their day is spent, else the same), open once its fact holds; what the one asked says, moved in or with no bed free."
+      "description": "A home ground's room for people (the society module's `moveIn`): its map and the beds it has, each an anchor there (where the resident sleeps; `<anchor>.day` where their day is spent, else the same), open once its fact holds; a resident's day there; what the one asked says, moved in or with no bed free."
+    },
+    "LootParams": {
+      "type": "object",
+      "properties": {
+        "pity": {
+          "type": "number",
+          "description": "How many of a kind one fells without its piece before the next surely gives it (default 50; the count is the feller's `trophy.<type>`)."
+        },
+        "found": {
+          "$ref": "#/definitions/Text",
+          "description": "What the one at the keys is told when a piece comes to them (`{item}`: its name); none, only the piece's pickup is shown."
+        }
+      },
+      "additionalProperties": false,
+      "description": "The loot module's numbers and words (packages/modules/src/loot): a creature kind's own piece of gear (its type's `trophy` prop, found by its `trophyChance`) comes to the one who fells it by that chance, or surely after so many."
     },
     "TalkVerb": {
       "type": "object",
@@ -1874,6 +1926,13 @@
         },
         "weight": {
           "type": "number"
+        },
+        "name": {
+          "$ref": "#/definitions/Text",
+          "description": "What a tooltip calls it (default: its key), and whether its value is a share, shown as a percentage (0.05: 5%)."
+        },
+        "percent": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -1895,10 +1954,6 @@
         "spawnMax": {
           "type": "number",
           "description": "How many things one effect may make at once (a runtime guard; default 64)."
-        },
-        "trophyPity": {
-          "type": "number",
-          "description": "How many of a kind one fells before its trophy surely comes (the `trophy` primitive; default 50)."
         },
         "safeFall": {
           "type": "number",

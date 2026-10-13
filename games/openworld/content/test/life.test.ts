@@ -108,6 +108,39 @@ describe('smithing', () => {
     expect(eng.controls.craft(RECIPE_BY_ID['smith/dagger-iron'])).toBe(true)
     expect(made('item/weapon/blade/dagger')[0].tags?.some((t) => t === 'quality:masterwork' || t === 'quality:fine')).toBe(true)
   })
+
+  it('a set\'s piece is of the metal it took and as well as its smith forges, under the set\'s name; what another named recipe makes is as the recipe says (Recipe.madeOf)', () => {
+    const eng = smithy()
+    const w = eng.world
+    const made = (type: string) => Object.values(w.state.entities).filter((e) => e.type === type)
+    // feed made by hand at the first level, before any quality is in reach
+    carry(eng, 'item/material/wheat', 4)
+    expect(eng.controls.craft(RECIPE_BY_ID['ranch/feed'])).toBe(true)
+    const [old] = made('item/material/feed')
+    // a smith far past every recipe's level: what is made of a material and a quality shows both
+    eng.author(() => w.setProp(w.player, 'level', 9))
+    knows(eng, 'forge-builder')
+    carry(eng, 'item/tool/smith_hammer')
+    carry(eng, 'item/material/steel_bar', 2)
+    carry(eng, 'item/material/leather', 1)
+    expect(RECIPE_BY_ID['set/shadowfang/weapon'].madeOf).toBe(true)
+    expect(eng.controls.craft(RECIPE_BY_ID['set/shadowfang/weapon'])).toBe(true)
+    const blade = made('item/weapon/blade/dagger')[0]
+    expect(blade.tags).toEqual(expect.arrayContaining(['material:steel', 'quality:masterwork']))
+    expect([blade.name, blade.props?.critChance]).toEqual([{ en: 'Shadowfang', zh: '影刃' }, 0.03])
+    // a smith's anvil made of iron at the forge: the anvil the recipe names, not an iron one of masterwork
+    carry(eng, 'item/material/iron_ingot', 3)
+    expect(RECIPE_BY_ID['smith/anvil'].madeOf).toBeUndefined()
+    expect(eng.controls.craft(RECIPE_BY_ID['smith/anvil'])).toBe(true)
+    const anvil = made('fixture/craft/anvil/smith')[0]
+    expect([anvil.name, anvil.tags]).toEqual([{ en: "Smith's Anvil", zh: '铁匠砧' }, undefined])
+    // feed made by hand at that level is feed, and keeps with the feed made before (one slot: Controls.key)
+    const before = new Set(made('item/material/feed').map((e) => e.id))
+    expect(eng.controls.craft(RECIPE_BY_ID['ranch/feed'])).toBe(true)
+    const feed = made('item/material/feed').filter((e) => !before.has(e.id))
+    expect(feed.length).toBeGreaterThan(0)
+    for (const f of feed) expect([f.tags, eng.controls.key(f)]).toEqual([undefined, eng.controls.key(old)])
+  })
 })
 
 describe('smithing in an older save', () => {
