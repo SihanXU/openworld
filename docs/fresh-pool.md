@@ -192,7 +192,7 @@ lists, the same thresholds — not the code: its tasks are this repository's Typ
 |---|---|---|
 | D1 | Where the task repository lives (gold patches, `eval.sh`, Dockerfiles) | a private GitHub repository of its own, `SihanXU/lsw-fresh-tasks`: kept out of this one, whose code the agent works in |
 | D2 | Where the built images go | pushed to the GitHub Container Registry, private (`ghcr.io/sihanxu/lsw-fresh`): a rebuild drifts, and the team must evaluate on the same images |
-| D3 | The Linux host | one of the two saved SSH connections, `sar` or `harness-policy` — the one with Docker and 500 GB free |
+| D3 | The Linux host | one with Docker and about 500 GB free |
 | D4 | The size | 600 validated, at most 5 per repository, at most 150 repositories |
 | D5 | The window's end | the day `world-v0` is cut; what is created after it waits for a later pool |
 

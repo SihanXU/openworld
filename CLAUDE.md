@@ -191,7 +191,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   and quest gets a page; `npm run wiki:check` fails on broken links/templates or a thing/system without a page (CI
   `.github/workflows/wiki.yml`). A change to game content that adds a thing or system needs its wiki page.
 - `packages/agent` — the SWE-style agent and its self-state, task-agnostic (no engine, no content):
-  `model.ts` (OpenAI-compatible / scripted; `LSW_MODEL_PIN` freezes the provider for an experiment),
+  `model.ts` (OpenAI-compatible / scripted; `LSW_MODEL_PIN` freezes the provider for an experiment; `LSW_NO_ANTHROPIC=1`
+  makes the claude-code backend and `anthropic/*` models refuse on a machine),
   `state.ts` (memory, skills + scripts, harness, hooks, journal, snapshots, ablations), `env.ts` (local /
   docker: a benchmark image's `/testbed` copied out and mounted back, a node mounted for the hooks),
   `tools.ts`, `loop.ts` (the agent loop), `reflect.ts`, `outer.ts` (proposals + meta-validation),

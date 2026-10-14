@@ -290,6 +290,7 @@ export class ClaudeCodeModel implements Model {
   }
 
   async chat(messages: ChatMessage[], opts: ChatOptions = {}): Promise<ModelReply> {
+    noAnthropicHere(process.env, 'claude -p')
     const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n')
     const turns = messages.filter((m) => m.role !== 'system').map(transcriptLine)
     // a step of a tool conversation: one block per turn, so the next step only appends (the class comment)
@@ -646,9 +647,18 @@ export class Meter implements Model {
  *   asks for fast mode; it applies to this backend only.
  * - `none`: no model; the modder answers from the shared library only.
  */
+/**
+ * A machine where no Anthropic model may be called (LSW_NO_ANTHROPIC=1): the claude-code backend and OpenRouter's
+ * anthropic/* models refuse.
+ */
+export function noAnthropicHere(env: Record<string, string | undefined> = process.env, what?: string): void {
+  if (what && env.LSW_NO_ANTHROPIC === '1') throw new Error(`${what} is refused on this machine (LSW_NO_ANTHROPIC=1): no Anthropic model is called from here`)
+}
+
 export function modelFromEnv(env: Record<string, string | undefined> = process.env): Model | undefined {
   if (env.LSW_MODEL_SCRIPT) return scriptFromFile(env.LSW_MODEL_SCRIPT)
   const backend = env.LSW_MODEL_BACKEND || 'openrouter'
+  noAnthropicHere(env, backend === 'claude-code' ? 'the claude-code backend' : /^anthropic\//.test(env.LSW_MODEL ?? '') ? env.LSW_MODEL : undefined)
   const fast = env.LSW_CLAUDE_FAST === '1'
   if (!['openrouter', 'claude-code', 'none'].includes(backend)) throw new Error(`LSW_MODEL_BACKEND: unknown backend "${backend}" (openrouter | claude-code | none)`)
   if (fast && backend !== 'claude-code') throw new Error(`--fast (LSW_CLAUDE_FAST=1) applies to the claude-code backend only, not "${backend}"`)

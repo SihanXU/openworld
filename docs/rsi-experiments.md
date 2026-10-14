@@ -69,14 +69,14 @@ The two candidates:
 | Pinning | one provider (Moonshot's own) at its stated precision | the id as `claude -p` resolves it |
 | Sampling | temperature, as the harness sets it | none exposed: `--effort` only |
 | Tool calls | native (OpenAI-compatible) | a text protocol over a tool-less session (`ClaudeCodeModel`) — not how the model is normally driven, a confound for transfer |
-| Cost | per token; the OpenRouter credit is low and needs a top-up | the user's subscription; thousands of long agent episodes meet its rate limits and intended use |
+| Cost | per token | per token, or a subscription's rate limits |
 | Headroom | none on Verified (93.4 %, §4.1); room on fresh tasks (its card: DeepSWE 67.5) | none on Verified either (Opus 5: 96.0 %); room on fresh tasks |
 | Decontamination | tasks dated after its release (2026-07-16) are unseen | tasks dated after its knowledge cut-off (June 2026) are unseen |
 | Use in the project so far | the model of every RSI smoke test and of most live-modder measurements | the `claude-code` backend of the live modder; the router's evaluation (design.md §13) |
 
 **Recommendation: Kimi K3, Moonshot's provider only.** The deciding reasons are public weights (the
 paper's "θ frozen" is checkable) and native tool calls; both models leave room on fresh tasks and
-neither on Verified. The cost is a credit top-up (§8).
+neither on Verified.
 
 ## 4. The benchmark (D1)
 
@@ -332,7 +332,7 @@ requirements and interface ([SWE-bench](https://arxiv.org/abs/2310.06770),
    diff and the test changes, as a bug report or feature request **without the solution**; with a
    *Requirements* and an *Interface* section naming the symbols and files the hidden tests import
    (as SWE-bench Pro does), since a test that imports a new function is unsolvable without its name.
-   The writer is not the frozen agent model (Sonnet 5.5 through `claude-code`, billed to the API key, since the agent is Kimi K3).
+   The writer is not the frozen agent model (Sonnet 5.5 through `claude-code`, since the agent is Kimi K3).
 5. **Leakage checks**: no line of the gold patch's added code in the issue (an n-gram check), no test
    name that gives the answer away, and a person reads 20 issues at random before the first run.
 6. **The task**: `games/openworld/tools/tasks/history/<sha>/` with `ISSUE.md`, `meta.json` (commit,
@@ -354,7 +354,7 @@ issues | status`), tested in `games/openworld/tools/test/ladder.test.ts`:
 - **validate**: the test changes alone, three runs of the commit's test files (vitest's JSON report); the
   whole commit, three more; FAIL_TO_PASS, PASS_TO_PASS and regressions by the fresh pool's rule. Our own code,
   so it runs on this machine; the agent that works the tasks runs only in a container.
-- **issues**: a model (the configured backend; Sonnet 5.5 through `claude-code` for these, on the API key) writes each validated
+- **issues**: a model (the configured backend; Sonnet 5.5 through `claude-code` for these) writes each validated
   commit's issue from the commit message, its pull request, the change and the test changes, with
   Requirements and an Interface section; an issue that quotes six consecutive added lines of the change is
   asked again, then dropped. A task is `games/openworld/tools/tasks/history/<sha>/`: `ISSUE.md`, `meta.json`,
@@ -370,7 +370,7 @@ issues | status`), tested in `games/openworld/tools/test/ladder.test.ts`:
 R2 23, R3 46, R4 53 — with a median of 6 FAIL_TO_PASS tests (at most 177); dropped: 7 with no test going from
 failing to passing, 5 where a test that passed before fails after, 5 whose tests do not run headless, 1 slower
 than five minutes a run, 1 whose test changes lie in `games/openworld/tools/tasks` (kept out of workspaces). All
-125 issues are Sonnet 5.5's (through `claude -p`, on the API key), a median of about 1,000 words; none quotes six
+125 issues are Sonnet 5.5's (through `claude -p`), a median of about 1,000 words; none quotes six
 consecutive lines of its change or names a hidden test file. The person's reading of 20 (§5.3, 5) is
 `npm run ladder -- review` → `var/ladder/review.md`. The planning figure was half; the fallback below is not
 needed. **If fewer than 40 tasks survive across R2–R4**, the ladder is topped up by
@@ -519,7 +519,7 @@ Each step is built and smoke-tested at the smallest size before anything larger 
 |---|---|---|
 | Q0 | The measured benchmark, now that Verified is saturated and contaminated (§4.1) | agreed: SWE-rebench and SWE-bench-Live tasks created after Kimi K3's release, frozen at `world-v0`, 300 or more; Verified for the pilot only. **Reopened** (no such Python task is published yet, §4.1) and **agreed again as A + B**: Python tasks mined after the release (fresh-pool.md), the 133 of MultiLang as the first slice |
 | Q1 | The model (§3) | Kimi K3, Moonshot's provider only |
-| Q2 | The budget ceiling, and the OpenRouter top-up | fix it after the pilot prices a task; the range now is $700–6,000, set mostly by the pool's size |
+| Q2 | The budget ceiling | fix it after the pilot prices a task; the range now is $700–6,000, set mostly by the pool's size |
 | Q3 | A second, language-matched benchmark (§4.6) | yes, if it costs no more than one arm per milestone: the TypeScript and JavaScript tasks of SWE-bench-Live created after the model's release; Multi-SWE-bench's only if that is too few, reported as possibly seen |
 | Q4 | Who cuts the `world-vN` tags | the user, with the content team, at least a week apart |
 | Q5 | Arm F (the frozen-world control) | yes: without it H3, the paper's link between the world and the coder, is untested |

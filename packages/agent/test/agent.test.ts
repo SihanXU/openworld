@@ -373,6 +373,12 @@ describe('a frozen model', () => {
     expect(() => modelFromEnv({ LSW_MODEL_PIN: 'moonshotai', LSW_MODEL_BACKEND: 'claude-code' })).toThrow(/openrouter backend only/)
     expect(() => modelFromEnv({ LSW_MODEL_PIN: 'moonshotai', LSW_MODEL_KEY: 'k', LSW_MODEL: 'm', LSW_MODEL_PROVIDERS: 'parasail' })).toThrow(/cannot be set with it/)
   })
+
+  it('calls no Anthropic model on a machine that says so (LSW_NO_ANTHROPIC=1)', () => {
+    expect(() => modelFromEnv({ LSW_NO_ANTHROPIC: '1', LSW_MODEL_BACKEND: 'claude-code' })).toThrow(/refused on this machine/)
+    expect(() => modelFromEnv({ LSW_NO_ANTHROPIC: '1', LSW_MODEL_KEY: 'k', LSW_MODEL: 'anthropic/claude-sonnet-5.5' })).toThrow(/refused on this machine/)
+    expect(modelFromEnv({ LSW_NO_ANTHROPIC: '1', LSW_MODEL_KEY: 'k', LSW_MODEL: 'moonshotai/kimi-k3' })?.name).toBe('moonshotai/kimi-k3')
+  })
 })
 
 // keep the Episode type in use for readers of this file
