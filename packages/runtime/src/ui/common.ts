@@ -286,7 +286,7 @@ export function controlsTable(dev: boolean): string {
   const rows: [string, string, string][] = [
     ['WASD · ↑↓←→', 'move (Shift: walk)', '移动（Shift：慢走）'],
     ['B', 'build / farm mode; left click or E places, Esc / RMB exits', '建筑 / 种植模式；左键或 E 放置，Esc / 右键退出'],
-    ['E · right click', 'the action, as the cursor shows: talk, give what you hold, open, read, pick up, eat or drink what you hold (hold E: the bare hands on what you choose)', '行动，光标显示要做什么：说话、把手上的东西送人、打开、阅读、捡起、吃喝手上的东西（长按 E：空手作用于选中的东西）'],
+    ['E · right click', 'the action, as the cursor shows: talk, open, read, pick up, set down a bed; on the ground or yourself, eat, drink or put on what you hold (pointed at yourself, any use of it); hold E: the bare hands on what you choose', '行动，光标显示要做什么：说话、打开、阅读、捡起、放下床这类东西；对着地面或自己时，吃、喝、穿戴手上的东西（指着自己时，任何用法都行）；长按 E：空手作用于选中的东西'],
     ['F', 'take: pick up, take down, take out', '拿：捡起、取下、取出'],
     ['G', 'put the held thing there: set down, put in, hand it over', '放：把手上的东西放下、放进去、交给别人'],
     ['left click', 'use the held thing on it; with empty hands, a blow; weapons strike; a wall, a floor or a bed in hand is set down there (hold and drag for a row)', '用手上的东西作用于它；空手就是一拳；武器就是攻击；拿着墙、地板、床这类东西就放在那里（按住拖动放一排）'],

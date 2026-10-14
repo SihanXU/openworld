@@ -1,4 +1,5 @@
 import type { Dir, Frame, PlacementPreview, PlacementRecipe, Recipe, Text } from '@openworld/engine'
+import { placeable } from '../action.ts'
 import { game, ontology, perGame } from '../game.ts'
 import type { Tile, ToWorker } from '../protocol.ts'
 import { esc, locale, tx } from './common.ts'
@@ -34,8 +35,6 @@ const turns = (type?: string): boolean => {
 /** A block drawn a storey high (its front in the cell, its top a tile up): a wall, a door, stairs. */
 const block = (type?: string) => !!type?.startsWith('structure/') && spaces(type).includes('volume')
 
-/** A built thing or a fixture, set in a cell as part of a place (the engine's Controls.placeable). */
-export const placeable = (type: string) => type.startsWith('structure/') || type.startsWith('fixture/')
 const PUT_HELP: Text = { en: 'Set down one you carry (as G does); with none, one is made from what you carry first.', zh: '放下身上带着的一个（和 G 一样）；身上没有时，先用身上的材料现做一个。' }
 
 const fromRecipe = (r: PlacementRecipe): Entry => ({ id: r.id, category: r.category, name: r.name, description: r.description, sprite: r.sprite, result: r.result, needs: r.needs.map((n) => ({ name: n.name, count: n.count, match: n.match, consume: n.consume })) })

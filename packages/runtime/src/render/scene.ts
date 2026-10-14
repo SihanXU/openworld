@@ -592,8 +592,9 @@ export class WorldScene extends Phaser.Scene {
    * it is drawn every animation frame (tickFocus). With the keys aiming (the pointer aims at nothing) the bare
    * ground in front goes along with the player as drawn, who trails their cell while walking: the frame keeps
    * beside them, and comes to rest on the cell as they stop; a thing the keys found (worker.ts assist) is framed
-   * where it stands. While the keys walk the player the frame keeps to the ground ahead, faint and steady (no leap
-   * to each thing passed, no pop): it goes to what the keys found once the player has stopped (settled).
+   * where it stands. While a key walks the player the frame keeps to the cell ahead, faint and steady (no leap
+   * to each thing passed, no pop), as the keys do then (worker.ts assist waits too): it goes to what the keys
+   * found once the key is let go.
    */
   focusOn(f: Frame): void {
     // a frame made before the worker saw the latest aim tells the old spot: the frame waits for the new
@@ -621,7 +622,7 @@ export class WorldScene extends Phaser.Scene {
   private movedAt = -1e9
   /** Set by main.ts: a key walks the player. */
   walking: () => boolean = () => false
-  /** The player has stopped a moment: the frame and the pointer's mark settle on what the keys found. */
+  /** The player has stopped a moment: the pointer's mark comes over what the keys found. */
   settled(): boolean {
     return this.time.now - this.movedAt >= 120
   }
@@ -638,9 +639,9 @@ export class WorldScene extends Phaser.Scene {
     const found = this.focusGoal
     this.focus?.clear()
     if (!found) return void ((this.focusAt = undefined), (this.focusTo = undefined))
-    // walked by the keys: the ground ahead, faint and steady, whatever is near (see focusOn)
+    // walked by a key: the cell ahead, faint and steady, whatever is near (see focusOn)
     const front = this.focusFront
-    const walking = this.keysAhead() && !this.settled() && !!front
+    const walking = this.keysAhead() && this.walking() && !!front
     const goal = walking ? { ...found, ...front, w: 1, h: 1, color: 0xfff6dd, alpha: 0.35, ahead: true } : found
     this.focus ??= this.add.graphics().setDepth(1e5)
     const g = this.focus

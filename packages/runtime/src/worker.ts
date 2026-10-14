@@ -314,8 +314,9 @@ function keyViews(): Frame['keys'] {
   // a person one points at sees one face them, and waits (npc.ts, attended)
   const stand = w.posOf(w.player)
   if (!moveDir && stand && aimTile && Math.abs(aimTile.x - stand.x) + Math.abs(aimTile.y - stand.y) === 1) c.face({ ...stand, x: aimTile.x, y: aimTile.y })
-  // without the pointer, the keys find what is close by (assisted)
-  assisted = aimTile ? undefined : assist(person)
+  // without the pointer, the keys find what is close by (assisted) — not while a key walks the player: then the
+  // cell in front, as the frame shows it
+  assisted = aimTile || moveDir ? undefined : assist(person)
   const aim = aimTile ?? assisted
   const out: NonNullable<Frame['keys']> = {}
   for (const k of ['hands', 'take', 'put', 'use'] as Key[]) {
@@ -650,16 +651,13 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'key': {
         if (!game || paused || panel || game.engine.world.state.question) break
         const c = game.engine.controls
-        // the action with nothing pointed at goes to what the keys found close by, and the player turns to it;
-        // F, G and a choice from the chooser go to the cell in front, as ever
-        const assisting = !m.tile && !!m.assist && m.layer === undefined && !!assisted
-        const tile = m.tile ?? (assisting ? assisted : undefined)
+        // with nothing pointed at, every key goes where the keys found something close by (the cell the frame
+        // shows), and the player turns to it
+        const tile = m.tile ?? assisted
         const pos = game.engine.world.posOf(game.engine.world.player)
-        if (assisting && pos) c.face({ ...pos, x: assisted!.x, y: assisted!.y })
-        // the target the key's label named (one who walked a step off since stays it) — not one the labels found
-        // close by, when this key does not go there
-        const shown = m.layer || (!m.tile && !assisting && assisted) ? undefined : shownTarget[m.key]
-        const plan = c.planFor(m.key, tile, m.layer, shown)
+        if (!m.tile && assisted && pos) c.face({ ...pos, x: assisted.x, y: assisted.y })
+        // the target the key's label named (one who walked a step off since stays it)
+        const plan = c.planFor(m.key, tile, m.layer, m.layer ? undefined : shownTarget[m.key])
         // dragged over a cell, the left button only sets things down (never an experiment on what it passes)
         if (!plan || (m.drag && !plan.sets)) break
         const out = c.run(plan)
@@ -703,8 +701,10 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       }
       case 'choices': {
         if (!game) break
-        const list = game.engine.controls.choices(m.key, m.tile).map((ch) => ({ layer: ch.layer, name: ch.name, label: ch.plan?.label, unknown: ch.plan?.unknown }))
-        post({ t: 'choices', key: m.key, tile: m.tile, list })
+        // (with nothing pointed at, the cell the keys found close by: the one the frame shows, where the choice goes)
+        const tile = m.tile ?? assisted
+        const list = game.engine.controls.choices(m.key, tile).map((ch) => ({ layer: ch.layer, name: ch.name, label: ch.plan?.label, unknown: ch.plan?.unknown }))
+        post({ t: 'choices', key: m.key, tile, list })
         break
       }
       case 'handUp':

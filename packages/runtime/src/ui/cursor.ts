@@ -1,5 +1,5 @@
 // The action and the pointer, as in Stardew Valley. The action (E, the right click) is one input that does
-// what the thing it is aimed at calls for (actionOf), and the cursor shows it at once: a glove over what it
+// what the thing it is aimed at calls for (action.ts actionOf), and the cursor shows it at once: a glove over what it
 // opens, reads or picks up (or where what is held is set down: a bed, a workbench), a speech bubble over
 // someone to talk to, a "?" where the world has never seen the act (the modder will be asked), a "!" where F
 // would be a theft, and a faded arrow where nothing under the pointer is within reach (the act goes to the
@@ -12,7 +12,7 @@ import type { Frame, Key } from '@openworld/engine'
 import type { SpriteDef } from '../assets/types.ts'
 import { catalog } from '../game.ts'
 import { assetUrl } from '../render/assets.ts'
-import { placeable } from './building.ts'
+import { actionOf } from '../action.ts'
 
 type Mark = 'arrow' | 'hand' | 'talk'
 type Badge = '?' | '!'
@@ -100,28 +100,6 @@ async function picture(d: SpriteDef | undefined): Promise<HTMLCanvasElement | un
 function spotOf(k: Frame['keys']): { x: number; y: number } | undefined {
   const v = k && (k.hands ?? k.take ?? k.put ?? k.use ?? k.self)
   return v && { x: v.x, y: v.y }
-}
-
-/**
- * The action, as Stardew's: to someone, a word (handing them what is held is G's alone: an axe in hand is not
- * given away by a word); what the hands do something with is done (open, read, sleep, pick); what can be taken
- * is picked up (never what is another's: that is F's alone); on the open ground, what is held is set down if it
- * is set in a place (a bed, a workbench: G's act, which offers nothing where it cannot rest), else eaten, drunk
- * or put on; on a thing, else the hands try it (an experiment). Nothing else: no act whose outcome is unknown or
- * nothing is made on the bare ground (dropping is the bag's: drag a thing out of it). A lesson that lets only
- * some inputs work (docs/prologue.md) is kept: the action is the first of them that answers.
- */
-export function actionOf(k: Frame['keys'], held: string | undefined, allow?: readonly string[]): Key | undefined {
-  if (!k) return undefined
-  const may = (key: Key) => !allow || allow.includes(key)
-  const h = k.hands
-  if (h?.person && may('hands')) return 'hands'
-  if (h && !h.unknown && !h.ground && may('hands')) return 'hands'
-  if (k.take && !k.take.ground && !k.take.steal && may('take')) return 'take'
-  if (held && placeable(held) && k.put?.ground && !k.put.unknown && may('put')) return 'put'
-  if (held && k.self && !k.self.unknown && may('self')) return 'self'
-  if (h && !h.ground && may('hands')) return 'hands'
-  return undefined
 }
 
 /** The mark for the action (eating and drinking keep the arrow, as in Stardew). */

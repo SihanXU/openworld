@@ -14,7 +14,8 @@ import { writeSlot, type Slot } from './saves.ts'
 import { Cover } from './ui/cover.ts'
 import { DeathScreen } from './ui/death.ts'
 import { locale, t, tx } from './ui/common.ts'
-import { Cursor, actionOf } from './ui/cursor.ts'
+import { actionOf } from './action.ts'
+import { Cursor } from './ui/cursor.ts'
 import { ModConsole } from './ui/dev.ts'
 import { Hud } from './ui/hud.ts'
 import { BuildingMode, setLearnedPlaceables } from './ui/building.ts'
@@ -540,8 +541,8 @@ const typing = () => {
 }
 
 // The inputs (design.md §5.2), as Stardew Valley's: the action — E, or the right click — does what the
-// thing aimed at calls for (talk, hand over, open, read, pick up, eat: ui/cursor.ts actionOf, which the
-// cursor shows); F takes and G puts, plainly; the left click uses the held thing (or a bare blow). A short
+// thing aimed at calls for (talk, open, read, pick up, set down, eat: action.ts actionOf, which the cursor
+// shows); F takes and G puts or hands over, plainly; the left click uses the held thing (or a bare blow). A short
 // press acts on the top of what is drawn where the pointer is; a long press opens the chooser of all of it
 // the input reaches (people, things, items, the ground; for the action, the bare hands on it), so every
 // event is reachable.
@@ -573,14 +574,14 @@ function release(by: string): void {
     if (k) act(k, mouseTile, true)
   })
 }
-/** A key sent to act; with nothing pointed at, the action goes to what the keys found close by (worker.ts assist). */
+/** A key sent to act (with nothing pointed at, the worker sends it where the keys found something close by: assist). */
 function act(key: Key, tile: Tile | undefined, action = false): void {
   // a left click with nothing in hand on the bare ground that the world has never seen done (a fist on grass):
   // nothing, as in Stardew — no question asked for a click in passing (held long, the click chooses the ground;
   // Space still strikes ahead). With something in hand, the click asks as ever.
   const spot = lastFrame?.keys?.use
   if (key === 'use' && !action && !lastFrame?.player.held && spot?.ground && spot.unknown) return
-  send({ t: 'key', key, tile, ...(action && !tile && { assist: true }) })
+  send({ t: 'key', key, tile })
 }
 /**
  * The chooser's list arrived (after a long press): pick a layer, then the input acts on it. Time
@@ -598,8 +599,9 @@ let afterKeys: (() => void) | undefined
 function whenKeysKnown(f: () => void): void {
   if (aimsAnswered >= aimsSent) return f()
   afterKeys = f
-  // (not waited on for long: a worker without a game answers nothing worth waiting for)
-  setTimeout(() => afterKeys === f && ((afterKeys = undefined), f()), 150)
+  // the worker answers every aim at once; one it has not answered in a second (a stall) drops the press rather
+  // than act on a spot the pointer has left
+  setTimeout(() => afterKeys === f && (afterKeys = undefined), 1000)
 }
 
 /** Esc held this long skips the lesson at hand (docs/prologue.md, the drills). */
