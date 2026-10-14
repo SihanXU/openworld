@@ -191,10 +191,17 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   and quest gets a page; `npm run wiki:check` fails on broken links/templates or a thing/system without a page (CI
   `.github/workflows/wiki.yml`). A change to game content that adds a thing or system needs its wiki page.
 - `packages/agent` — the SWE-style agent and its self-state, task-agnostic (no engine, no content):
-  `model.ts` (OpenAI-compatible / scripted), `state.ts` (memory, skills + scripts, harness, hooks,
-  journal, snapshots, ablations), `env.ts` (local / docker), `tools.ts`, `loop.ts` (the agent loop),
-  `reflect.ts`, `outer.ts` (proposals + meta-validation), `presets.ts` (naive / tuned), `swe.ts` +
-  `cli.ts` (SWE-bench instances → predictions.jsonl). See docs/rsi.md.
+  `model.ts` (OpenAI-compatible / scripted; `LSW_MODEL_PIN` freezes the provider for an experiment),
+  `state.ts` (memory, skills + scripts, harness, hooks, journal, snapshots, ablations), `env.ts` (local /
+  docker: a benchmark image's `/testbed` copied out and mounted back, a node mounted for the hooks),
+  `tools.ts`, `loop.ts` (the agent loop), `reflect.ts`, `outer.ts` (proposals + meta-validation),
+  `presets.ts` (naive / tuned), `swe.ts` + `cli.ts` (SWE-bench instances → predictions.jsonl, N at a
+  time, a record per instance, the run's manifest, resumable). See docs/rsi.md and, for the
+  experiments, docs/rsi-experiments.md.
+- `bench/` — the RSI experiments' benchmark pool (docs/rsi-experiments.md §4.1): `pool.py` counts the
+  public SWE-style datasets by date (each at a pinned revision), freezes a pool as identifiers only
+  (`bench/pools/`), fetches a pool's instances into `var/bench/`. Outside `packages/` and `games/`, so
+  no ladder task's workspace holds it.
 - An unattended agent runs commands only in a container (`env.ts` `chooseIsolation`: the
   `lsw-sandbox` image, no network, no `.env`); without Docker it gets no shell and its hooks do
   not run. `LSW_ISOLATION=docker|none` overrides. Never give an unattended agent a local shell.
@@ -329,6 +336,7 @@ npm run engine-task -- toggle-status --state <dir>
 npm run upstream -- scan [--data var] [--sweep]   # candidates for base rules from the learned layer (no model)
 npm run upstream -- propose --candidate <n> | propose <hole> <class> [--note …] [--dry] [--max 3]   # one proposal → a PR (costs model calls; --dry prints the issue)
 npm run upstream -- status   # the proposals made and how they stand
-npm run agent -- swe --instances <file> --state <snapshot> --out predictions.jsonl [--env docker]
+npm run agent -- swe --instances <file> --state <snapshot> --out predictions.jsonl [--env docker] [--workers 4] [--ablate skills] [--resume]
+python bench/pool.py count | freeze <name> | fetch bench/pools/<name>.json   # the benchmark pool (pyarrow; no model)
 npm run modder -- stats | snapshot <label> | export [label] | library [remove <id>]
 ```

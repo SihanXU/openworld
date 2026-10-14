@@ -69,12 +69,34 @@ export interface OpenAIConfig {
   timeoutMs?: number
   /** Merged into every request body (provider-specific switches). */
   extraBody?: Record<string, unknown>
+  /**
+   * A frozen model (docs/rsi-experiments.md §3): served by these OpenRouter providers only, at these
+   * precisions, with no fallback. It overrides every call's own provider preferences (the harness's
+   * included), and a reply from anyone else is an error, never an answer.
+   */
+  pin?: ProviderPin
 }
+
+export interface ProviderPin {
+  providers: string[]
+  quantizations?: string[]
+}
+
+/** The words of the error a reply from outside the pin raises (a run that meets it is void). */
+export const PIN_BREACH = 'outside the provider pin'
+
+/** OpenRouter names a provider "Moonshot AI" in a reply and "moonshotai" in a request. */
+const providerKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
 
 export class OpenAICompatModel implements Model {
   readonly name: string
   constructor(private cfg: OpenAIConfig) {
     this.name = cfg.model
+  }
+
+  /** The provider pin, if any (a run's manifest records it). */
+  get pin(): ProviderPin | undefined {
+    return this.cfg.pin
   }
 
   async chat(messages: ChatMessage[], opts: ChatOptions = {}): Promise<ModelReply> {
@@ -98,6 +120,10 @@ export class OpenAICompatModel implements Model {
     } else if (opts.json) body.response_format = { type: 'json_object' }
     if (opts.reasoning) body.reasoning = opts.reasoning === 'none' ? { enabled: false } : { effort: opts.reasoning }
     if (opts.provider) body.provider = opts.provider
+    // pinned: those providers and nothing a call asks (an endpoint other than OpenRouter is its own provider)
+    const pin = this.cfg.pin
+    if (pin && this.cfg.baseUrl.includes('openrouter.ai')) body.provider = { only: pin.providers, order: pin.providers, allow_fallbacks: false, ...(pin.quantizations?.length ? { quantizations: pin.quantizations } : {}) }
+    else if (pin) delete body.provider
     if (!opts.hedgeMs && !opts.deadlineMs) return this.once(body, AbortSignal.timeout(this.cfg.timeoutMs ?? 180_000))
     let last: unknown
     for (let i = 0; i <= (opts.retries ?? 1); i++) {
@@ -160,6 +186,9 @@ export class OpenAICompatModel implements Model {
     })
     const data = (await res.json().catch(() => null)) as WireReply | null
     if (!res.ok || !data) throw new Error(`model: HTTP ${res.status} ${JSON.stringify(data)?.slice(0, 300) ?? ''}`)
+    const pin = this.cfg.pin
+    if (pin && this.cfg.baseUrl.includes('openrouter.ai') && !pin.providers.some((p) => providerKey(p) === providerKey(data.provider ?? '')))
+      throw new Error(`model: served by ${data.provider ?? 'an unnamed provider'}, ${PIN_BREACH} (${pin.providers.join(', ')})`)
     const m = data.choices?.[0]?.message
     if (!m) throw new Error('model: empty reply')
     return {
@@ -610,6 +639,8 @@ export class Meter implements Model {
  *   LSW_MODEL_PROVIDERS=together,parasail pins OpenRouter's providers in that order (others stay as fallbacks);
  *   pin by measurement (npm run latency): OpenRouter's own throughput sort picked the slowest one.
  *   LSW_MODEL_SORT=throughput|latency|price lets OpenRouter choose instead.
+ *   LSW_MODEL_PIN=moonshotai freezes the model for an experiment (docs/rsi-experiments.md §3): those providers
+ *   only, no fallback, whatever a call asks; LSW_MODEL_QUANT=fp8 also fixes the precision. It excludes the two above.
  * - `claude-code`: `claude -p`, signed in as the user. LSW_CLAUDE_MODEL (default claude-opus-5-5),
  *   LSW_CLAUDE_EFFORT (default low), LSW_CLAUDE_BIN (default `claude`). LSW_CLAUDE_FAST=1 (`--fast`)
  *   asks for fast mode; it applies to this backend only.
@@ -621,12 +652,24 @@ export function modelFromEnv(env: Record<string, string | undefined> = process.e
   const fast = env.LSW_CLAUDE_FAST === '1'
   if (!['openrouter', 'claude-code', 'none'].includes(backend)) throw new Error(`LSW_MODEL_BACKEND: unknown backend "${backend}" (openrouter | claude-code | none)`)
   if (fast && backend !== 'claude-code') throw new Error(`--fast (LSW_CLAUDE_FAST=1) applies to the claude-code backend only, not "${backend}"`)
+  const pin = pinFromEnv(env)
+  if (pin && backend !== 'openrouter') throw new Error(`LSW_MODEL_PIN applies to the openrouter backend only, not "${backend}"`)
   if (backend === 'none') return undefined
   if (backend === 'claude-code')
     return new ClaudeCodeModel({ model: env.LSW_CLAUDE_MODEL || 'claude-opus-5-5', effort: env.LSW_CLAUDE_EFFORT || 'low', fast, bin: env.LSW_CLAUDE_BIN })
   if (!env.LSW_MODEL_KEY || !env.LSW_MODEL) return undefined
+  if (pin && (env.LSW_MODEL_SORT || env.LSW_MODEL_PROVIDERS)) throw new Error('LSW_MODEL_PIN freezes the provider: LSW_MODEL_SORT and LSW_MODEL_PROVIDERS cannot be set with it')
   const extra: Record<string, unknown> = env.LSW_MODEL_EXTRA ? JSON.parse(env.LSW_MODEL_EXTRA) : {}
   if (env.LSW_MODEL_SORT) extra.provider = { ...(extra.provider as object), sort: env.LSW_MODEL_SORT }
   if (env.LSW_MODEL_PROVIDERS) extra.provider = { ...(extra.provider as object), order: env.LSW_MODEL_PROVIDERS.split(',').map((s) => s.trim()), allow_fallbacks: true }
-  return new OpenAICompatModel({ baseUrl: env.LSW_MODEL_URL || 'https://openrouter.ai/api/v1', apiKey: env.LSW_MODEL_KEY, model: env.LSW_MODEL, extraBody: extra })
+  return new OpenAICompatModel({ baseUrl: env.LSW_MODEL_URL || 'https://openrouter.ai/api/v1', apiKey: env.LSW_MODEL_KEY, model: env.LSW_MODEL, extraBody: extra, pin })
+}
+
+/** The provider pin LSW_MODEL_PIN (and LSW_MODEL_QUANT) name, if any. */
+export function pinFromEnv(env: Record<string, string | undefined> = process.env): ProviderPin | undefined {
+  const list = (v: string | undefined) => (v ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+  const providers = list(env.LSW_MODEL_PIN)
+  if (!providers.length) return undefined
+  const quantizations = list(env.LSW_MODEL_QUANT)
+  return { providers, ...(quantizations.length ? { quantizations } : {}) }
 }

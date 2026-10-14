@@ -102,12 +102,18 @@ When a request needs a new primitive, condition or expectation, the task is the 
 ### 3.4 SWE-like instances (`agent/src/swe.ts`, `npm run agent -- swe`)
 
 - **Input:** SWE-bench instances — `instance_id`, `repo` (GitHub name, URL or local path),
-  `base_commit`, `problem_statement`, optional `test_cmd`.
+  `base_commit`, `problem_statement`, optional `test_cmd`, `image` and `workdir`.
 - **Output:** `predictions.jsonl` (`instance_id`, `model_name_or_path`, `model_patch`), the
-  format SWE-bench evaluation reads.
-- **Repositories:** mirrored once, then checked out per instance at the base commit.
-- **Environments:** local processes, or `--env docker` (a container per instance, workspace
-  mounted, no network; the image comes from a template, SWE-bench naming by default).
+  format SWE-bench evaluation reads; `<out>.runs.jsonl`, a record per instance (outcome, steps,
+  tokens, cost, time, providers); `<out>.manifest.json`, what ties the run to one model and one
+  self-state (a resumed run must match it).
+- **Repositories:** locally, mirrored once, then checked out per instance at the base commit. In
+  Docker, the image's own `/testbed` is copied out and mounted back, so the environment's in-place
+  build is there; the diff is taken against where the image left the repository (`refs/lsw/base`).
+- **Environments:** local processes, or `--env docker` (a container per instance, no network; the
+  image the instance names, else a template, SWE-bench naming by default; a Linux node mounted for
+  the agent's hooks). `--workers N` runs N at a time, `--ablate` leaves parts of the self-state out,
+  `--resume` continues a run. Details and the faults this fixed: docs/rsi-experiments.md §4.3.
 - **No learning on the benchmark:** the self-state runs from a fork, and nothing is recorded.
 
 ## 4. Three loops
