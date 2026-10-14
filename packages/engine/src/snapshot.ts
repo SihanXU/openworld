@@ -164,6 +164,8 @@ export interface Frame {
    * what may follow (the death screen: get up where one fell, rise at home, or the end).
    */
   fallen?: { by?: Text; difficulty: Difficulty }
+  /** The cells creatures are winding up their skills on (the kits module): who, where, how far along (0–1), in what colour. */
+  telegraphs?: { who: Id; tiles: [number, number][]; progress: number; color: number }[]
   /** What each input would do right now, the action (the right click) among them (filled by the host, not by snapshot()). */
   keys?: { hands?: KeyView; take?: KeyView; put?: KeyView; use?: KeyView; self?: KeyView; action?: KeyView }
   /** The open container panel (the host names it): its contents. */

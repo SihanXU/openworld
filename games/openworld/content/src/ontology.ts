@@ -14,6 +14,7 @@ import { PILGRIMAGE_TYPES } from './pilgrimage.ts'
 import { FAITH_STATUSES } from './faith.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
 import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
+import { KITS, KIT_STATUSES } from './kits.ts'
 import { SKILL_PROFESSIONS } from './skills.ts'
 import { BOON_STATUSES } from './boons.ts'
 import { DEEDS, LAWS, SOCIAL, SOCIAL_STATUSES, SOCIAL_TYPES, TALK } from './social.ts'
@@ -549,7 +550,7 @@ const fixtureTypes: TypeDef[] = [
 ]
 
 /** The engine's modules this game uses (docs/engine-split.md S3). */
-export const MODULES = ['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society', 'loot']
+export const MODULES = ['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society', 'loot', 'kits']
 
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}
@@ -560,7 +561,10 @@ export function buildOntology(): Ontology {
     // the systems this game takes from the engine's modules (module.ts), installed in this order
     modules: MODULES,
     types,
-    statuses: Object.fromEntries([...STATUSES, ...BOSS_STATUSES, ...BOON_STATUSES, ...SOCIAL_STATUSES, ...FAITH_STATUSES].map((s) => [s.id, s])),
+    statuses: Object.fromEntries([...STATUSES, ...BOSS_STATUSES, ...BOON_STATUSES, ...SOCIAL_STATUSES, ...FAITH_STATUSES, ...KIT_STATUSES].map((s) => [s.id, s])),
+    // the creatures' own skills (kits.ts, docs/creatures.md), taken up by the kit goal before they fight as before
+    kits: KITS,
+    goals: ['encounter', 'kit', 'threat', 'social', 'follow', 'need', 'schedule', 'home', 'idle'],
     // the people's social life (docs/npc-sandbox.md): deeds and their fines, the watches, the numbers, the talk panel's verbs
     deeds: DEEDS,
     laws: LAWS,

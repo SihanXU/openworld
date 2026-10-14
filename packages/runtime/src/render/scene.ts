@@ -97,7 +97,7 @@ const STEP: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [
 const LOOSE = new Set(['drygrass', 'flowers', 'bush'])
 /** The ground a stocked pond's fish shadows swim in. */
 const FISH_WATER = new Set(['water', 'deepwater'])
-const TINT_OF: Record<string, number> ={ frozen: 0xbfe9ff, burning: 0xffc9a0, wet: 0xc8dcff, electrified: 0xfff6a0, oiled: 0xb9b29a }
+const TINT_OF: Record<string, number> ={ frozen: 0xbfe9ff, burning: 0xffc9a0, wet: 0xc8dcff, electrified: 0xfff6a0, oiled: 0xb9b29a, poisoned: 0xb6ec8c, webbed: 0xd9d2e6, frenzied: 0xff9f9f, shelled: 0xcfc4ad }
 const ELEMENT_COLOR: Record<string, number> = { fire: 0xff7a1a, ice: 0x9fe8ff, lightning: 0xfff27a, water: 0x4aa0ff, wind: 0xe8fff4, earth: 0xb08850, none: 0xffffff }
 
 /** A stable hash of a string (an entity's id), salted. */
@@ -151,6 +151,8 @@ export class WorldScene extends Phaser.Scene {
   private cameFrom?: string
   private marks?: Phaser.GameObjects.Graphics
   private bossWarnings?: Phaser.GameObjects.Graphics
+  /** The creatures winding up a skill this frame (the kits module), and how far along: they flash white near its end. */
+  private windup = new Map<string, number>()
   private bossPreview?: { id: string; mode: Exclude<BossPreviewMode, 'live'>; startedAt?: number }
   private darkness = 0
   /** The editor's view (docs/engine-split.md P4): the camera is the author's to move, never the player's to follow; no music. */
@@ -217,6 +219,11 @@ export class WorldScene extends Phaser.Scene {
     return Math.min(this.fitZoom() - 0.5, Math.max(1, Math.floor(Math.min(h / (T * 24), w / (T * 40)) * 4) / 4))
   }
 
+  /**
+   * How much of each screen edge the HUD covers (the clock, the tracker and the minimap above, the toolbar below, the
+   * corner buttons on the right), in screen pixels: the camera may go that far past the map's edge, so a cell in a corner
+   * (the ossuary's stair down, under the tracker) can always be brought out from under it.
+   */
   private fitBounds(zoom = this.cameras.main.zoom): void {
     if (!this.base || this.free) return
     const cam = this.cameras.main
@@ -228,6 +235,7 @@ export class WorldScene extends Phaser.Scene {
     const bh = Math.max(mh, vh)
     cam.setBounds(-(bw - mw) / 2, -(bh - mh) / 2, bw, bh)
   }
+
 
   // ---------------------------------------------------------------- map
 
@@ -453,6 +461,15 @@ export class WorldScene extends Phaser.Scene {
         this.bossWarnings.fillStyle(color, 0.13 + warning.progress * 0.24).fillRect(x * T + 1, y * T + 1, T - 2, T - 2)
         this.bossWarnings.lineStyle(1, color, 0.6 + warning.progress * 0.4).strokeRect(x * T + 1, y * T + 1, T - 2, T - 2)
         this.bossWarnings.fillStyle(0xffeee0, warning.progress).fillRect(x * T + 7, y * T + 7, 2, 2)
+      }
+    }
+    // a creature's skill winding up (the kits module): the same marks, in the skill's colour, filling as it nears
+    this.windup.clear()
+    for (const t of f.telegraphs ?? []) {
+      this.windup.set(t.who, t.progress)
+      for (const [x, y] of t.tiles) {
+        this.bossWarnings.fillStyle(t.color, 0.22 + t.progress * 0.33).fillRect(x * T + 1, y * T + 1, T - 2, T - 2)
+        this.bossWarnings.lineStyle(1.5, t.color, 0.75 + t.progress * 0.25).strokeRect(x * T + 1, y * T + 1, T - 2, T - 2)
       }
     }
     const seen = new Set<string>()
@@ -1274,7 +1291,11 @@ export class WorldScene extends Phaser.Scene {
       // one step, straight or diagonal, slides; anything farther jumps
       const far = Math.max(Math.abs(prev.x - e.x), Math.abs(prev.y - e.y)) > 1
       this.tweens.killTweensOf(v.root)
-      if (far) {
+      // a creature's leap or dash (the kits module) flies the few cells quickly
+      if (far && e.id !== this.playerId && e.tags.includes('creature') && Math.max(Math.abs(prev.x - e.x), Math.abs(prev.y - e.y)) <= 6) {
+        this.tweens.add({ targets: v.root, x: px, y: py, duration: 160, ease: 'Quad.easeOut' })
+        v.movingUntil = this.time.now + 160
+      } else if (far) {
         v.root.setPosition(px, py)
         if (v.walker) v.walker = { x: px, y: py, t: this.time.now }
       }
@@ -1337,6 +1358,9 @@ export class WorldScene extends Phaser.Scene {
     else if (tintStatus) v.body.setTint(TINT_OF[tintStatus]).setTintMode(Phaser.TintModes.MULTIPLY)
     else if (v.actor?.tint) v.body.setTint(v.actor.tint).setTintMode(Phaser.TintModes.OVERLAY)
     else v.body.clearTint()
+    // winding up a skill, it flashes white as the blow nears
+    const wound = this.windup.get(e.id)
+    if (wound !== undefined && wound > 0.5 && Math.floor(wound * 10) % 2 === 0) v.body.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL)
     // a thing an act waits on shimmers; one who is down lies on the ground
     v.body.setAlpha(this.alphaOf(v))
     v.body.setAngle(!e.boss && (e.statuses.includes('down') || e.statuses.includes('out_cold') || e.statuses.includes('asleep') || e.statuses.includes('jailed') || e.tags.includes('body')) ? 90 : 0)
