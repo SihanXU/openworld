@@ -34,6 +34,7 @@
     "latency": "tsx games/openworld/tools/src/latency.ts",
     "curriculum:report": "tsx games/openworld/tools/src/curriculum-report.ts",
     "ford-live": "tsx games/openworld/tools/src/ford-live.ts",
+    "probes": "tsx games/openworld/tools/src/probes.ts",
     "eval:objects": "tsx games/openworld/tools/src/eval-objects.ts",
     "test": "vitest run",
     "typecheck": "tsc -p packages/engine && tsc -p packages/engine/test && tsc -p packages/stdlib && tsc -p packages/format && tsc -p games/starter && tsc -p packages/modules && tsc -p packages/agent && tsc -p packages/modder && tsc -p packages/runtime && tsc -p packages/editor && tsc -p games/openworld/content && tsc -p games/openworld/client && tsc -p games/openworld/tools && tsc -p games/openworld/wiki",

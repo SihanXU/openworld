@@ -14,11 +14,11 @@
 // Two profiles of one harness (state.ts): LIVE while a player waits, OFFLINE for everything
 // nobody waits on — curriculum, a failed live request worked again, a revision after review.
 
-import { artProblems, buildModSpec, closestTypes, holeKey, isDo, isHole, leaves, patchKey, type ModProgress, type Ontology, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef } from '@openworld/engine'
+import { artProblems, buildModSpec, closestTypes, holeKey, isDo, isHole, leaves, patchKey, tierOfRequest, type ModProgress, type Ontology, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef, type ValidationResult } from '@openworld/engine'
 import { briefOf, relatedRules } from './brief.ts'
 import { changesNothing, deriveTests } from './derive.ts'
 import { normalizePatch, placePatch, qualifyTerrains, stationFromRules } from './fixes.ts'
-import type { WorldLibrary } from './library.ts'
+import type { CommitResult, WorldLibrary } from './library.ts'
 import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@openworld/agent'
 import { materializeWorld } from './repo.ts'
 import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, type Creation, type Need } from './prompts.ts'
@@ -38,6 +38,7 @@ export type WorldEpisode = AgentEpisode<ModRequest, Patch>
 type Episode = WorldEpisode
 type Attempt = AgentAttempt<Patch>
 import { buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
+import { envelope, withoutChains, workloadNote, workloadOf, type Workload } from './quality.ts'
 import { audit, probe, withPatch, type AuditResult } from './audit.ts'
 
 export interface ModderOptions {
@@ -47,6 +48,15 @@ export interface ModderOptions {
   model?: Model
   /** Profile for resolve() calls that do not name one (default live). */
   profile?: Profile
+  /**
+   * A trial run (the detection of what a model carries, detect.ts): answers are designed and validated as
+   * ever, but nothing is committed, recorded or followed up — the library and the self-state stay as they were.
+   */
+  dry?: boolean
+  /** The game's questions for detecting what a model carries (GameDef.probes; detect.ts), loaded when one runs. */
+  probes?: () => Promise<ModRequest[]>
+  /** The service's data directory: where the last detection is kept (quality.json). */
+  data?: string
   clock?: () => Date
   log?: (line: string) => void
 }
@@ -84,6 +94,8 @@ class Gate {
 
 export class Modder {
   private inflight = new Map<string, Promise<ResolveReply>>()
+  /** What each trial run came to (a dry modder's: detect.ts), by request id. */
+  readonly trials = new Map<string, Episode>()
   /**
    * Designs run in parallel (harness concurrency.design at once, live first): each is worked and
    * validated in its own sandbox, and the commit re-validates against the library as it is then.
@@ -344,11 +356,15 @@ export class Modder {
     if (why) return { patch: null, outcome: 'unavailable', diagnostics: [`model unavailable: ${why}`] }
     const t0 = Date.now()
     const { state, library } = this.opts
-    const h = profileOf(state.harness(), eo.profile)
+    // the setting's workload over the harness (quality.ts): a player waiting gets their tier's; the
+    // offline profile (escalations, revisions, the curriculum) works as it always does, kept in the tier asked
+    const wl = workloadOf(req)
+    const h = eo.profile === 'live' ? envelope(profileOf(state.harness(), eo.profile), wl) : profileOf(state.harness(), eo.profile)
     if (h.design.mode === 'repo') return this.repoEpisode(req, ws, sig, eo, h)
     const model = new Meter(this.backend!)
     const ep = this.blank(state.newEpisodeId(), req, sig, h)
     ep.profile = eo.profile
+    ep.quality = { tier: wl.tier, create: wl.create }
     if (eo.escalatedFrom) ep.escalatedFrom = eo.escalatedFrom
     if (eo.revise) ep.revises = eo.revise.episode.id
     const replaces = eo.revise?.episode.rules ?? []
@@ -374,7 +390,7 @@ export class Modder {
     const added = { types: lib.types.filter((t) => !(t.id in library.ontology.types)), statuses: lib.statuses.filter((s) => !(s.id in library.ontology.statuses)) }
     const messages: ChatMessage[] = [
       { role: 'system', content: designSystem(buildModSpec(library.ontology, undefined, { types: !router }), h, router) },
-      { role: 'user', content: designUser(req, recall, h.design.brief ? briefOf(req, lib, ctx.ontology, !router) : undefined, added, !router) + (eo.revise ? `\n\n${revisionUser(eo.revise.episode.patch!, eo.revise.notes)}` : '') },
+      { role: 'user', content: designUser(req, recall, h.design.brief ? briefOf(req, lib, ctx.ontology, !router) : undefined, added, !router) + (eo.revise ? `\n\n${revisionUser(eo.revise.episode.patch!, eo.revise.notes)}` : '') + (workloadNote(wl) ? `\n\n${workloadNote(wl)}` : '') },
     ]
 
     let repairs = 0
@@ -394,9 +410,17 @@ export class Modder {
         let bracketsRepaired = false
         const parsed = parseJson(answer, () => (bracketsRepaired = true))
         const ask = router ? routeOf(parsed) : undefined
+        // what the setting does not carry (quality.ts): the catalogue at low, making new kinds when it is off
+        const barred = ask && ((ask.create && wl.create === 'off') || (ask.need && !wl.find && !ask.create))
+        if (ask && barred) {
+          ep.attempts.push({ phase, errors: [ask.create ? 'asked to create a new kind: off at this setting' : 'asked for the catalogue: not at this setting'], warnings: [], raw: answer.slice(0, 2000) })
+          if (repairs++ >= h.repair.maxRounds) break
+          retry(`${ask.create ? 'Making new kinds is off at this setting: answer with kinds the world has.' : 'There is no catalogue at this setting: answer with the things the request holds.'} Answer now with ONLY the JSON object {"patch": {"artifacts": [...]}}.`, 'repair')
+          continue
+        }
         // create only what the world lacks: a creation asked for at once, whose name is close to
         // things the catalogue has, goes through find first (the router is local, find, create)
-        if (ask?.create && stage === 'local') {
+        if (ask?.create && stage === 'local' && wl.find) {
           const close = new Map(ask.create.map((c) => [c.name.en, closestTypes(c.name.en || c.id, ctx.ontology, 6, c.name.zh)]))
           if ([...close.values()].some((ids) => ids.length)) {
             stage = 'find'
@@ -408,7 +432,7 @@ export class Modder {
             continue
           }
         }
-        if (ask?.need && stage === 'local') {
+        if (ask?.need && stage === 'local' && wl.find) {
           // find: what the design needs beyond the request, in the whole catalogue
           stage = 'find'
           ep.route!.push('find')
@@ -446,6 +470,10 @@ export class Modder {
           continue
         }
         let patch: Patch = { ...draft, author: 'modder' }
+        if (!wl.chains) {
+          const own = withoutChains(patch)
+          if (own.fixes.length) ((patch = own.patch), fixes.push(...own.fixes))
+        }
         const qualified = qualifyTerrains(patch, ctx.ontology)
         if (qualified.fixes.length) ((patch = qualified.patch), fixes.push(...qualified.fixes))
         const crafted = stationFromRules(patch, ctx.ontology)
@@ -465,9 +493,10 @@ export class Modder {
           else derived.push(`derived test dropped: ${withTests.errors[0]}`)
         }
         // the new things' pictures, drawn once the patch holds (a thing with no picture shows its parent's)
-        if (res.ok && patch.artifacts.some((a) => a.kind === 'type' && !a.type.art)) {
+        // (not at the low creation setting: a new kind shows its parent's picture)
+        if (res.ok && wl.create !== 'low' && patch.artifacts.some((a) => a.kind === 'type' && !a.type.art)) {
           at({ stage: 'art', creating: patch.artifacts.flatMap((a) => (a.kind === 'type' ? [a.type.name as { en: string; zh: string }] : [])) })
-          const drawn = await this.drawAll(model, patch, creations)
+          const drawn = await this.drawAll(model, patch, creations, wl)
           const again = validate(drawn)
           if (again.ok) ((patch = drawn), (res = again))
           else fixes.push(`pictures dropped: ${again.errors[0]}`)
@@ -486,7 +515,7 @@ export class Modder {
           // the draft makes a thing the world has no type for (a spawn or a transform into an unknown id): a
           // creation, not a slip to repair; told only "unknown type", the designer swaps in something known
           // and learns never to create
-          const missing = router && stage !== 'create' ? unknownMade(patch, ctx.ontology) : []
+          const missing = router && stage !== 'create' && wl.create !== 'off' ? unknownMade(patch, ctx.ontology) : []
           if (missing.length) {
             stage = 'create'
             ep.route!.push('create')
@@ -511,7 +540,7 @@ export class Modder {
           }
         }
         if (h.review.enabled && h.review.blocking !== false && reviews < h.review.maxRounds) {
-          attempt.review = await this.review(model, req, patch, ctx, h, flagsOf(patch, derived))
+          attempt.review = await this.review(model, req, patch, ctx, h, flagsOf(patch, derived), eo.profile === 'live')
           if (attempt.review.verdict === 'revise' && attempt.review.notes.length) {
             reviews++
             reviewed = patch
@@ -546,6 +575,10 @@ export class Modder {
     ep.usage = { calls: model.calls, input: model.input, output: model.output, cost: model.cost }
     ep.calls = model.log
     ep.ms = Date.now() - t0
+    if (this.opts.dry) {
+      this.trials.set(req.id, ep)
+      return { patch: ep.outcome === 'failed' ? null : (ep.patch ?? null), outcome: ep.outcome, episode: ep.id }
+    }
     state.recordEpisode(ep)
     const retired = state.noteSkillUse(ep.skillsRead, ep.outcome, ep.id)
     this.log(
@@ -702,7 +735,8 @@ export class Modder {
   private commit(ep: Episode, patch: Patch, req: ModRequest, replaces: string[] = []): boolean {
     // the Threadbook says whose act taught the world this: the player's, or the world's own
     patch = { ...patch, trigger: req.origin ?? 'player' }
-    const c = this.opts.library.commit(patch, req, this.now(), replaces)
+    // a trial run judges the patch as a commit would, and keeps nothing
+    const c = this.opts.dry ? judged(this.opts.library.validate(patch, req, undefined, replaces), patch) : this.opts.library.commit(patch, req, this.now(), replaces)
     if (!c.ok) {
       ep.attempts.push({ phase: 'repair', patch, errors: c.result.errors, warnings: c.result.warnings })
       return false
@@ -715,7 +749,7 @@ export class Modder {
 
   /** The design conversation: tool calls until the model answers, or the round budget runs out. */
   /** Each new type of the patch gets a picture (two tries each); one that cannot be drawn keeps its parent's. */
-  private async drawAll(model: Model, patch: Patch, creations: Creation[]): Promise<Patch> {
+  private async drawAll(model: Model, patch: Patch, creations: Creation[], wl?: Workload): Promise<Patch> {
     const artifacts = []
     for (const a of patch.artifacts) {
       if (a.kind !== 'type' || a.type.art) {
@@ -723,21 +757,22 @@ export class Modder {
         continue
       }
       const why = creations.find((c) => c.id === a.type.id)?.why ?? `a new kind of ${a.type.id.split('/').slice(-2, -1)[0] ?? 'thing'}`
-      const art = await this.draw(model, a.type, why)
+      // high: drawn with more thought, and once more if the picture still has problems
+      const art = await this.draw(model, a.type, why, wl?.create === 'high' ? 3 : 2, wl?.create === 'high' ? 'high' : 'medium')
       // drawn by its picture; an agent keeps its kind's animated sheet (the picture is kept with it)
       artifacts.push(art ? { ...a, type: { ...a.type, art, ...(!a.type.id.startsWith('actor/') && { sprite: `art:${a.type.id}` }) } } : a)
     }
     return { ...patch, artifacts }
   }
 
-  private async draw(model: Model, t: TypeDef, why: string): Promise<PixelArt | undefined> {
+  private async draw(model: Model, t: TypeDef, why: string, tries = 2, reasoning: ChatOptions['reasoning'] = 'medium'): Promise<PixelArt | undefined> {
     const name = typeof t.name === 'object' && t.name ? (t.name as { en: string; zh: string }) : { en: String(t.name ?? t.id), zh: String(t.name ?? t.id) }
     const messages: ChatMessage[] = [
       { role: 'system', content: ART_SYSTEM },
       { role: 'user', content: artUser({ id: t.id, name }, why) },
     ]
-    for (let i = 0; i < 2; i++) {
-      const r = await model.chat(messages, { json: true, temperature: 0.4, purpose: 'art', reasoning: 'medium', deadlineMs: SLOW_MS })
+    for (let i = 0; i < tries; i++) {
+      const r = await model.chat(messages, { json: true, temperature: 0.4, purpose: 'art', reasoning, deadlineMs: SLOW_MS })
       const j = parseJson(r.content) as Partial<PixelArt> | undefined
       const art = { grid: j?.grid ?? [], palette: j?.palette ?? {} } as PixelArt
       const problems = artProblems(art)
@@ -798,7 +833,7 @@ export class Modder {
     }
   }
 
-  private async review(model: Model, req: ModRequest, patch: Patch, ctx: ToolContext, h: Harness, flags: string[] = []): Promise<{ verdict: string; notes: string[] }> {
+  private async review(model: Model, req: ModRequest, patch: Patch, ctx: ToolContext, h: Harness, flags: string[] = [], waiting = false): Promise<{ verdict: string; notes: string[] }> {
     const outcome = describeOutcome(req.scenario, patch, ctx)
     const messages: ChatMessage[] = [
       { role: 'system', content: REVIEW_SYSTEM },
@@ -806,8 +841,8 @@ export class Modder {
     ]
     // a reply that says no verdict is no review: asked once more, then recorded as an error (never as "ship")
     for (let attempt = 0; attempt < 2; attempt++) {
-      // nobody waits on a review: the cheap providers
-      const r = await model.chat(messages, { json: true, temperature: 0.2, purpose: 'review', reasoning: h.review.reasoning, provider: profileOf(h, 'offline').design.provider })
+      // nobody waits on a review: the cheap providers — but a player waits on one before shipping (the high setting): the fast ones
+      const r = await model.chat(messages, { json: true, temperature: 0.2, purpose: 'review', reasoning: h.review.reasoning, ...(waiting ? { provider: h.design.provider, hedgeMs: h.design.hedgeMs, deadlineMs: h.design.deadlineMs } : { provider: profileOf(h, 'offline').design.provider }) })
       const j = parseJson(r.content) as { verdict?: unknown; notes?: unknown } | undefined
       const verdict = typeof j?.verdict === 'string' ? j.verdict.trim().toLowerCase() : undefined
       if (verdict !== 'ship' && verdict !== 'revise') continue
@@ -947,7 +982,12 @@ function routeOf(j: unknown): { need?: Need[]; create?: Creation[] } | undefined
  * answered by it); any others are designed side by side.
  */
 export function laneOf(req: ModRequest): string {
-  return patchKey(req.event.host?.type ?? '-', req.event.kind, holeKey(req.hole.rule, req.hole.path))
+  return patchKey(req.event.host?.type ?? '-', req.event.kind, holeKey(req.hole.rule, req.hole.path), tierOfRequest(req))
+}
+
+/** A validation as a commit reports it (a trial run keeps nothing). */
+function judged(result: ValidationResult, patch: Patch): CommitResult {
+  return { ok: result.ok, result, rules: patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : [])) }
 }
 
 /** How many single-character edits turn one id into the other (small ids only: a slip, not a resemblance). */

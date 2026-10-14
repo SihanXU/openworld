@@ -1,0 +1,6663 @@
+[
+ {
+  "id": "probe-ford-0",
+  "summary": "you use Bread on ferry winch",
+  "origin": "player",
+  "event": {
+   "kind": "act/use",
+   "params": {
+    "verb": "use",
+    "power": 2
+   },
+   "host": {
+    "role": "host",
+    "id": "npc.marta.stock0.0",
+    "name": "Bread",
+    "type": "item/food/bread",
+    "typeChain": [
+     "item",
+     "item/food",
+     "item/food/bread"
+    ],
+    "tags": [
+     "portable",
+     "food",
+     "edible",
+     "flammable"
+    ],
+    "statuses": [],
+    "props": {
+     "value": 6,
+     "heal": 5,
+     "food": 5
+    },
+    "at": [
+     0,
+     0
+    ]
+   },
+   "roles": {
+    "story": {
+     "role": "story",
+     "id": "story",
+     "name": "the story",
+     "type": "resident/story",
+     "typeChain": [
+      "resident",
+      "resident/story"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {
+      "seen.arrival": true
+     }
+    },
+    "world": {
+     "role": "world",
+     "id": "world",
+     "name": "the world",
+     "type": "resident/world",
+     "typeChain": [
+      "resident",
+      "resident/world"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {}
+    },
+    "actor": {
+     "role": "actor",
+     "id": "player",
+     "name": "you",
+     "type": "actor/person/player",
+     "typeChain": [
+      "actor",
+      "actor/person",
+      "actor/person/player"
+     ],
+     "tags": [
+      "agent",
+      "person",
+      "living",
+      "talkable",
+      "faction:folk",
+      "essential",
+      "look:long-haired"
+     ],
+     "statuses": [],
+     "props": {
+      "level": 1,
+      "material": "flesh",
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 12,
+      "maxHunger": 20,
+      "hungerEvery": 480,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body",
+      "visited.summit": 1,
+      "quest": 1
+     },
+     "material": {
+      "id": "flesh",
+      "category": "flesh",
+      "hardness": 1
+     },
+     "look": "woman; hair: ponytail (chestnut); face: bright eyes (amber); outfit: adventurer's gear (teal)",
+     "at": [
+      0,
+      0
+     ]
+    },
+    "target": {
+     "role": "target",
+     "id": "ford.winch",
+     "name": "ferry winch",
+     "type": "fixture/ferry/winch",
+     "typeChain": [
+      "fixture",
+      "fixture/ferry",
+      "fixture/ferry/winch"
+     ],
+     "tags": [
+      "wooden",
+      "flammable",
+      "mechanism"
+     ],
+     "statuses": [
+      "broken"
+     ],
+     "props": {},
+     "at": [
+      0,
+      -1
+     ]
+    },
+    "instrument": {
+     "role": "instrument",
+     "id": "npc.marta.stock0.0",
+     "name": "Bread",
+     "type": "item/food/bread",
+     "typeChain": [
+      "item",
+      "item/food",
+      "item/food/bread"
+     ],
+     "tags": [
+      "portable",
+      "food",
+      "edible",
+      "flammable"
+     ],
+     "statuses": [],
+     "props": {
+      "value": 6,
+      "heal": 5,
+      "food": 5
+     },
+     "at": [
+      0,
+      0
+     ]
+    }
+   }
+  },
+  "hole": {
+   "rule": "core/use",
+   "path": [
+    "!{\"none\":\"instrument\"}",
+    "!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}",
+    "!{\"param\":{\"key\":\"attack\",\"cmp\":true}}",
+    "!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}"
+   ],
+   "default": [
+    {
+     "op": "log",
+     "text": {
+      "en": "Nothing happens.",
+      "zh": "什么也没有发生。"
+     }
+    }
+   ],
+   "at": []
+  },
+  "context": {
+   "map": {
+    "id": "ford",
+    "name": "The Ford",
+    "kind": "wild",
+    "region": "frostfang"
+   },
+   "anchors": [
+    "camp.fire",
+    "camp.warm",
+    "camp.bed",
+    "tent.mouth",
+    "tent.side",
+    "landing.winch",
+    "landing.nets",
+    "landing.edge",
+    "far.landing"
+   ],
+   "hour": 13,
+   "nearby": [
+    {
+     "role": "nearby",
+     "id": "ford~1j",
+     "name": "wildflowers",
+     "type": "fixture/nature/flowers",
+     "typeChain": [
+      "fixture",
+      "fixture/nature",
+      "fixture/nature/flowers"
+     ],
+     "tags": [
+      "plant",
+      "flower",
+      "flammable"
+     ],
+     "statuses": [],
+     "props": {},
+     "at": [
+      -1,
+      1
+     ]
+    },
+    {
+     "role": "nearby",
+     "id": "ford~ik",
+     "name": "Bucket",
+     "type": "item/vessel/bucket/empty",
+     "typeChain": [
+      "item",
+      "item/vessel",
+      "item/vessel/bucket",
+      "item/vessel/bucket/empty"
+     ],
+     "tags": [
+      "portable",
+      "vessel",
+      "wooden",
+      "empty-vessel"
+     ],
+     "statuses": [],
+     "props": {
+      "value": 6,
+      "waterType": "item/vessel/bucket/water",
+      "oilType": "item/vessel/bucket/oil"
+     },
+     "makeup": [
+      {
+       "type": "item/material/plank",
+       "count": 3
+      },
+      {
+       "type": "item/material/grass",
+       "count": 1
+      }
+     ],
+     "at": [
+      0,
+      1
+     ]
+    },
+    {
+     "role": "nearby",
+     "id": "npc.hesper",
+     "name": "Hesper",
+     "type": "actor/person/ferrykeeper",
+     "typeChain": [
+      "actor",
+      "actor/person",
+      "actor/person/ferrykeeper"
+     ],
+     "tags": [
+      "agent",
+      "person",
+      "living",
+      "talkable",
+      "faction:folk",
+      "storybound",
+      "merchant",
+      "essential",
+      "look:grey-haired",
+      "look:old"
+     ],
+     "statuses": [],
+     "props": {
+      "level": 1,
+      "material": "flesh",
+      "hp": 20,
+      "maxHp": 20,
+      "atk": 1,
+      "def": 0,
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 20,
+      "maxHunger": 20,
+      "hungerEvery": 960,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body",
+      "age": 64,
+      "purse": 25,
+      "household": "ferry",
+      "stock": "item/food/fish/raw*3|item/food/fish/cooked*2|item/tool/fishing_rod*1|item/misc/bait*6"
+     },
+     "material": {
+      "id": "flesh",
+      "category": "flesh",
+      "hardness": 1
+     },
+     "look": "woman; hair: bun (grey); face: heavy-lidded eyes (grey); age: lined face; hat: headscarf (slate); outfit: oilcloth coat (ochre)",
+     "person": {
+      "role": "ferrykeeper",
+      "temperament": {
+       "personality": "stubborn",
+       "manner": "plain",
+       "social": "reserved",
+       "outlook": "wary"
+      },
+      "ties": {
+       "Tobin": "owes her last autumn's fare"
+      },
+      "household": "ferry"
+     },
+     "at": [
+      0,
+      2
+     ]
+    },
+    {
+     "role": "nearby",
+     "id": "ford~2v",
+     "name": "pebbles",
+     "type": "fixture/nature/pebbles",
+     "typeChain": [
+      "fixture",
+      "fixture/nature",
+      "fixture/nature/pebbles"
+     ],
+     "tags": [
+      "stone"
+     ],
+     "statuses": [],
+     "props": {},
+     "at": [
+      0,
+      2
+     ]
+    }
+   ],
+   "tiles": [
+    [
+     "grass",
+     "path",
+     "path",
+     "grass",
+     "grass",
+     "water",
+     "water"
+    ],
+    [
+     "path",
+     "path",
+     "grass",
+     "grass",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "path",
+     "path",
+     "path",
+     "path",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "path",
+     "path",
+     "path",
+     "path",
+     "bridge",
+     "bridge",
+     "water"
+    ],
+    [
+     "path",
+     "grass",
+     "grass",
+     "path",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "path",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "path",
+     "water",
+     "water",
+     "water"
+    ]
+   ],
+   "tileStatuses": [],
+   "recent": [],
+   "rules": [
+    {
+     "id": "use/eat",
+     "doc": "Food used on oneself is eaten: it feeds hunger (Minecraft: health comes back from being well fed, not from the bite). Used on another who gets hungry, it feeds them; on anything else it is undefined (a wolf offered meat: the AI answers).",
+     "host": {
+      "tags": [
+       "edible"
+      ]
+     },
+     "on": "act/use",
+     "tree": {
+      "if": {
+       "same": [
+        "actor",
+        "target"
+       ]
+      },
+      "then": {
+       "do": [
+        {
+         "op": "emit",
+         "impulse": "restore",
+         "to": "actor",
+         "params": {
+          "which": "hunger",
+          "amount": {
+           "prop": "food",
+           "of": "host"
+          }
+         }
+        },
+        {
+         "op": "emit",
+         "impulse": "notify",
+         "to": "story",
+         "params": {
+          "what": "meal"
+         }
+        },
+        {
+         "op": "log",
+         "text": {
+          "en": "You eat {host}.",
+          "zh": "你吃掉了{host}。"
+         }
+        },
+        {
+         "op": "destroy"
+        }
+       ],
+       "confirm": {
+        "en": "Eat {instrument}?",
+        "zh": "要吃掉{instrument}吗？"
+       },
+       "label": {
+        "en": "Eat {instrument}",
+        "zh": "吃掉{instrument}"
+       }
+      },
+      "else": {
+       "if": {
+        "is": {
+         "role": "target",
+         "sel": {
+          "type": "actor",
+          "props": {
+           "maxHunger": {
+            "gt": 0
+           }
+          }
+         }
+        }
+       },
+       "then": {
+        "do": [
+         {
+          "op": "emit",
+          "impulse": "restore",
+          "to": "target",
+          "params": {
+           "which": "hunger",
+           "amount": {
+            "prop": "food",
+            "of": "host"
+           }
+          }
+         },
+         {
+          "op": "log",
+          "text": {
+           "en": "You feed {target} {host}.",
+           "zh": "你喂{target}吃了{host}。"
+          }
+         },
+         {
+          "op": "destroy"
+         }
+        ],
+        "label": {
+         "en": "Feed {instrument} to {target}",
+         "zh": "给{target}吃{instrument}"
+        }
+       },
+       "else": "inherit"
+      }
+     },
+     "source": {
+      "origin": "base"
+     }
+    },
+    {
+     "id": "core/use",
+     "doc": "Using a thing on something its nature says nothing about: the bare body used on anything is a blow (Minecraft's fist), and so is anything swung; on a place of the overworld it is out of reach; on a creature it is held out to it (the creature answers: offered, design.md §5.2). On anything else it is the player's experiment: undefined (the AI answers).",
+     "on": "act/use",
+     "tree": {
+      "if": {
+       "none": "instrument"
+      },
+      "then": {
+       "do": [
+        {
+         "op": "emit",
+         "impulse": "strike",
+         "to": "target",
+         "params": {
+          "power": {
+           "param": "power"
+          },
+          "element": {
+           "param": "element"
+          },
+          "edge": "blunt",
+          "bleed": {
+           "param": "bleed"
+          },
+          "drain": {
+           "param": "drain"
+          },
+          "afflict": {
+           "param": "afflict"
+          },
+          "afflictFor": {
+           "param": "afflictFor"
+          }
+         }
+        }
+       ]
+      },
+      "else": {
+       "if": {
+        "is": {
+         "role": "target",
+         "sel": {
+          "type": "site"
+         }
+        }
+       },
+       "then": {
+        "do": [
+         {
+          "op": "log",
+          "text": {
+           "en": "Too far to reach: go in first (E).",
+           "zh": "够不着：先进去（E）。"
+          }
+         }
+        ],
+        "label": {
+         "en": "Out of reach — go in first (E)",
+         "zh": "够不着——先进去（E）"
+        }
+       },
+       "else": {
+        "if": {
+         "param": {
+          "key": "attack",
+          "cmp": true
+         }
+        },
+        "then": {
+         "do": [
+          {
+           "op": "emit",
+           "impulse": "strike",
+           "to": "target",
+           "params": {
+            "power": {
+             "param": "power"
+            },
+            "element": {
+             "param": "element"
+            },
+            "edge": "blunt",
+            "bleed": {
+             "param": "bleed"
+            },
+            "drain": {
+             "param": "drain"
+            },
+            "afflict": {
+             "param": "afflict"
+            },
+            "afflictFor": {
+             "param": "afflictFor"
+            }
+           }
+          }
+         ],
+         "label": {
+          "en": "Strike {target} with {instrument}",
+          "zh": "用{instrument}打{target}"
+         }
+        },
+        "else": {
+         "if": {
+          "all": [
+           {
+            "is": {
+             "role": "target",
+             "sel": {
+              "type": "actor/creature"
+             }
+            }
+           },
+           {
+            "not": {
+             "same": [
+              "actor",
+              "target"
+             ]
+            }
+           }
+          ]
+         },
+         "then": {
+          "do": [
+           {
+            "op": "emit",
+            "impulse": "offered",
+            "to": "target",
+            "item": "host"
+           }
+          ],
+          "label": {
+           "en": "Hold out {instrument} to {target}",
+           "zh": "把{instrument}递给{target}"
+          }
+         },
+         "else": {
+          "undefined": true,
+          "default": [
+           {
+            "op": "log",
+            "text": {
+             "en": "Nothing happens.",
+             "zh": "什么也没有发生。"
+            }
+           }
+          ]
+         }
+        }
+       }
+      }
+     },
+     "source": {
+      "origin": "base"
+     }
+    }
+   ]
+  },
+  "scenario": {
+   "terrain": [
+    [
+     "grass",
+     "path",
+     "path",
+     "grass",
+     "grass",
+     "water",
+     "water"
+    ],
+    [
+     "path",
+     "path",
+     "grass",
+     "grass",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "path",
+     "path",
+     "path",
+     "path",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "path",
+     "path",
+     "path",
+     "path",
+     "bridge",
+     "bridge",
+     "water"
+    ],
+    [
+     "path",
+     "grass",
+     "grass",
+     "path",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "path",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "path",
+     "water",
+     "water",
+     "water"
+    ]
+   ],
+   "entities": [
+    {
+     "key": "actor",
+     "type": "actor/person/player",
+     "x": 3,
+     "y": 3,
+     "props": {
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "speed": 2,
+      "hunger": 12,
+      "visited.summit": 1,
+      "quest": 1
+     }
+    },
+    {
+     "key": "instrument",
+     "type": "item/food/bread",
+     "x": 3,
+     "y": 3,
+     "heldBy": "actor"
+    },
+    {
+     "key": "target",
+     "type": "fixture/ferry/winch",
+     "x": 3,
+     "y": 2,
+     "statuses": [
+      "broken"
+     ]
+    },
+    {
+     "key": "c1",
+     "type": "item/food/bread",
+     "x": 3,
+     "y": 3,
+     "inside": "actor"
+    },
+    {
+     "key": "n1",
+     "type": "fixture/nature/flowers",
+     "x": 0,
+     "y": 0
+    },
+    {
+     "key": "n2",
+     "type": "fixture/ferry/raft",
+     "x": 6,
+     "y": 3
+    },
+    {
+     "key": "n3",
+     "type": "fixture/nature/flowers",
+     "x": 2,
+     "y": 4
+    },
+    {
+     "key": "n4",
+     "type": "item/vessel/bucket/empty",
+     "x": 3,
+     "y": 4
+    },
+    {
+     "key": "n5",
+     "type": "actor/person/ferrykeeper",
+     "x": 3,
+     "y": 5,
+     "tags": [
+      "storybound",
+      "merchant",
+      "essential"
+     ],
+     "props": {
+      "age": 64,
+      "purse": 25,
+      "household": "ferry",
+      "stock": "item/food/fish/raw*3|item/food/fish/cooked*2|item/tool/fishing_rod*1|item/misc/bait*6"
+     }
+    },
+    {
+     "key": "n6",
+     "type": "fixture/nature/pebbles",
+     "x": 3,
+     "y": 5
+    }
+   ],
+   "player": "actor",
+   "event": {
+    "kind": "act/use",
+    "params": {
+     "verb": "use",
+     "power": 2
+    },
+    "actor": "actor",
+    "instrument": "instrument",
+    "target": "target",
+    "host": "instrument"
+   },
+   "residents": {
+    "story": {
+     "seen.arrival": true
+    }
+   }
+  }
+ },
+ {
+  "id": "probe-ford-2",
+  "summary": "ferry raft is sent handle from you",
+  "origin": "player",
+  "event": {
+   "kind": "impulse/handle",
+   "params": {},
+   "host": {
+    "role": "host",
+    "id": "ford.raft",
+    "name": "ferry raft",
+    "type": "fixture/ferry/raft",
+    "typeChain": [
+     "fixture",
+     "fixture/ferry",
+     "fixture/ferry/raft"
+    ],
+    "tags": [
+     "wooden",
+     "flammable",
+     "surface"
+    ],
+    "statuses": [],
+    "props": {},
+    "at": [
+     0,
+     0
+    ]
+   },
+   "roles": {
+    "story": {
+     "role": "story",
+     "id": "story",
+     "name": "the story",
+     "type": "resident/story",
+     "typeChain": [
+      "resident",
+      "resident/story"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {
+      "seen.arrival": true
+     }
+    },
+    "world": {
+     "role": "world",
+     "id": "world",
+     "name": "the world",
+     "type": "resident/world",
+     "typeChain": [
+      "resident",
+      "resident/world"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {}
+    },
+    "source": {
+     "role": "source",
+     "id": "player",
+     "name": "you",
+     "type": "actor/person/player",
+     "typeChain": [
+      "actor",
+      "actor/person",
+      "actor/person/player"
+     ],
+     "tags": [
+      "agent",
+      "person",
+      "living",
+      "talkable",
+      "faction:folk",
+      "essential",
+      "look:long-haired"
+     ],
+     "statuses": [],
+     "props": {
+      "level": 1,
+      "material": "flesh",
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 12,
+      "maxHunger": 20,
+      "hungerEvery": 480,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body",
+      "visited.summit": 1,
+      "quest": 1
+     },
+     "material": {
+      "id": "flesh",
+      "category": "flesh",
+      "hardness": 1
+     },
+     "look": "woman; hair: ponytail (chestnut); face: bright eyes (amber); outfit: adventurer's gear (teal)",
+     "at": [
+      -1,
+      0
+     ]
+    },
+    "actor": {
+     "role": "actor",
+     "id": "player",
+     "name": "you",
+     "type": "actor/person/player",
+     "typeChain": [
+      "actor",
+      "actor/person",
+      "actor/person/player"
+     ],
+     "tags": [
+      "agent",
+      "person",
+      "living",
+      "talkable",
+      "faction:folk",
+      "essential",
+      "look:long-haired"
+     ],
+     "statuses": [],
+     "props": {
+      "level": 1,
+      "material": "flesh",
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 12,
+      "maxHunger": 20,
+      "hungerEvery": 480,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body",
+      "visited.summit": 1,
+      "quest": 1
+     },
+     "material": {
+      "id": "flesh",
+      "category": "flesh",
+      "hardness": 1
+     },
+     "look": "woman; hair: ponytail (chestnut); face: bright eyes (amber); outfit: adventurer's gear (teal)",
+     "at": [
+      -1,
+      0
+     ]
+    }
+   }
+  },
+  "hole": {
+   "rule": "core/handle",
+   "path": [],
+   "default": [
+    {
+     "op": "log",
+     "text": {
+      "en": "It is {host}.",
+      "zh": "这是{host}。"
+     }
+    }
+   ],
+   "at": []
+  },
+  "context": {
+   "map": {
+    "id": "ford",
+    "name": "The Ford",
+    "kind": "wild",
+    "region": "frostfang"
+   },
+   "anchors": [
+    "camp.fire",
+    "camp.warm",
+    "camp.bed",
+    "tent.mouth",
+    "tent.side",
+    "landing.winch",
+    "landing.nets",
+    "landing.edge",
+    "far.landing"
+   ],
+   "hour": 13,
+   "nearby": [],
+   "tiles": [
+    [
+     "grass",
+     "grass",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "grass",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "path",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "path",
+     "bridge",
+     "bridge",
+     "water",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "path",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "path",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "path",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water"
+    ]
+   ],
+   "tileStatuses": [],
+   "recent": [],
+   "rules": [
+    {
+     "id": "core/handle",
+     "doc": "A bare hand on something with no answer of its own: undefined (it is looked at meanwhile).",
+     "on": "impulse/handle",
+     "tree": {
+      "undefined": true,
+      "default": [
+       {
+        "op": "log",
+        "text": {
+         "en": "It is {host}.",
+         "zh": "这是{host}。"
+        }
+       }
+      ]
+     },
+     "source": {
+      "origin": "base"
+     }
+    },
+    {
+     "id": "core/impulse",
+     "doc": "What is done to a thing is undefined unless its nature says (the AI answers).",
+     "on": "impulse",
+     "tree": {
+      "undefined": true
+     },
+     "source": {
+      "origin": "base"
+     }
+    }
+   ]
+  },
+  "scenario": {
+   "terrain": [
+    [
+     "grass",
+     "grass",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "grass",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "path",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "path",
+     "bridge",
+     "bridge",
+     "water",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "path",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "path",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water"
+    ],
+    [
+     "path",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water"
+    ]
+   ],
+   "entities": [
+    {
+     "key": "actor",
+     "type": "actor/person/player",
+     "x": 2,
+     "y": 3,
+     "props": {
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "speed": 2,
+      "hunger": 12,
+      "visited.summit": 1,
+      "quest": 1
+     }
+    },
+    {
+     "key": "host",
+     "type": "fixture/ferry/raft",
+     "x": 3,
+     "y": 3
+    },
+    {
+     "key": "c1",
+     "type": "item/food/bread",
+     "x": 2,
+     "y": 3,
+     "heldBy": "actor"
+    },
+    {
+     "key": "n1",
+     "type": "fixture/ferry/winch",
+     "x": 0,
+     "y": 2,
+     "statuses": [
+      "broken"
+     ]
+    },
+    {
+     "key": "n2",
+     "type": "item/vessel/bucket/empty",
+     "x": 0,
+     "y": 4
+    },
+    {
+     "key": "n3",
+     "type": "actor/person/ferrykeeper",
+     "x": 0,
+     "y": 5,
+     "tags": [
+      "storybound",
+      "merchant",
+      "essential"
+     ],
+     "props": {
+      "age": 64,
+      "purse": 25,
+      "household": "ferry",
+      "stock": "item/food/fish/raw*3|item/food/fish/cooked*2|item/tool/fishing_rod*1|item/misc/bait*6"
+     }
+    },
+    {
+     "key": "n4",
+     "type": "fixture/nature/pebbles",
+     "x": 0,
+     "y": 5
+    }
+   ],
+   "player": "actor",
+   "event": {
+    "kind": "impulse/handle",
+    "params": {},
+    "actor": "actor",
+    "source": "actor",
+    "host": "host"
+   },
+   "residents": {
+    "story": {
+     "seen.arrival": true
+    }
+   }
+  }
+ },
+ {
+  "id": "probe-ford-4",
+  "summary": "Hesper is stuck at \"tend the fire\" by → campfire",
+  "origin": "world",
+  "event": {
+   "kind": "stuck",
+   "params": {
+    "activity": "tend the fire"
+   },
+   "host": {
+    "role": "host",
+    "id": "npc.hesper",
+    "name": "Hesper",
+    "type": "actor/person/ferrykeeper",
+    "typeChain": [
+     "actor",
+     "actor/person",
+     "actor/person/ferrykeeper"
+    ],
+    "tags": [
+     "agent",
+     "person",
+     "living",
+     "talkable",
+     "faction:folk",
+     "storybound",
+     "merchant",
+     "essential",
+     "look:grey-haired",
+     "look:old"
+    ],
+    "statuses": [],
+    "props": {
+     "level": 1,
+     "material": "flesh",
+     "hp": 20,
+     "maxHp": 20,
+     "atk": 1,
+     "def": 0,
+     "speed": 2,
+     "sight": 7,
+     "perception": 10,
+     "hunger": 20,
+     "maxHunger": 20,
+     "hungerEvery": 960,
+     "honesty": 1,
+     "bodyType": "fixture/remains/body",
+     "age": 64,
+     "purse": 25,
+     "household": "ferry",
+     "stock": "item/food/fish/raw*3|item/food/fish/cooked*2|item/tool/fishing_rod*1|item/misc/bait*6"
+    },
+    "material": {
+     "id": "flesh",
+     "category": "flesh",
+     "hardness": 1
+    },
+    "look": "woman; hair: bun (grey); face: heavy-lidded eyes (grey); age: lined face; hat: headscarf (slate); outfit: oilcloth coat (ochre)",
+    "person": {
+     "role": "ferrykeeper",
+     "temperament": {
+      "personality": "stubborn",
+      "manner": "plain",
+      "social": "reserved",
+      "outlook": "wary"
+     },
+     "ties": {
+      "Tobin": "owes her last autumn's fare"
+     },
+     "household": "ferry"
+    },
+    "at": [
+     0,
+     0
+    ]
+   },
+   "roles": {
+    "story": {
+     "role": "story",
+     "id": "story",
+     "name": "the story",
+     "type": "resident/story",
+     "typeChain": [
+      "resident",
+      "resident/story"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {
+      "seen.arrival": true,
+      "seen.see_waypoint": 21483,
+      "step.last": "ford",
+      "seen.ford": 21486
+     }
+    },
+    "world": {
+     "role": "world",
+     "id": "world",
+     "name": "the world",
+     "type": "resident/world",
+     "typeChain": [
+      "resident",
+      "resident/world"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {}
+    },
+    "target": {
+     "role": "target",
+     "id": "ford.campfire",
+     "name": "campfire",
+     "type": "fixture/light/campfire",
+     "typeChain": [
+      "fixture",
+      "fixture/light",
+      "fixture/light/campfire"
+     ],
+     "tags": [
+      "lightable",
+      "cookware"
+     ],
+     "statuses": [
+      "wet"
+     ],
+     "props": {
+      "material": "stone",
+      "maxHp": 6,
+      "hp": 6
+     },
+     "material": {
+      "id": "stone",
+      "category": "stone",
+      "hardness": 2,
+      "name": {
+       "en": "Stone",
+       "zh": "石"
+      },
+      "tags": [
+       "stone"
+      ],
+      "attack": 1.25,
+      "defence": 1,
+      "value": 0.4
+     },
+     "makeup": [
+      {
+       "type": "item/material/stone",
+       "count": 2
+      },
+      {
+       "type": "item/material/stick",
+       "count": 2
+      }
+     ],
+     "at": [
+      1,
+      1
+     ]
+    }
+   },
+   "detail": "Hesper wants to \"tend the fire\" but campfire is not as it must be ({\"status\":[\"lit\"]})"
+  },
+  "hole": {
+   "rule": "core/stuck",
+   "path": [],
+   "default": [],
+   "at": []
+  },
+  "context": {
+   "map": {
+    "id": "ford",
+    "name": "The Ford",
+    "kind": "wild",
+    "region": "frostfang"
+   },
+   "anchors": [
+    "camp.fire",
+    "camp.warm",
+    "camp.bed",
+    "tent.mouth",
+    "tent.side",
+    "landing.winch",
+    "landing.nets",
+    "landing.edge",
+    "far.landing"
+   ],
+   "hour": 18.1,
+   "nearby": [
+    {
+     "role": "nearby",
+     "id": "ford.chest",
+     "name": "chest",
+     "type": "fixture/container/chest",
+     "typeChain": [
+      "fixture",
+      "fixture/container",
+      "fixture/container/chest"
+     ],
+     "tags": [
+      "container",
+      "wooden",
+      "flammable"
+     ],
+     "statuses": [],
+     "props": {
+      "capacity": 8,
+      "material": "wood",
+      "maxHp": 8,
+      "hp": 8,
+      "owner": "npc.hesper"
+     },
+     "material": {
+      "id": "wood",
+      "category": "wood",
+      "hardness": 1,
+      "name": {
+       "en": "Wooden",
+       "zh": "木"
+      },
+      "tags": [
+       "wooden",
+       "flammable"
+      ],
+      "attack": 0.75,
+      "defence": 0.75,
+      "value": 0.6
+     },
+     "makeup": [
+      {
+       "type": "item/material/plank",
+       "count": 4
+      }
+     ],
+     "at": [
+      -1,
+      -1
+     ]
+    },
+    {
+     "role": "nearby",
+     "id": "ford~1h",
+     "name": "wildflowers",
+     "type": "fixture/nature/flowers",
+     "typeChain": [
+      "fixture",
+      "fixture/nature",
+      "fixture/nature/flowers"
+     ],
+     "tags": [
+      "plant",
+      "flower",
+      "flammable"
+     ],
+     "statuses": [],
+     "props": {},
+     "at": [
+      2,
+      -1
+     ]
+    },
+    {
+     "role": "nearby",
+     "id": "ford~3a",
+     "name": "grass tuft",
+     "type": "fixture/nature/tuft",
+     "typeChain": [
+      "fixture",
+      "fixture/nature",
+      "fixture/nature/tuft"
+     ],
+     "tags": [
+      "plant",
+      "flammable"
+     ],
+     "statuses": [],
+     "props": {},
+     "at": [
+      -1,
+      1
+     ]
+    },
+    {
+     "role": "nearby",
+     "id": "ford~3c",
+     "name": "grass tuft",
+     "type": "fixture/nature/tuft",
+     "typeChain": [
+      "fixture",
+      "fixture/nature",
+      "fixture/nature/tuft"
+     ],
+     "tags": [
+      "plant",
+      "flammable"
+     ],
+     "statuses": [],
+     "props": {},
+     "at": [
+      0,
+      2
+     ]
+    },
+    {
+     "role": "nearby",
+     "id": "player",
+     "name": "you",
+     "type": "actor/person/player",
+     "typeChain": [
+      "actor",
+      "actor/person",
+      "actor/person/player"
+     ],
+     "tags": [
+      "agent",
+      "person",
+      "living",
+      "talkable",
+      "faction:folk",
+      "essential",
+      "look:long-haired"
+     ],
+     "statuses": [
+      "hungry"
+     ],
+     "props": {
+      "level": 1,
+      "material": "flesh",
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 11,
+      "maxHunger": 20,
+      "hungerEvery": 480,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body",
+      "visited.summit": 1,
+      "quest": 1
+     },
+     "material": {
+      "id": "flesh",
+      "category": "flesh",
+      "hardness": 1
+     },
+     "look": "woman; hair: ponytail (chestnut); face: bright eyes (amber); outfit: adventurer's gear (teal)",
+     "at": [
+      1,
+      2
+     ]
+    },
+    {
+     "role": "nearby",
+     "id": "ford~id",
+     "name": "Torch",
+     "type": "item/light/torch",
+     "typeChain": [
+      "item",
+      "item/light",
+      "item/light/torch"
+     ],
+     "tags": [
+      "portable",
+      "light",
+      "fire-source",
+      "wooden",
+      "flammable"
+     ],
+     "statuses": [],
+     "props": {
+      "value": 3
+     },
+     "makeup": [
+      {
+       "type": "item/material/stick",
+       "count": 1
+      },
+      {
+       "type": "item/material/grass",
+       "count": 1
+      }
+     ],
+     "at": [
+      2,
+      2
+     ]
+    }
+   ],
+   "tiles": [
+    [
+     "grass",
+     "grass",
+     "grass",
+     "path",
+     "path",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "path",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "path",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ]
+   ],
+   "tileStatuses": [],
+   "recent": [
+    "Look — a waypoint statue! Walk up and press E to wake it; then the map (M) can take you back to it from anywhere.",
+    "The Ford! Someone down there looks like they need a hand."
+   ],
+   "rules": [
+    {
+     "id": "stuck/relight",
+     "doc": "A person whose fire has gone out (and is not soaked) lights it again.",
+     "host": {
+      "type": "actor/person"
+     },
+     "on": "stuck",
+     "tree": {
+      "if": {
+       "is": {
+        "role": "target",
+        "sel": {
+         "tags": [
+          "lightable"
+         ],
+         "notStatus": [
+          "lit",
+          "wet"
+         ]
+        }
+       }
+      },
+      "then": {
+       "do": [
+        {
+         "op": "emit",
+         "impulse": "element",
+         "to": "target",
+         "params": {
+          "element": "fire",
+          "power": 2
+         }
+        },
+        {
+         "op": "say",
+         "text": {
+          "en": "Out again. Pass me the flint.",
+          "zh": "又灭了。把火石递给我。"
+         }
+        }
+       ]
+      }
+     },
+     "source": {
+      "origin": "base"
+     }
+    },
+    {
+     "id": "core/stuck",
+     "doc": "A person who cannot go on: undefined (the AI answers); meanwhile they wait.",
+     "on": "stuck",
+     "tree": {
+      "undefined": true
+     },
+     "source": {
+      "origin": "base"
+     }
+    }
+   ]
+  },
+  "scenario": {
+   "terrain": [
+    [
+     "grass",
+     "grass",
+     "grass",
+     "path",
+     "path",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "path",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "path",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ]
+   ],
+   "entities": [
+    {
+     "key": "target",
+     "type": "fixture/light/campfire",
+     "x": 4,
+     "y": 4,
+     "statuses": [
+      "wet"
+     ]
+    },
+    {
+     "key": "host",
+     "type": "actor/person/ferrykeeper",
+     "x": 3,
+     "y": 3,
+     "tags": [
+      "storybound",
+      "merchant",
+      "essential"
+     ],
+     "props": {
+      "age": 64,
+      "purse": 25,
+      "household": "ferry",
+      "stock": "item/food/fish/raw*3|item/food/fish/cooked*2|item/tool/fishing_rod*1|item/misc/bait*6"
+     }
+    },
+    {
+     "key": "c1",
+     "type": "item/food/fish/raw",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c2",
+     "type": "item/food/fish/raw",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c3",
+     "type": "item/food/fish/raw",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c4",
+     "type": "item/food/fish/cooked",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c5",
+     "type": "item/food/fish/cooked",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c6",
+     "type": "item/tool/fishing_rod",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c7",
+     "type": "item/misc/bait",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c8",
+     "type": "item/misc/bait",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c9",
+     "type": "item/misc/bait",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c10",
+     "type": "item/misc/bait",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c11",
+     "type": "item/misc/bait",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c12",
+     "type": "item/misc/bait",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c13",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c14",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c15",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c16",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c17",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c18",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c19",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c20",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c21",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c22",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c23",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c24",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c25",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c26",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c27",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c28",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c29",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c30",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c31",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c32",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c33",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c34",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c35",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c36",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "c37",
+     "type": "item/misc/thornmark",
+     "x": 3,
+     "y": 3,
+     "inside": "host"
+    },
+    {
+     "key": "n1",
+     "type": "fixture/sacred/waypoint",
+     "x": 6,
+     "y": 0
+    },
+    {
+     "key": "n2",
+     "type": "fixture/tent",
+     "x": 0,
+     "y": 2,
+     "props": {
+      "interior": "ford.tentroom",
+      "interiorX": 4,
+      "interiorY": 4
+     }
+    },
+    {
+     "key": "n3",
+     "type": "fixture/container/chest",
+     "x": 2,
+     "y": 2,
+     "props": {
+      "owner": "npc.hesper",
+      "capacity": 8
+     }
+    },
+    {
+     "key": "n4",
+     "type": "fixture/nature/flowers",
+     "x": 5,
+     "y": 2
+    },
+    {
+     "key": "n5",
+     "type": "fixture/nature/tuft",
+     "x": 2,
+     "y": 4
+    },
+    {
+     "key": "n6",
+     "type": "fixture/nature/tuft",
+     "x": 3,
+     "y": 5
+    },
+    {
+     "key": "n7",
+     "type": "actor/person/player",
+     "x": 4,
+     "y": 5,
+     "statuses": [
+      "hungry"
+     ],
+     "props": {
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "speed": 2,
+      "hunger": 11,
+      "visited.summit": 1,
+      "quest": 1
+     }
+    },
+    {
+     "key": "n8",
+     "type": "item/light/torch",
+     "x": 5,
+     "y": 5
+    },
+    {
+     "key": "n9",
+     "type": "fixture/furniture/bench/log",
+     "x": 4,
+     "y": 6
+    }
+   ],
+   "player": "n7",
+   "event": {
+    "kind": "stuck",
+    "params": {
+     "activity": "tend the fire"
+    },
+    "target": "target",
+    "host": "host"
+   },
+   "residents": {
+    "story": {
+     "seen.arrival": true,
+     "seen.see_waypoint": 21483,
+     "step.last": "ford",
+     "seen.ford": 21486
+    }
+   }
+  }
+ },
+ {
+  "id": "probe-cell-3",
+  "summary": "you use Acorn on training dummy",
+  "origin": "player",
+  "event": {
+   "kind": "act/use",
+   "params": {
+    "verb": "use",
+    "power": 2
+   },
+   "host": {
+    "role": "host",
+    "id": "held",
+    "name": "Acorn",
+    "type": "item/seed/acorn",
+    "typeChain": [
+     "item",
+     "item/seed",
+     "item/seed/acorn"
+    ],
+    "tags": [
+     "portable",
+     "seed",
+     "plant",
+     "acorn"
+    ],
+    "statuses": [],
+    "props": {
+     "value": 3,
+     "cropType": "fixture/crop/oak/sapling"
+    },
+    "at": [
+     0,
+     0
+    ]
+   },
+   "roles": {
+    "story": {
+     "role": "story",
+     "id": "story",
+     "name": "the story",
+     "type": "resident/story",
+     "typeChain": [
+      "resident",
+      "resident/story"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {}
+    },
+    "world": {
+     "role": "world",
+     "id": "world",
+     "name": "the world",
+     "type": "resident/world",
+     "typeChain": [
+      "resident",
+      "resident/world"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {}
+    },
+    "actor": {
+     "role": "actor",
+     "id": "actor",
+     "name": "you",
+     "type": "actor/person/player",
+     "typeChain": [
+      "actor",
+      "actor/person",
+      "actor/person/player"
+     ],
+     "tags": [
+      "agent",
+      "person",
+      "living",
+      "talkable",
+      "faction:folk",
+      "essential"
+     ],
+     "statuses": [],
+     "props": {
+      "level": 1,
+      "material": "flesh",
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 20,
+      "maxHunger": 20,
+      "hungerEvery": 480,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body"
+     },
+     "material": {
+      "id": "flesh",
+      "category": "flesh",
+      "hardness": 1
+     },
+     "at": [
+      0,
+      0
+     ]
+    },
+    "target": {
+     "role": "target",
+     "id": "target",
+     "name": "training dummy",
+     "type": "fixture/dummy",
+     "typeChain": [
+      "fixture",
+      "fixture/dummy"
+     ],
+     "tags": [
+      "wooden",
+      "flammable",
+      "straw"
+     ],
+     "statuses": [],
+     "props": {
+      "material": "wood",
+      "maxHp": 12,
+      "hp": 12
+     },
+     "material": {
+      "id": "wood",
+      "category": "wood",
+      "hardness": 1,
+      "name": {
+       "en": "Wooden",
+       "zh": "木"
+      },
+      "tags": [
+       "wooden",
+       "flammable"
+      ],
+      "attack": 0.75,
+      "defence": 0.75,
+      "value": 0.6
+     },
+     "at": [
+      0,
+      -1
+     ]
+    },
+    "instrument": {
+     "role": "instrument",
+     "id": "held",
+     "name": "Acorn",
+     "type": "item/seed/acorn",
+     "typeChain": [
+      "item",
+      "item/seed",
+      "item/seed/acorn"
+     ],
+     "tags": [
+      "portable",
+      "seed",
+      "plant",
+      "acorn"
+     ],
+     "statuses": [],
+     "props": {
+      "value": 3,
+      "cropType": "fixture/crop/oak/sapling"
+     },
+     "at": [
+      0,
+      0
+     ]
+    }
+   }
+  },
+  "hole": {
+   "rule": "core/use",
+   "path": [
+    "!{\"none\":\"instrument\"}",
+    "!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}",
+    "!{\"param\":{\"key\":\"attack\",\"cmp\":true}}",
+    "!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}"
+   ],
+   "default": [
+    {
+     "op": "log",
+     "text": {
+      "en": "Nothing happens.",
+      "zh": "什么也没有发生。"
+     }
+    }
+   ],
+   "at": []
+  },
+  "context": {
+   "map": {
+    "id": "sandbox",
+    "name": "sandbox",
+    "kind": "sandbox"
+   },
+   "anchors": [],
+   "hour": 6,
+   "nearby": [],
+   "tiles": [
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ]
+   ],
+   "tileStatuses": [],
+   "recent": [],
+   "rules": [
+    {
+     "id": "farm/plant-acorn",
+     "label": {
+      "en": "Plant {instrument}",
+      "zh": "种下{instrument}"
+     },
+     "doc": "An acorn takes root in any diggable ground and becomes a tree in two game days.",
+     "host": {
+      "tags": [
+       "acorn"
+      ]
+     },
+     "on": "act/use",
+     "tree": {
+      "if": {
+       "all": [
+        {
+         "is": {
+          "role": "target",
+          "sel": {
+           "type": "tile",
+           "tags": [
+            "diggable"
+           ]
+          }
+         }
+        },
+        {
+         "count": {
+          "role": "target",
+          "in": "tile",
+          "match": {
+           "tags": [
+            "crop"
+           ]
+          },
+          "cmp": {
+           "eq": 0
+          }
+         }
+        }
+       ]
+      },
+      "then": {
+       "do": [
+        {
+         "op": "log",
+         "text": {
+          "en": "You plant an acorn.",
+          "zh": "你种下了一颗橡子。"
+         }
+        },
+        {
+         "op": "move",
+         "to": "target"
+        },
+        {
+         "op": "transform",
+         "into": "@prop:cropType"
+        },
+        {
+         "op": "vfx",
+         "fx": "dust"
+        }
+       ]
+      }
+     },
+     "source": {
+      "origin": "base"
+     }
+    },
+    {
+     "id": "core/use",
+     "doc": "Using a thing on something its nature says nothing about: the bare body used on anything is a blow (Minecraft's fist), and so is anything swung; on a place of the overworld it is out of reach; on a creature it is held out to it (the creature answers: offered, design.md §5.2). On anything else it is the player's experiment: undefined (the AI answers).",
+     "on": "act/use",
+     "tree": {
+      "if": {
+       "none": "instrument"
+      },
+      "then": {
+       "do": [
+        {
+         "op": "emit",
+         "impulse": "strike",
+         "to": "target",
+         "params": {
+          "power": {
+           "param": "power"
+          },
+          "element": {
+           "param": "element"
+          },
+          "edge": "blunt",
+          "bleed": {
+           "param": "bleed"
+          },
+          "drain": {
+           "param": "drain"
+          },
+          "afflict": {
+           "param": "afflict"
+          },
+          "afflictFor": {
+           "param": "afflictFor"
+          }
+         }
+        }
+       ]
+      },
+      "else": {
+       "if": {
+        "is": {
+         "role": "target",
+         "sel": {
+          "type": "site"
+         }
+        }
+       },
+       "then": {
+        "do": [
+         {
+          "op": "log",
+          "text": {
+           "en": "Too far to reach: go in first (E).",
+           "zh": "够不着：先进去（E）。"
+          }
+         }
+        ],
+        "label": {
+         "en": "Out of reach — go in first (E)",
+         "zh": "够不着——先进去（E）"
+        }
+       },
+       "else": {
+        "if": {
+         "param": {
+          "key": "attack",
+          "cmp": true
+         }
+        },
+        "then": {
+         "do": [
+          {
+           "op": "emit",
+           "impulse": "strike",
+           "to": "target",
+           "params": {
+            "power": {
+             "param": "power"
+            },
+            "element": {
+             "param": "element"
+            },
+            "edge": "blunt",
+            "bleed": {
+             "param": "bleed"
+            },
+            "drain": {
+             "param": "drain"
+            },
+            "afflict": {
+             "param": "afflict"
+            },
+            "afflictFor": {
+             "param": "afflictFor"
+            }
+           }
+          }
+         ],
+         "label": {
+          "en": "Strike {target} with {instrument}",
+          "zh": "用{instrument}打{target}"
+         }
+        },
+        "else": {
+         "if": {
+          "all": [
+           {
+            "is": {
+             "role": "target",
+             "sel": {
+              "type": "actor/creature"
+             }
+            }
+           },
+           {
+            "not": {
+             "same": [
+              "actor",
+              "target"
+             ]
+            }
+           }
+          ]
+         },
+         "then": {
+          "do": [
+           {
+            "op": "emit",
+            "impulse": "offered",
+            "to": "target",
+            "item": "host"
+           }
+          ],
+          "label": {
+           "en": "Hold out {instrument} to {target}",
+           "zh": "把{instrument}递给{target}"
+          }
+         },
+         "else": {
+          "undefined": true,
+          "default": [
+           {
+            "op": "log",
+            "text": {
+             "en": "Nothing happens.",
+             "zh": "什么也没有发生。"
+            }
+           }
+          ]
+         }
+        }
+       }
+      }
+     },
+     "source": {
+      "origin": "base"
+     }
+    }
+   ]
+  },
+  "scenario": {
+   "terrain": [
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ]
+   ],
+   "entities": [
+    {
+     "key": "actor",
+     "type": "actor/person/player",
+     "x": 3,
+     "y": 3,
+     "props": {
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "level": 1,
+      "material": "flesh",
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 20,
+      "maxHunger": 20,
+      "hungerEvery": 480,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body"
+     }
+    },
+    {
+     "key": "instrument",
+     "type": "item/seed/acorn",
+     "x": 3,
+     "y": 3,
+     "heldBy": "actor"
+    },
+    {
+     "key": "target",
+     "type": "fixture/dummy",
+     "x": 3,
+     "y": 2
+    }
+   ],
+   "player": "actor",
+   "event": {
+    "kind": "act/use",
+    "params": {
+     "verb": "use",
+     "power": 2
+    },
+    "actor": "actor",
+    "instrument": "instrument",
+    "target": "target",
+    "host": "instrument"
+   }
+  }
+ },
+ {
+  "id": "probe-cell-4",
+  "summary": "you use Rimejelly Boots on melon sprout",
+  "origin": "player",
+  "event": {
+   "kind": "act/use",
+   "params": {
+    "verb": "use",
+    "power": 2
+   },
+   "host": {
+    "role": "host",
+    "id": "held",
+    "name": "Rimejelly Boots",
+    "type": "item/clothing/boots/rimejelly",
+    "typeChain": [
+     "item",
+     "item/clothing",
+     "item/clothing/boots",
+     "item/clothing/boots/rimejelly"
+    ],
+    "tags": [
+     "portable",
+     "wearable",
+     "clothing",
+     "trophy"
+    ],
+    "statuses": [],
+    "props": {
+     "value": 35,
+     "slot": "feet",
+     "def": 1,
+     "moveHaste": 0.05,
+     "set": "gelatin"
+    },
+    "at": [
+     0,
+     0
+    ]
+   },
+   "roles": {
+    "story": {
+     "role": "story",
+     "id": "story",
+     "name": "the story",
+     "type": "resident/story",
+     "typeChain": [
+      "resident",
+      "resident/story"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {}
+    },
+    "world": {
+     "role": "world",
+     "id": "world",
+     "name": "the world",
+     "type": "resident/world",
+     "typeChain": [
+      "resident",
+      "resident/world"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {}
+    },
+    "actor": {
+     "role": "actor",
+     "id": "actor",
+     "name": "you",
+     "type": "actor/person/player",
+     "typeChain": [
+      "actor",
+      "actor/person",
+      "actor/person/player"
+     ],
+     "tags": [
+      "agent",
+      "person",
+      "living",
+      "talkable",
+      "faction:folk",
+      "essential"
+     ],
+     "statuses": [],
+     "props": {
+      "level": 1,
+      "material": "flesh",
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 20,
+      "maxHunger": 20,
+      "hungerEvery": 480,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body"
+     },
+     "material": {
+      "id": "flesh",
+      "category": "flesh",
+      "hardness": 1
+     },
+     "at": [
+      0,
+      0
+     ]
+    },
+    "target": {
+     "role": "target",
+     "id": "target",
+     "name": "melon sprout",
+     "type": "fixture/crop/melon/sprout",
+     "typeChain": [
+      "fixture",
+      "fixture/crop",
+      "fixture/crop/melon",
+      "fixture/crop/melon/sprout"
+     ],
+     "tags": [
+      "crop",
+      "plant",
+      "crop:gourd",
+      "growing"
+     ],
+     "statuses": [],
+     "props": {
+      "yield": 2,
+      "yieldType": "item/food/melon",
+      "seedType": "item/seed/melon"
+     },
+     "at": [
+      0,
+      -1
+     ]
+    },
+    "instrument": {
+     "role": "instrument",
+     "id": "held",
+     "name": "Rimejelly Boots",
+     "type": "item/clothing/boots/rimejelly",
+     "typeChain": [
+      "item",
+      "item/clothing",
+      "item/clothing/boots",
+      "item/clothing/boots/rimejelly"
+     ],
+     "tags": [
+      "portable",
+      "wearable",
+      "clothing",
+      "trophy"
+     ],
+     "statuses": [],
+     "props": {
+      "value": 35,
+      "slot": "feet",
+      "def": 1,
+      "moveHaste": 0.05,
+      "set": "gelatin"
+     },
+     "at": [
+      0,
+      0
+     ]
+    }
+   }
+  },
+  "hole": {
+   "rule": "core/use",
+   "path": [
+    "!{\"none\":\"instrument\"}",
+    "!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}",
+    "!{\"param\":{\"key\":\"attack\",\"cmp\":true}}",
+    "!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}"
+   ],
+   "default": [
+    {
+     "op": "log",
+     "text": {
+      "en": "Nothing happens.",
+      "zh": "什么也没有发生。"
+     }
+    }
+   ],
+   "at": []
+  },
+  "context": {
+   "map": {
+    "id": "sandbox",
+    "name": "sandbox",
+    "kind": "sandbox"
+   },
+   "anchors": [],
+   "hour": 6,
+   "nearby": [],
+   "tiles": [
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ]
+   ],
+   "tileStatuses": [],
+   "recent": [],
+   "rules": [
+    {
+     "id": "use/wear",
+     "doc": "Something one wears, used on someone (oneself, or another): it is put on them (world-model.md §6.8).",
+     "host": {
+      "tags": [
+       "wearable"
+      ]
+     },
+     "on": "act/use",
+     "tree": {
+      "if": {
+       "param": {
+        "key": "attack",
+        "cmp": true
+       }
+      },
+      "then": "inherit",
+      "else": {
+       "if": {
+        "same": [
+         "actor",
+         "target"
+        ]
+       },
+       "then": {
+        "if": {
+         "worn": "host"
+        },
+        "then": {
+         "if": {
+          "has": {
+           "role": "host",
+           "tag": "weapon"
+          }
+         },
+         "then": {
+          "do": [
+           {
+            "op": "emit",
+            "impulse": "offered",
+            "to": "target",
+            "params": {
+             "wear": true
+            },
+            "item": "host"
+           }
+          ],
+          "label": {
+           "en": "Put away {instrument}",
+           "zh": "收起{instrument}"
+          }
+         },
+         "else": {
+          "do": [
+           {
+            "op": "emit",
+            "impulse": "offered",
+            "to": "target",
+            "params": {
+             "wear": true
+            },
+            "item": "host"
+           }
+          ],
+          "label": {
+           "en": "Take off {instrument}",
+           "zh": "脱下{instrument}"
+          }
+         }
+        },
+        "else": {
+         "if": {
+          "has": {
+           "role": "host",
+           "tag": "weapon"
+          }
+         },
+         "then": {
+          "do": [
+           {
+            "op": "emit",
+            "impulse": "offered",
+            "to": "target",
+            "params": {
+             "wear": true
+            },
+            "item": "host"
+           }
+          ],
+          "label": {
+           "en": "Wield {instrument}",
+           "zh": "装备{instrument}"
+          }
+         },
+         "else": {
+          "do": [
+           {
+            "op": "emit",
+            "impulse": "offered",
+            "to": "target",
+            "params": {
+             "wear": true
+            },
+            "item": "host"
+           }
+          ],
+          "label": {
+           "en": "Put on {instrument}",
+           "zh": "穿上{instrument}"
+          }
+         }
+        }
+       },
+       "else": {
+        "if": {
+         "all": [
+          {
+           "is": {
+            "role": "target",
+            "sel": {
+             "type": "actor"
+            }
+           }
+          },
+          {
+           "not": {
+            "has": {
+             "role": "host",
+             "tag": "weapon"
+            }
+           }
+          }
+         ]
+        },
+        "then": {
+         "do": [
+          {
+           "op": "emit",
+           "impulse": "offered",
+           "to": "target",
+           "params": {
+            "wear": true
+           },
+           "item": "host"
+          }
+         ],
+         "label": {
+          "en": "Put {instrument} on {target}",
+          "zh": "给{target}穿上{instrument}"
+         }
+        },
+        "else": "inherit"
+       }
+      }
+     },
+     "source": {
+      "origin": "base"
+     }
+    },
+    {
+     "id": "core/use",
+     "doc": "Using a thing on something its nature says nothing about: the bare body used on anything is a blow (Minecraft's fist), and so is anything swung; on a place of the overworld it is out of reach; on a creature it is held out to it (the creature answers: offered, design.md §5.2). On anything else it is the player's experiment: undefined (the AI answers).",
+     "on": "act/use",
+     "tree": {
+      "if": {
+       "none": "instrument"
+      },
+      "then": {
+       "do": [
+        {
+         "op": "emit",
+         "impulse": "strike",
+         "to": "target",
+         "params": {
+          "power": {
+           "param": "power"
+          },
+          "element": {
+           "param": "element"
+          },
+          "edge": "blunt",
+          "bleed": {
+           "param": "bleed"
+          },
+          "drain": {
+           "param": "drain"
+          },
+          "afflict": {
+           "param": "afflict"
+          },
+          "afflictFor": {
+           "param": "afflictFor"
+          }
+         }
+        }
+       ]
+      },
+      "else": {
+       "if": {
+        "is": {
+         "role": "target",
+         "sel": {
+          "type": "site"
+         }
+        }
+       },
+       "then": {
+        "do": [
+         {
+          "op": "log",
+          "text": {
+           "en": "Too far to reach: go in first (E).",
+           "zh": "够不着：先进去（E）。"
+          }
+         }
+        ],
+        "label": {
+         "en": "Out of reach — go in first (E)",
+         "zh": "够不着——先进去（E）"
+        }
+       },
+       "else": {
+        "if": {
+         "param": {
+          "key": "attack",
+          "cmp": true
+         }
+        },
+        "then": {
+         "do": [
+          {
+           "op": "emit",
+           "impulse": "strike",
+           "to": "target",
+           "params": {
+            "power": {
+             "param": "power"
+            },
+            "element": {
+             "param": "element"
+            },
+            "edge": "blunt",
+            "bleed": {
+             "param": "bleed"
+            },
+            "drain": {
+             "param": "drain"
+            },
+            "afflict": {
+             "param": "afflict"
+            },
+            "afflictFor": {
+             "param": "afflictFor"
+            }
+           }
+          }
+         ],
+         "label": {
+          "en": "Strike {target} with {instrument}",
+          "zh": "用{instrument}打{target}"
+         }
+        },
+        "else": {
+         "if": {
+          "all": [
+           {
+            "is": {
+             "role": "target",
+             "sel": {
+              "type": "actor/creature"
+             }
+            }
+           },
+           {
+            "not": {
+             "same": [
+              "actor",
+              "target"
+             ]
+            }
+           }
+          ]
+         },
+         "then": {
+          "do": [
+           {
+            "op": "emit",
+            "impulse": "offered",
+            "to": "target",
+            "item": "host"
+           }
+          ],
+          "label": {
+           "en": "Hold out {instrument} to {target}",
+           "zh": "把{instrument}递给{target}"
+          }
+         },
+         "else": {
+          "undefined": true,
+          "default": [
+           {
+            "op": "log",
+            "text": {
+             "en": "Nothing happens.",
+             "zh": "什么也没有发生。"
+            }
+           }
+          ]
+         }
+        }
+       }
+      }
+     },
+     "source": {
+      "origin": "base"
+     }
+    }
+   ]
+  },
+  "scenario": {
+   "terrain": [
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ]
+   ],
+   "entities": [
+    {
+     "key": "actor",
+     "type": "actor/person/player",
+     "x": 3,
+     "y": 3,
+     "props": {
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "level": 1,
+      "material": "flesh",
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 20,
+      "maxHunger": 20,
+      "hungerEvery": 480,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body"
+     }
+    },
+    {
+     "key": "instrument",
+     "type": "item/clothing/boots/rimejelly",
+     "x": 3,
+     "y": 3,
+     "heldBy": "actor"
+    },
+    {
+     "key": "target",
+     "type": "fixture/crop/melon/sprout",
+     "x": 3,
+     "y": 2
+    }
+   ],
+   "player": "actor",
+   "event": {
+    "kind": "act/use",
+    "params": {
+     "verb": "use",
+     "power": 2
+    },
+    "actor": "actor",
+    "instrument": "instrument",
+    "target": "target",
+    "host": "instrument"
+   }
+  }
+ },
+ {
+  "id": "probe-cell-5",
+  "summary": "green slime is sent offered (the thing: Hot Pepper Seeds)",
+  "origin": "player",
+  "event": {
+   "kind": "impulse/offered",
+   "params": {},
+   "host": {
+    "role": "host",
+    "id": "target",
+    "name": "green slime",
+    "type": "actor/creature/slime/green_slime",
+    "typeChain": [
+     "actor",
+     "actor/creature",
+     "actor/creature/slime",
+     "actor/creature/slime/green_slime"
+    ],
+    "tags": [
+     "agent",
+     "creature",
+     "living",
+     "faction:wild",
+     "slime",
+     "gelatinous"
+    ],
+    "statuses": [],
+    "props": {
+     "level": 1,
+     "material": "flesh",
+     "hp": 9,
+     "maxHp": 9,
+     "atk": 2,
+     "def": 0,
+     "speed": 7,
+     "trophy": "item/armor/jerkin/gelhide",
+     "trophyChance": 0.04
+    },
+    "material": {
+     "id": "flesh",
+     "category": "flesh",
+     "hardness": 1
+    },
+    "at": [
+     0,
+     0
+    ]
+   },
+   "roles": {
+    "story": {
+     "role": "story",
+     "id": "story",
+     "name": "the story",
+     "type": "resident/story",
+     "typeChain": [
+      "resident",
+      "resident/story"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {}
+    },
+    "world": {
+     "role": "world",
+     "id": "world",
+     "name": "the world",
+     "type": "resident/world",
+     "typeChain": [
+      "resident",
+      "resident/world"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {}
+    },
+    "source": {
+     "role": "source",
+     "id": "held",
+     "name": "Hot Pepper Seeds",
+     "type": "item/seed/pepper",
+     "typeChain": [
+      "item",
+      "item/seed",
+      "item/seed/pepper"
+     ],
+     "tags": [
+      "portable",
+      "seed",
+      "plant",
+      "plantable"
+     ],
+     "statuses": [],
+     "props": {
+      "value": 1,
+      "cropType": "fixture/crop/pepper/sprout"
+     },
+     "at": [
+      0,
+      1
+     ]
+    },
+    "actor": {
+     "role": "actor",
+     "id": "actor",
+     "name": "you",
+     "type": "actor/person/player",
+     "typeChain": [
+      "actor",
+      "actor/person",
+      "actor/person/player"
+     ],
+     "tags": [
+      "agent",
+      "person",
+      "living",
+      "talkable",
+      "faction:folk",
+      "essential"
+     ],
+     "statuses": [],
+     "props": {
+      "level": 1,
+      "material": "flesh",
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 20,
+      "maxHunger": 20,
+      "hungerEvery": 480,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body"
+     },
+     "material": {
+      "id": "flesh",
+      "category": "flesh",
+      "hardness": 1
+     },
+     "at": [
+      0,
+      1
+     ]
+    },
+    "instrument": {
+     "role": "instrument",
+     "id": "held",
+     "name": "Hot Pepper Seeds",
+     "type": "item/seed/pepper",
+     "typeChain": [
+      "item",
+      "item/seed",
+      "item/seed/pepper"
+     ],
+     "tags": [
+      "portable",
+      "seed",
+      "plant",
+      "plantable"
+     ],
+     "statuses": [],
+     "props": {
+      "value": 1,
+      "cropType": "fixture/crop/pepper/sprout"
+     },
+     "at": [
+      0,
+      1
+     ]
+    },
+    "item": {
+     "role": "item",
+     "id": "held",
+     "name": "Hot Pepper Seeds",
+     "type": "item/seed/pepper",
+     "typeChain": [
+      "item",
+      "item/seed",
+      "item/seed/pepper"
+     ],
+     "tags": [
+      "portable",
+      "seed",
+      "plant",
+      "plantable"
+     ],
+     "statuses": [],
+     "props": {
+      "value": 1,
+      "cropType": "fixture/crop/pepper/sprout"
+     },
+     "at": [
+      0,
+      1
+     ]
+    }
+   }
+  },
+  "hole": {
+   "rule": "core/offered",
+   "path": [],
+   "default": [],
+   "at": []
+  },
+  "context": {
+   "map": {
+    "id": "sandbox",
+    "name": "sandbox",
+    "kind": "sandbox"
+   },
+   "anchors": [],
+   "hour": 6,
+   "nearby": [],
+   "tiles": [
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ]
+   ],
+   "tileStatuses": [],
+   "recent": [],
+   "rules": [
+    {
+     "id": "creature/offered",
+     "doc": "A creature held out a thing: something fibrous lashes it down (the rope goes onto it); something edible it snaps up (the food is told it is eaten: food/eaten); anything else, and anything offered a boss, is its own kind's to answer (undefined at the root).",
+     "host": {
+      "type": "actor/creature"
+     },
+     "on": "impulse/offered",
+     "tree": {
+      "if": {
+       "any": [
+        {
+         "same": [
+          "host",
+          "actor"
+         ]
+        },
+        {
+         "has": {
+          "role": "host",
+          "tag": "boss"
+         }
+        }
+       ]
+      },
+      "then": "inherit",
+      "else": {
+       "if": {
+        "all": [
+         {
+          "has": {
+           "role": "item",
+           "tag": "fiber"
+          }
+         },
+         {
+          "not": {
+           "has": {
+            "role": "host",
+            "status": "frozen"
+           }
+          }
+         }
+        ]
+       },
+       "then": {
+        "do": [
+         {
+          "op": "addStatus",
+          "status": "frozen",
+          "duration": 30
+         },
+         {
+          "op": "emit",
+          "impulse": "taken",
+          "to": "item",
+          "params": {
+           "into": "contents"
+          },
+          "other": "host"
+         },
+         {
+          "op": "vfx",
+          "fx": "dust"
+         },
+         {
+          "op": "log",
+          "text": {
+           "en": "{host} is lashed down with {item}.",
+           "zh": "{host}被{item}捆住了。"
+          }
+         }
+        ],
+        "label": {
+         "en": "Bind {target} with {instrument}",
+         "zh": "用{instrument}捆住{target}"
+        }
+       },
+       "else": {
+        "if": {
+         "has": {
+          "role": "item",
+          "tag": "edible"
+         }
+        },
+        "then": {
+         "do": [
+          {
+           "op": "emit",
+           "impulse": "notify",
+           "to": "item",
+           "params": {
+            "what": "eaten"
+           }
+          },
+          {
+           "op": "emote",
+           "mood": "happy"
+          },
+          {
+           "op": "vfx",
+           "fx": "sparkle"
+          },
+          {
+           "op": "log",
+           "text": {
+            "en": "{host} snaps up {item}.",
+            "zh": "{host}一口吞下了{item}。"
+           }
+          }
+         ],
+         "label": {
+          "en": "Feed {instrument} to {target}",
+          "zh": "给{target}吃{instrument}"
+         }
+        },
+        "else": "inherit"
+       }
+      }
+     },
+     "source": {
+      "origin": "base"
+     }
+    },
+    {
+     "id": "body/wear",
+     "doc": "Something one wears, used on one (one's own, or another's held out): one puts it on (what was in its slot comes off), or takes it off if it is on (world-model.md §6.8).",
+     "host": {
+      "type": "actor"
+     },
+     "on": "impulse/offered",
+     "tree": {
+      "if": {
+       "all": [
+        {
+         "param": {
+          "key": "wear",
+          "cmp": true
+         }
+        },
+        {
+         "is": {
+          "role": "item",
+          "sel": {
+           "tags": [
+            "wearable"
+           ]
+          }
+         }
+        }
+       ]
+      },
+      "then": {
+       "if": {
+        "same": [
+         "host",
+         "actor"
+        ]
+       },
+       "then": {
+        "do": [
+         {
+          "op": "wear"
+         }
+        ]
+       },
+       "else": {
+        "do": [
+         {
+          "op": "emit",
+          "impulse": "taken",
+          "to": "item",
+          "params": {
+           "into": "contents"
+          },
+          "other": "host"
+         },
+         {
+          "op": "wear"
+         }
+        ]
+       }
+      },
+      "else": "inherit"
+     },
+     "source": {
+      "origin": "base"
+     }
+    },
+    {
+     "id": "core/offered",
+     "doc": "Something held out to one with no answer of its own: undefined (the AI answers).",
+     "on": "impulse/offered",
+     "tree": {
+      "undefined": true
+     },
+     "source": {
+      "origin": "base"
+     }
+    },
+    {
+     "id": "core/impulse",
+     "doc": "What is done to a thing is undefined unless its nature says (the AI answers).",
+     "on": "impulse",
+     "tree": {
+      "undefined": true
+     },
+     "source": {
+      "origin": "base"
+     }
+    }
+   ]
+  },
+  "scenario": {
+   "terrain": [
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ]
+   ],
+   "entities": [
+    {
+     "key": "actor",
+     "type": "actor/person/player",
+     "x": 3,
+     "y": 4,
+     "props": {
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "level": 1,
+      "material": "flesh",
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 20,
+      "maxHunger": 20,
+      "hungerEvery": 480,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body"
+     }
+    },
+    {
+     "key": "instrument",
+     "type": "item/seed/pepper",
+     "x": 3,
+     "y": 4,
+     "heldBy": "actor"
+    },
+    {
+     "key": "host",
+     "type": "actor/creature/slime/green_slime",
+     "x": 3,
+     "y": 3,
+     "props": {
+      "hp": 9,
+      "maxHp": 9,
+      "atk": 2,
+      "def": 0,
+      "level": 1,
+      "material": "flesh",
+      "speed": 7,
+      "trophy": "item/armor/jerkin/gelhide",
+      "trophyChance": 0.04
+     }
+    }
+   ],
+   "player": "actor",
+   "event": {
+    "kind": "impulse/offered",
+    "params": {},
+    "actor": "actor",
+    "instrument": "instrument",
+    "item": "instrument",
+    "source": "instrument",
+    "host": "host"
+   }
+  }
+ },
+ {
+  "id": "probe-cell-6",
+  "summary": "villager is sent handle from Lockpick",
+  "origin": "player",
+  "event": {
+   "kind": "impulse/handle",
+   "params": {},
+   "host": {
+    "role": "host",
+    "id": "target",
+    "name": "villager",
+    "type": "actor/person/villager",
+    "typeChain": [
+     "actor",
+     "actor/person",
+     "actor/person/villager"
+    ],
+    "tags": [
+     "agent",
+     "person",
+     "living",
+     "talkable",
+     "faction:folk"
+    ],
+    "statuses": [],
+    "props": {
+     "level": 1,
+     "material": "flesh",
+     "hp": 20,
+     "maxHp": 20,
+     "atk": 1,
+     "def": 0,
+     "speed": 2,
+     "sight": 7,
+     "perception": 10,
+     "hunger": 20,
+     "maxHunger": 20,
+     "hungerEvery": 960,
+     "honesty": 1,
+     "bodyType": "fixture/remains/body"
+    },
+    "material": {
+     "id": "flesh",
+     "category": "flesh",
+     "hardness": 1
+    },
+    "at": [
+     0,
+     0
+    ]
+   },
+   "roles": {
+    "story": {
+     "role": "story",
+     "id": "story",
+     "name": "the story",
+     "type": "resident/story",
+     "typeChain": [
+      "resident",
+      "resident/story"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {}
+    },
+    "world": {
+     "role": "world",
+     "id": "world",
+     "name": "the world",
+     "type": "resident/world",
+     "typeChain": [
+      "resident",
+      "resident/world"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {}
+    },
+    "source": {
+     "role": "source",
+     "id": "held",
+     "name": "Lockpick",
+     "type": "item/tool/lockpick",
+     "typeChain": [
+      "item",
+      "item/tool",
+      "item/tool/lockpick"
+     ],
+     "tags": [
+      "portable",
+      "tool",
+      "metal",
+      "lockpick"
+     ],
+     "statuses": [],
+     "props": {
+      "value": 8
+     },
+     "at": [
+      0,
+      1
+     ]
+    },
+    "actor": {
+     "role": "actor",
+     "id": "actor",
+     "name": "you",
+     "type": "actor/person/player",
+     "typeChain": [
+      "actor",
+      "actor/person",
+      "actor/person/player"
+     ],
+     "tags": [
+      "agent",
+      "person",
+      "living",
+      "talkable",
+      "faction:folk",
+      "essential"
+     ],
+     "statuses": [],
+     "props": {
+      "level": 1,
+      "material": "flesh",
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 20,
+      "maxHunger": 20,
+      "hungerEvery": 480,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body"
+     },
+     "material": {
+      "id": "flesh",
+      "category": "flesh",
+      "hardness": 1
+     },
+     "at": [
+      0,
+      1
+     ]
+    },
+    "instrument": {
+     "role": "instrument",
+     "id": "held",
+     "name": "Lockpick",
+     "type": "item/tool/lockpick",
+     "typeChain": [
+      "item",
+      "item/tool",
+      "item/tool/lockpick"
+     ],
+     "tags": [
+      "portable",
+      "tool",
+      "metal",
+      "lockpick"
+     ],
+     "statuses": [],
+     "props": {
+      "value": 8
+     },
+     "at": [
+      0,
+      1
+     ]
+    }
+   }
+  },
+  "hole": {
+   "rule": "core/handle",
+   "path": [],
+   "default": [
+    {
+     "op": "log",
+     "text": {
+      "en": "It is {host}.",
+      "zh": "这是{host}。"
+     }
+    }
+   ],
+   "at": []
+  },
+  "context": {
+   "map": {
+    "id": "sandbox",
+    "name": "sandbox",
+    "kind": "sandbox"
+   },
+   "anchors": [],
+   "hour": 6,
+   "nearby": [],
+   "tiles": [
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ]
+   ],
+   "tileStatuses": [],
+   "recent": [],
+   "rules": [
+    {
+     "id": "people/talk",
+     "label": {
+      "en": "Talk to {target}",
+      "zh": "和{target}说话"
+     },
+     "doc": "A hand on a person: a quest they have for you, else what fits the moment, and their talk opens (§2.9). Asked (a talk verb): news, to follow, to wait, persuaded, bribed, threatened, an apology, what was taken given back, stopped by the watch; a word no rule knows is theirs to answer (the AI's).",
+     "host": {
+      "type": "actor/person"
+     },
+     "on": "impulse/handle",
+     "tree": {
+      "if": {
+       "same": [
+        "host",
+        "actor"
+       ]
+      },
+      "then": "inherit",
+      "else": {
+       "if": {
+        "none": "instrument"
+       },
+       "then": {
+        "if": {
+         "not": {
+          "param": {
+           "key": "say",
+           "cmp": {
+            "ne": ""
+           }
+          }
+         }
+        },
+        "then": {
+         "do": [
+          {
+           "op": "quest"
+          },
+          {
+           "op": "talk"
+          }
+         ]
+        },
+        "else": {
+         "if": {
+          "param": {
+           "key": "say",
+           "cmp": "ask"
+          }
+         },
+         "then": {
+          "do": [
+           {
+            "op": "talk"
+           },
+           {
+            "op": "tell",
+            "to": "actor"
+           }
+          ]
+         },
+         "else": {
+          "if": {
+           "param": {
+            "key": "say",
+            "cmp": "quest"
+           }
+          },
+          "then": {
+           "do": [
+            {
+             "op": "quest"
+            }
+           ]
+          },
+          "else": {
+           "if": {
+            "param": {
+             "key": "say",
+             "cmp": "follow"
+            }
+           },
+           "then": {
+            "if": {
+             "has": {
+              "role": "host",
+              "tag": "essential"
+             }
+            },
+            "then": {
+             "do": [
+              {
+               "op": "say",
+               "text": {
+                "en": "I can't leave — I'm needed here.",
+                "zh": "我走不开——这里离不开我。"
+               }
+              }
+             ]
+            },
+            "else": {
+             "if": {
+              "any": [
+               {
+                "regard": {
+                 "of": "host",
+                 "toward": "actor",
+                 "cmp": {
+                  "gte": 25
+                 }
+                }
+               },
+               {
+                "has": {
+                 "role": "host",
+                 "tag": "hireling"
+                }
+               }
+              ]
+             },
+             "then": {
+              "do": [
+               {
+                "op": "follow",
+                "leader": "actor"
+               },
+               {
+                "op": "say",
+                "text": {
+                 "en": "Lead on, then.",
+                 "zh": "那就走吧，你带路。"
+                }
+               },
+               {
+                "op": "emote",
+                "mood": "happy"
+               }
+              ]
+             },
+             "else": {
+              "do": [
+               {
+                "op": "say",
+                "text": {
+                 "en": "I don't know you well enough for that.",
+                 "zh": "我跟你还没熟到那份上。"
+                }
+               }
+              ]
+             }
+            }
+           },
+           "else": {
+            "if": {
+             "param": {
+              "key": "say",
+              "cmp": "wait"
+             }
+            },
+            "then": {
+             "do": [
+              {
+               "op": "setProp",
+               "key": "waiting",
+               "value": true
+              },
+              {
+               "op": "say",
+               "text": {
+                "en": "I'll wait here.",
+                "zh": "我在这儿等你。"
+               }
+              }
+             ]
+            },
+            "else": {
+             "if": {
+              "param": {
+               "key": "say",
+               "cmp": "invite"
+              }
+             },
+             "then": {
+              "if": {
+               "not": {
+                "not": {
+                 "has": {
+                  "role": "host",
+                  "tag": "storybound"
+                 }
+                }
+               }
+              },
+              "then": {
+               "do": [
+                {
+                 "op": "say",
+                 "text": {
+                  "en": "I can't leave — I'm needed here.",
+                  "zh": "我走不开——这里离不开我。"
+                 }
+                }
+               ]
+              },
+              "else": {
+               "if": {
+                "not": {
+                 "not": {
+                  "prop": {
+                   "role": "host",
+                   "key": "resident",
+                   "cmp": "haven"
+                  }
+                 }
+                }
+               },
+               "then": {
+                "do": [
+                 {
+                  "op": "say",
+                  "text": {
+                   "en": "I live there already.",
+                   "zh": "我已经住在那儿了。"
+                  }
+                 }
+                ]
+               },
+               "else": {
+                "if": {
+                 "not": {
+                  "prop": {
+                   "role": "story",
+                   "key": "sins.defeated.alberic",
+                   "cmp": {
+                    "gte": 1
+                   }
+                  }
+                 }
+                },
+                "then": {
+                 "do": [
+                  {
+                   "op": "say",
+                   "text": {
+                    "en": "Live where? You've no ground of your own to ask me to.",
+                    "zh": "搬去哪儿？你还没有自己的地方呢。"
+                   }
+                  }
+                 ]
+                },
+                "else": {
+                 "if": {
+                  "not": {
+                   "regard": {
+                    "of": "host",
+                    "toward": "actor",
+                    "cmp": {
+                     "gte": 95
+                    }
+                   }
+                  }
+                 },
+                 "then": {
+                  "do": [
+                   {
+                    "op": "say",
+                    "text": {
+                     "en": "I don't know you well enough for that.",
+                     "zh": "我跟你还没熟到那份上。"
+                    }
+                   }
+                  ]
+                 },
+                 "else": {
+                  "do": [
+                   {
+                    "op": "moveIn"
+                   }
+                  ]
+                 }
+                }
+               }
+              }
+             },
+             "else": {
+              "if": {
+               "param": {
+                "key": "say",
+                "cmp": "come"
+               }
+              },
+              "then": {
+               "do": [
+                {
+                 "op": "setProp",
+                 "key": "waiting",
+                 "value": false
+                },
+                {
+                 "op": "say",
+                 "text": {
+                  "en": "Right behind you.",
+                  "zh": "我跟着你。"
+                 }
+                }
+               ]
+              },
+              "else": {
+               "if": {
+                "param": {
+                 "key": "say",
+                 "cmp": "dismiss"
+                }
+               },
+               "then": {
+                "do": [
+                 {
+                  "op": "follow"
+                 },
+                 {
+                  "op": "say",
+                  "text": {
+                   "en": "I'll head home, then.",
+                   "zh": "那我回家了。"
+                  }
+                 }
+                ]
+               },
+               "else": {
+                "if": {
+                 "param": {
+                  "key": "say",
+                  "cmp": "persuade"
+                 }
+                },
+                "then": {
+                 "if": {
+                  "sway": {
+                   "of": "host",
+                   "by": "actor",
+                   "how": "persuade"
+                  }
+                 },
+                 "then": {
+                  "do": [
+                   {
+                    "op": "addStatus",
+                    "status": "persuaded"
+                   },
+                   {
+                    "op": "regard",
+                    "delta": 10
+                   },
+                   {
+                    "op": "settle"
+                   },
+                   {
+                    "op": "say",
+                    "text": {
+                     "en": "…You make a fair point.",
+                     "zh": "……你说得有道理。"
+                    }
+                   },
+                   {
+                    "op": "emote",
+                    "mood": "happy"
+                   }
+                  ]
+                 },
+                 "else": {
+                  "do": [
+                   {
+                    "op": "addStatus",
+                    "status": "persuaded"
+                   },
+                   {
+                    "op": "regard",
+                    "delta": -3
+                   },
+                   {
+                    "op": "say",
+                    "text": {
+                     "en": "Hm. No.",
+                     "zh": "嗯。不行。"
+                    }
+                   }
+                  ]
+                 }
+                },
+                "else": {
+                 "if": {
+                  "param": {
+                   "key": "say",
+                   "cmp": "bribe"
+                  }
+                 },
+                 "then": {
+                  "if": {
+                   "count": {
+                    "role": "actor",
+                    "in": "contents",
+                    "match": {
+                     "type": "item/misc/thornmark"
+                    },
+                    "cmp": {
+                     "gte": 10
+                    }
+                   }
+                  },
+                  "then": {
+                   "do": [
+                    {
+                     "op": "emit",
+                     "impulse": "notify",
+                     "to": "actor",
+                     "params": {
+                      "what": "pay",
+                      "amount": 10
+                     }
+                    },
+                    {
+                     "op": "regard",
+                     "delta": 12
+                    },
+                    {
+                     "op": "settle"
+                    },
+                    {
+                     "op": "say",
+                     "text": {
+                      "en": "Most kind. Let's forget it ever happened.",
+                      "zh": "太客气了。就当什么都没发生过吧。"
+                     }
+                    },
+                    {
+                     "op": "emote",
+                     "mood": "happy"
+                    }
+                   ]
+                  },
+                  "else": {
+                   "do": [
+                    {
+                     "op": "say",
+                     "text": {
+                      "en": "With what?",
+                      "zh": "拿什么给？"
+                     }
+                    }
+                   ]
+                  }
+                 },
+                 "else": {
+                  "if": {
+                   "param": {
+                    "key": "say",
+                    "cmp": "intimidate"
+                   }
+                  },
+                  "then": {
+                   "if": {
+                    "sway": {
+                     "of": "host",
+                     "by": "actor",
+                     "how": "intimidate"
+                    }
+                   },
+                   "then": {
+                    "do": [
+                     {
+                      "op": "fear"
+                     },
+                     {
+                      "op": "settle"
+                     },
+                     {
+                      "op": "regard",
+                      "delta": -10
+                     },
+                     {
+                      "op": "say",
+                      "text": {
+                       "en": "A-all right! I never saw a thing!",
+                       "zh": "好、好吧！我什么都没看见！"
+                      }
+                     },
+                     {
+                      "op": "emote",
+                      "mood": "surprised"
+                     }
+                    ]
+                   },
+                   "else": {
+                    "if": {
+                     "any": [
+                      {
+                       "prop": {
+                        "role": "host",
+                        "key": "fights",
+                        "cmp": true
+                       }
+                      },
+                      {
+                       "has": {
+                        "role": "host",
+                        "tag": "watchman"
+                       }
+                      }
+                     ]
+                    },
+                    "then": {
+                     "do": [
+                      {
+                       "op": "regard",
+                       "delta": -15
+                      },
+                      {
+                       "op": "foe"
+                      },
+                      {
+                       "op": "say",
+                       "text": {
+                        "en": "You picked the wrong one.",
+                        "zh": "你找错人了。"
+                       }
+                      },
+                      {
+                       "op": "emote",
+                       "mood": "angry"
+                      }
+                     ]
+                    },
+                    "else": {
+                     "do": [
+                      {
+                       "op": "regard",
+                       "delta": -15
+                      },
+                      {
+                       "op": "say",
+                       "text": {
+                        "en": "You don't scare me.",
+                        "zh": "你吓不倒我。"
+                       }
+                      },
+                      {
+                       "op": "emote",
+                       "mood": "angry"
+                      }
+                     ]
+                    }
+                   }
+                  },
+                  "else": {
+                   "if": {
+                    "param": {
+                     "key": "say",
+                     "cmp": "apologise"
+                    }
+                   },
+                   "then": {
+                    "if": {
+                     "grudge": {
+                      "of": "host",
+                      "toward": "actor"
+                     }
+                    },
+                    "then": {
+                     "if": {
+                      "sway": {
+                       "of": "host",
+                       "by": "actor",
+                       "how": "persuade",
+                       "bonus": 0.15
+                      }
+                     },
+                     "then": {
+                      "do": [
+                       {
+                        "op": "settle"
+                       },
+                       {
+                        "op": "regard",
+                        "delta": 5
+                       },
+                       {
+                        "op": "say",
+                        "text": {
+                         "en": "…Fine. Don't let it happen again.",
+                         "zh": "……算了。别再有下次。"
+                        }
+                       }
+                      ]
+                     },
+                     "else": {
+                      "do": [
+                       {
+                        "op": "regard",
+                        "delta": -2
+                       },
+                       {
+                        "op": "say",
+                        "text": {
+                         "en": "Sorry won't mend it.",
+                         "zh": "一句对不起可补不回来。"
+                        }
+                       }
+                      ]
+                     }
+                    },
+                    "else": {
+                     "do": [
+                      {
+                       "op": "say",
+                       "text": {
+                        "en": "For what?",
+                        "zh": "为什么？"
+                       }
+                      }
+                     ]
+                    }
+                   },
+                   "else": {
+                    "if": {
+                     "param": {
+                      "key": "say",
+                      "cmp": "giveback"
+                     }
+                    },
+                    "then": {
+                     "do": [
+                      {
+                       "op": "emit",
+                       "impulse": "notify",
+                       "to": "actor",
+                       "params": {
+                        "what": "surrender"
+                       }
+                      },
+                      {
+                       "op": "settle"
+                      },
+                      {
+                       "op": "regard",
+                       "delta": 8
+                      },
+                      {
+                       "op": "say",
+                       "text": {
+                        "en": "Good. We'll leave it there.",
+                        "zh": "好。这事就到此为止。"
+                       }
+                      }
+                     ]
+                    },
+                    "else": {
+                     "if": {
+                      "param": {
+                       "key": "say",
+                       "cmp": "demand"
+                      }
+                     },
+                     "then": {
+                      "do": []
+                     },
+                     "else": {
+                      "if": {
+                       "param": {
+                        "key": "say",
+                        "cmp": "arrest"
+                       }
+                      },
+                      "then": {
+                       "do": [
+                        {
+                         "op": "arrest"
+                        }
+                       ]
+                      },
+                      "else": {
+                       "if": {
+                        "param": {
+                         "key": "say",
+                         "cmp": "trade"
+                        }
+                       },
+                       "then": {
+                        "do": [
+                         {
+                          "op": "say",
+                          "text": {
+                           "en": "I've nothing to sell.",
+                           "zh": "我没什么可卖的。"
+                          }
+                         }
+                        ]
+                       },
+                       "else": {
+                        "if": {
+                         "param": {
+                          "key": "say",
+                          "cmp": "turnin"
+                         }
+                        },
+                        "then": {
+                         "do": [
+                          {
+                           "op": "say",
+                           "text": {
+                            "en": "Take that up with the watch.",
+                            "zh": "这事去找守卫队吧。"
+                           }
+                          }
+                         ]
+                        },
+                        "else": {
+                         "if": {
+                          "param": {
+                           "key": "say",
+                           "cmp": "bye"
+                          }
+                         },
+                         "then": {
+                          "do": []
+                         },
+                         "else": {
+                          "undefined": true,
+                          "default": [
+                           {
+                            "op": "say",
+                            "text": {
+                             "en": "…",
+                             "zh": "……"
+                            }
+                           }
+                          ]
+                         }
+                        }
+                       }
+                      }
+                     }
+                    }
+                   }
+                  }
+                 }
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       },
+       "else": "inherit"
+      }
+     },
+     "source": {
+      "origin": "base"
+     }
+    },
+    {
+     "id": "core/handle",
+     "doc": "A bare hand on something with no answer of its own: undefined (it is looked at meanwhile).",
+     "on": "impulse/handle",
+     "tree": {
+      "undefined": true,
+      "default": [
+       {
+        "op": "log",
+        "text": {
+         "en": "It is {host}.",
+         "zh": "这是{host}。"
+        }
+       }
+      ]
+     },
+     "source": {
+      "origin": "base"
+     }
+    },
+    {
+     "id": "core/impulse",
+     "doc": "What is done to a thing is undefined unless its nature says (the AI answers).",
+     "on": "impulse",
+     "tree": {
+      "undefined": true
+     },
+     "source": {
+      "origin": "base"
+     }
+    }
+   ]
+  },
+  "scenario": {
+   "terrain": [
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ]
+   ],
+   "entities": [
+    {
+     "key": "actor",
+     "type": "actor/person/player",
+     "x": 3,
+     "y": 4,
+     "props": {
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "level": 1,
+      "material": "flesh",
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 20,
+      "maxHunger": 20,
+      "hungerEvery": 480,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body"
+     }
+    },
+    {
+     "key": "instrument",
+     "type": "item/tool/lockpick",
+     "x": 3,
+     "y": 4,
+     "heldBy": "actor"
+    },
+    {
+     "key": "host",
+     "type": "actor/person/villager",
+     "x": 3,
+     "y": 3,
+     "props": {
+      "hp": 20,
+      "maxHp": 20,
+      "atk": 1,
+      "def": 0,
+      "level": 1,
+      "material": "flesh",
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 20,
+      "maxHunger": 20,
+      "hungerEvery": 960,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body"
+     }
+    }
+   ],
+   "player": "actor",
+   "event": {
+    "kind": "impulse/handle",
+    "params": {},
+    "actor": "actor",
+    "instrument": "instrument",
+    "source": "instrument",
+    "host": "host"
+   }
+  }
+ },
+ {
+  "id": "probe-cell-7",
+  "summary": "green slime is sent offered (the thing: Melon Seeds)",
+  "origin": "player",
+  "event": {
+   "kind": "impulse/offered",
+   "params": {},
+   "host": {
+    "role": "host",
+    "id": "target",
+    "name": "green slime",
+    "type": "actor/creature/slime/green_slime",
+    "typeChain": [
+     "actor",
+     "actor/creature",
+     "actor/creature/slime",
+     "actor/creature/slime/green_slime"
+    ],
+    "tags": [
+     "agent",
+     "creature",
+     "living",
+     "faction:wild",
+     "slime",
+     "gelatinous"
+    ],
+    "statuses": [],
+    "props": {
+     "level": 1,
+     "material": "flesh",
+     "hp": 9,
+     "maxHp": 9,
+     "atk": 2,
+     "def": 0,
+     "speed": 7,
+     "trophy": "item/armor/jerkin/gelhide",
+     "trophyChance": 0.04
+    },
+    "material": {
+     "id": "flesh",
+     "category": "flesh",
+     "hardness": 1
+    },
+    "at": [
+     0,
+     0
+    ]
+   },
+   "roles": {
+    "story": {
+     "role": "story",
+     "id": "story",
+     "name": "the story",
+     "type": "resident/story",
+     "typeChain": [
+      "resident",
+      "resident/story"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {}
+    },
+    "world": {
+     "role": "world",
+     "id": "world",
+     "name": "the world",
+     "type": "resident/world",
+     "typeChain": [
+      "resident",
+      "resident/world"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {}
+    },
+    "source": {
+     "role": "source",
+     "id": "held",
+     "name": "Melon Seeds",
+     "type": "item/seed/melon",
+     "typeChain": [
+      "item",
+      "item/seed",
+      "item/seed/melon"
+     ],
+     "tags": [
+      "portable",
+      "seed",
+      "plant",
+      "plantable"
+     ],
+     "statuses": [],
+     "props": {
+      "value": 1,
+      "cropType": "fixture/crop/melon/sprout"
+     },
+     "at": [
+      0,
+      1
+     ]
+    },
+    "actor": {
+     "role": "actor",
+     "id": "actor",
+     "name": "you",
+     "type": "actor/person/player",
+     "typeChain": [
+      "actor",
+      "actor/person",
+      "actor/person/player"
+     ],
+     "tags": [
+      "agent",
+      "person",
+      "living",
+      "talkable",
+      "faction:folk",
+      "essential"
+     ],
+     "statuses": [],
+     "props": {
+      "level": 1,
+      "material": "flesh",
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 20,
+      "maxHunger": 20,
+      "hungerEvery": 480,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body"
+     },
+     "material": {
+      "id": "flesh",
+      "category": "flesh",
+      "hardness": 1
+     },
+     "at": [
+      0,
+      1
+     ]
+    },
+    "instrument": {
+     "role": "instrument",
+     "id": "held",
+     "name": "Melon Seeds",
+     "type": "item/seed/melon",
+     "typeChain": [
+      "item",
+      "item/seed",
+      "item/seed/melon"
+     ],
+     "tags": [
+      "portable",
+      "seed",
+      "plant",
+      "plantable"
+     ],
+     "statuses": [],
+     "props": {
+      "value": 1,
+      "cropType": "fixture/crop/melon/sprout"
+     },
+     "at": [
+      0,
+      1
+     ]
+    },
+    "item": {
+     "role": "item",
+     "id": "held",
+     "name": "Melon Seeds",
+     "type": "item/seed/melon",
+     "typeChain": [
+      "item",
+      "item/seed",
+      "item/seed/melon"
+     ],
+     "tags": [
+      "portable",
+      "seed",
+      "plant",
+      "plantable"
+     ],
+     "statuses": [],
+     "props": {
+      "value": 1,
+      "cropType": "fixture/crop/melon/sprout"
+     },
+     "at": [
+      0,
+      1
+     ]
+    }
+   }
+  },
+  "hole": {
+   "rule": "core/offered",
+   "path": [],
+   "default": [],
+   "at": []
+  },
+  "context": {
+   "map": {
+    "id": "sandbox",
+    "name": "sandbox",
+    "kind": "sandbox"
+   },
+   "anchors": [],
+   "hour": 6,
+   "nearby": [],
+   "tiles": [
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ]
+   ],
+   "tileStatuses": [],
+   "recent": [],
+   "rules": [
+    {
+     "id": "creature/offered",
+     "doc": "A creature held out a thing: something fibrous lashes it down (the rope goes onto it); something edible it snaps up (the food is told it is eaten: food/eaten); anything else, and anything offered a boss, is its own kind's to answer (undefined at the root).",
+     "host": {
+      "type": "actor/creature"
+     },
+     "on": "impulse/offered",
+     "tree": {
+      "if": {
+       "any": [
+        {
+         "same": [
+          "host",
+          "actor"
+         ]
+        },
+        {
+         "has": {
+          "role": "host",
+          "tag": "boss"
+         }
+        }
+       ]
+      },
+      "then": "inherit",
+      "else": {
+       "if": {
+        "all": [
+         {
+          "has": {
+           "role": "item",
+           "tag": "fiber"
+          }
+         },
+         {
+          "not": {
+           "has": {
+            "role": "host",
+            "status": "frozen"
+           }
+          }
+         }
+        ]
+       },
+       "then": {
+        "do": [
+         {
+          "op": "addStatus",
+          "status": "frozen",
+          "duration": 30
+         },
+         {
+          "op": "emit",
+          "impulse": "taken",
+          "to": "item",
+          "params": {
+           "into": "contents"
+          },
+          "other": "host"
+         },
+         {
+          "op": "vfx",
+          "fx": "dust"
+         },
+         {
+          "op": "log",
+          "text": {
+           "en": "{host} is lashed down with {item}.",
+           "zh": "{host}被{item}捆住了。"
+          }
+         }
+        ],
+        "label": {
+         "en": "Bind {target} with {instrument}",
+         "zh": "用{instrument}捆住{target}"
+        }
+       },
+       "else": {
+        "if": {
+         "has": {
+          "role": "item",
+          "tag": "edible"
+         }
+        },
+        "then": {
+         "do": [
+          {
+           "op": "emit",
+           "impulse": "notify",
+           "to": "item",
+           "params": {
+            "what": "eaten"
+           }
+          },
+          {
+           "op": "emote",
+           "mood": "happy"
+          },
+          {
+           "op": "vfx",
+           "fx": "sparkle"
+          },
+          {
+           "op": "log",
+           "text": {
+            "en": "{host} snaps up {item}.",
+            "zh": "{host}一口吞下了{item}。"
+           }
+          }
+         ],
+         "label": {
+          "en": "Feed {instrument} to {target}",
+          "zh": "给{target}吃{instrument}"
+         }
+        },
+        "else": "inherit"
+       }
+      }
+     },
+     "source": {
+      "origin": "base"
+     }
+    },
+    {
+     "id": "body/wear",
+     "doc": "Something one wears, used on one (one's own, or another's held out): one puts it on (what was in its slot comes off), or takes it off if it is on (world-model.md §6.8).",
+     "host": {
+      "type": "actor"
+     },
+     "on": "impulse/offered",
+     "tree": {
+      "if": {
+       "all": [
+        {
+         "param": {
+          "key": "wear",
+          "cmp": true
+         }
+        },
+        {
+         "is": {
+          "role": "item",
+          "sel": {
+           "tags": [
+            "wearable"
+           ]
+          }
+         }
+        }
+       ]
+      },
+      "then": {
+       "if": {
+        "same": [
+         "host",
+         "actor"
+        ]
+       },
+       "then": {
+        "do": [
+         {
+          "op": "wear"
+         }
+        ]
+       },
+       "else": {
+        "do": [
+         {
+          "op": "emit",
+          "impulse": "taken",
+          "to": "item",
+          "params": {
+           "into": "contents"
+          },
+          "other": "host"
+         },
+         {
+          "op": "wear"
+         }
+        ]
+       }
+      },
+      "else": "inherit"
+     },
+     "source": {
+      "origin": "base"
+     }
+    },
+    {
+     "id": "core/offered",
+     "doc": "Something held out to one with no answer of its own: undefined (the AI answers).",
+     "on": "impulse/offered",
+     "tree": {
+      "undefined": true
+     },
+     "source": {
+      "origin": "base"
+     }
+    },
+    {
+     "id": "core/impulse",
+     "doc": "What is done to a thing is undefined unless its nature says (the AI answers).",
+     "on": "impulse",
+     "tree": {
+      "undefined": true
+     },
+     "source": {
+      "origin": "base"
+     }
+    }
+   ]
+  },
+  "scenario": {
+   "terrain": [
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ]
+   ],
+   "entities": [
+    {
+     "key": "actor",
+     "type": "actor/person/player",
+     "x": 3,
+     "y": 4,
+     "props": {
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "level": 1,
+      "material": "flesh",
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 20,
+      "maxHunger": 20,
+      "hungerEvery": 480,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body"
+     }
+    },
+    {
+     "key": "instrument",
+     "type": "item/seed/melon",
+     "x": 3,
+     "y": 4,
+     "heldBy": "actor"
+    },
+    {
+     "key": "host",
+     "type": "actor/creature/slime/green_slime",
+     "x": 3,
+     "y": 3,
+     "props": {
+      "hp": 9,
+      "maxHp": 9,
+      "atk": 2,
+      "def": 0,
+      "level": 1,
+      "material": "flesh",
+      "speed": 7,
+      "trophy": "item/armor/jerkin/gelhide",
+      "trophyChance": 0.04
+     }
+    }
+   ],
+   "player": "actor",
+   "event": {
+    "kind": "impulse/offered",
+    "params": {},
+    "actor": "actor",
+    "instrument": "instrument",
+    "item": "instrument",
+    "source": "instrument",
+    "host": "host"
+   }
+  }
+ },
+ {
+  "id": "probe-cell-8",
+  "summary": "green slime is sent offered (the thing: Wheat)",
+  "origin": "player",
+  "event": {
+   "kind": "impulse/offered",
+   "params": {},
+   "host": {
+    "role": "host",
+    "id": "target",
+    "name": "green slime",
+    "type": "actor/creature/slime/green_slime",
+    "typeChain": [
+     "actor",
+     "actor/creature",
+     "actor/creature/slime",
+     "actor/creature/slime/green_slime"
+    ],
+    "tags": [
+     "agent",
+     "creature",
+     "living",
+     "faction:wild",
+     "slime",
+     "gelatinous"
+    ],
+    "statuses": [],
+    "props": {
+     "level": 1,
+     "material": "flesh",
+     "hp": 9,
+     "maxHp": 9,
+     "atk": 2,
+     "def": 0,
+     "speed": 7,
+     "trophy": "item/armor/jerkin/gelhide",
+     "trophyChance": 0.04
+    },
+    "material": {
+     "id": "flesh",
+     "category": "flesh",
+     "hardness": 1
+    },
+    "at": [
+     0,
+     0
+    ]
+   },
+   "roles": {
+    "story": {
+     "role": "story",
+     "id": "story",
+     "name": "the story",
+     "type": "resident/story",
+     "typeChain": [
+      "resident",
+      "resident/story"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {}
+    },
+    "world": {
+     "role": "world",
+     "id": "world",
+     "name": "the world",
+     "type": "resident/world",
+     "typeChain": [
+      "resident",
+      "resident/world"
+     ],
+     "tags": [],
+     "statuses": [],
+     "props": {}
+    },
+    "source": {
+     "role": "source",
+     "id": "held",
+     "name": "Wheat",
+     "type": "item/material/wheat",
+     "typeChain": [
+      "item",
+      "item/material",
+      "item/material/wheat"
+     ],
+     "tags": [
+      "portable",
+      "material",
+      "plant",
+      "flammable",
+      "dry",
+      "feed"
+     ],
+     "statuses": [],
+     "props": {
+      "value": 6
+     },
+     "at": [
+      0,
+      1
+     ]
+    },
+    "actor": {
+     "role": "actor",
+     "id": "actor",
+     "name": "you",
+     "type": "actor/person/player",
+     "typeChain": [
+      "actor",
+      "actor/person",
+      "actor/person/player"
+     ],
+     "tags": [
+      "agent",
+      "person",
+      "living",
+      "talkable",
+      "faction:folk",
+      "essential"
+     ],
+     "statuses": [],
+     "props": {
+      "level": 1,
+      "material": "flesh",
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 20,
+      "maxHunger": 20,
+      "hungerEvery": 480,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body"
+     },
+     "material": {
+      "id": "flesh",
+      "category": "flesh",
+      "hardness": 1
+     },
+     "at": [
+      0,
+      1
+     ]
+    },
+    "instrument": {
+     "role": "instrument",
+     "id": "held",
+     "name": "Wheat",
+     "type": "item/material/wheat",
+     "typeChain": [
+      "item",
+      "item/material",
+      "item/material/wheat"
+     ],
+     "tags": [
+      "portable",
+      "material",
+      "plant",
+      "flammable",
+      "dry",
+      "feed"
+     ],
+     "statuses": [],
+     "props": {
+      "value": 6
+     },
+     "at": [
+      0,
+      1
+     ]
+    },
+    "item": {
+     "role": "item",
+     "id": "held",
+     "name": "Wheat",
+     "type": "item/material/wheat",
+     "typeChain": [
+      "item",
+      "item/material",
+      "item/material/wheat"
+     ],
+     "tags": [
+      "portable",
+      "material",
+      "plant",
+      "flammable",
+      "dry",
+      "feed"
+     ],
+     "statuses": [],
+     "props": {
+      "value": 6
+     },
+     "at": [
+      0,
+      1
+     ]
+    }
+   }
+  },
+  "hole": {
+   "rule": "core/offered",
+   "path": [],
+   "default": [],
+   "at": []
+  },
+  "context": {
+   "map": {
+    "id": "sandbox",
+    "name": "sandbox",
+    "kind": "sandbox"
+   },
+   "anchors": [],
+   "hour": 6,
+   "nearby": [],
+   "tiles": [
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ]
+   ],
+   "tileStatuses": [],
+   "recent": [],
+   "rules": [
+    {
+     "id": "creature/offered",
+     "doc": "A creature held out a thing: something fibrous lashes it down (the rope goes onto it); something edible it snaps up (the food is told it is eaten: food/eaten); anything else, and anything offered a boss, is its own kind's to answer (undefined at the root).",
+     "host": {
+      "type": "actor/creature"
+     },
+     "on": "impulse/offered",
+     "tree": {
+      "if": {
+       "any": [
+        {
+         "same": [
+          "host",
+          "actor"
+         ]
+        },
+        {
+         "has": {
+          "role": "host",
+          "tag": "boss"
+         }
+        }
+       ]
+      },
+      "then": "inherit",
+      "else": {
+       "if": {
+        "all": [
+         {
+          "has": {
+           "role": "item",
+           "tag": "fiber"
+          }
+         },
+         {
+          "not": {
+           "has": {
+            "role": "host",
+            "status": "frozen"
+           }
+          }
+         }
+        ]
+       },
+       "then": {
+        "do": [
+         {
+          "op": "addStatus",
+          "status": "frozen",
+          "duration": 30
+         },
+         {
+          "op": "emit",
+          "impulse": "taken",
+          "to": "item",
+          "params": {
+           "into": "contents"
+          },
+          "other": "host"
+         },
+         {
+          "op": "vfx",
+          "fx": "dust"
+         },
+         {
+          "op": "log",
+          "text": {
+           "en": "{host} is lashed down with {item}.",
+           "zh": "{host}被{item}捆住了。"
+          }
+         }
+        ],
+        "label": {
+         "en": "Bind {target} with {instrument}",
+         "zh": "用{instrument}捆住{target}"
+        }
+       },
+       "else": {
+        "if": {
+         "has": {
+          "role": "item",
+          "tag": "edible"
+         }
+        },
+        "then": {
+         "do": [
+          {
+           "op": "emit",
+           "impulse": "notify",
+           "to": "item",
+           "params": {
+            "what": "eaten"
+           }
+          },
+          {
+           "op": "emote",
+           "mood": "happy"
+          },
+          {
+           "op": "vfx",
+           "fx": "sparkle"
+          },
+          {
+           "op": "log",
+           "text": {
+            "en": "{host} snaps up {item}.",
+            "zh": "{host}一口吞下了{item}。"
+           }
+          }
+         ],
+         "label": {
+          "en": "Feed {instrument} to {target}",
+          "zh": "给{target}吃{instrument}"
+         }
+        },
+        "else": "inherit"
+       }
+      }
+     },
+     "source": {
+      "origin": "base"
+     }
+    },
+    {
+     "id": "body/wear",
+     "doc": "Something one wears, used on one (one's own, or another's held out): one puts it on (what was in its slot comes off), or takes it off if it is on (world-model.md §6.8).",
+     "host": {
+      "type": "actor"
+     },
+     "on": "impulse/offered",
+     "tree": {
+      "if": {
+       "all": [
+        {
+         "param": {
+          "key": "wear",
+          "cmp": true
+         }
+        },
+        {
+         "is": {
+          "role": "item",
+          "sel": {
+           "tags": [
+            "wearable"
+           ]
+          }
+         }
+        }
+       ]
+      },
+      "then": {
+       "if": {
+        "same": [
+         "host",
+         "actor"
+        ]
+       },
+       "then": {
+        "do": [
+         {
+          "op": "wear"
+         }
+        ]
+       },
+       "else": {
+        "do": [
+         {
+          "op": "emit",
+          "impulse": "taken",
+          "to": "item",
+          "params": {
+           "into": "contents"
+          },
+          "other": "host"
+         },
+         {
+          "op": "wear"
+         }
+        ]
+       }
+      },
+      "else": "inherit"
+     },
+     "source": {
+      "origin": "base"
+     }
+    },
+    {
+     "id": "core/offered",
+     "doc": "Something held out to one with no answer of its own: undefined (the AI answers).",
+     "on": "impulse/offered",
+     "tree": {
+      "undefined": true
+     },
+     "source": {
+      "origin": "base"
+     }
+    },
+    {
+     "id": "core/impulse",
+     "doc": "What is done to a thing is undefined unless its nature says (the AI answers).",
+     "on": "impulse",
+     "tree": {
+      "undefined": true
+     },
+     "source": {
+      "origin": "base"
+     }
+    }
+   ]
+  },
+  "scenario": {
+   "terrain": [
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ],
+    [
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass",
+     "grass"
+    ]
+   ],
+   "entities": [
+    {
+     "key": "actor",
+     "type": "actor/person/player",
+     "x": 3,
+     "y": 4,
+     "props": {
+      "hp": 40,
+      "maxHp": 40,
+      "atk": 2,
+      "def": 0,
+      "level": 1,
+      "material": "flesh",
+      "speed": 2,
+      "sight": 7,
+      "perception": 10,
+      "hunger": 20,
+      "maxHunger": 20,
+      "hungerEvery": 480,
+      "honesty": 1,
+      "bodyType": "fixture/remains/body"
+     }
+    },
+    {
+     "key": "instrument",
+     "type": "item/material/wheat",
+     "x": 3,
+     "y": 4,
+     "heldBy": "actor"
+    },
+    {
+     "key": "host",
+     "type": "actor/creature/slime/green_slime",
+     "x": 3,
+     "y": 3,
+     "props": {
+      "hp": 9,
+      "maxHp": 9,
+      "atk": 2,
+      "def": 0,
+      "level": 1,
+      "material": "flesh",
+      "speed": 7,
+      "trophy": "item/armor/jerkin/gelhide",
+      "trophyChance": 0.04
+     }
+    }
+   ],
+   "player": "actor",
+   "event": {
+    "kind": "impulse/offered",
+    "params": {},
+    "actor": "actor",
+    "instrument": "instrument",
+    "item": "instrument",
+    "source": "instrument",
+    "host": "host"
+   }
+  }
+ }
+]

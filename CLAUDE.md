@@ -67,7 +67,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
   (`controls.ts`; a recipe's `madeOf` keeps the material and quality under the name it gives), gear's rolled extras (`affixes.ts`, `Ontology.affixes`) and sets
   (`Ontology.sets`), read by `World.stat` — mechanisms configured by data, kept in the kernel by decision (docs/engine-split.md §9), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`; a skill book asks no points but holds to the tree's `requires`); companions that follow a
-  leader (`companion.ts`) — docs/prologue.md; the codex (`codex.ts`: every item kind, person and creature kind, the ones the player carried or saw marked — the reader's record beside the state, saved with the game; its entries `content/src/codex.ts`, its panel J); looks (`looks.ts`, docs/looks.md: a look is a body, a part per slot and a colour per key, on `Entity.look`; the engine checks it against `Ontology.looks`, derives its `look:*` tags (never stored) and its words for the modder; `restyle` changes the host's); the inputs X (draw) and V (sneak) are statuses the input keeps. What a game hands the
+  leader (`companion.ts`) — docs/prologue.md; the codex (`codex.ts`: every item kind, person and creature kind, the ones the player carried or saw marked — the reader's record beside the state, saved with the game; its entries `content/src/codex.ts`, its panel J); looks (`looks.ts`, docs/looks.md: a look is a body, a part per slot and a colour per key, on `Entity.look`; the engine checks it against `Ontology.looks`, derives its `look:*` tags (never stored) and its words for the modder; `restyle` changes the host's); the inputs X (draw) and V (sneak) are statuses the input keeps; the AI setting (`quality.ts`, design.md §13: off/low/medium/high for
+  things, people, the world, making new kinds and asking ahead — the same wait at every level, a level is how much the AI does in it;
+  `Engine.quality` is the player's, never saved; learned rules keep their `tier`, each tier its own trees, a higher answer serving
+  the lower settings). What a game hands the
   engine side (`gamedef.ts`) and the map file format (`chunk.ts`, the game's terrain characters a parameter).
   The modules (`module.ts`, docs/engine-split.md §9): those a game's ontology names (`Ontology.modules`) are
   installed with every engine — their primitives, conditions, goals and ModSpec words, and what they put in the
@@ -85,33 +88,46 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   unless its game.json says not.
 - `packages/format` — the project format and its compiler (docs/engine-split.md §5): `project.ts` the files
   (game.json, ontology/, rules/, maps/, people/, quests/, story/, catalog.json, client/, learned/ — the patches
-  the game ships with —, extra.json),
+  the game ships with —, locales/ — a translation table per language —, extra.json),
   `compile.ts` a project → the bundle and its world, `check.ts` the problems (references, sizes, portals,
   anchors, ties, rules, modules), `json.ts` how files are written, `node.ts` a folder read and a game written,
   `serve.ts` projects served compiled, `cli.ts` (`npm run game -- check|build`), `holes.ts` a project's holes,
-  `brushes.ts` the builder's brushes, `crowd.ts` people in bulk, `schema.ts` the JSON Schemas
+  `brushes.ts` the builder's brushes, `crowd.ts` people in bulk, `texts.ts` a game's words (docs/engine-split.md
+  §19: written in its source language, game.json `languages`; where a file holds words, read from the schemas;
+  the tables `locales/<code>.json` applied as it compiles; inline translations moved into tables; the source
+  switched), `localize.ts` a language's rows and states, CSV and PO out and back, `schema.ts` the JSON Schemas
   from the engine's types (`schema/`, `npm run schema`). A bundle (`bundle.json` + `world/` + `assets/`) is a
   whole game: another bundle URL is another game.
-- `packages/editor` — the OpenWorld Editor (docs/engine-split.md §6, §11, §15), a program of its own: `src/server/`
-  — `workspace.ts` where projects are (any folder; a recent list in `~/.openworld-editor`; shelves: the repo's
-  `games/` in development; templates: the starter, empty), `api.ts` the local service over them (only this host,
+- `packages/editor` — the OpenWorld Editor (docs/engine-split.md §6, §11, §15; the plan E1–E7 and E1, E2 as built §16–18; its languages §19), a program of its own: `src/server/`
+  — `workspace.ts` where projects are (any folder; a recent list and the editor's settings in `~/.openworld-editor`; shelves: the repo's
+  `games/` in development; templates: the starter, empty; a new project in the language chosen), `api.ts` the local service over them (only this host,
   every change with its header), `assets.ts` a project's pictures and sounds and the shipped pack (the Ninja
   Adventure subset: a file used is copied into the project's `assets/na/`; imports go to `assets/own/`),
   `export.ts` + `zip.ts` a project as a playable folder and zip, `server.ts` + `cli.ts` its own server (the built
   page, the built player, the service, the projects compiled; `npm run editor:build` → `dist/`, `npm run
   editor:start`); `desktop/` the Electron shell (outside the root workspaces; `npm run desktop`, `desktop:dist`;
-  the `desktop` workflow builds installers). `src/app/` the editor — `home.ts` the first page (recent projects,
+  the `desktop` workflow builds installers). `src/app/` the editor — its own words through `lang.ts` `t()` in the editor's language (a
+  setting of the editor's, never a project's; the Chinese in `zh.ts`, every phrase held by `test/words.test.ts`), a game's words through
+  `words.ts` (one field each in the game's source language, `ui.ts` `textField`; translations kept for changed words; the preview
+  language) —, `home.ts` the first page (recent projects,
   new from a template, open a folder; `dialogs.ts` the folder chooser, the desktop's own dialog there),
   `gameMode.ts` (the game's settings, modules, parameters, cover, interface words, factions, the rest of the
   ontology and the player's tables), `assetsMode.ts` + `sheet.ts` (the catalogue cut from pictures, the files,
   the pack, what needs a picture), `exportDialog.ts`, `store.ts`
-  the project in memory (edits, undo, save, compiled as it is now), `canvas.ts` the runtime's WorldScene with a
-  free camera, `mapMode.ts`, `peopleMode.ts`, `databaseMode.ts` (types, statuses, terrains, recipes; `ontologyFiles.ts`
+  the project in memory (edits, undo and redo, save, compiled as it is now), `canvas.ts` the runtime's WorldScene with a
+  free camera (the right button picks, the middle pans, Ctrl+wheel zooms), `mapMode.ts` (four layers and their tools; `mapEdit.ts`
+  the edits — shapes, fill, blocks copied, pasted and moved, buildings, rooms, the interior behind a door —, `mapForms.ts` a map's
+  settings, `mapTree.ts` the maps' tree and the world overview, `thumbs.ts` the palettes' pictures; `quickEvents.ts` + `events.ts` the quick events — a door, a chest, a sign, a bed, a person,
+  a merchant, a quest giver — and a thing's own kind), `peopleMode.ts`, `databaseMode.ts` (types, statuses, terrains, recipes; `ontologyFiles.ts`
   where an entry is written), `rulesMode.ts` (a rule's tree and JSON checked as typed, which rule answers here,
-  the sandbox), `storyMode.ts` (the story's steps and scene commands, the quests), `holesMode.ts` (the holes panel:
-  count, answer by hand, ask the game's modder, review, replay, take into `learned/`), `problems.ts` the validation
+  the sandbox), `storyMode.ts` (the story's steps and scene commands, the quests, all as forms: `triggers.ts` a step's and a quest's triggers,
+  `sceneForms.ts` a scene's commands and a line shown as the game's dialogue, `form.ts` the forms' controls), `findMode.ts` + `usage.ts`
+  (the event searcher: the facts set and read, where an id is used), `holesMode.ts` (the holes panel:
+  count, answer by hand, ask the game's modder, review, replay, take into `learned/`), `localeMode.ts` (the Localization mode: the
+  languages, a language's table as rows — to translate, to look at again, done —, a place's own, CSV and PO out and back, an older
+  project's inline translations moved into tables), `problems.ts` the validation
   panel, `modes.ts` the modes; the map's brushes and the people in bulk come from the format; playtest opens the
-  player at a cell.
+  player at a cell, in the preview language (`?lang=`).
 - `games/starter` — the minimal game, data only (S6), with its own catalogue and assets (a subset of the CC0
   pack): the kernel with no module plays it (`test/kernel.test.ts`); the editor's new project.
 - `games/openworld/content` — ontology (terrains, statuses, elements, types), item catalogue
@@ -152,7 +168,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   toolbar, key labels, dialogue; `menu.ts` menu tabs, the character sheet (the engine's numbers, `Frame.player.stats`),
   journal, chest panel, the shops a game lists (`crafting.shops`: shelves with names and `sell`); `panels.ts` a game's own panels
   (`ClientGame.panels`: by the key a rule's `panel` effect opens, told the fx's `by`, loaded when first opened);
-  `boons.ts` the boons module's panel for a game with none of its own; `people.ts` the trade and pockets panels (the talk panel is the dialogue's, `hud.ts`); `worldmap.ts` the world map (M) and the minimap; `dev.ts` the Mod Console, dev only); the worker uses the modder service when one answers
+  `boons.ts` the boons module's panel for a game with none of its own; `people.ts` the trade and pockets panels (the talk panel is the dialogue's, `hud.ts`); `worldmap.ts` the world map (M) and the minimap; `dev.ts` the Mod Console, dev only; `quality.ts` the options' AI section: presets, a level per kind of work, the detection); the worker uses the modder service when one answers
   (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it. It says no one game's
   words (docs/engine-split.md §15; `test/words.test.ts`): a game's words are its `texts` (over `ui/common.ts`
   STRINGS), its catalogue (`<tag>Mark`, `equipSlots`, a weapon's `swing`), its tables and its panels. Still this
@@ -191,6 +207,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
     own types) → find (the catalogue) → create (a new type with its 16x16 picture as data).
   - `tools.ts`: the design tools.
   - `library.ts`: the shared library as an append-only patch log.
+  - `quality.ts`: a request's tier as a workload over the harness (medium the harness; low less, high more; never more time);
+    `detect.ts`: what the connected model carries — the history's questions and the game's probes (`GameDef.probes`) played
+    at every tier by a dry modder, a recommendation per kind of work (`GET /quality`, `POST /quality/detect`).
   - `state.ts`: the self-state — memory, skills, harness, journal, snapshots.
   - `server.ts`, `cli.ts`: the HTTP API and the command line.
   - `repo.ts`, `validate-cli.ts`: a world request as a repository for the agent (the offline profile).
@@ -204,7 +223,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   then adapt to our principles; invent only where no game has a model.
 - The model is Kimi K3 via OpenRouter, with the key in the gitignored `.env`. Anthropic, Google and OpenAI
   return 403 from here. Never hard-code a provider; tests use `ScriptedModel`. A second backend,
-  `claude-code`, calls `claude -p` signed in as the user (Opus 5.5, effort low by default; `ClaudeCodeModel`).
+  `claude-code`, calls `claude -p` signed in as the user (Opus 5.5, effort low by default — the least: a call asking for
+  more reasoning, the high AI setting's or the offline profile's, gets medium or high; `ClaudeCodeModel`, `effortOf`).
   `npm run dev` asks which backend to use (or `--backend openrouter|claude-code|none`, `LSW_MODEL_BACKEND`).
 - Two harness profiles: **live** (a player waits: brief, one call, low reasoning, deterministic fixes,
   derived tests, hedged calls, review after shipping) and **offline** (curriculum, escalations,
@@ -258,6 +278,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - The demo must stay complete: anything added to its maps witnesses a requirement in
   `games/openworld/tools/test/demo.test.ts` (or the test fails), and every requirement is checked on the real map.
 - Only the player steps onto portals; NPCs transfer from the adjacent tile.
+- Languages (docs/engine-split.md §19): a game's text is written once, in the game's source language (one field in
+  the editor, a plain string in its file); its translations are `locales/<code>.json`, applied as it compiles. The
+  editor's own words are `t('…')` with an entry in `packages/editor/src/app/zh.ts` (its test fails on a phrase
+  without one); the editor's language, the game's and the preview language are three settings, never tied.
 - After changing rules, run `npm run coverage` and commit the refreshed baseline with them; a
   finished milestone records its numbers in its row of `docs/roadmap.md` §3. The coverage test
   fails if any form or target loses an answer or a purpose.
@@ -296,6 +320,7 @@ npm run curriculum -- 20 # resolve 20 sampled undefined interactions offline (of
 npm run curriculum -- --n 20 --profile live --by hole --data var/<run>   # live profile, spread over holes; per-step reach
 npm run curriculum:report -- var/<run>   # summarise a run: steps, reviews, revisions, spend
 npm run ford-live        # the six kinds of hole on the Ford, live (costs model calls)
+npm run probes           # the game's probes for the AI setting's detection → games/openworld/content/src/probes.json
 npm run eval:objects     # five acts to find a known thing, five to create a new one, live (costs model calls)
 npm run latency -- --n 20 # live-profile latency bench (fresh library each run; costs model calls)
 npm run improve -- --select 8 --confirm 8   # one outer-loop turn (costs model calls)

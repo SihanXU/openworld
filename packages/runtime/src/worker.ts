@@ -2,7 +2,7 @@
 
 import { untilUp } from './untilUp.ts'
 import { artsToSend, forgetInvalid, forgetStatus, forgetType, learnedRecipes, recipeOf, shareKept, sharedPart, takeDefinitions, withKept } from './learned.ts'
-import { lookProblems, signatureOf, difficultyOf, DIRS, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR, rollAffixes } from '@openworld/engine'
+import { lookProblems, signatureOf, difficultyOf, DIRS, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
@@ -65,12 +65,19 @@ let connecting: { stop: () => void } | undefined
 let modderOnline = false
 
 // Prefetch: the action prompt knows an interaction is undefined before E is pressed. Pointing at
-// one spot with something in hand for a second and a half starts the request, so the patch is often
-// there first. Off unless the page asks (`?prefetch=1`): what it learns is committed to the shared
-// library for acts the player never made, and each costs model calls (a failed one escalates).
-const PREFETCH_DWELL_TICKS = 15
-const PREFETCH_CAP = 12
-let prefetchOn = false // the page's ?prefetch=1 turns it on (init)
+// one spot with something in hand for a while starts the request, so the patch is often there first.
+// The AI setting's `prefetch` says how soon and how many (off by default: what it learns is committed
+// to the shared library for acts the player never made, and each costs model calls); the page's
+// `?prefetch=1` asks for at least medium.
+const PREFETCH: Record<Exclude<AiLevel, 'off'>, { dwell: number; cap: number }> = {
+  low: { dwell: 30, cap: 4 },
+  medium: { dwell: 15, cap: 12 },
+  high: { dwell: 10, cap: 30 },
+}
+let prefetchAsked = false // the page's ?prefetch=1 (init)
+/** The player's AI setting (the engine's quality.ts): the main thread's stored one, sent at init and on every change. */
+let quality: AiQuality = { ...DEFAULT_QUALITY }
+const prefetchLevel = (): Exclude<AiLevel, 'off'> | undefined => (quality.prefetch !== 'off' ? quality.prefetch : prefetchAsked ? 'medium' : undefined)
 let probe: { key: string; spot: string; ev: GameEvent; res: Resolution; ticks: number } | undefined
 const prefetched = new Set<string>()
 let prefetching = false
@@ -191,7 +198,7 @@ function sendArts(): void {
 }
 
 function noteProbe(hole: { ev: GameEvent; res: Resolution } | undefined, spot: string): void {
-  if (!hole || !prefetchOn) return void (probe = undefined)
+  if (!hole || !prefetchLevel()) return void (probe = undefined)
   // one prefetch per hole and class (as the Mod port asks), not per tile or item; the wait is the
   // pointer resting on one spot, not sweeping over things of one class
   const key = signatureOf(game!.engine, hole.ev, hole.res)
@@ -200,8 +207,10 @@ function noteProbe(hole: { ev: GameEvent; res: Resolution } | undefined, spot: s
 
 /** Ask the modder ahead of time; its patch goes through this engine's validator like any other. */
 function maybePrefetch(): void {
-  if (!probe || !modderUrl || !modderOnline || !game || !game.mods.provider || prefetching || prefetched.size >= PREFETCH_CAP) return
-  if (++probe.ticks < PREFETCH_DWELL_TICKS || prefetched.has(probe.key)) return
+  const level = prefetchLevel()
+  if (!level || !probe || !modderUrl || !modderOnline || !game || !game.mods.provider || prefetching || prefetched.size >= PREFETCH[level].cap) return
+  // (nor for a kind of work the setting turns off)
+  if (++probe.ticks < PREFETCH[level].dwell || prefetched.has(probe.key) || game.engine.quality[categoryOf(game.engine.world, probe.ev)] === 'off') return
   prefetched.add(probe.key)
   prefetching = true
   const eng = game.engine
@@ -472,8 +481,8 @@ function doSave(auto = false): void {
   post({ t: 'saved', save, library: sharedPart(game.engine.lib.toJSON(), kept), summary, auto })
 }
 
-/** How long the world stands still for the player's own question, in real seconds: an answer, a thing being made. */
-const ASK_MS = 20_000
+/** How long the world stands still for the player's own question, in real seconds: an answer (the same at every AI setting), a thing being made. */
+const ASK_MS = AI_WAIT_MS
 const MAKE_MS = 120_000
 let asked: { id: string; since: number } | undefined
 
@@ -565,7 +574,8 @@ function loop(): void {
 
 async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Promise<void> {
   base = init.base
-  if (init.prefetch !== undefined) prefetchOn = init.prefetch
+  if (init.prefetch !== undefined) prefetchAsked = init.prefetch
+  if (init.quality) quality = qualityOf(init.quality)
   index = await fetchJson<WorldIndex>('index.json')
   const compatible = init.save?.world === index.version
   // the shared library, with what the save loaded keeps of its own though another game's sync forgot it
@@ -592,8 +602,12 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     // the traveller the player made (docs/looks.md): a look the world's table knows, else the world's own
     const looks = ontology().looks
     if (init.look && looks && !lookProblems(init.look, looks).length) game.engine.author(() => (w.player.look = structuredClone(init.look)))
+    // the editor's "play from this scene": the step begun before any other can take control
+    if (init.scene && !game.engine.story.start(init.scene)) post({ t: 'error', message: `the story has no step ${init.scene} to begin` })
   }
   game.worldVersion = index.version
+  // the player's AI setting: which tier each kind of event is asked at, and takes learned answers from
+  game.engine.quality = quality
   // what was learned past the checks of its time (an older client's copy) and nothing here needs is forgotten
   for (const id of forgetInvalid(game.engine, kept.types)) console.info(`[library] forgotten on loading (no longer valid): ${id}`)
   // a night's sleep (a long step) passes a game hour a tick: the screen keeps up, and one lies asleep all the while
@@ -827,6 +841,11 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       }
       case 'pause':
         paused = m.on
+        break
+      case 'quality':
+        // a change of setting holds from the next event: its tier asks, and takes the answers it reaches
+        quality = qualityOf(m.quality)
+        if (game) game.engine.quality = quality
         break
       case 'patch': {
         if (!game) break

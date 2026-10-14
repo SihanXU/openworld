@@ -5,3 +5,4 @@ export type RuleFile = Rule[]
 export type MapFile = RawChunk
 export type QuestFile = QuestDef
 export type { LearnedFile } from './project.ts'
+export type { LocaleFile } from './texts.ts'

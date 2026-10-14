@@ -1712,6 +1712,72 @@ does not hold (iron from smelting, a stick from a stump). So the design works in
 - The Mod Console's World tab gives the player a thing and moves them (development only), to
   stage an act by hand.
 
+### The AI setting (2026-10-13)
+
+The AI has a setting the way a game has graphics settings: a level for each kind of work it does —
+off, low, medium, high — and presets that set them all. The levels are agreed with the user:
+
+- **The wait is the same at every level.** The world stands still up to `AI_WAIT_MS` (20 s) for
+  the player's own question, as it did (a world's question holds its participants 15 s of game
+  time, as it did); then the default runs, and a late answer still teaches the world. A level is
+  how much the AI does within that time, so a stronger model carries a higher setting, as a
+  stronger card carries higher graphics at the same frame rate. No level buys quality with time.
+- **Answers are kept by tier.** A learned rule carries the tier it was answered at (`Rule.tier`;
+  none: medium, what every answer before the setting was made at). Each tier has its own trees
+  (one per type, kind, hole and tier; §5.16 holds within a tier). An event takes its own tier's
+  answer first, then the higher tiers', nearest first: a higher answer serves every lower setting,
+  a lower one never a higher. A low answer is not reviewed: it stays a low answer, and the high
+  setting asks again over it. Off asks nothing and takes every tier's answers (they cost nothing).
+- **The setting is the player's**, kept in the browser like a graphics setting, never in a save
+  and never in the harness: the harness is the modder's own (what its outer loop improves), the
+  setting an envelope over it. The setting has nothing to do with the RSI thread.
+
+The kinds of work (the engine's `quality.ts`, `categoryOf`; the same from a request,
+`categoryOfRequest`):
+
+| | what | off | low | medium | high |
+|---|---|---|---|---|---|
+| things | the player's acts on things (themselves too) | not asked: the default | | | |
+| people | the player's acts on people and creatures | not asked | | | |
+| world | what the world does by itself | not asked | | | |
+| create | making kinds the world has none of | never | not drawn (the parent's picture) | drawn | drawn with more thought, drawn again if the picture has problems |
+| prefetch | asking while the pointer rests on something | never | after 3 s, 4 a game | after 1.5 s, 12 | after 1 s, 30 |
+
+What a tier does for the first three (the client's `buildRequest` sizes the view; the modder's
+`quality.ts` lays the workload over the harness for a live request):
+
+| | low | medium | high |
+|---|---|---|---|
+| what the model sees | the event, its roles and a 3×3 window; no nearby things, no lines said, no rules in force; 4 lessons, no past episodes | as before: 7×7, things within 2 cells (16), the last lines, 8 rules; the harness's recall | things within 4 cells (32), 16 rules; 20 lessons, 8 past episodes |
+| what it may use | the request's things only (no catalogue); the host changed only (impulses to others are taken out) | the catalogue; chains | the same |
+| how hard it thinks | no reasoning | the harness's (low) | medium |
+| what is checked | the validator; no repair | the harness's: derived tests, a repair, review and audit after shipping | two repairs, a review before it ships (on the fast providers) |
+| after it ships | nothing (no review, audit, escalation or revision) | the harness's | the harness's |
+
+The offline profile (escalations, revisions, the curriculum, the editor's offline answers) works as
+it always did, and keeps its answer in the tier the question was asked at. The editor asks at the
+high tier, so an answer an author takes into the game serves every setting.
+
+**Detection** (`packages/modder/src/detect.ts`; `GET /quality`, `POST /quality/detect`, this
+machine only). As a game detects the hardware and recommends a preset, the service plays a set of
+questions at each tier and recommends, for each kind of work, the highest tier the model answers in
+time at least three times in four (below that: low at one in two, else off). The questions are the
+service's own history (newest first, one per class, what players asked) and, where it has too few,
+the game's probes (`GameDef.probes`, loaded only then; OpenWorld's come from `npm run probes`:
+the Ford's kinds of hole, cells of the interaction sweep, what the world asks over a day). Each is
+played on the base game alone by a dry modder (designed and validated as ever; nothing committed or
+recorded), so the yardstick stays the same from run to run. The result is kept per model
+(`quality.json` in the service's data); the options say when it is another model's. Prefetch is a
+budget's choice, not the model's: detection leaves it as the player has it.
+
+The options (`packages/runtime/src/ui/quality.ts`): a preset row, a row per kind of work, the
+note that the wait is the same at every level, the model, the detection's table (answered in time,
+the slowest of nine in ten, per kind and tier) and its recommendation to apply.
+
+On the claude-code backend a call that asks for more reasoning now gets that effort (the configured
+effort is the least: `effortOf`); before, every call ran at the configured effort, so the high
+tier's reasoning had no effect there.
+
 ### The self-improving agent (2026-10-01)
 
 The offline profile no longer uses the patch pipeline. A request is worked by an SWE-style agent

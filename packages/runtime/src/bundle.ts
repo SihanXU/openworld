@@ -22,7 +22,7 @@ export interface ClientTables {
   cover?: CoverDef
   dev?: { shortcuts: DevShortcut[] }
   /** The interface's words the game says its own way (ClientGame.texts). */
-  texts?: Record<string, { en: string; zh?: string }>
+  texts?: Record<string, Text>
 }
 
 /**

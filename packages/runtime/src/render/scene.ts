@@ -311,6 +311,7 @@ export class WorldScene extends Phaser.Scene {
     for (const s of map.stamps ?? []) this.stamp(s.key, s.x, s.y)
     for (const r of map.rooms ?? []) this.roomFrame(r.style, r.x, r.y, r.w, r.h)
     this.drawHeights(map)
+    if (this.free) this.setEditorDim(this.dim)
     this.fitBounds()
     this.playMusic(map.music)
     this.hooks.onMap?.(map)
@@ -351,6 +352,7 @@ export class WorldScene extends Phaser.Scene {
     if (t === 'drygrass') img.setTint(0xe8cf7a)
     // loose growth (tall grass, flowers, bushes) sits a little off the grid, never in rows
     if (LOOSE.has(t)) img.setPosition(img.x + (hash2(x, y, 17) % 9) - 4, img.y + (hash2(x, y, 19) % 5) - 2)
+    if (this.free && this.dim.ground < 1) img.setAlpha(this.dim.ground)
     this.objects.set(k, img)
   }
 
@@ -762,9 +764,30 @@ export class WorldScene extends Phaser.Scene {
     cam.scrollX += before.x - after.x
     cam.scrollY += before.y - after.y
   }
+  /** Zoom the free camera to a level (1: a cell is 16 screen pixels), about a screen point (default its middle). */
+  zoomTo(z: number, sx?: number, sy?: number): void {
+    this.zoomBy(z / this.cameras.main.zoom, sx, sy)
+  }
+  get zoom(): number {
+    return this.cameras.main.zoom
+  }
   /** Centre the camera on a cell. */
   lookAt(x: number, y: number): void {
     this.cameras.main.centerOn(x * T + T / 2, y * T + T / 2)
+  }
+  /** Centre the camera on a point of the world, in cells (a map's middle: half cells). */
+  lookAtPoint(x: number, y: number): void {
+    this.cameras.main.centerOn(x * T, y * T)
+  }
+
+  /** The editor's layers (docs/engine-split.md §16 E1): the ground (its tiles, what is drawn on it) and the things, each as opaque as given. */
+  private dim = { ground: 1, things: 1 }
+  setEditorDim(d: { ground?: number; things?: number }): void {
+    this.dim = { ground: d.ground ?? 1, things: d.things ?? 1 }
+    this.layer?.setAlpha(this.dim.ground)
+    for (const o of this.statics) (o as unknown as Phaser.GameObjects.Components.Alpha).setAlpha?.(this.dim.ground)
+    for (const o of this.objects.values()) o.setAlpha(this.dim.ground)
+    for (const v of this.views.values()) (v.root.setAlpha(this.dim.things), v.head.setAlpha(this.dim.things))
   }
 
   /** The cell under a screen point (the editor's: the ground storey's). */
@@ -1191,6 +1214,7 @@ export class WorldScene extends Phaser.Scene {
     const v: EView = { snap: e, root, body, shadow, hp, head, key: `${t.img}|${t.frame}`, movingUntil: 0, phase: Math.random() * 1000, actor: t.actor }
     if (e.sprite === 'boss:dragon' && catalog().ui.dragonBody1) v.dragon = this.dragonParts(root, body)
     this.updateView(v, e, true)
+    if (this.free && this.dim.things < 1) (root.setAlpha(this.dim.things), head.setAlpha(this.dim.things))
     return v
   }
 

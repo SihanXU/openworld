@@ -396,8 +396,76 @@
       }
     ]
   },
-  "prefabs": {},
+  "prefabs": {
+    "house_orange": {
+      "img": "Backgrounds/Tilesets/TilesetHouse.png",
+      "x": 0,
+      "y": 0,
+      "tw": 4,
+      "th": 3,
+      "grid": ["####", "####", "#D##"]
+    },
+    "house_plaster": {
+      "img": "Backgrounds/Tilesets/TilesetHouse.png",
+      "x": 64,
+      "y": 0,
+      "tw": 4,
+      "th": 3,
+      "grid": ["####", "####", "#D##"]
+    },
+    "house_thatch": {
+      "img": "Backgrounds/Tilesets/TilesetHouse.png",
+      "x": 128,
+      "y": 0,
+      "tw": 4,
+      "th": 3,
+      "grid": ["####", "####", "#D##"]
+    },
+    "house_red": {
+      "img": "Backgrounds/Tilesets/TilesetHouse.png",
+      "x": 192,
+      "y": 0,
+      "tw": 4,
+      "th": 3,
+      "grid": ["####", "####", "#D##"]
+    },
+    "house_wood": {
+      "img": "Backgrounds/Tilesets/TilesetHouse.png",
+      "x": 416,
+      "y": 0,
+      "tw": 3,
+      "th": 3,
+      "grid": ["###", "###", "#D#"]
+    },
+    "cabin": {
+      "img": "Backgrounds/Tilesets/TilesetHouse.png",
+      "x": 304,
+      "y": 304,
+      "tw": 3,
+      "th": 3,
+      "grid": ["###", "###", "#D#"]
+    },
+    "shop": {
+      "img": "Backgrounds/Tilesets/TilesetHouse.png",
+      "x": 256,
+      "y": 0,
+      "tw": 3,
+      "th": 3,
+      "grid": ["###", "###", "#D#"]
+    },
+    "hut_straw": {
+      "img": "Backgrounds/Tilesets/TilesetHouse.png",
+      "x": 48,
+      "y": 128,
+      "tw": 3,
+      "th": 2,
+      "grid": ["###", "#D#"]
+    }
+  },
   "rooms": {
+    "plaster": { "img": "Backgrounds/Tilesets/Interior/TilesetWallSimple.png", "col": 0, "row": 0, "size": 5 },
+    "stone": { "img": "Backgrounds/Tilesets/Interior/TilesetWallSimple.png", "col": 0, "row": 6, "size": 5 },
+    "moss": { "img": "Backgrounds/Tilesets/Interior/TilesetWallSimple.png", "col": 5, "row": 6, "size": 5 },
     "wood": { "img": "Backgrounds/Tilesets/Interior/TilesetWallSimple.png", "col": 5, "row": 0, "size": 5 }
   },
   "fixtures": {

@@ -2,7 +2,7 @@
 // grid) to cut a sprite, a tile or a frame from it; and a sprite drawn alone, its frames played, its anchor
 // marked. Pure DOM and canvas.
 
-import { esc } from './ui.ts'
+import { esc, t } from './ui.ts'
 
 export interface Rect {
   x: number
@@ -56,15 +56,15 @@ export class Sheet {
 
   /** Draw it into a host element (the mode's panel, drawn anew on every change). */
   mount(host: HTMLElement): void {
-    if (!this.url) return void (host.innerHTML = '<p class="muted">No picture open: choose one above, from the project\'s or the pack\'s.</p>')
+    if (!this.url) return void (host.innerHTML = `<p class="muted">${t('No picture open: choose one above, from the project\'s or the pack\'s.')}</p>`)
     const img = this.img
     host.innerHTML = `<div class="sheet-bar">
       <code class="grow" title="${esc(this.path)}">${esc(this.path)}</code>${img ? `<small class="muted">${img.width}×${img.height}</small>` : ''}
-      <label class="inline">grid <input type="number" min="1" id="shGw" value="${this.grid.w}">×<input type="number" min="1" id="shGh" value="${this.grid.h}"></label>
-      <label class="inline">zoom <select id="shZoom">${[1, 2, 3, 4, 6, 8].map((z) => `<option ${z === this.zoom ? 'selected' : ''}>${z}</option>`).join('')}</select></label>
-      <span id="shSel" class="muted">${this.sel ? `x ${this.sel.x} y ${this.sel.y} · ${this.sel.w}×${this.sel.h}` : 'drag over it to cut'}</span>
+      <label class="inline">${t('grid')} <input type="number" min="1" id="shGw" value="${this.grid.w}">×<input type="number" min="1" id="shGh" value="${this.grid.h}"></label>
+      <label class="inline">${t('zoom')} <select id="shZoom">${[1, 2, 3, 4, 6, 8].map((z) => `<option ${z === this.zoom ? 'selected' : ''}>${z}</option>`).join('')}</select></label>
+      <span id="shSel" class="muted">${this.sel ? `x ${this.sel.x} y ${this.sel.y} · ${this.sel.w}×${this.sel.h}` : t('drag over it to cut')}</span>
     </div><div class="sheet-view"><canvas id="shCanvas"></canvas></div>`
-    if (!img) return void (host.querySelector('.sheet-view')!.innerHTML = `<p class="warn">The picture could not be loaded.</p>`)
+    if (!img) return void (host.querySelector('.sheet-view')!.innerHTML = `<p class="warn">${t('The picture could not be loaded.')}</p>`)
     const c = host.querySelector<HTMLCanvasElement>('#shCanvas')!
     const z = this.zoom
     c.width = img.width * z

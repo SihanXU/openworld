@@ -6,6 +6,8 @@
 import type { AffixTable } from './affixes.ts'
 
 export type Id = string
+/** The AI setting a learned answer was made at, and an event is answered at (quality.ts). */
+export type Tier = 'low' | 'medium' | 'high'
 export type Text = string | { en: string; zh?: string }
 
 export type Dir = 'up' | 'down' | 'left' | 'right'
@@ -43,6 +45,8 @@ export interface PixelArt {
 export interface TypeDef {
   id: string
   name?: Text
+  /** The one thing this kind was made for (the editor's "its own kind", docs/engine-split.md §16 E-b): rules on it are that thing's alone. The engine reads nothing from it. */
+  own?: Id
   /** Tags inherited by every instance (instances may add more). */
   tags?: string[]
   /** Default properties (instances may override). */
@@ -1651,6 +1655,8 @@ export interface RuleTest {
 
 /** A minimal self-contained world used for sandbox replay and rule tests. */
 export interface Scenario {
+  /** The AI tier the event is replayed at: which learned answers it may take (quality.ts; none: the engine's setting). */
+  tier?: Tier
   /** Terrain rows around the origin; default a 5x5 grass patch. */
   terrain?: string[][]
   entities: ScenarioEntity[]
@@ -1727,6 +1733,11 @@ export interface Rule {
    */
   hole?: string
   at?: string[]
+  /**
+   * A learned rule's tier: the AI setting it was answered at (quality.ts; none: medium). Each tier
+   * keeps its own trees; an answer serves its own tier and every lower one, never a higher.
+   */
+  tier?: Tier
   /** Ask the player first when their input chooses this rule ("Eat {instrument}?"). */
   confirm?: Text
   /**

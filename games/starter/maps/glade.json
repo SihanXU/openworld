@@ -1,7 +1,7 @@
 {
   "map": {
     "id": "glade",
-    "name": { "en": "The Glade", "zh": "林间空地" },
+    "name": "The Glade",
     "kind": "village",
     "width": 24,
     "height": 16,
@@ -23,16 +23,7 @@
       "T.........*............T",
       "TTTTTTTTTTTTTTTTTTTTTTTT"
     ],
-    "portals": [
-      {
-        "x": 18,
-        "y": 4,
-        "to": "cottage",
-        "tx": 3,
-        "ty": 4,
-        "label": { "en": "Mira's cottage", "zh": "米拉的小屋" }
-      }
-    ],
+    "portals": [{ "x": 18, "y": 4, "to": "cottage", "tx": 3, "ty": 4, "label": "Mira's cottage" }],
     "anchors": { "garden": [9, 3], "woodlot": [14, 9], "door": [18, 5], "pond": [5, 9] },
     "regions": { "pondside": [4, 7, 3, 5] },
     "light": "outdoor",
@@ -50,7 +41,7 @@
       "id": "glade.sign",
       "type": "fixture/sign",
       "place": { "on": "tile", "map": "glade", "x": 11, "y": 6 },
-      "props": { "text": "The Glade. Mira's cottage, north-east.", "text_zh": "林间空地。东北是米拉的小屋。" }
+      "props": { "text": "The Glade. Mira's cottage, north-east." }
     },
     {
       "id": "glade.stone1",
