@@ -1,0 +1,54 @@
+{
+ "sha": "efccf782b96d22d39c34c164bcfa7ae95e7faf5f",
+ "parent": "270988322be248ad1f0962295ae60a861a1e82ab",
+ "date": "2026-10-10T19:17:21Z",
+ "rung": "R3",
+ "lock": "874f46ad3e03e7bb9fe92ebf791fcb71be7f22b4",
+ "tests": [
+  "games/openworld/content/test/life.test.ts",
+  "games/starter/test/kernel.test.ts",
+  "packages/runtime/test/skillLayout.test.ts"
+ ],
+ "code": [
+  "games/openworld/content/src/game.ts",
+  "games/openworld/content/src/life.ts",
+  "packages/engine/src/effects.ts",
+  "packages/runtime/src/ui/skillLayout.ts",
+  "packages/runtime/src/ui/skilltree.ts"
+ ],
+ "lines": 31,
+ "areas": [
+  "content",
+  "engine",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "games/openworld/content/test/life.test.ts::smithing in an older save a Masterwork learned before the engine named the lift (`anvil:masterwork`) is the lift (`anvil:lift`) once loaded",
+  "games/starter/test/kernel.test.ts::a made thing's quality, as the game's data says it is the tier the maker's level reaches; the hand's lift takes it one tier up the game's own; a quality beyond reach comes by its own chance",
+  "packages/runtime/test/skillLayout.test.ts::the skill tree's layout 6 branches in a direction: every branch its panel, every skill placed, no two panels over each other",
+  "packages/runtime/test/skillLayout.test.ts::the skill tree's layout 9 branches in a direction: every branch its panel, every skill placed, no two panels over each other"
+ ],
+ "PASS_TO_PASS": [
+  "games/openworld/content/test/life.test.ts::agriculture a harvest: a root farmer gets two more roots, a farmer a seed more; picking by hand gives two to green fingers",
+  "games/openworld/content/test/life.test.ts::agriculture a seed saver digs up two seeds more; a market gardener sells for more, a seed merchant buys more",
+  "games/openworld/content/test/life.test.ts::agriculture a wide hoe tills the ground around; a sprinkler waters the crops around; irrigation keeps the water twice as long",
+  "games/openworld/content/test/life.test.ts::gathering a carpenter splits a log into three planks; a herbalist draws twice the good from a herb; a master angler brings up a fish more",
+  "games/openworld/content/test/life.test.ts::gathering a prospector gets an ore more from a vein; a heavy pick strikes harder; a stonecutter gets a stone more from a boulder",
+  "games/openworld/content/test/life.test.ts::husbandry a herdsman's feeding lasts two days; a stockman feeds the herd around; an egg collector's hen lays at once",
+  "games/openworld/content/test/life.test.ts::husbandry milk over a fire makes cheese (more for a cheesemaker); a butcher and a tanner take more from a cow; wheat makes feed (more for a feed maker)",
+  "games/openworld/content/test/life.test.ts::smithing ingots worked on an anvil with a hammer: the gear takes their metal; a weaponsmith's strikes harder, an armorsmith's guards better, a fine craftsman's is finer",
+  "games/openworld/content/test/life.test.ts::smithing ore and coal smelt to two bars at a forge (an efficient smelter gets twice that); steel and gold are for those who learned them",
+  "games/openworld/content/test/life.test.ts::the life branches have twenty nodes each gathering, agriculture, husbandry and smithing: twenty each, a capstone (two points) to each",
+  "games/starter/test/kernel.test.ts::the starter, on the kernel alone Mira keeps her day: the garden in the morning, the pond in the afternoon, her bed at night",
+  "games/starter/test/kernel.test.ts::the starter, on the kernel alone a bed taken hold of at night: one sleeps until it is time to rise",
+  "games/starter/test/kernel.test.ts::the starter, on the kernel alone a new game begins at its start, at its hour, and the story opens",
+  "games/starter/test/kernel.test.ts::the starter, on the kernel alone a save loads into the same world",
+  "games/starter/test/kernel.test.ts::the starter, on the kernel alone compiles without a problem",
+  "games/starter/test/kernel.test.ts::the starter, on the kernel alone loads no module, and the kernel needs none",
+  "games/starter/test/kernel.test.ts::the starter, on the kernel alone the axe is in the chest: opened, taken, it fells a tree into a stump and two logs",
+  "games/starter/test/kernel.test.ts::the starter, on the kernel alone the favour: spoken to, Mira asks for three logs; brought, they are handed in and rewarded",
+  "games/starter/test/kernel.test.ts::the starter, on the kernel alone the slime: the kernel's plain combat — it bites the folk, a blow is the striker's attack, felled it is gone",
+  "packages/runtime/test/skillLayout.test.ts::the skill tree's layout 4 branches in a direction: every branch its panel, every skill placed, no two panels over each other"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

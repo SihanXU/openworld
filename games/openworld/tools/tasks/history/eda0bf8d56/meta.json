@@ -1,0 +1,51 @@
+{
+ "sha": "eda0bf8d561809a39daf2b939cb4f1636722ce0b",
+ "parent": "1188e337d7e21efd4654e69136d61eab6160b1d0",
+ "date": "2026-10-01T23:17:03-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/content/test/controls.test.ts"
+ ],
+ "code": [
+  "packages/client/src/main.ts",
+  "packages/client/src/protocol.ts",
+  "packages/client/src/render/scene.ts",
+  "packages/client/src/ui/common.ts",
+  "packages/client/src/ui/hud.ts",
+  "packages/client/src/ui/menu.ts",
+  "packages/client/src/worker.ts",
+  "packages/content/src/story.ts",
+  "packages/engine/src/controls.ts",
+  "packages/engine/src/engine.ts",
+  "packages/engine/src/snapshot.ts",
+  "packages/engine/src/types.ts"
+ ],
+ "lines": 576,
+ "areas": [
+  "content",
+  "engine",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/content/test/controls.test.ts::completeness of the inputs an item in the bag is a target too (the context menu)",
+  "packages/content/test/controls.test.ts::completeness of the inputs each input makes exactly one event, of its own verb",
+  "packages/content/test/controls.test.ts::completeness of the inputs every (verb, instrument, target) is reachable from some input",
+  "packages/content/test/controls.test.ts::slots and the magnet the menu drops in front",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each E opens a container as a panel; the panel moves things through the rules",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each E talks to a person whatever is held; right click gives the held thing",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each F takes a loose item; right click places anything, tools included",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each an object used on bare ground is an experiment for the modder, not nothing",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each asks before sleeping (E) and before eating (left click on oneself)",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each experiments go to the Mod port: an object on a thing (left click), a bare hand (E)",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each left click works the ground with a tool",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each the chooser reaches any layer: the ground under a stick, the table under a pile",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each weapons strike (but on a person a blade is an interaction); a fist on a creature punches"
+ ],
+ "PASS_TO_PASS": [
+  "packages/content/test/controls.test.ts::slots and the magnet dropped items within two tiles fly into the bag",
+  "packages/content/test/controls.test.ts::slots and the magnet new kinds take free slots; the hand holds the selected stack; a changed held item keeps its slot",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each stepping onto a tile in some state with no rule for it is undefined (source 5)"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

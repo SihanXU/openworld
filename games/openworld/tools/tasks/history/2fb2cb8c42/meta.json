@@ -1,0 +1,49 @@
+{
+ "sha": "2fb2cb8c42fee3bd0ddc0058d72a893e39163f2f",
+ "parent": "f5d9e78986e2b6cfd55d439d864940d6619d34f8",
+ "date": "2026-10-08T14:24:37-04:00",
+ "rung": "R3",
+ "lock": "d8255c2c3962ee4efef4677fcd11300e4a95056d",
+ "tests": [
+  "packages/content/test/building.test.ts"
+ ],
+ "code": [
+  "packages/client/src/render/scene.ts",
+  "packages/engine/src/actives.ts",
+  "packages/engine/src/engine.ts",
+  "packages/engine/src/types.ts"
+ ],
+ "lines": 30,
+ "areas": [
+  "engine",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/content/test/building.test.ts::storeys: what one reaches, and where a thing goes (docs/building.md §6) stairs are a block one walks onto, then on the way they go up onto the storey above; back down the same way; onto them from the side too, never from behind"
+ ],
+ "PASS_TO_PASS": [
+  "packages/content/test/building.test.ts::a chest from a frame a hammer on a frame of two makes a crate",
+  "packages/content/test/building.test.ts::a chest from a frame an axe breaks up a chest: its contents spill and two planks come back; a locked one is not taken apart, only worn",
+  "packages/content/test/building.test.ts::a chest from a frame an axe takes a frame apart into its planks",
+  "packages/content/test/building.test.ts::a chest from a frame counts planks into a frame, reports progress, and a hammer makes a chest",
+  "packages/content/test/building.test.ts::a house walls, a door and a floor over them make a room round oneself; a bed makes it a bedroom; the door opens and shuts, and the room stays",
+  "packages/content/test/building.test.ts::storeys: what one reaches, and where a thing goes (docs/building.md §6) 5 the ceiling chosen is the one drawn at the point (the view says which, as `over`): laid and taken there",
+  "packages/content/test/building.test.ts::storeys: what one reaches, and where a thing goes (docs/building.md §6) 6.1 a floor on the ground covers it: laid again there is one already; not on water; under what stands there; taken, the ground shows again",
+  "packages/content/test/building.test.ts::storeys: what one reaches, and where a thing goes (docs/building.md §6) 6.1 the ceiling: laid from below only when chosen, held by the walls within reach, never over stairs; a floor put without choosing stays on one's storey",
+  "packages/content/test/building.test.ts::storeys: what one reaches, and where a thing goes (docs/building.md §6) 6.1–6.4 upstairs one reaches one's own storey: a floor laid into the open air where walls hold it, a wall set on the wall below; nothing of the storey below; E never meets the air",
+  "packages/content/test/building.test.ts::storeys: what one reaches, and where a thing goes (docs/building.md §6) 6.3 the ceiling is taken down from below only when chosen, and not while something rests on it",
+  "packages/content/test/building.test.ts::storeys: what one reaches, and where a thing goes (docs/building.md §6) a taller wall is built from the storey above, never set on a wall from below",
+  "packages/content/test/building.test.ts::storeys: what one reaches, and where a thing goes (docs/building.md §6) stairs in a room going up through a hole in the floor overhead are the room's own, lead to the storey above, and the stairwell's roof is laid from upstairs",
+  "packages/content/test/building.test.ts::storeys: what one reaches, and where a thing goes (docs/building.md §6) the inputs meet only the storey one stands on: below the floor overhead, E meets the wall, never the floor laid over it",
+  "packages/content/test/building.test.ts::storeys: what one reaches, and where a thing goes (docs/building.md §6) the left click builds: a built thing or a fixture in hand used on open ground, a floor, what is built or the ceiling is set down there as G sets it; elsewhere it stays an experiment",
+  "packages/content/test/building.test.ts::the build palette (B): setting things down a wall carried is set down as G sets it; with none carried, one is made from planks first; out of reach, nothing",
+  "packages/content/test/building.test.ts::the build palette (B): setting things down a workbench is made by hand from four planks and set down; what is made at a workbench is made beside it",
+  "packages/content/test/building.test.ts::the build palette on built things with none carried, a wall is made and set down, never on a wall below; a floor made and laid as the ceiling over walls",
+  "packages/content/test/building.test.ts::the same pattern a pickaxe takes a ring apart into its stones and sticks",
+  "packages/content/test/building.test.ts::the same pattern a ring of stones and two sticks make a campfire that lights",
+  "packages/content/test/building.test.ts::the same pattern a sign is built blank and written with a quill while carrying ink",
+  "packages/content/test/building.test.ts::the same pattern planks bridge shallow water, not deep water",
+  "packages/content/test/building.test.ts::the same pattern stakes make a fence"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

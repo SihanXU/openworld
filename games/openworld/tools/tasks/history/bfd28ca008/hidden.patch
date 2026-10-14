@@ -1,0 +1,199 @@
+diff --git a/packages/content/test/newtypes.test.ts b/packages/content/test/newtypes.test.ts
+index 26f5993..bf3531c 100644
+--- a/packages/content/test/newtypes.test.ts
++++ b/packages/content/test/newtypes.test.ts
+@@ -35,6 +35,8 @@ const ingot = (over: Partial<TypeDef> = {}): TypeDef => ({
+   id: 'item/material/iron_ingot',
+   name: { en: 'Iron Ingot', zh: '铁锭' },
+   tags: ['metal', 'conductive'],
++  props: { material: 'iron' },
++  makeup: [{ type: 'item/material/iron_ore', count: 1 }],
+   sprite: 'art:item/material/iron_ingot',
+   art: INGOT_ART,
+   ...over,
+@@ -82,6 +84,14 @@ describe('a patch that brings a new thing', () => {
+     expect(errors(ingot({ name: 'Iron Ingot' as never }))).toMatch(/both languages/)
+   })
+ 
++  it('says what it is made of (material and makeup), and is never a new kind of ground', () => {
++    const errors = (t: TypeDef) => check({ artifacts: [{ kind: 'type', type: t }, { kind: 'rule', rule: smelt(t.id) }] }).errors.join('\n')
++    expect(errors(ingot({ props: {} }))).toMatch(/props\.material/)
++    expect(errors(ingot({ makeup: undefined }))).toMatch(/makeup/)
++    expect(errors(ingot({ makeup: [{ type: 'item/material/iron', count: 1 }] }))).toMatch(/makeup\[0\]: unknown type "item\/material\/iron"/)
++    expect(errors(ingot({ id: 'tile/frost_crust', name: { en: 'Frost Crust', zh: '霜壳' } }))).toMatch(/new kind of ground/)
++  })
++
+   it('is not another name for something the world has', () => {
+     const coal = ingot({ id: 'item/material/black_rock', name: { en: 'Coal', zh: '黑石' } })
+     expect(check({ artifacts: [{ kind: 'type', type: coal }, { kind: 'rule', rule: smelt(coal.id) }] }).errors.join()).toMatch(/"item\/material\/coal" already is this thing/)
+@@ -110,6 +120,15 @@ describe('a patch that brings a new thing', () => {
+     expect(eng.world.player.slots![slot]).toBe(eng.controls.key(held))
+   })
+ 
++  it('can be crafted as soon as it is learned, when it says where it is made', () => {
++    const eng = buildSandbox(scenario, onto, lib())
++    const port = new ModPort(eng)
++    const nail = { id: 'item/material/iron_nail', name: { en: 'Iron Nail', zh: '铁钉' }, props: { material: 'iron' }, makeup: [{ type: 'item/material/iron_ore', count: 1 }], station: 'hands' } as TypeDef
++    expect(eng.recipes.has(nail.id)).toBe(false)
++    port.submit(undefined, { artifacts: [{ kind: 'type', type: nail }, { kind: 'rule', rule: { ...smelt(nail.id), id: 'patch/ore-to-nail' } }] })
++    expect(eng.recipes.get(nail.id)).toMatchObject({ needs: [{ type: 'item/material/iron_ore', count: 1 }], station: 'hands' })
++  })
++
+   it('points at what exists when a patch names a type that does not', () => {
+     expect(check({ artifacts: [{ kind: 'rule', rule: smelt('item/material/iron') }] }).errors.join()).toMatch(/unknown type "item\/material\/iron" — the closest known types: .*item\/material\/iron_ore/)
+   })
+diff --git a/packages/modder/test/modder.test.ts b/packages/modder/test/modder.test.ts
+index 3c4e969..5fabdc9 100644
+--- a/packages/modder/test/modder.test.ts
++++ b/packages/modder/test/modder.test.ts
+@@ -4,9 +4,9 @@ import { join } from 'node:path'
+ import { fileURLToPath } from 'node:url'
+ import type { AddressInfo } from 'node:net'
+ import { describe, expect, it } from 'vitest'
+-import { ModPort, RuleLibrary, buildSandbox, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond } from '@lsw/engine'
++import { ModPort, RuleLibrary, buildSandbox, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@lsw/engine'
+ import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+-import { Modder, ScriptedModel, SelfState, WorldLibrary, createModderServer, deriveTests, narrowKinds, parseJson, qualifyTerrains, scriptFromFile, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
++import { Modder, ScriptedModel, SelfState, WorldLibrary, createModderServer, freeLunch, laneOf, deriveTests, narrowKinds, parseJson, qualifyTerrains, scriptFromFile, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
+ 
+ const onto = buildOntology()
+ const BASE = [...BASE_RULES, ...STORY_RULES]
+@@ -419,6 +419,40 @@ describe('the OpenAI-compatible adapter', () => {
+   })
+ })
+ 
++describe('the economy check', () => {
++  /** A club (the workbench makes one from a log) used on a workbench comes apart into logs. */
++  const unmake = (logs: number): Rule => ({
++    id: 'patch/club-comes-apart',
++    host: { type: 'item/weapon/blunt/club' },
++    on: 'act/use',
++    doc: 'A club worked on a workbench comes apart into logs.',
++    tree: { if: { is: { role: 'target', sel: { type: 'fixture/craft/workbench' } } }, then: { do: [{ op: 'transform', into: 'item/material/log' }, ...(logs > 1 ? [{ op: 'spawn', type: 'item/material/log', at: 'host', count: logs - 1 } as Effect] : [])] } },
++  })
++
++  it('refuses a patch that, with the world\'s own conversions, makes something from nothing — and names them', () => {
++    const { library } = setup()
++    const res = library.validate(patchOf(unmake(2)))
++    expect(res.ok).toBe(false)
++    const msg = res.errors.join()
++    expect(msg).toMatch(/economy/)
++    expect(msg).toMatch(/recipe item\/weapon\/blunt\/club/)
++    expect(msg).toMatch(/rule patch\/club-comes-apart/)
++    expect(msg).toMatch(/leave more item\/material\/(log|plank) \(\+\d/)
++  })
++
++  it('accepts one that gives back what went in', () => {
++    const { library } = setup()
++    expect(library.validate(patchOf(unmake(1))).errors.filter((e) => /economy/.test(e))).toEqual([])
++  })
++
++  it('finds a gain that takes three steps, which no pair of them shows', () => {
++    const S = (name: string, takes: [string, number][], gives: [string, number][]) => ({ name, takes: new Map(takes), gives: new Map(gives) })
++    const lunch = freeLunch([S('a', [['A', 2]], [['B', 3]]), S('b', [['B', 2]], [['C', 3]]), S('c', [['C', 2]], [['A', 3]])])
++    expect(lunch?.uses.map((u) => u.step).sort()).toEqual(['a', 'b', 'c'])
++    expect(freeLunch([S('a', [['A', 1]], [['B', 2]]), S('b', [['B', 2]], [['A', 1]])])).toBeUndefined()
++  })
++})
++
+ describe('integrity', () => {
+   it('rejects a catch-all that would answer for anything at all', () => {
+     const { library } = setup()
+@@ -637,7 +671,7 @@ describe('the router: local, then find, then create', () => {
+   /** A creature offered rope leaves something behind: the router's answers are scripted by what each call shows. */
+   // (once, then not for a while: a yield costs its host — the repeat check, world-model.md §8.4)
+   const leaves = (type: string): Rule => ({ id: 'patch/rope-on-creature-leaves', host: { type: 'actor/creature' }, on: 'impulse/offered', doc: `A creature offered rope leaves ${type} behind, and not again for a while.`, tree: { if: { all: [FIBER, { not: { has: { role: 'host', status: 'stirred' } } }] }, then: { do: [{ op: 'spawn', type, at: 'host' }, { op: 'addStatus', status: 'stirred' }, { op: 'log', text: { en: 'Something drops.', zh: '掉下了东西。' } }] } } })
+-  const INGOT_TYPE = { id: 'item/material/iron_ingot', name: { en: 'Iron Ingot', zh: '铁锭' }, tags: ['metal'] }
++  const INGOT_TYPE = { id: 'item/material/iron_ingot', name: { en: 'Iron Ingot', zh: '铁锭' }, tags: ['metal'], props: { material: 'iron' }, makeup: [{ type: 'item/material/iron_ore', count: 1 }] }
+ 
+   function router(o: { local: unknown; find?: unknown; create?: unknown; art?: (n: number) => unknown; onArt?: () => void }) {
+     const seen: { purpose?: string; system: string; last: string }[] = []
+@@ -716,21 +750,40 @@ describe('the router: local, then find, then create', () => {
+     expect(t.sprite).toBeUndefined()
+   })
+ 
+-  it('designs one patch at a time, so the second request sees what the first committed', async () => {
+-    let busy = 0
+-    let most = 0
++  /** A scripted designer that counts how many designs run at once. */
++  function overlapping() {
++    const seen = { busy: 0, most: 0, designs: 0 }
+     const model = new ScriptedModel(async (messages, opts) => {
+       if (opts.purpose !== 'design') return opts.purpose === 'review' ? { verdict: 'ship' } : {}
+-      busy++
+-      most = Math.max(most, busy)
++      seen.busy++
++      seen.designs++
++      seen.most = Math.max(seen.most, seen.busy)
+       await new Promise((r) => setTimeout(r, 20))
+-      busy--
++      seen.busy--
+       return { patch: patchOf(noTestsRule(messages[1].content.includes('impulse/offered') ? bindRule() : { ...bindRule('patch/rope-used-on-creature'), on: 'act/use', host: { type: 'item/tool/rope' }, tree: { if: { is: { role: 'target', sel: { type: 'actor/creature' } } }, then: { do: [{ op: 'log', text: 'You wave the rope.' }] } } })) }
+     })
++    return { model, seen }
++  }
++
++  it('designs side by side when the patches would be written in different places (lanes)', async () => {
++    const { model, seen } = overlapping()
+     const { modder } = setup(model, undefined, 'live')
++    expect(laneOf(request())).not.toBe(laneOf(useRequest()))
+     const replies = await Promise.all([modder.resolve({ request: request() }), modder.resolve({ request: useRequest() })])
+     expect(replies.map((r) => r.outcome)).toEqual(['accepted', 'accepted'])
+-    expect(most).toBe(1)
++    expect(seen.most).toBe(2)
++  })
++
++  it('queues requests in one lane, so the later one is answered by what the earlier committed', async () => {
++    const { model, seen } = overlapping()
++    const { modder } = setup(model, undefined, 'live')
++    // a slime and a wolf offered rope: two classes, one lane (impulse/offered on a creature)
++    const wolf = request('actor/creature/beast/wolf')
++    expect(laneOf(wolf)).toBe(laneOf(request()))
++    const replies = await Promise.all([modder.resolve({ request: request() }), modder.resolve({ request: wolf })])
++    expect(replies.map((r) => r.outcome).sort()).toEqual(['accepted', 'covered'])
++    expect(seen.most).toBe(1)
++    expect(seen.designs).toBe(1)
+   })
+ })
+ 
+diff --git a/packages/tools/test/economy.test.ts b/packages/tools/test/economy.test.ts
+index 9e46a40..17890b5 100644
+--- a/packages/tools/test/economy.test.ts
++++ b/packages/tools/test/economy.test.ts
+@@ -1,6 +1,7 @@
+ import { describe, expect, it } from 'vitest'
+ import { OntologyIndex, RuleLibrary, buildSandbox, performPlacement, type Effect, type Rule, type Tree } from '@lsw/engine'
+ import { BASE_RULES, BUILDINGS, RECIPES, RECOVERY, STORY_RULES, TERRAINS, WILD_GROUNDS, buildOntology, decodeChunk, wildChunk } from '@lsw/content'
++import { economySteps, freeLunch } from '@lsw/modder'
+ import { buildFord } from '../src/demo/world.ts'
+ 
+ // The economy (world-model.md §6.4, §10.2, D23): what is built and broken back returns no more
+@@ -70,6 +71,10 @@ describe('the economy (world-model.md §10.2)', () => {
+     expect(gains).toEqual([])
+   })
+ 
++  it('no mix of steps, of any length, makes more of anything than it takes (a linear programme)', () => {
++    expect(freeLunch(economySteps(onto, [...lib().rules.values()], RECOVERY))).toBeUndefined()
++  })
++
+   it('build and break back: each building, broken, returns no more of anything than went into it', () => {
+     const over: string[] = []
+     for (const b of BUILDINGS) {
+diff --git a/packages/tools/test/yield.test.ts b/packages/tools/test/yield.test.ts
+index e566fc5..35124ff 100644
+--- a/packages/tools/test/yield.test.ts
++++ b/packages/tools/test/yield.test.ts
+@@ -60,8 +60,11 @@ describe('no endless yield (world-model.md §8.4)', () => {
+     expect(errs({ props: { maxHp: 8, material: 'crystal' } })).toMatch(/makeup/)
+     expect(errs({ props: { maxHp: 8, material: 'unobtainium' } })).toMatch(/not a material/)
+     expect(errs({ props: { maxHp: 8, material: 'crystal' }, makeup: [{ type: 'item/gem', count: 1 }] })).not.toMatch(/material|makeup/)
+-    // one that cannot break (no maxHp) needs neither
+-    expect(errs({})).not.toMatch(/material|makeup/)
++    // one that cannot break says so too: every new thing is made of something (world-model.md §8.3), so it
++    // can be crafted, broken and recovered like the world's own
++    expect(errs({})).toMatch(/props\.material/)
++    expect(errs({ props: { material: 'crystal' } })).toMatch(/makeup/)
++    expect(errs({ props: { material: 'crystal' }, makeup: [{ type: 'item/gem', count: 1 }] })).not.toMatch(/material|makeup/)
+   })
+ 
+   it('the base library: every act any input makes, on anything the player can face, stops yielding when repeated', () => {

@@ -2,7 +2,8 @@
 
 Status: **agreed (2026-10-14)**: the four decisions in §2, then the recommendations of §11 (Q0–Q5),
 agreed with the user the same day. Built so far: §10 steps 1 and 2 — the pool counted (§4.1: the
-agreed pool does not exist yet, so Q0 is open again) and the SWE faults F1–F4 fixed (§4.3).
+agreed pool did not exist, so Q0 was decided again: A + B, A's miner in fresh-pool.md, proposed) and
+the SWE faults F1–F4 fixed (§4.3).
 
 This document turns the paper's second claim (rsi.md §1, the paper's §2.9) into experiments: what
 is measured, on what, from which self-states, with which controls, and what must be fixed in the
@@ -145,14 +146,15 @@ duckdb 12). **Q0 is open again**, with these choices:
 
 | | Choice | Size now | Decontaminated | Cost |
 |---|---|---|---|---|
-| A | **Mine fresh Python tasks ourselves**, SWE-rebench's way: merged pull requests created after 2026-07-16 that resolve an issue and change tests, in repositories whose environments SWE-rebench already built (their `install_config` and images), kept if a test goes from failing to passing in Docker; the statement is the real issue's text, so no model is called | unknown until mined; SWE-rebench's filters kept 40–110 a month for its leaderboard, several hundred a month for V2 — three months since the release suggests 150–600 | by date | the Linux host's time; the same validation core as the ladder's miner (§5.3) |
+| A | **Mine fresh Python tasks ourselves**, SWE-rebench's way: merged pull requests created after 2026-07-16 that resolve an issue and change tests, in repositories whose environments SWE-rebench already built (their `install_config` and images), kept if a test goes from failing to passing in Docker; the statement is the real issue's text, so no model is called | unknown until mined; a sample of 50 repositories found 589 candidates, about 5,000 over the 427 with recent recipes, before validation (docs/fresh-pool.md §2) | by date | the Linux host's time and disk; the same method as the ladder's miner (§5.3) |
 | B | **Take the 133 now** as the first slice, and add to it as A or the public datasets bring more | 133 (about 8–9 pp detectable, §4.6) | by date | none |
 | C | **Move the date back** (from 2026-03: 110 Python tasks of SWE-rebench and about 650 of MultiLang) | ~760 | unknown: K3's training cut-off is not published | none |
 | D | **Wait** for the next public releases (now about two months behind for SWE-rebench's leaderboard and MultiLang, a year for SWE-bench-Live's Python set) | — | by date | time |
 
 Recommendation: **A, with B as its first slice** (the pilot's five come from B). A is the only
 choice that gives a Python pool of the agreed size that the model cannot have seen, it keeps growing
-as the experiment runs, and most of it is the machinery the ladder needs anyway.
+as the experiment runs, and its method is the ladder's. **Agreed 2026-10-14**; A's miner is designed
+in [fresh-pool.md](fresh-pool.md).
 
 ### 4.2 How the agent meets it
 
@@ -221,6 +223,17 @@ Not yet checked against real Docker: the pilot (§4.4) does that on the Linux ho
 - **Gates to go on**: the chain holds on at least 23 of 25 instances in every arm; the tuned arm
   submits on at least 18 of 25; the cost per instance is known. Otherwise fix and repeat the pilot.
 - **Cost**: about 75 agent episodes, on the order of $10–50 (§8).
+- **Frozen** as `bench/pools/pilot.json` (`python bench/pool.py pilot`): 20 Verified tasks (scikit-learn,
+  astropy and matplotlib three each, django four, sphinx three, sympy and xarray two each; 7 under 15
+  minutes, 9 of 15 minutes to an hour, 4 of 1–4 hours) and one MultiLang task each in C, C++, C#, Java and
+  JavaScript. On the host:
+
+```bash
+python bench/pool.py fetch bench/pools/pilot.json                     # → var/bench/pilot.instances.jsonl
+npm run agent -- preset naive --state var/rsi/naive
+LSW_MODEL_PIN=moonshotai npm run agent -- swe --instances var/bench/pilot.instances.jsonl --state var/rsi/naive --env docker --workers 4 --out var/pilot/naive-1.jsonl
+python bench/evaluate.py bench/pools/pilot.json var/pilot/naive-1.jsonl --run-id naive-1   # the benchmarks' own harnesses
+```
 
 ### 4.5 The t0 baseline
 
@@ -319,7 +332,7 @@ requirements and interface ([SWE-bench](https://arxiv.org/abs/2310.06770),
    diff and the test changes, as a bug report or feature request **without the solution**; with a
    *Requirements* and an *Interface* section naming the symbols and files the hidden tests import
    (as SWE-bench Pro does), since a test that imports a new function is unsolvable without its name.
-   The writer is not the frozen agent model (Opus 5.5 through `claude-code`, if the agent is Kimi K3).
+   The writer is not the frozen agent model (Sonnet 5.5 through `claude-code`, billed to the API key, since the agent is Kimi K3).
 5. **Leakage checks**: no line of the gold patch's added code in the issue (an n-gram check), no test
    name that gives the answer away, and a person reads 20 issues at random before the first run.
 6. **The task**: `games/openworld/tools/tasks/history/<sha>/` with `ISSUE.md`, `meta.json` (commit,
@@ -330,10 +343,37 @@ requirements and interface ([SWE-bench](https://arxiv.org/abs/2310.06770),
 The miner is a generalization of `engineWorkspace` and `engineTask`: the same workspace, the same
 verdict, at any commit.
 
+**As built (2026-10-14)** — `games/openworld/tools/src/ladder.ts` (`npm run ladder -- candidates | validate |
+issues | status`), tested in `games/openworld/tools/test/ladder.test.ts`:
+- **candidates**: 144 commits on `origin/main` (R1 4, R2 29, R3 47, R4 64; 11 lockfiles), each with its parent,
+  test files, code files, rung and the parent's lockfile.
+- **the workspace** of a parent: `git archive` of what tests need (the packages and games and their configs —
+  not the docs, the wiki, the served assets, nor `games/openworld/tools/tasks`, so no task's hidden tests are
+  in another's workspace), LF throughout, a repository of its own; the dependencies of its lockfile installed
+  once (`var/ladder/deps/<lock>`, `npm ci`) and linked in, its own packages to its own copies.
+- **validate**: the test changes alone, three runs of the commit's test files (vitest's JSON report); the
+  whole commit, three more; FAIL_TO_PASS, PASS_TO_PASS and regressions by the fresh pool's rule. Our own code,
+  so it runs on this machine; the agent that works the tasks runs only in a container.
+- **issues**: a model (the configured backend; Sonnet 5.5 through `claude-code` for these, on the API key) writes each validated
+  commit's issue from the commit message, its pull request, the change and the test changes, with
+  Requirements and an Interface section; an issue that quotes six consecutive added lines of the change is
+  asked again, then dropped. A task is `games/openworld/tools/tasks/history/<sha>/`: `ISSUE.md`, `meta.json`,
+  `hidden.patch`.
+- **the task** (`historyTask`, `historySource`): the parent's workspace, the commit's test files as they were for
+  the agent to run, and the verdict — the hidden test changes applied, every FAIL_TO_PASS and PASS_TO_PASS test
+  passing; the curriculum works one every other step (`npm run curriculum -- --ladder [--until <day>]`), and the
+  outer loop replays them.
+
 ### 5.4 Yield and a fallback
 
-The share of the 140 that survive validation is not measured; it is the miner's first output.
-Planning figure: half. **If fewer than 40 tasks survive across R2–R4**, the ladder is topped up by
+**Measured (2026-10-14):** of the 144 candidates (R1 4, R2 29, R3 47, R4 64), **125 validated** — R1 3,
+R2 23, R3 46, R4 53 — with a median of 6 FAIL_TO_PASS tests (at most 177); dropped: 7 with no test going from
+failing to passing, 5 where a test that passed before fails after, 5 whose tests do not run headless, 1 slower
+than five minutes a run, 1 whose test changes lie in `games/openworld/tools/tasks` (kept out of workspaces). All
+125 issues are Sonnet 5.5's (through `claude -p`, on the API key), a median of about 1,000 words; none quotes six
+consecutive lines of its change or names a hidden test file. The person's reading of 20 (§5.3, 5) is
+`npm run ladder -- review` → `var/ladder/review.md`. The planning figure was half; the fallback below is not
+needed. **If fewer than 40 tasks survive across R2–R4**, the ladder is topped up by
 injected bugs on the current tree (SWE-smith's method, [arXiv 2504.21798](https://arxiv.org/abs/2504.21798):
 break a function the tests cover, keep it if a passing test then fails, the issue written from the
 diff and the failing test), labelled as synthetic and kept out of H4's held-out sets.
@@ -393,6 +433,21 @@ docs/paper-eval.md when it lands).
 F answers H3. Its budget is matched to G episode for episode, so the only difference is what the
 world posed.
 
+### 6.4 As built (2026-10-14)
+
+`games/openworld/tools/src/rsi.ts` (`npm run rsi -- plan | milestone | heldout <tag> --arm G|F`), its plan tested in
+`games/openworld/tools/test/rsi.test.ts`:
+- the milestones are the tags `world-v*`, by their commits' dates; a milestone's window is the ladder tasks dated
+  after the previous tag and up to this one;
+- **held-out**: the arm's previous snapshot and the naive start (the naive harness, no memory, no skills), each a
+  throwaway fork, on the window's tasks, nothing recorded → `var/rsi/<arm>/heldout/<tag>.jsonl`;
+- **curriculum**: `npm run curriculum -- --ladder --until <date> --improve-every 10` in the arm's world — G this
+  checkout at the tag, F a checkout of `world-v0` (`--world`; a `git worktree` with its own `npm ci`) and the
+  ladder up to `world-v0` only; `--episodes` (default 200) sets its steps, about 1.5 episodes each;
+- **snapshot** `<tag>` with its meta (arm, tag, commit, date, the world's commit, the pin, the window), and
+  `var/rsi/<arm>/runs/<tag>/RUN.md`: the benchmark's commands on the measured pool for the team;
+- a run refuses to start without `LSW_MODEL_PIN` (`--no-pin` for a smoke test).
+
 ## 7. Guard rails kept
 
 Unchanged from rsi.md §6: the judges (the validator, the hidden tests, the replay sets, the
@@ -438,6 +493,10 @@ the benchmark runs: the pool's size sets most of it, and the pilot narrows the r
 | T-R4 | the outer loop: proposals by kind, kept and rejected, the replay numbers | the journal |
 | — | what transferred: a lesson, a skill, a hook, with the episodes that formed it and the benchmark instances it was used on | the self-state |
 
+*Built (2026-10-14):* `npm run rsi -- report` (`games/openworld/tools/src/rsi-report.ts`) writes T-R1, T-R3 and T-R4 from
+what the milestones leave under `var/rsi/<arm>/` — the benchmark's verdicts and records, the held-out ladder, the
+journal's proposals — with every comparison paired task by task (McNemar's exact test, against naive at `world-v0`).
+
 ## 10. Build steps, once agreed
 
 1. **The pool** (§4.1): count the SWE-rebench and SWE-bench-Live tasks created after 2026-07-16 that
@@ -446,9 +505,10 @@ the benchmark runs: the pool's size sets most of it, and the pilot narrows the r
 2. **SWE fixes F1–F4** (§4.3), checked on three Verified instances by hand. *Fixed and tested with a
    stand-in for docker on 2026-10-14; the check on real images is the pilot's.*
 3. **The pilot** (§4.4), and its gates.
-4. **The miner** (§5.3): candidates, environments, validation, issues, leakage checks; its yield.
+4. **The miner** (§5.3): candidates, environments, validation, issues, leakage checks; its yield. *Built
+   2026-10-14 (§5.3, As built).*
 5. **The milestone runner**: one command for §6.2 steps 1–5 (`npm run rsi -- milestone world-vN`),
-   the run manifest (§3), the arms of §6.3.
+   the run manifest (§3), the arms of §6.3. *Built 2026-10-14 (§6.4).*
 6. **`world-v0`**: the tag, the t0 baseline handed to the team.
 
 Each step is built and smoke-tested at the smallest size before anything larger runs.
@@ -457,7 +517,7 @@ Each step is built and smoke-tested at the smallest size before anything larger 
 
 | # | Question | Recommendation |
 |---|---|---|
-| Q0 | The measured benchmark, now that Verified is saturated and contaminated (§4.1) | agreed: SWE-rebench and SWE-bench-Live tasks created after Kimi K3's release, frozen at `world-v0`, 300 or more; Verified for the pilot only. **Open again**: no such Python task is published yet (§4.1, counted); recommendation A + B there |
+| Q0 | The measured benchmark, now that Verified is saturated and contaminated (§4.1) | agreed: SWE-rebench and SWE-bench-Live tasks created after Kimi K3's release, frozen at `world-v0`, 300 or more; Verified for the pilot only. **Reopened** (no such Python task is published yet, §4.1) and **agreed again as A + B**: Python tasks mined after the release (fresh-pool.md), the 133 of MultiLang as the first slice |
 | Q1 | The model (§3) | Kimi K3, Moonshot's provider only |
 | Q2 | The budget ceiling, and the OpenRouter top-up | fix it after the pilot prices a task; the range now is $700–6,000, set mostly by the pool's size |
 | Q3 | A second, language-matched benchmark (§4.6) | yes, if it costs no more than one arm per milestone: the TypeScript and JavaScript tasks of SWE-bench-Live created after the model's release; Multi-SWE-bench's only if that is too few, reported as possibly seen |

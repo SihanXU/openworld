@@ -1,0 +1,45 @@
+{
+ "sha": "8754b3068237cf40e8d650304c839a18ecb0d9ec",
+ "parent": "494af5b73b5c5971d47d0ff521456928d8f73925",
+ "date": "2026-10-06T23:09:02-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/tools/test/play-session.test.ts"
+ ],
+ "code": [
+  "packages/client/src/main.ts",
+  "packages/client/src/protocol.ts",
+  "packages/client/src/ui/hud.ts",
+  "packages/client/src/worker.ts",
+  "packages/content/src/prologue.ts",
+  "packages/engine/src/controls.ts",
+  "packages/engine/src/mod.ts",
+  "packages/engine/src/npc.ts"
+ ],
+ "lines": 128,
+ "areas": [
+  "content",
+  "engine",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/tools/test/play-session.test.ts::the inputs, the fairy G sets the wall down where the fairy hovers (a flyer the key has nothing to do with is not in the way); E still talks to it",
+  "packages/tools/test/play-session.test.ts::the people a person on their round holds it a few turns for one who stands beside them and faces them (a gift is not a chase), then goes on",
+  "packages/tools/test/play-session.test.ts::the world a late answer completes an act that timed out, but not one the player declined to wait for (they moved on)"
+ ],
+ "PASS_TO_PASS": [
+  "packages/tools/test/play-session.test.ts::the frame a creature is hostile by what it would do, not by whether it is chasing this moment",
+  "packages/tools/test/play-session.test.ts::the frame a learned status may draw only what the world can draw",
+  "packages/tools/test/play-session.test.ts::the frame a status draws what its data names: a lit fire carries its flame",
+  "packages/tools/test/play-session.test.ts::the frame names the stations within reach: a workbench beside the player, none away from it",
+  "packages/tools/test/play-session.test.ts::the inputs what lies on a cart comes before the cart, however small it is drawn (F takes the wand, not nothing)",
+  "packages/tools/test/play-session.test.ts::the world a companion struck by the one it follows is hurt as by any blow, and says so: it is no silent target",
+  "packages/tools/test/play-session.test.ts::the world a key acts on whom its label named: a merchant who stepped off the spot still gets the bread",
+  "packages/tools/test/play-session.test.ts::the world a made thing is not named twice by its material (a 木桶 of wood stays a 木桶)",
+  "packages/tools/test/play-session.test.ts::the world a thing that reaches the bag without an input (a scene gives bread) takes a slot",
+  "packages/tools/test/play-session.test.ts::the world health stops at nothing: a blow far past it fells, and leaves no debt",
+  "packages/tools/test/play-session.test.ts::the world the player's own act waiting for its outcome is what the host stops the world for; the world's own questions are not"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

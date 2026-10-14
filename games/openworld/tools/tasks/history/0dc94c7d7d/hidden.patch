@@ -1,0 +1,83 @@
+diff --git a/packages/client/test/depth.test.ts b/packages/client/test/depth.test.ts
+new file mode 100644
+index 0000000..a0fe028
+--- /dev/null
++++ b/packages/client/test/depth.test.ts
+@@ -0,0 +1,77 @@
++// The draw order (render/depth.ts): what is drawn over what, whatever was made first.
++
++import { describe, expect, it } from 'vitest'
++import { depthOf, footOf, type Drawn } from '../src/render/depth.ts'
++import { T } from '../src/assets/ground.ts'
++
++const floor = (y: number, z = 0): Drawn => ({ y, z, tags: [], spaces: ['floor'] })
++const wall = (y: number, z = 0): Drawn => ({ y, z, tags: [], spaces: ['volume'] })
++const fixture = (y: number, z = 0): Drawn => ({ y, z, tags: [], spaces: ['volume'] }) // a campfire, a chest, stairs
++const bed = (y: number, z = 0): Drawn => ({ y, z, tags: ['portable'] }) // furniture one carries
++const item = (y: number, z = 0): Drawn => ({ y, z, tags: ['portable'] })
++const body = (y: number, z = 0): Drawn => ({ y, z, tags: ['agent'] })
++const fairy = (y: number, z = 0): Drawn => ({ y, z, tags: ['agent', 'airborne'] })
++
++describe('the draw order (depth.ts)', () => {
++  it('a floor laid on the ground is part of the ground: under all that stands on it, over what lies flat', () => {
++    const moss = depthOf({ y: 5, tags: [] }, { ground: true })
++    for (const thing of [fixture(5), wall(5), bed(5), item(5), body(5), fixture(4), body(3)]) expect(depthOf(floor(5))).toBeLessThan(depthOf(thing))
++    expect(depthOf(floor(5))).toBeGreaterThan(moss)
++    // the same whichever row: a floor never ties with what stands (no order left to the order of making)
++    expect(depthOf(floor(9))).toBe(depthOf(floor(2)))
++  })
++
++  it('in one cell: the slab, a built block or fixture, what lies loose on it, a body', () => {
++    for (const z of [0, 1, 2]) {
++      const order = [floor(5, z), fixture(5, z), item(5, z), body(5, z)].map((d) => depthOf(d))
++      expect([...order].sort((a, b) => a - b)).toEqual(order)
++      expect(new Set(order).size).toBe(order.length)
++    }
++  })
++
++  it('a storey up: the slab over the wall that holds it, under what stands on it; the row south in front of all', () => {
++    expect(depthOf(floor(5, 1))).toBeGreaterThan(depthOf(wall(5, 0)))
++    expect(depthOf(floor(5, 1))).toBeLessThan(depthOf(bed(5, 1)))
++    expect(depthOf(floor(5, 1))).toBeLessThan(depthOf(wall(5, 1)))
++    expect(depthOf(floor(5, 1))).toBeLessThan(depthOf(body(5, 1)))
++    // a body under its ceiling is drawn under it (and the ceiling is hidden over the room one is in)
++    expect(depthOf(body(5, 0))).toBeLessThan(depthOf(floor(5, 1)))
++    for (const upstairs of [floor(5, 1), bed(5, 1), body(5, 1), wall(5, 2)]) expect(depthOf(upstairs)).toBeLessThan(depthOf(body(6, 0)))
++  })
++
++  it('by the row first: what stands south is in front of what stands north, whatever it is', () => {
++    expect(depthOf(fixture(6))).toBeGreaterThan(depthOf(body(5)))
++    expect(depthOf(body(6))).toBeGreaterThan(depthOf(wall(5, 1)))
++    // a tree is drawn at (y+1)·T − 1: behind a body in its row, in front of one in the row behind
++    const tree = (y: number) => (y + 1) * T - 1
++    expect(depthOf(body(5))).toBeGreaterThan(tree(5))
++    expect(depthOf(body(4))).toBeLessThan(tree(5))
++  })
++
++  it('a body on the move is ordered by where it is drawn, kept within a row of its cell', () => {
++    // stepping north from row 6 to row 5 beside a tree in row 6: in front of it until it gets there
++    const tree = (6 + 1) * T - 1
++    const at = (drawn: number) => depthOf(body(5), { foot: footOf(5, drawn) })
++    expect(at(7 * T)).toBeGreaterThan(tree)
++    expect(at(7 * T - 2)).toBeGreaterThan(tree)
++    expect(at(6 * T)).toBeLessThan(tree)
++    // its order only grows as it goes south, and is its cell's once there
++    let last = -Infinity
++    for (let drawn = 5 * T; drawn <= 7 * T; drawn += 0.5) {
++      const d = at(drawn)
++      expect(d).toBeGreaterThanOrEqual(last)
++      last = d
++    }
++    expect(at(6 * T)).toBe(depthOf(body(5)))
++    // lagging far behind (or a storey's lift jumping on the stairs) it stays within a row of its cell
++    expect(footOf(5, 12 * T)).toBe(7 * T)
++    expect(footOf(5, 0)).toBe(5 * T)
++  })
++
++  it('one flying over a building is over its roof; on the ground beside it, as anyone', () => {
++    const roof = (8 + 1) * T - 2 // a house whose last solid row is 8
++    expect(depthOf(fairy(6), { roof })).toBeGreaterThan(roof)
++    expect(depthOf(body(6), { roof })).toBeLessThan(roof) // only what flies is over it
++    expect(depthOf(fairy(9))).toBeGreaterThan(roof) // south of it, in front anyway
++  })
++})

@@ -1,0 +1,47 @@
+{
+ "sha": "564fdcf0806887586ffac8aee16f9f8fd3e3c084",
+ "parent": "fe1d7e832943e4d5831f98e9daa2cad288317fe8",
+ "date": "2026-10-03T22:30:05-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/content/test/controls.test.ts"
+ ],
+ "code": [
+  "packages/client/src/assets/catalog.ts",
+  "packages/client/src/ui/hud.ts",
+  "packages/engine/src/controls.ts",
+  "packages/tools/src/art/hud.ts"
+ ],
+ "lines": 58,
+ "areas": [
+  "engine",
+  "runtime",
+  "tools"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/content/test/controls.test.ts::the four inputs: one verb each a pointer on the tile but beside a small sprite still meets what lies there, not the bare ground"
+ ],
+ "PASS_TO_PASS": [
+  "packages/content/test/controls.test.ts::completeness of the inputs an item in the bag is a target too (the context menu)",
+  "packages/content/test/controls.test.ts::completeness of the inputs each input makes exactly one act, of its own verb (a bare left click is a hand)",
+  "packages/content/test/controls.test.ts::completeness of the inputs every (verb, instrument, target) is reachable from some input",
+  "packages/content/test/controls.test.ts::hunger drains over time, food restores it, well fed heals, starving hurts but never takes the last point",
+  "packages/content/test/controls.test.ts::slots and the magnet dropped items within two tiles fly into the bag (an act of taking)",
+  "packages/content/test/controls.test.ts::slots and the magnet new kinds take free slots; the hand holds the selected stack; a held item an outcome changed keeps its slot",
+  "packages/content/test/controls.test.ts::slots and the magnet the bag holds three rows; Tab brings the next row to the toolbar, Shift+click moves a stack across",
+  "packages/content/test/controls.test.ts::slots and the magnet the menu drops in front (an act of putting)",
+  "packages/content/test/controls.test.ts::the attack key strikes straight ahead with the held weapon; held down, the cooldown paces the blows",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each E opens a container as a panel; the panel moves things by acts of taking and putting",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each E talks to a person whatever is held; right click gives the held thing",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each F takes a loose item; right click places anything, tools included",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each an object used on bare ground is an experiment for the modder, not nothing",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each asks before eating (left click on oneself), and eats on yes",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each experiments go to the Mod port: an object on a thing (left click), a bare hand (E)",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each left click works the ground with a tool: the hoe strikes, the ground answers",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each stepping onto a tile is contact: no change unless the tile says (nothing asked); a burning tile burns who steps on it",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each the chooser reaches any layer: the ground under a stick, the table under a pile",
+  "packages/content/test/controls.test.ts::the four inputs: one verb each weapons strike (but on a person a blade is not a blow); a fist on a creature punches"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

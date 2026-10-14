@@ -1,0 +1,30 @@
+{
+ "sha": "5de300c176afc4b4aab99156c4ceacb80f2a4afe",
+ "parent": "fda5d35b8fbc1da678cee8db17c324dca28ba3da",
+ "date": "2026-10-05T00:52:36-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/tools/test/rest.test.ts"
+ ],
+ "code": [
+  "packages/client/src/render/scene.ts",
+  "packages/content/src/ontology.ts",
+  "packages/content/src/prologue.ts",
+  "packages/engine/src/effects.ts",
+  "packages/engine/src/engine.ts",
+  "packages/engine/src/types.ts"
+ ],
+ "lines": 39,
+ "areas": [
+  "content",
+  "engine",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/tools/test/rest.test.ts::a night in bed an empty stomach: hunger wakes one in the night, hurt by a point, and one can get up",
+  "packages/tools/test/rest.test.ts::a night in bed passes at once, asleep, and costs a quarter of the hunger a waking night would"
+ ],
+ "PASS_TO_PASS": [],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

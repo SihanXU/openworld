@@ -1,0 +1,54 @@
+diff --git a/packages/tools/test/skills.test.ts b/packages/tools/test/skills.test.ts
+index 76f6a38..a3f584b 100644
+--- a/packages/tools/test/skills.test.ts
++++ b/packages/tools/test/skills.test.ts
+@@ -1,7 +1,7 @@
+ import { describe, expect, it } from 'vitest'
+ import { Engine, Game, RuleLibrary, buildSandbox, cannotLearn, combatDelay, combatStrike, snapshot, type Ref, type Scenario } from '@lsw/engine'
+ import { BASE_RULES, SKILLS, SKILL_DIRECTIONS, SKILL_BRANCHES, SKILL_BY_ID, skillsForProfession, branchesForProfession, buildOntology } from '@lsw/content'
+-import { layoutBranches, layoutSkills } from '../../client/src/ui/skillLayout.ts'
++import { layoutBranches, layoutSkills, layoutTree } from '../../client/src/ui/skillLayout.ts'
+ import { buildFord } from '../src/demo/world.ts'
+ import { FRONT, ORIGIN } from '../src/coverage.ts'
+ 
+@@ -50,10 +50,15 @@ describe('the skill tree', () => {
+       const nodes = layoutSkills(SKILLS, direction.id, 'assassin')
+       expect([...hubs.keys()]).toEqual(SKILL_BRANCHES.filter((b) => b.direction === direction.id).map((b) => b.id))
+       expect([...nodes.keys()].sort()).toEqual(skillsForProfession('assassin').filter((s) => hubs.has(s.branch)).map((s) => s.id).sort())
++      // the start in the middle, each branch growing its own way: a skill lies farther out that way than what it needs
++      const ways = layoutTree(SKILLS, direction.id, 'assassin').ways
++      const out = (p: { x: number; y: number }, branch: string) => ({ up: -p.y, down: p.y, left: -p.x, right: p.x })[ways.get(branch)!]
++      expect(new Set(ways.values())).toEqual(new Set(['left', 'right', 'up', 'down']))
++      for (const b of hubs.keys()) expect(out(hubs.get(b)!, b)).toBeGreaterThan(0)
+       for (const s of SKILLS.filter((s) => nodes.has(s.id))) {
+         const child = nodes.get(s.id)!
+         for (const parent of s.requires?.length ? s.requires.map((r) => nodes.get(r)!) : [hubs.get(s.branch)!])
+-          expect(Math.hypot(child.x, child.y)).toBeGreaterThan(Math.hypot(parent.x, parent.y))
++          expect(out(child, s.branch)).toBeGreaterThan(out(parent, s.branch))
+       }
+     }
+     const combat = skillsForProfession('assassin').filter((s) => layoutBranches('combat').has(s.branch))
+@@ -70,10 +75,19 @@ describe('the skill tree', () => {
+       for (const r of SKILL_BY_ID[id].requires ?? []) visit(r, new Set([...seen, id]))
+     }
+     for (const s of SKILLS) visit(s.id)
+-    for (const direction of SKILL_DIRECTIONS) {
+-      const places = [...layoutSkills(SKILLS, direction.id).values(), ...layoutBranches(direction.id).values()]
+-      for (let i = 0; i < places.length; i++) for (const p of places.slice(i + 1)) expect(Math.hypot(p.x - places[i].x, p.y - places[i].y)).toBeGreaterThan(64)
+-    }
++    for (const direction of SKILL_DIRECTIONS)
++      for (const profession of ['', 'assassin', 'warrior', 'ranger', 'mage']) {
++        const tree = layoutTree(SKILLS, direction.id, profession)
++        const places = [{ x: 0, y: 0 }, ...tree.nodes.values(), ...tree.hubs.values()]
++        for (let i = 0; i < places.length; i++) for (const p of places.slice(i + 1)) expect(Math.hypot(p.x - places[i].x, p.y - places[i].y)).toBeGreaterThan(90)
++        // the branches' panels do not overlap one another
++        const panels = [...tree.panels.values()]
++        for (let i = 0; i < panels.length; i++)
++          for (const q of panels.slice(i + 1)) {
++            const a = panels[i]
++            expect(a.x + a.w <= q.x || q.x + q.w <= a.x || a.y + a.h <= q.y || q.y + q.h <= a.y, `${direction.id}/${profession}: panels overlap`).toBe(true)
++          }
++      }
+   })
+ 
+   it('filters the profession tree and rejects learning for another profession in the engine', () => {

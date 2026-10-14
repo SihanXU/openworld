@@ -1,0 +1,70 @@
+diff --git a/packages/modder/test/modder.test.ts b/packages/modder/test/modder.test.ts
+index b78ac46..0a364ec 100644
+--- a/packages/modder/test/modder.test.ts
++++ b/packages/modder/test/modder.test.ts
+@@ -6,7 +6,7 @@ import type { AddressInfo } from 'node:net'
+ import { describe, expect, it } from 'vitest'
+ import { ModPort, RuleLibrary, buildSandbox, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond } from '@lsw/engine'
+ import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+-import { Modder, ScriptedModel, SelfState, WorldLibrary, createModderServer, narrowKinds, scriptFromFile, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
++import { Modder, ScriptedModel, SelfState, WorldLibrary, createModderServer, deriveTests, narrowKinds, parseJson, qualifyTerrains, scriptFromFile, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
+ 
+ const onto = buildOntology()
+ const BASE = [...BASE_RULES, ...STORY_RULES]
+@@ -466,6 +466,56 @@ describe('deterministic repairs', () => {
+     }
+   })
+ 
++  it('derives the test on an instance its rule answers, not on one a more specific patch already answers', () => {
++    // 2026-10-03: a rule for every plant was flagged "did not generalize" because the sibling it
++    // was tried on (flowers) had its own, more specific patch
++    const sc: Scenario = {
++      entities: [
++        { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
++        { key: 'held', type: 'item/material/bone', x: 2, y: 2, heldBy: 'actor' },
++        { key: 'it', type: 'fixture/nature/ferns', x: 2, y: 1 },
++      ],
++      event: {},
++    }
++    const eng = buildSandbox(sc, onto, new RuleLibrary(BASE))
++    const port = new ModPort(eng)
++    eng.act('put', 'actor', { e: 'it' })
++    const req = port.records[0].request
++    expect(req.hole.rule).toBe('core/receive')
++    const shed = (id: string, host: Rule['host']): Rule => ({ id, host, on: 'impulse/receive', doc: 'Things slide off it.', tree: { do: [{ op: 'emit', impulse: 'taken', to: 'item', params: { into: 'tile' } }, { op: 'vfx', fx: 'leaves' }] } })
++    const library = new WorldLibrary(onto, BASE)
++    expect(library.commit(patchOf(shed('patch/flowers-shed', { type: 'fixture/nature/flowers' }))).ok).toBe(true)
++    const d = deriveTests(patchOf(shed('patch/plants-shed', { type: 'fixture/nature', tags: ['plant'] })), req, library.lib, library.fullOntology())
++    expect(d.notes.join()).toMatch(/derived a test on host/)
++    expect(d.notes.join()).not.toMatch(/flowers|did not generalize/)
++  })
++
++  it('reads a bare terrain id as its tile type, in the host and in conditions', () => {
++    // 2026-10-03, Kimi K3: {"kind": "tile", "type": "bush"} for the bush tile
++    const r: Rule = { id: 'patch/bush-chop', host: { kind: 'tile', type: 'bush' }, on: 'impulse/strike', doc: 'd', tree: { if: { is: { role: 'other', sel: { type: 'grass' } } }, then: { do: [{ op: 'vfx', fx: 'leaves' }] } } }
++    const { patch, fixes } = qualifyTerrains(patchOf(r), onto)
++    const q = (patch.artifacts[0] as { rule: Rule }).rule
++    expect(q.host).toEqual({ kind: 'tile', type: 'tile/bush' })
++    expect((q.tree as { if: { is: { sel: unknown } } }).if.is.sel).toEqual({ type: 'tile/grass' })
++    expect(fixes).toHaveLength(2)
++    // a real type of that name is left alone, and the validator says what the terrain is called
++    expect(qualifyTerrains(patchOf({ ...r, host: { type: 'item/food' }, tree: { do: [{ op: 'vfx', fx: 'leaves' }] } }), onto).fixes).toEqual([])
++    expect(new WorldLibrary(onto, BASE).validate(patchOf(r)).errors.join()).toMatch(/a terrain is named "tile\/bush"/)
++  })
++
++  it('reads an answer whose only fault is its brackets (one closed too early), as a live model wrote it', () => {
++    // 2026-10-03, Kimi K3: one `}` too many after the tree, so "doc" fell into the array
++    const raw = '{"patch": {"artifacts": [{"id": "patch/x", "host": {"tags": ["empty-vessel"]}, "on": "act/use", "tree": {"if": {"is": {"role": "target", "sel": {"type": "tile/snow"}}}, "then": {"do": [{"op": "vfx", "fx": "frost"}]}}}, "doc": "d"}], "note": "n"}, "summary": "s"}'
++    expect(() => JSON.parse(raw)).toThrow()
++    let repaired = false
++    const v = parseJson(raw, () => (repaired = true)) as { patch: { artifacts: { tree: { then: unknown }; doc: string }[] } }
++    expect(repaired).toBe(true)
++    expect(v.patch.artifacts[0].doc).toBe('d')
++    expect(v.patch.artifacts[0].tree.then).toEqual({ do: [{ op: 'vfx', fx: 'frost' }] })
++    // a truncated answer is not completed into a shorter rule
++    expect(parseJson('{"patch": {"artifacts": [{"id": "patch/x", "tree": {"if": {"is": {"role": "target"}}, "then": {"do": [{"op": "vfx"}')).toBeUndefined()
++  })
++
+   it('narrows a rule to the kind that was asked when its broader branch is what ties', async () => {
+     const p = patchOf({ ...bindRule(), on: 'impulse' })
+     const res = { ok: false, errors: ['rule "patch/rope-binds-creature" ties with "patch/creature-shrugs" (same kind, same specificity, overlapping hosts) — make it more specific or name a different host'], warnings: [], overrides: [] }

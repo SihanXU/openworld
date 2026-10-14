@@ -1,0 +1,70 @@
+{
+ "sha": "8b92853d444ab684f3820ebc1781a5d13a06443e",
+ "parent": "da37d8a0f4d5663555dcd4a0062d1868fd004855",
+ "date": "2026-10-09T19:30:28-04:00",
+ "rung": "R4",
+ "lock": "d8255c2c3962ee4efef4677fcd11300e4a95056d",
+ "tests": [
+  "packages/modder/test/economy.test.ts",
+  "packages/modder/test/leaf-trees.test.ts"
+ ],
+ "code": [
+  "packages/client/src/worker.ts",
+  "packages/content/src/rules.ts",
+  "packages/engine/src/engine.ts",
+  "packages/engine/src/mod.ts",
+  "packages/engine/src/rules.ts",
+  "packages/modder/src/library.ts",
+  "packages/modder/src/pipeline.ts",
+  "packages/modder/src/repo.ts"
+ ],
+ "lines": 81,
+ "areas": [
+  "content",
+  "engine",
+  "modder",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/modder/test/leaf-trees.test.ts::one tree per (type, kind, hole) a boss offered a handful of grass is not lashed down",
+  "packages/modder/test/leaf-trees.test.ts::one tree per (type, kind, hole) a leaf cannot be open and an answer at once; at run time such a leaf is open",
+  "packages/modder/test/leaf-trees.test.ts::one tree per (type, kind, hole) a learned rule set aside at run time leaves the library, and its leaf takes a new answer",
+  "packages/modder/test/leaf-trees.test.ts::one tree per (type, kind, hole) a question asked before the tree grew is still placed: where the event falls undefined now",
+  "packages/modder/test/leaf-trees.test.ts::one tree per (type, kind, hole) a revision takes its predecessor's place, so what grew below it stays",
+  "packages/modder/test/leaf-trees.test.ts::one tree per (type, kind, hole) a rule naming a hole that is not an open leaf of a base rule is refused"
+ ],
+ "PASS_TO_PASS": [
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a choice the state makes is the player's; a roll beside it is weighed in",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a count read from the kind of thing the host is counts",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a grind that gives the thing itself back one time in five: the LP sums the rounds (1 / (1 - 0.2) = 1.25)",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a lottery that loses on average is no free lunch (3 stones three times in ten: 0.9 a stick)",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a thing that breaks into itself by chance, and a part named twice, both count",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation nested rolls multiply, and an item taken in by chance is taken by its odds",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation one that wins on average is (eight times in ten: 2.4 stones a stick, from 2)",
+  "packages/modder/test/economy.test.ts::conversions checked when a patch is validated composes a used-up item with the patched or defined receiver of its emit",
+  "packages/modder/test/economy.test.ts::conversions checked when a patch is validated counts a new fixture's own broken rule and a non-item host that is used up",
+  "packages/modder/test/economy.test.ts::conversions checked when a patch is validated counts the outputs when the broken fixture remains as a spent host",
+  "packages/modder/test/economy.test.ts::conversions checked when a patch is validated expands tag and parent-class hosts to the types that can be converted",
+  "packages/modder/test/economy.test.ts::conversions checked when a patch is validated follows a second emit and weighs its chance without duplicating the input",
+  "packages/modder/test/economy.test.ts::conversions checked when a patch is validated rechecks an existing sender when a new receiver changes its conversion",
+  "packages/modder/test/economy.test.ts::conversions checked when a patch is validated reports an output path whose emitted receivers cannot be counted",
+  "packages/modder/test/economy.test.ts::conversions checked when a patch is validated reports only what a patch adds that cannot be modelled, not the base library's gaps",
+  "packages/modder/test/economy.test.ts::the free lunch agrees with Bellman-Ford on 300 random markets (one thing in, one out: a positive cycle is arbitrage)",
+  "packages/modder/test/economy.test.ts::the free lunch finds what takes several things and gives several, which no single exchange shows",
+  "packages/modder/test/economy.test.ts::the free lunch keeps a tiny necessary step in the returned mix",
+  "packages/modder/test/economy.test.ts::the free lunch never calls a positive input without a source a free lunch, however small",
+  "packages/modder/test/economy.test.ts::the free lunch prices: every thing worth at least 1, and no step gives more value than it takes",
+  "packages/modder/test/economy.test.ts::the simplex does not cycle on a degenerate vertex (Chvátal's example, where the largest coefficient rule cycles)",
+  "packages/modder/test/economy.test.ts::the simplex is optimal on 300 random programmes: x and y feasible, and c·x = b·y (strong duality)",
+  "packages/modder/test/economy.test.ts::the simplex keeps the solution and certificate when rows, columns and the objective are scaled",
+  "packages/modder/test/economy.test.ts::the simplex says when a programme is unbounded, and refuses a start that is not a vertex",
+  "packages/modder/test/economy.test.ts::the simplex solves the textbook programme, with its shadow prices",
+  "packages/modder/test/leaf-trees.test.ts::one tree per (type, kind, hole) a learned rule never inherits, and names one type only",
+  "packages/modder/test/leaf-trees.test.ts::one tree per (type, kind, hole) an answer at a leaf already answered is refused; a first answer with a path is refused",
+  "packages/modder/test/leaf-trees.test.ts::one tree per (type, kind, hole) composes in order, keeps each leaf's answer, and lists what lost its place",
+  "packages/modder/test/leaf-trees.test.ts::one tree per (type, kind, hole) the first answer is the tree; the request for a case it left open says where the next goes",
+  "packages/modder/test/leaf-trees.test.ts::one tree per (type, kind, hole) the shared library covers the same key, not a sibling type",
+  "packages/modder/test/leaf-trees.test.ts::one tree per (type, kind, hole) two rules of one patch cannot take the same leaf"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

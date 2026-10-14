@@ -200,8 +200,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   experiments, docs/rsi-experiments.md.
 - `bench/` — the RSI experiments' benchmark pool (docs/rsi-experiments.md §4.1): `pool.py` counts the
   public SWE-style datasets by date (each at a pinned revision), freezes a pool as identifiers only
-  (`bench/pools/`), fetches a pool's instances into `var/bench/`. Outside `packages/` and `games/`, so
-  no ladder task's workspace holds it.
+  (`bench/pools/`), fetches a pool's instances into `var/bench/`; `fresh/` the fresh pool's miner
+  (docs/fresh-pool.md: Python tasks from pull requests after the frozen model's release, on SWE-rebench's
+  environments, by SWE-bench's own rules, no model; its stages write to `var/fresh/`, gold patches never
+  tracked here). Outside `packages/` and `games/`, so no ladder task's workspace holds it.
 - An unattended agent runs commands only in a container (`env.ts` `chooseIsolation`: the
   `lsw-sandbox` image, no network, no `.env`); without Docker it gets no shell and its hooks do
   not run. `LSW_ISOLATION=docker|none` overrides. Never give an unattended agent a local shell.
@@ -222,7 +224,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   - `server.ts`, `cli.ts`: the HTTP API and the command line.
   - `repo.ts`, `validate-cli.ts`: a world request as a repository for the agent (the offline profile).
   - The offline driver is `games/openworld/tools/src/curriculum.ts`; engine tasks (hidden fail-to-pass tests) are
-    `games/openworld/tools/src/engine-tasks.ts` + `games/openworld/tools/tasks/engine/<id>/`; one outer-loop turn is
+    `games/openworld/tools/src/engine-tasks.ts` + `games/openworld/tools/tasks/engine/<id>/`; the ladder — this
+  repository's own commits as fail-to-pass tasks at their parents — is `games/openworld/tools/src/ladder.ts` +
+  `games/openworld/tools/tasks/history/<sha>/`; one outer-loop turn is
     `games/openworld/tools/src/improve.ts`.
 - RSI design changes (what the outer loop may change, how it is judged, the benchmark interface)
   are discussed with the user before they are coded.
@@ -333,10 +337,13 @@ npm run eval:objects     # five acts to find a known thing, five to create a new
 npm run latency -- --n 20 # live-profile latency bench (fresh library each run; costs model calls)
 npm run improve -- --select 8 --confirm 8   # one outer-loop turn (costs model calls)
 npm run engine-task -- toggle-status --state <dir>
+npm run ladder -- candidates | validate | issues [--limit n] | status   # this repository's commits as fail-to-pass tasks (docs/rsi-experiments.md §5)
+npm run rsi -- plan | milestone | heldout <world-vN> --arm G|F   # a milestone of the RSI experiments (§6; needs LSW_MODEL_PIN)
 npm run upstream -- scan [--data var] [--sweep]   # candidates for base rules from the learned layer (no model)
 npm run upstream -- propose --candidate <n> | propose <hole> <class> [--note …] [--dry] [--max 3]   # one proposal → a PR (costs model calls; --dry prints the issue)
 npm run upstream -- status   # the proposals made and how they stand
 npm run agent -- swe --instances <file> --state <snapshot> --out predictions.jsonl [--env docker] [--workers 4] [--ablate skills] [--resume]
 python bench/pool.py count | freeze <name> | fetch bench/pools/<name>.json   # the benchmark pool (pyarrow; no model)
+python bench/fresh/fresh.py recipes | candidates [--limit n] | counts   # the fresh pool's miner, S0–S1 (bench/requirements.txt, a GitHub token)
 npm run modder -- stats | snapshot <label> | export [label] | library [remove <id>]
 ```

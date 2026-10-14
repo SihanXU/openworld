@@ -1,0 +1,50 @@
+{
+ "sha": "71cc9ce9220451c6191b851ab032a5eb72cc349f",
+ "parent": "51bfbf43263560f434db2b4a09587db384ca6f3f",
+ "date": "2026-10-01T20:47:49-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/content/test/rules.test.ts"
+ ],
+ "code": [
+  "packages/client/src/main.ts",
+  "packages/client/src/protocol.ts",
+  "packages/client/src/worker.ts",
+  "packages/engine/src/mod.ts"
+ ],
+ "lines": 55,
+ "areas": [
+  "engine",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/content/test/rules.test.ts::the Mod port a dismissed question is not asked again",
+  "packages/content/test/rules.test.ts::the Mod port asks about one class of interaction once at a time, and not forever"
+ ],
+ "PASS_TO_PASS": [
+  "packages/content/test/rules.test.ts::base library has no ties: overlapping base rules never share the same specificity",
+  "packages/content/test/rules.test.ts::base library has unique ids and only known references",
+  "packages/content/test/rules.test.ts::base library orders by specificity: subtype beats supertype, more constraints beat fewer",
+  "packages/content/test/rules.test.ts::base library tells apart patterns that need incompatible property values",
+  "packages/content/test/rules.test.ts::determinism & persistence replays identically from the same seed",
+  "packages/content/test/rules.test.ts::determinism & persistence round-trips the rule library through JSON",
+  "packages/content/test/rules.test.ts::fire and elements conduct: lightning arcs through wet neighbours and terminates",
+  "packages/content/test/rules.test.ts::fire and elements fire spreads across dry grass and burns out to ash",
+  "packages/content/test/rules.test.ts::fire and elements freeze: ice on a wet creature immobilizes it",
+  "packages/content/test/rules.test.ts::fire and elements ice turns water into walkable ice",
+  "packages/content/test/rules.test.ts::fire and elements oil + fire explodes",
+  "packages/content/test/rules.test.ts::fire and elements vaporize: fire on a wet creature removes wet and does not set it burning",
+  "packages/content/test/rules.test.ts::interactions cooks raw fish on a lit campfire",
+  "packages/content/test/rules.test.ts::interactions douses a burning tile with a water bucket (put) and empties the bucket",
+  "packages/content/test/rules.test.ts::interactions fills an empty flask at a well, then drinks it",
+  "packages/content/test/rules.test.ts::interactions leaves genuinely new combinations undefined",
+  "packages/content/test/rules.test.ts::interactions takes an item into the hand, then puts it into an open chest",
+  "packages/content/test/rules.test.ts::text names roles as they were when the rule started, even after it destroyed one",
+  "packages/content/test/rules.test.ts::the Mod port falls back after the timeout and still accepts a late patch",
+  "packages/content/test/rules.test.ts::the Mod port raises an undefined interaction, freezes the target, and applies a valid patch",
+  "packages/content/test/rules.test.ts::the Mod port rejects a patch whose rule does not cover the triggering interaction",
+  "packages/content/test/rules.test.ts::the Mod port rejects unknown statuses, failing tests, and equal-specificity conflicts"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

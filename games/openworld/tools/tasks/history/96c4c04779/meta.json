@@ -1,0 +1,43 @@
+{
+ "sha": "96c4c04779b7f5ca0cc867971c0e3c2e3d3e6aac",
+ "parent": "e989871dde30711fb4f1a4a55b66042f6e59c337",
+ "date": "2026-10-04T23:19:44-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/content/test/building.test.ts"
+ ],
+ "code": [
+  "packages/client/src/assets/catalog.ts",
+  "packages/client/src/render/scene.ts",
+  "packages/content/src/items.ts",
+  "packages/content/src/ontology.ts",
+  "packages/content/src/rules.ts",
+  "packages/engine/src/engine.ts",
+  "packages/engine/src/game.ts",
+  "packages/engine/src/story.ts",
+  "packages/engine/src/types.ts",
+  "packages/engine/src/world.ts"
+ ],
+ "lines": 93,
+ "areas": [
+  "content",
+  "engine",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/content/test/building.test.ts::a house walls, a door and a floor over them make a room round oneself; a bed makes it a bedroom; the door opens and shuts, and the room stays"
+ ],
+ "PASS_TO_PASS": [
+  "packages/content/test/building.test.ts::a chest from a frame a hammer on a frame of two makes a crate",
+  "packages/content/test/building.test.ts::a chest from a frame an axe breaks up a chest: its contents spill and two planks come back; a locked one is not taken apart, only worn",
+  "packages/content/test/building.test.ts::a chest from a frame an axe takes a frame apart into its planks",
+  "packages/content/test/building.test.ts::a chest from a frame counts planks into a frame, reports progress, and a hammer makes a chest",
+  "packages/content/test/building.test.ts::the same pattern a pickaxe takes a ring apart into its stones and sticks",
+  "packages/content/test/building.test.ts::the same pattern a ring of stones and two sticks make a campfire that lights",
+  "packages/content/test/building.test.ts::the same pattern a sign is built blank and written with a quill while carrying ink",
+  "packages/content/test/building.test.ts::the same pattern planks bridge shallow water, not deep water",
+  "packages/content/test/building.test.ts::the same pattern stakes make a fence"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

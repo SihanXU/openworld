@@ -3,7 +3,7 @@
 // used read-only — a fork, nothing recorded — so the benchmark never becomes training data.
 
 import { createHash } from 'node:crypto'
-import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { DockerEnv, LocalEnv, hostUser, sh, type DockerCli, type Env } from './env.ts'
 import { BASE_REF, gitDiff, runAgent } from './loop.ts'
@@ -133,6 +133,20 @@ export async function freezeBaseline(dir: string): Promise<void> {
   await g(`update-ref ${BASE_REF} HEAD`)
 }
 
+/**
+ * Where the repository is under a copied-out workdir: the workdir itself, or the first directory two levels
+ * down at most that holds `.git` (as SWE-bench-Live's evaluation looks for it); undefined when none does.
+ */
+export function repositoryIn(dir: string): string | undefined {
+  if (existsSync(join(dir, '.git'))) return ''
+  for (const a of readdirSync(dir, { withFileTypes: true })) {
+    if (!a.isDirectory() || a.name.startsWith('.')) continue
+    if (existsSync(join(dir, a.name, '.git'))) return a.name
+    for (const b of readdirSync(join(dir, a.name), { withFileTypes: true })) if (b.isDirectory() && existsSync(join(dir, a.name, b.name, '.git'))) return `${a.name}/${b.name}`
+  }
+  return undefined
+}
+
 /** The node the agent's hooks run with in a container: one built for Linux (this one, on a Linux host). */
 export function defaultHookNode(): string | undefined {
   return process.env.LSW_HOOK_NODE || (process.platform === 'linux' ? process.execPath : undefined)
@@ -149,10 +163,12 @@ export async function solve(inst: SweInstance, o: SweOptions): Promise<SwePredic
     const dir = join(resolve(o.work), dirName(inst.instance_id))
     rmSync(dir, { recursive: true, force: true })
     await DockerEnv.copyOut({ image, path: workdir, to: dir, docker: o.docker })
-    await freezeBaseline(dir)
+    const sub = repositoryIn(dir)
+    if (sub === undefined) throw new Error(`${inst.instance_id}: no git repository in the image's ${workdir}`)
+    await freezeBaseline(join(dir, sub))
     const node = o.hookNode === undefined ? defaultHookNode() : (o.hookNode ?? undefined)
     if (!node) o.log?.(`${inst.instance_id}: no Linux node to mount, so the agent's hooks cannot run in the container`)
-    env = await DockerEnv.start({ image, root: dir, mount: workdir, node, init: IMAGE_INIT, setup: [CONTAINER_SETUP], owner: o.owner ?? hostUser(), docker: o.docker })
+    env = await DockerEnv.start({ image, root: dir, mount: workdir, sub, node, init: IMAGE_INIT, setup: [CONTAINER_SETUP], owner: o.owner ?? hostUser(), docker: o.docker })
   } else env = new LocalEnv(await checkout(inst, o.cache, o.work))
   try {
     const statement = [inst.problem_statement.trim(), ...(o.hints && inst.hints_text ? ['', '## Hints', inst.hints_text.trim()] : [])].join('\n')

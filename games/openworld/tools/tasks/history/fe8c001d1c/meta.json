@@ -1,0 +1,32 @@
+{
+ "sha": "fe8c001d1cfbee7d405437a4a8cddcc2b581ce2e",
+ "parent": "666d7e455b3d5e6422d30d363a397028eab61987",
+ "date": "2026-10-13T21:04:15+08:00",
+ "rung": "R2",
+ "lock": "c8aae8165c193e13e9cb62882998aceaf8916f35",
+ "tests": [
+  "games/openworld/tools/test/pilgrimage.test.ts"
+ ],
+ "code": [
+  "games/openworld/content/src/items.ts",
+  "packages/engine/src/world.ts"
+ ],
+ "lines": 4,
+ "areas": [
+  "content",
+  "engine"
+ ],
+ "FAIL_TO_PASS": [
+  "games/openworld/tools/test/pilgrimage.test.ts::the wayside shrines never take a relic or what matters most: the Crown of Thorns on the Shrine of the Crown, the Order's seal and the ninth nail on the Shrine of the Nails"
+ ],
+ "PASS_TO_PASS": [
+  "games/openworld/tools/test/pilgrimage.test.ts::Firstlight's chapel an older save keeps its sign where the church stood: on loading it stands by the chapel and says whose it is",
+  "games/openworld/tools/test/pilgrimage.test.ts::Firstlight's chapel is Sister Ilse's, behind Astra's altar on the square: Brother Anselm keeps its bookstand; the First Dawn's is the chapel on Dawn Hill",
+  "games/openworld/tools/test/pilgrimage.test.ts::an older save at the First Seal across the river shows the oath at the Rest (stage 40 showed the knight before the road came between), and the oath moves it on",
+  "games/openworld/tools/test/pilgrimage.test.ts::the Pilgrims' Rest after the knight before the knight, the welcome and the oath play as ever",
+  "games/openworld/tools/test/pilgrimage.test.ts::the Pilgrims' Rest after the knight neither the welcome nor the oath plays once the White Knight has fallen; the priest greets one who comes from him, and speaks of the road, not of kneeling to him",
+  "games/openworld/tools/test/pilgrimage.test.ts::the Rest's chapel its litany on the bookstand is read with a hand (E), as any written thing; the skill books are Firstlight's chapel's",
+  "games/openworld/tools/test/pilgrimage.test.ts::the oath's scallop is the pilgrim's own (sworn): taking it does not count as finding the scallop of the pilgrim before (The Pilgrim Before)"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

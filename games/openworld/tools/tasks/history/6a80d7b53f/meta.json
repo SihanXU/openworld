@@ -1,0 +1,42 @@
+{
+ "sha": "6a80d7b53f4074460937206ef6cadbe2685615e1",
+ "parent": "bba1ba755df27faf04b9a79fdb839395c5db1842",
+ "date": "2026-10-13T00:08:37-04:00",
+ "rung": "R2",
+ "lock": "c8aae8165c193e13e9cb62882998aceaf8916f35",
+ "tests": [
+  "games/openworld/tools/test/migrations.test.ts",
+  "games/openworld/tools/test/overworld.test.ts"
+ ],
+ "code": [
+  "games/openworld/client/src/game.ts",
+  "games/openworld/content/src/game.ts",
+  "games/openworld/content/src/index.ts",
+  "games/openworld/content/src/migrateHaven.ts",
+  "games/openworld/content/src/migrateOverworld.ts",
+  "games/openworld/content/src/migrateSmithy.ts",
+  "games/openworld/content/src/migrateStock.ts",
+  "games/openworld/content/src/quests/side.ts"
+ ],
+ "lines": 179,
+ "areas": [
+  "content",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "games/openworld/tools/test/migrations.test.ts::the Held Ground's plots and Firstlight's loom in an older save a map the save has not been to is left to come as it is built; a save marked as the world is now is left alone",
+  "games/openworld/tools/test/migrations.test.ts::the Held Ground's plots and Firstlight's loom in an older save a save that had been to both before they were staked out (fb7bb3a) gets every plot and the loom where the maps have them, the waypoint statue moved aside for it; a building already paid for rises on its plot",
+  "games/openworld/tools/test/migrations.test.ts::the forged sets' pieces of an older save each piece takes its slot's set (the armour, the trinkets, none for the weapon and the off hand): a helmet with jewels, a blade and a shield is not the armour's six",
+  "games/openworld/tools/test/migrations.test.ts::the merchants of an older save one who traded before keeps what it sold and sells what it sells now (every kind, at least as many); its next restock brings them",
+  "games/openworld/tools/test/overworld.test.ts::the overworld (world-model.md §5.1, §10.2) a save laid out a place to a tile before the Pilgrim's Road gets the places as the map has them now (the four new ones, the east moved along); a way back out of the Held Ground still kept on the old scale comes down to its cell",
+  "games/openworld/tools/test/overworld.test.ts::the overworld (world-model.md §5.1, §10.2) an older save (3 x 3 tiles to a place) is brought to a place a tile: its places where the map has them now, and one standing on it on the cell its old block was"
+ ],
+ "PASS_TO_PASS": [
+  "games/openworld/tools/test/overworld.test.ts::the overworld (world-model.md §5.1, §10.2) a wilderness is the same map for the same seed and cell, for every ground; another cell, another map",
+  "games/openworld/tools/test/overworld.test.ts::the overworld (world-model.md §5.1, §10.2) an older save's widening errands (the Held Ground widened by Alberic's quests) go; how far the ground goes stays",
+  "games/openworld/tools/test/overworld.test.ts::the overworld (world-model.md §5.1, §10.2) every map but the overworld (and the tutorial, which lies nowhere, the floors under the barrow, reached by its stairs, and the Held Ground and its grounds, carried in a thorn) lies on a cell of land, and that cell holds the site that leads into it",
+  "games/openworld/tools/test/overworld.test.ts::the overworld (world-model.md §5.1, §10.2) every place the story seals on the world map is shut by a gate that says why (content SITE_GATES): drawn sealed, it does not let one in",
+  "games/openworld/tools/test/overworld.test.ts::the overworld (world-model.md §5.1, §10.2) mirrored barriers: what a map keeps apart (its banks), the overworld keeps apart — the places each bank's ways lead to are out of each other's reach but through the map"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

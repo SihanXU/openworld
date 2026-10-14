@@ -1,0 +1,63 @@
+diff --git a/packages/modder/test/modder.test.ts b/packages/modder/test/modder.test.ts
+index d3d2393..b78ac46 100644
+--- a/packages/modder/test/modder.test.ts
++++ b/packages/modder/test/modder.test.ts
+@@ -449,8 +449,11 @@ describe('deterministic repairs', () => {
+     const { tree: _t, ...bare } = rule
+     // a rule written in the flat form: its condition and effects beside the rule, not in a tree
+     const flat = { ...bare, if: FIBER, do: (bindTree() as { then: { do: unknown[] } }).then.do }
++    // effects keyed by their op ({"addStatus": {"status": …}}), as a live model wrote them
++    const tree = bindTree() as { if: unknown; then: { do: { op: string }[] } }
++    const keyed = { ...rule, tree: { ...tree, then: { do: tree.then.do.map(({ op, ...args }) => ({ [op]: args })) } } }
+     // the shapes models actually produce: the rule as the artifact, or its fields spread on {kind:"rule"}
+-    for (const draft of [{ artifacts: [rule] }, { artifacts: [{ kind: 'rule', ...rule }] }, rule, { rules: [rule] }, { artifacts: [{ kind: 'rule', rule: flat }] }]) {
++    for (const draft of [{ artifacts: [rule] }, { artifacts: [{ kind: 'rule', ...rule }] }, rule, { rules: [rule] }, { artifacts: [{ kind: 'rule', rule: flat }] }, { artifacts: [{ kind: 'rule', rule: keyed }] }]) {
+       const { model, calls } = scripted([draft as unknown as Patch])
+       const { modder, state, library } = setup(model)
+       const reply = await modder.resolve({ request: request() })
+diff --git a/packages/tools/test/console.test.ts b/packages/tools/test/console.test.ts
+new file mode 100644
+index 0000000..81ac765
+--- /dev/null
++++ b/packages/tools/test/console.test.ts
+@@ -0,0 +1,40 @@
++// The Mod Console's template (packages/client/src/ui/template.ts) is where a person starts a patch
++// by hand: for every kind of hole the Ford reaches, it must already be a valid patch.
++
++import { describe, expect, it } from 'vitest'
++import { Game, RuleLibrary, validatePatch, type Key } from '@lsw/engine'
++import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
++import { template } from '../../client/src/ui/template.ts'
++import { AT, STAND, buildFord } from '../src/demo/world.ts'
++
++describe('the Mod Console template', () => {
++  it('is a valid patch for an undefined act, a receive, a strike and a handle', () => {
++    const onto = buildOntology()
++    const { index, chunks } = buildFord()
++    const lib = new RuleLibrary([...BASE_RULES, ...STORY_RULES])
++    const game = Game.create(index, onto, lib)
++    for (const c of chunks) game.loadChunk(decodeChunk(c))
++    const eng = game.engine
++    const w = eng.world
++    const press = (key: Key, held: string | undefined, at: readonly [number, number], target: readonly [number, number], facing: 'up' | 'right' = 'up') => {
++      w.write(() => {
++        const e = held ? w.create(held, { on: 'hand', holder: 'player' }) : undefined
++        w.player.held = e?.id
++        w.place(w.player, { on: 'tile', map: 'ford', x: at[0], y: at[1] })
++        w.player.facing = facing
++      })
++      eng.controls.run(eng.controls.plan(key, { x: target[0], y: target[1] })!, true)
++    }
++    press('use', 'item/food/bread', STAND.winch, AT.winch)
++    press('put', 'item/tool/rope', STAND.tree, AT.deadTree, 'right')
++    press('use', 'item/weapon/blade/axe', STAND.winch, AT.winch)
++    press('hands', undefined, STAND.raft, AT.raft, 'right')
++    const kinds = game.mods.records.map((r) => r.request.event.kind)
++    expect(kinds).toEqual(['act/use', 'impulse/receive', 'impulse/strike', 'impulse/handle'])
++    for (const r of game.mods.records) {
++      const patch = template({ id: r.id, request: r.request, status: r.status } as Parameters<typeof template>[0])
++      const res = validatePatch(patch, { ontology: onto, library: lib, scenario: r.request.scenario })
++      expect([r.request.event.kind, res.errors]).toEqual([r.request.event.kind, []])
++    }
++  })
++})

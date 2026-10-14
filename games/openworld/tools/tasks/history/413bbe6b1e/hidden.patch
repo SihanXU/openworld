@@ -1,0 +1,56 @@
+diff --git a/packages/content/test/building.test.ts b/packages/content/test/building.test.ts
+index 6bd33ce..b831d37 100644
+--- a/packages/content/test/building.test.ts
++++ b/packages/content/test/building.test.ts
+@@ -271,3 +271,51 @@ describe('a house', () => {
+     expect(w.walkable(SANDBOX_MAP, 3, 4)).toBe(false)
+   })
+ })
++
++describe('the build palette (B): setting things down', () => {
++  function meadow(): Engine {
++    const rows = Array.from({ length: 7 }, () => Array(7).fill('grass'))
++    const eng = buildSandbox({ terrain: rows, entities: [{ key: 'actor', type: 'actor/person/player', x: 3, y: 3 }], event: {} }, onto, new RuleLibrary(BASE_RULES))
++    eng.world.get('actor')!.facing = 'up'
++    return eng
++  }
++  const give = (eng: Engine, type: string, n = 1) => eng.author(() => { for (let i = 0; i < n; i++) eng.world.create(type, { on: 'inside', holder: 'actor' }) })
++  const at = (eng: Engine, x: number, y: number) => eng.world.placedAt(SANDBOX_MAP, x, y).map((e) => e.type)
++
++  it('a wall carried is set down as G sets it; with none carried, one is made from planks first; out of reach, nothing', () => {
++    const eng = meadow()
++    const c = eng.controls
++    give(eng, 'structure/wall')
++    give(eng, 'item/material/plank', 3)
++    c.sync()
++    expect(c.previewPlace('structure/wall', { x: 3, y: 2 })).toMatchObject({ ok: true, carried: 1 })
++    expect(c.place('structure/wall', { x: 3, y: 2 })).toBe(true)
++    expect(at(eng, 3, 2)).toEqual(['structure/wall'])
++    // none carried: made from two of the planks, then set down
++    expect(c.previewPlace('structure/wall', { x: 2, y: 3 })).toMatchObject({ ok: true, carried: 0 })
++    expect(c.place('structure/wall', { x: 2, y: 3 })).toBe(true)
++    expect(at(eng, 2, 3)).toEqual(['structure/wall'])
++    expect(c.count('item/material/plank')).toBe(1)
++    // one plank makes no wall
++    expect(c.previewPlace('structure/wall', { x: 4, y: 3 }).ok).toBe(false)
++    // a cell beyond reach is not one nearer: nothing is set down
++    give(eng, 'structure/wall')
++    c.sync()
++    expect(c.place('structure/wall', { x: 3, y: 0 })).toBe(false)
++    expect(at(eng, 3, 0)).toEqual([])
++    expect(at(eng, 3, 1)).toEqual([])
++  })
++
++  it('a workbench is made by hand from four planks and set down; what is made at a workbench is made beside it', () => {
++    const eng = meadow()
++    const c = eng.controls
++    give(eng, 'item/material/plank', 4)
++    give(eng, 'item/material/stick', 2)
++    give(eng, 'item/material/grass', 3)
++    c.sync()
++    expect(c.place('fixture/craft/workbench', { x: 3, y: 2 })).toBe(true)
++    expect(at(eng, 3, 2)).toEqual(['fixture/craft/workbench'])
++    expect(c.craft(eng.recipes.get('item/weapon/ranged/bow')!)).toBe(true)
++    expect(c.count('item/weapon/ranged/bow')).toBe(1)
++  })
++})

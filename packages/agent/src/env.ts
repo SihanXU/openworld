@@ -5,6 +5,7 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export interface ExecResult {
@@ -124,6 +125,7 @@ export class DockerEnv implements Env {
     private init: string | undefined,
     readonly node: string | undefined,
     private owner: string | undefined,
+    private mount: string,
   ) {}
 
   /**
@@ -136,6 +138,8 @@ export class DockerEnv implements Env {
    * `setup`: commands run once, as the container starts.
    * `owner`: uid:gid the workspace is given back to when the container goes (its commands ran as
    * the image's user, often root, and what they wrote must stay removable on the host).
+   * `sub`: the repository's directory under the mount, when it is not the mount itself (some of
+   * SWE-bench-Live's images): the workspace and the commands' directory are there.
    */
   static async start(o: {
     image: string
@@ -149,6 +153,7 @@ export class DockerEnv implements Env {
     init?: string
     setup?: string[]
     owner?: string
+    sub?: string
     docker?: DockerCli
   }): Promise<DockerEnv> {
     const mount = o.mount ?? '/testbed'
@@ -161,7 +166,8 @@ export class DockerEnv implements Env {
     const args = ['run', '-d', '--rm', ...(o.network ? [] : ['--network', 'none']), ...(o.user ? ['--user', o.user] : []), ...limits, '-v', `${o.root}:${mount}`, ...extra, '-w', mount, o.image, 'sleep', 'infinity']
     const r = await docker(o.docker, args, 300_000)
     if (r.code !== 0) throw new Error(`docker run failed: ${r.stderr.trim() || r.stdout.trim()}`)
-    const env = new DockerEnv(o.root, mount, r.stdout.trim(), o.docker, o.init, o.node ? HOOK_NODE : undefined, o.owner)
+    const sub = (o.sub ?? '').replace(/^\/+|\/+$/g, '')
+    const env = new DockerEnv(sub ? join(o.root, sub) : o.root, sub ? `${mount}/${sub}` : mount, r.stdout.trim(), o.docker, o.init, o.node ? HOOK_NODE : undefined, o.owner, mount)
     for (const cmd of o.setup ?? []) {
       const s = await env.exec(cmd, { timeoutMs: 60_000 })
       if (s.code !== 0) {
@@ -197,7 +203,7 @@ export class DockerEnv implements Env {
   }
 
   async dispose(): Promise<void> {
-    if (this.owner) await this.exec(`chown -R ${sh(this.owner)} ${sh(this.cwd)} 2>/dev/null; true`, { timeoutMs: 300_000 })
+    if (this.owner) await this.exec(`chown -R ${sh(this.owner)} ${sh(this.mount)} 2>/dev/null; true`, { timeoutMs: 300_000 })
     await docker(this.cli, ['rm', '-f', this.id], 60_000)
   }
 }

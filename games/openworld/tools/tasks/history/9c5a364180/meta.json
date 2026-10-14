@@ -1,0 +1,39 @@
+{
+ "sha": "9c5a3641802e67018fcc5014436f7192a4bc21a5",
+ "parent": "2cb23dcf48ead7b51f412ac54bc81c079e96a453",
+ "date": "2026-10-04T22:02:00-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/tools/test/death.test.ts"
+ ],
+ "code": [
+  "packages/client/src/main.ts",
+  "packages/client/src/protocol.ts",
+  "packages/client/src/ui/cover.ts",
+  "packages/client/src/ui/death.ts",
+  "packages/client/src/ui/dev.ts",
+  "packages/client/src/worker.ts",
+  "packages/content/src/ford.ts",
+  "packages/content/src/rules.ts",
+  "packages/engine/src/combat.ts",
+  "packages/engine/src/effects.ts",
+  "packages/engine/src/engine.ts",
+  "packages/engine/src/snapshot.ts",
+  "packages/engine/src/types.ts"
+ ],
+ "lines": 267,
+ "areas": [
+  "content",
+  "engine",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/tools/test/death.test.ts::death and rising again a fall is shown: who felled one, and the difficulty (normal for a game that never chose)",
+  "packages/tools/test/death.test.ts::death and rising again a waypoint woken is home too; with no home one rises where the world began",
+  "packages/tools/test/death.test.ts::death and rising again easy: one gets up where one fell, whole, with everything",
+  "packages/tools/test/death.test.ts::death and rising again normal: one rises at home — the bed last slept in — and what one carried lies where one fell"
+ ],
+ "PASS_TO_PASS": [],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

@@ -1,0 +1,53 @@
+{
+ "sha": "b9e8d6702f1736635daa281cc4eab9b31c39db32",
+ "parent": "afbe5ea4c3e737c58d3671424bfecf99aa823d22",
+ "date": "2026-10-09T01:53:44-04:00",
+ "rung": "R4",
+ "lock": "d8255c2c3962ee4efef4677fcd11300e4a95056d",
+ "tests": [
+  "packages/tools/test/looks.test.ts"
+ ],
+ "code": [
+  "packages/client/src/assets/figure/pixhead.ts",
+  "packages/client/src/assets/figure/pixwear.ts",
+  "packages/client/src/assets/figure/portrait.ts",
+  "packages/client/src/assets/figure/sprite.ts",
+  "packages/client/src/ui/creator.ts",
+  "packages/content/src/items.ts",
+  "packages/content/src/looks.ts",
+  "packages/engine/src/looks.ts",
+  "packages/engine/src/mod.ts",
+  "packages/engine/src/snapshot.ts",
+  "packages/engine/src/types.ts",
+  "packages/engine/src/world.ts",
+  "packages/wiki/src/templates.ts"
+ ],
+ "lines": 192,
+ "areas": [
+  "content",
+  "engine",
+  "other",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/tools/test/looks.test.ts::restyle: a look changes as an outcome of its bearer (the event model) a rule on the bearer restyles it: its look, its tags and the mark that the look is its own follow",
+  "packages/tools/test/looks.test.ts::restyle: a look changes as an outcome of its bearer (the event model) the validator takes only the parts and colours of the table",
+  "packages/tools/test/looks.test.ts::the look says what it draws a restyle changes it and marks it the bearer's own",
+  "packages/tools/test/looks.test.ts::the look says what it draws its tags come from its parts and colours",
+  "packages/tools/test/looks.test.ts::the look says what it draws its words name its parts in its colours, in both languages",
+  "packages/tools/test/looks.test.ts::the look table draws every part on the map: each one a sprite part has grids for the facings it shows",
+  "packages/tools/test/looks.test.ts::the look table is the ontology the engine checks looks against",
+  "packages/tools/test/looks.test.ts::the look table is whole: every part fills a known slot, fits known bodies, uses known colours, and has words in both languages",
+  "packages/tools/test/looks.test.ts::the map sprite is a 4x4 sheet of 16x32 frames, outlined, its feet on the ground row and its head under the top",
+  "packages/tools/test/looks.test.ts::the map sprite paints the hair in the hair colour: the same colour the portrait repaints its hair in",
+  "packages/tools/test/looks.test.ts::the people a child has a child body, an adult an adult one, as their sex",
+  "packages/tools/test/looks.test.ts::the people are built into the world with their look, and the codex shows each their own",
+  "packages/tools/test/looks.test.ts::the people each has a valid look, drawn the same every time",
+  "packages/tools/test/looks.test.ts::the people no two look alike",
+  "packages/tools/test/looks.test.ts::the people the old show their age: grey hair or lines",
+  "packages/tools/test/looks.test.ts::what is worn shows on the look as seen (an item's look) an iron breastplate and a helmet put on: the snapshot's look, its tags, its words and its sprite follow; the own look is kept",
+  "packages/tools/test/looks.test.ts::what is worn shows on the look as seen (an item's look) every item worn as a look part names a part the table has, in a slot only worn things fill or a hat"
+ ],
+ "PASS_TO_PASS": [],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

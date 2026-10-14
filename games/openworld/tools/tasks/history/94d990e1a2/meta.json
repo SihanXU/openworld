@@ -1,0 +1,26 @@
+{
+ "sha": "94d990e1a2db30bd5e2550173dbab20cd76045d0",
+ "parent": "fe1d7e832943e4d5831f98e9daa2cad288317fe8",
+ "date": "2026-10-03T22:40:41-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/agent/test/claude-code.test.ts"
+ ],
+ "code": [
+  "packages/agent/src/model.ts",
+  "packages/modder/src/cli.ts",
+  "packages/tools/src/dev.ts"
+ ],
+ "lines": 209,
+ "areas": [
+  "agent",
+  "modder",
+  "tools"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/agent/test/claude-code.test.ts::the Claude Code backend (claude -p) is chosen by LSW_MODEL_BACKEND, Opus 5.5 at low effort by default"
+ ],
+ "PASS_TO_PASS": [],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

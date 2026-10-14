@@ -1,0 +1,58 @@
+{
+ "sha": "e0a2d5f7ba26c19203cb05cbc5156c10fd231d0d",
+ "parent": "033e2df4b4b1ae3c95de9f03327a072b7dd99bed",
+ "date": "2026-10-02T16:23:40-04:00",
+ "rung": "R4",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/modder/test/modder.test.ts",
+  "packages/tools/test/console.test.ts"
+ ],
+ "code": [
+  "package.json",
+  "packages/client/src/ui/dev.ts",
+  "packages/client/src/ui/template.ts",
+  "packages/engine/src/mod.ts",
+  "packages/modder/src/fixes.ts",
+  "packages/tools/src/ford-live.ts"
+ ],
+ "lines": 300,
+ "areas": [
+  "engine",
+  "modder",
+  "other",
+  "runtime",
+  "tools"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/modder/test/modder.test.ts::deterministic repairs accepts a correct rule in the wrong wrapper without another model turn",
+  "packages/tools/test/console.test.ts::the Mod Console template is a valid patch for an undefined act, a receive, a strike and a handle"
+ ],
+ "PASS_TO_PASS": [
+  "packages/modder/test/modder.test.ts::deterministic repairs narrows a rule to the kind that was asked when its broader branch is what ties",
+  "packages/modder/test/modder.test.ts::integrity holds a patch to the event model: host-only effects, no holes, not the earlier shape",
+  "packages/modder/test/modder.test.ts::integrity rejects a catch-all that would answer for anything at all",
+  "packages/modder/test/modder.test.ts::the Mod port with the modder plugged in a game engine raises, the modder patches, the held event re-resolves",
+  "packages/modder/test/modder.test.ts::the OpenAI-compatible adapter speaks tool calls on the wire and drives a full episode",
+  "packages/modder/test/modder.test.ts::the live profile answers in one call without tools and writes the generalization test itself",
+  "packages/modder/test/modder.test.ts::the live profile flags a rule that changes nothing for the reviewer",
+  "packages/modder/test/modder.test.ts::the live profile revises a shipped rule when the late reviewer asks, replacing it in the shared library",
+  "packages/modder/test/modder.test.ts::the live profile works a failed live request again offline, in the background",
+  "packages/modder/test/modder.test.ts::the modder pipeline answers a covered event from the shared library without a model call",
+  "packages/modder/test/modder.test.ts::the modder pipeline designs with tools, validates, commits to the shared library and records the episode",
+  "packages/modder/test/modder.test.ts::the modder pipeline feeds the validator's diagnostics back and repairs",
+  "packages/modder/test/modder.test.ts::the modder pipeline files requests of one class of outcome under one key",
+  "packages/modder/test/modder.test.ts::the modder pipeline gives up after the harness's repair budget, leaving the library untouched",
+  "packages/modder/test/modder.test.ts::the modder pipeline revises after a reviewer's notes",
+  "packages/modder/test/modder.test.ts::the modder pipeline snapshots the self-state and renders it as one transferable document",
+  "packages/modder/test/modder.test.ts::the modder pipeline without a model answers only from the library",
+  "packages/modder/test/modder.test.ts::the modder pipeline works a class once when the same request arrives twice at the same time",
+  "packages/modder/test/modder.test.ts::the modder pipeline writes a skill once work recurs, offers it, and books its outcomes",
+  "packages/modder/test/modder.test.ts::the offline script (fixtures/offline.json, for `serve --script`) answers a rope put on or used on a creature, live, and the patch covers the rest of the class",
+  "packages/modder/test/modder.test.ts::the service serves resolve, the patch log and health over HTTP",
+  "packages/modder/test/modder.test.ts::the tail guard gives up a try at the deadline and retries",
+  "packages/modder/test/modder.test.ts::the tail guard hedges a stalled call to the next provider and takes the first answer",
+  "packages/modder/test/modder.test.ts::the tail guard treats an empty body as a failure and asks again at once"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

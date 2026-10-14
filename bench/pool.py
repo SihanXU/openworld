@@ -12,6 +12,7 @@ range requests, so the datasets are never downloaded whole.
 
   python bench/pool.py count [--after 2026-07-16]
   python bench/pool.py freeze <name> [--after 2026-07-16] [--sources multilang,…] [--languages …] [--no-image-check]
+  python bench/pool.py pilot [--verified 20] [--from bench/pools/post-k3.json:5]
   python bench/pool.py fetch bench/pools/<name>.json [--out var/bench/<name>.instances.jsonl]
 """
 
@@ -36,6 +37,15 @@ AFTER = "2026-07-16"
 # The sources, each at the revision it was counted at (2026-10-14). `image`: the column naming the
 # task's image, or a template on the instance id; `language`: a column, a fixed language, or the split.
 SOURCES: dict[str, dict] = {
+    # the pilot's (docs/rsi-experiments.md §4.4): saturated and contaminated, so never a measured pool
+    "verified": {
+        "dataset": "SWE-bench/SWE-bench_Verified",
+        "revision": "78f471bf655a3137b2e8a75af1501690ec009ec3",
+        "files": ["data/test-00000-of-00001.parquet"],
+        "image": "image",
+        "language": "python",
+        "count": False,
+    },
     "rebench-leaderboard": {
         "dataset": "nebius/SWE-rebench-leaderboard",
         "revision": "34d5a58864acf91613740a09ec5d205228dcfa39",
@@ -66,7 +76,7 @@ SOURCES: dict[str, dict] = {
     },
 }
 
-META = ["instance_id", "repo", "created_at", "image_name", "docker_image", "language"]
+META = ["instance_id", "repo", "created_at", "image_name", "docker_image", "image", "language", "difficulty"]
 FULL = ["instance_id", "repo", "base_commit", "problem_statement", "hints_text"]
 
 
@@ -171,6 +181,8 @@ def image_exists(ref: str) -> bool:
 def count(after: str) -> dict:
     report = {}
     for key, src in SOURCES.items():
+        if src.get("count") is False:
+            continue
         rs = rows(key, META)
         dates = sorted(r["created_at"] for r in rs if r["created_at"])
         late = [r for r in rs if (r["created_at"] or "") >= after]
@@ -232,12 +244,53 @@ def freeze(name: str, after: str, sources: list[str], languages: list[str] | Non
     return pool
 
 
+def task_yaml(text: str) -> dict:
+    """A task.yaml as bench/fresh/export.py writes it: flat `key: <JSON scalar>` lines, lists as `- item` lines."""
+    out, key = {}, None
+    for line in text.splitlines():
+        if line.startswith("- ") and key:
+            out.setdefault(key, []).append(line[2:])
+        elif ":" in line:
+            key, _, v = line.partition(":")
+            v = v.strip()
+            out[key] = json.loads(v) if v else []
+    return out
+
+
+def fresh_instances(pin: dict, want: dict) -> dict:
+    """The fresh pool's instances from its task repository (LSW_FRESH_TASKS), which must be at the frozen commit."""
+    import subprocess
+
+    root = os.environ.get("LSW_FRESH_TASKS")
+    if not root:
+        sys.exit("LSW_FRESH_TASKS: the fresh pool's task repository (docs/fresh-pool.md, D1)")
+    head = subprocess.run(["git", "-C", root, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    if pin.get("revision") and head != pin["revision"]:
+        sys.exit(f"{root} is at {head}, the pool was frozen at {pin['revision']}")
+    got = {}
+    for ident, t in want.items():
+        if t["source"] != "fresh":
+            continue
+        d = os.path.join(root, "tasks", ident)
+        with open(os.path.join(d, "task.yaml"), encoding="utf-8") as f:
+            meta = task_yaml(f.read())
+        read = lambda n: open(os.path.join(d, n), encoding="utf-8").read() if os.path.exists(os.path.join(d, n)) else ""
+        got[ident] = {"instance_id": ident, "repo": meta["repo"], "base_commit": meta["base_commit"], "problem_statement": read("problem_statement.md"), "hints_text": read("hints.md"), "image": meta["image"], "workdir": "/testbed"}
+    return got
+
+
 def fetch(pool_path: str, out: str | None) -> str:
     with open(pool_path, encoding="utf-8") as f:
         pool = json.load(f)
     want = {t["instance_id"]: t for t in pool["tasks"]}
     got = {}
+    used = {t["source"] for t in pool["tasks"]}
     for key, pin in pool["sources"].items():
+        if key not in used:
+            continue
+        if key == "fresh":  # our own pool: its task repository (docs/fresh-pool.md, D1), at the commit it was frozen at
+            got.update(fresh_instances(pin, want))
+            continue
         if SOURCES[key]["revision"] != pin["revision"]:
             sys.exit(f"{key}: the pool was frozen at {pin['revision']}, this file reads {SOURCES[key]['revision']}")
         for r in rows(key, FULL):
@@ -264,6 +317,69 @@ def fetch(pool_path: str, out: str | None) -> str:
     return out
 
 
+def pilot(verified: int, extra: str | None, seed: int) -> dict:
+    """The pilot's tasks (docs/rsi-experiments.md §4.4): `verified` from SWE-bench Verified, by repository and
+    difficulty in proportion, with the repositories whose environments build in place (scikit-learn, astropy,
+    matplotlib) and the hard buckets always there; and `n` from a frozen pool (`<pool.json>:<n>`), one language
+    after another. Identifiers only, as every pool."""
+    import random
+
+    rng = random.Random(seed)
+    rows = sorted(rows_cache("verified"), key=lambda r: r["instance_id"])
+    must = ["scikit-learn/scikit-learn", "astropy/astropy", "matplotlib/matplotlib"]
+    picked = [rng.choice([r for r in rows if r["repo"] == m]) for m in must]
+    hard = [r for r in rows if r.get("difficulty") in ("1-4 hours", ">4 hours") and r not in picked]
+    picked += rng.sample(hard, 2)
+    by = collections.defaultdict(list)
+    for r in rows:
+        if r not in picked:
+            by[(r["repo"], r.get("difficulty"))].append(r)
+    strata = sorted(by, key=lambda k: -len(by[k]))
+    while len(picked) < verified:  # the largest strata first, one at a time: proportion, roughly
+        for k in strata:
+            if len(picked) >= verified:
+                break
+            if by[k] and rng.random() < len(by[k]) / len(rows) * len(strata):
+                picked.append(by[k].pop(rng.randrange(len(by[k]))))
+    tasks = [{"instance_id": r["instance_id"], "source": "verified", "repo": r["repo"], "language": "python", "created_at": r["created_at"], "image": r["image"], "difficulty": r.get("difficulty")} for r in picked]
+    sources = {"verified": {"dataset": SOURCES["verified"]["dataset"], "revision": SOURCES["verified"]["revision"]}}
+    if extra:
+        file, _, n = extra.rpartition(":")
+        with open(file, encoding="utf-8") as f:
+            other = json.load(f)
+        langs = collections.defaultdict(list)
+        for t in other["tasks"]:
+            langs[t["language"]].append(t)
+        order = sorted(langs)
+        rng.shuffle(order)
+        more = [rng.choice(langs[l]) for l in order[: int(n)]]
+        tasks += more
+        sources.update({k: v for k, v in other["sources"].items() if k in {t["source"] for t in more}})
+    pool = {
+        "name": "pilot",
+        "frozen": dt.date.today().isoformat(),
+        "criterion": {"verified": verified, "from": extra, "seed": seed, "always": must + ["two of the 1-4 h and >4 h buckets"]},
+        "sources": sources,
+        "counts": {"tasks": len(tasks), "by_source": dict(collections.Counter(t["source"] for t in tasks)), "by_repo": dict(collections.Counter(t["repo"] for t in tasks).most_common())},
+        "tasks": tasks,
+    }
+    path = os.path.join(ROOT, "bench", "pools", "pilot.json")
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(pool, f, indent=1, ensure_ascii=False)
+        f.write("\n")
+    print(f"{path}: {json.dumps(pool['counts'])}")
+    return pool
+
+
+_cache: dict[str, list[dict]] = {}
+
+
+def rows_cache(key: str) -> list[dict]:
+    if key not in _cache:
+        _cache[key] = rows(key, META)
+    return _cache[key]
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -276,6 +392,10 @@ def main() -> None:
     z.add_argument("--sources", default=",".join(SOURCES))
     z.add_argument("--languages")
     z.add_argument("--no-image-check", action="store_true")
+    pl = sub.add_parser("pilot")
+    pl.add_argument("--verified", type=int, default=20)
+    pl.add_argument("--from", dest="extra", default="bench/pools/post-k3.json:5")
+    pl.add_argument("--seed", type=int, default=0)
     g = sub.add_parser("fetch")
     g.add_argument("pool")
     g.add_argument("--out")
@@ -291,6 +411,8 @@ def main() -> None:
         if unknown:
             sys.exit(f"unknown sources {unknown} (known: {', '.join(SOURCES)})")
         freeze(a.name, a.after, a.sources.split(","), a.languages.split(",") if a.languages else None, not a.no_image_check)
+    elif a.cmd == "pilot":
+        pilot(a.verified, a.extra, a.seed)
     else:
         fetch(a.pool, a.out)
 

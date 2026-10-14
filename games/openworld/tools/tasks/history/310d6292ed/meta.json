@@ -1,0 +1,73 @@
+{
+ "sha": "310d6292ed27e07451c5c408bdcb60f2d7386554",
+ "parent": "280ec5123864b2f7f6fb612894058691dc70714e",
+ "date": "2026-10-04T17:29:59-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/modder/test/modder.test.ts",
+  "packages/tools/test/yield.test.ts"
+ ],
+ "code": [
+  "packages/content/src/ontology.ts",
+  "packages/content/src/rules.ts",
+  "packages/engine/src/mod.ts",
+  "packages/engine/src/sandbox.ts",
+  "packages/modder/src/cli.ts",
+  "packages/modder/src/library.ts"
+ ],
+ "lines": 104,
+ "areas": [
+  "content",
+  "engine",
+  "modder"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) a new thing that can break says what it is made of and what it leaves",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) the base library: every act any input makes, on anything the player can face, stops yielding when repeated",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) the validator refuses the stick farm: a blow, a stick, the host as it was"
+ ],
+ "PASS_TO_PASS": [
+  "packages/modder/test/modder.test.ts::deterministic repairs accepts a correct rule in the wrong wrapper without another model turn",
+  "packages/modder/test/modder.test.ts::deterministic repairs derives the test on an instance its rule answers, not on one a more specific patch already answers",
+  "packages/modder/test/modder.test.ts::deterministic repairs narrows a rule to the kind that was asked when its broader branch is what ties",
+  "packages/modder/test/modder.test.ts::deterministic repairs reads a bare terrain id as its tile type, in the host and in conditions",
+  "packages/modder/test/modder.test.ts::deterministic repairs reads an answer whose only fault is its brackets (one closed too early), as a live model wrote it",
+  "packages/modder/test/modder.test.ts::integrity asks no model when the service's own base rules already answer (the client is older)",
+  "packages/modder/test/modder.test.ts::integrity commits to the shared log only what stands on the shared library alone",
+  "packages/modder/test/modder.test.ts::integrity holds a patch to the event model: host-only effects, no holes, not the earlier shape",
+  "packages/modder/test/modder.test.ts::integrity refuses two rules of one patch that tie with each other, as it would across patches",
+  "packages/modder/test/modder.test.ts::integrity rejects a catch-all that would answer for anything at all",
+  "packages/modder/test/modder.test.ts::the Mod port with the modder plugged in a game engine raises, the modder patches, the held event re-resolves",
+  "packages/modder/test/modder.test.ts::the OpenAI-compatible adapter speaks tool calls on the wire and drives a full episode",
+  "packages/modder/test/modder.test.ts::the design prompt keeps the system prompt byte for byte the same across clients and library versions (the cached prefix), and the user turn to what the model uses",
+  "packages/modder/test/modder.test.ts::the live profile answers in one call without tools and writes the generalization test itself",
+  "packages/modder/test/modder.test.ts::the live profile flags a rule that changes nothing for the reviewer",
+  "packages/modder/test/modder.test.ts::the live profile reflects on live episodes that went cleanly a batch at a time, citing each",
+  "packages/modder/test/modder.test.ts::the live profile reviews every live rule after the fact when the harness says review.unflagged",
+  "packages/modder/test/modder.test.ts::the live profile revises a shipped rule when the late reviewer asks, replacing it in the shared library",
+  "packages/modder/test/modder.test.ts::the live profile works a failed live request again offline, in the background",
+  "packages/modder/test/modder.test.ts::the modder pipeline answers a covered event from the shared library without a model call",
+  "packages/modder/test/modder.test.ts::the modder pipeline designs with tools, validates, commits to the shared library and records the episode",
+  "packages/modder/test/modder.test.ts::the modder pipeline feeds the validator's diagnostics back and repairs",
+  "packages/modder/test/modder.test.ts::the modder pipeline files requests of one class of outcome under one key",
+  "packages/modder/test/modder.test.ts::the modder pipeline gives up after the harness's repair budget, leaving the library untouched",
+  "packages/modder/test/modder.test.ts::the modder pipeline revises after a reviewer's notes",
+  "packages/modder/test/modder.test.ts::the modder pipeline snapshots the self-state and renders it as one transferable document",
+  "packages/modder/test/modder.test.ts::the modder pipeline without a model answers only from the library",
+  "packages/modder/test/modder.test.ts::the modder pipeline works a class once when the same request arrives twice at the same time",
+  "packages/modder/test/modder.test.ts::the modder pipeline writes a skill once work recurs, offers it, and books its outcomes",
+  "packages/modder/test/modder.test.ts::the offline script (fixtures/offline.json, for `serve --script`) answers a rope put on or used on a creature, live, and the patch covers the rest of the class",
+  "packages/modder/test/modder.test.ts::the router: local, then find, then create answers from the request alone when nothing beyond it is needed: no catalogue, the directories in the brief",
+  "packages/modder/test/modder.test.ts::the router: local, then find, then create creates what the world does not have, with its picture, and says so while it works",
+  "packages/modder/test/modder.test.ts::the router: local, then find, then create designs one patch at a time, so the second request sees what the first committed",
+  "packages/modder/test/modder.test.ts::the router: local, then find, then create finds what the design needs in the catalogue, and uses the type the world has",
+  "packages/modder/test/modder.test.ts::the router: local, then find, then create still creates the thing when its picture cannot be drawn: it shows its parent's",
+  "packages/modder/test/modder.test.ts::the service serves resolve, the patch log and health over HTTP",
+  "packages/modder/test/modder.test.ts::the tail guard gives up a try at the deadline and retries",
+  "packages/modder/test/modder.test.ts::the tail guard hedges a stalled call to the next provider and takes the first answer",
+  "packages/modder/test/modder.test.ts::the tail guard treats an empty body as a failure and asks again at once",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) and accepts the same yield when it costs its host: a status that gates it and runs out"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

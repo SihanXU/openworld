@@ -1,0 +1,144 @@
+diff --git a/packages/modder/test/prune.test.ts b/packages/modder/test/prune.test.ts
+new file mode 100644
+index 0000000..034bbf2
+--- /dev/null
++++ b/packages/modder/test/prune.test.ts
+@@ -0,0 +1,46 @@
++import { mkdtempSync, writeFileSync } from 'node:fs'
++import { tmpdir } from 'node:os'
++import { join } from 'node:path'
++import { describe, expect, it } from 'vitest'
++import type { Patch } from '@lsw/engine'
++import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
++import { WorldLibrary } from '../src/index.ts'
++
++// The shared library holds only what the validator, as it is now, takes: a patch it grew stricter
++// than (or whose hole the content came to answer) is rolled back before any client syncs it.
++
++const onto = buildOntology()
++const BASE = [...BASE_RULES, ...STORY_RULES]
++const ROPE = 'item/tool/rope'
++
++const answer = (id: string, type?: object): Patch => ({
++  artifacts: [
++    ...(type ? [{ kind: 'type' as const, type: type as never }] : []),
++    { kind: 'rule', rule: { id, host: { type: ROPE }, on: 'act/use', label: { en: 'Use {instrument}', zh: '使用{instrument}' }, tree: { if: { is: { role: 'target', sel: { type: 'actor/creature' } } }, then: { do: [{ op: 'log', text: 'You wave the rope.' }] }, else: 'inherit' } } },
++  ],
++})
++
++describe('library prune', () => {
++  it('rolls back what no longer holds, and keeps what does: the types a patch brought are its own, not "a type that exists already"', () => {
++    const dir = mkdtempSync(join(tmpdir(), 'lsw-prune-'))
++    const at = new Date().toISOString()
++    // a new kind of bead, named and made of what it is made of: valid now
++    const bead = { id: 'item/material/glass_bead', name: { en: 'Glass Bead', zh: '玻璃珠' }, tags: [], props: { material: 'glass' }, makeup: [{ type: 'item/material/stone', count: 1 }] }
++    // an older one with no material: the validator has since grown stricter
++    const old = { id: 'item/material/clay_bead', name: { en: 'Clay Bead', zh: '陶珠' }, tags: [], props: {} }
++    const log = [
++      { seq: 1, at, patch: answer('patch/rope-bead', bead), rules: ['patch/rope-bead'] },
++      { seq: 2, at, patch: { artifacts: [{ kind: 'type', type: old }] }, rules: [] },
++      { seq: 3, at, patch: answer('patch/rope-clay', old), rules: ['patch/rope-clay'] },
++    ]
++    writeFileSync(join(dir, 'library.jsonl'), log.map((e) => JSON.stringify(e)).join('\n') + '\n')
++    const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
++    const gone = library.prune()
++    expect(gone.map((g) => g.rules)).toEqual([['patch/rope-clay']])
++    expect(gone[0].reason).toMatch(/material/)
++    expect(library.lib.rules.has('patch/rope-bead')).toBe(true)
++    expect(library.lib.rules.has('patch/rope-clay')).toBe(false)
++    // and once is enough: nothing more to roll back
++    expect(library.prune()).toEqual([])
++  })
++})
+diff --git a/packages/tools/test/play-session.test.ts b/packages/tools/test/play-session.test.ts
+new file mode 100644
+index 0000000..e326cb5
+--- /dev/null
++++ b/packages/tools/test/play-session.test.ts
+@@ -0,0 +1,86 @@
++// What a play session found (2026-10-07), each held to: the frame says what is near and what is
++// hostile, statuses draw what their data names, a companion struck by its leader takes no harm, a
++// made thing is not named twice, and the world waits while the player's own act waits.
++
++import { describe, expect, it } from 'vitest'
++import { ModPort, OVERLAYS, OntologyIndex, RuleLibrary, buildSandbox, madeOf, snapshot, validatePatch, type Engine } from '@lsw/engine'
++import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
++
++const onto = buildOntology()
++const lib = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
++
++function meadow(extra: { key: string; type: string; x: number; y: number }[] = []): Engine {
++  const eng = buildSandbox({ terrain: Array.from({ length: 7 }, () => Array(7).fill('grass')), entities: [{ key: 'actor', type: 'actor/person/player', x: 3, y: 3 }, ...extra], event: {} }, onto, lib())
++  eng.controls.sync()
++  return eng
++}
++
++describe('the frame', () => {
++  it('names the stations within reach: a workbench beside the player, none away from it', () => {
++    const near = meadow([{ key: 'bench', type: 'fixture/craft/workbench', x: 4, y: 3 }])
++    expect(snapshot(near).player.stations).toContain('workbench')
++    expect(snapshot(meadow([{ key: 'bench', type: 'fixture/craft/workbench', x: 6, y: 6 }])).player.stations).toEqual([])
++  })
++
++  it('a creature is hostile by what it would do, not by whether it is chasing this moment', () => {
++    const eng = meadow([{ key: 'bat', type: 'actor/creature/beast/bat', x: 5, y: 5 }])
++    const bat = eng.world.get('bat')!
++    eng.author(() => (bat.ai = { behaviour: 'melee', temper: 'aggressive', sight: 6, home: { map: 'sandbox', x: 5, y: 5 }, state: 'return' }))
++    expect(snapshot(eng).entities.find((e) => e.id === 'bat')?.hostile).toBe(true)
++  })
++
++  it('a status draws what its data names: a lit fire carries its flame', () => {
++    const eng = meadow([{ key: 'fire', type: 'fixture/light/campfire', x: 4, y: 3 }])
++    eng.author(() => eng.world.setStatus({ e: 'fire' }, 'lit', -1))
++    expect(snapshot(eng).entities.find((e) => e.id === 'fire')?.overlays).toEqual(['flame'])
++    // every base status that draws names a picture the world can draw
++    for (const s of Object.values(onto.statuses)) if (s.overlay) expect(OVERLAYS).toContain(s.overlay)
++  })
++
++  it('a learned status may draw only what the world can draw', () => {
++    const status = (overlay: string) => validatePatch({ artifacts: [{ kind: 'status', status: { id: 'glowing', name: { en: 'glowing', zh: '发光' }, overlay } }] }, { ontology: onto, library: lib() }).errors.join()
++    expect(status('sparkles')).toMatch(/overlay "sparkles" is not one the world can draw/)
++    expect(status('flame')).not.toMatch(/overlay/)
++  })
++})
++
++describe('the world', () => {
++  it('a companion struck by the one it follows is hurt as by any blow, and says so: it is no silent target', () => {
++    const eng = meadow([{ key: 'axe', type: 'item/weapon/blade/axe', x: 3, y: 3 }])
++    const w = eng.world
++    eng.author(() => {
++      w.place(w.get('axe')!, { on: 'hand', holder: 'actor' })
++      w.create('actor/companion/fairy', { on: 'tile', map: 'sandbox', x: 3, y: 2 }, { id: 'pip', props: { companion: 'actor' } })
++      w.create('actor/person/villager', { on: 'tile', map: 'sandbox', x: 2, y: 2 }, { id: 'other' })
++    })
++    const pip = w.get('pip')!
++    const hp = w.num(pip, 'hp')
++    eng.queue({ kind: 'impulse/strike', host: { e: 'pip' }, roles: { actor: { e: 'actor' }, source: { e: 'actor' }, instrument: { e: 'axe' } }, params: { power: 2 }, origin: 'player' })
++    expect(w.num(pip, 'hp')).toBeLessThan(hp)
++    expect(w.fx.some((f) => f.t === 'say' && f.who === 'pip')).toBe(true)
++    // struck by another, a blow as ever (no word from it)
++    w.fx.length = 0
++    const before = w.num(pip, 'hp')
++    eng.queue({ kind: 'impulse/strike', host: { e: 'pip' }, roles: { actor: { e: 'other' }, source: { e: 'other' } }, params: { power: 2 }, origin: 'world' })
++    expect(w.num(pip, 'hp')).toBeLessThan(before)
++    expect(w.fx.some((f) => f.t === 'say' && f.who === 'pip')).toBe(false)
++  })
++
++  it('a made thing is not named twice by its material (a 木桶 of wood stays a 木桶)', () => {
++    const made = madeOf(onto, new OntologyIndex(onto), 'item/vessel/bucket/empty', 'wood').name as { en: string; zh: string }
++    expect(made.zh).toBe('木桶')
++    expect((madeOf(onto, new OntologyIndex(onto), 'item/weapon/blade/axe', 'stone').name as { zh: string }).zh).toBe('石斧')
++  })
++
++  it("the player's own act waiting for its outcome is what the host stops the world for; the world's own questions are not", () => {
++    const eng = meadow([{ key: 'rope', type: 'item/tool/rope', x: 3, y: 3 }, { key: 'slime', type: 'actor/creature/slime/green_slime', x: 3, y: 2 }])
++    eng.author(() => eng.world.place(eng.world.get('rope')!, { on: 'hand', holder: 'actor' }))
++    const port = new ModPort(eng)
++    port.provider = { resolve: () => new Promise(() => undefined) }
++    expect(port.asking).toBeUndefined()
++    eng.act('use', 'actor', { e: 'slime' })
++    expect(port.asking?.origin).toBe('player')
++    port.fallback(port.asking!.id)
++    expect(port.asking).toBeUndefined()
++  })
++})

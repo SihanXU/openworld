@@ -1,0 +1,50 @@
+diff --git a/packages/content/test/placement.test.ts b/packages/content/test/placement.test.ts
+index f2f59f1..b9e0d7e 100644
+--- a/packages/content/test/placement.test.ts
++++ b/packages/content/test/placement.test.ts
+@@ -1,5 +1,5 @@
+ import { describe, expect, it } from 'vitest'
+-import { RuleLibrary, buildSandbox, performPlacement, previewPlacement, type Engine } from '@lsw/engine'
++import { RuleLibrary, buildSandbox, performPlacement, previewPlacement, textOf, type Engine } from '@lsw/engine'
+ import { BASE_RULES, BUILDINGS, PLACEMENT_BY_ID, VEGETABLE_CROPS, buildOntology } from '../src/index.ts'
+ 
+ const at = { map: 'sandbox', x: 2, y: 1 }
+@@ -52,6 +52,38 @@ describe('rule-driven construction', () => {
+     expect(performPlacement(e, 'actor', PLACEMENT_BY_ID.crate, target).ok).toBe(false)
+     expect(e.world.state).toEqual(before)
+   })
++  it.each(BUILDINGS)('builds $id on a floor laid there (in a house), on the floor', (r) => {
++    const e = fresh()
++    e.world.author(() => e.world.create('structure/floor', { on: 'tile', ...at }))
++    kit(e, r.id)
++    expect(place(e, r.id).ok).toBe(true)
++    const made = e.world.placedAt(at.map, at.x, at.y).find((x) => x.type === r.result)!
++    expect(e.world.posOf(made)).toMatchObject(at)
++    expect(e.world.posOf(made)?.z ?? 0).toBe(0)
++    expect(e.world.placedAt(at.map, at.x, at.y).some((x) => x.type === 'structure/floor')).toBe(true)
++  })
++  it('builds upstairs on the floor one stands on; a flyer over the cell is not in the way, a thing lying there is', () => {
++    const e = fresh()
++    e.world.author(() => {
++      e.world.create('structure/floor', { on: 'tile', ...at, z: 1 })
++      e.world.create('structure/floor', { on: 'tile', ...at, y: 2, z: 1 })
++      e.world.place(e.world.get('actor')!, { on: 'tile', ...at, y: 2, z: 1 })
++      e.world.create('actor/companion/fairy', { on: 'tile', ...at, z: 1 })
++    })
++    kit(e, 'chest')
++    expect(textOf(place(e, 'chest').reason, 'en')).toBe('Done.')
++    const chest = e.world.placedAt(at.map, at.x, at.y, 1).find((x) => x.type === 'fixture/container/chest')!
++    expect(e.world.posOf(chest)?.z).toBe(1)
++    // nothing was built on the ground under it
++    expect(e.world.entitiesAt(at.map, at.x, at.y, 0).some((x) => !e.world.isTerrain(x))).toBe(false)
++    const f = fresh()
++    f.world.author(() => {
++      f.world.create('structure/floor', { on: 'tile', ...at })
++      f.world.create('item/material/stick', { on: 'tile', ...at })
++    })
++    kit(f, 'crate')
++    expect(place(f, 'crate').ok).toBe(false)
++  })
+   it('rehearses every step before spending if the library no longer permits a finish', () => {
+     const e = fresh()
+     kit(e, 'chest')

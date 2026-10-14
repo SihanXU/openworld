@@ -1,0 +1,35 @@
+diff --git a/packages/content/test/rules.test.ts b/packages/content/test/rules.test.ts
+index c772032..1688f00 100644
+--- a/packages/content/test/rules.test.ts
++++ b/packages/content/test/rules.test.ts
+@@ -542,6 +542,30 @@ describe('the Mod port', () => {
+     expect(eng2.lib.rules.has('patch/rope-binds-creature')).toBe(true)
+   })
+ 
++  it('keeps a defined act\'s scene as the act found it: what it used up is still there to replay', () => {
++    const eng = sandbox({
++      entities: [
++        { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
++        { key: 'apple', type: 'item/food/apple', x: 2, y: 2, heldBy: 'actor' },
++      ],
++      event: {},
++    })
++    const port = new ModPort(eng)
++    expect(eng.act('use', 'actor', { e: 'actor' }).rule?.id).toBe('use/eat')
++    expect(eng.world.get('apple')).toBeUndefined()
++    // (taken after the act, the scene had no apple: it replayed as undefined, and every later patch was refused)
++    expect(port.regression).toHaveLength(1)
++    const { scenario, rule } = port.regression[0]
++    expect(scenario.entities.some((e) => e.type === 'item/food/apple')).toBe(true)
++    expect(replay(scenario, onto, lib()).resolution).toMatchObject({ defined: true, rule: { id: rule } })
++    // and a patch for something else is not refused for it
++    const rope = sandbox(ropeScenario())
++    const ropePort = new ModPort(rope)
++    ropeOnSlime(rope)
++    const v = validatePatch(ropePatch(), { ontology: onto, library: lib(), scenario: ropePort.records[0].request.scenario, regression: port.regression })
++    expect(v.errors).toEqual([])
++  })
++
+   it('a dismissed question is not asked again', () => {
+     const eng = sandbox(ropeScenario())
+     const port = new ModPort(eng)

@@ -1,0 +1,59 @@
+{
+ "sha": "e85e4fcdaffa7991efa39b2ae25568160846d078",
+ "parent": "3cdb1c3cfbc837177c15eac3a12d6fd7a6fa4809",
+ "date": "2026-10-10T06:25:46Z",
+ "rung": "R4",
+ "lock": "b4f5f638a41723a1e9fb1c4622c2d4dd7c9ba0d4",
+ "tests": [
+  "packages/editor/test/api.test.ts",
+  "packages/editor/test/store.test.ts",
+  "packages/engine/test/boundaries.test.ts"
+ ],
+ "code": [
+  "package.json",
+  "packages/editor/package.json",
+  "packages/editor/src/app/canvas.ts",
+  "packages/editor/src/app/context.ts",
+  "packages/editor/src/app/main.ts",
+  "packages/editor/src/app/mapMode.ts",
+  "packages/editor/src/app/modes.ts",
+  "packages/editor/src/app/peopleMode.ts",
+  "packages/editor/src/app/problems.ts",
+  "packages/editor/src/app/store.ts",
+  "packages/editor/src/app/ui.ts",
+  "packages/editor/src/server/api.ts",
+  "packages/editor/tsconfig.json",
+  "packages/editor/vite.config.ts",
+  "packages/engine/src/game.ts",
+  "packages/format/src/serve.ts",
+  "packages/runtime/src/main.ts",
+  "packages/runtime/src/protocol.ts",
+  "packages/runtime/src/render/scene.ts",
+  "packages/runtime/src/worker.ts"
+ ],
+ "lines": 1287,
+ "areas": [
+  "editor",
+  "engine",
+  "format",
+  "other",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/editor/test/api.test.ts::the editor's service lists the projects and reads one",
+  "packages/editor/test/api.test.ts::the editor's service makes a new project from the starter, its own id and name, without the starter's tests",
+  "packages/editor/test/api.test.ts::the editor's service writes a file as the format writes it, and the compiler sees it",
+  "packages/editor/test/api.test.ts::the editor's service writes nothing outside the format's files",
+  "packages/editor/test/store.test.ts::the editor's store adds and removes files, and undoes either",
+  "packages/editor/test/store.test.ts::the editor's store keeps an edit unsaved, and the compiled project shows it",
+  "packages/editor/test/store.test.ts::the editor's store undoes a stroke, however many cells it painted, at once; and a change that changes nothing is no edit"
+ ],
+ "PASS_TO_PASS": [
+  "packages/engine/test/boundaries.test.ts::the engine side imports no game (docs/engine-split.md, S1) a package's code imports only what its rule allows, and nothing of a game's",
+  "packages/engine/test/boundaries.test.ts::the engine side imports no game (docs/engine-split.md, S1) a package's tests leave the game alone, but for those still listed, each of which still needs it",
+  "packages/engine/test/boundaries.test.ts::the engine side imports no game (docs/engine-split.md, S1) every package has a rule",
+  "packages/engine/test/boundaries.test.ts::the engine side imports no game (docs/engine-split.md, S1) no game imports another game",
+  "packages/engine/test/boundaries.test.ts::the engine side imports no game (docs/engine-split.md, S1) the scan sees every way of importing"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

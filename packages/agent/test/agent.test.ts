@@ -23,6 +23,7 @@ import {
   modelFromEnv,
   pinFromEnv,
   recordsOf,
+  repositoryIn,
   runAgent,
   runInstances,
   solve,
@@ -282,6 +283,29 @@ describe('SWE-style instances', () => {
       expect(scripts.some((s) => s.includes(`${HOOK_NODE} .agent/hooks/presubmit/tests-pass.mjs`))).toBe(true)
       expect(scripts.every((s) => s.startsWith(IMAGE_INIT))).toBe(true)
       expect(scripts.some((s) => s.includes("chown -R '4242:4242' '/testbed'"))).toBe(true)
+    } finally {
+      delete process.env.FAKE_DOCKER_STATE
+      rmSync(tmp, { recursive: true, force: true })
+    }
+  })
+
+  it('finds the repository where an image keeps it below /testbed (as some of SWE-bench-Live do)', { timeout: 60_000 }, async () => {
+    const img = mkdtempSync(join(tmpdir(), 'lsw-image-sub-'))
+    mkdirSync(join(img, 'testbed'))
+    writeFileSync(join(img, 'testbed', 'build.log'), 'the image builder left this beside the repository\n')
+    cpSync(bugRepo(), join(img, 'testbed', 'project'), { recursive: true })
+    expect(repositoryIn(join(img, 'testbed'))).toBe('project')
+    const tmp = mkdtempSync(join(tmpdir(), 'lsw-swe-docker-sub-'))
+    process.env.FAKE_DOCKER_STATE = join(tmp, 'docker')
+    try {
+      const p = await solve(
+        { instance_id: 'local__add-3', repo: 'local/add', base_commit: 'image', problem_statement: ISSUE, test_cmd: 'node test.mjs', image: img },
+        { model: engineer(), state: freshState(), env: 'docker', docker: [process.execPath, FAKE_DOCKER], hookNode: null, cache: join(tmp, 'cache'), work: join(tmp, 'work') },
+      )
+      expect(p.outcome).toBe('accepted')
+      expect(p.model_patch).toMatch(/\+export const add = \(a, b\) => a \+ b/)
+      const calls = readFileSync(join(tmp, 'docker', 'calls.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l) as string[])
+      expect(calls.filter((c) => c[0] === 'exec').every((c) => c.includes('/testbed/project'))).toBe(true) // the commands run in the repository
     } finally {
       delete process.env.FAKE_DOCKER_STATE
       rmSync(tmp, { recursive: true, force: true })

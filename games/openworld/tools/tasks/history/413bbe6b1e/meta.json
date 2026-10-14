@@ -1,0 +1,40 @@
+{
+ "sha": "413bbe6b1ecd0f2f4ecfb1ede7d097b9bffd4179",
+ "parent": "39da65866eb89a7acb3406a7ae884835f4eaf3d4",
+ "date": "2026-10-05T01:10:15-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/content/test/building.test.ts"
+ ],
+ "code": [
+  "packages/client/src/main.ts",
+  "packages/client/src/ui/building.ts",
+  "packages/client/src/worker.ts",
+  "packages/content/src/ontology.ts",
+  "packages/engine/src/controls.ts"
+ ],
+ "lines": 217,
+ "areas": [
+  "content",
+  "engine",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/content/test/building.test.ts::the build palette (B): setting things down a wall carried is set down as G sets it; with none carried, one is made from planks first; out of reach, nothing",
+  "packages/content/test/building.test.ts::the build palette (B): setting things down a workbench is made by hand from four planks and set down; what is made at a workbench is made beside it"
+ ],
+ "PASS_TO_PASS": [
+  "packages/content/test/building.test.ts::a chest from a frame a hammer on a frame of two makes a crate",
+  "packages/content/test/building.test.ts::a chest from a frame an axe breaks up a chest: its contents spill and two planks come back; a locked one is not taken apart, only worn",
+  "packages/content/test/building.test.ts::a chest from a frame an axe takes a frame apart into its planks",
+  "packages/content/test/building.test.ts::a chest from a frame counts planks into a frame, reports progress, and a hammer makes a chest",
+  "packages/content/test/building.test.ts::a house walls, a door and a floor over them make a room round oneself; a bed makes it a bedroom; the door opens and shuts, and the room stays",
+  "packages/content/test/building.test.ts::the same pattern a pickaxe takes a ring apart into its stones and sticks",
+  "packages/content/test/building.test.ts::the same pattern a ring of stones and two sticks make a campfire that lights",
+  "packages/content/test/building.test.ts::the same pattern a sign is built blank and written with a quill while carrying ink",
+  "packages/content/test/building.test.ts::the same pattern planks bridge shallow water, not deep water",
+  "packages/content/test/building.test.ts::the same pattern stakes make a fence"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

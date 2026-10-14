@@ -1,0 +1,13 @@
+diff --git a/packages/content/test/building.test.ts b/packages/content/test/building.test.ts
+index 4d0c275..6bd33ce 100644
+--- a/packages/content/test/building.test.ts
++++ b/packages/content/test/building.test.ts
+@@ -253,7 +253,7 @@ describe('a house', () => {
+     const door = () => w.placedAt(SANDBOX_MAP, 3, 4).find((e) => e.type.startsWith('structure/door'))!
+     expect(door().type).toBe('structure/door')
+     const open = eng.controls.plan('hands', { x: 3, y: 4 })!
+-    expect(textOf(open.label)).toBe('Open Wooden Door')
++    expect(textOf(open.label)).toBe('Open Door')
+     eng.controls.run(open)
+     eng.tick()
+     expect(door().type).toBe('structure/door/open')

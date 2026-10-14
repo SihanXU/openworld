@@ -1,0 +1,162 @@
+diff --git a/packages/content/test/building.test.ts b/packages/content/test/building.test.ts
+index ad7a2aa..10c8694 100644
+--- a/packages/content/test/building.test.ts
++++ b/packages/content/test/building.test.ts
+@@ -62,7 +62,7 @@ function press(eng: Engine, key: Key, type?: string): Pressed {
+ }
+ 
+ const here = (eng: Engine) => eng.world.entitiesAt(FRONT.map, FRONT.x, FRONT.y)
+-const fixture = (eng: Engine) => here(eng).find((e) => eng.world.kindOf(e) === 'fixture')
++const fixture = (eng: Engine) => here(eng).find((e) => !eng.world.isAgent(e) && !eng.world.isPortable(e))
+ const count = (eng: Engine, type: string) => here(eng).filter((e) => e.type === type).length
+ const said = (eng: Engine) => eng.world.fx.flatMap((f) => (f.t === 'say' || f.t === 'log' ? [textOf(f.text)] : []))
+ const heldType = (eng: Engine) => eng.world.get(eng.world.player.held)?.type
+diff --git a/packages/content/test/newtypes.test.ts b/packages/content/test/newtypes.test.ts
+index c4eb541..26f5993 100644
+--- a/packages/content/test/newtypes.test.ts
++++ b/packages/content/test/newtypes.test.ts
+@@ -33,7 +33,6 @@ const INGOT_ART: PixelArt = {
+ 
+ const ingot = (over: Partial<TypeDef> = {}): TypeDef => ({
+   id: 'item/material/iron_ingot',
+-  kind: 'item',
+   name: { en: 'Iron Ingot', zh: '铁锭' },
+   tags: ['metal', 'conductive'],
+   sprite: 'art:item/material/iron_ingot',
+diff --git a/packages/content/test/rules.test.ts b/packages/content/test/rules.test.ts
+index 5fc94a2..38ddbd5 100644
+--- a/packages/content/test/rules.test.ts
++++ b/packages/content/test/rules.test.ts
+@@ -331,7 +331,7 @@ describe('the Mod port', () => {
+         kind: 'rule',
+         rule: {
+           id: 'patch/rope-binds-creature',
+-          host: { tags: ['fiber'], kind: 'item' },
++          host: { tags: ['fiber'], type: 'item' },
+           on: 'act/use',
+           tree: {
+             if: { is: { role: 'target', sel: { type: 'actor/creature', notStatus: ['frozen'] } } },
+@@ -567,7 +567,7 @@ describe('text', () => {
+   it('names roles as they were when the outcome started, even after it destroyed its host', () => {
+     const rule: Rule = {
+       id: 'test/slime-eats-rope',
+-      host: { tags: ['fiber'], kind: 'item' },
++      host: { tags: ['fiber'], type: 'item' },
+       on: 'act/use',
+       tree: {
+         if: { is: { role: 'target', sel: { type: 'actor/creature' } } },
+diff --git a/packages/content/test/storage.test.ts b/packages/content/test/storage.test.ts
+index 37d278b..a7b0527 100644
+--- a/packages/content/test/storage.test.ts
++++ b/packages/content/test/storage.test.ts
+@@ -195,7 +195,7 @@ describe('the ground', () => {
+ describe('the count condition', () => {
+   const rule = (cmp: object): Rule => ({
+     id: 'test/count',
+-    host: { kind: 'fixture', tags: ['surface'] },
++    host: { type: 'fixture', tags: ['surface'] },
+     on: 'impulse/handle',
+     tree: { if: { count: { role: 'host', in: 'tile', cmp: cmp as Bounds } }, then: { do: [{ op: 'log', text: 'crowded' }] }, else: 'inherit' },
+   })
+diff --git a/packages/modder/test/modder.test.ts b/packages/modder/test/modder.test.ts
+index 8ca02b9..72588d2 100644
+--- a/packages/modder/test/modder.test.ts
++++ b/packages/modder/test/modder.test.ts
+@@ -527,11 +527,11 @@ describe('deterministic repairs', () => {
+   })
+ 
+   it('reads a bare terrain id as its tile type, in the host and in conditions', () => {
+-    // 2026-10-03, Kimi K3: {"kind": "tile", "type": "bush"} for the bush tile
+-    const r: Rule = { id: 'patch/bush-chop', host: { kind: 'tile', type: 'bush' }, on: 'impulse/strike', doc: 'd', tree: { if: { is: { role: 'other', sel: { type: 'grass' } } }, then: { do: [{ op: 'vfx', fx: 'leaves' }] } } }
++    // 2026-10-03, Kimi K3: {"kind": "tile", "type": "bush"} for the bush tile (the kind goes in normalizePatch)
++    const r: Rule = { id: 'patch/bush-chop', host: { type: 'bush' }, on: 'impulse/strike', doc: 'd', tree: { if: { is: { role: 'other', sel: { type: 'grass' } } }, then: { do: [{ op: 'vfx', fx: 'leaves' }] } } }
+     const { patch, fixes } = qualifyTerrains(patchOf(r), onto)
+     const q = (patch.artifacts[0] as { rule: Rule }).rule
+-    expect(q.host).toEqual({ kind: 'tile', type: 'tile/bush' })
++    expect(q.host).toEqual({ type: 'tile/bush' })
+     expect((q.tree as { if: { is: { sel: unknown } } }).if.is.sel).toEqual({ type: 'tile/grass' })
+     expect(fixes).toHaveLength(2)
+     // a real type of that name is left alone, and the validator says what the terrain is called
+@@ -636,7 +636,7 @@ describe('the router: local, then find, then create', () => {
+   }
+   /** A creature offered rope leaves something behind: the router's answers are scripted by what each call shows. */
+   const leaves = (type: string): Rule => ({ id: 'patch/rope-on-creature-leaves', host: { type: 'actor/creature' }, on: 'impulse/offered', doc: `A creature offered rope leaves ${type} behind.`, tree: { if: FIBER, then: { do: [{ op: 'spawn', type, at: 'host' }, { op: 'log', text: { en: 'Something drops.', zh: '掉下了东西。' } }] } } })
+-  const INGOT_TYPE = { id: 'item/material/iron_ingot', kind: 'item' as const, name: { en: 'Iron Ingot', zh: '铁锭' }, tags: ['metal'] }
++  const INGOT_TYPE = { id: 'item/material/iron_ingot', name: { en: 'Iron Ingot', zh: '铁锭' }, tags: ['metal'] }
+ 
+   function router(o: { local: unknown; find?: unknown; create?: unknown; art?: (n: number) => unknown; onArt?: () => void }) {
+     const seen: { purpose?: string; system: string; last: string }[] = []
+diff --git a/packages/tools/test/boss-challenge.test.ts b/packages/tools/test/boss-challenge.test.ts
+index f67da2e..eedbeee 100644
+--- a/packages/tools/test/boss-challenge.test.ts
++++ b/packages/tools/test/boss-challenge.test.ts
+@@ -36,7 +36,7 @@ describe('isolated profession boss challenges', () => {
+   it.each(BOSSES.map((b) => b.id))('loads %s alone, with no campaign exits or spawns', (id) => {
+     const game = createBossChallenge(index, raw, 'assassin', id), w = game.engine.world
+     expect(w.get(FIRST_BOSS.id)?.boss?.kit).toBe(id)
+-    expect(w.entitiesOnMap(FIRST_BOSS.map).filter((e) => w.kindOf(e) === 'actor')).toHaveLength(2)
++    expect(w.entitiesOnMap(FIRST_BOSS.map).filter((e) => w.isAgent(e))).toHaveLength(2)
+     expect(w.fits(w.get(FIRST_BOSS.id)!, FIRST_BOSS.map, FIRST_BOSS.x, FIRST_BOSS.y)).toBe(true)
+     expect(w.map(FIRST_BOSS.map)?.portals).toEqual([])
+     expect(w.map(FIRST_BOSS.map)?.forage).toEqual([])
+diff --git a/packages/tools/test/demo.test.ts b/packages/tools/test/demo.test.ts
+index 2612784..9396504 100644
+--- a/packages/tools/test/demo.test.ts
++++ b/packages/tools/test/demo.test.ts
+@@ -35,6 +35,7 @@ import {
+   type Patch,
+   type Plan,
+   type Ref,
++  type World,
+ } from '@lsw/engine'
+ import { BASE_RULES, CROP_STAGES, FIRSTLIGHT, PROLOGUE_DONE, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILLS, STORY_RULES, VEGETABLE_CROPS, buildOntology, decodeChunk } from '@lsw/content'
+ import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
+@@ -85,6 +86,8 @@ function fresh(opts: { arrival?: boolean; ai?: boolean } = {}): Ford {
+ }
+ 
+ const W = (f: Ford) => f.eng.world
++/** What the demo's checks call a thing's form: a body that acts, a thing to carry, or what stands there — read from its data. */
++const formOf = (w: World, e: Entity) => (w.isPlaceless(e) ? 'resident' : w.isAgent(e) ? 'actor' : w.isPortable(e) ? 'item' : 'fixture')
+ /** The test sets the scene: an author's hand, not a change the world made. */
+ const author = <T>(f: Ford, fn: () => T): T => f.eng.author(fn)
+ const ofType = (f: Ford, type: string) => Object.values(W(f).state.entities).find((e) => e.type === type)
+@@ -412,7 +415,7 @@ req('E4', 'the library is shared and persistent: a save keeps it, a new game kee
+ 
+ req('C1', 'every kind of thing: the player, people, creatures, items, fixtures, tiles with statuses, and the residents', ['npc.hesper', 'npc.tobin', 'actor/creature/slime/fire_slime', 'item/tool/rope', 'fixture/light/campfire'], () => {
+   const f = fresh()
+-  const kinds = new Set<string>(Object.values(W(f).state.entities).filter((e) => e.place.on !== 'none').map((e) => (e.npc ? 'person' : e.ai ? 'creature' : W(f).kindOf(e))))
++  const kinds = new Set<string>(Object.values(W(f).state.entities).filter((e) => e.place.on !== 'none').map((e) => (e.npc ? 'person' : e.ai ? 'creature' : formOf(W(f), e))))
+   for (const k of ['actor', 'person', 'creature', 'item', 'fixture', 'resident']) expect([k, kinds.has(k)]).toEqual([k, true])
+   // tiles take statuses (the oiled path of B5, the burning meadow): a tile here can burn
+   expect(W(f).map('ford')!.terrain.includes('drygrass')).toBe(true)
+@@ -446,7 +449,7 @@ req('D2', 'every layer a target can be: a person, a creature, a fixture, a loose
+   // the cart is in Firstlight Village now
+   stand(f, ...STAND.cart, 'left', FIRSTLIGHT.map)
+   const layers = f.eng.controls.layers({ map: FIRSTLIGHT.map, ...at(...AT.cart) })
+-  const kinds = layers.map((r) => ('tile' in r ? 'ground' : W(f).kindOf(W(f).get(r.e)!)))
++  const kinds = layers.map((r) => ('tile' in r ? 'ground' : formOf(W(f), W(f).get(r.e)!)))
+   expect(kinds).toEqual(['item', 'item', 'fixture', 'ground'])
+   hold(f, ofType(f, 'item/food/bread'))
+   for (const key of ['hands', 'take', 'use', 'put'] as Key[]) {
+diff --git a/packages/tools/test/writes.test.ts b/packages/tools/test/writes.test.ts
+index a1919c8..4b941fb 100644
+--- a/packages/tools/test/writes.test.ts
++++ b/packages/tools/test/writes.test.ts
+@@ -82,6 +82,17 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
+     expect(found).toEqual([])
+   })
+ 
++  it('there are no kinds: no code branches on what kind of thing something is, no type or selector names one (world-model.md §4.2)', () => {
++    const found: string[] = []
++    for (const { file, lines } of sources())
++      lines.forEach((l, i) => {
++        const c = code(l)
++        if (c.startsWith('*') || c.startsWith('/*')) return
++        if (/\bkindOf\(/.test(c) || /\bkind: '(actor|item|fixture|tile|resident)'/.test(c) || /\bEntityKind\b/.test(c)) found.push(`${file}:${i + 1}: ${c.slice(0, 120)}`)
++      })
++    expect(found).toEqual([])
++  })
++
+   it('the scan sees the ways around the mutators, and not their definitions', () => {
+     const hit = (c: string) => WRITES.some((re) => re.test(c))
+     for (const c of [

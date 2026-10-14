@@ -1,0 +1,47 @@
+{
+ "sha": "7e9790b7c6921a0691e58cafdf2f43ec53f8eeac",
+ "parent": "2c490f73f7c6ed821236be74aeec09a63c4d0322",
+ "date": "2026-09-30T15:13:28Z",
+ "rung": "R2",
+ "lock": "03447b6cc934cf5833a59fdb80aeddf875b09e84",
+ "tests": [
+  "packages/content/test/storage.test.ts",
+  "packages/tools/test/coverage.test.ts"
+ ],
+ "code": [
+  "packages/content/src/ontology.ts",
+  "packages/content/src/rules.ts",
+  "packages/tools/src/coverage.ts"
+ ],
+ "lines": 98,
+ "areas": [
+  "content",
+  "tools"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/content/test/storage.test.ts::containers locks a closed chest with a key, and the key opens it again",
+  "packages/content/test/storage.test.ts::containers refuses when full, and the item stays in hand",
+  "packages/content/test/storage.test.ts::surfaces puts an item on a fixture/craft/anvil and takes it back",
+  "packages/content/test/storage.test.ts::surfaces puts an item on a fixture/furniture/bench and takes it back",
+  "packages/content/test/storage.test.ts::surfaces puts an item on a fixture/furniture/counter and takes it back",
+  "packages/content/test/storage.test.ts::surfaces puts an item on a fixture/furniture/stall and takes it back",
+  "packages/content/test/storage.test.ts::surfaces puts an item on a fixture/furniture/table and takes it back",
+  "packages/content/test/storage.test.ts::surfaces puts an item on a fixture/sacred/altar and takes it back",
+  "packages/content/test/storage.test.ts::surfaces takes the top item first, then the table refuses",
+  "packages/content/test/storage.test.ts::the count condition counts what lies on a role's tile, besides the role itself",
+  "packages/content/test/storage.test.ts::the ground a wall has no room",
+  "packages/content/test/storage.test.ts::the ground lava burns up what is flammable and refuses the rest",
+  "packages/content/test/storage.test.ts::the ground water refuses what is put in it, but still fills an empty vessel"
+ ],
+ "PASS_TO_PASS": [
+  "packages/content/test/storage.test.ts::containers shows what the faced open container holds, and nothing when it is closed",
+  "packages/content/test/storage.test.ts::containers takes any chosen item from a chest of twelve",
+  "packages/content/test/storage.test.ts::the count condition is validated like any other condition",
+  "packages/tools/test/coverage.test.ts::interaction coverage names only rules that exist",
+  "packages/tools/test/coverage.test.ts::interaction coverage never loses an answer: no held form or target answers fewer combinations",
+  "packages/tools/test/coverage.test.ts::interaction coverage never takes a purpose away from a form or a fixture type",
+  "packages/tools/test/coverage.test.ts::interaction coverage sweeps the same space as the baseline",
+  "packages/tools/test/coverage.test.ts::nothing put down is lost every form put on every target stays in hand or can be taken back"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}
