@@ -14,7 +14,6 @@ import { writeSlot, type Slot } from './saves.ts'
 import { Cover } from './ui/cover.ts'
 import { DeathScreen } from './ui/death.ts'
 import { locale, t, tx } from './ui/common.ts'
-import { actionOf } from './action.ts'
 import { Cursor } from './ui/cursor.ts'
 import { ModConsole } from './ui/dev.ts'
 import { Hud } from './ui/hud.ts'
@@ -354,8 +353,6 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       markKeys()
       // the frame goes to the new spot at once, not with the next frame
       if (lastFrame) scene.focusOn(lastFrame)
-      const after = aimsAnswered >= aimsSent ? afterKeys : undefined
-      if (after) ((afterKeys = undefined), after())
       break
     }
     case 'records':
@@ -544,24 +541,22 @@ const typing = () => {
   return !!a && (a.tagName === 'TEXTAREA' || a.tagName === 'INPUT')
 }
 
-// The inputs (design.md §5.2), as Stardew Valley's: the action — E, or the right click — does what the
-// thing aimed at calls for (talk, open, read, pick up, set down, eat: action.ts actionOf, which the cursor
-// shows); F takes and G puts or hands over, plainly; the left click uses the held thing (or a bare blow). A short
-// press acts on the top of what is drawn where the pointer is; a long press opens the chooser of all of it
-// the input reaches (people, things, items, the ground; for the action, the bare hands on it), so every
-// event is reachable.
+// The inputs (design.md §5.2): E a hand, F takes, G puts or hands over, the left click uses the held thing (or a
+// bare blow), and the right click is the action, as Stardew's action button: what the thing aimed at calls for
+// (talk, open, pick up, set down a bed, eat — the engine's Controls chooses it from the others, the cursor shows
+// it). A short press acts on the top of what is drawn where the pointer is; a long press opens the chooser of all
+// of it the input reaches (people, things, items, the ground, oneself), so every event is reachable.
 const LONG_MS = 380
 const KEY_OF: Record<string, Key> = { KeyE: 'hands', KeyF: 'take', KeyG: 'put' }
-const KEY_NAME: Record<Key, string> = { hands: 'E', take: 'F', put: 'G', use: 'L', self: 'R' }
+const KEY_NAME: Record<Key, string> = { hands: 'E', take: 'F', put: 'G', use: 'L', self: 'R', action: 'R' }
 /** A press under way: what made it (a key's code, or `mouse0`/`mouse2`), the key it is, where the pointer aimed. */
-let pressing: { by: string; key: Key; tile?: Tile; timer: ReturnType<typeof setTimeout>; long: boolean; action: boolean } | undefined
-/** What opened the chooser (its title: E and the right button both choose for the bare hands). */
+let pressing: { by: string; key: Key; tile?: Tile; timer: ReturnType<typeof setTimeout>; long: boolean } | undefined
+/** What opened the chooser (its title). */
 let chooserBy = ''
 
-/** An input goes down (`action`: the action, which is the bare hands when held long). */
-function press(by: string, key: Key, tile: Tile | undefined, action = false): void {
+function press(by: string, key: Key, tile: Tile | undefined): void {
   if (pressing) return
-  const p = { by, key, tile, action, long: false, timer: setTimeout(() => ((p.long = true), (chooserBy = by), send({ t: 'choices', key, tile })), LONG_MS) }
+  const p = { by, key, tile, long: false, timer: setTimeout(() => ((p.long = true), (chooserBy = by), send({ t: 'choices', key, tile })), LONG_MS) }
   pressing = p
 }
 function release(by: string): void {
@@ -569,23 +564,7 @@ function release(by: string): void {
   if (!p || p.by !== by) return
   clearTimeout(p.timer)
   pressing = undefined
-  if (p.long) return
-  if (!p.action) return act(p.key, p.tile)
-  // the action is what the cursor shows: decided once the worker has answered the latest aim (else a press
-  // made as the pointer moved would act on what was under it before), on what the pointer aims at then
-  whenKeysKnown(() => {
-    const k = actionOf(lastFrame?.keys, lastFrame?.player.held?.type, lastFrame?.lesson?.allow)
-    if (k) act(k, mouseTile, true)
-  })
-}
-/** A key sent to act (with nothing pointed at, the worker sends it where the keys found something close by: assist). */
-function act(key: Key, tile: Tile | undefined, action = false): void {
-  // a left click with nothing in hand on the bare ground that the world has never seen done (a fist on grass):
-  // nothing, as in Stardew — no question asked for a click in passing (held long, the click chooses the ground;
-  // Space still strikes ahead). With something in hand, the click asks as ever.
-  const spot = lastFrame?.keys?.use
-  if (key === 'use' && !action && !lastFrame?.player.held && spot?.ground && spot.unknown) return
-  send({ t: 'key', key, tile })
+  if (!p.long) send({ t: 'key', key: p.key, tile: p.tile })
 }
 /**
  * The chooser's list arrived (after a long press): pick a layer, then the input acts on it. Time
@@ -596,17 +575,9 @@ onChoices = (key, tile, list) =>
   list.length &&
   hud.showChooser(chooserBy === 'mouse0' ? t('lmb') : chooserBy === 'mouse2' ? t('rmb') : KEY_NAME[key], tile ?? aimFront(), list, (layer) => (syncPause(), send({ t: 'ui', what: 'chooser' }), send({ t: 'key', key, tile, layer })))
 
-/** Aims sent to the worker, and the last whose keys it has answered: until then, what the keys would do is not known. */
+/** Aims sent to the worker, and the last whose keys it has answered: until then, what the keys would do there is not known (the cursor and the frame wait). */
 let aimsSent = 0
 let aimsAnswered = 0
-let afterKeys: (() => void) | undefined
-function whenKeysKnown(f: () => void): void {
-  if (aimsAnswered >= aimsSent) return f()
-  afterKeys = f
-  // the worker answers every aim at once; one it has not answered in a second (a stall) drops the press rather
-  // than act on a spot the pointer has left
-  setTimeout(() => afterKeys === f && (afterKeys = undefined), 1000)
-}
 
 /** Esc held this long skips the lesson at hand (docs/prologue.md, the drills). */
 const ESC_SKIP_MS = 2000
@@ -726,7 +697,7 @@ window.addEventListener('keydown', (e) => {
   // Tab: the next row of the bag becomes the toolbar (Shift+Tab: the previous one)
   if (e.code === 'Tab') return void (e.preventDefault(), send({ t: 'row', dir: e.shiftKey ? -1 : 1 }))
   const key = KEY_OF[e.code]
-  if (key) return press(e.code, key, mouseTile, e.code === 'KeyE')
+  if (key) return press(e.code, key, mouseTile)
   const slot = SLOT_CODES.indexOf(e.code)
   if (slot >= 0) send({ t: 'select', slot })
 })
@@ -799,15 +770,15 @@ function setHandUp(up: boolean): void {
   if (!building.open) scene.setBuildView(up, up)
 }
 const gameEl = document.getElementById('game')!
-/** The pointer's mark: what the keys would do at what it is over, shown in the cursor itself (ui/cursor.ts). */
-const cursor = new Cursor([gameEl], document.getElementById('labels')!, () => scene.focusRect(), () => scene.settled())
-scene.keysAhead = () => cursor.ahead
+/** The pointer's mark (what the action would do at what it is over) and the tip over the frame (what each input would do): ui/cursor.ts. */
+const cursor = new Cursor([gameEl], document.getElementById('labels')!, () => scene.focusRect(), () => scene.settled(), () => lastFrame && scene.screenOfTile(lastFrame.player.x, lastFrame.player.y))
+scene.keysAhead = () => !mouseTile
 scene.keysFresh = () => aimsAnswered >= aimsSent
 if (import.meta.env.DEV) Object.assign((window as unknown as { lsw: object }).lsw, { cursor })
 function markKeys(): void {
   // a frame made before the worker saw the latest aim tells the old spot's keys: the mark waits for the new
   if (aimsAnswered < aimsSent) return
-  cursor.update(hud.dialogOpen ? undefined : lastFrame?.keys, lastFrame?.player.held?.type, mouseTile, lastFrame?.lesson?.allow)
+  cursor.update(hud.dialogOpen ? undefined : lastFrame?.keys, mouseTile)
 }
 window.addEventListener('mousemove', (e) => {
   // only over the world itself (the HUD's own panels take their own clicks)
@@ -836,7 +807,7 @@ gameEl.addEventListener('mousedown', (e) => {
     return send({ t: 'key', key: 'use', tile, ...(handUp && { layer: CEILING }) })
   }
   if (e.button === 0) press('mouse0', 'use', tile)
-  if (e.button === 2) press('mouse2', 'hands', tile, true)
+  if (e.button === 2) press('mouse2', 'action', tile)
 })
 window.addEventListener('mouseup', (e) => {
   if (e.button === 0) building.release()

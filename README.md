@@ -51,12 +51,10 @@ npm run game -- check games/starter        # a project's problems (build <projec
 npm run bake          # OpenWorld written as a project in the format → games/openworld/project/
 ```
 
-With Nix, `nix develop` (or `direnv allow`, through `.envrc`) gives Node 24 with npm; install
-with `npm ci` to keep the lockfile as it is.
-
-Controls: WASD/arrows move (Shift walks) · **E** hands (talk, open, push) · **F** take ·
-**left click** use the held thing (weapons strike; click yourself to eat) · **right click** put
-it there (place, store, hand over) — on the topmost thing drawn where you point; hold to choose another · **1–0** / wheel
+Controls: WASD/arrows move (Shift walks) · **E** hands (talk, open, push) · **F** take · **G** put
+(place, store, hand over) · **left click** use the held thing (weapons strike; click yourself to eat) ·
+**right click** the action, as the cursor shows (talk, open, pick up, set down a bed, eat) — on the
+topmost thing drawn where you point; hold to choose another · **1–0** / wheel
 choose what to hold · **Esc** menu · **I** inventory · **J** journal and Threadbook ·
 **`** Mod Console (dev).
 

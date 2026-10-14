@@ -119,11 +119,15 @@
 @keyframes learnpulse { 50% { box-shadow: 0 0 0 2px #b9a4ffcc; } }
 @keyframes mapname { 0% { opacity: 0; } 15% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
 
-/* the pointer's mark floating over the thing the keys act on, while the pointer aims at nothing (ui/cursor.ts):
-   it fades in and out, and bobs a little */
-.vcursor { position: absolute; left: 0; top: 0; width: 40px; height: 40px; background-repeat: no-repeat; pointer-events: none; opacity: 0.9; transition: opacity 0.12s ease; animation: vbob 1.4s ease-in-out infinite; }
-.vcursor.off { opacity: 0; }
-@keyframes vbob { 0%, 100% { background-position: 0 0; } 50% { background-position: 0 -3px; } }
+/* what the inputs would do at the framed spot (foreseeable, design.md §5.2): a small tip over the frame once the
+   player stands and the frame rests (ui/cursor.ts); amber with a "?" where the modder will be asked, red for a theft */
+.vtip { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; gap: 1px; align-items: flex-start; white-space: nowrap; padding: 2px 7px; border-radius: 6px; background: rgba(36, 22, 10, 0.62); border: 1px solid rgba(217, 164, 65, 0.25); pointer-events: none; transition: opacity 0.12s ease; }
+.vtip.off { opacity: 0; }
+.vtip .kl { font-size: 12px; color: #fbe9c4; text-shadow: 0 1px 0 #000, 1px 0 0 #000, -1px 0 0 #000, 0 -1px 0 #000; }
+.vtip .kl kbd { background: var(--paper); color: var(--ink-warm); border-color: var(--wood-dark); font-size: 10px; font-weight: 700; text-shadow: none; }
+.vtip .kl.unknown { color: #ffd08a; }
+.vtip .kl .q { color: #ffb24a; font-weight: 600; }
+.vtip .kl.steal { color: #ff8a7a; }
 
 /* the layer chooser (a long press on an input) and the context menu */
 .chooser, .ctx { position: absolute; left: 0; top: 0; min-width: 200px; padding: 4px; background: var(--paper); color: var(--ink-warm); border: 3px solid var(--wood-dark); border-radius: 6px; box-shadow: 0 0 0 2px var(--wood-edge), 0 6px 18px rgba(0,0,0,0.45); font-size: 13px; z-index: 45; }

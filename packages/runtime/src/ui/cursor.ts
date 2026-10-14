@@ -1,18 +1,20 @@
-// The action and the pointer, as in Stardew Valley. The action (E, the right click) is one input that does
-// what the thing it is aimed at calls for (action.ts actionOf), and the cursor shows it at once: a glove over what it
-// opens, reads or picks up (or where what is held is set down: a bed, a workbench), a speech bubble over
-// someone to talk to, a "?" where the world has never seen the act (the modder will be asked), a "!" where F
-// would be a theft, and a faded arrow where nothing under the pointer is within reach (the act goes to the
-// spot the scene outlines). The pictures are the game's own (its catalogue): without them, the arrow.
-// The scene frames the spot the inputs act on, under the pointer or in front (render/scene.ts focusOn). When the
-// pointer aims at nothing (the keys walked last, or it rests on the HUD), the keys act on the spot in front, and
-// the same mark floats over its frame when it is a thing or someone (never on the bare ground), walking too.
+// The pointer and the tip, as in Stardew Valley. The right click is the action: one input that does what the
+// thing it is aimed at calls for (the engine's Controls chooses it: the frame's keys.action), and the cursor shows
+// it at once: a glove over what it opens, reads or picks up (or where what is held is set down: a bed, a
+// workbench), a speech bubble over someone to talk to, a "?" where the world has never seen the act (the modder
+// will be asked), a "!" where only F would take it (a theft), and a faded arrow where nothing under the pointer is
+// within reach (the act goes to the spot the scene frames instead). The pictures are the game's own (its
+// catalogue's `ui.cursorHand` and `ui.emoteDots`): without them, the arrow.
+// The tip says what each input would do at the framed spot, in the answering rules' own labels (foreseeable,
+// design.md §5.2): with the pointer, the action, the left click and E, F, G where they do something else; without it
+// (the keys walked last), E, F and G in front. It stands over the frame (render/scene.ts focusRect) once the player
+// has stopped and the frame has rested a moment, so it never lurches with the steps nor flickers as the pointer sweeps.
 
-import type { Frame, Key } from '@openworld/engine'
+import type { Frame, KeyView } from '@openworld/engine'
 import type { SpriteDef } from '../assets/types.ts'
 import { catalog } from '../game.ts'
 import { assetUrl } from '../render/assets.ts'
-import { actionOf } from '../action.ts'
+import { esc, t, tx } from './common.ts'
 
 type Mark = 'arrow' | 'hand' | 'talk'
 type Badge = '?' | '!'
@@ -23,10 +25,13 @@ interface Look {
   far?: boolean
 }
 type Art = HTMLCanvasElement | HTMLImageElement
+type Keys = Frame['keys']
 
 /** Screen pixels per pixel of art, and the cursor image's side. */
 const PX = 2
 const SIZE = 40
+/** How long the frame rests on a spot before the tip comes (ms): a pointer sweeping over things shows none. */
+const DWELL_MS = 160
 
 const INK: Record<string, string> = { K: '#2a1608', W: '#fff6dd', S: '#d9c49a', Y: '#ffd34a', R: '#e8483c' }
 const ARROW = [
@@ -97,93 +102,109 @@ async function picture(d: SpriteDef | undefined): Promise<HTMLCanvasElement | un
 }
 
 /** The keys' spot: where the act would be done. */
-function spotOf(k: Frame['keys']): { x: number; y: number } | undefined {
-  const v = k && (k.hands ?? k.take ?? k.put ?? k.use ?? k.self)
+function spotOf(k: Keys): { x: number; y: number } | undefined {
+  const v = k && (k.hands ?? k.take ?? k.put ?? k.use ?? k.action)
   return v && { x: v.x, y: v.y }
 }
 
-/** The mark for the action (eating and drinking keep the arrow, as in Stardew). */
-function lookOf(k: Frame['keys'], act: Key | undefined): Look {
-  const v = act && k?.[act]
-  const badge: Badge | undefined = k?.take?.steal ? '!' : v?.unknown ? '?' : undefined
-  if (!act || !v || act === 'self') return { mark: 'arrow', badge: badge === '!' ? '!' : undefined }
+/** The mark for the action (eating and drinking keep the arrow, as in Stardew; where only F would take it, a "!"). */
+function lookOf(k: Keys): Look {
+  const v = k?.action
+  if (!v) return { mark: 'arrow', badge: k?.take?.steal ? '!' : undefined }
+  const badge: Badge | undefined = v.unknown ? '?' : undefined
+  if (v.act === 'self') return { mark: 'arrow', badge }
   return { mark: v.person ? 'talk' : 'hand', badge }
 }
 
-const keyOf = (l: Look) => `${l.mark}|${l.badge ?? ''}|${l.far ? 'far' : ''}`
+const same = (a: KeyView, b: KeyView | undefined) => !!b && a.x === b.x && a.y === b.y && JSON.stringify(a.label) === JSON.stringify(b.label)
+
+/**
+ * The tip's lines: what each input would do. With the pointer, the action and the left click, then E, F and G
+ * where each does something the action does not (and F where only it would take: a theft); without it, E, F and G
+ * in front. A bare hand on the bare ground goes unsaid unless it does something there (touching the floor, or a
+ * touch the world has never seen, would be said at every step: the frame's faint corners and amber say it).
+ */
+function linesOf(k: Keys, pointer: boolean): string {
+  if (!k) return ''
+  const line = (key: string, v: KeyView | undefined) =>
+    v ? `<div class="kl${v.unknown ? ' unknown' : ''}${v.steal ? ' steal' : ''}"><kbd>${esc(key)}</kbd> ${esc(tx(v.label))}${v.unknown ? ' <span class="q">?</span>' : ''}</div>` : ''
+  const hands = k.hands?.ground && (k.hands.unknown || k.hands.idle) ? undefined : k.hands
+  const act = k.action
+  const other = (v: KeyView | undefined) => (pointer && act && v && same(act, v) ? undefined : v)
+  return (pointer ? line(t('rmb'), act) + line(t('lmb'), k.use) : '') + line('E', other(hands)) + line('F', other(k.take)) + line('G', other(k.put))
+}
 
 export class Cursor {
   private art: Partial<Record<Mark, Art>> = { arrow: drawn(ARROW) }
   private badges: Record<Badge, Art> = { '?': drawn(BADGE['?']), '!': drawn(BADGE['!']) }
   private images = new Map<string, { url: string; hot: [number, number] }>()
   private css = ''
-  /** The mark over the spot in front, while the pointer aims at nothing. */
-  private el = document.createElement('div')
-  private front?: { x: number; y: number; look: Look }
-  /** The pointer aims at something out of reach: the scene outlines the spot the act goes to instead. */
+  private look: Look = { mark: 'arrow' }
+  /** The tip over the frame, what it says, and since when. */
+  private tip = document.createElement('div')
+  private said = ''
+  private since = 0
+  /** The pointer aims at something out of reach: the scene frames the spot the act goes to instead. */
   far = false
   /** The look the pointer shows (for the dev console). */
   shown = ''
 
-  /** The pointer aims at nothing: the keys act on the spot in front (the scene's frame goes along with the player). */
-  ahead = false
-
   constructor(
     /** The elements over the world, which show the cursor. */
     private over: HTMLElement[],
+    /** The layer over the world the tip stands in (its coordinates the scene's view). */
     layer: HTMLElement,
-    /** Where on screen the scene frames the spot the keys act on (the mark stands over it). */
+    /** Where on screen the scene frames the spot the inputs act on (the tip stands over it). */
     private framed: () => { x: number; y: number; w: number; h: number } | undefined,
-    /** The player has stopped (walking, the mark waits: what is near changes at every step). */
+    /** The player has stopped (walking, the tip waits: what is in front changes at every step). */
     private settled: () => boolean,
+    /** Where the player is on screen (the tip goes on the frame's far side from them, clear of their head). */
+    private me: () => { x: number; y: number } | undefined,
   ) {
-    this.el.className = 'vcursor off'
-    layer.appendChild(this.el)
-    // the glove (the game's own "gloves" item) and the speech bubble ("…"), if the game has them
-    void picture(catalog().items['item:gloves']).then((c) => c && (this.art.hand = c))
-    void picture(catalog().ui.emoteDots).then((c) => c && (this.art.talk = outlined(c)))
-    this.show({ mark: 'arrow' })
+    this.tip.className = 'vtip off'
+    layer.appendChild(this.tip)
+    // the glove and the speech bubble ("…"), if the game has them
+    const ui = catalog().ui
+    void picture(ui.cursorHand).then((c) => c && ((this.art.hand = c), this.show(this.look)))
+    void picture(ui.emoteDots).then((c) => c && ((this.art.talk = outlined(c)), this.show(this.look)))
+    this.show(this.look)
   }
 
-  /**
-   * What the keys would do now; the type of what is held; the cell the pointer aims at (none: it aims at
-   * nothing); the inputs a lesson lets work.
-   */
-  update(keys: Frame['keys'], held: string | undefined, aim: { x: number; y: number } | undefined, allow?: readonly string[]): void {
+  /** What the keys would do now, and the cell the pointer aims at (none: it aims at nothing, the keys act in front). */
+  update(keys: Keys, aim: { x: number; y: number } | undefined): void {
     const at = spotOf(keys)
-    const act = actionOf(keys, held, allow)
-    const look = lookOf(keys, act)
-    if (aim) {
-      this.far = !!at && (at.x !== aim.x || at.y !== aim.y)
-      this.show(this.far ? { mark: 'arrow', far: true } : look)
-      this.front = undefined
-      this.ahead = false
-      return
-    }
-    this.far = false
-    this.ahead = !!at
-    this.show({ mark: 'arrow' })
-    // the bare ground in front: no mark (one at every step would be noise)
-    this.front = at && look.mark !== 'arrow' ? { ...at, look } : undefined
+    this.far = !!aim && !!at && (at.x !== aim.x || at.y !== aim.y)
+    this.show(!aim ? { mark: 'arrow' } : this.far ? { mark: 'arrow', far: true } : lookOf(keys))
+    const said = linesOf(keys, !!aim)
+    if (said === this.said) return
+    this.said = said
+    this.since = performance.now()
+    this.tip.innerHTML = said
+    this.tip.classList.add('off')
   }
 
-  /** Every animation frame: the mark over the thing in front. */
+  /** Every animation frame: the tip over the frame, once the player stands and the frame has rested. */
   tick(): void {
-    const f = this.front
-    const img = f && this.settled() ? this.image(f.look) : undefined
-    this.el.classList.toggle('off', !img)
-    if (!f || !img) return
-    const p = this.framed()
-    if (!p) return void this.el.classList.add('off')
-    const bg = `url("${img.url}")`
-    if (this.el.style.backgroundImage !== bg) this.el.style.backgroundImage = bg
-    // over the frame, not on what is in it (the thing stays in sight): the mark's own picture is its first 32 pixels
-    this.el.style.transform = `translate(${Math.round(p.x + p.w / 2 - 16)}px, ${Math.round(p.y - 34)}px)`
+    const p = this.said && this.settled() && performance.now() - this.since >= DWELL_MS ? this.framed() : undefined
+    this.tip.classList.toggle('off', !p)
+    if (!p) return
+    const view = (this.tip.offsetParent as HTMLElement | null) ?? document.body
+    const w = this.tip.offsetWidth
+    const h = this.tip.offsetHeight
+    // on the frame's far side from the player — under a spot below them, else over it — clear of what is in it and
+    // of their head; inside the view; whole pixels (a half blurs the text)
+    const me = this.me()
+    // (the frame's top under the middle of the player's cell: the spot is below them)
+    const below = (!!me && p.y > me.y) || p.y - h - 6 < 4
+    const x = Math.max(4, Math.min(view.clientWidth - w - 4, p.x + p.w / 2 - w / 2))
+    const y = below && p.y + p.h + 6 + h <= view.clientHeight - 4 ? p.y + p.h + 6 : p.y - h - 6
+    this.tip.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`
   }
 
   private show(look: Look): void {
+    this.look = look
     // until the glove and the bubble have loaded, the arrow
-    const img = this.image(look) ?? this.image({ mark: 'arrow', far: look.far })
+    const img = this.image(look) ?? this.image({ mark: 'arrow', badge: look.badge, far: look.far })
     const css = img ? `url("${img.url}") ${img.hot[0]} ${img.hot[1]}, auto` : 'auto'
     this.shown = keyOf(look)
     if (css === this.css) return
@@ -212,3 +233,5 @@ export class Cursor {
     return made
   }
 }
+
+const keyOf = (l: Look) => `${l.mark}|${l.badge ?? ''}|${l.far ? 'far' : ''}`

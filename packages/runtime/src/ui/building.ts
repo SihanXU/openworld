@@ -1,5 +1,4 @@
-import type { Dir, Frame, PlacementPreview, PlacementRecipe, Recipe, Text } from '@openworld/engine'
-import { placeable } from '../action.ts'
+import { Controls, type Dir, type Frame, type PlacementPreview, type PlacementRecipe, type Recipe, type Text } from '@openworld/engine'
 import { game, ontology, perGame } from '../game.ts'
 import type { Tile, ToWorker } from '../protocol.ts'
 import { esc, locale, tx } from './common.ts'
@@ -34,6 +33,9 @@ const turns = (type?: string): boolean => {
 }
 /** A block drawn a storey high (its front in the cell, its top a tile up): a wall, a door, stairs. */
 const block = (type?: string) => !!type?.startsWith('structure/') && spaces(type).includes('volume')
+
+/** A built thing or a fixture, set in a cell as part of a place. */
+const placeable = (type: string) => Controls.placeable(type)
 
 const PUT_HELP: Text = { en: 'Set down one you carry (as G does); with none, one is made from what you carry first.', zh: '放下身上带着的一个（和 G 一样）；身上没有时，先用身上的材料现做一个。' }
 

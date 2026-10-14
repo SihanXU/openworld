@@ -2,7 +2,7 @@
 
 import { untilUp } from './untilUp.ts'
 import { artsToSend, forgetInvalid, forgetStatus, forgetType, learnedRecipes, recipeOf, shareKept, sharedPart, takeDefinitions, withKept } from './learned.ts'
-import { lookProblems, signatureOf, difficultyOf, DIRS, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality } from '@openworld/engine'
+import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
@@ -296,9 +296,9 @@ async function ensureMaps(): Promise<void> {
 }
 
 /**
- * What the inputs that reach the aimed spot would do now (the labels over the target): E, F, G and the
- * left click there; the right click (on oneself) when something is held and it is something to do
- * there, or the player points at themself. An experiment with something in hand starts a prefetch.
+ * What each input would do now, foreseeable (design.md §5.2; the page's tip says it): E, F, G and the left
+ * click at the aim (or in front); the action (the right click) there; the held thing used on oneself when it is
+ * something to do, or the player points at themself. An experiment with something in hand starts a prefetch.
  */
 function keyViews(): Frame['keys'] {
   const eng = game!.engine
@@ -312,68 +312,31 @@ function keyViews(): Frame['keys'] {
     if (fw <= 1 && fd <= 1) return undefined
     return [t.place.x - Math.floor((fw - 1) / 2), t.place.y - fd + 1, fw, fd]
   }
-  // someone to talk to (the pointer becomes a speech bubble over them)
-  const person = (pl: Plan) => {
-    const t = w.get(pl.target.e)
-    return !!t && t.id !== w.state.player && w.isAgent(t) && (w.hasTag(t, 'person') || w.hasTag(t, 'companion'))
-  }
+  // the act's own view: the '?' only where someone will be asked (the AI setting may leave it to the leaf's default)
   const view = (pl: Plan | undefined): KeyView | undefined =>
-    pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(pl.sets && { sets: true }), ...(pl.steal && { steal: true }), ...(c.ground(pl.target) && { ground: true }), ...(person(pl) && { person: true }), ...(rect(pl) && { rect: rect(pl) }) }
+    pl && { label: pl.label, unknown: (pl.unknown && !pl.quiet) || undefined, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(!pl.changes && { idle: true }), ...(pl.sets && { sets: true }), ...(pl.steal && { steal: true }), ...(c.ground(pl.target) && { ground: true }), ...(c.talksTo(pl.target) && { person: true }), ...(rect(pl) && { rect: rect(pl) }) }
   // standing still, one turns to the spot beside one that the pointer is on (the input's own posture):
   // a person one points at sees one face them, and waits (npc.ts, attended)
   const stand = w.posOf(w.player)
   if (!moveDir && stand && aimTile && Math.abs(aimTile.x - stand.x) + Math.abs(aimTile.y - stand.y) === 1) c.face({ ...stand, x: aimTile.x, y: aimTile.y })
-  // without the pointer, the keys find what is close by (assisted) — not while a key walks the player: then the
-  // cell in front, as the frame shows it
-  assisted = aimTile || moveDir ? undefined : assist(person)
-  const aim = aimTile ?? assisted
   const out: NonNullable<Frame['keys']> = {}
-  for (const k of ['hands', 'take', 'put', 'use'] as Key[]) {
-    const pl = c.plan(k, aim, k === 'use' && handUp ? CEILING : 0)
+  // E, F, G, the left click (a press: no layer chosen) and the action (the right click), which makes one of the others' acts
+  for (const k of ['hands', 'take', 'put', 'use', 'action'] as Key[]) {
+    const pl = c.plan(k, aimTile, k === 'use' && handUp ? CEILING : undefined)
     shownTarget[k] = pl?.target
-    out[k] = view(pl)
+    const v = view(pl)
+    out[k] = v && k === 'action' ? { ...v, act: pl!.key } : v
   }
   const p = eng.world.player
   const here = eng.world.posOf(p)
   const self = c.plan('self')
-  const aimed = aim && c.aim(aim)?.at
+  const aimed = aimTile && c.aim(aimTile)?.at
   const atSelf = !!aimed && !!here && aimed.x === here.x && aimed.y === here.y
   if (self && (atSelf || (p.held && !self.unknown))) out.self = view(self)
-  const use = c.plan('use', aim)
+  const use = c.plan('use', aimTile)
   // an experiment with something in hand: where its chain reaches an undefined outcome
   noteProbe(use?.unknown && use.instrument && use.verb ? eng.preview(eng.actEvent(use.verb, p.id, use.target, use.instrument)).hole : undefined, use ? `${use.at.x},${use.at.y}` : '')
   return out
-}
-
-/** The cell the keys act on when the pointer aims at nothing and it is not the one in front (assist). */
-let assisted: Tile | undefined
-
-/**
- * Without the pointer, the keys find what is close by, as Stardew's action does: what is in front, if anything
- * but the ground is there; else something beside the player to talk to, open, read or pick up — ahead on
- * either side first, then on either hand — so a thing walked past stays the one the keys act on for a step or
- * two. Nothing (the front as ever, and what one stands on) when nothing near answers.
- */
-function assist(person: (pl: Plan) => boolean): Tile | undefined {
-  const eng = game!.engine
-  const c = eng.controls
-  const w = eng.world
-  const pos = w.posOf(w.player)
-  const front = w.front(w.player)
-  if (!pos || !front) return undefined
-  const [fx, fy] = DIRS[w.player.facing ?? 'down']
-  // only a cell with something on it but its ground is asked about (the open field costs nothing)
-  const occupied = (t: { x: number; y: number }) => w.entitiesAt(pos.map, t.x, t.y, pos.z).some((e) => e.id !== w.state.player && !c.ground({ e: e.id }))
-  const thing = (pl: Plan | undefined) => !!pl && !c.ground(pl.target)
-  if (occupied(front) && (thing(c.plan('hands', front)) || thing(c.plan('take', front)))) return undefined
-  for (const [x, y] of [[fx - fy, fy + fx], [fx + fy, fy - fx], [-fy, fx], [fy, -fx]]) {
-    const t = { x: pos.x + x!, y: pos.y + y! }
-    if (!occupied(t)) continue
-    const h = c.plan('hands', t)
-    const k = c.plan('take', t)
-    if ((thing(h) && (person(h!) || !h!.unknown)) || (thing(k) && !k!.steal)) return t
-  }
-  return undefined
 }
 
 /** Time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player). */
@@ -665,13 +628,8 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'key': {
         if (!game || paused || panel || game.engine.world.state.question) break
         const c = game.engine.controls
-        // with nothing pointed at, every key goes where the keys found something close by (the cell the frame
-        // shows), and the player turns to it
-        const tile = m.tile ?? assisted
-        const pos = game.engine.world.posOf(game.engine.world.player)
-        if (!m.tile && assisted && pos) c.face({ ...pos, x: assisted.x, y: assisted.y })
-        // the target the key's label named (one who walked a step off since stays it)
-        const plan = c.planFor(m.key, tile, m.layer, m.layer ? undefined : shownTarget[m.key])
+        // the target the key's label named (one who walked a step off since stays it); a layer chosen is that layer
+        const plan = c.planFor(m.key, m.tile, m.layer, m.layer !== undefined ? undefined : shownTarget[m.key])
         // dragged over a cell, the left button only sets things down (never an experiment on what it passes)
         if (!plan || (m.drag && !plan.sets)) break
         const out = c.run(plan)
@@ -715,10 +673,8 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       }
       case 'choices': {
         if (!game) break
-        // (with nothing pointed at, the cell the keys found close by: the one the frame shows, where the choice goes)
-        const tile = m.tile ?? assisted
-        const list = game.engine.controls.choices(m.key, tile).map((ch) => ({ layer: ch.layer, name: ch.name, label: ch.plan?.label, unknown: ch.plan?.unknown }))
-        post({ t: 'choices', key: m.key, tile, list })
+        const list = game.engine.controls.choices(m.key, m.tile).map((ch) => ({ layer: ch.layer, name: ch.name, label: ch.plan?.label, unknown: (ch.plan?.unknown && !ch.plan.quiet) || undefined }))
+        post({ t: 'choices', key: m.key, tile: m.tile, list })
         break
       }
       case 'handUp':

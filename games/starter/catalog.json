@@ -978,7 +978,8 @@
     "emoteExclaim": { "img": "Ui/Emote/emote21.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
     "emoteQuestion": { "img": "Ui/Emote/emote23.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
     "emoteHeart": { "img": "Ui/Emote/emote27.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
-    "emoteDots": { "img": "Ui/Emote/emote20.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 }
+    "emoteDots": { "img": "Ui/Emote/emote20.png", "x": 0, "y": 0, "w": 14, "h": 13, "ax": 0, "ay": 0 },
+    "cursorHand": { "img": "Items/Action/Interact.png", "x": 0, "y": 0, "w": 16, "h": 16, "ax": 0, "ay": 0 }
   },
   "music": { "village": "Audio/Musics/4 - Village.ogg", "interior": "Audio/Musics/5 - Peaceful.ogg" },
   "sfx": {

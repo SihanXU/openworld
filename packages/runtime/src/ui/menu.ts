@@ -3,7 +3,7 @@
 // every thread the world has learned, and whose act taught it) and the chest panel: the chest's
 // grid above the bag, a click moving a stack to the other side.
 
-import type { AiQuality, CodexEntry, CodexView, Frame, ItemInfo, Key, Look, Recipe, Rule, Text, Tree } from '@openworld/engine'
+import type { AiQuality, CodexEntry, CodexView, Frame, ItemInfo, Look, Plan, Recipe, Rule, Text, Tree } from '@openworld/engine'
 import { catalog, game, hasModule, ontology, professionById, type ShopDef } from '../game.ts'
 import { personLook } from '../assets/looks.ts'
 import { FH, FW, composeSprite } from '../assets/figure/sprite.ts'
@@ -175,7 +175,7 @@ export interface MenuSend {
   toggleSound(): void
   devConsole?(): void
   /** One of the inputs on an item in the bag or the open chest (the context menu). */
-  keyOnItem(key: Key, item: string): void
+  keyOnItem(key: Plan['key'], item: string): void
   /** The journal: the quest followed (none: the latest main quest). */
   track(id: string | undefined): void
   /** The commission board: a favour on it taken on. */

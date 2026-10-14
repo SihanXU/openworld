@@ -590,18 +590,17 @@ export class WorldScene extends Phaser.Scene {
   /**
    * The spot the inputs act on, framed as Stardew frames its tile: four small corners that glide to the next
    * spot (never jump), breathe a little and pop as they take a new one — faint over the bare ground, plainer over
-   * a thing or someone; amber where the world has never seen the act. A frame from the worker (or the keys it sends as the pointer moves) only says where the frame is going;
-   * it is drawn every animation frame (tickFocus). With the keys aiming (the pointer aims at nothing) the bare
-   * ground in front goes along with the player as drawn, who trails their cell while walking: the frame keeps
-   * beside them, and comes to rest on the cell as they stop; a thing the keys found (worker.ts assist) is framed
-   * where it stands. While a key walks the player the frame keeps to the cell ahead, faint and steady (no leap
-   * to each thing passed, no pop), as the keys do then (worker.ts assist waits too): it goes to what the keys
-   * found once the key is let go.
+   * a thing or someone; amber where the world has never seen the act. A frame from the worker (or the keys it
+   * sends as the pointer moves) only says where the frame is going; it is drawn every animation frame
+   * (tickFocus). With the keys aiming (the pointer aims at nothing) the bare ground in front goes along with the
+   * player as drawn, who trails their cell while walking: the frame keeps beside them, and comes to rest on the
+   * cell as they stop; a thing in front is framed where it stands. While a key walks the player the frame keeps to
+   * the cell ahead, faint and steady (no leap to each thing passed, no pop), and settles once the key is let go.
    */
   focusOn(f: Frame): void {
     // a frame made before the worker saw the latest aim tells the old spot: the frame waits for the new
     if (!this.keysFresh()) return
-    const k = f.keys?.hands ?? f.keys?.take ?? f.keys?.put ?? f.keys?.use ?? f.keys?.self
+    const k = f.keys?.hands ?? f.keys?.take ?? f.keys?.put ?? f.keys?.use ?? f.keys?.self ?? f.keys?.action
     const [dx, dy] = STEP[f.player.facing]
     const tx = k ? k.x : f.player.x + dx
     const ty = k ? k.y : f.player.y + dy
@@ -624,7 +623,7 @@ export class WorldScene extends Phaser.Scene {
   private movedAt = -1e9
   /** Set by main.ts: a key walks the player. */
   walking: () => boolean = () => false
-  /** The player has stopped a moment: the pointer's mark comes over what the keys found. */
+  /** The player has stopped a moment: the tip comes over the frame (ui/cursor.ts). */
   settled(): boolean {
     return this.time.now - this.movedAt >= 120
   }
@@ -686,7 +685,7 @@ export class WorldScene extends Phaser.Scene {
     corners(0, goal.color, goal.alpha)
   }
 
-  /** The frame on screen (the pointer's mark stands over it when the keys aim: ui/cursor.ts). */
+  /** The frame on screen (the tip of what the inputs would do stands over it: ui/cursor.ts). */
   focusRect(): { x: number; y: number; w: number; h: number } | undefined {
     const at = this.focusAt
     if (!at) return undefined
