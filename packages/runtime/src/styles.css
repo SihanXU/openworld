@@ -1,3 +1,10 @@
+/* Chinese in the pixel style: Fusion Pixel Font, 12px proportional, simplified Chinese
+   (github.com/TakWolf/fusion-pixel-font, SIL OFL 1.1: fonts/OFL.txt and the fonts it draws on, fonts/LICENSES) */
+@font-face {
+  font-family: 'Fusion Pixel';
+  src: url('./fonts/fusion-pixel-12px-proportional-zh_hans.otf.woff2') format('woff2');
+  font-display: swap;
+}
 :root {
   --bg: #0b0d12;
   --panel: rgba(16, 19, 28, 0.9);
@@ -11,7 +18,8 @@
   --bad: #e06262;
   --warn: #e8c14a;
   --rule: #4fb3c8;
-  --pixel: 'Pixelify Sans', 'Noto Sans SC', system-ui, sans-serif;
+  /* Latin from Pixelify Sans; Chinese (which it lacks) from Fusion Pixel, so both read as pixels */
+  --pixel: 'Pixelify Sans', 'Fusion Pixel', 'Noto Sans SC', system-ui, sans-serif;
   --text: 'Noto Sans SC', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: ui-monospace, 'Cascadia Code', Consolas, Menlo, monospace;
 }

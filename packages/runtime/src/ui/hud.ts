@@ -1,9 +1,9 @@
 // The heads-up display (design.md §5.3): the clock box top right with the journal button under
 // it, the bag and skill tree buttons bottom right, the toolbar at the bottom with health, hunger and experience above it (Minecraft's way),
-// messages bottom left, the map name as it fades in, the keys' labels in one row above the player, the
-// dialogue box and the yes/no question, speech bubbles and floating numbers.
+// messages bottom left, the map name as it fades in (what the inputs would do is the pointer's mark and the tip
+// over the framed spot: ui/cursor.ts), the dialogue box and the yes/no question, speech bubbles and floating numbers.
 
-import { xpToNext, type Frame, type FxEvent, type ItemInfo, type KeyView, type Mood, type Text } from '@openworld/engine'
+import { xpToNext, type Frame, type FxEvent, type ItemInfo, type Mood, type Text } from '@openworld/engine'
 import { catalog, game, hasModule, ontology } from '../game.ts'
 import { artEpoch, assetUrl, cssAssetUrl } from '../render/assets.ts'
 import { $, MOOD_GLYPH, SLOT_KEYS, esc, locale, prefs, t, tx, gearFrame } from './common.ts'
@@ -103,7 +103,6 @@ export class Hud {
       <div class="msgs" id="msgs"></div>
       <div class="mapname" id="mapname"></div>
       <div class="learning hidden" id="learning"></div>
-      <div class="keys" id="keys"></div>
       <div class="chooser hidden" id="chooser"></div>
       <div class="dialog hidden" id="dialog"><div class="face" id="dFace"></div><div class="dtext"><div class="dname" id="dName"></div><div class="dline" id="dLine"></div><div class="dchoices hidden" id="dChoices"></div></div><div class="dmore" id="dMore">▼</div></div>
       <div class="fade hidden" id="fade"><div id="fadeText"></div></div>
@@ -140,7 +139,6 @@ export class Hud {
     this.renderBoss(f)
     this.renderToolbar(f)
     this.renderObjective(f)
-    this.renderKeys(f)
     this.renderScene(f)
     this.renderQuestion(f)
     this.renderTalk(f)
@@ -309,35 +307,6 @@ export class Hud {
   /** Called when the journal opens. */
   seenJournal(): void {
     $('#jbtn').classList.remove('flash')
-  }
-
-  private keySig = ''
-  private renderKeys(f: Frame): void {
-    const k = this.dialogOpen || f.question || f.scene ? undefined : f.keys
-    const sig = k ? `${locale.value}|${JSON.stringify(k)}` : ''
-    if (sig !== this.keySig) {
-      this.keySig = sig
-      const line = (key: string, v?: KeyView) =>
-        v ? `<div class="kl${v.unknown ? ' unknown' : ''}${v.steal ? ' steal' : ''}"><kbd>${key}</kbd> ${esc(tx(v.label))}${v.unknown ? ` <span class="q">?</span>` : ''}</div>` : ''
-      // what each input that reaches the spot would do (foreseeable): E, F, G, the left click there, the right click on oneself
-      // (a left click on one's own place is the right click's act: one line for both)
-      const same = !!k?.use && !!k?.self && JSON.stringify(k.use.label) === JSON.stringify(k.self.label) && k.use.x === k.self.x && k.use.y === k.self.y
-      $('#keys').innerHTML = k ? line('E', k.hands) + line('F', k.take) + line('G', k.put) + line(same ? `${t('lmb')} · ${t('rmb')}` : t('lmb'), k.use) + (same ? '' : line(t('rmb'), k.self)) : ''
-    }
-    // what each key would do, in one still place on the screen: just over the middle of the view, where the camera
-    // keeps the one acting (following them, it would shake with every step); the target's tile is outlined in the scene
-    const at = k?.hands ?? k?.take ?? k?.put ?? k?.use ?? k?.self
-    const el = $('#keys')
-    el.classList.toggle('hidden', !at)
-    if (at) {
-      const view = (el.offsetParent as HTMLElement | null) ?? document.body
-      const tile = Math.abs(this.screenOfTile(1, 0).x - this.screenOfTile(0, 0).x)
-      // over the head of one standing mid-view (a tile and a half tall), and over a companion settled two tiles behind
-      // them (engine companion.ts); whole pixels, as a half-pixel offset blurs the text
-      const x = Math.round(view.clientWidth / 2 - el.offsetWidth / 2)
-      const y = Math.round(view.clientHeight / 2 - tile * 3 - el.offsetHeight)
-      el.style.transform = `translate(${x}px, ${Math.max(4, y)}px)`
-    }
   }
 
   // ---------------------------------------------------------------- the layer chooser (a long press)
@@ -821,7 +790,7 @@ export class Hud {
 
   /** Re-render everything that carries words (the language changed). */
   relabel(): void {
-    this.clockSig = this.obSig = this.keySig = this.barSig = ''
+    this.clockSig = this.obSig = this.barSig = ''
     if (this.mapName) $('#mapname').textContent = tx(this.mapName)
     if (this.frame) this.onFrame(this.frame)
   }

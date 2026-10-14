@@ -1252,7 +1252,7 @@ export interface WorldState {
  * library: the HUD shows its label before the input is pressed, and pressing runs it.
  */
 export interface Plan {
-  /** The input: E (hands), F (take), G (put), left click (use), right click (self: the held thing used on oneself). */
+  /** The act's input: E (hands), F (take), G (put), left click (use), self (the held thing used on oneself); the right click (the action) makes one of them. */
   key: 'hands' | 'take' | 'put' | 'use' | 'self'
   /** The tile aimed at. */
   at: Pos
@@ -1266,6 +1266,10 @@ export interface Plan {
   rule?: string
   /** The chain it starts reaches an undefined outcome — the world has never seen this. */
   unknown?: boolean
+  /** Undefined, but the AI setting leaves this kind of work to the leaf's default (quality.ts): no one will be asked. */
+  quiet?: boolean
+  /** A learned answer decides it (a patch filled a hole the base rules leave): the action chooses as the base answers. */
+  learned?: boolean
   /** It would change something (taking and putting are offered only then: a refusal is no option). */
   changes?: boolean
   /** Ask first ("Eat the apple?", "Sleep until morning?"). */

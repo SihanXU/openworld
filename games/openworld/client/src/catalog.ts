@@ -911,6 +911,8 @@ Object.assign(CATALOG.ui, {
   emoteQuestion: CATALOG.ui.emote23,
   emoteHeart: CATALOG.ui.emote27,
   emoteDots: CATALOG.ui.emote20,
+  // the pointer over what the action handles (the runtime's ui/cursor.ts)
+  cursorHand: ui('Items/Action/Interact.png', 16, 16),
 })
 
 // the portraits' moods, drawn by tools/src/art/faces.ts (npm run art:faces) for every faceset it can read

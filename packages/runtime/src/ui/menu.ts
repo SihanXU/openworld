@@ -3,7 +3,7 @@
 // every thread the world has learned, and whose act taught it) and the chest panel: the chest's
 // grid above the bag, a click moving a stack to the other side.
 
-import type { AiQuality, CodexEntry, CodexView, Frame, ItemInfo, Key, Look, Recipe, Rule, Text, Tree } from '@openworld/engine'
+import type { AiQuality, CodexEntry, CodexView, Frame, ItemInfo, Look, Plan, Recipe, Rule, Text, Tree } from '@openworld/engine'
 import { catalog, game, hasModule, ontology, professionById, type ShopDef } from '../game.ts'
 import { personLook } from '../assets/looks.ts'
 import { FH, FW, composeSprite } from '../assets/figure/sprite.ts'
@@ -175,7 +175,7 @@ export interface MenuSend {
   toggleSound(): void
   devConsole?(): void
   /** One of the inputs on an item in the bag or the open chest (the context menu). */
-  keyOnItem(key: Key, item: string): void
+  keyOnItem(key: Plan['key'], item: string): void
   /** The journal: the quest followed (none: the latest main quest). */
   track(id: string | undefined): void
   /** The commission board: a favour on it taken on. */
@@ -213,6 +213,10 @@ export class Menu {
   skillPanel: SkillPanel
   /** The inventory slot picked up by a click (placed by the next click). */
   private picked?: number
+  /** A thing pressed in the bag and being dragged: where the press was, and whether the pointer has moved off it. */
+  private drag?: { x: number; y: number; moved: boolean }
+  /** What is picked up rides on the pointer, as in Stardew's bag. */
+  private carried = document.createElement('div')
 
   constructor(private send: MenuSend) {
     this.ai = new AiOptions((q) => send.setQuality(q), () => this.menuOpen && this.tab === 'options' && this.render())
@@ -254,6 +258,60 @@ export class Menu {
         if (id === 'menu' && this.picked !== undefined) return void (this.send.drop(this.picked, true), (this.picked = undefined), this.render())
         this.close()
       })
+    this.carried.className = 'carried hidden'
+    document.body.appendChild(this.carried)
+    document.addEventListener('mousemove', (e) => this.carry(e))
+    document.addEventListener('mouseup', (e) => this.letGo(e))
+  }
+
+  /** What is picked up follows the pointer; a press dragged a little way off its slot becomes a drag. */
+  private carry(e: MouseEvent): void {
+    if (this.picked === undefined) return
+    // the bag went away under it (the journal opened, another panel): put back
+    if (!this.bagShown) return this.showCarried()
+    this.carried.style.transform = `translate(${e.clientX - 16}px, ${e.clientY - 16}px)`
+    if (this.drag && Math.hypot(e.clientX - this.drag.x, e.clientY - this.drag.y) > 4) this.drag.moved = true
+  }
+
+  /**
+   * A drag let go: on another slot it swaps there, on the body it is put on, out of the bag it is dropped
+   * before the player (Stardew's way); anywhere else in the bag it goes back. A press let go where it was
+   * keeps the thing on the pointer, for the next click to set down.
+   */
+  private letGo(e: MouseEvent): void {
+    const d = this.drag
+    this.drag = undefined
+    if (!d?.moved || this.picked === undefined) return
+    // let go once the bag has gone (the journal opened mid-drag): it goes back, never into the world
+    if (!this.bagShown) return this.showCarried()
+    const from = this.picked
+    this.picked = undefined
+    const at = document.elementFromPoint(e.clientX, e.clientY)
+    const slot = at?.closest<HTMLElement>('.inv [data-i]')
+    const wear = at?.closest<HTMLElement>('[data-wear]')
+    const item = this.frame?.player.slots[from]?.item
+    if (slot) Number(slot.dataset.i) !== from && this.send.swap(from, Number(slot.dataset.i))
+    else if (wear) item?.props.slot && this.send.wear(item.id, true)
+    else if (!$('#menuSheet').contains(at)) this.send.drop(from, true)
+    this.render()
+  }
+
+  /** The bag is what is shown (a thing picked up from it rides the pointer only then). */
+  private get bagShown(): boolean {
+    return this.menuOpen && this.tab === 'inventory'
+  }
+
+  /** The thing picked up, drawn on the pointer while the bag is open; with the bag gone, it is put back. */
+  private showCarried(): void {
+    if (!this.bagShown) (this.picked = undefined), (this.drag = undefined)
+    const s = this.picked !== undefined ? this.frame?.player.slots[this.picked] : undefined
+    this.carried.classList.toggle('hidden', !s)
+    if (!s) return void delete this.carried.dataset.item
+    const sig = `${s.item.id}|${s.count}`
+    if (this.carried.dataset.item === sig) return
+    this.carried.dataset.item = sig
+    this.carried.innerHTML = `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}`
+    this.paintIcons?.([s.item])
   }
 
   get menuOpen(): boolean {
@@ -325,6 +383,7 @@ export class Menu {
   openJournal(): void {
     $('#menu').classList.add('hidden')
     $('#skills').classList.add('hidden')
+    this.showCarried()
     $('#journal').classList.toggle('hidden')
     if (this.journalOpen) this.renderJournal()
   }
@@ -334,6 +393,8 @@ export class Menu {
     for (const id of ['#menu', '#journal', '#chest', '#skills', '#worldmap', '#profession', '#questlog', '#skillpanel']) $(id).classList.add('hidden')
     this.panels.close()
     this.picked = undefined
+    this.drag = undefined
+    this.showCarried()
     this.ai.stop()
   }
 
@@ -428,6 +489,7 @@ export class Menu {
         this.paintIcons?.(infos)
       }
     }
+    this.showCarried()
   }
 
   /** The player's portrait in the character sheet (the anime bust; the sprite's head while its layers come). */
@@ -561,12 +623,19 @@ export class Menu {
     })
     $('#menuSheet').querySelectorAll<HTMLElement>('.inv [data-i]').forEach((el) => {
       const i = Number(el.dataset.i)
-      el.onclick = (e) => {
+      // as in Stardew's bag: a press picks a thing up onto the pointer — dragged, it goes where it is let go
+      // (letGo); let go where it was, it rides the pointer until a click sets it down (or out of the bag drops it)
+      el.onmousedown = (e) => {
+        if (e.button !== 0) return
+        e.preventDefault()
         if (e.shiftKey && this.picked === undefined) return void (slots[i] && this.send.quickMove(i))
         if (this.picked === undefined) {
-          if (slots[i]) this.picked = i
+          if (!slots[i]) return
+          this.picked = i
+          this.drag = { x: e.clientX, y: e.clientY, moved: false }
+          this.carried.style.transform = `translate(${e.clientX - 16}px, ${e.clientY - 16}px)`
         } else {
-          this.send.swap(this.picked, i)
+          if (this.picked !== i) this.send.swap(this.picked, i)
           this.picked = undefined
         }
         this.render()

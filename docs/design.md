@@ -52,7 +52,7 @@ contract. We keep that contract and its three-layer discipline. What changes:
 | D5 | Maps | **Tiled JSON**, whether hand-made or generated |
 | D6 | Art | **16×16**, **Ninja Adventure** (CC0) as the base pack; layered character composition + palette swaps for variety |
 | D7 | Setting | our own world, grown out from the Ford (game-design.md) to hundreds of maps; the generated Saenvar world was removed on 2026-10-02 |
-| D8 | Player input | four inputs, one verb each (§5.2): **E** interact bare-handed, **F** take, **left click** interact with the held thing (or strike), **right click** put; a long press chooses the layer; proven complete over the engine's event space |
+| D8 | Player input | four inputs, one verb each (§5.2): **E** interact bare-handed, **F** take, **G** put, **left click** use the held thing (or strike); over them the **right click**, the action (Stardew's: the act the thing calls for, chosen as the base rules answer); a long press chooses the layer; proven complete over the engine's event space |
 | D9 | Free-text input | **deferred**; reserved in the ModSpec as the `intent` and `ask` event kinds (§5.4) |
 | D10 | Combat | **on-map, real-time** (Zelda / Stardew-like), elemental reactions interacting with the environment |
 | D11 | Rule system | **one** rule engine for world interactions, elemental reactions and combat |
@@ -157,7 +157,7 @@ Interaction = { verb, actor, target, instrument?, at, time }
 
 The player never chooses among the verbs. The two keys below do, using the rule library.
 
-### 5.2 Player input: five inputs, one act each
+### 5.2 Player input: four inputs, one act each, and the action over them
 
 **Why not Stardew's contextual Action key.** Stardew's interaction space is closed: each pair
 of (held thing, target) means one thing, a tile holds one thing, and items in the bag do not
@@ -184,8 +184,9 @@ for feel, because a fight should not wait for a mouse release or depend on where
    answering rule's own `label` (or the label of the answer it reaches: food eaten says "Eat
    {instrument}", given to someone "Feed {instrument} to {target}"; a place of the overworld "Enter
    {target}"), the receiver's before the act's own; where no rule says, the input's default, marked
-   `?` when the outcome is undefined. A patch carries its own label, so a hole the AI filled says
-   what it now does (the validator warns when an input-reached rule has none).
+   `?` when the outcome is undefined (and someone will be asked: not where the AI setting turns that
+   kind of work off, §13). A patch carries its own label, so a hole the AI filled says what it now does
+   (the validator warns when an input-reached rule has none). The tip over the framed spot says it (§5.3).
 
 **The player's event space** (from the engine and the rules): `hands(target)` — a hand on it;
 `take(target)` — picking crops is a take; `put(held, target)` — sowing, storing and giving are
@@ -194,15 +195,34 @@ blow; `enter(tile)`. Targets: every layer of a tile within the act's reach (peop
 fixtures, the items of a pile, the ground), the player (for use only), and items in the bag or an
 open chest.
 
-**The inputs**, one act each (Stardew's and Minecraft's split of hands, items and the world):
+**The inputs**, one act each (Stardew's and Minecraft's split of hands, items and the world), and the action over them:
 
 | Input | Act | Reach | For |
 |---|---|---|---|
 | **E** | `hands(target)` | the target's `handsRange` (0: standing on it, a bed; 1, beside it, by default; a sign 2) | talk, open, read, wake, sleep (whatever is held) |
 | **F** | `take(target)` | the world's `carry` (1: the cells round, one's own included) | pick up, pick a crop, take from a table |
 | **G** | `put(held, target)` | `carry` | place, store, set on a table or fire, sow, hand to a person |
-| **Left click** | `use(held, target)`; with nothing held, a blow | the held thing's `range` (1 by default; a spear 2, a bow 6) | tools, weapons, feeding someone, putting armour on someone, the player's experiments; a bare fist hits anything (Minecraft); a built thing or a fixture in hand on open ground, a floor or what is built is set down there (it builds, Terraria: the rules `use/set-structure`, `use/set-fixture` hand it to the cell as G does; held and dragged, a row; R with a floor in hand, the ceiling) |
-| **Right click** | `use(held, self)` | oneself | eat, drink, put on, a bare fist on oneself; the same act as a left click on one's own place |
+| **Left click** | `use(held, target)`; with nothing held, a blow | the held thing's `range` (1 by default; a spear 2, a bow 6) | tools, weapons, feeding someone, putting armour on someone, the player's experiments (on one's own place, the held thing used on oneself); a bare fist hits anything (Minecraft) — a press never strikes oneself, nor the bare ground the world has never seen struck (a click in passing asks nothing): the chooser does; a built thing or a fixture in hand on open ground, a floor or what is built is set down there (it builds, Terraria: the rules `use/set-structure`, `use/set-fixture` hand it to the cell as G does; held and dragged, a row; R with a floor in hand, the ceiling) |
+| **Right click** (the action) | one of the acts above, as the thing aimed at calls for (below) | that act's | talk, open, read, pick up, set down a bed, eat, drink, put on |
+
+**The action** (2026-10-14) is Stardew's contextual key, over the four exact inputs and never instead of them:
+every act it makes stays its own input's, so it hides none (the failure above was a contextual key that
+replaced the exact ones). It is the engine's (`Controls.plan('action')`, held by the completeness tests):
+- someone: a word, `hands(target)` (what is held is handed over with G alone: an axe in hand is not given away);
+- a thing the bare hands do something with: `hands(target)` (open, read, sleep, pick);
+- a thing that can be taken: `take(target)` — never what is another's (a theft is F's alone: the action does
+  nothing there, and the cursor shows a `!`);
+- the ground: a hand where it does something there; else a built thing or a fixture in hand set down,
+  `put(held, target)` (a bed, a workbench, where it would rest); else `use(held, self)` where it does something
+  (eat, drink, put on); pointed at oneself, any use of what is held (the modder's where the world has never seen it);
+- any other thing: `hands(target)`, the bare hands' experiment;
+- the bare ground with nothing to set down or use: nothing.
+
+It chooses as the **base rules** answer: a learned answer counts as none for the choice (only an undefined leaf
+consults one), so the world learning never changes which act the click makes — the modder answering a hand on a
+stone makes E turn stones over, and the right click still picks them up. A lesson's locked inputs are passed
+over (the drill that teaches eating eats on a right click wherever the pointer is). Held long, it chooses: the
+action on each layer at the spot, oneself first on one's own place.
 
 **Taking and putting are the world's physics, never asked**: what can be taken is taken, what has
 room takes what is put on it, a person takes what is handed to them; anything else refuses, and F
@@ -250,7 +270,8 @@ and the wheel (toolbar), Shift (walk), WASD (move). Dialogue moves on with E or 
   whatever they are used on except people; tools that are also weapons (the axe) strike living
   things and work everything else; the bare body strikes whatever it is used on (a fist wears down
   plants and wood, slowly; stone is too hard). A weapon used on a person is a use, never a blow — no
-  villager is hurt by accident. A blow from afar flies along a row or a column.
+  villager is hurt by accident. A blow from afar flies along a row or a column. A press never aims a blow at
+  oneself: a click on one's own place with nothing to use there does nothing (the chooser still strikes).
 - Eating and drinking oneself ask first (yes / no); so does any rule with `confirm`. Food, a
   draught or armour used on another feeds them, doses them, dresses them.
 
@@ -353,11 +374,14 @@ was cut).
     from the right) and ten drumsticks on the right (hunger, emptying from the left). The
     whole block moves to the top when the player walks near the bottom edge.
   - Bottom left: messages such as "+1 log" or "The world pauses…".
-  - The interaction keys (§5.2, foreseeable): one translucent row of what each input would do
-    (E, F, G, the left click, the right click), fixed just above the middle of the view, over the
-    head of the one acting (the camera keeps them mid-view) and of a companion settled two tiles
-    off. It does not follow the target, whose tile is outlined in the scene, so it never shakes
-    as one walks (2026-10-12; until then the labels floated over the target).
+  - The interaction (§5.2, foreseeable; 2026-10-14, after the labels' row shook with every step): the spot the
+    inputs act on is framed by four small corners that glide to the next spot, faint over the bare ground and
+    amber where the world has never seen the act; the pointer is the action's mark (a glove, a speech bubble
+    over someone, a `?` where the modder will be asked, a `!` where only F would take it, faded out of reach);
+    and a small tip over the frame says what each input would do there, in the rules' labels — with the
+    pointer the right and the left click, then E, F and G where they do something else; without it (the keys
+    walked last) E, F and G in front. The tip waits until the player stands and the frame has rested a moment,
+    so it never lurches with the steps nor flickers as the pointer sweeps.
   - What is held is not drawn in the hand. A sword, a bow and a staff are seen for the moment of a
     blow — swept, drawn and loosed, raised and brought down to point —, following the one who
     struck; other weapons and bare hands show the blow alone (2026-10-12).

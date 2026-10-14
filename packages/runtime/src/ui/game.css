@@ -81,6 +81,10 @@
 .slot:hover { background: #fff3d6; }
 .slot.sel { outline: 3px solid #e0402c; outline-offset: -1px; }
 .slot.picked { opacity: 0.45; }
+/* a thing picked up from the bag, riding on the pointer (ui/menu.ts) */
+.carried { position: fixed; left: 0; top: 0; z-index: 10000; pointer-events: none; filter: drop-shadow(2px 3px 0 rgba(40, 20, 6, 0.35)); }
+.carried canvas { width: 32px; height: 32px; image-rendering: pixelated; display: block; }
+.carried .count { position: absolute; right: -6px; bottom: -4px; font: 600 12px var(--pixel); color: #fff; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000; }
 .slot.off { opacity: 0.35; }
 .slot .ghost { font-size: 20px; opacity: 0.25; filter: grayscale(1); }
 .barrow { display: flex; gap: 6px; align-items: stretch; }
@@ -115,13 +119,15 @@
 @keyframes learnpulse { 50% { box-shadow: 0 0 0 2px #b9a4ffcc; } }
 @keyframes mapname { 0% { opacity: 0; } 15% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
 
-/* the keys' labels over the one acting */
-/* what the inputs would do: a quiet strip along the top (below the toolbar when it moves up) */
-.keys { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; gap: 2px; align-items: flex-start; white-space: nowrap; padding: 3px 8px; border-radius: 6px; background: rgba(32, 20, 10, 0.55); pointer-events: none !important; }
-.kl { white-space: nowrap; padding: 0; font-size: 12px; color: #fbe9c4; text-shadow: 0 1px 0 #000; }
-.kl kbd { background: var(--paper); color: var(--ink-warm); border-color: var(--wood-dark); font-size: 10px; }
-.kl.unknown { color: #ffd08a; opacity: 0.75; font-size: 12px; }
-.kl .q { color: #ffb24a; font-weight: 600; }
+/* what the inputs would do at the framed spot (foreseeable, design.md §5.2): a small tip over the frame once the
+   player stands and the frame rests (ui/cursor.ts); amber with a "?" where the modder will be asked, red for a theft */
+.vtip { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; gap: 1px; align-items: flex-start; white-space: nowrap; padding: 2px 7px; border-radius: 6px; background: rgba(36, 22, 10, 0.62); border: 1px solid rgba(217, 164, 65, 0.25); pointer-events: none; transition: opacity 0.12s ease; }
+.vtip.off { opacity: 0; }
+.vtip .kl { font-size: 12px; color: #fbe9c4; text-shadow: 0 1px 0 #000, 1px 0 0 #000, -1px 0 0 #000, 0 -1px 0 #000; }
+.vtip .kl kbd { background: var(--paper); color: var(--ink-warm); border-color: var(--wood-dark); font-size: 10px; font-weight: 700; text-shadow: none; }
+.vtip .kl.unknown { color: #ffd08a; }
+.vtip .kl .q { color: #ffb24a; font-weight: 600; }
+.vtip .kl.steal { color: #ff8a7a; }
 
 /* the layer chooser (a long press on an input) and the context menu */
 .chooser, .ctx { position: absolute; left: 0; top: 0; min-width: 200px; padding: 4px; background: var(--paper); color: var(--ink-warm); border: 3px solid var(--wood-dark); border-radius: 6px; box-shadow: 0 0 0 2px var(--wood-edge), 0 6px 18px rgba(0,0,0,0.45); font-size: 13px; z-index: 45; }
@@ -639,7 +645,6 @@ body.looks-page { background: #2b3550; color: var(--ink-warm); overflow: auto; }
 .dname .regard.r-friendly, .dname .regard.r-友好 { background: #8bbf6a; }
 .dname .regard.r-close, .dname .regard.r-亲近 { background: #e8a14c; }
 .dname .grudge { font: 400 12px var(--pixel); color: #b0322a; margin-left: 4px; }
-.kl.steal { color: #ff8a7a; }
 .social-status { position: absolute; left: 14px; top: 180px; display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none; font: 600 12px var(--pixel); }
 .social-status .ss { padding: 2px 8px; border-radius: 8px; background: rgba(32, 20, 10, 0.6); color: #fbe9c4; text-shadow: 0 1px 0 #000; }
 .social-status .ss.wanted { background: rgba(160, 30, 24, 0.8); }

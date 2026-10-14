@@ -296,9 +296,9 @@ async function ensureMaps(): Promise<void> {
 }
 
 /**
- * What the inputs that reach the aimed spot would do now (the labels over the target): E, F, G and the
- * left click there; the right click (on oneself) when something is held and it is something to do
- * there, or the player points at themself. An experiment with something in hand starts a prefetch.
+ * What each input would do now, foreseeable (design.md §5.2; the page's tip says it): E, F, G and the left
+ * click at the aim (or in front); the action (the right click) there; the held thing used on oneself when it is
+ * something to do, or the player points at themself. An experiment with something in hand starts a prefetch.
  */
 function keyViews(): Frame['keys'] {
   const eng = game!.engine
@@ -312,16 +312,20 @@ function keyViews(): Frame['keys'] {
     if (fw <= 1 && fd <= 1) return undefined
     return [t.place.x - Math.floor((fw - 1) / 2), t.place.y - fd + 1, fw, fd]
   }
-  const view = (pl: Plan | undefined): KeyView | undefined => pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(pl.sets && { sets: true }), ...(pl.steal && { steal: true }), ...(rect(pl) && { rect: rect(pl) }) }
+  // the act's own view: the '?' only where someone will be asked (the AI setting may leave it to the leaf's default)
+  const view = (pl: Plan | undefined): KeyView | undefined =>
+    pl && { label: pl.label, unknown: (pl.unknown && !pl.quiet) || undefined, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(!pl.changes && { idle: true }), ...(pl.sets && { sets: true }), ...(pl.steal && { steal: true }), ...(c.ground(pl.target) && { ground: true }), ...(c.talksTo(pl.target) && { person: true }), ...(rect(pl) && { rect: rect(pl) }) }
   // standing still, one turns to the spot beside one that the pointer is on (the input's own posture):
   // a person one points at sees one face them, and waits (npc.ts, attended)
   const stand = w.posOf(w.player)
   if (!moveDir && stand && aimTile && Math.abs(aimTile.x - stand.x) + Math.abs(aimTile.y - stand.y) === 1) c.face({ ...stand, x: aimTile.x, y: aimTile.y })
   const out: NonNullable<Frame['keys']> = {}
-  for (const k of ['hands', 'take', 'put', 'use'] as Key[]) {
-    const pl = c.plan(k, aimTile, k === 'use' && handUp ? CEILING : 0)
+  // E, F, G, the left click (a press: no layer chosen) and the action (the right click), which makes one of the others' acts
+  for (const k of ['hands', 'take', 'put', 'use', 'action'] as Key[]) {
+    const pl = c.plan(k, aimTile, k === 'use' && handUp ? CEILING : undefined)
     shownTarget[k] = pl?.target
-    out[k] = view(pl)
+    const v = view(pl)
+    out[k] = v && k === 'action' ? { ...v, act: pl!.key } : v
   }
   const p = eng.world.player
   const here = eng.world.posOf(p)
@@ -334,6 +338,12 @@ function keyViews(): Frame['keys'] {
   noteProbe(use?.unknown && use.instrument && use.verb ? eng.preview(eng.actEvent(use.verb, p.id, use.target, use.instrument)).hole : undefined, use ? `${use.at.x},${use.at.y}` : '')
   return out
 }
+
+/** Time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player). */
+const timeStopped = (g: Game) => paused || !!g.engine.world.state.question || !!panel || !!g.mods.asking || !!talk || !!trade || !!pockets
+
+/** What the keys would do now, as a frame says it: nothing while time stands or the player cannot act. */
+const keysNow = (g: Game): Frame['keys'] => (timeStopped(g) || g.engine.busy(g.engine.world.player) ? undefined : keyViews())
 
 /** What each key's label last named: the target a key pressed now acts on, if it still reaches it. */
 const shownTarget: Partial<Record<Key, Ref>> = {}
@@ -459,8 +469,7 @@ function loop(): void {
   if (!asking) asked = undefined
   else if (t0 - asked!.since > (asking.deadline === Number.POSITIVE_INFINITY ? MAKE_MS : ASK_MS)) game.mods.fallback(asking.id)
   peopleOpened(eng)
-  // time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player)
-  const stopped = paused || !!eng.world.state.question || !!panel || !!game.mods.asking || !!talk || !!trade || !!pockets
+  const stopped = timeStopped(game)
   if (!stopped) {
     if (moveDir) eng.movePlayer(moveDir, walk)
     if (attacking) eng.controls.strike()
@@ -500,8 +509,8 @@ function loop(): void {
   if (talk && !frame.talk) talk = undefined
   if (trade && !frame.trade) trade = undefined
   if (pockets && !frame.pockets) pockets = undefined
-  // no labels while the player cannot act (working out an act, down, in a scene)
-  frame.keys = stopped || eng.busy(w.player) ? undefined : keyViews()
+  // nothing while the player cannot act (working out an act, down, in a scene)
+  frame.keys = keysNow(game)
   maybePrefetch()
   lastTickMs = performance.now() - t0
   // the codex: what the player carries and who and what is near (the reader's record, beside the state)
@@ -619,8 +628,8 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'key': {
         if (!game || paused || panel || game.engine.world.state.question) break
         const c = game.engine.controls
-        // the target the key's label named (one who walked a step off since stays it)
-        const plan = c.planFor(m.key, m.tile, m.layer, m.layer ? undefined : shownTarget[m.key])
+        // the target the key's label named (one who walked a step off since stays it); a layer chosen is that layer
+        const plan = c.planFor(m.key, m.tile, m.layer, m.layer !== undefined ? undefined : shownTarget[m.key])
         // dragged over a cell, the left button only sets things down (never an experiment on what it passes)
         if (!plan || (m.drag && !plan.sets)) break
         const out = c.run(plan)
@@ -664,7 +673,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       }
       case 'choices': {
         if (!game) break
-        const list = game.engine.controls.choices(m.key, m.tile).map((ch) => ({ layer: ch.layer, name: ch.name, label: ch.plan?.label, unknown: ch.plan?.unknown }))
+        const list = game.engine.controls.choices(m.key, m.tile).map((ch) => ({ layer: ch.layer, name: ch.name, label: ch.plan?.label, unknown: (ch.plan?.unknown && !ch.plan.quiet) || undefined }))
         post({ t: 'choices', key: m.key, tile: m.tile, list })
         break
       }
@@ -673,6 +682,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'aim':
         aimTile = m.tile
+        // what the keys would do there, at once: the pointer's mark follows the hand, not the tick (always
+        // answered, with the aim's number: the page waits for it before it acts on what the keys would do)
+        post({ t: 'keys', keys: game ? keysNow(game) : undefined, n: m.n })
         break
       case 'answer':
         game?.engine.controls.answer(m.yes)
