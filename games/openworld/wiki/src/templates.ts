@@ -1,7 +1,7 @@
 // The templates (wiki/pages/帮助/格式手册.md lists them all). Every data template reads the game model:
 // a table here is the game's own numbers, never a copy that can go stale.
 
-import { gearProps, type CreatureSkill, type Entity, type QuestDef, type QuestReward, type QuestTrigger, type Text } from '@openworld/engine'
+import { gearProps, type CreatureSkill, type Effect, type Entity, type QuestDef, type QuestReward, type QuestTrigger, type Text } from '@openworld/engine'
 import { BASE_RULES } from '@openworld-game/content'
 import {
   EFFICIENCY, ELEMENT_NAMES, ELEMENTS, LEGENDARY_ARMS, MATERIALS, QUALITIES, RELICS, VOWS, isAccessory, zh,
@@ -324,8 +324,8 @@ function bossInfobox(ctx: Ctx, b: BossEnt): string {
     ['生命', camp ? `战役 ${camp.hp} · 挑战 ${d.hp}` : `${d.hp}（首领挑战）`],
     ['护甲', camp ? `战役 ${camp.def} · 挑战 ${d.defense}` : String(d.defense)],
     ['占地', `${d.footprint[0]} × ${d.footprint[1]} 格`],
-    ['视野', `${d.sight} 格`],
-    ['第二阶段', `生命低于 ${Math.round(d.enrageAt * 100)}%`],
+    ['视野', `${d.encounter.sight ?? 12} 格`],
+    ['阶段', d.encounter.phases.slice(1).map((ph, i) => `第${'二三四五'[i] ?? i + 2}阶段：生命低于 ${Math.round(ph.at * 100)}%`).join('<br>')],
     ['技能', d.skills.map((s) => esc(zh(s.name))).join('<br>')],
     ['出没', camp ? mapLink(ctx, camp.map) : ctx.link('首领挑战')],
     ['英文名', esc(b.en)],
@@ -335,7 +335,7 @@ function bossInfobox(ctx: Ctx, b: BossEnt): string {
 }
 
 function campaign(ctx: Ctx, b: BossEnt): { map: string; hp: number; def: number } | undefined {
-  for (const m of ctx.g.maps) for (const e of m.entities) if (e.type === `actor/creature/sin/${b.id}`) return { map: m.id, hp: Number(e.props?.maxHp ?? e.props?.hp), def: Number(e.props?.def ?? b.def.defense) }
+  for (const m of ctx.g.maps) for (const e of m.entities) if (e.type === b.def.type) return { map: m.id, hp: Number(e.props?.maxHp ?? e.props?.hp), def: Number(e.props?.def ?? b.def.defense) }
   return undefined
 }
 
@@ -614,16 +614,31 @@ function ties(ctx: Ctx, p: PersonEnt): string {
   return own.length || back.length ? `<details class="spoiler"><summary>人物数据里记的关系<span class="spoiler-hint">（可能剧透，点开查看）</span></summary><div class="spoiler-body"><ul class="facts">${[...own, ...back].join('')}</ul></div></details>` : `<p class="empty">游戏数据里没有记录。</p>`
 }
 
+/** What a boss's skill lands, as its own rule says (the `kit` branch of its `act/use` answer): the unleash in it. */
+function landingOf(type: string, id: string): Extract<Effect, { op: 'unleash' }> | undefined {
+  const rule = BASE_RULES.find((r) => r.on === 'act/use' && r.host?.type === type)
+  let t: any = rule?.tree
+  while (t && typeof t === 'object' && 'if' in t) t = t.if?.param?.key === 'kit' && t.if.param.cmp === id ? t.then : t.else
+  const effects: any[] = t && typeof t === 'object' && 'do' in t ? t.do : []
+  return effects.find((e) => e.op === 'unleash')
+}
+
 function bossSkills(ctx: Ctx, b: BossEnt): string {
-  const s = b.def.skills
-  const rows = s.map((k) => [
-    `<b>${esc(zh(k.name))}</b>`,
-    esc(T(ctx, '形状', k.shape)), esc(T(ctx, '瞄准', k.aim)), `${k.radius} 格`,
-    String(k.damage), `${Math.round(k.damage * 1.35)}`,
-    secs(k.windup), secs(Math.max(8, Math.round(k.windup * 0.8))), secs(k.recovery),
-    join([k.status ? ctx.link('状态', zh(ctx.g.ontology.statuses?.[k.status]?.name) || k.status) : '', k.shift === 'push' ? '击退一格' : k.shift === 'pull' ? '拉近' : '', k.blink ? '瞬移到目标旁' : '']),
-  ])
-  return table(['技能', '形状', '瞄准', '半径', '伤害', '二阶段伤害', '前摇', '二阶段前摇', '后摇', '效果'], rows)
+  const d = b.def, phases = d.encounter.phases
+  const usedIn = (id: string) => join(phases.flatMap((ph, i) => [ph.rotation.includes(id) ? `${i + 1}阶段轮转` : '', ph.enter === id ? `${i + 1}阶段开场` : '']).filter(Boolean).concat(d.encounter.reactive?.includes(id) ? ['随时应对'] : []))
+  const rows = d.skills.map((k) => {
+    const u = landingOf(d.type, k.id)
+    const mul = u?.power && typeof u.power === 'object' && 'mul' in u.power ? u.power.mul ?? 1 : 0
+    const last = phases[phases.length - 1]
+    return [
+      `<b>${esc(zh(k.name))}</b>`, usedIn(k.id) || '—',
+      esc(T(ctx, '形状', k.shape)), esc(T(ctx, '瞄准', k.aim)), `${k.radius} 格`,
+      mul ? `${Math.round(d.atk * mul)}（攻击 ×${mul}）` : '—', mul && (last.powerMul ?? 1) !== 1 ? String(Math.round(d.atk * mul * (last.powerMul ?? 1))) : '—',
+      secs(k.windup), secs(k.recovery ?? 0),
+      join([u?.coat ? ctx.link('状态', zh(ctx.g.ontology.statuses?.[u.coat]?.name) || u.coat) : '', u?.push ? `击退 ${u.push} 格` : '', u?.pull ? '拉近' : '', k.move === 'blink' ? '瞬移到目标旁' : '', k.then ? `接着：${esc(zh(d.skills.find((s) => s.id === k.then)?.name ?? ''))}` : '', u?.leave ? '留下东西' : '']),
+    ]
+  })
+  return table(['技能', '何时', '形状', '瞄准', '半径', '伤害（挑战）', '末阶段伤害', '前摇', '后摇', '效果'], rows)
 }
 
 /** A creature kind's own skills (the kits module, content kits.ts): the nearest kit its type or an ancestor names. */
@@ -632,10 +647,10 @@ function creatureSkills(ctx: Ctx, c: CreatureEnt): string {
   let kit: CreatureSkill[] | undefined
   for (let t = c.id; t && !kit; t = t.includes('/') ? t.slice(0, t.lastIndexOf('/')) : '') kit = kits[t]
   if (!kit?.length) return `<p class="empty">没有自己的技能：只会普通攻击。</p>`
-  const move = (k: CreatureSkill) => join([k.move === 'leap' ? '跳到目标处' : k.move === 'dash' ? '沿直线冲过去' : '原地', k.back ? `命中后后跳 ${k.back} 格` : ''])
-  const when = (k: CreatureSkill) => join([k.range[0] === k.range[1] ? `相距 ${k.range[0]} 格` : `相距 ${k.range[0]}–${k.range[1]} 格`, k.aligned ? '同一行或同一列' : '', k.below !== undefined ? `生命低于 ${Math.round(k.below * 100)}%` : '', k.chance !== undefined && k.chance < 1 ? `每秒 ${Math.round(k.chance * 100)}% 几率` : ''])
+  const move = (k: CreatureSkill) => join([k.move === 'leap' ? '跳到目标处' : k.move === 'dash' ? '沿直线冲过去' : k.move === 'blink' ? '瞬移到目标旁' : '原地', k.back ? `命中后后跳 ${k.back} 格` : ''])
+  const when = (k: CreatureSkill) => join([!k.range ? '首领战轮到它时' : k.range[0] === k.range[1] ? `相距 ${k.range[0]} 格` : `相距 ${k.range[0]}–${k.range[1]} 格`, k.aligned ? '同一行或同一列' : '', k.below !== undefined ? `生命低于 ${Math.round(k.below * 100)}%` : '', k.chance !== undefined && k.chance < 1 ? `每秒 ${Math.round(k.chance * 100)}% 几率` : ''])
   const marks = (k: CreatureSkill) => (k.radius ? `${esc(T(ctx, '形状', k.shape))}，${k.radius} 格，${esc(T(ctx, '瞄准', k.aim))}` : '不标格子')
-  const rows = kit.map((k) => [`<b>${esc(zh(k.name))}</b>`, when(k), marks(k), move(k), secs(k.windup), secs(k.cooldown)])
+  const rows = kit.map((k) => [`<b>${esc(zh(k.name))}</b>`, when(k), marks(k), move(k), secs(k.windup), k.cooldown ? secs(k.cooldown) : '—'])
   return table(['技能', '什么时候用', '标记的格子', '怎么过去', '前摇', '冷却'], rows)
 }
 

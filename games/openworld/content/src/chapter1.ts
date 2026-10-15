@@ -19,6 +19,8 @@ export const CH1 = {
 
 /** The White Knight on the East Road (the campaign's body; the Boss Studio stages its own). */
 export const ALBERIC_ID = 'eastroad.alberic'
+/** The White Knight as Chapter 1 sets him: softer than in the Boss Studio and the challenge (bosses.ts), his skills' blows from his attack. */
+export const ALBERIC_CAMPAIGN = { hp: 300, maxHp: 300, def: 1, atk: 10 }
 
 /** Pell's drawings: the chalk fixtures and the facts reading each sets. */
 export const DRAWINGS = ['stone', 'door', 'bridge', 'man'] as const

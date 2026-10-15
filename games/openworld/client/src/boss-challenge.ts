@@ -1,6 +1,6 @@
 // A fresh, disposable game per challenge. No persistence and no campaign/trainer changes.
 import { Game, OFFHAND, RuleLibrary, learnSkill, type Text, type WorldIndex } from '@openworld/engine'
-import { BASE_RULES, BOSSES, BOSS_BY_ID, BOSS_ARENA, PROFESSION_BY_ID, SKILLS, STORY_RULES, buildOntology, createBoss, decodeChunk, type RawChunk } from '@openworld-game/content'
+import { BASE_RULES, BOSS_BY_ID, BOSS_ARENA, PROFESSION_BY_ID, SKILLS, STORY_RULES, buildOntology, createBoss, decodeChunk, type RawChunk } from '@openworld-game/content'
 
 export const CHALLENGE_LOADOUTS: Record<string, { hp: number; atk: number; def: number; icon: string; tip: Text }> = {
   assassin: { hp: 110, atk: 5, def: 1, icon: 'assassin', tip: { en: 'Iron dagger · openers, backstabs and three-hit finishers.', zh: '铁匕首 · 绕后背刺，抓住先手，三连击收尾。' } },
@@ -13,8 +13,6 @@ export function createBossChallenge(index: WorldIndex, raw: RawChunk, profession
   const loadout = CHALLENGE_LOADOUTS[profession], role = PROFESSION_BY_ID[profession]
   if (!loadout || !role?.weapon || !BOSS_BY_ID[bossId]) throw new Error('Unknown challenge profession or boss')
   const settings = structuredClone(index)
-  // Trial choices come from current content, even when the fetched map index is older.
-  settings.bosses = structuredClone(BOSSES)
   Object.assign(settings, { start: { map: BOSS_ARENA.map, x: 23, y: 17 }, npcs: [], companions: [], steps: [], quests: [], invariants: [], waypoints: [], startHour: 12 })
   const looks: Record<string, string> = { assassin: 'NinjaDark', warrior: 'Knight', ranger: 'Hunter', mage: 'SorcererOrange' }
   settings.player = { id: 'player', type: 'actor/person/player', look: looks[profession], facing: 'up', place: { on: 'tile', ...settings.start },

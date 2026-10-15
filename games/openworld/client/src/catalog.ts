@@ -468,6 +468,8 @@ export const CATALOG: Catalog = {
     'fixture:chalk_bridge': { base: px('lsw/Fixtures/Chalk.png', 32, 0, 16, 16, 8, 15), ground: true },
     'fixture:chalk_man': { base: px('lsw/Fixtures/Chalk.png', 48, 0, 16, 16, 8, 15), ground: true },
     'fixture:briar': { base: px('lsw/Fixtures/Briar.png', 0, 0, 16, 16, 8, 15) },
+    // what the dragon's fire leaves on the ground: a scorch of ash, its flames the burning overlay
+    'fixture:embers': { base: t(NATURE, 8, 13), ground: true },
     // the Held Ground's edge (tools/src/art/haven.ts)
     'fixture:mist': { base: px('lsw/Fixtures/Mist.png', 0, 0, 16, 16, 8, 15) },
     'fixture:seal_stone': { base: t(DUNGEON, 3, 2), lit: t(DUNGEON, 5, 2) },

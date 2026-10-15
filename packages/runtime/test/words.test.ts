@@ -15,7 +15,7 @@ const NAMES = /Lumi|露米|Alberic|阿尔贝里克|Dawnmark|晨辉|Thornmark|Hel
  * Files that still name this game's bosses (P2's leftovers, docs/engine-split.md §8: the White Knight's art and clips,
  * his preview, the sins' colours on the boss bar, his drawing): the list only shrinks.
  */
-const STILL_THE_GAMES = new Set(['assets/bosses.ts', 'boss-preview.ts', 'render/boss-animation.ts', 'render/scene.ts', 'ui/hud.ts'])
+const STILL_THE_GAMES = new Set(['assets/bosses.ts', 'boss-preview.ts', 'render/boss-animation.ts', 'render/scene.ts'])
 
 /** A file's code, its comments left out (a comment may say whose idea a thing was). */
 const code = (src: string) =>

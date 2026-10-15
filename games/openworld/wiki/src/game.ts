@@ -2,12 +2,12 @@
 // world the game runs (never from the design notes). One model, normalized for the templates: items,
 // fixtures and structures, people, creatures, bosses, maps, quests, recipes, skills, statuses…
 
-import { APPEAR_EVERY, CODEX_SIGHT, MAGNET, ROW, SLOT_COUNT, TICKS_PER_HOUR, TICKS_PER_MINUTE, nightHours, type BossDef, type Entity, type Look, type PlacementRecipe, type QuestDef, type Recipe, type SkillDef, type StatusDef, type TerrainDef, type Text, type TypeDef } from '@openworld/engine'
+import { APPEAR_EVERY, CODEX_SIGHT, MAGNET, ROW, SLOT_COUNT, TICKS_PER_HOUR, TICKS_PER_MINUTE, nightHours, type Entity, type Look, type PlacementRecipe, type QuestDef, type Recipe, type SkillDef, type StatusDef, type TerrainDef, type Text, type TypeDef } from '@openworld/engine'
 import { BOON_REACH, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE, PROFESSION_LEVEL } from '@openworld/modules'
 import {
   BOONS, BOSSES, COIN, EFFICIENCY, ELEMENT_NAMES, ELEMENTS, FALL_DAMAGE, FED_FOR, FORMS, LAYS_EVERY, LEGENDARY_ARMS, MATERIALS, NIGHT_CAP, NIGHT_EVERY, PLACEMENTS,
   QUALITIES, RECIPES, RECOVERY, RELICS, ROOM_SIZE, SAFE_FALL, SHOPS, SKILL_BRANCHES, SKILL_DIRECTIONS, SKILL_PROFESSIONS, SKILLS, STOREYS, TERRAIN_CHARS,
-  TERRAINS, TREE_GROWS, VOWS, buildOntology, type Form, LOOK_BODIES, LOOK_PARTS,
+  TERRAINS, TREE_GROWS, VOWS, buildOntology, type Form, LOOK_BODIES, LOOK_PARTS, type BossDef,
 } from '@openworld-game/content'
 import { PEOPLE } from '../../tools/src/demo/people.ts'
 import type { PersonDef } from '../../tools/src/demo/person.ts'
@@ -382,9 +382,10 @@ export function loadGame(): Game {
   ents.push(...creatures)
 
   // ---- bosses (their kits; the campaign's own numbers are in the world)
-  const bosses: BossEnt[] = BOSSES.map((b) => {
+  // (the dragon of Cinder Peak is fought as a boss too, but it is a creature of the world: its page is a creature's)
+  const bosses: BossEnt[] = BOSSES.filter((b) => b.type.startsWith('actor/creature/sin/')).map((b) => {
     const [name, seal] = zh(b.name).split(' · ')
-    const t = types[`actor/creature/sin/${b.id}`]
+    const t = types[b.type]
     return { kind: 'boss', id: b.id, zh: name, en: enOf(b.name).split(' · ')[0], title: name, group: '首领', def: b, type: t, seal, sprite: bossSprite(b.id) } satisfies BossEnt
   })
   ents.push(...bosses)
@@ -481,7 +482,7 @@ export function loadGame(): Game {
     幼崽长大: v(Number((types['actor/creature/animal/calf']?.stage as any)?.lasts ?? 0) / TICKS_PER_HOUR, '小牛、小鸡长成牛、鸡要几个游戏小时', 'content/src/ontology.ts GROWS_UP'),
     鱼饵次数: v(FORMS.find((f) => f.id === 'item/misc/bait')?.props?.casts ?? 5, '一份鱼饵挂到鱼竿上能用几竿', 'content/src/items.ts item/misc/bait'),
     鱼竿距离: v(FORMS.find((f) => f.id === 'item/tool/fishing_rod')?.props?.range ?? 1, '鱼竿能甩到几格远（格）', 'content/src/items.ts item/tool/fishing_rod'),
-    首领二阶段: v(`${Math.round((BOSSES[0]?.enrageAt ?? 0.5) * 100)}%`, '首领生命降到这个比例进入第二阶段', 'content/src/bosses.ts enrageAt'),
+    首领二阶段: v(`${Math.round((BOSSES[0]?.encounter.phases[1]?.at ?? 0.5) * 100)}%`, '首领生命降到这个比例进入第二阶段', 'content/src/bosses.ts encounter.phases'),
   }
 
   const g: Game = {

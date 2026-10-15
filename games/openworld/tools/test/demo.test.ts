@@ -1968,7 +1968,7 @@ req('Q5', 'chapter 5, fire and frost: fireweed grows in the meadow and frostcap 
   expect(ticks(f, 200, () => quest(f) === 5 && !W(f).scene)).toBe(true)
 })
 
-req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem on the way up, a fire to rest by; the dragon wakes at the mouth, calls its whelps at half health, and its fall ends the story', ['actor/creature/beast/frost_wolf', 'actor/creature/imp/fire_imp', 'actor/creature/golem/stone_golem', 'actor/creature/dragon'], () => {
+req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem on the way up, a fire to rest by; the dragon wakes at the mouth, a boss fight that calls its whelps as its second phase begins, and its fall ends the story', ['actor/creature/beast/frost_wolf', 'actor/creature/imp/fire_imp', 'actor/creature/golem/stone_golem', 'actor/creature/dragon'], () => {
   const f = fresh()
   toEmberfall(f)
   const p = W(f).player
@@ -1991,12 +1991,16 @@ req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem
     f.eng.controls.strike()
     ticks(f, 1)
   }
-  // wounded again once below half, it calls its whelps (once), and they hunt
+  // a boss fight: its plate, its phases
+  expect(snapshot(f.eng).entities.find((e) => e.id === dragon.id)?.boss).toMatchObject({ kit: 'dragon', phases: 3 })
+  author(f, () => ((p.props ??= {}).maxHp = 999, (p.props.hp = 999)))
+  // wounded below half, its second phase opens with its brood (once), and they hunt
   dragon.props = { ...(dragon.props ?? {}), hp: 355 }
   strike()
   expect(onMap(f, 'actor/creature/whelp', 'lair').length).toBe(0)
   expect(W(f).num(dragon, 'hp')).toBeLessThan(350)
-  strike()
+  expect(ticks(f, 200, () => onMap(f, 'actor/creature/whelp', 'lair').length > 0)).toBe(true)
+  expect(dragon.boss?.phase).toBe(2)
   const whelps = onMap(f, 'actor/creature/whelp', 'lair')
   expect(whelps.length).toBe(3)
   expect(whelps.every((w) => w.ai?.temper === 'aggressive')).toBe(true)
@@ -3167,9 +3171,10 @@ req('C1', 'Chapter 1, offline: the night of the flame (the grey man takes it), t
   ticks(f, 200, () => !w.scene)
   // the First Seal-bearer: softer here than in the Boss Challenge
   const knight = w.get(ALBERIC_ID)!
-  expect(knight.boss?.kit).toBe('alberic')
+  expect(knight.type).toBe(BOSS_BY_ID.alberic.type)
   expect(w.num(knight, 'maxHp')).toBeLessThan(BOSS_BY_ID.alberic.hp)
-  expect(w.num(knight, 'skillScale')).toBeLessThan(1)
+  // his skills' blows are multiples of his attack: lower here
+  expect(w.num(knight, 'atk')).toBeLessThan(BOSS_BY_ID.alberic.atk)
   // the way to Emberfall shut while he stands
   expect(w.map('eastroad')!.portals.filter((p) => p.to === 'emberfall').every((p) => p.opensWhen === 'sins.defeated.alberic')).toBe(true)
   f.eng.damage(knight, 10000, undefined, true, { e: 'player' })

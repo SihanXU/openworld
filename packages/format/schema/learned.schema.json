@@ -973,19 +973,6 @@
           "properties": {
             "op": {
               "type": "string",
-              "const": "release"
-            }
-          },
-          "required": [
-            "op"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "op": {
-              "type": "string",
               "const": "unleash"
             },
             "power": {
@@ -1010,8 +997,17 @@
             "push": {
               "type": "number"
             },
+            "pull": {
+              "type": "number"
+            },
             "heal": {
               "$ref": "#/definitions/Amount"
+            },
+            "leave": {
+              "type": "string"
+            },
+            "leaveStatus": {
+              "type": "string"
             }
           },
           "required": [

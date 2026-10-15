@@ -80,8 +80,8 @@ export class Hud {
         <div class="sin-crown" aria-hidden="true"><i></i><svg viewBox="0 0 80 34"><path d="M6 8 22 17 28 5 40 18 52 5 58 17 74 8 65 29 15 29Z"/><path d="M17 33H63M40 0V8M0 8H8M72 8H80"/></svg><i></i></div>
         <div class="sin-epithet" id="sinEpithet"></div>
         <div class="sin-title"><span id="sinName"></span></div>
-        <div class="sin-meta"><span id="sinPhase"></span><span class="sin-seals" aria-hidden="true">${Array.from({ length: 4 }, (_, i) => `<i data-seal="${i}"></i>`).join('')}</span><span id="sinHp"></span></div>
-        <div class="sin-frame"><div class="sin-track" id="sinTrack" role="progressbar" aria-valuemin="0"><div id="sinDamage"></div><div id="sinHealth"></div><div class="sin-grain"></div><i id="sinThreshold" title="Phase II"></i></div></div>
+        <div class="sin-meta"><span id="sinPhase"></span><span class="sin-seals" aria-hidden="true">${Array.from({ length: 5 }, (_, i) => `<i data-seal="${i + 1}"></i>`).join('')}</span><span id="sinHp"></span></div>
+        <div class="sin-frame"><div class="sin-track" id="sinTrack" role="progressbar" aria-valuemin="0"><div id="sinDamage"></div><div id="sinHealth"></div><div class="sin-grain"></div><span id="sinThresholds"></span></div></div>
         <div class="sin-cast-row"><span id="sinCast"></span><span id="sinCastState"></span></div>
         <div class="sin-cast-track"><div id="sinCastProgress"></div></div>
       </div>
@@ -241,16 +241,23 @@ export class Hud {
     panel.classList.toggle('struck', now - this.bossHitAt < 160)
     $('#sinEpithet').textContent = zh ? '首  领' : 'B O S S'
     $('#sinName').textContent = tx(boss.name)
-    $('#sinPhase').textContent = b.phase > 1 ? zh ? 'Ⅱ / 觉醒' : 'II / AWAKENED' : zh ? 'Ⅰ / 降临' : 'I / ARRIVED'
+    $('#sinPhase').textContent = b.phase > 2 ? zh ? 'Ⅲ / 狂怒' : 'III / FURY' : b.phase > 1 ? zh ? 'Ⅱ / 觉醒' : 'II / AWAKENED' : zh ? 'Ⅰ / 降临' : 'I / ARRIVED'
     $('#sinHealth').style.width = `${percent}%`
     $('#sinDamage').style.width = `${this.bossTrail}%`
     $('#sinHp').textContent = `${Math.ceil(hp).toLocaleString('en-US')} / ${max.toLocaleString('en-US')}`
     $('#sinTrack').setAttribute('aria-label', tx(boss.name))
     $('#sinTrack').setAttribute('aria-valuenow', String(Math.ceil(hp)))
     $('#sinTrack').setAttribute('aria-valuemax', String(max))
-    $('#sinThreshold').style.left = `${b.enrageAt * 100}%`
-    const sinIndex = ['alberic', 'lust', 'envy', 'pride'].indexOf(b.kit)
-    panel.querySelectorAll('[data-seal]').forEach((e, i) => e.classList.toggle('active', i === sinIndex))
+    // a mark where each phase after the first begins; the seal it bears lit, if it is a Seal-bearer
+    const thresholds = b.thresholds ?? [b.enrageAt]
+    const marks = thresholds.map((at) => `${at}`).join(',')
+    const holder = $('#sinThresholds')
+    if (holder.dataset.marks !== marks) {
+      holder.dataset.marks = marks
+      holder.innerHTML = thresholds.map((at, i) => `<i class="sin-threshold" style="left:${at * 100}%" title="Phase ${'II III IV V'.split(' ')[i] ?? i + 2}"></i>`).join('')
+    }
+    panel.querySelector('.sin-seals')!.classList.toggle('hidden', !b.seal)
+    panel.querySelectorAll<HTMLElement>('[data-seal]').forEach((e) => e.classList.toggle('active', Number(e.dataset.seal) === b.seal))
     $('#sinCast').textContent = b.warning ? tx(b.warning.name) : zh ? '观察起手 · 抓住收招空隙' : 'Watch the wind-up · Strike during recovery'
     $('#sinCastState').textContent = b.warning ? zh ? '蓄势 / 离开标记区域' : 'WIND-UP / EVADE' : b.phase > 1 ? zh ? '伤害与攻势强化' : 'EMPOWERED' : ' '
     $('#sinCastProgress').style.width = `${(b.warning?.progress ?? 0) * 100}%`

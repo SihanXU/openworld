@@ -2277,17 +2277,21 @@
     "BossState": {
       "type": "object",
       "properties": {
-        "kit": {
-          "type": "string"
-        },
         "phase": {
-          "type": "number"
+          "type": "number",
+          "description": "The phase it has come to (it never goes back, healed)."
         },
-        "nextSkill": {
-          "type": "number"
+        "opened": {
+          "type": "number",
+          "description": "The phase whose opening skill it has taken up."
+        },
+        "step": {
+          "type": "number",
+          "description": "Its place in the phase's rotation."
         },
         "nextAt": {
-          "type": "number"
+          "type": "number",
+          "description": "Not before this tick does it take up the next."
         },
         "action": {
           "type": "string",
@@ -2306,51 +2310,16 @@
         "actionEnd": {
           "type": "number"
         },
-        "pending": {
-          "type": "object",
-          "properties": {
-            "skill": {
-              "type": "number"
-            },
-            "target": {
-              "$ref": "#/definitions/Id"
-            },
-            "origin": {
-              "$ref": "#/definitions/Pos"
-            },
-            "aim": {
-              "$ref": "#/definitions/Pos"
-            },
-            "tiles": {
-              "type": "array",
-              "items": {
-                "type": "array",
-                "items": {
-                  "type": "number"
-                },
-                "minItems": 2,
-                "maxItems": 2
-              }
-            },
-            "releaseAt": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "skill",
-            "target",
-            "origin",
-            "aim",
-            "tiles",
-            "releaseAt"
-          ],
-          "additionalProperties": false
+        "skill": {
+          "type": "string",
+          "description": "The skill it last took up (its id), and the clip it is drawn with."
+        },
+        "clip": {
+          "type": "string"
         }
       },
-      "required": [
-        "kit"
-      ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "An encounter's behaviour memory (the kits module's director): where it is in its fight."
     }
   }
 }

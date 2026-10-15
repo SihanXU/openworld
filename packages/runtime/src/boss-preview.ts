@@ -29,7 +29,7 @@ export function previewBoss(entity: EntitySnap | undefined, mode: BossPreviewMod
   const boss = entity?.boss
   if (!boss || mode === 'live') return
   boss.action = mode === 'volley' ? 'cast' : mode
-  if (boss.kit === 'alberic') boss.skill = mode === 'volley' ? 'volley' : mode === 'cast' ? 'arrow' : 'thorns'
+  if (boss.kit === 'alberic') boss.skill = boss.clip = mode === 'volley' ? 'volley' : mode === 'cast' ? 'arrow' : 'thorns'
   const clip = mode === 'attack' ? 'thorns' : mode === 'cast' ? 'arrow' : mode
   const duration = boss.kit === 'alberic' ? ALBERIC_CLIPS[clip].length * albericFrameMs(clip) : 1800
   const elapsed = Math.max(0, elapsedMs)

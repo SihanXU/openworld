@@ -56,19 +56,30 @@ export interface EntitySnap {
   open?: boolean
   held?: string // sprite key of the held item
   heldTags?: string[]
+  /** A boss fight's body (the kits module's encounters, filled by its frame hook). */
   boss?: {
+    /** The encounter's id (its type's last name: `alberic`, `dragon`). */
     kit: string
     phase: number
     color: number
     footprint: [number, number]
+    /** Where its second phase begins (a share of its health); `thresholds` has every phase's. */
     enrageAt: number
     action: BossState['action']
     /** Stable skill id, including recovery; renderer never guesses from localized warning text. */
     skill?: string
+    /** The drawn clip of a sheet that has more than the two poses (the White Knight's volley). */
+    clip?: string
     progress: number
     /** Time within the current visual phase, separate from normalized combat progress. */
     animationElapsedMs?: number
     warning?: { name: Text; tiles: [number, number][]; progress: number }
+    /** Where each phase after the first begins (shares of its health). */
+    thresholds?: number[]
+    /** How many phases its fight has. */
+    phases?: number
+    /** The seal it bears (the Seal-bearers, 1–5). */
+    seal?: number
   }
 }
 
@@ -166,8 +177,11 @@ export interface Frame {
    * what may follow (the death screen: get up where one fell, rise at home, or the end).
    */
   fallen?: { by?: Text; difficulty: Difficulty }
-  /** The cells creatures are winding up their skills on (the kits module): who, where, how far along (0–1), in what colour. */
-  telegraphs?: { who: Id; tiles: [number, number][]; progress: number; color: number }[]
+  /**
+   * The cells creatures are winding up their skills on (the kits module): who, where, how far along (0–1), in what colour;
+   * `boss`: an encounter's (drawn as a boss's warning, its body never flashing).
+   */
+  telegraphs?: { who: Id; tiles: [number, number][]; progress: number; color: number; boss?: boolean }[]
   /** What each input would do right now, the action (the right click) among them (filled by the host, not by snapshot()). */
   keys?: { hands?: KeyView; take?: KeyView; put?: KeyView; use?: KeyView; self?: KeyView; action?: KeyView }
   /** The open container panel (the host names it): its contents. */
@@ -383,10 +397,6 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     const r = w.onto.resolve(e.type)
     // in the hand: what it holds, else the weapon it keeps in the main hand
     const held = e.held ? w.get(e.held) : weaponOf(w, e)
-    const b = e.boss, kit = b && eng.bossKits[b.kit]
-    const elapsed = w.state.tick - (b?.actionTick ?? w.state.tick)
-    const windup = b?.pending ? Math.min(1, elapsed / Math.max(1, b.pending.releaseAt - (b.actionTick ?? 0))) : 0
-    const hurt = w.num(e, 'hp') > 0 && w.state.tick - (e.combat?.lastHurtTick ?? -100) < 4
     entities.push({
       id: e.id,
       type: e.type,
@@ -414,14 +424,6 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       open: !!e.statuses?.open,
       held: held ? (w.onto.resolve(held.type).sprite ?? held.type) : undefined,
       heldTags: held ? [...w.onto.resolve(held.type).tags, ...(held.tags ?? [])] : undefined,
-      boss: b && kit ? {
-        kit: b.kit, phase: b.phase ?? 1, color: kit.color, footprint: kit.footprint, enrageAt: kit.enrageAt,
-        action: w.num(e, 'hp') <= 0 ? 'death' : hurt ? 'hurt' : b.action,
-        skill: kit.skills[b.pending?.skill ?? ((b.nextSkill ?? 0) + kit.skills.length - 1) % kit.skills.length]?.id,
-        progress: w.num(e, 'hp') <= 0 ? Math.min(1, elapsed / 16) : hurt ? Math.min(1, (w.state.tick - (e.combat?.lastHurtTick ?? w.state.tick)) / 3) : b.pending ? windup * 0.5 : Math.min(1, 0.5 + 0.5 * elapsed / Math.max(1, (b.actionEnd ?? 0) - (b.actionTick ?? 0))),
-        animationElapsedMs: Math.max(0, hurt ? w.state.tick - (e.combat?.lastHurtTick ?? w.state.tick) : elapsed) * 100,
-        warning: b.pending ? { name: kit.skills[b.pending.skill].name, tiles: b.pending.tiles, progress: windup } : undefined,
-      } : undefined,
     })
   }
   // the cells that differ from the map's data: what they show now, and what their things carry

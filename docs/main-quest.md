@@ -34,7 +34,7 @@ Ford, the survival loop (bag, foraging, crafting, hunger, levels), the meadow an
 | 3 | Emberfall | Emberfall | Mara the elder tells of the dragon of Cinder Peak, gives bread, and sets two tasks. | 3 |
 | 4 | Arm for the dragon | Old Mine; meadow, forest | Garrick the smith: 5 iron ore and 3 coal (veins in the dark mine among bats, spiders and a skeleton; the richest iron lies past the cyclops) → **Dragonsbane** (power 12). Wren the herbalist: 3 fireweed (meadow) and 3 frostcap (forest) → two **fireproof draughts**. The objective counts what each has been given. | 20–25 |
 | 5 | Cinder Pass | Cinder Pass | Climb past frost wolves, fire imps and a stone golem; a lit campfire half way. | 6–8 |
-| 6 | The dragon | Dragon's Lair | The lair's mouth wakes it (700 HP, fire bolts at range 4, bites). Once below half it calls three whelps. Fireproof: fire does a quarter of its harm and cannot set you alight. | 5–8 |
+| 6 | The dragon | Dragon's Lair | The lair's mouth wakes it: a boss fight in three phases (docs/skills.md §6) — its breath (the rock pillars shelter from it) and its dive leave embers; three bolts of fire; its tail and bite answer those close. At half it calls three whelps, at a quarter the ash falls. Fireproof: fire does a quarter of its harm and cannot set you alight. | 5–8 |
 | 7 | The end | | The victory scene and the ending card. | |
 
 Balance, measured headless during development (a player who only stands beside it and strikes):
@@ -62,7 +62,7 @@ without it, three and a half minutes and six collapses.
 | cyclops (mini-boss) | Old Mine | Boss/DemonCyclop | 60 HP; guards the deep veins; drops two iron ore |
 | frost wolf, fire imp, stone golem | Cinder Pass | exist | |
 | dragon whelp | Lair | Monster/Dragon | summoned by the dragon below half health |
-| **the dragon** | Lair | Boss/DragonGreen (head, wings, body segments) | 700 HP; fire bolts at range 4, bites; whelps once below half; composed sprite |
+| **the dragon** | Lair | Boss/DragonGreen (head, wings, body segments) | 700 HP, 2×2; a boss fight (content `bosses.ts`): breath, bolts, tail, bite, dive, brood at half, ashfall at a quarter; composed sprite |
 
 ## New engine and content pieces
 
@@ -75,7 +75,7 @@ without it, three and a half minutes and six collapses.
 - **Turn-ins**: story rules on `put` to a person, counted in facts (`mq.ore` …), with a reward
   on a word (E) once the count is met (the smith forges, the herbalist brews). The HUD's objective
   shows the counts (`Objective.progress`, from the frame's facts).
-- **Boss phases**: story rules on `hit` guarded by the dragon's hp and a fact (summon once).
+- **Boss phases**: the dragon's encounter (docs/skills.md); its brood is its second phase's opening skill, once in a world (the fact `mq.whelps`).
 - **Dragon sprite**: the renderer composes head, wings and a trail of body segments.
 - **Ending**: a scene on the dragon's `defeat` plays the ending card; the Threadbook remains.
 

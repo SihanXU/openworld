@@ -264,7 +264,12 @@ export interface Ontology {
    * ancestor names. How a skill is aimed and timed is here; what it does where it lands is its host's rule (`act/use`
    * with the param `kit`).
    */
-  kits?: Record<string, CreatureSkill[]>
+  kits?: Record<string, KitSkill[]>
+  /**
+   * The boss fights (the kits module, docs/skills.md), by type (the nearest its type or an ancestor names): the phases
+   * that take its kit's skills up in turn. A type with one is fought as a boss: its plate, the camera, the music.
+   */
+  encounters?: Record<string, EncounterDef>
   /**
    * How well an instrument works on a material category (world-model.md §6.1): rows are its
    * capabilities (`tool:axe` …) and its edge (`edge:cut` …); an instrument takes its best row.
@@ -441,85 +446,116 @@ export interface Entity {
   look?: string | Look
 }
 
-export interface BossSkill {
-  id: string
-  name: Text
-  shape: 'circle' | 'ring' | 'line' | 'cross' | 'cone' | 'spots'
-  aim: 'self' | 'target'
-  radius: number
-  windup: number
-  recovery: number
-  damage: number
-  element?: string
-  fx: string
-  /** Presentation only: exact marked cells, or one beam spanning a locked line. Default: sparse markers. */
-  fxPlacement?: 'pattern' | 'beam'
-  action: 'attack' | 'cast'
-  status?: string
-  heal?: number
-  shift?: 'pull' | 'push'
-  blink?: boolean
-}
-
 /**
- * A creature's skill (the kits module, docs/creatures.md): when its behaviour takes it up, how long it winds up on the
- * cells it marks, and how it gets there. Ticks at 10 a second.
+ * A skill of a monster's kit (the kits module, docs/skills.md): one definition for the minor monsters and the bosses.
+ * Here is where it aims, how long it winds up on the cells it marks, how it moves and when it may be taken up; what
+ * lands is its host's rule (`act/use` with the param `kit`, answered with `unleash`). Ticks at 10 a second.
  */
-export interface CreatureSkill {
+export interface KitSkill {
   id: string
   name: Text
   /**
-   * The cells it marks: a disk around its centre (`circle`), a line one wide ahead of it (`line`, `radius` long), a cone
-   * ahead (`cone`), a cross through its centre (`cross`).
+   * The cells it marks: a disk around its centre (`circle`), the square outline `radius` out (`ring`), a line ahead of
+   * it (`line`, `radius` long, `width` wide), a cone ahead (`cone`), a cross through its centre (`cross`), its centre and
+   * the four cells `radius` out along the axes (`spots`, each a disk of `spot`).
    */
-  shape: 'circle' | 'line' | 'cone' | 'cross'
+  shape: 'circle' | 'ring' | 'line' | 'cone' | 'cross' | 'spots'
   /** Its centre: the creature itself, or the foe's cell when it winds up (locked: a foe that moves away is missed). */
   aim: 'self' | 'target'
   radius: number
+  /** A line's width (odd; default 1). */
+  width?: number
+  /** Each spot's radius (`spots`; default 0: one cell). */
+  spot?: number
+  /** Cells out of its line of sight from where it winds up (behind a rock, a wall) are spared, and so are cells nothing can stand on. */
+  occlude?: boolean
   /**
-   * How it gets there: it leaps onto the aimed cell (a free one beside it when that is taken), or dashes along the line
-   * to the first foe or the first thing in the way. Without it, it stands where it is.
+   * How it gets there: it leaps onto the aimed cell (a free one beside it when that is taken), dashes along the line to
+   * the first foe or the first thing in the way, or blinks beside the aimed cell. Without it, it stands where it is.
    */
-  move?: 'leap' | 'dash'
+  move?: 'leap' | 'dash' | 'blink'
   /** Having hit, it springs back so many cells from the one it struck (a bat's swoop). */
   back?: number
   /** The foe's distance (in cells, the greater axis) at which it may take the skill up: [nearest, farthest]. */
-  range: [number, number]
+  range?: [number, number]
   /** A line or a cone, and a dash, is taken up only when the foe stands in a row or a column with it. */
   aligned?: boolean
   windup: number
+  /** Ticks it stands after the skill lands before it acts again (an encounter's; a minor monster rests a moment). */
+  recovery?: number
   /** Ticks before it may take this skill up again. */
-  cooldown: number
+  cooldown?: number
   /** The chance it takes the skill up when it could (looked at once a second): default 1. */
   chance?: number
   /** Taken up only under this share of its full health (a crab that shells up when hurt). */
   below?: number
-  /** The marks' colour (0xRRGGBB); default the warning red. */
+  /** Held, stunned or frozen, it keeps the skill and its wind-up waits (otherwise the skill is lost). */
+  steady?: boolean
+  /** Another skill of the same kit it winds up as soon as this one lands, aimed afresh (a second arrow, a second wave). */
+  then?: string
+  /** The marks' colour (0xRRGGBB); default the warning red (an encounter's: its plate's colour). */
   color?: number
+  /** The pose an encounter's body takes (its sheet's row): a blow with its own weapon, or a cast. */
+  action?: 'attack' | 'cast'
+  /** A drawn clip of its own on a sheet that has more than the two poses (the White Knight's volley). */
+  clip?: string
+  /** The effect drawn where it lands (an `onto.vfx` key): without one, a burst by its element. */
+  fx?: string
+  /** Where the effect is drawn: on every marked cell, or one beam along a line. Default: a few markers. */
+  fxPlacement?: 'pattern' | 'beam'
 }
 
-export interface BossDef {
-  id: string
-  name: Text
-  footprint: [number, number]
-  hp: number
-  defense: number
-  sight: number
-  leash: number
-  color: number
-  enrageAt: number
-  skills: BossSkill[]
+/** The minor monsters' name for a kit skill (docs/creatures.md). */
+export type CreatureSkill = KitSkill
+
+/** A phase of an encounter: from this share of its full health down, the skills it takes up in turn. */
+export interface EncounterPhase {
+  /** The share of full health at which it begins (the first: 1). */
+  at: number
+  /** Its skills (ids of the kit), taken up in this order, again and again. */
+  rotation: string[]
+  /** A skill it takes up once, as the phase begins, before the rotation. */
+  enter?: string
+  /** Its wind-ups, recoveries and blows, scaled (default 1). */
+  windupMul?: number
+  recoveryMul?: number
+  powerMul?: number
 }
 
+/**
+ * A boss fight (the kits module, docs/skills.md), by type: the kit's skills taken up by a director — a rotation in each
+ * phase, a skill as a phase begins, and between the rotation's steps the skills that answer where its foe stands
+ * (taken up as a minor monster's are). Its body (health, size) is its type's.
+ */
+export interface EncounterDef {
+  /** How far it sees its foe, and how far it keeps from where it stands (default: its own `ai`). */
+  sight?: number
+  leash?: number
+  /** Its health plate: the colour, and the seal it bears (the Seal-bearers, 1–5). */
+  plate: { color: number; seal?: number }
+  phases: EncounterPhase[]
+  /** Skills taken up between the rotation's steps when their own conditions hold (range, cooldown, chance). */
+  reactive?: string[]
+  /** The least a wind-up and a recovery may be, however its phase scales them (default 8 and 6 ticks). */
+  floors?: { windup?: number; recovery?: number }
+}
+
+/** An encounter's behaviour memory (the kits module's director): where it is in its fight. */
 export interface BossState {
-  kit: string
+  /** The phase it has come to (it never goes back, healed). */
   phase?: number
-  nextSkill?: number
+  /** The phase whose opening skill it has taken up. */
+  opened?: number
+  /** Its place in the phase's rotation. */
+  step?: number
+  /** Not before this tick does it take up the next. */
   nextAt?: number
   action?: 'idle' | 'walk' | 'attack' | 'cast' | 'hurt' | 'death'
   actionTick?: number
   actionEnd?: number
-  pending?: { skill: number; target: Id; origin: Pos; aim: Pos; tiles: [number, number][]; releaseAt: number }
+  /** The skill it last took up (its id), and the clip it is drawn with. */
+  skill?: string
+  clip?: string
 }
 
 /** How long one counts as fighting after the last blow, either way, or the last hostile one that came after it (ticks: five seconds). */
@@ -1543,7 +1579,7 @@ export type EmitTo =
  * yourself), spawns, or presents; `emit` sends an event to others, which answer for themselves.
  */
 /** The primitives the engine's official modules carry (packages/modules): typed here, worked by their module (module.ts). */
-export type ModuleOp = 'release' | 'unleash' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy'
+export type ModuleOp = 'unleash' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy'
 
 export type Effect =
   | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean }
@@ -1617,14 +1653,14 @@ export type Effect =
   /** The host learns: the skill (param skill) or the profession (param profession) its act names. */
   /** `book`: from a book the host holds (the event's item): no points, but its profession and the skills before it in the tree; the book is used up. */
   | { op: 'learn'; book?: boolean }
-  /** The host's encounter skill lands on the cells its act telegraphed (bosses.ts). */
-  | { op: 'release' }
   /**
-   * The host's kit skill lands (the kits module): it gets there as the skill says (a leap, a dash), and each foe on the
-   * cells its act marked is struck by `power` (with `element` and `edge`), coated with `coat` (a status it answers
-   * for itself), pushed `push` cells away; the host mends `heal` for each foe it hit.
+   * The host's kit skill lands (the kits module): it gets there as the skill says (a leap, a dash, a blink), and each
+   * foe on the cells its act marked is struck by `power` (with `element` and `edge`), coated with `coat` (a status it
+   * answers for itself), pushed `push` cells away or pulled `pull` cells toward where the skill was wound up; the host
+   * mends `heal` for each foe it hit; a `leave` thing is made on each marked cell nothing stands on (holding
+   * `leaveStatus` from the start: embers already burning).
    */
-  | { op: 'unleash'; power?: Amount; element?: PropValue | Amount; edge?: string; coat?: string; push?: number; heal?: Amount }
+  | { op: 'unleash'; power?: Amount; element?: PropValue | Amount; edge?: string; coat?: string; push?: number; pull?: number; heal?: Amount; leave?: string; leaveStatus?: string }
   /** Open one of the panels the game's client shows, by its id (profession, board, haven, …), for the one at the keys who spoke to the host. */
   | { op: 'panel'; panel: string }
   | { op: 'scene'; id: string }

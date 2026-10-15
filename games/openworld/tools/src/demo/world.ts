@@ -10,7 +10,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { storyTopics, tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@openworld/engine'
-import { BOSSES, QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, GUIDE_BEATS, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, generateLook, type RawChunk } from '@openworld-game/content'
+import { QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, GUIDE_BEATS, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, generateLook, type RawChunk } from '@openworld-game/content'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
@@ -776,7 +776,6 @@ export function buildFord(): FordWorld {
     startHour: START_HOUR,
     maps: [...builders.map((b, i) => metaOf(b, chunks[i])), { id: overworld.map.id, name: overworld.map.name, kind: overworld.map.kind, region: overworld.map.region, width: overworld.map.width, height: overworld.map.height, portals: [], npcs: 0, items: 0 }],
     npcs,
-    bosses: BOSSES,
     codex: codexEntries(),
     player: {
       id: 'player',

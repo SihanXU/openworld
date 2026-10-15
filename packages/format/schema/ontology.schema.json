@@ -174,10 +174,17 @@
           "additionalProperties": {
             "type": "array",
             "items": {
-              "$ref": "#/definitions/CreatureSkill"
+              "$ref": "#/definitions/KitSkill"
             }
           },
           "description": "The creatures' own skills (the kits module, docs/creatures.md), by type: a kind's kit is the nearest its type or an ancestor names. How a skill is aimed and timed is here; what it does where it lands is its host's rule (`act/use` with the param `kit`)."
+        },
+        "encounters": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/EncounterDef"
+          },
+          "description": "The boss fights (the kits module, docs/skills.md), by type (the nearest its type or an ancestor names): the phases that take its kit's skills up in turn. A type with one is fought as a boss: its plate, the camera, the music."
         },
         "efficiency": {
           "type": "object",
@@ -1973,7 +1980,7 @@
       "additionalProperties": false,
       "description": "One extra a piece may roll: a stat key, its range and step, the slots it may roll on (all, if none), how often."
     },
-    "CreatureSkill": {
+    "KitSkill": {
       "type": "object",
       "properties": {
         "id": {
@@ -1986,11 +1993,13 @@
           "type": "string",
           "enum": [
             "circle",
+            "ring",
             "line",
             "cone",
-            "cross"
+            "cross",
+            "spots"
           ],
-          "description": "The cells it marks: a disk around its centre (`circle`), a line one wide ahead of it (`line`, `radius` long), a cone ahead (`cone`), a cross through its centre (`cross`)."
+          "description": "The cells it marks: a disk around its centre (`circle`), the square outline `radius` out (`ring`), a line ahead of it (`line`, `radius` long, `width` wide), a cone ahead (`cone`), a cross through its centre (`cross`), its centre and the four cells `radius` out along the axes (`spots`, each a disk of `spot`)."
         },
         "aim": {
           "type": "string",
@@ -2003,13 +2012,26 @@
         "radius": {
           "type": "number"
         },
+        "width": {
+          "type": "number",
+          "description": "A line's width (odd; default 1)."
+        },
+        "spot": {
+          "type": "number",
+          "description": "Each spot's radius (`spots`; default 0: one cell)."
+        },
+        "occlude": {
+          "type": "boolean",
+          "description": "Cells out of its line of sight from where it winds up (behind a rock, a wall) are spared, and so are cells nothing can stand on."
+        },
         "move": {
           "type": "string",
           "enum": [
             "leap",
-            "dash"
+            "dash",
+            "blink"
           ],
-          "description": "How it gets there: it leaps onto the aimed cell (a free one beside it when that is taken), or dashes along the line to the first foe or the first thing in the way. Without it, it stands where it is."
+          "description": "How it gets there: it leaps onto the aimed cell (a free one beside it when that is taken), dashes along the line to the first foe or the first thing in the way, or blinks beside the aimed cell. Without it, it stands where it is."
         },
         "back": {
           "type": "number",
@@ -2031,6 +2053,10 @@
         "windup": {
           "type": "number"
         },
+        "recovery": {
+          "type": "number",
+          "description": "Ticks it stands after the skill lands before it acts again (an encounter's; a minor monster rests a moment)."
+        },
         "cooldown": {
           "type": "number",
           "description": "Ticks before it may take this skill up again."
@@ -2043,9 +2069,41 @@
           "type": "number",
           "description": "Taken up only under this share of its full health (a crab that shells up when hurt)."
         },
+        "steady": {
+          "type": "boolean",
+          "description": "Held, stunned or frozen, it keeps the skill and its wind-up waits (otherwise the skill is lost)."
+        },
+        "then": {
+          "type": "string",
+          "description": "Another skill of the same kit it winds up as soon as this one lands, aimed afresh (a second arrow, a second wave)."
+        },
         "color": {
           "type": "number",
-          "description": "The marks' colour (0xRRGGBB); default the warning red."
+          "description": "The marks' colour (0xRRGGBB); default the warning red (an encounter's: its plate's colour)."
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "attack",
+            "cast"
+          ],
+          "description": "The pose an encounter's body takes (its sheet's row): a blow with its own weapon, or a cast."
+        },
+        "clip": {
+          "type": "string",
+          "description": "A drawn clip of its own on a sheet that has more than the two poses (the White Knight's volley)."
+        },
+        "fx": {
+          "type": "string",
+          "description": "The effect drawn where it lands (an `onto.vfx` key): without one, a burst by its element."
+        },
+        "fxPlacement": {
+          "type": "string",
+          "enum": [
+            "pattern",
+            "beam"
+          ],
+          "description": "Where the effect is drawn: on every marked cell, or one beam along a line. Default: a few markers."
         }
       },
       "required": [
@@ -2054,12 +2112,106 @@
         "shape",
         "aim",
         "radius",
-        "range",
-        "windup",
-        "cooldown"
+        "windup"
       ],
       "additionalProperties": false,
-      "description": "A creature's skill (the kits module, docs/creatures.md): when its behaviour takes it up, how long it winds up on the cells it marks, and how it gets there. Ticks at 10 a second."
+      "description": "A skill of a monster's kit (the kits module, docs/skills.md): one definition for the minor monsters and the bosses. Here is where it aims, how long it winds up on the cells it marks, how it moves and when it may be taken up; what lands is its host's rule (`act/use` with the param `kit`, answered with `unleash`). Ticks at 10 a second."
+    },
+    "EncounterDef": {
+      "type": "object",
+      "properties": {
+        "sight": {
+          "type": "number",
+          "description": "How far it sees its foe, and how far it keeps from where it stands (default: its own `ai`)."
+        },
+        "leash": {
+          "type": "number"
+        },
+        "plate": {
+          "type": "object",
+          "properties": {
+            "color": {
+              "type": "number"
+            },
+            "seal": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "color"
+          ],
+          "additionalProperties": false,
+          "description": "Its health plate: the colour, and the seal it bears (the Seal-bearers, 1–5)."
+        },
+        "phases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EncounterPhase"
+          }
+        },
+        "reactive": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Skills taken up between the rotation's steps when their own conditions hold (range, cooldown, chance)."
+        },
+        "floors": {
+          "type": "object",
+          "properties": {
+            "windup": {
+              "type": "number"
+            },
+            "recovery": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false,
+          "description": "The least a wind-up and a recovery may be, however its phase scales them (default 8 and 6 ticks)."
+        }
+      },
+      "required": [
+        "plate",
+        "phases"
+      ],
+      "additionalProperties": false,
+      "description": "A boss fight (the kits module, docs/skills.md), by type: the kit's skills taken up by a director — a rotation in each phase, a skill as a phase begins, and between the rotation's steps the skills that answer where its foe stands (taken up as a minor monster's are). Its body (health, size) is its type's."
+    },
+    "EncounterPhase": {
+      "type": "object",
+      "properties": {
+        "at": {
+          "type": "number",
+          "description": "The share of full health at which it begins (the first: 1)."
+        },
+        "rotation": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Its skills (ids of the kit), taken up in this order, again and again."
+        },
+        "enter": {
+          "type": "string",
+          "description": "A skill it takes up once, as the phase begins, before the rotation."
+        },
+        "windupMul": {
+          "type": "number",
+          "description": "Its wind-ups, recoveries and blows, scaled (default 1)."
+        },
+        "recoveryMul": {
+          "type": "number"
+        },
+        "powerMul": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "at",
+        "rotation"
+      ],
+      "additionalProperties": false,
+      "description": "A phase of an encounter: from this share of its full health down, the skills it takes up in turn."
     },
     "WorldParams": {
       "type": "object",

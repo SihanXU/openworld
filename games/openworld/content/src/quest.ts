@@ -1,7 +1,8 @@
 // The main quest past the Ford (docs/main-quest.md): Emberfall, the old mine, fire and frost,
 // Cinder Pass and the dragon. Its state is facts under `mq.` (protected like the Ford's: only
 // these rules and the scenes change them), and the `emberfall` quest (quests/main.ts) answers them.
-// The rules here are the turn-ins and rewards the people of Emberfall make, and the dragon's phases.
+// The rules here are the turn-ins and rewards the people of Emberfall make, and the dragon's end (its fight, its brood
+// among it, is a boss's: bosses.ts).
 
 import type { Cond, Effect, Rule, Text, Tree } from '@openworld/engine'
 
@@ -111,23 +112,6 @@ export const QUEST_RULES: Rule[] = [
     host: { type: 'actor/creature/whelp' },
     on: 'time/period',
     tree: IF(all({ param: { key: 'name', cmp: 'orphaned' } }, fact('mq.dragon', 1), { chance: 0.3 }), DO({ op: 'vfx', fx: 'poof', at: 'tileOf:host' }, log('A whelp shrieks and flees into the dark.', '一只幼龙尖叫着逃进了黑暗。'), { op: 'destroy' }), 'inherit'),
-  }),
-  story({
-    id: 'mq/dragon-whelps',
-    doc: 'Struck again once below half, the dragon shrieks and its whelps pour out of the dark (once); every blow still wounds it.',
-    host: { type: DRAGON },
-    on: 'impulse/strike',
-    tree: IF(
-      all({ prop: { role: 'host', key: 'hp', cmp: { lt: 350 } } }, fact('mq.whelps', 0)),
-      DO(
-        { op: 'hurt', amount: { param: 'power' } },
-        { op: 'foe' },
-        notify('whelps'),
-        { op: 'spawn', type: 'actor/creature/whelp', at: 'host', count: 3 },
-        { op: 'vfx', fx: 'fire_burst' },
-        log('The dragon shrieks. Its whelps pour out of the dark!', '魔龙一声尖啸，幼龙从黑暗里涌了出来！'),
-      ),
-    ),
   }),
   story({
     id: 'mq/dragon-slain',

@@ -17,7 +17,7 @@
 //                     their places, and the types and statuses they brought)
 //   locales/<code>.json  a translation table: how a language says the game's words, written in its source
 //                     language (game.json `languages`; texts.ts)
-//   extra.json        what the world's index carries beyond these (a module's data: bosses, the codex's entries)
+//   extra.json        what the world's index carries beyond these (a module's data: the codex's entries)
 //   assets/           pictures and sounds the catalogue names, served beside the bundle
 //
 // A game whose content a script makes (OpenWorld's TypeScript builders) writes the same files, or hands the
@@ -116,7 +116,7 @@ export interface Project {
   learned?: Sourced<LearnedFile>[]
   /** Its translation tables (`locales/<code>.json`), a language each. */
   locales?: Sourced<LocaleFile>[]
-  /** What is in the index beyond the format's own (a game's script adds its bosses, its codex). */
+  /** What is in the index beyond the format's own (a game's script adds its codex). */
   extra?: Partial<WorldIndex>
 }
 

@@ -2,6 +2,7 @@
 import '../../client/src/register.ts'
 import { describe, expect, it } from 'vitest'
 import { type Dir, type Game } from '@openworld/engine'
+import { kitsOf } from '@openworld/modules'
 import { BOSSES, BOSS_ARENA, SKILL_PROFESSIONS } from '@openworld-game/content'
 import { challengeOutcome, createBossChallenge } from '../../client/src/boss-challenge.ts'
 import { buildFord } from '../src/demo/world.ts'
@@ -14,7 +15,7 @@ const directions: [Dir, number, number][] = [['left', -1, 0], ['right', 1, 0], [
 function pilot(game: Game, dodge: boolean): void {
   const eng = game.engine, w = eng.world, p = w.player, boss = w.get(BOSS_ARENA.id)!
   const at = w.posOf(p)!, body = w.occupiedCells(boss)
-  const warning = new Set((boss.boss?.pending?.tiles ?? []).map(([x, y]) => `${x},${y}`))
+  const warning = new Set((kitsOf(eng).pending.get(boss.id)?.tiles ?? []).map(([x, y]) => `${x},${y}`))
   const danger = (x: number, y: number) => dodge && warning.has(`${x},${y}`)
   const adjacent = (x: number, y: number) => body.some(([bx, by]) => Math.abs(x - bx) + Math.abs(y - by) === 1)
   const threatened = danger(at.x, at.y)

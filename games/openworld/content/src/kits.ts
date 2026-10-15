@@ -4,19 +4,8 @@
 // The skills come from the setting (docs/lore.md §2): the First Night seeping in — beasts gone strange, the dead that
 // do not rest, things of the night that do not belong to the world.
 
-import type { CreatureSkill, Effect, Rule, StatusDef, Tree } from '@openworld/engine'
-
-const L = (en: string, zh: string) => ({ en, zh })
-const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
-const POWER = (mul: number) => ({ param: 'power', mul })
-const ELEMENT = { param: 'element' }
-
-/** The colours of the marks: harm, what clings (a web, a mire), what calls others. */
-const HARM = 0xe0483c
-const CLING = 0xa968e0
-const CALL = 0xf0b030
-
-const skill = (id: string, en: string, zh: string, s: Omit<CreatureSkill, 'id' | 'name'>): CreatureSkill => ({ id, name: L(en, zh), ...s })
+import type { CreatureSkill, Rule } from '@openworld/engine'
+import { CALL, CLING, DO, ELEMENT, HARM, POWER, kitRule, skill, unleash } from './afflictions.ts'
 
 // ------------------------------------------------------------------ the skills
 
@@ -55,33 +44,7 @@ export const KITS: Record<string, CreatureSkill[]> = {
   [`${C}/crab`]: [SHELL],
 }
 
-// ------------------------------------------------------------------ what clings
-
-/** What creatures' skills leave on a body, besides the sins' (a coat it answers for itself: body/afflict). */
-export const KIT_STATUSES: StatusDef[] = [
-  // a spider's bite: 1 a second through any defence, three seconds (body/poison)
-  { id: 'poisoned', name: L('poisoned', '中毒'), duration: 30, every: 10 },
-  // a spider's web: one wades through it at a third of the pace
-  { id: 'webbed', name: L('webbed', '缠丝'), duration: 25, moveDelay: 3 },
-  // a wolf's howl: the pack runs faster and bites harder
-  { id: 'frenzied', name: L('frenzied', '狂热'), duration: 80, moveDelay: 0.6, props: { atk: 1 } },
-  // a crab drawn into its shell: hard to hurt, slow to move
-  { id: 'shelled', name: L('shelled', '缩壳'), duration: 40, moveDelay: 2, props: { def: 4 } },
-]
-
-/** Every coat a body takes as a status of its own (body/afflict): the sins' and the creatures'. */
-export const AFFLICTIONS = ['mired', 'entranced', 'webbed', 'poisoned', 'bleeding', 'stunned', 'frenzied']
-
 // ------------------------------------------------------------------ the rules
-
-const unleash = (u: Omit<Extract<Effect, { op: 'unleash' }>, 'op'>): Effect => ({ op: 'unleash', ...u })
-const DO = (...effects: Effect[]): Tree => ({ do: effects })
-/** A kind's answer to its own skills: each skill's id → what lands; any other use is its plain blow (inherit). */
-const kitTree = (answers: [string, Tree][], otherwise: Tree = 'inherit'): Tree =>
-  answers.reduceRight<Tree>((rest, [id, then]) => ({ if: { param: { key: 'kit', cmp: id } }, then, else: rest }), otherwise)
-
-const kitRule = (id: string, host: string | string[], doc: string, answers: [string, Tree][], otherwise?: Tree): Rule[] =>
-  (Array.isArray(host) ? host : [host]).map((h, i) => rule({ id: i ? `${id}-${h.split('/').pop()}` : id, doc, host: { type: h }, on: 'act/use', tree: kitTree(answers, otherwise) }))
 
 export const KIT_RULES: Rule[] = [
   ...kitRule('kit/slime', `${C}/slime`, 'A slime\'s Hop: it leaps onto the foe\'s cell and splashes the cells around it, in its own element.', [
@@ -132,11 +95,4 @@ export const KIT_RULES: Rule[] = [
   ...kitRule('kit/crab', `${C}/crab`, 'A crab\'s Shell Up, hurt: it draws into its shell, hard to hurt and slow a while.', [
     ['shell', DO({ op: 'addStatus', status: 'shelled' }, { op: 'vfx', fx: 'dust' })],
   ]),
-  rule({
-    id: 'body/poison',
-    doc: 'A poisoned body loses 1 health a second, through any defence (a spider\'s venom).',
-    host: { type: 'actor', status: ['poisoned'] },
-    on: 'time/period',
-    tree: { if: { param: { key: 'status', cmp: 'poisoned' } }, then: DO({ op: 'hurt', amount: 1, pierce: true }), else: 'inherit' },
-  }),
 ]

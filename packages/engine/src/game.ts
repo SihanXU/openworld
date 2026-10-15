@@ -6,7 +6,7 @@ import { ModPort } from './mod.ts'
 import { Codex, type CodexData } from './codex.ts'
 import { RuleLibrary, type LibraryData } from './rules.ts'
 import type { QuestDef } from './quests.ts'
-import type { BossDef, Entity, Id, Invariant, MapData, NpcMemory, Ontology, Pos, Portal, PropValue, SceneState, StepDef, Text, WorldState } from './types.ts'
+import type { Entity, Id, Invariant, MapData, NpcMemory, Ontology, Pos, Portal, PropValue, SceneState, StepDef, Text, WorldState } from './types.ts'
 import { TOPIC_DAYS } from './world.ts'
 
 export interface MapMeta {
@@ -67,7 +67,6 @@ export interface WorldIndex {
   companions?: Entity[]
   /** The teleport stones (fixture/waypoint ids), for the world map. */
   waypoints?: { id: Id; map: string; x: number; y: number; name: Text }[]
-  bosses?: BossDef[]
   /** The codex's entries (codex.ts): the kinds of item and of creature it lists; its people are `companions` and `npcs`. */
   codex?: { items: string[]; creatures: string[] }
 }
@@ -282,7 +281,6 @@ function addTree(eng: Engine, e: Entity & { _items?: Entity[] }): void {
 
 /** Scenes and invariants are content: read from the world on every start (they are not saved). */
 function loadContent(eng: Engine, index: WorldIndex): void {
-  eng.bossKits = Object.fromEntries((index.bosses ?? []).map((b) => [b.id, structuredClone(b)]))
   eng.story.load(index.steps)
   eng.quests.load(index.quests)
   eng.loadInvariants(index.invariants, index.protectedFacts)

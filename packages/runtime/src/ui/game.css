@@ -520,6 +520,7 @@
 #sinHp { color: #f0e5ce; font: 11px/14px monospace; letter-spacing: 1px; }
 .sin-seals { display: flex; gap: 9px; }
 .sin-seals i { width: 5px; height: 5px; transform: rotate(45deg); background: #252728; border: 1px solid #827558; }
+.sin-seals.hidden { display: none; }
 .sin-seals i.active { background: var(--sin); border-color: #fff1c1; box-shadow: 0 0 8px var(--sin); }
 .sin-frame { position: relative; padding: 4px; background: linear-gradient(#eee0ab, #7e6544 35%, #241a16 50%, #a58a57 85%, #e7cc8d); box-shadow: 0 0 0 1px #080a11, 0 3px 0 2px #090c13, 0 5px 15px #0009; }
 .sin-frame::before, .sin-frame::after { content: ''; position: absolute; z-index: 1; width: 27px; height: 39px; top: -5px; background: linear-gradient(120deg, #ffedb7, #745738 42%, #d6b675 48%, #2c2521 65%, #c3a16c); clip-path: polygon(0 0, 65% 15%, 100% 50%, 65% 85%, 0 100%, 22% 50%); }
@@ -529,8 +530,8 @@
 #sinDamage { background: #f8e0ad; transition: width .2s linear; opacity: .8; }
 #sinHealth { background: linear-gradient(0deg, #210b1999, transparent 55%, #ffe5b533), var(--sin); transition: width .1s linear; box-shadow: inset 0 2px #fff5, inset 0 -3px #0006, 1px 0 #fff0cf; }
 .sin-grain { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), #100c145c calc(10% - 1px), #100c145c 10%); box-shadow: inset 0 2px 2px #0005; }
-#sinThreshold { position: absolute; top: -5px; bottom: -5px; width: 2px; background: #ffdfac; box-shadow: 1px 0 #2f1e1a, 0 0 5px #ffdb8555; }
-#sinThreshold::before { content: ''; position: absolute; top: -4px; left: -3px; width: 8px; height: 8px; background: #efcb8c; transform: rotate(45deg); border: 1px solid #413427; }
+#sinThresholds .sin-threshold { position: absolute; top: -5px; bottom: -5px; width: 2px; background: #ffdfac; box-shadow: 1px 0 #2f1e1a, 0 0 5px #ffdb8555; }
+#sinThresholds .sin-threshold::before { content: ''; position: absolute; top: -4px; left: -3px; width: 8px; height: 8px; background: #efcb8c; transform: rotate(45deg); border: 1px solid #413427; }
 .sin-cast-row { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; min-height: 17px; font: 11px/17px var(--text); color: #dccfaf; }
 #sinCastState { color: #a89b83; font-size: 9px; letter-spacing: 1px; }
 .sin-cast-track { margin-top: 5px; height: 3px; background: #b5a37c26; }
