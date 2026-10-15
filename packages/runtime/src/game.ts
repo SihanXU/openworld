@@ -3,7 +3,7 @@
 // game's content only through game(). No module reads it at its top level, so the order the modules load in
 // does not matter, only that useGame() comes before the first frame.
 
-import type { Entity, Game, GameDef, Look, LookBodyDef, LookColorDef, LookPartDef, LookTable, MapChunk, Ontology, PlacementRecipe, Pos, PropValue, Recipe, SkillDef, Text, World, WorldIndex } from '@openworld/engine'
+import type { Entity, Game, GameDef, ItemInfo, Look, LookBodyDef, LookColorDef, LookPartDef, LookTable, MapChunk, Ontology, PlacementRecipe, Pos, PropValue, Recipe, SkillDef, Text, World, WorldIndex } from '@openworld/engine'
 import type { ProfessionDef } from '@openworld/modules'
 import type { Catalog } from './assets/types.ts'
 import type { PanelFactory } from './ui/panels.ts'
@@ -86,6 +86,8 @@ export interface CoverDef {
 }
 
 export interface ClientGame extends GameDef {
+  /** Extra tooltip lines supplied by the game, including the item's current state. Code belongs in its plugin. */
+  describeItem?(item: ItemInfo): Text[]
   /** Sprites, sounds and music by the content's keys. */
   catalog: Catalog
   /** Where its pictures and sounds are (default: the page's `assets/`), and its world files (default: the page's `world/`). */

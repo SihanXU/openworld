@@ -61,7 +61,7 @@ export function buildHaven(): MapBuilder {
   // fish shadows glide in the water now and then, to say so
   m.fish = true
   m.organic(hx + 1, hy - 6, 3.2, 1.6, 'water', { only: (t) => t === 'grass' })
-  m.fixture('fixture/sign', hx - 3, hy - 6, { props: { text: 'FISH POND — a rod is made from two sticks and two grass. Bait from the stall.', text_zh: '鱼塘——两根树枝加两把草就能做鱼竿。鱼饵在货摊买。' } })
+  m.fixture('fixture/sign', hx - 3, hy - 6, { props: { text: 'FISH POND — make a rod from two sticks and two grass, or buy one with bait at the stall. Sell your catch there. The farming shelf has seeds and buckets; fill a bucket here for the fields. Seeds say how long they grow.', text_zh: '鱼塘——两根树枝加两把草能做鱼竿，货摊也卖鱼竿、鱼饵并收鱼。农业页有种子和水桶，在这里装水就能浇地。种子说明里写着生长时间。' } })
   // Alberic's stall: three shelves (farming, ranching, fishing) and what it buys back (homestead.ts)
   // the Held Ground's only trade: fire does not take it (gone, it would be gone for good)
   m.fixture('fixture/furniture/stall/trade', hx + 3, hy + 1, { id: 'haven.stall', name: L("Alberic's stall", '阿尔贝里克的货摊'), statuses: { fireproof: -1 } })
@@ -131,7 +131,7 @@ function buildLake(): MapBuilder {
   m.organic(16, 8, 6, 2.6, 'deepwater', { only: (t) => t === 'water' })
   m.fish = true
   for (const [x, y] of [[6, 10], [26, 10], [9, 14], [23, 14], [7, 6]] as const) if (m.free(x, y) && m.get(x, y) === 'sand') m.fixture('fixture/nature/reeds', x, y)
-  m.fixture('fixture/sign', 14, 18, { props: { text: 'THE LAKESIDE — deep water: pike in the middle, eels at night, carp at dawn.', text_zh: '湖畔——深水：湖心有狗鱼，夜里有鳗鱼，清晨有鲤鱼。' } })
+  m.fixture('fixture/sign', 14, 18, { props: { text: 'THE LAKESIDE — cast into deep water for pike and more golden carp. Eels at night, catfish in rain, a rare Dawnscale at first light. Stay on the bank: a rod reaches three cells.', text_zh: '湖畔——向深水甩竿能钓狗鱼，也更容易出金鳞鲤。夜里有鳗鱼，雨天有鲶鱼，清晨偶尔有晨鳞鱼。站在岸上就行：鱼竿够得着三格。' } })
   m.appear = GROUND_YIELD
   return m
 }

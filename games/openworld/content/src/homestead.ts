@@ -59,6 +59,9 @@ export const SHOP_RECIPES: Recipe[] = [
   buy('farm', 'item/material/fertilizer', 3, 10),
   buy('farm', 'item/seed/acorn', 1, 4),
   buy('farm', 'item/tool/shovel', 1, 15),
+  buy('farm', 'item/tool/hoe', 1, 12),
+  buy('farm', 'item/tool/sickle', 1, 10),
+  { ...buy('farm', 'item/vessel/bucket/empty', 1, 8), id: 'shop/buy/farm-bucket' },
   // ranching: feed, a bucket for milking, beasts in crates
   buy('ranch', 'item/material/feed', 5, 6),
   buy('ranch', 'item/vessel/bucket/empty', 1, 8),
