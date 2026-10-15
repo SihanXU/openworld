@@ -6,6 +6,8 @@
 import type { AffixTable } from './affixes.ts'
 
 export type Id = string
+/** The AI setting a learned answer was made at, and an event is answered at (quality.ts). */
+export type Tier = 'low' | 'medium' | 'high'
 export type Text = string | { en: string; zh?: string }
 
 export type Dir = 'up' | 'down' | 'left' | 'right'
@@ -43,6 +45,8 @@ export interface PixelArt {
 export interface TypeDef {
   id: string
   name?: Text
+  /** The one thing this kind was made for (the editor's "its own kind", docs/engine-split.md §16 E-b): rules on it are that thing's alone. The engine reads nothing from it. */
+  own?: Id
   /** Tags inherited by every instance (instances may add more). */
   tags?: string[]
   /** Default properties (instances may override). */
@@ -1248,7 +1252,7 @@ export interface WorldState {
  * library: the HUD shows its label before the input is pressed, and pressing runs it.
  */
 export interface Plan {
-  /** The input: E (hands), F (take), G (put), left click (use), right click (self: the held thing used on oneself). */
+  /** The act's input: E (hands), F (take), G (put), left click (use), self (the held thing used on oneself); the right click (the action) makes one of them. */
   key: 'hands' | 'take' | 'put' | 'use' | 'self'
   /** The tile aimed at. */
   at: Pos
@@ -1262,6 +1266,10 @@ export interface Plan {
   rule?: string
   /** The chain it starts reaches an undefined outcome — the world has never seen this. */
   unknown?: boolean
+  /** Undefined, but the AI setting leaves this kind of work to the leaf's default (quality.ts): no one will be asked. */
+  quiet?: boolean
+  /** A learned answer decides it (a patch filled a hole the base rules leave): the action chooses as the base answers. */
+  learned?: boolean
   /** It would change something (taking and putting are offered only then: a refusal is no option). */
   changes?: boolean
   /** Ask first ("Eat the apple?", "Sleep until morning?"). */
@@ -1651,6 +1659,8 @@ export interface RuleTest {
 
 /** A minimal self-contained world used for sandbox replay and rule tests. */
 export interface Scenario {
+  /** The AI tier the event is replayed at: which learned answers it may take (quality.ts; none: the engine's setting). */
+  tier?: Tier
   /** Terrain rows around the origin; default a 5x5 grass patch. */
   terrain?: string[][]
   entities: ScenarioEntity[]
@@ -1727,6 +1737,11 @@ export interface Rule {
    */
   hole?: string
   at?: string[]
+  /**
+   * A learned rule's tier: the AI setting it was answered at (quality.ts; none: medium). Each tier
+   * keeps its own trees; an answer serves its own tier and every lower one, never a higher.
+   */
+  tier?: Tier
   /** Ask the player first when their input chooses this rule ("Eat {instrument}?"). */
   confirm?: Text
   /**

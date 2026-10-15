@@ -35,7 +35,7 @@ export function openModder(o: OpenOptions): Modder {
   const library = new WorldLibrary(o.game.ontology(), o.game.rules, join(data, 'library.jsonl'))
   const state = SelfState.open(join(data, 'modder-state'))
   const model = o.model === null ? undefined : (o.model ?? modelFromEnv())
-  return new Modder({ library, state, model, log: o.log })
+  return new Modder({ library, state, model, log: o.log, probes: o.game.probes, data })
 }
 
 /**

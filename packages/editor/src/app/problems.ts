@@ -3,7 +3,7 @@
 
 import type { Problem } from '@openworld/format'
 import type { Ctx } from './context.ts'
-import { esc } from './ui.ts'
+import { esc, t } from './ui.ts'
 
 /** Which mode a file is edited in. */
 export function modeOf(file: string | undefined): string | undefined {
@@ -14,6 +14,7 @@ export function modeOf(file: string | undefined): string | undefined {
   if (file.startsWith('quests/')) return 'quests'
   if (file.startsWith('story/')) return 'story'
   if (file.startsWith('ontology/')) return 'database'
+  if (file.startsWith('locales/')) return 'locales'
   return undefined
 }
 
@@ -42,8 +43,8 @@ export class ProblemsPanel {
   private render(): void {
     const errors = this.problems.filter((p) => p.level === 'error').length
     const warnings = this.problems.length - errors
-    this.el.innerHTML = `<div class="ph"><button id="probToggle">${errors ? `<b class="err">${errors} error${errors > 1 ? 's' : ''}</b>` : '<b class="ok">no errors</b>'}${warnings ? ` · ${warnings} warning${warnings > 1 ? 's' : ''}` : ''} ${this.open ? '▾' : '▸'}</button></div>
-      ${this.open ? `<ul>${this.problems.map((p, i) => `<li class="${p.level}"><a data-i="${i}">[${esc(p.code)}] ${esc(p.file ?? '')}${p.at ? ` (${esc(p.at)})` : ''}</a> ${esc(p.message)}</li>`).join('') || '<li class="muted">The compiler finds nothing wrong.</li>'}</ul>` : ''}`
+    this.el.innerHTML = `<div class="ph"><button id="probToggle">${errors ? `<b class="err">${t('{n} errors', { n: errors })}</b>` : `<b class="ok">${t('no errors')}</b>`}${warnings ? ` · ${t('{n} warnings', { n: warnings })}` : ''} ${this.open ? '▾' : '▸'}</button></div>
+      ${this.open ? `<ul>${this.problems.map((p, i) => `<li class="${p.level}"><a data-i="${i}">[${esc(p.code)}] ${esc(p.file ?? '')}${p.at ? ` (${esc(p.at)})` : ''}</a> ${esc(p.message)}</li>`).join('') || `<li class="muted">${t('The compiler finds nothing wrong.')}</li>`}</ul>` : ''}`
     this.el.querySelector<HTMLButtonElement>('#probToggle')!.onclick = () => ((this.open = !this.open), this.render())
     this.el.querySelectorAll<HTMLElement>('[data-i]').forEach((a) => (a.onclick = () => {
       const p = this.problems[Number(a.dataset.i)]

@@ -1,6 +1,6 @@
 {
   "id": "starter",
-  "name": { "en": "The Glade", "zh": "林间空地" },
+  "name": "The Glade",
   "version": "1",
   "engine": "1",
   "doc": "The smallest whole game on the OpenWorld engine (docs/engine-split.md S6): the kernel and the standard library, no module. A glade, a cottage, a villager with a day, an axe in a chest, a tree to fell, a slime, a favour. It is the editor's new project and the engine's test fixture.",
@@ -33,9 +33,10 @@
   "player": {
     "id": "player",
     "type": "actor/person/player",
-    "name": { "en": "You", "zh": "你" },
+    "name": "You",
     "place": { "on": "none" },
     "facing": "down",
     "tags": ["faction:folk"]
-  }
+  },
+  "languages": { "source": "en", "translations": ["zh"] }
 }

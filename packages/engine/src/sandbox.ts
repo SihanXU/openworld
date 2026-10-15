@@ -3,6 +3,7 @@
 // (replay of the triggering event + the patch's own tests) and by unit tests.
 
 import { Engine, type Resolution } from './engine.ts'
+import { isTier } from './quality.ts'
 import type { World } from './world.ts'
 import { cellId, parseCellId, type CellSpace } from './cells.ts'
 import type { Verb } from './types.ts'
@@ -51,6 +52,8 @@ export function buildSandbox(sc: Scenario, ontology: Ontology, lib: RuleLibrary)
   }
   // the ontology is shared (the index copies on its first write): cloning it was most of a build
   const eng = new Engine(state, ontology, lib)
+  // the scene is answered at the tier it was asked at (quality.ts): that tier's learned answers and the higher ones'
+  if (isTier(sc.tier)) eng.tier = sc.tier
   eng.ensureResidents()
   eng.author(() => fill(eng, sc, player))
   eng.seedRelations(SANDBOX_MAP)

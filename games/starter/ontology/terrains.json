@@ -1,21 +1,11 @@
 {
   "terrains": [
-    { "id": "grass", "name": { "en": "grass", "zh": "草地" }, "tags": ["ground", "plant"], "color": "#6ab04c" },
-    {
-      "id": "flowers",
-      "name": { "en": "flowers", "zh": "花丛" },
-      "tags": ["ground", "plant"],
-      "color": "#7cc05a"
-    },
-    {
-      "id": "path",
-      "name": { "en": "dirt road", "zh": "土路" },
-      "tags": ["ground", "road"],
-      "color": "#c9a86a"
-    },
+    { "id": "grass", "name": "grass", "tags": ["ground", "plant"], "color": "#6ab04c" },
+    { "id": "flowers", "name": "flowers", "tags": ["ground", "plant"], "color": "#7cc05a" },
+    { "id": "path", "name": "dirt road", "tags": ["ground", "road"], "color": "#c9a86a" },
     {
       "id": "water",
-      "name": { "en": "water", "zh": "浅水" },
+      "name": "water",
       "tags": ["water", "liquid", "solid"],
       "solid": true,
       "liquid": true,
@@ -23,7 +13,7 @@
     },
     {
       "id": "tree",
-      "name": { "en": "tree", "zh": "树" },
+      "name": "tree",
       "tags": ["plant", "tree", "flammable", "wooden", "solid"],
       "solid": true,
       "space": "volume",
@@ -32,7 +22,7 @@
     },
     {
       "id": "stump",
-      "name": { "en": "stump", "zh": "树桩" },
+      "name": "stump",
       "tags": ["wooden", "flammable"],
       "space": "soil",
       "stage": { "into": "tile/tree", "lasts": 9600, "fx": "leaves" },
@@ -40,18 +30,13 @@
     },
     {
       "id": "wall",
-      "name": { "en": "wall", "zh": "墙" },
+      "name": "wall",
       "tags": ["wall", "solid"],
       "solid": true,
       "space": "volume",
       "color": "#6b6e75"
     },
-    {
-      "id": "floor",
-      "name": { "en": "wooden floor", "zh": "木地板" },
-      "tags": ["floor", "wooden", "indoor"],
-      "color": "#9c7a4c"
-    },
-    { "id": "door", "name": { "en": "door", "zh": "门" }, "tags": ["door", "wooden"], "color": "#6b4226" }
+    { "id": "floor", "name": "wooden floor", "tags": ["floor", "wooden", "indoor"], "color": "#9c7a4c" },
+    { "id": "door", "name": "door", "tags": ["door", "wooden"], "color": "#6b4226" }
   ]
 }

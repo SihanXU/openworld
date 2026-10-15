@@ -70,9 +70,9 @@ export interface Recall {
   skills: SkillMeta[]
 }
 
-/** The request as the model reads it: no scenario (the harness replays it); with a brief, no rules (the brief has them). */
+/** The request as the model reads it: no scenario (the harness replays it), no setting (the harness works it); with a brief, no rules (the brief has them). */
 export function requestView(req: ModRequest, brief: boolean): Omit<ModRequest, 'scenario'> {
-  const { scenario: _s, ...rest } = req
+  const { scenario: _s, tier: _t, create: _c, ...rest } = req
   return brief ? { ...rest, context: { ...rest.context, rules: [] } } : rest
 }
 

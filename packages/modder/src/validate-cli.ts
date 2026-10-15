@@ -5,7 +5,7 @@
 
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { RuleLibrary, validatePatch } from '@openworld/engine'
+import { RuleLibrary, tierOfRequest, validatePatch } from '@openworld/engine'
 // the engine's official modules, which a world's ontology may name (docs/engine-split.md S3)
 import '@openworld/modules'
 import { collectPatch, type WorldRepoState } from './repo.ts'
@@ -13,7 +13,13 @@ import { describeOutcome } from './tools.ts'
 
 const dir = resolve(process.argv[2] ?? '.')
 const state = JSON.parse(readFileSync(join(dir, '.lsw/state.json'), 'utf8')) as WorldRepoState
-const { patch, problems } = collectPatch(dir)
+const collected = collectPatch(dir)
+const { problems } = collected
+// the tier the question was asked at (the AI setting, design.md §13) is the harness's to set, as the place is
+const tier = tierOfRequest(state.request)
+const patch = collected.patch && tier !== 'medium'
+  ? { ...collected.patch, artifacts: collected.patch.artifacts.map((a) => (a.kind === 'rule' && a.rule && a.rule.tier === undefined ? { ...a, rule: { ...a.rule, tier } } : a)) }
+  : collected.patch
 const out: string[] = []
 if (!patch) out.push('FAIL: no rule added under rules/patch/ yet')
 for (const p of problems) out.push(`FAIL: ${p}`)

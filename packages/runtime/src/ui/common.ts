@@ -10,9 +10,11 @@ export const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: Parent
 export const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
 export const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
-/** The player's language, remembered between visits. */
+/** The player's language, remembered between visits (a page asked for one, `?lang=`, is in it and remembers nothing: the editor's playtest in its preview language). */
 export const locale = {
   value: ((): Locale => {
+    const asked = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('lang')
+    if (asked === 'en' || asked === 'zh') return asked
     try {
       return (localStorage.getItem('lsw.locale') as Locale) || 'en'
     } catch {
@@ -190,6 +192,35 @@ export const STRINGS: Record<string, [string, string]> = {
   levelUp: ['Level up! Level {n} · +1 skill point', '升级了！等级 {n} · 技能点 +1'],
   threads: ['Threadbook', '织线簿'],
   options: ['Options', '选项'],
+  aiSection: ['AI', 'AI'],
+  aiPreset: ['Preset', '预设'],
+  aiCustom: ['custom', '自定义'],
+  aiOff: ['Off', '关'],
+  aiLow: ['Low', '低'],
+  aiMedium: ['Medium', '中'],
+  aiHigh: ['High', '高'],
+  aiThings: ['Things', '物件互动'],
+  aiThingsTip: ['What you do to things that no rule covers', '你对东西做了规则没写的事'],
+  aiPeople: ['People and creatures', '人与生物'],
+  aiPeopleTip: ['What you do to people and creatures that no rule covers', '你对人或生物做了规则没写的事'],
+  aiWorld: ['The world', '世界自发'],
+  aiWorldTip: ['What happens by itself that no rule covers: someone stuck, something broken, a chain', '世界自己发生、规则没写的事：有人卡住、东西坏了、连锁反应'],
+  aiCreate: ['New things', '造物'],
+  aiCreateTip: ['Making kinds the world has none of: low not drawn, high drawn and checked', '造世界上没有的新东西：低档不画图，高档画完再检查'],
+  aiPrefetch: ['Asking ahead', '预判'],
+  aiPrefetchTip: ['Asking while you point at something, before you act (calls for acts you may never make)', '你指着东西时提前去问（可能为没做的事花调用）'],
+  aiWait: ['The world waits up to {s} s for an answer at every level. A higher level does more in that time — it sees more, thinks harder, checks before the answer ships — so a stronger model carries a higher one. Answers are kept by level: a higher one serves the levels below it too.', '每一档世界都最多等 {s} 秒。档位越高，AI 在这段时间里做得越多：看得更多、想得更深、发出前检查更多，所以模型越强，能开的档越高。答案按档位分开保存，高档的答案低档也能用。'],
+  aiNoService: ['No AI service connected: the setting still chooses which learned answers apply.', '未连接 AI 服务：设置仍决定用哪一档学到的答案。'],
+  aiNoModel: ['The AI service has no model: it answers only from what was learned.', 'AI 服务没有接模型：只用已经学到的答案。'],
+  aiModel: ['Model', '模型'],
+  aiDetect: ['Detect', '检测'],
+  aiDetectPlan: ['{n} questions × 3 levels = {m} runs (model calls)', '{n} 道题 × 3 档 = {m} 次（花模型调用）'],
+  aiDetecting: ['Detecting… {n}/{m}', '检测中… {n}/{m}'],
+  aiDetected: ['Detected {at}', '检测于 {at}'],
+  aiStale: ['(for another model: detect again)', '（这是另一个模型的结果，请重新检测）'],
+  aiInTime: ['answered in time · the slowest of nine in ten', '按时答出 · 九成以内最慢'],
+  aiRecommend: ['Recommended', '推荐'],
+  aiApply: ['Apply the recommendation', '应用推荐'],
   journal: ['Journal', '日志'],
   codex: ['Codex', '图鉴'],
   cxItems: ['Items', '道具'],
@@ -271,7 +302,7 @@ export function t(k: string): string {
 /** What the game itself says for a key (ClientGame.texts), if it says anything: words only a game has (a tier's lore). */
 export function gameText(k: string): string | undefined {
   const own = gameIfAny()?.texts?.[k]
-  return own && (locale.value === 'zh' ? (own.zh ?? own.en) : own.en)
+  return own === undefined ? undefined : typeof own === 'string' ? own : locale.value === 'zh' ? (own.zh ?? own.en) : own.en
 }
 
 export const MOOD_GLYPH: Record<string, string> = { happy: '♥', sad: '…', angry: '!!', surprised: '!', shy: '♡', neutral: '…' }
@@ -290,9 +321,9 @@ export function controlsTable(dev: boolean): string {
     ['E', 'hands: talk, open, read, push', '空手：说话、打开、阅读、推'],
     ['F', 'take: pick up, take down, take out', '拿：捡起、取下、取出'],
     ['G', 'put the held thing there: set down, put in, hand it over', '放：把手上的东西放下、放进去、交给别人'],
-    ['left click', 'use the held thing on it; with empty hands, a blow; weapons strike; a wall, a floor or a bed in hand is set down there (hold and drag for a row)', '用手上的东西作用于它；空手就是一拳；武器就是攻击；拿着墙、地板、床这类东西就放在那里（按住拖动放一排）'],
+    ['left click', 'use the held thing on it; with empty hands, a blow (never on yourself, nor a fist on the bare ground the world has never seen struck: hold to choose it); weapons strike; a wall, a floor or a bed in hand is set down there (hold and drag for a row)', '用手上的东西作用于它；空手就是一拳（不会打自己，也不会对世界没见过的空地挥拳：要的话长按选择）；武器就是攻击；拿着墙、地板、床这类东西就放在那里（按住拖动放一排）'],
+    ['right click', 'the action, as the cursor shows: talk, open, read, pick up, set down a bed; on the ground, eat, drink or put on what you hold (pointed at yourself, any use of it)', '行动，光标显示要做什么：说话、打开、阅读、捡起、放下床这类东西；对着地面时，吃、喝、穿戴手上的东西（指着自己时，任何用法都行）'],
     ['R', 'a floor in hand: the left click lays it in the ceiling (and back)', '手上拿着地板：左键改为铺天花板（再按切回）'],
-    ['right click', 'use the held thing on yourself: eat, drink, put on', '对自己用手上的东西：吃、喝、穿戴'],
     ['Space', 'attack: strike ahead (hold to keep striking)', '攻击：朝面前挥击（按住连续攻击）'],
     ...(skills ? [['Q', 'dash, once learned (swiftness)', '冲刺（学会迅捷分支的冲刺后）'] as [string, string, string]] : []),
     ['X', 'draw your weapon or put it away: drawn, a blow on a person is meant', '拔出或收起武器：拔出时，对人挥击才算真的动手'],

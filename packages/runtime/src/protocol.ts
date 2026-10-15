@@ -1,13 +1,13 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, PlacementPreview, Pos, Recipe, Rule, SaveData, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
+import type { AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, Rule, SaveData, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
 
 /** Where the mouse points: its tile, and what is drawn at the point, top first (the keys act there when it is next to the player). */
 export type Tile = Aim
 
 export type ToWorker =
   | { t: 'skipLearning' }
-  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any */ modder?: string; /** true: prefetch undefined acts the pointer rests on (?prefetch=1; off by default) */ prefetch?: boolean; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look; /** a new game begun at this cell instead of a start (the editor's playtest) */ at?: Pos }
+  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any */ modder?: string; /** true: prefetch undefined acts the pointer rests on (?prefetch=1: at least the medium setting's) */ prefetch?: boolean; /** the player's AI setting (the engine's quality.ts) */ quality?: AiQuality; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look; /** a new game begun at this cell instead of a start (the editor's playtest) */ at?: Pos; /** a step of the story begun at once in a new game (the editor's "play from this scene") */ scene?: string }
   /** The one at the keys, fallen, rises again: where they fell, or at home (the death screen). */
   | { t: 'respawn'; home: boolean }
   /** Hold a direction (null: stop); `walk`: Shift, slower than the default run. */
@@ -20,11 +20,11 @@ export type ToWorker =
   | { t: 'key'; key: Key; tile?: Tile; layer?: number; /** the left button dragged over a new cell: only if it sets something down */ drag?: boolean }
   | { t: 'handUp'; up: boolean }
   /** The same on an item in the bag or in the open chest (the inventory's context menu). */
-  | { t: 'keyOnItem'; key: Key; item: string }
+  | { t: 'keyOnItem'; key: Plan['key']; item: string }
   /** The layer chooser (a long press): what each layer of the tile would give. */
   | { t: 'choices'; key: Key; tile?: Tile }
   /** Where the mouse points (for the key labels). */
-  | { t: 'aim'; tile?: Tile }
+  | { t: 'aim'; tile?: Tile; /** its number, answered with the keys for it */ n?: number }
   /** A panel opened (the bag, crafting, the build palette, the map) or a choice made from the chooser: the story notes it, for a lesson that waits on it. */
   | { t: 'ui'; what: string }
   /** Esc held: the lesson at hand is skipped. */
@@ -82,6 +82,8 @@ export type ToWorker =
   | { t: 'closePockets' }
   /** Time stops while a menu, a dialogue or a question is open. */
   | { t: 'pause'; on: boolean }
+  /** The player changed the AI setting (the options' AI section): it holds from the next event. */
+  | { t: 'quality'; quality: AiQuality }
   | { t: 'patch'; id?: string; patch: Patch }
   | { t: 'dismiss'; id: string }
   | { t: 'removeRule'; id: string }
@@ -123,6 +125,8 @@ export type FromWorker =
   | { t: 'ready'; stats: WorldIndex['stats']; name: WorldIndex['name']; resumed: boolean }
   | { t: 'map'; map: MapData }
   | { t: 'frame'; frame: Frame; perf: { tickMs: number; entities: number; loaded: number }; /** the codex's version: something new was met */ codex: number; /** the world waits for the outcome of the player's act: for how long so far, and at most */ learning?: { seconds: number; limit: number } }
+  /** What the keys would do now, sent as soon as the pointer aims somewhere else (between frames). */
+  | { t: 'keys'; keys: Frame['keys']; /** the aim they answer */ n?: number }
   | { t: 'records'; records: RecordView[]; library: LibraryView }
   | { t: 'spec'; spec: ModSpec }
   | { t: 'validation'; id?: string; result: ValidationResult }

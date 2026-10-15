@@ -164,8 +164,8 @@ export interface Frame {
    * what may follow (the death screen: get up where one fell, rise at home, or the end).
    */
   fallen?: { by?: Text; difficulty: Difficulty }
-  /** What the two keys would do right now (filled by the host, not by snapshot()). */
-  keys?: { hands?: KeyView; take?: KeyView; put?: KeyView; use?: KeyView; self?: KeyView }
+  /** What each input would do right now, the action (the right click) among them (filled by the host, not by snapshot()). */
+  keys?: { hands?: KeyView; take?: KeyView; put?: KeyView; use?: KeyView; self?: KeyView; action?: KeyView }
   /** The open container panel (the host names it): its contents. */
   container?: {
     id: Id
@@ -306,14 +306,22 @@ function typeName(eng: Engine, type: string, l: 'en' | 'zh'): string {
 
 export interface KeyView {
   label: Text
-  /** The world has never seen this (an experiment). */
+  /** The world has never seen this (an experiment): the modder will be asked (never where the AI setting turns its kind of work off). */
   unknown?: boolean
   /** It will ask first. */
   confirm?: boolean
+  /** It changes nothing (a hand on the floor only touches it). */
+  idle?: boolean
   /** It sets what is held down there (it builds): the left button held and dragged sets one in each cell. */
   sets?: boolean
   /** It takes what is another's (a theft, docs/npc-sandbox.md). */
   steal?: boolean
+  /** Its target is the ground: a terrain, a floor. */
+  ground?: boolean
+  /** Its target is someone to talk to: a person, a companion. */
+  person?: boolean
+  /** The action's view: the act it makes (a word or a hand, a take, setting down, a use on oneself). */
+  act?: 'hands' | 'take' | 'put' | 'use' | 'self'
   x: number
   y: number
   /** The target's base when it covers more than its cell (a place of the overworld, a tent): x, y, width, height. */

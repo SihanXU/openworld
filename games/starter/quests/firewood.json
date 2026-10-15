@@ -1,54 +1,32 @@
 {
   "id": "firewood",
   "kind": "side",
-  "title": { "en": "Firewood", "zh": "柴火" },
-  "summary": {
-    "en": "Mira needs three logs for her stove. Her axe is in the chest by the path.",
-    "zh": "米拉的炉子需要三根木头。她的斧头在路边的箱子里。"
-  },
+  "title": "Firewood",
+  "summary": "Mira needs three logs for her stove. Her axe is in the chest by the path.",
   "aliases": { "giver": { "id": "npc.mira", "essential": true } },
   "objectives": [
-    {
-      "id": "logs",
-      "text": { "en": "Logs", "zh": "木头" },
-      "count": { "carry": { "type": "item/material/log" } },
-      "need": 3
-    },
-    { "id": "back", "text": { "en": "Back to {giver}", "zh": "回去找{giver}" }, "target": "giver", "talk": true }
+    { "id": "logs", "text": "Logs", "count": { "carry": { "type": "item/material/log" } }, "need": 3 },
+    { "id": "back", "text": "Back to {giver}", "target": "giver", "talk": true }
   ],
   "stages": [
     {
       "n": 10,
-      "log": {
-        "en": "Mira needs three logs. Her axe is in the chest by the path.",
-        "zh": "米拉需要三根木头。她的斧头在路边的箱子里。"
-      },
+      "log": "Mira needs three logs. Her axe is in the chest by the path.",
       "show": ["logs"],
-      "say": {
-        "en": "Could you bring me three logs? My axe is in the chest by the path.",
-        "zh": "能帮我拿三根木头来吗？我的斧头在路边的箱子里。"
-      }
+      "say": "Could you bring me three logs? My axe is in the chest by the path."
     },
-    {
-      "n": 20,
-      "on": { "objectives": ["logs"] },
-      "show": ["back"],
-      "log": { "en": "Three logs. Back to {giver}.", "zh": "三根木头够了。回去找{giver}。" }
-    },
+    { "n": 20, "on": { "objectives": ["logs"] }, "show": ["back"], "log": "Three logs. Back to {giver}." },
     {
       "n": 100,
       "on": { "all": [{ "talk": "giver" }, { "objectives": ["logs"] }] },
       "done": ["back"],
-      "say": { "en": "That will keep the stove going for days. Thank you.", "zh": "这够炉子烧好几天了。谢谢你。" },
+      "say": "That will keep the stove going for days. Thank you.",
       "take": [{ "match": { "type": "item/material/log" }, "count": 3 }],
       "reward": { "xp": 20, "items": [{ "type": "item/material/stone", "count": 1 }] },
       "complete": true,
-      "log": { "en": "Handed in to {giver}.", "zh": "交给了{giver}。" }
+      "log": "Handed in to {giver}."
     }
   ],
   "start": { "auto": { "talk": "giver" } },
-  "waiting": {
-    "en": "Three logs, if you would. My axe is in the chest by the path.",
-    "zh": "麻烦你，三根木头。我的斧头在路边的箱子里。"
-  }
+  "waiting": "Three logs, if you would. My axe is in the chest by the path."
 }

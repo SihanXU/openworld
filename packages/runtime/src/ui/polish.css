@@ -175,12 +175,6 @@
 .objective .ob-title { color: var(--brass-hi); letter-spacing: 0.03em; }
 .msg { background: var(--grain), linear-gradient(180deg, #fff6dd, var(--parch)); border-radius: 8px; border-width: 2px; border-left-width: 5px; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3); animation: msgIn 0.2s ease-out; }
 @keyframes msgIn { from { transform: translateX(-10px); opacity: 0; } to { transform: none; opacity: 1; } }
-/* the keys' labels over the one acting: one row, see-through, the words kept legible by their outline (not the keys':
-   a shadow on their dark letters blurs them) */
-.keys { flex-direction: row; align-items: center; gap: 12px; padding: 3px 10px; background: rgba(36, 22, 10, 0.32); border: 1px solid rgba(217, 164, 65, 0.22); border-radius: 8px; }
-.keys .kl { text-shadow: 0 1px 0 #000, 1px 0 0 #000, -1px 0 0 #000, 0 -1px 0 #000; }
-.keys .kl + .kl { padding-left: 12px; border-left: 1px solid rgba(251, 233, 196, 0.25); }
-.keys .kl kbd { text-shadow: none; font-weight: 700; font-size: 11px; }
 .mapname { font-size: 34px; letter-spacing: 0.08em; text-shadow: 0 3px 0 #2a1608, 0 0 18px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 200, 120, 0.35); }
 
 /* ------------------------------------------------------------------ the dialogue box */

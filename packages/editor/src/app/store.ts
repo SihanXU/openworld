@@ -1,6 +1,6 @@
 // The project open in the editor: every file of it by path, as the format writes it (docs/engine-split.md §5).
 // An edit changes a file's data in memory and marks it unsaved; Save writes what changed through the service;
-// Undo takes the last edit back. The compiler runs here as it runs anywhere (it is pure): what the canvas draws
+// Undo takes the last edit back and Redo makes it again (until another edit). The compiler runs here as it runs anywhere (it is pure): what the canvas draws
 // and what the validation panel lists are the project as it is now, saved or not.
 
 import { compile, type Compiled, type GameJson, type Project, type Sourced } from '@openworld/format'
@@ -8,15 +8,19 @@ import type { RawChunk } from '@openworld/engine'
 import { call } from './api.ts'
 
 /** The folders of the format, each a list of files of one kind. */
-export const FOLDERS = ['ontology', 'rules', 'maps', 'people', 'quests', 'story', 'client', 'learned'] as const
+export const FOLDERS = ['ontology', 'rules', 'maps', 'people', 'quests', 'story', 'client', 'learned', 'locales'] as const
 export type Folder = (typeof FOLDERS)[number]
 
 interface Edit {
   file: string
   /** The file's text before the edit (none: it did not exist). */
   before?: string
+  /** An undone edit: the file's text as the edit left it (none: it was removed), which Redo puts back. */
+  after?: string
   why: string
   stroke?: number
+  /** Edits made together (a quick event: the map, a person, a quest), undone and made again together. */
+  group?: number
 }
 
 export class Store {
@@ -25,6 +29,9 @@ export class Store {
   private dirty = new Set<string>()
   private deleted = new Set<string>()
   private undos: Edit[] = []
+  private redos: Edit[] = []
+  private grouping?: number
+  private groups = 0
   private listeners = new Set<(why: string, file?: string) => void>()
   private made?: Compiled
   private madeFor = -1
@@ -47,8 +54,11 @@ export class Store {
   }
   private emit(why: string, file?: string): void {
     this.version++
+    // (inside a batch, said once when it ends: a change of many files draws the panels once)
+    if (this.grouping !== undefined) return void (this.held = { why, file: this.held && this.held.file !== file ? undefined : file })
     for (const fn of this.listeners) fn(why, file)
   }
+  private held?: { why: string; file?: string }
 
   get game(): GameJson {
     return this.docs.get('game.json') as GameJson
@@ -81,7 +91,8 @@ export class Store {
     edit(data)
     if (JSON.stringify(data) === before) return
     const last = this.undos[this.undos.length - 1]
-    if (!(stroke !== undefined && last?.stroke === stroke && last.file === file)) this.undos.push({ file, before, why, stroke })
+    if (!(stroke !== undefined && last?.stroke === stroke && last.file === file)) this.undos.push({ file, before, why, stroke, group: this.grouping })
+    this.redos = []
     this.dirty.add(file)
     this.emit(why, file)
   }
@@ -89,10 +100,20 @@ export class Store {
   /** A new file (a map, a person, a quest). */
   add(file: string, data: unknown, why: string): void {
     if (this.docs.has(file)) throw new Error(`${file} exists`)
-    this.undos.push({ file, why })
-    this.docs.set(file, data)
-    this.deleted.delete(file)
-    this.dirty.add(file)
+    this.undos.push({ file, why, group: this.grouping })
+    this.redos = []
+    this.put(file, data)
+    this.emit(why, file)
+  }
+
+  /** A file's whole data written (the file made, where there is none yet). */
+  set(file: string, data: unknown, why: string): void {
+    if (!this.docs.has(file)) return this.add(file, data, why)
+    const before = JSON.stringify(this.docs.get(file))
+    if (JSON.stringify(data) === before) return
+    this.undos.push({ file, before, why, group: this.grouping })
+    this.redos = []
+    this.put(file, data)
     this.emit(why, file)
   }
 
@@ -100,28 +121,77 @@ export class Store {
   remove(file: string, why: string): void {
     const data = this.docs.get(file)
     if (data === undefined) return
-    this.undos.push({ file, before: JSON.stringify(data), why })
-    this.docs.delete(file)
-    this.dirty.delete(file)
-    this.deleted.add(file)
+    this.undos.push({ file, before: JSON.stringify(data), why, group: this.grouping })
+    this.redos = []
+    this.put(file, undefined)
     this.emit(why, file)
   }
 
-  /** Take the last edit back: what it was called. */
-  undo(): string | undefined {
-    const u = this.undos.pop()
-    if (!u) return undefined
-    if (u.before === undefined) {
-      this.docs.delete(u.file)
-      this.deleted.add(u.file)
-      this.dirty.delete(u.file)
+  /** A file set to a value (none: removed), as unsaved. */
+  private put(file: string, data: unknown): void {
+    if (data === undefined) {
+      this.docs.delete(file)
+      this.dirty.delete(file)
+      this.deleted.add(file)
     } else {
-      this.docs.set(u.file, JSON.parse(u.before))
-      this.deleted.delete(u.file)
-      this.dirty.add(u.file)
+      this.docs.set(file, data)
+      this.deleted.delete(file)
+      this.dirty.add(file)
     }
-    this.emit(`undo: ${u.why}`, u.file)
-    return u.why
+  }
+  private text(file: string): string | undefined {
+    return this.docs.has(file) ? JSON.stringify(this.docs.get(file)) : undefined
+  }
+
+  /** Several edits as one (one Undo takes them all back): what `fn` changes, under the name given (none: each keeps its own). */
+  batch<T>(why: string, fn: () => T): T {
+    if (this.grouping !== undefined) return fn()
+    this.grouping = ++this.groups
+    const from = this.undos.length
+    try {
+      return fn()
+    } finally {
+      for (const u of this.undos.slice(from)) (u.group = this.grouping), why && (u.why = why)
+      this.grouping = undefined
+      const h = this.held
+      this.held = undefined
+      if (h) this.emit(why || h.why, h.file)
+    }
+  }
+
+  /** Take the last edit back (all of a batch): what it was called. */
+  undo(): string | undefined {
+    const top = this.undos[this.undos.length - 1]
+    if (!top) return undefined
+    while (this.undos.length) {
+      const u = this.undos[this.undos.length - 1]
+      if (u !== top && (top.group === undefined || u.group !== top.group)) break
+      this.undos.pop()
+      this.redos.push({ ...u, after: this.text(u.file) })
+      this.put(u.file, u.before === undefined ? undefined : JSON.parse(u.before))
+    }
+    this.emit(`undo: ${top.why}`, top.file)
+    return top.why
+  }
+
+  /** Make the last undone edit again (all of a batch): what it was called. */
+  redo(): string | undefined {
+    const top = this.redos[this.redos.length - 1]
+    if (!top) return undefined
+    while (this.redos.length) {
+      const r = this.redos[this.redos.length - 1]
+      if (r !== top && (top.group === undefined || r.group !== top.group)) break
+      this.redos.pop()
+      this.undos.push({ file: r.file, before: this.text(r.file), why: r.why, group: r.group })
+      this.put(r.file, r.after === undefined ? undefined : JSON.parse(r.after))
+    }
+    this.emit(`redo: ${top.why}`, top.file)
+    return top.why
+  }
+
+  /** What Undo and Redo would take back or make again (for their buttons' titles). */
+  next(): { undo?: string; redo?: string } {
+    return { undo: this.undos[this.undos.length - 1]?.why, redo: this.redos[this.redos.length - 1]?.why }
   }
 
   unsaved(): number {
@@ -145,7 +215,7 @@ export class Store {
 
   /** The project as the compiler takes it. */
   project(): Project {
-    const p: Project = { game: this.game, ontology: this.list('ontology'), rules: this.list('rules'), maps: this.list('maps'), people: this.list('people'), quests: this.list('quests'), story: this.list('story'), client: this.list('client'), learned: this.list('learned') }
+    const p: Project = { game: this.game, ontology: this.list('ontology'), rules: this.list('rules'), maps: this.list('maps'), people: this.list('people'), quests: this.list('quests'), story: this.list('story'), client: this.list('client'), learned: this.list('learned'), locales: this.list('locales') }
     if (this.docs.has('catalog.json')) p.catalog = this.docs.get('catalog.json')
     if (this.docs.has('extra.json')) p.extra = this.docs.get('extra.json') as Project['extra']
     return p

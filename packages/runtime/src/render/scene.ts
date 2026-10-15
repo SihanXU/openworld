@@ -217,16 +217,39 @@ export class WorldScene extends Phaser.Scene {
     return Math.min(this.fitZoom() - 0.5, Math.max(1, Math.floor(Math.min(h / (T * 24), w / (T * 40)) * 4) / 4))
   }
 
+  private padTick = 0
+  private padSig = ''
+  /**
+   * How much of each screen edge the HUD covers (the clock, the tracker and the minimap above, the toolbar below, the
+   * corner buttons on the right), in screen pixels: the camera may go that far past the map's edge, so a cell in a corner
+   * (the ossuary's stair down, under the tracker) can always be brought out from under it.
+   */
+  private hudPad(): { top: number; right: number; bottom: number } {
+    const rect = (id: string) => {
+      const r = document.getElementById(id)?.getBoundingClientRect()
+      return r && r.width > 0 && r.height > 0 ? r : undefined
+    }
+    const h = this.scale.height || window.innerHeight
+    const w = this.scale.width || window.innerWidth
+    const top = Math.max(0, ...['clockbox', 'objective', 'minimap'].map((id) => rect(id)?.bottom ?? 0))
+    const corner = rect('corner')
+    // the toolbar's own height (it moves to the top near the bottom edge, so it is counted at the bottom alone)
+    const bar = rect('hotbar')
+    return { top, right: corner ? Math.max(0, w - corner.left) : 0, bottom: bar ? Math.min(h / 3, bar.height + 16) : 0 }
+  }
+
   private fitBounds(zoom = this.cameras.main.zoom): void {
     if (!this.base || this.free) return
     const cam = this.cameras.main
-    const mw = this.base.width * T
-    const mh = this.base.height * T
+    const pad = this.hudPad()
+    const top = pad.top / zoom, right = pad.right / zoom, bottom = pad.bottom / zoom
+    const mw = this.base.width * T + right
+    const mh = this.base.height * T + top + bottom
     const vw = cam.width / zoom
     const vh = cam.height / zoom
     const bw = Math.max(mw, vw)
     const bh = Math.max(mh, vh)
-    cam.setBounds(-(bw - mw) / 2, -(bh - mh) / 2, bw, bh)
+    cam.setBounds(-(bw - mw) / 2, -top - (bh - mh) / 2, bw, bh)
   }
 
   // ---------------------------------------------------------------- map
@@ -311,6 +334,7 @@ export class WorldScene extends Phaser.Scene {
     for (const s of map.stamps ?? []) this.stamp(s.key, s.x, s.y)
     for (const r of map.rooms ?? []) this.roomFrame(r.style, r.x, r.y, r.w, r.h)
     this.drawHeights(map)
+    if (this.free) this.setEditorDim(this.dim)
     this.fitBounds()
     this.playMusic(map.music)
     this.hooks.onMap?.(map)
@@ -351,6 +375,7 @@ export class WorldScene extends Phaser.Scene {
     if (t === 'drygrass') img.setTint(0xe8cf7a)
     // loose growth (tall grass, flowers, bushes) sits a little off the grid, never in rows
     if (LOOSE.has(t)) img.setPosition(img.x + (hash2(x, y, 17) % 9) - 4, img.y + (hash2(x, y, 19) % 5) - 2)
+    if (this.free && this.dim.ground < 1) img.setAlpha(this.dim.ground)
     this.objects.set(k, img)
   }
 
@@ -412,6 +437,11 @@ export class WorldScene extends Phaser.Scene {
       return
     }
     if (f.map !== this.base.id) return
+    // the HUD shows and hides its panels (the tracker): now and then the camera's margins follow it
+    if (++this.padTick % 20 === 0) {
+      const sig = JSON.stringify(this.hudPad())
+      if (sig !== this.padSig) (this.padSig = sig), this.bossCam || this.fitBounds()
+    }
     this.playerId = f.player.id
     this.mainHand = f.player.worn?.weapon?.sprite
     this.playerAt = { x: f.player.x, y: f.player.y, z: f.player.z ?? 0 }
@@ -475,7 +505,7 @@ export class WorldScene extends Phaser.Scene {
       const behind = me.root.depth < v.root.depth && v.body.getBounds().contains(me.root.x, me.root.y - T / 2)
       v.body.setAlpha(behind ? 0.55 : 1)
     }
-    this.drawFocus(f)
+    this.focusOn(f)
     this.drawMarks()
     for (const fx of f.fx) this.playFx(fx)
     this.weather = (this.base.light ?? 'outdoor') === 'outdoor' ? f.calendar.weather : 'sun'
@@ -585,24 +615,110 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** Outline the tile the inputs aim at: the mouse's own or neighbour tile, or the one in front. */
-  private drawFocus(f: Frame): void {
-    const k = f.keys?.hands ?? f.keys?.take ?? f.keys?.put ?? f.keys?.use ?? f.keys?.self
+  /**
+   * The spot the inputs act on, framed as Stardew frames its tile: four small corners that glide to the next
+   * spot (never jump), breathe a little and pop as they take a new one — faint over the bare ground, plainer over
+   * a thing or someone; amber where the world has never seen the act. A frame from the worker (or the keys it
+   * sends as the pointer moves) only says where the frame is going; it is drawn every animation frame
+   * (tickFocus). With the keys aiming (the pointer aims at nothing) the bare ground in front goes along with the
+   * player as drawn, who trails their cell while walking: the frame keeps beside them, and comes to rest on the
+   * cell as they stop; a thing in front is framed where it stands. While a key walks the player the frame keeps to
+   * the cell ahead, faint and steady (no leap to each thing passed, no pop), and settles once the key is let go.
+   */
+  focusOn(f: Frame): void {
+    // a frame made before the worker saw the latest aim tells the old spot: the frame waits for the new
+    if (!this.keysFresh()) return
+    const k = f.keys?.hands ?? f.keys?.take ?? f.keys?.put ?? f.keys?.use ?? f.keys?.self ?? f.keys?.action
     const [dx, dy] = STEP[f.player.facing]
     const tx = k ? k.x : f.player.x + dx
     const ty = k ? k.y : f.player.y + dy
-    this.focus ??= this.add.graphics().setDepth(1e5)
     const ks = f.keys ? Object.values(f.keys).filter(Boolean) : []
-    const unknown = ks.length > 0 && ks.every((v) => v!.unknown)
-    this.focus.clear()
-    if (f.scene || !f.keys) return
     // past the map's edge there is nothing to aim at (an edge that leads nowhere: the tutorial's)
-    if (this.base && (tx < 0 || ty < 0 || tx >= this.base.width || ty >= this.base.height)) return
+    if (f.scene || !f.keys || (this.base && (tx < 0 || ty < 0 || tx >= this.base.width || ty >= this.base.height))) return void (this.focusGoal = undefined)
     // the whole of a target that covers more than its cell (a place of the overworld: its block)
-    const [rx, ry, rw, rh] = k?.rect ?? [tx, ty, 1, 1]
-    // on the storey the player stands on
-    const lift = (f.player.z ?? 0) * STOREY_LIFT
-    this.focus.lineStyle(1, unknown ? 0xf0b85a : 0xffffff, 0.6).strokeRoundedRect(rx * T + 0.5, ry * T + 0.5 - lift, rw * T - 1, rh * T - 1, 2)
+    const [x, y, w, h] = k?.rect ?? [tx, ty, 1, 1]
+    const unknown = ks.length > 0 && ks.every((v) => v!.unknown)
+    // quiet: faint over the bare ground, plainer over a thing or someone to act on
+    const bare = ks.length > 0 && ks.every((v) => v!.ground)
+    // the bare ground ahead goes along with the player; a thing stays put, framed where it is
+    this.focusGoal = { x, y, w, h, z: f.player.z ?? 0, color: unknown ? 0xffc35a : 0xfff6dd, alpha: bare ? 0.35 : 0.7, ahead: this.keysAhead() && bare && w === 1 && h === 1 }
+    this.focusFront = { x: f.player.x + dx, y: f.player.y + dy, z: f.player.z ?? 0 }
+  }
+
+  /** The cell in front of the player (the frame's while the keys walk them). */
+  private focusFront?: { x: number; y: number; z: number }
+  /** When the player was last on the move: a key walking them, or their sprite catching up with their cell. */
+  private movedAt = -1e9
+  /** Set by main.ts: a key walks the player. */
+  walking: () => boolean = () => false
+  /** The player has stopped a moment: the tip comes over the frame (ui/cursor.ts). */
+  settled(): boolean {
+    return this.time.now - this.movedAt >= 120
+  }
+
+  /** The frame where it is drawn now (world px), where it was last going, and when it last took a new spot. */
+  private focusGoal?: { x: number; y: number; w: number; h: number; z: number; color: number; alpha: number; ahead: boolean }
+  private focusAt?: { x: number; y: number; w: number; h: number }
+  private focusTo?: { x: number; y: number }
+  private focusT = 0
+  private focusPopAt = -1e9
+
+  /** Every animation frame: the frame eases toward its spot (see focusOn). */
+  private tickFocus(time: number): void {
+    const found = this.focusGoal
+    this.focus?.clear()
+    if (!found) return void ((this.focusAt = undefined), (this.focusTo = undefined))
+    // walked by a key: the cell ahead, faint and steady, whatever is near (see focusOn)
+    const front = this.focusFront
+    const walking = this.keysAhead() && this.walking() && !!front
+    const goal = walking ? { ...found, ...front, w: 1, h: 1, color: 0xfff6dd, alpha: 0.35, ahead: true } : found
+    this.focus ??= this.add.graphics().setDepth(1e5)
+    const g = this.focus
+    // where it is going: the cell on the storey the player stands on — the keys' beside the player as drawn
+    let x = goal.x * T
+    let y = goal.y * T - goal.z * STOREY_LIFT
+    const v = goal.ahead ? this.views.get(this.playerId) : undefined
+    if (v?.walker) {
+      const lx = v.root.x - v.walker.x
+      const ly = v.root.y - v.walker.y
+      // (a trail longer than a walk's is a jump the sprite has not made yet: a portal)
+      if (Math.hypot(lx, ly) <= 2 * T) (x += lx), (y += ly)
+    }
+    const w = goal.w * T
+    const h = goal.h * T
+    // a new spot (a turn, the pointer onto another cell, appearing) pops a little
+    if (!walking && (!this.focusTo || Math.hypot(x - this.focusTo.x, y - this.focusTo.y) > T / 2)) this.focusPopAt = time
+    this.focusTo = { x, y }
+    const at = this.focusAt
+    const k = at ? 1 - Math.exp(-Math.min(100, time - this.focusT) / 40) : 1
+    this.focusT = time
+    const now = at ? { x: at.x + (x - at.x) * k, y: at.y + (y - at.y) * k, w: at.w + (w - at.w) * k, h: at.h + (h - at.h) * k } : { x, y, w, h }
+    this.focusAt = now
+    const pop = Math.max(0, 1 - (time - this.focusPopAt) / 180)
+    const out = 0.25 + Math.sin(time / 280) * 0.25 + pop * 0.75
+    const fx = now.x - out
+    const fy = now.y - out
+    const fw = now.w + 2 * out
+    const fh = now.h + 2 * out
+    const arm = Math.min(3, fw / 4, fh / 4)
+    const corners = (dy: number, color: number, alpha: number) => {
+      g.fillStyle(color, alpha)
+      for (const [cx, cy, sx, sy] of [[fx, fy, 1, 1], [fx + fw, fy, -1, 1], [fx, fy + fh, 1, -1], [fx + fw, fy + fh, -1, -1]] as const) {
+        g.fillRect(sx > 0 ? cx : cx - arm, (sy > 0 ? cy : cy - 1) + dy, arm, 1)
+        g.fillRect(sx > 0 ? cx : cx - 1, (sy > 0 ? cy : cy - arm) + dy, 1, arm)
+      }
+    }
+    // a light shadow under the corners, so they still show on pale ground
+    corners(1, 0x2a1608, goal.alpha * 0.35)
+    corners(0, goal.color, goal.alpha)
+  }
+
+  /** The frame on screen (the tip of what the inputs would do stands over it: ui/cursor.ts). */
+  focusRect(): { x: number; y: number; w: number; h: number } | undefined {
+    const at = this.focusAt
+    if (!at) return undefined
+    const cam = this.cameras.main
+    return { x: (at.x - cam.worldView.x) * cam.zoom, y: (at.y - cam.worldView.y) * cam.zoom, w: at.w * cam.zoom, h: at.h * cam.zoom }
   }
 
   /**
@@ -675,9 +791,30 @@ export class WorldScene extends Phaser.Scene {
     cam.scrollX += before.x - after.x
     cam.scrollY += before.y - after.y
   }
+  /** Zoom the free camera to a level (1: a cell is 16 screen pixels), about a screen point (default its middle). */
+  zoomTo(z: number, sx?: number, sy?: number): void {
+    this.zoomBy(z / this.cameras.main.zoom, sx, sy)
+  }
+  get zoom(): number {
+    return this.cameras.main.zoom
+  }
   /** Centre the camera on a cell. */
   lookAt(x: number, y: number): void {
     this.cameras.main.centerOn(x * T + T / 2, y * T + T / 2)
+  }
+  /** Centre the camera on a point of the world, in cells (a map's middle: half cells). */
+  lookAtPoint(x: number, y: number): void {
+    this.cameras.main.centerOn(x * T, y * T)
+  }
+
+  /** The editor's layers (docs/engine-split.md §16 E1): the ground (its tiles, what is drawn on it) and the things, each as opaque as given. */
+  private dim = { ground: 1, things: 1 }
+  setEditorDim(d: { ground?: number; things?: number }): void {
+    this.dim = { ground: d.ground ?? 1, things: d.things ?? 1 }
+    this.layer?.setAlpha(this.dim.ground)
+    for (const o of this.statics) (o as unknown as Phaser.GameObjects.Components.Alpha).setAlpha?.(this.dim.ground)
+    for (const o of this.objects.values()) o.setAlpha(this.dim.ground)
+    for (const v of this.views.values()) (v.root.setAlpha(this.dim.things), v.head.setAlpha(this.dim.things))
   }
 
   /** The cell under a screen point (the editor's: the ground storey's). */
@@ -1104,6 +1241,7 @@ export class WorldScene extends Phaser.Scene {
     const v: EView = { snap: e, root, body, shadow, hp, head, key: `${t.img}|${t.frame}`, movingUntil: 0, phase: Math.random() * 1000, actor: t.actor }
     if (e.sprite === 'boss:dragon' && catalog().ui.dragonBody1) v.dragon = this.dragonParts(root, body)
     this.updateView(v, e, true)
+    if (this.free && this.dim.things < 1) (root.setAlpha(this.dim.things), head.setAlpha(this.dim.things))
     return v
   }
 
@@ -1387,6 +1525,10 @@ export class WorldScene extends Phaser.Scene {
     }
     for (const t of this.tileFx.values())
       for (const s of t.sprites) if (s instanceof Phaser.GameObjects.Image && s.texture.key === 'glow') s.setAlpha(this.darkness * 1.2)
+    const me = this.views.get(this.playerId)
+    if (this.walking() || (me?.walker && Math.hypot(me.root.x - me.walker.x, me.root.y - me.walker.y) > 0.05)) this.movedAt = time
+    // the frame of the spot the inputs act on, after the player has moved this frame
+    this.tickFocus(time)
   }
 
   /**
@@ -1441,6 +1583,11 @@ export class WorldScene extends Phaser.Scene {
     const lift = (this.playerAt?.z ?? 0) * STOREY_LIFT
     return { x: (x * T + 8 - cam.worldView.x) * cam.zoom, y: (y * T + 8 - lift - cam.worldView.y) * cam.zoom }
   }
+
+  /** Set by main.ts: the keys aim (the pointer aims at nothing), at the spot in front. */
+  keysAhead: () => boolean = () => false
+  /** Set by main.ts: the worker has answered the latest aim (the frame's keys are for where the pointer is). */
+  keysFresh: () => boolean = () => true
 
   lookOf(id: string): { img: string; frame: string } | undefined {
     const v = this.views.get(id)

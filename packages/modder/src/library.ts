@@ -10,7 +10,9 @@ import {
   RuleLibrary,
   RepeatLimitError,
   holeKey,
-  patchKey,
+  ruleTier,
+  tierOfRequest,
+  tiersFrom,
   buildModSpec,
   buildSandbox,
   checkExpectations,
@@ -132,8 +134,9 @@ export class WorldLibrary {
    * answering rule is returned, and no model is needed.
    */
   covering(req: ModRequest): { rule: string; patch: Patch } | undefined {
-    // no learned tree where this question falls: no patch can answer it (design.md §5.16), no replay needed
-    if (!this.lib.tree(patchKey(req.event.host?.type ?? '-', req.event.kind, holeKey(req.hole.rule, req.hole.path)))) return undefined
+    // no learned tree where this question falls, at its tier or a higher one: no patch can answer it
+    // (design.md §5.16; §13, the AI setting), no replay needed
+    if (!this.lib.grown(req.event.host?.type ?? '-', req.event.kind, holeKey(req.hole.rule, req.hole.path), tiersFrom(tierOfRequest(req)))) return undefined
     const rule = this.answering(req)
     if (!rule) return undefined
     for (let i = this.log.length - 1; i >= 0; i--) {
@@ -204,7 +207,8 @@ export class WorldLibrary {
       for (const [j, t] of (r.tests ?? []).entries()) {
         if (j < proof.tests[i].length) continue
         try {
-          const rp = replay(t.given, this.ontology, cand)
+          // (a rule's tests are played at its own tier, as the validator plays them)
+          const rp = replay({ ...t.given, tier: ruleTier(r) }, this.ontology, cand)
           for (const f of [...rp.errors, ...checkExpectations(rp.engine, t.expect ?? [], rp.resolution)]) result.errors.push(`test "${t.name ?? `${r.id}#${j}`}": ${f}`)
         } catch (err) {
           result.errors.push(`test "${t.name ?? `${r.id}#${j}`}": ${(err as Error).message}`)

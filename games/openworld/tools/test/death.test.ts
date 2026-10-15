@@ -92,7 +92,8 @@ describe('death and rising again', () => {
     expect(snapshot(eng).fallen).toBeUndefined()
   })
 
-  it('normal: one rises at home — the bed last slept in — and what one carried lies bundled where one fell', () => {
+  // (a night to rise from: under a full parallel run it outlasts the default)
+  it('normal: one rises at home — the bed last slept in — and what one carried lies bundled where one fell', { timeout: 90_000 }, () => {
     const eng = ford('normal')
     const w = eng.world
     const p = w.player

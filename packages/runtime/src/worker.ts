@@ -2,7 +2,7 @@
 
 import { untilUp } from './untilUp.ts'
 import { artsToSend, forgetInvalid, forgetStatus, forgetType, learnedRecipes, recipeOf, shareKept, sharedPart, takeDefinitions, withKept } from './learned.ts'
-import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR, rollAffixes } from '@openworld/engine'
+import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
 import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
@@ -65,12 +65,19 @@ let connecting: { stop: () => void } | undefined
 let modderOnline = false
 
 // Prefetch: the action prompt knows an interaction is undefined before E is pressed. Pointing at
-// one spot with something in hand for a second and a half starts the request, so the patch is often
-// there first. Off unless the page asks (`?prefetch=1`): what it learns is committed to the shared
-// library for acts the player never made, and each costs model calls (a failed one escalates).
-const PREFETCH_DWELL_TICKS = 15
-const PREFETCH_CAP = 12
-let prefetchOn = false // the page's ?prefetch=1 turns it on (init)
+// one spot with something in hand for a while starts the request, so the patch is often there first.
+// The AI setting's `prefetch` says how soon and how many (off by default: what it learns is committed
+// to the shared library for acts the player never made, and each costs model calls); the page's
+// `?prefetch=1` asks for at least medium.
+const PREFETCH: Record<Exclude<AiLevel, 'off'>, { dwell: number; cap: number }> = {
+  low: { dwell: 30, cap: 4 },
+  medium: { dwell: 15, cap: 12 },
+  high: { dwell: 10, cap: 30 },
+}
+let prefetchAsked = false // the page's ?prefetch=1 (init)
+/** The player's AI setting (the engine's quality.ts): the main thread's stored one, sent at init and on every change. */
+let quality: AiQuality = { ...DEFAULT_QUALITY }
+const prefetchLevel = (): Exclude<AiLevel, 'off'> | undefined => (quality.prefetch !== 'off' ? quality.prefetch : prefetchAsked ? 'medium' : undefined)
 let probe: { key: string; spot: string; ev: GameEvent; res: Resolution; ticks: number } | undefined
 const prefetched = new Set<string>()
 let prefetching = false
@@ -191,7 +198,7 @@ function sendArts(): void {
 }
 
 function noteProbe(hole: { ev: GameEvent; res: Resolution } | undefined, spot: string): void {
-  if (!hole || !prefetchOn) return void (probe = undefined)
+  if (!hole || !prefetchLevel()) return void (probe = undefined)
   // one prefetch per hole and class (as the Mod port asks), not per tile or item; the wait is the
   // pointer resting on one spot, not sweeping over things of one class
   const key = signatureOf(game!.engine, hole.ev, hole.res)
@@ -200,8 +207,10 @@ function noteProbe(hole: { ev: GameEvent; res: Resolution } | undefined, spot: s
 
 /** Ask the modder ahead of time; its patch goes through this engine's validator like any other. */
 function maybePrefetch(): void {
-  if (!probe || !modderUrl || !modderOnline || !game || !game.mods.provider || prefetching || prefetched.size >= PREFETCH_CAP) return
-  if (++probe.ticks < PREFETCH_DWELL_TICKS || prefetched.has(probe.key)) return
+  const level = prefetchLevel()
+  if (!level || !probe || !modderUrl || !modderOnline || !game || !game.mods.provider || prefetching || prefetched.size >= PREFETCH[level].cap) return
+  // (nor for a kind of work the setting turns off)
+  if (++probe.ticks < PREFETCH[level].dwell || prefetched.has(probe.key) || game.engine.quality[categoryOf(game.engine.world, probe.ev)] === 'off') return
   prefetched.add(probe.key)
   prefetching = true
   const eng = game.engine
@@ -287,9 +296,9 @@ async function ensureMaps(): Promise<void> {
 }
 
 /**
- * What the inputs that reach the aimed spot would do now (the labels over the target): E, F, G and the
- * left click there; the right click (on oneself) when something is held and it is something to do
- * there, or the player points at themself. An experiment with something in hand starts a prefetch.
+ * What each input would do now, foreseeable (design.md §5.2; the page's tip says it): E, F, G and the left
+ * click at the aim (or in front); the action (the right click) there; the held thing used on oneself when it is
+ * something to do, or the player points at themself. An experiment with something in hand starts a prefetch.
  */
 function keyViews(): Frame['keys'] {
   const eng = game!.engine
@@ -303,16 +312,20 @@ function keyViews(): Frame['keys'] {
     if (fw <= 1 && fd <= 1) return undefined
     return [t.place.x - Math.floor((fw - 1) / 2), t.place.y - fd + 1, fw, fd]
   }
-  const view = (pl: Plan | undefined): KeyView | undefined => pl && { label: pl.label, unknown: pl.unknown, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(pl.sets && { sets: true }), ...(pl.steal && { steal: true }), ...(rect(pl) && { rect: rect(pl) }) }
+  // the act's own view: the '?' only where someone will be asked (the AI setting may leave it to the leaf's default)
+  const view = (pl: Plan | undefined): KeyView | undefined =>
+    pl && { label: pl.label, unknown: (pl.unknown && !pl.quiet) || undefined, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(!pl.changes && { idle: true }), ...(pl.sets && { sets: true }), ...(pl.steal && { steal: true }), ...(c.ground(pl.target) && { ground: true }), ...(c.talksTo(pl.target) && { person: true }), ...(rect(pl) && { rect: rect(pl) }) }
   // standing still, one turns to the spot beside one that the pointer is on (the input's own posture):
   // a person one points at sees one face them, and waits (npc.ts, attended)
   const stand = w.posOf(w.player)
   if (!moveDir && stand && aimTile && Math.abs(aimTile.x - stand.x) + Math.abs(aimTile.y - stand.y) === 1) c.face({ ...stand, x: aimTile.x, y: aimTile.y })
   const out: NonNullable<Frame['keys']> = {}
-  for (const k of ['hands', 'take', 'put', 'use'] as Key[]) {
-    const pl = c.plan(k, aimTile, k === 'use' && handUp ? CEILING : 0)
+  // E, F, G, the left click (a press: no layer chosen) and the action (the right click), which makes one of the others' acts
+  for (const k of ['hands', 'take', 'put', 'use', 'action'] as Key[]) {
+    const pl = c.plan(k, aimTile, k === 'use' && handUp ? CEILING : undefined)
     shownTarget[k] = pl?.target
-    out[k] = view(pl)
+    const v = view(pl)
+    out[k] = v && k === 'action' ? { ...v, act: pl!.key } : v
   }
   const p = eng.world.player
   const here = eng.world.posOf(p)
@@ -325,6 +338,12 @@ function keyViews(): Frame['keys'] {
   noteProbe(use?.unknown && use.instrument && use.verb ? eng.preview(eng.actEvent(use.verb, p.id, use.target, use.instrument)).hole : undefined, use ? `${use.at.x},${use.at.y}` : '')
   return out
 }
+
+/** Time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player). */
+const timeStopped = (g: Game) => paused || !!g.engine.world.state.question || !!panel || !!g.mods.asking || !!talk || !!trade || !!pockets
+
+/** What the keys would do now, as a frame says it: nothing while time stands or the player cannot act. */
+const keysNow = (g: Game): Frame['keys'] => (timeStopped(g) || g.engine.busy(g.engine.world.player) ? undefined : keyViews())
 
 /** What each key's label last named: the target a key pressed now acts on, if it still reaches it. */
 const shownTarget: Partial<Record<Key, Ref>> = {}
@@ -425,8 +444,8 @@ function doSave(auto = false): void {
   post({ t: 'saved', save, library: sharedPart(game.engine.lib.toJSON(), kept), summary, auto })
 }
 
-/** How long the world stands still for the player's own question, in real seconds: an answer, a thing being made. */
-const ASK_MS = 20_000
+/** How long the world stands still for the player's own question, in real seconds: an answer (the same at every AI setting), a thing being made. */
+const ASK_MS = AI_WAIT_MS
 const MAKE_MS = 120_000
 let asked: { id: string; since: number } | undefined
 
@@ -450,8 +469,7 @@ function loop(): void {
   if (!asking) asked = undefined
   else if (t0 - asked!.since > (asking.deadline === Number.POSITIVE_INFINITY ? MAKE_MS : ASK_MS)) game.mods.fallback(asking.id)
   peopleOpened(eng)
-  // time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player)
-  const stopped = paused || !!eng.world.state.question || !!panel || !!game.mods.asking || !!talk || !!trade || !!pockets
+  const stopped = timeStopped(game)
   if (!stopped) {
     if (moveDir) eng.movePlayer(moveDir, walk)
     if (attacking) eng.controls.strike()
@@ -491,8 +509,8 @@ function loop(): void {
   if (talk && !frame.talk) talk = undefined
   if (trade && !frame.trade) trade = undefined
   if (pockets && !frame.pockets) pockets = undefined
-  // no labels while the player cannot act (working out an act, down, in a scene)
-  frame.keys = stopped || eng.busy(w.player) ? undefined : keyViews()
+  // nothing while the player cannot act (working out an act, down, in a scene)
+  frame.keys = keysNow(game)
   maybePrefetch()
   lastTickMs = performance.now() - t0
   // the codex: what the player carries and who and what is near (the reader's record, beside the state)
@@ -519,7 +537,8 @@ function loop(): void {
 
 async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Promise<void> {
   base = init.base
-  if (init.prefetch !== undefined) prefetchOn = init.prefetch
+  if (init.prefetch !== undefined) prefetchAsked = init.prefetch
+  if (init.quality) quality = qualityOf(init.quality)
   index = await fetchJson<WorldIndex>('index.json')
   const compatible = init.save?.world === index.version
   // the shared library, with what the save loaded keeps of its own though another game's sync forgot it
@@ -546,8 +565,12 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     // the traveller the player made (docs/looks.md): a look the world's table knows, else the world's own
     const looks = ontology().looks
     if (init.look && looks && !lookProblems(init.look, looks).length) game.engine.author(() => (w.player.look = structuredClone(init.look)))
+    // the editor's "play from this scene": the step begun before any other can take control
+    if (init.scene && !game.engine.story.start(init.scene)) post({ t: 'error', message: `the story has no step ${init.scene} to begin` })
   }
   game.worldVersion = index.version
+  // the player's AI setting: which tier each kind of event is asked at, and takes learned answers from
+  game.engine.quality = quality
   // what was learned past the checks of its time (an older client's copy) and nothing here needs is forgotten
   for (const id of forgetInvalid(game.engine, kept.types)) console.info(`[library] forgotten on loading (no longer valid): ${id}`)
   // a night's sleep (a long step) passes a game hour a tick: the screen keeps up, and one lies asleep all the while
@@ -605,8 +628,8 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'key': {
         if (!game || paused || panel || game.engine.world.state.question) break
         const c = game.engine.controls
-        // the target the key's label named (one who walked a step off since stays it)
-        const plan = c.planFor(m.key, m.tile, m.layer, m.layer ? undefined : shownTarget[m.key])
+        // the target the key's label named (one who walked a step off since stays it); a layer chosen is that layer
+        const plan = c.planFor(m.key, m.tile, m.layer, m.layer !== undefined ? undefined : shownTarget[m.key])
         // dragged over a cell, the left button only sets things down (never an experiment on what it passes)
         if (!plan || (m.drag && !plan.sets)) break
         const out = c.run(plan)
@@ -650,7 +673,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       }
       case 'choices': {
         if (!game) break
-        const list = game.engine.controls.choices(m.key, m.tile).map((ch) => ({ layer: ch.layer, name: ch.name, label: ch.plan?.label, unknown: ch.plan?.unknown }))
+        const list = game.engine.controls.choices(m.key, m.tile).map((ch) => ({ layer: ch.layer, name: ch.name, label: ch.plan?.label, unknown: (ch.plan?.unknown && !ch.plan.quiet) || undefined }))
         post({ t: 'choices', key: m.key, tile: m.tile, list })
         break
       }
@@ -659,6 +682,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'aim':
         aimTile = m.tile
+        // what the keys would do there, at once: the pointer's mark follows the hand, not the tick (always
+        // answered, with the aim's number: the page waits for it before it acts on what the keys would do)
+        post({ t: 'keys', keys: game ? keysNow(game) : undefined, n: m.n })
         break
       case 'answer':
         game?.engine.controls.answer(m.yes)
@@ -771,6 +797,11 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       }
       case 'pause':
         paused = m.on
+        break
+      case 'quality':
+        // a change of setting holds from the next event: its tier asks, and takes the answers it reaches
+        quality = qualityOf(m.quality)
+        if (game) game.engine.quality = quality
         break
       case 'patch': {
         if (!game) break
